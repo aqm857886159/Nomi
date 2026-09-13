@@ -25,6 +25,7 @@
 | **找参考：跨平台素材检索 connector（TikHub 抖音/小红书/TikTok 广告库）** | [`plan/2026-09-07-find-reference-connector.md`](plan/2026-09-07-find-reference-connector.md) → 四列表、每平台归一、媒体直链处理、402/429 错误分类修正、诚实边界；设计见 [`design/2026-09-07-find-reference-design.md`](design/2026-09-07-find-reference-design.md) |
 | **界面为什么越长越杂 · 减法设计（新面必出的三件产物 + 图标语义门岗）** | [`plan/2026-09-07-subtractive-design-process.md`](plan/2026-09-07-subtractive-design-process.md) → 诊断出的两个洞、四件落地、`check:icon-semantics` 判据与三条刻意排除 |
 | **按钮该说话还是该画图标（三档 + 文案硬约束 + 门岗）** | [`plan/2026-09-10-button-icon-rule-gate.md`](plan/2026-09-10-button-icon-rule-gate.md) → 规则落在设计系统 §1.8、动作规范词落在 [`GLOSSARY.md`](GLOSSARY.md)；一手规范摘录（Apple HIG / Material 3 / NN/g，含一处真实分歧）见 [`research/2026-09-10-button-icon-rule/prior-art.md`](research/2026-09-10-button-icon-rule/prior-art.md) |
+| **修之前先数门：一份状态到底有几个写/读入口** | [`plan/2026-09-11-door-map-rule.md`](plan/2026-09-11-door-map-rule.md) → 规则落在 R21.3（合同 `doors`/`door_reduction`）+ R27（派工两段式）；工具 `node scripts/door-map.mjs <符号或文件>`，门岗 `check:door-map`；全仓七个核心状态的门普查见 [`audit/2026-09-11-door-census.md`](audit/2026-09-11-door-census.md) |
 | **UI 样张（HTML mockup）** | [`mockups/`](mockups/) ｜ 旧版 [`ui-designs/`](ui-designs/) |
 | **代码健康 / 周期审计 / 问题分级** | [`audit/`](audit/) |
 | **某版本改了什么** | [`release-notes/`](release-notes/) |

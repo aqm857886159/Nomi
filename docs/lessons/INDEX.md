@@ -114,6 +114,7 @@
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障
+- [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
 - [Antigravity 图像验证两平台一起红：自己的 agent 定义关掉了自己的钩子](antigravity-hooks-need-inherit-customizations.md) — `inheritCustomizations:false` 在 agy ≥1.1.27 连 hooks 一起关；「加载了」≠「执行了」；同码双平台红先查共享层
 
 - [平台门控必须在 UI 上说人话](platform-gates-must-explain-user-action.md) — Windows 等平台被拒绝却显示未检测或部分受限时

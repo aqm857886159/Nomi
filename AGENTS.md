@@ -39,6 +39,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:vocabularies` | 单一语义 owner 门岗（AST 扫状态/阶段词表；新增、复制、成员/位置漂移、陈旧登记或 debt 增长都会红）|
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
 | `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
+| `node scripts/door-map.mjs <符号或文件>` | 数门（列出一份状态的全部写/读入口，输出直接粘进根因合同 `doors`）|
+| `pnpm run check:door-map` | 数门门岗（`recurring` 合同必须带门表，PR 正文必须引用它）|
 | `pnpm run check:framework-surface` | 框架接触面门岗（登记框架公开的**每个字段**都要有一条裁决：派生/常量/不用/上游默认/带到期日的债；上游升级加字段即红）|
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
@@ -53,7 +55,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P1 加新必删旧** — 引入新实现时同 commit 删旧实现，无并行版、无 fallback、无逃生口。CSS 同理：新样式只写组件 `className`，迁 Tailwind 即删旧 CSS；全局 CSS 只可减不可增。
 
-**P2 修根因不修症状** — 任何 bug、回归、CI/平台失败、性能/安全问题或审计发现，动生产代码前必须执行 `.agents/skills/root-cause-remediation/SKILL.md`。详细流程住在该 skill；L1 判断闸：分清症状/直接原因/类根因，判断 `one_off`/`recurring`，实扫同类入口，修在最早共享边界。自检：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出"不能" = 没解决。
+**P2 修根因不修症状** — 任何 bug、回归、CI/平台失败、性能/安全问题或审计发现，动生产代码前必须执行 `.agents/skills/root-cause-remediation/SKILL.md`。详细流程住在该 skill；L1 判断闸：分清症状/直接原因/类根因，判断 `one_off`/`recurring`，实扫同类入口，修在最早共享边界。**先数门**：动生产代码前跑 `node scripts/door-map.mjs <mutator 符号或文件>` 数清这份状态的全部写/读入口，门表进合同 `doors`（R21.3）——「实扫同类入口」不许再靠人临时 grep。自检：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出"不能" = 没解决。
 
 **P3 全绿 ≠ 完成** — CI 五门只证代码健康，证不了体验对不对。用户可见改动报完成前：① 和获批样张逐项并排对账；② 真体感走查（Playwright 截图人眼判断，不是 expect 断言）。缺一不算完成。**功能交付（尤其用户可见/体感）另过 R16：建几条「真实用户任务」端到端测试系统、带着真实任务跑通整个使用闭环、把过程中冒出的体验/设计/UI/UX/产品感/功能问题全修掉——才算真完成（2026-08-01 用户拍板：不留半成品）。**
 
@@ -95,12 +97,12 @@ Nomi：本地优先 AI 视频创作工作台。
 | R18 | 测试等待门岗 | 测试禁私有墙钟 waitFor / `Date.now()` 截止轮询（单跑绿、并行翻红一族）：`check:test-waits` 硬零；等编排链用 `waitForProduction` |
 | R19 | 解决状态必须可交付 | 侧分支只能称"已实现"；验证通过且提交已进入远端目标分支后才能称"已解决" |
 | R20 | 造轮子前先过 build-vs-buy 闸 | 写任何**通用能力**前三问：① 通用问题？② 同类产品怎么做（Context7+web 实查）？③ 在护城河上？不在护城河上又碰钱碰信任的 → 用标准实现；在护城河上的 → 自研到底 |
-| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验；**合同必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`），同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）** |
+| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验；**合同必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`）、必带机器生成的门表（`doors` + `door_reduction`，见 R21.3「数门」），同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）** |
 | R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
 | R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
 | R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；超时按 diff 与负载派生、全机串行一把锁；失败或缺少结果 fail-closed，runner 不可用时只许 `PONYTAIL_REVIEW_DEFER=1` 留痕延后 |
 | R26 | 分层边界不许反向/循环 | 渲染层禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（基线只减不增），加规则先验会红（R17）|
-| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）；**实施派工前先派反方出「先查别人」报告、任务书必须引用它（`check:prior-art`）**。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
+| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）；**实施派工前先派反方出「先查别人」报告、任务书必须引用它（`check:prior-art`）；`recurring` 类 bug 派工两段式——先派数门工人出门表，修复任务书与 PR 正文必须引用那份带 `doors` 的合同（`check:door-map`）**。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 | R28 | 防线建在最早能拦住的那层 | 能让编译器拦的别留给门岗，能让门岗拦的别留给人；安全关键依赖不许「optional + 欠账登记」——登记是备忘录不是防线 |
 | R29 | 接框架先出四列表 + 参考实现逐层对照 | 引入/接入任何框架、SDK、运行时**或其新层**前，先在 `docs/research`/`docs/plan` 出「它提供 / 我们用了 / 我们另写了 / 我们拆散了」四列表（每格 file:line 或文档 URL），派工 brief 附表当硬约束；**另出一张「参考实现逐层对照」**：把框架自带的 coding agent/官方 example 按九层拆开摆在我们旁边，逐层判 `一致`/`有意不同(理由须是领域约束)`/`没想到`，「没想到」清单是实施阶段的前置门。**再出第三份：framework-surface 逐字段裁决**——登记框架公开的每个字段判 `derived`/`constant`/`unused`/`upstream-default`/`debt`，机器从 `.d.ts` 抽字段（升级加字段即红）。三份结论都进 `docs/engineering/framework-boundaries.json` 才算研究完成。R20 管「通用能力该不该自研」，R29 管「已选框架的边界画在哪」|
 | R30 | Agent 行为验收靠真实模型数字 | 任何 Agent/工具/契约改动，验收门必须含**工具写对率 + 回合成功率**：零额度 loopback 夹具进 CI，小额真实模型定期跑、数字写进 PR；设计实验室基线只证外观、走查截图只证界面，两者都不得单独判「接好了」|

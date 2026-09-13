@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-door-map-rule",
+  "problem_type": "invariant_enforced_at_one_door_only",
+  "symptom": "同一天里三簇互不相关的 bug 收敛到同一句话：不变量只在一扇门上实现了，另一个入口绕过去。画布落地的校验加在事务门上而直发路径绕过（src/workbench/capability/capabilityApplyHandler.ts:625 等 6 个写入口）；付费收据的核验回调在两个生产装配点都没接（electron/capabilityCore/runOwnedGenerationGateAuthority.ts:74、electron/capabilityCore/productionTrustGrantChallenge.ts:46）；SkillRecord 的 8 个消费者各自决定投影，5 份合同就是 5 个消费者各被单独修了一次。",
+  "direct_cause": "每次修复都只改了症状那一个文件：修的人被任务书框在一处，看得见症状那扇门，看不见另外几扇。",
+  "class_root": "根因合同里问「同类入口还能不能回来」的两个字段（same_class_entry_points、recurrence.same_class_scan）都是自由文本叙述——作者声明他扫过了，门岗只能核对格式，核对不了他到底扫没扫、扫全没扫全。于是「数清这份状态有几个入口」这一步在高负载下必漏，而它恰恰是选择修复层的唯一依据。",
+  "affected_population": [
+    "所有判为 recurring 的纠正型改动：作者与评审都无法机器核对同类入口是否枚举完整",
+    "被派工修单个文件的执行体：任务书不含门表时，他没有依据也没有动力去找跨结构的根因",
+    "同一模块的后续维护者：第 N+1 个绕过入口在被用户撞到之前不可见"
+  ],
+  "scope_paths": [
+    "scripts/root-cause-contracts.mjs",
+    "scripts/check-root-cause-contracts.mjs",
+    "scripts/door-map.mjs",
+    "scripts/door-map-lib.mjs",
+    "scripts/check-door-map.mjs",
+    "scripts/new-root-cause-contract.mjs",
+    ".github/workflows/quality-gate.yml"
+  ],
+  "entry_points": [
+    "scripts/check-root-cause-contracts.mjs:137（validateRootCauseChange：合同校验的唯一写入口）",
+    "scripts/check-root-cause-contracts.mjs:109（validateRootCauseHistory：历史不可变性的读入口）",
+    "scripts/check-door-map.mjs（PR 侧：recurring 合同的门表必须被派工链引用）"
+  ],
+  "invariants": [
+    "日期 ≥ 2026-09-11 的纠正型合同必须带机器生成的 doors，且每条 {path, line} 处真的出现该 symbol",
+    "door_reduction.after 恒等于 doors.length——门表记的是修完之后还剩几扇",
+    "本次改动中落在合同 scope_paths 内的 src/ 与 electron/ 生产文件，必须 ⊆ 门表 path 集合",
+    "before ≥ 2 而一扇未减时，why_not 必须存在——允许不减，不允许无声地不减"
+  ],
+  "doors": [
+    { "kind": "read", "path": "scripts/check-root-cause-contracts.mjs", "line": 109, "symbol": "validateRootCauseHistory" },
+    { "kind": "write", "path": "scripts/check-root-cause-contracts.mjs", "line": 137, "symbol": "validateRootCauseChange" }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "这两扇是同一个执行体的读侧与写侧（同一个文件里对同一套判据的两次调用），合并它们没有意义。门表在这里证明的恰恰是正面结论：根因合同的校验只有一个入口，没有第二条能绕过它的路径——这正是新加的 doors 字段要让别人也能一眼确认的东西。"
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/root-cause-contracts.mjs",
+    "tests": ["scripts/check-root-cause-contracts.node-test.mjs"]
+  },
+  "regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/check-door-map.node-test.mjs"
+  ],
+  "generality_proof": "门表不是某一簇 bug 的补丁，而是把「枚举这份状态的全部入口」从自由文本升级成机器核对的结构。任何纠正型合同都要过同一段校验：doors 逐条解析 path:line、after 对齐 doors.length、改动的生产文件 ⊆ 门表。绕过它的唯一方式是不写合同，而写合同本身已由 check:root-cause-contracts 的高风险文件覆盖强制。派工侧由 check:door-map 补上第二半：recurring 合同的门表必须被 PR 正文引用，门表不会写完就沉进 docs/fixes。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateDoorMap",
+      "responsibility": "对日期 ≥ DOOR_MAP_SINCE 的纠正型合同，逐条核对门表能解析、door_reduction 自洽、改动的生产文件不越出门表。"
+    },
+    {
+      "path": "scripts/check-door-map.mjs",
+      "symbol": "evaluatePullRequest",
+      "responsibility": "在 PR 侧拦住「有门表但派工链看不见它」：recurring 合同的路径必须出现在 PR 正文里。"
+    },
+    {
+      "path": "scripts/door-map.mjs",
+      "symbol": "mapDoors",
+      "responsibility": "用 TS compiler API 数出一份状态的全部写/读入口，让门表由机器生成而不是由作者回忆。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "entry_point": "validateRootCauseChange（合同侧校验）",
+      "disposition": "enforced",
+      "evidence": "日期棘轮命中后调用 validateDoorMap；scripts/check-root-cause-contracts.node-test.mjs 用带日期的夹具钉死了缺门表、行号对不上、改了门表外文件、after 不等于 doors.length、≥2 扇不写 why_not 五种必红。"
+    },
+    {
+      "path": "scripts/check-door-map.mjs",
+      "entry_point": "PR 侧引用校验",
+      "disposition": "enforced",
+      "evidence": "GITHUB_EVENT_NAME=pull_request 时必查，正文经 DOOR_MAP_PR_BODY 注入（.github/workflows/quality-gate.yml）；scripts/check-door-map.node-test.mjs 钉死「recurring 无门表」与「正文未引用」两种必红。"
+    },
+    {
+      "path": "scripts/new-root-cause-contract.mjs",
+      "entry_point": "buildSkeleton（合同起草入口）",
+      "disposition": "enforced",
+      "evidence": "骨架加入 doors 与 door_reduction，枚举位仍是非法 TODO；scripts/new-root-cause-contract.node-test.mjs 的「未填必红 / 填完即绿」两条用例保证骨架与 validator 不会漂。"
+    },
+    {
+      "path": "scripts/check-symptom-cluster.mjs",
+      "entry_point": "同一模块 7 天 ≥3 份合同的聚类判据",
+      "disposition": "not-affected",
+      "evidence": "它管的是「这一层这周第三次了」这个计数信号，输入是合同的日期与模块键，不读 doors；两道门问的是不同问题，本次未改其判据。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "2026-09-11 一天之内三簇独立 bug 同形（画布写入 6 扇门、付费收据 2 个装配点、SkillRecord 8 个消费者），而合同里本该拦住它的两个字段都是不可核对的叙述。只要枚举入口这一步还靠人记得，它就会随上下文压力继续漏。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs applyCanvasToolCall → 6 个直接写入口，事务门 executeCanvasWriteTarget 隔一跳（canvasWriteTarget.ts:266/:448 经 applyProposalBatch）",
+      "node scripts/door-map.mjs electron/productionRun/productionRunApprovalReceipt.ts → 签发方 1 个（productionRunService.ts:120），核验方 2 个装配点（runOwnedGenerationGateAuthority.ts、productionTrustGrantChallenge.ts）",
+      "node scripts/door-map.mjs --read=readSkillRecords,discoverSkillRecordsFromRoots → store 之外 8 个消费者模块，与 docs/audit/2026-09-11-skill-fact-projections-structure.md 的人工清单一致",
+      "三条扫描已写成 scripts/check-door-map.node-test.mjs 的断言：脚本数不出这些已知的门就当场红"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/root-cause-contracts.mjs",
+    "invariant": "日期 ≥ 2026-09-11 的纠正型合同没有可解析的门表、或改动了门表之外的生产文件，就不能通过 contracts 门岗。",
+    "failure_mode": "check:root-cause-contracts 非零退出并逐条列出：doors is required / door does not resolve / changed production file is not in the door map / must equal doors.length / door_reduction.why_not is required。",
+    "exception_policy": "none",
+    "strategy": "把「枚举这份状态的全部入口」从自由文本叙述变成机器生成 + 机器核对的结构字段，并在 PR 侧要求派工链引用它。",
+    "artifacts": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.mjs",
+      "scripts/door-map.mjs",
+      "scripts/door-map-lib.mjs",
+      "scripts/check-door-map.mjs",
+      "scripts/new-root-cause-contract.mjs",
+      "scripts/check-root-cause-contracts.node-test.mjs",
+      "scripts/check-door-map.node-test.mjs",
+      "package.json",
+      ".github/workflows/quality-gate.yml"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/check-door-map.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "rationale": "本次是在既有 schema v3 校验链上补一条缺失的必填面，没有第二份实现可删；门表用日期棘轮（DOOR_MAP_SINCE）而不是并行 schema 版本，正是为了不产生「新旧两套合同格式」这种旧路径（P1）。",
+    "removed_paths": []
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "数门脚本用仓内既有的 typescript compiler API（check:vocabularies 同一用法），未引入任何新依赖；门岗判据全部是内部约定，不受第三方版本控制。",
+    "exit_criteria": []
+  },
+  "migration": "存量 400 份合同按文件名日期豁免，不追溯（追溯只会让门岗一上线就一片红然后被无视）。2026-09-11 之前的合同被再次编辑时才会要求补门表——与 invariant_owner_layer 的棘轮语义一致。合同起草骨架、skill 流程、规则条文与派工手册同步更新，不留只改了校验器而没人知道要填的半装状态。",
+  "residual_risks": [
+    "数门脚本只数直接调用点，隔一跳的门要再数一跳；限制写在 scripts/door-map.mjs 头部并由回归测试钉死，但仍依赖作者读到它",
+    "门岗只判门表填没填对，不判作者选的 mutator 符号对不对——选错了状态就会数出一张无关的门表；这一项是人的验收项（同 check:prior-art 的取向）",
+    "默认读/写分类是名字启发式，模糊时要用 --write= / --read= 显式钉死；分类错不会让门漏掉，只会让 kind 标错",
+    "PR 侧只管 recurring：one_off 合同的门表由合同侧校验，但不要求 PR 正文引用"
+  ],
+  "internal_only_reason": "本次改的是仓内的根因合同 schema 与门岗判据，没有第三方契约参与。概念层面的外部前例（Single Writer Principle、Rust 借用规则、narrow waist、Google LSC 的调用者枚举，以及 Claude Code / Codex 仓库都没有这条纪律的负面结论）已带 URL 落在 docs/plan/2026-09-11-door-map-rule.md 的「## 先查别人」一节。"
+}

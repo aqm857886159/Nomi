@@ -152,3 +152,16 @@ test('advisory 文档门的 warning 委派给 docs-autosync，而不是当成意
   assert.equal(result.unexpected.length, 1)
   assert.match(result.unexpected[0].message, /Node\.js 20/)
 })
+
+test('取消的 Mac Package 超时注解归 workflow 编排 owner', () => {
+  const result = evaluateAnnotations([
+    {
+      jobName: 'Mac Package', jobConclusion: 'cancelled', path: '.github',
+      level: 'failure', message: 'The operation was canceled.',
+    },
+  ], { schemaVersion: 1, entries: [] }, new Date('2026-09-05T00:00:00Z'))
+
+  assert.equal(result.delegated.length, 1)
+  assert.equal(result.delegated[0].owner, 'workflow orchestration cancellation')
+  assert.equal(result.unexpected.length, 0)
+})

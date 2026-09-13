@@ -19,6 +19,25 @@
   "invariants": [
     "Replace with a structural condition that must remain true"
   ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "Replace with a real file that writes the affected state (generate with scripts/door-map.mjs, never by hand)",
+      "line": 1,
+      "symbol": "Replace with the symbol that actually appears on that line"
+    },
+    {
+      "kind": "read",
+      "path": "Replace with a real file that reads the affected state",
+      "line": 1,
+      "symbol": "Replace with the symbol that actually appears on that line"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "Required only when two or more doors survive unchanged: say why each entry has to keep existing. Delete this key when the fix actually reduced the count."
+  },
   "generality_proof": "Explain why enforcing the declared shared boundaries prevents the same class across every checked entry point.",
   "shared_boundaries": [
     {
