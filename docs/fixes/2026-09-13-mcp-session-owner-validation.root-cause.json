@@ -83,7 +83,7 @@
     "Full macOS packaged smoke requires macOS runner; local Linux cannot execute the signed macOS bundle."
   ],
   "invariant_owner_layer": {
-    "layer": "persistence",
+    "layer": "electron/integrationCertification/integrationSessionRecord.ts",
     "tests": [
       "electron/integrationCertification/integrationSession.test.ts"
     ]
