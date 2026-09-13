@@ -65,7 +65,7 @@ import {
 import { useModelPageRequest, type ModelPageRequest } from './useModelPageRequest'
 import { CertificationIntentKey } from './certificationIntentKey'
 import { CertificationUiError, certificationFailureMessage } from './certificationFailureMessage'
-import { IntegrationConfirmationPanel, type IntegrationVerificationHandoff } from './IntegrationConfirmationPanel'
+import { IntegrationSelfCheckPanel, type IntegrationVerificationHandoff } from './IntegrationSelfCheckPanel'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPageRequest } = {}): JSX.Element {
@@ -577,7 +577,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   const verificationHandoff = integrationHandoffs.find((item) => item.target === 'verification')
   if (page.type === 'home' && verificationHandoff) {
     return (
-      <IntegrationConfirmationPanel
+      <IntegrationSelfCheckPanel
         handoff={verificationHandoff as IntegrationVerificationHandoff}
         onDone={() => {
           void reloadIntegrationHandoffs()
@@ -797,7 +797,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       dataSourceContent={<TikhubConnectorCard />}
       availableFooter={comfyuiConnected.length > 0 ? <AddComfyuiInstanceButton onAdded={refresh} /> : undefined}
       onReload={reloadFromError}
-      onCustomApi={() => openWizard('newapi')}
       onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
     />
   )

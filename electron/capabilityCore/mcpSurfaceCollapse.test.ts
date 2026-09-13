@@ -221,25 +221,22 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
       .toEqual({ method: 'production.storyboard.materialize', params: { projectId: P, runId: 'r-1', artifactId: 'a-1', expectedVersion: 3 } })
   })
 
-  it('T14 nomi_integration exposes only the 5 deterministic seams (get went to nomi_read)', () => {
+  it('T14 nomi_integration exposes only the 5 deterministic seams (get went to nomi_read, confirm retired)', () => {
     expect(route('nomi_integration', { action: 'begin', kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' }))
       .toEqual({ method: 'integration.begin', params: { kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' } })
     expect(route('nomi_integration', { action: 'open_credentials', sessionId: 's', expectedRevision: 1 }))
       .toEqual({ method: 'integration.open_credentials', params: { sessionId: 's', expectedRevision: 1 } })
     expect(route('nomi_integration', { action: 'propose', sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } }))
       .toEqual({ method: 'integration.propose', params: { sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } } })
-    // confirm → integration.request_confirmation ($ 付费两相之一)
-    expect(route('nomi_integration', { action: 'confirm', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' }))
-      .toEqual({ method: 'integration.request_confirmation', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' } })
-    // start → integration.start ($ 付费两相之二，前置 receipt)
-    expect(route('nomi_integration', { action: 'start', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' }))
-      .toEqual({ method: 'integration.start', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' } })
+    // start → integration.start。propose 之后就是它：接模型没有付费验证，所以中间没有 confirm。
+    expect(route('nomi_integration', { action: 'start', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' }))
+      .toEqual({ method: 'integration.start', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' } })
     expect(route('nomi_integration', { action: 'cancel', sessionId: 's', expectedRevision: 1 }))
       .toEqual({ method: 'integration.cancel', params: { sessionId: 's', expectedRevision: 1 } })
     expect(route('nomi_integration_manage', { action: 'set_proxy', vendorKey: 'relay', enabled: true }))
       .toEqual({ method: 'integration.manage.set_proxy', params: { action: 'set_proxy', vendorKey: 'relay', enabled: true } })
     expect((MCP_INTEGRATION_TOOL.inputSchema as unknown as { properties: { action: { enum: string[] } } }).properties.action.enum)
-      .toEqual(['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'])
+      .toEqual(['begin', 'open_credentials', 'propose', 'start', 'cancel'])
   })
 
   it('T15 nomi_project_create ≡ nomi_create_project', () => {

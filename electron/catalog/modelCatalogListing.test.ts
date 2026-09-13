@@ -126,7 +126,10 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
     expect(deriveModelListing(withDisabled).map((e) => e.modelKey)).toEqual(["on"]);
   });
 
-  it("hides staged or failed adapter models without an active revision even when raw mappings are enabled", () => {
+  // 2026-09-11 拍板「自检失败不下架」。旧行为：`meta.adapter` 一存在就只认 activeRevision，
+  // 而一次失败的自检恰好只写 state:"failed"、不写 activeRevision —— 按一次验证按钮就把一个
+  // 手动配好、本来能在模型框里选到的模型永久抹掉，且没有回头路。自检只增不减。
+  it("keeps staged or failed adapter models listed when their raw mappings are enabled", () => {
     const hidden = state({
       vendors: [vendor({ key: "relay", authType: "none" })],
       models: [
@@ -139,7 +142,7 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
       ],
     });
 
-    expect(deriveModelListing(hidden)).toEqual([]);
+    expect(deriveModelListing(hidden).map((entry) => entry.modelKey)).toEqual(["staged", "failed"]);
   });
 
   it("keeps only legacy text fallback plus a failed repair with a preserved active revision visible", () => {
@@ -162,7 +165,7 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
     expect(deriveModelListing(visible).map((entry) => entry.modelKey)).toEqual(["legacy-text", "active"]);
   });
 
-  it("does not let a raw custom-call script publish an adapter model without a certified active revision", () => {
+  it("lets a raw custom-call script keep an adapter model listed when its self-check has not certified a revision", () => {
     const customCall = state({
       vendors: [vendor({ key: "relay", authType: "none" })],
       models: [
@@ -181,7 +184,9 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
       ],
     });
 
-    expect(deriveModelListing(customCall).map((entry) => entry.modelKey)).toEqual([]);
+    // scripted 有可执行脚本 → 仍然可用；failed-without-execution 没有任何可执行证据 → 仍然不列。
+    // 判据回到「这一行到底有没有能跑的东西」，而不是「它进没进过认证域」。
+    expect(deriveModelListing(customCall).map((entry) => entry.modelKey)).toEqual(["scripted"]);
   });
 
   it("reports legacy plaintext credentials as needs_resave with a migration action", () => {

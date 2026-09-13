@@ -11,10 +11,8 @@ import type { IntegrationSession, PersistedIntegrationState } from "./integratio
 import {
   INTEGRATION_CREDENTIAL_STATUSES,
   INTEGRATION_STAGES,
-  INTEGRATION_START_RECEIPT_STATUSES,
   type IntegrationCredentialStatus,
   type IntegrationStage,
-  type IntegrationStartReceiptStatus,
 } from "../shared/integrationContract";
 import type { CapabilityOriginHost } from "../capabilityCore/security";
 
@@ -47,6 +45,32 @@ export function adapterTerminalReasonCode(stage: ProviderAdapterRun["stage"]): s
   return "provider_failed";
 }
 
+/**
+ * 2026-09-12 删掉花费确认那一关之后，**旧盘上**还躺着它的痕迹：三个已退役的 stage
+ * 和五个只为收据/挑战存在的字段。这不是并行代码路径，是一次性读旧数据——
+ * 就地改写成新词表，读完盘上就不再有它们。
+ *
+ * 为什么是改写不是丢弃：停在 `needs_spend_confirmation` 的会话恰恰是被那条死路卡住的那些
+ * （外部宿主永远走不出去，见 docs/research/2026-09-12-real-onboarding-acceptance §P0-1）。
+ * 丢掉等于让用户重来一遍；改写成 `ready_to_certify` 等于把他直接放出来。
+ */
+const RETIRED_SPEND_GATE_STAGES = new Set([
+  "needs_spend_confirmation",
+  "awaiting_human_confirmation",
+  "human_confirmed",
+]);
+const RETIRED_SPEND_GATE_FIELDS = [
+  "startReceiptDigest",
+  "pendingReceiptId",
+  "startReceiptStatus",
+  "pendingChallengeId",
+  "pendingConfirmationKey",
+] as const;
+function migrateRetiredSpendGate(item: Record<string, unknown>): void {
+  if (typeof item.stage === "string" && RETIRED_SPEND_GATE_STAGES.has(item.stage)) item.stage = "ready_to_certify";
+  for (const field of RETIRED_SPEND_GATE_FIELDS) delete item[field];
+}
+
 export function validateState(raw: unknown): PersistedIntegrationState {
   assertRecord(raw);
   if (
@@ -60,6 +84,7 @@ export function validateState(raw: unknown): PersistedIntegrationState {
   const owners = new Set<CapabilityOriginHost>(["external", "nomi", "claude", "codex", "cursor"]);
   for (const item of raw.sessions) {
     assertRecord(item);
+    migrateRetiredSpendGate(item);
     const allowedKeys = new Set([
       "schemaVersion",
       "id",
@@ -81,11 +106,6 @@ export function validateState(raw: unknown): PersistedIntegrationState {
       "selections",
       "credentialRef",
       "startIdempotencyKey",
-      "startReceiptDigest",
-      "pendingReceiptId",
-      "startReceiptStatus",
-      "pendingChallengeId",
-      "pendingConfirmationKey",
       "compileRequest",
       "adapterDraft",
     ]);
@@ -103,9 +123,7 @@ export function validateState(raw: unknown): PersistedIntegrationState {
       !Array.isArray(item.selections) ||
       !item.config ||
       typeof item.config !== "object" ||
-      !INTEGRATION_CREDENTIAL_STATUSES.includes(item.credentialStatus as IntegrationCredentialStatus) ||
-      (item.startReceiptStatus !== undefined &&
-        !INTEGRATION_START_RECEIPT_STATUSES.includes(item.startReceiptStatus as IntegrationStartReceiptStatus))
+      !INTEGRATION_CREDENTIAL_STATUSES.includes(item.credentialStatus as IntegrationCredentialStatus)
     )
       throw new Error("Invalid integration session record");
   }

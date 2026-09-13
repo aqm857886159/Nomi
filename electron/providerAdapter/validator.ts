@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { modeDeliveryDefect } from "../catalog/transportDelivery";
 import { z } from "zod";
 import { BILLING_MODEL_KINDS, PROFILE_KINDS, type BillingModelKind, type HttpOperation, type ProfileKind } from "../catalog/types";
 // 「哪些 taskKind 的参考媒体是**说明卡声明**进去的」由 PROFILE_KINDS 旁边那份完全划分拥有
@@ -102,6 +103,14 @@ const adapterModesSchema = z
       .object({
         taskKind: z.enum(PROFILE_KINDS),
         create: httpOperationSchema,
+        /**
+         * 这条 wire 是同步返回结果还是提交任务后轮询——**上游契约的事实，写清楚，别让我们猜**。
+         * 缺省按「有 query 即异步」向后兼容；声明 asynchronous 就必须同时给 query 与 statusMapping
+         * （下面 superRefine 强制），否则第一次真实生成一定会撞上「拿到任务却没有查询接口」。
+         * 这条要求同时出现在交给外部 Agent 的 JSON schema 里（adapterContractJsonSchema 由本 schema 派生）。
+         */
+        delivery: z.enum(["synchronous", "asynchronous"]).optional()
+          .describe("How this endpoint delivers results: 'synchronous' returns the artifact on the create call; 'asynchronous' returns a task that must be polled (then query and statusMapping are required)."),
         query: httpOperationSchema.optional(),
         result: httpOperationSchema.optional(),
         statusMapping: z.record(z.string(), z.array(z.string().max(128)).max(32)).optional(),
@@ -110,7 +119,11 @@ const adapterModesSchema = z
         testParams: z.record(z.string(), z.unknown()).optional(),
         sourceUrls: z.array(z.string().url()).min(1).max(16),
       })
-      .strict(),
+      .strict()
+      .superRefine((mode, context) => {
+        const defect = modeDeliveryDefect(mode);
+        if (defect) context.addIssue({ code: "custom", message: `Mode ${mode.taskKind} ${defect}` });
+      }),
   )
   .min(1)
   .max(16);
@@ -324,6 +337,10 @@ export function assertAdapterModeInvariants(
     }
     if (declaresReference && !mode.referenceShape) {
       throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceShape`);
+    }
+    const deliveryDefect = modeDeliveryDefect(mode);
+    if (deliveryDefect) {
+      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} ${deliveryDefect}`);
     }
     if (mode.result && !mode.query) {
       throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);

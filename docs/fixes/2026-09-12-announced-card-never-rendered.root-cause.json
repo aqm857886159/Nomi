@@ -1,0 +1,189 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-announced-card-never-rendered",
+  "change_kind": "corrective",
+  "problem_type": "宿主**声称**有一条在等用户确认，而介入槽什么都没画出来。announce 与 render 之间那几段链路把三件不同的事塌缩成同一个返回值（空），于是「我读不到」和「我画不出来」都伪装成了「本来就没有要确认的东西」",
+  "symptom": "2026-09-11 真实会话：用户让 Agent 把一段素材劈成两半。模型照做了，回了一句「已生成剪辑预览，请在确认卡中批准后写入时间线」，dock 上也写着「等你确认 1 条」——而 Agent 面板的介入槽里一张卡都没有。用户先以为在加载，再以为 Nomi 坏了，最后只能重开项目。没有任何报错、没有 toast、没有一行用户看得见的提示：他得到的唯一回答是沉默",
+  "direct_cause": "介入槽的投影函数 `interventionKindOf` 对「缺参数」这一族 `return undefined`，注释说它改走对话流的提问 + 建议 chip——但那条分支**从来没有接过线**（`missingParamSuggestion` 全仓零调用方）。于是宿主侧 `primaryPending` 有值（dock 因此显示「等你确认 1 条」），而 `projectV4Intervention` 回 `undefined`，槽里渲染的就是一片空白",
+  "class_root": "「没有要确认的东西」和「我没能把要确认的东西变成一张卡」共用同一个返回值（空数组 / undefined），而调用方无法区分。这个形状在 announce→render 链上重复出现了六处，各自独立写成：IPC 读通道的 `catch { return [] }`、门面读通道的 `actions?.list(id) ?? []`、能力核装配失败只落日志、渲染层 poll 的 catch 只 `setPending(undefined)`、投影函数对缺参数回 undefined、Run 投影对「在等却投影不出镜」回 undefined。每一处单看都像一个无害的防御性写法，合起来是同一条规则缺席：**announce 了就必须画出点什么，画不出来也要说出口**",
+  "affected_population": [
+    "任何在 Agent 面板里等一张确认卡的用户：付费报价卡、时间轴编辑确认、计划卡、缺参数反问——六条静默分支里任何一条触发，他看到的都是「模型说要我确认」+ 空白面板，且没有任何可行动的下一步",
+    "缺参数那一族是**必然**触发而不是偶发：那条分支没有接线，只要模型回一次 `missingParam`，槽里就一定是空白",
+    "能力核装配失败的那一条是**会话级**的：失败一次，此后整个会话里每一笔付费草稿都查无此卡，而模型还在一句句告诉用户「请在确认卡上点头」",
+    "驱动 Nomi 的外部 Agent（WorkBuddy / Claude Code / Codex）同样受影响：它读到的待确认列表也是那个被洗过的空，于是它会告诉用户「已经提交待确认」然后一直等一个永远不会被答的确认"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/v4/missingInterventionCard.ts",
+    "src/workbench/ai/v4/missingInterventionCard.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+    "src/workbench/ai/v4/agentPanelV4Intervention.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/i18n/locales/agentPanelV4.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts",
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirmInstall.test.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "scripts/check-announced-card-rendered.mjs",
+    "scripts/announced-card-rendered-baseline.json"
+  ],
+  "entry_points": [
+    "src/workbench/ai/v4/agentPanelV4Intervention.ts:108 interventionKindOf — lane 待决 → 卡的种类；原来对缺参数回 undefined，现在返回值不可空",
+    "src/workbench/ai/v4/agentPanelV4Intervention.ts:130 projectV4Intervention — lane 待决 → 一张卡；返回值同样收成不可空",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts:208 slot — lane 那一侧唯一的 announce→render 接点（`primaryPending ? project… : undefined`）",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:99 refresh — 付费卡那一侧的轮询读；catch 原来只 setPending(undefined)",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:204 slot — 付费卡那一侧的 announce→render 接点",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx:122 activeSlot — 三条 announce 面汇合进介入槽的那一处；开发/测试期断言挂在这里",
+    "electron/productionRun/productionActionIpc.ts:69 nomi:production-runs:pending-spend — 渲染层读待确认的唯一 IPC 入口",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts:119 listPendingSpendConfirmations — 能力核门面的读入口",
+    "electron/capabilityCore/appIntegration.ts:507 resident-generation-adapter 装配 — 失败会让上面那个门面整场会话恒为 null",
+    "electron/productionRun/productionPendingSpend.ts:66 projectPendingSpendConfirm — Run → 待确认卡的投影（「有没有一笔在等」的真相源）"
+  ],
+  "invariants": [
+    "**announce 了就必须画出点什么**：任何一面声称有一条待确认（dock 的「等你确认 N 条」、工具结果里那句「请在确认卡中批准」、宿主投影里的一行），介入槽必须渲出一张真卡，或渲出那张会说话的「本该有一张卡」错误卡。永远不许解析成「什么都没有」",
+    "「没有要确认的东西」与「读不到 / 画不出来」必须是**两种不同的返回值**：前者是空（数组为空 / undefined），后者是失败（抛 / 一个显式的失败状态），调用方据此分流",
+    "每渲一次那张错误卡，必须同时留下一行带 announcer + reason + detail 的排查痕迹——卡告诉用户「这里断了」，这一行告诉我们「断在哪、原话是什么」",
+    "用户看到的每一句都走 i18n，技术原文只进痕迹不进界面（R15）",
+    "那张错误卡**没有可点的动作**：它是一条报错，给它一个「确认」等于让用户去确认一件我们自己都没渲染出来的事",
+    "打包版不抛异常（抛 = 白屏，那时该出的正是这张卡）；开发机与 CI 上 announce 了却没画必须当场抛"
+  ],
+  "generality_proof": "这一族的出口只有一个模块：`src/workbench/ai/v4/missingInterventionCard.ts`——那张卡怎么长、断在哪一环怎么翻成一句人话（`missingCardReasonOfReadFailure`）、排查痕迹怎么写、开发期断言判据（`assertAnnouncedCardRendered`）全在里面，别处不许再写一遍「是不是该有卡」。三道防线按 R28 分层：① **类型**——`interventionKindOf` / `projectV4Intervention` 的返回值收成不可空，lane 那条链上「announce 了却什么都没画」在编译期就不可能；② **运行时断言**——介入槽汇合点一处调用 `assertAnnouncedCardRendered`，开发/测试抛、打包版出卡；③ **门岗**——`check:announced-card` 结构性地数 announce→render 链上「收成空且一声不吭」的分支，棘轮只减不增，补的是编译器与断言都看不见的那一半（有人在别处新长出一条）。主进程侧则把失败与空分开：读不到一律抛（带稳定 code），真的没有才回空数组",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/missingInterventionCard.ts",
+      "symbol": "missingInterventionCard / missingCardReasonOfReadFailure / assertAnnouncedCardRendered / traceMissingInterventionCard",
+      "responsibility": "「声称有卡 ⇒ 必须画出点什么」这条不变量的持有者：断链时用户看到什么、我们看到什么、什么时候当场炸，全在这一个模块"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "listPendingSpendConfirmations / PendingSpendSurfaceUnavailableError / recordPendingSpendInstallFailure",
+      "responsibility": "主进程侧「空 vs 失败」的分界点：没装起来是失败（带稳定 code 抛），真的没有待确认才是空数组"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+      "entry_point": "interventionKindOf / projectV4Intervention 对缺参数回 undefined（那条从未接线的对话流分支）",
+      "disposition": "enforced",
+      "evidence": "死分支连同空返回一起删；缺参数渲成反问卡（它本来就是一句问题 + 几个现成答案）。两个函数的返回值收成不可空，agentPanelV4Intervention.test.ts 新增一条遍历所有登记形状 × 所有 effectClass，断言没有任何一支解不出 kind"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "refresh 的 catch 只 setPending(undefined)（原注释：「这不是错误态，只是现在没有要确认的东西」）",
+      "disposition": "enforced",
+      "evidence": "改成把失败留成一种结果（readFailure），槽里优先渲那张会说话的卡。reason 的翻译由 `missingCardReasonOfReadFailure` 单一 owner 负责，missingInterventionCard.test.ts 覆盖四类输入（含认不出的错与非 Error），断言它永远落在登记在案的 reason 上、不回空"
+    },
+    {
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "entry_point": "pending-spend 读通道 `try { … } catch { return [] }`",
+      "disposition": "enforced",
+      "evidence": "catch 删掉，读不到就让这次调用拒绝；没打开项目仍回空数组（那是真的没有）。productionActionIpcPendingSpend.test.ts 四条钉住三种输入对三种输出，并断言跨项目的读不惊动能力核"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "`actions?.listPendingSpend(projectId) ?? []`（会话级静默开关）",
+      "disposition": "enforced",
+      "evidence": "没装起来就抛 PendingSpendSurfaceUnavailableError（code: spend_confirm_surface_unavailable）。appIntegrationSpendConfirmInstall.test.ts 五条：未装 / 装配失败带原话 / 非 Error 原因 / 装好后正常回空 / 显式撤下后回到抛"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "resident-generation-adapter 装配失败只 logError",
+      "disposition": "enforced",
+      "evidence": "失败原因交给读通道（recordPendingSpendInstallFailure），让它在第一次真要用的时候说得出断在哪；日志保留但不再是唯一出口。同上测试文件覆盖「装配失败带原话」那条"
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "entry_point": "`if (shots.length === 0) return undefined`——一笔明明在等人点头却一镜都投影不出来",
+      "disposition": "enforced",
+      "evidence": "改成抛（带 pending_spend_projection_empty）。`shotsOf` 有退回 plan.candidate 的那条路，所以理应不可达；productionPendingSpend.test.ts 用阳性对照证明正常空 shots 仍出卡，再证明退路也塌时结果是 Error 而不是 undefined"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "技能库读失败 catch 收成空列表",
+      "disposition": "not-affected",
+      "evidence": "它不在确认卡那条链上——没有任何一面 announce「有一张技能卡在等你确认」，所以这一族的不变量对它不适用（读不到技能库时用户看到的是一个空列表，不是一句「有一条在等你」）。仍然登记进 `announced-card-rendered-baseline.json` 的存量（1 条，棘轮只减不增）：这个文件上再长出一条同形状的分支时当场红，而那一条多半就是卡那条链的。「技能库读不到时用户该看到什么」是另一个面的产品问题，记在 residual_risks。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGateConfirmation.ts",
+      "entry_point": "外部 MCP 宿主那条确认面（elicitation / confirmGenerationInNomi）",
+      "disposition": "not-affected",
+      "evidence": "逐条读过：那条路的失败一律回结构化的 human_approval_required / 带 reasonCode 的结果，由 `check:spend-receipt` 门岗钉着「声称放行 ⇒ 必须带收据」。它从不把失败写成空——外部宿主拿到的是一个说得出话的拒绝，不是沉默"
+    },
+    {
+      "path": "src/ui/onboarding/IntegrationConfirmationPanel.tsx",
+      "entry_point": "接模型那张确认弹层（pendingChallengeId 的另一个 announce 面）",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：读会话失败 `setError(t('modelSetup.integrationUnavailable'))`，确认失败按 reasonCode 出具体文案。它已经是「失败说出口」的形状，本轮不动"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个形状在 announce→render 这一条链上被六个不同的人在六个不同的位置各写了一遍，每一处的注释都言之成理（「通道还没起来」「项目正在切」「这不是错误态」）。它必然复发：只要「没有」和「读不到」还共用一个返回值，下一个接新 announce 面的人就会再写一次同样的防御性空值——而这一族的代价是用户对着空面板猜 Nomi 坏没坏",
+    "same_class_scan": [
+      "`grep -rn \"pendingChallengeId\" electron src`（排除测试）——所有声称「有一条挑战在等」的面：integrationSession.ts 那条已是「失败说出口」的形状（IntegrationConfirmationPanel 逐行核过），付费那条本轮修完",
+      "`grep -rnE \"\\\\?\\\\.[A-Za-z_$][\\\\w$]*\\\\([^()]*\\\\)\\\\s*\\\\?\\\\?\\\\s*\\\\[\\\\]\" electron src`——所有「通道不在就回空」的写法。命中 9 处，逐条判定：8 处是注册表/窗口列表/转录笔记（registry.snapshot、getAllWindows、drainNotes 等），没有任何一面 announce「有一张卡在等你」；唯一在确认卡链上的 appIntegrationSpendConfirm.ts 本轮改成抛",
+      "`grep -rn \"catch\" src/workbench/ai electron/productionRun --include=*.ts --include=*.tsx -A2 | grep -B1 \"return \\\\[\\\\]|return undefined|set[A-Z]\\\\w*(undefined)\"`——announce→render 链上所有「catch 完收成空」的分支。本轮之后只剩 useAgentPanelV4Data.ts 技能库那一条，已登记进门岗基线",
+      "`node scripts/check-announced-card-rendered.mjs`——把上面三条人工扫描固化成棘轮门岗，每次 contracts 跑；`--selftest` 先验它抓得到自己的病"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/missingInterventionCard.ts",
+    "invariant": "announce 说有一条在等用户，render 就必须画出一张真卡或一张会说话的错误卡；「读不到 / 画不出来」永远不许解析成「没有要确认的东西」",
+    "failure_mode": "① 新接一个 announce 面而忘了接渲染 —— 汇合点的 `assertAnnouncedCardRendered` 在开发机与 CI 上当场抛；② 在 lane 那条链上让投影再回一次空 —— 返回值不可空，编译期就红；③ 在别处新长一条「catch 完收成空」或「?.call() ?? []」 —— `check:announced-card` 棘轮当场红并打印是哪一行、为什么它属于这一族；④ 想靠加豁免清账 —— 这条不变量本身没有例外（exception_policy: none）；基线只记录**不属于**这条链的存量，且 --update-baseline 会同时收紧已修好的条目（存量减少也报红）",
+    "exception_policy": "none",
+    "strategy": "把「失败」从「空」里分出来：主进程读不到就抛（带稳定 code），渲染层把失败留成一种结果并渲成一张会说话的卡；再用类型（返回值不可空）+ 运行时断言 + 棘轮门岗三层，分别拦住「这条链」「新接的面」「别处新长的分支」。门岗基线里登记的那 1 条存量不在这条不变量的适用范围内（技能库读，不是确认卡链），它留在基线里是为了让同一个文件上的下一条同形状分支当场红",
+    "artifacts": [
+      "src/workbench/ai/v4/missingInterventionCard.ts",
+      "src/workbench/ai/v4/missingInterventionCard.test.ts",
+      "scripts/check-announced-card-rendered.mjs",
+      "scripts/announced-card-rendered-baseline.json"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/ai/v4/missingInterventionCard.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Intervention.test.ts"
+  ],
+  "regression_tests": [
+    "src/workbench/ai/v4/missingInterventionCard.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Intervention.test.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts",
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirmInstall.test.ts",
+    "tests/ux/agent-panel-missing-card.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts"
+    ],
+    "rationale": "六条静默分支在同一批 commit 里逐条删除（P1 加新必删旧），没有留任何一条「先跑起来再说」的旧路：缺参数那条从未接线的对话流分支连同它的空返回一起删、IPC 的 catch 删、门面的 `?? []` 删。留任何一条都等于留一个用户看不见的开关"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部改动，没有引入、升级或降级任何依赖",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化。用户侧唯一可见的新东西是那张「这里本该有一张确认卡」的错误卡（中英各一份文案）；在一切正常时它永远不出现。IPC 的读通道从「永不抛」变成「读不到就抛」，渲染层是唯一调用方且已同步改好，不存在需要迁移的外部调用者",
+  "residual_risks": [
+    "`assertAnnouncedCardRendered` 判定的是「槽里有没有东西」，而不是「槽里那张卡就是被 announce 的那一条」。三条 announce 面同时有待决时（付费卡 + lane 待决 + 切档确认），槽按既有产品裁决只显示一张、其余算「还有 N 条」——所以断言在那种时序下不会红。真正的一对一核对需要给每条待决一个身份，属于下一轮",
+    "门岗只看 8 个受检文件里的形状。第九个文件上新长出来的静默分支，要靠 WATCHED 列表被同步更新才拦得住（路径变了会报红，但新增文件不会自动进列表）",
+    "「技能库读不到时用户该看到什么」本轮没决定，那条存量留在基线里。它不是确认卡链，但形状同族",
+    "错误卡的文案里带的是断在哪一环，不是原始错误原文（R15 要求可见文字走 i18n）。排查仍需看 console 的那一行痕迹——桌面用户自己看不到它"
+  ],
+  "internal_only_reason": "「介入槽里该出什么卡」是本仓自己的产品语义与渲染契约，不对齐任何外部规范：announce 面（dock 计数、工具结果文案、宿主投影）和 render 面（V4Intervention）都是 Nomi 自有的界面约定，没有可查的官方标准能对「声称有卡却没渲染出来时该怎么办」给出判据",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/missingInterventionCard.ts",
+    "tests": [
+      "src/workbench/ai/v4/missingInterventionCard.test.ts",
+      "src/workbench/ai/v4/agentPanelV4Intervention.test.ts"
+    ]
+  }
+}

@@ -11,6 +11,8 @@ import { createGenerationPlanningHandler, type GenerationOperation, type Generat
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { createRunOwnedGenerationGateAuthority } from "./runOwnedGenerationGateAuthority";
 import { createPendingSpendActions } from "./appIntegrationSpendConfirm";
+import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { createCanvasLandingHost } from "../productionRun/canvasLandingHost";
 import { canvasLandingOperationId, type MaterializeShotsWirePayload } from "../productionRun/multiShotCanvasLanding";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
@@ -261,7 +263,31 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     now,
   });
   const window = () => ({ webContentsId: 1, frameId: 0, origin: "app://nomi" });
-  return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts };
+  /**
+   * 模型那一侧真正用的传输适配器。「全自动」那条免卡放行就长在它里面（`preview` 之后），
+   * 所以这条链必须由**同一个夹具**驱动——另起一份夹具就等于在测一个我们自己编的世界。
+   */
+  const transport = (mode: ProjectAgentApprovalPolicy["mode"]) => createPiGenerationTransportAdapter(
+    { projectId: PROJECT_ID, immutableProjectUuid: "project-uuid-1", projectGeneration: 1 },
+    {
+      planning: handler,
+      requestGenerationGate: authority.requestGenerationGate,
+      authorizeGeneration: authority.authorizeGeneration,
+      approvalReceiptAuthority: receipts,
+      leaseFor: () => lease,
+      approvalPolicy: () => ({ mode, spend: "confirm" }),
+    },
+  );
+  return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts, authority, transport };
+}
+
+/** 模型那一侧的一次调用（`tryExecute` 的入参形状）。 */
+async function callTool(
+  transport: ReturnType<ReturnType<typeof buildActions>["transport"]>,
+  toolName: string,
+  args: Record<string, unknown>,
+) {
+  return transport.tryExecute({ toolCallId: `call-${toolName}`, toolName, args }, new AbortController().signal);
 }
 
 /** Agent 在面板里建的那份草稿（origin.host='nomi' 才会投影成面板上的付费卡）。 */
@@ -469,6 +495,121 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
       expect(submits).toHaveLength(0);
       expect(vendor.bodies).toHaveLength(0);
       expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(1);
+    } finally {
+      await vendor.close();
+    }
+  });
+});
+
+/**
+ * 「全自动」档：付费生成不再出报价卡（2026-09-12 用户拍板）。
+ *
+ * 三条断言构成这一档的全部含义，缺一条它就变味：
+ *   ① **没有卡**——面板上一张待确认都不该有（否则「全自动」只是换了个说法的「自动改」）；
+ *   ② **真的跑了**——供应商收到了那一次请求（否则它是「全自动地什么都不做」）；
+ *   ③ **闸一步没少**——门被批准、收据存在，而且收据上写着是**策略**批的，不是编了一个人出来。
+ *
+ * 另外两档拿同一个夹具跑一遍：它们必须**一个字都没变**——卡在、供应商没被碰。
+ * 只测「全自动能跑」不够：这一改真正的风险是它顺手把另外两档也放行了。
+ */
+describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
+  /**
+   * 模型那一侧真正走得到的一轮：**建草稿**。
+   *
+   * 桌面 lane 上这就是模型的最后一步——付费门不在它的工具表里，连 preview 都不在这个宿主的
+   * schema 里。草稿一建好，报价卡就该出现；「全自动」档的免卡放行正发生在同一刻。
+   */
+  async function modelTurn(base: ReturnType<typeof harness>, vendorOrigin: string, submits: string[], mode: ProjectAgentApprovalPolicy["mode"]) {
+    const built = buildActions(base, vendorOrigin, submits);
+    const transport = built.transport(mode);
+    const created = await callTool(transport, "nomi_generation_plan", {
+      operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
+    });
+    await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+    const operationId = ((created as { result?: { drafted?: { operation?: { operationId?: string } }; operation?: { operationId?: string } } }).result);
+    const resolved = operationId?.drafted?.operation?.operationId ?? operationId?.operation?.operationId ?? "";
+    return { ...built, created, operationId: resolved };
+  }
+
+  it("全自动：草稿一建好宿主就自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    try {
+      const { withWindow, operationId, created, receipts } = await modelTurn(base, vendor.origin, submits, "project");
+      expect(operationId, "建草稿必须成功——后面每一条断言都以它为前提").toBeTruthy();
+
+      // ① 没有卡：等用户点头的那一笔不存在了，因为已经决过了。
+      expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(0);
+
+      // ② 真的跑了：供应商收到一次，且只有一次。
+      expect(submits).toHaveLength(1);
+      expect(vendor.bodies).toHaveLength(1);
+
+      // ③ 闸一步没少，而且账本上说得出是谁批的。
+      const run = base.repository.read(PROJECT_ID, operationId)!;
+      const plan = run.generationPlan!;
+      expect(plan.state).toBe("submitted");
+      const gate = run.gates.find((entry) => entry.gateId === plan.authorizationGateId)!;
+      expect(gate.status).toBe("approved");
+      expect(gate.receiptId).toBeTruthy();
+      const receipt = receipts.verifyReceipt(receipts.resolveReceiptToken(gate.receiptId!));
+      expect(receipt.decidedBy).toBe("policy:full_auto");
+      expect(receipt.gestureAttestation.kind).toBe("policy_decision");
+      // 没有人点，所以 humanActor 记的是那条策略——不是编一个 web_contents 出来。
+      expect(receipt.humanActor).toBe("policy:project:agent-lane");
+
+      // 工具结果里也说得出这一笔是策略批的（模型据此知道「已经开跑」，不会再去催用户点卡）。
+      expect(created).toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
+    } finally {
+      await vendor.close();
+    }
+  });
+
+  for (const mode of ["step", "safe-auto"] as const) {
+    it(`${mode}：一个字都没变——报价卡照常出现，供应商一次都没被碰`, async () => {
+      const vendor = await startLoopbackVendor();
+      const base = harness();
+      const submits: string[] = [];
+      try {
+        const { withWindow, operationId } = await modelTurn(base, vendor.origin, submits, mode);
+
+        const pending = withWindow.listPendingSpend(PROJECT_ID);
+        expect(pending).toHaveLength(1);
+        expect(pending[0].operationId).toBe(operationId);
+        expect(submits).toHaveLength(0);
+        expect(vendor.bodies).toHaveLength(0);
+        expect(base.repository.read(PROJECT_ID, operationId)!.generationPlan!.state).not.toBe("submitted");
+      } finally {
+        await vendor.close();
+      }
+    });
+  }
+
+  it("档位读不到时按默认档走：不许替用户花钱", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    try {
+      const built = buildActions(base, vendor.origin, submits);
+      // 没有 `approvalPolicy` 这一项的适配器 = 这条路没有档位可读（MCP 那一侧就是这样）。
+      const transport = createPiGenerationTransportAdapter(
+        { projectId: PROJECT_ID, immutableProjectUuid: "project-uuid-1", projectGeneration: 1 },
+        {
+          planning: built.handler,
+          requestGenerationGate: built.authority.requestGenerationGate,
+          authorizeGeneration: built.authority.authorizeGeneration,
+          approvalReceiptAuthority: built.receipts,
+          leaseFor: () => lease,
+        },
+      );
+      await callTool(transport, "nomi_generation_plan", {
+        operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
+      });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+      // 不知道档位时**不许**替用户花钱：供应商一次都没被碰，卡还在原处等人。
+      expect(submits).toHaveLength(0);
+      expect(built.withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(1);
     } finally {
       await vendor.close();
     }

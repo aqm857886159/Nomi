@@ -29,7 +29,7 @@ import {
   effectiveShotAspect,
   isAspectOverridden,
   setShotAspectOverride,
-} from '../../generationCanvas/agent/storyboardAspectScope'
+} from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
 import type { ShotVariant } from './shotRow/shotVariants'
 import { positionsForAnchorFilter } from './storyboardDInteractions'
@@ -331,7 +331,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onRegenerate: runtime ? () => onRegenerateRow(runtime) : undefined,
                     onRecover: runtime && onRecoverRow ? () => onRecoverRow(runtime) : undefined,
                     onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
-                    // 画幅（v6 §2.4.1）：生效值与"是不是覆盖"都从 storyboardAspectScope 单源读，
+                    // 画幅（v6 §2.4.1）：生效值与"是不是覆盖"都从 storyboardShotScope 单源读，
                     // 行自己不判"读哪一个"。
                     aspect: effectiveShotAspect(plan, shot),
                     // 媒体盒是**表级**的（§2.4 修订 · 2026-09-06 用户反馈四）：全表同画幅时盒=该画幅，

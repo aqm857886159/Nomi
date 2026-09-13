@@ -44,7 +44,7 @@ test('production native resources read installed Skill metadata without widening
   await assert.rejects(write.execute('authorized-skill-write', { path: filePath, content: 'replace' } as never,
     (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT));
   if (process.platform === 'darwin') {
-    assert.equal(desktop.sandboxActive, true, desktop.sandboxInactiveReason);
+    assert.equal(desktop.sandboxActive, true, desktop.sandboxInactive?.detail);
     const bash = desktop.tools.find((tool) => tool.name === 'bash')!;
     const allowed = await bash.execute('bash-project', { command: 'echo native-sandbox-ok', timeout: 3 } as never,
       (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);

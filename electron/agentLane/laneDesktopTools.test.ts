@@ -111,6 +111,8 @@ async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'com
   const assembly = createDesktopLaneTools({ event: {} as IpcMainInvokeEvent, binding, surface, receipts,
     context: () => ({ approvalPolicy: policy, documentId: 'document-fixture',
       target: documentTarget, preconditions: documentPreconditions }),
+    // 同一份快照的另一半：付费那一侧问的是「这笔钱要不要停下来问」。
+    approvalPolicy: () => policy,
     generationFactory: () => undefined, onTaskCreated: async () => undefined })
   cleanups.push(async () => assembly.dispose())
   const toolName = kind === 'document' ? 'append_to_end' : kind === 'delete' ? 'delete_canvas_nodes' : 'nomi_canvas_write'

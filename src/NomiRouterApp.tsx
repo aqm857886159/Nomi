@@ -7,7 +7,7 @@ import { buildStudioUrl } from './utils/appRoutes'
 import { getAppRoutePath } from './utils/routes'
 import { lazyWithChunkBoundary } from './ui/chunkBoundary'
 import { useTranslation } from 'react-i18next'
-import { useIntegrationConfirmationNotice } from './workbench/capability/useIntegrationConfirmationNotice'
+import { useIntegrationSelfCheckNotice } from './workbench/capability/useIntegrationSelfCheckNotice'
 import { notifySkillLibraryChanged } from './workbench/skillLibrary/skillLibraryChanged'
 
 const NomiStudioApp = lazyWithChunkBoundary('i18n:router.mainInterface', () => import('./workbench/NomiStudioApp'))
@@ -33,7 +33,7 @@ function RouteLoading(): JSX.Element {
 export default function NomiRouterApp(): JSX.Element {
   // 接入等人确认时给一条看得见的提示。挂在路由根上而不是设置对话框里，是因为它要解决的
   // 恰恰是「用户没打开设置页就看不见」这件事。
-  useIntegrationConfirmationNotice()
+  useIntegrationSelfCheckNotice()
   React.useEffect(() => {
     const refresh = (): void => notifyModelOptionsRefresh('all')
     window.addEventListener('nomi-model-catalog-changed', refresh)

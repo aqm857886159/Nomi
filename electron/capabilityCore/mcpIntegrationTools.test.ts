@@ -21,14 +21,6 @@ function service(overrides: ConstructorParameters<typeof IntegrationSessionServi
     filePath: path.join(dir, "sessions.json"),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     credentialResolver: () => "relay-test-key",
-    approvalReceiptAuthority: {
-      requestChallenge: () => ({ challenge: {
-        challengeId: "challenge-test",
-        expiresAt: "2099-01-01T00:00:00.000Z",
-        contractHash: "contract",
-        reservationPreview: { maximum: 1, currency: "USD" },
-      } }),
-    } as never,
     ...overrides,
   });
 }
@@ -159,7 +151,7 @@ describe("MCP integration tool contract", () => {
       sessionId: created.id, expectedRevision: ready.revision,
       proposal: { candidates: [{ modelKey: "relay-text", kind: "text" }], selections: [{ modelKey: "relay-text" }] },
     }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { stage: string; revision: number; selections: unknown[] };
-    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.stage).toBe("ready_to_certify");
     expect(accepted.selections).toHaveLength(1);
     await expect(dispatch("integration.propose", {
       sessionId: created.id, expectedRevision: ready.revision,
@@ -206,11 +198,8 @@ describe("MCP integration tool contract", () => {
         selections: [{ modelKey: "relay-chat" }],
       },
     }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { revision: number; stage: string };
-    expect(selected.stage).toBe("needs_spend_confirmation");
-    const confirmation = await dispatch("integration.request_confirmation", {
-      sessionId: created.id, expectedRevision: selected.revision, idempotencyKey: "relay-discovery-confirm",
-    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { challengeId: string };
-    expect(confirmation.challengeId).toMatch(/^challenge-/);
+    // 选完就能自己开跑：接模型没有付费验证，所以 propose 与 start 之间没有第三方要点头的一跳。
+    expect(selected.stage).toBe("ready_to_certify");
   });
 
   it("returns a readable manual model-id fallback when the relay has no models route", async () => {
@@ -301,7 +290,7 @@ describe("MCP integration tool contract", () => {
     }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as {
       stage: string; adapterDraft?: { present: boolean; modelKeys: string[] };
     };
-    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.stage).toBe("ready_to_certify");
     expect(accepted.adapterDraft).toEqual({ present: true, modelKeys: ["relay-paint"] });
   });
 });

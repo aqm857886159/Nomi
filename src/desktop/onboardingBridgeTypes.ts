@@ -12,7 +12,7 @@ export type IntegrationHandoff = {
   sessionId: string
   revision: number
   ownerClientId: string
-  display?: { name?: string; origin?: string; authType?: string; runId?: string; challengeId?: string }
+  display?: { name?: string; origin?: string; authType?: string; runId?: string }
 }
 
 export type DesktopAdapterModeResult = {
@@ -32,6 +32,12 @@ export type DesktopAdapterModeResult = {
    * **别在 UI 里从 error 文案猜**。
    */
   compileFailureReason?: string
+  /**
+   * 「**我们这边**缺什么」这一维（electron/providerAdapter/selfCheck.ts 的 AdapterSelfCheckReason）。
+   * 与 errorCategory（上游怎么拒绝我们）正交：缺一条查询接口、改图模式没声明参考图槽，
+   * 都不是用户填错了，界面据此给真正走得通的下一步，而不是甩英文原文 + 「你自己接」。
+   */
+  selfCheckReason?: string
   httpStatus?: number
   verifiedAt?: string
 }
@@ -137,7 +143,7 @@ export type DesktopOnboardingBridge = {
     revision: number
     ownerClientId: string
     createdAt: string
-    display?: { name?: string; origin?: string; authType?: string; runId?: string; challengeId?: string }
+    display?: { name?: string; origin?: string; authType?: string; runId?: string }
   }>>
   integrationHandoffSubscribe?: (callback: (entry: unknown) => void) => () => void
   integrationHandoffAck?: (requestId: string) => Promise<{ ok: boolean }>
@@ -151,7 +157,7 @@ export type DesktopOnboardingBridge = {
     enumOptions?: unknown
     uiWorkflow?: string
   }) => Promise<unknown>
-  integrationSessionConfirm?: (payload: { sessionId: string; expectedRevision: number; challengeId: string }) => Promise<unknown>
+  integrationSessionStartSelfCheck?: (payload: { sessionId: string; expectedRevision: number }) => Promise<unknown>
   integrationSessionGet?: (sessionId: string) => Promise<unknown>
   antigravityStatus: () => Promise<AntigravityConnectionStatus>
   antigravityTest: (request?: AntigravityTestRequest) => Promise<AntigravityConnectionStatus>
