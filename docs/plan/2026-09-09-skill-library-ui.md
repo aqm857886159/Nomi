@@ -1,5 +1,7 @@
 # 技能库改版落地
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实施中。用户已批准 2026-09-08 样张；以 library-cards.html、style.css、node-effects.html 为结构与间距依据，PNG 用于验收。
 
 ## 范围与既有实现

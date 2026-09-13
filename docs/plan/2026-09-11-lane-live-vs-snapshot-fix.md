@@ -1,5 +1,7 @@
 # 一条 lane 的「现在」：把装配期快照换成每回合求值
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 日期：2026-09-11 ｜ 分支：`fix/lane-live-skills-snapshot-20260911` ｜ 承接评审：[docs/audit/2026-09-11-agent-lane-live-vs-snapshot.md](../audit/2026-09-11-agent-lane-live-vs-snapshot.md)
 
 ## 用户那一刻卡在哪（D1）

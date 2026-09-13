@@ -1,5 +1,7 @@
 # 时间轴：工具条改独立头部行 + 面板内恢复折叠钮（2026-09-10）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实施（分支 `fix/timeline-toolbar-row-collapse-20260910`）
 > 根因合同：`docs/fixes/2026-09-10-timeline-toolbar-overlay.root-cause.json`
 > 先查别人报告：`docs/research/2026-09-10-timeline-toolbar/prior-art.md`

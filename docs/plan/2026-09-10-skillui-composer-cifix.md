@@ -1,5 +1,7 @@
 # #685 composer 输入区被效果行挤没
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已被第二轮纠正。整卡滚动违反既有 Electron smoke 契约，现由 [固定底栏方案](2026-09-10-skillui-fixed-footer.md) 取代；以下保留上一轮决策记录。
 
 范围：NodeGenerationComposer 的 flex/overflow 边界，以及 canvas-batch-production、group-baseline 两条验收。保留四 chip、更多、模型参数与断言语义；不改等待预算、不改其他技能功能。

@@ -1,5 +1,7 @@
 # Ponytail 评审闸：自适应超时 + 全机串行锁 + 提交阶段留痕延后
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 日期：2026-09-11
 - 规则：R25（提交/推送前 Ponytail 评审）、R17（门岗棘轮：加规则先验它会红）、R21（根因合同）、R28（防线建在最早能拦住的那层）
 - 根因合同：`docs/fixes/2026-09-11-ponytail-timeout-starvation.root-cause.json`

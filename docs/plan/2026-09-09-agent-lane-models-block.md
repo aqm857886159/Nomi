@@ -1,5 +1,7 @@
 # pi lane 每回合可用模型清单恢复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实现并通过完整 gates；#646 当前任务分支，等待主会话 packaged C0 晋级。
 
 C0 八镜 modelKey 全空且无 resolution：旧客户端删除时，用户消息里的动态模型清单未迁入 lane。归类 recurring；所有面板宿主、供应商与后续接入均受影响。

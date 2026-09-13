@@ -172,3 +172,10 @@
 - [样张两条硬纪律：真字形、真比例](mockups-need-real-glyphs-and-true-proportions.md) — 图标从 @tabler 包抽真实路径；布局线框按 1680×842 真比例并自己看过
 
 - [实验夹具必须经过真实调用点的投影](lab-fixtures-must-mirror-real-callsites.md) — 模型目录、档位与 canonical 参数不可手写平行真相。
+
+## 🤖 自动收录（待人工归位）
+
+> 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
+> 不代表已归好类。顺手把某一行挪进上面对应主题的表里即可——挪走后本区自然变短。
+
+- [2026-09-09-feel-regression](2026-09-09-feel-regression.md)

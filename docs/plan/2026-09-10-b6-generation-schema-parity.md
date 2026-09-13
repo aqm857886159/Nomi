@@ -1,4 +1,7 @@
 # B6 generation draft schema parity addendum
+
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实现，构建 / MCP schema / 打包验证已通过，gates 执行中 · 2026-09-10
 
 ## 先查别人

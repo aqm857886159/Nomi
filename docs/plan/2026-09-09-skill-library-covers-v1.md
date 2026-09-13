@@ -1,5 +1,7 @@
 # 第三轮执行裁决（2026-09-09 02:15）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 用户授权 GPT Image 2 / APIMart，累计预算 ¥60；保留原隐喻，逐张风格验收。每条 GPT 最多两次，均失败才简化该条再试一次；最终不合格保持灰格。沿用现有脚本与依赖，不改 src/UI、不装包，单笔提交更新 #655。
 
 官方规范：https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation.md （2026-09-09 实抓）。POST /v1/images/generations，model=gpt-image-2、size=16:9、resolution=1k、n=1、image_urls=[锚图 base64 URI]；有 image_urls 即图生图。档案 input_urls 在 electron/catalog/apimartImages.ts:132 映射到 image_urls；#650 修的是 fal 的同类 join。
