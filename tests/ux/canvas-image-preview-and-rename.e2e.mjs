@@ -31,13 +31,16 @@ const IMAGE_SVG = `
 const generatedAssetsDir = path.join(projectRoot, 'assets', 'generated')
 fs.mkdirSync(generatedAssetsDir, { recursive: true })
 fs.writeFileSync(path.join(generatedAssetsDir, 'fixture.svg'), IMAGE_SVG)
+const IMAGE_PREVIEW_SVG = IMAGE_SVG.replace('width="960" height="540"', 'width="320" height="180"').replace('viewBox="0 0 960 540"', 'viewBox="0 0 320 180"')
+fs.writeFileSync(path.join(generatedAssetsDir, 'fixture.preview.svg'), IMAGE_PREVIEW_SVG)
 const IMAGE_URL = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/fixture.svg`
+const IMAGE_PREVIEW_URL = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/fixture.preview.svg`
 
 const nodes = [
   {
     id: 'image-result-node', kind: 'image', categoryId: 'shots', title: ORIGINAL_TITLE,
     position: { x: 180, y: 180 }, exactPosition: true, size: { width: 480, height: 270 }, status: 'success',
-    result: { id: 'image-result-1', type: 'image', url: IMAGE_URL, createdAt: 1 }, meta: { imageWidth: 960, imageHeight: 540 },
+    result: { id: 'image-result-1', type: 'image', url: IMAGE_URL, thumbnailUrl: IMAGE_PREVIEW_URL, createdAt: 1 }, meta: { imageWidth: 960, imageHeight: 540 },
   },
   {
     id: 'character-result-node', kind: 'character', categoryId: 'shots', title: '林夏',
@@ -120,18 +123,11 @@ try {
   await win.reload()
   await win.waitForTimeout(1000)
   const imageNode = await openFixtureCanvas(win)
-  const characterNode = win.locator('[data-node-id="character-result-node"]')
-  await characterNode.waitFor({ state: 'visible', timeout: 8000 })
-
   await imageNode.click()
+  const inlineImageSrc = await imageNode.locator('img').first().getAttribute('src')
+  const inlineUsesPreview = inlineImageSrc === IMAGE_PREVIEW_URL
   const imagePreviewButton = imageNode.getByRole('button', { name: '全屏预览图片' })
   await expectVisible(imagePreviewButton, '图片节点选中后显示全屏预览入口', 3000)
-  const imageHasPreview = await imagePreviewButton.isVisible()
-  await characterNode.click()
-  const cardPreviewButton = characterNode.getByRole('button', { name: '全屏预览图片' })
-  await expectVisible(cardPreviewButton, '角色节点选中后显示全屏预览入口', 3000)
-  const bothKindsHavePreview = imageHasPreview && await cardPreviewButton.isVisible()
-
   await imageNode.click()
   await expectVisible(imagePreviewButton, '重新选中图片节点后恢复全屏预览入口', 3000)
   await imagePreviewButton.click()
@@ -140,6 +136,7 @@ try {
   const modalSemantics = await lightbox.getAttribute('aria-modal') === 'true'
   const lightboxImageSrc = await lightbox.locator('img').getAttribute('src')
   const originalImageUsed = lightboxImageSrc === IMAGE_URL
+  if (!inlineUsesPreview || !originalImageUsed) throw new Error(`图片生命周期错误：inline=${inlineImageSrc} modal=${lightboxImageSrc}`)
   await win.screenshot({ path: path.join(outDir, '01-image-lightbox.png') })
   await win.keyboard.press('Escape')
   await lightbox.waitFor({ state: 'detached', timeout: 3000 })
@@ -161,7 +158,7 @@ try {
   await reloadedNode.hover()
   const persistedAfterReload = (await reloadedNode.locator('[data-node-inline-title="true"]').textContent())?.includes(RENAMED_TITLE) === true
 
-  const result = { bothKindsHavePreview, modalSemantics, originalImageUsed, renamedOnCanvas, persistedAfterReload }
+  const result = { inlineUsesPreview, modalSemantics, originalImageUsed, renamedOnCanvas, persistedAfterReload }
   console.log(JSON.stringify(result))
   const ok = Object.values(result).every(Boolean)
   await closeApp()

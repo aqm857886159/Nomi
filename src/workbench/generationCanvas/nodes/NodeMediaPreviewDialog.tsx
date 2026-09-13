@@ -79,6 +79,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
         'bg-black/40',
       )}
       role="dialog"
+      aria-modal="true"
       aria-label={t('generationCommon.imagePreview.mediaAria', { title: dialogTitle })}
       onPointerDown={(event) => {
         event.stopPropagation()

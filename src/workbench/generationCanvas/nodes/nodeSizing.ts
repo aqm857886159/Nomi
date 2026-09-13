@@ -313,6 +313,14 @@ export function computeMediaMetaPatch(params: {
   };
 }
 
+/** A persisted canvas preview is an intentionally smaller representation.
+ * Never let its natural dimensions replace the source dimensions used for the
+ * node geometry; doing so makes a high-resolution asset appear permanently
+ * low-resolution after the preview finishes loading. */
+export function shouldApplyLoadedImageDimensions(hasDistinctPreview: boolean): boolean {
+  return !hasDistinctPreview
+}
+
 // 卡片模式（角色/场景/道具/音轨卡）按 cards-design-v1 §4 的固定宽度；高度部分卡固定、部分动态。
 export const CARD_FIXED_WIDTH: Record<string, number> = {
     "character-card": 200,

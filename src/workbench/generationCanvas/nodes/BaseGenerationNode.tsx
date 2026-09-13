@@ -61,6 +61,7 @@ import {
   computeMediaMetaPatch,
   MEDIA_DIMENSION_UPDATE_OPTIONS,
   resolveNodeVisualSize,
+  shouldApplyLoadedImageDimensions,
 } from './nodeSizing'
 import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeLabelRow } from './NodeLabelRow'
@@ -571,7 +572,9 @@ function BaseGenerationNodeImpl({
               priority={mediaPreviewPriority}
               alt=""
               onLoad={(event) => {
-                updateMediaDimensions(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
+                if (shouldApplyLoadedImageDimensions(Boolean(node.result?.thumbnailUrl && node.result.thumbnailUrl !== node.result.url))) {
+                  updateMediaDimensions(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
+                }
               }}
             />
           )

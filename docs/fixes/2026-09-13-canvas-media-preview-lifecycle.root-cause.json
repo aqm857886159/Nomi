@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-canvas-media-preview-lifecycle",
+  "problem_type": "Original-size media eagerly decoded during canvas rendering",
+  "symptom": "Opening a project with large generated images or HEVC video can delay usable canvas interaction and media failures can affect project recovery.",
+  "direct_cause": "The asset localization boundary returned the full stored image URL as thumbnailUrl and video nodes mounted playback media before user intent.",
+  "class_root": "The asset boundary lacked a distinct, persisted preview representation and the canvas media boundary lacked an explicit interaction activation rule.",
+  "affected_population": [
+    "Projects containing high-resolution generated images",
+    "Projects containing large or platform-sensitive video",
+    "macOS and Windows Electron users"
+  ],
+  "scope_paths": [
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/assets/localizedAsset.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/runtime.assets.test.ts",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/library/ProjectLibraryPage.tsx",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "tests/ux/fixtures/canvas-performance-fixture.mjs",
+    "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+    "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+    "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+  ],
+  "entry_points": [
+    "Generated image localization",
+    "Generated video localization",
+    "Canvas image/video node rendering",
+    "Project recovery with missing assets"
+  ],
+  "internal_only_reason": "The invariant is an application-owned asset lifecycle rule; no external API contract decides the preview URL or interaction policy.",
+  "invariants": [
+    "Original media remains the canonical export/source URL.",
+    "Image thumbnails are distinct local preview files when generation succeeds.",
+    "Video playback media is not activated solely by canvas mount when a poster exists.",
+    "A single media failure does not prevent the project canvas from mounting.",
+    "Preview natural dimensions never replace canonical source dimensions used for node geometry."
+  ],
+  "generality_proof": "All generated image and video outputs converge through localizeTaskAsset before entering persisted node results, while all canvas video nodes converge through NodeVideoPlaybackGuard and all canvas node rendering converges through the React Flow node map.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "localizeTaskAsset",
+      "responsibility": "Attach a persisted preview URL to localized image results while retaining the original URL."
+    },
+    {
+      "path": "electron/assets/localizedAsset.ts",
+      "symbol": "createImagePreview",
+      "responsibility": "Create a bounded preview at the asset boundary without replacing the source."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "symbol": "NodeVideoPlaybackGuard",
+      "responsibility": "Gate video element activation on user interaction when a poster exists."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "localizeTaskAsset call",
+      "disposition": "enforced",
+      "evidence": "Task result localization calls the shared asset boundary for generated media."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "NodeVideoPlaybackGuard and DeferredNodeImage rendering",
+      "disposition": "enforced",
+      "evidence": "Canvas media rendering uses the shared guarded media components."
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "openProject",
+      "disposition": "enforced",
+      "evidence": "Missing assets are recoverable and do not block project opening."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any generated provider, high-resolution input, or platform decoder can reproduce the same eager-load and failure coupling.",
+    "same_class_scan": [
+      "rg thumbnailUrl across electron and src consumers",
+      "rg preload and NodeVideoPlaybackGuard across canvas nodes",
+      "rg missing-assets and corrupt-manifest across project opening paths"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/assets/localizeTaskAsset.ts",
+    "tests": [
+      "electron/runtime.assets.test.ts"
+    ],
+    "why": "The localization boundary owns source/preview separation and the runtime asset tests exercise it; downstream callers consume the result without re-deciding the lifecycle."
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/localizeTaskAsset.ts",
+    "invariant": "Preview/source URLs and interaction/playback lifecycles remain separate for every caller.",
+    "failure_mode": "Preview generation falls back to the source URL; video activation and individual media errors remain local to the node.",
+    "exception_policy": "none",
+    "strategy": "Enforce source/preview separation at localization; the shared canvas guard enforces video interaction activation.",
+    "artifacts": [
+      "electron/assets/localizeTaskAsset.ts",
+      "electron/assets/localizedAsset.ts",
+      "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/runtime.assets.test.ts",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "src/workbench/generationCanvas/nodes/computeMediaMetaPatch.test.ts",
+    "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/runtime.assets.test.ts",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "src/workbench/generationCanvas/nodes/computeMediaMetaPatch.test.ts",
+    "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/localizeTaskAsset.ts",
+      "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx"
+    ],
+    "rationale": "Both shared boundaries changed to remove eager source-only previews and pre-interaction video mounting."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "ffmpeg is already the repository media tool; this change uses the existing resolver and does not alter dependency versions.",
+    "exit_criteria": []
+  },
+  "migration": "Existing projects retain their source URL. New localization runs generate previews; missing preview files fall back to the source and can be regenerated.",
+  "residual_risks": [
+    "Windows HEVC decoder and GPU behavior still require real-device validation.",
+    "The current benchmark media-error scenario injects failure after canvas mount; project-open failure recovery needs a separate fixture."
+  ]
+}
