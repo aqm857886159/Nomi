@@ -102,10 +102,13 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     // 面收敛：读侧全部并入 nomi_read（整体只读）；nomi_operation_preview 编译预演无状态写，也只读。
     // 并线 main 后 + 3 个 M2 只读语义编辑工具（export_job / media_query / timeline_read）。sorted。
     // 阶段 5a：注解从契约 effect/effectClass 全量派生，document_read / layout_read 补齐（手写名单漏的）。
+    // 2026-09-11：接模型工具面重做 —— nomi_list_models（读设置）与 nomi_await_setup（等）是这一格的两个读。
     expect(readOnly).toEqual([
+      'nomi_await_setup',
       'nomi_document_read',
       'nomi_export_job',
       'nomi_layout_read',
+      'nomi_list_models',
       'nomi_media_query',
       'nomi_operation_preview',
       'nomi_read',

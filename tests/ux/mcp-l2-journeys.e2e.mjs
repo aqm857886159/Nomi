@@ -123,31 +123,29 @@ try {
   const leaseHandle = openedData.leaseHandle || resultData(opened).leaseHandle
   check(typeof leaseHandle === 'string' && leaseHandle.length > 20, 'C7 session/open 返回可用 leaseHandle')
 
-  // C7-T14: the Agent handles provider variance, while Nomi owns only the
-  // secure credential handoff, proposal persistence gate, and paid two-phase.
-  const integrationStarted = await call(mcp, 'nomi_integration', {
-    action: 'begin', kind: 'http-api-provider', name: 'C7 relay proposal', baseUrl: provider.origin,
+  // C7-T14（2026-09-11 重做的 4 工具面）：Agent 处理供应商差异，Nomi 只管安全凭据交接、
+  // 落库门与「不可逆那一格」。这条路上**一个花钱的动作都没有**，所以原先的付费两相断言
+  // 换成「自检是免费的、且失败不下架」——这正是 09-11 拍板换来的东西。
+  const integrationStarted = await call(mcp, 'nomi_model_setup', {
+    action: 'connect_provider', kind: 'http-api-provider', name: 'C7 relay proposal', baseUrl: provider.origin,
     authType: 'bearer', authHeader: 'Authorization', docs: `${provider.origin}/docs`,
   })
   const integrationStartData = resultTextJson(integrationStarted)
-  const integrationSessionId = integrationStartData.id || resultData(integrationStarted).id
-  const credentialHandoff = await call(mcp, 'nomi_integration', {
-    action: 'open_credentials', sessionId: integrationSessionId, expectedRevision: integrationStartData.revision,
-  })
-  check(resultTextJson(credentialHandoff).stage === 'needs_credential', 'C7 T14 open_credentials 只打开 Nomi 安全页')
-  // open_credentials 现在还有一个 GUI 副作用：把 Nomi 叫到前台并停在「设置 → 模型 → 添加一个 AI 模型」，
-  // 供应商名从持久 handoff 还原。这是 PR #528 要证明的那件事，所以在这里正面断言它，
-  // 而不是让它以「后面某个点击被模态挡住」的形式暴露出来。
+  const integrationSessionId = integrationStartData.setupId || resultData(integrationStarted).setupId
+  check(Boolean(integrationSessionId), 'C7 T14 connect_provider 返回可续接的 setupId')
+  // 「让用户填 key」不是一个动词，是 connect_provider 的后果：没存过 key 时它自己把 Nomi 的
+  // 安全页叫到前台。模型这一侧只看到 nextAction.kind = user_sees_key_page。
+  check(integrationStartData.nextAction?.kind === 'user_sees_key_page', 'C7 T14 缺 key 时 connect_provider 返回 user_sees_key_page 而不是要模型再调一个动词')
+  // 那个 GUI 副作用：Nomi 停在「设置 → 模型 → 添加一个 AI 模型」，供应商名从持久 handoff 还原。
   const settingsOverlay = win.locator('[data-settings-overlay="true"]')
-  await expectVisible(settingsOverlay, 'C7 T14 open_credentials 把设置对话框带到前台')
+  await expectVisible(settingsOverlay, 'C7 T14 connect_provider 把设置对话框带到前台')
   const addModelPage = settingsOverlay.locator('[data-model-settings-page="add"]')
   await expectVisible(addModelPage, 'C7 T14 设置停在「添加一个 AI 模型」页')
   const providerNameInput = settingsOverlay.getByPlaceholder('如：TOAPI 中转')
   await expectVisible(providerNameInput, 'C7 T14 添加页带供应商名输入框')
   check(await providerNameInput.inputValue() === 'C7 relay proposal', 'C7 T14 供应商名从持久 handoff 预填')
   // 关掉的方式必须是用户手上真有的那两个（Escape / 关闭钮），不是 force click 绕过 aria-modal。
-  // 模型页是抽屉里的下钻页：第一下 Escape 退回模型首页，第二下才关整个对话框——两级都断言，
-  // 「Escape 能关设置」这条无障碍基本项因此是被证明的，不是被假设的。
+  // 模型页是抽屉里的下钻页：第一下 Escape 退回模型首页，第二下才关整个对话框——两级都断言。
   await win.keyboard.press('Escape')
   await expectHidden(addModelPage, 'C7 T14 Escape 从添加页退回模型首页')
   await win.keyboard.press('Escape')
@@ -161,31 +159,68 @@ try {
     return { queued: handoffs.filter((item) => item.sessionId === id && item.target === 'credential').length }
   }, integrationSessionId)
   // 密钥落地后，那条持久「去填 key」请求必须由写它的那层收走。留着它 = 用户下次打开设置→模型
-  // 又被拽回一个已经接好的供应商的添加页（走查里这条 fixture 原本自己 ack 掉，把这个缺口盖住了）。
+  // 又被拽回一个已经接好的供应商的添加页。
   check(credentialSaved.queued === 0, 'C7 T14 密钥落地后持久凭据 handoff 被收走')
-  const afterCredential = await call(mcp, 'nomi_read', { target: 'integration', sessionId: integrationSessionId })
-  const afterCredentialData = resultTextJson(afterCredential)
-  const rejectedProposal = await mcp.callTool('nomi_integration', {
-    action: 'propose', sessionId: integrationSessionId, expectedRevision: afterCredentialData.revision,
-    proposal: { candidates: [{ modelKey: 'relay-image', kind: 'image' }], selections: [{ modelKey: 'missing-model' }] },
-  })
-  check(rejectedProposal.isError && /proposal\.selections|candidate/i.test(parseToolResult(rejectedProposal).text), 'C7 T14 propose 返回字段级可读打回原因')
-  const proposed = await call(mcp, 'nomi_integration', {
-    action: 'propose', sessionId: integrationSessionId, expectedRevision: afterCredentialData.revision,
-    proposal: { candidates: [{ modelKey: 'relay-image', kind: 'image' }], selections: [{ modelKey: 'relay-image' }] },
+
+  // 读门只有一个：nomi_list_models（不带参数也能把丢掉的 setupId 找回来）。
+  const afterCredential = await call(mcp, 'nomi_list_models', { setupId: integrationSessionId })
+  check(resultTextJson(afterCredential).state?.setups?.some((setup) => setup.id === integrationSessionId), 'C7 T14 nomi_list_models 读得到这次在途接入')
+  // 走设计规定的那一跳：connect_provider 的 nextAction.waitWith 就是 nomi_await_setup。
+  // 「等」是独立的读工具，不是靠重复写动作表达——旧面上没有它，实测里模型只能反复 confirm，
+  // 而重签挑战把人刚点过的那一下作废了（4 次点击 3 次白点）。
+  const awaited = await call(mcp, 'nomi_await_setup', { setupId: integrationSessionId, timeoutSeconds: 30 })
+  const awaitedData = resultTextJson(awaited)
+  check(awaitedData.state?.setups?.some((setup) => setup.id === integrationSessionId), 'C7 T14 nomi_await_setup 返回这次接入的最新状态')
+
+  // 模型入参里没有 expectedRevision —— 这一跳和上一跳之间会话已经往前走过（凭据落地），
+  // 旧面在这里必然报 revision stale，新面上这件事不可表达。
+  const proposed = await call(mcp, 'nomi_model_setup', {
+    action: 'choose_models', setupId: integrationSessionId,
+    models: [{ modelKey: 'relay-image', kind: 'image' }],
   })
   const proposedData = resultTextJson(proposed)
-  check(proposedData.stage === 'ready_to_certify', 'C7 T14 propose 通过强 schema 落库门')
-  // 接模型没有付费验证，所以 propose 与 start 之间没有 confirm 这一跳（2026-09-12 拍板）。
-  // 仍然要证的是「这一跳不会花钱」：自检跑完，供应商的付费生成端点一次都没被碰过。
-  const staleStart = await mcp.callTool('nomi_integration', {
-    action: 'start', sessionId: integrationSessionId, expectedRevision: proposedData.revision - 1,
-    idempotencyKey: 'c7-t14-stale-revision',
+  check(Boolean(proposedData.changeId), 'C7 T14 choose_models 通过强 schema 落库门并返回可撤销的 changeId')
+  // 这家还没探到候选（供应商没有 model-list 端点），所以这一轮是手写的——手写时
+  // 信封必须承认「模型 id 存在」还没有凭据。
+  check(proposedData.unverified?.some((entry) => entry.claim === 'model_id_exists'),
+    `C7 T14 手写 modelKey 时 unverified 里留着 model_id_exists（实际 ${JSON.stringify(proposedData.unverified)?.slice(0, 200)}）`)
+  // 重放恒等（Stripe 语义）：同一跳再调一次返回**同一个** changeId。旧面在这里会重签挑战，
+  // 把人刚才那次点击作废——实测里 4 次点击 3 次白点就是这么来的。
+  const replayed = await call(mcp, 'nomi_model_setup', {
+    action: 'choose_models', setupId: integrationSessionId,
+    models: [{ modelKey: 'relay-image', kind: 'image' }],
   })
-  check(staleStart.isError === true && resultData(staleStart).errorCode === 'integration_revision_stale', `C7 T14 start 仍按 expectedRevision 把关; actual=${JSON.stringify(staleStart)}`)
-  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C7 T14 自检不提交供应商付费任务')
-  const proxyOff = await call(mcp, 'nomi_integration_manage', { action: 'set_proxy', vendorKey: 'apimart', enabled: false })
-  check(resultTextJson(proxyOff).enabled === false, 'C7 管理动词可关闭单连接代理')
+  check(resultTextJson(replayed).changeId === proposedData.changeId, 'C7 T14 重复调用写动作返回一字不差的同一个结果')
+
+  // 上一跳之后这家有候选了（relay-image）。**现在**编一个 modelKey 出来必须被打回，
+  // 而且打回的话要说清是哪个字段、哪几个值——工具描述里写着「Never invent a modelKey」，
+  // 这条断言就是那句话的运行时判据。没有它，描述只是一句空话：第一版的 choose_models
+  // 把 candidates 直接写成模型报上来的那批，编出来的 modelKey 会被原样收下，
+  // 用户画布模型框里就多一个永远出不了片、却看起来和真的一模一样的模型。
+  const rejectedProposal = await mcp.callTool('nomi_model_setup', {
+    action: 'choose_models', setupId: integrationSessionId,
+    models: [{ modelKey: 'missing-model', kind: 'image' }],
+  })
+  const rejectedText = parseToolResult(rejectedProposal).text
+  check(rejectedProposal.isError && /missing-model/.test(rejectedText) && /candidate|model/i.test(rejectedText),
+    `C7 T14 编出来的 modelKey 被打回，且原因点名那个值（实际 isError=${rejectedProposal.isError} text=${JSON.stringify(rejectedText).slice(0, 300)}）`)
+
+  // 自检是免费的：billable 恒 false，且**不向生成端点发任何请求**。
+  const checked = await call(mcp, 'nomi_model_setup', { action: 'check_connection', setupId: integrationSessionId })
+  const checkedData = resultTextJson(checked)
+  check((checkedData.blastRadius?.outboundRequests || []).every((request) => request.billable === false), 'C7 T14 自检的出站请求全部标 billable:false')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C7 T14 自检没有碰生成端点（这条路上没有花钱的动作）')
+  // 通过与否都不许说「接好了」：model_produces_output 必须还在。
+  check((checkedData.unverified || []).some((entry) => entry.claim === 'model_produces_output'), 'C7 T14 自检之后 unverified 里仍然留着 model_produces_output')
+
+  // 显示/隐藏是可撤销的一步，与「删除」分属两格：删除在 nomi_remove_provider，永远弹确认卡。
+  const shown = await call(mcp, 'nomi_model_setup', {
+    action: 'show_models', vendorKey: resultTextJson(checked).vendorKey, modelKeys: ['relay-image'], visible: true,
+  })
+  check(resultTextJson(shown).blastRadius?.modelsAppearing === 1, 'C7 T14 show_models 报得出画布模型框会多几行')
+
+  const proxyOff = await call(mcp, 'nomi_model_setup', { action: 'connect_provider', vendorKey: 'apimart', proxyEnabled: false })
+  check(resultTextJson(proxyOff).ok === true, 'C7 同一个写动词也负责关闭单连接代理（改与建是同一个动作）')
 
   const fourNodes = [0, 1, 2, 3].map((index) => ({ clientId: `c8-shot-${index + 1}`, kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, position: { x: index * 380, y: 0 } }))
   declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'Nomi' } })

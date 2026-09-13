@@ -1,5 +1,5 @@
 // Real-transport journey for the ONE step where an external MCP host has to obtain a secret:
-// `nomi_integration action=open_credentials`.
+// `nomi_model_setup action=connect_provider`（2026-09-11：要 key 不再是一个动词，是这一跳的后果）。
 //
 // MCP spec 2025-11-25 (client/elicitation) forbids asking for an API key in form mode — "Servers MUST
 // NOT use form mode elicitation to request sensitive information such as passwords, API keys" — and
@@ -78,22 +78,14 @@ async function urlModeArm(dirs, provider, evidence) {
   })
   try {
     await mcp.initialize(20_000)
-    const begun = parseToolResult(await mcp.callTool('nomi_integration', {
-      action: 'begin',
+    // connect_provider 一跳就到位：建连接 + 开安全页。它在页面走完前不返回，所以两半一起驱动。
+    const pending = mcp.callTool('nomi_model_setup', {
+      action: 'connect_provider',
       kind: 'http-api-provider',
       name: 'Walkthrough relay',
       baseUrl: provider.baseUrl,
       providerKind: 'openai-compatible',
       authType: 'bearer',
-      clientRequestId: 'credential-elicitation-j1',
-    }))
-    check(!begun.isError && begun.json?.stage === 'needs_credential', 'A1 begin 建出待补密钥的接入会话')
-    const sessionId = begun.json?.id
-    const revision = begun.json?.revision
-
-    // open_credentials blocks until the out-of-band page is completed, so drive both halves at once.
-    const pending = mcp.callTool('nomi_integration', {
-      action: 'open_credentials', sessionId, expectedRevision: revision,
     }, { timeoutMs: 120_000 })
 
     const elicit = await waitForUrlElicitation(mcp)
@@ -105,7 +97,7 @@ async function urlModeArm(dirs, provider, evidence) {
     const url = new URL(String(elicit.url))
     check(url.protocol === 'http:' && url.hostname === '127.0.0.1', 'A3 URL 指向本机回环页面，不是任何远端')
     check(/^[a-f0-9]{64}$/.test(url.searchParams.get('t') || ''), 'A3 URL 只带一个不可猜的一次性 token')
-    check(!url.href.includes(String(sessionId)), 'A3 URL 不泄露会话身份等任何可识别信息')
+    check(!/integration-[0-9a-f-]{8}/.test(url.href), 'A3 URL 不泄露会话身份等任何可识别信息')
 
     // ── 用户在浏览器里的那一段 ───────────────────────────────────────────
     const page = await fetch(url.href)
@@ -133,14 +125,17 @@ async function urlModeArm(dirs, provider, evidence) {
 
     // ── 回到 MCP：阻塞的那次调用应当拿到「已配置」 ───────────────────────
     const opened = parseToolResult(await pending)
-    evidence.openedStage = opened.json?.stage
-    check(!opened.isError, 'A7 open_credentials 正常返回（不是错误）')
-    check(opened.json?.credentialStatus === 'ready', 'A7 返回的会话显示密钥已就绪')
+    const openedSetup = (opened.json?.state?.setups || [])[0]
+    evidence.openedStage = openedSetup?.stage
+    const sessionId = openedSetup?.id
+    check(!opened.isError, 'A7 connect_provider 正常返回（不是错误）')
+    check(openedSetup?.credentialStatus === 'ready', 'A7 返回的会话显示密钥已就绪')
     check(!opened.json?.credentialEntry, 'A7 用掉的一次性链接不再回流给模型')
     check(mcp.elicitationCompletions().includes(elicit.elicitationId), 'A8 服务端发了 notifications/elicitation/complete')
 
-    const read = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-    check(read.json?.credentialStatus === 'ready', 'A9 nomi_read 也显示已配置')
+    const read = parseToolResult(await mcp.callTool('nomi_list_models', { setupId: sessionId }))
+    const readSetup = (read.json?.state?.setups || []).find((setup) => setup.id === sessionId)
+    check(readSetup?.credentialStatus === 'ready', 'A9 nomi_list_models 也显示已配置')
     check(!JSON.stringify(read.json || {}).includes(FAKE_KEY), 'A9 读回来的投影里没有 key')
 
     const allFrames = JSON.stringify(mcp.messages())
@@ -163,18 +158,14 @@ async function formOnlyArm(dirs, provider) {
   })
   try {
     await mcp.initialize(20_000)
-    const begun = parseToolResult(await mcp.callTool('nomi_integration', {
-      action: 'begin',
+    const opened = parseToolResult(await mcp.callTool('nomi_model_setup', {
+      action: 'connect_provider',
       kind: 'http-api-provider',
       name: 'Form-only relay',
       baseUrl: provider.baseUrl,
       authType: 'bearer',
-      clientRequestId: 'credential-elicitation-j2',
-    }))
-    check(!begun.isError, 'B1 form-only 宿主也能建接入会话')
-    const opened = parseToolResult(await mcp.callTool('nomi_integration', {
-      action: 'open_credentials', sessionId: begun.json?.id, expectedRevision: begun.json?.revision,
     }, { timeoutMs: 60_000 }))
+    check(!opened.isError, 'B1 form-only 宿主也能建接入会话')
     check(mcp.urlElicitations().length === 0, 'B2 没向只声明 form 的宿主发 mode="url"（规范禁止）')
     check(mcp.elicitationCount() === 0, 'B2 也没退化成 form 模式问密钥')
     check(opened.json?.credentialEntry?.mode === 'manual', 'B3 给出明确的手动路径而不是一个它打不开的链接')

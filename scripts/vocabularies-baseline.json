@@ -1549,6 +1549,19 @@
         "ready"
       ],
       "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。"
+    },
+    {
+      "site": "electron/capabilityCore/modelOnboarding/declarations.ts::type:OnboardingStateId/type-union",
+      "members": [
+        "S11.0",
+        "S11.1",
+        "S11.2",
+        "S11.3",
+        "S11.4",
+        "S11.5",
+        "S11.6"
+      ],
+      "reason": "接模型这条路上「这个动作改的是哪一片用户可见状态」的编号，挂在既有 S11「模型接入」下做细分（docs/plan/2026-09-11-mcp-onboarding-tool-face-impl.md §2），**不是新起一套状态词表**。它与 electron/shared/integrationContract.ts 的 INTEGRATION_STAGES 不是同一语义：那边是会话在状态机里跑到哪一步（draft/needs_credential/...），这边是「这一跳动了用户设置里的哪一格」（连接 / 密钥 / 选择 / 说明卡 / 自检 / 发布 / 在途）。两者基数不同、生命周期不同——一个 stage 可以在不改任何 S11.x 的情况下前进，一次 show_models 可以不碰任何 stage。它的唯一用途是给 check:tool-face 的 C1/C2 两条判「一个工具 = 动哪个状态 × 效果类别」，所以必须和效果类别住在同一份声明里。"
     }
   ],
   "debt": [

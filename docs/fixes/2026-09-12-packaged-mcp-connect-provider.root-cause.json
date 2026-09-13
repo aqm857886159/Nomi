@@ -1,0 +1,29 @@
+{
+  "schema_version":3,
+  "id":"2026-09-12-packaged-mcp-connect-provider",
+  "problem_type":"打包版 MCP connect_provider 无法保留 GUI 凭据引导票据",
+  "symptom":"开发环境测试通过，打包应用调用 nomi_model_setup(connect_provider) 后无法继续 GUI 凭据引导。",
+  "direct_cause":"dispatcher 在打包运行时将 capability 返回值按旧形状序列化，丢弃了 credential elicitation ticket；调用方因此无法恢复同一 setup。",
+  "class_root":"跨进程 capability 边界未保持 credential elicitation 契约的完整性，导致环境差异放大为打包版特有失败。",
+  "affected_population":["打包版 Electron MCP 客户端调用四个 model_setup action 的用户"],
+  "scope_paths":["electron/capabilityCore/dispatcher.ts","electron/capabilityCore/dispatcher.test.ts","docs/fixes/2026-09-12-packaged-mcp-connect-provider.root-cause.json"],
+  "entry_points":["MCP dispatcher capability 返回值序列化边界"],
+  "external_sources":[],
+  "internal_only_reason":"credential elicitation ticket 是本仓 capability bridge 的内部契约。",
+  "invariants":["dispatcher 必须原样保留 credential elicitation ticket 及其关联 setup 标识；打包与开发运行时返回形状一致。"],
+  "generality_proof":"所有 MCP model_setup action 都经同一 dispatcher 边界；在该边界保留票据即可覆盖四个 action 与两种运行时。",
+  "shared_boundaries":[{"path":"electron/capabilityCore/dispatcher.ts","symbol":"dispatchCapability","responsibility":"统一保持 capability 结果及 credential elicitation ticket 的跨进程契约。"}],
+  "same_class_entry_points":[
+    {"path":"electron/capabilityCore/modelOnboarding/declarations.ts","entry_point":"connect_provider","disposition":"enforced","evidence":"声明要求 GUI 凭据引导后继续 setup，结果经 dispatcher 返回。"},
+    {"path":"electron/capabilityCore/modelOnboarding/declarations.ts","entry_point":"choose_models / draft_adapter / check_connection","disposition":"enforced","evidence":"四个 action 共用 nomi_model_setup dispatcher；票据保留规则对每个 action 生效。"}
+  ],
+  "recurrence":{"classification":"recurring","reason":"任何经 dispatcher 返回 elicitation ticket 的 capability 都会在打包序列化时复现同类丢字段问题。","same_class_scan":["rg dispatchCapability electron/capabilityCore --glob '*.ts'","逐项核对 declarations.ts 的 connect_provider、choose_models、draft_adapter、check_connection 四个 action 与 dispatcher 返回路径"]},
+  "prevention":{"kind":"centralized-boundary","enforcement_path":"electron/capabilityCore/dispatcher.ts","invariant":"跨进程返回值保留 credential elicitation ticket，开发与打包形状一致。","failure_mode":"缺失或非法票据继续按明确错误返回，不静默降级。","exception_policy":"none","strategy":"在唯一 dispatcher 序列化边界修复结果映射并由定向测试钉住打包契约。","artifacts":["electron/capabilityCore/dispatcher.ts"]},
+  "regression_tests":["electron/capabilityCore/dispatcher.test.ts"],
+  "class_regression_tests":["electron/capabilityCore/dispatcher.test.ts"],
+  "legacy_paths":{"status":"removed","removed_paths":["electron/capabilityCore/dispatcher.ts"],"rationale":"删除丢弃 ticket 的旧结果映射，统一使用保留完整票据的新映射。"},
+  "dependency_lifecycle":{"decision":"not-applicable","rationale":"纯内部 dispatcher 契约修复。","exit_criteria":[]},
+  "migration":"无持久化格式变化；旧客户端收到新增票据字段时忽略即可。",
+  "residual_risks":["完整打包冒烟需在本轮构建产物上验证。"],
+  "invariant_owner_layer":{"layer":"electron/capabilityCore/dispatcher.ts","tests":["electron/capabilityCore/dispatcher.test.ts"]}
+}

@@ -1,0 +1,201 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-mcp-onboarding-tool-face",
+  "problem_type": "A model-facing tool surface shaped by the implementation's state machine rather than by what the user is trying to change, so the model's action space contains things only the host can know (a revision integer, an idempotency key, the legal ordering of six actions) and lacks things the user actually asks for (wait, hide, retry one step)",
+  "symptom": "An external AI host driving Nomi's model-onboarding surface (measured 2026-09-10, Codex CLI 0.153.4 against a real DeepSeek key) wrote arguments correctly on 36 of 58 calls (62%) and completed 1 of 9 turns; a person had to step in 10 times, including 4 clicks on the confirmation card in the Nomi window of which 3 were wasted because the assistant called confirm again and re-signed the challenge. Separately, users asked four times in the feedback groups how to reduce the number of models in the canvas picker, and could not change a provider's base URL - both because the surface had no action for either.",
+  "direct_cause": "Eleven model-facing entry points (nomi_integration with six actions, nomi_integration_manage with four, nomi_read target=integration) projected the IntegrationSessionService state machine directly. Five things the model had to compute or remember were its inputs: expectedRevision (five actions), idempotencyKey (two), the session handle on every action, which stage permits which action, and which required set belongs to which action. Of 22 failed calls, 9 died on 'the schema says this is optional and the runtime says it is required', 6 on expectedRevision, 4 on expressing 'I am waiting' with the only relevant verb available, which was a write.",
+  "class_root": "We had no rule for where a tool boundary goes, so each boundary was drawn at an implementation seam. Two published guidelines point opposite ways - Anthropic says merge related operations behind an action enum, DaVinci's MCP surface shows an enum collapses the host's approval annotation onto the whole group - and with no arbitration between them the surface drifted to whatever the handler layer happened to look like. The consequence is not one bad field: it is that a model cannot tell from the surface what a call will do to the user, and the host cannot tell what to ask the user about.",
+  "affected_population": [
+    "Every external MCP host driving model onboarding (Codex CLI, Claude Code, Cursor, WorkBuddy and any future registered client) - the four tools are identical for all of them",
+    "Nomi's own embedded Agent lane, which resolves the same VerbDeclaration array without the nomi_ prefix",
+    "Every user who asks an assistant to connect a model, correct a provider address, reduce the models in the canvas picker, or delete a connection",
+    "Every user whose model self-check fails: under the previous surface the model disappeared from the canvas; it now stays, labelled not yet tried"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/modelOnboarding/declarations.ts",
+    "electron/capabilityCore/modelOnboarding/tools.ts",
+    "electron/capabilityCore/modelOnboarding/dispatch.ts",
+    "electron/capabilityCore/modelOnboarding/envelope.ts",
+    "electron/capabilityCore/modelOnboarding/idempotency.ts",
+    "electron/capabilityCore/modelOnboarding/fingerprint.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/catalog/",
+    "agent-skills/nomi-add-model/SKILL.md",
+    "scripts/check-tool-face.mjs",
+    "tests/fixtures/tool-selection/2026-09-11-onboarding-bank.json",
+    "tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json"
+  ],
+  "entry_points": [
+    "MCP tools/call from an external host (mcpProtocol -> MCP_TOOL_RESOLVER -> modelOnboarding/tools build -> dispatchModelOnboarding)",
+    "Nomi's own embedded Agent lane, which resolves the same declarations without the nomi_ prefix",
+    "The trusted Nomi UI, which is the only path that can actually delete anything (confirmRemovalFromTrustedUi)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation",
+      "checked_at": "2026-09-11",
+      "purpose": "Forbids using form-mode elicitation to request an API key, which is why 'let the user type the key' is a nextAction on this surface and not a verb."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation",
+      "checked_at": "2026-09-11",
+      "purpose": "Defines the URL elicitation mode that is the only compliant way to hand a headless host's user a local key page; the connect_provider result carries that URL."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools",
+      "checked_at": "2026-09-11",
+      "purpose": "Guidance for stateful tools: return an explicit handle, take it back on later calls, state the retention policy in the creating tool's description. setupId is kept for exactly this reason; everything else the state machine needed was removed from the model's inputs."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.claude.com/en/docs/agents-and-tools/tool-use/implement-tool-use",
+      "checked_at": "2026-09-11",
+      "purpose": "Anthropic's guidance to consolidate related operations behind an action enum - one half of the tension this change arbitrates."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.stripe.com/api/idempotent_requests",
+      "checked_at": "2026-09-11",
+      "purpose": "Replaying the same idempotency key returns the same result rather than redoing the work; this is the semantics the host-derived key implements, and the reason a repeated call can never void a pending human click."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/aqm857886159/Nomi/blob/main/electron/catalog/validateCandidateCredential.ts",
+      "checked_at": "2026-09-11",
+      "purpose": "This repository's own recorded provider counterexamples (a valid key rejected on a model-list endpoint; a 200 for a model that cannot generate) - the reason a passing self-check is never reported as verified."
+    }
+  ],
+  "invariants": [
+    "No action on this path has effect spend. A free self-check is the only thing this surface sends outbound, and blastRadius.outboundRequests[].billable is typed as the literal false.",
+    "No parameter of any tool in this group carries an API key, token or Authorization value. Nomi asks the user itself, on a local page the model never sees.",
+    "The model never computes a lock. expectedRevision and idempotencyKey are absent from every schema; the host reads the current revision before writing and derives the idempotency key from (setupId, action, canonical args digest). The only lock the model touches is the opaque ifUnchanged fingerprint on the single irreversible tool, which it may only copy verbatim.",
+    "Replaying a write returns the identical result, including the same changeId. Repeating a step can never undo a click the user already made.",
+    "A tool's required set exists exactly once, on the declaration, and is the source of the published schema, the published action description and the runtime aggregate check. Missing fields are reported all at once.",
+    "unverified always contains model_produces_output until the user has actually generated with the model. A passing self-check never removes it, and no user-visible or model-visible sentence on this path claims the provider is connected, verified or ready to use.",
+    "A failing self-check never hides, unpublishes or deletes anything. The show/hide path does not read the self-check result at all.",
+    "One tool equals one consequence: a tool's actions all share one effect class, and one effect class is served by one tool (read is the sole documented exception, because 'look once' and 'wait until' are different tools by precedent)."
+  ],
+  "generality_proof": "The eight invariants are stated over the declaration array, not over any one action, and check:tool-face evaluates them by parsing that array plus the two files that consume it. Adding a tenth action to this path is therefore judged by the same nine rules with no edit to the gate. The gate's --selftest mode violates each rule once and asserts it goes red, so a rule that stops discriminating is itself caught.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-tool-face.mjs",
+      "symbol": "RULES",
+      "responsibility": "九条规则的唯一 owner（O1–O7 + 同格多工具 C1 + 跨格合并 C2）。规则在声明表这一层求值，而不是逐个工具去查——边界画错这件事在 diff 里看不见、在表里一眼看见。--selftest 逐条违反一次，验证规则真的会红。"
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/declarations.ts",
+      "symbol": "ONBOARDING_VERBS",
+      "responsibility": "The single VerbDeclaration array. Tool descriptions, published schemas, the runtime required set, the question bank's expected calls and the gate's rules all derive from it; there is nowhere to put a second definition."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/envelope.ts",
+      "symbol": "OnboardingResult / UNVERIFIED_CLAIMS",
+      "responsibility": "The one return envelope and the vocabulary of 'what has no evidence yet'. billable is typed as the literal false so an outbound request on this path cannot be declared chargeable."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/idempotency.ts",
+      "symbol": "deriveIdempotencyKey / ReplayCache",
+      "responsibility": "Host-derived idempotency from (setupId, action, canonical args digest) plus the replay cache that makes a repeated write return the identical result and changeId."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "mutateLatest",
+      "responsibility": "The only place the optimistic lock is read and supplied. The model never sees a revision; a concurrent GUI write is retried once and then refused rather than overwritten, because the user should win."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tools.ts",
+      "entry_point": "buildTool / requiredFor",
+      "disposition": "enforced",
+      "evidence": "Both transports (external MCP tools/call and the embedded Agent lane) resolve the same declarations through this one builder, so the invariants hold for every driver rather than only for MCP. check:tool-face O4 refuses a second required-set table in this file, and its --selftest proves the rule goes red when one is added."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "default branch routing modelSetup.* to dispatchModelOnboarding",
+      "disposition": "enforced",
+      "evidence": "Every model-facing write on this path funnels through dispatchModelOnboarding, which derives the idempotency key and reads the revision itself. The old integration.* and integration.manage.* cases are deleted in the same commit, so there is no second route that still takes a model-supplied revision."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "entry_point": "nomi_generation_plan's nine-branch action enum",
+      "disposition": "not-affected",
+      "evidence": "Same class (heterogeneous branches merged behind one enum, measured 0/18 in #547) but a different surface, not touched by this change. check:tool-face's C1/C2 rules are written over an effect-class table rather than over this path's action names, so they can be pointed at that catalog when the single-owner registry lands; registered as follow-up rather than silently left unexamined."
+    },
+    {
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "entry_point": "nomi_run_gate and nomi_artifact_review action enums",
+      "disposition": "not-affected",
+      "evidence": "Both merge actions of differing reversibility behind one enum and would fail the C2 judgement. They are outside this change's scope (they belong to the production-run surface, not model onboarding) and are recorded here so the next pass has the list rather than rediscovering it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This is the second surface in three weeks where the model-facing shape followed a handler seam rather than a user-visible consequence, and the first one (nomi_generation_plan) scored 0/18. Nothing in the repository prevented either: tool boundaries were drawn by whoever wrote the handler. Every registered MCP client reads the same catalog, so the next such boundary reaches all of them at once.",
+    "same_class_scan": [
+      "Enumerated every tool in MCP_TOOL_CATALOG and grouped its actions by effect class: nomi_model_setup, nomi_run_gate, nomi_artifact_review and nomi_run_control are the four that merge actions behind an enum. Only nomi_model_setup is single-effect after this change; the other three are recorded in same_class_entry_points.",
+      "git grep for expectedRevision and idempotencyKey across every published inputSchema: after this change the model-onboarding path has none; nomi_artifact_review still publishes expectedVersion, which is a document version the model reads back verbatim rather than an integer it must increment, so it is not the same defect.",
+      "git grep for fields matching /key|token|secret|password|credential|authorization/ across every published inputSchema: only the name-carrying whitelist remains on this path; check:tool-face O2 now holds that line."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/check-tool-face.mjs",
+    "invariant": "All eight invariants above are evaluated mechanically against electron/capabilityCore/modelOnboarding/declarations.ts and its two consumers, as nine rules (O1-O7 plus the two cell rules C1/C2).",
+    "failure_mode": "The gate names the offending tool, action and field and refuses the build. Its --selftest mode violates each of the nine rules in turn and fails if any of them stays green, so the gate cannot silently stop discriminating.",
+    "exception_policy": "none",
+    "strategy": "The defect class is a boundary drawn at the wrong place, which is invisible in a diff and obvious in a table. So the rule is evaluated over the declaration table, at assembly time, and the declaration table is also what produces the descriptions and schemas - there is nowhere to put a second, unchecked definition. The one encoded allowance - two tools in the read cell, because 'look once' and 'wait until' are separate tools by precedent - is written as a literal inside rule C1 rather than as an exception mechanism, so it cannot be granted to anything else without editing the rule and re-running --selftest.",
+    "artifacts": [
+      "scripts/check-tool-face.mjs",
+      "electron/capabilityCore/modelOnboardingLoopback.test.ts",
+      "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/modelOnboarding/declarations.ts",
+    "tests": [
+      "electron/capabilityCore/modelOnboardingLoopback.test.ts",
+      "electron/capabilityCore/mcpOnboardingDefects.test.ts",
+      "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+    ],
+    "note": "这一层是接模型工具面的唯一 owner：动作集、效果类别、五槽描述、schema 字段、必填集全在这里，工具定义/运行时校验/题库/门岗四处都从它派生。第二处平行定义会同时被 check:tool-face 的 O4 与 check:vocabularies 拦下。它自己的不变量由 modelOnboardingLoopback.test.ts 逐条断言（信封的 unverified、重放恒等、不可逆那格的确认卡），所以「这条不变量归哪层管、那层有没有测试」两问都有答案。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelOnboardingLoopback.test.ts",
+    "electron/capabilityCore/mcpOnboardingDefects.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/modelOnboardingLoopback.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpIntegrationTools.ts",
+      "electron/capabilityCore/mcpIntegrationManagementTools.ts",
+      "electron/capabilityCore/mcpIntegrationTools.test.ts",
+      "electron/capabilityCore/mcpIntegrationManagementTools.test.ts",
+      "electron/capabilityCore/mcpOnboardingLoopback.test.ts",
+      "electron/catalog/catalogManagement.ts",
+      "electron/capabilityCore/mcpToolCatalog.ts"
+    ],
+    "rationale": "The eleven old entry points are deleted in this commit, not deprecated: nomi_integration and nomi_integration_manage are gone from the catalog, nomi_read target=integration is removed from READ_TARGETS, and catalogManagement.ts (the only consumer of the manage actions) goes with them because connect_provider now owns the upsert and nomi_remove_provider owns the deletes. No fallback and no parallel version remain (P1). The one thing kept is tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json, a schema-only frozen snapshot with no runtime, imported by nothing except the positive-control arm; it exists to give the measuring instrument something to fail against, which is the opposite of an escape hatch. Persisted integration session files keep schemaVersion 1 and are read unchanged by the new dispatch layer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added, removed or upgraded. The free self-check reuses the existing discoverHttpCandidates probe rather than introducing a second HTTP path, and the MCP protocol version already in use provides the URL elicitation mode this surface relies on.",
+    "exit_criteria": []
+  },
+  "migration": "Breaking tool rename with no stored-format change. Four tool names (nomi_list_models, nomi_await_setup, nomi_model_setup, nomi_remove_provider) replace eleven entry points, so external hosts holding a cached tools/list will call the new runtime with the old catalog unless notifications/tools/list_changed is emitted - the exact failure Figma's get_code to get_design_context rename produced. The release notes must name the four new tools and the eleven retired entry points. On disk nothing changes: integration session files keep schemaVersion 1, sessions created before this change are listed and driven by the new surface, stored credentials and approval receipts are untouched, and model catalog records gain only an optional meta.nomiSelfCheck corner that older builds ignore.",
+  "residual_risks": [
+    "The self-check is honest but weak: it gives false negatives (a provider that rejects a valid key on its model-list endpoint) and false positives (a provider that answers 200 for a model that cannot generate). This is labelled rather than solved - unverified keeps model_produces_output in every case, and the check_connection description names both observed counterexamples verbatim.",
+    "The 'not yet tried' badge is designed but not wired. Until it ships, a model that has not been tried is indistinguishable in the canvas picker from one that has, which is the cost of the 09-11 decision to stop unpublishing on a failed check. The exploration mockup and its three open questions are in docs/design/explorations/2026-09-11-not-yet-tried-badge.html.",
+    "mutateLatest retries once against a concurrent GUI write and then refuses rather than overwriting. If a user is editing continuously, an assistant's write can fail twice in a row; it is told to wait and re-read rather than being given a way to force the write, which is deliberate - the user should win.",
+    "The replay cache is in-process. After a restart, replaying a write performs it again; every reversible action on this path is itself idempotent (upsert, selection-set replacement, visibility set, cancel), so a repeat produces no second consequence, but the returned changeId will differ."
+  ]
+}

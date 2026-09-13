@@ -1,59 +1,58 @@
 ---
 name: nomi-add-model
-description: 把一个生成模型（文本 / 图片 / 视频 / 音频 / 3D）接进本机 Nomi 并真跑一次验证。当用户说「帮我把 X 接进 Nomi」「在 Nomi 里加个模型」「给 Nomi 接一下这家中转站」时使用。需要宿主已连上 Nomi 的 MCP server（工具名 nomi_integration）。
-compatibility: 需要宿主已接入 Nomi 的 MCP server，并能调用 nomi_integration 工具。
+description: 把一个生成模型（文本 / 图片 / 视频 / 音频 / 3D）接进本机 Nomi，直到画布的模型框里能选到它。当用户说「帮我把 X 接进 Nomi」「在 Nomi 里加个模型」「给 Nomi 接一下这家中转站」时使用。需要宿主已连上 Nomi 的 MCP server。
+compatibility: 需要宿主已接入 Nomi 的 MCP server，并能调用 nomi_list_models / nomi_await_setup / nomi_model_setup / nomi_remove_provider。
 metadata:
-  nomi-audience: external-host
-  nomi-contract: electron/capabilityCore/mcpIntegrationTools.ts
+  nomi-audience: external-host + embedded-agent
+  nomi-contract: electron/capabilityCore/modelOnboarding/declarations.ts
 ---
 
 # 把模型接进 Nomi
 
-Nomi 通过 MCP 暴露 `nomi_integration` 这**一个**工具，六个 action 走完全程。
+> 每个工具**做什么、什么时候用、什么时候别用、参数从哪来**，都写在工具自己的描述里，每回合都读得到。
+> 这份技能只写工具描述里没有、也不该有的三样东西：**顺序与岔路**、**只有跨工具才成立的纪律**、**做完对用户说什么**。
 
-**任何时候都不要把 API Key 写进工具参数。** Nomi 会自己弹出本机安全页向用户要，你看不到，也不需要看到。
-参数里只允许出现 header / query 的**名字**（`authHeader` / `authQueryParam`），不允许出现它们的值。
+## 这条路长什么样
 
-每一步都带 `expectedRevision`——它是会话状态指纹。拿到的返回里有新的 `revision`，下一步就用新的那个；
-对不上说明会话被别人动过，重新 `get` 一次再继续，不要重试旧的。
+```
+nomi_model_setup(connect_provider)
+    →（Nomi 自己向用户要 key）→ nomi_await_setup
+    → nomi_model_setup(choose_models)
+    → [只有在返回里看到 compileRequest 时：nomi_model_setup(draft_adapter)]
+    → nomi_model_setup(check_connection)
+    → nomi_model_setup(show_models, visible: true)
+```
 
-## 六步
+岔路只有两条：**这台机器上已经存过这家的 key** → 跳过等待那一步；
+**返回里带 `compileRequest`** → 说明本机没有可读文档的文本模型，写说明卡这活儿落到你头上。
 
-1. **`begin`** — 说清要接什么，拿到 `sessionId` 与 `revision`。
-   必填 `kind`（`http-api-provider` 或 `comfyui-workflow`）与 `name`。
-   把用户给的接口文档一并递进来：`baseUrl`、`docs`（文档正文，或每行一个 URL 的列表，≤64KB）、
-   `authType`（`none` / `bearer` / `x-api-key` / `query`）。文档是这一步最值钱的输入——递进来的会被直接采信，
-   不递就只能靠猜域名去找文档站。
+`nomi_list_models` 是这一组的主入口：所有 `vendorKey` / `modelKey` / `setupId` 都从它来。
+上下文丢了就不带参数调一次，它会把在途接入排在最前面。
 
-2. **`open_credentials`** — Nomi 弹出本机安全页，用户在那儿贴 Key。
-   这一步返回后会话停在 `needs_credential`，等用户贴完才继续。别在这里替用户想办法。
+## 三条一直成立的纪律
 
-3. **`propose`** — 先传**空 proposal** 让 Nomi 去探对方的 `/models`。
-   探不到就把候选手填进 `proposal.candidates`（每项 `{ modelKey, kind }`，`kind` ∈ text / image / video / audio / model3d）。
-   用户选定哪几个，写进 `proposal.selections`。
-   ComfyUI 走的是 `proposal.workflow`（工作流 JSON 文本）。
+1. **任何参数里都不许出现 key 的值。** Nomi 自己向用户要，在一个你看不到的本机页面上。
+   用户要是把 key 贴进聊天了，提醒他这条已经在聊天记录里，建议轮换。
 
-   **如果 propose 返回了 `compileRequest`**：这台机器上没有可用来读文档写说明卡的文本模型，
-   所以这活儿交给你。`compileRequest` 里带着目标 `contractSchema`（JSON Schema）与 `instructions`（撰写规则）。
-   照它写出 `{"sources":[...],"models":[...]}` 的 JSON 文本，放进 `proposal.adapterDraft` 再 `propose` 一次。
-   供应商身份、模型 id、显示名与计费类别由 Nomi 锁定，**不要在 adapterDraft 里重复它们**。
+2. **等人就调 `nomi_await_setup`。** 不要用「再调一次写动作」来表达等待——重调是安全的
+   （同一跳重放返回一模一样的结果），但它不会告诉你任何新东西。
 
-4. **`confirm`** — 带 `expectedRevision` 与 `idempotencyKey` 请用户确认。
-   要花钱的话 Nomi 自己会弹付费确认卡，不用你另外问。
-
-5. **`start`** — 真跑一次最小样例。
-   **跑通了模型才会出现在用户的「模型」列表里**——没有 `start` 就没有 `completed`，没有捷径。
-
-6. **`cancel`** — 卡住就取消，把原始错误**原样**报给用户（错误码 + 原文），不要自己编原因。
-   常见的两个：`402 insufficient_balance` 是余额不够（Key 已经存下了，充值后重试即可）、
-   `401` 是 Key 或 auth 方式不对（回到第 2 步重贴）。
-
-## 先查真实文档
-
-写请求前先抓供应商的**官方** API 文档逐项对账：端点路径、请求体字段名、鉴权放在 header 还是 query、
-异步任务是不是要轮询。不要凭记忆填字段——记错一个字段名，第 5 步会以一次真实调用失败告终。
+3. **`unverified` 里还有 `model_produces_output` 的时候，不许说「接好了」。**
+   免费自检证明的是地址通、key 被收下、模型 id 在对方清单里；它**证不了这个模型能出片**
+   （本仓记着两个反例：有的供应商对合法 key 恒回 401，有的回 200 却跑不通）。
+   照着 `nextAction.userSees` 转述，不要自己润色成完成。
 
 ## 做完告诉用户什么
 
-一句话说清三件：接进来的是哪几个模型、它们在 Nomi 的模型列表里叫什么名字、试跑产出了什么。
-没接成就直说没接成、卡在第几步、对方返回了什么——不要把「提案已提交」说成「已经接好了」。
+一句话说清四件：接进来的是哪几个模型、它们在模型列表里叫什么、自检查到了什么（以及**没**查什么）、
+现在能不能在画布上选到。
+
+模型现在会带着「未试跑」角标出现在画布模型框里——这是故意的：**自检没过也不下架**。
+真正的第一次试跑是用户自己点的（模型页上的「试跑」按钮会先显示价格），不是你替他跑。
+
+没接成就说卡在哪、对方返回了什么原文——不要把「已提交」说成「已接好」。
+
+## 先查真实文档
+
+写 `adapterDraft` 前抓供应商官方文档逐项对账：端点路径、请求体字段名、鉴权放 header 还是 query、
+**异步任务要不要轮询**。最后这条是最常见的失败原因：返回任务 id 却没声明 `query` 操作的适配器无法认证。

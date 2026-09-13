@@ -49,6 +49,14 @@ export const INTEGRATION_ERROR_CODES = [
   "integration_stage_not_allowed",
   /** 这个 action 的必填字段没给全——**一次列全**，不逐个抛（实测 22 次失败里 9 次栽在逐个抛上）。 */
   "integration_required_fields_missing",
+  /**
+   * 挑的 modelKey 不在这家供应商探到的候选里。**只在探到过候选时才判**——
+   * 供应商没有 model-list 端点时（候选为空）本来就只能手写，那时不拦。
+   * 为什么要有这条：模型编一个 modelKey 出来，用户画布模型框里就会多一个永远出不了片的模型，
+   * 而它看起来和真的一模一样。工具描述里写着「Never invent a modelKey」，
+   * 这条就是那句话的运行时判据（不然描述是空话）。
+   */
+  "integration_model_not_a_candidate",
 ] as const;
 
 export type IntegrationErrorCode = typeof INTEGRATION_ERROR_CODES[number];

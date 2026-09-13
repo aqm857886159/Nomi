@@ -9,8 +9,9 @@ import {
   spawnModelIntegrationMcp,
 } from './_modelIntegrationHarness.mjs'
 
-// 面收敛（surface-16-collapse）：接入状态机 10 工具塌成 nomi_integration（9 写 action）+ nomi_read（target=integration）。
-const REQUIRED_TOOLS = ['nomi_integration', 'nomi_read']
+// 2026-09-11 工具面重做：接入状态机的 11 个入口塌成 4 个工具 —— 读（nomi_list_models）/ 等（nomi_await_setup）/
+// 可撤销六步（nomi_model_setup）/ 唯一不可逆（nomi_remove_provider）。一个工具 = 一种后果。
+const REQUIRED_TOOLS = ['nomi_model_setup', 'nomi_list_models']
 
 async function inspectPublicSurface(client, label) {
   await client.initialize()
@@ -24,7 +25,7 @@ async function inspectPublicSurface(client, label) {
   assert(skill, `${label} exposes model-integration Skill resource when resources are supported`)
   const body = (await client.rpc('resources/read', { uri: skill.uri })).result?.contents?.[0]?.text || ''
   assert(
-    body.includes('nomi_integration') && body.includes('ComfyUI'),
+    body.includes('nomi_model_setup') && body.includes('ComfyUI'),
     `${label} Skill is progressively readable`,
   )
   return { tools: tools.length, resources: resources.length, skillChars: body.length }
@@ -41,8 +42,8 @@ async function run() {
     signed = spawnModelIntegrationMcp({ dirs, client: 'codex', signed: true })
     const publicEvidence = await inspectPublicSurface(signed, 'signed codex')
     const begin = parseToolResult(
-      await signed.callTool('nomi_integration', {
-        action: 'begin',
+      await signed.callTool('nomi_model_setup', {
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: 'No-repository public draft',
         baseUrl: 'https://example.invalid/v1',
