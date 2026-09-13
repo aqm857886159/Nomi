@@ -14,7 +14,10 @@ export type GenerationNodeRenderProps<TNode = unknown> = {
 }
 
 export type GenerationNodeComponent = ComponentType<GenerationNodeRenderProps<unknown>>
-export type GenerationNodeExecutionKind = 'image' | 'video' | 'text' | 'audio' | 'model3d'
+// 生成种类词表的 owner 在中立层（主进程的 Agent 工具面也要判它）；这里只是再导出，对账测试保证插件表与它一致。
+import type { GenerationNodeExecutionKind } from '../../../../electron/shared/canvas/nodeExecutionKinds'
+
+export type { GenerationNodeExecutionKind }
 export type GenerationNodeIconKey =
   | 'text'
   | 'character'

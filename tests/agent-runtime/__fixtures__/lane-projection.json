@@ -14,7 +14,7 @@
       "contentIndex": 0,
       "kind": "tool-call",
       "toolCallId": "call-read",
-      "toolName": "read_full_text",
+      "toolName": "read_script",
       "args": {},
       "running": false
     },
@@ -24,7 +24,7 @@
       "contentIndex": 0,
       "kind": "tool-result",
       "toolCallId": "call-read",
-      "toolName": "read_full_text",
+      "toolName": "read_script",
       "text": "The opening scene.",
       "isError": false
     },
@@ -34,7 +34,7 @@
       "contentIndex": 0,
       "kind": "tool-call",
       "toolCallId": "call-write",
-      "toolName": "append_to_end",
+      "toolName": "write_script",
       "args": {
         "content": "\n\nAnd then the door opened."
       },
@@ -46,7 +46,7 @@
       "contentIndex": 0,
       "kind": "tool-result",
       "toolCallId": "call-write",
-      "toolName": "append_to_end",
+      "toolName": "write_script",
       "text": "Applied append to the document. New revision 1.",
       "isError": false
     },

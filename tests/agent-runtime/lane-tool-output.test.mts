@@ -92,7 +92,7 @@ test('the contract parse runs once, after pi\'s ajv, and a cross-field failure r
   const first = fixture.http.requests[0]?.body as { messages?: { role: string; content: string }[] };
   const system = first.messages?.find((message) => message.role === 'system')?.content ?? '';
   assert.match(system, /^NOMI_LANE_SYSTEM/, 'the host identity prompt comes first');
-  assert.match(system, /Available tools:\n- nomi_canvas_read: /);
+  assert.match(system, /Available tools:\n- look_at_canvas: /);
   assert.match(system, /Guidelines:\n- Read the canvas before you change it/);
 });
 

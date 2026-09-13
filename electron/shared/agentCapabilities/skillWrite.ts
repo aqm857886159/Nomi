@@ -43,7 +43,7 @@ export const SKILL_WRITE_ALIASES = Object.freeze({
 export const SKILL_WRITE_CAPABILITY = {
   id: "skill.write",
   version: 1,
-  aliases: { method: SKILL_WRITE_ALIASES.author },
+  aliases: { pi: "save_skill", method: SKILL_WRITE_ALIASES.author },
   inputSchema: skillWriteSemanticInputSchema,
   outputSchema: skillWriteResultSchema,
   effect: "reversible_write",

@@ -351,9 +351,10 @@ export function timelineReadInputForAlias(alias: string, value: unknown): Timeli
 export const TIMELINE_READ_CAPABILITY = {
   id: "timeline.read",
   version: 1,
-  aliases: { pi: TIMELINE_READ_ALIASES.read, mcp: "nomi_timeline_read" },
+  // 模型可见动词只有 `read_timeline(range?)`；三个 operation 名字是传输层的方法词表（`propose_edit_plan` 已从模型面删除）。
+  aliases: { pi: "read_timeline", mcp: "nomi_timeline_read", method: TIMELINE_READ_ALIASES.inspectRange },
   additionalAliases: {
-    pi: Object.freeze([TIMELINE_READ_ALIASES.inspectRange, TIMELINE_READ_ALIASES.proposePlan]),
+    method: Object.freeze([TIMELINE_READ_ALIASES.proposePlan]),
   },
   inputSchema: timelineReadSemanticInputSchema,
   outputSchema: timelineReadResultSchema,

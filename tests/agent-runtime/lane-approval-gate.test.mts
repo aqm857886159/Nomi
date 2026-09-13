@@ -21,7 +21,7 @@ import type { LaneApprovalOptions } from '../../electron/agentLane/laneRuntimePo
 import { createDocumentLaneTools } from '../../electron/agentLane/laneDocumentTools.js';
 import { createDocumentPort, createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
-const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'append_to_end', arguments: { content: ' and then she left.' } }] };
+const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'write_script', arguments: { where: 'end', content: ' and then she left.' } }] };
 const CLOSING = { type: 'text' as const, text: 'Done.' };
 
 /** 「每步问」：让文稿写入必然停下来等人，不靠某个能力恰好是硬闸。 */
@@ -97,7 +97,7 @@ test('G3b ① · 等待期：零模型请求在飞，工具没进过领域端口
   const pending = await firstPending(lane);
 
   assert.equal(pending.toolCallId, 'call-append');
-  assert.equal(pending.toolName, 'append_to_end');
+  assert.equal(pending.toolName, 'write_script');
   assert.equal(pending.pendingCount, 1);
   // 文稿写入是本地可撤销的，所以「本会话允许这类」那个按钮**该有**……
   assert.equal(pending.effectClass, 'reversible_local');

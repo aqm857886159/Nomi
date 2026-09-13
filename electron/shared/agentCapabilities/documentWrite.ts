@@ -38,12 +38,14 @@ export function documentWriteOperationForAlias(alias: string): DocumentWriteInpu
 export const DOCUMENT_WRITE_CAPABILITY = {
   id: "document.write",
   version: 1,
+  // 模型可见动词只有 `write_script(where)`；insert/replace/append 三个名字是传输层的方法词表。
   aliases: {
-    pi: DOCUMENT_WRITE_ALIASES.insert,
+    pi: "write_script",
     mcp: "nomi_document_edit",
+    method: DOCUMENT_WRITE_ALIASES.insert,
   },
   additionalAliases: {
-    pi: Object.freeze([DOCUMENT_WRITE_ALIASES.replace, DOCUMENT_WRITE_ALIASES.append]),
+    method: Object.freeze([DOCUMENT_WRITE_ALIASES.replace, DOCUMENT_WRITE_ALIASES.append]),
   },
   inputSchema: documentWriteSemanticInputSchema,
   outputSchema: documentWriteResultSchema,

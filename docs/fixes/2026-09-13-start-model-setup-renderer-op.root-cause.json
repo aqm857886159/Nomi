@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-start-model-setup-renderer-op",
+  "problem_type": "start_model_setup emitted an unhandled renderer operation",
+  "symptom": "A real Agent request to open video-model setup returned unknown capability operation settings.open-model-provider.",
+  "direct_cause": "The desktop lane requested settings.open-model-provider, while the renderer capability handler only implemented integration.open-credentials.",
+  "class_root": "Renderer bridge operations were hand-copied across the lane and renderer without a shared operation owner or boundary test.",
+  "affected_population": [
+    "start_model_setup",
+    "users without a ready generation provider"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneDesktopTools.ts",
+    "src/workbench/capability/mcpHostSurfaceOps.ts",
+    "src/workbench/capability/capabilityApplyHandler.integration.test.ts"
+  ],
+  "entry_points": [
+    "createDesktopLaneTools start_model_setup",
+    "handleCapabilityApply renderer operation dispatch"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The operation is an internal Electron renderer bridge contract.",
+  "invariants": [
+    "start_model_setup opens the existing models settings route without accepting or storing credentials.",
+    "The renderer accepts the operation emitted by the desktop lane.",
+    "An unavailable setup surface never claims that a provider was connected."
+  ],
+  "generality_proof": "All model setup requests converge through the desktop lane and the renderer capability apply handler.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "start_model_setup",
+      "responsibility": "Emit the setup bridge operation."
+    },
+    {
+      "path": "src/workbench/capability/mcpHostSurfaceOps.ts",
+      "symbol": "handleMcpHostSurfaceOp",
+      "responsibility": "Open the models settings route."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "entry_point": "start_model_setup bridge request",
+      "disposition": "enforced",
+      "evidence": "The desktop-lane implementation is covered by the lane desktop tools test harness and emits the single operation consumed by the renderer boundary."
+    },
+    {
+      "path": "src/workbench/capability/mcpHostSurfaceOps.ts",
+      "entry_point": "settings.open-model-provider and integration.open-credentials surface operations",
+      "disposition": "enforced",
+      "evidence": "The capabilityApplyHandler integration test asserts both bridge paths dispatch the models settings event without storing credentials."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new renderer bridge operation can drift unless both ends are tested.",
+    "same_class_scan": [
+      "rg settings.open-model-provider electron src",
+      "rg integration.open-credentials electron src"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/capability/mcpHostSurfaceOps.ts",
+    "invariant": "Model setup bridge operations resolve to the existing settings event.",
+    "failure_mode": "Unknown operations fail closed and are surfaced to the Agent.",
+    "exception_policy": "none",
+    "strategy": "Handle the lane operation at the existing host-surface boundary and cover both operation spellings in one integration test.",
+    "artifacts": [
+      "src/workbench/capability/mcpHostSurfaceOps.ts",
+      "src/workbench/capability/capabilityApplyHandler.integration.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/capability/capabilityApplyHandler.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/capability/capabilityApplyHandler.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The existing integration.open-credentials operation remains supported."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the bridge operation.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data stores the operation name; both bridge spellings remain readable during this fix.",
+  "residual_risks": [
+    "The live provider still requires credentials before generation can execute."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/capability/mcpHostSurfaceOps.ts",
+    "tests": [
+      "src/workbench/capability/capabilityApplyHandler.integration.test.ts"
+    ]
+  }
+}

@@ -18,9 +18,9 @@ describe("canvas.write canonical contract", () => {
       id: "canvas.write",
       version: 1,
       // `pi` surface 上只放模型可见的三个动词；operation 值是 schema 枚举，不是别名。
-      aliases: { pi: "nomi_canvas_write", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
+      aliases: { pi: "arrange_canvas", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
       additionalAliases: {
-        pi: ["nomi_storyboard_write", "nomi_shot_reference_write"],
+        pi: ["make_artifact", "stage_shot"],
       },
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,

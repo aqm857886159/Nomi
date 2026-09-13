@@ -26,7 +26,7 @@ test('the budget reports group contributions and enforces the complete resident 
   const judged = combinations
   assert.deepEqual(judged.map(one => one.label),
     ['always-on（含 request）', 'always-on + coding',
-      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), 'always-on + models', '全部组常驻（实际最大组合）'])
+      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), '全部组常驻（实际最大组合）'])
   for (const combination of judged.slice(1)) {
     assert.deepEqual(combination.toolNames.slice(0, alwaysOn.length), alwaysOn,
       '每个组合都是「常驻 + 一个组」，常驻那一段逐字相同')
@@ -34,7 +34,7 @@ test('the budget reports group contributions and enforces the complete resident 
   // The complete resident catalog is now reachable and must be judged.
   const all = combinations.at(-1)
   assert.deepEqual(new Set(all.toolNames), new Set([
-    ...alwaysOn, ...LANE_CODING_TOOL_NAMES, 'nomi_read', ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
+    ...alwaysOn, ...LANE_CODING_TOOL_NAMES, ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
   ]))
   const request = laneRequestToolDefinition([{ name: 'coding' }, ...LANE_DEFERRED_TOOL_GROUPS])
   assert.deepEqual(request.parameters.required, ['group'])
@@ -198,7 +198,9 @@ test('显式单面别名不误报，未声明的缺失和广播漂移仍被拦�
   const registry = await import(pathToFileURL(path.join(repoRoot, 'electron/shared/agentCapabilities/modelFacingToolRegistry.ts')).href)
   const tool = registry.mcpProfileTools().find(candidate => candidate.contractId === 'timeline.read')
   const internal = registry.modelFacingToolSpecs('internal').filter(spec => spec.contractId === 'timeline.read')
-  assert.ok(internal.some(spec => spec.name === 'propose_edit_plan' && spec.profiles.includes('internal')))
+  // `propose_edit_plan` is a transport alias now; the model-facing surface exposes
+  // the single semantic read verb and keeps the alias out of the model profile.
+  assert.ok(internal.some(spec => spec.name === 'read_timeline'))
   assert.deepEqual(facing.declaredProfileDrift(internal, tool), [])
   const missing = { ...tool, specs: tool.specs.slice(1) }
   assert.match(facing.declaredProfileDrift(internal, missing)[0], /只在内部 profile 上存在/)

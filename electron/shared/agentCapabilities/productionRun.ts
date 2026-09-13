@@ -12,9 +12,10 @@ const productionOutputSchema = z.unknown();
 export const PRODUCTION_RUN_READ_CAPABILITY = {
   id: "production.run.read",
   version: 1,
-  aliases: { pi: "get_production_run" },
+  // Run 家族不上模型面（设计正本 §5.3）：这些名字只是宿主传输的方法词表。
+  aliases: { method: "get_production_run" },
   additionalAliases: {
-    pi: Object.freeze(["subscribe_production_run", "read_production_artifact", "read_production_artifact_content"]),
+    method: Object.freeze(["subscribe_production_run", "read_production_artifact", "read_production_artifact_content"]),
   },
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,
@@ -29,8 +30,8 @@ export const PRODUCTION_RUN_READ_CAPABILITY = {
 export const PRODUCTION_RUN_WRITE_CAPABILITY = {
   id: "production.run.write",
   version: 1,
-  aliases: { pi: "start_production_run" },
-  additionalAliases: { pi: Object.freeze(["control_production_run", "decide_production_gate"]) },
+  aliases: { method: "start_production_run" },
+  additionalAliases: { method: Object.freeze(["control_production_run", "decide_production_gate"]) },
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,
   effect: "reversible_write",
@@ -44,9 +45,9 @@ export const PRODUCTION_RUN_WRITE_CAPABILITY = {
 export const PRODUCTION_ARTIFACT_WRITE_CAPABILITY = {
   id: "production.artifact.write",
   version: 1,
-  aliases: { pi: "revise_production_artifact" },
+  aliases: { method: "revise_production_artifact" },
   additionalAliases: {
-    pi: Object.freeze(["review_production_artifact", "materialize_production_storyboard"]),
+    method: Object.freeze(["review_production_artifact", "materialize_production_storyboard"]),
   },
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,

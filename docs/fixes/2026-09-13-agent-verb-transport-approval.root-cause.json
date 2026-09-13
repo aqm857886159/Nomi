@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-agent-verb-transport-approval",
+  "problem_type": "semantic agent verbs lost identity across transport and approval boundaries",
+  "symptom": "Valid canonical edit, delete, export, and document requests were rejected or routed with unsupported operation names after preparation.",
+  "direct_cause": "Preparation translated model-facing verbs to domain transport names, while approval and execution compared the translated or raw wire identity inconsistently; document writes also passed the semantic operation as the transport tool name.",
+  "class_root": "There was no single normalized RuntimeToolCall identity carried from schema validation through preparation, approval, and execution.",
+  "affected_population": [
+    "canonical 20-verb Agent calls",
+    "Electron desktop lane",
+    "MCP and UI-originated calls"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneVerbTransport.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/agentLane/laneDesktopTools.test.ts",
+    "electron/shared/agentCapabilities/timelineWrite.ts",
+    "scripts/check-mcp-tool-references-lib.mjs",
+    "tests/ux/agent-artifact.walk.mjs",
+    "tests/ux/golden-path.e2e.mjs"
+  ],
+  "entry_points": [
+    "toolLifecycle.prepare/approved/settled",
+    "deferred lane execute",
+    "document write adapter boundary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant governs internal semantic-to-transport wiring; no external protocol determines approval identity.",
+  "invariants": [
+    "The schema-normalized semantic RuntimeToolCall is the sole approval identity.",
+    "Transport translation happens only after identity and authority checks.",
+    "A consumed approval cannot be replayed or reused with changed arguments.",
+    "Document writes pass the canonical transport method and semantic operation as separate fields."
+  ],
+  "generality_proof": "All deferred write lanes use the same lifecycle and translation boundary, so the normalized identity check covers timeline, canvas, export, skill, generation, and document callers.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "toolLifecycle.prepare / execute",
+      "responsibility": "normalize semantic args once, retain the semantic call, and enforce exact identity before crossing a domain adapter"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "documentWrite preparation",
+      "responsibility": "map write_script to the document transport method while preserving operation/content fields"
+    },
+    {
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "verbToTransportCall",
+      "responsibility": "centralize semantic verb to domain transport mapping"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "canonical verb schemas and examples",
+      "responsibility": "keep model-facing examples aligned with the published schema without untranslated UI literals"
+    },
+    {
+      "path": "scripts/check-mcp-tool-references-lib.mjs",
+      "symbol": "scanSource",
+      "responsibility": "classify MCP names by resolver membership before host fixture structure so executable MCP fixtures use the MCP catalog"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+      "entry_point": "deferred write lifecycle",
+      "disposition": "enforced",
+      "evidence": "10 tests cover normalization, approval, changed args, replay, receipt correlation, delayed generation, and settlement"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopTools.test.ts",
+      "entry_point": "document and canvas desktop tools",
+      "disposition": "enforced",
+      "evidence": "canonical document write and deletion journeys assert persisted effects and authority gates"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "entry_point": "make_artifact and draft_shots declarations",
+      "disposition": "enforced",
+      "evidence": "canonical schema declarations are covered by registry and tool-face checks"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any newly added semantic verb can be translated to a different domain method and repeat the mismatch unless the shared lifecycle remains authoritative.",
+    "same_class_scan": [
+      "rg semantic verb aliases in electron/agentLane/laneVerbTransport.ts",
+      "rg toolLifecycle.prepare/approved/execute in electron/agentLane",
+      "canonical laneDesktopTools tests"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "invariant": "prepare and execute compare the same schema-normalized semantic call before consuming authority",
+    "failure_mode": "invalid or changed identity fails closed with capability_authority_invalid",
+    "exception_policy": "none",
+    "strategy": "retain the semantic call in Pending, normalize execute input with the same schema, then translate only for the adapter",
+    "artifacts": [
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "electron/agentLane/laneDesktopTools.ts",
+      "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "scripts/check-mcp-tool-references-lib.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/agentLane/laneDesktopTools.test.ts",
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "scripts/check-mcp-tool-references.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/agentLane/laneDesktopTools.test.ts",
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "scripts/check-mcp-tool-references.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old behavior was an internal comparison and transport bug; no separate persisted legacy path exists."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this internal identity invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing pending approvals are in-memory and are discarded on lane restart; no persisted migration is required.",
+  "residual_risks": [
+    "Real provider generation and full natural-language Electron submission remain to be verified on this branch."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane",
+    "tests": [
+      "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+      "electron/agentLane/laneDesktopTools.test.ts"
+    ]
+  }
+}

@@ -18,7 +18,9 @@ export type TargetRef =
       version: number;
       contentHash: string;
     }>
-  | Readonly<{ kind: "production"; runId: string; gateId?: string; jobId?: string }>;
+  | Readonly<{ kind: "production"; runId: string; gateId?: string; jobId?: string }>
+  /** 技能库里的一个目录（`save_skill`）。 */
+  | Readonly<{ kind: "skill"; dirName: string }>;
 
 export type PreconditionSet = Readonly<{
   document?: Readonly<{ revision: number; contentHash?: string }>;

@@ -16,6 +16,7 @@ import {
   GENERATION_RUN_READ_CAPABILITY,
   GENERATION_CONTROL_CAPABILITY,
 } from "./generation";
+import { MODEL_SETUP_OPEN_CAPABILITY } from "./modelSetup";
 import {
   PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
   PRODUCTION_RUN_READ_CAPABILITY,
@@ -58,6 +59,7 @@ const REGISTERED_CONTRACTS = [
   GENERATION_GATE_CAPABILITY,
   GENERATION_RUN_READ_CAPABILITY,
   GENERATION_CONTROL_CAPABILITY,
+  MODEL_SETUP_OPEN_CAPABILITY,
 ] as const satisfies readonly CapabilityContract<unknown, unknown>[];
 
 export const CAPABILITY_CONTRACTS: ContractOnlyRegistry<typeof REGISTERED_CONTRACTS> = REGISTERED_CONTRACTS;
@@ -101,7 +103,12 @@ export function capabilityContractById(contractId: string): AnyCapabilityContrac
 
 /** True when the descriptor says its payload is a plan the user must read first. */
 export function capabilityRequiresPlanReview(toolName: string, args?: unknown): boolean {
-  const contract = resolveCapabilityAlias(toolName)?.contract as AnyCapabilityContract | undefined;
+  // Lane-only aliases (for example nomi_storyboard_write) are projections of
+  // the canvas contract and therefore do not appear in the canonical alias
+  // table. Resolve them through the model-facing declaration first so their
+  // operation metadata is retained.
+  const legacyCanvasFace = ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan", "nomi_storyboard_write", "nomi_shot_reference_write"].includes(toolName);
+  const contract = (legacyCanvasFace ? CANVAS_WRITE_CAPABILITY : resolveCapabilityAlias(toolName)?.contract) as AnyCapabilityContract | undefined;
   const operation = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>).operation : undefined;
   return capabilityPlanReviewOf(contract, { operation: typeof operation === "string" ? operation : toolName }).requiresPlanReview;
 }

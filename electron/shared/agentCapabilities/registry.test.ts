@@ -10,6 +10,7 @@ import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabil
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
 import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY } from "./layout";
+import { MODEL_SETUP_OPEN_CAPABILITY } from "./modelSetup";
 import {
   PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
   PRODUCTION_RUN_READ_CAPABILITY,
@@ -82,6 +83,7 @@ describe("capability contract registry", () => {
       GENERATION_GATE_CAPABILITY,
       GENERATION_RUN_READ_CAPABILITY,
       GENERATION_CONTROL_CAPABILITY,
+      MODEL_SETUP_OPEN_CAPABILITY,
     ]);
 
     const ids = CAPABILITY_CONTRACTS.map((contract) => contract.id);
@@ -120,52 +122,34 @@ describe("capability contract registry", () => {
       "generation.gate",
       "generation.run.read",
       "generation.control",
+      "model.setup.open",
     ]);
     // 主别名按 surface 摆平：`pi` 只放模型可见动词名（与 `verbDeclarations.ts` 对账，门岗
     // `no-orphan-alias`），`method` 放宿主/dispatcher 方法名，`mcp` 放对外名，`ui` 放渲染层入口名。
     const aliases = CAPABILITY_CONTRACTS.flatMap((contract) => Object.values(contract.aliases));
     expect(aliases).toEqual([
-      "get_media",
-      "nomi_media_query",
-      "delete_canvas_nodes",
-      "nomi_canvas_maintenance",
-      "nomi_canvas_read",
-      "nomi_canvas_read",
-      "nomi_canvas_write",
-      "nomi_canvas_edit",
-      "nomi_canvas_plan",
-      "read_full_text",
-      "nomi_document_read",
-      "insert_at_cursor",
-      "nomi_document_edit",
-      "inspect_export_job",
-      "nomi_export_job",
-      "export_timeline",
-      "read_timeline",
-      "nomi_timeline_read",
-      "apply_edit_plan",
-      "nomi_timeline_edit",
-      "nomi_layout_read",
-      "nomi_layout_write",
-      "get_production_run",
-      "start_production_run",
-      "revise_production_artifact",
-      "load_skill",
-      "author_skill",
-      "nomi_get_generation_context",
-      "nomi_generation_plan",
-      "nomi_resolve_generation_plan",
-      "nomi_request_generation_gate",
-      "nomi_operation_read",
-      "nomi_generation_status",
-      "nomi_cancel_generation",
+      "look_at_media", "nomi_media_query", "get_media",
+      "delete_from_canvas", "nomi_canvas_maintenance", "delete_canvas_nodes",
+      "look_at_canvas", "nomi_canvas_read", "nomi_canvas_read",
+      "arrange_canvas", "nomi_canvas_edit", "nomi_canvas_plan",
+      "read_script", "nomi_document_read", "read_full_text",
+      "write_script", "nomi_document_edit", "insert_at_cursor",
+      "nomi_export_job", "inspect_export_job", "export_video", "export_timeline",
+      "read_timeline", "nomi_timeline_read", "inspect_timeline_range",
+      "edit_timeline", "nomi_timeline_edit", "apply_edit_plan",
+      "nomi_layout_read", "nomi_layout_write", "get_production_run",
+      "start_production_run", "revise_production_artifact", "read_skill", "load_skill",
+      "save_skill", "author_skill", "list_models", "nomi_get_generation_context",
+      "draft_shots", "nomi_resolve_generation_plan", "nomi_request_generation_gate",
+      "check_job", "nomi_operation_read", "nomi_generation_status",
+      "start_model_setup", "nomi_open_model_setup",
     ]);
     expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");
     expect(CAPABILITY_CONTRACTS.every((contract) => CAPABILITY_EFFECT_CLASSES.includes(contract.effectClass))).toBe(true);
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
     expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
-      "nomi_storyboard_write",
-      "nomi_shot_reference_write",
+      "make_artifact",
+      "stage_shot",
     ]);
     expect(resolveCapabilityAlias("nomi_set_node_prompt")).toBeUndefined();
     expect(resolveCapabilityAlias(DOCUMENT_READ_ALIASES.selection)?.contract).toBe(DOCUMENT_READ_CAPABILITY);

@@ -22,14 +22,14 @@ const APPENDED = 'The lights went out.';
 
 /** 八条首调：一条正确的 + 七条真机见过的畸形。 */
 const FIRST_CALLS: ReadonlyArray<{ label: string; tool: string; args: unknown }> = [
-  { label: 'well-formed', tool: 'append_to_end', args: { content: APPENDED } },
-  { label: 'whole-argument-object serialized as a JSON string', tool: 'append_to_end', args: JSON.stringify({ content: APPENDED }) },
-  { label: 'field named `text` instead of `content`', tool: 'append_to_end', args: { text: APPENDED } },
-  { label: 'field named `body` instead of `content`', tool: 'append_to_end', args: { body: APPENDED } },
-  { label: 'content split into an array of strings', tool: 'append_to_end', args: { content: ['The lights ', 'went out.'] } },
-  { label: 'no-argument tool handed the argument a sibling tool takes', tool: 'read_full_text', args: { scope: 'full' } },
-  { label: 'no-argument tool handed an empty JSON string', tool: 'read_full_text', args: '{}' },
-  { label: 'no-argument tool handed an unrelated hint', tool: 'read_full_text', args: { path: 'draft.md' } },
+  { label: 'well-formed', tool: 'write_script', args: { content: APPENDED } },
+  { label: 'whole-argument-object serialized as a JSON string', tool: 'write_script', args: JSON.stringify({ content: APPENDED }) },
+  { label: 'field named `text` instead of `content`', tool: 'write_script', args: { text: APPENDED } },
+  { label: 'field named `body` instead of `content`', tool: 'write_script', args: { body: APPENDED } },
+  { label: 'content split into an array of strings', tool: 'write_script', args: { content: ['The lights ', 'went out.'] } },
+  { label: 'no-argument tool handed the argument a sibling tool takes', tool: 'read_script', args: { scope: 'full' } },
+  { label: 'no-argument tool handed an empty JSON string', tool: 'read_script', args: '{}' },
+  { label: 'no-argument tool handed an unrelated hint', tool: 'read_script', args: { path: 'draft.md' } },
 ];
 
 /** 把容忍钩子摘掉的对照臂。**只摘这一样**，其余（schema、描述、执行）全同。 */
@@ -61,7 +61,7 @@ async function measure(t: TestContext, arm: MeasurementArm): Promise<Measurement
       { type: 'tool', calls: [{ id: 'first', name: attempt.tool, arguments: attempt.args }] },
       // 第二回合永远是「正确的那次」：模型读到错误后自纠。它存在是为了让回合能收尾——
       // 一次写对时它不会被消费（夹具按需出队）。
-      { type: 'tool', calls: [{ id: 'second', name: 'append_to_end', arguments: { content: APPENDED } }] },
+      { type: 'tool', calls: [{ id: 'second', name: 'write_script', arguments: { content: APPENDED } }] },
       { type: 'text', text: 'Done.' },
     ];
     const document = createDocumentPort();
@@ -144,7 +144,7 @@ test('R30 · tolerance is a hug, not a loosened schema', async (t) => {
   // 那正是 0/18 的来历。所以真正缺 content 的调用仍然必须失败，而且失败信息里
   // 要带上收到的参数（探针 §4.2 臂 A：pi 的校验器自己会回显）。
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'empty', name: 'append_to_end', arguments: { unrelated: 1 } }] },
+    { type: 'tool', calls: [{ id: 'empty', name: 'write_script', arguments: { unrelated: 1 } }] },
     { type: 'text', text: 'I could not append.' },
   ]);
   const lane = await fixture.openLane(fixture.options);

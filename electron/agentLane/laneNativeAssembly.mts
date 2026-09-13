@@ -60,8 +60,8 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
   // `models` 组从注册表里那条声明派生（`internalGroup`），不再手写名字。
   const modelReadSpec = laneModelReadSpec();
   const groups: readonly LaneDeferredGroup[] = [
-    { name: 'coding', toolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== 'read') }, ...(input.deferredGroups ?? []),
-    { name: modelReadSpec.internalGroup!, toolNames: [modelReadSpec.name] },
+    { name: 'coding', toolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== 'read') },
+    ...(input.deferredGroups ?? []).filter(group => !group.toolNames.includes(modelReadSpec.name)),
   ];
   const alwaysOn = laneToolMenu().activeToolNames;
   const names = new Set(alwaysOn);
@@ -102,7 +102,6 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
     [modelReadSpec.name]: modelReadSpec.effect,
     [LANE_TOOL_REQUEST_TOOL_NAME]: 'read',
   });
-  const modelRead = createLaneModelRead(() => input.availableModels?.() ?? []);
   const promptSources = [...coding, request] as unknown as PiAgentTool[];
   // `nomi_read` 的系统提示词条目直接用注册表那份说明书（全文 + 示例 + 纪律），与领域工具同一条路。
   const promptTools = [
@@ -115,7 +114,9 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
     modelReadSpec,
   ];
   return {
-    tools: [...coding, modelRead as AgentHarnessTool<undefined>, request],
+    // 模型目录已由 laneHost 的 canonical `createLaneTools(options.tools)` 提供；native
+    // 只补 coding 与请求工具，避免同一 schema 在 harness 中注册两次。
+    tools: [...coding, request],
     promptTools,
     groups,
     effects,
@@ -128,6 +129,6 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
     resolveApprovalSubject: createLaneNativeApprovalResolver({
       projectDir: input.projectDir, sandboxActive: input.sandbox.active, effects,
     }),
-    promptSections: codingToolPromptSections([...promptSources, modelRead as unknown as PiAgentTool]),
+    promptSections: codingToolPromptSections([...promptSources, modelReadSpec as unknown as PiAgentTool]),
   };
 }

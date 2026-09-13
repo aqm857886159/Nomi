@@ -15,7 +15,7 @@ test('onAccepted acknowledges durable input before approval while execute settle
     return opened;
   });
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'admitted-write', name: 'append_to_end', arguments: { content: ' Approved fixture.' } }] },
+    { type: 'tool', calls: [{ id: 'admitted-write', name: 'write_script', arguments: { where: 'end', content: ' Approved fixture.' } }] },
     { type: 'text', text: 'Fixture complete.' },
   ], { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await openLane(fixture.options);

@@ -37,7 +37,7 @@ const storyboardAnchorSchema = z.object({
     .string()
     .min(1)
     .describe("Stable anchor id; becomes the canvas clientId."),
-  kind: z.enum(["character", "scene", "prop", "style"]),
+  kind: z.enum(["character", "scene", "prop", "style"]).describe("Reference anchor kind."),
   name: z.string().describe("Display name and shot-reference key in the user's language (e.g. '林夏' / '天台')."),
   description: z
     .string()
@@ -95,8 +95,8 @@ const storyboardShotSchema = z.object({
     .describe("Verbatim spoken dialogue: speaker and line."),
   transition: z
     .object({
-      type: z.enum(["cut", "dissolve", "fade", "match_cut", "whip_pan"]),
-      durationFrames: z.number().int().positive().optional(),
+      type: z.enum(["cut", "dissolve", "fade", "match_cut", "whip_pan"]).describe("Transition type."),
+      durationFrames: z.number().int().positive().describe("Transition duration in frames.").optional(),
     })
     .optional()
     .describe("Transition to next shot; cut means hard cut, omit if unauthored."),
@@ -135,6 +135,26 @@ export const storyboardPlanParamsSchema = z.object({
   anchors: jsonTolerantArray(z.array(storyboardAnchorSchema).max(24)),
   shots: jsonTolerantArray(z.array(storyboardShotSchema).min(1).max(24)),
 });
+
+// Shared gray-model prop contract. Staging and camera-move references render the
+// same prop vocabulary; keeping one schema also makes the MCP operation union
+// lossless when it is flattened for model-facing JSON Schema.
+export const grayModelPropsSchema = z
+  .array(
+    z.object({
+      kind: z.enum([
+        "car", "building", "tree", "streetlamp", "wall", "suv", "bus",
+        "bicycle", "scooter", "sofa", "diningTable", "fridge",
+        "washingMachine", "trashBins", "atm", "backpack",
+      ]).describe("Gray-model prop kind."),
+      position: z.array(z.number()).length(2).optional().describe("Ground [x,z] meters, relative to the subject at origin."),
+      rotationY: z.number().optional().describe("Yaw in degrees."),
+      scale: z.number().optional().describe("Uniform scale (0.1–10, default 1)."),
+    }),
+  )
+  .max(12)
+  .optional()
+  .describe("Placed gray-model props; use sceneTemplate for a full backdrop.");
 
 // ── 站位参考 schema（create_staging_reference 的参数；镜像渲染层 stagingBuilder 的 StagingSpec，
 // 进程隔离故两处各一份，与 storyboardPlan 同例。pose 枚举=已校准的预设 id）。──
@@ -180,17 +200,17 @@ export const stagingReferenceParamsSchema = z.object({
     .describe("Layout: side-by-side is a row; line is a front-to-back queue."),
   camera: z
     .object({
-      angle: z.enum(["front", "three-quarter", "side", "back"]).optional(),
+      angle: z.enum(["front", "three-quarter", "side", "back"]).describe("Reference camera angle.").optional(),
       height: z
         .enum(["eye", "low", "high", "overhead"])
         .optional()
         .describe("low = low-angle look up; high = high-angle look down; overhead = top-down."),
-      shot: z.enum(["wide", "medium", "close"]).optional(),
+      shot: z.enum(["wide", "medium", "close"]).describe("Reference framing.").optional(),
     })
     .optional(),
   environment: z.enum(["studio", "day", "night"]).optional(),
   crowd: z
-    .object({ rows: z.number().int(), columns: z.number().int() })
+    .object({ rows: z.number().int().describe("Crowd row count."), columns: z.number().int().describe("Crowd column count.") })
     .optional()
     .describe("Optional background crowd grid behind the main characters."),
   // 灰模布景（走 UI 同一套 builder）：整套场景模板 + 单件语义道具，给参考图一个可读的环境/尺度背景。
@@ -198,39 +218,7 @@ export const stagingReferenceParamsSchema = z.object({
     .enum(["street", "room"])
     .optional()
     .describe("Gray backdrop: street or room; environment=day lights the street."),
-  props: z
-    .array(
-      z.object({
-        kind: z.enum([
-          "car",
-          "building",
-          "tree",
-          "streetlamp",
-          "wall",
-          "suv",
-          "bus",
-          "bicycle",
-          "scooter",
-          "sofa",
-          "diningTable",
-          "fridge",
-          "washingMachine",
-          "trashBins",
-          "atm",
-          "backpack",
-        ]),
-        position: z
-          .array(z.number())
-          .length(2)
-          .optional()
-          .describe("Ground [x,z] meters, relative to characters at origin."),
-        rotationY: z.number().optional().describe("Yaw in degrees."),
-        scale: z.number().optional().describe("Uniform scale (0.1–10, default 1)."),
-      }),
-    )
-    .max(12)
-    .optional()
-    .describe("Placed gray-model props; use sceneTemplate for a full backdrop."),
+  props: grayModelPropsSchema,
   // 词表外逃生口（站位）：词表(layout/pose/facing…)是精确首选，但站位/构图意图不在词表里时
   // 不要硬塞最近的词——填自由文本，执行器不渲站位图、把它当 composition 指令追加进关键帧图 prompt。
   customBlocking: z
@@ -302,39 +290,7 @@ export const cameraMoveParamsObjectSchema = z.object({
     .enum(["street", "room"])
     .optional()
     .describe("Gray backdrop beneath the subject at origin."),
-  props: z
-    .array(
-      z.object({
-        kind: z.enum([
-          "car",
-          "building",
-          "tree",
-          "streetlamp",
-          "wall",
-          "suv",
-          "bus",
-          "bicycle",
-          "scooter",
-          "sofa",
-          "diningTable",
-          "fridge",
-          "washingMachine",
-          "trashBins",
-          "atm",
-          "backpack",
-        ]),
-        position: z
-          .array(z.number())
-          .length(2)
-          .optional()
-          .describe("Ground [x,z] meters, relative to subject at origin."),
-        rotationY: z.number().optional().describe("Yaw in degrees."),
-        scale: z.number().optional().describe("Uniform scale (0.1–10, default 1)."),
-      }),
-    )
-    .max(12)
-    .optional()
-    .describe("Placed gray-model props; use sceneTemplate for a full backdrop."),
+  props: grayModelPropsSchema,
 });
 
 /** Workflow guidance shared by the model profiles; field schemas retain their concise meanings. */

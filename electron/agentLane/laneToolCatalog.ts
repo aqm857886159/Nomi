@@ -60,3 +60,10 @@ export const LANE_DEFERRED_TOOL_GROUPS = Object.freeze(
     name, toolNames: Object.freeze(LANE_DEFERRED_TOOL_CATALOG.filter(spec => spec.internalGroup === name).map(spec => spec.name)),
   })),
 );
+
+// Retired lane aliases remain readable in persisted transcripts and fixture
+// replies. They are not MCP tools and must be classified as in-app Agent names
+// by the reference gate.
+export const LANE_RUNTIME_COMPAT_TOOL_NAMES = Object.freeze([
+  'nomi_canvas_write', 'nomi_canvas_read', 'nomi_generation_plan', 'nomi_storyboard_write',
+]);

@@ -21,7 +21,14 @@ export function laneGenerationContextText(value: unknown, args: unknown): string
     ...(image ? { videoModels: [] } : { videoModels }),
     ...(video ? { providerProfiles: [] } : {}),
   }
-  if (request.scope === 'full') return JSON.stringify(taskKind ? scoped : source, null, 2)
+  if (request.scope === 'full') {
+    const full = JSON.stringify(taskKind ? scoped : source, null, 2)
+    // Keep tool output bounded even when the caller explicitly asks for full data.
+    if (Buffer.byteLength(full, 'utf8') <= 4096) return full
+    let out = full
+    while (Buffer.byteLength(out, 'utf8') > 4096) out = out.slice(0, Math.floor(out.length * 0.95))
+    return out.slice(0, -3) + '...'
+  }
 
   const summary: Record<string, unknown> = {
     scope: 'summary', ...(taskKind ? { taskKind } : {}),

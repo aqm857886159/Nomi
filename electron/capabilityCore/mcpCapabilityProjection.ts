@@ -3,15 +3,14 @@ import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJ
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
-import { CANVAS_WRITE_CAPABILITY, canvasWriteResultSchema } from "../shared/agentCapabilities/canvasWrite";
-import { CANVAS_DELETE_CAPABILITY, canvasDeleteSemanticInputSchema, canvasDeleteResultSchema } from "../shared/agentCapabilities/canvasDelete";
+import { CANVAS_WRITE_CAPABILITY, canvasWriteResultSchema, canvasWriteSemanticInputSchema } from "../shared/agentCapabilities/canvasWrite";
+import { CANVAS_DELETE_CAPABILITY, canvasDeletePiInputSchema, canvasDeleteSemanticInputSchema, canvasDeleteResultSchema } from "../shared/agentCapabilities/canvasDelete";
 import { DOCUMENT_READ_CAPABILITY, documentReadResultSchema } from "../shared/agentCapabilities/documentRead";
 import { DOCUMENT_WRITE_CAPABILITY, documentWriteResultSchema } from "../shared/agentCapabilities/documentWrite";
 import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
-import { EXPORT_READ_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
-import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agentCapabilities/timelineRead";
-import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
-import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY, layoutReadInputSchema, layoutWriteInputSchema, layoutWriteTransportInputSchema, layoutResultSchema } from "../shared/agentCapabilities/layout";
+import { EXPORT_READ_CAPABILITY, exportReadPiInputSchemaForAlias } from "../shared/agentCapabilities/exportCapabilities";
+import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema, timelineEditPlanModelSchema } from "../shared/agentCapabilities/timelineRead";
+import { TIMELINE_WRITE_CAPABILITY, timelineWritePiInputSchemaForAlias } from "../shared/agentCapabilities/timelineWrite";
 import {
   MCP_LEASE_FIELD_NAMES,
   mcpToolDescription,
@@ -21,7 +20,7 @@ import {
   toSemanticInput,
   type McpProfileTool,
 } from "../shared/agentCapabilities/modelFacingTools";
-import { mcpProfileToolFor, modelFacingToolSpecs, specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
+import { mcpProfileToolFor, specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
@@ -209,8 +208,9 @@ function parseDerivedCall(
  * semantic field comes from the same descriptor consumed by laneToolCatalog.
  * Fail at assembly if an owner disappears; never silently publish a loose schema.
  */
-function laneModelSchema(name: string): z.AnyZodObject {
-  const schema = modelFacingToolSpecs("internal").find(spec => spec.name === name)?.schema;
+function contractModelSchema(name: string, schema: z.ZodTypeAny | undefined): z.AnyZodObject {
+  // 手写传输的对外工具按契约的**方法词表**（undo_timeline_edit / inspect_export_job …）取字段形状，
+  // 不再按内部动词名取——PR B 起内部动词（`undo` / `check_job`）与传输方法不同名，外部契约照旧。
   if (!(schema instanceof z.ZodObject)) throw new Error(`Missing object model schema: ${name}`);
   return schema;
 }
@@ -218,15 +218,15 @@ function laneModelSchema(name: string): z.AnyZodObject {
 const timelineEditMcpInput = z.discriminatedUnion("operation", [
   z.object({ ...leaseField, operation: z.literal("preview"), plan: timelineEditPlanSchema }).strict(),
   z.object({ ...leaseField, operation: z.literal("apply"), plan: timelineEditPlanSchema }).strict(),
-  laneModelSchema("undo_timeline_edit").extend({ ...leaseField, operation: z.literal("undo") }).strict(),
+  contractModelSchema("undo_timeline_edit", timelineWritePiInputSchemaForAlias("undo_timeline_edit")).extend({ ...leaseField, operation: z.literal("undo") }).strict(),
 ]);
-const exportJobMcpInput = laneModelSchema("inspect_export_job")
+const exportJobMcpInput = contractModelSchema("inspect_export_job", exportReadPiInputSchemaForAlias("inspect_export_job"))
   .extend({ ...leaseField, operation: z.enum(["status", "verify"]) }).strict();
 const timelineEditTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(timelineEditMcpInput, {
   label: "timelineEdit",
   // Keep JSON Schema numeric exclusive bounds (not OpenAPI boolean bounds).
   extraProperties: { plan: (() => {
-    const { $schema: _dialect, ...schema } = toPublishedJsonSchema(laneModelSchema("apply_edit_plan"));
+    const { $schema: _dialect, ...schema } = toPublishedJsonSchema(contractModelSchema("apply_edit_plan", timelineEditPlanModelSchema));
     return schema;
   })() },
 }));
@@ -280,23 +280,7 @@ export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(ASSE
   outputSchema: z.unknown(),
 });
 
-const layoutReadTransportSchema = immutableSchemaSnapshot({ type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["read"] } }, required: ["leaseHandle", "operation"], additionalProperties: false });
-const layoutWriteTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(layoutWriteTransportInputSchema, {
-  label: "layout.write",
-  extraProperties: {
-    leaseHandle: { type: "string", minLength: 1 },
-    projectId: { type: "string", minLength: 1 },
-  },
-  required: ["leaseHandle", "operation", "layout"],
-}));
-export const LAYOUT_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
-  contract: LAYOUT_READ_CAPABILITY, authority: Object.freeze({ kind: "project_session", requiredScope: "layout:read" }), port: Object.freeze({ kind: "document", access: "read" }), transportInputSchema: layoutReadTransportSchema, outputSchema: layoutResultSchema,
-  parseCall(args) { const input = z.object({ ...leaseField, operation: z.literal("read") }).strict().parse(args); return { semanticInput: layoutReadInputSchema.parse({ operation: "read_layout" }), transport: input }; },
-});
-export const LAYOUT_WRITE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
-  contract: LAYOUT_WRITE_CAPABILITY, authority: Object.freeze({ kind: "project_session", requiredScope: "layout:write" }), port: Object.freeze({ kind: "document", access: "write" }), transportInputSchema: layoutWriteTransportSchema, outputSchema: layoutResultSchema,
-  parseCall(args) { const input = z.object({ ...leaseField, ...layoutWriteTransportInputSchema.shape }).strict().parse(args); const semantic = layoutWriteInputSchema.parse({ operation: "write_layout", layout: input.layout }); return { semanticInput: semantic, transport: input }; },
-});
+// 布局读写不再对外发布（设计正本 §7：`layout_*` 删——42 句话术里没有一句要它）；契约留给渲染层 RPC。
 
 export const MCP_EDITING_METHODS = Object.freeze(new Set([
   TIMELINE_READ_CAPABILITY.id,
@@ -304,8 +288,6 @@ export const MCP_EDITING_METHODS = Object.freeze(new Set([
   DOCUMENT_WRITE_CAPABILITY.id,
   EXPORT_READ_CAPABILITY.id,
   ASSET_READ_CAPABILITY.id,
-  LAYOUT_READ_CAPABILITY.id,
-  LAYOUT_WRITE_CAPABILITY.id,
 ]));
 
 export function isMcpEditingMethod(method: string): boolean {
@@ -363,13 +345,32 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANV
 // 阶段 5a：schema 不再从 `canvasWriteSemanticInputSchema` 单独生成，而是与 Agent lane 的三个写工具
 // **同源**——外部宿主因此第一次也拿到了 typed 的分镜 / 站位 / 运镜形状（以前它读到的是契约上
 // 那两个 `z.record(z.unknown())`，25 个字段名一个都没有，那正是 #547 的 0/18）。
-export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANVAS_WRITE_CAPABILITY, {
+const derivedCanvasEditAdapter = derivedAdapter(CANVAS_WRITE_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: CANVAS_WRITE_CAPABILITY.requiredScope },
   port: { kind: "canvas", access: "write" },
   outputSchema: canvasWriteResultSchema,
 });
+const canvasEditInputSchema = immutableSchemaSnapshot(mcpProfileToolFor(CANVAS_WRITE_CAPABILITY.id)?.inputSchema as SchemaLike);
 
-const canvasMaintenanceMcpInput = laneModelSchema("delete_canvas_nodes").partial().extend({
+// The MCP canvas surface is a composite semantic operation surface. Its
+// operation field is the canonical discriminator for storyboard mutations,
+// while the generated internal descriptor remains intentionally narrower for
+// the lane verbs. Parse the externally published canonical input directly so
+// patch_shots/propose_storyboard_plan are not rejected as unknown lane verbs.
+export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  ...derivedCanvasEditAdapter,
+  transportInputSchema: canvasEditInputSchema,
+  parseCall(args) {
+    const { leaseHandle, projectId, ...semanticArgs } = args;
+    const semanticInput = canvasWriteSemanticInputSchema.parse(semanticArgs);
+    return {
+      semanticInput,
+      transport: { ...semanticArgs, leaseHandle, ...(projectId ? { projectId } : {}) },
+    };
+  },
+});
+
+const canvasMaintenanceMcpInput = contractModelSchema("delete_canvas_nodes", canvasDeletePiInputSchema).partial().extend({
   ...leaseField, operation: z.enum(["delete_canvas_nodes", "undo_canvas_delete"]),
   confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional(),
 }).strict();
@@ -403,7 +404,6 @@ export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DO
 const MCP_SAFE_ADAPTERS = new Set<McpCapabilityAdapter>([
   CANVAS_READ_MCP_ADAPTER, CANVAS_EDIT_MCP_ADAPTER, CANVAS_MAINTENANCE_MCP_ADAPTER,
   DOCUMENT_READ_MCP_ADAPTER, DOCUMENT_EDIT_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
-  LAYOUT_READ_MCP_ADAPTER, LAYOUT_WRITE_MCP_ADAPTER,
 ]);
 
 // Deliberately explicit: do not map CAPABILITY_CONTRACTS, Skills, manifests, or plugin metadata.
@@ -417,6 +417,4 @@ export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([
   TIMELINE_EDIT_MCP_ADAPTER,
   EXPORT_JOB_MCP_ADAPTER,
   MEDIA_QUERY_MCP_ADAPTER,
-  LAYOUT_READ_MCP_ADAPTER,
-  LAYOUT_WRITE_MCP_ADAPTER,
 ]);

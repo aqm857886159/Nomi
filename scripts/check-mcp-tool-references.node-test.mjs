@@ -32,11 +32,19 @@ test('finds name payloads and does not skip NUL-containing sources', () => {
   assert.equal(refs[0].catalog.has(refs[0].name), true)
 })
 
-test('keeps intentional host fixture names on the agent catalog', () => {
-  const hostDeclared = new Set(['nomi_canvas_plan'])
-  const refs = scanSource("reply: { type: 'tool', id: '1', name: 'nomi_canvas_plan' }", { declared, hostDeclared })
-  assert.equal(refs.length, 1)
-  assert.equal(refs[0].catalog, hostDeclared)
+test('keeps runtime compatibility aliases on the agent catalog', () => {
+  const hostDeclared = new Set([
+    'nomi_canvas_plan',
+    'nomi_canvas_write',
+    'nomi_canvas_read',
+    'nomi_generation_plan',
+    'nomi_storyboard_write',
+  ])
+  const refs = scanSource(
+    "reply: { type: 'tool', id: '1', name: 'nomi_canvas_write' }; reply: { type: 'tool', id: '2', name: 'nomi_storyboard_write' }",
+    { declared, hostDeclared },
+  )
+  assert.deepEqual(refs.map((ref) => ref.catalog), [hostDeclared, hostDeclared])
 })
 
 const hostDeclared = new Set(['nomi_canvas_plan'])

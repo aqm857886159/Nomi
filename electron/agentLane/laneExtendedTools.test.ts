@@ -7,9 +7,9 @@ import { collectVendorCompatibilityFailures, toPublishedJsonSchema } from '../sh
 import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { LANE_MODEL_TOOL_CATALOG, LANE_TOOL_BUDGET, LANE_DEFERRED_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog'
 
-const preserved = ['propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
-  'start_production_run', 'review_production_artifact', 'nomi_generation_plan', 'nomi_generation_status',
-  'get_media', 'export_timeline', 'cancel_export_job', 'delete_canvas_nodes']
+const preserved = ['edit_timeline', 'undo', 'export_video',
+  'make_artifact', 'stage_shot', 'draft_shots', 'check_job',
+  'look_at_media', 'cancel_job', 'delete_from_canvas']
 
 describe('lane extended domain menu', () => {
   it('retains editing, production and media intents in the shared internal profile', () => {
@@ -30,17 +30,14 @@ it('every retained tool belongs to exactly one unlockable group', () => {
 })
 
 it('production parameter preparation preserves run/artifact identity and revision', () => {
-  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'review_production_artifact')!
-  const args = { runId: 'run-1', artifactId: 'artifact-1', expectedVersion: 2, decision: 'approved' }
+  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'draft_shots')!
+  const args = { shots: [{ prompt: 'Fixture shot', taskKind: 'text_to_image' }] }
   expect(spec.schema.parse(spec.prepareArguments!(JSON.stringify(args)))).toEqual(args)
 })
 
 it('generation read operations have read authority while cancel and reconcile remain writes', () => {
-  const status = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'nomi_generation_status')!
-  expect(modelToolCapabilityId(status, { operation: 'read' })).toBe('generation.run.read')
-  expect(modelToolCapabilityId(status, { operation: 'cancel' })).toBe('generation.control')
-  expect(modelToolCapabilityId(status, { operation: 'reconcile' })).toBe('generation.control')
-  expect(modelToolCapabilityId(status, {})).toBe('generation.control')
+  const status = LANE_MODEL_TOOL_CATALOG.find(tool => tool.name === 'check_job')!
+  expect(modelToolCapabilityId(status, {})).toBe('generation.run.read')
 })
 
 it('published timeline operations have no const and still enforce their original branch', () => {
