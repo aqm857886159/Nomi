@@ -170,8 +170,27 @@ export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
  */
 export type { ApiKeyDecryptStatus };
 
+/**
+ * 解密探测缝（house DI）的**唯一**类型。生产永远传下面这个真 `apiKeyDecryptStatus`；
+ * 聚焦测试注入确定性假状态，从不碰真钥匙串。三处消费者（目录列表 / 可用性派生 / 生成默认模型）
+ * 曾各起一个名字写同一个签名——同一个东西三个名字，改的时候必漏一个（P1）。
+ */
+export type KeyStatusProbe = (record: ApiKeyRecord | undefined) => ApiKeyDecryptStatus;
+
+/**
+ * 这条凭据记录**本身**算不算数——不开钥匙串就能答的那一半：没有材料，或用户把它停用了。
+ *
+ * 单独抽出来是因为它有两个合法消费者：`apiKeyDecryptStatus`（真解密那条路）和可用性派生器里
+ * 的探测缝（注入假探针的测试也必须先过这一关，否则「停用的 key 不许去解」就成了只在生产成立的
+ * 口头承诺）。以前这条规则由各个读者各写一遍 `record?.enabled` —— 文本大脑、生成默认模型、
+ * 健康度各一份，删一处漏两处。
+ */
+export function credentialRecordCounts(rec: ApiKeyRecord | undefined): boolean {
+  return Boolean(rec?.apiKey) && rec?.enabled !== false;
+}
+
 export function apiKeyDecryptStatus(rec: ApiKeyRecord | undefined): ApiKeyDecryptStatus {
-  if (!rec || !rec.apiKey) return "missing";
+  if (!credentialRecordCounts(rec) || !rec) return "missing";
   if (rec.enc === "safeStorage") {
     // 密文在手：解得开非空 = ok；解不开 / 解出空串 = locked（身份不匹配等，key 确实存在只是读不动）。
     return decryptApiKeyRecord(rec) ? "ok" : "locked";

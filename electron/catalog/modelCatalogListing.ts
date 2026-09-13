@@ -6,12 +6,14 @@
 //   ② references：这个模型的 mapping body 到底带得动什么参考（复用 referenceReachability.bodyReferenceSupport，
 //      与第三闸/UI 收窄同源判据，P1 不另写一份），跨该模型所有 mapping 汇总，并记下「哪个 taskKind 模式能带」。
 // 已发布模型即使没 key 也照列并带状态；adapter staging/failed 新行则不进入生产清单。
-import { apiKeyDecryptStatus, type ApiKeyDecryptStatus, type ApiKeyRecord } from "./secrets";
+import { apiKeyDecryptStatus, type ApiKeyDecryptStatus, type ApiKeyRecord, type KeyStatusProbe } from "./secrets";
 import { bodyReferenceSupport, type BodyReferenceSupport } from "./referenceReachability";
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import type { ModelModeBody } from "./taskParams";
 import { billingKindForTaskKind, type BillingModelKind, type CatalogState, type Mapping, type ProfileKind } from "./types";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
+import type { ModelAvailability } from "../shared/modelAvailability";
+import { createCatalogAvailability } from "./catalogModelAvailability";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /** 一个模型跨其所有 mapping 汇总出的参考承载力 + 是哪些模式（taskKind）带得动。 */
@@ -35,28 +37,34 @@ export type ModelListingEntry = {
   label: string;
   /** 这个模型此刻能不能真用：ok=key 在且解得开；missing=没配 key；locked=key 在但当前宿主身份解不开。 */
   keyStatus: ApiKeyDecryptStatus;
-  /** 一句人话状态（诚实敞口，D4）：ok 报可用；missing/locked 各报缺口 + 该干什么。 */
+  /**
+   * 这个模型**此刻能不能真用**——全 App 唯一那条判据（供应商启用 + 模型启用 + 发布资格 + 钥匙解得开）
+   * 的结论，和 Nomi 自己界面里的下拉、首页横幅、设置页计数读的是同一个答案。
+   */
+  usable: boolean;
+  /** 一句人话状态（诚实敞口，D4）：可用就报可用；不可用各报缺口 + 该干什么。 */
   statusReason: string;
   /** 该模型带得动的参考类别 + 承载模式（无 mapping 或纯文生 → 全 false / 空）。 */
   references: ModelReferenceSupport;
 };
 
-/** 解密探测缝（house DI）：默认用真 apiKeyDecryptStatus（走 safeStorage 钥匙串）；测试可注入 spy 数解密次数。 */
-export type KeyStatusProbe = (record: ApiKeyRecord | undefined) => ApiKeyDecryptStatus;
-
-/** authType==='none' 的 vendor 不需要 key（如本地 ComfyUI）——恒 ok，不参与 key 探测。 */
-function keyStatusForModel(
-  state: CatalogState,
-  vendorKey: string,
-  authType: string | undefined,
-  probe: KeyStatusProbe,
-): ApiKeyDecryptStatus {
-  if (authType === "none") return "ok";
-  return probe(state.apiKeysByVendor[vendorKey]);
-}
-
-/** 一句人话状态（vendor 名插值，不 hardcode 任何 vendor）。 */
-function statusReasonFor(keyStatus: ApiKeyDecryptStatus, vendorName: string): string {
+/**
+ * 一句人话状态（vendor 名插值，不 hardcode 任何 vendor）。
+ *
+ * 「可用」这两个字**只由可用性 owner 说了算**：钥匙好端端在那儿、模型却没走完认证（发布资格不成立）
+ * 时，旧实现照样答「已接入且可用」——外部助手据此转述给用户，而 Nomi 自己的下拉里一个都选不到
+ * （真实验收 P0-10）。所以先问 owner，钥匙三态只负责在「不可用」时说清是不是钥匙那一档。
+ */
+function statusReasonFor(keyStatus: ApiKeyDecryptStatus, vendorName: string, availability: ModelAvailability): string {
+  if (!availability.usable && availability.reason === "model_unpublished") {
+    return `${vendorName} 的这个模型还没走完接入认证，暂时不能调用；请在 Nomi 应用的模型接入里完成它的自检`;
+  }
+  if (!availability.usable && (availability.reason === "vendor_disabled" || availability.reason === "vendor_missing")) {
+    return `${vendorName} 这个连接当前未启用；请在 Nomi 应用的模型接入里重新启用`;
+  }
+  if (!availability.usable && availability.reason === "model_disabled") {
+    return `这个模型在 ${vendorName} 下被停用了；请在 Nomi 应用的模型接入里启用它`;
+  }
   switch (keyStatus) {
     case "ok":
       return "已接入且可用";
@@ -176,20 +184,17 @@ export function deriveModelListing(
   state: CatalogState,
   deps: { keyStatusProbe?: KeyStatusProbe } = {},
 ): ModelListingEntry[] {
-  const probe = deps.keyStatusProbe ?? apiKeyDecryptStatus;
   const vendorByKey = new Map(state.vendors.map((v) => [v.key, v] as const));
-  // 本次调用内的 vendorKey → keyStatus 记忆（同 vendor 只探一次解密）。
-  const keyStatusByVendor = new Map<string, ApiKeyDecryptStatus>();
+  // 钥匙的 per-vendor 记忆化住在可用性派生器里（同一份 memo 同时答「能不能用」和「钥匙什么态」）。
+  // 这里再建第二份 Map 就是第二次 safeStorage 往返 + 第二行重复的解密失败日志。
+  const availability = createCatalogAvailability(state, deps.keyStatusProbe);
   return state.models
     .filter((model) => modelHasPublishedExecution(model, { mappings: state.mappings }))
     .map((model) => {
       const vendor = vendorByKey.get(model.vendorKey);
       const vendorName = vendor?.name || model.vendorKey;
-      let keyStatus = keyStatusByVendor.get(model.vendorKey);
-      if (keyStatus === undefined) {
-        keyStatus = keyStatusForModel(state, model.vendorKey, vendor?.authType, probe);
-        keyStatusByVendor.set(model.vendorKey, keyStatus);
-      }
+      const modelAvailability = availability.of(model);
+      const keyStatus = availability.credentialStatusFor(model.vendorKey);
       const modelMappings = mappingsForModel(state.mappings, model.vendorKey, model.modelKey, model.modelAlias);
       return {
         vendor: model.vendorKey,
@@ -199,7 +204,8 @@ export function deriveModelListing(
         kind: model.kind,
         label: model.labelZh || model.modelKey,
         keyStatus,
-        statusReason: statusReasonFor(keyStatus, vendorName),
+        usable: modelAvailability.usable,
+        statusReason: statusReasonFor(keyStatus, vendorName, modelAvailability),
         references: referenceSupportForModel(modelMappings),
       };
     });

@@ -1,39 +1,9 @@
 import {
   type ModelCatalogModelDto,
   type ModelCatalogVendorDto,
-  listWorkbenchModelCatalogVendors,
 } from '../../api/modelCatalogApi'
 import { modeTransportFor, type ModelArchetype } from '../../../config/modelArchetypes'
 import { modelSuccessorDepth } from '../../../../electron/shared/vendorLineage'
-
-/**
- * 「可用供应商」= 内置启用 **且** 现在真能用（有 API key，或免鉴权）。
- *
- * 根因修复（2026-06-08）：旧代码把「内置启用（enabled）」当成「能用」，于是用户断开某供应商
- * （只拔了 key，vendor.enabled 仍为 true）后，钉死该供应商的老节点运行时仍去要它的 key →
- * `API key missing: <vendor>`。可用性必须由 hasApiKey 派生，不看 enabled 单独一项。
- */
-export function vendorIsUsable(vendor: ModelCatalogVendorDto | null | undefined): boolean {
-  if (!vendor || !vendor.enabled) return false
-  if (vendor.authType === 'none') return true
-  return Boolean(vendor.hasApiKey)
-}
-
-export async function loadUsableVendorKeys(
-  listVendors: () => Promise<ModelCatalogVendorDto[]> = listWorkbenchModelCatalogVendors,
-): Promise<Set<string>> {
-  const vendors = await listVendors()
-  return usableVendorKeys(vendors)
-}
-
-export function usableVendorKeys(vendors: readonly ModelCatalogVendorDto[]): Set<string> {
-  return new Set(
-    (Array.isArray(vendors) ? vendors : [])
-      .filter(vendorIsUsable)
-      .map((vendor) => String(vendor.key || '').trim())
-      .filter(Boolean),
-  )
-}
 
 function normalizeIdentifier(value: unknown): string {
   const trimmed = typeof value === 'string' ? value.trim() : ''
@@ -61,8 +31,6 @@ export type UsableModelQuery = {
   models: ModelCatalogModelDto[]
   /** Vendor lineage metadata returned by the catalog DTO. */
   vendors?: ModelCatalogVendorDto[]
-  /** 可用供应商 key 集合（loadUsableVendorKeys 的结果）。 */
-  usable: Set<string>
 }
 
 /**
@@ -72,9 +40,10 @@ export type UsableModelQuery = {
  * fallback; archetype/family similarity is not authorization to reroute spend.
  */
 export function resolveUsableModelForNode(query: UsableModelQuery): ModelCatalogModelDto | null {
-  const candidates = query.models.filter((model) =>
-    model.enabled && model.published && query.usable.has(String(model.vendorKey || '').trim()),
-  )
+  // 「能不能用」只认主进程给的那一个答案（供应商启用 + 模型启用 + 发布资格 + 钥匙解得开）。
+  // 这里曾经自己拼一份（enabled && published && 可用供应商集合），那是全仓第四份同语义判据——
+  // 2026-09-12 真实验收 P0-10 就是这些副本漂开的结果。
+  const candidates = query.models.filter((model) => model.availability.usable)
   if (!candidates.length) return null
 
   const exactKey = candidates.filter((model) => modelMatchesModelKey(model, query.modelKey) || (query.modelAlias ? modelMatchesModelKey(model, query.modelAlias) : false))

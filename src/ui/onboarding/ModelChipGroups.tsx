@@ -7,6 +7,7 @@
  * 传 onToggle 即开启交互（chip 变 button + aria-pressed）；不传保持纯展示（老用法零影响）。
  */
 import React from 'react'
+import type { ModelAvailability } from '../../../electron/shared/modelAvailability'
 import { isLegacyCatalogMeta } from '../../config/modelIdentity'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconX } from '@tabler/icons-react'
@@ -24,6 +25,11 @@ export type ChipModel = {
   unlisted?: boolean
   /** 目录发布资格；未认证/未晋级模型不得阻塞 canonical certification picker。 */
   published?: boolean
+  /**
+   * 「这个模型现在能不能用」——主进程算好的**唯一**答案（`electron/shared/modelAvailability.ts`）。
+   * 模型设置页的「N 个可使用」读它，和首页横幅 / 助手下拉 / 画布选择器同源。
+   */
+  availability?: ModelAvailability
   /** 后端模型扩展信息；通用 chip 不消费，专用卡可透传读取。 */
   meta?: unknown
   /** 经过目录投影层校验的自动适配状态；详情页不直接信任任意 meta。 */

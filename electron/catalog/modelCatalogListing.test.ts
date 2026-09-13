@@ -256,11 +256,12 @@ describe("deriveModelListing — 解密探测按 vendor 记忆化（单 vendor �
       ],
       apiKeysByVendor: {
         apimart: { vendorKey: "apimart", apiKey: b64("k"), enc: "safeStorage", enabled: true, createdAt: "t", updatedAt: "t" },
-        // kie 无记录 → probe 收到 undefined，仍算一次探测。
+        // kie 无记录 → 记录本身就不算数（credentialRecordCounts），连探针都不调。
       },
     });
     deriveModelListing(twoVendors, { keyStatusProbe: probe });
-    expect(probe).toHaveBeenCalledTimes(2); // apimart 一次 + kie 一次，非 3 次
+    // apimart 两个模型只探一次（记忆化）；kie 没有记录，一次都不探（没材料就别开钥匙串）。
+    expect(probe).toHaveBeenCalledTimes(1);
   });
 
   it("authType='none' 的 vendor 恒 ok，压根不调探测（记忆化 + 短路都不触发解密）", () => {

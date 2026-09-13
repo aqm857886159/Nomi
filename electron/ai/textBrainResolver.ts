@@ -1,7 +1,8 @@
-import { decryptApiKeyRecord, type ApiKeyRecord } from "../catalog/secrets";
+import { decryptApiKeyRecord } from "../catalog/secrets";
 import { readCatalog } from "../catalog/catalogStore";
+import { createCatalogAvailability, type CatalogAvailability } from "../catalog/catalogModelAvailability";
 import type { CatalogState, Model, Vendor } from "../catalog/types";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
+import type { ModelUnusableReason } from "../shared/modelAvailability";
 import { modelSupportsToolCalls } from "../shared/textModelCapabilities";
 import { modelSuccessorDepth } from "../shared/vendorLineage";
 import { modelSupportsImageInput } from "./agentUserContent";
@@ -44,16 +45,16 @@ export class TextModelCredentialError extends Error {
   }
 }
 
+/**
+ * 「这个文本模型为什么用不了」= 可用性 owner 的封闭枚举（`ModelUnusableReason`）
+ * **加上**两条只属于本路的身份/角色原因：目录里压根没有这一行（`model_missing`）、
+ * 这一行不能当助手主控（`model_incompatible`：不是 text / 只给 prompt_refine / 不发工具调用）。
+ * 可用性那几档一个字都不在这里重写——加一档要去 shared/modelAvailability.ts。
+ */
 export type TextModelUnavailableReason =
-  | "vendor_missing"
-  | "vendor_disabled"
+  | ModelUnusableReason
   | "model_missing"
-  | "model_disabled"
-  | "model_unpublished"
-  | "model_incompatible"
-  | "credential_missing"
-  | "credential_needs_resave"
-  | "credential_locked";
+  | "model_incompatible";
 
 export class TextModelUnavailableError extends Error {
   readonly code = "text_model_unavailable" as const;
@@ -71,38 +72,33 @@ export class TextModelUnavailableError extends Error {
   }
 }
 
-function configuredCredential(record: ApiKeyRecord | undefined): boolean {
-  return Boolean(record?.enabled && record.enc === "safeStorage" && record.apiKey.trim());
-}
-
 function modelIdentityMatches(model: Model, modelKey: string): boolean {
   const selected = modelKey.trim();
   return model.modelKey === selected || model.modelAlias?.trim() === selected;
 }
 
-function isExecutableTextModel(state: CatalogState, model: Model): boolean {
-  return model.kind === "text"
-    && model.enabled
-    && !isPromptRefineOnlyModel(model)
-    && modelSupportsToolCalls(model.meta)
-    && modelHasPublishedExecution(model, { mappings: state.mappings });
+/** 「这一行能不能当助手主控」——纯**角色**判据，压在可用性之上，不是第二份可用性。 */
+function fitsAssistantTextRole(model: Model): boolean {
+  return model.kind === "text" && !isPromptRefineOnlyModel(model) && modelSupportsToolCalls(model.meta);
 }
 
-function unavailableReason(state: CatalogState, vendorKey: string, modelKey: string): TextModelUnavailableReason {
-  const vendor = state.vendors.find((item) => item.key === vendorKey);
-  if (!vendor) return "vendor_missing";
-  if (!vendor.enabled) return "vendor_disabled";
+function unavailableReason(
+  state: CatalogState,
+  availability: CatalogAvailability,
+  vendorKey: string,
+  modelKey: string,
+): TextModelUnavailableReason {
   const model = state.models.find((item) => item.vendorKey === vendorKey && modelIdentityMatches(item, modelKey));
-  if (!model) return "model_missing";
-  if (!model.enabled) return "model_disabled";
-  if (model.kind !== "text" || isPromptRefineOnlyModel(model) || !modelSupportsToolCalls(model.meta)) {
-    return "model_incompatible";
+  const result = model
+    ? availability.of(model)
+    : { usable: false as const, reason: "vendor_missing" as const };
+  // 供应商层的两档先答（目录里没这一家 / 这家停了）——模型行在不在都不改变该先修哪个。
+  if (!result.usable && (result.reason === "vendor_missing" || result.reason === "vendor_disabled")) {
+    return state.vendors.some((item) => item.key === vendorKey) ? "vendor_disabled" : "vendor_missing";
   }
-  if (!modelHasPublishedExecution(model, { mappings: state.mappings })) return "model_unpublished";
-  const credential = state.apiKeysByVendor[vendorKey];
-  if (vendor.authType === "none") return "model_unpublished";
-  if (!credential?.enabled || !credential.apiKey.trim()) return "credential_missing";
-  return credential.enc === "plain" ? "credential_needs_resave" : "credential_locked";
+  if (!model) return "model_missing";
+  if (!fitsAssistantTextRole(model)) return "model_incompatible";
+  return result.usable ? "model_unpublished" : result.reason;
 }
 
 /**
@@ -116,8 +112,11 @@ export function selectTextModelCandidates(
   state: CatalogState,
   preference?: TextModelPreference,
   preferImageInput = false,
+  // 整条调用链共用一个派生器：它每**家**只探一次钥匙，各建各的就会让同一家被反复开钥匙串
+  // （首屏 readiness 也走这条路）。调用方不传时本函数自己建一个。
+  availability: CatalogAvailability = createCatalogAvailability(state),
 ): Array<{ vendor: Vendor; model: Model }> {
-  const texts = state.models.filter((item) => isExecutableTextModel(state, item));
+  const texts = state.models.filter((item) => fitsAssistantTextRole(item) && availability.of(item).usable);
   // 有偏好：用户选的排第一（其余作回退）。
   // 无偏好且本轮带图：优先支持图片输入的 text 模型（gpt-4o/claude/gemini 既能看图又擅长 tool_use）。
   // 无偏好无图：不盲选第一个，按「是否像通用对话模型」稳定排序，vision/preview 降到末尾。
@@ -147,7 +146,7 @@ export function selectTextModelCandidates(
       || a.vendor.key.localeCompare(b.vendor.key))[0];
     if (successor) return [{ vendor: successor.vendor, model: successor.model }];
     throw new TextModelUnavailableError(
-      unavailableReason(state, preferredVendorKey, preferredModelKey),
+      unavailableReason(state, availability, preferredVendorKey, preferredModelKey),
       preferredVendorKey,
       preferredModelKey,
     );
@@ -176,28 +175,36 @@ export function chooseTextModel(
   const modelKey = prefModelKey?.trim() ?? "";
   const vendorKey = prefVendorKey?.trim() ?? "";
   const exactIdentity = Boolean(modelKey && vendorKey);
+  // 一次请求一个派生器：候选筛选、不可用原因、locked 判定全用它，钥匙串开销随「家」数走。
+  const availability = createCatalogAvailability(state);
   const candidates = selectTextModelCandidates(
     state,
     modelKey ? { modelKey, vendorKey } : undefined,
     preferImageInput,
+    availability,
   );
-  let lockedCredential = false;
+  // 候选已由 selectTextModelCandidates 过了那唯一一道可用性闸（含「钥匙此刻解得开」），
+  // 所以这里不再重判一次凭据——只把明文取出来。取不出说明钥匙在这一瞬间被换掉了，继续看下一个。
   for (const { vendor, model } of candidates) {
     if (vendor.authType === "none") return { vendor, model, apiKey: "" };
-    const record = state.apiKeysByVendor[model.vendorKey];
-    if (!configuredCredential(record)) continue;
-    const apiKey = decryptApiKeyRecord(record);
+    const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[model.vendorKey]);
     if (apiKey) return { vendor, model, apiKey };
-    if (record?.enc === "safeStorage") lockedCredential = true;
   }
   if (exactIdentity) {
     const candidate = candidates[0];
     const reason = candidate
-      ? unavailableReason(state, candidate.vendor.key, candidate.model.modelKey)
-      : unavailableReason(state, vendorKey, modelKey);
+      ? unavailableReason(state, availability, candidate.vendor.key, candidate.model.modelKey)
+      : unavailableReason(state, availability, vendorKey, modelKey);
     throw new TextModelUnavailableError(reason, vendorKey, modelKey);
   }
-  if (lockedCredential) throw new TextModelCredentialError();
+  // 一个候选都没有时仍要分清「钥匙锁住了」和「压根没接」：前者去重存 key，后者去接入。
+  // 判据仍是同一个 owner 的 reason，不在这里另写一遍「什么叫锁住」。
+  const locked = state.models.some((model) => {
+    if (!fitsAssistantTextRole(model)) return false;
+    const modelAvailability = availability.of(model);
+    return !modelAvailability.usable && modelAvailability.reason === "credential_locked";
+  });
+  if (locked) throw new TextModelCredentialError();
   // 稳定 code 前缀（沿用 electron 侧「专用签名」范式：Model is retired: / Model kind mismatch: …）。
   // 渲染层 classifyGenerationError 按 "no usable text model" 签名归 model-config 报人话，不再原样甩英文散句
   // （2026-08-25 走查：旧散句「No local text model is configured…」落进 unknown 分类，被原串直通给用户）。
@@ -205,9 +212,12 @@ export function chooseTextModel(
 }
 
 /**
- * 解析默认文本大脑的 vendor/model 键（**不含 apiKey**）。这是只读的“已配置”探测：
- * enabled 的免鉴权 vendor，或 enabled/nonempty 的 safeStorage 凭据记录即可；启动与首屏绝不为 readiness
- * 触碰系统钥匙串。真正执行文本请求时由 chooseTextModel 解密并验证凭据。
+ * 解析默认文本大脑的 vendor/model 键（**不含 apiKey**）。判据就是全 App 那条唯一的可用性判据
+ * （供应商启用 + 模型启用 + 发布资格 + 钥匙此刻解得开），不再是它的一个宽松近似——
+ * 近似正是「首页说没接、设置页说 2 个可使用」的来源（P0-10）。
+ *
+ * 关于钥匙串开销：`readCatalog()` 本身就为每家算 `hasApiKey` 解一次密（catalogStore.ts:89），
+ * 所以这条路径**没有新增**任何 safeStorage 往返；旧注释里「首屏绝不触碰钥匙串」在那行落地之后就已不成立。
  *
  * `preferImageInput`：本轮要喂图时传 true，把**能读图**的模型排到第一位（imageInputRank →
  * meta.supportsImageInput，如 gemini-3.5-flash）。默认 false，既有调用方行为完全不变——无偏好时仍按
@@ -224,8 +234,9 @@ function resolveConfiguredTextBrain(
   state: CatalogState,
   preferImageInput = false,
 ): { vendor: string; modelKey: string } | null {
-  const configured = selectTextModelCandidates(state, undefined, preferImageInput).find(({ vendor }) =>
-    vendor.authType === "none" || configuredCredential(state.apiKeysByVendor[vendor.key]));
+  // 候选表已经是「可用」的全集（isExecutableTextModel → 可用性 owner），首屏就绪与 chooseTextModel
+  // 因此读的是**同一条**判据：横幅说「已连接」时助手下拉必定非空，反之亦然。
+  const configured = selectTextModelCandidates(state, undefined, preferImageInput)[0];
   return configured ? { vendor: configured.vendor.key, modelKey: configured.model.modelKey } : null;
 }
 

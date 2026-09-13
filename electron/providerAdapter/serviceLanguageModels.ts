@@ -4,7 +4,7 @@ import { readCatalog } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { prioritizeCompilerCandidates } from "./compilerCandidatePriority";
 import type { LoadedConnection } from "./serviceCatalog";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
 
 type CompilerCandidate = { vendorKey: string; modelKey: string; languageModel: LanguageModelV1 };
 
@@ -18,13 +18,14 @@ type CompilerCandidate = { vendorKey: string; modelKey: string; languageModel: L
  */
 export function compilerLanguageModelCandidates(connection?: LoadedConnection): CompilerCandidate[] {
   const state = readCatalog();
+  const availability = createCatalogAvailability(state);
   const candidates: CompilerCandidate[] = [];
   for (const model of state.models) {
-    if (model.kind !== "text" || !modelHasPublishedExecution(model, { mappings: state.mappings })) continue;
-    const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.enabled && item.baseUrlHint);
+    // 可用性判据只有一处；这里只加本用途独有的角色要求（text、有 baseUrl、鉴权形状认得）。
+    if (model.kind !== "text" || !availability.of(model).usable) continue;
+    const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.baseUrlHint);
     if (!vendor || (vendor.authType && vendor.authType !== "none" && vendor.authType !== "bearer")) continue;
     const apiKey = vendor.authType === "none" ? "" : decryptApiKeyRecord(state.apiKeysByVendor[vendor.key]);
-    if (vendor.authType !== "none" && !apiKey) continue;
     candidates.push({
       vendorKey: vendor.key,
       modelKey: model.modelKey,
