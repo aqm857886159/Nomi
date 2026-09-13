@@ -716,7 +716,7 @@ function combineProbeSummaries(probes) {
   }
 }
 
-async function runAction(page, scenario, fixture) {
+async function runAction(page, scenario, fixture, app) {
   const stage = await page.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布 stage 不存在')
   if (scenario === 'blank-pan') {
@@ -1221,7 +1221,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     // Record off-canvas re-renders for this action window (advisory / positive
     // control). No-op unless the dev-leg probe installed.
     const offCanvasStarted = useDevServer && probeSurvivesAction ? await startOffCanvasRenderWindow(page) : false
-    const actionDetails = await runAction(page, scenario, fixture)
+    const actionDetails = await runAction(page, scenario, fixture, app)
     const offCanvasRender = offCanvasStarted ? await stopOffCanvasRenderWindow(page) : null
     await sleep(page, 250)
     const probe = probeSurvivesAction
