@@ -53,8 +53,8 @@ export function hasPendingSpendCapability(): boolean {
 }
 
 export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
-  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code ?? '') : ''
-  return code === 'spend_confirm_surface_unavailable' || missingCardReasonOfReadFailure(error) === 'spend-surface-unavailable'
+  const code = (error as { code?: unknown })?.code
+  return code === 'CAPABILITY_UNAVAILABLE' || code === 'spend_confirm_surface_unavailable' || (error instanceof Error && /pendingSpend|spend confirmation/i.test(error.message))
 }
 
 export type AgentPanelSpendConfirm = Readonly<{
@@ -120,10 +120,6 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       // **读不到 ≠ 没有**。主进程现在只在「真的没有」时回空数组，抛出来的一律是失败；
       // 失败就必须让用户看见，否则模型说「请在确认卡上点头」而面板一片空白。
       setPending(undefined)
-      if (isOptionalSpendSurfaceUnavailable(error)) {
-        setReadFailure(undefined)
-        return undefined
-      }
       setReadFailure(missingCardReasonOfReadFailure(error))
       return undefined
     }
