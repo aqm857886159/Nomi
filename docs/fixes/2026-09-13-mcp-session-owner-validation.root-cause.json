@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-mcp-session-owner-validation",
+  "problem_type": "Signed MCP client session persistence rejects a supported built-in client",
+  "symptom": "Packaged MCP smoke fails for workbuddy connect_provider without a credential",
+  "direct_cause": "Persisted integration session validation used a stale hand-written owner allowlist that omitted workbuddy.",
+  "class_root": "Session owner validation must derive from the signed built-in client registry.",
+  "affected_population": [
+    "workbuddy packaged MCP client",
+    "future built-in signed clients"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/integrationSessionRecord.ts",
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "entry_points": [
+    "modelSetup.connect_provider persistence and reload"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal owner registry invariant.",
+  "invariants": [
+    "Every BUILTIN_MCP_CLIENTS value survives session validation; unknown owners fail closed."
+  ],
+  "generality_proof": "All persisted integration sessions converge on validateState, and the owner registry is the signing boundary used by every built-in client.",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSessionRecord.ts",
+      "symbol": "validateState",
+      "responsibility": "Validate persisted session owners against the canonical signed-client registry."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "IntegrationSessionService.begin",
+      "disposition": "enforced",
+      "evidence": "Begun sessions are persisted and reloaded through validateState."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "credential handoff session reads",
+      "disposition": "enforced",
+      "evidence": "IPC reads the same persisted integration state."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any newly registered built-in signed client could be rejected on reload while the duplicated list remained stale.",
+    "same_class_scan": [
+      "rg BUILTIN_MCP_CLIENTS electron",
+      "rg validateState electron/integrationCertification"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSessionRecord.ts",
+    "invariant": "Owner must be external, nomi, or a canonical built-in signed client.",
+    "failure_mode": "Unknown owners throw Invalid integration session record.",
+    "exception_policy": "none",
+    "strategy": "Derive validation from the single signing registry.",
+    "artifacts": [
+      "electron/integrationCertification/integrationSessionRecord.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The stale list was inline data, replaced in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing valid sessions remain compatible; previously invalid workbuddy sessions cannot exist because validation rejected them.",
+  "residual_risks": [
+    "Full macOS packaged smoke requires macOS runner; local Linux cannot execute the signed macOS bundle."
+  ],
+  "invariant_owner_layer": {
+    "layer": "persistence",
+    "tests": [
+      "electron/integrationCertification/integrationSession.test.ts"
+    ]
+  }
+}
