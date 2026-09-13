@@ -1058,7 +1058,10 @@ async function runAction(page, scenario, fixture, app) {
     const reloadProbes = []
     for (let index = 0; index < 3; index += 1) {
       const startedAt = Date.now()
-      await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 })
+      await Promise.race([
+        page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('reload-heavy: page.reload hard timeout')), 35_000)),
+      ])
       // Electron may recreate the renderer window during reload; always follow the live target.
       page = getTargetWindow(app, page)
       await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 })
