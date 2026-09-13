@@ -1059,6 +1059,8 @@ async function runAction(page, scenario, fixture) {
     for (let index = 0; index < 3; index += 1) {
       const startedAt = Date.now()
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 })
+      // Electron may recreate the renderer window during reload; always follow the live target.
+      page = getTargetWindow(app, page)
       await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 })
       await page.waitForFunction(
         ({ nodeCount }) => {
