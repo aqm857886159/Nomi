@@ -18,7 +18,7 @@ function textModel(overrides: Partial<PublishedExecutionModel> = {}): PublishedE
  * 但没有 `activeRevision`。这正是 2026-09-12 真实验收里那两个 DeepSeek 模型的形状。
  */
 function uncertifiedAdapterModel(): PublishedExecutionModel {
-  return { enabled: true, vendorKey: "deepseek", modelKey: "deepseek-flash", kind: "text", meta: { adapter: { modes: [] } } };
+  return { enabled: true, vendorKey: "deepseek", modelKey: "deepseek-flash", kind: "text", meta: { adapter: { modes: [], publicationModes: [] } } };
 }
 
 function input(overrides: Partial<ModelAvailabilityInput> = {}): ModelAvailabilityInput {

@@ -116,7 +116,7 @@ function injectHalfCertifiedModel() {
       kind: 'text',
       enabled: true,
       // adapter 在但没有 activeRevision = 认证走到一半停下（P0-10 的那两行就长这样）。
-      meta: { adapter: { modes: [] } },
+      meta: { adapter: { modes: [], publicationModes: [] } },
       createdAt: now,
       updatedAt: now,
     },
