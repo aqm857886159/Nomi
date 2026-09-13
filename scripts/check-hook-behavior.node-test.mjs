@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { checkHookBehavior } from './check-hook-behavior.mjs'
 import {
   MARKER_BASENAME,
+  STAMP_INFORMATIONAL_FIELDS,
   STAMP_KEYED_FIELDS,
   collectStampFields,
   resolveMarkerPath,
@@ -72,9 +73,9 @@ test('戳的内容由 STAMP_KEYED_FIELDS 逐项驱动，不是另一份硬编码
     .trim()
     .split('\n')
     .map((line) => line.split('=')[0])
-  // 声明的每个身份字段都必须真的写出去；stamped_at 是给人看的附加行。
+  // 声明的每个身份字段都必须真的写出去；STAMP_INFORMATIONAL_FIELDS 那些是给人看的附加行。
   assert.deepEqual(
-    written.filter((field) => field !== 'stamped_at'),
+    written.filter((field) => !STAMP_INFORMATIONAL_FIELDS.includes(field)),
     [...STAMP_KEYED_FIELDS],
     '写出的身份字段必须与 STAMP_KEYED_FIELDS 逐项一致（此前 writeStamp 用的是硬编码模板，等于第二份真相源）',
   )

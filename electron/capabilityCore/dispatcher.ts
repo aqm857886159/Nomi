@@ -756,20 +756,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ctx.origin?.host || 'external',
         params.proposal,
       )
-    case 'integration.request_confirmation':
-      return (ctx.integrationSessions || getIntegrationSessionService()).requestConfirmation(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.idempotencyKey as string,
-      )
     case 'integration.start':
       return (ctx.integrationSessions || getIntegrationSessionService()).start(
         params.sessionId,
         params.expectedRevision,
         ctx.origin?.host || 'external',
         params.idempotencyKey as string,
-        params.receipt as string,
       )
     // 不带 sessionId = 「我把 id 弄丢了」。修复前这里直接报 Invalid sessionId，而 MCP 面上没有第二条路。
     case 'integration.get':

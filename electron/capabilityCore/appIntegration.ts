@@ -60,7 +60,7 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
-import { installPendingSpendActions, pendingSpendDependencies } from './appIntegrationSpendConfirm'
+import { installPendingSpendActions, pendingSpendDependencies, recordPendingSpendInstallFailure } from './appIntegrationSpendConfirm'
 // 付费确认卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
 export { listPendingSpendConfirmations, revisePendingSpendConfirmation, discardPendingSpendConfirmation, confirmPendingSpendConfirmation } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'
@@ -507,6 +507,11 @@ export async function startCapabilityCore(
       }))
     } catch (error) {
       logError('capability', 'resident-generation-adapter-install-failed', error)
+      // 装配失败**不许只留一行日志**（2026-09-12）。这一段一旦抛，付费确认卡在整个会话里
+      // 都不会再出现，而模型还在一句句告诉用户「请在确认卡上点头」——那正是「声称有卡、
+      // 却什么都没渲染」这一族的会话级版本。把原因交给读通道，让它在第一次真要用的时候
+      // 抛得明明白白，用户那头就能看到一张会说话的卡，而不是一片空白。
+      recordPendingSpendInstallFailure(error)
     }
     // P4 S5：打开/切换项目时的补齐钩子（§3.4）。对该项目所有活跃 run：① landCanvasBestEffort 幂等补落缺失
     // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② single-shot 只 poll→materialize

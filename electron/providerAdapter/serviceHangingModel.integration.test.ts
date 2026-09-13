@@ -156,6 +156,10 @@ describe("a model that really hangs", () => {
       resolveLanguageModels: () => [{} as LanguageModelV1],
       compile: async () => ({ draft: draft(), failures: [] }),
       repair: async () => draft(),
+      // 凭据自检必须放行，否则这条 run 在**够到**那个挂死的模型自检之前就先失败终态化了，
+      // 用例断言的「挂住 → 被看门狗收走」根本没发生过（假绿）。这台假服务器是 socket 级 hang，
+      // 没有真的 /models 可打。
+      probeCredential: async () => ({ ok: true as const, modelIds: ["text-v1"], listed: true }),
       verify: ({ signal }: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
         void fetch(`${provider.baseUrl}/chat`, { method: "POST", body: "{}", signal }).catch(() => {});
         signal?.addEventListener("abort", () => reject(new Error("aborted")));

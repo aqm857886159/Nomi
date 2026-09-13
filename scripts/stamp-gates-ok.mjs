@@ -19,6 +19,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readTierRecord } from './run-gates-tests.mjs'
 
 /** 戳的文件名。改这里 = 改契约，`check:hook-behavior` 会实际跑读戳方来验它跟得上。 */
 export const MARKER_BASENAME = 'nomi-gates-ok'
@@ -34,6 +35,16 @@ export const MARKER_BASENAME = 'nomi-gates-ok'
  * 用例；给不出就报红。也就是说：新增的身份维度**必须被证明真的在把关**，不能只是写进文件里。
  */
 export const STAMP_KEYED_FIELDS = ['sha', 'worktree']
+
+/**
+ * 只**给人看**的附加行：读戳方不校验它们，篡改它们也不该拦人。
+ *
+ * 它单独成一份清单，而不是在测试里写一串 `field !== 'stamped_at' && field !== 'tier'`——
+ * 否则「这一行是身份还是记录」就会有两个答案（2026-09-12 加 tier 时，验戳内容的那条测试
+ * 正是因为把 `stamped_at` 硬编码成唯一例外而红的）。加记录行只加这里；加**身份**行加上面那份，
+ * 并按它的注释补一个「篡改 → 读戳方必须拦」的用例。
+ */
+export const STAMP_INFORMATIONAL_FIELDS = ['tier', 'stamped_at']
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
@@ -67,16 +78,20 @@ export function writeStamp(cwd = process.cwd()) {
   const values = collectStampFields(cwd)
   const body = STAMP_KEYED_FIELDS.map((field) => `${field}=${values[field]}`).join('\n')
   fs.mkdirSync(path.dirname(marker), { recursive: true })
-  // stamped_at 只是给人看的：新鲜度读戳方看的是文件 mtime，不解析内容。
-  fs.writeFileSync(marker, `${body}\nstamped_at=${new Date().toISOString()}\n`)
-  return { marker, ...values }
+  // tier / stamped_at 都只是**给人看的记录**，不是身份字段：读戳方（pre-push-check.sh）只校验
+  // STAMP_KEYED_FIELDS。要让 push 闸开始认档位，得先给它加一个「篡改该字段 → 必须拦」的用例
+  // （见 STAMP_KEYED_FIELDS 的注释），那是另一件事。这里只回答「这枚戳是哪一档跑出来的」，
+  // 好让事后翻账的人不用猜（2026-09-12，R22 分档）。
+  const tier = readTierRecord(cwd)?.tier ?? 'manual'
+  fs.writeFileSync(marker, `${body}\ntier=${tier}\nstamped_at=${new Date().toISOString()}\n`)
+  return { marker, tier, ...values }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const { marker, sha, worktree } = writeStamp()
+    const { marker, sha, worktree, tier } = writeStamp()
     console.log(`✅ 五门戳已盖：${marker}`)
-    console.log(`   sha=${sha.slice(0, 12)}  worktree=${worktree}`)
+    console.log(`   sha=${sha.slice(0, 12)}  worktree=${worktree}  tier=${tier}`)
   } catch (error) {
     // 盖不上戳就得让调用者知道——静默失败会让 gates「假绿」，push 时才在闸门前发现。
     console.error(`✖ 盖戳失败（不在 git 工作区？）：${error.message}`)

@@ -405,7 +405,7 @@ function registerIpc(): void {
   ));
   registerI18nIpc();
   // 会话式模型接入的可信渲染层交接（凭据保存/确认/handoff 队列）。0b6441c6 移植时这两行被误删，而
-  // preload 与 OnboardingWizard/IntegrationConfirmationPanel 仍调这些通道（No handler registered）；
+  // preload 与 OnboardingWizard/IntegrationSelfCheckPanel 仍调这些通道（No handler registered）；
   // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
   registerIntegrationHandoffIpc();
   registerIntegrationSessionIpc(installIntegrationSessionRuntime());

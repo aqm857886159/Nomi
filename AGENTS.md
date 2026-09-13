@@ -24,6 +24,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm dev` | 开发模式启动（Vite + Electron） |
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
+| `pnpm run gates` | 五门（按风险分档）：contracts 全部 + **改动相关**的测试 + build + 盖戳；碰测试基础设施/删改名/空 diff 自动升全量并打印原因 |
+| `pnpm run gates:full` | 五门全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
@@ -43,7 +45,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
 
-**Push 前按风险面分层（R22）**：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:docs-index`/`check:doc-status`/`check:ledger` 只出 warning 不阻断，合入 main 后由 `docs-autosync` workflow 自动补齐回写）；unit 独立选 focused/full；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
+**Push 前按风险面分层（R22）**：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:docs-index`/`check:doc-status`/`check:ledger` 只出 warning 不阻断，合入 main 后由 `docs-autosync` workflow 自动补齐回写）；unit 独立选 focused/full（**本机 `pnpm run gates` 也按同一份 `scripts/validation-policy.mjs` 分档**，全量一万两千多个测试交给 CI 并行机器，不再占着全机那把 gates 锁；想本机兜底跑全量用 `pnpm run gates:full`）；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 

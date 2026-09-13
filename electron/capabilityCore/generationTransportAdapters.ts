@@ -6,6 +6,8 @@ import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { DispatchContext } from "./dispatcher";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "./approvalReceipt";
+import { decideGenerationSpend, generationChallengeTokenOf } from "./generationSpendDecision";
+import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 
 /**
  * Main-process transport for the semantic generation vocabulary.
@@ -30,6 +32,14 @@ export type GenerationTransportAdapterDependencies = Readonly<{
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>;
   approvalReceiptAuthority?: ApprovalReceiptAuthority;
   leaseFor: GenerationLeaseFactory;
+  /**
+   * 用户此刻选的审批档位（宿主自己持有的那一份快照，`laneDesktopRuntime` 的 `composer.approvalPolicy`）。
+   *
+   * 只有一件事读它：草稿预检完之后，「全自动」档要不要在这里就把付费门决掉（2026-09-12 用户拍板）。
+   * 判据不在这个文件里，在 `capabilityApprovalPolicy.spendDecidedByPolicy`——同一个问题只有一个答案。
+   * 缺席按默认档（`safe-auto`）走，也就是照旧弹卡：不知道档位时**不许**替用户花钱。
+   */
+  approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined;
 }>;
 
 const MODEL_GENERATION_TOOL_NAMES = new Set(modelFacingToolSpecs("internal").filter(spec => spec.internalGroup === "generation").map(spec => spec.name));
@@ -157,13 +167,20 @@ function trialFirst(value: unknown): boolean {
     && (value as { trialFirst?: unknown }).trialFirst === true);
 }
 
-function challengeToken(value: unknown): string {
-  const token = value && typeof value === "object" && !Array.isArray(value)
-    && (value as { handoff?: { challengeToken?: unknown } }).handoff?.challengeToken;
-  if (typeof token !== "string" || !token.trim()) {
-    throw Object.assign(new Error("generation_challenge_unavailable"), { code: "generation_challenge_unavailable" });
-  }
-  return token.trim();
+/** 「全自动」代答时写进收据的宿主面名字。 */
+const FULL_AUTO_POLICY_SURFACE = "agent-lane";
+
+/**
+ * 刚建好的这份草稿是哪一笔。`create` 的 id 由宿主生成、只在结果里（模型没法先知道它），
+ * `patch` 的在入参里。两处都读不到就抛——**不许拿一个猜出来的 id 去开付费门**。
+ */
+function draftedOperationId(drafted: unknown, args: Record<string, unknown>): string {
+  const operation = drafted && typeof drafted === "object" && !Array.isArray(drafted)
+    ? (drafted as { operation?: { operationId?: unknown } }).operation
+    : undefined;
+  const fromResult = operation && typeof operation.operationId === "string" ? operation.operationId.trim() : "";
+  if (fromResult) return fromResult;
+  return operationId(args);
 }
 
 /**
@@ -203,6 +220,53 @@ export function createPiGenerationTransportAdapter(
     signal,
   );
 
+  /**
+   * 「全自动」档里那次**没有报价卡**的放行（2026-09-12 用户拍板）。
+   *
+   * ── 为什么闸在草稿刚建好之后 ──
+   *
+   * 桌面 lane 上模型能走到的最后一步就是**建草稿**（`create`）或往草稿里塞几镜（`patch`）——
+   * 付费门根本不在它的工具表里（`paidBoundary.ts`「内部面不投影」），连 `preview` 都不在
+   * 这个宿主的 schema 里（`generationPlanSchemaForHost({ preview: false })`）。
+   * 草稿一建好，`projectPendingSpendConfirm` 就会把它投影成面板上那张报价卡——
+   * **那一刻就是用户点下去的那一刻**。另外两档里宿主的回应是在介入槽里摆一张卡等人点，
+   * 「全自动」档里宿主的回应就是在同一个边界上自己决。不是绕过闸，是同一道闸换了个决定者：
+   * 封印照做、收据照铸照签、一次性消费照旧（`generationSpendDecision.ts` 那一条链）。
+   *
+   * ── 三个「不」──
+   *
+   *   · **不新增预算**：这里没有任何金额判断。用户拍板的是「全自动 = 不再逐次问」，
+   *     不是「¥X 以内不问」——设置里那条硬预算上限 2026-09-10 已经删掉，不许在这里长回来。
+   *   · **不吞错**：决门失败就把错抛回去（`safeFailure` 会把它变成模型看得见的失败），
+   *     而草稿仍是草稿，报价卡照旧在原处等用户——**这不是兜底**，是「没决成，所以它仍然待决」
+   *     的真实状态。
+   *   · **不猜档位**：`approvalPolicy` 缺席按默认档走，也就是照旧弹卡。外部 MCP 宿主那条路
+   *     从来不传它，所以它们的确认语义一个字没变（那条路自己有 elicitation 与收据门）。
+   */
+  const decideByPolicyAfterDraft = async (
+    args: Record<string, unknown>,
+    drafted: unknown,
+    currentLease: ProjectLeaseV2,
+    signal: AbortSignal,
+  ): Promise<unknown> => {
+    if (!spendDecidedByPolicy(deps.approvalPolicy?.())) return undefined;
+    if (!deps.requestGenerationGate || !deps.authorizeGeneration || !deps.approvalReceiptAuthority) {
+      throw Object.assign(new Error("generation_approval_unavailable"), { code: "generation_approval_unavailable" });
+    }
+    const outcome = await abortable(decideGenerationSpend({
+      requestGenerationGate: deps.requestGenerationGate,
+      authorizeGeneration: deps.authorizeGeneration,
+      planning: deps.planning,
+      receipts: deps.approvalReceiptAuthority,
+    }, {
+      operationId: draftedOperationId(drafted, args),
+      lease: currentLease,
+      decision: { kind: "policy-full-auto", surface: FULL_AUTO_POLICY_SURFACE },
+      actorId: FULL_AUTO_POLICY_SURFACE,
+    }), signal);
+    return { drafted, spendDecision: { decidedBy: outcome.decidedBy, receiptId: outcome.receiptId }, started: outcome.started };
+  };
+
   const reject = async (args: Record<string, unknown>, currentLease: ProjectLeaseV2, signal: AbortSignal): Promise<void> => {
     if (!deps.rejectGeneration) return;
     await abortable(Promise.resolve(deps.rejectGeneration({ params: { ...args }, lease: currentLease })), signal);
@@ -218,7 +282,7 @@ export function createPiGenerationTransportAdapter(
     }
     let gate = await abortable(Promise.resolve(deps.requestGenerationGate({ params: { ...args }, lease: currentLease })), signal);
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const token = challengeToken(gate);
+      const token = generationChallengeTokenOf(gate);
       const confirmation = await abortable(deps.confirmGenerationInNomi({ challengeToken: token }), signal);
       if (confirmed(confirmation)) {
         const receipt = receiptFromConfirmation(confirmation, deps.approvalReceiptAuthority);
@@ -290,6 +354,11 @@ export function createPiGenerationTransportAdapter(
         // here keeps malformed model calls out of the durable operation store.
         if (capability !== "context" && capability !== "create") operationId(args);
         const result = await plan(capability, args, currentLease, signal);
+        // 草稿刚建好 = 报价卡该出现的那一刻。「全自动」档在这里替用户决门（见上）。
+        if (capability === "create" || capability === "plan") {
+          const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
+          if (decided) return { ok: true, result: decided };
+        }
         return { ok: true, result, silent: capability === "context" || capability === "read" };
       } catch (error) {
         return safeFailure(error);

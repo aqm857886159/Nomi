@@ -604,7 +604,7 @@ R21.1 问「这条不变量归哪层管」，R21.2 问「这一层这周是不�
 | performance | React Flow viewport、节点媒体渲染/调度和性能基准自身 | 独立性能预算；JSON 永久留证，`pass:false` 必须非零退出 |
 | package | 依赖/构建配置、Electron main/preload/runtime identity 与 release 边界 | macOS build、目录打包和 codesign |
 
-权威实现是 `scripts/validation-policy.mjs`；`scripts/select-quality-gate-profile.mjs` 只负责从 Git diff/事件取输入，`.github/workflows/quality-gate.yml` 和 `tests/system/profiles.mjs` 只消费输出。PR 和 `main` push 都按真实 Git changed entries 分类；`main` 不因事件名自动 full。删除/重命名、空或不可解析 diff、分类器/工作流/测试系统自身和手动发布验证必须 fail-closed 到所有风险面。`Quality Gate` 仍是唯一聚合门，只允许策略未选择的 optional job 为 skipped。
+权威实现是 `scripts/validation-policy.mjs`；`scripts/select-quality-gate-profile.mjs` 只负责从 Git diff/事件取输入，`.github/workflows/quality-gate.yml`、`tests/system/profiles.mjs` 和**本机 `pnpm run gates`**（经 `scripts/run-gates-tests.mjs`）只消费输出。本机默认档 = contracts 全部 + 改动相关测试 + build；全量一万两千多个用例交给 CI 的并行机器，不再让每棵 worktree 轮流占着全机那把 `/tmp/nomi-gates.lock`（2026-09-11 夜实测：8 棵树轮流持锁、每次 10–25 分钟、队列峰值 18）。升档由同一份 policy 判定并打印原因，本机不存在降档开关；要显式跑全量用 `pnpm run gates:full`（`full-local`/`release` profile 走的也是它）。五门戳多记一行 `tier=focused|full|manual`，仅供事后翻账——push 闸的身份字段不变。PR 和 `main` push 都按真实 Git changed entries 分类；`main` 不因事件名自动 full。删除/重命名、空或不可解析 diff、分类器/工作流/测试系统自身和手动发布验证必须 fail-closed 到所有风险面。`Quality Gate` 仍是唯一聚合门，只允许策略未选择的 optional job 为 skipped。
 
 ### 测试取舍
 

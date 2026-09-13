@@ -2,7 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestJson } from "../vendor/vendorHttp";
 import type { Model, Vendor } from "../catalog/types";
 import { ProviderAdapterStore } from "./store";
 import type { ProviderAdapterRun } from "./types";
@@ -37,9 +36,11 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
       createdAt: now,
       updatedAt: now,
     };
+    // 自检唯一会打的那次请求是免费的 GET /models。上游把 key 原样回显在错误里是真实见过的行为，
+    // 这条钉的是「它不许从这条路漏进结果 / run DTO / 落盘 JSON」。
     vi.stubGlobal("fetch", vi.fn(async () => new Response(
-      JSON.stringify({ message: `upstream echoed ${secret}` }),
-      { status: 500 },
+      JSON.stringify({ error: { message: `upstream echoed ${secret}` } }),
+      { status: 401, headers: { "content-type": "application/json" } },
     )));
 
     const result = await verifyAdapterMode({
@@ -48,23 +49,10 @@ describe("vendor HTTP exact redaction reaches adapter persistence", () => {
       apiKey: secret,
       mode: {
         taskKind: "text_to_image",
-        create: { method: "POST", path: "/images", body: { prompt: "{{request.prompt}}" } },
+        create: { method: "POST", path: "/images", body: { prompt: "{{request.prompt}}" }, response_mapping: { image_url: "data.0.url" } },
         testParams: {},
         sourceUrls: ["https://candidate.example.test/docs"],
       },
-    }, {
-      execute: async () => ({
-        response: await requestJson(
-          vendor,
-          secret,
-          "POST",
-          "https://candidate.example.test/v1/images",
-          { Authorization: `Bearer ${secret}` },
-          {},
-          {},
-        ),
-        request: {},
-      }),
     });
 
     expect(result.ok).toBe(false);

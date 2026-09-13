@@ -25,7 +25,6 @@ import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
 import { ToolbarDivider } from './NodeFloatingToolbar'
-import NodeCameraMoveControl from './NodeCameraMoveControl'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
@@ -92,7 +91,6 @@ const TEXT_MODE_PLACEHOLDER_KEY = {
  * | 不渲染 | 为什么 |
  * |---|---|
  * | 「更多 ▾」`effects.more` + 推荐行 `effects.recommendations` | 提示词是 Nomi **已经写完**的。卡的任务是「看一眼、要不要改一个字、按下去」，不是重新起草 |
- * | 运镜 `NodeCameraMoveControl` | 同上：运镜已经写在提示词里了 |
  * | 提示词优化 `NodePromptOptimizer` | 同上，且它要再花一次模型钱——在一张**正在确认花钱**的卡上放第二笔花钱按钮是错的 |
  * | 生成钮（圆形 `↑`） | 由卡壳的主按钮接替（「生成」与「不要」并排） |
  *
@@ -327,16 +325,15 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
 
   const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
 
-  // B 簇（帮我写提示词）：运镜 → 效果 → 优化，顺序就是 2026-09-11 拍板那句话。
-  // 运镜排头是因为三者里只有它带状态（选过带激活点），状态位紧挨分隔线更容易被扫到。
+  // B 簇（帮我写提示词）：效果 → 优化。运镜控件已从视频/图片节点移除：用户直接在 prompt
+  // 里写运镜，避免节点控件和提示词重复表达。
   // 一件都没有（锁住的节点、不吃提示词的工作流、面板宿主）就整段不渲染——空的分组连同两根分隔线
   // 留在那里只会在底栏里留一段没人看得懂的空白。
   // 面板宿主整段没有：卡上的提示词是 Nomi 已经写完的，这一刻的活是「看一眼、按下去」，
   // 而且优化要再花一次模型钱——在一张正在确认花钱的卡上摆第二颗花钱的钮是错的（见 NodeComposerHost）。
-  const showCameraMove = !inPanel && isVideoLikeGenerationNodeKind(node.kind) && !node.locked
   const showPromptPicker = !inPanel && hasPromptPickerButton
   const showOptimizer = !inPanel && acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
-  const hasPromptTools = showCameraMove || showPromptPicker || showOptimizer
+  const hasPromptTools = showPromptPicker || showOptimizer
 
   // 就地展开的参数面板的落点（只有 `panel` 宿主有）。
   //
@@ -461,7 +458,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
       {/* 推荐行不进面板宿主：卡上的提示词是 Nomi 已经写完的，这一刻不是重新起草的时候。 */}
       {showPromptPicker && effects.recommendations}
       {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
-            `[模型 ▾] [16:9 · 5s ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`
+          `[模型 ▾] [16:9 · 5s ▾] │ [✦][✨] │ [×N ▾] ……… [↑]`
           从左到右是「出什么 → 怎么写 → 出几张 → 走」，与人在按下生成那一刻的决策顺序同向。
           三类归位见 docs/design/2026-09-10-node-composer-bar-v1.md：
             A 决定出什么/花多少 → 第一段与第三段；B 帮我写提示词 → 中段缩小一号的纯 icon；
@@ -492,9 +489,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           <>
             <ToolbarDivider />
             <NodePromptToolCluster ariaLabel={t('generationCommon.composerBarV1.promptTools')}>
-              {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——仅对 video-like 节点显示
-                  （AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
-              {showCameraMove ? <NodeCameraMoveControl node={node} /> : null}
               {showPromptPicker ? effects.more : null}
               {showOptimizer ? <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} /> : null}
             </NodePromptToolCluster>

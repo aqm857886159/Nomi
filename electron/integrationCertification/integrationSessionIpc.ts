@@ -9,8 +9,8 @@ function objectPayload(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Trusted renderer seam for credential entry and receipt minting. Secrets only
- * cross this main-window IPC boundary and are never returned in its projections.
+/** Trusted renderer seam for credential entry and for starting the free self-check.
+ * Secrets only cross this main-window IPC boundary and are never returned in its projections.
  *
  * `service` 必填：以前它是 optional、缺席时回落到单例零参兜底构造，于是整条 ComfyUI
  * 认证链拿不到运行时依赖而必炸且静默（2026-09-11 真机矩阵 §BUG-2）。装配处见
@@ -51,8 +51,9 @@ export function registerIntegrationSessionIpc(service: IntegrationSessionService
           : {}),
       },
     );
+    // resolveInput 把会话推到 `ready_to_certify`，会话服务在那一刻自己递交接单（见
+    // integrationSession.announceReadyToCertify）。这里不再签发花费挑战：自检不花钱。
     const ready = service.resolveInput(submitted.id, submitted.revision, "nomi", {});
-    service.requestConfirmation(ready.id, ready.revision, "nomi", `manual-${ready.id}`);
     return service.get(ready.id);
   });
   ipcMain.handle("nomi:integration-session:credential", (event, raw: unknown) => {
@@ -65,23 +66,12 @@ export function registerIntegrationSessionIpc(service: IntegrationSessionService
       payload.apiKey,
     );
   });
-  ipcMain.handle("nomi:integration-session:confirm", async (event, raw: unknown) => {
+  /** 用户在模型页按下「开始自检」。自检不发生成请求、不消耗额度，所以这里没有挑战、
+   * 没有收据、没有手势章——只有一次普通的、以 Nomi 为 owner 的 start。 */
+  ipcMain.handle("nomi:integration-session:start-self-check", async (event, raw: unknown) => {
     assertTrustedSender(event);
     const payload = objectPayload(raw);
-    const frameId = event.senderFrame?.routingId;
-    if (!Number.isInteger(frameId)) throw new Error("Trusted renderer frame is unavailable");
-    let origin = "file://";
-    try { origin = new URL(event.senderFrame?.url || "file://").origin || "file://"; } catch { /* trusted sender guard already checked origin */ }
-    const confirmed = service.confirmFromTrustedUi({
-      sessionId: String(payload.sessionId || ""),
-      expectedRevision: Number(payload.expectedRevision),
-      challengeId: String(payload.challengeId || ""),
-      webContentsId: event.sender.id,
-      frameId: frameId as number,
-      origin,
-    });
-    return confirmed.ownerClientId === "nomi"
-      ? service.startConfirmedFromTrustedUi(confirmed.id, confirmed.revision)
-      : confirmed;
+    const sessionId = String(payload.sessionId || "");
+    return service.start(sessionId, Number(payload.expectedRevision), "nomi", `manual-${sessionId}`);
   });
 }

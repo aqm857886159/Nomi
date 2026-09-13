@@ -1,403 +1,130 @@
-import crypto from "node:crypto";
-import type { LocalAssetReader } from "../catalog/assetLocalization";
-import type { Mapping, Model, Vendor } from "../catalog/types";
-import { streamTextTask } from "../ai/streamTextTask";
-import {
-  buildProfileTaskResult,
-  executeProfileOperation,
-  type TaskRequest,
-  type TaskResult,
-} from "../runtime";
-import { VendorRequestError, type VendorErrorCategory } from "../vendor/vendorHttp";
+/**
+ * 一条模式的**免费自检**。2026-09-11 用户拍板后，这里不再向上游发任何一次生成请求。
+ *
+ * 在这之前它做的是：用真实 key 发一次真实生成（图片模型 = 一次付费出图）→ 轮询 → 下载产物 →
+ * 验真这是一张真图。一个图片模型两个模式 = 一轮 2 次付费出图，自动修复 2 轮 × 全量回归 = 最坏
+ * 6 次；失败时那个已受理、已扣费、还在跑的任务被我们转身丢掉（旧 :302 手里明明有 remoteTaskId）。
+ * 群反馈原话：「手动添加的模型都没法通过验证，还消耗积分」。
+ * 全部诊断见 docs/plan/2026-09-11-model-onboarding-flow.md。
+ *
+ * 现在只剩两件零成本、且**在花钱之前就该知道**的事：
+ *   ① 鉴权 + 这个模型在不在上游列出来的清单里（`GET /models`，一条连接只打一次）；
+ *   ② 说明卡形状对不对（有没有可执行通道、声明异步却没给 query、改图模式没声明参考图槽）。
+ * 过了就进画布模型框、标「未试跑」。**第一次真实生成就是试跑**，钱的闸在提交处看报价确认。
+ *
+ * 失败原因分成正交的两维（治「把我们的能力缺口报成未知的上游错误」）：
+ *   - `errorCategory`：上游怎么拒绝我们（沿用 vendorHttp 在抛出点的查表结论）。
+ *   - `selfCheckReason`：**我们这边**缺什么（credential_rejected / endpoint_unreachable /
+ *     no_channel / async_without_query / reference_slot_missing）。渲染层据它说人话，不猜字符串。
+ */
+import type { Model, Vendor } from "../catalog/types";
+import type { VendorErrorCategory } from "../vendor/vendorHttp";
 import type { AdapterModeDraft } from "./types";
-import { redactAdapterSecrets } from "./redaction";
-import {
-  CertificationMediaError,
-  certifyMediaArtifact,
-  type CertificationMediaDependencies,
-  type CertificationMediaEvidence,
-  type CertificationMediaReasonCode,
-} from "./certificationMedia";
 import type { CertificationSubmissionState } from "../integrationCertification/types";
 import {
-  executeSynchronousAudioOperation,
-  type SynchronousAudioOperationResult,
-} from "../audio/synchronousAudioResponse";
+  checkAdapterModeContract,
+  probeAdapterCredential,
+  type AdapterCredentialProbe,
+  type AdapterSelfCheckDependencies,
+  type AdapterSelfCheckReason,
+} from "./selfCheck";
 
-// 文本探测的额度上限。**上限不是花费**——模型答完 "ready" 就停，实际只出几十 token，
-// 设大不多花一分钱；设小却会把整类思考型模型判死：DeepSeek V4 / R1 / o 系默认先思考，
-// 思考的 token 同样计入 max_tokens，而 AI SDK 的 textStream 只含正文。旧值 24 被思考
-// 全部吃光 → 正文为空 → 误判「模型不可用」（2026-08-11 用户接 deepseek-v4-pro/flash
-// 实测：max_tokens=24 → finish_reason=length、content=""；=2048 → "ready"，仅用 35 token）。
-const TEXT_PROBE_MAX_TOKENS = 2_048;
-
-const REFERENCE_URL = "nomi-local://adapter-test/reference.png";
-const MAX_VERIFIED_ASSETS = 8;
-// 256×256 纯灰。**尺寸不是随手定的**：真实改图端点有最小边长校验，此前这里是 2×2，
-// OpenAI 兼容的 /v1/images/edits 直接回 400 invalid_image → 凡是 multipart 改图协议的模型
-// （gpt-image 系 / dall-e-2）image_edit 一律认证失败，落库缺 image_edit mapping，用户连了
-// 参考图只会看到「没有图生图通道」。2026-09-03 自建中转 gpt-image-2 实测：2×2 → 400
-// invalid_image，256×256 → 200。纯色 PNG 压缩后仍只有几百字节，不构成体积负担。
-const REFERENCE_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB+0lEQVR42u3TQQ0AAAjEMED5SeeNBloJS9ZJCr4aCTAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAATAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAbAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHgWu7LA4CJx71QAAAAAElFTkSuQmCC",
-  "base64",
-);
+export type { AdapterCredentialProbe, AdapterSelfCheckReason } from "./selfCheck";
+export { probeAdapterCredential } from "./selfCheck";
 
 export type AdapterVerificationResult =
   | {
       ok: true;
       taskKind: AdapterModeDraft["taskKind"];
       requestSummary?: unknown;
-      mediaEvidence?: CertificationMediaEvidence[];
-      remoteTaskId?: string;
+      /** 自检从不让任何东西留在上游，永远是 settled。保留字段是因为 ledger 的持久形状要它。 */
       submissionState?: Extract<CertificationSubmissionState, "settled">;
+      /** 上游的模型清单里没有它。**不判死**（很多中转不把模型列全），只作为提示带给界面。 */
+      modelNotListed?: boolean;
     }
   | {
       ok: false;
       taskKind: AdapterModeDraft["taskKind"];
-      stage: "localize_reference" | "create" | "poll" | "result" | "verify_asset";
+      /** 自检只有两段：凭据、说明卡形状。旧的 create/poll/result/verify_asset 随付费验证一起删了。 */
+      stage: "credential" | "contract";
       error: string;
       /**
-       * 失败归类。**在抛出点就已查表定好**（vendorHttp：401/403→auth、402→balance、429→quota、
-       * 400/422→input、5xx→server），这里只是把它带出来，不是重新判断。
-       * 不带的话渲染层只能拿 error 字符串做关键词匹配去猜——正是 2026-08-12
-       * `fix(errors): 文本侧错误也在源头留住 category` 修掉的反模式：猜就按类漏，且反复漏
-       * （那次注释里记着 5 轮同型补丁）。
+       * 上游归类（401/403→auth、402→balance、429→quota…）。**在抛出点就已查表定好**，
+       * 这里只是带出来，不重新判断。
        */
       errorCategory?: VendorErrorCategory;
       httpStatus?: number;
-      reasonCode?: CertificationMediaReasonCode;
-      errorParams?: Readonly<Record<string, string | number | boolean>>;
+      /** 「我们这边缺什么」这一维。与 errorCategory 正交，界面据它给修复路径而不是甩英文原文。 */
+      selfCheckReason: AdapterSelfCheckReason;
       requestSummary?: unknown;
-      remoteTaskId?: string;
-      submissionState?: Extract<CertificationSubmissionState, "unknown" | "settled">;
+      submissionState?: Extract<CertificationSubmissionState, "settled">;
     };
 
-type AdapterVerificationStage = Extract<AdapterVerificationResult, { ok: false }>["stage"];
+export type AdapterVerifierDependencies = AdapterSelfCheckDependencies;
 
-type ExecuteInput = Parameters<typeof executeProfileOperation>[0];
-type NormalizeInput = Parameters<typeof buildProfileTaskResult>[0];
-
-export type AdapterVerifierDependencies = {
-  execute?: (input: ExecuteInput) => Promise<{ response: unknown; request: unknown }>;
-  normalize?: (input: NormalizeInput) => Promise<{ result: TaskResult; providerMeta: Record<string, unknown> }>;
-  fetchAsset?: CertificationMediaDependencies["fetch"];
-  certifyMedia?: typeof certifyMediaArtifact;
-  executeSynchronousAudio?: (input: Parameters<typeof executeSynchronousAudioOperation>[0]) => Promise<SynchronousAudioOperationResult>;
-  sleep?: (ms: number) => Promise<void>;
-  maxPolls?: number;
-  pollIntervalMs?: number;
-  verifyText?: (input: {
-    vendor: Vendor;
-    model: Model;
-    apiKey: string;
-    prompt: string;
-    imageUrl?: string;
-    signal?: AbortSignal;
-  }) => Promise<{ text: string; finishReason?: string; reasoning?: string }>;
-};
-
-async function waitForPoll(
-  sleep: (ms: number) => Promise<void>,
-  ms: number,
-  signal?: AbortSignal,
-): Promise<void> {
-  if (!signal) return sleep(ms);
-  if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Verification cancelled");
-  let onAbort: (() => void) | undefined;
-  const aborted = new Promise<never>((_resolve, reject) => {
-    onAbort = () => reject(signal.reason instanceof Error ? signal.reason : new Error("Verification cancelled"));
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-  try {
-    await Promise.race([sleep(ms), aborted]);
-  } finally {
-    if (onAbort) signal.removeEventListener("abort", onAbort);
-  }
+/** 上游拒绝的归类：自检只碰得到鉴权这一种确定的拒绝。 */
+function categoryFor(reason: AdapterSelfCheckReason): VendorErrorCategory | undefined {
+  if (reason === "credential_rejected") return "auth";
+  if (reason === "endpoint_unreachable") return "network";
+  return undefined;
 }
 
-const defaultReadFixture: LocalAssetReader = (url) =>
-  url === REFERENCE_URL
-    ? { bytes: REFERENCE_PNG, contentType: "image/png", fileName: "adapter-reference.png" }
-    : null;
-
-function errorMessage(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error);
-  return redactAdapterSecrets(raw);
-}
-
-function mappingFor(vendor: Vendor, model: Model, mode: AdapterModeDraft): Mapping {
-  const now = new Date().toISOString();
-  return {
-    id: `candidate-${crypto.randomUUID()}`,
-    vendorKey: vendor.key,
-    modelKey: model.modelKey,
-    taskKind: mode.taskKind,
-    name: `${model.modelKey}/${mode.taskKind} candidate`,
-    enabled: false,
-    create: mode.create,
-    ...(mode.query ? { query: mode.query } : {}),
-    ...(mode.result ? { result: mode.result } : {}),
-    ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function verificationRequest(model: Model, mode: AdapterModeDraft): TaskRequest {
-  const extras: Record<string, unknown> = { modelKey: model.modelKey, ...(mode.testParams || {}) };
-  if (mode.referenceParam) {
-    extras[mode.referenceParam] = mode.referenceShape === "array" ? [REFERENCE_URL] : REFERENCE_URL;
-    // The production request normalizer recognizes this canonical collection even when a wire-specific alias is also used.
-    if (!("referenceImages" in extras)) extras.referenceImages = [REFERENCE_URL];
-  }
-  return {
-    kind: mode.taskKind,
-    prompt:
-      mode.taskKind === "image_edit" || mode.taskKind.startsWith("image_to_")
-        ? "Preserve the blue reference square and make one minimal variation."
-        : "Nomi adapter verification. Return one minimal result.",
-    extras,
-  };
-}
-
-/** 取 http(s) origin；非法/非 http 一律 null（拿不到就不放行，保守失败）。 */
-function originOf(baseUrlHint: string | null | undefined): string | null {
-  if (!baseUrlHint) return null;
-  try {
-    const url = new URL(baseUrlHint);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * 一条模式的自检。`credential` 由调用方**一条连接只探一次**再分发进来（结论对这条连接下的
+ * 所有模型都一样，按模式各打一次纯属白打）；不给就在这里现探。
+ */
 export async function verifyAdapterMode(
   input: {
     vendor: Vendor;
     model: Model;
     apiKey: string;
     mode: AdapterModeDraft;
+    credential?: AdapterCredentialProbe;
     signal?: AbortSignal;
-    onRemoteTaskAccepted?: (remoteTaskId: string) => void;
   },
   dependencies: AdapterVerifierDependencies = {},
 ): Promise<AdapterVerificationResult> {
-  const execute = dependencies.execute || executeProfileOperation;
-  const normalize = dependencies.normalize || buildProfileTaskResult;
-  const certifyMedia = dependencies.certifyMedia || ((mediaInput) => certifyMediaArtifact(
-    mediaInput,
-    dependencies.fetchAsset ? { fetch: dependencies.fetchAsset } : {},
-  ));
-  const sleep = dependencies.sleep || ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const verifyText = dependencies.verifyText || (async (textInput) => streamTextTask(
-    {
-      ...textInput,
-      temperature: 0,
-      maxTokens: TEXT_PROBE_MAX_TOKENS,
-    },
-    { abortSignal: textInput.signal || AbortSignal.timeout(45_000) },
-  ));
-  const mapping = mappingFor(input.vendor, input.model, input.mode);
-  const request = verificationRequest(input.model, input.mode);
-  // 本次验证正在打的那个端点的 origin（用户刚亲手填的），产物 URL 与它同源才准下载。
-  const verifiedOrigin = originOf(input.vendor.baseUrlHint);
-  let stage: AdapterVerificationStage = input.mode.referenceParam
-    ? "localize_reference"
-    : "create";
-  let requestSummary: unknown;
-  let remoteTaskId: string | undefined;
-
-  try {
-    if (input.model.kind === "text") {
-      stage = "create";
-      const prompt = "Nomi adapter verification. Reply with the single word ready.";
-      const textResult = await verifyText({
-        vendor: input.vendor,
-        model: input.model,
-        apiKey: input.apiKey,
-        prompt,
-        signal: input.signal,
-        ...(input.mode.taskKind === "image_to_prompt"
-          ? { imageUrl: `data:image/png;base64,${REFERENCE_PNG.toString("base64")}` }
-          : {}),
-      });
-      requestSummary = {
-        productionPath: "streamTextTask",
-        modelKey: input.model.modelKey,
-        taskKind: input.mode.taskKind,
-      };
-      // 空正文有两种，别混为一谈（根因修复 2026-08-12）：
-      // ① 思考型模型把额度花在思考上、被我们的上限截断 → 端点/鉴权/模型都是通的，算通过。
-      //    （否则无论上限设多大，思考更久的模型仍会被判死——这类 bug 只有这样才不再复发。）
-      // ② 真的什么都没回 → 才是失败，且要说清「空回复」而不是含糊的 no readable text。
-      if (!textResult.text.trim()) {
-        const truncatedWhileThinking =
-          textResult.finishReason === "length" || Boolean(textResult.reasoning?.trim());
-        if (!truncatedWhileThinking) {
-          throw new Error("Model connected but returned an empty reply (no text and no reasoning)");
-        }
-      }
-      return { ok: true, taskKind: input.mode.taskKind, requestSummary };
-    }
-
-    const audioResponse = input.mode.create.audioResponse;
-    const synchronousAudio = input.model.kind === "audio"
-      && input.mode.taskKind !== "transcribe"
-      && !input.mode.query
-      && Boolean(audioResponse)
-      && audioResponse !== "ndjson-base64";
-    if (synchronousAudio) {
-      const executeAudio = dependencies.executeSynchronousAudio || executeSynchronousAudioOperation;
-      stage = "create";
-      const audio = await executeAudio({
-        vendor: input.vendor,
-        model: input.model,
-        apiKey: input.apiKey,
-        request,
-        operation: input.mode.create,
-        ...(input.signal ? { signal: input.signal } : {}),
-      });
-      requestSummary = audio.request;
-      stage = "verify_asset";
-      const mediaEvidence = [await certifyMedia({
-        source: { bytes: audio.bytes, contentType: audio.contentType },
-        expectedKind: "audio",
-        ...(input.signal ? { signal: input.signal } : {}),
-      })];
-      return {
-        ok: true,
-        taskKind: input.mode.taskKind,
-        requestSummary,
-        mediaEvidence,
-        submissionState: "settled",
-      };
-    }
-
-    let executed = await execute({
-      vendor: input.vendor,
-      model: input.model,
-      apiKey: input.apiKey,
-      request,
-      operation: input.mode.create,
-      stage: "create",
-      localAssetReader: defaultReadFixture,
-      signal: input.signal,
-    });
-    requestSummary = executed.request;
-    stage = "create";
-
-    let normalized = await normalize({
-      response: executed.response,
-      mapping,
-      operation: input.mode.create,
-      request,
-      taskIdFallback: `adapter-${crypto.randomUUID()}`,
-      wantedKind: input.model.kind,
-      vendor: input.vendor,
-      model: input.model,
-    });
-    remoteTaskId = normalized.result.id;
-    input.onRemoteTaskAccepted?.(remoteTaskId);
-    let providerMeta = normalized.providerMeta;
-
-    if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
-    if (normalized.result.status !== "succeeded") {
-      if (!input.mode.query) throw new Error("Provider returned a pending task but the adapter has no query operation");
-      stage = "poll";
-      const maxPolls = dependencies.maxPolls ?? 40;
-      for (let attempt = 0; attempt < maxPolls && normalized.result.status !== "succeeded"; attempt += 1) {
-        if (attempt > 0) await waitForPoll(sleep, dependencies.pollIntervalMs ?? 3_000, input.signal);
-        executed = await execute({
-          vendor: input.vendor,
-          model: input.model,
-          apiKey: input.apiKey,
-          request,
-          operation: input.mode.query,
-          stage: "query",
-          providerMeta,
-          localAssetReader: defaultReadFixture,
-          signal: input.signal,
-        });
-        requestSummary = executed.request;
-        normalized = await normalize({
-          response: executed.response,
-          mapping,
-          operation: input.mode.query,
-          request,
-          taskIdFallback: normalized.result.id,
-          wantedKind: input.model.kind,
-          vendor: input.vendor,
-          model: input.model,
-        });
-        providerMeta = { ...providerMeta, ...normalized.providerMeta };
-        remoteTaskId = normalized.result.id;
-        if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
-      }
-      if (normalized.result.status !== "succeeded") throw new Error("Provider verification timed out while polling");
-    }
-
-    if (input.mode.result) {
-      stage = "result";
-      executed = await execute({
-        vendor: input.vendor,
-        model: input.model,
-        apiKey: input.apiKey,
-        request,
-        operation: input.mode.result,
-        stage: "result",
-        providerMeta,
-        localAssetReader: defaultReadFixture,
-        signal: input.signal,
-      });
-      requestSummary = executed.request;
-      normalized = await normalize({
-        response: executed.response,
-        mapping,
-        operation: input.mode.result,
-        request,
-        taskIdFallback: remoteTaskId || `adapter-${crypto.randomUUID()}`,
-        wantedKind: input.model.kind,
-        vendor: input.vendor,
-        model: input.model,
-      });
-      if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider result request failed");
-    }
-
-    stage = "verify_asset";
-    const assets = normalized.result.assets;
-    if (!assets.length || assets.some((asset) => !asset?.url)) throw new Error("Successful task returned no media asset URL");
-    if (assets.length > MAX_VERIFIED_ASSETS) throw new Error("Successful task returned too many media assets");
-    const mediaEvidence: CertificationMediaEvidence[] = [];
-    for (const asset of assets) {
-      mediaEvidence.push(await certifyMedia({
-        source: asset.url,
-        expectedKind: input.model.kind,
-        ...(verifiedOrigin ? { allowedPrivateOrigins: [verifiedOrigin] } : {}),
-        ...(input.signal ? { signal: input.signal } : {}),
-      }));
-    }
-    return { ok: true, taskKind: input.mode.taskKind, requestSummary, mediaEvidence, remoteTaskId, submissionState: "settled" };
-  } catch (error) {
-    const message = errorMessage(error);
-    if (stage === "localize_reference" && !/素材|asset|upload|local|上传/i.test(message)) stage = "create";
-    // 归类不在这里判——原样取抛出点已经查表定好的那个（见 errorCategory 注释）。
-    const structured = error instanceof VendorRequestError ? error.structured : undefined;
-    const submissionUnknown = (stage === "create" || stage === "poll")
-      && (structured?.category === "network" || structured?.category === "timeout");
+  // 形状先判：纯函数、零网络，而且它的结论与凭据无关——凭据没问题也救不了一张缺 query 的说明卡。
+  const contract = checkAdapterModeContract(input.model, input.mode);
+  if (!contract.ok) {
     return {
       ok: false,
       taskKind: input.mode.taskKind,
-      stage,
-      error: message,
-      ...(structured?.category ? { errorCategory: structured.category } : {}),
-      ...(structured?.httpStatus ? { httpStatus: structured.httpStatus } : {}),
-      ...(error instanceof CertificationMediaError
-        ? { reasonCode: error.reasonCode, errorParams: error.params }
-        : {}),
-      requestSummary,
-      ...(remoteTaskId ? { remoteTaskId } : {}),
-      ...(submissionUnknown ? { submissionState: "unknown" as const } : { submissionState: "settled" as const }),
+      stage: "contract",
+      error: contract.error,
+      selfCheckReason: contract.reason,
+      submissionState: "settled",
     };
   }
+  const credential = input.credential
+    || await probeAdapterCredential(
+      { vendor: input.vendor, apiKey: input.apiKey, ...(input.signal ? { signal: input.signal } : {}) },
+      dependencies,
+    );
+  if (!credential.ok) {
+    return {
+      ok: false,
+      taskKind: input.mode.taskKind,
+      stage: "credential",
+      error: credential.error,
+      selfCheckReason: credential.reason,
+      ...(categoryFor(credential.reason) ? { errorCategory: categoryFor(credential.reason) } : {}),
+      ...(credential.httpStatus ? { httpStatus: credential.httpStatus } : {}),
+      submissionState: "settled",
+    };
+  }
+  const listedModels = new Set(credential.modelIds);
+  const modelNotListed = credential.listed && listedModels.size > 0 && !listedModels.has(input.model.modelKey);
+  return {
+    ok: true,
+    taskKind: input.mode.taskKind,
+    requestSummary: {
+      selfCheck: "credential+contract",
+      modelKey: input.model.modelKey,
+      taskKind: input.mode.taskKind,
+      modelListed: credential.listed ? !modelNotListed : null,
+    },
+    submissionState: "settled",
+    ...(modelNotListed ? { modelNotListed: true } : {}),
+  };
 }

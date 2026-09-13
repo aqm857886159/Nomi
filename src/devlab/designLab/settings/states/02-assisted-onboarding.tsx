@@ -69,7 +69,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
           info={mcpInfo(['claude'])}
           progress={null}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),
@@ -86,7 +85,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
           info={mcpInfo([])}
           progress={null}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),
@@ -108,7 +106,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
             reasonCode: null,
           }}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),
@@ -130,7 +127,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
             reasonCode: '402 insufficient_balance',
           }}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),
@@ -150,7 +146,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
           info={mcpInfo(['claude'])}
           progress={null}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),
@@ -173,7 +168,6 @@ export const ASSISTED_ONBOARDING_STATES: readonly LabState[] = [
             reasonCode: '402 insufficient_balance',
           }}
           onOpenAssistantConnections={noop}
-          onManualConnect={noop}
         />
       </Stage>
     ),

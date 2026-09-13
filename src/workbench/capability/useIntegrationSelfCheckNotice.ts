@@ -16,7 +16,7 @@ import { notify } from '../../ui/notificationPolicy'
  * 提示走全仓唯一的背景通知 `notify({ level: 'background' })`，动作走既有的
  * `nomi-open-settings` 事件——与 mcpHostSurfaceOps.ts 里那条宿主配置提示同一套。
  */
-export function useIntegrationConfirmationNotice(): void {
+export function useIntegrationSelfCheckNotice(): void {
   React.useEffect(() => {
     const bridge = getDesktopBridge()?.onboarding
     const list = bridge?.integrationHandoffList
@@ -45,8 +45,8 @@ export function useIntegrationConfirmationNotice(): void {
           reason: 'pending-confirmation',
           level: 'background',
           type: 'warning',
-          message: i18n.t('studio.integrationConfirmPending', { name: entry.display?.name || entry.sessionId }),
-          actionLabel: i18n.t('studio.integrationConfirmPendingAction'),
+          message: i18n.t('studio.integrationSelfCheckPending', { name: entry.display?.name || entry.sessionId }),
+          actionLabel: i18n.t('studio.integrationSelfCheckPendingAction'),
           onAction: () => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } })),
         })
       }

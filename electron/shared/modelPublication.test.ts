@@ -265,6 +265,57 @@ describe("published execution contract", () => {
     })).toEqual({ published: false, publishedModes: [] });
   });
 
+  // 回归钉子（2026-09-11 拍板「自检失败不下架」）。此前 `meta.adapter` 一存在就改判「只认
+  // activeRevision」，而失败的自检只写 state:"failed"、不写 activeRevision —— 于是按一次验证按钮
+  // 就把一个本来能用的模型从画布模型框里永久抹掉。自检只增不减。
+  describe("a failed self-check never takes a row out of the model picker", () => {
+    const mappings = [
+      { enabled: true, vendorKey: "relay", modelKey: "image-model", taskKind: "text_to_image" },
+      { enabled: true, vendorKey: "relay", modelKey: "image-model", taskKind: "image_edit" },
+    ];
+
+    it("publishes enabled mappings when the adapter failed without an active revision", () => {
+      expect(derivePublishedExecution(
+        model("image", { meta: { adapter: { state: "failed", runId: "run-1", modes: [] } } }),
+        { mappings },
+      )).toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
+    });
+
+    it("matches the same row with no adapter metadata at all", () => {
+      expect(derivePublishedExecution(model("image"), { mappings }))
+        .toEqual({ published: true, publishedModes: ["text_to_image", "image_edit"] });
+    });
+
+    it("still honours a certified active revision as the stronger evidence", () => {
+      expect(derivePublishedExecution(
+        model("image", {
+          meta: {
+            adapter: {
+              state: "verified",
+              activeRevision: "rev-1",
+              modes: [{ taskKind: "text_to_image", state: "verified" }, { taskKind: "image_edit", state: "failed" }],
+            },
+          },
+        }),
+        { mappings },
+      )).toEqual({ published: true, publishedModes: ["text_to_image"] });
+    });
+
+    it("keeps a disabled row out regardless of adapter state", () => {
+      expect(derivePublishedExecution(
+        model("image", { enabled: false, meta: { adapter: { state: "failed" } } }),
+        { mappings },
+      )).toEqual({ published: false, publishedModes: [] });
+    });
+
+    it("keeps the publication mask authoritative over the fallback", () => {
+      expect(derivePublishedExecution(
+        model("image", { meta: { adapter: { state: "failed", publicationModes: ["text_to_image"] } } }),
+        { mappings },
+      )).toEqual({ published: true, publishedModes: ["text_to_image"] });
+    });
+  });
+
   it("does not treat a model-level generic script as legacy fallback when an explicit contract exists", () => {
     expect(derivePublishedExecution(model("image", {
       customCall: { script: "return 'generic'" },

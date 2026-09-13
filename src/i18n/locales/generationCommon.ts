@@ -567,6 +567,9 @@ export const zhGenerationCommon = {
     parameters: '参数',
     panel: '生成参数面板',
     provider: '供应商',
+    // 「未试跑」：自检只证明了地址、密钥与调用形状对，没证明这个模型点了一定能出片。
+    // 第一次真实生成就是试跑（钱的闸在提交处看报价确认）。
+    untried: '未试跑',
     noVendorConnected: '还没接入供应商',
     connectVendorAction: '去接入',
     // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
@@ -638,7 +641,6 @@ export const zhGenerationCommon = {
   composerBarV1: {
     promptTools: '写提示词',
     effects: '效果与提示词库',
-    cameraPicked: '{{move}} · {{speed}}',
     seconds: '{{value}}s',
   },
   composer: {
@@ -819,22 +821,6 @@ export const zhGenerationCommon = {
     canvasControls: '画布操作',
   },
   cameraMove: {
-    title: '运镜',
-    noSceneHint: '不用搭 3D 场景',
-    type: '运镜类型',
-    speed: '速度',
-    shot: '景别',
-    slow: '慢',
-    medium: '中',
-    fast: '快',
-    wide: '远',
-    close: '近',
-    overlayHint: '叠加第二段运镜——敬请期待',
-    addLayer: '叠一层',
-    comingSoon: '敬请期待',
-    readout: '{{move}} · {{speed}} · {{duration}}s → 灰模运镜片自动接入 video_ref',
-    apply: '应用',
-    created: '已生成「{{move}} · {{speed}} · {{duration}}s」运镜片，正在离屏渲染并接入本镜运镜参考。',
     move: {
       orbit_left: '左环绕',
       orbit_right: '右环绕',
@@ -948,12 +934,12 @@ export const zhGenerationCommon = {
     deconstructHint: '把这条视频拆成一张镜头结构表（景别/情绪/画面/字幕/对白/提示词）→ 勾选镜头加进画布学着做',
   },
   panorama: {
+    created: '已创建全景截图节点',
     screenshotTitle: '全景截图',
     screenshotPrompt: '全景取景框截图',
     notReady: '全景还没准备好，请稍后再试',
     capturing: '截图中…',
     captureFailed: '截图失败，请重试',
-    created: '已创建全景截图节点',
     capturingShort: '截图中',
     captureFrame: '截图取景框',
     closePreview: '关闭预览',
@@ -2000,6 +1986,7 @@ export const enGenerationCommon = {
     parameters: 'Parameters',
     panel: 'Generation parameters panel',
     provider: 'Provider',
+    untried: 'not tried yet',
     noVendorConnected: 'No provider connected yet',
     connectVendorAction: 'Connect',
     hiddenModels: '{{count}} hidden · bring back in Settings',
@@ -2067,7 +2054,6 @@ export const enGenerationCommon = {
   composerBarV1: {
     promptTools: 'Prompt helpers',
     effects: 'Effects & prompt library',
-    cameraPicked: '{{move}} · {{speed}}',
     seconds: '{{value}}s',
   },
   composer: {
@@ -2245,23 +2231,6 @@ export const enGenerationCommon = {
     canvasControls: 'Canvas controls',
   },
   cameraMove: {
-    title: 'Camera move',
-    noSceneHint: 'No 3D scene required',
-    type: 'Camera move type',
-    speed: 'Speed',
-    shot: 'Shot size',
-    slow: 'Slow',
-    medium: 'Medium',
-    fast: 'Fast',
-    wide: 'Wide',
-    close: 'Close',
-    overlayHint: 'Add a second camera move — coming soon',
-    addLayer: 'Add layer',
-    comingSoon: 'Coming soon',
-    readout: '{{move}} · {{speed}} · {{duration}}s → automatically attach the blocking clip as video_ref',
-    apply: 'Apply',
-    created:
-      'Created “{{move}} · {{speed}} · {{duration}}s”. Rendering offscreen and attaching it as this shot’s camera-move reference.',
     move: {
       orbit_left: 'Orbit left',
       orbit_right: 'Orbit right',
@@ -2376,12 +2345,12 @@ export const enGenerationCommon = {
     deconstructHint: 'Break this video into a shot-structure table (framing / mood / visuals / captions / dialogue / prompts) → pick shots to bring onto the canvas and learn from',
   },
   panorama: {
+    created: 'Panorama screenshot node created',
     screenshotTitle: 'Panorama screenshot',
     screenshotPrompt: 'Framed panorama screenshot',
     notReady: 'The panorama is not ready yet. Try again shortly.',
     capturing: 'Capturing…',
     captureFailed: 'Screenshot failed. Try again.',
-    created: 'Created a panorama screenshot node',
     capturingShort: 'Capturing',
     captureFrame: 'Capture framed view',
     closePreview: 'Close preview',
