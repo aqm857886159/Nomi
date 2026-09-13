@@ -248,6 +248,36 @@ async function disconnectLikeAHuman() {
  * `reasons` 是**逐字**对照的，不只是数目对：上一版走查栽的正是「答案对、理由错」——
  * 一家被悄悄停用（`vendor_disabled`）同样能让「可用数 = 0」成立，于是那条判据恒真。
  */
+async function assertAgentDropdown(brainReady, shot) {
+  await closeSettings()
+  await clickOrFail(getWin().getByRole('button', { name: /^新建空白项目/ }), '创建真实项目检查 Agent 模型')
+  await expectVisible(getWin().locator('[data-v4-panel]').first(), '项目 Agent 面板')
+  const dock = getWin().locator('[data-v4-control="dock-open"]').first()
+  if (await dock.isVisible()) await dock.click()
+  await clickOrFail(getWin().locator('[data-v4-control="model"]:visible').first(), 'Agent 模型入口')
+  const popover = getWin().locator('[data-v4-popover="model"]:visible').first()
+  await expectVisible(popover, 'Agent 模型弹层')
+  let labels = []
+  if (brainReady) {
+    const trigger = popover.locator('[data-v4-model-row]').first().locator('button').first()
+    await clickOrFail(trigger, '对话模型下拉')
+    const menu = getWin().locator('[data-nomi-select-dropdown]:visible').first()
+    await expectVisible(menu, '真实模型候选菜单')
+    labels = await menu.locator('[data-nomi-select-option-label]').allTextContents()
+    check(labels.some(x => /Qwen/i.test(x)), '保存凭据后真实 Agent 下拉提供文本模型', JSON.stringify(labels))
+  } else {
+    await expectVisible(popover.getByText('目录里没有可用的', { exact: true }).first(), '没有凭据时 Agent 明确显示不可用')
+    check(await popover.locator('[data-nomi-select-option-label]').count() === 0, '无凭据时没有可选模型')
+  }
+  console.log('AGENT_MENU', shot, JSON.stringify(labels))
+  await snap('agent-' + shot)
+  check(!labels.some(x => x.includes('MCP 接了一半')), '未发布模型不进入 Agent 候选', JSON.stringify(labels))
+  await getWin().keyboard.press('Escape')
+  await getWin().keyboard.press('Escape')
+  await clickOrFail(getWin().getByRole('button', { name: '返回项目库', exact: true }), '返回真实项目库')
+  await expectVisible(getWin().getByRole('button', { name: /^新建空白项目/ }), '已返回项目库')
+}
+
 async function assertAgreement(label, { usable, reasons, brainReady, settingsUsable, settingsPending, shot }) {
   const main = await askMainProcess()
   await openSettings()
@@ -271,6 +301,7 @@ async function assertAgreement(label, { usable, reasons, brainReady, settingsUsa
     `${label}：设置页那句「M 个待设置」写的是 ${settingsPending}（不可用的行被诚实地摆在这边，不是混进「可使用」）`,
     detail,
   )
+  await assertAgentDropdown(brainReady, shot)
   return main
 }
 
