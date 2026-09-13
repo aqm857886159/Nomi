@@ -14,14 +14,8 @@
     "edit_timeline#/operations/items/audio/gainDb",
     "edit_timeline#/operations/items/audio/muted",
     "edit_timeline#/summary",
-    "stage_shot#/cameraMove/props/items/kind",
     "stage_shot#/staging/camera",
-    "stage_shot#/staging/camera/angle",
-    "stage_shot#/staging/camera/shot",
-    "stage_shot#/staging/crowd/columns",
-    "stage_shot#/staging/crowd/rows",
-    "stage_shot#/staging/environment",
-    "stage_shot#/staging/props/items/kind"
+    "stage_shot#/staging/environment"
   ],
   "mcp-transport-catalog": [
     "nomi_artifact_review",

@@ -9,6 +9,17 @@
 - 计算 8 个数字：首调工具写对率、回合成功率、读后写遵守率、错误 verb 拦截率、审批正确率、持久化成功率、冷启动成功率、页面点击成功率。
 - loopback 只证明流程；真实 provider 另跑少量图 2 张、视频 2 段、导出 1 次，并单独记账。
 
+## 先查别人
+
+本轮先复核已有实现和公开契约，再建立矩阵：
+
+- 依赖里已有：Playwright 的 Electron 启动与页面交互能力由 `tests/ux/**/*.spec.mjs`、`playwright.config.mjs`（见 `tests/ux/design-lab/design-lab.visual.spec.mjs:1`）提供；MCP 工具列表与输入 schema 由 `electron/capabilityCore/mcpCapabilityProjection.ts:1-2` 统一投影。矩阵只编排这些入口，不另造页面驱动层。
+- 仓库里已有：`tests/ux/storyboard-agent-canonical-patch.e2e.mjs:1-6` 已覆盖真实 Electron/MCP lease、elicitation、patch、receipt 和冷启动；`electron/agentLane/laneDesktopReads.test.ts:1-12` 覆盖 lane 读工具边界。新矩阵补用户任务和状态分母，不复制这些底层夹具。
+- 生态里已有：MCP 工具发现和调用遵循官方规范 [Model Context Protocol Tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)；Electron 页面验收遵循 [Playwright Electron](https://playwright.dev/docs/api/class-electron)。
+- TikHub 自媒体来源：本矩阵验证的是本地 Electron 工具契约和真实页面状态，不采用自媒体作为行为标准；用户任务来源是产品现有 canonical verbs 与已落盘的真实轨迹，避免把营销案例当作验收依据。
+
+结论：复用现有 Electron、MCP、Playwright 和轨迹落盘边界；本任务自研的是跨空/非空/审批/持久化/冷启动状态的用户任务编排与证据汇总，因为这些状态组合不是任一单一依赖提供的能力。
+
 ## 任务矩阵
 
 | ID | 用户会说的话 | 预期首个动作 | 证明什么 |
@@ -48,6 +59,7 @@
 ## 2026-09-13 执行收据
 
 - usecase manifest：通过，20/20 canonical verbs，20/20 用户任务，8 个指标。
+- `check:agent-tool-face-usecases` 已接入 `gates:contracts`；本轮合同门岗 81 项中该项通过，整体 77 项通过、1 项阻断（历史 Ponytail 延后账本）、3 项 advisory。
 - TypeScript 双向检查：通过。
 - Electron 构建：通过，产物和 build stamp 已生成。
 - `mcp-generation-elicitation-first.e2e.mjs`：通过，6 项断言；elicitation 确认后进入 execute，GUI 卡为 0。

@@ -1,0 +1,102 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-canonical-canvas-read-alias",
+  "problem_type": "desktop lane canvas read used the MCP alias instead of the canonical Pi verb",
+  "symptom": "Visible Agent look_at_canvas calls failed or returned stale-looking answers while the canvas page contained nodes.",
+  "direct_cause": "createDesktopLaneTools passed nomi_canvas_read to the Pi transport adapter, whose accepted identity is CANVAS_READ_CAPABILITY.aliases.pi (look_at_canvas).",
+  "class_root": "The desktop lane hand-copied a transport alias instead of deriving the caller identity from the shared capability contract.",
+  "affected_population": [
+    "empty canvas reads",
+    "single-node reads",
+    "multi-node reads",
+    "cold-start canvas reads"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneDesktopReads.test.ts",
+    "electron/shared/agentCapabilities/canvasRead.ts"
+  ],
+  "entry_points": [
+    "createDesktopLaneTools canvas.read execution"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an internal shared capability alias contract.",
+  "invariants": [
+    "Each transport adapter receives the alias declared for its surface by the capability contract.",
+    "The desktop Pi lane uses the Pi alias and MCP continues to use the MCP alias.",
+    "A read failure never becomes an inferred canvas answer in the visible Agent reply."
+  ],
+  "generality_proof": "All desktop canvas reads converge through createDesktopLaneTools and the shared CANVAS_READ_CAPABILITY aliases; no caller is allowed to spell a transport name locally.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "CANVAS_READ_CAPABILITY.aliases",
+      "responsibility": "Own the per-surface transport identities."
+    },
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "createDesktopLaneTools",
+      "responsibility": "Bind the shared Pi alias to the desktop read adapter."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopReads.test.ts",
+      "entry_point": "desktop Pi canvas read",
+      "disposition": "enforced",
+      "evidence": "Real lane fixture now calls look_at_canvas and asserts the port executes once."
+    },
+    {
+      "path": "electron/capabilityCore/canvasReadTransportAdapters.ts",
+      "entry_point": "Pi adapter alias guard",
+      "disposition": "enforced",
+      "evidence": "The adapter compares calls against CANVAS_READ_CAPABILITY.aliases.pi."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any hand-copied alias in another desktop adapter can recreate the same silent routing failure.",
+    "same_class_scan": [
+      "rg CANVAS_READ_CAPABILITY.aliases electron/agentLane electron/capabilityCore",
+      "rg nomi_canvas_read electron/agentLane"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneDesktopTools.ts",
+    "invariant": "Pi transport identity is read from CANVAS_READ_CAPABILITY.aliases.pi.",
+    "failure_mode": "A mismatched alias is rejected by the adapter and the lane returns a structured failure.",
+    "exception_policy": "none",
+    "strategy": "Use the shared contract constant at the adapter call site and test the real lane boundary.",
+    "artifacts": [
+      "electron/agentLane/laneDesktopTools.ts",
+      "electron/agentLane/laneDesktopReads.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneDesktopReads.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneDesktopReads.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The fix corrects the in-place caller routing; no persisted alias or parallel implementation was introduced or removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the alias identity.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data stores the adapter alias; existing sessions retry through the corrected live lane.",
+  "residual_risks": [
+    "Real Electron retest must confirm empty, multi-node and cold-start page states after the fix."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane",
+    "tests": [
+      "electron/agentLane/laneDesktopReads.test.ts"
+    ]
+  }
+}

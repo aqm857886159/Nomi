@@ -11,7 +11,14 @@ const sourceFiles = [
 const declared = new Set()
 for (const relative of sourceFiles) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8')
-  for (const match of source.matchAll(/name:\s*"([a-z0-9_]+)"/g)) declared.add(match[1])
+  for (const match of source.matchAll(/name:\s*"([a-z0-9_]+)"/g)) {
+    // `nomi_canvas_edit` is the MCP transport projection of the canonical
+    // canvas.write capability, not a 21st user-facing verb. Keep the manifest
+    // cardinality about the Agent lane contract rather than transport aliases.
+    const declarationTail = source.slice(match.index, match.index + 180)
+    if (/profiles:\s*\["mcp"\]/.test(declarationTail)) continue
+    declared.add(match[1])
+  }
 }
 const expected = new Set(manifest.canonicalVerbs)
 const caseIds = new Set()
