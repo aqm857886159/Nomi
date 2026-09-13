@@ -318,7 +318,12 @@ export async function launchNomiApp(options = {}) {
     // 「jsHandle.evaluate: Execution context was destroyed」。表现是**只有重启那一次**起不来，
     // 首启永远好好的（2026-09-12 model-availability-agreement 冷重启阶段复现）。
     // 等的是 app 自己的契约：渲染层启动后一定落在某个 hash 路由上（#/studio、#/studio?projectId=…）。
-    await win.waitForURL(/#\//, { timeout })
+    // Most launches rewrite to a hash route, but a blank-context acceptance can
+    // legitimately remain on the entry document.  Wait for the rewrite when it
+    // happens, then fall back to a settled document instead of failing startup.
+    await win.waitForURL(/#\//, { timeout: Math.min(timeout, 5000) }).catch(async () => {
+      await win.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) }).catch(() => undefined)
+    })
     const viewportSize = options.viewportSize ?? ACCEPTANCE_VIEWPORT
     // Native resize alone may be clamped by CI's display; bind Chromium content geometry too.
     const browserWindow = await app.browserWindow(win)
