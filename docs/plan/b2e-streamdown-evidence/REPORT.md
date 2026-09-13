@@ -1,5 +1,7 @@
 # B2e official API research — 2026-09-09
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## Registry evidence (downloaded today)
 - https://registry.npmjs.org/streamdown/latest → **2.6.0**, Apache-2.0; peer React/ReactDOM `^18.0.0 || ^19.0.0`.
 - https://registry.npmjs.org/@streamdown/code/latest → **1.1.1**, Apache-2.0; peer React `^18.0.0 || ^19.0.0`; Shiki `^3.19.0`.

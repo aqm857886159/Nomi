@@ -1,5 +1,7 @@
 # C73/C74/C75 验收证据
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：真机/定向验证完成；完整 gates 与 PR 身份记录在根目录 shot-nodes-LAST.md。
 
 全部 Electron 使用 launchNomiApp 隔离 settings/userData/projects；用户 gate-r2 只读复盘，没有读取真实资料库。供应商是本地 loopback，付费 0。图片未经重绘或合成。

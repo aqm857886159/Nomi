@@ -1,5 +1,7 @@
 # 生成过程反馈 C-1
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实施完成，交付验证中（2026-09-08）。分支 feat/process-feedback-phases-20260908，preflight 已验证 be6d4d84816bd6340185ca134346d7f4516abfdd 与 origin/main 同 commit、工作树干净。
 
 ## 设计来源

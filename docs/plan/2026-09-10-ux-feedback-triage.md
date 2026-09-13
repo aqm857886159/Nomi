@@ -1,5 +1,7 @@
 # 2026-09-10 用户走查反馈分诊（17 条）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 先查别人
 
 完整报告：docs/research/2026-09-10-ux-feedback-fixes/prior-art.md。带出处条目：

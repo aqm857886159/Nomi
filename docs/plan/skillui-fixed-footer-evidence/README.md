@@ -1,5 +1,7 @@
 # #685 第二轮 Electron 截图
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：八态已通过且逐张人工复核。原始窗口 1280×933，真实设置切换主题，真实拖拽节点到 240px。
 
 - [短提示词 light](short-light.png) / [dark](short-dark.png)

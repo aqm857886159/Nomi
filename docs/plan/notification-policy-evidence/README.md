@@ -1,5 +1,7 @@
 # 通知策略真实前后证据
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：真实截图与交互通过；完整 gates / 推送收据见仓库根目录 TOAST-POLICY-LAST.md。
 
 基线 1d565961f。Electron before 使用旧生产构建；局部 before 由 git show 基线真实组件经 Vite 渲染，不手绘旧界面。桌面写入失败采用明确注入，不调用收费模型。

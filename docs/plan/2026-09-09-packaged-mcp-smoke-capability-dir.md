@@ -1,5 +1,7 @@
 # 打包 MCP 冒烟 capability 目录装配修复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实施中。范围仅 tests/ux、scripts、docs；不改生产代码、不重打包、不安装 app。
 
 真实摩擦：GUI 已启动但 helper 找不到它，resources/list 在发现/冷启阶段先撞 15s 超时。
