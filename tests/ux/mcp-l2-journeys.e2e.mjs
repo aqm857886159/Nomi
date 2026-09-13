@@ -60,7 +60,12 @@ try {
   // Seed the real GUI bootstrap with the encrypted fixture credential. The
   // fixture origin is selected by the E2E env; the catalog itself stays on
   // the shipped APIMart identity and pricing scope.
-  writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
+  // The journey later asks generation_context for a usable APIMart video
+  // model. Keep the fixture credential present from bootstrap so the context
+  // is derived from the same availability predicate as production. C7's
+  // integration proposal still uses its own session and does not depend on
+  // this catalog key.
+  writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: true })
   gui = await launchNomiApp({
     name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
     env: {
