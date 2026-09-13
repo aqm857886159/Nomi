@@ -114,20 +114,24 @@ if (!history.ok) {
 }
 
 const fileContents = new Map();
+function loadFileContent(candidate) {
+  const relative = String(candidate || "").replaceAll(path.sep, "/").replace(/^\.\//, "");
+  if (!relative || fileContents.has(relative)) return;
+  const absolute = path.resolve(repoRoot, relative);
+  if (absolute === repoRoot || !absolute.startsWith(`${repoRoot}${path.sep}`)) return;
+  try {
+    if (fs.statSync(absolute).isFile()) fileContents.set(relative, fs.readFileSync(absolute, "utf8"));
+  } catch {
+    // The validator reports the missing path/content as a failed claim.
+  }
+}
 for (const contract of contracts) {
+  // 门表（R21，2026-09-11）：每条 door 的 path:line 都要拿真实文件核对一遍。
+  for (const door of Array.isArray(contract.doors) ? contract.doors : []) loadFileContent(door?.path);
   if (contract.change_kind !== "structural") continue;
   const preservedExports = contract.structural_evidence?.preserved_exports;
   if (!Array.isArray(preservedExports)) continue;
-  for (const preserved of preservedExports) {
-    const relative = String(preserved?.path || "").replaceAll(path.sep, "/").replace(/^\.\//, "");
-    const absolute = path.resolve(repoRoot, relative);
-    if (absolute === repoRoot || !absolute.startsWith(`${repoRoot}${path.sep}`)) continue;
-    try {
-      if (fs.statSync(absolute).isFile()) fileContents.set(relative, fs.readFileSync(absolute, "utf8"));
-    } catch {
-      // The validator reports the missing path/content as a failed structural claim.
-    }
-  }
+  for (const preserved of preservedExports) loadFileContent(preserved?.path);
 }
 
 const result = validateRootCauseChange({

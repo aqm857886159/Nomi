@@ -380,6 +380,100 @@ function validateInvariantOwnerLayer(contract, existingFiles, label) {
   return errors;
 }
 
+/**
+ * 「这条不变量碰到的状态，一共有几扇门」——动生产代码之前必须先数的那一问（R21，2026-09-11）。
+ *
+ * 为什么加它：合同已经逼你写清 class_root 和 same_class_entry_points，但那两项都是**叙述**——
+ * 作者说他扫过了，门岗只能核对格式。2026-09-11 一天里连着三簇 bug 是同一个形状：
+ * **不变量只在一扇门上实现，另一个入口绕过去**（画布落地的 6 条写入路径、付费收据的两个装配点、
+ * `SkillRecord` 的 8 条投影）。三次都被当成独立的一处 bug 单独修了一遍，因为修的人被任务书框在
+ * 一个文件里：他看得见症状那扇门，看不见另外几扇——而「去数一遍」这件事在高负载下没有人做。
+ *
+ * `doors` 把它变成机器能核对的东西：每条 `{kind, path, line, symbol}` 都要 path 存在、
+ * 该行真的提到该 symbol。门表用 `node scripts/door-map.mjs <mutator 符号或文件>` 生成，
+ * 不是手写——手写的门表和「我扫过了」是同一种东西。
+ *
+ * `door_reduction` 问的是第二件事：**数完之后你把门合并了没有**。≥2 扇而一扇没减，
+ * 必须写 `why_not`——允许不减（有时确实不该减），但不允许无声地不减。
+ */
+export const DOOR_MAP_SINCE = "2026-09-11";
+
+const DOOR_KINDS = new Set(["write", "read"]);
+/**
+ * 门只存在于 App 自己的状态代码里。门岗脚本、文档、测试改了不必进门表——
+ * 它们不是「这个状态的入口」，把它们也收进来只会让作者为了过闸往门表里塞无关文件，
+ * 而一张塞满无关文件的门表等于没有门表。
+ */
+const DOOR_ROOTS = ["src/", "electron/"];
+
+function isDoorGovernedFile(file) {
+  const name = normalized(file);
+  if (isTestFile(name) || name.endsWith(".md") || name.endsWith(".json")) return false;
+  return DOOR_ROOTS.some((root) => name.startsWith(root));
+}
+
+function lineMentionsSymbol(source, line, symbol) {
+  const text = String(source).split("\n")[line - 1];
+  return typeof text === "string" && text.includes(symbol);
+}
+
+function validateDoorMap(contract, changed, existingFiles, label, fileContents) {
+  const errors = [];
+  const scopePaths = Array.isArray(contract?.scope_paths) ? contract.scope_paths : [];
+  const doors = contract?.doors;
+  const doorPaths = new Set();
+
+  if (!Array.isArray(doors) || doors.length === 0) {
+    errors.push(`${label}: doors is required — 列出这条不变量碰到的状态的全部写入口与读入口`
+      + `，每条 {kind:"write"|"read", path, line, symbol}；用 \`node scripts/door-map.mjs <mutator 符号或文件>\` 生成，别手写`);
+  } else {
+    for (const door of doors) {
+      if (!record(door) || !DOOR_KINDS.has(door.kind) || !nonEmptyText(door.path)
+        || !Number.isInteger(door.line) || door.line < 1 || !nonEmptyText(door.symbol)) {
+        errors.push(`${label}: every doors entry requires kind "write" or "read", path, a positive integer line, and symbol`);
+        continue;
+      }
+      const clean = normalized(door.path);
+      doorPaths.add(clean);
+      if (!fileExists(clean, existingFiles)) {
+        errors.push(`${label}: door path does not exist: ${door.path}`);
+        continue;
+      }
+      const source = fileContent(clean, fileContents);
+      if (typeof source !== "string") {
+        errors.push(`${label}: door cannot be verified because file contents are unavailable: ${door.path}`);
+      } else if (!lineMentionsSymbol(source, door.line, door.symbol.trim())) {
+        errors.push(`${label}: door does not resolve — ${door.path}:${door.line} does not mention ${door.symbol}`
+          + `（修完之后行号会动：重跑 node scripts/door-map.mjs 取当前门表）`);
+      }
+    }
+  }
+
+  const reduction = contract?.door_reduction;
+  if (!record(reduction) || !Number.isInteger(reduction.before) || reduction.before < 0
+    || !Number.isInteger(reduction.after) || reduction.after < 0) {
+    errors.push(`${label}: door_reduction requires integer before/after (修之前几扇门、修之后还剩几扇)`);
+  } else {
+    if (Array.isArray(doors) && doors.length > 0 && reduction.after !== doors.length) {
+      errors.push(`${label}: door_reduction.after (${reduction.after}) must equal doors.length (${doors.length})`
+        + ` —— doors 记的是修完之后还剩下的门`);
+    }
+    if (reduction.before >= 2 && reduction.after >= reduction.before && !nonEmptyText(reduction.why_not)) {
+      errors.push(`${label}: door_reduction.why_not is required — ${reduction.before} 扇门一扇没减`
+        + `，允许不减但不允许无声地不减（说清为什么这些入口必须各自存在）`);
+    }
+  }
+
+  const strays = [...changed]
+    .filter((file) => isDoorGovernedFile(file) && pathIsInScope(file, scopePaths) && !doorPaths.has(normalized(file)))
+    .sort();
+  for (const file of strays) {
+    errors.push(`${label}: changed production file is not in the door map: ${file}`
+      + `（改了门表之外的文件 = 门没数全，或者这份合同的 scope_paths 画大了）`);
+  }
+  return errors;
+}
+
 function validateContract(contract, changed, existingFiles, index, fileContents) {
   const label = nonEmptyText(contract?.id) ? contract.id : `contract #${index + 1}`;
   const errors = [];
@@ -413,6 +507,9 @@ function validateContract(contract, changed, existingFiles, index, fileContents)
   const fileDate = contractFileDate(contract?.__file);
   if (fileDate && fileDate >= INVARIANT_OWNER_LAYER_SINCE) {
     errors.push(...validateInvariantOwnerLayer(contract, existingFiles, label));
+  }
+  if (fileDate && fileDate >= DOOR_MAP_SINCE) {
+    errors.push(...validateDoorMap(contract, changed, existingFiles, label, fileContents));
   }
   for (const field of ["affected_population", "scope_paths", "entry_points", "invariants", "regression_tests", "residual_risks"]) {
     if (!nonEmptyTextArray(contract?.[field])) errors.push(`${label}: ${field} must be a non-empty string array`);
