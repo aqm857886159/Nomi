@@ -311,6 +311,14 @@ export async function launchNomiApp(options = {}) {
       throw new Error(diagnoseLaunchFailure(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
     }
     await win.waitForLoadState('domcontentloaded')
+    // 等启动期那次路由改写落地（`index.html` → `index.html#/studio`）再碰几何。
+    // 为什么非等不可：下面 `app.browserWindow(win)` 拿到的句柄绑在页面当前的执行上下文上，
+    // 而那次改写恰好发生在 domcontentloaded 之后的一两百毫秒里——热启动（profile 已有内容、
+    // 缓存已热）时它正好落在两行之间，句柄当场失效，报成
+    // 「jsHandle.evaluate: Execution context was destroyed」。表现是**只有重启那一次**起不来，
+    // 首启永远好好的（2026-09-12 model-availability-agreement 冷重启阶段复现）。
+    // 等的是 app 自己的契约：渲染层启动后一定落在某个 hash 路由上（#/studio、#/studio?projectId=…）。
+    await win.waitForURL(/#\//, { timeout })
     const viewportSize = options.viewportSize ?? ACCEPTANCE_VIEWPORT
     // Native resize alone may be clamped by CI's display; bind Chromium content geometry too.
     const browserWindow = await app.browserWindow(win)
