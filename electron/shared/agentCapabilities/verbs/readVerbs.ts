@@ -40,7 +40,7 @@ export function readVerbs(): VerbDeclaration[] {
     prepareArguments: modelArgumentTolerance({}),
   };
   const readTimeline: VerbDeclaration = {
-    name: "read_timeline", contractId: "timeline.read", effect: "read", nextAction: "none",
+    name: "read_timeline", contractId: "timeline.read", effect: "read", nextAction: "none", internalGroup: "timeline",
     describe: {
       does: "Read the project timeline: fps, duration, playhead, every track, clip, text overlay and transition, plus the revision every edit must carry.",
       useWhen: `Before edit_timeline, and when the user talks about a moment ("the part around 0:30" — pass startFrame and endFrame to read only that range).`,

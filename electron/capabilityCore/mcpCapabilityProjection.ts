@@ -350,17 +350,7 @@ const derivedCanvasEditAdapter = derivedAdapter(CANVAS_WRITE_CAPABILITY, {
   port: { kind: "canvas", access: "write" },
   outputSchema: canvasWriteResultSchema,
 });
-const canvasEditSemanticTransportSchema = transportSchemaFromZod(canvasWriteSemanticInputSchema, { label: "canvasEdit" }) as SchemaLike;
-const canvasEditLeaseSchema = transportSchemaFromZod(z.object(leaseField), { label: "canvasEditLease" }) as SchemaLike;
-const canvasEditInputSchema = immutableSchemaSnapshot({
-  ...canvasEditSemanticTransportSchema,
-  properties: {
-    ...((canvasEditSemanticTransportSchema as { properties?: Record<string, unknown> }).properties ?? {}),
-    ...((canvasEditLeaseSchema as { properties?: Record<string, unknown> }).properties ?? {}),
-  },
-  required: ["leaseHandle"],
-  additionalProperties: false,
-});
+const canvasEditInputSchema = immutableSchemaSnapshot(mcpProfileToolFor(CANVAS_WRITE_CAPABILITY.id)?.inputSchema as SchemaLike);
 
 // The MCP canvas surface is a composite semantic operation surface. Its
 // operation field is the canonical discriminator for storyboard mutations,

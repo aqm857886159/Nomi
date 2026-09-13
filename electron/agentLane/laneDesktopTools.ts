@@ -3,6 +3,7 @@ import type { CanvasWriteApprovalAuthority } from '../shared/agentCapabilities/t
 import { randomUUID } from 'node:crypto'
 import type { IpcMainInvokeEvent } from 'electron'
 import type { ProjectBinding } from '../shared/projectBinding'
+import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 import type { ProjectAgentApprovalPolicy } from '../shared/agentCapabilities/capabilityApprovalPolicy'
 import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabilities/transportContracts'
@@ -38,7 +39,7 @@ import { documentProposalReceiptFor, prepareDocumentProposalReceipt, commitDocum
 function resultOf(decision: RuntimeToolDecision | null): unknown {
   if (!decision?.ok) throw new LaneDomainFailure({
     code: decision?.code ?? 'capability_unsupported',
-    message: decision?.message ?? 'The selected surface could not complete this action.',
+    message: decision?.message ?? `The selected surface could not complete this action (${decision?.code ?? 'capability_unsupported'}).`,
     nextAction: 'Read the current surface again and use its current identifiers and revision before retrying.',
   })
   return decision.result
@@ -104,7 +105,7 @@ export function createDesktopLaneTools(input: {
     }),
     ...createCanvasLaneTools({
       read: async (context) => resultOf(await canvasRead.tryExecute({
-        toolCallId: context.toolCallId, toolName: 'nomi_canvas_read', args: {},
+        toolCallId: context.toolCallId, toolName: CANVAS_READ_CAPABILITY.aliases.pi, args: {},
       }, context.signal)),
       write: async (_value, context) => {
         const prepared = preparedCanvases.get(context.toolCallId)

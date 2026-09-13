@@ -8,6 +8,7 @@
 import { canvasReadResultSchema, type CanvasReadResult } from "../shared/agentCapabilities/canvasRead";
 import { canvasWriteSemanticInputSchema, type CanvasWriteInput, type CanvasWriteResult } from "../shared/agentCapabilities/canvasWrite";
 import { specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
+import { projectsToProfile } from "../shared/agentCapabilities/modelFacingTools";
 import { formatCanvasForAgent } from "../shared/agentCapabilities/canvasReadCompact";
 import { bindLaneTool, type LaneToolDescriptor, type LaneToolExecutionContext } from "./laneRuntimePort";
 import { z } from "zod";
@@ -69,10 +70,11 @@ export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInpu
 
 export function createCanvasLaneTools(port: CanvasLanePort): LaneToolDescriptor[] {
   const specs = [...specsForCapability("canvas.read"), ...specsForCapability("canvas.write")]
+    .filter(spec => projectsToProfile(spec, "internal"))
   // Keep retired Pi/MCP/UI names readable by old transcripts while routing them
   // through the canonical canvas.write implementation.
   const write = specs.find(spec => spec.name === "nomi_canvas_write") ?? specs.find(spec => spec.contractId === "canvas.write")
-  if (write) for (const name of ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan"]) {
+  if (write) for (const name of ["nomi_canvas_write", "nomi_canvas_plan"]) {
     if (!specs.some(spec => spec.name === name)) specs.push({ ...write, name, schema: canvasWriteSemanticInputSchema, prepareArguments: (value: unknown) => value })
   }
   const storyboard = specs.find(spec => spec.name === "nomi_storyboard_write")

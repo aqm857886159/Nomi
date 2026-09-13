@@ -9,9 +9,10 @@ import {
   cameraMoveParamsObjectSchema, CAMERA_MOVE_MODEL_GUIDELINES, STAGING_MODEL_GUIDELINES, stagingReferenceParamsSchema,
 } from "../canvasModelShapes";
 import { canvasDeletePiInputSchema } from "../canvasDelete";
-import { CANVAS_NODE_PROMPT_GUIDELINES, plannedEdgeSchema } from "../canvasWrite";
+import { CANVAS_NODE_PROMPT_GUIDELINES, canvasWriteSemanticInputSchema, plannedEdgeSchema } from "../canvasWrite";
 import { timelineEditPlanModelSchema } from "../timelineRead";
 import { modelArgumentTolerance } from "../modelArgumentTolerance";
+import { flattenDiscriminatedUnion } from "../flatModelInput";
 import { isGeneratingNodeKind } from "../../canvas/nodeExecutionKinds";
 import { LaneDomainFailure, wrongVerbFailure } from "../../agentLane/laneToolContract";
 import type { VerbDeclaration } from "../verbDeclaration";
@@ -67,6 +68,7 @@ const CANVAS_WRITE_GUIDELINES = Object.freeze([
 ]);
 
 export function writeVerbs(): VerbDeclaration[] {
+  const canvasEditMcpSchema = flattenDiscriminatedUnion(canvasWriteSemanticInputSchema, { name: "canvas MCP operation", mergeEnumFields: ["operation"] });
   const writeScript: VerbDeclaration = {
     name: "write_script", contractId: "document.write", effect: "reversible_local", nextAction: "none",
     describe: {
@@ -127,7 +129,7 @@ export function writeVerbs(): VerbDeclaration[] {
   };
 
   const arrangeCanvas: VerbDeclaration = {
-    name: "arrange_canvas", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    name: "arrange_canvas", profiles: ["internal"], profileReason: "headlessHost", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
       does: "Change how existing nodes relate and sit on the canvas: connect reference links or tidy the layout.",
@@ -150,7 +152,7 @@ export function writeVerbs(): VerbDeclaration[] {
   };
 
   const makeArtifact: VerbDeclaration = {
-    name: "make_artifact", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    name: "make_artifact", profiles: ["internal"], profileReason: "headlessHost", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
       does: "Put a hand-authored artifact on the canvas — SVG, HTML, Markdown, a table or plain text you wrote yourself.",
@@ -169,7 +171,7 @@ export function writeVerbs(): VerbDeclaration[] {
   };
 
   const stageShot: VerbDeclaration = {
-    name: "stage_shot", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    name: "stage_shot", profiles: ["internal"], profileReason: "headlessHost", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
       does: "Attach a staging (blocking) or camera-move reference to one shot; Nomi renders a gray 3D reference for it.",
@@ -318,5 +320,21 @@ export function writeVerbs(): VerbDeclaration[] {
     prepareArguments: modelArgumentTolerance({}),
   };
 
-  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup];
+  // MCP exposes the composite canvas operation surface as one tool.  The
+  // desktop lane keeps the three user-facing verbs above; this descriptor is
+  // the explicit MCP-only projection so both profiles have a real owner for
+  // their intentionally different transport shapes.
+  const canvasEditMcp: VerbDeclaration = {
+    name: "nomi_canvas_edit", profiles: ["mcp"], profileReason: "headlessHost", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    describe: {
+      does: "Apply one canonical canvas operation to the current project session.",
+      useWhen: "An MCP host needs to connect, arrange, author, stage or patch canvas content.",
+      notWhen: "Do not use it for a generation submission; use draft_shots and generate with their approval gate.",
+      params: "operation and its operation-specific fields, plus the project lease handle.",
+    },
+    schema: canvasEditMcpSchema,
+    examples: [{ when: "Patch storyboard shots:", arguments: { operation: "patch_shots", select: { kind: "all" }, patch: { promptAppend: "雨夜氛围" } } }],
+  };
+
+  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup, canvasEditMcp];
 }
