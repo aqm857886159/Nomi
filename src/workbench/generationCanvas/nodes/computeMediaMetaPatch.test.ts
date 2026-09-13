@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { computeMediaMetaPatch } from './nodeSizing'
+import { computeMediaMetaPatch, shouldApplyLoadedImageDimensions } from './nodeSizing'
 
 describe('computeMediaMetaPatch 媒体回填', () => {
+  it('有独立预览图时不把预览尺寸写回节点', () => {
+    expect(shouldApplyLoadedImageDimensions(true)).toBe(false)
+    expect(shouldApplyLoadedImageDimensions(false)).toBe(true)
+  })
   it('视频 loadedmetadata 把真实时长写进 meta.videoDuration（修「拖入视频一律 5 秒」的 catch-all）', () => {
     const patch = computeMediaMetaPatch({
       resultType: 'video',

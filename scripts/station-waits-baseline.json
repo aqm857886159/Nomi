@@ -317,8 +317,7 @@
     "65ab41599dd2862f9e5aee30d6ecad2ac39e9a02fd550622c342ae20c489ca6b": 1
   },
   "tests/ux/canvas-image-preview-and-rename.e2e.mjs": {
-    "2fca3f4043079bc3fa8ecd4ff4e45982f692db95db56757e0f7a6b9b7ef2deba": 1,
-    "da48582a1e61ff46b552477b9e0ffa70d47b1faad1adee70ae0ddec1fac3d261": 1
+    "2fca3f4043079bc3fa8ecd4ff4e45982f692db95db56757e0f7a6b9b7ef2deba": 1
   },
   "tests/ux/canvas-node-context-menu.walk.mjs": {
     "0da94fa48fa4f1d7120e109cc68479f362c2af581a2768510e827be5cdf1512e": 1
