@@ -353,7 +353,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     void flow.setViewport(next, { duration: 0 })
   }, [animateViewportTo, cancelViewportAnimation, flow, flowStore, groupBoxes, hostRef, nodes.length])
   const zoomTo = React.useCallback((nextZoom: number) => {
-    void flow.zoomTo(nextZoom, { duration: 120 })
+    void flow.zoomTo(nextZoom, { duration: 0 })
   }, [flow])
   const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
     void flow.setCenter(point.x, point.y, { zoom: zoomRef.current, duration: 0 })

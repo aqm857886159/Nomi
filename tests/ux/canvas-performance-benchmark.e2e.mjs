@@ -1,6 +1,6 @@
 import { captureScenarioFailure } from './canvas-perf/failureDiagnostics.mjs'
 import { prepareWaitingFx, sampleWaitingFx, cleanupWaitingFx } from './canvas-perf/waitingFxScenario.mjs'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -18,6 +18,14 @@ import {
   runDragAtLowZoom,
   runDragOverDenseEdges,
   zoomOutTo,
+  GROUP_FRAME_NODE_COUNT,
+  fitCanvasView,
+  groupSelectedNodes,
+  marqueeSelectFirstNodes,
+  runDragGroupFrame,
+  runDragSelectionAll,
+  runZoomSliderDrag,
+  selectAllCanvasNodes,
 } from './canvas-perf/dragScenarios.mjs'
 import {
   installOffCanvasRenderProbe,
@@ -99,6 +107,9 @@ const allScenarios = [
   'node-drag-video',
   // eval v2 (U1): variable-speed + multi-select + LOD + dense-edge drag coverage.
   'multi-node-drag',
+  'drag-nodes-all',
+  'drag-group-frame-60',
+  'zoom-slider-drag',
   'drag-at-low-zoom',
   'drag-over-dense-edges',
   'marquee-select',
@@ -119,7 +130,31 @@ const scenarios = requestedScenarios.includes('all') ? allScenarios : requestedS
 // as the new advisory metrics (#264 lesson: harden un-calibrated ceilings only
 // after cross-platform data exists). The pre-existing 14 scenarios keep their
 // budgets and hard-failure clauses byte-for-byte and remain gating.
-const ADVISORY_ONLY_SCENARIOS = new Set(['multi-node-drag', 'drag-at-low-zoom', 'drag-over-dense-edges'])
+// 2026-09-12 新加的三条**带 owner 的 advisory**：数字按调研 §6 原样登记（一个都不下调——
+// 下调等于把问题改成合格），但本轮只**记录不判决**，因为 §6 那几档是「S1+S3+S5 都落地之后」的
+// 目标线，不是任何单独一刀能到的。调研自己就这么写：wheel-zoom 那一行注着「150 与 300 档
+// 今天都越线」。每条的 owner = 必须把它变绿的那一刀；那一刀的验收动作就是**把自己这行从这张
+// 表里删掉、并且仍然绿**。这是这三条的前进棘轮：
+//   · drag-nodes-all      → owner：S5（LOD 判据换成「屏上多大」）+ 命令式位移。本 PR 的 S3 已把
+//     节点侧的整表订阅全删干净（实测 I300 script −11%、style −8%、p95 57→52ms），但 300 档剩下的
+//     主成本是「N 张重卡每帧各自重渲染」本身，不是选择器——那一条不在 S3 的地盘里。
+//   · drag-group-frame-60 → owner：S1（把组框拖动收回 React Flow 内核，§5 排名 2）。
+//   · zoom-slider-drag    → owner：S3/S5。调研 §5 S6 原话：S6 只削掉「动画互相打断」那一层，
+//     剩下的是 wheel-zoom 也有的「缩放时 N 个节点全部重算」。实测 S6 把 I300 最长帧从 594ms
+//     砍到 194ms（−67%）、I60 从 102ms 砍到 60ms（越过 §6 的 80ms 线），但 §6 的长任务次数档
+//     （1/3/4）要等 S3/S5 一起才够得着。
+// 还有一条现实理由：CI 的 perf lane 跑的是 `--scale M --runs 1` 且**不带 --scenario 过滤**
+// （tests/ux/canvas-real-suite.mjs:36），也就是这三条会在 Linux/xvfb 上跑。调研 §7.9 明说
+// 非 darwin 的 ×1.6 系数「本轮没有重新验证它对这几个新场景是否合适」。在拿到跨平台数据之前
+// 把未校准的天花板硬化，正是 #264 那条教训（本文件 maxFrameGapMs 那段注释里的同一条）。
+const ADVISORY_ONLY_SCENARIOS = new Set([
+  'multi-node-drag',
+  'drag-at-low-zoom',
+  'drag-over-dense-edges',
+  'drag-nodes-all',
+  'drag-group-frame-60',
+  'zoom-slider-drag',
+])
 for (const scale of requestedScales) {
   if (!CANVAS_PERF_SCALES[scale]) throw new Error(`未知 scale「${scale}」`)
 }
@@ -614,8 +649,28 @@ async function openProject(app, page, fixture) {
   return { page, firstCanvasMs, mediaSettledMs: Date.now() - settleStartedAt, settled }
 }
 
+const SCALE_STUDY_SCENARIOS = new Set(['drag-nodes-all', 'drag-group-frame-60', 'zoom-slider-drag'])
+// 组框场景的前置结果（requested / realized / groups），由 prepareScenario 填、runAction 带进 actionDetails。
+let groupFramePrepared = null
+
 async function prepareScenario(page, scenario) {
   if (scenario === 'waiting-effects') return prepareWaitingFx(page)
+  if (SCALE_STUDY_SCENARIOS.has(scenario)) {
+    // 三条都先按**真按钮**「适应视图」把全部节点收进视口（用户看一大批图就是这么干的），
+    // 且验缩放真的变了才继续——点击静默丢失会让视口停在 zoom≈1，于是只挂 9 个节点，
+    // 看着像画布 bug，其实是前置条件没成立。
+    await fitCanvasView(page)
+    if (scenario === 'drag-nodes-all') await selectAllCanvasNodes(page)
+    if (scenario === 'drag-group-frame-60') {
+      // 挂不满 60 张时按实际张数建组，并把 requested/realized 记进 actionDetails——
+      // scale S/M 的结果是「拖了 N 张的组框」，不是「拖了 60 张的组框」，别让两者在一张表里同名。
+      groupFramePrepared = await marqueeSelectFirstNodes(page, GROUP_FRAME_NODE_COUNT)
+      const groups = await groupSelectedNodes(page)
+      if (groups < 1) throw new Error('drag-group-frame-60: Cmd+G 之后画布上没有组框')
+      groupFramePrepared = { ...groupFramePrepared, groups }
+    }
+    return
+  }
   if (scenario !== 'marquee-select' && scenario !== 'low-zoom-preview') return
   const stage = await page.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布 stage 不存在')
@@ -661,7 +716,7 @@ function combineProbeSummaries(probes) {
   }
 }
 
-async function runAction(page, scenario, fixture) {
+async function runAction(page, scenario, fixture, app) {
   const stage = await page.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布 stage 不存在')
   if (scenario === 'blank-pan') {
@@ -680,6 +735,11 @@ async function runAction(page, scenario, fixture) {
     return { nodeId: await node.locator.getAttribute('data-node-id'), moves: 60, firstFeedbackMs: await readFirstFeedbackMs(page) }
   }
   if (scenario === 'multi-node-drag') return runMultiNodeDrag(page)
+  // 2026-09-12 规模调查补的三条。选中/建组/适应视图都在 prepareScenario 里做完了，
+  // 这里只跑**被采样的那段手势**——把准备动作算进窗口，量到的就不是手势本身。
+  if (scenario === 'drag-nodes-all') return runDragSelectionAll(page)
+  if (scenario === 'drag-group-frame-60') return runDragGroupFrame(page, groupFramePrepared)
+  if (scenario === 'zoom-slider-drag') return runZoomSliderDrag(page)
   if (scenario === 'drag-over-dense-edges') {
     return runDragOverDenseEdges(page, fixture.record.payload.generationCanvas.edges)
   }
@@ -998,7 +1058,12 @@ async function runAction(page, scenario, fixture) {
     const reloadProbes = []
     for (let index = 0; index < 3; index += 1) {
       const startedAt = Date.now()
-      await page.reload({ waitUntil: 'domcontentloaded' })
+      await Promise.race([
+        page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('reload-heavy: page.reload hard timeout')), 35_000)),
+      ])
+      // Electron may recreate the renderer window during reload; always follow the live target.
+      page = getTargetWindow(app, page)
       await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 })
       await page.waitForFunction(
         ({ nodeCount }) => {
@@ -1159,7 +1224,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     // Record off-canvas re-renders for this action window (advisory / positive
     // control). No-op unless the dev-leg probe installed.
     const offCanvasStarted = useDevServer && probeSurvivesAction ? await startOffCanvasRenderWindow(page) : false
-    const actionDetails = await runAction(page, scenario, fixture)
+    const actionDetails = await runAction(page, scenario, fixture, app)
     const offCanvasRender = offCanvasStarted ? await stopOffCanvasRenderWindow(page) : null
     await sleep(page, 250)
     const probe = probeSurvivesAction
@@ -1208,7 +1273,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       elapsedMs: Date.now() - startedAt,
     }
   } finally {
-    await app?.close().catch(() => {})
+    await closeNomiApp(app)
   }
 }
 
@@ -1255,6 +1320,73 @@ const PERFORMANCE_BUDGETS = [
   { metric: 'reloadHeapDeltaMB', max: 10 },
 ]
 
+// ——— 规模档预算（2026-09-12 调研 §6）——————————————————————————————————
+//
+// 既有预算对**所有规模用同一组数**（frameGapP95 ≤ 33 / maxFrameGap ≤ 100 advisory）。
+// 2026-09-12 的规模调查量出「东西多少不是问题，同时在动多少才是」：同一手势从 60 到
+// 300 个节点，fps 从 96.5 塌到 12.4。一组固定的数既描述不了这条曲线，也锁不住它。
+// 下面这张表的每一个数字都逐行抄自
+// docs/research/2026-09-12-canvas-perf-at-scale/README.md §6（darwin 基准值）。
+//
+// 两条口径，与报告一致、也与本文件既有做法一致：
+//   • 毫秒类一律经 timingBudget() 出口（非 darwin ×1.6 已在那里处理），**不另写一套平台分支**；
+//   • 长任务**次数**是工作量计数，与机器负载和平台无关，**不跟着放宽**（同 maxLoadingImages 等）。
+// 报告 §6 末段把次数定为硬门岗、毫秒当 advisory：本轮最刺眼的信号正是次数
+// （drag-nodes-all @ I150/I300 一次手势 249 / 251 次，同一分钟的 marquee-select-all @ I300 是 0 次）。
+//
+// 档位按**画布上的节点数**取而不是按 scale 名字：报告给的是 60 / 150 / 300 三档，
+// 其它 scale（S/M/L/XL）落进最近的上档，于是同一张表覆盖全部规模，不会长出第二张表。
+const SCALE_STUDY_BUDGETS = {
+  // §6「拖动类」表第三行。300 档今天实测 p95 251.2 / 最长 371.1 —— 超 8 倍，S3 的验收就是这一行。
+  'drag-nodes-all': {
+    60: { frameGapP95Ms: 20, maxFrameGapMs: 40, longTasks: 1 },
+    150: { frameGapP95Ms: 24, maxFrameGapMs: 50, longTasks: 3 },
+    300: { frameGapP95Ms: 30, maxFrameGapMs: 60, longTasks: 5 },
+  },
+  // §6「拖动类」表第四行。S1（组框拖动收回内核）做完后应当与 drag-nodes-60 同档。
+  'drag-group-frame-60': {
+    60: { frameGapP95Ms: 20, maxFrameGapMs: 40, longTasks: 1 },
+    150: { frameGapP95Ms: 22, maxFrameGapMs: 45, longTasks: 3 },
+    300: { frameGapP95Ms: 26, maxFrameGapMs: 55, longTasks: 5 },
+  },
+  // §6「手势类」表末行：缩放两条判**最长帧 / 长任务次数**，因为 p50 一直好看（8.4ms）、坏的全在尾巴上。
+  // frameGapP95Ms 不在报告里给新数，所以这条沿用本文件既有的 33ms 天花板，不自造。
+  'zoom-slider-drag': {
+    60: { maxFrameGapMs: 80, longTasks: 1 },
+    150: { maxFrameGapMs: 120, longTasks: 3 },
+    300: { maxFrameGapMs: 150, longTasks: 4 },
+  },
+}
+
+/** 一个 scale 落在 60 / 150 / 300 的哪一档（按节点总数，向上取档）。 */
+function scaleNodeTier(scale) {
+  const spec = CANVAS_PERF_SCALES[scale]
+  const nodeCount = spec ? (spec.imageCount || 0) + (spec.videoCount || 0) : 0
+  if (nodeCount <= 60) return 60
+  if (nodeCount <= 150) return 150
+  return 300
+}
+
+/** 这一格（场景 × 规模）的长任务次数硬上限；不是规模档场景则返回 null。 */
+function longTaskCountBudget(scenario, scale) {
+  const tier = SCALE_STUDY_BUDGETS[scenario]?.[scaleNodeTier(scale)]
+  return tier && Number.isFinite(tier.longTasks) ? tier.longTasks : null
+}
+
+/**
+ * 这一格适用的预算表。规模档场景把毫秒类天花板换成 §6 给的那一档，其余沿用既有预算。
+ * maxFrameGapMs 继续 advisory（它对机器争用极敏感，见上面那段），gating 的是 frameGapP95Ms
+ * 与长任务次数（次数在 sampleHardFailures 里判，因为它是逐次采样的硬失败而不是 p95 聚合）。
+ */
+function budgetsFor(scenario, scale) {
+  const tier = SCALE_STUDY_BUDGETS[scenario]?.[scaleNodeTier(scale)]
+  if (!tier) return PERFORMANCE_BUDGETS
+  return PERFORMANCE_BUDGETS.map((budget) => {
+    const override = tier[budget.metric]
+    return Number.isFinite(override) ? { ...budget, max: timingBudget(override) } : budget
+  })
+}
+
 function sampleHardFailures(sample) {
   const failures = []
   if (sample.scenario === 'waiting-effects' && sample.probe) {
@@ -1262,6 +1394,12 @@ function sampleHardFailures(sample) {
     if (sample.probe.fps < 1000 / timingBudget(33)) failures.push(`waiting effects: ${sample.probe.fps} FPS below frame budget`)
   }
   if (sample.error) failures.push(`scenario error: ${sample.error}`)
+  // 规模档场景的长任务**次数**硬判据（§6）。次数是工作量计数，不随机器负载或平台漂，
+  // 所以它——而不是毫秒——是「这一格到底修好没有」最硬的那条线。
+  const longTaskCap = longTaskCountBudget(sample.scenario, sample.scale)
+  if (longTaskCap !== null && sample.probe && Number.isFinite(sample.probe.longTasks) && sample.probe.longTasks > longTaskCap) {
+    failures.push(`${sample.scenario} @ ${sample.scale}: ${sample.probe.longTasks} 次长任务 > ${longTaskCap}（§6 规模档硬门岗）`)
+  }
   for (const error of sample.pageErrors || []) failures.push(`page error: ${error}`)
   for (const error of sample.consoleErrors || []) failures.push(`console error: ${error}`)
   if (sample.actionDetails?.anchorErrorPx > 1.5)
@@ -1396,7 +1534,7 @@ function summarizeScenario(samples, panControl = null) {
   const hardFailures = samples.flatMap((sample) =>
     sampleHardFailures(sample).map((reason) => ({ runIndex: sample.runIndex, reason })),
   )
-  const budgetChecks = PERFORMANCE_BUDGETS.filter(({ metric }) => metrics[metric]).map(({ metric, max, advisory }) => ({
+  const budgetChecks = budgetsFor(samples[0]?.scenario, samples[0]?.scale).filter(({ metric }) => metrics[metric]).map(({ metric, max, advisory }) => ({
     metric,
     actualP95: metrics[metric].p95,
     max,

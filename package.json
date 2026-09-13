@@ -136,6 +136,8 @@
     "test:canvas-perf": "python3 scripts/with-gates-lock.py -- node tests/ux/canvas-performance-benchmark.e2e.mjs",
     "test:canvas-perf:compare": "python3 scripts/with-gates-lock.py -- node tests/ux/canvas-performance-compare.mjs",
     "test:canvas-perf:fixture": "python3 scripts/with-gates-lock.py -- node tests/ux/fixtures/gen-canvas-performance-fixture.mjs",
+    "test:canvas-scale": "python3 scripts/with-gates-lock.py -- node tests/perf/canvas-scale-bench.mjs",
+    "test:canvas-scale:summary": "node tests/perf/summarize-scale-results.mjs",
     "test:site": "python3 scripts/with-gates-lock.py --command \"pnpm run check:site && node tests/ux/marketing-quickstart.static.mjs && node tests/ux/download-selection.contract.mjs\"",
     "test:site:visual": "python3 scripts/with-gates-lock.py --command \"pnpm run build:site && node tests/ux/marketing-home.visual.mjs\"",
     "test:journeys": "python3 scripts/with-gates-lock.py --command \"pnpm run check:electron-install && node ./scripts/eval-journey.mjs --ci\"",
