@@ -52,6 +52,20 @@ export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10),
     scope_paths: ['TODO: 类问题的边界路径，须真实存在；目录写 dir/ 或 dir/**，且必须盖住 shared_boundaries'],
     entry_points: ['TODO: 这类 bug 的入口集（file:line 或符号），扫出来的不是猜的'],
     invariants: ['TODO: 修完后必须恒真的不变量'],
+    doors: [
+      {
+        kind: 'TODO(write|read)',
+        path: 'TODO: 入口文件（须真实存在）——整张门表用 `node scripts/door-map.mjs <mutator 符号或文件>` 生成，别手写',
+        line: 0,
+        symbol: 'TODO: 该行真正出现的符号名；行号会随本次改动移动，改完重跑一次数门脚本',
+      },
+    ],
+    door_reduction: {
+      before: 0,
+      after: 0,
+      why_not:
+        'TODO: after 必须等于 doors.length。before ≥ 2 且一扇没减时本字段必填，写清这些入口为什么必须各自存在；确实减了就删掉本字段',
+    },
     regression_tests: ['TODO: 回归测试文件路径——必须是测试文件、真实存在、且在本次 diff 中有变化'],
     residual_risks: ['TODO: 修完仍残留的风险；确无则写「无——<理由>」'],
     external_sources: [],

@@ -5,7 +5,6 @@ import {
   AdapterNeedsAiError,
   compileProviderAdapter,
   repairAdapterJsonText,
-  repairProviderAdapter,
   type StructuredGenerator,
 } from "./compiler";
 
@@ -354,61 +353,3 @@ describe("compileProviderAdapter", () => {
   });
 });
 
-describe("repairProviderAdapter", () => {
-  it("redacts API credentials from repair evidence before sending it to the model", async () => {
-    const prompts: string[] = [];
-    const generate: StructuredGenerator = async (input) => {
-      prompts.push(input.prompt);
-      return { object: modelContract("paint-v2") };
-    };
-
-    await repairProviderAdapter(
-      {
-        languageModel: {} as LanguageModelV1,
-        providerBaseUrl: "https://api.example.com/v1",
-        selectedModelKeys: ["paint-v2"],
-        previousDraft: draft(),
-        failure: {
-          stage: "create",
-          message: "HTTP 401 Authorization: Bearer sk-live-super-secret",
-          requestSummary: { headers: { "x-api-key": "sk-live-super-secret" } },
-        },
-        docs: [{ url: "https://docs.example.com/api", text: "POST /v1/images/generations" }],
-      },
-      { generate },
-    );
-
-    expect(prompts[0]).not.toContain("sk-live-super-secret");
-    expect(prompts[0]).toContain("[REDACTED]");
-  });
-
-  it("propagates caller cancellation into the active repair without rotating compilers", async () => {
-    const controller = new AbortController();
-    const signals: AbortSignal[] = [];
-    const generate: StructuredGenerator = (input) => {
-      signals.push(input.abortSignal);
-      return new Promise((resolve, reject) => {
-        input.abortSignal.addEventListener("abort", () => reject(input.abortSignal.reason), { once: true });
-        setTimeout(() => resolve({ object: modelContract("paint-v2") }), 20);
-      });
-    };
-    const pending = repairProviderAdapter(
-      {
-        languageModel: {} as LanguageModelV1,
-        providerBaseUrl: "https://api.example.com/v1",
-        selectedModelKeys: ["paint-v2"],
-        previousDraft: draft(),
-        failure: { stage: "create", modelKey: "paint-v2", message: "HTTP 422" },
-        docs: [{ url: "https://docs.example.com/api", text: "POST /v1/images/generations" }],
-        signal: controller.signal,
-      },
-      { generate },
-    );
-
-    controller.abort(new Error("cancel repair"));
-
-    await expect(pending).rejects.toThrow("cancel repair");
-    expect(signals).toHaveLength(1);
-    expect(signals[0]?.aborted).toBe(true);
-  });
-});

@@ -15,6 +15,8 @@ import type {
   CertificationSubmissionState,
 } from "../integrationCertification/types";
 import type { AdapterRunStage as SharedAdapterRunStage } from "../shared/providerAdapterContract";
+import type { TransportAbandonDisposition, TransportDelivery } from "../catalog/transportDelivery";
+import type { AdapterSelfCheckReason } from "./selfCheck";
 
 export type AdapterAuthType = "none" | "bearer" | "x-api-key" | "query";
 
@@ -78,6 +80,14 @@ export type AdapterSourceEvidence = {
 export type AdapterModeDraft = {
   taskKind: ProfileKind;
   create: HttpOperation;
+  /**
+   * 这条 wire 是同步返回结果还是提交任务后轮询——**上游契约的事实，不是 kind 的常量**
+   * （类根因见 electron/catalog/transportDelivery.ts）。缺省时按「有 query 即异步」向后兼容推断；
+   * 声明成 asynchronous 却不给 query/statusMapping 会在免费自检里直接判缺陷，不会再拿用户的钱去试。
+   */
+  delivery?: TransportDelivery;
+  /** 异步任务不要了怎么办（取消端点 / 轮询到底）。**没有第三种叫「丢掉」**。 */
+  abandon?: TransportAbandonDisposition;
   query?: HttpOperation;
   result?: HttpOperation;
   statusMapping?: Record<string, string[]>;
@@ -145,7 +155,11 @@ export type AdapterModeResult = {
   taskKind: ProfileKind;
   state: AdapterModeState;
   attempts: number;
-  stage?: "docs" | "compile" | "localize_reference" | "create" | "poll" | "result" | "verify_asset" | "promote";
+  /**
+   * 失败发生在哪一段。付费验证删掉之后，中转自检只剩 `credential`（鉴权/可达）与 `contract`
+   * （说明卡形状）两段；`verify_asset` 留给本地 ComfyUI 候选那条免费的真实产物校验。
+   */
+  stage?: "docs" | "compile" | "credential" | "contract" | "verify_asset" | "promote";
   error?: string;
   /**
    * 失败归类，抛出点查表得来（vendorHttp：401/403→auth、402→balance、429→quota、400/422→input、5xx→server）。
@@ -160,6 +174,11 @@ export type AdapterModeResult = {
    */
   compileFailureReason?: AdapterCompileFailureReason;
   httpStatus?: number;
+  /**
+   * 「我们这边缺什么」这一维（与上游 errorCategory 正交）。渲染层据它给修复路径，
+   * 而不是把英文原文甩给用户再建议「你自己接」。
+   */
+  selfCheckReason?: AdapterSelfCheckReason;
   verifiedAt?: string;
   /** One bounded, sanitized evidence record for every promoted media asset. */
   mediaEvidence?: CertificationMediaEvidence[];

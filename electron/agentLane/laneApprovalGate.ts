@@ -161,16 +161,24 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
     };
   }
 
-  /** Projection and execution share subject resolution, grants and the canonical policy. */
+  /**
+   * Projection and execution share subject resolution, grants and the canonical policy.
+   *
+   * 2026-09-12：这里原来把 `forceConfirmation` 实现成 `{ mode: 'step', spend: 'confirm' }`——
+   * 一个调用点**伪造一份用户从没选过的档位**交给下游。档位是用户此刻选的那一档，而且是
+   * 「全自动下付费不再逐笔问」的唯一依据（`spendDecidedByPolicy`），它不能有第二个答案。
+   * 现在这条事实作为 `hostMustConfirm` 挂在 subject 上（只抬不降），由那一份判据去裁决；
+   * 用户自己答过的「这类以后别问」仍然算数，所以那个按钮不会因此消失。
+   */
   function decisionOf(request: LaneApprovalRequest) {
     const resolved = options.resolveSubject?.(request);
-    const subject = resolved?.subject ?? subjectOf(request);
+    const base = resolved?.subject ?? subjectOf(request);
+    const subject = resolved?.forceConfirmation ? { ...base, hostMustConfirm: true } : base;
     const policy = options.policy?.();
-    const reusableNativeGrant = resolved?.grantable === true && sessionGrants.has(subject.capabilityId);
     const decided = resolved?.denialReason
       ? { state: 'denied-by-policy' as const, grantable: false as const, reason: resolved.denialReason }
       : preflightLaneApproval(subject, {
-          policy: resolved?.forceConfirmation && !reusableNativeGrant ? { mode: 'step', spend: 'confirm' } : policy,
+          policy,
           workMode: options.workMode?.(), hasUserInterface: options.hasUserInterface, sessionGrants,
         });
     return { resolved, subject, policy, decided };

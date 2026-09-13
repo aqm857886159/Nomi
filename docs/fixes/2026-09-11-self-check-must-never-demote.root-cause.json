@@ -1,0 +1,168 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-self-check-must-never-demote",
+  "problem_type": "an integration check that could only make a model less usable than not running it at all",
+  "symptom": "A user reported that manually added relay models 'all fail verification, and it burns credits'. A failed verification charged the upstream for a real generation and then wrote meta.adapter.state=failed with no activeRevision, which made derivePublishedExecution stop honouring the model's enabled mappings. A model that was selectable on the canvas before the button was pressed disappeared from the model picker afterwards, with no way back other than deleting and re-adding it.",
+  "direct_cause": "derivePublishedExecution treated the mere presence of meta.adapter as 'this row belongs to the certification domain, so only a certified activeRevision counts as publication evidence', while the failure writers in serviceCatalog stamp adapter metadata without an activeRevision. The two together form a one-way door: the check can demote a row but never leave it unchanged.",
+  "class_root": "Nomi let a check that was meant to add confidence also subtract capability. A diagnostic that costs the user money and can leave them worse off than not running it is not a check; the publication rule and the failure writer each looked locally correct while together they removed working models.",
+  "affected_population": [
+    "Users who manually configured a relay model and then pressed verify",
+    "Users whose integration was driven by an AI assistant or MCP host and whose verification run failed for any reason",
+    "Users on a flaky network, whose timed-out verification stamped the same failure metadata"
+  ],
+  "scope_paths": [
+    "electron/shared/modelPublication.ts",
+    "electron/providerAdapter/verifier.ts",
+    "electron/providerAdapter/selfCheck.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/serviceVerificationResults.ts",
+    "electron/providerAdapter/promotionMeta.ts",
+    "electron/providerAdapter/compiler.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/catalog/types.ts",
+    "electron/runtime.ts"
+  ],
+  "entry_points": [
+    "derivePublishedExecution publication rule read by the canvas model picker",
+    "findExecutableModel production execution lookup",
+    "deriveModelListing settings and picker listing",
+    "verifyAdapterMode integration self-check"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/",
+      "checked_at": "2026-09-11",
+      "purpose": "Prior art: a verification failure is documented as not implying the provider is unusable, with a manual fallback path."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/CherryHQ/cherry-studio/blob/main/src/main/ai/AiService.ts",
+      "checked_at": "2026-09-11",
+      "purpose": "Prior art: image checks are submit-only and expensive modalities are skipped for cost, so no competitor demotes a model on a failed check."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/cline/cline/blob/main/apps/vscode/src/core/controller/models/refreshOpenAiModels.ts",
+      "checked_at": "2026-09-11",
+      "purpose": "Prior art: a failed model-list fetch degrades silently to free-form entry rather than blocking the user."
+    }
+  ],
+  "invariants": [
+    "A failed or unfinished integration check never reduces a model's published modes below what its enabled mappings and scripts already justified.",
+    "A certified active revision remains the stronger evidence and still narrows published modes to the ones it names.",
+    "The integration check sends no generation request, so a failed check cannot cost the user money.",
+    "Publication evidence is decided by what the row can actually execute, not by whether the row has ever entered the certification domain."
+  ],
+  "generality_proof": "derivePublishedExecution is the single rule behind every surface that decides whether a model is usable: the canvas and shot-card pickers through modelCatalogCache, the settings listing through deriveModelListing, and production execution through findExecutableModel. Rewriting the rule so that the absence of a certified revision falls back to the row's own executable evidence fixes all of them at once, and the fallback is symmetric for mappings and for custom-call scripts rather than special-cased per surface.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "derivePublishedExecution",
+      "responsibility": "Decide the published modes of one model from a certified revision when there is one, and otherwise from the row's own enabled mappings and scripts."
+    },
+    {
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "probeAdapterCredential",
+      "responsibility": "Answer 'is this address and key usable' with one free model-list request, and never turn a missing list endpoint into a rejection."
+    },
+    {
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "adapterModelMetadataForPromotion",
+      "responsibility": "Record what a promotion was based on, so a row published by a free self-check can be shown honestly as not yet tried."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/modelCatalogListing.ts",
+      "entry_point": "deriveModelListing",
+      "disposition": "enforced",
+      "evidence": "Reads the same rule; its tests now assert that a staged or failed adapter row with enabled mappings stays listed."
+    },
+    {
+      "path": "electron/catalog/executableModel.ts",
+      "entry_point": "findExecutableModel",
+      "disposition": "enforced",
+      "evidence": "Reads the same rule; its test now asserts that an unverified adapter candidate with a key and an enabled mapping stays executable."
+    },
+    {
+      "path": "src/config/modelCatalogCache.ts",
+      "entry_point": "canvas and shot-card model pickers",
+      "disposition": "enforced",
+      "evidence": "Consumes published/publishedModes from the same rule, so the picker follows without a second implementation."
+    },
+    {
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "entry_point": "commit and fail failure stamping",
+      "disposition": "not-affected",
+      "evidence": "The writers still record that a run failed; what changed is that recording a failure no longer subtracts capability, so the writers needed no special case."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every integration run that fails for any reason, on any provider, took this path; and any future rule that keys publication on 'has this row entered the certification domain' rather than 'what can this row execute' recreates it.",
+    "same_class_scan": [
+      "Read derivePublishedExecution and confirmed all three branches were unreachable for an adapter row without an activeRevision.",
+      "Read both failure writers in serviceCatalog and confirmed they stamp adapter metadata and deliberately do not write activeRevision.",
+      "Listed every consumer of derivePublishedExecution and modelHasPublishedExecution and confirmed the picker, the listing and the executable lookup all read the same rule.",
+      "Checked the restored-predecessor publication mask path and confirmed the rewritten rule preserves it through the same mask filter.",
+      "Checked whether a renderer could gain publication it did not already have under the new fallback, and confirmed it could not: a row with no adapter metadata already published on the same evidence."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/modelPublication.ts",
+    "invariant": "Publication is derived from executable evidence; an integration check may raise it and may never lower it.",
+    "failure_mode": "A regression that reintroduces the one-way door turns the pinned assertions red: a row with an enabled mapping and meta.adapter.state=failed must stay published.",
+    "exception_policy": "none",
+    "strategy": "Collapse the three mutually exclusive adapter branches into one rule keyed on whether a certified revision exists, and pin the failure case with a mutation-verified regression test.",
+    "artifacts": [
+      "electron/shared/modelPublication.ts",
+      "electron/shared/modelPublication.test.ts",
+      "electron/catalog/modelCatalogListing.test.ts",
+      "electron/catalog/executableModel.test.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/shared/modelPublication.ts",
+    "tests": [
+      "electron/shared/modelPublication.test.ts",
+      "electron/catalog/modelCatalogListing.test.ts",
+      "electron/catalog/executableModel.test.ts"
+    ],
+    "rationale": "The publication rule owns this invariant. The failure writers in serviceCatalog only record what happened; making each writer remember not to demote would be a promise without an owner, which is how the door stayed open."
+  },
+  "regression_tests": [
+    "electron/shared/modelPublication.test.ts",
+    "electron/catalog/modelCatalogListing.test.ts",
+    "electron/catalog/executableModel.test.ts",
+    "electron/providerAdapter/selfCheck.test.ts",
+    "electron/providerAdapter/service.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/modelPublication.test.ts",
+    "electron/catalog/modelCatalogListing.test.ts",
+    "electron/catalog/executableModel.test.ts",
+    "electron/providerAdapter/selfCheck.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/modelPublication.ts",
+      "electron/providerAdapter/verifier.ts",
+      "electron/providerAdapter/service.ts",
+      "electron/providerAdapter/compiler.ts"
+    ],
+    "rationale": "The certification-domain-only publication branch, the paid create-poll-download verification path, the automatic AI repair loop, and the unknown-submission reconciliation branch that only existed to cover paid submissions are all removed in the same commit. No flag restores them."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant lives entirely in Nomi's own publication rule.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted migration is required. Rows already carrying meta.adapter.state=failed become visible again on the next listing read, which is the intended repair for users whose models disappeared. Rows certified by the previous paid verification keep their activeRevision and therefore keep their narrower, certified mode set.",
+  "residual_risks": [
+    "A model published on a free self-check has not been proven to produce media. That is disclosed rather than hidden: promotion records evidence 'self-check' and the picker labels the row 'not tried yet'.",
+    "A relay that answers a valid key with 401 on /models, such as apimart, would be rejected by the credential probe; the built-in adapted vendors avoid this by declaring their own validation strategy, and relays with no list endpoint at all are passed rather than failed."
+  ]
+}

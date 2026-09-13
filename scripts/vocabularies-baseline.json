@@ -583,26 +583,21 @@
       "site": "electron/providerAdapter/types.ts::type:AdapterModeResult/property:stage/type-union",
       "members": [
         "compile",
-        "create",
+        "contract",
+        "credential",
         "docs",
-        "localize_reference",
-        "poll",
         "promote",
-        "result",
         "verify_asset"
       ],
-      "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤：docs、compile、localize_reference、create、poll、verify_asset、promote；它用于定位 mode 级错误，边界不同于整次 AdapterRunStage。"
+      "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤。2026-09-11 用户拍板删掉流程内的付费验证后，中转自检只剩 credential（鉴权/可达）与 contract（说明卡形状）两段，原来的 localize_reference / create / poll / result 随那条真实生成路径一起删除（P1）；verify_asset 留给本地 ComfyUI 候选那条免费的真实产物校验，docs / compile / promote 仍属编译与提升阶段。边界不同于整次 AdapterRunStage。"
     },
     {
       "site": "electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union",
       "members": [
-        "create",
-        "localize_reference",
-        "poll",
-        "result",
-        "verify_asset"
+        "contract",
+        "credential"
       ],
-      "reason": "AdapterVerificationResult.stage 是真实请求验证器的失败步骤合同：localize_reference、create、poll、verify_asset 由 verifier 抛出点写入；verifyAdapterMode 的局部 stage 原样进入该导出结果，必须从失败 variant derive。"
+      "reason": "AdapterVerificationResult.stage 是**免费自检**的失败步骤合同（2026-09-11 起不再发任何生成请求）：credential = 鉴权与可达，contract = 说明卡形状。它是 AdapterModeResult.stage 的真子集——自检只可能停在这两段，而 AdapterModeResult 还要装得下编译/提升与本地 ComfyUI 的 verify_asset。"
     },
     {
       "site": "electron/shared/agentCapabilities/generationPlanSchemas.ts::variable:GENERATION_RECONCILE_OUTCOMES/as-const",
@@ -840,9 +835,17 @@
       "reason": "INTEGRATION_CREDENTIAL_STATUSES 是模型接入会话的凭据持久化状态唯一合同；主进程 session、trusted UI projection 和跨进程恢复都从该 tuple 派生，避免把安全存储失败误报成可用。"
     },
     {
-      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
+      "site": "electron/integrationCertification/integrationSessionRecord.ts::variable:RETIRED_SPEND_GATE_STAGES/set",
       "members": [
         "awaiting_human_confirmation",
+        "human_confirmed",
+        "needs_spend_confirmation"
+      ],
+      "reason": "这三个成员是 INTEGRATION_STAGES 的**退役名单**，不是第二份现役词表：2026-09-12 删掉「接模型的花费确认」后，旧盘上还躺着它们，读盘时就地改写成 ready_to_certify（见同文件 migrateRetiredSpendGate）。故意不写成「不在现役词表里就改写」——那会把 stage 打错字的损坏记录也一起洗白，而现役校验必须继续拒绝它。清空这份名单的条件是确认再没有旧盘会被读到。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
+      "members": [
         "cancelled",
         "certifying",
         "committing",
@@ -850,22 +853,13 @@
         "discovering",
         "draft",
         "failed",
-        "human_confirmed",
         "needs_credential",
         "needs_input",
         "needs_selection",
-        "needs_spend_confirmation",
-        "partial"
+        "partial",
+        "ready_to_certify"
       ],
-      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。2026-09-11 增 awaiting_human_confirmation / human_confirmed：花费确认这一关有三个真正不同的状态（该 Agent 调 confirm / 等真人在 Nomi 里点 / 人点完了该 start），2026-09-10 真实宿主实测证明压成一档会让 Agent 每回合再 confirm 一次，而重复 confirm 会作废人刚才那次点击。"
-    },
-    {
-      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_START_RECEIPT_STATUSES/as-const",
-      "members": [
-        "consumed",
-        "pending"
-      ],
-      "reason": "INTEGRATION_START_RECEIPT_STATUSES 是接入认证 receipt 的两阶段持久化窗口；pending 先落 intent、consumed 才允许执行，保证崩溃恢复不重复花费。"
+      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。2026-09-12 用户拍板「接模型没有付费验证」：花费确认那三档（needs_spend_confirmation / awaiting_human_confirmation / human_confirmed）连同挑战、收据、真人手势章一起退役，合并成一个只有机器语义的 ready_to_certify（方案收下了、自检还没开跑，谁拥有会话谁就能调 start）。退役的直接证据是 2026-09-12 真实验收 §P0-1：那三档唯一的出口写死 ownerClientId === \"nomi\"，外部宿主永远走不出去。"
     },
     {
       "site": "electron/shared/projectAgentProposalReceipt.ts::variable:PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES/as-const",

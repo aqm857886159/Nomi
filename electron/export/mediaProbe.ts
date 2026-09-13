@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 
 import { resolveFfmpegPath } from "./ffmpegRunner";
 import { ensureExecutable } from "./ensureExecutable";
+import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 
 export const MEDIA_DECODER_PROTOCOL_WHITELIST = "file,pipe,data";
 
@@ -377,14 +378,9 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
   return metadata;
 }
 
-function executablePathForRuntime(candidate: string): string {
-  if (!candidate.includes("app.asar")) return candidate;
-  return candidate.replace(/app\.asar(?!\.unpacked)/g, "app.asar.unpacked");
-}
-
 function commandExists(command: string): boolean {
   if (!command) return false;
-  const runtimeCommand = executablePathForRuntime(command);
+  const runtimeCommand = asarUnpackedPath(command);
   if (path.isAbsolute(runtimeCommand)) return fs.existsSync(runtimeCommand);
   const pathParts = String(process.env.PATH || "").split(path.delimiter).filter(Boolean);
   return pathParts.some((dir) => fs.existsSync(path.join(dir, runtimeCommand)));
@@ -393,14 +389,14 @@ function commandExists(command: string): boolean {
 function siblingFfprobePath(ffmpegPath: string): string {
   if (!ffmpegPath || !path.isAbsolute(ffmpegPath)) return "";
   const executableName = process.platform === "win32" ? "ffprobe.exe" : "ffprobe";
-  return path.join(path.dirname(executablePathForRuntime(ffmpegPath)), executableName);
+  return path.join(path.dirname(asarUnpackedPath(ffmpegPath)), executableName);
 }
 
 function bundledFfprobePath(): string {
   // 打包随附的 ffprobe（@ffprobe-installer），让"双击即用"用户无需自装 ffprobe 即可探测音轨
   try {
     const installer = require("@ffprobe-installer/ffprobe") as { path?: string };
-    const installerPath = typeof installer?.path === "string" ? executablePathForRuntime(installer.path) : "";
+    const installerPath = typeof installer?.path === "string" ? asarUnpackedPath(installer.path) : "";
     return installerPath && commandExists(installerPath) ? installerPath : "";
   } catch {
     return "";

@@ -77,6 +77,7 @@
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
 - [判测试翻红前先查别的 worktree](flaky-test-check-other-worktrees-first.md) — 并行 suite 能把耗时放大 40x，和真 flake 长得一样
+- [写在规则里的分档，没人把它接到本机入口上](local-gates-ran-full-suite-and-jammed-the-machine-lock.md) — ✅ 已固化；`pnpm run gates` 排队十几分钟、9 棵树抢一把锁时读；判据存在 ≠ 判据被调用，改验证策略先 grep 全部调用点
 - [并行会话各跑各的 gates 会把机器压进 swap](parallel-gates-thrash-the-machine.md) — ✅ 已由 `vitest-fair-share` 接管；判超时红灯前先看 load 与 `sys%`，sys>15% 时超时红灯不作数
 - [门岗只能下它真拿到证据的那个结论](gate-verdict-must-be-backed-by-evidence.md) — ✅ 已固化；门岗指的证据文件根本不存在（让你看差异图但一张都没有）= 红的是工具不是你的改动
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
@@ -113,6 +114,7 @@
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障
+- [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
 - [Antigravity 图像验证两平台一起红：自己的 agent 定义关掉了自己的钩子](antigravity-hooks-need-inherit-customizations.md) — `inheritCustomizations:false` 在 agy ≥1.1.27 连 hooks 一起关；「加载了」≠「执行了」；同码双平台红先查共享层
 
 - [平台门控必须在 UI 上说人话](platform-gates-must-explain-user-action.md) — Windows 等平台被拒绝却显示未检测或部分受限时
@@ -127,6 +129,7 @@
 - [Electron 被 macOS 误报恶意软件的修法](electron-xprotect-false-positive-resign.md) — 重下 + ad-hoc 重签换 cdhash；摘 quarantine 没用
 - [Windows 改保存名闪退：根因已修、平台未验](sogou-save-dialog-crash-pending-win32-verify.md) — 再遇先要崩溃日志尾行和 minidump，别重猜
 - [MCP 侧改动必须重新打包 app 才看得到](mcp-fixes-need-repackaged-app.md) — MCP server 就是 app 二进制
+- [打包后「每条命令都要点头」= 沙箱运行时的二进制卡在 app.asar 里](sandbox-runtime-not-unpacked-from-asar.md) — asar 里的路径 `existsSync` 回 true 但 exec 不了；`asarUnpack` 只让盘上有一份真的，**不改**库用 `import.meta.url` 算出的那条路径，还得显式把解包路径交给它
 - [多会话同开 MCP 会串库](nomi-mcp-multi-instance-library-swap.md) — 报「项目不存在」别重试、别改用当前 id
 - [`nomi_get_run` 结果要读 `structuredContent.nomiRunData`](nomi-get-run-mcp-projection-shape.md) — text 块是人话不是 JSON
 - [MCP elicitation 的支持面（结论已反转）](claude-code-lacks-elicitation-capability.md) — CLI ≥2.1.76 已支持；旧结论别再当前提

@@ -730,7 +730,13 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         sessions,
         owner: ctx.origin?.host || 'external',
         openCredentialsUi: async (input) => {
-          const opened = await ctx.openCredentialsInNomi?.({ sessionId: input.sessionId, vendorName: input.vendorName })
+          let opened: { opened: boolean } | void
+          try {
+            opened = await ctx.openCredentialsInNomi?.({ sessionId: input.sessionId, vendorName: input.vendorName })
+          } catch {
+            // The durable credential handoff survives a closed renderer window.
+            opened = { opened: false }
+          }
           // 一次性凭据页（URL 模式 elicitation）铸在真正持有会话的这个进程里。
           const projection = withCredentialElicitationTicket({ ...sessions.get(input.sessionId, ctx.origin?.host || 'external'), credentialUiOpened: opened?.opened === true })
           return { opened: opened?.opened === true, ticket: projection.credentialEntry }

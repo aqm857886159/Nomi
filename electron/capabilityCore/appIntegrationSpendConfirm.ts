@@ -31,6 +31,7 @@ import type { ProjectLeaseV2 } from "./projectLease";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { ProductionActionResult, ProductionRun } from "../productionRun/productionRunTypes";
 import { listPendingSpendConfirms, projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
+import { decideGenerationSpend } from "./generationSpendDecision";
 import type { PendingSpendConfirm } from "../shared/contracts/pendingSpendConfirm";
 
 type RunReader = Readonly<{
@@ -61,13 +62,6 @@ function failed(error: unknown): ProductionActionResult {
   return { ok: false, code: "failed", message: error instanceof Error ? error.message : String(error) };
 }
 
-function challengeTokenOf(value: unknown): string {
-  const token = value && typeof value === "object" && !Array.isArray(value)
-    && (value as { handoff?: { challengeToken?: unknown } }).handoff?.challengeToken;
-  if (typeof token !== "string" || !token.trim()) throw new Error("generation_challenge_unavailable");
-  return token.trim();
-}
-
 /**
  * 装配这一层要的那几件，从能力核已经建好的实例里取。
  *
@@ -76,18 +70,53 @@ function challengeTokenOf(value: unknown): string {
  * 2026-09-11 就是被这一段顶破的）。**「这条能力要什么」属于这条能力自己**。
  */
 /**
- * 进程内那一份编排。能力核没起来（或已经停了）时它是 `null`——四个动作一律 fail-closed：
- * 读回空、写回 `unavailable`。绝不「先跑起来再说」，那是钱这条轴上最不该有的默认。
+ * 进程内那一份编排。能力核没起来（或已经停了）时它是 `null`——三个**写**动作一律 fail-closed：
+ * 回 `unavailable`。绝不「先跑起来再说」，那是钱这条轴上最不该有的默认。
  */
 let actions: ReturnType<typeof createPendingSpendActions> | null = null;
 
+/**
+ * 它为什么没装起来。装配失败时记下原话，好让**第一次真的要用**的那一刻说得出「断在哪」。
+ *
+ * 为什么不是只写日志（2026-09-12）：`appIntegration` 那段装配裹在一个 `catch` 里，
+ * 失败只落一行日志，然后 `actions` 在整个会话里恒为 `null`。原来的读通道是
+ * `actions?.listPendingSpend(projectId) ?? []`——一个**会话级的静默开关**：
+ * 从此每一笔付费草稿都查无此卡，而模型还在一句句告诉用户「请在确认卡上点头」。
+ * 日志在开发机上没人看，用户那头只有空面板。
+ */
+let installFailure: string | null = null;
+
 export function installPendingSpendActions(deps: PendingSpendActionDeps | null): void {
   actions = deps ? createPendingSpendActions(deps) : null;
+  if (deps) installFailure = null;
 }
 
-/** Agent 面板付费确认卡（2026-09-11 P1）。四个动作走同一个编排：读、改参数、丢弃、确认并开跑。 */
+/** 装配失败时由 `appIntegration` 调用：把原因留在这一层，读通道据此抛得明白。 */
+export function recordPendingSpendInstallFailure(reason: unknown): void {
+  actions = null;
+  installFailure = reason instanceof Error ? reason.message : String(reason);
+}
+
+export class PendingSpendSurfaceUnavailableError extends Error {
+  readonly code = "spend_confirm_surface_unavailable" as const;
+
+  constructor(reason: string | null) {
+    super(reason
+      ? `Pending spend confirmations cannot be read: the capability core failed to install (${reason})`
+      : "Pending spend confirmations cannot be read: the capability core is not installed");
+    this.name = "PendingSpendSurfaceUnavailableError";
+  }
+}
+
+/**
+ * Agent 面板付费确认卡（2026-09-11 P1）。四个动作走同一个编排：读、改参数、丢弃、确认并开跑。
+ *
+ * 读通道**抛**而不是回空（2026-09-12）：没装起来 ≠ 没有要确认的东西。前者是失败，
+ * 要一路传到用户眼前那张会说话的卡上；后者才是空数组。
+ */
 export function listPendingSpendConfirmations(projectId: string): readonly PendingSpendConfirm[] {
-  return actions?.listPendingSpend(projectId) ?? [];
+  if (!actions) throw new PendingSpendSurfaceUnavailableError(installFailure);
+  return actions.listPendingSpend(projectId);
 }
 
 export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; shotId?: string; patch: Record<string, unknown> }): Promise<ProductionActionResult> {
@@ -246,14 +275,12 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     if (!target) return { ok: false, code: "unavailable" };
     try {
       const lease = await leased(input.projectId);
-      const params = { operationId: input.operationId };
-      const gate = await deps.requestGenerationGate({ params, lease });
-      const token = challengeTokenOf(gate);
-      const attestation = deps.receipts.createMainProcessGestureAttestation(token, { ...target, decision: "accept" });
-      const minted = deps.receipts.mintReceipt(token, attestation);
-      await deps.authorizeGeneration({ params, lease, receipt: minted.receipt });
-      deps.receipts.consumeReceipt(minted.token);
-      await deps.planning({ capability: "start", params, lease, origin: { host: "nomi", actorId: "agent-panel" } });
+      // 封印 → 铸收据 → 决门 → 消费 → 开跑：这条链只有一份（`generationSpendDecision.ts`）。
+      // 「全自动」档那条免卡放行走的是同一个函数，差别只在那张 attestation 是人点的还是策略代答的。
+      await decideGenerationSpend(
+        { requestGenerationGate: deps.requestGenerationGate, authorizeGeneration: deps.authorizeGeneration, planning: deps.planning, receipts: deps.receipts },
+        { operationId: input.operationId, lease, decision: { kind: "human-gesture", target }, actorId: "agent-panel" },
+      );
       return { ok: true, code: "spend_confirmed" };
     } catch (error) {
       return failed(error);

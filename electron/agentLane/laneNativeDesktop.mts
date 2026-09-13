@@ -4,6 +4,7 @@ import { createLocalBashOperations } from '@earendil-works/pi-coding-agent';
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels.js';
 import type { SkillRecord } from '../skills/skillStore.js';
 import { LANE_WRITE_TOOL_TIMEOUT_MS } from '../shared/agentLane/laneToolContract.js';
+import { logWarn } from '../logging/logger.js';
 import { openLaneSandbox, sandboxPolicyFor, type LaneBashOperations } from './laneCodingSandbox.mjs';
 import { createLaneSkillIndexSource } from './laneInstalledSkills.mjs';
 import { createLaneNativeAssembly, type LaneDeferredGroup } from './laneNativeAssembly.mjs';
@@ -32,6 +33,12 @@ export async function openLaneNativeDesktop(input: {
     }),
   };
   const sandbox = await openLaneSandbox(sandboxPolicyFor(input), { manager: SandboxManager, localOperations });
+  // 诊断正文在这里落一次日志，**只在这里**：它是排障证据（打包后 .app 的唯一线索来源），
+  // 界面拿的是 `inactive.code` 那一半。没有这一行，用户报「怎么每条命令都问我」时，
+  // 我们手上除了「沙箱没起来」四个字之外一个字节都没有。
+  if (sandbox.inactive) {
+    logWarn('agent', 'lane-sandbox-inactive', { code: sandbox.inactive.code, detail: sandbox.inactive.detail });
+  }
   try {
     const assembly = await createLaneNativeAssembly({
       projectDir: input.projectDir,
@@ -42,7 +49,7 @@ export async function openLaneNativeDesktop(input: {
       availableModels: input.availableModels,
     });
     return { ...assembly, skillIndex, sandboxActive: sandbox.active,
-      ...(sandbox.inactiveReason ? { sandboxInactiveReason: sandbox.inactiveReason } : {}),
+      ...(sandbox.inactive ? { sandboxInactive: sandbox.inactive } : {}),
       close: () => sandbox.close() };
   } catch (cause) {
     await sandbox.close();

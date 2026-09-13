@@ -153,6 +153,14 @@
                         "path"
                       ],
                       "additionalProperties": true
+                    },
+                    "delivery": {
+                      "type": "string",
+                      "enum": [
+                        "synchronous",
+                        "asynchronous"
+                      ],
+                      "description": "How this endpoint delivers results, declared by the provider contract and never inferred from the media type. 'asynchronous' requires query and statusMapping so an accepted remote task is polled to completion instead of dropped."
                     }
                   },
                   "required": [

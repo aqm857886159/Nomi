@@ -42,7 +42,6 @@ export type AiAssistedOnboardingCardProps = {
   /** 「去连接」→ 打开自动化与权限的 AI 助手连接页（唯一的一键接入之家）。 */
   onOpenAssistantConnections: () => void
   /** 「或：手动接入 →」→ 滚到本页已有的「自定义 API / 中转站」那一行并高亮，不另开向导。 */
-  onManualConnect: () => void
   /** 首次出现时给一次 accent 描边（看过即消，不做常驻高亮）。 */
   firstSeen?: boolean
 }
@@ -51,7 +50,6 @@ export function AiAssistedOnboardingCard({
   info,
   progress,
   onOpenAssistantConnections,
-  onManualConnect,
   firstSeen = false,
 }: AiAssistedOnboardingCardProps): JSX.Element {
   const { t } = useTranslation()
@@ -281,15 +279,6 @@ export function AiAssistedOnboardingCard({
               })}
             </button>
           ) : null}
-
-          <button
-            type="button"
-            data-assisted-onboarding-manual
-            onClick={onManualConnect}
-            className="self-start text-micro text-nomi-ink-40 hover:text-nomi-accent"
-          >
-            {t('onboardingProviders.assistedOnboarding.manual')}
-          </button>
         </>
       )}
     </section>

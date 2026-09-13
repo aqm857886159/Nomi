@@ -8,7 +8,7 @@
 import React from 'react'
 import { isLegacyCatalogMeta } from '../../config/modelIdentity'
 import { useTranslation } from 'react-i18next'
-import { IconSearch, IconTrash, IconCheck, IconCode } from '@tabler/icons-react'
+import { IconSearch, IconTrash, IconCheck, IconCode, IconEye, IconEyeOff } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiSelect } from '../../design'
 import type { ChipModel } from './ModelChipGroups'
@@ -132,11 +132,12 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
         ) : (
           <>
             <div className="flex gap-1.5">
+              {/* 这两个动作改的是可见性，不是「选中」——沿用「全选/全不选」正是三套词混用的来源。 */}
               <button type="button" onClick={() => bulk(true)} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                {t('onboardingProviders.modelControls.selectAll')}
+                {t('onboardingProviders.modelControls.showAll')}
               </button>
               <button type="button" onClick={() => bulk(false)} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                {t('onboardingProviders.modelControls.selectNone')}
+                {t('onboardingProviders.modelControls.hideAll')}
               </button>
               {models.length > 0 ? (
                 <button
@@ -148,7 +149,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
                 </button>
               ) : null}
             </div>
-            <span className="text-micro text-nomi-ink-40">{t('onboardingProviders.modelControls.enabledCount', { enabled: enabledTotal, total: models.length })}</span>
+            <span className="text-micro text-nomi-ink-40">{t('onboardingProviders.modelControls.visibleCount', { enabled: enabledTotal, total: models.length })}</span>
           </>
         )}
       </div>
@@ -207,23 +208,31 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
                       m.enabled ? '' : 'opacity-55',
                     )}
                   >
+                    {/*
+                      眼睛，不是打勾方块（2026-09-11）。旧控件是 18×18 的 role="checkbox"，
+                      而**同一个组件在 selectMode 下用一模一样的方块表示「选中它，准备删除」**，
+                      两者只差一个颜色；同屏还并排放着「全选 / 全不选 / 批量删除」。用户看到勾选框
+                      只会读成「这是多选」，不会读成「这一格决定它在不在画布模型框里」——群反馈
+                      「减少模型怎么操作」的根因不是功能缺失，是这个控件在说另一件事。
+                      眼睛是本仓既有的可见性成语（TrackList / SceneObjectsTab / 白板图层都用它）。
+                    */}
                     <button
                       type="button"
-                      role="checkbox"
-                      aria-checked={m.enabled}
+                      aria-pressed={!m.enabled}
                       disabled={adapterLocked}
-                      aria-label={t(m.enabled ? 'onboardingProviders.modelControls.disableModelAria' : 'onboardingProviders.modelControls.enableModelAria', { name: m.labelZh })}
+                      title={t(m.enabled ? 'onboardingProviders.modelControls.hideModelTitle' : 'onboardingProviders.modelControls.showModelTitle')}
+                      aria-label={t(m.enabled ? 'onboardingProviders.modelControls.hideModelAria' : 'onboardingProviders.modelControls.showModelAria', { name: m.labelZh })}
                       onClick={() => onToggle([m], !m.enabled)}
                       className={cn(
-                        'w-[18px] h-[18px] rounded-nomi-sm shrink-0 grid place-items-center border',
+                        'w-[22px] h-[22px] rounded-nomi-sm shrink-0 grid place-items-center',
                         adapterLocked
-                          ? 'bg-nomi-ink-05 border-nomi-line text-nomi-ink-20 cursor-not-allowed'
+                          ? 'text-nomi-ink-20 cursor-not-allowed'
                           : m.enabled
-                          ? 'bg-nomi-accent border-nomi-accent text-nomi-paper'
-                          : 'bg-nomi-paper border-nomi-ink-20 text-transparent',
+                          ? 'text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink'
+                          : 'text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink-60',
                       )}
                     >
-                      <IconCheck size={12} stroke={2.4} />
+                      {m.enabled ? <IconEye size={15} stroke={1.8} /> : <IconEyeOff size={15} stroke={1.8} />}
                     </button>
                     <button
                       type="button"

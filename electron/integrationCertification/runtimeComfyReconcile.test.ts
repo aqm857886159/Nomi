@@ -115,7 +115,6 @@ describe("runtime ComfyUI reconciliation", () => {
     const rawSession = persisted.sessions[0];
     rawSession.stage = "certifying";
     rawSession.startIdempotencyKey = key;
-    rawSession.startReceiptStatus = "consumed";
     rawSession.config = { ...(rawSession.config as Record<string, unknown>), modelKey: "recovery-workflow" };
     rawSession.configDigest = sha(rawSession.config);
     save(sessionsFile, persisted);

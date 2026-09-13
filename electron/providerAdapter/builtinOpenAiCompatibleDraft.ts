@@ -106,11 +106,16 @@ function modesForKind(
   // 3D 没有通用 OpenAI 兼容契约 → 不编造。返回空 modes，验证阶段如实报「这个模型没有可用通道」。
   if (kind !== "image" && kind !== "video" && kind !== "audio") return [];
   const transport = newapiTransportFor(kind);
-  const async = {
-    ...(transport.query ? { query: auth(transport.query) } : {}),
-    ...(transport.statusMapping ? { statusMapping: transport.statusMapping } : {}),
-  };
-  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(transport.create), ...async, ...noSources }];
+  // 交付形状**逐模式各自带**，不再由一份共享的 `async` 对象决定谁是异步。
+  // 旧写法把 `...async` 手工撒在部分模式上，`image_edit` 那条从来没撒到（builtinOpenAiCompatibleDraft
+  // 的老 :133）——一旦图片这条 wire 哪天真是任务制，改图那格连轮询端点都拿不到。现在每条 wire 的
+  // 声明来自 NEWAPI_DELIVERY_CONTRACTS，漏一格是类型错误而不是静默缺陷（P1 无并行版）。
+  const shape = (mode: { delivery?: "synchronous" | "asynchronous"; query?: HttpOperation; statusMapping?: Record<string, string[]>; abandon?: unknown }) => ({
+    ...(mode.delivery ? { delivery: mode.delivery } : {}),
+    ...(mode.query ? { query: auth(mode.query) } : {}),
+    ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
+  });
+  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(transport.create), ...shape(transport), ...noSources }];
   // 图生图 / 图生视频各自注册一条：runtime 按 taskKind 选投递通道，缺了它连参考图的节点会被直接拒发。
   // 改图协议必须**按模型族 derive**，与接入落库路径（catalogCommit → newapiImageEditProfileForModel）同源：
   // newapiTransportFor("image").edit 恒是 chat/completions 多模态，但 gpt-image 系 / dall-e-2 的改图端点是
@@ -129,11 +134,11 @@ function modesForKind(
     // 只传 modelKey 时它被判成 chat 协议，中转如实回 400「not supported on the Chat Completions
     // endpoint」→ 改图通道验证失败 → 连了参考图的节点被直接拒发，而这家中转其实完全支持改图。
     // 2026-09-08 根因：alias 在这条内置卡路径上被丢了两次（此处 + builtinDraftForUndocumentedEndpoint）。
-    const edit = kind === "image" ? newapiImageEditProfileForModel(modelKey || "", modelAlias ?? null).operation : transport.edit;
-    modes.push({ taskKind: "image_edit", create: auth(edit), referenceParam: "reference_images", referenceShape: "array", ...noSources });
+    const edit = kind === "image" ? newapiImageEditProfileForModel(modelKey || "", modelAlias ?? null).operation : transport.edit.create;
+    modes.push({ taskKind: "image_edit", create: auth(edit), ...shape(transport.edit), referenceParam: "reference_images", referenceShape: "array", ...noSources });
   }
   if (transport.imageToVideo) {
-    modes.push({ taskKind: "image_to_video", create: auth(transport.imageToVideo), referenceParam: "image_url", referenceShape: "single", ...async, ...noSources });
+    modes.push({ taskKind: "image_to_video", create: auth(transport.imageToVideo.create), ...shape(transport.imageToVideo), referenceParam: "image_url", referenceShape: "single", ...noSources });
   }
   return modes;
 }

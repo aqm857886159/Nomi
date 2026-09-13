@@ -83,6 +83,10 @@ jobs:
       # PR 正文是外人可写的文本，进命令行就是一条注入通道。
       PRIOR_ART_PR_BODY: ${{ github.event.pull_request.body }}
       PRIOR_ART_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      # check:door-map 的 PR 侧判据（R21，2026-09-11）：判为 recurring 的修复，正文必须引用那份
+      # 带门表（doors）的根因合同。理由同上——门表写完就沉进 docs/fixes 的话，派工链上的人看不见它。
+      DOOR_MAP_PR_BODY: ${{ github.event.pull_request.body }}
+      DOOR_MAP_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
