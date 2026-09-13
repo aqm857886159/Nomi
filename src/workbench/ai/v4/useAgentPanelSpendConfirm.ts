@@ -52,6 +52,11 @@ export function hasPendingSpendCapability(): boolean {
   return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
 }
 
+export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code
+  return code === 'CAPABILITY_UNAVAILABLE' || (error instanceof Error && /pendingSpend|spend confirmation/i.test(error.message))
+}
+
 export type AgentPanelSpendConfirm = Readonly<{
   pending: PendingSpendConfirm | undefined
   /** 当前这一页的**草稿节点**（宿主投影 ⊕ 覆写）。它不在画布 store 里，改它不动画布。 */
