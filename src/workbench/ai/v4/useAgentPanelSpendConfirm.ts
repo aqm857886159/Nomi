@@ -54,7 +54,7 @@ export function hasPendingSpendCapability(): boolean {
 
 export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
   const code = (error as { code?: unknown })?.code
-  return code === 'CAPABILITY_UNAVAILABLE' || (error instanceof Error && /pendingSpend|spend confirmation/i.test(error.message))
+  return code === 'CAPABILITY_UNAVAILABLE' || code === 'spend_confirm_surface_unavailable' || (error instanceof Error && /pendingSpend|spend confirmation/i.test(error.message))
 }
 
 export type AgentPanelSpendConfirm = Readonly<{
