@@ -10,6 +10,18 @@ function matchesPattern(value, pattern) {
 }
 
 function delegatedOwner(annotation) {
+  // A cancelled package job can emit a failure annotation when GitHub's six-hour
+  // execution ceiling is reached. The cancellation is owned by workflow
+  // orchestration (and is already reflected in the job conclusion), rather than
+  // being an unowned product failure that should block annotation hygiene.
+  if (
+    annotation.level === 'failure' &&
+    annotation.jobName === 'Mac Package' &&
+    annotation.jobConclusion === 'cancelled' &&
+    annotation.path === '.github'
+  ) {
+    return 'workflow orchestration cancellation'
+  }
   if (
     annotation.level === 'warning' &&
     annotation.jobName === 'Contracts' &&
