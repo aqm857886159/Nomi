@@ -2,10 +2,13 @@ import * as React from 'react'
 import i18n from '../../i18n'
 import { getDesktopBridge, type DesktopAssetDto } from '../../desktop/bridge'
 import { notify } from '../../ui/notificationPolicy'
+import { mediaImportRejectionMessages } from './mediaImportMessage'
+import type { MediaImportRejection } from '../../../electron/shared/contracts/mediaImportPolicy'
 
 export type LocalImageImportResult = {
   created: DesktopAssetDto[]
-  skippedUnsupportedCount: number
+  /** 被准入闸挡下的文件，带机器可读原因与数字。 */
+  rejected: Array<{ fileName: string; rejection: MediaImportRejection }>
   failedCount: number
 }
 
@@ -40,18 +43,17 @@ export function isTextEditingTarget(target: EventTarget | null): boolean {
   return typeof closest === 'function' && Boolean(closest.call(target, 'input, textarea, [contenteditable="true"]'))
 }
 
-export async function importImagePathsToLibrary(projectId: string | null, paths: string[]): Promise<LocalImageImportResult> {
+/** Finder 拖入 / 粘贴素材库的落盘路。与「上传」按钮同一条（主进程 importLocalFiles），收全部媒体。 */
+export async function importLocalPathsToLibrary(projectId: string | null, paths: string[]): Promise<LocalImageImportResult> {
   const normalizedProjectId = String(projectId || '').trim()
-  if (!normalizedProjectId) throw new Error('projectId is required for local image copy')
+  if (!normalizedProjectId) throw new Error('projectId is required for local media import')
   const copyFiles = getDesktopBridge()?.assets?.copyFiles
-  if (!copyFiles) throw new Error('native local image copy is unavailable')
+  if (!copyFiles) throw new Error('native local media import is unavailable')
   return copyFiles({ projectId: normalizedProjectId, paths })
 }
 
 function reportImport(result: LocalImageImportResult, report: (message: string) => void): void {
-  if (result.skippedUnsupportedCount > 0) {
-    report(i18n.t('assetLibrary.skippedUnsupported', { count: result.skippedUnsupportedCount }))
-  }
+  for (const message of mediaImportRejectionMessages(result.rejected ?? [])) report(message)
   if (result.failedCount > 0) {
     report(i18n.t('assetLibrary.localImportFailed', { count: result.failedCount }))
   }
@@ -88,7 +90,7 @@ export function useAssetLibraryLocalImport({
       return
     }
     try {
-      const result = await importImagePathsToLibrary(projectId, paths)
+      const result = await importLocalPathsToLibrary(projectId, paths)
       refreshProjectAssets()
       refreshAllProjectAssets()
       reportImport(result, report)

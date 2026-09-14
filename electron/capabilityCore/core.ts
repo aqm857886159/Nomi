@@ -34,6 +34,10 @@ import { unfrozenAnchorsForShot } from './anchorBible'
 import { composeShotPrompt, runFirstHop, shouldRenderLastFrame, shouldUseTwoHop } from './i2vTwoHop'
 import { pickFirstFramePainter } from './firstFramePainter'
 import { previousShotPromptFor } from './shotOrder'
+import { diskLimitBytes } from '../shared/contracts/mediaImportPolicy'
+import { mediaKindFromExtension } from '../assets/mediaTypes'
+import { readStorageCapacity } from '../assets/storageCapacity'
+import { copyPathAsPlayableAsset } from '../assets/localFileCopy'
 import { checkImportAsset, contentTypeForExtension } from './importAssetGuard'
 import { copyAssetFile } from '../assets/projectAssetStore'
 
@@ -255,7 +259,10 @@ export async function importProjectAsset(input: {
   } catch {
     realPath = null
   }
-  const verdict = checkImportAsset({ rawPath: raw, realPath, sizeBytes, isFile })
+  // 上限从磁盘余量派生（和用户手动导入同一份判据），不再是本模块自己那个与磁盘无关的 64MB。
+  const kind = realPath ? mediaKindFromExtension(realPath) : null
+  const maxBytes = kind ? diskLimitBytes(readStorageCapacity(input.projectId), kind) ?? undefined : undefined
+  const verdict = checkImportAsset({ rawPath: raw, realPath, sizeBytes, isFile, maxBytes })
   if (!verdict.ok) throw new Error(verdict.reason)
 
   const fileName = (() => {
@@ -265,7 +272,8 @@ export async function importProjectAsset(input: {
     return base.toLowerCase().endsWith(verdict.extension) ? base : `${base}${verdict.extension}`
   })()
   const contentType = contentTypeForExtension(verdict.extension)
-  const record = (await copyAssetFile(input.projectId, verdict.realPath, fileName, contentType, {
+  // 视频先过可播放归一化，和用户导入同一条路（copyPathAsPlayableAsset）。
+  const record = (await copyPathAsPlayableAsset(input.projectId, verdict.realPath, fileName, contentType, {
     kind: 'imported',
     source: 'mcp-import',
   })) as { id?: string; name?: string; data?: { url?: string; size?: number; contentHash?: string } }

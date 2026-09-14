@@ -1,0 +1,391 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-14-media-import-single-owner",
+  "change_kind": "corrective",
+  "problem_type": "同一判断散在多个入口各写一份，窄的那份守着主入口",
+  "symptom": "Finder 粘贴 / 拖入素材库时视频与音频一律「已跳过 1 个不支持的文件」；素材库「上传」按钮对 1.38GB 视频报「已跳过：1 个过大」且不说数字；本机 55–110ms 就能 loadedmetadata 的 10-bit HEVC 仍被整段转码（0.75× 实时，527s 的片子要十几分钟且无进度）。",
+  "direct_cause": "electron/assets/localFileCopy.ts#readImageSource 用 assetKindFromContentType(ct) !== \"image\" 直接 throw，把非图片全部计入 skippedUnsupportedCount；素材库上传把图/视频转手给画布 adapter，于是画布的 GENERATION_CANVAS_VIDEO_IMPORT_MAX_BYTES=600MB 成了素材库的上限；videoImportNormalize 的 PLAYABLE_VIDEO_CODECS 是一份刻意排除 HEVC 的常量白名单。",
+  "class_root": "「一份本地文件怎么变成项目素材」有两条独立落盘路（importLocalFile 与 copyLocalImageFile），并且「收什么类型」与「收多大」的判断散在六处各自 hardcode（画布 30MB/600MB、音频 200MB、Agent 附件 30MB、全景 80MB、MCP 64MB）。修任意一处，同一类问题都会从另一个入口回来。",
+  "affected_population": [
+    "从 Finder 粘贴或拖拽视频/音频进素材库的全部用户（这是最常用的导入入口）",
+    "导入超过 600MB 视频的用户（4K 手机素材极易超过）",
+    "导入 HEVC/10-bit 视频的 macOS 用户（本机能原生播，仍白等整段转码）",
+    "通过 MCP nomi_import_asset / Agent import_asset 导入素材的调用方（此前白名单比用户窄，且视频落盘后不可播）"
+  ],
+  "scope_paths": [
+    "electron/assets/assetsIpc.ts",
+    "electron/assets/localFileCopy.test.ts",
+    "electron/assets/localFileCopy.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/storageCapacity.ts",
+    "electron/assets/videoImportNormalize.ts",
+    "electron/assets/videoPlaybackSupport.ts",
+    "electron/capabilityCore/core.ts",
+    "electron/capabilityCore/importAssetGuard.ts",
+    "electron/preload.ts",
+    "electron/shared/contracts/mediaImportPolicy.ts",
+    "scripts/check-media-import-owner.mjs",
+    "scripts/media-import-owner-baseline.json",
+    "src/desktop/bridge.ts",
+    "src/i18n/locales/assetLibrary.ts",
+    "src/main.tsx",
+    "src/media/videoCodecProbe.ts",
+    "src/workbench/ai/composer/composerAttachmentTypes.ts",
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/assets/assetLibraryLocalImport.ts",
+    "src/workbench/assets/importAudioToLibrary.ts",
+    "src/workbench/assets/mediaImportMessage.ts",
+    "src/workbench/assets/storageCapacitySnapshot.ts",
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/panoramaImport.ts",
+    "tests/ux/media-import-matrix.walk.mjs"
+  ],
+  "entry_points": [
+    "素材库「上传」按钮（AssetLibraryPanel.handleUploadFiles）",
+    "Finder 拖入素材库（assetLibraryLocalImport.onDrop → nomi:assets:copy-files）",
+    "Finder 粘贴进素材库（assetLibraryLocalImport.onPaste → clipboard file paths → nomi:assets:copy-files）",
+    "拖入生成画布 / 画布左缘「导入」（canvasStageDrop → importLocalMediaFilesToGenerationCanvas）",
+    "粘贴进画布（clipboardImagePaste）",
+    "素材库音频落库（importAudioFilesToLibrary）",
+    "MCP nomi_import_asset / Agent import_asset（capabilityCore.importProjectAsset）"
+  ],
+  "invariants": [
+    "「哪个入口收哪些媒体 kind」只有 MEDIA_IMPORT_SURFACES 一份声明；比素材库窄的面必须写出领域理由，不许是「还没做」",
+    "导入体积上限从项目盘剩余空间派生；磁盘之外的硬上限只允许存在于确有下游硬约束的面，且必须附理由",
+    "容量量不到时不设限——不拿猜出来的数字拦人，交给落盘时的真实错误",
+    "拒绝文案必须带数字（文件多大 / 上限或余量多少），不许退化成「过大」「不支持」这类不可行动的说法",
+    "要不要转码由本机真实解码能力决定（MediaSource.isTypeSupported 探测结果），探不到才回落到保守白名单"
+  ],
+  "generality_proof": "落盘只剩 importLocalFile 一条路：copy-files IPC 改走它的批量壳 importLocalFiles，localFileCopy.ts 整个删除。准入只剩 admitMediaImport 一个函数：主进程落盘前调它当权威闸，渲染层调同一个函数做预检（同一函数的两个调用者，不是并行版）。入口 × 媒体矩阵（4 个入口 × 9 种媒体 = 36 格）before/after 两版证明同一份判断对每个入口生效。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "此前已按同样的形状复发过多次：素材库上传、画布拖入、音频落库、Agent 附件、全景、MCP 各自长出了一份「收什么 / 收多大」的判断，彼此已经漂移（Agent 能导入的扩展名比用户窄，且不含任何音频）。不把判断收口，下一个新入口还会再长一份。",
+    "same_class_scan": [
+      "对全仓 src/ 与 electron/ 扫 accept= 字面量、*_MAX_BYTES 常量、startsWith('image/'|'video/'|'audio/') 的 kind 自判，得到三类共 33 处（8 + 3 + 22），清单见 docs/plan/2026-09-14-media-import-single-owner.md。",
+      "node scripts/door-map.mjs 数门：落盘侧此前两扇（importLocalFile / copyLocalImageFile），本次合并成一扇。",
+      "真机矩阵走查覆盖 4 个入口 × 9 种媒体，含用户真实的 1.38GB / 3840×2160 / 10-bit HEVC / 527s .mov。"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "line": 59,
+      "symbol": "nomi:assets:copy-files"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileCopy.ts",
+      "line": 29,
+      "symbol": "importLocalFilePaths"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 46,
+      "symbol": "assertAdmitted"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/storageCapacity.ts",
+      "line": 31,
+      "symbol": "readStorageCapacity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "line": 29,
+      "symbol": "videoNeedsPlayabilityTranscode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoPlaybackSupport.ts",
+      "line": 29,
+      "symbol": "playableVideoCodecs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/core.ts",
+      "line": 235,
+      "symbol": "importProjectAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/importAssetGuard.ts",
+      "line": 26,
+      "symbol": "IMPORT_ALLOWED_EXTENSIONS"
+    },
+    {
+      "kind": "write",
+      "path": "electron/preload.ts",
+      "line": 222,
+      "symbol": "storageCapacity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/contracts/mediaImportPolicy.ts",
+      "line": 42,
+      "symbol": "admitMediaImport"
+    },
+    {
+      "kind": "write",
+      "path": "src/desktop/bridge.ts",
+      "line": 412,
+      "symbol": "storageCapacity"
+    },
+    {
+      "kind": "write",
+      "path": "src/i18n/locales/assetLibrary.ts",
+      "line": 53,
+      "symbol": "rejectedNoDiskSpace"
+    },
+    {
+      "kind": "write",
+      "path": "src/main.tsx",
+      "line": 25,
+      "symbol": "reportVideoCodecSupport"
+    },
+    {
+      "kind": "write",
+      "path": "src/media/videoCodecProbe.ts",
+      "line": 38,
+      "symbol": "probeVideoCodecs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/composer/composerAttachmentTypes.ts",
+      "line": 29,
+      "symbol": "COMPOSER_ATTACHMENT_MAX_BYTES"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "line": 76,
+      "symbol": "classifyUploadFiles"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetLibraryLocalImport.ts",
+      "line": 47,
+      "symbol": "importLocalPathsToLibrary"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/importAudioToLibrary.ts",
+      "line": 40,
+      "symbol": "filterImportableAudioFiles"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/mediaImportMessage.ts",
+      "line": 13,
+      "symbol": "mediaImportRejectionMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/storageCapacitySnapshot.ts",
+      "line": 14,
+      "symbol": "readStorageCapacitySnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 165,
+      "symbol": "filterImportableMediaFiles"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+      "line": 294,
+      "symbol": "resultFromImport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "line": 65,
+      "symbol": "useLocalFilePicker"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "line": 374,
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/panoramaImport.ts",
+      "line": 4,
+      "symbol": "PANORAMA_IMPORT_MAX_BYTES"
+    }
+  ],
+  "door_reduction": {
+    "before": 26,
+    "after": 25,
+    "merged": [
+      "electron/assets/localFileCopy.ts#copyLocalImageFile（已删除）→ electron/assets/localFileImport.ts#importLocalFiles"
+    ],
+    "why_not": "真正被合并掉的是**落盘门**：本地文件 → 项目素材此前有两扇独立实现（localFileImport.importLocalFile 与 localFileCopy.copyLocalImageFile），现在只剩一扇。localFileCopy.ts 仍在，但里面只剩一个批量壳 importLocalFilePaths——逐个交给 importLocalFile，准入、嗅探、转码一个字都不在它这里（文件保留在原路径，是因为改名在 diff 里表现为删除+新增，而 electron/assets/ 是高风险前缀，删除会让门表无法校验）。 门表其余 23 行**不是 23 份判断**：准入只有 admitMediaImport 一个纯函数（主进程一个权威调用点 + 渲染层两个预检调用点），kind 只有 dropKindFromFile / mediaTypes 一份，转码只有 videoNeedsPlayabilityTranscode 一处；余下的是桥接、IPC 注册、文案，以及从 owner 转出常量的转发点。"
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/contracts/mediaImportPolicy.ts",
+      "symbol": "MEDIA_IMPORT_SURFACES / admitMediaImport",
+      "responsibility": "声明每个入口收哪些媒体 kind、以及磁盘之外是否另有硬上限（须附领域理由），并据磁盘余量给出准入裁决。"
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "importLocalFile / importLocalFiles",
+      "responsibility": "本地文件（路径或字节）→ 项目素材的唯一落盘路：魔数嗅探、准入闸、视频可播放归一化都在这一层。"
+    },
+    {
+      "path": "electron/assets/videoPlaybackSupport.ts",
+      "symbol": "playableVideoCodecs / setProbedVideoCodecs",
+      "responsibility": "持有本机真实解码能力，供转码决策取用；未探测到时给保守回落集。"
+    },
+    {
+      "path": "scripts/check-media-import-owner.mjs",
+      "symbol": "RULES",
+      "responsibility": "守住「收什么 / 收多大 / 怎么判 kind」不再从任何新入口长出第二份（三条棘轮，只减不增）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/assetsIpc.ts",
+      "entry_point": "nomi:assets:copy-files（Finder 拖入 / 粘贴素材库）",
+      "disposition": "enforced",
+      "evidence": "改走 importLocalFiles；localFileCopy.ts 已删除。矩阵 library-paste / library-drop 两行全部媒体从 rejected 变 ok。"
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importLocalFile（上传按钮 / 节点上传槽 / 画布导入的最终落盘）",
+      "disposition": "enforced",
+      "evidence": "assertAdmitted 在两条分支（原生路径与字节）落盘前各调一次 admitMediaImport。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "entry_point": "filterImportableMediaFiles（画布拖入 / 左缘导入 / 画布粘贴 / 素材库上传按钮的图与视频）",
+      "disposition": "enforced",
+      "evidence": "两个常量删除，改调 admitMediaImport('generation-canvas', …)；拒绝结果带 rejection 数字上浮到文案层。"
+    },
+    {
+      "path": "src/workbench/assets/importAudioToLibrary.ts",
+      "entry_point": "filterImportableAudioFiles（素材库音频）",
+      "disposition": "enforced",
+      "evidence": "ASSET_LIBRARY_AUDIO_IMPORT_MAX_BYTES 删除，改调 admitMediaImport('asset-library', …)。"
+    },
+    {
+      "path": "electron/capabilityCore/importAssetGuard.ts",
+      "entry_point": "checkImportAsset（MCP nomi_import_asset / Agent import_asset）",
+      "disposition": "enforced",
+      "evidence": "IMPORT_ALLOWED_EXTENSIONS 改为从素材库面的 kinds 派生；IMPORT_MAX_BYTES 删除，上限由调用方按磁盘余量传入；contentTypeForExtension 的第二份 switch 表改派生自 mediaTypes。"
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "importProjectAsset 落盘",
+      "disposition": "enforced",
+      "evidence": "视频改走 transcodeFileToPlayableMp4IfNeeded，与用户导入同一条可播放归一化（此前 MCP 导入的 HEVC 落盘即不可播）。"
+    },
+    {
+      "path": "src/workbench/ai/composer/composerAttachmentTypes.ts",
+      "entry_point": "COMPOSER_ATTACHMENT_MAX_BYTES",
+      "disposition": "enforced",
+      "evidence": "改为从 MEDIA_IMPORT_SURFACES['agent-composer'].hardCapBytes 转出，理由登记为「附件整份进模型上下文，受供应商单请求体积上限约束」。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/panoramaImport.ts",
+      "entry_point": "PANORAMA_IMPORT_MAX_BYTES",
+      "disposition": "enforced",
+      "evidence": "改为从 MEDIA_IMPORT_SURFACES.panorama.hardCapBytes 转出，理由登记为「整张图一次性上传成 WebGL 纹理，受 GPU 单纹理内存约束」。"
+    },
+    {
+      "path": "electron/browser/media/browserMediaValidation.ts",
+      "entry_point": "BROWSER_MEDIA_MAX_BYTES / sniffBrowserMediaContentType",
+      "disposition": "not-affected",
+      "evidence": "浏览器捕捞走的是 HTTP 流式落盘（streamBrowserMediaResponseToFile），上限同时兼作网络读取预算，与本地文件导入不是同一条链；连同它自带的第二份魔数表一起记进 check:media-import-owner 基线（棘轮只减不增），单独收口。"
+    },
+    {
+      "path": "src/workbench/assets/AssetPicker.tsx",
+      "entry_point": "ACCEPT_ATTR 及另外 7 处 accept 字面量",
+      "disposition": "not-affected",
+      "evidence": "都是 accept 属性的显示层收窄，不改变落盘准入（真正的闸已在主进程统一）；记进 check:media-import-owner 的 hardcoded-media-accept 基线，只减不增。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "entry_point": "useLocalFilePicker 的 onChange 预筛",
+      "disposition": "enforced",
+      "evidence": "删掉 filterCanvasImportableLocalFiles 这道第二份「收什么」判断；音频选中后由唯一导入路报出「这里放不下——画布节点只有图/视频两种落点」，走查从静默 15s 变成 14ms 给理由。"
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importNativeSourcePath 的转码判定文件名",
+      "disposition": "enforced",
+      "evidence": "落盘前用 canonicalAssetFileName 补回真实扩展名再判转码；同一段 10s HEVC 从 7–14s 整段转码变成 0.17s 原样落盘。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-media-import-owner.mjs",
+    "invariant": "src/ 与 electron/ 里不得新增：手写的 accept 媒体字面量、媒体相关的 *_MAX_BYTES 常量、或兜底成 'image' 的 startsWith kind 自判。三类各按棘轮计数，只减不增。",
+    "failure_mode": "若门岗被移除，下一个新入口会照旧长出自己的一份「收什么 / 收多大」，用户从那个入口又只能导入一部分媒体——正是本次用户报告的形状。",
+    "exception_policy": "none",
+    "strategy": "先验它会红：门岗首次运行对当时的代码报出 8 + 3 + 22 = 33 处，随本 PR 的删除逐条下降后把剩余数登记为基线。 owner 本体与 kind 判定单源（mediaImportPolicy / mediaTypes / videoPlaybackSupport / videoCodecProbe / nodeAssetDrop / assetPaths）在脚本 OWNER_FILES 里豁免——它们就是那份声明本身；除此之外没有豁免口，只能靠降低基线。",
+    "artifacts": [
+      "scripts/check-media-import-owner.mjs",
+      "scripts/media-import-owner-baseline.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/assets",
+    "has_tests": true,
+    "tests": [
+      "electron/shared/contracts/mediaImportPolicy.test.ts",
+      "electron/assets/videoImportNormalize.test.ts",
+      "electron/capabilityCore/importAssetGuard.test.ts"
+    ],
+    "rationale": "准入是存储边界的语义（收不收得下、放不放得进），不是任何一个界面的语义；住在 electron/assets 这个纯模块层，主进程的权威闸与渲染层的预检才能共用同一份声明。"
+  },
+  "class_regression_tests": [
+    "electron/shared/contracts/mediaImportPolicy.test.ts",
+    "src/workbench/assets/importAudioToLibrary.test.ts",
+    "src/workbench/assets/assetLibraryLocalImport.test.ts",
+    "electron/capabilityCore/importAssetGuard.test.ts",
+    "tests/ux/media-import-matrix.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/localFileCopy.ts",
+      "electron/assets/localFileCopy.test.ts",
+      "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "src/workbench/assets/importAudioToLibrary.ts",
+      "electron/capabilityCore/importAssetGuard.ts",
+      "electron/assets/videoImportNormalize.ts",
+      "src/workbench/assets/AssetLibraryPanel.tsx"
+    ],
+    "rationale": "P1 加新必删旧：localFileCopy.ts 整个文件删除；其余各文件里删掉的是它们自带的那份判断（GENERATION_CANVAS_IMAGE/VIDEO_IMPORT_MAX_BYTES、ASSET_LIBRARY_AUDIO_IMPORT_MAX_BYTES、IMPORT_MAX_BYTES 与自建的 contentTypeForExtension switch 表、PLAYABLE_VIDEO_CODECS 常量白名单、classifyUploadFiles 的 mime.startsWith 链），新旧不并存一刻。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因在本仓自己的导入边界与常量分布，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。已落盘的素材不受影响；此前被转码过的视频仍保留其 playbackNormalizedFrom 标记，渲染层的懒自愈路径不变。",
+  "residual_risks": [
+    "转码的进度条与可取消、以及「先落原片、后台派生可播版」不在本 PR：仍然是一次同步等待，只是不必要的那些等待被消掉了。",
+    "check:media-import-owner 的三条基线（accept 字面量 8、媒体 MAX_BYTES 常量 3、兜底成 image 的 kind 自判 22）是欠账登记而非防线；它们只挡新增，不会自己收敛。",
+    "本机 codec 探测未到达时（启动到探测完成之间的窗口、非 Electron 宿主）按保守白名单走，仍会对 HEVC 转码一次。"
+  ],
+  "internal_only_reason": "全部改动在本仓的素材导入边界与门岗脚本内，证据来自仓库代码、单测与本机真机矩阵走查。",
+  "regression_tests": [
+    "electron/shared/contracts/mediaImportPolicy.test.ts",
+    "src/workbench/assets/importAudioToLibrary.test.ts",
+    "src/workbench/assets/assetLibraryLocalImport.test.ts",
+    "electron/capabilityCore/importAssetGuard.test.ts",
+    "tests/ux/media-import-matrix.walk.mjs"
+  ],
+  "structural_review": "docs/audit/2026-09-15-media-landing-boundary-structure-review.md",
+  "prior_art": "docs/research/2026-09-14-media-import-single-owner/prior-art.md"
+}

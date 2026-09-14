@@ -1,3 +1,4 @@
+import type { MediaImportRejection, StorageCapacity } from '../../electron/shared/contracts/mediaImportPolicy'
 import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
 import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyncContracts'
@@ -401,7 +402,16 @@ export type DesktopBridge = DesktopMediaBridge &
       contentType?: string
       kind?: string
     }) => Promise<DesktopAssetDto | null>
-    copyFiles?: (payload: { projectId: string; paths: string[] }) => Promise<{ created: DesktopAssetDto[]; skippedUnsupportedCount: number; failedCount: number }>
+    copyFiles?: (payload: { projectId: string; paths: string[] }) => Promise<{
+      created: DesktopAssetDto[]
+      /** 被准入闸挡下的文件，带机器可读原因与数字（渲染层据此说人话）。 */
+      rejected: Array<{ fileName: string; rejection: MediaImportRejection }>
+      failedCount: number
+    }>
+    /** 项目盘剩余空间快照：导入上限从磁盘派生，不是常量。量不到 → null。 */
+    storageCapacity?: (payload: { projectId: string }) => Promise<StorageCapacity | null>
+    /** 本机能解哪些视频 codec：启动时探一次送进主进程，决定导入要不要转码。 */
+    reportVideoCodecs?: (payload: { codecs: string[] }) => Promise<void>
     copyProjectAsset?: (payload: { sourceProjectId: string; targetProjectId: string; relativePath: string }) => Promise<DesktopAssetDto>
     /** 播放懒自愈：nomi-local 视频解不了（HEVC 存量/供应商 HEVC 产物）→ 转码出新 MP4 资产；不适用 → null。 */
     ensurePlayable?: (payload: { url: string }) => Promise<DesktopAssetDto | null>

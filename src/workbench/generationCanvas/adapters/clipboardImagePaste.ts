@@ -1,4 +1,6 @@
 import { reportCanvasFeedback } from '../components/canvasFeedback'
+import { mediaImportRejectionMessages } from '../../assets/mediaImportMessage'
+import type { GenerationAssetImportSkip } from './assetImportAdapter'
 import {
   hostedAssetUrl,
   importWorkbenchLocalAssetFile,
@@ -59,7 +61,8 @@ export type ClipboardMediaPasteResult = {
   handled: boolean
   importedCount: number
   failedCount: number
-  skippedTooLargeCount: number
+  /** 被准入闸挡下的文件（类型不对 / 硬上限 / 磁盘装不下），带数字。 */
+  rejected: GenerationAssetImportSkip[]
   skippedOverLimitCount: number
   usedExternalUrl: boolean
 }
@@ -71,7 +74,7 @@ function emptyResult(handled = false): ClipboardMediaPasteResult {
     handled,
     importedCount: 0,
     failedCount: 0,
-    skippedTooLargeCount: 0,
+    rejected: [],
     skippedOverLimitCount: 0,
     usedExternalUrl: false,
   }
@@ -293,7 +296,7 @@ function resultFromImport(result: GenerationAssetImportResult): ClipboardMediaPa
     handled: true,
     importedCount: result.created.length,
     failedCount: result.failedCount,
-    skippedTooLargeCount: result.skippedTooLargeCount,
+    rejected: result.rejected,
     skippedOverLimitCount: result.skippedOverLimitCount,
     usedExternalUrl: false,
   }
@@ -549,7 +552,7 @@ export function showClipboardMediaPasteNotes(result: ClipboardMediaPasteResult, 
   if (!result.handled) return
   const notes: string[] = []
   if (result.skippedOverLimitCount > 0) notes.push(`超过 8 个，已忽略 ${result.skippedOverLimitCount} 个`)
-  if (result.skippedTooLargeCount > 0) notes.push(`${result.skippedTooLargeCount} 个媒体过大`)
+  for (const message of mediaImportRejectionMessages(result.rejected)) notes.push(message)
   if (result.failedCount > 0) notes.push(`${result.failedCount} 个媒体导入失败`)
   if (notes.length) reportCanvasFeedback(notes.join('；'), result.failedCount > 0 ? 'error' : 'warning', { projectId, identity: 'canvas-paste', reason: 'paste-incomplete' })
 }

@@ -5,8 +5,14 @@ import os from "node:os";
 import path from "node:path";
 
 import { copyAssetFile, writeAsset } from "../runtime";
-import { extensionFromMime } from "./assetPaths";
-import { resolveContentType } from "./mediaTypes";
+import { canonicalAssetFileName, extensionFromMime } from "./assetPaths";
+import { mediaKindFromExtension, resolveContentType } from "./mediaTypes";
+import {
+  admitMediaImport,
+  type MediaImportRejection,
+  type MediaImportSurfaceId,
+} from "../shared/contracts/mediaImportPolicy";
+import { readStorageCapacity } from "./storageCapacity";
 import { parseLocalAssetUrl } from "../protocol/localProtocol";
 import {
   ensurePlayableVideoBytes,
@@ -25,6 +31,43 @@ function bytesFromPayload(value: unknown): Buffer {
 
 type ImportLocalFileOptions = { allowSourcePath?: boolean };
 
+/** 准入闸挡下时抛这个：调用方要把 rejection 里的数字讲给用户听，不许退化成一句「过大」。 */
+export class MediaImportRejectedError extends Error {
+  constructor(public readonly rejection: MediaImportRejection, public readonly fileName: string) {
+    super(`media import rejected: ${rejection.reason}`);
+    this.name = "MediaImportRejectedError";
+  }
+}
+
+/**
+ * 落盘前的**权威准入闸**（R28：防线建在最早同时握有磁盘事实与真实字节的那层）。
+ * 渲染层会先用同一个 admitMediaImport 做预检以免白建节点——同一个函数两个调用者是派生，不是并行版。
+ */
+function assertAdmitted(
+  projectId: string,
+  fileName: string,
+  contentType: string,
+  sizeBytes: number,
+  surface: MediaImportSurfaceId,
+): void {
+  const kind = mediaKindFromExtension(fileName)
+    ?? (contentType.startsWith("image/") ? "image"
+      : contentType.startsWith("video/") ? "video"
+        : contentType.startsWith("audio/") ? "audio"
+          : contentType.startsWith("model/") ? "model3d" : null);
+  const admission = admitMediaImport(surface, { kind, sizeBytes }, readStorageCapacity(projectId));
+  if (!admission.ok) throw new MediaImportRejectedError(admission, fileName);
+}
+
+function surfaceFromPayload(raw: JsonRecord): MediaImportSurfaceId {
+  const value = String(raw.surface || "").trim();
+  // 主进程只把关「Nomi 到底存不存得下」（素材库全集 + 磁盘）；更窄的落点约束（画布只有图/视频
+  // 两种节点）属于渲染层的摆放问题，在那里用同一个 admitMediaImport 判。
+  return value === "agent-composer" || value === "director-3d" || value === "panorama"
+    ? value
+    : "asset-library";
+}
+
 async function importNativeSourcePath(
   raw: JsonRecord,
   sourcePath: string,
@@ -35,6 +78,7 @@ async function importNativeSourcePath(
   const stat = await fs.promises.stat(sourcePath);
   if (!stat.isFile()) throw new Error("source file is unavailable");
   let effectiveContentType = contentType;
+  const sizeBytes = Number(stat.size) || 0;
   if (contentType.toLowerCase().split(";")[0] === "application/octet-stream" && (!path.extname(fileName) || path.extname(fileName).toLowerCase() === ".bin")) {
     const handle = await fs.promises.open(sourcePath, "r");
     try {
@@ -45,17 +89,23 @@ async function importNativeSourcePath(
       await handle.close();
     }
   }
+  assertAdmitted(projectId, fileName, effectiveContentType, sizeBytes, surfaceFromPayload(raw));
+  // 扩展名必须补回来再往下走：调用方传进来的常常是**节点标签**（画布导入用的就是去掉扩展名的
+  // 文件名）。而「要不要转码」第一步就看容器扩展名——名字里没有 `.mov`，`videoNeedsPlayabilityTranscode`
+  // 只能判 `container:unknown` 一律转码，本机能不能原生播就白探了（实测：同一段 10s HEVC，
+  // 粘贴进来 <2s 原样落盘，走文件选择器却要转十几秒）。
+  const storedName = canonicalAssetFileName(fileName, effectiveContentType);
   const baseMeta = { kind: raw.kind || "upload", originalName: raw.fileName || null };
   if (!effectiveContentType.startsWith("video/")) {
-    return copyAssetFile(projectId, sourcePath, fileName, effectiveContentType, baseMeta);
+    return copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta);
   }
 
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "nomi-video-native-import-"));
   try {
     try {
-      const transcoded = await transcodeFileToPlayableMp4IfNeeded(sourcePath, fileName, tempDir);
+      const transcoded = await transcodeFileToPlayableMp4IfNeeded(sourcePath, storedName, tempDir);
       if (transcoded) {
-        return await copyAssetFile(projectId, transcoded.outputPath, playableMp4FileName(fileName), "video/mp4", {
+        return await copyAssetFile(projectId, transcoded.outputPath, playableMp4FileName(storedName), "video/mp4", {
           ...baseMeta,
           playbackNormalizedFrom: transcoded.reason,
         });
@@ -63,7 +113,7 @@ async function importNativeSourcePath(
     } catch (error) {
       logWarn("assets", "video-normalize-failed-import-original-file", undefined, error);
     }
-    return await copyAssetFile(projectId, sourcePath, fileName, effectiveContentType, baseMeta);
+    return await copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta);
   } finally {
     await fs.promises.rm(tempDir, { recursive: true, force: true });
   }
@@ -86,9 +136,10 @@ export async function importLocalFile(payload: unknown, options: ImportLocalFile
     : hintedContentType;
   const ext = extensionFromMime(contentType, "bin");
   const fileName = rawFileName || `asset-${Date.now()}.${ext}`;
+  assertAdmitted(projectId, fileName, contentType, bytes.length, surfaceFromPayload(raw));
   // 视频先过可播放归一化（HEVC/AVI 等 Chromium 解不了的转 H.264 MP4；失败回退原字节不挡导入）。
   const normalized = contentType.startsWith("video/")
-    ? await ensurePlayableVideoBytes(bytes, fileName, contentType)
+    ? await ensurePlayableVideoBytes(bytes, canonicalAssetFileName(fileName, contentType), contentType)
     : null;
   return writeAsset(
     projectId,

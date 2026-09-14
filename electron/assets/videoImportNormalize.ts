@@ -16,19 +16,25 @@ import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { ensureExecutable } from "../export/ensureExecutable";
 import { probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
 import { logWarn } from "../logging/logger";
+import { playableVideoCodecs } from "./videoPlaybackSupport";
 
-// Chromium 跨平台稳解的安全集（HEVC 刻意排除：macOS 部分硬解、Windows 默认不行——按最差平台归一，
-// 行为跨平台一致）。音频宽松列常见可播集；无音轨视为可播。
+// 容器与音频仍按 Chromium 跨平台稳解的安全集判。**视频 codec 不再是常量**：
+// 2026-09-14 起问本机（videoPlaybackSupport，渲染层 MediaSource.isTypeSupported 探测结果）——
+// 原来的 hardcode 白名单刻意排除 HEVC「按最差平台归一」，代价是本机 55–110ms 就能播的片子
+// 要白等十几分钟的整段转码。无音轨视为可播。
 const PLAYABLE_CONTAINER_EXTS = new Set(["mp4", "m4v", "mov", "webm", "ogg", "ogv"]);
-const PLAYABLE_VIDEO_CODECS = new Set(["h264", "vp8", "vp9", "av1"]);
 const PLAYABLE_AUDIO_CODECS = new Set(["aac", "mp3", "opus", "vorbis", "flac"]);
 
-/** 该视频要不要转码。返回原因串（记进资产 meta / 日志），null = 本就可播。纯函数，可单测。 */
-export function videoNeedsPlayabilityTranscode(fileName: string, probe: MediaProbeMetadata): string | null {
+/** 该视频要不要转码。返回原因串（记进资产 meta / 日志），null = 本就可播。 */
+export function videoNeedsPlayabilityTranscode(
+  fileName: string,
+  probe: MediaProbeMetadata,
+  playableCodecs: ReadonlySet<string> = playableVideoCodecs(),
+): string | null {
   const ext = path.extname(String(fileName || "")).replace(/^\./, "").toLowerCase();
   if (!PLAYABLE_CONTAINER_EXTS.has(ext)) return `container:${ext || "unknown"}`;
   const videoCodec = (probe.videoCodec || "").toLowerCase();
-  if (!PLAYABLE_VIDEO_CODECS.has(videoCodec)) return `codec:${videoCodec || "unknown"}`;
+  if (!playableCodecs.has(videoCodec)) return `codec:${videoCodec || "unknown"}`;
   if (probe.hasAudio) {
     const audioCodec = (probe.audioCodec || "").toLowerCase();
     if (!PLAYABLE_AUDIO_CODECS.has(audioCodec)) return `audio:${audioCodec || "unknown"}`;

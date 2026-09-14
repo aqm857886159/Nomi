@@ -4,7 +4,6 @@ import { clipboard, dialog, ipcMain } from "electron";
 import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downloadPrefs";
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
-import { copyLocalImageFiles } from "./localFileCopy";
 import { copyProjectAsset } from "./projectAssetStore";
 
 export function readClipboardFilePathsFromFormats(
@@ -55,11 +54,28 @@ export function registerAssetsIpc(): void {
       format === "text/plain" ? Buffer.from(clipboard.readText(), "utf8") : clipboard.readBuffer(format),
     );
   });
-  ipcMain.handle("nomi:assets:copy-files", (event, payload) => {
+  // Finder 拖入 / 粘贴素材库：与「上传」按钮走同一条落盘路（importLocalFile），
+  // 不再另有一份只收图片的窄实现（2026-09-14 删 localFileCopy.ts）。
+  ipcMain.handle("nomi:assets:copy-files", async (event, payload) => {
     assertTrustedSender(event);
     const parsed = parseCopyFilesPayload(payload);
     if (!parsed) throw new Error("projectId and paths are required");
-    return copyLocalImageFiles(parsed.projectId, parsed.paths);
+    const { importLocalFilePaths } = await import("./localFileCopy");
+    return importLocalFilePaths(parsed.projectId, parsed.paths);
+  });
+  // 本机视频解码能力：渲染层探一次送进来，决定导入要不要转码（原来是 hardcode 白名单在猜）。
+  ipcMain.handle("nomi:assets:report-video-codecs", async (event, payload) => {
+    assertTrustedSender(event);
+    const raw = (payload || {}) as { codecs?: unknown };
+    const codecs = Array.isArray(raw.codecs) ? raw.codecs.filter((c): c is string => typeof c === "string") : [];
+    const { setProbedVideoCodecs } = await import("./videoPlaybackSupport");
+    setProbedVideoCodecs(codecs);
+  });
+  // 渲染层做导入预检用的磁盘余量快照（上限从磁盘派生，不是常量）。
+  ipcMain.handle("nomi:assets:storage-capacity", async (event, payload) => {
+    assertTrustedUiSender(event);
+    const { readStorageCapacity } = await import("./storageCapacity");
+    return readStorageCapacity(String((payload as { projectId?: unknown } | null)?.projectId || ""));
   });
   ipcMain.handle("nomi:assets:copy-project-asset", async (event, payload) => {
     assertTrustedSender(event);

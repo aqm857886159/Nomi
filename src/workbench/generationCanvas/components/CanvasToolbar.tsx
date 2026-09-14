@@ -10,7 +10,7 @@ import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
-import { filterCanvasImportableLocalFiles, importLocalFilesToGenerationCanvas } from './canvasStageDrop'
+import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
 import {
   canvasFullAddSections,
   canvasMoreAddSections,
@@ -79,7 +79,9 @@ function useLocalFilePicker(onFiles: (files: File[]) => void): { input: JSX.Elem
       aria-hidden="true"
       tabIndex={-1}
       onChange={(event) => {
-        const files = filterCanvasImportableLocalFiles(Array.from(event.currentTarget.files || []))
+        // 不在这里筛：选中了却落不下的（音频在画布上没有节点可落）必须由导入那条路报出理由。
+        // 此前这里先筛一遍、筛空就什么都不做——用户选完一个 mp3，界面一个字都没有（实测静默）。
+        const files = Array.from(event.currentTarget.files || [])
         event.currentTarget.value = ''
         if (files.length) onFiles(files)
       }}

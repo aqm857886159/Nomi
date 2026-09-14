@@ -26,7 +26,6 @@
     "src/ui/onboarding/modelDiscovery.ts -> electron/ai/onboarding/modelListResponse.ts",
     "src/ui/onboarding/modelSettingsHomeState.ts -> electron/catalog/types.ts",
     "src/ui/onboarding/useOnboardingDrawerCatalog.ts -> electron/catalog/types.ts",
-    "src/workbench/assets/AssetLibraryPanel.tsx -> electron/assets/mediaTypes.ts",
     "src/workbench/assets/assetTypes.ts -> electron/workspace/workspaceFileIndex.ts",
     "src/workbench/assets/importAudioToLibrary.ts -> electron/assets/mediaTypes.ts",
     "src/workbench/creation/creationAiModes.ts -> electron/settings/systemPromptsContract.ts",
