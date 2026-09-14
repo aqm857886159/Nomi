@@ -194,7 +194,7 @@
     "check:transport-assembly": "node ./scripts/check-transport-assembly.mjs",
     "check:spend-receipt": "node ./scripts/check-spend-confirmation-receipt.mjs",
     "check:announced-card": "node ./scripts/check-announced-card-rendered.mjs --selftest && node ./scripts/check-announced-card-rendered.mjs",
-    "check:run-task-grant": "node ./scripts/check-run-task-grant.mjs",
+    "check:run-task-grant": "node --test ./scripts/check-run-task-grant.node-test.mjs && node ./scripts/check-run-task-grant.mjs",
     "check:storyboard-owner": "node scripts/check-storyboard-owner.mjs",
     "design-lab:walk:primitives-actions": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-primitives-actions.walk.mjs",
     "design-lab:walk:primitives-forms": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-primitives-forms.walk.mjs",

@@ -22,7 +22,7 @@
 // 怎么验它真的会红：把 `electron/video/deconstructVideo.ts` 里任一处 `grantId,` 删掉再跑。
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -87,23 +87,32 @@ function scan(code, file) {
   return hits
 }
 
-const hits = []
-for (const file of collect()) {
-  // 门岗本体与 runTask 的定义处不在管辖内（定义处读的正是 extras.grantId）。
-  if (file === path.join(repoRoot, 'electron', 'runtime.ts')) continue
-  hits.push(...scan(stripComments(fs.readFileSync(file, 'utf8')), file))
+function main() {
+  const hits = []
+  for (const file of collect()) {
+    // 门岗本体与 runTask 的定义处不在管辖内（定义处读的正是 extras.grantId）。
+    if (file === path.join(repoRoot, 'electron', 'runtime.ts')) continue
+    hits.push(...scan(stripComments(fs.readFileSync(file, 'utf8')), file))
+  }
+
+  if (hits.length) {
+    console.log('\n✖ 付费出口缺少 grantId：这些调用点自己拼了 request，却没有带授权令牌。')
+    console.log('  后果不是「报错」，是**被闸在发请求之前拦掉、再被上层 catch 吞成一句人话之外的空白**')
+    console.log('  （2026-09-11 用户看到的满屏「没读出」就是这样来的）。')
+    for (const hit of hits) {
+      console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
+    }
+    console.log('\n  → 正道：让发起这次动作的那一层先过钱的闸拿到 grantId（主进程 electron/spendConfirmGrant.ts，')
+    console.log('    渲染层 src/workbench/generationCanvas/spend/spendConfirm.ts），再把 grantId + nodeId 放进 extras。')
+    console.log('    绝不许在 spendGrant 里开「某某 kind 免闸」的后门——那正是 2d907292a 要关的洞。')
+    return 1
+  }
+  console.log('✅ 付费出口门岗通过：每一处自拼 request 的 runTask 都带着 grantId（硬零）。')
+  return 0
 }
 
-if (hits.length) {
-  console.log('\n✖ 付费出口缺少 grantId：这些调用点自己拼了 request，却没有带授权令牌。')
-  console.log('  后果不是「报错」，是**被闸在发请求之前拦掉、再被上层 catch 吞成一句人话之外的空白**')
-  console.log('  （2026-09-11 用户看到的满屏「没读出」就是这样来的）。')
-  for (const hit of hits) {
-    console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
-  }
-  console.log('\n  → 正道：让发起这次动作的那一层先过钱的闸拿到 grantId（主进程 electron/spendConfirmGrant.ts，')
-  console.log('    渲染层 src/workbench/generationCanvas/spend/spendConfirm.ts），再把 grantId + nodeId 放进 extras。')
-  console.log('    绝不许在 spendGrant 里开「某某 kind 免闸」的后门——那正是 2d907292a 要关的洞。')
-  process.exit(1)
-}
-console.log('✅ 付费出口门岗通过：每一处自拼 request 的 runTask 都带着 grantId（硬零）。')
+// 导出给 `scripts/check-run-task-grant.node-test.mjs`：门岗自己必须有**验得出红**的测试
+// （R17：加规则先验它会红）。被 import 时不跑主流程，直接执行时才跑。
+export { stripComments, balancedArgs, scan }
+
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) process.exit(main())
