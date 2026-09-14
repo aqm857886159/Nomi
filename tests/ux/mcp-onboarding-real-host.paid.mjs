@@ -56,6 +56,17 @@ const LEGS = String(flag('legs', 'A,B')).split(',').map((leg) => leg.trim().toUp
  * 所以两种都要跑、都要报：`--single-shot=off` 是今天用户拿到的行为，`=on` 是灰度目标。
  */
 const SINGLE_SHOT = String(flag('single-shot', 'off')).toLowerCase() === 'on'
+/**
+ * 把真实资料库里的「默认生成模型」也带进隔离目录。
+ *
+ * `prepareIsolation` 只拷 `model-catalog.json`，所以隔离实例有 34 个模型、却**没有一个被选成默认**。
+ * 于是 `nomi_operation_plan` 在 `semanticGenerationCandidate.ts:207` 抛
+ * 「没有配置可用的图片模型，请先在设置中选择模型」——那是**仪器缺一份设置**，不是产品缺陷；
+ * 真实用户的资料库里这份文件一直在（`docs/lessons/iso-walkthrough-key-seeding-traps`：
+ * 真实设置根下不止 catalog 一份文件，漏一个就出像坏了一样的假象）。
+ * 这份文件里只有模型身份（vendorKey / modelKey），没有任何凭据。
+ */
+const SEED_DEFAULTS = String(flag('seed-generation-defaults', 'off')).toLowerCase() === 'on'
 const USER_CLAUDE_JSON = path.join(os.homedir(), '.claude.json')
 
 /**
@@ -200,6 +211,15 @@ async function main() {
     process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1 = '1'
   }
   const iso = prepareIsolation(ISO_DIR)
+  if (SEED_DEFAULTS) {
+    for (const name of ['generation-model-defaults.json', 'provider-adapters.json']) {
+      const from = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', name)
+      if (fs.existsSync(from)) {
+        fs.copyFileSync(from, path.join(iso.settingsDir, name))
+        console.log(`带进隔离目录：${name}`)
+      }
+    }
+  }
   console.log(`隔离目录：${ISO_DIR}`)
   const { app, win } = await launchIsolatedApp(repoRoot, iso)
   await dismissSplashIfPresent(win)
@@ -265,8 +285,8 @@ async function main() {
         ['A1-接中转', '帮我把 APIMart 当中转接进 Nomi。它是 OpenAI 兼容的中转站，地址 https://api.apimart.ai/v1，走 Authorization: Bearer。我的 key 已经有了。'],
         ['A2-接最新模型', '在刚接的这家中转上，把它最新的图片模型 gpt-image-2.5 和最新的视频模型 gemini-omni-1.1-flash 接上，让它们能在画布的模型框里选到。走不动的地方告诉我卡在哪、要我做什么。'],
         ['B1-接模型', '换个做法：APIMart 这家我早就接好了、key 也在。请在**已经存在的那个 APIMart 连接**上，把 gpt-image-2.5（图片）和 gemini-omni-1.1-flash（视频）这两个模型接上，并显示到画布的模型框里。'],
-        ['B2-出图', '在画布上只建**一个**图片节点，用 APIMart 上能用的图片模型画「一只在窗台上晒太阳的橘猫」，然后真的跑一次生成。报价确认卡会在 Nomi 里弹出来、我会点。一次只建一个节点。做完把产物路径告诉我。'],
-        ['B3-出视频', '再在画布上只建**一个**视频节点，用 gemini-omni-1.1-flash 出同题材一段 5 秒视频，真的跑一次生成。同样一次只建一个节点。做完把产物路径告诉我。'],
+        ['B2-出图', '在画布上只建**一个**图片节点，画「一只在窗台上晒太阳的橘猫」，然后真的跑一次生成，用我设置里默认的那个图片模型就行。报价确认卡会在 Nomi 里弹出来、我会点。一次只建一个节点，别建两个。做完把产物路径告诉我。'],
+        ['B3-出视频', '再在画布上只建**一个**视频节点，同题材出一段 5 秒视频，真的跑一次生成，用我设置里默认的那个视频模型就行。同样一次只建一个节点。做完把产物路径告诉我。'],
       ].filter(([label]) => LEGS.includes(String(label)[0]))
 
   const allApprovals = []
