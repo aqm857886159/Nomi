@@ -17,27 +17,30 @@ export type McpClientProfile = {
   /** 检测时的原始自报名字（detected 改名后保留，用于检测去重）。 */
   sourceName?: string
 }
-export type McpConfigState =
-  | 'absent'
-  | 'current'
-  | 'development'
-  | 'legacy-launcher'
-  | 'stale-development'
-  | 'auth-stale'
-  | 'launcher-stale'
-  | 'custom'
+// 状态/诊断词表的唯一 owner 是中立契约层 electron/shared/mcpConnectionContract.ts（主进程与渲染层同源）。
+import type { McpConfigState, McpVerifyReason } from '../../electron/shared/mcpConnectionContract'
+export type { McpConfigState, McpVerifyReason }
 
 export type McpClientInfo = {
   installed: boolean
-  /** 宿主应用存在；与 Nomi 配置是否写入独立。 */
-  appInstalled?: boolean
+  /** 宿主应用本机有安装痕迹；与 Nomi 配置是否写入独立。未安装的不进一键列表。 */
+  appInstalled: boolean
   configPath: string
   snippet: string
   configState: McpConfigState
   launcherKind: McpLauncherKind
-  migration: 'none' | 'upgraded'
-  backupPath: string | null
 }
+
+/** 写盘被拒的原因（主进程 mcpConfig.McpWriteRefusal 的投影）。 */
+export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
+
+export type McpInstallResult =
+  | { ok: true; client: string; configPath: string; backupPath: string | null }
+  | { ok: false; client: string; configPath: string; backupPath: null; reason: McpWriteRefusal }
+
+export type McpUninstallResult =
+  | { ok: true; client: string }
+  | { ok: false; client: string; reason: McpWriteRefusal }
 
 export type McpInfo = {
   tokenReady: boolean
@@ -46,17 +49,6 @@ export type McpInfo = {
   trustedHosts: string[]
   clients: Record<McpClientKey, McpClientInfo>
 }
-
-/** 实连验证的失败原因。UI 文案按它走 i18n（主进程不回中文——R15）。 */
-export type McpVerifyReason =
-  | 'ok'
-  | 'not-installed'
-  | 'command-missing'
-  | 'argument-missing'
-  | 'spawn-failed'
-  | 'timeout'
-  | 'handshake-failed'
-  | 'client-auth-missing'
 
 export type McpVerifyResult = {
   ok: boolean

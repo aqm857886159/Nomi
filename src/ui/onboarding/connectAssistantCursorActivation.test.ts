@@ -4,25 +4,29 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { zhOnboardingProviders, enOnboardingProviders } from '../../i18n/locales/onboardingProviders'
-import { resolveAssistantActivationState } from './assistantActivationState'
+import { MCP_CLIENT_REGISTRY } from '../../../electron/shared/mcpClientRegistry'
+import { assistantRequiresHostApproval, resolveAssistantActivationState } from './assistantActivationState'
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
 const read = (file: string): string => fs.readFileSync(path.join(dir, file), 'utf8')
 
+// Cursor 还有宿主自己的审批门：Nomi 握手成功只证明命令可用，不能替 Cursor 批准自己。
+// 这个事实住在注册表（requiresHostApproval），不许在渲染层写死 target === 'cursor'。
 describe('Cursor MCP activation remains truthful', () => {
+  it('reads the host-approval fact from the registry instead of a hard-coded key', () => {
+    expect(MCP_CLIENT_REGISTRY.cursor.requiresHostApproval).toBe(true)
+    expect(assistantRequiresHostApproval('cursor')).toBe(true)
+    expect(assistantRequiresHostApproval('claude')).toBe(false)
+    expect(read('assistantActivationState.ts')).not.toContain("=== 'cursor'")
+  })
+
   it.each([null, 'checking', 'ok'] as const)(
     'keeps installed Cursor neutral and approval-aware when verification is %s',
     (verifyPhase) => {
       const state = resolveAssistantActivationState({
         target: 'cursor', installed: true, verifyPhase, trustedHosts: ['nomi', 'claude', 'codex'],
       })
-      expect(state).toEqual({
-        broken: false,
-        cursorConfiguration: true,
-        cursorTrusted: false,
-        headerStatus: 'todo',
-        showCursorPermissionAction: true,
-      })
+      expect(state).toEqual({ broken: false, hostApprovalPending: true, trusted: false, headerStatus: 'todo' })
     },
   )
 
@@ -31,10 +35,10 @@ describe('Cursor MCP activation remains truthful', () => {
       target: 'cursor', installed: true, verifyPhase: 'ok', trustedHosts: ['nomi', 'cursor'],
     })
     expect(trusted.headerStatus).toBe('todo')
-    expect(trusted.cursorTrusted).toBe(true)
-    expect(trusted.showCursorPermissionAction).toBe(false)
-    expect(zhOnboardingProviders.assistant.cursorHostPermissionUnknown).toContain('可能')
-    expect(enOnboardingProviders.assistant.cursorHostPermissionUnknown).toContain('May')
+    expect(trusted.trusted).toBe(true)
+    expect(trusted.hostApprovalPending).toBe(true)
+    expect(zhOnboardingProviders.assistant.hostApprovalHint).toContain('可能')
+    expect(enOnboardingProviders.assistant.hostApprovalHint).toContain('may')
   })
 
   it('keeps verified Claude Code green while a broken Cursor stays broken', () => {
@@ -45,7 +49,7 @@ describe('Cursor MCP activation remains truthful', () => {
       target: 'cursor', installed: true, verifyPhase: 'broken', trustedHosts: ['nomi', 'cursor'],
     })
     expect(broken.broken).toBe(true)
-    expect(broken.cursorConfiguration).toBe(false)
+    expect(broken.hostApprovalPending).toBe(false)
     expect(broken.headerStatus).toBe('todo')
   })
 
@@ -58,28 +62,17 @@ describe('Cursor MCP activation remains truthful', () => {
     },
   )
 
-  it('targets the Cursor permission row instead of silently self-approving', () => {
+  // 「连上后允许做什么」是每张客户端卡里的第二个开关，不再是设置页里独立的一栏；
+  // Cursor 也不再有一条「跳去别处开权限」的旁路。
+  it('keeps the trust switch inside the client card and removes the separate hosts section', () => {
     const card = read('ConnectAssistantCard.tsx')
-    const permissions = fs.readFileSync(
-      path.resolve(dir, '../../workbench/settings/AutomationPermissionsSection.tsx'),
-      'utf8',
-    )
-    expect(card).toContain("tab: 'automation', section: 'cursor-host'")
-    // Connection feedback now lives in the card; there is no detached toast to dismiss.
-    expect(card).not.toContain('CURSOR_CONNECTED_TOAST_ID')
-    expect(card).not.toMatch(/\b(?:toast|notify)\(/)
-    expect(card).toContain('activation.showCursorPermissionAction ?')
-    expect(card).toContain('onClick={openAutomationPermissions}')
-    expect(card).toContain('onOpenAutomationPermissions()')
-    // Installing MCP config must never approve the host. Trust is changed only by the settings switch.
-    expect(card).not.toMatch(/trustedHosts\s*[:=]\s*\[|trustedHosts\.(?:push|splice)|toggleHost\(|updateAutomationPolicy\(/)
-    expect(permissions).toContain('onChange={(event) => toggleHost(host.key, event.currentTarget.checked)}')
-    expect(permissions).toContain("section={host.key === 'cursor' ? 'cursor-host' : undefined}")
-    expect(card).not.toContain('mcp-approvals.json')
-  })
-
-  it('keeps the compact bilingual card title short enough to remain primary information', () => {
-    expect(zhOnboardingProviders.assistant.name).toBe('AI 助手')
-    expect(enOnboardingProviders.assistant.name).toBe('AI agents')
+    expect(card).toContain('data-assistant-trust-row')
+    expect(card).toContain('onTrustChange(target, event.currentTarget.checked)')
+    expect(card).not.toContain('cursor-host')
+    expect(card).not.toContain("=== 'cursor'")
+    const permissions = read('../../workbench/settings/AutomationPermissionsSection.tsx')
+    expect(permissions).toContain('onTrustChange={toggleHost}')
+    expect(permissions).not.toContain('settings-hosts-title')
+    expect(permissions).not.toContain('cursor-host')
   })
 })

@@ -4,7 +4,7 @@ import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyn
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge, DesktopVideoDepthBridge, DesktopAssetDto, DesktopAssetFoldersState } from './bridgeMedia'
 import type { DesktopConnectorBridge } from './bridgeConnector'
-import type { McpClientProfile, McpInfo, McpVerifyResult } from './mcpBridgeTypes'
+import type { McpClientProfile, McpInfo, McpInstallResult, McpUninstallResult, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
@@ -742,9 +742,9 @@ export type DesktopBridge = DesktopMediaBridge &
     /** 「接入 AI 编程助手」卡：读接入状态 + 各客户端配置片段（类型见 mcpBridgeTypes）。 */
     mcpInfo: () => McpInfo
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */
-    installMcp: (client?: string) => { ok: boolean; client: string; configPath: string; backupPath: string | null }
+    installMcp: (client?: string) => McpInstallResult
     /** 撤销接入指定客户端：删 nomi 条目。默认 Claude Code。 */
-    uninstallMcp: (client?: string) => { ok: boolean; client: string }
+    uninstallMcp: (client?: string) => McpUninstallResult
     listCustomMcpProfiles?: () => Promise<McpClientProfile[]>
     registerCustomMcpProfile?: (profile: unknown) => Promise<McpClientProfile | null>
     removeCustomMcpProfile?: (key: string) => Promise<boolean>

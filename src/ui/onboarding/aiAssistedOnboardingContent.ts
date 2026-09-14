@@ -8,11 +8,10 @@
  */
 import skillMarkdown from '../../../agent-skills/nomi-add-model/SKILL.md?raw'
 import { ASSISTANT_CLIENT_ORDER, type AssistantClientKey } from './assistantActivationState'
-import type { McpInfo } from '../../desktop/mcpBridgeTypes'
 
 /**
  * 卡上的宿主分段。前三个是 Nomi 能一键写配置、且用户真会带来的宿主（设计定稿 §Main）；
- * `other` 是所有别的（含 Cursor / Pi——它们同样能一键接入，卡上另给一行指路）。
+ * `other` 是所有别的（含 Cursor / Claude Desktop——它们同样能一键接入，卡上另给一行指路）。
  */
 export const ASSISTED_ONBOARDING_HOSTS = ['workbuddy', 'codex', 'claude', 'other'] as const
 export type AssistedOnboardingHost = typeof ASSISTED_ONBOARDING_HOSTS[number]
@@ -34,21 +33,8 @@ export const ASSISTED_ONBOARDING_SKILL_PATH = `${ASSISTED_ONBOARDING_SKILL_NAME}
 /** 技能包原文。真相源是 agent-skills/nomi-add-model/SKILL.md，这里只是它的一个读者。 */
 export const ASSISTED_ONBOARDING_SKILL_MARKDOWN = skillMarkdown.trim()
 
-/**
- * 「其它」宿主要粘的 MCP 配置片段。
- *
- * 形状 owner 是主进程的 `mcpConfig.jsonSnippet`（`{ mcpServers: { nomi: … } }`）——那也是
- * Claude Code / Cursor 等家的事实标准形状（<https://code.claude.com/docs/en/mcp>，
- * 夹具 tests/fixtures/standard-formats/mcp/.mcp.json）。**内容必须现算**：command/args
- * 逐台机器不同，写成常量的那一刻它就对不上任何一台机器。
- *
- * `info.server` 是**不带客户端签名**的那份条目（`mcpServerEntry()` 无参形态），里面没有任何
- * 密钥；未签名连接照样走得完 integration.* 全程（dispatcher.ts:725-790 只有
- * `integration.manage.*` 要签名身份）。
- */
-export function assistedOnboardingMcpSnippet(server: McpInfo['server']): string {
-  return JSON.stringify({ mcpServers: { nomi: server } }, null, 2)
-}
+// 「其它」宿主要粘的 MCP 配置片段：通用未签名条目，owner 在 ./mcpGenericSnippet（AI 助手连接页的
+// 「其他客户端 · 复制通用配置」复制的是同一份），这里不再另写一份。
 
 export type AssistedOnboardingClipboardInput = {
   host: AssistedOnboardingHost
