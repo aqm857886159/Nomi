@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-09-14T22:39:48.317Z",
+  "receipts": [
+    {
+      "vendorKey": "apimart",
+      "modelKey": "deepseek-v4-pro",
+      "ok": false,
+      "reason": "credential-missing"
+    },
+    {
+      "vendorKey": "apimart",
+      "modelKey": "deepseek-v4-flash",
+      "ok": false,
+      "reason": "credential-missing"
+    },
+    {
+      "vendorKey": "apimart",
+      "modelKey": "deepseek-v3.2",
+      "ok": false,
+      "reason": "credential-missing"
+    },
+    {
+      "vendorKey": "apimart",
+      "modelKey": "deepseek-v3.1-terminus",
+      "ok": false,
+      "reason": "credential-missing"
+    },
+    {
+      "vendorKey": "apimart",
+      "modelKey": "gemini-3.5-flash",
+      "ok": false,
+      "reason": "credential-missing"
+    }
+  ]
+}

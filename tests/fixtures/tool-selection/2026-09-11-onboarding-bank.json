@@ -123,6 +123,198 @@
     "remove_provider",
     "cancel_model_setup"
   ],
+  "_worlds": {
+    "_comment": [
+      "每个 S11.x 状态的初始世界 —— **唯一 owner**。此前它是 scripts/tool-face-bank/envelope.mjs 里的",
+      "一个 switch，只有真实模型臂读得到；零额度夹具要读同一份世界才能和真实模型臂比数字，",
+      "所以数据搬到题库里（P1：搬过来的同 commit 删掉那个 switch，不留第二份）。",
+      "字段是「用户在 Nomi 里看得到的东西」的近似：连接、连接下的模型、在途接入等在谁身上。",
+      "新增状态就在这里加一格；别在任何司机里再写一份。"
+    ],
+    "byState": {
+      "S11.0": {
+        "connections": [],
+        "setups": [
+          {
+            "id": "setup_probe_0001",
+            "vendorKey": "halfway-vendor",
+            "name": "Halfway Vendor",
+            "waitingOn": "user_pastes_key",
+            "step": "connect_provider"
+          }
+        ]
+      },
+      "S11.1": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "authStyle": "header",
+            "hasStoredKey": true,
+            "models": [
+              {
+                "modelKey": "probe-model-a",
+                "kind": "text",
+                "visible": true,
+                "lastSelfCheck": null
+              }
+            ]
+          }
+        ],
+        "setups": []
+      },
+      "S11.2": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "authStyle": "header",
+            "hasStoredKey": false,
+            "models": []
+          }
+        ],
+        "setups": [
+          {
+            "id": "setup_probe_0001",
+            "vendorKey": "probe-vendor",
+            "waitingOn": "user_pastes_key",
+            "step": "connect_provider"
+          }
+        ]
+      },
+      "S11.3": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "hasStoredKey": true,
+            "models": [],
+            "candidates": [
+              {
+                "modelKey": "probe-text-1",
+                "kind": "text",
+                "visible": false,
+                "lastSelfCheck": null
+              },
+              {
+                "modelKey": "probe-image-1",
+                "kind": "image",
+                "visible": false,
+                "lastSelfCheck": null
+              },
+              {
+                "modelKey": "probe-video-1",
+                "kind": "video",
+                "visible": false,
+                "lastSelfCheck": null
+              }
+            ]
+          }
+        ],
+        "setups": [
+          {
+            "id": "setup_probe_0001",
+            "vendorKey": "probe-vendor",
+            "waitingOn": null,
+            "step": "choose_models"
+          }
+        ]
+      },
+      "S11.4": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "hasStoredKey": true,
+            "models": []
+          }
+        ],
+        "setups": [
+          {
+            "id": "setup_probe_0001",
+            "vendorKey": "probe-vendor",
+            "waitingOn": null,
+            "step": "draft_adapter",
+            "compileRequest": {
+              "contractSchema": "{\"sources\":[],\"models\":[]}"
+            }
+          }
+        ]
+      },
+      "S11.5": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "hasStoredKey": true,
+            "models": [
+              {
+                "modelKey": "probe-text-1",
+                "kind": "text",
+                "visible": false,
+                "lastSelfCheck": {
+                  "ok": false,
+                  "code": 401,
+                  "excerpt": "{\"error\":\"invalid_api_key\"}"
+                }
+              },
+              {
+                "modelKey": "probe-image-1",
+                "kind": "image",
+                "visible": false,
+                "lastSelfCheck": null
+              }
+            ]
+          }
+        ],
+        "setups": [
+          {
+            "id": "setup_probe_0001",
+            "vendorKey": "probe-vendor",
+            "waitingOn": null,
+            "step": "check_connection"
+          }
+        ]
+      },
+      "S11.6": {
+        "connections": [
+          {
+            "vendorKey": "probe-vendor",
+            "name": "Probe Vendor",
+            "baseUrl": "https://probe.example.com/v1",
+            "hasStoredKey": true,
+            "models": [
+              {
+                "modelKey": "probe-text-1",
+                "kind": "text",
+                "visible": true,
+                "lastSelfCheck": null
+              },
+              {
+                "modelKey": "probe-image-1",
+                "kind": "image",
+                "visible": true,
+                "lastSelfCheck": null
+              },
+              {
+                "modelKey": "probe-video-1",
+                "kind": "video",
+                "visible": false,
+                "lastSelfCheck": null,
+                "notInPickerBecause": "hidden by the user"
+              }
+            ]
+          }
+        ],
+        "setups": []
+      }
+    }
+  },
   "cases": [
     {
       "id": "connect-by-name-zh",
