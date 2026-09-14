@@ -11,6 +11,55 @@
   "scope_paths": [
     "electron/integrationCertification/integrationSessionIpc.ts"
   ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "line": 753,
+      "symbol": "propose"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationHttp.ts",
+      "line": 246,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "line": 38,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "line": 62,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "line": 71,
+      "symbol": "propose"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "line": 318,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "line": 331,
+      "symbol": "saveCredential"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 7,
+    "why_not": "6 → 7 不是没减：多出来的那一扇正是本次的修法本身——`integrationSessionIpc.ts:71` 让「存完 key」这一步接着走 `propose`，把「发现模型」并回同一条边界，而不是让 UI 再自己找一条路去发现。剩下 6 扇分成三组，各自必须存在，合并它们会把不同的信任边界揉到一起：`dispatcher.ts:753` 是外部 MCP 宿主那条路（owner 是 codex/claude/…，走能力层鉴权）；`credentialElicitationHttp.ts:246` 与 `credentialElicitationRuntime.ts:38` 是一次性凭据页那条路（浏览器回调，owner 恒为 nomi，带工单校验）；`OnboardingWizard.tsx:318/:331` 是渲染层向导的两种提交形态。三条路各自的鉴权前提不同，但**它们写的是同一份状态**——这次要保证的不变量（存完 key 必须立刻投影出权威候选列表）因此没有写在任何一扇门上，而是写在它们共同下游的 `IntegrationSessionService`，由 `integrationSessionCredentialDiscovery.test.ts` 钉住。"
+  },
   "entry_points": [
     "nomi:integration-session:credential"
   ],
