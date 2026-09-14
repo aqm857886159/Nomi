@@ -19,8 +19,7 @@ export function normalizeSettingsInitialTab(tab: string | undefined): SettingsTa
 }
 
 function normalizeInitialSection(section: string | undefined): SettingsInitialSection {
-  return section === 'cursor-host'
-    || section === 'automation'
+  return section === 'automation'
     || section === 'ai-models'
     || section === 'production-policy'
     || section === 'tikhub-connector'

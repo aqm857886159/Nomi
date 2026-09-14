@@ -11,13 +11,14 @@ import React from 'react'
 import { AiAssistedOnboardingCard } from '../../../../ui/onboarding/AiAssistedOnboardingCard'
 import { projectAssistedProgress } from '../../../../ui/onboarding/assistedProgressProjection'
 import type { McpInfo } from '../../../../desktop/mcpBridgeTypes'
+import { BUILTIN_MCP_CLIENTS } from '../../../../../electron/shared/mcpClientRegistry'
 import { SETTINGS_CELL_WIDTH } from '../settingsLabKit'
 import type { LabState } from '../../labScreen'
 
 /** 一台真机上 readMcpInfo() 的形状；command/args 写成确定值，基线才不会跟着机器变。 */
 function mcpInfo(connected: readonly string[]): McpInfo {
   const clients: McpInfo['clients'] = {}
-  for (const key of ['claude', 'codex', 'cursor', 'pi', 'workbuddy']) {
+  for (const key of BUILTIN_MCP_CLIENTS) {
     clients[key] = {
       installed: connected.includes(key),
       appInstalled: true,
@@ -25,8 +26,6 @@ function mcpInfo(connected: readonly string[]): McpInfo {
       snippet: '{}',
       configState: connected.includes(key) ? 'current' : 'absent',
       launcherKind: 'packaged',
-      migration: 'none',
-      backupPath: null,
     }
   }
   return {

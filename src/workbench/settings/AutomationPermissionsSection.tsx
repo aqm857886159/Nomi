@@ -71,13 +71,13 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
   const mcpBackButtonRef = React.useRef<HTMLButtonElement>(null)
   const mcpEntryButtonRef = React.useRef<HTMLButtonElement>(null)
   const [page, setPage] = React.useState<'main' | 'mcp'>('main')
-  const [focusCursorHost, setFocusCursorHost] = React.useState(false)
   const [focusMcpEntry, setFocusMcpEntry] = React.useState(false)
   const [mcpSnapshot, setMcpSnapshot] = React.useState<McpConnectionSnapshot>(readMcpConnectionSnapshot)
   const view = buildAutomationSettingsView(settings)
   const refreshMcpInfo = React.useCallback(() => {
     setMcpSnapshot(readMcpConnectionSnapshot())
   }, [])
+  // 「可信发起方」的唯一写入口：住在每张客户端卡的第二个开关里（ConnectAssistantCard），不再是独立一栏。
   const toggleHost = (host: string, enabled: boolean): void => {
     if (host === 'nomi') return
     const next = new Set(settings.trustedHosts)
@@ -100,17 +100,6 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
     })
     return () => window.cancelAnimationFrame(frame)
   }, [focusMcpEntry, page])
-
-  React.useEffect(() => {
-    if (page !== 'main' || !focusCursorHost) return
-    const frame = window.requestAnimationFrame(() => {
-      const section = rootRef.current?.querySelector<HTMLElement>('[data-settings-section="cursor-host"]')
-      section?.scrollIntoView({ block: 'center' })
-      section?.querySelector<HTMLElement>('button, input, [tabindex]')?.focus({ preventScroll: true })
-      setFocusCursorHost(false)
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [focusCursorHost, page])
 
   if (page === 'mcp') {
     return (
@@ -149,12 +138,9 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
             )}
           >
             <ConnectAssistantCard
-              info={mcpSnapshot.info}
+              info={{ ...mcpSnapshot.info, trustedHosts: settings.trustedHosts }}
               onChanged={refreshMcpInfo}
-              onOpenAutomationPermissions={() => {
-                setFocusCursorHost(true)
-                setPage('main')
-              }}
+              onTrustChange={toggleHost}
               detailMode
             />
             {/* TODO(ui-deferred, R8): CustomMcpClientCard — 自定义 MCP 客户端接入 UI。
@@ -237,31 +223,6 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
         <div className="mt-2 text-caption leading-relaxed text-nomi-ink-40">
           {t('settings.automation.mcp.separationHint')}
         </div>
-      </section>
-
-      <section className="mb-6 border-t border-nomi-line pt-4" aria-labelledby="settings-hosts-title">
-        <h3 id="settings-hosts-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
-          {t('settings.automation.hosts.title')}
-        </h3>
-        <p className="mb-2 text-caption leading-relaxed text-nomi-ink-40">{t('settings.automation.hosts.sharedHint')}</p>
-        {view.hosts.map((host) => (
-          <SettingRow
-            key={host.key}
-            section={host.key === 'cursor' ? 'cursor-host' : undefined}
-            title={t(`settings.automation.hosts.${host.key}.name`)}
-            hint={host.key === 'nomi' ? t('settings.automation.hosts.nomi.hint') : undefined}
-          >
-            {host.locked ? (
-              <span className="text-caption text-nomi-success">{t('settings.automation.hosts.local')}</span>
-            ) : (
-              <DesignSwitch
-                checked={host.enabled}
-                onChange={(event) => toggleHost(host.key, event.currentTarget.checked)}
-                aria-label={t(`settings.automation.hosts.${host.key}.name`)}
-              />
-            )}
-          </SettingRow>
-        ))}
       </section>
 
       <section className="border-t border-nomi-line pt-4" aria-labelledby="settings-notifications-title">

@@ -1160,7 +1160,7 @@ export const zhGenerationCommon = {
       contractDeclined: '本次决定已记录；没有提交生成任务，也没有产生支出。调整分镜或制作范围后可再确认一批新的生成。',
     },
     runTone: { working: '制作中', attention: '等待确认', danger: '需要处理', success: '已完成', neutral: '草稿' },
-    origin: { nomi: 'Nomi', claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', external: '外部客户端' },
+    origin: { nomi: 'Nomi', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
       origin: '来自 {{host}}',
@@ -2571,7 +2571,7 @@ export const enGenerationCommon = {
       contractDeclined: 'This decision is recorded. No generation task was submitted and no spend occurred. Revise the storyboard or scope to confirm a new batch of generation.',
     },
     runTone: { working: 'Producing', attention: 'Approval needed', danger: 'Needs attention', success: 'Complete', neutral: 'Draft' },
-    origin: { nomi: 'Nomi', claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', external: 'external client' },
+    origin: { nomi: 'Nomi', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
       origin: 'From {{host}}',

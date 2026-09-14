@@ -42,9 +42,10 @@ describe('DC24 quiet defaults preserve actionable boundaries', () => {
     expect(gestures).not.toContain("t('settings.general.canvasGestureHint')")
     expect(gestures).toContain('t(active.hintKey)')
     const permissions = source('settings/AutomationPermissionsSection.tsx')
-    expect(permissions).toContain("t('settings.automation.hosts.sharedHint')")
-    expect(permissions).toContain("t('settings.automation.hosts.nomi.hint')")
-    expect(permissions).toContain('toggleHost(host.key, event.currentTarget.checked)')
+    // 「连上后允许做什么」的那句解释跟着开关走，住在客户端卡里（一功能一个家），设置页不再另留一栏。
+    expect(permissions).not.toContain('settings.automation.hosts')
+    expect(permissions).toContain('onTrustChange={toggleHost}')
+    expect(readFileSync('src/ui/onboarding/ConnectAssistantCard.tsx', 'utf8')).toContain("t('onboardingProviders.assistant.trust.hint')")
     for (const key of ['firstSpendHint', 'irreversibleHint', 'continueHint']) expect(permissions).toContain(`settings.automation.risk.${key}`)
     const uploads = source('settings/AiModelsSection.tsx')
     expect(uploads).not.toContain("t('settings.ai.upload.channel.hint')")

@@ -4,6 +4,7 @@ import type {
   ProductionJob,
   ProductionRun,
 } from '../../../electron/productionRun/productionRunTypes'
+import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
 /** 门类：决定文案与「在哪决定」。方向/样片/形象检查点不花钱，预算/导出才是钱与不可逆。 */
@@ -100,9 +101,10 @@ export function buildProductionRunView(
     run.gates.flatMap((gate) => gate.contract?.skills ?? [])
       .map((skill) => [`${skill.name}\u0000${skill.version}`, skill]),
   ).values()]
-  const originHost = ['nomi', 'claude', 'codex', 'cursor', 'pi', 'workbuddy'].includes(run.origin.host)
+  // 内置客户端名单只认注册表（此前这里手抄了一份，pi/workbuddy 发起的制作会把 i18n key 原文渲染出来）。
+  const originHost = run.origin.host === 'nomi' || isBuiltinMcpClient(run.origin.host)
     ? run.origin.host
-    : (['claude', 'codex', 'cursor', 'pi', 'workbuddy'].includes(run.origin.actorId || '') ? run.origin.actorId! : 'external')
+    : (isBuiltinMcpClient(run.origin.actorId) ? run.origin.actorId : 'external')
   // Older durable Runs could reach the terminal status before direction/build stage bookkeeping
   // was completed. The terminal Run status is authoritative for presentation; new Runs also write
   // every stage transition in the reducer.
