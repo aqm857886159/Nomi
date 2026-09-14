@@ -5,6 +5,21 @@
 > 被测实例：隔离 Nomi（`prepareIsolation` 拷真实 `model-catalog.json`，APIMart key 已存且能解）
 > 脚本 `tests/ux/mcp-onboarding-real-host.paid.mjs`
 
+## 目录怎么读
+
+| 路径 | 是哪一轮 |
+|---|---|
+| 本目录根（`summary.json` / `transcript.json`） | **run1**：修前，四个回合（A1 接中转 / A2 接最新模型 / B1 接模型 / B2 出片） |
+| `run2-fixed-flagon/` | **run2**：三处假话修完后复跑 B 腿，生成 flag 只给了 launcher |
+| `run3-generate/` | **run3**：flag 改给 app 进程；出片拆成一次只建一个节点 |
+| `run4-media/` | **run4**：再把真实资料库的「默认生成模型」带进隔离目录 |
+
+重取命令（会花钱、要真 key、要真 GUI）：
+
+```
+node tests/ux/mcp-onboarding-real-host.paid.mjs --legs=B --single-shot=on --seed-generation-defaults=on
+```
+
 ## 怎么量的，以及两条不能省的纪律
 
 - **入参一次写对** = 这次 `tools/call` 的结果不是 `isError`。逐条证据在每个回合的
