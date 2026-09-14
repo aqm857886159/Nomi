@@ -27,10 +27,10 @@ import {
   ASSISTED_ONBOARDING_SKILL_MARKDOWN,
   ASSISTED_ONBOARDING_SKILL_PATH,
   OTHER_ONE_CLICK_CLIENTS,
-  assistedOnboardingMcpSnippet,
   buildAssistedOnboardingClipboard,
   type AssistedOnboardingHost,
 } from './aiAssistedOnboardingContent'
+import { genericMcpSnippet } from './mcpGenericSnippet'
 import { AssistedIntegrationProgress } from './AssistedIntegrationProgress'
 import type { AssistedProgressView } from './assistedProgressProjection'
 
@@ -60,7 +60,7 @@ export function AiAssistedOnboardingCard({
 
   const clientKey = host === 'other' ? null : ASSISTED_ONBOARDING_CLIENT_KEYS[host]
   const hostLabel = clientKey ? ASSISTANT_CLIENT_LABEL[clientKey] : t('onboardingProviders.assistedOnboarding.otherHost')
-  const mcpSnippet = host === 'other' && info ? assistedOnboardingMcpSnippet(info.server) : null
+  const mcpSnippet = host === 'other' && info ? genericMcpSnippet(info.server) : null
   const prompt = t('onboardingProviders.assistedOnboarding.promptBody')
   const headings = {
     prompt: t('onboardingProviders.assistedOnboarding.sections.prompt'),

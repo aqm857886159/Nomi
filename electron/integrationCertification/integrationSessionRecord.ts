@@ -14,7 +14,7 @@ import {
   type IntegrationCredentialStatus,
   type IntegrationStage,
 } from "../shared/integrationContract";
-import type { CapabilityOriginHost } from "../capabilityCore/security";
+import { BUILTIN_MCP_CLIENTS, type CapabilityOriginHost } from "../capabilityCore/security";
 
 const MAX_SESSIONS = 100;
 
@@ -81,7 +81,8 @@ export function validateState(raw: unknown): PersistedIntegrationState {
   )
     throw new Error("Invalid integration session state");
   const stages = new Set<IntegrationStage>(INTEGRATION_STAGES);
-  const owners = new Set<CapabilityOriginHost>(["external", "nomi", "claude", "codex", "cursor"]);
+  // 与 handoffQueue 同源：内置 client 全量允许（2026-09-11 workbuddy 漏抄修复）。
+  const owners = new Set<CapabilityOriginHost>(["external", "nomi", ...BUILTIN_MCP_CLIENTS]);
   for (const item of raw.sessions) {
     assertRecord(item);
     migrateRetiredSpendGate(item);

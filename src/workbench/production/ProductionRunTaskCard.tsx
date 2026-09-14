@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn'
 import { ProductionDetails } from './ProductionDetails'
 import type { ProductionRunPrimaryAction, ProductionRunView } from './productionRunView'
 import type { ProductionArtifact } from '../../../electron/productionRun/productionRunTypes'
+import { MCP_CLIENT_REGISTRY, isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 
 // 制作任务卡（任务中心里的「看片台 + 兜底」· plan 2026-08-11-nomi-side-viewer-and-fallback N1/N4）。
 //
@@ -132,7 +133,10 @@ export function ProductionRunTaskCard({
   const routedGate = Boolean(view.gateKind && view.decisionHome === 'origin')
   // 取消是这张卡上唯一能点的东西（无主动作、无暂停）——推不动的坏 Run 就长这样。
   const onlyExit = !action && view.controls.length === 1 && view.controls[0] === 'cancel'
-  const hostLabel = t(`generationCommon.production.origin.${view.originHost}`)
+  // 内置客户端是产品专名（注册表 label，不进 i18n）；只有 nomi / external 两个通用词条走 i18n。
+  const hostLabel = isBuiltinMcpClient(view.originHost)
+    ? MCP_CLIENT_REGISTRY[view.originHost].label
+    : t(`generationCommon.production.origin.${view.originHost}`)
   const previewFocused = Boolean(focusedArtifactId && preview?.artifactId === focusedArtifactId)
   const gateCopyParams = view.gateJob ? {
     index: view.gateJob.index,

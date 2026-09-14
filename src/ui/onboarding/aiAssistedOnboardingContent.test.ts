@@ -8,9 +8,9 @@ import {
   ASSISTED_ONBOARDING_SKILL_MARKDOWN,
   ASSISTED_ONBOARDING_SKILL_PATH,
   OTHER_ONE_CLICK_CLIENTS,
-  assistedOnboardingMcpSnippet,
   buildAssistedOnboardingClipboard,
 } from './aiAssistedOnboardingContent'
+import { genericMcpSnippet } from './mcpGenericSnippet'
 import { ASSISTANT_CLIENT_ORDER } from './assistantActivationState'
 
 const headings = { prompt: '任务提示词', skill: '技能文件', mcp: 'MCP 配置片段' }
@@ -35,7 +35,7 @@ describe('AI-assisted onboarding clipboard', () => {
 
   // 「MCP 配置片段只在选『其它』时带上」——那三家由 Nomi 一键写入，粘一份就是第二条路。
   it('only attaches the MCP snippet for the "other" host', () => {
-    const snippet = assistedOnboardingMcpSnippet({ command: '/opt/nomi/node', args: ['mcp.mjs'], env: { NOMI_MCP_STDIO: '1' } })
+    const snippet = genericMcpSnippet({ command: '/opt/nomi/node', args: ['mcp.mjs'], env: { NOMI_MCP_STDIO: '1' } })
     for (const host of ASSISTED_ONBOARDING_HOSTS) {
       const text = buildAssistedOnboardingClipboard({ host, prompt, headings, mcpSnippet: snippet })
       expect(text.includes(snippet), host).toBe(host === 'other')
@@ -44,7 +44,7 @@ describe('AI-assisted onboarding clipboard', () => {
   })
 
   it('emits the de-facto standard mcpServers shape and nothing else', () => {
-    const snippet = assistedOnboardingMcpSnippet({ command: 'node', args: ['a.mjs'], env: { NOMI_MCP_STDIO: '1' } })
+    const snippet = genericMcpSnippet({ command: 'node', args: ['a.mjs'], env: { NOMI_MCP_STDIO: '1' } })
     expect(JSON.parse(snippet)).toEqual({ mcpServers: { nomi: { command: 'node', args: ['a.mjs'], env: { NOMI_MCP_STDIO: '1' } } } })
   })
 
@@ -54,7 +54,7 @@ describe('AI-assisted onboarding clipboard', () => {
       host: 'other',
       prompt,
       headings,
-      mcpSnippet: assistedOnboardingMcpSnippet({ command: 'node', args: [], env: { NOMI_MCP_STDIO: '1' } }),
+      mcpSnippet: genericMcpSnippet({ command: 'node', args: [], env: { NOMI_MCP_STDIO: '1' } }),
     })
     expect(text).not.toMatch(/\bsk-[A-Za-z0-9]/)
     expect(text.toLowerCase()).not.toContain('apikey')

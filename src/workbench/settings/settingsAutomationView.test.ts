@@ -4,20 +4,14 @@ import { DEFAULT_AUTOMATION_POLICY_SETTINGS } from '../../../electron/settings/a
 import { buildAutomationSettingsView, buildProviderHealthView } from './settingsAutomationView'
 
 describe('settings automation view', () => {
-  it('defaults to Balanced and exposes only known initiators', () => {
+  it('defaults to Balanced and no longer owns a hosts list (that lives in the client cards, derived from the registry)', () => {
     const view = buildAutomationSettingsView(DEFAULT_AUTOMATION_POLICY_SETTINGS)
 
     expect(view.mode).toBe('balanced')
-    expect(view.hosts).toEqual([
-      { key: 'nomi', enabled: true, locked: true },
-      { key: 'claude', enabled: true, locked: false },
-      { key: 'codex', enabled: true, locked: false },
-      { key: 'cursor', enabled: false, locked: false },
-      // 新加的内置客户端默认**不可信**（和 Cursor 一样要用户显式勾）——写档不等于给权限。
-      { key: 'pi', enabled: false, locked: false },
-      { key: 'workbuddy', enabled: false, locked: false },
-    ])
+    expect(view).not.toHaveProperty('hosts')
     expect(view.mandatoryGates).toEqual(['first-spend', 'irreversible'])
+    // 默认可信名单从注册表 derive：写档不等于给权限，新加的内置客户端默认不可信。
+    expect(DEFAULT_AUTOMATION_POLICY_SETTINGS.trustedHosts).toEqual(['nomi', 'claude', 'codex'])
   })
 
   it('derives provider health from the real catalog state', () => {

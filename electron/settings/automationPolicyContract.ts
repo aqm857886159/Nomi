@@ -1,4 +1,5 @@
 import type { AutomationMode } from "../productionRun/productionRunTypes";
+import { DEFAULT_TRUSTED_MCP_CLIENTS } from "../shared/mcpClientRegistry";
 
 // 泛化（方案 A）：trustedHosts 不再限定为硬编码四值，任意形状合法的 MCP 客户端 key
 // （内置 + 自定义 profile）都可由用户显式勾选加入信任列表。
@@ -27,7 +28,8 @@ export type AutomationPolicySettings = {
 export const DEFAULT_AUTOMATION_POLICY_SETTINGS: AutomationPolicySettings = {
   schemaVersion: 1,
   mode: "balanced",
-  trustedHosts: ["nomi", "claude", "codex"],
+  // 默认信任哪些内置客户端由注册表的 defaultTrusted 决定（唯一 owner），这里不再手抄名单。
+  trustedHosts: ["nomi", ...DEFAULT_TRUSTED_MCP_CLIENTS],
   allowedProviders: [],
   allowedModels: [],
   maxAttemptsPerJob: 3,

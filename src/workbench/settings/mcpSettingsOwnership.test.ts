@@ -21,29 +21,34 @@ describe('MCP connection settings ownership', () => {
     expect(constants).not.toContain('assistant-mcp')
   })
 
-  it('keeps one MCP entry in Automation and a separate trusted-host section', () => {
+  // 2026-09-14 用户拍板（审计 §⑥ 第 6 条）：「可信发起方」不再单独成栏，并进每张客户端卡当第二个开关。
+  it('keeps one MCP entry in Automation and folds trusted initiators into each client card', () => {
     const automation = read('src/workbench/settings/AutomationPermissionsSection.tsx')
+    const view = read('src/workbench/settings/settingsAutomationView.ts')
     const card = read('src/ui/onboarding/ConnectAssistantCard.tsx')
 
     expect(automation).toContain('data-settings-action="manage-mcp-connections"')
     expect(automation).toContain('data-settings-section="mcp-assistant-connections"')
     expect(automation).toContain('<ConnectAssistantCard')
-    expect(automation).toContain('onOpenAutomationPermissions')
-    expect(automation).toContain("section={host.key === 'cursor' ? 'cursor-host' : undefined}")
-    expect(automation.indexOf('settings-mcp-title')).toBeLessThan(automation.indexOf('settings-hosts-title'))
-    expect(card).toContain("tab: 'automation', section: 'cursor-host'")
+    expect(automation).toContain('onTrustChange={toggleHost}')
+    expect(automation).not.toContain('settings-hosts-title')
+    expect(automation).not.toContain('settings.automation.hosts')
+    expect(view).not.toContain("'workbuddy'")
+    expect(card).toContain('data-assistant-trust-row')
   })
 
   it('provides the approved bilingual information architecture', () => {
     expect(zhSettings.automation.mcp).toMatchObject({
       title: 'AI 助手连接（MCP）',
-      clients: 'Claude Code、Codex 与 Cursor',
+      clients: 'Claude Code、Claude Desktop、Codex、Cursor 与 WorkBuddy',
       manage: '管理连接',
     })
     expect(enSettings.automation.mcp).toMatchObject({
       title: 'AI agent connections (MCP)',
-      clients: 'Claude Code, Codex, and Cursor',
+      clients: 'Claude Code, Claude Desktop, Codex, Cursor, and WorkBuddy',
       manage: 'Manage connections',
     })
+    expect((zhSettings.automation as Record<string, unknown>).hosts).toBeUndefined()
+    expect((enSettings.automation as Record<string, unknown>).hosts).toBeUndefined()
   })
 })

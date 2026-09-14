@@ -1,5 +1,5 @@
 {
-  "debtCap": 67,
+  "debtCap": 63,
   "converged": [
     {
       "retiredOwners": [
@@ -8,9 +8,53 @@
       ],
       "survivingOwner": "electron/shared/agentCapabilities/transportContracts.ts::interface:RuntimeErrorFacts/property:timeoutPhase/type-union",
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。"
+    },
+    {
+      "retiredOwners": [
+        "electron/capabilityCore/mcpConfig.ts::type:McpConfigState/type-union",
+        "src/desktop/mcpBridgeTypes.ts::type:McpConfigState/type-union"
+      ],
+      "survivingOwner": "electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const",
+      "reason": "2026-09-14 修「配置里的 NOMI_SETTINGS_DIR 指向别的/已删除 profile 也要如实判死」时，按这两条 debt 自己写的收敛办法做掉：中立模块 electron/shared/mcpConnectionContract.ts 导出 MCP_CONFIG_STATES as const tuple，主进程 mcpConfig.ts 与渲染层 mcpBridgeTypes.ts 的 McpConfigState 全部从它 derive，两份字面量联合删除。根因合同 docs/fixes/2026-09-14-mcp-connection-truthfulness.root-cause.json。"
+    },
+    {
+      "retiredOwners": [
+        "electron/capabilityCore/mcpVerify.ts::type:McpVerifyReason/type-union",
+        "src/desktop/mcpBridgeTypes.ts::type:McpVerifyReason/type-union"
+      ],
+      "survivingOwner": "electron/shared/mcpConnectionContract.ts::variable:MCP_VERIFY_REASONS/as-const",
+      "reason": "同批：verifyMcp 加了 profile 读回校验，握手诊断词表也收敛到 electron/shared/mcpConnectionContract.ts 的 MCP_VERIFY_REASONS as const tuple，mcpVerify.ts 与 mcpBridgeTypes.ts 的 McpVerifyReason 从它 derive，两份字面量联合删除。根因合同 docs/fixes/2026-09-14-mcp-connection-truthfulness.root-cause.json。"
     }
   ],
   "registered": [
+    {
+      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const",
+      "members": [
+        "absent",
+        "auth-stale",
+        "current",
+        "custom",
+        "development",
+        "launcher-stale",
+        "legacy-launcher",
+        "stale-development"
+      ],
+      "reason": "客户端配置里那条 nomi 条目相对当前 Nomi 的兼容性判定（mcpConfig.classifyMcpEntry 唯一产出）的中立 owner：主进程 mcpConfig.ts 与渲染层 mcpBridgeTypes.ts 的 McpConfigState 都从这份 tuple derive。八态里 legacy-launcher / stale-development / auth-stale / launcher-stale 是 Nomi 自己写过的历史形状（启动修复只动这些；launcher-stale 含「命令签名都对、NOMI_SETTINGS_DIR 指向别的/已删除 profile」，2026-09-14 起），custom 是 Nomi 没写过的条目（永不动）。与 McpVerifyReason 不同：这里判的是静态配置形状，那边判的是真起进程后的握手结论。"
+    },
+    {
+      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_VERIFY_REASONS/as-const",
+      "members": [
+        "argument-missing",
+        "client-auth-missing",
+        "command-missing",
+        "handshake-failed",
+        "not-installed",
+        "ok",
+        "spawn-failed",
+        "timeout"
+      ],
+      "reason": "实连验证（mcpVerify.verifyMcp 真起一次配置里那条命令握手）的诊断结论的中立 owner：主进程 mcpVerify.ts 与渲染层 mcpBridgeTypes.ts 的 McpVerifyReason 都从这份 tuple derive；UI 文案按它走 i18n（ConnectAssistantCard 的 REASON_I18N），主进程不回中文。与 McpConfigState 分工：这里是运行时诊断（spawn/握手/超时），那边是静态配置形状。"
+    },
     {
       "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union",
       "members": [
@@ -1595,40 +1639,12 @@
       "reason": "与 electron/productionRun/productionRunReducer.ts::type:ArtifactReviewDecision/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
-      "site": "electron/capabilityCore/mcpConfig.ts::type:McpConfigState/type-union",
-      "members": [
-        "absent",
-        "auth-stale",
-        "current",
-        "custom",
-        "development",
-        "launcher-stale",
-        "legacy-launcher",
-        "stale-development"
-      ],
-      "reason": "McpConfigState 配置兼容性合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 MCP_CONFIG_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
       "site": "electron/capabilityCore/mcpGenerationTools.ts::type:GenerationPlanningHandlerDependencies/property:reconcile/parameter:outcome/type-union",
       "members": [
         "found",
         "not_found"
       ],
       "reason": "该 found/not_found 是 ProductionRun job.reconcile 的投影；应在 ProductionRun/shared 定义 GenerationReconcileOutcome as const tuple 与 runtime schema，并按同一顺序生成 MCP JSON Schema enum、callback 类型、IPC validation、UI 类型及校验，随后删除所有本地字面量与手写分支。"
-    },
-    {
-      "site": "electron/capabilityCore/mcpVerify.ts::type:McpVerifyReason/type-union",
-      "members": [
-        "argument-missing",
-        "client-auth-missing",
-        "command-missing",
-        "handshake-failed",
-        "not-installed",
-        "ok",
-        "spawn-failed",
-        "timeout"
-      ],
-      "reason": "McpVerifyReason 握手诊断合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 MCP_VERIFY_REASONS as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/catalog/codexCli.ts::type:CodexImageJobStatus/type-union",
@@ -1928,34 +1944,6 @@
         "error"
       ],
       "reason": "浏览器截图选择结束原因合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 BROWSER_SCREENSHOT_SELECTION_REASONS as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "src/desktop/mcpBridgeTypes.ts::type:McpConfigState/type-union",
-      "members": [
-        "absent",
-        "auth-stale",
-        "current",
-        "custom",
-        "development",
-        "launcher-stale",
-        "legacy-launcher",
-        "stale-development"
-      ],
-      "reason": "McpConfigState 配置兼容性合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 MCP_CONFIG_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "src/desktop/mcpBridgeTypes.ts::type:McpVerifyReason/type-union",
-      "members": [
-        "argument-missing",
-        "client-auth-missing",
-        "command-missing",
-        "handshake-failed",
-        "not-installed",
-        "ok",
-        "spawn-failed",
-        "timeout"
-      ],
-      "reason": "McpVerifyReason 握手诊断合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 MCP_VERIFY_REASONS as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/modelCatalogBridgeTypes.ts::type:CustomCallTestRunSnapshot/property:state/type-union",

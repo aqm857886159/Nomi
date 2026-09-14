@@ -10,7 +10,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { capabilityCoreDir, isBuiltinMcpClient } from './security'
+import { capabilityCoreDir } from './security'
+import { builtinMcpClientSpec, isBuiltinMcpClient, type BuiltinMcpClient, type McpClientPath } from '../shared/mcpClientRegistry'
 
 const PROFILES_FILE = 'mcp-client-profiles.json'
 
@@ -73,12 +74,43 @@ export function recordDetectedMcpClient(name: string): void {
   }
 }
 
-/** 宿主存在不等于 Nomi 已配置；只读官方用户目录，不登记伪连接。 */
+/**
+ * 内置客户端的用户级配置路径 —— 按平台从注册表 derive；该平台没有这个客户端时返回 null。
+ * `appData` 根：macOS ~/Library/Application Support、Windows %APPDATA%、Linux ~/.config（XDG）。
+ */
+export function builtinMcpClientConfigPath(client: BuiltinMcpClient): string | null {
+  const location = builtinMcpClientSpec(client).configPath[currentPlatform()]
+  return location ? resolveClientPath(location) : null
+}
+
+/**
+ * 宿主存在不等于 Nomi 已配置。「已安装」= 注册表登记的官方用户目录/文件任一存在（只 stat，不 spawn、
+ * 不建目录）。此前这里是个 stub（除 workbuddy 外恒 false），于是没装 pi 也会凭空 mkdir -p ~/.config/mcp
+ * 并显示成可一键接入——假项。未检测到的客户端不进一键列表，也不会有目录被建出来。
+ */
 export function isMcpClientAppInstalled(client: string): boolean {
-  if (client !== 'workbuddy') return false
-  try {
-    return fs.statSync(path.join(os.homedir(), '.workbuddy')).isDirectory()
-  } catch {
-    return false
-  }
+  if (!isBuiltinMcpClient(client)) return false
+  const markers = builtinMcpClientSpec(client).installMarkers[currentPlatform()] ?? []
+  return markers.some((marker) => {
+    try {
+      fs.statSync(resolveClientPath(marker))
+      return true
+    } catch {
+      return false
+    }
+  })
+}
+
+function currentPlatform(): 'darwin' | 'win32' | 'linux' {
+  return process.platform === 'darwin' || process.platform === 'win32' ? process.platform : 'linux'
+}
+
+function appDataDir(): string {
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support')
+  if (process.platform === 'win32') return String(process.env.APPDATA || '').trim() || path.join(os.homedir(), 'AppData', 'Roaming')
+  return String(process.env.XDG_CONFIG_HOME || '').trim() || path.join(os.homedir(), '.config')
+}
+
+function resolveClientPath(location: McpClientPath): string {
+  return path.join(location.root === 'home' ? os.homedir() : appDataDir(), ...location.segments)
 }

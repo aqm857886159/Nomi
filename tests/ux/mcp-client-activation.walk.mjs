@@ -2,8 +2,10 @@
 //
 // Default: isolated HOME/settings/projects, safe to rerun.
 // Build selection: `--app-path=/path/to/Nomi.app` or `--app-path=/path/to/electron`.
-// Real upgrade: `node tests/ux/mcp-client-activation.walk.mjs --real-connect`
-// reconnects stale `nomi` entries through Nomi's UI, verifies current entries in place, and enables Cursor in Nomi.
+// Real check: `node tests/ux/mcp-client-activation.walk.mjs --real-connect`
+// verifies the real HOME's `nomi` entries in place (handshake + trust switch). It never writes host configs:
+// a walkthrough is an isolated instance (NOMI_E2E=1) and Nomi refuses to rewrite real host configs from one
+// (docs/plan/2026-09-14-mcp-connection-truthfulness.md) — reconnecting is a click in the installed Nomi.
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -20,7 +22,7 @@ if (helpRequested) {
 Options:
   --app-path=<path>  Nomi.app bundle or Electron/Nomi executable (default: /Applications/Nomi.app)
   --cdp-url=<url>    Attach to a Nomi instance opened by macOS instead of launching it directly
-  --real-connect     Use and update the real HOME, settings, projects, and MCP client configs
+  --real-connect     Use the real HOME, settings, projects, and MCP client configs (read-only: verify + trust switch)
   -h, --help         Show this help`)
   process.exit(0)
 }
@@ -43,6 +45,8 @@ const capabilityDir = tempRoot ? path.join(tempRoot, 'capability') : null
 for (const dir of [testHome, settingsDir, projectsDir, capabilityDir]) {
   if (dir) fs.mkdirSync(dir, { recursive: true })
 }
+// 隔离 HOME 里要有安装痕迹，客户端才会出现在一键列表里（没装的不给假动作）。
+if (tempRoot) for (const marker of ['.claude', '.codex', '.cursor']) fs.mkdirSync(path.join(testHome, marker), { recursive: true })
 
 // 隔离模式把 HOME/能力目录也换掉（MCP 配置写在 HOME 下，不能污染真机）；--real-connect 要的
 // 就是真 HOME 与真配置，故走 isolate:false。NOMI_E2E 那两条由启动器强制，这里不再重复。
@@ -167,9 +171,10 @@ async function installOrReconnect(win, panel, clientKey, label) {
   await expandAssistant(win, panel)
   await selectClient(win, panel, label)
   const action = panel.locator('button').filter({
-    hasText: new RegExp(`重新接入 ${label}|升级接入 ${label}|修复接入 ${label}|Reconnect ${label}|Upgrade ${label} connection|Repair ${label} connection|一键接入 ${label}|Connect ${label}`),
+    hasText: new RegExp(`重新接入 ${label}|升级接入 ${label}|修复接入 ${label}|Reconnect ${label}|Upgrade ${label} connection|Repair ${label} connection|一键接入 ${label}|Connect to ${label}`),
   }).first()
   if (await action.count()) {
+    assert(!realConnect, `${label} is not current in the real HOME; reconnect it from the installed Nomi (walkthroughs never write real host configs)`)
     await action.click()
     await win.waitForTimeout(1_100)
   } else {
@@ -181,56 +186,30 @@ async function installOrReconnect(win, panel, clientKey, label) {
   console.log(`${label}: verified ${verified.toolCount} tools`)
 }
 
-async function openCursorPermissions(win, panel) {
-  const action = panel.locator('button').filter({ hasText: /Cursor 权限|Cursor Permissions/ }).first()
-  assert((await action.count()) === 1, 'Cursor Nomi-permission action is missing')
-  await action.click()
-  const dialog = win.locator('[role="dialog"]').filter({ hasText: /自动化与权限|Automation & permissions/ }).last()
-  await dialog.waitFor({ state: 'visible', timeout: 5_000 })
-  const row = dialog.locator('[data-settings-section="cursor-host"]')
+/** 「允许自动发起制作」开关就在客户端卡里（2026-09-14 起，不再跳去设置页的独立一栏）。 */
+async function trustRow(panel, clientKey) {
+  const row = panel.locator(`[data-assistant-trust-row="${clientKey}"]`)
   await row.waitFor({ state: 'visible', timeout: 5_000 })
-  const input = row.locator('input[type="checkbox"]')
-  await input.waitFor({ state: 'attached', timeout: 5_000 })
-  await dialog.locator('fieldset[aria-busy="false"]').waitFor({ state: 'attached', timeout: 5_000 })
-  await win.waitForTimeout(80)
-  assert(await input.evaluate((element) => document.activeElement === element), 'Cursor switch was not focused after policy loading')
-  return { dialog, input }
+  return { row, input: row.locator('input[type="checkbox"]') }
 }
 
-async function allowCursor(win, dialog, input) {
-  if (!(await input.isChecked())) {
-    const visibleControl = input.locator('xpath=ancestor::label[1]')
-    assert((await visibleControl.count()) === 1, 'Cursor switch has no visible label control')
-    await visibleControl.click()
-  }
+async function allowCursorInline(win, panel) {
+  const { row, input } = await trustRow(panel, 'cursor')
+  if (!(await input.isChecked())) await row.locator('label').first().click()
   await expect.poll(async () => win.evaluate(async () => {
     const value = await window.nomiDesktop?.settings?.automationPolicy?.get?.()
     return value?.trustedHosts?.includes('cursor') === true
   }), { timeout: 5_000 }).toBe(true)
-  const manage = dialog.locator('[data-settings-action="manage-mcp-connections"]')
-  if (await manage.count()) {
-    await manage.click()
-    const panel = dialog.locator('[data-settings-section="mcp-assistant-connections"]')
-    await panel.waitFor({ state: 'visible', timeout: 5_000 })
-    await selectClient(win, panel, 'Cursor')
-    await win.waitForTimeout(500)
-    return panel
-  }
-  const close = dialog.getByRole('button', { name: /关闭设置|Close settings|关闭|Close/ }).first()
-  if (await close.count()) await close.click()
-  else await win.keyboard.press('Escape')
-  await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
-  await win.waitForTimeout(500)
-  return null
+  await expect(input).toBeChecked()
 }
 
 async function verifyCardUpdated(panel) {
   assert(
     (await panel.locator('button').filter({ hasText: /Cursor 权限|Cursor Permissions/ }).count()) === 0,
-    'Cursor permission CTA remained after persisted Nomi approval',
+    'the old Cursor permission CTA must not come back',
   )
-  const text = await panel.innerText()
-  assert(/已允许|Allowed/.test(text), 'Cursor card did not refresh to the allowed Nomi state')
+  const { input } = await trustRow(panel, 'cursor')
+  assert(await input.isChecked(), 'Cursor trust switch did not reflect the persisted Nomi approval')
 }
 
 async function setIsolatedPresentation(win, locale, theme, trustedHosts) {
@@ -300,9 +279,7 @@ try {
     await snap(win, 'zh-light-cursor-allowed')
   } else {
     await snap(win, 'zh-light-cursor-needs-permission')
-    const { dialog, input } = await openCursorPermissions(win, panel)
-    await snap(win, 'zh-light-cursor-settings-focused')
-    panel = await allowCursor(win, dialog, input) || panel
+    await allowCursorInline(win, panel)
     await verifyCardUpdated(panel)
     await snap(win, 'zh-light-cursor-allowed')
   }
@@ -317,11 +294,9 @@ try {
     // EN-DOM 断言网:界面已切到 en,整页可见文本不该再有中文(漏译会当场报红)。
     await expectNoCjkInEnglishDom(win, { message: 'MCP 客户端激活面板在 en 下出现中文' })
     await snap(win, 'en-dark-narrow-cursor-needs-permission')
-    const englishSettings = await openCursorPermissions(win, panel)
-    await assertNoCompactOverflow(englishSettings.dialog)
-    await snap(win, 'en-dark-narrow-settings-focused')
-    panel = await allowCursor(win, englishSettings.dialog, englishSettings.input) || panel
+    await allowCursorInline(win, panel)
     await verifyCardUpdated(panel)
+    await snap(win, 'en-dark-narrow-cursor-allowed')
   }
 
   passed = true

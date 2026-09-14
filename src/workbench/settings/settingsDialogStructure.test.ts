@@ -63,7 +63,8 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
-  'AutomationPermissionsSection.tsx': '5eaf11a9f41fb95a0d6873de082de9e8e5fe62eded8282304c0cd6298a357c40',
+  // 2026-09-14（用户拍板，审计 §⑥ 第 6 条）：删掉独立的「可信发起方」栏，开关并进 MCP 连接页每张客户端卡。
+  'AutomationPermissionsSection.tsx': 'b8c6f390cc79659e6d543231e6723d5b8ac2722d19a4a299b7e6fadb70d4096e',
   'CanvasGestureSection.tsx': '6f6fbf6802c6daae381c83838b387623a78ac7de49ffb1e47ee6101db312c95d',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const

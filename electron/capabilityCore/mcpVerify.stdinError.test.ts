@@ -75,6 +75,7 @@ beforeEach(() => {
           args: [],
           env: {
             NOMI_MCP_STDIO: '1',
+            NOMI_SETTINGS_DIR: homeDir,
             [MCP_CONFIG_VERSION_ENV]: MCP_CONFIG_VERSION,
             [MCP_CLIENT_ENV]: 'claude',
             [MCP_CLIENT_PROOF_ENV]: signMcpClient('claude')!,

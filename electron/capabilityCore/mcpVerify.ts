@@ -19,20 +19,14 @@ import {
   configuredMcpEntry,
   listCustomMcpProfiles,
   mcpServerEntry,
+  sameProfile,
   type McpClientKey,
 } from './mcpConfig'
 import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, isBuiltinMcpClient, verifyMcpClient } from './security'
+import type { McpVerifyReason } from '../shared/mcpConnectionContract'
 
-/** 失败原因（UI 文案按它走 i18n，不从主进程回中文——R15）。 */
-export type McpVerifyReason =
-  | 'ok'
-  | 'not-installed'
-  | 'command-missing'
-  | 'argument-missing'
-  | 'spawn-failed'
-  | 'timeout'
-  | 'handshake-failed'
-  | 'client-auth-missing'
+/** 失败原因：中立契约层 electron/shared/mcpConnectionContract.ts 的唯一 owner，这里只 derive。 */
+export type { McpVerifyReason }
 
 export type McpVerifyResult = {
   ok: boolean
@@ -58,11 +52,12 @@ function fail(reason: McpVerifyReason, stale: boolean, detail = ''): McpVerifyRe
  * 用户点开接入面板就跑（打包版实测 ~0.5s），失败时 UI 直接给「配置已失效 · 重新接入」。
  */
 export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
-  // 认得的身份才用，其余回落 claude。内置名单读 security.ts（此前这里抄了一份「codex|cursor」，
-  // 加第四个内置客户端时会静默把它验成 claude——看起来「没接入」，其实是验错了对象）。
-  const key: McpClientKey = client && (isBuiltinMcpClient(client) || listCustomMcpProfiles().some((p) => p.key === client))
-    ? client
-    : 'claude'
+  // 不传 = Claude Code（老 preload 默认）；传了但不认识 = 没这个客户端，如实报 not-installed，
+  // 不回落成 claude（回落会验错对象：看起来「没接入」，其实验的是别人）。内置名单读注册表。
+  const key: McpClientKey | null = client === undefined || client === ''
+    ? 'claude'
+    : (isBuiltinMcpClient(client) || listCustomMcpProfiles().some((p) => p.key === client)) ? client : null
+  if (!key) return fail('not-installed', false)
   const entry = configuredMcpEntry(key)
   if (!entry) return fail('not-installed', false)
 
@@ -93,6 +88,11 @@ export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
   // Current Nomi launcher + no signed capability is an old configuration that can list tools but
   // remains untrusted for a budgeted Production Run. Reconnect upgrades that configuration.
   if (!clientIdentityValid) return fail('client-auth-missing', true)
+
+  // 配置里的 NOMI_SETTINGS_DIR 指向别的（或已删除的）profile：命令照样能起、握手照样能过——起的却是一个
+  // 空白 Nomi。这是「真·假绿」，必须在 spawn 之前按读回来的值判死：那条配置里装的不是**这一个** Nomi
+  // （not-installed），且重新接入能治好（stale）。UI 对 launcher-stale 形状不再 spawn，按 configState 直说。
+  if (!sameProfile(entry, expected)) return fail('not-installed', true, `NOMI_SETTINGS_DIR=${entry.env?.NOMI_SETTINGS_DIR ?? ''}`)
 
   // 命令文件都不在就别 spawn 了：ENOENT 的报错对用户没信息量，这一步能直接说清「指向的程序没了」。
   // 但**只对看起来像路径的 command 这么判**：配置里也可能是裸命令名（node / npx / uvx…，靠 PATH 解析），

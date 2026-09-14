@@ -53,7 +53,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 手法按 §1.5.3 取代价最低的那档：**分组**（代价 0），不是把东西收进 ▾。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 export type SettingsTab = 'file' | 'models' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'production-policy' | 'tikhub-connector' | null
+export type SettingsInitialSection = 'automation' | 'ai-models' | 'production-policy' | 'tikhub-connector' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },

@@ -51,7 +51,8 @@ describe('approved model access architecture', () => {
     expect(available.indexOf('vendorKey: DREAMINA_CONNECTION_KEY')).toBeLessThan(available.indexOf('vendorKey: CODEX_LOCAL_VENDOR_KEY'))
   })
 
-  it('keeps MCP out of Models and places its management before trusted hosts', () => {
+  // 2026-09-14：「可信发起方」并进每张客户端卡（用户拍板），设置页不再有独立一栏。
+  it('keeps MCP out of Models and folds trusted hosts into the client cards', () => {
     const drawer = read('src/ui/onboarding/OnboardingDrawer.tsx')
     const catalog = read('src/ui/onboarding/useOnboardingDrawerCatalog.ts')
     const automation = read('src/workbench/settings/AutomationPermissionsSection.tsx')
@@ -60,6 +61,7 @@ describe('approved model access architecture', () => {
     expect(drawer).not.toContain('<ConnectAssistantCard')
     expect(catalog).not.toContain('mcpInfo')
     expect(automation).toContain('data-settings-action="manage-mcp-connections"')
-    expect(automation.indexOf('settings-mcp-title')).toBeLessThan(automation.indexOf('settings-hosts-title'))
+    expect(automation).not.toContain('settings-hosts-title')
+    expect(automation).toContain('onTrustChange={toggleHost}')
   })
 })

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { ipcMain } from "electron";
-import { capabilityCoreDir, type CapabilityOriginHost } from "../capabilityCore/security";
+import { capabilityCoreDir, BUILTIN_MCP_CLIENTS, type CapabilityOriginHost } from "../capabilityCore/security";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 
@@ -102,7 +102,9 @@ function validateEntry(raw: unknown): IntegrationHandoff {
   if (!Number.isSafeInteger(item.revision) || Number(item.revision) < 1) throw new Error("Invalid handoff revision");
   if (typeof item.ownerClientId !== "string") throw new Error("Invalid handoff owner");
   const owner = item.ownerClientId as CapabilityOriginHost;
-  if (!["external", "nomi", "claude", "codex", "cursor"].includes(owner)) throw new Error("Invalid handoff owner");
+  // 内置 client（claude/codex/cursor/pi/workbuddy）都允许 handoff——白名单从 BUILTIN_MCP_CLIENTS 派生，
+  // 别再手抄一份：2026-09-11 workbuddy 漏抄导致其 MCP 会话 open_credentials 永远 "Invalid handoff owner"。
+  if (!["external", "nomi", ...BUILTIN_MCP_CLIENTS].includes(owner)) throw new Error("Invalid handoff owner");
   const createdAt = typeof item.createdAt === "string" && item.createdAt.length <= 80 ? item.createdAt : "";
   if (!createdAt) throw new Error("Invalid handoff timestamp");
   const display =

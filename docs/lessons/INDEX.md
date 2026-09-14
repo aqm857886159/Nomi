@@ -115,6 +115,7 @@
 
 ## D. 排查与平台故障
 - [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
+- [读路径不许写盘：像读实为写的 clientInfo 把本机 5 个 MCP 客户端配置指向死 profile](mcp-read-path-must-not-write-host-configs.md) — 开设置页就改写真实宿主配置、写了不读回照样绿灯；守卫下沉到唯一写盘门，隔离判据用 os.userInfo().homedir；跑隔离实例前先备份 5 个文件
 - [Antigravity 图像验证两平台一起红：自己的 agent 定义关掉了自己的钩子](antigravity-hooks-need-inherit-customizations.md) — `inheritCustomizations:false` 在 agy ≥1.1.27 连 hooks 一起关；「加载了」≠「执行了」；同码双平台红先查共享层
 
 - [平台门控必须在 UI 上说人话](platform-gates-must-explain-user-action.md) — Windows 等平台被拒绝却显示未检测或部分受限时

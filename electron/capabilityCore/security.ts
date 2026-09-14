@@ -26,14 +26,13 @@ const MCP_CLIENT_PROOF_CONTEXT = 'nomi-mcp-client:v1'
 const MCP_CLIENT_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
 
 /**
- * 内置种子客户端（默认信任，配置文件路径由 Nomi 内置）。**这是内置名单的唯一 owner**——
- * mcpConfig 的 CLIENTS/readMcpInfo、mcpVerify、dispatcher、mcpDetectedClients 的保留 key 都读它。
+ * 内置种子客户端。名单的唯一 owner 是 electron/shared/mcpClientRegistry.ts（配置路径、安装痕迹、显示名、
+ * 默认信任全在那）；这里只是转出口，供 mcpConfig / mcpVerify / dispatcher / mcpDetectedClients /
+ * integrationCertification 沿用旧 import 路径。**不要在这里再写一份数组。**
  *
- * 注意 `mcpProtocol.ts` 里那条按自报名字猜宿主的 substring 兜底**故意不跟着这份名单走**：真身份来自
- * 配置里的签名 proof，而 'pi' 两个字母会命中 'copilot'/'api-client'，把无关客户端误标成可信宿主。
+ * `mcpProtocol.ts` 里那条按自报名字猜宿主的 substring 只产出展示级 actorId，真身份仍来自配置里的签名 proof。
  */
-export const BUILTIN_MCP_CLIENTS = ['claude', 'codex', 'cursor', 'pi', 'workbuddy'] as const
-export type BuiltinMcpClient = (typeof BUILTIN_MCP_CLIENTS)[number]
+export { BUILTIN_MCP_CLIENTS, isBuiltinMcpClient, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 
 /** 任意 Nomi 签名过的 MCP 客户端身份（内置 + 用户自定义）。语义 = 过 isValidMcpClientKey 校验的 key 字符串。 */
 export type AuthenticatedMcpClient = string
@@ -41,10 +40,6 @@ export type CapabilityOriginHost = 'external' | 'nomi' | AuthenticatedMcpClient
 
 export function isValidMcpClientKey(value: unknown): value is AuthenticatedMcpClient {
   return typeof value === 'string' && MCP_CLIENT_KEY_PATTERN.test(value)
-}
-
-export function isBuiltinMcpClient(value: unknown): value is BuiltinMcpClient {
-  return typeof value === 'string' && (BUILTIN_MCP_CLIENTS as readonly string[]).includes(value)
 }
 
 export function capabilityCoreDir(): string {
