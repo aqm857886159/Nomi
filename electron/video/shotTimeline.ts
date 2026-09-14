@@ -29,23 +29,76 @@ export type ShotDialogue = {
   carriedOver: boolean;
 };
 
+/** 每镜采样时两端各内缩的比例（避开转场帧）。sampleSecondsForShot 与最短镜头推导共用这一个数。 */
+export const SHOT_SAMPLE_INSET = 0.08;
+
+export type ShotBoundaryOptions = {
+  /** 源片帧率（probeMediaMetadata 给的真数）。缺席 = 判不出最短镜头，只丢退化切点。 */
+  fps?: number;
+  /** 每镜要取几帧（与 sampleSecondsForShot 同一个数）。 */
+  framesPerShot?: number;
+};
+
+/**
+ * 这条片子上，**短于多少秒的镜头不值得存在**。
+ *
+ * 判据不是「觉得 0.01s 太短」，而是可度量的事实：一镜要取 N 帧喂模型，这 N 帧必须落在 N 个
+ * **不同的源帧**上。采样跨度是 `(1 - 2*INSET) * span`，要放得下 `N-1` 个帧间隔，于是
+ *
+ *   minShot = max(1/fps, (N-1) / ((1 - 2*INSET) * fps))
+ *
+ * 30fps 取 3 帧 → 0.079s；12fps 取 3 帧 → 0.198s。**同一个常数不可能同时对**——
+ * 这正是 2026-09-11 那条 `0.0333s` 的镜头（30fps 的第 2 帧被当成切点）漏进来的原因：
+ * 老代码写的是 `s > 0.01`，而 `0.0333 > 0.01`。
+ *
+ * fps 拿不到时返回 0：判不出来就不假装判得出（只有退化切点会被丢）。
+ */
+export function minShotSeconds(options: ShotBoundaryOptions = {}): number {
+  const fps = Number.isFinite(options.fps) && (options.fps as number) > 0 ? (options.fps as number) : 0;
+  if (fps <= 0) return 0;
+  const frameSeconds = 1 / fps;
+  const frames = Math.max(1, Math.floor(options.framesPerShot ?? 1));
+  if (frames <= 1) return frameSeconds;
+  return Math.max(frameSeconds, ((frames - 1) * frameSeconds) / (1 - 2 * SHOT_SAMPLE_INSET));
+}
+
 /**
  * 切点 → 镜头区间。
  *
  * 为什么第一段从 0 开始：第一个镜头不由切点产生（它从片头就在），
  * 只列切点会丢掉整个开场镜——而开场镜恰恰是广告里最重要的钩子。
  */
-export function buildShotBoundaries(cutSeconds: readonly number[], durationSeconds: number): ShotBoundary[] {
+export function buildShotBoundaries(
+  cutSeconds: readonly number[],
+  durationSeconds: number,
+  options: ShotBoundaryOptions = {},
+): ShotBoundary[] {
   const duration = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0;
   if (duration <= 0) return [];
 
-  // 去重 + 排序 + 丢掉落在片外或贴边的切点（贴边切出 0 长镜头，没意义）。
-  const cuts = Array.from(new Set(
+  // 最短镜头长度**从源片派生**（见 minShotSeconds）。拿不到 fps 就只丢退化切点（贴着 0 / 片尾的），
+  // 不拿一个写死的秒数假装知道——那正是 0.0333s 那一镜的来处。
+  const minShot = minShotSeconds(options);
+
+  // 去重 + 排序 + 丢掉落在片外、贴边、或短到取不出 N 张不同帧的切点。
+  //
+  // 两道判据分开写，因为它们管的不是一件事：
+  //  · 退化（`s > 0 && s < duration`）与 fps 无关，永远要丢——切在第 0 秒或正好切在片尾，
+  //    切出来的是一个零长镜头。**这道不能靠 minShot 兼任**：fps 拿不到时 minShot 是 0，
+  //    而 `duration - 0 === duration`，片尾那一刀就会漏进来（2026-09-13 实测：8s 片的 s=8
+  //    切出 [8,8] 这一镜）。早先用 ±0.01 的写法碰巧挡住了它，但那个常数同时也是 0.0333s 碎镜的来处。
+  //  · 太短（`minShot`）只有拿得到 fps 才判得出——判不出来就不假装判得出。
+  const ordered = Array.from(new Set(
     cutSeconds
       .filter((s) => Number.isFinite(s))
       .map((s) => Math.max(0, s))
-      .filter((s) => s > 0.01 && s < duration - 0.01),
+      .filter((s) => s > 0 && s < duration)
+      .filter((s) => s >= minShot && s <= duration - minShot),
   )).sort((a, b) => a - b);
+
+  // 相邻切点也要拉开 minShot：连着两个近切点同样会切出取不出不同帧的碎镜。
+  const cuts: number[] = [];
+  for (const s of ordered) if (!cuts.length || s - cuts[cuts.length - 1] >= minShot) cuts.push(s);
 
   const marks = [0, ...cuts, duration];
   const shots: ShotBoundary[] = [];
@@ -120,7 +173,7 @@ export function assignSegmentsToShots(
 export function sampleSecondsForShot(shot: ShotBoundary, frames = 3): number[] {
   const span = Math.max(0, shot.endSeconds - shot.startSeconds);
   if (span <= 0) return [shot.startSeconds];
-  const inset = span * 0.08;
+  const inset = span * SHOT_SAMPLE_INSET;
   const from = shot.startSeconds + inset;
   const to = shot.endSeconds - inset;
   const n = Math.max(1, Math.floor(frames));

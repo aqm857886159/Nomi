@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignSegmentsToShots,
   buildShotBoundaries,
+  minShotSeconds,
   sampleSecondsForShot,
   type TranscriptSegment,
 } from "./shotTimeline";
@@ -31,7 +32,14 @@ describe("buildShotBoundaries：切点 → 镜头区间", () => {
   });
 
   it("贴片头/片尾的切点丢掉（否则切出 0 长镜头）", () => {
-    expect(buildShotBoundaries([0, 0.005, 7.999, 8], 8)).toEqual([{ index: 1, startSeconds: 0, endSeconds: 8 }]);
+    // 「多贴算贴」不是拍脑袋的常数，是源片说了算：30fps 取 3 帧 → 0.079s 以内都取不出三张不同的帧。
+    // 0.005 和 7.999 落在这个区间里，所以被丢（下面「碎镜按帧率过滤」那组把这条判据本身钉死）。
+    expect(buildShotBoundaries([0, 0.005, 7.999, 8], 8, { fps: 30, framesPerShot: 3 }))
+      .toEqual([{ index: 1, startSeconds: 0, endSeconds: 8 }]);
+  });
+
+  it("完全退化的切点（0 / 片尾 / 越界 / NaN）即便拿不到 fps 也要丢掉", () => {
+    expect(buildShotBoundaries([0, 8, 99, Number.NaN], 8)).toEqual([{ index: 1, startSeconds: 0, endSeconds: 8 }]);
   });
 
   it("时长缺失/为 0 → 空数组，不抛", () => {
@@ -118,5 +126,57 @@ describe("sampleSecondsForShot：一镜抽哪几帧", () => {
 
   it("0 长镜头不产生 NaN", () => {
     expect(sampleSecondsForShot({ index: 1, startSeconds: 3, endSeconds: 3 })).toEqual([3]);
+  });
+});
+
+// 2026-09-11 用户看到的那条 `0.0333333s` 镜头：30fps 的第 2 帧（pts 0.0333）被 ffmpeg 的
+// `select(scene>0.1)` 当成切点，而老代码的判据是写死的 `s > 0.01` —— `0.0333 > 0.01`，放行。
+// 修法不是把 0.01 调大（那只是换一个也会错的常数），是**从源片的帧率派生**。
+describe("minShotSeconds：最短镜头必须随帧率变，写死的常数不可能同时对两种帧率", () => {
+  it("30fps 取 3 帧 → 约 0.079s（三帧落在三个不同的源帧上所需的最短跨度）", () => {
+    expect(minShotSeconds({ fps: 30, framesPerShot: 3 })).toBeCloseTo(2 / 30 / 0.84, 6);
+  });
+
+  it("12fps 取 3 帧 → 约 0.198s，是 30fps 那档的 2.5 倍", () => {
+    const at12 = minShotSeconds({ fps: 12, framesPerShot: 3 });
+    const at30 = minShotSeconds({ fps: 30, framesPerShot: 3 });
+    expect(at12).toBeCloseTo(2 / 12 / 0.84, 6);
+    expect(at12 / at30).toBeCloseTo(2.5, 6);
+  });
+
+  it("每镜只取 1 帧 → 退回一个帧间隔（没有「三帧要分开」这个约束了）", () => {
+    expect(minShotSeconds({ fps: 25, framesPerShot: 1 })).toBeCloseTo(1 / 25, 6);
+  });
+
+  it("拿不到 fps → 返回 0：判不出来就不假装判得出（只有退化切点会被丢）", () => {
+    expect(minShotSeconds({})).toBe(0);
+    expect(minShotSeconds({ fps: 0, framesPerShot: 3 })).toBe(0);
+  });
+});
+
+describe("buildShotBoundaries：碎镜按帧率过滤（写死常数的版本会在其中一档翻车）", () => {
+  const CUT_AT_SECOND_FRAME_30FPS = 1 / 30; // 0.0333…，正是用户那条
+
+  it("30fps：紧贴首帧的切点被丢掉，不再切出 0.03s 的一镜", () => {
+    const out = buildShotBoundaries([CUT_AT_SECOND_FRAME_30FPS, 2.5], 5, { fps: 30, framesPerShot: 3 });
+    expect(out.map((s) => [s.startSeconds, s.endSeconds])).toEqual([[0, 2.5], [2.5, 5]]);
+  });
+
+  it("12fps：0.12s 处的切点也要被丢——它在 30fps 下合法，在 12fps 下取不出三张不同的帧", () => {
+    const cut = 0.12; // > 30fps 那档的 0.079，< 12fps 那档的 0.198
+    expect(buildShotBoundaries([cut, 2.5], 5, { fps: 30, framesPerShot: 3 })
+      .map((s) => s.startSeconds)).toEqual([0, cut, 2.5]);
+    expect(buildShotBoundaries([cut, 2.5], 5, { fps: 12, framesPerShot: 3 })
+      .map((s) => s.startSeconds)).toEqual([0, 2.5]);
+  });
+
+  it("贴着片尾的切点同样被丢（对称，不切出片尾碎镜）", () => {
+    expect(buildShotBoundaries([5 - CUT_AT_SECOND_FRAME_30FPS], 5, { fps: 30, framesPerShot: 3 }))
+      .toEqual([{ index: 1, startSeconds: 0, endSeconds: 5 }]);
+  });
+
+  it("连着两个近切点只留第一个（相邻也要拉开最短镜头长度）", () => {
+    const out = buildShotBoundaries([2.0, 2.02, 3.5], 6, { fps: 30, framesPerShot: 3 });
+    expect(out.map((s) => s.startSeconds)).toEqual([0, 2.0, 3.5]);
   });
 });

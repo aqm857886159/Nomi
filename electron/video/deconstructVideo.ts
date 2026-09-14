@@ -27,6 +27,10 @@ import { firstString, isJsonRecord, parseLooseJsonObject, trim } from "../jsonUt
 // 旧分支从 agentChatV2 import 已失效，port 时改指真源（docs/ARCHITECTURE-NOW 的「文本大脑」判据同一处）。
 import { resolveTextBrainKeys } from "../ai/textBrainResolver";
 import { runTask } from "../runtime";
+import { findExecutableModel } from "../catalog/executableModel";
+import { isSpendAuthorizationError } from "../spendGrant";
+import { logError } from "../logging/logger";
+import { desktopT } from "../i18n";
 
 /** 用户自定义列：`hint` 会拼进 VLM 的输出 schema —— 你想让 AI 关注什么，就加一列告诉它。 */
 export type DeconstructColumn = {
@@ -53,6 +57,8 @@ export type DeconstructShot = {
   custom: Record<string, string>;
   /** 这一镜的画面分析没成功（其余字段仍可用，比如对白）。诚实标出来，不假装拆成功。 */
   visionFailed?: boolean;
+  /** 这一镜为什么没读出来（供应商原话/抽帧失败）。空着的格子背后总有一句能说的话。 */
+  failureReason?: string;
 };
 
 export type DeconstructVideoPayload = {
@@ -67,6 +73,46 @@ export type DeconstructVideoPayload = {
   concurrency?: number;
   /** Retry only these measured shot indexes; all boundaries and dialogue timing remain derived from the source. */
   shotIndexes?: number[];
+  /** 这次拆解挂在哪个画布节点上（分镜表节点）。付费令牌按节点记预算，traceVendorRequested 也按它归档。 */
+  nodeId?: string;
+};
+
+/** 本次拆解会真正发出的付费调用之一。一行一次——报价、令牌预算、真实调用三者同一个计数。 */
+export type DeconstructSpendLine = {
+  vendorKey: string;
+  modelKey: string;
+  parameters?: Record<string, unknown>;
+};
+
+/** 开跑前摆给用户看的那张账：拆几镜、用哪个模型、一共几次调用。 */
+export type DeconstructSpendPlan = {
+  projectId: string;
+  nodeId: string;
+  shotCount: number;
+  vision: { vendorKey: string; modelKey: string };
+  lines: DeconstructSpendLine[];
+};
+
+/**
+ * 钱的闸。返回 grantId = 用户（或档位）批了这一整批；返回 null = 没批。
+ *
+ * **必填，不给默认值**：runTask 的付费出口靠「调用方记得带 grantId」，而漏带只在运行期炸、
+ * 还会被 catch 吞成「没读出」（2026-09-11 用户撞上的正是这个）。让编译器在这一层就拦住
+ * （R28：能让编译器拦的别留给门岗）。
+ */
+export type DeconstructAuthorizeSpend = (plan: DeconstructSpendPlan) => Promise<string | null>;
+
+/** 一镜分析完的中间形态（编排内部用；失败时带原因，不是只留一个空对象）。 */
+type AnalyzedShot = {
+  shot: ShotBoundary;
+  frameUrls: string[];
+  parsed: Record<string, unknown> | null;
+  failureReason?: string;
+};
+
+export type DeconstructVideoOptions = {
+  onPhase?: (phase: 0 | 1 | 2) => void;
+  authorizeSpend: DeconstructAuthorizeSpend;
 };
 
 export type DeconstructVideoResult = {
@@ -75,6 +121,11 @@ export type DeconstructVideoResult = {
   hasAudio: boolean;
   /** 画面分析失败的镜号（诚实回报，UI 据此提示「这几镜没读出来，可单独重试」）。 */
   failedShotIndexes: number[];
+  /**
+   * 整次拆解层面的失败原因（如「对白没取到：这台机器上没有可用的转写模型」）。
+   * UI 顶部**一行**显示它——不是每一格摊一句「没读出」（B10 拍板：一条原因，不要满屏兜底文案）。
+   */
+  failureReason?: string;
 };
 
 export class DeconstructError extends Error {
@@ -144,7 +195,8 @@ async function transcribeShots(
   videoUrl: string,
   projectId: string,
   boundaries: ShotBoundary[],
-): Promise<{ hasAudio: boolean; dialogues: ReturnType<typeof assignSegmentsToShots> }> {
+  leg: { vendorKey: string; modelKey: string; grantId: string; nodeId: string },
+): Promise<{ hasAudio: boolean; dialogues: ReturnType<typeof assignSegmentsToShots>; failureReason?: string }> {
   const empty = assignSegmentsToShots([], boundaries);
   // ⚠️ 这个函数**绝不能 reject**：调用方把它当悬空 promise 先起跑、几十秒后才 await，
   // 中间若抛出，Node 会判「未处理的 rejection」→ 主进程崩 → IPC 侧只看到
@@ -153,21 +205,23 @@ async function transcribeShots(
   let track: Awaited<ReturnType<typeof extractAudioTrack>>;
   try {
     track = await extractAudioTrack({ videoUrl, projectId });
-  } catch {
-    return { hasAudio: false, dialogues: empty };
+  } catch (error) {
+    logError("tasks", "deconstruct.audio-track-failed", error, { projectId });
+    return { hasAudio: false, dialogues: empty, failureReason: messageOf(error) };
   }
   // 没有音轨不是错误——广告片常是纯画面/纯音乐。对白列留空，拆解照跑。
   if (!track.hasAudio || !track.url) return { hasAudio: false, dialogues: empty };
 
-  const brain = resolveTextBrainKeys();
-  if (!brain) return { hasAudio: true, dialogues: empty };
   try {
     const result = await runTask({
-      vendor: brain.vendor,
+      vendor: leg.vendorKey,
       request: {
         kind: "transcribe",
         prompt: "",
-        extras: { projectId, file: track.url, language: "zh" },
+        // grantId/nodeId 必须带：转写走 runtime 的音频付费出口（runtime.ts 的 consumeTaskSpend）。
+        // 2026-09-09 之前这里的注释写着「早于 grant 校验返回」——那条前提当天就被删了，
+        // 而注释留到了 09-11，于是对白列跟画面列一起变成空白（诊断 D）。
+        extras: { projectId, file: track.url, language: "zh", modelKey: leg.modelKey, grantId: leg.grantId, nodeId: leg.nodeId },
       },
     });
     const raw = (result as { raw?: unknown }).raw;
@@ -182,16 +236,41 @@ async function transcribeShots(
         })
       : [];
     return { hasAudio: true, dialogues: assignSegmentsToShots(segments, boundaries) };
+  } catch (error) {
+    // 转写挂了不该毁掉整次拆解——画面那半仍然有价值。但**原因要带回去**：
+    // 顶上一行说清「对白为什么是空的」，不再让用户对着空列猜（诊断「静默吞错门」第 2 行）。
+    logError("tasks", "deconstruct.transcribe-failed", error, { projectId });
+    return { hasAudio: true, dialogues: empty, failureReason: messageOf(error) };
+  }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** 解出转写会用的那一行模型（与 runtime 用同一个解析器，报价才对得上真实扣费）。 */
+function resolveTranscribeLeg(): { vendorKey: string; modelKey: string } | null {
+  const brain = resolveTextBrainKeys();
+  if (!brain) return null;
+  try {
+    // runTask 对 transcribe 走的正是这一行（extras 不带 modelKey 时 modelKey 为空串）。
+    const { vendor, model } = findExecutableModel(brain.vendor, "", "audio");
+    return { vendorKey: vendor.key, modelKey: model.modelKey };
   } catch {
-    // 转写挂了不该毁掉整次拆解——画面那半仍然有价值。
-    return { hasAudio: true, dialogues: empty };
+    return null;
   }
 }
 
 /**
  * 拆一条视频。任一镜的画面分析失败只影响那一镜（标 visionFailed），不毁整批。
+ *
+ * **钱的闸在这一层**（2026-09-12 修）：切点、抽帧、算时长全是本地零成本的，
+ * 先把它们跑完，才知道这次一共要发几次付费调用——然后**一次性**问用户一次，
+ * 拿到一颗覆盖全部镜头的令牌往下传。以前这两处 runTask 一个 grantId 都不带，
+ * 于是 09-09 的付费闸把每一镜都在发请求之前挡掉，再被 catch 吞成每格「没读出」。
  */
-export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase?: (phase: 0 | 1 | 2) => void): Promise<DeconstructVideoResult> {
+export async function deconstructVideo(payload: DeconstructVideoPayload, options: DeconstructVideoOptions): Promise<DeconstructVideoResult> {
+  const onPhase = options.onPhase;
   onPhase?.(0);
   const { videoUrl, projectId } = payload;
   if (!trim(videoUrl)) throw new DeconstructError("缺少源视频地址");
@@ -200,12 +279,17 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
   const framesPerShot = Math.max(1, payload.framesPerShot ?? DECONSTRUCT_FRAMES_PER_SHOT);
   const columns = (payload.customColumns || []).filter((c) => trim(c.name));
 
-  // 时长：拿来算最后一镜的结尾，也用来判空。
+  // 时长与帧率：时长算最后一镜的结尾，帧率派生「最短镜头」（见 shotTimeline.minShotSeconds），
+  // hasAudio 决定这次到底要不要买一次转写——没有音轨就不该出现在报价里。
   const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
   let durationSeconds: number;
+  let fps: number | undefined;
+  let sourceHasAudio: boolean;
   try {
     const meta = await probeMediaMetadata(filePath);
     durationSeconds = typeof meta.durationSeconds === "number" ? meta.durationSeconds : 0;
+    fps = typeof meta.fps === "number" ? meta.fps : undefined;
+    sourceHasAudio = meta.hasAudio === true;
   } finally {
     cleanup();
   }
@@ -216,30 +300,67 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
   const cutSeconds = (detected.cuts || [])
     .filter((cut) => (typeof threshold === "number" ? cut.score >= threshold : true))
     .map((cut) => cut.seconds);
-  const boundaries = buildShotBoundaries(cutSeconds, durationSeconds);
+  const boundaries = buildShotBoundaries(cutSeconds, durationSeconds, { ...(fps ? { fps } : {}), framesPerShot });
   if (!boundaries.length) throw new DeconstructError("没能切出任何镜头");
-
-  // 声音那一路和画面那一路并行跑（互不依赖）。
-  // `.catch` 是第二道保险：transcribeShots 已承诺不 reject，但悬空 promise 一旦破例
-  // 就会崩主进程（见该函数头注释），这里再兜一层，代价为零。
-  const audioPromise = transcribeShots(videoUrl, projectId, boundaries).catch(() => ({
-    hasAudio: false,
-    dialogues: assignSegmentsToShots([], boundaries),
-  }));
 
   const brain = resolveTextBrainKeys({ preferImageInput: true });
   if (!brain) throw new DeconstructError("还没有能读图的文本模型。去「接入模型」启用一个（如 Gemini 3.5 Flash）。");
 
+  const targets = payload.shotIndexes ? boundaries.filter((shot) => payload.shotIndexes!.includes(shot.index)) : boundaries;
+  if (!targets.length) throw new DeconstructError("没能切出任何镜头");
+
+  // —— 钱的闸：一次报价、一次确认、一颗令牌覆盖这一整批 ——
+  const nodeId = trim(payload.nodeId) || `deconstruct-${projectId}`;
+  // 报价用的 vendor/model 必须是 runTask **真会解出来**的那一行，否则卡上的数和真扣的数对不上。
+  const visionModel = findExecutableModel(brain.vendor, brain.modelKey, "text");
+  const visionIdentity = { vendorKey: visionModel.vendor.key, modelKey: visionModel.model.modelKey };
+  const visionParameters: Record<string, unknown> = { projectId, modelKey: brain.modelKey, temperature: 0.2, maxTokens: DECONSTRUCT_MAX_TOKENS };
+  const transcribeLeg = sourceHasAudio ? resolveTranscribeLeg() : null;
+  const plan: DeconstructSpendPlan = {
+    projectId,
+    nodeId,
+    shotCount: targets.length,
+    vision: visionIdentity,
+    lines: [
+      ...targets.map(() => ({ ...visionIdentity, parameters: visionParameters })),
+      ...(transcribeLeg ? [{ ...transcribeLeg }] : []),
+    ],
+  };
+  const grantId = await options.authorizeSpend(plan);
+  if (!grantId) throw new DeconstructError(desktopT("deconstruct.spendDeclined"));
+
+  // 声音那一路和画面那一路并行跑（互不依赖）。
+  // `.catch` 是第二道保险：transcribeShots 已承诺不 reject，但悬空 promise 一旦破例
+  // 就会崩主进程（见该函数头注释），这里再兜一层，代价为零。
+  const audioPromise = transcribeLeg
+    ? transcribeShots(videoUrl, projectId, boundaries, { ...transcribeLeg, grantId, nodeId }).catch((error: unknown) => ({
+        hasAudio: false,
+        dialogues: assignSegmentsToShots([], boundaries),
+        failureReason: messageOf(error),
+      }))
+    : Promise.resolve({
+        hasAudio: sourceHasAudio,
+        dialogues: assignSegmentsToShots([], boundaries),
+        // 有音轨却没有可用的转写模型 —— 这句话必须说出来，不然用户只看到空白的对白列。
+        ...(sourceHasAudio ? { failureReason: desktopT("deconstruct.noTranscribeModel") } : {}),
+      });
+
   onPhase?.(1);
-  const analyzed = await mapWithConcurrency(payload.shotIndexes ? boundaries.filter(shot => payload.shotIndexes!.includes(shot.index)) : boundaries, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot) => {
+  // 闸在半路拒了（令牌过期 / 预算被别处吃光）= 整件事没被授权，不是某一格空白。
+  // 记下来、停掉后续镜头，收尾时整体抛出——绝不摊进每一格变成满屏「没读出」。
+  let gateFailure: string | null = null;
+  const analyzed = await mapWithConcurrency(targets, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot): Promise<AnalyzedShot> => {
+    const empty: AnalyzedShot = { shot, frameUrls: [], parsed: null };
+    if (gateFailure) return empty;
     const seconds = sampleSecondsForShot(shot, framesPerShot);
     let frameUrls: string[];
     try {
       frameUrls = await Promise.all(
         seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId })).url),
       );
-    } catch {
-      return { shot, frameUrls: [] as string[], parsed: null as Record<string, unknown> | null };
+    } catch (error) {
+      logError("tasks", "deconstruct.frame-failed", error, { projectId, shot: String(shot.index) });
+      return { ...empty, failureReason: messageOf(error) };
     }
     try {
       const result = await runTask({
@@ -248,26 +369,33 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
           kind: "image_to_prompt",
           prompt: buildShotAnalysisPrompt(shot, frameUrls.length, columns),
           extras: {
-            projectId,
-            modelKey: brain.modelKey,
+            ...visionParameters,
             referenceImages: frameUrls,
-            temperature: 0.2,
-            maxTokens: DECONSTRUCT_MAX_TOKENS,
+            // 付费闸的授权：这颗令牌在开跑前由用户确认过，覆盖本次全部镜头。
+            grantId,
+            nodeId,
           },
         },
       });
       return { shot, frameUrls, parsed: parseLooseJsonObject(textFromTaskResult((result as { raw?: unknown }).raw)) };
-    } catch {
-      return { shot, frameUrls, parsed: null };
+    } catch (error) {
+      if (isSpendAuthorizationError(error)) {
+        gateFailure = messageOf(error);
+        return { shot, frameUrls, parsed: null };
+      }
+      logError("tasks", "deconstruct.model-failed", error, { projectId, shot: String(shot.index) });
+      return { shot, frameUrls, parsed: null, failureReason: messageOf(error) };
     }
   });
+  if (gateFailure) throw new DeconstructError(gateFailure);
 
   onPhase?.(2);
-  const { hasAudio, dialogues } = await audioPromise;
+  const audio = await audioPromise;
+  const { hasAudio, dialogues } = audio;
   const dialogueByIndex = new Map(dialogues.map((d) => [d.shotIndex, d]));
   const failedShotIndexes: number[] = [];
 
-  const shots: DeconstructShot[] = analyzed.map(({ shot, frameUrls, parsed }) => {
+  const shots: DeconstructShot[] = analyzed.map(({ shot, frameUrls, parsed, failureReason }) => {
     const line = dialogueByIndex.get(shot.index);
     const midFrame = frameUrls.length ? frameUrls[Math.floor(frameUrls.length / 2)] : "";
     if (!parsed) failedShotIndexes.push(shot.index);
@@ -292,8 +420,15 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
       motionPrompt: parsed ? firstString(parsed.motionPrompt) : "",
       custom,
       ...(parsed ? {} : { visionFailed: true }),
+      ...(!parsed && failureReason ? { failureReason } : {}),
     };
   });
 
-  return { shots, durationSeconds, hasAudio, failedShotIndexes };
+  return {
+    shots,
+    durationSeconds,
+    hasAudio,
+    failedShotIndexes,
+    ...(audio.failureReason ? { failureReason: audio.failureReason } : {}),
+  };
 }

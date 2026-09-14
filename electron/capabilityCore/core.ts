@@ -58,6 +58,8 @@ export type ShotVerifyDepsContext = {
   basePrompt: string
   params: Record<string, unknown>
   references: string[]
+  /** 给判分模型铸**它自己的**令牌（理由见 `shotVerifyDeps.ts` 的 `confirmJudgeSpend`）。 */
+  confirmJudgeSpend: (judge: { vendor: string; modelKey: string }) => Promise<string | null>
 }
 export type MakeVerifyDeps = (ctx: ShotVerifyDepsContext) => ShotVerifyDeps
 
@@ -711,6 +713,10 @@ export async function generateOnProject(
         basePrompt: prompt,
         params: input.params || {},
         references,
+        confirmJudgeSpend: (judge) => gateway.confirmSpend({
+          projectId: input.projectId, ...(projectName ? { projectName } : {}), nodeId,
+          intent: 'text', vendor: judge.vendor, modelKey: judge.modelKey, prompt: '',
+        }),
       })
       const outcome = await verifyAndMaybeRetry(
         {

@@ -24,6 +24,8 @@ export type DeconstructionShot = {
   custom: Record<string, string>
   /** 这一镜画面分析没成功（其余字段仍可用）。诚实标出，不假装成功。 */
   visionFailed?: boolean
+  /** 这一镜为什么没读出来（供应商原话 / 抽帧失败）。 */
+  failureReason?: string
 }
 
 /** 引擎整批结果（镜像 DeconstructVideoResult）。 */
@@ -33,6 +35,8 @@ export type DeconstructionResult = {
   hasAudio: boolean
   /** 画面分析失败的镜号（诚实回报，UI 据此提示可单独重试）。 */
   failedShotIndexes: number[]
+  /** 整次拆解层面的失败原因（顶部一行显示；不是每格一句「没读出」）。 */
+  failureReason?: string
 }
 
 /** 存进 GenerationCanvasNode.meta 的键：拆解结果随节点走（图片/运镜提示词随节点走，方案 §3.1）。 */

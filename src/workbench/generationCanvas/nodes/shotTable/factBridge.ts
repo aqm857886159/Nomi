@@ -82,7 +82,8 @@ export async function deconstructToShotTable(sourceNodeId: string, projectId = g
   })
   try {
     const result = await deconstruct({
-      videoUrl: source.result.url, projectId, requestId,
+      // nodeId：这次拆解的付费令牌按它记预算，主进程的一次报价卡也按它显示是哪张表。
+      videoUrl: source.result.url, projectId, requestId, nodeId: id,
       customColumns: table.columns.filter((column) => column.kind === 'custom').map((column) => ({ name: column.columnId, hint: column.hint || column.labelKey })),
     })
     // A completion from a departed project must never write into its successor.
@@ -109,7 +110,7 @@ export async function retryShot(tableNodeId: string, rowId: string): Promise<voi
   const source = canvas.nodes.find(node => node.id === table.source.sourceNodeId)
   const deconstruct = getDesktopBridge()?.video?.deconstruct
   if (!row || !source?.result?.url || !deconstruct) return
-  const result = await deconstruct({ videoUrl: source.result.url, projectId, shotIndexes: [row.order],
+  const result = await deconstruct({ videoUrl: source.result.url, projectId, shotIndexes: [row.order], nodeId: tableNodeId,
     customColumns: table.columns.filter(column => column.kind === 'custom').map(column => ({ name: column.columnId, hint: column.hint || column.labelKey })),
   })
   if (getUndoJournalGeneration() !== generation || getActiveWorkbenchProjectId() !== projectId) return

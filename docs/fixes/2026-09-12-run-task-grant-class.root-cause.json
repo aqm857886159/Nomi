@@ -1,0 +1,275 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-run-task-grant-class",
+  "change_kind": "corrective",
+  "problem_type": "付费出口漏带授权令牌，整条动作在发请求前被闸拦掉并被静默吞成空结果",
+  "symptom": "2026-09-11 起用户每点一次「拆解视频」，分镜表每一格都显示「没读出」、对白整列空白；同族的审片判分也一起失效。界面上没有一个字指向真因，日志里只有被 catch 吞掉的 visionFailed。",
+  "direct_cause": "electron/video/deconstructVideo.ts 的两处 runTask（逐镜画面分析、整片转写）与 electron/capabilityCore/shotVerifyDeps.ts 的判分 runTask 都自己拼 request，却从不在 extras 里带 grantId；2026-09-09 的 2d907292a 给 runtime.ts 的 text/audio 分支加上 consumeTaskSpend 之后，这些调用在发出 HTTP 请求之前就抛 SpendNotAuthorizedError（真机复现：0.2s 返回、零出站请求），再被调用点的 catch 收成「这一格没读出」。",
+  "class_root": "「自己拼 request 去发付费任务」的调用方与「发请求前必须持有令牌」这条不变量之间没有任何机器可核对的绑定：extras 是 Record<string, unknown>，漏带 grantId 编译期看不出、运行期才炸，而且炸得和「模型答不出来」长得一模一样。任何新开的付费出口都会重踩一次。",
+  "affected_population": [
+    "任何使用视频拆解（分镜表节点 / 单镜重试）的用户——2026-09-09 之后 100% 失败",
+    "审片环判分（shotVerifyDeps）：判分静默跳过，重试指令拿不到依据",
+    "拆解的对白列：转写走同一个音频付费出口，同样整列空白",
+    "未来每一个自拼 request 的新付费出口"
+  ],
+  "scope_paths": [
+    "electron/runtime.ts",
+    "electron/video/videoIpc.ts",
+    "electron/capabilityCore/gateway.ts",
+    "electron/spendConfirmGrant.ts",
+    "electron/video/deconstructSpend.ts",
+    "scripts/check-run-task-grant.mjs"
+  ],
+  "entry_points": [
+    "画布分镜表节点「拆解」→ nomi:video:deconstruct IPC → deconstructVideo（逐镜 runTask image_to_prompt）",
+    "同一条 IPC 的转写腿：deconstructVideo → transcribeShots → runTask transcribe",
+    "单镜重试：factBridge.retryShot → 同一条 IPC（payload.shotIndexes）",
+    "审片环判分：capabilityCore/core.ts → makeShotVerifyDeps → runTask image_to_prompt",
+    "外部 agent 驱动生成：capabilityCore/gateway.ts confirmSpend → mintSpendGrant"
+  ],
+  "invariants": [
+    "任何自己拼 request 的 runTask 调用点，在发出 vendor 请求前必须持有覆盖本次调用的 grantId",
+    "「问人 → 铸令牌」只有一条链（prepareSpendQuote → spend.confirm → takeSpendQuote → mintSpendGrant），不允许第二份副本",
+    "付费未授权是整次动作的失败，不得被降级成某一格的空结果；错误必须带着供应商/闸的原话上屏",
+    "报价的行数 = 令牌的调用预算 = 真实会发出的调用次数（批量确认一次覆盖这一批）"
+  ],
+  "generality_proof": "用 node scripts/door-map.mjs mintSpendGrant assertAndConsumeQuotedSpend confirmSpendAndMintGrant consumeTaskSpend authorizeDeconstructSpend 把这份状态的全部写/读入口机器化数出来（见 doors，20 扇），逐扇判定；再用新增门岗 scripts/check-run-task-grant.mjs 对全仓 src/ + electron/ 扫描「自拼 request 却无 grantId」的 runTask/runTaskFn 调用点，硬零无基线——同类入口不再靠人临时 grep。 门岗自身有红/绿对照测试（scripts/check-run-task-grant.node-test.mjs，阳性对照就是事故当时那段漏带 grantId 的原样写法）。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个洞在同一天同时命中三处互不相关的调用点（拆解画面、拆解转写、审片判分），它们共同依赖的是一条写在注释里的前提（「文本路早于 grant 校验返回」）而不是任何机器约束；只要 extras 仍是自由字典，下一个付费出口就会再踩一次。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs mintSpendGrant assertAndConsumeQuotedSpend confirmSpendAndMintGrant consumeTaskSpend authorizeDeconstructSpend → 20 扇门逐扇判定（见 doors）",
+      "node scripts/check-run-task-grant.mjs 全仓扫自拼 request 的 runTask/runTaskFn：修复前命中 deconstructVideo 两处 + shotVerifyDeps 一处，修复后硬零通过",
+      "docs/research/2026-09-12-deconstruct-all-fail/README.md 的「静默吞错门」表把同一动作里其余 catch 逐处列出并判定"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/spendConfirmGrant.ts",
+      "symbol": "confirmSpendAndMintGrant",
+      "responsibility": "「问一次人 → 铸一颗令牌」的唯一那条链：报价（支持批量 lines）、弹卡、消费报价、铸令牌。capabilityCore/gateway 与视频拆解都只调它。"
+    },
+    {
+      "path": "electron/video/deconstructSpend.ts",
+      "symbol": "authorizeDeconstructSpend",
+      "responsibility": "拆解编排与那条唯一链之间的薄接线：镜数已知后一次报价（N 镜画面 + 1 次转写）、一次确认、一颗覆盖整批的令牌。"
+    },
+    {
+      "path": "scripts/check-run-task-grant.mjs",
+      "symbol": "check:run-task-grant",
+      "responsibility": "机器边界：任何自拼 request 的 runTask 调用点必须出现 grantId，硬零无基线。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "逐镜 runTask image_to_prompt",
+      "disposition": "enforced",
+      "evidence": "grantId/nodeId 现由 options.authorizeSpend（必填参数，编译器拦）在开跑前铸出并往下传；check:run-task-grant 覆盖。"
+    },
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "transcribeShots → runTask transcribe",
+      "disposition": "enforced",
+      "evidence": "同一颗令牌覆盖；转写腿的模型由 findExecutableModel 解出，报价与真实扣费同源。"
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyDeps.ts",
+      "entry_point": "callJudge → runTask image_to_prompt",
+      "disposition": "enforced",
+      "evidence": "新增必填 ctx.confirmJudgeSpend，判分铸自己的令牌（同一判分模型本次审片内复用一次确认），不吃镜头 grant 的重试预算。"
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "confirmSpend",
+      "disposition": "enforced",
+      "evidence": "删掉自己那份 prepareSpendQuote→mintSpendGrant 内联链，改调 confirmSpendAndMintGrant（P1 同 commit 删旧）。"
+    },
+    {
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "entry_point": "渲染层 mintSpendGrant IPC",
+      "disposition": "not-affected",
+      "evidence": "渲染层的确认面（spendConfirm.ts）本来就带 quoteId 走这条 IPC 铸令牌，从未漏带；本次不动它。"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "entry_point": "认证会话注入 mintSpendGrant",
+      "disposition": "not-affected",
+      "evidence": "认证会话自铸自用，令牌在同一函数内产生并立即随 request 下发，不经过用户确认面，不属于本条不变量的漏口。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-run-task-grant.mjs",
+    "invariant": "src/ 与 electron/ 中任何自己写了 request: 的 runTask/runTaskFn 调用，其实参文本必须出现 grantId。",
+    "failure_mode": "门岗被删或被加基线 → 新的付费出口可以再次漏带令牌，用户看到的仍是「模型没答出来」而不是「没授权花钱」。",
+    "exception_policy": "none",
+    "strategy": "硬零无基线的静态门岗：编译器拦不住的（extras 是自由字典），让机器在每次提交时拦（R28）。转发型调用 runTask(payload) 匹配不到 request: 天然不在管辖内——payload 从哪来 grantId 就从哪来。同时把能让编译器拦的都交给编译器：deconstructVideo 的 authorizeSpend 与 ShotVerifyDepsContext.confirmJudgeSpend 都是必填字段。",
+    "artifacts": [
+      "scripts/check-run-task-grant.mjs",
+      "scripts/check-run-task-grant.node-test.mjs",
+      "package.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/spendConfirmGrant.ts",
+    "tests": [
+      "electron/video/shotTimeline.test.ts",
+      "electron/capabilityCore/shotVerifyDeps.test.ts"
+    ],
+    "why": "「问人 → 铸令牌」这条不变量的唯一实现住在 electron/spendConfirmGrant.ts（gateway 与视频拆解都只调它），它的测试经由 shotVerifyDeps.test.ts 的注入闸与 shotTimeline.test.ts 的编排链覆盖。「每个自拼 request 的调用方必须带令牌」这条没有单一运行时归属层（每个付费出口各自发请求），所以它的 owner 是机器门岗 scripts/check-run-task-grant.mjs——每次提交扫全仓，验红方式写在脚本头（删掉 deconstructVideo 里任一处 grantId 即红）。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/shotVerifyDeps.test.ts",
+    "electron/video/shotTimeline.test.ts",
+    "scripts/check-run-task-grant.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-run-task-grant.node-test.mjs"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 201,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "line": 148,
+      "symbol": "confirmSpendAndMintGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "line": 74,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/image/decomposeLayers.ts",
+      "line": 60,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 412,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "line": 43,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "line": 357,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "line": 381,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "line": 438,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "line": 452,
+      "symbol": "consumeTaskSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/spendConfirmGrant.ts",
+      "line": 69,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "line": 38,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskSpend.ts",
+      "line": 18,
+      "symbol": "assertAndConsumeQuotedSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructSpend.ts",
+      "line": 28,
+      "symbol": "confirmSpendAndMintGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/videoIpc.ts",
+      "line": 36,
+      "symbol": "authorizeDeconstructSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/workflowPage/runTestGeneration.ts",
+      "line": 69,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "line": 610,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "line": 651,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "line": 697,
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "line": 177,
+      "symbol": "mintSpendGrant"
+    }
+  ],
+  "door_reduction": {
+    "before": 19,
+    "after": 20,
+    "why_not": "门没减反而 +1，这是有意的：拆解在修复前是「一扇门都没有」的偷跑出口（它花钱但从不铸令牌），本次把它接上唯一那条确认链，新增 electron/video/deconstructSpend.ts:authorizeDeconstructSpend 与 videoIpc 的接线各一扇。真正被合并掉的是「问人 + 铸令牌」的内联副本：gateway.ts 原本自己写了一份 prepareSpendQuote→spend.confirm→takeSpendQuote→mintSpendGrant，现在与拆解共用 spendConfirmGrant.ts 一份，第二个调用方没有再抄一遍。其余各扇必须各自存在的理由：runtime.ts 的四扇是 consumeTaskSpend 的消费点（image/video/text/audio 四类账，各自的计费单位不同，合并会让某一类白扣或漏扣）；taskIpcHandlers/spendConfirm/generationRunController 是渲染层确认面的既有链（本来就带 quoteId，从未漏带）；integrationCertification 的两扇是认证会话自铸自用、不经用户确认面。把它们强行合并只会把四种计费语义压成一个假的公共点。"
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/gateway.ts"
+    ],
+    "rationale": "P1 加新必删旧：gateway.ts 里内联的 prepareSpendQuote→spend.confirm→takeSpendQuote→mintSpendGrant 那份，在新的 confirmSpendAndMintGrant 落地的同一个 commit 里删除，不留并行版、无 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因在本仓自己的付费闸与调用方之间，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。用户侧行为变化：拆解开跑前会弹一张报价确认卡（写明这一批共几次调用），确认后整批跑完不再逐镜追问；未确认则整次拒发并在分镜表顶上说明原因。",
+  "residual_risks": [
+    "check:run-task-grant 是文本级判据（自拼 request: 的调用实参里必须出现 grantId），能拦住「漏带」，拦不住「带了一个错的 grantId」——后者由 runtime 的 consumeTaskSpend 在发请求前 fail-closed 兜住，表现为可见错误而不是空白。",
+    "本次验证为真机 bridge-only 复现 + 单测 + 门岗自验红，未跑付费模型的端到端拆解（额度边界）；真实小样验证留给 RC 真实测试轮。"
+  ],
+  "internal_only_reason": "根因完全在本仓内部：付费令牌闸（electron/spendGrant.ts）与自拼 request 的调用方之间的绑定缺失。证据来自仓库代码、git 历史（2d907292a）与本机真实 Electron bridge 复现，见 docs/research/2026-09-12-deconstruct-all-fail/README.md。"
+}

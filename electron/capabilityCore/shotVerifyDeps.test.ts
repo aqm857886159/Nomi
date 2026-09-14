@@ -19,6 +19,8 @@ const ctx: ShotVerifyDepsContext = {
   basePrompt: '暴雨夜便利店',
   params: {},
   references: [],
+  // 判分自己的令牌（生产由 core 经 gateway.confirmSpend 铸；这里给一颗固定的假令牌）。
+  confirmJudgeSpend: async () => 'judge-grant',
 }
 
 const JUDGE_JSON = '{"scores":{"identity":5,"composition":5,"continuity":5},"reason":"好"}'
