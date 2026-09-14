@@ -36,9 +36,10 @@ function tempHome(): string {
 }
 
 /** 往 ~/.claude.json 写一条 nomi 条目（模拟「已接入」写下的配置）。 */
-function signedEnv(client: AuthenticatedMcpClient): Record<string, string> {
+function signedEnv(client: AuthenticatedMcpClient, settingsDir = homeDir): Record<string, string> {
   return {
     NOMI_MCP_STDIO: '1',
+    NOMI_SETTINGS_DIR: settingsDir,
     [MCP_CONFIG_VERSION_ENV]: MCP_CONFIG_VERSION,
     [MCP_CLIENT_ENV]: client,
     [MCP_CLIENT_PROOF_ENV]: signMcpClient(client)!,
@@ -158,6 +159,21 @@ describe('capabilityCore/mcpVerify', () => {
     expect(res.toolCount).toBe(4)
   })
 
+  // 「真·假绿」：命令对、签名对、握手也能过——但 NOMI_SETTINGS_DIR 指着另一个（或已删除的）profile，
+  // 助手连上的是一个空白 Nomi。2026-09-13 本机 5 个客户端全是这种绿。必须在 spawn 之前按读回来的值判死。
+  it('配置指向别的 / 已删除的 profile → 装的不是这一个 Nomi（not-installed + stale），不 spawn', async () => {
+    writeClaudeEntry(process.execPath, [fakeServerScript(9)], signedEnv('claude', path.join(homeDir, 'gone-profile')))
+    const res = await verifyMcp('claude')
+    expect(res).toMatchObject({ ok: false, reason: 'not-installed', stale: true })
+    expect(res.detail).toContain('gone-profile')
+  })
+
+  it('不认识的客户端 key → not-installed，不回落成 claude', async () => {
+    writeClaudeEntry(process.execPath, [fakeServerScript(9)])
+    const res = await verifyMcp('claud')
+    expect(res).toMatchObject({ ok: false, reason: 'not-installed' })
+  })
+
   it('真能握手 → ok，并带回工具数与耗时（UI 拿它当「已接入」的证据）', async () => {
     writeClaudeEntry(process.execPath, [fakeServerScript(9)])
     const res = await verifyMcp('claude')
@@ -172,7 +188,7 @@ describe('capabilityCore/mcpVerify', () => {
     fs.mkdirSync(path.join(homeDir, '.codex'), { recursive: true })
     fs.writeFileSync(
       path.join(homeDir, '.codex', 'config.toml'),
-      `[mcp_servers.other]\ncommand = "x"\n\n[mcp_servers.nomi]\ncommand = "${process.execPath}"\nargs = ["${script}"]\nstartup_timeout_sec = 60\ntool_timeout_sec = 600\ndefault_tools_approval_mode = "writes"\nenv = { NOMI_MCP_STDIO = "1", ${MCP_CONFIG_VERSION_ENV} = "${MCP_CONFIG_VERSION}", ${MCP_CLIENT_ENV} = "codex", ${MCP_CLIENT_PROOF_ENV} = "${signMcpClient('codex')}" }\n`,
+      `[mcp_servers.other]\ncommand = "x"\n\n[mcp_servers.nomi]\ncommand = "${process.execPath}"\nargs = ["${script}"]\nstartup_timeout_sec = 60\ntool_timeout_sec = 600\ndefault_tools_approval_mode = "writes"\nenv = { NOMI_MCP_STDIO = "1", NOMI_SETTINGS_DIR = "${homeDir}", ${MCP_CONFIG_VERSION_ENV} = "${MCP_CONFIG_VERSION}", ${MCP_CLIENT_ENV} = "codex", ${MCP_CLIENT_PROOF_ENV} = "${signMcpClient('codex')}" }\n`,
     )
     const res = await verifyMcp('codex')
     expect(res.ok).toBe(true)

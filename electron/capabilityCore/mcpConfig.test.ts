@@ -5,19 +5,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 let homeDir = ''
 let isPackaged = false
+/** 「真实用户主目录」（passwd 那份）。默认取本机真值——临时 HOME 不在它下面，写盘不受隔离守卫影响。 */
+let realHome: string | null = null
 
 vi.mock('electron', () => ({
   app: { getAppPath: () => '/fake/repo', getPath: () => homeDir, get isPackaged() { return isPackaged } },
 }))
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>()
-  return { ...actual, default: { ...actual, homedir: () => homeDir }, homedir: () => homeDir }
+  const userInfo = () => ({ ...actual.userInfo(), homedir: realHome ?? actual.userInfo().homedir })
+  return { ...actual, default: { ...actual, homedir: () => homeDir, userInfo }, homedir: () => homeDir, userInfo }
 })
 
 import {
   MCP_CONFIG_KIND_ENV,
   MCP_CONFIG_VERSION,
   MCP_CONFIG_VERSION_ENV,
+  classifyMcpEntry,
   installMcp,
   listCustomMcpProfiles,
   packagedMcpLauncherAvailable,
@@ -28,6 +32,7 @@ import {
   uninstallMcp,
 } from './mcpConfig'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
+import { BUILTIN_MCP_CLIENTS } from '../shared/mcpClientRegistry'
 import {
   CAPABILITY_DIR_ENV,
   MCP_CLIENT_ENV,
@@ -46,16 +51,25 @@ function tempHome(): string {
 function claudeJson(): string {
   return path.join(homeDir, '.claude.json')
 }
+/** 宿主「已安装」= 注册表登记的安装痕迹存在；测试先把痕迹摆出来，没装的客户端本来就不许写。 */
+function installHost(dir: string): void {
+  fs.mkdirSync(path.join(homeDir, dir), { recursive: true })
+}
 
 beforeEach(() => {
   homeDir = tempHome()
   // 隔离 capability-core 目录（security.ts 的 capabilityCoreDir() 用这个 env）。
   process.env[CAPABILITY_DIR_ENV] = path.join(homeDir, '.nomi-cap')
   isPackaged = false
+  realHome = null
+  installHost('.claude')
+  installHost('.codex')
   ensureToken()
 })
 afterEach(() => {
   delete process.env[CAPABILITY_DIR_ENV]
+  delete process.env.NOMI_E2E
+  delete process.env.NOMI_SETTINGS_DIR
   for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true })
 })
 
@@ -208,7 +222,8 @@ describe('capabilityCore/mcpConfig', () => {
     expect(text).toContain('default_tools_approval_mode = "writes"')
   })
 
-  it('cursor：install 写 ~/.cursor/mcp.json 的 mcpServers.nomi（目录/文件自动建），互不影响 claude', () => {
+  it('cursor：install 写 ~/.cursor/mcp.json 的 mcpServers.nomi（文件自动建），互不影响 claude', () => {
+    installHost('.cursor')
     const cursorPath = path.join(homeDir, '.cursor', 'mcp.json')
     expect(fs.existsSync(cursorPath)).toBe(false)
     installMcp('cursor')
@@ -222,43 +237,6 @@ describe('capabilityCore/mcpConfig', () => {
     )).toBe('cursor')
     expect(readMcpInfo(0).clients.cursor.installed).toBe(true)
     expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
-  })
-
-  // pi coding agent 自己不带 MCP；社区适配器 pi-mcp-adapter 自动读**标准共享**配置
-  // `~/.config/mcp/mcp.json`（README 2.32.1）。落点写错 = 用户点了「一键接入」但 pi 里什么都没有。
-  it('pi：install 写 ~/.config/mcp/mcp.json 的 mcpServers.nomi，不碰用户的 ~/.pi', () => {
-    const piPath = path.join(homeDir, '.config', 'mcp', 'mcp.json')
-    expect(fs.existsSync(piPath)).toBe(false)
-    installMcp('pi')
-    const after = JSON.parse(fs.readFileSync(piPath, 'utf8'))
-    expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
-    expect(verifyMcpClient(
-      after.mcpServers.nomi.env[MCP_CLIENT_ENV],
-      after.mcpServers.nomi.env[MCP_CLIENT_PROOF_ENV],
-    )).toBe('pi')
-    expect(readMcpInfo(0).clients.pi.installed).toBe(true)
-    expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
-    // Pi 自有的 override 层是 adapter 的地盘，一键接入不许往那儿写。
-    expect(fs.existsSync(path.join(homeDir, '.pi'))).toBe(false)
-  })
-
-  // 「同源」是这条档的全部价值：pi 拿到的启动条目必须就是 Claude Code 那一份的投影，
-  // 只有客户端身份不同。哪天有人给 pi 手写第二份条目，这条会红。
-  it('pi 与 Claude Code 的启动条目同源，只有客户端身份不同', () => {
-    installMcp('pi')
-    installMcp('claude')
-    const piEntry = JSON.parse(fs.readFileSync(path.join(homeDir, '.config', 'mcp', 'mcp.json'), 'utf8')).mcpServers.nomi
-    const claudeEntry = JSON.parse(fs.readFileSync(claudeJson(), 'utf8')).mcpServers.nomi
-    expect(piEntry.command).toBe(claudeEntry.command)
-    expect(piEntry.args).toEqual(claudeEntry.args)
-    const identityKeys = [MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV]
-    const withoutIdentity = (env: Record<string, string>) =>
-      Object.fromEntries(Object.entries(env).filter(([key]) => !identityKeys.includes(key)))
-    expect(withoutIdentity(piEntry.env)).toEqual(withoutIdentity(claudeEntry.env))
-    expect(piEntry.env[MCP_CLIENT_ENV]).toBe('pi')
-    expect(claudeEntry.env[MCP_CLIENT_ENV]).toBe('claude')
-    // 身份是绑死的：pi 的 proof 不能冒充 claude。
-    expect(verifyMcpClient('claude', piEntry.env[MCP_CLIENT_PROOF_ENV])).toBeNull()
   })
 
   it('workbuddy preserves existing servers and official fields through install and uninstall', () => {
@@ -299,6 +277,7 @@ describe('capabilityCore/mcpConfig', () => {
   })
 
   it('binds each installed entry to its client instead of trusting a renamed label', () => {
+    installHost('.cursor')
     installMcp('cursor')
     const cursorPath = path.join(homeDir, '.cursor', 'mcp.json')
     const entry = JSON.parse(fs.readFileSync(cursorPath, 'utf8')).mcpServers.nomi
@@ -306,31 +285,31 @@ describe('capabilityCore/mcpConfig', () => {
     expect(verifyMcpClient('codex', entry.env[MCP_CLIENT_PROOF_ENV])).toBeNull()
   })
 
-  it('known legacy Claude entry auto-upgrades with backup and preserves unrelated configuration', () => {
+  it('known legacy Claude entry is reported as-is by the read path and upgraded only by the explicit repair', () => {
     isPackaged = true
-    fs.writeFileSync(claudeJson(), JSON.stringify({
+    const original = JSON.stringify({
       theme: 'dark',
       mcpServers: {
         other: { command: 'other-server' },
         nomi: { command: 'node', args: ['/old/Nomi/scripts/nomi-mcp.mjs'], env: {} },
       },
-    }, null, 2))
+    }, null, 2)
+    fs.writeFileSync(claudeJson(), original)
 
-    const info = readMcpInfo(0)
-    expect(info.clients.claude).toMatchObject({
-      installed: true,
-      configState: 'current',
-      launcherKind: 'packaged',
-      migration: 'upgraded',
-    })
-    expect(info.clients.claude.backupPath).toBe(`${claudeJson()}.nomi-backup`)
+    // 读路径零写盘：读两次，字节不变、没有备份文件冒出来。
+    expect(readMcpInfo(0).clients.claude).toMatchObject({ installed: true, configState: 'legacy-launcher', launcherKind: 'packaged' })
+    expect(readMcpInfo(0).clients.claude.configState).toBe('legacy-launcher')
+    expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
+    expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
+
+    expect(repairStaleMcpConfigs()).toEqual({ changed: true, repaired: [{ client: 'claude', label: 'Claude Code', from: 'legacy-launcher' }] })
     const backup = JSON.parse(fs.readFileSync(`${claudeJson()}.nomi-backup`, 'utf8'))
     expect(backup.mcpServers.nomi.args[0]).toContain('scripts/nomi-mcp.mjs')
     const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
     expect(after.theme).toBe('dark')
     expect(after.mcpServers.other).toEqual({ command: 'other-server' })
     expect(after.mcpServers.nomi.env[MCP_CONFIG_VERSION_ENV]).toBe(MCP_CONFIG_VERSION)
-    expect(readMcpInfo(0).clients.claude.migration).toBe('none')
+    expect(readMcpInfo(0).clients.claude.configState).toBe('current')
   })
 
   it('auto-upgrades the direct packaged launcher written by the previous Nomi release', () => {
@@ -349,8 +328,10 @@ describe('capabilityCore/mcpConfig', () => {
       },
     }, null, 2))
 
+    expect(readMcpInfo(0).clients.claude.configState).toBe('auth-stale') // 上一版的 proof 对不上当前 token
+    expect(repairStaleMcpConfigs().changed).toBe(true)
     const info = readMcpInfo(0)
-    expect(info.clients.claude).toMatchObject({ configState: 'current', migration: 'upgraded' })
+    expect(info.clients.claude.configState).toBe('current')
     const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8')).mcpServers.nomi
     expect(after.command).toBe(info.server.command)
     expect(after.args).toEqual(info.server.args)
@@ -371,8 +352,9 @@ describe('capabilityCore/mcpConfig', () => {
       '',
     ].join('\n'))
 
-    const info = readMcpInfo(0)
-    expect(info.clients.codex).toMatchObject({ configState: 'current', migration: 'upgraded' })
+    expect(readMcpInfo(0).clients.codex.configState).toBe('legacy-launcher')
+    expect(repairStaleMcpConfigs().repaired.map((item) => item.client)).toEqual(['codex'])
+    expect(readMcpInfo(0).clients.codex.configState).toBe('current')
     const after = fs.readFileSync(target, 'utf8')
     expect(after).toContain('[mcp_servers.other]\ncommand = "keep-me"')
     expect(after).toContain(`${MCP_CONFIG_VERSION_ENV} = "${MCP_CONFIG_VERSION}"`)
@@ -396,8 +378,9 @@ describe('capabilityCore/mcpConfig', () => {
       '',
     ].join('\n'))
 
-    const info = readMcpInfo(0)
-    expect(info.clients.codex).toMatchObject({ configState: 'current', migration: 'upgraded' })
+    expect(readMcpInfo(0).clients.codex.configState).toBe('auth-stale')
+    expect(repairStaleMcpConfigs().changed).toBe(true)
+    expect(readMcpInfo(0).clients.codex.configState).toBe('current')
     const after = fs.readFileSync(target, 'utf8')
     expect(after).not.toContain('[mcp_servers.nomi.env]')
     expect(after).toContain('[projects."/Users/example"]\ntrust_level = "trusted"')
@@ -410,7 +393,8 @@ describe('capabilityCore/mcpConfig', () => {
     fs.writeFileSync(claudeJson(), original)
 
     const info = readMcpInfo(0)
-    expect(info.clients.claude).toMatchObject({ installed: true, configState: 'custom', migration: 'none' })
+    expect(info.clients.claude).toMatchObject({ installed: true, configState: 'custom' })
+    expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
     expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
     expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
   })
@@ -435,19 +419,88 @@ describe('capabilityCore/mcpConfig', () => {
     expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
   })
 
-  it('does not touch host configs during a walkthrough, whose home directory is the real one', () => {
-    isPackaged = true
-    const original = JSON.stringify({
+  // 2026-09-13 现场：只是打开设置页，本机 5 个客户端配置全被改成指向一个跑完就删的 /tmp profile。
+  // 守卫住在唯一的写盘门（atomicWrite）上：repair / install / uninstall 三条路都从这扇门过，谁也绕不开。
+  describe('an isolated instance never rewrites host configs in the real user home', () => {
+    const stale = JSON.stringify({
       mcpServers: { nomi: { command: 'node', args: ['/old/Nomi/scripts/nomi-mcp.mjs'], env: {} } },
     }, null, 2)
-    fs.writeFileSync(claudeJson(), original)
-    process.env.NOMI_E2E = '1'
-    try {
+
+    it.each([
+      ['NOMI_E2E=1', () => { process.env.NOMI_E2E = '1' }],
+      ['NOMI_SETTINGS_DIR ≠ userData', () => { process.env.NOMI_SETTINGS_DIR = path.join(homeDir, 'isolated-settings') }],
+    ])('refuses repair, install and uninstall under %s', (_label, isolate) => {
+      isPackaged = true
+      realHome = homeDir // 这台机器的真实主目录就是测试 HOME → 目标文件在真实主目录里
+      fs.writeFileSync(claudeJson(), stale)
+      isolate()
       expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
-      expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
-    } finally {
-      delete process.env.NOMI_E2E
-    }
+      expect(installMcp('claude')).toMatchObject({ ok: false, reason: 'isolated-instance' })
+      expect(uninstallMcp('claude')).toMatchObject({ ok: false, reason: 'isolated-instance' })
+      expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(stale)
+      expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
+    })
+
+    it('still writes when the walkthrough also moved HOME to a throwaway directory', () => {
+      isPackaged = true
+      process.env.NOMI_E2E = '1' // realHome 保持本机真值；临时 HOME 不在它下面 → 写的是临时文件，无害
+      fs.writeFileSync(claudeJson(), stale)
+      expect(repairStaleMcpConfigs().changed).toBe(true)
+      expect(installMcp('claude').ok).toBe(true)
+    })
+  })
+
+  it('reports a config whose NOMI_SETTINGS_DIR points at another or deleted profile as launcher-stale, and repairs it at boot', () => {
+    isPackaged = true
+    installMcp('claude')
+    const written = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
+    expect(readMcpInfo(0).clients.claude.configState).toBe('current')
+    // 同一台机器上另一个（已删除的）隔离实例写过的样子：命令、签名全对，只有 profile 指错了。
+    written.mcpServers.nomi.env.NOMI_SETTINGS_DIR = path.join(homeDir, 'gone-profile')
+    fs.writeFileSync(claudeJson(), JSON.stringify(written, null, 2))
+    expect(readMcpInfo(0).clients.claude.configState).toBe('launcher-stale')
+    expect(classifyMcpEntry('claude', written.mcpServers.nomi)).toBe('launcher-stale')
+    expect(repairStaleMcpConfigs()).toEqual({ changed: true, repaired: [{ client: 'claude', label: 'Claude Code', from: 'launcher-stale' }] })
+    expect(JSON.parse(fs.readFileSync(claudeJson(), 'utf8')).mcpServers.nomi.env.NOMI_SETTINGS_DIR).toBe(homeDir)
+    expect(readMcpInfo(0).clients.claude.configState).toBe('current')
+  })
+
+  it('refuses to overwrite an existing host config that is not parseable JSON', () => {
+    fs.writeFileSync(claudeJson(), '{ "oauthAccount": { truncated')
+    expect(installMcp('claude')).toMatchObject({ ok: false, reason: 'config-unreadable' })
+    expect(uninstallMcp('claude')).toMatchObject({ ok: false, reason: 'config-unreadable' })
+    expect(fs.readFileSync(claudeJson(), 'utf8')).toBe('{ "oauthAccount": { truncated')
+    expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
+  })
+
+  it('does not fall back to Claude Code for an unknown client key', () => {
+    expect(installMcp('claud')).toMatchObject({ ok: false, reason: 'unknown-client' })
+    expect(uninstallMcp('claud')).toMatchObject({ ok: false, reason: 'unknown-client' })
+    expect(fs.existsSync(claudeJson())).toBe(false)
+  })
+
+  it('does not write, nor create directories for, a client that is not installed on this machine', () => {
+    expect(readMcpInfo(0).clients.cursor.appInstalled).toBe(false)
+    expect(installMcp('cursor')).toMatchObject({ ok: false, reason: 'client-not-installed' })
+    expect(fs.existsSync(path.join(homeDir, '.cursor'))).toBe(false)
+  })
+
+  it('lists exactly the registry clients available on this platform, in registry order', () => {
+    const expected = BUILTIN_MCP_CLIENTS.filter((key) => key !== 'claude-desktop' || process.platform !== 'linux')
+    expect(Object.keys(readMcpInfo(0).clients)).toEqual(expected)
+    expect(Object.keys(readMcpInfo(0).clients)).not.toContain('pi')
+  })
+
+  it.runIf(process.platform === 'darwin')('claude-desktop：writes the official claude_desktop_config.json under Application Support', () => {
+    const dir = path.join(homeDir, 'Library', 'Application Support', 'Claude')
+    expect(readMcpInfo(0).clients['claude-desktop'].appInstalled).toBe(false)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, 'claude_desktop_config.json'), JSON.stringify({ mcpServers: { filesystem: { command: 'npx' } } }))
+    expect(readMcpInfo(0).clients['claude-desktop'].appInstalled).toBe(true)
+    expect(installMcp('claude-desktop').ok).toBe(true)
+    const after = JSON.parse(fs.readFileSync(path.join(dir, 'claude_desktop_config.json'), 'utf8'))
+    expect(after.mcpServers.filesystem).toEqual({ command: 'npx' })
+    expect(verifyMcpClient(after.mcpServers.nomi.env[MCP_CLIENT_ENV], after.mcpServers.nomi.env[MCP_CLIENT_PROOF_ENV])).toBe('claude-desktop')
   })
 
   it('leaves a config Nomi did not write alone at boot', () => {
@@ -470,7 +523,8 @@ describe('capabilityCore/mcpConfig', () => {
     fs.writeFileSync(claudeJson(), original)
 
     const info = readMcpInfo(0)
-    expect(info.clients.claude).toMatchObject({ configState: 'custom', migration: 'none' })
+    expect(info.clients.claude).toMatchObject({ configState: 'custom' })
+    expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
     expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
   })
 })
