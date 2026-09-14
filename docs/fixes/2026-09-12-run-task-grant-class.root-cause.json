@@ -191,7 +191,7 @@
     {
       "kind": "write",
       "path": "electron/spendConfirmGrant.ts",
-      "line": 68,
+      "line": 69,
       "symbol": "mintSpendGrant"
     },
     {
