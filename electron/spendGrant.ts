@@ -79,6 +79,18 @@ export class SpendNotAuthorizedError extends Error {
 }
 
 /**
+ * 这个错是「钱的闸拒了」吗？
+ *
+ * 编排层必须分得出两件事：某一次调用**供应商那边**失败了（可以只废掉那一格），和这次动作
+ * **根本没被授权花钱**（整件事都没发生，摊进每一格就变成了满屏「没读出」）。
+ * 跨模块边界后 `instanceof` 会因重复加载的模块副本而失手，所以按 name 也认一次。
+ */
+export function isSpendAuthorizationError(error: unknown): boolean {
+  return error instanceof SpendNotAuthorizedError
+    || (error instanceof Error && error.name === "SpendNotAuthorizedError");
+}
+
+/**
  * 校验并原子消费一次令牌额度。**所有持 apiKey 发 vendor 请求的出口在真正发请求前必须调它。**
  * 校验通过即同步扣减（无 await），扣到 0 删除该 node 预算、预算空则删整颗令牌——再发请求。
  * 失败抛 SpendNotAuthorizedError（调用方转成人话错误透传）。

@@ -8,8 +8,7 @@
 //
 // 这样「外部 agent 驱动生成」无论 app 开没开都走同一套 core 逻辑，只换网关——不存在并行版。
 import { readProject, saveProject } from '../projects/repository'
-import { mintSpendGrant } from '../spendGrant'
-import { prepareSpendQuote, takeSpendQuote } from '../spendQuote'
+import { confirmSpendAndMintGrant } from '../spendConfirmGrant'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
 import { requestRenderer, requestRendererDecision } from './rendererBridge'
 
@@ -145,10 +144,11 @@ export function createRendererGateway(projectId: string): ProjectGateway {
     },
     async confirmSpend(info) {
       try {
-        const quote = prepareSpendQuote([{ vendorKey: info.vendor, modelKey: info.modelKey, parameters: info.parameters }])
-        const reply = (await requestRendererDecision('spend.confirm', { ...info, quote })) as { confirmed?: boolean } | null
-        // 真人点确认才到这里；铸令牌发生在主进程、消费仍在 runTask 硬闸（信任边界不破）。
-        return reply?.confirmed ? mintSpendGrant({ nodeIds: [info.nodeId], quote: takeSpendQuote(quote.quoteId) }) : null
+        // 问人 + 铸令牌那一段只有一份（`spendConfirmGrant.ts`）——视频拆解走的是同一条链。
+        return await confirmSpendAndMintGrant({
+          ...info,
+          lines: [{ vendorKey: info.vendor, modelKey: info.modelKey, ...(info.parameters ? { parameters: info.parameters } : {}) }],
+        })
       } catch {
         // 渲染层不可用（窗口关了/进程没了）→ 当作未确认，把干净错误透传给 agent。
         // 注意这里**没有**「等太久就算没确认」那一档：卡在屏幕上等多久都不算答案（见 requestRendererDecision）。
