@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 
 import type { ProductionActionResult } from "./productionRunTypes";
-import type { PendingSpendConfirm } from "../shared/contracts/pendingSpendConfirm";
+import type { PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 /**
@@ -14,7 +14,7 @@ type CapabilityActions = {
   reworkProductionShot: (input: { projectId: string; runId: string; shotId?: string }) => Promise<ProductionActionResult>;
   resumeProductionBatch: (input: { projectId: string; runId: string; reason: "budget" | "manual" }) => Promise<ProductionActionResult>;
   /** 2026-09-11 Agent 面板付费确认卡：读 / 改参数 / 丢弃 / 确认并开跑。 */
-  listPendingSpendConfirmations: (projectId: string) => readonly PendingSpendConfirm[];
+  listPendingSpendConfirmations: (projectId: string) => PendingSpendRead;
   revisePendingSpendConfirmation: (input: { projectId: string; operationId: string; shotId?: string; patch: Record<string, unknown> }) => Promise<ProductionActionResult>;
   discardPendingSpendConfirmation: (input: { projectId: string; operationId: string }) => Promise<ProductionActionResult>;
   confirmPendingSpendConfirmation: (input: { projectId: string; operationId: string; shotIds?: readonly string[] }) => Promise<ProductionActionResult>;
@@ -61,10 +61,10 @@ export function registerProductionActionIpc(deps: {
    * （`missingInterventionCard.ts`）。「没有卡」和「画不出卡」从此是两种不同的结果。
    * 没打开项目仍回空数组——那是真的没有要确认的东西，不是失败。
    */
-  ipcMain.handle("nomi:production-runs:pending-spend", async (event, payload: unknown): Promise<readonly PendingSpendConfirm[]> => {
+  ipcMain.handle("nomi:production-runs:pending-spend", async (event, payload: unknown): Promise<PendingSpendRead> => {
     assertTrustedSender(event);
     const projectId = str(objectOf(payload).projectId);
-    if (!projectId || projectId !== deps.getActiveProjectId()) return [];
+    if (!projectId || projectId !== deps.getActiveProjectId()) return { surface: "ready", rows: [] };
     return (await deps.loadCore()).listPendingSpendConfirmations(projectId);
   });
 

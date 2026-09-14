@@ -69,7 +69,7 @@ import { canvasReadSurfaceRuntime } from "./capabilityCore/canvasReadSurfaceRunt
 import { registerDesktopCanvasReadRuntime, type CanvasReadExecutionRuntime } from "./capabilityCore/canvasReadMainRuntime";
 import { registerAgentLaneIpc, type LaneIpcRegistration } from "./agentLane/laneIpc";
 import { createDesktopLaneDependencies } from "./agentLane/laneDesktopRuntime";
-import type { ResidentGenerationAdapterFactory } from "./capabilityCore/residentGenerationAdapterFactory";
+import { bootResidentSurfaceLifecycle, residentGenerationFactory } from "./capabilityCore/residentSurfaceLifecycle";
 import { createDesktopProposalReceiptResolver } from "./capabilityCore/projectAgentReceiptResolver";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
@@ -135,8 +135,9 @@ const DEV_RENDERER_LOAD_ATTEMPTS = 20;
 const DEV_RENDERER_LOAD_RETRY_MS = 500;
 let isRecreatingMainWindow = false;
 const lowMemoryMode = process.env.NOMI_LOW_MEMORY_MODE === "1";
-const capabilityCoreDisabled =
-  process.env.NOMI_DISABLE_CAPABILITY_CORE === "1" || (lowMemoryMode && process.env.NOMI_KEEP_CAPABILITY_CORE !== "1");
+// 「本会话起不起能力核」的判断与记录是同一件事（residentSurfaceLifecycle 是唯一 owner）：
+// 不起 = 常驻生成面按配置 disabled，lane 与付费卡读到的是这个相，而不是一个说不出原因的 undefined。
+const capabilityCoreDisabled = bootResidentSurfaceLifecycle({ env: process.env, lowMemoryMode }).phase === "disabled";
 let runtimeModulePromise: Promise<typeof import("./runtime")> | null = null;
 let capabilityCoreModule: typeof import("./capabilityCore/appIntegration") | null = null;
 let capabilityCoreModulePromise: Promise<typeof import("./capabilityCore/appIntegration")> | null = null;
@@ -160,7 +161,6 @@ function getActiveCapabilityPort(): number | null {
 }
 
 let desktopLaneIpc: LaneIpcRegistration | undefined;
-let desktopGenerationAdapterFactory: ResidentGenerationAdapterFactory['factory'] | undefined;
 async function startDesktopCapabilityCore(): Promise<void> {
   if (!desktopCanvasReadExecutionRuntime) throw new Error("Canvas read execution runtime is unavailable");
   const core = await loadCapabilityCoreModule();
@@ -175,7 +175,6 @@ async function startDesktopCapabilityCore(): Promise<void> {
     },
     {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
-      onGenerationReady: (factory) => { desktopGenerationAdapterFactory = factory; },
       proposalReceiptFor: createDesktopProposalReceiptResolver(),
     },
   );
@@ -401,7 +400,7 @@ function registerIpc(): void {
   const canvasReadExecutionRuntime = registerDesktopCanvasReadRuntime();
   desktopCanvasReadExecutionRuntime = canvasReadExecutionRuntime;
   desktopLaneIpc = registerAgentLaneIpc(createDesktopLaneDependencies(
-    canvasReadExecutionRuntime, () => desktopGenerationAdapterFactory,
+    canvasReadExecutionRuntime, residentGenerationFactory,
   ));
   registerI18nIpc();
   // 会话式模型接入的可信渲染层交接（凭据保存/确认/handoff 队列）。0b6441c6 移植时这两行被误删，而

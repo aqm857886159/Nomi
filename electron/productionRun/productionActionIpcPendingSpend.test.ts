@@ -54,7 +54,7 @@ function trustedEvent(): { sender: unknown; senderFrame: unknown } {
 
 const ROW = { operationId: "op-1", projectId: "project-1", shots: [] } as const;
 
-function register(listPendingSpendConfirmations: (projectId: string) => readonly unknown[]) {
+function register(listPendingSpendConfirmations: (projectId: string) => unknown) {
   registerProductionActionIpc({
     getActiveProjectId: () => "project-1",
     loadCore: async () => ({ listPendingSpendConfirmations } as never),
@@ -66,15 +66,20 @@ describe("pending-spend 读通道：读不到 ≠ 没有", () => {
   beforeEach(() => handlers.clear());
 
   it("正常读得到就回那几行", async () => {
-    const read = register(() => [ROW]);
-    await expect(read(trustedEvent(), { projectId: "project-1" })).resolves.toEqual([ROW]);
+    const read = register(() => ({ surface: "ready", rows: [ROW] }));
+    await expect(read(trustedEvent(), { projectId: "project-1" })).resolves.toEqual({ surface: "ready", rows: [ROW] });
   });
 
-  it("不是当前打开的项目 → 空数组。这是**真的没有**：那笔生成没有人在看着这张卡", async () => {
-    const list = vi.fn(() => [ROW]);
+  it("本会话按配置没装这条面 → off 原样传给渲染层：不是失败，也不是空", async () => {
+    const read = register(() => ({ surface: "off", phase: "disabled", reason: "env" }));
+    await expect(read(trustedEvent(), { projectId: "project-1" })).resolves.toEqual({ surface: "off", phase: "disabled", reason: "env" });
+  });
+
+  it("不是当前打开的项目 → ready + 空数组。这是**真的没有**：那笔生成没有人在看着这张卡", async () => {
+    const list = vi.fn(() => ({ surface: "ready", rows: [ROW] }));
     const read = register(list);
-    await expect(read(trustedEvent(), { projectId: "project-2" })).resolves.toEqual([]);
-    await expect(read(trustedEvent(), {})).resolves.toEqual([]);
+    await expect(read(trustedEvent(), { projectId: "project-2" })).resolves.toEqual({ surface: "ready", rows: [] });
+    await expect(read(trustedEvent(), {})).resolves.toEqual({ surface: "ready", rows: [] });
     // 不惊动能力核：跨项目的读压根不该走到那一层。
     expect(list).not.toHaveBeenCalled();
   });

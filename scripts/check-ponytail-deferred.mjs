@@ -1,23 +1,19 @@
 #!/usr/bin/env node
-// Ponytail 延后账本门岗（2026-09-11）。
+// Ponytail 延后账本门岗（2026-09-11 立，2026-09-15 搬到分支级）。
 //
-// 起因：`REVIEW_TIMEOUT_MS` 是写死的 180 秒墙钟。这台机器上常年 20+ worktree、三四棵同时跑
-// gates，负载一高，评审进程被饿死在超时里——2026-09-11 一晚六条分支被拦十几次，
-// 没有一条 diff 有问题。闸门开始拦无辜的人，人就开始琢磨绕口写法。
-//
-// 自适应超时 + 全机串行锁（见 scripts/ponytail-review-hook.mjs）把常见情形治掉了；
-// 但 runner 真的不可用时（Codex 没装、插件没开、机器要死不活），仍然需要**一条明路**，
+// 评审本体住在交工前的 `pnpm run review:branch`（scripts/ponytail-review-branch.mjs）。
+// runner 真的不可用时（Codex 没装、插件没开、机器要死不活）仍然需要**一条明路**，
 // 否则唯一的出路就是 `-c core.hooksPath=/dev/null`——那会连敏感数据扫描一起跳过，
 // 而敏感数据一旦进历史就是永久的。
 //
-// 明路只有一条：`PONYTAIL_REVIEW_DEFER=1`。它保留敏感数据扫描、把这次跳过写进账本、
-// 让提交放行，然后由本门岗**一直红**到那条被补审或被人工确认。
-// 设计与 `scripts/check-push-bypass.mjs` 同源（「留痕而非禁止」），日志格式逐字对齐它。
+// 明路只有一条：`pnpm run review:branch -- --defer`（等价写法 PONYTAIL_REVIEW_DEFER=1）。
+// 它写一行账本 + 发一张 deferred 收据让 push 放行，然后由本门岗**一直红**
+// 到那条被补审或被人工确认。设计与 `scripts/check-push-bypass.mjs` 同源
+//（「留痕而非禁止」），日志格式逐字对齐它。
 //
 // 账本格式（每行）：
-//   <ISO时间>|deferred|branch=<分支>|sha=<提交前 HEAD>|worktree=<路径>|reason=<理由>|reviewed=no
+//   <ISO时间>|deferred|branch=<分支>|sha=<被评审的 HEAD>|worktree=<路径>|reason=<理由>|reviewed=no
 //
-// 注意 `sha=` 记的是**提交前的 HEAD**（pre-commit 跑的时候新提交还不存在）。
 // 报红时会把它整条打出来，`--accept` 认整串也认前缀，直接复制即可。
 //
 // 判定：零容忍，没有棘轮基线。任一 reviewed=no → 红；读不懂的行 → 也红（fail-closed：
@@ -96,7 +92,7 @@ for (const line of malformed) console.error(`  无法解析的账本行：${line
 if (malformed.length) console.error()
 console.error(`账本：${LEDGER}`)
 console.error('处置方式：')
-console.error('  1. 在那棵 worktree 里补跑 @ponytail-review（Codex）/ /ponytail-review（Claude），处理完发现后：')
+console.error('  1. 在那棵 worktree 里补跑 pnpm run review:branch，处理完发现后：')
 console.error('     node ./scripts/check-ponytail-deferred.mjs --accept <sha>')
 console.error('  2. 清理已补审的旧记录：')
 console.error('     node ./scripts/check-ponytail-deferred.mjs --clear-reviewed')

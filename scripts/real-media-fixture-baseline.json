@@ -1,0 +1,19 @@
+{
+  "entries": [
+    "hardcoded-media-geometry::tests/ux/fixtures/canvas-performance-fixture.mjs::6f7173e369aa",
+    "hardcoded-media-geometry::tests/ux/fixtures/canvas-performance-fixture.mjs::ccc8b1da098b",
+    "hardcoded-media-geometry::tests/ux/fixtures/canvas-performance-fixture.mjs::d8b8a95a9a83",
+    "hardcoded-media-geometry::tests/ux/fixtures/canvas-performance-fixture.mjs::db275e6a031e",
+    "hardcoded-media-geometry::tests/ux/fixtures/journey-project-fixture.mjs::08e94d09ff3b",
+    "lavfi-source::tests/ux/agent-runtime-video-export.walk.mjs::fabf76a0727c",
+    "lavfi-source::tests/ux/fixtures/canvas-performance-fixture.mjs::2b915eeb38b3",
+    "lavfi-source::tests/ux/fixtures/canvas-performance-fixture.mjs::2b915eeb38b3#2",
+    "lavfi-source::tests/ux/library-cover-imported-video.walk.mjs::36dfca0a875d",
+    "lavfi-source::tests/ux/library-cover-imported-video.walk.mjs::953037f1a0c9",
+    "lavfi-source::tests/ux/preview-export-busy.walk.mjs::6709e871d9f6",
+    "synthetic-video-source::tests/ux/fixtures/canvas-performance-fixture.mjs::3f5f6b0d4fce",
+    "synthetic-video-source::tests/ux/fixtures/canvas-performance-fixture.mjs::903e3299dccd",
+    "synthetic-video-source::tests/ux/library-cover-imported-video.walk.mjs::36dfca0a875d",
+    "synthetic-video-source::tests/ux/library-cover-imported-video.walk.mjs::953037f1a0c9"
+  ]
+}

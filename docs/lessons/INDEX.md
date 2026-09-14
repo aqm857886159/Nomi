@@ -4,7 +4,7 @@
 >
 > **谁读**：接手本仓任何工作的人或执行体（Claude / Codex / 协作者）。动手前不必通读——**按触发场景查**：写走查查 A 区、判测试红绿查 B 区、动分支/合并查 C 区、排查线上/平台故障查 D 区、做产品判断查 E 区。
 >
-> **和 `CLAUDE.md` 的分工**：`CLAUDE.md` 是**永远相关**的原则（P1–P5 / D1–D6 / R1–R27），必须每轮加载；本目录是**触发才查**的具体坑，可以有很多条、可以过期作废。原则升进 CLAUDE.md，细节留这里。规则详解在 [`../engineering-rules.md`](../engineering-rules.md)，编排纪律在 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)。
+> **和 `CLAUDE.md` 的分工**：`CLAUDE.md` 是**永远相关**的原则（P1–P5 / D1–D6 / 17 条 R 规则），必须每轮加载；本目录是**触发才查**的具体坑，可以有很多条、可以过期作废。原则升进 CLAUDE.md，细节留这里。规则详解在 [`../engineering-rules.md`](../engineering-rules.md)，编排纪律在 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)。
 
 ## 维护纪律
 
@@ -13,6 +13,20 @@
 - **新增一条就在本索引挂一行**（格式：`- [标题](<slug>.md) — 触发场景钩子`，写成真链接）。索引是入口，孤儿文件等于不存在。
 - **过期了就标，不要静默留着**：结论被推翻 → 头部状态改 `⛔ 已反转`，正文保留「当初为什么误判」（误判过程本身是教训）；已被门岗/代码结构消化 → 标 `✅ 已固化`，写清由哪个门岗接管。**删除只在这条彻底不再可能发生时**。
 - **不进本目录的三类**：① 战况快照 / 路线图（几天就过期，属 `docs/plan` 或 `docs/DELIVERY-LEDGER.md`）；② 本机环境与个人账号偏好（属本机记忆）；③ 当前架构事实（属 [`../ARCHITECTURE-NOW.md`](../ARCHITECTURE-NOW.md)）。
+
+## 规则编号映射（2026-09-14 合并 30 → 17）
+
+> 本目录的历史教训里写的是**当时的**编号，一律**不改**（改了就成了改历史）。碰到旧号照这张表换算；正本在 [`../engineering-rules.md`](../engineering-rules.md) 的「编号别名表」。
+
+| 旧号 | 现在 | 旧号 | 现在 |
+|---|---|---|---|
+| R6 | R5.2 | R23 | 仍在 L2 `R23`（不再进 L1）|
+| R10 | R1（CSS 段）| R26 | R17.3 |
+| R12 | R9（巨壳门岗）| R28 | R17（升为主号）|
+| R16 | R13.2 | R29 | R5.4 |
+| R18 | R17.2 | R30 | R13.3 |
+| R19 | R11.1 | R31 | R5.5 |
+| R20 | R5.3 | — | — |
 
 ## 文件格式
 
@@ -36,6 +50,7 @@
 
 ## A. 走查与体验验证（Playwright / Electron 真机）
 
+- [合成夹具永远走不到真实素材那条路](2026-09-14-real-media-first-run-exposed-import-and-open-time.md) — 画布/性能/导入/导出测试全绿、用户第一次拿真素材就卡死或导不进来时读；附夹具与真素材的量级对照 + 门岗 `check:real-media-fixture`
 - [打包成功不证明包来自当前源码](package-only-is-not-a-source-build.md) — 切分支、合并、修代码后打包验收，必须核验两份构建戳
 - [测 Agent 不用各种 prompt 打它、走查靠灌状态 = 测不出东西](agent-tests-must-be-prompt-driven-and-human-path.md) — 写验收走查/派走查任务书前先读；执行版在 `docs/engineering/acceptance-walkthrough-doctrine.md`
 
@@ -84,6 +99,7 @@
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
 - [Canvas Performance 红了：先看它红在哪一条判据](canvas-perf-red-read-which-assertion-failed.md) — 上一条的**前置步骤**：2026-09-05 那次红预算全绿，真凶是框选手势跑进 React Flow 自动平移带（按帧积分）导致选中数在 8/9/12 间跳；先打印 verdict + warmupFailures 再定性
+- [「没装」有四种相，别让读通道只认一个 null](not-installed-is-not-install-failed.md) — ✅ 已固化；性能门红在 `spend-surface-unavailable` console error 而预算全过：harness 按配置不起能力核，主进程日志零 ERROR，别去 catch 里找异常、别过滤 console；owner 在 `residentSurfaceLifecycle.ts`
 - [在满载机器上用墙钟做一次性 A/B，不算性能证据](wallclock-bisect-on-a-busy-machine-is-not-evidence.md) — 「拆完 9.1s→47s」已被证伪；量 CPU 时间 + 交错 A/B + 先注入已知变慢验尺子
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
@@ -100,6 +116,7 @@
 ## C. Git 交付、分支与文档改动
 
 - [三点 diff 会掩盖过期分支的大回滚](three-dot-diff-hides-stale-branch-reverts.md) — 判断能不能合必须用两点 diff
+- [评审要放在意见还能落地的时刻，不是每次 commit/push](review-at-the-moment-it-can-land.md) — 设计「每次 X 都自动评一遍」的闸门前先读；判空转只看「输出被读过几次」，45 次评审 24 段发现 0 人读的数字在里面
 - [远落后分支合并走 `gh pr update-branch`](stale-branch-merge-use-update-branch.md) — 本地 push 追平 merge 的巨型 diff 会撞 pre-push 钩子的 ENOBUFS
 - [接到「修 X」先查在途 PR](check-open-prs-before-fixing-reported-bugs.md) — 30 秒 `gh pr list` + `git log --all`，省掉白做一版
 - [PR 攒到阶段边界再开](pr-cadence-batch-by-default.md) — 频繁 PR 的成本是墙钟：CI 排队 + 合并列车 + 门岗链冲突；**但前提是还有下一件活可搭车——手上空了要交回给用户就是边界，必须开 PR，否则活搁浅在一次性分支上永远合不进去**

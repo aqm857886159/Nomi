@@ -232,6 +232,7 @@ test("match: 交付闸门的执行体算高风险，提醒型 hook 不算", () =
     "scripts/claude-hooks/pre-push-check.sh",
     "scripts/claude-hooks/secret-guard.sh",
     "scripts/stamp-gates-ok.mjs",
+    "scripts/ponytail-review-branch.mjs",
     "scripts/ponytail-review-hook.mjs",
     "scripts/install-claude-hooks.cjs",
     "scripts/install-git-hooks.cjs",

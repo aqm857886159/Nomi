@@ -1,0 +1,74 @@
+{
+  "$comment": "真实素材登记表（R13「四件真实」第④件，2026-09-14）。素材本身不进仓库（1.38 GB），这里只记规格、来源与覆盖面。门岗：pnpm run check:real-media-fixture",
+  "mediaEnvVar": "NOMI_REAL_MEDIA_DIR",
+  "localDefaultDir": "/Users/aoqimin/Desktop/视频/9月12日(1)/",
+  "assets": [
+    {
+      "id": "video-4k-hevc-10bit",
+      "kind": "video",
+      "relativePath": "9月12日(1).mov",
+      "spec": {
+        "codec": "hevc",
+        "bitDepth": 10,
+        "width": 3840,
+        "height": 2160,
+        "bytes": 1380939031
+      },
+      "source": "用户 2026-09-12 真机拍摄；素材不进仓库，本机在 localDefaultDir",
+      "whyThisOne": "10-bit HEVC 走与 H.264 不同的解码路径（很多机器没有硬解、退软解）；1.38 GB 逼出流式读取与首帧成本。合成夹具那条（1280×720 / 2 秒 / crf 35）在这两件事上都接近零成本"
+    },
+    {
+      "id": "image-4k-png",
+      "kind": "image",
+      "derivedFrom": {
+        "assetId": "video-4k-hevc-10bit",
+        "how": "ffmpeg -ss 00:00:05 -frames:v 1 抽一帧，PNG 无损，落到测试自己的 tmp 目录（不写用户素材目录）"
+      },
+      "spec": {
+        "format": "png",
+        "width": 3840,
+        "height": 2160,
+        "minBytes": 8388608
+      },
+      "whyThisOne": "真实照片熵高，压缩率与解码成本比合成色块 PNG 高两个数量级；testsrc2 + drawbox 出来的平坦色块解码几乎免费"
+    }
+  ],
+  "coverage": [
+    {
+      "class": "canvas-performance",
+      "test": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "status": "debt",
+      "debtId": "canvas-performance-real-media"
+    },
+    {
+      "class": "import",
+      "test": null,
+      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "status": "debt",
+      "debtId": "import-real-media"
+    },
+    {
+      "class": "export",
+      "test": null,
+      "assets": ["video-4k-hevc-10bit"],
+      "status": "debt",
+      "debtId": "export-real-media"
+    },
+    {
+      "class": "walkthrough",
+      "test": null,
+      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "status": "debt",
+      "debtId": "walkthrough-real-media"
+    },
+    {
+      "class": "asset-conformance",
+      "test": "tests/ux/real-media-fixtures.probe.mjs",
+      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "status": "live",
+      "why": "登记表里的 codec / 位深 / 分辨率 / 字节数不许是从文档抄来的数字——这条腿用 ffprobe 实测并与登记表逐格对账，对不上就红"
+    }
+  ],
+  "requiredClasses": ["canvas-performance", "import", "export", "walkthrough"]
+}

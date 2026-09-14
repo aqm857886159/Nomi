@@ -50,12 +50,12 @@
 | **供应商适配** | `electron/providerAdapter/` | 无 | 与 `catalog` / `integrationCertification` 互相直引成硬环（第三期解耦） |
 | **集成认证 / 会话** | `electron/integrationCertification/` | 无 | 同上直环；`integrationSession.ts`（1696 行）新增职责（第三期拆） |
 | **AI 调用 / 供应商语言模型** | `electron/ai/` | 无 | 反向被 catalog/adapter 直引 |
-| **定价 / 成本（算价）** | `electron/productionRun/catalogPricingResolver.ts`（+ `shotPricing.ts`）唯一算价 | `src/workbench/generationCanvas/spend/` 仅做**展示格式化** | 渲染层重新 derive 价格数值（碰钱双真相源，P2/R20） |
+| **定价 / 成本（算价）** | `electron/productionRun/catalogPricingResolver.ts`（+ `shotPricing.ts`）唯一算价 | `src/workbench/generationCanvas/spend/` 仅做**展示格式化** | 渲染层重新 derive 价格数值（碰钱双真相源，P2/R5.3，原 R20） |
 | **生产提交链** | `electron/productionRun/` + `electron/capabilityCore/` | 无 | 绕过 reducer 另开第二写入口 |
 | **Onboarding（引导 UI）** | `src/ui/onboarding/` | `src/workbench/onboarding/`（工作台内嵌壳） | 供应商专属逻辑（如 `useAntigravitySettings`）混进 UI（挪 `src/config`/领域）；直捅 `electron/shared/antigravity.ts` |
 | **画布节点渲染分发** | `nodes/registry.ts`（路由）+ `nodes/BaseGenerationNode.tsx`（分发） | `nodes/render/`、`nodes/controls/` | 渲染逻辑再散出第五处（第四期收敛低内聚子目录） |
 | **画布状态** | `src/workbench/generationCanvas/store/`（+ 顶层 `workbenchStore.ts`） | 各面 `*Store.ts` slice | store ↔ 节点 UI 回边成环（第四期打断软环） |
-| **设计系统 / token** | `src/design/` + `src/styles/`（只减不增，R10） | 无 | 组件里写任意 px 字号/圆角、hex 色（`check:tokens`） |
+| **设计系统 / token** | `src/design/` + `src/styles/`（只减不增，R1 的 CSS 段，原 R10） | 无 | 组件里写任意 px 字号/圆角、hex 色（`check:tokens`） |
 | **i18n 文案** | `src/i18n/`（`locales/`、`resources`） | 无 | 硬编码 UI 文案（`check:i18n`） |
 | **资产（导入/媒体探测）** | `electron/assets/` + `electron/export/mediaProbe.ts` | `src/workbench/generationCanvas/assets/`（渲染层资产 UI） | 主进程媒体探测散进 providerAdapter（现存 1 处跨引，见审计 C8） |
 | **设置 / 自动化策略** | `electron/settings/`（契约 + 存储） | `src/workbench/settings/`（设置 UI） | 渲染层直捅 `settings/*Contract.ts`（应经中立层） |

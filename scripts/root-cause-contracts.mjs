@@ -58,7 +58,8 @@ const HIGH_RISK_EXACT = new Set([
   "scripts/claude-hooks/pre-push-check.sh",   // R11 push 闸：五门戳的判定方
   "scripts/claude-hooks/secret-guard.sh",     // R25 提交前敏感数据扫描
   "scripts/stamp-gates-ok.mjs",               // 五门戳的签发方（凭据怎么盖、绑什么身份）
-  "scripts/ponytail-review-hook.mjs",         // R25 提交/推送前只读评审适配器
+  "scripts/ponytail-review-branch.mjs",        // R25 交工前整分支评审：收据的签发方
+  "scripts/ponytail-review-hook.mjs",         // R25 pre-push 收据校验：收据的判定方
   "scripts/install-claude-hooks.cjs",         // 装配器：坏了 = 上面这些根本没装上
   "scripts/install-git-hooks.cjs",
 ]);

@@ -5,7 +5,7 @@
 > **怎么读这份文件（3 层）**：
 > - **L0 每轮** = `scripts/claude-hooks/self-check.sh`（hook，每条消息自动注入「三闸 + 核心原则 + 近期坑」）——salience 层，本文件**不再复述它**。
 > - **L1 always 加载** = 本文件：项目事实 + 命令 + **P1–P5** + **D1–D6** + 规则索引。**每次 session 读完再动手。** 保持精简（一屏左右）。
-> - **L2 触发才查** = `docs/engineering-rules.md`（R1–R31 详解）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
+> - **L2 触发才查** = `docs/engineering-rules.md`（17 个主号详解 + 旧号别名表）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
 >
 > **维护纪律**：本文件是**策展的，不是 append 的**。新踩的坑进 `docs/lessons/`（一条一个文件，挂 `INDEX.md`）或 hook 的 `violations.log`，**不塞这里**；只有「反复出现 + 永远相关」的原则才提升进 L1。Hook 真相源是 `scripts/claude-hooks/`，`pnpm install` postinstall 自动装进 `.Codex/`；`check:claude-hooks` 验同步。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`；`check:agents-sync` 拦漂移。本文件已做过可机器化分诊，删减依据见 `docs/engineering/rule-enforcement-audit.md`。
 
@@ -28,6 +28,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run gates:full` | 五门全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
+| `pnpm run review:branch` | 交工前对整条分支跑一次 Ponytail 评审（超限自动分块）；findings 进 `.Codex/ponytail-findings/`，收据进 `.Codex/ponytail-receipt.json`，pre-push 只查这张收据 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
@@ -41,6 +42,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `node scripts/door-map.mjs <符号或文件>` | 数门（列出一份状态的全部写/读入口，输出直接粘进根因合同 `doors`）|
 | `pnpm run check:door-map` | 数门门岗（`recurring` 合同必须带门表，PR 正文必须引用它）|
+| `pnpm run check:real-media-fixture` | 真实素材门岗（画布性能/导入/导出/走查四类各至少一条真素材测试；合成夹具棘轮只减不增；缺素材硬红不许 skip，CI 未就位期只能记带到期日的债）|
+| `pnpm run check:rule-aliases` | 规则编号解析门岗（家规文件里任何 `R<数字>` 都要解析得到——合并规则不许留悬空引用）|
 | `pnpm run check:framework-surface` | 框架接触面门岗（登记框架公开的**每个字段**都要有一条裁决：派生/常量/不用/上游默认/带到期日的债；上游升级加字段即红）|
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
@@ -49,7 +52,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 
-**提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。评审墙钟按 diff 大小与机器负载派生（base 180s ＋ 每 50KB +60s，负载>4 ×1.5，上限 600s），全机同一时刻只跑一个评审（`/tmp/nomi-ponytail.lock`，排队 ≤15 分钟且不计入超时）。**runner 不可用时的留痕延后**：`PONYTAIL_REVIEW_DEFER=1` 只在提交阶段生效，敏感数据扫描照跑，评审记一行进 `.Codex/ponytail-deferred.log` 后放行，`check:ponytail-review` 一直红到补审或 `--accept <sha>`；绕口写法（`-c core.hooksPath=` 等）照旧拒绝，留痕只有这一条明路。
+**交工前的 Ponytail 评审（R25，R24 由 PR #223 保留）**：评审只在**能落地的时刻**跑一次——交工前对整条分支 `merge-base(origin/main, HEAD)..HEAD` 跑 `pnpm run review:branch`（只读、限时的 Ponytail 适配器，超过单次上限自动按提交／按文件分块多跑几次再合并，不再逼人拆提交）。findings 落 `.Codex/ponytail-findings/<headSha>.md`，收据落 `.Codex/ponytail-receipt.json`；PR 正文必须带 `## Ponytail` 节，每条发现写「已改」或「不改，因为…」。**钩子只查收据不跑模型**：`pre-commit` 只做敏感数据扫描；`pre-push` 校验要推的每个 ref 的**树**等于收据的树（rebase／改提交信息不改树，不必重审；改一行就失效）——没有收据、树不符、收据 mergeBase 不在这条历史里都 fail-closed。**runner 不可用时的留痕延后**：`pnpm run review:branch -- --defer` 记一行进 `.Codex/ponytail-deferred.log` 并发一张 deferred 收据，`check:ponytail-review` 一直红到补审或 `--accept <sha>`；绕口写法（`--no-verify`、`-c core.hooksPath=` 等）照旧拒绝。
 
 ## 五条核心原则
 
@@ -57,7 +60,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P2 修根因不修症状** — 任何 bug、回归、CI/平台失败、性能/安全问题或审计发现，动生产代码前必须执行 `.agents/skills/root-cause-remediation/SKILL.md`。详细流程住在该 skill；L1 判断闸：分清症状/直接原因/类根因，判断 `one_off`/`recurring`，实扫同类入口，修在最早共享边界。**先数门**：动生产代码前跑 `node scripts/door-map.mjs <mutator 符号或文件>` 数清这份状态的全部写/读入口，门表进合同 `doors`（R21.3）——「实扫同类入口」不许再靠人临时 grep。自检：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出"不能" = 没解决。
 
-**P3 全绿 ≠ 完成** — CI 五门只证代码健康，证不了体验对不对。用户可见改动报完成前：① 和获批样张逐项并排对账；② 真体感走查（Playwright 截图人眼判断，不是 expect 断言）。缺一不算完成。**功能交付（尤其用户可见/体感）另过 R16：建几条「真实用户任务」端到端测试系统、带着真实任务跑通整个使用闭环、把过程中冒出的体验/设计/UI/UX/产品感/功能问题全修掉——才算真完成（2026-08-01 用户拍板：不留半成品）。**
+**P3 全绿 ≠ 完成** — CI 五门只证代码健康，证不了体验对不对。用户可见改动报完成前：① 和获批样张逐项并排对账；② 真体感走查（Playwright 截图人眼判断，不是 expect 断言）。缺一不算完成。**功能交付（尤其用户可见/体感）另过 R13 第二档（原 R16）：建几条「真实用户任务」端到端测试系统、带着真实任务跑通整个使用闭环、把过程中冒出的体验/设计/UI/UX/产品感/功能问题全修掉——才算真完成（2026-08-01 用户拍板：不留半成品）。**
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
@@ -65,7 +68,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 ## 动手前/报完成前/push 前的三闸
 
-三闸由 `self-check.sh` hook 每轮自动注入，本文件不复述。核心触发：**P5（动手前）**、**P3+R13+R16（报完成前）**、**R11+R22（push 前）**。贯穿：根因不症状(P2)、加新删旧无并行版(P1)、随输入 derive 不 hardcode、分层≤800 行(R9)。细节查 `docs/engineering-rules.md`。
+三闸由 `self-check.sh` hook 每轮自动注入，本文件不复述。核心触发：**P5（动手前）**、**P3+R13（报完成前，含原 R16/R30 两档）**、**R11+R22（push 前）**。贯穿：根因不症状(P2)、加新删旧无并行版(P1)、随输入 derive 不 hardcode、分层≤800 行(R9)。细节查 `docs/engineering-rules.md`。
 
 ## 每日雷达（每 session 第一条消息自动 · 两条）
 
@@ -75,38 +78,27 @@ Nomi：本地优先 AI 视频创作工作台。
 
 ## 规则索引（R# 详解在 `docs/engineering-rules.md`）
 
+> **2026-09-14 合并**：30 条 → 17 条，**一条都没删**——13 个号合进了同族的主号，`docs/engineering-rules.md` 为每个旧号留了别名节（`R6/R20/R29/R31 → R5`｜`R16/R30 → R13`｜`R18/R26/R28 → R17`｜`R19 → R11`｜`R10 → R1`｜`R12 → R9`｜`R23 → L2`）。引用旧号的 PR、根因合同与教训**不作废**；`check:rule-aliases` 保证任何 `R<数字>` 引用都解析得到。
+
 | # | 规则 | 一句话 |
 |---|---|---|
-| R1 | 加新必删旧 | 新替旧必同 commit 删旧；CSS 只可减不可增（R10 = R1 的 CSS 实例）|
-| R2 | 用户视角 + 极简 | 每条信息问「有行动价值吗」，没有删；好产品不靠文字解释 |
-| R3 | 决策对比表 | 涉及取舍先给用户对比表（方案/用户看到/代价），不单方面开干 |
-| R4 | 执行前写文档 | 多文件/多步改动先写 `docs/plan`：范围/不动项/回滚/验收门 |
-| R5 | 查官方文档 | 碰第三方库必先 Context7；选型/引入新框架先 Context7+web 查当前最现役框架；接入/改任何模型前必先抓真实官方 API 文档逐项对账；不查就写 = 工作错误 |
-| R6 | 近邻开源优先 | 做方案先读与 Nomi 同用户任务+同创作媒介+同交互载体的开源近邻；给出 file:line |
-| R7 | 6 角色评审 | 项目方案定稿前：CTO / 设计 / PM / 前端 / 后端 / 真实用户各审一遍 |
-| R8 | 先出样张 | 用户可见改动先出 mockup + 用户拍板；实现后必须与样张逐项对账 |
-| R9 | 模块化 + 防巨壳 | 写码前想清楚分层；单文件 ≤800 行；白名单巨壳只减不增（R12 = R9 的量化门岗）|
-| R10 | → R1 CSS | `src/styles/` 只可减不可增；新样式只写组件 className |
-| R11 | 自动 commit/push | 按 R22 选定的验证档通过即自己 commit + push；小修本地收敛后一次推送 |
-| R12 | → R9 巨壳 | `check:filesize` 门岗；白名单基线只降不升 |
-| R13 | 体验走查 | Playwright 走真实用户旅程 J1-J5（创作目标，不是功能探索）；截图人眼判断 |
-| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，机器门岗只覆盖词表 owner；**R14.2 固定再加三条：依赖框架四列表重跑 + 核心链路真实模型量数字 + 重造清单反向扫** |
-| R15 | 可见文字国际化 | 所有用户可见文字必须走 i18n；默认 `zh-CN`，当前仅支持 `zh-CN` / `en`；门禁基线只减不增 |
-| R16 | 真实任务测试系统=完成的一部分 | 功能交付（尤其用户可见/体感）必建几条「真实用户任务」端到端测试、带真实任务跑通使用闭环（用 R13 走查法）、把过程中冒出的体验/设计/UI/UX/产品感/功能问题**全修掉**——才算真完成，不留半成品（R16 = P3 完成标准的量化门）；执行版见 `docs/engineering/acceptance-walkthrough-doctrine.md` |
-| R17 | 重活门岗（本地看不出、线上/CI 才炸的一族） | 这族写法做成棘轮：`check:heavy-path`，基线只减不增；**加规则必须先验它会红**（规则清单以脚本 `RULES` 为准，别在文档里数条数）|
-| R18 | 测试等待门岗 | 测试禁私有墙钟 waitFor / `Date.now()` 截止轮询（单跑绿、并行翻红一族）：`check:test-waits` 硬零；等编排链用 `waitForProduction` |
-| R19 | 解决状态必须可交付 | 侧分支只能称"已实现"；验证通过且提交已进入远端目标分支后才能称"已解决" |
-| R20 | 造轮子前先过 build-vs-buy 闸 | 写任何**通用能力**前三问：① 通用问题？② 同类产品怎么做（Context7+web 实查）？③ 在护城河上？不在护城河上又碰钱碰信任的 → 用标准实现；在护城河上的 → 自研到底 |
-| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验；**合同必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`）、必带机器生成的门表（`doors` + `door_reduction`，见 R21.3「数门」），同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）** |
-| R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
-| R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
-| R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；超时按 diff 与负载派生、全机串行一把锁；失败或缺少结果 fail-closed，runner 不可用时只许 `PONYTAIL_REVIEW_DEFER=1` 留痕延后 |
-| R26 | 分层边界不许反向/循环 | 渲染层禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（基线只减不增），加规则先验会红（R17）|
-| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）；**实施派工前先派反方出「先查别人」报告、任务书必须引用它（`check:prior-art`）；`recurring` 类 bug 派工两段式——先派数门工人出门表，修复任务书与 PR 正文必须引用那份带 `doors` 的合同（`check:door-map`）**。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
-| R28 | 防线建在最早能拦住的那层 | 能让编译器拦的别留给门岗，能让门岗拦的别留给人；安全关键依赖不许「optional + 欠账登记」——登记是备忘录不是防线 |
-| R29 | 接框架先出四列表 + 参考实现逐层对照 | 引入/接入任何框架、SDK、运行时**或其新层**前，先在 `docs/research`/`docs/plan` 出「它提供 / 我们用了 / 我们另写了 / 我们拆散了」四列表（每格 file:line 或文档 URL），派工 brief 附表当硬约束；**另出一张「参考实现逐层对照」**：把框架自带的 coding agent/官方 example 按九层拆开摆在我们旁边，逐层判 `一致`/`有意不同(理由须是领域约束)`/`没想到`，「没想到」清单是实施阶段的前置门。**再出第三份：framework-surface 逐字段裁决**——登记框架公开的每个字段判 `derived`/`constant`/`unused`/`upstream-default`/`debt`，机器从 `.d.ts` 抽字段（升级加字段即红）。三份结论都进 `docs/engineering/framework-boundaries.json` 才算研究完成。R20 管「通用能力该不该自研」，R29 管「已选框架的边界画在哪」|
-| R30 | Agent 行为验收靠真实模型数字 | 任何 Agent/工具/契约改动，验收门必须含**工具写对率 + 回合成功率**：零额度 loopback 夹具进 CI，小额真实模型定期跑、数字写进 PR；设计实验室基线只证外观、走查截图只证界面，两者都不得单独判「接好了」|
-| R31 | 外部格式/协议/契约必须对齐官方或事实标准 | 碰任何**外部也读写**的东西（技能/提示词包格式、MCP 配置与协议、模型可见工具 schema、导入导出格式、供应商 API 契约、要互通的转录落盘格式）：**先调研再写**——`docs/plan` 的「先查别人」里给出「规范链接 / 我们的偏差 / 偏差理由」，理由只许是领域约束不许是偏好；没有标准才准自定义且要写清查过哪些；自定义扩展只能放标准的扩展点（如 frontmatter 自定义键），**不许另起平行文件**。登记进 `check:standard-formats`，官方样例当夹具、读取器测试必须读得过它。R29 拦能力重造（代价在我们），R31 拦格式分叉（代价在用户）|
+| R1 | 加新必删旧 | 新替旧必同 commit 删旧，无并行版/fallback/逃生口；CSS 同理：新样式只写组件 `className`，`src/styles/` 只可减不可增（旧 R10）；生成画布只许 React Flow 一个内核、迁移必须逐项等价（旧 R23，详解在 L2）|
+| R2 | 用户视角 + 极简 | 每条信息问「有行动价值吗」，没有删；好产品不靠文字解释；每屏记信息密度三个数 |
+| R3 | 决策对比表 | 涉及取舍先给用户对比表（方案/用户看到/代价），不单方面开干；样张内两条拍板冲突 → 停下上报 |
+| R4 | 执行前写文档 | 多文件/多步改动先写 `docs/plan`：范围/不动项/回滚/验收门；「先查别人」一节是 R5 的落点 |
+| R5 | 先查别人（一条规则，五个触发面）| 动手前先去看别人已经做好的是什么，**凭记忆判断 = 没查**。① 用第三方库的某个 API → Context7 查官方文档｜② 做方案 → 读同用户任务/同媒介/同载体的近邻开源给 file:line + 反方 prior-art 报告（旧 R6，`check:prior-art`）｜③ 要写一段**通用能力** → build-vs-buy 三问：通用问题？同类怎么做（实查）？在不在护城河上（旧 R20）｜④ 引入/接入/升级框架 SDK 运行时**或它没用过的层** → 四列表 + 参考实现逐层对照 + framework-surface 逐字段裁决，三份都进 `framework-boundaries.json`（旧 R29，`check:framework-boundary`/`check:framework-surface`）｜⑤ **外部也读写**的格式/协议/契约 → 先找规范，写「规范链接/我们的偏差/偏差理由」，理由只许是领域约束、扩展只放标准的扩展点（旧 R31，`check:standard-formats`）。代价落在我们身上＝③④；代价落在**用户**身上＝⑤ |
+| R7 | 6 角色评审 | 项目方案定稿前：CTO / 设计 / PM / 前端 / 后端 / 真实用户各审一遍；另开 agent 做对抗评审 |
+| R8 | 先出样张 | 用户可见改动先出 mockup + 用户拍板；改/扩现有 UI 先看它真实样子；实现后必须与样张逐项对账（`check:mockup-contracts`）|
+| R9 | 模块化 + 防巨壳 | 写码前想清楚分层；单文件 ≤800 行；白名单巨壳只减不增（`check:filesize`，旧 R12）|
+| R11 | 交付与状态 | 按 R22 选定的验证档通过即自己 commit + push，不等用户点头；连续小修先本地收敛再一次性推。**状态词只有四档**：已实现未推送 / 已推送待合入 / 已合入待验证 / 已解决——「已解决」必须有真实 merge SHA 上的 `delivery:verify-merged` 收据（旧 R19，`check:git-delivery`）；禁止用 REST compare 重建 Git 身份 |
+| R13 | 完成标准（走查 · 真实任务 · Agent 数字）| P3「全绿≠完成」的量化门。**三档触发**：用户可见改动/把任何可看的东西交给用户 → 样张逐项对账 + 眼见链四问（截图存在·我亲眼 Read 过·来自用户那个构建/平台/入口·拍得到改动区）+ 位置断言 + zh/en 双语真截图 + 真人乱输路径｜功能交付 → 建 ≥2-3 条真实用户任务跑通闭环、冒出的体验/设计/UI/UX/产品感/功能问题**全修掉**不留半成品（旧 R16）｜Agent/工具/契约/提示词/模型档案改动 → 工具写对率 + 回合成功率写进 PR，**外观绿不等于接好了**（旧 R30）。**四件真实**（缺一条测试不成立）：真实应用 / 真实页面输入 / 真实工具轨迹 / 真实素材（`check:real-media-fixture`）。执行版 `docs/engineering/acceptance-walkthrough-doctrine.md`；J1-J5 与工具栈见 L2 |
+| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，R14.2 三条（依赖框架四列表重跑 + 核心链路真实模型量数字 + 重造清单反向扫）|
+| R15 | 可见文字国际化 | 所有用户可见文字走 i18n；默认 `zh-CN`，当前仅 `zh-CN`/`en`；`check:i18n` 硬零无基线；zh/en 两轨都要真截图（EN 串长 1.5-2 倍，截断只有眼睛看得出）|
+| R17 | 防线建在最早能拦住的那层（含棘轮门岗族）| 能让编译器拦的别留给门岗，能让门岗拦的别留给人（旧 R28）；安全关键依赖不许「optional + 欠账登记」——**登记是带到期日的承诺，不是防线**；能力可能不存在时用显式 `unsupported`，不用 `undefined`。已机器接管的写法族一律做成**棘轮**：基线只减不增、存身份不存裸数字、**加规则必须先验它会红**——重活 `check:heavy-path`（旧 R17）｜测试等待 `check:test-waits`（旧 R18，硬零）｜分层边界 `check:boundaries`（旧 R26）｜token / 词表 / i18n / 框架边界 / 框架接触面 / 标准格式。门岗红了**先读它红在哪条判据**，别改预算或抬基线挤 PR（那是 P2 的症状修法）|
+| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`（`check:root-cause-contracts`）；必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`）、必带机器生成的门表（`doors`，先跑 `node scripts/door-map.mjs`，`check:door-map`）；同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）|
+| R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；删改名、空 diff、分类器自身与手动发布边界 fail-closed 到全维度；不删安全/持久化/认证边界覆盖；**没有真实资源时记 `unverified`，不许 mock 绿灯替代 live 证据** |
+| R25 | 交工前 Ponytail 评审 | 交工前 `pnpm run review:branch` 对整分支跑一次（超限自动分块）、findings 进 PR 正文 `## Ponytail` 节逐条表态；钩子只查收据（树相等即放行），失败或无收据 fail-closed，runner 不可用时只许 `-- --defer` 留痕延后 |
+| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 shell 哨兵轮询（禁 `--watch`/Monitor/交卷）；实施派工先引用反方 prior-art 报告（R5②）、`recurring` bug 派工两段式先出门表（R21）。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 
 ## 决策自治
 

@@ -27,7 +27,7 @@ hook 命中时会顶出一行「设计流程提示」，确保 AI 不跳步。
 
 | 类型 | 来源 | 用途 | 边界 |
 |---|---|---|---|
-| **复用源**（可整件进代码） | Beautiful UI / AI Elements | 主工作台 React UI 整件复用 | 进代码前按 R20 过 build-vs-buy + 授权核，符合 token 门岗 |
+| **复用源**（可整件进代码） | Beautiful UI / AI Elements | 主工作台 React UI 整件复用 | 进代码前按 R5.3（原 R20）过 build-vs-buy + 授权核，符合 token 门岗 |
 | **灵感源**（不搬码） | threeUI（`threeui.com/browse`） | Three.js/WebGL 特效组件与落地页商店：Hero、3D 场景、WebGL 背景、着色器按钮、文字动效、落地页整页 | 只参考，禁止把源码/CSS/GLSL/素材拷进 Nomi 仓库 |
 
 **threeUI 适用面**（2026-09-07 登记）：营销站 `nomiaqm.com` 首屏与背景氛围、scene3d / 3D 导演台的氛围与微动效节奏；**不适用**主工作台高密度 UI（面板/表格/节点/时间线/设置——其上无对应素材）。营销站不在 `src/` token 门岗覆盖范围，scene3d 走既有 three/R3F 栈。

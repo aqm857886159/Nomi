@@ -32,7 +32,8 @@ import type { ModelPricing } from "../productionRun/shotPricing";
 import type { ProductionActionResult, ProductionRun } from "../productionRun/productionRunTypes";
 import { listPendingSpendConfirms, projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
 import { decideGenerationSpend } from "./generationSpendDecision";
-import type { PendingSpendConfirm } from "../shared/contracts/pendingSpendConfirm";
+import type { PendingSpendConfirm, PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
+import { readResidentSurfaceLifecycle } from "./residentSurfaceLifecycle";
 
 type RunReader = Readonly<{
   read(projectId: string, runId: string): ProductionRun | null;
@@ -75,26 +76,8 @@ function failed(error: unknown): ProductionActionResult {
  */
 let actions: ReturnType<typeof createPendingSpendActions> | null = null;
 
-/**
- * 它为什么没装起来。装配失败时记下原话，好让**第一次真的要用**的那一刻说得出「断在哪」。
- *
- * 为什么不是只写日志（2026-09-12）：`appIntegration` 那段装配裹在一个 `catch` 里，
- * 失败只落一行日志，然后 `actions` 在整个会话里恒为 `null`。原来的读通道是
- * `actions?.listPendingSpend(projectId) ?? []`——一个**会话级的静默开关**：
- * 从此每一笔付费草稿都查无此卡，而模型还在一句句告诉用户「请在确认卡上点头」。
- * 日志在开发机上没人看，用户那头只有空面板。
- */
-let installFailure: string | null = null;
-
 export function installPendingSpendActions(deps: PendingSpendActionDeps | null): void {
   actions = deps ? createPendingSpendActions(deps) : null;
-  if (deps) installFailure = null;
-}
-
-/** 装配失败时由 `appIntegration` 调用：把原因留在这一层，读通道据此抛得明白。 */
-export function recordPendingSpendInstallFailure(reason: unknown): void {
-  actions = null;
-  installFailure = reason instanceof Error ? reason.message : String(reason);
 }
 
 export class PendingSpendSurfaceUnavailableError extends Error {
@@ -111,12 +94,28 @@ export class PendingSpendSurfaceUnavailableError extends Error {
 /**
  * Agent 面板付费确认卡（2026-09-11 P1）。四个动作走同一个编排：读、改参数、丢弃、确认并开跑。
  *
- * 读通道**抛**而不是回空（2026-09-12）：没装起来 ≠ 没有要确认的东西。前者是失败，
- * 要一路传到用户眼前那张会说话的卡上；后者才是空数组。
+ * 读通道的答案跟着常驻生成面的**相**走（2026-09-14，owner 在 `residentSurfaceLifecycle.ts`）：
+ *   · off（按配置关掉 / 还在起 / 已停）→ `{ surface: "off" }`。不是失败，也不是「没有」；
+ *   · install-failed → **抛**，原话在错误里，一路传到用户眼前那张会说话的卡上；
+ *   · ready → 那几行（空数组才是真的没有）。
+ * 2026-09-12 的版本只认一个 `null`，把「按配置没装」也抛成了失败——Canvas Performance 的
+ * harness 正是这么起 Nomi 的，于是每条画布 PR 的性能门都红在这一句上。
  */
-export function listPendingSpendConfirmations(projectId: string): readonly PendingSpendConfirm[] {
-  if (!actions) throw new PendingSpendSurfaceUnavailableError(installFailure);
-  return actions.listPendingSpend(projectId);
+export function listPendingSpendConfirmations(projectId: string): PendingSpendRead {
+  const lifecycle = readResidentSurfaceLifecycle();
+  switch (lifecycle.phase) {
+    case "disabled":
+      return { surface: "off", phase: "disabled", reason: lifecycle.reason };
+    case "starting":
+    case "stopped":
+      return { surface: "off", phase: lifecycle.phase };
+    case "install-failed":
+      throw new PendingSpendSurfaceUnavailableError(lifecycle.reason);
+    case "ready":
+      // 相说 ready 而 actions 不在 = `appIntegration` 的装配顺序被改坏了。抛，别静默回空。
+      if (!actions) throw new PendingSpendSurfaceUnavailableError("resident surface is ready but the spend-confirm actions were never installed");
+      return { surface: "ready", rows: actions.listPendingSpend(projectId) };
+  }
 }
 
 export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; shotId?: string; patch: Record<string, unknown> }): Promise<ProductionActionResult> {
