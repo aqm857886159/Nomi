@@ -18,14 +18,15 @@
 
 ## 三次跑的读数（同一个宿主、同一批话）
 
-| | 09-11 基线 | run1 修前 | run2 修后 | run3 修后 + 出片 |
-|---|---|---|---|---|
-| 宿主 | Codex CLI 0.153.4 | Claude Code CLI 2.1.270 | 同 run1 | 同 run1 |
-| 工具调用 | 58 | 20 | 30 | 见下 |
-| **入参一次写对** | **36/58 = 62%** | **17/20 = 85.0%** | **20/30 = 66.7%** | 见下 |
-| 回合成功 | 1/9 | 0/4 | 0/2 | 见下 |
-| 人工介入 | 10 | 3（全部由假话造成） | 0 | 见下 |
-| 真出片 | — | ✗ | ✗ | 见下 |
+| | 09-11 基线 | run1 修前 | run2 修后 | run3 修后·带生成 flag | run4 修后·再补默认模型 |
+|---|---|---|---|---|---|
+| 宿主 | Codex CLI 0.153.4 | Claude Code CLI 2.1.270 | 同 run1 | 同 run1 | 同 run1 |
+| 工具调用 | 58 | 20 | 30 | 33 | 21 |
+| **入参一次写对** | **36/58 = 62%** | **17/20 = 85.0%** | **20/30 = 66.7%** | **23/33 = 69.7%** | **17/21 = 81.0%** |
+| 回合成功 | 1/9 | 0/4 | 0/2 | 0/3 | 0/3 |
+| 由**假话**造成的人工介入 | — | **3** | **0** | **0** | **0** |
+| 真出片 | — | ✗ | ✗ | ✗ | ✗（图/视频都停在第 5 道闸，见下） |
+| 供应商花费 | — | ¥0 | ¥0 | ¥0 | **¥0**（一次付费提交都没发出去） |
 
 **run2 的 66.7% 比 run1 的 85% 低，不是回归。** 逐回合看就清楚：
 
@@ -68,6 +69,55 @@ Agent 没有在猜：它把这三句当硬事实，连续三个回合都在劝�
 按纪律如实标着，不写兜底、不改判据去让它「通过」。
 
 整个 run2 里再没有出现过一句「Nomi 没在运行」或「没有找到已保存的密钥」。
+
+## 出片这条路上的五道闸（四轮跑下来，一道也没绕过）
+
+要的是「各出一张图 + 一段视频」。**没做到，供应商花费 ¥0**——一次付费提交都没能发出去。
+下面是逐轮往前推、每次撞到的那道闸，按撞到的顺序：
+
+| # | 闸 | 原文 | 是什么 |
+|---|---|---|---|
+| 1 | 单次生成对外宿主默认关 | `generation.single-shot feature_disabled` | **灰度状态**。`mcpGenerationPolicy.ts:9` 的 `NOMI_MCP_GENERATION_SINGLE_SHOT_V1` 不设即关，装机版不设 → 今天外部 MCP 宿主出不了片。错误码不带主语，Agent 把它读成「Nomi 没在运行」 |
+| 2 | policy 快照读的是 app 进程的 env | 同上（run2 设了 flag 仍然报） | **仪器错**。`mcpGenerationPolicy.ts:144-150` 在持有会话的 app 进程里读一次 env，不在 stdio launcher 里。run3 起改成给 GUI 设，这道闸就过了 |
+| 3 | 画布写入 ≥2 节点要宿主确认 | `cancelled: declined` | **产品判据不够**：`mcpProtocol.ts:540-556` 的条件是 `clientSupportsElicitation && isAppOpen()`，但「客户端声明支持」≠「有人在旁边」。`claude -p` 无人值守直接 decline。run3 起改成一次只建一个节点 |
+| 4 | 隔离实例没有「默认生成模型」 | `没有配置可用的图片模型，请先在设置中选择模型`（`semanticGenerationCandidate.ts:207`） | **一半仪器、一半产品**。仪器那半：`prepareIsolation` 只拷 `model-catalog.json`，`generation-model-defaults.json` 没拷（run4 起补上）。产品那半：这句话只给了一条出路（去设置里选），而 Agent 真正能用的那条出路（显式给 `moduleId`+`providerId`+`modelId`，见同文件 `:203-206`）它一个字都没提；Agent 猜了三次 `image` / `image_generation` / `canvas`，全部回 `Unknown module: …`，而没有任何工具能列出合法的 moduleId |
+| 5 | **走通用路径接 apimart，会把 apimart 的付费生成关掉** | `Provider apimart lacks required recovery capabilities: configured_provider` | **真缺陷，本轮最重的一条**（详见下一节） |
+
+### 第 5 道闸：通用路径把内置档的 transport 顶下线，而替补从来没上场
+
+`generationProviderBootstrap.ts:62-67` 的 `hasSafeDirectKeyScope('apimart')` 要求
+`!hasCertificationOwnedConnection(...)`；`:47-50` 的判据是「这个 vendor 或它的某个 model 的
+`meta` 上有 adapter」。而 Agent 走**通用接中转**路径 `connect_provider` 之后，apimart 这条连接
+正是 certification-owned。于是：
+
+```
+通用路径接 apimart
+  → 连接变成 certification-owned
+    → 内置直连 transport 主动让位（`:53-57` 写清了理由：certification-owned 的行必须由
+       认证适配器来服务，拿它的 published metadata 当 APIMart 执行会静默强推 Bearer 与
+       APIMart 的固定路径）
+      → 而认证适配器**从来没编出来**：`draft_adapter` 的声明形状与校验器对不上（上表第 2 条缺陷），
+         Agent 连试 5 次都被 `proposal.candidates must contain 1 to 100 items` 拒绝
+        → 没有任何 transport 能服务它 → 付费提交被 `configured_provider` 挡住
+```
+
+让位那一步是**有意的、且理由正当**；真正的缺口是「让位之后替补上不来」。
+两个已知缺陷（`draft_adapter` 形状、`choose_models` 丢 kind）在这里合成一个用户可感知的后果：
+**用户让 Agent「把 APIMart 当中转接一下」，APIMart 的生成就用不了了。**
+这条不在本 PR 修——它跨了钱/信任边界（`hasSafeDirectKeyScope` 是安全判据），该单独出方案。
+
+## 截图证明了什么、没证明什么（别把它当画布证据）
+
+`run*/turn-*.png` 与 `final-canvas.png` 拍的是**隔离实例那个窗口当时的样子**，四张一模一样：
+停在「Nomi 项目库 · 还没有项目」。所以它们只证明两件事：
+① 那个 GUI 实例确实在跑（这正好是「Nomi 没在运行」那句假话的反证）；
+② 这个窗口从头到尾没有被导航到 MCP 新建的那个项目。
+
+**它们不是画布状态的证据。** 节点确实建出来了——证据是 `nomi_canvas_edit` 与
+`nomi_read target=canvas` 的返回（见 `run4-media/turn-2-*.stream.jsonl`），不是这几张图。
+顺带记一笔**未确证**的观察：MCP 新建了项目（`nomi_project_create` 成功、`nomi_session_open`
+拿到了 lease），而同一实例的 GUI 项目库仍显示「还没有项目」。可能只是这个列表不实时刷新
+（窗口是在建项目之前打开的），也可能是真的不同步——本轮没有进一步探针，不下结论。
 
 ## 走不通的地方，分成两堆
 
