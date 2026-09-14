@@ -1,0 +1,115 @@
+[
+  {
+    "turn": 1,
+    "label": "B1-接模型",
+    "exitCode": 0,
+    "calls": [
+      {
+        "name": "mcp__nomi__nomi_list_models",
+        "input": {},
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"z-image-turbo\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Z-Image Turbo\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"doubao-seedream-4.5\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Seedream 4.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "check_connection",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_c17a7334b475a9b6f45b\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"flowmusic-lyria-3.5\\\",\\n            \\\"kind\\\": \\\"audio\\\",\\n            \\\"label\\\": \\\"Lyria 3.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false,\\n            \\\"selfCheck\\\": {\\n              \\\"at\\\": \\\"2026-09-14T23:19:27.214Z\\\",\\n              \\\"reachedOrigin\\\": \\\"https://api.apimart.ai\\\",\\n              \\\"latencyMs\\\": 1790,\\n              \\\"accepted\\\": false\\n     "
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_deaff152b1cd650fe195\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"flowmusic-lyria-3.5\\\",\\n            \\\"kind\\\": \\\"audio\\\",\\n            \\\"label\\\": \\\"Lyria 3.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false,\\n            \\\"selfCheck\\\": {\\n              \\\"at\\\": \\\"2026-09-14T23:19:27.214Z\\\",\\n              \\\"reachedOrigin\\\": \\\"https://api.apimart.ai\\\",\\n              \\\"latencyMs\\\": 1790,\\n              \\\"accepted\\\": false\\n     "
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "show_models",
+          "vendorKey": "apimart",
+          "modelKeys": [
+            "gpt-image-2.5",
+            "gemini-omni-1.1-flash"
+          ],
+          "visible": true
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_c0ac57450abc85195585\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gemini-omni-1.1-flash\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gemini Omni 1.1 Flash\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gpt-image-2.5\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gpt Image 2.5\\\",\\n            \\\"visib"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart",
+          "docs": "APIMart model catalog additions:\n- gpt-image-2.5: image generation model (kind=image), OpenAI GPT Image 2.5, accessed via APIMart's existing image generation endpoint the same way gpt-image-2 is.\n- gemini-omni-1.1-flash: video generation model (kind=video), Google Gemini Omni 1.1 Flash, accessed via APIMart's existing video generation endpoint the same way Omni-Flash-Ext is."
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_fdad33b35ff9c1968a2a\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gemini-omni-1.1-flash\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gemini Omni 1.1 Flash\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gpt-image-2.5\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gpt Image 2.5\\\",\\n            \\\"visib"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "check_connection",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_c17a7334b475a9b6f45b\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"flowmusic-lyria-3.5\\\",\\n            \\\"kind\\\": \\\"audio\\\",\\n            \\\"label\\\": \\\"Lyria 3.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false,\\n            \\\"selfCheck\\\": {\\n              \\\"at\\\": \\\"2026-09-14T23:19:27.214Z\\\",\\n              \\\"reachedOrigin\\\": \\\"https://api.apimart.ai\\\",\\n              \\\"latencyMs\\\": 1790,\\n              \\\"accepted\\\": false\\n     "
+      },
+      {
+        "name": "mcp__nomi__nomi_list_models",
+        "input": {
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gemini-omni-1.1-flash\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gemini Omni 1.1 Flash\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gpt-image-2.5\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gpt Image 2.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n           "
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "check_connection",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_c17a7334b475a9b6f45b\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"flowmusic-lyria-3.5\\\",\\n            \\\"kind\\\": \\\"audio\\\",\\n            \\\"label\\\": \\\"Lyria 3.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false,\\n            \\\"selfCheck\\\": {\\n              \\\"at\\\": \\\"2026-09-14T23:19:27.214Z\\\",\\n              \\\"reachedOrigin\\\": \\\"https://api.apimart.ai\\\",\\n              \\\"latencyMs\\\": 1790,\\n              \\\"accepted\\\": false\\n     "
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "choose_models",
+          "vendorKey": "apimart",
+          "models": [
+            {
+              "modelKey": "gpt-image-2.5",
+              "kind": "image"
+            },
+            {
+              "modelKey": "gemini-omni-1.1-flash",
+              "kind": "video"
+            }
+          ]
+        },
+        "isError": true,
+        "result": "✗ 这个 action 的必填字段没给全（错误里已经一次列全）\n诊断 integration_required_fields_missing\naction=choose_models missing=setupId required=setupId,models\n1. 把消息里列出的字段一次补齐后重试"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart",
+          "docs": "Correction: the existing model entries on this connection have the wrong kind and need to be reclassified.\n- gpt-image-2.5 is currently tagged kind=text but must be kind=image (OpenAI GPT Image 2.5 image generation model).\n- gemini-omni-1.1-flash is currently tagged kind=text but must be kind=video (Google Gemini Omni 1.1 Flash video generation model).\nPlease start a setup to correct these two models' kind."
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_9db4490345c94d18cc7c\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gemini-omni-1.1-flash\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gemini Omni 1.1 Flash\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"gpt-image-2.5\\\",\\n            \\\"kind\\\": \\\"text\\\",\\n            \\\"label\\\": \\\"Gpt Image 2.5\\\",\\n            \\\"visib"
+      }
+    ],
+    "answered": 10,
+    "firstTryOk": 9,
+    "final": "已经在 APIMart 这个连接上把两个模型加上了，现在 `nomi_list_models` 里能查到:\n\n- **gpt-image-2.5** — modelKey `gpt-image-2.5`，已加入并在画布模型选择器里可见\n- **gemini-omni-1.1-flash** — modelKey `gemini-omni-1.1-flash`，已加入并在画布模型选择器里可见\n\n⚠️ 有一点需要你确认：这两个是 APIMart 目录里从未出现过的全新 modelKey（不是从探测到的 provider 模型列表里挑出来的），系统目前把它们的类型都自动归成了 **text**，而不是我预期的 image / video。我尝试了几种方式（重新提交 docs、要求重新归类）想把 kind 改成 image / video，但在已就绪的连接上，模型的 kind 修正只在\"新建连接/换 key\"这类会重新走 setup 流程的场景下才能改，现有连接无法单独改某个模型的类型。\n\n这意味着它们现在可能出现在**文本模型**的选择框里，而不是画布的图片框 / 视频框——需要你在 Nomi 里实际点开这两个模型跑一次(或者手动在 UI 里改类型)才能让系统把它们重新分类为 image / video。如果你确认这两个 modelKey 拼写没错，我可以帮你先跑一次试探性调用，或者你也可以直接在 Nomi 画布里手动把类型改过来，会更快更准。"
+  }
+]
