@@ -137,6 +137,11 @@ export type TaskResult = {
     durationSeconds?: number;
   }>;
   raw: unknown;
+  /**
+   * 文本任务的收尾原因（AI SDK 的 `finishReason`：`stop` / `length` / `content-filter`…）。
+   * **截断这一类问题在下游只能靠它自证**——没有它，「模型答不出来」和「我们自己把它截断了」长得一模一样。
+   */
+  finishReason?: string;
   /** failed 时的上游真实原因（tasks/responseParsing.taskFailureMessageFromResponse 取；渲染层只读这一处）。 */
   error?: string;
   /**

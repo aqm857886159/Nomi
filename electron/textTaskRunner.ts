@@ -32,7 +32,7 @@ export async function executeTextTask(input: {
     : [];
   const maxTokensValue = Number(input.request.extras?.maxTokens ?? input.request.extras?.max_tokens);
   const temperatureValue = Number(input.request.extras?.temperature);
-  const { raw } = await streamTextTask(
+  const { raw, finishReason } = await streamTextTask(
     {
       vendor: input.vendor,
       model: input.model,
@@ -44,7 +44,9 @@ export async function executeTextTask(input: {
     },
     { ...(input.onDelta ? { onDelta: input.onDelta } : {}), ...(input.abortSignal ? { abortSignal: input.abortSignal } : {}) },
   );
-  return { id: input.taskId, kind: input.kind, status: "succeeded", assets: [], raw };
+  // finishReason 必须带出去：截断（`length`）这一类问题在下游**只能**靠它自证。
+  // 2026-09-12 诊断里「候选 C 截断」之所以两轮都证伪不了，就是因为它被原地丢在了这一行。
+  return { id: input.taskId, kind: input.kind, status: "succeeded", assets: [], raw, ...(finishReason ? { finishReason } : {}) };
 }
 
 /**

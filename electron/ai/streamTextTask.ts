@@ -139,6 +139,14 @@ export async function streamTextTask(
     abortSignal: controller.signal,
   });
 
+  // ⚠️ 这两个 promise **必须在这里就挂上 handler**（不是等成功路径末尾才 await）。
+  // 供应商报错时 AI SDK 会同时 reject 它们；此刻若没人处理，Node 判「未处理的 rejection」
+  // → **主进程当场死**，IPC 侧只看到 `reply was never sent`，一个字都指不出真因
+  // （2026-09-12 诊断复现：404 之后 ~23s 主进程消失）。
+  // 挂了之后，报错就只是一个**值**——由下面的 catch 原样抛给调用方，调用方看得到供应商原话。
+  const finishReasonPromise = result.finishReason.catch(() => undefined);
+  const reasoningPromise = result.reasoning.catch(() => undefined);
+
   let text = "";
   try {
     for await (const delta of result.textStream) {
@@ -162,10 +170,7 @@ export async function streamTextTask(
   // 不能把空/残文本当成功返回。外部取消(timeoutReason 为空)则由渲染层的取消路径收尾。
   if (timeoutReason) throw timeoutError();
   // 流已跑完，这两个 promise 立即可解；individual provider 不给就当没有，绝不因此让整个任务失败。
-  const [finishReason, reasoning] = await Promise.all([
-    result.finishReason.catch(() => undefined),
-    result.reasoning.catch(() => undefined),
-  ]);
+  const [finishReason, reasoning] = await Promise.all([finishReasonPromise, reasoningPromise]);
   return {
     text,
     raw: { choices: [{ message: { role: "assistant", content: text } }] },

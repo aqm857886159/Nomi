@@ -29,10 +29,16 @@ export function registerVideoIpc(): void {
   ipcMain.handle("nomi:video:deconstruct", async (event, payload) => {
     assertTrustedSender(event);
     const { deconstructVideo } = await import("./deconstructVideo");
-    return deconstructVideo(payload, (phase) => {
-      if (!event.sender.isDestroyed() && typeof payload?.requestId === "string") {
-        event.sender.send("nomi:video:deconstruction-progress", { requestId: payload.requestId, projectId: payload.projectId, phase });
-      }
+    const { authorizeDeconstructSpend } = await import("./deconstructSpend");
+    return deconstructVideo(payload, {
+      // 钱的闸：切点/抽帧跑完、镜数已知之后，一次报价、一次确认、一颗令牌覆盖整批
+      // （`spendConfirmGrant.ts` 是「问人 + 铸令牌」的唯一那条链，与外部 agent 生成同源）。
+      authorizeSpend: (plan) => authorizeDeconstructSpend(plan),
+      onPhase: (phase) => {
+        if (!event.sender.isDestroyed() && typeof payload?.requestId === "string") {
+          event.sender.send("nomi:video:deconstruction-progress", { requestId: payload.requestId, projectId: payload.projectId, phase });
+        }
+      },
     });
   });
 
