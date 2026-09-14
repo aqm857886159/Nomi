@@ -31,6 +31,7 @@ describe('model settings home', () => {
       response: { type: 'url', path: 'data.url' },
     }] as unknown as Mapping[]
     const configured = model({
+      availability: { usable: true },
       meta: {
         customCapabilityContract: {
           version: 1,
@@ -51,16 +52,17 @@ describe('model settings home', () => {
     })
     expect(resolveModelHomeStatus(configured, mapping)).toBe('ready')
     expect(resolveModelHomeStatus({ ...configured, adapterState: 'verified' }, mapping)).toBe('verified')
-    expect(resolveModelHomeStatus({ ...configured, enabled: false }, mapping)).toBe('disabled')
+    const disabled = { ...configured, enabled: false, availability: { usable: false, reason: 'model_disabled' } } as ChipModel
+    expect(resolveModelHomeStatus(disabled, mapping)).toBe('disabled')
     expect(resolveModelHomeStatus({ ...configured, adapterState: 'testing' }, mapping)).toBe('working')
     expect(resolveModelHomeStatus({ ...configured, adapterState: 'failed' }, mapping)).toBe('failed')
 
     expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'testing' }], mapping)).toMatchObject({
       state: 'working',
-      ready: 0,
+      ready: 1,
       working: 1,
     })
-    expect(summarizeModelHomeConnection([{ ...configured, enabled: false }], mapping)).toMatchObject({
+    expect(summarizeModelHomeConnection([disabled], mapping)).toMatchObject({
       state: 'disabled',
       ready: 0,
       disabled: 1,
@@ -69,6 +71,10 @@ describe('model settings home', () => {
       state: 'verified',
       ready: 1,
     })
+    expect(summarizeModelHomeConnection([{ ...configured, adapterState: 'failed' }], mapping))
+      .toMatchObject({ state: 'attention', ready: 1, needsSetup: 1 })
+    expect(resolveModelHomeStatus({ ...configured, availability: undefined }, mapping)).toBe('needsSetup')
+    expect(summarizeModelHomeConnection([{ ...configured, availability: undefined }], mapping).ready).toBe(0)
   })
 
   it('uses the Nomi primitives and keeps the direct-script action inside the advanced section', () => {
@@ -106,7 +112,7 @@ describe('model settings home', () => {
   it('shows only work needing attention until the user searches or opens the connection', () => {
     const needsSetup = model({ modelKey: 'future-video-v1', labelZh: 'Future Video' })
     const working = model({ modelKey: 'future-video-v2', labelZh: 'Future Video 2', adapterState: 'testing' })
-    const readyText = model({ modelKey: 'future-chat', labelZh: 'Future Chat', kind: 'text' })
+    const readyText = model({ modelKey: 'future-chat', labelZh: 'Future Chat', kind: 'text', availability: { usable: true } })
     const models = [needsSetup, working, readyText]
 
     expect(modelsVisibleOnHome({ models, mappings: [], search: '', connectionName: 'Future API' }))

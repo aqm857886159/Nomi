@@ -44,6 +44,7 @@ import { createGenerationOutputMaterializer } from './generationOutputMaterializ
 import { hardenedFetch } from '../hardenedFetch'
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
+import { createCatalogAvailability } from '../catalog/catalogModelAvailability'
 import { readCatalog } from '../catalog/catalogStore'
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
 import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
@@ -206,8 +207,12 @@ export async function startCapabilityCore(
       }),
     } : {})
     const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
-    const videoModelCandidates = buildVideoModelCandidates(readCatalog().models
-      .filter((model) => model.enabled && model.kind === 'video')
+    // 可用性只有一条判据：旧版这里只看 `enabled`，于是外部助手能从上下文里读到一个
+    // 供应商已停用 / 没发布 / 没钥匙的视频模型，选了它 findExecutableModel 必拒（P0-10 同类）。
+    const videoCatalog = readCatalog()
+    const videoAvailability = createCatalogAvailability(videoCatalog)
+    const videoModelCandidates = buildVideoModelCandidates(videoCatalog.models
+      .filter((model) => model.kind === 'video' && videoAvailability.of(model).usable)
       .map((model) => ({
         provider: model.vendorKey,
         modelKey: model.modelKey,

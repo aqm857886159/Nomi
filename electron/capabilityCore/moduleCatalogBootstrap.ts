@@ -3,6 +3,8 @@ import type { ModuleManifest } from "./moduleManifest";
 import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter";
 import { readCatalog } from "../catalog/catalogStore";
 import type { CatalogState, Mapping, Model, ProfileKind } from "../catalog/types";
+import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
+import { isCredentialReason } from "../shared/modelAvailability";
 import { derivePublishedExecution } from "../shared/modelPublication";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
@@ -61,10 +63,20 @@ function manifestFromCatalog(state: CatalogState, readinessByProvider: Generatio
   // preview accepted but the provider could never execute.
   const publishedModesFor = (model: Model): ProfileKind[] =>
     derivePublishedExecution(model, { mappings: state.mappings }).publishedModes;
+  // 「能不能用」交给唯一那道闸，不再自己拼 `model.enabled && vendor.enabled`（那是 P0-10 那一族副本之一）。
+  //
+  // 唯一刻意放行的是**钥匙那几档**：这一层答的是「目录声明了什么能力」，不是「此刻跑不跑得动」。
+  // 跑不跑得动由上一层 `generationProviderBootstrap` 的 readinessByProvider 答——它必须能区分
+  // 「目录里有这个模型、只是还没填 key」和「根本没有这个模型」，前者要指路去填 key，
+  // 后者才是「不存在」。放行哪几档用 owner 的封闭枚举点名（`isCredentialReason`），
+  // 不在这里重写一遍「什么算没钥匙」。
+  const availability = createCatalogAvailability(state);
+  const declaredInCatalog = (model: Model): boolean => {
+    const result = availability.of(model);
+    return result.usable || isCredentialReason(result.reason);
+  };
   const enabledModels = state.models.filter((model) =>
-    model.enabled === true
-      && publishedModesFor(model).length > 0
-      && state.vendors.some((vendor) => vendor.key === model.vendorKey && vendor.enabled),
+    declaredInCatalog(model) && publishedModesFor(model).length > 0,
   );
   if (!enabledModels.length) return null;
   const enabledModelKeys = new Set(enabledModels.map((model) => `${model.vendorKey}\u0000${model.modelKey}`));

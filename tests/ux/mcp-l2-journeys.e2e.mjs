@@ -57,9 +57,8 @@ const check = (condition, message) => { assert.ok(condition, message); passed +=
 
 try {
   provider = await startFakeApimartServer({ pendingPolls: 1 })
-  // Seed the real GUI bootstrap with the encrypted fixture credential. The
-  // fixture origin is selected by the E2E env; the catalog itself stays on
-  // the shipped APIMart identity and pricing scope.
+  // Seed catalog rows only; save the synthetic key through catalog persistence after
+  // GUI startup so the process that consumes it owns the safeStorage identity.
   writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
   gui = await launchNomiApp({
     name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
@@ -88,6 +87,18 @@ try {
   console.log('  GUI hash=', await win.evaluate(() => window.location.hash))
   check(Boolean(projectId), 'GUI 打开隔离项目')
   await win.waitForTimeout(5_000)
+
+  // This protocol fixture does not certify a real provider key. Persist its
+  // synthetic key inside the same GUI process that owns safeStorage, using the
+  // catalog writer used by Settings after credential validation.
+  await gui.app.evaluate(async (_electron, root) => {
+    const { createRequire } = await import('node:module')
+    const require = createRequire(`${root}/package.json`)
+    const { upsertModelCatalogVendorApiKey } = require(`${root}/dist-electron/catalog/catalogStore.js`)
+    const { publishBuiltinCuratedVendor } = require(`${root}/dist-electron/catalog/directKeyCredential.js`)
+    upsertModelCatalogVendorApiKey('apimart', { apiKey: 'mcp-l2-loopback-key', enabled: true })
+    publishBuiltinCuratedVendor('apimart')
+  }, process.cwd())
 
   mcp = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C7-C12'), captureStderr: true,

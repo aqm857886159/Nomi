@@ -369,6 +369,7 @@ export function ModelSettingsHome({
   const allModels = connections.flatMap((connection) => connection.models)
   const statuses = allModels.map((model) => resolveModelHomeStatus(model, mappings))
   const needsSetupCount = statuses.filter((status) => status === 'needsSetup' || status === 'failed').length
+  const readyCount = statuses.filter((status) => status === 'ready' || status === 'verified').length
   const hasConnections = connections.length > 0
   const showSearch = hasConnections && (connections.length >= 4 || allModels.length >= 8)
   const hasAttention = taskCount > 0 || needsSetupCount > 0
@@ -393,8 +394,10 @@ export function ModelSettingsHome({
       <SectionHeading
         title={t('onboardingProviders.drawer.home.connected')}
         aside={unreachableAside ?? (hasAttention
-          ? t('onboardingProviders.drawer.home.connectedAttention', { ready: allModels.length - needsSetupCount, pending: needsSetupCount })
-          : t('onboardingProviders.drawer.home.readyCount', { count: allModels.length }))}
+          // 「可使用」的口径必须和每个连接行里那句一样（`summary.ready`）——同一个 i18n key
+          // 在页头算一份、在行里算另一份，就是同屏两个答案。停用的、正在跑的都不算「可使用」。
+          ? t('onboardingProviders.drawer.home.connectedAttention', { ready: readyCount, pending: needsSetupCount })
+          : t('onboardingProviders.drawer.home.readyCount', { count: readyCount }))}
       />
       <ConnectedRows
         connections={connections}

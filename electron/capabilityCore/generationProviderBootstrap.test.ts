@@ -18,6 +18,8 @@ const secretMocks = vi.hoisted(() => ({
 vi.mock("../catalog/secrets", () => ({
   decryptApiKeyRecord: secretMocks.decryptApiKeyRecord,
   apiKeyDecryptStatus: secretMocks.apiKeyDecryptStatus,
+  credentialRecordCounts: (record?: { apiKey?: string; enabled?: boolean }) =>
+    Boolean(record?.apiKey) && record?.enabled !== false,
 }));
 
 function state(apiKey = ""): CatalogState {

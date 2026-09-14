@@ -164,7 +164,7 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
  *   3. 厂商显示名字母序 → catalog 原序（纯为稳定，不携带任何偏好语义）。
  *
  * 这里**不再有**「能不能跑」那一级：没接入的家在 catalog 派生层
- * （`keepRunnableVendorOptions`）就已经不存在了，排到这里的每一家都能跑。
+ * （`keepUsableModelRows`，判据在主进程 `electron/shared/modelAvailability.ts`）就已经不存在了，排到这里的每一家都能跑。
  */
 export function sortModelProviders<T extends ModelProviderRef>(providers: readonly T[], orderedVendorKeys: readonly string[] = []): T[] {
   const rank = new Map(orderedVendorKeys.map((key, index) => [key.toLowerCase(), index]))

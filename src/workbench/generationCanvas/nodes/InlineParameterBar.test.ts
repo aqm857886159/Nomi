@@ -29,7 +29,7 @@ describe('InlineParameterBar catalog variant control', () => {
   function render(tiers: string[], selected: string) {
     const modelOptions = toCatalogModelOptions(tiers.map(tier => ({
       modelKey: `gemini-3.7-flash-${tier}`, vendorKey: 'antigravity-cli', labelZh: `Gemini 3.7 Flash ${tier}`,
-      kind: 'text', enabled: true, published: true, publishedModes: ['chat' as const], createdAt: '', updatedAt: '',
+      kind: 'text', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['chat' as const], createdAt: '', updatedAt: '',
     })))
     const onModelChange = vi.fn()
     const html = renderToStaticMarkup(React.createElement(InlineParameterBar, {
@@ -79,7 +79,7 @@ describe('InlineParameterBar 参数摆法（parameterLayout）', () => {
 
   const modelOptions = toCatalogModelOptions([{
     modelKey: 'seedance-2', vendorKey: 'apimart', labelZh: 'Seedance 2',
-    kind: 'video', enabled: true, published: true, publishedModes: ['text_to_video' as const], createdAt: '', updatedAt: '',
+    kind: 'video', enabled: true, published: true, availability: { usable: true } as const, publishedModes: ['text_to_video' as const], createdAt: '', updatedAt: '',
   }])
 
   function render(

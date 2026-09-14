@@ -1,6 +1,6 @@
 // 设计实验室 · 供应商偏好屏的夹具（只有数据，没有渲染）。
 //
-// 这些是**喂给现役函数的输入**，不是画出来的假图：`keepRunnableVendorOptions`、
+// 这些是**喂给现役函数的输入**，不是画出来的假图：`keepUsableModelRows`、
 // `buildModelSelectOptions` 与 `sortModelProviders` 就是真机下拉里跑的那几个函数，
 // 实验室只是给它们一份固定的目录。换句话说，屏上任何一行长成什么样、哪几行**没**出现，
 // 都是生产代码决定的——夹具只决定「目录里有哪些模型、哪几家，以及哪几家接入了」。
@@ -16,10 +16,20 @@ export const VENDOR_KIE = 'kie'
 export const VENDOR_VOLCENGINE = 'volcengine'
 export const VENDOR_RUNNINGHUB = 'runninghub'
 
-/** 「接入了的家」= catalog 层 `getRunnableVendorKeys()` 在真机上算出来的那个集合。 */
+/** 这批夹具里「已接入」的那几家。 */
 export const RUNNABLE_VENDORS: ReadonlySet<string> = new Set([VENDOR_APIMART, VENDOR_KIE, VENDOR_VOLCENGINE])
-/** 一家都没接入（新装机、或钥匙全被拔了）。 */
-export const NO_RUNNABLE_VENDORS: ReadonlySet<string> = new Set<string>()
+
+/**
+ * **夹具整形器，不是判据**：把「目录层压根不会下发的行」从夹具里去掉。
+ *
+ * 「这个模型现在能不能用」的判据住在主进程（`electron/shared/modelAvailability.ts`），
+ * 由 `src/config/modelCatalogCache.ts` 的 `keepUsableModelRows` 在**进入渲染层的第一处**执行，
+ * 它的证据是 `modelCatalogCache.test.ts`。选择器这一屏拿到的永远是已放行的选项，
+ * 所以这里只负责把夹具喂成那个样子——渲染层不该、也不再有第二份「能不能用」。
+ */
+export function onlyFromVendors(models: readonly ModelOption[], vendors: ReadonlySet<string>): ModelOption[] {
+  return models.filter((model) => vendors.has(String(model.vendor || '').trim().toLowerCase()))
+}
 
 type Row = {
   label: string

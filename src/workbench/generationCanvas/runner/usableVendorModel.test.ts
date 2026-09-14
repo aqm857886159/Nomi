@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { loadUsableVendorKeys, resolveUsableModelForNode, vendorIsUsable } from './usableVendorModel'
+import { resolveUsableModelForNode } from './usableVendorModel'
 import type { ModelCatalogModelDto, ModelCatalogVendorDto } from '../../api/modelCatalogApi'
+
+// 「这一家/这一款现在能不能用」的判据**不在这个文件里**了（2026-09-12 P0-10 根因修复）：
+// 它只有一个 owner（`electron/shared/modelAvailability.ts`），结论随每一行模型以 `availability`
+// 过 IPC 下发，矩阵覆盖在 `electron/shared/modelAvailability.test.ts` 与
+// `src/workbench/ai/modelAvailabilityAgreement.test.ts`。这里只验 lineage 选择本身。
 
 function vendor(key: string, patch: Partial<ModelCatalogVendorDto> = {}): ModelCatalogVendorDto {
   return { key, name: key, enabled: true, hasApiKey: true, createdAt: '', updatedAt: '', ...patch }
@@ -26,51 +31,40 @@ function candidateVendor(
 function model(modelKey: string, vendorKey: string, archetypeId?: string, kind: ModelCatalogModelDto['kind'] = 'image'): ModelCatalogModelDto {
   return {
     modelKey, vendorKey, labelZh: modelKey, kind, enabled: true, published: true,
+    availability: { usable: true },
     publishedModes: kind === 'video' ? ['text_to_video'] : ['text_to_image'], createdAt: '', updatedAt: '',
     ...(archetypeId ? { meta: { archetypeId } } : {}),
   }
 }
 
-describe('vendorIsUsable —「能用」由 hasApiKey 派生，不只看 enabled', () => {
-  it('启用 + 有 key → 可用', () => expect(vendorIsUsable(vendor('kie'))).toBe(true))
-  it('启用 + 无 key（断开后）→ 不可用', () => expect(vendorIsUsable(vendor('kie', { hasApiKey: false }))).toBe(false))
-  it('禁用 → 不可用', () => expect(vendorIsUsable(vendor('kie', { enabled: false }))).toBe(false))
-  it('免鉴权（authType=none）→ 可用，即便无 key', () => expect(vendorIsUsable(vendor('local', { authType: 'none', hasApiKey: false }))).toBe(true))
-})
-
-describe('loadUsableVendorKeys', () => {
-  it('只收 enabled && 有 key 的供应商', async () => {
-    const set = await loadUsableVendorKeys(async () => [
-      vendor('apimart', { hasApiKey: true }),
-      vendor('kie', { hasApiKey: false }),
-    ])
-    expect(set.has('apimart')).toBe(true)
-    expect(set.has('kie')).toBe(false)
-  })
-})
+/** 主进程判出「这一行不可用」的样子（拔了 key 的家最常见的一档）。 */
+function unusable(row: ModelCatalogModelDto): ModelCatalogModelDto {
+  return { ...row, availability: { usable: false, reason: 'credential_missing' } }
+}
 
 describe('resolveUsableModelForNode — successor 必须来自同一 lineage', () => {
   const apimartImages = [model('doubao-seedream-4.5', 'apimart', 'seedream'), model('gpt-image-2', 'apimart', 'gpt-image-2')]
 
   it('精确 modelKey 命中可用供应商 → 直接用', () => {
-    const both = [...apimartImages, model('seedream', 'kie', 'seedream')]
-    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', models: both, usable: new Set(['kie']) })
+    const both = [...apimartImages.map(unusable), model('seedream', 'kie', 'seedream')]
+    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', models: both })
     expect(match?.vendorKey).toBe('kie')
   })
 
   it('有源 vendor 但没有 lineage 时，不按 archetypeId 静默跨到独立供应商', () => {
-    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', meta: {}, models: apimartImages, usable: new Set(['apimart']) })
+    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', meta: {}, models: apimartImages })
     expect(match).toBeNull()
   })
 
   it('有源 vendor 但没有 lineage 时，不按 family 静默跨到独立供应商', () => {
     const videos = [model('doubao-seedance-2.0', 'apimart', 'seedance-2-apimart', 'video')]
-    const match = resolveUsableModelForNode({ modelKey: 'bytedance/seedance-2', vendor: 'kie', meta: {}, models: videos, usable: new Set(['apimart']) })
+    const match = resolveUsableModelForNode({ modelKey: 'bytedance/seedance-2', vendor: 'kie', meta: {}, models: videos })
     expect(match).toBeNull()
   })
 
-  it('没有任何可用供应商提供该款 → null（调用方据此报清晰错误）', () => {
-    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', meta: {}, models: apimartImages, usable: new Set() })
+  it('目录里这一款全都不可用 → null（调用方据此报清晰错误）', () => {
+    const models = [...apimartImages, model('seedream', 'kie', 'seedream')].map(unusable)
+    const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', meta: {}, models })
     expect(match).toBeNull()
   })
 
@@ -83,7 +77,6 @@ describe('resolveUsableModelForNode — successor 必须来自同一 lineage', (
       vendor: 'source',
       models: [model('image-v1', 'unrelated'), model('image-v1', successor.key)],
       vendors: [unrelated, successor, source],
-      usable: new Set(['unrelated', successor.key]),
     })
     expect(match?.vendorKey).toBe(successor.key)
   })
@@ -97,21 +90,19 @@ describe('resolveUsableModelForNode — successor 必须来自同一 lineage', (
       vendor: 'source',
       models: [model('image-v1', first.key), model('image-v1', second.key)],
       vendors: [source, first, second],
-      usable: new Set([first.key, second.key]),
     })
     expect(match?.vendorKey).toBe(second.key)
   })
 
-  it('lineage successor disabled 时不回退到无关供应商同名模型', () => {
+  it('lineage successor 不可用时不回退到无关供应商同名模型', () => {
     const source = vendor('source')
     const successor = candidateVendor('source--candidate-2', 'source', 'source', 'image-v1')
     const unrelated = vendor('unrelated')
     const match = resolveUsableModelForNode({
       modelKey: 'image-v1',
       vendor: 'source',
-      models: [model('image-v1', 'unrelated'), { ...model('image-v1', successor.key), enabled: false, published: false }],
+      models: [model('image-v1', 'unrelated'), unusable(model('image-v1', successor.key))],
       vendors: [source, successor, unrelated],
-      usable: new Set(['unrelated']),
     })
     expect(match).toBeNull()
   })
@@ -121,7 +112,6 @@ describe('resolveUsableModelForNode — successor 必须来自同一 lineage', (
       modelKey: 'legacy-image',
       models: [model('legacy-image', 'only')],
       vendors: [vendor('only')],
-      usable: new Set(['only']),
     })
     expect(unique?.vendorKey).toBe('only')
 
@@ -129,7 +119,6 @@ describe('resolveUsableModelForNode — successor 必须来自同一 lineage', (
       modelKey: 'legacy-image',
       models: [model('legacy-image', 'one'), model('legacy-image', 'two')],
       vendors: [vendor('one'), vendor('two')],
-      usable: new Set(['one', 'two']),
     })
     expect(ambiguous).toBeNull()
   })
