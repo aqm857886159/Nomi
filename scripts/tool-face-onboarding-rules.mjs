@@ -10,8 +10,15 @@
 // 让 show_models 先查一下自检通没通，代码看着都很合理，而用户那头就是「接模型又开始扣钱/
 // 又要我自己算版本号/自检没过模型就从画布上消失了」。规则住在这里，改的人当场看见红。
 //
-// 每条规则**加之前先验它会红**（R17）：`node scripts/check-tool-face.mjs --selftest` 会把每条
+// 每条规则**加之前先验它会红**（R17）：`pnpm exec tsx scripts/check-tool-face.ts --selftest` 会把每条
 // 规则各违反一次，逐条确认它真的报错——规则清单以本文件的 RULES 为准，别在文档里数条数。
+//
+// 2026-09-14：本文件**不再是一条独立门岗**。它曾经也叫 check:tool-face，与
+// scripts/check-tool-face.ts 撞名，09-13 并 main 时 package.json 里那一条指向了本文件，
+// 把那一份（整个模型可见工具面的语义一致性，64 个工具）悄悄挤下线了——两条门岗同名，
+// 死掉的那条不会喊。现在收成一份（P1）：check:tool-face 只有一个入口 check-tool-face.ts，
+// 它同时跑两个规则族——那边守 verbDeclarations.ts 那个 owner，这边守
+// modelOnboarding/declarations.ts 这个 owner。一条规则都没删。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -241,19 +248,28 @@ function selftest() {
       console.log(`✓ ${probe.id} 先验会红：${hits[0].slice(0, 110)}`)
     }
   }
-  if (bad) process.exit(1)
-  console.log(`\n${SELFTEST.length} 条规则逐条验过会红。`)
+  if (bad) return false
+  console.log(`\n${SELFTEST.length} 条接模型规则逐条验过会红。`)
+  return true
 }
 
-if (process.argv.includes('--selftest')) {
-  selftest()
-} else {
+/**
+ * 接模型这条路的规则族。返回 true = 通过。
+ * 唯一调用者是 `scripts/check-tool-face.ts`（check:tool-face 的单一入口）。
+ */
+export function runOnboardingRules() {
   const failures = runAll(loadContext())
   if (failures.length) {
-    console.error('接模型工具面门岗失败：\n')
+    console.error('接模型工具面规则族失败：\n')
     for (const failure of failures) console.error(`  ✗ ${failure}\n`)
     console.error('规则详解：docs/design/2026-09-11-mcp-onboarding-tool-face.md §6 与 docs/plan/2026-09-11-mcp-onboarding-tool-face-impl.md')
-    process.exit(1)
+    return false
   }
-  console.log(`接模型工具面门岗通过（${RULES.length} 条规则）。`)
+  console.log(`  接模型规则族通过（${RULES.length} 条：O1–O7 + C1/C2）。`)
+  return true
+}
+
+/** R17 阳性对照：每条规则各违反一次，逐条确认它真的会红。返回 true = 每条都红了。 */
+export function runOnboardingSelftest() {
+  return selftest()
 }

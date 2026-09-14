@@ -87,7 +87,7 @@ Anthropic 官方建议「合并相关操作用 `action` 枚举」；先例库（
 | `electron/capabilityCore/modelOnboarding/idempotency.ts` | `(setupId, action, canonicalJson(args) SHA-256)` → 幂等键；重放返回同一结果（含同一 `changeId`） |
 | `electron/capabilityCore/modelOnboarding/tools.ts` | 4 个 MCP 工具定义（从 declarations 派生） |
 | `electron/capabilityCore/modelOnboarding/dispatch.ts` | `modelSetup.*` 路由；宿主在这一层读当前 `revision` 自己填，模型面上没有锁 |
-| `scripts/check-tool-face.mjs` | O1–O7 + 「同格多工具」「跨格合并」两条 |
+| `scripts/tool-face-onboarding-rules.mjs` | O1–O7 + 「同格多工具」「跨格合并」两条 |
 | `tests/fixtures/tool-selection/2026-09-11-onboarding-bank.json` | 30 句 + 9 回合回放，`expected*` 按 4 工具形态改写 |
 | `electron/capabilityCore/modelOnboardingLoopback.test.ts` | 零额度 loopback：30 句选工具 + 9 回合逐跳回放 + **阳性对照臂**（冻结的旧 6-action schema 夹具） |
 | `tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json` | 阳性对照用的**冻结快照**（不是并行实现：只有 schema，没有运行时） |

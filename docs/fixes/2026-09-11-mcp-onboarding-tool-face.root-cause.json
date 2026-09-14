@@ -21,7 +21,7 @@
     "electron/capabilityCore/mcpToolCatalog.ts",
     "electron/capabilityCore/dispatcher.ts",
     "agent-skills/nomi-add-model/SKILL.md",
-    "scripts/check-tool-face.mjs",
+    "scripts/tool-face-onboarding-rules.mjs",
     "tests/fixtures/tool-selection/2026-09-11-onboarding-bank.json",
     "tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json"
   ],
@@ -214,7 +214,7 @@
   "generality_proof": "The eight invariants are stated over the declaration array, not over any one action, and check:tool-face evaluates them by parsing that array plus the two files that consume it. Adding a tenth action to this path is therefore judged by the same nine rules with no edit to the gate. The gate's --selftest mode violates each rule once and asserts it goes red, so a rule that stops discriminating is itself caught.",
   "shared_boundaries": [
     {
-      "path": "scripts/check-tool-face.mjs",
+      "path": "scripts/tool-face-onboarding-rules.mjs",
       "symbol": "RULES",
       "responsibility": "九条规则的唯一 owner（O1–O7 + 同格多工具 C1 + 跨格合并 C2）。规则在声明表这一层求值，而不是逐个工具去查——边界画错这件事在 diff 里看不见、在表里一眼看见。--selftest 逐条违反一次，验证规则真的会红。"
     },
@@ -276,13 +276,13 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "scripts/check-tool-face.mjs",
+    "enforcement_path": "scripts/tool-face-onboarding-rules.mjs",
     "invariant": "All eight invariants above are evaluated mechanically against electron/capabilityCore/modelOnboarding/declarations.ts and its two consumers, as nine rules (O1-O7 plus the two cell rules C1/C2).",
     "failure_mode": "The gate names the offending tool, action and field and refuses the build. Its --selftest mode violates each of the nine rules in turn and fails if any of them stays green, so the gate cannot silently stop discriminating.",
     "exception_policy": "none",
     "strategy": "The defect class is a boundary drawn at the wrong place, which is invisible in a diff and obvious in a table. So the rule is evaluated over the declaration table, at assembly time, and the declaration table is also what produces the descriptions and schemas - there is nowhere to put a second, unchecked definition. The one encoded allowance - two tools in the read cell, because 'look once' and 'wait until' are separate tools by precedent - is written as a literal inside rule C1 rather than as an exception mechanism, so it cannot be granted to anything else without editing the rule and re-running --selftest.",
     "artifacts": [
-      "scripts/check-tool-face.mjs",
+      "scripts/tool-face-onboarding-rules.mjs",
       "electron/capabilityCore/modelOnboardingLoopback.test.ts",
       "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
     ]
