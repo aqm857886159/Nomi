@@ -430,8 +430,18 @@ export function diagnoseLaunchFailure(headline, name, error, logTail) {
  */
 export async function closeNomiApp(app) {
   if (!app) return
+  let closed = false
   await Promise.race([
-    app.close().catch(() => undefined),
+    app.close().then(() => { closed = true }).catch(() => undefined),
     new Promise((resolve) => setTimeout(resolve, 3000)),
   ])
+  if (closed) return
+  // Electron can leave its helper tree alive when the renderer has already
+  // exited (observed in failed canvas benchmarks). Do not let a timed-out
+  // graceful close leak into the next scenario.
+  const processHandle = app.process()
+  if (processHandle && !processHandle.killed) {
+    try { processHandle.kill('SIGKILL') } catch { /* already exited */ }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 100))
 }

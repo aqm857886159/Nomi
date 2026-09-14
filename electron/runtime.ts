@@ -135,6 +135,9 @@ export type TaskResult = {
     /** 原始 CDN URL（https://...）。供后续生成直接用，无需上传。可能过期，过期后退回本地字节。 */
     providerUrl?: string | null;
     durationSeconds?: number;
+    /** 落盘边界 ffprobe 出来的源像素尺寸；画布拿到它就不必解码原图才知道有多大。 */
+    width?: number;
+    height?: number;
   }>;
   raw: unknown;
   /** failed 时的上游真实原因（tasks/responseParsing.taskFailureMessageFromResponse 取；渲染层只读这一处）。 */

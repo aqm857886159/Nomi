@@ -3,7 +3,7 @@ import { cn } from '../../../utils/cn'
 import { useVideoPlaybackHeal } from '../../../media/useVideoPlaybackHeal'
 import { VideoPlaybackStatusOverlay } from '../../../media/VideoPlaybackStatusOverlay'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { DeferredNodeVideo, type DeferredNodeVideoProps } from './DeferredNodeMedia'
+import { DeferredNodeImage, DeferredNodeVideo, type DeferredNodeVideoProps } from './DeferredNodeMedia'
 import {
   clearNodeVideoUserPlayback,
   consumeNodeVideoHoverPreviewPlay,
@@ -17,6 +17,10 @@ type Props = Omit<DeferredNodeVideoProps, 'src'> & {
   nodeId: string
   /** 节点 result.url 原值（诊断探针与自愈都要原始 URL，不要 buildVideoPlaybackUrl 之后的）。 */
   rawUrl: string
+  /** 有静态封面时，首屏只显示封面；用户进入节点后才创建 video。 */
+  deferUntilInteraction?: boolean
+  /** 封面加载完成（交互前没有 video 元素，节点尺寸由它派生）。 */
+  onPosterLoad?: React.ReactEventHandler<HTMLImageElement>
 }
 
 export function NodeVideoPlaybackGuard({
@@ -30,10 +34,13 @@ export function NodeVideoPlaybackGuard({
   onEnded,
   onVolumeChange,
   onClick,
+  deferUntilInteraction = false,
+  onPosterLoad,
   ...rest
 }: Props): JSX.Element {
   const [pointerInside, setPointerInside] = React.useState(false)
   const [focusInside, setFocusInside] = React.useState(false)
+  const [activated, setActivated] = React.useState(!deferUntilInteraction)
   const persistHealedUrl = React.useCallback(
     (healedUrl: string, sourceUrl: string) => {
       const state = useGenerationCanvasStore.getState()
@@ -50,12 +57,26 @@ export function NodeVideoPlaybackGuard({
   return (
     <div
       className={cn('relative h-full w-full min-h-0')}
-      onPointerEnter={() => setPointerInside(true)}
+      onPointerEnter={() => { setPointerInside(true); setActivated(true) }}
       onPointerLeave={() => setPointerInside(false)}
-      onFocus={() => setFocusInside(true)}
+      onFocus={() => { setFocusInside(true); setActivated(true) }}
       onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocusInside(false) }}
     >
-      <DeferredNodeVideo
+      {!activated && rest.poster ? (
+        // 交互前只有封面：走与图片节点同一条视口延迟队列，300 张视频卡首屏不建任何 <video>。
+        <DeferredNodeImage
+          src={rest.poster}
+          priority={rest.priority}
+          alt=""
+          className={cn(rest.className, 'h-full w-full object-contain')}
+          draggable={false}
+          data-node-video-poster="true"
+          onLoad={onPosterLoad}
+          onPointerDown={() => setActivated(true)}
+          onClick={() => setActivated(true)}
+        />
+      ) : null}
+      {activated ? <DeferredNodeVideo
         {...rest}
         tabIndex={rest.controls ? 0 : rest.tabIndex}
         controls={Boolean(rest.controls && (pointerInside || focusInside))}
@@ -92,7 +113,7 @@ export function NodeVideoPlaybackGuard({
           if (event.currentTarget.paused || event.currentTarget.muted) markNodeVideoUserPlayback(event.currentTarget)
           onClick?.(event)
         }}
-      />
+      /> : null}
       <VideoPlaybackStatusOverlay healingText={heal.healingText} failureText={heal.failureText} />
     </div>
   )

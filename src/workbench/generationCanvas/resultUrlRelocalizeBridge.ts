@@ -4,7 +4,7 @@
 // importRemoteAsset 落盘、把 result.url 改写为 nomi-local://（原链接留在 providerUrl）。
 // 纪律：幂等（同 node+url 每次启动只试一次）；静默失败（链接已死 → 播放层自会给人话报错，
 // 下次启动再试）；写回前核对 url 未被替换（重生成/转码自愈竞态时绝不覆盖新结果）。
-import { hostedAssetUrl, importWorkbenchRemoteAssetUrl } from '../api/assetUploadApi'
+import { hostedAssetDimensions, hostedAssetThumbnailUrl, hostedAssetUrl, importWorkbenchRemoteAssetUrl } from '../api/assetUploadApi'
 import { useGenerationCanvasStore } from './store/generationCanvasStore'
 import type { GenerationNodeResult } from './model/generationCanvasTypes'
 
@@ -18,14 +18,18 @@ export function relocalizedResultPatch(
   result: GenerationNodeResult,
   localUrl: string,
   assetId?: string,
+  preview?: { thumbnailUrl?: string; width?: number; height?: number } | null,
 ): GenerationNodeResult | null {
   const next = String(localUrl || '').trim()
   if (!next || next === result.url) return null
+  const thumbnailUrl = String(preview?.thumbnailUrl || '').trim()
   return {
     ...result,
     url: next,
     providerUrl: result.providerUrl || result.url,
-    ...(result.type === 'image' ? { thumbnailUrl: next } : {}),
+    // 落盘边界派生了预览就用预览；图片没派生出来时源即预览；视频没 poster 就不带 thumbnailUrl（远端封面链已随源一起失效）。
+    ...(thumbnailUrl ? { thumbnailUrl } : result.type === 'image' ? { thumbnailUrl: next } : { thumbnailUrl: undefined }),
+    ...(preview?.width && preview?.height ? { width: preview.width, height: preview.height } : {}),
     ...(assetId ? { assetId } : {}),
   }
 }
@@ -40,7 +44,7 @@ async function relocalizeNode(nodeId: string, result: GenerationNodeResult): Pro
     const state = useGenerationCanvasStore.getState()
     const node = state.nodes.find((candidate) => candidate.id === nodeId)
     if (!node?.result || node.result.url !== sourceUrl) return
-    const patch = relocalizedResultPatch(node.result, localUrl, dto?.id)
+    const patch = relocalizedResultPatch(node.result, localUrl, dto?.id, { thumbnailUrl: hostedAssetThumbnailUrl(dto), ...hostedAssetDimensions(dto) })
     if (patch) state.updateNode(nodeId, { result: patch })
   } catch {
     // 链接已死 / 项目上下文缺失 → 静默不打扰；attempted 只在本次启动生效，下次打开会再试。

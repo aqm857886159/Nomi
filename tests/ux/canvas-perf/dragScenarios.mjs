@@ -23,9 +23,10 @@ import { findNodeHitPoint } from '../_canvasHit.mjs'
  */
 export const MULTI_DRAG_NODE_COUNT = 8
 
-/** LOD trigger constants mirrored from canvasNodeLevelOfDetail.ts (kept in sync
- * by the guard test dragScenarios.test.mjs, which imports the source values). */
-export const LIGHTWEIGHT_ZOOM_CEILING = 0.55
+/** LOD trigger constant mirrored from canvasNodeLevelOfDetail.ts (kept in sync by
+ * advisoryMetrics.test.mjs, which imports the source value). The product judges LOD
+ * by the card's **on-screen width**, so this is a screen-px ceiling, not a zoom. */
+export const LIGHTWEIGHT_SCREEN_WIDTH_CEILING = 240
 
 function sleep(page, ms) {
   return page.waitForTimeout(ms)
@@ -192,7 +193,7 @@ export async function runDragAtLowZoom(page) {
   return {
     zoom: Math.round(zoom * 1000) / 1000,
     lightweightMounted,
-    lightweightActive: lightweightMounted > 0 && zoom < LIGHTWEIGHT_ZOOM_CEILING,
+    lightweightActive: lightweightMounted > 0 && node.box.width < LIGHTWEIGHT_SCREEN_WIDTH_CEILING,
     moves,
     firstFeedbackMs: await readFirstFeedbackMs(page),
     nodeId: await node.locator.getAttribute('data-node-id'),

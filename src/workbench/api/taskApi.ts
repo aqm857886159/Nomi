@@ -26,6 +26,8 @@ export type TaskAssetDto = {
   assetRefId?: string | null
   assetName?: string | null
   durationSeconds?: number
+  width?: number
+  height?: number
   /** 原始 CDN URL（https://...）。供后续生成直接用，任何 vendor 都能接受，无需上传或转 base64。 */
   providerUrl?: string | null
 }

@@ -11,6 +11,10 @@ export type AssetLibraryDragPayload = {
   kind: AssetKind
   name: string
   renderUrl: string
+  /** 落盘边界派生的画布预览（图片缩略 / 视频 poster）；落到画布的节点挂它而不是 renderUrl。 */
+  thumbUrl?: string
+  /** 源像素尺寸（sidecar 探测所得）。 */
+  dimensions?: { width: number; height: number }
   origin: AssetOrigin
   dragAnchor?: {
     xRatio: number
@@ -35,10 +39,15 @@ function normalizeAssetLibraryDragItem(value: unknown): AssetLibraryDragPayload 
           yRatio: Math.min(1, Math.max(0, Number(rawAnchor.yRatio) || 0)),
         }
       : undefined
+    const thumbUrl = typeof item.thumbUrl === 'string' ? item.thumbUrl.trim() : ''
+    const width = Number(item.dimensions?.width)
+    const height = Number(item.dimensions?.height)
     return {
       kind,
       name: typeof item.name === 'string' ? item.name : '',
       renderUrl,
+      ...(thumbUrl ? { thumbUrl } : {}),
+      ...(Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? { dimensions: { width, height } } : {}),
       origin: item.origin as AssetOrigin,
       ...(dragAnchor ? { dragAnchor } : {}),
     }

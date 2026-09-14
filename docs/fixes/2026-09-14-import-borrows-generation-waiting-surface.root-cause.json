@@ -1,0 +1,573 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-14-import-borrows-generation-waiting-surface",
+  "change_kind": "corrective",
+  "problem_type": "导入路径借用生成的状态词表，把整套生成过程反馈套到了自己身上",
+  "symptom": "导入本地图片/视频时，画布上那张卡是一块深灰底 + 中间一根不动的实心蓝条（拿不到 WebGL 的机器上 100% 复现），看不出在干什么、还要多久。",
+  "direct_cause": "assetImportAdapter 建卡时把「正在拷文件」写成 status:'queued'（生成词表里的「排队等模型」），generationFeedback 因此判定该节点在生成，NodeGeneratingOverlay 挂上生成等待层；等待层拿不到 WebGL 时退到一块实心 bg-nomi-accent-soft 色条，且 top-1/2 少了 -translate-y-1/2。",
+  "class_root": "「节点正在忙」这件事此前只有一个词表（生成的 status），任何非生成的忙（导入拷盘、重试导入）想被看见就只能借它；借了就连带继承了整套生成语义与生成视觉。真正的不变量是：**每种忙由它自己的真相字段表达，等待层只按被显式传进来的形态渲染**。",
+  "affected_population": [
+    "所有导入本地素材的用户（拿不到 WebGL 的机器上必现蓝条：GPU 加速被关 / blocklist / 软件渲染）",
+    "开着 prefers-reduced-motion 的用户（生成路径同样吃到那块实心条）",
+    "一次拖入 5 个以上文件的用户（等待层只有 4 个 WebGL 名额，第 5 个起落到同一块兜底条）"
+  ],
+  "scope_paths": [
+    "electron/assets/assetEvents.ts",
+    "electron/assets/assetImportProgress.ts",
+    "electron/assets/assetPreview.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/uploadContentStore.ts",
+    "electron/preload.ts",
+    "src/desktop/bridge.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/api/assetUploadApi.ts",
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx",
+    "src/workbench/generationCanvas/nodes/deferredNodeMediaQueue.ts",
+    "src/workbench/generationCanvas/nodes/generationWaitingSurface.css",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.ts"
+  ],
+  "entry_points": [
+    "importLocalMediaFilesToGenerationCanvas（素材库面板 / 剪贴板粘贴 / 画布拖入三处调用）建卡时写节点状态",
+    "retryLocalAssetImport（节点上的「重试导入」）重新进入同一条拷贝路径",
+    "NodeGeneratingOverlay 按 generationFeedback.active 决定挂不挂生成等待层",
+    "GenerationWaitingSurface 的四道准入门 + 四个 WebGL 名额，未准入时渲染兜底块"
+  ],
+  "invariants": [
+    "导入中的节点不得取 'queued'/'running' 这两个生成状态；导入中的唯一真相是 meta.uploadStatus === 'uploading'",
+    "生成等待层只挂在真的有生成在跑的节点上；导入由自己的宿主挂同一个等待层组件的进度驱动形态",
+    "等待层拿不到 WebGL 时呈现的是 token-only 的柔和扫光带（垂直居中），不得是实心色块",
+    "导入的渐显比例逐字等于「已拷贝字节 / 总字节」，不掺时间；总字节未知时比例为 0"
+  ],
+  "structural_review": "docs/audit/2026-09-14-node-busy-state-structure-review.md —— R21.2 触发的结构评审：画布节点表达「在忙」只有生成一套词表，读者侧已挂到第三个早退例外（视频深度 / 本地图像算子 / 本轮的导入）；评审给出不变量归属（归写状态那一层，不归读它那一层）与三个仍活着的同类实例。前作 docs/audit/2026-09-13-canvas-media-preview-structure-review.md 是同一条导入/落盘链的上一刀，本轮按它定的「源/预览决定权收进落盘边界」口径走，未新增第二个 owner。",
+  "generality_proof": "三个建卡入口与「重试导入」都汇进 importLocalMediaFilesToGenerationCanvas / retryLocalAssetImport 两个函数，状态只在这两处写；overlay 侧的判断落在 NodeGeneratingOverlay 与 NodeImportingOverlay 各一处 uploadStatus 读取；兜底块只有 GenerationWaitingSurface 一处渲染点，生成与导入共用它，因此一次修复覆盖全部同类入口。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「非生成的忙借用生成状态」不是导入特有：剪贴板 URL 导入、节点内图片上传都写过 uploadStatus，只要还有第二种忙想被看见，借词表这条路就会被再走一次；而 WebGL 兜底块同时服务生成与导入两条路径，画错一次两边一起错。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs uploadStatus importLocalMediaFilesToGenerationCanvas retryLocalAssetImport uploadAndApplyAssetToNode useAssetImportProgressStore GenerationWaitingSurface —— 17 扇门全部列在 doors，写门 6 扇、读门 11 扇。",
+      "rg \"uploadStatus: 'uploading'\" src —— 另两处（clipboardImagePaste.ts:413 走 status:'running' 的剪贴板下载、useNodeImageUpload.ts:29 的节点内替换图）是真在跑网络请求/另有宿主，不在本族；已逐条核对，不改。",
+      "rg data-process-static-band src —— 兜底块全仓只有 GenerationWaitingSurface.tsx 一处渲染点。"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "symbol": "uploadAndApplyAssetToNode",
+      "responsibility": "导入中/成功/失败三态的唯一写入点：初次导入与「重试导入」共用它，状态词表与进度生命周期都收在这里。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "symbol": "GenerationWaitingSurface",
+      "responsibility": "等待层的唯一实现：生成按时间揭示、导入按字节比例揭示，两种形态同一个组件、同一套准入门与兜底块。"
+    },
+    {
+      "path": "electron/assets/assetImportProgress.ts",
+      "symbol": "copyFileWithProgress",
+      "responsibility": "字节进度的唯一来源：只有真正搬字节的那一层知道拷了多少，渲染层不再自己估。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "symbol": "NodeGeneratingOverlay",
+      "responsibility": "生成等待层的唯一挂载判断点：这里把「正在拷文件」挡在门外，导入不再继承生成的视觉与语义。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "entry_point": "importLocalMediaFilesToGenerationCanvas 建卡",
+      "disposition": "enforced",
+      "evidence": "status 改为 'idle'，导入中的真相只留在 meta.uploadStatus:'uploading'。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "entry_point": "retryLocalAssetImport",
+      "disposition": "enforced",
+      "evidence": "重试同样不写 'queued'，并把 uploadStatus 重新置回 'uploading'。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "entry_point": "生成等待层挂载判断",
+      "disposition": "enforced",
+      "evidence": "uploadStatus === 'uploading' 的节点直接早退，不挂生成等待层。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "entry_point": "导入等待层挂载",
+      "disposition": "enforced",
+      "evidence": "导入自己的宿主，用同一个 GenerationWaitingSurface 的 progressReveal 形态。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "entry_point": "未准入时的兜底块",
+      "disposition": "enforced",
+      "evidence": "实心 bg-nomi-accent-soft 改为 token-only 扫光渐变 + -translate-y-1/2 垂直居中；生成与导入共用。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+      "entry_point": "剪贴板 URL 导入写 status:'running'",
+      "disposition": "not-affected",
+      "evidence": "剪贴板 URL 导入真的在跑网络下载，'running' 是它的真实状态，不是借词表；已逐条核对，本次不动。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "invariant": "meta.uploadStatus === 'uploading' 的节点在生成等待层的唯一挂载点被早退；导入中的形态只能由 NodeImportingOverlay 传进等待层。",
+    "failure_mode": "若这道早退被去掉，任何把非生成的忙写成生成状态的新入口都会重新把整套生成过程反馈（含无 GPU 兜底块）套到自己身上——这正是本次蓝条的成因。",
+    "exception_policy": "none",
+    "strategy": "结构上让「谁能挂生成等待层」只有一处判断，并在 adapter 侧用回归测试钉住「导入不写生成状态」，两端同时封。",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "src/workbench/generationCanvas/adapters/assetImportNotGenerating.test.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "tests": [
+      "src/workbench/generationCanvas/adapters/assetImportNotGenerating.test.ts",
+      "src/workbench/generationCanvas/adapters/assetImportAdapter.test.ts"
+    ],
+    "why": "节点状态词表由写入者负责：三个导入入口与重试都只经这一个 adapter 写状态，观察层（generationFeedback / overlay）只是读者。把不变量放在读者那层只能挡住今天这一个读者。"
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/preload.ts",
+      "line": 211,
+      "symbol": "onLocalizationStarted"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridge.ts",
+      "line": 389,
+      "symbol": "onLocalizationStarted"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "line": 132,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "line": 136,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "line": 247,
+      "symbol": "progress"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 46,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 243,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 275,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 290,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 304,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+      "line": 455,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "line": 118,
+      "symbol": "ProgressRevealCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "line": 34,
+      "symbol": "uploadStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "line": 37,
+      "symbol": "GenerationWaitingSurface"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "line": 34,
+      "symbol": "uploadStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "line": 45,
+      "symbol": "GenerationWaitingSurface"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx",
+      "line": 52,
+      "symbol": "ProgressRevealCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeUpload.ts",
+      "line": 37,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/deferredNodeMediaQueue.ts",
+      "line": 214,
+      "symbol": "useDeferredNodeMediaVisibility"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/assetImportProgressStore.ts",
+      "line": 68,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/assetImportProgressStore.ts",
+      "line": 68,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetEvents.ts",
+      "line": 45,
+      "symbol": "broadcastAssetImportProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetImportProgress.ts",
+      "line": 53,
+      "symbol": "broadcastAssetImportProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetPreview.ts",
+      "line": 159,
+      "symbol": "createStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "line": 86,
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "line": 91,
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileCopy.ts",
+      "line": 23,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 61,
+      "symbol": "createStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 55,
+      "symbol": "createAssetImportProgressReporter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 102,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 110,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 118,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 132,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 142,
+      "symbol": "discardPreparedPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 334,
+      "symbol": "persistUploadFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 337,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 342,
+      "symbol": "copyFileWithProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 384,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 562,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/uploadContentStore.ts",
+      "line": 127,
+      "symbol": "copyFileWithProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 67,
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 133,
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/core.ts",
+      "line": 268,
+      "symbol": "copyAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/composer/useComposerAttachments.ts",
+      "line": 65,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/assetUploadApi.ts",
+      "line": 92,
+      "symbol": "ownerNodeId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "line": 284,
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/importAudioToLibrary.ts",
+      "line": 78,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "line": 165,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 289,
+      "symbol": "uploadAndApplyAssetToNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 370,
+      "symbol": "uploadAndApplyAssetToNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+      "line": 303,
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/persistNodeImage.ts",
+      "line": 22,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/deliverAgentArtifact.ts",
+      "line": 67,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "line": 398,
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "line": 476,
+      "symbol": "retryLocalAssetImport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "line": 21,
+      "symbol": "useDeferredNodeMediaVisibility"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "line": 31,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "line": 33,
+      "symbol": "useDeferredNodeMediaVisibility"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/artifact/rasterizeArtifactToReferenceAsset.ts",
+      "line": 62,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/slotFileUploads.ts",
+      "line": 44,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/slotFileUploads.ts",
+      "line": 64,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/slotFileUploads.ts",
+      "line": 94,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx",
+      "line": 249,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/usePanoramaImport.tsx",
+      "line": 64,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "line": 80,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeAssetDrop.ts",
+      "line": 99,
+      "symbol": "importWorkbenchLocalAssetFile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/generationWaitingSurface.css",
+      "line": 41,
+      "symbol": "generation-canvas-v2-node__waiting-band"
+    }
+  ],
+  "door_reduction": {
+    "before": 44,
+    "after": 67,
+    "note": "修之前同一族状态 44 扇门，修之后 67——多出来的是**导入自己那条路**（进度 store、导入等待层宿主、拷贝流上报），不是同一份状态多了几个写入口。真正的收敛在语义上：① 节点状态仍只由 uploadAndApplyAssetToNode 一处写（初次导入与「重试导入」共用；素材库面板 / 剪贴板粘贴 / 画布拖入三个建卡入口都只调 importLocalMediaFilesToGenerationCanvas，不各自写状态）；② 等待层仍只有 GenerationWaitingSurface 一处实现，生成与导入各一处 uploadStatus 读门共用它，兜底块也只有那一处；③ 字节进度这份新状态天生只有一个写入口（主进程 copyFileWithProgress）和一个读入口（导入等待层）。修之前「导入中」这件事没有自己的门，只能挤进生成的门——那才是蓝条的来源。",
+    "why_not": "这 44 扇门里绝大多数是既有的落盘/上传调用点（素材盒、剪贴板、节点内替换图、agent 产物、全景导入……），它们各自是不同的用户动作，本来就该各有入口——它们并不写「导入中」这份状态，只是路过同一条落盘路径。真正会写这份状态的只有 uploadAndApplyAssetToNode 一处（初次导入与重试共用），本次没有新增第二个写入口，也没有能合并的重复入口。新增的 23 扇门是「导入中」第一次有了自己的路（进度 store 的读写、导入等待层宿主、主进程拷贝流上报）；此前它没有门，只能挤进生成的门——那正是蓝条的成因，所以这里是把一条被借用的路拆成两条各自单一 owner 的路，不是把门变多。"
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/adapters/assetImportNotGenerating.test.ts",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.test.ts",
+    "electron/assets/assetImportProgress.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/adapters/assetImportNotGenerating.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx"
+    ],
+    "rationale": "实心 bg-nomi-accent-soft 兜底块被 token-only 扫光带整体替换（同 commit 删旧，不留第二条渲染路径）；导入借 status:'queued' 的写法同 commit 从 assetImportAdapter 删除，无并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "img-fx 版本不动（0.5.1）；进度→格子数那一层是库没有的能力，见 docs/plan/2026-09-14-import-progress-reveal.md 的四列表。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。历史工程里残留 status:'queued' 的导入节点在下一次导入/重试时被正常改写；没有 onCopyProgress 的调用方（跨项目复制、生成结果落盘）仍走原来的整块 fs.copyFile。",
+  "residual_risks": [
+    "带进度的拷贝走的是流而不是整块 copyFile，同卷 APFS 上不再有机会用 clonefile 加速——只对带 ownerNodeId 的画布导入生效，其他落盘路径不受影响。",
+    "视频若触发可播放归一化（HEVC 转码），转码阶段没有字节进度，马赛克在这期间停在 0；这是真实情况的诚实呈现，不假装在动。"
+  ],
+  "internal_only_reason": "根因在仓库内部的状态词表与画布等待层；证据来自仓库代码、door-map 输出、focused 测试与真机隔离走查截图。"
+}

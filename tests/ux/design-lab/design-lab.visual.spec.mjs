@@ -59,7 +59,8 @@ for (const screen of LAB_SCREEN_IDS) {
         if (screen === 'process-feedback') {
           await page.clock.runFor(state.id === 'pf-fx-final-reveal' ? 400 : state.id === 'pf-fx-done-clean' ? 3201 : 1000)
           // Cross-surface acceptance runs in the real App: process-feedback-electron.e2e.mjs.
-          if (!state.id.includes('preview') && !['pf-fx-final-reveal', 'pf-fx-done-clean'].includes(state.id)) {
+          // 导入中的卡没有生成状态药丸（它本来就不是生成）——这两条跨面断言只对生成态成立。
+          if (!state.id.startsWith('pf-import') && !state.id.includes('preview') && !['pf-fx-final-reveal', 'pf-fx-done-clean'].includes(state.id)) {
             await expect(page.locator('[data-node-id] [data-generation-status]')).not.toContainText('%')
             await expect(page.locator('[data-process-lab-ready]')).not.toContainText(/前面\s*\d+\s*个/)
           }

@@ -10,8 +10,8 @@ import {
   buildScenarioAdvisory,
   quantile,
 } from './advisoryMetrics.mjs'
-import { LIGHTWEIGHT_ZOOM_CEILING, rankNodesByDegree } from './dragScenarios.mjs'
-import { LIGHTWEIGHT_NODE_ZOOM_THRESHOLD } from '../../../src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts'
+import { LIGHTWEIGHT_SCREEN_WIDTH_CEILING, rankNodesByDegree } from './dragScenarios.mjs'
+import { FULL_CHROME_MIN_SCREEN_WIDTH_PX } from '../../../src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts'
 import { OFF_CANVAS_RENDER_TARGETS } from './offCanvasRenderProbe.mjs'
 
 describe('amortizePerMove', () => {
@@ -104,10 +104,10 @@ describe('quantile', () => {
 })
 
 describe('LOD ceiling stays in sync with the source of truth', () => {
-  it('dragScenarios mirrors canvasNodeLevelOfDetail zoom threshold', () => {
-    // If the product changes the lightweight zoom trigger, this fails loudly so
+  it('dragScenarios mirrors canvasNodeLevelOfDetail on-screen width threshold', () => {
+    // If the product changes the lightweight trigger, this fails loudly so
     // drag-at-low-zoom does not silently measure full-content drag instead.
-    expect(LIGHTWEIGHT_ZOOM_CEILING).toBe(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD)
+    expect(LIGHTWEIGHT_SCREEN_WIDTH_CEILING).toBe(FULL_CHROME_MIN_SCREEN_WIDTH_PX)
   })
 })
 

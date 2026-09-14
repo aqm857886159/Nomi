@@ -1,0 +1,59 @@
+/*
+ * 等待层拿不到 WebGL（GPU 被关 / blocklist / 软件渲染）时的兜底带。
+ *
+ * 为什么单独一个文件：等待层会被画布以外的宿主挂载（设计实验室、节点直挂），
+ * 由用它的组件自己带上样式才不会「在实验室里看不到带子、在产品里才有」；
+ * 而整份 generationCanvas.css 带的是整个画布的规则，跟着等待层到处走会改到别的面。
+ *
+ * 以前这里是一块实心 accent 色条，还没垂直居中——用户看到的就是「深灰卡中间一根蓝条」。
+ * 现在是一道化开的光晕 + 缓慢扫光，无 WebGL 依赖；真的降动效时只留静态渐变。
+ * 这里没有进度线：马赛克本身就是进度（2026-09-14 用户拍板）。
+ */
+.generation-canvas-v2-node__waiting-band {
+  overflow: hidden;
+  /* 上下也化开：一根有硬边的色条就是用户投诉的那个「粗条」，这里要读成一道光晕。 */
+  mask-image: linear-gradient(to bottom, transparent 0%, rgb(0 0 0) 42%, rgb(0 0 0) 58%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--nomi-accent) 20%, transparent) 26%,
+    color-mix(in oklab, var(--nomi-accent) 38%, transparent) 50%,
+    color-mix(in oklab, var(--nomi-accent) 20%, transparent) 74%,
+    transparent 100%
+  );
+}
+
+.generation-canvas-v2-node__waiting-band::before {
+  content: '';
+  position: absolute;
+  inset: 0 -45%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--nomi-paper) 72%, transparent) 48%,
+    transparent 100%
+  );
+  animation: nomi-waiting-band-sweep 1.9s ease-in-out infinite;
+  transform: translateX(-38%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-canvas-v2-node__waiting-band::before {
+    animation: none;
+    transform: none;
+  }
+}
+
+@keyframes nomi-waiting-band-sweep {
+  0% {
+    transform: translateX(-42%);
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.82;
+  }
+  100% {
+    transform: translateX(42%);
+    opacity: 0.42;
+  }
+}

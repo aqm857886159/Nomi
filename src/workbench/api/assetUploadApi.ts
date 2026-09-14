@@ -17,6 +17,18 @@ export function hostedAssetUrl(asset: WorkbenchAssetDto | null | undefined): str
   return typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''
 }
 
+/** 落盘边界派生的画布预览 URL（图片 ≤1024 缩略 / 视频 poster）；没派生出来则空串，调用方回落到源。 */
+export function hostedAssetThumbnailUrl(asset: WorkbenchAssetDto | null | undefined): string {
+  return typeof asset?.data?.thumbnailUrl === 'string' ? asset.data.thumbnailUrl.trim() : ''
+}
+
+/** 落盘边界探测到的源像素尺寸；缺失返回 null。 */
+export function hostedAssetDimensions(asset: WorkbenchAssetDto | null | undefined): { width: number; height: number } | null {
+  const width = asset?.data?.width
+  const height = asset?.data?.height
+  return typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0 ? { width, height } : null
+}
+
 export type UploadWorkbenchAssetMeta = {
   prompt?: string | null
   vendor?: string | null
@@ -76,6 +88,8 @@ export async function importWorkbenchLocalAssetFile(
     fileName: name || file.name || 'asset',
     contentType: file.type || 'application/octet-stream',
     kind: 'upload' as const,
+    // 导入进度广播的收件人：主进程按它把「已拷贝字节 / 总字节」回报给画布上那张卡。
+    ownerNodeId: meta?.ownerNodeId || null,
   }
   if (desktop.assets.importNativeFile) {
     const imported = await desktop.assets.importNativeFile(file, request)

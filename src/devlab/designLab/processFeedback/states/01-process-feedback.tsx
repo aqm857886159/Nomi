@@ -1,9 +1,10 @@
 import React from 'react'
 import type { LabState } from '../../labScreen'
-import { ProcessFeedbackStage, ProcessFeedbackFxStage } from '../processFeedbackLabKit'
+import { ProcessFeedbackStage, ProcessFeedbackFxStage, ProcessFeedbackImportStage } from '../processFeedbackLabKit'
 
 const SOURCE = 'docs/plan/2026-09-08-process-feedback-c1.md · C0/C1/C2'
 const FX_SOURCE = 'docs/plan/2026-09-09-process-feedback-imgfx.md · §5'
+const IMPORT_SOURCE = 'docs/plan/2026-09-14-import-progress-reveal.md · 验收门'
 export const PROCESS_FEEDBACK_STATES: readonly LabState[] = [
   {
     id: 'pf-fx-organic',
@@ -46,6 +47,20 @@ export const PROCESS_FEEDBACK_STATES: readonly LabState[] = [
     source: FX_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackFxStage reduced />,
+  },
+  {
+    id: 'pf-import-progress',
+    name: '导入中 · 42%（进度驱动的渐显）',
+    source: IMPORT_SOURCE,
+    coverage: 'shell',
+    render: () => <ProcessFeedbackImportStage ratio={0.42} />,
+  },
+  {
+    id: 'pf-import-reduced',
+    name: '导入中 · 无 GPU 兜底（扫光带，无进度线）',
+    source: IMPORT_SOURCE,
+    coverage: 'shell',
+    render: () => <ProcessFeedbackImportStage ratio={0.42} reduced />,
   },
   {
     id: 'pf-image-queued',

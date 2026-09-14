@@ -4,6 +4,7 @@ import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGe
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useGenerationQueueStore } from '../../../workbench/generationCanvas/runner/generationQueueStore'
 import { useNodeLivePreviewStore } from '../../../workbench/generationCanvas/store/nodeLivePreviewStore'
+import { useAssetImportProgressStore } from '../../../workbench/generationCanvas/store/assetImportProgressStore'
 import type { GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 import { TaskRow } from '../../../workbench/taskCenter/TaskCenterPanel'
 import { buildTaskCenterView } from '../../../workbench/taskCenter/taskCenterEntries'
@@ -105,6 +106,48 @@ export function ProcessFeedbackStage(fixture: ProcessFixture): JSX.Element {
     setReady(true)
   }, [fixture.kind, fixture.stage, fixture.percent, fixture.preview, fixture.zoom])
   return ready ? <Surfaces zoom={fixture.zoom ?? 1} reduced={fixture.reduced} preset={fixture.preset} /> : <div />
+}
+
+/**
+ * 导入中：同一个生产节点壳，进度来自真实的导入进度 store（不是画一张假卡）。
+ * 和生成的区别只有一条——渐显的格子数由「已拷贝字节 / 总字节」决定，不按时间跑。
+ */
+export function ProcessFeedbackImportStage({ ratio, reduced = false }: { ratio: number; reduced?: boolean }): JSX.Element {
+  const [ready, setReady] = React.useState(false)
+  React.useLayoutEffect(() => {
+    const workbench = useWorkbenchStore.getState()
+    useWorkbenchStore.setState({ activeCategoryId: 'shots' })
+    workbench.rememberCategoryViewport('shots', { zoom: 1, offset: { x: 0, y: 0 } })
+    const totalBytes = 1_482_559_488
+    useGenerationCanvasStore.setState({
+      nodes: [{
+        id: PF_NODE_ID, kind: 'asset', title: '9月12日(1).mov', categoryId: 'shots',
+        position: { x: 0, y: 0 }, size: { width: 340, height: 240 }, status: 'idle',
+        meta: { source: 'local-drop', fileName: '9月12日(1).mov', uploadStatus: 'uploading' },
+      } as GenerationCanvasNode],
+      edges: [], selectedNodeIds: [],
+    })
+    useGenerationQueueStore.setState({ entries: [], batches: {} })
+    useNodeLivePreviewStore.getState().clearPreview(PF_NODE_ID)
+    useAssetImportProgressStore.getState().report(PF_NODE_ID, {
+      copiedBytes: Math.round(totalBytes * ratio), totalBytes, previewUrl: FRAME,
+    })
+    setReady(true)
+    return () => { useAssetImportProgressStore.getState().clear(PF_NODE_ID) }
+  }, [ratio])
+  return <div data-pf-import-state data-pf-reduced={reduced || undefined}>
+    {ready ? <ImportSurface reduced={reduced} /> : <div />}
+  </div>
+}
+
+function ImportSurface({ reduced }: { reduced?: boolean }): JSX.Element | null {
+  const node = useGenerationCanvasStore((state) => state.nodes.find((item) => item.id === PF_NODE_ID))
+  if (!node) return null
+  return <div data-process-lab-ready className="grid gap-6 p-6 pt-24" style={{ width: 800, height: 440, gridTemplateRows: '340px' }}>
+    <div className="relative" style={{ width: 340, height: 240 }}>
+      <BaseGenerationNode node={node} selected={false} readOnly waitingMotion={reduced ? 'reduced' : undefined} />
+    </div>
+  </div>
 }
 
 /** Transition screenshots use the mounted production host and real preview/result stores. */

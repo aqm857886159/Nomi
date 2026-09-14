@@ -81,6 +81,9 @@ export type GenerationNodeResult = {
   text?: string
   model?: string
   durationSeconds?: number
+  /** 源媒体像素尺寸（落盘边界 ffprobe 所得）。画布挂的是 ≤1024 的预览，不能拿预览的 naturalWidth 冒充源尺寸。 */
+  width?: number
+  height?: number
   taskId?: string
   taskKind?: GenerationNodeTaskKind
   assetId?: string

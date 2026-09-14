@@ -2,6 +2,11 @@ import React from 'react'
 import { ImageGeneration, type ImageGenerationHandle, type ImageGenerationCycleEvent, type ImageGenerationPreset } from 'img-fx'
 import { cn } from '../../../utils/cn'
 import { useReducedProcessMotion } from './useReducedProcessMotion'
+import { ProgressRevealCanvas } from './ProgressRevealCanvas'
+// 兜底扫光带的样式由这个组件自己带：等待层会被画布以外的宿主挂载（设计实验室、节点直挂），
+// 指望「反正 GenerationCanvas 会 import 整份画布样式」，结果就是实验室里那格根本看不到带子；
+// 而把整份画布样式挂到等待层上又会改到别的面，所以只带自己这一条。
+import './generationWaitingSurface.css'
 
 const MAX_EFFECTS = 4
 const effectOwners = new Set<symbol>()
@@ -74,7 +79,7 @@ function WaitingEffect({ source, final, paused, preset, onComplete }: {
 
 /** Shared image/video boundary: no fabricated image, and final output cannot retain an overlay. */
 export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, completed = false, onComplete,
-  previewLabel, percent, zoom = 1, inViewport = true, preset = 'sweep-gradient', motion }: {
+  previewLabel, percent, zoom = 1, inViewport = true, preset = 'sweep-gradient', motion, progressReveal, label }: {
   audio?: boolean
   motion?: 'reduced'
   previewUrl?: string
@@ -86,6 +91,13 @@ export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, 
   zoom?: number
   inViewport?: boolean
   preset?: ImageGenerationPreset
+  /**
+   * 进度驱动的渐显（导入用）：格子数 = ratio，不跑 img-fx 的时间揭示。
+   * 生成没有真进度，所以生成路径不传它，继续按时间揭示。
+   */
+  progressReveal?: { ratio: number; imageUrl?: string }
+  /** 过程中的左上角小标签（完成即消失；不新增常驻控件）。 */
+  label?: string
 }): JSX.Element {
   const reduced = useReducedProcessMotion() || motion === 'reduced'
   const admitted = useEffectSlot(!audio && !reduced && inViewport && zoom >= 0.4)
@@ -103,16 +115,19 @@ export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, 
     const deadline = window.setTimeout(() => onComplete?.(), 1100)
     return () => window.clearTimeout(deadline)
   }, [completed, admitted, finalUrl, documentHidden, onComplete])
-  const source = completed ? finalUrl : previewUrl
+  // 进度驱动时 img-fx 只负责底下的 shader：真图由 ProgressRevealCanvas 按字节比例一格格盖上去。
+  const source = progressReveal ? undefined : completed ? finalUrl : previewUrl
   return <div data-generation-waiting data-process-zoom={zoom} data-process-motion={reduced ? 'reduced' : 'full'}
     className="absolute inset-0 overflow-hidden rounded-nomi bg-nomi-ink-05 pointer-events-none">
-    {admitted ? <WaitingEffect key={completed ? 'final' : 'preview'} source={source} final={completed}
+    {admitted ? <WaitingEffect key={completed ? 'final' : 'preview'} source={source} final={completed && !progressReveal}
       paused={documentHidden || !inViewport} preset={preset} onComplete={onComplete} />
-      : <div data-process-static-band className="absolute inset-x-0 top-1/2 h-8 bg-nomi-accent-soft" />}
+      : <div data-process-static-band className="generation-canvas-v2-node__waiting-band absolute inset-x-0 top-1/2 h-8 -translate-y-1/2" />}
+    {progressReveal && admitted ? <ProgressRevealCanvas imageUrl={progressReveal.imageUrl} ratio={progressReveal.ratio} /> : null}
     {audio ? <div data-process-audio-waiting className="absolute inset-x-4 top-1/2 flex h-8 -translate-y-1/2 items-center justify-center gap-1" aria-hidden>
       {Array.from({ length: 24 }, (_, index) => <span key={index} className="h-6 w-1 shrink-0 rounded-full bg-nomi-ink-30" />)}
     </div> : null}
     {!admitted && source ? <img src={source} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : null}
+    {label ? <span data-process-label className="absolute top-3 left-3 rounded-full bg-[var(--nomi-overlay-chip)] px-3 py-1 text-caption text-nomi-media-ink">{label}</span> : null}
     {previewUrl && !completed ? <>
       <div data-process-preview-scrim className="absolute inset-0 bg-[var(--nomi-scrim)]" />
       <span className="absolute top-12 left-3 rounded-full bg-[var(--nomi-overlay-chip)] px-3 py-1 text-body text-nomi-media-ink">{previewLabel}</span>

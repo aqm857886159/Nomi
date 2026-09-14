@@ -207,6 +207,21 @@ export function observeDeferredNodeMediaVisibility(
   }
 }
 
+/**
+ * 「这块区域现在在视口里吗」——等待层用它决定要不要真的跑 WebGL。
+ * 复用上面同一个观察器，不为等待层另写一套 IntersectionObserver。
+ */
+export function useDeferredNodeMediaVisibility(): { ref: (element: HTMLElement | null) => void; visible: boolean } {
+  const [visible, setVisible] = React.useState(true)
+  const detach = React.useRef<(() => void) | undefined>(undefined)
+  const ref = React.useCallback((element: HTMLElement | null) => {
+    detach.current?.()
+    detach.current = element ? observeDeferredNodeMediaVisibility(element, setVisible) : undefined
+  }, [])
+  React.useEffect(() => () => detach.current?.(), [])
+  return { ref, visible }
+}
+
 export type DeferredNodeMediaState = 'idle' | 'queued' | 'loading' | 'ready' | 'error' | 'timeout'
 
 export function useDeferredNodeMediaSrc({

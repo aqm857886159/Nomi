@@ -1,0 +1,335 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-canvas-media-preview-lifecycle",
+  "problem_type": "Canvas nodes decode the original-size media (4K/8K image, 4K HEVC video) at mount time",
+  "symptom": "Opening a project with high-resolution generated or imported images and large videos keeps the canvas busy decoding every source at full size; video nodes create a <video> per node before the user touches any of them. Users report 'AI cannot get videos/images into the canvas' and the S-scale project (24 images + 24 videos) not becoming interactive.",
+  "direct_cause": "electron/assets/localizeTaskAsset.ts returned the stored source URL as thumbnailUrl (thumbnailUrl === url for every image, null for every video); BaseGenerationNode rendered <DeferredNodeImage src={result.url}> and <NodeVideoPlaybackGuard preload=\"auto\"> with no poster, so every node paid the full decode price on mount.",
+  "class_root": "No layer owned the source/preview distinction. The asset store persisted one file per media and every consumer (generation localization, local import, relocalization, canvas rendering) re-decided on its own which URL to draw, so all of them converged on the only URL that existed: the original.",
+  "affected_population": [
+    "Projects with high-resolution generated images (any provider, any model)",
+    "Projects with imported 4K/10-bit HEVC or other large video sources",
+    "Any canvas with dozens of media nodes: the S benchmark scale (24 images + 24 videos) already shows it",
+    "macOS verified; Windows shares the same code path but is unverified on real hardware"
+  ],
+  "scope_paths": [
+    "electron/assets/assetPreview.ts",
+    "electron/assets/assetSidecar.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/export/mediaProbe.ts",
+    "electron/runtime.ts",
+    "src/workbench/api/assetUploadApi.ts",
+    "src/workbench/assets/assetLibraryDrag.ts",
+    "src/workbench/assets/assetLibraryUsage.ts",
+    "src/workbench/assets/useAllProjectAssets.ts",
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "src/workbench/generationCanvas/resultUrlRelocalizeBridge.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts"
+  ],
+  "entry_points": [
+    "Generated image/video localization (localizeTaskAsset -> importRemoteAsset)",
+    "Local file import into the canvas or asset library (importLocalFile, bytes and native-path)",
+    "Relocalization of expired http(s) results on project open (resultUrlRelocalizeBridge)",
+    "Canvas image/video node rendering (BaseGenerationNode, NodeVideoPlaybackGuard)"
+  ],
+  "internal_only_reason": "The invariant is an application-owned asset lifecycle rule; no provider API or external contract decides which file the canvas draws.",
+  "invariants": [
+    "The original media stays the canonical result.url for editing, export and the full-screen preview dialog.",
+    "Any image whose long edge exceeds PREVIEW_LONG_EDGE_PX (1024) gets a distinct persisted preview file (`<name>.preview.png` when the source pixel format carries alpha, `<name>.preview.jpg` otherwise) next to the source, derived once at the asset boundary and registered in the sidecar.",
+    "Any video gets a first-frame poster (`<name>.preview.jpg`) at the same boundary; the canvas mounts only an <img> until the user hovers/focuses/clicks the node, and the <video> it then creates uses preload=\"metadata\".",
+    "Preview files never appear as asset-library entries (listProjectAssets filters isStoredAssetPreviewPath).",
+    "Source pixel dimensions come from the boundary probe (result.width/height); the canvas never records a preview's naturalWidth as the source size."
+  ],
+  "generality_proof": "Every file that lands in a project passes through projectAssetStore.importRemoteAsset (generated results, relocalization, tikhub, decompose), localFileImport.importLocalFile (renderer bytes) or projectAssetStore.copyAssetFile (native paths: OS picker, Finder paste/drop, MCP import_asset, cross-project copy); each returns through exactly one attachStoredAssetPreview door. Every canvas image/video node renders through BaseGenerationNode -> DeferredNodeImage / NodeVideoPlaybackGuard, which consume result.thumbnailUrl only; the three ways a stored asset becomes a node (generation result parse, asset import adapter, asset-library drag) all forward the boundary's thumbnailUrl/width/height. The lightweight (LOD) node path already preferred thumbnailUrl (resolveLightweightNodePreview).",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "attachStoredAssetPreview",
+      "responsibility": "Derive (or reuse from the sidecar) the preview/poster plus probed width/height/duration for a stored image or video record and hand it back on data.thumbnailUrl / data.thumbnailRelativePath / data.width / data.height."
+    },
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "createStoredAssetPreview",
+      "responsibility": "Run ffprobe once, decide by pixel format and size whether/which preview to write, run bounded ffmpeg; never throw, never replace the source."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "symbol": "NodeVideoPlaybackGuard",
+      "responsibility": "When a poster exists, draw the poster through the shared DeferredNodeImage queue and create the <video> only after user interaction."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "importRemoteAsset",
+      "disposition": "enforced",
+      "evidence": "All three source kinds (project-internal nomi-local reference, data:, http(s)) resolve inside importRemoteAssetToStore and leave through the single attachStoredAssetPreview call at the top of importRemoteAsset."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importLocalFile",
+      "disposition": "enforced",
+      "evidence": "Bytes and native-path imports resolve inside importLocalFileToStore and leave through the single attachStoredAssetPreview call in importLocalFile; assetPreview.test.ts drives a 1600x900 RGBA png and an mp4 through it."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "copyAssetFile",
+      "disposition": "enforced",
+      "evidence": "Native-path copies (OS file picker via importNativeFile, Finder paste/drop via localFileCopy.copyLocalImageFiles, MCP nomi_import_asset via capabilityCore/core.ts, copyProjectAsset) all resolve inside copyNativeFileToBucket / persistUploadFile and leave through the single attachStoredAssetPreview call in copyAssetFile."
+    },
+    {
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "entry_point": "localizeTaskAsset return value",
+      "disposition": "enforced",
+      "evidence": "thumbnailUrl is data.thumbnailUrl from the boundary, falling back to the source only for images that already fit the preview edge; width/height/durationSeconds are forwarded to the renderer."
+    },
+    {
+      "path": "src/workbench/generationCanvas/resultUrlRelocalizeBridge.ts",
+      "entry_point": "relocalizedResultPatch",
+      "disposition": "enforced",
+      "evidence": "The patch takes the boundary's thumbnailUrl/width/height from the import DTO instead of copying the new local url into thumbnailUrl; resultUrlRelocalizeBridge.test.ts pins image fallback, video poster and the no-poster case."
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "entry_point": "uploadAndApplyAssetToNode",
+      "disposition": "enforced",
+      "evidence": "The hosted result carries hostedAssetThumbnailUrl/hostedAssetDimensions from the same DTO, so a dropped 4K png renders its .preview.* on the canvas."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "entry_point": "asset-library drag onto the canvas",
+      "disposition": "enforced",
+      "evidence": "AssetLibraryDragPayload now carries thumbUrl/dimensions (assetToDragPayload from AssetRef, which assetRefFromDesktopAsset fills from the sidecar thumbnailRelativePath); the dropped node result gets thumbnailUrl/width/height instead of only renderUrl."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "entry_point": "finalUrl for the completion crossfade",
+      "disposition": "enforced",
+      "evidence": "The completion frame crossfades to result.thumbnailUrl || result.url, the same image the node will keep showing, instead of decoding the source once more."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "writeDeterministicAsset materialization for production-run / MCP outputs",
+      "disposition": "not-affected",
+      "evidence": "Production-run artifacts reach the canvas through multiShotCanvasLanding.ts, where artifact.thumbnailRelativePath is used as the signed preview source and becomes the node url itself (multiShotCanvasLanding.ts:150-160, artifactProjection.ts:216). Attaching an image preview there would swap the node's url for the preview, so this path keeps its existing vendor-poster-for-video behaviour and needs its own contract before it can adopt the boundary; recorded in residual_risks."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNodePreview.tsx",
+      "entry_point": "program-monitor <video preload=\"auto\">",
+      "disposition": "not-affected",
+      "evidence": "The clip node is a single program monitor that plays the active clip on demand; there is exactly one of it per timeline node and it already uses videoClip.thumbnailUrl as poster. It is not a grid of N mounted videos."
+    },
+    {
+      "path": "electron/video/extractVideoFrame.ts",
+      "entry_point": "writeAsset for extracted frames / screenshots / filmstrips",
+      "disposition": "not-affected",
+      "evidence": "These synchronous writeAsset callers produce display-sized frames (bounded by the source or by -vf scale) and screenshots; generated outputs that re-enter the canvas from local tools do so through localizeTaskAsset's nomi-local branch, which now attaches the preview as well."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new provider, import route or higher-resolution source reproduces the same eager decode unless previews are derived where files are stored; the class already reappeared in the delivery of PR #776 (mechanism dropped, only a dead predicate shipped).",
+    "same_class_scan": [
+      "node scripts/door-map.mjs attachStoredAssetPreview updateMediaDimensions",
+      "rg 'thumbnailUrl' electron src --type ts",
+      "rg 'preload=' src/workbench --type tsx",
+      "rg 'writeAsset\\(|copyAssetFile\\(|importRemoteAsset\\(|importLocalFile\\(' electron --type ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/assets/assetPreview.ts",
+    "tests": [
+      "electron/assets/assetPreview.test.ts"
+    ],
+    "notes": "The asset boundary owns source/preview separation and pixel-format-derived output. assetPreview.test.ts runs the real ffmpeg/ffprobe pair: 1600x900 jpeg -> 1024 .preview.jpg, RGBA png -> .preview.png whose probed pixel format still carries alpha, 640x360 png -> no preview file, mp4 -> first-frame poster with duration, svg -> no preview and no throw, sidecar reuse on the second call, and the two import doors (importLocalFile / listProjectAssets filter). The renderer contract (inline img = preview, dialog = source, aria-modal) is pinned by tests/ux/canvas-image-preview-and-rename.e2e.mjs."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 132,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 337,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "line": 562,
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "line": 554,
+      "symbol": "updateMediaDimensions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "line": 567,
+      "symbol": "updateMediaDimensions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "line": 587,
+      "symbol": "updateMediaDimensions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetPreview.ts",
+      "line": 159,
+      "symbol": "createStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetSidecar.ts",
+      "line": 31,
+      "symbol": "writeAssetSidecarMeta"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/mediaProbe.ts",
+      "line": 378,
+      "symbol": "pixelFormat"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "line": 41,
+      "symbol": "thumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "line": 135,
+      "symbol": "thumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/api/assetUploadApi.ts",
+      "line": 22,
+      "symbol": "thumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/resultUrlRelocalizeBridge.ts",
+      "line": 47,
+      "symbol": "hostedAssetThumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "line": 247,
+      "symbol": "hostedAssetThumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/useAllProjectAssets.ts",
+      "line": 75,
+      "symbol": "thumbnailRelativePath"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/assetLibraryUsage.ts",
+      "line": 60,
+      "symbol": "thumbUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/assetLibraryDrag.ts",
+      "line": 42,
+      "symbol": "thumbUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "line": 326,
+      "symbol": "thumbUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "line": 583,
+      "symbol": "thumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "line": 68,
+      "symbol": "poster"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "line": 27,
+      "symbol": "thumbnailUrl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "line": 118,
+      "symbol": "width"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 22,
+    "why_not": "Before: the drawn-URL decision lived in localizeTaskAsset.ts:38 (thumbnailUrl = url) and resultUrlRelocalizeBridge.ts:28 (thumbnailUrl = next), and media dimensions were written from two DOM callbacks (video loadedmetadata, image onLoad). After: both per-consumer URL decisions are deleted and replaced by one attachStoredAssetPreview door per storage entry — importRemoteAsset (remote/data:/project-internal sources, hardenedFetch trust posture), importLocalFile (renderer bytes, size-capped) and copyAssetFile (native paths from the OS picker / Finder paste-drop / MCP import_asset / cross-project copy). These three cannot share one function without merging three different trust boundaries, so three write doors is the floor; every other former caller (localFileCopy, capabilityCore import_asset, copyProjectAsset, native import) reaches the preview through copyAssetFile and is not a door of its own. The dimension doors go from 2 to 3 because a deferred video now has a third element that can report size (the poster <img>); all three converge on the single updateMediaDimensions reconciler, which prefers the boundary-probed result.width/height over whatever element fired, so the extra door adds no second source of truth. The read doors listed are the ones that decide what the canvas draws (the boundary's thumbnailUrl/thumbnailRelativePath consumers on every path a stored asset becomes a node); the ~100 remaining `thumbnailUrl` readers in the repo (tiles, timeline, spend cards) display whatever the result already carries and do not choose between source and preview, so they are not doors of this state."
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/assetPreview.ts",
+    "invariant": "Preview/poster derivation and source dimension probing happen once where the file is stored and are returned on the stored record; renderer and localization code only consume data.thumbnailUrl / data.width / data.height and never decode the source to decide what to draw.",
+    "failure_mode": "If ffprobe/ffmpeg fail or the format is undecodable (svg), the record carries no preview: images fall back to the source URL (source is the preview), videos have no poster and mount as before. No throw reaches the import caller. A node whose result lacks width/height records the loaded element's natural size, which is the preview's size — aspect ratio is exact, magnitude is the preview's.",
+    "exception_policy": "none",
+    "strategy": "Put the decision at the earliest shared boundary (asset store record) and make every consumer read it; delete the per-consumer decisions that existed before (localizeTaskAsset thumbnailUrl = url, relocalize thumbnailUrl = next).",
+    "artifacts": [
+      "electron/assets/assetPreview.ts",
+      "electron/assets/localFileImport.ts",
+      "electron/assets/projectAssetStore.ts",
+      "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/assetPreview.test.ts",
+    "src/workbench/generationCanvas/resultUrlRelocalizeBridge.test.ts",
+    "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/assets/assetPreview.test.ts",
+    "tests/ux/canvas-image-preview-and-rename.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/localizeTaskAsset.ts",
+      "src/workbench/generationCanvas/resultUrlRelocalizeBridge.ts"
+    ],
+    "rationale": "Both places used to decide the canvas URL on their own (image thumbnailUrl := source url). They now forward the boundary's decision; there is no fallback that re-derives a preview in the renderer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "ffmpeg/ffprobe are already the repository media tools (resolveFfmpegPath, probeMediaMetadata, runBoundedProcess); no dependency is added or upgraded.",
+    "exit_criteria": []
+  },
+  "migration": "Nodes persisted before this change keep thumbnailUrl === url (images) or no thumbnailUrl (videos) and keep rendering exactly as before; new localizations and imports derive previews. Re-deriving previews for legacy nodes lazily on project open is a follow-up (residual_risks).",
+  "residual_risks": [
+    "Legacy nodes (thumbnailUrl === url) are not backfilled; large old projects keep the eager-decode behaviour until each asset is re-localized.",
+    "Production-run / MCP materialized outputs (generationOutputMaterializer) do not derive image previews because multiShotCanvasLanding treats thumbnailRelativePath as the node url; needs its own contract.",
+    "Asset-library tiles for project files still render the source (AssetRef.thumbUrl is only filled for canvas results); the sidecar now carries thumbnailRelativePath so a follow-up can surface it.",
+    "Windows HEVC/GPU behaviour is unverified on real hardware; macOS arm64 verified with the real 3840x2160 10-bit HEVC .mov."
+  ],
+  "scope_note": "Type-only carriers of width/height (src/workbench/api/taskApi.ts, generationCanvasSchema/Types), the aria-modal attribute on NodeMediaPreviewDialog and the S5 LOD change (canvasNodeLevelOfDetail.ts, GenerationCanvasReactFlowNodes.tsx, NodeLabelRow.tsx; plan docs/plan/2026-09-12-canvas-lod-screen-size.md) ship in the same PR but are not doors of this invariant. electron/runtime.ts stays in scope because it is a high-risk root: its TaskResult.assets width/height fields are the read contract through which the boundary's probed dimensions reach the renderer."
+}

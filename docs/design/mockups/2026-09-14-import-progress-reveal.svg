@@ -1,0 +1,286 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="400" viewBox="0 0 980 400" font-family="-apple-system, PingFang SC, Helvetica, Arial, sans-serif" font-size="12">
+<rect width="980" height="400" fill="#141414"/>
+<defs><linearGradient id="photo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a7bb5"/><stop offset="0.5" stop-color="#d9a066"/><stop offset="1" stop-color="#2e3d55"/></linearGradient><linearGradient id="sweep" x1="0" x2="1"><stop offset="0" stop-color="#5b8def" stop-opacity="0"/><stop offset="0.5" stop-color="#5b8def" stop-opacity="0.35"/><stop offset="1" stop-color="#5b8def" stop-opacity="0"/></linearGradient></defs>
+<text x="30" y="30" fill="#bbb" font-size="14">导入中节点 · 用 img-fx 的马赛克渐显，但由「已拷贝字节 / 总字节」驱动，不按时间跑</text>
+<g transform="translate(30,50)">
+<rect x="0" y="0" width="240" height="150" rx="14" fill="#2b2b2b" stroke="#3a3a3a"/>
+<clipPath id="clip30"><rect x="0" y="0" width="240" height="150" rx="14"/></clipPath>
+<g clip-path="url(#clip30)">
+<rect x="0.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+</g>
+
+
+<rect x="8" y="8" width="118" height="20" rx="10" fill="#000" fill-opacity="0.45"/>
+<text x="16" y="22" fill="#e6e6e6" font-size="11">导入中 · 8% · 1.38 GB</text>
+<circle cx="0" cy="75.0" r="4" fill="#666"/><circle cx="240" cy="75.0" r="4" fill="#666"/>
+</g>
+<g transform="translate(300,50)">
+<rect x="0" y="0" width="240" height="150" rx="14" fill="#2b2b2b" stroke="#3a3a3a"/>
+<clipPath id="clip300"><rect x="0" y="0" width="240" height="150" rx="14"/></clipPath>
+<g clip-path="url(#clip300)">
+<rect x="0.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+</g>
+
+
+<rect x="8" y="8" width="118" height="20" rx="10" fill="#000" fill-opacity="0.45"/>
+<text x="16" y="22" fill="#e6e6e6" font-size="11">导入中 · 42% · 1.38 GB</text>
+<circle cx="0" cy="75.0" r="4" fill="#666"/><circle cx="240" cy="75.0" r="4" fill="#666"/>
+</g>
+<g transform="translate(570,50)">
+<rect x="0" y="0" width="240" height="150" rx="14" fill="#2b2b2b" stroke="#3a3a3a"/>
+<clipPath id="clip570"><rect x="0" y="0" width="240" height="150" rx="14"/></clipPath>
+<g clip-path="url(#clip570)">
+<rect x="0.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="45.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="105.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="60.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="0.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="150.0" y="60.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="105.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="165.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="225.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="45.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="15.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="210.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="135.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="195.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="120.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="135.0" y="120.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="15.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="180.0" y="0.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="75.0" y="90.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="90.0" y="30.0" width="15.5" height="15.5" fill="url(#photo)"/>
+<rect x="30.0" y="75.0" width="15.5" height="15.5" fill="url(#photo)"/>
+</g>
+
+
+<rect x="8" y="8" width="118" height="20" rx="10" fill="#000" fill-opacity="0.45"/>
+<text x="16" y="22" fill="#e6e6e6" font-size="11">已导入 · 0:00 / 8:47</text>
+<circle cx="0" cy="75.0" r="4" fill="#666"/><circle cx="240" cy="75.0" r="4" fill="#666"/>
+</g>
+<text x="150" y="222" text-anchor="middle" fill="#9a9a9a">拷贝开始前先出一帧（图片缩 1024 / 视频抽首帧）</text>
+<text x="420" y="222" text-anchor="middle" fill="#9a9a9a">拷了多少显多少</text>
+<text x="690" y="222" text-anchor="middle" fill="#9a9a9a">拷完刚好显完，直接是真预览/海报</text>
+<text x="30" y="262" fill="#bbb" font-size="14">无 GPU 兜底（生成与导入共用）：居中的柔和扫光带，不再是实心蓝条；没有进度线</text>
+<g transform="translate(30,278)"><rect x="0" y="0" width="240" height="100" rx="14" fill="#2b2b2b" stroke="#3a3a3a"/><rect x="0" y="34" width="240" height="32" fill="url(#sweep)"/><rect x="8" y="8" width="118" height="20" rx="10" fill="#000" fill-opacity="0.45"/><text x="16" y="22" fill="#e6e6e6" font-size="11">导入中 · 42% · 1.38 GB</text><circle cx="0" cy="50" r="4" fill="#666"/><circle cx="240" cy="50" r="4" fill="#666"/></g>
+<text x="300" y="300" fill="#cfcfcf">同一套视觉语言：生成中 = 时间驱动的渐显，导入中 = 进度驱动的渐显。</text>
+<text x="300" y="322" fill="#cfcfcf">左上角小标签只在导入/生成期间出现，完成即消失（不新增常驻控件）。</text>
+<text x="300" y="344" fill="#cfcfcf">大文件（1.38GB 十几秒）渐显会慢，这是进度的真实表现；图片几百毫秒显完。</text>
+<text x="300" y="366" fill="#cfcfcf">顺带修：导入不再伪装成 queued；视口外节点不跑 WebGL 那道门把参数接上。</text>
+</svg>
