@@ -473,6 +473,28 @@ describe("MCP 接模型 · 题库 30 句零额度契约司机 (R30 门岗)", () 
       .toBeGreaterThanOrEqual(BANK.targets.firstTryArgumentRate.goal);
   });
 
+  it("自检必须借 owner 那份凭据解析器（源码棘轮）", () => {
+    // 2026-09-15 真实闭环挖出来的：check_connection 自己拼 dep bag 去调探测器，
+    // `credentialResolver` 写成 `undefined`、`certification` 靠穿透私有字段拿。
+    // 于是对一条 keyStatus=ready 的连接，自检恒回「Nomi 没有找到已保存的密钥」——
+    // 一句关于**用户的 key** 的结论，而真相是我们没接线。
+    // 行为侧证据是真实模型臂的数字（docs/evidence/2026-09-15-mcp-onboarding-real-host）；
+    // 这条棘轮管的是「别再长回来」，它看的是源码，跟本机 catalog 里有没有连接无关。
+    // 先剥注释再匹配：讲述这个病的注释里**必然**写着那句病代码，
+    // 按原文扫会被自己的文档触发（check:announced-card 的 --selftest 也专门验过这一条）。
+    const source = fs
+      .readFileSync(path.join(process.cwd(), "electron/capabilityCore/modelOnboarding/dispatch.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.replace(/\/\/.*$/, ""))
+      .join("\n");
+    expect(source).not.toMatch(/credentialResolver:\s*undefined/);
+    expect(source).toMatch(/credentialResolver:\s*deps\.sessions\.credentialResolver/);
+    expect(source).not.toMatch(/as unknown as \{ certification: never \}/);
+    // 「这家没有模型清单端点」是关于供应商的结论，探测压根没发出去时说不出口。
+    expect(source).not.toMatch(/reason:\s*'no_models_endpoint'/);
+  });
+
   it("阳性对照：司机只看得到 schema 顶层 required 时必须塌下去（否则这把尺什么都没量）", () => {
     // 合并工具上「只看 schema required」= 只看得到 ["action"]，信息量等于旧面那 241 字节。
     // 实测 ~0.37：塌掉的全是 nomi_model_setup 的跳，独立工具照样过——因为它们的 schema 说了真话。

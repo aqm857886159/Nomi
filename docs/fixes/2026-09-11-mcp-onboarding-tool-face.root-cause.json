@@ -89,13 +89,13 @@
     {
       "kind": "read",
       "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
-      "line": 453,
+      "line": 477,
       "symbol": "buildView"
     },
     {
       "kind": "read",
       "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
-      "line": 557,
+      "line": 596,
       "symbol": "buildView"
     },
     {

@@ -1,0 +1,228 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-onboarding-results-claim-what-they-cannot-know",
+  "change_kind": "corrective",
+  "problem_type": "Tool results on the model-onboarding surface asserted facts the owning process had no evidence for, because two materially different situations were collapsed into one return value",
+  "symptom": "2026-09-15 真实闭环（Claude Code CLI 2.1.270 挂 Nomi MCP，隔离实例带真实 APIMart key，证据 docs/evidence/2026-09-15-mcp-onboarding-real-host/）：连接建好了、keyStatus=ready、34 个模型就在那儿，但外部 Agent 连续三个回合都在告诉用户「你的 Nomi 没在运行，请去 设置 → 模型 把 key 重新粘一遍」，并就此停下。它不是在猜——它读到的工具结果里逐字写着「Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「」的 key」（连接名是空字符串），以及自检回的「无法探测模型：Nomi 没有找到已保存的密钥」。三句话全是假的：Nomi 在跑、名字叫 APIMart、key 存着并且能解。20 次工具调用里入参一次写对 17 次（85%），任务却一件没完成，人工介入 3 次——全部由这三句假话造成。",
+  "direct_cause": "三处各自把「我不知道」写成了一句斩钉截铁的结论。① electron/capabilityCore/mcpCredentialElicitation.ts 用「有没有铸出一次性填写页」(`if (!ticket)`) 反推「要不要问用户拿 key」。key 已存时 connect_provider 明说 nextAction.kind=\"working\"、不会铸票据，于是这条分支照样挂上一段人工指引；那段文案的 opened=false 分支写的是「Nomi 没在运行」，而这个进程只知道自己没能打开填写页，不知道 GUI 在不在。② 同一段文案的连接名取自 `ticketOf(...).display.name`（无票据时是 ''）与 `opened.config.name`（connectProvider 只在有票据时才挂 config），两路都空 → 发出「保存「」的 key」。③ electron/capabilityCore/modelOnboarding/dispatch.ts 的 check_connection 自己拼 dep bag 去调探测器：`credentialResolver: undefined` 写死，`certification` 靠 `as unknown as { certification: never }` 穿透私有字段。探测器（httpModelDiscovery.ts:17-18）拿不到解析器就抛 integration.discoveryMissingCredential（「Nomi 没有找到已保存的密钥」）——一句关于**用户的 key** 的结论，真相是我们没接线。同一个函数还有 `if (!setupId) throw new Error('no_setup_for_probe')` 加 `reason: 'no_models_endpoint'`，而声明明写「给 vendorKey 或 setupId」，且 no_models_endpoint 是一句关于**供应商**的结论（这家没有模型清单端点），探测压根没发出去时说不出口。",
+  "class_root": "模型面上的每个返回值都是一句证言，而这三处把「没有证据」和「有反面证据」写成了同一句话。机制永远相同：判据取自一个**副产物**（有没有票据 / 有没有 setupId / 调用抛没抛），而副产物同时对应两三种互不相干的世界状态；代码挑其中最坏的那个当结论说出去。对人类用户，一句错话最多让他困惑一次；对 Agent，它是硬事实——它会据此重新规划、放弃任务、并把这句错话转述给用户。缺的那条不变量是：**工具结果只许下它真拿到证据的那个结论；说不出的事必须由声明它的那一层明说，而不是从副产物反推。** 仓库已经为同一个形状立过一道门（check:announced-card：「announce 了却画不出」不许收成一个静默的空），这次是它在接模型这条路上的第二次显形。",
+  "affected_population": [
+    "每一个用外部 AI 宿主接模型的用户：Codex CLI / Claude Code / Cursor 看到的是同一份工具结果，这三句假话对它们一字不差",
+    "每一条 key 已经存好的连接（也就是绝大多数老用户的机器）——恰恰是最不需要被要求重贴 key 的那一群",
+    "所有在 App 内点「自检 / 测试连接」的 HTTP 供应商连接：check_connection 的探测走同一段代码，credentialResolver 写死 undefined 对它们同样成立",
+    "任何只拿到 vendorKey（而不是在途 setupId）就想自检的调用方：声明说这样够，运行时永远探不了"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpCredentialElicitation.ts",
+    "electron/capabilityCore/modelOnboarding/dispatch.ts",
+    "electron/integrationCertification/integrationSession.ts"
+  ],
+  "entry_points": [
+    "MCP tools/call nomi_model_setup action=connect_provider（外部宿主，经 runIntegrationCredentialElicitation）",
+    "MCP tools/call nomi_model_setup action=check_connection（只给 vendorKey / 只给 setupId 两种都算）",
+    "App 内 模型接入 抽屉经 capabilityCore RPC 走同一个 modelOnboarding dispatch 的 check_connection",
+    "IntegrationSessionService 的凭据解析器读口（此前私有，只有 service 内部三处用得到；自检那条路因此自己造了个 undefined）"
+  ],
+  "invariants": [
+    "一个工具结果里的每一句话，都必须是这个进程真的观察到的：没能打开填写页 ≠ Nomi 没在运行；拿不到凭据解析器 ≠ 用户没存 key；探测没发出去 ≠ 这家没有模型清单端点。",
+    "「这一步要不要问用户拿 key」只有一个判据：投影自己说的 nextAction.kind === 'user_sees_key_page'（isWaitingForKey）。不许从票据、阶段名或任何副产物反推。",
+    "自检探供应商模型清单时用的凭据解析器与认证服务，只能向 IntegrationSessionService 那一份借（sessions.credentialResolver / sessions.certification），不许在调用点新造一份、也不许写 undefined。",
+    "面向用户的文案里不许出现空名字：名字拿不到时说「这个连接」（NAMED），空引号比没有名字更糟。"
+  ],
+  "generality_proof": "这一类不绑任何供应商、模型、宿主或平台。判据取副产物的写法在接模型这条路上一天里就找到三处（票据 / setupId / 抛没抛），三处互不知情、分布在两个模块；其中两处的假话内容是「用户的 key 有问题」「Nomi 没在运行」，都是 Agent 无法反驳、只能照办的断言。换一个宿主（Codex、Cursor）、换一家供应商（DeepSeek、KIE）、换一台机器（key 存着或没存），这三句话照样发。反过来，把判据换成「声明它的那一层明说的那个字段」之后，三处的结论都变成可被反驳的观察：页面没打开、这条连接探不了、这家的清单里没有这个 id。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpCredentialElicitation.ts",
+      "symbol": "isWaitingForKey",
+      "responsibility": "「这一步在等用户贴 key 吗」的唯一判据，且判据是投影自己声明的 nextAction.kind。此前这个问题靠「有没有票据」反推，把「不需要问」和「问不出来」塌成同一个答案。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpCredentialElicitation.ts",
+      "symbol": "NAMED",
+      "responsibility": "面向用户的连接名唯一格式化点：有名字就带引号，没名字说「这个连接」。空引号在这里不可表达。"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "credentialResolver",
+      "responsibility": "凭据解析器的唯一 owner，现在是公开读口。service 内部三处与自检那条路都读这一份；私有字段挡不住任何人，只会把「借一份依赖」变成「自己造一份更差的」。"
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "sessionShapeFor",
+      "responsibility": "把一条已保存的连接翻译成探测器认得的会话形状，让「只给 vendorKey」这条声明过的路径真的能探——不新造状态、不落盘。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpCredentialElicitation.ts",
+      "entry_point": "runIntegrationCredentialElicitation 的 `if (!ticket)` 分支",
+      "disposition": "enforced",
+      "evidence": "改为先问 isWaitingForKey(opened)：不在等 key 就原样返回投影、一条人工指引都不挂。回归测试「这一步根本不需要 key 时，结果里一条人工指引都不该有」断言 credentialEntry 为 undefined 且整份结果里不出现「没在运行」「「」」。"
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "entry_point": "checkConnection 的探测调用（原 credentialResolver: undefined）",
+      "disposition": "enforced",
+      "evidence": "改为向 deps.sessions 借 credentialResolver 与 certification，并在只给 vendorKey 时用 sessionShapeFor 现搭会话形状；no_models_endpoint 换成 no_such_connection。源码棘轮（modelOnboardingLoopback.test.ts「自检必须借 owner 那份凭据解析器」）剥掉注释后断言这三样都回不来。"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "IntegrationSessionService 内部三处 credentialResolver 读点（begin 的 credentialReady、propose 的发现、start 的凭据取用）",
+      "disposition": "enforced",
+      "evidence": "三处统一改读公开字段 this.credentialResolver，与自检那条路借的是同一份；`this.deps.credentialResolver` 在本文件里已归零，不再存在第二个读法。"
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "case 'modelSetup.*' 组装 ModelOnboardingDeps 的那一处",
+      "disposition": "not-affected",
+      "evidence": "装配点一字未改：解析器与认证服务本来就在它传下去的那个 sessions 实例上，缺的只是一个公开读口。这条列在这里是为了说明「同类入口」不含它——不是漏了。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "一天之内在同一条路上找到三处同形写法，且它们互不知情；仓库此前已为同一形状在别处立过门岗（check:announced-card 的「announce 了却画不出」）。任何新的工具动作只要从副产物反推一句面向 Agent 的结论，就会再长一次。",
+    "same_class_scan": [
+      "grep -rn \"as unknown as {\" electron/capabilityCore/ —— 找「穿透私有字段借依赖」这一形；唯一命中就是 checkConnection 那处 certification，已删。",
+      "对 modelOnboarding/dispatch.ts 九个动作逐个读失败分支，找「结论的主语不是我们」的句子；命中三处：no_setup_for_probe / no_models_endpoint（主语是供应商）、credentialResolver:undefined 触发的 discoveryMissingCredential（主语是用户的 key）、COPY.manual 的 opened=false 分支（主语是 Nomi 进程在不在）。三处全部在本 commit 修掉。",
+      "grep -rn \"没在运行\\|not running\" electron/ —— 确认这句断言只有 mcpCredentialElicitation.ts 一个 owner，没有第二份平行文案。",
+      "node scripts/door-map.mjs credentialResolver / discoverHttpCandidates / isWaitingForKey —— 数门，结果即本合同的 doors。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpCredentialElicitation.ts",
+    "invariant": "「要不要问用户拿 key」只由 isWaitingForKey 判，判据是投影声明的 nextAction.kind；人工指引只在真的在等 key 时才挂；连接名经 NAMED，空名字不可表达。",
+    "failure_mode": "不在等 key 的那一步返回的是原样投影，结果里没有 credentialEntry、也没有任何关于 Nomi 在不在跑的句子；真的在等 key 而填写页没打开时，说的是「填写页没能打开」+ 去 Nomi 里那条路，并带上连接名或「这个连接」。",
+    "exception_policy": "none",
+    "strategy": "把判据从副产物（有没有票据）搬到声明（nextAction.kind），并把它提成一个具名导出，让第二个调用点只能借、不能另写；同时把凭据解析器与认证服务变成 owner 的公开读口，堵掉「私有字段拿不到就自己造一个 undefined」这条路。",
+    "artifacts": [
+      "electron/capabilityCore/mcpCredentialElicitation.ts",
+      "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "electron/integrationCertification/integrationSession.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpCredentialElicitation.ts",
+    "tests": [
+      "electron/capabilityCore/mcpCredentialElicitation.test.ts",
+      "electron/capabilityCore/modelOnboardingLoopback.test.ts"
+    ],
+    "note": "「这一步在等 key 吗」与「人工指引说什么」从此归这一层（isWaitingForKey + NAMED + COPY）。自检那条路的「借谁的凭据解析器」由 modelOnboardingLoopback.test.ts 的源码棘轮守着，行为侧证据来自真实模型臂的数字。"
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 505,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 598,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 1016,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "line": 17,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 902,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 1223,
+      "symbol": "credentialResolver"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 46,
+      "symbol": "discoverHttpCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 480,
+      "symbol": "discoverHttpCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "line": 70,
+      "symbol": "discoverHttpCandidates"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCredentialElicitation.ts",
+      "line": 172,
+      "symbol": "isWaitingForKey"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 10,
+    "merged": [
+      "electron/capabilityCore/modelOnboarding/dispatch.ts 里那扇**自造的**凭据解析器门被删掉：它原本是 `credentialResolver: undefined`（一个写死成「没有」的第二真相源），现在借 IntegrationSessionService 的公开读口。凭据解析器的入口因此从 5 扇（service 内部 3 + 探测器入参 1 + 自检自造 1）收成 4 扇，且剩下的 4 扇同源。"
+    ],
+    "why_not": "剩下的门不该再合：httpModelDiscovery.ts:17 是探测器自己的入参声明（它必须能接收一个解析器，否则就只能在库里写死一个真相源）；integrationSession.ts 的三处是同一个 owner 内部对自己那一份的读取，合并它们只会多一层转发而不减入口。isWaitingForKey 只有一扇门，就是它自己那处判定。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpCredentialElicitation.test.ts",
+    "electron/capabilityCore/modelOnboardingLoopback.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpCredentialElicitation.test.ts",
+    "electron/capabilityCore/modelOnboardingLoopback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/modelOnboarding/dispatch.ts"
+    ],
+    "rationale": "`credentialResolver: undefined`、`as unknown as { certification: never }` 穿透私有字段、`if (!setupId) throw new Error('no_setup_for_probe')` 与 `reason: 'no_models_endpoint'` 四处同 commit 删掉，没有并行版、没有兜底开关（P1）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部接线：没有依赖升级、没有新依赖，探测器与认证服务都是仓内既有模块。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "只给 vendorKey 的自检现在能真的发一次 GET /models，但仍然既会假阴也会假阳（仓库已记着两个反例：apimart 对合法 key 恒回 401、minimax 回 200 却跑不通）。所以 unverified 里 model_produces_output 一条不动——自检通过依旧不许说「接好了」。",
+    "「验证扣积分」（T-MO-10）这条本轮只核实、没修：App 内 测试连接 按钮（electron/ai/onboarding/onboardingIpc.ts:50/53/56 三条裸 POST）、自定义调用的测试运行（electron/catalog/customCallIpc.ts:37-42）与 ComfyUI 自检自铸 grant（electron/integrationCertification/integrationSession.ts:412）三处仍然会真花钱且不过报价卡。那是钱的闸的改动，属于另一条 lane，不在这条分支里顺手改。",
+    "自检探测在只给 vendorKey 时用的是现搭的会话形状，取的是 catalog 里那条连接的 baseUrl/authType。连接本身配错（比如 baseUrl 少了 /v1）时自检会照错的地址探——这是对的（它就是在验地址），但错因会显示成供应商拒绝，需要用户自己看 bodyExcerpt。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation",
+      "checked_at": "2026-09-15",
+      "purpose": "确认 elicitation 是「服务端向客户端请求一次交互」的机制，客户端不支持或拒绝时服务端只知道「这次请求没被满足」，规范没有、也不可能给服务端任何关于宿主应用进程在不在的信息——所以「Nomi 没在运行」这句话在协议层面就是我们推不出来的结论。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+      "checked_at": "2026-09-15",
+      "purpose": "工具执行错误要用 isError:true 带上可行动的文本，与 JSON-RPC 协议错误分开。本次把「探测没发出去」从一句关于供应商的结论（no_models_endpoint）改成关于我们自己的事实（no_such_connection），落在这条规范说的「说清到底发生了什么」上。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.claude.com/en/docs/claude-code/cli-reference",
+      "checked_at": "2026-09-15",
+      "purpose": "验收用的外部宿主是 Claude Code CLI 的 -p / --mcp-config / --strict-mcp-config / --output-format stream-json；症状那一段的逐调用证据就是它的 stream-json 事件流。"
+    }
+  ],
+  "migration": "不需要迁移。没有持久化格式、词表或落盘数据变化：改的是三处运行期判据与两段面向用户的文案。旧数据读上来行为自动变对（key 已存的连接不再收到人工指引、只给 vendorKey 的自检真的会发一次 GET /models），没有需要回填的历史记录，也没有反向兼容读取路径要留。"
+}

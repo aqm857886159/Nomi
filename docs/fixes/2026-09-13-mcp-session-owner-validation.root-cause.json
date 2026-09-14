@@ -41,7 +41,7 @@
     {
       "kind": "read",
       "path": "electron/integrationCertification/integrationSession.ts",
-      "line": 595,
+      "line": 610,
       "symbol": "validateState"
     },
     {

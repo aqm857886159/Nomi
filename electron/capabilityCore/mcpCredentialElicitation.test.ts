@@ -109,7 +109,7 @@ describe('nomi_model_setup connect_provider credential elicitation (MCP url mode
     expect(JSON.stringify(outcome.result)).not.toContain('127.0.0.1')
   })
 
-  it('says to start Nomi when the owning process cannot reach a GUI', async () => {
+  it('说填写页没打开、指去 Nomi 里的那条路，但不断言「Nomi 没在运行」——那件事它不知道', async () => {
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
       built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
@@ -120,7 +120,38 @@ describe('nomi_model_setup connect_provider credential elicitation (MCP url mode
     })
     expect(outcome.kind).toBe('result')
     if (outcome.kind !== 'result') throw new Error('unreachable')
-    expect((outcome.result.credentialEntry as { instructions: string }).instructions).toMatch(/Nomi is not running/)
+    const instructions = (outcome.result.credentialEntry as { instructions: string }).instructions
+    // 能说的：页面没打开、去 Nomi 里那条路怎么走、这是哪个连接。
+    expect(instructions).toMatch(/could not be opened/)
+    expect(instructions).toMatch(/Settings → Models/)
+    expect(instructions).toContain('"APIMart"')
+    // 不能说的：「Nomi 没在运行」——这个进程只知道自己铸不出页面，不知道 GUI 在不在
+    //（2026-09-15 真实闭环：Nomi 明明在跑，外部 Agent 照这句话劝用户三次去开 Nomi）。
+    expect(instructions).not.toMatch(/not running|没在运行/)
+    // 也不能出现空引号：名字拿不到时说「这个连接」。
+    expect(instructions).not.toMatch(/""|「」/)
+  })
+
+  it('这一步根本不需要 key 时，结果里一条人工指引都不该有', async () => {
+    // key 已经存着 → connect_provider 回 nextAction.kind="working"、没有票据。
+    // 此前「没有票据」被当成「铸不出填写页」，于是照样挂一条「Nomi 没在运行，请保存「」的 key」。
+    const invoke = async (method: string) => (method === 'modelSetup.connect_provider'
+      ? {
+          ok: true, setupId: TICKET.sessionId,
+          state: { connections: [{ vendorKey: 'apimart', keyStatus: 'ready' }], setups: [], fingerprint: 'fp_z' },
+          nextAction: { kind: 'working', userSees: 'Nomi already has a key for APIMart and is reading its list of models.' },
+        }
+      : { ok: true, setupId: TICKET.sessionId, state: { connections: [], setups: [], fingerprint: 'fp_z' }, nextAction: { kind: 'none', userSees: '' } })
+    const outcome = await runIntegrationCredentialElicitation({
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
+      invoke,
+      elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
+      wait: noWait,
+    })
+    expect(outcome.kind).toBe('result')
+    if (outcome.kind !== 'result') throw new Error('unreachable')
+    expect(outcome.result.credentialEntry).toBeUndefined()
+    expect(JSON.stringify(outcome.result)).not.toMatch(/没在运行|not running|「」/)
   })
 
   it('tells form-only clients that the Nomi window is already on the provider page', async () => {
