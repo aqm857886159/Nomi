@@ -1,19 +1,24 @@
 import React from 'react'
 import type { StageDockRect } from './selectionToolbarPlacement'
+import {
+  BOTTOM_DOCK_ATTR,
+  collectBottomDockRects,
+  resolveBottomDockScope,
+} from '../../generation/workspaceBottomDocks'
 
 /**
- * 「我常驻在画布底部，别把浮层排到我身上」——由停靠区自己在 DOM 上声明的那个标记。
+ * 「我常驻在工作区底部，别把浮层排到我身上」——标记与范围的 owner 已上移到外壳层
+ * （`src/workbench/generation/workspaceBottomDocks.ts`）。
  *
- * 为什么是标记而不是在这里列一串 class 选择器：底部这排东西住在四个不同的组件里
- * （画布工具簇 / 批量生成停靠条 / 时间轴胶囊 / 时间轴迷你画面窗），其中两个还不在画布这棵树里。
- * 在这边抄一份名单就是又一个会烂的黑名单——少写一条不会报错，只会在某个窗口尺寸下
- * 静默地让浮条压上去（`tests/ux/_canvasHit.mjs` 顶上那段就是同一个坑的上一次）。
- * 标记写在**那个东西自己身上**，新加一块停靠区时它就在你手边。
+ * 2026-09-13 之前这里自己持有标记名与范围（`.workbench-generation__canvas`），
+ * 而时间轴胶囊那一侧在 `GenerationWorkspace` 里又写了第二份同样的查询——两份都把范围钉在
+ * 画布这棵子树上，于是 Nomi 面板收起后那条浮起的输入条（工作区的孩子、不是画布的孩子）
+ * 在两份名单里都不存在。合成一个 owner、范围提到工作区之后，这里只剩「什么时候重量」。
+ *
+ * 转发 `CANVAS_BOTTOM_DOCK_ATTR` 是为了不动 5 处现役标记与走查锚点的名字：
+ * 要改的是「在哪一层找」，不是「叫什么名字」。
  */
-export const CANVAS_BOTTOM_DOCK_ATTR = 'data-canvas-bottom-dock'
-const DOCK_SELECTOR = `[${CANVAS_BOTTOM_DOCK_ATTR}]`
-/** 停靠区可能住在画布 stage 外面（时间轴胶囊、迷你画面窗是 stage 的兄弟），所以往上找这一层再查。 */
-const DOCK_SCOPE_SELECTOR = '.workbench-generation__canvas'
+export const CANVAS_BOTTOM_DOCK_ATTR = BOTTOM_DOCK_ATTR
 
 function sameRects(a: readonly StageDockRect[], b: readonly StageDockRect[]): boolean {
   if (a.length !== b.length) return false
@@ -28,9 +33,6 @@ function sameRects(a: readonly StageDockRect[], b: readonly StageDockRect[]): bo
   })
 }
 
-function resolveScope(host: HTMLElement): Element {
-  return host.closest(DOCK_SCOPE_SELECTOR) ?? host
-}
 
 /**
  * 量出底部停靠区此刻在 stage 坐标系里占了哪几块。
@@ -58,7 +60,7 @@ export function useCanvasBottomDockRects(
     const host = hostRef.current
     if (!active || !host) return undefined
     if (typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined') return undefined
-    const scope = resolveScope(host)
+    const scope = resolveBottomDockScope(host)
     let frame = 0
     const request = () => {
       if (frame) return
@@ -88,17 +90,7 @@ export function useCanvasBottomDockRects(
     }
     const stage = host.getBoundingClientRect()
     if (!(stage.width > 0 && stage.height > 0)) return
-    const next: StageDockRect[] = []
-    for (const element of Array.from(resolveScope(host).querySelectorAll(DOCK_SELECTOR))) {
-      const rect = element.getBoundingClientRect()
-      if (!(rect.width > 0 && rect.height > 0)) continue
-      next.push({
-        left: rect.left - stage.left,
-        top: rect.top - stage.top,
-        right: rect.right - stage.left,
-        bottom: rect.bottom - stage.top,
-      })
-    }
+    const next: StageDockRect[] = collectBottomDockRects(host, stage)
     setRects((previous) => (sameRects(previous, next) ? previous : next))
   }, [active, hostRef, layoutRevision])
 

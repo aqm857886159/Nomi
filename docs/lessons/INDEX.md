@@ -116,6 +116,7 @@
 ## C. Git 交付、分支与文档改动
 
 - [三点 diff 会掩盖过期分支的大回滚](three-dot-diff-hides-stale-branch-reverts.md) — 判断能不能合必须用两点 diff
+- [评审要放在意见还能落地的时刻，不是每次 commit/push](review-at-the-moment-it-can-land.md) — 设计「每次 X 都自动评一遍」的闸门前先读；判空转只看「输出被读过几次」，45 次评审 24 段发现 0 人读的数字在里面
 - [远落后分支合并走 `gh pr update-branch`](stale-branch-merge-use-update-branch.md) — 本地 push 追平 merge 的巨型 diff 会撞 pre-push 钩子的 ENOBUFS
 - [接到「修 X」先查在途 PR](check-open-prs-before-fixing-reported-bugs.md) — 30 秒 `gh pr list` + `git log --all`，省掉白做一版
 - [PR 攒到阶段边界再开](pr-cadence-batch-by-default.md) — 频繁 PR 的成本是墙钟：CI 排队 + 合并列车 + 门岗链冲突；**但前提是还有下一件活可搭车——手上空了要交回给用户就是边界，必须开 PR，否则活搁浅在一次性分支上永远合不进去**

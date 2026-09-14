@@ -11,7 +11,8 @@
 //
 // Run: pnpm run build && node tests/ux/layout-timeline-panel-span.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectHittable, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -149,10 +150,20 @@ async function measureShellGeometry(win) {
     // （AssistantPane.tsx），而它的定位祖先就是整个工作区 —— 那时它的矩形等于工作区，
     // 拿它判「面板收没收起」永远判不出来。真相源是工作区自己声明的 data-ai-layout。
     const aiLayout = section.getAttribute('data-ai-layout')
-    const assistant = aiLayout === 'sidebar' ? box(section.querySelector('[data-assistant-pane]')) : null
+    const assistantRaw = box(section.querySelector('[data-assistant-pane]'))
+    // 底部停靠区名单本身也是证据：漏一块 / 多一块都会让让位算法算出奇怪的位置。
+    const bottomDocks = Array.from(section.querySelectorAll('[data-canvas-bottom-dock]')).map((element) => ({
+      cls: String(element.className || '').split(/\s+/).filter(Boolean).slice(0, 2).join('.'),
+      avoider: element.hasAttribute('data-bottom-dock-avoids'),
+      ...box(element),
+    }))
+    const assistant = aiLayout === 'sidebar' ? assistantRaw : null
     const timelineHost = box(section.querySelector('.workbench-generation__timeline'))
     const timelinePanel = box(section.querySelector('.workbench-generation__timeline .workbench-timeline'))
     const appBarRight = box(document.querySelector('.nomi-appbar__right'))
+    // 收起态的 Nomi 坞（浮起来那条输入条）与收起态的时间轴胶囊。
+    const collapsedDock = box(section.querySelector('[data-agent-collapsed-dock]'))
+    const timelinePill = box(section.querySelector('.workbench-generation__timeline-handle'))
     const tracks = section.querySelector('.workbench-generation__timeline .workbench-timeline__tracks')
     const trackRows = {}
     for (const id of ['imageTrack', 'videoTrack']) {
@@ -180,8 +191,15 @@ async function measureShellGeometry(win) {
       bottomRightCovered: coveredBy(bottomRight),
       bottomRightInTimeline: covers(timelineHost, bottomRight),
       bottomLeftInTimeline: covers(timelineHost, bottomLeft),
+      assistantRaw,
+      bottomDocks,
+      collapsedDock,
+      timelinePill,
       appBarOverlapsAssistant: intersects(appBarRight, assistant),
       appBarOverlapsTimeline: intersects(appBarRight, timelineHost),
+      // 09-13 的另一半：收起 Nomi 后那条输入条压住底部带 / 压住时间轴胶囊。
+      dockOverlapsTimelineBand: intersects(collapsedDock, timelineHost),
+      dockOverlapsTimelinePill: intersects(collapsedDock, timelinePill),
       selfCheck: {
         covers: covers(sectionBox, { x: (sectionBox.left + sectionBox.right) / 2, y: (sectionBox.top + sectionBox.bottom) / 2 }),
         rejects: covers(sectionBox, { x: sectionBox.left - 40, y: sectionBox.top - 40 }),
@@ -218,6 +236,37 @@ function assertBottomBandSpans(geometry, state) {
   expect(geometry.bottomLeftInTimeline, `${state}：工作区左下角那一块不是底部带`).toBe(true)
   expect(geometry.bottomRightCovered, `${state}：右下角没有任何一块外壳盖住`).toBe(true)
   expect(geometry.appBarOverlapsTimeline, `${state}：顶栏右侧功能区与底部带相交`).toBe(false)
+}
+
+/**
+ * 坞该落在哪：刚好让开**横向与它重叠**的那几块底部停靠区（让位者不算——让位关系必须单向）。
+ * 返回它允许的最低上界；坞的下边界高过这个上界一大截就是「抬太高」。
+ */
+function dockCeiling(geometry) {
+  const self = geometry.collapsedDock
+  const floor = geometry.timelineHost.h > 1 ? geometry.timelineHost.top : geometry.section.bottom
+  let ceiling = floor
+  for (const dock of geometry.bottomDocks) {
+    if (dock.avoider) continue
+    if (dock.left >= self.right || self.left >= dock.right) continue
+    if (dock.bottom <= self.bottom && dock.top >= self.top) continue
+    ceiling = Math.min(ceiling, dock.top)
+  }
+  return ceiling
+}
+
+/** 24px = 坞自己的 pb-3(12) 再加一格呼吸；超过它就不是「刚好让开」了。 */
+const DOCK_LIFT_SLACK = 24
+function dockLiftIsMinimal(geometry) {
+  return geometry.collapsedDock.bottom >= dockCeiling(geometry) - DOCK_LIFT_SLACK
+}
+function dockLiftExplain(geometry) {
+  return {
+    dockBottom: geometry.collapsedDock.bottom,
+    ceiling: dockCeiling(geometry),
+    slack: DOCK_LIFT_SLACK,
+    docks: geometry.bottomDocks,
+  }
 }
 
 try {
@@ -308,6 +357,65 @@ try {
   expect(both.tracksViewport.scrollTop, '③b 默认态不该已经滚动过（说明内容装不下）').toBe(0)
   console.log('[高度证据] 默认展开高度与两条主轨', JSON.stringify({ height: both.timelineHost.h, tracksViewport: both.tracksViewport, trackRows: both.trackRows }))
 
+  // ④ **面板开 + 时间轴收起**：面板内那颗钉住的收起钮点得着，时间轴整块让路，底部胶囊回来。
+  //
+  // 这一态必须排在「收起 Nomi 面板」**之前**。第一版把它排在 ② 之后，那时面板早就收起了，
+  // 于是 04 与 05 拍成了字节完全相同的同一张图（md5 2bad031b…）——态 ④ 根本没被测到，
+  // 而四条断言全绿，因为它们在 ⑤ 那个状态下也都成立。顺序本身就是这条走查的一部分。
+  const collapseButton = win.locator('.workbench-generation__timeline [data-timeline-collapse]').first()
+  await expect(collapseButton, '④ 面板内的收起钮没渲染').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  const collapseBox = await collapseButton.boundingBox()
+  const tailBox = await win.locator('.workbench-generation__timeline .workbench-timeline__controls-tail').first().boundingBox()
+  expect(collapseBox, '④ 收起钮没有可见几何').not.toBeNull()
+  expect(tailBox, '④ 行尾固定槽没有可见几何').not.toBeNull()
+  expect(
+    collapseBox.x >= tailBox.x - 0.5 && collapseBox.x + collapseBox.width <= tailBox.x + tailBox.width + 0.5,
+    `④ 收起钮不在钉住的行尾槽里（钮 ${collapseBox.x}..${collapseBox.x + collapseBox.width} 槽 ${tailBox.x}..${tailBox.x + tailBox.width}）`,
+  ).toBe(true)
+  const bandProof = await proveProbe(panel, '④ 前：展开态时间轴面板在生成画布里（面板仍停靠）')
+  await clickOrFail(collapseButton, '④ 点面板内的收起钮')
+  await expectAbsent(panel, { provenBy: bandProof, message: '④ 点了收起，时间轴应当整块让路' })
+  await expect(capsule, '④ 收起后底部把手应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  const panelOpenBandClosed = await measureShellGeometry(win)
+  assertInstrumentsAlive(panelOpenBandClosed, '④ 面板开 + 时间轴收起')
+  // 这一句是态 ④ 的**身份证**：它必须是停靠态。少了它，04 拍成 05 那张图也照样全绿。
+  expect(panelOpenBandClosed.aiLayout, '④ 这一态的 Nomi 面板必须是停靠态（否则拍到的是 ⑤ 那一态）').toBe('sidebar')
+  expect(panelOpenBandClosed.assistant, '④ 停靠态的面板应当量得到矩形').not.toBeNull()
+  expect(panelOpenBandClosed.collapsedDock, '④ 停靠态不该有浮起的收起坞').toBeNull()
+  expect(panelOpenBandClosed.timelineHost.h, '④ 收起后底部带不该再占高度').toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(panelOpenBandClosed.canvas.bottom - panelOpenBandClosed.section.bottom) <= 2,
+    `④ 收起后画布应当拿回整块高度（canvas.bottom=${panelOpenBandClosed.canvas.bottom} section.bottom=${panelOpenBandClosed.section.bottom}）`,
+  ).toBe(true)
+  expect(
+    Math.abs(panelOpenBandClosed.assistant.bottom - panelOpenBandClosed.section.bottom) <= 2,
+    `④ 收起后面板也应当一路到底（assistant.bottom=${panelOpenBandClosed.assistant.bottom} section.bottom=${panelOpenBandClosed.section.bottom}）`,
+  ).toBe(true)
+  expect(panelOpenBandClosed.bottomRightCovered, '④ 收起后右下角没有任何一块外壳盖住').toBe(true)
+  // 收起时间轴应当**回到 ① 那一态**，不是回到一个「差不多」的布局。
+  // 这也解释了为什么 01 与 04 两张截图的字节会相同：同一个状态本该长得一模一样。
+  // 真正不许相同的是 ④ 与 ⑤（面板可见性不同），下面有字节级对照盯着那一对。
+  expect(panelOpenBandClosed.aiLayout, '④ 应当回到 ① 的停靠态').toBe(panelOnly.aiLayout)
+  expect(
+    Math.abs(panelOpenBandClosed.timelinePill.left - panelOnly.timelinePill.left) <= 1
+      && Math.abs(panelOpenBandClosed.assistant.w - panelOnly.assistant.w) <= 1,
+    `④ 收起时间轴没回到 ① 那一态（胶囊 ${panelOnly.timelinePill.left}→${panelOpenBandClosed.timelinePill.left}`
+      + ` 面板宽 ${panelOnly.assistant.w}→${panelOpenBandClosed.assistant.w}）`,
+  ).toBe(true)
+  // 停靠态下胶囊也得点得到：这一路的自由间隙里没有收起坞，它该回到接近正中的位置。
+  await expectHittable(capsule, '④ 停靠态下的时间轴胶囊')
+  console.log('[几何证据] 面板开 + 时间轴收起', JSON.stringify({
+    aiLayout: panelOpenBandClosed.aiLayout,
+    assistant: panelOpenBandClosed.assistant,
+    pill: panelOpenBandClosed.timelinePill,
+    docks: panelOpenBandClosed.bottomDocks,
+  }))
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-timeline-collapsed.png') })
+
+  // 量完 ④ 把时间轴叫回来，好让下一段从「面板开 + 时间轴开」出发。
+  await clickOrFail(capsule, '④b 点胶囊把时间轴叫回来，继续量面板收起那一路')
+  await expect(panel, '④b 点了胶囊，时间轴应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+
   // ② 只开时间轴：收起 Nomi 面板。底部带的宽度**一像素都不许变**（用户说的「跟着左右变动」）。
   await clickOrFail(win.locator('.workbench-generation [data-v4-control="collapse"]').first(), '收起 Nomi 面板')
   await expect(
@@ -338,32 +446,91 @@ try {
     timelineOnly.canvas.w > both.canvas.w + 40,
     `② 收起面板后画布没真的变宽（${both.canvas.w} → ${timelineOnly.canvas.w}），这一段就没测到东西`,
   ).toBe(true)
+
+  // ②b 09-13 的另一半：收起 Nomi 后那条浮起的输入条**不许压住底部带**。
+  // 它属于内容行（外壳给的落位），所以下边界必须停在底部带顶边之上。
+  expect(timelineOnly.collapsedDock, '②b 收起态的 Nomi 坞没渲染——这一段就没测到东西').not.toBeNull()
+  expect(
+    timelineOnly.collapsedDock.h > 20 && timelineOnly.collapsedDock.w > 100,
+    `②b 收起态的 Nomi 坞没有可见几何（${JSON.stringify(timelineOnly.collapsedDock)}）`,
+  ).toBe(true)
+  console.log('[停靠区名单] 面板收起 + 时间轴开', JSON.stringify(timelineOnly.bottomDocks))
+  expect(timelineOnly.dockOverlapsTimelineBand, '②b 收起态的 Nomi 输入条压住了底部带（09-13 原症状）').toBe(false)
+  // 「不压住」还要配一条「别抬太高」，否则把坞顶到内容行正中也能让上一句恒真——
+  // 实测撞过：动画中途那一帧被 latch 住，坞高出该有的位置近 200px，界面上只看得出
+  // 「位置怪」看不出原因。该有的位置 = 刚好让开**横向重叠**的那几块停靠区。
+  expect(
+    dockLiftIsMinimal(timelineOnly),
+    `②b Nomi 坞抬得比需要的高：${JSON.stringify(dockLiftExplain(timelineOnly))}`,
+  ).toBe(true)
+  expect(
+    timelineOnly.collapsedDock.bottom <= timelineOnly.timelineHost.top + 1,
+    `②b Nomi 坞的下边界越过了底部带顶边（dock.bottom=${timelineOnly.collapsedDock.bottom} band.top=${timelineOnly.timelineHost.top}）`,
+  ).toBe(true)
+  // 两条轨都点得到：坞压住轨道时这两句会红（它 pointer-events-auto，盖住就真的拦住）。
+  for (const id of ['imageTrack', 'videoTrack']) {
+    await expectHittable(win.locator(`.workbench-generation__timeline [data-track-id="${id}"]`), `②b ${id} 轨道行`)
+  }
+  console.log('[几何证据] 面板收起 + 时间轴开', JSON.stringify({ overlay: timelineOnly.assistantRaw, dock: timelineOnly.collapsedDock, band: timelineOnly.timelineHost }))
   await screenshotSettled(win, { path: path.join(shotsDir, '02-timeline-only.png') })
 
-  // ④ 收起时间轴：面板内那颗钉住的收起钮点得着，整块让路，底部把手回来。
-  const collapseButton = win.locator('.workbench-generation__timeline [data-timeline-collapse]').first()
-  await expect(collapseButton, '④ 面板内的收起钮没渲染').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  const collapseBox = await collapseButton.boundingBox()
-  const tailBox = await win.locator('.workbench-generation__timeline .workbench-timeline__controls-tail').first().boundingBox()
-  expect(collapseBox, '④ 收起钮没有可见几何').not.toBeNull()
-  expect(tailBox, '④ 行尾固定槽没有可见几何').not.toBeNull()
-  expect(
-    collapseBox.x >= tailBox.x - 0.5 && collapseBox.x + collapseBox.width <= tailBox.x + tailBox.width + 0.5,
-    `④ 收起钮不在钉住的行尾槽里（钮 ${collapseBox.x}..${collapseBox.x + collapseBox.width} 槽 ${tailBox.x}..${tailBox.x + tailBox.width}）`,
-  ).toBe(true)
-  const panelProof = await proveProbe(panel, '展开态下时间轴面板在生成画布里')
-  await clickOrFail(collapseButton, '点面板内的收起钮')
-  await expectAbsent(panel, { provenBy: panelProof, message: '④ 点了收起，时间轴应当整块让路' })
-  await expect(capsule, '④ 收起后底部把手应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // ⑤ 两个都收起（09-13 的另一半）：胶囊是叫回时间轴的唯一入口，必须**看得见 + 点得到**。
+  //    此刻 Nomi 坞就在工作区底部中央，胶囊的默认落位也是底部居中——它得按外壳层的
+  //    停靠区名单让开。这一段前，那份名单只看画布子树，看不见坞，于是胶囊落在它下面。
+  const bandProof2 = await proveProbe(panel, '⑤ 前：面板已收起、时间轴仍展开')
+  await clickOrFail(
+    win.locator('.workbench-generation__timeline [data-timeline-collapse]').first(),
+    '⑤ 面板收起态下再把时间轴收起',
+  )
+  await expectAbsent(panel, { provenBy: bandProof2, message: '⑤ 点了收起，时间轴应当整块让路' })
+  await expect(capsule, '⑤ 收起后底部把手应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const collapsed = await measureShellGeometry(win)
-  assertInstrumentsAlive(collapsed, '④ 收起时间轴')
-  expect(collapsed.timelineHost.h, '④ 收起后底部带不该再占高度').toBeLessThanOrEqual(1)
+  assertInstrumentsAlive(collapsed, '⑤ 两个都收起')
+  // ⑤ 的身份证 + 与 ④ 的**对照**：两态的面板可见性必须不同，否则 04/05 又会是同一张图。
+  expect(collapsed.aiLayout, '⑤ 这一态的 Nomi 面板必须是收起态').toBe('overlay')
   expect(
-    Math.abs(collapsed.canvas.bottom - collapsed.section.bottom) <= 2,
-    `④ 收起后画布应当拿回整块高度（canvas.bottom=${collapsed.canvas.bottom} section.bottom=${collapsed.section.bottom}）`,
+    collapsed.aiLayout !== panelOpenBandClosed.aiLayout,
+    `④ 与 ⑤ 的面板可见性相同（都是 ${collapsed.aiLayout}）——两张截图会拍成同一个状态`,
   ).toBe(true)
-  expect(collapsed.bottomRightCovered, '④ 收起后右下角没有任何一块外壳盖住').toBe(true)
-  await screenshotSettled(win, { path: path.join(shotsDir, '04-timeline-collapsed.png') })
+  expect(collapsed.timelineHost.h, '⑤ 收起后底部带不该再占高度').toBeLessThanOrEqual(1)
+  expect(collapsed.bottomRightCovered, '⑤ 右下角没有任何一块外壳盖住').toBe(true)
+  expect(collapsed.timelinePill, '⑤ 收起态胶囊没渲染').not.toBeNull()
+  expect(collapsed.collapsedDock, '⑤ 收起态的 Nomi 坞没渲染——避让对象不在场，这一段就没测到东西').not.toBeNull()
+  expect(
+    collapsed.dockOverlapsTimelinePill,
+    `⑤ 胶囊与 Nomi 坞相交（胶囊 ${JSON.stringify(collapsed.timelinePill)} 坞 ${JSON.stringify(collapsed.collapsedDock)}）`,
+  ).toBe(false)
+  // 「不相交」还不够：它可能被别的浮层盖住。用真实 elementFromPoint 判它自己在最上面。
+  expect(
+    dockLiftIsMinimal(collapsed),
+    `⑤ Nomi 坞抬得比需要的高：${JSON.stringify(dockLiftExplain(collapsed))}`,
+  ).toBe(true)
+  const pillHit = await expectHittable(capsule, '⑤ 收起态时间轴胶囊')
+  console.log('[几何证据] 两个都收起', JSON.stringify({ pill: collapsed.timelinePill, dock: collapsed.collapsedDock, pillHit }))
+  await screenshotSettled(win, { path: path.join(shotsDir, '05-both-collapsed-pill-reachable.png') })
+
+  // 字节级对照：④ 与 ⑤ 的截图必须不同。
+  // aiLayout 那条断言守的是「状态对不对」，这一条守的是「拍到的是不是那个状态」——
+  // 第一版正是两张 png 的 md5 完全相同（2bad031b…）而所有断言全绿，因为它们在 ⑤ 下也成立。
+  const shotDigest = (name) => crypto.createHash('md5').update(fs.readFileSync(path.join(shotsDir, name))).digest('hex')
+  const digest04 = shotDigest('04-timeline-collapsed.png')
+  const digest05 = shotDigest('05-both-collapsed-pill-reachable.png')
+  console.log('[截图对照] 04 vs 05', JSON.stringify({ digest04, digest05 }))
+  expect(
+    digest04 !== digest05,
+    `④ 与 ⑤ 拍成了字节完全相同的同一张图（md5 ${digest04}）——其中一态没被真的走到`,
+  ).toBe(true)
+
+  // ⑤b 真的点它，时间轴回来 —— 这才是用户原话「本来我记得可以收回」的那个闭环。
+  const capsuleProof = await proveProbe(capsule, '两个都收起时画布底部的时间轴胶囊')
+  await clickOrFail(capsule, '⑤b 点胶囊叫回时间轴')
+  await expect(panel, '⑤b 点了胶囊，时间轴应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expectAbsent(capsule, { provenBy: capsuleProof, message: '⑤b 时间轴回来后胶囊应当让位' })
+  const reopened = await measureShellGeometry(win)
+  assertInstrumentsAlive(reopened, '⑤b 叫回时间轴')
+  assertBottomBandSpans(reopened, '⑤b 叫回时间轴')
+  expect(reopened.dockOverlapsTimelineBand, '⑤b 叫回时间轴后 Nomi 输入条又压住底部带了').toBe(false)
+  await screenshotSettled(win, { path: path.join(shotsDir, '06-timeline-recovered.png') })
 
   console.log(`layout timeline/panel span walkthrough passed; screenshots: ${shotsDir}`)
 } finally {

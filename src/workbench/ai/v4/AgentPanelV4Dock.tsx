@@ -12,7 +12,8 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconX } from './AgentPanelV4Icons'
 import { WorkbenchIconButton } from '../../../design'
-import { TRANSPORT_BAR_SELECTOR, transportClearanceFrom } from './agentPanelV4DockClearance'
+import { TRANSPORT_BAR_SELECTOR, bottomDockClearanceFrom, transportClearanceFrom } from './agentPanelV4DockClearance'
+import { collectBottomDockElements } from '../../generation/workspaceBottomDocks'
 
 /**
  * 收起后 composer 落到画面下沿要留出的空当。
@@ -25,7 +26,10 @@ import { TRANSPORT_BAR_SELECTOR, transportClearanceFrom } from './agentPanelV4Do
  * 面板系统之后，旧的 `.workbench-preview__stage` 选择器一个都不匹配了。死选择器在这里
  * 是**静默失败**——空当恒为 0，composer 又落回走带条上——所以锚点必须是结构性的。
  */
-function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>): number {
+function useTransportClearance(
+  dockRef: React.RefObject<HTMLDivElement | null>,
+  boxRef: React.RefObject<HTMLDivElement | null>,
+): number {
   const [clearance, setClearance] = React.useState(0)
   React.useLayoutEffect(() => {
     const host = dockRef.current?.offsetParent
@@ -35,20 +39,50 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
     // 查询范围是**宿主自己**，不是整个文档：别的面（预览面常驻在 DOM 里）那条走带条
     // 不是这个坞的邻居，量它只会量到一个没有意义的数。
     const findBar = (): HTMLElement | null => host.querySelector<HTMLElement>(TRANSPORT_BAR_SELECTOR)
+    let observer: ResizeObserver | null = null
     const measure = (): void => {
       const bar = findBar()
-      setClearance(transportClearanceFrom(host.getBoundingClientRect(), bar?.getBoundingClientRect() ?? null))
+      const hostRect = host.getBoundingClientRect()
+      // 两条来源取最大值：预览播放器的走带条（选择器特例）与**横向重叠的底部停靠区**
+      // （标记名单，owner 见 workspaceBottomDocks.ts）。后者是 2026-09-15 补的：坞收进
+      // 内容行之后落在画布下沿，那儿常驻着画布工具簇——不让开就等于换了个受害者。
+      const box = boxRef.current
+      const elements = box ? collectBottomDockElements(host, box, { skipAvoiders: true }) : []
+      // **订上量到的那几块自己、外加它们各自的定位祖先**。
+      //
+      // 只订宿主是不够的：收起态的坞横跨整个内容行，助手列的宽度动画不改变宿主的矩形，
+      // 于是一次都不会重量——实测 latch 住了动画中途那一帧（坞被顶到内容行正中，
+      // 高出该有的位置近 200px，界面上只看得出「位置怪」看不出原因）。
+      // 也不能只订停靠区自己：迷你画面窗是**右对齐**的，画布变宽时它的尺寸一点没变、
+      // 只有位置在动，而 ResizeObserver 不管位置。位置由它的定位祖先的尺寸决定，
+      // 所以连定位祖先一起订——这条对任何一块停靠区都成立，不用按 class 点名。
+      // ResizeObserver.observe 对同一元素幂等，重复调用不会叠加。
+      if (observer) {
+        for (const element of elements) {
+          observer.observe(element)
+          const anchor = element instanceof HTMLElement ? element.offsetParent : null
+          if (anchor instanceof HTMLElement) observer.observe(anchor)
+        }
+      }
+      setClearance(Math.max(
+        transportClearanceFrom(hostRect, bar?.getBoundingClientRect() ?? null),
+        bottomDockClearanceFrom(
+          hostRect,
+          box?.getBoundingClientRect() ?? null,
+          elements.map((element) => element.getBoundingClientRect()),
+        ),
+      ))
     }
+    observer = new ResizeObserver(measure)
     measure()
-    const observer = new ResizeObserver(measure)
     observer.observe(host)
     const bar = findBar()
     if (bar) observer.observe(bar)
     window.addEventListener('resize', measure)
-    return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
+    return () => { observer?.disconnect(); observer = null; window.removeEventListener('resize', measure) }
     // composer 每敲一个键都会重渲；那么频繁地重建观察器是浪费。宿主 resize（拖面板、
     // 走带条折行）本来就会重新测量，而 `measure` 每次都重查条，晚到的播放器也接得上。
-  }, [dockRef])
+  }, [dockRef, boxRef])
   return clearance
 }
 
@@ -65,14 +99,25 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
 export function V4CollapsedDock({ children, onClose }: { children: React.ReactNode; onClose: () => void }): JSX.Element {
   const { t } = useTranslation()
   const dockRef = React.useRef<HTMLDivElement>(null)
-  const transportClearance = useTransportClearance(dockRef)
+  const boxRef = React.useRef<HTMLDivElement>(null)
+  const transportClearance = useTransportClearance(dockRef, boxRef)
   return (
     <div
       ref={dockRef}
       className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 pb-3"
       style={{ bottom: transportClearance }}
     >
-      <div className="pointer-events-auto grid w-full max-w-[560px] gap-1.5" data-agent-collapsed-dock="true">
+      {/* 这条坞是**工作区底部的一块停靠区**，所以它自己声明标记（标记纪律见
+          `src/workbench/generation/workspaceBottomDocks.ts`）：时间轴胶囊与画布选择浮条
+          都按这份名单让位。2026-09-13 真机反馈「时间轴收起后叫不回来」就是漏了这一条——
+          胶囊按「底部居中」落位，正好落在这条坞下面，点不到。
+          标记写在自己身上而不是让避让方去列名单：名单少写一条不会报错，只会在某个尺寸下静默压上去。 */}
+      <div
+        ref={boxRef}
+        className="pointer-events-auto grid w-full max-w-[560px] gap-1.5"
+        data-agent-collapsed-dock="true"
+        data-canvas-bottom-dock="true"
+      >
         <WorkbenchIconButton
           className="justify-self-end"
           size="sm"

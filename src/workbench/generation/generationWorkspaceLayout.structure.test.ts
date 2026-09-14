@@ -51,14 +51,69 @@ describe('生成面外壳：底部带横贯、面板被顶上去', () => {
     expect(timelineBlock).not.toMatch(/col-span-(?!full)\d/)
   })
 
-  it('助手面板只占内容行，不跨到时间轴那一行', () => {
-    // AssistantPane 走自动落位（第 1 行第 2 列）。任何显式行跨越都会让它压到底部带上，
-    // 或者把底部带挤出第 2 行——两种都是 09-13 那张截图。
-    const assistantLine = source.split('\n').find((line) => line.includes('<AssistantPane'))
-    expect(assistantLine).toBeTruthy()
-    expect(assistantLine).not.toMatch(/row-span|row-start|h-screen/)
+  /**
+   * 助手面板的落位**两态都由外壳写明**，不靠自动落位（2026-09-15 第二轮）。
+   *
+   * 收起态尤其关键：那时 aside 是 `absolute inset-0` 的浮层，而作为网格容器的直接子节点 +
+   * 确定的网格落位，它的包含块就是那一格网格区域（CSS Grid 绝对定位规则）。
+   * 写 `row-start-1 col-span-full` = 「收起后的坞属于**内容行**」，于是那条浮起的输入条
+   * 锚的是内容行下沿而不是整个工作区下沿——这正是 09-13「收起 Nomi 后输入条压住时间轴」的修法。
+   * 任何 `row-start-2` / `row-span` 都会把它放回底部带那一行上。
+   */
+  it('助手面板两态都落在内容行，绝不跨到时间轴那一行', () => {
+    const assistantBlock = source.slice(
+      source.indexOf('<AssistantPane'),
+      source.indexOf("'workbench-generation__timeline'"),
+    )
+    expect(assistantBlock.length).toBeGreaterThan(0)
+    expect(assistantBlock).toContain("aiCollapsed ? 'row-start-1 row-end-2 col-span-full' : 'row-start-1 row-end-2 col-start-2'")
+    expect(assistantBlock).not.toMatch(/row-start-[2-9]|row-span|h-screen/)
+    // 只写 start 不算「确定的落位」：那一轴是 auto 时包含块的两条边退回网格容器的 padding 边，
+    // 实测仍量到整个工作区（top 对、bottom 错）。所以两端都得写，两态各一份。
+    expect(assistantBlock.match(/row-start-1 row-end-2/g)?.length).toBe(2)
     // 落位顺序也是结构条件：画布 → 助手 → 时间轴。助手排到时间轴之后会落进第 2 行。
     expect(source.indexOf('<AssistantPane')).toBeGreaterThan(source.indexOf("'workbench-generation__canvas'"))
     expect(source.indexOf('<AssistantPane')).toBeLessThan(source.indexOf("'workbench-generation__timeline'"))
+  })
+})
+
+/**
+ * 「工作区底部停靠区」的 owner 在外壳层（2026-09-15 第二轮）。
+ *
+ * 守的不变量：**避让名单的范围是工作区，不是画布这棵子树；只有一份实现。**
+ * 09-13 的「时间轴收起后叫不回来」就是范围画小了：收起态的 Nomi 坞是工作区的孩子，
+ * 画布范围的查询看不见它，胶囊按「底部居中」正好落在它下面。
+ */
+describe('底部停靠区避让：范围归外壳，实现只一份', () => {
+  const ownerFile = path.join(process.cwd(), 'src/workbench/generation/workspaceBottomDocks.ts')
+  const owner = stripComments(fs.readFileSync(ownerFile, 'utf8'))
+  const canvasHook = stripComments(
+    fs.readFileSync(path.join(process.cwd(), 'src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts'), 'utf8'),
+  )
+  const collapsedDock = stripComments(
+    fs.readFileSync(path.join(process.cwd(), 'src/workbench/ai/v4/AgentPanelV4Dock.tsx'), 'utf8'),
+  )
+
+  it('owner 把范围定在工作区那一层', () => {
+    expect(owner).toContain("BOTTOM_DOCK_SCOPE_SELECTOR = '.workbench-generation'")
+    expect(owner).not.toContain('.workbench-generation__canvas')
+  })
+
+  it('两个消费者都走 owner，没有第二份就地查询', () => {
+    for (const consumer of [source, canvasHook]) {
+      expect(consumer).toContain('collectBottomDockRects')
+      // 就地 querySelectorAll 那份名单是被删掉的旧实现（P1 无并行版）。
+      expect(consumer).not.toMatch(/querySelectorAll\(\s*['"`]\[data-canvas-bottom-dock/)
+    }
+    expect(canvasHook).not.toContain("closest(DOCK_SCOPE_SELECTOR)")
+  })
+
+  it('收起态的 Nomi 坞自己声明成底部停靠区', () => {
+    expect(collapsedDock).toContain('data-canvas-bottom-dock="true"')
+  })
+
+  it('胶囊落位在 Nomi 面板收起/展开时重算（挂摘发生在外壳的孙子层，观察不到）', () => {
+    expect(source).toContain('useTimelineHandleLeft(canvasRef, timelineHandleRef, timelineCollapsed, aiCollapsed)')
+    expect(source).toContain('}, [enabled, canvasRef, handleRef, dockRevision])')
   })
 })

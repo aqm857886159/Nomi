@@ -26,6 +26,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run gates:full` | 五门全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
+| `pnpm run review:branch` | 交工前对整条分支跑一次 Ponytail 评审（超限自动分块）；findings 进 `.claude/ponytail-findings/`，收据进 `.claude/ponytail-receipt.json`，pre-push 只查这张收据 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
@@ -49,7 +50,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 
-**提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。评审墙钟按 diff 大小与机器负载派生（base 180s ＋ 每 50KB +60s，负载>4 ×1.5，上限 600s），全机同一时刻只跑一个评审（`/tmp/nomi-ponytail.lock`，排队 ≤15 分钟且不计入超时）。**runner 不可用时的留痕延后**：`PONYTAIL_REVIEW_DEFER=1` 只在提交阶段生效，敏感数据扫描照跑，评审记一行进 `.claude/ponytail-deferred.log` 后放行，`check:ponytail-review` 一直红到补审或 `--accept <sha>`；绕口写法（`-c core.hooksPath=` 等）照旧拒绝，留痕只有这一条明路。
+**交工前的 Ponytail 评审（R25，R24 由 PR #223 保留）**：评审只在**能落地的时刻**跑一次——交工前对整条分支 `merge-base(origin/main, HEAD)..HEAD` 跑 `pnpm run review:branch`（只读、限时的 Ponytail 适配器，超过单次上限自动按提交／按文件分块多跑几次再合并，不再逼人拆提交）。findings 落 `.claude/ponytail-findings/<headSha>.md`，收据落 `.claude/ponytail-receipt.json`；PR 正文必须带 `## Ponytail` 节，每条发现写「已改」或「不改，因为…」。**钩子只查收据不跑模型**：`pre-commit` 只做敏感数据扫描；`pre-push` 校验要推的每个 ref 的**树**等于收据的树（rebase／改提交信息不改树，不必重审；改一行就失效）——没有收据、树不符、收据 mergeBase 不在这条历史里都 fail-closed。**runner 不可用时的留痕延后**：`pnpm run review:branch -- --defer` 记一行进 `.claude/ponytail-deferred.log` 并发一张 deferred 收据，`check:ponytail-review` 一直红到补审或 `--accept <sha>`；绕口写法（`--no-verify`、`-c core.hooksPath=` 等）照旧拒绝。
 
 ## 五条核心原则
 
@@ -94,7 +95,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | R17 | 防线建在最早能拦住的那层（含棘轮门岗族）| 能让编译器拦的别留给门岗，能让门岗拦的别留给人（旧 R28）；安全关键依赖不许「optional + 欠账登记」——**登记是带到期日的承诺，不是防线**；能力可能不存在时用显式 `unsupported`，不用 `undefined`。已机器接管的写法族一律做成**棘轮**：基线只减不增、存身份不存裸数字、**加规则必须先验它会红**——重活 `check:heavy-path`（旧 R17）｜测试等待 `check:test-waits`（旧 R18，硬零）｜分层边界 `check:boundaries`（旧 R26）｜token / 词表 / i18n / 框架边界 / 框架接触面 / 标准格式。门岗红了**先读它红在哪条判据**，别改预算或抬基线挤 PR（那是 P2 的症状修法）|
 | R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`（`check:root-cause-contracts`）；必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`）、必带机器生成的门表（`doors`，先跑 `node scripts/door-map.mjs`，`check:door-map`）；同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）|
 | R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；删改名、空 diff、分类器自身与手动发布边界 fail-closed 到全维度；不删安全/持久化/认证边界覆盖；**没有真实资源时记 `unverified`，不许 mock 绿灯替代 live 证据** |
-| R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；超时按 diff 与负载派生、全机串行一把锁；失败或缺少结果 fail-closed，runner 不可用时只许 `PONYTAIL_REVIEW_DEFER=1` 留痕延后 |
+| R25 | 交工前 Ponytail 评审 | 交工前 `pnpm run review:branch` 对整分支跑一次（超限自动分块）、findings 进 PR 正文 `## Ponytail` 节逐条表态；钩子只查收据（树相等即放行），失败或无收据 fail-closed，runner 不可用时只许 `-- --defer` 留痕延后 |
 | R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 shell 哨兵轮询（禁 `--watch`/Monitor/交卷）；实施派工先引用反方 prior-art 报告（R5②）、`recurring` bug 派工两段式先出门表（R21）。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 
 ## 决策自治

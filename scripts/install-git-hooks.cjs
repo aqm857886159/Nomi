@@ -3,9 +3,9 @@
  * 在 pnpm install (postinstall) 时把 Git hooks 写入 Git 配置的 hooks 目录。
  * 已存在则覆盖（保持 source-of-truth 在 scripts/）。
  *
- * Git hooks 必须保持边界明确：pre-commit 先运行现有敏感数据扫描，再
- * 调用只读、限时的 Ponytail Codex 适配器；pre-push 读取 Git 提供的
- * outgoing refs 并调用同一适配器。适配器失败就阻止操作。
+ * Git hooks 必须保持边界明确：pre-commit 只运行敏感数据扫描；pre-push 读取
+ * Git 提供的 outgoing refs，校验这棵树有没有被 `pnpm run review:branch` 评审过。
+ * 任一步失败就阻止操作。
  *
  * linked worktree 且启用 extensions.worktreeConfig 时使用该 worktree 的
  * 专属 hooks 目录，避免安装一个分支时改坏其他并行分支；无法隔离时跳过。
@@ -21,8 +21,8 @@ const REPO_ROOT = path.resolve(__dirname, '..')
 
 // 装的 hook（source-of-truth 在 scripts/，随 git 走）。顺序是契约：
 //   · commit-msg = 原有提交信息进度校验。
-//   · pre-commit = 原有敏感数据扫描 → Ponytail review（staged diff）。
-//   · pre-push = Ponytail review（outgoing ref diff）。
+//   · pre-commit = 敏感数据扫描，**只有这一件**（2026-09-15 起不再在提交时刻跑模型评审）。
+//   · pre-push = Ponytail 收据校验（要推的树评审过没有），不跑模型。
 const HOOKS = Object.freeze([
   Object.freeze({
     name: 'commit-msg',
@@ -34,22 +34,15 @@ const HOOKS = Object.freeze([
     name: 'pre-commit',
     commands: Object.freeze([
       Object.freeze({ target: 'scripts/check-no-secrets.mjs', passArgs: true }),
-      Object.freeze({ target: 'scripts/ponytail-review-hook.mjs', args: ['--scope', 'staged'] }),
     ]),
   }),
   Object.freeze({
     name: 'pre-push',
     commands: Object.freeze([
-      Object.freeze({ target: 'scripts/ponytail-review-hook.mjs', args: ['--scope', 'push'], passArgs: true }),
+      Object.freeze({ target: 'scripts/ponytail-review-hook.mjs', passArgs: true }),
     ]),
   }),
 ])
-
-function shellQuote(value) {
-  // Hook arguments are static source-controlled values. Keep this quote helper
-  // strict anyway, so a future target cannot accidentally become shell syntax.
-  return `"${String(value).replace(/[\\"$`]/g, '\\$&')}"`
-}
 
 function renderCommand(command, { final = false } = {}) {
   // Keep the runtime ROOT variable expandable while quoting the target path.
@@ -57,7 +50,6 @@ function renderCommand(command, { final = false } = {}) {
   // make the generated hook look for a literal directory named "$ROOT".
   const target = String(command.target).replace(/[\\"$`]/g, '\\$&')
   const args = [`"$ROOT/${target}"`]
-  for (const argument of command.args || []) args.push(shellQuote(argument))
   if (command.passArgs) args.push('"$@"')
   return `${final ? 'exec ' : ''}node ${args.join(' ')}`
 }

@@ -85,3 +85,11 @@ test('a malformed row fails closed instead of being silently skipped', (t) => {
   assert.equal(status, 1, '读不懂的账本行不许当成「没有延后」')
   assert.match(out, /无法解析/)
 })
+
+test('补审指引指向分支级评审，不再指向提交时刻的技能触发', (t) => {
+  const file = ledger(t, [row(SHA_A, 'no')])
+  const { status, out } = runGate(file)
+  assert.equal(status, 1)
+  assert.match(out, /pnpm run review:branch/)
+  assert.doesNotMatch(out, /@ponytail-review/)
+})
