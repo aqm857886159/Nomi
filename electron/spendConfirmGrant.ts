@@ -48,7 +48,8 @@ export type SpendConfirmationRequest = {
  * **不吞错**：渲染层不可用会抛 `RendererUnavailableError`，由调用方决定是拒发还是报给用户。
  */
 export async function confirmSpendAndMintGrant(request: SpendConfirmationRequest): Promise<string | null> {
-  if (!request.lines.length) throw new Error('confirmSpendAndMintGrant: lines is empty（没有要花的钱就不该铸令牌）')
+  // 内部不变量断言（用户读不到）：没有要花的钱就不该铸令牌。
+  if (!request.lines.length) throw new Error('confirmSpendAndMintGrant: lines is empty')
   const quote = prepareSpendQuote(request.lines)
   const reply = (await requestRendererDecision('spend.confirm', {
     projectId: request.projectId,

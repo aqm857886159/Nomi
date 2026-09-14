@@ -58,11 +58,7 @@ export type ShotVerifyDepsContext = {
   basePrompt: string
   params: Record<string, unknown>
   references: string[]
-  /**
-   * 判分是一次真付费调用（`image_to_prompt` → 文本付费出口），要它**自己的**令牌：
-   * 判分模型和生成模型不是同一行报价，镜头 grant 的 3 次预算也是留给「生成 + 重试」的。
-   * 与首帧两跳同一条路（`renderStaticFrame` 各自铸独立 grant）。
-   */
+  /** 给判分模型铸**它自己的**令牌（理由见 `shotVerifyDeps.ts` 的 `confirmJudgeSpend`）。 */
   confirmJudgeSpend: (judge: { vendor: string; modelKey: string }) => Promise<string | null>
 }
 export type MakeVerifyDeps = (ctx: ShotVerifyDepsContext) => ShotVerifyDeps
@@ -718,13 +714,8 @@ export async function generateOnProject(
         params: input.params || {},
         references,
         confirmJudgeSpend: (judge) => gateway.confirmSpend({
-          projectId: input.projectId,
-          ...(projectName ? { projectName } : {}),
-          nodeId,
-          intent: 'text',
-          vendor: judge.vendor,
-          modelKey: judge.modelKey,
-          prompt: '',
+          projectId: input.projectId, ...(projectName ? { projectName } : {}), nodeId,
+          intent: 'text', vendor: judge.vendor, modelKey: judge.modelKey, prompt: '',
         }),
       })
       const outcome = await verifyAndMaybeRetry(
