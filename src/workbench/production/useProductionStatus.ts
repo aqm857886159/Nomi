@@ -308,7 +308,7 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
             onOpenPolicySettings: () => {
               openingPolicySettings = true
               window.dispatchEvent(new CustomEvent('nomi-open-settings', {
-                detail: buildProductionPolicySettingsTarget(contract.policy),
+                detail: buildProductionPolicySettingsTarget(),
               }))
             },
           } : {}),
@@ -358,8 +358,8 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
           if (openSettings)
             window.dispatchEvent(
               new CustomEvent('nomi-open-settings', {
-                detail: incompletePolicy && contract
-                  ? buildProductionPolicySettingsTarget(contract.policy)
+                detail: incompletePolicy
+                  ? buildProductionPolicySettingsTarget()
                   : { tab: 'automation', section: 'automation' },
               }),
             )

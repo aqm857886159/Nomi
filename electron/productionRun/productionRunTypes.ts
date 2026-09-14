@@ -5,8 +5,6 @@ import type { ExecutionContractV1, PlanCandidate } from "../capabilityCore/execu
 
 export const PRODUCTION_RUN_SCHEMA_VERSION = 1;
 
-export type AutomationMode = "guided" | "balanced" | "policy-auto";
-
 /**
  * B3 信任档位（run 级，写进 policy 可查证）——决定「创意门 / 样片门」打不打扰，钱门永不受影响：
  * - key_confirm（默认）：五门全开——方向门 + 样片门都停，用户逐项拍板。
@@ -31,7 +29,6 @@ export function trustLevelOf(policy: Pick<AutomationPolicy, "trustLevel">): Trus
 }
 
 export type AutomationPolicy = {
-  mode: AutomationMode;
   trustedHosts: string[];
   allowedProviders: string[];
   allowedModels: string[];

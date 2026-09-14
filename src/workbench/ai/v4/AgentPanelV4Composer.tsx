@@ -516,13 +516,20 @@ export function V4SkillPopover({
   )
 }
 
-/** 权限弹层：三档 segmented control（定稿 Composer 板中列下半张）。 */
+/**
+ * 权限弹层：三档 segmented control（定稿 Composer 板中列下半张）。
+ *
+ * 底部一行「系统提示词」（2026-09-14 从设置 → AI 策略搬来，审计 §⑥ 8）：它管的是 Agent 怎么说话，
+ * 和「让它做到什么程度」是同一个弹层的两半；设置页那一屏不再有它。
+ */
 export function V4PermissionPopover({
   permission,
   onSelect,
+  onEditSystemPrompt,
 }: {
   permission: PermissionTier
   onSelect?: (tier: PermissionTier) => void
+  onEditSystemPrompt?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -552,6 +559,18 @@ export function V4PermissionPopover({
       <p className="mb-0 mt-2 text-micro leading-relaxed text-nomi-ink-60">
         {t(`agentPanelV4.permissionWhy.${permission}`)}
       </p>
+      {onEditSystemPrompt ? (
+        <V4Row as="button"
+          type="button"
+          onClick={onEditSystemPrompt}
+          data-v4-control="system-prompt"
+          className="-mx-2.5 -mb-2.5 mt-2.5 w-[calc(100%+20px)] border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05"
+        >
+          <span>{t('agentPanelV4.systemPrompt')}</span>
+
+          <IconChevronRight size={12} />
+        </V4Row>
+      ) : null}
     </aside>
   )
 }

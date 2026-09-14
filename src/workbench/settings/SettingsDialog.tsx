@@ -18,12 +18,10 @@ import { CanvasGestureSection } from './CanvasGestureSection'
 import { AboutSection } from './AboutSection'
 import { ProjectLocationSection } from './ProjectLocationSection'
 import { AiModelsSection } from './AiModelsSection'
-import { SystemPromptSection } from './SystemPromptSection'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import { AutomationPermissionsSection } from './AutomationPermissionsSection'
 import { defaultAutomationPolicySettings } from './settingsAutomationView'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
-import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
 import { AttentionSoundSection } from './AttentionSoundSection'
 import { TelemetrySection } from './TelemetrySection'
@@ -53,7 +51,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 手法按 §1.5.3 取代价最低的那档：**分组**（代价 0），不是把东西收进 ▾。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 export type SettingsTab = 'file' | 'models' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'production-policy' | 'tikhub-connector' | null
+export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'tikhub-connector' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -69,13 +67,11 @@ export function SettingsDialog({
   initialSection = null,
   onClose,
   onReplaySplash,
-  productionPolicyRequirement = null,
 }: {
   initialTab?: SettingsTab
   initialSection?: SettingsInitialSection
   onClose: () => void
   onReplaySplash?: () => void
-  productionPolicyRequirement?: ProductionPolicyRequirement | null
 }): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
@@ -137,7 +133,7 @@ export function SettingsDialog({
     const frame = window.requestAnimationFrame(() => {
       const section = contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
       section?.scrollIntoView({ block: 'center' })
-      if (automationPolicyLoaded && initialSection !== 'production-policy') {
+      if (automationPolicyLoaded) {
         const focusTarget = section?.querySelector<HTMLElement>('button, input, [tabindex]')
         focusTarget?.focus({ preventScroll: true })
       }
@@ -333,8 +329,6 @@ export function SettingsDialog({
                 <AiModelsSection
                   settings={automationPolicy}
                   onChange={updateAutomationPolicy}
-                  productionPolicyRequirement={productionPolicyRequirement}
-                  focusEnabled={automationPolicyLoaded}
                   onOpenModelCatalog={(vendorKey) => {
                     selectTab('models')
                     // token 用递增计数而非 vendorKey 本身：模型工作区常驻挂载，返回首页后再点一次
@@ -342,9 +336,8 @@ export function SettingsDialog({
                     if (vendorKey) setModelPageRequest((current) => ({ vendorKey, token: (current?.token ?? 0) + 1 }))
                   }}
                 />
-                {/* 系统提示词的家（用户 2026-08-17 拍板）：过去只能在创作面板 popover 的 64px 只读小框里看。
-                    它是「AI 怎么干活」的设置，和本 tab 的模型策略同源，故归位到这里而不是新开 tab（§1.5 归位）。 */}
-                <SystemPromptSection />
+                {/* 系统提示词 2026-09-14 搬家到 Agent 面板的权限弹层（审计 §⑥ 8）：它跟 Agent 怎么说话是一件事，
+                    不是「AI 策略」；这里不留链接式占位。 */}
               </fieldset>
             ) : tab === 'automation' ? (
               <fieldset

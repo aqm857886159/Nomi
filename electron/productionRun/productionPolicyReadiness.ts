@@ -47,10 +47,10 @@ export class ProductionPolicyIncompleteError extends Error {
   constructor(readiness: ProductionPolicyReadiness) {
     const issues = [
       ...(readiness.missingProviders.length
-        ? [`供应商「${readiness.missingProviders.join('、')}」未加入白名单`]
+        ? [`供应商「${readiness.missingProviders.join('、')}」未接入`]
         : []),
       ...(readiness.missingModels.length
-        ? [`模型「${readiness.missingModels.join('、')}」未加入白名单`]
+        ? [`模型「${readiness.missingModels.join('、')}」未接入或不可用`]
         : []),
     ]
     super(`制作合同暂不能批准：${issues.join('；')}`)

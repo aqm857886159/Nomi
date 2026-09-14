@@ -128,7 +128,7 @@ const run: ProductionRun = {
   stageId: 'storyboard',
   playbook: { name: 'brand.promo', version: '1.0.0' },
   origin: { host: 'external', actorId: 'codex' },
-  policy: { mode: 'balanced', trustedHosts: ['codex'], allowedProviders: ['secret-provider'], allowedModels: ['secret-model'], maxSpend: 20, maxAttemptsPerJob: 2, minimizeUploads: true },
+  policy: { trustedHosts: ['codex'], allowedProviders: ['secret-provider'], allowedModels: ['secret-model'], maxSpend: 20, maxAttemptsPerJob: 2, minimizeUploads: true },
   budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
   planVersion: 1,
   snapshotCursor: 3,

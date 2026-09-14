@@ -39,7 +39,7 @@ function run(overrides: Partial<ProductionRun> = {}): ProductionRun {
     schemaVersion: 1, runId: "op-a", projectId: "project-1", revision: 3,
     status: "draft", stageId: "generate", playbook: { name: "generation.single-shot", version: "1.0.0" },
     origin: { host: "nomi", actorId: "project-agent-host" },
-    policy: { mode: "balanced", trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true },
     budget: { currency: "CNY", authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 3, stages: [], gates: [], jobs: [], artifacts: [],
     generationPlan: { operationId: "op-a", state: "draft", candidate: top, nodeId: "node-a", updatedAt: NOW },

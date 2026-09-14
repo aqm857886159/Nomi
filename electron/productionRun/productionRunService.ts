@@ -19,6 +19,7 @@ import { assertStoryboardSourceFresh, createArtifactOperations } from './product
 import { assertStoryboardSourceApproved } from './productionRunReducer'
 import { MEANINGFUL_EVENT_TYPES } from './productionRunMeaningfulEvents'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
+import { readConnectedModelScope } from './connectedModelScope'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
 import { createGateApprovalOwner } from './productionRunApprovalReceipt'
@@ -107,10 +108,8 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   const policyResolver = deps.policyResolver ?? (() => {
     const settings = readAutomationPolicySettings()
     return {
-      mode: settings.mode,
       trustedHosts: [...settings.trustedHosts],
-      allowedProviders: [...settings.allowedProviders],
-      allowedModels: [...settings.allowedModels],
+      ...readConnectedModelScope(),
       maxAttemptsPerJob: settings.maxAttemptsPerJob,
       minimizeUploads: settings.minimizeUploads,
     }

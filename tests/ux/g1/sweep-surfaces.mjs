@@ -2,6 +2,7 @@ import { stationTimeout } from '../_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, clickOrFail } from '../_assert.mjs'
+import { openSystemPromptEditor } from '../_systemPromptEditor.mjs'
 import { DOCUMENT, CREATION_PANEL, COMPOSER_INPUT, COMPOSER_SEND, INTERVENTION_CONFIRM, APPROVAL_CARD,
   openCanvas, sendCreation, hasToolResult } from '../agent-runtime-walk-support.mjs'
 import { FIXTURE_IMAGE_MODEL } from '../agent-runtime-fixture.mjs'
@@ -66,7 +67,21 @@ export async function runSurface({ walk, win, input, fixture, realText, director
     })
     return
   }
-  if (surface === 'settings' || surface === 'mcp' || surface === 'prompt-library') {
+  if (surface === 'prompt-library') {
+    // 2026-09-14 搬家：系统提示词编辑器住在 Agent 面板的档位弹层里，不再在设置 → AI 策略。
+    await station('prompt-editor-open', '提示词编辑器通过 Agent 面板档位弹层打开', async () => {
+      await openSystemPromptEditor(win, { timeout: stationTimeout({ operations: 2 }) })
+    })
+    await station('settings-task', input.coverage, async () => {
+      const editor = win.locator('[data-system-prompt-editor]')
+      await clickOrFail(editor.locator('[data-settings-prompt-create]'), '新建提示词')
+      await editor.locator('[data-settings-field="system-prompt-name"]').fill('Sweep 测试')
+      await editor.locator('[data-settings-field="system-prompt"]').fill(input.text)
+      await expect(editor.locator('[data-settings-field="system-prompt"]')).toHaveValue(input.text)
+    })
+    return
+  }
+  if (surface === 'settings' || surface === 'mcp') {
     await station('settings-open', '设置通过用户入口打开', async () => {
       await clickOrFail(win.getByRole('button', { name: '设置', exact: true }).first(), '设置', { timeout: stationTimeout({ operations: 1 }) })
       await expect(win.locator('[data-settings-overlay]')).toBeVisible()
@@ -94,12 +109,6 @@ export async function runSurface({ walk, win, input, fixture, realText, director
         await clickOrFail(settings.locator('aside button').filter({ hasText: /自动化|权限/ }).first(), '自动化权限')
         await clickOrFail(settings.locator('[data-settings-action="manage-mcp-connections"]'), 'MCP 连接管理')
         await expect(win.getByRole('dialog').last()).toBeVisible()
-      } else {
-        await clickOrFail(settings.locator('aside button').filter({ hasText: /AI/ }).first(), 'AI 设置')
-        await clickOrFail(settings.locator('[data-settings-prompt-create]'), '新建提示词')
-        await settings.locator('[data-settings-field="system-prompt-name"]').fill('Sweep 测试')
-        await settings.locator('[data-settings-field="system-prompt"]').fill(input.text)
-        await expect(settings.locator('[data-settings-field="system-prompt"]')).toHaveValue(input.text)
       }
     })
     return

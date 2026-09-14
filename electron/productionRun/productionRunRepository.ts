@@ -70,7 +70,6 @@ export class ProductionRunParseError extends Error {
 }
 
 const DEFAULT_POLICY: AutomationPolicy = {
-  mode: "balanced",
   trustedHosts: [],
   allowedProviders: [],
   allowedModels: [],

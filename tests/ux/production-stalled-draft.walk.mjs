@@ -48,7 +48,7 @@ function writeLegacyStalledRun(projectDir, projectId) {
     playbook: { name: 'film.scene-recreation', version: '1.0.0' },
     origin: { host: 'codex', actorId: 'codex' },
     brief: { goal: '复刻一个电影场景' },
-    policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1,
     snapshotCursor: 1,

@@ -15,6 +15,7 @@ import type {
   ProductionStage,
   RunCommand,
 } from "./productionRunTypes";
+import { trustLevelOf } from "./productionRunTypes";
 import { validateProductionExecutionBinding } from "./productionExecutionBinding";
 import {
   applyGenerationAuthorizationGateDecision,
@@ -777,7 +778,7 @@ export function applyProductionCommand(
     }
     case "policy.set": {
       const policy = record(command.payload, "policy") as unknown as ProductionRun["policy"];
-      return { run: { ...current, policy, updatedAt: now }, eventType: "policy.updated", message: policy.mode };
+      return { run: { ...current, policy, updatedAt: now }, eventType: "policy.updated", message: trustLevelOf(policy) };
     }
     default:
       throw new Error(`Unknown production command: ${command.type}`);

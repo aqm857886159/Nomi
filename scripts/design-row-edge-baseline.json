@@ -95,7 +95,6 @@
   "src/workbench/settings/ProjectLocationSection.tsx": 2,
   "src/workbench/settings/ScreenshotHotkeySection.tsx": 1,
   "src/workbench/settings/SettingsDialog.tsx": 1,
-  "src/workbench/settings/SystemPromptFooters.tsx": 1,
   "src/workbench/settings/TelemetrySection.tsx": 2,
   "src/workbench/settings/TikhubConnectorCard.tsx": 2,
   "src/workbench/timeline/TimelineMiniPreview.tsx": 2,

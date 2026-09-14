@@ -1,7 +1,6 @@
-import type { Approval, AutomationMode, ProductionJob } from "./productionRunTypes";
+import type { Approval, ProductionJob } from "./productionRunTypes";
 
 export type EffectiveAutomationPolicy = {
-  mode: AutomationMode;
   trustedHosts: string[];
   allowedProviders: string[];
   allowedModels: string[];
@@ -40,12 +39,6 @@ export type SubmissionAuthorizationInput = {
   runId?: string;
 };
 
-const MODE_RESTRICTIVENESS: Record<AutomationMode, number> = {
-  guided: 0,
-  balanced: 1,
-  "policy-auto": 2,
-};
-
 function intersection(values: readonly string[][]): string[] {
   const [first = [], ...rest] = values;
   return [...new Set(first)].filter((value) => rest.every((items) => items.includes(value)));
@@ -60,12 +53,7 @@ export function intersectAutomationPolicies(
   policies: readonly EffectiveAutomationPolicy[],
 ): EffectiveAutomationPolicy {
   if (policies.length === 0) throw new Error("At least one automation policy is required");
-  const mode = policies.reduce((mostRestrictive, current) =>
-    MODE_RESTRICTIVENESS[current.mode] < MODE_RESTRICTIVENESS[mostRestrictive]
-      ? current.mode
-      : mostRestrictive, policies[0].mode);
   return {
-    mode,
     trustedHosts: intersection(policies.map((value) => value.trustedHosts)),
     allowedProviders: intersection(policies.map((value) => value.allowedProviders)),
     allowedModels: intersection(policies.map((value) => value.allowedModels)),
@@ -92,9 +80,11 @@ export function authorizeSubmission(input: SubmissionAuthorizationInput): Submis
   if (job.attempt > Math.min(approval.maxAttemptsPerJob, policy.maxAttemptsPerJob)) {
     return { ok: false, reason: "attempt-limit" };
   }
-  if (input.estimatedCost === null || !Number.isFinite(input.estimatedCost) || input.estimatedCost < 0) {
-    return policy.mode === "policy-auto" ? { ok: false, reason: "unknown-cost" } : { ok: true };
-  }
+  // 估价未知：放行。这里过去按 `mode === "policy-auto"` 拒成 unknown-cost；2026-09-14 删掉了那个
+  // 设置档位（唯一 owner 是 Agent 面板的 PermissionTier，而它三档的 spend 轴全是 confirm——收据
+  // 一定是真人看过报价按下的），于是「没人看着就自动花钱」这一档在产品上不存在，该分支随之消失。
+  // 提交侧 `submissionOutbox` 仍对 costCeiling 为 null 抛 unknown-cost，钱门不靠这里兜底。
+  if (input.estimatedCost === null || !Number.isFinite(input.estimatedCost) || input.estimatedCost < 0) return { ok: true };
   if (input.estimatedCost > approval.maxSpend) return { ok: false, reason: "approval-budget-exceeded" };
   if (policy.maxSpend !== null && input.estimatedCost > policy.maxSpend) {
     return { ok: false, reason: "policy-budget-exceeded" };

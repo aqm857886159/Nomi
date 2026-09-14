@@ -8,7 +8,7 @@ import {
   CUSTOM_PROMPT_MAX_COUNT,
   CUSTOM_PROMPT_NAME_MAX_LENGTH,
   type CustomSystemPrompt,
-} from '../../../electron/settings/systemPromptsContract'
+} from '../../../../electron/settings/systemPromptsContract'
 
 /** 删除当前选中项后的回退目标：内置的第一个模式。它永远存在，不会再指向一个死 id。 */
 export const FALLBACK_MODE_ID = 'general'

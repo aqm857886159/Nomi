@@ -4,24 +4,13 @@ import { buildProductionPolicySettingsTarget, isProductionPolicyError } from './
 
 describe('production policy recovery', () => {
   it('recognizes incomplete contract policy errors without matching unrelated failures', () => {
-    expect(isProductionPolicyError(new Error('ProductionPolicyIncompleteError: 制作合同暂不能批准：未设置硬预算上限；供应商「relay」未加入白名单'))).toBe(true)
+    expect(isProductionPolicyError(new Error('ProductionPolicyIncompleteError: 制作合同暂不能批准：供应商「relay」未接入'))).toBe(true)
     expect(isProductionPolicyError(new Error('provider unavailable'))).toBe(false)
     expect(isProductionPolicyError('Production contract policy is incomplete')).toBe(true)
   })
 
-  it('opens the shared production policy settings with the exact Run requirements', () => {
-    expect(buildProductionPolicySettingsTarget({
-      ready: false,
-      issueCount: 3,
-      requiredProviderModels: [{ provider: 'code-newcli-com', model: 'gpt-image-2' }],
-      missingProviders: ['code-newcli-com'],
-      missingModels: ['gpt-image-2'],
-    })).toEqual({
-      tab: 'ai',
-      section: 'production-policy',
-      productionPolicy: {
-        requiredProviderModels: [{ provider: 'code-newcli-com', model: 'gpt-image-2' }],
-      },
-    })
+  it('sends the user to the model onboarding tab: the only fix for a missing provider/model is connecting it', () => {
+    // 2026-09-14：全局白名单已删，「缺」= 没接入；深链不再带 requiredProviderModels 去勾复选框。
+    expect(buildProductionPolicySettingsTarget()).toEqual({ tab: 'models' })
   })
 })

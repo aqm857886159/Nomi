@@ -1,4 +1,5 @@
-// 设置 → AI → 系统提示词（用户 2026-08-17 拍板样张 B，2026-08-18 扩出自定义提示词）。
+// 系统提示词编辑器：Agent 面板 → 权限弹层 → 「编辑系统提示词」（2026-09-14 从设置 → AI 策略搬来，审计 §⑥ 8）。
+// 起点是用户 2026-08-17 拍板样张 B，2026-08-18 扩出自定义提示词。
 // 起因：提示词过去只能在创作面板的技能 popover 里看，那是个 284px 宽 / 64px 高 / 截断 360 字的只读小框
 // （ActiveSkillChip 旧实现，已按 P1 删除）。用户原话：「能看到但局限在一个非常小的框里」。
 // 这里给它一个真正能读能改的家：模式 chip 选择 + 全文可编辑 textarea + 已自定义徽标 + 恢复默认。
@@ -12,19 +13,19 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { confirmDialog } from '../../design'
-import { cn } from '../../utils/cn'
+import { confirmDialog } from '../../../design'
+import { cn } from '../../../utils/cn'
 import {
   CUSTOM_PROMPT_MAX_COUNT,
   CUSTOM_PROMPT_NAME_MAX_LENGTH,
   type CustomSystemPrompt,
-} from '../../../electron/settings/systemPromptsContract'
+} from '../../../../electron/settings/systemPromptsContract'
 import {
   CREATION_AI_MODES,
   defaultCreationAiPrompt,
   listCreationAiModes,
   type CreationAiMode,
-} from '../creation/creationAiModes'
+} from '../../creation/creationAiModes'
 import {
   hasPromptOverride,
   newCustomPromptId,
@@ -35,9 +36,9 @@ import {
   getSystemPromptSnapshot,
   withoutOverride,
   type SystemPromptOverrideMap,
-} from '../creation/systemPromptOverrides'
-import { useSystemPromptSnapshot } from '../creation/useSystemPromptOverrides'
-import { useWorkbenchStore } from '../workbenchStore'
+} from '../../creation/systemPromptOverrides'
+import { useSystemPromptSnapshot } from '../../creation/useSystemPromptOverrides'
+import { useWorkbenchStore } from '../../workbenchStore'
 import {
   appendCustomPrompt,
   canAddCustomPrompt,
@@ -226,14 +227,7 @@ export function SystemPromptSection(): JSX.Element {
   }, [activeMode, creationAiModeId, flushWrite, setCreationAiModeId, t])
 
   return (
-    <section
-      data-settings-section="system-prompts"
-      className="mt-6 border-t border-nomi-line pt-4"
-      aria-labelledby="settings-system-prompt-title"
-    >
-      <h3 id="settings-system-prompt-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
-        {t('settings.ai.systemPrompt.title')}
-      </h3>
+    <section data-system-prompt-editor aria-label={t('settings.ai.systemPrompt.title')}>
       <div className="mb-3 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.systemPrompt.hint')}</div>
 
       <SystemPromptChipRow

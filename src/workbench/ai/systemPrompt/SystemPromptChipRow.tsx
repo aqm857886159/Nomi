@@ -7,8 +7,8 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlus } from '@tabler/icons-react'
 
-import { cn } from '../../utils/cn'
-import type { CreationAiMode } from '../creation/creationAiModes'
+import { cn } from '../../../utils/cn'
+import type { CreationAiMode } from '../../creation/creationAiModes'
 
 const CHIP_BASE = cn(
   'rounded-full px-2.5 py-1 text-caption font-medium cursor-pointer',

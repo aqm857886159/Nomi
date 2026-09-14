@@ -16,7 +16,6 @@ function run(patch: Partial<ProductionRun> = {}): ProductionRun {
     playbook: { name: 'brand.promo', version: '1.0.0' },
     origin: { host: 'codex' },
     policy: {
-      mode: 'balanced',
       trustedHosts: ['codex'],
       allowedProviders: ['tapcanvas'],
       allowedModels: ['seedance'],

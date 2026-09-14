@@ -67,7 +67,7 @@ function threeShotDraft(maxSpend: number | null): ProductionRun {
     schemaVersion: 1, runId: "op-seal", projectId: "project-1", revision: 2,
     status: "draft", stageId: "generate", playbook: { name: "generation.single-shot", version: "1.0.0" },
     origin: { host: "semantic-mcp" },
-    policy: { mode: "balanced", trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend, maxAttemptsPerJob: 2, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend, maxAttemptsPerJob: 2, minimizeUploads: true },
     budget: { currency: "CNY", authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 2, stages: [], gates: [], jobs: [], artifacts: [],
     generationPlan: {

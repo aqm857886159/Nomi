@@ -4,10 +4,12 @@ import { DEFAULT_AUTOMATION_POLICY_SETTINGS } from '../../../electron/settings/a
 import { buildAutomationSettingsView, buildProviderHealthView } from './settingsAutomationView'
 
 describe('settings automation view', () => {
-  it('defaults to Balanced and exposes only known initiators', () => {
+  it('exposes only known initiators', () => {
     const view = buildAutomationSettingsView(DEFAULT_AUTOMATION_POLICY_SETTINGS)
 
-    expect(view.mode).toBe('balanced')
+    // 2026-09-14：mode（引导/平衡/策略自动）与 mandatoryGates 已随「默认制作模式」「支出与风险边界」两栏删除。
+    expect(view).not.toHaveProperty('mode')
+    expect(view).not.toHaveProperty('mandatoryGates')
     expect(view.hosts).toEqual([
       { key: 'nomi', enabled: true, locked: true },
       { key: 'claude', enabled: true, locked: false },
@@ -17,7 +19,6 @@ describe('settings automation view', () => {
       { key: 'pi', enabled: false, locked: false },
       { key: 'workbuddy', enabled: false, locked: false },
     ])
-    expect(view.mandatoryGates).toEqual(['first-spend', 'irreversible'])
   })
 
   it('derives provider health from the real catalog state', () => {

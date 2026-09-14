@@ -99,7 +99,6 @@ describe("ProductionRun-owned generation operation store", () => {
       projectRootResolver: () => root,
       sleep: async () => {},
       policyResolver: () => ({
-        mode: "policy-auto",
         maxSpend: 100,
         maxAttemptsPerJob: 2,
         trustedHosts: ["nomi"],
@@ -113,7 +112,6 @@ describe("ProductionRun-owned generation operation store", () => {
     await operations.create({ operationId: "op-policy", projectId: "project-1", origin: { host: "codex" }, candidate: candidate(), now: "2026-08-23T00:00:00.000Z" });
 
     expect(service.readFull("project-1", "op-policy").policy).toMatchObject({
-      mode: "policy-auto",
       maxSpend: 100,
       maxAttemptsPerJob: 2,
       minimizeUploads: false,

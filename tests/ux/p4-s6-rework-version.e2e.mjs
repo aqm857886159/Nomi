@@ -165,7 +165,7 @@ try {
     const run = {
       schemaVersion: 1, runId, projectId, revision: 1, status: 'needs_attention', stageId: 'generate',
       playbook: { name: 'generation.single-shot', version: '1.0.0' }, origin: { host: 'semantic-mcp' },
-      policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 13, maxAttemptsPerJob: 1, minimizeUploads: true },
+      policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 13, maxAttemptsPerJob: 1, minimizeUploads: true },
       budget: { currency: 'CNY', authorized: 13, reserved: 0, actual: 0, unsettled: 0 },
       planVersion: 1, snapshotCursor: 0, stages: [], gates: [],
       jobs: [

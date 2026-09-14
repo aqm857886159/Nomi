@@ -5,9 +5,10 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconRotate, IconTrash } from '@tabler/icons-react'
 
-import { cn } from '../../utils/cn'
+import { cn } from '../../../utils/cn'
 
-const FOOTER_ROW = 'mt-2 flex min-h-8 items-center justify-between gap-3'
+// 行尾附属信息紧跟内容流，不贴右缘（2026-09-09 拍板；check:tokens 对 src/workbench/ai 零容忍）。
+const FOOTER_ROW = 'mt-2 flex min-h-8 items-center gap-3'
 
 const BUTTON_BASE = cn(
   'inline-flex shrink-0 items-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
@@ -20,16 +21,6 @@ export function SystemPromptResetFooter(props: { customized: boolean; onReset: (
   const { t } = useTranslation()
   return (
     <div className={FOOTER_ROW}>
-      <span className="min-w-0 text-micro text-nomi-ink-60">
-        {props.customized ? (
-          <span
-            data-settings-prompt-customized
-            className="inline-flex items-center rounded-full bg-nomi-accent-soft px-2 py-0.5 text-nomi-accent"
-          >
-            {t('settings.ai.systemPrompt.customized')}
-          </span>
-        ) : null}
-      </span>
       {/* C1（§1.6）：没有覆盖时「恢复默认」无事可做 → 必须 disabled + title 说清为什么。
           禁用的 <button> 自己不触发 title，靠外层 span 兜（既有范式）。 */}
       <span
@@ -51,6 +42,14 @@ export function SystemPromptResetFooter(props: { customized: boolean; onReset: (
           {t('settings.ai.systemPrompt.reset')}
         </button>
       </span>
+      {props.customized ? (
+        <span
+          data-settings-prompt-customized
+          className="inline-flex items-center rounded-full bg-nomi-accent-soft px-2 py-0.5 text-micro text-nomi-accent"
+        >
+          {t('settings.ai.systemPrompt.customized')}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -64,7 +63,6 @@ export function SystemPromptCustomFooter(props: { onDelete: () => void }): JSX.E
   const { t } = useTranslation()
   return (
     <div className={FOOTER_ROW}>
-      <span className="min-w-0 text-micro text-nomi-ink-60" />
       <button
         type="button"
         data-settings-prompt-delete

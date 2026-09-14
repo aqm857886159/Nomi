@@ -28,7 +28,7 @@ function run(overrides: Partial<ProductionRun> = {}): ProductionRun {
     schemaVersion: 1, runId: 'op-batch', projectId: 'project-1', revision: 3,
     status: 'running', stageId: 'generate',
     playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'nomi' },
-    policy: { mode: 'balanced', trustedHosts: ['nomi'], allowedProviders: ['apimart'], allowedModels: ['image-model', 'video-model'], maxSpend: 30, maxAttemptsPerJob: 2, minimizeUploads: true },
+    policy: { trustedHosts: ['nomi'], allowedProviders: ['apimart'], allowedModels: ['image-model', 'video-model'], maxSpend: 30, maxAttemptsPerJob: 2, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 18, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 3, stages: [], gates: [],
     jobs: [
