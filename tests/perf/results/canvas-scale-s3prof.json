@@ -1,0 +1,212 @@
+{
+  "label": "s3prof",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "cpuModel": "Apple M5",
+    "memoryGb": 24,
+    "node": "v24.13.1",
+    "build": "dist (pnpm build) + dev Electron binary",
+    "viewport": {
+      "width": 1600,
+      "height": 1000
+    }
+  },
+  "generatedAt": "2026-09-12T00:49:09.083Z",
+  "scales": [
+    "I300"
+  ],
+  "scenarios": [
+    "drag-nodes-all"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "scale": "I300",
+      "scenario": "drag-nodes-all",
+      "nodes": 300,
+      "edges": 150,
+      "selected": 204,
+      "path": "react-flow-kernel (node)",
+      "viewport": {
+        "zoom": 0.2,
+        "mountedNodes": 204,
+        "lightweightNodes": 0
+      },
+      "runs": 1,
+      "fps": 37.1,
+      "frameP50Ms": 10.5,
+      "frameP95Ms": 59.2,
+      "frameMaxMs": 523.5,
+      "longTasks": 249,
+      "longTaskMs": 21175,
+      "longTaskMaxMs": 578,
+      "nodeStyleWrites": 74604,
+      "distinctTouchedNodes": 300,
+      "medianTouchedPerFlush": 300,
+      "maxTouchedPerFlush": 300,
+      "domFlushes": 275,
+      "subtreeMutations": 220424,
+      "mountedNodes": 300,
+      "cdpScriptMs": null,
+      "cdpStyleMs": null,
+      "cdpLayoutMs": null,
+      "cdpTaskMs": null,
+      "cdpLayoutCount": null,
+      "cdpStyleCount": null,
+      "jsHeapMb": null,
+      "loadAvg1": 15.3,
+      "frameP50MsMin": 10.5,
+      "frameP95MsMin": 59.2,
+      "samples": [
+        {
+          "elapsedMs": 27761,
+          "frames": 1029,
+          "fps": 37.1,
+          "frameP50Ms": 10.5,
+          "frameP95Ms": 59.2,
+          "frameMaxMs": 523.5,
+          "longTasks": 249,
+          "longTaskMs": 21175,
+          "longTaskMaxMs": 578,
+          "nodeStyleWrites": 74604,
+          "distinctTouchedNodes": 300,
+          "maxTouchedPerFlush": 300,
+          "medianTouchedPerFlush": 300,
+          "domFlushes": 275,
+          "subtreeMutations": 220424,
+          "mountedNodes": 300,
+          "loadAvg1": 15.3
+        }
+      ],
+      "profileTop": [
+        {
+          "frame": "(program) @ (anonymous)",
+          "hits": 31103,
+          "share": 43.5
+        },
+        {
+          "frame": "(idle) @ (anonymous)",
+          "hits": 8025,
+          "share": 11.2
+        },
+        {
+          "frame": "getContext @ (anonymous)",
+          "hits": 3975,
+          "share": 5.6
+        },
+        {
+          "frame": "Pc @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 1428,
+          "share": 2
+        },
+        {
+          "frame": "formatLanguageCode @ index-CjhBUCrw.js",
+          "hits": 1405,
+          "share": 2
+        },
+        {
+          "frame": "(anonymous) @ index-CjhBUCrw.js",
+          "hits": 1395,
+          "share": 1.9
+        },
+        {
+          "frame": "(garbage collector) @ (anonymous)",
+          "hits": 1345,
+          "share": 1.9
+        },
+        {
+          "frame": "we @ react-vendor-BQQcTRIt.js",
+          "hits": 994,
+          "share": 1.4
+        },
+        {
+          "frame": "(anonymous) @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 961,
+          "share": 1.3
+        },
+        {
+          "frame": "a @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 794,
+          "share": 1.1
+        },
+        {
+          "frame": "bs @ react-vendor-BQQcTRIt.js",
+          "hits": 750,
+          "share": 1
+        },
+        {
+          "frame": "wc @ react-vendor-BQQcTRIt.js",
+          "hits": 625,
+          "share": 0.9
+        },
+        {
+          "frame": "qe @ react-vendor-BQQcTRIt.js",
+          "hits": 576,
+          "share": 0.8
+        },
+        {
+          "frame": "ju @ react-vendor-BQQcTRIt.js",
+          "hits": 441,
+          "share": 0.6
+        },
+        {
+          "frame": "cl @ react-vendor-BQQcTRIt.js",
+          "hits": 428,
+          "share": 0.6
+        },
+        {
+          "frame": "Xe @ react-vendor-BQQcTRIt.js",
+          "hits": 416,
+          "share": 0.6
+        },
+        {
+          "frame": "ar @ react-vendor-BQQcTRIt.js",
+          "hits": 360,
+          "share": 0.5
+        },
+        {
+          "frame": "setAttribute @ (anonymous)",
+          "hits": 351,
+          "share": 0.5
+        },
+        {
+          "frame": "(anonymous) @ react-vendor-BQQcTRIt.js",
+          "hits": 330,
+          "share": 0.5
+        },
+        {
+          "frame": "translate @ index-CjhBUCrw.js",
+          "hits": 324,
+          "share": 0.5
+        },
+        {
+          "frame": "QC @ index-CjhBUCrw.js",
+          "hits": 300,
+          "share": 0.4
+        },
+        {
+          "frame": "off @ index-CjhBUCrw.js",
+          "hits": 296,
+          "share": 0.4
+        },
+        {
+          "frame": "Ns @ react-vendor-BQQcTRIt.js",
+          "hits": 295,
+          "share": 0.4
+        },
+        {
+          "frame": "cr @ react-vendor-BQQcTRIt.js",
+          "hits": 287,
+          "share": 0.4
+        },
+        {
+          "frame": "vs @ react-vendor-BQQcTRIt.js",
+          "hits": 283,
+          "share": 0.4
+        }
+      ]
+    }
+  ]
+}
