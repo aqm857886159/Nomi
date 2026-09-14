@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { IconKey, IconExternalLink } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { confirmDialog } from '../../design'
+import { confirmDialog, VendorLogoImage } from '../../design'
 import type { KnownVendor } from '../../config/knownVendors'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
@@ -176,7 +176,7 @@ export function VendorOnboardCard({
     <FoldableModelCard
       dataAccessEntry={isMulti ? MODEL_ACCESS_ENTRY.knownMultiCredential : MODEL_ACCESS_ENTRY.knownSingleKey}
       glyph={
-        directory.logo ? <img src={directory.logo} alt="" className="w-full h-full object-contain" /> : directory.glyph
+        directory.logo ? <VendorLogoImage src={directory.logo} className="w-full h-full" /> : directory.glyph
       }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}

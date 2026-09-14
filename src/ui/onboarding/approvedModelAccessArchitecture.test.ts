@@ -24,8 +24,16 @@ describe('approved model access architecture', () => {
     expect(page).toContain('disabled={busy || saved}')
     expect(page.indexOf('data-platform-key-only')).toBeLessThan(page.indexOf('data-key-only-success'))
     expect(page).not.toContain('baseUrl')
-    expect(page).not.toContain('ModelChipGroups')
     expect(page).not.toContain('文档')
+
+    // 「已有预置地址、模型和请求适配」必须真的有清单：页面拿到的是模型数组本身，
+    // 不是一个数字，并且用的是全站同一个 chip 列表组件（不另写第二份列表）。
+    expect(page).toContain('models: readonly ChipModel[]')
+    expect(page).toContain('<ModelChipGroups')
+    expect(drawer).toContain('models={card.vendorModels}')
+    expect(drawer).not.toContain('modelCount={')
+    // 未接入的供应商也要带着真实清单进投影——曾经在这里被硬写成空数组。
+    expect(connections).not.toMatch(/kind: 'api',\s*\n\s*models: \[\],/)
 
     // Routing must be derived from the vendor archive field, not a hardcoded allowlist.
     expect(connections).not.toMatch(/\['apimart',\s*'kie'\]\.includes/)

@@ -25,14 +25,12 @@ import {
   NomiWordmark,
 } from '../../../../design'
 import { NomiPreviewHost } from '../../../../design/previewHost'
-
-/** 真实品牌图源：与 `modelIdentityIcon` 用的是**同一个**本地资源（不新造一张图）。 */
-const DOUBAO_LOGO = new URL('../../../../assets/vendor-logos/doubao.png', import.meta.url).href
-const MINIMAX_LOGO = new URL('../../../../assets/vendor-logos/minimax.png', import.meta.url).href
-const APIMART_LOGO = new URL('../../../../assets/vendor-logos/apimart.png', import.meta.url).href
-const KIE_LOGO = new URL('../../../../assets/vendor-logos/kie.png', import.meta.url).href
+import { VENDOR_LOGOS } from '../../../../assets/vendor-logos'
 import { PrimitiveStage, Specimen, Stateful } from '../../primitives/primitivesLabKit'
 import type { LabState } from '../../labScreen'
+
+/** 真实品牌图源：夹具读生产那张登记表，不自己再写一遍资产路径（实验室要镜像真实调用点）。 */
+const { doubao: DOUBAO_LOGO, minimax: MINIMAX_LOGO, apimart: APIMART_LOGO, kie: KIE_LOGO } = VENDOR_LOGOS
 
 const SOURCE_IDENTITY = 'src/design/identity.tsx · docs/design/nomi-design-system.md §1 品牌'
 
