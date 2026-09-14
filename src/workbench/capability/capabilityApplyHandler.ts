@@ -56,6 +56,11 @@ type SpendConfirmPayload = {
   prompt?: string
   /** 主进程带上：这次确认还会换来「本会话该项目后续生成免问」→ 卡上多写一句授权范围。 */
   quote?: SpendQuoteLine
+  /**
+   * 这一张卡覆盖几次付费调用（批量确认）。>1 时卡上必须显示——用户点的是「这一批」，
+   * 只给一个总价，他无从知道自己刚批掉的是 1 次还是 13 次。
+   */
+  callCount?: number
 }
 
 // 方案门（Phase B）：外部 agent 批量落节点前的确认。projectId 由主进程网关带上（可能非当前项目）。
@@ -134,8 +139,14 @@ async function runProductionTextPlanner(input: {
   return text
 }
 
-/** 外部 MCP 付费确认：弹全仓唯一的确认对话框（agent 来源 + 明细），真人点了才回 confirmed——卡不超时。 */
-async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confirmed: boolean }> {
+/**
+ * 主进程发起的付费确认：弹全仓唯一的确认对话框，真人点了才回 confirmed——卡不超时。
+ *
+ * 两种来源共用这一张卡（P1 不造第二张）：
+ *   · 外部 agent（MCP）驱动的生成 → 机器人图标 + 「AI 助手想生成…」；
+ *   · 用户自己在画布上点的那一下（视频拆解）→ 金币图标 + 说清「这一批要发几次调用」。
+ */
+async function confirmSpendFromMainProcess(info: SpendConfirmPayload): Promise<{ confirmed: boolean }> {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((item) => item.id === info.nodeId)
   const nodeLabel =
@@ -147,22 +158,31 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
   const isReference = Boolean(node?.meta && (node.meta as Record<string, unknown>).referenceSheet === true)
   const promptPreview = typeof info.prompt === 'string' && info.prompt.trim() ? info.prompt.trim().slice(0, 60) : ''
   const projectName = typeof info.projectName === 'string' ? info.projectName.trim() : ''
+  // 拆解是**用户自己点的**那一下，不是 AI 代他花钱：金币图标、说清这一批要发几次调用。
+  const isDeconstruct = info.intent === 'deconstruct'
+  const callCount = typeof info.callCount === 'number' && info.callCount > 1 ? info.callCount : 0
   const ok = await useSpendConfirmStore.getState().requestConfirm({
     kind: isReference ? 'reference' : 'generation',
-    title: isReference
-      ? i18n.t('runtime.capability.referenceTitle')
-      : i18n.t('runtime.capability.spendTitle', { intent: describeIntent(info.intent) }),
+    title: isDeconstruct
+      ? i18n.t('runtime.capability.deconstructTitle')
+      : isReference
+        ? i18n.t('runtime.capability.referenceTitle')
+        : i18n.t('runtime.capability.spendTitle', { intent: describeIntent(info.intent) }),
     message: [
-      promptPreview
-        ? i18n.t('runtime.capability.spendMessageWithPrompt', {
-            prompt: `${promptPreview}${info.prompt && info.prompt.length > 60 ? '…' : ''}`,
-          })
-        : i18n.t('runtime.capability.spendMessage'),
+      isDeconstruct
+        ? i18n.t('runtime.capability.deconstructMessage')
+        : promptPreview
+          ? i18n.t('runtime.capability.spendMessageWithPrompt', {
+              prompt: `${promptPreview}${info.prompt && info.prompt.length > 60 ? '…' : ''}`,
+            })
+          : i18n.t('runtime.capability.spendMessage'),
     ].join('\n'),
-    confirmLabel: i18n.t('runtime.capability.confirmGenerate'),
-    source: 'agent',
+    confirmLabel: i18n.t(isDeconstruct ? 'runtime.capability.confirmDeconstruct' : 'runtime.capability.confirmGenerate'),
+    source: isDeconstruct ? 'user' : 'agent',
     details: [
       spendQuoteDetail(info.quote ?? { amount: null }),
+      // 批量确认必须报出「这一下批掉几次调用」——只给总价，用户看不出批量有多大。
+      ...(callCount ? [{ label: i18n.t('runtime.capability.callCount'), value: String(callCount) }] : []),
       // 项目行放第一位：用户可能不在这个项目里，先让他知道花在哪个项目。
       ...(projectName ? [{ label: i18n.t('runtime.capability.project'), value: projectName }] : []),
       { label: i18n.t('runtime.capability.node'), value: nodeLabel },
@@ -170,7 +190,7 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
         label: i18n.t('runtime.capability.model'),
         value: [info.vendor, info.modelKey].filter(Boolean).join(' · ') || i18n.t('runtime.capability.defaultModel'),
       },
-      { label: i18n.t('runtime.capability.output'), value: describeIntent(info.intent) },
+      ...(isDeconstruct ? [] : [{ label: i18n.t('runtime.capability.output'), value: describeIntent(info.intent) }]),
     ],
   })
   return { confirmed: Boolean(ok) }
@@ -414,7 +434,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       useGenerationCanvasStore.getState().applyExternalGraph(data.snapshot)
       return { ok: true }
     case 'spend.confirm':
-      return confirmSpendForAgent(data as SpendConfirmPayload)
+      return confirmSpendFromMainProcess(data as SpendConfirmPayload)
     case 'generation.gate.confirm':
       return confirmGenerationGateForAgent(data as GenerationGateConfirmPayload)
     case 'plan.confirm':

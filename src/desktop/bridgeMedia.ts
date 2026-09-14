@@ -60,6 +60,8 @@ export type DesktopMediaBridge = {
       customColumns?: { name: string; hint?: string }[]
       concurrency?: number
       shotIndexes?: number[]
+      /** 这次拆解挂在哪个分镜表节点上：付费令牌按它记预算，报价卡也按它说是哪张表。 */
+      nodeId?: string
     }) => Promise<{
       shots: {
         index: number
@@ -77,10 +79,13 @@ export type DesktopMediaBridge = {
         motionPrompt: string
         custom: Record<string, string>
         visionFailed?: boolean
+        failureReason?: string
       }[]
       durationSeconds: number
       hasAudio: boolean
       failedShotIndexes: number[]
+      /** 整次拆解层面的原因（如「对白没取到」）；UI 顶部一行显示，不摊进每一格。 */
+      failureReason?: string
     }>
   }
   /**
