@@ -8,7 +8,11 @@
 ## 怎么量的，以及两条不能省的纪律
 
 - **入参一次写对** = 这次 `tools/call` 的结果不是 `isError`。逐条证据在每个回合的
-  `turn-*.stream.jsonl`（`--output-format stream-json`，宿主原生逐调用事件流，不是我们自己记的）。
+  `transcript.json`：每次 nomi 工具调用的名字、完整入参、`isError`、返回值前 900 字，
+  以及那一回合最后说的话。
+- 原始的 `turn-*.stream.jsonl`（宿主原生 `--output-format stream-json` 事件流，四轮共 4.1MB）
+  **不入库**：`transcript.json` 已经是它的无损蒸馏（每一次调用一行，没有取样、没有挑选），
+  而 4MB 的日志会让整分支评审读不完。要重取就按本文开头那条命令再跑一次。
 - **`--strict-mcp-config` 是硬约束**。这台机器上用户真实的 `~/.claude.json` 里挂着一个真的 `nomi`
   server（指向 `/Applications/Nomi.app`）。不加这一条，宿主会同时看到两个 nomi、工具名撞车，分母不可信
   —— 09-11 的 Codex 读数 31/31 就是这么作废的。跑完核 `mcpServers` 指纹，两次都未变。
