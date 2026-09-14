@@ -90,6 +90,10 @@ export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03
 
 // tools/list 与 tools/call 共用同一份过滤后目录 resolver，避免“看不见但能调”。
 import { MCP_TOOL_RESOLVER, READ_RUN_DATA_TARGETS } from './mcpToolCatalog'
+import { BUILTIN_MCP_CLIENTS } from '../shared/mcpClientRegistry'
+
+const HOST_NAME_GUESS_ORDER: readonly string[] = [...BUILTIN_MCP_CLIENTS].sort((a, b) => b.length - a.length)
+
 
 export const MCP_TOOL_NAMES = MCP_TOOL_RESOLVER.list().map((tool) => tool.name)
 // 只读标注（annotations.readOnlyHint）真相已收进 catalog（面收敛：nomi_read / nomi_operation_preview 整体只读，
@@ -324,7 +328,9 @@ export function createMcpProtocol(transport: McpTransport) {
       clientSupportsUrlElicitation = declaredElicitation.url
       const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
       const clientName = rawName.toLowerCase()
-      clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
+      // 只是给 actorId 的**展示级猜测**（真身份来自配置里的签名 proof，见 security.ts）；名单从注册表 derive，
+      // 最长 key 先匹配，免得 'claude' 抢在 'claude-desktop' 前面。
+      clientHost = HOST_NAME_GUESS_ORDER.find((host) => clientName.includes(host)) ?? 'external'
       if (clientHost === 'external' && rawName) transport.onClientDetected?.(rawName)
       // 版本交集协商：不支持的版本回 -32602。
       const requested = params?.protocolVersion
