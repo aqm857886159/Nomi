@@ -39,14 +39,6 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
   const debtBySite = new Map(baseline.debt.map((entry) => [entry.site, entry]))
   const crossProcessGroups = [
     [
-      'electron/capabilityCore/mcpConfig.ts::type:McpConfigState/type-union',
-      'src/desktop/mcpBridgeTypes.ts::type:McpConfigState/type-union',
-    ],
-    [
-      'electron/capabilityCore/mcpVerify.ts::type:McpVerifyReason/type-union',
-      'src/desktop/mcpBridgeTypes.ts::type:McpVerifyReason/type-union',
-    ],
-    [
       'electron/ai/onboarding/vendorHealth.ts::type:VendorHealthState/type-union',
       'electron/preload.ts::property:onboarding/property:vendorHealth/property:state/type-union',
       'src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union',
@@ -104,6 +96,23 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
     true,
     'Provider Adapter run stages have converged on the neutral shared contract',
   )
+  // 2026-09-14：MCP 接入状态 / 握手诊断两组跨进程副本已按各自 debt 写的收敛办法做掉——
+  // 中立模块 electron/shared/mcpConnectionContract.ts 是唯一 owner，main / renderer 都从它 derive。
+  for (const site of [
+    'electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const',
+    'electron/shared/mcpConnectionContract.ts::variable:MCP_VERIFY_REASONS/as-const',
+  ]) {
+    assert.equal(registeredSites.has(site), true, `${site} has converged on the neutral shared contract`)
+    assert.equal(debtBySite.has(site), false, site)
+  }
+  for (const retired of [
+    'electron/capabilityCore/mcpConfig.ts::type:McpConfigState/type-union',
+    'src/desktop/mcpBridgeTypes.ts::type:McpConfigState/type-union',
+    'electron/capabilityCore/mcpVerify.ts::type:McpVerifyReason/type-union',
+    'src/desktop/mcpBridgeTypes.ts::type:McpVerifyReason/type-union',
+  ]) {
+    assert.equal(debtBySite.has(retired), false, `${retired} must stay retired, not re-listed as debt`)
+  }
 })
 
 test('repository exact-set owners are upstream and every local projection stays in debt', () => {
