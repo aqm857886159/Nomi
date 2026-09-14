@@ -46,6 +46,8 @@ export const generationNodeResultSchema = z.object({
   text: z.string().optional(),
   model: z.string().optional(),
   durationSeconds: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
   taskId: z.string().optional(),
   taskKind: generationNodeTaskKindSchema.optional(),
   assetId: z.string().optional(),

@@ -15,6 +15,7 @@ import {
 } from "./videoImportNormalize";
 import type { JsonRecord } from "../jsonUtils";
 import { logWarn } from "../logging/logger";
+import { attachStoredAssetPreview } from "./assetPreview";
 
 function bytesFromPayload(value: unknown): Buffer {
   if (value instanceof ArrayBuffer) return Buffer.from(value);
@@ -75,6 +76,11 @@ export async function importLocalFile(payload: unknown, options: ImportLocalFile
   if (!projectId) throw new Error("projectId is required");
   const hintedContentType = String(raw.contentType || "application/octet-stream");
   const sourcePath = options.allowSourcePath ? String(raw.sourcePath || "").trim() : "";
+  // 画布预览（图片缩略 / 视频 poster）在落盘边界统一派生：本地导入与生成结果本地化走同一扇门。
+  return attachStoredAssetPreview(await importLocalFileToStore(raw, projectId, sourcePath, hintedContentType));
+}
+
+async function importLocalFileToStore(raw: JsonRecord, projectId: string, sourcePath: string, hintedContentType: string): Promise<unknown> {
   if (sourcePath) {
     const rawName = String(raw.fileName || path.basename(sourcePath) || `asset-${Date.now()}.bin`);
     return importNativeSourcePath(raw, sourcePath, projectId, rawName, hintedContentType);

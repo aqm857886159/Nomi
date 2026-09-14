@@ -71,6 +71,11 @@ export function assetRefFromDesktopAsset(asset: DesktopAssetDto, sourceProjectNa
   const aspectRatio = dimensions
     ? dimensions.width / dimensions.height
     : assetAspectRatioFromMetadata(asset.data, kind)
+  // 落盘边界派生的预览（sidecar thumbnailRelativePath）：素材库格子与拖上画布的节点都挂它，不挂 4K 源。
+  const thumbnailRelativePath = typeof asset.data.thumbnailRelativePath === 'string' ? asset.data.thumbnailRelativePath.trim() : ''
+  const thumbUrl = typeof asset.data.thumbnailUrl === 'string' && asset.data.thumbnailUrl.trim()
+    ? asset.data.thumbnailUrl.trim()
+    : thumbnailRelativePath ? buildWorkspaceFileUrl(projectId, thumbnailRelativePath) : ''
   return {
     id: `${projectId}:${relativePath}`,
     kind,
@@ -78,6 +83,7 @@ export function assetRefFromDesktopAsset(asset: DesktopAssetDto, sourceProjectNa
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
     renderUrl: url,
+    ...(thumbUrl ? { thumbUrl } : {}),
     ...(dimensions ? { dimensions } : {}),
     ...(aspectRatio !== undefined ? { aspectRatio } : {}),
     ...(sourceProjectName?.trim() ? { sourceProjectName: sourceProjectName.trim() } : {}),

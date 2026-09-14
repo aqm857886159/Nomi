@@ -7,7 +7,6 @@ import {
   Position,
   getBezierPath,
   useStore,
-  useViewport,
   type EdgeProps,
   type NodeProps,
 } from '@xyflow/react'
@@ -22,8 +21,11 @@ import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { availableEdgeModes } from '../components/edgeModeMenu'
 import { LightweightGenerationNode } from '../components/LightweightGenerationNode'
 import {
+  isLightweightRenderable,
   retainLargeCanvasLightweightRendering,
   shouldRenderFullNodeContent,
+  shouldRenderNodeConnectionHandles,
+  shouldRenderNodeResizeAffordance,
   shouldUseLightweightNodeRenderingForSelection,
 } from '../components/canvasNodeLevelOfDetail'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
@@ -144,6 +146,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
     if (connection.fromHandle.nodeId === node.id) return connection.fromHandle.id ?? ''
     return connection.isValid && connection.toHandle?.nodeId === node.id ? connection.toHandle.id ?? '' : ''
   })
+  // 标量订阅：有没有人正在拉线。只有它翻面时才重渲染（不是每次 pointermove）。
+  const connectionInProgress = useStore((state) => state.connection.inProgress)
   const collapsedGroupProxy = node.meta?.collapsedGroupProxy === true
   const NodeComponent = getGenerationNodeComponentForNode(node)
   const size = resolveNodeVisualSize(node)
@@ -151,23 +155,36 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
-  const nodeCount = useGenerationCanvasStore((state) => state.nodes.length)
+  // 「同时在动几张」是标量订阅（O(1)）：选区大小变了才重渲染，不扫全表。
+  const selectedCount = useGenerationCanvasStore((state) => state.selectedNodeIds.length)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
-  const { zoom } = useViewport()
+  // LOD only depends on zoom. Subscribing to the whole viewport object makes
+  // every node rerender on every pan/transform update, including x/y changes
+  // that cannot affect the screen-size threshold.
+  const zoom = useStore((state) => state.transform[2])
   const primarySelection = data.primarySelection && !multiSelectionActive
   const retainedLightweightRef = React.useRef(false)
   retainedLightweightRef.current = retainLargeCanvasLightweightRendering({
     retained: retainedLightweightRef.current,
-    nodeCount,
+    selectedCount,
     selected,
     primarySelection,
   })
-  const lightweightMode = retainedLightweightRef.current || shouldUseLightweightNodeRenderingForSelection({
-    nodeCount,
-    zoom,
-    selected,
-    primarySelection,
+  // LOD 判据 = 「这张卡在屏幕上多大」（主）+「同时在动几张」（二级）；
+  // 没有结果媒体可画的卡不进轻量档（进了只剩一个灰盒子）。
+  const lightweightMode = isLightweightRenderable(node)
+    && (retainedLightweightRef.current || shouldUseLightweightNodeRenderingForSelection({
+      cardWidth: size.width,
+      zoom,
+      selectedCount,
+      selected,
+      primarySelection,
+    }))
+  const showConnectionHandles = shouldRenderNodeConnectionHandles({
+    lightweightMode,
+    readOnly: Boolean(data.readOnly),
+    connectionInProgress: connectionInProgress || Boolean(pendingConnectionSourceId),
   })
   const connectionAffordance = collapsedGroupProxy
     ? 'hidden'
@@ -200,7 +217,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       aria-hidden={collapsedGroupProxy || undefined}
     >
       <NodeResizer
-        isVisible={selected && !data.readOnly}
+        isVisible={shouldRenderNodeResizeAffordance({ lightweightMode, readOnly: Boolean(data.readOnly), selected })}
         minWidth={bounds.minWidth}
         minHeight={bounds.minHeight}
         maxWidth={bounds.maxWidth}
@@ -236,7 +253,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
           commitPersistedChange()
         }}
       />
-      {!data.readOnly ? (
+      {showConnectionHandles ? (
         <>
           <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
           <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
@@ -279,7 +296,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
           )}
         </GenerationFlowNodeScope>
       ) : null}
-      {!data.readOnly ? (
+      {showConnectionHandles ? (
         <>
           <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
           <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />

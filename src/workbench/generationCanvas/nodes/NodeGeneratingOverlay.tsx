@@ -19,7 +19,8 @@ export function NodeGeneratingOverlay({ node, motion, preset, reportFeedback }: 
   const finish = React.useCallback(() => setWaiting(false), [])
   React.useEffect(() => { if (feedback?.active) setWaiting(true) }, [feedback?.active])
   const completed = !feedback?.active && node.status === 'success'
-  const finalUrl = node.result?.type === 'image' ? node.result.url : node.result?.thumbnailUrl || previewUrl
+  // 完成那一帧渐显的也是画布预览（与节点最终挂的同一张），不为 4K 原图多解一次码。
+  const finalUrl = node.result?.type === 'image' ? node.result.thumbnailUrl || node.result.url : node.result?.thumbnailUrl || previewUrl
   const handleCancel = React.useCallback(() => requestTaskCancel(node, reportFeedback), [node, reportFeedback])
   // Local depth processing has its separately approved top bar; it is not a model generation stage.
   if (isVideoDepthProgressPhase(node.progress?.phase)) return <GeneratingOverlay

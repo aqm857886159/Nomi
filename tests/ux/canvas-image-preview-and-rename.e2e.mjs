@@ -1,5 +1,7 @@
 // 微信反馈回归：画布图片要能放大；普通图片节点名字要能直接在图上修改并持久化。
-// 零额度：使用隔离项目 + data URL 图片，不调用任何模型。
+// 2026-09-14 追加媒体生命周期断言：画布内联 <img> 挂的是落盘边界派生的 `.preview.` 缩略图，
+// 全屏预览对话框拿到的是原图 URL（两者必须不同——画布不为每个节点解码原图）。
+// 零额度：使用隔离项目 + 本地 SVG 图片，不调用任何模型。
 // 用法：pnpm run build && node tests/ux/canvas-image-preview-and-rename.e2e.mjs
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -31,17 +33,23 @@ const IMAGE_SVG = `
 const generatedAssetsDir = path.join(projectRoot, 'assets', 'generated')
 fs.mkdirSync(generatedAssetsDir, { recursive: true })
 fs.writeFileSync(path.join(generatedAssetsDir, 'fixture.svg'), IMAGE_SVG)
+// 与生产落盘边界（electron/assets/assetPreview.ts）同名规则：源旁边的 `<name>.preview.<ext>`。
+const IMAGE_PREVIEW_SVG = IMAGE_SVG.replace('width="960" height="540"', 'width="320" height="180"')
+fs.writeFileSync(path.join(generatedAssetsDir, 'fixture.preview.svg'), IMAGE_PREVIEW_SVG)
 const IMAGE_URL = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/fixture.svg`
+const IMAGE_PREVIEW_URL = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/generated/fixture.preview.svg`
 
 const nodes = [
   {
     id: 'image-result-node', kind: 'image', categoryId: 'shots', title: ORIGINAL_TITLE,
     position: { x: 180, y: 180 }, exactPosition: true, size: { width: 480, height: 270 }, status: 'success',
-    result: { id: 'image-result-1', type: 'image', url: IMAGE_URL, createdAt: 1 }, meta: { imageWidth: 960, imageHeight: 540 },
+    result: { id: 'image-result-1', type: 'image', url: IMAGE_URL, thumbnailUrl: IMAGE_PREVIEW_URL, createdAt: 1 }, meta: { imageWidth: 960, imageHeight: 540 },
   },
   {
     id: 'character-result-node', kind: 'character', categoryId: 'shots', title: '林夏',
-    position: { x: 800, y: 180 }, exactPosition: true, size: { width: 320, height: 360 }, status: 'success',
+    // React Flow 只渲染视口内的节点：右侧 Agent 面板占位后画布约 865px 宽，x=800 的卡在视口外不会进 DOM；
+    // y 要避开选中图片节点时展开的浮动工具条（它会拦截落在其下方的点击）。
+    position: { x: 180, y: 640 }, exactPosition: true, size: { width: 200, height: 200 }, status: 'success',
     result: { id: 'character-result-1', type: 'image', url: IMAGE_URL, createdAt: 1 }, meta: { imageWidth: 960, imageHeight: 540 },
   },
 ]
@@ -124,13 +132,15 @@ try {
   await characterNode.waitFor({ state: 'visible', timeout: 8000 })
 
   await imageNode.click()
+  const inlineImageSrc = await imageNode.locator('img').first().getAttribute('src')
+  const inlineUsesPreview = inlineImageSrc === IMAGE_PREVIEW_URL
   const imagePreviewButton = imageNode.getByRole('button', { name: '全屏预览图片' })
   await expectVisible(imagePreviewButton, '图片节点选中后显示全屏预览入口', 3000)
-  const imageHasPreview = await imagePreviewButton.isVisible()
   await characterNode.click()
   const cardPreviewButton = characterNode.getByRole('button', { name: '全屏预览图片' })
+  // expectVisible 已经等到可见（不可见会直接抛红）；不再二次采样 isVisible()——选中切换那一帧工具条会短暂重挂，采到 false 是假红。
   await expectVisible(cardPreviewButton, '角色节点选中后显示全屏预览入口', 3000)
-  const bothKindsHavePreview = imageHasPreview && await cardPreviewButton.isVisible()
+  const bothKindsHavePreview = true
 
   await imageNode.click()
   await expectVisible(imagePreviewButton, '重新选中图片节点后恢复全屏预览入口', 3000)
@@ -140,6 +150,7 @@ try {
   const modalSemantics = await lightbox.getAttribute('aria-modal') === 'true'
   const lightboxImageSrc = await lightbox.locator('img').getAttribute('src')
   const originalImageUsed = lightboxImageSrc === IMAGE_URL
+  if (!inlineUsesPreview || !originalImageUsed) throw new Error(`图片生命周期错误：inline=${inlineImageSrc} modal=${lightboxImageSrc}`)
   await win.screenshot({ path: path.join(outDir, '01-image-lightbox.png') })
   await win.keyboard.press('Escape')
   await lightbox.waitFor({ state: 'detached', timeout: 3000 })
@@ -161,7 +172,7 @@ try {
   await reloadedNode.hover()
   const persistedAfterReload = (await reloadedNode.locator('[data-node-inline-title="true"]').textContent())?.includes(RENAMED_TITLE) === true
 
-  const result = { bothKindsHavePreview, modalSemantics, originalImageUsed, renamedOnCanvas, persistedAfterReload }
+  const result = { bothKindsHavePreview, inlineUsesPreview, modalSemantics, originalImageUsed, renamedOnCanvas, persistedAfterReload }
   console.log(JSON.stringify(result))
   const ok = Object.values(result).every(Boolean)
   await closeApp()

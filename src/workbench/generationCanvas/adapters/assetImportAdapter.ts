@@ -1,6 +1,8 @@
 import i18n from '../../../i18n'
 
 import {
+  hostedAssetDimensions,
+  hostedAssetThumbnailUrl,
   hostedAssetUrl,
   importWorkbenchLocalAssetFile,
   recoverImportedWorkbenchLocalAssetFile,
@@ -238,10 +240,15 @@ async function uploadAndApplyAssetToNode(
     return Boolean(fallbackResult)
   }
   const videoDuration = kind === 'video' ? await deps.probeVideoDuration(hostedUrl) : null
+  const thumbnailUrl = hostedAssetThumbnailUrl(hosted)
+  const dimensions = hostedAssetDimensions(hosted)
   const hostedResult = {
     id: `asset-${nodeId}-${hosted?.id || Date.now()}`,
     type: kind,
     url: hostedUrl,
+    // 落盘边界派生的画布预览：4K 导入图/视频在画布上挂 ≤1024 预览或 poster，源留给编辑/导出。
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    ...(dimensions ?? {}),
     assetId: hosted?.id,
     raw: { asset: hosted },
     createdAt: Date.now(),

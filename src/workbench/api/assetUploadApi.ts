@@ -17,6 +17,18 @@ export function hostedAssetUrl(asset: WorkbenchAssetDto | null | undefined): str
   return typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''
 }
 
+/** 落盘边界派生的画布预览 URL（图片 ≤1024 缩略 / 视频 poster）；没派生出来则空串，调用方回落到源。 */
+export function hostedAssetThumbnailUrl(asset: WorkbenchAssetDto | null | undefined): string {
+  return typeof asset?.data?.thumbnailUrl === 'string' ? asset.data.thumbnailUrl.trim() : ''
+}
+
+/** 落盘边界探测到的源像素尺寸；缺失返回 null。 */
+export function hostedAssetDimensions(asset: WorkbenchAssetDto | null | undefined): { width: number; height: number } | null {
+  const width = asset?.data?.width
+  const height = asset?.data?.height
+  return typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0 ? { width, height } : null
+}
+
 export type UploadWorkbenchAssetMeta = {
   prompt?: string | null
   vendor?: string | null

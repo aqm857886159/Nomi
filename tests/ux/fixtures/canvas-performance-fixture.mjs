@@ -13,6 +13,12 @@ const DEFAULT_ASSET_CACHE = path.join(os.tmpdir(), 'nomi-canvas-performance-asse
 
 export const CANVAS_PERF_SCALES = Object.freeze({
   empty: { imageCount: 0, videoCount: 0, edgeCount: 0, clipCount: 0 },
+  REAL: { imageCount: 4, videoCount: 1, edgeCount: 4, clipCount: 1 },
+  REALIMG: { imageCount: 4, videoCount: 0, edgeCount: 0, clipCount: 0 },
+  SIMG: { imageCount: 48, videoCount: 0, edgeCount: 0, clipCount: 0 },
+  MIMG: { imageCount: 96, videoCount: 0, edgeCount: 0, clipCount: 0 },
+  LIMG: { imageCount: 192, videoCount: 0, edgeCount: 0, clipCount: 0 },
+  XLIMG: { imageCount: 320, videoCount: 0, edgeCount: 0, clipCount: 0 },
   S: { imageCount: 24, videoCount: 24, edgeCount: 96, clipCount: 12 },
   M: { imageCount: 48, videoCount: 48, edgeCount: 192, clipCount: 24 },
   L: { imageCount: 96, videoCount: 96, edgeCount: 384, clipCount: 48 },
@@ -44,6 +50,55 @@ function runFfmpeg(args) {
 
 function ensureSyntheticAssets(projectRoot) {
   const outputDir = path.join(projectRoot, 'assets', 'generated', 'canvas-performance')
+  const realAssetDir = process.env.NOMI_CANVAS_PERF_REAL_ASSET_DIR
+  if (realAssetDir) {
+    const candidates = fs.readdirSync(realAssetDir)
+      .filter((name) => /\.(png|jpe?g|webp|mov|mp4|m4v)$/i.test(name))
+      .sort()
+    const imageNames = candidates.filter((name) => /\.(png|jpe?g|webp)$/i.test(name))
+    const videoNames = candidates.filter((name) => /\.(mov|mp4|m4v)$/i.test(name))
+    if (imageNames.length === 0 || (videoNames.length === 0 && process.env.NOMI_CANVAS_PERF_ALLOW_IMAGE_ONLY !== '1')) {
+      throw new Error(`真实媒体夹具需要至少一张图片${process.env.NOMI_CANVAS_PERF_ALLOW_IMAGE_ONLY === '1' ? '' : '和一个视频'}：${realAssetDir}`)
+    }
+    fs.mkdirSync(outputDir, { recursive: true })
+    for (const name of [...imageNames, ...videoNames]) {
+      const target = path.join(outputDir, name)
+      try { fs.unlinkSync(target) } catch (error) { if (error?.code !== 'ENOENT') throw error }
+      // The asset resolver intentionally rejects paths escaping the project root.
+      // Copy every real asset into the project. The desktop asset inventory
+      // intentionally treats linked files conservatively; a real copy keeps
+      // the fixture faithful to an imported project and avoids platform-specific
+      // symlink/hardlink semantics.
+      if (/\.(png|jpe?g|webp)$/i.test(name)) fs.copyFileSync(path.join(realAssetDir, name), target)
+      else fs.copyFileSync(fs.realpathSync(path.join(realAssetDir, name)), target)
+    }
+    const videoPosterUrls = videoNames.map((name, index) => {
+      const posterName = `video-poster-${index}.jpg`
+      const posterPath = path.join(outputDir, posterName)
+      if (!fs.existsSync(posterPath)) {
+        runFfmpeg(['-ss', '0', '-i', path.join(realAssetDir, name), '-frames:v', '1', '-vf', 'scale=640:-2', '-q:v', '5', posterPath])
+      }
+      return `assets/generated/canvas-performance/${posterName}`
+    })
+    const imagePreviewUrls = imageNames.map((name, index) => {
+      const previewName = `image-preview-${index}.jpg`
+      const previewPath = path.join(outputDir, previewName)
+      if (!fs.existsSync(previewPath)) {
+        runFfmpeg(['-i', path.join(realAssetDir, name), '-vf', 'scale=640:-2', '-frames:v', '1', '-q:v', '6', previewPath])
+      }
+      return `assets/generated/canvas-performance/${previewName}`
+    })
+    return {
+      imageUrls: imageNames.map((name) => `assets/generated/canvas-performance/${name}`),
+      imagePreviewUrls,
+      videoUrls: videoNames.map((name) => `assets/generated/canvas-performance/${name}`),
+      imageBytes: imageNames.map((name) => fs.statSync(path.join(realAssetDir, name)).size),
+      imagePreviewBytes: imagePreviewUrls.map((relative) => fs.statSync(path.join(projectRoot, relative)).size),
+      videoBytes: videoNames.map((name) => fs.statSync(path.join(realAssetDir, name)).size),
+      videoPosterUrls,
+      mediaProfile: 'real-assets',
+    }
+  }
   const cacheDir = path.resolve(process.env.NOMI_CANVAS_PERF_ASSET_CACHE || DEFAULT_ASSET_CACHE)
   fs.mkdirSync(outputDir, { recursive: true })
   fs.mkdirSync(cacheDir, { recursive: true })
@@ -84,12 +139,28 @@ function ensureSyntheticAssets(projectRoot) {
     imageUrls: IMAGE_ASSETS.map((asset) => `assets/generated/canvas-performance/${asset.name}`),
     videoUrls: VIDEO_ASSETS.map((asset) => `assets/generated/canvas-performance/${asset.name}`),
     imageBytes: IMAGE_ASSETS.map((asset) => fs.statSync(path.join(outputDir, asset.name)).size),
+    imagePreviewBytes: IMAGE_ASSETS.map((asset) => fs.statSync(path.join(outputDir, asset.name)).size),
     videoBytes: VIDEO_ASSETS.map((asset) => fs.statSync(path.join(outputDir, asset.name)).size),
+    mediaProfile: 'synthetic-preview',
   }
 }
 
 function localAssetUrl(projectId, relativePath) {
   return `nomi-local://asset/${encodeURIComponent(projectId)}/${relativePath.split('/').map(encodeURIComponent).join('/')}`
+}
+
+function assertFixtureAssetIntegrity(projectRoot, assets) {
+  const root = fs.realpathSync(projectRoot)
+  const paths = [...assets.imageUrls, ...(assets.imagePreviewUrls || []), ...assets.videoUrls, ...(assets.videoPosterUrls || [])]
+  for (const relativePath of paths) {
+    const absolutePath = path.resolve(projectRoot, relativePath)
+    if (!fs.existsSync(absolutePath)) throw new Error(`画布性能夹具资产缺失：${absolutePath}`)
+    const realPath = fs.realpathSync(absolutePath)
+    const relative = path.relative(root, realPath)
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error(`画布性能夹具资产越出项目根目录：${relativePath} -> ${realPath}`)
+    }
+  }
 }
 
 function gridPosition(index, columns = 12) {
@@ -99,7 +170,7 @@ function gridPosition(index, columns = 12) {
   }
 }
 
-function buildNode(template, { id, kind, title, index, projectId, relativePath }) {
+function buildNode(template, { id, kind, title, index, projectId, relativePath, thumbnailPath }) {
   const node = clone(template || {})
   const width = 320
   const height = 180
@@ -108,7 +179,7 @@ function buildNode(template, { id, kind, title, index, projectId, relativePath }
     id: `${id}-result`,
     type: kind,
     url,
-    thumbnailUrl: kind === 'image' ? url : undefined,
+    thumbnailUrl: thumbnailPath ? localAssetUrl(projectId, thumbnailPath) : kind === 'image' ? url : undefined,
     createdAt: 1,
   }
   if (result.thumbnailUrl === undefined) delete result.thumbnailUrl
@@ -211,6 +282,7 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
   fs.mkdirSync(path.join(projectRoot, 'assets', 'imported'), { recursive: true })
   fs.mkdirSync(path.join(projectRoot, 'exports'), { recursive: true })
   const assets = ensureSyntheticAssets(projectRoot)
+  assertFixtureAssetIntegrity(projectRoot, assets)
   const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'))
   const templates = snapshot.payload?.generationCanvas?.nodes || []
   const imageTemplate = templates.find((node) => node.kind === 'image')
@@ -227,6 +299,7 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
         index: nodes.length,
         projectId: id,
         relativePath: assets.imageUrls[index % assets.imageUrls.length],
+        thumbnailPath: (assets.imagePreviewUrls || assets.imageUrls)[index % (assets.imagePreviewUrls || assets.imageUrls).length],
       }))
     }
     if (index < config.videoCount) {
@@ -237,6 +310,7 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
         index: nodes.length,
         projectId: id,
         relativePath: assets.videoUrls[index % assets.videoUrls.length],
+        thumbnailPath: assets.videoPosterUrls?.[index % assets.videoPosterUrls.length],
       }))
     }
   }
@@ -249,7 +323,9 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
       groups: [],
       selectedNodeIds: [],
     },
-    timeline: buildTimeline(snapshot.payload?.timeline, nodes, config.clipCount),
+    // 画布专项（NOMI_CANVAS_PERF_CANVAS_ONLY=1）：时间轴不放任何 clip。直接克隆快照时间轴会带上快照里
+    // 根本没拷进夹具项目的素材引用 → 项目库判「缺少 20 个素材」弹同步对话框，项目根本打不开。
+    timeline: buildTimeline(snapshot.payload?.timeline, nodes, process.env.NOMI_CANVAS_PERF_CANVAS_ONLY === '1' ? 0 : config.clipCount),
   }
   const now = Date.now()
   const record = {
@@ -281,7 +357,9 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
       edges: record.payload.generationCanvas.edges.length,
       clips: config.clipCount,
       imageBytes: assets.imageBytes,
+      imagePreviewBytes: assets.imagePreviewBytes,
       videoBytes: assets.videoBytes,
+      mediaProfile: assets.mediaProfile,
     },
   }
 }

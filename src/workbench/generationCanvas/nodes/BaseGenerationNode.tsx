@@ -160,7 +160,11 @@ function BaseGenerationNodeImpl({
     void addGenerationNodeToTimelineEnd(liveNode)
   }
 
-  const updateMediaDimensions = (width: number, height: number, durationSeconds?: number) => {
+  // 画布挂的是预览（图片 ≤1024 / 视频 poster），所以「量到的尺寸」只在源尺寸未知时才作数：
+  // 落盘边界探测过的 result.width/height 是源的真尺寸，优先于任何元素的 naturalWidth。
+  const updateMediaDimensions = (measuredWidth: number, measuredHeight: number, durationSeconds?: number) => {
+    const width = node.result?.width && node.result?.height ? node.result.width : measuredWidth
+    const height = node.result?.width && node.result?.height ? node.result.height : measuredHeight
     const patch = computeMediaMetaPatch({
       resultType: node.result?.type,
       preserveSize: Boolean(node.runs?.some((run) => run.resultId === node.result?.id)),
@@ -543,13 +547,21 @@ function BaseGenerationNodeImpl({
             <NodeVideoPlaybackGuard
               nodeId={node.id}
               rawUrl={node.result.url}
+              poster={node.result.thumbnailUrl}
+              deferUntilInteraction={Boolean(node.result.thumbnailUrl)}
+              onPosterLoad={(event) => {
+                // 交互前没有 video 元素：节点尺寸/时长先从 poster + 落盘探测的时长派生。
+                updateMediaDimensions(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight, node.result?.durationSeconds)
+              }}
               data-node-preview-video="true"
               className={cn('w-full h-full min-h-0 object-contain pointer-events-auto', 'bg-nomi-ink-05 select-none')}
               priority={mediaPreviewPriority}
               crossOrigin="use-credentials"
               controls
               playsInline
-              preload="auto"
+              // 画布只需要元数据来计算媒体尺寸；整段视频由用户主动播放时再拉取。
+              // 原片可能是 4K/10-bit HEVC，auto 会让每个可视节点在项目恢复阶段争抢解码与 IO。
+              preload="metadata"
               draggable={false}
               onLoadedMetadata={(event) => {
                 updateMediaDimensions(
@@ -567,7 +579,8 @@ function BaseGenerationNodeImpl({
                 localImageOpPending && 'blur-sm scale-[1.02] transition-[filter,opacity]',
                 localImageOpPending && 'animate-remove-bg-pulse-slow',
               )}
-              src={node.result.url}
+              // 画布只挂落盘边界派生的预览；源 URL 留给编辑/导出/大图预览，画布不为每个节点解码 4K/8K 原图。
+              src={node.result.thumbnailUrl || node.result.url}
               priority={mediaPreviewPriority}
               alt=""
               onLoad={(event) => {

@@ -25,13 +25,24 @@ describe('shouldRelocalizeResult', () => {
 })
 
 describe('relocalizedResultPatch', () => {
-  it('url 换成本地、原 CDN 链保进 providerUrl、图片同步 thumbnailUrl', () => {
+  it('url 换成本地、原 CDN 链保进 providerUrl、图片没派生预览时 thumbnailUrl 回落到本地源', () => {
     const source = result({ type: 'image', url: 'https://cdn.vendor.com/a.png', thumbnailUrl: 'https://cdn.vendor.com/a.png' })
     const patch = relocalizedResultPatch(source, 'nomi-local://p1/assets/a.png', 'asset-1')
     expect(patch?.url).toBe('nomi-local://p1/assets/a.png')
     expect(patch?.providerUrl).toBe('https://cdn.vendor.com/a.png')
     expect(patch?.thumbnailUrl).toBe('nomi-local://p1/assets/a.png')
     expect(patch?.assetId).toBe('asset-1')
+  })
+
+  it('落盘边界派生了预览 → 图片/视频都挂预览，源尺寸随之写进 result', () => {
+    const image = result({ type: 'image', url: 'https://cdn.vendor.com/a.png' })
+    const patch = relocalizedResultPatch(image, 'nomi-local://p1/assets/a.png', 'asset-1', { thumbnailUrl: 'nomi-local://p1/assets/a.preview.jpg', width: 4096, height: 2160 })
+    expect(patch?.thumbnailUrl).toBe('nomi-local://p1/assets/a.preview.jpg')
+    expect(patch?.width).toBe(4096)
+    const video = result({ type: 'video', url: 'https://cdn.vendor.com/a.mp4', thumbnailUrl: 'https://cdn.vendor.com/poster.jpg' })
+    expect(relocalizedResultPatch(video, 'nomi-local://p1/assets/a.mp4', undefined, { thumbnailUrl: 'nomi-local://p1/assets/a.preview.jpg' })?.thumbnailUrl).toBe('nomi-local://p1/assets/a.preview.jpg')
+    // 视频没派生出 poster：远端封面链和源一起过期，不能留着一个会 404 的 thumbnailUrl。
+    expect(relocalizedResultPatch(video, 'nomi-local://p1/assets/a.mp4', undefined, {})?.thumbnailUrl).toBeUndefined()
   })
 
   it('已有 providerUrl 不覆盖；本地 url 为空/与原值相同 → null（不产生无谓写）', () => {

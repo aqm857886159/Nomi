@@ -567,13 +567,18 @@ async function openProject(app, page, fixture) {
   // Scale the open-path waits (not the interaction sampling) for the dev leg.
   const openScale = useDevServer ? 4 : 1
   if (!/projectId=/.test(page.url())) {
-    const card = page.locator('[data-project-card]', { hasText: fixture.record.name }).first()
+    // Identity is the fixture contract; name matching can select a stale card
+    // when another isolated run left a similarly named project in the shell.
+    const card = page.locator(`[data-project-card][data-project-id="${fixture.record.id}"]`).first()
+    if (await card.count().catch(() => 0) === 0) {
+      throw new Error(`性能夹具项目卡片不存在：${fixture.record.id}（${fixture.record.name}）`)
+    }
     await card.waitFor({ timeout: 12_000 * openScale })
     await card.click()
     await sleep(page, 1000)
     page = getTargetWindow(app, page)
     const continueButton = page
-      .locator('[data-project-card]', { hasText: fixture.record.name })
+      .locator(`[data-project-card][data-project-id="${fixture.record.id}"]`)
       .getByText('继续创作')
       .first()
     if (await continueButton.count().catch(() => 0)) await continueButton.click().catch(() => {})
@@ -616,11 +621,11 @@ async function openProject(app, page, fixture) {
 
 async function prepareScenario(page, scenario) {
   if (scenario === 'waiting-effects') return prepareWaitingFx(page)
-  if (scenario !== 'marquee-select' && scenario !== 'low-zoom-preview') return
+  if (scenario !== 'marquee-select' && scenario !== 'low-zoom-preview' && scenario !== 'drag-at-low-zoom') return
   const stage = await page.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布 stage 不存在')
   await page.mouse.move(stage.x + stage.width * 0.5, stage.y + stage.height * 0.5)
-  const targetZoom = scenario === 'low-zoom-preview' ? 0.45 : 0.72
+  const targetZoom = scenario === 'low-zoom-preview' || scenario === 'drag-at-low-zoom' ? 0.45 : 0.72
   for (let index = 0; index < 20; index += 1) {
     const zoom = await page.evaluate(
       () =>
@@ -684,9 +689,9 @@ async function runAction(page, scenario, fixture) {
     return runDragOverDenseEdges(page, fixture.record.payload.generationCanvas.edges)
   }
   if (scenario === 'drag-at-low-zoom') {
-    // Only >80-node fixtures cross the lightweight threshold; the harness wires
-    // this scenario to a scale that does. Zoom out first so LOD can engage.
-    await zoomOutTo(page, 0.45)
+    // Zooming is setup, not the drag sample. prepareScenario completes it
+    // before the probe starts so wheel-handler cost cannot masquerade as drag
+    // latency.
     return runDragAtLowZoom(page)
   }
   if (scenario === 'marquee-select') {
@@ -1152,6 +1157,22 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     }
     const cdpBefore = await getCdpMetrics(cdp)
     const probeSurvivesAction = scenario !== 'reload-heavy'
+    const traceChunks = []
+    const tracingEnabled = process.env.NOMI_CANVAS_PERF_TRACE === '1' && probeSurvivesAction
+    const onTraceData = (event) => traceChunks.push(...(event.value?.value || event.value || []))
+    if (tracingEnabled) {
+      cdp.on('Tracing.dataCollected', onTraceData)
+      await cdp.send('Tracing.start', {
+        categories: '-*,' + [
+          'devtools.timeline',
+          'disabled-by-default-devtools.timeline.frame',
+          'disabled-by-default-devtools.timeline nestable-async',
+          'v8.execute',
+          'blink.user_timing',
+        ].join(','),
+        options: 'sampling-frequency=10000',
+      })
+    }
     if (probeSurvivesAction) {
       await captureNodeIdentity(page)
       await page.evaluate(() => window.__canvasPerformanceProbe.start())
@@ -1160,6 +1181,12 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     // control). No-op unless the dev-leg probe installed.
     const offCanvasStarted = useDevServer && probeSurvivesAction ? await startOffCanvasRenderWindow(page) : false
     const actionDetails = await runAction(page, scenario, fixture)
+    if (tracingEnabled) {
+      await cdp.send('Tracing.end').catch(() => {})
+      await new Promise((resolve) => cdp.once('Tracing.tracingComplete', resolve))
+      fs.writeFileSync(path.join(outputDir, `canvas-${label}-${scale}-${scenario}-${runIndex}.trace.json`), JSON.stringify({ traceEvents: traceChunks }))
+      cdp.off('Tracing.dataCollected', onTraceData)
+    }
     const offCanvasRender = offCanvasStarted ? await stopOffCanvasRenderWindow(page) : null
     await sleep(page, 250)
     const probe = probeSurvivesAction
@@ -1336,8 +1363,11 @@ function sampleHardFailures(sample) {
     const zoom = sample.actionDetails?.zoom
     const lightweightNodeCount = sample.actionDetails?.settled?.lightweightCanvasNodes
     const lightweightPreviewCount = sample.actionDetails?.settled?.lightweightPreviewNodes
+    // 0.45 is the zoom this scenario drives to (prepareScenario); 0.55 is that
+    // target plus slack. It is NOT the LOD trigger — LOD judges on-screen card
+    // width — it only asserts the scenario actually reached low zoom.
     if (!Number.isFinite(zoom) || zoom >= 0.55) {
-      failures.push(`low-zoom scenario settled above lightweight threshold: ${zoom ?? 'unknown'}`)
+      failures.push(`low-zoom scenario did not settle at the low-zoom target: ${zoom ?? 'unknown'}`)
     } else if (!Number.isFinite(lightweightNodeCount) || lightweightNodeCount < 1) {
       failures.push('low-zoom scenario did not mount any lightweight nodes')
     } else if (!Number.isFinite(lightweightPreviewCount) || lightweightPreviewCount < 1) {
