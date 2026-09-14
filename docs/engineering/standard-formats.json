@@ -170,8 +170,8 @@
         ".claude.json"
       ],
       "spec": "https://modelcontextprotocol.io/docs/develop/connect-local-servers",
-      "upstreamVersion": "MCP 文档 2026-09-07 抓取；WorkBuddy 官方 MCP 指南 2026-09-09：https://www.workbuddy.ai/docs/zh/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/MCP-Guide（无偏差）；协议版本见 electron/capabilityCore/mcpProtocol.ts 的 PROTOCOL_VERSION = 2025-11-25",
-      "why": "「一键接入」写的是**用户的别的工具的配置文件**（Claude Code 的 ~/.claude.json、Cursor 的 ~/.cursor/mcp.json、通用 ~/.config/mcp/mcp.json、WorkBuddy 的 ~/.workbuddy/mcp.json、项目级 .mcp.json）。写错格式的后果不是我们的功能不好用，是把用户已有的 MCP 配置弄坏。",
+      "upstreamVersion": "MCP 文档 2026-09-07 抓取；2026-09-14 逐家核对：Claude Code user scope = ~/.claude.json 顶层 mcpServers（https://code.claude.com/docs/en/mcp，官方推荐 `claude mcp add --scope user`，文档称无需手改但未禁止）；Claude Desktop = ~/Library/Application Support/Claude/claude_desktop_config.json、Windows %APPDATA%\\Claude\\claude_desktop_config.json（https://modelcontextprotocol.io/quickstart/user）；Cursor = ~/.cursor/mcp.json（https://cursor.com/docs/context/mcp）；WorkBuddy 官方 MCP 指南 2026-09-09：https://www.workbuddy.ai/docs/zh/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/MCP-Guide（无偏差）。~/.config/mcp/mcp.json **不是任何一方客户端的标准**（只有第三方 pi-mcp-adapter 读它；pi 官方明写 no built-in MCP），2026-09-14 起不再写它。协议版本见 electron/capabilityCore/mcpProtocol.ts 的 PROTOCOL_VERSION = 2025-11-25。逐家「规范链接 / 偏差 / 理由」见 docs/plan/2026-09-14-mcp-connection-truthfulness.md",
+      "why": "「一键接入」写的是**用户的别的工具的配置文件**（Claude Code 的 ~/.claude.json、Claude Desktop 的 claude_desktop_config.json、Cursor 的 ~/.cursor/mcp.json、WorkBuddy 的 ~/.workbuddy/mcp.json、项目级 .mcp.json）。写错格式的后果不是我们的功能不好用，是把用户已有的 MCP 配置弄坏。路径与名单的唯一 owner：electron/shared/mcpClientRegistry.ts。",
       "fixtures": [
         "tests/fixtures/standard-formats/mcp/.mcp.json",
         "tests/fixtures/standard-formats/mcp/workbuddy.json"
@@ -184,8 +184,12 @@
       ],
       "deviations": [
         {
-          "what": "只写 mcpServers.nomi 这一个键，合并而不是覆盖，写前自动备份、tmp→rename 原子写",
-          "reason": "领域约束：这是**别人家的文件**。整份覆盖会删掉用户其它的 server，写一半断电会留下坏 JSON——两种后果都由用户承担，所以合并语义与原子写是必需的，不是保守。"
+          "what": "只写 mcpServers.nomi 这一个键，合并而不是覆盖，写前自动备份、tmp→rename 原子写；文件存在但不是合法 JSON 对象时**拒绝写入**（不再解析失败就当空文件整份重写）",
+          "reason": "领域约束：这是**别人家的文件**。整份覆盖会删掉用户其它的 server（~/.claude.json 里还有 Claude Code 的登录会话与逐项目信任），写一半断电会留下坏 JSON——两种后果都由用户承担，所以合并语义、原子写与「读不懂就不写」是必需的，不是保守。"
+        },
+        {
+          "what": "Claude Code 不走官方 `claude mcp add` CLI，直接合并写 ~/.claude.json 顶层 mcpServers.nomi",
+          "reason": "领域约束：Electron GUI 进程在 macOS 上拿不到用户 shell 的 PATH，`claude` 二进制在大多数机器上对 GUI 不可见，走 CLI 会让一键接入在这些机器上静默失败；官方文档给出了 user scope 的确切文件与键名且未禁止手改。代价：与 Claude Code 自身写入之间存在窗口极小的 lost-update 竞争（写前重读、原子替换把窗口压到 rename 一瞬），登记为残余风险。"
         }
       ]
     },

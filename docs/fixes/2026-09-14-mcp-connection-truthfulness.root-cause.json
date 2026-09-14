@@ -1,0 +1,316 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-14-mcp-connection-truthfulness",
+  "change_kind": "corrective",
+  "problem_type": "读路径写盘 + 写下去的状态从不读回校验（MCP 宿主配置一族）",
+  "symptom": "只打开「设置 → 自动化与权限」，本机 ~/.codex/config.toml、~/.claude.json、~/.cursor/mcp.json、~/.config/mcp/mcp.json、~/.workbuddy/mcp.json 五个文件被静默改写成指向那次隔离实例的临时 profile（本次修复过程中另一个并行会话的走查在 11:28:39 再次把五个文件改成 nomi-logo-models-*/settings，实证一次）；指向早已删除的 /tmp profile 的配置在卡上照样显示绿色「已接入」；没装 pi 也显示可一键接入并凭空建出 ~/.config/mcp；「复制配置」把 Claude Code 的签名身份发给 Cline 等别的客户端；WorkBuddy 连上显示绿灯但 open_credentials 被 Invalid handoff owner 拒。",
+  "direct_cause": "electron/capabilityCore/mcpConfig.ts:438-441 的 clientInfo() 名字像读实为写（shouldAutoMigrate 为真就调 codexInstall/jsonInstall），readMcpInfo() 对每个客户端调它且没有守卫；E2E 守卫只装在包装层 repairStaleMcpConfigs() :500；sameLauncher :571 只比 command+args，NOMI_SETTINGS_DIR 写进去后全文件只在 :219 出现一次；mcpDetectedClients.ts:78 的 isMcpClientAppInstalled 是 stub；ConnectAssistantCard.tsx:423 复制 client.snippet（签名片段）；客户端名单在 5 处手抄、2 处漏抄。",
+  "class_root": "同一份状态（宿主配置里那条 nomi 条目）有多扇写门却只在其中一扇装守卫，读路径也能到达写门；写下去的值（profile 路径）没有对应的读回校验；而「有哪些客户端」这个事实没有 owner，每个消费者各抄一份，编译器也不再拦（SettingsHostKey 放宽成 string）。凡是「写盘不经唯一门」「写了不读回」「名单无 owner」的地方，同类问题都会从别的调用者、别的客户端、别的隔离实例回来。",
+  "affected_population": [
+    "本机装有 Claude Code / Codex / Cursor / WorkBuddy 且跑过任何走查/评测隔离实例的开发者（真实客户端配置被指向临时 profile，助手连上的是空白 Nomi）",
+    "从旧版本升级、配置里还留着已删除 profile / 旧安装位置的用户（绿灯但连不上）",
+    "用 Cline / Windsurf / pi-mcp-adapter 等按「复制配置」接入的用户（拿到的是 Claude Code 身份）",
+    "用 WorkBuddy / pi 发起制作或接模型的用户（handoff 白名单漏抄 → Invalid handoff owner；来源标签渲染成 i18n key）"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpConfig.ts",
+    "electron/capabilityCore/mcpVerify.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/main.ts",
+    "src/ui/onboarding/ConnectAssistantCard.tsx",
+    "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+    "electron/shared/mcpClientRegistry.ts"
+  ],
+  "entry_points": [
+    "electron/main.ts nomi:capability:mcp-info → readMcpInfo（读路径，此前会写）",
+    "electron/capabilityCore/appIntegration.ts:160 repairStaleMcpConfigs（启动修复）",
+    "electron/main.ts nomi:capability:mcp-install / mcp-uninstall → installMcp / uninstallMcp（用户显式动作）",
+    "electron/main.ts nomi:capability:mcp-verify → verifyMcp（状态判定）",
+    "src/ui/onboarding/ConnectAssistantCard.tsx 复制通用配置 / 复制 {{client}} 配置 / 可信发起方开关"
+  ],
+  "invariants": [
+    "读状态（readMcpInfo / clientInfo / verifyMcp）不写任何宿主配置文件，也不创建目录",
+    "所有宿主配置写盘只经 atomicWrite 一扇门；隔离实例（NOMI_E2E=1 或 NOMI_SETTINGS_DIR≠userData）不得写真实用户主目录（os.userInfo().homedir）下的文件",
+    "「已接入 / current」必须读回配置里的 NOMI_SETTINGS_DIR 并核对等于本实例设置根且目录存在，否则是 launcher-stale",
+    "内置客户端名单、配置路径、安装痕迹、默认信任、宿主自身审批只在 electron/shared/mcpClientRegistry.ts 一处；未检测到安装痕迹的客户端不进一键列表、不写、不建目录",
+    "通用（其他客户端）配置片段不带任何客户端身份；只有检测到的客户端才拿到自己的签名片段",
+    "文件存在但不是合法 JSON 对象时拒写，不得整份重写；不认识的客户端 key 不回落成 claude"
+  ],
+  "generality_proof": "五种谎话的入口集已用 door-map 数清：写门从 codexInstall/jsonInstall 各 2 扇（:439 读路径 + :638 安装）收成各 1 扇（writeClientConfig 一处），atomicWrite 4 扇（install/uninstall × json/toml）全部装守卫，读门 readMcpInfo 4 扇全部零写盘，configuredMcpEntry / classifyMcpEntry 从 7 扇收成 5 扇且共用一份 sameLauncher/sameProfile 判据；名单从 7 份（5 抄 + 2 漏）收成 1 份并由 mcpClientRegistry.test.ts 扫描全仓拦第二份；profile 校验放在 classifyMcpEntry / verifyMcp 两个判定共用的 sameLauncher/sameProfile 里，任何调用者拿到的判定都含它。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同类已发生多次：memory 记「隔离实例会改写用户全局 ~/.codex/config.toml 的 nomi 条目」（09-12），审计两次稳定复现（09-13），本次修复期间另一并行会话 11:28:39 又改写一次；handoff 白名单漏抄 09-11 已让 WorkBuddy 卡死一次。凡「读路径写盘 / 写了不读回 / 名单无 owner」三种写法在仓库里再出现一次，同一族问题就会从别的调用者或别的隔离实例回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs codexInstall / jsonInstall / atomicWrite / writeClientConfig / installMcp / repairStaleMcpConfigs / readMcpInfo（门表见 doors）",
+      "grep 全仓 'claude', 'codex', 'cursor' 字面量数组：security.ts / mcpConfig.ts / assistantActivationState.ts / settingsAutomationView.ts / productionRunView.ts / handoffQueue.ts / integrationSessionRecord.ts / mcpProtocol.ts / generationCommon.ts i18n origin / settings.ts i18n hosts / devlab 夹具，全部改为 derive；electron/shared/mcpClientRegistry.test.ts 持续扫描",
+      "grep NOMI_SETTINGS_DIR 的读入口：mcpConfig.ts 只在写入处出现一次 → 补 sameProfile 读回校验，classify 与 verify 共用",
+      "grep isMcpClientAppInstalled / appInstalled 消费者：ConnectAssistantCard 默认 tab 选择、devlab 夹具、workbuddy 走查 → 统一改为「未检测到不进列表」"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "atomicWrite / assertHostConfigWritable",
+      "responsibility": "所有宿主配置写盘的唯一门；隔离实例对真实主目录的写在这里被拒，与调用者是 install / uninstall / repair 无关"
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "writeClientConfig",
+      "responsibility": "「写一条 nomi 条目」的唯一入口（installMcp 与 repairStaleMcpConfigs 共用）：未检测到的客户端拒写，写盘拒绝转成带 reason 的结果"
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "sameLauncher / sameProfile / classifyMcpEntry",
+      "responsibility": "状态判定唯一处：读回的 NOMI_SETTINGS_DIR 不等于本实例设置根或目录不存在 → launcher-stale；verifyMcp 在 spawn 前用同一判据"
+    },
+    {
+      "path": "electron/shared/mcpClientRegistry.ts",
+      "symbol": "MCP_CLIENT_REGISTRY / BUILTIN_MCP_CLIENTS",
+      "responsibility": "内置客户端名单与每家全部事实的唯一 owner；主进程与渲染层都只 derive"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "entry_point": "readMcpInfo / clientInfo",
+      "disposition": "enforced",
+      "evidence": "clientInfo 不再含任何写调用；mcpConfig.test.ts「read path is read-only」两次读取字节不变、无 .nomi-backup"
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "entry_point": "repairStaleMcpConfigs / installMcp / uninstallMcp",
+      "disposition": "enforced",
+      "evidence": "三条路在 NOMI_E2E=1 与 NOMI_SETTINGS_DIR≠userData 下对真实主目录全部拒写（it.each 两种隔离信号）；HOME 已换临时目录时照常可写"
+    },
+    {
+      "path": "electron/capabilityCore/mcpVerify.ts",
+      "entry_point": "verifyMcp",
+      "disposition": "enforced",
+      "evidence": "profile 指错 → not-installed + stale，不 spawn（mcpVerify.test.ts）"
+    },
+    {
+      "path": "src/ui/onboarding/ConnectAssistantCard.tsx",
+      "entry_point": "复制通用配置 / 复制 {{client}} 配置",
+      "disposition": "enforced",
+      "evidence": "通用片段走 genericMcpSnippet（无身份）；走查 mcp-connection-truthfulness 从剪贴板读回断言无 NOMI_MCP_CLIENT"
+    },
+    {
+      "path": "electron/integrationCertification/handoffQueue.ts",
+      "entry_point": "validateEntry 白名单",
+      "disposition": "enforced",
+      "evidence": "从 BUILTIN_MCP_CLIENTS 派生（合入 a13cf82a6）；mcpClientRegistry.test.ts 扫描全仓不再允许第二份字面量名单"
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "entry_point": "initialize 自报名猜 actorId",
+      "disposition": "enforced",
+      "evidence": "HOST_NAME_GUESS_ORDER 从注册表 derive（最长 key 先匹配）"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpConfig.ts",
+    "invariant": "宿主配置只经 atomicWrite 一扇门写、隔离实例在门上被拒；读路径零写盘；状态判定必含读回的 profile 校验；名单只在注册表",
+    "failure_mode": "守卫若被搬回包装层或读路径再长出写调用，mcpConfig.test.ts 的 read-only / isolated 两组测试当场红；名单若再手抄一份，mcpClientRegistry.test.ts 全仓扫描红；profile 校验若被删，launcher-stale 与 verify 两条测试红。",
+    "exception_policy": "none",
+    "strategy": "R28：守卫下沉到最早能拦住的那层（唯一写盘门），而不是每个调用者各自记得挡；单一 owner 让编译器（key 字面量联合）与扫描测试一起拦漂移。",
+    "artifacts": [
+      "electron/capabilityCore/mcpConfig.ts",
+      "electron/shared/mcpClientRegistry.ts",
+      "electron/capabilityCore/mcpConfig.test.ts",
+      "electron/capabilityCore/mcpVerify.test.ts",
+      "electron/shared/mcpClientRegistry.test.ts",
+      "tests/ux/mcp-connection-truthfulness.walk.mjs"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpConfig.ts",
+    "tests": [
+      "electron/capabilityCore/mcpConfig.test.ts",
+      "electron/capabilityCore/mcpVerify.test.ts",
+      "electron/shared/mcpClientRegistry.test.ts"
+    ],
+    "why": "写盘门、写条目入口、状态判定三件事都住在 mcpConfig.ts（verify 复用它的判据），名单住在它 import 的注册表；这一层的测试直接证明读路径零写盘、隔离拒写、profile 判死、名单单 owner。 注册表、中立契约、检测、渲染层各文件在 same_class_entry_points / legacy_paths 里逐条登记，它们不是这份状态的门，故不进 scope_paths。"
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 345,
+      "symbol": "atomicWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 357,
+      "symbol": "atomicWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 436,
+      "symbol": "atomicWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 444,
+      "symbol": "atomicWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 513,
+      "symbol": "codexInstall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 513,
+      "symbol": "jsonInstall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 555,
+      "symbol": "writeClientConfig"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 709,
+      "symbol": "writeClientConfig"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 160,
+      "symbol": "repairStaleMcpConfigs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "line": 605,
+      "symbol": "installMcp"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ConnectAssistantCard.tsx",
+      "line": 178,
+      "symbol": "installMcp"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ConnectAssistantCard.tsx",
+      "line": 182,
+      "symbol": "installMcp"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "line": 604,
+      "symbol": "readMcpInfo"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "line": 62,
+      "symbol": "readMcpInfo"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "line": 65,
+      "symbol": "readMcpInfo"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "line": 73,
+      "symbol": "readMcpInfo"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 475,
+      "symbol": "configuredMcpEntry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 553,
+      "symbol": "configuredMcpEntry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpVerify.ts",
+      "line": 61,
+      "symbol": "configuredMcpEntry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 476,
+      "symbol": "classifyMcpEntry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 553,
+      "symbol": "classifyMcpEntry"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/mcpClientRegistry.ts",
+      "line": 107,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    }
+  ],
+  "door_reduction": {
+    "before": 26,
+    "after": 22,
+    "why_not": "codexInstall / jsonInstall 从各 2 扇（读路径 :439 + 安装 :638）合成各 1 扇（writeClientConfig :513 一处）；configuredMcpEntry / classifyMcpEntry 在 clientInfo 里的双调用（迁移前后各读一次：:430/:440、:431/:441）随读路径去写而合成单次（:475/:476）。剩下的 21 扇：atomicWrite 4 扇是 install/uninstall × json/toml 四个合法业务动作，合并没有意义——门表在这里证明的是正面结论：四扇全部经同一个 assertHostConfigWritable，没有第二条能绕过守卫写盘的路径；readMcpInfo 4 扇读门全部零写盘；configuredMcpEntry / classifyMcpEntry 剩下的 clientInfo（读状态）、repairStaleMcpConfigs（启动修复）、verifyMcp（实连验证）三处是三个不同时机对同一判据的合法读取，判据本身只有 sameLauncher/sameProfile 一份。 注册表的 BUILTIN_MCP_CLIENTS 是名单的唯一读出口（此前名单有 7 份各自的读出口，现在 1 份）。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpConfig.test.ts",
+    "electron/capabilityCore/mcpVerify.test.ts",
+    "electron/shared/mcpClientRegistry.test.ts",
+    "src/ui/onboarding/connectAssistantCursorActivation.test.ts",
+    "src/workbench/settings/mcpSettingsOwnership.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpConfig.test.ts",
+    "electron/shared/mcpClientRegistry.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpConfig.ts",
+      "electron/capabilityCore/security.ts",
+      "electron/capabilityCore/mcpDetectedClients.ts",
+      "src/ui/onboarding/assistantActivationState.ts",
+      "src/workbench/settings/settingsAutomationView.ts",
+      "src/workbench/settings/AutomationPermissionsSection.tsx",
+      "src/workbench/production/productionRunView.ts",
+      "src/i18n/locales/generationCommon.ts",
+      "src/i18n/locales/settings.ts",
+      "src/i18n/locales/onboardingProviders.ts",
+      "src/ui/onboarding/aiAssistedOnboardingContent.ts",
+      "src/desktop/mcpBridgeTypes.ts",
+      "tests/ux/mcp-pi-client-profile.walk.mjs"
+    ],
+    "rationale": "P1 加新删旧，每处旧实现在同一 PR 删除，没有并行版、没有兜底：mcpConfig.ts 的 clientInfo 自动迁移写盘与 CLIENTS 硬编码表、repairStaleMcpConfigs 包装层的 NOMI_E2E 守卫；security.ts 的 BUILTIN_MCP_CLIENTS 字面量；mcpDetectedClients.ts 的 isMcpClientAppInstalled stub；assistantActivationState.ts 的手抄名单与 cursor 硬编码分支；settingsAutomationView.ts 的 HOSTS 与 AutomationPermissionsSection 的独立「可信发起方」栏；productionRunView.ts 的手抄名单与 i18n production.origin 内置客户端标签、settings.automation.hosts.*；aiAssistedOnboardingContent.ts 的 assistedOnboardingMcpSnippet（并入 mcpGenericSnippet）；pi 客户端档 + 走查 + i18n piAdapter*；McpClientInfo.migration / backupPath 与 i18n upgradedTitle/upgradedBody（读路径不再迁移，字段死掉）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖版本；R31 对齐的是各家官方配置文档（链接在 docs/plan/2026-09-14-mcp-connection-truthfulness.md）。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。指向已删除 profile / 旧安装位置的既有配置由正式安装的 Nomi 在启动时自动修回（launcher-stale 进入 repair 集合，写前备份）；隔离实例不再有能力改写真实配置。词表 McpConfigState / McpVerifyReason 收敛到 electron/shared/mcpConnectionContract.ts（4 条 debt 退役，cap 67→63），成员集不变。",
+  "residual_risks": [
+    "Claude Code 与 Nomi 同时写 ~/.claude.json 仍有一次 rename 宽度的 lost-update 窗口（不走 claude CLI 的代价，理由见 docs/plan）",
+    "安装痕迹只看官方用户目录：装了但从未启动过的客户端可能暂不出现在一键列表（下次启动它后即出现）",
+    "check:vocabularies 要求收敛记录成员逐字相同，故「profile 指错」归入 launcher-stale 而不是独立成员；若日后要拆成独立成员，是收敛落地后的另一次注册变更"
+  ],
+  "internal_only_reason": "仓库内部主进程/渲染层边界修复；证据来自单测、真机走查（tests/ux/mcp-connection-truthfulness.walk.mjs）与真实主目录只读探针（scratchpad/mcp-truth/report.md）。"
+}
