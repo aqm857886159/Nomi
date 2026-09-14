@@ -20,12 +20,144 @@
     "electron/capabilityCore/modelOnboarding/fingerprint.ts",
     "electron/capabilityCore/mcpToolCatalog.ts",
     "electron/capabilityCore/dispatcher.ts",
-    "electron/catalog/",
     "agent-skills/nomi-add-model/SKILL.md",
     "scripts/check-tool-face.mjs",
     "tests/fixtures/tool-selection/2026-09-11-onboarding-bank.json",
     "tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json"
   ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "line": 316,
+      "symbol": "MODEL_ONBOARDING_TOOLS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/declarations.ts",
+      "line": 359,
+      "symbol": "ONBOARDING_VERBS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/declarations.ts",
+      "line": 364,
+      "symbol": "ONBOARDING_VERBS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/declarations.ts",
+      "line": 369,
+      "symbol": "ONBOARDING_VERBS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 136,
+      "symbol": "fingerprintOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 184,
+      "symbol": "buildView"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 187,
+      "symbol": "noBlast"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 219,
+      "symbol": "ONBOARDING_VERBS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 232,
+      "symbol": "buildView"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 239,
+      "symbol": "noBlast"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 453,
+      "symbol": "buildView"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 557,
+      "symbol": "buildView"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/envelope.ts",
+      "line": 103,
+      "symbol": "REASON"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/fingerprint.ts",
+      "line": 10,
+      "symbol": "canonicalJson"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/idempotency.ts",
+      "line": 15,
+      "symbol": "canonicalJson"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/idempotency.ts",
+      "line": 19,
+      "symbol": "canonicalJson"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/idempotency.ts",
+      "line": 28,
+      "symbol": "canonicalJson"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tools.ts",
+      "line": 137,
+      "symbol": "ONBOARDING_VERBS"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "line": 729,
+      "symbol": "dispatchModelOnboarding"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 183,
+      "symbol": "changeIdFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "line": 206,
+      "symbol": "deriveIdempotencyKey"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 21,
+    "why_not": "门数从 8 涨到 21，是因为这轮把一份状态拆成了六个小模块，不是因为入口变多了。要分开看三个数：**模型面**上的入口 11 → 4（11 个旧工具/target 同 PR 删除，见 legacy_paths）；**外部写入口**从头到尾只有 1 扇——`electron/capabilityCore/dispatcher.ts:729` 的 `dispatchModelOnboarding`，其余 2 扇写门（`changeIdFor` / `deriveIdempotencyKey`）都在 `modelOnboarding/dispatch.ts` 自己身上，外面没有第二条路能改这份状态；剩下 18 扇全是读门，且 17 扇落在 `modelOnboarding/` 这一个目录里。唯一一扇目录外的读门是 `mcpToolCatalog.ts:316` 读 `MODEL_ONBOARDING_TOOLS`，那正是「工具定义从唯一 owner 派生」这条不变量本身。继续合并这些读门只会把六个各自可测的小模块重新揉回一个大文件，等于退回 R9，所以本轮不减。另：`canonicalJson` 在 `electron/productionRun/productionRunRuntimeEnvelope.ts` 与 `electron/shared/legacyAgentJson.ts` 各还有一份同名但互不相干的 file-local 实现，数门时按「同名不同物」划掉了，没有收进本表——它本身是另一条待办（同一语义三份定义），不是这份状态的入口。"
+  },
   "entry_points": [
     "MCP tools/call from an external host (mcpProtocol -> MCP_TOOL_RESOLVER -> modelOnboarding/tools build -> dispatchModelOnboarding)",
     "Nomi's own embedded Agent lane, which resolves the same declarations without the nomi_ prefix",

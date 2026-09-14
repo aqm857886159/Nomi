@@ -24,7 +24,6 @@
   "missing-example": [
     "mcp/nomi_canvas_edit",
     "mcp/nomi_media_query",
-    "mcp/nomi_operation_plan",
-    "mcp/nomi_read"
+    "mcp/nomi_operation_plan"
   ]
 }

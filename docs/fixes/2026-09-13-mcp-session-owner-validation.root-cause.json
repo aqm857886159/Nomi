@@ -13,6 +13,49 @@
     "electron/integrationCertification/integrationSessionRecord.ts",
     "electron/integrationCertification/integrationSession.test.ts"
   ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 457,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "line": 504,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/security.ts",
+      "line": 36,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/security.ts",
+      "line": 47,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "line": 595,
+      "symbol": "validateState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSessionRecord.ts",
+      "line": 86,
+      "symbol": "BUILTIN_MCP_CLIENTS"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 6,
+    "why_not": "5 → 6 不是没减，是这次修法本身就在加一扇**读**门：原来 `integrationSessionRecord.ts` 里手写着一份 owner 字面量清单（一份平行真相，签名边界那边加了新内置客户端它不会跟着动），现在那一行改成读 `BUILTIN_MCP_CLIENTS`，于是门表上多出 `integrationSessionRecord.ts:86` 这一扇。剩下 5 扇是 `BUILTIN_MCP_CLIENTS` 这个唯一 owner 自己的读者（`security.ts` 两处、`mcpConfig.ts` 两处、`integrationSession.ts` 一处），它们各自读的是同一份表，合并它们没有意义——要减的是「第二份清单」，那一份已经在本次删掉了，写门仍然是 0 扇。"
+  },
   "entry_points": [
     "modelSetup.connect_provider persistence and reload"
   ],
