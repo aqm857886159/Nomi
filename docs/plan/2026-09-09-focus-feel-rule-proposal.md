@@ -1,5 +1,7 @@
 # #662 接入提案：焦点与 UA 外观
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：等待 #662 合并后接入其唯一 scanFeel；本分支不复制或改写 _feel.mjs。
 
 接口已从 origin/test/ux-feel-regression-mechanism-20260909 读取：scanFeel(root,{rules,label})，finding={rule,message,target}，违规抛带 findings 的 Error。新增配置应默认关闭互动探测，走查显式启用；不能在同步 root.evaluate 中冒充真实鼠标/键盘操作。
