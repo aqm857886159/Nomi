@@ -379,7 +379,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       antigravity: t('antigravity.name'),
     },
   })
-  const kindGuessGap = resolveKindGuessGap(models, vendorMeta)
+  const kindGuessGap = resolveKindGuessGap(models)
   const renderVendorCard = (
     card: (typeof knownCards)[number],
     detailMode = false,
@@ -459,10 +459,10 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <KnownVendorKeyConnectPage
         directory={card.directory}
         vendorName={translateModelDisplayText(card.meta.name)}
-        modelCount={card.vendorModels.length} hasApiKey={card.meta.hasApiKey} credentialVerificationPending={card.meta.credentialVerificationPending}
-        // 「模型已发布」不另立标志位：凭据停用必然连带 vendor 停用（credentialPublication.ts），
-        // 所以 vendor 还 enabled 且有 key ⇔ 这家的预置模型此刻就在可用列表里。
-        curatedModelsPublished={card.meta.enabled && card.meta.hasApiKey}
+        // 数量与发布提示都读主进程 availability（#765）；列表与数量同源＝传过滤后的数组，不另立 modelCount（#788）。
+        models={card.vendorModels.filter((model) => model.availability?.usable === true)}
+        hasApiKey={card.meta.hasApiKey} credentialVerificationPending={card.meta.credentialVerificationPending}
+        curatedModelsPublished={card.vendorModels.some((model) => model.availability?.usable === true)}
         onBack={goBack}
         onSaved={refresh}
         onContinueVerification={() => openWizard(undefined, card.directory.vendorKey)}

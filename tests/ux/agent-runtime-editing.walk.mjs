@@ -103,27 +103,20 @@ try {
   expect(creationA.sessionId).toMatch(/^[a-f0-9-]{36}$/)
 
   await openCanvas(win)
-  const createArgs = {
-    summary: 'F_CANVAS：两张镜头卡和一条参考关系。',
-    nodes: [
-      { clientId: 'f-source', kind: 'image', title: 'F_SOURCE', prompt: '清晨红色杯子，正面中景。',
-        modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', params: { size: '1024x1024' } },
-      { clientId: 'f-target', kind: 'image', title: 'F_TARGET', prompt: '同一只红色杯子，侧面近景。',
-        modelKey: FIXTURE_IMAGE_MODEL, modeId: 'edit', params: { size: '1024x1024' } },
-    ],
-    edges: [{ sourceClientId: 'f-source', targetClientId: 'f-target', mode: 'reference' }],
-  }
+  // 20 动词：画布写动词造不出会生成的镜头（那只归 draft_shots）；这条走查证的是 canvas.write 的
+  // 收据/撤销通路，所以用 make_artifact 落一件手艺产物（同一条 canvas.write 契约、同一份收据）。
+  const createArgs = { fileType: 'markdown', title: 'F_SOURCE', content: '# F_CANVAS\n清晨红色杯子，正面中景。' }
   const canvasRequest = walk.fixture.expectText({
     label: 'canvas-agent proposes linked nodes',
     match: (body) => flattenRequestText(body).includes('F_CANVAS_REQUEST') && !hasToolResult(body, CANVAS_TOOL),
-    reply: { type: 'tool', id: CANVAS_TOOL, name: 'nomi_canvas_write', args: { operation: 'create_canvas_nodes', ...createArgs } },
+    reply: { type: 'tool', id: CANVAS_TOOL, name: 'make_artifact', args: createArgs },
   })
   const canvasFollowup = walk.fixture.expectText({
     label: 'canvas receipt returns exactly once',
     match: (body) => hasToolResult(body, CANVAS_TOOL),
-    reply: { type: 'text', text: 'F_CANVAS_DONE：两张卡已落画布。' },
+    reply: { type: 'text', text: 'F_CANVAS_DONE：备注已落画布。' },
   })
-  await sendCanvas(win, 'F_CANVAS_REQUEST：创建两个杯子镜头并连接参考，不要生成。')
+  await sendCanvas(win, 'F_CANVAS_REQUEST：把开场备注放到画布上，不要生成。')
   const canvasWire = await recorded(canvasRequest.received, 'canvas HTTP request')
   expect(toolNames(canvasWire.body)).toEqual(TOOLS)
   // 同上：canvas.write 也是 reversible_local，safe-auto 档下自动落，不弹卡。
@@ -134,23 +127,21 @@ try {
   await proveProbe(canvasToolLine, '落画布之后，面板上有这次工具调用的那一行')
   // 自动落之后，用户能读到的那句话就写在这一行上（v4 一行收据：动作名 + 摘要 + 状态）。
   // 它必须说清「建了卡、没有去生成」——safe-auto 不问自答，这一行就是唯一的交代。
-  await expect(canvasToolLine, '落画布那一行要说清它做了什么').toContainText(/只建卡/)
+  await expect(canvasToolLine, '落画布那一行要说清它做了什么').toContainText(/F_SOURCE|产物/)
   await walk.snap('canvas-auto-applied')
   await expect(win.locator(CANVAS_PANEL)).toContainText('F_CANVAS_DONE')
   await expect.poll(async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
     return { nodes: canvas.nodes.length, edges: canvas.edges.length }
-  }, { timeout: 30_000 }).toEqual({ nodes: 2, edges: 1 })
+  }, { timeout: 30_000 }).toEqual({ nodes: 1, edges: 0 })
   const landed = (await readProject(win, projectId)).payload.generationCanvas
-  const sourceId = landed.nodes.find((node) => node.title === 'F_SOURCE').id
-  const targetId = landed.nodes.find((node) => node.title === 'F_TARGET').id
-  expect(landed.edges[0]).toMatchObject({ source: sourceId, target: targetId })
+  expect(landed.nodes.find((node) => node.title === 'F_SOURCE')).toBeTruthy()
   // v4：提案收据就是那条一行收据本身（`data-v4-block="tool"`），整笔撤销是它行尾的「撤销」钮
   // （`ToolReceipt.undoable` 渲染出来的那颗）。
   const receipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
   await proveProbe(receipt, 'A committed canvas proposal has an Undo receipt')
   await waitForV4TurnIdle(win, { panel: CANVAS_PANEL,
-    settledBy: win.locator(CANVAS_PANEL).getByText('F_CANVAS_DONE：两张卡已落画布。', { exact: true }) })
+    settledBy: win.locator(CANVAS_PANEL).getByText('F_CANVAS_DONE：备注已落画布。', { exact: true }) })
   const canvasEvidence = assertCommittedWrite(projectRoot, CANVAS_TOOL)
   expect(canvasEvidence.session.sessionId).toBe(creationA.sessionId)
   const proposalId = canvasEvidence.receipt.proposalId

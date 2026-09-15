@@ -11,6 +11,8 @@ import { libraryGroup } from '../library/libraryGroups'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
+import { DesignModal } from '../../design'
+import { SystemPromptSection } from './systemPrompt/SystemPromptSection'
 import { STORYBOARD_PLANNER_SKILL } from '../generationCanvas/agent/storyboardLauncher'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
@@ -162,6 +164,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    */
   const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
+  // 系统提示词编辑器（2026-09-14 从设置 → AI 策略搬来）：权限弹层底部那一行打开，Mantine 弹窗承载。
+  const [systemPromptOpen, setSystemPromptOpen] = React.useState(false)
   // 2026-09-10 走查反馈：弹层只有 Escape 和原按钮 toggle 两条关闭路径，点面板其他地方
   // 不关。补 outside-close：pointerdown 落在弹层本体 / 触发钮 / NomiSelect 传送门之外
   // 即收起。触发钮要豁免——否则「pointerdown 先关 + click 再 toggle」会把它重新打开。
@@ -391,7 +395,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         />
       )
       : popover === 'permission'
-        ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { autoMode.request(tier); setPopover(null) }} />
+        ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { autoMode.request(tier); setPopover(null) }} onEditSystemPrompt={() => { setPopover(null); setSystemPromptOpen(true) }} />
         : undefined
 
   // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
@@ -571,6 +575,17 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ...(composerPopover ? { popover: composerPopover } : {}),
         }}
       />
+      <DesignModal
+        opened={systemPromptOpen}
+        onClose={() => setSystemPromptOpen(false)}
+        title={t('settings.ai.systemPrompt.title')}
+        centered
+        size={640}
+        closeOnClickOutside
+        returnFocus
+      >
+        {systemPromptOpen ? <SystemPromptSection /> : null}
+      </DesignModal>
       {threadsOpen ? (
         <div
           className="absolute right-2 top-10 z-50 w-[280px] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg"

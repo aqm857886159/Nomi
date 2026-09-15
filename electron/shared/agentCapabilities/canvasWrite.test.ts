@@ -18,9 +18,9 @@ describe("canvas.write canonical contract", () => {
       id: "canvas.write",
       version: 1,
       // `pi` surface 上只放模型可见的三个动词；operation 值是 schema 枚举，不是别名。
-      aliases: { pi: "nomi_canvas_write", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
+      aliases: { pi: "arrange_canvas", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
       additionalAliases: {
-        pi: ["nomi_storyboard_write", "nomi_shot_reference_write"],
+        pi: ["make_artifact", "stage_shot"],
       },
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,
@@ -222,7 +222,7 @@ describe("canvas.write canonical contract", () => {
     const arrange = canvasWritePiInputSchemaForAlias("arrange_storyboard_to_timeline");
     const staging = canvasWritePiInputSchemaForAlias("create_staging_reference");
     const camera = canvasWritePiInputSchemaForAlias("create_camera_move");
-    expect(plan?.safeParse({ title: "猫", anchors: [], shots: [{ index: 1 }] }).success).toBe(true);
+    expect(plan?.safeParse({ title: "猫", anchors: [], shots: [{ index: 1, durationSec: 0, anchorIds: [], prompt: "猫在窗台上" }] }).success).toBe(true);
     expect(arrange?.safeParse({ nodeIds: ["shot-1"] }).success).toBe(true);
     expect(staging?.safeParse({ characters: [{ name: "猫" }] }).success).toBe(true);
     expect(camera?.safeParse({ shotClientId: "shot-1", move: "push_in" }).success).toBe(true);

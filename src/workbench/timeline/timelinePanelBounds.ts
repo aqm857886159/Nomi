@@ -17,11 +17,36 @@ const TIMELINE_TOOLBAR_ROW = 8 + (1 + 4 + 32 + 4 + 1) + 8
  */
 export const TIMELINE_PANEL_MIN = TIMELINE_PANEL_PADDING_Y + TIMELINE_TOOLBAR_ROW
 export const TIMELINE_PANEL_MAX = 300
-// 188 = origin/main 的固定 --workbench-timeline-height。cutover 把时间轴改成可拖拽面板
-// （timelinePanelHeight），展开态默认高度对齐 main 的 188（比 cutover 原来的 206 少 18px、多还画布
-// stage 18px；可拖拽特性不变，用户仍可拉高/降低）。默认折叠态（timelinePanelCollapsed=true）下
-// gridTemplateRows 走 0px、stage 拿满高，本值不参与；只有加片段展开时间轴后此值决定 stage 底边。
-export const TIMELINE_PANEL_DEFAULT = 188
+
+/** 标尺行：`TimelinePanel.tsx` 的 `.workbench-timeline__ruler` = `h-[22px] mb-1.5`。 */
+const TIMELINE_RULER_ROW = 22 + 6
+/** 一条主轨行：`TimelineTrack.tsx` 的 primary 档 = `min-h-[52px] mb-1.5`。 */
+const TIMELINE_PRIMARY_TRACK_ROW = 52 + 6
+/**
+ * 展开态默认要看得见几条主轨。
+ *
+ * 2 = 图片轨 + 视频轨，也就是 `TIMELINE_TRACK_DEFINITIONS`（timelineTypes.ts:93）里
+ * 非 audio 的那两条——2026-09-13 用户原话：「核心是拖动后面可以预览，主要有两个轨道
+ * 一个图片一个视频可以预览就行」。配乐/字幕是副轨，空时本来就收成窄条，不占默认高度。
+ */
+const TIMELINE_DEFAULT_PRIMARY_TRACKS = 2
+
+/**
+ * 展开态默认高度 = 「刚好装下两条主轨」，**派生**而不是拍一个数。
+ *
+ * 旧值 188 抄的是 cutover 前那个固定的 `--workbench-timeline-height`，装不下两条主轨
+ * （28 + 58 + 28 + 58 = 172 只够一条，第二条被轨道区滚动裁掉）。用户于是必须先把面板
+ * 拖高才看得到视频轨，拖过头就成了他说的「拉上来太大了」——「太大」和「看不到第二条轨」
+ * 是同一个数拍错了的两面。改成派生之后，默认既不多占一像素，也不少给一条轨。
+ *
+ * 默认折叠态（`timelinePanelCollapsed=true`）下 gridTemplateRows 走 0px、stage 拿满高，
+ * 本值不参与；只有展开时间轴后此值决定 stage 底边。可拖拽特性不变，用户仍可拉高/降低。
+ */
+export const TIMELINE_PANEL_DEFAULT =
+  TIMELINE_PANEL_PADDING_Y
+  + TIMELINE_TOOLBAR_ROW
+  + TIMELINE_RULER_ROW
+  + TIMELINE_DEFAULT_PRIMARY_TRACKS * TIMELINE_PRIMARY_TRACK_ROW
 
 export function clampTimelinePanelHeight(value: number): number {
   if (!Number.isFinite(value)) return TIMELINE_PANEL_DEFAULT

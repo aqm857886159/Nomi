@@ -45,7 +45,6 @@ describe('DC24 quiet defaults preserve actionable boundaries', () => {
     expect(permissions).toContain("t('settings.automation.hosts.sharedHint')")
     expect(permissions).toContain("t('settings.automation.hosts.nomi.hint')")
     expect(permissions).toContain('toggleHost(host.key, event.currentTarget.checked)')
-    for (const key of ['firstSpendHint', 'irreversibleHint', 'continueHint']) expect(permissions).toContain(`settings.automation.risk.${key}`)
     const uploads = source('settings/AiModelsSection.tsx')
     expect(uploads).not.toContain("t('settings.ai.upload.channel.hint')")
     for (const key of ['publicLease', 'configure']) expect(uploads).toContain(`settings.ai.upload.channel.${key}`)

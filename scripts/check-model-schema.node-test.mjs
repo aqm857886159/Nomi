@@ -12,7 +12,7 @@ import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { laneToolCombinations } from './check-model-schema.ts'
-import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
+import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
 import { LANE_CODING_TOOL_NAMES } from '../electron/agentLane/laneCodingTools.mts'
 import { evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_REQUEST_TOOL_NAME } from '../electron/agentLane/laneToolGroups.mts'
 
@@ -34,7 +34,7 @@ test('the budget reports group contributions and enforces the complete resident 
   // The complete resident catalog is now reachable and must be judged.
   const all = combinations.at(-1)
   assert.deepEqual(new Set(all.toolNames), new Set([
-    ...alwaysOn, ...LANE_CODING_TOOL_NAMES, 'nomi_read', ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
+    ...alwaysOn, ...LANE_CODING_TOOL_NAMES, ...LANE_NATIVE_TOOL_CATALOG.map(tool => tool.name), ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
   ]))
   const request = laneRequestToolDefinition([{ name: 'coding' }, ...LANE_DEFERRED_TOOL_GROUPS])
   assert.deepEqual(request.parameters.required, ['group'])
@@ -198,7 +198,8 @@ test('显式单面别名不误报，未声明的缺失和广播漂移仍被拦�
   const registry = await import(pathToFileURL(path.join(repoRoot, 'electron/shared/agentCapabilities/modelFacingToolRegistry.ts')).href)
   const tool = registry.mcpProfileTools().find(candidate => candidate.contractId === 'timeline.read')
   const internal = registry.modelFacingToolSpecs('internal').filter(spec => spec.contractId === 'timeline.read')
-  assert.ok(internal.some(spec => spec.name === 'propose_edit_plan' && spec.profiles.includes('internal')))
+  // 20 动词：时间轴读只有 `read_timeline`（范围读由声明翻译成 inspect_timeline_range，预演不上模型面）。
+  assert.ok(internal.some(spec => spec.name === 'read_timeline' && (spec.profiles ?? ['internal', 'mcp']).includes('internal')))
   assert.deepEqual(facing.declaredProfileDrift(internal, tool), [])
   const missing = { ...tool, specs: tool.specs.slice(1) }
   assert.match(facing.declaredProfileDrift(internal, missing)[0], /只在内部 profile 上存在/)

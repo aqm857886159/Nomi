@@ -6,7 +6,7 @@ import path from "node:path";
 // 真实生产路径的回归（2026-08-20 用户报「素材上传失败(HTTP 413)」，那还是段 2 秒的视频）：
 // readNomiLocalAsset 读出来的 contentType 决定 localizeAssetsForVendor 走图片通道还是视频通道。
 // 原来它只按**扩展名**判，扩展名认不出（.bin 落盘兜底 / .mkv / 没扩展名）就得到 octet-stream，
-// 而 mediaKindFromContentType 的兜底是「一律当图片」→ 视频被 base64 塞进 JSON body 发给
+// 而上传通道那份判定(assetUploadChannelKind)的兜底是「一律当图片」→ 视频被 base64 塞进 JSON body 发给
 // 图片端点 → 反代 413。文件多小都没用，是路走错了。
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-ct-"));
 vi.mock("../projects/repository", () => ({
@@ -14,7 +14,7 @@ vi.mock("../projects/repository", () => ({
 }));
 
 const { readNomiLocalAsset } = await import("./localAssetFile");
-const { mediaKindFromContentType } = await import("../catalog/assetLocalization");
+const { assetUploadChannelKind } = await import("../catalog/assetLocalization");
 
 afterAll(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
@@ -42,13 +42,13 @@ describe("readNomiLocalAsset — 素材真实类型判定", () => {
     (fileName) => {
       const asset = readNomiLocalAsset(writeFixture(fileName, mp4Bytes()));
       expect(asset, `${fileName} 没读出来`).not.toBeNull();
-      expect(mediaKindFromContentType(asset!.contentType)).toBe("video");
+      expect(assetUploadChannelKind(asset!.contentType)).toBe("video");
     },
   );
 
   it("图片照旧判成 image（没把快路改坏）", () => {
     const png = Buffer.concat([Buffer.from([0x89]), Buffer.from("PNG\r\n\x1a\n", "binary"), Buffer.alloc(16)]);
     const asset = readNomiLocalAsset(writeFixture("a.png", png));
-    expect(mediaKindFromContentType(asset!.contentType)).toBe("image");
+    expect(assetUploadChannelKind(asset!.contentType)).toBe("image");
   });
 });

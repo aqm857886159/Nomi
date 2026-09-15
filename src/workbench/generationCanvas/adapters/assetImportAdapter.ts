@@ -11,10 +11,13 @@ import { dropKindFromFile } from '../model/nodeAssetDrop'
 import { readVideoDurationSeconds } from '../../../media/videoDurationProbe'
 import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import {
+  admitMediaImport,
+  type MediaImportRejection,
+  type StorageCapacity,
+} from '../../../../electron/shared/contracts/mediaImportPolicy'
+import { readStorageCapacitySnapshot } from '../../assets/storageCapacitySnapshot'
 
-export const GENERATION_CANVAS_IMAGE_IMPORT_MAX_BYTES = 30 * 1024 * 1024
-// 视频文件远大于图片，单独给宽上限；本地优先 App，用户导入自己的片段。
-export const GENERATION_CANVAS_VIDEO_IMPORT_MAX_BYTES = 600 * 1024 * 1024
 const DATA_URL_FALLBACK_MAX_BYTES = 512 * 1024
 
 export type GenerationAssetImportItem = {
@@ -23,10 +26,14 @@ export type GenerationAssetImportItem = {
   kind: 'image' | 'video'
 }
 
+/** 被准入闸挡下的一个文件——带机器可读原因与数字，调用方据此说人话（「过大」不可行动）。 */
+export type GenerationAssetImportSkip = { fileName: string; rejection: MediaImportRejection }
+
 export type GenerationAssetImportResult = {
   created: GenerationAssetImportItem[]
   skippedDuplicateCount: number
-  skippedTooLargeCount: number
+  /** 准入闸拒收的文件（类型不对 / 硬上限 / 磁盘装不下）。 */
+  rejected: GenerationAssetImportSkip[]
   /** 单次拖入超过 MAX_IMPORT_FILES 被截断丢弃的数量（C5：此前静默丢，无任何提示）。 */
   skippedOverLimitCount: number
   /** 上传/落盘失败、最终落 error 态的数量（让调用方提示「N 张导入失败」）。 */
@@ -43,6 +50,8 @@ export type ImportImageFilesOptions = {
   uploadFile?: typeof importWorkbenchLocalAssetFile
   recoverFile?: typeof recoverImportedWorkbenchLocalAssetFile
   exactPosition?: boolean
+  /** 磁盘余量（省一次 IPC 时可注入；不传则现取）。 */
+  capacity?: StorageCapacity | null
 }
 
 type ImageDimensions = {
@@ -151,39 +160,39 @@ function readFileDataUrl(file: File): Promise<string> {
   })
 }
 
-/** 画布素材节点只承载 image / video（无音频节点 archetype）。音频上传走项目文件源进库
- *  （importAudioFilesToLibrary），不经此路；这里过滤掉是为画布节点导入语义正确。 */
-function importKindForFile(file: File): 'image' | 'video' | null {
-  const kind = dropKindFromFile(file)
-  return kind === 'image' || kind === 'video' ? kind : null
-}
-
-export function filterImportableMediaFiles(files: File[]): {
+/** 画布素材节点只承载 image / video（无音频节点 archetype）。这条窄化不再写在这里，
+ *  由 mediaImportPolicy 的 'generation-canvas' 面声明（带领域理由），此处只负责调它。 */
+export function filterImportableMediaFiles(
+  files: File[],
+  capacity: StorageCapacity | null,
+): {
   files: File[]
   skippedDuplicateCount: number
-  skippedTooLargeCount: number
+  rejected: GenerationAssetImportSkip[]
 } {
   const seen = new Set<string>()
   let skippedDuplicateCount = 0
-  let skippedTooLargeCount = 0
+  const rejected: GenerationAssetImportSkip[] = []
   const out: File[] = []
   for (const file of files) {
-    const kind = importKindForFile(file)
-    if (!kind) continue
     const signature = fileSignature(file)
     if (seen.has(signature)) {
       skippedDuplicateCount += 1
       continue
     }
     seen.add(signature)
-    const maxBytes = kind === 'video' ? GENERATION_CANVAS_VIDEO_IMPORT_MAX_BYTES : GENERATION_CANVAS_IMAGE_IMPORT_MAX_BYTES
-    if ((typeof file.size === 'number' ? file.size : 0) > maxBytes) {
-      skippedTooLargeCount += 1
+    const admission = admitMediaImport(
+      'generation-canvas',
+      { kind: dropKindFromFile(file), sizeBytes: typeof file.size === 'number' ? file.size : 0 },
+      capacity,
+    )
+    if (!admission.ok) {
+      rejected.push({ fileName: file.name || '', rejection: admission })
       continue
     }
     out.push(file)
   }
-  return { files: out, skippedDuplicateCount, skippedTooLargeCount }
+  return { files: out, skippedDuplicateCount, rejected }
 }
 
 type AssetUploadDeps = {
@@ -286,7 +295,8 @@ export async function importLocalMediaFilesToGenerationCanvas(
   const probeVideoDuration = options.readVideoDuration ?? readVideoDurationSeconds
   const uploadFile = options.uploadFile ?? importWorkbenchLocalAssetFile
   const recoverFile = options.recoverFile ?? recoverImportedWorkbenchLocalAssetFile
-  const filtered = filterImportableMediaFiles(inputFiles)
+  const capacity = options.capacity !== undefined ? options.capacity : await readStorageCapacitySnapshot()
+  const filtered = filterImportableMediaFiles(inputFiles, capacity)
   const created: GenerationAssetImportItem[] = []
   // 单次拖入上限：超出截断（C5：此前 .slice(0,8) 静默丢，无提示）。
   const MAX_IMPORT_FILES = 8
@@ -296,14 +306,14 @@ export async function importLocalMediaFilesToGenerationCanvas(
     return {
       created,
       skippedDuplicateCount: filtered.skippedDuplicateCount,
-      skippedTooLargeCount: filtered.skippedTooLargeCount,
+      rejected: filtered.rejected,
       skippedOverLimitCount,
       failedCount: 0,
     }
   }
 
   const prepared = await Promise.all(accepted.map(async (file) => {
-    const kind = importKindForFile(file) ?? 'image'
+    const kind = dropKindFromFile(file) === 'video' ? 'video' as const : 'image' as const
     // 视频不在导入时离屏读尺寸（节点渲染的 onLoadedMetadata 会回填 W/H + 真实时长，单源 catch-all）；
     // 图片仍即时读尺寸以定节点初始大小。
     let dimensions: ImageDimensions | null = null
@@ -355,7 +365,7 @@ export async function importLocalMediaFilesToGenerationCanvas(
   return {
     created,
     skippedDuplicateCount: filtered.skippedDuplicateCount,
-    skippedTooLargeCount: filtered.skippedTooLargeCount,
+    rejected: filtered.rejected,
     skippedOverLimitCount,
     failedCount,
   }

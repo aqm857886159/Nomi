@@ -42,7 +42,7 @@ function run(patch: Partial<ProductionRun> = {}, shots?: ProductionGenerationSho
   return {
     schemaVersion: 1, runId: 'run-1', projectId: 'proj-1', revision: 1, status: 'draft', stageId: 'generate',
     playbook: { name: 'generation.single-shot', version: '1.0.0' }, origin: { host: 'semantic-mcp' },
-    policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 }, planVersion: 1, snapshotCursor: 0,
     stages: [], gates: [], jobs: [], artifacts: [],
     generationPlan: {

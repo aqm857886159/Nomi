@@ -72,6 +72,7 @@
 - [走查里别用 `win.reload()`](walkthrough-no-win-reload.md) — 原地刷新后活动项目恒 null，面板静默空掉，像极了真 bug
 - [走查默认跑隔离 profile，不是真实资料库](walkthrough-default-profile-is-isolated.md) — 要写真库得 `isolate:false`
 - [隔离实例的 key/设置组装三坑](iso-walkthrough-key-seeding-traps.md) — `hasApiKey=false` 不证解密失败；别手拷设置文件
+- [走查里种供应商：渲染层 bridge 种不出「能用」的那一家](walkthrough-cannot-seed-a-vendor-through-the-renderer.md) — 三个 sanitize 一律按下 `enabled`；「没钥匙 ⇒ 0 个可用」会以 `vendor_disabled` 的理由假绿，要逐字断言 reason
 - [断言计算色：别比字面串、翻主题先等 transition](walkthrough-computed-color-asserts.md) — oklch 序列化 + 插值帧两坑
 - [一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md) — 找到一处失效锚点就 grep 它的全部用法
 - [按「位置」认对象的锚点，多一个兄弟就变成掷硬币](positional-anchor-breaks-when-a-sibling-appears.md) — `.first()` 不会报错，只会安静指错；失败顶着下游的名字出现，加超时永远修不好
@@ -133,6 +134,7 @@
 
 ## D. 排查与平台故障
 - [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
+- [长寿命对象不许揣短寿命名词当身份证](holder-must-not-keep-a-shorter-lived-noun.md) — `surface_port_stale` / `unavailable`、或合同写了「现抓」真机仍红时先读；冻点从 open 滑到 prepare 再滑到 execute 是同一类，不是结构改完；产品债 T-AG-16
 - [Antigravity 图像验证两平台一起红：自己的 agent 定义关掉了自己的钩子](antigravity-hooks-need-inherit-customizations.md) — `inheritCustomizations:false` 在 agy ≥1.1.27 连 hooks 一起关；「加载了」≠「执行了」；同码双平台红先查共享层
 
 - [平台门控必须在 UI 上说人话](platform-gates-must-explain-user-action.md) — Windows 等平台被拒绝却显示未检测或部分受限时
@@ -190,3 +192,4 @@
 - [样张两条硬纪律：真字形、真比例](mockups-need-real-glyphs-and-true-proportions.md) — 图标从 @tabler 包抽真实路径；布局线框按 1680×842 真比例并自己看过
 
 - [实验夹具必须经过真实调用点的投影](lab-fixtures-must-mirror-real-callsites.md) — 模型目录、档位与 canonical 参数不可手写平行真相。
+- [真机走查里的失败先查自己这条分支的调用链，再怪环境](branch-failure-blame-your-own-call-chain-first.md) — #777 把自己造的 `generation_surface_unavailable` 写成凭据问题；错误码字面量先找产生点、环境归因必须带排除证据、修法加门岗不补名字

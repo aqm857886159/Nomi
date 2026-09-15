@@ -36,12 +36,14 @@ export function projectDocumentRead(source: unknown): DocumentReadResult {
 export const DOCUMENT_READ_CAPABILITY = {
   id: "document.read",
   version: 1,
+  // 模型可见动词只有 `read_script(scope)`；`read_full_text` / `read_selection` 是传输层的方法词表（`method` surface）。
   aliases: {
-    pi: "read_full_text",
+    pi: "read_script",
     mcp: "nomi_document_read",
+    method: "read_full_text",
   },
   additionalAliases: {
-    pi: Object.freeze([DOCUMENT_READ_SELECTION_ALIAS]),
+    method: Object.freeze([DOCUMENT_READ_SELECTION_ALIAS]),
   },
   inputSchema: documentReadSemanticInputSchema,
   outputSchema: documentReadResultSchema,

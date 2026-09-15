@@ -5,9 +5,10 @@
 //   B 素材库「智能分组」tab 已删干净
 //   C 分镜方案卡锚在产出它的那条消息上，不再跟着对话跑到最底下
 //   D 选了「素材规划」专职模式 → 不再被拆分镜劫持（浮现卡也不冒出来）
-//   E 设置 → AI → 系统提示词：全文可见、可改、可恢复默认（不再是 64px 小框）
+//   E Agent 面板 → 档位弹层 → 系统提示词：全文可见、可改、可恢复默认（不再是 64px 小框）
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectCount, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { openSystemPromptEditor } from './_systemPromptEditor.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -341,23 +342,19 @@ async function verifySmartGroupGone() {
   record('B 智能分组已删干净', ok, detail)
 }
 
-// ───────────────────────── E 系统提示词进设置 ─────────────────────────
+// ───────────────────────── E 系统提示词在 Agent 面板里能编辑 ─────────────────────────
 async function verifySystemPromptSettings() {
-  await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
-  const heading = win.getByText('系统提示词', { exact: true }).first()
-  // 设置面板是异步挂载的：用重试断言等它出现，别拿 sleep 赌它挂好了。
+  // 2026-09-14 搬家：编辑器从设置 → AI 策略搬到 Agent 面板的档位弹层底部，走真人路径打开。
   try {
-    await expectVisible(heading, '设置 → AI 里找不到「系统提示词」区')
+    await openSystemPromptEditor(win)
   } catch (error) {
     await shot('E-settings-missing')
-    record('E 系统提示词进设置', false, `设置 → AI 里找不到「系统提示词」区：${String(error).split('\n')[0]}`)
+    record('E 系统提示词可达', false, `Agent 面板档位弹层里打不开「编辑系统提示词」：${String(error).split('\n')[0]}`)
     return
   }
-  // 这一节在 AI 策略页的折叠线以下——先滚到它，否则量到的是别的控件（第一版就栽在这）。
-  await heading.scrollIntoViewIfNeeded()
   await win.waitForTimeout(500)
   await shot('E-settings-system-prompt')
-  record('E 系统提示词进设置', true, '设置 → AI 里有「系统提示词」区')
+  record('E 系统提示词可达', true, 'Agent 面板 → 档位弹层 → 「编辑系统提示词」打开了编辑器')
 
   // 量这一节自己的编辑框，不是页面上第一个 textarea。
   const box = win.locator('[data-settings-field="system-prompt"]').first()

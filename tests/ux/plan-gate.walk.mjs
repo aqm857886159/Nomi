@@ -99,11 +99,11 @@ try {
   const projectId = proj.projectId || proj.id
   ok(projectId, `建项目（${projectId}）`)
 
-  // 发批量 add_nodes（3 节点 = 一套方案）——**不 await**：它会阻塞在 GUI 的方案门卡上。
-  console.log('  · 外部 agent 发 nomi_canvas_edit(add_nodes, 3 节点)，应在 GUI 弹方案门…')
+  // 发批量 create_canvas_nodes（3 节点 = 一套方案）——**不 await**：它会阻塞在 GUI 的方案门卡上。
+  console.log('  · 外部 agent 发 nomi_canvas_edit(create_canvas_nodes, 3 节点)，应在 GUI 弹方案门…')
   const addPromise = callTool('nomi_canvas_edit', {
     projectId,
-    action: 'add_nodes',
+    operation: 'create_canvas_nodes',
     nodes: [
       { kind: 'shot', title: 'S1 空店', prompt: '深夜面馆空荡的店面' },
       { kind: 'shot', title: 'S2 擦桌', prompt: '老陈擦拭木桌' },

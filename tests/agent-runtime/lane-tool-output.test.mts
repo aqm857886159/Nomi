@@ -59,13 +59,13 @@ test('the contract parse runs once, after pi\'s ajv, and a cross-field failure r
   const writes: unknown[] = [];
   const port: CanvasLanePort = {
     read: async () => ({ nodes: [], edges: [], groups: [] }),
-    write: async (input) => { writes.push(input); return { applied: true, proposalId: 'p1', operation: 'set_node_prompt' } as never; },
+    write: async (input) => { writes.push(input); return { applied: true, proposalId: 'p1', operation: 'tidy_canvas', affectedNodeIds: ['n1'], reconciliation: { ok: true, deviationCount: 0 } } as never; },
   };
   const fixture = await createLaneFixture(t, [
     { type: 'tool', calls: [
-      { id: 'empty-edges', name: 'nomi_canvas_write', arguments: { operation: 'connect_canvas_edges', edges: [] } },
-      { id: 'stray-field', name: 'nomi_canvas_write', arguments: { operation: 'set_node_prompt', nodeId: 'n1', prompt: 'x', summary: 'belongs to create' } },
-      { id: 'valid', name: 'nomi_canvas_write', arguments: { operation: 'set_node_prompt', nodeId: 'n1', prompt: 'Closer.' } },
+      { id: 'empty-edges', name: 'arrange_canvas', arguments: { links: [] } },
+      { id: 'stray-field', name: 'arrange_canvas', arguments: { tidy: true, summary: 'belongs to create' } },
+      { id: 'valid', name: 'arrange_canvas', arguments: { tidy: true } },
     ] },
     { type: 'text', text: 'Done.' },
   ]);
@@ -78,22 +78,22 @@ test('the contract parse runs once, after pi\'s ajv, and a cross-field failure r
   const valid = results.find((part) => part.toolCallId === 'valid');
   assert.ok(empty && stray && valid, 'all three calls produced a result');
   assert.equal(empty.isError, true, 'an empty edge list must be an error result, not a green receipt');
-  assert.match(empty.text, /at least one edge/);
-  assert.match(empty.text, /edges: expected .*, received array/, 'the issue names the field and a type, not the value');
+  assert.match(empty.text, /links to connect or tidy/);
   assert.match(empty.text, /Next: /, 'a rejection without a next step makes the model resend the same call');
   assert.equal(stray.isError, true, 'a field from another operation is rejected, as the description promises');
-  assert.match(stray.text, /no field named summary/);
-  assert.doesNotMatch(stray.text, /belongs to create/, 'received values never go back to the model');
+  // 20 动词的 schema 是 strict 的：别的工具的字段在 pi 的 ajv 那一层就被拒（它会回显收到的入参，探针 §4.2 臂 A），
+  // 不再等到契约 parse；契约层的「不回显」纪律由上面 `empty` 那条（跨字段约束）继续钉住。
+  assert.match(stray.text, /must not have additional properties|no field named summary/);
   // 阳性对照：合法调用照常到达领域端口，且只到达一次——两条被拒的一次都没到。
   assert.equal(valid.isError, false);
-  assert.deepEqual(writes, [{ operation: 'set_node_prompt', nodeId: 'n1', prompt: 'Closer.' }]);
+  assert.deepEqual(writes, [{ operation: 'tidy_canvas' }]);
 
   // G-03 的后一半：两段真的到了供应商。此前 `composeLaneSystemPrompt` 零生产调用者。
   const first = fixture.http.requests[0]?.body as { messages?: { role: string; content: string }[] };
   const system = first.messages?.find((message) => message.role === 'system')?.content ?? '';
   assert.match(system, /^NOMI_LANE_SYSTEM/, 'the host identity prompt comes first');
-  assert.match(system, /Available tools:\n- nomi_canvas_read: /);
-  assert.match(system, /Guidelines:\n- Read the canvas before you change it/);
+  assert.match(system, /Available tools:\n- look_at_canvas: /);
+  assert.match(system, /Guidelines:\n- Read before you write/);
 });
 
 test('G-04 · an oversized tool result reaches the model truncated, with a next step it can act on', async (t) => {

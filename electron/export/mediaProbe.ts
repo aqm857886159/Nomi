@@ -15,6 +15,8 @@ export type MediaProbeMetadata = {
   height?: number;
   fps?: number;
   videoCodec?: string;
+  /** ffprobe `pix_fmt`（如 rgba / yuv420p10le）；预览派生靠它判断源有没有 alpha。 */
+  pixelFormat?: string;
   audioCodec?: string;
   hasAudio: boolean;
   sampleRate?: number;
@@ -250,6 +252,7 @@ export class MediaProbeError extends Error {
 type FfprobeStream = Record<string, unknown> & {
   codec_type?: unknown;
   codec_name?: unknown;
+  pix_fmt?: unknown;
   width?: unknown;
   height?: unknown;
   avg_frame_rate?: unknown;
@@ -353,6 +356,7 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
   const height = finitePositiveInteger(videoStream?.height);
   const fps = parseRational(videoStream?.avg_frame_rate) ?? parseRational(videoStream?.r_frame_rate);
   const videoCodec = stringValue(videoStream?.codec_name);
+  const pixelFormat = stringValue(videoStream?.pix_fmt);
   const audioCodec = stringValue(audioStream?.codec_name);
   const sampleRate = finitePositiveInteger(audioStream?.sample_rate);
   const channels = finitePositiveInteger(audioStream?.channels);
@@ -371,6 +375,7 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
   if (height !== undefined) metadata.height = height;
   if (fps !== undefined && kind !== "image") metadata.fps = fps;
   if (videoCodec !== undefined) metadata.videoCodec = videoCodec;
+  if (pixelFormat !== undefined) metadata.pixelFormat = pixelFormat;
   if (audioCodec !== undefined) metadata.audioCodec = audioCodec;
   if (sampleRate !== undefined) metadata.sampleRate = sampleRate;
   if (channels !== undefined) metadata.channels = channels;

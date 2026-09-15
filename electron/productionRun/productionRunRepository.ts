@@ -70,7 +70,6 @@ export class ProductionRunParseError extends Error {
 }
 
 const DEFAULT_POLICY: AutomationPolicy = {
-  mode: "balanced",
   trustedHosts: [],
   allowedProviders: [],
   allowedModels: [],
@@ -302,6 +301,8 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
      * their sealed sub-contract is compiled at seal. Absent → single-shot draft (byte-identical to today).
      */
     shots?: ReadonlyArray<Pick<ProductionGenerationShot, "shotId" | "role" | "included" | "candidate">>;
+    /** 见 `ProductionGenerationPlan.cardHidden`。 */
+    cardHidden?: boolean;
   }): ProductionRun {
     const projectId = String(input.projectId || "").trim();
     const operationId = String(input.operationId || "").trim();
@@ -340,6 +341,7 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       generationPlan: {
         operationId,
         state: "draft",
+        ...(input.cardHidden === true ? { cardHidden: true } : {}),
         candidate: structuredClone(input.candidate),
         // P4 S6.5: seed draft shots (candidate/role/included; no sub-contract until seal). Single-shot
         // drafts omit shots entirely — the read path stays on the top-level candidate (老 Run 零迁移).

@@ -4,9 +4,9 @@ import { scorePlanner, scoreLanePlanner } from './c0-r30.mjs'
 
 test('native first write remains wrong after a later successful write; terminal must contain final prose', () => {
   const trace = [
-    { role: 'assistant', content: [{ type: 'toolCall', name: 'nomi_storyboard_write', id: 'bad', arguments: {} }] },
+    { role: 'assistant', content: [{ type: 'toolCall', name: 'draft_shots', id: 'bad', arguments: {} }] },
     { role: 'toolResult', toolCallId: 'bad', isError: true },
-    { role: 'assistant', content: [{ type: 'toolCall', name: 'nomi_storyboard_write', id: 'good', arguments: {} }] },
+    { role: 'assistant', content: [{ type: 'toolCall', name: 'draft_shots', id: 'good', arguments: {} }] },
     { role: 'toolResult', toolCallId: 'good', isError: false },
     { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: '完成' }] },
   ]

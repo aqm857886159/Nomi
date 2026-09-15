@@ -219,7 +219,7 @@ describe('MCP semantic operation production-path matrix', () => {
 
     // H: the MCP call reaches document.write/read and the effect survives a fresh repository read.
     const normal = await client.call(3, 'nomi_document_edit', {
-      leaseHandle, projectId: PROJECT_ID, operation: 'append', content: '第二稿 😀',
+      leaseHandle, projectId: PROJECT_ID, where: 'end', content: '第二稿 😀',
     })
     expect(normal.result?.isError).not.toBe(true)
     expect(normal.result?.structuredContent).toEqual(expect.objectContaining({ applied: true, revision: expect.any(Number) }))
@@ -229,15 +229,15 @@ describe('MCP semantic operation production-path matrix', () => {
     expect(JSON.stringify(persisted?.payload)).toContain('第二稿 😀')
 
     // B: empty content, a max-ish Unicode payload, and a repeated edit are explicit edits at the schema boundary.
-    const empty = await client.call(5, 'nomi_document_edit', { leaseHandle, operation: 'append', content: '' })
+    const empty = await client.call(5, 'nomi_document_edit', { leaseHandle, where: 'end', content: '' })
     expect(empty.result?.isError).toBe(true)
     expect(client.invoke).toHaveBeenCalledTimes(3) // session open + edit + read; the invalid call never invokes dispatch
     const unicode = '重复😀'.repeat(2_048)
-    const large = await client.call(6, 'nomi_document_edit', { leaseHandle, operation: 'append', content: unicode })
+    const large = await client.call(6, 'nomi_document_edit', { leaseHandle, where: 'end', content: unicode })
     expect(large.result?.isError).not.toBe(true)
-    const repeated = await client.call(7, 'nomi_document_edit', { leaseHandle, operation: 'append', content: '重复编辑' })
+    const repeated = await client.call(7, 'nomi_document_edit', { leaseHandle, where: 'end', content: '重复编辑' })
     expect(repeated.result?.isError).not.toBe(true)
-    const repeatedAgain = await client.call(8, 'nomi_document_edit', { leaseHandle, operation: 'append', content: '重复编辑' })
+    const repeatedAgain = await client.call(8, 'nomi_document_edit', { leaseHandle, where: 'end', content: '重复编辑' })
     expect(repeatedAgain.result?.isError).not.toBe(true)
     const afterRepeated = await client.call(9, 'nomi_document_read', { leaseHandle, scope: 'full' })
     expect(afterRepeated.result?.structuredContent?.text).toContain('重复编辑\n重复编辑')
@@ -246,11 +246,11 @@ describe('MCP semantic operation production-path matrix', () => {
     const nonTextDocument = await client.call(24, 'nomi_document_read', { leaseHandle, documentId: 'doc-3', scope: 'full' })
     expect(nonTextDocument.result?.structuredContent).toEqual({ text: '' })
     const emptyAppend = await client.call(29, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-2', operation: 'append', content: '空文档追加',
+      leaseHandle, documentId: 'doc-2', where: 'end', content: '空文档追加',
     })
     expect(emptyAppend.result?.isError).not.toBe(true)
     const emptyInsert = await client.call(30, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-3', operation: 'insert', content: '空节点插入',
+      leaseHandle, documentId: 'doc-3', where: 'cursor', content: '空节点插入',
     })
     expect(emptyInsert.result?.isError).not.toBe(true)
     const fallbackDocument = await client.call(25, 'nomi_document_read', { leaseHandle, documentId: 'missing-document', scope: 'full' })
@@ -263,11 +263,11 @@ describe('MCP semantic operation production-path matrix', () => {
     const noActiveId = await client.call(31, 'nomi_document_read', { leaseHandle, scope: 'full' })
     expect(noActiveId.result?.structuredContent).toEqual(expect.objectContaining({ text: expect.any(String) }))
     const multiline = await client.call(26, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-1', operation: 'replace', content: '第一行\n\n第三行',
+      leaseHandle, documentId: 'doc-1', where: 'selection', content: '第一行\n\n第三行',
     })
     expect(multiline.result?.isError).not.toBe(true)
     const inserted = await client.call(28, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-1', operation: 'insert', content: '插入到开头',
+      leaseHandle, documentId: 'doc-1', where: 'cursor', content: '插入到开头',
     })
     expect(inserted.result?.isError).not.toBe(true)
     const originalSaveProject = projectRepository.saveProject
@@ -276,14 +276,14 @@ describe('MCP semantic operation production-path matrix', () => {
       revision: undefined,
     }))
     const noRevision = await client.call(32, 'nomi_document_edit', {
-      leaseHandle, documentId: 'doc-1', operation: 'replace', content: 'revision fallback',
+      leaseHandle, documentId: 'doc-1', where: 'selection', content: 'revision fallback',
     })
     expect(noRevision.result?.structuredContent).toEqual(expect.objectContaining({ applied: true, revision: 0 }))
     noRevisionSave.mockRestore()
 
     // E: the published document contract has no expectedRevision field; reject stale-revision attempts instead of pretending to support them.
     const stale = await client.call(10, 'nomi_document_edit', {
-      leaseHandle, operation: 'replace', content: 'stale', expectedRevision: 1,
+      leaseHandle, where: 'selection', content: 'stale', expectedRevision: 1,
     })
     expect(stale.result?.isError).toBe(true)
     expect(outcomeCode(stale)).toBe('capability_input_invalid')
@@ -293,7 +293,7 @@ describe('MCP semantic operation production-path matrix', () => {
       const faulty = makeClient(baseContext as never, fault)
       await faulty.initialize()
       const faultyLease = await openLease(faulty)
-      const failed = await faulty.call(id, 'nomi_document_edit', { leaseHandle: faultyLease, operation: 'append', content: 'should not persist' })
+      const failed = await faulty.call(id, 'nomi_document_edit', { leaseHandle: faultyLease, where: 'end', content: 'should not persist' })
       expect(failed.result?.isError).toBe(true)
       expect(outcomeCode(failed)).toBe(expected)
       faulty.protocol.dispose()
@@ -395,7 +395,7 @@ describe('MCP semantic operation production-path matrix', () => {
     await client.initialize()
     const leaseHandle = await openLease(client)
     const blockedCalls = [
-      ['nomi_timeline_read', { leaseHandle, projectId: PROJECT_ID, operation: 'read_timeline' }],
+      ['nomi_timeline_read', { leaseHandle, projectId: PROJECT_ID }],
       ['nomi_timeline_edit', {
         leaseHandle,
         projectId: PROJECT_ID,
@@ -407,8 +407,8 @@ describe('MCP semantic operation production-path matrix', () => {
           operations: [{ kind: 'remove', clipId: 'clip-not-present' }],
         },
       }],
-      // 阶段 5a：对外动作名 = 内部语义别名（`list` → `search_media`），两个 profile 同源之后没有第二套词表。
-      ['nomi_media_query', { leaseHandle, projectId: PROJECT_ID, operation: 'search_media', query: '', limit: 1 }],
+      // 20 动词：`look_at_media(query)` 一个动词，方法（`search_media` …）由参数形状派生，两个 profile 同一张表。
+      ['nomi_media_query', { leaseHandle, projectId: PROJECT_ID, query: '', limit: 1 }],
       ['nomi_export_job', { leaseHandle, projectId: PROJECT_ID, operation: 'status', jobId: 'job-not-started' }],
     ] as const
     for (const [index, [name, args]] of blockedCalls.entries()) {

@@ -9,9 +9,12 @@ import { notify } from '../../ui/notificationPolicy'
 
 /** 未处理返回 null，让 capabilityApplyHandler 继续走它自己的 switch。 */
 export function handleMcpHostSurfaceOp(op: string, data: Record<string, unknown>): Record<string, unknown> | null {
-  if (op === 'integration.open-credentials') {
+  if (op === 'integration.open-credentials' || op === 'settings.open-model-provider') {
     window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
-    return { opened: true }
+    return {
+      opened: true,
+      ...(typeof data.provider === 'string' && data.provider.trim() ? { provider: data.provider.trim() } : {}),
+    }
   }
   if (op === 'host-config.repaired') {
     const clients = Array.isArray(data.clients) ? data.clients.filter((name): name is string => typeof name === 'string') : []

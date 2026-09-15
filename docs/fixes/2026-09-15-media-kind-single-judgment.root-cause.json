@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-media-kind-single-judgment",
+  "change_kind": "corrective",
+  "problem_type": "同一判断没有 owner，于是每个新落点各写一条兜底链",
+  "symptom": "check:media-import-owner 的 adhoc-media-kind-branch 棘轮从 22 涨到 23：一条发版集成批次里，两个新落点各自长出了一条 `contentType.startsWith(\"image/\") ? \"image\" : …` 的 kind 兜底链（electron/assets/localFileImport.ts 的准入闸、electron/assets/assetPreview.ts 的预览派生）。用户侧的形状是这一族的老坑：认不出的容器（.mkv / octet-stream / 没扩展名）被静默当成图片送进图片通道。",
+  "direct_cause": "mediaTypes.ts 这张「扩展名 ↔ contentType ↔ kind」的表只导出了 mediaKindFromExtension（扩展名 → kind），**没有** contentType → kind。于是两个主进程落点都只能自己就地写一条 startsWith 链；而 check:media-import-owner 给违规者的提示指向 dropKindFromFile（住在 src/，主进程按 R26 不许 import），照着提示做是做不到的。",
+  "class_root": "「contentType → kind」这个判断在本仓有三份独立实现，且没有一份被声明为 owner：两条就地兜底链 + electron/catalog/assetLocalization.ts 里一个同名却语义相反的 mediaKindFromContentType（它认不出一律返回 'image'，正是 2026-08-20 那次 HTTP 413 的根因形状，mediaTypes.ts 的注释至今在警告它）。只要 owner 不存在，下一个需要判 kind 的落点仍然只能自己写一条——这一批里它已经这样长了两次。",
+  "affected_population": [
+    "导入扩展名认不出的媒体的全部用户（.mkv / .bin 落盘兜底 / 无扩展名文件）——kind 判错会让准入闸把视频按图片的规则放行或拒绝",
+    "画布预览派生：kind 判错时视频不会被抽首帧做 poster，节点首屏没有缩略图",
+    "后续任何需要判 kind 的新落点的开发者——此前提示指向渲染层模块，主进程照做即违反 R26"
+  ],
+  "scope_paths": [
+    "electron/assets/mediaTypes.ts",
+    "electron/assets/mediaTypes.test.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/assetPreview.ts",
+    "electron/assets/localAssetFile.contentType.test.ts",
+    "electron/catalog/assetLocalization.ts",
+    "scripts/check-media-import-owner.mjs",
+    "scripts/media-import-owner-baseline.json"
+  ],
+  "entry_points": [
+    "本地文件落盘的准入闸（electron/assets/localFileImport.ts#assertAdmitted → admitMediaImport）",
+    "落盘素材的画布预览派生（electron/assets/assetPreview.ts#createStoredAssetPreview）",
+    "出站前的素材上传通道选择（electron/catalog/assetLocalization.ts#assetUploadChannelKind）"
+  ],
+  "invariants": [
+    "「contentType → MediaKind」只有 electron/assets/mediaTypes.ts#mediaKindFromContentType 一份判据",
+    "认不出返回 null，绝不兜底成 image——拒不拒、怎么拒由调用方决定，owner 不替它猜",
+    "精确答案优先于顶层类型：表里有的 contentType（image/svg+xml、model/gltf-binary、application/pdf）按表，表里没有才按顶层类型回落",
+    "需要更窄取值的调用方只能在 owner 结果上收窄（预览只要 image/video、上传通道只认 image/video/audio），不许另起一条 startsWith 链"
+  ],
+  "generality_proof": "两处兜底链同 commit 删除，两个落点都改调 owner；同名反义的第三份（catalog 的 mediaKindFromContentType）改名 assetUploadChannelKind 并改为在 owner 结果上收窄，于是全仓只剩一处 contentType → kind 的实际判断。门岗计数从 23 降到 21（两处兜底链消失），基线同步下调到实测值，新增一条不许再涨。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一形状在一批里就复发了两次（localFileImport 与 assetPreview 各一条），此前还以第三种形状存在于 catalog（认不出当图片）并已在 2026-08-20 造成过真实故障（视频走进 base64 图片通道被反代 413）。判断没有 owner 时，下一个落点仍然只能自己写一条。",
+    "same_class_scan": [
+      "按门岗自己的 scan 判据对全仓 src/ 与 electron/ 跑一遍，定位到本批新增的正是 localFileImport.ts:55 与 assetPreview.ts:80 两处（另有一处减少：AssetLibraryPanel 的影子副本已删）；不用正则或清单当代理——前几轮那样做得出过假结论。",
+      "grep 全仓 startsWith('image/'|'video/'|'audio/')：electron/ 侧另有 6 处（assetPaths / projectAssetStore / workspaceFileIndex / certificationMedia / browserMediaValidation / streamTextTask），逐处判定见 same_class_entry_points，均已登记在门岗基线里（棘轮只减不增）。",
+      "node scripts/door-map.mjs mediaKindFromContentType assetUploadChannelKind 数门：判断本体 1 扇 + 转发/收窄 6 扇，门表见 doors。"
+    ]
+  },
+  "doors": [
+    { "kind": "write", "path": "electron/assets/mediaTypes.ts", "line": 105, "symbol": "mediaKindFromContentType" },
+    { "kind": "write", "path": "electron/assets/assetPreview.ts", "line": 82, "symbol": "mediaKindFromContentType" },
+    { "kind": "write", "path": "electron/assets/localFileImport.ts", "line": 55, "symbol": "mediaKindFromContentType" },
+    { "kind": "write", "path": "electron/catalog/assetLocalization.ts", "line": 122, "symbol": "mediaKindFromContentType" },
+    { "kind": "write", "path": "electron/catalog/assetLocalization.ts", "line": 157, "symbol": "assetUploadChannelKind" },
+    { "kind": "write", "path": "electron/catalog/assetLocalization.ts", "line": 226, "symbol": "assetUploadChannelKind" },
+    { "kind": "write", "path": "electron/catalog/assetLocalization.ts", "line": 594, "symbol": "assetUploadChannelKind" }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 7,
+    "why_not": "门表行数没减反而 +1，减的是**判断的份数**：修之前这 6 扇门里有 3 扇各自做一遍 contentType → kind（localFileImport 的兜底链、assetPreview 的兜底链、catalog 那份认不出当图片的实现），另 3 扇是 catalog 那份的调用点；修之后判断只在 mediaTypes.ts 做一次，其余 6 扇全是转发或在结果上收窄。多出来的那一行正是 owner 本体——它此前不存在，所以也无法被记成一扇门。真正该合并的已经合并了；剩下的门必须各自存在：准入闸、预览派生、上传通道是三个不同边界上的三件事，只是共用同一份判据。"
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/mediaTypes.ts",
+      "symbol": "mediaKindFromContentType",
+      "responsibility": "「扩展名 ↔ contentType ↔ kind」唯一一张表上的 contentType → MediaKind 判据；认不出返回 null，不替调用方兜底。纯模块，主进程与渲染层同源 import。"
+    },
+    {
+      "path": "scripts/check-media-import-owner.mjs",
+      "symbol": "RULES.adhoc-media-kind-branch",
+      "responsibility": "守住这条判断不再从任何新落点长出第二份（棘轮只减不增），并给主进程 / 渲染层各自指对该用哪个 owner。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "assertAdmitted（本地文件落盘前的权威准入闸）",
+      "disposition": "enforced",
+      "evidence": "五行兜底链删除，改为 mediaKindFromExtension(fileName) ?? mediaKindFromContentType(contentType)；扩展名仍是第一事实，认不出才问 contentType。"
+    },
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "entry_point": "createStoredAssetPreview（落盘素材的画布预览/海报派生）",
+      "disposition": "enforced",
+      "evidence": "就地的三元兜底链删除，改为在 owner 结果上收窄到 image/video 两种可派生预览的 kind，其余一律 null（行为与此前一致）。"
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "entry_point": "mediaKindFromContentType（出站上传通道的 kind，认不出一律当图片）",
+      "disposition": "enforced",
+      "evidence": "改名 assetUploadChannelKind 并改为在 owner 结果上收窄；同名反义的第二份实现消失。逐值核对行为不变：video/ → video、audio/ → audio、其余（含认不出）→ image，回归测试 electron/assets/localAssetFile.contentType.test.ts 原样通过。"
+    },
+    {
+      "path": "electron/assets/assetPaths.ts",
+      "entry_point": "assetKindFromContentType（素材树条目分类）",
+      "disposition": "not-affected",
+      "evidence": "另一套词表：返回 string 且认不出兜底成 'file'（不是 MediaKind、也不是 null），服务的是素材树/协议层的条目分类，不是准入与预览。它已被门岗登记为 OWNER_FILES 之一；本次在 owner 函数的注释里写明两者分工，防止下一个读者把它当成 MediaKind 的判据再抄一份。"
+    },
+    {
+      "path": "electron/workspace/workspaceFileIndex.ts",
+      "entry_point": "工作区文件索引的 WorkspaceFileKind 判定",
+      "disposition": "not-affected",
+      "evidence": "判的是工作区树的展示分类（另一套 kind 词表），不进准入闸也不派生预览；连同 projectAssetStore / certificationMedia / browserMediaValidation / streamTextTask 那几处一并留在 check:media-import-owner 的基线里（棘轮只减不增），单独收口。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-media-import-owner.mjs",
+    "invariant": "src/ 与 electron/ 里不得新增兜底成 'image' 的 startsWith kind 自判；计数按棘轮只减不增，基线为这棵树的实测值。",
+    "failure_mode": "门岗被移除或基线被上调时，下一个落点会照旧就地写一条兜底链，认不出的容器又被静默当成图片送错通道——2026-08-20 的 HTTP 413 与本批的两处新增都是这个形状。",
+    "exception_policy": "none",
+    "strategy": "门岗已存在并且正是它拦住了本批（22 → 23）；本次不抬基线而是修代码，修完实测 21 并把基线下调到 21（另一条规则同步下调到实测 2），于是这两个槽位不能被静默复用。同时修掉门岗自己的一个缺陷：adhoc-media-kind-branch 的提示原先只指 dropKindFromFile（住在 src/，electron/ 按 R26 不许 import），主进程的违规者照着做是做不到的——现在按主进程 / 渲染层两条路分别给出 owner。",
+    "artifacts": [
+      "scripts/check-media-import-owner.mjs",
+      "scripts/media-import-owner-baseline.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/assets",
+    "has_tests": true,
+    "tests": [
+      "electron/assets/mediaTypes.test.ts"
+    ],
+    "rationale": "「这段 contentType 是什么格式」是媒体类型表的语义，不属于任何一个界面或边界；住在 electron/assets 的纯模块层，准入闸、预览派生与上传通道才能共用同一份判据，渲染层也能同源 import。"
+  },
+  "class_regression_tests": [
+    "electron/assets/mediaTypes.test.ts",
+    "electron/assets/localAssetFile.contentType.test.ts"
+  ],
+  "regression_tests": [
+    "electron/assets/mediaTypes.test.ts",
+    "electron/assets/localAssetFile.contentType.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/localFileImport.ts",
+      "electron/assets/assetPreview.ts",
+      "electron/catalog/assetLocalization.ts"
+    ],
+    "rationale": "P1 加新必删旧：两条就地兜底链同 commit 删除，catalog 那份独立实现同 commit 改成在 owner 结果上收窄。新旧不并存一刻，也没有留 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因在本仓自己的媒体类型表缺一个导出，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。唯一的行为差异是 owner 会先查表：扩展名认不出而 contentType 是表里的精确值时（例如无扩展名文件声明 application/pdf），kind 从 null 变成 document——素材库不收 document 所以照旧被拒，Agent 附件面本来就收 document，于是从「静默判不出」变成「按声明收下」。image/video/audio 三类的判定逐值不变。",
+  "residual_risks": [
+    "check:media-import-owner 的三条基线（accept 字面量 8、媒体 MAX_BYTES 常量 2、兜底成 image 的 kind 自判 21）仍是欠账登记而非防线：它们只挡新增，不会自己收敛。",
+    "门岗那条规则刻意只抓「兜底成 image」的形状（宁可漏报不要噪音），所以兜底成别的 kind 的链条它看不见。",
+    "electron/ 侧另有几套并存的 kind 词表（素材树的 assetKindFromContentType、工作区的 WorkspaceFileKind、认证的 certificationMedia），本次只在注释里划清分工，没有合并——合并它们要先定「到底需要几套 kind 词表」，那是结构裁决不是本次的合并路。"
+  ],
+  "internal_only_reason": "全部改动在本仓的媒体类型表、两个落点与门岗脚本内，证据来自仓库代码、门岗自己报的计数与单测，不涉及外部文档或供应商契约。",
+  "structural_review": "docs/audit/2026-09-15-media-landing-boundary-structure-review.md"
+}

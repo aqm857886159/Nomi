@@ -258,15 +258,36 @@ export class TerminalWriteGuarantee {
   }
 }
 
+/**
+ * 看门狗只认三件事：身份、当前阶段、这条工作的 deadline。
+ *
+ * 结构化到这个形状，是为了让**接入会话**（`IntegrationSessionService`，它的中间态是
+ * `certifying`/`committing`）和 providerAdapter 的 run 共用同一只看门狗。
+ * 两层各写一只 = 并行版（P1）：同一条不变量会有两份判据，日后只改到其中一份。
+ */
+export type TerminalReapable = {
+  id: string;
+  stage: string;
+  /** 这条工作最晚什么时候必须有结论；没有就不判死（没根据不判死）。 */
+  deadlineAt?: string;
+};
+
 export type TerminalReaperDeps = {
-  /** 当前所有非终态的 run。 */
-  activeRuns: () => readonly ProviderAdapterRun[];
+  /** 当前所有非终态的 run（或会话）。 */
+  activeRuns: () => readonly TerminalReapable[];
+  /**
+   * 判「已经是终态」的那把尺子。默认是 providerAdapter run 的那一份；
+   * 别的状态机（会话层）传自己的词表，而不是在这里再列一遍成员。
+   */
+  isTerminal?: (stage: string) => boolean;
   /** 把这个 run 强制终态化（服务层的 finishTerminal）。 */
   forceTimeout: (runId: string, message: string) => void;
   now: () => string;
   intervalMs?: number;
   setInterval?: (callback: () => void, ms: number) => unknown;
   clearInterval?: (handle: unknown) => void;
+  /** 被收掉时写进状态机的理由；默认是 run 那一份措辞。 */
+  timeoutMessage?: string;
 };
 
 export const TERMINAL_REAPER_INTERVAL_MS = 30_000;
@@ -295,14 +316,18 @@ export class TerminalReaper {
     this.handle = undefined;
   }
 
-  sweep(): string[] {
-    const at = Date.parse(this.deps.now());
+  /** `at` 只给测试与诊断：显式给一个时刻，不去改注入的 `now`（改它就成了共享可变状态）。 */
+  sweep(at_?: string): string[] {
+    const at = Date.parse(at_ ?? this.deps.now());
+    const isTerminal = this.deps.isTerminal
+      ?? ((stage: string) => isTerminalAdapterStage(stage as ProviderAdapterRun["stage"]));
+    const message = this.deps.timeoutMessage ?? "Adapter run deadline expired; the watchdog closed it out";
     const reaped: string[] = [];
     for (const run of this.deps.activeRuns()) {
-      if (isTerminalAdapterStage(run.stage)) continue;
+      if (isTerminal(run.stage)) continue;
       if (!run.deadlineAt || Date.parse(run.deadlineAt) > at) continue;
       reaped.push(run.id);
-      this.deps.forceTimeout(run.id, "Adapter run deadline expired; the watchdog closed it out");
+      this.deps.forceTimeout(run.id, message);
     }
     return reaped;
   }

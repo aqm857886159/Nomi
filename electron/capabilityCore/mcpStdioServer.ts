@@ -48,7 +48,8 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { markSingleShotAttention, markSingleShotCompleted, markSingleShotRunning } from '../productionRun/singleShotRunLifecycle'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readCatalog } from '../catalog/catalogStore'
-import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
+import { recommendVideoGeneration } from '../shared/videoCapabilities'
+import { deriveUsableVideoModelCandidates } from './usableVideoModelCandidates'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpStdioProjectSessionRouter } from './mcpStdioProjectSessionRouter'
 import { createProductionMcpStdioProjectSessionBinding } from './mcpStdioProjectSessionBinding'
@@ -317,21 +318,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const readProviderBootstrap = liveGenerationRuntime.readBootstrap
   const outputMaterializer = createGenerationOutputMaterializer()
   const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
-  const videoModelCandidates = buildVideoModelCandidates(readCatalog().models
-    .filter((model) => model.enabled && model.kind === 'video')
-    .map((model) => ({
-      provider: model.vendorKey,
-      modelKey: model.modelKey,
-      label: model.labelZh,
-      archetypeId: videoArchetypeIdFromMeta(model.meta),
-      parameterControls: model.onboarding?.fields?.map((field) => ({
-        key: field.key,
-        label: field.displayName,
-        type: field.type,
-        options: (field.options ?? []).map((option) => ({ value: option.value, label: option.label })),
-        ...(field.default === undefined ? {} : { defaultValue: field.default }),
-      })),
-    })))
   // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
   // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
@@ -342,7 +328,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     ?? createGenerationPlanningHandler({
       registry: generationRegistry,
       operations: operationStore,
-      videoModelCandidates,
+      get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
       defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
       planStoryboard: planStoryboardFromScript,
       recommendVideoGeneration,

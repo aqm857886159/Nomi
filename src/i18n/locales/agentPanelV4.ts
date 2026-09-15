@@ -55,6 +55,7 @@ export const zhAgentPanelV4 = {
   skillExplore: '探索更多',
   skillManage: '新建 · 管理',
   permission: { step: '每步问', 'safe-auto': '自动改', project: '全自动' },
+  systemPrompt: '编辑系统提示词',
   permissionWhy: {
     step: '改动、花钱、计划都先问。',
     'safe-auto': '文稿和时间轴改动直接做（收据可撤销），付费生成才问。',
@@ -471,6 +472,7 @@ export const enAgentPanelV4 = {
   skillExplore: 'Explore more',
   skillManage: 'New · Manage',
   permission: { step: 'Ask each step', 'safe-auto': 'Auto-edit', project: 'Full auto' },
+  systemPrompt: 'Edit system prompt',
   permissionWhy: {
     step: 'Edits, spending and plans are all confirmed first.',
     'safe-auto': 'Document and timeline edits happen directly (receipts are undoable); paid generation still asks.',

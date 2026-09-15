@@ -12,6 +12,7 @@ function operationFromRun(run: ReturnType<ProductionRunService["readFull"]>): Ge
     projectId: run.projectId,
     candidate: structuredClone(plan.candidate),
     state: plan.state,
+    ...(plan.cardHidden === true ? { cardHidden: true } : {}),
     ...(plan.contract ? { contract: structuredClone(plan.contract) } : {}),
     ...(plan.approvedReceiptId ? { approvedReceiptId: plan.approvedReceiptId } : {}),
     ...(plan.authorizationEnvelope ? { authorizationEnvelope: structuredClone(plan.authorizationEnvelope) } : {}),
@@ -90,6 +91,7 @@ export function createProductionGenerationOperationStore(
         },
         candidate: input.candidate,
         ...(input.shots && input.shots.length > 0 ? { shots: input.shots } : {}),
+        ...(input.cardHidden === true ? { cardHidden: true } : {}),
       });
       const operation = operationFromRun(run);
       if (!operation) throw new Error("Production Run did not persist a generation plan");
@@ -110,6 +112,21 @@ export function createProductionGenerationOperationStore(
       const operation = operationFromRun(result.run);
       if (!operation) throw new Error("Production Run lost its generation plan");
       // 改草稿同样立刻投影：已落的节点按候选 revision 重绑定 prompt/模型（不新建第二条落地链）。
+      notifyPlanChanged(operation.projectId, operation.operationId);
+      return operation;
+    },
+    async present(projectId, operationId, now) {
+      const current = read(projectId, operationId);
+      const result = await owner.command(projectId, operationId, {
+        commandId: `generation.present:${operationId}:${current.candidate.revision}`,
+        expectedRevision: owner.readFull(projectId, operationId).revision,
+        type: "generation.present",
+        payload: {},
+        issuedAt: now,
+      });
+      const operation = operationFromRun(result.run);
+      if (!operation) throw new Error("Production Run lost its generation plan");
+      // 卡从「藏着」变「可见」也是一次 plan 变化：面板的报价卡读通道跟着这条事件刷新。
       notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },

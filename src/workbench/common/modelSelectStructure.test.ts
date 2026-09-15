@@ -84,7 +84,7 @@ describe('model select structure — 选了模型就必须选得了供应商', (
   // 用户 2026-09-06 拍板「没接入的家不显示」之后，那道闸只剩 catalog 一处，**没有放宽口**。
   it('「这家能不能跑」只有 catalog 一道闸，谁也不许自带取景开关', () => {
     const cache = readCode('src/config/modelCatalogCache.ts')
-    expect(cache, '闸必须住在 catalog 派生层').toContain('export function keepRunnableVendorOptions')
+    expect(cache, '闸必须住在 catalog 派生层').toContain('export function keepUsableModelRows')
     expect(cache, '放宽口是被删掉的旧实现，不许复活（P1）').not.toContain('includeUnconfigured')
 
     // 谁都不该再有第二个「取景」参数：有了它，「谁能看见没接入的家」就又变成一件可商量的事。

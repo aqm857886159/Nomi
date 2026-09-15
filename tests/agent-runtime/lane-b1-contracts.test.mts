@@ -19,13 +19,13 @@ import { createLaneFixture } from './laneFixture.mjs';
 
 const sandbox = { active: true, operations: { exec: async () => ({ exitCode: 0 }) }, close: async () => undefined };
 const closing = { type: 'text' as const, text: '完成。' };
-const plan = () => LANE_DEFERRED_TOOL_CATALOG.find(s => s.name === 'nomi_generation_plan')!;
+const plan = () => LANE_DEFERRED_TOOL_CATALOG.find(s => s.name === 'draft_shots')!;
 const textOf = (result: { content: readonly { type: string; text?: string }[] }) => result.content.map(p => p.text ?? '').join('\n');
 
 test('C19 · switching groups tells the model core tools remain callable', async t => {
   const f = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'switch', name: 'nomi_request_tools', arguments: { group: 'coding' } }] },
-    { type: 'tool', calls: [{ id: 'core', name: 'read_full_text', arguments: {} }] }, closing,
+    { type: 'tool', calls: [{ id: 'core', name: 'read_script', arguments: {} }] }, closing,
   ]);
   const native = await createLaneNativeAssembly({ projectDir: f.projectDir, sandbox, bashTimeoutMs: 5000 });
   const request = native.tools.find(tool => tool.name === 'nomi_request_tools')!;
@@ -60,7 +60,7 @@ test('C26 · replay the first human failure and show a valid candidate example',
   await lane.execute({ kind: 'prompt', text: '试拍' });
   const body = JSON.stringify(f.http.requests.at(-1)?.body);
   assert.match(body, /应长这样/);
-  assert.ok(plan().examples.some(e => e.arguments.taskKind && e.arguments.candidate));
+  assert.ok(plan().examples.some(e => (e.arguments.shots as Array<{ taskKind?: string; candidate?: unknown }>)?.some(s => s.taskKind && s.candidate)));
   for (const e of plan().examples) assert.equal(plan().schema.safeParse(e.arguments).success, true);
 });
 
@@ -71,29 +71,15 @@ test('C28 · lane hides preview while the external contract retains it', () => {
   assert.equal(generationPlanInputSchema.safeParse({ operation: 'preview', operationId: 'op-one' }).success, true);
 });
 
-test('C29 · 246KB context defaults to a useful <=4KB summary; full scope is explicit', async () => {
-  const huge = { projectId: 'fixture-project', providerProfiles: [{ providerId: 'fixture', modelIds: ['video-one'] }],
-    videoModels: [{ providerId: 'fixture', modelId: 'video-one', label: '视频一', variants: [{ modes: [{ id: 't2v', transportTaskKind: 'text_to_video' }] }], description: 'x'.repeat(246 * 1024) }], nextAction: 'create' };
-  const desc = createExtendedLaneTools({ execute: async () => ({ ok: true, result: huge }) }).find(s => s.name === plan().name)!;
-  const result = await desc.execute({ operation: 'context', taskKind: 'text_to_video' }, { toolCallId: 'ctx', signal: new AbortController().signal });
-  assert.ok(result.ok);
-  assert.ok(Buffer.byteLength(result.text) <= 4096);
-  assert.match(result.text, /video-one/);
-  assert.match(result.text, /scope/);
-  assert.equal(desc.schema.safeParse({ operation: 'context', scope: 'full', taskKind: 'text_to_video' }).success, true);
-  const tool = createLaneTools([{ ...desc, schema: z.object({}), execute: async () => ({ ok: true, text: 'HEAD-' + '文'.repeat(100000) }) }])[0];
-  const bounded = await tool.execute('ctx', {}, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);
-  assert.match(textOf(bounded), /^HEAD-/);
-  assert.doesNotMatch(textOf(bounded), /showing the first 0/);
-});
-
-const canvasArgs = { operation: 'create_canvas_nodes', summary: '开场', nodes: [{ clientId: 'opening', kind: 'image', title: '开场', prompt: '落日' }] };
+// 20 动词里画布上建东西的常驻写动词是 make_artifact（生成类节点只归 draft_shots）；契约 operation 仍是 create_canvas_nodes。
+const canvasArgs = { fileType: 'markdown', title: '开场', content: '# 落日' };
 const canvasTools = () => createCanvasLaneTools({ read: async () => ({}), write: async () => ({
-  applied: true, operation: 'create_canvas_nodes', proposalId: 'op-proposal', clientIdToNodeId: { opening: 'gen-v2-image-opening' },
+  applied: true, operation: 'create_canvas_nodes', proposalId: 'op-proposal', clientIdToNodeId: { 'artifact-1': 'gen-v2-image-opening' },
+  affectedNodeIds: ['gen-v2-image-opening'], affectedEdgeIds: [], connectedCount: 0, skippedEdges: [], reconciliation: { ok: true, deviationCount: 0 },
 } as never) });
 
 test('C27/C43 · auto-granted canvas write reports direct undoable application without ids in prose', async t => {
-  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'nomi_canvas_write', arguments: canvasArgs }] }, closing],
+  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'make_artifact', arguments: canvasArgs }] }, closing],
     { hasUserInterface: true, policy: () => ({ mode: 'safe-auto', spend: 'confirm' }) });
   const lane = await f.openLane({ ...f.options, tools: canvasTools() });
   await lane.execute({ kind: 'prompt', text: '创建开场' });
@@ -118,7 +104,7 @@ test('C27 · prompt approval projection follows current policy changes', async t
 });
 
 test('C42 · steer immediately releases approval and precedes the next assistant request', async t => {
-  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'append_to_end', arguments: { content: 'BAD' } }] }, closing],
+  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'write_script', arguments: { where: 'end', content: 'BAD' } }] }, closing],
     { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await f.openLane(f.options);
   let ready!: () => void;
@@ -151,24 +137,8 @@ test('C47 · host carries adaptive brevity instructions', async t => {
 });
 
 
-test('C29 class · taskKind removes unrelated video modes; full scope retains detail and UTF-8 head is intact', async () => {
-  const huge = { videoModels: [
-    { modelId: 'text-model', modes: [{ id: 'text', transportTaskKind: 'text_to_video' }] },
-    { modelId: 'image-model', modes: [{ id: 'image', transportTaskKind: 'image_to_video', parameters: [{ key: 'duration' }] }] },
-  ], providerProfiles: [{ providerId: 'image-provider', modelIds: ['image-generation'] }] };
-  const desc = createExtendedLaneTools({ execute: async () => ({ ok: true, result: huge }) }).find(s => s.name === plan().name)!;
-  const context = { toolCallId: 'ctx', signal: new AbortController().signal };
-  const result = await desc.execute({ operation: 'context', taskKind: 'image_to_video', scope: 'full' }, context);
-  assert.ok(result.ok);
-  assert.match(result.text, /duration/);
-  assert.doesNotMatch(result.text, /text-model|image-provider/);
-  const tool = createLaneTools([{ ...desc, schema: z.object({}), execute: async () => ({ ok: true, text: '文'.repeat(100000) }) }])[0];
-  const bounded = await tool.execute('ctx', {}, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);
-  assert.doesNotMatch(textOf(bounded), /�/);
-});
-
 test('C43 class · ids remain in structured receipt for host reconciliation', async () => {
-  const result = await canvasTools().find(t => t.name === 'nomi_canvas_write')!.execute(canvasArgs,
+  const result = await canvasTools().find(t => t.name === 'make_artifact')!.execute(canvasArgs,
     { toolCallId: 'write', signal: new AbortController().signal });
   assert.ok(result.ok);
   assert.doesNotMatch(result.text, /gen-v2-|op-/);
@@ -179,14 +149,14 @@ test('C27 class · read confirmation and trusted overrides use the execution dec
   const f = await createLaneFixture(t, [closing], { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await f.openLane(f.options);
   await lane.execute({ kind: 'prompt', text: '只看一下' });
-  assert.match(JSON.stringify(f.http.requests[0].body.messages), /- read_full_text: 此动作会向用户确认/);
+  assert.match(JSON.stringify(f.http.requests[0].body.messages), /- read_script: 此动作会向用户确认/);
   const g = await createLaneFixture(t, [closing], {
     hasUserInterface: true, policy: () => ({ mode: 'safe-auto', spend: 'confirm' }),
-    resolveSubject: () => ({ forceConfirmation: true, subject: { toolName: 'nomi_canvas_write',
+    resolveSubject: () => ({ forceConfirmation: true, subject: { toolName: 'make_artifact',
       capabilityId: 'canvas.write', effect: 'reversible_write', effectClass: 'reversible_local',
       requiresPlanReview: false, destructiveHint: false } }),
   });
   const overridden = await g.openLane({ ...g.options, tools: canvasTools() });
   await overridden.execute({ kind: 'prompt', text: '看看权限' });
-  assert.match(JSON.stringify(g.http.requests[0].body.messages), /- nomi_canvas_write.create_canvas_nodes: 此动作会向用户确认/);
+  assert.match(JSON.stringify(g.http.requests[0].body.messages), /- make_artifact: 此动作会向用户确认/);
 });

@@ -1,0 +1,1786 @@
+{
+  "summary": {
+    "model": "deepseek-chat",
+    "arm": "owner",
+    "bank": "docs/evidence/2026-09-15-skill-real-run/skill-bank.json",
+    "ranAt": "2026-09-14T23:08:31.630Z",
+    "total": 22,
+    "firstToolAccuracy": "16/22",
+    "argumentAccuracy": "22/22",
+    "turnSuccess": "12/22",
+    "byLang": {
+      "zh": {
+        "n": 20,
+        "firstOk": 15,
+        "argsOk": 20,
+        "turnOk": 11
+      },
+      "en": {
+        "n": 2,
+        "firstOk": 1,
+        "argsOk": 2,
+        "turnOk": 1
+      }
+    },
+    "byPersona": {
+      "novice": {
+        "n": 16,
+        "firstOk": 11,
+        "argsOk": 16,
+        "turnOk": 8
+      },
+      "expert": {
+        "n": 6,
+        "firstOk": 5,
+        "argsOk": 6,
+        "turnOk": 4
+      }
+    },
+    "byBucket": {
+      "direct-film": {
+        "n": 6,
+        "firstOk": 3,
+        "argsOk": 6,
+        "turnOk": 2
+      },
+      "control": {
+        "n": 4,
+        "firstOk": 3,
+        "argsOk": 4,
+        "turnOk": 3
+      },
+      "skill-storyboard": {
+        "n": 3,
+        "firstOk": 3,
+        "argsOk": 3,
+        "turnOk": 2
+      },
+      "skill-drama": {
+        "n": 2,
+        "firstOk": 1,
+        "argsOk": 2,
+        "turnOk": 1
+      },
+      "skill-promo": {
+        "n": 2,
+        "firstOk": 2,
+        "argsOk": 2,
+        "turnOk": 2
+      },
+      "skill-cinema": {
+        "n": 2,
+        "firstOk": 1,
+        "argsOk": 2,
+        "turnOk": 1
+      },
+      "skill-product": {
+        "n": 2,
+        "firstOk": 2,
+        "argsOk": 2,
+        "turnOk": 1
+      },
+      "skill-writer": {
+        "n": 1,
+        "firstOk": 1,
+        "argsOk": 1,
+        "turnOk": 0
+      }
+    },
+    "skillMetrics": {
+      "n": 16,
+      "skillVisible": "13/16",
+      "skillParamOk": "14/16",
+      "skillOk": "11/16",
+      "selected": "8/12",
+      "control": "3/4"
+    },
+    "principleTally": {
+      "character-asset": {
+        "n": 4,
+        "met": 0
+      },
+      "reference-mode": {
+        "n": 6,
+        "met": 1
+      },
+      "skill-consulted": {
+        "n": 4,
+        "met": 2
+      },
+      "aspect-ratio-asked": {
+        "n": 3,
+        "met": 2
+      }
+    },
+    "usage": {
+      "prompt": 1322706,
+      "completion": 18417,
+      "cacheHit": 1219328
+    }
+  },
+  "results": [
+    {
+      "id": "D01",
+      "say": "给我做一条 30 秒的雨夜便利店短片",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "direct-film",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models",
+        "list_models"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "principles": {
+        "character-asset": false,
+        "reference-mode": false,
+        "skill-consulted": false,
+        "aspect-ratio-asked": true
+      },
+      "principlesMet": 1,
+      "principlesTotal": 4,
+      "finalText": "文档和画布都是空的，那我从零搭。先给你一个 30 秒的骨架，你点头我就落画布。\n\n**《雨夜便利店》30 秒 · 6 镜**\n\n| 镜 | 时长 | 画面 |\n|---|---|---|\n| 1 | 5s | 雨夜街口，便利店招牌在积水里晃，玻璃门内暖光外溢 |\n| 2 | 5s | 店内，店员在收银台后打盹，货架灯管轻微频闪 |\n| 3 | 5s | 门开，风铃响，湿透的年轻女人进来，雨水滴在地砖上 |\n| 4 | 5s | 她在关东煮柜前站住，热气糊住她的脸 |\n| 5 | 5s | 店员递过一杯热饮，两人没说话，只有雨声 |\n| 6 | 5s | 她坐在窗边，玻璃上雨痕流过霓虹，慢慢喝第一口 |\n\n**一致性怎么保**：先出一张「便利店场景定场图」+ 一张「女人角色卡」，后面 4 个镜头全部引用这两张做图生视频。不这么做，6 个镜头会变成 6 家便利店、6 个女人。\n\n**模型**：图用 GPT Image 2（16:9），视频用 Seedance 1.5 图生视频——它吃参考图最稳，适合这种靠氛围和人物一致性的片子。这是我替你选的，你也可以换 Kling 2.1。\n\n要我现在就把这 6 镜 + 2 张锚图建到画布上吗？建草稿不花钱，生成要你在确认卡上点头才开始。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 35637,
+        "completion_tokens": 499,
+        "cache_hit": 35072
+      }
+    },
+    {
+      "id": "D02",
+      "say": "用这张图做个人物出场镜头",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "direct-film",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas",
+        "look_at_media"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "principles": {
+        "reference-mode": false,
+        "character-asset": false
+      },
+      "principlesMet": 0,
+      "principlesTotal": 2,
+      "finalText": "画布上没看到你说的那张图——媒体库里只有一条「雨天街道.mp4」，画布上有个「林夏」人物卡和两个空节点。\n\n你说的「这张图」是指哪一个？\n\n- 画布上的**林夏**人物卡\n- 你刚拖进来但还没落画布的一张图（那我需要你把它放到画布或媒体库里）\n- 还是别的什么\n\n另外确认一下：出场镜头要**视频**（人物走进画面/镜头推近），还是先出一张**定场关键帧**？",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "look_at_media",
+          "args": {
+            "query": "人物",
+            "kinds": [
+              "image"
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 35608,
+        "completion_tokens": 200,
+        "cache_hit": 35200
+      }
+    },
+    {
+      "id": "D03",
+      "say": "帮我做一条一分钟的产品短片，从头到尾都你来",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "direct-film",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "principles": {
+        "skill-consulted": false,
+        "reference-mode": false,
+        "aspect-ratio-asked": false
+      },
+      "principlesMet": 0,
+      "principlesTotal": 3,
+      "finalText": "创作区是空的，画布也是空的——所以「从头到尾」得从产品本身开始。我手上现在只有三个模型：GPT Image 2（文生图）、Kling 2.1（文/图生视频，5 或 10 秒）、Seedance 1.5（文/图生视频）。\n\n在动手之前，我需要你给三件事，缺一件这条片子就会变成「随便一个产品」：\n\n1. **产品是什么**——名字 + 品类（一瓶精华？一台咖啡机？一双跑鞋？）。有实物图的话直接丢进媒体库，我把它当视觉锚，全片不换形。\n2. **卖给谁、想让人记住哪一句**——一句话卖点就够，比如「三秒吸收，不黏枕头」。\n3. **调性**——冷科技感 / 暖生活流 / 高级静物，选一个。\n\n拿到这三样，我的做法是：\n\n- 先写 60 秒脚本（约 8–10 个镜头，含开场钩子、产品特写、使用场景、收尾定格 + 一句 slogan）\n- 建**产品定妆图**当锚，后面每个镜头都引用它——这是不换形的关键\n- 逐镜出图 → 图生视频，最后拼时间轴、加字幕、导出 MP4\n\n**关于钱**：这条片子大概 8–10 个镜头，每个镜头要出图 + 出视频，是实打实的付费生成。我会把每一批镜头做成报价卡给你过目，你点头才跑，不会偷偷花钱。\n\n先把产品名和那句卖点发我，我这就开写。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {}
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 35599,
+        "completion_tokens": 460,
+        "cache_hit": 35072
+      }
+    },
+    {
+      "id": "D04",
+      "say": "做一条 30 秒的短剧，主角是个外卖员，最后有反转",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "direct-film",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "read_skill",
+        "write_script"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "principles": {
+        "character-asset": false,
+        "skill-consulted": true,
+        "reference-mode": false
+      },
+      "principlesMet": 1,
+      "principlesTotal": 3,
+      "finalText": "剧本已写进创作区，6 镜、30 秒，反转是时间闭环（胶带从主角手腕转移到门里人手腕）。\n\n**先看剧本，确认或改。** 三个点你定一下：\n\n1. **反转方向**——现在是「时间闭环/另一个自己」。如果你想要更实的（比如门里是失踪的哥哥、或者主角其实早就死了），说一声我改。\n2. **年代地域**——我按现代中国都市老居民楼写的。要换（民国、日式公寓、南方城中村）现在改最省事。\n3. **对白**——现在全片零台词，靠动作和音效。要加一句关键台词（比如门里人开口叫出主角名字）也可以。\n\n剧本点头后我就拆镜头、建角色定妆卡（陈默 + 门里人共用一张脸，一张卡就够），再落画布。**这一步不花钱**，生成要等你确认报价卡。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "read_skill",
+          "args": {
+            "name": "drama-short"
+          }
+        },
+        {
+          "name": "write_script",
+          "args": {
+            "where": "end",
+            "content": "# 《最后一单》—— 30 秒短剧\n\n**类型**：都市 / 悬疑反转\n**时长**：30 秒（6 镜）\n**一句话**：外卖员冒雨送完最后一单，敲门无人应，转身要走时，门开了——开门的人穿着和他一模一样的雨衣。\n\n---\n\n## 角色\n\n**陈默**（男，28 岁）\n- 静态：瘦高，短寸头，左眉尾一道浅疤，颧骨高，眼窝深\n- 动态：深蓝色外卖雨衣（胸前反光条已磨白）、黑色头盔夹在腋下、右手腕缠一圈旧胶带\n- 禁改：左眉尾的疤、深蓝雨衣、瘦高身形\n\n**门里的人**（男，28 岁）\n- 与陈默同一张脸、同一件雨衣，唯一差别：雨衣是干的，反光条崭新\n- 禁改：与陈默完全一致的五官\n\n## 场景\n\n**老居民楼 6 楼走廊**（夜，暴雨）\n- 声控灯忽明忽暗，墙皮剥落，走廊尽头一扇防盗门，门缝漏出暖黄光\n- 地面有积水，倒映灯光\n\n---\n\n## 剧本\n\n**1. 外景 · 老楼楼下 · 夜 · 暴雨**\n雨砸在头盔上。陈默跨下电动车，抬头看六楼那扇唯一亮着的窗。手机屏幕亮起：**23:58 · 最后一单**。他把手机塞回兜里，拎起餐袋。\n\n**2. 内景 · 楼梯间 · 夜**\n声控灯一层层亮起又灭掉。陈默的脚步声和喘息声。餐袋上的水顺着楼梯往下滴。他停在六楼，抬手敲门。\n\n**3. 内景 · 六楼走廊 · 夜**\n三下敲门声，没有回应。他又敲，更重。门内一片死寂。他低头看手机——订单显示「已送达」。他皱眉，把餐袋放在门口地上，转身。\n\n**4. 内景 · 六楼走廊 · 夜**\n走了两步，身后传来门锁转动的声音。他停住，回头。\n\n**5. 内景 · 六楼走廊 · 夜**\n门开了一条缝。暖黄的光从缝里泼出来，照亮陈默半张脸。门里的人穿着和他一模一样的深蓝雨衣——但雨衣是干的，反光条崭新发亮。\n\n**6. 内景 · 六楼走廊 · 夜**\n两人对视。门里的人缓缓抬起右手——手腕上缠着一圈旧胶带，和陈默的一模一样。陈默低头看自己的手腕：胶带不见了。\n\n**（黑场）**\n\n---\n\n## 反转说明\n\n不是「撞见另一个自己」的鬼故事，而是**时间闭环**：陈默送的不是别人的餐，是他自己点的。门里的人是几分钟后、或者几小时后的他——胶带从「他手上」转移到「门里人手上」，说明循环已经开始。结尾不给答案，只给问号。\n"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 76706,
+        "completion_tokens": 1118,
+        "cache_hit": 73472
+      }
+    },
+    {
+      "id": "D05",
+      "say": "我要一条横屏 20 秒的城市夜景片，直接开始别问我",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "direct-film",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas",
+        "list_models",
+        "list_models",
+        "draft_shots",
+        "arrange_canvas",
+        "generate"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "principles": {
+        "aspect-ratio-asked": true,
+        "reference-mode": true
+      },
+      "principlesMet": 2,
+      "principlesTotal": 2,
+      "finalText": "横屏 20 秒城市夜景，5 个镜头已排好，确认卡在你那边。\n\n**结构**（16:9，每镜 5 秒）\n- **定场锚**：雨后城市天际线俯瞰，车流尾灯长曝、霓虹反光、青橙双色调 —— 这是全片的视觉基准\n- **镜1** 大远景缓慢推入，车流与窗灯流动，沉稳开场\n- **镜2** 贴地低角度横移，积水倒影 + 出租车溅水 + 撑伞剪影穿过前景\n- **镜3** 天桥高机位横摇，双向车流拉成红白光带，雾中光柱\n- **镜4** 霓虹灯管特写起，上摇拉远露出整片亮灯楼群，渐暗收尾\n\n**一致性做法**：先出定场锚图，后四镜全部以它为参考图做图生视频（参考边已连好），所以四镜共享同一套城市、同一套色调，不会各拍各的。\n\n**模型是我替你选的**：定场图用 GPT Image 2（16:9 直出），四镜用 Seedance 1.5 图生视频 —— 它吃参考图稳、运镜跟得住。想换 Kling 2.1 也行，但它只有 5/10 秒两档，节奏会变粗。\n\n确认卡上目前只列了定场锚这一张图（先出锚、看过再放四镜，避免锚不对白烧四条视频）。你点头后它先跑；锚图满意了跟我说一声，我把四条视频一起提交。",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "title": "城市夜景·定场锚",
+                "role": "anchor",
+                "taskKind": "text_to_image",
+                "prompt": "城市夜景定场图，无人物。\n场景·时间·光线：雨后的城市天际线，蓝调时刻转深夜，湿沥青路面反射霓虹，远处高楼窗格密集亮灯，低空薄雾被城市光晕染成橙紫色。\n主体·环境：中景俯瞰一条主干道，车流拉出红白尾灯长曝轨迹，两侧玻璃幕墙写字楼与霓虹招牌，路口有便利店冷白光。\n镜头语言：超广角大远景，高机位俯拍，地平线压在下三分之一，纵深透视强烈。\n风格：电影感赛博都市，青橙双色调，高对比，轻微胶片颗粒，16:9 横屏，无文字无水印。",
+                "candidate": {
+                  "providerId": "openai",
+                  "modelId": "gpt-image-2"
+                },
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "title": "镜1 天际线推入",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "prompt": "镜头：缓慢推入（dolly in），从大远景推向中景，速度均匀克制。\n画面动作：车流尾灯轨迹持续流动，远处楼宇窗灯明灭闪烁，薄雾缓慢漂移，路面反光随车灯扫过而流动。\n节奏：5 秒，沉稳开场，无人物入画。",
+                "candidate": {
+                  "providerId": "bytedance",
+                  "modelId": "seedance-1.5"
+                },
+                "references": [
+                  "城市夜景·定场锚"
+                ]
+              },
+              {
+                "title": "镜2 街口低角度",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "prompt": "镜头：低角度贴地横移（track right），掠过湿地面。\n画面动作：霓虹招牌在积水里被拉成长条倒影，一辆出租车驶过溅起细水花，行人撑伞的剪影从画面右侧快速穿过前景。\n节奏：5 秒，中速，都市流动感。",
+                "candidate": {
+                  "providerId": "bytedance",
+                  "modelId": "seedance-1.5"
+                },
+                "references": [
+                  "城市夜景·定场锚"
+                ]
+              },
+              {
+                "title": "镜3 天桥俯瞰车流",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "prompt": "镜头：高机位缓慢横摇（pan left），从天桥栏杆上方扫过。\n画面动作：下方双向车流形成连续光带，红尾灯与白前灯交错，远处高架桥灯串延伸至画面深处，雾气在灯光里形成光柱。\n节奏：5 秒，舒缓，呼吸感。",
+                "candidate": {
+                  "providerId": "bytedance",
+                  "modelId": "seedance-1.5"
+                },
+                "references": [
+                  "城市夜景·定场锚"
+                ]
+              },
+              {
+                "title": "镜4 霓虹招牌特写收尾",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "prompt": "镜头：缓慢上摇（tilt up）后轻微拉远（pull out）。\n画面动作：镜头从街边霓虹招牌的灯管细节起，向上摇过玻璃幕墙，露出整片亮灯的城市夜空，最后定格在楼群与雾光。\n节奏：5 秒，收束感，画面渐暗。",
+                "candidate": {
+                  "providerId": "bytedance",
+                  "modelId": "seedance-1.5"
+                },
+                "references": [
+                  "城市夜景·定场锚"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "arrange_canvas",
+          "args": {
+            "links": [
+              {
+                "fromId": "shot-7",
+                "toId": "shot-8",
+                "role": "first_frame"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-9",
+                "role": "first_frame"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-10",
+                "role": "first_frame"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-11",
+                "role": "first_frame"
+              }
+            ]
+          }
+        },
+        {
+          "name": "generate",
+          "args": {
+            "draftId": "op-1"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 112463,
+        "completion_tokens": 1505,
+        "cache_hit": 110720
+      }
+    },
+    {
+      "id": "D06",
+      "say": "Make me a 30-second short film about a rainy night convenience store.",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "direct-film",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models",
+        "list_models",
+        "read_skill",
+        "write_script"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "principles": {
+        "character-asset": false,
+        "skill-consulted": true,
+        "reference-mode": false
+      },
+      "principlesMet": 1,
+      "principlesTotal": 3,
+      "finalText": "剧本已写进创作区，30 秒三段式：**钩子**（钟停在 2:17，门开雨进来）→ **升级**（同一个男人、同一瓶水、同一张折痕相同的纸币，第二次）→ **反转**（男人开口：「这次，别找零。」——他记得上一次）。\n\n两个角色：**林夏**（夜班店员，短发圆脸，左眉尾一颗痣）和**男人**（湿透夹克，脸半在阴影里）。\n\n先看剧本，要改哪里直接说。确认后我拆分镜——会先给林夏和便利店各建一张定妆卡，后面每个镜头都引用它，这样 30 秒里不会换脸换店。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "read_skill",
+          "args": {
+            "name": "drama-short"
+          }
+        },
+        {
+          "name": "write_script",
+          "args": {
+            "where": "end",
+            "content": "# 雨夜便利店\n\n**片长** 30 秒 · **类型** 都市悬疑 · **场景** 24 小时便利店（夜班）· **时间** 凌晨 2:17\n\n---\n\n## 角色\n\n**林夏**（女，26 岁）——便利店夜班店员。短发齐耳，圆脸，左眉尾一颗小痣。深蓝色便利店工装马甲，内搭灰色长袖，胸前别着工牌。整夜没睡，眼下有淡青。\n\n**男人**（男，40 岁上下）——穿深色湿透的夹克，头发被雨压塌，右手拎一把收不拢的黑伞。脸始终半在阴影里。\n\n---\n\n## 剧本\n\n**1. 内景 便利店 夜**\n\n雨声压满整个空间。荧光灯管有一根在轻微频闪。\n\n林夏站在收银台后，手边一杯凉透的关东煮。她抬头看了一眼墙上的钟——**2:17**。\n\n自动门滑开。风把雨带进来，地垫上洇开一片深色。\n\n男人走进来，径直走向冷柜，拿起一瓶矿泉水，放到收银台上。\n\n林夏扫码。滴。\n\n**林夏**：三块。\n\n男人递过一张纸币。林夏找零，抬头——男人已经转身走了。门合上。\n\n**2. 内景 便利店 夜**\n\n钟：**2:17**。\n\n林夏皱眉，抬手拍了一下钟。秒针在走。\n\n自动门滑开。同一个男人走进来，走向冷柜，拿起同一瓶矿泉水，放到收银台上。\n\n林夏的手停在扫码枪上。\n\n**林夏**：……你刚才来过。\n\n男人没回答。他把纸币推过来——**和刚才那张一模一样，折痕都在同一个位置**。\n\n**3. 内景 便利店 夜**\n\n林夏慢慢抬头看男人的脸。\n\n男人终于抬起眼。他的嘴唇动了动，声音很轻：\n\n**男人**：这次，别找零。\n\n---\n\n## 钩子 / 升级 / 反转\n\n- **钩子（0–5s）**：钟停在 2:17，门开，雨进来。\n- **升级（5–22s）**：同一个男人、同一瓶水、同一张纸币，第二次。\n- **反转（22–30s）**：男人开口——「这次，别找零。」他记得上一次。\n"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 77509,
+        "completion_tokens": 931,
+        "cache_hit": 74112
+      }
+    },
+    {
+      "id": "N01",
+      "say": "这段剧本帮我做成分镜：林夏在码头等人，渔船进港，她看见父亲下船。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "control",
+      "controlFor": "S01",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models",
+        "list_models",
+        "draft_shots",
+        "arrange_canvas"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": false,
+      "skillParamOk": true,
+      "skillOk": false,
+      "hitText": [],
+      "hitArgs": [
+        "16:9"
+      ],
+      "finalText": "引用边连好了：林夏卡 → 镜1/镜2/镜5，父亲卡 → 镜4/镜5。\n\n**下一步**：确认卡上点头，6 张图就开始生成。图出来之后我再把它们转成 Kling 2.1 图生视频（5 秒一镜），那时候才需要第二次确认。\n\n两个提醒：\n- 画布上原来那 6 个镜头（镜1–镜6，按文档那版做的）我没动，其中镜4 还在跑。要清掉的话说一声。\n- 你贴的这段剧本还没写进创作区文档——文档里还是「开窗→出海」那版。要我把新这段替换进去吗？",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "title": "父亲",
+                "prompt": "角色设定图：中年男性渔民，约 50 岁，肤色黝黑粗糙，额头与眼角有深皱纹，花白短寸头，下巴有短须。身穿深蓝色旧渔用防水外套，内搭灰色粗针织毛衣，下身深色工装裤，脚穿黑色橡胶雨靴。体格结实，肩膀宽厚，双手粗大指节明显。中性站姿，正面全身，双臂自然下垂，表情平静。背景纯灰。写实电影感，柔和自然光，中景全身，35mm 胶片质感，低饱和冷调。",
+                "taskKind": "text_to_image",
+                "role": "anchor",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "title": "镜1 码头等待",
+                "prompt": "清晨的海边码头，海雾未散，天光青灰，远处海面与天空连成一片灰白。林夏独自站在木质栈桥边，双手插在外套口袋里，身体微微前倾，望向海面方向。大全景，固定机位，人物在画面右侧三分之一处，栈桥向画面深处延伸。写实电影感，35mm 胶片质感，低饱和冷调，柔和散射光。",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "node-char"
+                ]
+              },
+              {
+                "title": "镜2 林夏侧脸",
+                "prompt": "清晨码头，海雾弥漫，青灰天光。林夏侧脸近景，短发被海风吹起几缕，眼睛微微眯起盯着画面外的远处，嘴唇轻抿，呼吸在冷空气里几乎可见。近景，轻微手持感，浅景深，背景码头虚化成灰蓝色块。写实电影感，35mm 胶片质感，低饱和冷调。",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "node-char"
+                ]
+              },
+              {
+                "title": "镜3 渔船进港",
+                "prompt": "清晨海港，海雾中一艘旧木质渔船破雾驶入，船头压开灰绿色水面，翻起白色浪花，船身漆色斑驳，桅杆上挂着渔网与浮标。中远景，横移跟船，船在画面中央偏左，雾气在船身周围流动。写实电影感，35mm 胶片质感，低饱和冷调，柔和散射光。",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "title": "镜4 父亲下船",
+                "prompt": "清晨海港，渔船甲板上，父亲扶着湿滑的船舷，身体重心前倾准备下船，目光越过船头扫向岸上，眉头微皱，脸上带着一夜劳作的疲惫。中景，缓慢推近，浅景深，背景是雾中的码头与系缆桩。写实电影感，35mm 胶片质感，低饱和冷调。",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "title": "镜5 认出",
+                "prompt": "清晨码头栈桥，海雾渐散，天光转亮。林夏中近景，肩膀明显松下来，眼睛睁大，嘴角微微上扬，随即迈出一步向前，一只手从口袋里抽出。中近景，跟拍，浅景深，背景是雾中的渔船轮廓。写实电影感，35mm 胶片质感，低饱和冷调。",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "node-char"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "arrange_canvas",
+          "args": {
+            "links": [
+              {
+                "fromId": "shot-7",
+                "toId": "shot-11",
+                "role": "character_ref"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-12",
+                "role": "character_ref"
+              }
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 77170,
+        "completion_tokens": 1871,
+        "cache_hit": 75776
+      }
+    },
+    {
+      "id": "N02",
+      "say": "这个故事做成短剧：便利店店员每晚都遇到同一个客人，第七晚客人没来。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "control",
+      "controlFor": "S03",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "read_skill",
+        "write_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "圣经",
+        "一致性"
+      ],
+      "hitArgs": [],
+      "finalText": "剧本已写进创作区（追加在原文后面，Cmd+Z 可撤）。\n\n**这一版的核心设计**：\n- **钩子**：2:17 这个精确到分的重复，加上「脸看不清」——观众第一秒就知道不对劲。\n- **升级**：周晚从被动收银 → 提前摆水 → 多放一杯热水 → 主动开口。她的介入是逐晚加码的。\n- **反转**：水三年前停产 + 纸币全是同一年旧版 + 第七晚他没来但站在门外。三个细节指向同一件事，但不明说。\n\n**两处我替你做了决定，你可以推翻**：\n1. 男人全程不说话、脸不给正脸——这是为了省掉「同一张脸跨六镜」的一致性风险，也符合短剧的悬念逻辑。如果你要他有台词、有正脸，我改。\n2. 结尾停在「他站在门外」而不是揭穿身份——留问号。\n\n**下一步**：确认剧本后我拆分镜（先立周晚和男人的角色圣经，再按钩子/升级/反转切镜）。要改哪段直接说。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "read_skill",
+          "args": {
+            "name": "drama-short"
+          }
+        },
+        {
+          "name": "write_script",
+          "args": {
+            "content": "# 第七晚\n\n**类型**：都市悬疑 / 情感反转　**时长**：约 60 秒　**场景**：24 小时便利店（夜班）\n\n## 角色\n\n**周晚**，女，28 岁，便利店夜班店员。短发，圆脸，眼下有淡青色的黑眼圈。深蓝色便利店工装马甲，左胸别着褪色的工牌。话少，动作利落，习惯把货架上的水瓶一个个转正。\n\n**男人**，男，30 岁上下。深灰色长风衣，衣领总是立着。脸始终在冷白灯管的阴影里，看不清五官。每晚 2:17 进店，走到冷柜前，拿同一瓶 550ml 矿泉水，放一张纸币在台面上，不说话，离开。\n\n## 剧本\n\n**1. 内景 便利店 夜**\n\n冷白灯管嗡嗡响。周晚站在收银台后，把一叠零钱按面额码齐。墙上的电子钟跳到 **2:17**。\n\n自动门滑开。风灌进来，吹动门口挂着的促销吊旗。\n\n男人走进来。风衣下摆扫过地面。他径直走向冷柜，拉开门，冷气涌出。他拿起最上层那瓶 550ml 矿泉水。\n\n**2. 内景 便利店 收银台 夜**\n\n他把水放在台面上。周晚扫码，报出金额。他没说话，放下一张纸币，转身走。\n\n周晚低头找零，抬头时——人已经出了门。玻璃门外只有空荡的街道和一盏忽明忽暗的路灯。\n\n她把那张纸币夹进收银机，动作停了一秒。\n\n**3. 内景 便利店 夜（第二晚、第三晚、第四晚）**\n\n同样的 2:17。同样的自动门。同样的冷柜。同样的那瓶水。\n\n周晚开始提前把水摆在最上层。她开始在他进门时抬头。她开始在台面上多放一杯热水——他没碰过。\n\n第五晚，她开口：「今天很冷。」\n\n男人停在门口，背对着她，没有回头。三秒后，门滑上。\n\n**4. 内景 便利店 夜（第六晚）**\n\n2:17。门开。他走到冷柜前，手停在半空——最上层那瓶水不见了。\n\n周晚从收银台后面走出来，手里握着那瓶水。\n\n「你每晚都拿这一瓶。」她说，「我查了库存，这瓶水三年前就停产了。」\n\n男人慢慢转过身。\n\n**5. 内景 便利店 夜（第七晚）**\n\n2:17。电子钟跳了。门没有开。\n\n周晚站在收银台后，看着门口。吊旗一动不动。\n\n她走到冷柜前，把最上层那瓶水拿下来，放进自己包里。\n\n**6. 内景 便利店 夜**\n\n2:19。2:24。2:31。\n\n周晚回到收银台，坐下。她打开收银机，翻出那叠纸币——每一张都是同一年发行的旧版。\n\n她把纸币一张张摊在台面上，数了六张。\n\n第七张的位置是空的。\n\n她抬头看向玻璃门。门外的路灯下，站着一个立着衣领的身影，正对着她。\n\n**（黑场）**\n\n**字幕**：第七晚，他不用再来了。\n",
+            "where": "end"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 59073,
+        "completion_tokens": 1257,
+        "cache_hit": 56064
+      }
+    },
+    {
+      "id": "N03",
+      "say": "这是我的保温杯文案：48 小时保温、一只手能开、军规抗摔。做条宣传片。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "control",
+      "controlFor": "S05",
+      "first": "read_skill",
+      "trajectory": [
+        "read_skill",
+        "look_at_canvas",
+        "list_models"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "画幅",
+        "9:16",
+        "竖屏",
+        "横屏"
+      ],
+      "hitArgs": [],
+      "finalText": "画布上现在是一条「海边小镇」的旧片（镜1–镜6 + 角色卡林夏），跟保温杯没关系。我先按品牌宣传片的路子把文案拆成脚本给你审，确认后再动画布。\n\n先问一句关键的：**竖屏 9:16（抖音/小红书）还是横屏 16:9（官网/电商主图视频）？** 另外有没有产品图可以传上来——有的话我直接拿它当产品锚，杯子长相就不会每镜变一个样。\n\n先按竖屏 9:16 出一版脚本（15 秒，6 镜）：\n\n**《48 小时》— 保温杯 15s 竖屏**\n\n**镜1｜钩子（0–3s）**\n极寒雪地，一只手把保温杯插进雪堆，杯口腾起白汽。字幕：**零下 20 度，它还在冒热气。**\n（反差：外面是冰，里面是烫）\n\n**镜2｜卖点·48 小时保温（3–6s）**\n微距：杯盖旋开，热气涌出糊住镜头，水珠沿杯壁滑落。字幕：**48 小时后，第一口还是烫的。**\n\n**镜3｜卖点·一只手能开（6–9s）**\n单手持杯，拇指一按一推，盖子「咔」地弹开；另一只手始终拎着包/抱着文件。字幕：**一只手，一秒开。**\n\n**镜4｜卖点·军规抗摔（9–12s）**\n杯子从桌面被撞落，砸在水泥地上弹了两下，滚停。镜头推近——杯身无痕，捡起来继续喝。字幕：**军规抗摔，摔了照喝。**\n\n**镜5｜使用场景（12–14s）**\n通勤地铁/办公室工位，人单手开盖喝一口，呼出一口气，继续敲键盘。暖光，生活质感。\n\n**镜6｜CTA（14–15s）**\n产品全貌居中，缓慢环绕，杯身 logo 反光。字幕：**48 小时保温 · 单手开 · 军规抗摔** + 品牌名/「现在就试」。\n\n**视觉锚**：一张中性产品图（杯身、logo、配色、材质）锁住全片杯子长相；品牌风格锚（配色 + 质感词）拼进每一镜。\n\n确认或改：镜数、时长、字幕文案、画幅。你点头我就落画布建节点和参考边（不花钱），生成再单独走确认卡。",
+      "toolArgs": [
+        {
+          "name": "read_skill",
+          "args": {
+            "name": "brand-promo"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {}
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 38542,
+        "completion_tokens": 644,
+        "cache_hit": 38144
+      }
+    },
+    {
+      "id": "N04",
+      "say": "第 3 镜是两个人在车里对话，镜头该怎么给？",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "control",
+      "controlFor": "S07",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "中景"
+      ],
+      "hitArgs": [],
+      "finalText": "画布上第 3 镜现在还是一张 keyframe（静帧），标题写着「海边小镇的清晨」——和你要的车内对话对不上。所以先确认一件事：\n\n**这镜是「两人在车里说话」的对话戏，还是车外/车内景的过场？** 我按对话戏给你方案，如果不对你说一声。\n\n## 车内对话的镜头给法\n\n车内空间小、两人并排，最容易拍成两个大头贴来回切。核心是**用机位差把「关系」拍出来**，而不是拍两张脸。\n\n**主镜头（必给，占这镜 60% 时长）**\n- 副驾侧前方，越过仪表台拍两人：司机在画面右、副驾在左，两人都在框内，中近景。\n- 这个机位是「观众席」，交代空间关系，也是后面切特写的锚。\n\n**过肩反打（对话的呼吸）**\n- 从副驾肩后拍司机：副驾的肩和后脑占画面左下 1/3，司机在右侧焦点上。\n- 反过来从司机肩后拍副驾。两条反打不要对称——一边紧一点（近景）、一边松一点（中景），观众才不会觉得是机械对切。\n\n**关键情绪点给单切**\n- 谁说出转折的那句话，谁单独给一个近景，视线朝画面外侧（朝对方的方向），留出「看过去」的空间。\n- 不要给正面平视的大头，给 3/4 侧脸，车窗光打在脸的一侧。\n\n**收尾给一个「不说话」的镜头**\n- 挡风玻璃外的路，或后视镜里的一只眼睛，或两人都不看对方的中景。对话戏的余味都在这里。\n\n## 两个必须注意的点\n\n1. **车窗光**：白天车内是硬光+高对比，人脸一半亮一半暗；夜里是仪表盘冷光+路灯扫过。这镜的光要和你前后镜统一，不然一进车就换了个世界。\n2. **一致性**：画布上已经有「林夏」这张角色卡，但**没有任何引用边**——现在这镜是独立生成的，脸会飘。车里另一个人如果也要出现，得先有卡。\n\n## 我可以直接做的\n\n- 把第 3 镜的 prompt 改成车内对话的具体画面（告诉我：白天还是夜里、车在开还是停、两人在说什么情绪的话）。\n- 给这镜挂一个**机位参考**（比如「越过仪表台的双人中景」或「副驾肩后过肩」），Nomi 会渲一张灰模 3D 参考图，你看着调。\n- 把「林夏」角色卡连到这镜上，锁住脸。\n\n你先告诉我**白天/夜里**和**这镜",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 35535,
+        "completion_tokens": 667,
+        "cache_hit": 34944
+      }
+    },
+    {
+      "id": "S01",
+      "say": "这段剧本帮我做成分镜：林夏在码头等人，渔船进港，她看见父亲下船。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-storyboard",
+      "skillKey": "curated-film-storyboard",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models",
+        "list_models",
+        "draft_shots",
+        "arrange_canvas"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "宽屏",
+        "16:9",
+        "每格",
+        "一个镜头"
+      ],
+      "hitArgs": [
+        "16:9"
+      ],
+      "finalText": "分镜已按宽屏配方落成 7 格，每格一个镜头，画布上已建好草稿（模型和参数以确认卡为准，还没生成、没花钱）。\n\n**照技能做的两个关键决定**：全部用 16:9 宽屏面板；先建一张「码头定场」空镜当视觉锚，镜1–镜3 都引用它锁住同一片海和同一段码头，镜4–镜6 再各自引用对应的静帧做首帧，保证父女俩的服装和空间关系不跳。\n\n| 格 | 内容 | 类型 |\n|---|---|---|\n| 定场 | 清晨渔港码头空镜（锚） | 静帧 |\n| 镜1 | 林夏码头边等人，望向海面 | 静帧 |\n| 镜2 | 渔船进港，低机位贴水面 | 静帧 |\n| 镜3 | 父亲拎包跨上踏板 | 静帧 |\n| 镜4 | 林夏认出父亲，缓推 | 视频 5s |\n| 镜5 | 渔船靠岸，横向跟移 | 视频 5s |\n| 镜6 | 父女隔几米相望，缓移 | 视频 5s |\n\n两点要你定：一是画布上已有的「林夏」角色卡我直接挂给了镜1，但它的描述是「17 岁女生，短发校服」——码头清晨穿校服不太对，我按深蓝旧外套写的，要不要把角色卡也改成外套版？二是父亲目前没有角色卡，镜3 和镜6 靠文字描述保持一致，如果后面还要给他镜头，建议补一张卡。\n\n确认没问题就说一声，我把这 7 格一起提交给你报价。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "title": "码头定场",
+                "role": "anchor",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "prompt": "清晨五点半的南方渔港码头，天光未亮透，海面灰蓝泛白，远处防波堤与停泊渔船剪影。水泥码头湿滑反光，缆桩、渔网、塑料筐散落，桅杆林立。空镜，无人物。宽银幕 2.39:1 电影感，冷青灰调，薄雾，自然光，35mm 胶片颗粒，写实纪录片质感。"
+              },
+              {
+                "title": "镜1 林夏码头等人",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "node-char"
+                ],
+                "prompt": "清晨渔港码头，冷青灰天光。17 岁女生林夏，短发，深蓝色旧外套，双手插兜站在码头边，身体微微前倾望向海面，眉头轻蹙、嘴唇抿紧，等待的神情。中景，侧后方三分之四角度，人物占画面左侧三分之一，右侧留出大片海面。宽银幕 2.39:1 电影感，冷调，薄雾，35mm 胶片颗粒，写实。"
+              },
+              {
+                "title": "镜2 渔船进港",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "shot-1"
+                ],
+                "prompt": "同一渔港码头，清晨冷青灰天光。一艘旧木壳渔船从画面深处驶向码头，船头劈开白浪，船身漆色斑驳，甲板上堆着渔网与浮球，船尾拖出长长的尾迹。远景，低机位贴近水面，海面占据画面下三分之二。宽银幕 2.39:1 电影感，冷调，薄雾，35mm 胶片颗粒，写实。"
+              },
+              {
+                "title": "镜3 父亲下船",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "shot-1"
+                ],
+                "prompt": "同一渔港码头，清晨冷青灰天光。五十多岁渔民父亲，花白短发，深色防水雨衣，裤脚卷起，一手拎着旧帆布包，一脚跨上码头踏板，身体前倾重心前移，脸上是疲惫而平静的神情。中近景，平视，人物居中偏右，背景是虚化的船身与缆绳。宽银幕 2.39:1 电影感，冷调，薄雾，35mm 胶片颗粒，写实。"
+              },
+              {
+                "title": "镜4 林夏认出父亲",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "modelKey": "kling-2.1",
+                "modeId": "i2v",
+                "parameters": {
+                  "duration": "5"
+                },
+                "references": [
+                  "shot-2"
+                ],
+                "prompt": "镜头缓慢推近。林夏的视线从海面移向码头方向，眼睛微微睁大，抿紧的嘴唇松开，肩膀先绷紧再缓缓落下，呼出一口白气。节奏克制，五秒内完成一次呼吸的起伏。"
+              },
+              {
+                "title": "镜5 渔船靠岸",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "modelKey": "kling-2.1",
+                "modeId": "i2v",
+                "parameters": {
+                  "duration": "5"
+                },
+                "references": [
+                  "shot-3"
+                ],
+                "prompt": "镜头低机位横向跟移。渔船减速靠向码头，船身随浪轻微起伏，缆绳被抛向岸上，水花溅起，海面波纹扩散。节奏由快到缓，五秒内船身从画面右侧滑入并停稳。"
+              },
+              {
+                "title": "镜6 父女相望",
+                "taskKind": "image_to_video",
+                "durationSec": 5,
+                "modelKey": "kling-2.1",
+                "modeId": "i2v",
+                "parameters": {
+                  "duration": "5"
+                },
+                "references": [
+                  "shot-4"
+                ],
+                "prompt": "镜头缓慢横移。父亲跨上码头站稳，抬头看见林夏，脚步顿住；林夏向前迈半步又停住。两人隔着几米对视，谁都没先开口，只有海风掀动衣角。节奏安静，五秒内保持静止的对望。"
+              }
+            ]
+          }
+        },
+        {
+          "name": "arrange_canvas",
+          "args": {
+            "links": [
+              {
+                "fromId": "shot-7",
+                "toId": "shot-8",
+                "role": "style_ref"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-9",
+                "role": "style_ref"
+              },
+              {
+                "fromId": "shot-7",
+                "toId": "shot-10",
+                "role": "style_ref"
+              },
+              {
+                "fromId": "shot-8",
+                "toId": "shot-11",
+                "role": "first_frame"
+              },
+              {
+                "fromId": "shot-9",
+                "toId": "shot-12",
+                "role": "first_frame"
+              },
+              {
+                "fromId": "shot-10",
+                "toId": "shot-13",
+                "role": "first_frame"
+              }
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 96744,
+        "completion_tokens": 1810,
+        "cache_hit": 87680
+      }
+    },
+    {
+      "id": "S02",
+      "say": "把文稿里雨夜那段做成电影分镜",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-storyboard",
+      "skillKey": "curated-film-storyboard",
+      "first": "read_script",
+      "trajectory": [
+        "read_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": true,
+      "skillParamOk": false,
+      "skillOk": false,
+      "hitText": [
+        "宽屏"
+      ],
+      "hitArgs": [],
+      "finalText": "文稿里没有雨夜那段——现在只有「海边小镇的清晨」这一节（林夏、相机、码头、渔船）。\n\n两个选择：\n1. 你把雨夜那段贴进来（或告诉我它在哪份文稿里），我按它拆分镜；\n2. 或者我先把这段清晨做成宽屏分镜，雨夜等你补上文字再单独做一组。\n\n要哪个？",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 36063,
+        "completion_tokens": 130,
+        "cache_hit": 28672
+      }
+    },
+    {
+      "id": "S03",
+      "say": "这个故事做成短剧：便利店店员每晚都遇到同一个客人，第七晚客人没来。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-drama",
+      "skillKey": "drama-short",
+      "first": "read_script",
+      "trajectory": [
+        "read_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "定妆"
+      ],
+      "hitArgs": [],
+      "finalText": "创作区里现在是另一条片子的内容（海边小镇、林夏、相机），跟你要做的便利店故事不是一回事。我先不动它。\n\n在写剧本之前，有三件事得先定下来，猜错了整条情感线都会歪：\n\n1. **两人是什么关系？** 这是全片的底。是陌生人之间长出来的默契（店员开始给他留那瓶水），还是旧识重逢（她认出了他但没说）？前者是暖的，后者是悬的。\n2. **客人每晚来买什么？** 同一个东西（同一瓶水/同一包烟）还是每次不同？「同一个东西」才撑得起第七晚的空位。\n3. **第七晚没来，真相是什么？** 出事了 / 他其实早就死了 / 他搬走了 / 他站在门外没进来。这个决定结尾是句号还是问号——短剧我建议留问号。\n\n另外确认一下：**现代都市的便利店**，对吧？还有**店员是男是女、大概什么年纪**——这决定定妆卡怎么写。\n\n你回一句就行，比如「陌生人默契，每晚同一瓶水，第七晚他站在门外没进来，店员女，二十出头」。定完我直接出剧本。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 38168,
+        "completion_tokens": 315,
+        "cache_hit": 29696
+      }
+    },
+    {
+      "id": "S04",
+      "say": "帮我把这条短剧的角色先立起来，别每镜长得都不一样",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill-drama",
+      "skillKey": "drama-short",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "draft_shots"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "定妆"
+      ],
+      "hitArgs": [],
+      "finalText": "两张锚卡已写好（草稿状态，还没生成）：\n\n- **林夏 · 角色身份板**——三视图，把「身份锁定」和「可换服装」分开写：脸型/单眼皮/左眉尾小疤/齐耳短发+刘海分向/身高身形是**全片不许变**的，衬衫长裤是可随剧情换的。左眉尾那道疤是刻意加的——跨镜时它是最好认的身份记号。\n- **码头 · 场景定景板**——空镜环境图，把系缆桩、木壳渔船、防波堤、民居屋顶这些固定物写死，后面每镜都从它走，避免第 3 镜和第 7 镜变成两个不同的码头。\n\n**还差你两个答案**，答完我就把 6 个镜头全部连上这两张卡（`character_ref` / `style_ref`），让它们从冻结的定妆图走图生视频，而不是各自文生视频：\n\n1. 年代地域——现代中国南方海边小镇？还是别的？\n2. 林夏身份——17 岁学生（校服）还是已工作的摄影爱好者？剧本里她清晨去码头拍渔船，校服和这个场景有点打架。\n\n另外提醒一句：**镜4 现在正在跑**（video 节点，running）。它是在没有角色锚的情况下生成的，大概率脸对不上。等锚卡出来你可能要重跑它——要不要我先把它停掉，省一笔？",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "shotId": "node-char",
+                "title": "林夏 · 角色身份板",
+                "role": "anchor",
+                "taskKind": "text_to_image",
+                "prompt": "角色身份板，三视图设定图：同一名 17 岁东亚少女的正面、四分之三侧面、背面全身像，并排站立于中性灰背景前，全身入画，无遮挡。\n\n【身份锁定 · 全片不可变】鹅蛋脸，下颌线柔和；单眼皮，眼型偏细长，眼尾微垂；鼻梁低平，鼻头圆；唇形薄，唇色淡；左眉尾有一道约 1 厘米的浅色小疤；黑色齐耳短发，发尾内扣，额前碎刘海偏分；身高约 162cm，身形偏瘦，肩窄。\n\n【服装 · 可随剧情更换】浅蓝色短袖衬衫，深色直筒长裤，白色帆布鞋，颈间挂一条细黑绳（挂相机用）。\n\n【风格】写实电影感，自然光，柔和阴影，肤色真实带轻微颗粒，35mm 胶片质感，冷调偏青，画幅 16:9。\n\n【禁止】不要多指、不要文字水印、不要换脸、不要改变发型长度与刘海分向、不要浓妆、不要美颜磨皮。",
+                "references": []
+              },
+              {
+                "shotId": "node-empty-1",
+                "title": "码头 · 场景定景板",
+                "role": "anchor",
+                "taskKind": "text_to_image",
+                "prompt": "场景定景板，空镜环境参考图：中国南方海边小镇的清晨渔港码头，无人物。\n\n【环境事实】水泥码头边缘有锈蚀的系缆桩与盘绕的粗麻缆绳；左侧停靠三艘蓝白漆斑驳的木壳渔船，船身有旧渔网与浮球；右侧是低矮的白色水泥防波堤；远处海面平直，天际线有薄雾；码头后方是两三层高的灰白色民居，屋顶有水箱与晾衣绳。\n\n【时间与光】清晨 5:40，太阳刚出海平线，低角度侧逆光，海面有细碎金色反光，空气中有薄雾与咸湿感，长阴影。\n\n【风格】写实电影感，35mm 胶片质感，冷调偏青，轻微颗粒，画幅 16:9。\n\n【禁止】不要出现人物、不要文字招牌、不要现代高楼、不要游艇。",
+                "references": []
+              }
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 59282,
+        "completion_tokens": 1186,
+        "cache_hit": 50048
+      }
+    },
+    {
+      "id": "S05",
+      "say": "这是我的保温杯文案：48 小时保温、一只手能开、军规抗摔。做条宣传片。",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-promo",
+      "skillKey": "brand-promo",
+      "first": "read_script",
+      "trajectory": [
+        "read_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "画幅",
+        "9:16",
+        "竖屏",
+        "横屏",
+        "受众",
+        "调性"
+      ],
+      "hitArgs": [],
+      "finalText": "创作区里现在是一段海边小镇的剧本，不是保温杯文案——你贴的这三句卖点还没进文档。\n\n按 brand-promo 的流程，第一阶段是**剧本审阅**：我把文案改写成编号脚本 + 每镜意图，写进创作区给你审，这一步不碰画布、不花额度。\n\n在动笔前有三件事得先定，不然我只能瞎编：\n\n1. **画幅**：竖屏 9:16（抖音/Reels）还是横屏 16:9（官网/电视）？\n2. **品牌调性/品牌色**：军规抗摔这条线，走「硬核战术」还是「户外生活」？有没有指定主色（比如军绿 #4A5D3A、哑光黑）？\n3. **目标受众**：通勤上班族、户外徒步、还是工地/军警这类重度使用？\n\n另外，**有产品图就发我**——保温杯的外形（杯身比例、杯盖结构、logo 位置）靠文字描述很容易每镜长得不一样，有图我直接挂成产品锚锁住它。\n\n你回我这三点（或直接说「你定」），我就出脚本。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 38683,
+        "completion_tokens": 316,
+        "cache_hit": 29952
+      }
+    },
+    {
+      "id": "S06",
+      "say": "宣传片先给我脚本，画布别动",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill-promo",
+      "skillKey": "brand-promo",
+      "first": "read_script",
+      "trajectory": [
+        "read_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": false,
+      "skillParamOk": true,
+      "skillOk": false,
+      "hitText": [],
+      "hitArgs": [],
+      "finalText": "创作区里现在是一段叙事短文，不是产品文案——没有产品、卖点、受众、品牌调性，也没有画幅。\n\n按 brand-promo 的规矩，这五样拎不到就得先问你，不能瞎编。给我这几条，我立刻出脚本：\n\n1. **产品是什么**（形态/材质/核心功能）——有产品图直接传，我当产品锚用。\n2. **2–4 个卖点**（每个卖点对应一镜，超过 4 个我帮你挑最强的 3 个）。\n3. **目标受众 + 使用场景**（谁、在哪儿用）。\n4. **品牌调性 / 品牌色**（高级感 / 活力 / 性冷淡 / 国潮…有 hex 更好）。\n5. **画幅**：竖屏 9:16（抖音/Reels）还是横屏 16:9（官网/电视）。\n\n另外确认一句：创作区那段「海边小镇的清晨」是**要改写成宣传片脚本**，还是它只是占位、你另有文案要贴进来？",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 38644,
+        "completion_tokens": 279,
+        "cache_hit": 38272
+      }
+    },
+    {
+      "id": "S07",
+      "say": "第 3 镜是两个人在车里对话，镜头该怎么给？",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-cinema",
+      "skillKey": "director-cinematography",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas"
+      ],
+      "firstOk": false,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": false,
+      "skillParamOk": true,
+      "skillOk": false,
+      "hitText": [],
+      "hitArgs": [],
+      "finalText": "车里对话这场戏，剧本里没有——现有文稿只有「推窗→拿相机→码头→快门」四拍，画布上的镜3 也还是「海边小镇的清晨」。所以先确认一件事：**这场车内戏是新加的，还是你打算把镜3 改成车内？**\n\n不管哪种，两个人车里对话的镜头给法（按摄影技法走）：\n\n**别用一个镜头拍完。** 车内空间窄，单镜要么挤成双人全景（两人都小、表情读不到），要么只能拍一个人。标准解法是**正反打**：\n\n- **镜3A｜过肩（OTS）**：前景林夏的肩和后脑虚焦占画面 25%，焦点在副驾/驾驶位那个人脸上。中近景，平视，机位略低于眼平（车内坐姿天然低）。\n- **镜3B｜反向过肩**：机位翻到对面，前景换成另一个人的肩，焦点回到林夏。**守 180° 轴线**——林夏始终在画面同一侧，否则观众会觉得两人换了座位。\n- **镜3C｜插入镜头**（可选，但强烈建议）：切一次手部或物件特写——握方向盘的手、中控台、后视镜里的一只眼睛。极浅景深，周围全虚。**切入必回收**：这个物件后面得再出现一次，否则是废镜。\n\n**光线**：车内是混合色温的天然场景——挡风玻璃进来的冷白天光 + 仪表盘/中控的暖光。写「左侧车窗冷白天光打在侧脸，右侧中控暖光补在颧骨，一冷一暖」比写「车内光线」有用得多。如果这场戏是压抑/对峙，改硬光 + 大面积暗部，让脸一半沉在阴影里。\n\n**节奏**：正反打每条 1.5–3 秒，越短越紧张。争吵就切碎，沉默就定住不动、极慢推近。\n\n**模型边界提醒**：口型对白同步是弱项——**别写台词让模型对口型**，用侧脸、画外音、或干脆不露正脸，台词后期配。另外「镜头穿进车里」这类穿越动作容易闪烁，机位直接设在车内就好。\n\n告诉我这场戏的**情绪**（亲密？对峙？尴尬的沉默？）和**谁在开车**，我把 3A/3B/3C 的完整 prompt 写出来落到画布上。",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 45930,
+        "completion_tokens": 594,
+        "cache_hit": 33536
+      }
+    },
+    {
+      "id": "S08",
+      "say": "帮我把这 6 个镜头的景别排一下，现在看着都一个样",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill-cinema",
+      "skillKey": "director-cinematography",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas",
+        "read_script",
+        "list_models",
+        "list_models",
+        "draft_shots"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "跳一级",
+        "景别",
+        "收紧",
+        "远景",
+        "特写",
+        "中景"
+      ],
+      "hitArgs": [],
+      "finalText": "六个镜头的景别已经重排进 prompt，按「心理距离」走了一条收紧—放开—再收紧的曲线：\n\n| 镜 | 景别 | 为什么 |\n|---|---|---|\n| 1 | 极远景 | 建场，交代小镇与海，人物不可见 |\n| 2 | 中景 | 收到林夏推窗，对话级距离 |\n| 3 | 近景 | 情绪峰值——闻到咸味那口气 |\n| 4 | 全景 | 放开，看她走向码头，全身+环境 |\n| 5 | 远景 | 再放开，渔船出海，环境主导 |\n| 6 | 极特写 | 猛收到快门按钮，收尾落点 |\n\n相邻镜都至少跳一级（2→3 中景到近景、5→6 远景到极特写），不会再有「跳景」的糊感。另外按技能里的打光逻辑给每镜配了不同光位：镜2 侧逆光勾轮廓、镜3 45° 侧光、镜5 逆光剪影、镜6 侧光高光——同一场戏里光有变化，画面才不闷。\n\n两点提醒：\n- 镜4/5/6 是视频节点，现在 prompt 里写的是静态画面描述。要出片得先有首帧图，再让视频镜引用它——现在画布上**一条引用边都没有**，林夏那张角色卡也没挂上去。要我连吗？\n- 镜1–3 是 keyframe，镜4–6 是 video，模型和参数以确认卡为准。",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "read_script",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "video"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "draftId": "shot-1",
+            "shots": [
+              {
+                "shotId": "shot-1",
+                "title": "镜1 极远景·小镇全景",
+                "prompt": "海边小镇的清晨，天刚亮。极远景：整座小镇沿坡地铺开，灰蓝色屋顶层层叠叠，远处海平线泛白，码头在画面右下角只占一小块。深景深，从前景屋顶到远处海面全部清晰。低角度晨光斜切过屋脊，空气里有薄雾。人物不可见，环境主导。16:9 宽画幅，写实电影感，冷蓝灰调，颗粒细腻。"
+              },
+              {
+                "shotId": "shot-2",
+                "title": "镜2 中景·林夏推窗",
+                "prompt": "海边小镇的清晨，室内窗边。中景：17 岁女生林夏站在木窗前，双手推开窗扇，腰部以上入画。侧逆光——晨光从窗外斜射进来，在她脸侧和肩头勾出轮廓光边，室内一侧留柔和阴影。浅景深，背景房间虚化成暖色块。她微微眯眼，头发被风掀起一缕。16:9 宽画幅，写实电影感，冷蓝灰调。"
+              },
+              {
+                "shotId": "shot-3",
+                "title": "镜3 近景·咸味的风",
+                "prompt": "海边小镇的清晨，室内窗边。近景：林夏的面部充满画面，风吹动她的短发，发丝扫过脸颊。她深吸一口气，鼻翼微动，眼睛半闭，嘴角极轻地松开——是闻到咸味后的松弛。45° 侧光从窗外来，面部右侧落柔和阴影，皮肤有细颗粒质感。浅景深，背景完全虚化。16:9 宽画幅，写实电影感，冷蓝灰调。"
+              },
+              {
+                "shotId": "shot-4",
+                "title": "镜4 全景·走向码头",
+                "prompt": "海边小镇的清晨，石板路通向码头。全景：林夏背着相机包从画面左侧走向右侧，全身入画，脚步踩过湿漉漉的石板。深景深，前景石阶、中景人物、背景渔船与桅杆全部清晰。低角度晨光从海面方向打来，人物在地面拖出长影。构图用两侧矮墙形成框中框。16:9 宽画幅，写实电影感，冷蓝灰调。"
+              },
+              {
+                "shotId": "shot-5",
+                "title": "镜5 远景·渔船出海",
+                "prompt": "海边小镇的清晨，码头尽头。远景：渔船正驶离码头，船身可见但环境主导，海面占据画面大半，晨雾未散。深景深，船、海、远处山影层次分明。逆光——太阳在海平线附近，海面碎光闪烁，船体接近剪影。构图留出大片天空，人物在画面边缘极小。16:9 宽画幅，写实电影感，冷蓝灰调。"
+              },
+              {
+                "shotId": "shot-6",
+                "title": "镜6 极特写·按下快门",
+                "prompt": "海边小镇的清晨，码头。极特写：林夏的手指搭在相机快门按钮上，指节因用力微微发白，快门按下的一瞬。极浅景深，只有指尖与快门按钮清晰锐利，相机机身与背景全部虚化成柔和色块。侧光从海面方向来，金属按钮上有一道细高光。16:9 宽画幅，写实电影感，冷蓝灰调。"
+              }
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 94590,
+        "completion_tokens": 1302,
+        "cache_hit": 92800
+      }
+    },
+    {
+      "id": "S09",
+      "say": "用我上传的那双鞋做个转台展示",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-product",
+      "skillKey": "curated-product-turntable",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas",
+        "look_at_media"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": false,
+      "skillOk": false,
+      "hitText": [
+        "转台",
+        "180",
+        "鞋型"
+      ],
+      "hitArgs": [],
+      "finalText": "没找到你说的那双鞋——媒体库里只有一条「雨天街道.mp4」，画布上也没有鞋的素材。\n\n把鞋的图传上来（或告诉我它在哪），我按转台配方做：低机位缓推 → 180° 长轴旋转 + 洋红到青的凝胶扫过鞋底 → 收在四分之三正面，全程锁死鞋型、鞋带孔和配色不漂移。另外确认两件事：\n\n1. 品牌名要不要打在鞋跟 logo 上？没有就留空，我不编。\n2. 画幅和时长——默认 16:9、6 秒一条过。\n\n传图后我直接建草稿给你看报价卡。",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "look_at_media",
+          "args": {
+            "query": "鞋"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 36709,
+        "completion_tokens": 219,
+        "cache_hit": 28928
+      }
+    },
+    {
+      "id": "S10",
+      "say": "帮我写一场戏：女儿回家发现父亲在收拾行李",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "skill-writer",
+      "skillKey": "writer-screenwriter",
+      "first": "read_script",
+      "trajectory": [
+        "read_script"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": false,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "人物关系",
+        "不可逆",
+        "对白"
+      ],
+      "hitArgs": [],
+      "finalText": "创作区里现在只有一段海边小镇的素材，跟这场戏没有关系，我按新的一场戏来写。\n\n先说两个我替你定的：**媒介按叙事短片（5–10 分钟）处理**，所以这场戏只服务一个戏剧动作、不铺支线；**叠了「严肃叙事风格」**——不写内心活动、不解释动作含义、用物体承载情绪、结尾不给出口。这两条决定了下面所有台词的写法。\n\n---\n\n## 场景：老屋客厅 / 傍晚 / 电视没关，声音很小\n\n（约 2 分 10 秒）情节节奏：中 | 情感节奏：重\n\n客厅。一只 24 寸行李箱摊在地上，已经装了一半。父亲蹲着，把叠好的衬衫一件件压进去，压得很平。电视开着，新闻在播，声音小到听不清。\n\n门响。林夏进来，手里拎着两袋菜。她看见箱子，站住了。\n\n父亲没回头。\n\n**林夏**：今天几号？\n\n**父亲**：二十七。\n\n**林夏**：我买的二十八的票。\n\n**父亲**：嗯。\n\n他把衬衫压平，又拿了一件。\n\n林夏把菜放在鞋柜上，没往厨房走。她走过去，蹲在箱子另一边。\n\n**林夏**：这件领子磨了。\n\n**父亲**：穿着舒服。\n\n**林夏**：去哪儿？\n\n**父亲**：老周那边。他厂里缺人。\n\n**林夏**：缺人缺到要你过去。\n\n**父亲**：他打电话来的。\n\n林夏伸手，把箱子里那件衬衫拿出来，重新叠。她叠得比父亲慢，边角对齐了两次。\n\n**父亲**：不用叠。\n\n**林夏**：我知道。\n\n她叠完，放回去，压在原来的位置。\n\n父亲站起来，膝盖响了一声。他走到电视前，把电视关了。屋里一下子很静，能听见楼下有人在收晾衣杆。\n\n**父亲**：冰箱里有排骨。\n\n**林夏**：嗯。\n\n**父亲**：你妈那个药，在第二个抽屉。一天两次。\n\n**林夏**：我知道。\n\n**父亲**：嗯。\n\n他弯腰去拉拉链。拉链卡住了，卡在中间。他拉了两下，没拉动。\n\n林夏没有动。\n\n父亲换了个姿势，把箱子侧过来，一只手压住布面，另一只手慢慢把拉链拉过去。拉上了。\n\n他直起身，把箱子立起来，靠墙放好。然后他看了一眼墙上的钟。\n\n**父亲**：明天早上六点。\n\n**林夏**：我送你。\n\n**父亲**：不用。\n\n**林夏**：我送你。\n\n父亲",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 46137,
+        "completion_tokens": 956,
+        "cache_hit": 33664
+      }
+    },
+    {
+      "id": "S11",
+      "say": "把这个角色做成多视图设定图",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill-product",
+      "skillKey": "curated-multi-view",
+      "first": "look_at_canvas",
+      "trajectory": [
+        "look_at_canvas",
+        "read_script",
+        "list_models",
+        "draft_shots",
+        "arrange_canvas",
+        "generate"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [
+        "generate"
+      ],
+      "claimOk": true,
+      "turnOk": false,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "视图",
+        "视角",
+        "同一",
+        "参考"
+      ],
+      "hitArgs": [],
+      "finalText": "已按多视图配方建好一张设定图草稿：**林夏·多视图设定**，六视角（前/后/左/右/俯/仰）等距均匀分布、纯白背景、平光均匀照明，同一角色同一比例。\n\n两个关键决定：\n- 把画布上已有的「林夏」角色卡挂成了它的参考边（character_ref），不是只在提示词里提一句——这样六视图才锁得住同一张脸和同一套校服。\n- 画幅按配方要的横向排布选了 16:9，模型用 GPT Image 2（我选的，你只连了这一个图像模型）。\n\n确认卡已弹出，价格以卡上为准；你点头后才开始生成。生成完我会把图摆出来，逐项核对身份、数量、结构和光影，有偏差直接指给你看。",
+      "toolArgs": [
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "selection"
+          }
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "title": "林夏·多视图设定",
+                "role": "anchor",
+                "taskKind": "text_to_image",
+                "modelKey": "gpt-image-2",
+                "modeId": "t2i",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                },
+                "references": [
+                  "node-char"
+                ],
+                "prompt": "角色多视图设定图，同一角色六个视角：正面、背面、左侧、右侧、俯视、仰视。\n\n主体：17 岁女生林夏，齐耳短发（发尾内扣、额前碎刘海），深蓝色水手领校服外套配白色衬衫、红色领结、深色百褶裙、黑色及膝袜与黑色皮鞋；身形清瘦，身高约 162cm，五官清秀、单眼皮、肤色偏冷白。\n\n画面：纯白背景，无环境、无道具、无阴影投射。六个视角等距均匀分布，同一角色、同一比例、同一服装细节，等距透视等效，各视角身高与头身比完全一致。\n\n风格：角色设定图，平光均匀照明，柔和顶光，无戏剧性阴影；线条干净，色彩还原准确，全身入画，构图留白整齐。"
+              }
+            ]
+          }
+        },
+        {
+          "name": "arrange_canvas",
+          "args": {
+            "links": [
+              {
+                "fromId": "node-char",
+                "toId": "shot-7",
+                "role": "character_ref"
+              }
+            ]
+          }
+        },
+        {
+          "name": "generate",
+          "args": {
+            "draftId": "op-1"
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 112364,
+        "completion_tokens": 699,
+        "cache_hit": 103680
+      }
+    },
+    {
+      "id": "S12",
+      "say": "Turn the script in the document into a film storyboard.",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "skill-storyboard",
+      "skillKey": "curated-film-storyboard",
+      "first": "read_script",
+      "trajectory": [
+        "read_script",
+        "look_at_canvas",
+        "list_models",
+        "draft_shots",
+        "arrange_canvas"
+      ],
+      "firstOk": true,
+      "argsOk": true,
+      "trajectoryOk": true,
+      "forbiddenHit": [],
+      "claimOk": true,
+      "turnOk": true,
+      "skillVisible": true,
+      "skillParamOk": true,
+      "skillOk": true,
+      "hitText": [
+        "宽屏",
+        "16:9",
+        "每格"
+      ],
+      "hitArgs": [
+        "16:9"
+      ],
+      "finalText": "分镜已按宽屏 16:9 排好，六格，每格一个镜头，画布上原有的镜1–镜6 已就地改写（没有新建重复节点）。\n\n- 镜1 推窗 → 镜2 咸味的风 → 镜3 拿起相机 → 镜4 走向码头 → 镜5 渔船出海 → 镜6 按下快门\n- 每格都写死了林夏的同一套外观（齐耳短发、浅蓝衬衫+深色校服外套、帆布鞋）和同一套风格词（胶片颗粒、青灰冷调、晨雾柔光），保证跨格服装与空间关系不漂。\n- 画布上已有的「林夏」人物卡已连成镜1/2/3/4/6 的角色参考边，镜5 是纯海景空镜，不挂人物。\n\n模型是我替你选的：GPT Image 2 文生图，16:9——你目前只连了这一个出图模型，宽屏也只有它这一档可选。草稿已建好，模型和参数以确认卡为准；要我把它推到你面前报价吗？",
+      "toolArgs": [
+        {
+          "name": "read_script",
+          "args": {
+            "scope": "full"
+          }
+        },
+        {
+          "name": "look_at_canvas",
+          "args": {}
+        },
+        {
+          "name": "list_models",
+          "args": {
+            "kind": "image"
+          }
+        },
+        {
+          "name": "draft_shots",
+          "args": {
+            "draftId": "storyboard-1",
+            "taskKind": "text_to_image",
+            "candidate": {
+              "providerId": "openai",
+              "modelId": "gpt-image-2"
+            },
+            "shots": [
+              {
+                "shotId": "shot-1",
+                "title": "镜1 推窗",
+                "prompt": "海边小镇的清晨，天光刚亮，海雾未散。林夏（17 岁女生，齐耳短发，浅蓝衬衫外罩深色校服外套，帆布鞋）站在二楼卧室窗前，双手推开木窗，侧脸迎着风，眼睛微眯。中景，室内向窗外拍，逆光，窗框作前景。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调，柔和晨光。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "shotId": "shot-2",
+                "title": "镜2 咸味的风",
+                "prompt": "海边小镇的清晨，海雾未散。林夏（17 岁女生，齐耳短发，浅蓝衬衫外罩深色校服外套，帆布鞋）站在窗前，风吹起她的短发和衣角，她微微仰头，鼻翼轻动，像在闻空气里的咸味。近景，侧脸，浅景深，背景是虚化的海面。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调，柔和晨光。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "shotId": "shot-3",
+                "title": "镜3 拿起相机",
+                "prompt": "海边小镇的清晨，卧室一角。林夏（17 岁女生，齐耳短发，浅蓝衬衫外罩深色校服外套，帆布鞋）从木桌上拿起一台旧胶片相机，手指扣住机身，低头检查取景器。中近景，俯拍桌面，晨光从窗口斜切进来，在桌面拉出长影。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "shotId": "shot-4",
+                "title": "镜4 走向码头",
+                "prompt": "海边小镇的清晨，石板路通向码头。林夏（17 岁女生，齐耳短发，浅蓝衬衫外罩深色校服外套，帆布鞋）背对镜头沿石阶往下走，相机挂在胸前，两侧是低矮的白墙民居和晾晒的渔网。全景，背影，低机位，海面在画面尽头泛白。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调，柔和晨光。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "shotId": "shot-5",
+                "title": "镜5 渔船出海",
+                "prompt": "海边小镇的清晨，码头。一艘旧木渔船正驶离岸边，船尾拖出白色水痕，船上有两三个模糊的渔民身影，海鸥低飞。远景，海面占画面三分之二，码头木桩作前景。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调，晨雾中的柔光。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              },
+              {
+                "shotId": "shot-6",
+                "title": "镜6 按下快门",
+                "prompt": "海边小镇的清晨，码头边。林夏（17 岁女生，齐耳短发，浅蓝衬衫外罩深色校服外套，帆布鞋）举相机到眼前，右眼贴住取景器，食指搭在快门上，嘴角有一丝几乎看不出的笑。特写，相机与她的半张脸同框，背景是虚化的海和船。宽屏 16:9 电影分镜，胶片颗粒，青灰冷调，柔和晨光。",
+                "parameters": {
+                  "aspect_ratio": "16:9"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "arrange_canvas",
+          "args": {
+            "links": [
+              {
+                "fromId": "node-char",
+                "toId": "shot-1",
+                "role": "character_ref"
+              },
+              {
+                "fromId": "node-char",
+                "toId": "shot-2",
+                "role": "character_ref"
+              },
+              {
+                "fromId": "node-char",
+                "toId": "shot-3",
+                "role": "character_ref"
+              },
+              {
+                "fromId": "node-char",
+                "toId": "shot-4",
+                "role": "character_ref"
+              },
+              {
+                "fromId": "node-char",
+                "toId": "shot-6",
+                "role": "character_ref"
+              }
+            ]
+          }
+        }
+      ],
+      "invalid": [],
+      "usage": {
+        "prompt_tokens": 95550,
+        "completion_tokens": 1459,
+        "cache_hit": 93824
+      }
+    }
+  ]
+}

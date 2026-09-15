@@ -83,11 +83,15 @@ async function main() {
     const names = tools.map((tool) => tool.name)
     check(names.length === TOOL_NAMES.length && JSON.stringify(names) === JSON.stringify(TOOL_NAMES), `C2 tools/list matches the ${TOOL_NAMES.length}-tool declared catalog`)
     check(tools.every((tool) => typeof tool.title === 'string' && tool.title.length > 0), 'C2 every MCP tool carries a human title')
-    const { $schema: _dialect, ...planSchema } = toPublishedJsonSchema(LANE_TOOLS.find(tool => tool.name === 'apply_edit_plan').schema)
+    // 内部面是 `edit_timeline(revision, …)`；对外 `plan` 字段的 owner 是契约上的 `timelineEditPlanModelSchema`（同一份）。
+    const { timelineEditPlanModelSchema } = tsxRequire('../../electron/shared/agentCapabilities/timelineRead.ts', import.meta.url)
+    const { $schema: _dialect, ...planSchema } = toPublishedJsonSchema(timelineEditPlanModelSchema)
     assert.deepEqual(tools.find(tool => tool.name === 'nomi_timeline_edit').inputSchema.properties.plan, planSchema,
       'C51 external timeline plan is the complete lane schema, including action and bounds')
     check(true, 'C51 timeline write schema is projected from the lane catalog')
-    const runSchema = toPublishedJsonSchema(LANE_TOOLS.find(tool => tool.name === 'start_production_run').schema)
+    // Run 家族不上模型面（设计正本 §5.3）：对外 brief 字段的 owner 是 productionRunDescriptors 那份 schema。
+    const { productionRunToolDescriptors } = tsxRequire('../../electron/shared/agentCapabilities/productionRunDescriptors.ts', import.meta.url)
+    const runSchema = toPublishedJsonSchema(productionRunToolDescriptors.start_production_run.parameters)
     for (const field of ['goal', 'audience', 'channel', 'tone', 'durationSeconds', 'sellingPoints']) {
       assert.deepEqual(tools.find(tool => tool.name === 'nomi_run_start').inputSchema.properties.brief.properties[field], runSchema.properties[field], `C51 production ${field} is the lane schema`)
     }

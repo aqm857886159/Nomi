@@ -1,0 +1,178 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-selected-skill-injection",
+  "problem_type": "用户显式选中的知识包被注入提示词时既没有交代文案也没剥掉打包清单，同一段拼装在两处各写一遍",
+  "symptom": "用户在 Agent composer 里点了「电影分镜」技能再发一句话，回复里看不出技能被用过、画幅与提示词结构都不跟着变（2026-09-10 用户原话「用了一个电影分镜 skill，但他和我生成出来的东西提示词一看就不对，而且比例不对」）。2026-09-15 真实模型腿量到：选了技能的 12 句里 4 句回复无任何技能痕迹，而同一批句子不挂技能时模型自主 read_skill 反而读到了正好对的那条技能并照做。",
+  "direct_cause": "electron/agentLane/laneDesktopRuntime.ts 的 singleShot 与 configure 各自内联拼 `[next.systemPrompt, skill?.body]`：把整份 SKILL.md（含 YAML frontmatter）原样接在面板提示词后面。模型收到的是一块无标注的 markdown，前半段还是 license / source / preview / 双语 label 这类打包元数据（curated-film-storyboard 原文 1724 字里方法只有 305 字，82% 是清单）。没有任何一句话说明这是用户为这一轮点的、它规定的参数要写进工具入参、回复里要看得出用了它。",
+  "class_root": "「一份外部知识包进提示词」这件事没有 owner：拼装散在调用点上，于是『交代文案』与『剥清单』这两条不变量在每个调用点各自可以缺席，而缺席不报错——它只让模型把用户的一次明确选择当成背景阅读。仓里本来有一个带交代文案的实现（buildSkillSystemPrompt），但它零生产调用者，于是『看起来有』和『跑的时候没有』长期并存。",
+  "affected_population": [
+    "所有在 Agent composer 里点选技能的用户（12 条 workbench-selectable 的 curated 技能受影响最重：frontmatter 占注入字数 41–82%）",
+    "两条注入路径都受影响：常驻 lane（configure，日常主路）与 singleShot",
+    "不受影响：模型自己调 read_skill 那条路（工具结果自带语义），以及 MCP resources/read（按标准返回原文）"
+  ],
+  "scope_paths": [
+    "electron/harness/context/agentContext.ts",
+    "electron/skills/skillFrontmatter.ts",
+    "electron/agentLane/laneDesktopRuntime.ts"
+  ],
+  "entry_points": [
+    "composer 技能 chip → laneClient.say(context.skillKey) → laneIpc 的 configure → laneDesktopRuntime.configure",
+    "单发模式 laneDesktopRuntime.singleShot"
+  ],
+  "invariants": [
+    "用户为某一轮选中的技能，其正文进提示词时必须带一段交代：这是本轮作业规范、参数要落进工具入参、回复里要看得出被用过",
+    "进提示词的技能文本只含方法正文，不含 SKILL.md 的 YAML frontmatter",
+    "这两条只由一个函数保证；任何注入点都不得自己拼技能正文"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "line": 108,
+      "symbol": "buildSelectedSkillPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "line": 187,
+      "symbol": "buildSelectedSkillPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/harness/context/agentContext.ts",
+      "line": 137,
+      "symbol": "skillMarkdownWithoutFrontmatter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/skills/skillFrontmatter.ts",
+      "line": 63,
+      "symbol": "skillMarkdownWithoutFrontmatter"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 4,
+    "why_not": "门数从 3 涨到 4，但**做决定的地方**从 3 个减到 1 个——这两件事必须分开读。改动前 `node scripts/door-map.mjs resolveRequestedSkill` 报 3 扇，而那 3 扇各自在决定「技能正文长什么样」：laneDesktopRuntime.ts:94 与 :173 各内联拼一次 `[next.systemPrompt, skill?.body]`，agentContext.ts:87 的 buildSkillSystemPrompt 是第三份（零生产调用者、带交代文案的并行版，本次已删）。修完之后剩下的 4 扇里：laneDesktopRuntime 的两扇只是**调用** owner（本文件内再无一行技能拼装代码），agentContext.ts:137 是 owner 自己调 stripper，skillFrontmatter.ts:63 是 stripper 的定义点。也就是说判据只剩 buildSelectedSkillPrompt 一个家，另外三扇是它的调用链。为什么 laneDesktopRuntime 的两扇没合成一扇：singleShot 是一次性请求（没有 lane、没有 configure 回合边界，自己拼身份层），configure 是常驻 lane 每个回合的准入点（身份层由 laneHost 求值，它只拼 composer 段）——两者组装的 systemPrompt 结构不同，合并要先把 singleShot 并进 lane 生命周期，那是另一件事。"
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/harness/context/agentContext.ts",
+    "tests": [
+      "electron/harness/context/agentContext.test.ts",
+      "electron/skills/skillFrontmatter.test.ts",
+      "tests/ux/skill-import-real-use.walk.mjs"
+    ],
+    "why": "不变量（交代文案 + 只注入方法正文 + 信封形状）由本文件的 buildSelectedSkillPrompt 单点持有，两个注入点只调用它。agentContext.test.ts 三条钉交代文案、信封与 frontmatter 不得出现（三条都验过在改动前会红）；skillFrontmatter.test.ts 拿盘上 88 份真 SKILL.md 把本地 stripper 钉在 pi 的 stripFrontmatter 上（含 1 条阳性对照防文件列表为空时空跑）；skill-import-real-use.walk.mjs 在真机同一份出站报文上验交代在、清单不在（也验过在改动前会红，且带一条『标记真的在盘上那份 SKILL.md 里』的阳性对照）。"
+  },
+  "generality_proof": "两条不变量现在只有一个生成点。任何新的注入面（未来的 MCP 宿主面、第二个面板、回放夹具）要把选中技能送进模型，只能调 buildSelectedSkillPrompt——它自己剥 frontmatter、自己带交代，调用方没有『忘了加』的余地。反向也封住了：agentContext.test.ts 断言正文以信封收尾、断言三个 frontmatter 键不出现，改这段就得先让它红。真实模型腿（tests/system/agent-tool-face-real-model.mjs）也走同一个 owner，所以量到的数字和生产是同一段文本。",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/context/agentContext.ts",
+      "symbol": "buildSelectedSkillPrompt",
+      "responsibility": "把一条 SkillRecord 变成『本轮作业规范』那一段：交代四句 + pi 的 <skill> 信封 + 去 frontmatter 的方法正文。全仓唯一的选中技能注入点。"
+    },
+    {
+      "path": "electron/skills/skillFrontmatter.ts",
+      "symbol": "skillMarkdownWithoutFrontmatter",
+      "responsibility": "SKILL.md 去掉 frontmatter 之后的方法正文，判据与 parseSkillFrontmatter 同一份，行为与 pi 的 stripFrontmatter 对账。只给提示词注入用。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "entry_point": "configure",
+      "disposition": "enforced",
+      "evidence": "常驻 lane 每个回合的准入点（laneIpc.ts:164 在每条 prompt 前调它）。已改为调 buildSelectedSkillPrompt，本文件内再无技能正文拼装。"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "entry_point": "singleShot",
+      "disposition": "enforced",
+      "evidence": "一次性请求路径，同样已改为调 buildSelectedSkillPrompt。"
+    },
+    {
+      "path": "electron/capabilityCore/skillReadTransportAdapters.ts",
+      "entry_point": "read_skill 的 body",
+      "disposition": "not-affected",
+      "evidence": "它是把 SKILL.md 当资源交给读者（模型经 read_skill、外部宿主经 MCP resources/read）。外部读者按 Agent Skills 标准期待一份完整的 SKILL.md，在这里裁掉 frontmatter 才是错的（R31）。而且工具本身的 description 已经说明了语义（『so you can follow its method』），缺的那段交代在这条路上不缺。"
+    },
+    {
+      "path": "electron/agentLane/laneSkillIndex.mts",
+      "entry_point": "renderLaneSkillSection",
+      "disposition": "not-affected",
+      "evidence": "索引只渲染 name + description + 安装路径，从不注入正文（渲染由 pi 的 formatSkillsForPrompt 负责，本仓一行渲染代码都没有）。它管『模型自己发现』，不在本失败类里。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一机制可以从任何一个新注入面回来：只要下一个人在自己的调用点写一次 `[...prompt, skill.body]`，交代与剥清单就又缺席一次，而缺席不报错、只让模型把用户的明确选择当背景阅读。改动前它已经从两个调用点各来了一次，第三个带交代的实现还零调用者地躺在旁边。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolveRequestedSkill → 3 扇（laneDesktopRuntime.ts:94 / :173 / agentContext.ts:87），逐扇处置见 doors 与 door_reduction",
+      "node scripts/door-map.mjs buildSelectedSkillPrompt → 修后 2 扇，均为 owner 调用点",
+      "rg 'skill\\?\\.body|skill\\.body' src electron（排除测试）→ 修后 0 处生产内联拼装",
+      "rg 'buildSkillSystemPrompt|composeAgentSystemPrompt' src electron scripts tests → buildSkillSystemPrompt 修前仅测试引用（确认零生产调用者后删除）；composeAgentSystemPrompt 同为零生产调用者，本次未动，记在 residual_risks",
+      "检查另外两条『技能文本给读者』的路：skillReadTransportAdapters.ts（read_skill / MCP resources）与 laneSkillIndex.mts（索引），逐条判定见 same_class_entry_points"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/harness/context/agentContext.ts",
+    "invariant": "任何注入点把选中技能送进模型，拿到的都是同一段文本：交代四句 + <skill> 信封 + 去 frontmatter 的方法正文。",
+    "failure_mode": "技能解析不出来时 laneDesktopRuntime 在调 owner 之前就抛 agent_skill_unavailable（fail-closed，改动前后一致）；frontmatter 没闭合时 skillMarkdownWithoutFrontmatter 整份当正文给出去而不是给空串——少给远比静默给空强，空正文的症状正是本合同在修的那个病。",
+    "exception_policy": "none",
+    "strategy": "两条不变量只有一个生成点，调用方没有『忘了加』的余地；正文是它返回值的结尾，测试钉住结尾形状，改这段必须先让测试红。",
+    "artifacts": [
+      "electron/harness/context/agentContext.ts",
+      "electron/skills/skillFrontmatter.ts",
+      "electron/agentLane/laneDesktopRuntime.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/context/agentContext.test.ts",
+    "electron/skills/skillFrontmatter.test.ts",
+    "tests/ux/skill-import-real-use.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/harness/context/agentContext.test.ts",
+    "electron/skills/skillFrontmatter.test.ts",
+    "tests/ux/skill-import-real-use.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/harness/context/agentContext.ts"
+    ],
+    "rationale": "buildSkillSystemPrompt（零生产调用者、带交代文案的并行版）与它那条永不可达的『skill 未找到』分支一并删除，内容并进 buildSelectedSkillPrompt。laneDesktopRuntime.ts 两处的内联 `skill?.body` 拼装同 commit 删除（P1：加新必删旧，不留并行版）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@earendil-works/pi-coding-agent 0.85.1（导出 stripFrontmatter，但 owner 层不许依赖它）",
+    "target": "owner 层能安全依赖 pi 之后，直接调它的 stripFrontmatter，删掉本地等价物",
+    "rationale": "pi 0.85.1 已导出 stripFrontmatter，但正文注入的 owner 层刻意不许依赖 @earendil-works/pi-*（agentContext.test.ts 的 FORBIDDEN_OWNER_IMPORT 把这条钉成断言：它跑在主进程 CJS 侧，pi 是 ESM-only）。因此保留一份本地等价物，并用 electron/skills/skillFrontmatter.test.ts 拿盘上 88 份真 SKILL.md 逐个对账把它钉在上游行为上。",
+    "exit_criteria": [
+      "owner 层能安全依赖 pi（例如 agentContext 搬到 ESM 侧、或 pi 提供 CJS 入口）时，改为直接调 pi 的 stripFrontmatter 并删掉本地等价物",
+      "pi 升级后 skillFrontmatter.test.ts 的 88 条对账仍全绿——红了就先读上游 diff 再决定跟不跟"
+    ]
+  },
+  "migration": "无需迁移：改的是每一轮现算的提示词文本，没有落盘状态、没有持久化格式、没有对外契约。read_skill 与 MCP resources/read 返回的原文一个字节没动，外部宿主不受影响。",
+  "residual_risks": [
+    "「技能规定的参数真的落进工具入参」这一半没被这次修动：选了技能那 11 句 skillParamOk 9/11 → 9/11，两格未命中里 S02/S09 整轮只做了读，那是『没发生』不是『没做到』。要真的保证它，需要工具面上的守卫（方案写在 docs/evidence/2026-09-15-skill-real-run/principles-hypothesis.md 的第 ② 层），本次未实施。",
+    "composeAgentSystemPrompt 同为零生产调用者，只有测试引用它；本次未删（它不是本失败类的并行版，删它要连带处置几条只挂在它上面的语言规则回归断言）。记账在 PR 正文的「发现但没动」。",
+    "『一次只能选一个技能』（T-AG-05）未放开：creationActiveSkill 是单值（src/workbench/workbenchStore.ts:118），改成多值要连带 laneDesktopInput.ts:30 的 skillKey 单值 schema、laneContracts.ts:47 的转录字段、laneProjection.ts:235 的 chip 投影与 laneViewModel.ts:336 的渲染，且两条技能的方法互相冲突时谁优先没有产品裁决。记账，不在本次。",
+    "真实模型腿只有一个模型（deepseek-chat）一个温度（0），n=11 的选中技能组；skillVisible 是下界（标记会漏报，实例见 prompts.md 的局限 1）。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "定这条不变量的证据是**本机安装的 pi 包源码**，不是一个可核对的公开 URL：node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js:994-995（_expandSkillCommand：stripFrontmatter(content).trim() + `<skill name= location=>` 信封 + 「References are relative to <baseDir>.」）、dist/utils/frontmatter.js:27（stripFrontmatter 实现）、dist/index.d.ts:31（导出）、dist/core/agent-session.js:45（parseSkillBlock 的反向解析正则）。本次两条实质决定都照它做：剥 frontmatter 与信封形状。唯一有意不同的是信封放 system 段而不是 pi 的 user 段，理由是领域约束——Nomi 面板逐字渲染用户气泡，且没有 pi 的 SkillInvocationMessageComponent 那种折叠渲染器。逐条对照与『没想到』清单写在 docs/plan/2026-09-15-skill-selected-injection.md 的「先查别人（R27）」一节；本地等价 stripper 由 electron/skills/skillFrontmatter.test.ts 拿盘上 88 份真 SKILL.md 与 pi 的实现逐个对账钉住。",
+  "prior_art_local_source": [
+    {
+      "what": "pi 自己展开用户显式点的技能：stripFrontmatter(content).trim() + `<skill name= location=>` 信封 + 「References are relative to <baseDir>.」",
+      "where": "node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js:994-995（stripFrontmatter 实现在 dist/utils/frontmatter.js:27，由 dist/index.d.ts:31 导出）",
+      "decision": "照抄信封与剥 frontmatter 的行为。剥 frontmatter 不是 Nomi 的发明，是上游对同一件事的既有做法；信封形状按 R31 不自造。信封放在 system 段而非 pi 的 user 段是有意不同，理由是领域约束：Nomi 面板逐字渲染用户气泡，没有 pi 的 SkillInvocationMessageComponent 那种折叠渲染器。"
+    },
+    {
+      "what": "Agent Skills 的 <available_skills> 只预载 name + description、正文按需读",
+      "where": "node_modules/@earendil-works/pi-coding-agent/dist/core/skills.js 的 formatSkillsForPrompt（Nomi 侧裁决已写在 electron/agentLane/laneSkillIndex.mts 顶部注释）",
+      "decision": "不动。它管『模型自己发现技能』；本合同管『用户亲手点的那一条』。两条分工写死在 owner 的注释里。"
+    }
+  ]
+}

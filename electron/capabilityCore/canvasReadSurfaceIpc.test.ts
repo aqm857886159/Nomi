@@ -308,6 +308,26 @@ describe("Canvas read Surface IPC", () => {
     ).resolves.toMatchObject({ ok: true, value: { binding: { binding: { projectId: "project-a" } } } });
   });
 
+  it("does not invalidate when only ?step= changes even if Chromium claims a new document", async () => {
+    const test = setup();
+    const owner = source();
+    const { value: { suspension } } = (await test.invoke("suspend", owner.event, {
+      surfaceInstanceId: "surface-1",
+    })) as { ok: true; value: { suspension: unknown } };
+    owner.sender.emit("did-start-navigation", {
+      isMainFrame: true,
+      isSameDocument: false,
+      url: "file:///nomi/index.html?step=generate",
+    });
+    await expect(
+      test.invoke("commitCanvasRead", owner.event, {
+        projectId: "project-a",
+        suspension: copy(suspension),
+      }),
+    ).resolves.toMatchObject({ ok: true, value: { binding: { binding: { projectId: "project-a" } } } });
+    expect(test.registry.getCommittedProjectSelection()?.projectId).toBe("project-a");
+  });
+
   it("blocks the old document from reacquiring authority while a full navigation is in progress", async () => {
     const test = setup();
     const owner = source();

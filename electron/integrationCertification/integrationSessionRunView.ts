@@ -56,26 +56,34 @@ export function modelResultsFromRun(run: CanonicalHttpCertificationRun | undefin
 }
 
 /**
- * `certifying` / `committing` 阶段的逃生口。
+ * `certifying` / `committing` 阶段的逃生口。**这个函数不允许抛异常**——它一抛，
+ * `IntegrationSessionService.cancel` 就跟着抛，用户和驱动 Agent 就都没有出口了。
  *
- * 以前这里直接 `throw new Error("Cannot cancel certification in progress")`——于是那次死锁
- * 里用户和驱动 Agent 双双没路可走：run 卡在中间态、会话跟着卡、cancel 被拒、只能重启 app。
- * 拒绝 cancel 的本意是「别在远端已经受理之后假装撤销了」，但它**把「撤销远端」和「放弃本地会话」
- * 混成了一件事**。拆开：先真的去撤 run（撤得掉就撤），撤不掉也要如实告诉调用方，
- * 而不是把人锁在一个没有出口的状态里。
+ * 以前这里直接 `throw new Error("Cannot cancel certification in progress")`。第一轮修复
+ * （2026-09-11）只给「已经拿到 childRunRef 的 HTTP 会话」开了口，剩下三种状态照旧抛：
+ *   1. `comfyui-workflow` 会话——本地那条免费自检没有 run 可撤；
+ *   2. HTTP 会话在「`certifying` 已落盘、`startHttp` 还没返回」这个窗口里——还没有 childRunRef；
+ *   3. run 记录已被删（连接被删）而会话还引用着它。
+ * 拒绝 cancel 的本意是「别在远端已经受理之后假装撤销了」，但它**把「撤销远端」和
+ * 「放弃本地会话」混成了一件事**。拆开：能撤的真去撤；撤不掉、或压根没有可撤的东西，
+ * 一样放人走，只是**如实标注**为什么。
+ *
+ * 「放弃本地会话之后，那个还在飞的 promise 迟到 resolve 会不会把会话复活成 completed？」
+ * 这个担心是对的，但它的解法是「终态不许被覆写」（`integrationSession.start` 里的
+ * `sealedAfterAward` 守卫），不是「不给用户出口」。
  */
 export function cancelCertifyingRun(
   certification: ConnectionCertificationService | undefined,
   session: { kind: string; childRunRef?: { runId: string } },
 ): { code: string } | undefined {
-  // ComfyUI 的 certifying 是一个还在飞的本地 promise，没有可撤的 run；对它放行只会让
-  // 「已取消」和随后 resolve 的「已完成」打架，所以那条路仍然拒绝。
+  // 没有可撤的 run（ComfyUI 的本地 promise / 还没拿到 childRunRef）：会话照样放人走。
+  // 标注的是**事实**——本地放弃了，但那一步可能还在跑完——而不是一个静默兜底。
   if (session.kind !== "http-api-provider" || !session.childRunRef || !certification)
-    throw new Error("Cannot cancel certification in progress");
+    return { code: "certification_abandoned_locally" };
   const runId = session.childRunRef.runId;
   const after = certification.cancel(runId) ?? certification.get(runId);
-  // 撤得掉就撤干净；远端已经受理（run 仍非终态）也要放人走，但**如实标注**，
-  // 而不是像以前那样把人锁在一个没有出口的状态里。
+  // run 记录已经不在了（连接被删）= 没有远端在受理，干净取消。
+  // 撤得掉就撤干净；远端已经受理（run 仍非终态）也要放人走，但**如实标注**。
   // 终态判断复用 providerAdapter 那一份（store.isTerminalAdapterStage），不在这里再列一遍成员。
   return !after || isTerminalAdapterStage(after.stage) ? undefined : { code: "certification_already_submitted" };
 }

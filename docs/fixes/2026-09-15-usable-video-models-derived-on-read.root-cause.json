@@ -1,0 +1,300 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-usable-video-models-derived-on-read",
+  "change_kind": "corrective",
+  "problem_type": "可变状态的派生在装配时快照一次，之后再变就看不见了；而且这份派生存了两份副本",
+  "symptom": "mcp-l2 走查 C9 断言失败：刚接入 apimart 并且钥匙可解密，generation_context.videoModels 仍只报得出 dreamina 的 2 个模型。真机上对应的是「用户在设置里接好一个供应商、设置页显示正常，外部助手却说没有这个模型，重启 App 才认」。",
+  "direct_cause": "electron/capabilityCore/appIntegration.ts 与 mcpStdioServer.ts 都在装配 generation deps 时把 videoModelCandidates 算成一个静态数组。探针实测 stdio 侧 candidates 有 17 个、apimart availability 就是 {usable:true}、hasApiKey:true，而 mcpGenerationTools 里 videoModels 是对 deps.videoModelCandidates 的无过滤 map——喂给 handler 的那份列表本来就只有 dreamina（会员制免钥匙，开机那一刻就算得出能用）。",
+  "class_root": "「现在有哪些视频模型能用」这份派生的输入（catalog + 凭据可解密性）在运行期会变，钥匙常常是进程起来之后才写进来的；把它算在模块装配期，等于把那一刻的可用性冻成永久事实。并且同一份派生在两个进程的装配点各写了一份逐字相同的副本（只差一句注释），两份犯同一个错——stdio 那份只因进程在写钥匙之后才 spawn 才没暴露，属于同类问题从另一个调用者回来的教科书形状。",
+  "affected_population": [
+    "任何在 App 起来之后才接入视频供应商的用户（设置页接入是唯一入口，所以这是常态而非边缘）：外部助手拿到的可用模型名单里没有它，看起来像接入失败",
+    "通过 MCP / 外部编码助手驱动生成的全部调用方（nomi_get_generation_context、nomi_generate 的模型选择都读这份名单）",
+    "走查/夹具场景「先起 App 再写 key」——mcp-l2、模型接入类走查都是这个时序"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/usableVideoModelCandidates.ts",
+    "electron/capabilityCore/usableVideoModelCandidates.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "entry_points": [
+    "GUI 主进程能力核装配（appIntegration.createAppIntegration → generation deps.videoModelCandidates）",
+    "MCP stdio 进程装配（mcpStdioServer → 同一份 deps）",
+    "读侧：mcpGenerationTools 的 videoModels / 模型推荐 / 计划生成、mcpGenerationPreview、mcpGenerationMultiShot"
+  ],
+  "invariants": [
+    "「现在有哪些视频模型能用」每次被问都从 catalogStore 当场重算，任何一层缓存都不许有——缓存这份结果等于把「接好的供应商要重启才认」原样请回来",
+    "这份派生全仓只有一份实现（deriveUsableVideoModelCandidates），新的消费进程只准调它，不许再抄一遍",
+    "可用性判据只有 createCatalogAvailability 一条（停用 / 未发布 / 没钥匙都算不可用），不是「目录里有就报」"
+  ],
+  "generality_proof": "把两个装配点的派生体逐字 diff（去缩进后只差一句注释）证明是同一份判断的两份副本；类回归测试用变异验证过会红——把缓存塞回去，3 条「记死」类断言红（第一条 expected [] to deeply equal [sora-2]，正是 C9 症状的形状），2 条纯过滤断言仍绿，说明测试钉的确实是「什么时候读」而不是「怎么建」。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个错已经在同一份派生上出现了两次——appIntegration 与 mcpStdioServer 各存一份逐字相同的副本，两份都在装配期求值。stdio 那份只因为进程在写钥匙之后才 spawn 才没暴露，属于「同类问题从另一个调用者回来」的教科书形状。不把派生收成一份，下一个消费进程照抄时会第三次犯同样的错。",
+    "same_class_scan": [
+      "实扫 buildVideoModelCandidates 的全部调用者（grep 全仓 src/ + electron/，含测试）：生产侧只有 appIntegration.ts、mcpStdioServer.ts、generationDefaultModelResolver.ts:70；前两处即本次两份副本，第三处是对显式传入的模型行做纯建造、不读 catalogStore，不存在快照问题。",
+      "同文件横扫「装配期求值 vs 按需求值」：紧邻的 resolveModelPricing / resolveShotPrice 两处已是 lazy 且注释写明理由（让用户改动即时生效），说明本仓对这条不变量早有共识，本次是那两处的漏项而非新规矩。",
+      "node scripts/door-map.mjs deriveUsableVideoModelCandidates / videoModelCandidates 数门：派生实现 2 份 → 1 份，消费点 24 扇全部经同一个 getter。"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/usableVideoModelCandidates.ts",
+      "line": 18,
+      "symbol": "deriveUsableVideoModelCandidates"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 334,
+      "symbol": "deriveUsableVideoModelCandidates"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "line": 331,
+      "symbol": "deriveUsableVideoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 334,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "line": 222,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationPreview.ts",
+      "line": 43,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationPreview.ts",
+      "line": 48,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationPreview.ts",
+      "line": 52,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationPreview.ts",
+      "line": 57,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 359,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 368,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 371,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 372,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 390,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 405,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 438,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 482,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 510,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 532,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 564,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 582,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 583,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 594,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 595,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 617,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "line": 618,
+      "symbol": "videoModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "line": 331,
+      "symbol": "videoModelCandidates"
+    }
+  ],
+  "door_reduction": {
+    "before": 24,
+    "after": 27,
+    "merged": [
+      "electron/capabilityCore/appIntegration.ts 内联派生（已删）→ electron/capabilityCore/usableVideoModelCandidates.ts#deriveUsableVideoModelCandidates",
+      "electron/capabilityCore/mcpStdioServer.ts 内联派生（已删）→ 同上"
+    ],
+    "why_not": "门表行数从 24 涨到 27，是因为多出来的三行本身就是这次修复的产物：owner 本体（此前不存在的那份唯一实现），以及两个装配点从「读一个本地常量」变成「调 owner」后被机器记成 write。真正减少的是**判断的份数**：派生实现从 2 份逐字相同的副本（去缩进后只差一句注释）降到 1 份，两个装配点现在只剩 getter 转发，里面一行判断都没有。那 2 扇 write 合不掉也不该合——GUI 主进程与 MCP stdio 是两个真实存在的进程，各自必须装配一次自己的 generation deps。其余 24 扇全是 read，读的是同一个 getter，不构成第二份判断。"
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/usableVideoModelCandidates.ts",
+      "symbol": "deriveUsableVideoModelCandidates",
+      "responsibility": "「现在有哪些视频模型能用」这份派生的唯一所有者：每次被问都从 catalogStore 当场重读目录、按 createCatalogAvailability 判可用性，绝不缓存。GUI 主进程与 MCP stdio 两个装配点共用它。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "GUI 主进程能力核装配（createAppIntegration → generation deps.videoModelCandidates）",
+      "disposition": "enforced",
+      "evidence": "内联派生已删，改为 get videoModelCandidates() { return deriveUsableVideoModelCandidates() }（appIntegration.ts:334）。数门确认此处只剩一扇调用点，无本地判断。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "MCP stdio 进程装配（同一份 generation deps）",
+      "disposition": "enforced",
+      "evidence": "同上，内联副本已删（mcpStdioServer.ts:331）。这份副本此前有同一个潜在缺陷，只因进程在写钥匙之后才 spawn 才没暴露。"
+    },
+    {
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "entry_point": "buildVideoModelCandidates 的第三个生产调用者（默认模型解析，generationDefaultModelResolver.ts:70）",
+      "disposition": "not-affected",
+      "evidence": "它对显式传入的单个模型行做纯建造，不读 catalogStore、不做可用性判定，因此没有「装配期快照」这个时机问题。实扫 buildVideoModelCandidates 全仓调用者后确认生产侧仅此三处。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "读侧消费点（videoModels 是对 deps.videoModelCandidates 的无过滤 map）",
+      "disposition": "not-affected",
+      "evidence": "它不含判断，只转发；本次修复后它转发的是现算结果。数门 24 扇 read 全属此类。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/usableVideoModelCandidates.ts",
+    "invariant": "「现在有哪些视频模型能用」全仓只有这一份实现，且每次被问都从 catalogStore 当场重算——任何一层缓存、任何一份副本都不许有。",
+    "failure_mode": "若这个边界被绕开（新的消费进程自己再抄一份派生，或有人给它加缓存），那份副本会重新在装配期把可用性冻成永久事实：用户在设置里刚接好的供应商，外部助手报「没有这个模型」，要重启 App 才认——正是本次 C9 红出来的形状，而且它不会报错、只会静默少报模型。",
+    "exception_policy": "none",
+    "strategy": "把派生收成唯一 owner 模块，两个装配点降级成 getter 转发（内联副本同 commit 删除，P1）。配 5 条类回归测试并做**变异验证**：把缓存塞回 owner，3 条「记死」类断言立刻红（第一条 expected [] to deeply equal [sora-2]，正是 C9 症状的形状），而 2 条纯过滤断言仍绿——证明这组测试钉的确实是「什么时候读」，不是「怎么建」，也不是一动就全红的假防线。第三个消费进程要么调 owner、要么自己抄一份，抄的那份立刻失去这组测试的保护。",
+    "artifacts": [
+      "electron/capabilityCore/usableVideoModelCandidates.ts",
+      "electron/capabilityCore/usableVideoModelCandidates.test.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore",
+    "has_tests": true,
+    "tests": [
+      "electron/capabilityCore/usableVideoModelCandidates.test.ts"
+    ],
+    "rationale": "这条不变量是「能力核对外报告可用能力时的新鲜度」，既不属于 catalog（它只管存与判可用性），也不属于任何单个进程的装配代码。住在 capabilityCore 这一层，GUI 与 MCP stdio 两个装配点才能共用同一份判断与同一组测试。"
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/usableVideoModelCandidates.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/mcpStdioServer.ts"
+    ],
+    "rationale": "P1 加新必删旧：这两个文件里各自那份逐字相同的内联派生（含 readCatalog / createCatalogAvailability / buildVideoModelCandidates 的完整 map 链）同 commit 删除，随之失去用途的三个 import 也一起删（buildVideoModelCandidates、videoArchetypeIdFromMeta、createCatalogAvailability）。新旧不并存一刻，两处现在只剩一行 getter 转发。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因是本仓自己那份派生的求值时机与实现份数，不涉及任何第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无数据或格式迁移：只改求值时机与实现份数，输出形状（VideoModelCandidate[]）一字未动，消费点全部经 getter 透明拿到。",
+  "residual_risks": [
+    "每次问都重读 catalogStore 与重算可用性。这条路上既没有网络也没有磁盘 IO（catalogStore 是内存态），且与紧邻的 resolveModelPricing / resolveShotPrice 同量级——它们已经这么做很久了。若将来 catalog 规模量级变化需要缓存，缓存必须建在 catalogStore 的失效通知上，不许回到「装配时算一次」。"
+  ],
+  "internal_only_reason": "全部改动在本仓能力核的装配边界内，证据来自仓库代码、变异验证过的单测与本机 mcp-l2 端到端走查；不涉及任何外部 API 契约或第三方库行为。",
+  "regression_tests": [
+    "electron/capabilityCore/usableVideoModelCandidates.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "structural_review": null,
+  "prior_art": {
+    "checked": [
+      "仓内先例：electron/capabilityCore/appIntegration.ts 的 resolveModelPricing / resolveShotPrice 与 mcpStdioServer.ts 同名者已按「lazy 以便用户改动即时生效」实现，注释写明理由——本次沿用而非另创写法",
+      "电子/前端通行做法：把随可变状态变化的列表做成 getter / selector 而非构造期快照（React selector、Vue computed 同一形状）；此处不引框架，用最小的函数调用即可"
+    ],
+    "conclusion": "不是通用能力问题、无需引入任何库：正确解就是「别在装配期求值」，并把重复的那份实现删掉。"
+  }
+}

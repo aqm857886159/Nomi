@@ -1,11 +1,9 @@
 import React from 'react'
-import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 import type { SettingsInitialSection, SettingsTab } from './SettingsDialog'
 
 type SettingsOpenDetail = {
   tab?: string
   section?: string
-  productionPolicy?: ProductionPolicyRequirement
 }
 
 export function normalizeSettingsInitialTab(tab: string | undefined): SettingsTab {
@@ -22,7 +20,6 @@ function normalizeInitialSection(section: string | undefined): SettingsInitialSe
   return section === 'cursor-host'
     || section === 'automation'
     || section === 'ai-models'
-    || section === 'production-policy'
     || section === 'tikhub-connector'
     ? section
     : null
@@ -32,13 +29,11 @@ export function useSettingsDialogController() {
   const [opened, setOpened] = React.useState(false)
   const [initialTab, setInitialTab] = React.useState<SettingsTab>('file')
   const [initialSection, setInitialSection] = React.useState<SettingsInitialSection>(null)
-  const [productionPolicyRequirement, setProductionPolicyRequirement] = React.useState<ProductionPolicyRequirement | null>(null)
 
   const openSettings = React.useCallback((detail?: SettingsOpenDetail) => {
     const section = normalizeInitialSection(detail?.section)
     setInitialTab(normalizeSettingsInitialTab(detail?.tab))
     setInitialSection(section)
-    setProductionPolicyRequirement(section === 'production-policy' ? detail?.productionPolicy ?? null : null)
     setOpened(true)
   }, [])
 
@@ -69,6 +64,5 @@ export function useSettingsDialogController() {
     openDefaultSettings,
     openModelSettings,
     opened,
-    productionPolicyRequirement,
   }
 }

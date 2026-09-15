@@ -1,0 +1,329 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-generation-shell-bottom-band",
+  "problem_type": "外壳三件的容器关系只写在一串布局类名里，没有任何断言看着它——改错不会红",
+  "symptom": "2026-09-13 19:27 真机反馈：「打开右侧 AI 栏和中间的时间轴之后页面被切割……排版都错了，怎么右下角缺了一大块，本来不是他在右面通过去吗，另外就是拉上来太大了，这里核心是拖动后面可以预览，主要有两个轨道一个图片一个视频可以预览就行」，并且「不小心点了下面的时间轴收不回去了」。截图量出：底部带右缘停在画布列右缘（x≈1018），AI 面板下边界 y≈690，面板下方到窗口底边约 400×195 一块空白。 同一句话的另一半（09-15 第二轮补修）：「不小心点了下面的时间轴收不回去了，本来我记得可以收回」——收起 Nomi 面板后那条浮起的输入条压住底部带的两条轨；时间轴也收起后它还压住画布底部那颗「时间轴 N 段」胶囊，于是时间轴叫不回来。",
+  "direct_cause": "src/workbench/generation/GenerationWorkspace.tsx 的底部带容器在 d2bb622c1（2026-09-10）从 `col-span-full` 改成 `col-start-1`：两列两行的网格里，底部带只占第 1 列，于是第 2 行第 2 格（面板正下方）没有任何内容 = 右下角那块空白；同一改动让底部带宽度变成「第 1 列宽」，于是它随 `--generation-assistant-width` 一起伸缩。另两条：TIMELINE_PANEL_DEFAULT 是拍出来的 188，装不下两条主轨（内容需要 230），用户必须先拖高才看得到视频轨；面板内的收起钮住在 `overflow-x-auto` 的滚动区行尾，是一颗无文字 chevron，行放不下时第一个被滚出视口。 第二轮的两条直接原因：④ 收起态的 AssistantPane 是 `absolute inset-0`，而它没有确定的网格落位，包含块退回网格容器的 padding 边 = 整个工作区，于是坞锚在工作区下沿、落在底部带上；⑤ 底部停靠区的避让名单有**两份**实现（useCanvasBottomDockRects 与 GenerationWorkspace 里就地写的一份），两份都把范围钉在 `.workbench-generation__canvas` 这棵子树上，而收起坞是工作区的孩子、不是画布的孩子——它在名单里根本不存在，胶囊按「底部居中」正好落在它下面。",
+  "class_root": "外壳级容器关系（哪一块占哪一行哪一列、谁被谁顶上去、有没有空格子）是**不变量**，但它的唯一实现是一串 Tailwind 类名：类名改错既不影响编译、也不影响任何既有测试。缺这条不变量的拥有层时，任何一次「顺手调一下布局」都能把整个面切成两半，而且能漂很多天——d2bb622c1 当晚落地的走查注释至今还写着「生成画布的时间轴是 col-span-full，宽度不随助手面板变」，代码和它自己的走查注释当场对不上，5 天里没有一道闸红过。同族的第二条：面板级动作（收起整块）被放进了内容级的滚动容器，容器一窄它就不可达。 第二轮验证了同一条类根因的另一面：**底部这一排东西属于外壳，画布只是其中一块**；把「谁在下沿」的名单范围钉在画布上，等于让外壳层的障碍对避让算法隐身。两份实现同时钉错同一个范围，也说明缺的是 owner 而不是某一处的手误。",
+  "migration": "无数据迁移。底部带回 `col-span-full`、收起入口移进钉住的行尾槽、默认高度改成由内容派生，同 commit 删掉被推翻的旧写法与旧注释（P1 无并行版）：`col-start-1` 与它那段理由、无文字 chevron 的 WorkbenchIconButton 写法、字面量 188。折叠偏好与高度的键名未变，旧用户读回来的偏好照旧生效；已经手拖过高度的用户不受影响（默认值只在没拖过时生效）。",
+  "affected_population": [
+    "每个同时开着 Nomi 面板和时间轴的生成面用户：右下角恒有一块空白，底部带随面板开关左右伸缩",
+    "每个展开时间轴的用户：默认高度只够一条主轨，想看视频轨必须先拖高",
+    "窗口较窄或把 Nomi 面板拖宽的用户：面板内的收起入口被横向滚动裁出视口，表现为「时间轴收不回去」"
+  ],
+  "scope_paths": [
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/generation/workspaceBottomDocks.ts",
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts",
+    "src/workbench/ai/v4/AgentPanelV4Dock.tsx",
+    "src/workbench/ai/v4/agentPanelV4DockClearance.ts",
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/workbench/timeline/timelinePanelBounds.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generation/GenerationWorkspace.tsx:231 —— 底部带容器的网格落位（横贯所有列）",
+    "src/workbench/generation/GenerationWorkspace.tsx:216 —— AssistantPane 的两态网格落位（收起态 = 内容行，决定那条浮起输入条锚在哪条下沿）",
+    "src/workbench/generation/GenerationWorkspace.tsx:56 —— 时间轴胶囊的避让名单（走外壳层 owner）",
+    "src/workbench/generation/workspaceBottomDocks.ts:64 —— 底部停靠区名单与范围的唯一 owner",
+    "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts:93 —— 画布选择浮条的避让名单（同一个 owner）",
+    "src/workbench/ai/v4/AgentPanelV4Dock.tsx:50 —— 收起坞的空当（让开横向重叠的停靠区）",
+    "src/workbench/timeline/TimelinePanel.tsx:417 —— 面板内收起入口的渲染条件",
+    "src/workbench/timeline/timelinePanelBounds.ts:52 —— 展开态默认高度（由内容派生）",
+    "src/workbench/preview/PreviewWorkspace.tsx:259 —— 剪辑面挂同一个 TimelinePanel（density=full）；停靠列形态，本次不动"
+  ],
+  "invariants": [
+    "生成面底部带横贯整个工作区：它的矩形宽度 = 工作区宽度，右缘 = 工作区右缘 = 窗口右缘，且不随 AI 面板的开关/宽度变化",
+    "AI 面板只占内容行：面板底边 ≤ 底部带顶边；画布底边 = 底部带顶边",
+    "画布 ∪ AI 面板 ∪ 底部带 覆盖整个工作区，没有空格子（右下角与左下角贴边探针都落在底部带里）",
+    "展开态默认高度由内容派生（面板内边距 + 工具条行 + 标尺行 + 两条主轨行），默认态两条主轨都不被轨道视口裁掉且未发生滚动",
+    "面板级动作（收起整块）钉在不滚动的行尾槽里，不随内容横向滚动，并带可见动作词",
+    "收起态的 Nomi 坞属于**内容行**：它的矩形下边界 ≤ 底部带顶边，且不与底部带相交（落位由外壳的网格区域给，两条轴都写起止两端——只写 start 时包含块退回网格容器 padding 边，等于没修）",
+    "坞只让开**横向与它重叠**的底部停靠区，而且只让开到刚好（抬得比需要的高同样是缺陷：走查有「别抬太高」的上界判据）",
+    "让位关系单向：坞跳过让位者（`data-bottom-dock-avoids`），胶囊与选择浮条照旧把坞算进障碍——否则两边互相依赖、位置不收敛",
+    "时间轴收起后「时间轴 N 段」胶囊必须看得见且点得到（真实 elementFromPoint 判它自己在最上面），点它时间轴回来",
+    "底部停靠区的名单只有一份实现，范围在外壳层（`.workbench-generation`）"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generation/GenerationWorkspace.tsx",
+    "tests": [
+      "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "src/workbench/ai/v4/agentPanelV4Dock.test.ts",
+      "tests/ux/layout-timeline-panel-span.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Dock.test.ts",
+    "tests/ux/layout-timeline-panel-span.walk.mjs"
+  ],
+  "residual_risks": [
+    "收起态的坞与画布工具簇/迷你画面窗的关系是「坞抬到它们之上」，不是「坞横向让开」——坞居中且最宽 560px，在很窄的窗口里它仍可能与右下角的迷你画面窗横向重叠而被抬得较高。走查里有「别抬太高」的上界判据盯着它（超过 24px 余量即红），但真窄窗（<1100 用户拖不到）没有覆盖。",
+    "剪辑面（density=full）的时间轴高度下限仍是 EDITING_PANEL_BOUNDS.timeline.min=140（src/workbench/preview/panelLayout.ts:45），默认 260：它由 react-resizable-panels 管，与本次派生的 TIMELINE_PANEL_DEFAULT 是两套数。本次只改生成面那一套，没有把两套合并——合并要动剪辑面的面板组，属停靠列 B 方案那一版。",
+    "默认高度 230 按 compact 档的内边距与主轨行高派生。轨道行高（TimelineTrack.tsx 的 min-h-[52px]）若改，230 会跟着不准——结构测试里那几个数字是独立重算的，改行高会同时打红它与走查，不会静默漂。",
+    "坞的空当依赖 ResizeObserver 订到「停靠区自己 + 它的定位祖先」。右对齐的停靠区（迷你画面窗）只动位置不改尺寸，位置由定位祖先的尺寸决定，所以必须连祖先一起订——实测漏订时会 latch 住动画中途那一帧、把坞抬高近 200px，而界面上只看得出「位置怪」。这条靠走查的「别抬太高」上界判据兜；如果将来有停靠区的位置不由祖先尺寸决定（例如跟随画布平移），这套订阅会重新漏掉，那时要换成显式的状态信号。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column",
+      "checked_at": "2026-09-15",
+      "purpose": "核对「底部一行横跨所有列」的原生写法就是 `grid-column: 1 / -1`（Tailwind col-span-full）：宽度 = 显式网格全宽，与任何一列的动画宽度无关，不需要测量或 JS"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/OpenCut-app/opencut-classic/blob/main/apps/web/src/timeline/components/index.tsx",
+      "checked_at": "2026-09-15",
+      "purpose": "确认同类开源剪辑器的外壳也把时间轴当全宽底部行、与上方舞台行并列，而不是塞进某一列"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "容器关系在本仓有多个宿主（生成面 compact、剪辑面 full）且完全由类名表达；只要没有断言盯着「谁占哪一格、有没有空格子」，任何一次布局微调都能重新切开页面，而且没有任何门岗会红。同一形状在 09-10 已经显形过一次（时间轴工具条被做成浮层，面板没给它留行），本次是它的外壳级版本。",
+    "same_class_scan": [
+      "git grep -n 'col-span-full\\|col-start-' src → 生成面底部带是唯一一处用列跨越表达「横贯」的外壳容器；其余命中都在画布内的卡片/网格里，不属外壳层",
+      "git grep -n 'TimelinePanel' src → 两个真实挂载点：src/workbench/generation/GenerationWorkspace.tsx:206（compact，有折叠态）、src/workbench/preview/PreviewWorkspace.tsx:259（full，无折叠态），两边共用同一个面板与同一颗收起钮的渲染条件",
+      "node scripts/door-map.mjs setTimelinePanelCollapsed / timelinePanelHeight / TIMELINE_PANEL_DEFAULT → 折叠态 3 写 1 读、高度 2 读、默认值 3 读，全部收在 doors 里",
+      "git grep -n 'data-assistant-pane' src → 助手面板的两个宿主（生成面网格第 2 列、剪辑面 editing-surface-assistant 停靠列）；剪辑面本来就是停靠列形态（B 方案），用户 09-14 拍板只改生成面"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 103,
+      "symbol": "timelinePanelHeight"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 104,
+      "symbol": "setTimelinePanelCollapsed"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 236,
+      "symbol": "TimelinePanel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 240,
+      "symbol": "onCollapse"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "line": 417,
+      "symbol": "onCollapse"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "line": 429,
+      "symbol": "onCollapse"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "line": 52,
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "line": 22,
+      "symbol": "timelinePanelHeight"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "line": 64,
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "line": 348,
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "line": 259,
+      "symbol": "TimelinePanel"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/adoption/adoptionReceipt.ts",
+      "line": 52,
+      "symbol": "setTimelinePanelCollapsed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/adoption/adoptionReceipt.ts",
+      "line": 59,
+      "symbol": "setTimelinePanelCollapsed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "line": 104,
+      "symbol": "setTimelinePanelCollapsed"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/workspaceBottomDocks.ts",
+      "line": 64,
+      "symbol": "resolveBottomDockScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/workspaceBottomDocks.ts",
+      "line": 66,
+      "symbol": "BOTTOM_DOCK_AVOIDER_ATTR"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/workspaceBottomDocks.ts",
+      "line": 80,
+      "symbol": "collectBottomDockElements"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 56,
+      "symbol": "collectBottomDockRects"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "line": 64,
+      "symbol": "resolveBottomDockScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts",
+      "line": 63,
+      "symbol": "resolveBottomDockScope"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts",
+      "line": 93,
+      "symbol": "collectBottomDockRects"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Dock.tsx",
+      "line": 50,
+      "symbol": "collectBottomDockElements"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Dock.tsx",
+      "line": 69,
+      "symbol": "bottomDockClearanceFrom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4DockClearance.ts",
+      "line": 39,
+      "symbol": "bottomDockClearanceFrom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/AssistantPane.tsx",
+      "line": 17,
+      "symbol": "AssistantPane"
+    }
+  ],
+  "door_reduction": {
+    "before": 27,
+    "after": 25,
+    "why_not": "这 14 扇门里没有一扇是重复实现，所以一扇都没合并——合并会造出并行版而不是消掉它。三扇写门（adoptionReceipt ×2、addAssetToTimeline）是同一件事的三个触发时机（采纳回执自动展开、拖素材入轨自动展开），它们已经共用同一个 store setter，setter 就是那个共享边界；把三处触发合成一处等于把三个业务时机绑在一起。读门里 GenerationWorkspace 与 TimelineResizeHandle 分别是「布局消费者」和「拖把手消费者」，TIMELINE_PANEL_DEFAULT 的三个读者是「派生定义处 / 双击复位 / store 初值」，各自语义不同。本次真正减掉的不是门的数量，而是**没有拥有层的不变量**：容器关系与默认高度过去没有任何真相源和断言，现在各有一处派生定义 + 结构测试 + 走查。 第二轮（09-15）**真减了**：底部停靠区的避让名单原来有两份实现（`useCanvasBottomDockRects` 与 `GenerationWorkspace` 里就地写的 querySelectorAll），两份各自持有标记名与范围、而且都把范围钉在画布子树上；合成 `workspaceBottomDocks.ts` 一个 owner 之后只剩一处查询、一处范围定义，两个消费者与新增的坞空当共用它（27 → 25 扇：删掉一份重复实现的两扇门，新增的都是同一个 owner 的读门）。剩下的仍是各自语义不同、不该合：坞的空当、胶囊的落位、选择浮条的落位是三个不同的被摆放对象，共用名单但各有自己的几何规则。"
+  },
+  "generality_proof": "三条不变量各自收敛到一处：① 容器关系只由 GenerationWorkspace 的网格模板与三个子容器的落位决定，没有第二条路径能把底部带放到别的格子里（画布与助手都走自动落位，底部带是唯一带显式列跨越的一块）；② 默认高度只有 timelinePanelBounds 一处定义，store 初值、拖把手双击复位、clamp 全从它读；③ 面板级动作的落位只由 TimelinePanel 的行尾固定槽决定，两个宿主共用同一份。任何一处被改回去，会同时打红结构测试（类名与源码结构）与走查（真实矩形与 aria-valuenow）——两条都已在本分支实测过红（把 col-span-full 改回 col-start-1：结构测试报「expected … to contain 'col-span-full'」，走查报「③ 两个都开：底部带没有横贯工作区（timeline.w=798 section.w=1220）」；把默认高度改回 188：结构测试报「expected 188 to be 230」）。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "GenerationWorkspace",
+      "responsibility": "生成面外壳容器关系的唯一真相源：两行两列网格、画布占内容行第 1 列、AI 面板占内容行第 2 列、底部带横贯所有列；三者并集覆盖整个工作区"
+    },
+    {
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "TIMELINE_PANEL_DEFAULT",
+      "responsibility": "展开态默认高度由「面板内边距 + 工具条行 + 标尺行 + 两条主轨行」派生，store 初值 / 双击复位 / clamp 共用这一个数"
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "TimelinePanel",
+      "responsibility": "面板级动作（帮助、收起整块）钉在不滚动的行尾槽里；三簇内容级工具在滚动区内，放不下时横向滚动"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "entry_point": "GenerationWorkspace",
+      "disposition": "enforced",
+      "evidence": "底部带回 col-span-full；generationWorkspaceLayout.structure.test.ts 锁住网格模板与三者落位顺序，tests/ux/layout-timeline-panel-span.walk.mjs 在四态量真实矩形（横贯 / 面板被顶上去 / 三块并集覆盖工作区 / 底部带宽度不随面板开关变）"
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "TimelinePanel",
+      "disposition": "enforced",
+      "evidence": "收起入口移出 overflow-x-auto、钉进 workbench-timeline__controls-tail 并带可见动作词；timelinePanelLayout.test.ts 断言它不在滚动区内，走查量出它的矩形落在固定槽的矩形里并点得动"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "PreviewWorkspace",
+      "disposition": "not-affected",
+      "evidence": "剪辑面本来就是「面板顶到底、时间轴只占中间」的停靠列形态（B 方案），用户 2026-09-14 拍板只把生成面改回 A、B 留下一版；它不传 onCollapse 所以行尾槽只有帮助钮，本次 diff 未触及该文件"
+    },
+    {
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "entry_point": "CreationWorkspace",
+      "disposition": "not-affected",
+      "evidence": "创作面没有时间轴，外壳里没有底部带这一行，不存在「第 2 行第 2 格空着」这种格子"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generation/GenerationWorkspace.tsx",
+    "invariant": "生成面底部带横贯整个工作区、AI 面板只占内容行、三块并集无空格子；展开态默认高度由两条主轨派生；面板级动作不随内容滚动",
+    "failure_mode": "把底部带收回单列、或把默认高度改回字面量、或把收起钮放回滚动区，会同时打红结构测试 src/workbench/generation/generationWorkspaceLayout.structure.test.ts + src/workbench/timeline/timelinePanelLayout.test.ts 与走查 tests/ux/layout-timeline-panel-span.walk.mjs（走查带两个阳性对照：覆盖判据必须把工作区中心判成覆盖、把工作区外的点判成不覆盖，否则那几句「右下角被盖住」全是空话）",
+    "exception_policy": "none",
+    "strategy": "三条不变量各有一处真相源，两头各有一道闸：结构测试守「源码里写的是哪几个类名与落位顺序」，走查守「真实矩形与真实点击」。结构测试单独存在会被一次视觉重构绕过（类名换了但关系没变也会红、假红），走查单独存在跑得慢且只在触发时跑——两条一起才既拦得住又解释得清",
+    "artifacts": [
+      "src/workbench/generation/GenerationWorkspace.tsx",
+      "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+      "src/workbench/timeline/TimelinePanel.tsx",
+      "src/workbench/timeline/timelinePanelBounds.ts",
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "tests/ux/layout-timeline-panel-span.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Dock.test.ts",
+    "tests/ux/layout-timeline-panel-span.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generation/GenerationWorkspace.tsx",
+      "src/workbench/timeline/TimelinePanel.tsx",
+      "src/workbench/timeline/timelinePanelBounds.ts"
+    ],
+    "rationale": "同 commit 删掉被推翻的旧写法本身：底部带的 `col-start-1` 与它那段「面板动画会让时间轴伸缩」的理由（该理由与 grid 的实际行为相反）、收起钮的无文字 WorkbenchIconButton 写法、默认高度的字面量 188 与它「对齐旧 --workbench-timeline-height」的注释。不留开关、不留回退路径（P1）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不变量完全由本仓的布局代码决定：CSS Grid 的列跨越语义由浏览器提供、不随依赖版本变，framer-motion 只动列宽而不改格子归属。没有第三方运行时参与这条规则。",
+    "exit_criteria": []
+  }
+}

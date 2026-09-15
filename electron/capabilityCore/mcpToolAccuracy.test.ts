@@ -76,27 +76,27 @@ const FIRST_CALLS: ReadonlyArray<{
   {
     label: 'well-formed',
     tool: 'nomi_document_edit',
-    args: (leaseHandle) => ({ leaseHandle, operation: 'append', content: APPENDED }),
+    args: (leaseHandle) => ({ leaseHandle, where: 'end', content: APPENDED }),
   },
   {
     label: 'whole-argument object serialized as a JSON string',
     tool: 'nomi_document_edit',
-    args: (leaseHandle) => JSON.stringify({ leaseHandle, operation: 'append', content: APPENDED }),
+    args: (leaseHandle) => JSON.stringify({ leaseHandle, where: 'end', content: APPENDED }),
   },
   {
     label: 'field named `text` instead of `content`',
     tool: 'nomi_document_edit',
-    args: (leaseHandle) => ({ leaseHandle, operation: 'append', text: APPENDED }),
+    args: (leaseHandle) => ({ leaseHandle, where: 'end', text: APPENDED }),
   },
   {
     label: 'field named `body` instead of `content`',
     tool: 'nomi_document_edit',
-    args: (leaseHandle) => ({ leaseHandle, operation: 'append', body: APPENDED }),
+    args: (leaseHandle) => ({ leaseHandle, where: 'end', body: APPENDED }),
   },
   {
     label: 'content split into an array of strings',
     tool: 'nomi_document_edit',
-    args: (leaseHandle) => ({ leaseHandle, operation: 'append', content: ['The lights ', 'went out.'] }),
+    args: (leaseHandle) => ({ leaseHandle, where: 'end', content: ['The lights ', 'went out.'] }),
   },
   {
     label: 'no-argument read handed an unrelated hint',
@@ -106,7 +106,7 @@ const FIRST_CALLS: ReadonlyArray<{
   {
     label: 'no-argument read handed a sibling tool’s argument',
     tool: 'nomi_document_read',
-    args: (leaseHandle) => ({ leaseHandle, scope: 'full', operation: 'append' }),
+    args: (leaseHandle) => ({ leaseHandle, scope: 'full', where: 'end' }),
   },
   {
     label: 'no-argument read handed the whole object as a JSON string',
@@ -276,6 +276,7 @@ async function measure(): Promise<Measurement & { controlFirstCallHits: number }
     const first = await client.call(10 + index, attempt.tool, attempt.args(leaseHandle as string))
     const succeeded = first.result?.isError !== true
     if (succeeded) firstCallHits += 1
+    else console.log(`[R30·mcp] first-call miss: ${attempt.label} → ${JSON.stringify(first.result?.content?.[0]).slice(0, 200)}`)
 
     // 回合成功 = 这一步的领域效果**真的发生了**。少了后半句，一个「没报错但什么也没做」
     // 的调用也会被记成成功——那正是 #547 里最难发现的一族。
@@ -334,7 +335,7 @@ describe('R30 · MCP profile 的一次写对率与回合成功率', () => {
       opened.result?.content?.find((item) => item.type === 'text')?.text || '{}',
     ) as { leaseHandle?: string }).leaseHandle as string
 
-    const empty = await client.call(3, 'nomi_document_edit', { leaseHandle, operation: 'append', unrelated: 1 })
+    const empty = await client.call(3, 'nomi_document_edit', { leaseHandle, where: 'end', unrelated: 1 })
     expect(empty.result?.isError).toBe(true)
     expect((empty.result?.structuredContent as { nomiOutcome?: { errorCode?: string } } | undefined)
       ?.nomiOutcome?.errorCode).toBe('capability_input_invalid')

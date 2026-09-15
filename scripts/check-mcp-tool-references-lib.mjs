@@ -84,6 +84,76 @@ function hostNamePositions(source) {
   return positions
 }
 
+/**
+ * 静态入参形状（2026-09-15 补）：工具**名**对得上不等于**入参**对得上。
+ *
+ * #797 把 `nomi_timeline_read` / `nomi_media_query` / `nomi_document_edit` 的入参从
+ * `operation` 改成派生（range / query / where），单测都改了，四个 e2e 调用点漏了——
+ * CI 只在跑到那一条时才红（`capability_input_invalid`），而另外三处压根还没跑到。
+ * 名字门岗当时是绿的：它只查名字。
+ *
+ * 所以这里再扫一层：紧跟在工具名后面的**字面量对象**的顶层键，必须都在该工具已发布的
+ * 入参属性里。只判字面量——展开、变量、条件都跳过（判不出来就别假装判得出，静默通过比
+ * 报假红更坏，所以跳过的那些不计入统计）。
+ */
+export function scanCallArgumentKeys(source) {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, source)
+  const K = ts.SyntaxKind
+  const OPEN = new Set([K.OpenBraceToken, K.OpenBracketToken, K.OpenParenToken])
+  const CLOSE = new Set([K.CloseBraceToken, K.CloseBracketToken, K.CloseParenToken])
+  const calls = []
+  let pending = null
+  let current = null
+  let depth = 0
+  /** 顶层「键位置」= 紧跟 `{` 或 `,` 之后的那个记号。 */
+  let atKeyPosition = false
+  /** 模板字面量的 `${` 会开一个「看起来像对象」的括号——和 hostNamePositions 同一个坑：
+   *  不 reScanTemplateToken 续读，整个文件后面都会被错误分词（实测：不处理时全文件扫出 0 处）。 */
+  let templates = 0
+  for (let kind = scanner.scan(); kind !== K.EndOfFileToken; kind = scanner.scan()) {
+    if (kind === K.TemplateHead) { templates += 1; continue }
+    if (kind === K.CloseBraceToken && templates > 0) {
+      if (scanner.reScanTemplateToken(false) === K.TemplateTail) templates -= 1
+      continue
+    }
+    if (!current) {
+      if (kind === K.StringLiteral) {
+        const text = scanner.getTokenValue()
+        pending = /^nomi_[a-z0-9_]+$/.test(text) ? { name: text, index: scanner.getTokenPos() } : null
+        continue
+      }
+      if (kind === K.OpenBraceToken && pending) {
+        current = { name: pending.name, index: pending.index, keys: [], spread: false }
+        pending = null
+        depth = 1
+        atKeyPosition = true
+        continue
+      }
+      if (kind !== K.CommaToken) pending = null
+      continue
+    }
+    if (kind === K.CloseBraceToken) {
+      depth -= 1
+      if (depth === 0) { calls.push(current); current = null; continue }
+      atKeyPosition = false
+      continue
+    }
+    if (OPEN.has(kind)) { depth += 1; atKeyPosition = false; continue }
+    if (CLOSE.has(kind)) { depth -= 1; atKeyPosition = false; continue }
+    if (depth !== 1) continue
+    if (kind === K.DotDotDotToken) { current.spread = true; atKeyPosition = false; continue }
+    if (kind === K.CommaToken) { atKeyPosition = true; continue }
+    if (atKeyPosition && (kind === K.Identifier || kind === K.StringLiteral)) {
+      const key = kind === K.StringLiteral ? scanner.getTokenValue() : scanner.getTokenText()
+      current.keys.push({ key, index: scanner.getTokenPos() })
+      atKeyPosition = false
+      continue
+    }
+    atKeyPosition = false
+  }
+  return calls.filter((call) => !call.spread)
+}
+
 export function scanSource(source, { declared, hostDeclared = new Set() }) {
   const references = []
   const hostPositions = hostNamePositions(source)

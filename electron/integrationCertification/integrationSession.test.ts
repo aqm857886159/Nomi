@@ -204,7 +204,7 @@ describe("IntegrationSessionService", () => {
     expect(cert.startHttp).not.toHaveBeenCalled();
   });
 
-  it("certifies ComfyUI sessions through the injected connector and rejects cancellation while certifying", async () => {
+  it("certifies ComfyUI sessions through the injected connector and stays cancellable while certifying", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-comfy-"));
     let release!: (value: { runId: string; revisionDigest: string }) => void;
     const certifyComfy = vi.fn(
@@ -226,7 +226,8 @@ describe("IntegrationSessionService", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const certifying = service.get(session.id, "codex");
     expect(certifying.stage).toBe("certifying");
-    expect(() => service.cancel(session.id, certifying.revision, "codex")).toThrow(/certifying|cancel/i);
+    // certifying 有出口（以前这里断言 cancel 被拒 —— 那正是真机死锁里「只能重启 app」的成因）。
+    // 「迟到的完成不许复活已取消的会话」由 integrationSessionTerminal.test.ts 专门盯。
     release({ runId: "comfy-run", revisionDigest: "c".repeat(64) });
     await expect(starting).resolves.toMatchObject({ childRunRef: { runId: "comfy-run" }, stage: "completed" });
     expect(certifyComfy).toHaveBeenCalledWith(

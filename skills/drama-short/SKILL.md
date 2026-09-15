@@ -8,8 +8,7 @@ metadata:
     label: 短剧
     author: "@nomi"
     tools:
-      - read_full_text
-      - read_selection
+      - read_script
       - read_canvas_state
       - propose_storyboard_plan
       - create_canvas_nodes
@@ -25,8 +24,7 @@ metadata:
       - id: script
         goal: 先生成一份可拍摄的编号短剧剧本和角色/场景事实，交用户在创作区或外部 Agent 审阅；确认前不落画布、不调用付费模型。
         tools:
-          - read_full_text
-          - read_selection
+          - read_script
         pause: true
         skill-refs:
           - writer-screenwriter

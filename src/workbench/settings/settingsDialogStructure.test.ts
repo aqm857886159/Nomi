@@ -59,11 +59,13 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': '6fdcf159d9a0e32e72637049fce6d0f9acaeee43369d0c8d2be46d3f7ec81c10',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   // B4: user explicitly removed the global budget setting; the positive absence assertion is below.
-  'AiModelsSection.tsx': '4787572783a6fa0985d0eea1bf0611e952be244c984780d7292c2ef24fee52f3',
+  // 2026-09-14：删「默认模型策略」整栏（说明文字 + 161 个白名单复选框 + 深链聚焦）；已接入即放行。
+  'AiModelsSection.tsx': '85f215f730143c46f1a233b1f293badc3b79e3a50eab53bfce7cd6e7711f3284',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
-  'AutomationPermissionsSection.tsx': '5eaf11a9f41fb95a0d6873de082de9e8e5fe62eded8282304c0cd6298a357c40',
+  // 2026-09-14：删「默认制作模式」三段与「支出与风险边界」整栏；档位 owner = Agent 面板 PermissionTier。
+  'AutomationPermissionsSection.tsx': '9138628ce732f339fb9e004850db070f723171b549ed791bd682724c16377c0c',
   'CanvasGestureSection.tsx': '6f6fbf6802c6daae381c83838b387623a78ac7de49ffb1e47ee6101db312c95d',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const
@@ -86,8 +88,11 @@ describe('settings dialog structure', () => {
     expect(settingsSource).toContain('overflow-x-auto')
     expect(settingsSource).toContain('data-settings-tab-id={id}')
     expect(settingsSource).toContain('active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2')
-    expect(settingsSource).toContain("'production-policy'")
+    // 2026-09-14：「默认模型策略」白名单整栏已删（审计 §⑥ 4/7），深链 section 'production-policy' 随之消失。
+    expect(settingsSource).not.toContain("'production-policy'")
     expect(aiModelsSource).not.toContain('data-settings-field="hard-budget"')
+    expect(aiModelsSource).not.toContain('data-settings-field="production-provider"')
+    expect(aiModelsSource).not.toContain('settings.ai.policy.')
   })
 
   it('keeps notification policy in settings instead of duplicating it in task center', () => {
@@ -198,12 +203,10 @@ describe('settings dialog structure', () => {
     expect(fs.existsSync(path.join(settingsDirectory, 'settingsLayout.tsx'))).toBe(false)
   })
 
-  // 「新建卡片默认模型」必须挂在 AI 策略页顶部，且与下方的「默认模型策略」（权限）分得开——
-  // 同屏两个「默认模型」是用户拍板时明确点出的混淆点。
-  it('mounts the new-card default model picker above the permission policy block', () => {
+  // 「新建卡片默认模型」挂在 AI 策略页顶部；2026-09-14 起同屏不再有第二个「默认模型」块（白名单栏已删）。
+  it('mounts the new-card default model picker at the top of the AI policy tab', () => {
     expect(aiModelsSource).toContain('<DefaultGenerationModelsSection')
-    expect(aiModelsSource.indexOf('<DefaultGenerationModelsSection'))
-      .toBeLessThan(aiModelsSource.indexOf("data-settings-section=\"production-policy\""))
+    expect(aiModelsSource).not.toContain('data-settings-section="production-policy"')
   })
 
   // 2026-08-25 用户拍板：这块从「推销 KIE」改成「说出现在实际走哪条通道」。
@@ -233,13 +236,11 @@ describe('settings dialog structure', () => {
   // 词典再全也没用，界面照样是中文（2026-09-02 走查在这屏抓到 34 处）。
   it('translates vendor and model display names through the model-display boundary', () => {
     expect(aiModelsSource).toContain("import { translateModelDisplayText } from '../../i18n/modelDisplayText'")
-    // 供应商勾选行的标题。
-    expect(aiModelsSource).toContain('{translateModelDisplayText(provider.name)}')
-    // 模型勾选行的「模型名 · 供应商名」，两段都要过边界。
-    expect(aiModelsSource).toContain('translateModelDisplayText(model.labelZh || model.modelKey)')
-    expect(aiModelsSource).toContain('const providerName = translateModelDisplayText(')
+    // 2026-09-14 起这一屏只剩「优先供应商」排序条目仍渲染供应商名（勾选行随白名单栏一起删了），它必须过边界。
+    expect(aiModelsSource).toContain('name: translateModelDisplayText(provider.name)')
     // 不许再出现直连原始字段的裸渲染。
     expect(aiModelsSource).not.toContain('<span className="truncate">{provider.name}</span>')
+    expect(aiModelsSource).not.toContain('name: provider.name')
   })
 
   // 2026-09-06：「同一个模型好几家都能跑时默认走哪家」是**策略**（设计系统 §1.7.2 的分界线：

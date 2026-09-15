@@ -188,12 +188,11 @@ async function stepSplitIntoThreeShots(win, projectId) {
     label: '划词拆镜头触发真实规划请求',
     match: (body) => flattenRequestText(body).includes('GOLDEN_SCRIPT') && !hasToolResult(body, PLAN_CALL_ID),
     reply: {
-      type: 'tool', id: PLAN_CALL_ID, name: 'nomi_storyboard_write',
+      type: 'tool', id: PLAN_CALL_ID, name: 'draft_shots',
       args: {
-        operation: 'propose_storyboard_plan', title: PLAN_TITLE, anchors: [],
         shots: SHOT_PROMPTS.map((prompt, position) => ({
-          index: position + 1, shotKind: 'image', durationSec: 0, anchorIds: [],
-          modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', params: { size: '1024x1024' }, prompt,
+          title: `${PLAN_TITLE} · ${position + 1}`, taskKind: 'text_to_image',
+          modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', parameters: { size: '1024x1024' }, prompt,
         })),
       },
     },
@@ -266,12 +265,9 @@ async function stepAgentPatchShot2(win, projectId) {
     label: 'Agent 把改提示词表达成 canonical patch_shots 提议',
     match: (body) => flattenRequestText(body).includes(PATCH_INSTRUCTION) && !hasToolResult(body, PATCH_CALL_ID),
     reply: {
-      type: 'tool', id: PATCH_CALL_ID, name: 'nomi_storyboard_write',
-      args: {
-        operation: 'patch_shots',
-        select: { kind: 'indexes', indexes: [2] },
-        patch: { prompt: SHOT_2_NEW_PROMPT },
-      },
+      type: 'tool', id: PATCH_CALL_ID, name: 'draft_shots',
+      // 20 动词：改一镜提示词 = draft_shots(draftId, shots[{shotId}])；id 由 look_at_canvas 读回（这里按镜序取第 2 镜）。
+      args: { draftId: PLAN_CALL_ID, shots: [{ shotId: 'shot-2', prompt: SHOT_2_NEW_PROMPT }] },
     },
   })
   const patchDone = walk.fixture.expectText({

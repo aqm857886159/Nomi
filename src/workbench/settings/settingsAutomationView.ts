@@ -45,20 +45,16 @@ export function defaultAutomationPolicySettings(): AutomationPolicySettings {
   return {
     ...DEFAULT_AUTOMATION_POLICY_SETTINGS,
     trustedHosts: [...DEFAULT_AUTOMATION_POLICY_SETTINGS.trustedHosts],
-    allowedProviders: [],
-    allowedModels: [],
   }
 }
 
 export function buildAutomationSettingsView(settings: AutomationPolicySettings) {
   return {
-    mode: settings.mode,
     hosts: HOSTS.map((key) => ({
       key,
       enabled: key === 'nomi' || settings.trustedHosts.includes(key),
       locked: key === 'nomi',
     })),
-    mandatoryGates: ['first-spend', 'irreversible'] as const,
   }
 }
 

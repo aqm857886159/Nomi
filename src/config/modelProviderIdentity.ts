@@ -1,12 +1,7 @@
 import type { DedupedModel, ModelProviderRef } from './modelIdentity'
 import { getKnownVendor } from './knownVendors'
+import { VENDOR_LOGOS } from '../assets/vendor-logos'
 import type { NomiIdentityIconSource } from '../design'
-
-const DOUBAO_LOGO = new URL('../assets/vendor-logos/doubao.png', import.meta.url).href
-const MODELSCOPE_LOGO = new URL('../assets/vendor-logos/modelscope.png', import.meta.url).href
-const MINIMAX_LOGO = new URL('../assets/vendor-logos/minimax.png', import.meta.url).href
-const ELEVENLABS_LOGO = new URL('../assets/vendor-logos/elevenlabs.png', import.meta.url).href
-const MESHY_LOGO = new URL('../assets/vendor-logos/meshy.png', import.meta.url).href
 
 function shortGlyph(value: string): string | undefined {
   const normalized = value.trim()
@@ -35,20 +30,26 @@ function explicitArchetypeId(provider: ModelProviderRef): string {
 /** Model branding is derived only from curated/certified identity, never from an unknown custom label. */
 export function modelIdentityIcon(model: DedupedModel): NomiIdentityIconSource {
   const archetypes = model.providers.map(explicitArchetypeId).filter(Boolean)
-  if (archetypes.some((id) => /^(?:seedance|seedream|doubao-tts|dreamina)/.test(id))) {
-    return { kind: 'model', src: DOUBAO_LOGO, fallback: 'D' }
+  // 即梦（Dreamina）必须排在豆包前面判，而且是**独立一条**：两者都是字节旗下产品，但品牌不同，
+  // 不能共用一块牌子（2026-09-14 修：原先 `dreamina` 被并进豆包那条正则，即梦的四个模型
+  // 在界面上挂的是豆包的头像）。
+  if (archetypes.some((id) => id.startsWith('dreamina'))) {
+    return { kind: 'model', src: VENDOR_LOGOS.dreamina, fallback: 'Jm' }
+  }
+  if (archetypes.some((id) => /^(?:seedance|seedream|doubao-tts)/.test(id))) {
+    return { kind: 'model', src: VENDOR_LOGOS.doubao, fallback: 'D' }
   }
   if (archetypes.some((id) => id.startsWith('modelscope-'))) {
-    return { kind: 'model', src: MODELSCOPE_LOGO, fallback: 'M' }
+    return { kind: 'model', src: VENDOR_LOGOS.modelscope, fallback: 'M' }
   }
   if (archetypes.some((id) => id.startsWith('minimax-'))) {
-    return { kind: 'model', src: MINIMAX_LOGO, fallback: 'M' }
+    return { kind: 'model', src: VENDOR_LOGOS.minimax, fallback: 'M' }
   }
   if (archetypes.some((id) => id.startsWith('eleven-'))) {
-    return { kind: 'model', src: ELEVENLABS_LOGO, fallback: 'E' }
+    return { kind: 'model', src: VENDOR_LOGOS.elevenlabs, fallback: 'E' }
   }
   if (archetypes.some((id) => id === 'meshy-7')) {
-    return { kind: 'model', src: MESHY_LOGO, fallback: 'M' }
+    return { kind: 'model', src: VENDOR_LOGOS.meshy, fallback: 'M' }
   }
   return { kind: 'model' }
 }

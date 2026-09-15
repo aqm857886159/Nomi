@@ -58,19 +58,19 @@ describe("automation policy IPC", () => {
   });
 
   it("registers read and write handlers", () => {
-    const store = { read: vi.fn(() => ({ mode: "balanced" })), write: vi.fn((value) => value) };
+    const store = { read: vi.fn(() => ({ maxAttemptsPerJob: 3 })), write: vi.fn((value) => value) };
     registerAutomationPolicyIpc(store as never);
     expect([...handlers.keys()]).toEqual([GET, SET]);
   });
 
   it("returns the durable value produced by the settings store", async () => {
-    const stored = { mode: "balanced", trustedHosts: ["nomi", "codex"] };
+    const stored = { maxAttemptsPerJob: 3, trustedHosts: ["nomi", "codex"] };
     const store = { read: vi.fn(() => stored), write: vi.fn(() => stored) };
     registerAutomationPolicyIpc(store as never);
 
     expect(await handlers.get(GET)?.(trustedEvent(mainWindow))).toEqual(stored);
-    expect(await handlers.get(SET)?.(trustedEvent(mainWindow), { mode: "policy-auto" })).toEqual(stored);
-    expect(store.write).toHaveBeenCalledWith({ mode: "policy-auto" });
+    expect(await handlers.get(SET)?.(trustedEvent(mainWindow), { maxAttemptsPerJob: 5 })).toEqual(stored);
+    expect(store.write).toHaveBeenCalledWith({ maxAttemptsPerJob: 5 });
   });
 
   // —— 权限升级链的回归（PR#174 安全跟进）——

@@ -12,7 +12,7 @@ async function readTurns(directory: string): Promise<LaneTraceTurn[]> {
 
 test('three real pi runs derive three complete rows, remain native-readable and rebuild on cold history', async t => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'trace-read', name: 'read_full_text', arguments: {} }] },
+    { type: 'tool', calls: [{ id: 'trace-read', name: 'read_script', arguments: {} }] },
     { type: 'text', text: 'Read done.' },
     { type: 'text', text: 'Second.' },
     { type: 'text', text: 'Third.' },
@@ -37,7 +37,7 @@ test('three real pi runs derive three complete rows, remain native-readable and 
     assert.ok(Array.isArray(row.approvals));
     assert.ok(Array.isArray(row.errors));
   }
-  assert.equal(rows[0].tools[0].name, 'read_full_text');
+  assert.equal(rows[0].tools[0].name, 'read_script');
   assert.equal(rows[0].tools[0].failed, false);
   assert.ok(rows[0].tools[0].durationMs !== null);
   assert.match(rows[0].tools[0].resultSummary!, /opening scene/);
@@ -78,7 +78,7 @@ test('trace copies redact nested credentials, known secrets and images without m
 
 test('policy denial and failed tool results remain explicit in the derived row', async t => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'denied-write', name: 'append_to_end', arguments: { content: 'Do not apply.' } }] },
+    { type: 'tool', calls: [{ id: 'denied-write', name: 'write_script', arguments: { where: 'end', content: 'Do not apply.' } }] },
     { type: 'text', text: 'Approval is required.' },
   ], { hasUserInterface: false, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await fixture.openLane(fixture.options);

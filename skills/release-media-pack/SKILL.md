@@ -8,8 +8,7 @@ metadata:
     label: 发版素材包
     author: "@nomi"
     tools:
-      - read_full_text
-      - read_selection
+      - read_script
       - read_canvas_state
       - propose_storyboard_plan
       - create_canvas_nodes
@@ -25,8 +24,7 @@ metadata:
       - id: evidence
         goal: 先冻结当前/上版身份、安装包证据、用户可见变化、限制与官方网址；未验证内容不得写成公开事实。
         tools:
-          - read_full_text
-          - read_selection
+          - read_script
         pause: true
         skill-refs:
           - writer-review
@@ -35,8 +33,7 @@ metadata:
       - id: research
         goal: 读取已提供的 TikHub 公开样片研究包，提炼钩子、节奏、转场、声音和 CTA 机制；Nomi 当前无 TikHub 工具时必须输出外部研究交接，不得假装已检索。
         tools:
-          - read_full_text
-          - read_selection
+          - read_script
         depends-on:
           - evidence
         pause: true

@@ -109,7 +109,9 @@ try {
   await clickOrFail(win.locator(`${CREATION_PANEL} ${COMPOSER_PERMISSION}`), '开启每步确认验收')
   await clickOrFail(win.locator(permissionTier('step')), '每步问')
 
-  await sendCreation(win, `请只调用一次 append_to_end，把这句原样追加到文末：${APPEND}。不要调用其他工具，不要扩写。`)
+  // 20 动词：文稿写只有 `write_script(where)` 一个动词；`append_to_end` 今天只是**传输层**的方法名
+  // （`documentWrite.ts`），模型那边没有这个工具，点名它等于叫它调一个不存在的东西。
+  await sendCreation(win, `请只调用一次 write_script（where=end），把这句原样追加到文末：${APPEND}。不要调用其他工具，不要扩写。`)
   // v4：待批准的操作落在**介入槽**里（composer 正上方那一格），一次一个。
   const approval = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`).filter({ hasText: APPEND })
   const proof = await proveProbe(approval, 'The real model must propose an actual append for human approval', 120_000)
@@ -126,7 +128,9 @@ try {
   const assistants = messages.filter((message) => message.role === 'assistant')
   expect(assistants.length).toBeGreaterThanOrEqual(3)
   expect(assistants.every((message) => message.provider === vendorKey && message.model === modelKey)).toBe(true)
-  expect(messages.filter((message) => message.role === 'toolResult' && message.toolName === 'append_to_end')).toHaveLength(1)
+  // 转录里的 `toolName` 是模型调的那个**动词**（真 pi 落盘实核：`tests/agent-runtime/__fixtures__/lane-projection.json`），
+  // 不是它翻成的方法名。写方法名在这里是一条恒假的断言。
+  expect(messages.filter((message) => message.role === 'toolResult' && message.toolName === 'write_script')).toHaveLength(1)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocument),
     { timeout: 30_000 }).toContain(APPEND)
   await screenshotSettled(win, { path: path.join(outputDir, '02-live-applied.png') })
@@ -135,56 +139,101 @@ try {
   await screenshotSettled(win, { path: path.join(outputDir, '03-live-undone.png') })
 
   await openCanvas(win)
-  await sendCanvas(win, '创建两个图片节点并连接参考，只建节点，不生成。两个节点分别命名 NOMILIVESOURCE 和 NOMILIVETARGET；请只用一次 nomi_canvas_write（operation=create_canvas_nodes）同时创建两个节点及从前者到后者的 reference 连线。请选择支持图片参考的已接入图片模型，不要运行任何媒体生成。')
-  // v4：节点计划也走同一个介入槽，`data-kind="plan"` 时槽体是一排可勾选的计划行。
+  // ── 20 动词之后这一幕为什么长这样（拍板 2026-09-11 / 本分支的根因合同）──
+  //
+  // 旧版让真模型「一次 `nomi_canvas_write` 同时建两个 image 节点并连参考」。那一次调用就是本分支
+  // 关掉的那扇门：画布写动词能把生成类节点摆上画布，于是有一条永远不出付费卡的路
+  // （`docs/fixes/2026-09-11-agent-generation-second-door.root-cause.json`）。v2 里三个画布写动词
+  // 收到生成类 kind 一律 `wrong_verb` 拒绝并点名 `draft_shots`，所以那一次调用在今天**不可能成功**——
+  // 照抄旧断言只会得到一条恒红（或者更糟：靠放宽断言变成恒绿）的走查。
+  //
+  // 所以这一幕改成 v2 里真的走得通、且形状每一项都从生产代码可核对的那条路：
+  // `make_artifact` 一次一件（`canvas.write` / `create_canvas_nodes`，`verbSemanticInput.ts`
+  // 写死了它只造一个 `agent-artifact` 节点）＋ `arrange_canvas` 连一条参考线
+  // （`connect_canvas_edges`）。付费那条路（`draft_shots` / `generate`）落在下面的禁用判据里：
+  // 真模型碰一下这一幕就红——这才是一条付费冒烟该证的事。
+  //
+  // 每一步各自出一张介入槽卡、各自留一行收据（每步确认档），撤销只认**最后**那份提案的收据
+  // （`laneReceiptUndo.undoableLaneToolCallId`），所以最后撤的是连线，两个节点留在画布上。
   const plan = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}`)
-  // A real provider may spend most of the runtime's first-response budget thinking.
-  // Playwright's locator expectation has its own 5s default and ignores page.setDefaultTimeout,
-  // so use the same explicit 120s bound as the durable turn checks above.
-  await expect(plan).toBeVisible({ timeout: 120_000 })
-  await expect(plan.locator(INTERVENTION_CONFIRM)).toBeVisible()
-  const untouched = (await readProject(win, projectId)).payload.generationCanvas
+  const landCanvasStep = async (ask, approveLabel, expected) => {
+    await sendCanvas(win, ask)
+    // A real provider may spend most of the runtime's first-response budget thinking.
+    // Playwright's locator expectation has its own 5s default and ignores page.setDefaultTimeout,
+    // so use the same explicit 120s bound as the durable turn checks above.
+    await expect(plan).toBeVisible({ timeout: 120_000 })
+    await expect(plan.locator(INTERVENTION_CONFIRM)).toBeVisible()
+    // 批准之前盘上一个字都不许变：这一条是「提案不是改动」的唯一凭据。
+    const before = (await readProject(win, projectId)).payload.generationCanvas
+    // Only this step's own control is approved; generic generation approvals are
+    // never clicked, even if a model ignores the explicit no-generation request.
+    await clickOrFail(plan.locator(INTERVENTION_CONFIRM), approveLabel)
+    await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, doneTimeout: 120_000, settledBy: win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last() })
+    expect(modelResponses().at(-1).stopReason).toBe('stop')
+    await expect.poll(async () => {
+      const canvas = (await readProject(win, projectId)).payload.generationCanvas
+      return { nodes: canvas.nodes.length, edges: canvas.edges.length }
+    }, { timeout: 30_000 }).toEqual(expected)
+    return before
+  }
+
+  const untouched = await landCanvasStep(
+    '在画布上放一张手写的纯文本卡片，标题就叫 NOMILIVESOURCE，正文随便写一句。不要生成任何图片或视频，不要起任何生成任务。',
+    '批准真模型建 NOMILIVESOURCE 卡片', { nodes: 1, edges: 0 })
   expect(untouched.nodes).toHaveLength(0)
   expect(untouched.edges).toHaveLength(0)
   await screenshotSettled(win, { path: path.join(outputDir, '04-live-canvas-proposal.png') })
-  // Only the node-plan control is approved; generic generation approvals are
-  // never clicked, even if a model ignores the explicit no-generation request.
-  await clickOrFail(plan.locator(INTERVENTION_CONFIRM), '批准真模型建两个节点及参考连线')
-  await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, doneTimeout: 120_000, settledBy: win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last() })
-  expect(modelResponses().at(-1).stopReason).toBe('stop')
-  await expect.poll(async () => {
-    const canvas = (await readProject(win, projectId)).payload.generationCanvas
-    return { nodes: canvas.nodes.length, edges: canvas.edges.length }
-  }, { timeout: 30_000 }).toEqual({ nodes: 2, edges: 1 })
+  await landCanvasStep(
+    '再放一张同样的手写纯文本卡片，标题叫 NOMILIVETARGET。仍然不要生成任何东西。',
+    '批准真模型建 NOMILIVETARGET 卡片', { nodes: 2, edges: 0 })
+  await landCanvasStep(
+    '把 NOMILIVESOURCE 当参考连到 NOMILIVETARGET，只连线，不要生成任何东西。',
+    '批准真模型连参考线', { nodes: 2, edges: 1 })
+  // 证据块（`landed` … `receipt`）被 `agent-runtime-provider.test.mjs` 原样抽出来对着合成转录跑，
+  // 所以它只许用注入进去的那几个东西（readProject / win / projectId / readLaneTranscripts /
+  // projectRoot / laneMessages / expect）：抽一个读画布的小助手出来，块里就找不到它了。
   const landed = (await readProject(win, projectId)).payload.generationCanvas
   const from = landed.nodes.find((node) => node.title === 'NOMILIVESOURCE')
   const to = landed.nodes.find((node) => node.title === 'NOMILIVETARGET')
-  expect(from?.kind).toBe('image')
-  expect(to?.kind).toBe('image')
+  // 手作产物节点的 kind 由 `make_artifact` 的翻译写死（`verbSemanticInput.ts`：`agent-artifact`）。
+  // 它**不是**生成类 kind——这一幕从头到尾没有任何东西可生成，也就没有任何东西可花钱。
+  expect(from?.kind).toBe('agent-artifact')
+  expect(to?.kind).toBe('agent-artifact')
   expect(landed.edges[0]).toMatchObject({ source: from.id, target: to.id })
   expect(landed.edges[0].mode ?? 'reference').toBe('reference')
   const allMessages = readLaneTranscripts(projectRoot).flatMap(laneMessages)
   const toolCalls = allMessages.filter((message) => message.role === 'assistant').flatMap((message) => message.content)
     .filter((part) => part.type === 'toolCall')
-  const allowedTools = ['read_full_text', 'read_selection', 'append_to_end', 'nomi_canvas_read', 'nomi_canvas_write']
+  // 转录里记的是**动词名**（模型看到的那 20 个），不是传输层的方法名（`append_to_end` / `nomi_generation_plan`
+  // 那些）。名单写动词名，写别的就成了一条恒真的断言：谁都不在名单里，mediaCalls 永远非空。
+  const allowedTools = ['read_script', 'write_script', 'look_at_canvas', 'make_artifact', 'arrange_canvas']
   const mediaCalls = toolCalls.filter((part) => !allowedTools.includes(part.name))
   expect(mediaCalls, 'No media generation or unrelated tool may be requested in this smoke').toHaveLength(0)
-  const createCalls = toolCalls.filter((part) => part.name === 'nomi_canvas_write')
-  expect(createCalls[0]?.arguments.operation).toBe('create_canvas_nodes')
-  const createResults = allMessages.filter((message) => message.role === 'toolResult' && message.toolName === 'nomi_canvas_write')
-  expect(createCalls).toHaveLength(1)
-  expect(createResults).toHaveLength(1)
-  expect(createResults[0]).toMatchObject({ toolCallId: createCalls[0].id, isError: false, details: { applied: true, operation: 'create_canvas_nodes' } })
-  const actualResult = createResults[0].details
-  expect(actualResult.affectedNodeIds.toSorted()).toEqual([from.id, to.id].toSorted())
+  const createCalls = toolCalls.filter((part) => part.name === 'make_artifact')
+  const createResults = allMessages.filter((message) => message.role === 'toolResult' && message.toolName === 'make_artifact')
+  expect(createCalls).toHaveLength(2)
+  expect(createResults).toHaveLength(2)
+  expect(createResults.map((result) => result.toolCallId)).toEqual(createCalls.map((call) => call.id))
+  for (const result of createResults) {
+    expect(result).toMatchObject({ isError: false, details: { applied: true, operation: 'create_canvas_nodes' } })
+  }
+  expect(createResults.flatMap((result) => result.details.affectedNodeIds).toSorted()).toEqual([from.id, to.id].toSorted())
+  const linkCalls = toolCalls.filter((part) => part.name === 'arrange_canvas')
+  const linkResults = allMessages.filter((message) => message.role === 'toolResult' && message.toolName === 'arrange_canvas')
+  expect(linkCalls).toHaveLength(1)
+  expect(linkResults).toHaveLength(1)
+  expect(linkResults[0]).toMatchObject({ toolCallId: linkCalls[0].id, isError: false,
+    details: { applied: true, operation: 'connect_canvas_edges', connectedCount: 1 } })
+  expect(linkResults[0].details.affectedEdgeIds).toHaveLength(1)
   const receipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
   await expect(receipt).toHaveCount(1)
   await screenshotSettled(win, { path: path.join(outputDir, '05-live-canvas-committed.png') })
-  await clickOrFail(receipt.getByRole('button', { name: '撤销', exact: true }), '撤销真模型的两节点提案')
+  // 撤销只认最后那份提案（G5 owner 的那一份），所以撤掉的是连线，两个节点留着。
+  await clickOrFail(receipt.getByRole('button', { name: '撤销', exact: true }), '撤销真模型连的那条参考线')
   await expect.poll(async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
     return { nodes: canvas.nodes.length, edges: canvas.edges.length }
-  }, { timeout: 30_000 }).toEqual({ nodes: 0, edges: 0 })
+  }, { timeout: 30_000 }).toEqual({ nodes: 2, edges: 0 })
   // v4 里发送与停止是同一颗钮：运行态由 composer 的 data-mode 标记，回合落地后它必须不在。
   await expect(win.locator(`${CANVAS_PANEL} ${COMPOSER}[data-mode="running"]`)).toBeHidden()
   await screenshotSettled(win, { path: path.join(outputDir, '06-live-canvas-undone.png') })

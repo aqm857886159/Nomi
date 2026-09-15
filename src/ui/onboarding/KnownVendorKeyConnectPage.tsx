@@ -3,16 +3,18 @@ import { IconCheck, IconExternalLink } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 
 import type { KnownVendor } from '../../config/knownVendors'
-import { DesignButton } from '../../design'
+import { DesignButton, VendorLogoImage } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { useVendorHealth } from './useVendorHealth'
+import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
+import { groupModelsByKind } from './modelChipGrouping'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 
 export function KnownVendorKeyConnectPage({
   directory,
   vendorName,
-  modelCount,
+  models,
   hasApiKey = false,
   credentialVerificationPending = false,
   curatedModelsPublished = false,
@@ -22,7 +24,12 @@ export function KnownVendorKeyConnectPage({
 }: {
   directory: KnownVendor
   vendorName: string
-  modelCount: number
+  /**
+   * 这家**已经预置好**的模型清单（含请求适配），未接入时也是真数据——
+   * 页面必须把它摊开给用户看，而不是只报一个数字（2026-09-14 修：此前只传 `.length`，
+   * 于是「已有预置地址、模型和请求适配」这句话在界面上从来没有对应的列表）。
+   */
+  models: readonly ChipModel[]
   /**
    * 该供应商已有保存的 key（存了但尚未验证晋级）。
    * 传 true 时跳过 key 录入步骤，直接进入「已保存·继续验证」状态——
@@ -42,6 +49,14 @@ export function KnownVendorKeyConnectPage({
   onContinueVerification: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  // 数字和列表同源：都从这一份 models 派生，不再各传各的（数字真、列表空正是老 bug 的形状）。
+  const modelCount = models.length
+  const kindGroups = React.useMemo(() => groupModelsByKind([...models]), [models])
+  const [allGroupsOpen, setAllGroupsOpen] = React.useState(false)
+  // 默认只摊开第一组（多数供应商第一组就是他家主力 kind），其余收在一次点击后面——
+  // 33 个 chip 一次全铺会把下面的 Key 输入框挤出首屏。
+  const visibleModels = allGroupsOpen ? [...models] : [...(kindGroups[0]?.models ?? [])]
+  const hiddenModelCount = modelCount - visibleModels.length
   const [apiKey, setApiKey] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   // 已有 key = 直接进入「已保存」状态（跳过录入，避免要求用户重填已存 key）。
@@ -111,15 +126,35 @@ export function KnownVendorKeyConnectPage({
             'grid size-10 shrink-0 place-items-center overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper',
             !directory.logo && 'bg-nomi-ink-05 text-caption font-semibold text-nomi-ink-60',
           )}>
-            {directory.logo ? <img src={directory.logo} alt="" className="size-full object-contain" /> : directory.glyph}
+            {directory.logo ? <VendorLogoImage src={directory.logo} className="size-full" /> : directory.glyph}
           </span>
           <div className="min-w-0">
             <div className="text-body-sm font-semibold text-nomi-ink">{vendorName}</div>
             <div className="mt-1 text-caption leading-relaxed text-nomi-ink-40">
-              {t('onboardingProviders.keyOnly.catalogManaged', { count: modelCount })}
+              {modelCount > 0
+                ? t('onboardingProviders.keyOnly.catalogManaged', { count: modelCount })
+                : t('onboardingProviders.keyOnly.catalogManagedNoModels')}
             </div>
           </div>
         </div>
+
+        {modelCount > 0 ? (
+          <div className="mt-4 flex flex-col gap-3" data-key-only-models>
+            <ModelChipGroups models={visibleModels} connected={false} />
+            {/* 只给「展开」不给「收起」：摊开之后再收回去对用户没有价值，而 ModelChipGroups 自己
+                还有一条「更多」（放出旧目录模型）——两条纯文字链堆在一起只会互相打架。 */}
+            {!allGroupsOpen && hiddenModelCount > 0 ? (
+              <button
+                type="button"
+                data-key-only-models-toggle
+                onClick={() => setAllGroupsOpen(true)}
+                className="self-start text-caption text-nomi-ink-60 hover:text-nomi-accent"
+              >
+                {t('onboardingProviders.keyOnly.showAllModels')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-5" data-platform-key-only>
           <label htmlFor={`key-only-${directory.vendorKey}`} className="text-caption font-medium text-nomi-ink-80">

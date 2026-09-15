@@ -17,6 +17,12 @@ const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*
 
 vi.mock("../../skills/skillStore", () => ({ findSkillRecord: vi.fn() }));
 
+const skillFixture = (overrides: Partial<SkillRecord> = {}): SkillRecord => ({
+  name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
+  description: "Story method", body: "# Method", manifest: null, origin: "user",
+  ...FIXTURE_SKILL_META, ...overrides,
+});
+
 describe("Nomi agent context ownership", () => {
   beforeEach(() => {
     vi.mocked(findSkillRecord).mockReset();
@@ -56,43 +62,48 @@ describe("Nomi agent context ownership", () => {
     expect(context.readRequestedSkill({ chatContext: { skill: { key: 7, name: null } } })).toEqual({ key: "", name: "" });
   });
 
-  it("leaves the skill layer empty when no skill was requested", () => {
-    expect(context.buildSkillSystemPrompt({})).toBe("");
-    expect(findSkillRecord).not.toHaveBeenCalled();
+  // ── 用户挂的那条技能怎么进提示词（2026-09-15 起唯一注入点）─────────────────────
+  //
+  // 这三条都是零额度的回放闸，钉的是 2026-09-15 真实模型实测（22 句，
+  // `docs/evidence/2026-09-15-skill-real-run/`）里量到的那两个缺口：没有交代文案、
+  // frontmatter 当方法喂。修之前那一行是 `[next.systemPrompt, skill?.body]`，这三条都会红。
+
+  it("frames the selected skill as this turn's spec, not background reading", () => {
+    const prompt = context.buildSelectedSkillPrompt(skillFixture({ body: "# Method\nWrite, review, revise." }));
+    expect(prompt).toContain("本轮用户在输入框里挂了一条技能");
+    // 「参数要写进入参」这一句是 D05/S01 那一类的正主：模型原本只在正文里说「用宽屏」。
+    expect(prompt).toContain("要真的写进你调用工具时的入参里");
+    expect(prompt).toContain("回复里要让用户看得出它被用了");
+    // 信封逐字照 pi 的 `_expandSkillCommand`（`pi-coding-agent/dist/core/agent-session.js:995`）：
+    // R31 说别人已经定了形状就别自己再造一个；这条钉住那个形状，也钉住「正文在信封里」。
+    expect(prompt).toContain(`<skill name="story-method" location="${path.join(process.cwd(), "skills/story/SKILL.md")}">`);
+    expect(prompt).toContain(`References are relative to ${path.join(process.cwd(), "skills/story")}.`);
+    expect(prompt.endsWith("# Method\nWrite, review, revise.\n</skill>")).toBe(true);
   });
 
-  it("preserves the honest missing-skill message", () => {
-    expect(context.buildSkillSystemPrompt({ chatContext: { skill: { key: "missing-skill" } } })).toBe([
-      "Nomi 桌面 Agent skill 提示：",
-      "请求的 skill 未在本地 skills 目录找到：missing-skill",
-      "继续按用户请求和当前上下文完成任务；不要声称已经加载不存在的 skill。",
-    ].join("\n"));
+  it("injects the method, never the packaging frontmatter", () => {
+    const prompt = context.buildSelectedSkillPrompt(skillFixture({
+      body: ["---", "name: story-method", "license: Apache-2.0", "metadata:", "  nomi:",
+        "    selectable-in-workbench: true", "    preview:", "      path: assets/preview.jpg",
+        "---", "", "# 方法", "先定调子再定镜头。"].join("\n"),
+    }));
+    expect(prompt).toContain("先定调子再定镜头。");
+    for (const noise of ["license: Apache-2.0", "selectable-in-workbench", "assets/preview.jpg"]) {
+      expect(prompt, `frontmatter 的「${noise}」不该进提示词：它是打包清单，不是方法`).not.toContain(noise);
+    }
   });
 
-  it("keeps the existing skill lookup and byte-exact local skill layer", () => {
-    const skill: SkillRecord = {
-      name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
-      description: "Story method", body: "# Method\nWrite, review, revise.", manifest: null, origin: "user",
-      ...FIXTURE_SKILL_META,
-    };
-    vi.mocked(findSkillRecord).mockReturnValue(skill);
-    expect(context.buildSkillSystemPrompt({ chatContext: { skill: { key: "workbench.creation.story", name: "Story" } } })).toBe([
-      "Nomi 桌面 Agent 已加载本地 skill。以下内容是本次回复必须参考的领域方法论和输出约束。",
-      "注意：本桌面运行时只把 skill 作为本地知识注入；skill 中提到的外部 CLI、HTTP 或文件工具不会自动执行，除非当前对话/界面明确提供了对应能力。",
-      "skillKey: workbench.creation.story", "skillName: Story", `skillFile: ${path.join("skills", "story", "SKILL.md")}`, "", skill.body,
-    ].join("\n"));
-    expect(findSkillRecord).toHaveBeenCalledWith("workbench.creation.story", "Story");
-  });
-
-  it("falls back to the resolved local skill name without changing the requested lookup", () => {
-    vi.mocked(findSkillRecord).mockReturnValue({
-      name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
-      description: "Story method", body: "Method", manifest: null, origin: "builtin",
-      ...FIXTURE_SKILL_META,
-    });
-    const prompt = context.buildSkillSystemPrompt({ chatContext: { skill: { name: "Story" } } });
-    expect(prompt).toContain("skillKey: story-method\nskillName: Story");
-    expect(findSkillRecord).toHaveBeenCalledWith("", "Story");
+  // 盘上那份真技能（用户 2026-09-10 抱怨的正是它）：正文只有一句「宽屏」，而原文 65% 是元数据。
+  it("keeps a real installed Skill's method and drops its metadata block", () => {
+    const filePath = path.join(process.cwd(), "skills/curated-film-storyboard/SKILL.md");
+    const prompt = context.buildSelectedSkillPrompt(skillFixture({
+      name: "curated-film-storyboard", filePath, body: readFileSync(filePath, "utf8"),
+    }));
+    expect(prompt).toContain("宽屏");
+    expect(prompt).not.toContain("license:");
+    expect(prompt).not.toContain("provenance:");
+    // 注入预算里方法该占大头。原文 1724 字里方法只有 305 字，注入整份 = 82% 花在清单上。
+    expect(prompt.length).toBeLessThan(readFileSync(filePath, "utf8").length);
   });
 
   it("composes four layers in order with memory last, wrapped by the language rule", () => {

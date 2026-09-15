@@ -109,7 +109,7 @@ function writeCheckpointRun(projectDir, projectId) {
     schemaVersion: 1, runId: RUN_ID, projectId, revision: 0, status: 'running', stageId: 'generate',
     playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'nomi', actorId: 'nomi' },
     brief: { goal: '雨夜便利店', durationSeconds: 30 },
-    policy: { mode: 'balanced', trustedHosts: ['nomi'], allowedProviders: ['apimart'], allowedModels: ['image-model', 'video-model'], maxSpend: 18, maxAttemptsPerJob: 2, minimizeUploads: true },
+    policy: { trustedHosts: ['nomi'], allowedProviders: ['apimart'], allowedModels: ['image-model', 'video-model'], maxSpend: 18, maxAttemptsPerJob: 2, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 18, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 1,
     stages: [{ stageId: 'generate', title: 'Generate', status: 'running', order: 0 }],

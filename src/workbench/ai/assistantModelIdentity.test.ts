@@ -54,29 +54,27 @@ describe('标签消歧', () => {
   })
 })
 
-describe('助手可选模型必须来自真实可用 catalog', () => {
+describe('助手可选模型 = 主进程的可用性结论 + 本下拉独有的角色要求', () => {
+  // 「能不能用」在 2026-09-12 之前是这里自己拼的第二份判据（vendor.enabled && hasApiKey && published），
+  // 与设置页、首页横幅各答各的——P0-10。现在它只读 `model.availability`，
+  // 剩下的只有角色：必须是 text、不是 prompt_refine 专用、发得出工具调用。
+  const usable = { usable: true } as const
+  const unusable = { usable: false, reason: 'credential_missing' } as const
+
   it('不把纯文字 CLI 显示成能执行工具的助手模型', () => {
     expect(filterUsableAssistantTextModels([
-      { vendorKey: 'local', modelKey: 'auto', kind: 'text', enabled: true, published: true, meta: { supportsToolCalls: false } },
-    ], [{ key: 'local', enabled: true, authType: 'none' }])).toEqual([])
+      { vendorKey: 'local', modelKey: 'auto', kind: 'text', availability: usable, meta: { supportsToolCalls: false } },
+    ])).toEqual([])
   })
-  const vendors = [
-    { key: 'apimart', enabled: true, authType: 'bearer' as const, hasApiKey: true },
-    { key: 'kie', enabled: true, authType: 'bearer' as const, hasApiKey: false },
-    { key: 'local', enabled: true, authType: 'none' as const, hasApiKey: false },
-  ]
 
-  it('只保留 text、启用、身份完整且供应商真实可用的目录行', () => {
+  it('可用的行里只保留 text、非 prompt_refine、身份完整的那几条', () => {
     const models = filterUsableAssistantTextModels([
-      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, published: true, labelZh: 'DeepSeek V4 Pro' },
-      { vendorKey: 'apimart', modelKey: 'unverified', kind: 'text', enabled: true, published: false, labelZh: 'Unverified' },
-      { vendorKey: 'apimart', modelKey: 'prompt-refiner', kind: 'text', enabled: true, published: true, meta: { promptRefineOnly: true }, labelZh: 'Prompt Refiner' },
-      { vendorKey: 'kie', modelKey: 'fake-text', kind: 'text', enabled: true, published: true, labelZh: 'Fake' },
-      { vendorKey: 'apimart', modelKey: 'disabled', kind: 'text', enabled: false, published: true, labelZh: 'Disabled' },
-      { vendorKey: 'apimart', modelKey: 'image-model', kind: 'image', enabled: true, published: true, labelZh: 'Image' },
-      { vendorKey: '', modelKey: 'missing-vendor', kind: 'text', enabled: true, published: true, labelZh: 'Missing vendor' },
-      { vendorKey: 'local', modelKey: 'local-text', kind: 'text', enabled: true, published: true, labelZh: 'Local text' },
-    ], vendors)
+      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', availability: usable, labelZh: 'DeepSeek V4 Pro' },
+      { vendorKey: 'apimart', modelKey: 'prompt-refiner', kind: 'text', availability: usable, meta: { promptRefineOnly: true }, labelZh: 'Prompt Refiner' },
+      { vendorKey: 'apimart', modelKey: 'image-model', kind: 'image', availability: usable, labelZh: 'Image' },
+      { vendorKey: '', modelKey: 'missing-vendor', kind: 'text', availability: usable, labelZh: 'Missing vendor' },
+      { vendorKey: 'local', modelKey: 'local-text', kind: 'text', availability: usable, labelZh: 'Local text' },
+    ])
 
     expect(models.map((model) => `${model.vendorKey}:${model.modelKey}`)).toEqual([
       'apimart:deepseek-v4-pro',
@@ -84,10 +82,12 @@ describe('助手可选模型必须来自真实可用 catalog', () => {
     ])
   })
 
-  it('没有真实可用供应商时返回空，调用方必须显示配置入口而不是假下拉', () => {
+  it('主进程判为不可用的行一律不进下拉（未发布 / 没钥匙 / 被停用都走同一个答案）', () => {
     const models = filterUsableAssistantTextModels([
-      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, published: true, labelZh: 'DeepSeek V4 Pro' },
-    ], [{ key: 'apimart', enabled: true, authType: 'bearer', hasApiKey: false }])
+      { vendorKey: 'apimart', modelKey: 'unverified', kind: 'text', labelZh: 'Unverified', availability: { usable: false, reason: 'model_unpublished' } },
+      { vendorKey: 'kie', modelKey: 'fake-text', kind: 'text', labelZh: 'Fake', availability: unusable },
+      { vendorKey: 'apimart', modelKey: 'disabled', kind: 'text', labelZh: 'Disabled', availability: { usable: false, reason: 'model_disabled' } },
+    ])
 
     expect(models).toEqual([])
   })

@@ -45,6 +45,7 @@
 | T-AG-13 | Goal 模式 v1：一个 Run + 一条 lane，剧本进→成片出 | hold | 09-08 调研已收（PR #623），三条拍板已定 | 六条「没想到」是实施前置门；排在主线后 |
 | T-AG-14 | 看片自评（Agent 最大能力缺口） | hold | 09-07 能力边界七缺口 | — |
 | T-AG-15 | 提示词与 skill 整合（skill 已经把提示词装进去了） | todo | [原文 09-12 00:48](sources/2026-09-14-filehelper-transcript.md#09-12) | 先出方案 |
+| T-AG-16 | 常驻 Agent 切到生成面再往画布放东西就 `surface_port_unavailable`：对话还在、画面口作废。根因不是「忘了 recapture」，是会话把短命画面口当成了身份证。结论：会话 = 窗口+项目，画面只在动手时现问 | todo | [09-16 上下文全文（冻点滑动 / 假对照 / 换项目口径）](sources/2026-09-16-session-identity-window-plus-project.md) · Linux `resident-composer-receipt-fix` · 合同 `docs/fixes/2026-09-15-lane-canvas-write-live-port.root-cause.json` | **先读来源全文再派工**，不要只抄「窗口+项目」。#802 合入后立刻开独立 PR；#802 只许 execute 现问口，不许改会话身份 |
 
 ## C. 画布与节点
 

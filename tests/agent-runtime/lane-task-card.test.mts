@@ -90,7 +90,7 @@ test('G13 · 任务记录不进模型上下文：证据在出站报文里，不�
   await lane.execute({ kind: 'prompt', text: '好了吗？' });
   const lastPayload = JSON.stringify(http.requests.at(-1)?.body ?? {});
   assert.ok(!lastPayload.includes(RUN_ID),
-    '任务卡的 id 进了上下文 = 模型开始拿一条冻住的记录当状态源，而它该调 nomi_generation_status');
+    '任务卡的 id 进了上下文 = 模型开始拿一条冻住的记录当状态源，而它该调 check_job');
   assert.ok(!lastPayload.includes(LANE_TASK_NOTE_TYPE));
   // 阳性对照：同一份报文里**有**用户刚说的那句话——证明我们查的确实是这一轮的上下文。
   assert.ok(lastPayload.includes('好了吗？'));

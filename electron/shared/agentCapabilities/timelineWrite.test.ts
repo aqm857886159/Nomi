@@ -13,8 +13,8 @@ describe("timeline.write capability contract", () => {
     expect(TIMELINE_WRITE_CAPABILITY.id).toBe("timeline.write");
     expect(TIMELINE_WRITE_CAPABILITY.effect).toBe("reversible_write");
     expect(TIMELINE_WRITE_CAPABILITY.effectClass).toBe("reversible_local");
-    expect(TIMELINE_WRITE_CAPABILITY.aliases.pi).toBe("apply_edit_plan");
-    expect(TIMELINE_WRITE_CAPABILITY.additionalAliases.pi).toEqual(["undo_timeline_edit"]);
+    expect(TIMELINE_WRITE_CAPABILITY.aliases.pi).toBe("edit_timeline");
+    expect(TIMELINE_WRITE_CAPABILITY.additionalAliases.method).toEqual(["undo_timeline_edit"]);
   });
 
   it("derives the operation from the alias and keeps transport authority out of Pi input", () => {
@@ -24,6 +24,7 @@ describe("timeline.write capability contract", () => {
       summary: "Move a clip",
       operations: [{ kind: "move", clipId: "clip-a", startFrame: 24 }],
     };
+    // 模型面名字是 `edit_timeline`（`aliases.pi`）；契约的 operation 词表是方法名，lane 经 laneVerbTransport 翻过来。
     expect(timelineWriteInputForAlias("apply_edit_plan", apply)).toEqual({ operation: "apply_edit_plan", ...apply });
     expect(
       timelineWriteInputForAlias("undo_timeline_edit", {

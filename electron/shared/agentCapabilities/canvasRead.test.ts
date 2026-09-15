@@ -103,8 +103,9 @@ describe("canvas.read canonical contract", () => {
       id: "canvas.read",
       version: 1,
       aliases: {
-        pi: "nomi_canvas_read",
+        pi: "look_at_canvas",
         mcp: "nomi_canvas_read",
+        method: "nomi_canvas_read",
       },
       inputSchema: canvasReadSemanticInputSchema,
       outputSchema: canvasReadResultSchema,

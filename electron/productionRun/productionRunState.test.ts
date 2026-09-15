@@ -30,7 +30,6 @@ function run(status: ProductionRun["status"]): ProductionRun {
     playbook: { name: "brand.promo", version: "1.0.0" },
     origin: { host: "codex" },
     policy: {
-      mode: "balanced",
       trustedHosts: ["codex"],
       allowedProviders: [],
       allowedModels: [],

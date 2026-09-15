@@ -173,3 +173,8 @@ CODEX-REPORT.md
 /*-LAST.md
 /*-RULINGS.md
 .workbuddy/
+
+# Agent 的 scratchpad 只住 worktree，不进树：走查/矩阵脚本默认把中间产物写进仓库根
+# scratchpad/（见 tests/ux/media-import-matrix.walk.mjs:31），2026-09-14 因此把 13 个证据文件
+# 连截图一起提进了仓库根。要留档的证据放 docs/evidence/<日期>-<主题>/，不是 scratchpad。
+/scratchpad/

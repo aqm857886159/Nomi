@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { getDesktopBridge } from "../../desktop/bridge";
 import {
   filePathsFromDrop,
-  importImagePathsToLibrary,
+  importLocalPathsToLibrary,
   isTextEditingTarget,
 } from "./assetLibraryLocalImport";
 
@@ -41,12 +41,13 @@ describe("assetLibraryLocalImport", () => {
   });
 
   it("uses the desktop copy bridge and returns its batch result", async () => {
-    const copyFiles = vi.fn(async () => ({ created: [{ id: "asset-1" }], skippedUnsupportedCount: 1, failedCount: 0 }));
+    const rejection = { reason: "no-disk-space", fileBytes: 2, freeBytes: 1, neededBytes: 3 } as const;
+    const copyFiles = vi.fn(async () => ({ created: [{ id: "asset-1" }], rejected: [{ fileName: "big.mov", rejection }], failedCount: 0 }));
     mockedGetDesktopBridge.mockReturnValue({ assets: { copyFiles } } as never);
 
-    await expect(importImagePathsToLibrary("project-1", ["/tmp/a.png"])).resolves.toEqual({
+    await expect(importLocalPathsToLibrary("project-1", ["/tmp/a.png"])).resolves.toEqual({
       created: [{ id: "asset-1" }],
-      skippedUnsupportedCount: 1,
+      rejected: [{ fileName: "big.mov", rejection }],
       failedCount: 0,
     });
     expect(copyFiles).toHaveBeenCalledWith({ projectId: "project-1", paths: ["/tmp/a.png"] });

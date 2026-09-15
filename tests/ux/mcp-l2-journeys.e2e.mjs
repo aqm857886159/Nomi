@@ -57,14 +57,13 @@ const check = (condition, message) => { assert.ok(condition, message); passed +=
 
 try {
   provider = await startFakeApimartServer({ pendingPolls: 1 })
-  // Seed the real GUI bootstrap with the encrypted fixture credential. The
-  // fixture origin is selected by the E2E env; the catalog itself stays on
-  // the shipped APIMart identity and pricing scope.
+  // Seed catalog rows only; save the synthetic key through catalog persistence after
+  // GUI startup so the process that consumes it owns the safeStorage identity.
   writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
   gui = await launchNomiApp({
     name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
     env: {
-      NOMI_APP_NAME: 'Nomi',
+      NOMI_APP_NAME: 'nomi',
       NOMI_CAPABILITY_DIR: dirs.capabilityDir,
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
       // In packaged mode app.isPackaged===true guards the fixture; opt back in
@@ -89,12 +88,24 @@ try {
   check(Boolean(projectId), 'GUI 打开隔离项目')
   await win.waitForTimeout(5_000)
 
+  // This protocol fixture does not certify a real provider key. Persist its
+  // synthetic key inside the same GUI process that owns safeStorage, using the
+  // catalog writer used by Settings after credential validation.
+  await gui.app.evaluate(async (_electron, root) => {
+    // app.evaluate 里 require 与动态 import() 都不可用，只有 mainModule 上挂着的那一份能用。
+    const require = process.mainModule.require.bind(process.mainModule)
+    const { upsertModelCatalogVendorApiKey } = require(`${root}/dist-electron/catalog/catalogStore.js`)
+    const { publishBuiltinCuratedVendor } = require(`${root}/dist-electron/catalog/directKeyCredential.js`)
+    upsertModelCatalogVendorApiKey('apimart', { apiKey: 'mcp-l2-loopback-key', enabled: true })
+    publishBuiltinCuratedVendor('apimart')
+  }, process.cwd())
+
   mcp = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C7-C12'), captureStderr: true,
     clientInfo: { name: 'Codex MCP L2', version: 'e2e' }, capabilities: {},
     ...(mcpRuntime ? { runtime: mcpRuntime } : {}),
     env: {
-      NOMI_APP_NAME: 'Nomi',
+      NOMI_APP_NAME: 'nomi',
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
       NOMI_E2E_APIMART_BASE_URL: provider.origin,
       NOMI_E2E_APIMART_REFERENCE_URL: `${provider.origin}/fixture/image.png`,
@@ -188,7 +199,7 @@ try {
   check(resultTextJson(proxyOff).enabled === false, 'C7 管理动词可关闭单连接代理')
 
   const fourNodes = [0, 1, 2, 3].map((index) => ({ clientId: `c8-shot-${index + 1}`, kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, position: { x: index * 380, y: 0 } }))
-  declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'Nomi' } })
+  declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'nomi' } })
   await declinedClient.initialize()
   const c8Project = await call(declinedClient, 'nomi_project_create', { name: 'C8 four-shot confirmation' })
   const c8ProjectData = resultTextJson(c8Project)
@@ -207,7 +218,7 @@ try {
   await declinedClient.terminate()
   declinedClient = null
 
-  landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'Nomi' } })
+  landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'nomi' } })
   await landedClient.initialize()
   const landedProject = await call(landedClient, 'nomi_project_create', { name: 'C8 four-shot landed' })
   const landedProjectData = resultTextJson(landedProject)
@@ -409,7 +420,7 @@ try {
     capabilities: { elicitation: {} }, elicitationAction: 'accept', syntheticCredentialStorage: true,
     runtime: mcpRuntime,
     env: {
-      NOMI_APP_NAME: 'Nomi',
+      NOMI_APP_NAME: 'nomi',
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
       NOMI_E2E_APIMART_BASE_URL: provider.origin,
       NOMI_E2E_APIMART_REFERENCE_URL: `${provider.origin}/fixture/image.png`,
@@ -483,7 +494,7 @@ try {
     capabilities: {}, syntheticCredentialStorage: true,
     runtime: mcpRuntime,
     env: {
-      NOMI_APP_NAME: 'Nomi',
+      NOMI_APP_NAME: 'nomi',
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
       NOMI_E2E_APIMART_BASE_URL: provider.origin,
       NOMI_E2E_APIMART_REFERENCE_URL: `${provider.origin}/fixture/image.png`,
@@ -557,7 +568,7 @@ try {
   // C12: the production driver has already arranged the real generated nodes;
   // read and validate that timeline through the MCP editing surface before
   // approving the export gate.
-  const timelineRead = await call(mcp, 'nomi_timeline_read', { projectId: c9ProjectId, leaseHandle: c9Lease, operation: 'read_timeline' })
+  const timelineRead = await call(mcp, 'nomi_timeline_read', { projectId: c9ProjectId, leaseHandle: c9Lease })
   const timeline = resultTextJson(timelineRead)
   const timelineTracks = Array.isArray(timeline.tracks) ? timeline.tracks : []
   console.log('  C12 timeline summary=', JSON.stringify({ operation: timeline.operation, revision: timeline.revision, tracks: timelineTracks.map((track) => ({ type: track.type, clips: track.clips?.length, clipTypes: (track.clips || []).map((clip) => clip.type) })) }))

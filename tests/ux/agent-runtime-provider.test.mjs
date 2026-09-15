@@ -33,14 +33,32 @@ if (evidenceStart < 0 || evidenceEnd <= evidenceStart) throw new Error('The live
 const verifyCanvasEvidence = new AsyncFunction('readProject', 'win', 'projectId', 'readLaneTranscripts', 'projectRoot', 'laneMessages', 'expect',
   uiTry.tryBlock.statements.slice(evidenceStart, evidenceEnd).map((statement) => statement.getText(tree)).join('\n'))
 
+// 这份合成转录照 v2 真正走得通的那条路编：`make_artifact` 一次一件（`create_canvas_nodes`，
+// 只造一个 `agent-artifact` 节点）＋ `arrange_canvas` 连一条参考线（`connect_canvas_edges`）。
+// 形状逐项对着生产代码：`verbs/verbSemanticInput.ts`（动词 → 语义输入）与 `canvasWrite.ts` 的结果 schema。
+// 旧版这里编的是「一次调用建两个 image 节点」——那是本分支关掉的那扇门，今天在真机上是 `wrong_verb`。
 function canvasEvidence(overrides = {}) {
   const landed = {
-    nodes: [{ id: 'source', title: 'NOMILIVESOURCE', kind: 'image' }, { id: 'target', title: 'NOMILIVETARGET', kind: 'image' }],
-    edges: [{ source: 'source', target: 'target', mode: overrides.mode ?? 'reference' }],
+    nodes: [{ id: 'source', title: 'NOMILIVESOURCE', kind: overrides.kind ?? 'agent-artifact' },
+      { id: 'target', title: 'NOMILIVETARGET', kind: overrides.kind ?? 'agent-artifact' }],
+    edges: [{ id: 'edge-1', source: 'source', target: 'target', mode: overrides.mode ?? 'reference' }],
   }
-  const result = { role: 'toolResult', toolName: 'nomi_canvas_write', toolCallId: 'create-1', isError: false,
-    details: { applied: true, operation: 'create_canvas_nodes', affectedNodeIds: ['source', 'target'] }, content: [{ type: 'text', text: 'Applied create_canvas_nodes.' }], ...overrides.result }
-  const messages = [{ role: 'assistant', content: [{ type: 'toolCall', name: 'nomi_canvas_write', id: 'create-1', arguments: { operation: 'create_canvas_nodes' } }] }, result]
+  const artifact = (id, title, nodeId) => [
+    { role: 'assistant', content: [{ type: 'toolCall', name: 'make_artifact', id, arguments: { fileType: 'text', title, content: 'x' } }] },
+    { role: 'toolResult', toolName: 'make_artifact', toolCallId: id, isError: false,
+      details: { applied: true, operation: 'create_canvas_nodes', affectedNodeIds: [nodeId] },
+      content: [{ type: 'text', text: 'Applied create_canvas_nodes.' }] },
+  ]
+  const link = { role: 'toolResult', toolName: 'arrange_canvas', toolCallId: 'link-1', isError: false,
+    details: { applied: true, operation: 'connect_canvas_edges', affectedNodeIds: [], affectedEdgeIds: ['edge-1'], connectedCount: 1 },
+    content: [{ type: 'text', text: 'Applied connect_canvas_edges.' }], ...overrides.link }
+  const messages = [
+    ...artifact('create-1', 'NOMILIVESOURCE', 'source'),
+    ...artifact('create-2', 'NOMILIVETARGET', 'target'),
+    { role: 'assistant', content: [{ type: 'toolCall', name: overrides.linkVerb ?? 'arrange_canvas', id: 'link-1',
+      arguments: { links: [{ fromId: 'source', toId: 'target', role: 'reference' }] } }] },
+    link,
+  ]
   return verifyCanvasEvidence(async () => ({ payload: { generationCanvas: landed } }), {}, 'project', () => [{}], '/synthetic', () => messages, expect)
 }
 
@@ -109,7 +127,8 @@ test('unchanged source and removed temporary credential permit a passed cleanup 
 })
 
 test('the paid smoke also exercises the reported canvas task without approving media generation', () => {
-  expect(source).toContain('创建两个图片节点并连接参考，只建节点，不生成')
+  expect(source).toContain('在画布上放一张手写的纯文本卡片')
+  expect(source).toContain('把 NOMILIVESOURCE 当参考连到 NOMILIVETARGET')
   expect(source).toContain('await openCanvas(win)')
   // v4 接线（2026-09-06）：待批准的操作落在**介入槽**里，一次一个，
   // 批准钮是 `INTERVENTION_CONFIRM`——旧面板那个「全部确认」的挂点
@@ -118,6 +137,8 @@ test('the paid smoke also exercises the reported canvas task without approving m
   expect(source).toContain('INTERVENTION_CONFIRM')
   expect(source).toContain('No media generation or unrelated tool may be requested')
   expect(source).toContain('nodes: 2, edges: 1')
+  // 付费那条路不在白名单里：真模型碰 `draft_shots` / `generate` 这一幕就红。
+  expect(source).toContain("const allowedTools = ['read_script', 'write_script', 'look_at_canvas', 'make_artifact', 'arrange_canvas']")
   expect(source).toContain("receipt.getByRole('button', { name: '撤销', exact: true })")
   expect(source).toContain("proveProbe(approval, 'The real model must propose an actual append for human approval', 120_000)")
   expect(source).toContain('expect(win.locator(DOCUMENT)).toBeVisible({ timeout: 120_000 })')
@@ -133,12 +154,22 @@ test('the real acceptance assertions reject a different edge mode', async () => 
   await expect(canvasEvidence({ mode: 'first_frame' })).rejects.toThrow()
 })
 
+test('the real acceptance assertions reject a generating node kind', async () => {
+  // 画布写动词造不出生成类节点（v2 的那扇门）。真机上出现 image 节点 = 走的不是这一幕这条路。
+  await expect(canvasEvidence({ kind: 'image' })).rejects.toThrow()
+})
+
+test('the real acceptance assertions reject a paid verb standing in for the link', async () => {
+  await expect(canvasEvidence({ linkVerb: 'draft_shots' })).rejects.toThrow()
+})
+
 test.each([
   { isError: true },
   { toolCallId: 'another-call' },
-  { details: { applied: true, operation: 'create_canvas_nodes', affectedNodeIds: ['unrelated-node'] } },
-  { details: { applied: false, operation: 'create_canvas_nodes', affectedNodeIds: ['source', 'target'] } },
-  { details: { applied: true, operation: 'set_node_prompt', affectedNodeIds: ['source', 'target'] } },
-])('the real acceptance assertions reject unsuccessful or unrelated native evidence: %j', async (result) => {
-  await expect(canvasEvidence({ result })).rejects.toThrow()
+  { details: { applied: true, operation: 'connect_canvas_edges', affectedNodeIds: [], affectedEdgeIds: ['edge-1'], connectedCount: 0 } },
+  { details: { applied: true, operation: 'connect_canvas_edges', affectedNodeIds: [], affectedEdgeIds: [], connectedCount: 1 } },
+  { details: { applied: false, operation: 'connect_canvas_edges', affectedNodeIds: [], affectedEdgeIds: ['edge-1'], connectedCount: 1 } },
+  { details: { applied: true, operation: 'set_node_prompt', affectedNodeIds: [], affectedEdgeIds: ['edge-1'], connectedCount: 1 } },
+])('the real acceptance assertions reject unsuccessful or unrelated native evidence: %j', async (link) => {
+  await expect(canvasEvidence({ link })).rejects.toThrow()
 })

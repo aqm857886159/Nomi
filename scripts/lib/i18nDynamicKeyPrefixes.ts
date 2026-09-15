@@ -103,12 +103,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'runtime.capability.intent', why: '动态: 能力应用意图;枚举来源: capabilityApplyHandler 归一化后的 intent(capability.intent.* 词条)' },
   // ── agentResident ──
   {
-    prefix: 'agentResident.approvalMode',
-    kind: 'concat',
-    suffixes: ['SafeAuto', 'Project', 'Step'],
-    why: '动态-拼接: 审批策略 `agentResident.approvalMode${SafeAuto|Project|Step}` 标签;枚举来源: ProjectAgentApprovalMode 三态(safe-auto/project/step)',
-  },
-  {
     prefix: 'agentResident.spendPolicy',
     kind: 'concat',
     suffixes: ['WithinBudget', 'Confirm'],
@@ -182,7 +176,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
     why: '动态-拼接: TikhubConnectorCard 的 `tikhub.route.mode${Auto|Io|Dev}` 路由模式;枚举来源: tikhub route mode 三态',
   },
   { prefix: 'settings.automation.hosts', why: '动态: 自动化主机;枚举来源: 自动化设置的 host key(automation.hosts.* 词条)' },
-  { prefix: 'settings.automation.mode.hint', why: '动态: 自动化模式提示;枚举来源: 自动化模式 key(automation.mode.hint.* 词条)' },
   // ── libraries ──
   { prefix: 'libraries.sidebar.builtinCategory', why: '动态: 内置分类 id;枚举来源: ProjectCategory.id(builtinCategory.* 词条: shots/cast/scene/prop/audio)' },
   { prefix: 'libraries.sidebar.nodeKindShort', why: '动态: 节点类型短名;枚举来源: 节点 kind(nodeKindShort.* 词条)' },

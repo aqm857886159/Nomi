@@ -256,13 +256,16 @@ describe("resident Agent production journey (zero quota contract)", () => {
 
     // 模型面上真有这条长片旅程需要的每一个动词（内部 profile 由注册表派生，不再按意图路由裁剪）。
     const toolNames = modelFacingToolSpecs("internal").map((tool) => tool.name);
+    // 20 动词（设计正本 §5）：写文稿 / 排镜头 / 出卡 / 跟任务 / 剪 / 导出；Run 家族不上模型面（§5.3）。
     expect(toolNames).toEqual(expect.arrayContaining([
-      "start_production_run",
-      "nomi_storyboard_write",
-      "nomi_generation_plan",
-      "nomi_generation_status",
-      "export_timeline",
+      "write_script",
+      "draft_shots",
+      "generate",
+      "check_job",
+      "edit_timeline",
+      "export_video",
     ]));
+    expect(toolNames).not.toContain("start_production_run");
 
     const adapters = await createSurfaceAdapters();
     const signal = new AbortController().signal;

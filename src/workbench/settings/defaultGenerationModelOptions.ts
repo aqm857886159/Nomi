@@ -44,7 +44,10 @@ export function buildDefaultModelOptions(
 ): DefaultModelOptionSet {
   const decodeMap = new Map<string, GenerationModelDefault>()
   const encodeMap = new Map<string, string>()
-  const usable = models.filter((model) => model.enabled && model.vendorKey && model.modelKey)
+  // 「能不能用」只认主进程那一个答案。旧版这里只看 `enabled`——这是全仓最宽的一份判据，
+  // 于是 Agent 面板「图片默认 / 视频默认」两行能列出一个供应商没接入、根本跑不了的模型，
+  // 而同一份目录在画布选择器里早就被滤掉了（2026-09-12 P0-10 同类）。
+  const usable = models.filter((model) => model.availability.usable && model.vendorKey && model.modelKey)
 
   usable.forEach((model, index) => {
     const id = identityId(index)

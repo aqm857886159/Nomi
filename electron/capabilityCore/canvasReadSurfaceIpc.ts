@@ -61,6 +61,16 @@ function normalizedOrigin(url: string): string {
   }
 }
 
+/** Path+host identity. Query/hash (`?step=`) is the same loaded document. */
+function loadedDocumentKey(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "";
+  }
+}
+
 function surfaceInstanceId(input: unknown): string {
   if (!input || typeof input !== "object" || Array.isArray(input)) return "";
   const value = (input as Record<string, unknown>).surfaceInstanceId;
@@ -143,6 +153,7 @@ export function registerCanvasReadSurfaceIpc(
     const frame = event.senderFrame;
     const mainFrame = contents.mainFrame;
     const origin = normalizedOrigin(frame?.url ?? "");
+    const documentKey = loadedDocumentKey(frame?.url ?? "");
     if (
       !frame ||
       !mainFrame ||
@@ -193,6 +204,16 @@ export function registerCanvasReadSurfaceIpc(
     };
     const navigate = (details: WebContentsDidStartNavigationEventParams): void => {
       if (!details.isMainFrame || details.isSameDocument) return;
+      // Linux Chromium can report replaceState(`?step=`) as a cross-document
+      // start. The loaded HTML did not change; tombstoning here leaves the
+      // resident Agent with no committed surface to write the canvas.
+      if (
+        documentKey
+        && typeof details.url === "string"
+        && loadedDocumentKey(details.url) === documentKey
+      ) {
+        return;
+      }
       // The old document stays tombstoned until either a new main document
       // commits or the attempted navigation ends without replacing it. The
       // latter must restore availability for the still-running old document,

@@ -20,7 +20,6 @@ function fixture(status: ProductionRun["status"] = "draft"): ProductionRun {
     playbook: { name: "generation.single-shot", version: "1.0.0" },
     origin: { host: "nomi" },
     policy: {
-      mode: "balanced",
       trustedHosts: [],
       allowedProviders: [],
       allowedModels: [],

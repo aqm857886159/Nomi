@@ -5,9 +5,17 @@ import { cn } from '../utils/cn'
 import { ASSISTANT_WIDTH_MIN, assistantWidthMaxFor } from './assistantWidthBounds'
 import { useWorkbenchStore } from './workbenchStore'
 
-/** All workspaces supply the same unframed mount. AgentPanelV4Panel owns the only visible border. */
-export function AssistantPane({ dockRef, collapsed = false }: {
-  dockRef?: React.Ref<HTMLDivElement>; collapsed?: boolean
+/**
+ * All workspaces supply the same unframed mount. AgentPanelV4Panel owns the only visible border.
+ *
+ * `className` 是**外壳给的落位**，不是装饰：收起态这个 aside 是 `absolute inset-0`，
+ * 而它的包含块由宿主决定——作为网格容器的直接子节点、又有确定的网格落位时，
+ * `inset-0` 量的就是那一格网格区域（CSS Grid 的绝对定位规则），不是整个工作区。
+ * 所以「收起后的坞属于哪一层」这件事归外壳回答（见 GenerationWorkspace 的注释），
+ * 这里只负责把宿主给的落位贴上去，不自己猜、也不用 z-index / bottom 偏移兜底。
+ */
+export function AssistantPane({ dockRef, collapsed = false, className }: {
+  dockRef?: React.Ref<HTMLDivElement>; collapsed?: boolean; className?: string
 }): JSX.Element {
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
@@ -21,6 +29,7 @@ export function AssistantPane({ dockRef, collapsed = false }: {
   return <aside data-assistant-pane="true" className={cn(
     collapsed ? 'pointer-events-none absolute inset-0 z-40 overflow-visible' : 'relative h-full min-h-0 min-w-0',
     !collapsed && !workspaceFrame && 'p-4',
+    className,
   )}>
     {!collapsed ? <div
       role="separator" tabIndex={0} aria-orientation="vertical"

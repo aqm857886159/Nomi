@@ -36,8 +36,16 @@ import {
 const ZIP_MARK = 'WALKMARKZIP：先定调子再定镜头。'
 const FOLDER_MARK = 'WALKMARKFOLDER：先按 churn 排序再逐个走查。'
 const REPLY = 'WALK_SKILL_LOADED：我按这份方法论来。'
+// frontmatter 里一个只属于清单的键。**它进模型就是 bug**：2026-09-15 之前整份 SKILL.md（含
+// frontmatter）被原样注入，`curated-film-storyboard` 原文 1724 字里 1419 字是 license / source /
+// preview / 双语 label 这类打包元数据（82%）——用户「选了技能提示词一看就不对」的一半在这里。
+const FRONTMATTER_MARK = 'WALKMARKFRONTMATTER'
+// 交代文案里的一句。没有它，模型读到的只是「工具说明后面突然多出一份 markdown」，
+// 没有任何东西说这是用户**为这一轮点的**、参数要落进入参、回复里要看得出用了。
+const SKILL_FRAMING = '本轮用户在输入框里挂了一条技能'
 
-const zipSkill = ['---', 'name: walk-hermes-zip', 'description: 走查·hermes 风格 zip', '---', '', ZIP_MARK].join('\n')
+const zipSkill = ['---', 'name: walk-hermes-zip', 'description: 走查·hermes 风格 zip',
+  `walkmark-frontmatter: ${FRONTMATTER_MARK}`, '---', '', ZIP_MARK].join('\n')
 const folderSkill = ['---', 'name: walk-pi-folder', 'description: 走查·pi 生态技能文件夹', '---', '', FOLDER_MARK].join('\n')
 
 const walk = await createRuntimeWalk('skill-import-real-use')
@@ -133,6 +141,11 @@ try {
   await clickOrFail(win.getByRole('button', { name: '技能库', exact: true }).first(), '侧栏「技能库」')
   const panel = win.locator('[data-skill-drop-zone]')
   await expect(panel, '技能库面板没渲染').toBeVisible()
+  // 面板默认停在「Nomi 内置」那一栏（`SkillLibraryPanel.tsx:55`）。找自己导进来的东西要先切到
+  // 「我的技能」——真实用户就是这么点的，而那句导入提示也只在这一栏渲染（同文件 :396）。
+  // 旧断言写在默认栏上，于是 2026-09-15 复跑时红成「空态没有告诉用户怎么导入」，
+  // 其实是这条走查停在了另一栏（docs/lessons/dead-selector-lies-both-ways.md）。
+  await clickOrFail(panel.getByRole('tab', { name: '我的技能', exact: true }).first(), '技能库的「我的技能」栏')
   // 空态必须说得出「别人发来的技能怎么进来」——只指「用 AI 新建」等于把手上已有文件的用户晾着。
   await expect(
     panel.getByText('拖进这块面板', { exact: false }).first(),
@@ -165,15 +178,16 @@ try {
   await shot(win, '02-two-skills-imported')
 
   // ── ③ 没有 SKILL.md 的旧包：报得出人话，也说得出下一步 ─────────────────────
-  // 先等前两条成功回执散掉。toast 容器 `limit={2}`（NomiAppProviders.tsx），前面挤着两条时
-  // 第三条只会排队——真实用户是一次导一个，这里不制造一个不真实的拥挤现场。
-  const toasts = win.locator('.mantine-Notification-root')
-  await expect(toasts).toHaveCount(0, { timeout: 15_000 })
+  // 回执落在**技能库面板自己的 `role="status"` 那一行**，不是 toast：
+  // `SkillLibraryPanel.tsx:62` 的 `notify({ level: 'inline' })` 把它交给面板内联呈现。
+  // 旧断言钉在 `.mantine-Notification-root` 上，2026-09-15 复跑时红成「用户没看到失败回执」——
+  // 其实回执一直在，只是换了家。前面那句「等 toast 散掉」随之删掉：它在一个恒为 0 的计数上
+  // 等待，是一条永远会过的断言（docs/lessons/expect-absent-passes-too-early.md）。
   await fileInput.setInputFiles(legacyZipPath)
   // 断言必须钉在**这条失败回执**上：早先写成全页 getByText('SKILL.md') 时它命中的是空态
   // 里那句导入提示——一条恒真的假绿（docs/lessons/dead-selector-lies-both-ways.md）。
   await expect(
-    toasts.getByText('技能正文必须放在 SKILL.md 里', { exact: false }).first(),
+    panel.locator('[role="status"]').getByText('技能正文必须放在 SKILL.md 里', { exact: false }).first(),
     '没有 SKILL.md 的旧包导入失败时，用户没有看到一条说得出下一步的失败回执',
   ).toBeVisible()
   expect(skillDirs(), '没有正文的包不该落盘').toEqual(['walk-hermes-zip', 'walk-pi-folder'])
@@ -220,6 +234,23 @@ try {
   expect(
     flattenRequestText(wire.body).includes(FOLDER_MARK),
     '同一次请求里混进了没装上的那个技能的正文（技能应当互斥）',
+  ).toBe(false)
+  // ── 正文到了不等于用得上：交代 + 不带清单，两条都在**同一份报文**上验 ──────────
+  expect(
+    flattenRequestText(wire.body).includes(SKILL_FRAMING),
+    '技能正文进了模型，但没有一句话交代「这是用户为这一轮挂的、要照它做、参数要落进入参」——'
+    + '2026-09-15 实测：只给正文时 11 句里有 4 句回复看不出技能被用过（7/11 → 9/11）',
+  ).toBe(true)
+  // 阳性对照：那个标记**真的**在盘上那份 SKILL.md 的 frontmatter 里。没有这一句，
+  // 下面那条「它不该出现」在标记压根不存在时也会绿（docs/lessons/walkthrough-assertions-need-a-real-signal.md）。
+  expect(
+    fs.readFileSync(path.join(userSkillsRoot, 'walk-hermes-zip', 'SKILL.md'), 'utf8').includes(FRONTMATTER_MARK),
+    `盘上那份 SKILL.md 里没有 ${FRONTMATTER_MARK}——下面那条「frontmatter 不该进模型」是恒真的假绿`,
+  ).toBe(true)
+  expect(
+    flattenRequestText(wire.body).includes(FRONTMATTER_MARK),
+    `SKILL.md 的 frontmatter 被当方法喂进了模型（命中 ${FRONTMATTER_MARK}）：license / source / preview `
+    + '这类打包清单占掉注入预算，真正的方法被挤成一小段',
   ).toBe(false)
   await expect(win.locator(`${CANVAS_PANEL} ${ASSISTANT_MESSAGE}`)).toContainText(REPLY)
   await shot(win, '06-agent-answered-with-skill')

@@ -11,6 +11,9 @@ import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
 import { broadcastAssetsUpdated } from "./assetEvents";
+import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
+import { absolutePathFromLocalAssetUrl } from "./localAssetFile";
+import { attachStoredAssetPreview, isStoredAssetPreviewPath } from "./assetPreview";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
   assetBucketFromMeta,
@@ -49,28 +52,6 @@ type LocalAssetRecord = {
     kind: string;
   } & JsonRecord;
 };
-
-function readAssetSidecarMeta(absolutePath: string): JsonRecord {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(`${absolutePath}.meta`, "utf8"));
-    return isJsonRecord(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeAssetSidecarMeta(absolutePath: string, meta: JsonRecord): void {
-  const sidecar: JsonRecord = {};
-  for (const [key, value] of Object.entries(meta)) {
-    if (value !== undefined) sidecar[key] = value;
-  }
-  if (Object.keys(sidecar).length === 0) return;
-  try {
-    fs.writeFileSync(`${absolutePath}.meta`, JSON.stringify(sidecar));
-  } catch {
-    /* non-fatal */
-  }
-}
 
 function contentTypeFromStoredFile(absolutePath: string): string {
   const extensionType = contentTypeFromPath(absolutePath);
@@ -340,13 +321,20 @@ export async function copyAssetFile(
   if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, await fs.promises.readFile(sourcePath), sourcePath);
   if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, await fs.promises.readFile(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
-  if (isContentAddressedUpload(meta)) return persistUploadFile(projectId, sourcePath, storageFileName, actualContentType, meta);
+  const stored = isContentAddressedUpload(meta)
+    ? await persistUploadFile(projectId, sourcePath, storageFileName, actualContentType, meta)
+    : await copyNativeFileToBucket(projectId, sourcePath, fileName, storageFileName, actualContentType, meta);
+  // 原生路径拷贝是本地导入 / Finder 粘贴拖入 / MCP import_asset / 跨项目复制的共用门：预览在这里派生一次。
+  return attachStoredAssetPreview(stored);
+}
+
+async function copyNativeFileToBucket(projectId: string, sourcePath: string, fileName: string, storageFileName: string, contentType: string, meta: JsonRecord): Promise<unknown> {
   const { absolutePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   await fs.promises.copyFile(sourcePath, absolutePath);
   const contentHash = await contentHashForFile(absolutePath);
   await writeAssetSidecarMetaAsync(absolutePath, meta);
   broadcastAssetsUpdated(projectId);
-  return storedAssetRecord(projectId, absolutePath, sanitizeName(fileName, "asset"), actualContentType, meta, contentHash);
+  return storedAssetRecord(projectId, absolutePath, sanitizeName(fileName, "asset"), contentType, meta, contentHash);
 }
 
 /**
@@ -561,6 +549,11 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
 }
 
 export async function importRemoteAsset(payload: unknown, options: RemoteAssetImportOptions = {}): Promise<unknown> {
+  // 画布预览（图片缩略 / 视频 poster）在落盘边界统一派生：三种来源（项目内引用 / data: / http(s)）出同一扇门。
+  return attachStoredAssetPreview(await importRemoteAssetToStore(payload, options));
+}
+
+async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetImportOptions): Promise<unknown> {
   const raw = payload as JsonRecord;
   const projectId = String(raw.projectId || "").trim();
   const url = String(raw.url || "").trim();
@@ -568,6 +561,10 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
   if (!url) throw new Error("url is required");
   const sourceEvidence = sanitizeSourceEvidence(raw.sourceEvidence);
   if (url.startsWith("nomi-local://")) {
+    // 已在项目里的文件（自定义调用 / 本地流程产物经 localizeTaskAsset 回到这里）：不复制，
+    // 但同样走一次预览派生，画布对它和远端产物一视同仁。
+    const absolutePath = absolutePathFromLocalAssetUrl(url, projectId);
+    const relativePath = absolutePath ? path.relative(projectDirById(projectId) || "", absolutePath).replace(/\\/g, "/") : "";
     return {
       id: stableLocalReferenceId(projectId, url),
       name: String(raw.fileName || "local asset"),
@@ -575,7 +572,11 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
       projectId,
       createdAt: nowIso(),
       updatedAt: nowIso(),
-      data: { url, kind: raw.kind || "local" },
+      data: {
+        url,
+        kind: raw.kind || "local",
+        ...(absolutePath && relativePath ? { absolutePath, relativePath, contentType: contentTypeFromStoredFile(absolutePath) } : {}),
+      },
     };
   }
   if (url.startsWith("data:")) {
@@ -635,7 +636,8 @@ export function listProjectAssets(payload: unknown): { items: LocalAssetRecord[]
   const records = collectFilesRecursively(assetsDir)
     .flatMap((absolutePath): LocalAssetRecord[] => {
       try {
-        if (absolutePath.endsWith(".meta")) return [];
+        // 画布预览是源文件的派生物，不是独立素材：留在源旁边便于本地解析，但不进素材库列表。
+        if (absolutePath.endsWith(".meta") || isStoredAssetPreviewPath(absolutePath)) return [];
         const stat = fs.statSync(absolutePath);
         const relativePath = path.relative(projectDir, absolutePath).replace(/\\/g, "/");
         const contentType = contentTypeFromStoredFile(absolutePath);

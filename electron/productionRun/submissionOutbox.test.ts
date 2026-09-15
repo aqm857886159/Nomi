@@ -40,7 +40,6 @@ function setup() {
     origin: { host: "codex" },
     brief: { goal: "submission outbox fixture" },
     policy: {
-      mode: "balanced",
       trustedHosts: ["codex"],
       allowedProviders: ["tapcanvas"],
       allowedModels: ["seedance-1.0"],

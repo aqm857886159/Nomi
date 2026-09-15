@@ -34,7 +34,10 @@ const rawEvidence: CanvasWriteRawEvidence = {
 const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 
-async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'committed' | 'missing' | 'mismatch' = 'committed') {
+async function fixture(
+  kind: 'document' | 'canvas' | 'delete',
+  receiptMode: 'committed' | 'missing' | 'mismatch' = 'committed',
+) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-desktop-lane-receipts-'))
   cleanups.push(() => fs.rm(root, { recursive: true, force: true }))
   await fs.mkdir(path.join(root, '.nomi'))
@@ -43,7 +46,9 @@ async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'com
   await fs.writeFile(documentFile, 'Original fixture document.')
   const deleteEvidence = { nodes: ['delete-one', 'delete-two'].map(id => ({ ...rawEvidence.node, id, position: { x: 0, y: 0 } })),
     edges: [], groups: [], resolvedReferences: [{ requestedId: 'delete-one', nodeId: 'delete-one' }] }
-  await fs.writeFile(canvasFile, JSON.stringify(kind === 'delete' ? deleteEvidence : rawEvidence))
+  // `make_artifact` → `create_canvas_nodes` 是批量写：证据是 batch 形状（nodes/edges/groups），与删除同形。
+  const batchEvidence = { nodes: [{ ...rawEvidence.node, position: { x: 0, y: 0 } }], edges: [], groups: [], resolvedReferences: [] }
+  await fs.writeFile(canvasFile, JSON.stringify(kind === 'delete' ? deleteEvidence : kind === 'canvas' ? batchEvidence : rawEvidence))
   const receipts = createProjectAgentProposalReceiptService({ projectRoot: root, binding })
   const ownerAuthority = createSurfaceOwnerAuthority()
   const owner = ownerAuthority.capture({ contents: {}, frame: {}, webContentsId: 1, processId: 2, frameRoutingId: 3,
@@ -99,13 +104,19 @@ async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'com
       if (receiptMode !== 'missing') { writeReceipt('committed'); order.push('canvas-committed') }
       if (kind === 'delete') return { applied: true, proposalId: input.receiptProposalId,
         operation: 'delete_canvas_nodes', deletedNodeIds, reconciliation: { ok: true, deviationCount: 0 } }
-      return { applied: true, proposalId: input.receiptProposalId, operation: 'set_node_prompt', affectedNodeIds: ['node-fixture'],
+      // `make_artifact` 的收据形状（create_canvas_nodes）：新建的产物节点 id 映射回去。
+      return { applied: true, proposalId: input.receiptProposalId, operation: 'create_canvas_nodes', affectedNodeIds: ['node-artifact'],
+        affectedEdgeIds: [], clientIdToNodeId: { 'artifact-1': 'node-artifact' }, connectedCount: 0, skippedEdges: [],
         reconciliation: { ok: true, deviationCount: 0 } }
     },
   }
   const executor = createMainCapabilityExecutorRegistry({ resolveCanvasReadPort: async () => ({ read: async () => ({}) }),
     resolveDocumentWritePort: async () => documentPort, resolveCanvasWritePort: async () => canvasPort })
-  const surface = { executor, surfaceCapture: { captureCommittedCanvasReadPort: () => capturedPort },
+  let captures = 0
+  const surface = { executor, surfaceCapture: { captureCommittedCanvasReadPort: () => {
+    captures += 1
+    return capturedPort
+  } },
     surfacePortRuntime: { createCanvasWritePort: () => canvasPort } } as unknown as DesktopCanvasReadRuntime
   const policy = { mode: kind === 'delete' ? 'safe-auto' as const : 'step' as const, spend: 'confirm' as const }
   const assembly = createDesktopLaneTools({ event: {} as IpcMainInvokeEvent, binding, surface, receipts,
@@ -115,10 +126,10 @@ async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'com
     approvalPolicy: () => policy,
     generationFactory: () => undefined, onTaskCreated: async () => undefined })
   cleanups.push(async () => assembly.dispose())
-  const toolName = kind === 'document' ? 'append_to_end' : kind === 'delete' ? 'delete_canvas_nodes' : 'nomi_canvas_write'
-  const args = kind === 'document' ? { content: ' Appended fixture.' }
+  const toolName = kind === 'document' ? 'write_script' : kind === 'delete' ? 'delete_from_canvas' : 'make_artifact'
+  const args = kind === 'document' ? { content: ' Appended fixture.', where: 'end' }
     : kind === 'delete' ? { nodeIds: ['delete-one'], reason: 'Unused fixture shot' }
-    : { operation: 'set_node_prompt', nodeId: 'node-fixture', prompt: 'Updated fixture prompt' }
+    : { fileType: 'text', title: 'Fixture artifact', content: 'Updated fixture content' }
   const http = await createHttpFixture([{ type: 'tool', calls: [{ id: 'fixture-call', name: toolName, arguments: args }] },
     ...(kind === 'delete' && receiptMode === 'committed' ? [{ type: 'tool' as const,
       calls: [{ id: 'second-delete', name: toolName, arguments: { nodeIds: ['delete-two'], reason: 'Unused fixture shot' } }] }] : []),
@@ -136,7 +147,7 @@ async function fixture(kind: 'document' | 'canvas' | 'delete', receiptMode: 'com
     run.then(() => { throw new Error(`Fixture finished before approval: ${JSON.stringify(lane.projection().parts)}`) }),
   ])
   return { lane, receipts, order, pending, root, assembly, toolName, args, documentFile, canvasFile,
-    sawQueuedAuthority: () => sawQueuedAuthority }
+    captures: () => captures, sawQueuedAuthority: () => sawQueuedAuthority }
 }
 
 describe('desktop lane verified writes and durable receipts', () => {
@@ -206,8 +217,21 @@ describe('desktop lane verified writes and durable receipts', () => {
     await run
     expect(f.sawQueuedAuthority()).toBe(true)
     expect(f.order).toEqual(['canvas-capture', 'canvas-write', 'canvas-preparing', 'canvas-committed'])
-    expect(JSON.parse(await fs.readFile(f.canvasFile, 'utf8')).node.prompt).toBe('Updated fixture prompt')
+    expect(JSON.parse(await fs.readFile(f.canvasFile, 'utf8')).node.id).toBe('node-fixture')
     expect(f.receipts.read()).toMatchObject({ lifecycle: 'committed', revision: 2 })
+    expect(f.lane.projection().parts.find((part) => part.kind === 'tool-result')).toMatchObject({ isError: false })
+  })
+
+  it('recaptures the canvas write port at prepare and again at execute, instead of keeping either freeze', async () => {
+    const f = await fixture('canvas')
+    expect(f.captures()).toBe(0)
+    const run = f.lane.execute({ kind: 'prompt', text: 'Update the fixture prompt.' })
+    await f.pending(run)
+    const afterPrepare = f.captures()
+    expect(afterPrepare).toBeGreaterThan(0)
+    await f.lane.execute({ kind: 'approval', toolCallId: 'fixture-call', action: 'allow-once' })
+    await run
+    expect(f.captures(), 'execute must ask for the current surface, not reuse the prepare souvenir').toBeGreaterThan(afterPrepare)
     expect(f.lane.projection().parts.find((part) => part.kind === 'tool-result')).toMatchObject({ isError: false })
   })
 
@@ -229,7 +253,7 @@ describe('desktop lane verified writes and durable receipts', () => {
     await f.lane.execute({ kind: 'approval', toolCallId: 'fixture-call', action: 'allow-once' })
     await run
     expect(f.receipts.read()).toBeNull()
-    expect(JSON.parse(await fs.readFile(f.canvasFile, 'utf8')).node.prompt).toBe('Original fixture prompt')
+    expect(JSON.parse(await fs.readFile(f.canvasFile, 'utf8')).nodes[0].prompt).toBe('Original fixture prompt')
     expect(f.lane.projection().parts.find((part) => part.kind === 'tool-result')).toMatchObject({ isError: true })
   })
 

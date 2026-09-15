@@ -14,6 +14,8 @@ const model = (vendorKey: string, modelKey: string, labelZh = modelKey): ModelCa
     kind: 'text',
     enabled: true,
     published: true,
+    // 主进程算好的「现在能不能用」随行下发；图片/视频默认那两行也读它（2026-09-12 P0-10）。
+    availability: { usable: true },
     publishedModes: [],
     createdAt: '2026-09-06',
     updatedAt: '2026-09-06',

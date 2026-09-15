@@ -41,6 +41,16 @@ describe('时间轴工具条 = 参与布局的头部行', () => {
     source.indexOf("'workbench-timeline__controls'"),
     source.indexOf('workbench-timeline__tracks'),
   )
+  /** 滚动区 = 三簇工具那一段（行尾固定槽之前）。 */
+  const scrollerBlock = source.slice(
+    source.indexOf("'workbench-timeline__controls'"),
+    source.indexOf("'workbench-timeline__controls-tail'"),
+  )
+  /** 钉住的行尾槽：帮助 + 收起，跟着面板走、不跟着滚。 */
+  const tailBlock = source.slice(
+    source.indexOf("'workbench-timeline__controls-tail'"),
+    source.indexOf('workbench-timeline__tracks'),
+  )
 
   it('面板为工具条留了一行（auto）再给轨道区剩余空间', () => {
     expect(source).toContain('grid-rows-[auto_minmax(0,1fr)]')
@@ -67,10 +77,24 @@ describe('时间轴工具条 = 参与布局的头部行', () => {
     }
   })
 
-  it('行尾有收起钮，且用的是现役折叠原子而不是文字按钮', () => {
-    expect(toolbarBlock).toContain('data-timeline-collapse="true"')
-    expect(toolbarBlock).toContain('IconChevronDown')
-    expect(toolbarBlock).toContain("t('timelineEditor.collapsePanel')")
+  /**
+   * 2026-09-13 真机反馈「不小心点了下面的时间轴收不回去了」的结构条件
+   * （合同 2026-09-15-generation-shell-bottom-band）：收起入口是**面板级动作**，
+   * 必须钉在不滚动的行尾槽里，而且带可见动作词——09-13 的截图里它就在行尾、
+   * 是一颗无文字的 chevron，用户仍然报「收不回去」。
+   */
+  it('收起入口钉在行尾固定槽里，不在横向滚动区内', () => {
+    expect(tailBlock.length).toBeGreaterThan(0)
+    expect(tailBlock).toContain('data-timeline-collapse="true"')
+    expect(scrollerBlock).not.toContain('data-timeline-collapse')
+    expect(tailBlock).toContain('flex-none')
+    expect(tailBlock).not.toContain('overflow-x-auto')
+  })
+
+  it('收起钮带可见动作词 + 折叠图形，hover 名字仍是长句', () => {
+    expect(tailBlock).toContain('IconChevronDown')
+    expect(tailBlock).toContain("{t('timelineEditor.collapse')}")
+    expect(tailBlock).toContain("aria-label={t('timelineEditor.collapsePanel')}")
   })
 
   it('onCollapse 真的被用上了（不再是下划线弃用形参）', () => {
@@ -84,6 +108,26 @@ describe('面板高度下限 = 只剩头部行', () => {
     // 12(pt-3) + 16(pb-4) + 8 + (1+4+32+4+1) + 8
     expect(TIMELINE_PANEL_MIN).toBe(86)
     expect(TIMELINE_PANEL_MIN).toBeLessThan(140)
+  })
+
+  /**
+   * 2026-09-13 真机反馈「拉上来太大了，核心只要两个轨道一个图片一个视频可以预览就行」。
+   * 默认高度必须由内容派生：面板内边距 + 工具条行 + 标尺行 + **两条主轨行**。
+   * 这里的数字是**独立重算**（不 import 那几个私有常量），拍板前的 188 会直接打红。
+   */
+  it('展开态默认高度刚好装下两条主轨（图片轨 + 视频轨）', () => {
+    const padding = 12 + 16 // TimelinePanel compact: pt-3 + pb-4
+    const toolbarRow = 8 + (1 + 4 + 32 + 4 + 1) + 8
+    const rulerRow = 22 + 6 // .workbench-timeline__ruler: h-[22px] mb-1.5
+    const primaryTrackRow = 52 + 6 // TimelineTrack primary: min-h-[52px] mb-1.5
+    expect(TIMELINE_PANEL_DEFAULT).toBe(padding + toolbarRow + rulerRow + 2 * primaryTrackRow)
+    expect(TIMELINE_PANEL_DEFAULT).toBe(230)
+    // 两条主轨装不下的那个旧值不许再回来。
+    expect(TIMELINE_PANEL_DEFAULT).toBeGreaterThan(padding + toolbarRow + rulerRow + primaryTrackRow)
+    // 默认值必须落在可拖区间里，否则一展开就被 clamp 成另一个数。
+    expect(TIMELINE_PANEL_DEFAULT).toBeGreaterThanOrEqual(TIMELINE_PANEL_MIN)
+    expect(TIMELINE_PANEL_DEFAULT).toBeLessThanOrEqual(TIMELINE_PANEL_MAX)
+    expect(clampTimelinePanelHeight(TIMELINE_PANEL_DEFAULT)).toBe(TIMELINE_PANEL_DEFAULT)
   })
 
   it('钳制仍然守住上下限与默认值', () => {

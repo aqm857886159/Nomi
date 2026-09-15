@@ -42,6 +42,34 @@ export function parseSkillFrontmatter(markdown: string): SkillFrontmatter {
   return { values };
 }
 
+/**
+ * SKILL.md 去掉 frontmatter 之后的正文。
+ *
+ * ── 它在解决哪个真实摩擦 ──
+ *
+ * `SkillRecord.body` 是**整份文件**（`skillStore.ts:179`），frontmatter 包含在内。当它被原样
+ * 注入系统提示词时，模型读到的前半段是 `license: Apache-2.0` / `source: url:` / `preview: path:`
+ * / 两种语言的 `label` —— 打包元数据，不是方法。实测占比：`curated-film-storyboard` 2380B 里
+ * 1543B（65%）是 frontmatter，真正的方法只有 837B；`curated-multi-view` 同为 65%，
+ * `curated-product-turntable` 52%，`brand-promo` 41%。用户「选了技能但提示词一看就不对」
+ * 的一半就在这里：我们把清单当方法喂进去了。
+ *
+ * **只给提示词注入用**。`read_skill` / MCP `resources/read` 要的仍是原文——外部读者按
+ * Agent Skills 标准期待一份完整的 SKILL.md（R31），在那里裁掉 frontmatter 才是错的。
+ *
+ * 解析位置与 `parseSkillFrontmatter` 同一份判据（`---` 开头 + 第一个 `\n---`），所以这里
+ * 和它住在一个文件：两处各自找结束符就是两份定义。
+ */
+export function skillMarkdownWithoutFrontmatter(markdown: string): string {
+  const normalized = String(markdown).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+  if (!normalized.startsWith("---")) return normalized.trim();
+  const end = normalized.indexOf("\n---", 3);
+  // 没闭合的 frontmatter 不算 frontmatter（与 parseSkillFrontmatter 同一判据）：整份当正文给出去，
+  // 少给远比静默给空强——空正文的症状是「技能挂着但模型什么都没照做」，正是这次在修的病。
+  if (end === -1) return normalized.trim();
+  return normalized.slice(normalized.indexOf("\n", end + 1) + 1).trim() || normalized.trim();
+}
+
 export function frontmatterString(front: SkillFrontmatter, key: string): string {
   const value = front.values[key];
   return typeof value === "string" ? value.trim() : "";

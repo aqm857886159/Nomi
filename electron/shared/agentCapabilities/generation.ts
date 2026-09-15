@@ -30,6 +30,41 @@ export const generationResolveInputSchema = z.object({
 export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema>;
 
 /**
+ * 生成域**方法名的唯一声明**（宿主/dispatcher 的方法词表，模型永远看不见）。
+ *
+ * 三个消费者都从这一份派生，谁都不再手抄：契约的 `method` surface（下面各契约的 `aliases` /
+ * `additionalAliases`）、`generationTransportAdapters` 的路由白名单（`GENERATION_METHOD_NAMES`）、
+ * `agentLane/laneVerbTransport` 的动词→方法翻译（按 `GenerationMethodName` 字面量类型收窄）。
+ * 根因合同 2026-09-11-agent-generation-second-door：#777 曾在翻译层手写 `nomi_generation_plan`、在适配器
+ * 手写一份九元素数组，两份各自演化，翻出来的名字不在白名单里 → 整组生成动词恒 `generation_surface_unavailable`。
+ * 少一边改名，现在是 `tsc` 红，不是运行期静默。
+ */
+export const GENERATION_METHODS = Object.freeze({
+  /** 语义入口：`operation` 判别（context / create / patch / present / preview）。 */
+  plan: "nomi_generation_plan",
+  /** 语义入口：`operation` 判别（read / cancel / reconcile）。 */
+  status: "nomi_generation_status",
+  context: "nomi_get_generation_context",
+  create: "nomi_operation_create",
+  patch: "nomi_submit_generation_plan",
+  /** `generate` 动词：把草稿的报价卡摆到用户面前（草稿不变，只翻 `cardHidden`）。 */
+  present: "nomi_present_generation_plan",
+  preview: "nomi_preview_execution",
+  resolve: "nomi_resolve_generation_plan",
+  gateRequest: "nomi_request_generation_gate",
+  gateDecide: "nomi_decide_generation_gate",
+  start: "nomi_start_generation",
+  read: "nomi_operation_read",
+  cancel: "nomi_cancel_generation",
+  reconcile: "nomi_reconcile_generation",
+} as const);
+export type GenerationMethodName = (typeof GENERATION_METHODS)[keyof typeof GENERATION_METHODS];
+export const GENERATION_METHOD_NAMES: ReadonlySet<GenerationMethodName> = Object.freeze(new Set(Object.values(GENERATION_METHODS)));
+export function isGenerationMethodName(name: string): name is GenerationMethodName {
+  return GENERATION_METHOD_NAMES.has(name as GenerationMethodName);
+}
+
+/**
  * Semantic generation tools are registered here only for capability
  * projection/Skill shrink-only checks. Their execution still belongs to the
  * main-process generation Host adapter; this registry never calls a provider.
@@ -37,7 +72,7 @@ export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema
 export const GENERATION_CONTEXT_READ_CAPABILITY = {
   id: "generation.context.read",
   version: 1,
-  aliases: { method: "nomi_get_generation_context" },
+  aliases: { pi: "list_models", method: GENERATION_METHODS.context },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -51,9 +86,14 @@ export const GENERATION_CONTEXT_READ_CAPABILITY = {
 export const GENERATION_PLAN_CAPABILITY = {
   id: "generation.plan",
   version: 1,
-  aliases: { pi: "nomi_generation_plan" },
-  // dispatcher 的方法名住 `method` surface：模型永远看不见它们，但 `resolveCapabilityAlias` 仍认。
-  additionalAliases: Object.freeze({ method: Object.freeze(["nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
+  aliases: { pi: "draft_shots" },
+  // `draft_shots` 建草稿（create / patch，卡先藏着）、`generate` 出卡（present）；`GENERATION_METHODS.plan` 是
+  // 传输层（generationTransportAdapters）的语义入口方法名。dispatcher 的方法名住 `method` surface：模型永远
+  // 看不见它们，但 `resolveCapabilityAlias` 仍认。
+  additionalAliases: Object.freeze({
+    pi: Object.freeze(["generate"]),
+    method: Object.freeze([GENERATION_METHODS.plan, GENERATION_METHODS.create, GENERATION_METHODS.patch, GENERATION_METHODS.present, GENERATION_METHODS.preview]),
+  }),
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
@@ -72,7 +112,7 @@ export const GENERATION_PLAN_CAPABILITY = {
 export const GENERATION_RESOLVE_CAPABILITY = {
   id: "generation.resolve",
   version: 1,
-  aliases: { method: "nomi_resolve_generation_plan" },
+  aliases: { method: GENERATION_METHODS.resolve },
   inputSchema: generationResolveInputSchema,
   outputSchema: output,
   effect: "read",
@@ -86,12 +126,12 @@ export const GENERATION_RESOLVE_CAPABILITY = {
 export const GENERATION_GATE_CAPABILITY = {
   id: "generation.gate",
   version: 1,
-  aliases: { method: "nomi_request_generation_gate" },
+  aliases: { method: GENERATION_METHODS.gateRequest },
   // 付费门的三个相位是**同一个能力**的三个别名，不是三个能力：request 发确认挑战、
   // decide 提交客户端已完成的凭据、start 在收据结清后真正提交。阶段 5a 之前 decide
   // 只以字符串字面量活在 `generationDispatcher.ts` 的路由表和 `modelToolSurfaceManifest.ts`
   // 那张手写的三行名单里——契约上查不到它，于是「付费边界上有哪些名字」只能靠手抄。
-  additionalAliases: { method: Object.freeze(["nomi_start_generation", "nomi_decide_generation_gate"]) },
+  additionalAliases: { method: Object.freeze([GENERATION_METHODS.start, GENERATION_METHODS.gateDecide]) },
   inputSchema: input,
   outputSchema: output,
   effect: "paid",
@@ -107,7 +147,7 @@ export const GENERATION_RUN_READ_CAPABILITY = {
   version: 1,
   // 模型可见的 `nomi_generation_status` 归 `generation.control`（它能 cancel），`read` 这一支经
   // `operationCapabilityIds` 回到这里；本契约自己只有 dispatcher 方法名（审计 M4 的修法）。
-  aliases: { method: "nomi_operation_read" },
+  aliases: { pi: "check_job", method: GENERATION_METHODS.read },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -121,8 +161,8 @@ export const GENERATION_RUN_READ_CAPABILITY = {
 export const GENERATION_CONTROL_CAPABILITY = {
   id: "generation.control",
   version: 1,
-  aliases: { pi: "nomi_generation_status", method: "nomi_cancel_generation" },
-  additionalAliases: { method: Object.freeze(["nomi_reconcile_generation"]) },
+  aliases: { method: GENERATION_METHODS.status },
+  additionalAliases: { method: Object.freeze([GENERATION_METHODS.cancel, GENERATION_METHODS.reconcile]) },
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",

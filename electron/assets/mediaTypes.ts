@@ -87,6 +87,31 @@ export function mediaKindFromExtension(input: string): MediaKind | null {
   return BY_EXT.get(normalizeExtension(input))?.kind ?? null
 }
 
+/**
+ * contentType → kind;认不出返回 **null**,绝不兜底成 image。
+ *
+ * 为什么这条判断必须住在这张表里:「认不出就当图片」是这套代码踩过的老坑
+ * (2026-08-20 的 HTTP 413——.mkv/.bin/没扩展名的视频被送进 base64 图片通道把请求体顶爆)。
+ * 只要哪个调用点自己写一条 `contentType.startsWith('image/') ? 'image' : …`,这个兜底就会
+ * 以稍微不同的形状再长一份;`check:media-import-owner` 的 adhoc-media-kind-branch 守的就是这条。
+ *
+ * 判定顺序:先查表(`image/svg+xml`、`model/gltf-binary`、`application/pdf` 这类精确答案表里有),
+ * 表里没有再按顶层类型回落;两者都认不出返回 null,由调用方决定怎么拒——本函数不替它兜底。
+ *
+ * 与 assetPaths.assetKindFromContentType 的分工:那个回答「素材树里这是哪类条目」(另一套词表,
+ * 认不出兜底成 'file');本函数回答「这是哪种 MediaKind」,供准入闸与预览派生使用。
+ * 要判 MediaKind 的一律用这一个。
+ */
+export function mediaKindFromContentType(contentType: string): MediaKind | null {
+  const type = String(contentType || '').split(';')[0]?.trim().toLowerCase()
+  if (!type) return null
+  const exact = BY_CONTENT_TYPE.get(type)
+  if (exact) return exact.kind
+  const topLevel = type.split('/')[0]
+  if (topLevel === 'image' || topLevel === 'video' || topLevel === 'audio' || topLevel === 'text') return topLevel
+  return topLevel === 'model' ? 'model3d' : null
+}
+
 /** 扩展名/文件名/路径 → contentType;未知返回 null。 */
 export function contentTypeFromExtension(input: string): string | null {
   return BY_EXT.get(normalizeExtension(input))?.contentType ?? null
@@ -108,8 +133,8 @@ export function extensionsForKind(kind: MediaKind): string[] {
  * **文件头魔数 → contentType**；认不出返回 null。
  *
  * 为什么需要它（2026-08-20 用户报「素材上传失败(HTTP 413)」，那还是段 2 秒的视频）：
- * 上传前判「这是图/视频/音频」全靠**文件名的扩展名**，而扩展名认不出时
- * `mediaKindFromContentType` 会**一律当图片**（它的兜底就是 return 'image'）。于是
+ * 上传前判「这是图/视频/音频」全靠**文件名的扩展名**，而扩展名认不出时上传通道那份判定
+ * （catalog/assetLocalization.assetUploadChannelKind）会**一律当图片**。于是
  * `.mkv` / `.bin`（落盘时扩展名缺失的兜底）/ 没扩展名的文件里的视频，会被当图片送进
  * 图片通道 —— KIE 的 file-base64-upload 是把整个文件 base64 塞进 JSON body 的，
  * 一段几 MB 的视频就能把请求体顶爆 → 反代直接 413。文件多小都没用，路走错了。

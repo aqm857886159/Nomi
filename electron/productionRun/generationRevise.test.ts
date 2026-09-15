@@ -62,7 +62,7 @@ function draftRun(shots: ProductionGenerationShot[], top: PlanCandidate): Produc
     schemaVersion: 1, runId: "op-r", projectId: "project-1", revision: 5,
     status: "draft", stageId: "generate", playbook: { name: "generation.single-shot", version: "1.0.0" },
     origin: { host: "nomi" },
-    policy: { mode: "balanced", trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true },
     budget: { currency: "CNY", authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 5, stages: [], gates: [], jobs: [], artifacts: [],
     generationPlan: { operationId: "op-r", state: "draft", candidate: top, shots, updatedAt: NOW },
@@ -206,7 +206,7 @@ describe("generation.revise · 卡上改参数", () => {
  */
 describe("generation.revise · 卡上换模型与 Run 白名单（#748）", () => {
   const FROZEN = {
-    mode: "balanced" as const, trustedHosts: ["nomi"],
+    trustedHosts: ["nomi"],
     allowedProviders: ["fixture-provider"], allowedModels: ["fixture-model"],
     maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true,
   };

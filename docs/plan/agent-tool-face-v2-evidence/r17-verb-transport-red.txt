@@ -1,0 +1,124 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-tool-face-v2
+
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > read_skill translates to a routable method 2ms
+ × electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > draft_shots translates to a routable method 5ms
+   → draft_shots → generation lane → nomi_generation_plan: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+ × electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > generate translates to a routable method 1ms
+   → generate → generation lane → nomi_generation_plan: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > edit_timeline translates to a routable method 0ms
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > undo translates to a routable method 0ms
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > delete_from_canvas translates to a routable method 0ms
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > export_video translates to a routable method 0ms
+ × electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > cancel_job translates to a routable method 0ms
+   → cancel_job → generation lane → nomi_generation_status: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > save_skill translates to a routable method 0ms
+ × electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > check_job translates to a routable method 0ms
+   → check_job → generation lane → nomi_generation_status: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+ ✓ electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > check_job / cancel_job fall back to export methods the export adapter accepts 0ms
+ × electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > a name that is not a generation method is rejected by the generation adapter 0ms
+   → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > draft_shots translates to a routable method
+AssertionError: draft_shots → generation lane → nomi_generation_plan: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ electron/agentLane/laneVerbTransport.test.ts:49:108
+     47|       const { lane, call } = translated!;
+     48|       expect(ACCEPTED_BY_LANE[lane](call.toolName),
+     49|         `${verb} → ${lane} lane → ${call.toolName}: the ${lane} adapte…
+       |                                                                                                            ^
+     50|     });
+     51|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > generate translates to a routable method
+AssertionError: generate → generation lane → nomi_generation_plan: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ electron/agentLane/laneVerbTransport.test.ts:49:108
+     47|       const { lane, call } = translated!;
+     48|       expect(ACCEPTED_BY_LANE[lane](call.toolName),
+     49|         `${verb} → ${lane} lane → ${call.toolName}: the ${lane} adapte…
+       |                                                                                                            ^
+     50|     });
+     51|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > cancel_job translates to a routable method
+AssertionError: cancel_job → generation lane → nomi_generation_status: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ electron/agentLane/laneVerbTransport.test.ts:49:108
+     47|       const { lane, call } = translated!;
+     48|       expect(ACCEPTED_BY_LANE[lane](call.toolName),
+     49|         `${verb} → ${lane} lane → ${call.toolName}: the ${lane} adapte…
+       |                                                                                                            ^
+     50|     });
+     51|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > check_job translates to a routable method
+AssertionError: check_job → generation lane → nomi_generation_status: the generation adapter does not accept this method name: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ electron/agentLane/laneVerbTransport.test.ts:49:108
+     47|       const { lane, call } = translated!;
+     48|       expect(ACCEPTED_BY_LANE[lane](call.toolName),
+     49|         `${verb} → ${lane} lane → ${call.toolName}: the ${lane} adapte…
+       |                                                                                                            ^
+     50|     });
+     51|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  electron/agentLane/laneVerbTransport.test.ts > verbToTransportCall · every transported verb lands on a method its lane adapter accepts > a name that is not a generation method is rejected by the generation adapter
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ electron/agentLane/laneVerbTransport.test.ts:62:51
+     60|   it("a name that is not a generation method is rejected by the genera…
+     61|     // 阳性对照：谓词不是恒真。
+     62|     expect(isPiGenerationToolName("draft_shots")).toBe(false);
+       |                                                   ^
+     63|     expect(isPiGenerationToolName("nomi_generation_plan_v9")).toBe(fal…
+     64|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 7 passed (12)
+   Start at  10:51:53
+   Duration  960ms (transform 399ms, setup 75ms, import 494ms, tests 12ms, environment 0ms)
+

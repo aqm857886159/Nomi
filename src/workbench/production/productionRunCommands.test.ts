@@ -14,7 +14,6 @@ function run(revision: number, gateStatus: 'waiting' | 'approved' = 'waiting'): 
     playbook: { name: 'brand.promo', version: '1.0.0' },
     origin: { host: 'nomi' },
     policy: {
-      mode: 'guided',
       trustedHosts: [],
       allowedProviders: [],
       allowedModels: [],

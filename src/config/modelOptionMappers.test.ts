@@ -15,6 +15,7 @@ function dto(modelKey: string, vendorKey: string, labelZh = modelKey): ModelCata
     kind: 'image',
     enabled: true,
     published: true,
+    availability: { usable: true },
     publishedModes: ['text_to_image'],
     createdAt: '2026-07-31T00:00:00.000Z',
     updatedAt: '2026-07-31T00:00:00.000Z',

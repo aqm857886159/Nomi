@@ -15,7 +15,9 @@ import { migrateRelayImageEditCapability, migrateRelayParamMaps } from "./relayL
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
-import { derivePublishedExecution, modelHasPublishedExecution } from "../shared/modelPublication";
+import { derivePublishedExecution } from "../shared/modelPublication";
+import type { ModelAvailability } from "../shared/modelAvailability";
+import { createCatalogAvailability } from "./catalogModelAvailability";
 import { deriveModelCatalogHealth } from "./catalogHealth";
 import { depublishVendorForDisabledCredential } from "./credentialPublication";
 import { deleteVendorLineageAndRestore, removeVendorLineage, vendorLineageClosure } from "./vendorLineageLifecycle";
@@ -278,11 +280,18 @@ function filterByParams<
 export function listModelCatalogVendors(): Vendor[] {
   return readCatalog().vendors.map(publicVendor);
 }
-export function listModelCatalogModels(params?: unknown): Array<Model & { published: boolean; publishedModes: ProfileKind[] }> {
+/** 目录模型的对外投影。`availability` 见 shared/modelAvailability.ts：那是「能不能用」的唯一答案，
+ * 在这里随行下发，渲染层一律读它、谁都不许再拼一份（P0-10 根因）。 */
+export function listModelCatalogModels(params?: unknown): Array<Model & {
+  published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability;
+}> {
   const state = readCatalog();
+  const availability = createCatalogAvailability(state);
   return filterByParams(state.models, params).map((model) => ({
-    ...model, ...derivePublishedExecution(model, { mappings: state.mappings }),
-  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[] }>;
+    ...model,
+    ...derivePublishedExecution(model, { mappings: state.mappings }),
+    availability: availability.of(model),
+  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability }>;
 }
 export function listModelCatalogMappings(params?: unknown): Mapping[] {
   return filterByParams(readCatalog().mappings, params);
@@ -310,16 +319,15 @@ export type OnboardingAgent = {
  */
 export function listOnboardingAgentCandidates(): OnboardingAgent[] {
   const state = readCatalog();
+  const availability = createCatalogAvailability(state);
   const out: OnboardingAgent[] = [];
   for (const model of state.models) {
-    if (model.kind !== "text" || !modelHasPublishedExecution(model, { mappings: state.mappings })) continue;
-    const vendor = state.vendors.find((v) => v.key === model.vendorKey && v.enabled);
+    // 「能不能用」只有一个 owner；这里只再加本用途独有的角色要求：text + 有 baseUrl 可直连。
+    if (model.kind !== "text" || !availability.of(model).usable) continue;
+    const vendor = state.vendors.find((v) => v.key === model.vendorKey);
     if (!vendor || !vendor.baseUrlHint) continue;
-    // Auth-free local gateways are executable without a credential. Do not
-    // probe or require a stale/legacy key record for them; credentialed
-    // providers remain fail-closed and must have a decryptable safeStorage key.
+    // Auth-free local gateways are executable without a credential.
     const apiKey = vendor.authType === "none" ? "" : decryptApiKeyRecord(state.apiKeysByVendor[vendor.key]);
-    if (vendor.authType !== "none" && !apiKey) continue;
     const extraHeaders = extractVendorExtraHeaders(vendor);
     out.push({
       providerKind: normalizeProviderKind(vendor.providerKind),

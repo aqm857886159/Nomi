@@ -218,6 +218,7 @@
 | [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
 | [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
 | [2026-09-05-timeline-placement-strategy.md](2026-09-05-timeline-placement-strategy.md) | 时间轴 P0 落位、默认 fit、轨道滚动与字幕不重叠 | 🚧 |
+| [2026-09-15-generation-layout-timeline-spans-bottom.md](2026-09-15-generation-layout-timeline-spans-bottom.md) | **生成面外壳修回旧设计**（T-RL-06 + T-ED-01）：时间轴回 `col-span-full` 横贯底部、AI 面板被顶上去右下角不空；收起钮移出滚动区带文案、默认高度由「两条主轨」派生；结构测试 + 四态走查锁住容器关系 | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
@@ -300,6 +301,8 @@
 
 - [2026-09-08 菜单原语现状清单（刀 1 ①）](2026-09-08-menu-primitive-inventory.md) — 17 文件 / **24 个手写菜单**逐个对账（触发·项·分隔线·禁用·定位·避让·风险）：**方向键 0/24**、点外不关 2 个、定位机制 5 套、六处各猜一遍菜单宽高的硬编码常数；A 建议**先迁时间轴右键菜单**（宿主最小、今天最坏）并把 `CanvasToolbar` 挪出刀 1（hover-open + 无触发元素 + file input 三条边界）；B 从真实用法反推 API（含 checkbox/radio/段名/危险项/项内副标题；**子菜单不做**）；C **19 条形态差异只列不改**等用户拍板；附 `AnchoredPopover` 注释按「浮层里放的是什么」划界的写法。（📋 方案待拍板）
 
+- [2026-09-14 品牌图与预置模型清单收成单一登记处（先查别人报告）](2026-09-14-vendor-logo-registry-prior-art.md) — 四份互不认识的「哪张图代表哪个品牌」收成 `VENDOR_LOGOS` 一张表 + `VendorLogoImage` 一个渲染口（照 `src/design/actions.tsx` 的唯一真相源形状）；接入页的模型清单复用既有 `ModelChipGroups`，不写第二个列表组件，数字与列表同源（✅ 已交付）
+
 ## 🤖 自动收录（待人工归位）
 
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
@@ -322,3 +325,5 @@
 - [2026-09-14 常驻生成面「装没装」收成一个 owner（先查别人报告）](2026-09-14-resident-surface-lifecycle-prior-art.md) — 三份互不知情的 nullable 影子（`main.ts` 的工厂 / `appIntegrationSpendConfirm` 的 `actions` 与 `installFailure`）收成 `residentSurfaceLifecycle` 一个五相 owner；照抄仓内既有「常量派生词表 + 判别联合」形状不造新机制；根因合同 [`2026-09-14-resident-generation-adapter-install.root-cause.json`](../fixes/2026-09-14-resident-generation-adapter-install.root-cause.json)，结构评审 [`../audit/2026-09-14-resident-surface-lifecycle-structure.md`](../audit/2026-09-14-resident-surface-lifecycle-structure.md)（✅ 已交付）
 
 - [2026-09-15 拆解出来的秒数只有一个精度 owner](2026-09-15-shot-seconds-precision.md) — 分镜表时间列显示 `0–1.4681260000000001s` 的类根因：ffmpeg/ffprobe 的原始双精度值一路插值进 i18n，精度三处各发明一套（`0.01` 魔法数 / `toFixed(2)` / `toFixed(1)`）而真正显示的那处一套都没有；新增真相源 `shotTime.ts`（0.1s，理由含与时间轴帧/刻度的核实），在产出边界 `buildShotBoundaries` 与落库读入口 `shotTableFactRowSchema.transform()` 两道边界收口，老项目读取即归一，显示层加响的检测器禁止再写 `toFixed`；根因合同 [`2026-09-15-shot-seconds-precision.root-cause.json`](../fixes/2026-09-15-shot-seconds-precision.root-cause.json)，结构评审 [`../audit/2026-09-15-numeric-contract-structure.md`](../audit/2026-09-15-numeric-contract-structure.md)（✅ 已交付）
+- [2026-09-15 接入验证**会话层**的终态保证：借来的保证一定有边界](2026-09-15-integration-session-terminal-guarantee.md) — 09-12 那版只修了 run 层；会话层拥有 `session.stage` 却把终态保证外包给子 run，于是 ComfyUI 会话 / `startHttp` 未返回的窗口 / run 记录已删三种状态照旧永久停在 `certifying` 且 `cancel` 抛异常。修法：认证 deadline 与开跑意图同一次落盘 + **复用** run 层那只 `TerminalReaper`（不新造看门狗）+ cancel 永不抛 + 终态封口防迟到结果复活 + 旧数据按 `updatedAt` 补 deadline；deadline 从批次超时派生并机检（不拍常量）。含 T-MO-07 接续路径；根因合同 [`2026-09-15-integration-session-terminal-guarantee.root-cause.json`](../fixes/2026-09-15-integration-session-terminal-guarantee.root-cause.json)
+- [2026-09-15 用户亲手点的那条技能，为什么比模型自己找到的那条弱](2026-09-15-skill-selected-injection.md) — 选中技能的正文注入收成 `buildSelectedSkillPrompt` 一个 owner（交代四句 + 照抄 pi 的 `<skill>` 信封 + 剥掉 41–82% 的 frontmatter 清单），并给身份层加三句「出片原则」；22 句真实模型题库前后对账（选了技能那 11 句「回复里看得出技能被用」7/11 → 9/11，三轮一致），证据在 [`../evidence/2026-09-15-skill-real-run/prompts.md`](../evidence/2026-09-15-skill-real-run/prompts.md) 与 [`principles-hypothesis.md`](../evidence/2026-09-15-skill-real-run/principles-hypothesis.md)；根因合同 [`2026-09-15-selected-skill-injection.root-cause.json`](../fixes/2026-09-15-selected-skill-injection.root-cause.json)

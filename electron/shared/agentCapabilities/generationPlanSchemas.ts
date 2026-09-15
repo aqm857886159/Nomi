@@ -67,6 +67,11 @@ const createFields = {
     references: z.array(reference).optional(),
   }).strict()).optional(),
   scriptText: z.string().trim().min(1).optional(),
+  /**
+   * 建草稿时先不把报价卡摆到用户面前（`draft_shots` 动词：草稿落画布、带单价角标、不出卡、不花钱）；
+   * `present` 再翻成可见。缺省 = 卡立刻可见（外部 MCP 宿主与面板自己的路径，行为逐字不变）。
+   */
+  cardHidden: z.boolean().optional(),
 } as const;
 
 const operationId = z.string().trim().min(1);
@@ -78,6 +83,8 @@ export const generationPlanInputSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("create"), ...createFields }).strict(),
   z.object({ operation: z.literal("patch"), operationId, patch: candidatePatch }).strict(),
   z.object({ operation: z.literal("preview"), operationId }).strict(),
+  /** `generate` 动词：把已建草稿的报价卡摆到用户面前；`shotIds` 只把卡限定在这几镜（缺省全部）。 */
+  z.object({ operation: z.literal("present"), operationId, shotIds: z.array(z.string().trim().min(1)).max(40).optional() }).strict(),
   // Strategy resolution is the separate GENERATION_RESOLVE_CAPABILITY owner.
 ]);
 
@@ -89,8 +96,8 @@ export const generationStatusInputSchema = z.discriminatedUnion("operation", [
 
 /** Host capability projection retains the canonical branches, never a parallel schema. */
 export function generationPlanSchemaForHost(host: { preview: boolean }) {
-  const [context, create, patch] = generationPlanInputSchema.options;
-  return host.preview ? generationPlanInputSchema : z.discriminatedUnion('operation', [context, create, patch]);
+  const [context, create, patch, , present] = generationPlanInputSchema.options;
+  return host.preview ? generationPlanInputSchema : z.discriminatedUnion('operation', [context, create, patch, present]);
 }
 
 export const GENERATION_CREATE_EXAMPLE = {

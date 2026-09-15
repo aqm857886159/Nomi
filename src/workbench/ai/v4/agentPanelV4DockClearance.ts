@@ -24,3 +24,29 @@ export function transportClearanceFrom(
   if (!bar || bar.height <= 0) return 0
   return Math.min(Math.max(0, host.bottom - bar.top), Math.max(0, host.height))
 }
+
+/**
+ * 坞还要让开**和它横向重叠的底部停靠区**（画布工具簇、迷你画面窗…）。
+ *
+ * 为什么需要这一条：2026-09-15 把坞从「整个工作区的下沿」收进「内容行的下沿」之后，
+ * 它不再压住时间轴了，但它落到了画布下沿——那儿常驻着画布工具簇。如果就这么交出去，
+ * 等于把「压住时间轴」换成「压住工具条最右那几颗钮」，只是换了个受害者（D4 不许这么交）。
+ *
+ * 判据只认**横向真的重叠**的那几块：迷你画面窗在画布右下角、与居中的坞不相交，
+ * 把它也算进来会把坞顶得莫名其妙地高。自己（`self`）当然排除——坞现在也带停靠区标记。
+ * 结果与走带条空当取**最大值**：两条都是「下沿被谁占了」的不同来源，谁占得更高听谁的。
+ */
+export function bottomDockClearanceFrom(
+  host: Readonly<{ bottom: number; height: number }>,
+  self: Readonly<{ left: number; right: number }> | null,
+  docks: readonly Readonly<{ left: number; right: number; top: number; bottom: number }>[],
+): number {
+  if (!self || !(self.right > self.left)) return 0
+  let clearance = 0
+  for (const dock of docks) {
+    if (!(dock.bottom > dock.top) || !(dock.right > dock.left)) continue
+    if (dock.left >= self.right || self.left >= dock.right) continue
+    clearance = Math.max(clearance, host.bottom - dock.top)
+  }
+  return Math.min(Math.max(0, clearance), Math.max(0, host.height))
+}

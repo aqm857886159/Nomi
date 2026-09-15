@@ -11,7 +11,7 @@ import type { ProductionArtifact, ProductionRun } from './productionRunTypes'
 function qaRun(overrides: Partial<ProductionRun> = {}): ProductionRun {
   return {
     budget: { currency: 'CNY', authorized: 1, reserved: 0, actual: 0, unsettled: 0 },
-    policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 100, maxAttemptsPerJob: 1, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 100, maxAttemptsPerJob: 1, minimizeUploads: true },
     jobs: [{
       jobId: 'job-shot-1', stageId: 'generate', status: 'adopted', attempt: 0,
       provider: 'local', model: 'demo-video', idempotencyKey: 'job-shot-1', nodeId: 'node-shot-1',

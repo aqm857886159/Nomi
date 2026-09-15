@@ -23,7 +23,7 @@ import type { ZodError, ZodIssue } from 'zod';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
   LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, renderLaneToolFailure,
-  type LaneToolFailureShape,
+  renderLaneToolNextAction, type LaneToolFailureShape,
 } from '../shared/agentLane/laneToolContract.js';
 import { VERB_EFFECTS } from '../shared/agentCapabilities/verbDeclaration.js';
 import type { LaneToolDescriptor } from './laneRuntimePort.js';
@@ -262,9 +262,13 @@ export function createLaneTools(descriptors: readonly LaneToolDescriptor[]): Age
         // 机器成因之一。正文由**唯一**的渲染点生成，内外两个投影同源。
         if (!outcome.ok) throw new LaneToolFailure(renderLaneToolFailure(outcome.failure));
         const shown = truncateForModel(outcome.text);
+        // 返回信封的尾行在截断**之后**拼：正文再长也不能把「用户接下来看到什么」截掉。
+        const text = outcome.nextAction ? `${shown.text}\n${renderLaneToolNextAction(outcome.nextAction)}` : shown.text;
+        const details = shown.truncation ? detailsWithTruncation(outcome.details, shown.truncation) : outcome.details ?? {};
         const result: AgentToolResult<unknown> = {
-          content: [{ type: 'text', text: shown.text }],
-          details: shown.truncation ? detailsWithTruncation(outcome.details, shown.truncation) : outcome.details ?? {},
+          content: [{ type: 'text', text }],
+          details: outcome.nextAction && details && typeof details === 'object' && !Array.isArray(details)
+            ? { ...(details as Record<string, unknown>), nextAction: outcome.nextAction } : details,
         };
         return result;
       },

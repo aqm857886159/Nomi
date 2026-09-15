@@ -1,4 +1,4 @@
-// 阶段 3 前置探针 **P5 ③**：真实模型三次调用，看扁平版 `nomi_storyboard_write` 的**首调**
+// 阶段 3 前置探针 **P5 ③**：真实模型三次调用，看分镜写动词（20 动词起 `draft_shots`）的**首调**
 // 有没有命中正确的 operation；顺带用「带 / 不带这个工具」两次请求的 prompt_tokens 之差，
 // 量出它在真实 tokenizer 下的 token 成本（① 的估计值只是字符启发式）。
 //
@@ -30,7 +30,7 @@ import { PROBE_CONTEXT, openProbeLane, type ProbeCleanup } from './stage3ProbeHa
 
 const VENDOR = process.env.NOMI_PROBE_VENDOR || 'apimart';
 const MODEL = process.env.NOMI_PROBE_MODEL || 'deepseek-v4-flash';
-const STORYBOARD_TOOL = 'nomi_storyboard_write';
+const STORYBOARD_TOOL = 'draft_shots';
 const IDENTITY_PROMPT = [
   'You are Nomi, the assistant inside a local-first AI video workbench.',
   'The user is writing a short film. Use the tools to act on the storyboard and canvas; reply in the user\'s language.',

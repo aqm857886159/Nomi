@@ -99,9 +99,9 @@ async function main() {
   });
   const turns: unknown[] = [];
   try {
-    for (const text of ['调用 read_full_text 读文稿，告诉我地点。',
+    for (const text of ['调用 read_script 读文稿，告诉我地点。',
       '先调用 nomi_request_tools，group=timeline；收到结果后调用 read_timeline，告诉我有没有片段。',
-      '再次调用 read_full_text，告诉我人物要去哪里。']) {
+      '再次调用 read_script，告诉我人物要去哪里。']) {
       const start = lane.projection().parts.length;
       const requestStart = requests.length;
       const result = await lane.execute({ kind: 'prompt', text });
@@ -110,7 +110,7 @@ async function main() {
     }
     const typedTurns = turns as Array<{ parts: Array<{ kind: string; toolName?: string; isError?: boolean; text?: string }> }>;
     const toolResults = typedTurns.flatMap(turn => turn.parts.filter(part => part.kind === 'tool-result'));
-    const expectedTools = [['read_full_text'], ['nomi_request_tools', 'read_timeline'], ['read_full_text']];
+    const expectedTools = [['read_script'], ['nomi_request_tools', 'read_timeline'], ['read_script']];
     const answers = [/海边/, /没有|无|空/, /灯塔/];
     const successfulTurns = typedTurns.filter((turn, index) => {
       const calls = turn.parts.filter(part => part.kind === 'tool-call').map(part => part.toolName);

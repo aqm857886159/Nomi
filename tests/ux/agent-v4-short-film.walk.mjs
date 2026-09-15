@@ -345,7 +345,7 @@ try {
   const referenceRequest = walk.fixture.expectText({
     label: 'agent drafts the reference shots',
     match: (body) => flattenRequestText(body).includes(REFERENCE) && !hasToolResult(body, REFERENCE_TOOL),
-    reply: { type: 'tool', id: REFERENCE_TOOL, name: 'nomi_canvas_read', args: {} },
+    reply: { type: 'tool', id: REFERENCE_TOOL, name: 'look_at_canvas', args: {} },
   })
   const referenceFollowup = walk.fixture.expectText({
     label: 'canvas read result returns to the model',

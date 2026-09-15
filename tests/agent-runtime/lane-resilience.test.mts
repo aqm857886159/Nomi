@@ -321,7 +321,7 @@ test('a suspended (deferred) operation projects as still running, and claims not
 
 test('a turn that reaches its model-request limit stops with a sentence, not with a step-limit code', async (t) => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'call-read', name: 'read_full_text', arguments: {} }] },
+    { type: 'tool', calls: [{ id: 'call-read', name: 'read_script', arguments: {} }] },
     { type: 'text', text: 'Must not be reached.' },
   ]);
   const lane = await fixture.openLane({ ...fixture.options, limits: { maxModelRequests: 1 } });
@@ -341,7 +341,7 @@ test('the budget is per turn, not per lane — a second turn starts with a full 
   // 按 lane 计数的后果不会报错：它只是让用户在第 N 次请求之后，**每一轮**都在第一个工具调用上
   // 被拦——而拦截语说的是「本轮已到上限」，于是排错的人会去找一个根本不存在的长回合。
   const call = (id: string) => ({ type: 'tool' as const,
-    calls: [{ id, name: 'read_full_text', arguments: {} }] });
+    calls: [{ id, name: 'read_script', arguments: {} }] });
   const fixture = await createLaneFixture(t, [
     call('turn1'), { type: 'text', text: 'First turn done.' },
     call('turn2'), { type: 'text', text: 'Second turn done.' },

@@ -1,0 +1,241 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-14-settings-allowlist-default-deny",
+  "change_kind": "corrective",
+  "problem_type": "设置页一张**默认为空的全局白名单**用 `includes` 当判据——空 = 全拒；新装 Nomi 的任何 MCP 代跑生成都被拒，直到用户手动在 161 个复选框里勾中正确的那几个",
+  "symptom": "全新安装 Nomi、接好一家供应商的 key、让 Claude Code / Codex 经 MCP 发起一次制作：付费合同卡上供应商与模型两行都写着「待设置」，批准时报「制作合同暂不能批准：供应商「kie」未加入白名单」，或提交阶段被 `provider-not-approved` 拒掉。群反馈里「MCP 接模型太难 / 代跑跑不起来」这一条的根之一（设置页审计 §2.4 / §⑥ 7）。同一页上还摆着一栏「默认制作模式」（`guided` 全仓无人读）与一栏「支出与风险边界」（三个字段零读者），以及三个从未渲染过的 notifyOn* 契约字段",
+  "direct_cause": "`electron/settings/automationPolicyContract.ts` 的 `allowedProviders: []` / `allowedModels: []` 默认值经 `productionRunService.ts` 的默认 policyResolver 原样进入 run policy；`approvalPolicy.ts` 的 authorizeSubmission 与 `productionPolicyReadiness.ts` 的 evaluateProductionPolicyReadiness 都以 `policy.allowedProviders.includes(job.provider)` 判 —— 空数组对任何 provider 都是 false。补救入口只有 AiModelsSection 那 161 个复选框（塞在 max-h-36 的内滚小框里），没有人会去勾满",
+  "class_root": "「允许什么」这一份状态有两个 owner：目录的接入状态（key 在不在、解得开不）已经回答了「这家能不能用」，设置页又另存一份要用户手工维护的白名单去回答同一个问题，而第二份的**空值语义**（空 = 什么都不许）与用户心智（没勾 = 没意见）相反。同一类形状本仓已撞过：docs/fixes/2026-09-12-spend-card-model-swap-blocked 是同一张白名单拦住真人在付费卡上亲手选的模型。只要「允许集」不从唯一真相（目录接入状态 + 用户在卡上按下的那份计划）派生，而是另存一份让人填，每个新入口都会再被它拦一次",
+  "affected_population": [
+    "所有新装 Nomi 且经 MCP（Claude Code / Codex / Cursor / Pi / WorkBuddy）代跑制作的用户：默认白名单为空，第一次代跑必被拒",
+    "所有从未打开过「AI 策略 → 默认模型策略」并勾满复选框的老用户：接了新供应商也要回设置页再勾一次，否则代跑照拒",
+    "看到「默认制作模式」三档、「支出与风险边界」三行的所有用户：三档里两档行为相同、三行里两行是不可点的说明、一行是死开关——调了没有任何效果"
+  ],
+  "scope_paths": [
+    "electron/productionRun/approvalPolicy.ts",
+    "electron/productionRun/connectedModelScope.ts",
+    "electron/productionRun/connectedModelScope.test.ts",
+    "electron/productionRun/productionPolicyReadiness.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunRuntime.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/productionRun/approvalPolicy.test.ts",
+    "electron/settings/automationPolicyContract.ts",
+    "electron/settings/automationPolicySettings.test.ts"
+  ],
+  "entry_points": [
+    "electron/productionRun/productionRunService.ts — 默认 policyResolver：非草稿 run 的 allowedProviders/allowedModels 从这里进 run policy（过去读设置白名单，现在读目录接入范围）",
+    "electron/productionRun/productionRunRuntime.ts — E2E 夹具 policyResolver（固定 fixture provider/model），与生产 resolver 并列的第二个装配点",
+    "electron/productionRun/productionGenerationOperationStore.ts — 语义草稿按候选圈定的 run policy（本轮未改：草稿范围来自用户看过的候选，不是全局表）",
+    "electron/productionRun/productionRunRepository.ts — createRun 合并 DEFAULT_POLICY 与调用方 policy；批准收据按 jobs 推导 approval.allowedProviders/allowedModels",
+    "electron/productionRun/approvalPolicy.ts — authorizeSubmission / intersectAutomationPolicies：allowedProviders/allowedModels 与已删的 mode 的读者",
+    "electron/productionRun/productionPolicyReadiness.ts — evaluateProductionPolicyReadiness：批准前比 run policy 的唯一判据",
+    "src/workbench/settings/AiModelsSection.tsx — 过去唯一的白名单写入口（161 个复选框，已删）"
+  ],
+  "invariants": [
+    "「允许哪些供应商/模型」没有第二份可持久化的全局表：AutomationPolicySettings 不再有 allowedProviders / allowedModels 字段，旧文件里的键在归一化时丢弃",
+    "非草稿 run 的默认允许集 = 目录里 keyStatus === \"ok\" 的供应商及其已发布模型（connectedModelScope）；草稿 run 仍按用户看过的候选圈定",
+    "提交侧的身份闸一字未削：approval.allowedProviders/allowedModels 仍只含用户在付费卡上批准的那份计划里的 provider/model，planHash 仍要对上",
+    "设置里再没有「制作模式」档位：AutomationPolicy / EffectiveAutomationPolicy / AutomationPolicySettings 都没有 mode；档位唯一 owner 是 Agent 面板的 PermissionTier，而它三档的 spend 轴全是 confirm，故「未知估价按 policy-auto 拒」这一分支随之消失，未知估价的 fail-closed 由 submissionOutbox 的 costCeiling 兜",
+    "confirmFirstSpend / autoContinueWithinBudget / confirmIrreversible / notifyOnGate / notifyOnFailure / notifyOnCompletion 六个字段不存在于契约、UI、i18n 任何一处"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/productionRun/approvalPolicy.ts",
+      "line": 58,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/approvalPolicy.ts",
+      "line": 73,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationPlanEdits.ts",
+      "line": 167,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionPolicyReadiness.ts",
+      "line": 31,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunService.ts",
+      "line": 112,
+      "symbol": "readConnectedModelScope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/connectedModelScope.ts",
+      "line": 24,
+      "symbol": "readConnectedModelScope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntime.ts",
+      "line": 51,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "line": 74,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "line": 461,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "line": 33,
+      "symbol": "allowedProviders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "line": 793,
+      "symbol": "trustLevelOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/automationPolicyContract.ts",
+      "line": 47,
+      "symbol": "normalizeAutomationPolicySettings"
+    }
+  ],
+  "door_reduction": {
+    "before": 16,
+    "after": 12,
+    "why_not": "减掉的四扇是设置侧那一整条路：automationPolicyContract 里 allowedProviders/allowedModels 的字段与归一化（2 扇）、AiModelsSection 的两处复选框读写（2 扇）——白名单从此没有可持久化的第二份；归一化函数本身留一扇，它现在的职责是把旧键丢掉。剩下的 12 扇分三类，各自必须存在：① approvalPolicy / productionPolicyReadiness / productionGenerationPlanEdits 是提交与批准前的读判据，闸本身没动；② service / runtime 是生产与 E2E 两条装配路（E2E 夹具必须钉死 fixture provider，不能读真实目录）；③ repository 的 DEFAULT_POLICY 与按 jobs 推导 approval 的两处是 run 与收据自己的形状，reducer 那一扇只是 policy.updated 事件消息从已删的 mode 改读 trustLevel"
+  },
+  "regression_tests": [
+    "electron/productionRun/connectedModelScope.test.ts",
+    "electron/productionRun/approvalPolicy.test.ts",
+    "electron/settings/automationPolicySettings.test.ts",
+    "src/workbench/production/productionBudgetUxStructure.test.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts"
+  ],
+  "residual_risks": [
+    "connectedModelScope 在 run 创建那一刻快照目录接入状态；之后新接入的供应商要等渲染层发 `policy.refresh`（useProductionStatus 已有这条命令）才进已有 run 的 policy。新建 run 不受影响",
+    "keyStatus === \"ok\" 的探测走 safeStorage 解密，每个 vendor 探一次；run 创建频率极低，代价可忽略，但若将来把 resolver 放进热路径要先加缓存",
+    "「未知估价放行」依赖「收据一定是真人按的」这一前提；它由 PermissionTier 三档 spend 全 confirm 保证（agentPanelV4Types.ts 的 PERMISSION_POLICIES 注释已钉死理由），若将来有人给某档放开 spend，approvalPolicy 里没有第二道拦未知估价的闸——submissionOutbox 的 costCeiling 检查是最后一道"
+  ],
+  "internal_only_reason": "白名单的形状、空值语义、run policy 与设置的关系都是本仓自定义的授权语义，不对齐任何外部规范；MCP 规范只管工具调用传输，不规定宿主怎么给一次生成划允许集",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一张白名单两天前刚拦过真人在付费卡上换的模型（docs/fixes/2026-09-12-spend-card-model-swap-blocked），那份合同还把设置侧的表判成「用户自己在改、不存在拦住他」——事实是没有人会去勾 161 个框，于是它默认拦住了所有新装用户。「允许集另存一份让人填」这种结构每多一个入口就再被拦一次，是复发类",
+    "same_class_scan": [
+      "`node scripts/door-map.mjs allowedProviders` / `allowedModels`：修前各 11 扇（automationPolicyContract:81/82、AiModelsSection:193/198/210/414/417/449/451、approvalPolicy:70/85、productionGenerationPlanEdits:167/168、productionPolicyReadiness:31/32、productionRunRuntime:57/58、productionRunService:112/113）；修后各 4 扇读入口 + 本合同门表列出的装配点，设置侧 0 扇",
+      "`node scripts/door-map.mjs confirmFirstSpend|confirmIrreversible`：0 扇；`autoContinueWithinBudget`：写 0 读 2（契约归一化 + 开关自己）；`notifyOnGate|notifyOnFailure|notifyOnCompletion`：各 1 扇（契约归一化自己）——六个字段无生产读者，连契约一起删",
+      "`node scripts/door-map.mjs AutomationMode`：4 扇（approvalPolicy:4/43、productionRunTypes:34、automationPolicyContract:10）；全仓 grep `\"guided\"` 只有定义与 i18n，无分支读它；唯一行为读者 approvalPolicy:96 只判 `policy-auto`——三档实际两种行为，且和 Agent 面板 PermissionTier 互不联动",
+      "`grep -rn \"未加入白名单\\|policyMissing\\|missingPolicyProviders\" src electron`：拒绝文案只有 productionPolicyReadiness 与 generationCommon 两处产地，已一并改成「未接入」语义"
+    ]
+  },
+  "generality_proof": "允许集只剩一个派生点 connectedModelScope(listing)：纯函数，输入是目录清单（deriveModelListing 已经把「key 在不在、解不解得开」收成 keyStatus 三态，P1 不另写探测），输出就是 run policy 要的两个数组。设置契约里没有这两个字段——TypeScript 不允许任何调用方再从 AutomationPolicySettings 上读它们，旧持久化文件里的键在 normalizeAutomationPolicySettings 里被丢弃并有测试钉住。草稿 run 的范围仍由候选圈定（productionGenerationOperationStore 未动），提交侧 approval 的范围仍由用户批准的计划推导（repository 未动）——三份「允许集」各有唯一来源，没有一份是让人手填的",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/connectedModelScope.ts",
+      "symbol": "connectedModelScope",
+      "responsibility": "非草稿 run 默认允许集的唯一派生点：目录里 keyStatus ok 的供应商与其已发布模型。它不碰钱、不碰门、不碰收据"
+    },
+    {
+      "path": "electron/settings/automationPolicyContract.ts",
+      "symbol": "normalizeAutomationPolicySettings",
+      "responsibility": "设置契约的形状：不再有 mode / allowedProviders / allowedModels / 六个零读者字段；旧键进来直接丢弃，不留兼容分支"
+    },
+    {
+      "path": "electron/productionRun/approvalPolicy.ts",
+      "symbol": "authorizeSubmission",
+      "responsibility": "提交前的身份闸：approval 与 run policy 双重 includes 一字未削；未知估价不再按已删的 policy-auto 档位拒"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "默认 policyResolver",
+      "disposition": "enforced",
+      "evidence": "allowedProviders/allowedModels 改为 `...readConnectedModelScope()`，不再读设置；mode 字段随契约删除。connectedModelScope.test.ts 钉住派生规则（ok 进、missing/locked/needs_resave 不进）"
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntime.ts",
+      "entry_point": "E2E 夹具 policyResolver",
+      "disposition": "enforced",
+      "evidence": "删掉了只为 production-budget-recovery 走查存在的 NOMI_E2E_PRODUCTION_MISSING_POLICY 分支（它读设置白名单制造「不完整策略」），夹具只剩固定 fixture provider/model 一条路；那份走查与 station-waits 基线条目同 diff 删除"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationOperationStore.ts",
+      "entry_point": "create()：草稿 run 按候选圈定 policy",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：范围来自用户看过的候选并集，不读设置；本轮一字未改，仍是「草稿范围」的唯一来源"
+    },
+    {
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "entry_point": "批准收据按 jobs 推导 approval.allowedProviders/allowedModels（repository.ts:458-459）",
+      "disposition": "not-affected",
+      "evidence": "收据范围随合同里的 jobs 走，不读设置；DEFAULT_POLICY 只删了 mode 字段，其余形状不变"
+    },
+    {
+      "path": "electron/productionRun/approvalPolicy.ts",
+      "entry_point": "authorizeSubmission 的 unknown-cost 分支",
+      "disposition": "enforced",
+      "evidence": "`policy.mode === \"policy-auto\" ? 拒 : 放` 改为放行（档位已删且三档 spend 全 confirm）；approvalPolicy.test.ts 改为断言未知估价在真人收据下放行、两道预算上限照旧拦"
+    },
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "entry_point": "「默认模型策略」白名单复选框（唯一写入口）",
+      "disposition": "enforced",
+      "evidence": "整栏删除（说明文字 + 161 个复选框 + 深链聚焦逻辑）；settingsDialogStructure.test.ts 与 productionBudgetUxStructure.test.ts 断言 production-provider/production-model/allowedProviders 标记不再出现"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/connectedModelScope.ts",
+    "invariant": "非草稿 run 的允许集只从目录接入状态派生；设置契约没有可持久化的白名单字段，旧键归一化即丢",
+    "failure_mode": "想让白名单回来，得先往 AutomationPolicySettings 加回字段——automationPolicySettings.test.ts「drops the removed settings-page fields」会红（它断言归一化结果的键集合恰等于默认值的键集合）；想让 resolver 绕开派生点直接塞空数组——connectedModelScope.test.ts 与 approvalPolicy.test.ts 之外，`pnpm run check:root-cause-contracts` 的门表核对会指出 service.ts:112 那扇门不再提到 readConnectedModelScope",
+    "exception_policy": "none",
+    "strategy": "删掉第二份 owner（设置白名单）而不是改它的默认值；允许集改为从目录接入状态派生，并把派生收成一个纯函数由生产 resolver 唯一调用",
+    "artifacts": [
+      "electron/productionRun/connectedModelScope.ts",
+      "electron/settings/automationPolicyContract.ts",
+      "electron/productionRun/connectedModelScope.test.ts",
+      "electron/settings/automationPolicySettings.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/productionRun/connectedModelScope.test.ts",
+    "electron/settings/automationPolicySettings.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/production-budget-recovery.walk.mjs"
+    ],
+    "rationale": "同 diff 删掉的旧实现：设置契约的 mode / allowedProviders / allowedModels / confirmFirstSpend / autoContinueWithinBudget / confirmIrreversible / notifyOn* 字段与归一化；AutomationPermissionsSection 的「默认制作模式」三段与「支出与风险边界」整栏；AiModelsSection 的「默认模型策略」整栏与 productionPolicyRequirement 深链聚焦；productionPolicyRecovery 的 requiredProviderModels 载荷；productionRunRuntime 的 NOMI_E2E_PRODUCTION_MISSING_POLICY 夹具分支；以及只为那条分支存在的 production-budget-recovery 走查（唯一整文件删除）。对应 i18n（settings.ai.policy.*、settings.automation.mode/risk/always、agentResident.approvalMode*）与动态前缀登记一并删除"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有引入、升级或降级任何依赖；改动只在本仓主进程、渲染层与测试内部",
+    "exit_criteria": []
+  },
+  "migration": "设置文件：normalizeAutomationPolicySettings 只认剩下的字段，旧文件里的 mode / allowedProviders / allowedModels / 六个死字段在下次读取时被丢弃、下次写入时不再落盘——不需要迁移脚本，也不留兼容分支。Run 文件：AutomationPolicy 类型删了 mode，旧 run 快照里多出的 `mode` 键在运行时无人读取、校验和按原 JSON 计算不受影响。用户可感知的变化：新装或从未勾过白名单的用户，MCP 代跑的合同卡上供应商/模型两行从「待设置」变为「已接入」，批准即可提交；付费卡上选哪家/哪个模型这一步不变",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/connectedModelScope.ts",
+    "tests": [
+      "electron/productionRun/connectedModelScope.test.ts",
+      "electron/settings/automationPolicySettings.test.ts"
+    ],
+    "why": "允许集的派生由 connectedModelScope 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries 第一条）；service 的 resolver 只调用它，approvalPolicy / productionPolicyReadiness 只读结果。两份测试分别钉住派生规则本身与「设置契约里不可能再长出第二份表」"
+  }
+}

@@ -153,18 +153,29 @@ try {
         label: `${sample.id} drafts`,
         match: (body) => lastUserText(body).includes(sample.text),
         reply: sample.expectsDraft
-          ? { type: 'tool', id: callId, name: 'nomi_generation_plan', args: {
-              operation: 'create', taskKind: 'text_to_image', prompt: sample.text,
-              moduleId: 'generation.single-shot', providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL,
-              parameters: { size: '1024x1024' },
+          ? { type: 'tool', id: callId, name: 'draft_shots', args: {
+              shots: [{ prompt: sample.text, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: '1024x1024' } }],
             } }
           : { type: 'text', text: '这一笔要花多少钱，等你点头之前我不会动手。' },
       })
       if (sample.expectsDraft) {
+        // 20 动词：卡在 generate 那一刻出现；draftId 由宿主生成，从草稿结果里读回再释放 generate。
+        let draftId
+        const drafted = walk.fixture.expectText({
+          label: `${sample.id} drafted`,
+          match: (body) => {
+            const result = (body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === callId)
+            if (!result) return false
+            draftId = /"operationId":"([^"]+)"/.exec(String(result.content))?.[1]
+            return true
+          },
+          reply: { type: 'hold' },
+        })
+        drafted.received.then(() => drafted.release({ type: 'tool', id: `${callId}-generate`, name: 'generate', args: { draftId } }))
         walk.fixture.expectText({
           label: `${sample.id} settles`,
-          match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === callId),
-          reply: { type: 'text', text: '草稿已就绪，等你确认。' },
+          match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === `${callId}-generate`),
+          reply: { type: 'text', text: '报价卡已经在面板里，等你确认。' },
         })
       }
     }

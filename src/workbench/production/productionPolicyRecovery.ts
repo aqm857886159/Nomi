@@ -1,23 +1,14 @@
-import type { ProductionPolicyReadiness } from '../../../electron/productionRun/productionPolicyReadiness'
+/**
+ * 制作合同「供应商 / 模型未接入」的恢复入口。
+ *
+ * 2026-09-14 前这里带着「本次需要哪些供应商/模型」跳到 AI 策略页去勾白名单复选框；白名单已删
+ * （已接入即放行，见 electron/productionRun/connectedModelScope.ts），「缺」现在只剩一种含义：
+ * 那家还没接入 / 那个模型没 key——修法在「模型」tab 接上它，所以深链直接落到那里。
+ */
+export type ProductionPolicySettingsTarget = { tab: 'models' }
 
-export type ProductionPolicyRequirement = Pick<ProductionPolicyReadiness, 'requiredProviderModels'>
-
-export type ProductionPolicySettingsTarget = {
-  tab: 'ai'
-  section: 'production-policy'
-  productionPolicy: ProductionPolicyRequirement
-}
-
-export function buildProductionPolicySettingsTarget(
-  readiness: ProductionPolicyReadiness,
-): ProductionPolicySettingsTarget {
-  return {
-    tab: 'ai',
-    section: 'production-policy',
-    productionPolicy: {
-      requiredProviderModels: readiness.requiredProviderModels.map((item) => ({ ...item })),
-    },
-  }
+export function buildProductionPolicySettingsTarget(): ProductionPolicySettingsTarget {
+  return { tab: 'models' }
 }
 
 export function isProductionPolicyError(error: unknown): boolean {

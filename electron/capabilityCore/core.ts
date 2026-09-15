@@ -34,8 +34,9 @@ import { unfrozenAnchorsForShot } from './anchorBible'
 import { composeShotPrompt, runFirstHop, shouldRenderLastFrame, shouldUseTwoHop } from './i2vTwoHop'
 import { pickFirstFramePainter } from './firstFramePainter'
 import { previousShotPromptFor } from './shotOrder'
+import { MediaImportRejectedError, importLocalFile } from '../assets/localFileImport'
+import { mcpImportRejectionMessage } from './mcpImportRejectionMessage'
 import { checkImportAsset, contentTypeForExtension } from './importAssetGuard'
-import { copyAssetFile } from '../assets/projectAssetStore'
 
 /** 生成意图（粗粒度）→ 默认 ProfileKind。调用方也可显式传 kind 覆盖。 */
 export type GenerateIntent = 'image' | 'video' | 'text' | 'audio'
@@ -255,6 +256,9 @@ export async function importProjectAsset(input: {
   } catch {
     realPath = null
   }
+  // 这里只判**路径安全**（deny 目录优先、软链逃逸、扩展名白名单、文件读不读得出来）。
+  // 「多大算大」不在这里判第二遍：唯一 owner 是 importLocalFile 里的准入闸，它按磁盘余量与
+  // 每面硬顶判，拒绝时带着数字回到模型（见下面的 mcpImportRejectionMessage）。
   const verdict = checkImportAsset({ rawPath: raw, realPath, sizeBytes, isFile })
   if (!verdict.ok) throw new Error(verdict.reason)
 
@@ -265,10 +269,19 @@ export async function importProjectAsset(input: {
     return base.toLowerCase().endsWith(verdict.extension) ? base : `${base}${verdict.extension}`
   })()
   const contentType = contentTypeForExtension(verdict.extension)
-  const record = (await copyAssetFile(input.projectId, verdict.realPath, fileName, contentType, {
-    kind: 'imported',
-    source: 'mcp-import',
-  })) as { id?: string; name?: string; data?: { url?: string; size?: number; contentHash?: string } }
+  // 落盘走**唯一那条路**（嗅探 + 准入闸 + 视频归一化都在 importLocalFile 里）；meta 在调用方
+  // 这一侧收窄成 owner 认的形状，不放宽 owner 的入参去迁就调用者。被准入闸挡下不是「导入失败」：
+  // 那一支独有的数字要讲给模型听，否则它会原地重试同一个文件。
+  let record: { id?: string; name?: string; data?: { url?: string; size?: number; contentHash?: string } }
+  try {
+    record = (await importLocalFile(
+      { projectId: input.projectId, sourcePath: verdict.realPath, fileName, contentType, kind: 'imported' },
+      { allowSourcePath: true },
+    )) as typeof record
+  } catch (error) {
+    if (error instanceof MediaImportRejectedError) throw new Error(mcpImportRejectionMessage(fileName, error.rejection))
+    throw error
+  }
   const data = record.data
   const url = data?.url
   if (!url || !record.id || !data?.contentHash) throw new Error('素材已复制但没拿到完整的可引用身份，请重试。')

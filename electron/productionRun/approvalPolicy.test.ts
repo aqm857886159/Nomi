@@ -44,7 +44,6 @@ function job(patch: Partial<ProductionJob> = {}): ProductionJob {
 
 function policy(patch: Partial<EffectiveAutomationPolicy> = {}): EffectiveAutomationPolicy {
   return {
-    mode: "balanced",
     trustedHosts: ["codex"],
     allowedProviders: ["tapcanvas"],
     allowedModels: ["seedance-1.0"],
@@ -88,31 +87,28 @@ describe("authorizeSubmission", () => {
     expect(authorizeSubmission(request({ job: job({ attempt: 3 }) }))).toEqual({ ok: false, reason: "attempt-limit" });
   });
 
-  it("requires a known defensible ceiling for policy-auto", () => {
-    expect(authorizeSubmission(request({ policy: policy({ mode: "policy-auto" }), estimatedCost: null }))).toEqual({
-      ok: false,
-      reason: "unknown-cost",
-    });
+  it("lets an unknown estimate through on a human-confirmed receipt and still enforces both ceilings", () => {
+    // 2026-09-14：设置档位（policy-auto 拒 unknown-cost）已删——Agent 面板三档的 spend 轴全是 confirm，
+    // 收据一定是真人看过报价按的；未知估价的 fail-closed 由 submissionOutbox 的 costCeiling 兜。
+    expect(authorizeSubmission(request({ estimatedCost: null }))).toEqual({ ok: true });
     expect(authorizeSubmission(request({ estimatedCost: 13 }))).toEqual({ ok: false, reason: "approval-budget-exceeded" });
     expect(authorizeSubmission(request({ policy: policy({ maxSpend: 4 }) }))).toEqual({ ok: false, reason: "policy-budget-exceeded" });
   });
 });
 
 describe("intersectAutomationPolicies", () => {
-  it("keeps the most restrictive mode, allowlists, ceiling, and retry limit", () => {
+  it("keeps the most restrictive allowlists, ceiling, and retry limit", () => {
     expect(intersectAutomationPolicies([
       policy({
-        mode: "policy-auto",
         trustedHosts: ["codex", "claude"],
         allowedProviders: ["tapcanvas", "other"],
         allowedModels: ["seedance-1.0", "other-model"],
         maxSpend: 50,
         maxAttemptsPerJob: 4,
       }),
-      policy({ mode: "balanced", maxSpend: 20, maxAttemptsPerJob: 2 }),
-      policy({ mode: "guided", maxSpend: 30, maxAttemptsPerJob: 3 }),
+      policy({ maxSpend: 20, maxAttemptsPerJob: 2 }),
+      policy({ maxSpend: 30, maxAttemptsPerJob: 3 }),
     ])).toEqual({
-      mode: "guided",
       trustedHosts: ["codex"],
       allowedProviders: ["tapcanvas"],
       allowedModels: ["seedance-1.0"],

@@ -95,7 +95,7 @@ test('三条描述通道各就各位，且 Guidelines 跨工具去重', () => {
   const lines = rendered.split('\n');
   const guidelineLines = lines.slice(lines.indexOf('Guidelines:') + 1);
   assert.equal(new Set(guidelineLines).size, guidelineLines.length, 'Guidelines 出现了重复行');
-  const shared = 'Read the creation document before you change it';
+  const shared = 'Read before you write';
   assert.equal(guidelineLines.filter((line) => line.includes(shared)).length, 1);
   // 阳性对照：把去重摘掉会怎样——同一条纪律来自 5 个工具，不去重就是 5 行。
   const naive = LANE_MODEL_TOOL_CATALOG.flatMap((spec) => spec.promptGuidelines ?? []);
@@ -159,14 +159,13 @@ test('lane 真正发布的三个画布工具带着跨字段约束，而不只是
     assert.ok(!parsed.success, `${name} 应当拒绝 ${JSON.stringify(value)}`);
     assert.ok(parsed.error.issues.some((issue) => why.test(issue.message)), JSON.stringify(parsed.error.issues));
   };
-  rejects('nomi_canvas_write', { operation: 'connect_canvas_edges', edges: [] }, /at least one edge/);
-  // 别的 operation 的字段，形状合法（否则 ajv 那层就拒了，测不到组合那一层）。
-  rejects('nomi_canvas_write', { operation: 'set_node_prompt', nodeId: 'n1', prompt: 'x', nodes: [{ clientId: 'c', kind: 'keyframe', title: 't', prompt: 'p' }] }, /Unrecognized key/);
-  rejects('nomi_shot_reference_write', { operation: 'create_camera_move', shotClientId: 's1' }, /move or customMove/);
-  rejects('nomi_shot_reference_write', { operation: 'create_staging_reference', shotClientId: 's1' }, /characters or customBlocking/);
-  rejects('nomi_storyboard_write', { operation: 'patch_shots', select: { kind: 'indexes' }, patch: { prompt: 'x' } }, /needs an indexes array/);
+  // 20 动词：画布写是三个动词；跨字段约束挂在各自 schema 上（stage_shot 的 staging/cameraMove 二选一）。
+  rejects('stage_shot', { shotId: 's1' }, /exactly one of staging or cameraMove/);
+  rejects('stage_shot', { shotId: 's1', cameraMove: { move: 'push_in' }, staging: { characters: [] } }, /exactly one of staging or cameraMove/);
+  // 别的动词的字段，形状合法（否则 ajv 那层就拒了，测不到组合那一层）。
+  rejects('make_artifact', { fileType: 'table', title: 't', content: 'c', nodes: [{ clientId: 'c', kind: 'keyframe', title: 't', prompt: 'p' }] }, /Unrecognized key/);
   // 阳性对照：每个示例仍然通过（上面那条「每个示例都能通过」已经钉住），这里再钉一个最小合法值。
-  assert.ok(byName.get('nomi_shot_reference_write')!.schema.safeParse({ operation: 'create_camera_move', shotClientId: 's1', move: 'push_in' }).success);
+  assert.ok(byName.get('stage_shot')!.schema.safeParse({ shotId: 's1', cameraMove: { move: 'push_in' } }).success);
 });
 
 test('每个字段的说明都标明它属于哪几个 operation', () => {
@@ -280,9 +279,9 @@ test('每个工具恰好一个效果，而 replay 从中派生', async () => {
   }
   // 事实断言而不是同义反复：画布写入与文稿写入都是可撤的本地写；读是读。
   const byName = new Map(LANE_MODEL_TOOL_CATALOG.map((spec) => [spec.name, spec] as const));
-  assert.equal(byName.get('nomi_canvas_write')?.effect, 'reversible_local');
-  assert.equal(byName.get('append_to_end')?.effect, 'reversible_local');
-  assert.equal(byName.get('read_full_text')?.effect, 'read');
+  assert.equal(byName.get('make_artifact')?.effect, 'reversible_local');
+  assert.equal(byName.get('write_script')?.effect, 'reversible_local');
+  assert.equal(byName.get('read_script')?.effect, 'read');
 
   const descriptors = LANE_MODEL_TOOL_CATALOG.map((spec) => ({
     ...spec, execute: async () => ({ ok: true as const, text: '' }),

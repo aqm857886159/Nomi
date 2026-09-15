@@ -6,7 +6,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
-import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
+import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
 const { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } = tsxRequire('../../electron/agentLane/laneToolCatalog.ts', import.meta.url)
@@ -373,6 +373,12 @@ export async function createRuntimeWalk(name) {
     current = await launchNomiApp({
       name: `pi-${name}`, tempRoot, settingsDir, settleMs: 0,
       ...(executablePath ? { executablePath } : {}),
+      ...(name === 'golden-path' ? {
+        initialLocalStorage: {
+          'nomi:locale:v1': 'zh-CN',
+          'nomi.assistantModel': JSON.stringify({ vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_TEXT_MODEL }),
+        },
+      } : {}),
       env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
       args: ['--no-proxy-server', ...extraArgs],
     })

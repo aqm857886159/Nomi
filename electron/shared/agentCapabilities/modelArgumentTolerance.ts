@@ -68,6 +68,13 @@ export interface ModelToleranceShape {
    * 它多半会把正文再抄一遍到另一个错名字上。
    */
   readonly fieldAliases?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * E 族 · 这个工具认得的全部字段名。给了就把不在表里的键安静丢掉——模型很爱给只收一两个参数的读工具
+   * 塞一个兄弟工具的参数（`where: "end"`）或一个无关提示（`path: "draft.md"`），那不是错误，是它在复述
+   * 别的工具的事；让一次正确意图死在 `additionalProperties: false` 上只会换来一次无谓往返。
+   * 不给 = 不丢（写工具照旧 strict 报错，多出来的字段可能是写错名字的正文）。
+   */
+  readonly knownFields?: readonly string[];
 }
 
 /**
@@ -79,9 +86,11 @@ export function modelArgumentTolerance(shape: ModelToleranceShape): (args: unkno
   const arrayFields = new Set(shape.arrayFields ?? []);
   const objectFields = new Set(shape.objectFields ?? []);
   const aliases = Object.entries(shape.fieldAliases ?? {});
+  const knownFields = shape.knownFields ? new Set(shape.knownFields) : undefined;
 
   return (args: unknown): Record<string, unknown> => {
     const record = { ...unwrapWholeArguments(args) };
+    if (knownFields) for (const key of Object.keys(record)) if (!knownFields.has(key)) delete record[key];
 
     for (const [canonical, alternatives] of aliases) {
       if (record[canonical] !== undefined) continue;

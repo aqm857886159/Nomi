@@ -199,7 +199,19 @@ function projectBinding(
   });
 }
 
+function isRendererSurfaceEvidence(value: CapabilityAuthorityEvidence): value is RendererAuthorityEvidence {
+  return "bindingId" in value && "portRevision" in value && "surfaceInstanceId" in value;
+}
+
 function sameEvidence(left: CapabilityAuthorityEvidence, right: CapabilityAuthorityEvidence): boolean {
+  if (isRendererSurfaceEvidence(left) && isRendererSurfaceEvidence(right)) {
+    return (
+      left.binding.projectId === right.binding.projectId &&
+      left.binding.immutableProjectUuid === right.binding.immutableProjectUuid &&
+      left.binding.projectGeneration === right.binding.projectGeneration &&
+      stableJson(left.caller) === stableJson(right.caller)
+    );
+  }
   return stableJson(left) === stableJson(right);
 }
 

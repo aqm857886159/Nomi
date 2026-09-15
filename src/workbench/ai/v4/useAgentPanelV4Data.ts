@@ -103,7 +103,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       .then(([vendorRows, modelRows, imageRows, videoRows]: [ModelCatalogVendorDto[], ModelCatalogModelDto[], ModelCatalogModelDto[], ModelCatalogModelDto[]]) => {
         if (!alive) return
         setGenerationModels(Object.freeze([...imageRows, ...videoRows]))
-        const usable = filterUsableAssistantTextModels(modelRows, vendorRows)
+        const usable = filterUsableAssistantTextModels(modelRows)
         setModels(usable)
         setVendors(Object.fromEntries(vendorRows.map((row) => [row.key, row.name])))
         const pref = getAssistantModelPref()

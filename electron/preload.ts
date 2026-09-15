@@ -219,6 +219,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       invoke: (channel, request) => ipcRenderer.invoke(channel, request),
     }),
     copyFiles: (payload: unknown) => ipcRenderer.invoke("nomi:assets:copy-files", payload),
+    storageCapacity: (payload: unknown) => ipcRenderer.invoke("nomi:assets:storage-capacity", payload),
+    reportVideoCodecs: (payload: unknown) => ipcRenderer.invoke("nomi:assets:report-video-codecs", payload),
     copyProjectAsset: (payload: unknown) => ipcRenderer.invoke("nomi:assets:copy-project-asset", payload),
     // 播放懒自愈：nomi-local 视频解不了（HEVC 存量/供应商 HEVC 产物）→ 主进程转码出新 MP4 资产。
     ensurePlayable: (payload: unknown) => ipcRenderer.invoke("nomi:assets:ensure-playable", payload),

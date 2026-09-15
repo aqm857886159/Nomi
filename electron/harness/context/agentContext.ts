@@ -1,5 +1,7 @@
 import path from "node:path";
+
 import { readNestedRecord, trim, type JsonRecord } from "../../jsonUtils";
+import { skillMarkdownWithoutFrontmatter } from "../../skills/skillFrontmatter";
 import { findSkillRecord, type SkillRecord } from "../../skills/skillStore";
 import { sanitizeForBroadCompat } from "../../ai/promptSanitize";
 import { getDesktopLocale } from "../../desktopLocale";
@@ -44,6 +46,17 @@ export const NOMI_AGENT_IDENTITY = [
   "- 主动但不越权：该调工具就调。建草稿、改草稿这类不花钱的本地改动会立刻生效，不需要确认；只有付费生成要等用户在确认卡上点头之后才开始。",
   "- 建好草稿只能说「草稿已建好，模型和参数以确认卡为准」，绝不能说「已提交」「已开始生成」「去预览区看结果」——生成还没开始，预览区也不会有东西。",
   "- 如果模型是你替用户选的，要明说这是你选的、以及为什么这么选，别让用户以为是他自己定的。",
+  "",
+  // 2026-09-15 真实模型实测（22 句 · `docs/evidence/2026-09-15-skill-real-run/`）：在一个**空项目**里说
+  // 「给我做一条 30 秒的雨夜便利店短片」，模型 3/4 会自己去读对的技能（索引这条路是通的），但
+  // **视觉锚 0/5**——唯一真的把镜头建出来的那一轮，4 个镜头全是 text_to_video，没有任何锚、没有任何
+  // 引用。这与 2026-09-12 用户截图里 Agent 自己那句「镜头语言规则用了、视觉锚引用没用上」是同一件事。
+  // 它不是不知道方法（读到的技能里写着），是没有一条**它每次都看得见**的规矩说「锚是先决条件」。
+  // 所以这三句放在身份层，不放在某个 skill 里：一致性是 Nomi 这个产品的事，不是某种片型的事。
+  "出片原则（每次都适用）：",
+  "- 一次要出两个以上镜头时，先建一个视觉锚（人物卡或场景定场图），再让后续镜头**引用**它（图生视频 / 参考槽）。每镜各自文生视频等于同一部片子里换了几个人、换了几座城——这是用户最常抱怨的那个问题。",
+  "- 用户已经给了图或素材时，它就是锚：真的挂到参考槽/参考边上。只把它写进提示词文字里不算用上——模型看不见你在文字里提过它。",
+  "- 只有在用户明确说不要一致性、或这条片子本来就没有可复现的主体（纯风景快剪）时才跳过锚；跳过就在回复里说一句为什么跳过。",
 ].join("\n");
 
 /**
@@ -82,27 +95,59 @@ export function resolveRequestedSkill(payload: JsonRecord): SkillRecord | null {
   return requested.key || requested.name ? findSkillRecord(requested.key, requested.name) : null;
 }
 
-export function buildSkillSystemPrompt(
-  payload: JsonRecord,
-  skill: SkillRecord | null = resolveRequestedSkill(payload),
-): string {
-  const requested = readRequestedSkill(payload);
-  if (!requested.key && !requested.name) return "";
-  if (!skill) {
-    return [
-      "Nomi 桌面 Agent skill 提示：",
-      `请求的 skill 未在本地 skills 目录找到：${requested.key || requested.name}`,
-      "继续按用户请求和当前上下文完成任务；不要声称已经加载不存在的 skill。",
-    ].join("\n");
-  }
+/**
+ * 用户为**这一轮**挂的那条技能，注入成系统提示词的一段。**全仓唯一的技能注入点。**
+ *
+ * ── 它在解决哪个真实摩擦（D6 ①）──
+ *
+ * 用户在 composer 里点了「电影分镜」，然后说「这段剧本帮我做成分镜」。在 2026-09-15 之前，
+ * 这条技能是这样进提示词的（`laneDesktopRuntime.ts` 两处）：
+ *
+ *     systemPrompt: [next.systemPrompt, skill?.body].filter(Boolean).join('\n\n')
+ *
+ * 也就是把整份 `SKILL.md` 原文（含 frontmatter）拼在面板提示词后面，**一个字的交代都没有**。
+ * 模型看到的是：一段画布工具说明，然后突然一块 `license: Apache-2.0` / `source:` / `preview:`，
+ * 再然后一份标题叫「电影分镜」的 markdown。没有任何东西告诉它：
+ *   ① 这是用户**为这一轮点的**，不是背景资料；
+ *   ② 它规定的画幅/时长/模式要**写进工具入参**，不是在正文里说一句「用宽屏」就算；
+ *   ③ 用户要在回复里**看得出**它被用了。
+ *
+ * 症状就是用户 2026-09-10 的原话：「用了一个电影分镜 skill，但他和我生成出来的东西提示词一看
+ * 就不对，而且比例不对」。以及 2026-09-12 Agent 自述的「镜头语言规则用了、视觉锚引用没用上」。
+ *
+ * ── 要权衡的那一个东西（D6 ②）──
+ *
+ * 另一条路是「不注入正文，让模型自己用 `read` 去读」——`<available_skills>` 索引已经这么做了
+ * （`laneSkillIndex.mts`，pi / Anthropic 的标准答案）。但那条路管的是**模型自己发现**技能；
+ * 用户**亲手点了**一条技能是另一件事：让它再自己决定要不要去读，就是把一次明确的用户意图
+ * 降级成一个建议。所以两条并存且分工明确：索引管发现，这里管「用户点了的那一条」。
+ *
+ * ── 为什么只有一个注入点 ──
+ *
+ * 数门（`node scripts/door-map.mjs resolveRequestedSkill`）当时是 3 扇：`laneDesktopRuntime`
+ * 的 singleShot 与 configure 各自内联拼一次，第三扇是本文件里一个**零生产调用者**的
+ * `buildSkillSystemPrompt`——它带着交代文案，而活着的那两扇没有。一份带交代的实现躺在旁边、
+ * 生产上跑的是没交代的那份，正是 P1 说的并行版。现在正文只在这里生成一次，那个旧的已删。
+ */
+export function buildSelectedSkillPrompt(skill: SkillRecord): string {
+  // frontmatter 不进提示词：它是打包清单（license / source / preview / 双语 label），不是方法。
+  // 实测 `curated-film-storyboard` 原文 1724 字里只有 305 字是方法——82% 的注入预算花在了元数据上。
+  // **这不是 Nomi 的发明**：pi 自己展开 `/skill:<name>` 时就是 `stripFrontmatter(content).trim()`
+  // （`pi-coding-agent/dist/core/agent-session.js:994`）。我们只是此前没走它那条路。
+  const method = skillMarkdownWithoutFrontmatter(skill.body);
+  // 信封逐字照 pi 的 `_expandSkillCommand`（同文件 :995）：`<skill name= location=>` +
+  // 「References are relative to …」+ 正文。R31：别人已经定了形状就不要自己再造一个——
+  // 这个形状还顺带把「技能目录里的相对路径指哪」说清楚了，而我们自己那版没有。
+  const envelope = `<skill name="${skill.name}" location="${skill.filePath}">\n`
+    + `References are relative to ${path.dirname(skill.filePath)}.\n\n${method}\n</skill>`;
   return [
-    "Nomi 桌面 Agent 已加载本地 skill。以下内容是本次回复必须参考的领域方法论和输出约束。",
-    "注意：本桌面运行时只把 skill 作为本地知识注入；skill 中提到的外部 CLI、HTTP 或文件工具不会自动执行，除非当前对话/界面明确提供了对应能力。",
-    `skillKey: ${requested.key || skill.name}`,
-    `skillName: ${requested.name || skill.name}`,
-    `skillFile: ${path.relative(process.cwd(), skill.filePath)}`,
+    "本轮用户在输入框里挂了一条技能。它不是背景资料，是这一轮的作业规范：",
+    "- 照它的方法和约束做这一轮；与你自己的一般习惯冲突时以它为准。",
+    "- 它规定的画幅、时长、镜头数、生成模式这类**参数**，要真的写进你调用工具时的入参里；只在正文里说一句「用宽屏」不算照做。",
+    "- 回复里要让用户看得出它被用了：用一句话说清你照它做了哪一两条关键决定。不要复述整份技能。",
+    "- 它提到的外部 CLI、HTTP 或文件工具不会自动执行，除非当前对话确实提供了对应能力。",
     "",
-    skill.body,
+    envelope,
   ].join("\n");
 }
 

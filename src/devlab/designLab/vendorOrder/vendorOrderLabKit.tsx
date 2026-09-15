@@ -7,14 +7,16 @@
 //   2. 挂载后**真的点一下触发钮**把浮层打开——不是自己另画一份下拉。另画一份就等于第二个实现，
 //      改了生产代码这里照样绿，正是实验室要消灭的那种假证据。
 //
-// 选项由现役的那条链现算：`keepRunnableVendorOptions`（catalog 层唯一那道「这家能不能跑」的闸）
-// → `dedupeModelOptions` → `buildModelSelectOptions`。三个都是真机下拉跑的同一份函数，
-// 「没接入的不出现、几家折成一行、chip 排序、一家都没有时的空态」全在它们里面。夹具只决定目录内容。
+// 选项由现役的那条链现算：`dedupeModelOptions` → `buildModelSelectOptions`。两个都是真机下拉跑的
+// 同一份函数，「几家折成一行、chip 排序、一家都没有时的空态」全在它们里面。
+// 「这个模型能不能用」不在这一层——它由主进程算好随行下发、在 `modelCatalogCache` 进入渲染层的
+// 第一处就把不可用的行滤掉了（证据 `modelCatalogCache.test.ts`）。所以本取景台收到的
+// `models` 永远是「目录层已放行的选项」，夹具用 `onlyFromVendors` 喂成那个样子。
 import React from 'react'
 
 import { NomiSelect } from '../../../design'
 import { dedupeModelOptions } from '../../../config/modelIdentity'
-import { keepRunnableVendorOptions, seedModelCatalogForTests } from '../../../config/modelCatalogCache'
+import { seedModelCatalogForTests } from '../../../config/modelCatalogCache'
 import { ModelBoxOrderSection } from '../../../workbench/settings/ModelBoxOrderSection'
 import { seedModelBoxPreferenceForLab } from '../../../workbench/common/useModelBoxPreference'
 import { buildModelSelectOptions, modelBoxHiddenNote } from '../../../workbench/common/useDedupedModelSelect'
@@ -37,19 +39,16 @@ const NEVER_AILING = (): false => false
  * 展开态的模型下拉。
  *
  * @param models              这一格的**整份**目录（含没接入的家；筛不筛由生产代码说了算）
- * @param runnableVendorKeys  已接入的供应商 key（真机上由 catalog 的 getRunnableVendorKeys 算出）
  * @param preferredVendorKeys 用户在「设置 → AI 策略 → 优先供应商」排出来的顺序；空数组 = 没设过
  * @param modelBoxPreference  「显示哪些 / 排在哪 / 记住哪家」那张表；缺省 = 没排过没藏过没记过
  */
 export function ModelPickerStage({
   models,
-  runnableVendorKeys,
   preferredVendorKeys = [],
   modelBoxPreference = null,
   selected = '',
 }: {
   models: readonly ModelOption[]
-  runnableVendorKeys: ReadonlySet<string>
   preferredVendorKeys?: readonly string[]
   modelBoxPreference?: ModelBoxPreferenceSettings | null
   selected?: string
@@ -62,20 +61,20 @@ export function ModelPickerStage({
   React.useEffect(() => { setPicked(selected) }, [selected])
   const options = React.useMemo(
     () => buildModelSelectOptions(
-      dedupeModelOptions(keepRunnableVendorOptions(models, runnableVendorKeys)),
+      dedupeModelOptions([...models]),
       NEVER_AILING,
       preferredVendorKeys,
       modelBoxPreference,
     ),
-    [models, runnableVendorKeys, preferredVendorKeys, modelBoxPreference],
+    [models, preferredVendorKeys, modelBoxPreference],
   )
   // 脚注的条数也由**生产那份**判据算（同一个 partition 函数），不是夹具里写死一个「2」。
   const hiddenNote = React.useMemo(
     () => modelBoxHiddenNote(partitionByModelBoxPreference(
-      dedupeModelOptions(keepRunnableVendorOptions(models, runnableVendorKeys)),
+      dedupeModelOptions([...models]),
       modelBoxPreference,
     ).hidden.length),
-    [models, runnableVendorKeys, modelBoxPreference],
+    [models, modelBoxPreference],
   )
   // 浮层的 portal 目标必须在首帧就拿得到，所以先渲染一帧再点——`useLayoutEffect` 里
   // ref 已经指向真实节点，点击同一帧内完成，`markReady` 的两帧 rAF 之后浮层早就定好位了。

@@ -22,7 +22,7 @@ import {
   parseInlineDataAsset,
   unreachableAssetValueError,
 } from "./assetValueScheme";
-import { contentTypeFromMagicBytes } from "../assets/mediaTypes";
+import { contentTypeFromMagicBytes, mediaKindFromContentType } from "../assets/mediaTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import {
   ingestionAccepts,
@@ -110,12 +110,17 @@ export function isLocalAssetUrl(value: unknown): value is string {
   return isLocalizableAssetValue(value);
 }
 
-/** contentType → 媒体类型(image/video/audio)。未知一律按 image(今天的通道都面向图片)。 */
-export function mediaKindFromContentType(contentType: string | undefined): AssetMediaKind {
-  const ct = (contentType || "").toLowerCase();
-  if (ct.startsWith("video/")) return "video";
-  if (ct.startsWith("audio/")) return "audio";
-  return "image";
+/**
+ * contentType → **上传通道**的媒体类型。认不出一律按 image(今天的通道都面向图片)。
+ *
+ * kind 判定本身不在这里——那是 mediaTypes 那张表的事(认不出返回 null)。本函数只做本层那件事:
+ * 把 MediaKind 收窄成上传通道认识的三种,并把「认不出」翻成默认通道。
+ * 改名是因为它和 owner 那个同名却语义相反(一个兜底成 image、一个返回 null),
+ * 同名不同义正是 check:media-import-owner 要拦的漂移。
+ */
+export function assetUploadChannelKind(contentType: string | undefined): AssetMediaKind {
+  const kind = mediaKindFromContentType(contentType ?? "");
+  return kind === "video" || kind === "audio" ? kind : "image";
 }
 
 /** 递归收集任意 JSON 结构里所有待本地化素材值(nomi-local:// / data:,去重)。标量/数组元素/对象值都认。 */
@@ -149,7 +154,7 @@ function readLocalizableAsset(url: string, read: LocalAssetReader): LocalAsset |
 }
 
 /** 上传前按全局媒体表核对本地图片字节；SVG 单独验证文本结构，其余格式必须命中对应魔数。 */
-export function assertLocalAssetMediaBytes(asset: LocalAsset, mediaKind = mediaKindFromContentType(asset.contentType)): void {
+export function assertLocalAssetMediaBytes(asset: LocalAsset, mediaKind = assetUploadChannelKind(asset.contentType)): void {
   if (mediaKind !== "image") return;
   const declared = asset.contentType.toLowerCase().split(";")[0].trim();
   const sniffed = contentTypeFromMagicBytes(asset.bytes);
@@ -218,7 +223,7 @@ export function assertLocalAssetTransportReady(
     }
     assertLocalAssetMediaBytes(asset);
     if (trustedOriginalUrl(asset)) continue;
-    const mediaKind = mediaKindFromContentType(asset.contentType);
+    const mediaKind = assetUploadChannelKind(asset.contentType);
     const candidates = resolveIngestion(mediaKind);
     let consentRequired = false;
     const safe = candidates.some((candidate) => {
@@ -586,7 +591,7 @@ export async function localizeAssetsForVendor(
     if (asset && (!asset.contentType || asset.contentType.toLowerCase().split(";")[0].trim() === "application/octet-stream")) {
       throw new Error(`无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
     }
-    const mediaKind = mediaKindFromContentType(asset?.contentType);
+    const mediaKind = assetUploadChannelKind(asset?.contentType);
     if (asset) assertLocalAssetMediaBytes(asset, mediaKind);
     const candidates = resolveIngestion(mediaKind);
     // 本地 ComfyUI（comfyui-upload）：公网 URL 用不了，必须传到它自己的 input 目录换文件名 → 跳过 trusted 快路，恒上传。

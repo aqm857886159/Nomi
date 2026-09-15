@@ -15,6 +15,7 @@ import type {
   ProductionStage,
   RunCommand,
 } from "./productionRunTypes";
+import { trustLevelOf } from "./productionRunTypes";
 import { validateProductionExecutionBinding } from "./productionExecutionBinding";
 import {
   applyGenerationAuthorizationGateDecision,
@@ -256,6 +257,18 @@ export function applyProductionCommand(
       return {
         run: { ...current, generationPlan: applyGenerationCandidatePatch(currentPlan, command, now), updatedAt: now },
         eventType: "generation.plan.updated",
+        message: currentPlan.operationId,
+      };
+    }
+    case "generation.present": {
+      // `generate` 动词：把 `draft_shots` 藏着的报价卡摆到用户面前。草稿本身一字不动，只清 `cardHidden`；
+      // 已经可见的再 present 一次是幂等的（事件照记，方便审计「模型什么时候把卡推给了用户」）。
+      const currentPlan = current.generationPlan;
+      if (!currentPlan || currentPlan.state !== "draft") throw new Error("new_draft_required: only a draft can be presented");
+      const { cardHidden: _cardHidden, ...visiblePlan } = currentPlan;
+      return {
+        run: { ...current, generationPlan: { ...visiblePlan, updatedAt: now }, updatedAt: now },
+        eventType: "generation.plan.presented",
         message: currentPlan.operationId,
       };
     }
@@ -777,7 +790,7 @@ export function applyProductionCommand(
     }
     case "policy.set": {
       const policy = record(command.payload, "policy") as unknown as ProductionRun["policy"];
-      return { run: { ...current, policy, updatedAt: now }, eventType: "policy.updated", message: policy.mode };
+      return { run: { ...current, policy, updatedAt: now }, eventType: "policy.updated", message: trustLevelOf(policy) };
     }
     default:
       throw new Error(`Unknown production command: ${command.type}`);

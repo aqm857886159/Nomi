@@ -5,8 +5,6 @@ import type { ExecutionContractV1, PlanCandidate } from "../capabilityCore/execu
 
 export const PRODUCTION_RUN_SCHEMA_VERSION = 1;
 
-export type AutomationMode = "guided" | "balanced" | "policy-auto";
-
 /**
  * B3 信任档位（run 级，写进 policy 可查证）——决定「创意门 / 样片门」打不打扰，钱门永不受影响：
  * - key_confirm（默认）：五门全开——方向门 + 样片门都停，用户逐项拍板。
@@ -31,7 +29,6 @@ export function trustLevelOf(policy: Pick<AutomationPolicy, "trustLevel">): Trus
 }
 
 export type AutomationPolicy = {
-  mode: AutomationMode;
   trustedHosts: string[];
   allowedProviders: string[];
   allowedModels: string[];
@@ -228,6 +225,12 @@ export type ProductionGenerationShot = {
 export type ProductionGenerationPlan = {
   operationId: string;
   state: "draft" | "sealed" | "cancelled" | "submitted";
+  /**
+   * 草稿建好了，但报价卡还没摆到用户面前（Agent lane 的 `draft_shots`：落画布、带单价、不出卡、不花钱）。
+   * `generation.present`（`generate` 动词）把它清掉；`projectPendingSpendConfirm` 是唯一读它的投影点。
+   * 缺省/旧 Run 没有这个字段 = 卡可见，行为逐字不变。
+   */
+  cardHidden?: boolean;
   candidate: PlanCandidate;
   contract?: ExecutionContractV1;
   approvedReceiptId?: string;

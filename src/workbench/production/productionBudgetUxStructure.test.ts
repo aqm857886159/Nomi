@@ -14,26 +14,31 @@ const recoverySource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/p
 const settingsSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/AiModelsSection.tsx'), 'utf8')
 
 describe('production policy UX structure', () => {
-  it('turns every incomplete policy into one direct settings action', () => {
+  it('turns every not-connected provider/model into one direct action: go connect it', () => {
     expect(dialogSource).toContain('incompletePolicy')
     expect(dialogSource).toContain('missingPolicyProviders')
     expect(dialogSource).toContain('missingPolicyModels')
     expect(dialogSource).toContain('pending.onOpenPolicySettings')
-    expect(recoverySource).toContain("section: 'production-policy'")
+    // 2026-09-14：全局白名单已删，「缺」= 没接入 → 深链落到「模型」tab，不再带 requiredProviderModels 去勾框。
+    expect(recoverySource).toContain("tab: 'models'")
+    expect(recoverySource).not.toContain('production-policy')
   })
 
-  it('labels the unset ceiling and exact provider/model policy status', () => {
+  it('labels the unset ceiling and exact provider/model connection status', () => {
     expect(summarySource).toContain('data-production-hard-budget')
     expect(summarySource).toContain('data-production-provider-model-status')
     expect(summarySource).toContain('production.contract.notSet')
   })
 
-  it('marks the exact Run requirements in the shared settings block', () => {
-    expect(settingsSource).toContain('data-production-policy-context')
-    expect(settingsSource).toContain('data-production-policy-required')
-    expect(settingsSource).toContain('data-settings-field="production-provider"')
-    expect(settingsSource).toContain('data-settings-field="production-model"')
-    expect(settingsSource).toContain('data-production-policy-unavailable')
-    expect(settingsSource).toContain('onOpenModelCatalog')
+  it('no longer hosts a provider/model allowlist in settings', () => {
+    for (const marker of [
+      'data-production-policy-context',
+      'data-production-policy-required',
+      'data-settings-field="production-provider"',
+      'data-settings-field="production-model"',
+      'data-production-policy-unavailable',
+      'allowedProviders',
+      'allowedModels',
+    ]) expect(settingsSource, marker).not.toContain(marker)
   })
 })

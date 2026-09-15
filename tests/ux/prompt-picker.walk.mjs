@@ -3,10 +3,11 @@
 //   1 选择器在 composer 发送键左边，头部那颗已删（一功能一个家）
 //   2 7 个内置提示词**全部**在列 —— 尤其原来 UI 上根本不存在的那 5 个
 //   3 选中后 chip 标签跟着变（读起来像选择器，不是静态徽标）
-//   4 设置页能新建自定义提示词 → 它出现在选择器的「我的」组里 → 选得中
+//   4 提示词编辑器能新建自定义提示词 → 它出现在选择器的「我的」组里 → 选得中
 //   5 选中自定义后，带「镜头」的话不被拆分镜劫走（承接 08-17 的 dedicatedJob）
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectCount, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
+import { openSystemPromptEditor } from './_systemPromptEditor.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -132,17 +133,13 @@ try {
   record('③ chip 标签跟当前选择走', before !== after && after.includes('剧本'),
     `点「写剧本」前「${before}」→ 后「${after}」`)
 
-  // ④ 设置页新建自定义提示词 → 回到对话里能选到。
-  await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
-  const heading = win.getByText('系统提示词', { exact: true }).first()
-  // 设置面板异步挂载：等标题出现，不拿 sleep 赌（赌短了「新建」读不到，④ 直接假红）。
-  await expectVisible(heading, '设置 → AI 里找不到「系统提示词」区').catch(() => {})
-  await heading.scrollIntoViewIfNeeded().catch(() => {})
-  // Scope the action to the settings prompt section. A generic "新建" query
+  // ④ 提示词编辑器新建自定义提示词 → 回到对话里能选到（编辑器 2026-09-14 搬进 Agent 面板档位弹层）。
+  await openSystemPromptEditor(win).catch(() => {})
+  // Scope the action to the prompt editor. A generic "新建" query
   // can resolve to the always-mounted creation toolbar behind the modal and
   // make Playwright report a false interaction failure.
   const newChip = win.locator('[data-settings-prompt-create]').first()
-  const canCreate = await expectVisible(newChip, '设置页里找不到「新建」自定义提示词的入口')
+  const canCreate = await expectVisible(newChip, '提示词编辑器里找不到「新建」自定义提示词的入口')
     .then(() => true).catch(() => false)
   if (canCreate) {
     await newChip.click()
@@ -157,7 +154,7 @@ try {
     await win.waitForTimeout(1400)
     await snap('04-settings-created')
   }
-  record('④ 设置页能新建自定义提示词', canCreate, canCreate ? '「新建」可点并已填入名字+正文' : '设置页里找不到「新建」')
+  record('④ 提示词编辑器能新建自定义提示词', canCreate, canCreate ? '「新建」可点并已填入名字+正文' : '编辑器里找不到「新建」')
 
   await win.keyboard.press('Escape').catch(() => {})
   await win.waitForTimeout(900)

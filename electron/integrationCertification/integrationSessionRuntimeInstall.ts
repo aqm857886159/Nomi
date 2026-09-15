@@ -44,9 +44,17 @@ export function integrationSessionRuntimeDependencies(): ComfyCertificationRunti
   };
 }
 
-/** 启动期装配本进程内唯一实例；RPC、stdio、CLI host 与可信 UI IPC 之后拿到的都是这一个。 */
+/**
+ * 启动期装配本进程内唯一实例；RPC、stdio、CLI host 与可信 UI IPC 之后拿到的都是这一个。
+ *
+ * 装完立刻 `resumeInterrupted()`：盘上停在 `certifying`/`committing` 的会话背后没有任何
+ * 在飞的 promise（上一个进程带着走了），必须先补偿一遍已过期的、再把周期看门狗挂上，
+ * 否则它们会一直停在中间态——那正是 2026-09-11 死锁里「重启 app 才见到失败」的成因。
+ */
 export function installIntegrationSessionRuntime(): IntegrationSessionService {
-  return installRuntimeIntegrationSessionService(
+  const service = installRuntimeIntegrationSessionService(
     createRuntimeIntegrationSessionService(integrationSessionRuntimeDependencies()),
   );
+  service.resumeInterrupted();
+  return service;
 }

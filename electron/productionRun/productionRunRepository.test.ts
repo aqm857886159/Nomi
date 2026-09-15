@@ -270,7 +270,6 @@ describe("ProductionRunRepository", () => {
       origin: { host: "codex" },
       brief: { goal: "durable authority fixture" },
       policy: {
-        mode: "balanced",
         trustedHosts: ["codex"],
         allowedProviders: ["tapcanvas"],
         allowedModels: ["seedance-1.0"],

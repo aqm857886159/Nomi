@@ -25,7 +25,7 @@ const controls = { failCodex: true, failProduction: true, enabled: false, comman
 let run: ProductionRun = {
   schemaVersion: 1, runId: 'run-policy', projectId: 'project-policy', revision: 1,
   status: 'paused', stageId: 'production', playbook: { name: '产品短片', version: '1.0.0' }, origin: { host: 'nomi' },
-  policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 0, maxAttemptsPerJob: 1, minimizeUploads: true },
+  policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 0, maxAttemptsPerJob: 1, minimizeUploads: true },
   budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
   planVersion: 1, snapshotCursor: 0, stages: [{ stageId: 'production', title: '制作', status: 'pending', order: 0 }],
   jobs: [], gates: [], artifacts: [], createdAt: '2026-09-09T00:00:00Z', updatedAt: '2026-09-09T00:00:00Z',

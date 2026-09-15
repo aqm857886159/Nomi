@@ -12,9 +12,9 @@ import { parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { laneMessages, laneMessageText, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  APPROVAL_CARD, DOCUMENT, INTERVENTION_CONFIRM, INTERVENTION_CONFIRM_REJECT, INTERVENTION_ESCALATE,
-  INTERVENTION_REJECT, INTERVENTION_REJECT_REASON, createRuntimeWalk, hasToolResult, openCanvas,
-  readProject, recorded, toolNames,
+  APPROVAL_CARD, CANVAS_PANEL, DOCUMENT, INTERVENTION_CONFIRM, INTERVENTION_CONFIRM_REJECT,
+  INTERVENTION_ESCALATE, INTERVENTION_REJECT, INTERVENTION_REJECT_REASON,
+  createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas, toolNames,
 } from './agent-runtime-walk-support.mjs'
 
 const ORIGINAL = '真实用户任务基线：创作者准备在文末补充收尾。'
@@ -81,8 +81,9 @@ try {
     match: (body) => flattenRequestText(body).includes(RESIDENT_INTENT)
       && !hasToolResult(body, 'resident-receipt-fix-1'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-1', name: 'append_to_end',
-      args: { content: RESIDENT_APPEND },
+      // 20 动词：`append_to_end` 已退役，文稿写入只有 `write_script(content, where)` 一个动词。
+      type: 'tool', id: 'resident-receipt-fix-1', name: 'write_script',
+      args: { content: RESIDENT_APPEND, where: 'end' },
     },
   })
   const approvedFollowup = walk.fixture.expectText({
@@ -132,17 +133,15 @@ try {
 
   await openCanvas(win)
   await expect(win.locator(`${CREATION_PANEL}[data-agent-surface="generation"]`)).toBeVisible()
+  await expect(win.locator('.react-flow').first()).toBeVisible()
 
   const canvasCreateRequest = walk.fixture.expectText({
     label: 'Resident Composer creates a reversible canvas fixture node',
     match: (body) => flattenRequestText(body).includes('请创建一个临时图片节点')
       && !hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes', summary: 'resident receipt approval fixture',
-        nodes: [{ clientId: 'resident-receipt-fix-node', kind: 'image', title: 'Resident approval fixture', prompt: 'temporary approval fixture', modelKey: 'agent-runtime-image', modeId: 't2i', params: { size: '1024x1024' } }],
-      },
+      type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'make_artifact',
+      args: { fileType: 'text', title: 'Resident approval fixture', content: 'temporary approval fixture' },
     },
   })
   const canvasCreateFollowup = walk.fixture.expectText({
@@ -150,13 +149,23 @@ try {
     match: (body) => hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: { type: 'text', text: '已创建临时画布节点。' },
   })
-  await sendResidentIntent(win, '请创建一个临时图片节点，只用于接下来验证审批。')
+  // 人已经进了生成面：从生成坞那条输入条发（和 agent-artifact.walk 同一口）。
+  // Linux CI 上一轮失败不是「没发到」，是 make_artifact 回了 surface_port_unavailable——
+  // 写口在打开项目时冻死了；下面立刻读 toolResult，禁止再空转 30 秒只看 nodes.length。
+  //
+  // 不要用最后一条 `[data-v4-block="tool"]` 当落地信号：v4 过程默认收在合上的
+  // `<details>` 里，Playwright 把里面的回执判成 hidden，Linux 会干等 240s。
+  // followup 已经证明这一轮工具结果回到了模型；对错只看 lane JSONL。
+  await sendCanvas(win, '请创建一个临时图片节点，只用于接下来验证审批。')
   const canvasCreateWire = await recorded(canvasCreateRequest.received, 'the real canvas fixture request')
   // One resident thread spans both surfaces, so a canvas turn still carries the creation
   // turn's tool result. A matcher may only exclude *this* turn's own tool_call_id.
   expect(hasToolResult(canvasCreateWire.body, 'resident-receipt-fix-1'),
     'The canvas turn must still carry the earlier creation turn\'s tool result').toBe(true)
   await recorded(canvasCreateFollowup.received, 'the canvas fixture result')
+  const canvasCreateResult = readLaneTranscripts(projectRoot).flatMap(laneMessages)
+    .find(message => message.role === 'toolResult' && message.toolCallId === 'resident-receipt-fix-canvas-create')
+  expect(canvasCreateResult?.isError, laneMessageText(canvasCreateResult)).toBe(false)
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length, {
     message: 'Canvas fixture node must persist before the irreversible proposal', timeout: 30_000,
   }).toBeGreaterThan(0)
@@ -176,7 +185,7 @@ try {
     match: (body) => flattenRequestText(body).includes('请提出一个需要拒绝的删除动作')
       && !hasToolResult(body, 'resident-receipt-fix-rejected'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-rejected', name: 'delete_canvas_nodes',
+      type: 'tool', id: 'resident-receipt-fix-rejected', name: 'delete_from_canvas',
       args: { nodeIds: [fixtureNodeId], reason: 'journey approval gate' },
     },
   })
@@ -185,9 +194,9 @@ try {
     match: (body) => hasToolResult(body, 'resident-receipt-fix-rejected'),
     reply: { type: 'text', text: '已记录拒绝，本次没有删除画布内容。' },
   })
-  await sendResidentIntent(win, '请提出一个需要拒绝的删除动作，不要自行删除。')
+  await sendCanvas(win, '请提出一个需要拒绝的删除动作，不要自行删除。')
   const deletionWire = await recorded(rejectedRequest.received, 'the real gated-action proposal')
-  expect(toolNames(deletionWire.body), 'Resident tools remain visible before any group request').toContain('delete_canvas_nodes')
+  expect(toolNames(deletionWire.body), 'Resident tools remain visible before any group request').toContain('delete_from_canvas')
   const rejectedApprovalCard = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`).last()
   // 删节点是不可逆的：v4 把这件事写在槽的 data-kind 上（fail-closed 到 irreversible）。
   await expect(rejectedApprovalCard).toHaveAttribute('data-kind', 'approval-irreversible')
@@ -227,7 +236,7 @@ try {
   const nodesBeforeProbes = (await readProject(win, projectId)).payload.generationCanvas.nodes
   const denials = []
   for (const probe of [
-    { name: 'delete_canvas_nodes', args: { nodeIds: [fixtureNodeId], reason: 'creation surface authority probe' } },
+    { name: 'delete_from_canvas', args: { nodeIds: [fixtureNodeId], reason: 'creation surface authority probe' } },
     { name: 'bash', args: { command: 'printf executed > b1c-shell-must-not-run.txt' } },
   ]) {
     const id = `resident-creation-denied-${probe.name}`
@@ -255,7 +264,7 @@ try {
     denials.push({ tool: probe.name, wire: wireResult, result })
     walk.report.executionDenials = denials
     expect(result.isError, `${probe.name} must be refused by execution authority`).toBe(true)
-    if (probe.name === 'delete_canvas_nodes') expect(laneMessageText(result)).toContain('surface_authority_denied: This action requires the canvas surface.')
+    if (probe.name === 'delete_from_canvas') expect(laneMessageText(result)).toContain('surface_authority_denied: This action requires the canvas surface.')
     if (probe.name === 'bash') expect(laneMessageText(result)).toContain('Request coding before accessing project files.')
     await expectAbsent(win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`), {
       provenBy: creationProof, message: 'Unauthorized tools must be refused before requesting user approval',
@@ -278,7 +287,7 @@ try {
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   expect(leaseHandle, 'Real MCP stdio must open the current GUI project session').toBeTruthy()
   const mcpResult = parseToolResult(await mcp.callTool('nomi_document_edit', {
-    leaseHandle, projectId, operation: 'append', content: MCP_APPEND,
+    leaseHandle, projectId, where: 'end', content: MCP_APPEND,
   }))
   expect(mcpResult.isError, 'Real production MCP write must return a typed success result').toBe(false)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocuments), {

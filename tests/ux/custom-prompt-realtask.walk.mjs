@@ -8,6 +8,7 @@
 // 但绝不往用户正式配置里写我的测试提示词。
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectCount, scopedText, screenshotSettled } from './_assert.mjs'
+import { openSystemPromptEditor } from './_systemPromptEditor.mjs'
 import {
   COMPOSER_INPUT, COMPOSER_SEND, COMPOSER_SKILL, CREATION_PANEL, SKILL_POPOVER, SKILL_SEARCH,
   V4_FLOW, waitForV4TurnIdle,
@@ -140,16 +141,13 @@ try {
   record('对照组拿到真实产出', baseline.length > 40, `通用模式下模型回了 ${baseline.length} 字（真模型、真额度）`)
 
   // ── 新建自定义提示词 ──
-  await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
-  const heading = win.getByText('系统提示词', { exact: true }).first()
-  // 设置面板异步挂载：等标题出现，别拿 sleep 赌（赌短了后面 click「新建」直接抛，整轮真额度白花）。
-  await expectVisible(heading, '设置 → AI 里找不到「系统提示词」区')
-  await heading.scrollIntoViewIfNeeded().catch(() => {})
-  // Scope the action to the settings prompt section. A generic "新建" query
+  // 编辑器住在 Agent 面板的权限弹层里（2026-09-14 搬家）：像真人一样点过去。
+  await openSystemPromptEditor(win)
+  // Scope the action to the prompt editor. A generic "新建" query
   // can resolve to the always-mounted creation toolbar behind the modal and
   // make Playwright report a false interaction failure.
   const newChip = win.locator('[data-settings-prompt-create]').first()
-  await expectVisible(newChip, '设置页里找不到「新建」自定义提示词的入口')
+  await expectVisible(newChip, '提示词编辑器里找不到「新建」自定义提示词的入口')
   await newChip.click()
   const nameInput = win.locator('[data-settings-field="system-prompt-name"]').first()
   // 名字输入框出现 = 真的进了「新建一条」的状态，可以往里填了。

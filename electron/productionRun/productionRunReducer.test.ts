@@ -11,7 +11,7 @@ function runWithCandidateScript(): ProductionRun {
     schemaVersion: 1, runId: 'run-review', projectId: 'project-review', revision: 1,
     status: 'awaiting_script_review', stageId: 'script', playbook: { name: 'brand.promo', version: '1.0.0' },
     origin: { host: 'codex' }, brief: { goal: 'review fixture' },
-    policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 }, planVersion: 1, snapshotCursor: 1,
     stages: ['brief', 'direction', 'script', 'storyboard'].map((stageId, order) => ({ stageId, title: stageId, status: 'completed' as const, order })),
     gates: [], jobs: [], artifacts: [{

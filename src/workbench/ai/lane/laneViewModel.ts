@@ -30,6 +30,7 @@ import {
   isLaneApprovalNote,
   laneApprovalWasRefused,
 } from '../../../../electron/shared/agentLane/laneContracts'
+import { laneToolTextForUser } from '../../../../electron/shared/agentLane/laneToolNextAction'
 import type { V4InterventionSource } from '../v4/agentPanelV4Intervention'
 import { resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { actionFamilyForCapability } from '../v4/agentPanelV4ActionFamily'
@@ -371,7 +372,12 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
           ...(failure ? { summary: redactResidentSensitiveText(failure) } : {}),
           ...(!part.isError && part.toolCallId === undoableToolCallId
             && capabilitySupportsUndo(resolveModelToolCapabilityId(slot.toolName, slot.args) ?? slot.toolName, slot.args) ? { undoable: true } : {}),
-          output: redactResidentSensitiveText(part.text) || undefined },
+          // 展开体印的是「这次工具做了什么」，**不是模型收到的那段字**。宿主拼在正文末尾的
+          // `User sees: …` 是给模型转述用的话（英文、第三人称写用户「the user can undo it with Cmd+Z」），
+          // 而它讲的那件事这一行自己已经画出来了（上面那颗撤销钮、介入槽里的卡）。
+          // 原样印 = 同一件事说两遍，其中一遍还不是用户文案。按投影带上来的信封**结构去尾**，
+          // 不认 "User sees:" 这个前缀——渲染格式改了这里跟着改，不会漏。
+          output: redactResidentSensitiveText(laneToolTextForUser(part.text, part.nextAction)) || undefined },
     }
   }
 

@@ -93,23 +93,13 @@ try {
   // ── 幕一 · Agent 对话交付 SVG 线稿 ──────────────────────────────────────
   // 第一轮：Agent 决定调 create_canvas_nodes，交付出产物内容（带 artifact.content）。
   const deliverRequest = walk.fixture.expectText({
-    label: 'agent delivers the SVG artifact through create_canvas_nodes',
+    label: 'agent delivers the SVG artifact through make_artifact',
     match: (body) => flattenRequestText(body).includes('构图线稿') && !hasToolResult(body, DELIVER_CALL),
     reply: {
       type: 'tool', id: DELIVER_CALL,
-      name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes',
-        summary: '交付开场构图线稿（SVG）',
-        nodes: [{
-          clientId: 'art-1',
-          kind: 'agent-artifact',
-          title: NODE_TITLE,
-          prompt: '', // 手艺产物不调模型，prompt 是传输层形式要求（见 canvasWrite schema）
-          artifact: { fileType: 'svg', content: SVG_BODY },
-        }],
-        edges: [],
-      },
+      name: 'make_artifact',
+      // 20 动词：手艺产物一个动词一件；契约 operation（create_canvas_nodes + agent-artifact 节点）由声明上的翻译表派生。
+      args: { fileType: 'svg', title: NODE_TITLE, content: SVG_BODY },
     },
   })
   // 第二轮：宿主把 deliver 执行结果（真实落盘后的回执）还给模型。
@@ -181,11 +171,8 @@ try {
     label: 'agent delivers the HTML artifact through create_canvas_nodes',
     match: (body) => flattenRequestText(body).includes('讲解卡') && !hasToolResult(body, HTML_CALL),
     reply: {
-      type: 'tool', id: HTML_CALL, name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes', summary: '交付开场节奏讲解卡（HTML）',
-        nodes: [{ clientId: 'art-2', kind: 'agent-artifact', title: HTML_TITLE, prompt: '', artifact: { fileType: 'html', content: HTML_BODY } }],
-        edges: [],
+      type: 'tool', id: HTML_CALL, name: 'make_artifact',
+      args: { fileType: 'html', title: HTML_TITLE, content: HTML_BODY,
       },
     },
   })
@@ -256,6 +243,7 @@ try {
   // ── 幕三 · Markdown 与表格产物（一次 create_canvas_nodes 交付两件）────────────
   const DOC_ASK = '再给我两件：一份导演备注的 Markdown，和一张第一幕的分镜草表。'
   const DOC_CALL = 'artifact-deliver-docs'
+const DOC_CALL_2 = `${DOC_CALL}-2`
   const MD_TITLE = '导演备注 · 开场'
   const TABLE_TITLE = '分镜草表 · 第一幕'
   const MD_BODY = ['# 导演备注 · 开场', '', '- 旁白先入，画面留白两拍', '- 第三拍给特写', '- 转场用声音扛'].join('\n')
@@ -266,27 +254,23 @@ try {
     '<tr><td>3</td><td>特写</td><td>2s</td><td>眼神落点，切转场</td></tr>',
   ].join('')
   const docsRequest = walk.fixture.expectText({
-    label: 'agent delivers markdown + table artifacts in one call',
+    label: 'agent delivers the markdown artifact (one artifact per make_artifact call)',
     match: (body) => flattenRequestText(body).includes('分镜草表') && !hasToolResult(body, DOC_CALL),
-    reply: {
-      type: 'tool', id: DOC_CALL, name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes', summary: '交付导演备注与分镜草表',
-        nodes: [
-          { clientId: 'art-3', kind: 'agent-artifact', title: MD_TITLE, prompt: '', artifact: { fileType: 'markdown', content: MD_BODY } },
-          { clientId: 'art-4', kind: 'agent-artifact', title: TABLE_TITLE, prompt: '', artifact: { fileType: 'table', content: TABLE_BODY } },
-        ],
-        edges: [],
-      },
-    },
+    reply: { type: 'tool', id: DOC_CALL, name: 'make_artifact', args: { fileType: 'markdown', title: MD_TITLE, content: MD_BODY } },
+  })
+  const docsSecond = walk.fixture.expectText({
+    label: 'agent delivers the table artifact in the same turn',
+    match: (body) => hasToolResult(body, DOC_CALL) && !hasToolResult(body, DOC_CALL_2),
+    reply: { type: 'tool', id: DOC_CALL_2, name: 'make_artifact', args: { fileType: 'table', title: TABLE_TITLE, content: TABLE_BODY } },
   })
   const docsFollowup = walk.fixture.expectText({
     label: 'lane returns the docs deliver receipt',
-    match: (body) => hasToolResult(body, DOC_CALL),
+    match: (body) => hasToolResult(body, DOC_CALL_2),
     reply: { type: 'text', text: '备注和草表都放上去了。' },
   })
   await sendCanvas(win, DOC_ASK)
   await recorded(docsRequest.received, 'docs deliver request')
+  await recorded(docsSecond.received, 'table deliver request')
   await recorded(docsFollowup.received, 'docs deliver receipt')
   await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: canvas.locator(TOOL_RECEIPT).last() })
 

@@ -30,6 +30,7 @@
  */
 export type {
   VerbEffect as LaneToolEffect,
+  VerbNextAction,
   ModelFacingToolExample as LaneToolExample,
   ModelFacingToolSpec as LaneToolSpec,
 } from "../agentCapabilities/modelFacingTools";
@@ -72,7 +73,31 @@ export interface LaneToolFailureShape {
    * 那是 provenance/隐私边界。今天 pi 那层会把整个 `Received arguments` 原样回给模型。
    */
   readonly issues?: readonly { readonly path: string; readonly expected: string; readonly receivedType: string }[];
+  /**
+   * `code === "wrong_verb"` 时点名正确的动词。**只点名，不代调**（设计正本原则 7：错动词拒绝，
+   * 没有静默转发、没有兜底）。模型读到后自己改用它。
+   */
+  readonly useInstead?: string;
 }
+
+/** `wrong_verb` 的唯一构造点：拒绝的原因、该用哪个动词、下一步。 */
+export function wrongVerbFailure(input: { readonly attempted: string; readonly useInstead: string; readonly because: string }): LaneToolFailureShape {
+  return {
+    code: "wrong_verb",
+    message: `${input.attempted} does not do this: ${input.because}`,
+    nextAction: `Call ${input.useInstead} instead with the same intent. Nothing was changed by this call.`,
+    useInstead: input.useInstead,
+  };
+}
+
+/**
+ * 写动词成功时的返回信封与它的尾行渲染**住在 `./laneToolNextAction`**，不在这里：
+ * 投影层与渲染层都要 import 那一行的渲染函数按结构去尾（尾行是给模型的话，不是用户文案），
+ * 而它们不能把本文件这条 import 链（`../agentCapabilities/*` → zod）拖进浏览器 bundle。
+ * 这里只把它**再导出**一次，`laneToolContract` 的既有调用方一个字都不用改（P1：不是第二份定义）。
+ */
+export type { LaneToolNextAction } from "./laneToolNextAction";
+export { renderLaneToolNextAction, laneToolNextActionOf, laneToolTextForUser } from "./laneToolNextAction";
 
 /**
  * 失败 → 模型看到的那段正文。**内外同源**：内部 lane 与对外 MCP 从同一个描述符派生
@@ -87,6 +112,7 @@ export function renderLaneToolFailure(failure: LaneToolFailureShape): string {
   if (failure.allowed && failure.allowed.length > 0) {
     lines.push(`Allowed values: ${failure.allowed.join(", ")}.`);
   }
+  if (failure.useInstead) lines.push(`Use ${failure.useInstead} instead.`);
   lines.push(`Next: ${failure.nextAction}`);
   return lines.join("\n");
 }
@@ -121,6 +147,7 @@ export function laneToolFailureToRpc(failure: LaneToolFailureShape): Readonly<Re
     nextAction: failure.nextAction,
     ...(failure.allowed ? { allowed: failure.allowed } : {}),
     ...(failure.issues ? { issues: failure.issues } : {}),
+    ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
   };
 }
 

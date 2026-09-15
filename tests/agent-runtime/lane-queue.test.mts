@@ -153,7 +153,7 @@ test('G3e · 撤回排队插话的三态：撤回成功 / 晚了一步 / 根本�
 
 test('G3b② 非空侧 · 按停止：没送出去的那句话回到输入框，不是被丢掉', async (t: TestContext) => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'call-append', name: 'append_to_end', arguments: { content: ' and then she left.' } }] },
+    { type: 'tool', calls: [{ id: 'call-append', name: 'write_script', arguments: { where: 'end', content: ' and then she left.' } }] },
     CLOSING,
   ], STEP);
   const lane = await fixture.openLane(fixture.options);
@@ -210,7 +210,7 @@ test('§1.4 规则三 · 等着落盘的宿主记录不画成排队的用户消�
   const projection = projectLaneSnapshot(snapshotWithQueues([
     // 宿主自己那条审批记录：pi 把操作进行中的 appendCustomEntry 排进**同一个** inbox。
     { entryId: 'w-1', kind: 'write', type: 'custom', customType: LANE_APPROVAL_NOTE_TYPE,
-      data: { toolCallId: 'call-1', toolName: 'append_to_end', decision: 'denied' } },
+      data: { toolCallId: 'call-1', toolName: 'write_script', decision: 'denied' } },
     // 阳性对照：紧挨着的一条真插话。少了它，一个「什么都不画」的实现也能通过上面那句。
     { entryId: 'q-1', kind: 'steer', type: 'message',
       message: { role: 'user', content: [{ type: 'text', text: '横屏' }], timestamp: AT } },

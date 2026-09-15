@@ -14,7 +14,7 @@ function run(overrides: Partial<ProductionRun> = {}): ProductionRun {
     playbook: { name: 'brand.promo', version: '1.2.0' },
     origin: { host: 'codex' },
     policy: {
-      mode: 'balanced', trustedHosts: ['codex'], allowedProviders: ['tapcanvas'], allowedModels: ['seedance-1.0'],
+      trustedHosts: ['codex'], allowedProviders: ['tapcanvas'], allowedModels: ['seedance-1.0'],
       maxSpend: 60, maxAttemptsPerJob: 2, minimizeUploads: true,
     },
     budget: { currency: 'CNY', authorized: 60, reserved: 0, actual: 0, unsettled: 0 },

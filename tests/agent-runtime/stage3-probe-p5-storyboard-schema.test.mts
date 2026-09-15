@@ -1,4 +1,4 @@
-// 阶段 3 前置探针 **P5**（方案 §4.3）的零额度那两半：扁平版 `nomi_storyboard_write`
+// 阶段 3 前置探针 **P5**（方案 §4.3）的零额度那两半：分镜写动词（20 动词起是 `draft_shots`）
 // ① 有多大（token）② 三条真机见过的畸形参数经 `prepareArguments` 能不能过。
 // ③（真实模型三次调用、首调 operation 命中率）在 `stage3-probe-p5-real.electron.mts`，
 // 它要 Electron 的 safeStorage 才读得到 app 设置里的 key，不在这个 runner 里跑。
@@ -11,12 +11,12 @@ import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { estimateTokens } from '@earendil-works/pi-agent-core';
 
-import { createCanvasLaneTools, type CanvasLanePort } from '../../electron/agentLane/laneCanvasTools.js';
+import { createExtendedLaneTools, type LaneExtendedPort } from '../../electron/agentLane/laneExtendedTools.js';
 import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePort.js';
 import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
 import { createLaneFixture } from './laneFixture.mjs';
 
-const TOOL = 'nomi_storyboard_write';
+const TOOL = 'draft_shots';
 /**
  * 方案 §4.3 P5 写的预算。2026-09-12 由 1_200 提到 1_220：整片默认画幅贯通给 plan 顶层加了
  * `aspectRatio`（实测 schema 4673 → 4765 chars，估计 1_192 → 1_215 tokens，字段本身 92 chars ≈ 23 tokens）。
@@ -27,29 +27,22 @@ const TOOL = 'nomi_storyboard_write';
  */
 const TOKEN_BUDGET = 1_220;
 
-const ANCHOR = { id: 'anchor-1', kind: 'character', name: '林夏', description: '17-year-old girl, short black hair, school uniform.', carrier: 'visual' };
 const SHOTS = [
-  { index: 1, shotKind: 'image', durationSec: 0, anchorIds: ['anchor-1'], prompt: 'Wide: she steps onto the rooftop, dusk light behind her.' },
-  { index: 2, shotKind: 'video', durationSec: 4, anchorIds: ['anchor-1'], prompt: 'Slow push-in as she leans on the railing and exhales.' },
+  { title: '天台', prompt: 'Wide: she steps onto the rooftop, dusk light behind her.', taskKind: 'text_to_image' },
+  { title: '栏杆', prompt: 'Slow push-in as she leans on the railing and exhales.', taskKind: 'text_to_video', durationSec: 4 },
 ];
-const PLAN = { operation: 'propose_storyboard_plan', title: '天台的三分钟', anchors: [ANCHOR], shots: SHOTS };
+const PLAN = { shots: SHOTS };
 
 /** 三条畸形，都是 #547 §3.2 那一族（结构化值被二次序列化），各打在扁平 schema 的不同层。 */
-const MALFORMED: ReadonlyArray<{ label: string; args: unknown; operation: string }> = [
-  { label: 'A · whole argument object serialized as a JSON string', args: JSON.stringify(PLAN), operation: 'propose_storyboard_plan' },
-  { label: 'B · `anchors` and `shots` arrays serialized as JSON strings', args: { ...PLAN, anchors: JSON.stringify([ANCHOR]), shots: JSON.stringify(SHOTS) }, operation: 'propose_storyboard_plan' },
-  { label: 'B\' · `select` / `patch` objects serialized as JSON strings', args: { operation: 'patch_shots', select: JSON.stringify({ kind: 'indexes', indexes: [2, 3] }), patch: JSON.stringify({ shotKind: 'video', durationSec: 4 }) }, operation: 'patch_shots' },
+const MALFORMED: ReadonlyArray<{ label: string; args: unknown }> = [
+  { label: 'A · whole argument object serialized as a JSON string', args: JSON.stringify(PLAN) },
+  { label: 'B · `shots` array serialized as a JSON string', args: { shots: JSON.stringify(SHOTS) } },
+  { label: 'C · a single shot object where the array goes', args: { shots: SHOTS[0] } },
 ];
 
-function port(writes: unknown[]): CanvasLanePort {
+function port(writes: unknown[]): LaneExtendedPort {
   return {
-    read: async () => ({ nodes: [], edges: [], groups: [], selectedNodeIds: [] }),
-    write: async (input) => {
-      writes.push(input);
-      const base = { applied: true as const, proposalId: 'proposal-1', result: {}, reconciliation: { ok: true, deviationCount: 0 } };
-      if (input.operation === 'patch_shots') return { ...base, operation: 'patch_shots', changedShotIndexes: [2, 3], changedFields: ['shotKind', 'durationSec'] } as never;
-      return { ...base, operation: input.operation } as never;
-    },
+    execute: async (call) => { writes.push(call.args); return { ok: true, result: { operation: { operationId: 'op-1', state: 'draft', cardHidden: true } } }; },
   };
 }
 
@@ -57,8 +50,8 @@ function withoutTolerance(descriptors: readonly LaneToolDescriptor[]): LaneToolD
   return descriptors.map(({ prepareArguments: _dropped, ...rest }) => ({ ...rest }));
 }
 
-test('P5 ① · size of the flat nomi_storyboard_write schema, by pi\'s own estimator', () => {
-  const tools = createLaneTools(createCanvasLaneTools(port([])));
+test('P5 ① · size of the draft_shots schema, by pi\'s own estimator', () => {
+  const tools = createLaneTools(createExtendedLaneTools(port([])));
   const storyboard = tools.find((tool) => tool.name === TOOL);
   assert.ok(storyboard, `${TOOL} is on the lane`);
   const estimate = (text: string) => estimateTokens({ role: 'user', content: [{ type: 'text', text }], timestamp: 0 });
@@ -71,7 +64,7 @@ test('P5 ① · size of the flat nomi_storyboard_write schema, by pi\'s own esti
     console.log(`[P5①]   ${tool.name}: ≈ ${size} tokens`);
   }
   const properties = Object.keys((storyboard.parameters as { properties: Record<string, unknown> }).properties);
-  assert.deepEqual(properties, ['operation', 'title', 'aspectRatio', 'anchors', 'shots', 'select', 'patch', 'nodeIds'], 'flat root: one enum + every branch field as optional');
+  assert.deepEqual(properties, ['draftId', 'taskKind', 'candidate', 'shots'], 'draft_shots root: the draft to revise, per-draft defaults, and the shots');
   // B1c moves full guidance/examples into the stable system prompt; the budget above records
   // the one deliberate growth since (film-level aspectRatio), not prose creeping back in.
   assert.ok(schemaTokens + descriptionTokens <= TOKEN_BUDGET,
@@ -80,7 +73,7 @@ test('P5 ① · size of the flat nomi_storyboard_write schema, by pi\'s own esti
 
 async function firstCallSucceeds(t: TestContext, arm: 'with-tolerance' | 'without-tolerance', args: unknown) {
   const writes: unknown[] = [];
-  const tools = createCanvasLaneTools(port(writes));
+  const tools = createExtendedLaneTools(port(writes));
   const fixture = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'first', name: TOOL, arguments: args }] },
     { type: 'text', text: 'Done.' },
@@ -93,19 +86,13 @@ async function firstCallSucceeds(t: TestContext, arm: 'with-tolerance' | 'withou
 }
 
 for (const shape of MALFORMED) {
-  test(`P5 ② · ${shape.label} passes prepareArguments → ajv → contract parse, and lands on the right operation`, async (t) => {
+  test(`P5 ② · ${shape.label} passes prepareArguments → ajv, and the shots arrive as an array`, async (t) => {
     const treated = await firstCallSucceeds(t, 'with-tolerance', shape.args);
     assert.equal(treated.ok, true, `first call is not an error: ${treated.text}`);
     assert.equal(treated.writes.length, 1, 'exactly one write reached the domain port');
-    const written = treated.writes[0] as { operation: string; anchors?: unknown; shots?: unknown; select?: unknown; patch?: unknown };
-    assert.equal(written.operation, shape.operation);
-    if (written.operation === 'propose_storyboard_plan') {
-      assert.ok(Array.isArray(written.anchors) && Array.isArray(written.shots), 'the arrays arrive as arrays, not JSON text');
-      assert.deepEqual(written.shots, SHOTS);
-    } else {
-      assert.deepEqual(written.select, { kind: 'indexes', indexes: [2, 3] });
-      assert.deepEqual(written.patch, { shotKind: 'video', durationSec: 4 });
-    }
+    const written = treated.writes[0] as { shots?: unknown };
+    assert.ok(Array.isArray(written.shots), 'the shots arrive as an array, not JSON text');
+    assert.deepEqual(written.shots, shape.label.startsWith('C') ? [SHOTS[0]] : SHOTS);
 
     // 阳性对照：没有容忍钩子，同一条调用必须被拒——否则上面那个绿证明不了容忍在起作用。
     const control = await firstCallSucceeds(t, 'without-tolerance', shape.args);

@@ -102,6 +102,10 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
   return {
     capture,
     write,
+    remount: async () => {
+      const next = registry.suspend(owner, { surfaceInstanceId: "surface-a" });
+      await registry.commitCanvasRead(owner, { projectId: "project-a", suspension: next });
+    },
     adapter: createPiCanvasWriteTransportAdapter({
       registry,
       capturedPort,
@@ -327,6 +331,32 @@ describe("canvas.write Pi transport", () => {
       operation: "create_canvas_nodes", nodes: editedArgs.nodes,
     });
     expect(test.capture).toHaveBeenCalledTimes(2);
+  });
+
+  it("executes after the prepare-time captured port is retired by a new surface epoch", async () => {
+    const test = await setup();
+    const signal = new AbortController().signal;
+    const prepared = await test.adapter.prepare(
+      {
+        toolCallId: "tool-live",
+        toolName: CANVAS_WRITE_ALIASES.setNodePrompt,
+        args: { nodeId: "client-alias", prompt: "new prompt" },
+      },
+      signal,
+    );
+    await test.remount();
+    await expect(
+      test.adapter.execute(
+        prepared!,
+        {
+          receiptProposalId: "receipt-live",
+          approvalId: "approval-live",
+          actionHash: prepared!.invocation.actionHash,
+        },
+        signal,
+      ),
+    ).resolves.toMatchObject({ ok: true, result: { operation: "set_node_prompt" } });
+    expect(test.write).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed raw evidence and mismatched approval authority before execute dispatch", async () => {

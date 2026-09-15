@@ -139,8 +139,8 @@ export async function createDryScheduler(root, settingsDir, mediaDir, report) {
     plan = fixture.text.expectText({ label: 'C0 full script -> plan',
       match: (body) => flattenRequestText(body).includes('小禾') && flattenRequestText(body).includes('可用模型')
         && fixture.availableModels.every((entry) => flattenRequestText(body).includes(`modelKey=${entry.modelKey}`)) && !hasToolResult(body, planId),
-      reply: { type: 'tool', id: planId, name: 'nomi_storyboard_write', args: {
-        operation: 'propose_storyboard_plan', title: '日落前的一分钟', anchors: [], shots,
+      reply: { type: 'tool', id: planId, name: 'draft_shots', args: {
+        shots: shots.map((prompt, index) => ({ title: `日落前的一分钟 · ${index + 1}`, prompt, taskKind: 'text_to_image' })),
       } },
     })
     done = fixture.text.expectText({ label: 'C0 approved plan terminal', match: (body) => hasToolResult(body, planId),

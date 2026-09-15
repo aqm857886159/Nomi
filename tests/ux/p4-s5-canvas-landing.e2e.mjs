@@ -48,7 +48,7 @@ function threeStateRun(projectId, nodeIds) {
     schemaVersion: 1, runId: RUN_ID, projectId, revision: 1,
     status: 'running', // running：未派发镜显「排队中」；靠 shot-3 job 的预算错因显「已停」→ 三态同屏
     stageId: 'generate', playbook: { name: 'generation.single-shot', version: '1.0.0' }, origin: { host: 'semantic-mcp' },
-    policy: { mode: 'balanced', trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 13, maxAttemptsPerJob: 1, minimizeUploads: true },
+    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 13, maxAttemptsPerJob: 1, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 13, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 0, stages: [], gates: [],
     // shot-1 生成中(polling)；shot-2 无 job=排队；shot-3 预算触顶(needs_attention+budget_exhausted)=已停。

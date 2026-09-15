@@ -19,15 +19,13 @@ const SRC_ROOT = path.dirname(fileURLToPath(import.meta.url))
 
 /** 只渲染、不持久化 → 允许直接用构建产物 URL。键 = 相对 src/ 的路径。 */
 const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
-  'config/knownVendors.ts': '厂商 logo：只喂 <img src>，接入卡渲染完即弃，不进 catalog/项目文件。',
-  'config/modelProviderIdentity.ts': '模型/厂商 logo：仅用于现有选择器当场渲染，不写入 catalog 或项目文件。',
+  'assets/vendor-logos/index.ts':
+    '品牌图资产的唯一登记处：只喂 <img src> 当场渲染，不进 catalog 也不进项目文件。' +
+    '此前 config/knownVendors.ts、config/modelProviderIdentity.ts 与设计实验室夹具各写一份，' +
+    '2026-09-14 收口成这一处（也正是「即梦挂了豆包的牌子」那个 bug 的根因）。',
   'workbench/generationCanvas/nodes/director/scene/character/mannequinAssets.ts':
     '导演台内置假人 GLB / 动画 GLB：只喂 three 的 loader，不进节点结果，也不落项目。',
   'lib/removeBackground.ts': 'Worker 脚本地址：new Worker 当场消费，不是资产 URL。',
-  'devlab/designLab/primitivesSurfaces/states/03-structure.tsx':
-    '设计实验室 NomiIdentityIcon 陈列格的四张厂商 logo：只喂 <img src> 当场渲染，不进任何状态。' +
-    '而且实验室物理上不进生产包——`vite build` 只吃 index.html，design-lab.html 是另一个根入口' +
-    '（check:design-lab 守着这条），所以它连「被打包出去」这一步都没有。',
   'workbench/generationCanvas/videoDepth/videoDepthClient.ts':
     '深度推理 worker 的脚本地址：new Worker 当场消费，随这次运行结束即弃，不进节点结果也不落项目。',
 }

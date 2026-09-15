@@ -199,9 +199,10 @@ export function assetReadInputForAlias(alias: string, value: unknown): AssetRead
 export const ASSET_READ_CAPABILITY = {
   id: "asset.read",
   version: 1,
-  aliases: { pi: ASSET_READ_ALIASES.get, mcp: "nomi_media_query" },
+  // 模型可见动词只有 `look_at_media`；五个 operation 名字是传输层的方法词表。
+  aliases: { pi: "look_at_media", mcp: "nomi_media_query", method: ASSET_READ_ALIASES.get },
   additionalAliases: {
-    pi: Object.freeze([
+    method: Object.freeze([
       ASSET_READ_ALIASES.inspect,
       ASSET_READ_ALIASES.search,
       ASSET_READ_ALIASES.inspectRange,
