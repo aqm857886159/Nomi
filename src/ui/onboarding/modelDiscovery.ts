@@ -46,6 +46,28 @@ export function modelDiscoveryMessage(result: PickerDiscoveryResult, hasExisting
   }
 }
 
+/**
+ * 存完 key 那一刻的发现结果 → 一句话。
+ *
+ * 为什么要这条：存 key 现在会**就地**走一次真发现（`nomi:integration-session:credential` 通道）。
+ * 发现抛错时错误沿 IPC 冒回调用方、已经会显示；发现「成功但返回空清单」时不抛错——旧写法于是
+ * 直接 onClose()，用户看到的只是「抽屉一关、什么都没有」，和 P0-2 里「自己手打 model id」是同一
+ * 个病。空清单必须和失败一样响：说清为什么空。返回 null = 没有任何阻塞，可以正常收尾。
+ */
+export function credentialSaveNotice(projection: unknown): {
+  key: Parameters<TFunction>[0]
+  values?: { reason: string }
+} | null {
+  if (!projection || typeof projection !== 'object') return null
+  const blocking = (projection as Record<string, unknown>).blockingReason
+  const code =
+    blocking && typeof blocking === 'object' ? (blocking as Record<string, unknown>).code : undefined
+  if (typeof code !== 'string' || !code) return null
+  // 唯一「不抛错但也没结果」的出口；其余码原样带出去，绝不静默吞掉。
+  if (code === 'model_discovery_empty') return { key: 'modelSetup.credentialSavedNoModels' }
+  return { key: 'modelSetup.credentialSavedBlocked', values: { reason: code } }
+}
+
 /** Shared request-to-picker projection; only the hook owns rendering and request lifetime. */
 export async function runModelDiscovery({ load, guessKinds, existing, previous, isCurrent }: {
   load: () => Promise<PickerDiscoveryResult>

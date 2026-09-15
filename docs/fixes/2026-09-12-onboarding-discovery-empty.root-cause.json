@@ -1,0 +1,147 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-onboarding-discovery-empty",
+  "problem_type": "credential-ready discovery omission",
+  "symptom": "await_setup returned stage draft and empty candidates after key save",
+  "direct_cause": "credential IPC persisted ready state but never invoked shared HTTP discovery",
+  "class_root": "credential persistence must immediately project authoritative provider candidates",
+  "affected_population": [
+    "HTTP provider onboarding via Nomi UI"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/integrationSessionIpc.ts"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "line": 753,
+      "symbol": "propose"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationHttp.ts",
+      "line": 246,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "line": 38,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "line": 62,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "line": 71,
+      "symbol": "propose"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "line": 318,
+      "symbol": "saveCredential"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "line": 331,
+      "symbol": "saveCredential"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 7,
+    "why_not": "6 → 7 不是没减：多出来的那一扇正是本次的修法本身——`integrationSessionIpc.ts:71` 让「存完 key」这一步接着走 `propose`，把「发现模型」并回同一条边界，而不是让 UI 再自己找一条路去发现。剩下 6 扇分成三组，各自必须存在，合并它们会把不同的信任边界揉到一起：`dispatcher.ts:753` 是外部 MCP 宿主那条路（owner 是 codex/claude/…，走能力层鉴权）；`credentialElicitationHttp.ts:246` 与 `credentialElicitationRuntime.ts:38` 是一次性凭据页那条路（浏览器回调，owner 恒为 nomi，带工单校验）；`OnboardingWizard.tsx:318/:331` 是渲染层向导的两种提交形态。三条路各自的鉴权前提不同，但**它们写的是同一份状态**——这次要保证的不变量（存完 key 必须立刻投影出权威候选列表）因此没有写在任何一扇门上，而是写在它们共同下游的 `IntegrationSessionService`，由 `integrationSessionCredentialDiscovery.test.ts` 钉住。"
+  },
+  "entry_points": [
+    "nomi:integration-session:credential"
+  ],
+  "internal_only_reason": "Internal lifecycle invariant; provider list probing already exists in HttpProviderConnector.",
+  "invariants": [
+    "A saved HTTP credential is followed by one authoritative discovery projection.",
+    "A discovery projection that carries no candidates carries a stated reason the user can read; it is never returned as a silent empty list."
+  ],
+  "generality_proof": "The IPC credential boundary is the shared Nomi UI credential write and routes through IntegrationSessionService.propose, the same discovery implementation used by MCP propose.",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "nomi:integration-session:credential",
+      "responsibility": "Persist credential then invoke shared discovery."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "nomi:integration-session:credential",
+      "disposition": "enforced",
+      "evidence": "UI credential save now calls propose with empty proposal."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "propose",
+      "disposition": "enforced",
+      "evidence": "MCP and UI converge on discoverAndPersistHttpCandidates."
+    },
+    {
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "entry_point": "saveCredential (MCP 一次性凭据页)",
+      "disposition": "not-affected",
+      "evidence": "这道门是外部 Agent 在驱动：用户在凭据页存完 key 后，驱动方按 MCP 契约接着调 integration.propose（dispatcher.ts 'integration.propose'），发现就发生在那一步。它本来就有第二步，没有「存完就没人管了」这个处境——正是 Nomi 自己的界面缺了这一步。凭据页另有 testCredential 走同一个 discoverHttpModels 做联通性验证。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any UI key save previously left draft state until a separate propose call.",
+    "same_class_scan": [
+      "rg saveCredential across integrationCertification",
+      "rg discoverAndPersistHttpCandidates across integrationCertification"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSessionIpc.ts",
+    "invariant": "HTTP credential save immediately invokes shared discovery.",
+    "failure_mode": "Discovery errors surface to the caller as a localized sentence; an empty provider response stays an explicit model_discovery_empty blocking reason, which the credential-save UI renders as one sentence instead of closing.",
+    "exception_policy": "none",
+    "strategy": "Converge UI credential completion with the existing MCP discovery path.",
+    "artifacts": [
+      "electron/integrationCertification/integrationSessionIpc.ts",
+      "src/ui/onboarding/modelDiscovery.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts",
+    "src/ui/onboarding/modelDiscovery.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy persisted format."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "No migration; existing draft sessions discover on next propose.",
+  "residual_risks": [
+    "Real provider availability can change independently of the discovery contract."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/integrationCertification/integrationSessionIpc.ts",
+    "tests": [
+      "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts"
+    ],
+    "why": "Credential IPC is the earliest shared UI write boundary and delegates to the tested session discovery implementation."
+  }
+}

@@ -21,7 +21,7 @@ import { ExistingConnectionModelPicker } from './ExistingConnectionModelPicker'
 import { OnboardingWizardResult } from './OnboardingWizardResult'
 import { DirectScriptDraftForm } from './DirectScriptDraftForm'
 import { OnboardingWizardAdvancedFields, ProviderPresetGroups } from './OnboardingWizardAdvancedFields'
-import { modelDiscoveryMessage } from './modelDiscovery'
+import { credentialSaveNotice, modelDiscoveryMessage } from './modelDiscovery'
 import { useModelDiscovery } from './useModelDiscovery'
 import { useOnboardingConnectionTest } from './useOnboardingConnectionTest'
 import { CertificationIntentKey } from './certificationIntentKey'
@@ -99,6 +99,8 @@ export function OnboardingWizard({
   const [saving, setSaving] = React.useState(false)
   const [savedConnection, setSavedConnection] = React.useState<DesktopProviderRegistration | null>(null)
   const [connectionSaveError, setConnectionSaveError] = React.useState('')
+  /** 存 key 成功、但发现没带回模型时的那一句「为什么」。不是错误，但一样不许静默。 */
+  const [connectionSaveNotice, setConnectionSaveNotice] = React.useState('')
   const [resultLabel, setResultLabel] = React.useState('')
   const [errorReason, setErrorReason] = React.useState('')
   const [errorHint, setErrorHint] = React.useState('')
@@ -319,13 +321,14 @@ export function OnboardingWizard({
       }
       setSaving(true)
       setConnectionSaveError('')
+      setConnectionSaveNotice('')
       try {
         const current = await bridge.onboarding.integrationSessionGet?.(integrationSessionId)
         const currentRecord = current && typeof current === 'object' ? (current as Record<string, unknown>) : null
         const expectedRevision = Number(currentRecord?.revision || 0)
         if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1)
           throw new Error(t('modelSetup.integrationUnavailable'))
-        await saveCredential({
+        const saved = await saveCredential({
           sessionId: integrationSessionId,
           expectedRevision,
           apiKey: requestAuth.apiKey,
@@ -338,6 +341,13 @@ export function OnboardingWizard({
           models: [],
           savedAt: new Date().toISOString(),
         })
+        // 存 key 这一步现在就地发现模型。带回阻塞原因 = 这次没拿到清单：把「为什么」摆在原地，
+        // 不关抽屉——关掉就等于让用户自己去猜（P0-2 的用户处境）。
+        const notice = credentialSaveNotice(saved)
+        if (notice) {
+          setConnectionSaveNotice(t(notice.key, notice.values))
+          return
+        }
         onClose()
       } catch (error) {
         setConnectionSaveError(error instanceof Error ? error.message : t('modelSetup.saveFailedHint'))
@@ -638,6 +648,15 @@ export function OnboardingWizard({
                   {connectionSaveError ? (
                     <div className="text-caption leading-relaxed text-workbench-danger" role="alert">
                       {connectionSaveError}
+                    </div>
+                  ) : null}
+                  {connectionSaveNotice ? (
+                    <div
+                      data-connection-save-notice
+                      role="status"
+                      className="border-l-2 border-nomi-warning bg-nomi-ink-05 px-3 py-2 text-caption leading-relaxed text-nomi-ink-60"
+                    >
+                      {connectionSaveNotice}
                     </div>
                   ) : null}
                   <div className="flex justify-end">

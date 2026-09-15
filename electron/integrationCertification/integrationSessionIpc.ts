@@ -56,15 +56,21 @@ export function registerIntegrationSessionIpc(service: IntegrationSessionService
     const ready = service.resolveInput(submitted.id, submitted.revision, "nomi", {});
     return service.get(ready.id);
   });
-  ipcMain.handle("nomi:integration-session:credential", (event, raw: unknown) => {
+  ipcMain.handle("nomi:integration-session:credential", async (event, raw: unknown) => {
     assertTrustedSender(event);
     const payload = objectPayload(raw);
-    return service.saveCredential(
+    const saved = service.saveCredential(
       payload.sessionId,
       payload.expectedRevision,
       "nomi",
       payload.apiKey,
     );
+    // Saving a key is the shared discovery boundary: immediately populate the
+    // durable session from the provider's authoritative list endpoint.
+    if (saved.kind === "http-api-provider") {
+      return service.propose(saved.id, saved.revision, "nomi", {});
+    }
+    return saved;
   });
   /** 用户在模型页按下「开始自检」。自检不发生成请求、不消耗额度，所以这里没有挑战、
    * 没有收据、没有手势章——只有一次普通的、以 Nomi 为 owner 的 start。 */
