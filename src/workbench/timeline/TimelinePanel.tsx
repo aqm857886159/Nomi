@@ -365,9 +365,21 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         也是「可横向滚动的容器 + 一行 flex」，由 `index.tsx:439` 当兄弟节点排在轨道区之上。
         簇内不换行（ControlGroup 自带 flex-none），整行放不下时横向滚动。
       */}
+      {/*
+        行尾那一槽（帮助 + 收起）**钉住**，只有三簇工具在滚。
+        2026-09-13 真机反馈「不小心点了下面的时间轴收不回去了」：收起钮自 09-10 起就在，
+        但它排在十几颗同款 icon 钮之后、住在这条 `overflow-x-auto` 里——面板一窄它第一个
+        被滚出视口，用户能看见的就只有「收不回去」。属「说坏了其实是找不到」那一族
+        （docs/lessons/group-says-broken-usually-means-undiscoverable.md）。
+        修在这一层而不是「把行做宽」：滚动是三簇工具的正当行为，**面板级动作不该跟着滚**。
+      */}
+      <div className={cn(
+        'workbench-timeline__controls-row',
+        'flex min-w-0 items-stretch gap-2',
+      )}>
       <div className={cn(
         'workbench-timeline__controls',
-        'flex min-w-0 items-center gap-2 pt-2 pb-2',
+        'flex min-w-0 flex-1 items-center gap-2 pt-2 pb-2',
         'overflow-x-auto overflow-y-hidden',
         'scrollbar-thin scrollbar-color-transparent',
         'hover:scrollbar-color-[color-mix(in_srgb,var(--nomi-ink)_22%,transparent)]',
@@ -391,21 +403,36 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.zoomIn', { prefix: actionLabelPrefix })} title={t('timelineEditor.zoomInShortcut')} icon={<IconZoomIn size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
           <span className="min-w-8 text-center text-micro tabular-nums opacity-60">{Math.round(timeline.scale * 100)}%</span>
         </ControlGroup>
+      </div>
+      <div className={cn(
+        'workbench-timeline__controls-tail',
+        'flex flex-none items-center gap-1 pt-2 pb-2 pl-2',
+        'border-l border-[var(--nomi-line-soft)]',
+      )} data-timeline-toolbar-tail="true">
         <button type="button" className="grid h-7 w-7 flex-none place-items-center rounded-[var(--nomi-radius-sm)] text-micro text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]" aria-label={t('timelineEditor.shortcuts.open')} title={t('timelineEditor.shortcuts.open')} onClick={() => setShortcutsOpen(true)}>?</button>
-        {/* 面板内的收起入口。用的是现役折叠原子：WorkbenchIconButton + IconChevronDown，
-            同 `src/workbench/preview/inspector/PreviewInspector.tsx:80` 的属性面折起钮。
-            只有真有折叠态的宿主才传 onCollapse，所以预览面不会长出一个按了没反应的钮。 */}
+        {/* 面板内的收起入口。只有真有折叠态的宿主才传 onCollapse，所以预览面不会长出
+            一个按了没反应的钮。09-13 之前它是**无文字的 chevron**，排在一排同款 icon 钮
+            之后——截图里它就在那儿、用户仍然报「收不回去」（公认图形≠这一颗在说什么）。
+            所以补上现役动作词「收起」：一颗带文字的动作钮，不再是一个像「更多」的尖角。 */}
         {onCollapse ? (
-          <WorkbenchIconButton
-            className="flex-none"
-            size="sm"
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-7 flex-none items-center gap-1 rounded-[var(--nomi-radius-sm)] px-2',
+              'border-0 bg-transparent cursor-pointer font-inherit text-micro',
+              'text-[var(--workbench-muted)] transition-colors',
+              'hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]',
+            )}
             data-timeline-collapse="true"
-            label={t('timelineEditor.collapsePanel')}
+            aria-label={t('timelineEditor.collapsePanel')}
             title={t('timelineEditor.collapsePanel')}
-            icon={<IconChevronDown size={16} />}
             onClick={onCollapse}
-          />
+          >
+            <IconChevronDown size={16} aria-hidden="true" />
+            <span>{t('timelineEditor.collapse')}</span>
+          </button>
         ) : null}
+      </div>
       </div>
       <div
         className={cn(

@@ -30,11 +30,31 @@ describe("cancelCertifyingRun", () => {
     })).toEqual({ code: "certification_already_submitted" });
   });
 
-  it("ComfyUI 的 certifying 没有可撤的 run —— 仍然拒绝，不制造两个真相", () => {
+  it("ComfyUI 的 certifying 没有可撤的 run —— 照样放人走，如实标注「本地放弃」", () => {
+    // 这条以前断言「仍然拒绝」。拒绝的本意是不制造两个真相，但代价是用户完全没有出口
+    // （真机死锁里只能重启 app）。真相唯一性现在由「终态不许被覆写」那道守卫保证
+    // （integrationSession.start 的 outcome 回写前先查 isTerminalIntegrationStage），
+    // 所以这里改成永远放人走，并且**绝不抛异常**——它一抛，会话层的 cancel 就跟着没出口。
     const certification = { cancel: vi.fn(), get: vi.fn() } as unknown as ConnectionCertificationService;
-    expect(() => cancelCertifyingRun(certification, { kind: "comfyui-workflow" }))
-      .toThrow(/Cannot cancel certification in progress/);
+    expect(cancelCertifyingRun(certification, { kind: "comfyui-workflow" }))
+      .toEqual({ code: "certification_abandoned_locally" });
     expect(certification.cancel).not.toHaveBeenCalled();
+  });
+
+  it("HTTP 会话还没拿到 childRunRef（startHttp 没返回就被打断）也放人走", () => {
+    const certification = { cancel: vi.fn(), get: vi.fn() } as unknown as ConnectionCertificationService;
+    expect(cancelCertifyingRun(certification, { kind: "http-api-provider" }))
+      .toEqual({ code: "certification_abandoned_locally" });
+    expect(certification.cancel).not.toHaveBeenCalled();
+  });
+
+  it("run 记录已经不在了（连接被删）= 没有远端在受理，干净取消", () => {
+    const certification = {
+      cancel: vi.fn(() => undefined),
+      get: vi.fn(() => undefined),
+    } as unknown as ConnectionCertificationService;
+    expect(cancelCertifyingRun(certification, { kind: "http-api-provider", childRunRef: { runId: "gone" } }))
+      .toBeUndefined();
   });
 });
 

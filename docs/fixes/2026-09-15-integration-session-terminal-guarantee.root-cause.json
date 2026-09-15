@@ -1,0 +1,215 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-15-integration-session-terminal-guarantee",
+  "change_kind": "corrective",
+  "problem_type": "接入验证的**会话层**拥有 `session.stage` 这份状态，却把它的终态保证外包给了子 run。外包只覆盖子 run 存在的那些情形，边界之外（ComfyUI 会话 / `startHttp` 还没返回的窗口 / run 记录已删）会话永久停在 `certifying`，而且 `cancel` 直接抛异常 —— 没有任何出口",
+  "symptom": "用户 09-12 群里的原话：「接入验证一直转然后全部失败」。界面上的圈一直转（会话阶段 `certifying`），点取消没反应，只能重启 app；重启之后那条会话还在转，因为没有任何东西会去收它。2026-09-11 那次真机复盘（docs/plan/2026-09-11-mcp-integration-quality.md）把 P0 定在 run 层并修掉了，但会话层这三个窗口的同一症状照旧",
+  "direct_cause": "`cancelCertifyingRun`（integrationSessionRunView.ts:75）在三种「没有可撤的 run」的情形下 `throw new Error(\"Cannot cancel certification in progress\")`：① `session.kind !== \"http-api-provider\"`（本地 ComfyUI 那条免费自检压根不创建 run）② `!session.childRunRef`（`start()` 先把 `certifying` 意图落盘再去 `await startHttp`，这中间进程死掉或上游吊死就停在这里）③ `!certification`。`IntegrationSessionService.cancel` 直接调它，于是异常一路冒到调用方，`session.stage = \"cancelled\"` 那一行永远执行不到。同时会话层与 run 层唯一的同步点 `syncHttpCertification` 对这三种情形一律 early-return（`!session.childRunRef` 或 `!run`），也就是说既没有人推进它、也没有人允许放弃它",
+  "class_root": "**一份状态的不变量必须由拥有这份状态的那一层兜住。** 会话层写 `session.stage`、把它落盘、把它投影给用户和驱动 Agent —— 它是这份状态的 owner；但「不许停在中间态」这条不变量它一行都没实现，全靠读子 run 的阶段间接获得。借来的保证一定有边界（这里的边界是「子 run 存在且还在盘上」），而边界之外就是死锁。这跟 09-12 那一版是同一条不变量的**另一层**：那一版把 run 层做对了，却让会话层继续做一个没有保证的影子状态机",
+  "affected_population": [
+    "接本地 ComfyUI 的用户：`comfyui-workflow` 会话的 certifying 是一个还在飞的本地 promise，从头到尾没有 run —— 这条路是**免费**自检，也就是最多人走的那条，它一次都没被 09-12 那版覆盖到",
+    "任何接 HTTP 供应商的用户，只要在「已点开始、还没拿到 childRunRef」这个窗口里被打断（关窗口、切 profile、上游 TCP 吊死、进程被 kill）：盘上留下一条 `certifying` 且无 childRunRef 的会话，重启后仍然卡着且不可取消",
+    "删过连接又回来看老会话的用户：run 记录已被 `deleteRunsForVendors` 清掉，会话还引用它，`syncHttpCertification` 因 `!run` 直接返回",
+    "驱动接入的 Agent（WorkBuddy / Claude Code / Codex）：`nomi_integration` 的 cancel 抛异常，Agent 没有第二条路，只能让用户重启 app —— 而重启不解决"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/integrationSessionTerminal.ts",
+    "electron/integrationCertification/integrationSessionTerminal.test.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/integrationCertification/integrationSessionRecord.ts",
+    "electron/integrationCertification/integrationSessionRunView.ts",
+    "electron/integrationCertification/integrationSessionRunView.test.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+    "electron/providerAdapter/terminalGuarantee.ts",
+    "electron/providerAdapter/serviceLifecycle.ts",
+    "electron/providerAdapter/service.ts"
+  ],
+  "entry_points": [
+    "electron/integrationCertification/integrationSession.ts:1262 start() 的 certifying 意图落盘 —— 本轮在这里同时落 certifyingDeadlineAt（只落意图 = 盘上多一条没有尽头的中间态）",
+    "electron/integrationCertification/integrationSession.ts:1349 认证结果回写前的终态封口 —— 已落终态的会话不许被迟到的结果复活",
+    "electron/integrationCertification/integrationSession.ts:1399 cancel —— 用户/Agent 侧的撤销入口（此前经 cancelCertifyingRun 抛异常）",
+    "electron/integrationCertification/integrationSession.ts:599 构造期装上会话层看门狗（复用 run 层那只 TerminalReaper）",
+    "electron/integrationCertification/integrationSession.ts:612 resumeInterrupted —— 启动补偿 + 挂周期扫描，返回这一轮收掉的会话 id",
+    "electron/integrationCertification/integrationSession.ts:779 syncHttpCertification —— run 阶段 → 会话阶段的唯一同步点（本轮不动它，只是不再是唯一的终态来源）",
+    "electron/integrationCertification/integrationSessionRunView.ts:75 cancelCertifyingRun —— certifying 出口的实现；本轮改成永不抛",
+    "electron/integrationCertification/integrationSessionRecord.ts:86 落盘记录的迁移入口 —— 给盘上已经卡住的老会话补 deadline",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts:54 installIntegrationSessionRuntime —— 三个进程入口（main / mcpStdioServer / capabilityCore host）共用的唯一装配点，看门狗挂在这里",
+    "electron/providerAdapter/terminalGuarantee.ts:402 TerminalReaper.sweep —— 「非终态 + 过期 → 强制终态」的唯一实现，本轮被两层共用"
+  ],
+  "invariants": [
+    "**会话不许停在中间态**：任何进入 `certifying`/`committing` 的接入会话，在有限时间内必然落到 `completed`/`partial`/`failed`/`cancelled` 之一。靠的是「开跑意图与 deadline 同一次落盘」＋「看门狗到点强制 failed(certification_timed_out)」，而不是「等子 run 告诉我们」",
+    "**cancel 在任何非终态都可达**：`cancelCertifyingRun` 不允许抛异常（它一抛，会话层的 cancel 就跟着没有出口）。能撤的真去撤；没有可撤的东西也放人走，标注 certification_abandoned_locally",
+    "**终态一旦定下就是封的**：`start()` 的认证结果回写前必须先查 `isTerminalIntegrationStage(session.stage)`。这条是上一条的对偶 —— 放开逃生口不许换来两个互相矛盾的结论",
+    "**会话 deadline 必须长过子 run 把自己收干净的上限**（批次超时 ＋ 终态写退避预算 ＋ 看门狗一个周期）。短于它，会话会在 run 还有合法机会成功时先被判死，两层给出矛盾结论。这条在 `integrationCertifyingDeadlineAt` 调用时断言，档位调错当场炸",
+    "**没有根据不判死**：没有 `certifyingDeadlineAt` 的会话看门狗一律不碰；盘上的老会话靠迁移按 `updatedAt` 补 deadline，而不是猜或「从现在起算」（从现在起算等于每次重启给它续命一轮）",
+    "**所有兜底都必须响**：看门狗收掉的会话带着 certification_timed_out 出现在投影里；取消不可撤时标注真实原因。没有静默转进的路径"
+  ],
+  "generality_proof": "这条不变量的实现全部住在 electron/integrationCertification/integrationSessionTerminal.ts 一个模块里，由 `IntegrationSessionService` 在构造时装配一次（integrationSession.ts:599），并由三个进程入口共用的唯一装配点 `installIntegrationSessionRuntime()` 启动。会话终态化因此有两个、且只有两个来源：主路径的 `start()` 回写（带封口检查）与看门狗的 `failCertificationAsTimedOut`。看门狗本身**不是新造的**：它就是 run 层那只 `TerminalReaper`，只换一把 `isTerminal` 尺子和一句理由 —— 两层各写一只就等于同一条判据有两份实现，日后只会改到其中一份（P1）。会话 deadline 是从 `PROVIDER_ADAPTER_BATCH_TIMEOUT_MS` 派生的量，而那个常量本轮从 `service.ts` 里复制的四份收成了 `serviceLifecycle.ts` 的一份；于是「批次超时改了、会话 deadline 没跟上」这种错配不可能安静存在 —— `assertSessionDeadlineOutlastsRunSettlement` 会在第一次进 certifying 时就炸。会话层的终态词表也从 `integrationSession.ts` 里那个本地 `TERMINAL` const 收进 `isTerminalIntegrationStage` 一处，同一 commit 删旧",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSessionTerminal.ts",
+      "symbol": "isTerminalIntegrationStage / integrationCertifyingDeadlineAt / createIntegrationSessionReaper / assertSessionDeadlineOutlastsRunSettlement",
+      "responsibility": "「接入会话不许停在中间态、cancel 在任何非终态都可达」这条不变量的持有者：什么算终态、deadline 多长且为什么是这么长、谁来收尸，全在这一个模块"
+    },
+    {
+      "path": "electron/providerAdapter/terminalGuarantee.ts",
+      "symbol": "TerminalReaper / TerminalReapable",
+      "responsibility": "「非终态 + 过期 → 强制终态」这条判据的唯一实现，被 run 层与会话层共用；本轮只把元素类型结构化并允许传入各自的 isTerminal 尺子，没有第二只看门狗"
+    },
+    {
+      "path": "electron/providerAdapter/serviceLifecycle.ts",
+      "symbol": "PROVIDER_ADAPTER_BATCH_TIMEOUT_MS",
+      "responsibility": "批次超时的单一真相源；会话 deadline 从它派生，谁改它都会被派生断言检查到"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/integrationCertification/integrationSessionRunView.ts",
+      "entry_point": "cancelCertifyingRun 对「没有可撤的 run」抛异常（ComfyUI / 无 childRunRef / 无 certification 三种）",
+      "disposition": "enforced",
+      "evidence": "改成永不抛：没有可撤的东西时返回 { code: \"certification_abandoned_locally\" } 放人走。integrationSessionRunView.test.ts 三条分别钉 ComfyUI、无 childRunRef、run 记录已删三个窗口；integrationSessionTerminal.test.ts 前两条从会话层端到端验（修前红在 \"Cannot cancel certification in progress\"）"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "start() 把 certifying 意图落盘但不落到期时间",
+      "disposition": "enforced",
+      "evidence": "意图与 certifyingDeadlineAt 同一次 persist（:1262）。integrationSessionTerminal.test.ts「看门狗把过了认证 deadline 还非终态的会话收成 failed(certification_timed_out)」与「不碰 deadline 还没到的会话」两条对偶钉住"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "start() 的认证结果无条件覆写 session.stage（放开 cancel 之后会把已取消的会话复活成 completed）",
+      "disposition": "enforced",
+      "evidence": "结果先攒进局部 outcome，回写前查 isTerminalIntegrationStage（:1349）。integrationSessionTerminal.test.ts「已经取消的会话不许被迟到的认证结果复活成 completed」：certifyComfy 的 promise 在 cancel 之后才 resolve，会话仍是 cancelled"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionRecord.ts",
+      "entry_point": "盘上已经卡在 certifying 的老会话没有 deadline，看门狗按「没根据不判死」永远不碰",
+      "disposition": "enforced",
+      "evidence": "validateState 的迁移里 backfillCertifyingDeadline 按 updatedAt 补（:86-92），与既有的 migrateRetiredSpendGate 同一手法（就地改写旧数据，读完盘上不再有旧形状）。allowedKeys 同步加 certifyingDeadlineAt，否则新字段会让整份状态被判 corrupt"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "entry_point": "会话服务装配后没人调 resumeInterrupted —— 盘上的中间态会话背后没有任何在飞的 promise，却也没有人来收",
+      "disposition": "enforced",
+      "evidence": "installIntegrationSessionRuntime() 装完即 resumeInterrupted()（:54-58）。它是 main.ts:410 / mcpStdioServer.ts:270 / capabilityCore/host.ts:69 三个进程入口共用的唯一装配点，所以三个宿主一次到位，不存在「某个入口忘了挂」。integrationSessionTerminal.test.ts「重启后仍停在 certifying 的会话由启动补偿收掉」从服务层验同一条路"
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "batchTimeoutMs 默认值在同一个文件里复制了四份（1 处默认 + 3 处 ?? 兜底）",
+      "disposition": "enforced",
+      "evidence": "四份全部换成 serviceLifecycle.ts 的 PROVIDER_ADAPTER_BATCH_TIMEOUT_MS，同一 commit 删掉字面量（P1）。会话 deadline 从它派生，任何一份漏改都会让两层判据错配 —— 收成一份之后这种漏改不存在了"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "本地 TERMINAL const —— 会话终态词表的第二份定义",
+      "disposition": "enforced",
+      "evidence": "删掉，三处使用改调 isTerminalIntegrationStage（:855/:869/:1396）。会话层的终态定义现在只有一处；run 层那把尺子（isTerminalAdapterStage）各管一层，互不冒充"
+    },
+    {
+      "path": "electron/integrationCertification/comfyuiConnector.ts",
+      "entry_point": "ComfyUI 连接器自己的超时/取消（runComfyCandidateTest 的 300s 硬超时）",
+      "disposition": "not-affected",
+      "evidence": "逐行读过 electron/tasks/comfyCandidateTest.ts:125-128：它已有自己的 AbortController + 300s 超时，会在 300 秒内一定 settle。本轮不改它，也不需要 —— 会话看门狗（10 分钟）是它之上的兜底，管的是「连接器之外的地方吊住了」以及「进程死了之后谁来收」这两件它管不到的事。两层超时不是并行版：一个是这一步的上限，一个是整个会话的上限，各自有明确职责"
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "run 层的终态保证（TerminalWriteGuarantee / errors.jsonl / run 看门狗）",
+      "disposition": "not-affected",
+      "evidence": "09-12 那一版已修到位，本轮一行没动其语义。会话状态写的是 integration-sessions.json（writeCertificationJsonAtomic），不走 run 那把 ProductionRunLock 文件租约锁，所以会话层不需要第二份「写盘退避 + 旁路日志」保证 —— 它的写不会因为锁竞争而失败。这一点是刻意核过的，不是没想到：会话写路径上没有跨进程锁"
+    },
+    {
+      "path": "electron/integrationCertification/service.ts",
+      "entry_point": "ConnectionCertificationService.resumeInterrupted（run 层的启动恢复）",
+      "disposition": "not-affected",
+      "evidence": "它只转给 http.resumeInterrupted()（:229-230），管的是 run；会话层的 resumeInterrupted 是另一层的同名动作，两者互不调用也不互相代替。会话层的那只必须独立存在，因为有三种状态压根没有 run 可恢复 —— 那正是本条的类根因"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是一族而不是一次：只要再出现一个「会话进了中间态但底下没有 run」的新入口（新的 connector kind、新的自检类型、新的宿主装配点），旧修法就又漏一个 —— 09-12 那一版在 run 层做对了，恰恰因为把会话层当成没有保证的影子状态机而漏掉三个窗口。真机上同一症状在 09-11 一晚复现两次、09-12 用户又在群里报一次。结构上它必然复发：一份状态的不变量寄生在另一层的实现细节上",
+    "same_class_scan": [
+      "`grep -rn \"\\.stage = \" electron/integrationCertification --include=*.ts`（排除测试）—— 数清 session.stage 的全部写入口：23 处，全部在 integrationCertification/ 之内（integrationSession.ts 20 处、httpModelDiscovery.ts 1 处、integrationSessionRecord.ts 迁移 1 处、operationLedger.ts 那处是 settledResult.stage 不是会话阶段）。owner 层因此确定为 electron/integrationCertification/",
+      "`grep -rn \"throw new Error(\\\"Cannot cancel\\|已经在进行\\|already in progress\" electron --include=*.ts`（排除测试）—— 找所有把用户锁在中间态的拒绝点：cancelCertifyingRun 一处（已改成永不抛），以及 integrationSession.ts:1141 的 \"Integration session certification is already in progress\"（那是 **start** 的重入拒绝，不是取消拒绝 —— 它不堵出口，保留）",
+      "`grep -rn \"IntegrationKind\\|kind === \\\"comfyui-workflow\\\"\\|kind !== \\\"http-api-provider\\\"\" electron --include=*.ts`（排除测试）—— 找所有按 connector kind 分叉的地方，逐个问「这条分支下会话还有终态保证吗」：分叉只在 integrationSession.ts 的 start/propose 与 integrationSessionRunView 的 cancel/投影里；本轮之后看门狗对两种 kind 一视同仁（它只看 stage 与 deadline，不看 kind），所以未来新增第三种 kind 自动被覆盖",
+      "`grep -rn \"resumeInterrupted\\|installIntegrationSessionRuntime\" electron --include=*.ts`（排除测试）—— 确认三个进程入口（main.ts:410 / mcpStdioServer.ts:270 / capabilityCore/host.ts:69）都经过同一个装配函数，没有第四条自己 new 服务的路（`getIntegrationSessionService` 没装过就抛，不零参兜底）",
+      "`grep -rn \"deadlineAt\\|deadline\" electron/integrationCertification --include=*.ts`（排除测试）—— 修前会话层零命中（这就是洞）；修后只有 certifyingDeadlineAt 一处来源"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSessionTerminal.ts",
+    "invariant": "接入会话不许停在中间态（deadline 与开跑意图同落盘 + 看门狗到点强制 failed），cancel 在任何非终态都可达且永不抛，终态一旦定下不许被迟到结果覆写；会话 deadline 必须长过子 run 的收敛上限",
+    "failure_mode": "① 把会话 deadline 调到短于子 run 收敛上限 —— `assertSessionDeadlineOutlastsRunSettlement` 在第一次进 certifying 时抛（integrationSessionTerminal.test.ts 直接钉这条派生关系，传 60_000 必须 throw /must outlast/）；② 让 cancelCertifyingRun 重新抛异常 —— integrationSessionRunView.test.ts 三条与 integrationSessionTerminal.test.ts 前两条同时红；③ 去掉终态封口 —— 「已取消的会话不许被迟到结果复活」立刻红；④ 去掉 installIntegrationSessionRuntime 里的 resumeInterrupted —— 「重启后仍停在 certifying 的会话由启动补偿收掉」立刻红；⑤ 在会话层另写第二只看门狗 —— 「会话看门狗就是 run 那只 TerminalReaper」那条断言 createIntegrationSessionReaper 返回的是 TerminalReaper 且行为一致",
+    "exception_policy": "none",
+    "strategy": "把「不许停在中间态」这条不变量从「借子 run 的」变成「会话层自己拥有的」：给状态配到期时间、给到期时间配看门狗（复用已有那只，不新造）、给中间态开一个永不抛的出口、给出口配一道终态封口。四件事互为对偶，缺任何一件另外三件都会退化",
+    "artifacts": [
+      "electron/integrationCertification/integrationSessionTerminal.ts",
+      "electron/integrationCertification/integrationSessionTerminal.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/integrationCertification/integrationSessionTerminal.test.ts"
+  ],
+  "regression_tests": [
+    "electron/integrationCertification/integrationSessionTerminal.test.ts",
+    "electron/integrationCertification/integrationSessionRunView.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/providerAdapter/service.ts"
+    ],
+    "rationale": "同一 commit 删两份旧真相：① integrationSession.ts 里的本地 `TERMINAL` const（会话终态词表的第二份定义），三处使用改调 isTerminalIntegrationStage；② service.ts 里 batchTimeoutMs 默认值的四份字面量拷贝，全换成 serviceLifecycle.ts 导出的 PROVIDER_ADAPTER_BATCH_TIMEOUT_MS。两者都是「同一个事实有多处定义」，而本轮的派生断言恰恰依赖它们各自只有一份 —— 留任何一份都等于给错配留一条安静存在的路。cancelCertifyingRun 的旧「拒绝」分支也是原地改写而非并存，没有 flag、没有 fallback",
+    "verification": "`grep -rn \"TERMINAL\\.\" electron/integrationCertification`（0 命中）与 `grep -rn \"batchTimeoutMs ?? 5 \\* 60_000\\|batchTimeoutMs: 5 \\* 60_000\" electron`（0 命中）"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部改动，没有引入、升级或降级任何依赖。方案文档的「先查别人」里逐条写明了为什么 p-timeout / p-retry / bullmq / agenda / xstate 都不引（前两者解决的不是「盘上状态机不许停在中间态」，后三者要外部服务或把定时转移放在内存里 —— 而本条要修的恰恰是进程死了之后谁来收）",
+    "exit_criteria": []
+  },
+  "migration": "新增一个可选持久化字段 `certifyingDeadlineAt`，同时把它加进 integrationSessionRecord.ts 的 allowedKeys（不加会让写过新字段的盘被判 corrupt —— 这也是回滚必须连 allowlist 一起回的原因）。迁移只补值不改结构：validateState 读盘时给非终态且缺 deadline 的 certifying/committing 会话按其 updatedAt 补一个，与既有 migrateRetiredSpendGate 同一手法。老会话因此当场获得保护，不需要用户删文件、不需要重开项目。会话投影多一个可选字段，老客户端忽略即可",
+  "residual_risks": [
+    "会话 deadline 是 10 分钟量级：最坏情况用户要等到 10 分钟才看到看门狗给的终态（在此之前他随时可以 cancel —— 出口是即时的，看门狗只管「没人按取消」那条路）。这个数字是从子 run 的收敛上限派生的下限之上取的最近整数，T-MO-07 把验证并行化之后批次超时会下调，会话 deadline 会自动跟着降",
+    "「会话 deadline > run 收敛上限」目前靠首次进 certifying 时的运行期断言，不是 AST 门岗。如果有人新写一条不经过 integrationCertifyingDeadlineAt 的路去写 certifyingDeadlineAt，这条派生关系管不到它 —— 但那要先绕开唯一的 deadline 来源",
+    "T-MO-07（并行验证 + per-model 30s 超时 + 部分成功 + 只重测失败）按任务书不在本轮，方案文档第七节写清了怎么接。也就是说「6 个模型串行压 5 分钟必然超时」这个**效率**问题本轮没修；本轮修的是「超时/吊死之后会话一定有结论、一定能取消」",
+    "ComfyUI 那条路的 cancel 现在放人走了，但它**不会真的掐掉**还在跑的本地工作流（那需要把 AbortController 从会话层穿到 certifyComfy 再穿到 runComfyCandidateTest）。本轮如实标注 certification_abandoned_locally 而不假装撤销了；真正的远端/本地中止穿线是独立一单，形状与 run 层 controllers.get(id)?.abort() 相同"
+  ],
+  "internal_only_reason": "这条不变量是本仓自有的状态机语义（接入会话的阶段集合、什么算终态、认证 deadline 多长），不对齐任何外部规范或第三方 API 契约。integration-sessions.json 是本仓自己定义的本地格式，没有可查的官方文档能对「会话中间态该怎么收尾」给出判据。借来的外部先例（BullMQ 的 stalled-job reaper 语义）写在方案文档的「先查别人」里，是思路来源不是格式约束",
+  "invariant_owner_layer": {
+    "layer": "electron/integrationCertification/integrationSessionTerminal.ts",
+    "tests": [
+      "electron/integrationCertification/integrationSessionTerminal.test.ts",
+      "electron/integrationCertification/integrationSessionRunView.test.ts"
+    ]
+  },
+  "doors": [
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 1262, "symbol": "integrationCertifyingDeadlineAt" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 1349, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 1399, "symbol": "cancelCertifyingRun" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 1396, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 855, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 869, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 635, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSession.ts", "line": 599, "symbol": "createIntegrationSessionReaper" },
+    { "kind": "read", "path": "electron/integrationCertification/integrationSession.ts", "line": 593, "symbol": "TerminalReaper" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSessionRecord.ts", "line": 86, "symbol": "isCertifyingIntegrationStage" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSessionRecord.ts", "line": 92, "symbol": "integrationCertifyingDeadlineAt" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSessionTerminal.ts", "line": 37, "symbol": "isTerminalIntegrationStage" },
+    { "kind": "read", "path": "electron/integrationCertification/integrationSessionTerminal.ts", "line": 99, "symbol": "TerminalReaper" },
+    { "kind": "read", "path": "electron/integrationCertification/integrationSessionTerminal.ts", "line": 57, "symbol": "PROVIDER_ADAPTER_BATCH_TIMEOUT_MS" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSessionRunView.ts", "line": 75, "symbol": "cancelCertifyingRun" },
+    { "kind": "write", "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts", "line": 54, "symbol": "installIntegrationSessionRuntime" },
+    { "kind": "read", "path": "electron/providerAdapter/service.ts", "line": 149, "symbol": "TerminalReaper" },
+    { "kind": "read", "path": "electron/providerAdapter/service.ts", "line": 136, "symbol": "PROVIDER_ADAPTER_BATCH_TIMEOUT_MS" },
+    { "kind": "write", "path": "electron/providerAdapter/serviceLifecycle.ts", "line": 6, "symbol": "PROVIDER_ADAPTER_BATCH_TIMEOUT_MS" },
+    { "kind": "read", "path": "electron/providerAdapter/terminalGuarantee.ts", "line": 402, "symbol": "TerminalReaper" }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 20,
+    "why_not": "门数从 14 涨到 20，因为本轮**新增**了两样此前压根不存在的东西：会话的 deadline（2 扇写：主路径 + 旧数据迁移）和会话层看门狗（构造装配 1 扇 + 启动补偿 1 扇 + 复用 run 层实现的 3 扇读）。同时确实减掉了两族重复门：① 会话终态词表从「integrationSession.ts 本地 TERMINAL const 定义 + 3 处使用」收成 integrationSessionTerminal.ts 一处定义（使用点仍是 5 扇，但它们现在读的是同一个函数，不是各自复述成员）；② batchTimeoutMs 默认值从 service.ts 里 4 份字面量拷贝收成 serviceLifecycle.ts 一处定义。没有进一步合并「会话终态写」那 5 扇使用点（把它们收成一个 finishSessionTerminal 单入口）的理由：那 5 处写的是**不同的终态**（completed / partial / failed / cancelled）且各自带不同的 blockingReason 与账本副作用，强行收成一个入口只会让它变成一个带 5 个分支的开关，判据并没有变少，而真正的风险点——「有没有人兜住中间态」——已经由 deadline + 看门狗这一对从外面钉死，跟写入口有几扇无关。run 层 09-12 那一版能把 4 个同义终态入口收成 1 个，是因为那 4 个入口写的是**同一件事**（终态失败），这里不是。"
+  }
+}

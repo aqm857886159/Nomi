@@ -1,3 +1,10 @@
+/**
+ * 一个验证批次最晚多久必须有结论。**单一真相源**：以前这个数字在 `service.ts` 里
+ * 复制了四份（默认值 + 三处 `?? 5 * 60_000` 兜底），而会话层的 deadline 又必须从它派生
+ * （integrationSessionTerminal.ts），四份里漏改一份就会让两层的判据对不上。
+ */
+export const PROVIDER_ADAPTER_BATCH_TIMEOUT_MS = 5 * 60_000;
+
 export type AdapterWaitReason = "cancelled" | "deadline" | "step_timeout" | "terminal";
 
 export class AdapterWaitError extends Error {

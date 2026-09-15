@@ -28,13 +28,15 @@ describe('TimelineResizeHandle contract', () => {
     expect(source).toContain('onDoubleClick={() => adjust(TIMELINE_PANEL_DEFAULT)}')
   })
 
-  it('keeps every input inside the 140–300px contract and restores the 188px default', () => {
+  // 默认高度的**数值**由 timelinePanelLayout.test.ts 独立重算（它是那条不变量的拥有层）。
+  // 这里只断「把手的钳制口径与那个默认值闭环」——两处各写一遍字面量就是两份真相源，
+  // 2026-09-15 把默认值改成派生时正是这一处旧字面量把测试打红的（P1：不留第二份定义）。
+  it('keeps every input inside the min–max contract and restores the shared default', () => {
     expect(clampTimelinePanelHeight(-1)).toBe(TIMELINE_PANEL_MIN)
     expect(clampTimelinePanelHeight(999)).toBe(TIMELINE_PANEL_MAX)
     expect(clampTimelinePanelHeight(206.4)).toBe(206)
     expect(clampTimelinePanelHeight(Number.NaN)).toBe(TIMELINE_PANEL_DEFAULT)
-    // Default expanded-timeline height aligns with origin/main's fixed 188px stage allocation.
-    expect(TIMELINE_PANEL_DEFAULT).toBe(188)
+    expect(clampTimelinePanelHeight(TIMELINE_PANEL_DEFAULT)).toBe(TIMELINE_PANEL_DEFAULT)
   })
 
   it('derives the expected keyboard transitions before the store clamps them', () => {

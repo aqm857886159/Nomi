@@ -34,7 +34,13 @@ import type {
 import { probeAdapterCredential, verifyAdapterMode, type AdapterCredentialProbe, type AdapterVerificationResult } from "./verifier";
 import { redactAdapterSecrets } from "./redaction";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
-import { AdapterWaitError, awaitAdapterStep, deadlineExpired, deadlineFrom } from "./serviceLifecycle";
+import {
+  AdapterWaitError,
+  awaitAdapterStep,
+  deadlineExpired,
+  deadlineFrom,
+  PROVIDER_ADAPTER_BATCH_TIMEOUT_MS,
+} from "./serviceLifecycle";
 import {
   compileErrorBanner,
   completedModelCount,
@@ -127,7 +133,7 @@ const defaultDependencies: ProviderAdapterServiceDependencies = {
   verify: (input) => verifyAdapterMode(input),
   now: () => new Date().toISOString(),
   id: () => `adapter-run-${crypto.randomUUID()}`,
-  batchTimeoutMs: 5 * 60_000,
+  batchTimeoutMs: PROVIDER_ADAPTER_BATCH_TIMEOUT_MS,
   discoverTimeoutMs: 45_000,
   compileTimeoutMs: 120_000,
   verifyTimeoutMs: 30_000,
@@ -205,7 +211,7 @@ export class ProviderAdapterService {
         headers: input.headers,
         proxyUrl: input.proxyUrl,
       }),
-      deadlineAt: deadlineFrom(timestamp, this.dependencies.batchTimeoutMs ?? 5 * 60_000),
+      deadlineAt: deadlineFrom(timestamp, this.dependencies.batchTimeoutMs ?? PROVIDER_ADAPTER_BATCH_TIMEOUT_MS),
       checkpoint: this.dependencies.certificationCheckpoint,
     });
     // 用户交的文档 / 外部编译好的说明卡跟着 run 落盘（边表，不进 run DTO）。
@@ -262,7 +268,7 @@ export class ProviderAdapterService {
       // 本次改动之前落盘、仍停在 submitting/unknown 的历史 run 由 resumeDisposition 判成 wait，
       // 停在那里等人处理，而不是被我们再花一次钱去重试。
       if (this.certification.resumeDisposition(run, false) === "wait") continue;
-      const deadlineAt = run.deadlineAt || deadlineFrom(run.createdAt, this.dependencies.batchTimeoutMs ?? 5 * 60_000);
+      const deadlineAt = run.deadlineAt || deadlineFrom(run.createdAt, this.dependencies.batchTimeoutMs ?? PROVIDER_ADAPTER_BATCH_TIMEOUT_MS);
       if (deadlineExpired(deadlineAt, this.dependencies.now())) {
         this.finishTerminal(run.id, "timed_out", "Adapter run deadline expired before it could resume");
         continue;
@@ -306,7 +312,7 @@ export class ProviderAdapterService {
     if (!initial.deadlineAt) {
       initial = this.store.updateRun(id, (current) => ({
         ...current,
-        deadlineAt: deadlineFrom(current.createdAt, this.dependencies.batchTimeoutMs ?? 5 * 60_000),
+        deadlineAt: deadlineFrom(current.createdAt, this.dependencies.batchTimeoutMs ?? PROVIDER_ADAPTER_BATCH_TIMEOUT_MS),
       }));
     }
     if (deadlineExpired(initial.deadlineAt, this.dependencies.now())) {

@@ -16,6 +16,12 @@ import {
 } from "../providerAdapter/agentCompileRequest";
 import { hasCompilerLanguageModel } from "../providerAdapter/serviceLanguageModels";
 import { cancelCertifyingRun, sessionModelResults, type IntegrationModelResult } from "./integrationSessionRunView";
+import {
+  createIntegrationSessionReaper,
+  integrationCertifyingDeadlineAt,
+  isTerminalIntegrationStage,
+} from "./integrationSessionTerminal";
+import type { TerminalReaper } from "../providerAdapter/terminalGuarantee";
 import { adapterDraftFromProposal, compileRequestFor } from "./integrationAdapterContract";
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
@@ -126,6 +132,12 @@ export type IntegrationSession = {
   selections: IntegrationCandidate[];
   credentialRef?: string;
   startIdempotencyKey?: string;
+  /**
+   * 这次认证最晚什么时候必须有结论。进入 `certifying` 时落盘，由会话层看门狗
+   * （integrationSessionTerminal.ts）到点强制终态化。没有它 = 会话可以无限期停在中间态，
+   * 那就是 2026-09-11 那次死锁的形状。
+   */
+  certifyingDeadlineAt?: string;
   /** 待驱动 Agent 编译时的交底；收到合法 adapterDraft 后清空。 */
   compileRequest?: IntegrationCompileRequest;
   /** 驱动 Agent 交回并已通过 validateProviderAdapterDraft 的说明卡。 */
@@ -170,6 +182,8 @@ type Dependencies = {
   now?: () => string;
   /** Durable reservation for native ComfyUI certification submissions. */
   comfyOperationLedger?: OperationLedger;
+  /** 会话看门狗的周期；只给测试注入，生产用共享默认（TERMINAL_REAPER_INTERVAL_MS）。 */
+  reaperIntervalMs?: number;
 };
 /** Runtime wiring used by both GUI RPC and packaged stdio. Keeps secrets in main and
  * injects the same certification/handoff boundaries into every transport. */
@@ -508,9 +522,6 @@ const WRITE_STAGES = new Set<IntegrationStage>([
     (stage) => !["certifying", "committing", "completed", "partial", "failed", "cancelled"].includes(stage),
   ),
 ]);
-const TERMINAL = new Set<IntegrationStage>(
-  INTEGRATION_STAGES.filter((stage) => ["completed", "partial", "failed", "cancelled"].includes(stage)),
-);
 const AUTH_TYPES = new Set<AdapterAuthType>(["none", "bearer", "x-api-key", "query"]);
 const AUTH_FIELD_NAME = /^[A-Za-z][A-Za-z0-9!#$%&'*+.^_`|~-]{0,199}$/;
 function digest(value: unknown): string {
@@ -578,11 +589,56 @@ export class IntegrationSessionService {
   private readonly filePath: string;
   private readonly certification: ConnectionCertificationService;
   private readonly save: (filePath: string, state: PersistedState) => void;
+  /** 会话层看门狗：过了认证 deadline 还非终态的会话由它强制收掉（见 integrationSessionTerminal.ts）。 */
+  private readonly reaper: TerminalReaper;
   constructor(private readonly deps: Dependencies = {}) {
     this.filePath = deps.filePath || path.join(capabilityCoreDir(), "integration-sessions.json");
     this.certification = deps.certification || getConnectionCertificationService();
     this.save = deps.save || writeCertificationJsonAtomic;
     this.state = this.read();
+    this.reaper = createIntegrationSessionReaper({
+      activeSessions: () => this.state.sessions,
+      forceTimeout: (sessionId) => this.failCertificationAsTimedOut(sessionId),
+      now: () => (this.deps.now || (() => new Date().toISOString()))(),
+      ...(deps.reaperIntervalMs ? { intervalMs: deps.reaperIntervalMs } : {}),
+    });
+  }
+
+  /**
+   * 启动补偿 + 开看门狗。盘上停在 `certifying`/`committing` 的会话背后**没有任何在飞的
+   * promise** 支撑它们（上一个进程带着走了），所以先扫一遍已过期的，再开周期看门狗。
+   * 返回这一轮收掉的会话 id，给调用方留证，而不是静默处理。
+   */
+  resumeInterrupted(): string[] {
+    const reaped = this.reaper.sweep();
+    this.reaper.start();
+    return reaped;
+  }
+
+  /** 关停时别把定时器留在 event loop 上（测试里会拖住进程）。 */
+  stopWatchdog(): void {
+    this.reaper.stop();
+  }
+
+  /** 手动扫一次（测试与诊断用；生产靠 `resumeInterrupted` 装上的周期看门狗）。 */
+  sweepExpiredSessions(at?: string): string[] {
+    return this.reaper.sweep(at);
+  }
+
+  /**
+   * 「认证超时」这一下。**不吞任何东西**：会话带着明确的 `certification_timed_out`
+   * 出现在投影里，用户和驱动 Agent 都看得见，也还能重新 begin。
+   * 原因码复用 run 层那份映射（`adapterTerminalReasonCode`），不在这里另造一个字面量。
+   */
+  private failCertificationAsTimedOut(sessionId: string): void {
+    const session = this.state.sessions.find((entry) => entry.id === sessionId);
+    if (!session || isTerminalIntegrationStage(session.stage)) return;
+    session.stage = "failed";
+    session.blockingReason = { code: adapterTerminalReasonCode("timed_out") };
+    session.revision += 1;
+    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
+    this.state.revision += 1;
+    this.persist();
   }
   private read(): PersistedState {
     if (!fs.existsSync(this.filePath)) return { version: 1, revision: 0, sessions: [] };
@@ -796,7 +852,7 @@ export class IntegrationSessionService {
   list(owner: CapabilityOriginHost, limit = 20): { sessions: IntegrationSessionProjection[] } {
     const mine = this.state.sessions.filter((entry) => entry.ownerClientId === owner);
     const ranked = [...mine].sort((left, right) => {
-      const openness = Number(TERMINAL.has(left.stage)) - Number(TERMINAL.has(right.stage));
+      const openness = Number(isTerminalIntegrationStage(left.stage)) - Number(isTerminalIntegrationStage(right.stage));
       if (openness !== 0) return openness;
       return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
     });
@@ -810,7 +866,7 @@ export class IntegrationSessionService {
       (entry) =>
         entry.ownerClientId === owner &&
         entry.kind === kind &&
-        !TERMINAL.has(entry.stage) &&
+        !isTerminalIntegrationStage(entry.stage) &&
         String(entry.config.baseUrl || "").replace(/\/+$/, "") === baseUrl,
     );
   }
@@ -1201,6 +1257,11 @@ export class IntegrationSessionService {
     session.startIdempotencyKey = normalizedIdempotencyKey;
     // 先把「开跑」这个意图落盘再真正开跑：进程死在这中间时，重放同一把 key 能接着走。
     session.stage = "certifying";
+    // 意图和它的**到期时间**必须同一次落盘。只落意图 = 盘上多一条没有尽头的 `certifying`，
+    // 进程再也不回来时没人知道该什么时候放弃它（2026-09-11 死锁就停在这个形状）。
+    session.certifyingDeadlineAt = integrationCertifyingDeadlineAt(
+      (this.deps.now || (() => new Date().toISOString()))(),
+    );
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
@@ -1237,7 +1298,15 @@ export class IntegrationSessionService {
         ...(item.label ? { labelZh: item.label } : {}),
       })),
     };
-    let certificationSucceeded = false;
+    /**
+     * 认证结果先攒在局部变量里，**最后**才决定要不要写回会话。
+     *
+     * 因为这中间有 await：用户或看门狗可能在我们等着的时候已经把会话收成终态了
+     * （`cancel` 现在任何非终态都可达——见 integrationSessionRunView.cancelCertifyingRun）。
+     * 直接写回 = 一个迟到的 `completed` 把用户亲手按下的 `cancelled` 覆盖掉，
+     * 也就是「放开逃生口」换来「两个真相」。会话的终态一旦定下就是封的。
+     */
+    let outcome: { stage: IntegrationStage; blockingReason?: { code: string }; childRunRef?: { runId: string; revisionDigest: string } } | undefined;
     try {
       if (session.kind === "comfyui-workflow") {
         if (!this.deps.certifyComfy) throw new Error("comfy_certification_unavailable");
@@ -1245,32 +1314,42 @@ export class IntegrationSessionService {
         // The durable reservation is the canonical run identity. The callback
         // may return a catalog revision handle, but that handle is not allowed
         // to become a second idempotency/run identity.
-        session.childRunRef = comfyReservation?.operation?.childRunRef || callbackRef;
-        session.stage = "completed";
-        certificationSucceeded = true;
+        outcome = {
+          stage: "completed",
+          childRunRef: comfyReservation?.operation?.childRunRef || callbackRef,
+        };
       } else {
         const run = await this.certification.startHttp({
           entryPoint: "programmatic-session",
           idempotencyKey: normalizedIdempotencyKey,
           connection,
         });
-        session.childRunRef = { runId: run.id, revisionDigest: run.childRunRef.revisionDigest };
-        session.stage = integrationStageFromAdapterRun(run.stage);
-        session.blockingReason = session.stage === "failed" ? { code: adapterTerminalReasonCode(run.stage) } : undefined;
+        const nextStage = integrationStageFromAdapterRun(run.stage);
+        outcome = {
+          stage: nextStage,
+          childRunRef: { runId: run.id, revisionDigest: run.childRunRef.revisionDigest },
+          ...(nextStage === "failed" ? { blockingReason: { code: adapterTerminalReasonCode(run.stage) } } : {}),
+        };
       }
     } catch (error) {
-      session.stage = "failed";
-      session.blockingReason = {
-        code: safeCertificationFailureCode(error),
-      };
+      const code = safeCertificationFailureCode(error);
+      outcome = { stage: "failed", blockingReason: { code } };
       // blockingReason 只留一个粗码（provider_failed / invalid_input / …），原始错误以前
       // 在这里被彻底丢掉：真机上「明明 /prompt 成功了却报失败」时，盘上和界面上都没有任何
       // 线索可查。日志已做脱敏（redactError），记下来才有得排。
       logError("onboarding", "integration-certification-failed", error, {
         sessionId: session.id,
         kind: session.kind,
-        code: session.blockingReason.code,
+        code,
       });
+    }
+    // 会话已经落终态（用户按了 cancel / 看门狗收了尸）：认账，不覆写。
+    // 下面那段预留账本（comfyOperationLedger）照旧按**远端真实发生了什么**记，
+    // 因为「用户放弃了本地会话」和「远端那次提交成没成」是两件不同的事实，各自都要如实。
+    if (!isTerminalIntegrationStage(session.stage) && outcome) {
+      session.stage = outcome.stage;
+      session.blockingReason = outcome.blockingReason;
+      if (outcome.childRunRef) session.childRunRef = outcome.childRunRef;
     }
     if (session.kind === "comfyui-workflow" && this.deps.comfyOperationLedger && comfyReservation?.operation) {
       const current = this.deps.comfyOperationLedger.getByRunId(comfyReservation.operation.runId);
@@ -1280,7 +1359,9 @@ export class IntegrationSessionService {
         current.checkpoint !== "cancelled" &&
         current.checkpoint !== "superseded"
       ) {
-        if (certificationSucceeded) {
+        // 「远端那次提交成没成」就看 outcome 的阶段，不再另存一个布尔——
+        // 同一个事实两处记录，日后只会改到其中一个（ponytail 2026-09-15 指出）。
+        if (outcome?.stage === "completed") {
           this.deps.comfyOperationLedger.markCheckpoint(comfyReservation.operation.runId, {
             checkpoint: "finalized",
             expectedRevision: current.revision,
@@ -1312,7 +1393,7 @@ export class IntegrationSessionService {
     const session = this.getOrThrow(sessionId);
     if (session.ownerClientId !== owner) throw new IntegrationRequestError("integration_owner_mismatch", "Integration session belongs to a different signed client");
     assertIntegrationRevision(expectedRevision, session.revision);
-    if (TERMINAL.has(session.stage)) return this.projection(session);
+    if (isTerminalIntegrationStage(session.stage)) return this.projection(session);
     // 逃生口：HTTP 会话的 certifying 不再是无出口的黑洞（见 integrationSessionRunView.ts）。
     if (session.stage === "certifying" || session.stage === "committing")
       session.blockingReason = cancelCertifyingRun(this.certification, session);

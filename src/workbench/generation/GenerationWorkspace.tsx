@@ -189,10 +189,16 @@ export default function GenerationWorkspace({
         {timelineCollapsed ? null : <TimelineMiniPreview />}
       </div>
       {hasAssistant ? <AssistantPane dockRef={agentDockRef} collapsed={aiCollapsed} /> : null}
-      {/* 2026-09-10 走查反馈：时间轴原先 col-span-full 横跨 agent 列，agent 面板
-          弹簧动画改宽时时间轴跟着左右伸缩、盖住画布内容。时间轴是画布的时间观，
-          只占画布列（col-start-1），agent 列与它解耦。 */}
-      <div className={cn('workbench-generation__timeline', 'relative col-start-1 min-w-0 min-h-0')}>
+      {/* 时间轴横贯整个底部（`grid-column: 1 / -1`），面板被它顶上去。
+          这是迁移前的规格（`git show 8f9365aeb:src/workbench/generation/GenerationWorkspace.tsx:177`），
+          2026-09-14 用户再次拍板恢复。d2bb622c1 曾把它收进画布那一列，理由写的是
+          「面板弹簧动画时时间轴跟着左右伸缩」——那条理由反了：横贯两列时宽度 = 两列之和
+          = 工作区宽，与 `--generation-assistant-width` 无关、动画期间也是常量；会随面板
+          伸缩的恰恰是只占一列的那一版。收进一列的真实后果是第 2 行第 2 格没有任何内容，
+          用户看到的就是「右下角缺了一大块」（09-13 19:27 截图）。
+          容器关系由 generationWorkspaceLayout.structure.test.ts 与
+          tests/ux/layout-timeline-panel-span.walk.mjs 两头锁住，不再是一串改错不会红的类名。 */}
+      <div className={cn('workbench-generation__timeline', 'relative col-span-full min-w-0 min-h-0')}>
         {timelineCollapsed ? null : (
           <>
             <TimelineResizeHandle />

@@ -17,6 +17,8 @@ export const zhTimelineEditor = {
   zoomIn: '{{prefix}}放大时间轴',
   toolbarLabel: '时间轴工具条',
   collapsePanel: '收起时间轴',
+  /** 行尾收起钮的**可见文字**（hover 名字仍是 collapsePanel 的长句）。 */
+  collapse: '收起',
   toolbar: { thisSegment: '这一段', wholeFilm: '整片', view: '视图' },
   snapToggle: '吸附',
   snapShortcut: '吸附（N）',
@@ -167,6 +169,7 @@ export const enTimelineEditor = {
   zoomIn: '{{prefix}}zoom timeline in',
   toolbarLabel: 'Timeline toolbar',
   collapsePanel: 'Collapse timeline',
+  collapse: 'Collapse',
   toolbar: { thisSegment: 'This segment', wholeFilm: 'Whole film', view: 'View' },
   snapToggle: 'Snapping',
   snapShortcut: 'Snapping (N)',

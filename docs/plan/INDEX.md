@@ -218,6 +218,7 @@
 | [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
 | [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
 | [2026-09-05-timeline-placement-strategy.md](2026-09-05-timeline-placement-strategy.md) | 时间轴 P0 落位、默认 fit、轨道滚动与字幕不重叠 | 🚧 |
+| [2026-09-15-generation-layout-timeline-spans-bottom.md](2026-09-15-generation-layout-timeline-spans-bottom.md) | **生成面外壳修回旧设计**（T-RL-06 + T-ED-01）：时间轴回 `col-span-full` 横贯底部、AI 面板被顶上去右下角不空；收起钮移出滚动区带文案、默认高度由「两条主轨」派生；结构测试 + 四态走查锁住容器关系 | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
@@ -320,3 +321,5 @@
 - [2026-09-12 接模型验证 run 的失败路径：不许停在中间态](2026-09-12-integration-run-failure-path.md) — 终态写三层保证（同步→退避→errors.jsonl+启动补偿）、deadline 看门狗、certifying 逃生口、逐模型错误原文进 session.read；含 H1/H2 锁审计结论与门表；根因合同 [`2026-09-12-integration-run-failure-path.root-cause.json`](../fixes/2026-09-12-integration-run-failure-path.root-cause.json)，结构评审 [`../audit/2026-09-12-integration-layer-structural-review.md`](../audit/2026-09-12-integration-layer-structural-review.md)（✅ 已交付）
 
 - [2026-09-14 常驻生成面「装没装」收成一个 owner（先查别人报告）](2026-09-14-resident-surface-lifecycle-prior-art.md) — 三份互不知情的 nullable 影子（`main.ts` 的工厂 / `appIntegrationSpendConfirm` 的 `actions` 与 `installFailure`）收成 `residentSurfaceLifecycle` 一个五相 owner；照抄仓内既有「常量派生词表 + 判别联合」形状不造新机制；根因合同 [`2026-09-14-resident-generation-adapter-install.root-cause.json`](../fixes/2026-09-14-resident-generation-adapter-install.root-cause.json)，结构评审 [`../audit/2026-09-14-resident-surface-lifecycle-structure.md`](../audit/2026-09-14-resident-surface-lifecycle-structure.md)（✅ 已交付）
+
+- [2026-09-15 接入验证**会话层**的终态保证：借来的保证一定有边界](2026-09-15-integration-session-terminal-guarantee.md) — 09-12 那版只修了 run 层；会话层拥有 `session.stage` 却把终态保证外包给子 run，于是 ComfyUI 会话 / `startHttp` 未返回的窗口 / run 记录已删三种状态照旧永久停在 `certifying` 且 `cancel` 抛异常。修法：认证 deadline 与开跑意图同一次落盘 + **复用** run 层那只 `TerminalReaper`（不新造看门狗）+ cancel 永不抛 + 终态封口防迟到结果复活 + 旧数据按 `updatedAt` 补 deadline；deadline 从批次超时派生并机检（不拍常量）。含 T-MO-07 接续路径；根因合同 [`2026-09-15-integration-session-terminal-guarantee.root-cause.json`](../fixes/2026-09-15-integration-session-terminal-guarantee.root-cause.json)

@@ -15,6 +15,10 @@ import {
   type IntegrationStage,
 } from "../shared/integrationContract";
 import type { CapabilityOriginHost } from "../capabilityCore/security";
+import {
+  integrationCertifyingDeadlineAt,
+  isCertifyingIntegrationStage,
+} from "./integrationSessionTerminal";
 
 const MAX_SESSIONS = 100;
 
@@ -71,6 +75,23 @@ function migrateRetiredSpendGate(item: Record<string, unknown>): void {
   for (const field of RETIRED_SPEND_GATE_FIELDS) delete item[field];
 }
 
+/**
+ * 修复之前落盘的 `certifying`/`committing` 会话没有 `certifyingDeadlineAt`，
+ * 于是会话看门狗按「没根据不判死」原则永远不碰它们——用户盘上那几条已经卡死的会话
+ * 会继续卡到手动删文件。这里按它**最后一次动过的时间**补一个到期时间：
+ * 那是我们对「这次认证什么时候还活着」唯一有据可查的时刻，比重新从现在起算诚实
+ * （从现在起算等于每次重启都给它续命一轮）。
+ */
+function backfillCertifyingDeadline(item: Record<string, unknown>): void {
+  if (typeof item.stage !== "string" || !isCertifyingIntegrationStage(item.stage)) return;
+  if (typeof item.certifyingDeadlineAt === "string" && item.certifyingDeadlineAt) return;
+  const anchor = typeof item.updatedAt === "string" && Number.isFinite(Date.parse(item.updatedAt))
+    ? item.updatedAt
+    : undefined;
+  if (!anchor) return;
+  item.certifyingDeadlineAt = integrationCertifyingDeadlineAt(anchor);
+}
+
 export function validateState(raw: unknown): PersistedIntegrationState {
   assertRecord(raw);
   if (
@@ -85,6 +106,7 @@ export function validateState(raw: unknown): PersistedIntegrationState {
   for (const item of raw.sessions) {
     assertRecord(item);
     migrateRetiredSpendGate(item);
+    backfillCertifyingDeadline(item);
     const allowedKeys = new Set([
       "schemaVersion",
       "id",
@@ -108,6 +130,7 @@ export function validateState(raw: unknown): PersistedIntegrationState {
       "startIdempotencyKey",
       "compileRequest",
       "adapterDraft",
+      "certifyingDeadlineAt",
     ]);
     const unknown = Object.keys(item).find((key) => !allowedKeys.has(key));
     if (unknown) throw new Error(`Invalid integration session field: ${unknown}`);
