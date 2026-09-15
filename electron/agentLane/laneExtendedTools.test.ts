@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createExtendedLaneTools } from './laneExtendedTools'
 import { z } from 'zod'
 import { flattenDiscriminatedUnion, ConflictingBranchField } from '../shared/agentCapabilities/flatModelInput'
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools'
@@ -66,4 +67,23 @@ it('enum merging is opt-in and never relaxes the source branch constraints', () 
     z.object({ kind: z.literal('second'), action: z.number() }),
   ])
   expect(() => flattenDiscriminatedUnion(conflict, { name: 'test', mergeEnumFields: ['action'] })).toThrow(ConflictingBranchField)
+})
+
+// 2026-09-14：域端口的失败 message 必须到得了模型。常驻生成面的 owner 会把「为什么不在」说清楚
+//（按配置关掉 / 还在起 / 装配抛了），这一层若只转发 code，模型仍只能对用户说「暂时不可用」。
+describe('domain failure message reaches the model', () => {
+  const signal = new AbortController().signal
+  const run = async (decision: { ok: false; code: string; message?: string }) => {
+    const tool = createExtendedLaneTools({ execute: async () => decision }).find(candidate => candidate.name === 'nomi_generation_status')!
+    return tool.execute({ operation: 'read', operationId: 'run-1' }, { toolCallId: 'call-1', signal }) as Promise<{ ok: boolean; failure?: { code: string; message: string } }>
+  }
+  it('forwards a message that says more than the code', async () => {
+    const result = await run({ ok: false, code: 'generation_surface_unavailable', message: "Nomi's resident generation surface is still starting; retry this step in a moment." })
+    expect(result.ok).toBe(false)
+    expect(result.failure).toMatchObject({ code: 'generation_surface_unavailable', message: expect.stringMatching(/\(generation_surface_unavailable\)\. Nomi's resident generation surface is still starting/) })
+  })
+  it('does not repeat a message that is only the code', async () => {
+    const result = await run({ ok: false, code: 'capability_unsupported', message: 'capability_unsupported' })
+    expect(result.failure?.message).toBe('nomi_generation_status could not complete the requested action (capability_unsupported).')
+  })
 })

@@ -10,6 +10,7 @@ import type { PiGenerationTransportAdapter } from '../capabilityCore/generationT
 import type { ProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
 import { committedProjectAgentReceiptMatchesApproval } from '../capabilityCore/projectAgentProposalReceiptCorrelation'
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools'
+import { residentGenerationUnavailableMessage } from '../capabilityCore/residentSurfaceLifecycle'
 import { capabilityContractById } from '../shared/agentCapabilities/registry'
 import { LANE_RECEIPT_AUTHORITY_NOTE } from '../shared/agentLane/laneReceiptAuthority'
 import { LANE_DEFERRED_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog'
@@ -41,6 +42,15 @@ export interface LaneExtendedDesktopPortsInput {
 
 function failure(code: string): Extract<RuntimeToolDecision, { ok: false }> {
   return { ok: false, code, message: code }
+}
+
+/**
+ * 生成面不在：code 照旧，message 说的是常驻生成面此刻的**相**（按配置关掉 / 还在起 / 装配抛了 /
+ * 已停），由 residentSurfaceLifecycle 这一个 owner 回答。模型据此能告诉用户「等一会儿再试」还是
+ * 「这个会话没有这条面」，而不是一句零信息的「生成服务暂时不可用」。
+ */
+function generationSurfaceUnavailable(): Extract<RuntimeToolDecision, { ok: false }> {
+  return { ok: false, code: 'generation_surface_unavailable', message: residentGenerationUnavailableMessage() }
 }
 
 function rejectPreparation(code: string): never {
@@ -116,7 +126,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       if (spec.internalGroup === 'timeline') return await input.timelineRead.tryExecute(call, signal) ?? failure('capability_unsupported')
       if (spec.internalGroup === 'media') return await input.phase4.tryExecuteRead(call, signal) ?? failure('capability_unsupported')
       if (spec.internalGroup === 'production') return await input.production.tryExecute(call, signal) ?? failure('capability_unsupported')
-      return await input.generation()?.tryExecute(call, signal) ?? failure('generation_surface_unavailable')
+      return await input.generation()?.tryExecute(call, signal) ?? generationSurfaceUnavailable()
     }
     const entry = pending.get(call.toolCallId)
     if (!entry?.approved || entry.prepared.value.call.toolName !== call.toolName
@@ -128,7 +138,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
     if (prepared.kind === 'direct') {
       result = spec.internalGroup === 'production'
         ? await input.production.tryExecute(call, signal) ?? failure('capability_unsupported')
-        : await input.generation()?.tryExecute(call, signal) ?? failure('generation_surface_unavailable')
+        : await input.generation()?.tryExecute(call, signal) ?? generationSurfaceUnavailable()
     } else {
       if (approved === true) return failure('capability_authority_invalid')
       switch (prepared.kind) {

@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-14T23:03:48.206Z",
+  "host": "claude-code-cli",
+  "model": "sonnet",
+  "toolCalls": 20,
+  "firstTryOk": 17,
+  "firstTryRate": 0.85,
+  "spendApprovals": [],
+  "artifacts": []
+}

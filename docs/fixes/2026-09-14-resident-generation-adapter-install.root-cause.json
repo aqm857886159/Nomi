@@ -1,0 +1,273 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-14-resident-generation-adapter-install",
+  "change_kind": "corrective",
+  "problem_type": "可选能力「没装」的四种相塌成一个 null：按配置关掉被读成装配失败",
+  "symptom": "#764（1b6beece8，2026-09-12）合入后，所有触发 Canvas Performance CI job 的画布 PR（#763、#776）都红在同一句 `console error: [missing-intervention-card] spend-confirm spend-surface-unavailable productionRunApi.pendingSpend rejected`（×21，来源 src/workbench/ai/v4/missingInterventionCard.ts:83），15 个 gating 场景全部 hardFailure，而同一份 canvas-validation-gate.json 里预算检查全过（frameGapP95 17.5–45.6ms，上限 53）。本地复现：`NOMI_CANVAS_PERF_SCENARIOS=blank-pan node tests/ux/canvas-performance-benchmark.e2e.mjs validation-gate --scale M --runs 1 --warmup 0` → 同一句 console error、预算全过、exit 1。",
+  "direct_cause": "tests/ux/canvas-performance-benchmark.e2e.mjs:1077 以 `NOMI_DISABLE_CAPABILITY_CORE=1` 起隔离实例（隔离实例不该起本地 RPC、不该碰 ~/.codex），electron/main.ts:668 据此跳过 startDesktopCapabilityCore，于是 electron/capabilityCore/appIntegration.ts:503 的 installPendingSpendActions 从未被调用。读通道 electron/capabilityCore/appIntegrationSpendConfirm.ts（09-12 版 :110）只认得 `actions === null` 一种相，把「从没起过」当成「装配抛了」抛出 spend_confirm_surface_unavailable；IPC（productionActionIpc.ts:68）如实拒绝；渲染层 useAgentPanelSpendConfirm.ts:123 的 catch 按 09-12 的规矩渲那张会说话的卡并 console.error，每 1.5s 轮询一次；benchmark 的 sampleHardFailures（:1266）把每条 console error 记成硬失败。**不存在被 catch 吞掉的异常**：隔离实例自己的主进程日志（<tempRoot>/user-data/logs/nomi-2026-09-14.log）在禁用能力核时只有一行 session-start，零 ERROR；开启能力核时 rpc-listening 于 +366ms、零 ERROR、同一场景全绿。",
+  "class_root": "「常驻生成面（Agent lane 的生成适配器 + 面板付费确认卡）在本会话里装没装、没装是为什么」这份状态没有 owner，有三份 nullable 影子：main.ts 的 desktopGenerationAdapterFactory、appIntegrationSpendConfirm.ts 的 actions 与 installFailure。四种现实（按配置关掉 / 能力核还在起 / 装配抛了 / 已停）在三处都是同一个 undefined，每个读者只能自己猜 undefined 是什么意思。09-12（#764）在读侧把 null 改成「抛」——对装配失败对了，对按配置关掉错了；09-13 合同 spend-surface-unavailable-error-boundary 在渲染层加吞错 guard——对关掉对了，对真失败错了，而且 isOptionalSpendSurfaceUnavailable 五个 commit 后仍是死导出、refresh 的 catch 从没调过它。两端各修一次都不对，因为两端都不是这份状态的 owner。",
+  "migration": "新增唯一 owner electron/capabilityCore/residentSurfaceLifecycle.ts（五种相：disabled{env|low-memory} / starting / ready{factory} / install-failed{reason} / stopped），词表放 electron/shared/contracts/residentSurfaceLifecycle.ts 供三方共用。main.ts 的 capabilityCoreDisabled 改由 bootResidentSurfaceLifecycle 判断并记录（判断与记录是同一件事）；appIntegration.startCapabilityCore 起点 markStarting、装齐两条面后 markReady(factory)、内层 catch markInstallFailed、外层 catch 在仍为 starting 时也 markInstallFailed、stopCapabilityCore markStopped。同 commit 删掉：main.ts 的 desktopGenerationAdapterFactory 变量与 onGenerationReady 回调、residentGenerationAdapterFactory.installResidentGenerationAdapter 的 onReady 参数、appIntegrationSpendConfirm 的 installFailure 与 recordPendingSpendInstallFailure、渲染层死导出 isOptionalSpendSurfaceUnavailable。读侧：listPendingSpendConfirmations 返回 PendingSpendRead（ready+rows / off{phase,reason}），只在 install-failed 抛；IPC 与 bridge 类型跟着改；渲染层 pendingSpendOfRead 对 off 不出卡也不报错，catch 仍渲会说话的卡。lane 侧 generation_surface_unavailable 的 message 改由 residentGenerationUnavailableMessage 说出相，laneExtendedTools 把域端口的 message 带给模型（此前只转发 code）。harness 不改：禁用能力核是隔离实例的正确配置，现在它是一种被说出口的相而不是失败。",
+  "affected_population": [
+    "所有触发 Canvas Performance job 的 PR（#763、#776 及后续任何改 BaseGenerationNode/nodeSizing/NodeVideoPlaybackGuard 的分支）：门岗恒红、预算全过",
+    "低内存模式（NOMI_LOW_MEMORY_MODE=1 且未设 NOMI_KEEP_CAPABILITY_CORE）的真实用户：只要打开项目，Agent 面板每 1.5s 画一张「付费确认这条通道没装起来」的卡并 console.error，而这是按配置关掉的",
+    "Agent lane 的用户：任何相下 draft_shots/generate 都只回一句零信息的 generation_surface_unavailable（message=code），模型分不出「等一下再试」和「这个会话没有这条面」",
+    "能力核真的装配失败的用户：行为不变（仍出会说话的卡、CI 仍红），但原因现在由 owner 持有而不是散在两处"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/residentSurfaceLifecycle.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/main.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+  ],
+  "entry_points": [
+    "electron/main.ts:140（bootResidentSurfaceLifecycle：本会话装不装的唯一判断点）",
+    "electron/capabilityCore/appIntegration.ts:142/:511/:519/:660/:684（starting → ready / install-failed / stopped 的全部相变）",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts:105（付费卡读通道按相回答）",
+    "electron/agentLane/laneExtendedDesktopPorts.ts:53（lane 生成面缺席时按相说话）",
+    "electron/productionRun/productionActionIpc.ts:68（IPC 把 PendingSpendRead 原样交给渲染层）",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:106（渲染层：off 不出卡不报错，拒绝才渲会说话的卡）"
+  ],
+  "invariants": [
+    "「常驻生成面装没装、没装是为什么」只有一份真相（residentSurfaceLifecycle），lane 的工厂与付费卡的读通道都从它派生",
+    "off（disabled / starting / stopped）永远不产生 spend_confirm_surface_unavailable，也永远不出 missing-intervention-card",
+    "install-failed 永远抛 spend_confirm_surface_unavailable 且带原话；渲染层照旧渲会说话的卡 + console.error；CI 走查据此硬红（fail-closed 不变）",
+    "startCapabilityCore 的任何一条退出路径都不许把相留在 starting：装齐 → ready，抛 → install-failed",
+    "生成面缺席时模型看到的 message 说的是相，不是 code 的复读"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "line": 37,
+      "symbol": "current"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "line": 140,
+      "symbol": "bootResidentSurfaceLifecycle"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 142,
+      "symbol": "markResidentSurfaceStarting"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 501,
+      "symbol": "installResidentGenerationAdapter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 504,
+      "symbol": "installPendingSpendActions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 511,
+      "symbol": "markResidentSurfaceReady"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 518,
+      "symbol": "installPendingSpendActions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 519,
+      "symbol": "markResidentSurfaceInstallFailed"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 660,
+      "symbol": "markResidentSurfaceInstallFailed"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 684,
+      "symbol": "markResidentSurfaceStopped"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "line": 660,
+      "symbol": "readResidentSurfaceLifecycle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "line": 105,
+      "symbol": "readResidentSurfaceLifecycle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "line": 403,
+      "symbol": "residentGenerationFactory"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "line": 53,
+      "symbol": "residentGenerationUnavailableMessage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "line": 68,
+      "symbol": "listPendingSpendConfirmations"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "line": 106,
+      "symbol": "pendingSpendOfRead"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 16,
+    "why_not": "减的是真相的份数（3 → 1），不是门的扇数。修之前这份状态的 9 扇门分属三份互不知情的 nullable（main.ts:178 写 desktopGenerationAdapterFactory / :404 读；appIntegration.ts:499 经 onReady 回调写、:503 与 :677 写 actions、:514 写 installFailure；appIntegrationSpendConfirm.ts:110 读 actions+installFailure；productionActionIpc.ts:68 读；useAgentPanelSpendConfirm.ts:123 catch 读），每扇门读到的 undefined 各自解释。修之后 16 扇门全部对着同一个 owner（含 owner 自己那一格存储 residentSurfaceLifecycle.ts:37 `current`——它就是那唯一一份真相的落点）：写门是五种相的相变（starting/ready/install-failed×2/stopped 各一处，install-failed 两处是内外两层 catch，缺一层就有一条退出路径把相留在 starting），读门是四个消费者（appIntegration 外层 catch、付费卡读通道、lane 工厂、lane 缺席文案）加 IPC/渲染层的透传。门变多是因为四种相现在各有一扇显式的门，而不是一个 null 兼任四种含义；这些门不能再合并：相变发生在能力核生命周期的不同时刻，消费者住在不同进程/层。"
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/residentSurfaceLifecycle.ts",
+    "tests": [
+      "electron/capabilityCore/residentSurfaceLifecycle.test.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirmInstall.test.ts"
+    ],
+    "why": "相的词表与相变只在这一个模块里定义；lane 与付费卡是它的两个读者。owner 的测试钉五种相各是各的，读者的测试钉「同一种相在两个读者那里得到一致的答案」。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/residentSurfaceLifecycle.test.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirmInstall.test.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/agentLane/laneExtendedTools.test.ts"
+  ],
+  "residual_risks": [
+    "窗口先于能力核创建（main.ts:666 createWindow 后才 startDesktopCapabilityCore），渲染层的头几次轮询理论上落在 starting；本次两个真实探针（禁用/开启能力核各一次 blank-pan 场景）都没观察到 console error，starting 现在是显式的相、不出卡不报错，但没有针对这条竞态的阳性对照测试",
+    "Canvas Performance harness 仍按配置禁用能力核，所以性能门永远不会经过付费确认卡的真实链路——那是 agent-spend-*.walk.mjs 的活，不是性能门的",
+    "低内存模式下用户只能从 Agent 的回复里得知「付费生成在本会话不可用」，面板没有专门的提示（新增可见文案要走 R8 样张 + i18n，本合同不动 UI）",
+    "laneExtendedTools.ts:20 的静态 nextAction「Do not repeat an unknown paid submission.」仍挂在所有失败上，包括从未提交过任何付费的 generation_surface_unavailable（gen-surface-root-cause §1 已指出）；属产品文案欠账，另开合同"
+  ],
+  "internal_only_reason": "根因完全在仓内的启动装配与读通道之间；直接原因用两个真实隔离实例的主进程日志证实（禁用能力核：零 ERROR；开启：rpc-listening +366ms 零 ERROR），不涉及第三方契约。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一份 nullable 状态已经被两份合同各修一端（09-12 announced-card-never-rendered 把 null 改成抛；09-13 spend-surface-unavailable-error-boundary 在渲染层吞回去且没接上线），两次都没解决，因为都不是 owner。只要「装没装」还是一个 undefined，下一个新读者（新的面板卡、新的 lane 工具、MCP 外部宿主）就会再解释一次 undefined，再错一次。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs installResidentGenerationAdapter / recordPendingSpendInstallFailure / generation_surface_unavailable / listPendingSpendConfirmations（修前）：1 / 1 / 0 / 1 扇——三份影子各只有一扇门，门表数不出它们是同一份状态，这正是类根因",
+      "grep -rn \"recordPendingSpendInstallFailure|installFailure|desktopGenerationAdapterFactory|onGenerationReady|isOptionalSpendSurfaceUnavailable\" electron src scripts（排除测试）→ 修后 0 处生产命中（只剩 owner 文件头部的叙述注释）",
+      "grep -rn \"failure('generation_surface_unavailable')\" electron src → 修前 2 处（laneExtendedDesktopPorts.ts:119/:131），修后 0 处，两处都改走 generationSurfaceUnavailable()",
+      "grep -rn NOMI_DISABLE_CAPABILITY_CORE electron src tests scripts → 生产里唯一读者是 residentSurfaceLifecycle.ts:47（修前是 main.ts:139），benchmark :1077 是唯一写者",
+      "laneExtendedDesktopPorts.ts:126-128/:140 其余四条 `?? failure('capability_unsupported')`：timeline/media/production 端口在 lane 里恒有值（laneDesktopTools 直接构造，不经 lifecycle），?? 只兜「适配器不认这个 toolName」，不属「装没装」这一族",
+      "productionActionIpc.ts revise/discard/confirm 三条动作在 actions 为 null 时回 {ok:false, code:'unavailable'}：动作只能从一张已渲染的卡发起，off 相下没有卡可点、install-failed 相下用户看到的是会说话的卡而不是动作按钮，故不改"
+    ]
+  },
+  "generality_proof": "把「装没装、没装是为什么」收成一个 owner 之后，任何读者（现有的四个，以及将来的）都只能拿到五种离散相之一，没有 undefined 可以再解释；相变只在能力核生命周期的五个时刻发生，全部住在 appIntegration/main 两处装配点。新增一个读者时它必须 switch 五种相（TypeScript 穷举），新增一种相时所有读者当场不编译。这比「读侧抛」或「渲染侧吞」都靠前：它们各自只能看见一个 null，而 owner 看见的是相。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "symbol": "bootResidentSurfaceLifecycle / markResidentSurface* / readResidentSurfaceLifecycle / residentGenerationFactory / residentGenerationUnavailableMessage",
+      "responsibility": "常驻生成面「装没装、没装是为什么」的唯一真相：五种相的定义、相变入口、给 lane 的工厂派生、给模型的缺席文案。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "listPendingSpendConfirmations",
+      "responsibility": "付费卡读通道按相回答：off → {surface:'off'}，install-failed → 抛，ready → rows；不再自己维护第二份「装没装」。"
+    },
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "generationSurfaceUnavailable",
+      "responsibility": "lane 生成面缺席时把相说给模型，而不是把 code 复读成 message。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "listPendingSpendConfirmations",
+      "disposition": "enforced",
+      "evidence": "switch 穷举五种相；appIntegrationSpendConfirmInstall.test.ts 钉 disabled/starting/stopped → off、install-failed → 抛带原话与 code、ready → rows、ready 无 actions → 抛。"
+    },
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "entry_point": "generationSurfaceUnavailable",
+      "disposition": "enforced",
+      "evidence": "两处 ?? 都改走它；laneExtendedDesktopPorts.test.ts 钉 message 含相（测试进程未 boot → still starting）；laneExtendedTools.test.ts 钉域端口 message 到得了模型。"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "capabilityCoreDisabled / createDesktopLaneDependencies 的工厂 getter",
+      "disposition": "enforced",
+      "evidence": "判断改由 bootResidentSurfaceLifecycle 记录；lane 工厂 getter 改为 residentGenerationFactory；desktopGenerationAdapterFactory 与 onGenerationReady 同 commit 删除（grep 0 命中）。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "refresh",
+      "disposition": "enforced",
+      "evidence": "pendingSpendOfRead 对 off 回 undefined 且不进 catch；useAgentPanelSpendConfirm.test.ts 钉四种 off 都不留 console 痕迹；catch 仍走 missingCardReasonOfReadFailure（missingInterventionCard.test.ts 未改仍绿）；死导出 isOptionalSpendSurfaceUnavailable 删除。"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "entry_point": "generation() 闭包（createDesktopLaneTools）",
+      "disposition": "not-affected",
+      "evidence": "它只按 input.generationFactory() 的返回值建/换适配器，不解释 undefined 的含义；解释权在 laneExtendedDesktopPorts 的 generationSurfaceUnavailable。laneDesktopTools.test.ts 未改仍绿。"
+    },
+    {
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "entry_point": "reviseSpend / discardSpend / confirmSpend",
+      "disposition": "not-affected",
+      "evidence": "三条动作只能从一张已渲染的卡发起；off 相下没有卡，install-failed 相下渲的是会说话的卡而非动作按钮，actions 为 null 时的 {ok:false, code:'unavailable'} 不会被走到。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/residentSurfaceLifecycle.ts",
+    "invariant": "常驻生成面的可用性只有一份真相、五种离散相；任何读者拿不到 undefined，只能拿到相并按相回答。",
+    "failure_mode": "① 新读者不穷举相 → TypeScript switch 穷举当场不编译；② 装配路径漏标相变 → residentSurfaceLifecycle.test.ts / appIntegrationSpendConfirmInstall.test.ts 红；③ 真的装配失败 → 读通道抛、渲染层 console.error、Canvas Performance/走查的 hardFailures 当场红（fail-closed 不变）；④ 有人再在 catch 里把失败收成空 → check:announced-card 棘轮红（LOUD_MARKERS 已改认 markResidentSurfaceInstallFailed）。",
+    "exception_policy": "none",
+    "strategy": "给这份状态一个 owner，把四种「没装」各自命名，读者按相回答而不是各自解释 null；harness 不改，因为按配置关掉现在是一种被说出口的相。",
+    "artifacts": [
+      "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "electron/shared/contracts/residentSurfaceLifecycle.ts",
+      "electron/shared/contracts/pendingSpendConfirm.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/main.ts",
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "electron/agentLane/laneExtendedTools.ts",
+      "scripts/check-announced-card-rendered.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/residentSurfaceLifecycle.test.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirmInstall.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/main.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/residentGenerationAdapterFactory.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+    ],
+    "rationale": "同 commit 删掉的三份影子及其通路：main.ts 的 desktopGenerationAdapterFactory 变量 + onGenerationReady 回调；appIntegration.ts 的 onGenerationReady 参数与 recordPendingSpendInstallFailure 调用；residentGenerationAdapterFactory.ts 的 onReady 参数；appIntegrationSpendConfirm.ts 的 installFailure 与 recordPendingSpendInstallFailure；渲染层从未接线的死导出 isOptionalSpendSurfaceUnavailable（09-13 合同声称的 guard）。无 fallback、无并行版：off 相下没有第二条「试着读一下」的路。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓内装配与读通道的结构修复，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  }
+}

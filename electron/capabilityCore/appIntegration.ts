@@ -51,7 +51,7 @@ import type { CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 import {
   createRunOwnedGenerationGateAuthority,
 } from './runOwnedGenerationGateAuthority'
-import { installResidentGenerationAdapter, type ResidentGenerationAdapterFactory } from './residentGenerationAdapterFactory'
+import { installResidentGenerationAdapter } from './residentGenerationAdapterFactory'
 import {
   hasGenerationOperationProviderReadiness,
   type GenerationOperationProviderShape,
@@ -60,11 +60,12 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
-import { installPendingSpendActions, pendingSpendDependencies, recordPendingSpendInstallFailure } from './appIntegrationSpendConfirm'
+import { installPendingSpendActions, pendingSpendDependencies } from './appIntegrationSpendConfirm'
 // 付费确认卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
 export { listPendingSpendConfirmations, revisePendingSpendConfirmation, discardPendingSpendConfirmation, confirmPendingSpendConfirmation } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'
 import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
+import { markResidentSurfaceInstallFailed, markResidentSurfaceReady, markResidentSurfaceStarting, markResidentSurfaceStopped, readResidentSurfaceLifecycle } from './residentSurfaceLifecycle'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -135,21 +136,22 @@ export async function startCapabilityCore(
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
-    onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
 ): Promise<void> {
-  // A second core start must invalidate observers owned by the previous
-  // instance before any new provider/runtime wiring can begin. Otherwise a
-  // setup failure could leave the old poll loop alive against a replaced
-  // renderer.
-  disposeSingleShotObservationLifecycle?.();
-  disposeSingleShotObservationLifecycle = null;
-  // A resident adapter owns listeners/IPC bindings. Dispose the previous
-  // instance before reinstalling it on a capability-core restart so no stale
-  // adapter can keep writing into the new runtime.
-  disposeResidentGenerationAdapter?.();
-  disposeResidentGenerationAdapter = null;
+  // 常驻生成面的相从这里起算：重启能力核时先回到 starting，上一轮的 install-failed 不许残留。
+  markResidentSurfaceStarting();
   try {
+    // A second core start must invalidate observers owned by the previous
+    // instance before any new provider/runtime wiring can begin. Otherwise a
+    // setup failure could leave the old poll loop alive against a replaced
+    // renderer.
+    disposeSingleShotObservationLifecycle?.();
+    disposeSingleShotObservationLifecycle = null;
+    // A resident adapter owns listeners/IPC bindings. Dispose the previous
+    // instance before reinstalling it on a capability-core restart so no stale
+    // adapter can keep writing into the new runtime.
+    disposeResidentGenerationAdapter?.();
+    disposeResidentGenerationAdapter = null;
     // 已接入的编程助手若还指着 Nomi 旧入口，宿主侧只显示一句 CONNECTION_CLOSED——里面一个字都没提 Nomi，
     // 用户没有理由想到「去开 Nomi 的模型接入面板」。这个修复原本只作为渲染那块面板的副作用发生，等于没有。
     // 能力核起来 = 这些配置指向的服务端就绪，正是把它们修回来的时刻（只动 Nomi 自己写过的条目，见 mcpConfig）。
@@ -496,7 +498,7 @@ export async function startCapabilityCore(
       const authorizeGeneration = authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration
       // P1 单轨化（2026-09-11）：这条 lane 不再注入 `confirmGenerationInNomi`（居中弹窗的入口），
       // 于是「agent 代发的付费确认弹居中卡」结构上不可能；真被走到会 fail-closed。面板那条走 appIntegrationSpendConfirm。
-      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService })
       disposeResidentGenerationAdapter = residentGeneration.dispose
       // 付费确认卡的编排：租约与 resident 适配器共用同一个 `leaseFor`（不另起一份续期逻辑）。
       installPendingSpendActions(pendingSpendDependencies({
@@ -505,13 +507,16 @@ export async function startCapabilityCore(
         rendererTarget: rendererTargetIdentity, committedSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
         leaseFor: residentGeneration.leaseFor, resolvePricing: resolveModelPricing,
       }))
+      // 两条面（lane 的生成适配器、面板的付费卡）装齐了才算 ready：它们由同一份相回答。
+      markResidentSurfaceReady(residentGeneration.factory)
     } catch (error) {
       logError('capability', 'resident-generation-adapter-install-failed', error)
       // 装配失败**不许只留一行日志**（2026-09-12）。这一段一旦抛，付费确认卡在整个会话里
       // 都不会再出现，而模型还在一句句告诉用户「请在确认卡上点头」——那正是「声称有卡、
-      // 却什么都没渲染」这一族的会话级版本。把原因交给读通道，让它在第一次真要用的时候
-      // 抛得明明白白，用户那头就能看到一张会说话的卡，而不是一片空白。
-      recordPendingSpendInstallFailure(error)
+      // 却什么都没渲染」这一族的会话级版本。把原因记进 owner，读通道据此抛得明明白白，
+      // 用户那头看到一张会说话的卡，CI 里那条 console error 让门岗当场红。
+      installPendingSpendActions(null)
+      markResidentSurfaceInstallFailed(error)
     }
     // P4 S5：打开/切换项目时的补齐钩子（§3.4）。对该项目所有活跃 run：① landCanvasBestEffort 幂等补落缺失
     // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② single-shot 只 poll→materialize
@@ -651,6 +656,8 @@ export async function startCapabilityCore(
     logDevDetail('capability', `RPC 监听 127.0.0.1:${handle.port}（库 ${location.path}）`)
   } catch (error) {
     logError('capability', 'rpc-start-failed', error)
+    // 没走到常驻面装配就抛了（比如 token / 供应商引导抛）：相不许停在 starting 装睡。
+    if (readResidentSurfaceLifecycle().phase === 'starting') markResidentSurfaceInstallFailed(error)
   }
 }
 
@@ -674,6 +681,6 @@ export function stopCapabilityCore(): void {
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
   disposeSingleShotObservationLifecycle?.(); disposeSingleShotObservationLifecycle = null
-  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null; installPendingSpendActions(null)
+  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null; installPendingSpendActions(null); markResidentSurfaceStopped()
   installGuiResolveNarrowIpc(null)
 }

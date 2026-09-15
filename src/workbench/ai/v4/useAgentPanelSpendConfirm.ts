@@ -29,7 +29,7 @@ import { preloadModelOptions, MODEL_REFRESH_EVENT } from '../../../config/modelC
 import type { ModelOption, NodeKind } from '../../../config/models'
 import type { NodeWriteAccess } from '../../generationCanvas/nodes/nodeWriteAccess'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
-import type { PendingSpendConfirm } from '../../../desktop/productionRunBridgeTypes'
+import type { PendingSpendConfirm, PendingSpendRead } from '../../../desktop/productionRunBridgeTypes'
 import { projectSpendCard, spendCardPage } from './agentPanelSpendCard'
 import {
   applyPatchToNode,
@@ -52,9 +52,13 @@ export function hasPendingSpendCapability(): boolean {
   return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
 }
 
-export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
-  const code = (error as { code?: unknown })?.code
-  return code === 'CAPABILITY_UNAVAILABLE' || code === 'spend_confirm_surface_unavailable' || (error instanceof Error && /pendingSpend|spend confirmation/i.test(error.message))
+/**
+ * 主进程那份读结果 → 此刻卡上那一笔。`off`（本会话按配置没装这条面 / 还在起 / 已停）**不是失败**：
+ * 这种相下没有任何一面能 announce「有一笔在等你」，所以没有卡可画，也没有错可报。
+ * 只有主进程真的**拒绝**（装配抛了）才走 refresh 的 catch 渲那张会说话的卡。
+ */
+export function pendingSpendOfRead(read: PendingSpendRead): PendingSpendConfirm | undefined {
+  return read.surface === 'ready' ? read.rows[0] : undefined
 }
 
 export type AgentPanelSpendConfirm = Readonly<{
@@ -99,8 +103,7 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
     }
     if (!hasPendingSpendCapability()) { setPending(undefined); setReadFailure(undefined); return undefined }
     try {
-      const rows = await productionRunApi.pendingSpend(projectId)
-      const next = rows[0]
+      const next = pendingSpendOfRead(await productionRunApi.pendingSpend(projectId))
       setReadFailure(undefined)
       setPending(next)
       if (next && originalModelIds.current?.operationId !== next.operationId) {

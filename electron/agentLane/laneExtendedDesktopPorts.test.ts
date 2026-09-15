@@ -83,7 +83,9 @@ describe('deferred desktop domain authority', () => {
   })
   it('does not lose a delayed generation owner, and never falls back to another runtime', async () => {
     const f = setup(), value = call('nomi_generation_status', { operation: 'read', operationId: 'run-1' })
-    expect(await f.execute(value)).toMatchObject({ ok: false, failure: { code: 'generation_surface_unavailable' } })
+    // 2026-09-14：不再是一个光秃秃的 code。模型看到的是常驻生成面此刻的**相**（还在起 / 按配置关掉 /
+    // 装配抛了），由 residentSurfaceLifecycle 这一个 owner 说出口；测试进程里没人 boot 过，所以是 starting。
+    expect(await f.execute(value)).toMatchObject({ ok: false, failure: { code: 'generation_surface_unavailable', message: expect.stringMatching(/still starting/) } })
     const adapter = { tryExecute: vi.fn(async () => ({ ok: true as const, result: { operationId: 'run-1' } })), dispose: vi.fn() }
     vi.mocked(f.input.generation).mockReturnValue(adapter)
     expect(await f.execute(value)).toMatchObject({ ok: true })

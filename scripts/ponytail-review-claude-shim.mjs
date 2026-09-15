@@ -3,7 +3,7 @@
  * Codex-shaped shim that runs the Ponytail over-engineering review on the
  * Claude Code CLI instead of `codex exec`.
  *
- * `scripts/ponytail-review-hook.mjs` spawns one bounded, read-only reviewer and
+ * `scripts/ponytail-review-branch.mjs` spawns one bounded, read-only reviewer and
  * reads only the file named by `--output-last-message`. That contract is the
  * whole interface, so any binary honouring it can be pointed at with
  * `PONYTAIL_REVIEW_CODEX_BIN`. This shim accepts the Codex argument vector,
@@ -16,7 +16,8 @@
  *
  * Fail-closed by construction: a missing skill file, a missing/failing/timed
  * out `claude`, or empty model output leaves the report file untouched and
- * exits non-zero, which the hook reports as `runner_failed` and blocks Git.
+ * exits non-zero, which review:branch reports as `runner_failed` and refuses to
+ * issue a receipt for.
  */
 
 import { spawnSync } from 'node:child_process'
@@ -25,12 +26,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// The hook kills this process at its own derived budget (2026-09-11: no longer a
-// 180s constant — see resolveReviewTimeoutMs). It hands that budget down as
+// The caller kills this process at its own budget (REVIEW_TIMEOUT_MS in
+// scripts/ponytail-review-branch.mjs) and hands that budget down as
 // PONYTAIL_REVIEW_TIMEOUT_MS; stay HEADROOM below it so a timeout is reported by
 // the shim rather than as a signal kill, and so there is time to leave the report
 // file empty. Never hardcode a second clock here: a shim that stops at 165s while
-// the hook allows 600s would re-create exactly the false timeout being fixed.
+// the caller allows 600s would cut reviews short for no reason.
 const TIMEOUT_HEADROOM_MS = 15_000
 const FALLBACK_BUDGET_MS = 180_000
 const MAX_OUTPUT_BYTES = 4_000_000
@@ -186,7 +187,7 @@ function main() {
   return 0
 }
 
-// Same invocation guard as scripts/ponytail-review-hook.mjs: importing this file
+// Same invocation guard as scripts/ponytail-review-branch.mjs: importing this file
 // (tests) must not run a review.
 const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : ''
 if (import.meta.url === invokedPath) process.exitCode = main()

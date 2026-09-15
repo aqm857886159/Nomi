@@ -10,28 +10,20 @@
 //     停下来让用户去贴——于是「读完再动手」被记成「没做对」。那是 harness 的 bug 被
 //     洗成产品结论（docs/lessons/harness-catch-launders-bugs-into-verdicts）。
 
+import fs from 'node:fs'
+import path from 'node:path'
+
 const VENDOR = 'probe-vendor'
 
-/** 按题库 case 的 state 铺初始世界。近似，但每一格都对得上该状态下用户会说的那些话。 */
+// 初始世界的**唯一 owner** 是题库 JSON 的 `_worlds.byState`（P1：搬过去的同 commit 删掉
+// 这里原来那个 switch）。零额度夹具 electron/capabilityCore/modelOnboardingLoopback.test.ts
+// 读同一份，所以两臂看到的世界一样，数字才能互相比。
+const BANK_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), '../../tests/fixtures/tool-selection/2026-09-11-onboarding-bank.json')
+const WORLDS = JSON.parse(fs.readFileSync(BANK_PATH, 'utf8'))._worlds.byState
+
+/** 按题库 case 的 state 取初始世界。深拷贝：一个 case 改了世界不许漏到下一个 case。 */
 export function worldFor(state) {
-  const model = (key, kind, extra = {}) => ({ modelKey: key, kind, visible: false, lastSelfCheck: null, ...extra })
-  switch (state) {
-    case 'S11.0': // 还没有任何已保存的连接，但手上有一个半途的接入
-      return { connections: [], setups: [{ id: 'setup_probe_0001', vendorKey: 'halfway-vendor', name: 'Halfway Vendor', waitingOn: 'user_pastes_key', step: 'connect_provider' }] }
-    case 'S11.1': // 已经接好过一家，现在要接**新的一家**（或改现有这家的地址）
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', authStyle: 'header', hasStoredKey: true, models: [model('probe-model-a', 'text', { visible: true })] }], setups: [] }
-    case 'S11.2': // 连接建好了，key 还没落地
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', authStyle: 'header', hasStoredKey: false, models: [] }], setups: [{ id: 'setup_probe_0001', vendorKey: VENDOR, waitingOn: 'user_pastes_key', step: 'connect_provider' }] }
-    case 'S11.3': // key 有了，候选模型已探到，等着挑
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', hasStoredKey: true, models: [], candidates: [model('probe-text-1', 'text'), model('probe-image-1', 'image'), model('probe-video-1', 'video')] }], setups: [{ id: 'setup_probe_0001', vendorKey: VENDOR, waitingOn: null, step: 'choose_models' }] }
-    case 'S11.4': // 供应商没有 model-list 端点，等模型写请求配方
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', hasStoredKey: true, models: [] }], setups: [{ id: 'setup_probe_0001', vendorKey: VENDOR, waitingOn: null, step: 'draft_adapter', compileRequest: { contractSchema: '{"sources":[],"models":[]}' } }] }
-    case 'S11.5': // 模型已挑好，自检刚失败（401），还没有出现在画布模型框里
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', hasStoredKey: true, models: [model('probe-text-1', 'text', { lastSelfCheck: { ok: false, code: 401, excerpt: '{"error":"invalid_api_key"}' } }), model('probe-image-1', 'image')] }], setups: [{ id: 'setup_probe_0001', vendorKey: VENDOR, waitingOn: null, step: 'check_connection' }] }
-    case 'S11.6': // 都接好了，画布模型框里一堆，用户想收拾
-    default:
-      return { connections: [{ vendorKey: VENDOR, name: 'Probe Vendor', baseUrl: 'https://probe.example.com/v1', hasStoredKey: true, models: [model('probe-text-1', 'text', { visible: true }), model('probe-image-1', 'image', { visible: true }), model('probe-video-1', 'video', { visible: false, notInPickerBecause: 'hidden by the user' })] }], setups: [] }
-  }
+  return structuredClone(WORLDS[state] ?? WORLDS['S11.6'])
 }
 
 export function envelopeFor(name, args, seq = 1, world = worldFor('S11.6')) {

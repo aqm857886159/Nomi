@@ -60,7 +60,7 @@ const WATCHED = [
  * 判据里的那一半否定：catch 里只要把失败说出去了就不算这一族（渲会说话的卡 / 记下失败状态 /
  * 重新抛 / 把原因交给读通道）。这一族的病不是「catch 了」，是「catch 完假装没事」。
  */
-const LOUD_MARKERS = /missingInterventionCard|traceMissingInterventionCard|setReadFailure|\bthrow\b|recordPendingSpendInstallFailure/
+const LOUD_MARKERS = /missingInterventionCard|traceMissingInterventionCard|setReadFailure|\bthrow\b|markResidentSurfaceInstallFailed/
 
 const COLLAPSES_TO_EMPTY = /\breturn\s*(?:\[\s*\]|undefined|null)\s*[;}]|\bset[A-Z]\w*\(\s*(?:undefined|null|\[\s*\])\s*\)/
 

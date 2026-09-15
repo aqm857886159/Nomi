@@ -3,9 +3,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { CANVAS_PERF_GATE_SCENARIOS, canvasPerfGateTimeoutMs } from './canvas-perf/gateScenarios.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS = 8 * 60_000
-export const PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS = 20 * 60_000
 export const MAX_CANVAS_SCENARIO_LOG_BYTES = 32 * 1024 * 1024
 
 export const CRITICAL_CANVAS_SCENARIOS = [
@@ -34,7 +35,9 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
     id: 'medium-canvas-performance',
     script: 'tests/ux/canvas-performance-benchmark.e2e.mjs',
     args: ['validation-gate', '--scale', 'M', '--runs', '1'],
-    timeoutMs: PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS,
+    // 上限由门岗场景条数派生（见 canvas-perf/gateScenarios.mjs）：加一条场景自动多一格，
+    // 不会像 #763 那样撞上写死的 20 分钟被砍在半路。
+    timeoutMs: canvasPerfGateTimeoutMs(CANVAS_PERF_GATE_SCENARIOS),
   },
 ]
 

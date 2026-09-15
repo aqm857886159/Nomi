@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-14T23:17:34.806Z",
+  "host": "claude-code-cli",
+  "model": "sonnet",
+  "legs": [
+    "B"
+  ],
+  "singleShotFlag": "on",
+  "toolCalls": 30,
+  "firstTryOk": 20,
+  "firstTryRate": 0.6666666666666666,
+  "spendApprovals": [],
+  "artifacts": []
+}

@@ -1,23 +1,23 @@
 # 用 Claude Code 跑 Ponytail 评审（临时壳）
 
-R25 要求每次 commit / push 前真跑一次 `/ponytail-review`。默认执行者是 `codex exec`。
-Codex 账号额度用尽期间（本次：恢复日 **2026-09-11**），`scripts/ponytail-review-hook.mjs`
-会稳定 fail-closed，所有提交和推送都被拦住。
+R25 要求每条分支交工前真跑一次 `/ponytail-review`（2026-09-15 起是 `pnpm run review:branch`，
+不再是每次 commit / push）。默认执行者是 `codex exec`。Codex 账号额度用尽期间，
+`scripts/ponytail-review-branch.mjs` 会稳定 fail-closed、拒绝发收据，于是 push 也过不去。
 
 `scripts/ponytail-review-claude-shim.mjs` 把同一次评审换到 Claude Code CLI 上执行。
 **这不是绕过闸门**：同一份 diff、同一份评审规则、同一套结果标记，只是换了跑模型的宿主。
-钩子本身一行没改，`node --test scripts/ponytail-review-hook.node-test.mjs` 25/25 仍绿。
+评审器契约一行没改，所以壳照旧接得上。
 
 ## 它是怎么接上的
 
-钩子对评审器的全部契约只有三条：接受 Codex 那串参数、从 stdin 拿 prompt、把最终报告写进
+评审器契约只有三条：接受 Codex 那串参数、从 stdin 拿 prompt、把最终报告写进
 `--output-last-message` 指到的文件。所以任何满足这三条的可执行文件都能通过
 `PONYTAIL_REVIEW_CODEX_BIN` 顶上去。壳做的就是：
 
 1. 从 Codex 参数里只取 `--output-last-message` 和 `--cd`，其余忽略；
-2. 从 stdin 读钩子拼好的评审 prompt（含精确的 staged / outgoing diff）；
+2. 从 stdin 读 review:branch 拼好的评审 prompt（含该分支的分块 diff）；
 3. 把**已安装的 Ponytail skill 原文**（`~/.codex/plugins/cache/ponytail/ponytail/<版本>/skills/ponytail-review/SKILL.md`）
-   逐字塞进 `--append-system-prompt`，再补一段「输出传输契约」——因为 skill 本身不知道钩子
+   逐字塞进 `--append-system-prompt`，再补一段「输出传输契约」——因为 skill 本身不知道适配器
    分类器要的那行 `PONYTAIL_REVIEW: PASS|FINDINGS` 标记；
 4. 跑 `claude --print --output-format text`，把最终文本写进报告文件，退出 0。
 
@@ -37,14 +37,13 @@ Codex 账号额度用尽期间（本次：恢复日 **2026-09-11**），`scripts
 
 ## 全部 fail-closed 的路径
 
-壳只在拿到非空模型输出后才写报告文件；在那之前的任何失败都让报告保持钩子预建的 0 字节，
-钩子于是判 `runner_failed` 并拦住 Git。已实测的路径见下方验证表。
+壳只在拿到非空模型输出后才写报告文件；在那之前的任何失败都让报告保持适配器预建的 0 字节，
+`review:branch` 于是判 `runner_failed`、拒绝发收据，push 随即过不去。已实测的路径见下方验证表。
 
-超时：钩子的墙钟自 2026-09-11 起是**派生的**（按 diff 大小与机器负载，180s–600s，见
-`resolveReviewTimeoutMs`），并通过 `PONYTAIL_REVIEW_TIMEOUT_MS` 传给壳。壳自限在该预算
-减 15s 的位置，好让超时由壳报出来而不是被信号砍掉；`PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS`
-只能把它往小调。**壳不许再写死第二份墙钟**——165s 的常量会在大 diff 上把钩子给的 600s
-提前砍掉，正是这次要修的那种假超时。
+超时：每块一个墙钟，一个常量（`REVIEW_TIMEOUT_MS = 600_000`，见
+`scripts/ponytail-review-branch.mjs`），通过 `PONYTAIL_REVIEW_TIMEOUT_MS` 传给壳。壳自限在该
+预算减 15s 的位置，好让超时由壳报出来而不是被信号砍掉；`PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS`
+只能把它往小调。**壳不许再写死第二份墙钟**——165s 的常量会把 600s 的预算提前砍掉。
 
 ## 怎么设 env
 
@@ -54,24 +53,14 @@ Codex 账号额度用尽期间（本次：恢复日 **2026-09-11**），`scripts
 echo 'export PONYTAIL_REVIEW_CODEX_BIN="/Users/aoqimin/Desktop/Nomi/scripts/ponytail-review-claude-shim.mjs"' >> ~/.zshenv
 ```
 
-**为什么是 `~/.zshenv` 而不是命令前缀**：git hook 是 git 自己起的子进程，你没机会在它前面加
-环境变量——`PONYTAIL_REVIEW_CODEX_BIN=... git commit` 虽然能生效（子进程继承），但这台机器上
-常年挂着 20+ worktree，每次 commit 和每次 push 都要记得加前缀，漏一次就是一次被拦。
-zsh 的**所有**非交互 shell（git hook、Claude Code 的 Bash 工具、脚本）都会 source `~/.zshenv`
+**为什么是 `~/.zshenv` 而不是命令前缀**：`review:branch` 常常由脚本或子 agent 起，你没机会
+在每个入口前面加环境变量；这台机器上常年挂着 20+ worktree，漏一次就是一次白跑。zsh 的**所有**
+非交互 shell（Claude Code 的 Bash 工具、脚本、git hook）都会 source `~/.zshenv`
 （`~/.zshrc` 只对交互 shell 生效，**不要写那里**），所以它是唯一一处能一次覆盖全部入口的地方。
 
-漏设的后果是「被拦」而不是「静默放行」，所以这条路是安全的：忘了设，只是提交不了。
-
-**路径要指向哪一份**：上面写的是主仓库路径，**本分支合并进 `main` 之后**才存在。合并前先指向
-当前工作树里的那份：
-
-```sh
-export PONYTAIL_REVIEW_CODEX_BIN="/Users/aoqimin/Desktop/Nomi/.claude/worktrees/gpt-discussion-review-06eb91/scripts/ponytail-review-claude-shim.mjs"
-```
-
-注意 `resolveCodexBinary` 对「带 `/` 但不存在」的路径直接抛错，所以一旦那棵 worktree 被删掉，
-**所有仓库的提交都会被拦**（不会偷偷退回 Codex）。这是刻意的 fail-closed，但换路径时要记得
-同步改 `~/.zshenv`。
+漏设的后果是「评审跑不出来、拿不到收据、push 被拦」而不是「静默放行」，所以这条路是安全的。
+注意 `resolveCodexBinary` 对「带 `/` 但不存在」的路径直接抛错（不会偷偷退回 Codex）——刻意的
+fail-closed，换路径时记得同步改 `~/.zshenv`。
 
 ### 前置条件：`claude` 必须自己登录过
 
@@ -98,16 +87,24 @@ printf 'Reply with exactly: OK' | claude --print --output-format text
 | `PONYTAIL_REVIEW_CODEX_BIN` | 让钩子改用这个壳 | `codex` |
 | `PONYTAIL_REVIEW_CLAUDE_BIN` | 壳调用的 claude 可执行文件 | `claude`（走 PATH） |
 | `PONYTAIL_REVIEW_CLAUDE_MODEL` | 传给 `--model` | 不传，用 CLI 默认 |
-| `PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS` | 壳自限超时，上限 175000 | `165000` |
+| `PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS` | 壳自限超时，只能往小调 | 调用方给的 `PONYTAIL_REVIEW_TIMEOUT_MS` 减 15s |
 | `PONYTAIL_REVIEW_SKILL_PATH` | 指定 Ponytail skill 原文路径 | `~/.codex/plugins/cache/ponytail/ponytail/` 下版本号最大的那份 |
 
 ## 已验证
 
-在一次性 worktree `/Users/aoqimin/Desktop/Nomi-ponytail-shim-test`（`origin/main` @ `18e510da`）
-上，对同一个 staged 改动（`docs/release-process.md` 加一行）直接跑
-`PONYTAIL_REVIEW_CODEX_BIN=<壳> node scripts/ponytail-review-hook.mjs --scope staged`：
+### 2026-09-15（现役路径：`review:branch`）
 
-| 场景 | 钩子分类 | 退出码 |
+在 `/Users/aoqimin/Desktop/Nomi-ponytail-receipt`（分支 `tooling/ponytail-review-before-handoff-20260915`）上
+用真 `claude` 壳跑 `PONYTAIL_REVIEW_CODEX_BIN=<壳> pnpm run review:branch` **五轮**，每轮 3–4 块，
+全部拿到合法结果标记并落盘 findings + 收据；其中第一轮就在本分支自己的 diff 上报出 19 条真发现，
+逐条处置写在那个 PR 的 `## Ponytail` 节里。**真模型跑出的评审内容自此有了实测记录**（这条以前是空的）。
+
+### 2026-09-11（旧路径：已退役的 `--scope staged` 钩子）
+
+下面这张表是在评审还挂在 pre-commit 时录的，跑的是 `node scripts/ponytail-review-hook.mjs --scope staged`
+（该入口 2026-09-15 起不存在）。保留它是因为它证的是**壳自己**的 fail-closed 面，而壳的契约一行没改：
+
+| 场景 | 分类 | 退出码 |
 |---|---|---|
 | 干净报告（三行 PASS 形状） | `pass` | 0 |
 | 有发现报告（发现行 + `net:` + `FINDINGS`） | `completed with findings` | 0 |
@@ -117,21 +114,11 @@ printf 'Reply with exactly: OK' | claude --print --output-format text
 | skill 原文找不到 | `runner_failed` → BLOCKED | 1 |
 | 真 `claude`（未登录） | `runner_failed` → BLOCKED | 1 |
 
-同时核对过壳真的把「skill 全文 + 传输契约」放进了 `--append-system-prompt`、把带 diff 的
+当时也核对过壳真的把「skill 全文 + 传输契约」放进了 `--append-system-prompt`、把带 diff 的
 prompt 放进了 stdin。
-
-**还没验的一条**：因为 standalone `claude` 未登录，**真模型跑出的评审内容**（包括故意塞一段
-过度工程化代码看它报不报阻断）没能跑通。登录之后按上面的步骤复跑一次即可补上——阳性对照建议
-staged 一段明显的 `yagni`/`stdlib` 代码，期望拿到 `completed with findings`。
 
 ## 什么时候撤掉
 
-Codex 额度恢复（2026-09-11）后：
-
-```sh
-# 从 ~/.zshenv 删掉那行，然后开个新 shell
-sed -i '' '/PONYTAIL_REVIEW_CODEX_BIN/d' ~/.zshenv
-```
-
-钩子随即回到 `codex` 默认路径。壳留在仓库里当额度/宿主故障时的备用执行器即可；
-真要清掉的话，一并删掉本文档和 `scripts/ponytail-review-claude-shim.mjs`（R1 加新必删旧）。
+Codex 额度恢复后从 `~/.zshenv` 删掉那行、开个新 shell，`review:branch` 即回到 `codex`
+默认路径。壳留在仓库里当额度/宿主故障时的备用执行器；真要清掉的话，一并删掉本文档和
+`scripts/ponytail-review-claude-shim.mjs`（R1 加新必删旧）。

@@ -12,6 +12,15 @@
   ],
   "registered": [
     {
+      "site": "electron/shared/contracts/residentSurfaceLifecycle.ts::type:ResidentSurfaceOffPhase/type-union",
+      "members": [
+        "disabled",
+        "starting",
+        "stopped"
+      ],
+      "reason": "常驻生成面（Agent lane 生成适配器 + 面板付费确认卡）「不在、但不是失败」的三种相（2026-09-14，合同 docs/fixes/2026-09-14-resident-generation-adapter-install.root-cause.json）：按配置关掉 / 能力核还在起 / 已停。它回答的是「这条面在本会话装没装、没装是为什么」，主进程写、lane 与渲染层读同一份，所以 owner 只能在 electron/shared/（electron/ 不许 import src/）。不能复用现有 owner 的理由：LANE_TASK_STATUSES 的 stopped 说的是「用户停了某个任务」，这里的 stopped 是「能力核被撤下」；TelemetryStatus / ModelHomeConnectionState 的 disabled 是用户偏好开关或某个供应商连接态，这里的 disabled 是整条面按 env / 低内存模式不装。失败相（install-failed）故意不在这张表里：它走抛错而不是相枚举，读者对它的处理（会说话的卡 + console.error）和三种 off 相完全不同。"
+    },
+    {
       "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union",
       "members": [
         "cancelled",

@@ -1,58 +1,66 @@
-// 装配失败**不许只留一行日志**（2026-09-12）。
+// 付费确认卡读通道的答案跟着常驻生成面的**相**走（2026-09-14）。
 //
-// `appIntegration` 那段装配裹在一个 `catch` 里：失败只落一行日志，然后 `actions` 在整个会话里
-// 恒为 `null`。而读通道原来是 `actions?.listPendingSpend(projectId) ?? []`——一个**会话级的
-// 静默开关**：从此每一笔付费草稿都查无此卡，而模型还在一句句告诉用户「请在确认卡上点头」。
-// 日志在开发机上没人看，用户那头只有空面板。
+// 2026-09-12：读通道从「回空」改成「抛」——对「装配抛了」是对的。
+// 但它把「本会话按配置没装」（Canvas Performance harness 的 NOMI_DISABLE_CAPABILITY_CORE=1、
+// 低内存模式）也一并抛成了失败：渲染层每 1.5s 画一张「会说话的卡」+ 一条 console error，
+// #764 之后每条画布 PR 的性能门恒红，预算其实全过。
 //
-// 这一组钉住：没装起来就**抛**，而且抛得出原因；真的装起来了才回那几行。
+// 这一组钉住：相是 off（disabled / starting / stopped）→ `{ surface: "off" }`，不抛也不回空；
+// 相是 install-failed → 抛，原话在错误里；相是 ready → 那几行。
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 beforeEach(() => { vi.resetModules(); });
 
 async function load() {
-  return import("./appIntegrationSpendConfirm");
+  const [confirm, lifecycle] = await Promise.all([import("./appIntegrationSpendConfirm"), import("./residentSurfaceLifecycle")]);
+  return { ...confirm, ...lifecycle };
 }
 
-describe("付费确认卡读通道：没装起来是失败，不是空", () => {
-  it("能力核没装 → 抛，而不是回空数组", async () => {
-    const module = await load();
-    expect(() => module.listPendingSpendConfirmations("project-1")).toThrow(module.PendingSpendSurfaceUnavailableError);
-    expect(() => module.listPendingSpendConfirmations("project-1")).toThrow(/not installed/);
+const deps = { isProjectOpen: () => true, runs: { list: () => [], read: () => undefined } } as never;
+const factory = (() => { throw new Error("not called"); }) as never;
+
+describe("付费确认卡读通道：三种现实，三种不同的答案", () => {
+  it("按配置没装（harness / 低内存）→ off，带上为什么；不是失败", async () => {
+    const m = await load();
+    m.bootResidentSurfaceLifecycle({ env: { NOMI_DISABLE_CAPABILITY_CORE: "1" }, lowMemoryMode: false });
+    expect(m.listPendingSpendConfirmations("project-1")).toEqual({ surface: "off", phase: "disabled", reason: "env" });
   });
 
-  it("装配抛过的那次，原话进错误消息——渲染层据此说得出「断在哪一环」", async () => {
-    const module = await load();
-    module.recordPendingSpendInstallFailure(new Error("resident adapter factory blew up"));
-    expect(() => module.listPendingSpendConfirmations("project-1")).toThrow(/resident adapter factory blew up/);
-    // 错误带着稳定的 code：渲染层按它分流到那张会说话的卡，不靠猜文案。
+  it("能力核还在起 → off/starting；停了 → off/stopped", async () => {
+    const m = await load();
+    m.bootResidentSurfaceLifecycle({ env: {}, lowMemoryMode: false });
+    expect(m.listPendingSpendConfirmations("project-1")).toEqual({ surface: "off", phase: "starting" });
+    m.markResidentSurfaceReady(factory);
+    m.installPendingSpendActions(deps);
+    m.installPendingSpendActions(null);
+    m.markResidentSurfaceStopped();
+    expect(m.listPendingSpendConfirmations("project-1")).toEqual({ surface: "off", phase: "stopped" });
+  });
+
+  it("装配抛过 → 抛，原话进错误消息，带稳定 code——渲染层据此渲那张会说话的卡", async () => {
+    const m = await load();
+    m.markResidentSurfaceInstallFailed(new Error("resident adapter factory blew up"));
+    expect(() => m.listPendingSpendConfirmations("project-1")).toThrow(m.PendingSpendSurfaceUnavailableError);
+    expect(() => m.listPendingSpendConfirmations("project-1")).toThrow(/resident adapter factory blew up/);
     try {
-      module.listPendingSpendConfirmations("project-1");
+      m.listPendingSpendConfirmations("project-1");
       expect.unreachable("读通道必须抛");
     } catch (error) {
       expect((error as { code?: string }).code).toBe("spend_confirm_surface_unavailable");
     }
   });
 
-  it("非 Error 的失败原因也说得出口（别把它吃成 [object Object]）", async () => {
-    const module = await load();
-    module.recordPendingSpendInstallFailure("core token missing");
-    expect(() => module.listPendingSpendConfirmations("project-1")).toThrow(/core token missing/);
+  it("装起来之后就是正常的读：真的没有待确认时回 ready + 空数组", async () => {
+    const m = await load();
+    m.markResidentSurfaceInstallFailed(new Error("first attempt failed"));
+    m.installPendingSpendActions(deps);
+    m.markResidentSurfaceReady(factory);
+    expect(m.listPendingSpendConfirmations("project-1")).toEqual({ surface: "ready", rows: [] });
   });
 
-  it("装起来之后就是正常的读：真的没有待确认时回空数组", async () => {
-    const module = await load();
-    module.recordPendingSpendInstallFailure(new Error("first attempt failed"));
-    module.installPendingSpendActions({
-      isProjectOpen: () => true, runs: { list: () => [], read: () => undefined },
-    } as never);
-    expect(module.listPendingSpendConfirmations("project-1")).toEqual([]);
-  });
-
-  it("装配被显式撤下（`install(null)`）→ 回到「抛」，不是悄悄回空", async () => {
-    const module = await load();
-    module.installPendingSpendActions({ isProjectOpen: () => true, runs: { list: () => [], read: () => undefined } } as never);
-    module.installPendingSpendActions(null);
-    expect(() => module.listPendingSpendConfirmations("project-1")).toThrow(module.PendingSpendSurfaceUnavailableError);
+  it("相说 ready 却没装 actions = 装配顺序被人改坏了 → 抛，不静默回空", async () => {
+    const m = await load();
+    m.markResidentSurfaceReady(factory);
+    expect(() => m.listPendingSpendConfirmations("project-1")).toThrow(/never installed/);
   });
 });

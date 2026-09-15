@@ -3,10 +3,10 @@
 #
 # 为什么是「拒绝」而不是「留痕」——和 push 那条刻意不同（R28：防线建在最早能拦住的那层）：
 #   · commit 阶段拦下的代价是**零**：去掉那几个字符重跑一次，工作树原封不动，没有任何
-#     合法场景需要「先偷偷提交、事后解释」。而版本化 pre-commit 干的是敏感数据扫描
-#     （scripts/check-no-secrets.mjs：微信聊天记录 / db_key）+ Ponytail 评审（R25）——
+#     合法场景需要「先偷偷提交、事后解释」。而版本化 pre-commit 干的就是敏感数据扫描
+#     （scripts/check-no-secrets.mjs：微信聊天记录 / db_key）——
 #     跳过它 = 敏感数据直接落进 git 历史，**永久**，push 之后就洗不掉了。
-#   · push 阶段有合法的并线场景（远落后分支 15-88MB diff 会撞 ponytail ENOBUFS），
+#   · push 阶段有合法的并线场景（远落后分支的大 diff 与服务端并线），
 #     所以那边是 pre-push-check.sh 留痕 + check:push-bypass 审计，不是拒绝。
 #   详见 docs/lessons/commit-bypass-must-be-blocked-not-audited.md。
 #
@@ -47,19 +47,18 @@ block() {
   cat >&2 <<EOF
 ⛔ 提交闸门：$1
 
-  这条命令会**跳过版本化 pre-commit**——它干两件事：
-    ① 敏感数据扫描（scripts/check-no-secrets.mjs）：微信聊天记录 / db_key / 私有配置一旦
-       提交进历史就是永久的，push 之后洗不掉；
-    ② Ponytail 评审（R25）：只读、限时，发现过度工程化时才记录阻断状态。
+  这条命令会**跳过版本化 pre-commit**——它干的是敏感数据扫描
+  （scripts/check-no-secrets.mjs）：微信聊天记录 / db_key / 私有配置一旦提交进历史
+  就是永久的，push 之后洗不掉。
   跳过的收益是省几秒，代价是不可逆——所以这里是**拒绝**，不是留痕。
   （push 阶段有合法并线场景，那边才是留痕 + check:push-bypass 审计。）
 
   正确做法：去掉绕过写法，正常提交。
     git commit -m "..."
-  Ponytail runner 真的不可用（Codex 没装 / 插件没开 / 等锁超时）时的**唯一明路**：
-    PONYTAIL_REVIEW_DEFER=1 git commit -m "..."
-  它保留敏感数据扫描，把这次跳过写进 .claude/ponytail-deferred.log，
-  check:ponytail-review 会一直红到补跑 @ponytail-review 并 --accept。绕口写法这三样全丢。
+  Ponytail 评审已经不在提交时刻跑了（R25，2026-09-15）：交工前跑一次
+    pnpm run review:branch
+  runner 真的不可用时的**唯一明路**是 pnpm run review:branch -- --defer，
+  它留痕进 .claude/ponytail-deferred.log，check:ponytail-review 红到补审为止。
   钩子随 checkout 就在（.claude/settings.json 直指 scripts/claude-hooks/，2026-09-07 起不再需要
   pnpm install）；钩子真的坏了 → 修钩子，不是绕开它。
 EOF

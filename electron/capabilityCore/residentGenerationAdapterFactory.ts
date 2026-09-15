@@ -39,14 +39,13 @@ export type ResidentGenerationAdapterFactory = Readonly<{
   dispose: () => void;
 }>;
 
-/** Install the factory and return a disposer for app shutdown/restart. */
-export function installResidentGenerationAdapter(
-  input: ResidentGenerationAdapterFactoryInput,
-  onReady?: (factory: ResidentGenerationAdapterFactory["factory"]) => void,
-): ResidentGenerationAdapterFactory {
-  const adapter = createResidentGenerationAdapterFactory(input);
-  onReady?.(adapter.factory);
-  return adapter;
+/**
+ * Install the factory and return a disposer for app shutdown/restart.
+ * 「装好了」这件事由调用方记进 `residentSurfaceLifecycle`（唯一 owner），这里不再带回调——
+ * 回调是第二条把工厂交出去的路，而第二条路就是第二份「装没装」的真相。
+ */
+export function installResidentGenerationAdapter(input: ResidentGenerationAdapterFactoryInput): ResidentGenerationAdapterFactory {
+  return createResidentGenerationAdapterFactory(input);
 }
 
 /**

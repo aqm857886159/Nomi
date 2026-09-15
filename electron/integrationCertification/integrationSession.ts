@@ -576,11 +576,26 @@ function safeHandoffOrigin(baseUrl: string): { origin?: string } {
 export class IntegrationSessionService {
   private state: PersistedState;
   private readonly filePath: string;
-  private readonly certification: ConnectionCertificationService;
+  /**
+   * 认证服务与凭据解析器**对外可读**（2026-09-15）。
+   *
+   * 它们本来是私有的，于是接模型自检那条路（`modelOnboarding/dispatch.ts` 的 check_connection）
+   * 自己拼了一个 dep bag 去调 `discoverHttpCandidates`：`certification` 靠
+   * `as unknown as { certification: never }` 穿透私有字段拿到，`credentialResolver` 干脆写成
+   * `undefined`。后果是**自检永远拿不到已保存的 key**，于是对一条 key 明明 ready 的连接，
+   * 自检恒回「Nomi 没有找到已保存的密钥」——2026-09-15 真实闭环里外部 Agent 因此三次
+   * 建议用户去重新粘贴 key，并把模型 kind 落到默认的 text。
+   *
+   * 私有字段挡不住任何人，只会把「借一份依赖」变成「自己造一份更差的」。这两样现在是
+   * 同一个 owner 的公开读口，谁要探供应商的模型清单都从这里借，不许在别处再写第二份解析器。
+   */
+  readonly certification: ConnectionCertificationService;
+  readonly credentialResolver?: (session: IntegrationSession) => string | undefined;
   private readonly save: (filePath: string, state: PersistedState) => void;
   constructor(private readonly deps: Dependencies = {}) {
     this.filePath = deps.filePath || path.join(capabilityCoreDir(), "integration-sessions.json");
     this.certification = deps.certification || getConnectionCertificationService();
+    this.credentialResolver = deps.credentialResolver;
     this.save = deps.save || writeCertificationJsonAtomic;
     this.state = this.read();
   }
@@ -884,7 +899,7 @@ export class IntegrationSessionService {
     };
     // 这个 baseUrl 的 key 可能早就在 Nomi 的安全存储里。报 missing 等于让用户再填一遍已经填过
     // 的东西；这里如实读一次既有凭据边界，不新增第二份真相。
-    const credentialReady = input.kind === "http-api-provider" && Boolean(this.deps.credentialResolver?.(session));
+    const credentialReady = input.kind === "http-api-provider" && Boolean(this.credentialResolver?.(session));
     if (credentialReady) {
       session.credentialStatus = "ready";
     } else if (input.kind === "http-api-provider") {
@@ -998,7 +1013,7 @@ export class IntegrationSessionService {
       if (rawProposal.workflow !== undefined || rawProposal.modelKey !== undefined)
         proposalRejected("proposal", "contains ComfyUI-only fields for an HTTP provider", "send candidates and selections only");
       if (rawProposal.candidates === undefined && rawProposal.selections === undefined)
-        return discoverAndPersistHttpCandidates({ session, owner, expectedRevision, certification: this.certification, credentialResolver: this.deps.credentialResolver, now: this.deps.now || (() => new Date().toISOString()), persist: () => { this.state.revision += 1; this.persist(); }, project: () => this.projection(session) });
+        return discoverAndPersistHttpCandidates({ session, owner, expectedRevision, certification: this.certification, credentialResolver: this.credentialResolver, now: this.deps.now || (() => new Date().toISOString()), persist: () => { this.state.revision += 1; this.persist(); }, project: () => this.projection(session) });
       const candidates = proposalCandidates(rawProposal.candidates);
       const keys = new Set<string>();
       for (const candidate of candidates) {
@@ -1205,7 +1220,7 @@ export class IntegrationSessionService {
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
-    const credential = this.deps.credentialResolver?.(session);
+    const credential = this.credentialResolver?.(session);
     // Credential lookup happens after the durable start intent is persisted.
     // A missing/undecryptable key is therefore a terminal,
     // diagnosable certification failure, never an uncaught exception that

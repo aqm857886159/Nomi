@@ -11,6 +11,8 @@
  * 印 0 恰好是唯一会被读成「这次不花钱」的那一种。与 `productionRun/shotPricing.ts`
  * 的 `ShotPrice` 同形，那边是求值的家，这里是过线的形状。
  */
+import type { ResidentSurfaceDisabledReason, ResidentSurfaceOffPhase } from "./residentSurfaceLifecycle";
+
 export type PendingSpendPrice = { known: true; amount: number } | { known: false };
 
 /** 一镜在付费卡上的全部事实。绝不含 transportModelId、密钥或供应商 URL。 */
@@ -49,3 +51,20 @@ export type PendingSpendConfirm = Readonly<{
   knownSubtotal: number;
   unknownShotCount: number;
 }>;
+
+/**
+ * 「有没有待确认的一笔」这条读通道的**完整**答案（2026-09-14）。
+ *
+ * 三种现实必须是三种不同的值，而不是一个数组加一个异常：
+ *   · `ready` + rows        —— 面装着，这些就是要确认的（空数组 = 真的没有）；
+ *   · `off`                 —— 本会话按配置没装这条面 / 还在起 / 已停。**不是失败**：这种相下
+ *                              没有任何一面能 announce「有一笔在等你」，所以也没有卡可画；
+ *   · 抛 `spend_confirm_surface_unavailable` —— 装配抛了。那才是要一路传到用户眼前的失败。
+ *
+ * 2026-09-12 的修法只把「null」改成「抛」，于是「按配置关掉」也成了失败（Canvas Performance
+ * 18 个场景每 1.5s 一条 console error）；2026-09-13 又在渲染层把那个错吞回去（而且没接上线）。
+ * 两头各修一次都不对，因为两头都不是这份状态的 owner。
+ */
+export type PendingSpendRead =
+  | Readonly<{ surface: "ready"; rows: readonly PendingSpendConfirm[] }>
+  | Readonly<{ surface: "off"; phase: ResidentSurfaceOffPhase; reason?: ResidentSurfaceDisabledReason }>;

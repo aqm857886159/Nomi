@@ -39,6 +39,14 @@ const WAIT_HINT = {
   en: ' Do not call connect_provider again while waiting; wait with nomi_await_setup, or look once with nomi_list_models.',
 }
 
+/**
+ * 名字拿不到时说「这个连接」，**不许**留一个空引号。
+ * 2026-09-15 真实闭环里这句话真的发成了「在那里保存「」的 key」——名字是空串，
+ * 而空引号比没有名字更糟：用户以为是某个叫空白的连接。
+ */
+const NAMED = (locale: ResultLocale, name: string): string =>
+  (name.trim() ? L(locale, `「${name}」`, `"${name}"`) : L(locale, '这个连接', 'this connection'))
+
 const COPY = {
   ask: (locale: ResultLocale, name: string) => L(
     locale,
@@ -54,10 +62,10 @@ const COPY = {
     locale,
     opened
       ? `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。${WAIT_HINT.zh}`
-      : `Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。${WAIT_HINT.zh}`,
+      : `${NAMED(locale, name)}的填写页没能打开。请在 Nomi 里打开 设置 → 模型 →「添加一个 AI 模型」，在那里保存 key，然后让我继续。${WAIT_HINT.zh}`,
     opened
       ? `Your AI client does not support MCP URL-mode elicitation. The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.${WAIT_HINT.en}`
-      : `Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.${WAIT_HINT.en}`,
+      : `The key page for ${NAMED(locale, name)} could not be opened. In Nomi, open Settings → Models → "Add an AI model", save the key there, then ask me to continue.${WAIT_HINT.en}`,
   ),
   // A `decline` is NOT evidence that a human said no. Measured 2026-09-06 against Codex CLI 0.153.4,
   // which declares `elicitation:{form:{},url:{}}` and then answers url-mode requests with
@@ -69,11 +77,28 @@ const COPY = {
     locale,
     opened
       ? `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。${WAIT_HINT.zh}`
-      : `填写页没有打开，且 Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。${WAIT_HINT.zh}`,
+      : `填写页没有在你的 AI 客户端里打开，Nomi 的窗口也没有接住它。请在 Nomi 里打开 设置 → 模型 →「添加一个 AI 模型」，在那里保存${NAMED(locale, name)}的 key，然后让我继续。${WAIT_HINT.zh}`,
     opened
       ? `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.${WAIT_HINT.en}`
-      : `The entry page did not open and Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.${WAIT_HINT.en}`,
+      : `The entry page did not open in your AI client, and the Nomi window did not catch it either. In Nomi, open Settings → Models → "Add an AI model", save the key for ${NAMED(locale, name)} there, then ask me to continue.${WAIT_HINT.en}`,
   ),
+}
+
+/**
+ * 这一步在等用户贴 key 吗 —— **唯一判据**，而且判据是投影自己说的那句话。
+ *
+ * 以前这个问题是靠「有没有铸出一次性填写页」反推的（`if (!ticket)`），于是两件完全不同的事
+ * 塌成同一个答案：「不需要问 key」和「需要问但页面铸不出来」。后者该指路，前者该闭嘴，
+ * 而代码对两者说了同一句话——2026-09-15 真实闭环里那句话是「Nomi 没在运行，请保存「」的 key」，
+ * Nomi 在跑、名字是空的，外部 Agent 却把它当硬事实，三个回合都在劝用户去开 Nomi。
+ *
+ * `connect_provider` 在等 key 时会明说 `nextAction.kind = "user_sees_key_page"`
+ * （`modelOnboarding/dispatch.ts` 的 connectProvider）。那是这件事的**声明**，所以判据就用它：
+ * 不许再从副产物反推一个我们没被告知的结论。
+ */
+export function isWaitingForKey(projection: unknown): boolean {
+  const nextAction = (projection as Record<string, unknown> | null)?.nextAction as Record<string, unknown> | undefined
+  return nextAction?.kind === 'user_sees_key_page'
 }
 
 type Ticket = { elicitationId: string; url: string; sessionId: string; display: { name: string } }
@@ -137,8 +162,14 @@ export async function runIntegrationCredentialElicitation(input: {
     instructions: COPY.notOpened(locale, name || projectionName, uiOpened),
   })
   if (!ticket) {
-    // No loopback page available in the owning process. The durable handoff already fired, so the
-    // in-app route is live; say so rather than leaving the agent to improvise.
+    // 「没有票据」有两种，2026-09-15 之前它们塌成了同一个返回值：
+    //   ① **这一步根本不需要问 key**（机器上已经存着这家的 key，connect_provider 回的是
+    //      nextAction.kind="working"）—— 什么都不该说。此前这里照样挂一条人工指引，
+    //      内容是「Nomi 没在运行。请保存「」的 key」：Nomi 明明在跑、名字还是空的。
+    //      外部 Agent 把它当成硬事实，三个回合都在劝用户去开 Nomi、去重贴 key，任务就此停住。
+    //   ② 需要问 key，但这个进程铸不出本机填写页 —— 持久 handoff 已入队，指路是对的。
+    // 判据用投影自己的话：等 key 的那一步会明说 nextAction.kind = "user_sees_key_page"。
+    if (!isWaitingForKey(opened)) return { kind: 'result', result: withoutTicket(opened) }
     return { kind: 'result', result: withoutTicket(opened, { credentialEntry: manual('') }) }
   }
 

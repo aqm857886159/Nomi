@@ -1,0 +1,47 @@
+{
+  "schema_version": 3,
+  "change_kind": "structural",
+  "id": "2026-09-15-ponytail-review-before-handoff",
+  "problem_type": "A review gate fired at a moment when nobody could act on its output, so its findings were structurally discarded",
+  "scope_paths": [
+    "scripts/ponytail-review-branch.mjs",
+    "scripts/ponytail-review-hook.mjs",
+    "scripts/install-git-hooks.cjs",
+    "scripts/check-ponytail-deferred.mjs",
+    "scripts/root-cause-contracts.mjs"
+  ],
+  "regression_tests": [
+    "scripts/ponytail-review-branch.node-test.mjs",
+    "scripts/ponytail-review-hook.node-test.mjs",
+    "scripts/check-ponytail-deferred.node-test.mjs"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "scripts/ponytail-review-branch.mjs",
+      "scripts/ponytail-review-hook.mjs",
+      "scripts/install-git-hooks.cjs",
+      "scripts/check-ponytail-deferred.mjs",
+      "scripts/root-cause-contracts.mjs"
+    ],
+    "behavior_preservation": "评审本身逐字未变：同一段 REVIEW_PROMPT、同一个只读 ephemeral Codex 调用向量（--ask-for-approval never --sandbox read-only --ignore-rules --output-last-message）、同一个 classifyReviewOutput 分类器、同一份二进制摘要逻辑、同一条留痕账本格式，整体从 scripts/ponytail-review-hook.mjs 搬到 scripts/ponytail-review-branch.mjs。变的只有三件：① 触发时刻从每次 commit/push 改成交工前跑一次 `pnpm run review:branch`；② 输入范围从 staged diff / outgoing ref diff 改成 merge-base(origin/main, HEAD)..HEAD，超限自动按提交、必要时按文件分块多跑几次再合并，不再 BLOCKED 让人拆提交；③ 钩子退化成收据校验（树相等即放行），pre-commit 只剩敏感数据扫描。删除的是全机锁 /tmp/nomi-ponytail.lock、锁下重跑自身的两层结构、按 diff 大小与负载派生墙钟的 resolveReviewTimeoutMs 及其六个常量——三者存在的唯一理由都是「评审会拦住 Git 操作」，那个前提本次被删除。 scripts/root-cause-contracts.mjs 只加一行登记（收据签发方 scripts/ponytail-review-branch.mjs 进 HIGH_RISK_EXACT，与戳的签发方 stamp-gates-ok.mjs 同理），判定逻辑一字未动。",
+    "verification_limits": "单测用 NOMI_PONYTAIL_* 环境变量注入假 runner，不调真模型，所以证不了模型评审质量；真实链路由本分支上一次真跑 `PONYTAIL_REVIEW_CODEX_BIN=<shim> pnpm run review:branch` 与本地 bare 仓库的三次 pre-push（无收据被拦 / 有收据放行 / 改一行再推被拦）覆盖，结果贴在 PR 正文。PR 正文 `## Ponytail` 节里「每条发现写已改或不改」目前靠纪律，没有机器核验，登记为债。",
+    "preserved_exports": [
+      {
+        "path": "scripts/ponytail-review-branch.mjs",
+        "name": "classifyReviewOutput"
+      },
+      {
+        "path": "scripts/ponytail-review-branch.mjs",
+        "name": "buildReviewPrompt"
+      },
+      {
+        "path": "scripts/ponytail-review-branch.mjs",
+        "name": "summarizeBinaryChanges"
+      },
+      {
+        "path": "scripts/ponytail-review-hook.mjs",
+        "name": "parsePushInput"
+      }
+    ]
+  }
+}

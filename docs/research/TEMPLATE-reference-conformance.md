@@ -1,8 +1,8 @@
 # <框架名> 参考实现逐层对照
 
-> 📎 R29 第二份必交物 · 对照日期 <YYYY-MM-DD> · 上游版本 <framework@x.y.z>
+> 📎 R5.4（原 R29）第二份必交物 · 对照日期 <YYYY-MM-DD> · 上游版本 <framework@x.y.z>
 > **参考实现**：<pi 自带的 coding agent / React Flow 官方 examples / AI Elements demo / Mantine 官方 demo …>，出处 <URL 或 node_modules 路径>
-> **四列表在**：<docs/plan/... 或 docs/research/...>（两张表分工见 `docs/engineering-rules.md` R29）
+> **四列表在**：<docs/plan/... 或 docs/research/...>（两张表分工见 `docs/engineering-rules.md` R5.4（原 R29））
 > **登记**：`docs/engineering/framework-boundaries.json` → `frameworks[].referenceConformance`
 
 ## 为什么要这张表

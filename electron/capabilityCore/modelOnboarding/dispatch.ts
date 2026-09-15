@@ -442,6 +442,30 @@ async function draftAdapter(verb: VerbDeclaration, params: Record<string, unknow
  * 既会假阴也会假阳。因此：**通过不下结论、失败不下架**，unverified 里那条 model_produces_output
  * 无论如何都留着（门岗 O5）。
  */
+/**
+ * 只给了 vendorKey 时的「会话形状」：自检要探一次供应商的模型清单，而探测器
+ * （`discoverHttpCandidates`）只读 `session.kind` / `session.config.*`，凭据解析器只按
+ * `config.baseUrl` 派生 vendorKey 去取已存的 key。所以一条已保存的连接**本来就够探**，
+ * 不需要先有一个在途接入会话。
+ *
+ * 刻意不造一个真的 IntegrationSession（那会多一份状态、还要落盘、还要挑 revision）——
+ * 这里要的只是「把连接翻译成探测器认得的入参」这一次投影。
+ */
+function sessionShapeFor(connection: { vendorKey: string; name?: string; baseUrl?: string; authType?: string; authHeader?: string; authQueryParam?: string; providerKind?: string } | undefined) {
+  if (!connection?.baseUrl) return undefined
+  return {
+    kind: 'http-api-provider' as const,
+    config: {
+      name: connection.name ?? connection.vendorKey,
+      baseUrl: connection.baseUrl,
+      ...(connection.authType ? { authType: connection.authType } : {}),
+      ...(connection.authHeader ? { authHeader: connection.authHeader } : {}),
+      ...(connection.authQueryParam ? { authQueryParam: connection.authQueryParam } : {}),
+      ...(connection.providerKind ? { providerKind: connection.providerKind } : {}),
+    },
+  }
+}
+
 async function checkConnection(verb: VerbDeclaration, params: Record<string, unknown>, deps: ModelOnboardingDeps, key: string): Promise<OnboardingResult> {
   const setupId = typeof params.setupId === 'string' ? params.setupId : undefined
   const vendorKey = typeof params.vendorKey === 'string'
@@ -464,9 +488,22 @@ async function checkConnection(verb: VerbDeclaration, params: Record<string, unk
   let failure: { status?: number; bodyExcerpt?: string } | undefined
   const startedAt = Date.now()
   try {
-    if (!setupId) throw new Error('no_setup_for_probe')
-    const session = deps.sessions.get(setupId, deps.owner)
-    const listed = await probe({ session: session as never, certification: (deps.sessions as unknown as { certification: never }).certification, credentialResolver: undefined })
+    // 探什么：有 setupId 就用那个在途接入的会话；只给了 vendorKey 就从连接自己现搭一个
+    // 会话形状（探测器只读 config.*，凭据解析器只按 baseUrl 派生 vendorKey）。
+    //
+    // 这一段以前是 `if (!setupId) throw new Error('no_setup_for_probe')` 加一句
+    // `credentialResolver: undefined`，两处各造一个假象：
+    //   · 描述明写「给 vendorKey **或** setupId」，只给 vendorKey 却恒探不了；
+    //   · 凭据解析器写成 undefined，于是**任何**自检都拿不到已保存的 key，
+    //     对一条 keyStatus=ready 的连接恒回「Nomi 没有找到已保存的密钥」。
+    // 两句话都不是「失败」，是**我们没接线**，却被报成了供应商/用户那边的问题。
+    const session = setupId ? deps.sessions.get(setupId, deps.owner) : sessionShapeFor(connection)
+    if (!session) throw new Error('no_connection_to_probe')
+    const listed = await probe({
+      session: session as never,
+      certification: deps.sessions.certification as never,
+      credentialResolver: deps.sessions.credentialResolver as never,
+    })
     latencyMs = Date.now() - startedAt
     const ids = new Set(listed.map((candidate) => candidate.modelKey))
     accepted = targets.filter((model) => ids.has(model.modelKey)).map((model) => model.modelKey)
@@ -475,7 +512,9 @@ async function checkConnection(verb: VerbDeclaration, params: Record<string, unk
     latencyMs = Date.now() - startedAt
     failure = { bodyExcerpt: (error instanceof Error ? error.message : String(error)).slice(0, 512) }
     rejected = targets.map((model) => ({ modelKey: model.modelKey, ...failure }))
-    if (!setupId) skipped.push(...targets.map((model) => ({ modelKey: model.modelKey, reason: 'no_models_endpoint' })))
+    // `no_models_endpoint` 是一句关于**供应商**的结论（「这家没有模型清单端点」），
+    // 只有真去问过才说得出口。探测压根没发出去时能说的只有「这条连接我探不了」。
+    if (!connection) skipped.push(...targets.map((model) => ({ modelKey: model.modelKey, reason: 'no_such_connection' })))
   }
 
   // 自检结果写在模型记录旁边，**不影响可见性**（门岗 O6：show_models 的路径不读它）。

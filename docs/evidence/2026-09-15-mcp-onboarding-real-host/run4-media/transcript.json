@@ -1,0 +1,268 @@
+[
+  {
+    "turn": 1,
+    "label": "B1-接模型",
+    "exitCode": 0,
+    "calls": [
+      {
+        "name": "mcp__nomi__nomi_list_models",
+        "input": {},
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"z-image-turbo\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Z-Image Turbo\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"doubao-seedream-4.5\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Seedream 4.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_deaff152b1cd650fe195\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"z-image-turbo\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Z-Image Turbo\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"doubao-seedream-4.5\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Seedream 4.5\\\",\\n            \\\"visibleInPicke"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart",
+          "docs": "Add two additional models to this existing APIMart connection, using APIMart's standard OpenAI-compatible endpoints (same base URL/auth as the current connection):\n- model id: gpt-image-2.5 — kind: image (image generation model)\n- model id: gemini-omni-1.1-flash — kind: video (video generation model)"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_26cfc0ca71cc1ca15729\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"z-image-turbo\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Z-Image Turbo\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"doubao-seedream-4.5\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Seedream 4.5\\\",\\n            \\\"visibleInPicke"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "connect_provider",
+          "vendorKey": "apimart",
+          "name": "APIMart",
+          "baseUrl": "https://api.apimart.ai",
+          "authType": "bearer",
+          "docs": "Add two additional models to this existing APIMart connection (same base URL/auth as current connection):\n- model id: gpt-image-2.5 — kind: image (image generation model)\n- model id: gemini-omni-1.1-flash — kind: video (video generation model)"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_22d8b827fa94fcf7b579\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"z-image-turbo\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Z-Image Turbo\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false\\n          },\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"doubao-seedream-4.5\\\",\\n            \\\"kind\\\": \\\"image\\\",\\n            \\\"label\\\": \\\"Seedream 4.5\\\",\\n            \\\"visibleInPicke"
+      },
+      {
+        "name": "mcp__nomi__nomi_model_setup",
+        "input": {
+          "action": "check_connection",
+          "vendorKey": "apimart"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"apimart\\\",\\n  \\\"changeId\\\": \\\"chg_c17a7334b475a9b6f45b\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"apimart\\\",\\n        \\\"name\\\": \\\"APIMart\\\",\\n        \\\"baseUrl\\\": \\\"https://api.apimart.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"apimart\\\",\\n            \\\"modelKey\\\": \\\"flowmusic-lyria-3.5\\\",\\n            \\\"kind\\\": \\\"audio\\\",\\n            \\\"label\\\": \\\"Lyria 3.5\\\",\\n            \\\"visibleInPicker\\\": true,\\n            \\\"visibilityReason\\\": \\\"shown\\\",\\n            \\\"tried\\\": false,\\n            \\\"selfCheck\\\": {\\n              \\\"at\\\": \\\"2026-09-14T23:31:25.210Z\\\",\\n              \\\"reachedOrigin\\\": \\\"https://api.apimart.ai\\\",\\n              \\\"latencyMs\\\": 1683,\\n              \\\"accepted\\\": false\\n     "
+      }
+    ],
+    "answered": 5,
+    "firstTryOk": 5,
+    "final": "我核对了一下 APIMart 这个已有连接（`apimart`）的真实模型列表，有个情况要跟你确认一下：\n\n**APIMart 目前实际提供的模型里，并没有 `gpt-image-2.5` 和 `gemini-omni-1.1-flash` 这两个确切的 ID**。我做了一次连接自检（拉取 provider 自己的模型列表），结果是：\n\n- 图片类里有 **`gpt-image-2`**（已连接、已显示在画布模型框），但没有 \"2.5\" 版本\n- 视频类里有 **`Omni-Flash-Ext`**（已连接、已显示），但没有叫 `gemini-omni-1.1-flash` 的条目\n\n而你说的这两个确切 ID，其实是在**另外两个已有连接**里能查到：\n- KIE.AI（`kie`）：`google/gemini-omni-flash-1-1`，标签正是 \"Gemini Omni 1.1 Flash\"\n- fal.ai（`fal`）：`google/gemini-omni-flash/v1.1`\n\nAPIMart 没有单独用 gpt-image-2.5 这个型号名对外，它的图片型号就是 gpt-image-2。\n\n所以有几种走法，你选一个：\n\n1. **按 APIMart 实际有的走**：直接确认 `gpt-image-2`（图片）和 `Omni-Flash-Ext`（视频）已经在画布模型框可见（其实现在就是可见的），不用额外操作。\n2. **视频模型改用 KIE 连接**：如果你就是要 \"Gemini Omni 1.1 Flash\" 这个具体模型，用已有的 `kie` 连接上的 `google/gemini-omni-flash-1-1` 更准确，我可以帮你确保它在画布可见。\n3. **坚持要在 APIMart 上挂这两个自定义 ID**：如果你确认 APIMart 后台/文档里确实有 `gpt-image-2.5` 和 `gemini-omni-1.1-flash` 这两个具体的模型 ID（可能是我这边自检没覆盖到的新模型),把 APIMart 的 API 文档链接或模型 ID 规范发我,我可以按自定义适配器的方式手动登记,但这种情况下我没法先验证它们是否真能跑通,第一次生成才会见真章。\n\n你要哪种?"
+  },
+  {
+    "turn": 2,
+    "label": "B2-出图",
+    "exitCode": 0,
+    "calls": [
+      {
+        "name": "mcp__nomi__nomi_session_open",
+        "input": {
+          "bootstrap": {
+            "mode": "current_project"
+          }
+        },
+        "isError": true,
+        "result": "✗ Project selection is not authorized\n诊断 project_selection_denied"
+      },
+      {
+        "name": "mcp__nomi__nomi_read",
+        "input": {
+          "target": "projects"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"projects\\\": []\\n}\"}]"
+      },
+      {
+        "name": "mcp__nomi__nomi_project_create",
+        "input": {
+          "name": "橘猫晒太阳"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"id\\\": \\\"workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1\\\",\\n  \\\"name\\\": \\\"橘猫晒太阳\\\",\\n  \\\"projectSelectionHandle\\\": \\\"d847b58f-d2d2-4a68-a931-07254fddd8ca\\\"\\n}\"}]"
+      },
+      {
+        "name": "mcp__nomi__nomi_session_open",
+        "input": {
+          "projectSelectionHandle": "d847b58f-d2d2-4a68-a931-07254fddd8ca"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"protocolVersion\\\": 2,\\n  \\\"sessionId\\\": \\\"mcp-session:zhg3g--dkT-7qObVz_m6Enhapjb9fSXRjQ2KDL2FyJ0\\\",\\n  \\\"leaseHandle\\\": \\\"eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbm"
+      },
+      {
+        "name": "mcp__nomi__nomi_read",
+        "input": {
+          "target": "models",
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ"
+        },
+        "isError": false,
+        "result": "{\"nomiOutcome\":{\"kind\":\"model_list\",\"total\":148,\"usable\":102,\"models\":[{\"vendor\":\"apimart\",\"modelKey\":\"flowmusic-lyria-3.5\",\"kind\":\"audio\",\"label\":\"Lyria 3.5\",\"keyStatus\":\"ok\",\"statusReason\":\"已接入且可用\",\"references\":{\"image\":false,\"video\":false,\"audio\":false,\"multiImage\":false,\"referenceModes\":[]}},{\"vendor\":\"apimart\",\"modelKey\":\"suno-sounds-v5.5\",\"kind\":\"audio\",\"label\":\"Suno Sounds V5.5\",\"keyStatus\":\"ok\",\"statusReason\":\"已接入且可用\",\"references\":{\"image\":false,\"video\":false,\"audio\":false,\"multiImage\":false,\"referenceModes\":[]}},{\"vendor\":\"apimart\",\"modelKey\":\"suno-v5.5\",\"kind\":\"audio\",\"label\":\"Suno V5.5\",\"keyStatus\":\"ok\",\"statusReason\":\"已接入且可用\",\"references\":{\"image\":false,\"video\":false,\"audio\":false,\"multiImage\":false,\"referenceModes\":[]}},{\"vendor\":\"apimart\",\"modelKey\":\"wan3.0-video\",\"kind\":\"video\",\"label\":\"Wan 3.0\",\"keyStatus\":\"ok\",\"statusReason\":\"已接入且可用\",\"references\":{\"image\":true,\"video\":tr"
+      },
+      {
+        "name": "mcp__nomi__nomi_canvas_edit",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operation": "create_canvas_nodes",
+          "summary": "新建一个图片节点：一只在窗台上晒太阳的橘猫，使用默认图片模型",
+          "nodes": [
+            {
+              "clientId": "cat-windowsill-1",
+              "kind": "image",
+              "title": "橘猫晒太阳",
+              "prompt": "窗台·午后阳光洒入 → 一只橘猫慵懒地趴在窗台上晒太阳，眯着眼睛、神情惬意 → 近景，柔和自然光 → 温暖写实风格"
+            }
+          ]
+        },
+        "isError": false,
+        "result": "{\"applied\":true,\"proposalId\":\"proposal-6954f738-625f-4a8e-8437-ebc78e40a8a3\",\"operation\":\"create_canvas_nodes\",\"affectedNodeIds\":[\"node-5fe8e215-1\"],\"affectedEdgeIds\":[],\"clientIdToNodeId\":{\"cat-windowsill-1\":\"node-5fe8e215-1\"},\"connectedCount\":0,\"skippedEdges\":[],\"reconciliation\":{\"ok\":true,\"deviationCount\":0}}"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_plan",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "prompt": "窗台·午后阳光洒入 → 一只橘猫慵懒地趴在窗台上晒太阳，眯着眼睛、神情惬意 → 近景，柔和自然光 → 温暖写实风格",
+          "taskKind": "text_to_image"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"operation\\\": {\\n    \\\"operationId\\\": \\\"op-1d0c75fe-6418-49bc-b9f2-d89391e0610f\\\",\\n    \\\"projectId\\\": \\\"workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1\\\",\\n    \\\"candidate\\\": {\\n      \\\"candidateId\\\": \\\"cand-op-1d0c75fe-6418-49bc-b9f2-d89391e0610f\\\",\\n      \\\"revision\\\": 1,\\n      \\\"moduleId\\\": \\\"generation.single-shot\\\",\\n      \\\"providerId\\\": \\\"apimart\\\",\\n      \\\"modelId\\\": \\\"gpt-image-2\\\",\\n      \\\"mode\\\": \\\"text_to_image\\\",\\n      \\\"prompt\\\": \\\"窗台·午后阳光洒入 → 一只橘猫慵懒地趴在窗台上晒太阳，眯着眼睛、神情惬意 → 近景，柔和自然光 → 温暖写实风格\\\",\\n      \\\"parameters\\\": {},\\n      \\\"references\\\": []\\n    },\\n    \\\"state\\\": \\\"draft\\\",\\n    \\\"planVersion\\\": 1,\\n    \\\"updatedAt\\\": \\\"2026-09-14T23:33:01.165Z\\\"\\n  },\\n  \\\"nextAction\\\": \\\"preview\\\"\\n}\"}]"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_preview",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operationId": "op-1d0c75fe-6418-49bc-b9f2-d89391e0610f"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"operationId\\\": \\\"op-1d0c75fe-6418-49bc-b9f2-d89391e0610f\\\",\\n  \\\"candidateRevision\\\": 1,\\n  \\\"contract\\\": {\\n    \\\"schemaVersion\\\": 1,\\n    \\\"candidateId\\\": \\\"cand-op-1d0c75fe-6418-49bc-b9f2-d89391e0610f\\\",\\n    \\\"candidateRevision\\\": 1,\\n    \\\"moduleId\\\": \\\"generation.single-shot\\\",\\n    \\\"moduleVersion\\\": \\\"catalog-12\\\",\\n    \\\"providerId\\\": \\\"apimart\\\",\\n    \\\"modelId\\\": \\\"gpt-image-2\\\",\\n    \\\"mode\\\": \\\"text_to_image\\\",\\n    \\\"prompt\\\": \\\"窗台·午后阳光洒入 → 一只橘猫慵懒地趴在窗台上晒太阳，眯着眼睛、神情惬意 → 近景，柔和自然光 → 温暖写实风格\\\",\\n    \\\"parameters\\\": {},\\n    \\\"references\\\": [],\\n    \\\"contractHash\\\": \\\"b5e9b63b856046376dd1bbd7f24073481544d7b4fff758c688d829cbed4a7f04\\\",\\n    \\\"warnings\\\": [],\\n    \\\"droppedFields\\\": []\\n  },\\n  \\\"recommendation\\\": {\\n    \\\"recommendations\\\": [\\n      {\\n        \\\"provider\\\": \\\"apimart\\\",\\n        \\\"modelKey\\\": \\\"sora-2\\\",\\n        \\\"label\\\": \\\"Sora 2\\"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_gate",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operationId": "op-1d0c75fe-6418-49bc-b9f2-d89391e0610f",
+          "phase": "request"
+        },
+        "isError": true,
+        "result": "✗ Provider apimart lacks required recovery capabilities: configured_provider"
+      }
+    ],
+    "answered": 9,
+    "firstTryOk": 7,
+    "final": "创建图片节点这步已经完成了（只建了一个），但在真正发起付费生成之前卡住了，情况是这样的：\n\n**已完成：**\n- 画布上新建了 1 个图片节点「橘猫晒太阳」（node-5fe8e215-1），prompt 已经写好\n- 生成草稿也建好了，系统按你的默认设置选中了 **APIMart / gpt-image-2** 作为图片模型\n\n**卡住的地方：**\n调用付费门（就是会在 Nomi 里弹出报价确认卡的那一步）时被拒绝了，报错是：\n\n> Provider apimart lacks required recovery capabilities: configured_provider\n\n预览阶段其实已经提示过这个风险（`providerReady: false`，`nextAction: \"provider_configure\"`）：APIMart 这个连接缺少 Nomi 要求的几项\"故障恢复\"能力（幂等提交 / 查询状态 / 核账 / 取消），所以在真正花钱之前，Nomi 直接挡住了，报价确认卡都还没来得及弹出来。\n\n这不是我这边能在 MCP 层面绕过或修复的问题——大概率需要你在 Nomi 应用里对 APIMart 这个连接做一次\"provider_configure\"的确认/配置（可能是承认 submit-only 风险，或者补充某个回调/状态查询配置）。\n\n你想怎么处理？\n1. 你去 Nomi 里把 APIMart 连接的 provider_configure 这一步处理一下，我再重试这次生成；或\n2. 换一个没有这个限制的图片模型来跑这次生成（比如 KIE.AI 上的模型），我可以帮你改草稿并重新走一遍门；你选哪个。"
+  },
+  {
+    "turn": 3,
+    "label": "B3-出视频",
+    "exitCode": 0,
+    "calls": [
+      {
+        "name": "mcp__nomi__nomi_canvas_edit",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IjU4LXlpQk91RmZWdmZnTlpIUUI1SnNaTHd3X3REalBlNzM4Z0ZwMUJxV2siLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM3OjAxLjI1OVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozMjowMi42NzRaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiOFJHcXdnNzBDeVFRYVd5RTFEWUFhTXh2VWJsanBOcFFTZGVyeVdqY1prbyIsIm1hbmlmZXN0RGlnZXN0IjoiNmZiOGE5MjU5Y2E4NTg0NTk1ODQzNjBmOTczZWNiZTE3N2U5MjRlZGI2YTE0Y2RjMjA5MjY3ZGZmMTVlN2Y1ZCIsIm5vbmNlIjoiZmFmYjY3OTUtZWFhMS00MWFjLWE3OGUtNTIzODkwNjUzZjYyIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOnpoZzNnLS1ka1QtN3FPYlZ6X202RW5oYXBqYjlmU1hSalEyS0RMMkZ5SjAiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operation": "create_canvas_nodes",
+          "summary": "新建一个视频节点：橘猫在窗台晒太阳，5秒，使用默认视频模型",
+          "nodes": [
+            {
+              "clientId": "cat-windowsill-video-1",
+              "kind": "video",
+              "title": "橘猫晒太阳视频",
+              "prompt": "镜头缓慢推近 → 一只橘猫趴在窗台上晒太阳，先眯着眼晴阳，接着慢慢伸个懒腾，尾巴轻轻摆动→ 节奏悠闲宁静，充满午后阳光感",
+              "params": {
+                "durationSec": 5
+              }
+            }
+          ]
+        },
+        "isError": true,
+        "result": "✗ 项目连接已失效，请重新选择当前项目。"
+      },
+      {
+        "name": "mcp__nomi__nomi_read",
+        "input": {
+          "target": "projects"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"projects\\\": [\\n    {\\n      \\\"id\\\": \\\"workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1\\\",\\n      \\\"name\\\": \\\"橘猫晒太阳\\\",\\n      \\\"updatedAt\\\": 1789428762594,\\n      \\\"projectSelectionHandle\\\": \\\"ebfd3b48-3625-480c-984a-aac74226b35a\\\"\\n    }\\n  ]\\n}\"}]"
+      },
+      {
+        "name": "mcp__nomi__nomi_session_open",
+        "input": {
+          "projectSelectionHandle": "ebfd3b48-3625-480c-984a-aac74226b35a"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"protocolVersion\\\": 2,\\n  \\\"sessionId\\\": \\\"mcp-session:RridqfXswi_bBNSOn3A--vLN3xre2gxrJfzlUzNO9q4\\\",\\n  \\\"leaseHandle\\\": \\\"eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IlQ3VVBoaHlVZGFycFRoUm9xQ3c5dWxhekVsMUh0NGFwUUlIRWFmRXVkSGsiLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM5OjI1Ljc5MVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozNDoyNy40MDVaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiYXdmX1hJSVlTSzdlcUQtSUlwd05XZm1Jc3VrQ3RLZlZVQU1ZcHl2WHlRdyIsIm1hbmlmZXN0RGlnZXN0IjoiOWI5MWQwNGJkMTFiMzczMDNlMTU3YzlmNTVmN2Y1MWE2MTBiMTQwY2U1ODhjZTE2OWEyNzc4NDBlMTY4ZTViOCIsIm5vbm"
+      },
+      {
+        "name": "mcp__nomi__nomi_canvas_edit",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IlQ3VVBoaHlVZGFycFRoUm9xQ3c5dWxhekVsMUh0NGFwUUlIRWFmRXVkSGsiLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM5OjI1Ljc5MVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozNDoyNy40MDVaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiYXdmX1hJSVlTSzdlcUQtSUlwd05XZm1Jc3VrQ3RLZlZVQU1ZcHl2WHlRdyIsIm1hbmlmZXN0RGlnZXN0IjoiOWI5MWQwNGJkMTFiMzczMDNlMTU3YzlmNTVmN2Y1MWE2MTBiMTQwY2U1ODhjZTE2OWEyNzc4NDBlMTY4ZTViOCIsIm5vbmNlIjoiNzI1MzIwMDYtOTg3ZS00OWUyLThjMjAtZDljMGNjNzRjZDdmIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOlJyaWRxZlhzd2lfYkJOU09uM0EtLXZMTjN4cmUyZ3hySmZ6bFV6Tk85cTQiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operation": "create_canvas_nodes",
+          "summary": "新建一个视频节点：橘猫在窗台晒太阳，5秒，使用默认视频模型",
+          "nodes": [
+            {
+              "clientId": "cat-windowsill-video-1",
+              "kind": "video",
+              "title": "橘猫晒太阳视频",
+              "prompt": "镜头缓慢推近 → 一只橘猫趴在窗台上晒太阳，先眯着眼晴阳，接着慢慢伸个懒腾，尾巴轻轻摆动 → 节奏悠闲宁静，充满午后阳光感",
+              "params": {
+                "durationSec": 5
+              }
+            }
+          ]
+        },
+        "isError": false,
+        "result": "{\"applied\":true,\"proposalId\":\"proposal-158f7422-174e-4244-841d-21d47305b5c1\",\"operation\":\"create_canvas_nodes\",\"affectedNodeIds\":[\"node-36ad9b69-2\"],\"affectedEdgeIds\":[],\"clientIdToNodeId\":{\"cat-windowsill-video-1\":\"node-36ad9b69-2\"},\"connectedCount\":0,\"skippedEdges\":[],\"reconciliation\":{\"ok\":true,\"deviationCount\":0}}"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_plan",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IlQ3VVBoaHlVZGFycFRoUm9xQ3c5dWxhekVsMUh0NGFwUUlIRWFmRXVkSGsiLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM5OjI1Ljc5MVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozNDoyNy40MDVaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiYXdmX1hJSVlTSzdlcUQtSUlwd05XZm1Jc3VrQ3RLZlZVQU1ZcHl2WHlRdyIsIm1hbmlmZXN0RGlnZXN0IjoiOWI5MWQwNGJkMTFiMzczMDNlMTU3YzlmNTVmN2Y1MWE2MTBiMTQwY2U1ODhjZTE2OWEyNzc4NDBlMTY4ZTViOCIsIm5vbmNlIjoiNzI1MzIwMDYtOTg3ZS00OWUyLThjMjAtZDljMGNjNzRjZDdmIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOlJyaWRxZlhzd2lfYkJOU09uM0EtLXZMTjN4cmUyZ3hySmZ6bFV6Tk85cTQiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "prompt": "镜头缓慢推近 → 一只橘猫趴在窗台上晒太阳，先眯着眼睛，接着慢慢伸个懒腰，尾巴轻轻摆动 → 节奏悠闲宁静，充满午后阳光感",
+          "taskKind": "text_to_video",
+          "parameters": {
+            "duration": 5
+          }
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"operation\\\": {\\n    \\\"operationId\\\": \\\"op-bfb65d44-f0a0-4db1-acde-f29b66701509\\\",\\n    \\\"projectId\\\": \\\"workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1\\\",\\n    \\\"candidate\\\": {\\n      \\\"candidateId\\\": \\\"cand-op-bfb65d44-f0a0-4db1-acde-f29b66701509\\\",\\n      \\\"revision\\\": 1,\\n      \\\"moduleId\\\": \\\"generation.single-shot\\\",\\n      \\\"providerId\\\": \\\"apimart\\\",\\n      \\\"modelId\\\": \\\"doubao-seedance-2.0\\\",\\n      \\\"mode\\\": \\\"text_to_video\\\",\\n      \\\"modeId\\\": \\\"t2v\\\",\\n      \\\"prompt\\\": \\\"镜头缓慢推近 → 一只橘猫趴在窗台上晒太阳，先眯着眼睛，接着慢慢伸个懒腰，尾巴轻轻摆动 → 节奏悠闲宁静，充满午后阳光感\\\",\\n      \\\"parameters\\\": {\\n        \\\"duration\\\": 5\\n      },\\n      \\\"references\\\": [],\\n      \\\"variantId\\\": \\\"standard\\\",\\n      \\\"transportModelId\\\": \\\"doubao-seedance-2.0\\\"\\n    },\\n    \\\"state\\\": \\\"draft\\\",\\n    \\\"planVersion\\\": 1,\\n    \\\"updatedAt\\\": \\\"2026-09-14T23:35:00.727Z\\\"\\n  },\\n  \\\"nextAction\\\": \\\"prev"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_preview",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IlQ3VVBoaHlVZGFycFRoUm9xQ3c5dWxhekVsMUh0NGFwUUlIRWFmRXVkSGsiLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM5OjI1Ljc5MVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozNDoyNy40MDVaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiYXdmX1hJSVlTSzdlcUQtSUlwd05XZm1Jc3VrQ3RLZlZVQU1ZcHl2WHlRdyIsIm1hbmlmZXN0RGlnZXN0IjoiOWI5MWQwNGJkMTFiMzczMDNlMTU3YzlmNTVmN2Y1MWE2MTBiMTQwY2U1ODhjZTE2OWEyNzc4NDBlMTY4ZTViOCIsIm5vbmNlIjoiNzI1MzIwMDYtOTg3ZS00OWUyLThjMjAtZDljMGNjNzRjZDdmIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOlJyaWRxZlhzd2lfYkJOU09uM0EtLXZMTjN4cmUyZ3hySmZ6bFV6Tk85cTQiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operationId": "op-bfb65d44-f0a0-4db1-acde-f29b66701509"
+        },
+        "isError": false,
+        "result": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"operationId\\\": \\\"op-bfb65d44-f0a0-4db1-acde-f29b66701509\\\",\\n  \\\"candidateRevision\\\": 1,\\n  \\\"contract\\\": {\\n    \\\"schemaVersion\\\": 1,\\n    \\\"candidateId\\\": \\\"cand-op-bfb65d44-f0a0-4db1-acde-f29b66701509\\\",\\n    \\\"candidateRevision\\\": 1,\\n    \\\"moduleId\\\": \\\"generation.single-shot\\\",\\n    \\\"moduleVersion\\\": \\\"catalog-12\\\",\\n    \\\"providerId\\\": \\\"apimart\\\",\\n    \\\"modelId\\\": \\\"doubao-seedance-2.0\\\",\\n    \\\"variantId\\\": \\\"standard\\\",\\n    \\\"modeId\\\": \\\"t2v\\\",\\n    \\\"transportModelId\\\": \\\"doubao-seedance-2.0\\\",\\n    \\\"mode\\\": \\\"text_to_video\\\",\\n    \\\"prompt\\\": \\\"镜头缓慢推近 → 一只橘猫趴在窗台上晒太阳，先眯着眼睛，接着慢慢伸个懒腰，尾巴轻轻摆动 → 节奏悠闲宁静，充满午后阳光感\\\",\\n    \\\"parameters\\\": {\\n      \\\"duration\\\": 5\\n    },\\n    \\\"references\\\": [],\\n    \\\"contractHash\\\": \\\"ddf9aff2166eb06707a82463042786abd10fa70b839dcb91021560986118b2c9\\\",\\n    \\\"warnings\\\": [],\\n    \\\"droppedFields\\\": []\\n  },\\n  \\\"recom"
+      },
+      {
+        "name": "mcp__nomi__nomi_operation_gate",
+        "input": {
+          "leaseHandle": "eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImF1ZGllbmNlIjoibm9taS1tY3AiLCJjYW5vbmljYWxSb290RGlnZXN0IjoiMTM2NjRkNTJlOGVmN2Y3ZGM4ZGY3MDljOTgwNWQ3MTU4YmQyOTdlYThkOGZiMjE4YWUzNjI5YmFjNTUzNGZlOCIsImNvbm5lY3Rpb25Ob25jZSI6IlQ3VVBoaHlVZGFycFRoUm9xQ3c5dWxhekVsMUh0NGFwUUlIRWFmRXVkSGsiLCJleHBpcmVzQXQiOiIyMDI2LTA5LTE0VDIzOjM5OjI1Ljc5MVoiLCJpbW11dGFibGVQcm9qZWN0VXVpZCI6ImM4OTY5ZDA2LTNkNDYtNDI2Ny04OGY0LTdhMTczNDkxOTM4NiIsImlzc3VlZEF0IjoiMjAyNi0wOS0xNFQyMzozNDoyNy40MDVaIiwiaXNzdWVyIjoibm9taS1tYWluIiwia2V5SWQiOiJwcm9qZWN0LWxlYXNlLXYyIiwibGVhc2VQcmluY2lwYWwiOiJtY3A6Y2xhdWRlIiwibWFjIjoiYXdmX1hJSVlTSzdlcUQtSUlwd05XZm1Jc3VrQ3RLZlZVQU1ZcHl2WHlRdyIsIm1hbmlmZXN0RGlnZXN0IjoiOWI5MWQwNGJkMTFiMzczMDNlMTU3YzlmNTVmN2Y1MWE2MTBiMTQwY2U1ODhjZTE2OWEyNzc4NDBlMTY4ZTViOCIsIm5vbmNlIjoiNzI1MzIwMDYtOTg3ZS00OWUyLThjMjAtZDljMGNjNzRjZDdmIiwicHJvamVjdEdlbmVyYXRpb24iOjEsInByb2plY3RJZCI6IndvcmtzcGFjZS03NzNhYmI1ZC1mZDQ3LTQ1ZDQtYWE3OS00NzQ3YWVhOWNjYjEiLCJyZXZvY2F0aW9uRXBvY2giOjAsInNjb3BlSGFzaCI6ImNkYmEwNjAzMzQ2YjRkMjI1YWYwMDgxMmE5YWY1N2MwM2VjMTk5NTdhZDJjODdhMWNiNjc1MTdiZGMwOGVmYzciLCJzY29wZVNldCI6WyJhc3NldDpyZWFkIiwiY2FudmFzOnJlYWQiLCJjYW52YXM6d3JpdGUiLCJjb250ZXh0OnJlYWQiLCJkb2N1bWVudDpyZWFkIiwiZG9jdW1lbnQ6d3JpdGUiLCJleHBvcnQ6cmVhZCIsImdlbmVyYXRpb246Y29udHJvbCIsImdlbmVyYXRpb246Y3JlYXRlIiwiZ2VuZXJhdGlvbjpldmVudHMiLCJnZW5lcmF0aW9uOmdhdGUiLCJnZW5lcmF0aW9uOnBsYW4iLCJnZW5lcmF0aW9uOnByZXZpZXciLCJnZW5lcmF0aW9uOnJlYWQiLCJnZW5lcmF0aW9uOnJlY29uY2lsZSIsImxheW91dDpyZWFkIiwibGF5b3V0OndyaXRlIiwidGltZWxpbmU6cmVhZCIsInRpbWVsaW5lOndyaXRlIl0sInNlc3Npb25JZCI6Im1jcC1zZXNzaW9uOlJyaWRxZlhzd2lfYkJOU09uM0EtLXZMTjN4cmUyZ3hySmZ6bFV6Tk85cTQiLCJ2ZXJzaW9uIjoyfQ",
+          "projectId": "workspace-773abb5d-fd47-45d4-aa79-4747aea9ccb1",
+          "operationId": "op-bfb65d44-f0a0-4db1-acde-f29b66701509",
+          "phase": "request"
+        },
+        "isError": true,
+        "result": "✗ Provider apimart lacks required recovery capabilities: configured_provider"
+      }
+    ],
+    "answered": 7,
+    "firstTryOk": 5,
+    "final": "视频节点已经建好了（只建了一个），但这次也在同一个地方卡住了：\n\n**已完成：**\n- 画布上新建了 1 个视频节点「橘猫晒太阳视频」（node-36ad9b69-2），prompt 和 5 秒时长都设置好了\n- 生成草稿已建好，系统按默认设置选中的是 **APIMart / doubao-seedance-2.0（Seedance 2.0）**\n\n**卡住的地方：**\n和上次图片一样，付费门直接拒绝：\n\n> Provider apimart lacks required recovery capabilities: configured_provider\n\n也就是说，**你 Nomi 里默认的图片模型和默认的视频模型，都挂在 APIMart 这个连接上**，而这个连接目前缺少 Nomi 要求的\"故障恢复\"能力（幂等提交/查询/核账/取消），所以报价确认卡根本没机会弹出来——门在更早的地方就把请求挡住了。\n\n这是同一个根因，两次都指向 APIMart 这个连接本身。建议：\n1. 去 Nomi 应用里给 APIMart 连接做一次 `provider_configure`（可能是确认 submit-only 风险或补充回调配置），配好之后无论图片还是视频我都能重试；或\n2. 把默认图片/视频模型临时切到别的连接（比如 KIE.AI）来验证生成流程能跑通，APIMart 那边你有空再去处理。\n\n你要哪种?"
+  }
+]
