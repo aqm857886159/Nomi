@@ -32,6 +32,10 @@
     "restart_readback_rate",
     "page_click_success_rate"
   ],
+  "banks": [
+    "docs/evidence/2026-09-15-skill-real-run/skill-bank.json",
+    "docs/plan/agent-tool-face-v2-evidence/r30-bank.json"
+  ],
   "cases": [
     {
       "id": "U01",
@@ -296,6 +300,186 @@
       ],
       "tools": [
         "start_model_setup"
+      ]
+    },
+    {
+      "id": "K01",
+      "userSays": "这段剧本帮我做成分镜：林夏在码头等人，渔船进港，她看见父亲下船。",
+      "skillKey": "curated-film-storyboard",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K02",
+      "userSays": "把文稿里雨夜那段做成电影分镜",
+      "skillKey": "curated-film-storyboard",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_script",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K03",
+      "userSays": "这个故事做成短剧：便利店店员每晚都遇到同一个客人，第七晚客人没来。",
+      "skillKey": "drama-short",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K04",
+      "userSays": "帮我把这条短剧的角色先立起来，别每镜长得都不一样",
+      "skillKey": "drama-short",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K05",
+      "userSays": "这是我的保温杯文案：48 小时保温、一只手能开、军规抗摔。做条宣传片。",
+      "skillKey": "brand-promo",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "write_script"
+      ]
+    },
+    {
+      "id": "K06",
+      "userSays": "宣传片先给我脚本，画布别动",
+      "skillKey": "brand-promo",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "write_script"
+      ]
+    },
+    {
+      "id": "K07",
+      "userSays": "第 3 镜是两个人在车里对话，镜头该怎么给？",
+      "skillKey": "director-cinematography",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_skill",
+        "look_at_canvas"
+      ]
+    },
+    {
+      "id": "K08",
+      "userSays": "帮我把这 6 个镜头的景别排一下，现在看着都一个样",
+      "skillKey": "director-cinematography",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K09",
+      "userSays": "用我上传的那双鞋做个转台展示",
+      "skillKey": "curated-product-turntable",
+      "firstTool": "look_at_media",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "look_at_media",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K10",
+      "userSays": "帮我写一场戏：女儿回家发现父亲在收拾行李",
+      "skillKey": "writer-screenwriter",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_script",
+        "write_script"
+      ]
+    },
+    {
+      "id": "K11",
+      "userSays": "把这个角色做成多视图设定图",
+      "skillKey": "curated-multi-view",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "K12",
+      "userSays": "Turn the script in the document into a film storyboard.",
+      "skillKey": "curated-film-storyboard",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "skill-injected",
+        "skill-visible"
+      ],
+      "tools": [
+        "read_script",
+        "draft_shots"
       ]
     }
   ]

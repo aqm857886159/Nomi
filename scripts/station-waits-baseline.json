@@ -904,9 +904,6 @@
     "bed1497731427658ce31e0d585e747e4164756a57cb440f8ab7e132933bcd5ce": 1,
     "cd210e20f99f626ed2bfc97c5264fa15565e5e3a464d17d05bab6693d9fb33e6": 1
   },
-  "tests/ux/skill-import-real-use.walk.mjs": {
-    "eb56cf3f63432c62bd8557064ef5f5aca22d3d611b5139576d973e3c5e3451f6": 1
-  },
   "tests/ux/smoke.e2e.mjs": {
     "f127f87952fa72973361713c0b423c68e646f8ae0d1aeb636f0dbca381e5c769": 1,
     "9921ac4506f7c48af29dad1b8dcc139f29c535e6cd140ff447b1ee5eef3c5523": 1,
