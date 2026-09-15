@@ -30,6 +30,7 @@ import {
   type LaneMetric, type LanePart, type LanePendingApproval, type LaneProjection,
   type LaneQueueKind, type LaneQueuedMessage, type LaneTaskFacts, type LaneThinking, type LaneThinkingLevel,
 } from './laneContracts.js';
+import { laneToolNextActionOf } from './laneToolNextAction.js';
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -246,9 +247,13 @@ export function projectLaneSnapshot(
       continue;
     }
     if (message.role === 'toolResult') {
+      // 正文逐字带上来（这一层不做取舍），信封另起一个字段——渲染层要靠它把「给模型看的那行尾巴」
+      // 按结构摘掉。信封是这条消息自己的 `details.nextAction`，不是从别处 join 来的第二份真相。
+      const nextAction = laneToolNextActionOf(message.details);
       parts.push({ sequence: parts.length, entrySeq: entry.seq, contentIndex: 0, kind: 'tool-result',
         toolCallId: message.toolCallId, toolName: message.toolName,
-        text: textOf(message.content), isError: message.isError });
+        text: textOf(message.content), isError: message.isError,
+        ...(nextAction ? { nextAction } : {}) });
     }
   }
   // 流式中的那条助手消息还没落成 entry。它接在转录末尾，用同一套编号继续往下走——

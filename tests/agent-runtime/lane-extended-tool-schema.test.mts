@@ -11,17 +11,15 @@ test('every deferred domain descriptor reaches the pi schema boundary', () => {
 });
 
 test('pi accepts nested JSON generation parameters through the published local references', () => {
-  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'nomi_generation_plan')!;
+  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'draft_shots')!;
   const tool = { name: spec.name, description: spec.description,
     parameters: toModelVisibleSchema(spec.schema, { toolName: spec.name }) };
-  const parameters = { seed: 17, enabled: true, labels: ['one', 'two'], nullable: null,
-    nested: { image: { crop: [0, 1, 2, 3] }, prompts: [{ text: 'A sunrise', weights: [0.5, 1] }] } };
+  // `draft_shots.parameters` 是模型档案声明的标量表（string/number/boolean）；嵌套结构由宿主按目录钳值，不进模型面。
+  const parameters = { seed: 17, enabled: true, aspect_ratio: '16:9' };
   const cases = [
-    { operation: 'create', prompt: 'A sunrise', parameters },
-    { operation: 'patch', operationId: 'operation-1', patch: { parameters } },
-    { operation: 'create', shots: [{ prompt: 'A sunrise', parameters }] },
-    { operation: 'create', candidate: { candidateId: 'candidate-1', revision: 1, moduleId: 'image',
-      providerId: 'loopback', modelId: 'fixture', mode: 'text_to_image', prompt: 'A sunrise', parameters } },
+    { shots: [{ prompt: 'A sunrise', parameters }] },
+    { draftId: 'operation-1', shots: [{ shotId: 'shot-1', prompt: 'A sunrise', parameters }] },
+    { shots: [{ prompt: 'A sunrise', candidate: { providerId: 'loopback', modelId: 'fixture' }, parameters }] },
   ];
   for (const args of cases) {
     const validated = validateToolArguments(tool, { id: 'call-1', type: 'toolCall', name: tool.name, arguments: args });
@@ -29,5 +27,5 @@ test('pi accepts nested JSON generation parameters through the published local r
     assert.deepEqual(validated, args);
   }
   assert.throws(() => validateToolArguments(tool, { id: 'invalid', type: 'toolCall', name: tool.name,
-    arguments: { operation: 'create', candidate: { parameters } } }));
+    arguments: { shots: [{ prompt: 'A sunrise', parameters: { nested: { deep: true } } }] } }));
 });

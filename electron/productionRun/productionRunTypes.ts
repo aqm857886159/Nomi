@@ -228,6 +228,12 @@ export type ProductionGenerationShot = {
 export type ProductionGenerationPlan = {
   operationId: string;
   state: "draft" | "sealed" | "cancelled" | "submitted";
+  /**
+   * 草稿建好了，但报价卡还没摆到用户面前（Agent lane 的 `draft_shots`：落画布、带单价、不出卡、不花钱）。
+   * `generation.present`（`generate` 动词）把它清掉；`projectPendingSpendConfirm` 是唯一读它的投影点。
+   * 缺省/旧 Run 没有这个字段 = 卡可见，行为逐字不变。
+   */
+  cardHidden?: boolean;
   candidate: PlanCandidate;
   contract?: ExecutionContractV1;
   approvedReceiptId?: string;

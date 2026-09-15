@@ -287,9 +287,9 @@ describe('storyboard target identity across the shared proposal boundary', () =>
   })
 
   it('replaces the selected plan and patches that same plan without making duplicate designs', async () => {
-    const replacement: CanvasWriteInput = { operation: 'propose_storyboard_plan', ...plan,
+    const replacement: Extract<CanvasWriteInput, { operation: 'propose_storyboard_plan' }> = { operation: 'propose_storyboard_plan', title: plan.title,
       anchors: [{ id: 'hero', kind: 'character', name: 'Hero', description: 'Blue coat', carrier: 'text' }],
-      shots: plan.shots.map(shot => ({ ...shot, anchorIds: ['hero'] })),
+      shots: plan.shots.map(({ index, shotKind, durationSec, anchorIds, prompt }) => ({ index, shotKind, durationSec, anchorIds: ['hero'], prompt })),
     }
     await executeCanvasWriteTarget(buildRequest(replacement), readGenerationCanvasSnapshot)
     const patch: CanvasWriteInput = { operation: 'patch_shots', select: { kind: 'indexes', indexes: [2] }, patch: { prompt: 'Night closing' } }
@@ -329,7 +329,7 @@ describe('storyboard receipt preparation race', () => {
     useWorkbenchStore.getState().addStoryboardDesign('race-doc', { ...plan, title: 'Other' })
     const otherId = useWorkbenchStore.getState().activeStoryboardId
     useWorkbenchStore.getState().setActiveStoryboardId(originalId, 'race-doc')
-    const request = buildRequest({ operation: 'propose_storyboard_plan', ...plan, title: 'Replacement' })
+    const request = buildRequest({ operation: 'propose_storyboard_plan', title: 'Replacement', anchors: [], shots: plan.shots.map(({ index, shotKind, durationSec, anchorIds, prompt }) => ({ index, shotKind, durationSec, anchorIds, prompt })) })
     receiptHarness.onPrepare = () => { useWorkbenchStore.getState().setActiveStoryboardId(otherId, 'race-doc') }
     await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({ code: 'capability_target_stale' })
     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['race-doc'].map(d => d.plan.shots[0].prompt)).toEqual(['Original', 'Original'])
@@ -345,7 +345,7 @@ describe('storyboard receipt preparation race', () => {
     ], 'race-doc')
     useWorkbenchStore.getState().hydrateStoryboardDesigns({})
     useWorkbenchStore.getState().setStoryboardPlan(plan, 'race-doc')
-    const request = buildRequest({ operation: 'propose_storyboard_plan', ...plan, title: 'Replacement' })
+    const request = buildRequest({ operation: 'propose_storyboard_plan', title: 'Replacement', anchors: [], shots: plan.shots.map(({ index, shotKind, durationSec, anchorIds, prompt }) => ({ index, shotKind, durationSec, anchorIds, prompt })) })
     receiptHarness.onPrepare = () => { useWorkbenchStore.getState().addStoryboardDesign('race-doc', { ...plan, title: 'Other' }) }
     await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({ code: 'capability_target_stale' })
     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['race-doc'].map(d => d.plan.shots[0].prompt)).toEqual(['Original', 'Original'])

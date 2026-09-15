@@ -24,6 +24,7 @@ import {
 
 const ASK = 'S_REPRICE_ASK：帮我生成一张六棱柱的图。'
 const PLAN_CALL = 's-reprice-plan-1'
+const GENERATE_CALL = `${PLAN_CALL}-generate`
 const PRICE_TOTAL = '[data-v4-price="total"]'
 // 夹具目录里这一行的价目：基价 0.3，命中 `size:1536x1024` 再加 0.2（agent-runtime-fixture.mjs）。
 // 两个数都不是走查编的——卡上印什么由那一行说了算。
@@ -49,23 +50,31 @@ try {
   const planner = walk.fixture.expectText({
     label: 'the agent drafts a generation instead of spending on its own',
     match: (body) => flattenRequestText(body).includes('S_REPRICE_ASK'),
-    reply: { type: 'tool', id: PLAN_CALL, name: 'nomi_generation_plan', args: {
-      operation: 'create',
-      taskKind: 'text_to_image',
-      prompt: '一个悬浮的六棱柱，柔和的演播室灯光',
-      moduleId: 'generation.single-shot',
-      providerId: FIXTURE_VENDOR,
-      modelId: FIXTURE_IMAGE_MODEL,
-      parameters: { size: BASE_SIZE },
+    reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
+      // 20 动词：draft_shots 建草稿（落画布、不出卡），generate 才把报价卡摆到用户面前。
+      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: BASE_SIZE } }],
     } },
+  })
+  let draftId
+  const plannerDraft = walk.fixture.expectText({
+    label: 'the draft result comes back with the host-generated draftId',
+    match: (body) => {
+      const result = (body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL)
+      if (!result) return false
+      draftId = /"operationId":"([^"]+)"/.exec(String(result.content))?.[1]
+      return true
+    },
+    reply: { type: 'hold' },
   })
   const plannerDone = walk.fixture.expectText({
     label: 'the drafting turn completes through the same SDK turn',
-    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL),
+    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === GENERATE_CALL),
     reply: { type: 'text', text: 'S_REPRICE_DONE：草稿已就绪，等你确认。' },
   })
   await sendCanvas(win, ASK)
   await recorded(planner.received, 'generation draft request')
+  await recorded(plannerDraft.received, 'generation draft result')
+  plannerDraft.release({ type: 'tool', id: GENERATE_CALL, name: 'generate', args: { draftId } })
   await recorded(plannerDone.received, 'generation draft result')
 
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,

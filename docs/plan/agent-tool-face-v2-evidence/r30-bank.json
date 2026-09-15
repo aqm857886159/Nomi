@@ -1,0 +1,652 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/design/2026-09-11-agent-tool-face-first-principles.md §4 (42 sentences, zh 26 / en 16)",
+  "cases": [
+    {
+      "id": "R01",
+      "say": "生成一张开场图",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "image",
+      "expectedFirst": [
+        "draft_shots",
+        "look_at_canvas",
+        "list_models"
+      ],
+      "expectedTrajectory": [
+        "draft_shots",
+        "generate"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R02",
+      "say": "帮我把这段文案拆成 6 个镜头",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "storyboard",
+      "expectedFirst": [
+        "read_script"
+      ],
+      "expectedTrajectory": [
+        "read_script",
+        "draft_shots"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ]
+    },
+    {
+      "id": "R03",
+      "say": "把第 3 镜的提示词改成夜景",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "edit-shot",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas",
+        "draft_shots"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ]
+    },
+    {
+      "id": "R04",
+      "say": "这 6 镜全部生成",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "generate",
+      "expectedFirst": [
+        "generate",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "generate"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R05",
+      "say": "第 2 镜用 Kling 重新出一版，5 秒",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "edit-shot",
+      "expectedFirst": [
+        "list_models",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "draft_shots",
+        "generate"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R06",
+      "say": "把这张图的背景换成雪山",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "image-edit",
+      "expectedFirst": [
+        "look_at_canvas",
+        "draft_shots"
+      ],
+      "expectedTrajectory": [
+        "draft_shots",
+        "generate"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R07",
+      "say": "先别生成，我看看你排的镜头",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "read",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ]
+    },
+    {
+      "id": "R08",
+      "say": "现在画布上有什么",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "read",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R09",
+      "say": "那张图生成好了吗？花了多少",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "status",
+      "expectedFirst": [
+        "check_job",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "check_job"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R10",
+      "say": "取消正在跑的那条视频",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "cancel",
+      "expectedFirst": [
+        "check_job",
+        "look_at_canvas",
+        "cancel_job"
+      ],
+      "expectedTrajectory": [
+        "cancel_job"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R11",
+      "say": "把开场镜和第二镜连起来，作为参考",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "arrange",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas",
+        "arrange_canvas"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R12",
+      "say": "画布太乱了，帮我整理一下",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "arrange",
+      "expectedFirst": [
+        "arrange_canvas",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "arrange_canvas"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R13",
+      "say": "这三镜编成一组叫「回忆」",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "arrange",
+      "expectedFirst": [
+        "look_at_canvas",
+        "arrange_canvas"
+      ],
+      "expectedTrajectory": [
+        "arrange_canvas"
+      ],
+      "forbiddenVerbs": [],
+      "note": "group is not a canvas.write operation yet (residual risk); the verb choice is what is measured"
+    },
+    {
+      "id": "R14",
+      "say": "给第 4 镜加一个推镜头的运镜参考",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "stage",
+      "expectedFirst": [
+        "look_at_canvas",
+        "stage_shot"
+      ],
+      "expectedTrajectory": [
+        "stage_shot"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R15",
+      "say": "帮我接一下 DeepSeek",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "model-setup",
+      "expectedFirst": [
+        "start_model_setup"
+      ],
+      "expectedTrajectory": [
+        "start_model_setup"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R16",
+      "say": "我有哪些能生视频的模型",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "models",
+      "expectedFirst": [
+        "list_models"
+      ],
+      "expectedTrajectory": [
+        "list_models"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R17",
+      "say": "用「口播成片」这个技能来做",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill",
+      "expectedFirst": [
+        "read_skill"
+      ],
+      "expectedTrajectory": [
+        "read_skill"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R18",
+      "say": "把这套做法存成技能",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "skill",
+      "expectedFirst": [
+        "save_skill"
+      ],
+      "expectedTrajectory": [
+        "save_skill"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R19",
+      "say": "删掉画布上那两个空节点",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "delete",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas",
+        "delete_from_canvas"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R20",
+      "say": "把镜头按顺序放到时间轴上",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "timeline",
+      "expectedFirst": [
+        "read_timeline",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "edit_timeline"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R21",
+      "say": "开头那段太长，剪掉前 2 秒",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "timeline",
+      "expectedFirst": [
+        "read_timeline"
+      ],
+      "expectedTrajectory": [
+        "read_timeline",
+        "edit_timeline"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R22",
+      "say": "刚才那步撤销",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "undo",
+      "expectedFirst": [
+        "undo",
+        "read_timeline"
+      ],
+      "expectedTrajectory": [
+        "undo"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R23",
+      "say": "导出 MP4",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "export",
+      "expectedFirst": [
+        "read_timeline",
+        "export_video"
+      ],
+      "expectedTrajectory": [
+        "export_video"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R24",
+      "say": "素材库里有没有雨天的镜头",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "media",
+      "expectedFirst": [
+        "look_at_media"
+      ],
+      "expectedTrajectory": [
+        "look_at_media"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R25",
+      "say": "帮我把文案开头改得更抓人",
+      "lang": "zh",
+      "persona": "novice",
+      "bucket": "script",
+      "expectedFirst": [
+        "read_script"
+      ],
+      "expectedTrajectory": [
+        "read_script",
+        "write_script"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R26",
+      "say": "做一张分镜对照表放画布上",
+      "lang": "zh",
+      "persona": "expert",
+      "bucket": "artifact",
+      "expectedFirst": [
+        "make_artifact",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "make_artifact"
+      ],
+      "forbiddenVerbs": [
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "R27",
+      "say": "Make me a 10-second product teaser",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "storyboard",
+      "expectedFirst": [
+        "draft_shots",
+        "read_script",
+        "look_at_canvas",
+        "list_models"
+      ],
+      "expectedTrajectory": [
+        "draft_shots"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R28",
+      "say": "Regenerate shot 5 with the same prompt but 16:9",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "edit-shot",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas",
+        "draft_shots"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R29",
+      "say": "What's still rendering?",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "status",
+      "expectedFirst": [
+        "check_job",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "check_job"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R30",
+      "say": "Don't generate anything yet, just lay out the shots",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "storyboard",
+      "expectedFirst": [
+        "draft_shots",
+        "read_script",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "draft_shots"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ]
+    },
+    {
+      "id": "R31",
+      "say": "Swap the model on every shot to Seedance",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "edit-shot",
+      "expectedFirst": [
+        "list_models",
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "draft_shots"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ]
+    },
+    {
+      "id": "R32",
+      "say": "Group the intro shots and title the group \"Cold open\"",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "arrange",
+      "expectedFirst": [
+        "look_at_canvas",
+        "arrange_canvas"
+      ],
+      "expectedTrajectory": [
+        "arrange_canvas"
+      ],
+      "forbiddenVerbs": [],
+      "note": "group not yet an operation; verb choice measured"
+    },
+    {
+      "id": "R33",
+      "say": "Link the character sheet to shots 2–4 as a reference",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "arrange",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas",
+        "arrange_canvas"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R34",
+      "say": "Which of my models can do image-to-video?",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "models",
+      "expectedFirst": [
+        "list_models"
+      ],
+      "expectedTrajectory": [
+        "list_models"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R35",
+      "say": "Cancel the export",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "cancel",
+      "expectedFirst": [
+        "cancel_job",
+        "check_job"
+      ],
+      "expectedTrajectory": [
+        "cancel_job"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R36",
+      "say": "Stop, undo that",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "undo",
+      "expectedFirst": [
+        "undo",
+        "read_timeline"
+      ],
+      "expectedTrajectory": [
+        "undo"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R37",
+      "say": "How much will these 6 shots cost?",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "price",
+      "expectedFirst": [
+        "look_at_canvas"
+      ],
+      "expectedTrajectory": [
+        "look_at_canvas"
+      ],
+      "forbiddenVerbs": [
+        "generate"
+      ],
+      "note": "counter-example: price rides on the read; calling generate to quote is the wrong tool"
+    },
+    {
+      "id": "R38",
+      "say": "Write the voice-over script for these shots",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "script",
+      "expectedFirst": [
+        "look_at_canvas",
+        "read_script"
+      ],
+      "expectedTrajectory": [
+        "write_script"
+      ],
+      "forbiddenVerbs": [
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "R39",
+      "say": "Add a push-in on the hero shot",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "stage",
+      "expectedFirst": [
+        "look_at_canvas",
+        "stage_shot"
+      ],
+      "expectedTrajectory": [
+        "stage_shot"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R40",
+      "say": "Connect my Anthropic key",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "model-setup",
+      "expectedFirst": [
+        "start_model_setup"
+      ],
+      "expectedTrajectory": [
+        "start_model_setup"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R41",
+      "say": "Use the \"UGC ad\" skill",
+      "lang": "en",
+      "persona": "novice",
+      "bucket": "skill",
+      "expectedFirst": [
+        "read_skill"
+      ],
+      "expectedTrajectory": [
+        "read_skill"
+      ],
+      "forbiddenVerbs": []
+    },
+    {
+      "id": "R42",
+      "say": "Delete the two duplicate shots",
+      "lang": "en",
+      "persona": "expert",
+      "bucket": "delete",
+      "expectedFirst": [
+        "look_at_canvas",
+        "delete_from_canvas"
+      ],
+      "expectedTrajectory": [
+        "delete_from_canvas"
+      ],
+      "forbiddenVerbs": []
+    }
+  ]
+}

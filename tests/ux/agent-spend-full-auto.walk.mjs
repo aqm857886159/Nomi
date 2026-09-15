@@ -43,22 +43,30 @@ const PRICE_TOTAL = '[data-v4-price="total"]'
 
 /** 一次「模型建草稿」的脚本回合。付费能力不在模型工具面里（paidBoundary），它能做的只有这个。 */
 function draftTurn(walk, { marker, callId, prompt, done }) {
+  // 20 动词：draft_shots 建草稿（落画布、不出卡），generate 才把报价卡摆到用户面前；「全自动」档在 generate 那一刻替用户决门。
+  const generateId = `${callId}-generate`
+  let draftId
   const planner = walk.fixture.expectText({
     label: `the agent drafts a generation for ${marker}`,
     match: (body) => flattenRequestText(body).includes(marker),
-    reply: { type: 'tool', id: callId, name: 'nomi_generation_plan', args: {
-      operation: 'create',
-      taskKind: 'text_to_image',
-      prompt,
-      moduleId: 'generation.single-shot',
-      providerId: FIXTURE_VENDOR,
-      modelId: FIXTURE_IMAGE_MODEL,
-      parameters: { size: '1024x1024' },
+    reply: { type: 'tool', id: callId, name: 'draft_shots', args: {
+      shots: [{ prompt, taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: '1024x1024' } }],
     } },
   })
+  const drafted = walk.fixture.expectText({
+    label: `the draft for ${marker} comes back with its draftId, then the agent calls generate`,
+    match: (body) => {
+      const result = (body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === callId)
+      if (!result) return false
+      draftId = /"operationId":"([^"]+)"/.exec(String(result.content))?.[1]
+      return true
+    },
+    reply: { type: 'hold' },
+  })
+  drafted.received.then(() => drafted.release({ type: 'tool', id: generateId, name: 'generate', args: { draftId } }))
   const finished = walk.fixture.expectText({
     label: `the drafting turn for ${marker} completes through the same SDK turn`,
-    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === callId),
+    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === generateId),
     reply: { type: 'text', text: done },
   })
   return { planner, finished }

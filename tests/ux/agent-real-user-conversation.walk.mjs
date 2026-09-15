@@ -313,14 +313,13 @@ try {
     label: 'canvas turn 1 proposes three shot nodes',
     match: (body) => flattenRequestText(body).includes('K_CANVAS1') && !hasToolResult(body, CREATE_CALL),
     reply: {
-      type: 'tool', id: CREATE_CALL, name: 'nomi_canvas_write',
+      type: 'tool', id: CREATE_CALL, name: 'draft_shots',
+      // 20 动词：只有 draft_shots 能在画布上造出会生成的镜头（草稿落画布、不出卡、不花钱）。
       args: {
-        operation: 'create_canvas_nodes',
-        summary: '按脚本摆三个镜头',
-        nodes: [
-          { clientId: 'k-shot-1', kind: 'image', title: '招牌灯', prompt: '深夜街边招牌灯，暖光，中景' },
-          { clientId: 'k-shot-2', kind: 'image', title: '舀汤', prompt: '热气糊镜头，牛骨汤舀进碗，特写' },
-          { clientId: 'k-shot-3', kind: 'image', title: '多余的一个', prompt: '备用镜头，暂时用不上' },
+        shots: [
+          { title: '招牌灯', prompt: '深夜街边招牌灯，暖光，中景', taskKind: 'text_to_image' },
+          { title: '舀汤', prompt: '热气糊镜头，牛骨汤舀进碗，特写', taskKind: 'text_to_image' },
+          { title: '多余的一个', prompt: '备用镜头，暂时用不上', taskKind: 'text_to_image' },
         ],
       },
     },
@@ -334,10 +333,10 @@ try {
   const createWire = await recorded(createCall.received, 'canvas create request')
   note(`生成面工具目录：${toolNames(createWire.body).join(', ')}`)
   expect(toolNames(createWire.body), '生成面必须摆出画布读写能力')
-    .toEqual(expect.arrayContaining(['nomi_canvas_read', 'nomi_canvas_write']))
+    .toEqual(expect.arrayContaining(['look_at_canvas']))
   const createResultWire = await recorded(createResult.received, 'canvas create tool-result request')
   expect(hasToolResult(createResultWire.body, CREATE_CALL)).toBe(true)
-  expect(nativeResult(CREATE_CALL), '建节点必须有真实成功的落盘结果').toMatchObject({ isError: false, details: { applied: true, operation: 'create_canvas_nodes' } })
+  expect(nativeResult(CREATE_CALL), '建草稿必须有真实成功的落盘结果').toMatchObject({ isError: false, details: { operation: { state: 'draft' } } })
   await expect(canvas).toContainText('K_CANVAS1_DONE')
   await expect.poll(canvasNodeIds, { message: '三个镜头节点必须真的落到画布上', timeout: 30_000 })
     .toHaveLength(3)
@@ -413,12 +412,8 @@ try {
     label: 'canvas turn 3 writes again under safe-auto',
     match: (body) => flattenRequestText(body).includes('K_CANVAS3') && !hasToolResult(body, REFILL_CALL),
     reply: {
-      type: 'tool', id: REFILL_CALL, name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes',
-        summary: '补一个收尾镜头',
-        nodes: [{ clientId: 'k-shot-4', kind: 'image', title: '第一口', prompt: '她吸溜第一口，暖光特写' }],
-      },
+      type: 'tool', id: REFILL_CALL, name: 'draft_shots',
+      args: { shots: [{ title: '第一口', prompt: '她吸溜第一口，暖光特写', taskKind: 'text_to_image' }] },
     },
   })
   const refillResult = walk.fixture.expectText({
@@ -437,7 +432,7 @@ try {
   await expect.poll(canvasNodeIds, { message: '不出卡不等于没写：这一笔必须真的落盘', timeout: 30_000 })
     .toHaveLength(3)
   await walk.snap('09-safe-auto-write-without-card')
-  note('safe-auto 的 create_canvas_nodes 全程无卡，但节点确实写进去了')
+  note('safe-auto 的 draft_shots 全程无卡，但草稿节点确实写进去了')
 
   // ── 幕四·尾 · 一步没成功，必须不展开就看得见 ─────────────────────────────────────
   const failCall = walk.fixture.expectText({
@@ -513,10 +508,10 @@ try {
   await walk.snap('10-queue-cancel-and-resend')
   const queuedD = walk.fixture.expectText({ label: 'urgent instruction is consumed first',
     match: (body) => flattenRequestText(body).includes(INSERT_D) && !flattenRequestText(body).includes(QUEUE_B),
-    reply: { type: 'tool', id: 'k-queue-d-read', name: 'nomi_canvas_read', args: {} } })
+    reply: { type: 'tool', id: 'k-queue-d-read', name: 'look_at_canvas', args: {} } })
   const queuedB = walk.fixture.expectText({ label: 'first resent instruction is consumed at the next tool boundary',
     match: (body) => hasToolResult(body, 'k-queue-d-read') && flattenRequestText(body).includes(QUEUE_B) && !flattenRequestText(body).includes(QUEUE_C),
-    reply: { type: 'tool', id: 'k-queue-b-read', name: 'nomi_canvas_read', args: {} } })
+    reply: { type: 'tool', id: 'k-queue-b-read', name: 'look_at_canvas', args: {} } })
   const queuedC = walk.fixture.expectText({ label: 'second resent instruction is consumed last',
     match: (body) => hasToolResult(body, 'k-queue-b-read') && flattenRequestText(body).includes(QUEUE_C),
     reply: { type: 'text', text: [INSERT_D_REPLY, QUEUE_B_REPLY, QUEUE_C_REPLY].join('\n') } })

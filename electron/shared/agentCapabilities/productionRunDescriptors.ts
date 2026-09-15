@@ -89,16 +89,16 @@ const descriptors = {
 export const productionRunToolDescriptors = descriptors;
 export const productionRunToolNames = Object.keys(descriptors) as Array<keyof typeof descriptors>;
 export const productionRunReadToolNames = new Set<string>([
-  PRODUCTION_RUN_READ_CAPABILITY.aliases.pi,
-  ...(PRODUCTION_RUN_READ_CAPABILITY.additionalAliases?.pi ?? []),
+  PRODUCTION_RUN_READ_CAPABILITY.aliases.method,
+  ...(PRODUCTION_RUN_READ_CAPABILITY.additionalAliases?.method ?? []),
 ]);
 export const productionRunWriteToolNames = new Set<string>([
-  PRODUCTION_RUN_WRITE_CAPABILITY.aliases.pi,
-  ...(PRODUCTION_RUN_WRITE_CAPABILITY.additionalAliases?.pi ?? []),
+  PRODUCTION_RUN_WRITE_CAPABILITY.aliases.method,
+  ...(PRODUCTION_RUN_WRITE_CAPABILITY.additionalAliases?.method ?? []),
 ]);
 export const productionArtifactWriteToolNames = new Set<string>([
-  PRODUCTION_ARTIFACT_WRITE_CAPABILITY.aliases.pi,
-  ...(PRODUCTION_ARTIFACT_WRITE_CAPABILITY.additionalAliases?.pi ?? []),
+  PRODUCTION_ARTIFACT_WRITE_CAPABILITY.aliases.method,
+  ...(PRODUCTION_ARTIFACT_WRITE_CAPABILITY.additionalAliases?.method ?? []),
 ]);
 
 export type ProductionRunToolName = keyof typeof descriptors;

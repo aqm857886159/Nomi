@@ -64,7 +64,7 @@ try {
   })
   walk.fixture.expectText({
     label: 'merge step 1', match: body => hasToolResult(body, 'merge-0') && !hasToolResult(body, 'merge-1'),
-    reply: { type: 'tool', id: 'merge-1', name: 'nomi_canvas_read', args: {}, text: SEGMENTS[1] },
+    reply: { type: 'tool', id: 'merge-1', name: 'look_at_canvas', args: {}, text: SEGMENTS[1] },
   })
   const closing = walk.fixture.expectText({
     label: 'merge closing', match: body => hasToolResult(body, 'merge-1'),

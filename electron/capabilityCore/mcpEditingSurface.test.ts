@@ -56,7 +56,7 @@ describe("M2 semantic editing surface", () => {
         arguments: {
           leaseHandle: "lease-a",
           projectId: "project-a",
-          operation: "append",
+          where: "end",
           content: "approved document content",
         },
       },
@@ -88,7 +88,7 @@ describe("M2 semantic editing surface", () => {
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
-      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", operation: "append", content: "失败也要是工具结果" } },
+      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", where: "end", content: "失败也要是工具结果" } },
     });
     await vi.waitFor(() => expect(frames).toContainEqual(expect.objectContaining({ method: "elicitation/create" })));
     const request = frames.find((frame) => (frame as { method?: string }).method === "elicitation/create") as { id: unknown };
@@ -109,7 +109,7 @@ describe("M2 semantic editing surface", () => {
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
-      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", operation: "append", content: "拒绝写入" } },
+      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", where: "end", content: "拒绝写入" } },
     });
     await vi.waitFor(() => expect(frames).toContainEqual(expect.objectContaining({ method: "elicitation/create" })));
     const request = frames.find((frame) => (frame as { method?: string }).method === "elicitation/create") as { id: unknown };
@@ -152,7 +152,7 @@ describe("M2 semantic editing surface", () => {
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
-      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", operation: "append", content: "超时不得写入" } },
+      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", where: "end", content: "超时不得写入" } },
     });
     await vi.advanceTimersByTimeAsync(300_001);
     await vi.waitFor(() => expect(frames).toContainEqual(expect.objectContaining({ id: 2, result: expect.objectContaining({ isError: true }) })));

@@ -24,7 +24,7 @@ import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePor
 import { createDocumentPort, createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 const ONE_TURN = [
-  { type: 'tool' as const, calls: [{ id: 'call-read', name: 'read_full_text', arguments: {} }] },
+  { type: 'tool' as const, calls: [{ id: 'call-read', name: 'read_script', arguments: {} }] },
   { type: 'text' as const, text: 'Read it.' },
 ];
 

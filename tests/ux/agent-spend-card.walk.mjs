@@ -19,6 +19,7 @@ import {
 
 const ASK = 'S_SPEND_ASK：帮我生成一张六棱柱的图。'
 const PLAN_CALL = 's-spend-plan-1'
+const GENERATE_CALL = `${PLAN_CALL}-generate`
 const PRICE_TOTAL = '[data-v4-price="total"]'
 
 const walk = await createRuntimeWalk('spend-card')
@@ -33,26 +34,31 @@ try {
   const planner = walk.fixture.expectText({
     label: 'the agent drafts a generation instead of spending on its own',
     match: (body) => flattenRequestText(body).includes('S_SPEND_ASK'),
-    reply: { type: 'tool', id: PLAN_CALL, name: 'nomi_generation_plan', args: {
-      operation: 'create',
-      taskKind: 'text_to_image',
-      prompt: '一个悬浮的六棱柱，柔和的演播室灯光',
-      // 模型身份三件套写全：真实用户没在设置里存过「图片默认模型」时，宿主拒绝替他从目录
-      // 顺序里挑一个花钱的模型（semanticGenerationCandidate.ts:199-207），这是对的。
-      // 走查因此像真实 agent 那样先从 context 拿到身份再写进 create。
-      moduleId: 'generation.single-shot',
-      providerId: FIXTURE_VENDOR,
-      modelId: FIXTURE_IMAGE_MODEL,
-      parameters: { size: '1024x1024' },
+    reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
+      // 20 动词：draft_shots 建草稿（落画布、不出卡），generate 才把报价卡摆到用户面前。
+      shots: [{ prompt: '一个悬浮的六棱柱，柔和的演播室灯光', taskKind: 'text_to_image', candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL }, parameters: { size: '1024x1024' } }],
     } },
+  })
+  let draftId
+  const plannerDoneDraft = walk.fixture.expectText({
+    label: 'the draft result comes back with the host-generated draftId',
+    match: (body) => {
+      const result = (body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL)
+      if (!result) return false
+      draftId = /"operationId":"([^"]+)"/.exec(String(result.content))?.[1]
+      return true
+    },
+    reply: { type: 'hold' },
   })
   const plannerDone = walk.fixture.expectText({
     label: 'the drafting turn completes through the same SDK turn',
-    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL),
+    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === GENERATE_CALL),
     reply: { type: 'text', text: 'S_SPEND_DONE：草稿已就绪，等你确认。' },
   })
   await sendCanvas(win, ASK)
   await recorded(planner.received, 'generation draft request')
+  await recorded(plannerDoneDraft.received, 'generation draft result')
+  plannerDoneDraft.release({ type: 'tool', id: GENERATE_CALL, name: 'generate', args: { draftId } })
   await recorded(plannerDone.received, 'generation draft result')
 
   // 草稿落画布（一本账）：节点先出现，用户看得见 agent 到底要生成什么。

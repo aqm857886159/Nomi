@@ -8,8 +8,7 @@ metadata:
     label: 品牌宣传片
     author: "@nomi"
     tools:
-      - read_full_text
-      - read_selection
+      - read_script
       - read_canvas_state
       - propose_storyboard_plan
       - create_canvas_nodes
@@ -25,8 +24,7 @@ metadata:
       - id: script
         goal: 先生成一份可审阅的编号剧本和产品/场景事实，不落画布、不调用付费模型；用户确认或提出定点修改后才进入视觉规划。
         tools:
-          - read_full_text
-          - read_selection
+          - read_script
         pause: true
         skill-refs:
           - writer-screenwriter

@@ -184,7 +184,7 @@ function pendingApproval(workspace: LaneWorkspaceHandle) {
 for (const action of ['approval', 'abort'] as const) {
   test(`a running prompt never holds ${action} behind its model/tool turn`, { timeout: 10_000 }, async (t) => {
     const fixture = await createLaneFixture(t, [
-      { type: 'tool', calls: [{ id: 'append', name: 'append_to_end', arguments: { content: 'The closing line.' } }] },
+      { type: 'tool', calls: [{ id: 'append', name: 'write_script', arguments: { where: 'end', content: 'The closing line.' } }] },
       { type: 'text', text: 'Done.' },
     ], { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
     const workspace = await openLaneWorkspace(fixture.options);

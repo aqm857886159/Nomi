@@ -75,18 +75,20 @@ async function fixture(toolName: string, args: Record<string, unknown>, stale = 
 describe('desktop lane read adapter contracts', () => {
   it.each([
     ['read_timeline', {}],
-    ['inspect_timeline_range', { startFrame: 12, endFrame: 24 }],
+    ['read_timeline', { startFrame: 12, endFrame: 24 }],
   ] as const)('%s binds alias operation once and returns a usable revision', async (toolName, args) => {
     const f = await fixture(toolName, args)
     expect(f.result).toMatchObject({ isError: false })
-    expect(JSON.parse(f.result.text)).toMatchObject({ operation: toolName, revision: 'deadbeef', ...args })
-    expect(f.timelineRead).toHaveBeenCalledExactlyOnceWith({ input: { operation: toolName, ...args },
+    const range = 'startFrame' in args ? args : undefined
+    const operation = range ? 'inspect_timeline_range' : 'read_timeline'
+    expect(JSON.parse(f.result.text)).toMatchObject({ operation, revision: 'deadbeef', ...(range ?? {}) })
+    expect(f.timelineRead).toHaveBeenCalledExactlyOnceWith({ input: { operation, ...(range ?? {}) },
       target: { kind: 'timeline', clipIds: [] }, preconditions: {}, signal: expect.any(AbortSignal) })
     expect(f.lane.projection().pending).toBeUndefined()
   })
 
   it('returns the shared safe compact canvas projection without parsing presentation text as domain data', async () => {
-    const f = await fixture('nomi_canvas_read', {})
+    const f = await fixture('look_at_canvas', {})
     expect(f.result).toMatchObject({ isError: false, text: formatCanvasForAgent(projectCanvasRead(canvasSource)) })
     expect(f.canvasRead).toHaveBeenCalledOnce()
     expect(f.result.text).toContain('shot-a')
@@ -95,16 +97,16 @@ describe('desktop lane read adapter contracts', () => {
     expect(f.result.text).not.toContain('private-fixture-value')
   })
 
-  it.each([['read_full_text', 'full'], ['read_selection', 'selection']] as const)(
+  it.each([['read_script', 'full'], ['read_script', 'selection']] as const)(
     '%s keeps the verified document scope with its no-argument alias', async (toolName, scope) => {
-      const f = await fixture(toolName, {})
+      const f = await fixture(toolName, { scope })
       expect(f.result).toMatchObject({ isError: false, text: `${scope} fixture text` })
       expect(f.documentRead).toHaveBeenCalledExactlyOnceWith({ scope, signal: expect.any(AbortSignal) })
     })
 
-  it.each(['read_timeline', 'inspect_timeline_range', 'nomi_canvas_read', 'read_full_text', 'read_selection'])(
+  it.each(['read_timeline', 'look_at_canvas', 'read_script'])(
     '%s refuses a rotated surface before domain execution', async toolName => {
-      const f = await fixture(toolName, toolName === 'inspect_timeline_range' ? { startFrame: 12, endFrame: 24 } : {}, true)
+      const f = await fixture(toolName, toolName === 'read_script' ? { scope: 'full' } : {}, true)
       expect(f.result).toMatchObject({ isError: true })
       expect(f.timelineRead).not.toHaveBeenCalled()
       expect(f.canvasRead).not.toHaveBeenCalled()

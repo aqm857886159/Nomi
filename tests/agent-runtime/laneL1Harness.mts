@@ -184,8 +184,8 @@ export async function runL1Scenario(t: TestContext, scenario: L1Scenario): Promi
 /** Positive controls prove the comparator rejects a changed transcript, arg, result or identity. */
 export function assertL1ComparatorControls(): void {
   const baseline: ComparableStep[] = [{ kind: 'assistant-text', text: 'Done.' },
-    { kind: 'tool-call', toolCallId: 'a', toolName: 'append_to_end', args: '{"content":"A"}' },
-    { kind: 'tool-result', toolCallId: 'a', toolName: 'append_to_end', text: 'Applied.', isError: false }];
+    { kind: 'tool-call', toolCallId: 'a', toolName: 'write_script', args: '{"content":"A"}' },
+    { kind: 'tool-result', toolCallId: 'a', toolName: 'write_script', text: 'Applied.', isError: false }];
   for (const changed of [
     [{ ...baseline[0], text: 'Changed.' }, ...baseline.slice(1)],
     [baseline[0], { ...baseline[1], args: '{"content":"B"}' }, baseline[2]],

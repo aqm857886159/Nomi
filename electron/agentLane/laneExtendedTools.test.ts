@@ -8,9 +8,9 @@ import { collectVendorCompatibilityFailures, toPublishedJsonSchema } from '../sh
 import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { LANE_MODEL_TOOL_CATALOG, LANE_TOOL_BUDGET, LANE_DEFERRED_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog'
 
-const preserved = ['propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
-  'start_production_run', 'review_production_artifact', 'nomi_generation_plan', 'nomi_generation_status',
-  'get_media', 'export_timeline', 'cancel_export_job', 'delete_canvas_nodes']
+const preserved = ['edit_timeline', 'undo', 'export_video',
+  'make_artifact', 'stage_shot', 'draft_shots', 'check_job',
+  'look_at_media', 'cancel_job', 'delete_from_canvas']
 
 describe('lane extended domain menu', () => {
   it('retains editing, production and media intents in the shared internal profile', () => {
@@ -31,17 +31,15 @@ it('every retained tool belongs to exactly one unlockable group', () => {
 })
 
 it('production parameter preparation preserves run/artifact identity and revision', () => {
-  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'review_production_artifact')!
-  const args = { runId: 'run-1', artifactId: 'artifact-1', expectedVersion: 2, decision: 'approved' }
+  const spec = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'draft_shots')!
+  const args = { shots: [{ prompt: 'Fixture shot', taskKind: 'text_to_image' }] }
   expect(spec.schema.parse(spec.prepareArguments!(JSON.stringify(args)))).toEqual(args)
 })
 
 it('generation read operations have read authority while cancel and reconcile remain writes', () => {
-  const status = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'nomi_generation_status')!
-  expect(modelToolCapabilityId(status, { operation: 'read' })).toBe('generation.run.read')
-  expect(modelToolCapabilityId(status, { operation: 'cancel' })).toBe('generation.control')
-  expect(modelToolCapabilityId(status, { operation: 'reconcile' })).toBe('generation.control')
-  expect(modelToolCapabilityId(status, {})).toBe('generation.control')
+  // check_job 按生成组延迟披露（与 draft_shots / generate 同组）。
+  const status = LANE_DEFERRED_TOOL_CATALOG.find(tool => tool.name === 'check_job')!
+  expect(modelToolCapabilityId(status, {})).toBe('generation.run.read')
 })
 
 it('published timeline operations have no const and still enforce their original branch', () => {
@@ -74,8 +72,10 @@ it('enum merging is opt-in and never relaxes the source branch constraints', () 
 describe('domain failure message reaches the model', () => {
   const signal = new AbortController().signal
   const run = async (decision: { ok: false; code: string; message?: string }) => {
-    const tool = createExtendedLaneTools({ execute: async () => decision }).find(candidate => candidate.name === 'nomi_generation_status')!
-    return tool.execute({ operation: 'read', operationId: 'run-1' }, { toolCallId: 'call-1', signal }) as Promise<{ ok: boolean; failure?: { code: string; message: string } }>
+    // 20 动词面：读一个任务的动词叫 `check_job`（旧的 `nomi_generation_status` 已退役）。
+    // 入参先过它自己的 schema，所以这里给的是 `jobId`，不是旧契约的 operation/operationId。
+    const tool = createExtendedLaneTools({ execute: async () => decision }).find(candidate => candidate.name === 'check_job')!
+    return tool.execute({ jobId: 'run-1' }, { toolCallId: 'call-1', signal }) as Promise<{ ok: boolean; failure?: { code: string; message: string } }>
   }
   it('forwards a message that says more than the code', async () => {
     const result = await run({ ok: false, code: 'generation_surface_unavailable', message: "Nomi's resident generation surface is still starting; retry this step in a moment." })
@@ -84,6 +84,6 @@ describe('domain failure message reaches the model', () => {
   })
   it('does not repeat a message that is only the code', async () => {
     const result = await run({ ok: false, code: 'capability_unsupported', message: 'capability_unsupported' })
-    expect(result.failure?.message).toBe('nomi_generation_status could not complete the requested action (capability_unsupported).')
+    expect(result.failure?.message).toBe('check_job could not complete the requested action (capability_unsupported).')
   })
 })

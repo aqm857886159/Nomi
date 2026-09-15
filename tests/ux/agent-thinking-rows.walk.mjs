@@ -16,10 +16,10 @@ try {
   await win.keyboard.press('Escape')
   await win.locator(DOCUMENT).fill('清晨，她推开咖啡馆的门。红杯落在白桌上。')
   const calls = [
-    { type: 'tool', name: 'read_full_text', args: {} },
-    { type: 'tool', name: 'nomi_storyboard_write', args: { operation: 'propose_storyboard_plan', title: '咖啡馆', anchors: [], shots: [] } },
-    { type: 'tool', name: 'nomi_storyboard_write', args: { operation: 'propose_storyboard_plan', title: '咖啡馆', anchors: [], shots: [{ index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: '清晨咖啡馆，红杯落在白桌上' }] } },
-    { type: 'tool', name: 'read_full_text', args: {} },
+    { type: 'tool', name: 'read_script', args: {} },
+    { type: 'tool', name: 'draft_shots', args: { shots: [] } },
+    { type: 'tool', name: 'draft_shots', args: { shots: [{ title: '咖啡馆', prompt: '清晨咖啡馆，红杯落在白桌上', taskKind: 'text_to_image' }] } },
+    { type: 'tool', name: 'read_script', args: {} },
   ]
   const reasoning = ['先读取文稿。', '把文稿拆成分镜并保存。', '保存失败，补齐镜头后重试。', '保存完成，再核对原文。', '核对完成，可以交付。']
   calls.forEach((call, i) => walk.fixture.expectText({ label: `C77 step ${i}`,

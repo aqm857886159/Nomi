@@ -170,6 +170,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     currency?: string
     policy?: Partial<AutomationPolicy>
     shots?: ReadonlyArray<Pick<ProductionGenerationShot, 'shotId' | 'role' | 'included' | 'candidate'>>
+    cardHidden?: boolean
   }): ProductionRun {
     // Semantic generation drafts must use the same live automation policy as
     // every other ProductionRun entry point. Previously this thin service

@@ -66,7 +66,7 @@ try {
   const streamingProof = await proveProbe(panel.locator(`${THINKING_LINE}[data-streaming="true"]`), 'real reasoning stream is visible')
   const early = await flowOverlaps(flow)
   await walk.snap('reasoning-before-tools')
-  thinking.release({ type: 'tool', id: 'overlap-read', name: 'nomi_canvas_read', args: {} })
+  thinking.release({ type: 'tool', id: 'overlap-read', name: 'look_at_canvas', args: {} })
   await recorded(second.received, 'second actual read')
   await recorded(final.received, 'actual body stream')
   await expect(panel.locator(TOOL_RECEIPT)).toHaveCount(2)

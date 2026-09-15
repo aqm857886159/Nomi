@@ -557,7 +557,7 @@ try {
   // C12: the production driver has already arranged the real generated nodes;
   // read and validate that timeline through the MCP editing surface before
   // approving the export gate.
-  const timelineRead = await call(mcp, 'nomi_timeline_read', { projectId: c9ProjectId, leaseHandle: c9Lease, operation: 'read_timeline' })
+  const timelineRead = await call(mcp, 'nomi_timeline_read', { projectId: c9ProjectId, leaseHandle: c9Lease })
   const timeline = resultTextJson(timelineRead)
   const timelineTracks = Array.isArray(timeline.tracks) ? timeline.tracks : []
   console.log('  C12 timeline summary=', JSON.stringify({ operation: timeline.operation, revision: timeline.revision, tracks: timelineTracks.map((track) => ({ type: track.type, clips: track.clips?.length, clipTypes: (track.clips || []).map((clip) => clip.type) })) }))

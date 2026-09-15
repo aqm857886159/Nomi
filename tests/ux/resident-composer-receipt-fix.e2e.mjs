@@ -81,8 +81,9 @@ try {
     match: (body) => flattenRequestText(body).includes(RESIDENT_INTENT)
       && !hasToolResult(body, 'resident-receipt-fix-1'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-1', name: 'append_to_end',
-      args: { content: RESIDENT_APPEND },
+      // 20 动词：`append_to_end` 已退役，文稿写入只有 `write_script(content, where)` 一个动词。
+      type: 'tool', id: 'resident-receipt-fix-1', name: 'write_script',
+      args: { content: RESIDENT_APPEND, where: 'end' },
     },
   })
   const approvedFollowup = walk.fixture.expectText({
@@ -138,11 +139,8 @@ try {
     match: (body) => flattenRequestText(body).includes('请创建一个临时图片节点')
       && !hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'nomi_canvas_write',
-      args: {
-        operation: 'create_canvas_nodes', summary: 'resident receipt approval fixture',
-        nodes: [{ clientId: 'resident-receipt-fix-node', kind: 'image', title: 'Resident approval fixture', prompt: 'temporary approval fixture', modelKey: 'agent-runtime-image', modeId: 't2i', params: { size: '1024x1024' } }],
-      },
+      type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'make_artifact',
+      args: { fileType: 'text', title: 'Resident approval fixture', content: 'temporary approval fixture' },
     },
   })
   const canvasCreateFollowup = walk.fixture.expectText({
@@ -278,7 +276,7 @@ try {
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   expect(leaseHandle, 'Real MCP stdio must open the current GUI project session').toBeTruthy()
   const mcpResult = parseToolResult(await mcp.callTool('nomi_document_edit', {
-    leaseHandle, projectId, operation: 'append', content: MCP_APPEND,
+    leaseHandle, projectId, where: 'end', content: MCP_APPEND,
   }))
   expect(mcpResult.isError, 'Real production MCP write must return a typed success result').toBe(false)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocuments), {

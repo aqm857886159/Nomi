@@ -622,6 +622,7 @@ describe("semantic MCP generation tools", () => {
         seal: () => operation,
         approve: () => ({ ...operation, approvedReceiptId: "r" }),
         cancel: () => ({ ...operation, state: "cancelled" as const }),
+        present: () => operation,
       };
     }
 

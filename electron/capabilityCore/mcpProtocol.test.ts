@@ -5,7 +5,7 @@ import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 import { mcpProfileTools, specsForCapability } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { mcpToolDescription } from '../shared/agentCapabilities/modelFacingTools'
 import { EXPORT_READ_CAPABILITY } from '../shared/agentCapabilities/exportCapabilities'
-import { CANVAS_NODE_PROMPT_GUIDELINES } from '../shared/agentCapabilities/canvasWrite'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { registerProductionPlaybook } from '../productionRun/productionPlaybooks'
 
@@ -19,7 +19,10 @@ describe('MCP L1 tools/list_changed notification', () => {
       const listed = frames.find(frame => frame.id === 1)?.result as { tools: Array<{ name: string; description: string }> }
       expect(listed.tools.length).toBeGreaterThan(0)
       const sources = mcpProfileTools()
-      expect(sources.some(source => source.contractId === 'canvas.write')).toBe(true)
+      // canvas.write 对外是手写传输（`nomi_canvas_edit`），不在派生 sources 里；描述仍从三个画布写动词派生。
+      expect(sources.some(source => source.contractId === 'canvas.write')).toBe(false)
+      expect(listed.tools.find(tool => tool.name === CANVAS_WRITE_CAPABILITY.aliases.mcp)?.description)
+        .toBe(mcpToolDescription(CANVAS_WRITE_CAPABILITY, specsForCapability(CANVAS_WRITE_CAPABILITY.id)))
       expect(sources.some(source => source.contractId === 'document.write')).toBe(true)
       expect(sources.some(source => source.contractId === 'asset.read')).toBe(true)
       for (const source of sources) {
@@ -29,10 +32,6 @@ describe('MCP L1 tools/list_changed notification', () => {
         for (const guideline of new Set(source.specs.flatMap(spec => spec.promptGuidelines ?? []))) {
           expect(actual?.description, `${name} retains its shared guideline`).toContain(guideline)
         }
-      }
-      const canvas = listed.tools.find(tool => tool.name === 'nomi_canvas_edit')!
-      for (const guideline of CANVAS_NODE_PROMPT_GUIDELINES) {
-        expect(canvas.description.split(guideline)).toHaveLength(2)
       }
       const read = listed.tools.find(tool => tool.name === 'nomi_read')!
       expect(read.description).toContain('For target=canvas only')

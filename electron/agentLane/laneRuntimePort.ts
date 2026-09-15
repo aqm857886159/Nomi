@@ -13,7 +13,7 @@ import type {
   LaneHandle, LanePendingApproval, LaneProjection, LaneSkillIndexEntry, LaneTaskFacts, LaneWorkspaceHandle,
 } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
-import type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
+import type { LaneToolEffect, LaneToolFailureShape, LaneToolNextAction, LaneToolSpec } from '../shared/agentLane/laneToolContract'
 import type { RuntimeToolCall } from '../shared/agentCapabilities/transportContracts'
 import type { LaneComposerContext, LaneInputMessage } from '../shared/agentLane/laneDesktopContracts'
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig'
@@ -22,7 +22,7 @@ import type { LaneApprovalSubjectResolver } from '../shared/agentLane/laneApprov
 import type { SkillRecord } from '../skills/skillStore'
 
 export type { LaneHandle, LaneProjection }
-export type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec }
+export type { LaneToolEffect, LaneToolFailureShape, LaneToolNextAction, LaneToolSpec }
 export { LaneDomainFailure }
 
 /**
@@ -36,7 +36,7 @@ export { LaneDomainFailure }
  * 一个 `LaneToolFailureShape`，两个投影。
  */
 export type LaneToolOutcome =
-  | { ok: true; text: string; details?: unknown }
+  | { ok: true; text: string; details?: unknown; nextAction?: LaneToolNextAction }
   | { ok: false; failure: LaneToolFailureShape }
 
 /**

@@ -13,7 +13,7 @@ function pendingApproval(lane: LaneHandle): Promise<void> {
 }
 
 const replies = [
-  { type: 'tool' as const, calls: [{ id: 'append-fixture', name: 'append_to_end', arguments: { content: ' fixture ending.' } }] },
+  { type: 'tool' as const, calls: [{ id: 'append-fixture', name: 'write_script', arguments: { where: 'end', content: ' fixture ending.' } }] },
   { type: 'text' as const, text: 'Fixture complete.' },
 ];
 const policy = { mode: 'step' as const, spend: 'confirm' as const };

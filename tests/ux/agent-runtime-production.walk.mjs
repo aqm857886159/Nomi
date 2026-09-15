@@ -58,10 +58,9 @@ try {
   const planner = walk.fixture.expectText({
     label: 'inline storyboard planner inherits the creation thread',
     match: (body) => flattenRequestText(body).includes('F_INLINE_STORY') && !hasToolResult(body, PLAN_CALL),
-    reply: { type: 'tool', id: PLAN_CALL, name: 'nomi_storyboard_write', args: {
-      operation: 'propose_storyboard_plan', title: 'F镜头', anchors: [],
-      shots: [{ index: 1, shotKind: 'image', durationSec: 0, anchorIds: [],
-        modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', params: { size: '1024x1024' },
+    reply: { type: 'tool', id: PLAN_CALL, name: 'draft_shots', args: {
+      shots: [{ title: 'F镜头', taskKind: 'text_to_image',
+        modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', parameters: { size: '1024x1024' },
         prompt: '正面中景，红色杯子放在白桌中央。' }],
     } },
   })

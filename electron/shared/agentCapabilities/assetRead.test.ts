@@ -12,14 +12,15 @@ describe("asset.read capability", () => {
   it("owns all five strict Pi aliases", () => {
     expect(ASSET_READ_CAPABILITY.effect).toBe("read");
     expect(ASSET_READ_CAPABILITY.effectClass).toBe("reversible_local");
-    expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.pi]).toEqual([
-      "get_media",
+    expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.method]).toEqual([
+      "look_at_media",
       "inspect_media",
       "search_media",
       "inspect_source_range",
       "read_waveform",
     ]);
     expect(assetReadPiInputSchemaForAlias(ASSET_READ_ALIASES.search)?.safeParse({ extra: true }).success).toBe(false);
+    // 模型面名字是 `look_at_media`；契约 operation 词表是方法名（`get_media` …），lane 按参数形状选方法。
     expect(assetReadInputForAlias("get_media", { assetId: "asset-1" })).toEqual({
       operation: "get_media",
       assetId: "asset-1",

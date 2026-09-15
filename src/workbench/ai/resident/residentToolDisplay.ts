@@ -1,24 +1,20 @@
-import { resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
+import { MODEL_FACING_TOOL_SPECS, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
+import { GENERATION_METHOD_NAMES } from '../../../../electron/shared/agentCapabilities/generation'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import type { ResidentApprovalDetail, ResidentProposalData } from './residentProposalDisplay'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-const SEMANTIC_GENERATION_TOOL_NAMES = new Set([
-  'nomi_get_generation_context',
-  'nomi_operation_create',
-  'nomi_submit_generation_plan',
-  'nomi_preview_execution',
-  'nomi_request_generation_gate',
-  'nomi_start_generation',
-  'nomi_operation_read',
-  'nomi_cancel_generation',
-  'nomi_reconcile_generation',
-])
+/** 「会造/提交生成」的契约：草稿与付费门。读（context / run.read）与取消（control）不算——它们各有自己的叫法。 */
+const GENERATION_WRITE_CAPABILITIES = new Set(['generation.plan', 'generation.gate', 'generation.resolve'])
 
 export function isGenerationToolName(name: string): boolean {
+  // 先问注册表（20 动词：`draft_shots` / `generate` 归 `generation.plan`）；方法名（宿主/dispatcher 词表）
+  // 从 `GENERATION_METHOD_NAMES` 派生，不再手抄一份；最后才按字面猜（旧转录里的名字）。
+  const capabilityId = resolveModelToolCapabilityId(name)
+  if (capabilityId) return GENERATION_WRITE_CAPABILITIES.has(capabilityId)
   const normalized = name.toLowerCase()
-  return SEMANTIC_GENERATION_TOOL_NAMES.has(normalized)
+  return GENERATION_METHOD_NAMES.has(normalized as never)
     || normalized.includes('generation')
     || normalized.includes('image')
     || normalized.includes('video')
@@ -37,7 +33,21 @@ export function isGenerationToolName(name: string): boolean {
  * Matching on both halves fixes every branch at once, and keeps working for the pi-side aliases whose
  * names still carry the operation.
  */
-function toolIdentity(name: string, args?: unknown): string {
+/**
+ * 动词参数 → 契约语义输入，用**执行层同一张翻译表**（声明上的 `semanticInputOf`）。识别器全部按契约的
+ * `operation` 词表写；20 动词的参数形状（`make_artifact` 的 fileType/title/content）在这里先翻成
+ * `create_canvas_nodes` + agent-artifact 节点，不再为每个动词名各写一套识别分支。翻不动就按原样。
+ */
+function semanticArgsOf(name: string, args?: unknown): unknown {
+  const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : undefined
+  if (!record) return args
+  const spec = MODEL_FACING_TOOL_SPECS.find((candidate) => candidate.name === name)
+  if (!spec?.semanticInputOf) return args
+  try { return spec.semanticInputOf(record) } catch { return args }
+}
+
+function toolIdentity(name: string, rawArgs?: unknown): string {
+  const args = semanticArgsOf(name, rawArgs)
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
   const operation = typeof record.operation === 'string' ? record.operation : ''
   // Ask the registry that owns the tool what it is before falling back to reading its name. Every
@@ -213,7 +223,8 @@ function isAllArtifactDelivery(args: unknown): boolean {
   return nodes.every((node) => !!node && typeof node === 'object' && (node as Record<string, unknown>).kind === 'agent-artifact')
 }
 
-export function readableToolName(t: Translate, name: string, args?: unknown): string {
+export function readableToolName(t: Translate, name: string, rawArgs?: unknown): string {
+  const args = semanticArgsOf(name, rawArgs)
   if (name === 'nomi_request_tools') return t('agentResident.toolPrepareTools')
   if (name === 'read' || name === 'ls') return t('agentResident.toolFileRead')
   if (name === 'grep' || name === 'find') return t('agentResident.toolFileSearch')
@@ -235,7 +246,10 @@ export function readableToolName(t: Translate, name: string, args?: unknown): st
   if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWrite')
   if (normalized.includes('asset.read') || normalized.includes('media_query')) return t('agentResident.toolAssetRead')
   if (normalized.includes('production.artifact')) return t('agentResident.toolArtifactRevise')
-  if (normalized.includes('production.run.read')) return t('agentResident.toolProductionRead')
+  if (normalized.includes('production.run.read') || normalized.includes('generation.run.read')) return t('agentResident.toolProductionRead')
+  if (normalized.includes('generation.context.read')) return t('agentResident.toolModelsRead')
+  if (normalized.includes('generation.control')) return t('agentResident.toolJobCancel')
+  if (normalized.includes('model.setup.open')) return t('agentResident.toolModelSetup')
   if (normalized.includes('production.run.write')) return t('agentResident.toolProductionWrite')
   if (normalized.includes('skill.read')) return t('agentResident.toolSkillRead')
   if (normalized.includes('skill.write')) return t('agentResident.toolSkillWrite')
@@ -248,7 +262,8 @@ export function readableToolName(t: Translate, name: string, args?: unknown): st
   return t('agentResident.toolGeneric')
 }
 
-export function readableToolSummary(t: Translate, name: string, args?: unknown): string {
+export function readableToolSummary(t: Translate, name: string, rawArgs?: unknown): string {
+  const args = semanticArgsOf(name, rawArgs)
   if (isStoryboardPlanWrite(name, args)) return t('agentResident.toolStoryboardWriteSummary')
   if (isReadOnlyToolName(name, args)) return t('agentResident.toolReadNoChange')
   const normalized = toolIdentity(name, args)
@@ -290,7 +305,8 @@ export function readableToolSummary(t: Translate, name: string, args?: unknown):
  * 「需要你确认 / 查看细节 / [查看细节 ▸]」：一句都没说这次到底要动什么，等于让人盲批。
  * 认不出的工具至少说清「它要做哪件事、动的是谁」（合同 §2.6：逐条给人话）。
  */
-export function readableToolPreview(t: Translate, name: string, args?: unknown): string {
+export function readableToolPreview(t: Translate, name: string, rawArgs?: unknown): string {
+  const args = semanticArgsOf(name, rawArgs)
   const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
   if (isStoryboardPlanWrite(name, args)) return Array.isArray(record.shots) && record.shots.length
@@ -317,7 +333,8 @@ export function readableToolPreview(t: Translate, name: string, args?: unknown):
   return `${readableToolName(t, name)} · ${readableToolTarget(t, name, record)}`
 }
 
-export function readableToolTarget(t: Translate, name: string, args?: unknown): string {
+export function readableToolTarget(t: Translate, name: string, rawArgs?: unknown): string {
+  const args = semanticArgsOf(name, rawArgs)
   const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
   if (Array.isArray(record.nodeIds) && record.nodeIds.length) return t('agentResident.targetShotCount', { count: record.nodeIds.length })
@@ -361,7 +378,8 @@ function readableProposalParameters(t: Translate, record: Record<string, unknown
     .replace(/1:1/g, t('agentResident.proposalAspectSquare'))
 }
 
-export function proposalForTool(t: Translate, name: string, args?: unknown): ResidentProposalData | undefined {
+export function proposalForTool(t: Translate, name: string, rawArgs?: unknown): ResidentProposalData | undefined {
+  const args = semanticArgsOf(name, rawArgs)
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
   const storyboardPlan = isStoryboardPlanWrite(name, record)
   const generationLike = isGenerationToolName(name) || isCanvasWriteToolName(name, record) || storyboardPlan
@@ -421,7 +439,8 @@ export function proposalForTool(t: Translate, name: string, args?: unknown): Res
   return { fields }
 }
 
-export function readableToolDetailRows(t: Translate, name: string, args?: unknown): readonly ResidentApprovalDetail[] {
+export function readableToolDetailRows(t: Translate, name: string, rawArgs?: unknown): readonly ResidentApprovalDetail[] {
+  const args = semanticArgsOf(name, rawArgs)
   const normalized = name.toLowerCase()
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
   const rows: ResidentApprovalDetail[] = []

@@ -23,7 +23,7 @@ for (const spec of LANE_DEFERRED_TOOL_CATALOG) {
 }
 
 test('irreversible tools assemble as non-replayable writes; a value outside the effect vocabulary is rejected at assembly', () => {
-  const spec = LANE_DEFERRED_TOOL_CATALOG.find(spec => spec.name === 'delete_canvas_nodes')!
+  const spec = LANE_DEFERRED_TOOL_CATALOG.find(spec => spec.name === 'delete_from_canvas')!
   const [tool] = createLaneTools([bindLaneTool({ ...spec, effect: 'irreversible' }, async () => ({ ok: true, text: 'fixture' }))])
   assert.equal(tool!.replay, 'never')
   assert.throws(() => createLaneTools([bindLaneTool({ ...spec,

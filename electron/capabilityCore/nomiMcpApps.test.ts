@@ -105,7 +105,6 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     expect(readOnly).toEqual([
       'nomi_document_read',
       'nomi_export_job',
-      'nomi_layout_read',
       'nomi_media_query',
       'nomi_operation_preview',
       'nomi_read',

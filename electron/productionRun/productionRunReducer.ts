@@ -259,6 +259,18 @@ export function applyProductionCommand(
         message: currentPlan.operationId,
       };
     }
+    case "generation.present": {
+      // `generate` 动词：把 `draft_shots` 藏着的报价卡摆到用户面前。草稿本身一字不动，只清 `cardHidden`；
+      // 已经可见的再 present 一次是幂等的（事件照记，方便审计「模型什么时候把卡推给了用户」）。
+      const currentPlan = current.generationPlan;
+      if (!currentPlan || currentPlan.state !== "draft") throw new Error("new_draft_required: only a draft can be presented");
+      const { cardHidden: _cardHidden, ...visiblePlan } = currentPlan;
+      return {
+        run: { ...current, generationPlan: { ...visiblePlan, updatedAt: now }, updatedAt: now },
+        eventType: "generation.plan.presented",
+        message: currentPlan.operationId,
+      };
+    }
     case "generation.seal": {
       const currentPlan = current.generationPlan;
       if (!currentPlan || currentPlan.state !== "draft") throw new Error("Generation plan is not editable");

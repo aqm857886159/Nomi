@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { CANVAS_WRITE_OPERATIONS, CANVAS_NODE_PROMPT_GUIDELINES, canvasWriteSemanticInputSchema, plannedNodeSchema } from "../shared/agentCapabilities/canvasWrite";
 import { findUnsupportedSchemaFeatures, validateToolArguments } from "./mcpArgValidation";
+import { modelFacingToolSpecs } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
 import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
@@ -70,10 +71,11 @@ describe("the published canvas.write transport schema is derived, not hand-writt
     const nodePrompt = ((properties.nodes?.items as Record<string, unknown>)?.properties as Record<string, { description?: string }>)?.prompt;
     expect(nodePrompt?.description).toBe(plannedNodeSchema.innerType().shape.prompt.description);
     expect(nodePrompt?.description).toMatch(/Generation prompt/);
-    const published = MCP_TOOL_RESOLVER.list().find(item => item.name === 'nomi_canvas_edit');
-    // Shared writing guidance moved from each nested field to the published tool description.
-    // Verify the external catalog retains it, not merely the short field label.
-    for (const guideline of CANVAS_NODE_PROMPT_GUIDELINES) expect(published?.description).toContain(guideline);
+    // 20 动词：镜头提示词只由 `draft_shots` 写（`generation.plan`），跨字段的写作指引随它进系统提示词；
+    // 对外 `nomi_canvas_edit` 仍靠字段级 Zod 描述带指引（外部画布面按动词拆名与 #754 同一刀定）。
+    const draftShots = modelFacingToolSpecs('internal').find(item => item.name === 'draft_shots');
+    for (const guideline of CANVAS_NODE_PROMPT_GUIDELINES) expect(draftShots?.promptGuidelines).toContain(guideline);
+    expect(MCP_TOOL_RESOLVER.list().find(item => item.name === 'nomi_canvas_edit')?.description).toMatch(/canvas/i);
     const edgeMode = ((properties.edges?.items as Record<string, unknown>)?.properties as Record<string, { description?: string }>)?.mode;
     expect(edgeMode?.description).toMatch(/character_ref/);
   });

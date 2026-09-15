@@ -4,6 +4,7 @@ import { toPublishedJsonSchema } from '../shared/agentCapabilities/modelVisibleJ
 import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 import { createMcpProtocol } from './mcpProtocol'
 import { productionRunToolDescriptors } from '../shared/agentCapabilities/productionRunDescriptors'
+import { timelineEditPlanModelSchema } from '../shared/agentCapabilities/timelineRead'
 import { McpConnectionAuthenticationError } from './mcpConnectionContext'
 
 const lane = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG]
@@ -11,7 +12,9 @@ const lane = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG]
 describe('B6 external MCP parity', () => {
   it('publishes the exact lane timeline plan, not a second field table', () => {
     const actual = MCP_TOOL_RESOLVER.resolve('nomi_timeline_edit')!.inputSchema as { properties: { plan: unknown } }
-    const { $schema: _dialect, ...expected } = toPublishedJsonSchema(lane.find(tool => tool.name === 'apply_edit_plan')!.schema)
+    // 内部面是 `edit_timeline(revision, …)`；对外 `plan` 与它同源于契约上的 `timelineEditPlanModelSchema`。
+    expect(lane.find(tool => tool.name === 'edit_timeline')).toBeDefined()
+    const { $schema: _dialect, ...expected } = toPublishedJsonSchema(timelineEditPlanModelSchema)
     expect(actual.properties.plan).toEqual(expected)
   })
 

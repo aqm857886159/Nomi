@@ -55,7 +55,7 @@ describe("契约层：数组与「数组的 JSON 文本」是同一个入参", (
       operation: "propose_storyboard_plan",
       title: "重拆 10 镜",
       anchors: "[]",
-      shots: JSON.stringify([{ index: 1 }, { index: 2 }]),
+      shots: JSON.stringify([{ index: 1, durationSec: 0, anchorIds: [], prompt: "开场" }, { index: 2, durationSec: 0, anchorIds: [], prompt: "特写" }]),
     });
     if (plan.operation !== "propose_storyboard_plan") throw new Error("分支不对");
     expect(plan.shots).toHaveLength(2);

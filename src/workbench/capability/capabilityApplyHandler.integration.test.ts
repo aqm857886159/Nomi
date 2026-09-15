@@ -26,6 +26,16 @@ describe('MCP desktop effects', () => {
     expect(event.detail).toEqual({ tab: 'models' })
   })
 
+  it('accepts the desktop lane model-setup operation and preserves the provider hint', async () => {
+    await expect(handleCapabilityApply('settings.open-model-provider', { provider: 'kie' }))
+      .resolves.toEqual({ opened: true, provider: 'kie' })
+    expect(dispatchEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'nomi-open-settings',
+    }))
+    const event = dispatchEventMock.mock.calls[0][0] as CustomEvent<{ tab: string }>
+    expect(event.detail).toEqual({ tab: 'models' })
+  })
+
   it('names every repaired assistant in the restart toast', async () => {
     await expect(handleCapabilityApply('host-config.repaired', { clients: ['Claude Code', 'Codex'] }))
       .resolves.toEqual({ notified: true })

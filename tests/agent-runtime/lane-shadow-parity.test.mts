@@ -51,8 +51,8 @@ const PROMPT = 'Read the document, then append one closing line.';
 /** 夹具剧本：读 → 写 → 收尾一句话。三步覆盖「文字 / 工具调用 / 工具结果 / 顺序」四样。 */
 function script(): FixtureReply[] {
   return [
-    { type: 'tool', calls: [{ id: 'call-read', name: 'read_full_text', arguments: {} }] },
-    { type: 'tool', calls: [{ id: 'call-write', name: 'append_to_end', arguments: { content: '\n\nThe end.' } }] },
+    { type: 'tool', calls: [{ id: 'call-read', name: 'read_script', arguments: {} }] },
+    { type: 'tool', calls: [{ id: 'call-write', name: 'write_script', arguments: { where: 'end', content: '\n\nThe end.' } }] },
     { type: 'text', text: 'I read the document and appended the closing line.' },
   ];
 }

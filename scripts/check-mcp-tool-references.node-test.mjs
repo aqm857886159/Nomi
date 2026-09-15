@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { scanFile, scanSource } from './check-mcp-tool-references-lib.mjs'
+import { scanCallArgumentKeys, scanFile, scanSource } from './check-mcp-tool-references-lib.mjs'
 
 const declared = new Set(['nomi_project_create', 'nomi_operation_plan'])
 
@@ -135,4 +135,36 @@ test('Markdown fences retain line numbers and do not share host identity', (t) =
       { line: 7, valid: false },
     ],
   )
+})
+
+// 入参形状（2026-09-15）：名字对得上不等于入参对得上。#797 把三个工具的入参从 `operation`
+// 改成派生形状，单测都改了、五个调用点漏了（四个在本 PR、一个在 main 上躺着），而名字门岗全绿。
+test('reads the top-level argument keys of a literal call, shorthand included', () => {
+  const calls = scanCallArgumentKeys(`
+    await mcp.callTool('nomi_timeline_read', { leaseHandle, projectId, operation: 'read_timeline' })
+    await call(mcp, 'nomi_read', { target: 'artifact', nested: { deep: 1 }, 'quoted': 2 })
+  `)
+  assert.deepEqual(
+    calls.map((call) => [call.name, call.keys.map((entry) => entry.key)]),
+    [
+      ['nomi_timeline_read', ['leaseHandle', 'projectId', 'operation']],
+      ['nomi_read', ['target', 'nested', 'quoted']],
+    ],
+  )
+})
+
+// 这条是阳性对照：不处理模板字面量的 `${}`，整个文件从第一个模板起就被错误分词。
+// 实测代价——同一份 e2e 文件，不处理时扫出 0 处调用，处理后扫出 49 处。
+test('keeps lexing after a template literal instead of silently scanning nothing', () => {
+  const calls = scanCallArgumentKeys(`
+    const label = \`run \${runId} done\`
+    await mcp.callTool('nomi_read', { target: 'run', runId })
+  `)
+  assert.deepEqual(calls.map((call) => call.name), ['nomi_read'])
+})
+
+// 判不出来的就别装判得出：展开运算符把顶层键变成运行期才知道的东西，这种调用整条跳过，
+// 而不是拿看得见的那几个键当全部（那会把「传了多余字段」判成通过）。
+test('skips calls whose argument object is spread, rather than half-checking them', () => {
+  assert.deepEqual(scanCallArgumentKeys("await mcp.callTool('nomi_read', { target: 'run', ...rest })"), [])
 })

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
-import { modelFacingToolSpecs } from "../shared/agentCapabilities/modelFacingToolRegistry";
+import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
 import { generationPlanInputSchema, generationStatusInputSchema, GENERATION_RECONCILE_OUTCOMES } from "../shared/agentCapabilities/generationPlanSchemas";
 import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectLeaseV2 } from "./projectLease";
@@ -42,25 +42,15 @@ export type GenerationTransportAdapterDependencies = Readonly<{
   approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined;
 }>;
 
-const MODEL_GENERATION_TOOL_NAMES = new Set(modelFacingToolSpecs("internal").filter(spec => spec.internalGroup === "generation").map(spec => spec.name));
-const INTERNAL_GENERATION_TOOL_NAMES = new Set([
-  "nomi_get_generation_context",
-  "nomi_operation_create",
-  "nomi_submit_generation_plan",
-  "nomi_preview_execution",
-  "nomi_request_generation_gate",
-  "nomi_start_generation",
-  "nomi_operation_read",
-  "nomi_cancel_generation",
-  "nomi_reconcile_generation",
-]);
-const GENERATION_TOOL_NAMES = new Set([...MODEL_GENERATION_TOOL_NAMES, ...INTERNAL_GENERATION_TOOL_NAMES]);
-const GATE_TOOL = "nomi_request_generation_gate";
-const START_TOOL = "nomi_start_generation";
+// 路由白名单**只有一个来源**：契约层的方法词表（`GENERATION_METHODS`）。模型可见的动词名
+// （`draft_shots` / `generate` / `check_job` / `cancel_job`）不在这里——lane 先经 `laneVerbTransport` 翻成
+// 方法名再进来；适配器认的是方法，不是动词（根因合同 2026-09-11-agent-generation-second-door）。
+const GENERATION_TOOL_NAMES: ReadonlySet<string> = GENERATION_METHOD_NAMES;
+const GATE_TOOL = GENERATION_METHODS.gateRequest;
 
 /** Stable routing predicate shared by the Host and the transport adapter. */
-export function isPiGenerationToolName(toolName: string): boolean {
-  return GENERATION_TOOL_NAMES.has(toolName);
+export function isPiGenerationToolName(toolName: string): toolName is GenerationMethodName {
+  return isGenerationMethodName(toolName);
 }
 
 function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }> {
@@ -75,50 +65,57 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
 }
 
 function parsedArgs(call: RuntimeToolCall): Record<string, unknown> {
-  const semanticSchema = call.toolName === "nomi_generation_plan"
+  const semanticSchema = call.toolName === GENERATION_METHODS.plan
     ? generationPlanInputSchema
-    : call.toolName === "nomi_generation_status"
+    : call.toolName === GENERATION_METHODS.status
       ? generationStatusInputSchema
       : undefined;
   const schema = semanticSchema
-    ?? (call.toolName === "nomi_reconcile_generation"
+    ?? (call.toolName === GENERATION_METHODS.reconcile
       ? z.object({ operationId: z.string().trim().min(1), outcome: z.enum(GENERATION_RECONCILE_OUTCOMES) }).strict()
-      : call.toolName === "nomi_operation_create"
-        ? z.object({ prompt: z.string().trim().min(1).optional(), candidate: z.record(z.unknown()).optional(), shots: z.array(z.unknown()).optional(), scriptText: z.string().trim().min(1).optional() }).strict()
-        : call.toolName === "nomi_submit_generation_plan"
+      : call.toolName === GENERATION_METHODS.create
+        ? z.object({ prompt: z.string().trim().min(1).optional(), candidate: z.record(z.unknown()).optional(), shots: z.array(z.unknown()).optional(), scriptText: z.string().trim().min(1).optional(), cardHidden: z.boolean().optional() }).strict()
+        : call.toolName === GENERATION_METHODS.patch
           ? z.object({ operationId: z.string().trim().min(1), patch: z.record(z.unknown()) }).strict()
-          : z.object({ operationId: z.string().trim().min(1) }).strict());
+          : call.toolName === GENERATION_METHODS.present
+            ? z.object({ operationId: z.string().trim().min(1), shotIds: z.array(z.string().trim().min(1)).optional() }).strict()
+            : z.object({ operationId: z.string().trim().min(1) }).strict());
   const parsed = schema.safeParse(call.args);
   if (!parsed.success) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
   return parsed.data as Record<string, unknown>;
 }
 
+/** 语义入口的 `operation` → 方法名。两张小表都只引用 `GENERATION_METHODS`，不再出现字符串字面量。 */
+const PLAN_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
+  context: GENERATION_METHODS.context, create: GENERATION_METHODS.create, patch: GENERATION_METHODS.patch,
+  present: GENERATION_METHODS.present, preview: GENERATION_METHODS.preview,
+});
+const STATUS_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
+  read: GENERATION_METHODS.read, cancel: GENERATION_METHODS.cancel, reconcile: GENERATION_METHODS.reconcile,
+});
+
 function canonicalGenerationCall(call: RuntimeToolCall, args: Record<string, unknown>): RuntimeToolCall {
-  if (call.toolName === "nomi_generation_plan") {
-    const operation = args.operation;
-    if (operation === "context") return { ...call, toolName: "nomi_get_generation_context", args: {} };
-    if (operation === "create") {
-      const { operation: _operation, ...createArgs } = args;
-      return { ...call, toolName: "nomi_operation_create", args: createArgs };
-    }
-    if (operation === "patch") {
-      const { operation: _operation, ...patchArgs } = args;
-      return { ...call, toolName: "nomi_submit_generation_plan", args: patchArgs };
-    }
-    const { operation: _operation, ...previewArgs } = args;
-    return { ...call, toolName: "nomi_preview_execution", args: previewArgs };
-  }
-  if (call.toolName === "nomi_generation_status") {
-    const operation = args.operation;
-    const { operation: _operation, ...statusArgs } = args;
-    return {
-      ...call,
-      toolName: operation === "read" ? "nomi_operation_read" : operation === "cancel" ? "nomi_cancel_generation" : "nomi_reconcile_generation",
-      args: statusArgs,
-    };
-  }
-  return call;
+  const table = call.toolName === GENERATION_METHODS.plan ? PLAN_OPERATION_METHOD
+    : call.toolName === GENERATION_METHODS.status ? STATUS_OPERATION_METHOD : undefined;
+  if (!table) return call;
+  const { operation, ...rest } = args;
+  const method = typeof operation === "string" ? table[operation] : undefined;
+  if (!method) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
+  return { ...call, toolName: method, args: method === GENERATION_METHODS.context ? {} : rest };
 }
+
+/** 方法名 → planning 的 capability 名（`mcpGenerationTools.ts` 那张 if 链认的词）。 */
+const CAPABILITY_BY_METHOD: Readonly<Partial<Record<GenerationMethodName, string>>> = Object.freeze({
+  [GENERATION_METHODS.start]: "start",
+  [GENERATION_METHODS.context]: "context",
+  [GENERATION_METHODS.create]: "create",
+  [GENERATION_METHODS.patch]: "plan",
+  [GENERATION_METHODS.present]: "present",
+  [GENERATION_METHODS.preview]: "preview",
+  [GENERATION_METHODS.read]: "read",
+  [GENERATION_METHODS.cancel]: "cancel",
+  [GENERATION_METHODS.reconcile]: "reconcile",
+});
 
 function operationId(args: Record<string, unknown>): string {
   const value = typeof args.operationId === "string" ? args.operationId.trim() : "";
@@ -155,6 +152,14 @@ function receiptFromConfirmation(
     if (resolved) return authority.verifyReceipt(resolved);
   }
   throw Object.assign(new Error("generation_approval_required"), { code: "generation_approval_required" });
+}
+
+/** planning 返回的 `operation.cardHidden`：草稿建好但卡还没摆出来（`draft_shots` 建的那种）。 */
+function planCardHidden(result: unknown): boolean {
+  const operation = result && typeof result === "object" && !Array.isArray(result)
+    ? (result as { operation?: { cardHidden?: unknown } }).operation
+    : undefined;
+  return operation?.cardHidden === true;
 }
 
 function confirmed(value: unknown): boolean {
@@ -335,27 +340,17 @@ export function createPiGenerationTransportAdapter(
             ? { ok: false, code: "generation_declined", message: "Generation was not started", denied: true }
             : { ok: true, result, silent: true };
         }
-        const capability = canonicalCall.toolName === START_TOOL
-          ? "start"
-          : canonicalCall.toolName === "nomi_get_generation_context"
-            ? "context"
-            : canonicalCall.toolName === "nomi_operation_create"
-              ? "create"
-              : canonicalCall.toolName === "nomi_submit_generation_plan"
-                ? "plan"
-                : canonicalCall.toolName === "nomi_preview_execution"
-                  ? "preview"
-                  : canonicalCall.toolName === "nomi_operation_read"
-                    ? "read"
-                    : canonicalCall.toolName === "nomi_cancel_generation"
-                      ? "cancel"
-                      : "reconcile";
+        const capability = isGenerationMethodName(canonicalCall.toolName) ? CAPABILITY_BY_METHOD[canonicalCall.toolName] : undefined;
+        if (!capability) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
         // operationId is required by every non-create descriptor. Parsing it
         // here keeps malformed model calls out of the durable operation store.
         if (capability !== "context" && capability !== "create") operationId(args);
         const result = await plan(capability, args, currentLease, signal);
-        // 草稿刚建好 = 报价卡该出现的那一刻。「全自动」档在这里替用户决门（见上）。
-        if (capability === "create" || capability === "plan") {
+        // 报价卡该出现的那一刻 = 草稿被摆到用户面前的那一刻：`present`（`generate` 动词），或者建/改草稿时
+        // 卡本来就没藏着（`cardHidden` 不为 true：外部 MCP 宿主与面板自己的路径）。「全自动」档在这里替用户决门（见上）。
+        const cardShown = capability === "present"
+          || ((capability === "create" || capability === "plan") && !planCardHidden(result));
+        if (cardShown) {
           const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
           if (decided) return { ok: true, result: decided };
         }

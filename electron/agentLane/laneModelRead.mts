@@ -6,7 +6,7 @@ import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToo
 import { laneToolModelDescription, type LaneToolSpec } from '../shared/agentLane/laneToolContract.js';
 import { toModelVisibleSchema } from './laneToolSchema.mjs';
 
-export const LANE_MODEL_READ_TOOL_NAME = 'nomi_read';
+export const LANE_MODEL_READ_TOOL_NAME = 'list_models';
 
 /** 注册表里那份声明。找不到 = 有人把它从 `verbDeclarations.ts` 删了而没删这里——当场抛。 */
 export function laneModelReadSpec(): LaneToolSpec {
@@ -28,9 +28,10 @@ export const laneModelReadDefinition = (() => {
 })();
 
 export function createLaneModelRead(resolve: () => readonly AgentModelEntry[]) {
-  return { ...laneModelReadDefinition, execute: async (_id: string, args: { target: string; modelKey?: string }) => {
-    if (args.target !== 'models') throw new Error('Use target=models.');
-    const entries = resolve().filter(entry => args.modelKey === undefined || entry.modelKey === args.modelKey);
+  return { ...laneModelReadDefinition, execute: async (_id: string, args: { kind?: string; modelKey?: string }) => {
+    const entries = resolve().filter(entry =>
+      (args.modelKey === undefined || entry.modelKey === args.modelKey)
+      && (args.kind === undefined || entry.kind === args.kind));
     return { content: [{ type: 'text' as const, text: JSON.stringify({ models: entries }) }],
       details: { models: entries } };
   } };

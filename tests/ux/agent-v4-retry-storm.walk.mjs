@@ -65,7 +65,7 @@ try {
     match: (body) => flattenRequestText(body).includes(ASK) && !hasToolResult(body, READ_TOOL),
     // `canvas.read` 的契约就是**不收参数**（`z.object({}).strict()`），所以入参就是 `{}`。
     // 它照样是 A 的正面证据：那一栏印的是这次调用真的发过去的东西，而不是一句工具描述。
-    reply: { type: 'tool', id: READ_TOOL, name: 'nomi_canvas_read', args: {} },
+    reply: { type: 'tool', id: READ_TOOL, name: 'look_at_canvas', args: {} },
   })
   // 然后是第一次建卡尝试。
   const first = walk.fixture.expectText({
@@ -74,8 +74,8 @@ try {
     reply: {
       type: 'tool',
       id: ATTEMPTS[0],
-      name: 'nomi_canvas_write',
-      args: { operation: 'create_canvas_nodes', summary: '重拆 10 镜', nodes: BROKEN_NODES },
+      name: 'draft_shots',
+      args: { shots: BROKEN_NODES },
     },
   })
   // 第二、三次：**同一条消息里既说话又调工具**——真实模型就是这么写的，
@@ -86,9 +86,9 @@ try {
     reply: {
       type: 'tool',
       id,
-      name: 'nomi_canvas_write',
+      name: 'draft_shots',
       text: SELF_TALK[index],
-      args: { operation: 'create_canvas_nodes', summary: '重拆 10 镜', nodes: BROKEN_NODES },
+      args: { shots: BROKEN_NODES },
     },
   }))
   const giveUp = walk.fixture.expectText({
@@ -137,8 +137,8 @@ try {
   const messages = readLaneTranscripts(projectRoot).flatMap(laneMessages)
   const calls = messages.filter(message => message.role === 'assistant')
     .flatMap(message => message.content).filter(part => part.type === 'toolCall')
-  expect(calls.filter(call => ATTEMPTS.includes(call.id)).map(call => [call.name, call.arguments.nodes]))
-    .toEqual(ATTEMPTS.map(() => ['nomi_canvas_write', BROKEN_NODES]))
+  expect(calls.filter(call => ATTEMPTS.includes(call.id)).map(call => [call.name, call.arguments.shots]))
+    .toEqual(ATTEMPTS.map(() => ['draft_shots', BROKEN_NODES]))
   const results = messages.filter(message => message.role === 'toolResult' && ATTEMPTS.includes(message.toolCallId))
   expect(results.every(message => message.isError && laneMessageText(message).length > 0)).toBe(true)
   expect(messages.filter(message => message.role === 'assistant').map(laneMessageText).filter(Boolean))

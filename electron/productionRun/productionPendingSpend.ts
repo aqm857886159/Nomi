@@ -79,6 +79,9 @@ export function projectPendingSpendConfirm(
     gateId = gate.gateId;
   } else if (plan.state !== "draft") {
     return undefined;
+  } else if (plan.cardHidden === true) {
+    // `draft_shots` 建的草稿：落了画布、带单价，但模型还没调 `generate`——这一笔还不是「在等你点头」。
+    return undefined;
   }
   const shots = shotsOf(plan, resolvePricing);
   // 走到这里意味着**这一笔确实在等人点头**（draft，或封印后那道门还 `waiting`），却一镜都投影不出来。

@@ -13,6 +13,9 @@ import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
 import { LANE_MODEL_TOOL_CATALOG } from '../../electron/agentLane/laneToolCatalog.js';
 import { bindLaneTool } from '../../electron/agentLane/laneRuntimePort.js';
 import { createLaneFixture } from './laneFixture.mjs';
+import { laneToolMenu } from '../../electron/agentLane/laneToolGroups.mjs';
+import { LANE_NATIVE_TOOL_CATALOG } from '../../electron/agentLane/laneToolCatalog.js';
+import { LANE_CODING_TOOL_NAMES } from '../../electron/agentLane/laneCodingTools.mjs';
 import type { SkillRecord } from '../../electron/skills/skillStore.js';
 
 const sandbox = { active: true, operations: { exec: async () => { throw new Error('bash not used'); } }, close: async () => undefined };
@@ -85,7 +88,8 @@ test('request tools only resolves registered groups and does not grant file writ
   const result = await call({ group: 'media' });
   assert.equal(result.addedToolNames, undefined);
   assert.equal(native.effects.write, 'reversible_local');
-  assert.equal(native.activeToolNames().length, 20, 'No local activation truth duplicates pi state.');
+  // 常驻菜单 + coding 组 + 这条测试自己登记的 media 夹具组，从同一份目录派生，不写死个数。
+  assert.equal(native.activeToolNames().length, new Set([...laneToolMenu().activeToolNames, ...LANE_CODING_TOOL_NAMES, ...LANE_NATIVE_TOOL_CATALOG.map((spec) => spec.name), 'nomi_media_fixture']).size, 'No local activation truth duplicates pi state.');
   await assert.rejects(createLaneNativeAssembly({ projectDir: fixture.projectDir, sandbox, bashTimeoutMs: 5_000,
     deferredGroups: [{ name: 'escape', toolNames: ['read'] }] }), /Duplicate deferred tool/);
 });

@@ -103,6 +103,8 @@ export type GenerationOperation = Readonly<{
   projectId: string;
   candidate: PlanCandidate;
   state: GenerationOperationState;
+  /** 草稿建好但报价卡还没摆到用户面前（见 `ProductionGenerationPlan.cardHidden`）。 */
+  cardHidden?: boolean;
   contract?: ExecutionContractV1;
   approvedReceiptId?: string;
   /** P4 S4: multi-shot entries (anchors + video shots). Absent = single-shot (today's flat path). */
@@ -122,9 +124,11 @@ export type GenerationAuthorizationPreparation = Readonly<{
 
 export type GenerationOperationStore = {
   // P4 S6.5: `shots` seeds a multi-shot draft (anchor + video shots). Absent → single-shot (unchanged).
-  create(input: { operationId: string; projectId: string; candidate: PlanCandidate; now: string; origin?: { host: string; actorId?: string }; shots?: ReadonlyArray<GenerationOperationDraftShot> }): GenerationOperation | Promise<GenerationOperation>;
+  create(input: { operationId: string; projectId: string; candidate: PlanCandidate; now: string; origin?: { host: string; actorId?: string }; shots?: ReadonlyArray<GenerationOperationDraftShot>; cardHidden?: boolean }): GenerationOperation | Promise<GenerationOperation>;
   read(projectId: string, operationId: string): GenerationOperation | null | Promise<GenerationOperation | null>;
   patch(projectId: string, operationId: string, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>, now: string): GenerationOperation | Promise<GenerationOperation>;
+  /** `generate` 动词：清掉 `cardHidden`，报价卡从这一刻起可投影。只对 draft 合法。 */
+  present(projectId: string, operationId: string, now: string): GenerationOperation | Promise<GenerationOperation>;
   // P4 S6.5: `multiShot` seals per-shot sub-contracts + planHash (reducer freezes the whole batch). Absent
   // → single-shot seal of the one top-level contract (byte-identical to today).
   seal(projectId: string, operationId: string, contract: ExecutionContractV1, now: string, multiShot?: GenerationSealMultiShot, authorization?: GenerationAuthorizationPreparation): GenerationOperation | Promise<GenerationOperation>;
@@ -167,6 +171,7 @@ export function createInMemoryGenerationOperationStore(): GenerationOperationSto
         projectId: input.projectId,
         candidate: structuredClone(input.candidate),
         state: "draft" as const,
+        ...(input.cardHidden === true ? { cardHidden: true } : {}),
         // P4 S6.5: seed draft shots (candidate/role/included, no sub-contract). Single-shot omits shots.
         ...(input.shots && input.shots.length > 0
           ? { shots: input.shots.map((shot) => ({ shotId: shot.shotId, ...(shot.role ? { role: shot.role } : {}), ...(shot.included !== undefined ? { included: shot.included } : {}), candidate: structuredClone(shot.candidate) })) }
@@ -183,6 +188,15 @@ export function createInMemoryGenerationOperationStore(): GenerationOperationSto
       if (current.state !== "draft") throw new Error("new_draft_required: edit a new generation draft");
       const candidate = applyPlanCandidatePatch(current.candidate, patch);
       const next = freeze({ ...current, candidate, updatedAt: now });
+      operations.set(keyFor(projectId, operationId), next);
+      return next;
+    },
+    present(projectId, operationId, now) {
+      const current = read(projectId, operationId);
+      if (!current) throw new Error(`Generation operation not found: ${operationId}`);
+      if (current.state !== "draft") throw new Error("new_draft_required: only a draft can be presented");
+      const { cardHidden: _cardHidden, ...visible } = current;
+      const next = freeze({ ...visible, updatedAt: now });
       operations.set(keyFor(projectId, operationId), next);
       return next;
     },
@@ -496,7 +510,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeVideoCandidate(shot.candidate, deps.videoModelCandidates) }));
         // 顶层 candidate = 第一个 shot 的 candidate (reducer seal 硬要顶层 contract 匹配顶层 draft candidate,
         // productionRunReducer.ts generation.seal). 与 S4 e2e setup 同构 (top = shots[0]).
-        const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedShots[0].candidate, shots: normalizedShots, now: now(), origin: input.origin });
+        const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedShots[0].candidate, shots: normalizedShots, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
         return { operation, nextAction: "preview" };
       }
       // A natural-language create request only needs `prompt`.  Keep the
@@ -515,11 +529,20 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
         deps.assertReferencesResolvable(input.lease.projectId, singleCandidate.references);
       }
-      const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizeVideoCandidate(singleCandidate, deps.videoModelCandidates), now: now(), origin: input.origin });
+      const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizeVideoCandidate(singleCandidate, deps.videoModelCandidates), now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
       return { operation, nextAction: "preview" };
     }
     const current = await deps.operations.read(input.lease.projectId, operationId);
     if (!current) throw new Error(`Generation operation not found: ${operationId}`);
+    if (input.capability === "present") {
+      // `generate` 动词：把草稿摆到用户面前。草稿一字不动，只让报价卡可投影；点头/花钱仍是用户在卡上的动作。
+      if (current.state !== "draft") throw new Error("new_draft_required: only a draft can be presented");
+      const operation = await deps.operations.present(input.lease.projectId, operationId, now());
+      const shots = operation.shots && operation.shots.length > 0
+        ? operation.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
+        : [operation.candidate.candidateId];
+      return { operation, shots, nextAction: "await_user" };
+    }
     if (input.capability === "plan") {
       const rawPatch = record(params.patch, "generation patch") as Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
       // The wire model is a derived projection. Never accept it from an MCP

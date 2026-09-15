@@ -14,6 +14,7 @@ import type { CanvasWriteApprovalAuthority } from '../agentCapabilities/transpor
 import type { NomiModelConfig } from './laneModelConfig'
 import type { LaneLegacyFacts } from './laneLegacyNote'
 import type { ProjectAgentAttachmentClaim } from '../workbenchInput'
+import type { LaneToolNextAction } from './laneToolNextAction'
 
 /** 一段 = 模型一轮回复里的一个小块，或转录里的一条记录。顺序由 `sequence` 唯一决定。 */
 export interface LanePartIdentity {
@@ -59,8 +60,21 @@ export type LanePart =
       readonly kind: 'tool-result'
       readonly toolCallId: string
       readonly toolName: string
+      /**
+       * **模型看到的那段正文，逐字**（含宿主拼在末尾的 `User sees: …` 那一行）。投影这一层的职责
+       * 是「走一遍，不重排」，所以它不动正文——「面板该印哪一段」是渲染层的判断，落在
+       * `laneViewModel` 里（它按下面这个信封去尾）。
+       */
       readonly text: string
       readonly isError: boolean
+      /**
+       * 这次工具结果自己带的返回信封（`details.nextAction`，由 `laneTools.mts` 与那行尾巴**同时**写进结果）。
+       *
+       * 带它上来不是为了给用户印第二遍 `userSees`——那句话是**给模型转述用的**（英文、第三人称写用户），
+       * 它讲的事面板自己已经画出来了（撤销钮、确认卡）。带它上来是为了让渲染层能按**结构**把那行尾巴摘掉，
+       * 而不是去认 "User sees:" 这个前缀。缺席 = 这次结果没有信封（读动词、失败、旧转录），不是「没有下一步」。
+       */
+      readonly nextAction?: LaneToolNextAction
     })
   | (LanePartIdentity & {
       /**
