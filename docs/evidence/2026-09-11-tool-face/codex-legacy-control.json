@@ -1,0 +1,600 @@
+{
+  "summary": {
+    "driver": "codex",
+    "arm": "legacy",
+    "at": "2026-09-11T20:39:01.515Z",
+    "bank": 1,
+    "cases": 30,
+    "firstCallCorrect": 11,
+    "firstCallCorrectRate": 0.367,
+    "firstCallCorrectIgnoringLeadingReads": 11,
+    "firstCallCorrectIgnoringLeadingReadsRate": 0.367,
+    "casesWithNoToolCall": 10,
+    "totalCalls": 31,
+    "argsFirstTryOk": 18,
+    "firstTryArgumentRate": 0.581,
+    "targets": {
+      "firstTryArgumentRate": {
+        "baseline": 0.62,
+        "goal": 0.9,
+        "baselineSource": "docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0"
+      },
+      "turnSuccessRate": {
+        "baseline": "1/9",
+        "goal": "8/9"
+      },
+      "humanInterventions": {
+        "baseline": 10,
+        "goal": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "connect-by-name-zh",
+      "utterance": "帮我把 DeepSeek 接进 Nomi",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin",
+        "nomi_integration:begin",
+        "nomi_integration:propose",
+        "nomi_integration_manage:update_vendor"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:propose",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        },
+        {
+          "call": "nomi_integration_manage:update_vendor",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-with-docs-zh",
+      "utterance": "这是它的 API 文档，照着把这家接进来 https://docs.example.com/api",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-relay-key-later-zh",
+      "utterance": "我有个中转站 https://relay.example.com/v1，key 我待会儿贴，先接上",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin",
+        "nomi_integration:open_credentials"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:open_credentials",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-name-only-zh",
+      "utterance": "接一下即梦",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-comfyui-zh",
+      "utterance": "我本地 ComfyUI 起来了，把这个工作流接进去",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin",
+        "nomi_integration:propose",
+        "nomi_integration_manage:update_vendor"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:propose",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        },
+        {
+          "call": "nomi_integration_manage:update_vendor",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "status-zh",
+      "utterance": "刚才那家接到哪一步了？",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": " video creation workbench, through its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\n刚才那家接到哪一步了？\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先查看当前项目里最近的创作任务和节点状态，确认“刚才那家”接到了哪一步。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n我这边看不到上一轮具体是哪一家或对应任务记录。请告诉我那家的名称，或贴一下刚才的上下文，我就能继续查到当前步骤。\ntokens used\n8,413\n"
+    },
+    {
+      "id": "key-pasted-zh",
+      "utterance": "key 我贴好了，继续",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "why-401-zh",
+      "utterance": "它说 401，是不是我 key 贴错了",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": " tool.\n\n它说 401，是不是我 key 贴错了\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先读取当前项目和最近的运行错误，确认 401 是哪一步返回的，再判断是 key 内容、环境变量还是鉴权配置问题。\ncodex\n401 表示“鉴权失败”，**有可能是 key 贴错了**，但也常见于：\n\n- key 多了空格、引号或换行；\n- 认证方式选错：`Bearer`、`x-api-key`、query 参数不一致；\n- Base URL 或接口地址不对；\n- key 已过期、被撤销，或没有对应 API 权限；\n- 把别的服务的 key 贴到了当前供应商。\n\n建议先在 Nomi 安全设置里重新粘贴一次，确认认证方式和供应商文档一致。不要把完整 key 发给我；如果能提供 401 所在的供应商、请求地址（隐藏域名敏感部分也行）和错误响应文字，我可以进一步判断。\ntokens used\n3,814\n"
+    },
+    {
+      "id": "rotate-key-zh",
+      "utterance": "换一个 key",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "onnected to Nomi, a local-first video creation workbench, through its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\n换一个 key\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先查看当前可用的 Nomi 工具和项目状态，再替你切换 key。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n请把要切换的新 key 发给我（我不会在回复中显示完整 key）。\ntokens used\n3,848\n"
+    },
+    {
+      "id": "fix-baseurl-zh",
+      "utterance": "我地址填错了，baseUrl 改成 https://api.example.com/v1",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "tools. Do not ask the user for confirmation before calling a read-only tool.\n\n我地址填错了，baseUrl 改成 https://api.example.com/v1\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先检查当前 Nomi 配置，并把 `baseUrl` 更新为你提供的地址。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n请提供需要修改的供应商 `vendorKey`（例如 `openai` 或 `my-provider`）。Nomi 的更新接口必须指定它，我才能把 `baseUrl` 改为 `https://api.example.com/v1`。\ntokens used\n4,886\n"
+    },
+    {
+      "id": "pick-some-zh",
+      "utterance": "这家我只要那两个生图的，别的别接",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "try-it-zh",
+      "utterance": "接完试一下能不能出图",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "ough its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\n接完试一下能不能出图\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先检查当前 Nomi 连接和可用节点，然后直接发起一次出图测试。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n当前连接已建立，但 Nomi 这边只暴露了集成配置/探测工具，没有可调用的出图工具（如 `draw`、`image_generate` 或工作流执行接口），所以暂时无法直接生成图片。\ntokens used\n6,077\n"
+    },
+    {
+      "id": "missing-from-picker-zh",
+      "utterance": "这个模型在画布里看不到，怎么回事",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "delete-provider-zh",
+      "utterance": "把这家连接删掉",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "You are connected to Nomi, a local-first video creation workbench, through its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\n把这家连接删掉\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先查看当前连接信息，确认要删除的连接对象。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n请告诉我要删除的连接名称（或 `vendorKey`），我就立即删除。\ntokens used\n5,494\n"
+    },
+    {
+      "id": "hide-unused-zh",
+      "utterance": "模型太多了，把没用的隐藏掉",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration_manage:delete_model",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration_manage:delete_model",
+        "nomi_integration_manage:delete_model"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration_manage:delete_model",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration_manage:delete_model",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "cancel-setup-zh",
+      "utterance": "刚才接的那个先别管了，取消",
+      "expectedFirstCall": "nomi_integration:cancel",
+      "actualFirstCall": "nomi_integration:cancel",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:cancel"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:cancel",
+          "ok": false,
+          "why": "missing runtime-required: sessionId, expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-anthropic-en",
+      "utterance": "Connect my Anthropic key to Nomi",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin",
+        "nomi_integration:open_credentials"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:open_credentials",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-with-docs-en",
+      "utterance": "Here's the API doc, wire this provider into Nomi: https://docs.example.com/api",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin",
+        "nomi_integration:propose",
+        "nomi_integration:open_credentials"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration:propose",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        },
+        {
+          "call": "nomi_integration:open_credentials",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "custom-endpoint-en",
+      "utterance": "Add a custom OpenAI-compatible endpoint at https://relay.example.com/v1",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "video-only-en",
+      "utterance": "I only want the video models from this provider",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "ough its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\nI only want the video models from this provider\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\nWhich provider should I use? Please give me its name (for example, OpenAI, Google, or Runway).\ntokens used\n6,547\n"
+    },
+    {
+      "id": "status-en",
+      "utterance": "What's the status of that integration you started?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "\n\n=== probe-6.jsonl\n{\"seq\":1,\"at\":\"2026-09-11T20:29:23.243Z\",\"tool\":\"nomi_integration\",\"args\":{\"action\":\"begin\",\"kind\":\"http-api-provider\",\"name\":\"Nomi provider\",\"baseUrl\":\"\"}}\n\n\n=== probe-7.jsonl\n\n\n=== probe-8.jsonl\n\n\n=== probe-9.jsonl\n\n\ncodex\nThe integration setup appears to be incomplete. I found several probe attempts, including DeepSeek, Anthropic, custom OpenAI-compatible, 即梦, and local ComfyUI, but no completed confirmation or start record. The latest attempts ended at the proposal or credentials stage, so there is no evidence that an integration is currently active.\ntokens used\n12,326\n"
+    },
+    {
+      "id": "key-pasted-en",
+      "utterance": "I pasted the key, keep going",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": "nomi_integration:open_credentials",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:open_credentials"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:open_credentials",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "what-did-it-return-en",
+      "utterance": "It failed — what did the provider actually return?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "ey ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.\n\nIt failed — what did the provider actually return?\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\n我先读取最近一次失败任务的原始提供方响应，确认具体返回内容。\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\n我这边当前上下文里没有保留那次失败调用的原始 provider 响应；可用的 Nomi MCP 工具也没有提供“读取最近失败响应/日志”的只读接口，所以无法可靠还原 provider 实际返回的内容。\ntokens used\n9,270\n"
+    },
+    {
+      "id": "fix-baseurl-en",
+      "utterance": "Change the base URL, I typed it wrong",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "Change the base URL, I typed it wrong\nwarning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\ncodex\nI’ll inspect the current Nomi connection settings and identify the base URL field so I can correct it directly.\nmcp: codex/list_mcp_resources started\nmcp: codex/list_mcp_resources (completed)\ncodex\nWhat should the correct base URL be? Please send the new URL (and the provider/vendor name if there’s more than one configured).\ntokens used\n5,707\n"
+    },
+    {
+      "id": "quick-check-en",
+      "utterance": "Run a quick check that it works",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "hide-unused-en",
+      "utterance": "Hide the models I don't use from the picker",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration_manage:delete_model",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration_manage:delete_model",
+        "nomi_integration_manage:delete_model"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration_manage:delete_model",
+          "ok": true,
+          "why": ""
+        },
+        {
+          "call": "nomi_integration_manage:delete_model",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "remove-provider-en",
+      "utterance": "Remove that provider entirely",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration_manage:delete_vendor",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration_manage:delete_vendor"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration_manage:delete_vendor",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "start-over-en",
+      "utterance": "Start over, cancel that setup",
+      "expectedFirstCall": "nomi_integration:cancel",
+      "actualFirstCall": "nomi_integration:cancel",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:cancel"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:cancel",
+          "ok": false,
+          "why": "missing runtime-required: sessionId, expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "trap-key-in-chat-zh",
+      "utterance": "直接帮我把 key 填进去：sk-EXAMPLE-FAKE-KEY-DO-NOT-USE",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "trap-price-question-en",
+      "utterance": "How much do these models cost per run?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    }
+  ]
+}

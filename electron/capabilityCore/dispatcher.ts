@@ -43,11 +43,10 @@ import {
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
 import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
-import { manageModelCatalogConnection } from '../catalog/catalogManagement'
+import { dispatchModelOnboarding } from './modelOnboarding/dispatch'
+import { MODEL_ONBOARDING_METHODS } from './modelOnboarding/tools'
 
-/** 带 id = 读那一个；不带 = 列出这个客户端自己的会话。 */
-const readIntegrationSession = (sessions: IntegrationSessionService, sessionId: unknown, owner: CapabilityOriginHost) =>
-  (typeof sessionId === 'string' && sessionId.trim() ? sessions.get(sessionId, owner) : sessions.list(owner))
+const MODEL_ONBOARDING_METHOD_SET = new Set<string>(MODEL_ONBOARDING_METHODS)
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
 }
@@ -721,64 +720,29 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         path: String(params.path || ''),
         ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
       })
-    case 'integration.begin': {
-      const optional = ['sessionId', 'baseUrl', 'docs', 'providerKind', 'authType', 'authHeader', 'authQueryParam', 'clientRequestId'] as const
-      return (ctx.integrationSessions || getIntegrationSessionService()).begin(
-        {
-          kind: params.kind as 'http-api-provider' | 'comfyui-workflow',
-          name: params.name as string,
-          ...Object.fromEntries(optional.filter((key) => typeof params[key] === 'string').map((key) => [key, params[key]])),
+    // ── T14 · 接模型这条路（2026-09-11 重做的 4 工具面） ────────────────────────────────
+    // 模型面上没有版本号、没有幂等键、没有阶段合法性：那三样全在 modelOnboarding/dispatch 里，
+    // 由宿主自己读/派生。凭据页由本层打开（MCP URL 模式 elicitation），不是一个动词。
+    default: {
+      if (!MODEL_ONBOARDING_METHOD_SET.has(method)) break
+      const sessions = ctx.integrationSessions || getIntegrationSessionService()
+      return dispatchModelOnboarding(method, params, {
+        sessions,
+        owner: ctx.origin?.host || 'external',
+        openCredentialsUi: async (input) => {
+          let opened: { opened: boolean } | void
+          try {
+            opened = await ctx.openCredentialsInNomi?.({ sessionId: input.sessionId, vendorName: input.vendorName })
+          } catch {
+            // The durable credential handoff survives a closed renderer window.
+            opened = { opened: false }
+          }
+          // 一次性凭据页（URL 模式 elicitation）铸在真正持有会话的这个进程里。
+          const projection = withCredentialElicitationTicket({ ...sessions.get(input.sessionId, ctx.origin?.host || 'external'), credentialUiOpened: opened?.opened === true })
+          return { opened: opened?.opened === true, ticket: projection.credentialEntry }
         },
-        ctx.origin?.host || 'external',
-      )
+      })
     }
-    case 'integration.open_credentials': {
-      const opened = (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-      )
-      let ui: { opened: boolean } | void
-      try {
-        ui = await ctx.openCredentialsInNomi?.({ sessionId: opened.id, vendorName: opened.config.name })
-      } catch {
-        // A window can disappear between durable enqueue and the renderer request. Keep the MCP
-        // contract usable; the queued handoff will replay when Nomi is opened next time.
-        ui = { opened: false }
-      }
-      // 附上一次性凭据页（MCP URL 模式 elicitation）。铸在这一层 = 铸在真正持有会话的那个进程里。
-      return withCredentialElicitationTicket({ ...opened, credentialUiOpened: ui?.opened === true })
-    }
-    case 'integration.propose':
-      return (ctx.integrationSessions || getIntegrationSessionService()).propose(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.proposal,
-      )
-    case 'integration.start':
-      return (ctx.integrationSessions || getIntegrationSessionService()).start(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.idempotencyKey as string,
-      )
-    // 不带 sessionId = 「我把 id 弄丢了」。修复前这里直接报 Invalid sessionId，而 MCP 面上没有第二条路。
-    case 'integration.get':
-      return readIntegrationSession(ctx.integrationSessions || getIntegrationSessionService(), params.sessionId, ctx.origin?.host || 'external')
-    case 'integration.cancel':
-      return (ctx.integrationSessions || getIntegrationSessionService()).cancel(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-      )
-    case 'integration.manage.update_vendor':
-    case 'integration.manage.delete_vendor':
-    case 'integration.manage.delete_model':
-    case 'integration.manage.set_proxy':
-      if (ctx.origin?.host === 'external' || !ctx.origin?.host) throw new RpcError('Signed client identity is required', 403)
-      return manageModelCatalogConnection(params)
-    default:
-      throw new RpcError(`未知方法: ${method}`, 404)
   }
+  throw new RpcError(`未知方法: ${method}`, 404)
 }

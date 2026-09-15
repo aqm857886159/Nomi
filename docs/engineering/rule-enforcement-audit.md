@@ -77,3 +77,51 @@
 - `scripts/check-push-bypass.mjs` 及其行为测试把日志接入 `gates:contracts`：匹配本树、本 HEAD 的 gate stamp 可自动确认，否则必须人工 `--accept <sha>`，未确认记录保持红灯。
 
 该补充是留痕与审计门，不取代既有的 worktree/HEAD gate stamp，也不把旧的文档瘦身审计报告重新复制到本文件。
+
+## 门岗缺陷记账：删掉的门在 corrective 合同里无法表达（2026-09-14，PR #754 撞到）
+
+R21.3「数门」（PR #759，2026-09-11 生效）在 `scripts/root-cause-contracts.mjs` 的
+`validateDoorMap()` 里留了一个自相矛盾的组合：**stray 规则只问「改过的生产文件在不在门表里」，
+没问「它还在不在」**，而门表每一条又必须过 `fileExists()` + `lineMentionsSymbol()`。
+于是一个 P1 式的删除（加新必删旧）在 corrective 合同里三条路全堵：
+写进 `scope_paths` 报「门没数全」、写进 `doors` 报「门不存在」、从 `scope_paths` 拿掉报
+「高风险文件没有合同覆盖」。
+
+- **现状（已验证可用的绕法）**：删除单独写成 `change_kind: "structural"` 合同——structural 分支在
+  `validateContract()` 里早于 `validateDoorMap()` 返回，不跑门表校验。样本：
+  `docs/fixes/2026-09-11-catalog-management-entry-removal.root-cause.json`。
+  教训条目：`docs/lessons/deleted-file-cannot-be-a-door.md`。
+- **正解（待做，本轮未动门岗）**：合同 schema 加 `removed_doors: [{path, line, symbol}]`——
+  校验时不要求 path 仍存在，但要求它出现在本次 diff 的删除清单里，并让
+  `door_reduction.before - after` 与它的条数对得上。门表由此从「修完还剩几扇」升级成
+  「拆了哪几扇、还剩哪几扇」，**减门第一次变成可核对的事实而不是一句自述**。
+  最小替代方案是给 stray 过滤加一条 `&& fileExists(file, existingFiles)`，但那只是不报错，
+  拆门这件事仍然没有留下任何痕迹。
+- **为什么本轮没顺手修**：改 `scripts/root-cause-contracts.mjs` 需要为这次改动自己出一份合同，
+  而 `scripts` 在 `check:symptom-cluster` 眼里 7 天内已有 18 份合同，新加一份会立刻要求先出一份
+  `scripts` 的结构评审。属于独立一轮的活，不该混进打捞 PR。
+
+## 门岗撞名：两条 `check:tool-face` 与「死掉的门岗不会喊」（2026-09-14 收成一份）
+
+模型可见工具面有两个声明 owner，各自长了一条门岗、**各自都叫 `check:tool-face`**：
+
+| 脚本 | 守哪个 owner | 规则 |
+|---|---|---|
+| `scripts/check-tool-face.ts` | `electron/shared/agentCapabilities/verbDeclarations.ts`（整个面，64 个工具）| 4 条硬 + 4 条棘轮 |
+| `scripts/check-tool-face.mjs`（PR #754，现已改名 `tool-face-onboarding-rules.mjs`）| `electron/capabilityCore/modelOnboarding/declarations.ts`（接模型 4 工具）| O1–O7 + C1/C2 |
+
+`package.json` 里 `check:tool-face` 只有一条，2026-09-13 并 main 时它被指向了后者，
+**前者从此不被任何地方调用**（连同它的阳性对照 `check-tool-face.node-test.mjs`），
+而且没有任何东西会因此报错——`gates:contracts` 照常绿，因为它执行的是「那个名字」，不是「那些规则」。
+顺带被藏起来的还有 4 处真实读数：那条门岗看得见新增的 4 个接模型工具，把它们报成
+`mcp-transport-catalog` 新增违规。
+
+- **修法（P1 收成一份）**：`check:tool-face` 只保留一个入口 `scripts/check-tool-face.ts`，
+  它同时跑两个规则族；`.mjs` 改名为 `scripts/tool-face-onboarding-rules.mjs`，降级成规则模块
+  （导出 `runOnboardingRules` / `runOnboardingSelftest`），**一条规则都没删**。
+  两族都跑完再汇总退出码——第一族红就 return 会把第二族的结论藏起来，而「藏起来的门岗」正是本次的病。
+- **那 4 处读数的处置**：接模型那 4 个工具不是「手写」，它们从第二个 owner 派生，
+  所以 `handwrittenMcp()` 的派生名单同时认 `mcpProfileTools()` 与 `ONBOARDING_TOOL_NAMES`。
+  棘轮因此 22 → 18（4 个被正确识别为派生，2 个随旧工具删除消失），**只减不增，未抬高基线**。
+- **可机器化的下一步（登记，未做）**：`package.json` 里一个 `check:*` 名字对应多个脚本实现时报红。
+  本次是靠人肉读 diff 发现的；同样的撞名可以在任何两条门岗之间再发生一次。

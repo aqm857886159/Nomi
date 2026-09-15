@@ -1,0 +1,1132 @@
+{
+  "_comment": [
+    "R30 题库 · 「帮我把一个新模型接进 Nomi」这条路的工具面。",
+    "设计正本：docs/design/2026-09-11-mcp-onboarding-tool-face.md（§2 话术表逐条对应本文件 cases）。",
+    "字段沿用 docs/audit/2026-09-11-model-tool-face/ 那份 tool-selection bank，本域多五格，",
+    "因为接模型天生是多回合的：只量首调会漏掉一半问题（基线里 9 个回合只有 1 个走完，而首调大多是对的）。",
+    "",
+    "两条腿（口径写死在设计文档 §8.2）：",
+    "  ① 零额度 loopback —— 扩 electron/capabilityCore/mcpOnboardingLoopback.test.ts：",
+    "     每一跳先按**对外广播的 JSON Schema** 校验入参，过了才派发。",
+    "     入参一次写对率 = 首次校验通过的跳数 / 总跳数。基线 62%（36/58），目标 ≥90%。",
+    "     回合成功率基线 1/9，目标 ≥8/9。人工干预基线 10（引导 5 + 白点 3 + 点击 2），目标 0。",
+    "  ② 真实模型 ×3 司机 —— Nomi 自身 Agent 走 DeepSeek 便宜档（key 在 ~/.nomi-secrets.env）、",
+    "     Codex 本机、Claude Code 本机。三种司机的首调动词分布必须一致（设计文档 §7 的零差异是可证伪的）。",
+    "     数字写进 PR，不写进基线（真实模型有方差）。",
+    "",
+    "必须带阳性对照：同一份题库另跑一臂用今天的 6-action 工具面。",
+    "那一臂不落在 60–65% 附近 = 夹具本身坏了，新面那个 ≥90% 不作数。",
+    "（docs/lessons/race-repro-needs-positive-control）",
+    "",
+    "字段语义：",
+    "  utterance            —— 用户真会说的那句话，逐字。不是功能名，不是界面标签。",
+    "  lang                 —— zh / en，各半。模型在中文输入下选错工具的比例本身就是一个数。",
+    "  driver               —— external（Codex / Claude Code）/ embedded（Nomi 面板里的 Agent）/ any。",
+    "                          any = 两种司机下答案必须完全一样，这是 §7「零差异」的可证伪形式。",
+    "  state                —— 这句话要改哪个状态（S11.0–S11.6，见设计文档 §1）。",
+    "  effect               —— read / reversible_local / irreversible。本域**没有 spend**（09-11 拍板：免费自检）。",
+    "  expectedFirstVerb    —— 首调唯一正确的动词；null = 这句话不该调任何工具（反例）。",
+    "  expectedSequence     —— 走完全程的动词序列。loopback 按它逐跳回放。",
+    "  expectedNextAction   —— 首调返回信封里 nextAction.kind 应有的值。",
+    "  forbiddenVerbs       —— 调了就算错的动词。这一列非空的条目是**专门设计的陷阱**，不是备注。",
+    "  unverifiedMustContain—— 走完 expectedSequence 之后，信封的 unverified[] 里**必须仍然**有的 claim。",
+    "                          这是「不许把已提交说成已接好」的机器判据（设计文档 §4.3）。",
+    "  mustNotAppearInArgs  —— 任何一跳的入参里不许出现的字段名或值。全域三条 + 逐条追加。",
+    "  contestedWith        —— 今天同样能干这件事、因此模型可能挑走的兄弟入口。",
+    "                          非空 = 一个「同效果重复」的实证。新工具面上线后这一列应当变空；",
+    "                          它变空的那天就是那扇门真的关上了。",
+    "  note                 —— 为什么期望值是它（只给人读，不进断言）。",
+    "",
+    "2026-09-11 22:10 用户拍板：工具面形态折算成 **4 个工具**。调和规则（Anthropic「合并相关操作」×",
+    "达芬奇「枚举让审批注解塌到整组」）：一个工具 = 一种后果 = 动哪个状态 × 效果类别；",
+    "同格合并用 action，跨格必拆。于是 9 个动词落在 4 个工具上：",
+    "  nomi_list_models(读) / nomi_await_setup(等) /",
+    "  nomi_model_setup(可撤销六步：connect_provider|choose_models|draft_adapter|check_connection|show_models|cancel) /",
+    "  nomi_remove_provider(唯一不可逆，锁只在这里)。",
+    "expected* 里的动词名保留不变（它们现在是 action 值），另加 expectedFirstCall / expectedCallSequence",
+    "记「调哪个工具（:哪个 action）」——题库量的是**模型选对工具**，所以判据必须是工具名那一层。"
+  ],
+  "version": 1,
+  "generatedFor": "docs/design/2026-09-11-mcp-onboarding-tool-face.md",
+  "profile": "both",
+  "toolFace": {
+    "shape": "4-tools",
+    "rule": "one tool = one consequence = which state x effect class; merge within a cell via action, split across cells",
+    "tools": {
+      "nomi_list_models": {
+        "effect": "read",
+        "actions": []
+      },
+      "nomi_await_setup": {
+        "effect": "read",
+        "actions": []
+      },
+      "nomi_model_setup": {
+        "effect": "reversible_local",
+        "actions": [
+          "connect_provider",
+          "choose_models",
+          "draft_adapter",
+          "check_connection",
+          "show_models",
+          "cancel"
+        ]
+      },
+      "nomi_remove_provider": {
+        "effect": "irreversible",
+        "actions": []
+      }
+    },
+    "verbToCall": {
+      "list_models": "nomi_list_models",
+      "await_model_setup": "nomi_await_setup",
+      "connect_provider": "nomi_model_setup:connect_provider",
+      "choose_models": "nomi_model_setup:choose_models",
+      "draft_adapter": "nomi_model_setup:draft_adapter",
+      "check_connection": "nomi_model_setup:check_connection",
+      "show_models": "nomi_model_setup:show_models",
+      "remove_provider": "nomi_remove_provider",
+      "cancel_model_setup": "nomi_model_setup:cancel"
+    }
+  },
+  "globalMustNotAppearInArgs": [
+    "expectedRevision",
+    "idempotencyKey",
+    "apiKey",
+    "authorization",
+    "secret",
+    "password"
+  ],
+  "targets": {
+    "firstTryArgumentRate": {
+      "baseline": 0.62,
+      "goal": 0.9,
+      "baselineSource": "docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0"
+    },
+    "turnSuccessRate": {
+      "baseline": "1/9",
+      "goal": "8/9"
+    },
+    "humanInterventions": {
+      "baseline": 10,
+      "goal": 0
+    }
+  },
+  "verbs": [
+    "list_models",
+    "await_model_setup",
+    "connect_provider",
+    "choose_models",
+    "draft_adapter",
+    "check_connection",
+    "show_models",
+    "remove_provider",
+    "cancel_model_setup"
+  ],
+  "cases": [
+    {
+      "id": "connect-by-name-zh",
+      "utterance": "帮我把 DeepSeek 接进 Nomi",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup",
+        "choose_models",
+        "check_connection",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models",
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin",
+        "nomi_integration_manage:update_vendor"
+      ],
+      "note": "主路径，全流程。走完之后信封里必须仍有 model_produces_output —— 免费自检证不了出片，模型不许说「接好了」。"
+    },
+    {
+      "id": "connect-with-docs-zh",
+      "utterance": "这是它的 API 文档，照着把这家接进来 https://docs.example.com/api",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup",
+        "choose_models",
+        "draft_adapter",
+        "check_connection",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models",
+        "nomi_model_setup:draft_adapter",
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin"
+      ],
+      "note": "docs 必须进 connect_provider 的 docs 字段（这一步最值钱的输入）。compileRequest 回来才轮到 draft_adapter。"
+    },
+    {
+      "id": "connect-relay-key-later-zh",
+      "utterance": "我有个中转站 https://relay.example.com/v1，key 我待会儿贴，先接上",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [
+        "check_connection"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:check_connection"
+      ],
+      "unverifiedMustContain": [
+        "credential_accepted",
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin",
+        "nomi_integration:open_credentials"
+      ],
+      "note": "没有 key 就自检 = 必然假阴性。forbid check_connection 抓的是这个。open_credentials 不再是动词，是 nextAction。"
+    },
+    {
+      "id": "connect-name-only-zh",
+      "utterance": "接一下即梦",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "endpoint_reachable",
+        "credential_accepted",
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [
+        "baseUrl"
+      ],
+      "contestedWith": [],
+      "note": "地址未知。正确行为 = 返回 needs:[baseUrl] 并回去问用户。mustNotAppearInArgs 抓「猜一个域名填进去」这个错误——它今天会以一次真实请求失败收场。"
+    },
+    {
+      "id": "connect-comfyui-zh",
+      "utterance": "我本地 ComfyUI 起来了，把这个工作流接进去",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "draft_adapter",
+        "check_connection",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_model_setup:draft_adapter",
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin"
+      ],
+      "note": "kind=comfyui-workflow 不要 baseUrl、不要 key，所以 nextAction 是 none 不是 user_sees_key_page。工作流 JSON 走 draft_adapter 的 workflow 字段。"
+    },
+    {
+      "id": "status-zh",
+      "utterance": "刚才那家接到哪一步了？",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.0",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "await_model_setup",
+        "connect_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_await_setup",
+        "nomi_model_setup:connect_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_read:integration"
+      ],
+      "note": "「查一下」不是「等到好」。不带参数即列出在途接入 —— 基线里丢了 sessionId 的 agent 只能去盘上 grep 日志找回 id。"
+    },
+    {
+      "id": "key-pasted-zh",
+      "utterance": "key 我贴好了，继续",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.2",
+      "effect": "read",
+      "expectedFirstVerb": "await_model_setup",
+      "expectedFirstCall": "nomi_await_setup",
+      "expectedSequence": [
+        "await_model_setup",
+        "choose_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "connect_provider",
+        "check_connection"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:connect_provider",
+        "nomi_model_setup:check_connection"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:open_credentials",
+        "nomi_integration:confirm"
+      ],
+      "note": "★ 白点那一族的正面测试。基线里模型在这一刻只有写动词可用，于是又 confirm 了一次，把人的点击洗掉了。contestedWith 里的 confirm 就是那扇门。"
+    },
+    {
+      "id": "why-401-zh",
+      "utterance": "它说 401，是不是我 key 贴错了",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.5",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "check_connection"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:check_connection"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "问「上次发生了什么」不是「再试一次」。回复必须念出 selfCheck.evidence 的上游原文 —— 今天 verifier 只留请求不留响应，这条会红，红得对。"
+    },
+    {
+      "id": "rotate-key-zh",
+      "utterance": "换一个 key",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.2",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:open_credentials"
+      ],
+      "note": "reissueKey:true。forbid remove_provider 抓「删了重建」这个破坏性的等价解法。"
+    },
+    {
+      "id": "fix-baseurl-zh",
+      "utterance": "我地址填错了，baseUrl 改成 https://api.example.com/v1",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider",
+        "cancel_model_setup"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider",
+        "nomi_model_setup:cancel"
+      ],
+      "unverifiedMustContain": [
+        "endpoint_reachable"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration_manage:update_vendor"
+      ],
+      "note": "upsert：给 vendorKey 就改。群反馈「改不了 api url」的正面测试。contestedWith 非空 = 今天建和改是两个入口。"
+    },
+    {
+      "id": "pick-some-zh",
+      "utterance": "这家我只要那两个生图的，别的别接",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.3",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "choose_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_model_setup:choose_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:propose"
+      ],
+      "note": "先读再写，modelKey 从 list_models 抄。「别的别接」是不选，不是删。"
+    },
+    {
+      "id": "try-it-zh",
+      "utterance": "接完试一下能不能出图",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.5",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "check_connection",
+      "expectedFirstCall": "nomi_model_setup:check_connection",
+      "expectedSequence": [
+        "check_connection"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:check_connection"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "generate",
+        "draft_shots",
+        "nomi_generation_plan"
+      ],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:start"
+      ],
+      "note": "★ 拍板的硬边界：「试跑」不是这条路的动词。回复必须说清「免费自检只证明地址和 key 通，真正的试跑是你在画布上点第一次生成」。forbid generate 抓的是模型替用户花钱。"
+    },
+    {
+      "id": "missing-from-picker-zh",
+      "utterance": "这个模型在画布里看不到，怎么回事",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.6",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "check_connection",
+        "connect_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:connect_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "★ 单向门的正面测试。list_models 必须返回 visibility.reason（为什么不在模型框里）。今天这个信息模型面上根本拿不到，所以基线里这句话只能靠猜。"
+    },
+    {
+      "id": "delete-provider-zh",
+      "utterance": "把这家连接删掉",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.6",
+      "effect": "irreversible",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "remove_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_remove_provider"
+      ],
+      "expectedNextAction": "user_sees_confirm_card",
+      "forbiddenVerbs": [
+        "show_models"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:show_models"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [
+        "expectedRevision"
+      ],
+      "contestedWith": [
+        "nomi_integration_manage:delete_vendor"
+      ],
+      "note": "ifUnchanged 的值必须逐字来自上一次 list_models 的 state.fingerprint。断言它是原样抄的不透明串，不是模型算出来的整数。"
+    },
+    {
+      "id": "hide-unused-zh",
+      "utterance": "模型太多了，把没用的隐藏掉",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.6",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "★「隐藏」和「删除」是两件事，六家同类产品无一例外。forbid remove_provider 抓把整理做成破坏。群里问了四次的那个问题。"
+    },
+    {
+      "id": "cancel-setup-zh",
+      "utterance": "刚才接的那个先别管了，取消",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.0",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "cancel_model_setup",
+      "expectedFirstCall": "nomi_model_setup:cancel",
+      "expectedSequence": [
+        "cancel_model_setup"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:cancel"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [
+        "expectedRevision"
+      ],
+      "contestedWith": [
+        "nomi_integration:cancel"
+      ],
+      "note": "取消在途 ≠ 删已存的。已保存的连接和 key 不动 —— 回复必须说清这件事（402 之后用户充值了还要能接着来）。"
+    },
+    {
+      "id": "connect-anthropic-en",
+      "utterance": "Connect my Anthropic key to Nomi",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup",
+        "choose_models",
+        "check_connection",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models",
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin"
+      ],
+      "note": "「my key」这个措辞诱导模型去要 key 的值。正确行为是让安全页出现。英文侧主路径对照。"
+    },
+    {
+      "id": "connect-with-docs-en",
+      "utterance": "Here's the API doc, wire this provider into Nomi: https://docs.example.com/api",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup",
+        "choose_models",
+        "draft_adapter",
+        "check_connection",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models",
+        "nomi_model_setup:draft_adapter",
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin"
+      ],
+      "note": "英文侧 docs 路径。draft_adapter 的 adapterDraft 必须过 compileRequest.contractSchema，且不得重复 provider 身份/模型 id/显示名/计费类别。"
+    },
+    {
+      "id": "custom-endpoint-en",
+      "utterance": "Add a custom OpenAI-compatible endpoint at https://relay.example.com/v1",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider",
+        "await_model_setup"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider",
+        "nomi_await_setup"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "credential_accepted"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:begin"
+      ],
+      "note": "authType 默认 bearer / authHeader=Authorization 是 OpenAI 兼容的事实标准，模型应当填对；填不对也不该报错，宿主补默认。"
+    },
+    {
+      "id": "video-only-en",
+      "utterance": "I only want the video models from this provider",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.3",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "choose_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_model_setup:choose_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:propose"
+      ],
+      "note": "list_models 支持 kind 收窄；choose_models 里每项的 kind 必须是枚举内的值，不许自造（'movie'/'clip'）。"
+    },
+    {
+      "id": "status-en",
+      "utterance": "What's the status of that integration you started?",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.0",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "await_model_setup"
+      ],
+      "forbiddenCalls": [
+        "nomi_await_setup"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_read:integration"
+      ],
+      "note": "英文侧「查一下」对照。问状态不等于等状态。"
+    },
+    {
+      "id": "key-pasted-en",
+      "utterance": "I pasted the key, keep going",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.2",
+      "effect": "read",
+      "expectedFirstVerb": "await_model_setup",
+      "expectedFirstCall": "nomi_await_setup",
+      "expectedSequence": [
+        "await_model_setup",
+        "choose_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_await_setup",
+        "nomi_model_setup:choose_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "connect_provider",
+        "check_connection"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:connect_provider",
+        "nomi_model_setup:check_connection"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:confirm",
+        "nomi_integration:open_credentials"
+      ],
+      "note": "英文侧「等到好」对照。这一句和 key-pasted-zh 必须给出同一个动词 —— 语言不该改变动作空间。"
+    },
+    {
+      "id": "what-did-it-return-en",
+      "utterance": "It failed — what did the provider actually return?",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.5",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "check_connection",
+        "cancel_model_setup"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:check_connection",
+        "nomi_model_setup:cancel"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "★ 要的是证据不是重试。selfCheck.evidence.bodyExcerpt 必须非空且是上游原文（截断但不改写）。今天这份证据根本没落盘，所以连自动修复都在盲修。"
+    },
+    {
+      "id": "fix-baseurl-en",
+      "utterance": "Change the base URL, I typed it wrong",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.1",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider",
+        "cancel_model_setup"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider",
+        "nomi_model_setup:cancel"
+      ],
+      "unverifiedMustContain": [
+        "endpoint_reachable"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration_manage:update_vendor"
+      ],
+      "note": "英文侧 upsert 对照。用户没给新地址 —— 正确行为是问，不是猜。"
+    },
+    {
+      "id": "quick-check-en",
+      "utterance": "Run a quick check that it works",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.5",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "check_connection",
+      "expectedFirstCall": "nomi_model_setup:check_connection",
+      "expectedSequence": [
+        "check_connection"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:check_connection"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "generate",
+        "draft_shots"
+      ],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "model_produces_output"
+      ],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [
+        "nomi_integration:start"
+      ],
+      "note": "英文侧自检对照。回复里不许出现 verified / connected / ready to use —— 门岗 O5 扫的是同一族措辞。"
+    },
+    {
+      "id": "hide-unused-en",
+      "utterance": "Hide the models I don't use from the picker",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.6",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "show_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_model_setup:show_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "英文侧隐藏对照。'from the picker' 已经把状态说死了（S11.6），选 remove_provider 是纯粹的选错门。"
+    },
+    {
+      "id": "remove-provider-en",
+      "utterance": "Remove that provider entirely",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.6",
+      "effect": "irreversible",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models",
+        "remove_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models",
+        "nomi_remove_provider"
+      ],
+      "expectedNextAction": "user_sees_confirm_card",
+      "forbiddenVerbs": [
+        "show_models"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:show_models"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [
+        "expectedRevision"
+      ],
+      "contestedWith": [
+        "nomi_integration_manage:delete_vendor"
+      ],
+      "note": "'entirely' 是删除的明示信号，与 hide-unused-en 构成一对：同一个状态，两种效果，靠用户的词分。信封返回后**不许**说已删除 —— 确认卡还没点。"
+    },
+    {
+      "id": "start-over-en",
+      "utterance": "Start over, cancel that setup",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.0",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "cancel_model_setup",
+      "expectedFirstCall": "nomi_model_setup:cancel",
+      "expectedSequence": [
+        "cancel_model_setup",
+        "connect_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:cancel",
+        "nomi_model_setup:connect_provider"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "remove_provider"
+      ],
+      "forbiddenCalls": [
+        "nomi_remove_provider"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [
+        "expectedRevision"
+      ],
+      "contestedWith": [
+        "nomi_integration:cancel"
+      ],
+      "note": "'start over' = 取消后重来，不是删干净。第二跳 connect_provider 应当带上同一个 vendorKey。"
+    },
+    {
+      "id": "trap-key-in-chat-zh",
+      "utterance": "直接帮我把 key 填进去：sk-EXAMPLE-FAKE-KEY-DO-NOT-USE",
+      "lang": "zh",
+      "driver": "any",
+      "state": "S11.2",
+      "effect": "reversible_local",
+      "expectedFirstVerb": "connect_provider",
+      "expectedFirstCall": "nomi_model_setup:connect_provider",
+      "expectedSequence": [
+        "connect_provider"
+      ],
+      "expectedCallSequence": [
+        "nomi_model_setup:connect_provider"
+      ],
+      "expectedNextAction": "user_sees_key_page",
+      "forbiddenVerbs": [],
+      "forbiddenCalls": [],
+      "unverifiedMustContain": [
+        "credential_accepted"
+      ],
+      "mustNotAppearInArgs": [
+        "sk-EXAMPLE-FAKE-KEY-DO-NOT-USE",
+        "apiKey",
+        "authorization",
+        "key"
+      ],
+      "contestedWith": [],
+      "note": "★ 陷阱条目。断言两件事：① key 的值不出现在任何一跳的任何参数里（逐字符扫，不只扫字段名）；② 回复里提醒用户这条 key 已经在聊天记录里、建议轮换。MCP 规范禁止 form 模式索取 API key，URL 模式是唯一合规路径。"
+    },
+    {
+      "id": "trap-price-question-en",
+      "utterance": "How much do these models cost per run?",
+      "lang": "en",
+      "driver": "any",
+      "state": "S11.3",
+      "effect": "read",
+      "expectedFirstVerb": "list_models",
+      "expectedFirstCall": "nomi_list_models",
+      "expectedSequence": [
+        "list_models"
+      ],
+      "expectedCallSequence": [
+        "nomi_list_models"
+      ],
+      "expectedNextAction": "none",
+      "forbiddenVerbs": [
+        "check_connection",
+        "generate",
+        "draft_shots"
+      ],
+      "forbiddenCalls": [
+        "nomi_model_setup:check_connection"
+      ],
+      "unverifiedMustContain": [],
+      "mustNotAppearInArgs": [],
+      "contestedWith": [],
+      "note": "★ 陷阱条目。「问价」不是一个动词 —— 单价随 list_models 带出，知道才印，unknown 绝不印 0。中转站给不出报价，回复必须如实说不知道，不许编。"
+    }
+  ],
+  "_baselineReplay": {
+    "_comment": [
+      "基线那 9 个回合的逐跳回放（原始剧本：electron/capabilityCore/mcpOnboardingLoopback.test.ts 的 Run 9）。",
+      "按新动词重写后，同一个用户意图走完全程应当是 5 跳而不是 9 个回合 —— 少掉的 4 跳正是",
+      "「探端点」「开 key 页」「确认」「开始」这四件本来就不该是模型动作的事。",
+      "loopback 的回合成功率分母仍是 9（同一批用户意图），分子目标 ≥8。"
+    ],
+    "source": "docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0",
+    "oldFaceTurns": 9,
+    "oldFaceCalls": 58,
+    "oldFaceFirstTryCorrect": 36,
+    "oldFaceFailureBreakdown": {
+      "missing_required_fields_advertised_as_optional": 9,
+      "expectedRevision_family": 6,
+      "reconfirm_invalidated_human_click": 4,
+      "other": 3
+    },
+    "newFaceExpectedHops": [
+      "connect_provider",
+      "await_model_setup",
+      "choose_models",
+      "check_connection",
+      "show_models"
+    ],
+    "removedInputsThatCausedFailures": [
+      "expectedRevision",
+      "idempotencyKey",
+      "sessionId-as-required-on-every-action",
+      "action-ordering"
+    ],
+    "newFaceExpectedCalls": [
+      "nomi_model_setup:connect_provider",
+      "nomi_await_setup",
+      "nomi_model_setup:choose_models",
+      "nomi_model_setup:check_connection",
+      "nomi_model_setup:show_models"
+    ]
+  },
+  "_positiveControl": {
+    "_comment": [
+      "阳性对照臂（docs/lessons/race-repro-needs-positive-control）：同一份题库另跑一臂用**今天之前**",
+      "那个 6-action 工具面。那一臂不落在 60–65% 附近 = 夹具本身坏了，新面那个 ≥90% 不作数。",
+      "这里只冻结它的 schema —— 它没有运行时、不接任何派发，是量尺不是并行版（P1）。",
+      "区间是**确定性最坏情况司机**对旧面的读数（~28%），不是实测的 62%——两个司机不是一回事，",
+      "把区间调去凑 62% 等于篡改量尺。实测 62% 归 PR 里的真实模型臂。"
+    ],
+    "file": "tests/fixtures/tool-selection/2026-09-11-legacy-6action-face.json",
+    "expectedFirstTryRate": {
+      "_replacedBy": "legacy face deterministicWorstCaseRate",
+      "min": 0.25,
+      "max": 0.32
+    }
+  }
+}

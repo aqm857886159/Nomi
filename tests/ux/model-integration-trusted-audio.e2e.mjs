@@ -105,24 +105,20 @@ async function run() {
   let revision = 0
   try {
     await withMcp(dirs, runtime, async (mcp) => {
-      const begin = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'begin',
+      // 2026-09-11 工具面重做：建连接 + 开安全页是**一跳**（要 key 是后果，不是动词）。
+      const begin = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: 'Trusted audio journey',
         baseUrl: provider.baseUrl,
         providerKind: 'openai-compatible',
         authType: 'bearer',
-        clientRequestId: 'trusted-audio-j1',
       }))
-      assert(!begin.isError && begin.json?.stage === 'needs_credential', 'MCP creates an unverified audio session')
-      sessionId = begin.json.id
-      revision = begin.json.revision
-      const handoff = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'open_credentials',
-        sessionId,
-        expectedRevision: revision,
-      }))
-      assert(!handoff.isError && handoff.json?.stage === 'needs_credential', 'MCP requests the credential handoff')
+      assert(!begin.isError, `MCP creates an unverified audio session: ${begin.text}`)
+      sessionId = begin.json?.setupId
+      assert(Boolean(sessionId), 'connect_provider returns a setup handle')
+      assert(begin.json?.nextAction?.kind === 'user_sees_key_page', 'the model is told the user must type a key, not to call another verb')
+      revision = 0
     })
 
     await withTrustedRenderer(dirs, async (win) => {
@@ -130,11 +126,13 @@ async function run() {
         const onboarding = window.nomiDesktop?.onboarding
         const current = await onboarding?.integrationSessionGet?.(id)
         const revision = Number(current?.revision)
+        if (!Number.isInteger(revision)) throw new Error(`trusted renderer could not read setup ${id}`)
         const result = await onboarding?.integrationSessionSaveCredential?.({
           sessionId: id,
           expectedRevision: revision,
           apiKey: 'isolated-fixture-key',
         })
+        if (result?.credentialStatus !== 'ready') throw new Error('trusted renderer did not store the credential')
         return result
       }, { id: sessionId })
       assert(saved?.credentialStatus === 'ready' && saved?.stage === 'draft', 'trusted renderer stores the credential')
@@ -142,94 +140,53 @@ async function run() {
     })
 
     await withMcp(dirs, runtime, async (mcp) => {
-      const current = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      const proposed = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'propose',
-        sessionId,
-        expectedRevision: current.json.revision,
-        proposal: {
-          candidates: [{ modelKey: 'tts-journey-audio', kind: 'audio', evidence: ['docs', 'manual'], classification: 'supported' }],
-          selections: [{ modelKey: 'tts-journey-audio' }],
-        },
+      // 模型入参里没有 expectedRevision：会话在上一段里被可信 UI 推进过，旧面在这里必然 stale。
+      const chosen = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'choose_models',
+        setupId: sessionId,
+        models: [{ modelKey: 'tts-journey-audio', kind: 'audio' }],
       }))
-      assert(!proposed.isError && proposed.json?.stage === 'ready_to_certify', `MCP accepts the audio proposal: ${proposed.text}`)
-    })
+      assert(!chosen.isError && chosen.json?.changeId, `MCP accepts the audio selection without a revision: ${chosen.text}`)
 
-    // 接模型没有付费验证，也就没有花费确认：可信 UI 这一跳整个不存在了（2026-09-12 拍板）。
-    // 外部宿主提完方案直接 start——这正是旧版本走不通的那一步。
-    //
-    // 先证一件**反面**的事：这条会话归 codex 所有，Nomi 窗口里就不该冒出要人点的交接单。
-    // 冒出来 = 在 Nomi 里放了一个按下去必然 integration_owner_mismatch 的按钮
-    // （会话服务只对 ownerClientId === 'nomi' 发这张单）。它会静默退化，所以钉在这里。
-    await withTrustedRenderer(dirs, async (win) => {
-      const handoffs = await win.evaluate(
-        async () => (await window.nomiDesktop?.onboarding?.integrationHandoffList?.()) || [],
-      )
-      const mine = handoffs.filter((item) => item.sessionId === sessionId)
-      const verification = mine.filter((item) => item.target === 'verification')
-      // 阳性对照：这条会话确实有交接单（凭据那张），所以「没有 verification」不是因为列表恒空。
-      if (mine.length === 0) throw new Error('handoff list returned nothing for this session — the probe itself is dead')
-      if (verification.length > 0)
-        throw new Error(`external session must not queue a Nomi-side confirmation: ${JSON.stringify(verification)}`)
-    })
-
-    await withMcp(dirs, runtime, async (mcp) => {
-      const ready = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      assert(ready.json?.stage === 'ready_to_certify', `session waits for start, not for a person: ${ready.text}`)
-      assertNoCredentialMaterial(ready.json, 'ready-to-certify projection')
-      let state = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'start',
-        sessionId,
-        expectedRevision: ready.json.revision,
-        idempotencyKey: 'trusted-audio-certification',
+      // 免费自检。它证明地址通、key 被收下、模型 id 在对方清单里——**不出片**。
+      const checked = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'check_connection',
+        setupId: sessionId,
       }, 60_000))
+      assert(!checked.isError, `free self-check runs: ${checked.text}`)
       assert(
-        !state.isError && (state.json?.stage === 'certifying' || state.json?.stage === 'completed'),
-        `certification starts without a false terminal failure: ${state.text}`,
+        (checked.json?.blastRadius?.outboundRequests || []).every((request) => request.billable === false),
+        'every outbound request on this path is declared free',
       )
-      const deadline = Date.now() + 30_000
-      while (state.json?.stage === 'certifying' && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        state = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      }
-      let adapterEvidence = null
-      try {
-        const stored = JSON.parse(fs.readFileSync(path.join(dirs.settingsDir, 'provider-adapters.json'), 'utf8'))
-        const run = stored.runs?.find((item) => item.id === state.json?.childRunRef?.runId)
-        adapterEvidence = run
-          ? {
-              stage: run.stage,
-              error: run.error,
-              models: run.models?.map((model) => ({
-                modelKey: model.modelKey,
-                modes: model.modes?.map((mode) => ({
-                  taskKind: mode.taskKind,
-                  state: mode.state,
-                  stage: mode.stage,
-                  error: mode.error,
-                  reasonCode: mode.reasonCode,
-                  errorParams: mode.errorParams,
-                })),
-              })),
-            }
-          : null
-      } catch {
-        adapterEvidence = null
-      }
       assert(
-        state.json?.stage === 'completed',
-        `audio certification completes: ${state.text}; adapter=${JSON.stringify(adapterEvidence)}; requests=${JSON.stringify(provider.requests)}; stderr=${JSON.stringify(mcp.stderr())}`,
+        (checked.json?.unverified || []).some((entry) => entry.claim === 'model_produces_output'),
+        'a passing self-check still says nothing has been generated yet',
       )
-      const models = parseToolResult(await mcp.callTool('nomi_read', { target: 'models' }))
-      const promoted = models.outcome?.models?.find((item) => item.modelKey === 'tts-journey-audio')
-        || models.json?.models?.find((item) => item.modelKey === 'tts-journey-audio')
-      assert(promoted?.kind === 'audio' && promoted?.keyStatus === 'ok', 'promoted audio model appears in the ordinary usable picker contract')
-      assertNoCredentialMaterial({ state: state.json, promoted }, 'completed MCP journey')
+
+      // 发布：自检过不过都发布，出现时带「未试跑」。
+      const shown = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'show_models',
+        vendorKey: checked.json?.vendorKey,
+        modelKeys: ['tts-journey-audio'],
+        visible: true,
+      }))
+      assert(!shown.isError && shown.json?.blastRadius?.modelsAppearing === 1, `show_models publishes the model: ${shown.text}`)
+
+      const listed = parseToolResult(await mcp.callTool('nomi_list_models', { vendorKey: checked.json?.vendorKey }))
+      const row = (listed.json?.state?.connections || [])
+        .flatMap((connection) => connection.models || [])
+        .find((model) => model.modelKey === 'tts-journey-audio')
+      if (!row) throw new Error(`nomi_list_models never reported the onboarded model: ${listed.text}`)
+      assert(row?.visibleInPicker === true, 'the chosen model is in the canvas picker')
+      // 「已试跑」只有用户自己在画布上跑过一次才成立；自检永远点不亮它。
+      assert(row?.tried === false, 'the model is published but labelled not yet tried')
+      assertNoCredentialMaterial({ listed: listed.json, row }, 'completed MCP journey')
     })
 
+    // 09-11 拍板的可证伪形式：接模型这条路上**一次生成都不发**。第一次真跑是用户自己点的。
     const audioCreates = provider.requests.filter((item) => item.method === 'POST' && item.path === '/v1/audio/speech')
-    assert(audioCreates.length === 1, 'canonical certification creates exactly one audio request')
-    console.log('MODEL INTEGRATION TRUSTED AUDIO PASS: MCP -> trusted renderer -> certification -> ordinary model list')
+    assert(audioCreates.length === 0, 'onboarding never spends: no audio generation request is sent at any point')
+    console.log('MODEL INTEGRATION TRUSTED AUDIO PASS: MCP -> trusted renderer -> free self-check -> published as not-yet-tried')
   } finally {
     await provider.close().catch(() => undefined)
     fs.rmSync(dirs.tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })

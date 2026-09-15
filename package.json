@@ -184,7 +184,7 @@
     "check:outbound-policy": "node ./scripts/check-outbound-policy.mjs",
     "check:model-identity": "node ./scripts/check-model-identity.mjs",
     "check:model-schema": "pnpm exec tsx --test ./scripts/check-model-schema.node-test.mjs && pnpm exec tsx scripts/check-model-schema.ts",
-    "check:tool-face": "pnpm exec tsx --test ./scripts/check-tool-face.node-test.mjs && pnpm exec tsx scripts/check-tool-face.ts",
+    "check:tool-face": "pnpm exec tsx --test ./scripts/check-tool-face.node-test.mjs && pnpm exec tsx scripts/check-tool-face.ts && pnpm exec tsx scripts/check-tool-face.ts --selftest",
     "check:adoption-bridge": "node ./scripts/check-adoption-bridge.mjs",
     "check:batch-machines": "node ./scripts/check-batch-machines.mjs",
     "check:test-types": "node ./scripts/check-test-types.mjs",

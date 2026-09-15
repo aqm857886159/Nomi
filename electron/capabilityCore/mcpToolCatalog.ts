@@ -17,8 +17,7 @@ import { listProductionPlaybookNames } from '../productionRun/productionPlaybook
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationToolCatalog'
-import { MCP_INTEGRATION_TOOL, INTEGRATION_METHOD_BY_ACTION } from './mcpIntegrationTools'
-import { MCP_INTEGRATION_MANAGEMENT_TOOL } from './mcpIntegrationManagementTools'
+import { MODEL_ONBOARDING_TOOLS, MODEL_ONBOARDING_METHODS } from './modelOnboarding/tools'
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -97,7 +96,6 @@ const READ_METHOD_BY_TARGET: Record<string, string> = {
   run_events: 'production.events',
   artifact: 'production.artifact',
   artifact_content: 'production.artifact.read',
-  integration: 'integration.get',
 }
 /** nomi_read 的 target 集合（供 mcpProtocol 判 widget/canonical 投影时复用，真相单一）。 */
 export const READ_TARGETS = Object.freeze(Object.keys(READ_METHOD_BY_TARGET))
@@ -113,13 +111,12 @@ const READ_TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。target=projects 每行带一个短 projectSelectionHandle，原样喂给 nomi_session_open 即续接该项目。' },
+      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content。target=projects 每行带一个短 projectSelectionHandle，原样喂给 nomi_session_open 即续接该项目。target=models 是「现在能拿来生成的模型」（带 moduleId 与参考槽）；「用户配了哪些连接、接到哪一步」读 nomi_list_models。' },
       projectId: { type: 'string' },
       leaseHandle: { type: 'string', description: 'target=canvas/generation_context/operation 必填。' },
       runId: RUN_EVENT_FIELDS.runId,
       operationId: { type: 'string', description: 'target=operation 必填。' },
       artifactId: ARTIFACT_FIELDS.artifactId,
-      sessionId: { type: 'string', description: 'target=integration：不填=列出你的接入会话。' },
       afterCursor: { ...RUN_EVENT_FIELDS.afterCursor, default: 0 },
       waitMs: { ...RUN_EVENT_FIELDS.waitMs, default: 0 },
       page: { type: 'integer', minimum: 0 },
@@ -150,8 +147,6 @@ const READ_TOOL = {
       case 'artifact':
       case 'artifact_content':
         return { projectId: a.projectId, runId: a.runId, artifactId: a.artifactId }
-      case 'integration':
-        return { sessionId: a.sessionId }
       default:
         return {}
     }
@@ -313,8 +308,12 @@ export const MCP_TOOL_CATALOG = [
   RUN_CONTROL_TOOL, // T11
   ARTIFACT_REVIEW_TOOL, // T12（吸收 review + script/storyboard revision）
   RUN_GATE_TOOL, // T13（吸收 decide_gate + materialize）
-  MCP_INTEGRATION_TOOL, // T14（接入状态机 5 个确定性缝）
-  MCP_INTEGRATION_MANAGEMENT_TOOL, // T14 supplemental（已接入连接管理）
+  // T14 · 接模型这条路的工具面（2026-09-11 重做）：4 个工具 = 4 种后果。
+  // 一个工具 = 动哪个状态 × 效果类别；同格合并用 action，跨格必拆。
+  // nomi_list_models(读) / nomi_await_setup(等) / nomi_model_setup(可撤销六步) / nomi_remove_provider(唯一不可逆)。
+  // 旧的 nomi_integration(6 action) + nomi_integration_manage(4 action) + nomi_read target=integration
+  // 同 commit 删除（P1 无并行版）；改名是破坏性变更，mcpProtocol 发 notifications/tools/list_changed。
+  ...MODEL_ONBOARDING_TOOLS,
   PROJECT_CREATE_TOOL, // T15
   ...SEMANTIC_EDITING_TOOLS_WITH_TITLES, // M2 语义编辑（含中英文人话标题）
 ] as const
@@ -342,7 +341,7 @@ export function assertMcpToolTitles(tools: readonly McpToolDefinition[]): void {
 }
 
 // 再导出整族路由映射，供测试逐条 assert 「旧 name 的 method+params ≡ 新 name 某枚举分支的 build 输出」。
-export { READ_METHOD_BY_TARGET, INTEGRATION_METHOD_BY_ACTION }
+export { READ_METHOD_BY_TARGET, MODEL_ONBOARDING_METHODS }
 
 const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
   const annotations = 'annotations' in tool && tool.annotations

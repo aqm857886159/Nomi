@@ -168,8 +168,6 @@
     "nomi_asset_import",
     "nomi_canvas_maintenance",
     "nomi_export_job",
-    "nomi_integration",
-    "nomi_integration_manage",
     "nomi_layout_read",
     "nomi_layout_write",
     "nomi_operation_control",

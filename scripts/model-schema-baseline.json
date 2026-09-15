@@ -10,7 +10,6 @@
     "mcp/nomi_artifact_review",
     "mcp/nomi_asset_import",
     "mcp/nomi_canvas_maintenance",
-    "mcp/nomi_integration_manage",
     "mcp/nomi_operation_control",
     "mcp/nomi_operation_execute",
     "mcp/nomi_operation_gate",
@@ -24,10 +23,7 @@
   ],
   "missing-example": [
     "mcp/nomi_canvas_edit",
-    "mcp/nomi_integration",
-    "mcp/nomi_integration_manage",
     "mcp/nomi_media_query",
-    "mcp/nomi_operation_plan",
-    "mcp/nomi_read"
+    "mcp/nomi_operation_plan"
   ]
 }

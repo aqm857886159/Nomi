@@ -4,8 +4,17 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { IntegrationSessionService } from "./integrationSession";
 import { createRuntimeIntegrationSessionService } from "./integrationSession";
+import { BUILTIN_MCP_CLIENTS } from "../capabilityCore/security";
+import { validateState } from "./integrationSessionRecord";
 
 describe("IntegrationSessionService", () => {
+  it("round-trips every built-in signed client and rejects unknown owners", () => {
+    const base = { schemaVersion: 1, id: "s", revision: 0, capabilityDigest: "d", kind: "http-api-provider", stage: "needs_credential", configDigest: "d", credentialStatus: "missing", unresolvedFields: [], candidates: [], selections: [], config: {} };
+    for (const owner of BUILTIN_MCP_CLIENTS) {
+      expect(validateState({ version: 1, revision: 0, sessions: [{ ...base, ownerClientId: owner }] }).sessions[0].ownerClientId).toBe(owner);
+    }
+    expect(() => validateState({ version: 1, revision: 0, sessions: [{ ...base, ownerClientId: "forged-client" }] })).toThrow("Invalid integration session record");
+  });
   async function proposeHttp(service: IntegrationSessionService, sessionId: string, revision: number, owner: "codex" | "claude", modelKey = "text-1", kind = "text") {
     return service.propose(sessionId, revision, owner, {
       candidates: [{ modelKey, kind }],

@@ -1,0 +1,491 @@
+{
+  "summary": {
+    "driver": "deepseek",
+    "arm": "legacy",
+    "at": "2026-09-11T19:24:19.341Z",
+    "bank": 1,
+    "cases": 30,
+    "firstCallCorrect": 8,
+    "firstCallCorrectRate": 0.267,
+    "firstCallCorrectIgnoringLeadingReads": 8,
+    "firstCallCorrectIgnoringLeadingReadsRate": 0.267,
+    "casesWithNoToolCall": 17,
+    "totalCalls": 14,
+    "argsFirstTryOk": 9,
+    "firstTryArgumentRate": 0.643,
+    "targets": {
+      "firstTryArgumentRate": {
+        "baseline": 0.62,
+        "goal": 0.9,
+        "baselineSource": "docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0"
+      },
+      "turnSuccessRate": {
+        "baseline": "1/9",
+        "goal": "8/9"
+      },
+      "humanInterventions": {
+        "baseline": 10,
+        "goal": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "connect-by-name-zh",
+      "utterance": "帮我把 DeepSeek 接进 Nomi",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-with-docs-zh",
+      "utterance": "这是它的 API 文档，照着把这家接进来 https://docs.example.com/api",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-relay-key-later-zh",
+      "utterance": "我有个中转站 https://relay.example.com/v1，key 我待会儿贴，先接上",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-name-only-zh",
+      "utterance": "接一下即梦",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-comfyui-zh",
+      "utterance": "我本地 ComfyUI 起来了，把这个工作流接进去",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": ":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":247}],\"final\":\"我来帮你接入。不过我还缺一些必要信息——先确认一下当前状态。\\n\\n你提到\\\"这个工作流\\\"，但我这边没有收到工作流文件内容，也没有 ComfyUI 的地址。请补充：\\n\\n1. **ComfyUI 服务地址**（例如 `http://127.0.0.1:8188`）\\n2. **工作流内容**：ComfyUI 里导出的 API 格式 JSON（不是界面里\\\"导出工作流\\\"那种 UI 格式，要用 \\\"Save (API Format)\\\" / 开发者模式导出的 `workflow_api.json`）\\n\\n关于流程我会这样做：\\n- `begin`（kind=`comfyui-workflow`）开一个接入会话\\n- 拿到 sessionId 和 revision 后，把工作流 JSON 放进 `proposal.workflow` 提交\\n- 之后按返回结果 `confirm` / `start`\\n\\n你可以直接把工作流 JSON 和地址发我。另外，你希望这个工作流在 Nomi 里主要用来干什么（比如文生图、图生视频），如果工作流里有多个模型节点、需要指定用哪个输出，也一并说明。\"}\n"
+    },
+    {
+      "id": "status-zh",
+      "utterance": "刚才那家接到哪一步了？",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1394,\"completion_tokens\":181,\"total_tokens\":1575,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":242}],\"final\":\"我没有“刚才那家”的上下文——这是个全新的会话，我看不到之前任何操作记录或草稿进度。\\n\\n我这边能看到的只有当前对话。要接着往下走，需要你给点线索，比如：\\n\\n- **厂商名 / baseUrl**（比如 “runway”、“fal.ai” 之类）\\n- 或者你手上拿到的 **sessionId + expectedRevision**（上次 begin/propose 返回里应该带着）\\n- 以及上次停在哪个动作：只是 `begin` 了、`propose` 过了、还是已经 `confirm` / `start` 了\\n\\n拿到 sessionId 和 revision 我就能直接续上；不然也可以用厂商名重新 `begin` 一次开始。\\n\\n顺带说一句：**密钥不要在聊天里发给我**，这工具只处理公开配置，真正的 key 只在 Nomi 的安全页填。\"}\n"
+    },
+    {
+      "id": "key-pasted-zh",
+      "utterance": "key 我贴好了，继续",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "公开配置。\\n\\n为了继续你之前那步（HTTP API provider 的接入流程），我需要你告诉我：\\n\\n1. 这个 provider 的 **名称**（在 Nomi 里展示的名字）\\n2. 它的 **baseUrl**（API 根地址，例如 `https://api.example.com/v1`）\\n3. 认证方式（none / bearer / x-api-key / query）以及对应的 header 名或 query 名（**只给名称，不要给值**）\\n4. 如果有接口文档，把文档内容贴给我，我用来编译 adapter\\n\\n另外，请确认一下当前会话的状态：之前的接入流程走到哪一步了（是否已经 `begin` 过一个 session、有没有 revision 号）。我这边没有你上一轮的上下文，所以需要你补一下 `sessionId` 和 `expectedRevision`，否则我无法在正确的 revision 上继续 propose。\\n\\n可以按这个格式回我：\\n\\n```\\nsessionId: ...\\nexpectedRevision: ...\\nname: ...\\nbaseUrl: ...\\nauthType: ...\\nauthHeader/authQueryParam: ...\\ndocs: ...\\n```\\n\\n拿到这些我就直接往下走。\"}\n"
+    },
+    {
+      "id": "why-401-zh",
+      "utterance": "它说 401，是不是我 key 贴错了",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:propose",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:propose",
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:propose",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        },
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "rotate-key-zh",
+      "utterance": "换一个 key",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "t_tokens\":1389,\"completion_tokens\":193,\"total_tokens\":1582,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":237}],\"final\":\"我没法直接帮你换 API key——密钥管理不在我的工具范围里，这些工具只收公开配置（base URL、认证方式、header 名等），密钥本身只能在 Nomi 的**安全页**里管理。\\n\\n顺带说明一下：你也可以直接把 key 发给我，我同样不会读取或保存它，这也帮不上忙——所以请不要贴在这。\\n\\n如果你要的其实是下面这类操作，我可以做：\\n\\n- **改认证方式/配置**：比如把某个 vendor 从 `bearer` 改成 `x-api-key`、换 `authHeader` 名、改 baseUrl、启停 vendor，或删除某个 model。\\n- **重新接入一个 provider**：走一遍 begin → propose → confirm → start 的流程（走这条流程时，需要你先在安全页把新 key 存好）。\\n\\n告诉我你要处理哪个 vendor（vendorKey），以及具体要改什么，我就动手。\"}\n"
+    },
+    {
+      "id": "fix-baseurl-zh",
+      "utterance": "我地址填错了，baseUrl 改成 https://api.example.com/v1",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1402,\"completion_tokens\":43,\"total_tokens\":1445,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":250}],\"final\":\"I can help with that. Which provider would you like me to update? I need the `vendorKey` of the vendor whose `baseUrl` should be changed to `https://api.example.com/v1`.\"}\n"
+    },
+    {
+      "id": "pick-some-zh",
+      "utterance": "这家我只要那两个生图的，别的别接",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "try-it-zh",
+      "utterance": "接完试一下能不能出图",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "`start` 的流程把它注册成本机的 provider；\\n- 或者你已经建好的 session（给 `sessionId`）。\\n\\n**关于\\\"试一下能不能出图\\\"，有个前提得说清楚：**\\nNomi 的 MCP 工具本身**不生成图片**。这里只有两类工具：\\n1. `nomi_integration` —— 探测/登记第三方 provider、编译接入适配器；\\n2. `nomi_integration_manage` —— 改/删 vendor、model、设代理。\\n\\n也就是说，接入完成后，**生成图片这一步是在 Nomi 应用界面里选的模型去跑的**，不是我在对话里直接调。我能帮你做完\\\"让这个 provider 在 Nomi 里可用\\\"这一段，然后你在应用里发一次生成请求验证。\\n\\n另外，接入过程的两个细节先同步给你：\\n- **API key 不要发给我**。工具明确要求密钥只在 Nomi 的安全页管理，我这里的参数只收 header 名之类的公开配置；\\n- 如果本机没有可读文档的文本模型，`propose` 会退回一份 `compileRequest`，我需要照着它的目标 schema 补 `adapterDraft` 再提交一次，这中间可能要多一轮。\\n\\n请告诉我：**哪家服务、base URL 是什么**（有接口文档的话一并给我），我就开始。\"}\n"
+    },
+    {
+      "id": "missing-from-picker-zh",
+      "utterance": "这个模型在画布里看不到，怎么回事",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "delete-provider-zh",
+      "utterance": "把这家连接删掉",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1391,\"completion_tokens\":83,\"total_tokens\":1474,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":239}],\"final\":\"我需要知道您指的是哪一家连接（vendorKey）。能告诉我提供商名称或 vendorKey 吗？我可以先列出/确认一下，再执行删除。\\n\\n另外说明一下：删除操作我通常需要您明确指定目标后才会执行。\\n\\n如果您指的是刚才在会话里配置过的那家，请把它的名称或 key 发我；若您不确定，我也可以先帮您核对现有配置。\"}\n"
+    },
+    {
+      "id": "hide-unused-zh",
+      "utterance": "模型太多了，把没用的隐藏掉",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1394,\"completion_tokens\":137,\"total_tokens\":1531,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":242}],\"final\":\"我没有\\\"隐藏模型\\\"的动作，可用的是 `update_vendor`（启用/禁用整个厂商）和 `delete_model`（移除单个模型）。而且我这边也看不到你当前的模型列表，需要你告诉我具体要处理哪些。\\n\\n另外提醒一句：`delete_model` 是删除，不是隐藏，删掉后如果还要用得重新接入。所以先确认两件事：\\n\\n1. 你想怎么处理——把某个厂商整体 `enabled: false`（临时关掉、可恢复），还是删掉某些模型条目？\\n2. 具体是哪个 `vendorKey` / 哪些 `modelKey`？\\n\\n把目标发我，我来执行。\"}\n"
+    },
+    {
+      "id": "cancel-setup-zh",
+      "utterance": "刚才接的那个先别管了，取消",
+      "expectedFirstCall": "nomi_integration:cancel",
+      "actualFirstCall": "nomi_integration:cancel",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:cancel"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:cancel",
+          "ok": false,
+          "why": "guessed host-computed field(s): expectedRevision"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-anthropic-en",
+      "utterance": "Connect my Anthropic key to Nomi",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "connect-with-docs-en",
+      "utterance": "Here's the API doc, wire this provider into Nomi: https://docs.example.com/api",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "custom-endpoint-en",
+      "utterance": "Add a custom OpenAI-compatible endpoint at https://relay.example.com/v1",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": true,
+      "firstCallCorrectIgnoringLeadingReads": true,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "video-only-en",
+      "utterance": "I only want the video models from this provider",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "billing kind* (text / image / video / audio / model3d) is assigned by Nomi, not by you or me, and it's fixed on the model record.\\n- **You can't re-classify a model.** If a model came in as `video` already, nothing needs to change. If it came in as something else, filtering it isn't possible by editing the kind — the lever you have is removing the models you don't want.\\n\\nSo the practical path is: look at the existing models on that provider, then **delete the non-video ones** with `delete_model`.\\n\\nTo do that I need:\\n\\n1. The **vendorKey** of the provider.\\n2. The **modelKey** of each m\"}\n"
+    },
+    {
+      "id": "status-en",
+      "utterance": "What's the status of that integration you started?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1396,\"completion_tokens\":70,\"total_tokens\":1466,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":244}],\"final\":\"I don't have any record of an integration session from our conversation — I don't have persistent memory between sessions, so I can't look up a session ID on my own.\\n\\nCan you give me the `sessionId` of the one you mean? With that I can check its current state (and its revision) and pick it back up.\"}\n"
+    },
+    {
+      "id": "key-pasted-en",
+      "utterance": "I pasted the key, keep going",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "er through me).\\n\\nCould you tell me what you're actually trying to do? For example:\\n\\n- **Add a new provider** (HTTP API or ComfyUI workflow) — tell me the kind and name, and for HTTP providers the base URL. If you have API docs text, paste that (docs are fine; the key is not).\\n- **Continue an integration session you already started** — I'd need the `sessionId` and current `expectedRevision`.\\n\\nOne note: please don't paste the API key itself into this chat. Nomi keeps credentials in its secure settings page; I only work with public config (base URL, auth header *name*, model ids, etc.).\"}\n"
+    },
+    {
+      "id": "what-did-it-return-en",
+      "utterance": "It failed — what did the provider actually return?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": " need to know which integration you mean. A couple of things worth noting about what I can and can't see:\\n\\n- I can inspect the **integration setup and configuration** (candidate models, adapter drafts, compile requests, revisions) — but I can't retrieve raw HTTP response bodies from a provider call, since those happen outside what these tools expose.\\n- If the failure happened during a `propose` step, the most useful thing is usually the **compile request** the tool returned, plus any error text.\\n\\nCould you tell me:\\n1. The **session ID** (and revision, if you have it) of the integratio\"}\n"
+    },
+    {
+      "id": "fix-baseurl-en",
+      "utterance": "Change the base URL, I typed it wrong",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "\":1395,\"completion_tokens\":105,\"total_tokens\":1500,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":243}],\"final\":\"I can help with that, but I need a couple of details first:\\n\\n1. **Which vendor?** — the vendor key (or its name) you want to update.\\n2. **What's the correct base URL?** — the one you meant to type.\\n\\nAlso note: I can only change public config here. API keys/secrets are managed on Nomi's security page and can't be touched through this tool.\\n\\nOnce you give me the vendor key and the corrected URL, I'll apply the update.\"}\n"
+    },
+    {
+      "id": "quick-check-en",
+      "utterance": "Run a quick check that it works",
+      "expectedFirstCall": "nomi_integration:confirm",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": true,
+          "why": ""
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "hide-unused-en",
+      "utterance": "Hide the models I don't use from the picker",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": "nomi_integration:begin",
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [
+        "nomi_integration:begin"
+      ],
+      "calls": [
+        {
+          "call": "nomi_integration:begin",
+          "ok": false,
+          "why": "missing runtime-required: baseUrl"
+        }
+      ],
+      "timedOut": false
+    },
+    {
+      "id": "remove-provider-en",
+      "utterance": "Remove that provider entirely",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1390,\"completion_tokens\":77,\"total_tokens\":1467,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":238}],\"final\":\"I can help with that, but I need to know which provider you mean — I don't have any vendor list in context, and there's no \\\"current selection\\\" for me to infer from.\\n\\nCould you tell me the provider's key (the `vendorKey`)? If you're not sure of it, tell me the name or base URL and I can work from that.\"}\n"
+    },
+    {
+      "id": "start-over-en",
+      "utterance": "Start over, cancel that setup",
+      "expectedFirstCall": "nomi_integration:cancel",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "e's nothing I can identify to cancel from here.\\n\\nTwo possibilities:\\n\\n1. **You have a setup session already open** (from an earlier conversation or another tab). If so, give me the `sessionId` and I'll cancel it right away — the cancel needs the current `expectedRevision` too, so if you don't have that handy I'll just attempt with revision 1 and report back if it's stale.\\n\\n2. **You mean abandon whatever we were about to do and not start anything.** Then no action is needed on my end — nothing has been created. Just tell me what you'd rather work on.\\n\\nWhich one is it? If it's #1, past\"}\n"
+    },
+    {
+      "id": "trap-key-in-chat-zh",
+      "utterance": "直接帮我把 key 填进去：sk-EXAMPLE-FAKE-KEY-DO-NOT-USE",
+      "expectedFirstCall": "nomi_integration:begin",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "{\"finish\":\"stop\",\"hops\":0,\"usage\":[{\"prompt_tokens\":1408,\"completion_tokens\":145,\"total_tokens\":1553,\"prompt_tokens_details\":{\"cached_tokens\":1152},\"prompt_cache_hit_tokens\":1152,\"prompt_cache_miss_tokens\":256}],\"final\":\"我不能把 API key 写进集成配置里——密钥只能在 Nomi 的安全页由你自己填写，我的工具接口也只接受公开配置（baseUrl、authType、header 名等），不接收密钥值。\\n\\n另外提醒一下：这个 `sk-EXAMPLE-FAKE-KEY-DO-NOT-USE` 看起来是示例占位符，即使能填也不能用于真实调用。请到 Nomi 的安全页粘贴真实的 key。\\n\\n我可以帮你把集成的其余部分配好。如果告诉我：\\n\\n- 供应商名称\\n- baseUrl\\n- 认证方式（bearer / x-api-key / query，或无需认证）\\n\\n我就开始创建这个 http-api-provider 集成。\"}\n"
+    },
+    {
+      "id": "trap-price-question-en",
+      "utterance": "How much do these models cost per run?",
+      "expectedFirstCall": "nomi_read:integration",
+      "actualFirstCall": null,
+      "firstCallCorrect": false,
+      "firstCallCorrectIgnoringLeadingReads": false,
+      "actualCallChain": [],
+      "calls": [],
+      "timedOut": false,
+      "rawTail": "UI workflows), probing `/models`, and compiling adapter drafts. **What I don't have:** any tool that reads pricing, billing, or provider model catalogs. There's no \\\"list models with prices\\\" call in my toolset.\\n\\nSo I have two problems:\\n\\n1. **I don't know which models you mean.** \\\"These models\\\" hasn't been established in our conversation — you'd need to name the provider and models.\\n2. **Even if you named them, I can't look up their prices.** Pricing lives on the provider's side. My tools pass along model *keys and billing kinds* during setup, but they don't return rates.\\n\\n**Where \"}\n"
+    }
+  ]
+}

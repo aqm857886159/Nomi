@@ -15,24 +15,33 @@ function makeInvoke(states: string[]) {
   let index = 0
   const invoke = async (method: string, params: Record<string, unknown>) => {
     calls.push({ method, params })
-    if (method === 'integration.open_credentials') {
-      return { id: TICKET.sessionId, revision: 2, stage: 'needs_credential', credentialStatus: 'missing', credentialEntry: TICKET, credentialUiOpened: false }
+    if (method === 'modelSetup.connect_provider') {
+      return {
+        ok: true, setupId: TICKET.sessionId,
+        state: { connections: [], setups: [{ id: TICKET.sessionId, revision: 2, stage: 'needs_credential', credentialStatus: 'missing' }], fingerprint: 'fp_x' },
+        nextAction: { kind: 'user_sees_key_page', userSees: '', url: TICKET.url },
+        credentialEntry: TICKET, credentialUiOpened: false, config: TICKET.display,
+      }
     }
     const status = states[Math.min(index++, states.length - 1)]
-    return { id: TICKET.sessionId, revision: 3, stage: status === 'ready' ? 'draft' : 'needs_credential', credentialStatus: status }
+    return {
+      ok: true, setupId: TICKET.sessionId,
+      state: { connections: [], setups: [{ id: TICKET.sessionId, revision: 3, stage: status === 'ready' ? 'draft' : 'needs_credential', credentialStatus: status }], fingerprint: 'fp_y' },
+      nextAction: { kind: 'none', userSees: '' },
+    }
   }
   return { invoke, calls }
 }
 
 const noWait = async () => {}
 
-describe('nomi_integration credential elicitation (MCP url mode)', () => {
+describe('nomi_model_setup connect_provider credential elicitation (MCP url mode)', () => {
   it('asks in url mode, waits for the real save, then notifies completion', async () => {
     const { invoke, calls } = makeInvoke(['missing', 'missing', 'ready'])
     const requestUrl = vi.fn(async () => ({ supported: true, action: 'accept' as const }))
     const notifyComplete = vi.fn()
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke,
       elicitation: { requestUrl, notifyComplete },
       wait: noWait,
@@ -42,11 +51,11 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
       undefined,
     )
     // Consent is not completion: the session had to actually report a ready credential.
-    expect(calls.filter((call) => call.method === 'integration.get')).toHaveLength(3)
+    expect(calls.filter((call) => call.method === 'modelSetup.list')).toHaveLength(3)
     expect(notifyComplete).toHaveBeenCalledWith(TICKET.elicitationId)
     expect(outcome.kind).toBe('result')
     if (outcome.kind !== 'result') throw new Error('unreachable')
-    expect(outcome.result.credentialStatus).toBe('ready')
+    expect((outcome.result.state as { setups: Array<{ credentialStatus: string }> }).setups[0].credentialStatus).toBe('ready')
     // The spent single-use URL never rides back out to the model.
     expect(outcome.result.credentialEntry).toBeUndefined()
     expect(JSON.stringify(outcome.result)).not.toContain('integration-credential')
@@ -58,7 +67,7 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
     // blamed for something they never saw, with no next step.
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke,
       elicitation: { requestUrl: async () => ({ supported: true, action: 'decline' as const }), notifyComplete: vi.fn() },
       wait: noWait,
@@ -76,7 +85,7 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
   it('gives up with the manual path when the page is never completed', async () => {
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke,
       elicitation: { requestUrl: async () => ({ supported: true, action: 'accept' as const }), notifyComplete: vi.fn() },
       wait: noWait,
@@ -88,14 +97,14 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
   it('withholds the URL from a client that cannot present it, and points at Nomi instead', async () => {
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke,
       elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
       wait: noWait,
     })
     expect(outcome.kind).toBe('result')
     if (outcome.kind !== 'result') throw new Error('unreachable')
-    expect(outcome.result.stage).toBe('needs_credential')
+    expect((outcome.result.state as { setups: Array<{ stage: string }> }).setups[0].stage).toBe('needs_credential')
     expect(outcome.result.credentialEntry).toEqual({ mode: 'manual', instructions: expect.stringMatching(/设置|Settings/) })
     expect(JSON.stringify(outcome.result)).not.toContain('127.0.0.1')
   })
@@ -103,7 +112,7 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
   it('says to start Nomi when the owning process cannot reach a GUI', async () => {
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke,
       elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
       locale: 'en',
@@ -118,10 +127,10 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
     const { invoke } = makeInvoke(['missing'])
     const wrappedInvoke = async (method: string, params: Record<string, unknown>) => {
       const value = await invoke(method, params) as Record<string, unknown>
-      return method === 'integration.open_credentials' ? { ...value, credentialUiOpened: true } : value
+      return method === 'modelSetup.connect_provider' ? { ...value, credentialUiOpened: true } : value
     }
     const outcome = await runIntegrationCredentialElicitation({
-      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      built: { action: 'connect_provider', kind: 'http-api-provider', name: 'APIMart', baseUrl: 'https://api.example.com' },
       invoke: wrappedInvoke,
       elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
       wait: noWait,

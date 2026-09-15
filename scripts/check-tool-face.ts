@@ -12,8 +12,19 @@
  * 与 `check:model-schema` 职责不重叠：那边量结构（空 schema / 根级 union / const / 漂移），这边量语义。
  * 身份式棘轮，与 `check:boundaries` 同款纪律：`added` 红、`removed` 也红。
  *
+ * **两个规则族，一条门岗**（2026-09-14 收成一份，P1）。模型可见的工具面现在有两个声明 owner，
+ * 各自有一套规则，此前各自也叫 `check:tool-face`——09-13 并 main 时 package.json 里那一条指向了
+ * 另一份，把本文件这一份悄悄挤下线了。同名的两条门岗，死掉的那条不会喊，所以收成一个入口：
+ *   · 本文件：`electron/shared/agentCapabilities/verbDeclarations.ts` 那个 owner（整个面，64 个工具）；
+ *   · `scripts/tool-face-onboarding-rules.mjs`：`electron/capabilityCore/modelOnboarding/declarations.ts`
+ *     那个 owner（接模型 4 工具，O1–O7 + C1/C2）。一条规则都没删，两族都在这里跑。
+ *
+ * 两个 owner 各自派生自己的工具，所以 `mcp-transport-catalog`（「不从声明派生的手写工具」）
+ * 认两份派生名单——接模型那 4 个不是手写的，它们有自己的 owner 与自己的九条规则。
+ *
  * 用法：
- *   pnpm exec tsx scripts/check-tool-face.ts                    校验
+ *   pnpm exec tsx scripts/check-tool-face.ts                    两族都校验
+ *   pnpm exec tsx scripts/check-tool-face.ts --selftest         R17：接模型族逐条先验会红
  *   pnpm exec tsx scripts/check-tool-face.ts --update-baseline  重算棘轮基线（只许变小）
  */
 import fs from "node:fs";
@@ -243,6 +254,8 @@ export async function collectFindings(): Promise<{ hard: Finding[]; ratchet: Fin
     import("../electron/shared/agentCapabilities/modelVisibleJsonSchema"),
     import("../electron/capabilityCore/mcpToolCatalog"),
   ]);
+  // 第二个声明 owner：接模型那 4 个工具从 modelOnboarding/declarations.ts 派生，不是手写的。
+  const { ONBOARDING_TOOL_NAMES } = await import("../electron/capabilityCore/modelOnboarding/declarations");
   const declaredNames = new Set(VERB_DECLARATIONS.map((d) => d.name));
   const internal = registry.modelFacingToolSpecs("internal");
   const mcp = registry.mcpProfileTools();
@@ -255,7 +268,10 @@ export async function collectFindings(): Promise<{ hard: Finding[]; ratchet: Fin
   ];
   const ratchet = [
     ...fieldDescriptions(registry.MODEL_FACING_TOOL_SPECS.map((spec) => ({ name: spec.name, schema: toPublishedJsonSchema(spec.schema) }))),
-    ...handwrittenMcp((MCP_TOOL_RESOLVER.list() as readonly { name: string }[]).map((t) => t.name), new Set(mcp.map((t) => t.name))),
+    ...handwrittenMcp(
+      (MCP_TOOL_RESOLVER.list() as readonly { name: string }[]).map((t) => t.name),
+      new Set([...mcp.map((t) => t.name), ...ONBOARDING_TOOL_NAMES]),
+    ),
     ...transitionalProfiles(VERB_DECLARATIONS),
     ...convention.ratchet,
   ];
@@ -283,12 +299,22 @@ function writeBaseline(ratchet: readonly Finding[]): void {
 }
 
 async function main(): Promise<void> {
+  const { runOnboardingRules, runOnboardingSelftest } = await import("./tool-face-onboarding-rules.mjs");
+  if (process.argv.includes("--selftest")) {
+    // R17 阳性对照。本文件这一族的先验会红住在 scripts/check-tool-face.node-test.mjs（9 条），
+    // 由 package.json 的 check:tool-face 先跑；这里跑接模型那一族的九条。
+    if (!runOnboardingSelftest()) process.exitCode = 1;
+    return;
+  }
   const { hard, ratchet } = await collectFindings();
   if (process.argv.includes("--update-baseline")) {
     writeBaseline(ratchet);
     console.log(`✅ 已重算 tool-face 基线 → ${path.relative(repoRoot, baselinePath)}`);
     return;
   }
+  // 两族都跑完再汇总：第一族红就停会把第二族的结论藏起来，而「藏起来的门岗」正是本次要修的那个病。
+  const onboardingOk = runOnboardingRules();
+  if (!onboardingOk) process.exitCode = 1;
   if (hard.length > 0) {
     console.error(`✖ check:tool-face：${hard.length} 处硬规则命中：`);
     for (const finding of hard) console.error(`   · [${finding.rule}] ${finding.detail}`);
@@ -325,7 +351,8 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  console.log("✅ check:tool-face 通过（单一 owner / 互相裁决 / 无幽灵别名；棘轮只减不增）。");
+  if (!onboardingOk) return;
+  console.log("✅ check:tool-face 通过（两个规则族：verbDeclarations 那族的单一 owner / 互相裁决 / 无幽灵别名 + 棘轮只减不增；接模型那族的 O1–O7 + C1/C2）。");
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) void main();

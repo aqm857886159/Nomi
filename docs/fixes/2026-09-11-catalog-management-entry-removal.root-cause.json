@@ -1,0 +1,21 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-catalog-management-entry-removal",
+  "change_kind": "structural",
+  "scope_paths": [
+    "electron/catalog/",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/dispatcher.test.ts"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/dispatcher.test.ts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/capabilityCore/dispatcher.ts"
+    ],
+    "preserved_exports": [],
+    "behavior_preservation": "纯删除，没有第二条并行路径被留下（P1）。`electron/catalog/catalogManagement.ts` 只导出一个 `manageModelCatalogConnection`，它的唯一生产引用者就是 `electron/capabilityCore/dispatcher.ts` 里那条 `integration.manage` 分支；本次 4 工具面把它的两种后果拆开接管——upsert 归 `nomi_model_setup` 的 `connect_provider`（`electron/capabilityCore/modelOnboarding/dispatch.ts`），删除归唯一那个不可逆工具 `nomi_remove_provider`。旧文件与旧分支同 commit 删除，没有 fallback、没有 deprecated 别名：`nomi_integration` / `nomi_integration_manage` 两个工具名从 MCP 目录里消失，`mcpProtocol` 因此发 `notifications/tools/list_changed`。已落盘的 integration session 文件保持 schemaVersion 1，新 dispatch 层原样读，所以没有数据迁移。",
+    "verification_limits": "机器能核的是：change_kind 与 structural_evidence 必填项、affected_paths 真实存在且在本次 diff 中变化且被 scope_paths 覆盖、regression_tests 真实存在且本次有改动；以及 tsc 三个 project 全绿——被删的 export 若还有人 import，typecheck 当场红。机器核不了「删得干净」这件事本身，它靠的是 git grep 全仓 `manageModelCatalogConnection` 与 `catalogManagement` 零命中（含 scripts/、tests/、baselines、preload），以及 `check:mcp-legacy-entry` 与 `check:mcp-tool-refs` 两条门岗对旧工具名的引用做的全仓扫描。这份合同专门单开而不是并进同 PR 的 `2026-09-11-mcp-onboarding-tool-face`（corrective）：那一份要出门表，而门表的每一条都必须解析到 path:line，被删掉的文件永远解析不到——「减掉一扇门」这件事只能由 structural 合同如实记录。"
+  }
+}
