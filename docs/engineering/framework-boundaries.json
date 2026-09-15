@@ -34,7 +34,8 @@
       "下面的能力词，且该文件不在豁免登记里 → 出 warning。它抓的是 forbidden 正则抓不到的那半边：",
       "换个符号名重写一份框架已有的能力。正则认的是具体写法，词表认的是**这件事本身**。",
       "为什么先不阻断：这类启发式的死因是误报——一道天天红的门岗等于不存在（R17）。",
-      "先跑一周量误报率，按 promotion 里写死的条件再决定升不升红。"
+      "先跑一周量误报率，按 promotion 里写死的条件再决定升不升红。",
+      "⚠️ 下面的 promotion.reviewDue 已过期且 2026-09-15 那次续期**刻意没改它**：它不阻断任何门岗，改日期只会把一次到期的复盘变成备忘录。这条复盘本身没做，是笔明账。"
     ],
     "watchWords": ["session", "retry", "steer", "steering", "parent", "compaction", "harness", "transcript", "persistence", "resume"],
     "exemptions": "scripts/framework-boundary-advisory-exemptions.json",
@@ -70,7 +71,7 @@
       "_comment": "参考实现逐层对照的**债**（R29 第二份必交物）。登记的是欠账不是豁免：每条绑一个到期日，到期不交门岗就红。清掉一条 = 从这里删一行并在框架条目上写 referenceConformance。id = 框架 id 或 capabilityInventory 里的包名。",
       "id": "pi",
       "doc": "docs/research/2026-09-07-pi-reference-implementation-conformance.md",
-      "due": "2026-09-14",
+      "due": "2026-09-22",
       "why": "九层对照已交（doc 字段那份，2026-09-07 合入 main），它照出 24 条「压根没想到」。债剩下的是**把它们清掉**，不是再写一份对照。到 2026-09-07 阶段 2 为止：阶段 2 前必补的 9 条已销 7 条（G-01 根级 anyOf / G-02 失败必须 throw / G-03 描述三通道+重建系统提示词两段 / G-05 枚举用 enum 形态 / G-09 addedToolNames 已判并写结论，本阶段销；G-04 工具输出截断 / G-08 唯一校验点带容忍梯，阶段 1 已销），剩 2 条各自带票：G-06（改名后旧会话的旧形状 tool call 折旧，阶段 4 迁移旧转录前必补）、G-07（路径参数 containPath()，阶段 3 接生成/导出类工具时才有落点）。阶段 3 前必补的 8 条（G-10～G-17）与 G-18 跨进程会话锁尚未开工。销账明细见 docs/plan/2026-09-07-agent-runtime-rebuild.md §12.10。"
     },
     {
@@ -1045,9 +1046,9 @@
                   },
                   "colorMode": {
                     "verdict": "debt",
-                    "due": "2026-09-14",
+                    "due": "2026-09-22",
                     "owner": "画布交互 · 光暗双模式",
-                    "why": "Nomi 是光/暗双模式（token 翻转），内核这颗恒为默认 'light'——它决定 React Flow 自己那部分 DOM 上的 .dark 类。现在看不出问题是因为内核那部分几乎全被自定义组件盖住了，但「盖住」不是判据。要么接上主题，要么证明它一格都不影响，两件都还没做。"
+                    "why": "Nomi 是光/暗双模式（token 翻转），内核这颗恒为默认 'light'——它决定 React Flow 自己那部分 DOM 上的 .dark 类。现在看不出问题是因为内核那部分几乎全被自定义组件盖住了，但「盖住」不是判据。要么接上主题，要么证明它一格都不影响，两件都还没做。 2026-09-15 重定到期日 09-14 → 09-22：这一格要的是设计面裁决（光暗双模式要不要交给内核那部分 DOM），不是工程实现；合并列车期间不替设计面下裁决。它一到期就把每个 PR 的 Contracts 打红，所以只挪日期、不动判据。"
                   },
                   "debug": {
                     "verdict": "upstream-default",
@@ -1056,9 +1057,9 @@
                   },
                   "ariaLabelConfig": {
                     "verdict": "debt",
-                    "due": "2026-09-14",
+                    "due": "2026-09-22",
                     "owner": "i18n · 内核自带无障碍文案",
-                    "why": "React Flow 自带的 a11y 文案（节点/边的 aria-label、键盘操作说明）是英文常量，而 R15 要求所有用户可见文字走 i18n。自定义组件那部分我们已经用 t() 了（GenerationCanvasReactFlowNodes.tsx:309 起），内核这部分没有——这是 check:i18n 扫不到的一块（它扫的是我们的源码）。"
+                    "why": "React Flow 自带的 a11y 文案（节点/边的 aria-label、键盘操作说明）是英文常量，而 R15 要求所有用户可见文字走 i18n。自定义组件那部分我们已经用 t() 了（GenerationCanvasReactFlowNodes.tsx:309 起），内核这部分没有——这是 check:i18n 扫不到的一块（它扫的是我们的源码）。 2026-09-15 重定到期日 09-14 → 09-22：这一格要的是 i18n 面裁决（内核自带 a11y 文案归谁、要不要整体替换），不是工程实现；合并列车期间不替 i18n 面下裁决。只挪日期、不动判据。"
                   },
                   "zIndexMode": {
                     "verdict": "upstream-default",

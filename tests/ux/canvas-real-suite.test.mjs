@@ -11,11 +11,15 @@ import {
   parseCanvasShard,
   parseCanvasSuiteArgv,
   PERFORMANCE_CANVAS_SCENARIOS,
-  PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS,
   runCanvasScenario,
   scenariosForProfile,
   summarizeCanvasScenarioFailure,
 } from './canvas-real-suite.mjs'
+import {
+  CANVAS_PERF_GATE_SCENARIOS,
+  CANVAS_PERF_PER_SCENARIO_BUDGET_MS,
+  canvasPerfGateTimeoutMs,
+} from './canvas-perf/gateScenarios.mjs'
 
 describe('real canvas acceptance suite', () => {
   it('keeps every critical scenario in the full profile exactly once', () => {
@@ -85,8 +89,20 @@ describe('real canvas acceptance suite', () => {
     expect(scenariosForProfile('performance')).toBe(PERFORMANCE_CANVAS_SCENARIOS)
     const performance = PERFORMANCE_CANVAS_SCENARIOS.find((scenario) => scenario.id === 'medium-canvas-performance')
     expect(performance?.args?.[0]).toBe('validation-gate')
-    expect(performance?.timeoutMs).toBe(PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS)
-    expect(PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS).toBeGreaterThan(DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS)
+    expect(performance?.timeoutMs).toBe(canvasPerfGateTimeoutMs(CANVAS_PERF_GATE_SCENARIOS))
+    expect(performance?.timeoutMs).toBeGreaterThan(DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS)
+  })
+
+  // #763 的红：门岗从 16 条加到 21 条场景，写死的 20 分钟把 benchmark 砍在第 21 条里
+  // （`exceeded 1200000ms and was terminated`）。被砍掉的那一轮既不是绿也不是红，只是没跑完。
+  // 这条钉的是「上限随工作量长」：谁再加一条场景，上限必须自动多出一条场景的预算。
+  it('derives the performance wall clock from the scenario list, so adding a scenario cannot blow it', () => {
+    const base = canvasPerfGateTimeoutMs(CANVAS_PERF_GATE_SCENARIOS)
+    const oneMore = canvasPerfGateTimeoutMs([...CANVAS_PERF_GATE_SCENARIOS, 'a-scenario-someone-adds-next-week'])
+    expect(oneMore - base).toBe(CANVAS_PERF_PER_SCENARIO_BUDGET_MS)
+    // 实测阳性对照：run 34899530314 在 20 分钟顶上跑完 20 条、死在第 21 条，
+    // 也就是这 21 条本来就需要 20 分钟以上——旧的写死上限对今天的清单一定不够。
+    expect(base).toBeGreaterThan(20 * 60_000)
   })
 
   it('terminates and reports a canvas scenario that exceeds its hard timeout', () => {
