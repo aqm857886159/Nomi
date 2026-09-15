@@ -1,5 +1,7 @@
 # PR #658 round6：先恢复失败证据，再修 waiting-effects
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 范围与顺序
 1. 已在指定分支合入最新 origin/main，保留开工已有的 PF-LAST 和未跟踪历史资料。
 2. 先修 benchmark / canvas-real-suite 的错误截断：完整 message、失败截图、fx canvas / 静态壳 / 节点计数落入现有 CI artifacts 路径。适用所有场景，失败状态不变。

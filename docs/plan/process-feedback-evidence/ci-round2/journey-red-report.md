@@ -1,5 +1,7 @@
 # Real user test gates
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Result: **FAILED** · provider=loopback · selected=7 · passed=5 · failed=2 · blocked=0
 
 | Journey | Provider | Live | H | B | E | T | N | Persistence | Restart | Visual |

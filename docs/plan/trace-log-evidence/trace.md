@@ -1,5 +1,7 @@
 # Agent trace · 01a08787-3500-769e-9d87-f7ff643e99b2
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Derived from pi JSONL. Local text; images omitted. Costs are estimates in USD, not a bill.
 Turns: 3 · Estimated USD: unknown
 

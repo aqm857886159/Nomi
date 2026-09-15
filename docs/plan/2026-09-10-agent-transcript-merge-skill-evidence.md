@@ -1,5 +1,7 @@
 # 一轮回复一个气泡 · 技能用没用上要有物证
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-09-10 · 分支 `fix/agent-transcript-merge-skill-evidence-20260910`
 > 起因：两条用户真机反馈（截图可见）。R21 合同 `docs/fixes/2026-09-10-agent-transcript-merge.root-cause.json`。
 
