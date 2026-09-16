@@ -3,6 +3,7 @@
 > 状态：📋 方案待拍板 —— 门岗代码与测试已在分支 `fix/prior-art-layer-gate-20260917` 备好；**CLAUDE.md / engineering-rules.md 的规则文字未改，等拍板**；不开 PR。
 > 教训：`docs/lessons/architecture-plan-must-check-every-layer-for-prior-art.md`（在 `claude/nomi-oral-content-optimization-446a94` 分支，未合入）；violations.log v12 `prior-art-missing-layers`。
 > 根因合同：[`../fixes/2026-09-17-prior-art-layer-coverage.root-cause.json`](../fixes/2026-09-17-prior-art-layer-coverage.root-cause.json)
+> 结构评审（`check:symptom-cluster` 触发，`scripts` 7 天第 9 份合同）：[`../audit/2026-09-17-scripts-gate-proxy-metric-structure.md`](../audit/2026-09-17-scripts-gate-proxy-metric-structure.md) —— 另有两条结构改动待拍板（S1 伪装合规也要验红 / S2 `scripts` 模块键拆细）
 
 ## 0. 一句话
 
