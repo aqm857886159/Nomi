@@ -174,7 +174,7 @@
     "check:mcp-tool-refs": "node --test ./scripts/check-mcp-tool-references.node-test.mjs && pnpm exec tsx scripts/check-mcp-tool-references.ts",
     "check:framework-boundary": "node --test ./scripts/check-framework-boundary.node-test.mjs && node ./scripts/check-framework-boundary.mjs",
     "check:framework-surface": "node --test ./scripts/check-framework-surface.node-test.mjs && node ./scripts/check-framework-surface.mjs",
-    "check:prior-art": "node --test ./scripts/check-prior-art.node-test.mjs && node ./scripts/check-prior-art.mjs",
+    "check:prior-art": "node --test ./scripts/check-prior-art.node-test.mjs ./scripts/prior-art-layers.node-test.mjs && node ./scripts/check-prior-art.mjs",
     "check:standard-formats": "node --test ./scripts/check-standard-formats.node-test.mjs && node ./scripts/check-standard-formats.mjs",
     "gen:dependency-capabilities": "node ./scripts/gen-dependency-capabilities.mjs",
     "check:dependency-capabilities": "node --test ./scripts/dependency-capabilities.node-test.mjs && node ./scripts/gen-dependency-capabilities.mjs --check",

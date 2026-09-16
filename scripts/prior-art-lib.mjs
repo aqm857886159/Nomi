@@ -15,8 +15,12 @@
 //      300 行是「顺手小修」和「一次实施」的分界——小修不该被逼写调研，大改没查过不该合。
 // 老文档按**日期阈值**豁免：阈值之前的计划不追溯（追溯只会让门岗一上线就是一片红，然后被无视）。
 //
+//   ③ 分层表（2026-09-17 起的方案）：「先查别人」节里必须有一张按层列现成件的表，或一行封闭枚举的豁免；
+//      判据本体在 prior-art-layers-lib.mjs（数量判据看不见「漏掉整层」，见那边头部）。
 // 判据住在 lib 里是为了能被 node-test 喂假仓库：门岗自己的测试如果只能跑真实文档，
 // 它就只测得到「今天的存量」，测不到「明天新增一份没查就写的方案会不会红」（R17）。
+
+import { LAYER_TABLE_THRESHOLD_DATE, evaluateLayerTable, evaluateLayeredPullRequest } from './prior-art-layers-lib.mjs'
 
 /** 「先查别人」节的标题。允许 ## / ### 两级，允许标题后跟补充文字。 */
 const SECTION_HEADING = /^(#{2,3})\s*先查别人.*$/
@@ -88,7 +92,7 @@ export function planDate(file) {
  * 节的边界 = 下一个同级或更高级标题（更深的 #### 属于节内，允许分小标题）。
  */
 export function extractPriorArtSection(markdown, { planFile = '', fileExists } = {}) {
-  const lines = String(markdown ?? '').split('\n')
+  const lines = blankFencedCode(String(markdown ?? '').split('\n'))
   let level = 0
   let start = -1
   for (let index = 0; index < lines.length; index += 1) {
@@ -98,7 +102,7 @@ export function extractPriorArtSection(markdown, { planFile = '', fileExists } =
     start = index + 1
     break
   }
-  if (start === -1) return { found: false, entries: [], sourced: [] }
+  if (start === -1) return { found: false, entries: [], sourced: [], body: [] }
 
   const body = []
   for (let index = start; index < lines.length; index += 1) {
@@ -108,11 +112,57 @@ export function extractPriorArtSection(markdown, { planFile = '', fileExists } =
   }
   const entries = body.filter((line) => BULLET.test(line) || /^\s*\|[^|]/.test(line))
   const sourced = entries.filter((line) => hasSource(planFile, line, fileExists))
-  return { found: true, entries, sourced }
+  return { found: true, entries, sourced, body }
+}
+
+/**
+ * 围栏代码块（``` / ~~~）里的行一律当空行：示例里的「## 先查别人」、示例表格、示例出处都不算数。
+ * 2026-09-17 分层判据自测时发现——否则把一张合格表放进代码块当「样例」就能过门岗，
+ * 而真正的节反而被跳过。保留行数，报错定位不偏。
+ */
+function blankFencedCode(lines) {
+  let fence = null
+  return lines.map((line) => {
+    const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(line)
+    if (fence) {
+      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && /^\s{0,3}[`~]+\s*$/.test(line)) fence = null
+      return ''
+    }
+    if (marker) {
+      fence = marker[1]
+      return ''
+    }
+    return line
+  })
 }
 
 /** 一份计划文档合不合格。返回错误数组（空 = 通过）。 */
 export function evaluatePlan(file, markdown, { fileExists } = {}) {
+  return inspectPlan(file, markdown, { fileExists }).errors
+}
+
+/**
+ * 计划文档的完整判定：{ errors, layer }，layer ∈ 'layered' | 'opted-out' | 'exempt' | 'invalid'。
+ * 'exempt' = 日期早于分层判据阈值（或无日期前缀）且没带分层表；老方案**补上**表之后算 'layered'。
+ */
+export function inspectPlan(file, markdown, { fileExists } = {}) {
+  const errors = sectionErrors(file, markdown, { fileExists })
+  const section = extractPriorArtSection(markdown, { planFile: file, fileExists })
+  const sourced = (text) => hasSource(file, text, fileExists)
+  const layered = evaluateLayerTable(file, section.body, sourced)
+  const date = planDate(file)
+  const governed = Boolean(date) && date >= LAYER_TABLE_THRESHOLD_DATE
+  const hasTable = layered.errors.length === 0 && !layered.optedOut
+  // 整节都没有时只报「缺节」一条，不再叠一条「缺分层表」
+  if (governed && section.found) errors.push(...layered.errors)
+  let layer
+  if (hasTable) layer = 'layered'
+  else if (layered.optedOut) layer = 'opted-out'
+  else layer = governed ? 'invalid' : 'exempt'
+  return { errors, layer: errors.length > 0 && governed ? 'invalid' : layer }
+}
+
+function sectionErrors(file, markdown, { fileExists }) {
   const section = extractPriorArtSection(markdown, { planFile: file, fileExists })
   if (!section.found) {
     return [`${file}: 缺少「## 先查别人」一节 —— 实施之前必须先有一份可复核的检索报告。`
@@ -175,4 +225,16 @@ export function evaluatePullRequest({ body, changedLines, plans, budget = PRIOR_
   }
   if (errors.length === 0) errors.push('PR 正文引用的方案都不合格（缺「## 先查别人」节或出处不足）')
   return errors
+}
+
+/**
+ * PR 侧分层反查（③ 的 diff 侧）：diff 显示在长新的一层时（新增模块行数 / 新增运行时依赖），
+ * 正文引用的方案里至少一份要有合格分层表——豁免声明在这里不算。判据本体在 prior-art-layers-lib.mjs。
+ */
+export function evaluatePullRequestLayers({ body, plans, fileExists, newModuleLines, addedDependencies }) {
+  const planStatus = (file) => {
+    const markdown = plans.get(file)
+    return markdown === undefined ? 'missing' : inspectPlan(file, markdown, { fileExists }).layer
+  }
+  return evaluateLayeredPullRequest({ newModuleLines, addedDependencies, referenced: referencedPlans(body), planStatus })
 }

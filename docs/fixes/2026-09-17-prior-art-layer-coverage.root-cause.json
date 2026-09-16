@@ -1,0 +1,218 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-prior-art-layer-coverage",
+  "problem_type": "A prior-art gate that scores the number of sourced entries cannot see an entire layer of existing standards and engines being skipped",
+  "symptom": "docs/plan/2026-09-17-editing-uplift-vs-chatcut.md passed node scripts/check-prior-art.mjs with eight sourced entries, yet never checked the timeline data model (OpenTimelineIO) or the editing engine (MLT); the plan concluded 'write the kernel ourselves' and asked the user to approve an order, and the user had to catch the gap.",
+  "direct_cause": "extractPriorArtSection in scripts/prior-art-lib.mjs only compared sourced.length against PRIOR_ART_MIN_SOURCED_ENTRIES (3); nothing in the section shape named which layers had been searched.",
+  "class_root": "The prior-art invariant was enforced as a quantity (how many sources) instead of coverage (which layers were searched), so any plan that searched deeply at two ends passed while the middle layers stayed unchecked. The same class surfaced on 2026-09-14 along the pool dimension (three in-repo file:line entries passed without anyone checking dependencies).",
+  "affected_population": [
+    "Every docs/plan document dated on or after the gate threshold, written by any session or executor",
+    "Pull requests that grow a new module or add a runtime dependency while citing a plan"
+  ],
+  "scope_paths": [
+    "scripts/prior-art-lib.mjs",
+    "scripts/prior-art-layers-lib.mjs",
+    "scripts/check-prior-art.mjs",
+    "scripts/prior-art-layers.node-test.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    "A newly written dated plan under docs/plan scanned by check:prior-art",
+    "A pull_request event whose body cites plans, evaluated against the diff"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://adr.github.io/madr/",
+      "checked_at": "2026-09-17",
+      "purpose": "Prior art for a structured decision record: MADR has 'Considered Options' per decision but states there is currently no tooling validating it, so there is no existing validator to adopt; the per-option row shape is adapted into one row per layer."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.arc42.org/section-5/",
+      "checked_at": "2026-09-17",
+      "purpose": "Prior art for a layered decomposition vocabulary: arc42 decomposes by levels and only exceptionally includes third-party building blocks, so it does not require per-layer search for existing parts; confirms the per-layer existing-part column is our addition."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.github.com/gfm/#tables-extension-",
+      "checked_at": "2026-09-17",
+      "purpose": "The table syntax the gate parses; header row, delimiter row, then body rows until a non-row line."
+    }
+  ],
+  "invariants": [
+    "A governed plan's 先查别人 section carries a layer table covering all six canonical layers, each row sourced, explicitly 查过：无 with a source, or 不涉及 with a reason; or it carries one closed-enum opt-out that is not also a table.",
+    "A pull request whose diff adds more than 300 non-test lines in new files under src/ or electron/, or adds a runtime dependency, cites at least one plan with a valid layer table; opt-outs and pre-threshold plans without a table do not satisfy it.",
+    "Content inside fenced code blocks never counts as the section, a table, or a source."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/prior-art-lib.mjs",
+    "tests": [
+      "scripts/prior-art-layers.node-test.mjs",
+      "scripts/check-prior-art.node-test.mjs"
+    ],
+    "why": "inspectPlan in prior-art-lib.mjs is the single owner of a plan verdict, calling the layer rule in prior-art-layers-lib.mjs; the layers test pins coverage, rows, opt-out, fenced code and the diff cross-check, the older test pins the count floor and PR citation."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-door-map.mjs",
+      "line": 92,
+      "symbol": "evaluatePullRequest"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-prior-art.mjs",
+      "line": 143,
+      "symbol": "evaluatePlans"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-prior-art.mjs",
+      "line": 144,
+      "symbol": "inspectPlan"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-prior-art.mjs",
+      "line": 161,
+      "symbol": "evaluatePullRequest"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-prior-art.mjs",
+      "line": 167,
+      "symbol": "evaluatePullRequestLayers"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/prior-art-lib.mjs",
+      "line": 141,
+      "symbol": "inspectPlan"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/prior-art-lib.mjs",
+      "line": 188,
+      "symbol": "evaluatePlan"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/prior-art-lib.mjs",
+      "line": 218,
+      "symbol": "evaluatePlan"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/prior-art-lib.mjs",
+      "line": 224,
+      "symbol": "evaluatePlan"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/prior-art-lib.mjs",
+      "line": 237,
+      "symbol": "inspectPlan"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "These are read doors of one pure judgement, not duplicated owners: check-prior-art.mjs is the single process entry (plan scan plus PR evaluation); inside prior-art-lib.mjs evaluatePlan and the PR evaluators all route through inspectPlan, which is the single owner of the plan verdict. scripts/check-door-map.mjs:92 is a same-named evaluatePullRequest from door-map-lib.mjs, a different gate, listed because the door map matches by name."
+  },
+  "generality_proof": "The verdict for every plan, whether scanned directly or cited from a pull request, is produced by inspectPlan, which runs the section rule and the layer rule together; there is no second path that judges a plan. Coverage is keyed on a fixed layer vocabulary rather than on topic keywords, so it applies to editing, agent runtime, canvas, or generation plans alike, and the opt-out is cross-checked by signals derived from the git diff rather than from the plan's own claims.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-prior-art.mjs",
+      "symbol": "layerSignals",
+      "responsibility": "Single process entry: scans docs/plan for the plan side and, on pull_request events, derives the new-module and new-dependency signals from git and package.json rather than from the plan's self-report."
+    },
+    {
+      "path": "scripts/prior-art-lib.mjs",
+      "symbol": "inspectPlan",
+      "responsibility": "Single owner of a plan's verdict: section errors, layer-table errors for governed dates, and the layer status (layered, opted-out, exempt, invalid) consumed by the pull-request side."
+    },
+    {
+      "path": "scripts/prior-art-layers-lib.mjs",
+      "symbol": "evaluateLayerTable",
+      "responsibility": "Owns the layer-coverage rule: canonical six layers, per-row source/licence/decision checks, and the closed opt-out enum."
+    },
+    {
+      "path": "scripts/prior-art-layers-lib.mjs",
+      "symbol": "evaluateLayeredPullRequest",
+      "responsibility": "Owns the diff-side cross-check: new-module lines or new runtime dependencies require a cited plan with a valid layer table."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-prior-art.mjs",
+      "entry_point": "plan scan via evaluatePlans",
+      "disposition": "enforced",
+      "evidence": "The real editing-uplift plan copied into a temporary repository exits 0 with the old lib and exits 1 with the new lib naming the missing layer table; scripts/prior-art-layers.node-test.mjs reproduces it in a Map fake repo and in a temporary git repository."
+    },
+    {
+      "path": "scripts/check-prior-art.mjs",
+      "entry_point": "pull_request evaluation via evaluatePullRequestLayers",
+      "disposition": "enforced",
+      "evidence": "A temporary git repository with a 320-line new module and an opted-out plan exits 1 under GITHUB_EVENT_NAME=pull_request; citing a layered plan exits 0; a 500-line new test file is not counted."
+    },
+    {
+      "path": "scripts/prior-art-lib.mjs",
+      "entry_point": "extractPriorArtSection fenced code handling",
+      "disposition": "enforced",
+      "evidence": "Found while dogfooding: a sample 先查别人 heading inside a fenced block was taken as the real section. blankFencedCode now blanks fenced lines; a test proves a sample-only plan is red and a real section after a sample is green, and removing the filter turns that test red."
+    },
+    {
+      "path": "docs/plan/2026-09-15-shot-seconds-precision.md",
+      "entry_point": "a pre-threshold dated plan (representative: the newest plan on main before 2026-09-17)",
+      "disposition": "not-affected",
+      "evidence": "LAYER_TABLE_THRESHOLD_DATE is 2026-09-17; the real tree's 168 governed plans stay green after the change, and a test proves a 2026-09-16 plan without a table is exempt."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any executor writing any architecture plan under load can research deeply in one dimension and skip another; the gate rewarded volume, so the same miss recurs on every new subject. It has already appeared twice with different dimensions (pools on 2026-09-14, layers on 2026-09-17).",
+    "same_class_scan": [
+      "Scanned all 167 governed plans on origin/main 8d5eafbb9 for layer nouns: 163 hit at least one and 99 hit four or more, so keyword detection cannot identify architecture plans.",
+      "Scanned the same plans for build verbs adjacent to layer nouns: 37 hits, mostly non-goal boilerplate such as 'no new framework', so a narrower keyword signal is still imprecise.",
+      "Read docs/roadmap/sources/2026-09-14-pi-ecosystem-gaps.md section 4, which independently identified the count-not-coverage flaw along the pool dimension and was never implemented.",
+      "Ran door-map over scripts for evaluatePlans, evaluatePlan, inspectPlan, evaluatePullRequest and evaluatePullRequestLayers to confirm check-prior-art.mjs is the only process entry."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-prior-art.mjs",
+    "invariant": "Governed plans carry a six-layer table or a closed-enum opt-out; pull requests that grow a new layer cite a plan with a valid table.",
+    "failure_mode": "check:prior-art exits 1 naming the plan and the missing layers or the failing row, printing the table header and opt-out syntax; the green line lists every opted-out plan so opt-out drift is visible.",
+    "exception_policy": "none",
+    "strategy": "Default-on coverage requirement at plan-writing time (earliest layer), with the only skip being an explicit closed-enum declaration that the pull-request side invalidates using diff-derived signals rather than self-report.",
+    "artifacts": [
+      "scripts/prior-art-layers-lib.mjs",
+      "scripts/prior-art-lib.mjs",
+      "scripts/check-prior-art.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/prior-art-layers.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/prior-art-layers.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The count criterion is kept deliberately as a floor, not replaced; the layer rule adds coverage on top and no parallel judging path is introduced because all plan verdicts go through inspectPlan."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls the invariant; micromark-extension-gfm-table exists only transitively through streamdown and is not importable from scripts, so the gate keeps the repository's line-based table parsing.",
+    "exit_criteria": []
+  },
+  "migration": "Plans dated before 2026-09-17 are exempt on the plan side; an old plan cited by a layer-growing pull request can be backfilled with a table. Rule text in CLAUDE.md and docs/engineering-rules.md is proposed in docs/plan/2026-09-17-prior-art-layer-table-gate.md and not changed until the user approves.",
+  "residual_risks": [
+    "The gate checks structure, not truth: a row can cite a real URL that is not the best existing part; content quality still depends on R7 review.",
+    "The opt-out can be abused by plans that stay under 300 new lines and add no runtime dependency; the green line lists every opt-out so drift is reviewable, but it is not machine-refuted.",
+    "The six canonical layers are a generic vocabulary; a domain may need a layer outside it (extra rows are allowed but not required).",
+    "Unmerged branches with plans dated 2026-09-17 (claude/nomi-oral-content-optimization-446a94) will turn red when merged until they add a layer table; pending user approval (plan Q5)."
+  ]
+}
