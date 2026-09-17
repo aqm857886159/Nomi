@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "measuredAt": "2026-09-17",
+  "platform": "darwin-arm64",
+  "tier": "balanced",
+  "model": "ggml-large-v3-turbo-q5_0",
+  "rows": [
+    {
+      "assetId": "speech-en-librivox-clean",
+      "provenance": "published-text",
+      "metric": "cer",
+      "value": 0.0586,
+      "distance": 65,
+      "referenceChars": 1109,
+      "digitFormattingChars": 12,
+      "detectedLanguage": "english",
+      "elapsedMs": 11156
+    },
+    {
+      "assetId": "speech-en-nasa-multispeaker",
+      "provenance": "frozen-baseline",
+      "metric": "drift",
+      "value": 0,
+      "distance": 0,
+      "referenceChars": 2263,
+      "digitFormattingChars": 0,
+      "detectedLanguage": "english",
+      "elapsedMs": 14584
+    },
+    {
+      "assetId": "speech-en-prelinger-narration-music",
+      "provenance": "frozen-baseline",
+      "metric": "drift",
+      "value": 0,
+      "distance": 0,
+      "referenceChars": 2432,
+      "digitFormattingChars": 0,
+      "detectedLanguage": "english",
+      "elapsedMs": 18433
+    },
+    {
+      "assetId": "speech-zh-mixed-hevc",
+      "provenance": "frozen-baseline",
+      "metric": "drift",
+      "value": 0,
+      "distance": 0,
+      "referenceChars": 3079,
+      "digitFormattingChars": 0,
+      "detectedLanguage": "chinese",
+      "elapsedMs": 54277
+    },
+    {
+      "assetId": "speech-zh-only-hevc",
+      "provenance": "frozen-baseline",
+      "metric": "drift",
+      "value": 0,
+      "distance": 0,
+      "referenceChars": 2639,
+      "digitFormattingChars": 0,
+      "detectedLanguage": "chinese",
+      "elapsedMs": 50858
+    }
+  ]
+}

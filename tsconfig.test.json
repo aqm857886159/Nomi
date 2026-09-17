@@ -6,6 +6,9 @@
   "//5": "且用了 ESM 顶层 await（与它 module: CommonJS 冲突）——直接删 exclude 会炸出 112 个纯配置形状错，全是噪音。",
   "//6": "target/module 按**测试的真实运行环境**取：vitest 在 Node 里跑测试（不是浏览器、不是 CommonJS 主进程），",
   "//7": "所以 ES2022 + ESM 才是诚实的；这也是 Object.hasOwn 之类写法在测试里合法的原因。",
+  "//8": "scripts/**/*.ts 也归这份管：它们由 tsx 直接跑、同样没有别的工具看类型。2026-09-17 生产端给 LocalSpeechProgress",
+  "//9": "加了 starting 阶段，scripts/local-speech-live-check.ts 的二元三目原样把它当 transcribing 读，脚本一条素材都跑不完——",
+  "//10": "tsc 早就能报 TS2339，只是没人让它看这个目录。allowImportingTsExtensions 对应 tsx 的运行时解析（noEmit 下合法）。",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
@@ -17,7 +20,8 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.test.ts", "electron/**/*.test.ts", "evals/**/*.test.ts", "src/**/*.d.ts"]
+  "include": ["src/**/*.test.ts", "electron/**/*.test.ts", "evals/**/*.test.ts", "scripts/**/*.ts", "src/**/*.d.ts"]
 }

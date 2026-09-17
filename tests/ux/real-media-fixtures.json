@@ -1,12 +1,12 @@
 {
-  "$comment": "真实素材登记表（R13「四件真实」第④件，2026-09-14）。素材本身不进仓库（1.38 GB），这里只记规格、来源与覆盖面。门岗：pnpm run check:real-media-fixture",
+  "$comment": "真实素材登记表（R13「四件真实」第④件，2026-09-14）。素材本身不进仓库（1.38 GB），这里只记规格、来源与覆盖面。门岗：pnpm run check:real-media-fixture 2026-09-17：目录上提一层到「视频/」，因为本地转写要登记的中文 / 中英混口播素材与原来那条 4K 片子是兄弟目录关系；relativePath 随之带上子目录。",
   "mediaEnvVar": "NOMI_REAL_MEDIA_DIR",
-  "localDefaultDir": "/Users/aoqimin/Desktop/视频/9月12日(1)/",
+  "localDefaultDir": "/Users/aoqimin/Desktop/视频/",
   "assets": [
     {
       "id": "video-4k-hevc-10bit",
       "kind": "video",
-      "relativePath": "9月12日(1).mov",
+      "relativePath": "9月12日(1)/9月12日(1).mov",
       "spec": {
         "codec": "hevc",
         "bitDepth": 10,
@@ -31,44 +31,158 @@
         "minBytes": 8388608
       },
       "whyThisOne": "真实照片熵高，压缩率与解码成本比合成色块 PNG 高两个数量级；testsrc2 + drawbox 出来的平坦色块解码几乎免费"
+    },
+    {
+      "id": "speech-zh-mixed-hevc",
+      "kind": "video",
+      "relativePath": "9月12日(1)/9月12日(1).mov",
+      "spec": {
+        "codec": "hevc",
+        "bitDepth": 10,
+        "width": 3840,
+        "height": 2160,
+        "bytes": 1380939031,
+        "audioCodec": "aac",
+        "durationSeconds": 527
+      },
+      "source": "与 video-4k-hevc-10bit 同一条片子（本机 localDefaultDir 下），这里按**语音**维度再登记一次：8 分 47 秒中英混口播，旁边有作者自己的逐字稿 9月12日(1).txt 可当参考答案",
+      "whyThisOne": "转写要考的是「中文里夹英文术语」这件事——这段里 web coding / API key / Pro 版这类词与普通话连着说，正是本地小模型最容易听岔的地方（实测 small 档把 web coding 听成「外部 coding」）。合成 TTS 素材永远不会出现这种口音与术语混用"
+    },
+    {
+      "id": "speech-zh-only-hevc",
+      "kind": "video",
+      "relativePath": "8月12日.mov",
+      "spec": {
+        "codec": "hevc",
+        "bitDepth": 8,
+        "width": 1980,
+        "height": 1080,
+        "bytes": 175405597,
+        "audioCodec": "aac",
+        "durationSeconds": 547
+      },
+      "source": "用户 2026-08-12 真机录屏口播；素材不进仓库，本机在 localDefaultDir",
+      "whyThisOne": "纯中文长口播（9 分钟），用来验分段接缝：一条要切成两段以上的音轨，接缝处那句话有没有被腰斩或重复，只有真实连续语流看得出来"
+    },
+    {
+      "id": "speech-en-librivox-clean",
+      "kind": "audio",
+      "relativePath": "en/speech-en-librivox-2br02b.mp3",
+      "spec": {
+        "codec": "mp3",
+        "bytes": 1440804,
+        "durationSeconds": 180
+      },
+      "source": "LibriVox 朗读 Kurt Vonnegut《2 B R 0 2 B》（public domain，无版权登记），单人朗读，原始 64kbps CBR 版取前 3 分钟；抓取自 https://archive.org/details/2br02b_0801_librivox（文件 2br02b_1_vonnegut_64kb.mp3）2026-09-17",
+      "whyThisOne": "干净单人朗读、无背景噪声——转写要考的是「安静环境下的基准 WER/CER」，与中文档已有的 speech-zh-only-hevc 成对照"
+    },
+    {
+      "id": "speech-en-nasa-multispeaker",
+      "kind": "video",
+      "relativePath": "en/speech-en-nasa-iss-exp16-presser.mp4",
+      "spec": {
+        "codec": "h264",
+        "width": 640,
+        "height": 480,
+        "bytes": 24537731,
+        "audioCodec": "aac",
+        "durationSeconds": 240
+      },
+      "source": "NASA Johnson Space Center 官方 ISS Expedition 16 乘组新闻发布会录像，NASA 制作的美国联邦政府作品（17 U.S.C. §105，公有领域，无 licenseurl 但按 NASA PAO 惯例公开），取前 4 分钟；抓取自 https://archive.org/details/ISS-EXPEDITION-16-CREW-NEWS-CONFERENCE-07232007_729024 2026-09-17",
+      "whyThisOne": "自然多人问答（主持人+乘组+记者），有真实停顿/打断/串话，与合成 TTS 或单人朗读完全不同的语流形态；也是本登记表里唯一的英文多人对话素材"
+    },
+    {
+      "id": "speech-en-prelinger-narration-music",
+      "kind": "video",
+      "relativePath": "en/speech-en-prelinger-preparation-of-foods.mp4",
+      "spec": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "bytes": 19658019,
+        "audioCodec": "aac",
+        "durationSeconds": 240
+      },
+      "source": "Prelinger Archives 教育短片《Preparation of Foods: Stone Age to Space Age》，licenseurl 明标 http://creativecommons.org/licenses/publicdomain/，取前 4 分钟；抓取自 https://archive.org/details/preparation_of_foods（512kb 版）2026-09-17",
+      "whyThisOne": "旁白 + 同期配乐/环境声叠在一起，考的是「背景音乐/噪声下还能不能转对旁白」这件事，登记表里之前没有这一类"
     }
   ],
   "coverage": [
     {
       "class": "canvas-performance",
       "test": "tests/ux/canvas-performance-benchmark.e2e.mjs",
-      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "assets": [
+        "video-4k-hevc-10bit",
+        "image-4k-png"
+      ],
       "status": "debt",
       "debtId": "canvas-performance-real-media"
     },
     {
       "class": "import",
       "test": null,
-      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "assets": [
+        "video-4k-hevc-10bit",
+        "image-4k-png"
+      ],
       "status": "debt",
       "debtId": "import-real-media"
     },
     {
       "class": "export",
       "test": null,
-      "assets": ["video-4k-hevc-10bit"],
+      "assets": [
+        "video-4k-hevc-10bit"
+      ],
       "status": "debt",
       "debtId": "export-real-media"
     },
     {
       "class": "walkthrough",
       "test": null,
-      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "assets": [
+        "video-4k-hevc-10bit",
+        "image-4k-png"
+      ],
       "status": "debt",
       "debtId": "walkthrough-real-media"
     },
     {
       "class": "asset-conformance",
       "test": "tests/ux/real-media-fixtures.probe.mjs",
-      "assets": ["video-4k-hevc-10bit", "image-4k-png"],
+      "assets": [
+        "video-4k-hevc-10bit",
+        "image-4k-png"
+      ],
       "status": "live",
       "why": "登记表里的 codec / 位深 / 分辨率 / 字节数不许是从文档抄来的数字——这条腿用 ffprobe 实测并与登记表逐格对账，对不上就红"
+    },
+    {
+      "class": "transcription",
+      "test": "scripts/local-speech-live-check.ts",
+      "assets": [
+        "speech-zh-mixed-hevc",
+        "speech-zh-only-hevc"
+      ],
+      "status": "live",
+      "why": "本地转写整条链（下引擎 → 校验 → 解包 → 起 sidecar → 分段 → 合并）只有喂真实连续语流才证得了；合成 TTS 没有口音、没有中英混说、没有自然停顿，接缝与幻觉这两类问题在它上面永远不出现"
+    },
+    {
+      "class": "transcription-english",
+      "test": "scripts/local-speech-live-check.ts",
+      "assets": [
+        "speech-en-librivox-clean",
+        "speech-en-nasa-multispeaker",
+        "speech-en-prelinger-narration-music"
+      ],
+      "status": "live",
+      "why": "三段公有领域真实英文语音——单人朗读（LibriVox）、自然多人问答（NASA 新闻发布会）、旁白+配乐（Prelinger 教育短片）——补齐 R13「四件真实」在英文语种上的缺口；均非合成 TTS，来源与许可见各条 source 字段"
     }
   ],
-  "requiredClasses": ["canvas-performance", "import", "export", "walkthrough"]
+  "requiredClasses": [
+    "canvas-performance",
+    "import",
+    "export",
+    "walkthrough"
+  ]
 }

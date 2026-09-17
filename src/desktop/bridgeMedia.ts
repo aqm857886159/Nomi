@@ -58,6 +58,11 @@ export type DesktopMediaBridge = {
       requestId?: string
       videoUrl: string
       projectId: string
+      /**
+       * 这次对白走哪条转写线。不给 = 沿用自动解析（跟着文本大脑那家的音频线走）。
+       * `'cloud'` 是本地那条挂了之后用户点「改用云端重试」传进来的显式动作。
+       */
+      transcribe?: { vendorKey: string; modelKey: string } | 'cloud'
       threshold?: number
       framesPerShot?: number
       customColumns?: { name: string; hint?: string }[]
@@ -89,6 +94,8 @@ export type DesktopMediaBridge = {
       failedShotIndexes: number[]
       /** 整次拆解层面的原因（如「对白没取到」）；UI 顶部一行显示，不摊进每一格。 */
       failureReason?: string
+      /** 失败类别（机器可读）。`local-speech` = 本地离线转写那一路挂了，UI 据此给「改用云端重试」。 */
+      failureKind?: 'local-speech'
     }>
   }
   /**

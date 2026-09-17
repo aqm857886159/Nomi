@@ -27,5 +27,14 @@
   "electron/vendor/vendorBaseFallback.test.ts": 1,
   "evals/journeys/journeyContracts.test.ts": 4,
   "evals/lib/isoAppEnv.test.ts": 1,
-  "evals/loop/metrics.ts": 3
+  "evals/loop/metrics.ts": 3,
+  "scripts/check-i18n-key-refs.ts": 1,
+  "scripts/check-mcp-payload.ts": 3,
+  "scripts/check-mcp-tool-references.ts": 4,
+  "scripts/check-model-schema.ts": 1,
+  "scripts/lab-analyze.ts": 2,
+  "scripts/lab-onboard.ts": 3,
+  "scripts/lib/i18nDynamicKeyPrefixes.test.ts": 1,
+  "scripts/model-liveness.ts": 1,
+  "scripts/probe-extract-matrix.ts": 2
 }

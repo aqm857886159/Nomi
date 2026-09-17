@@ -26,7 +26,7 @@ export function deconstructionResultToShotTable(
   return deconstructionShotTableSchema.parse({
     ...table,
     // 拆完了但有话要说（如「对白没取到」）→ 顶上一行留着那句原因。没有话说才清空。
-    source: { ...table.source, status: 'ready', durationSeconds: result.durationSeconds, failedShotIndexes: result.failedShotIndexes, errorMessage: result.failureReason || undefined },
+    source: { ...table.source, status: 'ready', durationSeconds: result.durationSeconds, failedShotIndexes: result.failedShotIndexes, errorMessage: result.failureReason || undefined, failureKind: result.failureKind },
     rows: result.shots.map((shot) => ({
       rowId: `fact-${shot.index}`, order: shot.index,
       startSeconds: shot.startSeconds, endSeconds: shot.endSeconds, durationSeconds: shot.durationSeconds,

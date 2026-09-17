@@ -44,7 +44,7 @@ export type HardenedFetchOptions = {
   headers?: Record<string, string>;
   /** Additional application-specific credential headers stripped on cross-origin redirects. */
   sensitiveHeaders?: readonly string[];
-  /** 请求体。string 直接发，object/array 自动 JSON.stringify。 */
+  /** 请求体。string 与二进制视图（Buffer/Uint8Array）原样发，object/array 自动 JSON.stringify。 */
   body?: unknown;
   /** 上层任务取消信号；与本函数自己的超时共同中断请求。 */
   signal?: AbortSignal;
@@ -220,9 +220,19 @@ export async function hardenedFetch(
     const allowRedirect = allowedPrivateOrigins.length === 0
       && options.allowRedirect !== false
       && (!carriesSensitiveHeaders || options.allowRedirect === true);
-    let bodyInit: string | undefined;
+    let bodyInit: BodyInit | undefined;
     if (hasBody) {
-      bodyInit = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
+      // 二进制体（Uint8Array / Buffer）**原样发**。没有这一条，任何要上传字节的调用方
+      // （本地转写把 wav 片段 multipart 打给回环 sidecar 是第一例）都只能自己 new 一条出口，
+      // 而目的地策略只该有一个 owner（见文件头与 `check:outbound-policy` 规则 2/3）。
+      // 走到 JSON.stringify 的 Buffer 会变成 `{"type":"Buffer","data":[...]}` —— 一个看起来
+      // 成功发出去、对面却解不出文件的静默错误，正是这层该拦住的那种。
+      // Content-Type 由调用方给（multipart 必须带 boundary），只有都没给时才兜底成 JSON。
+      bodyInit = ArrayBuffer.isView(options.body)
+        ? (options.body.buffer.slice(options.body.byteOffset, options.body.byteOffset + options.body.byteLength) as ArrayBuffer)
+        : typeof options.body === "string"
+          ? options.body
+          : JSON.stringify(options.body);
       if (!Object.keys(requestHeaders).some((k) => k.toLowerCase() === "content-type")) {
         requestHeaders["Content-Type"] = "application/json";
       }

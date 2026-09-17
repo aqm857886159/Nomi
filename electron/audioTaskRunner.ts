@@ -148,6 +148,22 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey });
   const audioUrl = resolveAudioSource(request, params);
   if (!audioUrl) throw new Error(desktopT("transcribe.noAudio"));
+
+  // 声明驱动分流（P4，与上面 TTS 按 `audioResponse` 分流、runtime 按 `process` 分流同一手法）：
+  // create op 声明了 `localEngine` = 这条 mapping 由本机 sidecar 执行，不发 HTTP。
+  // 出来的 raw 与云端 verbose_json 同形状，所以下面那段结果处理（以及拆解侧读 raw.segments）
+  // 对两条路一视同仁——**不新造第二个「转写结果」概念**（P1）。
+  const localEngine = input.mapping?.create?.localEngine;
+  if (localEngine) {
+    const { runLocalSpeechTranscription } = await import("./localSpeech/localSpeechTaskBridge");
+    const raw = await runLocalSpeechTranscription({
+      audioUrl,
+      requestedTier: params[localEngine.tierParam],
+      progressKey: trim(request.extras?.nodeId),
+    });
+    return { id: taskId, kind, status: "succeeded", assets: [], raw: raw as unknown as JsonRecord };
+  }
+
   const audio = await readAudioBytes(audioUrl);
   const language = firstString(params.language);
   const op: HttpOperation = input.mapping?.create ?? {

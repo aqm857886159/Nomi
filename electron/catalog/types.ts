@@ -460,6 +460,20 @@ export type HttpOperation = {
     }>;
   };
   /**
+   * **本地引擎 transport 声明**（仅 audioTaskRunner 消费，P4 声明驱动不 hardcode vendor）。
+   * 当一条 mapping 的执行者不是远端 HTTP 端点、也不是一次性 CLI，而是**本机常驻 sidecar**
+   * （whisper.cpp 的 `whisper-server`）时，create op 声明 localEngine，runner 据此分流到
+   * `electron/localSpeech/` 的编排（装引擎 → 切段 → 逐段推理 → 折回全局时间轴），
+   * 出的结果与云端 whisper 的 `verbose_json` 同形状，因此上层解析器一份就够（P1）。
+   *  - kind      ：引擎选择子。将来同形状的第二个本地引擎声明各自的 kind 即复用这条路。
+   *  - tierParam ：`request.params` 里哪个键携带权重档位（值的白名单在 catalog/localSpeech.ts）。
+   * 可序列化（持久化进 catalog JSON）：纯数据声明。
+   */
+  localEngine?: {
+    kind: "whisper-cpp";
+    tierParam: string;
+  };
+  /**
    * **multipart/form-data transport 声明**（P4 声明驱动不 hardcode vendor）。当端点收的是二进制文件上传
    * 而非 URL-in-JSON（OpenAI 官方 /v1/images/edits 图生图：image[] 文件字段 + 文本字段），create op 声明
    * multipart，executeProfileOperation 据此分流到 FormData 分支（而非 requestJson）：

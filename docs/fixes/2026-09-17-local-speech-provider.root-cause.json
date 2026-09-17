@@ -1,0 +1,586 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-local-speech-provider",
+  "change_kind": "corrective",
+  "problem_type": "本地（离线）转写这条路在仓库里根本不存在",
+  "symptom": "没网、或者不想把素材传出去、或者额度用完的时候，拆解视频的对白列只能是空的——转写只有 APIMart Whisper 与 ElevenLabs Scribe 两条云端线，两条都要联网、要 key、要花钱。",
+  "direct_cause": "transcribe taskKind 的两个 provider 都是远端 HTTP 端点；仓库里从来没有过「本机进程 / 二进制管理」这一层，所以本地引擎连接进来的地方都没有。",
+  "class_root": "「按需下载的第三方可执行物与权重」这件事需要一层共用的地基：钉死版本、逐文件 sha256、原子落盘、带进度、失败分类。此前它只以「深度权重专用」的形态存在于 depthVideoModelCache 里，第二家要用就只能复制一份——复制的那一刻两份就开始漂。这次把地基抽出来（verifiedAssetCache），本地转写与深度权重共用同一份实现，深度那份主体已删除。",
+  "affected_population": [
+    "所有需要在无网 / 隐私敏感 / 无额度场景下取视频对白的用户；以及将来任何一个要在运行时下载第三方二进制或权重的能力（它们现在有共用地基，不用再抄一份）"
+  ],
+  "scope_paths": [
+    "electron/audioTaskRunner.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/builtinVendorSeeds.ts",
+    "electron/catalog/localSpeech.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/catalog/types.ts",
+    "electron/downloads/verifiedAssetCache.ts",
+    "electron/hardenedFetch.ts",
+    "electron/localSpeech/localSpeechErrors.ts",
+    "electron/localSpeech/localSpeechInstall.ts",
+    "electron/localSpeech/localSpeechProgressBus.ts",
+    "electron/localSpeech/localSpeechSegments.ts",
+    "electron/localSpeech/localSpeechServer.ts",
+    "electron/localSpeech/localSpeechTaskBridge.ts",
+    "electron/localSpeech/localSpeechTranscribe.ts",
+    "electron/shared/canvas/shotTable.ts",
+    "electron/shared/canvas/videoDepthModels.ts",
+    "electron/shared/localSpeech/localSpeechAssets.ts",
+    "electron/video/deconstructVideo.ts",
+    "electron/video/depthVideoModelCache.ts",
+    "electron/video/videoIpc.ts",
+    "src/config/modelArchetypes/localSpeech.ts",
+    "src/workbench/generationCanvas/nodes/deconstructionTypes.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/shotTableFacts.ts"
+  ],
+  "entry_points": [
+    "拆解视频（画布视频节点 → 拆解）在 payload.transcribe 指定本地那一行时走本地引擎",
+    "音频节点选「本地转写（离线）」模型后的 transcribe 任务",
+    "audioTaskRunner.runTranscribe 见到 create op 上的 localEngine 声明即分流",
+    "scripts/local-speech-live-check.ts（真素材验收，跑的是生产代码）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/ggml-org/whisper.cpp/blob/master/examples/server/README.md",
+      "checked_at": "2026-09-17",
+      "purpose": "whisper-server 的 /inference 契约：multipart 的 file / language / response_format / temperature 字段，以及 verbose_json 回什么。已用 0.0.10 二进制对真素材实跑逐字核对过请求与响应形状。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/OpenWhispr/openwhispr/blob/main/scripts/download-whisper-cpp.js",
+      "checked_at": "2026-09-17",
+      "purpose": "近邻 Electron 应用的同款做法：从自己 fork 的 release 拉预编译 whisper-server、**钉死版本不跟 latest**（顶注原话：跟 latest 会让上游一次 bump 在两次发版之间静默改变转写输出而没有 diff 可审），以及 Windows 必须随 exe 带 MSVC 运行时 DLL（CUS-113）。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/OpenWhispr/openwhispr/blob/main/src/helpers/whisperServer.js",
+      "checked_at": "2026-09-17",
+      "purpose": "sidecar 生命周期的参考实现：spawn 到本机随机端口、POST /inference、response_format 取时间戳。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp",
+      "checked_at": "2026-09-17",
+      "purpose": "ggml 权重的官方仓库；按 commit 5359861c 钉死，每个权重的 sha256 由 HF 的 LFS 元数据给出，并与我们实下载后算出的值逐字对上（两个独立来源）。"
+    }
+  ],
+  "invariants": [
+    "权重必须是多语言的：清单里不许出现 ggml-*.en（localSpeechAssets.test.ts 钉死）",
+    "语言从音频检测：请求恒发 language=auto，档案里连语言参数都不给，UI locale 不参与",
+    "下载地址钉在不可变版本上：HF 用 40 位 commit、GitHub 用 release tag，不许出现 main/latest",
+    "sha256 边下边算，不匹配即删文件；压缩包校验通过之后还要逐个成员文件复验",
+    "安装是原子的：引擎目录存在 == 里面每个文件都验过；半成品一律清掉",
+    "分段游标严格前进：acceptChunkSegments 永不返回不前进的游标（否则一段静音就能把循环拖死）",
+    "任何失败都带得出原因与类别，且**不许自动切云端**——切换只能是用户点的那一下",
+    "sidecar 只听 127.0.0.1，随机端口，任务结束必收进程",
+    "引擎与权重不进安装包，只落 userData 的缓存目录"
+  ],
+  "generality_proof": "下载/校验/落盘这一层现在只有 electron/downloads/verifiedAssetCache.ts 一个实现，深度权重与本地转写都从它进；depthVideoModelCache 的主体已删除、只剩家族名与类型别名（50 行）。新增的 disk-full 分类对两家同时生效。check:supply-chain-pins 扫 electron/shared 下所有「同时出现 downloadUrl 与 sha256」的文件，没登记版本钉就红——第三家接进来时不会再漏。",
+  "shared_boundaries": [
+    {
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "symbol": "ensureVerifiedAssets",
+      "responsibility": "运行时下载的第三方资产：钉死 URL、精确字节、sha256 边下边算、.part 原子改名、带进度、磁盘满单独成档。全仓唯一实现。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechErrors.ts",
+      "symbol": "localSpeechFailure",
+      "responsibility": "本地转写的失败分类：每一类都有各自的用户动作（腾空间 / 换网络 / 重试 / 改用云端），文案走 desktopT。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechSegments.ts",
+      "symbol": "acceptChunkSegments",
+      "responsibility": "分段接缝与游标前进的唯一判据（纯函数，单测钉死终止性）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/video/depthVideoModelCache.ts",
+      "entry_point": "ensureVideoDepthModels",
+      "disposition": "enforced",
+      "evidence": "主体已删，改为调用共享的 ensureVerifiedAssets；深度权重同时白拿了磁盘满分类"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "entry_point": "ensureLocalSpeechReady",
+      "disposition": "enforced",
+      "evidence": "引擎压缩包与权重都经 ensureVerifiedAssets 下载，解包后再逐成员复验 sha256"
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runTranscribe",
+      "disposition": "enforced",
+      "evidence": "按 create op 的 localEngine 声明分流，云端两条与本地一条共用同一个结果形状与同一段调用方代码"
+    },
+    {
+      "path": "electron/protocol/localRuntimeAssets.ts",
+      "entry_point": "resolveLocalModelAsset",
+      "disposition": "not-affected",
+      "evidence": "它伺服的是深度权重那条 nomi-local://model/<fileName> 白名单；本地转写的引擎与权重只被主进程 spawn/读取，不经渲染层伺服，没有新增可被伺服的文件名"
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "entry_point": "applyBuiltinSeeds",
+      "disposition": "enforced",
+      "evidence": "本地转写按 curated 登记表加一行进种子，与其余 18 家同一条播种/发布判据；没有另开一条「本地供应商特殊处理」的分支"
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "这是一条新能力的第一次落地，不是某个反复发作的故障。它引入的那一类风险（运行时下载的第三方可执行物）已经被抽成共用地基 + 一条会红的版本钉门岗，不需要再为它发明一条可复用的边界。",
+    "same_class_scan": [
+      "grep -rn 'downloadUrl' electron/shared：运行时下载的资产声明只有 videoDepthModels.ts 与 localSpeechAssets.ts 两处，两处都已登记进 docs/engineering/supply-chain-pins.json",
+      "grep -rn 'whisper' electron src scripts（接手前）：除云端 whisper-1 模型名外零命中，确认本地这条从无并行实现可删",
+      "node scripts/door-map.mjs electron/downloads/verifiedAssetCache.ts：下载/缓存这份状态的全部写读入口 41 条，全部落在本合同的 scope_paths 内"
+    ]
+  },
+  "regression_tests": [
+    "electron/localSpeech/localSpeechSegments.test.ts",
+    "electron/localSpeech/localSpeechAssets.test.ts",
+    "electron/localSpeech/localSpeechInstall.test.ts",
+    "electron/localSpeech/localSpeechPackaging.test.ts",
+    "scripts/check-supply-chain-pins.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/localSpeech/localSpeechInstall.test.ts",
+    "scripts/check-supply-chain-pins.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/video/depthVideoModelCache.ts"
+    ],
+    "rationale": "深度权重那份下载/校验/落盘实现已删除，改为调用共享地基；没有保留第二条路，也没有保留 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "sidecar 二进制目前取自第三方组织（OpenWhispr）的 fork release——上游 ggml-org 只发 Windows/Linux，mac 侧没有可执行的 server 产物。每个成员文件逐个 sha256 钉死，托管方换一个字节立刻红。",
+    "exit_criteria": [
+      "把引擎改成我们自己构建并托管（需要用户拍板要不要为此建一条 CI 构建 + release）",
+      "docs/engineering/supply-chain-pins.json 的 whisper-cpp-sidecar 条目复查日 2026-12-15 到期时重新裁决"
+    ]
+  },
+  "migration": "没有存量数据要迁。老装机第一次选到本地转写时才下载引擎与权重；换引擎版本会换缓存目录名，旧目录不会被误当成新版本（用户可以手动删 userData/model-cache/local-speech 下的旧目录回收空间）。",
+  "residual_risks": [
+    "英文真素材本机没有，英文这条只有 whisper 本身的多语言能力作背书，没有我们自己的 CER 数字——已登记为 docs/engineering/real-media-debt.json 的 local-speech-english-real-media，到期 2026-10-14",
+    "Windows 真机未跑（SSH 测试机 C 盘仅剩 8GB，装不下 575MB 权重 + 现有 worktree）——win32-x64 这一格的二进制与 DLL 清单是实下载校验过的，但「在真 Windows 上起得来」仍是 unverified",
+    "无 GPU 的纯 CPU 机器上 turbo 档会慢很多；估时提示的文案已就位，但没有真机数字",
+    "sidecar 是外部构建的二进制：sha256 保证「下到的是我们钉的那个」，不保证那个二进制本身没有漏洞。它只听回环、任务结束即收，暴露面限于本机"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/downloads/verifiedAssetCache.ts",
+    "tests": [
+      "electron/localSpeech/localSpeechInstall.test.ts"
+    ],
+    "why": "「下到的东西是不是我们钉的那个、半成品会不会被当成装好了」这条不变量归下载/落盘那一层管。本地转写与深度权重都从它进，所以它一处守住就是两家都守住。"
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "line": 91,
+      "symbol": "verifiedAssetRoot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "line": 97,
+      "symbol": "verifiedAssetPath"
+    },
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "line": 106,
+      "symbol": "isVerifiedAssetCached"
+    },
+    {
+      "kind": "read",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "line": 67,
+      "symbol": "VerifiedDownloadErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoModelCache.ts",
+      "line": 27,
+      "symbol": "verifiedAssetRoot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoModelCache.ts",
+      "line": 31,
+      "symbol": "verifiedAssetPath"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoModelCache.ts",
+      "line": 35,
+      "symbol": "isVerifiedAssetCached"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/depthVideoModelCache.ts",
+      "line": 30,
+      "symbol": "VideoDepthModelAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/videoDepthModels.ts",
+      "line": 31,
+      "symbol": "VerifiedAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/videoDepthModels.ts",
+      "line": 33,
+      "symbol": "VideoDepthModelAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 73,
+      "symbol": "VerifiedAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 75,
+      "symbol": "LocalSpeechEngineMember"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 51,
+      "symbol": "verifiedAssetRoot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 55,
+      "symbol": "localSpeechEngineDir"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 60,
+      "symbol": "localSpeechEngineDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 50,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 96,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 122,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 126,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 37,
+      "symbol": "LocalSpeechRawSegment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechSegments.ts",
+      "line": 29,
+      "symbol": "CHUNK_WINDOWS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechSegments.ts",
+      "line": 29,
+      "symbol": "WINDOW_SECONDS"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 87,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 90,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 47,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechErrors.ts",
+      "line": 29,
+      "symbol": "LocalSpeechFailureReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechErrors.ts",
+      "line": 32,
+      "symbol": "LocalSpeechFailureReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechProgressBus.ts",
+      "line": 18,
+      "symbol": "LocalSpeechProgress"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechProgressBus.ts",
+      "line": 31,
+      "symbol": "LocalSpeechProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTaskBridge.ts",
+      "line": 42,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTaskBridge.ts",
+      "line": 46,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTaskBridge.ts",
+      "line": 51,
+      "symbol": "localSpeechFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechTaskBridge.ts",
+      "line": 80,
+      "symbol": "LocalSpeechTranscribeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/localSpeech.ts",
+      "line": 28,
+      "symbol": "LOCAL_SPEECH_VENDOR_KEY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/localSpeech.ts",
+      "line": 49,
+      "symbol": "LOCAL_SPEECH_MODEL_KEY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 110,
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 159,
+      "symbol": "runLocalSpeechTranscription"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 234,
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/audioTaskRunner.ts",
+      "line": 104,
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "line": 377,
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "line": 75,
+      "symbol": "ResolvedHostAddress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "line": 235,
+      "symbol": "registerLocalSpeechProgressSink"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "line": 439,
+      "symbol": "buildShotAnalysisPrompt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVideo.ts",
+      "line": 74,
+      "symbol": "DeconstructColumn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/videoIpc.ts",
+      "line": 43,
+      "symbol": "deconstructVideo"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/shotTable.ts",
+      "line": 88,
+      "symbol": "shotTableColumnSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/shotTable.ts",
+      "line": 89,
+      "symbol": "shotTableFactRowSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "line": 42,
+      "symbol": "createDeconstructionShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "line": 44,
+      "symbol": "deconstructionResultToShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "line": 74,
+      "symbol": "ensureDeconstructionShotTable"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "line": 16,
+      "symbol": "DeconstructionShotTableDocument"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "line": 101,
+      "symbol": "retryShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "line": 110,
+      "symbol": "deconstructToShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "line": 114,
+      "symbol": "deconstructToShotTable"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "line": 33,
+      "symbol": "readShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableFacts.ts",
+      "line": 17,
+      "symbol": "defaultFactColumns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableFacts.ts",
+      "line": 8,
+      "symbol": "ShotTableColumn"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/deconstructionTypes.ts",
+      "line": 33,
+      "symbol": "DeconstructionShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/deconstructionTypes.ts",
+      "line": 51,
+      "symbol": "DeconstructionResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/config/modelArchetypes/localSpeech.ts",
+      "line": 21,
+      "symbol": "LOCAL_SPEECH_ARCHETYPE"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/builtinVendorSeeds.ts",
+      "line": 140,
+      "symbol": "builtinVendorSeed"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/builtinVendorSeeds.ts",
+      "line": 47,
+      "symbol": "CredentialMode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "line": 529,
+      "symbol": "applyBuiltinSeeds"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "line": 19,
+      "symbol": "BILLING_MODEL_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/archetypeIdentifiers.generated.ts",
+      "line": 3,
+      "symbol": "ARCHETYPE_IDENTIFIER_PATTERNS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/archetypeModes.generated.ts",
+      "line": 3,
+      "symbol": "ARCHETYPE_MODE_MANIFEST"
+    }
+  ],
+  "door_reduction": {
+    "before": 0,
+    "after": 66,
+    "why_not": "这是新能力的第一次落地，之前这份状态一扇门都没有（before=0），所以门数只会从 0 变成 N，谈不上减少。N 条里有 41 条是下载/缓存那份状态的写读入口——它们现在全部落在**一个**实现上（verifiedAssetCache），此前深度那份是独立的第二套；也就是说门虽然多了，但**判据的 owner 从两个变成了一个**。"
+  }
+}

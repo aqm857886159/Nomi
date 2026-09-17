@@ -37,6 +37,11 @@ export type DeconstructionResult = {
   failedShotIndexes: number[]
   /** 整次拆解层面的失败原因（顶部一行显示；不是每格一句「没读出」）。 */
   failureReason?: string
+  /**
+   * 失败的**类别**（机器可读）。`local-speech` = 本地离线转写那一路挂了。
+   * UI 据此决定给不给「改用云端重试」那个按钮——判据不能是错误文案，文案会翻译、会改写。
+   */
+  failureKind?: 'local-speech'
 }
 
 /** 存进 GenerationCanvasNode.meta 的键：拆解结果随节点走（图片/运镜提示词随节点走，方案 §3.1）。 */

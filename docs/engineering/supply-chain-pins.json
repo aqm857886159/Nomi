@@ -1,0 +1,48 @@
+{
+  "$comment": "**运行时下载的第三方二进制 / 权重的版本钉（R5⑤ + R17）。** 这些东西不进安装包、不进 lockfile，pnpm 的依赖审计一个都看不见——它们唯一的记录就是代码里那串 URL 与 sha256。这份登记表回答三件事：钉的是哪一版、**为什么不跟 latest**、什么时候该回来看一眼。门岗 `pnpm run check:supply-chain-pins` 盯着：钉的版本号必须真的出现在它声明的源文件里（改代码不改登记 = 红），复查日期过了也红（登记是带到期日的承诺，不是防线）。",
+  "maxReviewDays": 120,
+  "pins": [
+    {
+      "id": "whisper-cpp-sidecar",
+      "what": "本地转写 sidecar（whisper-server 预编译二进制，mac arm64 / mac x64 / win x64）",
+      "sourceFile": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "pinnedVersion": "0.0.10",
+      "upstreamReleasesUrl": "https://github.com/OpenWhispr/whisper.cpp/releases",
+      "whyNotLatest": "上游 whisper.cpp 每天出 bNNNN 构建，**升一版就可能静默改变转写输出**（解码器阈值、VAD 默认值、分段规则都在动），而我们这边的 diff 是空的——「同一条视频，昨天和今天出的字不一样」这种回归没人查得出来。近邻项目 OpenWhispr 的 scripts/download-whisper-cpp.js 顶注踩的正是这条。升版不是改个常量：要按 docs/plan/2026-09-17-local-transcription.md 的表格用同一批真素材重测 CER 与接缝，数字没退再换。",
+      "pinnedAt": "2026-09-17",
+      "reviewBy": "2026-12-15",
+      "openQuestion": "二进制目前托管在第三方组织（OpenWhispr）的 release 上——上游 ggml-org 只发 Windows/Linux，mac 侧根本没有可执行的 server 产物。每个成员文件都逐个 sha256 钉死（托管方换一个字节立刻红），但「换成我们自己构建并托管」仍是该做的事；这一条待用户拍板（要不要为此建一条 CI 构建 + 我们自己的 release）。"
+    },
+    {
+      "id": "whisper-ggml-weights",
+      "what": "本地转写权重（HuggingFace ggerganov/whisper.cpp 的 ggml-large-v3-turbo-q5_0.bin）",
+      "sourceFile": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "pinnedVersion": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "upstreamReleasesUrl": "https://huggingface.co/ggerganov/whisper.cpp/commits/main",
+      "whyNotLatest": "钉 commit 不钉 `resolve/main`：分支会前进，一前进就把钉死的 sha256 变成「哪天突然全员下载失败」。换权重同样要重测——档位裁决本身就是实测出来的（见 localSpeechAssets.ts 文件头的四档对照表）。",
+      "pinnedAt": "2026-09-17",
+      "reviewBy": "2026-12-15"
+    },
+    {
+      "id": "whisper-vad-silero",
+      "what": "本地转写的语音活动检测模型（HuggingFace ggml-org/whisper-vad 的 ggml-silero-v5.1.2.bin，885 KB）",
+      "sourceFile": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "pinnedVersion": "9ffd54a1e1ee413ddf265af9913beaf518d1639b",
+      "upstreamReleasesUrl": "https://huggingface.co/ggml-org/whisper-vad/commits/main",
+      "whyNotLatest": "和权重同理：钉 commit 不钉 resolve/main。这条更该钉死的理由是**它直接决定转写内容**——2026-09-18 拿片头有 54 秒静音的 NASA 真素材实测：没有 VAD 时引擎在静音上幻听 \"Thank you.\" 并复读 26 段、把随后约 72 秒真人讲话一起吞掉，语言探测也采在静音上（置信 0.385）；开 VAD 后幻听 0 段、首句回到 54.56 秒、置信 1.000。换模型或改它的阈值 = 换转写输出，要按 docs/plan/2026-09-17-local-transcription.md 的表格用同一批真素材重测。",
+      "pinnedAt": "2026-09-18",
+      "reviewBy": "2026-12-15",
+      "openQuestion": "同仓另有 ggml-silero-v6.2.0.bin（同为 885 KB）。2026-09-18 拿 NASA 那条两个都实测，幻听段数 / 首句位置 / 语言置信三项完全一致，取 whisper.cpp 官方下载脚本与文档列在前面的 v5.1.2。上游哪天给出 v6 的实测优势再换，换法同样是重测不是改常量。"
+    },
+    {
+      "id": "depth-anything-v2-small",
+      "what": "「提取深度」权重（HuggingFace onnx-community/depth-anything-v2-small 的 fp16 onnx）",
+      "sourceFile": "electron/shared/canvas/videoDepthModels.ts",
+      "pinnedVersion": "4472b7362082ad9968fee890ca0f1e5aca36b93d",
+      "upstreamReleasesUrl": "https://huggingface.co/onnx-community/depth-anything-v2-small/commits/main",
+      "whyNotLatest": "同上：HF 分支会前进。这条 2026-09-07 就钉好了，2026-09-17 补进本登记表——在此之前它只活在代码注释里，没有任何东西会提醒我们回来看。",
+      "pinnedAt": "2026-09-07",
+      "reviewBy": "2026-12-15"
+    }
+  ]
+}

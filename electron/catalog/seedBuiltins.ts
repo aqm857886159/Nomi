@@ -78,6 +78,7 @@ import { GEMINI_OMNI_11_MAPPINGS, GEMINI_OMNI_11_MODEL_SEED } from "./kieGeminiO
 import { KIE_SUNO_MUSIC_MAPPINGS, KIE_SUNO_MUSIC_MODEL_SEED, KIE_SUNO_SFX_MAPPING, KIE_SUNO_SFX_MODEL_SEED } from "./kieSunoAudio";
 import { MINIMAX_OFFICIAL_MODELS, MINIMAX_VENDOR_SEED } from "./minimaxOfficial";
 import { ELEVENLABS_MODELS, ELEVENLABS_VENDOR_SEED } from "./elevenlabs";
+import { LOCAL_SPEECH_CURATED_MAPPINGS, LOCAL_SPEECH_CURATED_MODELS, LOCAL_SPEECH_VENDOR_SEED } from "./localSpeech";
 import { MESHY_MODELS, MESHY_VENDOR_SEED } from "./meshyOfficial";
 import { FAL_OFFICIAL_MODELS, FAL_VENDOR_SEED } from "./falOfficial";
 import { RUNWAY_OFFICIAL_MODELS, RUNWAY_VENDOR_SEED } from "./runwayOfficial";
@@ -335,6 +336,8 @@ const CURATED_VENDOR_CONTRACTS: readonly { vendorKey: string; models: CuratedMod
   { vendorKey: MESHY_VENDOR_SEED.key, models: MESHY_CURATED_MODELS, mappings: MESHY_CURATED_MAPPINGS },
   { vendorKey: FAL_VENDOR_SEED.key, models: FAL_CURATED_MODELS, mappings: FAL_CURATED_MAPPINGS },
   { vendorKey: RUNWAY_VENDOR_SEED.key, models: RUNWAY_CURATED_MODELS, mappings: RUNWAY_CURATED_MAPPINGS },
+  // 本地转写：transcribe taskKind 的第三个 provider（前两个是 APIMart Whisper / ElevenLabs Scribe）。
+  { vendorKey: LOCAL_SPEECH_VENDOR_SEED.key, models: LOCAL_SPEECH_CURATED_MODELS, mappings: LOCAL_SPEECH_CURATED_MAPPINGS },
 ];
 
 /**

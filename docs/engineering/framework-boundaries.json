@@ -95,6 +95,27 @@
   ],
   "frameworks": [
     {
+      "id": "whisper-cpp",
+      "packages": ["whisper.cpp"],
+      "version": "OpenWhispr-0.0.10",
+      "fourColumnTable": "docs/plan/2026-09-17-local-transcription.md",
+      "referenceConformance": {
+        "verifiedAt": "2026-09-17",
+        "upstreamVersion": "OpenWhispr-0.0.10",
+        "doc": "docs/plan/2026-09-17-local-transcription.md"
+      },
+      "capabilities": [{
+        "id": "multilingual-sidecar",
+        "provides": "whisper-server provides multilingual ASR and automatic language detection via multipart /inference; Nomi owns verified installation and video task orchestration only.",
+        "evidence": "https://github.com/ggml-org/whisper.cpp/blob/master/examples/server/README.md; https://github.com/OpenWhispr/openwhispr/blob/main/scripts/download-whisper-cpp.js",
+        "scope": ["electron/localSpeech/", "electron/shared/localSpeech/"],
+        "forbidden": [
+          { "id": "no-english-only-weights", "pattern": "ggml-[a-z0-9-]+\\.en(?:[.-])", "why": "English-only weights cannot satisfy the multilingual invariant; use the engine's multilingual models." },
+          { "id": "no-second-engine", "pattern": "(?:faster-whisper|sherpa-onnx|whisper-rs)", "why": "The approved single whisper.cpp engine already owns inference; a second engine splits execution and supply-chain ownership." }
+        ]
+      }]
+    },
+    {
       "id": "pi",
       "packages": [
         "@earendil-works/pi-coding-agent",

@@ -3,6 +3,9 @@
 //
 // 为什么需要这个门岗：`pnpm typecheck` 走 tsconfig.app.json + electron/tsconfig.json，
 // 两份都 exclude 了 *.test.ts；而 vitest 用 esbuild 转译，**只删类型标注、从不核对**。
+// scripts/**/*.ts 同理：由 tsx 直接跑，没有任何 tsconfig 收它。2026-09-17 生产端给
+// LocalSpeechProgress 加了 starting 阶段，local-speech-live-check.ts 的二元三目原样把它当
+// transcribing 读，脚本一条素材都跑不完——tsc 早就能报 TS2339，只是没人让它看这个目录。
 // 结果是 694 个测试文件的类型无人检查——写在测试里的类型级护栏（Required<T> 夹具 /
 // Record<keyof T,…> 穷尽表 / satisfies / @ts-expect-error）全是装饰品，类型漂移不报红。
 // 2026-08-25 实跑一次挖出真漂移：canvasEventReplay 的 Op 联合漏了 lock 变体（生成器和
@@ -14,7 +17,7 @@
 //
 // 棘轮语义：基线按「文件 → 错误数」记账。
 //   · src/ 已清零 → 不在基线里 → 新增任何 src 测试类型错当场报红。
-//   · electron/ 与 evals/ 有存量 → 记在基线里，只许变少不许变多，后续慢慢清零。
+//   · electron/、evals/ 与 scripts/ 有存量 → 记在基线里，只许变少不许变多，后续慢慢清零。
 // 重记基线：node ./scripts/check-test-types.mjs --update-baseline
 import fs from 'node:fs'
 import path from 'node:path'
@@ -114,5 +117,5 @@ if (totalNow < totalBase) {
   console.log(`✅ 测试类型门岗通过：${totalNow} 个错（基线 ${totalBase}，少了 ${totalBase - totalNow} 个）`)
   if (cleared.length) console.log(`   已清零 ${cleared.length} 个文件 → 记得跑 --update-baseline 把棘轮拧紧`)
 } else {
-  console.log(`✅ 测试类型门岗通过：src/ 0 错；存量 ${totalNow} 个（electron/ + evals/，棘轮只减不增）`)
+  console.log(`✅ 测试类型门岗通过：src/ 0 错；存量 ${totalNow} 个（electron/ + evals/ + scripts/，棘轮只减不增）`)
 }

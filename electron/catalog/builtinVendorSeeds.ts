@@ -12,6 +12,7 @@ import { LOCAL_TEXT_VENDOR_SEED } from "../localRuntime/localTextVendorSeed";
 import { ANTIGRAVITY_VENDOR_SEED } from "./antigravityTexts";
 import { MINIMAX_VENDOR_SEED } from "./minimaxOfficial";
 import { ELEVENLABS_VENDOR_SEED } from "./elevenlabs";
+import { LOCAL_SPEECH_VENDOR_SEED } from "./localSpeech";
 import { MESHY_VENDOR_SEED } from "./meshyOfficial";
 import { FAL_VENDOR_SEED } from "./falOfficial";
 import { RUNWAY_VENDOR_SEED } from "./runwayOfficial";
@@ -120,6 +121,7 @@ export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   MINIMAX_VENDOR_SEED,
   ELEVENLABS_VENDOR_SEED,
   MESHY_VENDOR_SEED,
+  LOCAL_SPEECH_VENDOR_SEED, // 本地转写（离线 whisper.cpp sidecar；无鉴权、不花钱，首次用时才下引擎与权重）
 ];
 
 /** Return the immutable code-owned seed for a vendor key, if one exists. */

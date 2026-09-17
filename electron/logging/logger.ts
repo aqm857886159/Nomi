@@ -56,6 +56,10 @@ export type LogScope =
   | "proxy"
   | "crash"
   | "video-depth"
+  // 按需下载的第三方资产（模型权重 / sidecar 二进制）：下载、校验、落盘。
+  | "downloads"
+  // 本地转写 sidecar：装引擎、起进程、分段推理。
+  | "local-speech"
   | "diagnostics";
 
 /**

@@ -40,8 +40,8 @@
 - **素材从 `NOMI_REAL_MEDIA_DIR` 取**，登记在 `tests/ux/real-media-fixtures.json`（规格 + 来源，**素材本身不进 git**），取用走 `tests/ux/fixtures/realMedia.mjs` 的 `requireRealMediaAssets()`。缺素材时它**抛错并逐条列出缺什么**——不许 skip、不许退回合成素材兜底（skip 就是 R17「登记即放绿」的同一种自欺）。
 - **准备 4K PNG**：从同一条真实视频抽帧，别用合成图。
   ```bash
-  export NOMI_REAL_MEDIA_DIR="$HOME/Desktop/视频/9月12日(1)"
-  ffmpeg -ss 00:00:05 -i "$NOMI_REAL_MEDIA_DIR/9月12日(1).mov" -frames:v 1 \
+  export NOMI_REAL_MEDIA_DIR="$HOME/Desktop/视频"   # 2026-09-17 上提一层：登记表里现在还有兄弟目录下的语音素材
+  ffmpeg -ss 00:00:05 -i "$NOMI_REAL_MEDIA_DIR/9月12日(1)/9月12日(1).mov" -frames:v 1 \
     -vf scale=3840:2160 "$TMPDIR/frame-4k.png"
   ```
 - **判「性能没问题」之前先看有没有 cold-open 那一档的真素材数字**。只有拖拽 / 缩放 / 框选的 FPS 数字，说明只测了「已经进得去之后」。

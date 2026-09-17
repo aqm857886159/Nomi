@@ -71,6 +71,18 @@ export const deconstructionShotTableSchema = z.object({
     phase: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
     failedShotIndexes: z.array(z.number().int().nonnegative()).optional(),
     errorMessage: z.string().optional(),
+    /**
+     * 阶段内部那句更细的进度话（「首次使用本地转写，正在下载引擎与模型 120/575 MB」）。
+     * 与 `errorMessage` **分开两个字段**：错误是红的、带 role=alert，进度不是——
+     * 共用一个字段就等于把每一条进度都渲染成一次失败。
+     */
+    progressDetail: z.string().optional(),
+    /**
+     * 这次失败是**哪一类**的机器可读判据。今天只有一个值：`local-speech`（本地离线转写那一路挂了）。
+     * 为什么需要它而不是让 UI 去认错误文案：文案会翻译、会改写，拿它当判据就是把
+     * 「给不给『改用云端』这个出口」这件事绑在字符串比对上——那正是最容易静默失效的那种判据。
+     */
+    failureKind: z.literal('local-speech').optional(),
   }).strict(),
   columnSetId: z.literal('facts'),
   columns: z.array(shotTableColumnSchema).refine((columns) => new Set(columns.map((column) => column.columnId)).size === columns.length),
@@ -112,4 +124,12 @@ export function createStoryboardShotTable(
   })
 }
 
-export type DeconstructionProgress = { requestId: string; projectId: string; phase: 0 | 1 | 2 }
+/**
+ * 拆解进度。`phase` 是三大阶段（切点 / 读图 / 对白）；`detail` 是**阶段内部**那句更细的话
+ * （「下载引擎与权重 120/575 MB」「转写第 2/6 段」）。
+ *
+ * 为什么要 detail：云端转写几秒就回来了，一个阶段名够用；本地转写第一次用要先下几百 MB、
+ * 之后按段跑几分钟——一条没有进度的几分钟等待在用户那里和「卡死了」长得一模一样。
+ * 文案在主进程按用户语言生成（`desktopT`），渲染层原样显示，不在两边各拼一次。
+ */
+export type DeconstructionProgress = { requestId: string; projectId: string; phase: 0 | 1 | 2; detail?: string }

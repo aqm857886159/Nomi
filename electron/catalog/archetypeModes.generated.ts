@@ -633,5 +633,11 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "t2i": "text_to_image",
       "edit": "image_edit"
     }
+  },
+  "nomi-local-speech": {
+    "defaultModeId": "transcribe",
+    "modes": {
+      "transcribe": "transcribe"
+    }
   }
 };

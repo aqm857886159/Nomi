@@ -438,5 +438,9 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   ],
   "agnes-image-2.1": [
     "agnes-image-2.1-flash"
+  ],
+  "nomi-local-speech": [
+    "whisper-cpp-local",
+    "nomi-local-speech"
   ]
 };

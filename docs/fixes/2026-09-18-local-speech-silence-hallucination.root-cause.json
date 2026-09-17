@@ -1,0 +1,528 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-18-local-speech-silence-hallucination",
+  "problem_type": "ASR engine invoked without voice-activity detection, so non-speech audio is decoded as text",
+  "symptom": "A registered real asset whose first 54 seconds are silence transcribes as 26 consecutive \"Thank you.\" segments, the first real sentence is pushed to 126.0s, and about 72 seconds of actual speech never appears in the output",
+  "direct_cause": "LocalSpeechServer.start built the whisper-server argv without --vad, so silence reached the decoder; whisper emits a high-frequency training artifact on silence and conditions the next 30s window on that text, which makes the repetition self-reinforcing past the end of the silence. Language detection samples only the first 30s window, which was the same silence.",
+  "class_root": "The engine invocation surface encoded only the arguments we happened to think of. Capabilities the engine already ships (VAD) were absent from the argv with nothing asserting their presence, so a silent-quality regression could not fail any gate.",
+  "affected_population": [
+    "Every local transcription of audio containing non-speech stretches: leading room tone, conference pre-roll, held black, music-only passages, long pauses",
+    "Both deconstruct-video and any future caller of transcribeLocally, on all three supported platforms"
+  ],
+  "scope_paths": [
+    "electron/localSpeech/localSpeechServer.ts",
+    "electron/localSpeech/localSpeechInstall.ts",
+    "electron/shared/localSpeech/localSpeechAssets.ts"
+  ],
+  "entry_points": [
+    "transcribeLocally -> LocalSpeechServer.start (the only place whisper-server argv is built)",
+    "ensureLocalSpeechReady (the only place engine/weights/VAD assets are resolved to paths)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/ggml-org/whisper.cpp/blob/master/models/download-vad-model.sh",
+      "checked_at": "2026-09-18",
+      "purpose": "whisper.cpp 官方的 VAD 模型下载脚本，确认上游仓库是 ggml-org/whisper-vad（不是第三方镜像），以及它列出的两个版本 silero-v5.1.2 / v6.2.0。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/ggml-org/whisper.cpp/blob/master/examples/server/README.md",
+      "checked_at": "2026-09-18",
+      "purpose": "确认 whisper-server 的 VAD 是启动参数而非逐请求字段，因此归 buildServerArgs 这一扇门管。与本机 `whisper-server --help` 打印的 VAD 参数组逐项对上。"
+    }
+  ],
+  "invariants": [
+    "The engine is never started without VAD and without a verified VAD model path",
+    "Language is always auto-detected by the engine, never defaulted to en",
+    "The VAD model is a required verified asset: checksum failure fails the whole run rather than degrading to a VAD-less transcription"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/localSpeech.ts",
+      "line": 70,
+      "symbol": "LOCAL_SPEECH_DEFAULT_TIER"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/localSpeech.ts",
+      "line": 70,
+      "symbol": "LOCAL_SPEECH_TIERS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 50,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 51,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 51,
+      "symbol": "LOCAL_SPEECH_ENGINE_RELEASE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 54,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 55,
+      "symbol": "localSpeechEngineDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 59,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 60,
+      "symbol": "localSpeechEngineDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 72,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 72,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 75,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 75,
+      "symbol": "LOCAL_SPEECH_VAD_MODEL"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 77,
+      "symbol": "isLocalSpeechEngineInstalled"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 115,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 118,
+      "symbol": "isLocalSpeechEngineInstalled"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 120,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 124,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 125,
+      "symbol": "localSpeechEngineDir"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 146,
+      "symbol": "LOCAL_SPEECH_ENGINE_RELEASE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 167,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 168,
+      "symbol": "LocalSpeechInstallProgress"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 170,
+      "symbol": "localSpeechEngineForPlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 173,
+      "symbol": "pendingLocalSpeechBytes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 182,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 182,
+      "symbol": "LOCAL_SPEECH_VAD_MODEL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 185,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 193,
+      "symbol": "isLocalSpeechEngineInstalled"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 194,
+      "symbol": "LOCAL_SPEECH_VAD_MODEL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 195,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 198,
+      "symbol": "localSpeechExecutablePath"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 199,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 200,
+      "symbol": "LOCAL_SPEECH_CACHE_FAMILY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "line": 200,
+      "symbol": "LOCAL_SPEECH_VAD_MODEL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 37,
+      "symbol": "LocalSpeechRawSegment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 94,
+      "symbol": "LocalSpeechServer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 98,
+      "symbol": "LocalSpeechServer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 99,
+      "symbol": "buildServerArgs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 155,
+      "symbol": "LocalSpeechInferenceResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 158,
+      "symbol": "buildMultipartBody"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 172,
+      "symbol": "parseInferenceResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 218,
+      "symbol": "LocalSpeechInferenceResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "line": 230,
+      "symbol": "LocalSpeechRawSegment"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTaskBridge.ts",
+      "line": 82,
+      "symbol": "localSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 47,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 100,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 114,
+      "symbol": "localSpeechEngineForPlatform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 122,
+      "symbol": "ensureLocalSpeechReady"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "line": 128,
+      "symbol": "LocalSpeechServer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 75,
+      "symbol": "LocalSpeechEngineMember"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 88,
+      "symbol": "LOCAL_SPEECH_ENGINE_RELEASE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 96,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 173,
+      "symbol": "LocalSpeechTierId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 220,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 252,
+      "symbol": "LocalSpeechTierId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 254,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 255,
+      "symbol": "LOCAL_SPEECH_TIERS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 265,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 267,
+      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 273,
+      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 274,
+      "symbol": "LOCAL_SPEECH_TIERS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 275,
+      "symbol": "LOCAL_SPEECH_VAD_MODEL"
+    }
+  ],
+  "door_reduction": {
+    "before": 62,
+    "after": 62,
+    "merged": false,
+    "why_not": "没有门可以并。这次改的不是「一份状态被多处写」，而是「唯一那扇门上少传了一个引擎能力」——argv 只由 buildServerArgs 产出（数门：localSpeechServer.ts 3 写 7 读里的那一扇），资产路径只由 ensureLocalSpeechReady 解析。门表这 62 扇是这三个文件当前的全部写读入口，修前修后一样多；本次把 argv 从 spawn 调用点抽成导出纯函数，目的不是减门，是让这扇门上的两条不变量（VAD 必开、语言必须 auto）能被测试断言——它们错了都不抛不红，只会悄悄出一份不对的稿子。"
+  },
+  "generality_proof": "The fix is at the single argv door, so it covers every caller and every audio input rather than the one asset that exposed it. It is input-derived, not content-specific: VAD decides per file what is speech, so a file with no silence is unaffected and a file with silence anywhere (not only at the head) is protected.",
+  "shared_boundaries": [
+    {
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "symbol": "buildServerArgs",
+      "responsibility": "全仓唯一产出 whisper-server 启动参数的地方——「这台引擎开了哪些解码能力」这条策略只此一份。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "ensureLocalSpeechReady",
+      "responsibility": "全仓唯一把引擎、权重与 VAD 模型解析成已校验磁盘路径的地方；「跑起来必需的资产有哪些」只此一份。"
+    },
+    {
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "symbol": "LOCAL_SPEECH_VAD_MODEL",
+      "responsibility": "运行时下载资产的白名单单一 owner：钉死 commit、精确字节、sha256、许可证与出站 origin 都从这里 derive。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "entry_point": "buildServerArgs",
+      "disposition": "enforced",
+      "evidence": "数门：这是全仓唯一产出 whisper-server argv 的写入口（door-map localSpeechServer.ts，3 写 7 读）。本次抽成导出纯函数，--vad 与 -l auto 由 localSpeechServer.test.ts 断言。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "entry_point": "ensureLocalSpeechReady",
+      "disposition": "enforced",
+      "evidence": "唯一把引擎/权重/VAD 解析成路径的入口。VAD 模型改为必需资产：校验不过抛 checksum-mismatch，缺失抛 download-failed，不存在「没有 VAD 也先跑着」这条路（localSpeechInstall.test.ts 两条）。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "entry_point": "buildMultipartBody",
+      "disposition": "not-affected",
+      "evidence": "同一次数门里的另一个引擎接触面，管的是逐请求字段（已带 language=auto）。它不承载解码策略，VAD 是服务端启动参数，与它无关。"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "entry_point": "buildChunkArgs",
+      "disposition": "not-affected",
+      "evidence": "ffmpeg 切片参数，只决定送哪一段音频，不决定怎么解码。分段边界仍按 30 秒窗口整数倍，VAD 在引擎内部生效，两者不重叠。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The class is 'an engine capability we never passed, with nothing asserting it'. It can return on any engine upgrade (0.0.10 -> next), on a second tier being added, or on a new platform build whose defaults differ. It already recurred once in miniature: the same manifest's large-v3-q5_0 tier was rejected on 2026-09-17 for hallucinating a Chinese caption-corpus artifact on a real clip, which is the same failure wearing a different language.",
+    "same_class_scan": [
+      "door-map electron/localSpeech/localSpeechServer.ts：3 写 7 读，buildServerArgs 是唯一 argv 产出口；另两个引擎接触面 buildMultipartBody / buildChunkArgs 逐个判过，不承载解码策略",
+      "同素材实测四组候选解码参数而不是靠推理：--vad（三项指标全对）、-mc 0（只断复读，且首句时间戳报成 30.0s 而真实静音结束在 54.17s）、-sns（名字最像对症，实测零作用）、-mc 0 + -sns（相对 -mc 0 无增益）",
+      "回看同一份清单的历史：large-v3-q5_0 那一档 2026-09-17 就因为在真实片段上整段幻听中文字幕语料（「请不吝点赞 订阅」）被砍——同一类失败换一种语言，说明这不是单条素材的偶然"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/localSpeech/localSpeechServer.ts",
+    "invariant": "buildServerArgs always contains --vad with a model path and -l auto",
+    "failure_mode": "A missing or corrupt VAD model raises checksum-mismatch/download-failed before any audio is decoded; the run fails loudly instead of silently producing a hallucinated transcript.",
+    "exception_policy": "none",
+    "strategy": "Move argv construction out of the spawn call site into an exported pure function so the two silent-error invariants (VAD on, language auto) are assertable; make the VAD model a required verified asset so it cannot be quietly absent.",
+    "artifacts": [
+      "electron/localSpeech/localSpeechServer.ts",
+      "electron/localSpeech/localSpeechServer.test.ts",
+      "electron/shared/localSpeech/localSpeechAssets.ts",
+      "electron/localSpeech/localSpeechInstall.ts",
+      "docs/engineering/supply-chain-pins.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/localSpeech/localSpeechServer.test.ts",
+    "electron/localSpeech/localSpeechInstall.test.ts",
+    "electron/localSpeech/localSpeechAssets.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/localSpeech/localSpeechServer.test.ts",
+    "electron/localSpeech/localSpeechInstall.test.ts",
+    "electron/localSpeech/localSpeechAssets.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有旧路要删：这次是给唯一那扇 argv 门补上一个从未传过的引擎能力，不是拿新实现替换旧实现。实测过的另外三组参数（-mc 0 / -sns / 两者叠加）一条都没有进代码，所以不存在需要一并删掉的并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "ggml-org/whisper-vad @ 9ffd54a1e1ee413ddf265af9913beaf518d1639b（ggml-silero-v5.1.2.bin，885 KB，MIT）",
+    "target": "与引擎同源自建托管：whisper.cpp sidecar 那条已登记的「换成我们自己构建并托管」欠账落地时，VAD 模型一并纳入，两件资产就不再各自依赖第三方仓库的可用性。",
+    "exit_criteria": [
+      "whisper-cpp-sidecar 那条 openQuestion（要不要为二进制建我们自己的 CI 构建 + release）拍板落地",
+      "落地时把 VAD 模型纳入同一条构建与托管链，sha256 钉死方式不变",
+      "复查日 2026-12-15：上游若给出 v6.2.0 相对 v5.1.2 的实测优势，按同一批真素材重测后再换"
+    ],
+    "rationale": "这是 whisper.cpp 官方下载脚本指向的上游仓库，不是第三方镜像；885 KB、MIT、按 commit 钉死并逐字节校验，现在保留的风险可控。退出条件绑在引擎二进制那条已在册的自建托管欠账上——两件资产同源，分两次搬没有意义。"
+  },
+  "migration": "含静音的文件转写结果会变：幻听填充消失，此前被吞掉的讲话重新出现（NASA 那条约 72 秒）。已存的转写稿不会被改写，重跑拆解才会重生成——不做静默回填，因为用户可能已经基于旧稿做了编辑。首次使用时多下一个 885 KB 的 VAD 模型，已计入原有那根进度条的分母，不新增一次单独的等待。",
+  "residual_risks": [
+    "CER is not re-verified. The manifest's 6.5% has no ground-truth reference committed to the repository, so it cannot be recomputed locally. Measured instead: hallucination loops 25->0 and backwards seams 0 across all five registered assets, plus byte-identical output across two runs. Chinese transcript text did shift (some tokens better, some worse) and that delta is unquantified.",
+    "measuredCpuRealtimeFactor 1.04 was measured on Windows before VAD existed. VAD adds a detection pass but also skips non-speech, so the net effect on the CPU path is unknown and cannot be measured from this machine. The 'estimated N minutes' notice on Windows is therefore un-revalidated.",
+    "VAD threshold defaults are upstream's. A speaker who is very quiet relative to background could in principle be clipped; not observed on the registered assets, including the narration-over-music one (english 0.997, 71 segments)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/localSpeech/localSpeechServer.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/localSpeech/localSpeechServer.test.ts"
+    ],
+    "rationale": "Engine invocation policy (which decode capabilities are on) belongs to the single place that builds the argv. Putting it anywhere upstream would let a second caller start the engine without VAD."
+  }
+}

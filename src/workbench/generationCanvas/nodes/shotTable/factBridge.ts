@@ -57,7 +57,16 @@ export function ensureDeconstructionShotTable(sourceNodeId: string): string | un
 }
 
 /** The returned promise owns the engine call; progress never advances on timers. */
-export async function deconstructToShotTable(sourceNodeId: string, project: ProjectExecutionContext): Promise<string | undefined> {
+export async function deconstructToShotTable(
+  sourceNodeId: string,
+  project: ProjectExecutionContext,
+  /**
+   * 这次对白走哪条转写线。不给 = 沿用自动解析。
+   * `'cloud'` 是本地那条挂了之后用户点「改用云端重试」传进来的——**必须是显式动作**，
+   * 代码不许在失败时自己切（那样用户会在不知情的情况下花钱，也就再没人知道本地那条坏了）。
+   */
+  transcribe?: { vendorKey: string; modelKey: string } | 'cloud',
+): Promise<string | undefined> {
   const { projectId } = project.binding
   const generation = getUndoJournalGeneration()
   // 发起拆解那一刻签发的原项目仍有效才写回（A→B→A 也不复活）。
@@ -80,20 +89,22 @@ export async function deconstructToShotTable(sourceNodeId: string, project: Proj
   const requestId = crypto.randomUUID()
   const unsubscribe = getDesktopBridge()?.video?.onDeconstructionProgress?.((event) => {
     if (event.requestId !== requestId || event.projectId !== projectId || !canWrite()) return
-    void writeTable(id, canWrite, current => ({ ...current, source: { ...current.source, phase: event.phase } }))
+    // detail 是阶段内部那句更细的话（本地转写的下载/分段进度）。主进程按用户语言生成好再发，
+    // 渲染层原样显示——同一句话不在两边各拼一次。
+    void writeTable(id, canWrite, current => ({ ...current, source: { ...current.source, phase: event.phase, progressDetail: event.detail || undefined } }))
   })
   try {
     const result = await deconstruct({
       // nodeId：这次拆解的付费令牌按它记预算，主进程的一次报价卡也按它显示是哪张表。
-      videoUrl: source.result.url, projectId, requestId, nodeId: id,
+      videoUrl: source.result.url, projectId, requestId, nodeId: id, ...(transcribe ? { transcribe } : {}),
       customColumns: table.columns.filter((column) => column.kind === 'custom').map((column) => ({ name: column.columnId, hint: column.hint || column.labelKey })),
     })
     // A completion from a departed project must never write into its successor.
     if (!canWrite()) return id
-    await writeTable(id, canWrite, current => deconstructionResultToShotTable(current, result))
+    await writeTable(id, canWrite, current => deconstructionResultToShotTable({ ...current, source: { ...current.source, progressDetail: undefined } }, result))
   } catch (error) {
     if (!canWrite()) return id
-    await writeTable(id, canWrite, current => ({ ...current, source: { ...current.source, status: 'failed', errorMessage: error instanceof Error ? error.message : String(error) } }))
+    await writeTable(id, canWrite, current => ({ ...current, source: { ...current.source, status: 'failed', progressDetail: undefined, errorMessage: error instanceof Error ? error.message : String(error) } }))
   } finally {
     unsubscribe?.()
   }

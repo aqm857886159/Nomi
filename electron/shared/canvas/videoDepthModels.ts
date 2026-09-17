@@ -20,17 +20,15 @@
  * · `sizeBytes` 是精确值不是约数：它同时是进度条分母和「响应体是不是被中间人换了」的第一道判据。
  */
 
-export type VideoDepthModelAsset = Readonly<{
-  id: string;
-  /** 落在 userData/models/ 下的文件名（同时是 nomi-local://model/<fileName> 的白名单键）。 */
-  fileName: string;
-  downloadUrl: string;
-  sizeBytes: number;
-  sha256: string;
-  /** 许可证——列出来是为了让「能不能商用」这件事在代码里可查，不用回头翻文档。 */
-  license: string;
-  sourcePage: string;
-}>;
+/**
+ * 一条深度权重 = 一件「按需下载的第三方资产」。字段形状与语义住在
+ * `electron/downloads/verifiedAssetCache.ts`（下载/校验的唯一 owner），这里只起个领域名字，
+ * **不另写一份字段定义**——两份结构一样的类型迟早会漂（P1）。
+ * `fileName` 同时是 `nomi-local://model/<fileName>` 的白名单键。
+ */
+import type { VerifiedAsset } from "../../downloads/verifiedAssetCache";
+
+export type VideoDepthModelAsset = VerifiedAsset;
 
 export const VIDEO_DEPTH_MODEL_MANIFEST: readonly VideoDepthModelAsset[] = [
   {

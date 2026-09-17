@@ -1431,6 +1431,14 @@
     },
     "video": {}
   },
+  "nomi-local-speech/kie": {
+    "image": {},
+    "video": {}
+  },
+  "nomi-local-speech/apimart": {
+    "image": {},
+    "video": {}
+  },
   "all": {
     "image": {
       "modelKey": "gpt-image-2",
