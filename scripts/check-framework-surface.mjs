@@ -24,7 +24,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { evaluateSurface, validateSurfaceRegistry } from './framework-surface-lib.mjs'
-import { declaredFields, scanAssignments } from './framework-surface-extract.mjs'
+import { declaredFields, listSourceFiles, scanAssignments } from './framework-surface-extract.mjs'
+import { deadScopes, formatDeadScopes } from './framework-registry-scopes.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY_FILE = path.join(repoRoot, 'docs/engineering/framework-boundaries.json')
@@ -36,6 +37,20 @@ const registryErrors = validateSurfaceRegistry(registry)
 if (registryErrors.length > 0) {
   console.error('✖ framework-boundaries.json 的 surface 登记不合法：')
   for (const error of registryErrors) console.error(`  - ${error}`)
+  process.exit(1)
+}
+
+// surface.scope 指不到东西就报红——`listSourceFiles` 的 walk() 对不存在的目录静默 return，
+// 于是锚点在一个空集合上找，字段裁决全部落空而门岗照常报绿。判据与禁令那道门共用一份
+// （scripts/framework-registry-scopes.mjs），措辞与修法说明也只有一份。
+const deadSurfaceScopes = deadScopes({
+  registry,
+  only: 'surface.scope',
+  listScopeFiles: (scope) => listSourceFiles(repoRoot, [scope]),
+  scopeExists: (scope) => fs.existsSync(path.join(repoRoot, scope)),
+})
+if (deadSurfaceScopes.length > 0) {
+  console.error(formatDeadScopes(deadSurfaceScopes, 'docs/engineering/framework-boundaries.json'))
   process.exit(1)
 }
 
