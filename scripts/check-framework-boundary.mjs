@@ -23,6 +23,7 @@ import {
   scanSources,
   validateRegistry,
 } from './framework-boundary-lib.mjs'
+import { deadScopes, formatDeadScopes } from './framework-registry-scopes.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY_FILE = path.join(repoRoot, 'docs/engineering/framework-boundaries.json')
@@ -74,6 +75,20 @@ if (registryErrors.length > 0) {
   process.exit(1)
 }
 
+// 扫盘之前先确认每条 scope 真的扫得到东西——见 deadScopes 的文件头注释（fail-closed）。
+const collectedSources = collectSources(registry)
+const scannedFiles = [...collectedSources.keys()]
+const dead = deadScopes({
+  registry,
+  only: 'capability.scope',
+  listScopeFiles: (scope) => scannedFiles.filter((file) => file.startsWith(scope)),
+  scopeExists: (scope) => fs.existsSync(path.join(repoRoot, scope)),
+})
+if (dead.length > 0) {
+  console.error(formatDeadScopes(dead, rel(REGISTRY_FILE)))
+  process.exit(1)
+}
+
 // —— 第二份必交物：参考实现逐层对照（R29，2026-09-07）——
 // 四列表按我们自己列的能力清单走，只覆盖已经想到的；参考实现（框架自带的 coding agent、
 // 官方 example）拆开逐层摆，才照得出「压根没想到还有这一层」。所以它是独立的一格登记，
@@ -104,7 +119,7 @@ const conformance = evaluateReferenceConformance({
   installedVersions: installedVersionsOf(registry),
 })
 
-const hits = scanSources(collectSources(registry), registry)
+const hits = scanSources(collectedSources, registry)
 
 if (process.argv.includes('--update-baseline')) {
   const debt = [...hits.values()]
