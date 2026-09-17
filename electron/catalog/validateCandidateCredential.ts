@@ -17,6 +17,22 @@ import { probeDirectKeyCredential, publishBuiltinCuratedVendor } from './directK
  * `GET /v1/models`：apimart 对合法 key 恒 401、minimax 回 200 却连最小生成都跑不通，
  * 两个方向的反例都在我们自己的证据里（prior-art ④）。
  */
+/**
+ * 验证失败的那句话 —— 「原密钥和连接已保留」**只在真有原密钥时才说**（2026-09-17，W-17）。
+ *
+ * 为什么它曾经恒在：这半句被烤进了 `credential.invalid` / `credential.validationUnavailable`
+ * 两条词条里，而抛异常的那一层压根不知道这个 vendor 之前有没有存过 key。于是**第一次**接入
+ * 失败时用户读到的是「原密钥和连接已保留」——他没有原密钥，这半句对他是噪音，还暗示着
+ * 「刚才那把是不是被存进去了」。
+ *
+ * 修在这里而不是在渲染层删字符串：判据（有没有原密钥）只有这一层拿得到，
+ * 而渲染层能做的只有按子串猜——那正是本仓五张「错误码 → 人话」表当初要替掉的东西。
+ */
+function credentialFailure(messageKey: 'credential.invalid' | 'credential.validationUnavailable', vendorKey: string): Error {
+  const kept = Boolean(readCatalog().apiKeysByVendor[vendorKey])
+  return new Error(kept ? `${desktopT(messageKey)}${desktopT('credential.previousKept')}` : desktopT(messageKey))
+}
+
 export async function validateCandidateCredential(vendor: Vendor, apiKey: string): Promise<boolean> {
   const strategy = credentialValidationStrategy(vendor.key)
   // 内置家里没有便宜且可信的预检的那一类（最小真实请求 = 一次付费生成，不能替用户花钱）：
@@ -28,16 +44,16 @@ export async function validateCandidateCredential(vendor: Vendor, apiKey: string
   // 对这一类我们不会再验——没有可验的便宜端点。挂上它等于让 12 家常驻一句做不到的承诺，
   // 并把接入卡上的「N 个可使用」永久换成「未验证」。那还是名实不一，只是换了个方向。
   if (strategy === 'first-use') {
-    if (!apiKey) throw new Error(desktopT('credential.validationUnavailable'))
+    if (!apiKey) throw credentialFailure('credential.validationUnavailable', vendor.key)
     return false
   }
   if (!apiKey || !vendor.baseUrlHint || vendor.authType === 'none') {
-    throw new Error(desktopT('credential.validationUnavailable'))
+    throw credentialFailure('credential.validationUnavailable', vendor.key)
   }
   // 种子声明了零成本存活探测的（apimart）：那份代码拥有的 livenessProbe 才是诚实的 key 判据。
   if (strategy === 'liveness-probe') {
     const outcome = await probeDirectKeyCredential(vendor, apiKey)
-    if (outcome === 'invalid-key') throw new Error(desktopT('credential.invalid'))
+    if (outcome === 'invalid-key') throw credentialFailure('credential.invalid', vendor.key)
     return outcome === 'pending'
   }
   const providerKind = normalizeProviderKind(vendor.providerKind)
@@ -51,7 +67,7 @@ export async function validateCandidateCredential(vendor: Vendor, apiKey: string
     query: authQueryParams(authType, apiKey, vendor.authQueryParam ?? undefined),
     proxyUrl: providerProxyUrl(vendor),
   })
-  if (!result.ok && result.failureKind === 'auth') throw new Error(desktopT('credential.invalid'))
+  if (!result.ok && result.failureKind === 'auth') throw credentialFailure('credential.invalid', vendor.key)
   return !result.ok
 }
 
@@ -73,7 +89,7 @@ export async function revalidatePendingCredential(vendorKey: string): Promise<vo
   // 鉴权真错时，上游 401 会经现有诚实报错路径回到用户面前。
   if (credentialValidationStrategy(vendorKey) === 'first-use') return
   const vendor = state.vendors.find(item => item.key === vendorKey)
-  if (!vendor) throw new Error(desktopT('credential.validationUnavailable'))
+  if (!vendor) throw credentialFailure('credential.validationUnavailable', vendorKey)
   const snapshot = candidateCredentialSnapshot(vendorKey)
   const inflight = pendingProbes.get(vendorKey)
   if (inflight?.snapshot === snapshot) return inflight.promise

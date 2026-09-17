@@ -242,6 +242,9 @@ importers:
         specifier: ^4.5.4
         version: 4.5.7(@types/react@18.3.29)(immer@11.1.8)(react@18.3.1)
     devDependencies:
+      '@electron/asar':
+        specifier: 3.4.1
+        version: 3.4.1
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.1(jiti@1.21.7))

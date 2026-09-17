@@ -33,11 +33,30 @@ export type AssetImportRejectionReport = { errorKind: string; summary: string }
  */
 export const ASSET_IMPORT_REJECTION_TEXT_KEY = {
   'over-limit': 'assetLibrary.skippedOverLimit',
-  unsupported: 'assetLibrary.skippedUnsupported',
   failed: 'assetLibrary.skippedFailed',
 } as const satisfies Record<string, TranslationKey>
 
 export type AssetImportRejection = keyof typeof ASSET_IMPORT_REJECTION_TEXT_KEY
+
+/**
+ * 「这个类型这里放不下」——**不在上面那张计数表里**（2026-09-17，W-02）。
+ *
+ * 它曾经在，指着 `assetLibrary.skippedUnsupported`，而那条词条**两边词典都没有**：
+ * `i18n.t()` 于是把原始 key 原样返回，反馈卡把 `assetLibrary.skippedUnsupported` 印给用户，
+ * 并且**就这么发进了报文的 `context.summary`**——真正的问题描述在传输里丢了。
+ * （为什么两道防线都没拦住，见 `scripts/check-i18n-key-refs.ts` 新增的第 ③ 条。）
+ *
+ * 修在这一层而不是「发送前 t() 一下」：摘要的**取字点**就在这里，
+ * 而用户此刻在内联行上读到的就是 `rejectedUnsupportedUnknown` 那一句。
+ * 两处同源，才不会再出现「界面对、报文错」。计数不进句子——这一支是逐文件挡的，
+ * 用户想问的是「我拖的那个文件为什么没进来」，文件名比个数有用。
+ */
+export function unsupportedKindRejection(fileName: string): AssetImportRejectionReport {
+  return {
+    errorKind: assetImportRejectionCode('unsupported'),
+    summary: i18n.t('assetLibrary.rejectedUnsupportedUnknown', { name: fileName || i18n.t('assetLibrary.unnamedFile') }),
+  }
+}
 
 /**
  * 出门给接收端的机器码。`asset-import-*` 这个前缀是刻意的：它与
@@ -45,7 +64,7 @@ export type AssetImportRejection = keyof typeof ASSET_IMPORT_REJECTION_TEXT_KEY
  * 那个说的是生成时上传通道全挂（HTTP 413），这里说的是素材库导入被本地策略挡住。
  * 两者的下一步动作不同（一个得压缩换模型、一个得换文件），共用一个码会让分诊读错。
  */
-export function assetImportRejectionCode(rejection: AssetImportRejection | MediaImportRejection['reason']): string {
+export function assetImportRejectionCode(rejection: AssetImportRejection | 'unsupported' | MediaImportRejection['reason']): string {
   return `asset-import-${rejection}`
 }
 
@@ -89,12 +108,11 @@ export function firstAssetImportRejection(counts: RejectionCounts): AssetImportR
  * 计数类来自既有的 `assetLibrary.skipped*` 词条，和内联行里用户此刻读到的逐字一致。
  */
 export function rejectionOf(rejection: AssetImportRejection, count: number): AssetImportRejectionReport {
-  const sentence = i18n.t(ASSET_IMPORT_REJECTION_TEXT_KEY[rejection], { count })
+  // 这两条词条都是**片段**（「N 个超单次上限」/「N 个失败」），由 `skippedSummary` 包成整句
+  // —— 和内联行里看到的逐字一致。
   return {
     errorKind: assetImportRejectionCode(rejection),
-    // `unsupported` 的词条本身已是整句（「已跳过 N 个不支持的文件」）；另外两条是片段，
-    // 由 `skippedSummary` 包成整句 —— 和内联行里看到的逐字一致。
-    summary: rejection === 'unsupported' ? sentence : i18n.t('assetLibrary.skippedSummary', { items: sentence }),
+    summary: i18n.t('assetLibrary.skippedSummary', { items: i18n.t(ASSET_IMPORT_REJECTION_TEXT_KEY[rejection], { count }) }),
   }
 }
 

@@ -4,6 +4,7 @@ import {
   IconChevronRight,
   IconCloud,
   IconCode,
+  IconPlugConnected,
   IconServerBolt,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -338,6 +339,7 @@ export function ModelSettingsHome({
   dataSourceContent,
   availableFooter,
   onReload,
+  onCustomApi,
   onDirectScript,
 }: {
   connections: ModelSettingsHomeConnection[]
@@ -353,6 +355,7 @@ export function ModelSettingsHome({
   dataSourceContent?: React.ReactNode
   availableFooter?: React.ReactNode
   onReload: () => void
+  onCustomApi: () => void
   onDirectScript: () => void
 }): JSX.Element {
   const { t } = useTranslation()
@@ -462,11 +465,30 @@ export function ModelSettingsHome({
     />
   ))
 
+  /**
+   * 「自定义 API / 中转站」——手工接入那条路的家。
+   *
+   * 它在 2026-09-11 的 57d73c742 里随「起点改成用 AI 帮我接入」一起下线过；09-17 用户拍板
+   * **两个都要**：MCP / AI 协助那条仍是首选摆在上面，手工入口回到「其他接入方式」下做第三条路。
+   * 恢复的是入口，不是重设计——文案、图标、落点（向导的 `newapi` 预设 = 可编辑 baseUrl 那一支）
+   * 都沿用 v0.21.0 那一版。
+   */
+  const customApiRow = (
+    <ActionRow
+      icon={<IconPlugConnected size={16} stroke={1.7} aria-hidden="true" />}
+      title={t('onboardingProviders.drawer.home.customApi')}
+      hint={t('onboardingProviders.drawer.home.customApiHint')}
+      onClick={onCustomApi}
+      dataMarker="custom-api"
+    />
+  )
+
   const otherMethodsSection = !hasConnections ? (
     <section className="mt-5" data-model-home-other-methods>
       <SectionHeading title={t('onboardingProviders.drawer.home.otherMethods')} />
       <RowGroup>
         {alternateRows}
+        {customApiRow}
         {availableFooter ? <div className="p-2">{availableFooter}</div> : null}
       </RowGroup>
     </section>
@@ -488,6 +510,7 @@ export function ModelSettingsHome({
             {otherWaysOpen ? (
               <>
                 {alternateRows}
+                {customApiRow}
                 {availableFooter ? <div className="p-2">{availableFooter}</div> : null}
               </>
             ) : null}

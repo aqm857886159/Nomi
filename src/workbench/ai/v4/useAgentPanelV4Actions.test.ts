@@ -12,8 +12,9 @@ import type { ComposerAttachment } from '../composer/composerAttachmentTypes'
 const fixture = vi.hoisted(() => {
   const state = {
     projectAgentDraft: '', projectAgentAttachments: [] as ComposerAttachment[],
-    activeDocumentId: 'doc-1', workbenchDocuments: [{ id: 'doc-1', title: 'Current document' }],
-    creationDocumentTools: null, persistRevision: 1,
+    activeDocumentId: 'doc-1', persistRevision: 1,
+    workbenchDocuments: [{ id: 'doc-1', title: 'Current document', updatedAt: 42,
+      contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '第一句。' }] }] } }],
     creationActiveSkill: null as { key: string; name: string } | null, selectedLibraryPrompt: null as { id: string } | null,
     projectAgentApprovalPolicy: { mode: 'safe-auto', spend: 'confirm' },
     setProjectAgentDraft(text: string) { state.projectAgentDraft = text },
@@ -87,6 +88,19 @@ describe('composer sends commit local cleanup only after current admission', () 
     expect(fixture.say.mock.calls[1][1]).toBe('secondary')
     expect(fixture.say.mock.calls[1][2].availableModels).toEqual([])
     expect(fixture.models).toHaveBeenCalledTimes(2)
+  })
+
+  // 站在画布上发消息：文稿前提照样带（owner 给，整篇锚），target 仍是画布。2026-09-17 之前这里
+  // 只在创作/分镜面才填前提，于是画布上的 write_script 在 lane 里连渲染层都没到就被判「目标陈旧」。
+  it('sends the document preconditions from the session port on the generation surface', async () => {
+    fixture.say.mockResolvedValue({ ok: true })
+    const actions = mountActions()
+    expect(await actions.send('在文稿末尾加一句')).toBe(true)
+    const context = fixture.say.mock.calls[0][2]
+    expect(context.documentId).toBe('doc-1')
+    expect(context.target).toEqual({ kind: 'canvas', nodeIds: [] })
+    expect(context.preconditions).toEqual({ document: { revision: 42, contentHash: expect.stringMatching(/^fnv1a-/) } })
+    expect(context.contextSnapshot.handles[0]).toMatchObject({ kind: 'document', targetId: 'doc-1', locator: { anchor: { kind: 'whole-document' } } })
   })
 
   // 技能是**这条消息的引用**，不是常驻开关：发出去就该跟着走，留在 composer 上等于

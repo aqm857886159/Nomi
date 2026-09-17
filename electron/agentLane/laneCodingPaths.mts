@@ -2,10 +2,23 @@
 import path from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
 
+/**
+ * 越界拒绝。**不带本机绝对路径**（2026-09-17）。
+ *
+ * 原来后半句是 `Writes must remain under ${projectDir}`，而 `projectDir` 是用户真实的绝对
+ * 项目目录（`/Users/<名字>/Documents/Nomi Projects/…`）。这句话进的是**模型可见、面板可见**的
+ * 工具结果，于是每一次包容拒绝都无条件把用户的主目录名和项目名一起送出去——
+ * 和「工具结果不带本机绝对路径」那条承诺直接冲突（设置里那句「通知只显示状态与安全深链，
+ * 不显示本地绝对路径」是同一条）。
+ *
+ * 它也**没有帮上模型**：模型需要知道的是「用项目相对路径」，不是那个绝对前缀长什么样；
+ * 知道了前缀反而会诱它拼一个绝对路径再撞一次。`attempted` 是模型自己传进来的串，
+ * 原样回显没有新增泄漏，留着让它认得出是哪一次调用。
+ */
 export class LaneCodingPathError extends Error {
-  constructor(attempted: string, projectDir: string) {
+  constructor(attempted: string) {
     super(`${attempted} is outside this project or its permitted read-only Skill packages. `
-      + `Writes must remain under ${projectDir}. Use a path relative to the project root, `
+      + 'Writes must stay inside the project. Use a path relative to the project root, '
       + 'or read a Skill at the exact installed location listed in available_skills.');
     this.name = 'LaneCodingPathError';
   }
@@ -18,7 +31,7 @@ function within(target: string, root: string): boolean {
 
 export function containPath(absolutePath: string, projectDir: string): string {
   const target = path.resolve(absolutePath);
-  if (!within(target, path.resolve(projectDir))) throw new LaneCodingPathError(absolutePath, projectDir);
+  if (!within(target, path.resolve(projectDir))) throw new LaneCodingPathError(absolutePath);
   return target;
 }
 
@@ -90,13 +103,13 @@ export async function createLaneCodingPaths(projectDir: string, trustedSkillRoot
     const allowed = writing ? [project] : skillsOnly ? skills : [project, ...skills];
     // Canonical aliases (e.g. /var -> /private/var) remain usable after pi resolves a previous path.
     const roots = allowed.filter((root) => within(target, root.lexical) || within(target, root.canonical));
-    if (!roots.length) throw new LaneCodingPathError(targetPath, project.lexical);
+    if (!roots.length) throw new LaneCodingPathError(targetPath);
     const canonical = await canonicalTarget(target, missing);
     if (writing && skills.some((root) => within(canonical, root.canonical))) {
-      throw new LaneCodingPathError(targetPath, project.lexical);
+      throw new LaneCodingPathError(targetPath);
     }
     if (!roots.some((root) => within(canonical, root.canonical))) {
-      throw new LaneCodingPathError(targetPath, project.lexical);
+      throw new LaneCodingPathError(targetPath);
     }
     return canonical;
   };

@@ -15,6 +15,11 @@ export type AssetImportProgress = {
   copiedBytes: number
   totalBytes: number
   previewUrl?: string
+  /**
+   * 这一刻在干什么。老主进程不发这一格 → 按 `copying` 读，行为和以前一样。
+   * 类型直接取自事件契约：阶段词表只有那一个 owner，抄一份就是等着两边哪天不一样。
+   */
+  phase?: AssetLocalizationEvent['phase']
 }
 
 type AssetImportProgressState = {
@@ -68,6 +73,7 @@ export function ensureAssetImportProgressBridge(): void {
     useAssetImportProgressStore.getState().report(event.nodeId, {
       copiedBytes: event.copiedBytes,
       totalBytes: event.totalBytes,
+      ...(event.phase ? { phase: event.phase } : {}),
       ...(event.previewUrl ? { previewUrl: event.previewUrl } : {}),
     })
   })

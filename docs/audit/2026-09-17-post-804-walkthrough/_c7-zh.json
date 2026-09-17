@@ -1,0 +1,28 @@
+{
+  "findings": [
+    {
+      "id": "C7-intake",
+      "verdict": "issue",
+      "text": "出厂包里上报端点配置状态：{\"schemaVersion\":1,\"enabled\":false,\"endpointMode\":\"nomi\",\"consentedAt\":null,\"installSessionId\":null,\"endpointConfigured\":false,\"status\":\"disabled\"}"
+    },
+    {
+      "id": "C7-dupname",
+      "verdict": "issue",
+      "text": "同一分钟建的两个项目名：[\"继续创作\",\"继续创作\"] → 完全相同，列表里分不出来",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c7-zh-04-two-projects.png"
+    },
+    {
+      "id": "C7-rawkeys",
+      "verdict": "ok",
+      "text": "中文界面里漏出的原始 i18n key 0 条：无",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c7-zh-05-final.png"
+    },
+    {
+      "id": "C7-ascii",
+      "verdict": "ok",
+      "text": "中文界面里的纯英文短句 0 条：无"
+    }
+  ],
+  "rawKeys": [],
+  "ascii": []
+}

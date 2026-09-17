@@ -1,0 +1,35 @@
+[
+  {
+    "id": "C2-A-wrongkey",
+    "verdict": "ok",
+    "text": "抽屉仍打开=true；页=platformConnect；首个新文案 1040ms；新文案=保存失败：密钥验证失败，请检查密钥和权限后重试。原密钥和连接已保留。",
+    "shot": "docs/audit/2026-09-17-post-804-walkthrough/c2-zh-A-wrongkey-result.png"
+  },
+  {
+    "id": "C2-A-wrongkey-key",
+    "verdict": "issue",
+    "text": "界面上能看出 key 存没存：看不出来"
+  },
+  {
+    "id": "C2-B-fake-relay",
+    "verdict": "issue",
+    "text": "抽屉仍打开=true；页=add；首个新文案 60501ms；新文案=（一个字都没多）",
+    "shot": "docs/audit/2026-09-17-post-804-walkthrough/c2-zh-B-fake-relay-result.png"
+  },
+  {
+    "id": "C2-B-fake-relay-key",
+    "verdict": "issue",
+    "text": "界面上能看出 key 存没存：看不出来"
+  },
+  {
+    "id": "C2-C-offline",
+    "verdict": "issue",
+    "text": "抽屉仍打开=true；页=add；首个新文案 60501ms；新文案=（一个字都没多）",
+    "shot": "docs/audit/2026-09-17-post-804-walkthrough/c2-zh-C-offline-result.png"
+  },
+  {
+    "id": "C2-C-offline-key",
+    "verdict": "issue",
+    "text": "界面上能看出 key 存没存：看不出来"
+  }
+]

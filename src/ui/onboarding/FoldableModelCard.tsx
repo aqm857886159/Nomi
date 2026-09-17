@@ -92,7 +92,10 @@ export function FoldableModelCard({
         </span>
         <span className="flex-1 min-w-0">
           <span className="block text-body-sm font-semibold text-nomi-ink truncate">{name}</span>
-          <span className="block text-caption text-nomi-ink-40 truncate">{subtitle}</span>
+          {/* 副标题常常是一串枚举（「让 Claude Code / Claude Desktop / Codex / Cursor /
+              WorkBuddy 帮…」），一行永远放不下。截成省略号等于把信息丢了而用户还不知道丢了什么
+              （2026-09-17，W-16）——折两行、并把整句挂 title。 */}
+          <span className="block text-caption text-nomi-ink-40 line-clamp-2" title={subtitle}>{subtitle}</span>
         </span>
         {badge ? <span className="shrink-0">{badge}</span> : null}
         <span

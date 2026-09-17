@@ -100,7 +100,7 @@ const POLICY_CODES = new Set([
   'legacy_path_forbidden', 'feature_disabled', 'phase_not_ready', 'not_ready',
   'capability_invocation_unverified', 'capability_authority_invalid', 'capability_input_invalid',
   'capability_policy_stale', 'capability_output_invalid', 'capability_timeout',
-  'capability_cancelled', 'capability_execution_failed',
+  'capability_cancelled', 'capability_execution_failed', 'capability_unsupported',
   'project_session_unavailable', 'project_selection_denied', 'project_identity_unavailable',
   'human_approval_required', 'receipt_invalid', 'receipt_expired',
   'lease_required', 'lease_invalid', 'project_scope_changed', 'project_binding_stale', 'lease_expired', 'lease_revoked',
@@ -115,7 +115,7 @@ const POLICY_CODES = new Set([
 const SAFE_CANVAS_READ_CODES = new Set([
   'capability_invocation_unverified', 'capability_authority_invalid', 'capability_input_invalid',
   'capability_policy_stale', 'capability_output_invalid', 'capability_timeout',
-  'capability_cancelled', 'capability_execution_failed',
+  'capability_cancelled', 'capability_execution_failed', 'capability_unsupported',
   'project_identity_unavailable', 'project_binding_stale',
   'surface_port_suspended', 'surface_port_unavailable', 'surface_port_stale', 'surface_owner_mismatch',
   'node_not_found', 'unknown_node_kind', 'invalid_edge_mode', 'document_not_found', 'project_not_found',

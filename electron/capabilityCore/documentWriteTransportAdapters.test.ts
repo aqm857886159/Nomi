@@ -61,13 +61,24 @@ describe("document.write Pi transport", () => {
     expect(test.write).toHaveBeenCalledWith(expect.objectContaining({ operation, content: "new text" }));
   });
 
-  it("fails closed for a non-document target and after disposal", async () => {
+  // 用户站在画布上（回合 target 是 canvas）：文稿写落到整篇，不再当成「目标陈旧」拒掉。
+  it("addresses the whole document when the turn's target is another surface", async () => {
+    const test = await setup();
+    const prepared = await test.adapter.prepare(
+      { toolCallId: "tool", toolName: DOCUMENT_WRITE_ALIASES.append, args: { content: "x" } },
+      { documentId: "document-a", target: { kind: "canvas", nodeIds: [] }, preconditions: { document: { revision: 1 } } },
+      new AbortController().signal,
+    );
+    expect(prepared?.invocation.target).toEqual({ kind: "document", documentId: "document-a", anchor: { kind: "whole-document" } });
+  });
+
+  it("fails closed for a document target of another document and after disposal", async () => {
     const test = await setup();
     await expect(test.adapter.prepare(
       { toolCallId: "tool", toolName: DOCUMENT_WRITE_ALIASES.append, args: { content: "x" } },
-      { documentId: "document-a", target: { kind: "canvas", nodeIds: [] }, preconditions: {} },
+      { documentId: "document-a", target: { kind: "document", documentId: "document-b", anchor: { kind: "whole-document" } }, preconditions: {} },
       new AbortController().signal,
-    )).rejects.toMatchObject({ message: "document_target_stale" });
+    )).rejects.toMatchObject({ message: "capability_input_invalid" });
     test.adapter.dispose();
     await expect(test.adapter.execute({} as never, new AbortController().signal)).resolves.toEqual({
       ok: false,

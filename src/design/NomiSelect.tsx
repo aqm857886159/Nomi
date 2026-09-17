@@ -76,6 +76,15 @@ export type NomiSelectProps = {
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
   /**
+   * 下拉朝哪边长。默认 `start`（左对齐触发器，向右长）。
+   *
+   * `end` 用在**窄列里靠右的触发器**上（2026-09-17，W-05）：下拉宽度是内容驱动的
+   * （`width="max-content"`，最宽可到 280/380px），而分镜行所在的列在 1280 视口下只有 ~570px。
+   * 左对齐 + 向右长 = 浮层画到右侧 Agent 面板上，盖住那里的卡。floating-ui 的 `shift`
+   * 钳的是**视口**边界，不是这一列的边界，所以它不会帮忙。右对齐让它朝列内长。
+   */
+  dropdownAlign?: 'start' | 'end'
+  /**
    * 列表底部的一行动作——**不是一个选项**，点它不选中任何值。
    *
    * 给「在这个列表本身上做点什么」用（第一个用例：模型框底部的「隐藏模型」）。与「更多」那行
@@ -128,6 +137,7 @@ export function NomiSelect({
   className,
   searchable = false,
   portalTarget,
+  dropdownAlign = 'start',
   footerAction,
   hiddenNote,
 }: NomiSelectProps): JSX.Element {
@@ -167,7 +177,7 @@ export function NomiSelect({
       // 选项标签（auto/1:1/16:9…）被 truncate 成空 → 看着「点开是空白」。改 max-content 后
       // 下拉跟着最长选项自然撑开；超长模型名由 maxWidth + 选项内 truncate 兜底，不会撑成怪物。
       width="max-content"
-      position="bottom-start"
+      position={dropdownAlign === 'end' ? 'bottom-end' : 'bottom-start'}
       offset={6}
       zIndex={NOMI_OVERLAY_Z_INDEX.popover}
       middlewares={{ flip: true, shift: true }}

@@ -127,12 +127,17 @@ export default function ShotComposerBar({
 
   return (
     <div
+      // ⚠️ 这一条**永远一行**（2026-09-06 用户逐字拍板，见 StoryboardShotRow.structure.test.ts）：
+      // 「装不下就整表换两行」试过并被否掉——它把一枚胶囊的溢出换成了全表行高抖动。
+      // 2026-09-17 的 W-03（1280 视口下这条带被右缘切掉）**不在这里修**：真正的原因是这一列
+      // 只有 ~570px，而行内固定列吃掉 415px。那是列宽的问题，改法见 PR 正文里的对比表。
       className="relative flex min-w-0 flex-nowrap items-center gap-1 border-t border-nomi-line-soft px-2 py-1.5"
       data-storyboard-composer-bar="true"
     >
       {modelSelectOptions ? (
         <Chip shrink={SHRINK.model}>
           <NomiSelect
+            dropdownAlign="end"
             ariaLabel={isImageShot ? t('storyboardEditor.imageModel') : t('storyboardEditor.videoModel')}
             size="xs"
             triggerMaxWidth={150}
@@ -148,6 +153,7 @@ export default function ShotComposerBar({
       {modelSelect.providerOptions.length > 1 ? (
         <Chip shrink={SHRINK.provider}>
           <NomiSelect
+            dropdownAlign="end"
             ariaLabel={t('storyboardEditor.provider')}
             size="xs"
             triggerMaxWidth={110}
@@ -161,6 +167,7 @@ export default function ShotComposerBar({
       {modeOptions.length > 0 ? (
         <Chip shrink={SHRINK.mode}>
           <NomiSelect
+            dropdownAlign="end"
             ariaLabel={t('storyboardEditor.shotParams.mode')}
             size="xs"
             triggerMaxWidth={120}
@@ -177,6 +184,7 @@ export default function ShotComposerBar({
         <Chip shrink={SHRINK.aspect}>
           <span className="flex min-w-0 items-center" data-storyboard-aspect-override={aspect}>
             <NomiSelect
+              dropdownAlign="end"
               ariaLabel={t('storyboardEditor.row.aspectAria')}
               size="xs"
               value={aspect}
@@ -192,6 +200,7 @@ export default function ShotComposerBar({
 
       <Chip shrink={SHRINK.duration}>
         <NomiSelect
+          dropdownAlign="end"
           ariaLabel={isImageShot ? t('storyboardEditor.row.stayHint') : t('storyboardEditor.duration')}
           size="xs"
           value={String(effectiveDuration)}
@@ -203,6 +212,7 @@ export default function ShotComposerBar({
       {inlineParams.map((control) => (
         <Chip key={control.key} shrink={SHRINK.param}>
           <NomiSelect
+            dropdownAlign="end"
             ariaLabel={translateModelDisplayText(control.label)}
             size="xs"
             triggerMaxWidth={110}

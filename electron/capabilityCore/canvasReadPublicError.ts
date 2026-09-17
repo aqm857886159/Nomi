@@ -15,6 +15,8 @@ const PUBLIC_CODES = new Set([
   "capability_timeout",
   "capability_cancelled",
   "capability_execution_failed",
+  // 文稿端口在基线态（创作页未挂载）对 selection / 定位锚说「做不了」，外部宿主要看到真码。
+  "capability_unsupported",
   "surface_port_suspended",
   "surface_port_unavailable",
   "surface_port_stale",

@@ -250,10 +250,63 @@ function scanFile(fileName: string): Finding[] {
     // 已注册前缀的「前缀/后缀存在性」由 staleRegisteredPrefixes 统一校验,不逐调用点重复报。
   }
 
+  // ③ `… satisfies TranslationKey` / `satisfies Record<string, TranslationKey>` 里的整键字面量。
+  //
+  // 为什么必须单列一条(2026-09-17,W-02):`src/i18n/translationKey.ts` 的头注释承诺「整键字面量
+  // 就是死键门岗认的精确引用」,而**这道门岗当时只认 `t()` 的第一个实参**——存进常量表、隔一层
+  // 才 `t(TABLE[x])` 的键谁都不看。`TranslationKey = ParseKeys` 对未知点分键回落 string(见本文件
+  // 开头第 ③ 条),于是 `satisfies` 也拦不住。两道都以为对方管着,结果
+  // `ASSET_IMPORT_REJECTION_TEXT_KEY.unsupported = 'assetLibrary.skippedUnsupported'` 指着一条
+  // **词典里根本没有的键**出厂,反馈卡把原始 key 印给用户、还当作 summary 发进了报文。
+  //
+  // 判据是语法级的(类型文本里出现 `TranslationKey`),不做类型检查:写这个 `satisfies` 的人已经
+  // 明确宣告「这些字面量是翻译键」,门岗照着这句宣告验就够,不必把 tsc 再跑一遍。
+  //
+  // 一个 `satisfies` 类型里未必**每一格**都是键:
+  //   `[{ value: 'append', labelKey: 'generationCommon.composer.append' }] satisfies readonly { value: TextGenMode; labelKey: TranslationKey }[]`
+  // 只有 `labelKey` 是键,`value` 是本地枚举。所以先从类型里取出「哪些属性名被声明成 TranslationKey」;
+  // 类型里根本没有具名成员(`satisfies TranslationKey`、`satisfies Record<string, TranslationKey>`)
+  // 才退回「所有值都是键」。
+  function translationKeyProperties(type: ts.TypeNode): Set<string> | null {
+    const named = new Set<string>()
+    let sawMembers = false
+    const walk = (node: ts.Node): void => {
+      if (ts.isPropertySignature(node) && node.name && node.type) {
+        sawMembers = true
+        if (/\bTranslationKey\b/.test(node.type.getText(sourceFile))) named.add(node.name.getText(sourceFile).replace(/^['"`]|['"`]$/g, ''))
+        return
+      }
+      ts.forEachChild(node, walk)
+    }
+    walk(type)
+    return sawMembers ? named : null
+  }
+
+  function collectSatisfiedKeys(node: ts.Node, named: Set<string> | null, kind: string): void {
+    if (ts.isPropertyAssignment(node)) {
+      // 属性名不是键(`{ unsupported: 'assetLibrary.x' }` 里 `unsupported` 是本地分类名)。
+      const name = node.name.getText(sourceFile).replace(/^['"`]|['"`]$/g, '')
+      if (named && !named.has(name)) return
+      collectSatisfiedKeys(node.initializer, null, kind)
+      return
+    }
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      // 具名模式下,不在任何属性里的裸字面量不是键(数组里直接写 `['a','b'] satisfies {…}[]` 不合法,
+      // 走到这里的只有已经确认过属性名的那一支)。
+      if (!named) checkStaticKey(node.text, lineOf(sourceFile, node), kind)
+      return
+    }
+    ts.forEachChild(node, (child) => collectSatisfiedKeys(child, named, kind))
+  }
+
   function visit(node: ts.Node): void {
     // ① `'i18n:...'` 字符串字面量(chunkBoundary label)——渲染时会 i18n.t(slice('i18n:'.length))。
     if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && node.text.startsWith('i18n:')) {
       checkStaticKey(node.text.slice('i18n:'.length), lineOf(sourceFile, node), 'chunk-label')
+    }
+
+    if (ts.isSatisfiesExpression(node) && /\bTranslationKey\b/.test(node.type.getText(sourceFile))) {
+      collectSatisfiedKeys(node.expression, translationKeyProperties(node.type), 'translation-key-literal')
     }
 
     // ② 翻译函数调用 t(...) / i18n.t(...)

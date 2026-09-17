@@ -1,0 +1,219 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-shipped-feedback-intake-config",
+  "problem_type": "Shipping-time configuration read only from runtime environment",
+  "symptom": "Packaged 0.21.0 reports endpointConfigured:false; a user who consented, wrote feedback and received receipt NF-0917-0001 sent nothing to the Worker.",
+  "direct_cause": "intakeEndpoint()/intakeToken() read only process.env, and the packaged app inherits the end user's desktop environment, where NOMI_INTAKE_* never exist. No packaging or CI step injected them.",
+  "class_root": "A value that must travel with the artifact was expressed as a runtime environment lookup, and every existing check proved something other than 'the shipped artifact carries it' (walkthroughs seeded env themselves, unit tests covered parsing rules, packaging verified media and MCP only).",
+  "affected_population": [
+    "Every packaged macOS and Windows build of the feedback loop: usage events, agent trajectories and one-tap feedback all leave through this single outbound door"
+  ],
+  "scope_paths": [
+    ".github/workflows/desktop-preview.yml",
+    ".github/workflows/desktop-rc.yml",
+    "electron/telemetry/intakeClient.ts",
+    "scripts/build-electron.mjs",
+    "scripts/check-packaged-intake.mjs",
+    "scripts/write-intake-config.mjs"
+  ],
+  "entry_points": [
+    "Settings telemetry status projection (telemetryIpc)",
+    "Feedback send (feedbackIpc)",
+    "Usage event and trajectory outbox flush (intakeQueue, telemetryOutbox)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app#appispackaged-readonly",
+      "checked_at": "2026-09-17",
+      "purpose": "A packaged app runs in the end user's environment; build-machine environment variables are not carried into it."
+    }
+  ],
+  "invariants": [
+    "Configuration that must ship with the artifact is baked into the artifact at build time, never read from the end user's environment",
+    "An explicitly defined environment variable still wins, including the empty string, so walkthroughs can switch the shipped endpoint off",
+    "A development build stays unconfigured and the settings page says so in plain words",
+    "A release artifact with an empty endpoint or token fails the packaging job"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeClient.ts",
+      "line": 118,
+      "symbol": "intakeEndpoint"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeClient.ts",
+      "line": 131,
+      "symbol": "intakeEndpoint"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeClient.ts",
+      "line": 118,
+      "symbol": "intakeToken"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeClient.ts",
+      "line": 132,
+      "symbol": "intakeToken"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "line": 110,
+      "symbol": "intakeConfigured"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/telemetryIpc.ts",
+      "line": 12,
+      "symbol": "intakeConfigured"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "line": 101,
+      "symbol": "intakeConfigured"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/telemetryOutbox.ts",
+      "line": 53,
+      "symbol": "intakeConfigured"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/telemetryOutbox.ts",
+      "line": 73,
+      "symbol": "intakeConfigured"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/write-intake-config.mjs",
+      "line": 26,
+      "symbol": "writeIntakeConfig"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/build-electron.mjs",
+      "line": 7,
+      "symbol": "writeIntakeConfig"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-packaged-intake.mjs",
+      "line": 37,
+      "symbol": "readPackagedIntakeConfig"
+    },
+    {
+      "kind": "read",
+      "path": ".github/workflows/desktop-rc.yml",
+      "line": 79,
+      "symbol": "NOMI_INTAKE_ENDPOINT"
+    },
+    {
+      "kind": "read",
+      "path": ".github/workflows/desktop-preview.yml",
+      "line": 40,
+      "symbol": "NOMI_INTAKE_ENDPOINT"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 14,
+    "why_not": "The nine runtime doors are three readers of one resolver pair, not nine owners: intakeEndpoint and intakeToken are the only places that answer 'where does it go', and intakeConfigured's five call sites merely ask them; the fix adds a single fallback inside those two resolvers, so all nine change together by construction. Merging the five intakeConfigured callers would collapse settings projection, feedback send and two outbox flushes into one function, a different concern from where the endpoint comes from. The five build-side doors are the new one-way chain (write at build, read at package, read in each packaging workflow) and cannot be merged without putting the artifact check back on the build machine's environment, which is exactly the check that passed while the shipped build was empty."
+  },
+  "generality_proof": "Every consumer of the endpoint and token goes through intakeEndpoint()/intakeToken(); no caller reads process.env.NOMI_INTAKE_* directly (verified by repository-wide grep). Baking the value into the resolvers therefore reaches all three cargo kinds at once.",
+  "shared_boundaries": [
+    {
+      "path": "electron/telemetry/intakeClient.ts",
+      "symbol": "intakeConfigPath",
+      "responsibility": "Own the single on-disk location of the baked configuration so build, runtime and gate cannot drift apart"
+    },
+    {
+      "path": "scripts/write-intake-config.mjs",
+      "symbol": "writeIntakeConfig",
+      "responsibility": "Turn build-time environment into an artifact file exactly once, during the electron build"
+    },
+    {
+      "path": "scripts/check-packaged-intake.mjs",
+      "symbol": "readPackagedIntakeConfig",
+      "responsibility": "Read the shipped configuration out of the packaged artifact itself, so 'did it ship configured' is answered by the artifact and never by the build machine's environment"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/settings/telemetryIpc.ts",
+      "entry_point": "intakeConfigured",
+      "disposition": "enforced",
+      "evidence": "Reads the same resolvers; packaged status now reports configured once the artifact carries the value"
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "entry_point": "intakeConfigured",
+      "disposition": "enforced",
+      "evidence": "Same resolvers; queued events flush in a packaged build instead of resting locally forever"
+    },
+    {
+      "path": "electron/feedback/feedbackIpc.ts",
+      "entry_point": "intakeConfigured",
+      "disposition": "enforced",
+      "evidence": "Same resolvers; the one-tap feedback path is the one the walkthrough exercised"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any value that must travel with the artifact (endpoint, publish token, default service address, build-time switch) can be written as a process.env lookup and will then be silently absent in every shipped build.",
+    "same_class_scan": [
+      "door-map intakeEndpoint intakeToken intakeConfigured",
+      "grep -rn 'process.env' electron/ for values that must ship with the artifact rather than describe the host machine"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-packaged-intake.mjs",
+    "invariant": "The endpoint and token inside the packaged app.asar are both non-empty.",
+    "failure_mode": "The packaging job fails before the artifact can be promoted; the message names the missing field and the secret to supply.",
+    "exception_policy": "none",
+    "strategy": "Assert on the artifact, never on the build machine's environment: reading the env on the packaging host is exactly the check that passed while the shipped build was empty.",
+    "artifacts": [
+      ".github/workflows/desktop-preview.yml",
+      ".github/workflows/desktop-rc.yml",
+      "scripts/check-packaged-intake.mjs",
+      "scripts/write-intake-config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/telemetry/intakeClient.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/telemetry/intakeClient.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/telemetry/intakeClient.ts"
+    ],
+    "rationale": "The environment-only lookup is gone; the resolvers now fall back to the baked artifact file, and no parallel configuration path remains."
+  },
+  "migration": "No persisted data changes. An older build with no baked file reads as unconfigured, which is the same behaviour it had before.",
+  "residual_risks": [
+    "The Cloudflare Worker is not deployed yet, so NOMI_INTAKE_ENDPOINT is unset as a repository secret; the new packaging gate will hold release candidates red until the user deploys it and sets that secret. That is the intended fail-closed state, not a regression."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/telemetry/intakeClient.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/telemetry/intakeClient.test.ts"
+    ],
+    "rationale": "The resolver pair owns 'where does the cargo go'; the baked-file fallback and the env-wins-when-defined rule both live there and are covered by that test file."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is involved; the fix is entirely inside this repository's own modules.",
+    "exit_criteria": []
+  }
+}

@@ -52,8 +52,18 @@ function claudeJson(): string {
   return path.join(homeDir, '.claude.json')
 }
 /** 宿主「已安装」= 注册表登记的安装痕迹存在；测试先把痕迹摆出来，没装的客户端本来就不许写。 */
+/**
+ * 在隔离 HOME 里造一个**真的装过**的宿主。
+ *
+ * 2026-09-17（W-15）之前这里只 `mkdirSync` 一个空目录——那正好是当时的判据：
+ * 「配置目录在不在」。走查用 5 个空目录让 5 个客户端全都显示成可一键接入，
+ * 判据于是收紧成「痕迹要非空」，这个夹具也必须跟着变成真的痕迹，
+ * 否则它测的是一个产品里已经不存在的状态（夹具不跟判据走，就是在给自己发通行证）。
+ */
 function installHost(dir: string): void {
-  fs.mkdirSync(path.join(homeDir, dir), { recursive: true })
+  const root = path.join(homeDir, dir)
+  fs.mkdirSync(root, { recursive: true })
+  fs.writeFileSync(path.join(root, 'installed-marker'), '1')
 }
 
 beforeEach(() => {

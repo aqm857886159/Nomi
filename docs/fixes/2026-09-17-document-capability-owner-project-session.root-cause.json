@@ -1,0 +1,235 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-document-capability-owner-project-session",
+  "problem_type": "A capability whose existence was bound to one React component's mount lifecycle, so its absence was reported as staleness",
+  "symptom": "Cold start into the canvas (the creation page never mounted) → the agent's read_script fails with surface_port_stale, the model follows the 'read the surface again and retry' advice, hits the same wall three times, and the repeated-failure breaker disables the tool for the rest of the session; write_script on the canvas failed earlier still with a bare document_target_stale before reaching the renderer; the same guard served the external MCP host and the in-app apply path.",
+  "direct_cause": "document.read / document.write were served from useWorkbenchStore.creationDocumentTools, a nullable field whose only non-null publisher was WorkbenchEditor.tsx's useEffect; NomiStudioApp's surface handlers folded `!tools` (never registered) and `activeDocumentId !== documentId` (truly stale) into one code; the composer only attached document preconditions on creation/storyboard surfaces; the breaker only reset on a tool outcome.",
+  "class_root": "The owner of a renderer_required capability was a view component instead of the project session that already owns the data (workbenchDocuments); everything downstream then had to guess whether the view was mounted, and every guess was reported with a code that means something else.",
+  "affected_population": [
+    "lane read_script / write_script from the agent panel on the canvas, preview and storyboard surfaces",
+    "external MCP hosts calling nomi_document_read / nomi_document_edit against a window that cold-started into the canvas",
+    "the in-app capability apply path for document.write",
+    "every lane tool, through the breaker that never recovered on user action"
+  ],
+  "scope_paths": [
+    "src/workbench/project/documentSessionPort.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneRepeatedFailure.mts",
+    "electron/capabilityCore/documentWriteTransportAdapters.ts",
+    "scripts/check-capability-lifecycle.mjs"
+  ],
+  "entry_points": [
+    "registerProjectCanvasReadSurface document read/write handlers (src/workbench/NomiStudioApp.tsx)",
+    "handleCapabilityApply document.write (src/workbench/capability/capabilityApplyHandler.ts)",
+    "composer captureSendContext (src/workbench/ai/v4/useAgentPanelV4Actions.ts)",
+    "lane document.write prepare (electron/agentLane/laneDesktopTools.ts)",
+    "pi harness before_tool / after_tool breaker (electron/agentLane/laneHost.mts)"
+  ],
+  "internal_only_reason": "Which layer of this application publishes a capability, and how its own lane breaker recovers, are decisions internal to this repository; the MCP tool names, inputs and outputs are unchanged and no external specification governs them.",
+  "invariants": [
+    "A renderer_required capability whose data lives in the project session is available from the moment the project is open, regardless of which workspace view has ever been mounted",
+    "A view component may only enhance a capability the session already provides; unmounting it returns the baseline, never null",
+    "surface_port_stale means the target identity moved (another document/project); 'this surface cannot do that scope or position' is capability_unsupported",
+    "The repeated-failure breaker is cleared by the next user message: a user action is a turn boundary"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "line": 45,
+      "symbol": "getDocumentSessionPort"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "line": 412,
+      "symbol": "getDocumentSessionPort"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "line": 137,
+      "symbol": "getDocumentSessionPort"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "line": 149,
+      "symbol": "getDocumentSessionPort"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "line": 201,
+      "symbol": "overrideDocumentSessionPort"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "line": 226,
+      "symbol": "readDocumentThroughSessionPort"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "line": 227,
+      "symbol": "writeDocumentThroughSessionPort"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "line": 76,
+      "symbol": "createPiDocumentWriteTransportAdapter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/documentWriteTransportAdapters.ts",
+      "line": 77,
+      "symbol": "documentTarget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "line": 349,
+      "symbol": "createLaneRepeatedFailureTracker"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRepeatedFailure.mts",
+      "line": 24,
+      "symbol": "LaneRepeatedFailureTracker"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 11,
+    "why_not": "Before: `node scripts/door-map.mjs creationDocumentTools` = 6 read doors, 0 write doors (the two setter call sites in WorkbenchEditor.tsx:208/212 and the release null were object writes the door map does not count). After, the document port itself has 5 doors: one owner getDocumentSessionPort() with four readers that are four distinct capability entries — the composer (preconditions at send time), the apply path, and the surface read / write handlers — not four copies of one decision; merging them would route the composer through the surface port, which is a transport, not a reader. Its single write door is the editor's enhancement override; the baseline needs no write door because it is derived from the store. The remaining doors are the two surface handler registrations in NomiStudioApp (the renderer's entry for lane and MCP), the lane-side document write adapter and its target derivation (where document_target_stale used to be thrown), and the breaker tracker's construction and type in the lane host — each a different state, listed so every touched production file is on the table.",
+    "scan_command": "node scripts/door-map.mjs getDocumentSessionPort overrideDocumentSessionPort readDocumentThroughSessionPort writeDocumentThroughSessionPort createPiDocumentWriteTransportAdapter documentTarget createLaneRepeatedFailureTracker && node scripts/door-map.mjs electron/agentLane/laneRepeatedFailure.mts"
+  },
+  "generality_proof": "The four consumers (lane read/write, MCP, apply) all reach the document through getDocumentSessionPort(); the store field they used to read no longer exists, so no caller can observe 'not mounted' any more. check:capability-lifecycle scans every renderer execution path for any store field published only by a .tsx useEffect, so a sibling capability re-binding itself to a view is caught before merge; the census confirmed the other 22 contracts already live in the session store or main.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "symbol": "getDocumentSessionPort",
+      "responsibility": "The one place that decides what document port is live: the session baseline derived from workbenchDocuments, or the editor's enhancement while it is mounted"
+    },
+    {
+      "path": "electron/agentLane/laneRepeatedFailure.mts",
+      "symbol": "createLaneRepeatedFailureTracker",
+      "responsibility": "The one definition of 'consecutive' for the repeated-failure breaker, including the reset on a new user message"
+    },
+    {
+      "path": "scripts/check-capability-lifecycle.mjs",
+      "symbol": "scanCapabilityLifecycle",
+      "responsibility": "Machine check that no renderer execution path reads a store field published only by a component useEffect"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "registerProjectCanvasReadSurface document handlers",
+      "disposition": "enforced",
+      "evidence": "Both handlers are now readDocumentThroughSessionPort / writeDocumentThroughSessionPort; the `!tools ||` half-guard is deleted and only activeDocumentId !== documentId remains stale"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "document.write apply case",
+      "disposition": "enforced",
+      "evidence": "Reads getDocumentSessionPort() instead of the deleted store field; baseline test appends to the store with no editor mounted"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "entry_point": "captureSendContext",
+      "disposition": "enforced",
+      "evidence": "isDocumentSurface narrowing deleted; preconditions always come from the owner's readState(); test asserts document preconditions on the generation surface"
+    },
+    {
+      "path": "electron/capabilityCore/documentWriteTransportAdapters.ts",
+      "entry_point": "prepare",
+      "disposition": "enforced",
+      "evidence": "A non-document turn target addresses the whole document; document_target_stale removed from the code table and the throw site"
+    },
+    {
+      "path": "electron/capabilityCore/canvasReadSurfaceRegistry.ts",
+      "entry_point": "binding comparisons that throw surface_port_stale",
+      "disposition": "not-affected",
+      "evidence": "These compare real binding identities (bindingId/projectId/generation/webContentsId/portRevision) and are truly stale; their counts are pinned by src/workbench/project/documentSessionPort.test.ts"
+    },
+    {
+      "path": "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "entry_point": "timeline.read / timeline.write targets",
+      "disposition": "not-affected",
+      "evidence": "Census row 8/9: served from adoptionStorePorts over the session store, never a component field; check:capability-lifecycle finds no component-published read on its path"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any capability can be re-bound to a view by publishing its port from a component effect; the failure is silent (a null field) and surfaces as a misleading error code on a user path the developer never walks (cold start into the canvas). Four consumer paths, three error codes and six human paths shared this one root.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs creationDocumentTools",
+      "capability-lifecycle census of all 24 contracts: publisher + lifecycle per capability (scratchpad batch2/capability-lifecycle-census.md); only document.read/document.write were view-scoped",
+      "node scripts/check-capability-lifecycle.mjs on the pre-fix tree (3 red lines) and on this tree (0)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/check-capability-lifecycle.mjs",
+    "invariant": "No renderer execution path (surface port handlers, capability apply handler) reads a workbench store field whose only non-null publisher is a .tsx component useEffect.",
+    "failure_mode": "The gate is hard-zero and runs in gates:contracts; it parses the TypeScript AST, so renaming the field or the setter does not evade it; if it finds no execution-path file at all it throws instead of passing.",
+    "exception_policy": "none",
+    "strategy": "Move the owner to the project session layer and derive the baseline from data the session already holds; make the component an override; then let the machine refuse the old shape.",
+    "artifacts": [
+      "scripts/check-capability-lifecycle.mjs",
+      "scripts/check-capability-lifecycle.node-test.mjs",
+      "src/workbench/project/documentSessionPort.ts",
+      "electron/agentLane/laneRepeatedFailure.mts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/documentSessionPort.test.ts",
+    "src/workbench/capability/capabilityApplyHandler.documentWrite.test.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
+    "electron/capabilityCore/documentWriteTransportAdapters.test.ts",
+    "electron/agentLane/laneRepeatedFailure.test.ts",
+    "tests/agent-runtime/lane-resilience.test.mts",
+    "scripts/check-capability-lifecycle.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/documentSessionPort.test.ts",
+    "scripts/check-capability-lifecycle.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/workbenchTypes.ts",
+      "src/workbench/creation/WorkbenchEditor.tsx",
+      "electron/agentLane/laneDesktopTools.ts",
+      "electron/capabilityCore/documentWriteTransportAdapters.ts"
+    ],
+    "rationale": "creationDocumentTools / setCreationDocumentTools / CreationDocumentTools (with its never-called insertAtCursor/replaceSelection/appendToEnd), the editor's private revision counter, the composer's isDocumentSurface narrowing, the bare Error('document_target_stale') and the document_target_stale code-table entry are all deleted in the same change; there is no fallback path that consults a component to decide whether the document exists."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is introduced; @tiptap/core generateText was already a transitive dependency of the editor kernel.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Document revision is now the document's updatedAt stamp instead of a per-mount counter; preconditions are captured and checked within one session, so no stored value depends on the old counter.",
+  "residual_risks": [
+    "Model-facing advice strings (surfacePortFailureAdvice, the breaker block reason) are still English and reach the panel untranslated — the same family as TODO T-AG-16; not changed here.",
+    "The error-code table exists in six copies (mcpToolErrorResults ×2 / rpcError / canvasReadPublicError / documentRead|WriteTransportAdapters / timelineTransportAdapters / surfacePortBinding); this change adds capability_unsupported where a real branch now throws it and removes document_target_stale, but does not merge the copies (R14.1 finding, reported to the coordinator)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/project/",
+    "has_tests": true,
+    "tests": [
+      "src/workbench/project/documentSessionPort.test.ts"
+    ],
+    "rationale": "The project session layer already owns workbenchDocuments and their hydrate/release lifecycle; a capability over that data belongs to the same owner, and its tests exercise cold-start reads and writes with no editor mounted."
+  }
+}

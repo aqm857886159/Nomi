@@ -43,11 +43,28 @@ export function DirectScriptDraftForm({
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState('')
   const baseUrlValid = !baseUrl.trim() || /^https?:\/\//i.test(baseUrl.trim())
-  const ready = Boolean(vendorName.trim() && modelKey.trim() && baseUrlValid && (noApiKey || apiKey.trim()))
+  /**
+   * 还差哪些格。**要的是清单，不是一个布尔**（2026-09-17，W-07）：
+   * 原来这里只算出一个 `ready`，按钮 `disabled={!ready}`，用户点下去 60 秒界面一个字都不多，
+   * 也不说缺什么——「不让点」是最省事的闸，也是最不说话的那种。
+   * 现在按钮照常可点，点了就把还差的东西**逐条说出来**。
+   */
+  const missingFields = [
+    vendorName.trim() ? '' : t('onboardingProviders.customCall.directDraft.vendorName'),
+    modelKey.trim() ? '' : t('onboardingProviders.customCall.directDraft.modelId'),
+    noApiKey || apiKey.trim() ? '' : t('onboardingProviders.customCall.directDraft.apiKey'),
+    baseUrlValid ? '' : t('onboardingProviders.customCall.directDraft.baseUrl'),
+  ].filter(Boolean)
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
-    if (!ready || saving) return
+    if (saving) return
+    if (missingFields.length > 0) {
+      setError(t('onboardingProviders.customCall.directDraft.missingFields', {
+        fields: missingFields.join(t('assetLibrary.listSeparator')),
+      }))
+      return
+    }
     const create = getDesktopBridge()?.modelCatalog.customCallDraftCreate
     if (!create) {
       setError(t('onboardingProviders.customCall.directDraft.unavailable'))
@@ -122,7 +139,8 @@ export function DirectScriptDraftForm({
       {error ? <div role="alert" className="text-caption text-workbench-danger">{error}</div> : null}
       <div className="flex items-center justify-end gap-2 border-t border-nomi-line-soft pt-3">
         <DesignButton type="button" variant="subtle" onClick={onBack}>{t('common.back')}</DesignButton>
-        <DesignButton type="submit" variant="filled" disabled={!ready} loading={saving}>
+        {/* 不再 `disabled`：闸还在（submit 里），但它现在会说话。 */}
+        <DesignButton type="submit" variant="filled" loading={saving} data-direct-script-draft-continue>
           {t('onboardingProviders.customCall.directDraft.continue')}
         </DesignButton>
       </div>

@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-import-progress-finishing-phase",
+  "problem_type": "Progress ratio presented as the whole of a multi-stage operation",
+  "symptom": "Importing a registered 1.317 GB 4K HEVC file: the card sits at 100% for roughly five more seconds before the node lands, which is indistinguishable from a hang.",
+  "direct_cause": "The only signal the card receives is copiedBytes/totalBytes. The work after the last byte (content hash re-reads the whole file, sidecar write, store record, preview adoption) has no representation at all, so the card keeps showing the last ratio it was given: 1.",
+  "class_root": "A single scalar (the copy ratio) was made to stand for a three-stage operation, so the two stages that have no measurable denominator became invisible rather than merely unmeasured.",
+  "affected_population": [
+    "Every local media import that lands on the generation canvas, on both locales, cold and warm start"
+  ],
+  "scope_paths": [
+    "electron/assets/assetImportProgress.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/shared/assets/assetLocalizationEvent.ts",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.ts"
+  ],
+  "entry_points": [
+    "Canvas drag/drop and file picker import (importLocalMediaFilesToGenerationCanvas)",
+    "Asset library upload handing media to the canvas importer"
+  ],
+  "invariants": [
+    "The phase says what is happening now; the ratio says how much of the copy is done; neither stands in for the other",
+    "A stage with no measurable denominator is named, never given an invented percentage",
+    "The finishing stage never rewinds the ratio",
+    "An event without a phase is read as copying, so an older main process behaves exactly as before"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "line": 97,
+      "symbol": "createAssetImportProgressReporter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetImportProgress.ts",
+      "line": 39,
+      "symbol": "createAssetImportProgressReporter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/assets/assetLocalizationEvent.ts",
+      "line": 12,
+      "symbol": "AssetLocalizationEvent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "line": 7,
+      "symbol": "useAssetImportProgressStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/assetImportProgressStore.ts",
+      "line": 33,
+      "symbol": "useAssetImportProgressStore"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 5,
+    "why_not": "One producer, one contract, one store, one renderer: the reporter is constructed in exactly one place and every phase transition leaves through that single instance, the event type is the single vocabulary owner both sides import, the store is the only subscriber and the overlay the only renderer. The count is four because the phase has to cross a process boundary, not because there are four owners of the same decision."
+  },
+  "generality_proof": "All canvas imports, native-path and byte-buffer alike, are fed by this one reporter through the one IPC event; the phase therefore reaches every import surface without a second code path.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/assets/assetLocalizationEvent.ts",
+      "symbol": "AssetLocalizationEvent",
+      "responsibility": "Own the import phase vocabulary so the main-process reporter and the renderer store cannot drift apart"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "entry_point": "NodeImportingOverlay",
+      "disposition": "enforced",
+      "evidence": "The only renderer of import progress; it now branches on phase before it branches on ratio"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/assetImportProgressStore.ts",
+      "entry_point": "report",
+      "disposition": "enforced",
+      "evidence": "Carries the phase through the monotonic clamp without letting a late event rewind it"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any pipeline that reports one measurable stage out of several will make the other stages look like a hang; export, transcode and download share this shape.",
+    "same_class_scan": [
+      "door-map createAssetImportProgressReporter",
+      "Read localFileImport.ts end to end and listed the three stages (prepare/probe/transcode, byte copy, hash+persist+preview adoption) against what the event could express"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/assets/assetLocalizationEvent.ts",
+    "invariant": "The phase vocabulary has exactly one owner and both sides import that type instead of restating the union.",
+    "failure_mode": "Adding a stage on one side without the other stops compiling; the vocabulary gate refuses a second copy of the same member set.",
+    "exception_policy": "none",
+    "strategy": "Name the stage in the contract rather than teaching each renderer to guess it from the ratio.",
+    "artifacts": [
+      "electron/assets/assetImportProgress.ts",
+      "electron/shared/assets/assetLocalizationEvent.ts",
+      "scripts/vocabularies-baseline.json",
+      "src/workbench/generationCanvas/store/assetImportProgressStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/assetImportProgress.test.ts",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/assetImportProgress.test.ts",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx"
+    ],
+    "rationale": "The overlay no longer infers the stage from the ratio alone; there is no second way to decide what the card says."
+  },
+  "migration": "No persisted data changes. The phase field is optional on the wire, so an older main process and a newer renderer keep the previous behaviour.",
+  "residual_risks": [
+    "The cold-start head of the walkthrough (no percentage for the first three seconds) is not addressed here and is recorded as unverified: announce() already emits phase preparing before ffprobe, and the walkthrough sampled percentages only."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/assets/assetLocalizationEvent.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/assets/assetImportProgress.test.ts",
+      "src/workbench/generationCanvas/store/assetImportProgressStore.test.ts"
+    ],
+    "rationale": "The event contract owns the phase vocabulary; the producer test proves the transitions and the store test proves the renderer reads them without rewinding."
+  },
+  "internal_only_reason": "The defect is in this repository's own import pipeline staging and its IPC event shape; no third-party document decides how many stages a Nomi local import has or which of them can be measured.",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is involved; the fix is entirely inside this repository's own modules.",
+    "exit_criteria": []
+  }
+}

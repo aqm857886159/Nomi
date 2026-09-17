@@ -143,7 +143,8 @@ export function createDesktopLaneTools(input: {
       const verbArgs = tool.schema.parse(call.args)
       if (tool.contractId === 'document.write') {
         const context = input.context()
-        if (!context.documentId || !context.target || !context.preconditions) throw new Error('document_target_stale')
+        // 没带文稿身份/前提的回合（不是从项目面板发出的）写不了文稿：这是「不支持」，不是「陈旧」。
+        if (!context.documentId || !context.target || !context.preconditions) throw new Error('capability_unsupported')
         // 传输层按方法词表（insert/replace/append）认路；动词参数 → 契约输入的翻译住在声明上（`toSemanticInput`）。
         const { operation, content } = toSemanticInput(tool, verbArgs as Record<string, unknown>) as { operation: string; content: string }
         const prepared = await documentWrite.prepare({ ...call, toolName: 'nomi_document_edit', args: { operation, content } }, {

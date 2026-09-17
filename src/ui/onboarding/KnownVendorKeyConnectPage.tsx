@@ -187,6 +187,12 @@ export function KnownVendorKeyConnectPage({
             )}
           />
           {error ? <p id={errorId} className="mt-1 text-caption text-workbench-danger">{error}</p> : null}
+          {/* 「这台机器上到底存没存住这把 key」——**从 `saved` 派生**，不是给失败态另写一条文案分支
+              （2026-09-17，W-17）。失败时用户读到的是一句错误话，而界面上没有任何地方回答
+              他真正在问的那件事：那把 key 进去了没有。 */}
+          <p className="mt-1 text-caption text-nomi-ink-40" data-vendor-key-stored={saved ? 'yes' : 'no'}>
+            {t(saved ? 'onboardingProviders.keyOnly.storedYes' : 'onboardingProviders.keyOnly.storedNo', { name: vendorName })}
+          </p>
           <p className="mt-3 text-caption leading-relaxed text-nomi-ink-40">
             {t('onboardingProviders.keyOnly.managedHint')}
           </p>

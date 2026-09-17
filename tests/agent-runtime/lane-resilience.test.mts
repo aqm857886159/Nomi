@@ -409,6 +409,46 @@ test('the same tool failing the same way three times in a row is stopped and tol
     /take a different route|tell the user plainly/);
 });
 
+// 2026-09-17 真机复现：熔断此前只认工具结果，用户照 Agent 的建议去点开文稿页也救不回来。
+// 现在下一条用户消息进入 lane 就清零——同一工具在新回合里能再试；再撞三次照样拦（阳性对照在上一条）。
+test('the streak is cleared by the next user message, so the tool runs again in the new turn', async (t) => {
+  let attempt = 0;
+  const failing = bindLaneTool({
+    name: 'always_fails',
+    contractId: 'document.read',
+    description: 'Always fails the same way; the user message between turns must lift the block.',
+    promptSnippet: 'always fail.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+    effect: 'read',
+    execution: { timeoutMs: LANE_READ_TOOL_TIMEOUT_MS },
+    schema: z.object({}).strict(),
+    examples: [{ when: 'Call it with no arguments:', arguments: {} }],
+  }, async () => {
+    attempt += 1;
+    return { ok: false, failure: { code: 'always', message: 'The shot id does not exist.', nextAction: 'Read the canvas first.' } };
+  });
+  const call = (id: string) => ({ type: 'tool' as const, calls: [{ id, name: 'always_fails', arguments: {} }] });
+  const fixture = await createLaneFixture(t, [
+    call('one'), call('two'), call('three'), call('four'),
+    { type: 'text', text: 'I stopped repeating myself.' },
+    call('five'),
+    { type: 'text', text: 'Tried once more after the user spoke.' },
+  ]);
+  const lane = await fixture.openLane({ ...fixture.options, tools: [failing] });
+
+  await lane.execute({ kind: 'prompt', text: 'Use the tool.' });
+  assert.equal(attempt, 3, 'the fourth call of the first turn is blocked before it runs');
+  await lane.execute({ kind: 'prompt', text: 'I opened the document page. Try again.' });
+
+  const results = toolResults(lane.projection());
+  assert.equal(results.length, 5);
+  const fourth = results[3];
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /failed the same way 3 times in a row/);
+  assert.match(fourth.kind === 'tool-result' ? fourth.text : '', /after the user's next message/);
+  const fifth = results[4];
+  assert.equal(attempt, 4, 'the user message lifted the block: the tool actually ran again');
+  assert.doesNotMatch(fifth.kind === 'tool-result' ? fifth.text : '', /failed the same way/);
+});
+
 test('阳性对照 · three failures that are not the same failure are not treated as a streak', async (t) => {
   let attempt = 0;
   const varying = bindLaneTool({

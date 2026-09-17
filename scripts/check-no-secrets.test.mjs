@@ -142,6 +142,26 @@ describe("不许误报 — 仓库里真实存在的合法 32 位 hex", () => {
   });
 });
 
+describe("公开资源标识字段（wrangler 绑定 id）—— 认得出，但不许赦免整份文件", () => {
+  // 这条判据的存在理由：Cloudflare 规定 secret 不写进 wrangler 配置（走 `wrangler secret put`），
+  // 所以绑定块的 id 结构上不可能是凭证；而且没有账号 API token，光有 id 什么也动不了。
+  // 三条断言把「认得出」和「赦免过头」分开——后者正是路径白名单的病根。
+  const hex = fixtureHex("wrangler", 32);
+
+  it("放行：wrangler 配置里绑定块的 id（JSON 带引号 / TOML 不带，两种都认）", () => {
+    expect(scanContent("infra/feedback-worker/wrangler.jsonc", `  "id": "${hex}"\n`).code).toBe(0);
+    expect(scanContent("infra/x/wrangler.toml", `id = "${hex}"\n`).code).toBe(0);
+  });
+
+  it("照样报：同一份 wrangler 配置里**别的**字段上的 32 位 hex", () => {
+    expect(scanContent("infra/feedback-worker/wrangler.jsonc", `  "vars": { "TOKEN": "${hex}" }\n`).code).not.toBe(0);
+  });
+
+  it("照样报：别的文件里的 id 字段（判据要文件与字段名两条同时成立）", () => {
+    expect(scanContent("src/config.json", `  "id": "${hex}"\n`).code).not.toBe(0);
+  });
+});
+
 describe("行级豁免标记", () => {
   const key = fixtureHex("inline", 32);
 

@@ -83,6 +83,7 @@ export const zhRuntime = {
   project: {
     untitled: '未命名项目',
     untitledWithTime: '未命名项目 {{time}}',
+    untitledWithTimeOrdinal: '未命名项目 {{time}} ({{ordinal}})',
     recordMissing: '本地项目记录缺失：{{id}}',
     corruptPayload: '本地项目记录损坏：payload 缺少必要字段',
     corruptRecord: '本地项目记录损坏：{{id}}',
@@ -262,6 +263,7 @@ export const enRuntime = {
   project: {
     untitled: 'Untitled project',
     untitledWithTime: 'Untitled project {{time}}',
+    untitledWithTimeOrdinal: 'Untitled project {{time}} ({{ordinal}})',
     recordMissing: 'Local project record is missing: {{id}}',
     corruptPayload: 'The local project record is corrupt: required payload fields are missing',
     corruptRecord: 'The local project record is corrupt: {{id}}',

@@ -1,0 +1,129 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-transcribe-leg-vendor-independence",
+  "problem_type": "One capability resolved through another capability's provider",
+  "symptom": "Video deconstruction reports that no transcription model is available while an enabled transcription model sits at another provider (real run 2026-09-17 09:51Z, text brain on Moonshot).",
+  "direct_cause": "resolveTranscribeLeg called findExecutableModel(brain.vendor, \"\", \"audio\"), which searches only the vendor that happens to own the text brain.",
+  "class_root": "The transcription leg had no provider of its own, so it borrowed the text brain's. Nobody ever declared that the two capabilities must live at the same vendor, and nothing made that borrowed coupling visible.",
+  "affected_population": [
+    "Every video deconstruction whose text brain lives at a vendor without an audio model, which is the common case for Moonshot, DeepSeek and most official text endpoints"
+  ],
+  "scope_paths": [
+    "electron/catalog/executableModel.ts",
+    "electron/video/deconstructVideo.ts"
+  ],
+  "entry_points": [
+    "Canvas video node deconstruct action",
+    "Storyboard table deconstruct re-run"
+  ],
+  "invariants": [
+    "Each leg of a multi-model action resolves its own provider",
+    "Provider choice follows the user's existing global vendor preference rather than a new ordering",
+    "The vendor and model on the quote card are produced by the same resolver runTask will use, so the quoted line and the charged line are one line",
+    "The transcription language is derived from input, never written as a constant, and the same value reaches the quote and the call"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVideo.ts",
+      "line": 275,
+      "symbol": "findExecutableModelAnyVendor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVideo.ts",
+      "line": 331,
+      "symbol": "resolveTranscribeLeg"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/executableModel.ts",
+      "line": 96,
+      "symbol": "findExecutableModelAnyVendor"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 3,
+    "why_not": "Three doors by construction: the new cross-vendor resolver is defined once, read once by the transcription leg, and the leg is read once by the orchestrator. All of them delegate to the one existing findExecutableModel, so no second notion of 'which model is executable' was created; the count rose because the resolution moved out of the leg into a reusable boundary."
+  },
+  "generality_proof": "Every audio-capable model in the catalog is a candidate and the ordering comes from the shared vendor preference contract, so the fix holds for any future provider without another code change; the quote path and the run path both end at findExecutableModel.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "findExecutableModelAnyVendor",
+      "responsibility": "Resolve one executable model of a given kind across all enabled vendors, ordered by the user's provider preference"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "resolveTranscribeLeg",
+      "disposition": "enforced",
+      "evidence": "Now delegates to the shared resolver; the vision leg keeps its own explicit brain because the user picked that model for reading images"
+    },
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "transcribeShots",
+      "disposition": "enforced",
+      "evidence": "Receives the vendor/model resolved by the shared resolver and sends the derived language, so the quoted line and the charged line stay identical"
+    },
+    {
+      "path": "electron/catalog/executableModel.ts",
+      "entry_point": "findExecutableModelForTask",
+      "disposition": "not-affected",
+      "evidence": "Already takes an explicit vendor chosen by the caller for that capability; it never borrows another capability's vendor"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any action that needs two different model kinds can be written to resolve the second one through the first one's vendor, and it will keep working until a user happens to pick a provider that lacks the second capability.",
+    "same_class_scan": [
+      "door-map findExecutableModelAnyVendor resolveTranscribeLeg",
+      "Read every findExecutableModel call site in electron/ and checked whether its vendor argument came from the same capability it was resolving"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/executableModel.ts",
+    "invariant": "A leg that does not have a user-chosen provider resolves across all enabled providers through one shared function.",
+    "failure_mode": "No enabled provider offers that kind, and the resolver returns null so the orchestrator can say exactly that instead of blaming the text brain.",
+    "exception_policy": "none",
+    "strategy": "Give the leg its own resolution instead of letting it inherit an unrelated vendor argument.",
+    "artifacts": [
+      "electron/catalog/executableModel.ts",
+      "electron/video/deconstructVideo.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/video/deconstructLegResolution.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/video/deconstructLegResolution.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/video/deconstructVideo.ts"
+    ],
+    "rationale": "The brain-scoped audio lookup and the hardcoded language constant are both gone; no parallel resolution remains."
+  },
+  "migration": "No persisted data changes.",
+  "residual_risks": [
+    "A real paid deconstruction run was not executed in this batch; the fix is covered by unit-level resolution tests plus the negative control that the old brain-scoped lookup throws."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/executableModel.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/video/deconstructLegResolution.test.ts"
+    ],
+    "rationale": "Executable-model resolution is owned there; the cross-vendor variant is the only place that decides which provider serves a leg with no user-chosen model."
+  },
+  "internal_only_reason": "Which provider in this user's catalog offers an audio model is a fact about this repository's own catalog and the user's own vendor preference; no external document decides it.",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is involved; the fix is entirely inside this repository's own modules.",
+    "exit_criteria": []
+  }
+}

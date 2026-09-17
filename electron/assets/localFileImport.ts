@@ -113,7 +113,10 @@ async function prepareNativeImportFeedback(
     preparedPreview,
     onCopyProgress: (copiedBytes, streamTotalBytes) => {
       reporter.report(copiedBytes, streamTotalBytes);
-      if (copiedBytes >= streamTotalBytes) reporter.finish();
+      if (copiedBytes < streamTotalBytes) return;
+      // 最后一个字节落地 = 收尾段开始（哈希重读整份文件、落库、认领预览）。这一段
+      // 在 1.3 GB 的真素材上实测约 5 秒，此前它长得和「卡在 100%」一模一样（W-08）。
+      reporter.finalize();
     },
   };
 }

@@ -42,14 +42,32 @@ function createProjectId(): string {
   return `project-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function formatDefaultProjectName(): string {
+/**
+ * 新建项目的默认名。
+ *
+ * 为什么要**查一次现有项目**（2026-09-17，W-10）：名字只精确到分钟，同一分钟内建第二个
+ * 就和第一个逐字相同。而项目卡上另外两格——缩略图（新项目都是同一张灰色占位）和状态行
+ * （都是「刚刚 · 已就绪」）——**本来就该一样**，它们没有身份可言。于是名字是卡片上
+ * 唯一能承载身份的那一格，它撞了就等于用户没有任何办法分辨哪个是哪个。
+ *
+ * 不改成「精确到秒」：秒对用户没有信息（他不会用秒去认项目），只是让每一张卡都变长。
+ * 撞了才加序号，没撞就还是原来那个干净的名字——代价只落在真的撞了的那一次上。
+ */
+export function formatDefaultProjectName(existing: readonly WorkbenchProjectSummary[]): string {
   const time = new Date().toLocaleString(getAppLocale(), {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
-  return i18n.t('runtime.project.untitledWithTime', { time })
+  const base = i18n.t('runtime.project.untitledWithTime', { time })
+  const taken = new Set(existing.map((summary) => summary.name))
+  if (!taken.has(base)) return base
+  for (let ordinal = 2; ordinal <= taken.size + 2; ordinal += 1) {
+    const candidate = i18n.t('runtime.project.untitledWithTimeOrdinal', { time, ordinal })
+    if (!taken.has(candidate)) return candidate
+  }
+  return base
 }
 
 function readIndex(): WorkbenchProjectSummary[] {
@@ -126,7 +144,7 @@ export function createLocalProject(
   const isDraft = !options.seedKey?.trim() && !options.rootPath?.trim()
   const summary: WorkbenchProjectSummary = {
     id: createProjectId(),
-    name: typeof name === 'string' && name.trim() ? name.trim() : formatDefaultProjectName(),
+    name: typeof name === 'string' && name.trim() ? name.trim() : formatDefaultProjectName(readIndex()),
     createdAt: now,
     updatedAt: now,
     revision: 0,

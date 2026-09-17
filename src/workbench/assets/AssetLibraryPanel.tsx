@@ -28,7 +28,7 @@ import type { ReferencePlatform } from '../../../electron/shared/contracts/refer
 import { acceptAttrForSurface } from '../../../electron/shared/contracts/mediaImportPolicy'
 import { notify } from '../../ui/notificationPolicy'
 import { FeedbackButton } from '../../ui/community/FeedbackButton'
-import { rejectionOf, reportAudioImport, reportMediaImport, type AssetImportRejectionReport } from './assetImportRejection'
+import { rejectionOf, reportAudioImport, reportMediaImport, unsupportedKindRejection, type AssetImportRejectionReport } from './assetImportRejection'
 import {
   AssetGridCell,
   FolderGridCell,
@@ -283,7 +283,8 @@ export function AssetLibraryContent({
     if (unsupported.length) {
       for (const f of unsupported) report(t('assetLibrary.rejectedUnsupportedUnknown', { name: f.name || t('assetLibrary.unnamedFile') }), 'warning')
       // 策略拒收：用户想导的那个文件真的没进来，所以给反馈入口（重复素材不给，那份已在库里）。
-      setRejection(rejectionOf('unsupported', unsupported.length))
+      // 摘要用**第一个**被挡住的文件名，与上面那句内联行逐字同源（2026-09-17 W-02）。
+      setRejection(unsupportedKindRejection(unsupported[0]?.name || ''))
     }
   }, [refreshAllProjectAssets, refreshProjectAssets, present, report, t])
 

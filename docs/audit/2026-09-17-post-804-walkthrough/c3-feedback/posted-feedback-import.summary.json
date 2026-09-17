@@ -1,0 +1,47 @@
+{
+  "route": "/v1/feedback",
+  "context": {
+    "surface": "import",
+    "summary": "assetLibrary.skippedUnsupported",
+    "errorCode": "asset-import-unsupported",
+    "note": null,
+    "contentIncluded": false,
+    "provider": null,
+    "model": null
+  },
+  "manifest": {
+    "entries": [
+      {
+        "path": "model-catalog.json",
+        "bytes": 371195,
+        "what": "模型目录（密钥、代理地址、自定义头全部抹掉）"
+      }
+    ],
+    "excluded": [
+      {
+        "what": "logs/tail.txt",
+        "why": "logs-unavailable"
+      },
+      {
+        "what": "trajectory/turns.json",
+        "why": "no-conversation-in-context"
+      },
+      {
+        "what": "API keys / tokens / proxy credentials",
+        "why": "never-collected-by-design"
+      },
+      {
+        "what": "file paths / project paths / asset paths",
+        "why": "never-collected-by-design"
+      },
+      {
+        "what": "prompts / manuscripts / tool results",
+        "why": "content-checkbox-not-ticked"
+      },
+      {
+        "what": "full logs / Agent command ledger / project artifacts",
+        "why": "available-only-via-settings-diagnostics-export"
+      }
+    ]
+  }
+}

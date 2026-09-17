@@ -37,14 +37,20 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
     "capability_invocation_unverified", "capability_authority_invalid", "capability_input_invalid",
     "capability_policy_stale", "capability_output_invalid", "capability_timeout", "capability_cancelled",
     "capability_execution_failed", "capability_receipt_unresolved", "capability_unsupported", "project_binding_stale", "surface_port_suspended",
-    "surface_port_unavailable", "surface_port_stale", "surface_owner_mismatch", "document_target_stale",
+    "surface_port_unavailable", "surface_port_stale", "surface_owner_mismatch",
   ]);
   const published = publicCodes.has(code) ? code : "capability_execution_failed";
   return { ok: false, code: published, message: published };
 }
 
-function documentTarget(target: TargetRef): Extract<TargetRef, { kind: "document" }> | null {
-  return target.kind === "document" ? target : null;
+/**
+ * 把回合里的 target 变成文稿写的地址：用户站在创作页时 target 就是带锚的文稿；站在画布/预览时
+ * target 是那个面自己的（节点/片段），文稿写就落到整篇（whole-document）。两种都是当下真实的前提。
+ */
+function documentTarget(target: TargetRef, documentId: string): Extract<TargetRef, { kind: "document" }> {
+  if (target.kind !== "document") return { kind: "document", documentId, anchor: { kind: "whole-document" } };
+  if (target.documentId !== documentId) throw new Error("capability_input_invalid");
+  return target;
 }
 
 export function createPiDocumentWriteTransportAdapter(input: Readonly<{
@@ -68,8 +74,7 @@ export function createPiDocumentWriteTransportAdapter(input: Readonly<{
       if (!operation) return null;
       if (disposed) throw new Error("surface_port_unavailable");
       signal.throwIfAborted();
-      const target = documentTarget(context.target);
-      if (!target || target.documentId !== context.documentId) throw new Error("document_target_stale");
+      const target = documentTarget(context.target, context.documentId);
       const content = typeof args.content === "string" ? args.content : "";
       const invocation = await factory.mint({
         toolCallId: call.toolCallId,

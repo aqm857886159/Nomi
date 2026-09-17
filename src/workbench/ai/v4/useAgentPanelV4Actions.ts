@@ -7,7 +7,7 @@ import { laneClient, type LaneCommandResult } from '../lane/laneClient'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { timelineRevision } from '../../timeline/kernel/timelineKernel'
-import type { CreationDocumentTools } from '../../workbenchTypes'
+import { getDocumentSessionPort } from '../../project/documentSessionPort'
 import { projectAgentAttachmentClaims, composerAttachmentsFromProjectAgentRefs } from '../projectAgentAttachments'
 import { buildResidentContextSnapshot, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
 import { composeResidentSystemPrompt } from '../resident/residentPromptSelection'
@@ -22,14 +22,12 @@ import { approvalPolicyForTier } from './agentPanelV4Logic'
 import type { AgentPanelV4Data } from './useAgentPanelV4Data'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
 
-const isDocumentSurface = (surface: ResidentSurface): boolean => surface === 'creation' || surface === 'storyboard'
-
 type ResidentSendContext = Readonly<{
   snapshot: AgentContextSnapshot
   activeDocumentId: string
   selectedNodeIds: readonly string[]
   selectedClipIds: readonly string[]
-  documentState?: Readonly<{ revision: number; contentHash: string; anchor: DocumentAnchorRef }>
+  documentState: Readonly<{ revision: number; contentHash: string; anchor: DocumentAnchorRef }>
 }>
 
 /**
@@ -37,22 +35,22 @@ type ResidentSendContext = Readonly<{
  * composer 绝不能发一个「用户打字期间已经变了的」渲染期选中：这份快照由纯构造器冻结，
  * 随请求一起走。
  */
-function captureSendContext(surface: ResidentSurface, creationDocumentTools: CreationDocumentTools | null): ResidentSendContext {
+function captureSendContext(surface: ResidentSurface): ResidentSendContext {
   const workbench = useWorkbenchStore.getState()
   const canvas = useGenerationCanvasStore.getState()
   const activeDocumentId = workbench.activeDocumentId
   const document = workbench.workbenchDocuments.find((item) => item.id === activeDocumentId)
-  // 编辑器桥只在创作面活着时权威。生成/预览面可能在编辑器拆掉之后仍然挂着面板，
-  // 在那里探这座桥会让一次本来合法的发送失败，或者抓到一个陈旧的锚点。
-  const documentState = isDocumentSurface(surface) ? creationDocumentTools?.readState() : undefined
+  // 文稿状态由项目会话层 owner 给，不看页面身份：画布/预览面上一样能读、能整篇追加。
+  // 在创作页它带光标锚，在别的面是 whole-document——两种都是当下真实的、可验的前提。
+  const documentState = getDocumentSessionPort().readState()
   const selectedNodeIds = surface === 'generation' ? Object.freeze([...canvas.selectedNodeIds]) : Object.freeze([])
   const selectedClipIds = surface === 'preview' ? Object.freeze([...workbench.selectedTimelineClipIds]) : Object.freeze([])
   const snapshot = buildResidentContextSnapshot({
     document: document
       ? {
           id: document.id,
-          revision: documentState?.revision ?? workbench.persistRevision,
-          anchor: documentState?.anchor ?? { kind: 'whole-document' },
+          revision: documentState.revision,
+          anchor: documentState.anchor,
           title: document.title,
         }
       : null,
@@ -68,7 +66,7 @@ function captureSendContext(surface: ResidentSurface, creationDocumentTools: Cre
         }
       : null,
   })
-  return Object.freeze({ snapshot, activeDocumentId, selectedNodeIds, selectedClipIds, ...(documentState ? { documentState } : {}) })
+  return Object.freeze({ snapshot, activeDocumentId, selectedNodeIds, selectedClipIds, documentState })
 }
 
 export type AgentPanelV4Actions = Readonly<{
@@ -133,19 +131,16 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       return false
     }
     try {
-      const captured = captureSendContext(surface, state.creationDocumentTools)
+      const captured = captureSendContext(surface)
       const availableModels = await listAvailableModelsForAgent()
       if (laneClient.context() !== owner) return false
-      let target: TargetRef
-      let preconditions: PreconditionSet | undefined
-      if (isDocumentSurface(surface)) {
-        target = { kind: 'document', documentId: captured.activeDocumentId,
-          anchor: captured.documentState?.anchor ?? { kind: 'whole-document' } }
-        if (captured.documentState) preconditions = { document: {
-          revision: captured.documentState.revision, contentHash: captured.documentState.contentHash,
-        } }
-      } else if (surface === 'preview') target = { kind: 'timeline', clipIds: captured.selectedClipIds }
-      else target = { kind: 'canvas', nodeIds: captured.selectedNodeIds }
+      // 文稿前提永远带上（owner 给的）；target 仍按「用户此刻站在哪个面」选。
+      const preconditions: PreconditionSet = { document: {
+        revision: captured.documentState.revision, contentHash: captured.documentState.contentHash,
+      } }
+      const target: TargetRef = surface === 'preview' ? { kind: 'timeline', clipIds: captured.selectedClipIds }
+        : surface === 'generation' ? { kind: 'canvas', nodeIds: captured.selectedNodeIds }
+          : { kind: 'document', documentId: captured.activeDocumentId, anchor: captured.documentState.anchor }
       const surfacePrompt = surface === 'generation' ? buildStaticAgentSystemPrompt('agent')
         : surface === 'preview' ? buildStaticAgentSystemPrompt('agent', 'timeline')
           : !state.creationActiveSkill ? getCreationAiMode(state.creationAiModeId).prompt : undefined

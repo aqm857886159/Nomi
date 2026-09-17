@@ -1,0 +1,54 @@
+{
+  "realBefore": {
+    ".claude.json": {
+      "exists": true,
+      "mtimeMs": 1789634948428.9336,
+      "size": 114766,
+      "sha": "6578958a576477a4"
+    },
+    "Library/Application Support/Claude/claude_desktop_config.json": {
+      "exists": true,
+      "mtimeMs": 1789629890663.9941,
+      "size": 3019,
+      "sha": "00bc0f35ddb1737c"
+    },
+    ".codex/config.toml": {
+      "exists": true,
+      "mtimeMs": 1789590975501.7908,
+      "size": 2259,
+      "sha": "a86f0ff70d9751e3"
+    },
+    ".cursor/mcp.json": {
+      "exists": true,
+      "mtimeMs": 1789462475789.888,
+      "size": 789,
+      "sha": "3429869f7a59543f"
+    },
+    ".workbuddy/mcp.json": {
+      "exists": true,
+      "mtimeMs": 1789462475790.9707,
+      "size": 972,
+      "sha": "7dc41b3d4530bc84"
+    }
+  },
+  "findings": [
+    {
+      "id": "C4-real-home",
+      "verdict": "ok",
+      "text": "只打开 tab 后真实主目录 5 个配置文件改动数=0（mtime/内容全未变）",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-en-02-mcp-panel.png"
+    },
+    {
+      "id": "C4-iso-home",
+      "verdict": "ok",
+      "text": "阳性对照（隔离 HOME，守卫允许写）改动数=0（也没写）",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-en-03-mcp-expanded.png"
+    },
+    {
+      "id": "C4-not-installed",
+      "verdict": "info",
+      "text": "面板文案：AI agent connections (MCP) / AI agents / Let Claude Code, Claude Desktop, Codex, Cursor, or WorkBuddy create projects and generate images / Ready / Claude Code / Claude Desktop / Codex / Cursor / WorkBuddy / Connect Nomi to Claude Code in one click. Then it can create projects, split shots, and generate images with your configured models. / Connect to Claude Code / Copy Claude Code configuration / Other clients / Using Cline, Windsurf, pi-mcp-adapter, or another MCP client? Copy this generic configuration into its MCP settings. It carries no client identity, so Nomi treats it as an external client. / Copy config / View guide",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-en-03-mcp-expanded.png"
+    }
+  ]
+}

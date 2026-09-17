@@ -38,9 +38,15 @@ export function NodeImportingOverlay({ node, motion, preset }: {
   // 大视频会在这一段停几十秒，报「0%」像卡死了；说「检查中」才是那一刻真实发生的事。
   const checking = ratio === 0
   const percent = Math.round(ratio * 100)
-  const label = checking
-    ? (size ? t('generationCommon.observability.import.checking', { size }) : t('generationCommon.observability.import.checkingUnknownSize'))
-    : (size ? t('generationCommon.observability.import.progress', { percent, size }) : t('generationCommon.observability.import.progressUnknownSize', { percent }))
+  // 字节搬完了、事情没完（哈希重读整份文件、落库、认领预览）。这一段在 1.3 GB 真素材上约 5 秒，
+  // 此前显示的是「100%」，和卡死长得一模一样（2026-09-17，W-08）。
+  // 不编一个走到 99% 就停的假进度条：这一段没有可测的分母，诚实说「在收尾」。
+  const finalizing = progress?.phase === 'finalizing'
+  const label = finalizing
+    ? (size ? t('generationCommon.observability.import.finalizing', { size }) : t('generationCommon.observability.import.finalizingUnknownSize'))
+    : checking
+      ? (size ? t('generationCommon.observability.import.checking', { size }) : t('generationCommon.observability.import.checkingUnknownSize'))
+      : (size ? t('generationCommon.observability.import.progress', { percent, size }) : t('generationCommon.observability.import.progressUnknownSize', { percent }))
   return <div ref={viewport.ref} className="absolute inset-0 z-[3] pointer-events-none" data-generating-placement="import">
     <GenerationWaitingSurface previewLabel="" zoom={zoom} inViewport={viewport.visible} motion={motion} preset={preset}
       progressReveal={{ ratio, imageUrl: progress?.previewUrl }} label={label} />

@@ -1,5 +1,7 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { intakeConfigured, intakeEndpoint, intakeToken, postIntake } from './intakeClient'
+import { intakeConfigPath, intakeConfigured, intakeEndpoint, intakeToken, postIntake, resetIntakeConfigCache } from './intakeClient'
 
 const ORIGINAL = { endpoint: process.env.NOMI_INTAKE_ENDPOINT, token: process.env.NOMI_INTAKE_TOKEN }
 
@@ -8,6 +10,7 @@ afterEach(() => {
   process.env.NOMI_INTAKE_TOKEN = ORIGINAL.token
   if (ORIGINAL.endpoint === undefined) delete process.env.NOMI_INTAKE_ENDPOINT
   if (ORIGINAL.token === undefined) delete process.env.NOMI_INTAKE_TOKEN
+  resetIntakeConfigCache()
 })
 
 describe('intake endpoint 解析', () => {
@@ -97,4 +100,55 @@ describe('postIntake', () => {
     await expect(postIntake('/v1/events', {}, { fetch: fetch as never, endpoint: 'https://intake.example', token: 'tok', timeoutMs: 1 }))
       .rejects.toThrow(/abort/i)
   })
+})
+
+// ── 出厂配置（W-01）──────────────────────────────────────────────────────────
+// 这几条守的是 2026-09-17 那次静默出厂：装机版的 `process.env` 是用户桌面的环境，
+// 里面永远没有这两个值，于是 0.21.0 出厂即「只在本机记录」。
+describe('出厂烤进来的配置', () => {
+  // 路径来自被测模块自己（`intakeConfigPath`），不在测试里抄一份——抄了就是第二个真相源。
+  const bakedFile = intakeConfigPath()
+
+  it('env 没定义时回落到打包时烤进去的那份', () => {
+    delete process.env.NOMI_INTAKE_ENDPOINT
+    delete process.env.NOMI_INTAKE_TOKEN
+    withBaked({ version: 1, endpoint: 'https://intake.example', token: 'baked-token' }, () => {
+      expect(intakeEndpoint()).toBe('https://intake.example')
+      expect(intakeToken()).toBe('baked-token')
+      expect(intakeConfigured()).toBe(true)
+    })
+  })
+
+  it('env 只要**被定义**就赢，哪怕是空串 —— 走查靠它显式关掉出厂端点', () => {
+    process.env.NOMI_INTAKE_ENDPOINT = ''
+    process.env.NOMI_INTAKE_TOKEN = ''
+    withBaked({ version: 1, endpoint: 'https://intake.example', token: 'baked-token' }, () => {
+      expect(intakeEndpoint()).toBeNull()
+      expect(intakeConfigured()).toBe(false)
+    })
+  })
+
+  it('开发构建烤出来的是空配置 —— 开发版不发送', () => {
+    delete process.env.NOMI_INTAKE_ENDPOINT
+    delete process.env.NOMI_INTAKE_TOKEN
+    withBaked({ version: 1, endpoint: '', token: '' }, () => {
+      expect(intakeEndpoint()).toBeNull()
+      expect(intakeConfigured()).toBe(false)
+    })
+  })
+
+  function withBaked(config: unknown, body: () => void): void {
+    const existed = fs.existsSync(bakedFile)
+    const previous = existed ? fs.readFileSync(bakedFile) : null
+    fs.mkdirSync(path.dirname(bakedFile), { recursive: true })
+    fs.writeFileSync(bakedFile, JSON.stringify(config))
+    resetIntakeConfigCache()
+    try {
+      body()
+    } finally {
+      if (previous) fs.writeFileSync(bakedFile, previous)
+      else fs.rmSync(bakedFile, { force: true })
+      resetIntakeConfigCache()
+    }
+  }
 })

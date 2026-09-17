@@ -45,7 +45,20 @@ export type VendorSeed = {
    * promotion.
    */
   credentialMode?: CredentialMode;
-  /** Paid only by the weekly radar, never by application reconciliation. */
+  /**
+   * ⚠️ 这条注释原来写的是「Paid only by the weekly radar, never by application
+   * reconciliation」，**那已经不成立**（2026-09-17 核实，T-MO-10）：
+   * `validateCandidateCredential` 的 `liveness-probe` 分支在**用户点「保存验证」的那一刻**
+   * 就调 `probeDirectKeyCredential`，而它是一次真实的 `POST /chat/completions`
+   * （`max_tokens:1`）——花的是用户的钱，且**完全不经过钱的闸**：
+   * 这条路走 `appFetch` 直接出门，不碰 `runtime.ts`，没有 `grantId`，
+   * 所以报价卡永远不可能为它出现（钱的闸 = 每次提交看报价确认，用户 2026-09-09 拍板）。
+   * `revalidatePendingCredential` 在首次使用前还会再跑一次同样的付费探测。
+   *
+   * 本批只纠正这条**已经在说假话**的注释，没有改行为：怎么修是产品岔路
+   * （免费自检 / 接进报价卡 / 退回 first-use 存 key 不验），三条对用户的承诺各不相同，
+   * 归 TODO 的 T-MO-10，等用户拍板。
+   */
   livenessProbe?: {
     request: Pick<HttpOperation, "method" | "path" | "body">;
     successPath: string;

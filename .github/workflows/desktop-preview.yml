@@ -33,7 +33,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
+      # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。
+      - name: Build with the shipped feedback intake configured
+        env:
+          NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
+          NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+        run: pnpm run build
       - name: Package Nomi Preview for Apple Silicon
         run: pnpm exec electron-builder --config electron-builder.preview.cjs --mac dmg --arm64 --publish never
       - uses: actions/upload-artifact@v4
@@ -58,7 +64,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
+      # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。
+      - name: Build with the shipped feedback intake configured
+        env:
+          NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
+          NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+        run: pnpm run build
       - name: Package Nomi Preview for Windows
         run: pnpm exec electron-builder --config electron-builder.preview.cjs --win nsis --x64 --publish never
       - uses: actions/upload-artifact@v4

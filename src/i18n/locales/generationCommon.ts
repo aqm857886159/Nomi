@@ -248,6 +248,8 @@ export const zhGenerationCommon = {
       progressUnknownSize: '导入中 · {{percent}}%',
       checking: '导入中 · 检查中 · {{size}}',
       checkingUnknownSize: '导入中 · 检查中',
+      finalizing: '导入中 · 收尾中 · {{size}}',
+      finalizingUnknownSize: '导入中 · 收尾中',
     },
     error: {
       auth: { reason: 'API Key 无效', hint: '请在「设置 → 模型」检查这个模型的 API Key。' },
@@ -1680,6 +1682,8 @@ export const enGenerationCommon = {
       progressUnknownSize: 'Importing · {{percent}}%',
       checking: 'Importing · Checking · {{size}}',
       checkingUnknownSize: 'Importing · Checking',
+      finalizing: 'Importing · Finishing up · {{size}}',
+      finalizingUnknownSize: 'Importing · Finishing up',
     },
     error: {
       auth: { reason: 'Invalid API key', hint: 'Check this model’s API key in Model access.' },

@@ -194,13 +194,18 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
   const grip = (
     <div className="flex flex-col items-center gap-1">
+      {/* 拖动把手。它和下面那颗「⋯」曾经**共用同一个 aria-label**（都叫「镜头操作」），
+          于是任何按名字找的点击——走查、读屏器、无障碍工具——都落在这一颗上；而它没有 onClick，
+          点了什么也不会发生（2026-09-17，W-04：逐镜换画幅的入口因此整条不可达）。
+          一个名字只能有一个含义。 */}
       <button
         type="button"
         draggable={props.draggable}
         onDragStart={props.onDragStart}
         onDragEnd={props.onDragEnd}
-        className="cursor-grab active:cursor-grabbing"
-        aria-label={t('storyboardEditor.rowActions.open')}
+        className="relative cursor-grab active:cursor-grabbing after:absolute after:-inset-1.5 after:content-['']"
+        aria-label={t('storyboardEditor.rowActions.drag')}
+        data-storyboard-row-drag={shot.index}
       >
         <IconGripVertical size={15} stroke={1.6} aria-hidden />
       </button>
@@ -220,7 +225,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         onClick={() => setActionsOpen((value) => !value)}
         aria-label={t('storyboardEditor.rowActions.open')}
         data-storyboard-row-menu-trigger={shot.index}
-        className="grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
+        // 视觉尺寸受 14px 的行首栏宽约束（改栏宽是布局改动），但**命中区**不必受它约束：
+        // ::after 把可点范围撑到约 28px，仍然只有这一颗，不与相邻控件抢（W-04 附带的「命中区偏小」）。
+        className="relative grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 after:absolute after:-inset-1.5 after:content-[''] hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
       >
         <IconDots size={13} stroke={1.8} />
       </button>

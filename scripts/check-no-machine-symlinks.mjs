@@ -20,7 +20,7 @@
 // 用法：node scripts/check-no-machine-symlinks.mjs
 // 命中 → 打印详情 + 修复命令 + exit 1。干净 → exit 0。
 // ============================================================================
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { splitNulPaths } from "./lib/gitPaths.mjs";
 import path from "node:path";
 
@@ -30,7 +30,12 @@ function listTrackedSymlinks() {
   // -s 给出 mode，据此筛出符号链接；object id 拿来读链接目标（blob 内容就是目标路径）
   // `-z`：记录用 NUL 分隔，路径原样输出。默认 quotePath 下非 ASCII 路径会被转义并加引号，
   // 后面 `git cat-file` / 报错行拿到的都不是真路径。
-  return splitNulPaths(execSync("git ls-files -s -z", { encoding: "utf8" }))
+  // `maxBuffer` 必须显式给（2026-09-17）：Node 的默认值是 **1 MiB**，而这条命令的输出是
+  // 「整个 index 的每一行」——本仓 2026-09-17 合进走查截图后就到了 1,050,944 字节，
+  // 越过默认值 2 KB，门岗当场 `ENOBUFS` 崩掉。那个默认值在这里**悄悄变成了一条仓库大小上限**，
+  // 而它和这道门要守的不变量（git 里不许有本机绝对路径的软链）毫无关系。
+  // 给一个只受内存约束的上限，让它回到「传输容量」的本分；仓库再长大也不会把门岗变成假红。
+  return splitNulPaths(execFileSync("git", ["ls-files", "-s", "-z"], { encoding: "utf8", maxBuffer: 1024 * 1024 * 1024 }))
     .map((record) => {
       const [meta, file] = record.split("\t");
       const [mode, oid] = meta.split(" ");

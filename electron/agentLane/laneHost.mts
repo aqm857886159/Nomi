@@ -1,10 +1,12 @@
 import { attachLaneTrace } from './laneTraceRecorder.mjs';
+import { logWarn } from '../logging/logger.js';
 import { capabilityContractById } from '../shared/agentCapabilities/registry.js';
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools.js';
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts.js';
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
+import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
 // Agent lane · 主进程宿主（**薄**）
 //
 // 它只做三件事，方案 §2.1 ⑤ 写死的那三件：
@@ -80,15 +82,8 @@ export const LANE_RETRY_POLICY = Object.freeze({ enabled: true, maxRetries: 3, b
  */
 export const LANE_MAX_MODEL_REQUESTS = 24;
 
-/**
- * 同一个工具连着撞同一堵墙几次就拦下来（Nomi 独有的那条规则）。
- *
- * 它在解决哪个真实摩擦：用户撞到过「连续 6 次被自己拒收」——模型收到一句它读不懂的
- * 错误，于是把一模一样的调用又发一遍，六次。上游没有这条规则（它假设错误正文足够
- * 可行动），我们两边都做：正文可行动（`laneToolContract`）**且**连续撞墙有上限。
- */
-export const LANE_REPEATED_FAILURE_BLOCK = 3;
-export const LANE_REPEATED_FAILURE_TERMINATE = 5;
+// 「同一个工具连着撞同一堵墙」的规则住 laneRepeatedFailure.mts（含用户新消息即清零）。
+export { LANE_REPEATED_FAILURE_BLOCK, LANE_REPEATED_FAILURE_TERMINATE } from './laneRepeatedFailure.mjs';
 
 export interface LaneHandleWithObservations extends LaneHandle {
   /**
@@ -351,9 +346,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const maxModelRequests = options.limits?.maxModelRequests ?? LANE_MAX_MODEL_REQUESTS;
   // 计数按 **run** 走，不按 lane 走：上限说的是「这一轮」，一条 lane 活一整天。
   const requests = { runId: '', count: 0 };
-  // 连续撞墙：一个 key + 一个计数。**连续**的定义就写在这两行里——换了 key 或者成功一次，
-  // 计数归零。累计次数不在这里算，那是另一个问题（「这个工具总在坏」是审计的活，不是拦截的活）。
-  const failures = { key: '', count: 0 };
+  const failures = createLaneRepeatedFailureTracker();
 
   harness.hooks.on('before_request', (event) => {
     if (event.step !== 'assistant') return undefined;
@@ -446,13 +439,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       }
     }
     // ③ 连续撞同一堵墙。判在闸之后：被闸拒收不是工具坏了，那条路有自己的文案。
-    if (failures.count >= LANE_REPEATED_FAILURE_BLOCK && failures.key.startsWith(`${event.toolName} `)) {
-      const terminate = failures.count >= LANE_REPEATED_FAILURE_TERMINATE;
-      return { block: { ...(terminate ? { terminate: true } : {}), reason:
-        `${event.toolName} has failed the same way ${failures.count} times in a row. `
-        + 'Do not send it again. Either take a different route — a different tool, a narrower scope, '
-        + 'values re-read from the current state — or tell the user plainly that this cannot be done.' } };
-    }
+    const wall = failures.block(event.toolName);
+    if (wall) return { block: { ...(wall.terminate ? { terminate: true } : {}), reason: wall.reason } };
     await options.toolLifecycle?.approved(event, async (type, data) => {
       await lane.appendCustomEntry(type, data, hookContext);
     });
@@ -462,14 +450,19 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   harness.hooks.on('after_tool', (event) => {
     options.toolLifecycle?.settled(event);
     const appliedDirectly = directlyApplied.delete(event.toolCallId);
-    // 「同一个失败」按**工具名 + 失败正文首行**认。为什么是首行：`renderLaneToolFailure`
-    // 把 `code` 留给了 UI 分档、没写进正文（那是刻意的，`[error] E_DENIED` 对模型等于没说），
-    // 而首行正是那句「哪里错、期望什么」——同一堵墙每次都给同一句。
     const body = event.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
-    const key = event.isError ? `${event.toolName} ${body.split('\n', 1)[0]}` : '';
-    // 「连续」的定义就在这一行：任何一条别的结果——成功了，或者换了一堵墙——都把计数清掉。
-    if (key !== failures.key) { failures.key = key; failures.count = key ? 1 : 0; }
-    else if (key) failures.count += 1;
+    const consecutive = failures.note(event.toolName, event.isError, body);
+    // 工具失败要在**主进程日志**里留一行（2026-09-17）。此前整条失败链只有 lane 自己的会话 JSONL
+    // 记得住：真机复现 `surface_port_stale` 那一轮，`read_script` 连挂 3 次、会话里 12 处命中，
+    // 而 `logs/nomi-<date>.log` 一共 9 行、**一个字都没提这件事**。排查的人打开日志看到的是「什么都没发生」。
+    // 只记工具名、首行和连续次数：正文可能带用户文稿，绝不整条落盘。
+    if (event.isError) {
+      logWarn('agent', 'lane-tool-failed', {
+        tool: event.toolName,
+        firstLine: body.split('\n', 1)[0].slice(0, 200),
+        consecutive,
+      });
+    }
     return appliedDirectly && !event.isError
       ? { content: [...event.content, { type: 'text', text: '\nApplied directly (undoable)' }] } : undefined;
   });
@@ -553,6 +546,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // The same accepted operation then drives to settlement for every caller, including tests.
         const request = typeof message === 'string'
           ? { kind: 'prompt' as const, prompt: message } : { kind: 'prompt' as const, prompt: message };
+        // 用户又开口了：连续撞墙的计数归零（用户动作即解除熔断）。
+        failures.reset();
         const admission = await lane.accept(request, context);
         if (!admission.ok) throw new Error(admission.error._tag);
         executionOptions?.onAccepted?.();
@@ -565,6 +560,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // 「队里最后那条」去猜，而队列随时会被消费——猜出来的那条可能是别人的话。
       if (command.kind === 'steer' || command.kind === 'follow-up' || command.kind === 'prompt') {
         const steering = command.kind !== 'follow-up';
+        failures.reset();
         const queued = steering
           ? await lane.steer(inputMessage(command.text), undefined, context)
           : await lane.followUp(inputMessage(command.text), undefined, context);

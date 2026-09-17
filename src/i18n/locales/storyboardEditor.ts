@@ -153,6 +153,7 @@ export const zhStoryboardEditor = {
   },
   rowActions: {
     open: '镜头操作',
+    drag: '拖动调整镜头顺序',
     deleteTitle: '删除已生成镜头？',
     deleteMessage: '画布上的生成节点也会移除，这一步可以用 ⌘Z 撤销。',
   },
@@ -516,6 +517,7 @@ export const enStoryboardEditor = {
   },
   rowActions: {
     open: 'Shot actions',
+    drag: 'Drag to reorder shots',
     deleteTitle: 'Delete generated shots?',
     deleteMessage: 'Their canvas generation nodes will also be removed. Press ⌘Z to undo.',
   },

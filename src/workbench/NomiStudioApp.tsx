@@ -57,6 +57,7 @@ import { buildStudioUrl } from '../utils/appRoutes'
 import { openWorkspaceFromLibrary } from './library/openWorkspaceFlow'
 import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
+import { readDocumentThroughSessionPort, writeDocumentThroughSessionPort } from './project/documentSessionPort'
 import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
 import { runAssetSurfaceMigrations } from './assets/assetSurfaceMigration'
 import { ProductionCanvasLandingHost } from './production/ProductionCanvasLandingHost'
@@ -221,29 +222,9 @@ export default function NomiStudioApp(): JSX.Element {
       registerProjectCanvasReadSurface(
         projectSurface,
         readGenerationCanvasSnapshot,
-        ({ documentId, scope }) => {
-          const store = useWorkbenchStore.getState()
-          const tools = store.creationDocumentTools
-          if (!tools || store.activeDocumentId !== documentId) {
-            throw new SurfacePortWireError('surface_port_stale')
-          }
-          return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
-        },
-        ({ documentId, operation, content, target, preconditions, signal, assertCurrent }) => {
-          const store = useWorkbenchStore.getState()
-          const tools = store.creationDocumentTools
-          if (!tools || store.activeDocumentId !== documentId) {
-            throw new SurfacePortWireError('surface_port_stale')
-          }
-          if (signal.aborted) throw new SurfacePortWireError('capability_cancelled')
-          assertCurrent()
-          return tools.applyDocumentWrite({
-            operation,
-            content,
-            target: target as never,
-            preconditions: preconditions as never,
-          })
-        },
+        // 文稿读写的 owner 是项目会话层（documentSessionPort）：基线随项目在，编辑器挂载只做增强覆盖。
+        readDocumentThroughSessionPort,
+        (request) => writeDocumentThroughSessionPort(request as Parameters<typeof writeDocumentThroughSessionPort>[0]),
         ({ operation, input, nodeId }) => {
           try {
             if (operation === 'delete_canvas_nodes') {

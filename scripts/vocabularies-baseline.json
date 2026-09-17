@@ -29,45 +29,6 @@
   "registered": [
     {
       "members": [
-        "disabled",
-        "starting",
-        "stopped"
-      ],
-      "reason": "常驻生成面（Agent lane 生成适配器 + 面板付费确认卡）「不在、但不是失败」的三种相（2026-09-14，合同 docs/fixes/2026-09-14-resident-generation-adapter-install.root-cause.json）：按配置关掉 / 能力核还在起 / 已停。它回答的是「这条面在本会话装没装、没装是为什么」，主进程写、lane 与渲染层读同一份，所以 owner 只能在 electron/shared/（electron/ 不许 import src/）。不能复用现有 owner 的理由：LANE_TASK_STATUSES 的 stopped 说的是「用户停了某个任务」，这里的 stopped 是「能力核被撤下」；TelemetryStatus / ModelHomeConnectionState 的 disabled 是用户偏好开关或某个供应商连接态，这里的 disabled 是整条面按 env / 低内存模式不装。失败相（install-failed）故意不在这张表里：它走抛错而不是相枚举，读者对它的处理（会说话的卡 + console.error）和三种 off 相完全不同。",
-      "site": "electron/shared/contracts/residentSurfaceLifecycle.ts::type:ResidentSurfaceOffPhase/type-union"
-    },
-    {
-      "members": [
-        "cancelled",
-        "completed",
-        "failed",
-        "running"
-      ],
-      "reason": "同一投影的「这次接入总体怎么了」四态，只服务那张卡的渲染分支。与 electron/tasks/localTaskJobs.ts 的 Job.status 不是同一语义：那边是本机任务队列的执行态（有 succeeded/queued），这边是接入会话终态的**呈现分档**——partial 与 failed 在这里刻意合并成 failed（模型没进列表就不许显示绿勾），而任务队列不能这么合。不复用即为了让那条合并规则只有一个地方可改。",
-      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union"
-    },
-    {
-      "members": [
-        "active",
-        "done",
-        "pending"
-      ],
-      "reason": "五步进度里**每一行**的显示态，由 outcome + 当前步号算出来（done/active/pending 三档对应三个图标）。它是纯呈现词表、不进任何持久化，唯一读者是 AssistedIntegrationProgress.tsx 的 StepIcon；与上面的 outcome 分工明确：outcome 说整件事怎么了，这个说某一行怎么画。",
-      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressRowState/type-union"
-    },
-    {
-      "members": [
-        "certifying",
-        "credential",
-        "listed",
-        "proposal",
-        "session"
-      ],
-      "reason": "外部 Agent 接模型时，模型页给用户看的那五步的唯一 owner。它不是第二份生命周期词表——真相源仍是 electron/shared/integrationContract.ts 的 12 个 stage，本表只是它的**用户语言投影**，映射关系写死在同文件的 ASSISTED_PROGRESS_STAGES 里，并由 assistedProgressProjection.test.ts 断言「12 个 stage 一个不漏」。故意与 stage 名不同名：stage 是排错口径（灰字里原样显示），这五个是「到哪一步了」的口径。设计定稿 docs/design/2026-09-11-ai-assisted-onboarding-entry.md §Progress。",
-      "site": "src/ui/onboarding/assistedProgressProjection.ts::variable:ASSISTED_PROGRESS_STEPS/as-const"
-    },
-    {
-      "members": [
         "completed",
         "prepared",
         "verified"
@@ -289,6 +250,15 @@
       ],
       "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。",
       "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum"
+    },
+    {
+      "members": [
+        "awaiting_human_confirmation",
+        "human_confirmed",
+        "needs_spend_confirmation"
+      ],
+      "reason": "这三个成员是 INTEGRATION_STAGES 的**退役名单**，不是第二份现役词表：2026-09-12 删掉「接模型的花费确认」后，旧盘上还躺着它们，读盘时就地改写成 ready_to_certify（见同文件 migrateRetiredSpendGate）。故意不写成「不在现役词表里就改写」——那会把 stage 打错字的损坏记录也一起洗白，而现役校验必须继续拒绝它。清空这份名单的条件是确认再没有旧盘会被读到。",
+      "site": "electron/integrationCertification/integrationSessionRecord.ts::variable:RETIRED_SPEND_GATE_STAGES/set"
     },
     {
       "members": [
@@ -738,6 +708,15 @@
     },
     {
       "members": [
+        "copying",
+        "finalizing",
+        "preparing"
+      ],
+      "reason": "一次本地素材导入的三段（2026-09-17，走查 W-08）：读文件头/ffprobe/转码（还没搬字节）· 正在搬字节（比例有意义）· 字节搬完还在哈希重读整份文件/落库/认领预览（比例已经是 1 但事没完）。它回答的是「这一刻在干什么」，与「搬了百分之几」是两件事——1.3 GB 真素材上收尾段约 5 秒，此前显示成「100%」，和卡死长得一模一样。owner 只能在 electron/shared/assets/（主进程写、渲染层读同一条 IPC 事件，electron/ 不许 import src/），主进程上报器与渲染层 store 都从这里取类型，不各抄一份联合。不能复用现有 owner 的理由：生成域的 LANE_TASK_STATUSES / 任务队列 Job.status 说的是「一个任务的执行结果」（有 succeeded/failed/cancelled 终态），这里三段**没有终态**——导入失败走的是节点的 error 态和「重试导入」，不是这张表的一个成员；把它们并进任何一张任务状态表，就会逼那张表长出一个「成功但还没完」的成员，而那正是它当初要排除的东西。",
+      "site": "electron/shared/assets/assetLocalizationEvent.ts::type:AssetLocalizationEvent/property:phase/type-union"
+    },
+    {
+      "members": [
         "error",
         "idle",
         "queued",
@@ -802,6 +781,14 @@
     },
     {
       "members": [
+        "connected",
+        "disconnected"
+      ],
+      "reason": "MobileBridgeEvent.state 是导演台 V2 手机虚拟相机局域网桥上「这一台手机」的在线态：connected 是 hello 握手成功，disconnected 是 WebSocket 关闭。它描述的是局域网设备会话，不是生成任务、审批 challenge 或画布节点选中态；渲染层 DesktopDirectorMobileEvent 从这份类型 derive，不另立词表。",
+      "site": "electron/shared/contracts/directorMobileBridge.ts::type:MobileBridgeEvent/property:state/type-union"
+    },
+    {
+      "members": [
         "cancelled",
         "encoding",
         "failed",
@@ -833,6 +820,15 @@
     },
     {
       "members": [
+        "disabled",
+        "starting",
+        "stopped"
+      ],
+      "reason": "常驻生成面（Agent lane 生成适配器 + 面板付费确认卡）「不在、但不是失败」的三种相（2026-09-14，合同 docs/fixes/2026-09-14-resident-generation-adapter-install.root-cause.json）：按配置关掉 / 能力核还在起 / 已停。它回答的是「这条面在本会话装没装、没装是为什么」，主进程写、lane 与渲染层读同一份，所以 owner 只能在 electron/shared/（electron/ 不许 import src/）。不能复用现有 owner 的理由：LANE_TASK_STATUSES 的 stopped 说的是「用户停了某个任务」，这里的 stopped 是「能力核被撤下」；TelemetryStatus / ModelHomeConnectionState 的 disabled 是用户偏好开关或某个供应商连接态，这里的 disabled 是整条面按 env / 低内存模式不装。失败相（install-failed）故意不在这张表里：它走抛错而不是相枚举，读者对它的处理（会说话的卡 + console.error）和三种 off 相完全不同。",
+      "site": "electron/shared/contracts/residentSurfaceLifecycle.ts::type:ResidentSurfaceOffPhase/type-union"
+    },
+    {
+      "members": [
         "configured",
         "disabled",
         "unconfigured"
@@ -861,15 +857,6 @@
     },
     {
       "members": [
-        "awaiting_human_confirmation",
-        "human_confirmed",
-        "needs_spend_confirmation"
-      ],
-      "reason": "这三个成员是 INTEGRATION_STAGES 的**退役名单**，不是第二份现役词表：2026-09-12 删掉「接模型的花费确认」后，旧盘上还躺着它们，读盘时就地改写成 ready_to_certify（见同文件 migrateRetiredSpendGate）。故意不写成「不在现役词表里就改写」——那会把 stage 打错字的损坏记录也一起洗白，而现役校验必须继续拒绝它。清空这份名单的条件是确认再没有旧盘会被读到。",
-      "site": "electron/integrationCertification/integrationSessionRecord.ts::variable:RETIRED_SPEND_GATE_STAGES/set"
-    },
-    {
-      "members": [
         "cancelled",
         "certifying",
         "committing",
@@ -885,6 +872,34 @@
       ],
       "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。2026-09-12 用户拍板「接模型没有付费验证」：花费确认那三档（needs_spend_confirmation / awaiting_human_confirmation / human_confirmed）连同挑战、收据、真人手势章一起退役，合并成一个只有机器语义的 ready_to_certify（方案收下了、自检还没开跑，谁拥有会话谁就能调 start）。退役的直接证据是 2026-09-12 真实验收 §P0-1：那三档唯一的出口写死 ownerClientId === \"nomi\"，外部宿主永远走不出去。",
       "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const"
+    },
+    {
+      "members": [
+        "absent",
+        "auth-stale",
+        "current",
+        "custom",
+        "development",
+        "launcher-stale",
+        "legacy-launcher",
+        "stale-development"
+      ],
+      "reason": "客户端配置里那条 nomi 条目相对当前 Nomi 的兼容性判定（mcpConfig.classifyMcpEntry 唯一产出）的中立 owner：主进程 mcpConfig.ts 与渲染层 mcpBridgeTypes.ts 的 McpConfigState 都从这份 tuple derive。八态里 legacy-launcher / stale-development / auth-stale / launcher-stale 是 Nomi 自己写过的历史形状（启动修复只动这些；launcher-stale 含「命令签名都对、NOMI_SETTINGS_DIR 指向别的/已删除 profile」，2026-09-14 起），custom 是 Nomi 没写过的条目（永不动）。与 McpVerifyReason 不同：这里判的是静态配置形状，那边判的是真起进程后的握手结论。",
+      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const"
+    },
+    {
+      "members": [
+        "argument-missing",
+        "client-auth-missing",
+        "command-missing",
+        "handshake-failed",
+        "not-installed",
+        "ok",
+        "spawn-failed",
+        "timeout"
+      ],
+      "reason": "实连验证（mcpVerify.verifyMcp 真起一次配置里那条命令握手）的诊断结论的中立 owner：主进程 mcpVerify.ts 与渲染层 mcpBridgeTypes.ts 的 McpVerifyReason 都从这份 tuple derive；UI 文案按它走 i18n（ConnectAssistantCard 的 REASON_I18N），主进程不回中文。与 McpConfigState 分工：这里是运行时诊断（spawn/握手/超时），那边是静态配置形状。",
+      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_VERIFY_REASONS/as-const"
     },
     {
       "members": [
@@ -1031,6 +1046,18 @@
     },
     {
       "members": [
+        "failed",
+        "idle",
+        "queued",
+        "sending",
+        "sent",
+        "unconfigured"
+      ],
+      "reason": "一键反馈那张卡的**发送阶段**六态，只服务这张卡的渲染分支。与 electron/tasks 的 Job.status 不是同一语义：那边是本机任务队列的执行态（有 succeeded/running，可取消、可重排），这边是「一次用户主动交出去的东西现在在哪一步」——其中 queued（发不出去已入队静默重试）与 unconfigured（这个构建没配接收端）是本域独有的两档，前者在别处会被当成 running、后者在别处根本不存在。不复用是为了让「排队了算不算成功」这条判断只有一个地方可改：这里 queued 与 sent 都收成一行回执，而任务队列绝不能把排队当完成。",
+      "site": "src/ui/community/FeedbackReportCard.tsx::type:Phase/type-union"
+    },
+    {
+      "members": [
         "export",
         "generation",
         "model",
@@ -1109,6 +1136,36 @@
       ],
       "reason": "AssistantVerifyPhase 是 Claude、Codex、Cursor 接入握手的 UI 探测阶段：checking 正在验证，ok 已握手，broken 配置存在但连接失败，null 表示未探测；ConnectAssistantCard 的非空 phase 必须用 NonNullable derive。",
       "site": "src/ui/onboarding/assistantActivationState.ts::type:AssistantVerifyPhase/type-union"
+    },
+    {
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "running"
+      ],
+      "reason": "同一投影的「这次接入总体怎么了」四态，只服务那张卡的渲染分支。与 electron/tasks/localTaskJobs.ts 的 Job.status 不是同一语义：那边是本机任务队列的执行态（有 succeeded/queued），这边是接入会话终态的**呈现分档**——partial 与 failed 在这里刻意合并成 failed（模型没进列表就不许显示绿勾），而任务队列不能这么合。不复用即为了让那条合并规则只有一个地方可改。",
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union"
+    },
+    {
+      "members": [
+        "active",
+        "done",
+        "pending"
+      ],
+      "reason": "五步进度里**每一行**的显示态，由 outcome + 当前步号算出来（done/active/pending 三档对应三个图标）。它是纯呈现词表、不进任何持久化，唯一读者是 AssistedIntegrationProgress.tsx 的 StepIcon；与上面的 outcome 分工明确：outcome 说整件事怎么了，这个说某一行怎么画。",
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressRowState/type-union"
+    },
+    {
+      "members": [
+        "certifying",
+        "credential",
+        "listed",
+        "proposal",
+        "session"
+      ],
+      "reason": "外部 Agent 接模型时，模型页给用户看的那五步的唯一 owner。它不是第二份生命周期词表——真相源仍是 electron/shared/integrationContract.ts 的 12 个 stage，本表只是它的**用户语言投影**，映射关系写死在同文件的 ASSISTED_PROGRESS_STAGES 里，并由 assistedProgressProjection.test.ts 断言「12 个 stage 一个不漏」。故意与 stage 名不同名：stage 是排错口径（灰字里原样显示），这五个是「到哪一步了」的口径。设计定稿 docs/design/2026-09-11-ai-assisted-onboarding-entry.md §Progress。",
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::variable:ASSISTED_PROGRESS_STEPS/as-const"
     },
     {
       "members": [
@@ -1386,31 +1443,30 @@
     },
     {
       "members": [
+        "null",
+        "ok",
+        "timeout"
+      ],
+      "reason": "3D/全景交互的局部捕获或反馈结果（null / ok / timeout），仅属于该交互域。",
+      "site": "src/workbench/generationCanvas/nodes/director/agent/cameraMoveCaptureRetry.ts::type:CameraMoveCaptureOutcome/type-union"
+    },
+    {
+      "members": [
+        "loading",
+        "missing",
+        "ready"
+      ],
+      "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
+      "site": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts::function:poseClipStatus/type-union"
+    },
+    {
+      "members": [
         "dragging_base",
         "extruding_height",
         "idle"
       ],
       "reason": "BoxDrawStep 是导演台 V2 视口内「画方块」创建手势的两段式状态机：idle 未开始、dragging_base 正在拖底面、extruding_height 松手后拉高等待确认。它描述的是一次指针手势的进度，不是实体或任务的生命周期，仓库里没有同语义的词表可复用。",
       "site": "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts::type:BoxDrawStep/type-union"
-    },
-    {
-      "members": [
-        "cancelled",
-        "done",
-        "error",
-        "idle",
-        "running"
-      ],
-      "reason": "AiScenePhase 是导演台 V2「AI 搭场景」浮条的一次搭建流程状态：idle 未开始、running 正在向文本大脑请求并物化、done 已落成、error 失败、cancelled 用户取消。它是浮条状态行的展示态，与 WorkbenchAiMessage.status（对话消息 pending/streaming 的传输态）语义不同：没有流式消息生命周期，只有「这一次搭建做完没有 / 为什么没做完」。",
-      "site": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts::type:AiScenePhase/type-union"
-    },
-    {
-      "members": [
-        "connected",
-        "disconnected"
-      ],
-      "reason": "MobileBridgeEvent.state 是导演台 V2 手机虚拟相机局域网桥上「这一台手机」的在线态：connected 是 hello 握手成功，disconnected 是 WebSocket 关闭。它描述的是局域网设备会话，不是生成任务、审批 challenge 或画布节点选中态；渲染层 DesktopDirectorMobileEvent 从这份类型 derive，不另立词表。",
-      "site": "electron/shared/contracts/directorMobileBridge.ts::type:MobileBridgeEvent/property:state/type-union"
     },
     {
       "members": [
@@ -1424,12 +1480,14 @@
     },
     {
       "members": [
-        "null",
-        "ok",
-        "timeout"
+        "cancelled",
+        "done",
+        "error",
+        "idle",
+        "running"
       ],
-      "reason": "3D/全景交互的局部捕获或反馈结果（null / ok / timeout），仅属于该交互域。",
-      "site": "src/workbench/generationCanvas/nodes/director/agent/cameraMoveCaptureRetry.ts::type:CameraMoveCaptureOutcome/type-union"
+      "reason": "AiScenePhase 是导演台 V2「AI 搭场景」浮条的一次搭建流程状态：idle 未开始、running 正在向文本大脑请求并物化、done 已落成、error 失败、cancelled 用户取消。它是浮条状态行的展示态，与 WorkbenchAiMessage.status（对话消息 pending/streaming 的传输态）语义不同：没有流式消息生命周期，只有「这一次搭建做完没有 / 为什么没做完」。",
+      "site": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts::type:AiScenePhase/type-union"
     },
     {
       "members": [
@@ -1565,55 +1623,6 @@
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes.",
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const"
-    },
-    {
-      "members": [
-        "loading",
-        "missing",
-        "ready"
-      ],
-      "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
-      "site": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts::function:poseClipStatus/type-union"
-    },
-    {
-      "members": [
-        "absent",
-        "auth-stale",
-        "current",
-        "custom",
-        "development",
-        "launcher-stale",
-        "legacy-launcher",
-        "stale-development"
-      ],
-      "reason": "客户端配置里那条 nomi 条目相对当前 Nomi 的兼容性判定（mcpConfig.classifyMcpEntry 唯一产出）的中立 owner：主进程 mcpConfig.ts 与渲染层 mcpBridgeTypes.ts 的 McpConfigState 都从这份 tuple derive。八态里 legacy-launcher / stale-development / auth-stale / launcher-stale 是 Nomi 自己写过的历史形状（启动修复只动这些；launcher-stale 含「命令签名都对、NOMI_SETTINGS_DIR 指向别的/已删除 profile」，2026-09-14 起），custom 是 Nomi 没写过的条目（永不动）。与 McpVerifyReason 不同：这里判的是静态配置形状，那边判的是真起进程后的握手结论。",
-      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const"
-    },
-    {
-      "members": [
-        "argument-missing",
-        "client-auth-missing",
-        "command-missing",
-        "handshake-failed",
-        "not-installed",
-        "ok",
-        "spawn-failed",
-        "timeout"
-      ],
-      "reason": "实连验证（mcpVerify.verifyMcp 真起一次配置里那条命令握手）的诊断结论的中立 owner：主进程 mcpVerify.ts 与渲染层 mcpBridgeTypes.ts 的 McpVerifyReason 都从这份 tuple derive；UI 文案按它走 i18n（ConnectAssistantCard 的 REASON_I18N），主进程不回中文。与 McpConfigState 分工：这里是运行时诊断（spawn/握手/超时），那边是静态配置形状。",
-      "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_VERIFY_REASONS/as-const"
-    },
-    {
-      "members": [
-        "failed",
-        "idle",
-        "queued",
-        "sending",
-        "sent",
-        "unconfigured"
-      ],
-      "reason": "一键反馈那张卡的**发送阶段**六态，只服务这张卡的渲染分支。与 electron/tasks 的 Job.status 不是同一语义：那边是本机任务队列的执行态（有 succeeded/running，可取消、可重排），这边是「一次用户主动交出去的东西现在在哪一步」——其中 queued（发不出去已入队静默重试）与 unconfigured（这个构建没配接收端）是本域独有的两档，前者在别处会被当成 running、后者在别处根本不存在。不复用是为了让「排队了算不算成功」这条判断只有一个地方可改：这里 queued 与 sent 都收成一行回执，而任务队列绝不能把排队当完成。",
-      "site": "src/ui/community/FeedbackReportCard.tsx::type:Phase/type-union"
     }
   ],
   "debt": [

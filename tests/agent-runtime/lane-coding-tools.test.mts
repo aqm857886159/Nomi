@@ -85,6 +85,11 @@ test('包容的错误正文告诉模型下一步，不是一个错误码', async
     const message = (error as Error).message;
     assert.match(message, /outside this project/);
     assert.match(message, /relative to the project root/);
+    // 2026-09-17：这句话进的是**模型可见、面板可见**的工具结果，原来它无条件带着
+    // `Writes must remain under <用户真实绝对项目目录>`——每一次包容拒绝都把用户的主目录名
+    // 和项目名一起送出去。改回去这条会红。
+    assert.doesNotMatch(message, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.doesNotMatch(message, /\/Users\/|\/home\/|[A-Za-z]:\\/);
   }
 });
 

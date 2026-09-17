@@ -6,19 +6,18 @@ import SelectionGeneratePopover from './SelectionGeneratePopover'
 import { WorkbenchIconButton } from '../../design/actions'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
-import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../workbenchTypes'
+import { normalizeWorkbenchContentJson } from '../workbenchTypes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/useNomiRichTextEditor'
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
-import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import {
   assertDocumentWritePreconditions,
   captureDocumentAnchor,
-  documentContentHash,
   resolveDocumentWriteRange,
   type DocumentTextReader,
 } from './documentWriteTarget'
+import { documentSessionState, overrideDocumentSessionPort, type DocumentSessionPort } from '../project/documentSessionPort'
 
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
@@ -105,7 +104,6 @@ export default function WorkbenchEditor(): JSX.Element {
   const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
-  const setCreationDocumentTools = useWorkbenchStore((state) => state.setCreationDocumentTools)
   const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
   const storyboardPlannerLauncher = useWorkbenchStore((state) => state.storyboardPlannerLauncher)
   const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
@@ -116,15 +114,9 @@ export default function WorkbenchEditor(): JSX.Element {
     [workbenchDocuments, activeDocumentId],
   )
   const workbenchDocumentRef = React.useRef(workbenchDocument)
-  const documentRevisionRef = React.useRef(0)
-  const revisionDocumentIdRef = React.useRef(workbenchDocument.id)
 
   React.useEffect(() => {
     workbenchDocumentRef.current = workbenchDocument
-    if (revisionDocumentIdRef.current !== workbenchDocument.id) {
-      revisionDocumentIdRef.current = workbenchDocument.id
-      documentRevisionRef.current = 0
-    }
   }, [workbenchDocument])
 
   const editorContent = React.useMemo(
@@ -140,7 +132,6 @@ export default function WorkbenchEditor(): JSX.Element {
       // unchanged. Opening a draft must not mutate its source revision or mark
       // every attached storyboard as needing synchronization.
       if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
-      documentRevisionRef.current += 1
       setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
@@ -172,48 +163,43 @@ export default function WorkbenchEditor(): JSX.Element {
     persistentSelection: true,
   })
 
-  // Publish creation document tools = the shared rich-text read/write surface (read full/selection,
-  // insert/replace/append). The AI panel reads these to apply approved write-tool calls.
-  const creationDocumentToolsRef = React.useRef<CreationDocumentTools | null>(null)
+  // 编辑器挂载时用**增强版**覆盖项目会话层的文稿端口（多了光标/选区锚与选区读），卸载时退回基线。
+  // 基线本身随项目在（documentSessionPort），这里不是「有没有文稿能力」的开关。
   React.useEffect(() => {
     if (!editor) return
     const documentReader = (): DocumentTextReader => ({
       contentSize: editor.state.doc.content.size,
       textBetween: (from, to, blockSeparator) => editor.state.doc.textBetween(from, to, blockSeparator),
     })
-    const toolsApi: CreationDocumentTools = {
+    // 写完立刻读 state 要拿到 store 里刚落的那一份（onUpdate 同步写 store，ref 要等下一次渲染）。
+    const liveDocument = () => {
+      const state = useWorkbenchStore.getState()
+      return state.workbenchDocuments.find((item) => item.id === workbenchDocumentRef.current.id) ?? workbenchDocumentRef.current
+    }
+    const enhanced: DocumentSessionPort = {
       readFullText: tools.readFullText,
       readSelectionText: tools.readSelectionText,
-      readState: () => {
-        const text = tools.readFullText()
-        const anchor: DocumentAnchorRef = captureDocumentAnchor(documentReader(), editor.state.selection)
-        return Object.freeze({ revision: documentRevisionRef.current, contentHash: documentContentHash(text), anchor })
-      },
-      applyDocumentWrite: (input: Readonly<{ operation: 'insert' | 'replace' | 'append'; content: string; target: TargetRef; preconditions: PreconditionSet }>) => {
+      // revision / contentHash 与基线同源（store 里的文档），只有锚是编辑器独有的。
+      readState: () => documentSessionState(liveDocument(), captureDocumentAnchor(documentReader(), editor.state.selection)),
+      applyDocumentWrite: (input) => {
         if (input.target.kind !== 'document' || input.target.documentId !== workbenchDocumentRef.current.id) {
           throw new SurfacePortWireError('surface_port_stale')
         }
-        const expected = input.preconditions.document
-        const current = toolsApi.readState()
-        assertDocumentWritePreconditions(expected, current)
-        const range = resolveDocumentWriteRange(documentReader(), input.target.anchor, input.operation)
+        assertDocumentWritePreconditions(input.preconditions.document, enhanced.readState())
+        // whole-document 锚（画布/分镜页发来的）：append 落文末、replace 换整篇；insert 没有位置。
+        const size = documentReader().contentSize
+        const range = input.target.anchor.kind === 'whole-document'
+          ? input.operation === 'append' ? { from: size, to: size }
+            : input.operation === 'replace' ? { from: 0, to: size }
+              : (() => { throw new SurfacePortWireError('capability_unsupported') })()
+          : resolveDocumentWriteRange(documentReader(), input.target.anchor, input.operation)
         tools.applyAtRange(input.content, range)
-        const next = toolsApi.readState()
+        const next = enhanced.readState()
         return Object.freeze({ applied: true as const, revision: next.revision, contentHash: next.contentHash })
       },
-      insertAtCursor: tools.insertAtCursor,
-      replaceSelection: tools.replaceSelection,
-      appendToEnd: tools.appendToEnd,
     }
-    setCreationDocumentTools(toolsApi)
-    creationDocumentToolsRef.current = toolsApi
-    return () => {
-      if (creationDocumentToolsRef.current === toolsApi) {
-        setCreationDocumentTools(null)
-        creationDocumentToolsRef.current = null
-      }
-    }
-  }, [editor, tools, setCreationDocumentTools])
+    return overrideDocumentSessionPort(enhanced)
+  }, [editor, tools])
 
   return (
     <section
@@ -246,6 +232,10 @@ export default function WorkbenchEditor(): JSX.Element {
           '[&_.is-editor-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-editor-empty]:before:text-nomi-ink-40 [&_.is-editor-empty]:before:float-left',
           '[&_.is-editor-empty]:before:pointer-events-none [&_.is-editor-empty]:before:h-0',
+          // 左浮动 + 高度 0 的伪元素宽度是「收缩到适合」——对一句长占位文字来说，
+          // 「适合」就是整句的长度，于是它冲出编辑卡右缘（2026-09-17，W-12，zh/en 都有）。
+          // 给它一个真实上限，让它在卡内折行；文档为空时下面没有内容可被它盖住。
+          '[&_.is-editor-empty]:before:max-w-full',
         )}
       >
         <EditorContent editor={editor} />

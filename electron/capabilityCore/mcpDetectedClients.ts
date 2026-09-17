@@ -84,21 +84,32 @@ export function builtinMcpClientConfigPath(client: BuiltinMcpClient): string | n
 }
 
 /**
- * 宿主存在不等于 Nomi 已配置。「已安装」= 注册表登记的官方用户目录/文件任一存在（只 stat，不 spawn、
- * 不建目录）。此前这里是个 stub（除 workbuddy 外恒 false），于是没装 pi 也会凭空 mkdir -p ~/.config/mcp
- * 并显示成可一键接入——假项。未检测到的客户端不进一键列表，也不会有目录被建出来。
+ * 宿主存在不等于 Nomi 已配置。「已安装」= 注册表登记的官方用户目录/文件里**有真实痕迹**
+ * （只 stat / readdir，不 spawn、不建目录）。未检测到的客户端不进一键列表，也不会有目录被建出来。
+ *
+ * 判据为什么不是「路径存在」（2026-09-17，W-15）：登记的痕迹里除 `~/.claude.json` 之外
+ * **全是目录**，而 `statSync` 对一个**空目录**一样成功。走查里建 5 个空目录，5 个客户端就全都
+ * 以「可一键接入」出现；用户机器上一个卸载后残留的 `~/.cursor` 同样会把 Cursor 显示成已装。
+ * 「存在」证明的是「这条路径被创建过」，不是「这个客户端在这台机器上」。
+ *
+ * 所以痕迹要**非空**才算数：文件要有字节，目录里要至少有一个条目。这仍然不能排除
+ * 「卸载后残留了带文件的目录」——那要 spawn 才能证伪，而这道检测明确不 spawn（它跑在
+ * 设置页渲染路径上）。能做到的是：**没装过的机器不再被判成装了**。
  */
 export function isMcpClientAppInstalled(client: string): boolean {
   if (!isBuiltinMcpClient(client)) return false
   const markers = builtinMcpClientSpec(client).installMarkers[currentPlatform()] ?? []
-  return markers.some((marker) => {
-    try {
-      fs.statSync(resolveClientPath(marker))
-      return true
-    } catch {
-      return false
-    }
-  })
+  return markers.some((marker) => hasRealTrace(resolveClientPath(marker)))
+}
+
+function hasRealTrace(target: string): boolean {
+  try {
+    const stat = fs.statSync(target)
+    if (stat.isDirectory()) return fs.readdirSync(target).length > 0
+    return stat.isFile() && stat.size > 0
+  } catch {
+    return false
+  }
 }
 
 function currentPlatform(): 'darwin' | 'win32' | 'linux' {

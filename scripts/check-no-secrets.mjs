@@ -117,6 +117,27 @@ const VENDOR_MIN_ENTROPY = 2.5;
  * （本仓库实测 60+ 处：commit ref、产物校验和、skills-lock）。那两个长度改由 KEYWORD_ASSIGNMENT
  * 兜（要求附近有 key/token 字样），是刻意的精度/召回取舍。
  */
+/**
+ * 公开资源标识字段 —— 形状像凭证，结构上不可能是凭证。
+ *
+ * Cloudflare 的 wrangler 配置里，绑定块的 `id`（KV 命名空间、D1 数据库、Durable Object…）
+ * 是**账号下资源的公开标识**，恰好也是 32 位 hex。它不是凭证有两层结构理由：
+ *   ① Cloudflare 自己规定 secret 不许写进 wrangler 配置（走 `wrangler secret put` / `.dev.vars`），
+ *      所以这个文件按设计就不承载凭证；官方示例的 wrangler 配置就带着真 id 公开在文档与模板仓库里。
+ *   ② 光有 id 动不了任何东西——要操作那个资源仍需账号 API token，而 token 不在这里。
+ *
+ * 判据是**文件 + 字段名**两条同时成立，不是放宽 32-hex 规则本身：
+ * 同一份 wrangler 配置里任何**别的**位置出现 32 位 hex 照样报（比如有人把 token 写成 `"vars"`），
+ * 别的文件里的 `id:` 也照样报。这样既认得公开资源标识，又不退化成「赦免整份文件」——
+ * 后者正是当初漏掉 kie.ai 真泄露的病根。
+ */
+const PUBLIC_RESOURCE_ID = {
+  file: /(?:^|\/)wrangler\.(?:jsonc?|toml)$/,
+  // 绑定块里 Cloudflare 定义为公开资源标识的字段名；`id` 之外的都写全，避免误伤自造字段。
+  // JSON 配置里字段名带引号（`"id":`），TOML 里不带（`id =`）——两种都要认。
+  field: /\b(?:id|database_id|namespace_id|account_id|zone_id|dataset|index_name)\b["']?\s*[:=]/,
+};
+
 const BARE_HEX32 = /(?<![0-9a-zA-Z])(?:[0-9a-f]{32}|[0-9A-F]{32})(?![0-9a-fA-F])/g;
 const HEX32_MIN_ENTROPY = 3.0;
 const GLUE_CHAR = /[A-Za-z0-9_\-./]/;
@@ -162,8 +183,8 @@ const INLINE_ALLOW = /nomi-secret-scan:allow\s+\S/;
  */
 const MAX_INLINE_ALLOWS = 4;
 
-/** 扫一行里的凭证。返回 [{name, sample}]。 */
-function findCredentials(line) {
+/** 扫一行里的凭证。返回 [{name, sample}]。`scanPath` 用于公开资源标识这条字段级判据。 */
+function findCredentials(line, scanPath = "") {
   const out = [];
   for (const { name, re } of VENDOR_KEY_RULES) {
     for (const m of line.matchAll(re)) {
@@ -179,6 +200,8 @@ function findCredentials(line) {
     const glued = GLUE_CHAR.test(line[start - 1] ?? "") || GLUE_CHAR.test(line[end] ?? "");
     if (glued) continue; // URL 段 / 文件名 / 复合 ID 的一部分
     if (shannonEntropy(m[0]) < HEX32_MIN_ENTROPY) continue; // magic bytes 之类结构化数据
+    // 公开资源标识（wrangler 配置里的绑定 id）：文件与字段名两条同时成立才放行。
+    if (PUBLIC_RESOURCE_ID.file.test(scanPath) && PUBLIC_RESOURCE_ID.field.test(line.slice(0, start))) continue;
     out.push({ name: "疑似明文 API key（32 位 hex）", sample: m[0] });
   }
   for (const m of line.matchAll(KEYWORD_ASSIGNMENT)) {
@@ -249,7 +272,7 @@ function scan(files, staged) {
       }
     }
     const lines = content.split("\n");
-    const perLine = lines.map((line) => findCredentials(line));
+    const perLine = lines.map((line) => findCredentials(line, scanPath));
     lines.forEach((line, i) => {
       const found = perLine[i];
       if (!found.length) return;

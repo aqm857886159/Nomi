@@ -92,12 +92,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   useModelSettingsPageFocus(page, goBack)
   const openWizard = React.useCallback(
     (preset?: string, existingVendorKey?: string, initialScreen?: 'form' | 'scriptDraft') => {
-      openPage({
-        type: 'add',
-        ...(preset ? { preset } : {}),
-        ...(existingVendorKey ? { existingVendorKey } : {}),
-        ...(initialScreen ? { initialScreen } : {}),
-      })
+      openPage({ type: 'add', ...(preset ? { preset } : {}), ...(existingVendorKey ? { existingVendorKey } : {}), ...(initialScreen ? { initialScreen } : {}) })
     },
     [openPage],
   )
@@ -794,6 +789,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       dataSourceContent={<TikhubConnectorCard />}
       availableFooter={comfyuiConnected.length > 0 ? <AddComfyuiInstanceButton onAdded={refresh} /> : undefined}
       onReload={reloadFromError}
+      onCustomApi={() => openWizard('newapi')}
       onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
     />
   )

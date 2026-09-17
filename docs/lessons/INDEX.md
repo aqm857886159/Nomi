@@ -52,6 +52,7 @@
 
 - [合成夹具永远走不到真实素材那条路](2026-09-14-real-media-first-run-exposed-import-and-open-time.md) — 画布/性能/导入/导出测试全绿、用户第一次拿真素材就卡死或导不进来时读；附夹具与真素材的量级对照 + 门岗 `check:real-media-fixture`
 - [打包成功不证明包来自当前源码](package-only-is-not-a-source-build.md) — 切分支、合并、修代码后打包验收，必须核验两份构建戳
+- [出厂配置只能在**产物**上验](shipped-config-must-be-verified-on-the-artifact.md) — 随包发出去的端点/令牌/默认地址；只读 `process.env` 在装机版里等于没配，四道绿灯一起骗人
 - [测 Agent 不用各种 prompt 打它、走查靠灌状态 = 测不出东西](agent-tests-must-be-prompt-driven-and-human-path.md) — 写验收走查/派走查任务书前先读；执行版在 `docs/engineering/acceptance-walkthrough-doctrine.md`
 
 - [UA 默认样式泄漏是一类问题，但蓝框未必来自 UA](ua-default-style-leaks-are-a-class.md) — 输入框点击厚环；先查计算样式，再按文本/非文本控件在全局边界治理
@@ -86,6 +87,7 @@
 
 ## B. 测试与 CI 的红绿判读
 
+- [CI 的 E2E 链是串行 fail-fast，本地 gates 一条都不含——push 前先本地跑完整条链](ci-e2e-is-fail-fast-so-run-the-whole-chain-locally-before-push.md) — 连红几轮但每轮红的是不同走查 = 发现被串行化，不是没到根因；正文门岗只读 push payload
 - [启动器默认值不能覆盖调用配置](launcher-defaults-must-not-override-env.md) — GUI 已起但 MCP resources/list 超时：先打印双方 capabilityDir；默认派生只能在显式参数与 env 都未配置时发生。
 - [测试目录必须等资源真正关闭后再删](fixture-teardown-must-await-resource-owners.md) — node:test 红后挂死、临时目录 ENOTEMPTY、kill-only 清理。
 - [停掉一个 agent ≠ 现场清空：子 agent 还在写、哨兵还在跑](stopping-an-agent-leaves-children-and-sentinels.md) — B · TaskStop 只停一个；先 ListAgents 停子 agent，再 pgrep 杀 until 循环，证明无写入后才派接力写手
@@ -136,8 +138,10 @@
 ## D. 排查与平台故障
 - [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
 - [长寿命对象不许揣短寿命名词当身份证](holder-must-not-keep-a-shorter-lived-noun.md) — `surface_port_stale` / `unavailable`、或合同写了「现抓」真机仍红时先读；冻点从 open 滑到 prepare 再滑到 execute 是同一类，不是结构改完；产品债 T-AG-16
+- [能力绑在组件挂载生命周期上，「不存在」就会被说成「过期」](capability-bound-to-component-lifecycle-reports-stale.md) — Agent/MCP 工具「时好时坏」、`*_stale` 一族错误码重试永远撞同一句、或你正要在 `.tsx` useEffect 里 `setXxxTools(api)` 发布能力时读；owner 上移到会话层、组件只做增强覆盖；门岗 `check:capability-lifecycle`
 - [读路径不许写盘：像读实为写的 clientInfo 把本机 5 个 MCP 客户端配置指向死 profile](mcp-read-path-must-not-write-host-configs.md) — 开设置页就改写真实宿主配置、写了不读回照样绿灯；守卫下沉到唯一写盘门，隔离判据用 os.userInfo().homedir；跑隔离实例前先备份 5 个文件
 - [Antigravity 图像验证两平台一起红：自己的 agent 定义关掉了自己的钩子](antigravity-hooks-need-inherit-customizations.md) — `inheritCustomizations:false` 在 agy ≥1.1.27 连 hooks 一起关；「加载了」≠「执行了」；同码双平台红先查共享层
+- [全局 HID 不带目标应用：发 Cmd+Q 之前不确认前台是谁，你退掉的是自己的宿主](hid-global-input-must-verify-frontmost-app.md) — 准备用真鼠标真键盘驱动桌面 App（尤其 `Cmd+Q`/`Cmd+W`），或一批 agent 毫无征兆集体断线、用户看到某 App「闪退」时读；全局事件落在前台窗口不带目标应用，退出走 `osascript quit app`，能用 Playwright 页面级驱动就别用全局 HID
 
 - [平台门控必须在 UI 上说人话](platform-gates-must-explain-user-action.md) — Windows 等平台被拒绝却显示未检测或部分受限时
 - [Antigravity CLI Windows 修复计划](../plan/2026-09-08-antigravity-cli-windows.md) — 六条现场记录核实、回归与 RC 边界
@@ -147,6 +151,7 @@
 - [grep 静默跳过含 NUL 字节的文件](grep-silently-skips-files-with-nul-bytes.md) — 搜不到已知存在的符号时先 `file` / `grep -a`
 - [查重别按报错串 grep](dedupe-grep-misses-silent-copy.md) — 不抛异常的那份正好隐身，而它才是真 bug
 - [死 i18n 词条有两种成因，处置相反](dead-i18n-keys-two-causes.md) — 删之前先做「译文值 × 源码硬编码」交叉比对
+- [`satisfies TranslationKey` 不验证这个键存不存在](satisfies-translationkey-does-not-verify-the-key.md) — 界面对、报文/日志里却冒出原始 key 时；常量表里的键不算被验过，`ParseKeys` 对未知键回落 string
 - [Tailwind 只扫 `.tsx` 时，住进 `.ts` 的类名会静默消失](tailwind-content-ts-classnames-silently-dropped.md) — 「类名写着却没生效」先查它在不在生成的 CSS 里；已由 `content` 加 `./src/**/*.ts` + 哨兵单测固化，附全仓 4 处失效盘点
 - [Electron 被 macOS 误报恶意软件的修法](electron-xprotect-false-positive-resign.md) — 重下 + ad-hoc 重签换 cdhash；摘 quarantine 没用
 - [Windows 改保存名闪退：根因已修、平台未验](sogou-save-dialog-crash-pending-win32-verify.md) — 再遇先要崩溃日志尾行和 minidump，别重猜

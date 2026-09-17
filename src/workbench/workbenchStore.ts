@@ -35,7 +35,7 @@ import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType 
 import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
-import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
+import { normalizeWorkbenchDocument, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import { createWorkbenchDocumentSlice, type WorkbenchDocumentSlice } from './workbenchDocumentSlice'
 import {
@@ -111,7 +111,6 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   toggleSidebarCollapsed: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   rememberCategoryViewport: (categoryId: string, viewport: GraphViewport) => void
-  creationDocumentTools: CreationDocumentTools | null
   creationSelectionText: string; storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
   creationAiModeId: string
   /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
@@ -159,7 +158,6 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   setWorkspaceMode: (mode: unknown) => void
   setAssistantWidth: (width: number) => void
   setProjectSidebarWidth: (width: number) => void
-  setCreationDocumentTools: (tools: CreationDocumentTools | null) => void
   setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; name: string } | null) => void
@@ -312,7 +310,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       },
     }))
   },
-  creationDocumentTools: null,
   creationSelectionText: '', storyboardPlannerLauncher: null,
   creationAiModeId: 'general',
   creationActiveSkill: null,
@@ -364,9 +361,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     assistantWidth: clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth),
   }),
   setProjectSidebarWidth: (width) => set({ projectSidebarWidth: Math.max(240, Math.min(720, Math.round(width))) }),
-  setCreationDocumentTools: (creationDocumentTools) => {
-    set({ creationDocumentTools })
-  },
   setCreationSelectionText: (text) => {
     set({ creationSelectionText: typeof text === 'string' ? text.trim() : '' })
   },

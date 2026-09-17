@@ -17,6 +17,14 @@
 
 import { acceptAttrForKinds, type MediaKind } from '../../assets/mediaTypes'
 
+/**
+ * 转出 `MediaKind`（R17.3 分层边界）：渲染层只许 import `electron/shared/contracts/`，
+ * 而「这个面收哪些种类」的答案（`accepted`）本来就是本契约的一部分——
+ * 拿着它却够不到它的类型，调用方只能自己抄一份联合，那才是真正的第二份真相源。
+ * 纯类型转出，运行时零成本，不把 `mediaTypes` 的实现拖进渲染 bundle。
+ */
+export type { MediaKind }
+
 /** 能承载媒体的入口。新增入口必须在这里登记。 */
 export type MediaImportSurfaceId =
   | 'project-storage'
@@ -64,7 +72,9 @@ export const MEDIA_IMPORT_SURFACES: Readonly<Record<MediaImportSurfaceId, MediaI
   'generation-canvas': {
     id: 'generation-canvas',
     kinds: ['image', 'video'],
-    narrowedBecause: '画布节点只有图/视频两种 archetype 落点；音频与 3D 在画布上没有节点可落（它们的家是素材库 → 时间轴 / 导演台）',
+    // 「archetype」是内部词，2026-09-17 之前它随这句话漏到了用户面前（W-09）。这句现在只走
+    // MCP/模型那条路（用户面的句子由 `accepted` 派生），但内部词照样不该出现在任何出站文本里。
+    narrowedBecause: '画布节点只有图片和视频两种落点；音频与 3D 在画布上没有节点可落（它们的家是素材库 → 时间轴 / 导演台）',
     hardCapBytes: null,
     hardCapBecause: null,
   },
@@ -155,7 +165,17 @@ export function admitMediaImport(
   const surface = MEDIA_IMPORT_SURFACES[surfaceId]
   const kind = candidate.kind
   if (!kind || !surface.kinds.includes(kind)) {
-    return { ok: false, reason: 'unsupported-kind', kind, accepted: surface.kinds, narrowedBecause: surface.narrowedBecause }
+    // 「认不出这是什么」与「认得出、但这个面不收」是**两件事**，拒绝理由不一样（2026-09-17，W-09）：
+    // 收窄理由解释的是「这个面为什么比全集窄」，它只对一个**已经判出种类**的文件成立。
+    // 把它挂到认不出的文件上，用户拖个 .txt 会得到「音频与 3D 在画布上没有节点可落」——
+    // 一句和他的文件毫无关系、还把他指向另一个同样不收 .txt 的地方的解释。
+    return {
+      ok: false,
+      reason: 'unsupported-kind',
+      kind,
+      accepted: surface.kinds,
+      narrowedBecause: kind ? surface.narrowedBecause : null,
+    }
   }
   const sizeBytes = Number.isFinite(candidate.sizeBytes) && candidate.sizeBytes > 0 ? candidate.sizeBytes : 0
   if (surface.hardCapBytes !== null && sizeBytes > surface.hardCapBytes) {

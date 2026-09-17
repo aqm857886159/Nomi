@@ -1,0 +1,52 @@
+{
+  "samples": [
+    {
+      "at": 457,
+      "text": "Importing · 8% · 1.29 GB"
+    },
+    {
+      "at": 994,
+      "text": "Importing · 15% · 1.29 GB"
+    },
+    {
+      "at": 1694,
+      "text": "Importing · 36% · 1.29 GB"
+    },
+    {
+      "at": 2633,
+      "text": "Importing · 59% · 1.29 GB"
+    },
+    {
+      "at": 3080,
+      "text": "Importing · 60% · 1.29 GB"
+    },
+    {
+      "at": 3900,
+      "text": "Importing · 77% · 1.29 GB"
+    },
+    {
+      "at": 4344,
+      "text": "Importing · 88% · 1.29 GB"
+    },
+    {
+      "at": 4816,
+      "text": "Importing · 89% · 1.29 GB"
+    },
+    {
+      "at": 5280,
+      "text": "Importing · 100% · 1.29 GB"
+    }
+  ],
+  "findings": [
+    {
+      "id": "C1-progress",
+      "verdict": "ok",
+      "text": "1317MB 导入用时 10228ms；进度文案共出现 9 次变化 / 9 个不同值；落地=true"
+    },
+    {
+      "id": "C1-reject",
+      "verdict": "ok",
+      "text": "导入 .txt 被拒时新出现的文案：“9月12日(1).txt” has nowhere to land here — 画布节点只有图/视频两种 archetype 落点；音频与 3D 在画布上没有节点可落（它们的家是素材库 → 时间轴 / 导演台）"
+    }
+  ]
+}

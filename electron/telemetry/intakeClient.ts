@@ -13,7 +13,52 @@
 // 与 `telemetrySettings.ts` 的分工：那份管**用户同意了没有**（合同、时间、匿名会话 id），
 // 这份管**东西往哪发**（端点、令牌、超时）。两件事会各自独立变化——换域名不该碰同意合同，
 // 改同意语义不该碰 HTTP——所以不合在一个文件里。
+import fs from 'node:fs'
+import path from 'node:path'
 import { appFetch } from '../appFetch'
+
+/**
+ * 出厂配置：打包时由 `scripts/write-intake-config.mjs` 烤进 `dist-electron/intake-config.json`。
+ *
+ * 为什么不能只读 `process.env`（2026-09-17，W-01）：装机版的 `process.env` 是**用户桌面的环境**，
+ * 那里永远没有这两个值。0.21.0 就是这么出厂的——链路通、走查绿（走查自己在 env 里塞值），
+ * 用户却「点了愿意、写了反馈、拿到编号，然后谁也没收到」。
+ *
+ * 读的顺序是 env 优先、烤进来的兜底：走查与自部署验证靠 env 指向本机接收端，
+ * 出厂包靠烤进来的那份。读失败（开发期还没 build、文件被删）一律当「未配置」，
+ * 不抛——反馈回路坏掉不该让主进程起不来。
+ */
+type BakedIntakeConfig = { endpoint: string; token: string }
+
+/**
+ * 烤进来的那份配置在哪。**导出**是为了让测试与门岗指向同一条路径——
+ * 抄一份路径过去就是第二个真相源，挪了目录之后测试仍然绿、包却读不到。
+ * 本文件编译到 `dist-electron/telemetry/`，配置在 `dist-electron/` 根上。
+ */
+export function intakeConfigPath(): string {
+  return path.join(__dirname, '..', 'intake-config.json')
+}
+let bakedCache: BakedIntakeConfig | null = null
+function baked(): BakedIntakeConfig {
+  if (bakedCache) return bakedCache
+  bakedCache = { endpoint: '', token: '' }
+  try {
+    const raw: unknown = JSON.parse(fs.readFileSync(intakeConfigPath(), 'utf8'))
+    if (raw && typeof raw === 'object') {
+      const record = raw as Record<string, unknown>
+      bakedCache = {
+        endpoint: typeof record.endpoint === 'string' ? record.endpoint : '',
+        token: typeof record.token === 'string' ? record.token : '',
+      }
+    }
+  } catch { /* 未配置 —— 见上面那段。 */ }
+  return bakedCache
+}
+
+/** 只给测试用：让下一次读重新走一遍盘。 */
+export function resetIntakeConfigCache(): void {
+  bakedCache = null
+}
 
 /** 接收端的三条路由。写成联合类型而不是 string：新增一条货物必须来这里登记一次。 */
 export type IntakeRoute = '/v1/events' | '/v1/trajectories' | '/v1/feedback'
@@ -37,7 +82,9 @@ const DEFAULT_TIMEOUT_MS = 8_000
  * 任何地方都不要把它说成「已鉴权」。
  */
 export function intakeToken(): string {
-  return String(process.env.NOMI_INTAKE_TOKEN || '').trim()
+  // env 只要**被定义**就赢（哪怕是空串）：走查靠 `NOMI_INTAKE_*=''` 显式关掉出厂端点，
+  // 用 `||` 会让空串掉回烤进来的那份，把「验证只在本机记录」那条走查变成假绿。
+  return String(process.env.NOMI_INTAKE_TOKEN ?? baked().token).trim()
 }
 
 /** 回环地址：http 在这里是允许的，因为这些字节根本没离开这台机器。 */
@@ -59,7 +106,7 @@ const LOOPBACK_HOST = /^(?:127(?:\.\d{1,3}){3}|localhost|\[::1\])(?::\d+)?$/i
  * 而回环这个口子也正是 `hardenedFetch` 会挡掉、我们却必须留着的那一格。
  */
 export function intakeEndpoint(): string | null {
-  const configured = String(process.env.NOMI_INTAKE_ENDPOINT || '').trim().replace(/\/+$/, '')
+  const configured = String(process.env.NOMI_INTAKE_ENDPOINT ?? baked().endpoint).trim().replace(/\/+$/, '')
   if (!configured) return null
   if (/^https:\/\//i.test(configured)) return configured
   const loopback = /^http:\/\/([^/?#]+)$/i.exec(configured)

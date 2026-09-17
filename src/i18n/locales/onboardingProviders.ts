@@ -283,6 +283,8 @@ export const zhOnboardingProviders = {
       emptySubtitle: '还没有接入生成模型',
       search: '搜索连接或模型',
       tasks: '任务 {{count}}',
+      customApi: '自定义 API / 中转站',
+      customApiHint: '先保存地址与 Key，再获取列表或手动输入模型',
       directScript: '我已有调用脚本',
       directScriptHint: '自定义普通 HTTP 请求；模型输入项仍需单独设置',
       advancedBadge: '高级',
@@ -401,6 +403,9 @@ export const zhOnboardingProviders = {
     replaceKey: '更换密钥',
     unavailable: '暂时连不上 Nomi 后台，请重启应用后再试。',
     saveFailed: '保存失败：{{message}}',
+    // 「这台机器上到底存没存住这把 key」——从状态派生，不是一条文案分支（2026-09-17，W-17）。
+    storedYes: '这台机器上已经存着 {{name}} 的密钥。',
+    storedNo: '这台机器上还没有存 {{name}} 的密钥。',
   },
   knownVendors: {
     apimart: {
@@ -1091,6 +1096,7 @@ export const zhOnboardingProviders = {
       continue: '继续填写',
       unavailable: 'Nomi 后台暂时不支持建立脚本草稿，请重启应用后再试。',
       createFailed: '草稿保存失败：{{message}}',
+      missingFields: '还差{{fields}}才能继续。',
       scriptRequired: '草稿必须填写调用脚本后才能保存。',
       enableHint: '当前是草稿；脚本和输入方式都完整后才会启用。',
       badge: '待填脚本',
@@ -1490,6 +1496,8 @@ export const enOnboardingProviders = {
       emptySubtitle: 'No generation models connected yet',
       search: 'Search connections or models',
       tasks: 'Tasks {{count}}',
+      customApi: 'Custom API / gateway',
+      customApiHint: 'Save the URL and key first, then fetch or manually enter models',
       directScript: 'I already have a call script',
       directScriptHint: 'Customize ordinary HTTP requests; model inputs are configured separately',
       advancedBadge: 'Advanced',
@@ -1610,6 +1618,8 @@ export const enOnboardingProviders = {
     replaceKey: 'Replace key',
     unavailable: 'The Nomi backend is unavailable. Restart the app and try again.',
     saveFailed: 'Could not save: {{message}}',
+    storedYes: 'A {{name}} key is stored on this machine.',
+    storedNo: 'No {{name}} key is stored on this machine yet.',
   },
   knownVendors: {
     apimart: {
@@ -2318,6 +2328,7 @@ export const enOnboardingProviders = {
       continue: 'Continue Draft',
       unavailable: 'The Nomi background process cannot create script drafts yet. Restart the app and try again.',
       createFailed: 'Could not save the draft: {{message}}',
+      missingFields: 'Still needed: {{fields}}.',
       scriptRequired: 'A draft needs a call script before it can be saved.',
       enableHint: 'This is a draft; it is enabled only after both the script and input setup are complete.',
       badge: 'Script needed',

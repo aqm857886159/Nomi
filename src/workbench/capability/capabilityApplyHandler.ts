@@ -33,6 +33,7 @@ import {
   sealCurrentProjectCanvasReadSnapshot,
   type ProjectExecutionContext,
 } from '../project/projectCanvasReadSurface'
+import { getDocumentSessionPort } from '../project/documentSessionPort'
 import {
   SurfacePortWireError,
   type CapturedCanvasReadSnapshotHandleWire,
@@ -407,13 +408,14 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
 
   switch (op) {
     case 'document.write': {
-      const tools = useWorkbenchStore.getState().creationDocumentTools
+      // 文稿端口由项目会话层 owner 提供（基线永远在，编辑器挂载时是增强版），这里不再探「有没有编辑器」。
+      const tools = getDocumentSessionPort()
       const operation = data.operation === 'insert' || data.operation === 'replace' || data.operation === 'append'
         ? data.operation
         : null
       const content = typeof data.content === 'string' ? data.content : ''
       const documentId = useWorkbenchStore.getState().activeDocumentId
-      if (!tools || !operation || !content || !documentId) {
+      if (!operation || !content || !documentId) {
         throw new SurfacePortWireError('surface_port_unavailable')
       }
       const current = tools.readState()

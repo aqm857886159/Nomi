@@ -1,0 +1,140 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-17-lane-failure-observability-and-path-privacy",
+  "problem_type": "A failure that leaves no trace where people look, and a refusal that leaks an absolute path",
+  "symptom": "read_script failed three times in a row and the whole session's tool was cut off, while the main-process log for that day had nine lines and mentioned none of it; every containment refusal printed the user's real absolute project directory into a model- and panel-visible tool result.",
+  "direct_cause": "Tool failures were recorded only on the lane's own session JSONL, and LaneCodingPathError unconditionally interpolated projectDir into its message.",
+  "class_root": "Two halves of the same habit: the place a failure is written is not the place a person looks for it, and a message meant to help the model was built out of host state instead of out of what the model can act on.",
+  "affected_population": [
+    "Every lane tool failure on every surface (this is the only after_tool hook)",
+    "Every containment refusal from the four LaneCodingPathError throw sites"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneCodingPaths.mts",
+    "electron/agentLane/laneHost.mts"
+  ],
+  "entry_points": [
+    "pi harness after_tool hook (all lane tools)",
+    "lane coding read/write/readSkill containment checks"
+  ],
+  "internal_only_reason": "Where this application writes its own diagnostics, and what its own containment refusal says, are decisions internal to this repository; no external document settles them.",
+  "invariants": [
+    "A tool failure leaves a structured line in the main-process log, with the tool name, the first line of the failure and how many times it has repeated",
+    "Nothing that identifies the host filesystem (absolute paths, home directory, user name) enters a model-visible or panel-visible tool result",
+    "Tool result bodies are never written to the log wholesale, because they can carry the user's own writing"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "line": 34,
+      "symbol": "LaneCodingPathError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "line": 106,
+      "symbol": "LaneCodingPathError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "line": 109,
+      "symbol": "LaneCodingPathError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "line": 112,
+      "symbol": "LaneCodingPathError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "line": 460,
+      "symbol": "lane-tool-failed"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 5,
+    "why_not": "The four refusal doors all construct the one error class, which is the single place the message is composed, so removing the path from the constructor closes all four at once; merging the throw sites themselves would erase the distinction between write-outside-project, unknown-root and skill-write, which the caller keeps. The fifth door is the new log line in the only after_tool hook there is."
+  },
+  "generality_proof": "after_tool is the single hook every lane tool passes through, and all four refusal sites construct the same error class, so both halves reach their whole population without a second code path.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "symbol": "LaneCodingPathError",
+      "responsibility": "Compose the containment refusal out of what the model can act on, never out of host filesystem state"
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "after_tool",
+      "responsibility": "The single place every lane tool outcome passes through, and therefore the only place a failure can be recorded once for all tools"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "entry_point": "containPath",
+      "disposition": "enforced",
+      "evidence": "Constructs the same error class; the absolute project directory is no longer an argument it can pass"
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "before_tool",
+      "disposition": "not-affected",
+      "evidence": "Approval refusals have their own copy and their own note on the transcript; they are not tool failures and must not inflate the repeated-failure counter"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any message built for a model out of host state can leak the host, and any subsystem that keeps its own journal can become invisible to whoever reads the application log.",
+    "same_class_scan": [
+      "door-map LaneCodingPathError creationDocumentTools",
+      "Read every LaneCodingPathError construction site and the single after_tool hook; grep for projectDir interpolation in model-visible strings"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneCodingPaths.mts",
+    "invariant": "The refusal message is composed in one constructor that no longer receives the project directory.",
+    "failure_mode": "A future caller cannot reintroduce the path because the constructor does not take it; the regression test also refuses any /Users/, /home/ or drive-letter substring.",
+    "exception_policy": "none",
+    "strategy": "Remove the host state from the constructor's signature rather than filtering it out downstream.",
+    "artifacts": [
+      "electron/agentLane/laneCodingPaths.mts",
+      "electron/agentLane/laneHost.mts"
+    ]
+  },
+  "regression_tests": [
+    "tests/agent-runtime/lane-coding-tools.test.mts"
+  ],
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-coding-tools.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneCodingPaths.mts"
+    ],
+    "rationale": "The two-argument constructor is gone, so there is no remaining way to build the message with a project directory in it."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes.",
+  "residual_risks": [
+    "This contract covers only the two halves of block J that do not depend on a structural decision. The larger defect the same walkthrough exposed — document read/write capability being published by the creation-page React component rather than by the project session, so a cold start into the canvas makes read_script fail as `surface_port_stale` — is deliberately NOT fixed here. A read-only census of every surface capability's registration lifecycle is in flight; the owner layer it names will decide where the capability is published, which error code replaces the mis-named `surface_port_stale`, and how the three-strike breaker recovers when the capability appears. Doing it before that census would fix one surface and leave its siblings, which is the shape the census exists to prevent."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneCodingPaths.mts",
+    "has_tests": true,
+    "tests": [
+      "tests/agent-runtime/lane-coding-tools.test.mts"
+    ],
+    "rationale": "The refusal text has exactly one constructor, and that constructor is the only thing that can decide whether host state enters a model-visible string."
+  }
+}

@@ -49,3 +49,19 @@ describe('导入进度是渐显的唯一驱动', () => {
     expect(useAssetImportProgressStore.getState().byNode['node-4']?.copiedBytes).toBe(8)
   })
 })
+
+// 2026-09-17 走查 W-08 的回归：1.3 GB 真素材到 100% 之后还要约 5 秒（哈希重读整份文件、落库、
+// 认领预览），那一段此前显示「100%」，和卡死长得一模一样。
+describe('收尾段（W-08）', () => {
+  it('phase 随事件带进来，收尾时比例已经是 1 但阶段不是 copying', () => {
+    const store = useAssetImportProgressStore.getState()
+    store.report('n-finalize', { copiedBytes: 0, totalBytes: 100, phase: 'preparing' })
+    expect(useAssetImportProgressStore.getState().byNode['n-finalize']?.phase).toBe('preparing')
+    store.report('n-finalize', { copiedBytes: 100, totalBytes: 100, phase: 'copying' })
+    store.report('n-finalize', { copiedBytes: 100, totalBytes: 100, phase: 'finalizing' })
+    const settledProgress = useAssetImportProgressStore.getState().byNode['n-finalize']
+    expect(settledProgress?.phase).toBe('finalizing')
+    expect(importRevealRatio(settledProgress)).toBe(1)
+    useAssetImportProgressStore.getState().clear('n-finalize')
+  })
+})

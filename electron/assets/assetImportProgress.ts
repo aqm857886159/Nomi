@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { pipeline } from "node:stream/promises";
 
 import { broadcastAssetImportProgress } from "./assetEvents";
+import type { AssetLocalizationEvent } from "../shared/assets/assetLocalizationEvent";
 
 /** 拷贝流每几十 KB 就回调一次；广播按这个间隔节流（末帧无条件发，保证一定收到 100%）。 */
 const PROGRESS_BROADCAST_INTERVAL_MS = 80;
@@ -40,13 +41,16 @@ export function createAssetImportProgressReporter(input: {
   nodeId: string
   totalBytes: number
   previewUrl?: string
-}): { announce: () => void; report: AssetCopyProgress; finish: () => void; setPreviewUrl: (url: string) => void } {
+}): { announce: () => void; report: AssetCopyProgress; finalize: () => void; setPreviewUrl: (url: string) => void } {
   let lastSentAt = 0;
   let previewUrl = input.previewUrl;
   // 显示给用户的永远是**他选的那个文件**的大小。视频先归一化再拷贝时，拷的是转码产物
   // （325.7 MB 的源会变成 68.1 MB 的中间件），让那个数字跳到标签上等于换了个文件在讲。
   const sourceBytes = input.totalBytes;
   let lastRatio = 0;
+  // 阶段词表的唯一 owner 是事件契约（`AssetLocalizationEvent["phase"]`）——
+  // 在这里抄一份同样的联合，就是等着两边哪天不一样。
+  let phase: NonNullable<AssetLocalizationEvent["phase"]> = "preparing";
   const send = (ratio: number) => {
     lastSentAt = Date.now();
     lastRatio = ratio;
@@ -55,19 +59,23 @@ export function createAssetImportProgressReporter(input: {
       nodeId: input.nodeId,
       copiedBytes: Math.round(ratio * sourceBytes),
       totalBytes: sourceBytes,
+      phase,
       ...(previewUrl ? { previewUrl } : {}),
     });
   };
   return {
     announce: () => send(0),
     report: (copiedBytes, totalBytes) => {
+      phase = "copying";
       const ratio = totalBytes > 0 ? Math.min(1, copiedBytes / totalBytes) : 0;
       const now = Date.now();
       if (ratio < 1 && now - lastSentAt < PROGRESS_BROADCAST_INTERVAL_MS) return;
       send(ratio);
     },
-    // 拷贝之后还有哈希/落库/预览认领；比例已经满了，这里只补一条「字节已就位」。
-    finish: () => { if (lastRatio < 1) send(1); },
+    // 收尾段（W-08）：比例满了但事情没完，那 ~5 秒此前对用户是「100% 还在转」。
+    // 它没有可测的分母（哈希要重读一遍整个文件、落库和预览认领时长各不相同），
+    // 所以给的是**阶段**不是百分比——诚实说「在收尾」，而不是编一个走到 99% 就停的假进度条。
+    finalize: () => { phase = "finalizing"; send(1); },
     // 预览是和拷贝并行派生的（ffprobe+缩放对 4K 源要好几秒，绝不能挡在拷贝前面）：
     // 它什么时候好，就什么时候补一条带 URL 的进度，渲染层据此开始往上盖格子。
     setPreviewUrl: (url: string) => { previewUrl = url; if (url) send(lastRatio); },

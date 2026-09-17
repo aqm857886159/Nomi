@@ -236,6 +236,7 @@ AI 编译路**本可以**生成 query —— 系统提示词第 45 行明写「A
 | 谁定调用形状 | `catalogCommit.ts:518` 硬写配方 | 抓文档 → AI 编译；抓不到 → `builtinOpenAiCompatibleDraft` 硬写配方 | 同 ② （共享 `electron/providerAdapter/service.ts` 这条路） |
 | 谁出钱 | 用户上游额度 | 用户上游额度 + 用户文本模型 token | 同 ② |
 | 实测数字 | — | — | **入参一次写对 36/58 = 62%；9 回合里 1 回合完全成功；人工引导 5 次；窗口点确认 4 次（3 次白点）**（`docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md` §0，真实 Codex CLI 0.153.4 + 真实 DeepSeek key） |
+| 09-17 用户拍板 | **手工入口恢复**为第三条路（`57d73c742` 下线过一次）。落点仍是向导的 `newapi` 预设＝可编辑 baseUrl 那一支；文案沿用 v0.21.0 的「自定义 API / 中转站」，放在「其他接入方式」下 | ② 保持在上面、仍是首选 | 不变 |
 
 ### 4.2 卡点表（四问 × 三入口）
 

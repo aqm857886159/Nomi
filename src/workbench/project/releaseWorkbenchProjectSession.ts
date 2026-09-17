@@ -56,7 +56,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     categoryViewports: {},
     workbenchDocuments: [emptyDocument],
     activeDocumentId: emptyDocument.id,
-    creationDocumentTools: null,
     creationSelectionText: '',
     creationAiModeId: 'general',
     creationActiveSkill: null,

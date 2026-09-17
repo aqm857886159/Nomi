@@ -72,9 +72,19 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --force
-      - run: pnpm run build
+      # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
+      # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。
+      - name: Build with the shipped feedback intake configured
+        env:
+          NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
+          NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+        run: pnpm run build
       - name: Package both macOS architectures without publishing
         run: pnpm exec electron-builder --mac --publish never
+      - name: Verify the shipped feedback intake configuration
+        run: |
+          node scripts/check-packaged-intake.mjs release/mac-arm64/Nomi.app
+          node scripts/check-packaged-intake.mjs release/mac/Nomi.app
       - name: Verify packaged media targets
         run: |
           node scripts/packaging/audit-packaged-media.cjs release/mac-arm64/Nomi.app darwin arm64
@@ -107,9 +117,17 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
+      # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。
+      - name: Build with the shipped feedback intake configured
+        env:
+          NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
+          NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+        run: pnpm run build
       - name: Package Windows without publishing
         run: pnpm exec electron-builder --win nsis --x64 --publish never
+      - name: Verify the shipped feedback intake configuration
+        run: node scripts/check-packaged-intake.mjs release/win-unpacked
       - name: Verify packaged media target
         run: node scripts/packaging/audit-packaged-media.cjs release/win-unpacked win32 x64
       - name: Verify packaged MCP on Windows

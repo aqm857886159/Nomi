@@ -1,0 +1,54 @@
+{
+  "realBefore": {
+    ".claude.json": {
+      "exists": true,
+      "mtimeMs": 1789634948428.9336,
+      "size": 114766,
+      "sha": "6578958a576477a4"
+    },
+    "Library/Application Support/Claude/claude_desktop_config.json": {
+      "exists": true,
+      "mtimeMs": 1789629890663.9941,
+      "size": 3019,
+      "sha": "00bc0f35ddb1737c"
+    },
+    ".codex/config.toml": {
+      "exists": true,
+      "mtimeMs": 1789590975501.7908,
+      "size": 2259,
+      "sha": "a86f0ff70d9751e3"
+    },
+    ".cursor/mcp.json": {
+      "exists": true,
+      "mtimeMs": 1789462475789.888,
+      "size": 789,
+      "sha": "3429869f7a59543f"
+    },
+    ".workbuddy/mcp.json": {
+      "exists": true,
+      "mtimeMs": 1789462475790.9707,
+      "size": 972,
+      "sha": "7dc41b3d4530bc84"
+    }
+  },
+  "findings": [
+    {
+      "id": "C4-real-home",
+      "verdict": "ok",
+      "text": "只打开 tab 后真实主目录 5 个配置文件改动数=0（mtime/内容全未变）",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-zh-02-mcp-panel.png"
+    },
+    {
+      "id": "C4-iso-home",
+      "verdict": "ok",
+      "text": "阳性对照（隔离 HOME，守卫允许写）改动数=0（也没写）",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-zh-03-mcp-expanded.png"
+    },
+    {
+      "id": "C4-not-installed",
+      "verdict": "info",
+      "text": "面板文案：AI 助手连接（MCP） / AI 助手 / 让 Claude Code / Claude Desktop / Codex / Cursor / WorkBuddy 帮你建项目、出图 / 就绪 / Claude Code / Claude Desktop / Codex / Cursor / WorkBuddy / 一键把 Nomi 接进 Claude Code——之后你一句话，它就能在 Nomi 里建项目、拆镜头、用你配好的模型真出图。 / 一键接入 Claude Code / 复制 Claude Code 配置 / 其他客户端 / 用 Cline / Windsurf / pi-mcp-adapter 等别的 MCP 客户端？复制这段通用配置粘进它的 MCP 设置。它不带客户端身份，Nomi 会把它当作外部客户端。 / 复制配置 / 看用法",
+      "shot": "docs/audit/2026-09-17-post-804-walkthrough/c4-zh-03-mcp-expanded.png"
+    }
+  ]
+}

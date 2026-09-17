@@ -52,8 +52,24 @@ describe('进度上报器', () => {
     const reporter = createAssetImportProgressReporter({ projectId: 'p1', nodeId: 'n1', totalBytes: 1_000, previewUrl: 'nomi-local://p1/x.preview.jpg' })
     reporter.announce()
     expect(broadcastAssetImportProgress).toHaveBeenCalledWith({
-      projectId: 'p1', nodeId: 'n1', copiedBytes: 0, totalBytes: 1_000, previewUrl: 'nomi-local://p1/x.preview.jpg',
+      projectId: 'p1', nodeId: 'n1', copiedBytes: 0, totalBytes: 1_000, phase: 'preparing', previewUrl: 'nomi-local://p1/x.preview.jpg',
     })
+  })
+
+  // W-08：拷完之后还有哈希/落库/认领预览，1.3 GB 真素材上实测约 5 秒。
+  // 那一段此前显示「100%」，和卡死长得一模一样——现在它有自己的阶段。
+  it('字节搬完之后还有一段收尾，它有自己的阶段而不是停在 100%', () => {
+    const reporter = createAssetImportProgressReporter({ projectId: 'p1', nodeId: 'n1', totalBytes: 1_000 })
+    reporter.announce()
+    reporter.report(1_000, 1_000)
+    reporter.finalize()
+    const payloads = vi.mocked(broadcastAssetImportProgress).mock.calls.map(([payload]) => payload)
+    expect(payloads[0]?.phase).toBe('preparing')
+    expect(payloads.some((payload) => payload.phase === 'copying')).toBe(true)
+    const last = payloads.at(-1)
+    expect(last?.phase).toBe('finalizing')
+    // 收尾不把比例往回拨：马赛克已经长满了，退回去等于告诉用户「刚才那些白干了」。
+    expect(last?.copiedBytes).toBe(1_000)
   })
 
   it('中途按节流丢掉密集事件，但 100% 那条无条件送达', () => {

@@ -38,6 +38,7 @@ const PUBLIC_FAILURE_CODES = new Set([
   "capability_timeout",
   "capability_cancelled",
   "capability_execution_failed",
+  "capability_unsupported",
   "project_identity_unavailable",
   "project_binding_stale",
   "surface_port_suspended",

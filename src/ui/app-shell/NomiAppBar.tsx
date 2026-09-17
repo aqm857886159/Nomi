@@ -144,7 +144,10 @@ export default function NomiAppBar({
                   'app-no-drag',
                   'inline-flex items-center h-full px-2.5',
                   'border-none bg-transparent font-inherit text-body-sm',
-                  'cursor-pointer whitespace-nowrap',
+                  // 这一段短且固定（「项目库」/「Projects」），它不该被压：让项目名去吸收收缩。
+                  // 原来它是 nowrap 且不可收缩，于是超出的部分整体被容器 overflow-hidden 切掉，
+                  // 英文下看起来就是「Projects 被压暗、右边 PM 被切」（2026-09-17，W-11）。
+                  'cursor-pointer whitespace-nowrap shrink-0',
                   'text-[var(--nomi-ink-40)]',
                   'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
@@ -197,8 +200,12 @@ export default function NomiAppBar({
                 'app-no-drag',
                 'inline-flex items-center h-full px-2.5',
                 'border-none bg-transparent font-inherit text-body-sm',
-                'cursor-pointer whitespace-nowrap',
-                'text-[var(--nomi-ink-80)] max-w-[200px] overflow-hidden text-ellipsis',
+                'cursor-pointer',
+                // `text-ellipsis` 加在 inline-flex 容器上是**不生效**的：省略号要求
+                // overflow/white-space 落在真正装着那段文字的块上。原来它没生效，
+                // 于是这一段一直保持全宽、把整颗胶囊撑破（W-11）。文字挪进内层块，
+                // 外层只负责能收缩（min-w-0 + shrink）。
+                'min-w-0 shrink text-[var(--nomi-ink-80)] max-w-[200px]',
                 'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                 'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               )}
@@ -208,7 +215,7 @@ export default function NomiAppBar({
               title={projectTitle}
               onClick={() => setEditingProjectName(true)}
             >
-              {projectTitle}
+              <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{projectTitle}</span>
             </WorkbenchButton>
           )}
         </div>

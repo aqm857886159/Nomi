@@ -326,6 +326,7 @@ export type SurfacePortWireErrorCode =
   | "capability_input_invalid"
   | "capability_receipt_unresolved"
   | "capability_target_stale"
+  | "capability_unsupported"
   | "project_identity_unavailable"
   | "project_binding_stale"
   | "surface_port_suspended"
@@ -339,6 +340,7 @@ export const SURFACE_PORT_WIRE_ERROR_CODES: ReadonlySet<SurfacePortWireErrorCode
   "capability_input_invalid",
   "capability_receipt_unresolved",
   "capability_target_stale",
+  "capability_unsupported",
   "project_identity_unavailable",
   "project_binding_stale",
   "surface_port_suspended",
@@ -420,6 +422,11 @@ export function surfacePortFailureAdvice(failure: SurfacePortFailure): { message
   };
   if (failure.code === "capability_cancelled") return {
     message: "The action was cancelled.", nextAction: "Wait for a new user instruction before starting another action.",
+  };
+  // 「这个面现在做不了这件事」和「目标过期」是两句不同的建议：前者重读多少次都不会变。
+  if (failure.code === "capability_unsupported") return {
+    message: "The current surface cannot do that scope or position right now (capability_unsupported).",
+    nextAction: "Use what this surface supports: for the document, read the full text, or write with append/replace on the whole document instead of a selection or cursor position.",
   };
   if (failure.code === "capability_execution_failed") return {
     message: "The action could not be completed.", nextAction: "Review the failure and the current result before deciding whether to retry.",

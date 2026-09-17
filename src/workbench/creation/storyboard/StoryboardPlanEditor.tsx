@@ -629,7 +629,9 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* 页脚右组在窄列下会把左边那句进度挤没（W-03）。允许它整组换行，
+            主动作按钮本身仍不收缩。 */}
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
           <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.footer.spendNote')}</span>
           <WorkbenchButton
             variant="primary"

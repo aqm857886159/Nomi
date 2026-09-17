@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { invalidateBuild } from './package-build-stamp.mjs'
 import { assertElectronBuildArtifacts } from './electron-build-artifacts.mjs'
+import { writeIntakeConfig } from './write-intake-config.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 invalidateBuild(repoRoot)
@@ -18,4 +19,7 @@ for (const project of ['electron/tsconfig.json', 'electron/tsconfig.pi.json']) {
   if (result.signal) throw new Error(`Electron compiler interrupted by ${result.signal}: ${project}`)
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
+// 反馈回路的出厂配置随构建产物一起生成（W-01）。写在 tsc 之后：tsc 不会清空 outDir，
+// 但顺序写清楚更难被下一个人挪错。
+writeIntakeConfig(repoRoot)
 assertElectronBuildArtifacts(repoRoot)
