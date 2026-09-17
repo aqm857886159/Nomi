@@ -430,19 +430,19 @@
     {
       "kind": "write",
       "path": "electron/video/deconstructVideo.ts",
-      "line": 233,
+      "line": 235,
       "symbol": "registerLocalSpeechProgressSink"
     },
     {
       "kind": "write",
       "path": "electron/video/deconstructVideo.ts",
-      "line": 425,
+      "line": 439,
       "symbol": "buildShotAnalysisPrompt"
     },
     {
       "kind": "read",
       "path": "electron/video/deconstructVideo.ts",
-      "line": 72,
+      "line": 74,
       "symbol": "DeconstructColumn"
     },
     {
@@ -544,7 +544,7 @@
     {
       "kind": "write",
       "path": "electron/catalog/builtinVendorSeeds.ts",
-      "line": 127,
+      "line": 140,
       "symbol": "builtinVendorSeed"
     },
     {

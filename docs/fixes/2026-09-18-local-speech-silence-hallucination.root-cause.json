@@ -359,55 +359,55 @@
     {
       "kind": "read",
       "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 211,
+      "line": 220,
       "symbol": "LocalSpeechTier"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 231,
-      "symbol": "LocalSpeechTierId"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 233,
-      "symbol": "LocalSpeechTier"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 234,
-      "symbol": "LOCAL_SPEECH_TIERS"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 244,
-      "symbol": "LocalSpeechEnginePlatform"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 246,
-      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
     },
     {
       "kind": "read",
       "path": "electron/shared/localSpeech/localSpeechAssets.ts",
       "line": 252,
-      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
-    },
-    {
-      "kind": "read",
-      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
-      "line": 253,
-      "symbol": "LOCAL_SPEECH_TIERS"
+      "symbol": "LocalSpeechTierId"
     },
     {
       "kind": "read",
       "path": "electron/shared/localSpeech/localSpeechAssets.ts",
       "line": 254,
+      "symbol": "LocalSpeechTier"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 255,
+      "symbol": "LOCAL_SPEECH_TIERS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 265,
+      "symbol": "LocalSpeechEnginePlatform"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 267,
+      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 273,
+      "symbol": "LOCAL_SPEECH_ENGINE_PLATFORMS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 274,
+      "symbol": "LOCAL_SPEECH_TIERS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/localSpeech/localSpeechAssets.ts",
+      "line": 275,
       "symbol": "LOCAL_SPEECH_VAD_MODEL"
     }
   ],
