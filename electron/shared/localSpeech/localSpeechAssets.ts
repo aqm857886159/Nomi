@@ -172,7 +172,16 @@ export type LocalSpeechTierId = "balanced";
 export type LocalSpeechTier = Readonly<{
   id: LocalSpeechTierId;
   model: VerifiedAsset;
-  /** 实测 CER（见文件头的算式）——UI 用它诚实标注差距，不写「接近云端」这种没有数字支撑的话。 */
+  /**
+   * 实测 CER（字错率）。**算法与参照语料都在仓库里**：`scripts/local-speech-cer.ts` +
+   * `tests/ux/fixtures/localSpeechReferences/`，收据 `docs/engineering/local-speech-cer-receipt.json`。
+   *
+   * 这个数**只覆盖有真外部真值的那部分素材**：语料五条里只有 LibriVox 那条读的是公有领域出版原文
+   * （Project Gutenberg #21279），因此只有它算得出 CER。中文两条是用户自己的录音、NASA 与 Prelinger
+   * 在 archive.org 上要么没有转写稿、要么只有 `.asr.` 开头的机器转写（拿 Whisper 的输出给 Whisper 当真值
+   * 是循环论证），这三条目前只有冻结稿、只报漂移率。**所以这个数不代表中英混说那种输入的难度**，
+   * 想让它代表，需要有人逐字校对中文那两条（manifest 里 provenance 改成 human-verified 即可，脚本不用改）。
+   */
   measuredCer: number;
   /** 实测相对实时倍率（M5 / Metal，有 GPU 加速时）。 */
   measuredRealtimeFactor: number;
@@ -221,10 +230,22 @@ export const LOCAL_SPEECH_TIERS: readonly LocalSpeechTier[] = [
       license: "MIT",
       sourcePage: WEIGHTS_SOURCE_PAGE,
     },
-    measuredCer: 0.065,
-    measuredRealtimeFactor: 11.5,
-    // 2026-09-17 在真 Windows 11（10.0.26200，20 核）上实测：120 秒音频 115.1 秒。
-    measuredCpuRealtimeFactor: 1.04,
+    // 2026-09-18 由 scripts/local-speech-cer.ts 实测：LibriVox 那条（唯一有出版原文当真值的素材）
+    // 编辑距离 65 / 参照 1109 字 = 5.86%，其中约 12 字是纯数字写法差异（thirty-five ↔ 35，口径有意不折叠）。
+    // 取代此前的 0.065：那个数声称测自「中英混口播 120 秒」，但参照真值与算法都没进过仓库，本机复现不出来。
+    // 两者口径不同、素材也不同，**不是同一个数变好了**，别当成质量提升读。
+    measuredCer: 0.0586,
+    // 2026-09-18 同法实测（同一条登记素材的前 120 秒，端到端含起进程与取音轨，开 VAD，三次）：
+    // 9.6 / 9.9 / 10.2 秒 → 12.5 / 12.2 / 11.7× 实时。
+    measuredRealtimeFactor: 12.1,
+    // 2026-09-18 在同一台真 Windows 11（10.0.26200，20 核）上重测，因为 1.04 那个数是开 VAD **之前**测的：
+    // 同一条素材的同一段 120 秒，生产同款线程数（-t 8），五次取样 88.0 / 87.4 / 89.8 / 88.2 / 89.2 秒
+    // → 1.34–1.38×，取 1.35。**VAD 不额外花时间**：开与不开在同一轮里差 0.6 秒，因为这条素材只有 0.9%
+    // 的非语音（引擎 stderr 原话 "Reduced audio from 1920000 to 1902399 samples"），VAD 没什么可摘。
+    // 权重冷盘（换个文件名逼它真读 574MB）也是 89.2 秒，载入只占 0.8 秒，不是瓶颈。
+    // 2026-09-17 那次记的 115.1 秒（1.04×）没能复现，而当时的条件（哪一段音频、几个线程、机器多忙）没有记录——
+    // 这正是本次把算法与素材一起钉进仓库的原因。
+    measuredCpuRealtimeFactor: 1.35,
   },
 ];
 

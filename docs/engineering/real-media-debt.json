@@ -37,15 +37,6 @@
       "owner": "canvas-media-rework",
       "registeredAt": "2026-09-14",
       "due": "2026-10-14"
-    },
-    {
-      "id": "local-speech-english-real-media",
-      "class": "transcription-english",
-      "why": "本地转写的验收要「中文 / 英文 / 中英混各一段」真素材。本机 NOMI_REAL_MEDIA_DIR 下逐条实测语言（2026-09-17，用 whisper 自己的 detect）只有中文与中英混，**一段真实英文口播都没有**（唯一一条非中文素材整段只有背景噪声，检出 english 0.38）。英文那条只能由用户提供——合成 TTS 不算：它没有口音、没有连读、没有真实录音环境，正是本地小模型最容易在上面假装很行的那种输入",
-      "plan": "向用户要一段真实英文口播（≥60 秒，有正常环境声），登记进 tests/ux/real-media-fixtures.json 的 transcription 覆盖，再跑一次 scripts/local-speech-live-check.ts 记 CER",
-      "owner": "用户提供素材",
-      "registeredAt": "2026-09-17",
-      "due": "2026-10-14"
     }
   ]
 }

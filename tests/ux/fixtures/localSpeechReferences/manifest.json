@@ -1,0 +1,43 @@
+{
+  "$comment": "本地转写质量的**参照语料**。每条素材一份参照文本 + 一条 provenance（这份参照是怎么来的）。provenance 决定那一行的数字叫什么：published-text/human-verified 才算 CER（字错率，可以当质量口径用）；frozen-baseline 只是**冻结稿**，与它的差异叫漂移率，只能证明「解码输出变了没有」，不能证明「变好还是变坏」。把两者混成一个数，正是 2026-09-18 之前 measuredCer=6.5% 无人能复现的原因。算法与口径见 scripts/local-speech-cer.ts 的文件头。",
+  "schema": 1,
+  "references": [
+    {
+      "assetId": "speech-en-librivox-clean",
+      "provenance": "published-text",
+      "referenceFile": "speech-en-librivox-clean.txt",
+      "source": "Project Gutenberg #21279《2 B R 0 2 B》(Kurt Vonnegut, Jr.)，https://www.gutenberg.org/files/21279/21279.txt ——正文取自 Worlds of If 1962 年 1 月号，PG 的 transcriber note 写明「Extensive research did not uncover any evidence that the U.S. copyright on this publication was renewed」，即公有领域。2026-09-18 实下载。",
+      "scoredRangeSec": [53.0, 180.0],
+      "whyRange": "这条素材是 LibriVox 朗读，音频前 53 秒是 LibriVox 的固定开场白与演播表（'This is a LibriVox recording…'、书名作者、各角色由谁朗读），**这段话不在出版原文里**。把它算进 CER 需要一份开场白的权威文本，而唯一能拿到它的办法是抄 ASR 自己的输出——那是循环论证。所以只给正文那一段打分：正文第一句 'Everything was perfectly swell.' 在 53.45 秒起（2026-09-18 实测分段时间戳，前一段 'Read by Kara Schallenberg.' 起于 50.80 秒并在其前结束），起点取 53.0 落在两段之间的静音里。参照文本截到音频 180 秒处最后一句 '…before the cure for aging was found.' 为止，共 245 词。",
+      "note": "这是本语料里**唯一**一条有真外部真值的素材，因此也是唯一一个能当质量口径用的 CER。"
+    },
+    {
+      "assetId": "speech-en-nasa-multispeaker",
+      "provenance": "frozen-baseline",
+      "referenceFile": "speech-en-nasa-multispeaker.txt",
+      "source": "冻结自本仓生产路径（transcribeLocally，large-v3-turbo-q5_0，开 VAD）2026-09-18 的输出。**不是真值。** archive.org 上该条目只有一份 572 字节的条目描述，没有转写稿；NASA 侧亦未找到这场发布会的官方文字记录。",
+      "whyNotTruth": "多人问答、有串话与打断，逐字校对必须靠人耳。升级办法：有人逐字校对后把 provenance 改成 human-verified，数字的含义随之从漂移率变成 CER——脚本按 provenance 分栏，不用改一行代码。"
+    },
+    {
+      "assetId": "speech-en-prelinger-narration-music",
+      "provenance": "frozen-baseline",
+      "referenceFile": "speech-en-prelinger-narration-music.txt",
+      "source": "同上，冻结自 2026-09-18 的生产路径输出。**不是真值。**",
+      "whyNotTruth": "archive.org 上该条目确实带字幕文件，但文件名是 preparation_of_foods.asr.srt / .asr.vtt / _whisper_asr.json——**它们本身就是 Whisper 的机器转写**。拿 Whisper 的输出给 Whisper 当真值是循环论证，会把 CER 压成一个好看但没有意义的数。"
+    },
+    {
+      "assetId": "speech-zh-mixed-hevc",
+      "provenance": "frozen-baseline",
+      "referenceFile": "speech-zh-mixed-hevc.txt",
+      "source": "同上，冻结自 2026-09-18 的生产路径输出。**不是真值。**",
+      "whyNotTruth": "用户自己的录屏口播，世上不存在外部原文。只有听得懂中英混说、且知道说话人在讲什么的人逐字校对才能得到真值——这属于「需要用户独有资源」。在那之前，这一行只能报漂移率。"
+    },
+    {
+      "assetId": "speech-zh-only-hevc",
+      "provenance": "frozen-baseline",
+      "referenceFile": "speech-zh-only-hevc.txt",
+      "source": "同上，冻结自 2026-09-18 的生产路径输出。**不是真值。**",
+      "whyNotTruth": "同 speech-zh-mixed-hevc。"
+    }
+  ]
+}

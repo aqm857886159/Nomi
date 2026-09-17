@@ -63,6 +63,48 @@
       },
       "source": "用户 2026-08-12 真机录屏口播；素材不进仓库，本机在 localDefaultDir",
       "whyThisOne": "纯中文长口播（9 分钟），用来验分段接缝：一条要切成两段以上的音轨，接缝处那句话有没有被腰斩或重复，只有真实连续语流看得出来"
+    },
+    {
+      "id": "speech-en-librivox-clean",
+      "kind": "audio",
+      "relativePath": "en/speech-en-librivox-2br02b.mp3",
+      "spec": {
+        "codec": "mp3",
+        "bytes": 1440804,
+        "durationSeconds": 180
+      },
+      "source": "LibriVox 朗读 Kurt Vonnegut《2 B R 0 2 B》（public domain，无版权登记），单人朗读，原始 64kbps CBR 版取前 3 分钟；抓取自 https://archive.org/details/2br02b_0801_librivox（文件 2br02b_1_vonnegut_64kb.mp3）2026-09-17",
+      "whyThisOne": "干净单人朗读、无背景噪声——转写要考的是「安静环境下的基准 WER/CER」，与中文档已有的 speech-zh-only-hevc 成对照"
+    },
+    {
+      "id": "speech-en-nasa-multispeaker",
+      "kind": "video",
+      "relativePath": "en/speech-en-nasa-iss-exp16-presser.mp4",
+      "spec": {
+        "codec": "h264",
+        "width": 640,
+        "height": 480,
+        "bytes": 24537731,
+        "audioCodec": "aac",
+        "durationSeconds": 240
+      },
+      "source": "NASA Johnson Space Center 官方 ISS Expedition 16 乘组新闻发布会录像，NASA 制作的美国联邦政府作品（17 U.S.C. §105，公有领域，无 licenseurl 但按 NASA PAO 惯例公开），取前 4 分钟；抓取自 https://archive.org/details/ISS-EXPEDITION-16-CREW-NEWS-CONFERENCE-07232007_729024 2026-09-17",
+      "whyThisOne": "自然多人问答（主持人+乘组+记者），有真实停顿/打断/串话，与合成 TTS 或单人朗读完全不同的语流形态；也是本登记表里唯一的英文多人对话素材"
+    },
+    {
+      "id": "speech-en-prelinger-narration-music",
+      "kind": "video",
+      "relativePath": "en/speech-en-prelinger-preparation-of-foods.mp4",
+      "spec": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "bytes": 19658019,
+        "audioCodec": "aac",
+        "durationSeconds": 240
+      },
+      "source": "Prelinger Archives 教育短片《Preparation of Foods: Stone Age to Space Age》，licenseurl 明标 http://creativecommons.org/licenses/publicdomain/，取前 4 分钟；抓取自 https://archive.org/details/preparation_of_foods（512kb 版）2026-09-17",
+      "whyThisOne": "旁白 + 同期配乐/环境声叠在一起，考的是「背景音乐/噪声下还能不能转对旁白」这件事，登记表里之前没有这一类"
     }
   ],
   "coverage": [
@@ -127,10 +169,14 @@
     },
     {
       "class": "transcription-english",
-      "test": null,
-      "assets": [],
-      "status": "debt",
-      "debtId": "local-speech-english-real-media"
+      "test": "scripts/local-speech-live-check.ts",
+      "assets": [
+        "speech-en-librivox-clean",
+        "speech-en-nasa-multispeaker",
+        "speech-en-prelinger-narration-music"
+      ],
+      "status": "live",
+      "why": "三段公有领域真实英文语音——单人朗读（LibriVox）、自然多人问答（NASA 新闻发布会）、旁白+配乐（Prelinger 教育短片）——补齐 R13「四件真实」在英文语种上的缺口；均非合成 TTS，来源与许可见各条 source 字段"
     }
   ],
   "requiredClasses": [

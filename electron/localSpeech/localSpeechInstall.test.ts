@@ -123,9 +123,9 @@ async function loadInstall(engine: ReturnType<typeof engineFixture>, vad: Return
 const tierOf = (model: { downloadUrl: string; sizeBytes: number; sha256: string; fileName: string; id: string }) => ({
   id: "balanced" as const,
   model: { ...model, license: "MIT", sourcePage: "https://example.invalid/fixture" },
-  measuredCer: 0.065,
-  measuredRealtimeFactor: 11.5,
-  measuredCpuRealtimeFactor: 1.04,
+  measuredCer: 0.0586,
+  measuredRealtimeFactor: 12.1,
+  measuredCpuRealtimeFactor: 1.35,
 });
 
 function modelFixture(bytes: Buffer, shaOverride?: string) {
