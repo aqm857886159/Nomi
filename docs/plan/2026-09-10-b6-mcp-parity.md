@@ -1,5 +1,7 @@
 # B6 MCP 内外对等（C51 / C54）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现，L1 / skills / packaged smoke 已通过，gates 执行中 · 2026-09-10 · 分支 fix/mcp-parity-20260910
 > 基线：5c507a5cc（#646）；范围：工具 schema、verified client 拒绝、技能 resources/prompts。
 

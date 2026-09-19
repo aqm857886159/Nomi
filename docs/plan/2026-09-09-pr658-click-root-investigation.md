@@ -1,5 +1,7 @@
 # PR #658 点击超时：根因调查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：历史调查记录。用户已于 2026-09-09 裁决，实施与验收见 `2026-09-09-pr658-neighbor-placement.md`；以下保留当时证据。调查分支 `feat/process-feedback-phases-20260908`，HEAD `d2ea66f8cc5a56e48f09ef430b16c806ff1009f7`。
 
 ## 已证实的事实

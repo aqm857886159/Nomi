@@ -1,5 +1,7 @@
 # 画布 S5：LOD 的判据换成「这张卡在屏幕上多大」
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现（随 `fix/canvas-media-preview-lod-20260914` 交付，取代 PR #776；机制来自 `ba753cfa5`）
 > 上游调研（数字、根因、别人怎么做、验收预算都在那里）：
 > [docs/research/2026-09-12-canvas-perf-at-scale/README.md](../research/2026-09-12-canvas-perf-at-scale/README.md) §1.5 / §5 S5 / §6

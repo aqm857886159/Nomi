@@ -1,5 +1,7 @@
 # 整片默认 → 逐镜生成参数：全类普查与单一 owner
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实施（2026-09-12）
 > 根因合同：`docs/fixes/2026-09-12-storyboard-plan-defaults-passthrough.root-cause.json`
 > 机器门岗：`pnpm run check:storyboard-owner`（普查表的第 ②③ 列是它在跑，不是这份文档在记）

@@ -1,5 +1,7 @@
 # Agent lane 上下文预算与技能加载（B1b）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：B1b-finish 交付中。基线 `5fba6d571`，沿用原分支与 PR #646；用户已明确授权先按簇提交，再本地 merge 最新 `origin/main`，完整 gates exit 0 后推送原分支。不新建 PR、不重新打包。
 
 ## 问题与证据
