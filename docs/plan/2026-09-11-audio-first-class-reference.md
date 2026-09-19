@@ -1,5 +1,7 @@
 # 音频参考一等公民化：历史记录与当前状态
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：PR #737 已合并（merge `fab88dac`）；本分支仅保留本计划文档的历史对账修订。
 > 原实现分支：`fix/audio-first-class-reference-20260911`，原提交 `28a1e997`、`2f23cbac`。
 

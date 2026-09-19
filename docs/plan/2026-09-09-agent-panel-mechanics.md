@@ -1,5 +1,7 @@
 # Agent panel mechanics B2a
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现并验证，待 PR 合入
 
 ## Scope and invariant

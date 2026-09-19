@@ -1,5 +1,7 @@
 # 用户亲手点的那条技能，为什么比模型自己找到的那条弱
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-09-15 · 分支 `feat/agent-skill-real-run-principles-20260915` · 基线 `feat/agent-tool-face-20-verbs-v2-20260914`（PR #797）
 > 证据目录 [`docs/evidence/2026-09-15-skill-real-run/`](../evidence/2026-09-15-skill-real-run/prompts.md)
 
