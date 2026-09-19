@@ -74,6 +74,10 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **① 论文雷达**：收到第一条消息时，比对 `currentDate` 与 `docs/research/` 里最新 `<date>-radar.md` 的日期——今天还没有 → 静默跑 `nomi-research-radar` 技能（额度默认授权），出 `docs/research/<今天>-radar.md`，回答时带出当天最该动的 1-2 件事；今天已有 → 跳过。筛选维度见技能内部（最新·火不火·有没有用·成熟度），低于 bar 的筛掉。
 
+## 三日竞品学习雷达
+
+**核心对标 LibTV / TapNow，扩展对标 Higgsfield / MiniMax Design / RunningHub。** 产品、设计、引导、功能交互、Agent、生态、社区与自媒体营销统一走 [`nomi-competitive-radar`](agent-skills/nomi-competitive-radar/SKILL.md)，入口与资料在 [`docs/research/competitive/`](docs/research/competitive/README.md)。每个 Nomi session 首轮检查到期/未完成周期；每 3 天扫描全部对象并轮换深挖，和本机定时器共用规程中的去重/锁/检查点。用户明确只建流程时不展开调研。实际交互要鼠标操作与录屏回看，自媒体用 TikHub + 原站观看；失败不能记“无更新”，研究建议不能自动变成开发或发布授权。
+
 ## 规则索引（R# 详解在 `docs/engineering-rules.md`）
 
 > **2026-09-14 合并**：30 条 → 17 条，**一条都没删**——13 个号合进了同族的主号，`docs/engineering-rules.md` 为每个旧号留了别名节（`R6/R20/R29/R31 → R5`｜`R16/R30 → R13`｜`R18/R26/R28 → R17`｜`R19 → R11`｜`R10 → R1`｜`R12 → R9`｜`R23 → L2`）。引用旧号的 PR、根因合同与教训**不作废**；`check:rule-aliases` 保证任何 `R<数字>` 引用都解析得到。

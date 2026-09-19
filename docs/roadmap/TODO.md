@@ -200,12 +200,23 @@
 
 | ID | 一句话 | 状态 | 来源 | 下一步 |
 |---|---|---|---|---|
-| T-WB-01 | 官网四件：SEO / 页面设计 / 官方文档 / 功能速递介绍视频 | todo | [原文 09-14 00:14](sources/2026-09-14-filehelper-transcript.md#09-14) | 对标 MiniMax Design 的 X 运营与官网、TapNow、libtv |
+| T-WB-01 | 官网四件：SEO / 页面设计 / 官方文档 / 功能速递介绍视频 | todo | [原文 09-14 00:14](sources/2026-09-14-filehelper-transcript.md#09-14) | 对标 MiniMax Design 的 X 运营与官网、TapNow、libtv；资料与验证任务统一走[三日竞品学习](../research/competitive/README.md)，研究不代表本项已实现 |
 | T-WB-02 | logo 与真实产品不一致 | done #788 | [原文 09-13 19:12](sources/2026-09-14-filehelper-transcript.md#09-13) | 已合 |
 | T-WB-03 | 产品发布会：PPT（对标 Apple）+ 逐字稿 + 图片/视频素材 + 特效 + 音乐 | hold | 09-08 用户加入，排最后 | **先写逐字稿**（逐字稿就是定位练习）；demo 段全部真机录屏，片子尽量用 Nomi 自己做 |
 | T-WB-04 | 每周 RC 的发版时钟；`docs-autosync` 从来没能开 PR（仓库设置禁止 Actions 建 PR），**债已经攒出来了**：09-14 实测 `origin/main` 上 `check:docs-index` 超基线 136 篇、`check:doc-status` 超基线 101 篇 | todo | 09-07 裁决 · 09-09 实核 · 09-14 实测 | 这两个门岗在 `gates:contracts` 里是 advisory 所以没人看见；**要么用户开「Actions 可建 PR」，要么手工 cherry-pick `docs/autosync-*` 分支补齐** |
 
 ---
+
+## K. 竞品学习与设计研究
+
+> 用户 2026-09-19 要求“先构建 skill/规则/流程”，覆盖页面、流程、用户引导、功能交互、图标、社区、自媒体与视频。研究范围及执行入口见[流程](../research/competitive/README.md)，不自动授权功能开发。
+
+| ID | 一句话 | 状态 | 来源 | 下一步 |
+|---|---|---|---|---|
+| T-CR-01 | LibTV/TapNow 核心对标 + Higgsfield/MiniMax Design/RunningHub 扩展对标，每 3 天扫描、轮换深挖、汇总分析并对照 Nomi | doing | 用户 09-19 本会话；[方案](../plan/2026-09-19-competitive-learning-workflow.md) | 分支 `docs/competitive-research-workflow-20260919` 交付规则/skill/模板/本机调度；首轮真实执行另行记录，不提前标 done |
+| T-CR-02 | 表情/姿势自定义编辑的发现、精调、预览、保存复用完整旅程对标 | todo | 用户 09-19 本会话 | 先核实 Nomi 当前能力及已有任务，再按[旅程卡](../research/competitive/TEMPLATE.md)形成差距与设计验证任务 |
+| T-CR-03 | 插件/CLI/MCP 与 Blender 的官网及软件内呈现、安装引导、连接验证和结果回流对标 | todo | 用户 09-19 提供 [LibTV 插件](https://www.liblib.tv/plugin) / [Blender](https://www.liblib.tv/blender?entrySource=homepage_feature&entryItemKey=blender) | 不把 Nomi 的 MCP 等同插件/CLI 成品；先用真实路径比较，Blender 是否已有 Nomi 集成待核实；关联 T-EC-01，不替代插件宿主方案 |
+| T-CR-04 | Agent 设计、社区、自媒体选题/视频结构/官网转化路径的持续学习 | todo | 用户 09-19 本会话 | TikHub 发现 + 登录原站观看/鼠标录屏；输出有证据的产品/营销实验简报，关联 T-WB-01 与 Agent 待办；不直接改产品或发布 |
 
 ## 附：这份表**故意不收**的东西
 

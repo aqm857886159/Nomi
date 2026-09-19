@@ -36,6 +36,7 @@
 | **工作流方法论（如何走查/E2E/自主测试）** | [`workflow/`](workflow/) |
 | **多智能体编排（如何派工/收货/接力多个 Codex/Opus 执行体）** | [`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md)（CLAUDE.md R27 的 L2 详解）|
 | **做一次调研（模板 / 必查的信息面 / 自媒体来源怎么抓）** | [`research/TEMPLATE.md`](research/TEMPLATE.md) + [`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md) §15；TikHub 接口契约在 [`research/tikhub-api-notes.md`](research/tikhub-api-notes.md) |
+| **全方位学习竞品 / 每 3 天复查产品与营销** | [`research/competitive/README.md`](research/competitive/README.md) → LibTV/TapNow 核心对标，来源登记、真实鼠标录屏、TikHub、视频拆解与 Nomi 决策；技能 [`nomi-competitive-radar`](../agent-skills/nomi-competitive-radar/SKILL.md) |
 | **当前哪些战线在途 / 哪些文件面被占道（动共享面前必查必登）** | [`engineering/active-lanes.md`](engineering/active-lanes.md) |
 | **Agent 运行时切换前的回放影子夜跑（怎么跑 / 报告在哪 / 7 天绿从哪天起算）** | [`engineering/agent-lane-replay-shadow.md`](engineering/agent-lane-replay-shadow.md) |
 | **本仓踩过的坑（走查假绿 / CI 红绿判读 / 分支合并 / 平台故障 / 产品判断）** | [`lessons/INDEX.md`](lessons/INDEX.md) — 按触发场景查，别通读 |
