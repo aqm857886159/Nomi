@@ -196,6 +196,13 @@
 | T-QA-18 | 同一条不变量「任何非终态在有限时间内必须落到终态」在 run 层与 session 层各实现了一次，没有任何机器判据保证它们同源 | todo | 09-18 批次 3 收尾（providerAdapter 结构评审 §3） | 09-12 修在 `terminalGuarantee.ts`、09-15 又修在 `serviceLifecycle.ts`；两处的退避预算、看门狗周期、逃生口各写各的，改一处另一处不会红。停止层（一条）：凡声明了非终态集合的模块必须在同一处声明 ① 终态化保证 ② 看门狗 ③ 逃生口，缺一即红；两层各自声明时判据要能看出指向同一份定义。**加规则前先验它会红**（R17）——今天至少这两处会红 |
 | T-QA-19 | agent-runtime 的 L1 T3 / G2 两条场景现在只覆盖「没问就直接做了」那一支，「出了确认卡」那一支没有场景摆批准动作 | todo | 09-18 批次 3 收尾 gates 翻红后定位 | T-ED-02 把 `userSees` 从写死改成**由真实批准结论派生**之后，这两条场景的期望文本才对上——但它们本来就没摆批准，所以覆盖的是「不问」那支。要把「出卡」那支也钉住，得在 `tests/agent-runtime/laneL1Scenarios.mts` 里真的摆一次批准，不是把话写回去。**连带的过程问题**：这两条只在 `pnpm run gates` 的全量档跑，功能 lane 只跑 focused，所以改行为的那条 lane 当时看不见自己把夹具改废了——与 T-QA-15「默认 SKIP 没有红灯」是同一族 |
 | T-QA-20 | Ponytail 对批次 3 提了约 90 条 shrink/yagni，两族是真账：① 一个导入函数被改名成 8 个别名（`sameOwner` / `sameProjectSelection` / `matchesCommittedSelection` / `sameExportProjectIdentity` / `sameSelection` / `sameProjectIdentity` / `sameSurfaceAuthority` / `sameIdentity`）；② `safeFailure` 在 4 个 transport adapter 里逐字相同 | todo | 09-18 批次 3 交工前 Ponytail（findings 存 `.claude/ponytail-findings/`） | ① 正是 R14.1「同一语义几个名字」的活样本，而且本批刚立了 `check:identity-compare`——把别名族做成它的一条判据，加规则前先验它会红；② 抽一份共享 `safeFailure(error, codes)`。其余条目多是新增代码的行数建议，本轮逐条表态在 PR 正文 `## Ponytail`，不在收尾窗口改（改一行就要重跑整条分支的评审与五门） |
+| T-QA-21 | 测试质量体系首批：有界核对现状、可信判定、最简一页报告 | todo | 用户 2026-09-20 要求逐步建设、通用可扩展；[唯一方案 §0/2/16](../plan/2026-09-20-nomi-test-quality-system.md) | WP0/WP1＋WP7 最简报告；先消除跳过/重试/缺证据的假绿，验真实 CLI 退出码。当前仅文档规划，未实施；完成这一切片就交 PR，不一次执行全计划 |
+| T-QA-22 | 最小安全隔离＋一条真实历史问题完整回归 | todo | [方案 §0.2/7/16](../plan/2026-09-20-nomi-test-quality-system.md) | 接 T-QA-21；复用原启动器，阻断真实凭据继承与未准入出站，再走原 UI/IPC/runner/磁盘；首选 QA-05 切项目正反对照，报告与证据同批交付 |
+| T-QA-23 | 付款与目标所有权按行为小批覆盖 | todo | [方案 QA-01～08 / WP3](../plan/2026-09-20-nomi-test-quality-system.md) | 接 T-QA-22；关闭/集合、unknown/恢复、后台/失效分别交 PR；复用 T-QA-15/19 相关待办与已实现首例，不重复造 case；本列逐批记录 PR 和剩余范围 |
+| T-QA-24 | 保存、撤销、输入恢复、Stop 与历史分批回归 | todo | [方案 QA-09～21 / WP3](../plan/2026-09-20-nomi-test-quality-system.md) | 原 editor/runner 与真实 pi SDK；保存重开先成一批，输入与历史后续分批；映射 T-QA-02/14、T-AG-10，产品缺陷单独最小修复 |
+| T-QA-25 | 完整 T7：参数条、历史、键盘、手势、加载恢复与诊断 | todo | [方案 QA-22～28 / WP4](../plan/2026-09-20-nomi-test-quality-system.md) | 正常可编辑→历史/键盘→手势/加载恢复→宿主/原生边界逐批交付，接 T-QA-05/08；所有承诺格齐备才称完整 T7，不把缺平台改名为通过 |
+| T-QA-26 | 适用旧数据、媒体、模型接入与候选包矩阵 | todo | [方案 QA-29～40 / WP5](../plan/2026-09-20-nomi-test-quality-system.md) | 按当前变更/发行范围分批，保存/包必测随相应改动提前；T-QA-09/11 原生与 live 证据单列，真实费用需本计划范围的单独授权 |
+| T-QA-27 | 稳定回归后的序列/变异/AI 探索试点及维护成本 | todo | [方案 WP6 / WP7 / §18.5](../plan/2026-09-20-nomi-test-quality-system.md) | 单模块先证明反例可重放与历史变异可检出再扩面；不是核心回归/报告前置。WP7 报告和成本观察从 T-QA-21 持续贯穿，不等本项开工 |
 
 ## J. 官网与发布
 
