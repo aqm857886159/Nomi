@@ -1,5 +1,7 @@
 # B1b 验证证据
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - `red.log`：C59 系统目录缺失、C58 resident read 缺失，2/2 断言红（修正了 fixture settings 环境后重跑）。
 - `compaction-red.log`：C61 百万 token 窗口下 81k usage 未触发压缩；C58/C59 已绿。
 - `green.log`：9/9 loopback，包含 24 句原转录回放、目录增删、真实压缩落盘、技能读取与符号链接边界、旧会话恢复。

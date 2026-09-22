@@ -1,5 +1,7 @@
 # 画布：「+」拉环一致化 + Alt/⌥ 拖动复制 + 粘贴到鼠标处（2026-09-21）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现（分支 `feat/canvas-handles-alt-drag-20260921`，未开 PR）
 > 根因合同：[`docs/fixes/2026-09-21-connection-handle-visibility.root-cause.json`](../fixes/2026-09-21-connection-handle-visibility.root-cause.json)
 > 走查：`tests/ux/canvas-handles-alt-drag.walk.mjs`（真 Electron + 登记真素材，zh / en 各一遍）

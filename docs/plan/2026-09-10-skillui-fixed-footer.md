@@ -1,5 +1,7 @@
 # #685 第二轮：恢复提示词内滚和固定底栏
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实现、八态 smoke、加强后的两走查×两尺寸已通过；完整 gates 与提交/推送收据以本轮最终交付记录为准。用户任务书已裁决交互，不另设样张审批。
 
 修前证据：`/tmp/skillui-r2-smoke-before.log` 与 `outputs/skillui-r2/before/`。原 Electron smoke 的超长提示词内滚断言通过、生成钮 hit-test 失败。
