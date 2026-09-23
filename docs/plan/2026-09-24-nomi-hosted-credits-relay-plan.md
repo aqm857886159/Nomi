@@ -21,6 +21,18 @@
 
 ---
 
+## 先查别人
+
+完整报告：[`docs/research/2026-09-24-nomi-hosted-credits-relay/prior-art.md`](../research/2026-09-24-nomi-hosted-credits-relay/prior-art.md)
+
+- **仓库里已有**：协作者的 Nomi-service 已具备账本三事务、兑换码、提交阶段降级、worker 推进（`internal/credit/service.go:30`、`internal/provider/router.go:193`、`internal/worker/worker.go:229`）→ 在它上面补缺口，不另起一套。
+- **生态里已有**：[new-api](https://github.com/QuantumNous/new-api) 的多资金来源、异步失败退款、违规费（AGPL-3.0，只借设计不抄代码）；[OpenRouter](https://openrouter.ai/docs/guides/routing/provider-selection)「健康优先再比价」；[LiteLLM](https://docs.litellm.ai/docs/routing)「按错误类型定重试与熔断」；[ComfyUI Partner Nodes](https://docs.comfy.org/tutorials/partner-nodes/pricing) 是形态最像的产品。
+- **上游契约**：[apimart 价格接口](https://docs.apimart.ai/cn/api-reference/texts/qwen3.8-max/pricing.md)、[kie 入门指南](https://docs.kie.ai/cn.md)、[z.ai 错误码](https://docs.z.ai/api-reference/api-code.md)。
+- **依赖里**：没有（计费必须在服务端）。**TikHub**：今天没查成（本会话无该工具）。
+- **结论**：用已有；自研只有成本表 + 按成本排序的路由，以及跨仓对账测试。
+
+---
+
 ## 2. 现状：网关已经有什么，离你的目标还差什么
 
 | 你的目标 | Nomi-service 现在 | 缺口 |
