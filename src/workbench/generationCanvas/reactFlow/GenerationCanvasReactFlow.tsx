@@ -70,7 +70,7 @@ import {
   applyCanvasDragPositionChanges,
   overlayCanvasDragDraft,
 } from './canvasDragDraft'
-import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, restoreDisownedKernelPositions } from './canvasDragWriteback'
+import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, isKeyboardMoveBatch, keyboardMoveScope, restoreDisownedKernelPositions } from './canvasDragWriteback'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -96,10 +96,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const hostRef = React.useRef<HTMLDivElement>(null)
   const duplicateDragIdsRef = React.useRef(new Map<string, string>())
   const draggingRef = React.useRef(false)
-  // 「此刻还在这一次 keydown 的同步派发里吗」。2026-09-21：原来存的是那个 native KeyboardEvent，
-  // 判据 `Boolean(event.eventPhase)` —— 拿未文档化的 DOM 细节（派发完归 0）当同步栈探测器，
-  // 且 ref 从不清空、长期持有一个 KeyboardEvent 连带它的 target。改成自己说了算的布尔。
-  const keyboardDispatchRef = React.useRef(false)
+  // 方向键挪节点的授权：按下方向键时记下那批选中节点，键抬起作废（keyboardMoveScope）。原来的「微任务后清掉」布尔
+  // 在真实按键下早于 React Flow 落位置就被清掉，移动被当成外部改动撤回（2026-09-25）。
+  const keyboardMoveScopeRef = React.useRef<ReadonlySet<string> | null>(null)
   const dragLeaseRef = React.useRef<CanvasDragLease | null>(null)
   const dragDraftNodesRef = React.useRef<GenerationFlowNode[]>([])
   const dragStartPositionsRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -473,7 +472,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       const draftNodes = dragDraftNodesRef.current.length ? dragDraftNodesRef.current : flowNodes
       dragDraftNodesRef.current = applyCanvasDragPositionChanges(draftNodes, changes)
       applyCanvasDragKernelPositionChanges(flowStore, changes)
-    } else if (positionChanges.length && !commitCanvasKeyboardPositions(positionChanges, keyboardDispatchRef.current && !readOnly)) {
+    } else if (positionChanges.length && !commitCanvasKeyboardPositions(positionChanges, !readOnly && isKeyboardMoveBatch(positionChanges, keyboardMoveScopeRef.current))) {
       restoreDisownedKernelPositions(flowStore, positionChanges)
     }
 
@@ -667,7 +666,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       data-tidying={isTidying ? 'true' : undefined}
       data-nomi-generation-canvas-import-target={!readOnly ? 'true' : undefined}
       // 微任务跑在这一轮派发之后、下一帧之前：React Flow 的键盘移动就在这一轮里发 position change。
-      onKeyDownCapture={() => { keyboardDispatchRef.current = true; queueMicrotask(() => { keyboardDispatchRef.current = false }) }}
+      onKeyDownCapture={(event) => { keyboardMoveScopeRef.current = keyboardMoveScope(event, useGenerationCanvasStore.getState().selectedNodeIds) }}
+      onKeyUpCapture={() => { keyboardMoveScopeRef.current = null }}
       onPointerDownCapture={handleStagePointerDownCapture}
       onPointerMoveCapture={handleCanvasPointerMoveCapture}
       onWheelCapture={handleCanvasWheelCapture}
