@@ -101,9 +101,8 @@ function BaseGenerationNodeImpl({
 
   const { t } = useTranslation()
   const productionRetry = useProductionNodeRetry(node, reportFeedback) // P4 S6：多镜节点失败→返工链；非多镜/项目没开→null 退回本地重跑（回归门）
-  // Agent 批次镜的失败在 Run 里（job 失败），不在 node.status：投影过来，用同一张错误卡（不再有一版内联的简化红卡）。
+  // Agent 批次镜的失败在 Run 里（job 失败），不在 node.status：投影过来用同一张错误卡；「收起」只给本地失败——Run 里的失败是账本事实，收不掉。
   const executionNode = useProductionExecutionNode(node)
-  const localError = node.status === 'error' && Boolean(node.error)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -350,8 +349,7 @@ function BaseGenerationNodeImpl({
       {executionNode.status === 'error' && executionNode.error ? (
         <NodeErrorReport summaryVisible={false}
           message={executionNode.error} meta={node.meta}
-          // 收起只对本地这次失败有意义；Run 里的失败是账本事实，收不掉——要么返工，要么它一直在那儿。
-          onDismiss={localError ? () => useGenerationCanvasStore.getState().dismissNodeError(node.id) : undefined}
+          onDismiss={node.status === 'error' ? () => useGenerationCanvasStore.getState().dismissNodeError(node.id) : undefined}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'
               ? undefined

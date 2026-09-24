@@ -21,7 +21,7 @@ import { buildTaskCenterView, formatElapsed, type TaskCenterRow } from './taskCe
 import { notify } from '../../ui/notificationPolicy'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
-import { TASK_CENTER_GROUP_ORDER, type TaskCenterProjection } from './taskCenterProjection'
+import type { TaskCenterProjection } from './taskCenterProjection'
 import { buildProductionRunTaskRows } from './productionRunTaskCenter'
 import { buildExportJobTaskRows } from './exportJobTaskCenter'
 import { ProductionRunTaskCard } from '../production/ProductionRunTaskCard'
@@ -133,8 +133,8 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
   if (!opened) return null
 
   const generationRows = view.rows
+  // 下面按组拆开渲染，合并后的顺序不影响任何一组的先后，所以不排序。
   const rows: TaskCenterProjection[] = [...generationRows, ...productionRows, ...exportRows]
-    .sort((left, right) => TASK_CENTER_GROUP_ORDER[left.group] - TASK_CENTER_GROUP_ORDER[right.group])
   const summary = {
     ...view.summary,
     running: view.summary.running + productionRows.filter((row) => row.group === 'running').length + exportRows.filter((row) => row.group === 'running').length,

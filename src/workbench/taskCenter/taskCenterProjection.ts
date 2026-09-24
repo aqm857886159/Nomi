@@ -1,8 +1,5 @@
 /** `draft` = 还没点头的制作草稿：列出来，但不算在跑、不点亮任务按钮（2026-09-24）。 */
 export type TaskCenterGroup = 'running' | 'queued' | 'draft' | 'done'
-
-/** 面板里各组的先后。只此一份：生成行排序和整张面板合并排序都读它。 */
-export const TASK_CENTER_GROUP_ORDER: Readonly<Record<TaskCenterGroup, number>> = { running: 0, queued: 1, draft: 2, done: 3 }
 export type TaskCenterOutcome = 'success' | 'error' | 'cancelled'
 export type TaskCancelKind = 'free' | 'interrupt' | 'none'
 

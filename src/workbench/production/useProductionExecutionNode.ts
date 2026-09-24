@@ -5,6 +5,7 @@
 // 9-08 普通节点换成像素动画时没跟上）。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
@@ -19,12 +20,9 @@ export function productionRunIdOf(node: GenerationCanvasNode | null | undefined)
 export function useProductionShotState(node: GenerationCanvasNode | null | undefined): ShotPlaceholderState | null {
   const runId = productionRunIdOf(node)
   const nodeId = node?.id ?? ''
-  // 选出一个字符串而不是对象：store 每 1.5s 换一份 Run，派生出的对象每次都是新的；字符串相同就不重渲染。
-  const key = useProductionCanvasLandingStore((store) => {
-    const state = runId && store.run?.runId === runId ? deriveShotPlaceholderState(store.run, nodeId) : null
-    return state ? JSON.stringify(state) : ''
-  })
-  return React.useMemo(() => (key ? JSON.parse(key) as ShotPlaceholderState : null), [key])
+  // store 每 1.5s 换一份 Run，派生出的对象每次都是新的；浅比较相同就不重渲染。
+  return useProductionCanvasLandingStore(useShallow((store) => (
+    runId && store.run?.runId === runId ? deriveShotPlaceholderState(store.run, nodeId) : null)))
 }
 
 export function useProductionExecutionNode<T extends GenerationCanvasNode | null | undefined>(node: T): T {
