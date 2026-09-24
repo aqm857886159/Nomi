@@ -19,7 +19,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { renderChainSummary } from './lib/chainSummary.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
@@ -125,4 +125,4 @@ function main() {
   return 0
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) process.exitCode = main()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main()
