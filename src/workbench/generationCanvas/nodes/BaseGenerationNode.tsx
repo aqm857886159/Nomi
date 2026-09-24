@@ -61,7 +61,6 @@ import {
   FOCUS_GENERATION_NODE_EVENT,
   resolveNodeVisualSize,
 } from './nodeSizing'
-import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeMediaMeasurement } from './useNodeMediaMeasurement'
@@ -142,7 +141,10 @@ function BaseGenerationNodeImpl({
 
   const mediaMeasurement = useNodeMediaMeasurement(node)
 
-  const { handleVideoNodePointerEnter, handleVideoNodePointerLeave } = useNodeVideoHoverPreview(node.result?.type)
+  // 指针在视频卡上 = 请播放守卫挂播放器并静音试播（守卫是「何时挂 <video>」的唯一 owner）。只有视频卡记这份状态，
+  // 图片卡悬停不重渲。
+  const hasVideoResult = node.result?.type === 'video'
+  const [videoPreviewRequested, setVideoPreviewRequested] = React.useState(false)
 
   const handleFocusSourceNode = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -245,8 +247,8 @@ function BaseGenerationNodeImpl({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerEnter={handleVideoNodePointerEnter}
-      onPointerLeave={handleVideoNodePointerLeave}
+      onPointerEnter={hasVideoResult ? () => setVideoPreviewRequested(true) : undefined}
+      onPointerLeave={hasVideoResult ? () => setVideoPreviewRequested(false) : undefined}
     >
 {feedback ? <p role="status" className="absolute inset-x-0 bottom-0 z-[15] m-0 bg-nomi-paper px-2 py-1 text-caption text-nomi-ink-60">{feedback}</p> : null}
 
@@ -426,13 +428,19 @@ function BaseGenerationNodeImpl({
             <NodeVideoPlaybackGuard
               nodeId={node.id}
               rawUrl={node.result.url}
+              poster={node.result.thumbnailUrl}
+              previewRequested={videoPreviewRequested}
+              engaged={selected && !isMultiSelectActive}
+              measured={Boolean(node.meta?.videoWidth && node.meta?.videoHeight)}
               data-node-preview-video="true"
               className={cn('w-full h-full min-h-0 object-contain pointer-events-auto', 'bg-nomi-ink-05 select-none')}
               priority={mediaPreviewPriority}
               crossOrigin="use-credentials"
               controls
               playsInline
-              preload="auto"
+              // 画布只需要元数据来计算媒体尺寸；整段视频由用户主动播放时再拉取。
+              // 原片可能是 4K/10-bit HEVC，auto 会让每个可视节点在项目恢复阶段争抢解码与 IO。
+              preload="metadata"
               draggable={false}
               onLoadedMetadata={mediaMeasurement.onVideoMetadata}
             />
@@ -444,7 +452,8 @@ function BaseGenerationNodeImpl({
                 localImageOpPending && 'blur-sm scale-[1.02] transition-[filter,opacity]',
                 localImageOpPending && 'animate-remove-bg-pulse-slow',
               )}
-              src={node.result.url}
+              // 画布只挂落盘边界派生的预览；源 URL 留给编辑/导出/大图预览，画布不为每个节点解码 4K/8K 原图。
+              src={node.result.thumbnailUrl || node.result.url}
               priority={mediaPreviewPriority}
               alt=""
               onLoad={mediaMeasurement.onImageLoad}

@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  claimNodeVideoPlayback,
   clearNodeVideoUserPlayback,
   consumeNodeVideoHoverPreviewPlay,
   markNodeVideoUserPlayback,
+  releaseNodeVideoPlayback,
   startNodeVideoHoverPreview,
   stopNodeVideoHoverPreview,
-} from './useNodeVideoHoverPreview'
+} from './nodeVideoPlayback'
 
-function fakeVideo(muted: boolean): HTMLVideoElement {
+function fakeVideo(muted: boolean, paused = true): HTMLVideoElement {
   return {
     muted,
+    paused,
     currentTime: 3,
     play: vi.fn(() => Promise.resolve()),
     pause: vi.fn(),
@@ -65,5 +68,32 @@ describe('node video hover preview', () => {
 
     expect(video.pause).toHaveBeenCalledOnce()
     expect(video.currentTime).toBe(0)
+  })
+})
+
+describe('only one canvas node video plays at a time', () => {
+  it('a new playback pauses the previous one', () => {
+    const first = fakeVideo(true, false)
+    const second = fakeVideo(true, false)
+    claimNodeVideoPlayback(first)
+    claimNodeVideoPlayback(second)
+    expect(first.pause).toHaveBeenCalledOnce()
+    expect(second.pause).not.toHaveBeenCalled()
+    releaseNodeVideoPlayback(second)
+    releaseNodeVideoPlayback(first)
+  })
+
+  it('a hover preview never interrupts a video the user is watching', () => {
+    const watching = fakeVideo(false, false)
+    markNodeVideoUserPlayback(watching)
+    claimNodeVideoPlayback(watching)
+    const hovered = fakeVideo(false)
+    startNodeVideoHoverPreview(hovered)
+    expect(hovered.play).not.toHaveBeenCalled()
+    expect(watching.pause).not.toHaveBeenCalled()
+    clearNodeVideoUserPlayback(watching)
+    releaseNodeVideoPlayback(watching)
+    startNodeVideoHoverPreview(hovered)
+    expect(hovered.play).toHaveBeenCalledOnce()
   })
 })
