@@ -79,7 +79,9 @@ describe('laneClient', () => {
     const { bridge, push } = fakeBridge()
     bridge.send = vi.fn().mockResolvedValueOnce({ ok: true, workspaceId: 'old' })
       .mockResolvedValueOnce({ ok: false, code: 'agent_lane_closed' })
-      .mockResolvedValueOnce({ ok: true, workspaceId: 'new' }).mockResolvedValue({ ok: true })
+      // 主进程开工作区时先推一份投影再回 ok（`laneIpc.ts` workspace-open 里的 `push(workspace.projection())`）。
+      .mockImplementationOnce(async () => { push({ ...workspace(projection('history')), workspaceId: 'new' }); return { ok: true, workspaceId: 'new' } })
+      .mockResolvedValue({ ok: true })
     const client = createLaneClient(bridge)
     await client.open(binding)
     push({ ...workspace(projection('history')), closed: true })
@@ -89,7 +91,21 @@ describe('laneClient', () => {
     expect(bridge.send).toHaveBeenCalledTimes(2)
     await client.prompt('New action after reopening')
     expect(bridge.send).toHaveBeenNthCalledWith(3, { kind: 'workspace-open', binding })
-    expect(bridge.send).toHaveBeenLastCalledWith({ kind: 'prompt', text: 'New action after reopening', workspaceId: 'new' })
+    expect(bridge.send).toHaveBeenLastCalledWith({ kind: 'prompt', text: 'New action after reopening', workspaceId: 'new',
+      expectedLane: 'main', expectedSessionId: 's-1' })
+  })
+
+  it('refuses input with a named failure when the workspace lists no conversation, instead of a silent null', async () => {
+    // 2026-09-24 Windows 真机：列表认不出任何对话 → 以前 prepareInput 回 null，发送钮静默返回，
+    // 字留在框里、哪儿都没有一句话。现在这一步必须有名有姓地失败，面板按码出文案。
+    const { bridge, push } = fakeBridge()
+    bridge.send = vi.fn().mockImplementation(async (command: LaneDesktopCommand) => {
+      if (command.kind === 'workspace-open') push({ lanes: [], active: projection('none'), workspaceId: 'w' })
+      return command.kind === 'workspace-open' ? { ok: true, workspaceId: 'w' } : { ok: true }
+    })
+    const client = createLaneClient(bridge)
+    await client.open({ projectId: 'a', immutableProjectUuid: 'uuid-a', projectGeneration: 1 })
+    await expect(client.prepareInput()).rejects.toMatchObject({ laneCode: 'agent_lane_closed' })
   })
 
   it('does not reopen old A after the user switches to B', async () => {

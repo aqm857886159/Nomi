@@ -7,6 +7,8 @@ import { localAssetUrl, stableAssetId } from './assetPaths'
 import { broadcastAssetsUpdated } from './assetEvents'
 import { captureAssetWriteContext, type AssetWriteContext } from './assetWriteContext'
 import { copyFileWithProgress, type AssetCopyProgress } from './assetImportProgress'
+import { retryOnSharingViolation } from '../jsonFile'
+import { reapAbandonedUploadStaging, removeScratchAfterUse, UPLOAD_STAGING_PREFIX } from './scratchCleanup'
 
 export function isContentAddressedUpload(meta: unknown): boolean {
   return isJsonRecord(meta) && ['upload', 'imported', 'local'].includes(String(meta.kind || '').toLowerCase())
@@ -139,7 +141,8 @@ export async function persistUploadFile(
 ) {
   const context = captured ?? await captureAssetWriteContext(projectId)
   context.assertCurrent()
-  const staging = fs.mkdtempSync(path.join(context.root, '.nomi-upload-'))
+  reapAbandonedUploadStaging(context.root)
+  const staging = fs.mkdtempSync(path.join(context.root, UPLOAD_STAGING_PREFIX))
   const snapshot = path.join(staging, 'content')
   try {
     await copyFileWithProgress(source, snapshot, onCopyProgress)
@@ -147,9 +150,15 @@ export async function persistUploadFile(
     const stat = await fs.promises.stat(snapshot)
     return await withUploadIdentity(context, hash, async () => {
       const legacy = await reuseStoredUpload(context, stat.size, hash, contentType)
-      return legacy ?? publish(context, fileName, contentType, meta, hash, target => { fs.linkSync(snapshot, target); fs.unlinkSync(snapshot) })
+      return legacy ?? publish(context, fileName, contentType, meta, hash, target => {
+        retryOnSharingViolation(() => fs.linkSync(snapshot, target))
+        // 立刻摘掉暂存里那个名字（链接数变化会改 ctime，拖到后面删会让并发的同内容导入认不出这份）。
+        // 摘不掉不抛：正式文件已经链接好了，抛出去只会让 publish 撤掉 .meta、留下一份没人认领的素材；
+        // 暂存目录在 finally 里还会再删一次。
+        try { fs.unlinkSync(snapshot) } catch { /* 交给暂存目录清理 */ }
+      })
     })
   } finally {
-    await fs.promises.rm(staging, { recursive: true, force: true })
+    await removeScratchAfterUse(staging)
   }
 }

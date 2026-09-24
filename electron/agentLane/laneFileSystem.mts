@@ -20,10 +20,12 @@
 import { chmod, mkdir } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/harness/env/nodejs';
-import { err, FileError, type FileSystem } from '@earendil-works/pi-agent-core';
+import { err, FileError, ok, type FileSystem } from '@earendil-works/pi-agent-core';
 
 /** 会话文件：只有属主能读写。与 pi 自己给 `auth.json` 的档位一致。 */
 export const LANE_FILE_MODE = 0o600;
+/** 对话身份的根（`laneSessionCwd` 的前缀）。写进表头、算 slug、列表认对话都只认这一个串，它不是宿主路径。 */
+export const LANE_IDENTITY_ROOT = '/nomi-lane/';
 /** 会话目录：只有属主能进。目录不设防的话，里面的文件设了也只是挡了一半。 */
 export const LANE_DIR_MODE = 0o700;
 
@@ -64,11 +66,22 @@ export async function ensureLaneSessionsRoot(sessionsRoot: string): Promise<void
  * （`session/jsonl/storage.js:71` `${destinationPath}.tmp`），所以「同文件系统」是结构事实，
  * 与用户把项目放在 iCloud 还是外接盘无关。我们唯一能破坏这条的方式就是自己写一个
  * `FileSystem`——所以我们不写。
+ *
+ * **`absolutePath` 对 `LANE_IDENTITY_ROOT` 下的串原样返回**：那是对话的身份（`laneSessionCwd`），
+ * 不是宿主路径。pi 把会话 cwd 当宿主路径 `path.resolve`（`env/nodejs.js:326`），写进表头、
+ * 也拿它算目录 slug。POSIX 上 `/nomi-lane/main` 解析完还是自己；Windows 上变成
+ * `<项目所在盘>:\nomi-lane\main`——列表按前缀一条都认不出，面板点发送没有任何反应
+ * （2026-09-24 Windows 真机；`lane-multi` 在 Windows 上 4/5 红）。这里是 pi 拿到的唯一一个
+ * 文件系统，也就是它解析会话 cwd 的唯一入口；原样返回之后，身份在每个平台、每个盘符上
+ * 都是同一个串，项目文件夹在 Mac 与 Windows 之间同步也认得出同一条对话。
  */
 export function createLaneFileSystem(projectDir: string): FileSystem {
   const base = new NodeExecutionEnv({ cwd: projectDir });
   const absolute = (path: string) => (isAbsolute(path) ? path : resolve(base.cwd, path));
   const restricted: FileSystem = Object.create(base);
+
+  restricted.absolutePath = async (path, context) =>
+    path.startsWith(LANE_IDENTITY_ROOT) ? ok(path) : base.absolutePath(path, context);
 
   const write: FileSystem['writeFile'] = async (path, content, context) => {
     const result = await base.writeFile(path, content, context);

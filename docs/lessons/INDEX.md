@@ -143,6 +143,7 @@
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障
+- [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」
 - [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
 - [长寿命对象不许揣短寿命名词当身份证](holder-must-not-keep-a-shorter-lived-noun.md) — `surface_port_stale` / `unavailable`、或合同写了「现抓」真机仍红时先读；冻点从 open 滑到 prepare 再滑到 execute 是同一类，不是结构改完；产品债 T-AG-16
 - [能力绑在组件挂载生命周期上，「不存在」就会被说成「过期」](capability-bound-to-component-lifecycle-reports-stale.md) — Agent/MCP 工具「时好时坏」、`*_stale` 一族错误码重试永远撞同一句、或你正要在 `.tsx` useEffect 里 `setXxxTools(api)` 发布能力时读；owner 上移到会话层、组件只做增强覆盖；门岗 `check:capability-lifecycle`

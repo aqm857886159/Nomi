@@ -4,6 +4,8 @@ import path from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 
 const roots: string[] = []
+// 生产代码用 path.join 拼路径：按本机分隔符比对一次，不在每个探针里各自换斜杠。
+const IMPORTED_DIR = path.join('assets', 'imported')
 const settings = vi.hoisted(() => ({ root: '' }))
 vi.mock('electron', () => ({ app: { getPath: () => settings.root, getAppPath: () => process.cwd() } }))
 vi.mock('./assetEvents', () => ({ broadcastAssetsUpdated: vi.fn(), broadcastAssetLocalizationStarted: vi.fn() }))
@@ -25,7 +27,7 @@ it.each(['generation', 'directory'].flatMap(change => [['bytes', true, change], 
   const original = fs.promises.readdir.bind(fs.promises)
   let changed = false
   vi.spyOn(fs.promises, 'readdir').mockImplementation(async (...args: Parameters<typeof original>) => {
-    if (!changed && String(args[0]).includes('assets/imported')) {
+    if (!changed && String(args[0]).includes(IMPORTED_DIR)) {
       changed = true
       if (change === 'directory') {
         const moved = `${root}-moved`; roots.push(moved)
@@ -61,7 +63,7 @@ it.each(['bytes', 'native'])('revokes %s reuse and metadata updates when an inte
   let current = true
   const readdir = fs.promises.readdir.bind(fs.promises)
   vi.spyOn(fs.promises, 'readdir').mockImplementation(async (...args: Parameters<typeof readdir>) => {
-    if (String(args[0]).includes('assets/imported')) current = false
+    if (String(args[0]).includes(IMPORTED_DIR)) current = false
     return readdir(...args)
   })
   await expect(importLocalFile(transport === 'native' ? { ...payload, sourcePath: source } : payload, { allowSourcePath: true, assertCurrent() {
@@ -79,7 +81,7 @@ it('validates a stable identity without contending with an unrelated manifest wr
   let lease: ReturnType<typeof tryAcquireWorkspaceManifestLock> | undefined
   const readdir = fs.promises.readdir.bind(fs.promises)
   vi.spyOn(fs.promises, 'readdir').mockImplementation(async (...args: Parameters<typeof readdir>) => {
-    if (!lease && String(args[0]).includes('assets/imported')) lease = tryAcquireWorkspaceManifestLock(projectDirById(project.id)!)
+    if (!lease && String(args[0]).includes(IMPORTED_DIR)) lease = tryAcquireWorkspaceManifestLock(projectDirById(project.id)!)
     return readdir(...args)
   })
   try {
@@ -133,7 +135,7 @@ it('does not lend a background upload the cancelled interaction authorization', 
   let current = true
   const readdir = fs.promises.readdir.bind(fs.promises)
   vi.spyOn(fs.promises, 'readdir').mockImplementation(async (...args: Parameters<typeof readdir>) => {
-    if (String(args[0]).includes('assets/imported')) current = false
+    if (String(args[0]).includes(IMPORTED_DIR)) current = false
     return readdir(...args)
   })
   const results = await Promise.allSettled([importLocalFile(payload, { assertCurrent() {

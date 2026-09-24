@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-hard-list-windows-path-spellings",
+  "problem_type": "The coding-command secret-store rule misses Windows and quote-split spellings of the same credential file",
+  "symptom": "On Windows the agent's bash tool asks for approval on every command (no OS sandbox). `cat ~/.ssh/id_ed25519` is denied outright by the hard list, but `cat \"C:\\Users\\<name>\\.ssh\\id_ed25519\"`, `type %USERPROFILE%\\.ssh\\id_rsa`, `cat ~/.s'sh'/id_rsa` and the Windows Nomi settings directory (`%APPDATA%\\nomi`) fall through to an ordinary approval card; one click on it sends the key file into the conversation and to the model provider. Separately, `cat /usr/share/dict/words` is classified as outside-project on Windows.",
+  "direct_cause": "SECRET_PATH_FRAGMENTS only lists POSIX spellings (`/.ssh`, `application support/nomi`) and buildSecretPattern matches them literally against the raw command, so backslashes, drive letters, env-var homes and quote-split fragments never match; the Nomi settings directory on Windows and Linux is not listed at all. isSystemReadOnly resolves POSIX prefixes with the host path.resolve, which prepends the drive on Windows (`/usr` → `C:\\usr`).",
+  "class_root": "Security and path rules were written against one platform's spelling and fed through host path semantics. On macOS a second layer (sandbox-runtime denyRead) hides the gap; on Windows there is no OS sandbox, so the hard list is the only layer that denies credential reads outright. Same class as 2026-09-24-lane-identity-host-path (a POSIX identity passed through host path.resolve).",
+  "affected_population": [
+    "Windows users who use the agent's bash tool (coding tool group, skills with scripts): credential reads written with backslashes, drive letters, %USERPROFILE%/$USERPROFILE or quote-split names reach an approval card instead of being denied",
+    "Windows and Linux users: reads of the Nomi settings directory (%APPDATA%\\nomi, ~/.config/nomi) were never on the list",
+    "macOS users with quote-split or escaped spellings (`~/.s'sh'`, `~/\\.ssh`): caught by the OS sandbox today, now also by the hard list"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/codingCommandPolicy.ts"
+  ],
+  "entry_points": [
+    "classifyCommand (the only verdict for every bash tool call, via laneNativeApproval)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Quoting.html",
+      "checked_at": "2026-09-24",
+      "purpose": "Bash removes quotes and backslash escapes before running a word, so `~/.s'sh'/id_rsa` and `~/\\.ssh/id_rsa` name the same file as `~/.ssh/id_rsa`; the matching view must drop them too."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/path.html#pathresolvepaths",
+      "checked_at": "2026-09-24",
+      "purpose": "path.resolve on Windows prepends the current drive to a root-relative path; POSIX prefix tables must be compared with path.posix."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app#appgetpathname",
+      "checked_at": "2026-09-24",
+      "purpose": "userData is %APPDATA%\\<app name> on Windows and ~/.config/<app name> on Linux, i.e. the Nomi settings directory the secret-store rule must cover on those platforms."
+    }
+  ],
+  "invariants": [
+    "Every spelling of a credential path that bash would resolve to the same file is denied by the hard list, with or without a sandbox",
+    "Normalization only widens what the hard list matches; the command that runs is never rewritten",
+    "POSIX path tables are compared with POSIX semantics on every host"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/codingCommandPolicy.test.ts"
+    ],
+    "why": "classifyCommand is the single verdict for every bash call (laneNativeApproval is its only caller); the hard list is matched there against both the raw command and one normalized view (hardListView), so every caller gets the same answer."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneNativeApproval.ts",
+      "symbol": "classifyCommand"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+      "symbol": "classifyCommand"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "One definition (codingCommandPolicy.ts) and one caller (laneNativeApproval.ts); there is nothing to merge."
+  },
+  "generality_proof": "The hard list is evaluated once per command in classifyCommand against the raw text and a view with quotes removed and backslash runs turned into '/', so a credential path is caught regardless of Windows separators, drive letters, env-var home prefixes or bash quote splitting; the secret pattern additionally names the Nomi settings directory in its Windows ($APPDATA, %APPDATA%, AppData/Roaming) and Linux (~/.config) forms.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+      "symbol": "hardListView",
+      "responsibility": "The one normalized spelling the hard list is compared against; never used to rewrite the executed command."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+      "entry_point": "isSystemReadOnly",
+      "disposition": "enforced",
+      "evidence": "POSIX prefixes are now resolved with path.posix; `cat /usr/share/dict/words` classifies the same on Windows as on macOS (the sample was red on Windows before)."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+      "entry_point": "extractAbsolutePaths / isInsideProject",
+      "disposition": "not-affected",
+      "evidence": "Only reached when the sandbox is active (step ③ returns first otherwise), which never happens on Windows today; recorded as a residual risk for the day a Windows sandbox is enabled."
+    },
+    {
+      "path": "electron/agentLane/laneCodingSandbox.mts",
+      "entry_point": "sandbox policy (denyRead/allowWrite)",
+      "disposition": "not-affected",
+      "evidence": "POSIX paths (`/tmp`, `~/.ssh`) in the sandbox policy only matter when the Windows sandbox is provisioned, which Nomi does not do; residual risk."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any Windows user of the bash tool meets it whenever the model spells a home path the Windows way; every new secret path added in POSIX form would repeat it without the shared view.",
+    "same_class_scan": [
+      "door-map classifyCommand: one caller (laneNativeApproval.ts)",
+      "rg 'path.resolve' electron/shared/agentCapabilities: isSystemReadOnly and isInsideProject; only isSystemReadOnly compares against a POSIX table",
+      "Windows triage of tests/agent-runtime under Electron's Node (19 red cases classified; B1 is this contract)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+    "invariant": "The hard list matches every bash spelling of a protected path; POSIX tables are compared with POSIX semantics",
+    "failure_mode": "A new spelling that bash resolves but the view does not normalize (globs, variables expanded at runtime) still reaches an approval card on Windows, never auto-allow: without a sandbox every non-hard-list command asks.",
+    "exception_policy": "none",
+    "strategy": "Compare the hard list against the raw command and one normalized view in the single verdict function; name the settings directory on every platform; test each spelling under both sandbox states.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/codingCommandPolicy.ts",
+      "electron/shared/agentCapabilities/codingCommandPolicy.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/codingCommandPolicy.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentCapabilities/codingCommandPolicy.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The rule is widened in place; there was no second matcher to remove."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Pure function in Nomi code; no third-party runtime involved.",
+    "exit_criteria": []
+  },
+  "migration": "None. Remembered session grants are unaffected: on Windows none exist (grantable is false without a sandbox), and on macOS a grant never reaches past the hard list.",
+  "residual_risks": [
+    "Glob and runtime-variable spellings (`~/.ss?/id*`, `$(echo ~)/.ssh`) are not normalized; on Windows they still land on an approval card showing the command, never auto-allow. macOS keeps the sandbox denyRead layer.",
+    "If a user provisions the Windows sandbox manually, laneCodingSandbox.mts policy paths and extractAbsolutePaths are POSIX-only; tracked from the Windows triage (C1).",
+    "Other credential files not on the list on any platform (e.g. ~/.git-credentials, gh hosts.yml) are a coverage question, not this spelling class."
+  ]
+}

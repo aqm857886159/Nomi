@@ -75,8 +75,8 @@ export interface LaneClient {
   setPolicy(policy: LaneComposerContext['approvalPolicy']): Promise<LaneCommandResult>
   context(): Readonly<{ subscriptionId: string; binding: ProjectBinding }> | null
   conversation(): LaneConversationAddress | null
-  /** Capture this opening/reopening before any caller waits for catalogs or files. */
-  prepareInput(): Promise<LaneConversationAddress | null>
+  /** Capture this opening/reopening before any caller waits for catalogs or files. No conversation → throws `agent_lane_closed`, never a silent null. */
+  prepareInput(): Promise<LaneConversationAddress>
   receipt(subscriptionId: string, command: LaneReceiptCommand): Promise<LaneCommandResult>
   singleShot(request: LaneSingleShotRequest): Promise<LaneCommandResult>
   abortSingleShot(requestId: string): Promise<LaneCommandResult>
@@ -192,7 +192,7 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     return current && ref ? { ...ref, workspaceId: current.subscriptionId } : null
   }
   const stale = (): LaneCommandResult => ({ ok: false, code: 'agent_lane_workspace_stale', diagnostic: 'conversation changed before command admission' })
-  const prepareInput = async (): Promise<LaneConversationAddress | null> => {
+  const prepareInput = async (): Promise<LaneConversationAddress> => {
     const startedBridge = bridge
     const startedEpoch = epoch
     if (opening) await opening.catch(() => undefined)
@@ -210,7 +210,11 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
         throw new LaneCommandFailure('agent_lane_workspace_stale', 'input reauthorization was replaced')
       }
     }
-    return conversation()
+    // 没有可装进去的对话 = 这句话发不出去。以前这里回 null，发送钮据此**静默**返回：
+    // 用户点了没反应、字留在框里、哪儿都没有一句话（2026-09-24 Windows 真机，列表认不出对话）。
+    const address = conversation()
+    if (!address) throw new LaneCommandFailure('agent_lane_closed', 'no conversation to admit input into')
+    return address
   }
   const send = async (command: LaneDesktopCommand, expected?: LaneConversationAddress): Promise<LaneCommandResult> => {
     if (!bridge) return NO_BRIDGE
