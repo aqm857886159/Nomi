@@ -111,15 +111,30 @@ export async function checkFiles(files, { concurrency = DEFAULT_CONCURRENCY, che
   return [...failures.entries()].sort(([a], [b]) => a - b).map(([, failure]) => failure)
 }
 
+/**
+ * 入口判断在 Windows 上永远为假：`import.meta.url === \`file://${process.argv[1]}\``——左边是 file:///D:/…，右边是 D:\…。
+ * 这样的脚本能解析、退出码 0，却什么都没做（2026-09-25：door-map 与 5 道门岗在 Windows 本机一直是空跑绿）。
+ * 改用 pathToFileURL(process.argv[1]).href，或比较 path.resolve(fileURLToPath(import.meta.url))。
+ */
+const WINDOWS_BLIND_ENTRYPOINT = /import\.meta\.url\s*===\s*(?:`file:\/\/\$\{process\.argv\[1\]\}`|['"]file:\/\/['"]\s*\+\s*process\.argv\[1\])/
+export function findWindowsBlindEntrypoint(source) {
+  return WINDOWS_BLIND_ENTRYPOINT.test(String(source))
+}
+
 export function formatFailures(failures, root = repoRoot) {
-  return failures.map((failure) => `    ${path.relative(root, failure.file)}  ${failure.message}`)
+  return failures.map((failure) => `    ${path.relative(root, failure.file).split(path.sep).join('/')}  ${failure.message}`)
 }
 
 export async function main({ root = repoRoot, dirs = SCAN_DIRS, log = console.log } = {}) {
   const byDir = collectByDir(root, dirs)
   assertScanCoverage(byDir)
   const files = [...byDir.values()].flat()
-  const failures = await checkFiles(files)
+  const failures = [
+    ...await checkFiles(files),
+    ...files
+      .filter((file) => findWindowsBlindEntrypoint(fs.readFileSync(file, 'utf8')))
+      .map((file) => ({ file, message: '入口判断在 Windows 上永远为假（import.meta.url 直接和 file:// + argv[1] 比较）：改用 pathToFileURL(process.argv[1]).href' })),
+  ]
 
   if (failures.length > 0) {
     log(`✖ 脚本解析门岗未通过：${failures.length} 个 .mjs/.cjs 解析失败（它们加载即崩，但 typecheck / eslint 都看不见）`)

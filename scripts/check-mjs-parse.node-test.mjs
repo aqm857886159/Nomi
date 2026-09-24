@@ -131,3 +131,11 @@ test('端到端：干净夹具回 0、坏夹具回 1（这道门真会红）', a
     assert.match(noisy.join('\n'), /dup\.mjs/)
   })
 })
+
+test('flags an entrypoint check that is always false on Windows, accepts the portable forms', async () => {
+  const { findWindowsBlindEntrypoint } = await import('./check-mjs-parse.mjs')
+  assert.equal(findWindowsBlindEntrypoint('if (import.meta.url ' + '=== `file://${process.argv[1]}`) main()'), true)
+  assert.equal(findWindowsBlindEntrypoint('if (import.meta.url ' + "=== 'file://' + process.argv[1]) main()"), true)
+  assert.equal(findWindowsBlindEntrypoint('if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()'), false)
+  assert.equal(findWindowsBlindEntrypoint('if (path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) main()'), false)
+})
