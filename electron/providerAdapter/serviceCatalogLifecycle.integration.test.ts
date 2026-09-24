@@ -469,15 +469,18 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
 
   it("blocks a competing lineage revision after provider create may have been accepted", async () => {
     let sequence = 0;
-    let oldVerifySignal: AbortSignal | undefined;
     let providerCreates = 0;
+    // 等「旧候选真的走到 verify」用它自己发的信号，不轮询：vi.waitFor 默认 1s 预算在满载 CI 上不够
+    // （2026-09-24 RC 36010368891 第 1 次运行在全量 14,804 条测试下红过一次）。上限由 testTimeout 兜。
+    let reachedVerify!: (signal: AbortSignal) => void;
+    const verifyReached = new Promise<AbortSignal>((resolve) => { reachedVerify = resolve; });
     const service = new ProviderAdapterService(
       new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")),
       serviceDependencies({
         id: () => `run-real-${++sequence}`,
         verify: ({ signal }) => {
           providerCreates += 1;
-          oldVerifySignal = signal;
+          reachedVerify(signal);
           return new Promise(() => {});
         },
         verifyTimeoutMs: 60_000,
@@ -485,7 +488,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
     );
     const older = await startCandidate(service);
     const olderWork = service.executeRun(older.id);
-    await vi.waitFor(() => expect(oldVerifySignal).toBeDefined());
+    const oldVerifySignal = await verifyReached;
 
     await expect(
       service.start({
