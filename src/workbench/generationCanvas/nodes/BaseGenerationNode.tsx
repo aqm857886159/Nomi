@@ -220,6 +220,10 @@ function BaseGenerationNodeImpl({
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。
   const imageEditing = useNodeImageEditing(node, visualSize, reportFeedback)
   const { downloading: panoramaDownloading, download: downloadPanorama } = useResultDownload(node, reportFeedback)
+  // 选中即同步挂整个提示词面板是拖动起手顿挫的来源（拖一个没选中的节点：按下即选中 → 同步挂面板，实测 70–95ms）。
+  // 挂载走一次可打断的低优先级渲染：选中高亮与拖动先出来，面板随后到；取消选中照旧立即卸载。
+  const composerWanted = selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind)
+  const composerMounted = React.useDeferredValue(composerWanted)
   const showFlowConnectionHandle =
     node.kind !== 'panorama' && (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
 
@@ -516,7 +520,7 @@ function BaseGenerationNodeImpl({
           ② composer 的 `useComposerViewportPlacement` 是**每帧 rAF 量矩形**的循环，
              用 invisible 藏起来等于让它在看不见的时候继续每帧 querySelectorAll + getBoundingClientRect。
           藏不等于卸载——不挂才是不跑。 */}
-      {selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind) ? (
+      {composerWanted && composerMounted ? (
         <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
       ) : null}
       {selected && !readOnly && !flowManagedLayout
