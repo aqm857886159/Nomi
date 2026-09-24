@@ -254,6 +254,24 @@ try {
     return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
   }, { id: nodeId, wantSide: side })
 
+  // 普通视频源拖到空白处：这条路径必须进入「创建下一个媒体节点」菜单，
+  // 不能因为不是图片源就被 handleConnectEnd 静默取消。
+  const videoSource = nodes[1]
+  const videoStart = await handleCenter(videoSource.id, 'right')
+  const blankCreatePoint = await findBlankPoint()
+  assert(Boolean(videoStart), '拿得到视频节点右侧连线把手坐标', JSON.stringify(videoStart))
+  await getWin().mouse.move(videoStart.x, videoStart.y)
+  await getWin().mouse.down()
+  await getWin().mouse.move(blankCreatePoint.x, blankCreatePoint.y, { steps: 18 })
+  await getWin().mouse.up()
+  await getWin().waitForTimeout(350)
+  const connectionCreateMenu = getWin().locator('.generation-canvas-react-flow__connection-create-menu')
+  await expectVisible(connectionCreateMenu, '视频拖到空白处出现创建下一个节点菜单')
+  assert(await connectionCreateMenu.locator('[data-node-kind="image"], [data-node-kind="video"]').count() === 2,
+    '创建菜单保留图片/视频两个媒体目标')
+  await getWin().keyboard.press('Escape')
+  await getWin().waitForTimeout(180)
+
   await getWin().mouse.click(source.rect.x + Math.round(source.rect.w / 2), source.rect.y + 14)
   await getWin().waitForTimeout(350)
   const startHandle = await handleCenter(source.id, 'right')

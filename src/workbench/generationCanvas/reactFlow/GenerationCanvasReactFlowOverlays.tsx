@@ -11,6 +11,7 @@ import { SelectionPromptSaveController } from '../components/SelectionPromptSave
 import { hasClipboardContent } from '../store/canvasClipboard'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
+import { CONNECTION_CREATE_NODE_KINDS } from '../model/connectionCreationPolicy'
 import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
 
 const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
@@ -137,7 +138,7 @@ export function GenerationCanvasReactFlowOverlays({
         <NodeAddMenu
           className="generation-canvas-react-flow__connection-create-menu generation-canvas-v2__connection-create-menu z-[20] left-auto w-[132px]"
           style={{ left: connectionCreateMenu.stageX, top: connectionCreateMenu.stageY }}
-          kinds={['image', 'video']}
+          kinds={CONNECTION_CREATE_NODE_KINDS}
           onPointerDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
           onAddNode={onAddConnectedNode}

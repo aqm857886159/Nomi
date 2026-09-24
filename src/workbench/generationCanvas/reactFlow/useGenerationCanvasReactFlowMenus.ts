@@ -6,7 +6,7 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import type { NodeContextMenuAction } from '../components/NodeContextMenu'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
-import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
+import { canCreateConnectedMedia } from '../model/connectionCreationPolicy'
 import {
   useCanvasContextNodeMenu,
   type CanvasContextNodeMenu,
@@ -245,8 +245,7 @@ export function useGenerationCanvasReactFlowMenus({
     connectionStartRef.current = null
     if (readOnly || !started || (connectionState.isValid && connectionState.toNode)) return
     const sourceNode = nodeById.get(started.nodeId)
-    const canCreateMedia = sourceNode?.kind === 'text' || sourceNode?.kind === 'image' || Boolean(sourceNode && isImageLikeGenerationNodeKind(sourceNode.kind))
-    if (!canCreateMedia) {
+    if (!sourceNode || !canCreateConnectedMedia(sourceNode)) {
       cancelConnection()
       return
     }

@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-video-connection-source",
+  "problem_type": "Blank-canvas connection creation allow-list omits video sources",
+  "symptom": "Dragging from a video card to empty canvas silently cancels instead of opening the next-node menu; the same happens for ordinary and multi-result video cards.",
+  "direct_cause": "useGenerationCanvasReactFlowMenus.handleConnectEnd only accepted text, image, or image-like source kinds before resolving the blank-canvas drop target, so video and video-like kinds called cancelConnection and never reached the creation menu.",
+  "class_root": "Source capability and creation-menu targets were maintained as separate ad hoc lists, so a media source kind could be rendered with a connection handle yet be rejected by the blank-canvas connection boundary.",
+  "migration": "No data migration. Existing edges and node records remain unchanged; video sources now follow the existing blank-canvas menu path.",
+  "affected_population": [
+    "Users dragging any ordinary or multi-result video node to create the next connected media node",
+    "Future registry node kinds whose execution kind is video and that reach the React Flow source-handle path"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+    "src/workbench/generationCanvas/model/connectionCreationPolicy.test.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "tests/ux/canvas-s5-walkthrough.walk.mjs"
+  ],
+  "entry_points": [
+    "useGenerationCanvasReactFlowMenus.handleConnectEnd: blank-canvas drop eligibility and menu creation",
+    "GenerationCanvasReactFlow.handleConnect: valid existing-target connection callback",
+    "GenerationCanvasReactFlowOverlays: restricted menu target kinds"
+  ],
+  "invariants": [
+    "Text, image-like, and video-like source nodes can create a connected media node on blank canvas.",
+    "Audio and model3d sources do not open a media creation menu when dropped on blank canvas.",
+    "The source capability predicate and the restricted creation menu target list are owned by one model module.",
+    "Existing-target and group connection paths remain unchanged."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleConnectEnd"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "handleConnectEnd"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+      "symbol": "canCreateConnectedMedia"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CONNECTION_CREATE_NODE_KINDS"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The React Flow host wiring, menu hook, shared capability module, and overlay target list are distinct boundaries: each owns a different integration step, and collapsing them would reintroduce a second source or target policy. The shared module is the common decision point, while the two React Flow components remain explicit consumers."
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/model/connectionCreationPolicy.test.ts",
+    "tests/ux/canvas-s5-walkthrough.walk.mjs"
+  ],
+  "residual_risks": [
+    "The focused real Electron walkthrough now proves a normal video source can open the blank-canvas menu; multi-result video card coverage still relies on the shared registry-derived path and unit contract.",
+    "The restricted menu intentionally continues to offer image and video targets only; it does not add audio or model3d outputs."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failure is caused by Nomi's own React Flow menu hook and generation-node registry; no external media protocol determines which source kinds may create a Nomi canvas node.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same omission would affect every current or future video-like source, regardless of whether the card has variants, because the decision used kind eligibility rather than the card's result count.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs handleConnectEnd: checked both React Flow callback readers",
+      "rg sourceNode src/workbench/generationCanvas: checked source allow-lists and the restricted menu",
+      "src/workbench/generationCanvas/model/generationNodeKinds.ts: verified registry-derived image/video predicates cover ordinary and variant node kinds"
+    ]
+  },
+  "generality_proof": "The shared predicate derives capability from the generation registry's execution kind, so ordinary video and any video-like variant use the same branch. The restricted menu consumes the same module's target list, preventing source eligibility and menu targets from drifting independently.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+      "symbol": "canCreateConnectedMedia",
+      "responsibility": "Own source eligibility for blank-canvas connected media creation and the target-kind list used by its menu."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "entry_point": "handleConnectEnd",
+      "disposition": "enforced",
+      "evidence": "This branch previously cancelled video sources before drop-target resolution and now calls the shared registry-derived predicate."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "entry_point": "connectionCreateMenu",
+      "disposition": "enforced",
+      "evidence": "The menu's restricted kinds previously duplicated image/video literals and now consumes CONNECTION_CREATE_NODE_KINDS from the shared boundary."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleConnect",
+      "disposition": "not-affected",
+      "evidence": "This callback handles already-valid node-to-node connections and does not decide blank-canvas source eligibility."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+    "invariant": "Every blank-canvas source decision uses the registry-derived image/video capability predicate, and the menu target list has one owner.",
+    "failure_mode": "The policy test fails if video-like sources are removed or if the menu target list diverges from the shared contract.",
+    "exception_policy": "none",
+    "strategy": "Keep source eligibility and restricted target kinds in one model module and have both React Flow integration points consume it.",
+    "artifacts": [
+      "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+      "src/workbench/generationCanvas/model/connectionCreationPolicy.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/model/connectionCreationPolicy.test.ts",
+    "tests/ux/canvas-s5-walkthrough.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate connection implementation is deleted; the duplicated literal and narrow predicate are replaced at their existing integration sites."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is changed; React Flow remains the existing connection kernel.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/model/connectionCreationPolicy.ts",
+    "tests": [
+      "src/workbench/generationCanvas/model/connectionCreationPolicy.test.ts"
+    ],
+    "why": "The model-layer policy is the single source eligibility and target-list owner, and the test covers text, image, video, image-like, and rejected media kinds."
+  }
+}

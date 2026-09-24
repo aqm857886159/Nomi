@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-project-missing-assets-open",
+  "problem_type": "Recoverable workspace sync warnings are treated as an entry-blocking state",
+  "symptom": "A project-library card that reports one missing asset opens a sync-details popover and cannot enter the project.",
+  "direct_cause": "ProjectLibraryPage.openProject blocks every inspected status other than ready, even though the workspace sync inspector distinguishes missing-assets from unreadable manifest states and the studio hydration path can restore the project payload.",
+  "class_root": "The library entry boundary used a broad negative status check instead of a shared policy that distinguishes a readable partial workspace from a manifest that must not be opened.",
+  "migration": "No data migration. The existing missing-assets inspection and warning remain; only the library action changes from blocked to open-and-warn.",
+  "affected_population": [
+    "Any project whose manifest is readable but references one or more files absent on the current machine"
+  ],
+  "scope_paths": [
+    "src/workbench/library/ProjectLibraryPage.tsx",
+    "src/workbench/library/projectSyncOpenPolicy.ts",
+    "src/workbench/library/projectSyncOpenPolicy.test.ts",
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "entry_points": [
+    "ProjectLibraryPage.openProject: library card action that decides whether to call onOpenProject",
+    "NomiStudioApp.openProject: studio hydration callback reached after the library permits entry"
+  ],
+  "invariants": [
+    "A readable missing-assets workspace can enter the studio while its warning badge remains visible.",
+    "External changes, conflicts, and corrupt manifests remain blocked at the library boundary.",
+    "The status policy is defined once and consumed by the library action rather than duplicated in JSX."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "openProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "openProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/projectSyncOpenPolicy.ts",
+      "symbol": "canOpenProjectWithSyncStatus"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "The library action, studio hydration callback, and pure policy module are separate boundaries: the first decides entry, the second hydrates, and the third owns the reusable status rule. Keeping all three explicit prevents the policy from being reimplemented in either UI or hydration code."
+  },
+  "regression_tests": [
+    "src/workbench/library/projectSyncOpenPolicy.test.ts"
+  ],
+  "residual_risks": [
+    "A user may enter a project with unavailable media; the existing asset-health flow and warning UI remain responsible for explaining and recovering those files.",
+    "Real packaged Electron hydration with a missing file still needs the scheduled user-journey walk; the unit contract only proves the entry policy."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal invariant between the repository's workspace sync inspector, library action, and studio hydration code; no external protocol or dependency behavior decides whether a readable partial workspace may open.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future project inspection can produce the same missing-assets status, and a broad status-not-ready check would block all such projects regardless of which asset is absent.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs openProject: checked the library action and the studio callback",
+      "rg missing-assets src/workbench electron: checked status gating and the sync inspector",
+      "src/workbench/library/ProjectSyncBadge.tsx and projectSyncFace.ts: verified missing-assets remains a warning presentation, not a second open policy"
+    ]
+  },
+  "generality_proof": "Every project-library open attempt flows through ProjectLibraryPage.openProject, and the status helper explicitly covers all WorkspaceSyncStatus values. Adding another caller or status requires using the same typed policy to preserve the readable-versus-unreadable distinction.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/library/projectSyncOpenPolicy.ts",
+      "symbol": "canOpenProjectWithSyncStatus",
+      "responsibility": "Own the single readable-partial-workspace versus entry-blocking status decision."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "openProject",
+      "disposition": "enforced",
+      "evidence": "This is the only library action that previously converted every non-ready inspection into a blocked popover; it now calls the shared policy."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "openProject",
+      "disposition": "not-affected",
+      "evidence": "This callback hydrates the project after the library decision and has no sync-status gate; changing it would duplicate the entry policy."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/library/projectSyncOpenPolicy.ts",
+    "invariant": "Only statuses whose manifest cannot safely be read block project entry; missing-assets remains openable with a warning.",
+    "failure_mode": "The policy unit test fails if missing-assets becomes blocked or if any unreadable status becomes openable.",
+    "exception_policy": "none",
+    "strategy": "Keep the status distinction in one typed pure function and make the library action consume it.",
+    "artifacts": [
+      "src/workbench/library/projectSyncOpenPolicy.ts",
+      "src/workbench/library/projectSyncOpenPolicy.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/library/projectSyncOpenPolicy.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There is no separate missing-assets implementation to delete; the old broad condition is replaced in the existing library action."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls workspace sync status or project hydration.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/library/projectSyncOpenPolicy.ts",
+    "tests": [
+      "src/workbench/library/projectSyncOpenPolicy.test.ts"
+    ],
+    "why": "The pure policy owns the status distinction and its test covers every status branch."
+  }
+}

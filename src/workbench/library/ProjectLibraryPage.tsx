@@ -28,6 +28,7 @@ import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
 import { getDesktopBridge } from '../../desktop/bridge'
 import ProjectSyncBadge from './ProjectSyncBadge'
 import type { WorkspaceSyncInspection } from '../../../electron/shared/workspaceSyncContracts'
+import { canOpenProjectWithSyncStatus } from './projectSyncOpenPolicy'
 
 type Props = {
   projectFeedback?: { projectId: string | null; message: string } | null
@@ -222,7 +223,7 @@ export default function ProjectLibraryPage({
   const textModelMissing = hasTextModel === false
   const openProject = React.useCallback((projectId: string): void => {
     const status = syncInspectionByProject[projectId]?.status
-    if (status && status !== 'ready') {
+    if (!canOpenProjectWithSyncStatus(status)) {
       setOpenSyncProjectId(projectId)
       return
     }
