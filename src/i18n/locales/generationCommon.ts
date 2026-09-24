@@ -1405,15 +1405,11 @@ export const zhGenerationCommon = {
       groupName: '分镜组·{{name}}',
       groupFallbackName: '分镜组',
       shotFallbackTitle: '镜头 {{shot}}',
-      queued: '排队中',
-      queuedNth: '排队中 · 第 {{index}}/{{total}}',
       stoppedBudget: '预算已用完，这镜还没开拍。提额后可继续拍剩下的。',
       stoppedManual: '已停止剩余镜头。想继续可从这里接着拍。',
       raiseBudget: '提额续拍',
       continueRemaining: '继续剩余',
-      failedTitle: '这一镜没生成出来',
       failedFallback: '生成未成功。可稍后重拍这一镜。',
-      retry: '重拍这镜',
       // P4 S6 返工/续拍的人话反馈（按结构化结果 code 翻译，禁拼串穿透 i18n 门）。
       rework: {
         noPriorAttempt: '这一镜还没生成过，先让它正常开拍',
@@ -2878,15 +2874,11 @@ export const enGenerationCommon = {
       groupName: 'Shot group · {{name}}',
       groupFallbackName: 'Shot group',
       shotFallbackTitle: 'Shot {{shot}}',
-      queued: 'Queued',
-      queuedNth: 'Queued · {{index}}/{{total}}',
       stoppedBudget: 'Budget ran out before this shot. Raise it to keep filming the rest.',
       stoppedManual: 'Remaining shots stopped. Continue filming from here.',
       raiseBudget: 'Raise budget',
       continueRemaining: 'Continue remaining',
-      failedTitle: 'This shot didn\'t generate',
       failedFallback: 'Generation failed. You can re-film this shot later.',
-      retry: 'Re-film shot',
       // P4 S6 rework/resume plain-language feedback (translated by structured result code — never a raw string).
       rework: {
         noPriorAttempt: 'This shot hasn\'t been generated yet — let it film first',

@@ -1,4 +1,5 @@
-import type { ProductionRunStatus, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun, ProductionRunStatus, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import { isCurrentRequestDispatched } from '../../../electron/shared/contracts/productionDispatch'
 import type { ProductionRunTaskCenterProjection } from './taskCenterProjection'
 
 type Labels = {
@@ -10,19 +11,33 @@ type Labels = {
 
 const TERMINAL = new Set<ProductionRunStatus>(['completed', 'cancelled'])
 
-/** Keep the list projection and the opened full Run on the newest shared revision. */
+/**
+ * Keep the list projection and the opened full Run on the newest shared revision.
+ * The full Run is folded into the summary shape here, so `dispatched` comes from the one judge
+ * (`isCurrentRequestDispatched`) on either side — never from whichever object happened to be newer.
+ */
 export function mergeProductionRunSummaries(
   runs: readonly ProductionRunSummary[],
-  detailed: ProductionRunSummary | null,
+  detailed: ProductionRun | null,
 ): ProductionRunSummary[] {
   if (!detailed) return [...runs]
+  const detailedSummary: ProductionRunSummary = { ...detailed, dispatched: isCurrentRequestDispatched(detailed) }
   let found = false
   const merged = runs.map((run) => {
     if (run.projectId !== detailed.projectId || run.runId !== detailed.runId) return run
     found = true
-    return detailed.revision >= run.revision ? detailed : run
+    return detailed.revision >= run.revision ? detailedSummary : run
   })
-  return found ? merged : [detailed, ...merged]
+  return found ? merged : [detailedSummary, ...merged]
+}
+
+/**
+ * 这一行归哪一组。终态 → done；Run 还是 draft 且这一轮用户没点过头 → draft（列出来，但不算在跑——
+ * 否则 Agent 按「先别生成」建的草稿会点亮任务按钮、一直亮着 1）；其余 → running。
+ */
+function productionRunGroup(run: ProductionRunSummary): 'running' | 'draft' | 'done' {
+  if (TERMINAL.has(run.status)) return 'done'
+  return run.status === 'draft' && !run.dispatched ? 'draft' : 'running'
 }
 
 /**
@@ -45,25 +60,22 @@ export function buildProductionRunTaskRows(
   runs: readonly ProductionRunSummary[],
   labels: Labels,
 ): ProductionRunTaskCenterProjection[] {
-  return runs.map((run) => {
-    const terminal = TERMINAL.has(run.status)
-    return {
-      id: `production-run:${run.runId}`,
-      kind: 'production_run',
-      projectId: run.projectId,
-      runId: run.runId,
-      title: `${labels.title} · ${run.playbook.name}`,
-      group: terminal ? 'done' : 'running',
-      ...(run.status === 'completed'
-        ? { outcome: 'success' as const }
-        : run.status === 'cancelled'
-          ? { outcome: 'cancelled' as const }
-          : {}),
-      recoverable: false,
-      phaseText: draftPhaseText(run, labels) ?? labels.statuses[run.status],
-      cancel: 'none',
-      target: { kind: 'production_run', projectId: run.projectId, runId: run.runId },
-      action: null,
-    }
-  })
+  return runs.map((run) => ({
+    id: `production-run:${run.runId}`,
+    kind: 'production_run',
+    projectId: run.projectId,
+    runId: run.runId,
+    title: `${labels.title} · ${run.playbook.name}`,
+    group: productionRunGroup(run),
+    ...(run.status === 'completed'
+      ? { outcome: 'success' as const }
+      : run.status === 'cancelled'
+        ? { outcome: 'cancelled' as const }
+        : {}),
+    recoverable: false,
+    phaseText: draftPhaseText(run, labels) ?? labels.statuses[run.status],
+    cancel: 'none',
+    target: { kind: 'production_run', projectId: run.projectId, runId: run.runId },
+    action: null,
+  }))
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { useGenerationQueueStore, type GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
 import { generationFeedback, savedFeedbackWindowOpen } from './generationFeedback'
+import { useProductionExecutionNode } from '../production/useProductionExecutionNode'
 
 // One local clock for all visible surfaces; no per-node persistence writes or competing timers.
 let now = Date.now()
@@ -60,8 +61,12 @@ export function selectGenerationFeedbackNode(node: GenerationCanvasNode | null |
   return { current, queued, queueAhead, active }
 }
 
-export function useGenerationFeedback(node: GenerationCanvasNode | null | undefined, keyframeNode?: GenerationCanvasNode | null) {
+export function useGenerationFeedback(canvasNode: GenerationCanvasNode | null | undefined, canvasKeyframeNode?: GenerationCanvasNode | null) {
   useTranslation()
+  // Agent 批次里的镜：执行态在 Run 里，不在本地队列里。投影成同一副面孔，三个读口（等待面 / 状态行 / 时间轴）
+  // 就和普通节点画成一样的，不再各自另起一层（`projectShotExecution`）。
+  const node = useProductionExecutionNode(canvasNode)
+  const keyframeNode = useProductionExecutionNode(canvasKeyframeNode)
   const entries = useGenerationQueueStore((state) => state.entries)
   const { current, queued, queueAhead, active } = selectGenerationFeedbackNode(node, keyframeNode, entries)
   // 落地回执是**限时**的，所以刚跑完的那几秒钟表也得继续走——否则「跑完」那一帧渲染出回执之后

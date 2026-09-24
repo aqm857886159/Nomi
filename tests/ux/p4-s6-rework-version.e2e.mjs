@@ -6,7 +6,8 @@
 //      同 selected 同有 result 也不出条（阳性对照）。返工落第二版后：展开列版本；点旧版 → rollbackHistory 切 result
 //      （**切回旧版→再切新版**，计划 §4 J2 要求的断言）；顺序不跳（rollbackHistory 不重排）。
 //   ② 已停占位：resume 钮从 disabled 留位变 active（data-production-shot-action=resume-budget/-manual）。
-//   ③ 失败占位：rework 钮 active（data-production-shot-action=rework）。
+//   ③ 失败镜：走普通节点那张标准错误卡（2026-09-24 用户拍板，不再有一版内联简化红卡），卡上的「重试 / 仍要重试」
+//      接到返工链（BaseGenerationNode 把 productionRetry 递给 NodeErrorReport）。
 // 截图人眼判断（R13）：版本条展开态（光/暗）。断言用 _assert 体系 + expectAbsent 阳性对照（切前旧版不是当前）。
 import fs from 'node:fs'
 import path from 'node:path'
@@ -191,18 +192,15 @@ try {
   check(resumeAction && /^resume-(budget|manual)$/.test(resumeAction.action || ''), `已停占位续拍钮=active（data-*=${resumeAction?.action}，非 pending-s6 留位）`)
   check(resumeAction && resumeAction.disabled === false, '续拍钮可点（非 disabled）')
 
-  // 失败占位的 rework 钮 = 'rework'，非 disabled。
-  const reworkAction = await win.evaluate((id) => {
-    const host = document.querySelector(`[data-production-shot-node="${id}"][data-shot-placeholder-state="failed"]`)
-    const btn = host?.querySelector('[data-production-shot-action]')
-    return btn ? { action: btn.getAttribute('data-production-shot-action'), disabled: btn.disabled } : null
-  }, failedNode)
-  check(reworkAction && reworkAction.action === 'rework', `失败占位返工钮=active（data-*=${reworkAction?.action}，非 retry-pending-s6 留位）`)
-  check(reworkAction && reworkAction.disabled === false, '返工钮可点（非 disabled）')
-  // 阳性对照：先证「data-production-shot-action 这个探针测得到钮」（active 的 rework 钮带它），
-  // 再断言留位态旧值（*-pending-s6）不再出现在任何占位钮上（证真接线了，不是新增并行钮）。
-  const actionProof = await proveProbe(win.locator('[data-production-shot-action="rework"]'), 'data-production-shot-action 探针在 active 返工钮上可见')
-  await expectAbsent(win.locator('[data-production-shot-action="resume-pending-s6"], [data-production-shot-action="retry-pending-s6"]'), { provenBy: actionProof, message: '留位态 data-*（*-pending-s6）已全部被 active 值替换' })
+  // 失败镜 = 普通节点的标准错误卡，卡上有可点的「重试」（主或次动作），按下去走返工链。
+  const failedCard = win.locator(`[data-node-id="${failedNode}"] [role="alert"]`)
+  const failedCardProof = await proveProbe(failedCard, '失败镜显示普通节点那张标准错误卡')
+  const retryButton = failedCard.getByRole('button', { name: /重试/ }).first()
+  await proveProbe(retryButton, '错误卡上有「重试 / 仍要重试」')
+  check(await retryButton.isEnabled(), '重试（返工）可点（非 disabled）')
+  // 旧的那一版内联简化红卡与留位态 data-* 都不能再出现（证是同一张卡，不是并行两张）。
+  await expectAbsent(win.locator(`[data-shot-placeholder-state="failed"], [data-production-shot-action="rework"], [data-production-shot-action="resume-pending-s6"], [data-production-shot-action="retry-pending-s6"]`),
+    { provenBy: failedCardProof, message: '旧的批次失败红卡 / 留位钮已删净' })
 
   // 截图在**解 pin 前**（此刻已停/失败占位钮还在屏上，供人眼判断续拍/返工钮长相）。
   await win.screenshot({ path: path.join(shotsDir, '03-resume-rework-buttons.png') })

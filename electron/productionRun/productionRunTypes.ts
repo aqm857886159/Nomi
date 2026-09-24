@@ -420,6 +420,11 @@ export type ProductionRunSummary = Pick<
   authoring?: ProductionRun['authoring'];
   /** 计划仍是草稿时的候选摘要；已封存/已提交/无计划的 Run 省略。 */
   draft?: ProductionRunDraftSummary;
+  /**
+   * 这一轮请求用户点过头、已交给执行了没有（`isCurrentRequestDispatched`，唯一判据）。
+   * 任务中心据它把「还没点头的草稿」和「真的在跑」分开——状态同为 draft 的 Run 两种都有。
+   */
+  dispatched: boolean;
 };
 
 /**

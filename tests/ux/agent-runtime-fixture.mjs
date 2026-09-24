@@ -286,6 +286,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   /** apimart 是**异步**协议：create 回 task_id，query 轮询到 completed 才给出图的 URL。 */
   const tasks = new Map()
   let taskSequence = 0
+  /** true → apimart 轮询一律回 `processing`：让「已派出、还在供应商那边」这一态停得住，走查才拍得到它。 */
+  let holdTasks = false
   let fixtureOrigin = ''
   const requests = []
   const images = []
@@ -324,6 +326,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     if (taskQuery) {
       const task = tasks.get(taskQuery[1])
       if (!task) { jsonResponse(response, 404, { code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }); return }
+      if (holdTasks) { jsonResponse(response, 200, { code: 200, data: { id: taskQuery[1], status: 'processing' } }); return }
       jsonResponse(response, 200, { code: 200, data: {
         id: taskQuery[1], status: 'completed',
         result: { images: [{ id: taskQuery[1], url: [`${fixtureOrigin}/fixture/image.jpg`], filename: 'fixture.jpg' }] },
@@ -423,6 +426,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
       baseURL, requests, images, unexpected, close, generationProvider,
+      /** 已受理的 apimart 任务先停在 `processing`（true），放开后下一次轮询照常出图（false）。 */
+      holdTasks(on) { holdTasks = Boolean(on) },
       /** @param {{label:string, match?:(body:unknown, record:RequestRecord)=>boolean, reply:Reply}} options */
       expectText({ label, match = () => true, reply }) {
         if (closed) throw new Error('Fixture is closed')

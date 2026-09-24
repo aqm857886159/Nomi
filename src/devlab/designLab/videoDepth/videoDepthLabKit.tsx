@@ -128,7 +128,6 @@ export function DepthProcessingOverlay({
       message={message}
       {...(frame ? { previewUrl: frame } : {})}
       onCancel={() => {}}
-      placement="top"
     />
   )
 }

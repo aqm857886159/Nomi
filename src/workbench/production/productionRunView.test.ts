@@ -81,6 +81,17 @@ describe('production run view', () => {
   // 2026-08-18 的坑：未实现的 playbook 曾静默建出 draft + 空 stages/gates 的坏 Run。它不会自己往前走，
   // 卡片却挂着「查看当前阶段」——点了只切到一张空画布，还说「确认制作摘要后才会开始」（没有摘要可确认），
   // 且不给取消。现在必须是诚实终态：说清楚推不动 + 只留取消这一个出口。
+  // 2026-09-24：「草稿」与「在跑」由唯一判据 isCurrentRequestDispatched 定，不看 Run 状态字面。
+  it('draft Run 还没点头 → 说「草稿」；已点头、job 在提交（单镜批准后 Run 仍是 draft）→ 说「在跑」', () => {
+    const drafted = buildProductionRunView(run({ status: 'draft', jobs: [] }), now)
+    expect(drafted.titleKey).toBe('generationCommon.production.status.draft')
+    const baseJob = run().jobs[0]
+    const approved = buildProductionRunView(run({ status: 'draft', jobs: [{ ...baseJob, status: 'submitting' }] }), now)
+    expect(approved.titleKey).toBe('generationCommon.production.status.running')
+    const waitingOnGate = buildProductionRunView(run({ status: 'draft', jobs: [{ ...baseJob, status: 'authorization_required' }] }), now)
+    expect(waitingOnGate.titleKey).not.toBe('generationCommon.production.status.running')
+  })
+
   it('gives a stalled draft an honest dead-end and the cancel exit instead of a button that goes nowhere', () => {
     const view = buildProductionRunView(run({ status: 'draft', jobs: [], stages: [], gates: [] }), now)
 

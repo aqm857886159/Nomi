@@ -9,7 +9,7 @@ import { narrateTaskOutcome } from '../observability/narrate'
 //   node（canvas store） → 执行：标题、进度、跑起来之后的状态（running/error/recoverable）
 import type { GenerationCanvasNode, GenerationNodeStatus } from '../generationCanvas/model/generationCanvasTypes'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
-import type { GenerationTaskCenterProjection, TaskCancelKind, TaskCenterGroup } from './taskCenterProjection'
+import { TASK_CENTER_GROUP_ORDER, type GenerationTaskCenterProjection, type TaskCancelKind, type TaskCenterGroup } from './taskCenterProjection'
 import { canInterruptGenerationTask } from '../generationCanvas/model/taskCancellation'
 
 /** 这一行能不能停、停了什么后果 —— 直接映射到 UI 给不给按钮、给什么文案。 */
@@ -100,9 +100,8 @@ export function buildTaskCenterView(input: {
     }
   })
 
-  const order: Record<TaskCenterGroup, number> = { running: 0, queued: 1, done: 2 }
   const sorted = [...rows].sort((a, b) => {
-    if (order[a.group] !== order[b.group]) return order[a.group] - order[b.group]
+    if (TASK_CENTER_GROUP_ORDER[a.group] !== TASK_CENTER_GROUP_ORDER[b.group]) return TASK_CENTER_GROUP_ORDER[a.group] - TASK_CENTER_GROUP_ORDER[b.group]
     if (a.group === 'queued' && a.waveIndex !== b.waveIndex) return a.waveIndex - b.waveIndex
     return 0
   })

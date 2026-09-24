@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { deriveShotPlaceholderState, deriveBatchProgress } from './shotPlaceholderState'
-import type { ProductionRun, ProductionJob, ProductionJobStatus, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import { deriveShotPlaceholderState, projectShotExecution } from './shotPlaceholderState'
+import type { ProductionGenerationPlan, ProductionRun, ProductionJob, ProductionJobStatus, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
 const NOW = '2026-08-25T00:00:00.000Z'
 
@@ -24,6 +25,7 @@ function job(shotId: string, nodeId: string, status: ProductionJobStatus, extra:
 
 function run(opts: {
   status?: ProductionRunStatus
+  planState?: ProductionGenerationPlan['state']
   shots: Array<{ shotId: string; role?: 'anchor' | 'shot'; nodeId?: string; included?: boolean }>
   jobs?: ProductionJob[]
 }): ProductionRun {
@@ -46,7 +48,7 @@ function run(opts: {
     artifacts: [],
     generationPlan: {
       operationId: 'run-1',
-      state: 'submitted',
+      state: opts.planState ?? 'submitted',
       candidate: { candidateId: 'c', revision: 1, moduleId: 'm', providerId: 'apimart', modelId: 'video', mode: 't2v', prompt: '', parameters: {}, references: [] },
       shots: opts.shots.map((shot) => ({
         shotId: shot.shotId,
@@ -64,10 +66,15 @@ function run(opts: {
 }
 
 describe('deriveShotPlaceholderState', () => {
-  it('无对应 job 的镜显「排队中（第 n/N）」，不伪造生成中', () => {
+  it('已派出、还没 job 的镜显「排队中」，不伪造生成中', () => {
     const r = run({ shots: [{ shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2' }] })
-    expect(deriveShotPlaceholderState(r, 'n1')).toEqual({ phase: 'queued', queueIndex: 1, queueTotal: 2 })
-    expect(deriveShotPlaceholderState(r, 'n2')).toEqual({ phase: 'queued', queueIndex: 2, queueTotal: 2 })
+    expect(deriveShotPlaceholderState(r, 'n1')).toEqual({ phase: 'queued' })
+    expect(deriveShotPlaceholderState(r, 'n2')).toEqual({ phase: 'queued' })
+  })
+
+  it('job 过了人工门、还没提交（authorized）→ 排队中', () => {
+    const r = run({ shots: [{ shotId: 's1', nodeId: 'n1' }], jobs: [job('s1', 'n1', 'authorized')] })
+    expect(deriveShotPlaceholderState(r, 'n1')).toEqual({ phase: 'queued' })
   })
 
   it('job 在飞（polling 等）→ 生成中', () => {
@@ -105,28 +112,84 @@ describe('deriveShotPlaceholderState', () => {
     expect(deriveShotPlaceholderState(r, 'n1')).toEqual({ phase: 'stopped', stoppedReason: 'stopped' })
   })
 
-  it('anchor 节点显纯「排队中」（不进视频序列的 n/N）', () => {
+  it('已派出批次里的 anchor 节点同样显「排队中」', () => {
     const r = run({ shots: [{ shotId: 'a1', role: 'anchor', nodeId: 'na' }, { shotId: 's1', nodeId: 'n1' }] })
     expect(deriveShotPlaceholderState(r, 'na')).toEqual({ phase: 'queued' })
   })
 
-  it('未知 nodeId / null run → null', () => {
+  it('null run → null；有 run 但节点没绑镜 → null（不再兜底说「排队中」）', () => {
     expect(deriveShotPlaceholderState(null, 'n1')).toBeNull()
     const r = run({ shots: [{ shotId: 's1', nodeId: 'n1' }] })
-    expect(deriveShotPlaceholderState(r, 'nope')).toEqual({ phase: 'queued' }) // 有 run 但节点没绑镜 → 兜底排队
+    expect(deriveShotPlaceholderState(r, 'nope')).toBeNull()
   })
 })
 
-describe('deriveBatchProgress', () => {
-  it('只统计视频镜（不含 anchor）的完成数/总数', () => {
-    const r = run({
-      shots: [{ shotId: 'a1', role: 'anchor', nodeId: 'na' }, { shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2' }],
-      jobs: [job('s1', 'n1', 'ready'), job('s2', 'n2', 'polling')],
-    })
-    expect(deriveBatchProgress(r)).toEqual({ completed: 1, total: 2 })
+// 2026-09-24 真模型走查：Agent 按「先别生成」建的草稿显示「排队中 · 第 1/1」。
+// 用户还没点头的每一种状态都不许说「排队中」（也不许说「已停」然后给一颗续拍钮）。
+describe('deriveShotPlaceholderState · 用户还没点头', () => {
+  const PRE_DISPATCH_RUN_STATUSES: ProductionRunStatus[] = [
+    'draft', 'awaiting_direction', 'awaiting_script_review', 'awaiting_storyboard_review', 'awaiting_contract', 'ready',
+  ]
+  const shots = [{ shotId: 'a1', role: 'anchor' as const, nodeId: 'na' }, { shotId: 's1', nodeId: 'n1' }]
+
+  it('draft_shots 建的草稿（Run draft、计划 draft、0 个 job）→ null（报告里那一幕）', () => {
+    const r = run({ status: 'draft', planState: 'draft', shots: [{ shotId: 'shot-1', nodeId: 'n1' }] })
+    expect(deriveShotPlaceholderState(r, 'n1')).toBeNull()
   })
 
-  it('无多镜 plan → null', () => {
-    expect(deriveBatchProgress(null)).toBeNull()
+  for (const status of PRE_DISPATCH_RUN_STATUSES) {
+    for (const planState of ['draft', 'sealed'] as const) {
+      it(`Run ${status} + 计划 ${planState}、没有 job → 每个节点（含 anchor）都是 null`, () => {
+        const r = run({ status, planState, shots })
+        expect(deriveShotPlaceholderState(r, 'n1')).toBeNull()
+        expect(deriveShotPlaceholderState(r, 'na')).toBeNull()
+      })
+    }
+    it(`Run ${status} + job 停在人工门前（authorization_required / planned）→ null`, () => {
+      for (const jobStatus of ['authorization_required', 'planned'] as const) {
+        const r = run({ status, planState: 'sealed', shots, jobs: [job('s1', 'n1', jobStatus)] })
+        expect(deriveShotPlaceholderState(r, 'n1'), jobStatus).toBeNull()
+      }
+    })
+  }
+
+  it('逐镜确认档：批次在跑，这一镜的 job 还在等它自己那道门 → null，不说「排队中」', () => {
+    const r = run({ status: 'running', shots, jobs: [job('s1', 'n1', 'authorization_required')] })
+    expect(deriveShotPlaceholderState(r, 'n1')).toBeNull()
+  })
+
+  it('没点过头就被取消的草稿 → null，不显「已停」也不给续拍钮', () => {
+    const r = run({ status: 'cancelled', planState: 'cancelled', shots })
+    expect(deriveShotPlaceholderState(r, 'n1')).toBeNull()
+  })
+
+  it('已派出的批次里被勾掉的镜 → null（它不在这一批里）', () => {
+    const r = run({ shots: [{ shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2', included: false }] })
+    expect(deriveShotPlaceholderState(r, 'n1')).toEqual({ phase: 'queued' })
+    expect(deriveShotPlaceholderState(r, 'n2')).toBeNull()
+  })
+})
+
+describe('projectShotExecution', () => {
+  const base = { id: 'n1', kind: 'image', status: 'idle', meta: { productionRunId: 'run-1' } } as unknown as GenerationCanvasNode
+
+  it('生成中 / 排队中 / 失败 投影成普通节点的执行态，交给同一套画法', () => {
+    expect(projectShotExecution(base, { phase: 'generating' }, 'fallback').status).toBe('running')
+    expect(projectShotExecution(base, { phase: 'queued' }, 'fallback').status).toBe('queued')
+    expect(projectShotExecution(base, { phase: 'failed', failureMessage: '内容被拦截' }, 'fallback')).toMatchObject({ status: 'error', error: '内容被拦截' })
+    expect(projectShotExecution(base, { phase: 'failed' }, 'fallback')).toMatchObject({ status: 'error', error: 'fallback' })
+  })
+
+  it('还没点头（null）/ 已停 / 完成：节点原样不动', () => {
+    expect(projectShotExecution(base, null, 'fallback')).toBe(base)
+    expect(projectShotExecution(base, { phase: 'stopped', stoppedReason: 'budget' }, 'fallback')).toBe(base)
+    expect(projectShotExecution(base, { phase: 'done' }, 'fallback')).toBe(base)
+  })
+
+  it('本地执行器正在跑（用户在节点上自己点了生成）或已经有结果：本地说了算', () => {
+    const running = { ...base, status: 'running' } as GenerationCanvasNode
+    expect(projectShotExecution(running, { phase: 'failed' }, 'fallback')).toBe(running)
+    const withResult = { ...base, result: { url: 'nomi-local://x.png' } } as unknown as GenerationCanvasNode
+    expect(projectShotExecution(withResult, { phase: 'generating' }, 'fallback')).toBe(withResult)
   })
 })

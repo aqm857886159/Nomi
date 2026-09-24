@@ -115,6 +115,7 @@ export const zhCN = {
     sections: {
       running: '进行中 {{count}}',
       queued: '排队中 {{count}}',
+      draft: '草稿 {{count}}',
       done: '已完成 {{count}}',
     },
     summary: {
@@ -535,6 +536,7 @@ export const en = {
     sections: {
       running: 'Running {{count}}',
       queued: 'Queued {{count}}',
+      draft: 'Drafts {{count}}',
       done: 'Done {{count}}',
     },
     summary: {

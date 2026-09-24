@@ -60,6 +60,36 @@
       ],
       "since": "2026-09-22",
       "notes": "2026-09-22 总合并收口（合同 docs/fixes/2026-09-22-vendor-landing-one-owner.root-cause.json）。规则本体 = compareVendorLanding：用户排过的顺序 → 供应商分级 vendorTier（官方 > 内置中转 > 自接/未知）；用户 09-22 拍板「按照默认走」= 没排过序时内置中转优先、自接靠后（#832 渲染层规则为准）。分级表只此一份，渲染层 src/config/modelIdentity.ts 只 re-export vendorTier。消费方只许在共享比较子之后补**不携带偏好语义**的稳定序（渲染层补显示名字母序、执行侧补目录原序）。electron/shared/contracts/vendorPreference.ts 同时还是顺序设置的跨进程存储契约——存储形状与落家规则住同一个文件、是同一个概念的两面，不是两个 owner。对拍棘轮：electron/parity/vendorLandingParity.test.ts（任取一个排序，三处调用点的「第一家」必须相同）。"
+    },
+    {
+      "name": "生成已派出（这一轮用户点过头）",
+      "owner": {
+        "path": "electron/shared/contracts/productionDispatch.ts",
+        "symbol": "isCurrentRequestDispatched"
+      },
+      "consumers": [
+        "electron/productionRun/productionRunRepository.ts",
+        "electron/productionRun/batchScheduleDerivation.ts",
+        "src/workbench/production/shotPlaceholderState.ts",
+        "src/workbench/production/productionRunView.ts",
+        "src/workbench/taskCenter/productionRunTaskCenter.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "同一文件里的 jobAwaitsHuman（job 还停在人工门前）与 isNodeInDispatchedScope（没 job 的节点在不在已派出的这一批）是同一个概念的两个切面，不是另外的 owner。消费者只许读它，不许再用「有没有 job」「是不是终态」「status 字面是不是 draft」自己猜。合同 docs/fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json；结构评审 docs/audit/2026-09-24-production-run-derived-facts-structure-review.md（建议把 Run 的派生事实收成一个模块）。"
+    },
+    {
+      "name": "节点的执行面孔（排队中 / 生成中 / 失败长什么样）",
+      "owner": {
+        "path": "src/workbench/production/shotPlaceholderState.ts",
+        "symbol": "projectShotExecution"
+      },
+      "consumers": [
+        "src/workbench/production/useProductionExecutionNode.ts",
+        "src/workbench/observability/useGenerationFeedback.ts",
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+      ],
+      "since": "2026-09-24",
+      "notes": "Agent 批次镜的执行态只在读的那一刻投影到节点上，由普通节点那一套（GenerationWaitingSurface / GenerationStatusBar / NodeErrorReport）画；不写回 node.status（那归画布本地执行器）。只有批次独有的「已停」由 ProductionShotPlaceholder 画。已知未收口：画布底部「生成全部 N 个」仍读 node.status（TODO T-AG-24）。"
     }
   ]
 }

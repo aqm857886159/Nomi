@@ -12,7 +12,6 @@ import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecut
 import { useTranslation } from 'react-i18next'
 import { Icon3dCubeSphere, IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
-import { NomiLoadingMark } from '../../../../design'
 import i18n from '../../../../i18n'
 import { NodeEmptyState } from './NodeEmptyState'
 
@@ -171,8 +170,7 @@ function clampProgressPercent(value: number | undefined): number | null {
 }
 
 /**
- * 进度环。`compact` 是同一个环缩进一条横条里用的那一档（顶部进度条 · 见 GeneratingOverlay
- * 的 placement='top'）：去掉自带的圆形托底与阴影——横条本身已经是那块底了，再叠一层
+ * 进度环。`compact` 是同一个环缩进一条横条里用的那一档（顶部进度条 · 见 GeneratingOverlay）：去掉自带的圆形托底与阴影——横条本身已经是那块底了，再叠一层
  * 就是「一个东西两层底」，在 28px 高的条里看着像贴了个贴纸。
  */
 function RemoveBackgroundProgressMark({ progress, compact = false }: { progress?: number; compact?: boolean }): JSX.Element {
@@ -294,48 +292,37 @@ export function GeneratingCancelButton({ onCancel, compact }: { onCancel: () => 
 }
 
 /**
- * 生成中（queued/running）的统一品牌转圈遮罩（pending 规范 #1）。
- * 挂在节点根容器、对分镜/卡片/文本所有节点类型一致生效；pointer-events-none 不挡交互。
+ * 贴着卡顶的一条进度（2026-09-07 用户拍板：「把那个放到上面 别遮挡视频」），画面区一点不挡。
+ * 只给**本地处理**那一族（视频深度）用：它的活预览帧就是这张卡此刻的内容，所以这一条必须盖在
+ * `__preview`（z-[2]）之上。模型生成的等待不走这里——那是 GenerationWaitingSurface（像素动画）。
  *
- * 两档摆法（`placement`）：
- * · `center`（默认，其余全部调用方）——转圈居中，z-[1]，低于 header 的状态徽标（z-[2]）。
- * · `top`（2026-09-07 用户拍板：「把那个放到上面 别遮挡视频」）——进度收成贴着卡顶的一条，
- *   画面区一点不挡。这一档必须盖在 `__preview`（z-[2]）之上：这一族任务（本地深度处理）
- *   的活预览帧**就是这张卡此刻的内容**，压在占位底纹底下等于没有；居中那一档层级不动，
- *   所以其余调用方零变化。
+ * 2026-09-24 删掉了居中那一档（模糊遮罩 + 大 N 转圈）：它最后一个调用方是 Agent 批次镜的「生成中」，
+ * 那一层 8-25 写成、9-08 普通节点换成像素动画时没跟上；现在批次镜也走 GenerationWaitingSurface。
  */
-export type GeneratingOverlayPlacement = 'center' | 'top'
-
 export function GeneratingOverlay({
   percent,
   message,
   previewUrl,
   onCancel,
-  placement = 'center',
 }: {
-  /** 0-100 真实进度（P 轨 ws 逐节点）。缺省 = 品牌转圈（No fake progress）。 */
+  /** 0-100 真实进度。缺省 = 不画百分比的进度环（No fake progress）。 */
   percent?: number
-  /** 人话进度（narrate 产出，如「KSampler · 第 3/17 个节点」）。 */
+  /** 人话进度（如「深度处理 · 第 3/17 帧」）。 */
   message?: string
-  /** 活预览帧 data URL（ComfyUI 采样中间图 / 深度逐帧回传，会话瞬态、不落盘）。 */
+  /** 活预览帧 data URL（深度逐帧回传，会话瞬态、不落盘）。 */
   previewUrl?: string
-  /** 提供即显示遮罩内取消按钮（2026-08-01 拍板 A 位；仅本地可中断任务）。 */
+  /** 提供即显示取消按钮（仅本地可中断任务）。 */
   onCancel?: () => void
-  /** 进度摆在哪。默认居中；`top` = 贴卡顶一条，不压画面。 */
-  placement?: GeneratingOverlayPlacement
 } = {}): JSX.Element {
   const { t } = useTranslation()
-  const determinate = typeof percent === 'number' && Number.isFinite(percent)
-  const atTop = placement === 'top'
   return (
     <div
       className={cn(
         'generation-canvas-v2-node__generating-overlay',
-        'absolute inset-0 rounded-nomi overflow-hidden',
+        'absolute inset-0 z-[4] rounded-nomi overflow-hidden',
         'bg-nomi-paper/[0.55] backdrop-blur-[2px] pointer-events-none',
-        atTop ? 'z-[4]' : 'z-[1] grid place-items-center',
       )}
-      data-generating-placement={placement}
+      data-generating-placement="top"
       aria-hidden={onCancel ? undefined : true}
     >
       {previewUrl ? (
@@ -346,35 +333,19 @@ export function GeneratingOverlay({
           draggable={false}
         />
       ) : null}
-      {atTop ? (
-        <div
-          className={cn(
-            'absolute inset-x-0 top-0 z-[1] flex items-center gap-2 px-2 py-1.5',
-            'border-b border-nomi-line bg-nomi-paper/[0.92] shadow-nomi-sm backdrop-blur-[8px]',
-          )}
-          data-generating-progress-bar="true"
-        >
-          <RemoveBackgroundProgressMark progress={percent} compact />
-          <span className="min-w-0 flex-1 truncate text-micro font-medium text-nomi-ink-80">
-            {message || t('generationCommon.card.generating')}
-          </span>
-          {onCancel ? <GeneratingCancelButton onCancel={onCancel} compact /> : null}
-        </div>
-      ) : (
-        <div className="relative z-[1] grid place-items-center gap-2">
-          {determinate ? (
-            <RemoveBackgroundProgressMark progress={percent} />
-          ) : (
-            <NomiLoadingMark size={32} label={t('generationCommon.card.generating')} />
-          )}
-          {message ? (
-            <span className="rounded-full bg-nomi-paper/[0.88] px-2.5 py-1 text-micro font-medium text-nomi-ink-80 shadow-nomi-sm backdrop-blur-[8px]">
-              {message}
-            </span>
-          ) : null}
-          {onCancel ? <GeneratingCancelButton onCancel={onCancel} /> : null}
-        </div>
-      )}
+      <div
+        className={cn(
+          'absolute inset-x-0 top-0 z-[1] flex items-center gap-2 px-2 py-1.5',
+          'border-b border-nomi-line bg-nomi-paper/[0.92] shadow-nomi-sm backdrop-blur-[8px]',
+        )}
+        data-generating-progress-bar="true"
+      >
+        <RemoveBackgroundProgressMark progress={percent} compact />
+        <span className="min-w-0 flex-1 truncate text-micro font-medium text-nomi-ink-80">
+          {message || t('generationCommon.card.generating')}
+        </span>
+        {onCancel ? <GeneratingCancelButton onCancel={onCancel} compact /> : null}
+      </div>
     </div>
   )
 }

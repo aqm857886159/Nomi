@@ -6,6 +6,11 @@
 //
 // 断言链（J1）：确认落地 → 占位 + 组出现 → 三态同屏（构造排队+生成中+已停并存）光/暗截图 → 逐镜填充 →
 // 全部完成 → 一个 Cmd+Z 整组消失 → 撤销后节点没了（素材库产物由数据层保留，见回填断言）。
+//
+// 2026-09-24：生成中 / 排队中改走普通节点那一套（像素等待面 + 状态行），只有「已停」还是批次自己的占位。
+// 所以这里按**节点**找三态：生成中 = 等待面 + 状态行 phase=generating；排队中 = 状态行 phase=queued；
+// 已停 = data-shot-placeholder-state=stopped；失败（锚那一镜被供应商拒）= 普通节点那张标准错误卡，重试走返工。
+// 旧的模糊遮罩 + 大 N、左上角「排队中 · 第 n/N」小签、内联简化红卡必须都不在。
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -43,7 +48,7 @@ function threeStateRun(projectId, nodeIds) {
     candidate: { candidateId: shotId, revision: 1, moduleId: 'm', providerId: 'apimart', modelId: 'video', mode: 't2v', prompt: '', parameters: {}, references: [] },
     nodeId, updatedAt: NOW,
   })
-  const job = (shotId, nodeId, status, errorCode) => ({ jobId: `job-${shotId}`, stageId: 'generate', status, attempt: 1, provider: 'apimart', model: 'video', idempotencyKey: `k-${shotId}`, nodeId, metadata: { shotId }, ...(errorCode ? { errorCode } : {}), createdAt: NOW, updatedAt: NOW })
+  const job = (shotId, nodeId, status, errorCode, errorMessage) => ({ jobId: `job-${shotId}`, stageId: 'generate', status, attempt: 1, provider: 'apimart', model: 'video', idempotencyKey: `k-${shotId}`, nodeId, metadata: { shotId }, ...(errorCode ? { errorCode } : {}), ...(errorMessage ? { errorMessage } : {}), createdAt: NOW, updatedAt: NOW })
   return {
     schemaVersion: 1, runId: RUN_ID, projectId, revision: 1,
     status: 'running', // running：未派发镜显「排队中」；靠 shot-3 job 的预算错因显「已停」→ 三态同屏
@@ -51,8 +56,12 @@ function threeStateRun(projectId, nodeIds) {
     policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: 13, maxAttemptsPerJob: 1, minimizeUploads: true },
     budget: { currency: 'CNY', authorized: 13, reserved: 0, actual: 0, unsettled: 0 },
     planVersion: 1, snapshotCursor: 0, stages: [], gates: [],
-    // shot-1 生成中(polling)；shot-2 无 job=排队；shot-3 预算触顶(needs_attention+budget_exhausted)=已停。
-    jobs: [job('shot-1', nodeIds['shot-1'], 'polling'), job('shot-3', nodeIds['shot-3'], 'needs_attention', 'budget_exhausted')],
+    // anchor-1 被供应商拒=失败；shot-1 生成中(polling)；shot-2 无 job=排队；shot-3 预算触顶(needs_attention+budget_exhausted)=已停。
+    jobs: [
+      job('anchor-1', nodeIds['anchor-1'], 'needs_attention', 'provider_task_failed', '供应商拒绝了这次生成'),
+      job('shot-1', nodeIds['shot-1'], 'polling'),
+      job('shot-3', nodeIds['shot-3'], 'needs_attention', 'budget_exhausted'),
+    ],
     artifacts: [],
     generationPlan: {
       operationId: RUN_ID, state: 'submitted',
@@ -149,13 +158,14 @@ try {
   // React Flow 的 onlyRenderVisibleElements 只把视口内的节点放进 DOM；常驻 Agent 面板默认
   // 展开后画布窄了 ~340px，最右边那个占位（shot-3）落在视口外就根本不进 DOM——
   // 断言会红成「没有已停占位」，而它其实只是没被带进视野。几何不写死：等到落地的
-  // 4 个占位（锚 + 3 镜）全部进 DOM 为止，进不齐就超时报红。
-  const expectedPlaceholders = landed.bindings.length
+  // 4 个节点（锚 + 3 镜）全部进 DOM 为止，进不齐就超时报红。
+  const landedNodeIds = Object.values(storeState.shotIdToNode)
+  const expectedPlaceholders = landedNodeIds.length
   const placeholdersInView = async (timeout) =>
     win
       .waitForFunction(
-        (expected) => document.querySelectorAll('[data-shot-placeholder-state]').length >= expected,
-        expectedPlaceholders,
+        (ids) => ids.every((id) => document.querySelector(`[data-node-id="${id}"]`)),
+        landedNodeIds,
         { timeout },
       )
       .then(() => true)
@@ -194,10 +204,23 @@ try {
   }
   check(true, `适应视图后 ${expectedPlaceholders} 个占位全部进入视口`)
 
-  const states = await win.evaluate(() => Array.from(document.querySelectorAll('[data-shot-placeholder-state]')).map((el) => el.getAttribute('data-shot-placeholder-state')))
-  check(states.includes('generating'), '三态：有「生成中」占位（shot-1 polling）')
-  check(states.includes('queued'), '三态：有「排队中」占位（shot-2 无 job）')
-  check(states.includes('stopped'), '三态：有「已停」占位（shot-3 · run 预算 halt，warning 非 danger）')
+  const nodeFace = await win.evaluate((ids) => Object.fromEntries(Object.entries(ids).map(([shotId, nodeId]) => {
+    const node = document.querySelector(`[data-node-id="${nodeId}"]`)
+    return [shotId, {
+      waiting: Boolean(node?.querySelector('[data-generation-waiting]')),
+      phase: node?.querySelector('[data-generation-status]')?.getAttribute('data-phase') ?? null,
+      placeholder: node?.querySelector('[data-shot-placeholder-state]')?.getAttribute('data-shot-placeholder-state') ?? null,
+      oldOverlay: Boolean(node?.querySelector('.generation-canvas-v2-node__generating-overlay')),
+      errorCard: Boolean(node?.querySelector('[role="alert"]')),
+      retry: Array.from(node?.querySelectorAll('[role="alert"] button') ?? []).some((button) => /重试/.test(button.textContent ?? '')),
+    }]
+  })), storeState.shotIdToNode)
+  check(nodeFace['shot-1'].waiting && nodeFace['shot-1'].phase === 'generating', `三态：shot-1（polling）= 普通节点的像素等待面 + 「生成中」状态行（实得 ${JSON.stringify(nodeFace['shot-1'])}）`)
+  check(nodeFace['shot-2'].phase === 'queued', `三态：shot-2（已派出、还没 job）= 状态行「排队中」（实得 ${JSON.stringify(nodeFace['shot-2'])}）`)
+  check(nodeFace['shot-3'].placeholder === 'stopped', `三态：shot-3（run 预算 halt）= 「已停」占位（实得 ${JSON.stringify(nodeFace['shot-3'])}）`)
+  check(nodeFace['anchor-1'].errorCard && nodeFace['anchor-1'].retry, `四态：anchor-1（供应商拒）= 普通节点的标准错误卡，带「重试」（返工）（实得 ${JSON.stringify(nodeFace['anchor-1'])}）`)
+  check(Object.values(nodeFace).every((face) => !face.oldOverlay && !['generating', 'queued', 'failed'].includes(face.placeholder)),
+    `旧画法不在：没有模糊遮罩 + 大 N、没有「排队中 · 第 n/N」小签、没有内联简化红卡（实得 ${JSON.stringify(nodeFace)}）`)
   // 已停占位用 warning 底、非 danger（截计算色不比字面串）。
   const stoppedIsWarning = await win.evaluate(() => {
     const el = document.querySelector('[data-shot-placeholder-state="stopped"]')

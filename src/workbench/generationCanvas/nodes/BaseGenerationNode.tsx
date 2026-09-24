@@ -39,6 +39,7 @@ import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeGenerationStatus } from './NodeGenerationStatus'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
 import { useProductionNodeRetry } from './useProductionNodeRetry'
+import { useProductionExecutionNode } from '../../production/useProductionExecutionNode'
 import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
 import { confirmAndRunNode } from '../runner/generationRunController'
@@ -100,6 +101,9 @@ function BaseGenerationNodeImpl({
 
   const { t } = useTranslation()
   const productionRetry = useProductionNodeRetry(node, reportFeedback) // P4 S6：多镜节点失败→返工链；非多镜/项目没开→null 退回本地重跑（回归门）
+  // Agent 批次镜的失败在 Run 里（job 失败），不在 node.status：投影过来，用同一张错误卡（不再有一版内联的简化红卡）。
+  const executionNode = useProductionExecutionNode(node)
+  const localError = node.status === 'error' && Boolean(node.error)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -343,10 +347,11 @@ function BaseGenerationNodeImpl({
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
 
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
-      {status === 'error' && node.error ? (
+      {executionNode.status === 'error' && executionNode.error ? (
         <NodeErrorReport summaryVisible={false}
-          message={node.error} meta={node.meta}
-          onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
+          message={executionNode.error} meta={node.meta}
+          // 收起只对本地这次失败有意义；Run 里的失败是账本事实，收不掉——要么返工，要么它一直在那儿。
+          onDismiss={localError ? () => useGenerationCanvasStore.getState().dismissNodeError(node.id) : undefined}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'
               ? undefined

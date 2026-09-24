@@ -6,7 +6,7 @@ import React from 'react'
 import { useGenerationFeedbackClock } from '../observability/useGenerationFeedback'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
-import { IconAlertTriangle, IconCheck, IconClock, IconProgress, IconLoader2, IconLock, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconClock, IconPencil, IconProgress, IconLoader2, IconLock, IconX } from '@tabler/icons-react'
 import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
 import { runExportJobTaskAction } from './exportJobTaskAction'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -21,7 +21,7 @@ import { buildTaskCenterView, formatElapsed, type TaskCenterRow } from './taskCe
 import { notify } from '../../ui/notificationPolicy'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
-import type { TaskCenterProjection } from './taskCenterProjection'
+import { TASK_CENTER_GROUP_ORDER, type TaskCenterProjection } from './taskCenterProjection'
 import { buildProductionRunTaskRows } from './productionRunTaskCenter'
 import { buildExportJobTaskRows } from './exportJobTaskCenter'
 import { ProductionRunTaskCard } from '../production/ProductionRunTaskCard'
@@ -133,10 +133,8 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
   if (!opened) return null
 
   const generationRows = view.rows
-  const rows: TaskCenterProjection[] = [...generationRows, ...productionRows, ...exportRows].sort((left, right) => {
-    const order = { running: 0, queued: 1, done: 2 }
-    return order[left.group] - order[right.group]
-  })
+  const rows: TaskCenterProjection[] = [...generationRows, ...productionRows, ...exportRows]
+    .sort((left, right) => TASK_CENTER_GROUP_ORDER[left.group] - TASK_CENTER_GROUP_ORDER[right.group])
   const summary = {
     ...view.summary,
     running: view.summary.running + productionRows.filter((row) => row.group === 'running').length + exportRows.filter((row) => row.group === 'running').length,
@@ -145,6 +143,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
   }
   const running = rows.filter((row) => row.group === 'running')
   const queued = rows.filter((row) => row.group === 'queued')
+  const drafts = rows.filter((row) => row.group === 'draft')
   const done = rows.filter((row) => row.group === 'done')
 
   const cancelQueued = (row: TaskCenterRow) => useGenerationQueueStore.getState().cancelEntry(row.batchId, row.nodeId)
@@ -290,6 +289,12 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
             />
           ) : null}
           {queued.map((row) => renderRow(row))}
+
+          {/* 还没点头的制作草稿：列出来（看得见 Agent 选了什么），但不在「进行中」里，也不点亮任务按钮。 */}
+          {drafts.length > 0 ? (
+            <SectionHeader icon={<IconPencil size={13} stroke={1.8} />} label={t('taskCenter.sections.draft', { count: drafts.length })} />
+          ) : null}
+          {drafts.map((row) => renderRow(row))}
 
           {done.length > 0 ? (
             <SectionHeader icon={<IconCheck size={13} stroke={1.8} />} label={t('taskCenter.sections.done', { count: done.length })} />

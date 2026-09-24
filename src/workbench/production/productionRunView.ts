@@ -5,6 +5,7 @@ import type {
   ProductionRun,
 } from '../../../electron/productionRun/productionRunTypes'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
+import { isCurrentRequestDispatched } from '../../../electron/shared/contracts/productionDispatch'
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
 /** 门类：决定文案与「在哪决定」。方向/样片/形象检查点不花钱，预算/导出才是钱与不可逆。 */
@@ -292,11 +293,13 @@ export function buildProductionRunView(
     }
   }
   const percent = validPercent(job?.progressPercent)
+  // 「草稿」还是「在跑」只问一个判据：单镜在「批准 → 供应商受理」之间 Run 仍是 draft，但钱已经出去了。
+  const undispatchedDraft = run.status === 'draft' && !isCurrentRequestDispatched(run)
   return {
     ...base,
-    tone: run.status === 'draft' ? 'neutral' : 'working',
-    titleKey: run.status === 'draft' ? 'generationCommon.production.status.draft' : 'generationCommon.production.status.running',
-    descriptionKey: run.status === 'draft' ? 'generationCommon.production.description.draft' : 'generationCommon.production.description.running',
+    tone: undispatchedDraft ? 'neutral' : 'working',
+    titleKey: undispatchedDraft ? 'generationCommon.production.status.draft' : 'generationCommon.production.status.running',
+    descriptionKey: undispatchedDraft ? 'generationCommon.production.description.draft' : 'generationCommon.production.description.running',
     ...(percent === undefined ? {} : { percent }),
     primaryAction: 'open-stage',
     controls: run.status === 'running' ? ['pause', 'cancel'] : [],

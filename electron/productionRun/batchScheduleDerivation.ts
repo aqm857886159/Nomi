@@ -9,6 +9,7 @@ import type {
 } from "./productionRunTypes";
 import type { ShotPrice } from "./shotPricing";
 import { productionGenerationJobId } from "./productionGenerationAuthorization";
+import { jobAwaitsHuman } from "../shared/contracts/productionDispatch";
 
 /**
  * P4 S4 — the pure batch derivation. This is the heart of "调度器无自有持久状态" (plan §1).
@@ -187,10 +188,10 @@ function shotFinished(runId: string, shot: ProductionGenerationShot, jobs: Produ
 
 function shotInFlight(runId: string, shot: ProductionGenerationShot, jobs: ProductionJob[]): boolean {
   const job = jobForShot(runId, shot, jobs);
-  // authorization_required is still waiting for a human; authorized/intent-persisted is dispatchable.
-  // Neither is provider work in flight.
+  // authorization_required is still waiting for a human (`jobAwaitsHuman`, the one owner of that fact);
+  // authorized/intent-persisted is dispatchable. Neither is provider work in flight.
   return Boolean(job
-    && job.status !== "authorization_required"
+    && !jobAwaitsHuman(job.status)
     && !TERMINAL_DONE.has(job.status)
     && !DISPATCHABLE.has(job.status));
 }
