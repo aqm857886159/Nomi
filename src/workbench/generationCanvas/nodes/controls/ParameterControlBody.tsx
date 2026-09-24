@@ -234,6 +234,48 @@ export function ParameterOptionGroup({
  * `onPicked` 只有单参数直出那条路会传：那时这组选项就是弹出来的全部内容，选完即关（共 2 步）。
  * 面板里**不传**——面板的价值正是「一次打开连改多项」，选一下就关掉等于把它变回下拉。
  */
+/**
+ * 连续数值滑杆（时长秒数这类）。拖动期间只改本地显示，松手 / 方向键改完（Mantine `onChangeEnd`）才提交一次：
+ * 每一步都写画布状态会让整张图的订阅者跟着重渲、还多一步撤销（2026-09-25 画布跟手实测：32 个视频时每步约 40 ms）。
+ */
+function ParameterSlider({ label, value, min, max, step, onCommit }: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  onCommit: (value: number) => void
+}): JSX.Element {
+  const [draft, setDraft] = React.useState<number | null>(null)
+  const shown = draft ?? value
+  return (
+    <div className="flex items-center gap-3 min-w-0">
+      <Slider
+        className="flex-1 min-w-0"
+        thumbLabel={label}
+        value={shown}
+        min={min}
+        max={max}
+        step={step}
+        label={null}
+        onChange={setDraft}
+        onChangeEnd={(next) => {
+          setDraft(null)
+          if (next !== value) onCommit(next)
+        }}
+        styles={{
+          track: { '--slider-track-bg': 'var(--nomi-ink-10)' },
+          bar: { background: 'var(--nomi-accent)' },
+          thumb: { borderColor: 'var(--nomi-accent)', background: 'var(--nomi-paper)' },
+        }}
+      />
+      <span className="shrink-0 text-right text-caption text-nomi-ink-80 tabular-nums" style={{ minWidth: 28 }}>
+        {shown}
+      </span>
+    </div>
+  )
+}
+
 export function ParameterControlBody({
   control,
   meta,
@@ -283,26 +325,14 @@ export function ParameterControlBody({
     const current = Number(controlInitialValue(control, meta))
     const value = Number.isFinite(current) ? current : control.min
     return (
-      <div className="flex items-center gap-3 min-w-0">
-        <Slider
-          className="flex-1 min-w-0"
-          thumbLabel={label}
-          value={value}
-          min={control.min}
-          max={control.max}
-          step={control.step || 1}
-          label={null}
-          onChange={(v) => onParameterControlChange(control, String(v))}
-          styles={{
-            track: { '--slider-track-bg': 'var(--nomi-ink-10)' },
-            bar: { background: 'var(--nomi-accent)' },
-            thumb: { borderColor: 'var(--nomi-accent)', background: 'var(--nomi-paper)' },
-          }}
-        />
-        <span className="shrink-0 text-right text-caption text-nomi-ink-80 tabular-nums" style={{ minWidth: 28 }}>
-          {value}
-        </span>
-      </div>
+      <ParameterSlider
+        label={label}
+        value={value}
+        min={control.min}
+        max={control.max}
+        step={control.step || 1}
+        onCommit={(v) => onParameterControlChange(control, String(v))}
+      />
     )
   }
   // 自由数值/文本（无候选项、无范围）：面板内输入行。
