@@ -8,7 +8,6 @@ import {
   Position,
   getBezierPath,
   useStore,
-  useViewport,
   type EdgeProps,
   type NodeProps,
 } from '@xyflow/react'
@@ -23,11 +22,14 @@ import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { availableEdgeModes } from '../components/edgeModeMenu'
 import { LightweightGenerationNode } from '../components/LightweightGenerationNode'
 import {
+  isLargeCanvas,
+  isZoomedOutForLightweight,
   retainLargeCanvasLightweightRendering,
   shouldRenderFullNodeContent,
   shouldUseLightweightNodeRenderingForSelection,
 } from '../components/canvasNodeLevelOfDetail'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
+import { selectFlowZoom } from './canvasViewportScale'
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
 import { readGroupPort } from '../model/groupPort'
 import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
@@ -157,21 +159,21 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
-  const nodeCount = useGenerationCanvasStore((state) => state.nodes.length)
+  const largeCanvas = useGenerationCanvasStore((state) => isLargeCanvas(state.nodes.length))
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
-  const { zoom } = useViewport()
+  const zoomedOut = useStore((state) => isZoomedOutForLightweight(selectFlowZoom(state)))
   const primarySelection = data.primarySelection && !multiSelectionActive
   const retainedLightweightRef = React.useRef(false)
   retainedLightweightRef.current = retainLargeCanvasLightweightRendering({
     retained: retainedLightweightRef.current,
-    nodeCount,
+    largeCanvas,
     selected,
     primarySelection,
   })
   const lightweightMode = retainedLightweightRef.current || shouldUseLightweightNodeRenderingForSelection({
-    nodeCount,
-    zoom,
+    largeCanvas,
+    zoomedOut,
     selected,
     primarySelection,
   })
