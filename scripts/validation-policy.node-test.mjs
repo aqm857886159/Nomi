@@ -136,26 +136,18 @@ test('the registered product journeys cannot fall back to focused-only validatio
     'tests/ux/storyboard-agent-canonical-patch.e2e.mjs',
     'tests/ux/production-mcp-journey.e2e.mjs',
     'tests/ux/golden-path.e2e.mjs',
+    'tests/ux/agent-real-user-conversation.walk.mjs',
+    'tests/ux/agent-transcript-merge.walk.mjs',
+    // 这两条走查守的显示 owner，路径名里没有 `agent`/`model`，得显式点名。
+    'src/workbench/ai/resident/residentToolDisplay.ts',
+    'src/workbench/ai/resident/timelineAgentSurface.tsx',
+    'src/workbench/skillLibrary/skillDisplay.ts',
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy([file])), {
       ...focusedOnly,
       unit: 'full',
       journeys: true,
     })
-  }
-})
-
-// 2026-09-24：计划卡与技能 chip 两条走查进 REAL_USER_TEST_MANIFEST。它们守的两处显示 owner 的路径名里
-// 都没有 `agent`/`model`，不显式点名就只会跑 focused unit——那正是这两次回归各自烂了五到十天的原因。
-test('the plan-card and skill-chip walks and the display owners they guard select the journey lane', () => {
-  for (const file of [
-    'tests/ux/agent-real-user-conversation.walk.mjs',
-    'tests/ux/agent-transcript-merge.walk.mjs',
-    'src/workbench/ai/resident/residentToolDisplay.ts',
-    'src/workbench/ai/resident/timelineAgentSurface.tsx',
-    'src/workbench/skillLibrary/skillDisplay.ts',
-  ]) {
-    assert.equal(classifyValidationPolicy([file]).journeys, true, file)
   }
 })
 

@@ -151,10 +151,8 @@ export function projectV4Intervention(
   t: Translate,
 ): InterventionData {
   const record = asRecord(source.args)
-  // 是不是计划卡由**这次调用的动词**决定：它的声明写着「用户先看审阅卡」。以前判据是
-  // `planLines.length > 0`——清单行投影不出来（动词名一漂、或 operations 一时认不出）时，
-  // 同一份计划就退回成通用「可撤销」卡，多出一颗「不再问 →」（2026-09-24 走查）。
-  // 行投影不出来是**行**的事，卡的授权面不跟着它变。
+  // 是不是计划卡由这次调用的动词决定（声明写着「用户先看审阅卡」），不看清单行投影成没成功：
+  // 行投影不出来是行的事，卡的授权面（有没有「不再问 →」）不跟着它变。
   const isPlan = modelToolShowsReviewCard(source.toolName) || residentPlanShots(source.args).length > 0
   const kind = interventionKindOf(source.args, source.effectClass, isPlan)
   const more = source.pendingCount > 1 ? t('agentPanelV4.interventionMore', { count: source.pendingCount - 1 }) : ''

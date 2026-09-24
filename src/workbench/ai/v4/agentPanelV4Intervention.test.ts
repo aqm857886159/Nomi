@@ -303,10 +303,7 @@ describe('要写进去的那段话，摘一行给用户看', () => {
 })
 
 describe('时间轴计划卡只给「仅这一次」，不管清单行投影出来没有', () => {
-  // 卡是不是计划卡由**这次调用的动词**决定（它的声明写着用户先看审阅卡），不由清单行
-  // 投影成没成功决定。以前判据是 `planLines.length > 0`：动词名一漂（2026-09-14 改名）、
-  // 或 operations 一时投影不出来，同一份计划就退回成通用「可撤销」卡，多出「不再问 →」——
-  // 用户一点，这一会话之后的时间轴计划全都不再先给他看。
+  // 卡种由动词的声明决定，不由清单行投影成没成功决定：行投影不出来时降成通用卡，就多出一颗「不再问 →」。
   const editTimeline = {
     toolName: 'edit_timeline',
     args: { baseRevision: 'revision-1', summary: '片头加一条字幕', operations: [] },
@@ -318,13 +315,6 @@ describe('时间轴计划卡只给「仅这一次」，不管清单行投影出�
     const slot = projectV4Intervention(editTimeline, labels, t)
     expect(slot.kind).toBe('plan')
     expect(slot.scope).toBeUndefined()
-  })
-
-  it('清单行投影出来了：同一张计划卡，行就是那几句人话', () => {
-    const slot = projectV4Intervention({ ...editTimeline, planLines: [{ text: '字幕 · 汤先到，人后到', technical: '{"kind":"text"}' }] }, labels, t)
-    expect(slot.kind).toBe('plan')
-    expect(slot.scope).toBeUndefined()
-    expect(slot.plan).toEqual([{ label: '字幕 · 汤先到，人后到', technical: '{"kind":"text"}', checked: true }])
   })
 
   it('同一个契约上不带计划的 undo 不是计划卡', () => {

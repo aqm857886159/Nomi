@@ -114,7 +114,7 @@ try {
   await expect(composerChip).toBeVisible()
   const skillName = (await composerChip.innerText()).trim()
   expect(skillName.length, '技能 chip 上没有名字').toBeGreaterThan(0)
-  // 下面几条都拿「composer 上叫什么」当尺子；尺子本身要先证不是 key，否则两头一起印 key 也会绿。
+  // 尺子本身先证不是 key：两头一起印 key 也会让下面几条变绿。
   expect(skillName, 'composer 上那颗 chip 印的是技能 key，不是技能库里的名字').not.toContain(SKILL_ID)
   // 挂着的时候这颗 chip 在 —— 下面「发完就没了」那条断言因此是测得到的，不是恒真的空话。
   const chipProof = await proveProbe(composerChip, '挂上技能后 composer 顶上有那颗 chip')
@@ -137,8 +137,7 @@ try {
   await expect(userBubbles).toHaveCount(2)
   // ① 用户气泡尾部那颗 chip：「我挂了它」。
   await expect(userBubbles.nth(1).locator(SKILL_CHIP), '发出去的那句话上没有技能 chip').toHaveCount(1)
-  // 8e89e19ce（2026-09-19）让这颗 chip 与「已载入技能：」那一行改印 `skillSnapshot.name`（SKILL.md 的标识
-  // `workbench-storyboard-planner`），红过五天。名字现在只从 `skillLabelForKey` 派生，这里守的是那次回归。
+  // 名字只从技能库派生（`skillLabelForKey`），不印主进程快照里的 SKILL.md 标识。
   await expect(userBubbles.nth(1).locator(SKILL_CHIP)).toContainText(skillName)
   // ② 回复头上那一行凭据：「它确实进了这一轮」。
   await expect(bubbles).toHaveCount(2)

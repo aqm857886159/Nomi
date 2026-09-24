@@ -1,10 +1,4 @@
-// 「哪一次待决是一份时间轴计划」由动词声明回答，不由一张手抄的名单回答。
-//
-// 2026-09-14 的 20 动词改名（afe85411d8，不留别名）把时间轴写动词改成了 `edit_timeline`，
-// 而这里原来是一张手抄的 `['propose_edit_plan', 'apply_edit_plan', 'nomi_timeline_edit']`——
-// 一个旧工具名、一个传输层方法词、一个对外 MCP 名，没有一个是面板此刻真会收到的名字。
-// 十天里 Agent 的每一份时间轴计划都没被认成计划：卡上没有逐条人话、时间轴上不画待定色带，
-// 退回成一张通用「可撤销」卡并多出「不再问 →」（2026-09-24 走查 agent-real-user-conversation 暴露）。
+// 「哪一次待决是一份时间轴计划」由动词声明回答，不由手抄的工具名单回答——名单在动词改名时不会跟着改。
 import { describe, expect, it } from 'vitest'
 import { MODEL_FACING_TOOL_SPECS } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { isTimelinePlanTool, timelinePlanOperationsForTool } from './timelineAgentSurface'
