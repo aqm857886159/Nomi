@@ -297,6 +297,9 @@ export const zhCN = {
     unsupported: '目标模型不支持这种参考连线',
     slotsFull: '参考槽已满（最多 {{max}} 个），多出的连线不会被使用',
     referenceFull: '该参考已满，多出的连线不会被使用',
+    mentionModeSwitched: '已切到「{{mode}}」，@ 的素材按参考使用',
+    mentionBlockedByFrameEdges: '这个节点连着首帧 / 尾帧，@ 不会自动切换生成方式；要按参考使用，请先切到参考类的生成方式',
+    mentionSlotsFull: '参考已满（最多 {{max}} 个），这次没有添加',
   },
   studio: {
     aria: 'Nomi Studio',
@@ -712,6 +715,9 @@ export const en = {
     unsupported: 'The target model does not support this reference connection.',
     slotsFull: 'Reference slots are full (maximum {{max}}). Extra connections will not be used.',
     referenceFull: 'This reference input is full. Extra connections will not be used.',
+    mentionModeSwitched: 'Switched to "{{mode}}" so the mention is used as a reference.',
+    mentionBlockedByFrameEdges: 'This node has first/last frame inputs, so a mention will not switch its generation mode. Switch to a reference mode first.',
+    mentionSlotsFull: 'References are full (maximum {{max}}). Nothing was added.',
   },
   studio: {
     aria: 'Nomi Studio',
