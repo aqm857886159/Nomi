@@ -230,7 +230,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const mentionLibraryAssets = React.useMemo(
     () => projectAssets.flatMap((asset) => {
       if ((asset.kind !== 'image' && asset.kind !== 'video' && asset.kind !== 'audio') || !asset.renderUrl) return []
-      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind }]
+      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind, ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) }]
     }),
     [projectAssets],
   )

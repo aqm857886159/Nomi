@@ -20,7 +20,7 @@ import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, pl
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
-type LibraryAsset = { id: string; name: string; url: string; kind?: 'image' | 'video' | 'audio' }
+type LibraryAsset = { id: string; name: string; url: string; kind?: 'image' | 'video' | 'audio'; thumbnailUrl?: string }
 
 export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: readonly LibraryAsset[], reportFeedback: (message: string) => void, writeAccess?: NodeWriteAccess): {
   /** 有序图片参考 url（兼容旧的图片 chip 编号）；视频/音频编号由 mediaReferences 提供。 */

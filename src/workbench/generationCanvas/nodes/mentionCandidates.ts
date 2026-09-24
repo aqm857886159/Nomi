@@ -32,6 +32,8 @@ export type MentionCandidate = {
   url: string
   label: string
   kind?: MentionMediaKind
+  /** 落盘边界派生的预览；候选列表画它。 */
+  thumbnailUrl?: string
   group: MentionCandidateGroup
   /** 'current' 专有：它在有序参考数组里的 0-based 下标（= chip 上显示的「图片N」减一）。 */
   referenceIndex?: number
@@ -102,7 +104,7 @@ export function buildMentionCandidates(params: {
   target: GenerationCanvasNode
   nodes: readonly GenerationCanvasNode[]
   edges: readonly GenerationCanvasEdge[]
-  libraryAssets: readonly { id: string; name: string; url: string; kind?: MentionMediaKind }[]
+  libraryAssets: readonly { id: string; name: string; url: string; kind?: MentionMediaKind; thumbnailUrl?: string }[]
   query: string
   currentLabel: (index: number, kind: MentionMediaKind) => string
 }): MentionCandidate[] {
@@ -133,7 +135,8 @@ export function buildMentionCandidates(params: {
     const label = (node.title || '').trim() || url.split('/').pop() || node.id
     if (!matches(label, query)) continue
     seen.add(url)
-    out.push({ key: `canvas:${node.id}`, url, label, group: 'canvas', sourceNodeId: node.id, ...(kind === 'image' ? {} : { kind }) })
+    const thumbnailUrl = String(node.result?.thumbnailUrl || '').trim()
+    out.push({ key: `canvas:${node.id}`, url, label, group: 'canvas', sourceNodeId: node.id, ...(kind === 'image' ? {} : { kind }), ...(thumbnailUrl ? { thumbnailUrl } : {}) })
   }
 
   for (const asset of libraryAssets) {
@@ -142,7 +145,7 @@ export function buildMentionCandidates(params: {
     if (!matches(label, query)) continue
     seen.add(asset.url)
     const kind = asset.kind ?? 'image'
-    out.push({ key: `library:${asset.id}`, url: asset.url, label, group: 'library', ...(kind === 'image' ? {} : { kind }) })
+    out.push({ key: `library:${asset.id}`, url: asset.url, label, group: 'library', ...(kind === 'image' ? {} : { kind }), ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}) })
   }
 
   return out.slice(0, MENTION_CANDIDATE_LIMIT)
