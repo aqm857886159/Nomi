@@ -14,7 +14,7 @@ import {
   type WorkflowBinding,
   type WorkflowEnumOption,
 } from "./comfyuiWorkflowImport";
-import { bustComfyObjectInfoCache, fetchComfyuiObjectInfoIndex, type ComfyUnknownComboSpec } from "../comfyuiObjectInfo";
+import { bustComfyObjectInfoCache, fetchComfyuiObjectInfoIndex, isComfyComboValue, type ComfyUnknownComboSpec } from "../comfyuiObjectInfo";
 import { convertUiWorkflowToApi, looksLikeUiWorkflow } from "../comfyuiGraphConvert";
 import { COMFYUI_VENDOR_KEY, isComfyuiVendor } from "./types";
 import {
@@ -193,7 +193,7 @@ function sanitizeEnumOptions(raw: unknown): WorkflowEnumOption[] | undefined {
     if (!item || typeof item !== "object") continue;
     const { classType, inputKey, options } = item as { classType?: unknown; inputKey?: unknown; options?: unknown };
     if (typeof classType !== "string" || typeof inputKey !== "string" || !Array.isArray(options)) continue;
-    const clean = options.filter((o): o is string => typeof o === "string");
+    const clean = options.filter(isComfyComboValue); // 保留 wire 原类型（数字/布尔选项不丢、不转字符串）
     if (clean.length > 0) out.push({ classType, inputKey, options: clean });
   }
   return out.length > 0 ? out : undefined;

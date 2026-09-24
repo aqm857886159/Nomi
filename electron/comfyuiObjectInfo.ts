@@ -5,7 +5,7 @@
 // 形状实查 ComfyUI server.py：/object_info 返回 { <class_type>: { input: { required/optional: { <key>: [spec, opts?] } } } }。
 // combo 输入的 spec 有两种活的形状（2026-09-11 真机 ComfyUI 0.35.0 实测，本机 ~/ComfyUI 含真实自定义节点，
 // 1188 个类里 533 个字段是新格式）：
-//   ① 老节点（函数式 INPUT_TYPES）：spec[0] 本身就是字符串数组，如 [["a.safetensors","b.safetensors"], {opts}]。
+//   ① 老节点（函数式 INPUT_TYPES）：spec[0] 本身就是选项值数组，如 [["a.safetensors","b.safetensors"], {opts}]。
 //   ② 新一代节点（comfy_api.latest._io.py 的 IO.Combo.Input，序列化见该文件 add_to_dict_v1）：
 //      spec = ["COMBO", { options?: string[]|number[], multiselect?, remote?: {route,...}, control_after_generate?, ... }]。
 //      options 字段缺失 = 纯 remote 动态下拉（如内置 LoadImageOutput.image 的 remote:{route:"/internal/files/output"}），
@@ -25,11 +25,26 @@ export type ComfyUnknownComboSpec = {
   spec: unknown;
 };
 
+/**
+ * 一个 combo 选项的 wire 值——**保留 JSON 原类型，不许转成字符串**。
+ * ComfyUI 校验 combo 用的是 Python `val not in combo_options`（execution.py validate_inputs，
+ * 2026-09-24 核 master 1568e6c），类型敏感："8" ≠ 8、"true" ≠ True。早先把数字转字符串塞进 string[]，
+ * 烤成下拉后用户选中数字那项，发出去的是 "8"，ComfyUI 回 value_not_in_list；布尔则连收都收不进来，
+ * 被当成「没见过的外壳」（issue #861）。选项的声明类型就是真相——画布 parseControlInput 按它回类型，
+ * 源头这里就不能先把类型抹掉。
+ */
+export type ComfyComboValue = string | number | boolean;
+
+/** combo 选项 wire 值的唯一判据（解析与两处 IPC 消毒共用，别各写一份）。NaN/Infinity 进 JSON 会变 null，不算。 */
+export function isComfyComboValue(value: unknown): value is ComfyComboValue {
+  return typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
+}
+
 export type ComfyObjectInfoIndex = {
   /** 本机已装的全部节点 class_type。 */
   classNames: Set<string>;
-  /** class_type → (inputKey → combo 可选值)。老/新两种 spec 格式都收（文件名/采样器这类枚举）；remote 动态下拉不收。 */
-  enumsByClass: Map<string, Map<string, string[]>>;
+  /** class_type → (inputKey → combo 可选值，按 wire 原类型)。老/新两种 spec 格式都收（文件名/采样器这类枚举）；remote 动态下拉不收。 */
+  enumsByClass: Map<string, Map<string, ComfyComboValue[]>>;
   /**
    * 真正「没见过的」combo 外壳（既不是老格式数组、也不是已知的 COMBO/DynamicCombo 两个家族）。
    * 不是每次「取不到枚举」都进这里——remote-only combo、DynamicCombo 这类是**已知但本地无列表**，
@@ -58,18 +73,28 @@ const MAX_ENUM_OPTIONS = 20_000;
  */
 const KNOWN_NON_ENUM_COMBO_FAMILY = new Set(["COMFY_DYNAMICCOMBO_V3"]);
 
-function toEnumString(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
-  // 真机实测两处真实节点混了数字进字符串枚举——内置 CreateVideo.bit_depth 的 options 是
-  // ["auto", 8, 10]，第三方 KJNodes ImageResizeKJ.crop 的老格式数组是 ["disabled","center",0]。
-  // 早先「必须纯字符串数组」的严格性会把这两个真实、正在用的字段判成「未知」，比该报的还宽——
-  // 数字转字符串收进来（下游 enumsByClass 契约本就是 string[]），不算新外壳，只是元素类型更宽容。
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return undefined;
+/**
+ * combo 选项列表 → wire 值列表；undefined = 没见过的元素组合。老格式 spec[0] 与新格式 options **共用这一份判据**。
+ * 认的元素家族都是真机或上游源码里见过的：
+ *   · 字符串，及字符串混数字——内置 CreateVideo.bit_depth 的 ["auto", 8, 10]、第三方 KJNodes
+ *     ImageResizeKJ.crop 的 ["disabled", "center", 0]（真机夹具；数字保持数字，见 ComfyComboValue）；
+ *   · 全布尔——老节点在 BOOLEAN 类型出现前拿 [False, True] 当开关用：ComfyUI-Easy-Use 的
+ *     `easy hiresFix`.rescale_after_model（上游 py/nodes/fix.py:24 `([False, True], {"default": True})`，
+ *     issue #861）。工作流里它的值本身就是 JSON 布尔，导入面板按值推成开关、原样发回。
+ * 布尔混进别的类型从没见过，也说不清该是开关还是枚举 → 判未知，留给「反馈给 Nomi」。
+ */
+function comboValues(list: unknown[]): ComfyComboValue[] | undefined {
+  let booleans = 0;
+  for (const value of list) {
+    if (!isComfyComboValue(value)) return undefined; // 对象 / null / 嵌套数组 / NaN
+    if (typeof value === "boolean") booleans += 1;
+  }
+  if (booleans > 0 && booleans < list.length) return undefined;
+  return list as ComfyComboValue[];
 }
 
 type ComboClassification =
-  | { kind: "options"; options: string[] }
+  | { kind: "options"; options: ComfyComboValue[] }
   /** 不是 combo 语义（普通类型名如 INT/STRING/IMAGE），或已知且故意不展开的 combo 家族（如 DynamicCombo）。 */
   | { kind: "not-combo" }
   /** 已知是 combo 外壳，但本地没有可核对的列表（remote-only 动态下拉，或选项数超限）。 */
@@ -89,13 +114,8 @@ function classifyComboSpec(spec: unknown): ComboClassification {
   // 老格式：spec[0] 本身就是枚举值数组，如 [["a.safetensors","b.safetensors"], {opts}]。
   if (Array.isArray(head)) {
     if (head.length > MAX_ENUM_OPTIONS) return { kind: "known-empty" };
-    const options: string[] = [];
-    for (const raw of head) {
-      const s = toEnumString(raw);
-      if (s === undefined) return { kind: "unknown-shape" }; // 数组里混进既非字符串也非数字的元素（对象/布尔/…）
-      options.push(s);
-    }
-    return { kind: "options", options };
+    const options = comboValues(head);
+    return options ? { kind: "options", options } : { kind: "unknown-shape" };
   }
 
   // 正常类型 spec 的第一个元素必须是字符串（类型名，或 combo 家族的 io_type 字面量）；
@@ -112,13 +132,8 @@ function classifyComboSpec(spec: unknown): ComboClassification {
     if (options === undefined) return { kind: "known-empty" }; // 纯 remote 动态下拉：已知，非「已装 0 个」
     if (!Array.isArray(options)) return { kind: "unknown-shape" }; // options 存在但不是数组——未来 ComfyUI 可能改成这样
     if (options.length > MAX_ENUM_OPTIONS) return { kind: "known-empty" };
-    const collected: string[] = [];
-    for (const raw of options) {
-      const s = toEnumString(raw);
-      if (s === undefined) return { kind: "unknown-shape" };
-      collected.push(s);
-    }
-    return { kind: "options", options: collected };
+    const collected = comboValues(options);
+    return collected ? { kind: "options", options: collected } : { kind: "unknown-shape" };
   }
 
   if (KNOWN_NON_ENUM_COMBO_FAMILY.has(head)) return { kind: "not-combo" };
@@ -130,14 +145,14 @@ function classifyComboSpec(spec: unknown): ComboClassification {
 /** 纯解析（可单测）：/object_info 全量或 /object_info/{class} 子集 → 能力索引。任何异形都跳过、不抛。 */
 export function parseObjectInfoIndex(json: unknown): ComfyObjectInfoIndex {
   const classNames = new Set<string>();
-  const enumsByClass = new Map<string, Map<string, string[]>>();
+  const enumsByClass = new Map<string, Map<string, ComfyComboValue[]>>();
   const unknownComboShapes: ComfyUnknownComboSpec[] = [];
   if (!isRec(json)) return { classNames, enumsByClass, unknownComboShapes };
   for (const [classType, def] of Object.entries(json)) {
     if (!isRec(def)) continue;
     classNames.add(classType);
     const input = isRec(def.input) ? def.input : {};
-    const enums = new Map<string, string[]>();
+    const enums = new Map<string, ComfyComboValue[]>();
     for (const group of [input.required, input.optional]) {
       if (!isRec(group)) continue;
       for (const [inputKey, spec] of Object.entries(group)) {
@@ -220,16 +235,20 @@ export async function fetchComfyuiObjectInfoIndex(baseUrl: string): Promise<Comf
   }
 }
 
+/** checkpoint 选项是文件名，只取字符串值；null（不可达）原样透传。 */
+function checkpointNames(index: ComfyObjectInfoIndex | null): string[] | null {
+  if (!index) return null;
+  const options = index.enumsByClass.get("CheckpointLoaderSimple")?.get("ckpt_name") ?? [];
+  return options.filter((value): value is string => typeof value === "string");
+}
+
 /** 本机已装 checkpoint 文件名（内置文生图 ckpt_name 留空时 derive 用）。null = 不可达。 */
 export async function fetchComfyuiCheckpoints(baseUrl: string): Promise<string[] | null> {
   const url = comfyuiEndpoint(baseUrl, "objectInfo", "CheckpointLoaderSimple");
   const hit = cached(url);
-  if (hit) return hit.enumsByClass.get("CheckpointLoaderSimple")?.get("ckpt_name") ?? [];
+  if (hit) return checkpointNames(hit);
   const pending = inFlight.get(url);
-  if (pending) {
-    const index = await pending;
-    return index?.enumsByClass.get("CheckpointLoaderSimple")?.get("ckpt_name") ?? (index ? [] : null);
-  }
+  if (pending) return checkpointNames(await pending);
   const request = (async (): Promise<ComfyObjectInfoIndex | null> => {
     const json = await fetchJson(url, 5_000);
     if (json === null) return null;
@@ -240,8 +259,7 @@ export async function fetchComfyuiCheckpoints(baseUrl: string): Promise<string[]
   })();
   inFlight.set(url, request);
   try {
-    const index = await request;
-    return index?.enumsByClass.get("CheckpointLoaderSimple")?.get("ckpt_name") ?? (index ? [] : null);
+    return checkpointNames(await request);
   } finally {
     if (inFlight.get(url) === request) inFlight.delete(url);
   }
