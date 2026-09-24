@@ -156,9 +156,8 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const isGenerating = status === 'queued' || status === 'running'
   const hasResult = Boolean(node.result?.url)
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
-  const edges = useGenerationCanvasStore((state) => state.edges)
-  const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
+  // 只订派生出的那一个字符串：订整张 nodes / edges 会让画布上任何写入（含别的节点的生成进度）都把整个面板重渲一遍。
+  const requiredMode = useGenerationCanvasStore((state) => requiredModeForGenerationNode(node, { nodes: state.nodes, edges: state.edges }))
   const modelOptions = useGenerationModelOptionsState(node.kind, requiredMode).options
   const selectedModelAddress = nodeSelectedModelAddress(node.meta || {})
   const selectedModelOption = findModelOptionByIdentifier(

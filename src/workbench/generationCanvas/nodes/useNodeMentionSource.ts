@@ -33,19 +33,14 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
   const inheritedAccess = useNodeWriteAccess()
   const access = writeAccess ?? inheritedAccess
   const { t } = useTranslation()
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
   // 边**照读**，两个宿主读的是同一张图：付费确认卡上印的参考数量必须等于真正会发出去的那些
   // （连线接进来的首帧/参考卡也算）。只有**改**图的权能才归画布宿主（`access.connectNodes`）。
-  const edges = useGenerationCanvasStore((state) => state.edges)
-
-  const orderedReferenceUrls = React.useMemo(
-    () => currentReferenceUrls(node, nodes, edges),
-    [node, nodes, edges],
-  )
-  const orderedMediaReferences = React.useMemo(
-    () => currentReferenceMedia(node, nodes, edges),
-    [node, nodes, edges],
-  )
+  // 按内容订阅（序列化成字符串）：订整张 nodes / edges 会让每敲一个字都产出新数组、编辑器跟着重排 chip 编号
+  // （2026-09-25 画布跟手）。内容没变就沿用同一个数组。
+  const referenceUrlsKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceUrls(node, state.nodes, state.edges)))
+  const referenceMediaKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceMedia(node, state.nodes, state.edges)))
+  const orderedReferenceUrls = React.useMemo(() => JSON.parse(referenceUrlsKey) as ReturnType<typeof currentReferenceUrls>, [referenceUrlsKey])
+  const orderedMediaReferences = React.useMemo(() => JSON.parse(referenceMediaKey) as ReturnType<typeof currentReferenceMedia>, [referenceMediaKey])
 
   const mentionSearch = React.useCallback((query: string): MentionSuggestionItem[] => {
     const state = useGenerationCanvasStore.getState()
