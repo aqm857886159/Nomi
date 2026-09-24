@@ -11,17 +11,39 @@
 // `electron/productionRun/` 的实现（`check:boundaries`）。
 import type { ProductionJobStatus, ProductionRun } from "../../productionRun/productionRunTypes";
 
-/** 还在等人点头的 job：它们存在，但还没有任何供应商那边的工作。 */
-const AWAITING_HUMAN: ReadonlySet<ProductionJobStatus> = new Set<ProductionJobStatus>(["planned", "authorization_required"]);
-
-/** 已经落定的 job：成了 / 失败待处理 / 撤掉 / 太迟。它们证明「派出过」，不证明「现在还在跑」。 */
-const SETTLED: ReadonlySet<ProductionJobStatus> = new Set<ProductionJobStatus>([
-  "ready", "adopted", "needs_attention", "cancelled_remote", "detached", "too_late",
-]);
+/**
+ * 每个 job 状态在「派出去了没有」这件事上归哪一档。写成 `Record<ProductionJobStatus, …>` 是为了让编译器拦：
+ * 状态机里新长一个状态而这里没归档，类型检查当场红——不会静默落进「在跑」那一档（R17）。
+ * - `awaiting_human`：job 存在，但还停在人工门前，供应商那边什么都没发生；
+ * - `live`：过了人工门、还没落定（在排队 / 在提交 / 供应商在跑 / 在对账）；
+ * - `settled`：已落定（成了 / 失败待处理 / 撤掉 / 太迟）——证明「派出过」，不证明「现在还在跑」。
+ */
+export const JOB_DISPATCH_PHASE: Readonly<Record<ProductionJobStatus, "awaiting_human" | "live" | "settled">> = {
+  planned: "awaiting_human",
+  authorization_required: "awaiting_human",
+  authorized: "live",
+  submit_intent_persisted: "live",
+  submitting: "live",
+  provider_accepted: "live",
+  polling: "live",
+  retry_wait: "live",
+  downloading: "live",
+  validating_technical: "live",
+  validating_content: "live",
+  submission_unknown: "live",
+  reconciling: "live",
+  cancel_requested: "live",
+  ready: "settled",
+  adopted: "settled",
+  needs_attention: "settled",
+  cancelled_remote: "settled",
+  detached: "settled",
+  too_late: "settled",
+};
 
 /** 这个 job 是不是还停在人工门前（用户还没点头）。 */
 export function jobAwaitsHuman(status: ProductionJobStatus): boolean {
-  return AWAITING_HUMAN.has(status);
+  return JOB_DISPATCH_PHASE[status] === "awaiting_human";
 }
 
 /**
@@ -34,7 +56,7 @@ export function jobAwaitsHuman(status: ProductionJobStatus): boolean {
  */
 export function isCurrentRequestDispatched(run: Pick<ProductionRun, "generationPlan" | "jobs">): boolean {
   if (run.generationPlan?.state === "submitted") return true;
-  return run.jobs.some((job) => !AWAITING_HUMAN.has(job.status) && !SETTLED.has(job.status));
+  return run.jobs.some((job) => JOB_DISPATCH_PHASE[job.status] === "live");
 }
 
 /**

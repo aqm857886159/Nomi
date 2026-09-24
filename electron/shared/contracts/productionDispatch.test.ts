@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ProductionGenerationPlan, ProductionJob, ProductionJobStatus } from '../../productionRun/productionRunTypes'
-import { isCurrentRequestDispatched, isNodeInDispatchedScope, jobAwaitsHuman } from './productionDispatch'
+import { JOB_DISPATCH_PHASE, isCurrentRequestDispatched, isNodeInDispatchedScope, jobAwaitsHuman } from './productionDispatch'
 
 const NOW = '2026-09-24T00:00:00.000Z'
 const CANDIDATE = { candidateId: 'c', revision: 1, moduleId: 'm', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text_to_image', prompt: '', parameters: {}, references: [] }
@@ -14,11 +14,8 @@ function plan(state: ProductionGenerationPlan['state'], extra: Partial<Productio
   return { operationId: 'op-1', state, candidate: CANDIDATE, updatedAt: NOW, ...extra }
 }
 
-const ALL_JOB_STATUSES: ProductionJobStatus[] = [
-  'planned', 'authorization_required', 'authorized', 'submit_intent_persisted', 'submitting', 'provider_accepted', 'polling',
-  'retry_wait', 'downloading', 'validating_technical', 'validating_content', 'ready', 'adopted', 'submission_unknown',
-  'reconciling', 'needs_attention', 'cancel_requested', 'cancelled_remote', 'detached', 'too_late',
-]
+// 状态全集取自判据自己那张 Record（编译器保证它覆盖 ProductionJobStatus 的每一个成员），测试不另抄一份。
+const ALL_JOB_STATUSES = Object.keys(JOB_DISPATCH_PHASE) as ProductionJobStatus[]
 
 describe('jobAwaitsHuman', () => {
   it('只有 planned / authorization_required 还停在人工门前', () => {
