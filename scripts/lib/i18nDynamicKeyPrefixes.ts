@@ -111,7 +111,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   },
   // ── generationCommon ──
   { prefix: 'generationCommon.assistant.toolCall', why: "动态: 工具调用的人话摘要;枚举来源: toolCallSummary.ts 的 tt(key)——键先存进 const T 再 `${T}.${key}` 拼,模板 head 为空、正反两道门岗都看不见,故必须在册(该文件里 summarizeToolCall/buildStepDetailLabels 传入的字面量 key)" },
-  { prefix: 'generationCommon.agentRuntime', why: '动态: 画布 agent 运行时动作;枚举来源: gate.ts 的 actionKey(agentRuntime.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.sections', why: '动态: 画布控件帮助分节;枚举来源: CanvasControlsHelpPopover 的 section.id(controlsHelp.sections.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.actions', why: '动态: 画布控件帮助动作行;枚举来源: CanvasControlsHelpPopover 的 row.actionKey(controlsHelp.actions.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.shortcuts', why: '动态: 画布控件帮助快捷键行;枚举来源: CanvasControlsHelpPopover 的 row.shortcutKey(controlsHelp.shortcuts.* 词条)' },
