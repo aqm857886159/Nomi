@@ -25,6 +25,11 @@ function normalizeVersion(value) {
   return normalized || null
 }
 
+export function runtimeVersionFromProbe(result) {
+  if (result.error || result.signal || result.status !== 0) return null
+  return normalizeVersion(result.stdout)
+}
+
 function nodeModulesKind(nodeModulesPath) {
   try {
     const stat = fs.lstatSync(nodeModulesPath)
@@ -101,8 +106,9 @@ function defaultProbeRuntimeVersion(executablePath) {
     timeout: 15_000,
     windowsHide: true,
   })
-  if (result.error || result.signal || result.status !== 0) return null
-  return normalizeVersion(`${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim())
+  // Electron's version is written to stdout. macOS may print sandbox diagnostics
+  // to stderr even when the executable exits successfully.
+  return runtimeVersionFromProbe(result)
 }
 
 function problem(code, detail) {

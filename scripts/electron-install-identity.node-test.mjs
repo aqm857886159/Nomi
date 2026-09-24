@@ -10,12 +10,19 @@ import {
   inspectElectronInstallIdentity,
   isPhysicalPathInside,
   isPathInside,
+  runtimeVersionFromProbe,
 } from './electron-install-identity.mjs'
 import { ensureElectronRuntime } from './install-electron-runtime.mjs'
 import { parseGateArgs } from './run-gates-contracts.mjs'
 
 const VERSION = '43.4.1'
 const sourceRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+test('reads Electron version from stdout despite macOS sandbox diagnostics on stderr', () => {
+  assert.equal(runtimeVersionFromProbe({ status: 0, stdout: `v${VERSION}\n`, stderr: 'sandbox_extension_issue_file_to_process failed' }), VERSION)
+  assert.equal(runtimeVersionFromProbe({ status: 0, stdout: '', stderr: `v${VERSION}\n` }), null)
+  assert.equal(runtimeVersionFromProbe({ status: 1, stdout: `v${VERSION}\n`, stderr: '' }), null)
+})
 
 function createRepo(options = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-electron-identity-'))
