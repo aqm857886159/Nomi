@@ -131,6 +131,16 @@ export function commitCanvasNodeDragStop({
 }
 
 /**
+ * 让 React Flow 的节点拖动真正结束。它（@xyflow/system 的 XYDrag → d3-drag）只在 window 收到 mouseup 时收尾，
+ * 没有「按键已松」「原生拖放开始」「窗口失焦」时的中止；我们的租约发现手势已经结束时，从这里补发那一次松手，
+ * 走它自己的 end 路径（onNodeDragStop → commitCanvasNodeDragStop / 已取消则空操作），不在内核外另记一份拖动状态。
+ */
+export function endKernelNodeDrag(at: { clientX: number; clientY: number } | null): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window, button: 0, buttons: 0, clientX: at?.clientX ?? 0, clientY: at?.clientY ?? 0 }))
+}
+
+/**
  * 取消一次节点拖动的**唯一**收尾：租约释放、草稿清空、框预览撤掉、内核位置还原。
  *
  * 它和 `commitCanvasNodeDragStop`（正常松手）是同一件事的两个结局，所以住同一个文件：

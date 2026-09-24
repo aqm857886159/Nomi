@@ -139,6 +139,15 @@ function GenerationFlowConnectionHandle({
   )
 }
 
+/**
+ * 卡片上只有显式标了 draggable 的元素（拖进时间轴的把手、版本托盘条目）能起原生拖放。文字选区、图片这类隐式拖放
+ * 一旦开始，浏览器就不再派发 pointerup / mouseup，React Flow 的节点拖动收不到松手（2026-09-25 粘鼠标实测）。
+ */
+function blockImplicitNativeDrag(event: React.DragEvent<HTMLDivElement>): void {
+  if (event.target instanceof Element && event.target.closest('[draggable="true"]')) return
+  event.preventDefault()
+}
+
 export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationFlowNode>): JSX.Element {
   const { t } = useTranslation()
   const node = data.generationNode
@@ -197,6 +206,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   return (
     <div
       className="generation-canvas-react-flow__node-shell"
+      onDragStart={blockImplicitNativeDrag}
       // 卡面与自己把手的上下层由把手档位派生（见 generationCanvasReactFlow.css 的同名选择器）：
       // 只有磁吸档才把卡面抬到带子之上，小圆点档的把手必须压在卡面上。
       data-connection-affordance={connectionAffordance}

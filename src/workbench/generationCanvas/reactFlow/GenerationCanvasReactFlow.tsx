@@ -70,7 +70,7 @@ import {
   applyCanvasDragPositionChanges,
   overlayCanvasDragDraft,
 } from './canvasDragDraft'
-import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, finishCanvasNodeDrag, restoreDisownedKernelPositions } from './canvasDragWriteback'
+import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, restoreDisownedKernelPositions } from './canvasDragWriteback'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -528,7 +528,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     dragDraftNodesRef.current = flowNodes
     flowStore.setState({ hasDefaultNodes: false })
     dragLeaseRef.current?.release()
-    dragLeaseRef.current = beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel: () => cancelNodeDragRef.current(), ...('pointerId' in event && typeof event.pointerId === 'number' ? { pointerId: event.pointerId } : {}) })
+    // 取消：先还原位置再结束内核拖动（否则回来时节点仍跟着光标）；松手丢了：当作在最后位置松手，走正常收尾。
+    dragLeaseRef.current = beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel: (lastPoint) => { cancelNodeDragRef.current(); endKernelNodeDrag(lastPoint) }, onReleaseLost: endKernelNodeDrag, ...('pointerId' in event && typeof event.pointerId === 'number' ? { pointerId: event.pointerId } : {}) })
     const originalIds = selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
     duplicateDragIdsRef.current = 'altKey' in event && event.altKey
       ? useGenerationCanvasStore.getState().duplicateNodesForDrag(originalIds) : new Map()
