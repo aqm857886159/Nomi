@@ -1,0 +1,183 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-stale-tool-name-lists",
+  "problem_type": "A hand-maintained list of model tool names that a tool rename did not update",
+  "symptom": "In the edit surface, an Agent timeline edit (a caption plan) showed a generic 'reversible' approval card: no per-edit readable lines (e.g. 「字幕 · 汤先到，人后到」), no pending preview band on the timeline, and a 「不再问 →」 button that granted this session's later timeline edits without the plan being shown first. The approved plan-card design offers only 「仅这一次」. Found 2026-09-24 when tests/ux/agent-real-user-conversation.walk.mjs was revived; it had been red at this step since 2026-09-14.",
+  "direct_cause": "src/workbench/ai/resident/timelineAgentSurface.tsx recognised a timeline plan by a copied list ['propose_edit_plan', 'apply_edit_plan', 'nomi_timeline_edit']. afe85411d8 (2026-09-14) renamed the model verb to edit_timeline with no aliases, so no pending call matched. planLines came back empty, and agentPanelV4Intervention classified the card as plan only when planLines was non-empty, so it fell to approval-reversible, which shows the escalate control. The main-process gate reports timeline.write as grantable under safe-auto, so the session grant was real.",
+  "class_root": "Code recognised a model tool by spelling its name out, instead of asking the verb declarations (VERB_DECLARATIONS → MODEL_FACING_TOOL_SPECS), which own every tool name and the facts about it. A rename updates the declarations and leaves every copied spelling behind. Nothing fails at compile time, at assembly, or in any CI lane: the walk that would have caught it was not in any CI chain. A second defect let this change authorization: whether a card is a plan card, which decides whether it may offer escalation, depended on whether the rows could be projected, not on the verb.",
+  "affected_population": [
+    "Every user whose in-app Agent proposes a timeline edit, from 2026-09-14 until this fix",
+    "Every in-app Agent turn that follows the model-index hint to the full model catalogue: the system prompt named nomi_read target=models, which has not been a tool since 2026-09-14"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "src/workbench/ai/resident/timelineAgentSurface.tsx",
+    "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+    "electron/agentLane/laneModelContext.ts",
+    "scripts/validation-policy.mjs",
+    "tests/system/real-user-test-gates.mjs",
+    "docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json"
+  ],
+  "entry_points": [
+    "A pending lane approval whose toolName is edit_timeline, reaching the intervention slot (useAgentPanelV4Data → projectV4Intervention)",
+    "The same pending call reaching the timeline preview band (ProjectAgentResidentShell → useTimelinePlanPreview)",
+    "The lane system prompt's model-index hint (laneHost.mts / laneContextBudget.mts → formatLaneModelIndex)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Which in-app verb is a timeline plan, and what the system prompt calls the catalogue read, are facts owned by Nomi's own verb declarations; no third-party document decides them.",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "tests": [
+      "src/workbench/ai/resident/timelineAgentSurface.test.ts",
+      "src/workbench/ai/v4/agentPanelV4Intervention.test.ts",
+      "electron/agentLane/laneModelContext.test.ts"
+    ],
+    "why": "The registry is derived from VERB_DECLARATIONS and is already the renderer's way to resolve a tool (resolveModelToolCapabilityId). modelToolShowsReviewCard answers the plan question from the declared nextAction, so a rename moves the answer with it."
+  },
+  "invariants": [
+    "No code outside the verb declarations spells a model tool name to recognise it. Facts about a tool are read from its declaration: nextAction, contractId, internalGroup.",
+    "A pending call is a plan card exactly when its verb declares nextAction user_sees_review_card (or it carries storyboard plan shots). Whether rows could be projected never changes the card kind, so it never changes whether escalation is offered.",
+    "Retired names, transport method words and external MCP names are not in-app tool names. They are recognised as nothing."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "modelToolShowsReviewCard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "isTimelinePlanTool"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "symbol": "timelinePlanOperationsForTool"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+      "symbol": "modelToolShowsReviewCard"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "symbol": "modelToolShowsReviewCard"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelContext.ts",
+      "symbol": "modelFacingToolSpecs"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "Every door is now a call to one registry fact, not a separate list. isTimelinePlanTool and timelinePlanOperationsForTool are the timeline projection: they add the timeline.write contract check and the flat operations read. agentPanelV4Intervention needs only the generic fact 'this verb shows a review card'. The MCP-only nested-plan branch of timelinePlanOperationsForTool was deleted because an MCP call never becomes a lane pending approval. modelFacingToolRegistry is the one place the fact is computed; laneModelContext reads the catalogue verb's name from the same specs."
+  },
+  "generality_proof": "Recognition goes through MODEL_FACING_TOOL_SPECS, which is built from VERB_DECLARATIONS at startup. Any verb, now or after a rename, is recognised by what its declaration says, and any name that is not declared is recognised as nothing. The class test iterates over every declared spec, not over edit_timeline alone. The one other live hand-spelled reference, the nomi_read hint in the lane prompt, is now derived the same way, from the spec that reads generation.context.read in the models group. Its test extracts every tool-shaped token from the rendered prompt and checks it is declared. The dead lists keyed on retired names were deleted, so they cannot be revived half-updated.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "symbol": "modelToolShowsReviewCard",
+      "responsibility": "Answers 'does this in-app tool show the user a review card before it applies' from the declared nextAction. Undeclared names answer false."
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+      "symbol": "projectV4Intervention",
+      "responsibility": "Decides the card kind, and with it whether escalation is offered, from the verb's declared review card, independently of row projection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "entry_point": "useTimelinePlanPreview",
+      "disposition": "enforced",
+      "evidence": "Finds the pending plan with isTimelinePlanTool, which now reads the registry. The class test asserts every declared review-card verb on timeline.write is recognised and nothing else is."
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "useTimelinePlanRows",
+      "disposition": "enforced",
+      "evidence": "Rows come from timelinePlanOperationsForTool behind the same isTimelinePlanTool check."
+    },
+    {
+      "path": "electron/agentLane/laneModelContext.ts",
+      "entry_point": "formatLaneModelIndex",
+      "disposition": "enforced",
+      "evidence": "The catalogue-read verb name is taken from the declared spec (generation.context.read, internal group models) and asserted at module load. laneModelContext.test.ts checks every tool-shaped token in the rendered hint is declared, and that the catalogue verb is named."
+    },
+    {
+      "path": "src/workbench/ai/resident/residentToolDisplay.ts",
+      "entry_point": "toolIdentity",
+      "disposition": "not-affected",
+      "evidence": "Already resolves the contract id through resolveModelToolCapabilityId before reading the name. The 2026-09-24 sweep checked all 20 verbs label correctly."
+    },
+    {
+      "path": "electron/shared/agentLane/laneFailureFromDecision.ts",
+      "entry_point": "SUBMISSION_FACETS",
+      "disposition": "not-affected",
+      "evidence": "Built from VERB_DECLARATIONS rather than a copied list. Two callers in laneDesktopTools.ts pass a non-verb name ('canvas write', a timeline method word) into it. That is a separate defect in the caller-identity class, filed as its own task because it changes the model-facing failure wording and needs a real-model run (R13.3)."
+    },
+    {
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "entry_point": "verb dispatch switch",
+      "disposition": "not-affected",
+      "evidence": "Lists current verb names. They are execution bindings, correct today, and a missing binding fails loudly at call time. Recorded under residual_risks as the next class to derive."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "afe85411d8 is not the first rename that left copied names behind: scripts/retired-tool-names.json exists because the same rename silently broke every skill file four days later. Any future verb rename reaches every copied spelling the same way, and each one fails silently.",
+    "same_class_scan": [
+      "Read-only sweep over src/**, electron/** (non-test) for every one of the 37 pre-rename names from afe85411d8^ (the *_ALIASES constants), for toolName ===/includes/Set/switch/regex comparisons, and for current verb names. It found 1 live stale list (timelineAgentSurface TIMELINE_PLAN_TOOLS), 1 live stale prompt reference (laneModelContext nomi_read), and 10 dead recognisers keyed on retired names (gate.ts TOOL_META/evaluateGate/evaluateLock + lockGateContext, creationToolContracts WRITE_TOOL_NAMES + creationAiReplyText writeToolLabelKey, generationProposalEditing SEMANTIC_TOOL_NAMES/isGenerationProposalTool, residentReferences applyStoryboardSelectionToToolArgs, layout.ts layoutPiInputSchemaForAlias, canvasWrite isRendererOwnedStoryboardProposal, provenanceActionGuard classifyToolAction, productionRunTransportAdapters createPiProductionRunTransportAdapter, registry capabilityRequiresPlanReview/resolveCapabilityEffectClass, creationAiModes buildCreationAiPrompt).",
+      "Comparisons on capability operation values and transport method words (canvasWriteTarget, proposalTxn, applyCanvasToolCall, dispatcher, transport adapters, mcpProtocol) were checked and are not tool names. Several still share spelling with retired tool names (apply_edit_plan), which is why a plain string-scan gate cannot separate them."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "invariant": "Recognising an in-app model tool reads its declaration through the registry; undeclared names are recognised as nothing, and card kind comes from the verb, never from row projection.",
+    "failure_mode": "An undeclared or renamed-away name is not a plan, so it gets no preview band and no plan rows. The card-kind decision does not depend on rows, so a missed projection can no longer widen what a click authorises. The lane prompt throws at module load if no verb reads the model catalogue.",
+    "exception_policy": "none",
+    "strategy": "Move each recogniser onto the declaration facts it actually means (nextAction, contractId, internalGroup), delete every dead recogniser keyed on retired names, and put the two walks that exercise these paths into CI's journeys lane (REAL_USER_TEST_MANIFEST plus JOURNEY_PATTERNS for the paths that decide them).",
+    "artifacts": [
+      "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "src/workbench/ai/resident/timelineAgentSurface.tsx",
+      "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+      "electron/agentLane/laneModelContext.ts",
+      "scripts/validation-policy.mjs",
+      "tests/system/real-user-test-gates.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/resident/timelineAgentSurface.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Intervention.test.ts",
+    "electron/agentLane/laneModelContext.test.ts",
+    "scripts/validation-policy.node-test.mjs",
+    "tests/ux/agent-real-user-conversation.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/resident/timelineAgentSurface.test.ts",
+    "electron/agentLane/laneModelContext.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/resident/timelineAgentSurface.tsx"
+    ],
+    "rationale": "The copied TIMELINE_PLAN_TOOLS list and the MCP-only nested-plan branch are gone. The dead recognisers keyed on retired names are removed in the same change (listed in the PR body)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides tool names; they are Nomi's own declarations.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data carries these recognisers. Lane transcripts already hold edit_timeline calls, and they render as plan rows from the first render after the fix.",
+  "residual_risks": [
+    "Execution bindings still spell current verb names (laneVerbTransport.ts switch, laneExtendedTools.ts nextActionFor, laneExtendedDesktopPorts.ts, laneDesktopTools.ts). They are correct today and would break on the next rename, loudly at call time rather than silently. Deriving them is left for a follow-up.",
+    "A plain string-scan gate for retired names cannot separate them from live operation values that share the spelling (apply_edit_plan), so no static gate was added. The protection is the registry boundary plus the two walks now in the journeys lane.",
+    "The main-process gate still reports timeline.write as session-grantable under safe-auto (capabilityApprovalPolicy documents plan reuse after the user's own 'this session' answer). The renderer now never offers that button on a plan card, but main does not refuse it. Aligning the two owners of 'may this card escalate' (renderer card kind vs LanePendingApproval.grantable) is a product decision, recorded for review."
+  ]
+}

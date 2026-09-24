@@ -60,6 +60,38 @@
       ],
       "since": "2026-09-22",
       "notes": "2026-09-22 总合并收口（合同 docs/fixes/2026-09-22-vendor-landing-one-owner.root-cause.json）。规则本体 = compareVendorLanding：用户排过的顺序 → 供应商分级 vendorTier（官方 > 内置中转 > 自接/未知）；用户 09-22 拍板「按照默认走」= 没排过序时内置中转优先、自接靠后（#832 渲染层规则为准）。分级表只此一份，渲染层 src/config/modelIdentity.ts 只 re-export vendorTier。消费方只许在共享比较子之后补**不携带偏好语义**的稳定序（渲染层补显示名字母序、执行侧补目录原序）。electron/shared/contracts/vendorPreference.ts 同时还是顺序设置的跨进程存储契约——存储形状与落家规则住同一个文件、是同一个概念的两面，不是两个 owner。对拍棘轮：electron/parity/vendorLandingParity.test.ts（任取一个排序，三处调用点的「第一家」必须相同）。"
+    },
+    {
+      "name": "模型工具的身份",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+        "symbol": "MODEL_FACING_TOOL_SPECS"
+      },
+      "consumers": [
+        "src/workbench/ai/resident/timelineAgentSurface.tsx",
+        "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+        "src/workbench/ai/resident/residentToolDisplay.ts",
+        "src/workbench/ai/v4/agentPanelV4ActionFamily.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "electron/agentLane/laneModelContext.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "一个应用内工具名是什么、它有什么事实（契约 id / nextAction / 分组）只问注册表（由 VERB_DECLARATIONS 派生），不许在别处手抄工具名做识别。2026-09-24 实例：timelineAgentSurface 手抄的计划工具名单在 20 动词改名后十天没人发现，计划卡退回通用卡并多出「不再问」（docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json）。执行绑定（laneVerbTransport 等）仍按名字分派，记在该合同 residual_risks。"
+    },
+    {
+      "name": "技能显示名",
+      "owner": {
+        "path": "src/workbench/skillLibrary/skillDisplay.ts",
+        "symbol": "skillLabelForKey"
+      },
+      "consumers": [
+        "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "src/workbench/skillLibrary/skillGallery.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
     }
   ]
 }

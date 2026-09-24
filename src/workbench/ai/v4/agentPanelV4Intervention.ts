@@ -1,3 +1,4 @@
+import { modelToolShowsReviewCard } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { capabilitySupportsUndo } from '../../../../electron/shared/agentCapabilities/registry'
 // Agent 面板 v4 · 积木 ⑤ 介入槽的投影。
 //
@@ -129,7 +130,7 @@ export function interventionKindOf(args: unknown, effectClass: CapabilityEffectC
   if (isPlan) return 'plan'
   if (effectClass === 'spend') return 'spend'
   // 认不出的能力 fail-closed 到**不可逆**：把一个未知操作当成可撤销的，等于替用户
-  // 赌「反正能撤回来」。`resolveCapabilityEffectClass` 对未登记别名返回 undefined，
+  // 赌「反正能撤回来」。`capabilityEffectClassOf` 对未登记的契约返回 undefined，
   // 现役也是这么兜的（`?? 'irreversible'`）。
   if (effectClass === 'reversible_local') return 'approval-reversible'
   return 'approval-irreversible'
@@ -150,7 +151,11 @@ export function projectV4Intervention(
   t: Translate,
 ): InterventionData {
   const record = asRecord(source.args)
-  const isPlan = Boolean(source.planLines?.length) || residentPlanShots(source.args).length > 0
+  // 是不是计划卡由**这次调用的动词**决定：它的声明写着「用户先看审阅卡」。以前判据是
+  // `planLines.length > 0`——清单行投影不出来（动词名一漂、或 operations 一时认不出）时，
+  // 同一份计划就退回成通用「可撤销」卡，多出一颗「不再问 →」（2026-09-24 走查）。
+  // 行投影不出来是**行**的事，卡的授权面不跟着它变。
+  const isPlan = modelToolShowsReviewCard(source.toolName) || residentPlanShots(source.args).length > 0
   const kind = interventionKindOf(source.args, source.effectClass, isPlan)
   const more = source.pendingCount > 1 ? t('agentPanelV4.interventionMore', { count: source.pendingCount - 1 }) : ''
   // 一张卡 1–3 题、一次显示一题（2026-09-21 版式拍板）。卡体（Approval Card）自己翻页：

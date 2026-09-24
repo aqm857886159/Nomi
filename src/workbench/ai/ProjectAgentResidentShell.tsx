@@ -46,6 +46,7 @@ import { useShotVerifyFeedback } from './resident/useShotVerifyFeedback'
 import { adoptLaneTaskCandidate } from './lane/laneTaskCandidateActions'
 import { useV4Labels } from './v4/agentPanelV4Labels'
 import { usePromptLibrary } from '../promptLibrary/usePromptLibrary'
+import { skillDisplayTitle } from '../skillLibrary/skillDisplay'
 import { useUserPrompts } from '../promptLibrary/useUserPrompts'
 import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { filterPrompts } from '../api/promptLibraryApi'
@@ -109,7 +110,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const recovered = recoveredDrafts.filter(entry => entry.projectUuid === project?.binding.immutableProjectUuid
     && entry.conversation.sessionId === conversation?.sessionId && entry.conversation.laneName === conversation.laneName)
   const queue: readonly QueueRowData[] = [...data.queue, ...recovered.map(entry => ({
-    title: entry.displayText || entry.text || entry.skill?.name || t('agentPanelV4.queueUntitled'), status: 'draft' as const,
+    title: entry.displayText || entry.text || (entry.skill ? data.skillLabel(entry.skill.key) : '') || t('agentPanelV4.queueUntitled'), status: 'draft' as const,
     actions: [t('agentPanelV4.recoveredDraftTakeBack')], destructiveAction: t('agentPanelV4.recoveredDraftDiscard'),
     actionsDisabled: admitting,
   }))]
@@ -403,14 +404,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     const query = commandQuery.trim()
     const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
     const skillRows: V4CommandRow[] = data.skills
-      .filter((skill) => skill.curation?.kind !== 'effect' && (!query || `${skill.curation?.title[locale] ?? skill.label} ${skill.name}`.toLowerCase().includes(query.toLowerCase())))
+      .filter((skill) => skill.curation?.kind !== 'effect' && (!query || `${skillDisplayTitle(skill, i18n.language)} ${skill.name}`.toLowerCase().includes(query.toLowerCase())))
       // 自己导进来的排在内置前面。用户刚把一个技能弄进 Nomi，下一秒来这里找它——
       // 让他先滚过四个他没装过的内置技能才看见自己那个，是把「我刚做的事」排在最后。
       .sort((a, b) => (a.origin === b.origin ? 0 : a.origin === 'user' ? -1 : 1))
       .map((skill) => ({
         id: `skill:${skill.name}`,
         group: libraryGroup(skill, i18n.language),
-        name: skill.curation?.title[locale] ?? skill.label,
+        name: skillDisplayTitle(skill, i18n.language),
         command: `/${skill.name}`,
         desc: skill.curation?.summary[locale] ?? skill.description ?? skill.stageLabels.join(' · '),
         cover: skill.cover,
@@ -453,7 +454,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
               // 技能与提示词互斥：一次对话只装一套说法。两个都挂上时模型收到两段
               // 互相打架的系统提示，产出会比不装还差。
               actions.setSelectedLibraryPrompt(null)
-              setActiveSkill(activeSkill?.key === key ? null : { key, name: row.name })
+              setActiveSkill(activeSkill?.key === key ? null : { key })
             } else {
               const id = row.id.slice('prompt:'.length)
               const prompt = [...promptLibrary.items, ...userPromptLibrary.items].find((item) => item.id === id)

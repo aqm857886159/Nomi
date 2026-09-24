@@ -1,4 +1,4 @@
-// `nomi_read`（模型目录读）的**执行那一半**。说明书那一半住 `verbs/generationVerbs.ts`（注册表里
+// `list_models`（模型目录读）的**执行那一半**。说明书那一半住 `verbs/readVerbs.ts`（注册表里
 // `internalGroup:"models"`），这里只把它绑到 `availableModels` 解析器上——PR A 之前它是注册表外
 // 唯一一个手写 TypeBox 定义的模型可见工具（审计 C5 / 设计 T9）。
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels.js';

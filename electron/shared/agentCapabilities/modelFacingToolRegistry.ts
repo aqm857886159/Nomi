@@ -60,6 +60,19 @@ export function resolveModelToolCapabilityId(name: string, args?: unknown): stri
   return spec ? modelToolCapabilityId(spec, args) : resolveCapabilityAlias(name)?.contract.id;
 }
 
+/**
+ * 这个工具名的调用，会不会先让用户看一张**审阅卡**（`nextAction: "user_sees_review_card"`）。
+ *
+ * 渲染层「这次待决是不是一份要先读的计划」只许问这里，不许自己抄一张名单：2026-09-14 改名
+ * （afe85411d8，不留别名）之后，`timelineAgentSurface.tsx` 那张手抄的
+ * `['propose_edit_plan','apply_edit_plan','nomi_timeline_edit']` 一个现役名字都没有，时间轴计划
+ * 退回成通用「可撤销」卡、多出「不再问 →」，十天没人发现。认不出的名字（退役名 / 传输方法词 /
+ * 对外 MCP 名）一律回 false——它们不是模型在应用内能调的工具。
+ */
+export function modelToolShowsReviewCard(name: string): boolean {
+  return MODEL_FACING_TOOL_SPECS.some((spec) => spec.name === name && spec.nextAction === "user_sees_review_card");
+}
+
 /** 某个能力的全部别名说明书，按声明顺序。 */
 export function specsForCapability(contractId: string): readonly ModelFacingToolSpec[] {
   return MODEL_FACING_TOOL_SPECS.filter((spec) => spec.contractId === contractId || spec.alsoCovers?.includes(contractId));
