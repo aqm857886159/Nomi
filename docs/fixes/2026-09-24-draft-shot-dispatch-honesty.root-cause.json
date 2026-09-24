@@ -246,7 +246,6 @@
   "migration": "No stored data changes. ProductionRunSummary gains a derived boolean computed on read; older snapshots are summarized with the same function.",
   "residual_risks": [
     "The canvas batch bar (生成全部 N 个) still reads raw node.status and counts an in-flight agent shot as idle (TODO T-AG-24).",
-    "A finished single agent image keeps the task button lit because the run waits for rough-cut review (TODO T-AG-25).",
-    "Agent runtime walks on Windows need the unmerged lane identity fix (branch claude/windows-sync-hardening); verified locally with it applied temporarily."
+    "A finished single agent image keeps the task button lit because the run waits for rough-cut review (TODO T-AG-25)."
   ]
 }

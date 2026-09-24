@@ -44,7 +44,7 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
    「排队中 · 第 n/N」小签、内联简化红卡，以及它们的 i18n 键。
 4. **任务中心**：`ProductionRunSummary.dispatched`（主进程按唯一判据算）；`status === 'draft' && !dispatched` → 新分组 `draft`，
    面板里单独一组「草稿 N / Drafts N」，不进「进行中」、不点亮任务按钮。打开着的完整 Run 并进列表时同一个判据当场判。
-   分组先后表只留一份（`TASK_CENTER_GROUP_ORDER`）。
+   面板本来就按组拆开渲染，合并后那次全局排序不影响结果，删掉（Ponytail）。
 
 ## 范围 / 不动项
 
@@ -64,7 +64,7 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
   `productionRunTaskCenter.test.ts`（草稿分组、完整 Run 并入）。改回旧行为 25 条变红（变异核过）。
 - 真机走查（Windows，零额度回环供应商）：`tests/ux/agent-draft-not-queued.walk.mjs` 草稿 → 报价卡在等 → 派出在跑 → 出图，zh + en；
   `tests/ux/p4-s5-canvas-landing.e2e.mjs` 四态同屏（失败 / 生成中 / 排队中 / 已停）。
-- Windows 上 Agent 走查依赖尚未合入的 lane 修复（`claude/windows-sync-hardening`：Windows 上点发送没反应），本地验证时临时套用、未进本 PR。
+- Windows 上 Agent 走查曾被「点发送没反应」挡住（lane 身份补盘符），那条修复已随 #863 合入 main；本分支并入 main 后走查不再需要任何临时补丁。
 
 ## 先查别人
 
