@@ -18,6 +18,8 @@ import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
 import { absolutePathFromLocalAssetUrl } from "./localAssetFile";
 import { attachStoredAssetPreview, isStoredAssetPreviewPath, type StoredAssetPreview } from "./assetPreview";
 import { copyFileWithProgress, type AssetCopyProgress } from "./assetImportProgress";
+import { renameSyncWithRetry, retryOnSharingViolation } from "../jsonFile";
+import { reapAbandonedUploadStaging, removeScratchAfterUse, removeScratchAfterUseSync, UPLOAD_STAGING_PREFIX } from "./scratchCleanup";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
   assetBucketFromMeta,
@@ -170,7 +172,7 @@ function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Ui
     if (result.error || result.status !== 0) throw new Error("Generated media validation failed (decode_failed)");
     return cleanMeta;
   } finally {
-    if (validationDir) fs.rmSync(validationDir, { recursive: true, force: true });
+    if (validationDir) removeScratchAfterUseSync(validationDir);
   }
 }
 
@@ -338,18 +340,19 @@ export async function copyAssetFile(
 async function copyNativeFileToBucket(context: AssetWriteContext, sourcePath: string, fileName: string, storageFileName: string, contentType: string, meta: JsonRecord, onCopyProgress?: AssetCopyProgress): Promise<unknown> {
   context.assertCurrent();
   const { projectId } = context;
-  const staging = fs.mkdtempSync(path.join(context.root, '.nomi-upload-'));
+  reapAbandonedUploadStaging(context.root);
+  const staging = fs.mkdtempSync(path.join(context.root, UPLOAD_STAGING_PREFIX));
   const snapshot = path.join(staging, 'content');
   try {
     await copyFileWithProgress(sourcePath, snapshot, onCopyProgress);
     const contentHash = await contentHashForFile(snapshot);
     context.assertCurrent();
     const { absolutePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta), context);
-    fs.linkSync(snapshot, absolutePath);
+    retryOnSharingViolation(() => fs.linkSync(snapshot, absolutePath));
     writeAssetSidecarMeta(absolutePath, meta);
     broadcastAssetsUpdated(projectId);
     return storedAssetRecord(projectId, absolutePath, sanitizeName(fileName, "asset"), contentType, meta, contentHash, context);
-  } finally { await fs.promises.rm(staging, { recursive: true, force: true }); }
+  } finally { await removeScratchAfterUse(staging); }
 }
 
 /**
@@ -422,11 +425,13 @@ export function moveAssetFile(
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   try {
-    fs.renameSync(sourcePath, absolutePath);
+    // 刚下载 / 刚生成的文件常被杀毒实时扫描短暂开着：改名先按共享冲突退避重试。
+    renameSyncWithRetry(sourcePath, absolutePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
     fs.copyFileSync(sourcePath, absolutePath);
-    fs.rmSync(sourcePath, { force: true });
+    // 已经拷进项目：删源文件只是收尾，删不掉不能把这次落盘报成失败。
+    removeScratchAfterUseSync(sourcePath);
   }
   const stat = fs.statSync(absolutePath);
   writeAssetSidecarMeta(absolutePath, meta);

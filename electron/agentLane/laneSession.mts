@@ -17,7 +17,7 @@ import { refreshLiveLaneTrace } from './laneTraceRecorder.mjs';
 import { JsonlSessionRepo, type JsonlSessionMetadata } from '@earendil-works/pi-agent-core/harness/session';
 import type { Context } from '@earendil-works/pi-agent-core/harness/context';
 import type { Session } from '@earendil-works/pi-agent-core';
-import { createLaneFileSystem, ensureLaneSessionsRoot } from './laneFileSystem.mjs';
+import { createLaneFileSystem, ensureLaneSessionsRoot, LANE_IDENTITY_ROOT } from './laneFileSystem.mjs';
 
 /**
  * 一条对话的 `cwd`。它只用来生成 slug 目录名与 `list()` 的过滤键，**不是文件系统路径**。
@@ -28,8 +28,10 @@ import { createLaneFileSystem, ensureLaneSessionsRoot } from './laneFileSystem.m
  *    （`repo.js:180`），而我们的 `NodeExecutionEnv` 的 cwd 就是项目目录——传相对串
  *    `'nomi-project'` 会被解析成 `<项目绝对路径>/nomi-project`，slug 目录名里于是带着
  *    项目的完整路径。用户把项目文件夹改个名，`list()` 按新路径算出的 slug 就对不上盘上
- *    那个旧的，历史「消失」——而这正是本文件开头那段注释想避免的事。绝对串原样穿过
- *    `path.resolve`，与宿主路径无关。
+ *    那个旧的，历史「消失」——而这正是本文件开头那段注释想避免的事。
+ *    「绝对串原样穿过 `path.resolve`」**只在 POSIX 上成立**：Windows 会给它补上项目所在盘符
+ *    （`C:\nomi-lane\main`），列表按前缀一条都认不出。所以身份不交给宿主解析——
+ *    `createLaneFileSystem` 对 `LANE_IDENTITY_ROOT` 下的串原样返回，那是唯一的解析入口。
  * ② **一条对话一个 cwd。** 「一个项目多条对话」= 多个 `laneName`，每条自己一个 slug 目录
  *    （方案 §2.2 G2）。列表 = `repo.list()` 走一遍目录读表头；删除 = `repo.delete()`。
  *    两样都是 pi 自己的能力，我们不另记一份对话索引（R29：框架给的不许再造一份）。
@@ -37,8 +39,9 @@ import { createLaneFileSystem, ensureLaneSessionsRoot } from './laneFileSystem.m
  *    所以 pi 的 slug 编码（把这三个字符换成 `-`）不会把两条不同的对话折成同一个目录。
  */
 export function laneSessionCwd(laneName: string): string {
-  return `/nomi-lane/${laneName}`;
+  return `${LANE_IDENTITY_ROOT}${laneName}`;
 }
+
 
 /** 会话根目录。跟着项目走，删项目即删历史——这是本地优先该有的样子。 */
 export function laneSessionsRoot(projectDir: string): string {
@@ -101,8 +104,6 @@ export interface LaneSessionSummary {
   updatedAt: number
 }
 
-const CWD_PREFIX = '/nomi-lane/';
-
 /**
  * 这个项目盘上有哪些对话，最近更新的在前。
  *
@@ -120,8 +121,8 @@ export async function listLaneSessions(projectDir: string, context: Context): Pr
     const all = await repo.list(undefined, context);
     const byLane = new Map<string, LaneSessionSummary>();
     for (const metadata of all) {
-      if (!metadata.cwd.startsWith(CWD_PREFIX)) continue;
-      const laneName = metadata.cwd.slice(CWD_PREFIX.length);
+      if (!metadata.cwd.startsWith(LANE_IDENTITY_ROOT)) continue;
+      const laneName = metadata.cwd.slice(LANE_IDENTITY_ROOT.length);
       if (!laneName) continue;
       const summary: LaneSessionSummary = {
         laneName, sessionId: metadata.id, createdAt: metadata.createdAt, updatedAt: metadata.modifiedAt,
@@ -233,7 +234,7 @@ export async function openLaneTraceDirectory(projectDir: string, laneName?: stri
   const repo = await acquireRepo(projectDir);
   try {
     const all = await repo.list(laneName === undefined ? undefined : { cwd: laneSessionCwd(laneName) }, context);
-    const known = all.filter(item => item.cwd.startsWith(CWD_PREFIX));
+    const known = all.filter(item => item.cwd.startsWith(LANE_IDENTITY_ROOT));
     if (laneName !== undefined && !known.length) throw new Error('agent_lane_conversation_missing');
     const summaries: string[] = [];
     let selected: { createdAt: number; directory: string } | undefined;

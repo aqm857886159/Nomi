@@ -187,7 +187,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       }), listAvailableModelsForAgent()])
       const stillCurrent = () => {
         const current = laneClient.conversation()
-        return conversation !== null && current !== null && current.laneName === conversation.laneName
+        return current !== null && current.laneName === conversation.laneName
           && current.sessionId === conversation.sessionId && current.workspaceId === conversation.workspaceId
       }
       if (!stillCurrent() || useWorkbenchStore.getState().projectAgentAdmissionId !== admissionId) return false
@@ -218,7 +218,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
         displayText: options?.displayText ?? (replaying ? undefined : state.projectAgentDraftDisplayText ?? undefined),
         ...(options?.retryFromEntryId ? { retryFromEntryId: options.retryFromEntryId } : {}),
         ...(options?.continueFromEntryId ? { continueFromEntryId: options.continueFromEntryId } : {}),
-      }, conversation!))
+      }, conversation))
       if (!stillCurrent()) return false
       if (replaying) return true
       const sentReferences = new Set(capturedReferences)

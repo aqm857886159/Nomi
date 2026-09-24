@@ -46,7 +46,10 @@ vi.mock('react-i18next', async importOriginal => ({
   ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key }),
 }))
 vi.mock('../lane/laneClient', () => ({ laneClient: { context: () => fixture.owner, say: fixture.say,
-  prepareInput: async () => fixture.owner ? { workspaceId: (fixture.owner as { subscriptionId: string }).subscriptionId, laneName: fixture.projection.lane, sessionId: 'session-main' } : null,
+  prepareInput: async () => {
+    if (!fixture.owner) throw Object.assign(new Error('agent_lane_closed'), { laneCode: 'agent_lane_closed' })
+    return { workspaceId: (fixture.owner as { subscriptionId: string }).subscriptionId, laneName: fixture.projection.lane, sessionId: 'session-main' }
+  },
   conversation: () => fixture.owner ? { workspaceId: (fixture.owner as { subscriptionId: string }).subscriptionId, laneName: fixture.projection.lane, sessionId: 'session-main' } : null,
   projection: () => fixture.projection, cancelQueued: fixture.cancelQueued, abort: fixture.abort } }))
 vi.mock('../../workbenchStore', () => ({ useWorkbenchStore: Object.assign(

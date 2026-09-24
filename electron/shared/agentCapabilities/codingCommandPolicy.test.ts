@@ -155,6 +155,42 @@ describe("codingCommandPolicy · 记住模式", () => {
   });
 });
 
+describe("codingCommandPolicy · 密钥清单认得同一个文件的每种拼法（Windows 上它是唯一一层）", () => {
+  // 2026-09-24 Windows 实测：`cat "C:\Users\<名>\.ssh\id_ed25519"` 落到一张普通确认卡上，
+  // 同一个文件用 `/` 写会被直接拒。Windows 没有 OS 沙箱的 denyRead，这张清单是那里唯一直接拒的一层。
+  const SPELLINGS: readonly string[] = [
+    String.raw`cat "C:\Users\somebody\.ssh\id_ed25519"`,
+    String.raw`cat C:\\Users\\somebody\\.aws\\credentials`,
+    String.raw`type %USERPROFILE%\.ssh\id_rsa`,
+    String.raw`cat "$USERPROFILE\.ssh\id_rsa"`,
+    String.raw`cat ~\.gnupg\secring.gpg`,
+    String.raw`cat ~/.s'sh'/id_rsa`,
+    String.raw`cat ~/.ss"h"/id_rsa`,
+    String.raw`cat ~/\.ssh/id_rsa`,
+    String.raw`cat "C:\Users\somebody\AppData\Roaming\nomi\model-catalog.json"`,
+    String.raw`cat "C:\Users\somebody\AppData\Roaming\Nomi Preview\settings.json"`,
+    String.raw`cat $APPDATA/nomi/settings.json`,
+    String.raw`cat "%APPDATA%\nomi\settings.json"`,
+    String.raw`cat ~/.config/nomi/settings.json`,
+  ];
+
+  for (const command of SPELLINGS) {
+    it(`secret-store deny，沙箱开或不开都一样 :: ${command}`, () => {
+      for (const sandboxActive of [true, false]) {
+        const verdict = classify(command, sandboxActive);
+        assert.equal(verdict.tier, "hard-list", `sandboxActive=${sandboxActive} 时没进硬清单`);
+        assert.equal(verdict.decision, "deny");
+        assert.equal((verdict as Extract<CommandVerdict, { tier: "hard-list" }>).rule, "secret-store");
+      }
+    });
+  }
+
+  it("归一只用来比对：项目内的反斜杠相对路径照旧落原来那一档，不被误拒", () => {
+    assert.equal(classify(String.raw`cat src\main.ts`).decision, "auto-allow");
+    assert.equal(classify(String.raw`cat src\main.ts`, false).tier, "escape");
+  });
+});
+
 describe("codingCommandPolicy · 路径包容不能用 startsWith", () => {
   it("`/proj-evil` 不在 `/proj` 里（G-07 同一族的经典洞）", () => {
     const verdict = classifyCommand({

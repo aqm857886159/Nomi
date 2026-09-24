@@ -26,6 +26,7 @@ import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPrev
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteContext";
+import { removeScratchAfterUse } from "./scratchCleanup";
 
 function bytesFromPayload(value: unknown): Buffer {
   if (value instanceof ArrayBuffer) return Buffer.from(value);
@@ -172,7 +173,7 @@ async function importNativeSourcePath(
     context.assertCurrent();
     return await copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, context, feedback);
   } finally {
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
+    await removeScratchAfterUse(tempDir);
   }
 }
 

@@ -127,8 +127,11 @@ interface HardRule {
 const SECRET_PATH_FRAGMENTS: readonly string[] = [
   "/.ssh", "/.aws", "/.gnupg", "/.docker/config.json", "/.netrc", "/.npmrc", "/.pypirc",
   "/.config/gcloud", "/.kube/config",
-  // Nomi 自己的设置与密钥存储（model-catalog.json 里是 safeStorage 密文，但密文也不该出门）
-  "application support/nomi", "/.nomi/", "model-catalog.json",
+  // Nomi 自己的设置与密钥存储（model-catalog.json 里是 safeStorage 密文，但密文也不该出门）。
+  // 设置目录三个平台各一种：macOS `Application Support/Nomi`、Windows `%APPDATA%\nomi`（Preview 为
+  // `Nomi Preview`；在比对视图里是 `AppData/Roaming/nomi`、`$APPDATA/nomi`、`%APPDATA%/nomi`）、Linux `~/.config/nomi`。
+  "application support/nomi", "appdata/roaming/nomi", "appdata/nomi", "appdata%/nomi", "/.config/nomi",
+  "/.nomi/", "model-catalog.json",
 ];
 
 const HARD_RULES: readonly HardRule[] = [
@@ -196,6 +199,19 @@ function buildSecretPattern(): RegExp {
     fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   // `security find-generic-password` 是 macOS 钥匙串的读取命令——它不是路径，但它是同一件事。
   return new RegExp(`(${alternatives.join("|")})|\\bsecurity\\s+find-(generic|internet)-password\\b`, "i");
+}
+
+/**
+ * 硬清单比对用的那份写法。**只用来比对，不改写要执行的命令。**
+ *
+ * 清单按 POSIX 的一种拼法写（`/.ssh`）。同一个文件在 shell 里还有别的拼法：Windows 的反斜杠与盘符
+ * （`C:\Users\<名>\.ssh\id_ed25519`、`%USERPROFILE%\.ssh`），被引号拆开的片段（`~/.s'sh'/id_rsa`，
+ * bash 会把它拼回 `.ssh`）。2026-09-24 Windows 实测：反斜杠写法落到一张普通确认卡上，而同一个文件
+ * 用 `/` 写会被直接拒。Windows 没有 OS 沙箱的 denyRead，这一层是那里唯一直接拒密钥读取的；
+ * 归一只会让它多拦，不会少拦（原串照旧也比一遍）。
+ */
+function hardListView(command: string): string {
+  return command.replace(/["']/g, "").replace(/\\+/g, "/");
 }
 
 // ── 越界检测 ──────────────────────────────────────────────────────────────
@@ -273,7 +289,9 @@ const SYSTEM_READ_ONLY_PREFIXES: readonly string[] = [
 ];
 
 function isSystemReadOnly(candidate: string): boolean {
-  const resolved = path.resolve(expandHome(candidate));
+  // 这张表是 POSIX 路径，按 POSIX 解析。宿主 `path.resolve` 在 Windows 上会补盘符（`/usr` → `C:\usr`），
+  // 一条都对不上——和 `laneSessionCwd` 被补盘符是同一类错（2026-09-24）。
+  const resolved = path.posix.resolve(expandHome(candidate));
   return SYSTEM_READ_ONLY_PREFIXES.some(
     (prefix) => resolved === prefix || resolved.startsWith(`${prefix}/`));
 }
@@ -335,9 +353,10 @@ export function commandMatchesPattern(command: string, pattern: string): boolean
 export function classifyCommand(input: CommandPolicyInput): CommandVerdict {
   const command = input.command ?? "";
 
-  // ① 硬清单先判。它与沙箱、与档位、与任何「记住」全部正交。
+  // ① 硬清单先判。它与沙箱、与档位、与任何「记住」全部正交。原串与归一后的拼法各比一次（`hardListView`）。
+  const view = hardListView(command);
   for (const rule of HARD_RULES) {
-    if (rule.pattern.test(command)) {
+    if (rule.pattern.test(command) || rule.pattern.test(view)) {
       return { tier: "hard-list", decision: rule.decision, rule: rule.id, rememberablePattern: null, modelReason: rule.modelReason };
     }
   }

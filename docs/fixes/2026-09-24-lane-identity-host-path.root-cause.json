@@ -1,0 +1,183 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-lane-identity-host-path",
+  "problem_type": "On Windows the agent panel cannot send any message: every conversation is filtered out of the lane list",
+  "symptom": "Windows, real apimart key, new project, pick DeepSeek V4 Pro in the agent panel, type a message and click send: nothing happens. The text stays in the composer, the header conversation switcher shows 「—」, no error in the panel, renderer console or main log. The pushed workspace projection has active.lane = 'main' and lanes = []. tests/agent-runtime/lane-multi.test.mts is 4/5 red on Windows with agent_lane_conversation_missing.",
+  "direct_cause": "laneSessionCwd gives each conversation the identity '/nomi-lane/<name>' and pi writes it into the session header as the session cwd after FileSystem.absolutePath, which NodeExecutionEnv implements as path.resolve(projectDir, cwd). On Windows that yields '<project drive>:\\nomi-lane\\main'. listLaneSessions only accepts headers whose cwd starts with '/nomi-lane/', so the new session is never listed; laneConversationOf returns null; laneClient.prepareInput returned null and the panel's send returned false without a message.",
+  "class_root": "Two defects of one kind. (1) A virtual identity was handed to a host-path resolver on the assumption that an absolute POSIX string passes through path.resolve unchanged, which holds only on POSIX; nothing below the identity owner kept it verbatim. (2) The admission step expressed 'cannot admit input' as a silent null, so a broken workspace looked like a no-op click. Both went unseen because agent-runtime tests never run on Windows (82% of users per win-gate.yml).",
+  "affected_population": [
+    "Every Windows user of a build containing fd77e800e (multi-conversation lanes, 2026-09-08), i.e. the withdrawn v0.22.0: the agent panel in every project, creation / generation / preview surfaces alike",
+    "Projects synced between macOS and Windows: the same conversation had two identities and two slug directories depending on the platform that wrote it",
+    "Not affected: macOS and Linux (path.resolve leaves '/nomi-lane/<name>' unchanged); v0.21.0 and earlier (no lane identity)"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneFileSystem.mts",
+    "electron/agentLane/laneSession.mts",
+    "src/workbench/ai/lane/laneClient.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
+  ],
+  "entry_points": [
+    "openLaneSession (create or reopen the session of a lane; header cwd written here)",
+    "listLaneSessions (lane list in every workspace projection)",
+    "deleteLaneSession (repo.list by cwd)",
+    "openLaneTraceDirectory (trace and feedback-bundle reader)",
+    "laneClient.prepareInput (admission for every composer send)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/path.html#pathresolvepaths",
+      "checked_at": "2026-09-24",
+      "purpose": "path.resolve prepends the current drive on Windows for a root-relative path ('/foo' → 'C:\\foo'); verified locally: path.resolve('C:\\\\proj', '/nomi-lane/main') = 'C:\\nomi-lane\\main', path.posix.resolve gives '/nomi-lane/main'."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi",
+      "checked_at": "2026-09-24",
+      "purpose": "pi-agent-core (installed dist/harness/env/nodejs.js:325) implements NodeExecutionEnv.absolutePath as resolvePath(this.cwd, path); JsonlSessionRepo.resolveCreateDestination (dist/harness/session/jsonl/repo.js:172) and list({cwd}) both pass the session cwd through it, so the FileSystem Nomi hands to pi is the one place that decides how a lane identity resolves."
+    }
+  ],
+  "invariants": [
+    "A lane identity written into a session header is byte-identical on every platform and every drive",
+    "A freshly opened project lists its 'main' conversation before the user types",
+    "Input that cannot be admitted fails with a named lane code the panel renders, never a silent null"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneFileSystem.mts",
+    "tests": [
+      "tests/agent-runtime/lane-identity-host-path.test.mts",
+      "tests/agent-runtime/lane-multi.test.mts",
+      "src/workbench/ai/lane/laneClient.test.ts"
+    ],
+    "why": "createLaneFileSystem is the only FileSystem pi receives for lane sessions and therefore the only resolver of session cwd; keeping identities under LANE_IDENTITY_ROOT verbatim there fixes create, list, delete and trace reads at once. LANE_IDENTITY_ROOT is defined once, next to the resolver that must keep it verbatim (laneFileSystem.mts); laneSession.mts builds identities from it and filters lists with it. prepareInput is the single admission step every composer send passes."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSession.mts",
+      "symbol": "laneSessionCwd"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneFileSystem.mts",
+      "symbol": "createLaneFileSystem"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSession.mts",
+      "symbol": "createLaneFileSystem"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneClient.ts",
+      "symbol": "prepareInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "prepareInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneClient.ts",
+      "symbol": "prepareInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "prepareInput"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "laneSessionCwd has one writer (laneSession.mts); createLaneFileSystem is defined in laneFileSystem.mts and constructed only by laneSession.mts. The prepareInput doors in laneDesktopRuntime.ts are a different function of the same name (main-process input preparation), unrelated to renderer admission; the renderer has one definition (laneClient) and one composer caller (useAgentPanelV4Actions)."
+  },
+  "generality_proof": "The identity is resolved in exactly one place for all four session operations (create, list, delete, trace), so no lane command can see a host-resolved identity again; and every composer send now passes an admission step that either returns an address or throws a lane code the panel already translates (agent_lane_closed).",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneFileSystem.mts",
+      "symbol": "createLaneFileSystem",
+      "responsibility": "Returns lane identities under LANE_IDENTITY_ROOT verbatim from absolutePath; everything else keeps pi's host resolution."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneClient.ts",
+      "symbol": "prepareInput",
+      "responsibility": "Returns the conversation to admit input into, or throws agent_lane_closed."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneSession.mts",
+      "entry_point": "openLaneTraceDirectory",
+      "disposition": "enforced",
+      "evidence": "Filters with the same LANE_IDENTITY_ROOT and lists through the same repo FileSystem; on Windows it previously threw agent_lane_conversation_missing for every lane, which emptied the agent section of feedback bundles."
+    },
+    {
+      "path": "electron/agentLane/laneLegacyImportLane.mts",
+      "entry_point": "legacy import via openLaneSession(createSessionId)",
+      "disposition": "enforced",
+      "evidence": "Creates through openLaneSession, so new migrations write the canonical identity."
+    },
+    {
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "entry_point": "containPath",
+      "disposition": "not-affected",
+      "evidence": "Resolves real project file paths, not lane identities; host resolution is correct there."
+    },
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "entry_point": "trajectory hashing",
+      "disposition": "not-affected",
+      "evidence": "Hashes the session directory name it is given; with the fix the name is the same on every platform."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Windows user hits it on every send in every project; it would return with any new virtual identity handed to a host resolver or any admission path that turns failure into null.",
+    "same_class_scan": [
+      "rg 'laneSessionCwd|nomi-lane/|CWD_PREFIX' electron src scripts: one identity owner (laneSession.mts), four consumers, all behind the same FileSystem",
+      "door-map laneSessionCwd / createLaneFileSystem / prepareInput",
+      "rg 'absolutePath' electron: only laneCodingPaths (real paths) besides pi's own calls",
+      "Full tests/agent-runtime suite run on Windows after the fix"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneFileSystem.mts",
+    "invariant": "Lane identities are never resolved against the host; admission never answers with a silent null",
+    "failure_mode": "A regression shows up on Linux CI through lane-identity-host-path.test.mts, which replaces host resolution with Windows semantics for identity strings, and in laneClient.test.ts for the silent null.",
+    "exception_policy": "none",
+    "strategy": "Keep the identity verbatim in the one FileSystem pi gets; make admission failures named; the Windows release checklist (docs/release-process.md §4) now includes a real-model agent send on the RC build. The agent-runtime suite is not yet wired into win-gate: about 19 cases are still red on Windows under Electron's Node and are being triaged into test-only POSIX assumptions vs product defects first.",
+    "artifacts": [
+      "electron/agentLane/laneFileSystem.mts",
+      "electron/agentLane/laneSession.mts",
+      "src/workbench/ai/lane/laneClient.ts",
+      "tests/agent-runtime/lane-identity-host-path.test.mts"
+    ]
+  },
+  "regression_tests": [
+    "tests/agent-runtime/lane-identity-host-path.test.mts",
+    "src/workbench/ai/lane/laneClient.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-identity-host-path.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneSession.mts"
+    ],
+    "rationale": "The separate CWD_PREFIX literal in laneSession.mts is gone; the identity root is one constant in laneFileSystem.mts used by the FileSystem, the identity function, the list filter and the trace filter. prepareInput no longer has a null branch."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "pi's host resolution is correct for real paths; the defect was ours for treating an identity as a path. No upstream change needed.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. Sessions written by v0.22.0 on Windows (header cwd '<drive>:\\nomi-lane\\<name>', directory '--<drive>--nomi-lane-<name>--') stay on disk untouched and are not listed. The agent could never send on those builds, so such sessions hold at most history that 0.22.0's legacy migration copied in; the original legacy files remain in .nomi/legacy-archive/. v0.22.0 was withdrawn after a few installs.",
+  "residual_risks": [
+    "A Windows user who ran v0.22.0 on a project with pre-lane agent history will not see that migrated history in the list (files remain on disk and in legacy-archive).",
+    "The real-model check covers apimart DeepSeek V4 Pro only; other text vendors share the same admission path."
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-asset-import-sharing-violation",
+  "problem_type": "Post-publish cleanup failures on Windows turn a successful asset import into a reported failure",
+  "symptom": "With the project folder in a sync client or scanned by antivirus, importing images (toolbar import, drop, paste) intermittently shows 本地素材复制失败，可点节点上的「重试导入」 although the file was already linked into the project; reproduced by tests/ux/windows-freeze-sweep.walk.mjs --held (a holder opens every new file with FileShare.Read for 300 ms).",
+  "direct_cause": "persistUploadFile and copyNativeFileToBucket link the staged copy into assets/imported, then clean up in a finally block with an unguarded fs.promises.rm of the .nomi-upload-* staging directory (and uploadContentStore also unlinked the staged name with an unguarded unlinkSync inside publish). When another program holds a file in the staging directory, Windows rejects the delete with EBUSY/EPERM and the cleanup error replaces the successful result; moveAssetFile's rename of a freshly written file had no sharing-violation retry either.",
+  "class_root": "Cleanup of scratch state after an asset is already published was allowed to decide the outcome of the import, and the one-shot link/rename steps treated a transient Windows sharing violation as a hard failure. The same environment change behind the manifest-lock contract (project folders inside sync clients) was never applied to the asset store.",
+  "affected_population": [
+    "Windows users whose projects folder is inside a sync client (坚果云, 微力同步, OneDrive) or is scanned by antivirus / search indexer",
+    "Every native-path import: toolbar import, drag-and-drop from Explorer, paste of copied files, MCP import_asset, cross-project copy, video import after normalization",
+    "Generation-result localization that moves a freshly downloaded file into the project (moveAssetFile)",
+    "macOS/Linux are not affected: POSIX allows deleting or renaming files that another process has open"
+  ],
+  "scope_paths": [
+    "electron/assets/scratchCleanup.ts",
+    "electron/assets/uploadContentStore.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/localFileImport.ts"
+  ],
+  "entry_points": [
+    "persistUploadFile (content-addressed native upload used by copyAssetFile for upload kinds)",
+    "copyNativeFileToBucket (native copy for non-upload kinds)",
+    "moveAssetFile (move a freshly written file, e.g. a downloaded generation result, into the project)",
+    "importNativeSourcePath video branch (transcode temp directory under os.tmpdir)",
+    "validatedGeneratedMeta decode-validation temp directory"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/fs.html#fspromisesrmpath-options",
+      "checked_at": "2026-09-24",
+      "purpose": "fsPromises.rm maxRetries/retryDelay retry EBUSY, EMFILE, ENFILE, ENOTEMPTY and EPERM with linear backoff: the runtime's own answer to transient Windows sharing violations, used instead of a hand-written async retry."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew",
+      "checked_at": "2026-09-24",
+      "purpose": "Without FILE_SHARE_DELETE in the other opener's share mode, delete and rename of the file fail while the handle is open, which is why only Windows loses the import."
+    }
+  ],
+  "invariants": [
+    "Once an asset is linked into the project, no scratch cleanup can change the import result",
+    "Link and move steps retry transient EPERM/EBUSY/EACCES before failing",
+    "Staging directories left by a killed process or a persistent holder are reclaimed by a later import, never by an in-flight one"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/assets/scratchCleanup.ts",
+    "tests": [
+      "electron/assets/assetImportSharingViolation.test.ts",
+      "electron/assets/projectAssetImportDedup.test.ts"
+    ],
+    "why": "Every asset-store path that stages or moves bytes ends in the same cleanup; scratchCleanup owns 'cleanup never decides the outcome' and the age-based reaping, while retry on the one-shot link/rename uses the repository's single retryOnSharingViolation policy."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "removeScratchAfterUse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "removeScratchAfterUseSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "reapAbandonedUploadStaging"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "removeScratchAfterUse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/uploadContentStore.ts",
+      "symbol": "reapAbandonedUploadStaging"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/uploadContentStore.ts",
+      "symbol": "removeScratchAfterUse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/scratchCleanup.ts",
+      "symbol": "retryOnSharingViolation"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "The doors are the distinct places that stage or move bytes (content-addressed upload, native bucket copy, move of a written file, video transcode temp, decode-validation temp); each already existed and must keep its own staging. What changed is that all of them now end in the one scratchCleanup owner instead of five hand-written rm calls."
+  },
+  "generality_proof": "Every asset-store path that creates scratch state or moves bytes into the project now ends its cleanup through scratchCleanup (never throws after publish, Node's built-in rm retry, age-based reaping) and performs its one-shot link or rename through the shared retryOnSharingViolation policy, so a sync client or antivirus holding any staged, temp or source file can delay but not fail an import.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/scratchCleanup.ts",
+      "symbol": "removeScratchAfterUse",
+      "responsibility": "Cleanup after publish retries with Node's rm backoff and never changes the import result."
+    },
+    {
+      "path": "electron/assets/scratchCleanup.ts",
+      "symbol": "reapAbandonedUploadStaging",
+      "responsibility": "Reclaims .nomi-upload-* staging older than 10 minutes, leaving in-flight imports alone."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/uploadContentStore.ts",
+      "entry_point": "persistUploadFile",
+      "disposition": "enforced",
+      "evidence": "Staging removal failing with EBUSY no longer rejects the import (assetImportSharingViolation.test.ts); link retries EPERM; the staged name is still unlinked immediately so concurrent same-content imports keep deduplicating (projectAssetImportDedup.test.ts)."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "moveAssetFile",
+      "disposition": "enforced",
+      "evidence": "renameSyncWithRetry absorbs a transient EPERM from antivirus on a freshly written file; the EXDEV copy branch removes the source without failing the move."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importNativeSourcePath",
+      "disposition": "enforced",
+      "evidence": "The video transcode temp directory cleanup can no longer turn a finished import into a failure."
+    },
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "entry_point": "adoptPreparedPreview",
+      "disposition": "not-affected",
+      "evidence": "Already falls back to regenerating the preview when the scratch rename fails (asset-preview-adopt-failed is logged, the import succeeds); left unchanged."
+    },
+    {
+      "path": "electron/events/eventLogRepository.ts",
+      "entry_point": "appendEvents",
+      "disposition": "not-affected",
+      "evidence": "Best-effort by design; appends that hit EBUSY are dropped and logged, they never fail a user action."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any Windows user with a synced or scanned projects folder can hit it on any import; the timing is intermittent (depends on when the holder opens the staged file), so it recurs without a code change on the user's side.",
+    "same_class_scan": [
+      "door-map removeScratchAfterUse removeScratchAfterUseSync reapAbandonedUploadStaging: 7 doors across uploadContentStore, projectAssetStore, localFileImport",
+      "rg 'renameSync|linkSync|unlinkSync|rmSync|promises.rm' electron/assets: every mutating fs call in the import pipeline reviewed; assetPreview already had a fallback",
+      "tests/ux/windows-freeze-sweep.walk.mjs --held: toolbar import failed with 本地素材复制失败 in one of two held runs before the fix"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/scratchCleanup.ts",
+    "invariant": "Scratch cleanup after publish never decides the import outcome; one-shot link and move steps retry transient sharing violations",
+    "failure_mode": "Real failures before publication (copy, hash, binding checks, non-transient link/rename errors) still reject; cleanup failures are logged and reaped later",
+    "exception_policy": "none",
+    "strategy": "One owner for post-publish cleanup built on the runtime's own rm retry, the repository's single sync retry policy for link/rename, and age-based reaping of abandoned staging.",
+    "artifacts": [
+      "electron/assets/scratchCleanup.ts",
+      "electron/assets/uploadContentStore.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/assets/localFileImport.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/assetImportSharingViolation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/assetImportSharingViolation.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/uploadContentStore.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/assets/localFileImport.ts"
+    ],
+    "rationale": "The five hand-written finally/rm cleanups and the throwing unlink inside publish were replaced in place by scratchCleanup; no second cleanup path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses Node's built-in fs.promises.rm retry options; no third-party runtime controls the asset store.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Staging directories left by older builds or killed processes are reclaimed by the next import once they are older than 10 minutes.",
+  "residual_risks": [
+    "A holder that keeps a staged file open longer than the retry budget still delays cleanup; the directory stays until the next import reaps it (hidden only by its dot-prefix name, which Windows Explorer shows).",
+    "Not tested inside a real OneDrive / 坚果云 / NAS folder or with 360 / 火绒; the held walk simulates their share mode."
+  ]
+}
