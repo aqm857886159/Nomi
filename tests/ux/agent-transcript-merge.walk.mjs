@@ -18,12 +18,14 @@ import {
   COMPOSER_SKILL,
   CREATION_PANEL,
   DOCUMENT,
+  PROCESS,
   SKILL_POPOVER,
   SKILL_SEARCH,
   USER_BUBBLE,
   chooseAssistantModel,
   createRuntimeWalk,
   hasToolResult,
+  openProcess,
   recorded,
   sendCreation,
   waitForV4TurnIdle,
@@ -40,7 +42,6 @@ const SKILL_ASK = '按这套方法帮我把开场拆一版。'
 // 技能的身份就是它目录里 frontmatter 的 `name`（`skills/workbench-storyboard-planner/SKILL.md`），
 // 菜单行的挂点是 `skill:<name>`。别写成点分的那版——那是一个找不到的死选择器。
 const SKILL_ID = 'workbench-storyboard-planner'
-const PROCESS = '[data-v4-block="process"]'
 const PROCESS_ROWS = '[data-process-folded] > [data-v4-block]'
 const SKILL_CHIP = '[data-v4-chip="skill"]'
 const SKILL_RECEIPT = '[data-v4-skill-used]'
@@ -85,7 +86,7 @@ try {
 
   const process = panel.locator(PROCESS)
   await expect(process).toHaveCount(1)
-  if (await process.getAttribute('open') === null) await clickOrFail(process.locator(':scope > summary'), '展开运行过程')
+  await openProcess(process)
   const rows = await process.locator(PROCESS_ROWS).evaluateAll(all => all.map(row => ({
     kind: row.getAttribute('data-v4-block'), text: row.innerText.replace(/\s+/g, ' ').trim(),
   })))
