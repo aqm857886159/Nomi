@@ -205,6 +205,14 @@ try {
   await expect.poll(() => overlayVisible(emptyComposer), { timeout: 3_000 }).toBe(true).catch(() => undefined)
   check(await overlayVisible(emptyComposer), 'P1 空图片卡选中后生成浮框看得见', {})
   const emptyFooter = win.locator(`${sel('empty-image')} [data-node-composer-footer]`)
+  // 被挡就挡（09-25 拍板）：小窗里浮框底栏可能压在左下小地图 / 右下画面小窗那一带。像用户一样把画布往上拖，
+  // 让底栏露出来再点——拖完浮框要重新出现，这本身也是「平移后浮框看得见」的一次复核。
+  const footerBox = await emptyFooter.boundingBox()
+  const stageBox = await win.locator(CANVAS_STAGE_SELECTOR).first().boundingBox()
+  if (footerBox && stageBox && footerBox.y + footerBox.height > stageBox.y + stageBox.height * 0.55) {
+    await dragPan(0, Math.round(stageBox.y + stageBox.height * 0.45 - (footerBox.y + footerBox.height)))
+    await expect.poll(() => overlayVisible(emptyFooter), { timeout: 3_000 }).toBe(true).catch(() => undefined)
+  }
   check(await overlayVisible(emptyFooter), 'P1 参数条（浮框底栏）看得见', {})
   try {
     await expectHittable(emptyFooter.locator('button').first(), 'P1 参数条第一颗按钮')
@@ -267,6 +275,8 @@ try {
     await waitForVisualQuiescence(win)
     return p
   }
+  // 先点空白取消选中：选中的那张卡的浮框钉在它正下方、不再躲开别的东西，会盖住框边（09-25 拍板「被挡就挡」）。
+  await humanClick(await blank())
   await fitView()
   await prove(frameSel('frame-rain'), '删之前框在画布上')
   await prove(MEMBERS, '删之前框里的两张卡在画布上')
