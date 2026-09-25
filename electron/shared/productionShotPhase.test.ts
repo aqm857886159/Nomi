@@ -141,7 +141,9 @@ describe('deriveProductionShotState · 用户还没点头', () => {
     })
   }
 
-  it('逐镜确认档：批次在跑，这一镜的 job 还在等它自己那道门 → null，不说「排队中」', () => {
+  // 注意不是「逐镜确认档」：那一档等人时 job 仍是 authorized、等的是另一道镜头门（productionRunDriverOps），这里管不到，
+  // 见根因合同 residual_risks。这里是已提交批次里返工 / 续拍的新 job 退回授权前（productionGenerationAuthorizationState）。
+  it('批次在跑，这一镜的新 job 退回人工门前（返工 / 续拍待授权）→ null，不说「排队中」', () => {
     expect(deriveProductionShotState(run({ status: 'running', shots, jobs: [job('s1', 'authorization_required')] }), 's1')).toBeNull()
   })
 

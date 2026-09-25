@@ -1,6 +1,8 @@
 # 草稿镜不说「排队中」（2026-09-24，09-25 并入 #869 / #870 后收窄）
 
 > 状态：🚧 进行中 — 已拍板，实现与走查完成，待合入（下一版）。TODO：T-AG-23。
+> 合入顺序（2026-09-26 协调会话定）：等 `productionShotOwnsGeneration` 的「已提交」分支改成直接看 job / Run 状态之后再合——
+> 它现在借本方案改过的显示相位判画布归属；逐镜确认档（confirm_all）等镜头门的那一刻本方案不覆盖，一并排在那次改动里。
 > 样张（已拍板）：[2026-09-24-draft-shot-honest-status-mockup.html](../design/2026-09-24-draft-shot-honest-status-mockup.html)
 > 根因合同：[2026-09-24-draft-shot-dispatch-honesty.root-cause.json](../fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json)
 
@@ -21,7 +23,7 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
 
 ## 做法（已拍板的四条，09-25 与已合入的两条线对齐后）
 
-1. **节点什么都不挂**（本 PR）：`deriveProductionShotState` 在「还没点头」时返回 null——草稿、报价卡在等、job 停在人工门前（逐镜确认档 / 返工在等确认）、
+1. **节点什么都不挂**（本 PR）：`deriveProductionShotState` 在「还没点头」时返回 null——草稿、报价卡在等、job 退回人工门前（返工 / 续拍待授权）、
    没点头就取消、没勾进已提交这一批。判据两个：`jobAwaitsHuman`（`Record<ProductionJobStatus, boolean>` 穷举，新状态不表态编译即红）与
    `isShotInDispatchedScope`（计划 `submitted` 且这一镜 `included`）。调度器的「还在等人」改读同一张表。
 2. **任务按钮 / 面板**：由 #869（09-25 拍板的任务面板样张）接手——`draft_shots` 建的草稿不进任务列表；报价卡在等人时归「等你处理」。
@@ -43,7 +45,7 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
 
 ## 验收门
 
-- 单测 `electron/shared/productionShotPhase.test.ts`：6 个没点头的 Run 状态 × 计划 draft/sealed、人工门前的 job、逐镜确认档、没点头就取消、单镜草稿、
+- 单测 `electron/shared/productionShotPhase.test.ts`：6 个没点头的 Run 状态 × 计划 draft/sealed、人工门前的 job（含返工 / 续拍待授权）、没点头就取消、单镜草稿、
   点过头后照旧排队、人工门表穷举、已派出范围。把本 PR 那两行改回 main 原样：21 条变红（变异核过）。
 - 真机走查（Windows，零额度回环供应商）：`tests/ux/agent-draft-not-queued.walk.mjs` 草稿（zh + en：节点无状态、任务列表里没有它、按钮不亮、盘上 0 job、供应商 0 请求）
   → 报价卡在等（节点无状态）→ 确认后派出、供应商停在 processing（像素等待面 + 「生成中」）→ 出图落回同一节点。
