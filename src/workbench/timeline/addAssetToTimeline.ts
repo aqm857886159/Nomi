@@ -8,6 +8,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { buildClipFromAssetRef } from './buildClipFromAssetRef'
 import { findAppendFrame } from './timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timelineTypes'
+import { logRendererWarn } from '../../desktop/rendererLog'
 
 export type AssetDropResolution =
   | { status: 'accept'; asset: TimelineAssetRef }
@@ -99,7 +100,7 @@ export async function addAssetToTimelineEnd(asset: AssetRef, project: ProjectExe
   } catch (error) {
     // A failed media probe is a failed primary action, not a recent use. Keep
     // the picker responsive and let callers decide how to surface the error.
-    console.warn('asset timeline append probe failed', error)
+    logRendererWarn('timeline-append-probe-failed', undefined, error)
     return false
   }
   if (!clip || !isProjectExecutionContextCurrent(project)) return false

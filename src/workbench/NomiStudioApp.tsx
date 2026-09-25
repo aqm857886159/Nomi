@@ -50,6 +50,8 @@ import { cn } from '../utils/cn'
 import { notify } from '../ui/notificationPolicy'
 import { useProjectNotificationTarget } from './project/useProjectNotificationTarget'
 import { getDesktopBridge } from '../desktop/bridge'
+import { logRendererError } from '../desktop/rendererLog'
+import { projectSaveFailureText } from './project/projectSaveFailureText'
 import { useHasTextModel } from './library/useHasTextModel'
 import { SplashIntro } from './onboarding/SplashIntro'
 import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from './onboarding/onboardingState'
@@ -347,7 +349,7 @@ export default function NomiStudioApp(): JSX.Element {
         module.consumeCategoryMigrationDiagnostic(surfaceEpoch)
       } catch (error) {
         if (error instanceof ProjectHydrationSupersededError) throw error
-        console.error('project Surface hydration failed', error)
+        logRendererError('project-restore-failed', error)
         // 主进程的原始串不进这条横幅：它可能是一句内部断言（2026-09-11 面板顶部那行红色英文
         // 就是这么来的）。lane 失败按码取文案，其余一律走这句本地化兜底。
         report(projectId, error instanceof LaneCommandFailure
@@ -367,7 +369,7 @@ export default function NomiStudioApp(): JSX.Element {
       // （WorkbenchShell 挂载在 URL 无 step 时会沿用 store 当前模式）。
       useWorkbenchStore.getState().setWorkspaceMode('generation')
       void hydrateProject(projectId).catch((error: unknown) => {
-        if (!(error instanceof ProjectHydrationSupersededError)) console.error('project hydrate failed', error)
+        if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
     },
     [hydrateProject],
@@ -433,7 +435,7 @@ export default function NomiStudioApp(): JSX.Element {
   const newProject = React.useCallback(() => {
     // 「新建项目」：默认位置建项目，落「创作」区（CTA「从一段文字或想法开始」）。
     void createAndOpenProject({ workspaceMode: 'creation' }).catch((error) => {
-      console.error('new project error', error)
+      logRendererError('project-create-failed', error)
       report(null, t('studio.newProjectFailed'))
     })
   }, [createAndOpenProject, report, t])
@@ -454,7 +456,7 @@ export default function NomiStudioApp(): JSX.Element {
       })
       if (result.opened) useJourneyTourStore.getState().start()
     })().catch((error) => {
-      console.error('journey tour project error', error)
+      logRendererError('project-create-failed', error, { seed: 'journey-tour' })
       report(null, t('studio.demoProjectFailed'))
     })
   }, [createAndOpenProject, report, t])
@@ -504,7 +506,7 @@ export default function NomiStudioApp(): JSX.Element {
 
       } catch (error: unknown) {
         const message = error instanceof Error && error.message ? error.message : t('studio.projectDeleteFailed')
-        console.error(message)
+        logRendererError('project-delete-failed', error)
         report(project.id, message)
       }
     },
@@ -521,7 +523,7 @@ export default function NomiStudioApp(): JSX.Element {
           setActiveProject((prev) => (prev && prev.id === projectId ? { ...prev, name: record.name } : prev))
         }
       } catch (error: unknown) {
-        console.error('project rename error', error)
+        logRendererError('project-rename-failed', error)
         report(projectId, t('studio.renameFailed'))
       }
     },
@@ -539,13 +541,12 @@ export default function NomiStudioApp(): JSX.Element {
       })
       .catch((error: unknown) => {
         if (error instanceof ProjectHydrationSupersededError) return
-        const message = error instanceof Error && error.message ? error.message : t('studio.projectRestoreFailed')
-        console.error(message)
+        logRendererError('project-hydrate-failed', error, { trigger: 'route' })
       })
     return () => {
       cancelled = true
     }
-  }, [hydrateProject, navigate, routeProjectId, t])
+  }, [hydrateProject, navigate, routeProjectId])
 
   React.useEffect(() => {
     if (!initialHydrationAttemptedRef.current || hydratingProjectRef.current) return
@@ -555,7 +556,7 @@ export default function NomiStudioApp(): JSX.Element {
         if (!ok) navigate(buildStudioUrl(), { replace: true })
       })
       .catch((error: unknown) => {
-        if (!(error instanceof ProjectHydrationSupersededError)) console.error('project hydrate failed', error)
+        if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
   }, [hydrateProject, navigate, routeProjectId])
 
@@ -578,8 +579,8 @@ export default function NomiStudioApp(): JSX.Element {
           }
         },
         onSaveError: (error) => {
-          console.error('project save error', error)
-          report(activeProject.id, t('studio.projectSaveFailed'))
+          logRendererError('project-save-failed', error, { trigger: 'autosave' })
+          report(activeProject.id, projectSaveFailureText(error, t))
         },
       })
       let unbound: Promise<void> | undefined
@@ -598,7 +599,7 @@ export default function NomiStudioApp(): JSX.Element {
   useWorkspaceEvents(view === 'studio' ? activeProject?.id : null, (type) => {
     if (type === 'canvas.updated' || type === 'timeline.updated' || type === 'creation.updated') {
       void hydrateProject(activeProject!.id).catch((error: unknown) => {
-        if (!(error instanceof ProjectHydrationSupersededError)) console.error('project hydrate failed', error)
+        if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
     }
   })
@@ -618,7 +619,7 @@ export default function NomiStudioApp(): JSX.Element {
       await projectSurface.releaseCurrent()
       if (laneClient.context()) await laneClient.close()
     } catch (error: unknown) {
-      console.error('project Surface release failed', error)
+      logRendererError('project-release-failed', error)
       return
     }
     // 持久化解绑已在上方完成：先落盘、await 解绑（等保存锁回执）、引用未变才清空（docs/fixes/2026-09-07-project-save-lock-receipt）。
@@ -654,7 +655,7 @@ export default function NomiStudioApp(): JSX.Element {
           return service.persistProject(renamed, readCurrentWorkbenchProjectPayload())
         })
         .catch((error: unknown) => {
-          console.error('project rename save error', error)
+          logRendererError('project-save-failed', error, { trigger: 'rename' })
           report(renamed.id, t('studio.renameFailed'))
         })
     },

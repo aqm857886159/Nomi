@@ -3,6 +3,7 @@ import type { ReactFlowInstance } from '@xyflow/react'
 import { createViewportAnimationCoordinator, type ViewportAnimationCoordinator } from '../components/viewportAnimationCoordinator'
 import type { ViewportAnimationSettlementOutcome } from '../components/viewportAnimationSettlement'
 import { createViewportTargetTracker, type ViewportTargetTracker } from '../components/viewportTargetTracker'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 type Offset = { x: number; y: number }
 
@@ -60,7 +61,7 @@ export function useReactFlowViewportAnimation(input: {
   }, [])
   /** React Flow 吐出非有限视口时：不记、不信，用最后一份好视口把它拉回来（否则画布永久空白）。 */
   const healViewport = React.useCallback((broken: { x: number; y: number; zoom: number }) => {
-    console.error('[generation-canvas] React Flow 交出了非有限视口，已用最后一份好视口恢复', broken)
+    logRendererError('canvas-viewport-non-finite', undefined, { x: broken.x, y: broken.y, zoom: broken.zoom })
     cancelViewportAnimation()
     void flow.setViewport({ x: offsetRef.current.x, y: offsetRef.current.y, zoom: zoomRef.current || 1 }, { duration: 0 })
   }, [cancelViewportAnimation, flow, offsetRef, zoomRef])
@@ -73,7 +74,7 @@ export function useReactFlowViewportAnimation(input: {
     ) => {
       if (!Number.isFinite(zoom) || !Number.isFinite(offset.x) || !Number.isFinite(offset.y)) {
         // 非有限的视口一旦交给 React Flow，内部 transform 变 NaN，节点全部判不可见。拒收并把调用栈亮出来。
-        console.error('[generation-canvas] animateViewportTo 拒收非有限视口', { zoom, offset, stack: new Error().stack })
+        logRendererError('canvas-viewport-rejected', new Error('non-finite viewport target'), { zoom, offsetX: offset.x, offsetY: offset.y })
         onSettled?.('cancelled')
         return
       }

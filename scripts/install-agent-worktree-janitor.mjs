@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 export function buildStopHookCommand() {
   return 'if [ -f "$CLAUDE_PROJECT_DIR/scripts/agent-worktree-janitor.mjs" ]; then node "$CLAUDE_PROJECT_DIR/scripts/agent-worktree-janitor.mjs" stop "$CLAUDE_PROJECT_DIR" --apply; fi'

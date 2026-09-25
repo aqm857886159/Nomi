@@ -26,6 +26,7 @@
 // toast 会飘走，而这条信息要一直在，直到那张真卡来了或者用户去处理。
 import type { TFunction } from 'i18next'
 import type { InterventionData } from './agentPanelV4Types'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 /**
  * 断在哪一环。每个值对应一条**具体**的链路，不是笼统的「出错了」——
@@ -79,7 +80,7 @@ const ASSERT_ANNOUNCED_CARDS: boolean =
  * 这一行告诉我们「断在哪、原话是什么」。两者缺一，下一次复现还是只能靠猜。
  */
 export function traceMissingInterventionCard(trace: MissingCardTrace): void {
-  console.error('[missing-intervention-card]', trace.announcer, trace.reason, trace.detail)
+  logRendererError('missing-intervention-card', undefined, { announcer: trace.announcer, reason: trace.reason, detail: trace.detail })
 }
 
 /**

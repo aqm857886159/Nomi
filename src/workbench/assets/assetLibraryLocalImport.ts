@@ -4,6 +4,7 @@ import { getDesktopBridge, type DesktopAssetDto } from '../../desktop/bridge'
 import { notify } from '../../ui/notificationPolicy'
 import { mediaImportRejectionMessages } from './mediaImportMessage'
 import type { MediaImportRejection } from '../../../electron/shared/contracts/mediaImportPolicy'
+import { logRendererError } from '../../desktop/rendererLog'
 
 export type LocalImageImportResult = {
   created: DesktopAssetDto[]
@@ -95,7 +96,7 @@ export function useAssetLibraryLocalImport({
       refreshAllProjectAssets()
       reportImport(result, report)
     } catch (error) {
-      console.error('asset library local image copy failed', error)
+      logRendererError('asset-local-import-failed', error)
       report(i18n.t('assetLibrary.localImportFailed', { count: paths.length }), 'error')
     }
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, present, report])
@@ -131,7 +132,7 @@ export function useAssetLibraryLocalImport({
     void readFilePaths()
       .then((paths) => runImport(paths))
       .catch((error) => {
-        console.error('asset library clipboard read failed', error)
+        logRendererError('asset-clipboard-read-failed', error)
         report(i18n.t('assetLibrary.localImportFailed', { count: 1 }), 'error')
       })
   }, [runImport, present, report])

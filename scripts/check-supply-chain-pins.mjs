@@ -73,15 +73,19 @@ export function evaluate({ registry, sources, today }) {
   return { errors, notes }
 }
 
-function collectSources() {
+/**
+ * 键用登记表 `sourceFile` 的同一种写法（正斜杠）。用 path.join 拼键，Windows 上会得到反斜杠，
+ * 与登记表永远对不上 → 每个已登记的文件都被报成「没登记」（2026-09-24 实跑才暴露：入口判断坏了，这段从没在 Windows 上跑过）。
+ */
+export function collectSources(root = repoRoot) {
   const sources = new Map()
   const walk = (dir) => {
-    const abs = path.join(repoRoot, dir)
+    const abs = path.join(root, dir)
     if (!fs.existsSync(abs)) return
     for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
-      const relative = path.posix.join(dir, entry.name) // 登记表用正斜杠；Windows 上 path.join 会拼出反斜杠，永远对不上
+      const relative = path.posix.join(dir, entry.name)
       if (entry.isDirectory()) walk(relative)
-      else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) sources.set(relative, fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+      else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) sources.set(relative, fs.readFileSync(path.join(root, relative), 'utf8'))
     }
   }
   for (const dir of SCAN_DIRS) walk(dir)

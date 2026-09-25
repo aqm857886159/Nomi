@@ -99,7 +99,7 @@ export function buildDiagnosticsBundle(input: DiagnosticsBundleInput): Diagnosti
     add(
       `logs/${name}`,
       bytes,
-      name.includes("crash") ? "崩溃与进程死亡记录" : "主进程运行日志（写入时已脱敏）",
+      name.includes("crash") ? "崩溃与进程死亡记录" : "运行日志：主进程 + 界面上报的失败（写入时已脱敏）",
     );
   }
 

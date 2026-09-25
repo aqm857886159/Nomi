@@ -22,8 +22,14 @@ const t = ((key: string, options?: Record<string, unknown>): string =>
   options ? `${key}(${Object.values(options).join(',')})` : key) as unknown as Parameters<typeof missingInterventionCard>[1]
 
 describe('① 那张会说话的卡', () => {
-  beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}) })
-  afterEach(() => { vi.restoreAllMocks() })
+  // 排查痕迹要落进主进程日志（诊断包里看得到），不是只进 DevTools：断言它真的交给了日志桥。
+  const report = vi.fn()
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    report.mockClear()
+    vi.stubGlobal('window', { nomiDesktop: { log: { report } } })
+  })
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
   it('文案全部走 i18n，断在哪一环作为插值带进正文（不把英文原因直接印给用户）', () => {
     const card = missingInterventionCard({ reason: 'host-unreachable', announcer: 'spend-confirm', detail: 'ipc rejected' }, t)
@@ -41,12 +47,20 @@ describe('① 那张会说话的卡', () => {
 
   it('渲一张卡必定同时留下一行排查痕迹：卡告诉用户断了，这一行告诉我们断在哪', () => {
     missingInterventionCard({ reason: 'spend-surface-unavailable', announcer: 'spend-confirm', detail: 'core not installed' }, t)
-    expect(console.error).toHaveBeenCalledWith('[missing-intervention-card]', 'spend-confirm', 'spend-surface-unavailable', 'core not installed')
+    expect(report).toHaveBeenCalledWith({
+      level: 'error',
+      event: 'missing-intervention-card',
+      fields: { announcer: 'spend-confirm', reason: 'spend-surface-unavailable', detail: 'core not installed' },
+    })
   })
 
   it('排查痕迹自己也能单独写（宿主在渲染之外的地方发现断链时用）', () => {
     traceMissingInterventionCard({ reason: 'unknown-kind', announcer: 'lane-approval', detail: '{"shape":"?"}' })
-    expect(console.error).toHaveBeenCalledWith('[missing-intervention-card]', 'lane-approval', 'unknown-kind', '{"shape":"?"}')
+    expect(report).toHaveBeenCalledWith({
+      level: 'error',
+      event: 'missing-intervention-card',
+      fields: { announcer: 'lane-approval', reason: 'unknown-kind', detail: '{"shape":"?"}' },
+    })
   })
 })
 

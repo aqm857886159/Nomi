@@ -66,7 +66,20 @@ export function redactLogValue(input: string): string {
   // 本机路径的三种写法：file:// / nomi-local:// / 裸绝对路径 / Windows 盘符路径。
   value = value.replace(/\bfile:\/\/[^\s"']+/gi, "<path>");
   value = value.replace(/\bnomi-local:\/\/[^\s"']+/gi, "<path>");
-  value = value.replace(/[A-Za-z]:\\[^\s"'()]+/g, "<path>");
+  // 路径里**带空格**的那一族要先整段认掉，再走下面按空格断开的规则——否则只抹得掉空格前半段，
+  // 剩下的正好是项目名：默认项目根叫 `Nomi Projects`，`…/Nomi Projects/猫咪短片/…` 会漏成
+  // `<path> Projects/猫咪短片/…`（2026-09-24 实测；项目名在字段黑名单里本来就是要略掉的东西）。
+  //   ① 引号里的绝对路径：Node 的 fs 错误一律是 `open '<路径>'`，引号就是边界，里面有空格也整段抹；
+  value = value.replace(/(['"])((?:[A-Za-z]:[\\/]|\/)[^'"\n]*)\1/g, "$1<path>$1");
+  //   ② Windows 盘符路径：以反斜杠/斜杠分段，段内允许空格（段内不可能出现 `:`，据此收住右边界）；
+  //      前面不许紧跟字母，免得把 `https://` 的 `s:/` 当盘符。
+  value = value.replace(/(?<![A-Za-z])[A-Za-z]:[\\/](?![\\/])(?:[^\\/\n"'<>|?*:]*[\\/])*[^\s"'()\\/<>|?*:]*/g, "<path>");
+  //   ③ 用户内容常住的 POSIX 根下（/Users、/home…）：同样按段认，段内允许空格。
+  //      只对这些根放开空格，`GET /v1/videos 502` 这类接口路径仍走下面按空格断开的老规则，不会连带吃掉后文。
+  value = value.replace(
+    /(^|[\s"'(=[])\/(?:Users|home|Volumes|private|tmp|var|Applications|opt|mnt|media|root|srv|data)\/(?:[^/\n"'():\]]*\/)*[^\s"'():\]/]*/g,
+    (_match, lead: string) => `${lead}<path>`,
+  );
   // 裸绝对路径：至少两段（`/a/b`），且前面不是别的路径分隔或冒号，避免把
   // 已经处理过的 `<path>` 或 `2026/09/06` 这类东西再切一刀。
   value = value.replace(/(^|[\s"'(=[])(\/[^\s"'):\]]*\/[^\s"'):\]]*)/g, (_match, lead: string) => `${lead}<path>`);

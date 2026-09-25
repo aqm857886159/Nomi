@@ -248,4 +248,5 @@ function main() {
   console.log(JSON.stringify(doors, null, 2))
 }
 
+// 手拼 `file://${argv[1]}` 在 Windows 上永远不等（盘符与反斜杠），脚本会静默零输出——用 pathToFileURL 比。
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

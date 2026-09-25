@@ -10,7 +10,7 @@
 import { app, crashReporter } from "electron";
 import path from "node:path";
 import { CRASH_LOG_FILE_NAME, createLogFileSink, logsDir } from "./logging/logFiles";
-import { logError } from "./logging/logger";
+import { formatLogFields, logError, type LogFields } from "./logging/logger";
 import { redactError, redactLogValue } from "./logging/redact";
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2MB 简单滚动
@@ -39,15 +39,16 @@ function append(line: string): void {
  * 由用户发给我们的。帧里真正指认崩点的是文件名与行号，不是它装在谁的硬盘哪个目录下。
  * 2026-09-06 走查实测：不脱敏时，一次隔离实例的导出里出现了另一台 worktree 的完整路径。
  */
-function recordCrash(scope: string, error: unknown): void {
-  append(`[${scope}] ${redactError(error)}`);
+function recordCrash(scope: string, error: unknown, fields?: LogFields): void {
+  append(`[${scope}] ${redactError(error)}${formatLogFields(fields)}`);
 }
 
-export function logCrash(scope: string, error: unknown): void {
-  recordCrash(scope, error);
+/** `fields` 与通用日志同一套字段脱敏（渲染层崩溃边界用它带上组件栈摘要）。 */
+export function logCrash(scope: string, error: unknown, fields?: LogFields): void {
+  recordCrash(scope, error, fields);
   // 崩溃道之外再进一次通用日志：排查时想看的是「崩之前那几分钟发生了什么」，
   // 而那条时间线在通用日志里。从前这里是 console.error，打包后没人接（P1 删旧）。
-  logError("crash", scope, error);
+  logError("crash", scope, error, fields);
 }
 
 /**
@@ -206,24 +207,4 @@ export function installUncaughtExceptionNoiseFilter(
     }
   };
   target.on("uncaughtException", handler);
-}
-
-/** IPC 边界形状（仅本注册器需要）：把 ipcMain.on 与 sender 守卫作为注入面，测试不引 electron。
- * 泛型 E 让 main.ts 直接传 assertTrustedUiSender（其入参是窄化的 IpcEvent），无需 any/断言。 */
-export type RendererCrashIpcBoundary<E = unknown> = {
-  onMessage: (channel: string, handler: (event: E, message: unknown) => void) => void;
-  assertTrusted: (event: E) => void;
-};
-
-/**
- * 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。主窗口与挂 Nomi preload 的
- * 辅助窗（app-surface）都可报，但都要过 sender 守卫——这曾是 main.ts 里唯一没有守卫的消息
- * 通道，任何挂 preload 的窗口可无限制刷写崩溃日志（2MB truncate 滚动兜底故危害有限）。
- * 注册住在 crashLog 而非 main.ts：main.ts 是基线 828 的已知巨壳，门岗只减不增。
- */
-export function registerRendererCrashIpc<E>(boundary: RendererCrashIpcBoundary<E>): void {
-  boundary.onMessage("nomi:log:renderer-crash", (event, message) => {
-    boundary.assertTrusted(event);
-    logCrash("renderer", String(message));
-  });
 }

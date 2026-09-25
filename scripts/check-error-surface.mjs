@@ -142,7 +142,8 @@ for (const [exportName, label, file, nonCode] of [
 }
 
 // ── 规则② diagnostic 不许进显示汇 ──────────────────────────────────────────────
-// 它只许出现在：类型/契约声明、构造 LaneCommandFailure、console 诊断。
+// 它只许出现在：类型/契约声明、构造 LaneCommandFailure、诊断出口（console / 渲染层日志 owner `logRendererError|Warn`——
+// 渲染层 console.error/warn 已被 eslint no-console 硬零挡住，诊断只剩后者这一个出口）。
 const DIAGNOSTIC_ALLOWED = [
   /^src\/workbench\/ai\/lane\/laneCommandFailure\.ts$/,
   /^electron\/shared\/agentLane\/laneDesktopContracts\.ts$/,
@@ -168,7 +169,7 @@ for (const file of [...walk(path.join(repoRoot, 'src'), isSource), ...walk(path.
   source.split('\n').forEach((line, index) => {
     if (!/\.diagnostic\b/.test(line)) return
     const construction = /new LaneCommandFailure\(/.test(line)
-    const logging = /console\.(error|warn|log|debug|info)\(/.test(line)
+    const logging = /console\.(error|warn|log|debug|info)\(|logRenderer(?:Error|Warn)\(/.test(line)
     const display = DISPLAY_SINKS.test(line) || /\{\s*[a-zA-Z.]*\.diagnostic\s*\}/.test(line)
     if (display || (touchesLane && !construction && !logging)) {
       failures.push(`${name}:${index + 1}: \`diagnostic\` 是诊断串不是界面文案——按 code 取 t(LANE_ERROR_TEXT_KEY[code])`)

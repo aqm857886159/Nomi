@@ -1,6 +1,7 @@
 import { normalizeTimeline } from '../timeline/timelineMath'
 import { normalizeWorkbenchDocument } from '../workbenchPersistence'
 import { createDefaultWorkbenchDocument, type StoryboardDesign, type WorkbenchDocument } from '../workbenchTypes'
+import { logRendererWarn } from '../../desktop/rendererLog'
 import {
   createDefaultWorkbenchProjectPayload,
   workbenchProjectPayloadSchema,
@@ -105,8 +106,8 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
         // 已经回到「剥离未知键」（见 storyboardPlanSchema 头注释），所以走到这里只剩真正残缺的
         // 记录；至少把是谁、缺哪个字段留在控制台，别让它变成「打开项目分镜就没了」的谜。
         const reportUnreadablePlan = (documentId: string, issues: readonly { path: PropertyKey[]; message: string }[]): void => {
-          console.warn('storyboard plan migration skipped an unreadable plan',
-            { documentId, issues: issues.slice(0, 8).map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`) })
+          logRendererWarn('storyboard-plan-migration-skipped',
+            { documentId, issues: issues.slice(0, 8).map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; ') })
         }
         const legacyEntries = legacyMap
           ? Object.entries(legacyMap).flatMap(([documentId, value]) => {

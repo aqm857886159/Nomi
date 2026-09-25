@@ -62,6 +62,20 @@
       "notes": "2026-09-22 总合并收口（合同 docs/fixes/2026-09-22-vendor-landing-one-owner.root-cause.json）。规则本体 = compareVendorLanding：用户排过的顺序 → 供应商分级 vendorTier（官方 > 内置中转 > 自接/未知）；用户 09-22 拍板「按照默认走」= 没排过序时内置中转优先、自接靠后（#832 渲染层规则为准）。分级表只此一份，渲染层 src/config/modelIdentity.ts 只 re-export vendorTier。消费方只许在共享比较子之后补**不携带偏好语义**的稳定序（渲染层补显示名字母序、执行侧补目录原序）。electron/shared/contracts/vendorPreference.ts 同时还是顺序设置的跨进程存储契约——存储形状与落家规则住同一个文件、是同一个概念的两面，不是两个 owner。对拍棘轮：electron/parity/vendorLandingParity.test.ts（任取一个排序，三处调用点的「第一家」必须相同）。"
     },
     {
+      "name": "渲染层失败证据（进主进程日志的那一行）",
+      "owner": {
+        "path": "src/desktop/rendererLog.ts",
+        "symbol": "forwardToMainLog"
+      },
+      "consumers": [
+        "electron/logging/rendererLog.ts",
+        "electron/diagnostics/diagnosticsBundle.ts",
+        "electron/feedback/feedbackIpc.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
+    },
+    {
       "name": "画布手势寿命（一次拖动/框选/缩放何时结束）",
       "owner": {
         "path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
