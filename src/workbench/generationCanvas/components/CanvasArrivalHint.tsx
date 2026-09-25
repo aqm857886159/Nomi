@@ -4,9 +4,24 @@ import { IconArrowDown, IconArrowLeft, IconArrowRight, IconArrowUp } from '@tabl
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { categoryDisplayName } from '../../project/projectCategories'
+import type { TranslationKey } from '../../../i18n/translationKey'
 import type { ArrivalDirection, ArrivalHint } from './canvasArrivalModel'
 
 const ARROW: Record<ArrivalDirection, typeof IconArrowRight> = { right: IconArrowRight, left: IconArrowLeft, up: IconArrowUp, down: IconArrowDown }
+
+const LABEL_ONE = {
+  right: 'generationCommon.canvas.arrival.one.right',
+  left: 'generationCommon.canvas.arrival.one.left',
+  up: 'generationCommon.canvas.arrival.one.up',
+  down: 'generationCommon.canvas.arrival.one.down',
+} as const satisfies Record<ArrivalDirection, TranslationKey>
+
+const LABEL_MANY = {
+  right: 'generationCommon.canvas.arrival.many.right',
+  left: 'generationCommon.canvas.arrival.many.left',
+  up: 'generationCommon.canvas.arrival.many.up',
+  down: 'generationCommon.canvas.arrival.many.down',
+} as const satisfies Record<ArrivalDirection, TranslationKey>
 
 /**
  * 画布边缘提示（2026-09-25 用户拍板，样张 v1：一颗胶囊，方向 + 几个 + 箭头；点了过去、自己消失）。
@@ -32,8 +47,8 @@ export function CanvasArrivalHint({ hint, onGo }: { hint: ArrivalHint; onGo: () 
   } else {
     Arrow = ARROW[hint.direction]
     label = many
-      ? t(`generationCommon.canvas.arrival.many.${hint.direction}`, { count: hint.count })
-      : t(`generationCommon.canvas.arrival.one.${hint.direction}`)
+      ? t(LABEL_MANY[hint.direction], { count: hint.count })
+      : t(LABEL_ONE[hint.direction])
   }
   const side = hint.kind === 'category' ? 'right' : hint.direction
   return (

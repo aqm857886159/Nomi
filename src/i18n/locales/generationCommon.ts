@@ -114,7 +114,7 @@ export const zhGenerationCommon = {
       many: { right: '{{count}} 个新节点在右侧', left: '{{count}} 个新节点在左侧', up: '{{count}} 个新节点在上方', down: '{{count}} 个新节点在下方' },
       categoryOne: '新节点在「{{category}}」里',
       categoryMany: '{{count}} 个新节点在「{{category}}」里',
-      go: '点一下过去',
+      go: '前往查看',
     },
     noImportableAssets: '没有可导入画布的素材',
     importedOne: '已导入画布',

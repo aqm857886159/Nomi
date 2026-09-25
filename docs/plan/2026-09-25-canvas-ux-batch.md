@@ -27,13 +27,14 @@
 2. `spendConfirmationRequirement({initiator, runCount, amount, hostingDisclosure})` 唯一判据：Agent / ≥2 份 / ≥10 点 / 首次托管 / 无报价 → 弹；否则直接开始但照样报价 → 铸令牌。↑ 旁常驻点数。
 3. `store/canvasVisibleArea.ts` 决定落点（单点、整批、可见区内找空位）；`components/canvasArrivalModel.ts` + `CanvasArrivalHint` 用「store 里多出来且没看见」判新到并在边缘提示；删掉全部自动移动；`requestCanvasFit` 与聚焦事件的调用处上名单（结构测试）；打开分类只在本来有内容时摆一次全貌；动画中间帧不写 store。
 
-## 4. 先查别人（R5）
+## 先查别人（R5，第 4 节）
 
 | 查了什么 | 结论 |
 |---|---|
-| React Flow `NodeToolbar`（https://reactflow.dev/api-reference/components/node-toolbar） | 官方节点浮层只钉锚点 + 反缩放，不做视口躲避——用户拍板的就是框架的答案；不直接用它，因为它在 portal 里、隐藏即卸载 TipTap |
-| React Flow `setViewport({ duration })`（Context7 `/xyflow/xyflow`）+ 实读 `@xyflow/system 0.0.81` XYPanZoom、`d3-zoom 3.0.0` `zoom.js` schedule | 带时长移动每帧除以缓存的面板宽度，0×0 那帧出 NaN → 画布空白；被打断的过渡 promise 不结算。保留自研逐帧直写，退出条件写进合同 |
-| LibTV（用户指定参考） | 提示词框右上角展开图标；发送钮旁「⚡ N」点数。我们用词典里「付费」那枚 `IconCoin`（§6），不另起 ⚡ |
+| React Flow `NodeToolbar`（https://reactflow.dev/api-reference/components/node-toolbar；实读 `node_modules/@xyflow/react/dist/esm/index.mjs:5079`，外壳 `NodeToolbarPortal` 在 `:5013`） | 官方节点浮层只钉锚点 + 反缩放，不做视口躲避——用户拍板的就是框架的答案；不直接用它，因为它在 portal 里、隐藏即卸载 TipTap |
+| React Flow `setViewport({ duration })`（Context7 `/xyflow/xyflow`）+ 实读 `node_modules/.pnpm/@xyflow+system@0.0.81/node_modules/@xyflow/system/dist/esm/index.mjs:2991`（带时长 → d3 transition，promise 只在 `end` 结算）、`node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/zoom.js:171`（`k = w / l[2]`，面板宽取缓存） | 带时长移动每帧除以缓存的面板宽度，0×0 那帧出 NaN → 画布空白；被打断的过渡 promise 不结算。保留自研逐帧直写，退出条件写进合同 |
+| 仓库里已有：自研逐帧视口动画 `src/workbench/generationCanvas/components/viewportAnimationCoordinator.ts:40`、宿主 `src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts:66` | 复用，不另起；本分支只改成「动画中不逐帧写 store、结束写一次」，并把用户手势打断接到 `onMoveStart` |
+| LibTV（用户指定参考；对象登记 `docs/research/competitive/sources.md:9`，站点 https://www.liblib.tv/plugin） | 提示词框右上角展开图标；发送钮旁「⚡ N」点数。我们用词典里「付费」那枚 `IconCoin`（§6），不另起 ⚡ |
 
 ## 5. 验收门
 
