@@ -1,0 +1,303 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-comfyui-combo-wire-type",
+  "change_kind": "corrective",
+  "problem_type": "A capability index stored an upstream enum's typed wire values as strings, so combo options that are not strings were either unrepresentable (reported as an unknown shape) or silently retyped (sent back as strings the upstream validator rejects)",
+  "symptom": "Issue #861: importing a workflow that uses ComfyUI-Easy-Use `easy hiresFix` shows the 'Nomi hasn't seen this combo format' notice for rescale_after_model (object_info spec [[false, true], {\"default\": true}]) and asks the user to report it. Same class, not yet reported: CreateVideo.bit_depth ([\"auto\", 8, 10]) and KJNodes ImageResizeKJ.crop ([\"disabled\", \"center\", 0]) were baked into dropdowns whose numeric entries were the strings \"8\"/\"0\"; choosing one sent a string and ComfyUI rejected the prompt with value_not_in_list.",
+  "direct_cause": "electron/comfyuiObjectInfo.ts classifyComboSpec converted every option with toEnumString: false returned undefined, so the whole spec became unknown-shape; 8 returned \"8\", so the option lost its type before collectGraphEnumOptions and buildImportedWorkflow baked it into ParamControl.options.",
+  "class_root": "The combo option domain was declared as string[] end to end (enumsByClass, WorkflowEnumOption.options, ParamControl.options, both IPC enumOptions sanitizers, renderer bridge types), while ComfyUI combos carry typed JSON scalars and ComfyUI checks membership with Python `val not in combo_options`, which is type-sensitive. The wire type had no representation, so the parser could only reject or coerce.",
+  "affected_population": [
+    "Users importing ComfyUI workflows whose nodes declare legacy all-boolean combos such as ComfyUI-Easy-Use `easy hiresFix`.rescale_after_model ([False, True])",
+    "Users exposing mixed string/number combos (built-in CreateVideo.bit_depth, KJNodes ImageResizeKJ.crop) as canvas dropdowns, from the import panel, the workflow settings page, the template library, or an integration-certification session",
+    "Every platform and ComfyUI version; the behavior depends only on which custom nodes are installed"
+  ],
+  "scope_paths": [
+    "electron/comfyuiObjectInfo.ts",
+    "electron/catalog/comfyuiWorkflowImport.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.ts",
+    "electron/integrationCertification/integrationWorkflowBinding.ts",
+    "src/desktop/bridgeModelCatalogSurface.ts",
+    "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+    "src/ui/onboarding/ComfyuiTemplateLibrary.tsx",
+    "src/ui/onboarding/comfyuiCanvasPreview.ts",
+    "src/ui/onboarding/workflowPage/WorkflowCanvasPreview.tsx",
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "docs/fixes/2026-09-24-comfyui-combo-wire-type.root-cause.json"
+  ],
+  "entry_points": [
+    "Import panel and workflow settings page reconcile: reconcileComfyWorkflowText / reconcileComfyWorkflowTexts -> parseObjectInfoIndex -> collectGraphEnumOptions",
+    "Import / re-save from the renderer: importComfyWorkflowToCatalog / updateComfyWorkflowInCatalog -> sanitizeEnumOptions -> buildImportedWorkflow",
+    "Template library: buildComfyuiTemplateDetail -> collectGraphEnumOptions",
+    "Integration certification: integrationSession -> sanitizeWorkflowEnumOptions -> comfyuiConnector buildImportedWorkflow",
+    "Built-in text-to-image ckpt_name derive: fetchComfyuiCheckpoints",
+    "Canvas node dropdown: parseModelParameterControls -> parseControlInput"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/comfyanonymous/ComfyUI/blob/1568e6cfd04586a4b3c4e1817ea7dde09b1bf9e7/execution.py#L1047-L1056",
+      "checked_at": "2026-09-24",
+      "purpose": "validate_inputs checks combo membership with `val not in combo_options` for both legacy list specs and COMBO options, without coercing the value, so \"8\" is not accepted for option 8 and \"true\" is not accepted for True"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/yolain/ComfyUI-Easy-Use/blob/8730ffd14044ee9392db3b192646266576bc67df/py/nodes/fix.py#L24",
+      "checked_at": "2026-09-24",
+      "purpose": "easy hiresFix declares rescale_after_model as ([False, True], {\"default\": True}) and compares it as a boolean (line 92), matching the spec in issue #861"
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/comfyuiObjectInfo.ts",
+    "tests": [
+      "electron/comfyuiObjectInfo.test.ts",
+      "electron/catalog/comfyuiWorkflowImport.test.ts"
+    ],
+    "why": "The parser is where /object_info enters Nomi. It owns the ComfyComboValue type, the isComfyComboValue predicate that both IPC sanitizers reuse, and the comboValues element policy shared by the legacy and COMBO shapes. Downstream layers only carry the typed values; the canvas already returns a select option's declared value in parseControlInput."
+  },
+  "invariants": [
+    "A combo option keeps its JSON type (string, finite number or boolean) from /object_info to the /prompt body. No layer converts it to a string.",
+    "Accepted option lists are all strings, strings mixed with numbers, or all booleans. A list that mixes booleans with other types, or holds any non-scalar element, is an unknown shape and is reported through unknownComboShapes.",
+    "Membership checks (reconcile, keeping the author's default in a baked dropdown) use strict type equality, the same as ComfyUI."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "collectGraphEnumOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "isComfyComboValue"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "isComfyComboValue"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "parseObjectInfoIndex"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiTemplates.ts",
+      "symbol": "collectGraphEnumOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiTemplates.ts",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationWorkflowBinding.ts",
+      "symbol": "isComfyComboValue"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridgeModelCatalogSurface.ts",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/comfyuiCanvasPreview.ts",
+      "symbol": "declaredOptionValue"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/comfyuiCanvasPreview.ts",
+      "symbol": "PreviewField"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ComfyuiPresetSection.tsx",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ComfyuiTemplateLibrary.tsx",
+      "symbol": "getComfyuiTemplateDetail"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "buildCanvasPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/useWorkflowCatalog.ts",
+      "symbol": "reconcileComfyWorkflow"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/useWorkflowCatalog.ts",
+      "symbol": "reconcileComfyWorkflows"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/WorkflowCanvasPreview.tsx",
+      "symbol": "PreviewField"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "declaredOptionValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "buildImportedWorkflow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowOutputMigration.ts",
+      "symbol": "buildImportedWorkflow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/comfyuiConnector.ts",
+      "symbol": "buildImportedWorkflow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "sanitizeWorkflowEnumOptions"
+    }
+  ],
+  "door_reduction": {
+    "before": 23,
+    "after": 23,
+    "why_not": "Each door is a separate real entry: the reconcile readers (import panel, preset section, settings page batch, template library, and the renderer bridge type that declares their typed result — added by hand because door-map does not count interface property signatures), the canvas preview model and view, the canvas select owner declaredOptionValue, two IPC sanitizers for two different renderer callers (catalog import/update and integration certification), and three bake sites (import, output migration, certification connector). None of them re-implements the rule any more: the scalar check is the single isComfyComboValue, the element policy is the single comboValues, and every bake site consumes the typed index. The output migration only compares templatedGraph and never rewrites parameters."
+  },
+  "generality_proof": "The fix changes the type of the value, not a branch for one node. comboValues decides the element policy once for both the legacy list shape and the COMBO shape, and returns the values unchanged. The ComfyComboValue type replaces string[] in every carrier (index, WorkflowEnumOption, ParamControl, both sanitizers, renderer bridge types), so the compiler rejects any consumer that assumes strings, and the two IPC sanitizers call the same isComfyComboValue. On the canvas side, parseModelParameterControls already keeps scalar option values and parseControlInput returns the declared value of the chosen option, so a typed option reaches the /prompt body unchanged through the exact-placeholder rendering in renderTemplateValue. Any node pack that declares boolean or numeric combo options goes through the same path without a node-specific rule. The door map lists every reader and writer of the enum options, and each is either typed now or does not rebuild options.",
+  "shared_boundaries": [
+    {
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "comboValues",
+      "responsibility": "The one element policy for combo option lists (legacy and COMBO shapes): keep scalar types, accept all-boolean lists, reject booleans mixed with other types and any non-scalar element as unknown shapes."
+    },
+    {
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "isComfyComboValue",
+      "responsibility": "The one definition of a combo wire value, reused by the parser and both IPC enumOptions sanitizers."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "buildImportedWorkflow",
+      "responsibility": "Bakes typed options into ParamControl.options and keeps the author's default by strict type comparison, so the canvas select sends the declared type."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "declaredOptionValue",
+      "responsibility": "The single rule that maps a selected dropdown string back to the option's declared wire value; parseControlInput (canvas) and previewValuesToExtras (ComfyUI import preview) both call it."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "entry_point": "sanitizeEnumOptions",
+      "disposition": "enforced",
+      "evidence": "It used to keep only strings; it now filters with isComfyComboValue. comfyuiWorkflowImportStore.test.ts imports a workflow with options [\"auto\", 8, 10, {bad}, NaN] and checks that meta.parameters stores [\"auto\", 8, 10]."
+    },
+    {
+      "path": "electron/integrationCertification/integrationWorkflowBinding.ts",
+      "entry_point": "sanitizeWorkflowEnumOptions",
+      "disposition": "enforced",
+      "evidence": "It used to throw on any non-string option. Now strings keep the length limit, numbers and booleans pass through isComfyComboValue, and anything else still throws. The new integrationWorkflowBinding.test.ts covers both cases."
+    },
+    {
+      "path": "electron/comfyuiTemplates.ts",
+      "entry_point": "buildComfyuiTemplateDetail",
+      "disposition": "enforced",
+      "evidence": "It returns collectGraphEnumOptions(graph, index), which now carries typed options. The renderer ComfyuiTemplateLibrary type was widened and passes enumOptions to the certification session, which accepts them now."
+    },
+    {
+      "path": "electron/comfyuiObjectInfo.ts",
+      "entry_point": "fetchComfyuiCheckpoints",
+      "disposition": "enforced",
+      "evidence": "checkpointNames keeps only string option values, since checkpoints are file names. The existing fetch-layer tests pass unchanged."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "entry_point": "declaredOptionValue",
+      "disposition": "enforced",
+      "evidence": "parseControlInput already returned the chosen option's declared value (added for integer duration selects). That match was pulled out as declaredOptionValue, so the canvas and the import preview share one rule. comfyuiCanvasPreview.test.ts checks that baked [\"auto\", 8, 10] go through parseModelParameterControls and that choosing '8' returns 8."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowOutputMigration.ts",
+      "entry_point": "migrateComfyWorkflowOutputs",
+      "disposition": "not-affected",
+      "evidence": "It calls buildImportedWorkflow without enumOptions only to compare templatedGraph against the stored body. It never writes parameters back ('never rebuild user settings/enums')."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any installed custom node can declare boolean or numeric combo options, on any machine and any ComfyUI version. Two real mixed fields were already in the repo's real object_info fixture, and a user hit the boolean form independently (issue #861). Each new node pack would reproduce the class until the type is represented.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs parseObjectInfoIndex isComfyComboValue collectGraphEnumOptions buildImportedWorkflow sanitizeWorkflowEnumOptions reconcileComfyWorkflow reconcileComfyWorkflows getComfyuiTemplateDetail buildCanvasPreview PreviewField previewValuesToExtras declaredOptionValue (first run through a file-URL wrapper; the Windows main-guard bug was fixed on main by #866 while this PR was open): 22 doors in 2571 files, plus the renderer bridge type declaration added by hand (door-map does not count interface property signatures); previewValuesToExtras has no production caller yet and now calls the canvas owner declaredOptionValue",
+      "rg enumOptions|WorkflowEnumOption|options: string\\[\\] over electron/ and src/: found the two IPC sanitizers and five renderer copies of the enumOptions shape, all widened",
+      "Ran parseObjectInfoIndex over all four real /object_info samples in the repo (electron/__fixtures__/comfyui-object-info-real-sample.json and docs/research/2026-09-11-comfyui-matrix-evidence/object_info-{legacy-combo,newgen-combo,kjnodes-sample}.json): 0 unknown shapes; the only non-string enum fields are CreateVideo.bit_depth [\"auto\",8,10] and ImageResizeKJ.crop [\"disabled\",\"center\",0], now kept as numbers",
+      "gh search code \"[False, True]\" in yolain/ComfyUI-Easy-Use: one hit, py/nodes/fix.py rescale_after_model (the issue's field)",
+      "src/config/modelCatalogMeta.ts parseParameterControlOption: scalar option values are kept as string|number|boolean, so no renderer-side coercion exists"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/comfyuiObjectInfo.ts",
+    "invariant": "Combo option values are ComfyComboValue (string | finite number | boolean) in every carrier from the /object_info parser to ParamControl.options. Accepted lists are all-string, string/number or all-boolean.",
+    "failure_mode": "An unrecognized element mix is an unknown shape. It is not added to the enum table and is reported through the existing 'Report to Nomi' path, so it is never coerced. A non-scalar option arriving over IPC is dropped by the catalog sanitizer or rejected (throws) by the certification sanitizer.",
+    "exception_policy": "none",
+    "strategy": "Replace string[] with the ComfyComboValue type at the parser, so every downstream carrier fails to compile if it assumes strings. Delete the number-to-string coercion and put the element policy in one function used by both spec shapes.",
+    "artifacts": [
+      "electron/comfyuiObjectInfo.ts",
+      "electron/catalog/comfyuiWorkflowImport.ts",
+      "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "electron/integrationCertification/integrationWorkflowBinding.ts",
+      "src/ui/onboarding/comfyuiCanvasPreview.ts",
+      "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/comfyuiObjectInfo.test.ts",
+    "electron/catalog/comfyuiWorkflowImport.test.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.test.ts",
+    "electron/integrationCertification/integrationWorkflowBinding.test.ts",
+    "src/ui/onboarding/comfyuiCanvasPreview.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/comfyuiWorkflowImport.test.ts",
+    "electron/integrationCertification/integrationWorkflowBinding.test.ts",
+    "src/ui/onboarding/comfyuiCanvasPreview.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/comfyuiObjectInfo.ts",
+      "electron/catalog/comfyuiWorkflowImport.ts"
+    ],
+    "rationale": "Removed toEnumString, the number-to-string coercion in the parser, and the String(defaultValue) comparison in buildImportedWorkflow. Both spec shapes now call comboValues, and there is no string-only path left."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "ComfyUI is a separate server the user runs. Its combo validation defines the invariant, but no Nomi dependency version controls it, and the rule is the same in every ComfyUI release checked.",
+    "exit_criteria": []
+  },
+  "migration": "Nothing is rewritten automatically. Stored data does not record which dropdown strings were numbers; only a live /object_info shows that. A workflow imported before this fix keeps its old stringified options until it is re-saved on the workflow settings page (which reconciles again and bakes fresh typed options) or imported again. Until then, choosing such a numeric option fails with ComfyUI's own value_not_in_list error on that task. Boolean fields were never baked, so they need no migration. The object_info index is an in-memory 60 s cache and is rebuilt on the next fetch.",
+  "residual_risks": [
+    "Workflows imported before this fix that exposed a mixed string/number combo as a dropdown keep stringified numeric options until re-saved or re-imported (see migration).",
+    "A combo whose workflow value is a number (for example bit_depth: 8) stays a free number input, not a closed dropdown, as before. Its type is preserved, but a number outside the list is caught only by ComfyUI.",
+    "There is no live ComfyUI with ComfyUI-Easy-Use on this machine. The boolean shape is verified against the verbatim spec from issue #861 and the upstream source at a pinned commit, not against a running server."
+  ]
+}
