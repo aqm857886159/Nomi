@@ -65,6 +65,19 @@ describe("catalog read cache", () => {
     expect(store.readCatalog().vendors[0]?.name).toBe("Acme");
   });
 
+  it("read-only lists share the frozen cache, so mutating one throws instead of corrupting later reads", async () => {
+    const store = await import("./catalogStore");
+    store.ensureBuiltinModelSeeds();
+    store.listModelCatalogMappings(); // 填缓存
+    const [first] = store.listModelCatalogMappings();
+    expect(first).toBeDefined();
+
+    expect(() => {
+      (first as { enabled?: boolean }).enabled = !first!.enabled;
+    }).toThrow(TypeError);
+    expect(store.readCatalog().mappings[0]?.enabled).toBe(first!.enabled);
+  });
+
   it("sees a change written to the file by anyone else", async () => {
     const store = await seededStore();
     store.readCatalog();

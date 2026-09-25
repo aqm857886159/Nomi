@@ -73,7 +73,7 @@
 | T-CV-18 | 节点内受控输入门岗：`value={node.*}` 直绑 React Flow 投影的受控控件必须经本地草稿或 `controlledEditorSync` | todo | [结构评审](../audit/2026-09-21-canvas-overlay-chrome-and-editor-echo-structure.md) | 09-21 0ms 连打丢字的同族风险；本次实扫标题编辑走本地 draft 未中招 |
 | T-CV-19 | 小窗（1280×800、时间轴展开、Agent 面板开）里画布只剩约 800 宽：底部居中的批量生成栏压住左下角缩放条，「画布操作」帮助等按钮点不到 | todo | [方案 · 实测发现](../plan/2026-09-22-core-flow-smoke-three-defenses.md) | 两个 bottom dock 相撞：批量栏让开导航栈（或挪到导航栈上方），出样张后改。**挡着 T-QA-23（used 升阻断）**：走查点「适应视图」时被 `data-batch-dock` 拦截，英文文案更宽（`Images ×9` > `图片 ×9`）更容易撞，[5 跑 1 绿的实测](../evidence/2026-09-22-core-smoke-negative-control/) |
 | T-CV-20 | 同一小窗里选中卡，浮框被小地图 / 画面小窗挤得放不下，clamp 后盖住卡本身和连线握把；clamp 状态下平移每帧重排 | todo | [方案 · 实测发现](../plan/2026-09-22-core-flow-smoke-three-defenses.md) | 产品取舍：底部停靠物让位，还是浮框改成侧放；先出样张。**挡着 T-QA-23**：贴左缘的卡，结果托盘被 clamp 后与卡自己的浮动工具条相叠，`P4 第 1 版缩略图`点不到，[5 跑 1 绿的实测](../evidence/2026-09-22-core-smoke-negative-control/) |
-| T-CV-21 | 画布节点位置/选中收成一份：改回受控、store 唯一，根组件只订阅 id、节点按 id 订阅，删投影同步/拖动草稿/回写补偿/选中同步 | todo | [分析](../research/2026-09-25-canvas-follow-hand/kernel-state-ownership.md) | 2026-09-25 用户拍板方案 A、下一版做：先原型，在 32 个 1080p 视频上量拖动帧 ≤50ms 才全量迁移，不达标退回「收进一个桥接模块」；等 claude/canvas-follow-hand 合入后开分支；视口部分等 claude/canvas-ux-batch 合入（R33） |
+| T-CV-21 | 画布节点位置/选中收成一份：改回受控、store 唯一，根组件只订阅 id、节点按 id 订阅，删投影同步/拖动草稿/回写补偿/选中同步 | todo | [分析](../research/2026-09-25-canvas-follow-hand/kernel-state-ownership.md) | 2026-09-25 用户拍板方案 A、下一版做：先原型，在 32 个 1080p 视频上量拖动帧 ≤50ms 才全量迁移，不达标退回「收进一个桥接模块」；等 claude/canvas-follow-hand 合入后开分支；视口部分等 claude/canvas-ux-batch 合入（R33）。同一刀收掉整份订阅：2026-09-25 实测打字每键约 960 次组件重渲，起点是 NodeParameterControls（订整张图）、画布根组件（带工具条 Tooltip 树每键约 237 个）、TaskCenterButton、OnboardingChecklist、ProjectAgentResidentShell；全仓 10 处订整个 nodes、5 处订整个 edges |
 
 ## D. 设计落地（界面大改）
 

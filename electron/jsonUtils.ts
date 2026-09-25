@@ -181,3 +181,14 @@ export function readNestedRecord(input: unknown, pathParts: string[]): unknown {
   }
   return current;
 }
+
+/**
+ * 就地深冻结一棵纯数据树并原样返回（已冻结的子树跳过）。调用方负责先拷贝，
+ * 冻结的是「交出去之后谁都不许改」的那一份：改了在严格模式下当场抛，而不是静默污染共享状态。
+ */
+export function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+  return value;
+}
