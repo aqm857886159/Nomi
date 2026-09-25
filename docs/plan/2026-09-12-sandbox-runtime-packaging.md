@@ -1,5 +1,7 @@
 # 2026-09-12 sandbox-runtime 打包修复方案
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 先查别人
 
 仓库既有 `docs/lessons/sandbox-runtime-not-unpacked-from-asar.md` 记录了 sandbox-runtime 的外部二进制、Java agent 与 Electron `app.asar` 路径陷阱；本次实现沿用其结论，先检查上游显式路径配置，再同时验证 `asarUnpack` 与运行时实际传入的解包路径。打包证据脚本 `tests/ux/packaged-sandbox-active.e2e.mjs` 覆盖 macOS seatbelt 的 `active:true`、解包资产存在及传给子进程的路径均位于 `app.asar.unpacked`。

@@ -1,5 +1,7 @@
 # 过程动效 GPU 能力探测生命周期
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 范围：只修 processMotionCapability 与 useReducedProcessMotion，以及其现有测试。等待视觉、动画数量、百分比、img-fx 引擎不变。
 
 旧实现每个 hook 初始化和 mount effect 各创建一个临时 WebGL context，等待层与状态条都有消费者，且没有显式释放。根因是稳定 renderer 能力与动态系统偏好没有分开生命周期；是否长期泄漏须另测，重复创建已经可复现。

@@ -1,5 +1,7 @@
 # Core canvas ownership
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Repair K4/K6 on the current owner, without authoring format migration or new Agent write routes.
 
 Prior art: `docs/research/2026-09-10-node-composer-placement/prior-art.md` and `docs/research/2026-09-18-storyboard-single-ledger/prior-art.md`. Retain existing React Flow placement and the project save queue; use existing canvas lifecycle identity to reject late writes.

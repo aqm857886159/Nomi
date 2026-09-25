@@ -1,5 +1,7 @@
 # C1 先红后绿证据
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 浏览器变异与阶段截图见 `acceptance.json`；Electron 真机见 `electron-acceptance.json`。
 
 ## narration-before.log

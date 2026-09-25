@@ -1,5 +1,7 @@
 # T7 composer lifecycle repair
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Baseline: 883f6904b; branch codex/reliability-composer-20260919.
 
 Keep the approved canvas summary and panel parameter chips, original write-access providers, React Flow renderer and anchored placement. Prior art: docs/research/2026-09-10-node-composer-placement/prior-art.md; locked NodeToolbar 12.11.5 lacks measured flip/clamp.

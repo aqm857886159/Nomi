@@ -1,5 +1,7 @@
 # 设置页删冗余 1–8 条：方案（2026-09-14）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实施（PR #781 `fix/settings-remove-redundant-sections-20260914`）。
 依据：设置页逐控件审计（scratchpad `settings-audit/report.md` §①/§②/§⑥，用户 09-14 拍板「1–8 全删，第 6 条另派」）；结构评审 `docs/audit/2026-09-14-settings-policy-owners-structural-review.md`；根因合同 `docs/fixes/2026-09-14-settings-allowlist-default-deny.root-cause.json`。
 

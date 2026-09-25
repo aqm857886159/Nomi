@@ -212,3 +212,10 @@
 - [省额度：重复的事写脚本，有界的机械活给 Codex，要判断的才用最贵的模型](save-quota-script-the-repeats-codex-the-mechanical.md) — 派工前三问（做过吗·有界有判官吗·上下文是不是太大了）；Codex 外发姿势与四条硬约束；哪些验收绝不能省
 - [实验夹具必须经过真实调用点的投影](lab-fixtures-must-mirror-real-callsites.md) — 模型目录、档位与 canonical 参数不可手写平行真相。
 - [真机走查里的失败先查自己这条分支的调用链，再怪环境](branch-failure-blame-your-own-call-chain-first.md) — #777 把自己造的 `generation_surface_unavailable` 写成凭据问题；错误码字面量先找产生点、环境归因必须带排除证据、修法加门岗不补名字
+
+## 🤖 自动收录（待人工归位）
+
+> 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
+> 不代表已归好类。顺手把某一行挪进上面对应主题的表里即可——挪走后本区自然变短。
+
+- [2026-09-09-feel-regression](2026-09-09-feel-regression.md)

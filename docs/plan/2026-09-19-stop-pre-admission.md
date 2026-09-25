@@ -1,5 +1,7 @@
 # Stop covers pending input admission
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现，验证中。
 
 The user presses Stop to end this conversation's work. Inputs already waiting for catalog, configuration, readiness or skill preparation must not restart it afterwards.

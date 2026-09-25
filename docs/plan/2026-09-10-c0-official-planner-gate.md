@@ -1,5 +1,7 @@
 # C0 official planner gate, round 2
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Scope: test-only scheduler, CLI, isolated catalog, outbound budget and response receipts. No product code or C0 acceptance assertions change. User authorizes original PR #646 delivery and a single real film, eight shots, local CNY 50 cap.
 
 Root cause (recurring): the harness conflates planner identity with media vendor. CLI, catalog filtering, model selection, transport allowlist and pricing all assume APIMart. Earliest owners are scheduler mode resolution and the quoted dispatch boundary. Scan: c0-real-scheduler, c0-real-budget, c0-real-main, c0-plan-sample-budget and sweep-real. Existing plan-only/mixed APIMart paths remain explicitly supported; official planner cannot silently route through a reseller. No production repair contract needed: all changes are harness-only.
