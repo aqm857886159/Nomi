@@ -703,3 +703,17 @@ export async function panCanvasUntilInside(page, locator, { margin = {}, maxStep
   }
   return { ok: false, reason: 'did-not-converge', step: maxSteps, last }
 }
+
+/**
+ * 新卡落在屏外时，像用户一样点画布边缘提示把它们带进视野（2026-09-25 起程序不替人挪画布，屏外新卡只给提示）。
+ * 轻量版：只负责「让我要操作的卡出现」，不验提示的方向 / 张数语义——验那个用 `followArrivalHint`。
+ * 没有提示 = 新卡本来就在视野里，什么都不做。返回是否点过提示。
+ */
+export async function revealArrivals(page, { timeout = DEFAULT_TIMEOUT_MS } = {}) {
+  const hint = page.locator(CANVAS_ARRIVAL_HINT_SELECTOR)
+  if ((await hint.count()) === 0) return false
+  await hint.first().click()
+  await expect(hint, '点了边缘提示之后，新卡进了视野，提示应自己消失').toHaveCount(0, { timeout })
+  await waitForCanvasViewportSettled(page)
+  return true
+}
