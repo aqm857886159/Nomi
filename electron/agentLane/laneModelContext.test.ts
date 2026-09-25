@@ -11,8 +11,8 @@ import { LANE_TOOL_REQUEST_TOOL_NAME } from './laneToolGroups.mjs'
 const context = {
   model: { vendorKey: 'fixture', modelKey: 'text-1' },
   availableModels: [{
-    vendor: 'fixture', modelId: 'image-1', kind: 'image', defaultModeId: 'text_to_image',
-    modes: [{ modeId: 'text_to_image', params: [] }],
+    vendor: 'fixture', modelId: 'image-1', kind: 'image', defaultModeId: 'standard',
+    modes: [{ modeId: 'standard', params: [] }],
   }],
 } as unknown as LaneComposerContext
 
@@ -22,7 +22,6 @@ describe('模型索引那句指路，只点名真能调的工具', () => {
     const callable = new Set([...MODEL_FACING_TOOL_SPECS.map((spec) => spec.name), LANE_TOOL_REQUEST_TOOL_NAME])
     // 先证判据会命中东西，免得「一个都不认识」在文案被改空时恒真。
     const named = [...text.matchAll(/\b[a-z]+(?:_[a-z]+)+\b/g)].map((match) => match[0])
-      .filter((token) => token !== 'text_to_image')
     expect(named.length).toBeGreaterThan(0)
     for (const name of named) expect(callable.has(name), name).toBe(true)
     expect(text).not.toContain('nomi_read')
