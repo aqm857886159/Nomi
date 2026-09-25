@@ -112,13 +112,16 @@ export const zhCN = {
     cancelQueued: '取消排队的 {{count}} 个',
     retryFailed: '重试失败的 {{count}} 个',
     actionFailed: '这个操作没执行成，请再试一次',
-    sections: {
-      running: '进行中 {{count}}',
-      queued: '排队中 {{count}}',
-      done: '已完成 {{count}}',
+    // 任务分组的唯一一套名字：区段标题和制作卡的状态签都用它（数量另起一格，不拼进文案）。
+    groups: {
+      running: '进行中',
+      attention: '等你处理',
+      queued: '排队中',
+      done: '已完成',
     },
     summary: {
       running: '{{count}} 进行中',
+      attention: '{{count}} 等你处理',
       queued: '{{count}} 排队',
       failed: '{{count}} 失败',
     },
@@ -533,13 +536,15 @@ export const en = {
     cancelQueued: 'Cancel {{count}} queued',
     retryFailed: 'Retry {{count}} failed',
     actionFailed: 'That action did not go through. Try again.',
-    sections: {
-      running: 'Running {{count}}',
-      queued: 'Queued {{count}}',
-      done: 'Done {{count}}',
+    groups: {
+      running: 'Running',
+      attention: 'Waiting on you',
+      queued: 'Queued',
+      done: 'Done',
     },
     summary: {
       running: '{{count}} running',
+      attention: '{{count}} waiting on you',
       queued: '{{count}} queued',
       failed: '{{count}} failed',
     },

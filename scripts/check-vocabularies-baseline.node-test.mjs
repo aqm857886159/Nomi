@@ -274,7 +274,7 @@ test('repository-specific runtime and view-model vocabularies are not mislabeled
       'src/workbench/taskCenter/taskCenterEntries.ts::function:resolveTaskButtonTone/type-union',
       /TaskCenter.*visual.*view model/i,
     ],
-    ['src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterGroup/type-union', /TaskCenter.*view model/i],
+    ['src/workbench/taskCenter/taskCenterProjection.ts::variable:TASK_CENTER_GROUPS/as-const', /TaskCenter.*view model/i],
     ['src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union', /TaskCenter.*view model/i],
   ])
 

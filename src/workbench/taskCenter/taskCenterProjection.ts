@@ -1,4 +1,17 @@
-export type TaskCenterGroup = 'running' | 'queued' | 'done'
+/**
+ * 任务面板的分组——**唯一**一份，顺序即面板从上到下的顺序。
+ *
+ * - running：Nomi 这边还在推进（在跑、在轮询、在收尾），用户不用做什么；
+ * - attention：卡在用户这儿——等确认 / 等处理 / 等重新拉取。它没结束，所以不进「已完成」；
+ * - queued：已排队、还没提交；
+ * - done：真正结束了（成功、失败、已取消）。
+ *
+ * 每种任务各有一个映射把自己的状态机投到这里（生成：taskCenterEntries；制作：productionRunView；
+ * 导出：exportJobTaskCenter），组件只按 `group` 摆放，不自己判状态。分组名也只有 `taskCenter.groups.*`
+ * 一套文案：区段标题和制作卡上的状态签用的是同一个词，结构上说不出两种话。
+ */
+export const TASK_CENTER_GROUPS = ['running', 'attention', 'queued', 'done'] as const
+export type TaskCenterGroup = typeof TASK_CENTER_GROUPS[number]
 export type TaskCenterOutcome = 'success' | 'error' | 'cancelled'
 export type TaskCancelKind = 'free' | 'interrupt' | 'none'
 

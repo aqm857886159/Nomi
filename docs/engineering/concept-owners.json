@@ -74,6 +74,37 @@
       ],
       "since": "2026-09-24",
       "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
+    },
+    {
+      "name": "任务分组",
+      "owner": {
+        "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+        "symbol": "TASK_CENTER_GROUPS"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/taskCenterEntries.ts",
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/taskCenter/exportJobTaskCenter.ts",
+        "src/workbench/production/productionRunView.ts",
+        "src/workbench/production/ProductionRunTaskCard.tsx",
+        "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "src/workbench/taskCenter/TaskCenterButton.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。"
+    },
+    {
+      "name": "制作 Run 算不算任务",
+      "owner": {
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "isProductionRunTask"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/production/productionRunStore.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "Agent 没出价的草稿（plan.state=draft 且 cardHidden）和被丢掉的计划（plan.state=cancelled）不是任务：不成行、不计徽标、不顶掉在跑的整卡。判据只吃列表投影 ProductionRunSummary.generationPlan 的两格（主进程 summarize 投出）。画布落地（ProductionCanvasLandingHost）要的是草稿本身，不消费这条。"
     }
   ]
 }
