@@ -1,3 +1,4 @@
+import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import React from 'react'
 import type { ModelOption } from '../../../config/models'
 import i18n from '../../../i18n'
@@ -35,7 +36,11 @@ export function useCanvasProductionActions(params: { activeCategoryId: string; s
     () => nodesInCanvasProductionScope(nodes, productionScope),
     [nodes, productionScope],
   )
-  const eligibleIds = React.useMemo(() => eligibleGenerationNodeIds(nodes, productionScope), [nodes, productionScope])
+  const productionRuns = useProductionCanvasLandingStore((store) => store.runs)
+  const eligibleIds = React.useMemo(
+    () => eligibleGenerationNodeIds(nodes, productionScope, productionRuns),
+    [nodes, productionScope, productionRuns],
+  )
   const executionGroups = React.useMemo(
     () => groupGenerationNodesByExecutionKind(scopedNodes.filter((node) => !node.locked), edges, nodes),
     [edges, nodes, scopedNodes],

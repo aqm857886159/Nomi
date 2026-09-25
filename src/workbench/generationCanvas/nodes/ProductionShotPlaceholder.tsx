@@ -18,12 +18,8 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import { deriveProductionShotState, productionShotIdForNode } from '../../../../electron/shared/productionShotPhase'
 import { resumeProductionBatch } from '../../production/productionShotActions'
+import { productionRunIdOf } from '../../production/productionShotOwnership'
 
-/** 该节点是否属某制作 Run（meta.productionRunId）。非制作节点 → 组件早退，零开销。 */
-function productionRunIdOf(node: GenerationCanvasNode): string | null {
-  const meta = node.meta as Record<string, unknown> | undefined
-  return typeof meta?.productionRunId === 'string' && meta.productionRunId ? meta.productionRunId : null
-}
 
 export function ProductionShotPlaceholder({ node, reportFeedback }: { reportFeedback: (message: string) => void; node: GenerationCanvasNode }): JSX.Element | null {
   const { t } = useTranslation()
