@@ -4,6 +4,7 @@
 // 为什么单独成层：2026-09-21 的事故里，「目录读不出来怎么办」这个判断散在三个读点上
 // （readCatalog / ensureBuiltinModelSeeds / onDiskCatalogVersion 各自 readJson 吞异常），
 // 谁都不知道另外两个看到了什么。收成一处之后，目录的读法只有一份答案，写门只需要问它一句。
+import fs from "node:fs";
 import path from "node:path";
 
 import { isJsonRecord } from "../jsonUtils";
@@ -37,6 +38,15 @@ export type ModelCatalogReadOnlyStatus =
  */
 export function readCatalogFile(): ConfigFileReadResult<CatalogState> {
   return readConfigFile<CatalogState>(catalogPath(), isJsonRecord);
+}
+
+/** 盘上目录文件的原始字节（读缓存的键）；读不到返回 null，交给 readCatalogFile 走正规的缺失/失败路径。 */
+export function readCatalogFileBytes(): string | null {
+  try {
+    return fs.readFileSync(catalogPath(), "utf8");
+  } catch {
+    return null;
+  }
 }
 
 /** 盘上那份比本应用新（装过新版又装回旧版）。读得出来、但一个字都不许改。 */

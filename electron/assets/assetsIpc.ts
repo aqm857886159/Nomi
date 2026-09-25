@@ -137,6 +137,11 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
     const { ensurePlayableAsset } = await import("./localFileImport");
     return ensurePlayableAsset(payload);
   });
+  ipcMain.handle("nomi:assets:ensure-preview", async (event, payload) => {
+    assertTrustedSender(event);
+    const { ensureLocalAssetPreview } = await import("./localFileImport");
+    return ensureLocalAssetPreview(payload);
+  });
   // 引导示例项目的预置成图 → 真项目资产（拿稳定 nomi-local URL；构建产物 URL 不配写进用户数据）。
   ipcMain.handle("nomi:assets:seed-onboarding-demo", async (event, payload) => {
     assertTrustedSender(event);

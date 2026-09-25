@@ -59,7 +59,8 @@ type LocalAssetRecord = {
   } & JsonRecord;
 };
 
-function contentTypeFromStoredFile(absolutePath: string): string {
+/** 已落盘文件的内容类型：先按扩展名，认不出再嗅文件头。列表与补封面共用这一份判定。 */
+export function contentTypeFromStoredFile(absolutePath: string): string {
   const extensionType = contentTypeFromPath(absolutePath);
   if (extensionType !== "application/octet-stream") return extensionType;
   try {
