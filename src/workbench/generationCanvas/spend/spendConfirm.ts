@@ -171,12 +171,13 @@ export async function confirmAndMintGrant(opts: {
   /** 本次要跑的每一份（报价按它逐份报；份数也是「一下跑几个」的判据，见 spendConfirmationRequirement）。 */
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>
   hostingDisclosure?: HostingDisclosure
-  initiator?: SpendInitiator
+  /** 必填：见 GenerationConfirmationGuards.initiator（缺省即 fail-open）。 */
+  initiator: SpendInitiator
 }): Promise<string | null> {
   let quoteId: string | undefined
   const ok = await confirmGenerationSpend(opts.nodes, {
     title: opts.title,
-    ...(opts.initiator ? { initiator: opts.initiator } : {}),
+    initiator: opts.initiator,
     message: opts.message,
     onQuoteConfirmed: (id) => { quoteId = id },
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
@@ -257,7 +258,7 @@ export function spendConfirmationRequirement(input: {
  */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
-  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; onQuoteConfirmed?: (quoteId: string) => void; initiator?: SpendInitiator },
+  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; onQuoteConfirmed?: (quoteId: string) => void; initiator: SpendInitiator },
 ): Promise<boolean> {
   if (!generationSpendsCredits(nodes)) return true
   const inputs = nodes.map((node) => {
@@ -271,7 +272,7 @@ export async function confirmGenerationSpend(
     return false
   }
   const required = spendConfirmationRequirement({
-    initiator: opts.initiator ?? 'user',
+    initiator: opts.initiator,
     runCount: nodes.length,
     amount: quote ? quote.amount : undefined,
     hostingDisclosure: Boolean(opts.hostingDisclosure),

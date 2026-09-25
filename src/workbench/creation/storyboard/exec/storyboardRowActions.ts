@@ -22,7 +22,7 @@ import {
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
+import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
@@ -41,18 +41,24 @@ import { rowConsumesReferences, type StoryboardRowRuntime } from './storyboardRo
  * 方案是内容正本，行内采纳/丢弃控制字段归属，生成不静默夺回覆写字段。
  */
 
-export type RowActionContext = GenerationConfirmationGuards & {
+/**
+ * 付费来源二选一、没有缺省：带着这一次的手势（来源从 gesture.source 推），或没有手势时显式写 initiator。
+ * 两样都没有 = 编译不过——缺省成「用户」就是 fail-open（R17）。
+ */
+export type RowActionContext = GenerationApprovalGuards & {
   documentId: string
   designId: string
   plan: StoryboardPlan
-  gesture?: CanvasGestureContext
-}
+} & (
+  | { gesture: CanvasGestureContext; initiator?: never }
+  | { gesture?: undefined; initiator: GenerationConfirmationGuards['initiator'] }
+)
 
 function confirmationGuards(ctx: RowActionContext): GenerationConfirmationGuards {
   // 来源跟着这一次的手势走：Agent 替他点的（presentStoryboard 的 gesture.source='agent'）必须弹付费确认，
   // 用户自己在分镜表上点的单个生成与画布 ↑ 同一条判据（spendConfirmationRequirement）。
   // 'runtime'（系统自己续跑）同样不是人按的这一下，按 Agent 口径问。
-  const initiator = ctx.gesture && ctx.gesture.source !== 'user' ? 'agent' as const : 'user' as const
+  const initiator = ctx.gesture ? (ctx.gesture.source === 'user' ? 'user' as const : 'agent' as const) : ctx.initiator
   return ctx.assertCurrent ? { assertCurrent: ctx.assertCurrent, assertAuthorCurrent: ctx.assertAuthorCurrent, initiator } : { initiator }
 }
 
@@ -336,7 +342,13 @@ export async function runStoryboardBatch(
     const generation = getUndoJournalGeneration()
     pushUndoSnapshot()
     const canWrite = ctx.gesture?.canWrite
-    ctx = { ...ctx, gesture: { source: 'user', txnId: `shot-table-batch-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) } }
+    // 落地事务换一个手势，但**来源照旧**：谁发起的这一批不因为包了一层事务就变成「用户」（付费确认按它判）。
+    const source = ctx.gesture ? ctx.gesture.source : ctx.initiator === 'agent' ? 'agent' as const : 'user' as const
+    const { documentId, designId, plan, assertCurrent, assertAuthorCurrent } = ctx
+    const gesture = { source, txnId: `shot-table-batch-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) }
+    ctx = assertCurrent
+      ? { documentId, designId, plan, assertCurrent, assertAuthorCurrent, gesture }
+      : { documentId, designId, plan, gesture }
   }
   // Placement includes the original reference pool, including unused visual anchors.
   if (landing?.placementOnly) {

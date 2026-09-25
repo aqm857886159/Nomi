@@ -55,6 +55,7 @@ export function useCanvasProductionActions(params: { activeCategoryId: string; s
     const state = useGenerationCanvasStore.getState()
     void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: state.nodes, edges: state.edges }), {
       concurrency,
+      initiator: 'user',
     })
   }, [concurrency, eligibleIds])
 

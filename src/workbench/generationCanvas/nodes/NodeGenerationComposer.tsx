@@ -309,12 +309,12 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
     // ×N 变体连发（样张拍板 2026-07-29）：一次确认按 N 张报成本，串行连跑，出图堆进本节点历史。
     if (variantCount > 1) {
-      await confirmAndRunNodeVariants(node.id, variantCount)
+      await confirmAndRunNodeVariants(node.id, variantCount, { initiator: 'user' })
       return
     }
     // 已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
-    if (hasResult) await regenerateNodeInPlace(node.id)
-    else await confirmAndRunNode(node.id)
+    if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
+    else await confirmAndRunNode(node.id, { initiator: 'user' })
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
