@@ -7,7 +7,7 @@ import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProject
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
-import { isNodeProductionShotInFlight } from '../../production/productionShotOwnership'
+import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { mintSpendGrant } from '../../api/taskApi'
@@ -655,8 +655,8 @@ export function canRunGenerationNode(
   context: GenerationRunContext = {},
 ): boolean {
   if (!node) return false
-  // 这一镜正由制作流程排队 / 生成：画布再发一次就是重复生成、重复扣费（节点上有「排队中」小标说明原因）。
-  if ('id' in node && node.id && isNodeProductionShotInFlight(node, useProductionCanvasLandingStore.getState().runs)) return false
+  // 这一镜归制作流程生成（报价卡等确认 / 排队 / 生成中）：画布再发一次就是重复生成、重复扣费。
+  if ('id' in node && node.id && isNodeGenerationOwnedByProduction(node, useProductionCanvasLandingStore.getState().runs)) return false
   const executionKind = getGenerationNodeExecutionKind(node.kind)
   if (executionKind === 'image') {
     // L3 护栏：档案当前模式是「图生图」(image_edit) 且声明了参考槽、却一张参考都递不进来 → 不可生成
