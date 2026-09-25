@@ -198,6 +198,7 @@
 - [连带面必须单独成题，不能埋在一句话里](coupled-face-must-be-its-own-question.md) — 出方案/grill 前先扫：改动会不会连带同一组件的另一个宿主；连带面单独开 Q、不许并进主题目的从句
 
 - [判据依赖的输入在现实里不存在，判据就是废话](a-rule-is-only-as-real-as-its-inputs.md) — 评审「按某个值决定行为」的规则前；先数那个值在真实数据里有几成存在（Nomi 目前不算价格）
+- [修一个「回归」之前，先问那个行为有没有人要](restoring-a-regression-needs-a-user-reason.md) — 老走查红了、准备把它当回归恢复之前；框架默认行为或无需求出处的，先交用户拍板（方向键微调那次）
 ## F. 多智能体编排
 
 > 编排纪律的主文档是 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)（`CLAUDE.md` R27 的 L2 详解）。本区只放**执行体自身的工具怪癖**——那不是编排原则，是踩过的具体坑。
