@@ -126,14 +126,11 @@ try {
     },
     args: ['--no-proxy-server'],
   }))
-  const consoleErrors = []
-  const watch = (page) => page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
 
   await win.locator('[data-project-card]', { hasText: projectA.name }).first().click({ timeout: stationTimeout() })
   await win.waitForTimeout(500)
   for (let i = 0; i < 40 && !app.windows().some((page) => /projectId=/.test(page.url())); i += 1) await win.waitForTimeout(250)
   win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
-  watch(win)
   await win.setViewportSize({ width: 1440, height: 900 })
   await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout() })
   const stage = win.locator('.react-flow__pane').first()

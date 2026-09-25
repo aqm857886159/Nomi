@@ -21,10 +21,6 @@ export type MaterializedLibraryItems = {
   failed: number
 }
 
-function defaultCopy(): CopyProjectAsset | null {
-  return getDesktopBridge()?.assets?.copyProjectAsset ?? null
-}
-
 /**
  * 把一批素材库条目换成「属于 project 的引用」。顺序保持（锚点跟着原条目走）。
  * 复制品的引用由 DTO → AssetRef → 拖拽载荷的同一条映射派生，不手拼地址，也不沿用源项目的任何派生字段。
@@ -32,7 +28,7 @@ function defaultCopy(): CopyProjectAsset | null {
 export async function materializeAssetLibraryItems(
   items: readonly AssetLibraryDragPayload[],
   project: ProjectExecutionContext,
-  copy: CopyProjectAsset | null = defaultCopy(),
+  copy: CopyProjectAsset | null = getDesktopBridge()?.assets?.copyProjectAsset ?? null,
 ): Promise<MaterializedLibraryItems> {
   const targetProjectId = project.binding.projectId
   const resolved: AssetLibraryDragPayload[] = []
