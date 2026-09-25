@@ -743,9 +743,9 @@ try {
   const videoNode = getWin().locator(OWN.video).first()
 
   // 用过的项目里，画布底部挂着两样「底部停靠物」：时间轴有片段时的「画面小窗」、卡多时自动出现的小地图。
-  // 浮框要避让它们：1280×800 小窗里可用高度因此放不下浮框，选中卡的浮框按既定兜底被 clamp 到盖住卡本身
-  // 和连线握把（useComposerViewportPlacement.ts「放不下时宁可盖住节点一截」）。人会先把碍事的两样收起来
-  // 再连线，走查照做；empty 夹具里两样都不在，这一步什么都不做。
+  // 这一步原本是给旧浮框让路（它躲停靠区、放不下时被 clamp 到盖住卡本身和连线握把）；2026-09-25 起浮框
+  // 钉在节点正下方（composerCanvasPlacement.ts），不再躲停靠区、也不再重新定位，那条理由已不成立。
+  // 保留这一步只因为两样停靠物本身占着画布底部一片、人连线前也会顺手收起；empty 夹具里两样都不在，这一步什么都不做。
   for (const name of EN ? ['Collapse mini preview', 'Hide minimap'] : ['收起画面小窗', '隐藏地图']) {
     const dockToggle = getWin().getByRole('button', { name, exact: true })
     if (!(await dockToggle.isVisible())) continue
@@ -758,7 +758,7 @@ try {
 
   // 先摆位置（真实动作）：把视频卡拖到图片卡**右边同一行**，再像人一样把画布平移到两张卡贴近左上角——
   // 连线时图片卡的浮框在下沿展开，不会压住视频卡与右侧握把。
-  // （小窗里浮框放不下时会被 clamp 进视口、盖住卡本身，那是浮框的既定兜底，走查不能指望它让路。）
+  // （浮框恒钉在节点正下方、不 clamp 进视口，放不下就伸出舞台被裁，不会再翻上来盖住卡本身。）
   const deselectPoint = await findBlankPoint()
   await getWin().mouse.click(deselectPoint.x, deselectPoint.y)
   await getWin().waitForTimeout(200)
@@ -790,7 +790,7 @@ try {
   await getWin().waitForTimeout(320)
   const visibleStage = await getWin().locator('.generation-canvas-v2__stage').boundingBox()
 
-  // 拖完视频卡它是选中态，浮框展开；小窗（used 夹具 1280×800）里浮框会盖住图片卡。
+  // 拖完视频卡它是选中态，浮框在它下沿展开（560 宽，可能横跨到图片卡下方那片）。
   // 真人会先点一下空白收起它，再去点图片卡上真正点得到的那一点（命中判据归 _canvasHit.mjs）。
   const collapseComposerAt = await findBlankPoint()
   await getWin().mouse.click(collapseComposerAt.x, collapseComposerAt.y)
@@ -1122,8 +1122,9 @@ try {
     const metrics = async () =>
       Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((m) => [m.name, m.value]))
     const panPoint = await findBlankPoint()
-    // 平移方向朝画布中心：把选中卡往停靠物（左侧工具条、底部导航）边缘推，浮框会被 clamp 住、每帧重新定位——
-    // 那是浮框的既定避让行为（useComposerViewportPlacement.ts），不是「平移本身」。这里量的是平移本身。
+    // 平移方向朝画布中心：让选中卡留在视野里、不被推到停靠物（左侧工具条、底部导航）边缘。
+    // 当初这么选是为了躲旧浮框的 clamp 重定位；2026-09-25 起浮框钉在节点下方（composerCanvasPlacement.ts，
+    // 只看节点尺寸 + 缩放），平移时不再重新定位，这条理由已不成立——方向保持不变，量的仍是平移本身。
     const panDirection = await getWin().evaluate(() => {
       const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
       const selected = document.querySelector('.react-flow__node.selected')?.getBoundingClientRect()

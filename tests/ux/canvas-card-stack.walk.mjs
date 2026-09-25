@@ -179,45 +179,53 @@ try {
 
   await imageNode.click({ position: { x: 120, y: 120 } })
   await expect(imageNode.locator('.generation-canvas-v2-node__composer-card')).toBeVisible()
-  // 2026-09-10 起浮框几何的唯一 owner 是 `resolveAnchoredPlacement`：位置只由「视口 + 它自己的
-  // 锚点」决定，**刻意不再避让障碍**（自研的「最大空矩形避让搜索」已连同 composerObstaclePlacement.ts
-  // 一起删掉；理由、框架出处与有效期条件见 src/workbench/generationCanvas/nodes/anchoredPlacement.ts
-  // 文件头与 docs/research/2026-09-10-node-composer-placement/prior-art.md）。所以旧的「参数卡
+  // 2026-09-10 起浮框**刻意不再避让障碍**（自研的「最大空矩形避让搜索」已连同 composerObstaclePlacement.ts
+  // 一起删掉；出处见 docs/research/2026-09-10-node-composer-placement/prior-art.md）；2026-09-25 起连视口
+  // clamp / 翻转也删了，位置只是「节点尺寸 + 画布缩放」的函数。所以旧的「参数卡
   // 不得与任何非选中节点相交」描述的是已经删掉的那套行为，留着只会把「今天碰巧避开了」钉成不变量。
   // 换成守新形态下真正该成立的两条，两条都跟这一幕强相关（画布上正好摊着展开的雨夜参考组）：
-  //   ① 钉住：浮框整块落在它自己节点的正下方（翻转时正上方），且横向跨过该节点中线——
-  //      「跑到一块空地上去」这种漂移在这条下当场红；贴到可用区边缘 clamp 时按 clamp 判。
-  //   ② 在最上层：卡自己处处命中得到。盖住别的节点可以（新设计就这么定的），被别的节点盖住不行。
+  //   ① 钉住（2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」，owner 是
+  //      src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts）：卡顶边 = 节点底边 + 14×缩放、
+  //      卡中线 = 节点中线、屏幕宽恒 560。不再 clamp 进视口、不再翻到上方，所以这里没有「翻转/贴边」的例外分支——
+  //      「跑到一块空地上去」「压在节点中间」这两种漂移在这条下都当场红。判据与 node-composer-placement.walk.mjs 的 assertPinned 同一口径。
+  //   ② 不被别的节点盖住：卡在**画布舞台内**的采样点上命中的不许是别的节点。盖住别的节点可以（新设计就这么定的）；
+  //      伸出舞台、钻到停靠区底下被挡住也可以（「被挡就挡」），所以舞台外的采样点不算、非节点的遮挡不算。
   await expect.poll(() => imageNode.evaluate((selected) => {
     const anchor = selected.querySelector('.generation-canvas-v2-node__composer')
     const card = anchor?.querySelector('.generation-canvas-v2-node__composer-card')
     const stage = selected.closest('.generation-canvas-v2__stage')
-    if (!anchor || !card || !stage) return ['参数卡还没挂上']
+    const viewportEl = document.querySelector('.react-flow__viewport')
+    if (!anchor || !card || !stage || !viewportEl) return ['参数卡还没挂上']
     const nodeRect = selected.getBoundingClientRect()
-    const anchorRect = anchor.getBoundingClientRect()
     const cardRect = card.getBoundingClientRect()
     const stageRect = stage.getBoundingClientRect()
-    const flippedUp = anchor.getAttribute('data-flipped') === 'true'
+    // 画布缩放读 React Flow 视口自己的 transform（DOMMatrix.a）——量的是用户眼前那一帧，不读 store。
+    const zoom = new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a
     const problems = []
-    // ① 在正确的一侧，且不许侵入节点自己的矩形。
-    const onSide = flippedUp ? anchorRect.bottom <= nodeRect.top + 1 : anchorRect.top >= nodeRect.bottom - 1
-    if (!onSide) problems.push(`浮框没贴在节点${flippedUp ? '上' : '下'}沿（data-flipped=${anchor.getAttribute('data-flipped')}）`)
-    // ① 横向锚在自己节点身上：跨过节点中线，或者已经被可用区边缘 clamp 住。
-    const nodeCentreX = (nodeRect.left + nodeRect.right) / 2
-    // 13 = useComposerViewportPlacement 的 VIEWPORT_MARGIN(12) + 1px 量测容差，不是随手取的数。
-    const clampedToStage = anchorRect.left <= stageRect.left + 13 || anchorRect.right >= stageRect.right - 13
-    if (!(anchorRect.left <= nodeCentreX && anchorRect.right >= nodeCentreX) && !clampedToStage) {
-      problems.push(`浮框横向没锚在自己节点上（节点中线 ${Math.round(nodeCentreX)}，浮框 ${Math.round(anchorRect.left)}–${Math.round(anchorRect.right)}）`)
+    // ① 顶边 = 节点底边 + 14×缩放（在节点下面，不压在节点身上）。
+    const expectedTop = nodeRect.bottom + 14 * zoom
+    if (Math.abs(cardRect.top - expectedTop) > 2) {
+      problems.push(`浮框顶边没钉在节点底边下方（card.top=${Math.round(cardRect.top)} 期望 ${Math.round(expectedTop)}，zoom=${zoom.toFixed(2)}）`)
     }
-    // ② 卡整块在最上层：左中右三点各打一次真实命中测试。
+    // ① 中线 = 节点中线。
+    const centreDelta = (cardRect.left + cardRect.right) / 2 - (nodeRect.left + nodeRect.right) / 2
+    if (Math.abs(centreDelta) > 2) problems.push(`浮框中线偏离节点中线 ${centreDelta.toFixed(1)}px`)
+    // ① 屏幕宽恒 560。
+    if (Math.abs(cardRect.width - 560) > 1) problems.push(`浮框宽 ${cardRect.width.toFixed(1)}，应恒为 560`)
+    // ② 左中右三点各打一次真实命中测试；只数落在舞台内的点，只把「别的节点」算作回归。
     for (const ratio of [0.15, 0.5, 0.85]) {
-      const hit = document.elementFromPoint(cardRect.left + cardRect.width * ratio, cardRect.top + Math.min(10, cardRect.height / 2))
+      const x = cardRect.left + cardRect.width * ratio
+      const y = cardRect.top + Math.min(10, cardRect.height / 2)
+      if (x < stageRect.left || x > stageRect.right || y < stageRect.top || y > stageRect.bottom) continue
+      const hit = document.elementFromPoint(x, y)
       if (hit && card.contains(hit)) continue
-      const blocker = hit?.closest('article[data-node-id]')?.getAttribute('data-node-id') ?? hit?.tagName ?? '画布之外'
-      problems.push(`参数卡在横向 ${Math.round(ratio * 100)}% 处被「${blocker}」盖住`)
+      const blockerNode = hit?.closest('article[data-node-id]')
+      if (blockerNode && blockerNode !== selected) {
+        problems.push(`参数卡在横向 ${Math.round(ratio * 100)}% 处被节点「${blockerNode.getAttribute('data-node-id')}」盖住`)
+      }
     }
     return problems
-  }), { message: '参数卡必须钉在自己节点的正下/正上方，并且盖在别的节点之上（新几何不避让障碍，被盖住才是回归）' }).toEqual([])
+  }), { message: '参数卡必须钉在自己节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 560），并且不被别的节点盖住' }).toEqual([])
   const regenerate = imageNode.locator('.generation-canvas-v2-node__composer-card').getByRole('button', { name: '重新生成', exact: true })
   await regenerate.scrollIntoViewIfNeeded()
   await expect.poll(() => regenerate.evaluate(button => {

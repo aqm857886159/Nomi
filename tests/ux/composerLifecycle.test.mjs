@@ -197,38 +197,33 @@ it('ignores a different pointer cancellation, and normal pointerup persists exac
   expect(await page.evaluate(() => window.composerFixture.gesture().remembers)).toBe(1)
 })
 
-// 2026-09-21 真机截图（.tmp/pi-spend-confirm-executes-development-1789974658827/
-// 02-spend-confirm-really-generated.png）：浮框翻到节点上面时，节点自己那条浮动工具条压在
-// 提示词那一行上，「一个悬浮的六棱柱，柔和的演播室灯光」被切掉一半。
-// 根因不是让位算错，是**让位量变了没人再算一次**：工具条绝对定位在节点内部、选中才挂，
-// nodeEl 的 border-box 一个像素没变，ResizeObserver 看不见它，rAF 指纹里也没有它。
-it('re-places the composer when the node toolbar appears above it', async () => {
-  await page.reload()
-  const cardTop = () => page.locator('#geometry-card').evaluate(element => Math.round(element.getBoundingClientRect().top))
-  const nodeTop = () => page.locator('#geometry-stage .generation-canvas-v2-node').evaluate(element => Math.round(element.getBoundingClientRect().top))
-  // 把节点挪到舞台下缘 → 浮框只能翻到节点上面去。
-  await page.locator('#geometry-low').click()
-  await expect.poll(async () => (await cardTop()) < (await nodeTop())).toBe(true)
-  const before = await cardTop()
+// 2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」（原话：「有时候位置不在下面而是在节点中间」）。
+// 以前这里有四条断言守着「翻到上方 / clamp 进视口 / 让开浮动工具条 / 让开底部停靠区」——正是它们让浮框
+// 跑到节点身上。现在断反面：节点贴边、贴底、挂工具条、底部有停靠区、缩放到两端，浮框都只跟着节点走。
+it('pins the card right below the node whatever the stage edges, toolbar, docks and zoom are', async () => {
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.locator('#geometry-stage').waitFor({ timeout: 5000 })
   await page.locator('#geometry-toolbar').click()
-  // 工具条一挂上，浮框必须再往上让一整条的高度（40px）以上；只要没重算，这个数就是 0。
-  await expect.poll(async () => before - (await cardTop()) >= 40, { timeout: 5_000 }).toBe(true)
-  // 拿掉工具条要让回来，否则每选一次就往上漂一次。
-  await page.locator('#geometry-toolbar').click()
-  await expect.poll(cardTop, { timeout: 5_000 }).toBe(before)
-})
-
-it('remeasures a zero-sized stage after reopening and clamps at both zoom extremes', async () => {
-  await page.locator('#geometry-stage').evaluate(element => { element.style.display = 'none' })
-  await page.waitForFunction(() => document.querySelector('#geometry-card').style.maxHeight === '0px')
-  await page.locator('#geometry-stage').evaluate(element => { element.style.display = 'block' })
-  for (const zoom of [0.4, 2]) {
-    await page.evaluate(value => window.composerFixture.zoom(value), zoom)
-    await page.waitForFunction(() => {
-      const stage = document.querySelector('#geometry-stage').getBoundingClientRect()
-      const card = document.querySelector('#geometry-card').getBoundingClientRect()
-      return card.height > 0 && card.left >= stage.left && card.top >= stage.top && card.right <= stage.right && card.bottom <= stage.bottom
-    })
+  await page.evaluate(() => {
+    const dock = document.createElement('div')
+    dock.setAttribute('data-canvas-bottom-dock', 'true')
+    Object.assign(dock.style, { position: 'absolute', left: '0px', bottom: '12px', width: '600px', height: '48px' })
+    document.querySelector('#geometry-stage').append(dock)
+  })
+  const sample = () => page.evaluate(() => {
+    const card = document.querySelector('#geometry-card').getBoundingClientRect()
+    const node = document.querySelector('#geometry-stage .generation-canvas-v2-node').getBoundingClientRect()
+    return { cardTop: card.top, cardWidth: card.width, cardCentre: (card.left + card.right) / 2, nodeBottom: node.bottom, nodeCentre: (node.left + node.right) / 2 }
+  })
+  for (const zoom of [0.4, 1, 2]) {
+    await page.evaluate((value) => window.composerFixture.zoom(value), zoom)
+    for (const [left, top] of [[100, 100], [-80, 10], [850, 10], [10, 740], [850, 740]]) {
+      await page.locator('#geometry-stage .generation-canvas-v2-node').evaluate((node, point) => { node.style.left = point[0] + 'px'; node.style.top = point[1] + 'px' }, [left, top])
+      await expect.poll(async () => {
+        const m = await sample()
+        return Math.abs(m.cardTop - (m.nodeBottom + 14 * zoom)) < 1 && Math.abs(m.cardWidth - 560) < 1 && Math.abs(m.cardCentre - m.nodeCentre) < 1
+      }, { message: `zoom=${zoom} node=(${left},${top})` }).toBe(true)
+    }
   }
 })
 
@@ -265,57 +260,6 @@ it('history A to B to A restores composer without replacing a typed draft', asyn
   expect(await page.locator('#history').textContent()).toBe('composer')
   expect(await page.locator('#unpublished-draft').inputValue()).toBe('unpublished across A B A')
 })
-it('geometry owner keeps controls inside each viewport edge after real resize observation', async () => {
-  await page.reload()
-  for (const [left, top] of [[-80, 10], [850, 10], [10, 740], [850, 740]]) {
-    await page.locator('#geometry-stage .generation-canvas-v2-node').evaluate((node, point) => { node.style.left=point[0]+'px'; node.style.top=point[1]+'px' }, [left, top])
-    await page.evaluate(() => window.dispatchEvent(new Event('resize')))
-    await page.waitForFunction(() => { const stage=document.querySelector('#geometry-stage').getBoundingClientRect(); const card=document.querySelector('#geometry-card').getBoundingClientRect(); return card.width>0 && card.height>0 && card.left>=stage.left && card.top>=stage.top && card.right<=stage.right+1 && card.bottom<=stage.bottom+1 })
-  }
-})
-
-
-it('keeps parameter actions clickable when intersecting workspace bottom docks mount and resize', async () => {
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.setViewportSize({ width: 1280, height: 1200 })
-  await page.locator('#geometry-stage').waitFor({ timeout: 5000 })
-  await page.locator('#geometry-stage .generation-canvas-v2-node').evaluate(node => {
-    Object.assign(node.style, { top: '10px', height: '760px' })
-  })
-  await page.evaluate(() => {
-    const stage = document.querySelector('#geometry-stage')
-    const workspace = stage.parentElement
-    workspace.style.position = 'relative'
-    const dock = document.createElement('button')
-    dock.id = 'geometry-dock'
-    dock.setAttribute('data-canvas-bottom-dock', 'true')
-    dock.textContent = 'existing workspace dock'
-    Object.assign(dock.style, { position: 'absolute', left: '0px', bottom: '12px', width: '600px', height: '48px', zIndex: '8' })
-    workspace.append(dock)
-  })
-  for (const height of [48, 112]) {
-    await page.locator('#geometry-dock').evaluate((dock, next) => { dock.style.height = next + 'px' }, height)
-    await page.waitForFunction(() => {
-      const card = document.querySelector('#geometry-card').getBoundingClientRect()
-      const dock = document.querySelector('#geometry-dock').getBoundingClientRect()
-      const button = document.querySelector('#geometry-action')
-      const action = button.getBoundingClientRect()
-      return card.bottom <= dock.top && document.elementFromPoint(action.left + action.width / 2, action.top + action.height / 2) === button
-    }, undefined, { timeout: 2500 })
-    await page.locator('#geometry-action').click()
-  }
-  expect(await page.locator('#geometry-action').getAttribute('data-clicks')).toBe('2')
-  await page.locator('#geometry-dock').evaluate(dock => { dock.style.left = '800px'; dock.style.width = '100px' })
-  await page.waitForFunction(() => {
-    const card = document.querySelector('#geometry-card').getBoundingClientRect()
-    const stage = document.querySelector('#geometry-stage').getBoundingClientRect()
-    return Math.abs(card.bottom - (stage.bottom - 12)) < 1
-  })
-  await page.locator('#geometry-action').click()
-  expect(await page.locator('#geometry-action').getAttribute('data-clicks')).toBe('3')
-})
-
-
 it('keeps a slider keyboard edit projected through the original React Flow ownership boundary', async () => {
   await page.reload()
   const slider = page.getByRole('slider', { name: 'projection duration' })
@@ -330,9 +274,9 @@ it('keeps original node keyboard movement from disabling subsequent projection u
   await page.reload()
   await page.locator('.react-flow__node[data-id="projection-node"]').focus()
   await page.keyboard.press('ArrowRight')
-  const snapshot = await page.evaluate(() => window.projectionSnapshot())
-  expect(snapshot.position.x).toBeGreaterThan(40)
-  expect(snapshot.ownsNodes).toBe(true)
+  // 键盘移动经 React Flow 的 change 回调异步投影回来：等状态转换，不在按键后同一拍读（全量跑时偶发读到 40）。
+  await expect.poll(async () => (await page.evaluate(() => window.projectionSnapshot())).position.x).toBeGreaterThan(40)
+  expect((await page.evaluate(() => window.projectionSnapshot())).ownsNodes).toBe(true)
   const slider = page.getByRole('slider', { name: 'projection duration' })
   await slider.focus()
   await page.keyboard.press('ArrowRight')

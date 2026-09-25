@@ -716,6 +716,8 @@ export const zhGenerationCommon = {
     // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
     variantCountAria: '每次生成几个',
+    expandPrompt: '展开提示词',
+    collapsePrompt: '收起提示词',
     variantCountTitle: '每次生成 {{count}} 个',
     variantCountOption: '{{count}} 个',
     generate: '生成',
@@ -2190,6 +2192,8 @@ export const enGenerationCommon = {
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
     variantCountAria: 'Outputs per run',
+    expandPrompt: 'Expand prompt',
+    collapsePrompt: 'Collapse prompt',
     variantCountTitle: 'Generate {{count}} per run',
     variantCountOption: '{{count}} outputs',
     generate: 'Generate',

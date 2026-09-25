@@ -1,6 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as dragging from './canvasDraggingFlag'
-import { resolveAnchoredPlacement } from '../nodes/anchoredPlacement'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -20,10 +19,3 @@ it('does not release another canvas when the original gesture element is detache
   original.release()
 })
 
-it('keeps the editor measurable when the selected node fills the stage', () => {
-  const stage = { left: 0, top: 0, right: 1000, bottom: 800 }
-  const placement = resolveAnchoredPlacement({ stage, anchor: stage, width: 400, height: 200, gap: 12, aboveClearance: 0 })
-  expect(placement.height).toBeGreaterThan(0)
-  expect(placement.top).toBeGreaterThanOrEqual(stage.top)
-  expect(placement.top + placement.height).toBeLessThanOrEqual(stage.bottom)
-})

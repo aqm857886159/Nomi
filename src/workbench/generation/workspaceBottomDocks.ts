@@ -95,9 +95,8 @@ export function collectBottomDockRects(
  * （左下的工具簇不该逼一个靠右的浮层往上跑），取它们最高的上沿再让出 `clearance`。
  * 完全在视口之外的停靠区（例如时间轴展开后被顶出去的胶囊）挡不住任何人，不参与。
  *
- * 消费者：画布多选浮条（`selectionToolbarPlacement.ts`）与节点生成浮框
- * （`anchoredPlacement.ts` ← `useComposerViewportPlacement.ts`）。2026-09-21 之前只有前者
- * 在读这份名单，浮框只扣了左缘工具条，于是浮框底栏被缩放条与时间轴胶囊压住。
+ * 消费者：画布多选浮条（`selectionToolbarPlacement.ts`）。节点生成浮框 2026-09-21 曾经也读它，
+ * 2026-09-25 用户拍板浮框「钉在节点正下方、被挡就挡」后不再让位任何停靠区，那一处读法已删。
  * 坐标系由调用方决定：矩形与 viewport 在同一坐标系里即可。
  */
 export function resolveUsableBottomAboveDocks(input: Readonly<{
