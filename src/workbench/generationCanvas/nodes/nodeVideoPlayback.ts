@@ -43,6 +43,15 @@ export function markNodeVideoUserPlayback(video: HTMLVideoElement): void {
   userPlaybackVideos.add(video)
 }
 
+/**
+ * 一次音量变化算不算「用户接手」：只有**正在播**时被取消静音才算（试播中点开声音 = 要接着看）。
+ * 试播结束的复位是先 pause 再恢复静音，那次 volumechange 到达时视频已暂停——按状态判，不按时序猜
+ * （2026-09-25 实测：按「没静音就算」判，离开卡片的复位被当成用户操作，播放器卸不掉、再悬停不播）。
+ */
+export function isNodeVideoVolumeTakeover(video: HTMLVideoElement): boolean {
+  return !video.paused && !video.muted
+}
+
 /** Clear the explicit-playback marker after pause or natural end. */
 export function clearNodeVideoUserPlayback(video: HTMLVideoElement): void {
   pendingHoverPreviewPlay.delete(video)

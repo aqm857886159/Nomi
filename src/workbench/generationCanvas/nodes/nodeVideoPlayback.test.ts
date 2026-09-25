@@ -3,6 +3,7 @@ import {
   claimNodeVideoPlayback,
   clearNodeVideoUserPlayback,
   consumeNodeVideoHoverPreviewPlay,
+  isNodeVideoVolumeTakeover,
   markNodeVideoUserPlayback,
   releaseNodeVideoPlayback,
   startNodeVideoHoverPreview,
@@ -68,6 +69,21 @@ describe('node video hover preview', () => {
 
     expect(video.pause).toHaveBeenCalledOnce()
     expect(video.currentTime).toBe(0)
+  })
+
+  it('the unmute that restores a stopped preview is not a user takeover', () => {
+    const video = fakeVideo(false, false)
+
+    startNodeVideoHoverPreview(video)
+    expect(isNodeVideoVolumeTakeover(video)).toBe(false)
+    video.muted = false
+    expect(isNodeVideoVolumeTakeover(video)).toBe(true)
+
+    video.muted = true
+    ;(video as { paused: boolean }).paused = true
+    stopNodeVideoHoverPreview(video)
+    expect(video.muted).toBe(false)
+    expect(isNodeVideoVolumeTakeover(video)).toBe(false)
   })
 })
 

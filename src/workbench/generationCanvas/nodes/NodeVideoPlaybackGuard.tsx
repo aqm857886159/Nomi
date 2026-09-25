@@ -9,6 +9,7 @@ import {
   claimNodeVideoPlayback,
   clearNodeVideoUserPlayback,
   consumeNodeVideoHoverPreviewPlay,
+  isNodeVideoVolumeTakeover,
   markNodeVideoUserPlayback,
   releaseNodeVideoPlayback,
   startNodeVideoHoverPreview,
@@ -99,10 +100,13 @@ export function NodeVideoPlaybackGuard({
   const interacting = useSettledIntent(previewRequested || engaged, hostRef)
   const wantsPlayer = !posterUrl || !measured || interacting || focusInside || userPlaying
 
-  // 指针离开：停掉试播并复位（用户主动播放的不停）；播放器是否卸载由 wantsPlayer 决定。
+  // 悬停意图变了：离开 → 停掉试播并复位（用户主动播放的不停），播放器是否卸载由 wantsPlayer 决定；
+  // 回来 → 播放器还在宽限期里、已有画面就直接试播（没画面的由 onLoadedData 起播），否则再悬停不会播。
   React.useEffect(() => {
     const video = videoRef.current
-    if (!previewRequested && video) stopNodeVideoHoverPreview(video)
+    if (!video) return
+    if (!previewRequested) stopNodeVideoHoverPreview(video)
+    else if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) startNodeVideoHoverPreview(video)
   }, [previewRequested])
 
   // 卸载（或换了元素）时让出「唯一在播者」。
@@ -189,7 +193,7 @@ export function NodeVideoPlaybackGuard({
               onEnded?.(event)
             }}
             onVolumeChange={(event) => {
-              if (!event.currentTarget.muted) markUserPlayback(event.currentTarget)
+              if (isNodeVideoVolumeTakeover(event.currentTarget)) markUserPlayback(event.currentTarget)
               onVolumeChange?.(event)
             }}
             onClick={(event) => {

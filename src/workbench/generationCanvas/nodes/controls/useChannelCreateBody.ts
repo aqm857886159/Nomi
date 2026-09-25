@@ -76,13 +76,14 @@ export function useChannelCreateBodies(
     return out
   }, [vendorKey, modelKey, signature])
 
-  const [bodies, setBodies] = React.useState<Record<string, ModeChannelBody>>(compute)
+  // 模型/模式集变了（compute 变）或目录广播变了（catalogVersion 变）才重查，每种变化只查一遍。
+  // 旧写法 useState(compute) 挂载时查一遍、effect 里紧接着又查一遍：选中一张卡就多一轮同步 IPC（2026-09-25 实测）。
+  const [catalogVersion, setCatalogVersion] = React.useState(0)
   React.useEffect(() => {
-    const recompute = () => setBodies(compute())
-    recompute() // 模型/模式集变化即重算
-    window.addEventListener(CATALOG_CHANGED_EVENT, recompute)
-    return () => window.removeEventListener(CATALOG_CHANGED_EVENT, recompute)
-  }, [compute])
+    const bump = () => setCatalogVersion((version) => version + 1)
+    window.addEventListener(CATALOG_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(CATALOG_CHANGED_EVENT, bump)
+  }, [])
 
-  return bodies
+  return React.useMemo(compute, [compute, catalogVersion])
 }

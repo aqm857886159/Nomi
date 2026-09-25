@@ -7,6 +7,7 @@ import {
   catalogPath,
   modelCatalogReadOnlyStatus,
   readCatalogFile,
+  readCatalogFileBytes,
   snapshotBeforeMigration,
 } from "./catalogFileAccess";
 export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./catalogFileAccess";
@@ -67,7 +68,19 @@ function defaultCatalog(): CatalogState {
   };
 }
 
+// 读缓存（2026-09-25 画布跟手实测）：画布上选中一张卡，提示词面板经同步 IPC 连读十几次目录，每次都重新
+// 解析、迁移、逐家解密，渲染线程被卡 29–61 ms。盘上字节没变就复用上一次的结果——键是路径 + 原始字节，
+// 不是 mtime（同一毫秒两次写会漏），本进程 writeCatalog、别的实例、手改文件都自然失效。
+// 有密钥解不开（钥匙串锁着）时不缓存：解锁后下一次读必须重新解密，行为与无缓存时一致。
+// 调用方会就地改返回值再 writeCatalog，所以缓存本体不外借，每次给深拷贝。
+let catalogReadCache: { path: string; bytes: string; state: CatalogState } | null = null;
+
 export function readCatalog(): CatalogState {
+  const cachePath = catalogPath();
+  const bytes = readCatalogFileBytes();
+  if (bytes !== null && catalogReadCache?.path === cachePath && catalogReadCache.bytes === bytes) {
+    return structuredClone(catalogReadCache.state);
+  }
   const outcome = readCatalogFile();
   if (outcome.status === "missing") {
     const initial = defaultCatalog();
@@ -88,13 +101,16 @@ export function readCatalog(): CatalogState {
   const migrated = migrateCatalogForward(snapshotBeforeMigration(parsed), defaultCatalog, writeCatalog);
 
   const apiKeysByVendor = migrated.apiKeysByVendor || {};
-  return {
+  let everyKeyReadable = true;
+  const state: CatalogState = {
     ...migrated,
     vendors: migrated.vendors.map((vendor) => {
+      const keyStatus = apiKeyDecryptStatus(apiKeysByVendor[vendor.key]);
+      if (keyStatus === "locked") everyKeyReadable = false;
       const base: Vendor = {
         ...vendor,
         providerKind: normalizeProviderKind(vendor.providerKind),
-        hasApiKey: apiKeyDecryptStatus(apiKeysByVendor[vendor.key]) === "ok",
+        hasApiKey: keyStatus === "ok",
         credentialVerificationPending: apiKeysByVendor[vendor.key]?.verificationPending === true,
       };
       // Overlay the DECRYPTED proxy/header credentials onto the INTERNAL vendor at
@@ -107,6 +123,10 @@ export function readCatalog(): CatalogState {
     }),
     apiKeysByVendor,
   };
+  // 迁移可能刚把文件写了一遍：字节变了就先不缓存，下一次读再缓存新的那份。
+  const cacheable = bytes !== null && everyKeyReadable && readCatalogFileBytes() === bytes;
+  catalogReadCache = cacheable ? { path: cachePath, bytes, state: structuredClone(state) } : null;
+  return state;
 }
 
 /**
