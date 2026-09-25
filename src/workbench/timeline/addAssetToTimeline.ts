@@ -2,18 +2,18 @@ import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecut
 import { readAudioDurationSeconds } from '../../media/audioDurationProbe'
 import { readVideoDurationSeconds } from '../../media/videoDurationProbe'
 import { parseAssetLibraryDrag, type AssetLibraryDragPayload } from '../assets/assetLibraryDrag'
-import { assetBelongsToProject } from '../assets/assetLibraryUsage'
+import { materializeAssetLibraryItems } from '../assets/assetLibraryMaterialize'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'
 import { useWorkbenchStore } from '../workbenchStore'
 import { buildClipFromAssetRef } from './buildClipFromAssetRef'
 import { findAppendFrame } from './timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timelineTypes'
 import { logRendererWarn } from '../../desktop/rendererLog'
+import i18n from '../../i18n'
 
 export type AssetDropResolution =
   | { status: 'accept'; asset: TimelineAssetRef }
   | { status: 'reject'; expectedTrack: TimelineTrackType }
-  | { status: 'reject-external' }
 
 type TimelineAssetRef = AssetRef & { kind: TimelineTrackType }
 
@@ -47,11 +47,9 @@ export function assetRefFromDragPayload(payload: AssetLibraryDragPayload): Timel
 export function resolveAssetDrop(
   payload: AssetLibraryDragPayload,
   trackType: TimelineTrackType,
-  activeProjectId: string | null = null,
 ): AssetDropResolution | null {
   const asset = assetRefFromDragPayload(payload)
   if (!asset) return null
-  if (!assetBelongsToProject(asset, activeProjectId)) return { status: 'reject-external' }
   return asset.kind === trackType
     ? { status: 'accept', asset }
     : { status: 'reject', expectedTrack: asset.kind }
@@ -115,16 +113,22 @@ export async function addAssetToTimelineEnd(asset: AssetRef, project: ProjectExe
 export function tryAddAssetFromDragData(
   raw: string | null | undefined,
   options: { fps: number; startFrame: number; targetTrackType: TimelineTrackType; onFailure: (error: unknown) => void },
-): ({ status: 'accept'; kind: AssetKind } | { status: 'reject'; expectedTrack: TimelineTrackType } | { status: 'reject-external' }) | null {
+): ({ status: 'accept'; kind: AssetKind } | { status: 'reject'; expectedTrack: TimelineTrackType }) | null {
   const payload = parseAssetLibraryDrag(raw)
   if (!payload) return null
-  // 拖放即动作起点：签发此刻打开的项目，「属不属于本项目」与之后写时间轴都只认它。
+  // 拖放即动作起点：签发此刻打开的项目，复制与之后写时间轴都只认它。
   const project = withProjectAction((issued) => issued)
-  const resolution = resolveAssetDrop(payload, options.targetTrackType, project?.binding.projectId ?? null)
+  if (!project) return null
+  const resolution = resolveAssetDrop(payload, options.targetTrackType)
   if (!resolution) return null
   if (resolution.status === 'reject') return resolution
-  if (resolution.status === 'reject-external' || !project) return { status: 'reject-external' }
-  void addAssetToTimeline(resolution.asset, options, project)
+  // 别的项目的素材先复制进本项目（materializeAssetLibraryItems 是画布 / 时间轴共用的唯一关口）。
+  void materializeAssetLibraryItems([payload], project)
+    .then(({ items }) => {
+      const local = items[0] ? assetRefFromDragPayload(items[0]) : null
+      if (!local) throw new Error(i18n.t('assetLibrary.copyIntoProjectFailed', { count: 1 }))
+      return addAssetToTimeline(local, options, project)
+    })
     .then((clip) => { if (!clip && isProjectExecutionContextCurrent(project)) options.onFailure(null) })
     .catch((error: unknown) => { if (isProjectExecutionContextCurrent(project)) options.onFailure(error) })
   return { status: 'accept', kind: resolution.asset.kind }

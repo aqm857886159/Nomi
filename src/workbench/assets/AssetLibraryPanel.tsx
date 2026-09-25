@@ -40,7 +40,8 @@ import { assetProvenanceOf, countAssetProvenance } from './assetProvenance'
 import { useAssetLibraryFilters } from './useAssetLibraryFilters'
 import { filterCanvasLibraryAssets, filterPlayableAssets } from './assetLibrarySources'
 import { deleteAssetResult } from './deleteAssetResult'
-import { addAssetToTimelineEnd } from '../timeline/addAssetToTimeline'
+import { addAssetToTimelineEnd, assetRefFromDragPayload } from '../timeline/addAssetToTimeline'
+import { materializeAssetLibraryItems } from './assetLibraryMaterialize'
 import { useAssetLibraryLocalImport } from './assetLibraryLocalImport'
 import { logRendererError } from '../../desktop/rendererLog'
 import {
@@ -385,16 +386,18 @@ export function AssetLibraryContent({
   const activateAsset = React.useCallback((asset: AssetRef, event: AssetGridActivationEvent): void => {
     if (!shouldRunAssetItemAction(itemAction, event.detail)) return
     if (itemAction === 'append') {
-      // The all-project view is intentionally browse-only until a materialized
-      // copy contract exists. Never write another project's URL into this
-      // project's timeline; let the user inspect the source instead.
-      if (!assetBelongsToProject(asset, projectId)) {
-        setPreviewAsset(asset)
-        return
-      }
+      // 别的项目的素材先复制进本项目（与拖放同一个关口 materializeAssetLibraryItems），
+      // 时间轴只写本项目自己的地址。
       withProjectAction((project) => {
-        void addAssetToTimelineEnd(asset, project).then((added) => {
-          if (added) markLibraryUsed('asset', asset.id)
+        void materializeAssetLibraryItems([assetToDragPayload(asset)], project).then(({ items }) => {
+          const local = items[0] ? assetRefFromDragPayload(items[0]) : null
+          if (!local) {
+            if (isProjectExecutionContextCurrent(project)) report(t('assetLibrary.copyIntoProjectFailed', { count: 1 }), 'warning')
+            return
+          }
+          return addAssetToTimelineEnd(local, project).then((added) => {
+            if (added) markLibraryUsed('asset', asset.id)
+          })
         })
       })
       return
@@ -405,17 +408,13 @@ export function AssetLibraryContent({
       return
     }
     selectAsset(asset, event)
-  }, [itemAction, projectId, selectAsset])
+  }, [itemAction, projectId, report, selectAsset, t])
 
 
+  // 别的项目的素材也能拖：落点先经 assetLibraryMaterialize 复制进本项目，这里不再拦。
   const handleAssetDragStart = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
-    if (!assetBelongsToProject(asset, projectId)) {
-      event.preventDefault()
-      return
-    }
     const currentSelection = selectedIdsRef.current
     const selectedForDrag = assetsForLibraryDrag(visibleAssetsRef.current, currentSelection, asset)
-      .filter((candidate) => assetBelongsToProject(candidate, projectId))
     if (!currentSelection.has(asset.id)) {
       setSelectedIds(new Set([asset.id]))
       lastSelectedIdRef.current = asset.id
@@ -431,7 +430,7 @@ export function AssetLibraryContent({
     event.dataTransfer.setData(ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag(payloads))
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData('text/plain', payloads.length > 1 ? `${payloads.length} 个素材` : asset.name)
-  }, [projectId])
+  }, [])
 
   // 项目素材 tab 的格子拖拽=归类进夹（独立 MIME,画布 drop 端不认识,不会误建重复节点）。
   // 三件套 handler 抽在 useAssetFolderInteractions（R9 防巨壳）。
@@ -455,14 +454,9 @@ export function AssetLibraryContent({
   } : undefined, [itemAction, projectId])
   const assetDragStartAction = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
     present('')
-    if (!assetBelongsToProject(asset, projectId)) {
-      event.preventDefault()
-      report(t('assetLibrary.externalAssetHint'), 'info')
-      return
-    }
     if (projectSelectionEnabled) handleFolderAssignDragStart(asset, event)
     else handleAssetDragStart(asset, event)
-  }, [handleAssetDragStart, handleFolderAssignDragStart, projectId, projectSelectionEnabled, present, report, t])
+  }, [handleAssetDragStart, handleFolderAssignDragStart, projectSelectionEnabled, present])
 
   const deleteSelectedProjectAssets = React.useCallback(async (): Promise<void> => {
     present('')
@@ -504,7 +498,7 @@ export function AssetLibraryContent({
     present('')
     const loaded = withProjectAction((project) => project) ?? null
     if (!assetBelongsToProject(asset, projectId)) {
-      report(t('assetLibrary.externalAssetHint'), 'info')
+      report(t('assetLibrary.externalAssetNoDelete'), 'info')
       return
     }
     const confirmed = await confirmDialog({
@@ -722,7 +716,7 @@ export function AssetLibraryContent({
                   asset={asset}
                   compact
                   selectable={projectSelectionEnabled}
-                  draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
+                  draggable={asset.kind !== 'model3d'}
                   selected={selectedIds.has(asset.id)}
                   dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                   onSelect={activateAsset}
@@ -757,7 +751,7 @@ export function AssetLibraryContent({
                         key={asset.id}
                         asset={asset}
                         selectable={projectSelectionEnabled}
-                        draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
+                        draggable={asset.kind !== 'model3d'}
                         selected={selectedIds.has(asset.id)}
                         dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                         onSelect={activateAsset}
