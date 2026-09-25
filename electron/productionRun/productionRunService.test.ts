@@ -159,19 +159,6 @@ describe('production run service projection boundary', () => {
     expect(repository.execute).not.toHaveBeenCalled()
   })
 
-  it('keeps listFull read-only and leaves restart recovery explicit', () => {
-    const repository = {
-      read: vi.fn(() => run),
-      readEvents: vi.fn(() => []),
-      list: vi.fn(() => [{ runId: run.runId }]),
-      execute: vi.fn(),
-    }
-    const service = createProductionRunService({ repository: repository as never, projectRootResolver: () => null })
-
-    expect(service.listFull('project-1')).toHaveLength(1)
-    expect(repository.execute).not.toHaveBeenCalled()
-  })
-
   it('does not let legacy restart recovery rewrite a semantic single-shot job', async () => {
     const semanticRun = {
       ...run,

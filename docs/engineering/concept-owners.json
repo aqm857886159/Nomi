@@ -74,6 +74,282 @@
       ],
       "since": "2026-09-24",
       "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
+    },
+    {
+      "name": "任务分组",
+      "owner": {
+        "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+        "symbol": "TASK_CENTER_GROUPS"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/taskCenterEntries.ts",
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/taskCenter/exportJobTaskCenter.ts",
+        "src/workbench/production/productionRunView.ts",
+        "src/workbench/production/ProductionRunTaskCard.tsx",
+        "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "src/workbench/taskCenter/TaskCenterButton.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。"
+    },
+    {
+      "name": "制作 Run 算不算任务",
+      "owner": {
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "isProductionRunTask"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/production/productionRunStore.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "Agent 没出价的草稿（plan.state=draft 且 cardHidden）和被丢掉的计划（plan.state=cancelled）不是任务：不成行、不计徽标、不顶掉在跑的整卡。判据只吃列表投影 ProductionRunSummary.generationPlan 的两格（主进程 summarize 投出）。画布落地（ProductionCanvasLandingHost）要的是草稿本身，不消费这条。"
+    },
+    {
+      "name": "制作镜头在画布上的运行状态",
+      "owner": {
+        "path": "electron/shared/productionShotPhase.ts",
+        "symbol": "deriveProductionShotState"
+      },
+      "consumers": [
+        "electron/productionRun/multiShotCanvasLanding.ts",
+        "electron/productionRun/canvasLandingHost.ts",
+        "electron/capabilityCore/appIntegrationRunObservation.ts",
+        "electron/capabilityCore/appIntegration.ts",
+        "src/workbench/capability/multiShotCanvasLanding.ts",
+        "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。"
+    },
+    {
+      "name": "供应商产物取回线路",
+      "owner": {
+        "path": "electron/assets/providerMediaFetch.ts",
+        "symbol": "fetchProviderMedia"
+      },
+      "consumers": [
+        "electron/assets/projectAssetStore.ts",
+        "electron/assets/downloadAsset.ts",
+        "electron/capabilityCore/generationOutputMaterializer.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。"
+    },
+    {
+      "name": "画布手势寿命（一次拖动/框选/缩放何时结束）",
+      "owner": {
+        "path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+        "symbol": "beginCanvasDragging"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+        "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+        "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+        "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+        "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "React Flow 内核（d3-drag）自己也记着拖动状态，框架层删不掉；裁决是单向的——租约判定结束，内核照办：租约取消或松手丢失时经 reactFlow/canvasDragWriteback.ts 的 endKernelNodeDrag 走内核自己的 end 路径，内核不许反过来自行判定。方向键移动的授权是同一概念的键盘面：keyboardMoveScope（按下时选中的那批），不靠时间窗口。复核：docs/audit/2026-09-25-generation-canvas-ownership-review.md。"
+    },
+    {
+      "name": "画布视频何时挂播放器、谁在播",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+        "symbol": "claimNodeVideoPlayback"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "平时只画封面，悬停/选中才挂 <video>，同时最多一个在播（用户拍板）。节点卡片只传意图（previewRequested/engaged），不许自己决定挂不挂、播不播。"
+    },
+    {
+      "name": "视频封面",
+      "owner": {
+        "path": "electron/assets/assetPreview.ts",
+        "symbol": "attachStoredAssetPreview"
+      },
+      "consumers": [
+        "electron/assets/assetSidecar.ts",
+        "electron/assets/localFileImport.ts",
+        "electron/assets/localizeTaskAsset.ts",
+        "electron/assets/projectAssetStore.ts",
+        "src/workbench/assets/useLocalAssetPreview.ts",
+        "src/workbench/assets/AssetVideoCover.tsx",
+        "src/workbench/generationCanvas/resultMediaBackfillBridge.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "落盘边界抽首帧；渲染层只经 bridge.assets.ensurePreview（ensureLocalAssetPreview）要，不许自己抽帧（旧的胶片条推导已删）。老节点缺封面由 resultMediaBackfillBridge 打开项目后补。"
+    },
+    {
+      "name": "@ 引用落哪个槽",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+        "symbol": "resolveMentionReference"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "@ 是「参考」语义（用户拍板），只落参考槽；拖线的「接力」语义住同文件的 resolveCanvasReferenceConnection，两个判据分开，不许再共用一个带首尾帧偏好的路由。"
+    },
+    {
+      "name": "画布缩放",
+      "owner": {
+        "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+        "symbol": "selectFlowZoom",
+        "pending": true
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+        "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+        "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。"
+    },
+    {
+      "name": "模型工具的身份",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+        "symbol": "MODEL_FACING_TOOL_SPECS"
+      },
+      "consumers": [
+        "src/workbench/ai/resident/timelineAgentSurface.tsx",
+        "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+        "src/workbench/ai/resident/residentToolDisplay.ts",
+        "src/workbench/ai/v4/agentPanelV4ActionFamily.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "electron/agentLane/laneModelContext.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "一个应用内工具名是什么、它有什么事实（契约 id / nextAction / 分组）只问注册表（由 VERB_DECLARATIONS 派生），不许在别处手抄工具名做识别。2026-09-24 实例：timelineAgentSurface 手抄的计划工具名单在 20 动词改名后十天没人发现，计划卡退回通用卡并多出「不再问」（docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json）。执行绑定（laneVerbTransport 等）仍按名字分派，记在该合同 residual_risks。"
+    },
+    {
+      "name": "技能显示名",
+      "owner": {
+        "path": "src/workbench/skillLibrary/skillDisplay.ts",
+        "symbol": "skillLabelForKey"
+      },
+      "consumers": [
+        "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "src/workbench/skillLibrary/skillGallery.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
+    },
+    {
+      "name": "制作镜头的生成归属",
+      "owner": {
+        "path": "electron/shared/productionShotPhase.ts",
+        "symbol": "productionShotOwnsGeneration"
+      },
+      "consumers": [
+        "src/workbench/production/productionShotOwnership.ts",
+        "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "src/workbench/generationCanvas/runner/generationRunController.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。"
+    },
+    {
+      "name": "素材库落点的项目归属（跨项目先复制）",
+      "owner": {
+        "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+        "symbol": "materializeAssetLibraryItems"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+        "src/workbench/timeline/addAssetToTimeline.ts",
+        "src/workbench/assets/AssetLibraryPanel.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "画布 / 时间轴只写当前项目自己的素材引用：本项目 / 本画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制。落点不许再各自判 assetBelongsToProject 决定拒收（2026-08-31 四处各写一份拒收，别的项目的素材从此拖不出来）。合同 docs/fixes/2026-09-25-asset-library-drop-materialize.root-cause.json。"
+    },
+    {
+      "name": "素材格子的选择规则",
+      "owner": {
+        "path": "src/workbench/assets/assetLibraryUsage.ts",
+        "symbol": "nextAssetSelection"
+      },
+      "consumers": [
+        "src/workbench/assets/AssetLibraryPanel.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "普通点换选、⌘/Ctrl 与右上角对勾加减、Shift 连选只在这一处定义；对勾不许再是装饰（此前点它等于换选，多选删除只删一张）。素材格子拖拽只发 application/x-nomi-asset-ref 一种载荷，文件夹归类与画布都读它。"
+    },
+    {
+      "name": "宿主跨源隔离头",
+      "owner": {
+        "path": "electron/shared/crossOriginIsolation.ts",
+        "symbol": "CROSS_ORIGIN_ISOLATION_HEADERS"
+      },
+      "consumers": [
+        "electron/contentSecurityPolicy.ts",
+        "vite.config.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "COOP / COEP 的名字与模式（credentialless）只在这里定义，主进程与开发服务器都展开它；不许再写字面量（require-corp 曾让 Mac 版第三方示例媒体整片被拦）。合同 docs/fixes/2026-09-25-third-party-media-coep.root-cause.json。"
+    },
+    {
+      "name": "第三方示例媒体的失效",
+      "owner": {
+        "path": "src/media/remoteExampleMedia.ts",
+        "symbol": "useRemoteExampleMedia"
+      },
+      "consumers": [
+        "src/workbench/promptLibrary/PromptCard.tsx",
+        "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+        "src/workbench/skillLibrary/SkillMedia.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "提示词库 / 技能库公开示例的媒体地址归第三方站点；失败一次即本次会话记为失效，统一显示「示例已失效」、同一地址不再请求。组件不许再各自维护 broken 状态。"
+    },
+    {
+      "name": "项目数据里的构建产物地址",
+      "owner": {
+        "path": "electron/workspace/buildArtifactMigration.ts",
+        "symbol": "createBuildArtifactRewriter"
+      },
+      "consumers": [
+        "electron/workspace/workspaceManifest.ts",
+        "electron/shared/buildArtifactUrl.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "app.asar 包内 / dev server 源码树地址不许进项目：挂在清单事务 localizeEmbeddedMediaUrls 那一遍遍历上，示例图迁成项目资产，新写入的其它构建地址拒绝。分类器 electron/shared/buildArtifactUrl.ts 是判据面，不是第二个 owner。合同 docs/fixes/2026-09-25-build-artifact-url-in-project-data.root-cause.json。"
+    },
+    {
+      "name": "剪辑面板的收起状态",
+      "owner": {
+        "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+        "symbol": "setEditingPanelLayout"
+      },
+      "consumers": [
+        "src/workbench/preview/PreviewWorkspace.tsx",
+        "src/workbench/preview/PreviewSourcePanel.tsx",
+        "src/workbench/preview/panelLayout.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "收起只有 editingPanelLayout.visibility 一份真相；面板库拖出来的收起 / 展开经 editingPanelResizeEffect 写回它（此前被丢掉，32px 里仍画整块面板）。"
+    },
+    {
+      "name": "叫回 Nomi 的入口",
+      "owner": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "symbol": "CollapsedAiChip"
+      },
+      "consumers": [
+        "src/ui/app-shell/NomiAppBar.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
     }
   ]
 }

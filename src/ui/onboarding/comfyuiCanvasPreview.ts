@@ -12,6 +12,7 @@
 //    comfyuiWorkflowImport.ts buildImportedWorkflow），画布节点底栏按 parameters 渲染控件。
 //  - 提示词 ⟵ 绑了提示词节点才有输入框；没绑就是「这条工作流不吃提示词」，画布上也确实没有。
 // 改画布那边的口径，这里要同步（两处都指向对方，别只改一处）。
+import { declaredOptionValue } from '../../workbench/generationCanvas/nodes/controls/parameterControlModel'
 import { workflowMediaBindings, type WorkflowBinding, type WorkflowParamType } from './comfyuiWorkflowBinding'
 
 /** 画布上一个可填控件的类型。media 槽 = 拖图/拖视频/拖音频的方框，不是输入框。 */
@@ -28,11 +29,12 @@ export type PreviewField = {
   /** 这个控件由哪个节点的哪个输入来的——预览里标出来，改绑时能一眼对上图上哪张卡。 */
   nodeId: string
   inputKey?: string
-  /** combo 参数在画布是真实文件下拉（enumOptions 随导入烤进控件）；这里同样给下拉，别假装是自由输入框。 */
-  options?: string[]
+  /** combo 参数在画布是真实文件下拉（enumOptions 随导入烤进控件）；这里同样给下拉，别假装是自由输入框。
+   *  选项保留 ComfyUI 的 wire 原类型（数字就是数字），试跑时按选中项的类型发回。 */
+  options?: Array<string | number | boolean>
 }
 
-export type EnumOption = { classType: string; inputKey: string; options: string[] }
+export type EnumOption = { classType: string; inputKey: string; options: Array<string | number | boolean> }
 
 export type CanvasPreview = {
   fields: PreviewField[]
@@ -46,7 +48,7 @@ function optionsFor(
   classTypeByNodeId: ReadonlyMap<string, string>,
   nodeId: string,
   inputKey: string,
-): string[] | undefined {
+): Array<string | number | boolean> | undefined {
   if (!enumOptions?.length) return undefined
   const classType = classTypeByNodeId.get(nodeId)
   if (!classType) return undefined
@@ -127,6 +129,12 @@ export function previewValuesToExtras(
     }
     if (field.kind === 'boolean') {
       extras[field.key] = value === 'true'
+      continue
+    }
+    if (field.options?.length) {
+      // 下拉按选中项的声明类型回类型，与画布同一个 owner：选 8 发数字 8，不发 "8"
+      // ——ComfyUI 的 combo 校验类型敏感，"8" 会被判 value_not_in_list。
+      extras[field.key] = declaredOptionValue(field.options, value)
       continue
     }
     extras[field.key] = value

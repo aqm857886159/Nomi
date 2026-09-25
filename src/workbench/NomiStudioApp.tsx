@@ -43,7 +43,7 @@ import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailur
 import { laneReceiptClient } from './ai/lane/laneReceiptClient'
 import { initReviewEventBridge } from './generationCanvas/reviewEventBridge'
 import { initComfyuiProgressBridge } from './generationCanvas/comfyuiProgressBridge'
-import { initResultUrlRelocalizeBridge } from './generationCanvas/resultUrlRelocalizeBridge'
+import { initResultMediaBackfillBridge } from './generationCanvas/resultMediaBackfillBridge'
 import { setCanvasEventProjectIdProvider } from './generationCanvas/events/canvasEventEmitter'
 import { handleCapabilityApply, registerCapabilityApplyHandler } from './capability/capabilityApplyHandler'
 import { cn } from '../utils/cn'
@@ -216,7 +216,7 @@ export default function NomiStudioApp(): JSX.Element {
 
   React.useEffect(() => initReviewEventBridge(), [])
   React.useEffect(() => initComfyuiProgressBridge(), [])
-  React.useEffect(() => initResultUrlRelocalizeBridge(), [])
+  React.useEffect(() => initResultMediaBackfillBridge(), [])
   React.useEffect(() => setCanvasEventProjectIdProvider(() => activeProjectIdRef.current ?? null), [])
   React.useEffect(() => registerCapabilityApplyHandler(), [])
   // B4 只读 Surface 端口复用同一 coordinator binding，不复制项目真相。

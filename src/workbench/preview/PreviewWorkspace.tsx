@@ -3,7 +3,6 @@ import { assistantPaneWidth } from '../assistantWidthBounds'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Panel, Separator, usePanelRef, type PanelImperativeHandle } from 'react-resizable-panels'
-import { IconMessageCircle } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import TimelinePanel from '../timeline/TimelinePanel'
@@ -11,10 +10,8 @@ import { computeTimelineDuration, resolveActiveClipsAtFrame } from '../timeline/
 import TimelinePreview from './TimelinePreview'
 import PreviewSourcePanel from './PreviewSourcePanel'
 import PreviewInspector from './inspector/PreviewInspector'
-import { PanelRail } from './PanelRail'
-import { EDITING_PANEL_BOUNDS, EDITING_PANEL_RAIL_WIDTH, type EditingPanelSizeKey } from './panelLayout'
+import { EDITING_PANEL_BOUNDS, EDITING_PANEL_RAIL_WIDTH, editingPanelResizeEffect, type EditingPanelSizeKey } from './panelLayout'
 import { useTimelinePlaybackClock } from '../timeline/useTimelinePlaybackClock'
-import { useResidentActivityStore } from '../ai/residentActivity'
 
 // 剪辑面板系统（合同 §2.1 布局 C′）。
 //
@@ -135,6 +132,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const syncSize = useWorkbenchStore((state) => state.syncEditingPanelSize)
   const markCustom = useWorkbenchStore((state) => state.markEditingPanelLayoutCustom)
   const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
+  const setEditingPanelLayout = useWorkbenchStore((state) => state.setEditingPanelLayout)
   const setAgentCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
   const undoEditingPanelLayout = useWorkbenchStore((state) => state.undoEditingPanelLayout)
   const sourcePanelRef = usePanelRef()
@@ -148,8 +146,6 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [timeline])
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
   const assistantVisible = layout.visibility.assistant && !aiCollapsed
-  const residentActivityDot = useResidentActivityStore((state) => state.dotClassName)
-  const residentActivityLabel = useResidentActivityStore((state) => state.label)
 
   useTimelinePlaybackClock({ playing, playheadFrame, durationFrame, fps: timeline.fps, onPlayheadChange: setTimelinePlayhead, onPlayingChange: setTimelinePlaying })
 
@@ -159,10 +155,13 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
     { ref: inspectorPanelRef, element: inspectorElementRef, orientation: 'width', visible: layout.visibility.inspector, size: layout.inspectorWidth },
   ])
   const onPanelResized = React.useCallback((key: EditingPanelSizeKey, pixels: number, visible: boolean) => {
-    // 收起态量到的是 rail 宽，不是用户挑的宽度；同步期间量到的是中间态。两种都不写回。
-    if (syncingRef.current || !visible || pixels <= EDITING_PANEL_RAIL_WIDTH) return
-    syncSize({ [key]: Math.round(pixels) })
-  }, [syncSize, syncingRef])
+    // 同步期间量到的是中间态，不写回。
+    if (syncingRef.current) return
+    // 拖过收起阈值 → 写回 visibility；普通拖宽 → 镜像像素（规则见 editingPanelResizeEffect）。
+    const effect = editingPanelResizeEffect(key, pixels, visible)
+    if (effect?.kind === 'visibility') setEditingPanelLayout({ visibility: { [effect.panel]: effect.visible } })
+    else if (effect?.kind === 'size') syncSize({ [key]: effect.size })
+  }, [setEditingPanelLayout, syncSize, syncingRef])
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -187,7 +186,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
       aria-label={t('workspace.preview')}
     >
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
-        style={{ gridTemplateColumns: `minmax(0,1fr) ${assistantVisible ? assistantPaneWidth(layout.assistantWidth) : EDITING_PANEL_RAIL_WIDTH}px` }}>
+        style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)' }}>
         <div className="min-h-0 min-w-0" id="editing-surface-main">
           <Group orientation="vertical" className="h-full" id="editing-surface-left" onLayoutChanged={onUserLayout}>
             <Panel id="editing-surface-stage" minSize={EDITING_PANEL_BOUNDS.stage.min}>
@@ -216,8 +215,8 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
                       timeline={timeline}
                     />
                     {/*
-                      收起态是两件事叠加，不是二选一：Nomi 那一列收成 32px 图标条（§2.1，
-                      下面那条 PanelRail），同时同一个 composer 浮到**预览列**下沿（§2.6
+                      收起态：Nomi 那一列整列让出（叫回 Nomi 只有顶栏角标一个入口——09-01 定稿 §11.2，
+                      2026-09-25 删掉了与它重复的右侧 32px 竖条），同时同一个 composer 浮到**预览列**下沿（§2.6
                       「结果全屏」——交回屏幕的是转录区，不是对话本身；介入槽跟着 composer 走，
                       计划仍能读能批）。
                       宿主挂在预览列而不是整条舞台行：居中要对齐画面而不是「素材+画面+属性」
@@ -266,28 +265,16 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
             </Panel>
           </Group>
         </div>
-          <aside
-            id="editing-surface-assistant"
-            data-testid="editing-surface-assistant"
-            className="relative h-full min-w-0"
-            aria-label={t('timelinePreview.previewLayout.panels.assistant')}
-          >
-            {assistantVisible ? (
+          {assistantVisible ? (
+            <aside
+              id="editing-surface-assistant"
+              data-testid="editing-surface-assistant"
+              className="relative h-full min-w-0"
+              aria-label={t('timelinePreview.previewLayout.panels.assistant')}
+            >
               <AssistantPane dockRef={agentDockRef} />
-            ) : (
-              /* 收起后叫回 Nomi 的**唯一**入口。状态点让「它还在跑 / 在等我确认」在收起态也看得见，
-                 这是删掉画面右上角那颗「叫回 Nomi」胶囊的前提——一功能一个家（合同 §1.5）。 */
-              <PanelRail
-                icon={<IconMessageCircle size={16} />}
-                label={t('timelinePreview.previewLayout.panels.assistant')}
-                title={residentActivityLabel
-                  ? `${t('timelinePreview.previewLayout.expandAssistant')} · ${residentActivityLabel}`
-                  : t('timelinePreview.previewLayout.expandAssistant')}
-                statusDotClassName={residentActivityDot || 'bg-nomi-ink-30'}
-                onClick={() => setAgentCollapsed(false)}
-              />
-            )}
-          </aside>
+            </aside>
+          ) : null}
       </div>
     </section>
   )

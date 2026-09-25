@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-asset-library-drop-materialize",
+  "problem_type": "素材库拖放「怎么变成当前项目能写的引用」没有唯一关口：每个落点各自判归属并直接拒收",
+  "symptom": "用户 2026-09-25：「素材库拖不出图片和视频来了」。真机复现（tests/ux/asset-library-interactions.walk.mjs，改前）：「全部素材」里别的项目的图拖到画布，卡片数 1→1，控制台无报错，只在悬停提示里写着「来自其他项目：仅可预览」。",
+  "direct_cause": "2026-08-31（778404ceab）为堵「跨项目引用文件」，在拖拽起点（AssetLibraryPanel handleAssetDragStart / assetDragStartAction）和三个落点（canvasStageDrop isAssetLibraryDropAllowed、addAssetToTimeline resolveAssetDrop 的 reject-external、剪辑页素材源点击追加改成预览）各写了一份 assetBelongsToProject 拒收；计划里的「物化复制」另开合同一直没做，于是别的项目的素材只剩预览。复制通道 copyProjectAsset 其实已在主进程（工作流库跨项目复制在用）。",
+  "class_root": "「把素材库里的一张素材用到当前项目」有多个 owner：每个落点自己判归属、自己决定拒收。缺一个共享关口——当前项目的放行，别的项目的先经主进程复制进来。",
+  "affected_population": [
+    "所有在「全部素材」里想复用别的项目素材的用户（画布、时间轴拖放与点击追加）",
+    "0.22.x 全平台（回归自 0.21.0 之后的 778404ceab）"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/assetLibraryMaterialize.ts",
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+    "src/workbench/timeline/addAssetToTimeline.ts"
+  ],
+  "entry_points": [
+    "素材库格子拖到画布（src/workbench/generationCanvas/components/canvasStageDrop.ts handleCanvasStageDrop 素材库分支）",
+    "素材库格子拖到时间轴轨道 / 收起态音频 lane（src/workbench/timeline/addAssetToTimeline.ts tryAddAssetFromDragData）",
+    "剪辑页素材源点击追加（src/workbench/assets/AssetLibraryPanel.tsx activateAsset append 分支）"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "「项目只写自己的文件、跨项目先复制」是 Nomi 的项目自包含约定；复制通道 copyProjectAsset 的源路径校验在主进程（electron/assets/projectAssetStore.ts），没有第三方行为参与这条不变量。",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assets/assetLibraryMaterialize.ts",
+    "tests": [
+      "src/workbench/assets/assetLibraryMaterialize.test.ts",
+      "src/workbench/generationCanvas/components/canvasStageDrop.test.ts",
+      "src/workbench/timeline/addAssetToTimeline.test.ts"
+    ],
+    "why": "画布、时间轴拖放与点击追加都只经 materializeAssetLibraryItems 拿到「属于当前项目」的引用；落点不再各自判归属。"
+  },
+  "invariants": [
+    "写进画布 / 时间轴的素材库引用必属于当前项目：当前项目与当前画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制，复制失败即不写、给一句人话，绝不退回引用别的项目的地址。",
+    "复制品的引用由 DTO → AssetRef → 拖拽载荷同一条映射派生，不沿用源项目的任何派生字段（地址、封面）。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+      "symbol": "assetBelongsToProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "materializeAssetLibraryItems"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "assetBelongsToProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "symbol": "materializeAssetLibraryItems"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "materializeAssetLibraryItems"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 5,
+    "why_not": "改前 6 扇（node scripts/door-map.mjs assetBelongsToProject isAssetLibraryDropAllowed serializeFolderAssignDrag parseFolderAssignDrag，在 d8824a0c5 上跑）里有 4 扇是各自拒收的写判定；改后 5 扇里写判定只剩 assetLibraryMaterialize 一处，三个落点只调用它。AssetLibraryPanel 里剩下的 assetBelongsToProject 只决定显示（悬停提示、单张删除钮是否出现、最近使用计数），不决定能不能写，所以保留。"
+  },
+  "generality_proof": "归属判定与复制都在 materializeAssetLibraryItems 里，输入是拖拽载荷的 origin，不是某个 tab 或某个落点；任何新落点只要消费同一份载荷并先过这道关口，就不会再出现「这个落点拒、那个落点放」。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+      "symbol": "materializeAssetLibraryItems",
+      "responsibility": "把一批素材库条目换成属于当前项目的引用：本项目放行，别的项目先复制（DTO → AssetRef → 载荷同一条映射），失败计数。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "entry_point": "handleCanvasStageDrop 素材库分支",
+      "disposition": "enforced",
+      "evidence": "isAssetLibraryDropAllowed 删除；放下即签发项目、materializeAssetLibraryItems 后再 addAssetLibraryNodes，复制回来项目已换则不写（canvasStageDrop.test.ts 三条）。"
+    },
+    {
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "entry_point": "tryAddAssetFromDragData",
+      "disposition": "enforced",
+      "evidence": "reject-external 状态删除；先 materialize 再 addAssetToTimeline，失败走 onFailure 的人话（addAssetToTimeline.test.ts）。TimelineTrack / TimelineSecondaryAddRow 同步删掉 reject-external 的反馈分支。"
+    },
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "activateAsset append（剪辑页素材源点击追加）",
+      "disposition": "enforced",
+      "evidence": "别的项目的素材此前改成打开预览；现在同样先 materialize 再 addAssetToTimelineEnd。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeAssetDrop.ts",
+      "entry_point": "节点卡 composer 的素材 drop",
+      "disposition": "not-affected",
+      "evidence": "只认系统文件与项目文件树（Files / WORKSPACE_FILE_DRAG_MIME），不消费素材库载荷；素材库格子落在卡上会冒泡到画布 stage 的素材库分支。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每加一个接素材库拖放的落点都要重新决定「别的项目的素材怎么办」；上一次就是四个入口各写一份拒收。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs assetBelongsToProject isAssetLibraryDropAllowed serializeFolderAssignDrag parseFolderAssignDrag（改前 6 扇 / 18 处）",
+      "rg -n \"ASSET_LIBRARY_DRAG_MIME|parseAssetLibraryDrag\" src —— 落点：canvasStageDrop、TimelineTrack、TimelineSecondaryAddRow、useAssetFolders（文件夹只按 renderUrl 归类，不写画布 / 时间轴）",
+      "rg -n \"reject-external|externalAssetHint\" src —— 时间轴两处反馈分支、面板提示"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/assets/assetLibraryMaterialize.ts",
+    "invariant": "画布 / 时间轴只写属于当前项目的素材库引用；别的项目的先复制。",
+    "failure_mode": "复制失败或宿主没有复制通道 → 该条计入 failed、不写，落点给「N 个素材没能复制到本项目」；复制品不在目标项目也按失败处理。",
+    "exception_policy": "none",
+    "strategy": "落点不再自带归属判断，统一调用关口；别的项目的素材由主进程复制，渲染层不经手原生路径。",
+    "artifacts": [
+      "src/workbench/assets/assetLibraryMaterialize.ts",
+      "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "src/workbench/timeline/addAssetToTimeline.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/assets/assetLibraryMaterialize.test.ts",
+    "src/workbench/generationCanvas/components/canvasStageDrop.test.ts",
+    "src/workbench/timeline/addAssetToTimeline.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/assets/assetLibraryMaterialize.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "src/workbench/timeline/addAssetToTimeline.ts"
+    ],
+    "rationale": "isAssetLibraryDropAllowed 与 CanvasStageDropContext.activeProjectId、时间轴的 reject-external 状态及其两处反馈分支在同一改动里删除，无并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方依赖参与；复制通道是既有主进程 IPC nomi:assets:copy-project-asset。",
+    "exit_criteria": []
+  },
+  "migration": "无存量数据要迁移：改的是拖放当下的行为。之前被拒的素材没有写入任何东西。",
+  "residual_risks": [
+    "同一张别的项目的素材反复拖入会各复制一份（主进程按文件名去重命名，不按内容去重）；与工作流库跨项目复制的现状一致，未在本次处理。",
+    "大视频跨项目复制期间画布上暂时没有占位卡（复制完才落卡），本机拷贝通常在秒级；没有做导入中的渐显。",
+    "Mac 真机未走查（本次真机走查在 Windows 11 开发构建上跑，zh / en 各一遍）。"
+  ]
+}

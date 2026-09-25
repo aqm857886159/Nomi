@@ -136,6 +136,12 @@ test('the registered product journeys cannot fall back to focused-only validatio
     'tests/ux/storyboard-agent-canonical-patch.e2e.mjs',
     'tests/ux/production-mcp-journey.e2e.mjs',
     'tests/ux/golden-path.e2e.mjs',
+    'tests/ux/agent-real-user-conversation.walk.mjs',
+    'tests/ux/agent-transcript-merge.walk.mjs',
+    // 这两条走查守的显示 owner，路径名里没有 `agent`/`model`，得显式点名。
+    'src/workbench/ai/resident/residentToolDisplay.ts',
+    'src/workbench/ai/resident/timelineAgentSurface.tsx',
+    'src/workbench/skillLibrary/skillDisplay.ts',
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy([file])), {
       ...focusedOnly,

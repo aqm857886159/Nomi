@@ -4,13 +4,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { getDesktopBridge, type DesktopAssetFoldersState } from '../../desktop/bridge'
 import { confirmDialog } from '../../design'
-import {
-  ASSET_FOLDER_ASSIGN_MIME,
-  ASSET_LIBRARY_DRAG_MIME,
-  parseAssetLibraryDragItems,
-  parseFolderAssignDrag,
-  serializeFolderAssignDrag,
-} from './assetLibraryDrag'
+import { ASSET_LIBRARY_DRAG_MIME, parseAssetLibraryDragItems } from './assetLibraryDrag'
 
 export const EMPTY_FOLDERS_STATE: DesktopAssetFoldersState = { version: 1, folders: [], assignments: {} }
 
@@ -117,43 +111,24 @@ export function useAssetFolders(projectId: string | null): UseAssetFoldersResult
   return { state, available, createFolder, deleteFolder, assignAssets }
 }
 
-type DraggableAssetLike = { id: string; name: string; renderUrl: string }
-
-/** 面板的文件夹交互三件套（抽出防 Panel 巨壳,R9）：归类拖拽起手/落夹/删夹确认。 */
-export function useAssetFolderInteractions<T extends DraggableAssetLike>(args: {
+/**
+ * 面板的文件夹交互（抽出防 Panel 巨壳,R9）：落夹 / 删夹确认。
+ * 归类不另起一种拖拽：格子只发素材库那一份拖拽载荷（画布、时间轴、文件夹都认它），
+ * 落在文件夹上＝归类，落在画布上＝复制一张卡（2026-09-25 用户：「拖出也无法复制」）。
+ */
+export function useAssetFolderInteractions(args: {
   folderApi: UseAssetFoldersResult
-  visibleAssetsRef: React.MutableRefObject<readonly T[]>
-  selectedIdsRef: React.MutableRefObject<Set<string>>
-  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>
-  lastSelectedIdRef: React.MutableRefObject<string | null>
   setActiveFolderId: React.Dispatch<React.SetStateAction<string | null>>
-  /** = assetsForLibraryDrag（注入避免与 Panel 循环依赖）。 */
-  collectSelection: (visible: readonly T[], selected: ReadonlySet<string>, dragged: T) => T[]
 }): {
-  handleFolderAssignDragStart: (asset: T, event: React.DragEvent<HTMLElement>) => void
   handleFolderDropAssets: (folderId: string | null, event: React.DragEvent<HTMLElement>) => void
   handleDeleteFolder: (folderId: string) => void
 } {
-  const { folderApi, visibleAssetsRef, selectedIdsRef, setSelectedIds, lastSelectedIdRef, setActiveFolderId, collectSelection } = args
+  const { folderApi, setActiveFolderId } = args
   const { t } = useTranslation()
-
-  const handleFolderAssignDragStart = React.useCallback((asset: T, event: React.DragEvent<HTMLElement>): void => {
-    const currentSelection = selectedIdsRef.current
-    const selectedForDrag = collectSelection(visibleAssetsRef.current, currentSelection, asset)
-    if (!currentSelection.has(asset.id)) {
-      setSelectedIds(new Set([asset.id]))
-      lastSelectedIdRef.current = asset.id
-    }
-    event.dataTransfer.setData(ASSET_FOLDER_ASSIGN_MIME, serializeFolderAssignDrag(selectedForDrag.map((item) => item.renderUrl)))
-    event.dataTransfer.effectAllowed = 'copy'
-    event.dataTransfer.setData('text/plain', selectedForDrag.length > 1 ? `${selectedForDrag.length} 个素材` : asset.name)
-  }, [collectSelection, lastSelectedIdRef, selectedIdsRef, setSelectedIds, visibleAssetsRef])
 
   const handleFolderDropAssets = React.useCallback((folderId: string | null, event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault()
-    const assignUrls = parseFolderAssignDrag(event.dataTransfer.getData(ASSET_FOLDER_ASSIGN_MIME))
-    const libraryUrls = parseAssetLibraryDragItems(event.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME)).map((item) => item.renderUrl)
-    const renderUrls = assignUrls.length > 0 ? assignUrls : libraryUrls
+    const renderUrls = parseAssetLibraryDragItems(event.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME)).map((item) => item.renderUrl)
     if (renderUrls.length > 0) folderApi.assignAssets(renderUrls, folderId)
   }, [folderApi])
 
@@ -172,5 +147,5 @@ export function useAssetFolderInteractions<T extends DraggableAssetLike>(args: {
     })
   }, [folderApi, setActiveFolderId, t])
 
-  return { handleFolderAssignDragStart, handleFolderDropAssets, handleDeleteFolder }
+  return { handleFolderDropAssets, handleDeleteFolder }
 }

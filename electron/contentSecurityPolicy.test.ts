@@ -51,11 +51,14 @@ describe('宿主页面策略', () => {
     expect(frameSrc).toBe("frame-src 'none'")
   })
 
-  it('宿主页面拿宿主策略与跨源隔离头（产物这件事不许顺手削弱宿主）', () => {
+  // 2026-09-25：隔离模式是 credentialless。require-corp 要求每个跨源子资源自带 CORP，提示词库的第三方示例视频 /
+  // 封面在 Mac 版全被拦；credentialless 让 no-cors 媒体不带 cookie 加载、不要求对方带 CORP，隔离与
+  // SharedArrayBuffer 照样在（真机探针矩阵见 electron/shared/crossOriginIsolation.ts）。防有人把模式改回去。
+  it('宿主页面拿宿主策略与跨源隔离头（credentialless；产物这件事不许顺手削弱宿主）', () => {
     const captured = headersFor('file:///app/dist/index.html')
     expect(policyOf(captured)).toContain("default-src 'self' nomi-local:")
     expect(captured.headers['Cross-Origin-Opener-Policy']).toEqual(['same-origin'])
-    expect(captured.headers['Cross-Origin-Embedder-Policy']).toEqual(['require-corp'])
+    expect(captured.headers['Cross-Origin-Embedder-Policy']).toEqual(['credentialless'])
   })
 })
 

@@ -22,6 +22,7 @@ export const zhLibraries = {
     fetchFailed: '没拉到提示词',
     preview: {
       noCover: '此条暂无封面媒体',
+      expired: '这条示例的媒体已失效（来源站点已删除，或在你的网络下不允许外链）',
       close: '关闭',
       sent: '已放置',
       send: '送上画布',
@@ -47,6 +48,7 @@ export const zhLibraries = {
       mine: '自建',
       video: '视频',
       image: '图片',
+      expired: '已失效',
       unnamed: '未命名提示词',
       edit: '编辑',
       delete: '删除',
@@ -54,7 +56,6 @@ export const zhLibraries = {
   },
   skill: {
     source: { mine: '我的技能', builtin: 'Nomi 内置' },
-    authorName: 'AI 写技能',
     exportNotFound: '导出失败：没找到这个技能',
     deleteFailed: '删除失败',
     deleted: '已删除 · {{name}}',
@@ -193,6 +194,7 @@ export const enLibraries = {
     fetchFailed: 'Could not fetch prompts',
     preview: {
       noCover: 'No cover media for this prompt',
+      expired: "This example's media is no longer available (removed by the source site, or not linkable from your network)",
       close: 'Close',
       sent: 'On Canvas',
       send: 'To Canvas',
@@ -218,6 +220,7 @@ export const enLibraries = {
       mine: 'Mine',
       video: 'Video',
       image: 'Image',
+      expired: 'Unavailable',
       unnamed: 'Untitled prompt',
       edit: 'Edit',
       delete: 'Delete',
@@ -225,7 +228,6 @@ export const enLibraries = {
   },
   skill: {
     source: { mine: 'My skills', builtin: 'Built into Nomi' },
-    authorName: 'AI skill author',
     exportNotFound: 'Export failed: skill not found',
     deleteFailed: 'Delete failed',
     deleted: 'Deleted · {{name}}',

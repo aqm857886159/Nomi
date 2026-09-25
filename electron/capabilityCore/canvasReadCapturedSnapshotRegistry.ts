@@ -1,3 +1,4 @@
+import { deepFreeze } from '../jsonUtils'
 import crypto from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
@@ -111,14 +112,6 @@ function bindingMatchesSelection(
   return binding.binding.projectId === selection.projectId
     && binding.binding.immutableProjectUuid === selection.immutableProjectUuid
     && binding.binding.projectGeneration === selection.projectGeneration
-}
-
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value)
-    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
-  }
-  return value
 }
 
 function canonicalSnapshot(value: unknown, maxBytes: number): Readonly<{

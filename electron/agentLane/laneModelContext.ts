@@ -1,8 +1,12 @@
 import { MODEL_ANCHOR_GUIDANCE } from '../shared/agentCapabilities/availableModels'
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
+import { modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 
-/** A discovery index, not a second model contract. Full modes/slots stay in nomi_read target=models. */
+/** 完整模型目录住在哪个动词上：与 lane 装配的是同一个（`modelCatalogReadSpec`）。 */
+const MODEL_CATALOG_READ_VERB = modelCatalogReadSpec().name
+
+/** A discovery index, not a second model contract. Full modes/slots stay behind the catalog read verb. */
 export function formatLaneModelIndex(context: LaneComposerContext): string {
   const selected = context.model;
   const entries = (context.availableModels ?? []).filter(entry => entry.kind === 'image' || entry.kind === 'video');
@@ -27,7 +31,7 @@ export function formatLaneModelIndex(context: LaneComposerContext): string {
     ...(selected ? [`text ${selected.vendorKey}/${selected.modelKey}（当前对话）`] : []),
     ...lines,
     ...MODEL_ANCHOR_GUIDANCE,
-    '这里只列图片/视频任务。完整类别、参数、参考槽与各模式约束：nomi_request_tools group=models 后 nomi_read target=models（可用 modelId 缩小）；使用未列参数或参考边前先查。不要猜档位或混用不同模式参数。',
+    `这里只列图片/视频任务。完整类别、参数、参考槽与各模式约束：nomi_request_tools group=models 后 ${MODEL_CATALOG_READ_VERB}（可用 modelId 缩小）；使用未列参数或参考边前先查。不要猜档位或混用不同模式参数。`,
   ].join('\n');
 }
 

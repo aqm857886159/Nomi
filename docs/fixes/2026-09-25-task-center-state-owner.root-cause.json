@@ -1,0 +1,414 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-task-center-state-owner",
+  "problem_type": "The task list projected each task kind's raw identity and raw status into the UI with no single state-to-group/label mapping, so internal codes leaked, unfinished work sat under \"done\", one card spoke three different states, and non-tasks appeared as tasks.",
+  "symptom": "User report 2026-09-25 (\"任务框里不知道是一堆什么东西，太乱了，而且感觉状态也对不上\"): the Tasks drawer showed a card \"来自 Nomi · 等待确认 · 供应商长时间没有返回新状态 · generation.single-shot · 0 / 4 已完成\", two more rows \"Nomi 制作 · generation.single-shot / 等待开始\", and \"已完成 5\" containing two \"等待超时 · 上游可能仍在跑，可重新拉取\" rows. Reproduced in the real app by tests/ux/task-center-states.walk.mjs with two Agent draft journals copied byte-for-byte from a real Agent conversation walk (docs/evidence/2026-09-25-agent-panel-tidy/task-center-before-{zh,en}.png, task-center-before.json).",
+  "direct_cause": "productionRunTaskCenter.ts titled rows `${title} · ${run.playbook.name}` and TaskCenterPanel passed run.playbook.name as the card chip; buildTaskCenterView grouped every non-running queue entry as done, ignoring the node's recoverable/re-fetch state; buildProductionRunView gave the provider-stale branch tone attention and the card rendered runTone.attention = 等待确认; the list IPC returned full Runs in service mode, and the task rows had no notion of an unpresented Agent draft (plan.state draft + cardHidden) or a discarded plan (plan.state cancelled), both of which keep Run.status = draft and rendered as 等待开始 forever.",
+  "class_root": "Three state machines (generation queue + node, ProductionRun, export job) were projected into one list with no single owner deciding (a) which group a state belongs to, (b) what the one label for that group is, (c) whether a Run is a task at all, or (d) how an identity becomes a human name. Each component re-derived pieces locally (Panel and Button each summed and ordered rows by hand, the card picked its chip from tone, the store picked its active Run by status), so any new state or identity reached the screen raw or in the wrong bucket.",
+  "affected_population": [
+    "Every user with Agent-drafted generation runs (in-app resident agent or external MCP host) that were never presented, re-drafted, withdrawn on restart, or discarded",
+    "Every generation that timed out into the recoverable state, and every re-fetch of such a node",
+    "Every production run whose provider went quiet, paused, or was cancelled; brand.promo runs showing English stage titles and playbook skill ids in details and the spend confirmation card",
+    "Both locales, all platforms"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunIpc.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "src/workbench/production/productionRunView.ts",
+    "src/workbench/production/productionRunLabels.ts",
+    "src/workbench/production/productionRunStore.ts",
+    "src/workbench/production/ProductionRunTaskCard.tsx",
+    "src/workbench/production/ProductionDetails.tsx",
+    "src/workbench/generationCanvas/spend/ProductionContractSummary.tsx",
+    "src/workbench/taskCenter/taskCenterProjection.ts",
+    "src/workbench/taskCenter/taskCenterEntries.ts",
+    "src/workbench/taskCenter/productionRunTaskCenter.ts",
+    "src/workbench/taskCenter/exportJobTaskCenter.ts",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx",
+    "src/workbench/taskCenter/TaskCenterButton.tsx"
+  ],
+  "entry_points": [
+    "Top-bar Tasks button badge (TaskCenterButton) and the Tasks drawer (TaskCenterPanel) with its production card, rows and details",
+    "nomi:production-runs:list IPC consumed by the task list and productionRunStore.load",
+    "Spend confirmation contract summary (ProductionContractSummary) showing skill evidence"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's own presentation contract over its own durable Run/queue state; no third-party library decides task grouping, labels or presence.",
+  "invariants": [
+    "Every task row and the production card belong to exactly one group from TASK_CENTER_GROUPS; the card chip text is that group's label, and its tone is one the group allows (running: working; attention: attention/danger/neutral; done: success/neutral), enforced over every view branch by productionRunView.test.ts.",
+    "Unfinished work (recoverable, re-fetching, waiting on a human) is never in done.",
+    "A row in the attention group shows the action it is waiting for on the row itself (no hover, no navigation): a recoverable generation row carries recover_generation, which calls the same recoverNodeResult path as the node button (a query, no paid token).",
+    "An unpresented Agent draft or a discarded plan is not a task: it does not become a row, is not counted in the badge, and never replaces the running Run as the card.",
+    "No playbook name, stage id or skill identity is rendered; displays go through productionPlaybookLabelKey / productionStageLabelKey, unknown identities fall back to a generic label.",
+    "The list IPC returns the summary projection in every mode."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/taskCenter/taskCenterProjection.ts",
+    "tests": [
+      "src/workbench/production/productionRunView.test.ts",
+      "src/workbench/taskCenter/productionRunTaskCenter.test.ts",
+      "src/workbench/taskCenter/taskCenterEntries.test.ts",
+      "electron/productionRun/productionRunRepository.test.ts",
+      "electron/productionRun/productionRunIpc.test.ts"
+    ],
+    "why": "TASK_CENTER_GROUPS is the one group vocabulary and order; each task kind has one mapper into it (generationRowState, STATUS_GROUP, which buildProductionRunView uses as its default and overrides only where the full Run knows more (waiting gate, job needs attention, submission unknown, provider stale), buildExportJobTaskRows) and one presence rule (isProductionRunTask); Panel and Button only consume summarizeTaskCenterRows and render the groups in TASK_CENTER_GROUPS order. The Record<ProductionRunStatus, TaskCenterGroup> makes a new Run status a compile error until it is placed."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/productionRunBridgeTypes.ts",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunStore.ts",
+      "symbol": "isProductionRunTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "symbol": "isProductionRunTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "TASK_CENTER_GROUPS"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "ProductionRunSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "TASK_CENTER_GROUPS"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+      "symbol": "TASK_CENTER_GROUPS"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/ProductionContractSummary.tsx",
+      "symbol": "productionPlaybookLabelKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "symbol": "productionStageLabelKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "symbol": "productionPlaybookLabelKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "productionRunStatusGroup"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "productionPlaybookLabelKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "buildProductionRunView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "symbol": "productionPlaybookLabelKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "symbol": "productionRunStatusGroup"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "buildProductionRunTaskRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "productionRunTaskLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "buildExportJobTaskRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "exportJobTaskLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "summarizeTaskCenterRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "pendingTaskCount"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "summarizeTaskCenterRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "pendingTaskCount"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildProductionRunTaskRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "productionRunTaskLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildExportJobTaskRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "exportJobTaskLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "summarizeTaskCenterRows"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "symbol": "ProductionRunRepository"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "summarize"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "ProductionRunRepository"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "ProductionGenerationPlan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "ProductionGenerationPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "symbol": "ProductionRunView"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunLabels.ts",
+      "symbol": "SINGLE_SHOT_GENERATION_MODULE_ID"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionRunTaskCard.tsx",
+      "symbol": "ProductionRunView"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "ProductionRunView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/exportJobTaskCenter.ts",
+      "symbol": "isExportJobTerminalStatus"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 46,
+    "why_not": "The count grows because the owners are now explicit functions that every consumer calls (summarizeTaskCenterRows, pendingTaskCount, isProductionRunTask, productionRunStatusGroup, the two label builders and the label-key functions) instead of logic re-derived inline in TaskCenterPanel, TaskCenterButton, the card and the store. The remaining readers are distinct surfaces: the badge (Button), the drawer (Panel), the card and details, the spend summary, the active-Run store, the design-lab kit and the main-process list projection feeding them. The electron doors listed are the list projection path (types, repository summarize, service repository, IPC list) filtered from a wide door-map of their types."
+  },
+  "generality_proof": "Every task kind reaches the screen only through its one mapper into TASK_CENTER_GROUPS and the shared summary/order functions, and every production identity only through the label-key functions, so any new state, playbook, stage, provider-latency case or draft lifecycle is either placed by the compiler-enforced status table or falls into a declared generic label; no component decides groups or strings on its own.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+      "symbol": "TASK_CENTER_GROUPS",
+      "responsibility": "The one group vocabulary and display order shared by sections, summary and the card chip."
+    },
+    {
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "summarizeTaskCenterRows",
+      "responsibility": "One summary (running/attention/queued/failed/cancellable) for both the badge and the drawer; generationRowState owns the queue-entry + node-state mapping."
+    },
+    {
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "isProductionRunTask",
+      "responsibility": "Presence rule for Runs and the status/view to group mapping (STATUS_GROUP, VIEW_TONES_BY_GROUP)."
+    },
+    {
+      "path": "src/workbench/production/productionRunLabels.ts",
+      "symbol": "productionPlaybookLabelKey",
+      "responsibility": "Identity to human-label translation for playbooks, skills evidence and stages."
+    },
+    {
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "summarize",
+      "responsibility": "The only list projection; now carries the plan presence facts and is what the IPC returns in both modes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "entry_point": "TaskCenterButton",
+      "disposition": "enforced",
+      "evidence": "Badge now uses the same row builders, summarizeTaskCenterRows and pendingTaskCount as the drawer; hidden drafts are filtered inside buildProductionRunTaskRows so they no longer count."
+    },
+    {
+      "path": "src/workbench/production/productionRunStore.ts",
+      "entry_point": "useProductionRunStore.load",
+      "disposition": "enforced",
+      "evidence": "Picks the card Run from summaries.filter(isProductionRunTask); a newer hidden draft can no longer replace the running Run as the card."
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/ProductionContractSummary.tsx",
+      "entry_point": "ProductionContractSummary skills",
+      "disposition": "enforced",
+      "evidence": "Rendered `${skill.name}@${skill.version}` (the playbook identity recorded as skill evidence by productionRunService); now productionPlaybookLabelKey."
+    },
+    {
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "entry_point": "ProductionDetails stages and skills",
+      "disposition": "enforced",
+      "evidence": "Stage titles came from the English registry/repository seeds (Generate/QA/Assemble/Export); now productionStageLabelKey; walk asserts no English stage names in zh details."
+    },
+    {
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "entry_point": "ProductionCanvasLandingHost readActiveRun",
+      "disposition": "not-affected",
+      "evidence": "Needs drafts (their placeholders live on the canvas) and, after #870 (5e15db046), no longer calls the list IPC at all: it reads the Runs bound to canvas nodes via productionRunApi.read, so neither the summary list nor the presence rule applies to it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Agent draft, re-draft, restart withdrawal, discard, timed-out generation and quiet provider re-enters the same projection; a new playbook, stage or Run status would have reached the screen raw.",
+    "same_class_scan": [
+      "door-map on origin/main for buildProductionRunTaskRows buildProductionRunView buildTaskCenterView buildExportJobTaskRows ProductionRunSummary: 15 doors; Panel and Button each hand-summed groups",
+      "rg \"playbook.name\" src: productionRunTaskCenter title, TaskCenterPanel card prop, productionRunView skill evidence -> ProductionDetails/ProductionContractSummary",
+      "rg \"stage.title\" src: ProductionDetails only",
+      "real Agent conversation walk projects (tmp nomi-pi-agent-real-user-conversation-*): two draft Runs with cardHidden true left per conversation",
+      "IPC list mode check: registerProductionRunIpc default argument is the service, so listFull (full Runs) was the production path"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/taskCenter/taskCenterProjection.ts",
+    "invariant": "Groups, group labels, Run presence and identity labels each have one owner every task surface consumes.",
+    "failure_mode": "A new Run status fails to compile until placed in STATUS_GROUP; an unknown playbook/stage renders the generic label, never the identity; a view branch with a tone outside its group fails productionRunView.test.ts.",
+    "exception_policy": "none",
+    "strategy": "Move grouping, summary, ordering, presence and labelling out of components into the projection owners and make the list IPC return the projection that carries the presence facts.",
+    "artifacts": [
+      "src/workbench/taskCenter/taskCenterProjection.ts",
+      "src/workbench/taskCenter/taskCenterEntries.ts",
+      "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "src/workbench/production/productionRunView.ts",
+      "src/workbench/production/productionRunLabels.ts",
+      "electron/productionRun/productionRunRepository.ts",
+      "electron/productionRun/productionRunIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/production/productionRunView.test.ts",
+    "src/workbench/taskCenter/productionRunTaskCenter.test.ts",
+    "src/workbench/taskCenter/taskCenterEntries.test.ts",
+    "electron/productionRun/productionRunRepository.test.ts",
+    "electron/productionRun/productionRunIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/production/productionRunView.test.ts",
+    "src/workbench/taskCenter/taskCenterEntries.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionRunService.ts",
+      "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "src/workbench/production/ProductionRunTaskCard.tsx"
+    ],
+    "rationale": "Deleted in the same change: productionRunService.listFull (full-Run list) and the zero-caller productionRunService.listProjections, the TERMINAL status subset in productionRunTaskCenter, the card's playbookName prop and runTone chip strings (i18n generationCommon.production.runTone), the per-section count strings taskCenter.sections.*, and the hand-copied label maps and summaries in TaskCenterPanel/TaskCenterButton."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime participates; the change is internal projection ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Existing hidden drafts and discarded plans on disk simply stop appearing as tasks; old Runs without generationPlan are always tasks (unchanged). The IPC list shape narrows to the declared summary type; all renderer consumers read only summary fields.",
+  "residual_risks": [
+    "A presented draft (card visible, awaiting spend) still shows in the task list under \"等你处理\" with the raw model key in its draft line (e.g. gpt-image-2); model display names were out of scope.",
+    "Shot gate copy still names provider/model keys (provider · model) by design of the gate; not changed here.",
+    "The before-screenshot of the expanded details was not captured on the pre-fix build; the English stage titles there are evidenced by code (repository seeds Generate/QA/Assemble/Export, ProductionDetails rendered stage.title)."
+  ]
+}

@@ -211,6 +211,8 @@ test('repository helper subsets and incomplete projections remain debt', () => {
     'electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishWithError/parameter:stage/type-union',
     'electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishRunWithFailure/parameter:stage/type-union',
   ]
+  // 2026-09-25：这三份手抄的 job 状态子集也**收敛掉**了——换成 productionShotPhase.productionJobPhase
+  // 这一个穷尽 mapper（新增 ProductionJobStatus 不给归属 = 编译不过）。它们必须同时不在 registered、也不在 debt 里。
   const shotSubsets = [
     'src/workbench/production/shotPlaceholderState.ts::variable:DONE_STATUSES/set',
     'src/workbench/production/shotPlaceholderState.ts::variable:FAILED_STATUSES/set',
@@ -219,7 +221,7 @@ test('repository helper subsets and incomplete projections remain debt', () => {
   const vendorProjection = 'src/ui/onboarding/useVendorHealth.ts::type:VendorConnection/property:state/type-union'
   const incompleteAssetOutcome =
     'src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union'
-  const shotPhase = 'src/workbench/production/shotPlaceholderState.ts::type:ShotPlaceholderPhase/type-union'
+  const shotPhase = 'electron/shared/productionShotPhase.ts::type:ProductionShotPhase/type-union'
 
   for (const site of convergedAdapterSubsets) {
     assert.equal(registeredSites.has(site), false, site)
@@ -227,7 +229,7 @@ test('repository helper subsets and incomplete projections remain debt', () => {
   }
   for (const site of shotSubsets) {
     assert.equal(registeredSites.has(site), false, site)
-    assert.match(debtBySite.get(site)?.reason ?? '', /ProductionJobStatus.*穷尽 mapper.*ShotPlaceholderPhase/i, site)
+    assert.equal(debtBySite.has(site), false, site)
   }
   assert.equal(registeredSites.has(shotPhase), true)
   assert.equal(debtBySite.has(shotPhase), false)
@@ -274,7 +276,7 @@ test('repository-specific runtime and view-model vocabularies are not mislabeled
       'src/workbench/taskCenter/taskCenterEntries.ts::function:resolveTaskButtonTone/type-union',
       /TaskCenter.*visual.*view model/i,
     ],
-    ['src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterGroup/type-union', /TaskCenter.*view model/i],
+    ['src/workbench/taskCenter/taskCenterProjection.ts::variable:TASK_CENTER_GROUPS/as-const', /TaskCenter.*view model/i],
     ['src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union', /TaskCenter.*view model/i],
   ])
 

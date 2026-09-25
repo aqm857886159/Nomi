@@ -54,6 +54,31 @@ export const EDITING_PANEL_RAIL_WIDTH = 32
 
 export type EditingPanelSizeKey = 'sourceWidth' | 'inspectorWidth' | 'assistantWidth' | 'timelineHeight'
 
+/** 能被拖成收起条的两栏（Nomi 那列不在面板组里，收起后由顶栏角标叫回）。 */
+const COLLAPSIBLE_PANEL_BY_SIZE_KEY: Partial<Record<EditingPanelSizeKey, keyof EditingPanelVisibility>> = {
+  sourceWidth: 'source',
+  inspectorWidth: 'inspector',
+}
+
+export type EditingPanelResizeEffect =
+  | { kind: 'visibility'; panel: keyof EditingPanelVisibility; visible: boolean }
+  | { kind: 'size'; size: number }
+  | null
+
+/**
+ * 面板库回报一次尺寸，store 该做什么。「收起」只有 store 一份真相（visibility）：
+ * 拖过最小宽度，面板库会把栏吸成收起条；从收起条拖开同理——这一跨必须写回 visibility，内容才跟着换。
+ * 此前 ≤ rail 宽的回报被直接丢掉：栏宽收成 32px，内容仍按展开态画，镜头 / 素材标签与整块面板挤成一条
+ * （2026-09-25「素材标签页重叠」）。收起态量到的是 rail 宽，不是用户挑的宽度，不写回尺寸。
+ */
+export function editingPanelResizeEffect(key: EditingPanelSizeKey, pixels: number, visible: boolean): EditingPanelResizeEffect {
+  const panel = COLLAPSIBLE_PANEL_BY_SIZE_KEY[key]
+  const collapsedNow = pixels <= EDITING_PANEL_RAIL_WIDTH
+  if (panel && collapsedNow === visible) return { kind: 'visibility', panel, visible: !collapsedNow }
+  if (!visible || collapsedNow) return null
+  return { kind: 'size', size: Math.round(pixels) }
+}
+
 function clamp(value: number, bounds: { min: number; max: number }): number {
   return Math.max(bounds.min, Math.min(bounds.max, Math.round(value)))
 }

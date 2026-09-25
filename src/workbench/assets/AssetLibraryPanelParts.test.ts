@@ -40,3 +40,29 @@ describe('AssetGridCell compact presentation', () => {
     expect(html).toContain('aspect-ratio:0.6666666666666666')
   })
 })
+
+describe('AssetGridCell selection tick', () => {
+  const asset: AssetRef = {
+    id: 'hero',
+    kind: 'image',
+    name: 'hero.png',
+    renderUrl: 'nomi-local://asset/p/assets/hero.png',
+    source: 'project',
+    origin: { source: 'project', projectId: 'p', relativePath: 'assets/hero.png' },
+  }
+  const render = (props: Partial<React.ComponentProps<typeof AssetGridCell>>) => renderToStaticMarkup(
+    React.createElement(TooltipProvider, null, React.createElement(AssetGridCell, { asset, compact: true, selectable: true, ...props })),
+  )
+
+  it('有多选开关时，对勾是一颗可按的按钮（aria-pressed 反映是否选中）', () => {
+    const html = render({ selected: true, onToggleSelect: () => undefined })
+    expect(html).toContain('data-asset-select-toggle="hero.png"')
+    expect(html).toContain('aria-pressed="true"')
+    expect(html).toContain('assetLibrary.toggleSelectNamed:hero.png')
+  })
+
+  it('没有多选开关时，对勾只是状态标记', () => {
+    const html = render({ selected: true })
+    expect(html).not.toContain('data-asset-select-toggle')
+  })
+})

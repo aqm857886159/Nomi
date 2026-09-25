@@ -57,7 +57,6 @@ export const zhCreationAi = {
     undo: '撤销',
     redo: '重做',
   },
-  writeTool: { insert: '插入到光标', replace: '替换选区', append: '追加到文末' },
   attachmentsUploading: '附件还在上传，请等上传完成再发送。',
   noTextModel: {
     readyTitle: '大脑已就位',
@@ -177,7 +176,6 @@ export const enCreationAi = {
     undo: 'Undo',
     redo: 'Redo',
   },
-  writeTool: { insert: 'Insert at cursor', replace: 'Replace selection', append: 'Append to document' },
   attachmentsUploading: 'Attachments are still uploading. Wait for them to finish before sending.',
   noTextModel: {
     readyTitle: 'Text model ready',

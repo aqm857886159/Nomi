@@ -60,10 +60,37 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     const models = listModelCatalogModels({ vendorKey: candidateVendorKey }) as Array<{ modelKey: string; kind: string; enabled: boolean }>;
     expect(models.find((m) => m.kind === "video")).toBeTruthy();
     expect(models.find((m) => m.kind === "video")?.enabled).toBe(false);
-    const mappings = listModelCatalogMappings() as Array<{ vendorKey: string; taskKind: string; modelKey?: string; enabled: boolean }>;
+    const mappings = listModelCatalogMappings() as ReadonlyArray<{ vendorKey: string; taskKind: string; modelKey?: string; enabled: boolean }>;
     const mine = mappings.find((m) => m.vendorKey === candidateVendorKey && m.taskKind === "image_to_video");
     expect(mine?.modelKey).toBe("comfy-wan-i2v-a-aaa");
     expect(mine?.enabled).toBe(false);
+  });
+
+  it("IPC 传来的 enumOptions 按 wire 原类型落进 meta.parameters（数字选项不丢、不转字符串；坏值丢弃）", async () => {
+    emptyCatalog();
+    const { importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
+    const { listModelCatalogModels } = await import("./catalogStore");
+    const text = JSON.stringify({
+      "2": { class_type: "CLIPTextEncode", inputs: { text: "a cat", clip: ["3", 0] } },
+      "3": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "m.safetensors" } },
+      "4": { class_type: "KSampler", inputs: { seed: 2, positive: ["2", 0], model: ["3", 0] } },
+      "5": { class_type: "CreateVideo", inputs: { images: ["4", 0], fps: 16, bit_depth: "auto" } },
+      "6": { class_type: "SaveVideo", inputs: { video: ["5", 0], filename_prefix: "test" } },
+    });
+    const result = importComfyWorkflowToCatalog({
+      text,
+      binding: {
+        promptNodeId: "2", promptInputKey: "text", outputNodeId: "6", outputKind: "video",
+        params: [{ nodeId: "5", inputKey: "bit_depth", paramKey: "comfy_bit_depth", label: "bit depth", type: "text", default: "auto" }],
+      },
+      labelZh: "typed enum",
+      enumOptions: [{ classType: "CreateVideo", inputKey: "bit_depth", options: ["auto", 8, 10, { bad: true }, Number.NaN] }],
+    }, "typed1");
+    const modelKey = (result as { modelKey: string }).modelKey;
+    const model = (listModelCatalogModels({ vendorKey: (result as { vendorKey: string }).vendorKey }) as Array<{
+      modelKey: string; meta?: { parameters?: Array<{ key: string; type: string; options?: unknown[] }> };
+    }>).find((item) => item.modelKey === modelKey);
+    expect(model?.meta?.parameters?.find((p) => p.key === "comfy_bit_depth")).toMatchObject({ type: "select", options: ["auto", 8, 10] });
   });
 
   it("导入时保存原始 workflow + 规范化 binding 草稿，供 UI 重新编辑", async () => {
@@ -150,9 +177,9 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     const result = importComfyWorkflowToCatalog({ text, binding, labelZh: "UI source", uiWorkflowText }, "ui1");
     const modelKey = (result as { modelKey: string }).modelKey;
     const candidateVendorKey = (result as { vendorKey: string }).vendorKey;
-    const model = (listModelCatalogModels({ vendorKey: candidateVendorKey }) as Array<Record<string, unknown>>)
+    const model = (listModelCatalogModels({ vendorKey: candidateVendorKey }) as ReadonlyArray<Record<string, unknown>>)
       .find((item) => item.modelKey === modelKey) as { meta?: { comfyWorkflowImport?: { uiWorkflowText?: string } } };
-    const mapping = (listModelCatalogMappings({ vendorKey: candidateVendorKey }) as Array<Record<string, unknown>>)
+    const mapping = (listModelCatalogMappings({ vendorKey: candidateVendorKey }) as ReadonlyArray<Record<string, unknown>>)
       .find((item) => item.modelKey === modelKey) as { create?: { body?: { extra_data?: unknown; prompt?: unknown } } };
     expect(model.meta?.comfyWorkflowImport?.uiWorkflowText).toBe(uiWorkflowText);
     expect(mapping.create?.body?.extra_data).toEqual({ extra_pnginfo: { workflow: JSON.parse(uiWorkflowText) } });
@@ -204,7 +231,7 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     expect(listModelCatalogModels({ vendorKey: resultA.vendorKey })).toHaveLength(0);
     expect(listModelCatalogMappings({ vendorKey: resultA.vendorKey })).toHaveLength(0);
     expect((listModelCatalogModels({ vendorKey: resultB.vendorKey }) as Array<{ modelKey: string }>).map((m) => m.modelKey)).toContain(keyB);
-    expect((listModelCatalogMappings({ vendorKey: resultB.vendorKey }) as Array<{ modelKey?: string }>).map((m) => m.modelKey)).toContain(keyB);
+    expect((listModelCatalogMappings({ vendorKey: resultB.vendorKey }) as ReadonlyArray<{ modelKey?: string }>).map((m) => m.modelKey)).toContain(keyB);
   });
 
   it("编辑 active workflow 时写隔离 staged revision，不删除或覆盖 active model/mapping", async () => {
@@ -221,9 +248,9 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     const oldBinding = (analyzeComfyWorkflowText(oldText) as { analysis: { suggested: unknown } }).analysis.suggested;
     const initial = importComfyWorkflowToCatalog({ text: oldText, binding: oldBinding, labelZh: "WAN edit me" }, "same") as { modelKey: string; vendorKey: string };
     const modelKey = initial.modelKey;
-    const stagedModel = (listModelCatalogModels({ vendorKey: initial.vendorKey }) as Array<Record<string, unknown>>)
+    const stagedModel = (listModelCatalogModels({ vendorKey: initial.vendorKey }) as ReadonlyArray<Record<string, unknown>>)
       .find((model) => model.modelKey === modelKey);
-    const stagedMapping = (listModelCatalogMappings({ vendorKey: initial.vendorKey }) as Array<Record<string, unknown>>)
+    const stagedMapping = (listModelCatalogMappings({ vendorKey: initial.vendorKey }) as ReadonlyArray<Record<string, unknown>>)
       .find((mapping) => mapping.modelKey === modelKey);
     expect(stagedModel).toBeTruthy();
     expect(stagedMapping).toBeTruthy();
@@ -242,7 +269,7 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
       },
     });
     upsertModelCatalogMapping({ ...stagedMapping, enabled: true });
-    expect(listModelCatalogMappings({ vendorKey: initial.vendorKey }) as Array<{ taskKind: string; modelKey?: string }>)
+    expect(listModelCatalogMappings({ vendorKey: initial.vendorKey }) as ReadonlyArray<{ taskKind: string; modelKey?: string }>)
       .toContainEqual(expect.objectContaining({ modelKey, taskKind: "image_to_video" }));
 
     const nextText = textToVideoWorkflow("new t2v");

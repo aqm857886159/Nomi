@@ -214,7 +214,7 @@ export function defaultCreationAiPrompt(modeId: unknown): string | undefined {
  * 取模式定义，并把用户在设置里改过的系统提示词**盖在 prompt 上**。
  *
  * 为什么覆盖发生在这里而不是各调用点：这是全仓拿模式的唯一入口（渲染期的 activeMode、
- * 发送路径的 buildCreationAiPrompt、popover 的 autoPrompt 全都经过它），盖在这一层
+ * popover 的 autoPrompt 全都经过它），盖在这一层
  * 等于「一处生效、处处生效」，不会漏掉某个调用点拿到旧默认值（P2 修根因）。
  * 覆盖值来自模块级同步快照（systemPromptOverrides.ts），所以本函数仍是同步的。
  */
@@ -301,34 +301,4 @@ function extractTextFromTiptapNode(node: unknown): string {
     ? record.content.map(extractTextFromTiptapNode).filter(Boolean).join('\n')
     : ''
   return [ownText, children].filter(Boolean).join(ownText && children ? '\n' : '')
-}
-
-export function buildCreationAiPrompt(input: {
-  mode: CreationAiMode
-  userRequest: string
-}): string {
-  const request = input.userRequest.trim()
-  // 通用问答：纯聊天，不写文档；文稿/选区如有需要由模型用 read_* 工具自取。
-  if (input.mode.chatOnly) {
-    return [
-      input.mode.prompt,
-      '',
-      '需要时可调用 read_full_text 读取当前文稿、read_selection 读取选区作为上下文；本模式不要改写文档。',
-      '',
-      '用户问题：',
-      request || '（用户未输入文字，请礼貌询问需要什么帮助）',
-    ].join('\n')
-  }
-  return [
-    input.mode.prompt,
-    '',
-    '工具使用规则（真实工具调用，用户会在卡片上确认每一次写入）：',
-    '- 读取上下文：需要现有正文时调用 read_full_text；只针对选中片段操作时调用 read_selection。不要假设你已经知道文稿内容，先读再写。',
-    '- 写入文档：改写/润色选中片段用 replace_selection；在光标处续写或补充用 insert_at_cursor；交付完整结果追加到文末用 append_to_end。',
-    '- 写入工具的 content 字段只放最终正文，不要写使用说明或解释。',
-    '- 只有用户明确要求写入/插入/替换/追加时才调用写入工具；否则用自然语言回答即可。',
-    '',
-    '当前任务：',
-    request || `请按“${input.mode.label}”模式处理当前材料。`,
-  ].join('\n')
 }

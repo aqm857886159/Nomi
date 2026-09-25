@@ -58,9 +58,9 @@ describe("retypeModelCatalogModel", () => {
 
     expect(listModelCatalogModels().find((m) => m.modelKey === "seedream-4-0")?.kind).toBe("image");
     // 这条断言是本次修复的核心：通道真的建出来了，改完立刻能跑。
-    expect(selectTaskMapping(listModelCatalogMappings(), "relay", "text_to_image", "seedream-4-0")).toBeTruthy();
+    expect(selectTaskMapping([...listModelCatalogMappings()], "relay", "text_to_image", "seedream-4-0")).toBeTruthy();
     // 图片还应带上改图通道（否则连了参考图的节点会被拒发）。
-    expect(selectTaskMapping(listModelCatalogMappings(), "relay", "image_edit", "seedream-4-0")).toBeTruthy();
+    expect(selectTaskMapping([...listModelCatalogMappings()], "relay", "image_edit", "seedream-4-0")).toBeTruthy();
   });
 
   it("text → video：文生视频与图生视频两条通道都建（少一条＝一连首帧就被拒发）", async () => {
@@ -69,7 +69,7 @@ describe("retypeModelCatalogModel", () => {
     const { listModelCatalogMappings } = await import("./catalogStore");
 
     retypeModelCatalogModel({ vendorKey: "relay", modelKey: "kling-v2", kind: "video" });
-    const maps = listModelCatalogMappings();
+    const maps = [...listModelCatalogMappings()];
     expect(selectTaskMapping(maps, "relay", "text_to_video", "kling-v2")).toBeTruthy();
     expect(selectTaskMapping(maps, "relay", "image_to_video", "kling-v2")).toBeTruthy();
   });
@@ -101,7 +101,7 @@ describe("retypeModelCatalogModel", () => {
       create: { method: "POST", path: "/video/generations" },
     });
     retypeModelCatalogModel({ vendorKey: "relay", modelKey: "seedream-4-0", kind: "image" });
-    expect(selectTaskMapping(listModelCatalogMappings(), "relay", "text_to_video")).toBeTruthy();
+    expect(selectTaskMapping([...listModelCatalogMappings()], "relay", "text_to_video")).toBeTruthy();
   });
 
   it("守卫：内置/agent 路的模型拒绝改（套通用模板会毁掉它们手写的通道）", async () => {

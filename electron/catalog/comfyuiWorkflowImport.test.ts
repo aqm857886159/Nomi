@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   parseComfyApiWorkflow,
@@ -651,6 +652,75 @@ describe("combo 真实选项烤入（collectGraphEnumOptions + buildImportedWork
     expect(offline.parameters[0].type).toBe("text");
     const online = buildImportedWorkflow(graph, binding, collectGraphEnumOptions(graph, index));
     expect(online.parameters.find((p) => p.key === "comfy_seed")?.type).toBe("number");
+  });
+});
+
+// 类级不变量：combo 选项的 wire 类型从 /object_info 一路保到发给 ComfyUI 的 /prompt。
+// ComfyUI 校验 combo 是 Python `val not in combo_options`（execution.py validate_inputs），类型敏感。
+describe("combo 选项 wire 类型往返（issue #861 同类：布尔/数字选项不许被转成字符串）", () => {
+  /** 与生产同一条渲染路：defaultParams + 用户改的值 → taskTemplateParams → 模板渲染出的 /prompt 图。 */
+  function renderPrompt(built: ReturnType<typeof buildImportedWorkflow>, userExtras: Record<string, unknown>) {
+    const { mapping } = buildComfyImportModelMapping(built, { modelKey: "comfy-wire-type", labelZh: "wire" });
+    const create = mapping.create as { body: unknown; defaultParams: Record<string, unknown> };
+    const extras = applyWireDefaults(userExtras, create.defaultParams);
+    const params = taskTemplateParams({ extras });
+    const context = buildTemplateContext({ request: { prompt: "", extras }, params, model: {}, modelKey: "comfy-wire-type", apiKey: "" });
+    return (renderTemplateValue(create.body, context) as { prompt: Record<string, { inputs: Record<string, unknown> }> }).prompt;
+  }
+
+  it("全布尔老格式 combo（issue #861 原样 spec）：布尔值不报缺、不烤下拉，开关参数按布尔发回", () => {
+    // spec 逐字取自 issue #861 正文（用户机器 /object_info），与上游 ComfyUI-Easy-Use
+    // py/nodes/fix.py:24 `"rescale_after_model": ([False, True], {"default": True})` 一致。
+    const index = parseObjectInfoIndex({
+      "easy hiresFix": { input: { required: { rescale_after_model: [[false, true], { default: true }] } } },
+      SaveImage: { input: { required: {} } },
+    });
+    const graph: ComfyGraph = {
+      "10": { class_type: "easy hiresFix", inputs: { rescale_after_model: true } },
+      "9": { class_type: "SaveImage", inputs: { filename_prefix: "x", images: ["10", 0] } },
+    };
+    expect(index.unknownComboShapes).toEqual([]);
+    expect(reconcileComfyWorkflow(graph, index)).toEqual({ unknownNodeTypes: [], missingEnumValues: [] });
+    const enumOptions = collectGraphEnumOptions(graph, index);
+    expect(enumOptions).toEqual([]); // 布尔值的 widget 是开关，不是下拉
+    const built = buildImportedWorkflow(graph, {
+      outputNodeId: "9", outputKind: "image",
+      params: [{ nodeId: "10", inputKey: "rescale_after_model", paramKey: "comfy_rescale", label: "rescale", type: "boolean", default: true }],
+    }, enumOptions);
+    expect(built.parameters).toEqual([{ key: "comfy_rescale", label: "rescale", type: "boolean", default: true }]);
+    expect(renderPrompt(built, {})["10"].inputs.rescale_after_model).toBe(true);
+    expect(renderPrompt(built, { comfy_rescale: false })["10"].inputs.rescale_after_model).toBe(false);
+  });
+
+  describe("字符串混数字的 combo（真机夹具 CreateVideo.bit_depth = [\"auto\", 8, 10]）", () => {
+    const fixture = JSON.parse(readFileSync(new URL("../__fixtures__/comfyui-object-info-real-sample.json", import.meta.url), "utf8"));
+    const index = parseObjectInfoIndex({ ...fixture, SaveVideo: { input: { required: {} } } });
+    const graph: ComfyGraph = {
+      "1": { class_type: "CreateVideo", inputs: { bit_depth: "auto" } },
+      "9": { class_type: "SaveVideo", inputs: { filename_prefix: "x", video: ["1", 0] } },
+    };
+    const binding = {
+      outputNodeId: "9", outputKind: "video" as const,
+      params: [{ nodeId: "1", inputKey: "bit_depth", paramKey: "comfy_bit_depth", label: "bit depth", type: "text" as const, default: "auto" }],
+    };
+
+    it("烤成下拉时选项保留数字（改前是 [\"auto\",\"8\",\"10\"]）", () => {
+      const built = buildImportedWorkflow(graph, binding, collectGraphEnumOptions(graph, index));
+      expect(built.parameters[0]).toMatchObject({ type: "select", default: "auto", options: ["auto", 8, 10] });
+    });
+
+    it("画布按选中项的声明类型发回：选 8 → /prompt 里是数字 8（改前发 \"8\"，ComfyUI value_not_in_list）", () => {
+      const built = buildImportedWorkflow(graph, binding, collectGraphEnumOptions(graph, index));
+      expect(renderPrompt(built, {})["1"].inputs.bit_depth).toBe("auto");
+      expect(renderPrompt(built, { comfy_bit_depth: 8 })["1"].inputs.bit_depth).toBe(8);
+    });
+
+    it("对账与 ComfyUI 同口径：工作流里写成字符串 \"8\" 对不上数字选项 8 → 如实报缺", () => {
+      const stringified: ComfyGraph = { ...graph, "1": { class_type: "CreateVideo", inputs: { bit_depth: "8" } } };
+      expect(reconcileComfyWorkflow(stringified, index).missingEnumValues).toEqual([
+        { nodeId: "1", classType: "CreateVideo", title: undefined, inputKey: "bit_depth", value: "8" },
+      ]);
+    });
   });
 });
 

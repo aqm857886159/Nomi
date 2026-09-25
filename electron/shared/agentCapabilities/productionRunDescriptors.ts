@@ -1,9 +1,4 @@
 import { z } from "zod";
-import {
-  PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
-  PRODUCTION_RUN_READ_CAPABILITY,
-  PRODUCTION_RUN_WRITE_CAPABILITY,
-} from "./productionRun";
 import { ARTIFACT_REVIEW_DECISIONS } from "./productionRun";
 
 const runId = z.string().trim().min(1).max(160).describe("The run id returned by start_production_run.");
@@ -87,18 +82,3 @@ const descriptors = {
 } as const;
 
 export const productionRunToolDescriptors = descriptors;
-export const productionRunToolNames = Object.keys(descriptors) as Array<keyof typeof descriptors>;
-export const productionRunReadToolNames = new Set<string>([
-  PRODUCTION_RUN_READ_CAPABILITY.aliases.method,
-  ...(PRODUCTION_RUN_READ_CAPABILITY.additionalAliases?.method ?? []),
-]);
-export const productionRunWriteToolNames = new Set<string>([
-  PRODUCTION_RUN_WRITE_CAPABILITY.aliases.method,
-  ...(PRODUCTION_RUN_WRITE_CAPABILITY.additionalAliases?.method ?? []),
-]);
-export const productionArtifactWriteToolNames = new Set<string>([
-  PRODUCTION_ARTIFACT_WRITE_CAPABILITY.aliases.method,
-  ...(PRODUCTION_ARTIFACT_WRITE_CAPABILITY.additionalAliases?.method ?? []),
-]);
-
-export type ProductionRunToolName = keyof typeof descriptors;

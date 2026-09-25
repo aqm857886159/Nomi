@@ -251,12 +251,38 @@ describe("Run-owned semantic generation submission", () => {
       providerStatus: "processing",
       nextAction: "poll",
     });
-    expect(query).toHaveBeenCalledWith("provider-task-poll");
+    // 查询带着这笔任务冻结合同里的模型 / 模式（供应商实例是每次新建的，它自己记不住）。
+    expect(query).toHaveBeenCalledWith("provider-task-poll", { modelId: "fixture-model", mode: "text-to-image" });
     expect(submit).toHaveBeenCalledTimes(1);
     const job = repository.read("project-1", "op-1")?.jobs[0];
     expect(job).toMatchObject({ status: "polling", providerTaskId: "provider-task-poll", providerStatus: "processing" });
     const envelopePath = path.join(root, ".nomi", "runs", "op-1", "jobs", job!.jobId, "runtime-envelope.json");
     expect(JSON.parse(fs.readFileSync(envelopePath, "utf8"))).toMatchObject({ lastPoll: { status: "processing", raw: { progress: 42 } } });
+  });
+
+  it("a fresh submission (re-kick / reopen / restart) polls with the durable model identity, never re-submits", async () => {
+    const { root, repository } = setup();
+    const deps = {
+      repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, projectRevision: 0,
+      intentMacKey: "test-intent-key", now: () => "2026-08-23T00:03:00.000Z",
+    };
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-late" }));
+    const provider = (query?: GenerationProvider["query"]): GenerationProvider => ({
+      providerId: "fixture-provider",
+      capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+      buildRequest: (input) => input,
+      submit,
+      ...(query ? { query } : {}),
+    });
+    await createProductionGenerationSubmission({ ...deps, provider: provider() }).start({ projectId: "project-1", operationId: "op-1" });
+    // 观察窗过了：一个**全新的**提交门面 + 全新的供应商实例（它没交过这笔任务，内存里什么都没记）。
+    const query = vi.fn(async (_taskId: string, context?: { modelId?: string; mode?: string }) => (
+      context?.modelId ? { status: "processing" } : Promise.reject(new Error("cannot poll task without the model it was submitted with"))
+    ));
+    await expect(createProductionGenerationSubmission({ ...deps, provider: provider(query) }).poll({ projectId: "project-1", operationId: "op-1" }))
+      .resolves.toMatchObject({ providerTaskId: "provider-task-late", nextAction: "poll" });
+    expect(query).toHaveBeenCalledWith("provider-task-late", { modelId: "fixture-model", mode: "text-to-image" });
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when a provider returns an unknown poll status", async () => {

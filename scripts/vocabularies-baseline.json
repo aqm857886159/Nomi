@@ -1,5 +1,5 @@
 {
-  "debtCap": 63,
+  "debtCap": 59,
   "converged": [
     {
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。",
@@ -195,17 +195,6 @@
       ],
       "reason": "接模型信封里「这一跳动了哪一格状态」的唯一 owner（docs/plan/2026-09-18-agent-model-onboarding.md §4.3）。它不是会话阶段（IntegrationStage 那份回答「这次接入走到哪」），而是**后果的坐标**：连接 / 模型记录 / 声明 / 自检 / 显示 / 在途各一格，宿主据它算 blastRadius 与撤销范围。复用 IntegrationStage 会把「会话在哪一步」与「这一跳改了什么」混成一个词，而它们连基数都不同（一次 submit_declaration 同时动 S11.4 与 S11.5）。",
       "site": "electron/capabilityCore/modelOnboarding/envelope.ts::type:OnboardingStateId/type-union"
-    },
-    {
-      "members": [
-        "capability_cancelled",
-        "capability_execution_failed",
-        "capability_input_invalid",
-        "capability_target_stale",
-        "production_gate_requires_nomi"
-      ],
-      "reason": "The production transport owns safe public protocol failures. Missing Runs are classified only by the typed domain exception, so a forged provider not-found string is never whitelisted.",
-      "site": "electron/capabilityCore/productionRunTransportAdapters.ts::variable:PUBLIC_FAILURE_CODES/set"
     },
     {
       "members": [
@@ -424,7 +413,7 @@
         "ready",
         "too_late"
       ],
-      "reason": "ProductionRun 授权准备时判定「父 job 是否处于可返工态」的集合（adopted/ready/detached/needs_attention/too_late/cancelled_remote）：它决定能否为某镜发起新一轮生成授权，是授权前置门的输入，语义与 shotPlaceholderState 的 FAILED_STATUSES（UI 占位失败态）虽有部分重叠但取值范围与用途不同（含 adopted/detached/ready 这类非失败可返工态），复用会把「可返工」误判成「失败」，故独立。",
+      "reason": "ProductionRun 授权准备时判定「父 job 是否处于可返工态」的集合（adopted/ready/detached/needs_attention/too_late/cancelled_remote）：它决定能否为某镜发起新一轮生成授权，是授权前置门的输入，语义与 productionShotPhase 的 productionJobPhase → failed（UI 失败态）虽有部分重叠但取值范围与用途不同（含 adopted/detached/ready 这类非失败可返工态），复用会把「可返工」误判成「失败」，故独立。",
       "site": "electron/productionRun/prepareProductionGenerationAuthorization.ts::variable:REWORKABLE_JOB_STATUSES/set"
     },
     {
@@ -635,7 +624,7 @@
         "validating_content",
         "validating_technical"
       ],
-      "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 shotPlaceholderState 的 GENERATING_STATUSES（面向 UI 占位的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。",
+      "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 productionShotPhase 的 productionJobPhase → generating（面向 UI 的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。",
       "site": "electron/productionRun/singleShotRunLifecycle.ts::variable:NON_TERMINAL_JOB_STATUSES/set"
     },
     {
@@ -1729,8 +1718,8 @@
         "queued",
         "stopped"
       ],
-      "reason": "ShotPlaceholderPhase 是合法的 view model：queued、generating、stopped、failed、done 表达镜头占位卡的用户可见阶段，由 ProductionJobStatus、Run status 与 error code 通过一个穷尽 mapper 派生；它不持久化、不反向覆盖 ProductionRun 账本。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::type:ShotPlaceholderPhase/type-union"
+      "reason": "ProductionShotPhase 是合法的 view model：queued、generating、stopped、failed、done 表达制作镜头在画布上的用户可见阶段，由 ProductionJobStatus（productionJobPhase 这一个穷尽 mapper）、Run status 与 error code 派生；它不持久化、不反向覆盖 ProductionRun 账本。2026-09-25 从渲染层搬到中立层：主进程画布落地投影与渲染层排队/已停小标读同一个判定。",
+      "site": "electron/shared/productionShotPhase.ts::type:ProductionShotPhase/type-union"
     },
     {
       "members": [
@@ -1765,12 +1754,13 @@
     },
     {
       "members": [
+        "attention",
         "done",
         "queued",
         "running"
       ],
-      "reason": "TaskCenterGroup 是 TaskCenter 排序分组的合法 view model：running、queued、done 将 generation queue 与 ProductionRun 的不同状态机投影为统一列表分区，不持久化为新的任务状态。",
-      "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterGroup/type-union"
+      "reason": "TASK_CENTER_GROUPS 是 TaskCenter 排序分组的合法 view model，也是面板从上到下的顺序：attention、running、queued、done（样张 2026-09-25 D1-A：要你动手的排最上面） 把 generation queue、ProductionRun 与导出任务各自的状态机投影为统一列表分区（attention = 没结束、卡在用户这儿），区段标题与制作卡状态签共用这一份，不持久化为新的任务状态。",
+      "site": "src/workbench/taskCenter/taskCenterProjection.ts::variable:TASK_CENTER_GROUPS/as-const"
     },
     {
       "members": [
@@ -2367,49 +2357,11 @@
     },
     {
       "members": [
-        "adopted",
-        "ready"
-      ],
-      "reason": "DONE_STATUSES 重复列出 ProductionJobStatus 的 adopted、ready；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 结合 Run/error facts 返回 ShotPlaceholderPhase，保留合法 view phase。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:DONE_STATUSES/set"
-    },
-    {
-      "members": [
-        "cancelled_remote",
-        "needs_attention",
-        "too_late"
-      ],
-      "reason": "FAILED_STATUSES 重复列出 ProductionJobStatus 的失败候选且还依赖 errorCode/Run 状态；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 统一返回 ShotPlaceholderPhase 的 failed 或 stopped。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:FAILED_STATUSES/set"
-    },
-    {
-      "members": [
-        "downloading",
-        "polling",
-        "provider_accepted",
-        "retry_wait",
-        "submitting",
-        "validating_content",
-        "validating_technical"
-      ],
-      "reason": "GENERATING_STATUSES 重复列出 ProductionJobStatus 的活动子集；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 返回 ShotPlaceholderPhase.generating，并让占位卡与批进度共用该分类。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:GENERATING_STATUSES/set"
-    },
-    {
-      "members": [
         "found",
         "not_found"
       ],
       "reason": "该 found/not_found 是 ProductionRun job.reconcile 的投影；应在 ProductionRun/shared 定义 GenerationReconcileOutcome as const tuple 与 runtime schema，并按同一顺序生成 MCP JSON Schema enum、callback 类型、IPC validation、UI 类型及校验，随后删除所有本地字面量与手写分支。",
       "site": "src/workbench/production/useProductionStatus.ts::function:useProductionStatus/variable:onPrimaryAction/variable:outcome/type-union"
-    },
-    {
-      "members": [
-        "cancelled",
-        "completed"
-      ],
-      "reason": "ProductionRun 任务中心自己重写了 cancelled/completed 终态子集；应从 ProductionRunStatus 的唯一终态判定 derive，而不是与碰巧同值的视口动画结果共用。",
-      "site": "src/workbench/taskCenter/productionRunTaskCenter.ts::variable:TERMINAL/set"
     }
   ]
 }

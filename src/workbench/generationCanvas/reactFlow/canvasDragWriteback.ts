@@ -17,6 +17,22 @@ import type { GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 type DragPosition = { x: number; y: number }
 
 /** RF owns keyboard movement. Only its synchronous key dispatch may commit outside a drag. */
+const ARROW_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+
+/**
+ * 方向键挪节点的授权范围：按下方向键那一刻选中的那批节点。React Flow 的键盘移动晚于这次 keydown 的派发才落下
+ * （2026-09-25 RC 验收：真实按键 400→400 三次不动），所以不能用「同步派发期间 / 一个微任务内」这种时间窗口认，
+ * 要用「挪的是不是这批节点」认；键抬起即作废。
+ */
+export function keyboardMoveScope(event: { key: string }, selectedNodeIds: readonly string[]): ReadonlySet<string> | null {
+  return ARROW_KEYS.has(event.key) && selectedNodeIds.length ? new Set(selectedNodeIds) : null
+}
+
+/** 这批位置变化是不是那次方向键挪的：节点全在授权范围里。 */
+export function isKeyboardMoveBatch(positions: readonly { nodeId: string }[], scope: ReadonlySet<string> | null): boolean {
+  return scope !== null && positions.length > 0 && positions.every((change) => scope.has(change.nodeId))
+}
+
 export function commitCanvasKeyboardPositions(
   positions: readonly { nodeId: string; position: DragPosition }[],
   canWrite: boolean,
@@ -128,6 +144,16 @@ export function commitCanvasNodeDragStop({
   commitPersistedChange()
   dragStartPositionsRef.current.clear()
   dragDraftNodesRef.current = []
+}
+
+/**
+ * 让 React Flow 的节点拖动真正结束。它（@xyflow/system 的 XYDrag → d3-drag）只在 window 收到 mouseup 时收尾，
+ * 没有「按键已松」「原生拖放开始」「窗口失焦」时的中止；我们的租约发现手势已经结束时，从这里补发那一次松手，
+ * 走它自己的 end 路径（onNodeDragStop → commitCanvasNodeDragStop / 已取消则空操作），不在内核外另记一份拖动状态。
+ */
+export function endKernelNodeDrag(at: { clientX: number; clientY: number } | null): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window, button: 0, buttons: 0, clientX: at?.clientX ?? 0, clientY: at?.clientY ?? 0 }))
 }
 
 /**

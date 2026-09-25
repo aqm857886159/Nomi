@@ -1198,6 +1198,7 @@ export const zhGenerationCommon = {
       scriptReady: '剧本草稿已准备好，等待你的审核',
       storyboardReady: '分镜方案已准备好，等待你的确认',
       contractDeclined: '已拒绝这批生成',
+      cancelled: '这次制作已取消',
     },
     description: {
       submissionUnknown: '请求可能已经到达供应商；再次提交可能重复扣费，后续任务已停在安全边界。',
@@ -1220,8 +1221,14 @@ export const zhGenerationCommon = {
       scriptReady: '先审阅并确认剧本；确认前不会生成分镜，也不会调用付费模型。',
       storyboardReady: '先审阅并确认分镜，确认后 Nomi 才会把它落到画布并开始生成并计费。',
       contractDeclined: '本次决定已记录；没有提交生成任务，也没有产生支出。调整分镜或制作范围后可再确认一批新的生成。',
+      cancelled: '不会再提交新的任务；已完成的产物仍保存在当前本地项目中。',
     },
-    runTone: { working: '制作中', attention: '等待确认', danger: '需要处理', success: '已完成', neutral: '草稿' },
+    // 制作流程与阶段的人话名（身份串 generation.single-shot / brand.promo、阶段 id 不上屏）。
+    playbook: { shotGeneration: '镜头生成', brandPromo: '品牌宣传片', unknown: '制作流程' },
+    stage: {
+      brief: '制作摘要', direction: '创意方向', script: '剧本', storyboard: '分镜', build: '搭画布',
+      generate: '生成', qa: '审片', assemble: '粗剪', export: '导出', unknown: '其他阶段',
+    },
     origin: { nomi: 'Nomi', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
@@ -1255,7 +1262,7 @@ export const zhGenerationCommon = {
     },
     runDetails: {
       stages: '阶段进度',
-      stageCount: '{{completed}} / {{total}} 已完成',
+      stageCount: '{{completed}} / {{total}} 个阶段已完成',
       authorized: '已授权',
       reserved: '已预留',
       actual: '已结算',
@@ -1400,7 +1407,7 @@ export const zhGenerationCommon = {
       ignore: '忽略',
       confirm: '生成 {{count}} 镜',
     },
-    // P4 S5 画布落地：占位节点三态 + 进度通知 + 组名 + 补齐文案。
+    // P4 S5 画布落地：制作节点的排队 / 已停小标 + 组名 + 补齐文案（生成中 / 失败走普通生成那一套）。
     canvasLanding: {
       groupName: '分镜组·{{name}}',
       groupFallbackName: '分镜组',
@@ -1411,9 +1418,6 @@ export const zhGenerationCommon = {
       stoppedManual: '已停止剩余镜头。想继续可从这里接着拍。',
       raiseBudget: '提额续拍',
       continueRemaining: '继续剩余',
-      failedTitle: '这一镜没生成出来',
-      failedFallback: '生成未成功。可稍后重拍这一镜。',
-      retry: '重拍这镜',
       // P4 S6 返工/续拍的人话反馈（按结构化结果 code 翻译，禁拼串穿透 i18n 门）。
       rework: {
         noPriorAttempt: '这一镜还没生成过，先让它正常开拍',
@@ -1466,13 +1470,6 @@ export const zhGenerationCommon = {
     stillUpstream: '任务仍在上游进行，请稍后再次拉取。',
   },
   agentRuntime: {
-    unsupportedOperation: '不支持的操作「{{operation}}」',
-    lockedNode: '节点「{{node}}」已被你锁定，AI 不能{{action}}（点节点上的锁标可一键解锁）',
-    editPrompt: '改写它的提示词',
-    deleteNode: '删除它',
-    regenerateNode: '重新生成它',
-    addIncomingEdge: '给它接入新的参考',
-    approvalRequired: '该操作需用户在确认面板批准后才能执行（自动放行路径已禁用）',
     shotTitle: '镜头 {{index}}',
     shotKeyframeTitle: '镜头 {{index}} 首帧',
     textModelHint: '通过设置里的文本模型流式生成',
@@ -2671,6 +2668,7 @@ export const enGenerationCommon = {
       scriptReady: 'The script draft is ready for your review',
       storyboardReady: 'The storyboard is ready for your review',
       contractDeclined: 'This batch of generation was declined',
+      cancelled: 'This production was cancelled',
     },
     description: {
       submissionUnknown: 'The request may have reached the provider. Retrying could charge twice, so later work is paused at a safe boundary.',
@@ -2693,8 +2691,13 @@ export const enGenerationCommon = {
       scriptReady: 'Review and confirm the script first. No storyboard or paid model call starts before approval.',
       storyboardReady: 'Review and confirm the storyboard first. Once you confirm, Nomi lays it out and starts generating and billing.',
       contractDeclined: 'This decision is recorded. No generation task was submitted and no spend occurred. Revise the storyboard or scope to confirm a new batch of generation.',
+      cancelled: 'Nothing new will be submitted; finished outputs stay in this local project.',
     },
-    runTone: { working: 'Producing', attention: 'Approval needed', danger: 'Needs attention', success: 'Complete', neutral: 'Draft' },
+    playbook: { shotGeneration: 'Shot generation', brandPromo: 'Brand promo', unknown: 'Production' },
+    stage: {
+      brief: 'Brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', build: 'Canvas',
+      generate: 'Generate', qa: 'Review', assemble: 'Rough cut', export: 'Export', unknown: 'Other stage',
+    },
     origin: { nomi: 'Nomi', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
@@ -2728,7 +2731,7 @@ export const enGenerationCommon = {
     },
     runDetails: {
       stages: 'Stage progress',
-      stageCount: '{{completed}} / {{total}} complete',
+      stageCount: '{{completed}} / {{total}} stages done',
       authorized: 'Authorized',
       reserved: 'Reserved',
       actual: 'Settled',
@@ -2873,7 +2876,7 @@ export const enGenerationCommon = {
       ignore: 'Ignore',
       confirm: 'Generate {{count}} Shots',
     },
-    // P4 S5 canvas landing: placeholder three states + progress toast + group name + reconcile copy.
+    // P4 S5 canvas landing: queued / stopped badges for production nodes + group name + reconcile copy (generating / failed use the ordinary generation surfaces).
     canvasLanding: {
       groupName: 'Shot group · {{name}}',
       groupFallbackName: 'Shot group',
@@ -2884,9 +2887,6 @@ export const enGenerationCommon = {
       stoppedManual: 'Remaining shots stopped. Continue filming from here.',
       raiseBudget: 'Raise budget',
       continueRemaining: 'Continue remaining',
-      failedTitle: 'This shot didn\'t generate',
-      failedFallback: 'Generation failed. You can re-film this shot later.',
-      retry: 'Re-film shot',
       // P4 S6 rework/resume plain-language feedback (translated by structured result code — never a raw string).
       rework: {
         noPriorAttempt: 'This shot hasn\'t been generated yet — let it film first',
@@ -2938,13 +2938,6 @@ export const enGenerationCommon = {
     stillUpstream: 'The task is still running upstream. Try retrieving it again later.',
   },
   agentRuntime: {
-    unsupportedOperation: 'Unsupported operation “{{operation}}”',
-    lockedNode: '“{{node}}” is locked, so AI cannot {{action}}. Select the lock icon on the node to unlock it.',
-    editPrompt: 'edit its prompt',
-    deleteNode: 'delete it',
-    regenerateNode: 'generate it again',
-    addIncomingEdge: 'attach a new incoming reference',
-    approvalRequired: 'This operation requires approval in the confirmation panel; automatic approval is disabled.',
     shotTitle: 'Shot {{index}}',
     shotKeyframeTitle: 'Shot {{index}} keyframe',
     textModelHint: 'Stream text with the model connected in Settings',

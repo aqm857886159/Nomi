@@ -1,0 +1,428 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-agent-run-node-state-single-owner",
+  "problem_type": "一个节点「在生成 / 生成完」被两个 owner 各判各的，且制作侧的观察链在第一个观察窗之后失去了查询能力",
+  "symptom": "用户 2026-09-25：Agent 付费卡建出的视频镜头（如「镜头 58 · 视频 · 巨龙攻击村子 · 15s」）一直显示「整卡模糊 + 中间一个 N 字标」在转圈，视频在供应商那边早就出好了；右侧任务面板同一次制作写着「来自 Nomi · 等待确认 · 供应商长时间没有返回新状态 · generation.single-shot · 0 / 4 已完成」。普通点「生成」的节点是另一套等待画面。",
+  "direct_cause": "真实应用复现（tests/ux/agent-spend-video-landing.walk.mjs，把观察窗压到 8 秒）：① 批次调度 / 单镜观察每一次驱动只观察 NOMI_POLL_TIMEOUT_MS（默认 300s）；真视频常常更久。到期后的重踢经 buildSubmissionForRun → readProviderBootstrap() **新建**供应商实例，而 createCatalogGenerationProvider 只靠本实例内存里的 selectionByTaskId 找回「这笔任务是用哪个模型交的」——APIMart 图片与视频的查询 op 不同（image_url / video_url），新实例一查就抛「cannot poll task … without the model it was submitted with」，multiShotBatchScheduler.observeUnitOnce 把它吞成 pending。于是 Run 永远停在 polling、lastVendorStateChangeAt 永远不变（任务卡据此报 providerStale），重开项目 / 重启同样如此。单镜观察者更糟：到期后根本不重踢。② 节点上的「生成中」由渲染层 ProductionCanvasLandingHost 轮询一份 Run 快照、ProductionShotPlaceholder 另画 GeneratingOverlay（整卡模糊 + NomiLoadingMark），与普通生成写进节点自己运行记录、由 NodeGeneratingOverlay 画的那一份互不相干；且那份轮询只读「画布上第一个 Run」。③ 付费卡物化产物时 generationOutputMaterializer 自己调 hardenedFetch 只给 maxBytes，超时落回通用 20 秒、不走供应商线路（夹具把一段真 mp4 拖 30 秒复现：普通生成那条 60 秒的路落得下，付费卡这条每一轮都超时重来）。④ 落回节点的 result.url 是 production-preview 签名链（5 分钟过期，且优先指向封面），片子过几分钟就打不开。",
+  "class_root": "同一份事实在两处之间传递时丢了身份、或者被各自再判一次：(a) 供应商观察边界（GenerationProvider.query / generationRuntimeAdapter.query）不携带 Run 账本里冻结的任务身份（模型 / 模式），任务能不能被再查一次取决于「是不是同一个进程内实例交的」；(b) 「这一镜在生成 / 失败 / 完成」有两个 owner（节点运行记录 vs 渲染层轮询的 Run 快照 + 第二套画法），制作侧只在出片那一下投递到画布；(c) 供应商产物取回的线路策略（超时 / 上限 / 供应商线路）在三处各写一份。",
+  "affected_population": [
+    "所有经 Agent 付费卡 / 多镜批次 / MCP 语义生成发起、供应商耗时超过一个观察窗（默认 5 分钟）的生成——视频最常见；单镜与多镜两条路都中",
+    "任何在任务进行中重开项目 / 重启 App 的用户（新供应商实例，同一个查询身份缺失）",
+    "画布上有不止一次 Agent 生成的项目（渲染层只轮询第一个 Run）",
+    "已完成的 Agent 生成结果：节点上的 production-preview 签名链 5 分钟后过期",
+    "大体积产物 + 慢 CDN（付费卡那条路 20 秒下载上限）"
+  ],
+  "scope_paths": [
+    "electron/shared/productionShotPhase.ts",
+    "electron/shared/productionPreviewUrl.ts",
+    "electron/assets/providerMediaFetch.ts",
+    "electron/assets/downloadAsset.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationRunObservation.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/productionRun/canvasLandingHost.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/selectShotTableRows.ts",
+    "src/workbench/generationCanvas/nodes/useProductionNodeRetry.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.tsx",
+    "src/workbench/production/productionCanvasLandingStore.ts"
+  ],
+  "entry_points": [
+    "Agent 面板付费卡确认 → appIntegration start（多镜 driveScheduler / 单镜 observeSingleShotRun）",
+    "观察窗到期的重踢（kickSchedulerForRun / 单镜 scheduleRekick）与打开项目补齐（reconcileOpenProjectHook）",
+    "MCP stdio 语义生成（mcpStdioServer start / reconcile）",
+    "画布落地：确认即落 / 草稿投影 / 打开补齐 / Run 每次耐久变化后的跟随（canvasLandingHost）",
+    "产物取回：付费卡物化 / 普通生成本地化 / 另存到磁盘"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "判据全部是 Nomi 自己的运行时契约：Run 账本里冻结的任务身份怎么递到供应商查询、画布节点的运行记录归谁写、产物取回的线路策略。APIMart 的查询接口本身（/v1/tasks/{id}，图片与视频结果路径不同）早已按官方文档写进内置目录（electron/catalog/apimartVendor.ts 的注释记着 2026-06-30 的核对），本次一个字节没动它。",
+  "invariants": [
+    "供应商任务的每一次查询都带着 Run 账本里冻结的模型 / 模式（productionGenerationSubmission.poll → generationRuntimeAdapter.query → provider.query(context)）；能不能再查一次与「是不是同一个进程内实例交的」无关",
+    "单镜与多镜观察窗到期后都会歇一歇再接着问（只查不交），直到供应商给出终态",
+    "一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由 electron/shared/productionShotPhase.deriveProductionShotState 判；生成中 / 失败 / 结果写进节点自己的运行记录，与普通生成同一份状态、同一套画法（NodeGeneratingOverlay / NodeErrorReport）",
+    "Run 的每一次耐久变化之后，已落在画布上的节点都跟上（canvasLandingHost.followRunChange，只动已有节点，同一 Run 的落地逐个排队）",
+    "供应商产物取回只有一条线路策略（fetchProviderMedia：60 秒 / 200MB / 供应商自己的线路）",
+    "落回节点的结果地址是素材库永久地址（nomi-local://asset），不是会过期的签名预览链"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "providerMediaCap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "isProductionJobInFlight"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "isProductionJobInFlight"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "exceedsProviderMediaCap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "GenerationProviderTaskContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "deriveProductionShotState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "canvasDetached"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "readGenerationExecution"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunCanvasLandingReducer.ts",
+      "symbol": "canvasDetached"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionPreviewUrl.ts",
+      "symbol": "PRODUCTION_PREVIEW_PREFIX"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "productionJobPhase"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "symbol": "useProductionCanvasLandingStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "symbol": "deriveProductionShotState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "symbol": "productionShotIdForNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts",
+      "symbol": "productionShotNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/selectShotTableRows.ts",
+      "symbol": "selectProductionShotRows"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts",
+      "symbol": "productionShotNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useProductionNodeRetry.ts",
+      "symbol": "useProductionCanvasLandingStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "assetUrlForProductionPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "useProductionCanvasLandingStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionCanvasLandingStore.ts",
+      "symbol": "useProductionCanvasLandingStore"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/downloadAsset.ts",
+      "symbol": "fetchProviderMedia"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "fetchProviderMedia"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "landDraftOnCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "landCanvasBestEffort"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "queryTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "landDraftOnCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "createGenerationOutputMaterializer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "landCanvasBestEffort"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "followRunChange"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "observeSingleShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "observeSingleShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "fetchProviderMedia"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "createGenerationOutputMaterializer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "createGenerationOutputMaterializer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "landCanvasBestEffort"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "followRunChange"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "attachShotResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "applyShotGeneration"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "materializeShots"
+    }
+  ],
+  "door_reduction": {
+    "before": 41,
+    "after": 40,
+    "why_not": "门表由 node scripts/door-map.mjs --write=materializeShots,applyShotGeneration,attachShotResult,followRunChange,landCanvasBestEffort,landDraftOnCanvas,observeSingleShotRun,fetchProviderMedia,queryTask,createGenerationOutputMaterializer --read=deriveProductionShotState,productionShotIdForNode,productionJobPhase,isProductionJobInFlight,GenerationProviderTaskContext,exceedsProviderMediaCap,providerMediaCap,useProductionCanvasLandingStore,productionShotNodes,selectProductionShotRows,readGenerationExecution,assetUrlForProductionPreview,PRODUCTION_PREVIEW_PREFIX,canvasDetached 生成（覆盖这次碰到的五份状态：节点运行状态、用户删掉的镜不复活、渲染层 Run 投影缓存、供应商查询身份、产物取回线路）。按同一组状态数修前是 41 扇：删掉 4 扇（appIntegration 里只在出片那一下投递结果的专用通道及其两处 onShotMaterialized 装配、渲染层 production.attach-shot-result 回填口、单镜观察者 onMaterialized 的重复落地、分镜表 productionShotRows 自己再判一次三态），新增 3 扇（followRunChange 的装配与定义两扇、观察边界的 GenerationProviderTaskContext）。剩下的每一扇都点名过：画布写侧只有一条链——确认即落 / 草稿投影 / 打开补齐 / 跟随四个时机都进 canvasLandingHost.runLanding → landCanvasForRun → 渲染层 materializeShots（attachShotResult / applyShotGeneration 是它内部的两步，agentPanelSpendConfirmTestUtils 是测试装配）；判定只有 deriveProductionShotState 一个，两处调用（主进程投影写节点运行记录 / 渲染层排队与已停小标——后者没有普通生成对应物，只能留在渲染层）；「还在等供应商吗」只有 isProductionJobInFlight 一个判据，观察者重踢与打开补齐两处用；查询身份只经 generationRuntimeAdapter.query 一扇（apimart queryTask 是供应商实现内部的两处调用）；产物取回只经 fetchProviderMedia，三个调用方（普通生成本地化 / 另存 / 付费卡物化）不再各带一组数字。"
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionShotPhase.ts",
+    "tests": [
+      "electron/shared/productionShotPhase.test.ts",
+      "electron/productionRun/multiShotCanvasLanding.test.ts",
+      "electron/productionRun/canvasLandingHost.test.ts",
+      "src/workbench/capability/multiShotCanvasLanding.test.ts"
+    ],
+    "notes": "判定住中立层（两侧都 import 得到）；投影住主进程 multiShotCanvasLanding（唯一写节点运行状态的一方）；查询身份的不变量住 generationRuntimeAdapter.query（由 productionGenerationSubmission.test.ts 与 apimartGenerationProvider.test.ts 钉住）；产物取回住 electron/assets/providerMediaFetch.ts（providerMediaFetch.test.ts）。"
+  },
+  "generality_proof": "每一个会让节点卡在「生成中」的入口都收敛到三条边界上：① 查询——所有生成路径（付费卡单镜、多镜调度、MCP stdio、打开补齐、重踢、重启恢复）的 poll 都经 productionGenerationSubmission.poll，它现在从冻结合同里取模型 / 模式递给 generationRuntimeAdapter.query，任意新建的供应商实例都查得到；「新实例 + 真目录里图片≠视频查询 op」这一类由 apimartGenerationProvider.test.ts 直接断言。② 观察——单镜与多镜到期后共用同一条「歇 15 秒再问」规则与同一个 isProductionJobInFlight 判据（打开补齐也用它）。③ 画布——Run 的每一次状态转移都经过仓库 execute 的事件旁路，跟随者不认识转移的种类，只投影结果；于是返工、续拍、预算触顶、急停、失败、出片不需要各自记得「顺手推一下画布」。判定只有一份（deriveProductionShotState + 穷尽 mapper productionJobPhase），新增 job 状态不给归属就编译不过。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "query",
+      "responsibility": "供应商观察边界携带任务身份（GenerationProviderTaskContext）；所有 Run-owned 查询都从这里过。"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "poll",
+      "responsibility": "从 Run 账本的冻结合同取模型 / 模式随查询递下去——唯一的 Run-owned 查询入口。"
+    },
+    {
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "deriveProductionShotState",
+      "responsibility": "一镜在制作里处于哪一段的唯一判定（job 状态走穷尽 mapper productionJobPhase）。"
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "buildMaterializeShotsPayload",
+      "responsibility": "把每一镜的真实段投影成节点的运行记录（running / failed / ended / result）；结果地址用素材库永久地址；不复活用户删掉的镜。"
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "followRunChange",
+      "responsibility": "Run 每次耐久变化后让已落在画布上的节点跟上；同一 Run 的落地逐个排队、指纹去重。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "observeSingleShotRun",
+      "responsibility": "单镜观察窗到期后与多镜同一条规则接着问（只查不交）。"
+    },
+    {
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "fetchProviderMedia",
+      "responsibility": "供应商产物取回的唯一线路策略。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "start（多镜分支 driveScheduler → kickSchedulerForRun 重踢）",
+      "disposition": "enforced",
+      "evidence": "重踢经 buildSubmissionForRun 新建供应商实例；poll 现在经 productionGenerationSubmission.poll 带冻结合同身份。真实应用走查 agent-spend-video-landing：观察窗 8 秒过后查询次数继续增长，供应商出片后节点变结果（修前同一走查 Run 永远停在 polling，主进程日志逐轮「cannot poll task … without the model」）。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "entry_point": "observeSingleShotRun（单镜付费卡）",
+      "disposition": "enforced",
+      "evidence": "appIntegrationRunObservation.test.ts：观察窗到期 → 15 秒后再问 → 供应商出片即物化，全程不调 start；stop() 作废未触发的重踢。修前到期即静默退出。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "reconcileOpenProjectHook（打开项目补齐单镜）",
+      "disposition": "enforced",
+      "evidence": "与观察者共用 isProductionJobInFlight；恢复观察同样经 poll → 带身份的查询。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "start / reconcile（外部 MCP 语义生成）",
+      "disposition": "enforced",
+      "evidence": "同一个 createProductionGenerationSubmission.poll；物化同一个 generationOutputMaterializer（现在带 providerId 走供应商线路）。"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "importRemoteAsset（普通生成本地化）",
+      "disposition": "enforced",
+      "evidence": "取回改走 fetchProviderMedia；数值与改前逐字相同（60 秒 / 200MB / 供应商线路），providerMediaFetch.test.ts 钉住。"
+    },
+    {
+      "path": "electron/assets/downloadAsset.ts",
+      "entry_point": "fetchAssetBytes（另存到磁盘 / 自动另存）",
+      "disposition": "enforced",
+      "evidence": "同上，allowContentTypes:any 保持「不按类型拦」的原语义。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "普通「生成」",
+      "disposition": "not-affected",
+      "evidence": "普通生成本来就写节点自己的运行记录并由 NodeGeneratingOverlay 画；本次让制作侧向它看齐，没有改它。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何耗时超过一个观察窗的供应商任务、任何在任务进行中的重开 / 重启、任何画布上有多次 Agent 生成的项目都会走到同一个机制；供应商实例按读目录新建是刻意的设计（设置里改 key 立即生效），所以「实例内存里的身份」必然活不过下一次读取。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs --write=materializeShots,applyShotGeneration,attachShotResult,followRunChange,landCanvasBestEffort,landDraftOnCanvas --read=deriveProductionShotState,productionShotIdForNode（修后 13 扇，见 doors）",
+      "全仓扫 adapter.query / provider.query( / provider.reconcile(：唯一的 Run-owned 查询入口是 productionGenerationSubmission.poll；adapter.reconcile 在生产代码里没有调用方（MCP / 打开补齐的「对账」都走 poll），不加身份参数",
+      "全仓扫 hardenedFetch 的产物取回调用：projectAssetStore / downloadAsset / generationOutputMaterializer 三处，全部改走 fetchProviderMedia",
+      "全仓扫 production-preview 在 src/ 的出现：只剩测试夹具；旧项目里的结果由 canvasSnapshotNormalizer 加载时改写（productionPreviewUrl.ts）",
+      "ProductionCanvasLandingHost 只轮询第一个 Run：改成画布上每个 Run 各一份（终结的 Run 读一次即缓存）"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "invariant": "供应商任务查询携带 Run 账本里冻结的任务身份；节点「在生成 / 完成 / 失败」只写在节点运行记录里、只由 deriveProductionShotState 判；Run 的每一次耐久变化都投影到已落地的节点。",
+    "failure_mode": "身份缺失时供应商实现仍按原规则 fail-closed（不猜 mapping）；投影失败只记 warn，下一次 Run 变化 / 打开补齐会再投（幂等：同一份结果只回填一次、同一条运行记录同一状态不改写）。",
+    "exception_policy": "none",
+    "strategy": "把身份放进观察边界的签名（GenerationProviderTaskContext），把画布跟随挂在唯一的持久化必经点（仓库 execute 的事件旁路），把判定搬进中立层并换成穷尽 mapper；删掉第二套画法与专用回填通道，让制作节点只剩一份状态。变异验证见 PR：把 poll 里的 context 去掉 → productionGenerationSubmission / 走查红；把投影里的 generation 去掉 → multiShotCanvasLanding.test 红。",
+    "artifacts": [
+      "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "electron/productionRun/canvasLandingHost.ts",
+      "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "electron/assets/providerMediaFetch.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/capabilityCore/appIntegrationRunObservation.test.ts",
+    "electron/productionRun/multiShotCanvasLanding.test.ts",
+    "electron/productionRun/canvasLandingHost.test.ts",
+    "electron/shared/productionShotPhase.test.ts",
+    "electron/shared/productionPreviewUrl.test.ts",
+    "electron/assets/providerMediaFetch.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts",
+    "tests/ux/agent-spend-video-landing.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/productionRun/multiShotCanvasLanding.test.ts",
+    "electron/shared/productionShotPhase.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/production/shotPlaceholderState.ts",
+      "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts"
+    ],
+    "rationale": "删掉的是：渲染层自持的三态判定（shotPlaceholderState，三份手抄 Set）与它的第二套「生成中 / 失败」画法；production.attach-shot-result 专用回填口与主进程 pushShotResultToRenderer；单镜观察者 onMaterialized 的重复落地；分镜表那个从没被宿主传过的 run 入参；落地链里不再需要的 previewSecret。没有开关、没有兼容分支。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方运行时或协议版本参与；APIMart 查询接口与内置目录的 mapping 一个字节没动，只是把早已存在的「调用方明说」参数真正递下去。",
+    "exit_criteria": []
+  },
+  "migration": "已存进项目文件的旧结果（production-preview 签名链，5 分钟过期）在画布快照加载时改写成素材库地址（canvasSnapshotNormalizer → productionPreviewUrl）；两者指向同一个项目内文件。重开项目时幽灵转圈照旧收成 cancelled，打开补齐按 Run 真实状态重新挂上「生成中」。",
+  "residual_risks": [
+    "旧结果若当年指向的是视频封面（video 带 thumbnailRelativePath 时签名链优先指向封面），改写后仍是封面图——签名链里只有那一条路径，没有视频本体的路径可恢复；对仍活跃的 Run，打开补齐会用新投影覆盖成视频本体。",
+    "ProductionRunTaskCard 的阶段计数与「粗剪待审」文案是任务面板那条线（claude/agent-panel-tidy）的范围，本 PR 只保证它读到的 Run 状态是真的。",
+    "走查夹具里 apimart 视频模型不在渲染层可用清单里（卡上「选择模型」+ 候选模型不可用提示），与本修复无关，未处理。",
+    "tests/ux/p4-s6-rework-version.e2e.mjs 在 main 上已失效（版本条组件早已并入 NodeResultStack），本 PR 只把它对落地 store 的写法跟上，未修复它的版本条断言。"
+  ]
+}
