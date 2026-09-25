@@ -164,21 +164,17 @@ try {
   await expect(win.locator(`[data-place-storyboard="${ids.a1}"]`)).toHaveText('查看画布')
   assert.deepEqual((await designById(win,ids.a1)).plan.shots[0],{...originalFields,prompt:'Edited A1',promptSegments:[]})
   check(true, 'Fresh Electron process restores complete author fields and placement')
-  await win.locator('[data-storyboard-batch]').click()
-  const cancel=win.locator('[data-spend-confirm-dialog]').getByRole('button',{name:'取消',exact:true})
-  const confirmationProof=await proveProbe(cancel,'original batch confirmation is present before cancellation')
-  const submissionsBeforeCancel=fixture.images.length
-  await cancel.click()
-  await expectAbsent(cancel,{provenBy:confirmationProof,message:'original batch confirmation closes after cancellation'})
-  assert.equal(fixture.images.length,submissionsBeforeCancel,'Original batch confirmation cancellation submits no media')
+  // 这里原先是「a1 批量 → 确认卡 → 取消 → 零提交」。a1 只有 1 镜，而用户自己点的单份生成不弹付费确认卡
+  // （2026-09-25 拍板，判据按份数不按入口），「取消」这条路在这条走查里已不存在（本走查的方案都只有 1 镜）；
+  // 「≥2 份批量 → 取消 → 零花费」由 storyboard-table-exec.walk.mjs 的批量确认卡那一步证明。
+  const spendDialog = win.locator('[data-spend-confirm-dialog]')
+  const submissionsBefore=fixture.images.length
   const restoredEditor = win.locator('[data-storyboard-editor="true"]')
   await restoredEditor.locator('[data-storyboard-row="1"] [data-storyboard-frame]').getByRole('button',{name:'生成镜 1',exact:true}).click()
-  const spendDialog = win.locator('[data-spend-confirm-dialog]')
-  await expect(spendDialog).toBeVisible()
-  assert.equal(fixture.images.length,submissionsBeforeCancel,'Single-shot action waits for the original confirmation')
-  await spendDialog.getByRole('button',{name:'生成',exact:true}).click()
+  // 用户自己点的单份生成不弹付费确认卡；若中间弹卡而不点，请求永远发不出去——下面 frame done + 恰好 1 次提交就是证据。
   await expect(restoredEditor.locator('[data-storyboard-frame]').first()).toHaveAttribute('data-storyboard-frame','done',{timeout:stationTimeout({operations:1})})
-  assert.equal(fixture.images.length,submissionsBeforeCancel+1,'Single-shot approval submits exactly one loopback image request')
+  await expect(spendDialog).toHaveCount(0)
+  assert.equal(fixture.images.length,submissionsBefore+1,'Single-shot action submits exactly one loopback image request without a confirmation card')
   assert.match(fixture.images.at(-1).body.prompt,/Edited A1/)
   const generated = await canvasNodes()
   assert.deepEqual(generated.map(node=>node.id),nodes.map(node=>node.id),'Original runner reuses the already placed node')
@@ -191,12 +187,12 @@ try {
   await win.locator(`[data-storyboard-id="${ids.a2}"]`).click()
   const batchEditor = win.locator('[data-storyboard-editor="true"]')
   await expect(batchEditor).toBeVisible()
+  assert.equal(fixture.images.length,submissionsBefore+1,'Nothing is submitted before the batch click')
   await batchEditor.locator('[data-storyboard-batch]').click()
-  await expect(spendDialog).toBeVisible()
-  assert.equal(fixture.images.length,submissionsBeforeCancel+1,'Batch action waits for the original confirmation')
-  await spendDialog.getByRole('button',{name:'生成',exact:true}).click()
+  // 批量里只有 1 个可生成的镜头 = 单份生成，同样不弹卡；证据是 frame done + 恰好多 1 次提交。
   await expect(batchEditor.locator('[data-storyboard-frame]').first()).toHaveAttribute('data-storyboard-frame','done',{timeout:stationTimeout({operations:1})})
-  assert.equal(fixture.images.length,submissionsBeforeCancel+2,'One eligible shot in the batch produces one request')
+  await expect(spendDialog).toHaveCount(0)
+  assert.equal(fixture.images.length,submissionsBefore+2,'One eligible shot in the batch produces one request')
   assert.match(fixture.images.at(-1).body.prompt,/Prompt a2/)
   check(true,'Original batch creates its node on demand without requiring explicit placement')
   const submissionsBeforeReopen = fixture.images.length

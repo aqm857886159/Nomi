@@ -84,7 +84,6 @@ const snapClip = async (win, selector, name) => {
 }
 const findProjectJson = (root) => { const stack = [root]; while (stack.length) { const current = stack.pop(); for (const entry of fs.readdirSync(current, { withFileTypes: true })) { const full = path.join(current, entry.name); if (entry.isDirectory()) stack.push(full); else if (entry.name === 'project.json' && full.includes(`${path.sep}.nomi${path.sep}`)) return full } } return null }
 const dismissFirstRun = async (win) => { await win.evaluate(() => { localStorage.setItem('__nomiE2E', '1'); for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1', 'nomi-onboarding-checklist:v1']) localStorage.setItem(key, 'seen') }); await win.reload(); await win.waitForTimeout(1200) }
-const spendDialog = async (win) => { const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last(); await dialog.waitFor({ timeout: 8000 }); return dialog }
 
 let app
 let win
@@ -152,7 +151,10 @@ try {
   const reopened = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await reopened.waitFor({ timeout: 8000 }); await reopened.locator('button[aria-pressed]').last().click()
   const currentNode = win.locator('[data-kind="image"][data-node-id]').last(); await currentNode.waitFor({ timeout: 5000 })
   const generate = currentNode.locator('button[aria-label="生成素材"]').first()
-  await generate.click({ timeout: 5000 }); const dialog = await spendDialog(win); await dialog.getByRole('button', { name: '生成', exact: true }).click()
+  check(wireCalls.length === 0, '点「生成素材」之前没有任何生成请求')
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面节点 success + loopback 恰好 1 次请求（wireCalls）就是证据。
+  await generate.click({ timeout: 5000 })
   await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: 30_000 })
   check(wireCalls.length === 1 && wireCalls[0].model === MODEL, '切换 chip 后真实图片生成请求已发出'); check(Boolean(findProjectJson(projectsDir)), '真实生成结果已写入项目持久化文件')
   console.log('vendor preference picker journey passed')

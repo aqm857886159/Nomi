@@ -3,13 +3,13 @@
 // 用户拍板：「做对照，缺的都补上」。这条走查按真人的方式逐个按新键，断言**副作用**（节点数、连线数、
 // 位置、菜单、确认卡），不是断言键被监听了：
 //   ⌘D 复制节点和它们之间的连线（一次撤销）｜⌘L 选两个直接连线｜Tab 在鼠标处打开添加菜单｜
-//   ⌥⇧F 整理画布｜⌘Enter 生成所选（必须先弹花钱确认卡，取消即零调用）｜
+//   ⌥⇧F 整理画布｜⌘Enter 生成所选（单选一张 = 用户自己点的单份生成，不弹确认卡、直接开跑）｜
 //   在提示词编辑器里打 v / h / f / Tab：画布什么都不做。
 // 帮助面板：新键都写着；zh/en、Agent 面板展开/收起、1800 / 1280 / 最小窗口下整块可见、点得到、行内不重叠
 // （2026-09-21 真机：面板被 Agent 收起坞和批量条盖住半截；1280 宽时时间轴胶囊压住帮助按钮；英文「Box select」行重叠）。
 //
 // 驱动：真实 Electron + 真实键盘/鼠标；项目以磁盘上的 project.json 打开；图片是登记表里真实 4K HEVC 视频抽的帧。
-// 零额度：⌘Enter 那一步在确认卡上取消，不发任何生成请求。
+// 零额度：本走查不配任何供应商/密钥，⌘Enter 那一步真的派发，但只会落到「没有可用模型」的错误，不花钱。
 //
 // 用法：
 //   export NOMI_REAL_MEDIA_DIR="/Users/aoqimin/Desktop/视频/"
@@ -263,22 +263,30 @@ try {
     check(JSON.stringify(await positions()) === JSON.stringify(before), '⌥⇧F 后 ⌘Z 回到原位置', {})
   }
 
-  // ═══ ⌘Enter：选 C → 必须先弹「开始生成」确认卡（花钱门），取消后零生成 ═══
+  // ═══ ⌘Enter：单选 C → 与浮条「生成」同一个入口，直接开跑、不弹确认卡 ═══
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面 img-c 离开 idle（queued / running，或本走查无供应商时落到 error）就是证据。
   {
     await clickBlank()
     await clickNode('img-c')
+    const statusOf = () => win.evaluate(() => {
+      const node = document.querySelector('.react-flow__node[data-id="img-c"] [data-node-id]')
+      return node?.getAttribute('data-status') ?? null
+    })
+    const statusBefore = await statusOf()
+    check(statusBefore === 'idle', '⌘Enter 之前 img-c 是空闲态', { statusBefore })
     await win.keyboard.press(`${MOD}+Enter`)
-    const confirm = win.getByRole('dialog').filter({ hasText: EN ? 'Start generation' : '开始生成' }).first()
-    const appeared = await confirm.waitFor({ state: 'visible', timeout: stationTimeout() }).then(() => true, () => false)
-    await shot('05-cmd-enter-confirm')
-    check(appeared, '⌘Enter·先弹花钱确认卡（走浮条「生成」同一个入口，不绕过审批）', { appeared })
-    if (appeared) {
-      await win.keyboard.press('Escape')
-      await expect(confirm).toBeHidden({ timeout: stationTimeout() })
-    }
-    // 正向证据：取消后这张卡仍停在「还没生成」的空态（生成一旦开始，空态会换成进度 / 结果）。
-    const idle = await win.locator(sel('img-c')).getByText(EN ? 'Enter a prompt below, then generate.' : '在下方输入提示词，点击生成。').first().isVisible()
-    check(idle, '⌘Enter·取消确认后没有开始生成（卡仍是空态，零额度）', { idle })
+    let statusAfter = statusBefore
+    const started = await expect.poll(async () => {
+      statusAfter = await statusOf()
+      return ['queued', 'running', 'success', 'error'].includes(statusAfter)
+    }, { timeout: stationTimeout() }).toBe(true).then(() => true, () => false)
+    const confirm = win.locator('[data-spend-confirm-dialog]')
+    const cardShown = await confirm.isVisible().catch(() => false)
+    await shot('05-cmd-enter-started')
+    check(started, '⌘Enter·单选一张直接开跑（走浮条「生成」同一个入口，节点离开空闲态）', { statusBefore, statusAfter })
+    check(!cardShown, '⌘Enter·单份生成不弹付费确认卡', { cardShown })
+    if (cardShown) await win.keyboard.press('Escape') // 已判红；收掉卡，别让后面的步骤全被它挡住
   }
 
   // ═══ 在提示词编辑器里打 v / h / f / Tab：画布不新建、不开菜单、不开画框 ═══

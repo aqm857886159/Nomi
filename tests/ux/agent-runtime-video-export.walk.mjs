@@ -109,11 +109,6 @@ async function dismissFirstRun(win) {
     await win.waitForTimeout(180)
   }
 }
-async function spendDialog(win) {
-  const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
-  await dialog.waitFor({ timeout: 8000 })
-  return dialog
-}
 
 let app
 let win
@@ -150,9 +145,10 @@ try {
   // the same generation controller, spend gate, catalog mapping and persistence path.
   const generateAsset = node.locator('button[aria-label="生成素材"]').first()
   await generateAsset.waitFor({ state: 'visible', timeout: 10_000 })
+  check(wireCalls.length === 0, '点「生成素材」之前 loopback 零请求', JSON.stringify(wireCalls.length))
   await generateAsset.click()
-  const dialog = await spendDialog(win)
-  await dialog.getByRole('button', { name: '生成', exact: true }).click()
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面节点 data-status 到 success 且 loopback 恰好收到 1 次请求（wireCalls）就是证据。
   try {
     await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: 45_000 })
   } catch (error) {

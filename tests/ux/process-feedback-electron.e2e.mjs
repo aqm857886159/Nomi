@@ -95,10 +95,11 @@ try {
   await node.click({ position: { x: 40, y: 15 } })
   await shot('00-image-idle')
   await page.locator('[contenteditable=true]:visible').first().fill('傍晚河边，一位女孩望向远处的桥，电影画面。')
+  expect(fixture.jobs.length).toBe(0)
   await page.getByRole('button', { name: '生成素材', exact: true }).click()
-  await expect(page.getByText('开始生成', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '生成', exact: true }).last().click()
-  console.log('confirmed generation')
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面假供应商恰好收到 1 单（fixture.jobs）就是证据。
+  console.log('started generation')
   await expect.poll(() => fixture.jobs.length, { timeout: 30000 }).toBe(1)
   await expect(node.locator('[data-generation-message]')).toContainText('生成中', { timeout: 30000 })
   const generationStatusProof = await proveProbe(node.locator('[data-generation-status]'), '真实生成状态条已出现')

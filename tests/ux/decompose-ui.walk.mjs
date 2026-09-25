@@ -1,7 +1,7 @@
 // 「元素拆解」UI 全链路 R13 走查（Playwright 驱动隔离 Electron，不碰真实桌面 → 不抢前台）。
 // 验之前 computer-use 没干净跑完的渲染层链路：
 //  A 引导：未接 Replicate 点「拆解元素」→ 引导确认卡(去接入)→ 打开模型接入面板（人眼判断截图）
-//  B 真拆解：注入 key → 点「拆解元素」→ 付费确认卡 → 真 Replicate 出层 → 白板 modal 开 + leafer 挂载
+//  B 真拆解：注入 key → 点「拆解元素」→（单份，不弹付费确认卡）真 Replicate 出层 → 白板 modal 开 + leafer 挂载
 //    → 拖动一层 → 关闭合成回图。会花真实额度(约$0.05)。缺 token 只跑 A（零额度）。
 // DEV 模式：起 vite(127.0.0.1:5273) → electron 连 dev（真 import /src 才能注入 store 造图片节点，
 //   绕开「普通图片节点只能生成不能上传」）。
@@ -147,35 +147,31 @@ try {
     await getWin().locator('[data-node-id] img').first().click({ timeout: 3000 }).catch(() => {})
     await getWin().waitForTimeout(400)
     await clickDecompose()
-    const spendConfirm = getWin().locator('button', { hasText: /^拆解$/ }).first()
-    const spendSeen = await spendConfirm.isVisible({ timeout: 3000 }).catch(() => false)
-    check('B 已接入 → 弹付费确认卡', spendSeen)
-    await snap('spend-confirm')
-    if (spendSeen) {
-      await spendConfirm.click({ timeout: 3000 }).catch(() => {})
-      console.log('  · 真 Replicate 拆解中（约 20-50s + 落盘）…')
-      const modal = getWin().locator('[data-nomi-whiteboard-modal="true"]').first()
-      const modalSeen = await modal.waitFor({ state: 'visible', timeout: 120000 }).then(() => true).catch(() => false)
-      check('B 拆解完 → 白板 modal 打开', modalSeen)
-      await getWin().waitForTimeout(1800)
-      const leafer = (await getWin().locator('[aria-label="Leafer 画板"]').count()) > 0
-      check('B 白板 leafer 挂载（拆出层已渲染，见截图）', modalSeen && leafer)
-      await snap('whiteboard-layers')
-      const lbox = await getWin().locator('[aria-label="Leafer 画板"]').first().boundingBox().catch(() => null)
-      if (lbox) {
-        const cx = lbox.x + lbox.width / 2, cy = lbox.y + lbox.height / 2
-        await getWin().mouse.move(cx, cy); await getWin().mouse.down()
-        for (const [dx, dy] of [[-60, -30], [-150, -70], [-240, -120]]) { await getWin().mouse.move(cx + dx, cy + dy); await getWin().waitForTimeout(70) }
-        await getWin().mouse.up(); await getWin().waitForTimeout(800)
-        await snap('layer-dragged')
-        check('B 拖动一层无异常（分离见截图）', true)
-      }
-      await getWin().keyboard.press('Escape').catch(() => {})
-      await getWin().locator('[aria-label="关闭画板"], button[title="关闭"]').first().click({ timeout: 2000 }).catch(() => {})
-      await getWin().waitForTimeout(2500)
-      await snap('flattened-back')
-      check('B 关闭白板回画布（合成回图，见截图）', (await getWin().locator('[data-nomi-whiteboard-modal="true"]').count()) === 0)
+    // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+    // 请求永远发不出去——下面白板 modal 打开（真 Replicate 出层）就是证据。
+    await snap('decompose-started')
+    console.log('  · 真 Replicate 拆解中（约 20-50s + 落盘）…')
+    const modal = getWin().locator('[data-nomi-whiteboard-modal="true"]').first()
+    const modalSeen = await modal.waitFor({ state: 'visible', timeout: 120000 }).then(() => true).catch(() => false)
+    check('B 拆解完 → 白板 modal 打开', modalSeen)
+    await getWin().waitForTimeout(1800)
+    const leafer = (await getWin().locator('[aria-label="Leafer 画板"]').count()) > 0
+    check('B 白板 leafer 挂载（拆出层已渲染，见截图）', modalSeen && leafer)
+    await snap('whiteboard-layers')
+    const lbox = await getWin().locator('[aria-label="Leafer 画板"]').first().boundingBox().catch(() => null)
+    if (lbox) {
+      const cx = lbox.x + lbox.width / 2, cy = lbox.y + lbox.height / 2
+      await getWin().mouse.move(cx, cy); await getWin().mouse.down()
+      for (const [dx, dy] of [[-60, -30], [-150, -70], [-240, -120]]) { await getWin().mouse.move(cx + dx, cy + dy); await getWin().waitForTimeout(70) }
+      await getWin().mouse.up(); await getWin().waitForTimeout(800)
+      await snap('layer-dragged')
+      check('B 拖动一层无异常（分离见截图）', true)
     }
+    await getWin().keyboard.press('Escape').catch(() => {})
+    await getWin().locator('[aria-label="关闭画板"], button[title="关闭"]').first().click({ timeout: 2000 }).catch(() => {})
+    await getWin().waitForTimeout(2500)
+    await snap('flattened-back')
+    check('B 关闭白板回画布（合成回图，见截图）', (await getWin().locator('[data-nomi-whiteboard-modal="true"]').count()) === 0)
   }
 
   check('全程零 console error / 资源失败（已滤 DevTools 噪声）', consoleErrors.length === 0 && failedUrls.length === 0, [...consoleErrors, ...failedUrls].slice(0, 4).join(' | '))

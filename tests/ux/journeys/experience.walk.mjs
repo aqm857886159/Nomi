@@ -171,10 +171,9 @@ export async function runJourney(journey, collector) {
           composer.locator('textarea, [contenteditable="true"]').first(),
           '白桌中央的红色杯子，柔和自然光。',
         )
-        await click('generate', composer.getByRole('button', { name: /生成素材|生成/ }).last())
-        const confirmation = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
-        await click('confirm-generation', confirmation.getByRole('button', { name: '生成', exact: true }), {
-          confirmation: true,
+        // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+        // 请求永远发不出去——下面节点 running → success、结果落盘、loopback 恰好 1 次生图请求就是证据。
+        await click('generate', composer.getByRole('button', { name: /生成素材|生成/ }).last(), {
           feedback: '[data-node-id][data-status="running"]',
           complete: async () => {
             await expect(win.locator('[data-node-id][data-status="success"]')).toBeVisible({ timeout: 30000 })

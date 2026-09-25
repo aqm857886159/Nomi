@@ -8,7 +8,7 @@
 //
 // 所以这条走查的验收点不是截图好不好看，而是**一条链两端对上**：
 //   ① 真人手势在批量条上选 9:16（不是灌 store、不是调桥）
-//   ② 真人点行内「生成」→ 真花钱确认卡 → 真执行通路
+//   ② 真人点行内「生成」→（单份不弹确认卡）真执行通路
 //   ③ loopback 供应商收到的**真实出站报文**里 aspect_ratio === '9:16'
 // 少了 ③ 这条走查就还是只证界面（gates 绿 ≠ 走查跑过那一族教训）。
 //
@@ -118,7 +118,6 @@ async function closeAppHard(instance) {
 const { app, win } = await launchNomiApp({ name: 'storyboard-film-aspect', tempRoot, settingsDir, projectsDir, settleMs: 1200 })
 const failures = []
 const snap = async (name) => { await screenshotSettled(win, { path: path.join(outDir, name) }) }
-const spendDialog = () => win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|额度/ }).last()
 
 /** 真人动作：点开 NomiSelect（Mantine Combobox，portal 弹层）再挑一条。`:visible` 是硬要求。 */
 async function pickFromSelect(ariaLabel, wanted, humanLabel) {
@@ -164,17 +163,16 @@ try {
   if (overrideChips !== 0) failures.push(`整片改画幅后不该出现行覆盖胶囊，实为 ${overrideChips} 枚`)
   await snap('02-film-aspect-set.png')
 
-  // ── 3. 行内「生成」真跑（fixture 零额度）：materialize → 花钱确认 → runner ──
+  // ── 3. 行内「生成」真跑（fixture 零额度）：materialize → runner ──
   if (fixture.images.length !== 0) failures.push(`点生成之前就发生了 ${fixture.images.length} 次供应商调用`)
   await clickOrFail(win.locator('[data-storyboard-row="1"]').getByRole('button', { name: '生成镜 1' }), '点镜 1 生成')
-  await expectVisible(spendDialog(), '行内生成没有弹花钱确认卡（执行通路断了）')
-  await snap('03-spend-confirm.png')
-  await clickOrFail(spendDialog().getByRole('button', { name: '生成', exact: true }), '确认生成（fixture 零额度）')
-  // 确认之后要过 materialize → 花钱回执 → runner → loopback 供应商，算两次操作的安全网（安全网不是完成条件：
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面 loopback 恰好收到 1 次图片请求、镜 1 进入 done 就是证据。
+  // 点击之后要过 materialize → 花钱回执 → runner → loopback 供应商，算两次操作的安全网（安全网不是完成条件：
   // 判绿的仍是下面那两条断言本身）。
   await expect
     .poll(() => fixture.images.length,
-      { timeout: stationTimeout({ operations: 2 }), message: '确认后 loopback 供应商一次图片请求都没收到' })
+      { timeout: stationTimeout({ operations: 2 }), message: '点生成后 loopback 供应商一次图片请求都没收到' })
     .toBe(1)
   await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-frame]'), '镜 1 没有进入 done')
     .toHaveAttribute('data-storyboard-frame', 'done', { timeout: stationTimeout({ operations: 2 }) })
