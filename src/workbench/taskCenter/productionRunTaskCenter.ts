@@ -1,43 +1,59 @@
-import type { ProductionRun, ProductionRunStatus, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
-import { isCurrentRequestDispatched } from '../../../electron/shared/contracts/productionDispatch'
-import type { ProductionRunTaskCenterProjection } from './taskCenterProjection'
+import type { ProductionRunStatus, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { TranslationKey } from '../../i18n/translationKey'
+import { productionPlaybookLabelKey } from '../production/productionRunLabels'
+import { isProductionRunTask, productionRunStatusGroup } from '../production/productionRunView'
+import type { ProductionRunTaskCenterProjection, TaskCenterGroup } from './taskCenterProjection'
+
+type Translate = (key: TranslationKey, options?: Record<string, unknown>) => string
 
 type Labels = {
   title: string
   statuses: Record<ProductionRunStatus, string>
+  /** 流程身份（`playbook.name`）→ 人话名。身份串本身永远不上屏。 */
+  playbook: (playbookName: string) => string
   /** 草稿行的镜数后缀（走 i18n 插值），只在多镜草稿上追加。 */
   draftShots?: (count: number) => string
 }
 
-const TERMINAL = new Set<ProductionRunStatus>(['completed', 'cancelled'])
+/** 任务按钮（徽标）和任务面板共用的一份文案表——此前两边各手抄一份 15 个状态。 */
+export function productionRunTaskLabels(t: Translate): Labels {
+  return {
+    title: t('taskCenter.productionRun.title'),
+    statuses: {
+      draft: t('taskCenter.productionRun.statuses.draft'),
+      awaiting_direction: t('taskCenter.productionRun.statuses.awaitingDirection'),
+      awaiting_script_review: t('taskCenter.productionRun.statuses.awaitingScriptReview'),
+      awaiting_storyboard_review: t('taskCenter.productionRun.statuses.awaitingStoryboardReview'),
+      awaiting_contract: t('taskCenter.productionRun.statuses.awaitingContract'),
+      ready: t('taskCenter.productionRun.statuses.ready'),
+      running: t('taskCenter.productionRun.statuses.running'),
+      pausing: t('taskCenter.productionRun.statuses.pausing'),
+      paused: t('taskCenter.productionRun.statuses.paused'),
+      needs_attention: t('taskCenter.productionRun.statuses.needsAttention'),
+      awaiting_rough_cut_review: t('taskCenter.productionRun.statuses.awaitingRoughCutReview'),
+      awaiting_export: t('taskCenter.productionRun.statuses.awaitingExport'),
+      exporting: t('taskCenter.productionRun.statuses.exporting'),
+      completed: t('taskCenter.productionRun.statuses.completed'),
+      cancelled: t('taskCenter.productionRun.statuses.cancelled'),
+    },
+    playbook: (playbookName) => t(productionPlaybookLabelKey(playbookName)),
+    draftShots: (count) => t('taskCenter.productionRun.draftShots', { count }),
+  }
+}
 
-/**
- * Keep the list projection and the opened full Run on the newest shared revision.
- * The full Run is folded into the summary shape here, so `dispatched` comes from the one judge
- * (`isCurrentRequestDispatched`) on either side — never from whichever object happened to be newer.
- */
+/** Keep the list projection and the opened full Run on the newest shared revision. */
 export function mergeProductionRunSummaries(
   runs: readonly ProductionRunSummary[],
-  detailed: ProductionRun | null,
+  detailed: ProductionRunSummary | null,
 ): ProductionRunSummary[] {
   if (!detailed) return [...runs]
-  const detailedSummary: ProductionRunSummary = { ...detailed, dispatched: isCurrentRequestDispatched(detailed) }
   let found = false
   const merged = runs.map((run) => {
     if (run.projectId !== detailed.projectId || run.runId !== detailed.runId) return run
     found = true
-    return detailed.revision >= run.revision ? detailedSummary : run
+    return detailed.revision >= run.revision ? detailed : run
   })
-  return found ? merged : [detailedSummary, ...merged]
-}
-
-/**
- * 这一行归哪一组。终态 → done；Run 还是 draft 且这一轮用户没点过头 → draft（列出来，但不算在跑——
- * 否则 Agent 按「先别生成」建的草稿会点亮任务按钮、一直亮着 1）；其余 → running。
- */
-function productionRunGroup(run: ProductionRunSummary): 'running' | 'draft' | 'done' {
-  if (TERMINAL.has(run.status)) return 'done'
-  return run.status === 'draft' && !run.dispatched ? 'draft' : 'running'
+  return found ? merged : [detailed, ...merged]
 }
 
 /**
@@ -56,26 +72,34 @@ function draftPhaseText(run: ProductionRunSummary, labels: Labels): string | und
   return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
+/**
+ * @param opened 任务面板里正打开成整卡的那份 Run：它的分组取自完整 Run 的判断（门在等、供应商慢…），
+ *   这样卡落在哪一组、卡上的状态签写什么，是同一个判断的两面。
+ */
 export function buildProductionRunTaskRows(
   runs: readonly ProductionRunSummary[],
   labels: Labels,
+  opened?: { runId: string; group: TaskCenterGroup },
 ): ProductionRunTaskCenterProjection[] {
-  return runs.map((run) => ({
-    id: `production-run:${run.runId}`,
-    kind: 'production_run',
-    projectId: run.projectId,
-    runId: run.runId,
-    title: `${labels.title} · ${run.playbook.name}`,
-    group: productionRunGroup(run),
-    ...(run.status === 'completed'
-      ? { outcome: 'success' as const }
-      : run.status === 'cancelled'
-        ? { outcome: 'cancelled' as const }
-        : {}),
-    recoverable: false,
-    phaseText: draftPhaseText(run, labels) ?? labels.statuses[run.status],
-    cancel: 'none',
-    target: { kind: 'production_run', projectId: run.projectId, runId: run.runId },
-    action: null,
-  }))
+  return runs.filter(isProductionRunTask).map((run) => {
+    const name = run.authoring?.title?.trim() || labels.playbook(run.playbook.name)
+    return {
+      id: `production-run:${run.runId}`,
+      kind: 'production_run',
+      projectId: run.projectId,
+      runId: run.runId,
+      title: `${labels.title} · ${name}`,
+      group: opened?.runId === run.runId ? opened.group : productionRunStatusGroup(run.status),
+      ...(run.status === 'completed'
+        ? { outcome: 'success' as const }
+        : run.status === 'cancelled'
+          ? { outcome: 'cancelled' as const }
+          : {}),
+      recoverable: false,
+      phaseText: draftPhaseText(run, labels) ?? labels.statuses[run.status],
+      cancel: 'none',
+      target: { kind: 'production_run', projectId: run.projectId, runId: run.runId },
+      action: null,
+    }
+  })
 }

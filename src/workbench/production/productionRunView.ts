@@ -3,9 +3,12 @@ import type {
   ProductionArtifact,
   ProductionJob,
   ProductionRun,
+  ProductionRunStatus,
+  ProductionRunSummary,
 } from '../../../electron/productionRun/productionRunTypes'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
-import { isCurrentRequestDispatched } from '../../../electron/shared/contracts/productionDispatch'
+import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
+import { productionPlaybookLabelKey } from './productionRunLabels'
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
 /** 门类：决定文案与「在哪决定」。方向/样片/形象检查点不花钱，预算/导出才是钱与不可逆。 */
@@ -29,7 +32,14 @@ export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-sc
 export type ProductionRunControl = 'pause' | 'cancel'
 
 export type ProductionRunView = {
+  /**
+   * 这份制作落在任务面板哪一组；卡上的状态签就是这一组的名字。默认来自 STATUS_GROUP，只有完整 Run 知道得更多时
+   * （门在等、job 需要处理、提交结果不明、供应商慢）才覆盖——分组的 owner 仍是那一张表。
+   */
+  group: TaskCenterGroup
   tone: ProductionRunTone
+  /** 流程的人话名（`playbook.name` 是身份，不上屏）。 */
+  playbookLabelKey: TranslationKey
   titleKey: TranslationKey
   descriptionKey: TranslationKey
   percent?: number
@@ -58,6 +68,47 @@ export type ProductionRunView = {
     stages: Array<Pick<ProductionRun['stages'][number], 'stageId' | 'title' | 'status'>>
     skills: Array<{ name: string; version: string }>
   }
+}
+
+/**
+ * 只有 Run 摘要（没有门、没有 job）时的状态 → 分组。`Record` 让新增一个 Run 状态时编译器逼人在这里表态。
+ * 打开的那份 Run 用 `buildProductionRunView` 里更细的判断（门在等、job 需要处理），两者在同一个文件里。
+ */
+const STATUS_GROUP: Readonly<Record<ProductionRunStatus, TaskCenterGroup>> = {
+  draft: 'attention',
+  awaiting_direction: 'attention',
+  awaiting_script_review: 'attention',
+  awaiting_storyboard_review: 'attention',
+  awaiting_contract: 'attention',
+  ready: 'running',
+  running: 'running',
+  pausing: 'running',
+  paused: 'attention',
+  needs_attention: 'attention',
+  awaiting_rough_cut_review: 'attention',
+  awaiting_export: 'attention',
+  exporting: 'running',
+  completed: 'done',
+  cancelled: 'done',
+}
+
+export function productionRunStatusGroup(status: ProductionRunStatus): TaskCenterGroup {
+  return STATUS_GROUP[status]
+}
+
+/**
+ * 这份 Run 算不算任务面板里的一个**任务**。
+ *
+ * 生成计划还是 Agent 手里的草稿（没摆出报价卡），或者用户已经丢掉了这份计划——两种情况下 Run 状态都停在
+ * `draft`，但什么都没在跑、也没有任何东西在等用户：它们不是任务。此前它们各占一行「等待开始」，
+ * 跟真正在跑的那张卡并排，看上去就是同一次制作重复了三遍（2026-09-25 用户截图）。
+ * 草稿本身仍在画布上（占位节点）和 Agent 面板里；摆出报价卡的那一刻它才进任务面板。
+ */
+export function isProductionRunTask(run: Pick<ProductionRunSummary, 'generationPlan'>): boolean {
+  const plan = run.generationPlan
+  if (!plan) return true
+  if (plan.state === 'cancelled') return false
+  return !(plan.state === 'draft' && plan.cardHidden === true)
 }
 
 function safeRelativePath(value: string | undefined): value is string {
@@ -117,6 +168,8 @@ export function buildProductionRunView(
       status: run.status === 'completed' ? 'completed' as const : status,
     }))
   const base = {
+    group: productionRunStatusGroup(run.status),
+    playbookLabelKey: productionPlaybookLabelKey(run.playbook.name),
     controls: [] as ProductionRunControl[],
     // 谁发起的谁决定：nomi 自主发起时没有 CLI 可用，门在 Nomi 是主路径。
     decisionHome: (originHost === 'nomi' ? 'nomi' : 'origin') as ProductionDecisionHome,
@@ -135,6 +188,7 @@ export function buildProductionRunView(
   if (unknown) {
     return {
       ...base,
+      group: 'attention',
       tone: 'danger',
       titleKey: 'generationCommon.production.status.submissionUnknown',
       descriptionKey: 'generationCommon.production.description.submissionUnknown',
@@ -162,6 +216,15 @@ export function buildProductionRunView(
       tone: 'success',
       titleKey: 'generationCommon.production.status.completed',
       descriptionKey: 'generationCommon.production.description.completed',
+      primaryAction: null,
+    }
+  }
+  if (run.status === 'cancelled') {
+    return {
+      ...base,
+      tone: 'neutral',
+      titleKey: 'generationCommon.production.status.cancelled',
+      descriptionKey: 'generationCommon.production.description.cancelled',
       primaryAction: null,
     }
   }
@@ -242,6 +305,7 @@ export function buildProductionRunView(
     return {
       ...base,
       decisionHome: gateKind === 'direction' || gateKind === 'sample' ? base.decisionHome : 'nomi',
+      group: 'attention',
       tone: 'attention',
       titleKey: `generationCommon.production.status.${copyKey}`,
       descriptionKey: `generationCommon.production.description.${copyKey}`,
@@ -261,6 +325,7 @@ export function buildProductionRunView(
   if (run.status === 'needs_attention' || job?.status === 'needs_attention') {
     return {
       ...base,
+      group: 'attention',
       tone: 'danger',
       titleKey: 'generationCommon.production.status.needsAttention',
       descriptionKey: 'generationCommon.production.description.needsAttention',
@@ -269,9 +334,10 @@ export function buildProductionRunView(
     }
   }
   if (run.status === 'paused' || run.status === 'pausing') {
+    // 已暂停 = 等用户决定续不续（有「从断点继续」）；正在暂停 = Nomi 还在收尾，用户不用做什么。
     return {
       ...base,
-      tone: 'attention',
+      tone: run.status === 'paused' ? 'attention' : 'working',
       titleKey: run.status === 'paused' ? 'generationCommon.production.status.paused' : 'generationCommon.production.status.pausing',
       descriptionKey: run.status === 'paused' ? 'generationCommon.production.description.paused' : 'generationCommon.production.description.pausing',
       primaryAction: run.status === 'paused' ? 'resume-run' : null,
@@ -283,9 +349,12 @@ export function buildProductionRunView(
   const vendorIsStale = job && ['provider_accepted', 'polling', 'retry_wait'].includes(job.status)
     && Number.isFinite(vendorStateAt) && now - vendorStateAt >= staleAfterMs
   if (vendorIsStale) {
+    // 供应商慢不是「等你确认」：Nomi 仍在查询，用户不用做任何事——所以它仍是进行中。
+    // 此前这里给了 attention 色调，卡上的状态签于是写着「等待确认」，和标题「供应商长时间没有返回新状态」互相打架。
     return {
       ...base,
-      tone: 'attention',
+      group: 'running',
+      tone: 'working',
       titleKey: 'generationCommon.production.status.providerStale',
       descriptionKey: 'generationCommon.production.description.providerStale',
       primaryAction: 'open-stage',
@@ -293,13 +362,11 @@ export function buildProductionRunView(
     }
   }
   const percent = validPercent(job?.progressPercent)
-  // 「草稿」还是「在跑」只问一个判据：单镜在「批准 → 供应商受理」之间 Run 仍是 draft，但钱已经出去了。
-  const undispatchedDraft = run.status === 'draft' && !isCurrentRequestDispatched(run)
   return {
     ...base,
-    tone: undispatchedDraft ? 'neutral' : 'working',
-    titleKey: undispatchedDraft ? 'generationCommon.production.status.draft' : 'generationCommon.production.status.running',
-    descriptionKey: undispatchedDraft ? 'generationCommon.production.description.draft' : 'generationCommon.production.description.running',
+    tone: run.status === 'draft' ? 'neutral' : base.group === 'attention' ? 'attention' : 'working',
+    titleKey: run.status === 'draft' ? 'generationCommon.production.status.draft' : 'generationCommon.production.status.running',
+    descriptionKey: run.status === 'draft' ? 'generationCommon.production.description.draft' : 'generationCommon.production.description.running',
     ...(percent === undefined ? {} : { percent }),
     primaryAction: 'open-stage',
     controls: run.status === 'running' ? ['pause', 'cancel'] : [],

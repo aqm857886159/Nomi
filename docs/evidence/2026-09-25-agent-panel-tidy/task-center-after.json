@@ -1,0 +1,147 @@
+{
+  "label": "after",
+  "observations": {
+    "zh": {
+      "sections": [
+        {
+          "group": "attention",
+          "text": "等你处理 2"
+        },
+        {
+          "group": "running",
+          "text": "进行中 1"
+        },
+        {
+          "group": "done",
+          "text": "已完成 3"
+        }
+      ],
+      "rows": [
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgkc-kcbo",
+          "group": "attention",
+          "text": "老陈 等待超时 · 上游可能仍在跑 重新拉取",
+          "action": "recover_generation"
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgkf-d79i",
+          "group": "attention",
+          "text": "小鹿 等待超时 · 上游可能仍在跑 重新拉取",
+          "action": "recover_generation"
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-video-mugojgkf-stl5",
+          "group": "done",
+          "text": "视频 已保存到项目",
+          "action": null
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-video-mugojgkf-xql0",
+          "group": "done",
+          "text": "视频 已保存到项目",
+          "action": null
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgke-aezj",
+          "group": "done",
+          "text": "相机店内景 已保存到项目",
+          "action": null
+        }
+      ],
+      "cards": [
+        {
+          "group": "running",
+          "tone": "working",
+          "chip": "进行中",
+          "title": "供应商长时间没有返回新状态",
+          "text": "来自 Nomi 进行中 供应商长时间没有返回新状态 Nomi 仍会查询已有任务，但不会因为等待过久而重复提交。 镜头生成 0 / 4 个阶段已完成 查看当前阶段 制作详情"
+        }
+      ],
+      "panel": "任务 2 等你处理 · 1 进行中 等你处理 2 老陈 等待超时 · 上游可能仍在跑 重新拉取 小鹿 等待超时 · 上游可能仍在跑 重新拉取 进行中 1 来自 Nomi 进行中 供应商长时间没有返回新状态 Nomi 仍会查询已有任务，但不会因为等待过久而重复提交。 镜头生成 0 / 4 个阶段已完成 查看当前阶段 制作详情 已完成 3 视频 已保存到项目 视频 已保存到项目 相机店内景 已保存到项目",
+      "badge": "3",
+      "recoverHint": "只查结果，不重新生成，不花钱",
+      "details": "制作详情 阶段进度 0 / 4 个阶段已完成 生成 进行中 审片 待开始 粗剪 待开始 导出 待开始 已授权 ¥3.00 已预留 ¥2.00 已结算 ¥1.00 待结算 ¥0.00 已加载技能 未记录技能证据 最近更新 2026年9月25日 16:09"
+    },
+    "en": {
+      "sections": [
+        {
+          "group": "attention",
+          "text": "Waiting on you 2"
+        },
+        {
+          "group": "running",
+          "text": "Running 1"
+        },
+        {
+          "group": "done",
+          "text": "Done 3"
+        }
+      ],
+      "rows": [
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgkc-kcbo",
+          "group": "attention",
+          "text": "老陈 Timed out · may still be running upstream Retrieve result",
+          "action": "recover_generation"
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgkf-d79i",
+          "group": "attention",
+          "text": "小鹿 Timed out · may still be running upstream Retrieve result",
+          "action": "recover_generation"
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-video-mugojgkf-stl5",
+          "group": "done",
+          "text": "视频 Saved to project",
+          "action": null
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-video-mugojgkf-xql0",
+          "group": "done",
+          "text": "视频 Saved to project",
+          "action": null
+        },
+        {
+          "id": "batch-mugojgkg-1:gen-v2-image-mugojgke-aezj",
+          "group": "done",
+          "text": "相机店内景 Saved to project",
+          "action": null
+        }
+      ],
+      "cards": [
+        {
+          "group": "running",
+          "tone": "working",
+          "chip": "Running",
+          "title": "The provider has not returned a new state for a while",
+          "text": "From Nomi Running The provider has not returned a new state for a while Nomi will keep checking the existing task without resubmitting it because of the delay. Shot generation 0 / 4 stages done Open current stage Production details"
+        }
+      ],
+      "panel": "Tasks 2 waiting on you · 1 running Waiting on you 2 老陈 Timed out · may still be running upstream Retrieve result 小鹿 Timed out · may still be running upstream Retrieve result Running 1 From Nomi Running The provider has not returned a new state for a while Nomi will keep checking the existing task without resubmitting it because of the delay. Shot generation 0 / 4 stages done Open current stage Production details Done 3 视频 Saved to project 视频 Saved to project 相机店内景 Saved to project",
+      "badge": "3",
+      "recoverHint": "Only fetches the result — no new generation, no charge",
+      "details": "Production details Stage progress 0 / 4 stages done Generate Running Review Pending Rough cut Pending Export Pending Authorized CN¥3.00 Reserved CN¥2.00 Settled CN¥1.00 Unsettled CN¥0.00 Loaded skills No skill evidence recorded Last updated Sep 25, 2026, 4:09 PM"
+    }
+  },
+  "listedRuns": [
+    {
+      "runId": "op-walk-stale-multishot",
+      "status": "running",
+      "plan": "submitted",
+      "jobs": null
+    },
+    {
+      "runId": "op-1275b8e6-b11c-4d75-997d-208a711a1383",
+      "status": "draft",
+      "plan": "draft",
+      "jobs": null
+    },
+    {
+      "runId": "op-c4f4819c-b7a0-4588-bdb1-03280e6fbbd7",
+      "status": "draft",
+      "plan": "draft",
+      "jobs": null
+    }
+  ]
+}

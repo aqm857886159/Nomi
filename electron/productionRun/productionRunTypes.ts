@@ -421,10 +421,13 @@ export type ProductionRunSummary = Pick<
   /** 计划仍是草稿时的候选摘要；已封存/已提交/无计划的 Run 省略。 */
   draft?: ProductionRunDraftSummary;
   /**
-   * 这一轮请求用户点过头、已交给执行了没有（`isCurrentRequestDispatched`，唯一判据）。
-   * 任务中心据它把「还没点头的草稿」和「真的在跑」分开——状态同为 draft 的 Run 两种都有。
+   * 生成计划的**在不在场**两个事实：状态，以及报价卡有没有摆到用户面前。
+   *
+   * 为什么进列表投影：Agent 拟好、还没出价（`cardHidden`）的草稿，和用户丢掉的计划（`cancelled`），
+   * Run 状态都还停在 `draft`——只看 Run 状态，它们就是任务面板里永远「等待开始」的那几行。
+   * 判「算不算一个任务」的规则住在渲染层（`isProductionRunTask`），它要的只是这两格。
    */
-  dispatched: boolean;
+  generationPlan?: Pick<ProductionGenerationPlan, "state" | "cardHidden">;
 };
 
 /**

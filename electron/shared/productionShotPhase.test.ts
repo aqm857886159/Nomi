@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveProductionShotState,
   isProductionJobInFlight,
+  isShotInDispatchedScope,
+  jobAwaitsHuman,
   productionJobPhase,
   productionShotIdForNode,
 } from './productionShotPhase'
@@ -169,5 +171,27 @@ describe('productionJobPhase is exhaustive over ProductionJobStatus', () => {
     expect(isProductionJobInFlight({ status: 'polling', providerTaskId: 't' })).toBe(true)
     expect(isProductionJobInFlight({ status: 'polling' })).toBe(false)
     expect(isProductionJobInFlight({ status: 'ready', providerTaskId: 't' })).toBe(false)
+  })
+})
+
+describe('派出去了没有', () => {
+  it('只有 planned / authorization_required 还停在人工门前', () => {
+    const all = Object.keys({
+      planned: 1, authorization_required: 1, authorized: 1, submit_intent_persisted: 1, submitting: 1, provider_accepted: 1,
+      polling: 1, retry_wait: 1, downloading: 1, validating_technical: 1, validating_content: 1, ready: 1, adopted: 1,
+      submission_unknown: 1, reconciling: 1, needs_attention: 1, cancel_requested: 1, cancelled_remote: 1, detached: 1, too_late: 1,
+    } satisfies Record<ProductionJobStatus, 1>) as ProductionJobStatus[]
+    expect(all.filter(jobAwaitsHuman)).toEqual(['planned', 'authorization_required'])
+  })
+
+  it('计划没提交：任何镜都不在已派出的范围里；提交后勾进的在、勾掉的不在；单镜提交了就在', () => {
+    for (const planState of ['draft', 'sealed', 'cancelled'] as const) {
+      expect(isShotInDispatchedScope(run({ planState, shots: [{ shotId: 's1' }] }), 's1'), planState).toBe(false)
+    }
+    const submitted = run({ shots: [{ shotId: 's1' }, { shotId: 's2', included: false }] })
+    expect(isShotInDispatchedScope(submitted, 's1')).toBe(true)
+    expect(isShotInDispatchedScope(submitted, 's2')).toBe(false)
+    expect(isShotInDispatchedScope(run({}), 'cand-1')).toBe(true)
+    expect(isShotInDispatchedScope(run({ planState: 'draft' }), 'cand-1')).toBe(false)
   })
 })

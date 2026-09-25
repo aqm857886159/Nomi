@@ -33,7 +33,6 @@ import {
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { generationShotEnvelopeOf } from "../shared/generationShotEnvelope";
 import { buildProductionRunDraftSummary } from "./productionRunDraftSummary";
-import { isCurrentRequestDispatched } from "../shared/contracts/productionDispatch";
 
 type SnapshotEnvelope = {
   schemaVersion: number;
@@ -176,6 +175,12 @@ function summarize(run: ProductionRun): ProductionRunSummary {
   return {
     ...(draft ? { draft } : {}),
     ...(run.authoring ? { authoring: run.authoring } : {}),
+    ...(run.generationPlan ? {
+      generationPlan: {
+        state: run.generationPlan.state,
+        ...(run.generationPlan.cardHidden === true ? { cardHidden: true } : {}),
+      },
+    } : {}),
     runId: run.runId,
     projectId: run.projectId,
     revision: run.revision,
@@ -185,7 +190,6 @@ function summarize(run: ProductionRun): ProductionRunSummary {
     origin: run.origin,
     budget: run.budget,
     updatedAt: run.updatedAt,
-    dispatched: isCurrentRequestDispatched(run),
   };
 }
 

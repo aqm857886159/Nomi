@@ -13,7 +13,6 @@
 //
 // 真相源 = Run 的 jobs[] + status（纯派生，无第二份状态）。
 import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from "../productionRun/productionRunTypes";
-import { isShotInDispatchedScope, jobAwaitsHuman } from "./contracts/productionDispatch";
 
 export type ProductionShotPhase = "queued" | "generating" | "stopped" | "failed" | "done";
 
@@ -63,6 +62,36 @@ export function productionJobPhase(status: ProductionJobStatus): ProductionShotP
     case "detached":
       return null;
   }
+}
+
+/**
+ * 这个 job 是不是还停在人工门前：报价卡 / 逐镜确认在等，供应商那边什么都没发生。
+ * 写成 `Record<ProductionJobStatus, boolean>` 让编译器拦：新长一个状态而这里没表态，类型检查当场红——
+ * 不会静默落进「排队中」（调度器的「authorization_required is still waiting for a human」也读这一张）。
+ */
+const AWAITS_HUMAN: Readonly<Record<ProductionJobStatus, boolean>> = {
+  planned: true, authorization_required: true,
+  authorized: false, submit_intent_persisted: false, submitting: false, provider_accepted: false, polling: false,
+  retry_wait: false, downloading: false, validating_technical: false, validating_content: false, ready: false,
+  adopted: false, submission_unknown: false, reconciling: false, needs_attention: false, cancel_requested: false,
+  cancelled_remote: false, detached: false, too_late: false,
+};
+
+export function jobAwaitsHuman(status: ProductionJobStatus): boolean {
+  return AWAITS_HUMAN[status];
+}
+
+/**
+ * 这一镜在已经交给执行的范围里吗。给**还没有 job** 的镜用：在范围里 = 真的在排队（批次会自己轮到它）；
+ * 不在 = 用户还没点头（草稿 / 报价卡在等 / 没点头就取消），或者这镜没被勾进这一批。
+ * 单镜计划只有一镜（调用方已按候选 id 认过），计划提交了就在；多镜看 `included`。
+ */
+export function isShotInDispatchedScope(run: Pick<ProductionRun, "generationPlan">, shotId: string): boolean {
+  const plan = run.generationPlan;
+  if (!plan || plan.state !== "submitted") return false;
+  if (!plan.shots?.length) return true;
+  const shot = plan.shots.find((candidate) => candidate.shotId === shotId);
+  return Boolean(shot && shot.included !== false);
 }
 
 /** 这次任务是不是已经交给供应商、还在等结论（观察者据此判断还要不要再去问）。 */
@@ -129,7 +158,7 @@ export function productionShotIdForNode(run: ProductionRun, nodeId: string): str
  * - 禁「永远等待生成」假进度：没有 job 绝不显「生成中」。
  * - **用户还没点头 = 什么都不说**（2026-09-24）：草稿（`draft_shots` 建的、报价卡还在等）、job 还停在人工门前、
  *   没点头就取消——返回 null。以前这些都落到「排队中」：Agent 按「先别生成」建的草稿挂着「排队中 · 第 1/1」，
- *   读起来像已经在排队花钱（那一刻 0 job、0 请求）。「派出去了没有」的判据只有一份：`contracts/productionDispatch.ts`。
+ *   读起来像已经在排队花钱（那一刻 0 job、0 请求）。「派出去了没有」只看两件事：`jobAwaitsHuman` 与 `isShotInDispatchedScope`（本文件）。
  */
 export function deriveProductionShotState(run: ProductionRun | null | undefined, shotId: string | undefined): ProductionShotState | null {
   if (!run || !shotId || !run.generationPlan) return null;

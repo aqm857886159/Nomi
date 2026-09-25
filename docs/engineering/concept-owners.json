@@ -76,6 +76,37 @@
       "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
     },
     {
+      "name": "任务分组",
+      "owner": {
+        "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+        "symbol": "TASK_CENTER_GROUPS"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/taskCenterEntries.ts",
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/taskCenter/exportJobTaskCenter.ts",
+        "src/workbench/production/productionRunView.ts",
+        "src/workbench/production/ProductionRunTaskCard.tsx",
+        "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "src/workbench/taskCenter/TaskCenterButton.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。"
+    },
+    {
+      "name": "制作 Run 算不算任务",
+      "owner": {
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "isProductionRunTask"
+      },
+      "consumers": [
+        "src/workbench/taskCenter/productionRunTaskCenter.ts",
+        "src/workbench/production/productionRunStore.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "Agent 没出价的草稿（plan.state=draft 且 cardHidden）和被丢掉的计划（plan.state=cancelled）不是任务：不成行、不计徽标、不顶掉在跑的整卡。判据只吃列表投影 ProductionRunSummary.generationPlan 的两格（主进程 summarize 投出）。画布落地（ProductionCanvasLandingHost）要的是草稿本身，不消费这条。"
+    },
+    {
       "name": "制作镜头在画布上的运行状态",
       "owner": {
         "path": "electron/shared/productionShotPhase.ts",
@@ -87,10 +118,11 @@
         "electron/capabilityCore/appIntegrationRunObservation.ts",
         "electron/capabilityCore/appIntegration.ts",
         "src/workbench/capability/multiShotCanvasLanding.ts",
-        "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+        "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+        "electron/productionRun/batchScheduleDerivation.ts"
       ],
       "since": "2026-09-25",
-      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。"
+      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。 2026-09-24 追加（合同 docs/fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json）：「用户还没点头」也归这里判——草稿（draft_shots，报价卡没出或在等）、job 还停在人工门前（jobAwaitsHuman，Record 穷举）、没勾进已提交这一批的镜（isShotInDispatchedScope）一律返回 null，画布上什么都不说；调度器的「还在等人」也读 jobAwaitsHuman。"
     },
     {
       "name": "供应商产物取回线路",
@@ -181,22 +213,6 @@
       ],
       "since": "2026-09-25",
       "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。"
-    },
-    {
-      "name": "生成已派出（这一轮用户点过头）",
-      "owner": {
-        "path": "electron/shared/contracts/productionDispatch.ts",
-        "symbol": "isCurrentRequestDispatched"
-      },
-      "consumers": [
-        "electron/shared/productionShotPhase.ts",
-        "electron/productionRun/productionRunRepository.ts",
-        "electron/productionRun/batchScheduleDerivation.ts",
-        "src/workbench/production/productionRunView.ts",
-        "src/workbench/taskCenter/productionRunTaskCenter.ts"
-      ],
-      "since": "2026-09-24",
-      "notes": "同一文件里的 JOB_DISPATCH_PHASE（每个 job 状态归「等人 / 在跑 / 已落定」，Record 穷举，新状态不归档编译即红）、jobAwaitsHuman 与 isShotInDispatchedScope（没 job 的镜在不在已派出的这一批）是同一个概念的几个切面，不是另外的 owner。「制作镜头在画布上的运行状态」（productionShotPhase.deriveProductionShotState）读它来判「排队中」还是「还没点头 → 什么都不说」。消费者只许读它，不许再用「有没有 job」「是不是终态」「status 字面是不是 draft」自己猜。合同 docs/fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json；结构评审 docs/audit/2026-09-24-production-run-derived-facts-structure-review.md。"
     }
   ]
 }

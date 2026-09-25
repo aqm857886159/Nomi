@@ -9,7 +9,7 @@ import type {
 } from "./productionRunTypes";
 import type { ShotPrice } from "./shotPricing";
 import { productionGenerationJobId } from "./productionGenerationAuthorization";
-import { jobAwaitsHuman } from "../shared/contracts/productionDispatch";
+import { jobAwaitsHuman } from "../shared/productionShotPhase";
 
 /**
  * P4 S4 — the pure batch derivation. This is the heart of "调度器无自有持久状态" (plan §1).

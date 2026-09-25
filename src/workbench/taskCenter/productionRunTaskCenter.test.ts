@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionJob, ProductionRun, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import { buildProductionRunTaskRows, mergeProductionRunSummaries } from './productionRunTaskCenter'
 
 function summary(patch: Partial<ProductionRunSummary> = {}): ProductionRunSummary {
@@ -14,24 +14,8 @@ function summary(patch: Partial<ProductionRunSummary> = {}): ProductionRunSummar
     origin: { host: 'codex' },
     budget: { currency: 'CNY', authorized: 20, reserved: 5, actual: 3, unsettled: 0, unknownInFlight: 0 },
     updatedAt: '2026-08-09T02:00:00.000Z',
-    dispatched: true,
     ...patch,
   }
-}
-
-/** 任务中心拿到的「打开着的那一份」是完整 Run（不是摘要），`dispatched` 要从它的计划与 job 当场判。 */
-function fullRun(patch: Partial<ProductionRun> = {}): ProductionRun {
-  const { dispatched: _dispatched, ...base } = summary()
-  return {
-    ...base, schemaVersion: 1, planVersion: 1, snapshotCursor: 1, stages: [], gates: [], jobs: [], artifacts: [],
-    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
-    createdAt: '2026-08-09T02:00:00.000Z',
-    ...patch,
-  } as ProductionRun
-}
-
-function job(status: ProductionJob['status']): ProductionJob {
-  return { jobId: `job-${status}`, stageId: 'generate', status, attempt: 1, provider: 'apimart', model: 'm', idempotencyKey: 'k', createdAt: '2026-08-09T02:00:00.000Z', updatedAt: '2026-08-09T02:00:00.000Z' }
 }
 
 const labels = {
@@ -53,6 +37,7 @@ const labels = {
     completed: '制作完成',
     cancelled: '已取消',
   },
+  playbook: (name: string) => (name === 'brand.promo' ? '品牌宣传片' : '镜头生成'),
 }
 
 describe('production run task-center projection', () => {
@@ -94,13 +79,12 @@ describe('production run task-center projection', () => {
 
   it('uses the newest full Run revision so one card cannot be completed under a running summary', () => {
     const listed = summary({ revision: 8, status: 'running' })
-    const completed = fullRun({ revision: 9, status: 'completed' })
+    const completed = summary({ revision: 9, status: 'completed' })
 
     const [resolved] = mergeProductionRunSummaries([listed], completed)
     expect(resolved).toMatchObject({ revision: 9, status: 'completed' })
     expect(buildProductionRunTaskRows([resolved], labels)[0].group).toBe('done')
-    const newer = summary({ revision: 9, status: 'completed' })
-    expect(mergeProductionRunSummaries([newer], fullRun({ revision: 8 }))[0]).toBe(newer)
+    expect(mergeProductionRunSummaries([completed], listed)[0]).toBe(completed)
   })
 
   it('keeps an active Run visible without inventing progress or cancellation', () => {
@@ -120,44 +104,16 @@ describe('production run task-center projection', () => {
     expect(row).not.toHaveProperty('elapsedMs')
   })
 
-  it('keeps human approval states active and routes to the exact Run', () => {
+  it('等人拍板的状态进「等你处理」组，并直达那一份 Run', () => {
     const [row] = buildProductionRunTaskRows([
       summary({ status: 'awaiting_rough_cut_review', runId: 'run-review-2' }),
     ], labels)
 
     expect(row).toMatchObject({
-      group: 'running',
+      group: 'attention',
       phaseText: '等待审核粗剪',
       target: { projectId: 'project-a', runId: 'run-review-2' },
     })
-  })
-
-  // 2026-09-24 真模型走查：Agent 按「先别生成」建的草稿让任务按钮变蓝、亮着 1——那一刻 0 个 job、0 次请求。
-  // 用户拍板：还没点头的草稿列出来（看得见 Agent 选了什么），但单独一组，不算在跑。
-  it('还没点头的草稿 → 草稿组，不进「进行中」（任务按钮只数 running/queued，于是不亮）', () => {
-    const [row] = buildProductionRunTaskRows([summary({ status: 'draft', dispatched: false })], labels)
-    expect(row.group).toBe('draft')
-  })
-
-  it('状态仍是 draft 但已经点过头（单镜「批准 → 供应商受理」之间）→ 进行中', () => {
-    const [row] = buildProductionRunTaskRows([summary({ status: 'draft', dispatched: true })], labels)
-    expect(row.group).toBe('running')
-  })
-
-  it('其余在等人的状态不归草稿组（它们有各自的门卡），分组不变', () => {
-    for (const status of ['awaiting_direction', 'awaiting_script_review', 'awaiting_storyboard_review', 'awaiting_contract', 'ready'] as const) {
-      expect(buildProductionRunTaskRows([summary({ status, dispatched: false })], labels)[0].group, status).toBe('running')
-    }
-  })
-
-  it('打开着的完整 Run 并进来时，dispatched 由同一个判据当场判：草稿 0 个 job → 草稿组；job 已过人工门 → 进行中', () => {
-    const listed = summary({ revision: 1, status: 'draft', dispatched: true })
-    const drafted = fullRun({ revision: 2, status: 'draft', jobs: [] })
-    expect(buildProductionRunTaskRows(mergeProductionRunSummaries([listed], drafted), labels)[0].group).toBe('draft')
-    const waitingOnCard = fullRun({ revision: 2, status: 'draft', jobs: [job('authorization_required')] })
-    expect(buildProductionRunTaskRows(mergeProductionRunSummaries([listed], waitingOnCard), labels)[0].group).toBe('draft')
-    const approved = fullRun({ revision: 2, status: 'draft', jobs: [job('submitting')] })
-    expect(buildProductionRunTaskRows(mergeProductionRunSummaries([listed], approved), labels)[0].group).toBe('running')
   })
 
   it('places completed and cancelled Runs in history with truthful outcomes', () => {
@@ -168,5 +124,31 @@ describe('production run task-center projection', () => {
 
     expect(rows[0]).toMatchObject({ group: 'done', outcome: 'success' })
     expect(rows[1]).toMatchObject({ group: 'done', outcome: 'cancelled' })
+  })
+
+  // 2026-09-25 用户截图：一张在跑的卡 + 两行「Nomi 制作 · generation.single-shot / 等待开始」。
+  it('Agent 没出价的草稿、丢掉的计划不成行；在跑的那份不受影响', () => {
+    const rows = buildProductionRunTaskRows([
+      summary({ runId: 'op-running', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'submitted' } }),
+      summary({ runId: 'op-hidden-a', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'draft', cardHidden: true } }),
+      summary({ runId: 'op-hidden-b', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'draft', cardHidden: true } }),
+      summary({ runId: 'op-discarded', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'cancelled' } }),
+    ], labels)
+    expect(rows.map((row) => row.runId)).toEqual(['op-running'])
+  })
+
+  it('行标题永远不含流程身份串：有作品名用作品名，没有用流程的人话名', () => {
+    const rows = buildProductionRunTaskRows([
+      summary({ runId: 'a', playbook: { name: 'generation.single-shot', version: '1.0.0' } }),
+      summary({ runId: 'b', playbook: { name: 'generation.single-shot', version: '1.0.0' }, authoring: { title: '小鹿进城' } }),
+      summary({ runId: 'c' }),
+    ], labels)
+    expect(rows.map((row) => row.title)).toEqual(['Nomi 制作 · 镜头生成', 'Nomi 制作 · 小鹿进城', 'Nomi 制作 · 品牌宣传片'])
+    for (const row of rows) expect(row.title).not.toMatch(/generation\.single-shot|brand\.promo/)
+  })
+
+  it('面板里打开成整卡的那份用它完整判断出的分组（卡在哪组 = 卡上写什么）', () => {
+    const [row] = buildProductionRunTaskRows([summary({ runId: 'run-open', status: 'running' })], labels, { runId: 'run-open', group: 'attention' })
+    expect(row.group).toBe('attention')
   })
 })

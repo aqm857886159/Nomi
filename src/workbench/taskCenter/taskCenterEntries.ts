@@ -9,7 +9,7 @@ import { narrateTaskOutcome } from '../observability/narrate'
 //   node（canvas store） → 执行：标题、进度、跑起来之后的状态（running/error/recoverable）
 import type { GenerationCanvasNode, GenerationNodeStatus } from '../generationCanvas/model/generationCanvasTypes'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
-import type { GenerationTaskCenterProjection, TaskCancelKind, TaskCenterGroup } from './taskCenterProjection'
+import { TASK_CENTER_GROUPS, type GenerationTaskCenterProjection, type TaskCancelKind, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
 import { canInterruptGenerationTask } from '../generationCanvas/model/taskCancellation'
 
 /** 这一行能不能停、停了什么后果 —— 直接映射到 UI 给不给按钮、给什么文案。 */
@@ -18,6 +18,8 @@ export type TaskCenterRow = GenerationTaskCenterProjection
 export type TaskCenterSummary = {
   running: number
   queued: number
+  /** 卡在用户这儿的（等确认 / 等重新拉取 / 等处理）。 */
+  attention: number
   failed: number
   /** 有没有还没提交的可取消（决定汇总行给不给「取消排队的 N 个」）。 */
   cancellable: number
@@ -49,6 +51,44 @@ function outcomeFor(state: GenerationQueueEntry['state']): TaskCenterRow['outcom
 }
 
 /**
+ * 一条生成任务落在哪一组、结局是什么——生成这一侧的**唯一**映射。
+ *
+ * 队列条目只记调度的结局；调度以 error 结束之后，节点还会往前走：等待超时（recoverable）的节点
+ * 上游可能仍在跑、能被重新拉取，拉取时节点回到 running，拉到了就 success。所以对**这个节点最新的那一条**，
+ * 调度一结束就以节点状态为准。此前只看条目：「等待超时 · 可重新拉取」被放进「已完成」，
+ * 用户点了重新拉取，这一行还会翻成「生成失败」并挂出付费的「重试」。
+ */
+function generationRowState(
+  entry: GenerationQueueEntry,
+  nodeStatus: GenerationNodeStatus | undefined,
+  isLatestForNode: boolean,
+): { group: TaskCenterGroup; outcome?: TaskCenterRow['outcome']; recoverable: boolean } {
+  if (entry.state === 'running') return { group: 'running', recoverable: false }
+  if (entry.state === 'queued') return { group: 'queued', recoverable: false }
+  if (entry.state === 'error' && isLatestForNode) {
+    if (nodeStatus === 'recoverable') return { group: 'attention', outcome: 'error', recoverable: true }
+    if (nodeStatus === 'running') return { group: 'running', recoverable: false }
+    if (nodeStatus === 'success') return { group: 'done', outcome: 'success', recoverable: false }
+  }
+  return { group: 'done', outcome: outcomeFor(entry.state), recoverable: false }
+}
+
+/** 所有任务（生成 / 制作 / 导出）合在一起的汇总——任务按钮和任务面板共用这一份算法。 */
+export function summarizeTaskCenterRows(rows: readonly TaskCenterProjection[], pausedBatchId?: string): TaskCenterSummary {
+  const count = (group: TaskCenterGroup): number => rows.filter((row) => row.group === group).length
+  return {
+    running: count('running'),
+    queued: count('queued'),
+    attention: count('attention'),
+    failed: rows.filter((row) => row.outcome === 'error' && !row.recoverable).length,
+    // 「取消排队的 N 个」只取消生成队列（导出的排队有它自己那一行的取消）。
+    cancellable: rows.filter((row) => row.kind === 'generation' && row.cancel === 'free').length,
+    ...(pausedBatchId ? { pausedBatchId } : {}),
+  }
+}
+
+
+/**
  * 把队列条目 + 画布节点合成面板要画的行。
  * 排序：进行中（先开跑的在前）→ 排队中（按波次再按入队序）→ 已完成（新的在前）。
  */
@@ -65,11 +105,8 @@ export function buildTaskCenterView(input: {
 
   const rows: TaskCenterRow[] = entries.map((entry) => {
     const node = nodeById.get(entry.nodeId)
-    const nodeStatus: GenerationNodeStatus | undefined = node?.status
-    const group: TaskCenterGroup = entry.state === 'running' ? 'running' : entry.state === 'queued' ? 'queued' : 'done'
-    // 「可找回」在队列里记为 error（调度确实结束了），但对用户不是同一件事 —— 上游可能仍在跑/已出片，
-    // 有「重新拉取」这条路，不该跟真失败混在一起用同样的红字。
-    const recoverable = entry.state === 'error' && latestEntryByNode.get(entry.nodeId) === entry && nodeStatus === 'recoverable'
+    const { group, outcome, recoverable } = generationRowState(entry, node?.status, latestEntryByNode.get(entry.nodeId) === entry)
+    const live = group === 'running' || group === 'queued'
     return {
       id: entry.id,
       kind: 'generation' as const,
@@ -77,15 +114,15 @@ export function buildTaskCenterView(input: {
       nodeId: entry.nodeId,
       title: (node?.title || '').trim() || fallbackTitle,
       group,
-      outcome: outcomeFor(entry.state),
+      outcome,
       recoverable,
       waveIndex: entry.waveIndex,
       ...(typeof node?.progress?.percent === 'number' && group === 'running' ? { percent: node.progress.percent } : {}),
-      phaseText: node && group !== 'done'
+      phaseText: node && live
         ? generationFeedback(node, now, group === 'queued')?.message ?? narrateTaskOutcome(entry.state, recoverable)
-        : entry.state === 'error' && entry.error && !recoverable
+        : outcome === 'error' && entry.error && !recoverable
           ? classifyGenerationError(entry.error).reason
-          : narrateTaskOutcome(entry.state, recoverable),
+          : narrateTaskOutcome(outcome ?? entry.state, recoverable),
       ...(elapsedFor(entry, now) !== undefined ? { elapsedMs: elapsedFor(entry, now) } : {}),
       cancel: group === 'queued' ? 'free' : group === 'running' ? resolveRunningCancelKind(node) : 'none',
       target: { kind: 'canvas_node' as const, nodeId: entry.nodeId },
@@ -93,39 +130,35 @@ export function buildTaskCenterView(input: {
         ? { kind: 'cancel_generation_queue' as const, batchId: entry.batchId, nodeId: entry.nodeId }
         : group === 'running' && resolveRunningCancelKind(node) === 'interrupt'
           ? { kind: 'interrupt_generation' as const, nodeId: entry.nodeId }
-          : group === 'done' && entry.state === 'error' && !recoverable
+          : group === 'done' && outcome === 'error'
             ? { kind: 'retry_generation' as const, nodeId: entry.nodeId }
-            : null,
+            // 「等你处理」组必须把它在等的那个动作摆出来：不然用户只能点进画布找节点上的按钮。
+            : recoverable
+              ? { kind: 'recover_generation' as const, nodeId: entry.nodeId }
+              : null,
       ...(entry.error ? { error: entry.error } : {}),
     }
   })
 
-  const order: Record<TaskCenterGroup, number> = { running: 0, queued: 1, draft: 2, done: 3 }
-  const sorted = [...rows].sort((a, b) => {
-    if (order[a.group] !== order[b.group]) return order[a.group] - order[b.group]
-    if (a.group === 'queued' && a.waveIndex !== b.waveIndex) return a.waveIndex - b.waveIndex
-    return 0
-  })
-  // 已完成新的在前（其余组保持入队序）。
-  const done = sorted.filter((row) => row.group === 'done').reverse()
-  const live = sorted.filter((row) => row.group !== 'done')
+  // 排队的按波次；已完成新的在前（其余组保持入队序）。
+  const ordered = [...rows].sort((a, b) => TASK_CENTER_GROUPS.indexOf(a.group) - TASK_CENTER_GROUPS.indexOf(b.group)
+    || (a.group === 'queued' ? a.waveIndex - b.waveIndex : 0))
+  const done = ordered.filter((row) => row.group === 'done').reverse()
+  const live = ordered.filter((row) => row.group !== 'done')
 
   const pausedBatch = Object.values(batches).find((batch) => batch.paused && !batch.finishedAt)
-  return {
-    rows: [...live, ...done],
-    summary: {
-      running: live.filter((row) => row.group === 'running').length,
-      queued: live.filter((row) => row.group === 'queued').length,
-      failed: done.filter((row) => row.outcome === 'error' && !row.recoverable).length,
-      cancellable: live.filter((row) => row.cancel === 'free').length,
-      ...(pausedBatch ? { pausedBatchId: pausedBatch.id } : {}),
-    },
-  }
+  const sortedRows = [...live, ...done]
+  return { rows: sortedRows, summary: summarizeTaskCenterRows(sortedRows, pausedBatch?.id) }
 }
 
-/** 顶栏按钮的状态：有活 → accent 计数；跑完有失败 → 提醒色；否则安静。 */
+/** 任务按钮上的数字：还没结束、也没被用户处理掉的一切（在跑 + 排队 + 等你处理）。 */
+export function pendingTaskCount(summary: TaskCenterSummary): number {
+  return summary.running + summary.queued + summary.attention
+}
+
+/** 顶栏按钮的状态：有没结束的 → accent 计数；都结束了但有失败 → 提醒色；否则安静。 */
 export function resolveTaskButtonTone(summary: TaskCenterSummary): 'busy' | 'failed' | 'idle' {
-  if (summary.running + summary.queued > 0) return 'busy'
+  if (pendingTaskCount(summary) > 0) return 'busy'
   return summary.failed > 0 ? 'failed' : 'idle'
 }
 

@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '../../utils/cn'
+import { productionPlaybookLabelKey, productionStageLabelKey } from './productionRunLabels'
 import type { ProductionRunView } from './productionRunView'
 
 type Props = {
@@ -43,7 +44,7 @@ export function ProductionDetails({ details }: Props): JSX.Element {
       <div className={cn('grid gap-1.5')}>
         {details.stages.map((stage) => (
           <div key={stage.stageId} className={cn('flex items-center justify-between gap-3 text-caption')}>
-            <span className={cn('truncate text-nomi-ink-80')}>{stage.title}</span>
+            <span className={cn('truncate text-nomi-ink-80')}>{t(productionStageLabelKey(stage.stageId))}</span>
             <span className={cn('shrink-0 text-micro text-nomi-ink-60')}>
               {t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)}
             </span>
@@ -71,8 +72,9 @@ export function ProductionDetails({ details }: Props): JSX.Element {
       <div className={cn('grid gap-1 text-caption')}>
         <span className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.skills')}</span>
         <span className={cn('text-nomi-ink-80')}>
+          {/* 技能证据记的是流程身份（name@version），上屏只给人话名。 */}
           {details.skills.length > 0
-            ? details.skills.map((skill) => `${skill.name} v${skill.version}`).join(' · ')
+            ? [...new Set(details.skills.map((skill) => t(productionPlaybookLabelKey(skill.name))))].join(' · ')
             : t('generationCommon.production.runDetails.noSkills')}
         </span>
       </div>
