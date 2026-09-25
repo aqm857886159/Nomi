@@ -12,7 +12,7 @@ import React from 'react'
 import { modeTransportFor, type ArchetypeMode, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ModelOption } from '../../../../config/models'
 import { archetypeModeIsVisible, type ModeChannelBody } from './channelModeReach'
-import { readModeChannelBody } from './useChannelCreateBody'
+import { createVendorMappingsReader, readModeChannelBody } from './useChannelCreateBody'
 import { resolveArchetypeForOption } from '../nodeModelArchetype'
 
 /** 一个候选渠道：把 (vendor, model) 连同它的显示名一起带上，提示里要直接说人话。 */
@@ -114,6 +114,7 @@ export function useNarrowedModeGuidance(params: {
       currentVendor: selectedModelOption.vendor,
       currentValue: selectedModelOption.value,
     })
+    const readMappings = createVendorMappingsReader()
     return resolveNarrowedModeGuidance({
       archetype,
       bodyForMode: (mode) => modeBodies[mode.id],
@@ -124,6 +125,7 @@ export function useNarrowedModeGuidance(params: {
           candidate.value,
           modeTransportFor(mode, archetype, candidate.vendor) ?? '',
           mode.id,
+          readMappings,
         ),
     })
   }, [archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta])

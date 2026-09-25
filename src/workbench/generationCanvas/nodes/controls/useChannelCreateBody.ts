@@ -16,6 +16,27 @@ import type { ModeChannelBody } from './channelModeReach'
 /** 目录变更广播（OnboardingDrawer.refresh 发的同一个信号）——接入/停用模型后立刻重算承载力。 */
 const CATALOG_CHANGED_EVENT = 'nomi-model-catalog-changed'
 
+/** 按供应商取渠道 mapping 列表；undefined = 查不到（无 bridge / 老 preload / 返回非数组）。 */
+export type VendorMappingsReader = (vendorKey: string) => readonly unknown[] | undefined
+
+function readVendorMappings(vendorKey: string): readonly unknown[] | undefined {
+  const list = getDesktopBridge()?.modelCatalog?.listMappings?.({ vendorKey })
+  return Array.isArray(list) ? list : undefined
+}
+
+/**
+ * 一次计算用的读取器：同一个供应商只经同步 IPC 问一次（一次挂载要算好几个模式、再加候选渠道，
+ * 2026-09-25 实测挂一次提示词面板同步读目录 7–12 次）。只活在这一次计算里——目录变了由调用方重算、
+ * 换一个新的读取器，所以不存在「缓存过期」这回事。
+ */
+export function createVendorMappingsReader(): VendorMappingsReader {
+  const byVendor = new Map<string, readonly unknown[] | undefined>()
+  return (vendorKey) => {
+    if (!byVendor.has(vendorKey)) byVendor.set(vendorKey, readVendorMappings(vendorKey))
+    return byVendor.get(vendorKey)
+  }
+}
+
 /**
  * 一次寻址：**先证明「这个桶我查得到」，再报「桶里有没有这个模式的线缆」**。
  *
@@ -29,11 +50,12 @@ export function readModeChannelBody(
   modelKey: string,
   taskKind: string,
   modeId?: string,
+  readMappings: VendorMappingsReader = readVendorMappings,
 ): ModeChannelBody {
   if (!vendorKey || !taskKind) return undefined
   try {
-    const list = getDesktopBridge()?.modelCatalog?.listMappings?.({ vendorKey })
-    if (!Array.isArray(list)) return undefined // 查不到 → fail-open。
+    const list = readMappings(vendorKey)
+    if (!list) return undefined // 查不到 → fail-open。
     // **这家一条 mapping 都没有 → 同样是「没证据」，不是「不支持」。**
     // 自建中转（用户自己接的模型）常常一条 mapping 都不配：它的能力由 meta.adapter.publicationModes
     // 声明、走通用 transport 发送。把「空桶」读成判据 (a) 会把这些模型除文生外的模式**全部藏光**——
@@ -70,19 +92,24 @@ export function useChannelCreateBodies(
   const signature = JSON.stringify(specs.map((s) => [s.key, s.taskKind, s.modeId ?? '']))
   const compute = React.useCallback((): Record<string, ModeChannelBody> => {
     const out: Record<string, ModeChannelBody> = {}
+    const readMappings = createVendorMappingsReader()
     for (const [key, taskKind, modeId] of JSON.parse(signature) as string[][]) {
-      out[key] = readModeChannelBody(vendorKey, modelKey, taskKind, modeId || undefined)
+      out[key] = readModeChannelBody(vendorKey, modelKey, taskKind, modeId || undefined, readMappings)
     }
     return out
   }, [vendorKey, modelKey, signature])
 
-  const [bodies, setBodies] = React.useState<Record<string, ModeChannelBody>>(compute)
+  // 模型/模式集变了（compute 变）或目录广播变了（catalogVersion 变）才重查，每种变化只查一遍。
+  // 旧写法 useState(compute) 挂载时查一遍、effect 里紧接着又查一遍：选中一张卡就多一轮同步 IPC（2026-09-25 实测）。
+  const [catalogVersion, setCatalogVersion] = React.useState(0)
   React.useEffect(() => {
-    const recompute = () => setBodies(compute())
-    recompute() // 模型/模式集变化即重算
-    window.addEventListener(CATALOG_CHANGED_EVENT, recompute)
-    return () => window.removeEventListener(CATALOG_CHANGED_EVENT, recompute)
-  }, [compute])
+    const bump = () => setCatalogVersion((version) => version + 1)
+    window.addEventListener(CATALOG_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(CATALOG_CHANGED_EVENT, bump)
+  }, [])
 
-  return bodies
+  return React.useMemo(() => {
+    void catalogVersion // 目录广播的版本号只用来触发重查
+    return compute()
+  }, [compute, catalogVersion])
 }

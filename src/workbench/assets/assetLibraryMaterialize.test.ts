@@ -41,9 +41,9 @@ describe('materializeAssetLibraryItems — 素材库落点只写当前项目自�
     expect(out).toEqual({ items: [own, canvas], failed: 0 })
   })
 
-  it('别的项目的文件先复制进当前项目，落点拿到的是复制品的地址与来源（锚点保留）', async () => {
+  it('别的项目的文件先复制进当前项目，落点拿到的是复制品的地址与来源（锚点保留，源项目的封面不带过来）', async () => {
     const copy = vi.fn<CopyProjectAsset>(async ({ targetProjectId }) => copiedDto(targetProjectId, 'assets/imported/b-city.png'))
-    const foreign = projectFile('project-b', 'assets/imported/b-city.png', { dragAnchor: { xRatio: 0.5, yRatio: 0.25 } })
+    const foreign = projectFile('project-b', 'assets/imported/b-city.png', { dragAnchor: { xRatio: 0.5, yRatio: 0.25 }, thumbUrl: 'nomi-local://asset/project-b/assets/imported/.preview/b-city.jpg' })
     const out = await materializeAssetLibraryItems([foreign], project, copy)
     expect(copy).toHaveBeenCalledWith({ sourceProjectId: 'project-b', targetProjectId: 'project-a', relativePath: 'assets/imported/b-city.png' })
     expect(out.failed).toBe(0)

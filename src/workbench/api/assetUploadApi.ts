@@ -18,6 +18,11 @@ export function hostedAssetUrl(asset: WorkbenchAssetDto | null | undefined): str
   return typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''
 }
 
+/** 落盘边界派生的画布预览 URL（图片 ≤1024 缩略 / 视频 poster）；没派生出来则空串，调用方回落到源。 */
+export function hostedAssetThumbnailUrl(asset: WorkbenchAssetDto | null | undefined): string {
+  return typeof asset?.data?.thumbnailUrl === 'string' ? asset.data.thumbnailUrl.trim() : ''
+}
+
 /**
  * 目标项目只能是发起动作签发的完整绑定（withProjectAction 的 context.binding + assertCurrent）。
  * 没有「缺省落当前项目」：后台产物本地化走 resultAssetLocalization，带任务自己的 projectId。

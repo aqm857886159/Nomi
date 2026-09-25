@@ -82,3 +82,27 @@ describe('normalizeStoreSnapshot — plugin preservation', () => {
     expect(snapshot.workflowTemplates).toHaveLength(1)
   })
 })
+
+describe('normalizeStoreSnapshot — 旧版制作结果的签名预览链改写成素材库地址', () => {
+  it('result / history 里的 production-preview 链（5 分钟过期）→ nomi-local://asset；别的地址一个字不动', () => {
+    const stale = 'nomi-local://production-preview/project-1/op-1/asset-1/assets/generated/materialized/video-1.mp4?preview=expired-token'
+    const snapshot = normalizeStoreSnapshot({
+      nodes: [{
+        id: 'n1', kind: 'video', title: '镜头 58', position: { x: 0, y: 0 }, status: 'success',
+        result: { id: 'production-job-1', type: 'video', url: stale, thumbnailUrl: stale, createdAt: 1 },
+        history: [
+          { id: 'production-job-1', type: 'video', url: stale, createdAt: 1 },
+          { id: 'manual', type: 'video', url: 'nomi-local://asset/project-1/assets/manual.mp4', createdAt: 2 },
+        ],
+      }],
+      edges: [],
+    })
+    const node = snapshot.nodes[0]
+    expect(node.result?.url).toBe('nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4')
+    expect(node.result?.thumbnailUrl).toBe('nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4')
+    expect(node.history?.map((entry) => entry.url)).toEqual([
+      'nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4',
+      'nomi-local://asset/project-1/assets/manual.mp4',
+    ])
+  })
+})

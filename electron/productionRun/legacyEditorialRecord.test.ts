@@ -61,7 +61,6 @@ it('a historical document-admitted record with bindings still reconciles onto th
     command: async () => undefined,
     requestRenderer: async op => { requested.push(op); return { bindings: [] } },
     resolveProjectRoot: () => root,
-    previewSecret: () => 'secret',
     isProjectOpen: () => true,
   })
   expect(await host.landCanvasBestEffort('project-1', 'op-legacy')).toBe(true)

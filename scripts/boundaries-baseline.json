@@ -60,7 +60,6 @@
     "src/workbench/production/productionRunCommands.ts -> electron/productionRun/productionRunTypes.ts",
     "src/workbench/production/productionRunStore.ts -> electron/productionRun/productionRunTypes.ts",
     "src/workbench/production/productionRunView.ts -> electron/productionRun/productionRunTypes.ts",
-    "src/workbench/production/shotPlaceholderState.ts -> electron/productionRun/productionRunTypes.ts",
     "src/workbench/settings/AiModelsSection.tsx -> electron/settings/automationPolicyContract.ts",
     "src/workbench/settings/AutomationPermissionsSection.tsx -> electron/settings/automationPolicyContract.ts",
     "src/workbench/settings/DefaultGenerationModelsSection.tsx -> electron/settings/generationModelDefaultsContract.ts",

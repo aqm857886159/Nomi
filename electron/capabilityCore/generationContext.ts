@@ -1,3 +1,5 @@
+import { deepFreeze } from "../jsonUtils";
+
 export type GenerationContextAsset = {
   assetId: string;
   contentHash: string;
@@ -17,13 +19,6 @@ export type GenerationContext = {
   assets: GenerationContextAsset[];
   providerProfiles: GenerationContextProviderProfile[];
 };
-
-function deepFreeze<T>(value: T): T {
-  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
-  Object.freeze(value);
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
-  return value;
-}
 
 export function createGenerationContext(input: GenerationContext): Readonly<GenerationContext> {
   if (!input.projectId.trim() || !input.immutableProjectUuid.trim() || !Number.isInteger(input.projectGeneration) || input.projectGeneration < 0) {

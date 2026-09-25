@@ -5,7 +5,6 @@ import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import { AssetThumb } from './AssetTile'
-import { AssetVideoCover } from './AssetVideoCover'
 import { assetAspectRatio, type AssetKind, type AssetRef } from './assetTypes'
 import { isAssetGridActivationKey, type AssetGridActivationEvent } from './assetLibraryUsage'
 import { ASSET_KIND_FILTER_VALUES, FILTER_OPTIONS, type FilterValue } from './assetLibraryPanelFilters'
@@ -416,11 +415,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
                 />
               ) : asset.kind === 'video' ? (
                 <div className="relative h-full w-full">
-                  <AssetVideoCover asset={asset} />
-                  <span className="absolute inset-0 bg-[oklch(0.2_0.01_80/0.22)]" aria-hidden />
-                  <span className="absolute inset-0 grid place-items-center text-nomi-paper drop-shadow-[0_1px_2px_oklch(0_0_0/0.55)]" aria-hidden>
-                    <IconPlayerPlayFilled size={22} />
-                  </span>
+                  <AssetThumb asset={asset} playSize={22} />
                 </div>
               ) : (
                 <div className="flex h-[92px] items-center justify-center bg-nomi-ink-05">

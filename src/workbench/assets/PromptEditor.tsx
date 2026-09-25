@@ -141,17 +141,28 @@ export default function PromptEditor({ value, onChange, placeholder, ariaLabel, 
   if (!syncRef.current) syncRef.current = createControlledEditorSync(value)
   const sync = syncRef.current
 
+  // 传给 useEditor 的选项必须引用稳定：tiptap 按引用比较 extensions 的每一项以及 content / editorProps，
+  // 变了就 setOptions + view.updateState——原来每次渲染（每敲一个字）都白做一遍（2026-09-25 画布跟手）。
+  // content 只在创建时生效；之后外部 value 由下面的同步 effect 写入，所以这里只取第一次的值。
+  const extensions = React.useMemo(() => [
+    StarterKit.configure({ heading: false, bulletList: false, orderedList: false, blockquote: false, codeBlock: false, horizontalRule: false }),
+    Placeholder.configure({ placeholder: () => placeholderRef.current }),
+    AssetMention,
+    suggestionExt,
+    promptSkeletonExt,
+  ], [suggestionExt, promptSkeletonExt])
+  const initialContentRef = React.useRef<ReturnType<typeof promptToContent> | null>(null)
+  if (!initialContentRef.current) initialContentRef.current = promptToContent(value, mentionReferences ?? mentionCandidates)
+  const editorProps = React.useMemo(
+    () => ({ attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0', ...(ariaLabel ? { 'aria-label': ariaLabel } : {}) } }),
+    [ariaLabel],
+  )
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: false, bulletList: false, orderedList: false, blockquote: false, codeBlock: false, horizontalRule: false }),
-      Placeholder.configure({ placeholder: () => placeholderRef.current }),
-      AssetMention,
-      suggestionExt,
-      promptSkeletonExt,
-    ],
-    content: promptToContent(value, mentionReferences ?? mentionCandidates),
+    extensions,
+    content: initialContentRef.current,
     editable: editable !== false,
-    editorProps: { attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0', ...(ariaLabel ? { 'aria-label': ariaLabel } : {}) } },
+    editorProps,
     // 仅真正改变 prompt 字符串的文档事务向 owner 回写；胶囊编号事务（串不变）不回写，不覆盖外部 plan 编辑。
     onUpdate: ({ editor: current, transaction }) => {
       if (!transaction.docChanged) return

@@ -252,6 +252,9 @@ function addAssetLibraryNodes(items: readonly AssetLibraryDragPayload[], basePos
       id: `asset-ref-${node.id}-${Date.now()}`,
       type: assetDrag.kind,
       url: assetDrag.renderUrl,
+      // 画布挂落盘边界派生的预览；源留在 url 给编辑/导出/大图。跨项目复制来的条目由复制品的 DTO 重新派生，
+      // 不会带着别的项目的封面地址（见 assetLibraryMaterialize）。
+      ...(assetDrag.thumbUrl ? { thumbnailUrl: assetDrag.thumbUrl } : {}),
       createdAt: Date.now(),
     }
     const originMeta =

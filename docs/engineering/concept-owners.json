@@ -76,6 +76,113 @@
       "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
     },
     {
+      "name": "制作镜头在画布上的运行状态",
+      "owner": {
+        "path": "electron/shared/productionShotPhase.ts",
+        "symbol": "deriveProductionShotState"
+      },
+      "consumers": [
+        "electron/productionRun/multiShotCanvasLanding.ts",
+        "electron/productionRun/canvasLandingHost.ts",
+        "electron/capabilityCore/appIntegrationRunObservation.ts",
+        "electron/capabilityCore/appIntegration.ts",
+        "src/workbench/capability/multiShotCanvasLanding.ts",
+        "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。"
+    },
+    {
+      "name": "供应商产物取回线路",
+      "owner": {
+        "path": "electron/assets/providerMediaFetch.ts",
+        "symbol": "fetchProviderMedia"
+      },
+      "consumers": [
+        "electron/assets/projectAssetStore.ts",
+        "electron/assets/downloadAsset.ts",
+        "electron/capabilityCore/generationOutputMaterializer.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。"
+    },
+    {
+      "name": "画布手势寿命（一次拖动/框选/缩放何时结束）",
+      "owner": {
+        "path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+        "symbol": "beginCanvasDragging"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+        "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+        "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+        "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+        "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "React Flow 内核（d3-drag）自己也记着拖动状态，框架层删不掉；裁决是单向的——租约判定结束，内核照办：租约取消或松手丢失时经 reactFlow/canvasDragWriteback.ts 的 endKernelNodeDrag 走内核自己的 end 路径，内核不许反过来自行判定。方向键移动的授权是同一概念的键盘面：keyboardMoveScope（按下时选中的那批），不靠时间窗口。复核：docs/audit/2026-09-25-generation-canvas-ownership-review.md。"
+    },
+    {
+      "name": "画布视频何时挂播放器、谁在播",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+        "symbol": "claimNodeVideoPlayback"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "平时只画封面，悬停/选中才挂 <video>，同时最多一个在播（用户拍板）。节点卡片只传意图（previewRequested/engaged），不许自己决定挂不挂、播不播。"
+    },
+    {
+      "name": "视频封面",
+      "owner": {
+        "path": "electron/assets/assetPreview.ts",
+        "symbol": "attachStoredAssetPreview"
+      },
+      "consumers": [
+        "electron/assets/assetSidecar.ts",
+        "electron/assets/localFileImport.ts",
+        "electron/assets/localizeTaskAsset.ts",
+        "electron/assets/projectAssetStore.ts",
+        "src/workbench/assets/useLocalAssetPreview.ts",
+        "src/workbench/assets/AssetVideoCover.tsx",
+        "src/workbench/generationCanvas/resultMediaBackfillBridge.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "落盘边界抽首帧；渲染层只经 bridge.assets.ensurePreview（ensureLocalAssetPreview）要，不许自己抽帧（旧的胶片条推导已删）。老节点缺封面由 resultMediaBackfillBridge 打开项目后补。"
+    },
+    {
+      "name": "@ 引用落哪个槽",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+        "symbol": "resolveMentionReference"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "@ 是「参考」语义（用户拍板），只落参考槽；拖线的「接力」语义住同文件的 resolveCanvasReferenceConnection，两个判据分开，不许再共用一个带首尾帧偏好的路由。"
+    },
+    {
+      "name": "画布缩放",
+      "owner": {
+        "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+        "symbol": "selectFlowZoom",
+        "pending": true
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+        "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+        "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。"
+    },
+    {
       "name": "素材库落点的项目归属（跨项目先复制）",
       "owner": {
         "path": "src/workbench/assets/assetLibraryMaterialize.ts",
