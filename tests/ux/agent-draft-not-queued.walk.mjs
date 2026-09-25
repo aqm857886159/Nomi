@@ -147,14 +147,13 @@ try {
   const goTurn = walk.fixture.expectText({
     label: 'the user now says go and the agent presents the draft',
     match: (body) => flattenRequestText(body).includes('S_DRAFT_GO'),
-    reply: { type: 'tool', id: GENERATE_CALL, name: 'generate', args: {} },
+    reply: { type: 'tool', id: GENERATE_CALL, name: 'generate', args: { operationId } },
   })
   const goDone = walk.fixture.expectText({
     label: 'generate returns once the card is answered',
     match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === GENERATE_CALL),
     reply: { type: 'text', text: 'S_DRAFT_GO_DONE：已开始生成。' },
   })
-  goTurn.release({ type: 'tool', id: GENERATE_CALL, name: 'generate', args: { operationId } })
   await sendCanvas(win, GO)
   await recorded(goTurn.received, 'generate request')
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
