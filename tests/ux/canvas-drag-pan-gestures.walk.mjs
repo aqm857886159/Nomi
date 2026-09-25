@@ -647,12 +647,15 @@ try {
       box.right > rect.left && box.left < rect.right && box.bottom > rect.top && box.top < rect.bottom
     const contains = (box, rect) =>
       box.left <= rect.left && box.right >= rect.right && box.top <= rect.top && box.bottom >= rect.bottom
+    // 四个角都试：2026-09-25 起新卡优先落进可见区的空位，常常紧挨着已有的卡 / 编组框，
+    // 只试左上角会因为起手点压在邻居身上而找不到——那是探测太窄，不是框选坏了。
+    const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]]
     for (const node of nodes) {
       const rect = node.getBoundingClientRect()
-      for (const gap of [56, 40, 28, 18, 12]) {
-        // 从卡左上外侧的空白起手，只扫到它的横向中线就松手：框与卡相交，但**不包含**它。
-        const start = { x: rect.left - gap, y: rect.top - gap }
-        const end = { x: rect.left + rect.width / 2, y: rect.bottom + gap }
+      for (const [dx, dy] of corners) for (const gap of [56, 40, 28, 18, 12]) {
+        // 从卡某个角外侧的空白起手，只扫到它的横向中线就松手：框与卡相交，但**不包含**它。
+        const start = { x: dx < 0 ? rect.left - gap : rect.right + gap, y: dy < 0 ? rect.top - gap : rect.bottom + gap }
+        const end = { x: rect.left + rect.width / 2, y: dy < 0 ? rect.bottom + gap : rect.top - gap }
         if (!insideStage(start) || !insideStage(end)) continue
         const hit = document.elementFromPoint(start.x, start.y)
         if (!hit || !stage.contains(hit) || !hit.matches(paneSelector)) continue
@@ -667,7 +670,8 @@ try {
           id: node.getAttribute('data-node-id'),
           start: { x: Math.round(start.x), y: Math.round(start.y) },
           end: { x: Math.round(end.x), y: Math.round(end.y) },
-          coveredRatio: Math.round(((box.right - rect.left) / rect.width) * 100) / 100,
+          // 框与卡的横向交叠占卡宽的比例（左右两侧起手都按真实交叠算）。
+          coveredRatio: Math.round(((Math.min(box.right, rect.right) - Math.max(box.left, rect.left)) / rect.width) * 100) / 100,
         }
       }
     }
