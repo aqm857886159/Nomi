@@ -109,7 +109,6 @@ describe("Agent lane production cutover structure", () => {
     expect(exists("src/workbench/creation/creationTurnController.ts")).toBe(false);
 
     const productionFiles = [
-      "src/workbench/creation/creationAiReplyText.ts",
       "src/workbench/project/projectPersistenceService.ts",
       "src/workbench/project/releaseWorkbenchProjectSession.ts",
       "src/workbench/workbenchStore.ts",

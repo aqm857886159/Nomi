@@ -94,7 +94,7 @@ export function SkillLibraryContent({
 
   // 在创作区锁定一个技能并切到创作区（与 ActiveSkillChip 的 onSelect 同口径）。
   const gotoCreationWith = React.useCallback(
-    (skill: { key: string; name: string } | null) => {
+    (skill: { key: string } | null) => {
       setCreationActiveSkill(skill)
       setWorkspaceMode('creation')
       onClose?.()
@@ -104,13 +104,13 @@ export function SkillLibraryContent({
 
   const handleUse = React.useCallback(
     (skill: SkillListItemDto) => {
-      gotoCreationWith({ key: skill.name, name: skill.label })
+      gotoCreationWith({ key: skill.name })
       markLibraryUsed('skill', skill.directoryName)
     },
     [gotoCreationWith],
   )
 
-  const handleNewWithAi = React.useCallback(() => gotoCreationWith({ key: SKILL_AUTHOR_KEY, name: t('libraries.skill.authorName') }), [gotoCreationWith, t])
+  const handleNewWithAi = React.useCallback(() => gotoCreationWith({ key: SKILL_AUTHOR_KEY }), [gotoCreationWith])
 
   // 导出：技能包对象 → JSON Blob → 浏览器下载，不弹系统对话框。
   const handleExport = React.useCallback(

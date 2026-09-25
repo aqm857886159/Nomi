@@ -1,0 +1,227 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-skill-display-name-owner",
+  "problem_type": "A display name stored or read from more than one owner, one of which is really an identifier",
+  "symptom": "The user mounted a skill; the composer showed 「分镜规划」. After sending, the chip on the user bubble and the 「已载入技能：」 line on the reply both showed `workbench-storyboard-planner`. Found 2026-09-24 when tests/ux/agent-transcript-merge.walk.mjs was revived; it had been red at this step since 2026-09-19.",
+  "direct_cause": "8e89e19ce (2026-09-19) changed laneViewModel so the chip and the per-turn credential used `part.skillSnapshot.name` ahead of `labels.skillLabel(skillKey)`. The snapshot is written in main by prepareLaneSkillContext as `{ name: skill.name, contentHash }`, where `skill.name` is the SKILL.md `name`: the identifier, the same value as skillKey. A contract comment called it a 'label', and the unit test fed it a fake label ('Original skill label'), so the test passed while the real data printed the key.",
+  "class_root": "A skill's on-screen name had several owners. The library (`skillDisplayTitle`) was one. The main-side snapshot identifier was misread as a label. And the store (`creationActiveSkill.name`) held its own copy of the name, written three different ways: the / menu's inline copy of the title formula, the library panel's `skill.label` (manifest label, not the curated title), and draft recovery's `skillSnapshot.name ?? skillKey` (the key again). This bug was already fixed once before: skillDisplay.ts documented 「用户在菜单里选的是「分镜规划」，发出去之后气泡上却印 workbench.storyboard.planner」. It came back because a second name still existed to be read.",
+  "affected_population": [
+    "Every user who sends with a skill mounted, from 2026-09-19 until this fix (bubble chip and reply credential)",
+    "Users whose stopped or withdrawn input was restored as a draft: the composer chip and the draft row showed the key",
+    "Users who pick a skill from the skill library's 使用 button: the composer chip showed the manifest label instead of the curated title the / menu shows"
+  ],
+  "scope_paths": [
+    "src/workbench/skillLibrary/skillDisplay.ts",
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/projectAgentDraftRecovery.ts",
+    "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+    "src/workbench/workbenchStore.ts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "electron/shared/agentLane/laneDesktopContracts.ts",
+    "docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json"
+  ],
+  "entry_points": [
+    "Sent user bubble chip and reply credential (laneViewModel)",
+    "Composer chip before send (useAgentPanelV4Data liveChips)",
+    "Recovered-draft queue row title (ProjectAgentResidentShell)",
+    "Skill selection from the / menu, the skill library's 使用 / AI 写技能, and draft recovery (setCreationActiveSkill / creationActiveSkill writers)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://agentskills.io/specification",
+      "checked_at": "2026-09-24",
+      "purpose": "SKILL.md `name` is a lowercase-hyphenated identifier matching the directory name, not a display title, so the main-side snapshot `name` cannot serve as one."
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/skillLibrary/skillDisplay.ts",
+    "tests": [
+      "src/workbench/ai/lane/laneViewModel.test.ts",
+      "tests/ux/agent-transcript-merge.walk.mjs"
+    ],
+    "why": "skillLabelForKey is the only function that turns a skill key into what the user sees (curated title, then manifest label, then the key if the skill is not installed). The store, transcripts and recovered drafts hold only the key and the pinned content hash."
+  },
+  "invariants": [
+    "A skill's on-screen name is derived at render time from its key through skillLabelForKey / skillDisplayTitle. No state holds a copy of it.",
+    "skillSnapshot.name is the SKILL.md identifier. It proves which skill main injected (with contentHash) and is never displayed.",
+    "The reply credential appears only when main recorded a snapshot for that turn (S20). Its text comes from the same label owner as the chip."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "skillDisplayTitle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "skillLabelForKey"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/skillDisplay.ts",
+      "symbol": "skillDisplayTitle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/skillGallery.ts",
+      "symbol": "skillDisplayTitle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/projectAgentDraftRecovery.ts",
+      "symbol": "creationActiveSkill"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "setCreationActiveSkill"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "creationActiveSkill"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "creationActiveSkill"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "symbol": "setCreationActiveSkill"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "creationActiveSkill"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "skillLabel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "skillSnapshot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneDesktopContracts.ts",
+      "symbol": "skillSnapshot"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 13,
+    "why_not": "The doors that remain are writes of the key (selection, clearing on send, draft swap) and reads of one title function. None of them carries a name any more: the `name` field was deleted from creationActiveSkill and DraftBuffer, so a writer cannot put a second name in. The / menu's inline title formula was replaced with skillDisplayTitle. laneViewModel reads the label through the same skillLabel callback; the two lane contract files declare skillSnapshot and now document it as an identifier."
+  },
+  "generality_proof": "The name no longer exists as data anywhere in the renderer; every surface that shows a skill calls the same key → title function. A future surface, restored draft, transcript or entry point has no stored name to misread, and TypeScript rejects an object literal with a `name` passed to setCreationActiveSkill. The contract comments on skillSnapshot now say it is an identifier.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/skillLibrary/skillDisplay.ts",
+      "symbol": "skillLabelForKey",
+      "responsibility": "Key → on-screen name for every surface. The key itself is shown when the skill is not installed on this machine."
+    },
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "creationActiveSkill",
+      "responsibility": "Holds only { key, contentHash? }. The type no longer admits a name."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "entry_point": "laneViewModel user part",
+      "disposition": "enforced",
+      "evidence": "Chip and credential both use labels.skillLabel(skillKey). The snapshot only gates whether the credential shows. The laneViewModel test now uses the real snapshot shape (name === key)."
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "liveChips",
+      "disposition": "enforced",
+      "evidence": "The composer chip label is skillLabel(activeSkill.key), the same callback passed to laneViewModel."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "recovered draft row title / skill command rows",
+      "disposition": "enforced",
+      "evidence": "The draft row uses data.skillLabel(entry.skill.key). The / menu rows use skillDisplayTitle instead of the inline copy that skillDisplay.ts flagged as a pending merge."
+    },
+    {
+      "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "entry_point": "handleUse / handleNewWithAi",
+      "disposition": "enforced",
+      "evidence": "Writes { key } only. The now-unused i18n key libraries.skill.authorName was removed."
+    },
+    {
+      "path": "src/workbench/ai/projectAgentDraftRecovery.ts",
+      "entry_point": "restoreProjectAgentInputs",
+      "disposition": "enforced",
+      "evidence": "No longer copies skillSnapshot.name into the store. The action tests now use the real snapshot shape."
+    },
+    {
+      "path": "src/workbench/skillLibrary/skillGallery.ts",
+      "entry_point": "gallery entries",
+      "disposition": "not-affected",
+      "evidence": "Already read skillDisplayTitle."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same symptom (key printed instead of the chosen name) was fixed once in skillDisplay.ts and came back within weeks through a different field. As long as a second name existed, any new surface or refactor could pick the wrong one.",
+    "same_class_scan": [
+      "Door map over setCreationActiveSkill / creationActiveSkill / skillLabelForKey / skillDisplayTitle (src, electron): 10 doors, all listed above.",
+      "grep skillSnapshot in src and electron: producer prepareLaneSkillContext (main), carried by laneProjection / laneInputMessage, read for display only in laneViewModel and projectAgentDraftRecovery. Both display reads are removed.",
+      "grep `curation?.title[` in src: the inline formula existed only in ProjectAgentResidentShell (now skillDisplayTitle) and skillDisplay.ts."
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/workbench/workbenchStore.ts",
+    "invariant": "No renderer state holds a skill's display name; creationActiveSkill and recovered drafts carry only the key and pinned hash.",
+    "failure_mode": "Assigning a name to creationActiveSkill or DraftBuffer.skill is a compile error. A surface that wants a name has only skillLabelForKey to call.",
+    "exception_policy": "none",
+    "strategy": "Delete the stored name instead of guarding its readers, route every surface through the one key → title function, and correct the contract comment that invited misreading the snapshot identifier as a label.",
+    "artifacts": [
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/ai/projectAgentDraftRecovery.ts",
+      "src/workbench/skillLibrary/skillDisplay.ts",
+      "src/workbench/ai/lane/laneViewModel.ts",
+      "electron/shared/agentLane/laneDesktopContracts.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
+    "tests/ux/agent-transcript-merge.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "tests/ux/agent-transcript-merge.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/ai/projectAgentDraftRecovery.ts",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ],
+    "rationale": "creationActiveSkill.name, DraftBuffer.skill.name and the / menu's inline title formula are deleted, not left beside the new path. The now-unused libraries.skill.authorName string is deleted with them."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The SKILL.md name semantics come from the Agent Skills format, which Nomi follows unchanged; no runtime dependency version is involved.",
+    "exit_criteria": []
+  },
+  "migration": "creationActiveSkill is project-lifetime renderer state. Older in-memory values that still carry `name` are structurally compatible and the extra field is ignored. Persisted lane transcripts keep skillSnapshot { name, contentHash } unchanged; only its display use is gone.",
+  "residual_risks": [
+    "Before the skill catalogue has loaded, skillLabelForKey falls back to the key for a moment, for example on a draft restored at startup. The key is honest (the skill exists) and is replaced by the title as soon as the catalogue arrives.",
+    "The walk tests one builtin skill in zh-CN. English naming is covered by skillDisplayTitle's curated en title and by the en screenshot capture in the PR, not by a registered walk."
+  ]
+}
