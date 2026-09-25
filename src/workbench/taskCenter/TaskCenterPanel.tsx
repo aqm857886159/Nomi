@@ -179,10 +179,11 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     if (!action) return
     setActionErrors((current) => { const next = { ...current }; delete next[row.id]; return next })
     try {
-      if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
+      // 项目身份在点击这一刻签发（projectActionIssuance 契约：签发前不许有任何 await），所以这一支排最前。
+      if (action.kind === 'recover_generation') await withProjectAction((project) => recoverNodeResult(action.nodeId, project))
+      else if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
       else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
       else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId)
-      else if (action.kind === 'recover_generation') await withProjectAction((project) => recoverNodeResult(action.nodeId, project))
       else if (row.kind === 'export_job') {
         if (!(await runExportJobTaskAction(row.action))) throw new Error('Export destination unavailable')
         if (row.action.kind === 'return_to_export') onClose()
