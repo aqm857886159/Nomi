@@ -330,7 +330,7 @@ async function selectedNodeIds() {
  */
 async function addNode(kind) {
   const knownIds = [...SEEDED_NODE_IDS, ...CREATED_NODE_IDS]
-  // 基线必须在点之前、且视口停稳时读：打开项目那一刻若摆过一次全貌（useAutoFitOnLoad），它得先落地。
+  // 基线必须在点之前、且视口停稳时读（用户自己前一步点出来的动画得先落地）。
   const viewportBefore = await waitForCanvasViewportSettled(getWin())
   await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
   const arrival = await expectArrivalsReachable(getWin(), {
@@ -525,6 +525,9 @@ try {
   assert(afterPan.zoom === before.zoom, '平移不改变缩放')
 
   // ── ② 平移不重建节点：拖完还是同一批 DOM 实例（React 没重挂），且没有新的页面错误 ──
+  // 上一笔平移可能把卡推到舞台边；再拖 90px 会让它整张出屏、被 React Flow 按可见性卸载——那是虚拟化，不是重建。
+  // 先像人一样把两张卡收回视野中央（点「适应视图」再凑近），这一笔验的才是「平移本身不重挂节点」。
+  await frameOwnCards()
   const nodeIdentity = await getWin().evaluate((ownNode) => {
     const nodes = Array.from(document.querySelectorAll(ownNode))
     window.__walkNodeRefs = nodes
@@ -539,9 +542,9 @@ try {
   const sameInstances = await getWin().evaluate((ownNode) => {
     const nodes = Array.from(document.querySelectorAll(ownNode))
     const refs = window.__walkNodeRefs || []
-    return nodes.length === refs.length && nodes.every((node, index) => node === refs[index])
+    return { same: nodes.length === refs.length && nodes.every((node, index) => node === refs[index]), before: refs.length, after: nodes.length }
   }, OWN.node)
-  assert(nodeIdentity >= 2 && sameInstances, '平移前后节点是同一批 DOM 实例（没有整层重建）')
+  assert(nodeIdentity >= 2 && sameInstances.same, '平移前后节点是同一批 DOM 实例（没有整层重建）', JSON.stringify(sameInstances))
 
   // ── ① 点一下空白 = 取消选中；Shift + 左键拖 = 框选并追加 ─────────────────
   // 点卡片本体的那一点由 `_canvasHit.mjs` 定（单一 owner）：外接盒角上的固定偏移在窄舞台下
@@ -833,7 +836,6 @@ try {
   await getWin().mouse.move(panFrom.x + panBy.x, panFrom.y + panBy.y, { steps: 12 })
   await getWin().mouse.up()
   await getWin().waitForTimeout(320)
-  const visibleStage = await getWin().locator('.generation-canvas-v2__stage').boundingBox()
 
   // 拖完视频卡它是选中态，浮框在它下沿展开（560 宽，可能横跨到图片卡下方那片）。
   // 真人会先点一下空白收起它，再去点图片卡上真正点得到的那一点（命中判据归 _canvasHit.mjs）。
@@ -918,13 +920,13 @@ try {
     console.log('  · DIAG handle', JSON.stringify({ handlePoint, imageBox, layout }))
   }
   assert(handleHit.magnetic, '图片节点右侧握把可点', JSON.stringify(handleHit))
+  // 松手点取视频卡上**真正露出来、点得到**的一点：选中图片卡时它的浮框钉在正下方、定宽 560（被挡就挡，09-25），
+  // 在 1280×800 的 Linux 字体下会盖住视频卡的几何中心——落在浮框上松手，人也连不上。人会把线拖到看得见的那块卡面上。
+  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
+  assert(Boolean(videoDropPoint), '视频卡上找得到一处露出来的松手点', JSON.stringify({ videoBox }))
   await getWin().mouse.move(handlePoint.x, handlePoint.y)
   await getWin().mouse.down()
-  const videoVisibleTarget = {
-    x: (Math.max(videoBox.x, visibleStage.x) + Math.min(videoBox.x + videoBox.width, visibleStage.x + visibleStage.width)) / 2,
-    y: (Math.max(videoBox.y, visibleStage.y) + Math.min(videoBox.y + videoBox.height, visibleStage.y + visibleStage.height)) / 2,
-  }
-  await getWin().mouse.move(videoVisibleTarget.x, videoVisibleTarget.y, { steps: 16 })
+  await getWin().mouse.move(videoDropPoint.x, videoDropPoint.y, { steps: 16 })
   await getWin().mouse.up()
   await getWin().waitForTimeout(700)
   // 刚连出来的那条线：夹具里原有的线不算（used 夹具有 27 条）。

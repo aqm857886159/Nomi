@@ -433,9 +433,8 @@ const formatViewport = (viewport) => viewport
  * 等画布视口**停下来**，返回停下时的视口（当「之前」的基线用）。
  *
  * 2026-09-25 之前这里等的是「落节点之后画布自己发的那次延迟适应视图」；那扇门已经删了（程序不再主动挪画布）。
- * 仍然要等的只剩两种**合法**移动：打开一个分类那一刻的一次性摆全貌（`useAutoFitOnLoad`：打开时里面本来就有
- * 节点、且没有记住的视角或记住的视角里一个节点都看不见，350ms 后判一次），以及用户自己点出来的动画
- * （适应视图 / 复位 / 定位 / 边缘提示，200–220ms）。走查若在这个窗口里读基线或点下一步，量到的是动画不是动作
+ * 仍然要等的只剩用户自己点出来的动画（适应视图 / 复位 / 定位 / 边缘提示，200–220ms）；打开项目时的
+ * 自动摆全貌 2026-09-26 已删（它在 main 上从未生效过）。走查若在这个窗口里读基线或点下一步，量到的是动画不是动作
  * （2026-09-18 金路径真机：重置视图 → 滑块 70→95 → 又被当时的延迟适应拉回 59）。
  * 判据是稳定性，不是睡够多久：变换层（平移 + 缩放都算）连续 `holdMs` 内一格没动才算停。
  */
@@ -662,4 +661,44 @@ export async function expectNodeInsideCanvas(page, node, message = '新卡完整
     && card.left >= stage.left && card.top >= stage.top
     && card.right <= stage.right && card.bottom <= stage.bottom), `${message}: ${JSON.stringify(geometry)}`).toBe(true)
   return geometry
+}
+
+/**
+ * 像用户一样拖画布，直到 `locator` 那一块完整落进舞台、离开四周的常驻层。2026-09-25 起浮框钉在节点正下方、
+ * 定宽 560、被挡就挡：卡贴着舞台边时浮框本来就会伸出去（左缘工具条 / 左侧栏 / 底部停靠栏会盖住那一截）。
+ * 程序不替人挪画布，人会自己把它拖出来——走查照做，用中键拖画布（不用滚轮：滚轮是缩放还是平移随设置而变）。
+ * 默认留白：左 72（让开左缘工具条）、下 72（让开缩放条 / 时间轴胶囊）、上右 16。一次最多拖 250px，拖完重量。
+ */
+export async function panCanvasUntilInside(page, locator, { margin = {}, maxSteps = 8 } = {}) {
+  const m = { left: 72, right: 16, top: 16, bottom: 72, ...margin }
+  const clamp = (value) => Math.max(-250, Math.min(250, Math.round(value)))
+  let last = null
+  for (let step = 0; step < maxSteps; step += 1) {
+    const box = await locator.first().boundingBox()
+    const stage = await page.locator(CANVAS_STAGE_SELECTOR).first().boundingBox()
+    if (!box || !stage) return { ok: false, reason: box ? 'no-stage' : 'target-not-rendered', step, last }
+    const left = stage.x + m.left
+    const right = stage.x + stage.width - m.right
+    const top = stage.y + m.top
+    const bottom = stage.y + stage.height - m.bottom
+    let dx = 0
+    let dy = 0
+    if (box.x < left) dx = left - box.x
+    else if (box.x + box.width > right) dx = Math.max(right - (box.x + box.width), left - box.x)
+    if (box.y < top) dy = top - box.y
+    else if (box.y + box.height > bottom) dy = Math.max(bottom - (box.y + box.height), top - box.y)
+    last = { box, stage, dx: Math.round(dx), dy: Math.round(dy) }
+    if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return { ok: true, step, last }
+    // 中键拖：舞台在捕获阶段接管（useGenerationCanvasReactFlowPointer），按在卡片 / 分组框上也是平移，不会误拖它们。
+    // 优先从真空白处按；满屏都是卡和框（宽视口里的分组基线就是这样）时从舞台中心按。
+    const start = await findCanvasBlankPoint(page, { inset: 80 })
+      ?? { x: Math.round(stage.x + stage.width / 2), y: Math.round(stage.y + stage.height / 2) }
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down({ button: 'middle' })
+    await page.mouse.move(start.x + 2, start.y + 1)
+    await page.mouse.move(start.x + clamp(dx), start.y + clamp(dy), { steps: 8 })
+    await page.mouse.up({ button: 'middle' })
+    await waitForCanvasViewportSettled(page)
+  }
+  return { ok: false, reason: 'did-not-converge', step: maxSteps, last }
 }

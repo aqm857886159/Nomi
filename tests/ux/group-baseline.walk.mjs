@@ -4,7 +4,8 @@ import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // 用法: node tests/ux/group-baseline.walk.mjs
 import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
 import {
-  expectArrivalsReachable, expectNodeInsideCanvas, findCanvasBlankPoint, followArrivalHint, waitForCanvasViewportSettled,
+  expectArrivalsReachable, expectNodeInsideCanvas, findCanvasBlankPoint, followArrivalHint, panCanvasUntilInside,
+  waitForCanvasViewportSettled,
 } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -108,6 +109,9 @@ await firstNode.click({ timeout: 4000 })
 await expect(win.locator('.generation-canvas-v2-node[data-selected="true"]')).toHaveCount(1)
 await snap(win, 'canvas-node-selected')
 const composer = firstNode.locator('.generation-canvas-v2-node__composer-card')
+// 卡贴着舞台左边时，钉在它正下方的浮框（定宽 560）会伸到左侧栏底下——被挡就挡（09-25），人会先把画布拖开再操作。
+const composerPan = await panCanvasUntilInside(win, composer)
+expect(composerPan.ok, `把浮框整张拖进舞台：${JSON.stringify(composerPan)}`).toBe(true)
 await expectComposerFooterHit(composer, '分组后空提示词')
 await snapNear(win, 'composer-real', composer, 20)
 // Reference controls may scroll in their own area after recommendations yield.

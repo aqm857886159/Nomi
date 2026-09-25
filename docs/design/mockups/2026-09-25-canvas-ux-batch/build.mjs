@@ -1,5 +1,6 @@
 // 把 index.html 里引用的 evidence/*.jpg 内联成 data URI，产出可直接发布成 Artifact 的单文件 dist/index.html。
 // 用法：node docs/design/mockups/2026-09-25-canvas-ux-batch/build.mjs
+import console from 'node:console'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
