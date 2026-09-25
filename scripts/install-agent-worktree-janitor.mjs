@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { pathToFileURL } from 'node:url'
 /* global console, process */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'

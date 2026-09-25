@@ -604,7 +604,7 @@ export type Mapping = {
  * 抽成纯函数是为了可单测（runtime.findTaskMapping 读 catalog 后调它）。
  */
 export function selectTaskMapping(
-  mappings: Mapping[],
+  mappings: readonly Mapping[],
   vendorKey: string,
   taskKind: ProfileKind,
   modelKey?: string,
