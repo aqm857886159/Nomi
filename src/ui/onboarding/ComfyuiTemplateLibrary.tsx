@@ -27,7 +27,7 @@ type Detail = {
   uiWorkflowText: string
   unknownNodeTypes: string[]
   missingEnumValues: Array<{ classType: string; inputKey: string; value: string }>
-  enumOptions: Array<{ classType: string; inputKey: string; options: string[] }>
+  enumOptions: Array<{ classType: string; inputKey: string; options: Array<string | number | boolean> }>
   serverReachable: boolean
 }
 
