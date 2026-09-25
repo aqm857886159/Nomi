@@ -9,7 +9,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
@@ -97,9 +97,13 @@ export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
 export type AssetUploadConsentDecision = 'allow' | 'not-needed'
 
 /** Interactive validation is only for approval; author validation survives project switches. */
-export type GenerationConfirmationGuards =
+export type GenerationConfirmationGuards = (
   | { assertCurrent?: never; assertAuthorCurrent?: never }
   | { assertCurrent: () => Promise<void>; assertAuthorCurrent: () => Promise<void> }
+) & {
+  /** 谁发起的（缺省用户）。Agent 发起的付费一律弹确认（spendConfirmationRequirement）；调用方如实报，不在这里猜。 */
+  initiator?: SpendInitiator
+}
 
 export type RunGenerationNodeOptions = {
   assertAuthorCurrent?: () => Promise<void>
@@ -508,6 +512,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
     onQuoteConfirmed: (id) => { quoteId = id },
+    ...(opts.initiator ? { initiator: opts.initiator } : {}),
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.startGeneration'),
@@ -573,6 +578,7 @@ export async function confirmAndRunNodeVariants(
     let quoteId: string | undefined
     const ok = await confirmGenerationSpend(Array.from({ length: total }, () => node), {
       onQuoteConfirmed: (id) => { quoteId = id },
+      ...(options.initiator ? { initiator: options.initiator } : {}),
       title: i18n.t('generationCommon.spend.startGeneration'),
       message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
       confirmLabel: i18n.t('generationCommon.spend.generate'),
@@ -619,6 +625,7 @@ export async function regenerateNodeInPlace(
   let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
     onQuoteConfirmed: (id) => { quoteId = id },
+    ...(opts?.initiator ? { initiator: opts.initiator } : {}),
     title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
     confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),

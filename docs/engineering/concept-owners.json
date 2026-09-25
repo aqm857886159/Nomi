@@ -86,6 +86,21 @@
       ],
       "since": "2026-09-25",
       "notes": "2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」（合同 docs/fixes/2026-09-25-composer-pinned-below-node.root-cause.json）。位置与宽度只是（节点画布尺寸, 画布缩放）的纯函数：顶边 = 节点底边 + NODE_COMPOSER_GAP，中线 = 节点中线，屏幕宽 = NODE_COMPOSER_WIDTH。不许任何一侧再量屏幕去 clamp / 翻转 / 让停靠区——那套每帧量矩形的放置层就是「浮框跑到节点中间、忽宽忽窄」的来源，已整个删除。composerCanvasPlacement.test.ts 的结构断言守着浮框源码不许长回 getBoundingClientRect / requestAnimationFrame。"
+    },
+    {
+      "name": "付费生成要不要弹确认",
+      "owner": {
+        "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+        "symbol": "spendConfirmationRequirement"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "src/workbench/generationCanvas/nodes/NodeComposerCost.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户拍板：单个节点生成不弹窗，点数常驻在 ↑ 旁；Agent 发起 / 一下跑 ≥2 个 / 单次 ≥ SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS（10 点）/ 首次匿名托管告知 / 拿不到报价 才弹。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，档位判据仍归 electron/shared/agentCapabilities/capabilityApprovalPolicy.ts#spendDecidedByPolicy。"
     }
   ]
 }

@@ -150,6 +150,7 @@ export async function confirmAndRunPlan(
     assertCurrent: async () => { await options.assertCurrent?.(); project.assertCurrent() },
     nodeIds: ids,
     nodes: ids.map((id) => nodesById.get(id)),
+    ...(options.initiator ? { initiator: options.initiator } : {}),
     title: i18n.t('generationCommon.batchPlan.startTitle'),
     message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
       ...generationCostContextForNodes(ids.map((id) => nodesById.get(id)), project.binding.projectId),

@@ -713,8 +713,11 @@ className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
 | 用户此刻在哪 | 确认长在哪 | 状态 |
 |---|---|---|
 | 正在跟内嵌 agent 对话 | **对话流内的付费富卡**，对话暂停等回答（不弹居中窗——弹窗会打断「对话主驾」心流） | 🚧 待建，随 B5 落；规格见 [nomi-agent-interaction.md](nomi-agent-interaction.md) |
-| 画布上自己点生成（`light`） | `SpendConfirmDialog` 居中弹窗，金币图标 + 「本会话不再提示」 | ✅ 现役 |
+| 画布上自己点生成（单个节点、< 10 点、非首次托管） | **不弹**：点数常驻在生成钮 ↑ 左边（`NodeComposerCost`，`IconCoin` + 数字 / 「未标价」，达到门槛转 warning 字色），按 ↑ 即开始，照样先报价再凭报价铸令牌（2026-09-25 用户拍板） | ✅ 现役 |
+| 画布上一下跑 ≥2 个（×N、多选、批量、先补参考）或单次 ≥ 10 点、首次匿名托管、拿不到报价 | `SpendConfirmDialog` 居中弹窗，金币图标 | ✅ 现役 |
 | 人不在 Nomi，外部 MCP 驱动（`source: 'agent'`） | `SpendConfirmDialog` 居中弹窗 —— 这是唯一该「召唤注意力」的场景 | ✅ 现役 |
+
+「要不要弹」只有一个判据：`spend/spendConfirm.ts` 的 `spendConfirmationRequirement`（门槛常量 `SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS = 10`）。各入口只报事实（谁发起、跑几份），不各判各的。
 
 `SpendConfirmDialog`（`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`，挂一次于工作区根）= **非对话场景**的唯一付费确认 UI：
 - 外部 MCP 驱动额外带：机器人图标（`IconRobot`）+ 副标「经 AI 助手（MCP）驱动」+ 明细行（节点/模型/产物）+ **60s 倒计时**（进度条 + 「N 秒后自动忽略」，到点按未确认返回——外部调用方那头在等，不死等）。
@@ -1045,7 +1048,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 
 | 语义 | 图标 | 用在哪 |
 |---|---|---|
-| 付费 / 消耗额度（用户直发或 agent 受理）| `IconCoin` | `SpendConfirmDialog`（§3.5）|
+| 付费 / 消耗额度（用户直发或 agent 受理）| `IconCoin` | `SpendConfirmDialog`（§3.5）、生成钮旁的点数 `NodeComposerCost` |
 | 外部 AI 助手 / MCP 驱动（agent 身份）| `IconRobot` | `SpendConfirmDialog` 的 `source: 'agent'` 头部（§3.5）|
 | 主角形象确认（锚定妆照检查点·免费质量门）| `IconUser` | `SpendConfirmDialog` 的 `kind: 'anchorCheckpoint'` 头部（§3.5，与 cast 分类同图标）|
 | 正在放量（广告花费档高，仅 TikTok 广告库有此数据）| `IconTrendingUp` | `FindReferencePanel` 参考卡的「放量」角标。**选趋势上升不选火苗**：隐喻要诚实——它表达的是「投放在加码」，不是「热门」|

@@ -57,8 +57,9 @@ export type HostingDisclosure = {
 // 付费生成确认 + 铸令牌（渲染层单一收口）。
 // 方案：docs/plan/2026-06-21-spend-confirmation-gate.md（所有付费入口使用本次报价确认）。
 //
-// 铸令牌只发生在「真人点击确认」的 onClick → resolve(true) → mintSpendGrant 这条链上。
-// AI 只能发 tool-call / 文本，够不到这里；agent 受理走同一确认（不可 light 抑制）。
+// 铸令牌只发生在真人动作之后：要么是这张卡上的「确认」，要么是用户自己按下的 ↑（单个、不贵、非 Agent，
+// 见 spendConfirmationRequirement——2026-09-25 用户拍板单个节点生成不弹窗）。两条都先向主进程要报价、
+// 凭报价铸令牌。Agent 发起的一律走这张卡（initiator: 'agent' 必问）。
 
 export type SpendConfirmRequest = {
   title: string
@@ -124,7 +125,7 @@ export type SpendConfirmState = {
    * FIFO：先到先显。
    */
   queue: Pending[]
-  /** 弹确认；resolve true/false。每次付费都需确认。已有在显 → 入队等候（不覆盖）。 */
+  /** 弹确认；resolve true/false。要不要弹由调用方先过 spendConfirmationRequirement。已有在显 → 入队等候（不覆盖）。 */
   requestConfirm: (req: SpendConfirmRequest) => Promise<boolean>
   /** 对话框按钮回调：ok=确认。决议队首后自动晋升下一个。 */
   resolvePending: (ok: boolean, rememberHosting?: boolean) => void
@@ -167,14 +168,15 @@ export async function confirmAndMintGrant(opts: {
   message: string
   confirmLabel?: string
   maxAttemptsPerNode?: number
-  /** 本次要跑的节点（用来判「花不花额度」——本地 ComfyUI 不花就不弹卡）。 */
-  nodes?: Array<{ meta?: Record<string, unknown> | null } | undefined>
+  /** 本次要跑的每一份（报价按它逐份报；份数也是「一下跑几个」的判据，见 spendConfirmationRequirement）。 */
+  nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>
   hostingDisclosure?: HostingDisclosure
+  initiator?: SpendInitiator
 }): Promise<string | null> {
-  // nodes 传进来才判得出花不花钱；没传就照旧弹卡（保守：宁可多问一次）。
   let quoteId: string | undefined
-  const ok = await confirmGenerationSpend(opts.nodes ?? [undefined], {
+  const ok = await confirmGenerationSpend(opts.nodes, {
     title: opts.title,
+    ...(opts.initiator ? { initiator: opts.initiator } : {}),
     message: opts.message,
     onQuoteConfirmed: (id) => { quoteId = id },
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
@@ -205,10 +207,61 @@ export function generationSpendsCredits(nodes: Array<{ meta?: Record<string, unk
   return !vendors.every((v) => isComfyuiVendorKey(v))
 }
 
-/** 付费确认（不花额度就直接放行，不弹卡）。返回 false = 用户取消。 */
+/** 谁发起的这一下生成：用户自己在画布 / 分镜表上点的，还是 Agent（含外部 MCP）替他发起的。 */
+export type SpendInitiator = 'user' | 'agent'
+
+/**
+ * 单次报价达到这么多点（目录报价单位）才要确认。2026-09-25 用户拍板「≥ 10 点」：图片与大多数视频直接生成，
+ * 贵的视频模型仍问一下。仓库里此前没有任何金额门槛（09-09 删了硬预算、09-14 删了 confirmFirstSpend），
+ * 这是唯一一处；要改门槛只改这里。
+ */
+export const SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS = 10
+
+export type SpendConfirmReason = 'agent' | 'multiple-runs' | 'over-threshold' | 'hosting-disclosure' | 'no-quote'
+
+/**
+ * 「这一下要不要弹付费确认」的**唯一判据**（2026-09-25 用户拍板：单个节点生成不弹窗）。
+ *
+ * 为什么是这几条、别的都不问：确认卡的存在意义是「别让人意外花钱」。用户自己点一个节点的 ↑，
+ * 点数已经常驻写在 ↑ 旁边（点之前就看得到），再弹一张卡复述同一个数，是每天几十次的白摩擦。
+ * 剩下的都是「意外」的来源：
+ *   - Agent / 外部 MCP 发起：人不一定在看，钱这一步必须人点头；
+ *   - 一下跑 ≥2 个（×N、多选、批量、先补参考再生成）：点一次花好几份，数目要人看一眼；
+ *   - 单次 ≥ 门槛：贵；
+ *   - 第一次走匿名托管：告知只能在这张卡里给；
+ *   - 拿不到报价：不知道多少钱，保守问（宁可多问一次，不可偷偷花钱）。
+ * **未标价不在里面**：目录没标价时 ↑ 旁写「未标价」，不挡生成（2026-09-21「未知价不许挡生成」）。
+ *
+ * 纯函数、调用方只报事实（谁发起、跑几个、报价、要不要告知），不在入口上各判各的——
+ * Ctrl+Enter 单选、重试、分镜行生成、结果卡重新生成走的是不同函数，但都落到这一个判据上。
+ */
+export function spendConfirmationRequirement(input: {
+  initiator: SpendInitiator
+  runCount: number
+  /** 主进程报价：数字 = 目录价；null = 目录未标价；undefined = 没拿到报价。 */
+  amount: number | null | undefined
+  hostingDisclosure: boolean
+}): { required: boolean; reasons: SpendConfirmReason[] } {
+  const reasons: SpendConfirmReason[] = []
+  if (input.initiator === 'agent') reasons[reasons.length] = 'agent'
+  if (input.runCount > 1) reasons[reasons.length] = 'multiple-runs'
+  if (typeof input.amount === 'number' && input.amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS) reasons[reasons.length] = 'over-threshold'
+  if (input.hostingDisclosure) reasons[reasons.length] = 'hosting-disclosure'
+  if (input.amount === undefined) reasons[reasons.length] = 'no-quote'
+  return { required: reasons.length > 0, reasons }
+}
+
+/**
+ * 付费确认（不花额度就直接放行，不弹卡；判据见 `spendConfirmationRequirement`）。返回 false = 用户取消。
+ *
+ * 不弹卡时**照样**先向主进程要报价、把 quoteId 交给调用方去铸令牌：主进程的花钱闸认的是「这一笔有一张
+ * 被确认过的报价」（`electron/spendGrant.ts` `assertAndConsumeQuotedSpend`），不带报价的令牌会被它拦下、
+ * 改弹一张「经 AI 助手驱动」的卡——那等于把一个弹窗换成另一个更吓人的弹窗。这里的「确认」由用户按 ↑
+ * 那一下承担（点之前点数已写在 ↑ 旁）。
+ */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
-  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; onQuoteConfirmed?: (quoteId: string) => void },
+  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; onQuoteConfirmed?: (quoteId: string) => void; initiator?: SpendInitiator },
 ): Promise<boolean> {
   if (!generationSpendsCredits(nodes)) return true
   const inputs = nodes.map((node) => {
@@ -220,6 +273,16 @@ export async function confirmGenerationSpend(
   catch (error) {
     toast(error instanceof Error ? error.message : i18n.t('generationCommon.batchPlan.authorizationFailed'), 'error')
     return false
+  }
+  const requirement = spendConfirmationRequirement({
+    initiator: opts.initiator ?? 'user',
+    runCount: nodes.length,
+    amount: quote ? quote.amount : undefined,
+    hostingDisclosure: Boolean(opts.hostingDisclosure),
+  })
+  if (!requirement.required && quote) {
+    opts.onQuoteConfirmed?.(quote.quoteId)
+    return true
   }
   const confirmed = await useSpendConfirmStore.getState().requestConfirm({
     details: [spendQuoteDetail(quote ?? { amount: null })],

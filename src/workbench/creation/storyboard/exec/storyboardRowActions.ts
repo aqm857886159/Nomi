@@ -49,7 +49,11 @@ export type RowActionContext = GenerationConfirmationGuards & {
 }
 
 function confirmationGuards(ctx: RowActionContext): GenerationConfirmationGuards {
-  return ctx.assertCurrent ? { assertCurrent: ctx.assertCurrent, assertAuthorCurrent: ctx.assertAuthorCurrent } : {}
+  // 来源跟着这一次的手势走：Agent 替他点的（presentStoryboard 的 gesture.source='agent'）必须弹付费确认，
+  // 用户自己在分镜表上点的单个生成与画布 ↑ 同一条判据（spendConfirmationRequirement）。
+  // 'runtime'（系统自己续跑）同样不是人按的这一下，按 Agent 口径问。
+  const initiator = ctx.gesture && ctx.gesture.source !== 'user' ? 'agent' as const : 'user' as const
+  return ctx.assertCurrent ? { assertCurrent: ctx.assertCurrent, assertAuthorCurrent: ctx.assertAuthorCurrent, initiator } : { initiator }
 }
 
 function anchorNodeFor(ctx: RowActionContext, nodes: GenerationCanvasNode[], anchor: PlanAnchor) {

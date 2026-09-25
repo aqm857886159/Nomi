@@ -717,6 +717,8 @@ export const zhGenerationCommon = {
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
     variantCountAria: '每次生成几个',
     expandPrompt: '展开提示词',
+    costUnpriced: '未标价',
+    costWillConfirm: '{{amount}} 点（目录报价）· 达到 {{threshold}} 点，生成前会再确认一次',
     collapsePrompt: '收起提示词',
     variantCountTitle: '每次生成 {{count}} 个',
     variantCountOption: '{{count}} 个',
@@ -2193,6 +2195,8 @@ export const enGenerationCommon = {
     regenerate: 'Regenerate',
     variantCountAria: 'Outputs per run',
     expandPrompt: 'Expand prompt',
+    costUnpriced: 'Unpriced',
+    costWillConfirm: '{{amount}} credits (catalog quote) · {{threshold}}+ asks once before generating',
     collapsePrompt: 'Collapse prompt',
     variantCountTitle: 'Generate {{count}} per run',
     variantCountOption: '{{count}} outputs',

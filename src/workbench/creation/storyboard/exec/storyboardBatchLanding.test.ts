@@ -171,9 +171,9 @@ it('bound row actions keep single-shot, three variants and regeneration on the o
   await generateShotRow(context, shot, null)
   await generateShotRowVariants(context, shot, node, null)
   await regenerateShotRow(context, shot, node, null)
-  expect(calls.single).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent })
-  expect(calls.variants).toHaveBeenCalledWith(node.id, 3, { assertCurrent, assertAuthorCurrent: assertCurrent })
-  expect(calls.regenerate).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent })
+  expect(calls.single).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
+  expect(calls.variants).toHaveBeenCalledWith(node.id, 3, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
+  expect(calls.regenerate).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('Updated author prompt')
 })
@@ -182,7 +182,13 @@ it('a bound anchor action reuses that anchor node and the original single runner
   const anchor = { id: 'actor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'New description' }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Old description', meta: { storyboardDesignId: 'run', anchorId: 'actor' } })
   await generateAnchorCard({ documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
-  expect(calls.single).toHaveBeenCalledWith(node.id, {})
+  expect(calls.single).toHaveBeenCalledWith(node.id, { initiator: 'user' })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+  // Agent 替他点的同一张锚卡（presentStoryboard 的 gesture.source='agent'）：来源必须原样报给付费判据，
+  // 否则「单个节点不弹窗」会把 Agent 的付费也放过去。
+  calls.single.mockClear()
+  await generateAnchorCard({ documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] },
+    gesture: { source: 'agent', txnId: 'agent-present', canWrite: () => true } }, anchor)
+  expect(calls.single).toHaveBeenCalledWith(node.id, { initiator: 'agent' })
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('New description')
 })
