@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveProductionShotState,
   isProductionJobInFlight,
-  isShotInDispatchedScope,
   jobAwaitsHuman,
   productionJobPhase,
   productionShotIdForNode,
@@ -187,15 +186,15 @@ describe('派出去了没有', () => {
     expect(all.filter(jobAwaitsHuman)).toEqual(['planned', 'authorization_required'])
   })
 
-  it('计划没提交：任何镜都不在已派出的范围里；提交后勾进的在、勾掉的不在；单镜提交了就在', () => {
+  it('没有 job 时：计划没提交 → 不在任何队列；提交后勾进的排队、勾掉的不排；单镜提交了就排', () => {
     for (const planState of ['draft', 'sealed', 'cancelled'] as const) {
-      expect(isShotInDispatchedScope(run({ planState, shots: [{ shotId: 's1' }] }), 's1'), planState).toBe(false)
+      expect(deriveProductionShotState(run({ planState, shots: [{ shotId: 's1' }] }), 's1'), planState).toBeNull()
     }
     const submitted = run({ shots: [{ shotId: 's1' }, { shotId: 's2', included: false }] })
-    expect(isShotInDispatchedScope(submitted, 's1')).toBe(true)
-    expect(isShotInDispatchedScope(submitted, 's2')).toBe(false)
-    expect(isShotInDispatchedScope(run({}), 'cand-1')).toBe(true)
-    expect(isShotInDispatchedScope(run({ planState: 'draft' }), 'cand-1')).toBe(false)
+    expect(deriveProductionShotState(submitted, 's1')?.phase).toBe('queued')
+    expect(deriveProductionShotState(submitted, 's2')).toBeNull()
+    expect(deriveProductionShotState(run({}), 'cand-1')?.phase).toBe('queued')
+    expect(deriveProductionShotState(run({ planState: 'draft' }), 'cand-1')).toBeNull()
   })
 })
 

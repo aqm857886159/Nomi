@@ -23,7 +23,7 @@
 
 `electron/productionRun` 的持久层没有问题；问题在**读侧**：Run 的派生事实散落在消费者里，而不是长在 Run 旁边。
 今天它们已经各自收过一次 owner——`productionPendingSpend.awaitingSpendDecision`（等你点头）、`policySpendDecision`（档位代答）、
-`laneApprovalGate`（运行面的等）、本次补进 `electron/shared/productionShotPhase.ts` 的 `jobAwaitsHuman` / `isShotInDispatchedScope`（派没派出去）——但这些 owner 是**按事故一件一件长出来的**，
+`laneApprovalGate`（运行面的等）、本次补进 `electron/shared/productionShotPhase.ts` 的 `jobAwaitsHuman` 与「计划已提交且勾进这一批」（派没派出去）——但这些 owner 是**按事故一件一件长出来的**，
 没有一处说「Run 能回答的问题就这几个，都在这里」。下一个新界面（例如 T-AG-24 的批量「生成全部」、T-AG-25 的任务按钮在等粗剪）
 仍然会先去读 `run.status` / `plan.state` / `job.status` 的字面值，再自己拼一个判断。
 

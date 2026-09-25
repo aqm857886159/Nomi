@@ -55,21 +55,16 @@
     },
     {
       "kind": "read",
-      "path": "electron/shared/productionShotPhase.ts",
-      "symbol": "isShotInDispatchedScope"
-    },
-    {
-      "kind": "read",
       "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
       "symbol": "deriveProductionShotState"
     }
   ],
   "door_reduction": {
     "before": 3,
-    "after": 6,
+    "after": 5,
     "why_not": "All remaining doors are readers of the one owner (productionShotPhase): the landing projection, the placeholder, the scheduler and the canvas-ownership rule (#875) act in different processes or answer a different question. Before this change the scheduler kept its own authorization_required literal; now it reads jobAwaitsHuman."
   },
-  "generality_proof": "Both canvas surfaces (main-process node run records and the renderer placeholder) and the scheduler read productionShotPhase, so every pre-approval state is decided once. jobAwaitsHuman is exhaustive, and isShotInDispatchedScope keys on plan.state === submitted plus included, which covers drafts, sealed-but-unapproved plans, cancelled drafts and unticked shots with one rule.",
+  "generality_proof": "Both canvas surfaces (main-process node run records and the renderer placeholder) and the scheduler read productionShotPhase, so every pre-approval state is decided once. jobAwaitsHuman is exhaustive, and a shot without a job counts as queued only when plan.state === submitted and the shot is included, which covers drafts, sealed-but-unapproved plans, cancelled drafts and unticked shots with one rule.",
   "shared_boundaries": [
     {
       "path": "electron/shared/productionShotPhase.ts",
@@ -118,9 +113,9 @@
     "classification": "recurring",
     "reason": "Every draft_shots draft, priced-card wait and rework / continuation authorization reached the same fall-through; any new pre-approval job status would too without an exhaustive table.",
     "same_class_scan": [
-      "node scripts/door-map.mjs jobAwaitsHuman isShotInDispatchedScope deriveProductionShotState",
+      "node scripts/door-map.mjs jobAwaitsHuman deriveProductionShotState --read=jobAwaitsHuman,deriveProductionShotState",
       "rg \"authorization_required\" electron/productionRun -> batchScheduleDerivation.shotInFlight (now reads jobAwaitsHuman)",
-      "rg \"included === false\" electron/shared -> the only prior exclusion in deriveProductionShotState (replaced by isShotInDispatchedScope)"
+      "rg \"included === false\" electron/shared -> the only prior exclusion in deriveProductionShotState (widened in place to plan.state !== submitted || included === false)"
     ]
   },
   "prevention": {
@@ -155,7 +150,6 @@
   "residual_risks": [
     "The canvas batch bar (生成全部 N 个) reads raw node.status (TODO T-AG-24).",
     "A finished single agent image keeps the task button lit because the run waits for rough-cut review (TODO T-AG-25).",
-    "Dispatched-but-not-yet-running shots still use the batch-specific queued chip (#870 decision), while the 2026-09-24 mockup had proposed the ordinary waiting surface; to be settled with the user.",
     "confirm_all (per-shot confirmation) is NOT covered: while a shot waits on its own shot gate its job stays authorized (productionRunDriverOps), so the node still says queued. Fixing it here would flip canvas ownership through the borrowed phase (#875); the coordinating session schedules it together with the next item.",
     "After submission productionShotOwnsGeneration borrows this phase, so a rework / continuation job back at the authorization step is no longer owned by the run on the canvas. Decision (coordinating session, 2026-09-26): right after the 0.22.x cut, productionShotOwnsGeneration judges the submitted branch from job and run state directly (awaiting-human jobs and confirm_all shot gates owned; terminal or stopped not owned), with class tests over every ProductionJobStatus; this PR merges only after that lands."
   ]

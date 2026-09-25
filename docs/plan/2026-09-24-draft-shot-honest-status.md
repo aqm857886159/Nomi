@@ -25,19 +25,19 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
 
 1. **节点什么都不挂**（本 PR）：`deriveProductionShotState` 在「还没点头」时返回 null——草稿、报价卡在等、job 退回人工门前（返工 / 续拍待授权）、
    没点头就取消、没勾进已提交这一批。判据两个：`jobAwaitsHuman`（`Record<ProductionJobStatus, boolean>` 穷举，新状态不表态编译即红）与
-   `isShotInDispatchedScope`（计划 `submitted` 且这一镜 `included`）。调度器的「还在等人」改读同一张表。
+   没有 job 时「计划 `submitted` 且这一镜 `included`」才算在排队（直接写在 `deriveProductionShotState` 里）。调度器的「还在等人」改读同一张表。
 2. **任务按钮 / 面板**：由 #869（09-25 拍板的任务面板样张）接手——`draft_shots` 建的草稿不进任务列表；报价卡在等人时归「等你处理」。
    本 PR 原先做的「草稿 N」分组与摘要字段 `dispatched` 在并入 #869 时删掉，不留第二套分组。
 3. **报价卡在等人那一刻节点同草稿**：由第 1 条覆盖。
 4. **点了之后的画法**：生成中 / 失败由 #870 写进节点自己的运行记录，走普通节点那一套（像素等待面 + 状态行 / 标准错误卡）；
-   本 PR 原先的渲染层投影在并入 #870 时删掉。「已派出、还没轮到」的镜 #870 保留了批次小标「排队中 · 第 n/N」，与本样张第 4 节的提议不同，待用户定。
+   本 PR 原先的渲染层投影在并入 #870 时删掉。「已派出、还没轮到」的镜仍是批次小标「排队中 · 第 n/N」：2026-09-26 用户拍板保留小签（没在动 = 真没开始，「第 n/N」位次有用；当初要统一是因为「生成中」有两套画法，那一条已由 #870 解决）。
    顺带删掉 `GeneratingOverlay` 已无调用方的居中档（模糊 + 大 N）。
 
 ## 范围 / 不动项
 
 - 动：`electron/shared/productionShotPhase.ts`、`electron/productionRun/batchScheduleDerivation.ts`、`GeneratingOverlay` 死档、走查与夹具（apimart 图片任务可停在 `processing`）。
 - 不动：花钱链路一行没改；任务面板分组（#869）；落地投影与画法（#870）。
-- 另开（TODO）：T-AG-24 批量「生成全部」仍把在跑的 Agent 镜算闲置；T-AG-25 一张图出完仍亮任务 1（Run 在等粗剪）；T-QA-33 `p4-s6` 走查在 main 上早已失效。
+- 另开（TODO）：T-AG-25 一张图出完仍亮任务 1（Run 在等粗剪）；T-QA-33 `p4-s6` 走查在 main 上早已失效。T-AG-24（「生成全部」把在跑 / 排队的 Agent 镜算闲置）已由 #875 修，本 PR 的走查是它的真机证据。
 
 ## 回滚
 
@@ -46,9 +46,11 @@ Agent 调 `look_at_canvas` → `list_models` → `draft_shots`，回「已建好
 ## 验收门
 
 - 单测 `electron/shared/productionShotPhase.test.ts`：6 个没点头的 Run 状态 × 计划 draft/sealed、人工门前的 job（含返工 / 续拍待授权）、没点头就取消、单镜草稿、
-  点过头后照旧排队、人工门表穷举、已派出范围。把本 PR 那两行改回 main 原样：21 条变红（变异核过）。
+  点过头后照旧排队、人工门表穷举、已派出范围。把本 PR 那两行改回 main 原样：22 条变红（变异核过）。
 - 真机走查（Windows，零额度回环供应商）：`tests/ux/agent-draft-not-queued.walk.mjs` 草稿（zh + en：节点无状态、任务列表里没有它、按钮不亮、盘上 0 job、供应商 0 请求）
-  → 报价卡在等（节点无状态）→ 确认后派出、供应商停在 processing（像素等待面 + 「生成中」）→ 出图落回同一节点。
+  → 报价卡在等（节点无状态；底栏不给「生成全部」、选中后生成钮按不下去）→ 确认后派出、供应商停在 processing（像素等待面 + 「生成中」）→ 出图落回同一节点。
+- 真机走查 `tests/ux/agent-queued-shot-not-regenerable.walk.mjs`（#875 的证据）：两镜「全部」确认、夹具压住第一镜的受理，第二镜真的在排队（盘上 submitting + authorized）——
+  挂「排队中 · 第 2/2」，框菜单「生成整框」与选中后的生成钮都按不下去，供应商始终只收到 1 次请求（zh + en）。
 
 ## 先查别人
 

@@ -81,19 +81,6 @@ export function jobAwaitsHuman(status: ProductionJobStatus): boolean {
   return AWAITS_HUMAN[status];
 }
 
-/**
- * 这一镜在已经交给执行的范围里吗。给**还没有 job** 的镜用：在范围里 = 真的在排队（批次会自己轮到它）；
- * 不在 = 用户还没点头（草稿 / 报价卡在等 / 没点头就取消），或者这镜没被勾进这一批。
- * 单镜计划只有一镜（调用方已按候选 id 认过），计划提交了就在；多镜看 `included`。
- */
-export function isShotInDispatchedScope(run: Pick<ProductionRun, "generationPlan">, shotId: string): boolean {
-  const plan = run.generationPlan;
-  if (!plan || plan.state !== "submitted") return false;
-  if (!plan.shots?.length) return true;
-  const shot = plan.shots.find((candidate) => candidate.shotId === shotId);
-  return Boolean(shot && shot.included !== false);
-}
-
 /** 这次任务是不是已经交给供应商、还在等结论（观察者据此判断还要不要再去问）。 */
 export function isProductionJobInFlight(job: Pick<ProductionJob, "status" | "providerTaskId">): boolean {
   return Boolean(job.providerTaskId) && productionJobPhase(job.status) === "generating";
@@ -180,7 +167,7 @@ export function productionShotIdForNode(run: ProductionRun, nodeId: string): str
  * - 禁「永远等待生成」假进度：没有 job 绝不显「生成中」。
  * - **用户还没点头 = 什么都不说**（2026-09-24）：草稿（`draft_shots` 建的、报价卡还在等）、job 还停在人工门前、
  *   没点头就取消——返回 null。以前这些都落到「排队中」：Agent 按「先别生成」建的草稿挂着「排队中 · 第 1/1」，
- *   读起来像已经在排队花钱（那一刻 0 job、0 请求）。「派出去了没有」只看两件事：`jobAwaitsHuman` 与 `isShotInDispatchedScope`（本文件）。
+ *   读起来像已经在排队花钱（那一刻 0 job、0 请求）。「派出去了没有」只看两件事：`jobAwaitsHuman`（人工门表），与没有 job 时计划是否已提交、这一镜是否勾进了这一批。
  */
 export function deriveProductionShotState(run: ProductionRun | null | undefined, shotId: string | undefined): ProductionShotState | null {
   if (!run || !shotId || !run.generationPlan) return null;
@@ -189,7 +176,7 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   if (!single && !shot) return null;
   if (single && shotId !== run.generationPlan.candidate.candidateId) return null;
   const job = latestJob(jobsForShot(run, shotId));
-  // 最新那次任务还停在人工门前（报价卡 / 逐镜确认在等）：什么都还没发生。
+  // 最新那次任务还停在人工门前（报价卡 / 返工·续拍待授权）：什么都还没发生。
   if (job && jobAwaitsHuman(job.status)) return null;
   const jobPhase = job ? productionJobPhase(job.status) : null;
 
@@ -206,8 +193,9 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   }
   if (job && jobPhase === "generating") return { phase: "generating", job };
 
-  // 没有 job、又不在已派出的范围里（还没点头 / 没勾进这一批）：它不在任何队列里（见函数头）。
-  if (!job && !isShotInDispatchedScope(run, shotId)) return null;
+  // 没有 job 时，只有计划已提交、这一镜又勾进了这一批，它才真的在排队（批次会自己轮到它）。
+  // 否则是用户还没点头（草稿 / 报价卡在等 / 没点头就取消），或者这镜没被勾进这一批：它不在任何队列里。
+  if (!job && (run.generationPlan.state !== "submitted" || shot?.included === false)) return null;
   // 无 job 或 job 还在派发前的档：run 已停 → 显「已停」；否则「排队中（第 n/N）」。
   if (runIsStopped(run.status)) {
     return { phase: "stopped", ...(job ? { job } : {}), stoppedReason: run.status === "needs_attention" ? "budget" : "stopped" };

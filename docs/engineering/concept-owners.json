@@ -122,7 +122,7 @@
         "electron/productionRun/batchScheduleDerivation.ts"
       ],
       "since": "2026-09-25",
-      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。 2026-09-24 追加（合同 docs/fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json）：「用户还没点头」也归这里判——草稿（draft_shots，报价卡没出或在等）、job 还停在人工门前（jobAwaitsHuman，Record 穷举）、没勾进已提交这一批的镜（isShotInDispatchedScope）一律返回 null，画布上什么都不说；调度器的「还在等人」也读 jobAwaitsHuman。"
+      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。 2026-09-24 追加（合同 docs/fixes/2026-09-24-draft-shot-dispatch-honesty.root-cause.json）：「用户还没点头」也归这里判——草稿（draft_shots，报价卡没出或在等）、job 还停在人工门前（jobAwaitsHuman，Record 穷举）、没有 job 且不在「计划已提交、勾进这一批」范围里的镜一律返回 null，画布上什么都不说；调度器的「还在等人」也读 jobAwaitsHuman。"
     },
     {
       "name": "供应商产物取回线路",
