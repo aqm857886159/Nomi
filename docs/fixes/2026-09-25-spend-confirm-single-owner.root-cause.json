@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-spend-confirm-single-owner",
+  "problem_type": "Whether a paid generation asks for confirmation was decided per entry, and the initiator was lost before the decision",
+  "symptom": "User 2026-09-25: every click on a single node's generate button opens 「开始生成 · 将生成 1 段视频 · 预计约 1 分钟 · 会消耗模型额度 · 预计金额 目录未标价 · 取消 / 生成」. Real-machine reproduction on origin/main d8824a0c5: one ↑ click, one dialog, a second click on 生成 to actually start.",
+  "direct_cause": "confirmGenerationSpend always called requestConfirm except when every node ran on local ComfyUI; the cost was only visible inside the dialog. Storyboard execution set gesture.source='agent' for Agent-driven runs but never passed it to confirmAndRunNode / confirmAndRunPlan / confirmGenerationSpend.",
+  "class_root": "No single predicate owned 'does this paid run need a human confirmation'; entries decided by whether they called the funnel, and the facts the decision needs (initiator, run count, quote) did not reach it.",
+  "affected_population": [
+    "Every user-initiated single generation (composer ↑, result regenerate, error retry, storyboard row, Ctrl+Enter single selection, task center retry, timeline regenerate)",
+    "Agent-driven storyboard generation (initiator was dropped)"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "tests": [
+      "src/workbench/generationCanvas/spend/spendConfirmPolicy.test.ts",
+      "src/workbench/generationCanvas/spend/spendQuoteCard.test.ts",
+      "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+    ],
+    "why": "spendConfirmationRequirement is the only predicate and confirmGenerationSpend its only caller; the policy test sweeps every combination and the funnel tests prove quotes still reach the grant when no dialog is shown."
+  },
+  "scope_paths": [
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts"
+  ],
+  "entry_points": [
+    "confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace (single node, variants, regenerate)",
+    "confirmAndRunPlan via confirmAndMintGrant (batch, Ctrl+Enter, frame, shot table, pending references)",
+    "Storyboard row / anchor actions (user or Agent gesture)",
+    "Decompose layers via confirmAndMintGrant"
+  ],
+  "internal_only_reason": "The confirmation policy is a product decision recorded on 2026-09-25 (single node no dialog, ≥2 runs / ≥10 credits / Agent / hosting disclosure / missing quote confirm); no external specification governs it. The main-process quote-bound grant (electron/spendGrant.ts) is unchanged and still enforces that every paid submission consumes a current quote.",
+  "invariants": [
+    "Whether to show the spend confirmation is decided only by spendConfirmationRequirement from (initiator, run count, quote amount, hosting disclosure)",
+    "Agent-initiated paid runs always confirm; runs without a quote always confirm",
+    "Runs that skip the dialog still obtain a quote and mint the grant with its quoteId"
+  ],
+  "doors": [
+    { "kind": "write", "path": "src/workbench/generationCanvas/spend/spendConfirm.ts", "symbol": "spendConfirmationRequirement" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/runner/generationRunController.ts", "symbol": "confirmGenerationSpend" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts", "symbol": "confirmAndMintGrant" }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "The three funnels stay because they carry different run shapes (single / variants / regenerate in the runner, batch plans in batchPlanPreview, the predicate owner in spendConfirm); none of them decides anymore — they report initiator and run count and the predicate decides."
+  },
+  "generality_proof": "The decision moved from 'which entry called the funnel' to a predicate over facts every entry reports, so a new entry cannot opt out or in by accident; the Agent initiator is carried in GenerationConfirmationGuards, which every confirm function already accepts.",
+  "shared_boundaries": [
+    { "path": "src/workbench/generationCanvas/spend/spendConfirm.ts", "symbol": "spendConfirmationRequirement", "responsibility": "The only rule for whether a paid run asks first" }
+  ],
+  "same_class_entry_points": [
+    { "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts", "entry_point": "confirmationGuards", "disposition": "enforced", "evidence": "Reports initiator from gesture.source (non-user → agent); storyboardBatchLanding.test.ts asserts user and agent are reported" },
+    { "path": "src/workbench/generationCanvas/nodes/decompose/useDecomposeLayers.ts", "entry_point": "runDecompose", "disposition": "enforced", "evidence": "Goes through confirmAndMintGrant whose nodes are now required; a single user run follows the same predicate" },
+    { "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts", "entry_point": "Agent panel paid card", "disposition": "not-affected", "evidence": "Different host decided by capabilityApprovalPolicy.spendDecidedByPolicy in the main process; unchanged" }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new generation entry (there are 15+) would otherwise decide on its own whether to confirm, and the Agent initiator had already been lost once.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs confirmGenerationSpend (runner ×3, spendConfirm)",
+      "node scripts/door-map.mjs confirmAndMintGrant (batchPlanPreview, decompose)",
+      "rg \"gesture: \\{ source: 'agent'\" src (storyboardPresent)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "invariant": "Confirmation is required iff agent-initiated, ≥2 runs, quote ≥ SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS, hosting disclosure, or no quote",
+    "failure_mode": "No quote → the dialog is shown; declining never transfers the quote id",
+    "exception_policy": "none",
+    "strategy": "One pure predicate called only by the funnel; entries report facts; initiator threaded through the existing guard type",
+    "artifacts": [
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/components/batchPlanPreview.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/spend/spendConfirmPolicy.test.ts",
+    "src/workbench/generationCanvas/spend/spendQuoteCard.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/spend/spendConfirmPolicy.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/spend/spendConfirm.ts"
+    ],
+    "rationale": "Removed the implicit 'always confirm unless ComfyUI' behaviour and the optional nodes fallback in confirmAndMintGrant (nodes are now required, so a caller cannot silently turn the decision into 'unknown vendor')"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Pure product policy in the renderer; the main-process quote/grant contract is unchanged",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state. The threshold is a constant (no setting existed; 2026-09-09 removed the hard budget).",
+  "residual_risks": [
+    "A mis-click on ↑ now spends up to the threshold without a second step; providers have no cancel API. Mitigated by the always-visible cost next to ↑ and the threshold, as the user accepted",
+    "The renderer cost chip matches catalog rows case-insensitively while the main-process quote matches exactly; the dialog decision uses the main-process quote"
+  ]
+}
