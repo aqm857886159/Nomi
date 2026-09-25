@@ -14,7 +14,7 @@
 | executor / branch / PR | Codex / `research/competitive-radar-2026-09-25` / [PR #878](https://github.com/aqm857886159/Nomi/pull/878) |
 | Nomi build / commit | `origin/main` 基线 `504984bd21bf0be601f29a64fdcbb1f67259f7b6`；未启动 Electron，Nomi 对照为 unverified |
 | evidence_root | `/Users/aoqimin/Desktop/Nomi/outputs/competitive-radar/2026-09-25/` |
-| next_action | LibTV 先补成功/失败/返还与隔离录屏；2026-09-28 再补 TapNow 登录应用与录屏 |
+| next_action | LibTV 已补图片成功、节点功能目录、Agent/发布/画布控制面；仍需失败/返还、视频/音频回流与隔离录屏；2026-09-28 再补 TapNow 登录应用 |
 
 ## 本轮结论
 
@@ -41,7 +41,7 @@
 - **任务/成功标准**：从首页新建可编辑画布，添加图片节点，输入提示词并提交一次生成；成功标准是模型、参数、节点状态和可继续编辑画布同时可见。
 - **环境**：用户 Chrome CDP，公开 LibTV 页面，账户层级/版本未知；Nomi 对照未运行。
 - **轨迹**：首页 → `新建画布创作` → 图片节点 → 输入“戴红色围巾的白猫…” → `Lib Image 2.5 Pro` → `16:9 · 标准画质 · 2K · 1张` → 提交后保留“尝试/生成中/取消 ESC”状态。
-- **结果**：主路径 `checked`；取消/错误恢复 `unverified`；录屏未生成，使用截图序列，故交互验收 `partial`。
+- **结果**：主路径 `checked`；后续 20 积分状态下图片成功并回到生成历史 `observed`；取消/错误恢复仍部分未验证；录屏未生成，使用截图序列，故交互验收 `partial`。
 - **步数口径**：5 个主要 UI 动作；网络/模型等待未计入；跨页 0。
 - **证据**：`E-LIBTV-J01`、`E-LIBTV-J02`，本地 `outputs/competitive-radar/2026-09-25/evidence/libtv/journeys/`。
 
@@ -90,9 +90,15 @@
 
 这说明 LibTV 将“生成”拆成可逆的准备、确认、取消和最终运行四层，用户不会因为一次误触而丢失节点。生成历史、资产库、角色库和教程/快捷键则分别承担结果追踪、复用资产、角色一致性和学习支持。
 
-本轮没有买积分，因此成功图片、供应商失败、超时、返还和真实生成后回流仍保留 `unverified/blocked`，没有用“生成中”截图推断成功。
+本轮没有购买积分。早先 6 积分余额对 15 积分任务的拦截仍保留；后续研究状态为 20 积分，真实图片任务完成，生成历史出现图片计数 1 和具体结果 URL，因此图片成功链不再是 blocked。供应商失败、超时、返还、付费视频/音频成片和录屏仍保留 `unverified/partial`，没有用“生成中”截图推断这些结果。
 
-## Nomi 决策与实验回访
+### J-LIBTV-02 / LibTV / 全量节点与 Agent 控制面
+
+- **任务/成功标准**：在同一研究画布逐项打开添加节点菜单、图片局部模式、故事板、发布表单、Agent 模型/Skill/全局设置、历史/分享、画布控制；记录空状态、可逆入口、费用/权限和失败反馈。
+- **结果**：节点目录、图片模型列表、Agent 图片/视频模型列表、Skill 面板、手动/自动生成、发布字段、历史对话、新对话不可分享、缩放/小地图/连线/吸附和 AutoLink/参考/标记/风格状态均已实测并保存截图/DOM 文本；状态 `checked`。导演台实际打开后的模式变化、无效上传错误、音频/视频真实产物仍 `unverified`。
+- **证据**：`33-all-feature-menu-actions.*`、`38-publish-form.png`、`39-storyboard.*`、`40–53` 号旅程证据；稳定证据根目录的 `libtv-state-matrix.json` 已加入 S12–S15。
+
+
 
 | finding_id | 证据/摩擦 | Nomi 当前现状 | 分诊与最小实验 |
 |---|---|---|---|
@@ -118,6 +124,8 @@
 | E-LIBTV-J01/J02 | 实测截图序列 | `.../evidence/libtv/journeys/01-*`、`02-*` | 真实画布主路径（partial） |
 | E-LIBTV-J03 | 实测条件矩阵 | `.../evidence/libtv/libtv-state-matrix.json`、`libtv-state-matrix.sha256` | 空提示、确认、两步取消、余额拦截与缺口 |
 | E-LIBTV-J04 | 实测截图序列 | `.../evidence/libtv/journeys/12-*` 至 `19-*` | 教程、快捷键、历史、素材/角色库、故事板确认与取消 |
+| E-LIBTV-J05 | 实测成功与节点目录 | `.../evidence/libtv/journeys/21-*` 至 `33-*`、`27-history-after-submit.*` | 20 积分图片成功、历史回流、添加节点全量入口与空状态 |
+| E-LIBTV-J06 | 实测控制面与局部状态 | `.../evidence/libtv/journeys/38-*` 至 `53-*` | 发布表单、故事板、Agent 模型/Skill/设置、画布控制、无效上传路径 |
 | E-TAPNOW-HOME | 官网声明 | `https://tapnow.ai/`；`web/static/tapnow.summary.json` | Creative OS 定位，非登录证明 |
 | E-HIGGSFIELD-HOME | 官网声明 | `https://higgsfield.ai/`；`web/static/higgsfield.summary.json` | Image/Video/Audio/MCP/API/Plugin 导航 |
 | E-MINIMAX-HOME | 官网声明 | `https://design.minimax.io/`；`web/static/minimax_design.summary.json` | Agent/Canvas/Skills/Local-first |
