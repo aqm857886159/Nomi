@@ -14,24 +14,22 @@ vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => (bridge.pres
 const paidNode = { meta: { modelVendor: 'relay', modelKey: 'image' } }
 
 describe('spendConfirmationRequirement（唯一判据）', () => {
-  it('reported case: I click ↑ on one node, 0.3 credits → no card', () => {
-    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: 0.3, hostingDisclosure: false })).toBe(false)
-  })
-
-  it('unpriced single user run does not ask (unknown price never blocks generation)', () => {
-    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: null, hostingDisclosure: false })).toBe(false)
-  })
-
-  it('class: asks exactly when one of agent / ≥2 runs / ≥ threshold / hosting / no quote holds', () => {
-    const initiators: SpendInitiator[] = ['user', 'agent']
-    const runCounts = [1, 2, 4]
-    const amounts: Array<number | null | undefined> = [0, 0.3, SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS - 0.01, SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS, 42, null, undefined]
-    for (const initiator of initiators) for (const runCount of runCounts) for (const amount of amounts) for (const hostingDisclosure of [false, true]) {
-      const expected = initiator === 'agent' || runCount > 1 || (typeof amount === 'number' && amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS)
-        || hostingDisclosure || amount === undefined
-      expect(spendConfirmationRequirement({ initiator, runCount, amount, hostingDisclosure }),
-        JSON.stringify({ initiator, runCount, amount, hostingDisclosure })).toBe(expected)
-    }
+  const T = SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS
+  it.each<[string, SpendInitiator, number, number | null | undefined, boolean, boolean]>([
+    ['reported case: I click ↑ on one node, 0.3 credits', 'user', 1, 0.3, false, false],
+    ['free single run', 'user', 1, 0, false, false],
+    ['just under the threshold', 'user', 1, T - 0.01, false, false],
+    ['unpriced single run never blocks generation', 'user', 1, null, false, false],
+    ['at the threshold', 'user', 1, T, false, true],
+    ['well over the threshold', 'user', 1, 42, false, true],
+    ['×2 on one node', 'user', 2, 0.6, false, true],
+    ['batch of four, unpriced', 'user', 4, null, false, true],
+    ['Agent, single cheap run', 'agent', 1, 0.3, false, true],
+    ['Agent, unpriced', 'agent', 1, null, false, true],
+    ['first hosted run discloses', 'user', 1, 0.3, true, true],
+    ['no quote at all', 'user', 1, undefined, false, true],
+  ])('%s', (_label, initiator, runCount, amount, hostingDisclosure, expected) => {
+    expect(spendConfirmationRequirement({ initiator, runCount, amount, hostingDisclosure })).toBe(expected)
   })
 })
 

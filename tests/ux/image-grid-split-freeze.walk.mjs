@@ -204,10 +204,8 @@ try {
       return r.left >= stage.left - 1 && r.top >= stage.top - 1 && r.right <= stage.right + 1 && r.bottom <= stage.bottom + 1
     })
   }, CANVAS_STAGE_SELECTOR)
-  if ((await getWin().locator(CANVAS_CARD_SELECTOR).count()) !== NODES || !(await allInside())) {
-    await clickOrFail(getWin().getByLabel('适应视图', { exact: true }), '适应视图：一眼看全原图与切片')
-    await waitForCanvasViewportSettled(getWin())
-  }
+  await clickOrFail(getWin().getByLabel('适应视图', { exact: true }), '适应视图：一眼看全原图与切片')
+  await waitForCanvasViewportSettled(getWin())
   await expectCount(getWin().locator('[data-node-id]'), NODES, `${GRID_LABEL}没摊成 ${TILES} 个节点`, 60_000)
   await expect.poll(allInside, { message: `原图与 ${TILES} 张切片没有全部完整落在舞台内` }).toBe(true)
 

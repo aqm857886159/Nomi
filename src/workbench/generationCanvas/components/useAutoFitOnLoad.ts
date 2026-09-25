@@ -56,11 +56,8 @@ export function useAutoFitOnLoad(params: {
   const { ready, nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef } = params
   const latest = React.useRef({ nodes, categoryViewports, fitView })
   latest.current = { nodes, categoryViewports, fitView }
-  const decidedForRef = React.useRef<string | null>(null)
   React.useEffect(() => {
-    if (!ready) { decidedForRef.current = null; return undefined }
-    if (decidedForRef.current === activeCategoryId) return undefined
-    decidedForRef.current = activeCategoryId
+    if (!ready) return undefined
     const nodeCountAtOpen = latest.current.nodes.length
     if (nodeCountAtOpen === 0) return undefined
     const tid = setTimeout(() => {
