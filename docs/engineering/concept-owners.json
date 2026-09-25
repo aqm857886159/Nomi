@@ -369,6 +369,18 @@
       ],
       "since": "2026-09-26",
       "notes": "v0.22.1 发版阻断：Agent 付费卡写 Seedance 2.0「Fast」，宿主按 standard 派发（更贵）——渲染层落默认变体，宿主拿目录模型名反推，而 doubao-seedance-2.0 恰是 standard 的 key。现在画布节点、付费卡、宿主派发、推荐、准入、参数特化都问 resolveArchetypeVariant：显式变体 → 模型名是变体专属 key（不是基础 key）→ 默认 → 第一个；认不认得一个 id 也只问 canonicalArchetypeVariantId。任何人不许再按 modelKey / defaultVariantId 自己挑一个变体（合同 docs/fixes/2026-09-26-generation-variant-single-owner.root-cause.json；类测试 electron/parity/variantResolutionParity.test.ts 在真实内置目录上逐行比画布与宿主）。"
+    },
+    {
+      "name": "生成参数值能是什么",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+        "symbol": "generationJsonValueSchema"
+      },
+      "consumers": [
+        "src/workbench/ai/v4/spendCardDraft.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "真付费 T5：Agent 视频卡「全部」档点生成没反应——卡的改稿把没有值的控件写成 undefined，IPC 原样带过去，宿主只认 JSON 值。现在卡的改稿契约直接复用宿主这份 schema（类型层 GenerationJsonValue），不许再各写一份 z.record(z.unknown())（合同 docs/fixes/2026-09-26-spend-card-patch-json-values.root-cause.json）。"
     }
   ]
 }

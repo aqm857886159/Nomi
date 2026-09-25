@@ -42,6 +42,16 @@
 **行为变化（写进 PR）**：外部 MCP 客户端不传 variantId、模型名写基础名时，从 standard 变成 fast（更便宜、也是对外宣称的默认）。
 写变体专属名（如 `doubao-seedance-2.0-fast` / `-mini`）的照旧按那个变体。
 
+## 同一条花钱路上顺带修的（协调会话 09-26 定：并进本 PR）
+
+真付费 T5 走到确认那一步：Agent 视频卡「全部」档点「生成 2 镜」没有任何反应，宿主报 `generation_not_started`（ZodError invalid_union）。
+原因：卡的改稿（`spendCardDraft.candidatePatchFromNode`）把参数条上**所有控件**的键都放进 `patch.parameters`，没有值的（如 seed）写成 `undefined`；
+卡里的生成框一自动补默认值（画幅 16:9），改稿就要发，IPC 的 structured clone 原样带过去，宿主 schema 只认 JSON 值。80 个图片 / 视频档案里 59 个会中。
+
+同类扫描：往宿主生成 schema 送参数的生产方里，只有付费卡走 IPC（Agent / MCP 是 JSON，带不了 undefined；分镜 resolve 的 params 是 `record(unknown)`；生产命令按 JSON 落盘）。
+仓库没有现成的共享清理函数。修法：导出宿主那份 `generationJsonValueSchema`，卡的改稿契约直接复用（`SpendCandidatePatch.parameters` 类型即 `GenerationJsonValue`，
+非 JSON 值编译不过），唯一的生产方按同一份 schema 过滤。合同：[2026-09-26-spend-card-patch-json-values.root-cause.json](../fixes/2026-09-26-spend-card-patch-json-values.root-cause.json)。
+
 ## 范围 / 不动项
 
 - **不动模型可见的工具 schema**（`draft_shots` 不加 `variantId`）——纯宿主侧，不触发 R13.3。
