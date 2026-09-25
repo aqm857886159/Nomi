@@ -29,6 +29,7 @@ function row(position: number, status: StoryboardRowRuntime['exec']['status'], u
       ignoredAnchors: [],
       unlockedRefs: [],
       missingSlots: [],
+      plannedFirstFrame: null,
       changedRefs: [],
       resultUrl: url ?? null,
       progressPercent: null,

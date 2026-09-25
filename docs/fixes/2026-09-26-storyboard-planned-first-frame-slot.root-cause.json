@@ -1,0 +1,225 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-storyboard-planned-first-frame-slot",
+  "problem_type": "Storyboard readiness credits a planned dependency to a different slot than generation fills, and the reference column re-judges readiness on its own",
+  "symptom": "A storyboard video shot with the first frame enabled on a model whose image-to-video mode has only an image_ref slot (APIMart Seedance 2.0 i2v, Kling, Sora, Wan, Runway, Veo reference and 12 more) shows 「缺参考图参考」 and a red reference cell before generation, is skipped by the batch run, and after generation still shows the reference cell in red — although generation sends the first-frame image into that slot.",
+  "direct_cause": "missingRequiredSlots credited the planned first frame only to a slot of kind first_frame (a7c30a1a8, contract 2026-09-20-storyboard-planned-first-frame, whose invariant said the first frame 'supplies no other role'). generationReferenceResolver puts a first_frame edge's image into both firstFrameUrl and referenceImages, so in a mode without a first_frame slot it fills image_ref[0]. Separately, ShotReferenceZone painted a cell red whenever the slot was required and shot.referenceBindings was empty — a second readiness judgement that sees neither the planned first frame nor the visual-anchor credit.",
+  "class_root": "Which slot a first-frame edge fills already had one owner on the canvas side (referenceSlots.assignEdgeToSlot: first_frame, else image_ref[0]), but the storyboard row re-derived it with a narrower rule, and the reference column re-derived 'missing' from bindings alone. Two copies of one judgement, both disagreeing with what generation sends.",
+  "affected_population": [
+    "Storyboard shots with keyframe.enabled on any image_ref-only required video mode: minimax-h3/ref, happyhorse/ref, vidu-q3/ref, happyhorse-1.1/ref, grok-imagine-1.5-video/i2v, sora-2/i2v, veo-3.1/reference, gemini-omni-1.1/reference, runway-gen4.5/i2v, runway-gen4-turbo/i2v, kling-3.0/i2v, seedance-2-apimart/i2v, wan-2.7/i2v, omni-flash-ext/i2v, higgsfield-dop/i2v, agnes-video/i2v",
+    "Storyboard rows whose required image_ref is credited by referenced visual anchors (the column was red while the row status said ready)"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+    "src/workbench/generationCanvas/runner/referenceSlots.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/creation/storyboard/shotRow/shotReferenceCells.ts",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx"
+  ],
+  "entry_points": [
+    "Storyboard row status and frame message 「缺{{slot}}参考」 (src/workbench/creation/storyboard/exec/storyboardRowStatus.ts deriveShotRowExec)",
+    "Batch run / footer exclusion and scene-group missing count (deriveStoryboardBatch, StoryboardShotTable)",
+    "Reference column red cell on shot rows and anchor rows (src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is agreement between the storyboard's readiness judgement and the repository's own generation path (generationReferenceResolver + buildArchetypeInputParams) and canvas slot placement (referenceSlots); no external API defines which declared slot a planned first frame fills.",
+  "invariants": [
+    "For every video archetype mode, a keyframe-enabled shot with no bindings is missing exactly the required slots that the real send path (resolveGenerationReferences + buildArchetypeInputParams) does not fill from a first_frame edge",
+    "The storyboard asks referenceSlots.firstFrameEdgeSlot (assignEdgeToSlot's first_frame branch) which slot a planned first frame fills; it does not keep its own rule",
+    "A planned first frame fills at most one slot in every declared video mode",
+    "The reference column's red cell is exactly the missingRequiredSlotsOf result for that row (exec.missingSlots on shot rows); it never re-judges from bindings alone",
+    "Single-value slots count a planned and a bound first frame as one source; array slots add them, because both are sent"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/shotRow/shotRowModel.plannedFirstFrame.test.ts",
+      "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts",
+      "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.plannedFirstFrame.test.ts"
+    ],
+    "why": "missingRequiredSlotsOf is the single readiness judgement consumed by row status, batch exclusion and (now) the reference column; plannedFirstFrameSlot delegates the slot choice to the canvas owner referenceSlots.firstFrameEdgeSlot, and the class test compares both against the real send path for every video archetype."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "missingRequiredSlots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "missingRequiredSlots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "missingRequiredSlotsOf"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "missingRequiredSlotsOf"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "plannedFirstFrameSlot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "plannedFirstFrameSlot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "firstFrameEdgeSlot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "plannedFirstFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "symbol": "plannedFirstFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "plannedFirstFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "plannedFirstFrame"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "assignEdgeToSlot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "symbol": "cellCount"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotReferenceCells.ts",
+      "symbol": "ShotReferenceCell"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 14,
+    "why_not": "The readiness judgement had one caller (deriveShotRowExec) plus a second, private judgement inside ShotReferenceZone (required && no bindings); that private judgement is deleted and the zone now receives missingSlots from its hosts. The remaining doors are the owner and its callers: row status (shot rows), the shot row degraded path when no exec exists, and the anchor row (bindings only, no credits) all call the same function; plannedFirstFrame is published once by deriveShotRowExec and only read downstream. The planned-first-frame slot choice moved from a storyboard-local predicate to the existing canvas owner assignEdgeToSlot (via firstFrameEdgeSlot), and the zone count badge goes through the existing cellCount with the planned tile included."
+  },
+  "generality_proof": "shotRowModel.plannedFirstFrame.test.ts iterates every video archetype mode in MODEL_ARCHETYPES (108 cases), builds the real first_frame edge from a keyframe image node, runs the real resolver and request builder slot by slot, and requires missingRequiredSlots to equal the required slots the send path leaves short; it also asserts a first frame lands in at most one slot. On the old code 16 modes failed. A new archetype or a change to the resolver/builder that moves the first frame elsewhere turns this red. The column cannot drift again because it no longer has its own judgement: its red state is the owner's output.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "firstFrameEdgeSlot",
+      "responsibility": "Which declared slot a first-frame edge (image source) fills — assignEdgeToSlot's first_frame branch, shared by canvas display, capacity checks and the storyboard's planned first frame."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "missingRequiredSlotsOf",
+      "responsibility": "Single judgement of which required slots are still short after bindings, the planned first frame and visual anchors."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "deriveShotRowExec",
+      "responsibility": "Publishes missingSlots and plannedFirstFrame (slot + keyframe thumbnail) from the same mode for status, batch and the reference column."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "entry_point": "deriveStoryboardBatch",
+      "disposition": "enforced",
+      "evidence": "storyboardExec.test.ts: APIMart Seedance 2.0 i2v + keyframe row is runnable and excluded.missingRequired is 0; the same row without keyframe stays missing-required (control)."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "entry_point": "ShotReferenceZone",
+      "disposition": "enforced",
+      "evidence": "StoryboardShotRow.plannedFirstFrame.test.ts renders the real row: image_ref cell is not red before generation, shows the keyframe thumbnail after the keyframe exists, stays not red after the video is generated, and is red when keyframe is off."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "entry_point": "StoryboardAnchorRow",
+      "disposition": "enforced",
+      "evidence": "Passes missingRequiredSlotsOf(mode, anchor.referenceBindings, no credits) — identical to the old 'required and empty' result for min <= 1, and correctly still red for a min-2 slot holding one binding."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/selectShotTableRows.ts",
+      "entry_point": "selectShotTableRows",
+      "disposition": "not-affected",
+      "evidence": "The canvas shot-table grid renders reference chips filled/dashed by bindings and never paints a required-missing state, so it raises no false alarm; its row status comes from deriveStoryboardRowRuntimes and inherits the fix."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "entry_point": "resolveGenerationReferences",
+      "disposition": "not-affected",
+      "evidence": "Send path unchanged; it is the reference the class test compares against."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every image_ref-only required video mode (16 today) and every future one hits the same mis-credit, and any other surface that re-derives 'missing' from bindings would disagree with row status again.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs missingRequiredSlots / missingRequiredSlotsOf / plannedFirstFrameSlot / firstFrameEdgeSlot / plannedFirstFrame (output copied into doors)",
+      "node scripts/door-map.mjs referenceColumnOf: ShotReferenceZone plus the two shot-table selectors; only the zone paints a required-missing state",
+      "git grep \"cell.required\" / \"required:\" under creation/storyboard and nodes/shotTable: the zone was the only place turning `required` into red",
+      "Scanned MODEL_ARCHETYPES video modes: 18 image_ref-required modes without a first_frame slot, 0 modes declaring both first_frame and image_ref",
+      "Read generationReferenceResolver (first_frame edge → firstFrameUrl + referenceImages), buildArchetypeInputParams (image_ref ← referenceImages, first_frame ← firstFrameUrl) and referenceSlots.assignEdgeToSlot (first_frame → first_frame slot else image_ref[0])"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+    "invariant": "Readiness counts the planned first frame in the slot firstFrameEdgeSlot names, and every red reference cell comes from missingRequiredSlotsOf.",
+    "failure_mode": "A required slot the send path does not fill stays missing-required, red and out of the batch; the class test fails if the storyboard and the send path disagree for any video mode.",
+    "exception_policy": "none",
+    "strategy": "Delegate the slot choice to the canvas owner instead of a storyboard-local rule, and delete the reference column's private readiness check so the column, status and batch read one result.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.plannedFirstFrame.test.ts",
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.plannedFirstFrame.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.plannedFirstFrame.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx"
+    ],
+    "rationale": "Removed the storyboard-local `slot.kind === 'first_frame'` credit rule in shotRowModel and the zone's private `cell.required && no bindings` red judgement; the old test that pinned 'first frame fills only first_frame' was rewritten."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime is involved; the judgement is internal to the storyboard and canvas reference layers.",
+    "exit_criteria": []
+  },
+  "migration": "None: readiness and the column are derived on every render from the plan, the mode and the canvas nodes; nothing is persisted.",
+  "residual_risks": [
+    "StoryboardShotRow resolves the row's mode from plan fields while deriveStoryboardRowRuntimes uses effectiveShotValue (canvas-node overrides). When a node overrides the model or mode, the column's cells and exec.missingSlots can come from different modes. Pre-existing; not changed here.",
+    "With keyframe enabled, visual-anchor edges target the keyframe image node, not the video node, yet the image_ref anchor credit still counts them. For min-2 image_ref modes (dreamina-multiframe, agnes-video/keyframes) a keyframe + one anchor can read as ready while only the first frame reaches the video. Pre-existing under-report, not a false alarm; not changed here.",
+    "The planned-first-frame tile design (neutral card with a photo icon before the keyframe exists, keyframe thumbnail after) was not taken through a mockup approval round; it reuses the existing filled-tile styles."
+  ]
+}
