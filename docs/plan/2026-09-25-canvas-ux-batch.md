@@ -24,8 +24,8 @@
 ## 3. 定法
 
 1. `composerCanvasPlacement(visualSize, zoom)` 唯一决定浮框矩形：顶边 = 节点底 + 14、中线对齐、屏幕宽 560；删放置层。提示词右上角「展开」只在装不下时出现、只给画布宿主。
-2. `spendConfirmationRequirement({initiator, runCount, amount, hostingDisclosure})` 唯一判据：Agent / ≥2 份 / ≥10 点 / 首次托管 / 无报价 → 弹；否则直接开始但照样报价 → 铸令牌。↑ 旁常驻点数。
-3. `store/canvasVisibleArea.ts` 决定落点（单点、整批、可见区内找空位）；`components/canvasArrivalModel.ts` + `CanvasArrivalHint` 用「store 里多出来且没看见」判新到并在边缘提示；删掉全部自动移动；`requestCanvasFit` 与聚焦事件的调用处上名单（结构测试）；打开分类只在本来有内容时摆一次全貌；动画中间帧不写 store。
+2. `spendConfirmationRequirement({initiator, runCount, hostingDisclosure})` 唯一判据：Agent / ≥2 份 / 首次托管 → 弹；否则直接开始但照样报价 → 铸令牌。**不看金额、不显示价格**（2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格；首版的「≥10 点」门槛、「无报价就问」和 ↑ 旁点数已删，见 PR #880）。
+3. `store/canvasVisibleArea.ts` 决定落点（单点、整批、可见区内找空位）；`components/canvasArrivalModel.ts` + `CanvasArrivalHint` 用「store 里多出来且没看见」判新到并在边缘提示；删掉全部自动移动；`requestCanvasFit` 与聚焦事件的调用处上名单（结构测试）；打开项目 / 分类不自动摆全貌（见下「2026-09-26 协调裁定」）；动画中间帧不写 store。
 
 ## 先查别人（R5，第 4 节）
 
@@ -39,10 +39,16 @@
 ## 5. 验收门
 
 - 单测：`composerCanvasPlacement` 类级（任意尺寸 × 缩放）、`spendConfirmationRequirement` 全组合、`canvasArrivalModel`、`canvasVisibleArea`、`resolveInsertionPosition × visibleArea`、`canvasViewportMovers` 名单、`useAutoFitOnLoad.shouldFitOnOpen`；浏览器夹具 `composerLifecycle`。
-- 真机走查（打包 Electron，used 夹具 1280×800，zh + en）：浮框钉在节点下 560 宽；↑ 旁点数、单个不弹、×2 弹；新建不挪画布、落屏外出提示、点提示才过去。
+- 真机走查（打包 Electron，used 夹具 1280×800，zh + en）：浮框钉在节点下 560 宽；单个不弹、×2 弹；新建不挪画布、落屏外出提示、点提示才过去。
 - 核心冒烟 `core-smoke-spend-confirm` 加断言：付费卡落地前后视口不变。
 
 ## 6. 不动什么 / 回滚
 
 - 不动：付费卡（Agent 面板介入槽）的宿主与档位判据 `spendDecidedByPolicy`；主进程花钱闸 `electron/spendGrant.ts`；画布拖拽 / 框选时贴边自动滚（用户手在拖）。
 - 回滚：三项各一笔提交，可单独 revert；无持久化格式变化。
+
+## 2026-09-26 协调裁定：删掉打开时的自动摆全貌
+
+2026-09-26 协调裁定：打开项目时的自动摆全貌在 main 上从未生效（节点量好尺寸之前就判定，外接盒为空）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。
+
+样张第 4 题当时选的「保留，只摆第一次」建立在「它现在在工作」这个错误前提上。`categoryViewports` 是项目级内存、每次打开都会清空，所以修好它就等于每次打开都挪一次画布、大项目一次挂载全部节点。

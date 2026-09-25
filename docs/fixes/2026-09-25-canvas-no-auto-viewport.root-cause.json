@@ -37,7 +37,7 @@
     "Paid-card landing (multiShotCanvasLanding.materializeShots)",
     "Asset-library upload and image grid split",
     "Variant duplicate, rerun duplicate, sidebar regenerate-derived, ⌘D duplicate",
-    "Opening a project / switching category (useAutoFitOnLoad)",
+    "Opening a project / switching category (useAutoFitOnLoad — deleted 2026-09-26)",
     "Explicit user moves: fit, reset, zoom, minimap, sidebar locate, locate-source badge, toast locate, notification deep link, open-stage, edge hint"
   ],
   "external_sources": [
@@ -61,17 +61,61 @@
     "Programmatic animation frames do not write the workbench store; the settled viewport is recorded once"
   ],
   "doors": [
-    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts", "symbol": "visibleInsertionPoint" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "symbol": "visibleInsertionPoint" },
-    { "kind": "write", "path": "src/workbench/assets/AssetLibraryPanel.tsx", "symbol": "visibleInsertionPoint" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx", "symbol": "visibleInsertionPoint" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "symbol": "placeBlockInVisibleArea" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts", "symbol": "nextUnseenArrivals" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts", "symbol": "animateViewportTo" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts", "symbol": "animateViewportTo" },
-    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts", "symbol": "animateViewportTo" },
-    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx", "symbol": "isViewportAnimating" },
-    { "kind": "write", "path": "src/workbench/sidebar/CategoryTree.tsx", "symbol": "FOCUS_GENERATION_NODE_EVENT" }
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "visibleInsertionPoint"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "visibleInsertionPoint"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "visibleInsertionPoint"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "visibleInsertionPoint"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "placeBlockInVisibleArea"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts",
+      "symbol": "nextUnseenArrivals"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts",
+      "symbol": "animateViewportTo"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "animateViewportTo"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+      "symbol": "animateViewportTo"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "isViewportAnimating"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/sidebar/CategoryTree.tsx",
+      "symbol": "FOCUS_GENERATION_NODE_EVENT"
+    }
   ],
   "door_reduction": {
     "before": 21,
@@ -80,17 +124,59 @@
   },
   "generality_proof": "New creation paths no longer need to move anything: placement defaults to the visible area in the store's addNode (the choke point every single-node creation passes through), batches are shifted as a block by the same owner, and anything still off-screen or in another category is detected by diffing the store's node set against a baseline tied to the loaded-canvas identity — so the hint covers every present and future creation path without a per-entry call. The two remaining global movers are pinned to an allowlist by a structure test.",
   "shared_boundaries": [
-    { "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts", "symbol": "visibleInsertionPoint", "responsibility": "Where new content lands relative to what the user currently sees (single points and whole batches)" },
-    { "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts", "symbol": "nextUnseenArrivals", "responsibility": "Which arrived nodes have not been seen yet and where the edge hint points" },
-    { "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts", "symbol": "animateViewportTo", "responsibility": "The only animated viewport writer, used by explicit user moves; records the settled viewport once" }
+    {
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "visibleInsertionPoint",
+      "responsibility": "Where new content lands relative to what the user currently sees (single points and whole batches)"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts",
+      "symbol": "nextUnseenArrivals",
+      "responsibility": "Which arrived nodes have not been seen yet and where the edge hint points"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+      "symbol": "animateViewportTo",
+      "responsibility": "The only animated viewport writer, used by explicit user moves; records the settled viewport once"
+    }
   ],
   "same_class_entry_points": [
-    { "path": "src/workbench/capability/multiShotCanvasLanding.ts", "entry_point": "materializeShots", "disposition": "enforced", "evidence": "requestCanvasFit removed; nodes go through applyCanvasToolCall (block placed in view) and the edge hint covers the rest; multiShotCanvasLanding.test.ts asserts no fit and no category switch" },
-    { "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "entry_point": "create_canvas_nodes", "disposition": "enforced", "evidence": "focus dispatch and fit/category switch removed; batch layout shifted into view via placeBlockInVisibleArea; applyCanvasToolCall.test.ts asserts canvasFitNonce stays 0 and active category unchanged" },
-    { "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts", "entry_point": "splitIntoTiles", "disposition": "enforced", "evidence": "requestCanvasFit removed; allowlist test would fail if it came back" },
-    { "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx", "entry_point": "ToolbarDuplicateVariantButton", "disposition": "enforced", "evidence": "focus dispatch removed; canvasControlsStructure.test.ts asserts the file no longer mentions the focus event" },
-    { "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts", "entry_point": "useAutoFitOnLoad", "disposition": "enforced", "evidence": "fits only at category open when content already existed (shouldFitOnOpen, user answer to question 4); nodes arriving later never trigger it" },
-    { "path": "src/workbench/production/useProductionStatus.ts", "entry_point": "open-stage action", "disposition": "not-affected", "evidence": "Explicit user click on the production status card; the only allowlisted requestCanvasFit caller" }
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "materializeShots",
+      "disposition": "enforced",
+      "evidence": "requestCanvasFit removed; nodes go through applyCanvasToolCall (block placed in view) and the edge hint covers the rest; multiShotCanvasLanding.test.ts asserts no fit and no category switch"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "create_canvas_nodes",
+      "disposition": "enforced",
+      "evidence": "focus dispatch and fit/category switch removed; batch layout shifted into view via placeBlockInVisibleArea; applyCanvasToolCall.test.ts asserts canvasFitNonce stays 0 and active category unchanged"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "entry_point": "splitIntoTiles",
+      "disposition": "enforced",
+      "evidence": "requestCanvasFit removed; allowlist test would fail if it came back"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "entry_point": "ToolbarDuplicateVariantButton",
+      "disposition": "enforced",
+      "evidence": "focus dispatch removed; canvasControlsStructure.test.ts asserts the file no longer mentions the focus event"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+      "entry_point": "useAutoFitOnLoad",
+      "disposition": "enforced",
+      "evidence": "Deleted 2026-09-26 (coordinator ruling): it never took effect on main — it decided 350ms after nodes appeared, before they were measured, so the fit bounds were empty. Evidence: the magnetic-handle walk measured zoom=1 on main and the perf harness saw mounted < total. Repairing it would move the viewport on every project open (categoryViewports is project-lifetime memory) and mount every node of a large project. canvasViewportMovers.structure.test.ts asserts the file stays deleted."
+    },
+    {
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "entry_point": "open-stage action",
+      "disposition": "not-affected",
+      "evidence": "Explicit user click on the production status card; the only allowlisted requestCanvasFit caller"
+    }
   ],
   "recurrence": {
     "classification": "recurring",
