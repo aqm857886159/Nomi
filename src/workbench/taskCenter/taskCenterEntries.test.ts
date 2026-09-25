@@ -1,6 +1,7 @@
 // 面板展示派生的纯函数测试。重点是**可取消性**——那是「不给用户假按钮」的判据。
 import { describe, expect, it } from 'vitest'
 import { buildTaskCenterView, formatElapsed, resolveTaskButtonTone } from './taskCenterEntries'
+import { TASK_CENTER_GROUPS } from './taskCenterProjection'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
@@ -81,6 +82,21 @@ describe('buildTaskCenterView', () => {
     })
     expect(view.rows[0]).toMatchObject({ group: 'attention', recoverable: true, action: { kind: 'recover_generation', nodeId: 'deer' } })
     expect(view.summary).toMatchObject({ attention: 1, failed: 0 })
+  })
+
+  it('分组顺序：等你处理排最上面，然后进行中、排队中、已完成（样张 2026-09-25 D1-A）', () => {
+    expect(TASK_CENTER_GROUPS).toEqual(['attention', 'running', 'queued', 'done'])
+    const view = buildTaskCenterView({
+      entries: [
+        entry({ nodeId: 'run', state: 'running', startedAt: 1000 }),
+        entry({ nodeId: 'deer', state: 'error', startedAt: 1, endedAt: 2 }),
+      ],
+      batches,
+      nodes: [node('run', { status: 'running' }), node('deer', { status: 'recoverable' })],
+      fallbackTitle: '未命名',
+      now: 2000,
+    })
+    expect(view.rows.map((row) => row.group)).toEqual(['attention', 'running'])
   })
 
   it('调度结束后以节点为准：重新拉取中 = 进行中；拉到了 = 成功；都不会翻成「生成失败 + 重试」', () => {

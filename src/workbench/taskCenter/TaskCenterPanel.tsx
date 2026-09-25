@@ -22,6 +22,7 @@ import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPrevi
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
 import { buildTaskCenterView, formatElapsed, orderTaskCenterRows, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
 import { notify } from '../../ui/notificationPolicy'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import { TASK_CENTER_GROUPS, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
@@ -329,9 +330,10 @@ function TaskCenterSummaryBar({
       </div>
     )
   }
+  // 与分组同序（TASK_CENTER_GROUPS）：要你动手的先说。
   const parts: string[] = []
-  if (summary.running > 0) parts.push(t('taskCenter.summary.running', { count: summary.running }))
   if (summary.attention > 0) parts.push(t('taskCenter.summary.attention', { count: summary.attention }))
+  if (summary.running > 0) parts.push(t('taskCenter.summary.running', { count: summary.running }))
   if (summary.queued > 0) parts.push(t('taskCenter.summary.queued', { count: summary.queued }))
   if (summary.failed > 0) parts.push(t('taskCenter.summary.failed', { count: summary.failed }))
   if (parts.length === 0) return null
@@ -357,6 +359,22 @@ function SummaryAction({ label, onClick }: { label: string; onClick: () => void 
     >
       {label}
     </button>
+  )
+}
+
+/**
+ * 行动作的悬停说明（样张 D1-A）。「重新拉取」与付费的「重试」同一种小胶囊，悬停必须说清它只查不花钱；
+ * 浮层走设计系统 Tooltip，层级取 popover 档——面板本身在 floatingPanel 档，不抬上去就被面板盖住。
+ */
+function RowActionHint({ hint, children }: { hint?: string; children: React.ReactElement }): JSX.Element {
+  if (!hint) return children
+  return (
+    <TooltipProvider delayDuration={250} disableHoverableContent>
+      <Tooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent side="left" className="z-popover" data-task-action-hint>{hint}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
@@ -413,27 +431,29 @@ export function TaskRow({
         ) : null}
       </div>
       {row.action && onAction ? (
-        <button
-          type="button"
-          data-task-action={row.action.kind}
-          onClick={(event) => {
-            event.stopPropagation()
-            onAction()
-          }}
-          className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-nomi-fast ease-nomi-fast"
-        >
-          {row.action.kind === 'reveal_export_output'
-            ? t('taskCenter.exportJob.revealOutput')
-            : row.action.kind === 'return_to_export'
-              ? t('taskCenter.exportJob.returnToExport')
-              : row.action.kind === 'retry_generation'
-            ? t('taskCenter.row.retry')
-            : row.action.kind === 'recover_generation'
-              ? t('generationCommon.recoverable.recover')
-            : row.cancel === 'free'
-              ? t('taskCenter.row.cancel')
-              : t('taskCenter.row.interrupt')}
-        </button>
+        <RowActionHint hint={row.action.kind === 'recover_generation' ? t('taskCenter.row.recoverHint') : undefined}>
+          <button
+            type="button"
+            data-task-action={row.action.kind}
+            onClick={(event) => {
+              event.stopPropagation()
+              onAction()
+            }}
+            className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-nomi-fast ease-nomi-fast"
+          >
+            {row.action.kind === 'reveal_export_output'
+              ? t('taskCenter.exportJob.revealOutput')
+              : row.action.kind === 'return_to_export'
+                ? t('taskCenter.exportJob.returnToExport')
+                : row.action.kind === 'retry_generation'
+              ? t('taskCenter.row.retry')
+              : row.action.kind === 'recover_generation'
+                ? t('generationCommon.recoverable.recover')
+              : row.cancel === 'free'
+                ? t('taskCenter.row.cancel')
+                : t('taskCenter.row.interrupt')}
+          </button>
+        </RowActionHint>
       ) : null}
     </div>
   )

@@ -12,7 +12,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { assertMockupContract, clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+// 获批样张（2026-09-25「设计没问题」）的意图契约：无语言标题行、24px 复制钮、提示词正文字体 / JSON 等宽。
+import codeBlockIntentContract from '../../docs/design/mockups/contracts/2026-09-25-agent-panel-tidy-code-block.intent.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { ASSISTANT_MESSAGE, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, recorded, sendCreation, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
@@ -106,6 +108,7 @@ try {
     await message.scrollIntoViewIfNeeded()
     await screenshotSettled(message, { path: path.join(outDir, `code-block-${label}-${locale}.png`) })
     evidence.observations[locale] = await observe(message)
+    if (label === 'after') await assertMockupContract(win, codeBlockIntentContract)
   }
   fs.writeFileSync(path.join(outDir, `code-block-${label}.json`), `${JSON.stringify(evidence, null, 2)}\n`, 'utf8')
 

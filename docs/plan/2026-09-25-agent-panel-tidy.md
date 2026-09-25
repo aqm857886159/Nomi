@@ -34,6 +34,14 @@
   显示 Agent 一段对话留下两份 `plan.state=draft, cardHidden=true` 的草稿——就是截图里那两行「等待开始」。
   同时实测列表 IPC 在服务模式下返回的是完整 Run（带 `jobs`、`generationPlan`），和 `ProductionRunSummary` 类型不符。
 
+## 样张与拍板（2026-09-25）
+
+样张 `docs/design/mockups/2026-09-25-agent-panel-tidy/`（在线：https://claude.ai/artifact/PwZiq9tRTbiZukvAHZ4J17），
+用户拍板「设计没问题」，五条全取推荐项：D1-A「等你处理」排最上面、行上常驻「重新拉取」+ 悬停说明「只查结果，不重新生成，不花钱」；
+D2-A 顶栏数字计入「等你处理」；D3-A 代码块去掉语言标题行、复制钮 24px 在右上角；D4-A 全部自动换行；D5-A 字体按内容判断。
+D3/D4 取代 `docs/plan/2026-09-09-b2e-streamdown.md` 原第 9、55 行（该文已同步改写）。
+机器契约：`docs/design/mockups/contracts/2026-09-25-agent-panel-tidy-{task-center,code-block}.intent.mjs`，由两份走查执行。
+
 ## 实施
 
 1. 代码块：单层容器、隐藏语言标题、复制钮 24px 幽灵图标钉右上、`pre` 换行不横滚；`codeFenceTypeface` 按

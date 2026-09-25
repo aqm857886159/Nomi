@@ -1770,7 +1770,7 @@
         "queued",
         "running"
       ],
-      "reason": "TASK_CENTER_GROUPS 是 TaskCenter 排序分组的合法 view model，也是面板从上到下的顺序：running、attention、queued、done 把 generation queue、ProductionRun 与导出任务各自的状态机投影为统一列表分区（attention = 没结束、卡在用户这儿），区段标题与制作卡状态签共用这一份，不持久化为新的任务状态。",
+      "reason": "TASK_CENTER_GROUPS 是 TaskCenter 排序分组的合法 view model，也是面板从上到下的顺序：attention、running、queued、done（样张 2026-09-25 D1-A：要你动手的排最上面） 把 generation queue、ProductionRun 与导出任务各自的状态机投影为统一列表分区（attention = 没结束、卡在用户这儿），区段标题与制作卡状态签共用这一份，不持久化为新的任务状态。",
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::variable:TASK_CENTER_GROUPS/as-const"
     },
     {

@@ -19,7 +19,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, assertMockupContract, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+// 获批样张（2026-09-25「设计没问题」）的意图契约：等你处理排最上面、重新拉取常驻在那一组。
+import taskCenterIntentContract from '../../docs/design/mockups/contracts/2026-09-25-agent-panel-tidy-task-center.intent.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 标签走环境变量：runtime walk 的启动器只认 `--packaged <path>` 一种参数。
@@ -183,9 +185,33 @@ try {
     // 行出现在面板里之后再拍（队列行是同步渲染的；制作行跟 1.5s 的列表轮询）。
     await expectVisible(panel.locator('[data-task-id]').filter({ hasText: /小鹿/ }), '「小鹿」那一行')
     // 不 hover、不展开：按钮在静止的面板里就看得见。
-    await expectVisible(panel.locator('[data-task-id]').filter({ hasText: /小鹿/ }).locator('[data-task-action="recover_generation"]'), '「小鹿」行上的重新拉取按钮')
+    const deerAction = panel.locator('[data-task-id]').filter({ hasText: /小鹿/ }).locator('[data-task-action="recover_generation"]')
+    await expectVisible(deerAction, '「小鹿」行上的重新拉取按钮')
     await screenshotSettled(panel, { path: path.join(outDir, `task-center-${label}-${locale}.png`) })
     evidence.observations[locale] = await observe(panel)
+    // 顶栏数字（D2-A）：没了结的都算——2 等你处理 + 1 进行中。
+    evidence.observations[locale].badge = (await win.locator('[data-task-center-trigger="true"]').innerText()).replace(/\s+/g, ' ').trim()
+    if (label === 'after') {
+      await assertMockupContract(win, taskCenterIntentContract)
+      // 悬停说明（D1-A）：「重新拉取」与付费的「重试」长得一样，悬停必须说清只查不花钱。
+      await deerAction.hover()
+      const hint = win.locator('[data-task-action-hint]')
+      await expectVisible(hint, '重新拉取的悬停说明')
+      // Radix 在气泡里另放一份给读屏的隐藏副本，innerText 会出现两遍；只取看得见的第一行。
+      evidence.observations[locale].recoverHint = (await hint.first().innerText()).split('\n')[0].trim()
+      // 悬停气泡要用 Electron 自己的 capturePage 拍：Playwright 的截图会经 CDP 触发滚动/尺寸事件，
+      // Radix Tooltip 收到就关（探针实测：截图前 elementFromPoint 命中气泡、z=9200，截图里却没了）。
+      // capturePage 不派发任何事件，拍到的就是用户悬停时看到的那一帧。
+      const [panelBox, hintBox] = [await panel.boundingBox(), await hint.first().boundingBox()]
+      const left = Math.floor(Math.min(panelBox.x, hintBox.x)) - 4
+      const rect = { x: left, y: Math.floor(panelBox.y) - 4, width: Math.ceil(panelBox.x + panelBox.width - left) + 8, height: 260 }
+      const png = await app.evaluate(async ({ BrowserWindow }, area) => {
+        const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed() && candidate.isVisible())
+        return (await window.webContents.capturePage(area)).toPNG().toString('base64')
+      }, rect)
+      fs.writeFileSync(path.join(outDir, `task-center-${label}-${locale}-hover.png`), Buffer.from(png, 'base64'))
+      await win.mouse.move(0, 0)
+    }
     // 展开「制作详情」：阶段名与「已加载技能」是同一类泄漏的另两个出口（阶段 id / 流程身份原样上屏）。
     const card = panel.locator('[data-production-task-card]')
     await clickOrFail(card.locator('details > summary'), '制作详情')
@@ -201,6 +227,9 @@ try {
     expect(seen.details, `[${locale}] 制作详情里不该出现内部代号`).not.toMatch(INTERNAL_CODE)
     if (locale === 'zh') expect(seen.details, '[zh] 阶段名应是中文').not.toMatch(/\b(?:Generate|QA|Assemble|Export)\b/)
     // ② 等待超时（可重新拉取）的两行不在「已完成」组；卡上的状态词 = 它所在分组的名字。
+    expect(seen.sections[0]?.group, `[${locale}] 「等你处理」排最上面（D1-A）`).toBe('attention')
+    expect(seen.badge, `[${locale}] 顶栏数字 = 2 等你处理 + 1 进行中（D2-A）`).toMatch(/3$/)
+    expect(seen.recoverHint, `[${locale}] 悬停说明说清只查不花钱`).toBe(locale === 'zh' ? '只查结果，不重新生成，不花钱' : 'Only fetches the result — no new generation, no charge')
     const recoverable = seen.rows.filter((row) => /小鹿|老陈/.test(row.text))
     expect(recoverable.length, `[${locale}] 小鹿、老陈两行都在`).toBe(2)
     for (const row of recoverable) {
