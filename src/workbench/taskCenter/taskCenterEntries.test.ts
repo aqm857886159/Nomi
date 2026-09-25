@@ -71,7 +71,7 @@ describe('buildTaskCenterView', () => {
   })
 
   // 2026-09-25 用户截图：「小鹿 等待超时 · 上游可能仍在跑，可重新拉取」被放在「已完成 5」下面。
-  it('等待超时（可重新拉取）不算已完成：进「等你处理」组，且不挂付费重试', () => {
+  it('等待超时（可重新拉取）不算已完成：进「等你处理」组，行上摆出「重新拉取」（查询），不挂付费重试', () => {
     const view = buildTaskCenterView({
       entries: [entry({ nodeId: 'deer', state: 'error', startedAt: 1000, endedAt: 1500 })],
       batches,
@@ -79,7 +79,7 @@ describe('buildTaskCenterView', () => {
       fallbackTitle: '未命名',
       now: 2000,
     })
-    expect(view.rows[0]).toMatchObject({ group: 'attention', recoverable: true, action: null })
+    expect(view.rows[0]).toMatchObject({ group: 'attention', recoverable: true, action: { kind: 'recover_generation', nodeId: 'deer' } })
     expect(view.summary).toMatchObject({ attention: 1, failed: 0 })
   })
 

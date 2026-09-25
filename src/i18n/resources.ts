@@ -128,7 +128,7 @@ export const zhCN = {
     row: {
       elapsed: '已跑 {{time}}',
       cancelled: '已取消（未提交，无费用）',
-      recoverable: '等待超时 · 上游可能仍在跑，可重新拉取',
+      recoverable: '等待超时 · 上游可能仍在跑',
       failed: '生成失败',
       submittedNoStop: '此任务暂不支持中止',
       cancel: '取消',
@@ -551,7 +551,7 @@ export const en = {
     row: {
       elapsed: 'running {{time}}',
       cancelled: 'Cancelled (never submitted, no charge)',
-      recoverable: 'Timed out · may still be running upstream, can re-fetch',
+      recoverable: 'Timed out · may still be running upstream',
       failed: 'Generation failed',
       submittedNoStop: 'This task cannot be stopped',
       cancel: 'Cancel',

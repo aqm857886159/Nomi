@@ -38,6 +38,8 @@ export type GenerationTaskCenterProjection = TaskCenterProjectionBase & {
     | { kind: 'cancel_generation_queue'; batchId: string; nodeId: string }
     | { kind: 'interrupt_generation'; nodeId: string }
     | { kind: 'retry_generation'; nodeId: string }
+    /** 等待超时（上游可能已出片）：查询、不是重新生成——不铸付费令牌、不弹确认。 */
+    | { kind: 'recover_generation'; nodeId: string }
     | null
 }
 

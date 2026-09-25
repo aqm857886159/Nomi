@@ -15,6 +15,9 @@ import { useGenerationQueueStore } from '../generationCanvas/runner/generationQu
 import { requestTaskCancel } from '../generationCanvas/runner/localTaskControl'
 // 重试复用既有链路（单发 confirmAndRunNode / 批量 confirmAndRunPlan），不另起一套付费路径。
 import { confirmAndRunNode } from '../generationCanvas/runner/generationRunController'
+// 重新拉取与节点上那颗按钮同一条路（查询，不花钱），项目身份在点击这一刻签发。
+import { recoverNodeResult } from '../generationCanvas/runner/recoverTaskActions'
+import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
 import { buildTaskCenterView, formatElapsed, orderTaskCenterRows, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
@@ -178,6 +181,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
       if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
       else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
       else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId)
+      else if (action.kind === 'recover_generation') await withProjectAction((project) => recoverNodeResult(action.nodeId, project))
       else if (row.kind === 'export_job') {
         if (!(await runExportJobTaskAction(row.action))) throw new Error('Export destination unavailable')
         if (row.action.kind === 'return_to_export') onClose()
@@ -411,6 +415,7 @@ export function TaskRow({
       {row.action && onAction ? (
         <button
           type="button"
+          data-task-action={row.action.kind}
           onClick={(event) => {
             event.stopPropagation()
             onAction()
@@ -423,6 +428,8 @@ export function TaskRow({
               ? t('taskCenter.exportJob.returnToExport')
               : row.action.kind === 'retry_generation'
             ? t('taskCenter.row.retry')
+            : row.action.kind === 'recover_generation'
+              ? t('generationCommon.recoverable.recover')
             : row.cancel === 'free'
               ? t('taskCenter.row.cancel')
               : t('taskCenter.row.interrupt')}

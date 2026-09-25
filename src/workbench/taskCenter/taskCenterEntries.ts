@@ -136,7 +136,10 @@ export function buildTaskCenterView(input: {
           ? { kind: 'interrupt_generation' as const, nodeId: entry.nodeId }
           : group === 'done' && outcome === 'error'
             ? { kind: 'retry_generation' as const, nodeId: entry.nodeId }
-            : null,
+            // 「等你处理」组必须把它在等的那个动作摆出来：不然用户只能点进画布找节点上的按钮。
+            : recoverable
+              ? { kind: 'recover_generation' as const, nodeId: entry.nodeId }
+              : null,
       ...(entry.error ? { error: entry.error } : {}),
     }
   })

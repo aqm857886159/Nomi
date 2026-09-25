@@ -39,6 +39,7 @@
   "invariants": [
     "Every task row and the production card belong to exactly one group from TASK_CENTER_GROUPS; the card chip text is that group's label, and its tone is one the group allows (running: working; attention: attention/danger/neutral; done: success/neutral), enforced over every view branch by productionRunView.test.ts.",
     "Unfinished work (recoverable, re-fetching, waiting on a human) is never in done.",
+    "A row in the attention group shows the action it is waiting for on the row itself (no hover, no navigation): a recoverable generation row carries recover_generation, which calls the same recoverNodeResult path as the node button (a query, no paid token).",
     "An unpresented Agent draft or a discarded plan is not a task: it does not become a row, is not counted in the badge, and never replaces the running Run as the card.",
     "No playbook name, stage id or skill identity is rendered; displays go through productionPlaybookLabelKey / productionStageLabelKey, unknown identities fall back to a generic label.",
     "The list IPC returns the summary projection in every mode."

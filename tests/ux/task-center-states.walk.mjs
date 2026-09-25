@@ -99,6 +99,7 @@ async function observe(panel) {
       })),
       rows: [...root.querySelectorAll('[data-task-id]')].map((element) => ({
         id: element.getAttribute('data-task-id'), group: element.getAttribute('data-task-group'), text: text(element),
+        action: element.querySelector('[data-task-action]')?.getAttribute('data-task-action') ?? null,
       })),
       cards: [...root.querySelectorAll('[data-production-task-card]')].map((element) => ({
         group: sectionOf(element),
@@ -181,6 +182,8 @@ try {
     const panel = await openTaskPanel(win)
     // 行出现在面板里之后再拍（队列行是同步渲染的；制作行跟 1.5s 的列表轮询）。
     await expectVisible(panel.locator('[data-task-id]').filter({ hasText: /小鹿/ }), '「小鹿」那一行')
+    // 不 hover、不展开：按钮在静止的面板里就看得见。
+    await expectVisible(panel.locator('[data-task-id]').filter({ hasText: /小鹿/ }).locator('[data-task-action="recover_generation"]'), '「小鹿」行上的重新拉取按钮')
     await screenshotSettled(panel, { path: path.join(outDir, `task-center-${label}-${locale}.png`) })
     evidence.observations[locale] = await observe(panel)
     // 展开「制作详情」：阶段名与「已加载技能」是同一类泄漏的另两个出口（阶段 id / 流程身份原样上屏）。
@@ -200,7 +203,11 @@ try {
     // ② 等待超时（可重新拉取）的两行不在「已完成」组；卡上的状态词 = 它所在分组的名字。
     const recoverable = seen.rows.filter((row) => /小鹿|老陈/.test(row.text))
     expect(recoverable.length, `[${locale}] 小鹿、老陈两行都在`).toBe(2)
-    for (const row of recoverable) expect(row.group, `[${locale}] 「${row.text}」不该在已完成组`).toBe('attention')
+    for (const row of recoverable) {
+      expect(row.group, `[${locale}] 「${row.text}」不该在已完成组`).toBe('attention')
+      // 「等你处理」必须把在等的动作摆出来：行上看得见「重新拉取」，不是 hover、不用点进画布。
+      expect(row.action, `[${locale}] 「${row.text}」行上应有可见的重新拉取按钮`).toBe('recover_generation')
+    }
     expect(seen.cards.length, `[${locale}] 在跑的那份制作有一张卡`).toBe(1)
     const [card] = seen.cards
     const section = seen.sections.find((item) => item.group === card.group)
