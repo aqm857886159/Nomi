@@ -1,5 +1,7 @@
 # 导出：文字层一多就慢几十倍、吃数 GB 内存（根因修复方案）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实施（本地 commit，未推送）· 分支 `fix/export-text-overlay-cost-20260921` · 基线 `origin/main@46b71c973`
 
 ## 一句话

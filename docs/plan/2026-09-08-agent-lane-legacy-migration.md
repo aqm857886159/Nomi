@@ -1,5 +1,7 @@
 # 阶段 4 · 第 3 步旧对话迁移
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实施中。第 2 步已完成并推送 a3636be0c；本节接续已批准总任务书 §3 和迁移 readiness / implementation brief。
 
 ## 范围与顺序

@@ -1,5 +1,7 @@
 # B2e · Agent 会话统一 Markdown 内核
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实现并通过本地验收，PR 交付待评审。用户任务书已批准 Streamdown + code + cjk、沿用 Nomi 皮肤及领域积木；本方案落实该决定。
 
 ## 范围与验收

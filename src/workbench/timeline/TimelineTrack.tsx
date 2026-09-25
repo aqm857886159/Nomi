@@ -132,9 +132,7 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
       setDragPreview(null)
       setIsDragHovering(false)
       setDropCaretFrame(null)
-      if (result.status === 'reject-external') {
-        presentFeedback(t('assetLibrary.externalAssetHint'))
-      } else if (result.status === 'reject') {
+      if (result.status === 'reject') {
         const expectedTrack = result.expectedTrack === 'image'
           ? t('timelineEditor.track.imageLabel')
           : result.expectedTrack === 'video'

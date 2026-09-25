@@ -1,0 +1,183 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-third-party-media-coep",
+  "problem_type": "跨源隔离模式要求每个第三方子资源自带 CORP，第三方示例媒体在 Mac / Linux 版被整片拦掉；失效的示例只剩黑框",
+  "symptom": "用户 Mac 控制台 2026-09-25：十几条 https://cdn.openai.com/sora/videos/*.mp4 被拦、约 20 条 https://video.twimg.com/…mp4 net::ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep 403。提示词库（侧栏提示词 / 技能库 / 节点效果选择 / Agent 斜杠菜单）的 Sora 示例视频出不来，预览大图是黑框。",
+  "direct_cause": "electron/contentSecurityPolicy.ts 给宿主响应下发 COEP: require-corp（vite.config.ts 开发服务器另写一份）。require-corp 要求每个跨源子资源自带 Cross-Origin-Resource-Policy：cdn.openai.com 只回 ACAO 不回 CORP，youmind / imgedify 两家封面也没有，于是全部被拦。推特那 20 条是推特按网络环境防盗链回 403（本机实测时好时坏，2 条已被删成 404），403 响应不带 CORP 又被 COEP 再报一次。PromptPreviewOverlay 的 <video>/<img> 没有 onError，失败即黑框。",
+  "class_root": "隔离模式选了最严的一档（require-corp），把「第三方站点愿不愿意发 CORP」变成了我们能不能显示任何远端媒体的前提；而且这份模式在主进程与开发服务器各定义一次。失效的第三方示例没有统一的失败记账，各组件各自 broken、预览干脆没有。",
+  "affected_population": [
+    "Mac / Linux 打包版（Windows 版与走查进程不开隔离，所以一直没被发现）",
+    "开发版在 NOMI_DEV_CROSS_ORIGIN_ISOLATION=1 时",
+    "所有显示第三方示例媒体的面：侧栏提示词、技能库、节点效果选择、Agent 斜杠菜单"
+  ],
+  "scope_paths": [
+    "electron/contentSecurityPolicy.ts",
+    "src/media/remoteExampleMedia.ts",
+    "src/workbench/promptLibrary/PromptCard.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/skillLibrary/SkillMedia.tsx"
+  ],
+  "entry_points": [
+    "宿主页面每条响应的隔离头（electron/contentSecurityPolicy.ts installContentSecurityPolicy）",
+    "开发服务器响应头（vite.config.ts server.headers）",
+    "提示词卡片 / 预览大图 / 技能媒体的第三方示例媒体加载（src/workbench/promptLibrary/PromptCard.tsx、PromptPreviewOverlay.tsx、src/workbench/skillLibrary/SkillMedia.tsx）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developer.chrome.com/blog/coep-credentialless-origin-trial",
+      "checked_at": "2026-09-25",
+      "purpose": "credentialless 下跨源 no-cors 子资源不带凭据发出、不再要求对方返回 CORP，页面照样 cross-origin isolated。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Embedder-Policy",
+      "checked_at": "2026-09-25",
+      "purpose": "require-corp 与 credentialless 的语义差别，以及两者都满足 crossOriginIsolated。"
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/contentSecurityPolicy.ts",
+    "tests": [
+      "electron/contentSecurityPolicy.test.ts",
+      "src/media/remoteExampleMedia.test.ts"
+    ],
+    "why": "隔离头与模式只在 CROSS_ORIGIN_ISOLATION_HEADERS 定义一次，主进程与开发服务器都从它读；第三方示例媒体的失效只在 remoteExampleMedia 记账。"
+  },
+  "invariants": [
+    "宿主开跨源隔离时 COEP 为 credentialless：第三方 no-cors 媒体不因对方没发 CORP 被拦，SharedArrayBuffer 在能隔离的宿主上照样可用。",
+    "第三方示例媒体失败一次即本次会话记为失效：显示「示例已失效」而不是黑框，同一地址不再反复请求。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/contentSecurityPolicy.ts",
+      "symbol": "CROSS_ORIGIN_ISOLATION_HEADERS"
+    },
+    {
+      "kind": "write",
+      "path": "src/media/remoteExampleMedia.ts",
+      "symbol": "markRemoteExampleMediaBroken"
+    },
+    {
+      "kind": "write",
+      "path": "src/media/remoteExampleMedia.ts",
+      "symbol": "isRemoteExampleMediaBroken"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/PromptCard.tsx",
+      "symbol": "useRemoteExampleMedia"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "useRemoteExampleMedia"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/skillLibrary/SkillMedia.tsx",
+      "symbol": "useRemoteExampleMedia"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 6,
+    "why_not": "改前：COEP 字面量 2 处（contentSecurityPolicy.ts、vite.config.ts，后者在 door-map 扫描根之外，由 rg -n Cross-Origin-Embedder-Policy 数出）+ 3 份各自的 broken 状态（PromptCard、SkillMedia 各一份，PromptPreviewOverlay 没有）。改后隔离头只剩一个定义被读；三个显示面都经同一个 hook 记账，门数多出来的是 remoteExampleMedia 自身的读写两扇——每个面都要能「读失效 / 报失效」，这三个消费方必须存在。"
+  },
+  "generality_proof": "放行第三方媒体的是隔离模式本身，不是按站点加白名单：任何第三方 no-cors 媒体（示例视频、封面图、未落盘的供应商结果预览）都不再依赖对方发 CORP。失效记账按 URL，不按来源站点，任何再失效的示例都会走同一个占位。",
+  "shared_boundaries": [
+    {
+      "path": "electron/contentSecurityPolicy.ts",
+      "symbol": "installContentSecurityPolicy",
+      "responsibility": "宿主响应的跨源隔离头只在这里下发，头与模式读 electron/shared/crossOriginIsolation.ts 的唯一定义（开发服务器展开同一个常量）。"
+    },
+    {
+      "path": "src/media/remoteExampleMedia.ts",
+      "symbol": "useRemoteExampleMedia",
+      "responsibility": "第三方示例媒体本次会话的失效记账与统一占位判定。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/contentSecurityPolicy.ts",
+      "entry_point": "installContentSecurityPolicy onHeadersReceived",
+      "disposition": "enforced",
+      "evidence": "从 CROSS_ORIGIN_ISOLATION_HEADERS 写头；contentSecurityPolicy.test.ts 钉住 credentialless。"
+    },
+    {
+      "path": "vite.config.ts",
+      "entry_point": "server.headers（NOMI_DEV_CROSS_ORIGIN_ISOLATION=1）",
+      "disposition": "enforced",
+      "evidence": "展开同一个常量，不再有第二份 require-corp 字面量。"
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "entry_point": "预览大图 <video>/<img>",
+      "disposition": "enforced",
+      "evidence": "原来没有 onError；现在失败显示失效说明（走查 04-expired-preview zh / en）。"
+    },
+    {
+      "path": "src/workbench/skillLibrary/SkillMedia.tsx",
+      "entry_point": "技能库 / 效果选择 / 斜杠菜单的示例媒体",
+      "disposition": "enforced",
+      "evidence": "原来自带一份 broken 状态；改读同一份会话记账（remoteExampleMedia.test.ts 覆盖）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/artifact/artifactSandboxDocument.ts",
+      "entry_point": "手艺产物的 srcdoc 沙箱",
+      "disposition": "not-affected",
+      "evidence": "产物走 srcdoc，不是跨源 frame；两种模式下跨源 frame 都被挡（2026-09-07 探针矩阵），换模式不改变它。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每接一个会显示第三方媒体的面（新示例源、供应商结果预览、网页捕捞预览）都会撞上「对方不发 CORP 就被拦」；示例地址也会继续失效。",
+    "same_class_scan": [
+      "rg -n \"Cross-Origin-Embedder-Policy\" electron src vite.config.ts —— 两处字面量",
+      "rg -n \"mediaUrl\" src --glob '*.tsx' —— PromptCard、PromptPreviewOverlay、NodeEffectChips(→SkillMedia)、ProjectAgentResidentShell(→SkillMedia)、StoryboardPlanEditor",
+      "Electron 43.4.1 最小探针：file:// 与 http://127.0.0.1 宿主 × require-corp / credentialless，六个第三方媒体地址"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/contentSecurityPolicy.ts",
+    "invariant": "隔离头只从 CROSS_ORIGIN_ISOLATION_HEADERS 来，模式为 credentialless。",
+    "failure_mode": "有人把模式改回 require-corp 或另写一份，contentSecurityPolicy.test.ts 红；第三方示例失效时显示失效占位，不再黑框。",
+    "exception_policy": "none",
+    "strategy": "把「能不能显示第三方媒体」从「对方发不发 CORP」上解开，同时保留隔离；失效示例统一记账。",
+    "artifacts": [
+      "electron/contentSecurityPolicy.ts",
+      "src/media/remoteExampleMedia.ts",
+      "src/workbench/promptLibrary/PromptPreviewOverlay.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/contentSecurityPolicy.test.ts",
+    "src/media/remoteExampleMedia.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/contentSecurityPolicy.test.ts",
+    "src/media/remoteExampleMedia.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/contentSecurityPolicy.ts",
+      "src/workbench/promptLibrary/PromptCard.tsx",
+      "src/workbench/skillLibrary/SkillMedia.tsx"
+    ],
+    "rationale": "两处 require-corp 字面量删除改读常量；PromptCard 与 SkillMedia 各自的 broken 状态删除改读同一份记账。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Electron 43.4.1（Chrome 150）已支持 COEP credentialless（Chrome 96 起），不需要升级。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移；响应头随新版本生效。",
+  "residual_risks": [
+    "打包版宿主页从 file:// 加载，探针显示 file 源在两种模式下都拿不到 crossOriginIsolated——画板抠图的 ONNX 在打包版本来就是单线程。这是另一件事（要让它多线程得改宿主加载方式），本次不动，已记录。",
+    "推特示例的 403 取决于用户网络，credentialless 救不回来；它们会显示「示例已失效」，控制台仍会有每个地址一次的 403（同一地址本次会话不再重复请求）。",
+    "Mac 真机未走查：Windows 版与走查进程都不开隔离，COEP 这一半由 Electron 43.4.1 最小探针矩阵作证。"
+  ]
+}

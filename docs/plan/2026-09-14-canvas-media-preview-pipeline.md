@@ -1,5 +1,7 @@
 # 画布媒体：落盘边界派生预览 / poster，画布交互前不付原图全价
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实现 · 分支 `fix/canvas-media-preview-lod-20260914`（取代 PR #776；机制来自本地分支 `ba753cfa5`，按评审 `review-776.md` §六补齐重做）
 > 根因合同：`docs/fixes/2026-09-13-canvas-media-preview-lifecycle.root-cause.json`
 > 结构评审：`docs/audit/2026-09-13-canvas-media-preview-structure-review.md`

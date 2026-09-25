@@ -1,5 +1,7 @@
 # ComfyUI /object_info 新一代 COMBO 格式对账（方案包 N1）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实施，等 CI + review。
 
 ## 先查别人（R6/R31）

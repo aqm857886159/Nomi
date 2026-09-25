@@ -415,21 +415,21 @@ try {
   await win.waitForTimeout(250)
   check('缩放键 ＋ / 0 真的绑上了（tooltip 上写了十几天的键位不再是假的）', zoomed.length > 0, `scaleBefore=${scaleBefore} width=${zoomed}`)
 
-  // ⌘\ 归 Nomi：按一次面板收起、图标条出现，而吸附**不该**跟着一起翻
+  // ⌘\ 归 Nomi：按一次面板收起、顶栏角标出现，而吸附**不该**跟着一起翻
   const snapBeforeMeta = (await snapButton.getAttribute('class') ?? '').includes('accent-soft')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)
-  const rail = win.locator('[data-testid="editing-surface-assistant"] .workbench-panel-rail')
-  await expectVisible(rail, '⌘\\ 没有把 Nomi 收成图标条')
+  const topbarEntry = win.locator('[data-agent-topbar-badge="true"]')
+  await expectVisible(topbarEntry, '⌘\\ 没有把 Nomi 收起到顶栏角标')
   check('⌘\\ 收起 Nomi 时不再顺手把吸附也翻掉（两个功能不再抢同一个键）',
     ((await snapButton.getAttribute('class') ?? '').includes('accent-soft')) === snapBeforeMeta)
-  check('收起后叫回 Nomi 的入口只有右侧图标条一个，且带运行状态点',
-    (await rail.count()) === 1 && (await rail.locator('[data-panel-rail-status="true"]').count()) === 1)
+  check('收起后叫回 Nomi 的入口只有顶栏角标一个，且带运行状态',
+    (await topbarEntry.count()) === 1 && Boolean(await topbarEntry.getAttribute('data-agent-dock-status')))
   const recallEntries = await win.evaluate(() => [...document.querySelectorAll('button, [role="button"]')]
     .filter((node) => node.getBoundingClientRect().width > 0)
     .map((node) => `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''}`)
     .filter((name) => /展开 Nomi|叫回 Nomi/.test(name)).length)
-  check('全屏上只有一个「叫回 Nomi」入口（旧的浮动胶囊已删）', recallEntries === 1, `count=${recallEntries}`)
+  check('全屏上只有一个「叫回 Nomi」入口（旧的浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)
   await snap('07-collapsed-single-entry')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)

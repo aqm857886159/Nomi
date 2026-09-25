@@ -1,5 +1,7 @@
 # T01 Worktree and Open PR Machine-Readable Census
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - Generated: 2026-09-12
 - Branch: codex/pr764-clean-delivery-20260912
 - HEAD: 0ed6bf9ffee7a2d34a9db7f0a527394b5c355f41

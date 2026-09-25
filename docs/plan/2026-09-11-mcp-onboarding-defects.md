@@ -1,5 +1,7 @@
 # 2026-09-11 · 外部 AI 经 MCP 接模型：实测实锤的六条产品缺陷
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实施（分支 `fix/mcp-onboarding-defects-20260911`，叠在 `fix/integration-docs-to-compiler-20260910` 上）
 
 ## 背景：一次真实测量，不是猜

@@ -1,5 +1,7 @@
 # C73 / C74 / C75：镜头反馈、媒体加载与徽标
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实施与真机验收、完整 gates 已通过；进入正常 hooks 提交与 PR 交付。
 基线：origin/main `5c507a5cc3ee74f5fa25706165cb94cd3d2e8165`（含 #646）。
 分支：fix/shot-node-feedback-badges-20260910。

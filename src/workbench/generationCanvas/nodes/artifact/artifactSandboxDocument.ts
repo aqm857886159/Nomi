@@ -1,8 +1,8 @@
 // 把 Agent 手写的 HTML 变成「可以安全塞进 srcdoc 的那份文档」。
 //
 // 为什么不是直接 `<iframe src="nomi-local://…">`（真机逐项验过才换的做法）：
-// 主窗开着跨源隔离（COOP: same-origin + COEP: require-corp，见 electron/contentSecurityPolicy.ts）。
-// 在这个前提下，**任何跨源文档都不能当 frame 加载**——给产物响应补上 COEP: require-corp 也救不回来，
+// 主窗开着跨源隔离（COOP: same-origin + COEP，模式的唯一定义见 electron/shared/crossOriginIsolation.ts）。
+// 在这个前提下，**任何跨源文档都不能当 frame 加载**——给产物响应补上 COEP 也救不回来（require-corp、credentialless 都挡），
 // Chromium 一律 ERR_BLOCKED_BY_RESPONSE。最小 Electron 探针逐个开关试过：
 //   隔离开 + 子文档带 COEP → 挡；隔离开 + 不带 → 挡；隔离关 → 通。
 // 而关掉隔离是整个 app 的能力回退（画板抠图的多线程 WASM 要 SharedArrayBuffer），不能为一个节点让路。

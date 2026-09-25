@@ -1,5 +1,7 @@
 # 证据目录 · Agent 工具面 v2（2026-09-14）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 | 文件 | 内容 |
 |---|---|
 | `r17-verb-transport-red.txt` | 门岗 `laneVerbTransport.test.ts` 对着 #777 手写白名单跑：draft_shots / generate / check_job / cancel_job 四条红 + 阳性对照红（先验会红，R17） |

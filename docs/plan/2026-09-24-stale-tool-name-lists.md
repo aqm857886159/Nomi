@@ -1,5 +1,7 @@
 # 改名漏网的两处回归：时间轴计划卡 + 技能 chip 印 key
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：进行中（2026-09-24）· 来源：复活 Agent 走查时红在产品侧的两步（`tests/ux/agent-real-user-conversation.walk.mjs` 计划卡那一步、`tests/ux/agent-transcript-merge.walk.mjs` 技能 chip 那一步）
 > 根因合同：[stale-tool-name-lists](../fixes/2026-09-24-stale-tool-name-lists.root-cause.json) · [skill-display-name-owner](../fixes/2026-09-24-skill-display-name-owner.root-cause.json)
 

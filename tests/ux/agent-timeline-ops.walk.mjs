@@ -171,9 +171,9 @@ try {
   const timelinePanel = win.locator('.workbench-preview .workbench-timeline').first()
   await expect(timelinePanel, '预览时间轴未出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const agent = win.locator(PREVIEW_PANEL)
-  // 收起态叫回 Nomi 的唯一入口是最右侧图标条（合同 §2.1）；旧的浮动胶囊已删。
-  const assistantRail = win.locator('[data-testid="editing-surface-assistant"] .workbench-panel-rail')
-  if (await assistantRail.count()) await clickOrFail(assistantRail, '从图标条展开 Nomi')
+  // 收起态叫回 Nomi 的唯一入口是顶栏角标（09-01 定稿 §11.2；与它重复的右侧竖条 2026-09-25 已删）。
+  const topbarBadge = win.locator('[data-agent-topbar-badge="true"]')
+  if (await topbarBadge.count()) await clickOrFail(topbarBadge.first(), '从顶栏角标展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
@@ -293,17 +293,17 @@ try {
   await expect(dock, '收起后仍留一根图标条').toBeVisible()
   await expect(win.locator(`${COLLAPSED_SHELL} ${COMPOSER_INPUT}`), '收起后输入框必须落到预览下沿（对话不中断）').toHaveCount(1)
   await expect(win.locator(COMPOSER_INPUT), '收起不该多造一个 composer').toHaveCount(1)
-  // 一功能一个家：叫回 Nomi 只有右侧 32px 图标条这一个入口，且它带运行状态点。
+  // 一功能一个家：叫回 Nomi 只有顶栏角标这一个入口，且它带运行状态（data-agent-dock-status）。
   // 数的是「界面上有几个能把 Nomi 叫回来的控件」——这是个**计数**断言，多一个入口就红；
-  // 写成「旧胶囊不存在」那种缺席断言只会恒真（旧选择器已随组件一起删）。
-  const collapsedRail = win.locator('[data-testid="editing-surface-assistant"] .workbench-panel-rail')
-  await expect(collapsedRail, '收起后必须留下右侧图标条这一个入口').toHaveCount(1)
-  await expect(collapsedRail.locator('[data-panel-rail-status="true"]'), '图标条要带运行状态点').toHaveCount(1)
+  // 写成「旧竖条不存在」那种缺席断言只会恒真（旧选择器已随组件一起删）。
+  const topbarEntry = win.locator('[data-agent-topbar-badge="true"]')
+  await expect(topbarEntry, '收起后必须留下顶栏角标这一个入口').toHaveCount(1)
+  await expect(topbarEntry, '顶栏角标要带运行状态').toHaveAttribute('data-agent-dock-status', /.+/)
   const recallEntries = await win.evaluate(() => [...document.querySelectorAll('button, [role="button"]')]
     .filter((node) => node.getBoundingClientRect().width > 0)
     .map((node) => `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''}`)
     .filter((name) => /展开 Nomi|叫回 Nomi/.test(name)).length)
-  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（图标条），不许再浮第二个').toBe(1)
+  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（顶栏角标），不许再有第二个').toBe(1)
   // 量的是**预览列**（`.workbench-preview-player`），不是早已不存在的 `.workbench-preview__stage`
   // ——T1 把剪辑面迁到面板系统后那个类名就没了，而 querySelector 拿到 null 只会在
   // getBoundingClientRect 那一行炸，看起来像产品坏了。锚点跟着真实结构走。
