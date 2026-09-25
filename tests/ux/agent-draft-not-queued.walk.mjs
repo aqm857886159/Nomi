@@ -164,6 +164,17 @@ try {
   expect(await landingHasRun(win, operationId), '报价卡在等人：画布落地 host 仍读着这份 Run').toBe(true)
   expect(isQuiet(await nodeFace(win, nodeId)), '报价卡在等人：节点仍然什么都不挂').toBe(true)
   await walk.snap('card-waiting-en')
+  // #875：报价卡摆出来等人 = 这一镜归制作流程，画布再发一次就是同一镜两笔。节点照样什么都不挂（上一句），
+  // 但底栏不把它算进「生成全部」、选中它时生成钮按不下去。点一下空白画布取消选中（不按 Esc：会碰到面板上的卡）。
+  const runAll = win.locator('[data-batch-dock="true"] [data-storyboard-run-all="true"]')
+  expect(await runAll.count() === 0 || await runAll.first().isDisabled(), '报价卡在等人：底栏不提供「生成全部」').toBe(true)
+  await clickOrFail(win.locator(`[data-node-id="${nodeId}"]`).first(), '选中报价卡在等的这一镜')
+  const generateButton = win.locator('[data-bar-segment="generate"]').first()
+  await proveProbe(generateButton, '选中后节点生成钮出现')
+  await walk.snap('card-waiting-selected-en')
+  await expect(generateButton, '报价卡在等人：节点生成钮按不下去').toBeDisabled()
+  await win.locator('.react-flow__pane').first().click({ position: { x: 24, y: 24 } })
+  await proveProbe(card, '取消选中后报价卡仍在等人')
 
   // ── ③ 点了：真的派出去；供应商那边停在 processing，拍「生成中」 ──
   walk.fixture.holdTasks(true)
@@ -196,7 +207,7 @@ try {
   await walk.snap('done-zh')
 
   walk.report.verified = ['draft-says-nothing-and-spends-nothing', 'draft-not-counted-as-running-task',
-    'card-waiting-says-nothing', 'dispatched-uses-the-shared-waiting-surface', 'result-lands-on-the-drafted-node']
+    'card-waiting-says-nothing', 'card-waiting-canvas-cannot-regenerate', 'dispatched-uses-the-shared-waiting-surface', 'result-lands-on-the-drafted-node']
 } catch (error) {
   failure = error
   process.exitCode = 1
