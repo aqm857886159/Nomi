@@ -4,7 +4,7 @@ import { createCatalogGenerationProvider as createProvider } from "./apimartGene
 import type { CatalogState } from "../catalog/types";
 import { APIMART_IMAGE_MODELS } from "../catalog/apimartImages";
 import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
-import { APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING, APIMART_VENDOR_SEED } from "../catalog/apimartVendor";
+import { APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING, APIMART_VENDOR_SEED, APIMART_VIDEO_QUERY_OP } from "../catalog/apimartVendor";
 import { registerRequestTransform } from "../tasks/requestTransforms";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 
@@ -389,6 +389,22 @@ describe("APIMart observe-only generation provider", () => {
     await expect(provider.query?.("task-1")).resolves.toMatchObject({ status: "processing" });
     expect(fetchImpl).toHaveBeenCalledWith("https://api.apimart.ai/v1/tasks/task-1", expect.objectContaining({ method: "GET" }));
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Idempotency-Key");
+  });
+
+  // 2026-09-25 用户报「Agent 付费卡生成的视频早就出好了，节点一直转圈」。真目录里图片与视频的轮询 op 不同
+  // （结果路径 image_url / video_url），供应商实例又是每次读目录新建的——观察窗到期的重踢、重开项目、重启
+  // 拿到的都是**没交过这笔任务**的新实例。它必须能靠调用方递来的模型 / 模式（Run 账本里冻着的那份）找到那条查询。
+  it("a fresh provider instance polls a video task by the model identity the caller hands it (real image≠video query ops)", async () => {
+    const realOps = (): CatalogState => {
+      const base = catalogFixture();
+      return { ...base, mappings: base.mappings.map((mapping) => mapping.taskKind.includes("video") ? { ...mapping, query: APIMART_VIDEO_QUERY_OP } : mapping) };
+    };
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ code: 200, data: { id: "video-task-1", status: "completed", result: { videos: [{ url: ["https://cdn.example/v.mp4"] }] } } }), { status: 200 }));
+    const fresh = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch, catalogReader: realOps });
+    await expect(fresh.query?.("video-task-1")).rejects.toThrow("without the model it was submitted with");
+    const polled = await fresh.query?.("video-task-1", { modelId: "kling-v3", mode: "text_to_video" });
+    expect(polled).toMatchObject({ status: "completed" });
+    await expect(fresh.materialize?.({ providerTaskId: "video-task-1", raw: polled?.raw })).resolves.toMatchObject({ outputs: [{ kind: "video", url: "https://cdn.example/v.mp4" }] });
   });
 
   it("reconcile returns not-found without a task id and never invents one", async () => {

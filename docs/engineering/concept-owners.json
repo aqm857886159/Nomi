@@ -105,6 +105,37 @@
       ],
       "since": "2026-09-25",
       "notes": "Agent 没出价的草稿（plan.state=draft 且 cardHidden）和被丢掉的计划（plan.state=cancelled）不是任务：不成行、不计徽标、不顶掉在跑的整卡。判据只吃列表投影 ProductionRunSummary.generationPlan 的两格（主进程 summarize 投出）。画布落地（ProductionCanvasLandingHost）要的是草稿本身，不消费这条。"
+    },
+    {
+      "name": "制作镜头在画布上的运行状态",
+      "owner": {
+        "path": "electron/shared/productionShotPhase.ts",
+        "symbol": "deriveProductionShotState"
+      },
+      "consumers": [
+        "electron/productionRun/multiShotCanvasLanding.ts",
+        "electron/productionRun/canvasLandingHost.ts",
+        "electron/capabilityCore/appIntegrationRunObservation.ts",
+        "electron/capabilityCore/appIntegration.ts",
+        "src/workbench/capability/multiShotCanvasLanding.ts",
+        "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户报「Agent 付费卡生产的视频早就出好了，节点一直转圈」（合同 docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json）。一镜「排队 / 生成中 / 已停 / 失败 / 完成」只由这一个函数判（job 状态走穷尽 mapper productionJobPhase）。生成中 / 失败 / 结果由主进程画布落地投影（buildMaterializeShotsPayload；跟随者 canvasLandingHost.followRunChange 挂在仓库 execute 的事件旁路上）写进**节点自己的运行记录**——与普通生成同一份状态，由 NodeGeneratingOverlay / NodeErrorReport 画；渲染层 ProductionShotPlaceholder 只画制作专属的排队 / 已停两块小标，读的也是这个函数。不许再出现第二份「这一镜在不在生成」的判据或第二套画法。"
+    },
+    {
+      "name": "供应商产物取回线路",
+      "owner": {
+        "path": "electron/assets/providerMediaFetch.ts",
+        "symbol": "fetchProviderMedia"
+      },
+      "consumers": [
+        "electron/assets/projectAssetStore.ts",
+        "electron/assets/downloadAsset.ts",
+        "electron/capabilityCore/generationOutputMaterializer.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。"
     }
   ]
 }

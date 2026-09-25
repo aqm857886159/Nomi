@@ -410,7 +410,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     plannerCapturedCanvasReadSnapshot = await sealCurrentProjectCanvasReadSnapshot(plannerBinding, plannerSnapshot)
   }
 
-  // P4 S5 画布落地（materialize-shots / attach-shot-result）——受上面的活动项目守卫约束（只动当前项目 store），
+  // P4 S5 画布落地（materialize-shots：建占位 + 每一镜的运行状态 / 结果）——受上面的活动项目守卫约束（只动当前项目 store），
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed

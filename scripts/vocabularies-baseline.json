@@ -1,5 +1,5 @@
 {
-  "debtCap": 62,
+  "debtCap": 59,
   "converged": [
     {
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。",
@@ -424,7 +424,7 @@
         "ready",
         "too_late"
       ],
-      "reason": "ProductionRun 授权准备时判定「父 job 是否处于可返工态」的集合（adopted/ready/detached/needs_attention/too_late/cancelled_remote）：它决定能否为某镜发起新一轮生成授权，是授权前置门的输入，语义与 shotPlaceholderState 的 FAILED_STATUSES（UI 占位失败态）虽有部分重叠但取值范围与用途不同（含 adopted/detached/ready 这类非失败可返工态），复用会把「可返工」误判成「失败」，故独立。",
+      "reason": "ProductionRun 授权准备时判定「父 job 是否处于可返工态」的集合（adopted/ready/detached/needs_attention/too_late/cancelled_remote）：它决定能否为某镜发起新一轮生成授权，是授权前置门的输入，语义与 productionShotPhase 的 productionJobPhase → failed（UI 失败态）虽有部分重叠但取值范围与用途不同（含 adopted/detached/ready 这类非失败可返工态），复用会把「可返工」误判成「失败」，故独立。",
       "site": "electron/productionRun/prepareProductionGenerationAuthorization.ts::variable:REWORKABLE_JOB_STATUSES/set"
     },
     {
@@ -635,7 +635,7 @@
         "validating_content",
         "validating_technical"
       ],
-      "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 shotPlaceholderState 的 GENERATING_STATUSES（面向 UI 占位的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。",
+      "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 productionShotPhase 的 productionJobPhase → generating（面向 UI 的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。",
       "site": "electron/productionRun/singleShotRunLifecycle.ts::variable:NON_TERMINAL_JOB_STATUSES/set"
     },
     {
@@ -1729,8 +1729,8 @@
         "queued",
         "stopped"
       ],
-      "reason": "ShotPlaceholderPhase 是合法的 view model：queued、generating、stopped、failed、done 表达镜头占位卡的用户可见阶段，由 ProductionJobStatus、Run status 与 error code 通过一个穷尽 mapper 派生；它不持久化、不反向覆盖 ProductionRun 账本。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::type:ShotPlaceholderPhase/type-union"
+      "reason": "ProductionShotPhase 是合法的 view model：queued、generating、stopped、failed、done 表达制作镜头在画布上的用户可见阶段，由 ProductionJobStatus（productionJobPhase 这一个穷尽 mapper）、Run status 与 error code 派生；它不持久化、不反向覆盖 ProductionRun 账本。2026-09-25 从渲染层搬到中立层：主进程画布落地投影与渲染层排队/已停小标读同一个判定。",
+      "site": "electron/shared/productionShotPhase.ts::type:ProductionShotPhase/type-union"
     },
     {
       "members": [
@@ -2365,36 +2365,6 @@
       ],
       "reason": "OpenWorkspaceProjectFromPickerOptions.showMessage 与 library 入口完全共用语义；应复用 OpenWorkspaceMessageTone = Extract<ToastType, 'error' | 'success'>，删除第二份参数字面量。",
       "site": "src/workbench/library/openWorkspaceFlow.ts::type:OpenWorkspaceProjectFromPickerOptions/property:showMessage/parameter:tone/type-union"
-    },
-    {
-      "members": [
-        "adopted",
-        "ready"
-      ],
-      "reason": "DONE_STATUSES 重复列出 ProductionJobStatus 的 adopted、ready；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 结合 Run/error facts 返回 ShotPlaceholderPhase，保留合法 view phase。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:DONE_STATUSES/set"
-    },
-    {
-      "members": [
-        "cancelled_remote",
-        "needs_attention",
-        "too_late"
-      ],
-      "reason": "FAILED_STATUSES 重复列出 ProductionJobStatus 的失败候选且还依赖 errorCode/Run 状态；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 统一返回 ShotPlaceholderPhase 的 failed 或 stopped。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:FAILED_STATUSES/set"
-    },
-    {
-      "members": [
-        "downloading",
-        "polling",
-        "provider_accepted",
-        "retry_wait",
-        "submitting",
-        "validating_content",
-        "validating_technical"
-      ],
-      "reason": "GENERATING_STATUSES 重复列出 ProductionJobStatus 的活动子集；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 返回 ShotPlaceholderPhase.generating，并让占位卡与批进度共用该分类。",
-      "site": "src/workbench/production/shotPlaceholderState.ts::variable:GENERATING_STATUSES/set"
     },
     {
       "members": [

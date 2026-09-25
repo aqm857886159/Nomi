@@ -6,10 +6,6 @@ import type { ReferenceBindingMap } from '../../../creation/storyboard/shotRow/s
 import { resolveShotArchetypeMode } from '../../../creation/storyboard/shotRow/shotRowModel'
 import { referenceSlotStorage } from '../controls/archetypeMeta'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
-import { deriveShotPlaceholderState } from '../../../production/shotPlaceholderState'
-
-/** 落地 store 缓存的那份 Run。类型从渲染层自己的占位派生函数取，渲染层不直接引主进程模块（check:boundaries）。 */
-export type LandedRun = NonNullable<Parameters<typeof deriveShotPlaceholderState>[0]>
 import type { ShotTableRowView } from './selectShotTableRows'
 
 /**
@@ -18,6 +14,10 @@ import type { ShotTableRowView } from './selectShotTableRows'
  *
  * 两半列的来源与方案表同一条纪律：左半（画面）= 节点 prompt；右半（参考槽）= 该节点所选模型的
  * `mode.slots`，绑定按画布同一张 referenceSlotStorage 表从 meta 读回。
+ *
+ * 行状态（生成中 / 失败 / 完成）**只看节点自己**：制作的运行状态由主进程的画布落地投影写进节点的运行记录，
+ * 与普通生成同一份（2026-09-25）。以前这里还留着一个「从落地 store 读 Run 补位」的入参，
+ * 但唯一的宿主 ShotTableNode 从没传过它——它是一条没接上的第二份真相，已删。
  */
 
 function metaOf(node: GenerationCanvasNode): Record<string, unknown> {
@@ -71,16 +71,10 @@ export function selectProductionShotRows(input: {
   nodes: readonly GenerationCanvasNode[]
   imageModelOptions: readonly ModelOption[]
   videoModelOptions: readonly ModelOption[]
-  /** 落地 store 里缓存的 Run（占位三态的来源）；不是这个 Run 或没有 → 只看节点。 */
-  run?: LandedRun | null
 }): ShotTableRowView[] {
   const { runId, nodes, imageModelOptions, videoModelOptions } = input
-  const run = input.run && input.run.runId === runId ? input.run : null
   return productionShotNodes(nodes, runId).map((node, position) => {
-    const phase = run ? deriveShotPlaceholderState(run, node.id) : null
-    const exec = deriveNodeRowExec(node, phase?.phase === 'generating'
-      ? { generating: true }
-      : phase?.phase === 'failed' ? { failedMessage: phase.failureMessage ?? '' } : undefined)
+    const exec = deriveNodeRowExec(node)
     const mode = modeOf(node, imageModelOptions, videoModelOptions)
     return {
       id: node.id,

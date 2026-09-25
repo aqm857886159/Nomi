@@ -518,7 +518,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
 
   async function poll(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionPollResult> {
     const run = requiredRun(deps.repository, input.projectId, input.operationId);
-    const { job } = readGenerationExecution(deps.repository, run, input);
+    const { job, contract } = readGenerationExecution(deps.repository, run, input);
     if (!job?.providerTaskId) throw new SubmissionReconciliationRequiredError("A provider task id is required before polling");
 
     // A completed immutable execution is read from its receipt; do not poll or rewrite it again.
@@ -527,7 +527,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       operationId: run.runId, runId: run.runId, jobId: job.jobId, providerTaskId: job.providerTaskId,
       providerStatus: stored.lastPoll?.status ?? "succeeded", nextAction: "materialize",
     };
-    const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId });
+    // 这笔任务的模型 / 模式从冻结合同里读、随查询递下去：供应商实例是每次新建的，
+    // 它自己内存里记的「这笔任务用的哪个模型」活不过观察窗重踢 / 重开项目 / 重启（见 GenerationProviderTaskContext）。
+    const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId, context: { modelId: contract.modelId, mode: contract.mode } });
     const providerStatus = result.providerStatus.trim();
     if (!providerStatus) throw new Error("Provider returned an empty poll status");
     const statusClass = classifyProviderStatus(providerStatus);

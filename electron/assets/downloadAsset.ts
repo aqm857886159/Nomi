@@ -6,7 +6,7 @@ import { existsSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { logBreadcrumb, logCrash } from "../crashLog";
-import { hardenedFetch } from "../hardenedFetch";
+import { fetchProviderMedia } from "./providerMediaFetch";
 import { getLastDownloadDir, pickDownloadDir, rememberDownloadDir } from "./downloadPrefs";
 
 function isDirectory(dir: string): boolean {
@@ -40,11 +40,9 @@ export async function fetchAssetBytes(rawUrl: string): Promise<Buffer> {
     // Chromium session, while production generation uses the app-owned
     // undici route; splitting them made a result downloadable in one path but
     // unreachable in auto-save/manual download when a fake-IP proxy was active.
-    // Keep the URL policy and byte limits identical for every remote asset.
-    const fetched = await hardenedFetch(rawUrl, {
-      timeoutMs: 60_000,
-      maxBytes: 200 * 1024 * 1024,
-    });
+    // Keep the URL policy and byte limits identical for every remote asset:
+    // one owner (`fetchProviderMedia`) instead of a copied pair of numbers.
+    const fetched = await fetchProviderMedia(rawUrl, { allowContentTypes: 'any' });
     return fetched.bytes;
   }
   throw new Error("不支持的资源地址");
