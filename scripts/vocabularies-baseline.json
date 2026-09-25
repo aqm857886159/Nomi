@@ -198,17 +198,6 @@
     },
     {
       "members": [
-        "capability_cancelled",
-        "capability_execution_failed",
-        "capability_input_invalid",
-        "capability_target_stale",
-        "production_gate_requires_nomi"
-      ],
-      "reason": "The production transport owns safe public protocol failures. Missing Runs are classified only by the typed domain exception, so a forged provider not-found string is never whitelisted.",
-      "site": "electron/capabilityCore/productionRunTransportAdapters.ts::variable:PUBLIC_FAILURE_CODES/set"
-    },
-    {
-      "members": [
         "directory",
         "invalid",
         "missing"

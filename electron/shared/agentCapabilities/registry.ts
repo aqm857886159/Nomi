@@ -122,13 +122,6 @@ export function capabilityContractById(contractId: string): AnyCapabilityContrac
   return CAPABILITY_CONTRACTS.find((contract) => contract.id === contractId);
 }
 
-/** True when the descriptor says its payload is a plan the user must read first. */
-export function capabilityRequiresPlanReview(toolName: string, args?: unknown): boolean {
-  const contract = resolveCapabilityAlias(toolName)?.contract as AnyCapabilityContract | undefined;
-  const operation = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>).operation : undefined;
-  return capabilityPlanReviewOf(contract, { operation: typeof operation === "string" ? operation : toolName }).requiresPlanReview;
-}
-
 /** Review facts belong to the capability and operation, independently of a model-facing tool name. */
 export function capabilityPlanReviewOf(contract: AnyCapabilityContract | undefined, args?: unknown): Readonly<{
   requiresPlanReview: boolean;
@@ -155,14 +148,6 @@ export function capabilityEffectClassOf(
       : contract.effectClass;
   }
   return contract.effectClass;
-}
-
-/** Resolve side-effect policy from the descriptor and its explicit operation map. */
-export function resolveCapabilityEffectClass(
-  toolName: string,
-  args?: unknown,
-): CapabilityEffectClass | undefined {
-  return capabilityEffectClassOf(resolveCapabilityAlias(toolName)?.contract, args);
 }
 
 export function capabilityAliasesFor(contractId: string, surface: string): readonly string[] {

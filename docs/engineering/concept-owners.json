@@ -212,6 +212,38 @@
       ],
       "since": "2026-09-25",
       "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。"
+    },
+    {
+      "name": "模型工具的身份",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+        "symbol": "MODEL_FACING_TOOL_SPECS"
+      },
+      "consumers": [
+        "src/workbench/ai/resident/timelineAgentSurface.tsx",
+        "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+        "src/workbench/ai/resident/residentToolDisplay.ts",
+        "src/workbench/ai/v4/agentPanelV4ActionFamily.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "electron/agentLane/laneModelContext.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "一个应用内工具名是什么、它有什么事实（契约 id / nextAction / 分组）只问注册表（由 VERB_DECLARATIONS 派生），不许在别处手抄工具名做识别。2026-09-24 实例：timelineAgentSurface 手抄的计划工具名单在 20 动词改名后十天没人发现，计划卡退回通用卡并多出「不再问」（docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json）。执行绑定（laneVerbTransport 等）仍按名字分派，记在该合同 residual_risks。"
+    },
+    {
+      "name": "技能显示名",
+      "owner": {
+        "path": "src/workbench/skillLibrary/skillDisplay.ts",
+        "symbol": "skillLabelForKey"
+      },
+      "consumers": [
+        "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "src/workbench/skillLibrary/skillGallery.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
     }
   ]
 }

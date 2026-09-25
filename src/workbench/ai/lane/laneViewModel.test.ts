@@ -334,15 +334,18 @@ describe('laneViewModel', () => {
 
   it('技能随消息落盘：用户气泡带 chip，这一轮的回复头上带凭据', () => {
     next = 0
+    // 快照里的 `name` 是主进程按 SKILL.md 的 `name` 记的**标识**（与 skillKey 同值），不是显示名——
+    // 这里用真实形状，才看得出「把快照名当显示名印」那一族（2026-09-24：气泡印出 workbench-storyboard-planner）。
     const model = laneViewModel(projection([
-      { ...part({ kind: 'user', text: '拆分镜。' }), skillKey: 'workbench.storyboard.planner', skillSnapshot: { name: 'Original skill label', contentHash: 'hash-a' } } as LanePart,
+      { ...part({ kind: 'user', text: '拆分镜。' }), skillKey: 'workbench-storyboard-planner', skillSnapshot: { name: 'workbench-storyboard-planner', contentHash: 'hash-a' } } as LanePart,
       part({ kind: 'assistant-text', text: '好的。', streaming: false }),
       part({ kind: 'user', text: '再来一句。' }),
       part({ kind: 'assistant-text', text: '这轮没挂技能。', streaming: false }),
     ]), labels)
+    // 名字只从 `skillLabel`（= 技能库的 `skillDisplayTitle`）来：菜单里选的叫什么，发出去还叫什么。
     expect(model.items[0]).toEqual({ kind: 'user', text: '拆分镜。',
-      chips: [{ kind: 'skill', label: 'Original skill label' }] })
-    expect(model.items[1]).toMatchObject({ kind: 'assistant', skill: 'Original skill label' })
+      chips: [{ kind: 'skill', label: '[skill:workbench-storyboard-planner]' }] })
+    expect(model.items[1]).toMatchObject({ kind: 'assistant', skill: '[skill:workbench-storyboard-planner]' })
     // 没挂技能的那一轮**整行不出**：印一个空凭据等于说「用了个说不出名字的技能」。
     expect(model.items[2]).toEqual({ kind: 'user', text: '再来一句。' })
     expect(JSON.stringify(model.items[3])).not.toContain('skill')

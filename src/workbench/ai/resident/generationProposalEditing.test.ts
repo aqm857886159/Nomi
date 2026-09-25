@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asGenerationProposalArgs, asSemanticGenerationProposalArgs, isGenerationProposalTool, proposalDecisionPayload, updateSemanticGenerationField, updateSemanticGenerationParameters, updateSemanticGenerationShot, updateGenerationProposalParams } from './generationProposalEditing'
+import { asGenerationProposalArgs, asSemanticGenerationProposalArgs, proposalDecisionPayload, updateSemanticGenerationField, updateSemanticGenerationParameters, updateSemanticGenerationShot, updateGenerationProposalParams } from './generationProposalEditing'
 
 describe('generation proposal editing', () => {
   const args = {
@@ -8,12 +8,11 @@ describe('generation proposal editing', () => {
     nodes: [{ clientId: 'shot-1', kind: 'video', title: 'Shot 1', prompt: 'cat', modelKey: 'video-a', vendor: 'kie', modelVendor: 'kie', modeId: 't2v', variantId: 'standard', params: { duration: 5, resolution: '720p' } }],
   }
 
-  it('recognizes only a valid canvas generation proposal', () => {
-    expect(isGenerationProposalTool('create_canvas_nodes', args)).toBe(true)
-    expect(isGenerationProposalTool('set_node_prompt', args)).toBe(false)
+  it('parses only a valid generation proposal payload', () => {
+    expect(asGenerationProposalArgs(args)).not.toBeNull()
     expect(asGenerationProposalArgs({ nodes: [] })).toBeNull()
-    expect(isGenerationProposalTool('nomi_operation_create', { prompt: 'cat', taskKind: 'text_to_image', parameters: { size: '1:1' } })).toBe(true)
-    expect(isGenerationProposalTool('nomi_preview_execution', { operationId: 'op-1' })).toBe(false)
+    expect(asSemanticGenerationProposalArgs({ prompt: 'cat', taskKind: 'text_to_image', parameters: { size: '1:1' } })).not.toBeNull()
+    expect(asSemanticGenerationProposalArgs({ operationId: 'op-1' })).toBeNull()
   })
 
   it('edits semantic prompt/model/parameters and preserves Host metadata', () => {
