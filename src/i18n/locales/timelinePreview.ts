@@ -51,7 +51,7 @@ export const zhTimelinePreview = {
     transitionIn: '入场', transitionOut: '出场', addTransition: '加转场', changeTransition: '改这个转场',
   },
   previewLayout: {
-    title: '布局', panelsTitle: '面板', presetsTitle: '预设', reset: '恢复默认', expandAssistant: '展开 Nomi',
+    title: '布局', panelsTitle: '面板', presetsTitle: '预设', reset: '恢复默认',
     panels: { source: '镜头 / 素材', inspector: '属性', assistant: 'Nomi' },
     presets: { default: '默认', focus: '专注剪辑', result: '结果全屏', portrait: '竖屏预览' },
   },
@@ -128,7 +128,7 @@ export const enTimelinePreview = {
     transitionIn: 'In', transitionOut: 'Out', addTransition: 'Add transition', changeTransition: 'Change this transition',
   },
   previewLayout: {
-    title: 'Layout', panelsTitle: 'Panels', presetsTitle: 'Presets', reset: 'Restore defaults', expandAssistant: 'Expand Nomi',
+    title: 'Layout', panelsTitle: 'Panels', presetsTitle: 'Presets', reset: 'Restore defaults',
     panels: { source: 'Shots / assets', inspector: 'Inspector', assistant: 'Nomi' },
     presets: { default: 'Default', focus: 'Focus edit', result: 'Result fullscreen', portrait: 'Portrait preview' },
   },

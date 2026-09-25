@@ -136,8 +136,9 @@ try {
   const timelinePanel = win.locator('.workbench-preview .workbench-timeline').first()
   await expect(timelinePanel, '预览时间轴未出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const agent = win.locator(PREVIEW_PANEL)
-  const assistantRail = win.locator('[data-testid="editing-surface-assistant"] .workbench-panel-rail')
-  if (await assistantRail.count()) await clickOrFail(assistantRail, '从图标条展开 Nomi')
+  // 收起态叫回 Nomi 的唯一入口是顶栏角标（09-01 定稿 §11.2）。
+  const topbarBadge = win.locator('[data-agent-topbar-badge="true"]')
+  if (await topbarBadge.count()) await clickOrFail(topbarBadge.first(), '从顶栏角标展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
