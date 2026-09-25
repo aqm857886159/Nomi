@@ -1400,7 +1400,7 @@ export const zhGenerationCommon = {
       ignore: '忽略',
       confirm: '生成 {{count}} 镜',
     },
-    // P4 S5 画布落地：占位节点三态 + 进度通知 + 组名 + 补齐文案。
+    // P4 S5 画布落地：制作节点的排队 / 已停小标 + 组名 + 补齐文案（生成中 / 失败走普通生成那一套）。
     canvasLanding: {
       groupName: '分镜组·{{name}}',
       groupFallbackName: '分镜组',
@@ -1411,9 +1411,6 @@ export const zhGenerationCommon = {
       stoppedManual: '已停止剩余镜头。想继续可从这里接着拍。',
       raiseBudget: '提额续拍',
       continueRemaining: '继续剩余',
-      failedTitle: '这一镜没生成出来',
-      failedFallback: '生成未成功。可稍后重拍这一镜。',
-      retry: '重拍这镜',
       // P4 S6 返工/续拍的人话反馈（按结构化结果 code 翻译，禁拼串穿透 i18n 门）。
       rework: {
         noPriorAttempt: '这一镜还没生成过，先让它正常开拍',
@@ -2866,7 +2863,7 @@ export const enGenerationCommon = {
       ignore: 'Ignore',
       confirm: 'Generate {{count}} Shots',
     },
-    // P4 S5 canvas landing: placeholder three states + progress toast + group name + reconcile copy.
+    // P4 S5 canvas landing: queued / stopped badges for production nodes + group name + reconcile copy (generating / failed use the ordinary generation surfaces).
     canvasLanding: {
       groupName: 'Shot group · {{name}}',
       groupFallbackName: 'Shot group',
@@ -2877,9 +2874,6 @@ export const enGenerationCommon = {
       stoppedManual: 'Remaining shots stopped. Continue filming from here.',
       raiseBudget: 'Raise budget',
       continueRemaining: 'Continue remaining',
-      failedTitle: 'This shot didn\'t generate',
-      failedFallback: 'Generation failed. You can re-film this shot later.',
-      retry: 'Re-film shot',
       // P4 S6 rework/resume plain-language feedback (translated by structured result code — never a raw string).
       rework: {
         noPriorAttempt: 'This shot hasn\'t been generated yet — let it film first',

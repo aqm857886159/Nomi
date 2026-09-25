@@ -210,6 +210,10 @@ export type DesktopBridge = DesktopMediaBridge &
   telemetry?: {
     track: (payload: unknown) => Promise<{ queued: boolean }>
   }
+  /** 渲染层 → 主进程日志的唯一通道。只许 `src/desktop/rendererLog.ts` 调用（见那里的头注释）。 */
+  log?: {
+    report: (entry: import('../../electron/shared/contracts/rendererLog').RendererLogEntry) => void
+  }
   /**
    * 一键反馈。**不受「帮 Nomi 变好」开关管**（用户主动点的那一条）。
    * `preview` 只算清单不发东西；`send` 立刻返回，失败已在主进程入队重试。
@@ -429,4 +433,21 @@ export function getDesktopBridge(): DesktopBridge | null {
 
 export function isDesktopRuntime(): boolean {
   return Boolean(getDesktopBridge())
+}
+
+/**
+ * 整窗重载：桌面端走主进程的硬重载（连渲染进程一起换新），浏览器里退回 location.reload。
+ * 根错误边界与分包错误边界共用这一份——从前两边各抄一份、各自 cast window 绕过这里的类型（2026-09-24 结构评审）。
+ */
+export function reloadRendererWindow(): void {
+  try {
+    const hardReloadWindow = getDesktopBridge()?.app?.hardReloadWindow
+    if (hardReloadWindow) {
+      hardReloadWindow()
+      return
+    }
+  } catch {
+    /* fall back to browser reload */
+  }
+  window.location.reload()
 }

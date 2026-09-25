@@ -26,6 +26,7 @@ import { buildProductionRunTaskRows } from './productionRunTaskCenter'
 import { buildExportJobTaskRows } from './exportJobTaskCenter'
 import { ProductionRunTaskCard } from '../production/ProductionRunTaskCard'
 import { useProductionStatus } from '../production/useProductionStatus'
+import { logRendererError } from '../../desktop/rendererLog'
 
 const PANEL_WIDTH = 380
 const RIGHT_OFFSET = 12
@@ -221,7 +222,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
         if (row.action.kind === 'return_to_export') onClose()
       }
     } catch (error) {
-      console.error('task center action failed', error)
+      logRendererError('task-center-action-failed', error)
       notify({
         identity: row.id, reason: action.kind, level: 'inline', type: 'error',
         message: row.kind === 'export_job' ? t('taskCenter.actionFailed')

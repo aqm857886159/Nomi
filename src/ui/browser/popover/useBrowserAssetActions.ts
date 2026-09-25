@@ -25,6 +25,7 @@ import {
   isBrowserAssetDraggable,
   upsertBrowserAsset,
 } from './browserAssetPopoverUtils'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 type UseBrowserAssetActionsOptions = {
   filteredAssets: readonly NomiBrowserAsset[]
@@ -211,7 +212,7 @@ export function useBrowserAssetActions({
         setSelectedIds(new Set())
         if (relativePaths.length > 0) await refreshPersistedAssets()
       } catch (error) {
-        console.error('[nomi:browser] 删除素材失败:', error)
+        logRendererError('browser-asset-delete-failed', error)
         report(error instanceof Error ? error.message : t('browserAssets.deleteFailedPermission'))
       } finally {
         deleteInFlightRef.current = false

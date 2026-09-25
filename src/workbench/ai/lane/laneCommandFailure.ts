@@ -14,6 +14,7 @@
 import { looksLikeMachineCode, isLaneErrorCode, type LaneErrorCode } from '../../../../electron/shared/agentLane/laneErrorCodes'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import { classifyGenerationError } from '../../observability/classifyError'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -127,7 +128,7 @@ export function laneFailureText(error: unknown, t: Translate): string {
   const report = classifyGenerationError(raw)
   if (report.kind === 'unknown' && !showableRaw(report.reason)) {
     // 用户读不到的东西不留在界面上，但**必须**留在某处——否则这条错误就彻底消失了。
-    console.error('[lane] unclassified failure', { code, diagnostic: raw })
+    logRendererError('lane-unclassified-failure', undefined, { code, diagnostic: raw })
     return t('agentResident.sendFailed')
   }
   return report.providerMessage ? `${report.reason}：${report.providerMessage}` : report.reason

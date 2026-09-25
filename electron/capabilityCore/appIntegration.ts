@@ -20,7 +20,7 @@ import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfi
 import { HEARTBEAT_INTERVAL_MS, type InstanceAdvertisement } from './instanceAdvert'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import type { FetchTaskResultFn, RunTaskFn } from './core'
-import { getProductionRunService } from '../productionRun/productionRunRuntime'
+import { getProductionRunService, subscribeProductionRunChanges } from '../productionRun/productionRunRuntime'
 import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import type { DispatchContext } from './dispatcher'
@@ -40,12 +40,11 @@ import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchSc
 import { registerBatchSchedulerKicker } from '../productionRun/batchSchedulerKick'
 import type { ProductionActionResult } from '../productionRun/productionRunTypes'
 import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
-import { createArtifactProjection, getArtifactPreviewSecret } from '../productionRun/artifactProjection'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
-import { hardenedFetch } from '../hardenedFetch'
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
+import { isProductionJobInFlight } from '../shared/productionShotPhase'
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { readCatalog } from '../catalog/catalogStore'
 import { recommendVideoGeneration } from '../shared/videoCapabilities'
@@ -77,6 +76,7 @@ let handle: RpcServerHandle | null = null
 // 幂等补落缺失节点/组、回填已完成 result，并恢复未完批次调度（resumeUnfinishedRuns）。模块级 hoist 是因为
 let reconcileOpenProjectHook: ((projectId: string) => void) | null = null
 let unsubscribeCommittedSurface: (() => void) | null = null
+let unsubscribeRunChanges: (() => void) | null = null
 // P4 S6：返工/续拍编排钩子（start 闭包装配后设进来）——住在 start 闭包里因为它们要用 scheduler builder +
 // 单镜 gate 确认（confirmGenerationInNomi + 收据机构）+ 提交门面，这些都在闭包内。main.ts 的 IPC 转调这两个导出。
 let reworkProductionShotHook: ((input: { projectId: string; runId: string; shotId?: string }) => Promise<ProductionActionResult>) | null = null
@@ -195,15 +195,11 @@ export async function startCapabilityCore(
       }),
     })
     const readProviderBootstrap = liveGenerationRuntime.readBootstrap
-    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? {
-      // The loopback vendor is a test-only trusted local service. Keep the
-      // private-origin exception at this fixture wiring boundary; ordinary
-      // provider output downloads retain hardenedFetch's SSRF guard.
-      fetchOutput: (url, options) => hardenedFetch(url, {
-        ...options,
-        allowedPrivateOrigins: [fixtureBaseUrlOverride],
-      }),
-    } : {})
+    // The loopback vendor is a test-only trusted local service. Keep the
+    // private-origin exception at this fixture wiring boundary; ordinary
+    // provider output downloads retain hardenedFetch's SSRF guard. The fetch
+    // policy itself (timeout / size / provider route) is the shared owner's.
+    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
     const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
@@ -217,46 +213,15 @@ export async function startCapabilityCore(
       command: (projectId, runId, command) => generationService.command(projectId, runId, command as never),
       requestRenderer,
       resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
-      previewSecret: getArtifactPreviewSecret,
       isProjectOpen,
     })
     const landCanvasBestEffort = canvasLanding.landCanvasBestEffort
     landDraftOnCanvas = canvasLanding.landDraftOnCanvas
-    // P4 S5：一镜落地 → 把它的 result 推给渲染层回填占位节点（逐个冒）。best-effort：项目没开/渲染层不可用/
-    // 该镜没绑 nodeId → 静默跳过。渲染层 attach 会断言 result.url 为 nomi-local://（我们这里就用 preview.nomiUrl）。
-    const pushShotResultToRenderer = async (projectId: string, runId: string, shotId: string): Promise<void> => {
-      if (!isProjectOpen(projectId)) return
-      let run
-      try {
-        run = generationService.repository.read(projectId, runId)
-      } catch {
-        return
-      }
-      if (!run) return
-      const shot = (run.generationPlan?.shots ?? []).find((candidate) => candidate.shotId === shotId)
-      const nodeId = shot?.nodeId
-      if (!nodeId) return // 该镜没绑画布节点（确认时项目没开等）→ 打开项目时由 materialize-shots 一并回填
-      const job = run.jobs.find((candidate) => typeof candidate.metadata?.shotId === 'string' && candidate.metadata.shotId === shotId && (candidate.status === 'ready' || candidate.status === 'adopted'))
-      if (!job) return
-      const artifact = run.artifacts.find((candidate) => candidate.jobId === job.jobId && (candidate.kind === 'image' || candidate.kind === 'video') && (candidate.status === 'ready' || candidate.status === 'adopted'))
-      if (!artifact || !(artifact.projectRelativePath || artifact.thumbnailRelativePath)) return
-      const projectRoot = resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())
-      if (!projectRoot) return
-      try {
-        const projected = createArtifactProjection({ projectRoot, run, artifact, secret: getArtifactPreviewSecret() })
-        const url = projected.preview?.nomiUrl
-        if (!url) return
-        await requestRenderer('production.attach-shot-result', {
-          projectId,
-          runId,
-          nodeId,
-          shotId,
-          result: { id: `production-${job.jobId}`, type: artifact.kind === 'image' ? 'image' : 'video', url, createdAt: Date.now() },
-        }, 15_000)
-      } catch (error) {
-        logWarn('production-run', 'push-shot-result-failed', undefined, error)
-      }
-    }
+    // 画布节点跟着 Run 走：每一次耐久变化（派发 / 受理 / 出片落盘 / 失败 / 停）都经过仓库 execute 的事件旁路，
+    // 跟随者据此把「生成中 / 结果 / 失败」写进节点自己的运行记录——与普通生成同一份状态、同一套画法。
+    // 它取代了以前只在「出片」那一下投递结果的专用通道（一件事一个 owner：Run → 画布只有落地这一条路）。
+    unsubscribeRunChanges?.()
+    unsubscribeRunChanges = subscribeProductionRunChanges((run) => canvasLanding.followRunChange(run))
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
     // 从工作区记录读——**耐久 binding 已冻住这些值**，恢复时无需新 lease。provider 集合按所有镜头合同和已有 job 推导。
     // 返回 null = provider 未配置 / 工程根不可达（调用方跳过，不驱动）。start 与恢复调度共用同一门槛（P1）。
@@ -288,7 +253,7 @@ export async function startCapabilityCore(
         projectRevision: record.revision,
         intentMacKey: ensureCapabilitySigningKey('generation-intent'),
         providers: providerBootstrap.providers,
-        materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
+        materializeOutput: ({ projectId, providerTaskId, output, job }) => outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
       })
     }
     // P4 S5：re-kick 一个未完多镜批次的调度器（打开项目恢复用）。best-effort、不阻塞、异常只记 warn。
@@ -308,7 +273,6 @@ export async function startCapabilityCore(
         projectId,
         runId,
         perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
-        onShotMaterialized: (shotId) => pushShotResultToRenderer(projectId, runId, shotId),
         onBatchComplete: () => generationService.advanceSemanticProduction(projectId, runId),
       })
     }
@@ -316,7 +280,6 @@ export async function startCapabilityCore(
     // 它们共享同一批 per-instance 状态（在飞的 drive / 重踢定时器 / 单镜 epoch），核重启时一起作废。
     const runObservation = createRunObservationDrivers({
       repository: generationService.repository,
-      landCanvasBestEffort,
       buildSchedulerForRun,
     })
     disposeSingleShotObservationLifecycle = runObservation.stop
@@ -403,7 +366,7 @@ export async function startCapabilityCore(
             projectRevision: projectRecord.revision,
             intentMacKey: ensureCapabilitySigningKey('generation-intent'),
             providers: providerBootstrap.providers,
-            materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
+            materializeOutput: ({ projectId, providerTaskId, output, job }) => outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
           })
           // P4 S4: a multi-shot operation is driven by the durable batch scheduler (anchor → checkpoint →
           // shot batch, with budget halt + stop). A single-shot operation keeps the flat one-call start.
@@ -436,7 +399,6 @@ export async function startCapabilityCore(
               projectId: lease.projectId,
               runId: operation.operationId,
               perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
-              onShotMaterialized: (shotId) => pushShotResultToRenderer(lease.projectId, operation.operationId, shotId),
               onBatchComplete: () => generationService.advanceSemanticProduction(lease.projectId, operation.operationId),
             })
             // Durable, restart-safe kick; slow providers are re-kicked until quiescent.
@@ -473,7 +435,7 @@ export async function startCapabilityCore(
             projectRevision: projectRecord.revision,
             intentMacKey: ensureCapabilitySigningKey('generation-intent'),
             providers: providerBootstrap.providers,
-            materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
+            materializeOutput: ({ projectId, providerTaskId, output, job }) => outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
           })
           try {
             const polled = await submission.poll({ projectId: lease.projectId, operationId: operation.operationId })
@@ -578,9 +540,8 @@ export async function startCapabilityCore(
                 settleSingleShotAttention(projectId, run.runId, attentionJob?.jobId)
                 continue
               }
-              const observable = refreshed.jobs.some((job) =>
-                ['provider_accepted', 'polling'].includes(job.status) && Boolean(job.providerTaskId),
-              )
+              // 与观察者「歇一歇再问」用同一个判据（isProductionJobInFlight），重开项目与观察窗到期不会各判各的。
+              const observable = refreshed.jobs.some(isProductionJobInFlight)
               if (observable) {
                 const submission = buildSubmissionForRun(refreshed)
                 if (submission) observeSingleShotRun(submission, projectId, run.runId)
@@ -697,6 +658,8 @@ export function stopCapabilityCore(): void {
   reconcileOpenProjectHook = null
   unsubscribeCommittedSurface?.()
   unsubscribeCommittedSurface = null
+  unsubscribeRunChanges?.()
+  unsubscribeRunChanges = null
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
   disposeSingleShotObservationLifecycle?.(); disposeSingleShotObservationLifecycle = null

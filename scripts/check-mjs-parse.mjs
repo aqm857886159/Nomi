@@ -112,7 +112,7 @@ export async function checkFiles(files, { concurrency = DEFAULT_CONCURRENCY, che
 }
 
 export function formatFailures(failures, root = repoRoot) {
-  return failures.map((failure) => `    ${path.relative(root, failure.file)}  ${failure.message}`)
+  return failures.map((failure) => `    ${path.relative(root, failure.file).split(path.sep).join('/')}  ${failure.message}`)
 }
 
 export async function main({ root = repoRoot, dirs = SCAN_DIRS, log = console.log } = {}) {

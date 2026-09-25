@@ -31,6 +31,7 @@ import type { NodeWriteAccess } from '../../generationCanvas/nodes/nodeWriteAcce
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import type { PendingSpendConfirm, PendingSpendRead } from '../../../desktop/productionRunBridgeTypes'
 import { projectSpendCard, spendCardPage } from './agentPanelSpendCard'
+import { logRendererWarn } from '../../../desktop/rendererLog'
 import {
   spendDraftKey, restoreSpendDraft, retainSpendDraft, consumeSpendDraft,
   applyPatchToNode,
@@ -293,7 +294,7 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
     // 「暂时无法确认这一步的结果」用在「根本没发起」上是误导——它暗示可能已经提交、可能已经扣钱，
     // 于是用户不敢再按，转而去找一个并不存在的任务（2026-09-21 Pass 3b）。
     const failed = (reason: unknown, code?: string): void => {
-      console.warn('[spend-confirm] host refused', reason)
+      logRendererWarn('spend-confirm-refused', { code }, reason)
       const started = code !== 'generation_not_started' && code !== 'generation_quote_changed'
         && code !== 'run_not_open' && code !== 'generation_scope_invalid'
       toast(t(started ? 'agentPanelV4.spendActionFailed' : 'agentPanelV4.spendActionNotStarted'), 'error')

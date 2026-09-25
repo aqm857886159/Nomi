@@ -19,6 +19,7 @@ import {
   referenceResultDataUrl,
   referenceResultUrl,
 } from '../popover/browserAssetPopoverUtils'
+import { logRendererError } from '../../../desktop/rendererLog'
 import {
   BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS,
   extractTextFromTaskResult,
@@ -148,7 +149,7 @@ export async function runBrowserPromptExtractionToLibrary(
     report(i18n.t('browserAssets.savedToPromptLibraryNamed', { name: title }), 'success')
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    console.error('[nomi:browser] 提示词提取失败:', reason)
+    logRendererError('browser-prompt-extraction-failed', error)
     report(i18n.t('browserAssets.promptExtractionFailedToast', { error: reason }), 'error')
   }
 }

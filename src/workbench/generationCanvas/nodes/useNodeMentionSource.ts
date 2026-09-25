@@ -13,14 +13,15 @@ import React from 'react'
 import { useNodeWriteAccess, type NodeWriteAccess } from './nodeWriteAccess'
 import { useTranslation } from 'react-i18next'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { resolveReferenceSlots } from '../runner/referenceSlots'
-import { referenceSlotStorage } from './controls/archetypeMeta'
-import { selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { applyArchetypeModeSwitch, currentArchetypeMode, referenceSlotStorage } from './controls/archetypeMeta'
+import { archetypeForNode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { MENTION_SLOT_BY_MEDIA, resolveMentionReference } from '../model/canvasReferenceConnection'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, planMentionInsert } from './mentionCandidates'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
-type LibraryAsset = { id: string; name: string; url: string; kind?: 'image' | 'video' | 'audio' }
+type LibraryAsset = { id: string; name: string; url: string; kind?: 'image' | 'video' | 'audio'; thumbnailUrl?: string }
 
 export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: readonly LibraryAsset[], reportFeedback: (message: string) => void, writeAccess?: NodeWriteAccess): {
   /** 有序图片参考 url（兼容旧的图片 chip 编号）；视频/音频编号由 mediaReferences 提供。 */
@@ -32,19 +33,14 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
   const inheritedAccess = useNodeWriteAccess()
   const access = writeAccess ?? inheritedAccess
   const { t } = useTranslation()
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
   // 边**照读**，两个宿主读的是同一张图：付费确认卡上印的参考数量必须等于真正会发出去的那些
   // （连线接进来的首帧/参考卡也算）。只有**改**图的权能才归画布宿主（`access.connectNodes`）。
-  const edges = useGenerationCanvasStore((state) => state.edges)
-
-  const orderedReferenceUrls = React.useMemo(
-    () => currentReferenceUrls(node, nodes, edges),
-    [node, nodes, edges],
-  )
-  const orderedMediaReferences = React.useMemo(
-    () => currentReferenceMedia(node, nodes, edges),
-    [node, nodes, edges],
-  )
+  // 按内容订阅（序列化成字符串）：订整张 nodes / edges 会让每敲一个字都产出新数组、编辑器跟着重排 chip 编号
+  // （2026-09-25 画布跟手）。内容没变就沿用同一个数组。
+  const referenceUrlsKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceUrls(node, state.nodes, state.edges)))
+  const referenceMediaKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceMedia(node, state.nodes, state.edges)))
+  const orderedReferenceUrls = React.useMemo(() => JSON.parse(referenceUrlsKey) as ReturnType<typeof currentReferenceUrls>, [referenceUrlsKey])
+  const orderedMediaReferences = React.useMemo(() => JSON.parse(referenceMediaKey) as ReturnType<typeof currentReferenceMedia>, [referenceMediaKey])
 
   const mentionSearch = React.useCallback((query: string): MentionSuggestionItem[] => {
     const state = useGenerationCanvasStore.getState()
@@ -68,6 +64,7 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       url: candidate.url,
       label: candidate.label,
       ...(candidate.kind ? { kind: candidate.kind } : {}),
+      ...(candidate.thumbnailUrl ? { thumbnailUrl: candidate.thumbnailUrl } : {}),
       group: candidate.group as 'current' | 'canvas' | 'library',
       ...(candidate.referenceIndex === undefined ? {} : { index: candidate.referenceIndex }),
     }))
@@ -94,34 +91,43 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
     const target = access.latestNode(node.id)
     if (!target) return null
 
+    // @ 只有「参考」一种意思（resolveMentionReference）：先定落哪个参考槽、要不要切生成方式、放不放得下。
+    const route = resolveMentionReference(target, store.nodes, store.edges, plan.mediaKind)
+    if (!route.ok) {
+      reportFeedback(route.reason === 'full'
+        ? t('connection.mentionSlotsFull', { max: route.max })
+        : route.reason === 'blocked_by_frame_edges' ? t('connection.mentionBlockedByFrameEdges') : t('connection.unsupported'))
+      return null
+    }
+    const metaBefore = target.meta
+    const edgeIdsBefore = new Set(store.edges.map((edge) => edge.id))
+    const archetype = route.switchToModeId ? archetypeForNode(target) : null
+    if (archetype && route.switchToModeId) {
+      const switched = applyArchetypeModeSwitch((target.meta || {}) as Record<string, unknown>, archetype, route.switchToModeId)
+      access.updateNode(node.id, { meta: switched })
+      reportFeedback(t('connection.mentionModeSwitched', { mode: translateModelDisplayText(currentArchetypeMode(archetype, switched).vendorTerm) }))
+    }
+
     if (plan.kind === 'connect') {
       // 没有连边权能就明说，别掉进下面那条「当素材库上传处理」的路——那会把一个画布节点
       // 的 url 塞进上传槽，看起来成了、发出去的却是另一回事。
       if (!access.connectNodes) { reportFeedback(t('connection.unsupported')); return null }
       const source = store.nodes.find((candidate) => candidate.id === plan.sourceNodeId)
       if (!source) return null
-      // 和手动拖把柄同一把闸：收不下就当场说清，不留假引用。
-      const verdict = validateReferenceEdge(source, target, undefined)
+      // 源有没有能被引用的产物：和手动拖把柄同一把闸。
+      const verdict = validateReferenceEdge(source, target, route.edgeMode)
       if (!verdict.ok) {
         reportFeedback(verdict.reason === 'source_not_referenceable'
             ? t('connection.sourceUnavailable')
             : t('connection.unsupported'))
         return null
       }
-      const existingEdgesToTarget = store.edges.filter((edge) => edge.target === node.id)
-      access.connectNodes(plan.sourceNodeId, node.id, selectConnectionEdgeMode(source, target, existingEdgesToTarget))
+      access.connectNodes(plan.sourceNodeId, node.id, route.edgeMode)
     } else {
-      // 素材库媒体 → 落进对应参考槽的上传位（与拖文件进卡同一条存储路径）。
-      const desiredSlotKind = plan.mediaKind === 'video' ? 'video_ref' : plan.mediaKind === 'audio' ? 'audio_ref' : 'image_ref'
-      const slot = resolveReferenceSlots(target, store.nodes, store.edges).find((s) => s.slotKind === desiredSlotKind)
-      if (!slot) { reportFeedback(t('connection.unsupported')); return null }
-      if (slot.max !== undefined && slot.fills.length >= slot.max) {
-        reportFeedback(t('connection.slotsFull', { max: slot.max }))
-        return null
-      }
-      const storage = referenceSlotStorage({ kind: desiredSlotKind })
+      // 素材库媒体 → 落进对应参考槽的上传位（与拖文件进卡同一条存储路径）；槽与容量已由 resolveMentionReference 定好。
+      const storage = referenceSlotStorage({ kind: MENTION_SLOT_BY_MEDIA[plan.mediaKind] })
       if (!storage) return null
-      const meta = (target.meta || {}) as Record<string, unknown>
+      const meta = (access.latestNode(node.id)?.meta || {}) as Record<string, unknown>
       const existing = Array.isArray(meta[storage.metaKey]) ? (meta[storage.metaKey] as string[]) : []
       if (!existing.includes(plan.url)) {
         access.updateNode(node.id, { meta: { ...meta, [storage.metaKey]: [...existing, plan.url] } })
@@ -135,7 +141,9 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
     const media = currentReferenceMedia(afterTarget, after.nodes, after.edges)
     const index = media.find((reference) => reference.url === plan.url && reference.kind === plan.mediaKind)?.index ?? -1
     if (index < 0) {
-      // 引用没真落进槽（例如被 placeAt 丢弃）→ 不插 chip，且明着说，别静默。
+      // 引用没真落进槽 → 不插 chip、明着说，并把这次建的边 / 上传 / 模式切换撤回，不在画布上留一条没用的线。
+      for (const edge of after.edges) if (!edgeIdsBefore.has(edge.id) && edge.target === node.id) after.disconnectEdge(edge.id)
+      access.updateNode(node.id, { meta: metaBefore })
       reportFeedback(t('connection.referenceFull'))
       return null
     }

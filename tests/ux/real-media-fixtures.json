@@ -62,6 +62,30 @@
       "whyThisOne": "多版本结果卡要的是「看得出是两张不同的真实画面」的图：同一镜头不同时刻的帧熵高、彼此不同；实测每帧 26–31 万字节，黑帧或解码失败会远小于下限"
     },
     {
+      "id": "video-canvas-follow-hand-1080p15",
+      "kind": "video",
+      "repoPath": "tests/ux/fixtures/canvas-follow-hand-1080p15.mp4",
+      "derivedFrom": {
+        "repoPaths": [
+          "docs/audit/2026-08-20-l3-f1-full-journey/09-video-1787217122828.mp4",
+          "docs/audit/2026-08-20-l3-f1-full-journey/10-video-1787217281621.mp4",
+          "docs/audit/2026-08-20-l3-f1-full-journey/11-video-1787217484917.mp4"
+        ],
+        "how": "ffmpeg -i 09.mp4 -i 10.mp4 -i 11.mp4 -filter_complex \"[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[v][a];[v]crop=720:405:0:(ih-405)/2,scale=1920:1080:flags=lanczos,setsar=1[vo]\" -map \"[vo]\" -map \"[a]\" -t 15 -c:v libx264 -profile:v high -pix_fmt yuv420p -preset medium -crf 23 -g 48 -r 24 -c:a aac -b:a 128k -movflags +faststart canvas-follow-hand-1080p15.mp4（三段各 5.09 秒、720×1280 真实生成镜头拼成 15 秒，居中裁 16:9 再放大到 1080p）"
+      },
+      "spec": {
+        "codec": "h264",
+        "bitDepth": 8,
+        "width": 1920,
+        "height": 1080,
+        "bytes": 6135884,
+        "durationSeconds": 15,
+        "audioCodec": "aac"
+      },
+      "source": "同仓库 docs/audit/2026-08-20-l3-f1-full-journey 里三段真实 AI 生成镜头（便利店夜班店员 / 雨夜书店门口），2026-09-25 画布跟手量具离线转码后入库；规格由 ffprobe 实测（h264 High 1920×1080 yuv420p 24fps，15.000 秒，6,135,884 字节，AAC 44.1kHz 立体声）",
+      "whyThisOne": "画布性能要的是「用户那块画布」：30 多个 15 秒 1080p 生成视频节点同时在屏上。解码与内存成本随分辨率和时长走，640×360 那件（video-ai-shot-640x360）承担不了；本机 4K 素材库不能进公开仓库、CI 上也没有。这件是真实镜头的熵与编码、1080p、15 秒、约 3.3 Mbps，32 个节点各一份硬链接即可复现 GPU 进程 1.3–2.0 GB 的那种压力，体积只有 6 MB，CI 每个非文档 PR 都能带着跑"
+    },
+    {
       "id": "speech-zh-mixed-hevc",
       "kind": "video",
       "relativePath": "9月12日(1)/9月12日(1).mov",
@@ -134,13 +158,12 @@
   "coverage": [
     {
       "class": "canvas-performance",
-      "test": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "test": "tests/ux/canvas-follow-hand.perf.mjs",
       "assets": [
-        "video-4k-hevc-10bit",
-        "image-4k-png"
+        "video-canvas-follow-hand-1080p15"
       ],
-      "status": "debt",
-      "debtId": "canvas-performance-real-media"
+      "status": "live",
+      "why": "画布跟手量具（docs/plan/2026-09-25-canvas-follow-hand.md）：32 个真实 15 秒 1080p 视频节点 + docs/audit 里真实生成的图 + 文本，共 76 个节点、缩放到全部在屏上，真实鼠标键盘做九个动作。快速档（--structural）判计数不判毫秒：空闲 <video> = 0、同时在播 ≤ 1、悬停离开不留播放器、打字 / 新建节点别的节点重渲 0、叠放拖出不粘；每个非纯文档 PR 都在 Core Flow Smoke (empty) 那一格跑。素材从本登记表取，缺了即红。**旧基准 canvas-performance-benchmark.e2e.mjs 仍用合成夹具**（合成构造在 scripts/real-media-fixture-baseline.json 里冻结、只减不增），它不再承担这一类的真实素材覆盖"
     },
     {
       "class": "import",

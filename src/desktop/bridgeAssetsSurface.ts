@@ -65,6 +65,8 @@ export type DesktopAssetsSurface = {
   copyProjectAsset?: (payload: { sourceProjectId: string; targetProjectId: string; relativePath: string }) => Promise<DesktopAssetDto>
   /** 播放懒自愈：nomi-local 视频解不了（HEVC 存量/供应商 HEVC 产物）→ 转码出新 MP4 资产；不适用 → null。 */
   ensurePlayable?: (payload: { url: string }) => Promise<DesktopAssetDto | null>
+  /** 老节点补封面：按 nomi-local URL 取（必要时派生）落盘边界的预览。 */
+  ensurePreview?: (payload: { url: string }) => Promise<{ thumbnailUrl?: string } | null>
   /**
    * 引导示例项目的预置成图 → 项目资产，回 clientId → nomi-local URL。
    * 必须走主进程：渲染侧只有构建产物 URL（dev 是 dev-server 地址、打包版是带哈希的 file://），

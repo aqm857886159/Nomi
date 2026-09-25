@@ -12,6 +12,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { ACTION_LIBRARY, T_POSE_ACTION_ID } from '../../model/actionLibrary'
 import { poseClipAssetFor } from './mannequinAssets'
 import { HIPS_BASE_NAME, snapshotBones, type PoseSnapshot } from './poseSnapshot'
+import { logRendererError, logRendererWarn } from '../../../../../../desktop/rendererLog'
 
 /** 时长不超过这个值的 clip 当静态姿态 */
 export const STATIC_CLIP_SECONDS = 0.05
@@ -43,7 +44,7 @@ function loadOne(actionId: string): Promise<void> {
     .then((root) => {
       const clip = root.animations[0]
       if (!clip) {
-        console.warn(`[director] 姿态 FBX 没有动画轨道: ${actionId}`)
+        logRendererWarn('pose-clip-missing-animation', { actionId })
         failed.add(actionId)
         return
       }
@@ -68,7 +69,7 @@ function loadOne(actionId: string): Promise<void> {
       loaded.set(actionId, entry)
     })
     .catch((error) => {
-      console.error(`[director] 加载姿态 FBX 失败: ${actionId}`, error)
+      logRendererError('pose-clip-load-failed', error, { actionId })
       failed.add(actionId)
     })
   pending.set(actionId, task)

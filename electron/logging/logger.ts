@@ -60,7 +60,9 @@ export type LogScope =
   | "downloads"
   // 本地转写 sidecar：装引擎、起进程、分段推理。
   | "local-speech"
-  | "diagnostics";
+  | "diagnostics"
+  // 渲染层上报的失败（经 `logging/rendererLog.ts` 那一条通道进来）。
+  | "renderer";
 
 /**
  * 字段值只收标量。收 `unknown` 或 `object` 就等于开了一个「把整个请求体 JSON 进来」的口子，
@@ -154,7 +156,8 @@ function mirrorToStderr(line: string): void {
   }
 }
 
-function formatFields(fields?: LogFields): string {
+/** 字段 → ` k=v k=v`（逐个过 `redactField`）。导出给崩溃道：两条道的字段必须同一种写法、同一套脱敏。 */
+export function formatLogFields(fields?: LogFields): string {
   if (!fields) return "";
   const parts: string[] = [];
   for (const [key, value] of Object.entries(fields)) {
@@ -167,7 +170,7 @@ function formatFields(fields?: LogFields): string {
 function write(level: LogLevel, scope: LogScope, event: string, fields?: LogFields, error?: unknown): void {
   // 落盘与 stderr 共用同一份**已脱敏**文本：两条通路一旦各自格式化，就会有一条先漂移，
   // 而漂移的那条多半是没人看的那条（开发时看 stderr，出事时看文件）。
-  const detail = `${redactLogValue(event)}${formatFields(fields)}${error === undefined ? "" : ` ${redactError(error)}`}`;
+  const detail = `${redactLogValue(event)}${formatLogFields(fields)}${error === undefined ? "" : ` ${redactError(error)}`}`;
   ensureSink().append(capLogLine(`${level.padEnd(5)} ${scope.padEnd(14)} ${detail}`));
   mirrorToStderr(`[nomi:${scope}] ${detail}`);
 }

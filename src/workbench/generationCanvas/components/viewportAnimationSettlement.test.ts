@@ -57,14 +57,21 @@ describe('viewport animation settlement', () => {
     }
   })
 
-  it('falls back to namespaced console reporting when browser reportError is unavailable', () => {
+  it('falls back to the renderer log owner (DevTools + main-process log) when browser reportError is unavailable', () => {
     const error = new Error('fallback settlement failure')
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const report = vi.fn()
     vi.stubGlobal('reportError', undefined)
+    vi.stubGlobal('window', { nomiDesktop: { log: { report } } })
     try {
       const settlement = createViewportAnimationSettlement(() => { throw error })
       expect(() => settlement.settle('cancelled')).not.toThrow()
-      expect(consoleError).toHaveBeenCalledExactlyOnceWith('[nomi] viewport settlement callback failed:', error)
+      expect(consoleError).toHaveBeenCalledExactlyOnceWith('[nomi:viewport-settlement-failed]', error)
+      expect(report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        level: 'error',
+        event: 'viewport-settlement-failed',
+        error: expect.objectContaining({ name: 'Error', message: 'fallback settlement failure' }),
+      }))
     } finally {
       vi.unstubAllGlobals()
       consoleError.mockRestore()

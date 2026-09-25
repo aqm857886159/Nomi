@@ -2,6 +2,7 @@ import React from 'react'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistNodeImageFile } from './persistNodeImage'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 /**
  * 卡片 / 节点「上传一张图」的统一回调。
@@ -46,7 +47,7 @@ export function useNodeImageUpload(nodeId: string, source: string): (dataUrl: st
           meta: mergeMeta({ source, uploadStatus: 'uploaded', localOnly: false }),
         })
       }).catch((error) => {
-        if (isProjectExecutionContextCurrent(context) && !isProjectImportCancellation(error)) console.error('node image upload failed', error)
+        if (isProjectExecutionContextCurrent(context) && !isProjectImportCancellation(error)) logRendererError('node-image-upload-failed', error)
       })
     },
     [nodeId, source, updateNode],

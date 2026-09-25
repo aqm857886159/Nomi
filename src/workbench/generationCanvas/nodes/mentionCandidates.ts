@@ -14,6 +14,7 @@
  * 一个还没生成的节点没有 URL，要收它就得引入**第二种 mention kind**（按 nodeId 锚定）——
  * 那是文本类引用那一轮的事，这轮不动，免得把「编号一致性」这条唯一真相源搞脏。
  */
+import { MENTION_SLOT_BY_MEDIA, type MentionMediaKind } from '../model/canvasReferenceConnection'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { referenceAssetKindForNode } from '../agent/referenceEdgeCapability'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
@@ -21,7 +22,7 @@ import { resultUrl } from '../runner/referenceUrl'
 import type { PromptReference } from '../../assets/promptMentions'
 
 export type MentionCandidateGroup = 'current' | 'canvas' | 'library'
-export type MentionMediaKind = 'image' | 'video' | 'audio'
+export type { MentionMediaKind }
 
 export type MentionReference = PromptReference
 type ResolvedMentionReference = MentionReference & { label?: string }
@@ -32,6 +33,8 @@ export type MentionCandidate = {
   url: string
   label: string
   kind?: MentionMediaKind
+  /** 落盘边界派生的预览；候选列表画它。 */
+  thumbnailUrl?: string
   group: MentionCandidateGroup
   /** 'current' 专有：它在有序参考数组里的 0-based 下标（= chip 上显示的「图片N」减一）。 */
   referenceIndex?: number
@@ -75,11 +78,8 @@ export function currentReferenceMedia(
   nodes: readonly GenerationCanvasNode[],
   edges: readonly GenerationCanvasEdge[],
 ): ResolvedMentionReference[] {
-  const mediaBySlot: Record<string, MentionMediaKind> = {
-    image_ref: 'image',
-    video_ref: 'video',
-    audio_ref: 'audio',
-  }
+  // 编号与 @ 落槽读同一张表（MENTION_SLOT_BY_MEDIA），不各写一份。
+  const mediaBySlot = Object.fromEntries(Object.entries(MENTION_SLOT_BY_MEDIA).map(([media, slot]) => [slot, media])) as Record<string, MentionMediaKind>
   const counts: Record<MentionMediaKind, number> = { image: 0, video: 0, audio: 0 }
   const out: ResolvedMentionReference[] = []
   const nodesById = new Map(nodes.map((node) => [node.id, node]))
@@ -102,7 +102,7 @@ export function buildMentionCandidates(params: {
   target: GenerationCanvasNode
   nodes: readonly GenerationCanvasNode[]
   edges: readonly GenerationCanvasEdge[]
-  libraryAssets: readonly { id: string; name: string; url: string; kind?: MentionMediaKind }[]
+  libraryAssets: readonly { id: string; name: string; url: string; kind?: MentionMediaKind; thumbnailUrl?: string }[]
   query: string
   currentLabel: (index: number, kind: MentionMediaKind) => string
 }): MentionCandidate[] {
@@ -133,7 +133,8 @@ export function buildMentionCandidates(params: {
     const label = (node.title || '').trim() || url.split('/').pop() || node.id
     if (!matches(label, query)) continue
     seen.add(url)
-    out.push({ key: `canvas:${node.id}`, url, label, group: 'canvas', sourceNodeId: node.id, ...(kind === 'image' ? {} : { kind }) })
+    const thumbnailUrl = String(node.result?.thumbnailUrl || '').trim()
+    out.push({ key: `canvas:${node.id}`, url, label, group: 'canvas', sourceNodeId: node.id, ...(kind === 'image' ? {} : { kind }), ...(thumbnailUrl ? { thumbnailUrl } : {}) })
   }
 
   for (const asset of libraryAssets) {
@@ -142,7 +143,7 @@ export function buildMentionCandidates(params: {
     if (!matches(label, query)) continue
     seen.add(asset.url)
     const kind = asset.kind ?? 'image'
-    out.push({ key: `library:${asset.id}`, url: asset.url, label, group: 'library', ...(kind === 'image' ? {} : { kind }) })
+    out.push({ key: `library:${asset.id}`, url: asset.url, label, group: 'library', ...(kind === 'image' ? {} : { kind }), ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}) })
   }
 
   return out.slice(0, MENTION_CANDIDATE_LIMIT)

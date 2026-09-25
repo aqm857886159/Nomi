@@ -22,6 +22,7 @@ import {
 import type { JsonRecord } from "../jsonUtils";
 import { logWarn } from "../logging/logger";
 import { projectDirById } from "../projects/repository";
+import { contentTypeFromStoredFile } from "./projectAssetStore";
 import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPreview, type StoredAssetPreview } from "./assetPreview";
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
 import type { ProjectBinding } from "../shared/projectBinding";
@@ -252,6 +253,25 @@ function readHealedAsset(sourcePath: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * 老节点补封面（画布跟手方案第 1 步）：结果早于「落盘边界派生预览」、或经旧导入路径进来的 nomi-local
+ * 图片 / 视频没有 `thumbnailUrl`，画布只能为它挂原片。这里按 URL 找回源文件，交给 attachStoredAssetPreview
+ * ——它是预览派生的唯一 owner：sidecar 里有就直接用，没有就抽一帧写回 sidecar。返回 { thumbnailUrl? }；
+ * 不是本项目落盘文件 / 派生失败 → null（调用方照旧画原片，下次打开再试）。
+ */
+export async function ensureLocalAssetPreview(payload: unknown): Promise<JsonRecord | null> {
+  const parsed = parseLocalAssetUrl(String((payload as JsonRecord | undefined)?.url || "").trim());
+  if (!parsed) return null;
+  const { projectId, filePath } = parsed;
+  const projectDir = projectDirById(projectId);
+  if (!projectDir || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return null;
+  const relativePath = path.relative(projectDir, filePath).replace(/\\/g, "/");
+  const contentType = contentTypeFromStoredFile(filePath);
+  const record = await attachStoredAssetPreview({ projectId, data: { absolutePath: filePath, relativePath, contentType } });
+  const { thumbnailUrl } = record.data;
+  return thumbnailUrl ? { thumbnailUrl } : {};
 }
 
 /**
