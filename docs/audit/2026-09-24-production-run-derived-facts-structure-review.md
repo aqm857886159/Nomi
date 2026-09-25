@@ -23,18 +23,18 @@
 
 `electron/productionRun` 的持久层没有问题；问题在**读侧**：Run 的派生事实散落在消费者里，而不是长在 Run 旁边。
 今天它们已经各自收过一次 owner——`productionPendingSpend.awaitingSpendDecision`（等你点头）、`policySpendDecision`（档位代答）、
-`laneApprovalGate`（运行面的等）、本次的 `electron/shared/contracts/productionDispatch.ts`（派没派出去）——但这些 owner 是**按事故一件一件长出来的**，
+`laneApprovalGate`（运行面的等）、本次补进 `electron/shared/productionShotPhase.ts` 的 `jobAwaitsHuman` / `isShotInDispatchedScope`（派没派出去）——但这些 owner 是**按事故一件一件长出来的**，
 没有一处说「Run 能回答的问题就这几个，都在这里」。下一个新界面（例如 T-AG-24 的批量「生成全部」、T-AG-25 的任务按钮在等粗剪）
 仍然会先去读 `run.status` / `plan.state` / `job.status` 的字面值，再自己拼一个判断。
 
 证据（本次实扫）：渲染层直接读 Run 字面状态再自行判断的地方，在本次之前至少有三处——
 `src/workbench/production/shotPlaceholderState.ts`（旧版「没有 job → 排队中」）、`src/workbench/taskCenter/productionRunTaskCenter.ts`（「非终态 → running」）、
 `src/workbench/production/productionRunView.ts`（`run.status === 'draft'` 定标题）；主进程侧 `electron/productionRun/batchScheduleDerivation.ts` 自带一份
-`authorization_required` 判断。本次已把这四处都接到 `productionDispatch`。
+`authorization_required` 判断。其中任务中心那两处已由 #869 重做（草稿不进任务列表、等人的归「等你处理」），任务卡标题随之走 #869 的分组；画布那处与调度器本次接到 `productionShotPhase` 的同一张人工门表。
 
 ## 建议（结构层面，不在本 PR 实施）
 
-1. **把 Run 的派生事实收成一个模块**（候选位置 `electron/shared/contracts/productionRunFacts.ts`）：`isCurrentRequestDispatched`、
+1. **把 Run 的派生事实收成一个模块**（候选位置 `electron/shared/contracts/productionRunFacts.ts`）：「派没派出去」（今天在 `productionShotPhase` 的人工门表）、
    `awaitingSpendDecision` 的判据部分、「在等用户」、「在跑」都住在这里，主进程与渲染层同读。已有的 owner 迁过去时只搬判据、不改行为。
 2. **加一道棘轮门岗**（同 `check:vocabularies` 的做法）：`src/` 里不许出现 `run.status ===` / `generationPlan.state ===` / `job.status ===`
    这类对 Run 字面状态的直接判断（白名单只放上面那个模块与它的测试），存量记基线只减不增。这样第六个界面想自己猜的时候，编译前就红。

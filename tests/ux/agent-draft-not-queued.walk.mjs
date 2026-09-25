@@ -7,8 +7,9 @@
 // 同一次还查出：Agent 派出去的镜「生成中」是一层 8-25 的旧遮罩（模糊 + 大 N），9-08 普通节点换像素动画时没跟上。
 //
 // 用户拍板（样张 docs/design/2026-09-24-draft-shot-honest-status-mockup.html）：
-//   ① 草稿节点什么都不挂；② 任务按钮不数草稿、面板里草稿单独一组；③ 报价卡在等人那一刻同草稿；
-//   ④ 点了之后，生成中 / 排队中 / 失败走普通节点那一套（像素等待面 + 状态行 / 标准错误卡）。
+//   ① 草稿节点什么都不挂；③ 报价卡在等人那一刻同草稿；④ 点了之后生成中走普通节点那一套（像素等待面 + 状态行）。
+//   ② 任务面板那一半由 #869（2026-09-25 拍板的任务面板样张）接手：draft_shots 建的草稿不进任务列表，
+//   报价卡在等人时归「等你处理」——这里按那一版断言，不另立一套。④ 的画法由 #870 落进节点自己的运行记录。
 //
 // 只有远端供应商是 loopback 夹具（零额度）；SDK、IPC、ProductionRun、渲染层、落盘全是真的。
 // 四个时刻，每个都用盘上的 Run 与夹具收到的请求数做硬证据，再看屏上说了什么：
@@ -67,16 +68,16 @@ function isQuiet(face) {
  * 读进来之前节点本来就什么都不说（那是恒真的空话）。E2E 桥只在 `__nomiE2E` 下挂出来。
  */
 function landingHasRun(win, runId) {
-  return win.evaluate((id) => window.__nomiProductionLandingStore?.getState().run?.runId === id, runId)
+  return win.evaluate((id) => Boolean(window.__nomiProductionLandingStore?.getState().runs?.[id]), runId)
 }
 
-/** 草稿这一态在屏上的全部证据：节点什么都不说、任务按钮不亮、任务面板里单独一组「草稿 1」。 */
-async function expectDraftFace(win, walk, nodeId, { runId, draftsLabel, runningLabel, locale }) {
+/** 草稿这一态在屏上的全部证据：节点什么都不说、任务按钮不亮、任务面板里没有这份草稿（#869：草稿不是任务）。 */
+async function expectDraftFace(win, walk, nodeId, { runId, locale }) {
   await expect.poll(() => landingHasRun(win, runId), { message: `${locale}：画布落地 host 读到了这份草稿`, timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
   await clickOrFail(win.locator(TASK_TRIGGER).first(), `${locale}：打开任务面板`)
-  const draftSection = win.locator(TASK_PANEL).getByText(draftsLabel, { exact: true })
-  const sectionProof = await proveProbe(draftSection, `${locale}：任务面板里这份草稿单独一组「${draftsLabel}」`)
-  await expectAbsent(win.locator(TASK_PANEL).getByText(runningLabel), { provenBy: sectionProof, message: `${locale}：草稿不在「进行中」里` })
+  const panelProof = await proveProbe(win.locator(TASK_PANEL), `${locale}：任务面板打开了`)
+  await expectAbsent(win.locator(`${TASK_PANEL} [data-task-id="production-run:${runId}"], ${TASK_PANEL} [data-production-task-card]`),
+    { provenBy: panelProof, message: `${locale}：还没点头的草稿不在任务列表里` })
   await walk.snap(`draft-task-panel-${locale}`)
   await win.keyboard.press('Escape')
   const face = await nodeFace(win, nodeId)
@@ -136,12 +137,12 @@ try {
 
   // 屏上：节点什么都不说，任务按钮不亮。任务面板里出现这份草稿 = 任务中心已经轮询到它了，再判才不是假绿。
   await expect.poll(() => nodeFace(win, nodeId).then((face) => face.present), { timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
-  await expectDraftFace(win, walk, nodeId, { runId: operationId, draftsLabel: '草稿 1', runningLabel: /^进行中 \d+$/, locale: 'zh' })
+  await expectDraftFace(win, walk, nodeId, { runId: operationId, locale: 'zh' })
   // 英文同一态（R15：EN 串更长，截断只有眼睛看得出）。之后整条路都在英文下走。
   await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'en'))
   await win.reload()
   await expect.poll(() => nodeFace(win, nodeId).then((face) => face.present), { timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
-  await expectDraftFace(win, walk, nodeId, { runId: operationId, draftsLabel: 'Drafts 1', runningLabel: /^Running \d+$/, locale: 'en' })
+  await expectDraftFace(win, walk, nodeId, { runId: operationId, locale: 'en' })
 
   // ── ② 报价卡在等人：节点同草稿 ──
   const goTurn = walk.fixture.expectText({
@@ -162,7 +163,6 @@ try {
   expect(walk.fixture.images, '卡在等：供应商仍然一次请求都没收到').toHaveLength(0)
   expect(await landingHasRun(win, operationId), '报价卡在等人：画布落地 host 仍读着这份 Run').toBe(true)
   expect(isQuiet(await nodeFace(win, nodeId)), '报价卡在等人：节点仍然什么都不挂').toBe(true)
-  await expect(win.locator(TASK_COUNT), '报价卡在等人：任务按钮仍不显示数字').toHaveCount(0)
   await walk.snap('card-waiting-en')
 
   // ── ③ 点了：真的派出去；供应商那边停在 processing，拍「生成中」 ──

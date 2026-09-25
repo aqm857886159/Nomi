@@ -1,61 +1,37 @@
 {
   "schema_version": 3,
   "id": "2026-09-24-draft-shot-dispatch-honesty",
-  "problem_type": "A run-state concept (has the user confirmed and dispatched this generation) had no owner, so each surface guessed it from a proxy and one node execution state had two renderers",
-  "symptom": "After the user said 先别生成 and the agent only called draft_shots, the new canvas node showed 排队中 · 第 1/1 and the top-right task button turned blue with 1, which reads as queued and about to spend money. Separately, an agent-dispatched shot rendered 生成中 with an old blurred overlay and big N mark while ordinary nodes use the pixel waiting surface.",
-  "direct_cause": "deriveShotPlaceholderState mapped any node without a job to queued; buildProductionRunTaskRows grouped every non-terminal run as running; ProductionShotPlaceholder drew its own queued chip, generating overlay and failed card instead of the shared node surfaces.",
-  "class_root": "Nothing owned the fact whether the current request passed the human spend gate (plan submitted, or a job past authorization_required). The truth existed only inside the batch scheduler, so the placeholder, the task center and the task card each re-derived it from a proxy (job exists, run not terminal, status literal draft), and the production shot kept a second renderer for execution states.",
+  "problem_type": "A shot state derivation reported progress (queued / stopped) for work the user had not yet approved, because \"no job yet\" and \"job still at the human gate\" were read as \"waiting in the queue\"",
+  "symptom": "After the user said 先别生成 and the agent only called draft_shots, the new canvas node showed 排队中 · 第 1/1 (and the task button lit up), which reads as queued and about to spend money. On disk at that moment: Run draft, plan draft (cardHidden), 0 jobs, 0 gates, ledger 0, 0 provider requests.",
+  "direct_cause": "deriveProductionShotState (then shotPlaceholderState) mapped every shot without a job — and every job still in planned / authorization_required — to queued unless the run was stopped; only unticked shots were excluded.",
+  "class_root": "The shot-phase owner had no notion of \"has the user let this request go out\". The fact existed only inside the batch scheduler (authorization_required is still waiting for a human) and in the plan state (submitted), so every pre-approval state — draft_shots draft, priced card waiting, confirm_all shot gate, rework awaiting its card, draft cancelled before dispatch — fell through to queued or stopped.",
   "affected_population": [
-    "Every agent draft created by draft_shots (cardHidden) while the user has not asked to generate",
-    "Every priced card waiting for the user, every confirm_all shot waiting on its own gate, every shot unticked from a submitted batch, every draft cancelled before dispatch",
-    "Every agent-dispatched shot while queued, generating or failed"
+    "Every agent draft created by draft_shots while the user has not asked to generate",
+    "Every priced card waiting for the user, every confirm_all shot waiting on its own gate, every rework waiting on its confirmation, every draft cancelled before dispatch"
   ],
   "scope_paths": [
-    "electron/shared/contracts/productionDispatch.ts",
-    "electron/productionRun/batchScheduleDerivation.ts",
-    "electron/productionRun/productionRunRepository.ts",
-    "electron/productionRun/productionRunTypes.ts",
-    "src/workbench/production/shotPlaceholderState.ts",
-    "src/workbench/production/useProductionExecutionNode.ts",
-    "src/workbench/production/productionRunView.ts",
-    "src/workbench/observability/useGenerationFeedback.ts",
-    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
-    "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
-    "src/workbench/taskCenter/productionRunTaskCenter.ts",
-    "src/workbench/taskCenter/TaskCenterPanel.tsx"
+    "electron/shared/productionShotPhase.ts",
+    "electron/productionRun/batchScheduleDerivation.ts"
   ],
   "entry_points": [
-    "Canvas node overlay for production shots (ProductionShotPlaceholder / NodeGeneratingOverlay / NodeGenerationStatus / NodeErrorReport)",
-    "Top-right task button and task panel production rows",
-    "Task card title for a draft-status run",
+    "Main-process canvas landing projection (multiShotCanvasLanding.buildMaterializeShotsPayload) writing node run records",
+    "Renderer production placeholder (queued / stopped chips)",
     "Batch scheduler in-flight judge"
   ],
   "external_sources": [],
   "internal_only_reason": "The invariant is Nomi's own generation lifecycle (plan state and job status machine in electron/productionRun/productionRunState.ts); no third-party library or external format decides it.",
   "invariant_owner_layer": {
-    "layer": "electron/shared/contracts/productionDispatch.ts",
+    "layer": "electron/shared/productionShotPhase.ts",
     "tests": [
-      "electron/shared/contracts/productionDispatch.test.ts",
-      "src/workbench/production/shotPlaceholderState.test.ts"
+      "electron/shared/productionShotPhase.test.ts"
     ],
-    "why": "Both processes ask the same question (main for the run summary and scheduler, renderer for canvas and task center) and the renderer may only import the neutral contract layer."
+    "why": "It is already the single owner of \"which phase is this shot in\" for both the main-process landing projection and the renderer placeholder (#870); the pre-approval rule belongs to that same judgment."
   },
   "invariants": [
-    "A node shows queued, generating or stopped only if its shot is in the dispatched scope (plan submitted and shot included) or has a job past the human gate.",
-    "A run whose status is draft and whose current request is not dispatched is listed as a draft, never counted as running on the task button.",
-    "Queued, generating and failed production shots render through the same node surfaces as ordinary nodes; only the batch-specific stopped state has its own overlay."
+    "A shot is reported queued or stopped only if its latest job has passed the human gate, or it has no job and the plan is submitted with the shot included.",
+    "jobAwaitsHuman is an exhaustive Record over ProductionJobStatus, so a new status cannot silently fall into queued."
   ],
   "doors": [
-    {
-      "kind": "write",
-      "path": "electron/shared/contracts/productionDispatch.ts",
-      "symbol": "isCurrentRequestDispatched"
-    },
-    {
-      "kind": "read",
-      "path": "electron/productionRun/productionRunTypes.ts",
-      "symbol": "ProductionRunSummary"
-    },
     {
       "kind": "read",
       "path": "electron/productionRun/batchScheduleDerivation.ts",
@@ -63,110 +39,55 @@
     },
     {
       "kind": "read",
-      "path": "electron/productionRun/productionRunRepository.ts",
-      "symbol": "isCurrentRequestDispatched"
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "deriveProductionShotState"
     },
     {
       "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
-      "symbol": "useProductionExecutionNode"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
-      "symbol": "useProductionShotState"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts",
-      "symbol": "deriveShotPlaceholderState"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/useGenerationFeedback.ts",
-      "symbol": "useProductionExecutionNode"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "isCurrentRequestDispatched"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/shotPlaceholderState.ts",
+      "path": "electron/shared/productionShotPhase.ts",
       "symbol": "jobAwaitsHuman"
     },
     {
       "kind": "read",
-      "path": "src/workbench/production/shotPlaceholderState.ts",
-      "symbol": "isNodeInDispatchedScope"
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "isShotInDispatchedScope"
     },
     {
       "kind": "read",
-      "path": "src/workbench/production/useProductionExecutionNode.ts",
-      "symbol": "deriveShotPlaceholderState"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/useProductionExecutionNode.ts",
-      "symbol": "useProductionShotState"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/useProductionExecutionNode.ts",
-      "symbol": "projectShotExecution"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
-      "symbol": "isCurrentRequestDispatched"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
-      "symbol": "buildProductionRunTaskRows"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "buildProductionRunTaskRows"
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "symbol": "deriveProductionShotState"
     }
   ],
   "door_reduction": {
-    "before": 6,
-    "after": 17,
-    "why_not": "Every remaining door is a reader of the one owner (productionDispatch) or of the single projection built on it (deriveShotPlaceholderState -> projectShotExecution). Readers must exist per surface: the scheduler, the run summary, the canvas node, the shot table, the task button, the task panel and the task card each render a different place. Before this change three independent judges existed (job-exists, not-terminal, authorization_required); now there is one."
+    "before": 3,
+    "after": 5,
+    "why_not": "All remaining doors are readers of the one owner (productionShotPhase): the landing projection, the placeholder and the scheduler render or act in different processes. Before this change the scheduler kept its own authorization_required literal; now it reads jobAwaitsHuman."
   },
-  "generality_proof": "All consumers now converge on productionDispatch: the scheduler (jobAwaitsHuman), the run summary (isCurrentRequestDispatched -> ProductionRunSummary.dispatched), the task center and task card (dispatched / isCurrentRequestDispatched), and the canvas (deriveShotPlaceholderState uses jobAwaitsHuman and isNodeInDispatchedScope; useGenerationFeedback and the node error card read projectShotExecution). A new surface that shows run progress has no proxy left to copy: the placeholder no longer returns queued for missing jobs, and the task rows no longer map non-terminal to running.",
+  "generality_proof": "Both canvas surfaces (main-process node run records and the renderer placeholder) and the scheduler read productionShotPhase, so every pre-approval state is decided once. jobAwaitsHuman is exhaustive, and isShotInDispatchedScope keys on plan.state === submitted plus included, which covers drafts, sealed-but-unapproved plans, cancelled drafts and unticked shots with one rule.",
   "shared_boundaries": [
     {
-      "path": "electron/shared/contracts/productionDispatch.ts",
-      "symbol": "isCurrentRequestDispatched",
-      "responsibility": "Owns whether the current request of a run passed the human gate."
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "deriveProductionShotState",
+      "responsibility": "Returns null for any shot the user has not let go out yet."
     },
     {
-      "path": "electron/shared/contracts/productionDispatch.ts",
-      "symbol": "isNodeInDispatchedScope",
-      "responsibility": "Owns whether a node without a job belongs to a dispatched batch."
-    },
-    {
-      "path": "src/workbench/production/shotPlaceholderState.ts",
-      "symbol": "projectShotExecution",
-      "responsibility": "Single projection of a production shot execution onto the node face read by all node execution surfaces."
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "jobAwaitsHuman",
+      "responsibility": "Exhaustive answer to \"is this job still waiting at the human gate\"."
     }
   ],
   "same_class_entry_points": [
     {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "entry_point": "buildMaterializeShotsPayload",
+      "disposition": "enforced",
+      "evidence": "Calls deriveProductionShotState; a null phase writes no run record, so the node stays an ordinary idle node."
+    },
+    {
       "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
       "entry_point": "ProductionShotPlaceholder",
       "disposition": "enforced",
-      "evidence": "Only renders stopped; reads useProductionShotState -> deriveShotPlaceholderState which returns null before dispatch."
-    },
-    {
-      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
-      "entry_point": "buildProductionRunTaskRows",
-      "disposition": "enforced",
-      "evidence": "Groups by productionRunGroup using ProductionRunSummary.dispatched; mergeProductionRunSummaries computes it with isCurrentRequestDispatched."
+      "evidence": "Renders the queued / stopped chips only from deriveProductionShotState, which now returns null before approval."
     },
     {
       "path": "electron/productionRun/batchScheduleDerivation.ts",
@@ -175,77 +96,53 @@
       "evidence": "Reads jobAwaitsHuman instead of its own authorization_required literal."
     },
     {
-      "path": "src/workbench/production/productionRunView.ts",
-      "entry_point": "buildProductionRunView",
-      "disposition": "enforced",
-      "evidence": "Draft vs running title uses isCurrentRequestDispatched."
-    },
-    {
-      "path": "src/workbench/observability/useGenerationFeedback.ts",
-      "entry_point": "useGenerationFeedback",
-      "disposition": "enforced",
-      "evidence": "Projects production shots through useProductionExecutionNode before deriving feedback, so waiting surface, status line and timeline all agree."
-    },
-    {
-      "path": "electron/productionRun/productionPendingSpend.ts",
-      "entry_point": "awaitingSpendDecision",
+      "path": "src/workbench/taskCenter/productionRunTaskCenter.ts",
+      "entry_point": "buildProductionRunTaskRows",
       "disposition": "not-affected",
-      "evidence": "Answers a different question (is a priced card waiting for the user), already keyed on plan.state and cardHidden; it does not claim anything is queued or running."
+      "evidence": "#869 already excludes cardHidden drafts from the task list (isProductionRunTask) and files a waiting card under attention; it does not claim queued."
     }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "Any new surface that shows run progress would have re-derived dispatch from a proxy, and every draft_shots draft, priced card wait, confirm_all shot gate and unticked shot reached the same wrong answer.",
+    "reason": "Every draft_shots draft, priced-card wait, confirm_all shot gate and rework confirmation reached the same fall-through; any new pre-approval job status would too without an exhaustive table.",
     "same_class_scan": [
-      "node scripts/door-map.mjs deriveShotPlaceholderState buildProductionRunTaskRows (5 doors before, plus the scheduler literal)",
-      "rg \"status === 'draft'\" src -> productionRunView.ts task card title (now uses the owner)",
-      "rg \"authorization_required\" electron/productionRun -> batchScheduleDerivation.shotInFlight (now uses the owner)",
-      "rg \"GeneratingOverlay\" src -> the center placement had only the production placeholder as caller (removed)"
+      "node scripts/door-map.mjs jobAwaitsHuman isShotInDispatchedScope deriveProductionShotState",
+      "rg \"authorization_required\" electron/productionRun -> batchScheduleDerivation.shotInFlight (now reads jobAwaitsHuman)",
+      "rg \"included === false\" electron/shared -> the only prior exclusion in deriveProductionShotState (replaced by isShotInDispatchedScope)"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/shared/contracts/productionDispatch.ts",
-    "invariant": "Queued, generating, stopped and running are only reported after the user's go-ahead for the current request.",
-    "failure_mode": "Before dispatch every surface falls back to showing nothing (null phase, draft group, draft title); it never shows progress.",
+    "enforcement_path": "electron/shared/productionShotPhase.ts",
+    "invariant": "Queued and stopped are reported only after the user approved the current request.",
+    "failure_mode": "Before approval the shot phase is null and every surface shows nothing.",
     "exception_policy": "none",
-    "strategy": "One owner in the neutral contract layer read by main and renderer; the node execution face has a single projection consumed by the shared surfaces; the duplicate renderers and the queued fallback were deleted.",
+    "strategy": "Put the pre-approval rule inside the existing single owner and make the human-gate classification exhaustive over job statuses; the scheduler reads the same table.",
     "artifacts": [
-      "electron/shared/contracts/productionDispatch.ts",
-      "src/workbench/production/shotPlaceholderState.ts",
-      "src/workbench/production/useProductionExecutionNode.ts",
-      "src/workbench/observability/useGenerationFeedback.ts",
-      "src/workbench/taskCenter/productionRunTaskCenter.ts"
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/batchScheduleDerivation.ts"
     ]
   },
   "regression_tests": [
-    "electron/shared/contracts/productionDispatch.test.ts",
-    "src/workbench/production/shotPlaceholderState.test.ts",
-    "src/workbench/taskCenter/productionRunTaskCenter.test.ts",
-    "src/workbench/production/productionRunView.test.ts"
+    "electron/shared/productionShotPhase.test.ts"
   ],
   "class_regression_tests": [
-    "electron/shared/contracts/productionDispatch.test.ts",
-    "src/workbench/production/shotPlaceholderState.test.ts"
+    "electron/shared/productionShotPhase.test.ts"
   ],
   "legacy_paths": {
-    "status": "removed",
-    "removed_paths": [
-      "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
-      "src/workbench/generationCanvas/nodes/render/CardCommon.tsx",
-      "src/workbench/production/shotPlaceholderState.ts",
-      "src/i18n/locales/generationCommon.ts"
-    ],
-    "rationale": "Deleted the placeholder queued chip, generating overlay and inline failed card, the center placement of GeneratingOverlay (blur + big N), the no-job queued fallback with queue index and the unused deriveBatchProgress, and the now-unused canvasLanding i18n keys."
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The fall-through was a missing branch, not a parallel path; the scheduler literal was replaced in place."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "No third-party dependency controls plan or job lifecycle.",
     "exit_criteria": []
   },
-  "migration": "No stored data changes. ProductionRunSummary gains a derived boolean computed on read; older snapshots are summarized with the same function.",
+  "migration": "No stored data changes; the phase is derived on every read.",
   "residual_risks": [
-    "The canvas batch bar (生成全部 N 个) still reads raw node.status and counts an in-flight agent shot as idle (TODO T-AG-24).",
-    "A finished single agent image keeps the task button lit because the run waits for rough-cut review (TODO T-AG-25)."
+    "The canvas batch bar (生成全部 N 个) reads raw node.status (TODO T-AG-24).",
+    "A finished single agent image keeps the task button lit because the run waits for rough-cut review (TODO T-AG-25).",
+    "Dispatched-but-not-yet-running shots still use the batch-specific queued chip (#870 decision), while the 2026-09-24 mockup had proposed the ordinary waiting surface; to be settled with the user."
   ]
 }
