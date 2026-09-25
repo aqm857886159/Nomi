@@ -90,6 +90,11 @@ try {
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   await expect(card, '付费卡摆在面板里等人').toBeVisible({ timeout: MODEL_TURN_MS })
   await clickOrFail(card.getByText('全部', { exact: true }), '卡上的范围切到「全部」（两镜一起派）')
+  // 刚填完提示词的闲置节点还选中着：它钉在节点下方的浮框可能正好盖住第 2 镜，Ctrl+滚轮落在浮框上不缩放画布
+  // （2026-09-26 Windows 实测第 2 镜只放大到 148px）。像用户一样先点空白处取消选中，再适应视图、放大。
+  const blankBeforeZoom = await findCanvasBlankPoint(win)
+  if (blankBeforeZoom) await win.mouse.click(blankBeforeZoom.x, blankBeforeZoom.y)
+  await waitForVisualQuiescence(win)
   // 常驻 Agent 面板会盖住画布右侧；像用户一样先「适应视图」，再点第 2 镜上真正点得到的那一处。
   await clickOrFail(win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first(), '适应视图')
   await waitForVisualQuiescence(win)
