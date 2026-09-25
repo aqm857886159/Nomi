@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CapabilityContract } from "./capabilityContract";
 import { generationPlanInputSchema, generationStatusInputSchema } from "./generationPlanSchemas";
+import type { PlanShotInput } from "../videoCapabilities/planResolver";
 
 /**
  * Generation Strategy Resolver 的输入形状 —— **模型可见 schema 的单一生成点**（K1 / §7 岔路 3 方案 A）。
@@ -18,6 +19,10 @@ export const generationResolveInputSchema = z.object({
     sceneAnchorId: z.string().trim().min(1).optional(),
     anchorIds: z.array(z.string().trim().min(1)).optional(),
     modelKey: z.string().trim().min(1).optional(),
+    // 与 modelKey 成对的供应商（632677d15 起分镜镜头的模型身份是一对）。这里曾经没有它，而对象是 `.strict()`：
+    // 渲染层每一个记了供应商的视频镜都被判 generation_input_invalid，面板报「执行计划检查失败」，
+    // 生成前的时长闸因此整个放行（0.22.0 回归）。下面的逐键对账让这种漂移变成编译错误。
+    modelVendor: z.string().trim().min(1).optional(),
     modeId: z.string().trim().min(1).optional(),
     params: z.record(z.unknown()).optional(),
     beatNote: z.string().max(300).optional(),
@@ -26,6 +31,19 @@ export const generationResolveInputSchema = z.object({
 }).strict();
 
 export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema>;
+
+/** schema 里的一镜——与 `PlanShotInput` 逐键相等（下面两条编译期守卫）。 */
+export type GenerationResolveShotInput = GenerationResolveInput["shots"][number];
+
+// 逐键对账（编译期，两个方向）：`PlanShotInput` 是引擎的输入类型、渲染层投影（storyboardPlanToPlanShotInputs）
+// 按它产出；这份 schema 是主进程的接受集合，而且是 `.strict()`。两边各写一份字段表，只要有一边多一个键：
+//  · 类型有、schema 没有 → 渲染层合法地带上它，主进程整份拒收（本条回归的形状）；
+//  · schema 有、类型没有 → 模型能传、引擎不读，静默丢。
+// 互相赋值的守卫看不见缺席的可选键（两个方向都能赋值），所以这里按键比。
+type MissingKeys<TFrom, TInto> = Exclude<keyof TFrom, keyof TInto>;
+type AssertNoMissingKeys<T extends never> = T;
+type _PlanShotInputKeysAccepted = AssertNoMissingKeys<MissingKeys<PlanShotInput, GenerationResolveShotInput>>;
+type _SchemaShotKeysOnPlanShotInput = AssertNoMissingKeys<MissingKeys<GenerationResolveShotInput, PlanShotInput>>;
 
 /**
  * 生成域**方法名的唯一声明**（宿主/dispatcher 的方法词表，模型永远看不见）。

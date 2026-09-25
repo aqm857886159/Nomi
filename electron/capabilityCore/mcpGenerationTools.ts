@@ -50,7 +50,7 @@ import type {
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
 import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
-import { resolveGenerationPlan, type PlanShotInput } from "../shared/videoCapabilities/planResolver";
+import { resolveGenerationPlan } from "../shared/videoCapabilities/planResolver";
 import { generationResolveInputSchema } from "../shared/agentCapabilities/generation";
 import { normalizeStoredDraft, resolvePlanPatch } from "./generationPlanPatch";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
@@ -395,7 +395,8 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       throw Object.assign(new Error(`resolve input is invalid${where}: ${first?.message ?? "unknown"}`), { code: "generation_input_invalid" });
     }
     const planResolution = resolveGenerationPlan({
-      shots: parsed.data.shots as PlanShotInput[],
+      // 不再 `as PlanShotInput[]`：schema 与类型逐键对账（generation.ts），这里让编译器再核一遍值能赋过去。
+      shots: parsed.data.shots,
       candidates: deps.videoModelCandidates ?? [],
       ...(parsed.data.goals ? { goals: parsed.data.goals } : {}),
     });
