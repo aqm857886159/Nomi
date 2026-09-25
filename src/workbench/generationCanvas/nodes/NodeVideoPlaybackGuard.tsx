@@ -4,6 +4,7 @@ import { useVideoPlaybackHeal } from '../../../media/useVideoPlaybackHeal'
 import { VideoPlaybackStatusOverlay } from '../../../media/VideoPlaybackStatusOverlay'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { CANVAS_DRAGGING_ATTRIBUTE } from '../components/canvasDraggingFlag'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { DeferredNodeImage, DeferredNodeVideo, type DeferredNodeVideoProps } from './DeferredNodeMedia'
 import {
   claimNodeVideoPlayback,
@@ -26,18 +27,14 @@ import {
 //    画布正在拖动时不挂（按下即选中，不能让拖动起手先建一个 1080p 解码器）。
 //    还没量过视频尺寸的卡临时挂一个只读元数据的 <video>（不建解码器），量完即卸——尺寸 owner 仍是 useNodeMediaMeasurement。
 // src 由 rawUrl 派生（自愈后要能换地址），调用方不再自己传——否则两处真相源会在自愈那一刻打架。
-type Props = Omit<DeferredNodeVideoProps, 'src' | 'poster'> & {
-  nodeId: string
-  /** 节点 result.url 原值（诊断探针与自愈都要原始 URL，不要 buildVideoPlaybackUrl 之后的）。 */
-  rawUrl: string
-  /** 代表这段视频的静态封面（`result.thumbnailUrl`）。没有时只能让 <video> 自己出首帧。 */
-  poster?: string
+// 地址、封面、「尺寸量过没有」都由守卫自己从节点读：卡片只传意图，不替守卫做判断。
+type Props = Omit<DeferredNodeVideoProps, 'src' | 'poster' | 'preload'> & {
+  /** 用到三样：result.url 原值（诊断与自愈要原始 URL）、result.thumbnailUrl（静态封面，没有时只能让 <video> 自己出首帧）、meta.videoWidth/Height（量过尺寸没有）。 */
+  node: GenerationCanvasNode
   /** 指针在卡片上：挂播放器并静音试播。 */
   previewRequested: boolean
   /** 卡片是唯一主选中：挂播放器（控件可用），不自动播。 */
   engaged: boolean
-  /** 节点已量过视频尺寸（meta.videoWidth/Height）。没量过就先挂一次只读元数据的播放器。 */
-  measured: boolean
 }
 
 const PLAYER_ENTER_DWELL_MS = 120
@@ -60,12 +57,9 @@ function useSettledIntent(intent: boolean, hostRef: React.RefObject<HTMLElement>
 }
 
 export function NodeVideoPlaybackGuard({
-  nodeId,
-  rawUrl,
-  poster,
+  node,
   previewRequested,
   engaged,
-  measured,
   onError,
   onLoadedMetadata,
   onLoadedData,
@@ -84,19 +78,22 @@ export function NodeVideoPlaybackGuard({
   const hostRef = React.useRef<HTMLDivElement | null>(null)
   const previewRequestedRef = React.useRef(previewRequested)
   previewRequestedRef.current = previewRequested
+  const nodeId = node.id
   const persistHealedUrl = React.useCallback(
     (healedUrl: string, sourceUrl: string) => {
       const state = useGenerationCanvasStore.getState()
-      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      const latest = state.nodes.find((candidate) => candidate.id === nodeId)
       // 自愈期间节点重新生成（result.url 已不是发起自愈的那个）→ 不许旧 healedUrl 覆盖新结果。
-      if (node?.result && node.result.url === sourceUrl) {
-        state.updateNode(nodeId, { result: { ...node.result, url: healedUrl } })
+      if (latest?.result && latest.result.url === sourceUrl) {
+        state.updateNode(nodeId, { result: { ...latest.result, url: healedUrl } })
       }
     },
     [nodeId],
   )
-  const heal = useVideoPlaybackHeal({ rawUrl, onHealed: persistHealedUrl })
-  const posterUrl = poster?.trim() || ''
+  const heal = useVideoPlaybackHeal({ rawUrl: node.result?.url ?? '', onHealed: persistHealedUrl })
+  const posterUrl = node.result?.thumbnailUrl?.trim() || ''
+  // 没量过尺寸就先挂一次只读元数据的播放器（尺寸 owner 仍是 useNodeMediaMeasurement）。
+  const measured = Boolean(node.meta?.videoWidth && node.meta?.videoHeight)
   const interacting = useSettledIntent(previewRequested || engaged, hostRef)
   const wantsPlayer = !posterUrl || !measured || interacting || focusInside || userPlaying
 
@@ -155,6 +152,8 @@ export function NodeVideoPlaybackGuard({
         <div className={cn(posterUrl && 'absolute inset-0')}>
           <DeferredNodeVideo
             {...rest}
+            // 只要元数据：整段视频由用户主动播放时再拉。原片可能是 4K/10-bit HEVC，auto 会让每个挂上的播放器争抢解码与 IO。
+            preload="metadata"
             priority={Boolean(rest.priority || previewRequested || engaged)}
             placeholderClassName={cn(rest.placeholderClassName, posterUrl && 'opacity-0')}
             tabIndex={rest.controls ? 0 : rest.tabIndex}

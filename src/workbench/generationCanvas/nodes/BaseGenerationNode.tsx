@@ -64,6 +64,7 @@ import {
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeMediaMeasurement } from './useNodeMediaMeasurement'
+import { useNodeVideoPreviewIntent } from './useNodeVideoPreviewIntent'
 import { useNodeMediaPreview } from './useNodeMediaPreview'
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
@@ -141,10 +142,7 @@ function BaseGenerationNodeImpl({
 
   const mediaMeasurement = useNodeMediaMeasurement(node)
 
-  // 指针在视频卡上 = 请播放守卫挂播放器并静音试播（守卫是「何时挂 <video>」的唯一 owner）。只有视频卡记这份状态，
-  // 图片卡悬停不重渲。
-  const hasVideoResult = node.result?.type === 'video'
-  const [videoPreviewRequested, setVideoPreviewRequested] = React.useState(false)
+  const videoPreview = useNodeVideoPreviewIntent(node.result?.type === 'video')
 
   const handleFocusSourceNode = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -220,8 +218,7 @@ function BaseGenerationNodeImpl({
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。
   const imageEditing = useNodeImageEditing(node, visualSize, reportFeedback)
   const { downloading: panoramaDownloading, download: downloadPanorama } = useResultDownload(node, reportFeedback)
-  // 选中即同步挂整个提示词面板是拖动起手顿挫的来源（拖一个没选中的节点：按下即选中 → 同步挂面板，实测 70–95ms）。
-  // 挂载走一次可打断的低优先级渲染：选中高亮与拖动先出来，面板随后到；取消选中照旧立即卸载。
+  // 面板挂载走可打断的低优先级渲染（按下即选中时同步挂面板，拖动起手实测顿 70–95 ms）：高亮与拖动先出，面板随后到，取消选中立即卸载。
   const composerWanted = selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind)
   const composerMounted = React.useDeferredValue(composerWanted)
   const showFlowConnectionHandle =
@@ -251,8 +248,8 @@ function BaseGenerationNodeImpl({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerEnter={hasVideoResult ? () => setVideoPreviewRequested(true) : undefined}
-      onPointerLeave={hasVideoResult ? () => setVideoPreviewRequested(false) : undefined}
+      onPointerEnter={videoPreview.onPointerEnter}
+      onPointerLeave={videoPreview.onPointerLeave}
     >
 {feedback ? <p role="status" className="absolute inset-x-0 bottom-0 z-[15] m-0 bg-nomi-paper px-2 py-1 text-caption text-nomi-ink-60">{feedback}</p> : null}
 
@@ -430,21 +427,15 @@ function BaseGenerationNodeImpl({
           ) : node.result.type === 'video' ? (
             // 播放守卫：decode 失败自动转码自愈一次（HEVC 存量/供应商 HEVC 产物），修不了给人话原因。
             <NodeVideoPlaybackGuard
-              nodeId={node.id}
-              rawUrl={node.result.url}
-              poster={node.result.thumbnailUrl}
-              previewRequested={videoPreviewRequested}
+              node={node}
+              previewRequested={videoPreview.requested}
               engaged={selected && !isMultiSelectActive}
-              measured={Boolean(node.meta?.videoWidth && node.meta?.videoHeight)}
               data-node-preview-video="true"
               className={cn('w-full h-full min-h-0 object-contain pointer-events-auto', 'bg-nomi-ink-05 select-none')}
               priority={mediaPreviewPriority}
               crossOrigin="use-credentials"
               controls
               playsInline
-              // 画布只需要元数据来计算媒体尺寸；整段视频由用户主动播放时再拉取。
-              // 原片可能是 4K/10-bit HEVC，auto 会让每个可视节点在项目恢复阶段争抢解码与 IO。
-              preload="metadata"
               draggable={false}
               onLoadedMetadata={mediaMeasurement.onVideoMetadata}
             />
