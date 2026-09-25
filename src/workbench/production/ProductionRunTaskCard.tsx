@@ -29,7 +29,6 @@ export type ProductionRunCardCopy = {
 type Props = {
   projectId: string
   view: ProductionRunView
-  playbookName: string
   artifacts?: ProductionArtifact[]
   focusedArtifactId?: string | null
   actionError?: string | null
@@ -75,7 +74,6 @@ function safePreviewPath(value: string | undefined): value is string {
 export function ProductionRunTaskCard({
   projectId,
   view,
-  playbookName,
   artifacts = [],
   focusedArtifactId = null,
   actionError = null,
@@ -158,15 +156,17 @@ export function ProductionRunTaskCard({
             {t('generationCommon.production.runPanel.origin', { host: hostLabel })}
           </span>
         </span>
+        {/* 状态签 = 这张卡所在分组的名字（同一份 taskCenter.groups 文案）；颜色区分同组里的轻重。 */}
         <span
           data-production-tone={view.tone}
+          data-production-group={view.group}
           className={cn(
             'ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-micro font-semibold',
             tonePill[view.tone],
           )}
         >
-          {view.tone === 'working' ? <NomiLoadingMark size={10} /> : null}
-          {t(`generationCommon.production.runTone.${view.tone}`)}
+          {view.group === 'running' ? <NomiLoadingMark size={10} /> : null}
+          {t(`taskCenter.groups.${view.group}`)}
         </span>
       </div>
 
@@ -180,7 +180,7 @@ export function ProductionRunTaskCard({
       </div>
 
       <div className={cn('flex flex-wrap gap-1')}>
-        <span className={cn('rounded-full bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60')}>{playbookName}</span>
+        <span className={cn('rounded-full bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60')}>{t(view.playbookLabelKey)}</span>
         {/* 一个阶段都没有时不挂「0 / 0 已完成」——那是在给一条根本不存在的流水线报进度（同 N4 无产物不渲染）。 */}
         {view.details.totalStages > 0 ? (
           <span className={cn('rounded-full bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60')}>

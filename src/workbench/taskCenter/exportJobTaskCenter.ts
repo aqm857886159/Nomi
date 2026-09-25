@@ -2,6 +2,7 @@ import type { ExportJobSnapshot } from '../../../electron/shared/contracts/expor
 import type { ExportJobStatus } from '../../../electron/shared/contracts/exportTypes'
 import { isExportJobTerminalStatus } from '../../../electron/shared/contracts/exportTypes'
 import type { ExportJobTaskCenterProjection } from './taskCenterProjection'
+import type { TranslationKey } from '../../i18n/translationKey'
 
 type Labels = {
   title: string
@@ -11,6 +12,30 @@ type Labels = {
   permissionDenied: string
   mediaUnreadable: string
   statuses: Record<ExportJobStatus, string>
+}
+
+/** 任务按钮（徽标）和任务面板共用的一份文案表——此前两边各手抄一份。 */
+export function exportJobTaskLabels(t: (key: TranslationKey) => string): Labels {
+  return {
+    title: t('taskCenter.exportJob.title'),
+    failed: t('taskCenter.exportJob.failed'),
+    missingFile: t('taskCenter.exportJob.missingFile'),
+    diskFull: t('taskCenter.exportJob.diskFull'),
+    permissionDenied: t('taskCenter.exportJob.permissionDenied'),
+    mediaUnreadable: t('taskCenter.exportJob.mediaUnreadable'),
+    statuses: {
+      queued: t('taskCenter.exportJob.statuses.queued'),
+      preparing: t('taskCenter.exportJob.statuses.preparing'),
+      planning: t('taskCenter.exportJob.statuses.planning'),
+      rendering: t('taskCenter.exportJob.statuses.rendering'),
+      encoding: t('taskCenter.exportJob.statuses.encoding'),
+      muxing: t('taskCenter.exportJob.statuses.muxing'),
+      finalizing: t('taskCenter.exportJob.statuses.finalizing'),
+      succeeded: t('taskCenter.exportJob.statuses.succeeded'),
+      failed: t('taskCenter.exportJob.statuses.failed'),
+      cancelled: t('taskCenter.exportJob.statuses.cancelled'),
+    },
+  }
 }
 
 export function buildExportJobTaskRows(

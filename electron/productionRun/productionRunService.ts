@@ -666,19 +666,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     return { filePath: resolveOwnedArtifactFile(root, claims.relativePath), expiresAt: claims.expiresAt }
   }
 
-  function listProjections(projectId: string): ProductionRunProjection[] {
-    return repository.list(identifier(projectId, 'project')).map((summary) => runProjection(requireRun(projectId, summary.runId), projectRootResolver, previewSecret))
-  }
 
-  function listFull(projectId: string): ProductionRun[] {
-    return repository.list(identifier(projectId, 'project')).map((summary) => requireRun(projectId, summary.runId))
-  }
   return {
     // Semantic generation is a thin orchestration layer; ProductionRun remains the only durable owner.
     repository,
     createDraft, createGenerationDraft, readProjection, readFull, readEvents, readArtifactProjection, readArtifactContent, readScriptDraft,
     requestArtifactRevision, reviewArtifact, materializeStoryboard, resolveArtifactPreview, command, proposeScript, proposeStoryboard,
-    advanceSemanticProduction, resumeUnfinishedRuns, listProjections, listFull,
+    advanceSemanticProduction, resumeUnfinishedRuns,
   }
 }
 export type ProductionRunService = ReturnType<typeof createProductionRunService>
