@@ -35,7 +35,10 @@ describe("shared video capability registry", () => {
       "doubao-seedance-2.0-fast",
       "doubao-seedance-2.0-mini",
     ]);
-    expect(candidates.map((candidate) => candidate.variantId)).toEqual(["standard", "fast", "mini"]);
+    // 基础行 `doubao-seedance-2.0` 是**默认变体**（fast），不是拿模型名反推出的 standard——这条断言以前钉的
+    // 正是那个 bug：卡上显示默认的 Fast，宿主按 standard 派发、扣更贵的那一档（2026-09-26）。
+    // 变体专属行（-fast / -mini）照旧就是那个变体。判定只问 `resolveArchetypeVariant`。
+    expect(candidates.map((candidate) => candidate.variantId)).toEqual(["fast", "fast", "mini"]);
   });
 
   it("recommends from facts without any provider or app dependency", () => {

@@ -234,7 +234,8 @@ export function projectSpendNode(shot: PendingSpendShot, placed?: GenerationCanv
       modelKey: shot.modelId,
       modelVendor: shot.providerId,
       ...(option ? { modelLabel: option.label } : {}),
-      ...(archetype ? { archetype: { id: archetype.id, modeId: shot.modeId ?? archetype.defaultModeId } } : {}),
+      // 候选上写着变体就一并带上：卡上这张框显示的变体与宿主派发的，问的是同一个 owner、同一组输入。
+      ...(archetype ? { archetype: { id: archetype.id, modeId: shot.modeId ?? archetype.defaultModeId, ...(shot.variantId ? { variantId: shot.variantId } : {}) } } : {}),
     },
   }, pendingReferenceInputs(shot))
 }

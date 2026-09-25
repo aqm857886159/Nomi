@@ -6,7 +6,9 @@
 import type { AgentModelEntry } from "./availableModels";
 import { isParamValueAllowed } from "../../../../electron/shared/videoCapabilities/paramConstraints";
 import {
+  canonicalArchetypeVariantId,
   resolveArchetypeForModel,
+  resolveArchetypeVariant,
   specializeArchetypeForVariant,
   type ModelArchetype,
 } from "../../../../electron/shared/modelArchetypes";
@@ -39,14 +41,6 @@ function entryArchetype(entry: AgentModelEntry): ModelArchetype | null {
     vendorKey: entry.vendor,
     meta: { archetypeId: entry.archetypeId },
   });
-}
-
-function canonicalVariantId(archetype: ModelArchetype, value: unknown): string {
-  const requested = nonBlankString(value);
-  if (!requested || !archetype.variants?.length) return "";
-  if (archetype.variants.some((variant) => variant.id === requested)) return requested;
-  const alias = archetype.variantIdAliases?.[requested];
-  return alias && archetype.variants.some((variant) => variant.id === alias) ? alias : "";
 }
 
 // 单字段校验（跨字段互斥/依赖留二期）。**判据不在这里**：合法性的唯一 owner 是
@@ -111,13 +105,16 @@ export function buildPlannedNodeMeta(
   const persistedVendor = requestedVendor || entry.vendor || "";
 
   const archetype = entryArchetype(entry);
-  const requestedVariant = nonBlankString(planned.variantId);
-  const variantId = archetype ? canonicalVariantId(archetype, requestedVariant) : "";
-  // Only an explicit, valid variant changes the parameter surface. Omitting a
-  // variant preserves the pre-existing default behavior; an invalid one is
-  // ignored and therefore cannot smuggle unsupported parameters through.
-  const effectiveArchetype = archetype && variantId
-    ? specializeArchetypeForVariant(archetype, variantId)
+  // Persist only an explicit, valid variant (an invalid one is ignored). The
+  // parameter surface, however, is always the surface of the variant this node
+  // will actually run on — the one owner (`resolveArchetypeVariant`) answers
+  // that for the canvas, the spend card and host dispatch alike. Before
+  // 2026-09-26 an omitted variant kept the unspecialized (standard) surface
+  // while the node ran on the default (fast) variant.
+  const variantId = archetype ? canonicalArchetypeVariantId(archetype, planned.variantId) : "";
+  const runningVariantId = archetype ? resolveArchetypeVariant(archetype, { variantId, modelId: modelKey })?.id : undefined;
+  const effectiveArchetype = archetype && runningVariantId
+    ? specializeArchetypeForVariant(archetype, runningVariantId)
     : archetype;
 
   const wantModeId = typeof planned.modeId === "string" ? planned.modeId.trim() : "";
