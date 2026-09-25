@@ -55,7 +55,7 @@ describe("旧项目里的引导示例图构建地址 → 项目资产", () => {
     expect(text).not.toContain(encodeURIComponent(DEV_KID));
     const nodes = (record.payload as ReturnType<typeof demoPayload>).generationCanvas.nodes;
     expect(nodes[0].result.url).toMatch(/^nomi-local:\/\/asset\/demo-project\/assets\/generated\/.+\/kid\.jpg$/);
-    expect(nodes[0].history[0].url).toBe(nodes[0].result.url);
+    expect(nodes[0].history?.[0]?.url).toBe(nodes[0].result.url);
     // 落盘的是随包原图、带 onboarding-demo sidecar（与引导 seed 同形，重看引导会复用）。
     const relative = decodeURIComponent(nodes[0].result.url.replace("nomi-local://asset/demo-project/", ""));
     const file = path.join(root, relative);

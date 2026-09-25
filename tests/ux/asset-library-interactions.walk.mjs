@@ -167,25 +167,23 @@ try {
   await win.waitForTimeout(1000)
   await snap(win, '04-project-tab')
   // 对勾在卡片右上角：像用户一样点那个位置（改前它只是装饰，改后它是开关）。
-  const toggle = (name) => ({
-    click: async () => {
-      const box = await tile(name).boundingBox()
-      await win.mouse.click(box.x + box.width - 16, box.y + 16)
-    },
-  })
+  const clickTick = async (name) => {
+    const box = await tile(name).boundingBox()
+    await win.mouse.click(box.x + box.width - 16, box.y + 16)
+  }
   const selectedCount = () => win.locator('[aria-selected="true"][role="button"]').count()
   // 项目素材按地址去重、画布上的名字优先：a-hero.png 在这里叫「画布上的卡」，a-street.png 被①拖上画布后叫 a-street。
   const VIDEO = 'walk-asset-a-shot.mp4'
   await tile('a-night.png').hover()
-  await toggle('a-night.png').click()
+  await clickTick('a-night.png')
   await tile(VIDEO).hover()
-  await toggle(VIDEO).click()
+  await clickTick(VIDEO)
   await win.waitForTimeout(300)
   check('③ 点两张卡的对勾：两张都选中', (await selectedCount()) === 2, `selected=${await selectedCount()}`)
   const deleteButton = win.locator('button', { has: win.locator('svg.tabler-icon-trash') }).filter({ hasText: /\d/ }).first()
   check('③ 删除钮计数 2', ((await deleteButton.textContent()) ?? '').trim() === '2', `text=${(await deleteButton.textContent())?.trim()}`)
   await snap(win, '05-project-tab-two-selected')
-  await toggle(VIDEO).click()
+  await clickTick(VIDEO)
   await win.waitForTimeout(300)
   const videoStillSelected = await win.locator(`[aria-selected="true"][role="button"][aria-label="${VIDEO}"]`).count()
   const nightStillSelected = await win.locator('[aria-selected="true"][role="button"][aria-label="a-night.png"]').count()
@@ -211,7 +209,7 @@ try {
   // 删两张只在项目里、没上过画布的素材（上过画布的那张删除＝删卡上的结果，文件另算，是既有语义）。
   for (const name of ['a-spare.png', VIDEO]) {
     await tile(name).hover()
-    if ((await win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`).count()) === 0) await toggle(name).click()
+    if ((await win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`).count()) === 0) await clickTick(name)
   }
   await win.waitForTimeout(300)
   const beforeDeleteSelected = await selectedCount()
