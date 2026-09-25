@@ -176,6 +176,12 @@
       "entry_point": "open-stage action",
       "disposition": "not-affected",
       "evidence": "Explicit user click on the production status card; the only allowlisted requestCanvasFit caller"
+    },
+    {
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "entry_point": "60s guided tour lands the demo storyboard (applyCanvasToolCall create_canvas_nodes)",
+      "disposition": "enforced",
+      "evidence": "On main the demo canvas was spread by applyCanvasToolCall's post-landing requestCanvasFit (main applyCanvasToolCall.ts:556, whose comment named the guided tour), not by the open-time auto fit. That fit was removed with the other automatic movers, so the tour now calls requestCanvasFit once itself after landing — a guide step the user started with 「看 Nomi 怎么出片」; allowlisted in canvasViewportMovers.structure.test.ts. evals j3-first-success guided-canvas passes."
     }
   ],
   "recurrence": {

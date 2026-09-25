@@ -15,6 +15,7 @@ const SRC = path.resolve(__dirname, '../../..')
 
 const FIT_CALLERS: Record<string, string> = {
   'workbench/production/useProductionStatus.ts': '生产状态卡「去看看」按钮（open-stage）：用户点了才去',
+  'workbench/onboarding/journeyTourStore.ts': '60 秒引导把示例落到画布后铺开一次：用户点了「看 Nomi 怎么出片」，这是引导自己的一步',
 }
 
 const FOCUS_DISPATCHERS: Record<string, string> = {

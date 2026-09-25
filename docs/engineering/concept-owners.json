@@ -267,7 +267,7 @@
         "src/workbench/production/useProductionStatus.ts"
       ],
       "since": "2026-09-25",
-      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开项目 / 分类时不自动摆全貌（useAutoFitOnLoad 已删：2026-09-26 协调裁定：打开项目时的自动摆全貌在 main 上从未生效（节点量好尺寸之前就判定，外接盒为空）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。）。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
+      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示 / 60 秒引导落完示例后铺开一次（用户点了「看 Nomi 怎么出片」，引导自己的一步，owner 是 onboarding/journeyTourStore.ts）。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开项目 / 分类时不自动摆全貌（useAutoFitOnLoad 已删：2026-09-26 协调裁定：打开项目时的自动摆全貌在 main 上从未生效（节点量好尺寸之前就判定，外接盒为空）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。）。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
     },
     {
       "name": "模型工具的身份",
