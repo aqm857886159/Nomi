@@ -69,6 +69,14 @@ export function isProductionJobInFlight(job: Pick<ProductionJob, "status" | "pro
   return Boolean(job.providerTaskId) && productionJobPhase(job.status) === "generating";
 }
 
+/**
+ * 这一镜是否已归制作流程派发（排队 / 生成中）。此时画布再发一次同一镜 = 重复生成、重复扣费，
+ * 所以画布的「能不能生成」「生成全部」都读它（2026-09-25：Agent 起草并确认的镜头排队时，底栏仍算进「生成全部」）。
+ */
+export function productionShotOwnsGeneration(state: ProductionShotState | null): boolean {
+  return state?.phase === "queued" || state?.phase === "generating";
+}
+
 // 「已停」而非「失败」的 job 错因：预算触顶 / 急停到达这镜（可续拍，warning 非 danger）。provider 拒 = 真失败。
 const HALT_ERROR_CODES = new Set(["budget_exhausted", "budget_halt", "batch_stopped", "restart_recovery_required"]);
 
