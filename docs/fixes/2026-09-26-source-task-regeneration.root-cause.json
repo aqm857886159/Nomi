@@ -859,8 +859,8 @@
   "migration": "Derive live source IDs during submission; preserve user mappings and project output.",
   "residual_risks": [
     "Provider enforces whitelist and seven-day validity.",
-    "Real paid 768P replay pending.",
-    "Current source already is 2K and must not be regenerated."
+    "Current source already is 2K and must not be regenerated.",
+    "Windows local deployed build passed real 4-second 768P generation and task-ID regeneration to decoded 2560x1440, 24 fps, 4.459-second H264/AAC. Formal review and CI remain pending."
   ],
   "invariant_owner_layer": {
     "layer": "electron/shared/videoCapabilities/sourceTaskInput.ts",

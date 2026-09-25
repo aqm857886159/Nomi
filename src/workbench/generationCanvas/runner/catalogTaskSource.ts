@@ -43,6 +43,9 @@ export function resolveCatalogSourceTask(node: GenerationCanvasNode, options: Ca
   }) : incoming.length ? incoming.map(edge => sourceOf(nodes.find(source => source.id === edge.source)?.result))
     : node.result && !explicitId ? [sourceOf(node.result)] : []
   const resolved = resolveSourceTaskInput(requirement, { explicitId, provider: selectedVendor(node), sources })
-  if ('error' in resolved) throw new Error(tagNomiError('input-validation', i18n.t(sourceErrorKeys[resolved.error], resolved.values)))
+  if ('error' in resolved) throw new Error(tagNomiError('input-validation', i18n.t(sourceErrorKeys[resolved.error], {
+    model: resolved.values.model ?? '', key: resolved.values.key ?? '',
+    actual: resolved.values.actual ?? '', expected: resolved.values.expected ?? '',
+  })))
   return { [requirement.inputKey]: resolved.taskId }
 }
