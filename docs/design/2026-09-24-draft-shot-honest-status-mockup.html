@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>草稿节点状态样张</title>
+<style>
+  :root {
+    --paper: oklch(0.99 0.004 80); --canvas: oklch(0.975 0.006 80); --ink: oklch(0.22 0.01 80);
+    --ink-80: oklch(0.36 0.01 80); --ink-60: oklch(0.5 0.01 80);
+    --line: oklch(0.91 0.006 80); --accent: oklch(0.55 0.13 250); --accent-soft: oklch(0.957 0.021 250);
+    --danger: oklch(0.55 0.13 25);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: oklch(0.2 0.006 80); --canvas: oklch(0.17 0.006 80); --ink: oklch(0.95 0.005 80);
+    --ink-80: oklch(0.85 0.005 80); --ink-60: oklch(0.72 0.005 80);
+    --line: oklch(0.3 0.006 80); --accent-soft: oklch(0.295 0.045 250);
+  } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 6px; }
+  p { margin: 4px 0; color: var(--ink-80); }
+  .muted { color: var(--ink-60); font-size: 13px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .fact { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .fact b { font-variant-numeric: tabular-nums; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 10px; }
+  .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  figure { margin: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  figure.rec { border: 1.5px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  figure img { display: block; width: 100%; height: auto; background: #fff; }
+  figcaption { padding: 8px 10px; font-size: 13px; color: var(--ink-80); }
+  figcaption b { color: var(--ink); }
+  .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 999px; margin-left: 4px; vertical-align: 1px; }
+  .tag.rec { background: var(--accent-soft); color: var(--accent); }
+  .tag.now { background: oklch(0.955 0.021 25); color: var(--danger); }
+  .note { border-left: 3px solid var(--line); padding: 2px 10px; margin-top: 10px; color: var(--ink-60); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>「先别生成」的草稿节点 · 状态怎么显示（样张）</h1>
+  <p><b>已拍板（2026-09-24）</b>：① 节点 A 什么都不挂 · ② 任务按钮与面板一起改 · ③ 报价卡在等人同草稿 · ④ 生成中 / 排队中 / 失败一起收成普通节点那一套（「已停」保留）。</p>
+  <p class="muted"><b>2026-09-25 落地时的差异</b>：② 任务面板那一半由 #869 的任务面板样张接手（草稿不进任务列表，不是单独一组「草稿」）；④ 生成中 / 失败由 #870 做成普通节点画法，「已派出、还没轮到」仍是批次小标——2026-09-26 用户拍板保留小签（没在动 = 真没开始，「第 n/N」位次有用；当初要统一是因为「生成中」有两套画法，那一条已由 #870 解决）。</p>
+  <p>截图全部来自真实应用（Windows，零额度回环供应商）。「改后」是在真实界面上盖样式拍的，布局就是现在的布局。</p>
+
+  <h2>0 · 实查结论：没花钱，只是字说错了</h2>
+  <p>Agent 按「先别生成」建草稿之后，盘上这个 Run 的真实状态：</p>
+  <div class="facts">
+    <span class="fact">Run 状态 <b>draft</b></span>
+    <span class="fact">生成任务 <b>0</b> 个</span>
+    <span class="fact">付费门 <b>0</b> 道</span>
+    <span class="fact">账本 <b>¥0</b>（预留 0 / 实付 0 / 在途 0）</span>
+    <span class="fact">供应商收到的生成请求 <b>0</b> 次</span>
+  </div>
+  <p>但画面上节点写着 <b>「排队中 · 第 1/1」</b>，右上角「任务」按钮变蓝、数字 <b>1</b>——读起来像已经在排队、要扣钱了。</p>
+  <p class="muted">同一个问题还出现在：报价卡已经弹出、你还没点「生成」的那一刻（节点也写「排队中」）；批次里被你勾掉的镜（也写「排队中」）；草稿一直不生成的话，任务按钮会一直亮着 1。</p>
+
+  <h2>1 · 节点上显示什么（草稿、你还没点头）</h2>
+  <div class="grid">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/zh_before.jpg" alt="现在"><figcaption><b>现在</b><span class="tag now">误导</span><br>「排队中 · 第 1/1」</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/zh_A.jpg" alt="A"><figcaption><b>A · 什么都不挂</b><span class="tag rec">推荐</span><br>就是一个还没生成的普通节点</figcaption></figure>
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/zh_B.jpg" alt="B"><figcaption><b>B · 「草稿 · 未生成」</b><br>中性小签，不带时钟</figcaption></figure>
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/zh_C.jpg" alt="C"><figcaption><b>C · 「待开拍 · 跟 Nomi 说『生成』」</b><br>指向确认的地方</figcaption></figure>
+  </div>
+  <div class="grid">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/en_before.jpg" alt="EN now"><figcaption><b>EN 现在</b> · Queued · 1/1</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/en_A.jpg" alt="EN A"><figcaption><b>EN · A</b></figcaption></figure>
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/en_B.jpg" alt="EN B"><figcaption><b>EN · B</b> · Draft · not generated</figcaption></figure>
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/en_C.jpg" alt="EN C"><figcaption><b>EN · C</b> · 注意：画布底部同时有「Generate all 1」，只指向 Nomi 是错的</figcaption></figure>
+  </div>
+  <div class="note">为什么推荐 A：没生成的节点本来就长这样（有提示词、有生成按钮），用户一眼就知道「什么都还没发生」。加字只是在解释一件不需要解释的事；C 还会指错路——节点自己的 ↑ 和画布底部「全部生成」也能开拍，不只跟 Nomi 说。</div>
+
+  <h2>2 · 连带面：右上角「任务」按钮 + 任务面板</h2>
+  <div class="grid two">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/bar_before.jpg" alt="按钮现在"><figcaption><b>按钮现在</b><span class="tag now">误导</span> · 变蓝 + 1，意思是「有东西在跑」</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/bar_after.jpg" alt="按钮改后"><figcaption><b>按钮改后</b><span class="tag rec">推荐</span> · 草稿不算在跑：不变蓝、不计数</figcaption></figure>
+  </div>
+  <div class="grid">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/panel_before.jpg" alt="面板现在"><figcaption><b>面板现在</b> · 草稿排在「进行中 1」</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/panel_after.jpg" alt="面板改后"><figcaption><b>面板改后</b><span class="tag rec">推荐</span> · 单独一组「草稿 1」，卡片本身不动（它已经写着「尚未产生付费调用」）</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/panel_en_after.jpg" alt="面板改后 EN"><figcaption><b>EN 改后</b> · Drafts 1</figcaption></figure>
+  </div>
+
+  <h2>3 · 连带面：报价卡弹出、等你点「生成」的那一刻</h2>
+  <div class="grid two">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/card_wait.jpg" alt="报价卡等待"><figcaption><b>现在</b><span class="tag now">误导</span> · 卡在右边等你点，节点已经写「排队中」（实查：此刻 0 任务、0 请求）</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/en_A.jpg" alt="同草稿"><figcaption><b>改后（推荐）</b> · 和草稿一样。确认的地方就是右边那张卡，节点不再抢话</figcaption></figure>
+  </div>
+
+  <h2>4 · 你点了之后（生成中）：跟普通节点用同一套画法</h2>
+  <p>截图基准就是今天的 main。<b>Agent 派出去的镜</b>走的是 8-25 写的单独一层（模糊遮罩 + 大 N），9-08 普通节点换成像素网格动画时它没跟着换——所以同一个 App 里两种「生成中」。</p>
+  <div class="grid two">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/dispatched.jpg" alt="生成中现在"><figcaption><b>现在</b><span class="tag now">旧画法</span> · 模糊 + 大 N，没有状态行</figcaption></figure>
+    <figure class="rec"><img src="2026-09-24-draft-shot-honest-status-mockup/dispatched_after.jpg" alt="生成中改后"><figcaption><b>改后</b><span class="tag rec">推荐</span> · 同一次运行的原型截图：和普通节点一样的像素网格动画 + 顶上「生成中」状态行</figcaption></figure>
+  </div>
+  <div class="note">同一个做法一起收的：批次里已派出、还没轮到的镜（现在是左上角「排队中 · 第 n/N」小签）→ 普通节点的排队画法；失败（现在是一版简化红卡）→ 普通节点的标准错误卡，重试照旧走返工。只有「已停（预算触顶 / 急停）」是 Agent 批次独有的，保留原样。</div>
+
+  <h2>顺带发现（不在这次改，单独开任务）</h2>
+  <div class="grid two">
+    <figure><img src="2026-09-24-draft-shot-honest-status-mockup/done.jpg" alt="完成后"><figcaption>图已经出来了，右上角任务按钮<b>还亮着 1</b>——这个 Run 在等「粗剪审阅 / 导出」。只要一张图的人不会去做粗剪，这盏灯会一直亮。根因不同（单张图也被推进了成片流程），另开任务。</figcaption></figure>
+  </div>
+</main>
+</body>
+</html>

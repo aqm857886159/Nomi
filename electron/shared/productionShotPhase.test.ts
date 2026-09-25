@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveProductionShotState,
   isProductionJobInFlight,
+  jobAwaitsHuman,
   productionJobPhase,
   productionShotIdForNode,
   productionShotOwnsGeneration,
 } from './productionShotPhase'
-import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../productionRun/productionRunTypes'
+import type { ProductionGenerationPlan, ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../productionRun/productionRunTypes'
 
 // 制作里「一镜在哪一段」的唯一判定：主进程的画布落地投影与渲染层的排队 / 已停小标读的是同一个函数。
 
@@ -22,6 +23,7 @@ function job(shotId: string, status: ProductionJobStatus, extra: Partial<Product
 
 function run(opts: {
   status?: ProductionRunStatus
+  planState?: ProductionGenerationPlan['state']
   shots?: Array<{ shotId: string; role?: 'anchor' | 'shot'; nodeId?: string; included?: boolean }>
   jobs?: ProductionJob[]
 }): ProductionRun {
@@ -33,7 +35,7 @@ function run(opts: {
     budget: { currency: 'CNY', authorized: 100, reserved: 0, actual: 0, unsettled: 0, unknownInFlight: 0 },
     planVersion: 1, snapshotCursor: 0, stages: [], gates: [], jobs: opts.jobs ?? [], artifacts: [],
     generationPlan: {
-      operationId: 'run-1', state: 'submitted', candidate, nodeId: opts.shots ? undefined : 'single-node',
+      operationId: 'run-1', state: opts.planState ?? 'submitted', candidate, nodeId: opts.shots ? undefined : 'single-node',
       ...(opts.shots ? { shots: opts.shots.map((shot) => ({
         shotId: shot.shotId, ...(shot.role ? { role: shot.role } : {}), ...(shot.included !== undefined ? { included: shot.included } : {}),
         ...(shot.nodeId ? { nodeId: shot.nodeId } : {}), candidate: { ...candidate, candidateId: shot.shotId }, updatedAt: NOW,
@@ -109,6 +111,51 @@ describe('deriveProductionShotState', () => {
   })
 })
 
+// 2026-09-24 真模型走查：Agent 按「先别生成」只调 draft_shots，节点却挂「排队中 · 第 1/1」、任务按钮亮 1
+//（那一刻 0 job、0 请求）。用户还没点头的每一种状态都不许说「排队中」，也不许说「已停」再给一颗续拍钮。
+describe('deriveProductionShotState · 用户还没点头', () => {
+  const PRE_DISPATCH_RUN_STATUSES: ProductionRunStatus[] = [
+    'draft', 'awaiting_direction', 'awaiting_script_review', 'awaiting_storyboard_review', 'awaiting_contract', 'ready',
+  ]
+  const shots = [{ shotId: 'a1', role: 'anchor' as const }, { shotId: 's1' }]
+
+  it('draft_shots 建的草稿（Run draft、计划 draft、0 个 job）→ null（报告里那一幕，单镜与多镜都一样）', () => {
+    expect(deriveProductionShotState(run({ status: 'draft', planState: 'draft', shots: [{ shotId: 'shot-1' }] }), 'shot-1')).toBeNull()
+    expect(deriveProductionShotState(run({ status: 'draft', planState: 'draft' }), 'cand-1')).toBeNull()
+  })
+
+  for (const status of PRE_DISPATCH_RUN_STATUSES) {
+    for (const planState of ['draft', 'sealed'] as const) {
+      it(`Run ${status} + 计划 ${planState}、没有 job → 每一镜（含参考卡）都是 null`, () => {
+        const r = run({ status, planState, shots })
+        expect(deriveProductionShotState(r, 's1')).toBeNull()
+        expect(deriveProductionShotState(r, 'a1')).toBeNull()
+      })
+    }
+    it(`Run ${status} + 最新的 job 停在人工门前（authorization_required / planned）→ null`, () => {
+      for (const jobStatus of ['authorization_required', 'planned'] as const) {
+        const r = run({ status, planState: 'sealed', shots, jobs: [job('s1', jobStatus)] })
+        expect(deriveProductionShotState(r, 's1'), jobStatus).toBeNull()
+      }
+    })
+  }
+
+  // 注意不是「逐镜确认档」：那一档等人时 job 仍是 authorized、等的是另一道镜头门（productionRunDriverOps），这里管不到，
+  // 见根因合同 residual_risks。这里是已提交批次里返工 / 续拍的新 job 退回授权前（productionGenerationAuthorizationState）。
+  it('批次在跑，这一镜的新 job 退回人工门前（返工 / 续拍待授权）→ null，不说「排队中」', () => {
+    expect(deriveProductionShotState(run({ status: 'running', shots, jobs: [job('s1', 'authorization_required')] }), 's1')).toBeNull()
+  })
+
+  it('没点过头就被取消的草稿 → null，不显「已停」也不给续拍钮', () => {
+    expect(deriveProductionShotState(run({ status: 'cancelled', planState: 'cancelled', shots }), 's1')).toBeNull()
+  })
+
+  it('点过头之后照旧：计划已提交、还没 job → 排队中；job 过了人工门还没提交（authorized）→ 排队中', () => {
+    expect(phaseOf(run({ shots: [{ shotId: 's1' }] }), 's1')).toEqual({ phase: 'queued', queueIndex: 1, queueTotal: 1 })
+    expect(phaseOf(run({ shots: [{ shotId: 's1' }], jobs: [job('s1', 'authorized')] }), 's1')).toEqual({ phase: 'queued', queueIndex: 1, queueTotal: 1 })
+  })
+})
+
 describe('productionJobPhase is exhaustive over ProductionJobStatus', () => {
   it('每一个 job 状态都有归属（新增状态不给归属 = 编译不过；这里钉住现有映射）', () => {
     const expected: Record<ProductionJobStatus, ReturnType<typeof productionJobPhase>> = {
@@ -126,6 +173,28 @@ describe('productionJobPhase is exhaustive over ProductionJobStatus', () => {
     expect(isProductionJobInFlight({ status: 'polling', providerTaskId: 't' })).toBe(true)
     expect(isProductionJobInFlight({ status: 'polling' })).toBe(false)
     expect(isProductionJobInFlight({ status: 'ready', providerTaskId: 't' })).toBe(false)
+  })
+})
+
+describe('派出去了没有', () => {
+  it('只有 planned / authorization_required 还停在人工门前', () => {
+    const all = Object.keys({
+      planned: 1, authorization_required: 1, authorized: 1, submit_intent_persisted: 1, submitting: 1, provider_accepted: 1,
+      polling: 1, retry_wait: 1, downloading: 1, validating_technical: 1, validating_content: 1, ready: 1, adopted: 1,
+      submission_unknown: 1, reconciling: 1, needs_attention: 1, cancel_requested: 1, cancelled_remote: 1, detached: 1, too_late: 1,
+    } satisfies Record<ProductionJobStatus, 1>) as ProductionJobStatus[]
+    expect(all.filter(jobAwaitsHuman)).toEqual(['planned', 'authorization_required'])
+  })
+
+  it('没有 job 时：计划没提交 → 不在任何队列；提交后勾进的排队、勾掉的不排；单镜提交了就排', () => {
+    for (const planState of ['draft', 'sealed', 'cancelled'] as const) {
+      expect(deriveProductionShotState(run({ planState, shots: [{ shotId: 's1' }] }), 's1'), planState).toBeNull()
+    }
+    const submitted = run({ shots: [{ shotId: 's1' }, { shotId: 's2', included: false }] })
+    expect(deriveProductionShotState(submitted, 's1')?.phase).toBe('queued')
+    expect(deriveProductionShotState(submitted, 's2')).toBeNull()
+    expect(deriveProductionShotState(run({}), 'cand-1')?.phase).toBe('queued')
+    expect(deriveProductionShotState(run({ planState: 'draft' }), 'cand-1')).toBeNull()
   })
 })
 

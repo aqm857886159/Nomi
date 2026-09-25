@@ -27,7 +27,7 @@ export function NodeGeneratingOverlay({ node, motion, preset, reportFeedback }: 
   const handleCancel = React.useCallback(() => requestTaskCancel(node, reportFeedback), [node, reportFeedback])
   // Local depth processing has its separately approved top bar; it is not a model generation stage.
   if (isVideoDepthProgressPhase(node.progress?.phase)) return <GeneratingOverlay
-    percent={node.progress?.percent} message={node.progress?.message} previewUrl={previewUrl} onCancel={handleCancel} placement="top" />
+    percent={node.progress?.percent} message={node.progress?.message} previewUrl={previewUrl} onCancel={handleCancel} />
   // 导入不是生成：正在拷文件的节点交给 NodeImportingOverlay（同一个等待层组件的进度驱动形态），
   // 不套生成等待层——它会连带把生成的状态语义和无 GPU 兜底块一起带上来。
   if (node.meta?.uploadStatus === 'uploading') return <NodeImportingOverlay node={node} motion={motion} preset={preset} />

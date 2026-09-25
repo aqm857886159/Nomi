@@ -291,6 +291,11 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   /** apimart 是**异步**协议：create 回 task_id，query 轮询到 completed 才给出图的 URL。 */
   const tasks = new Map()
   let taskSequence = 0
+  /** true → apimart 轮询一律回 `processing`：让「已派出、还在供应商那边」这一态停得住，走查才拍得到它。 */
+  let holdTasks = false
+  /** 非空 → apimart 图片 create 先不回：制作流程逐镜顺序派发，下一镜就停在「已授权、还没轮到」= 排队中。 */
+  let submitsHeld = null
+  let releaseSubmits = () => {}
   let fixtureOrigin = ''
   const requests = []
   const images = []
@@ -349,6 +354,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
           : { id: taskQuery[1], status: 'completed', result: { videos: [{ url: [`${fixtureOrigin}/fixture/video.mp4`] }] } } })
         return
       }
+      if (holdTasks) { jsonResponse(response, 200, { code: 200, data: { id: taskQuery[1], status: 'processing' } }); return }
       jsonResponse(response, 200, { code: 200, data: {
         id: taskQuery[1], status: 'completed',
         result: { images: [{ id: taskQuery[1], url: [`${fixtureOrigin}/fixture/image.jpg`], filename: 'fixture.jpg' }] },
@@ -373,6 +379,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     }
     if (record.path === '/v1/images/generations') {
       if (!apimartMode) { jsonResponse(response, 200, { data: [{ url: imageURL }] }); return }
+      if (submitsHeld) await submitsHeld
+      if (!canWrite(response)) return
       const taskId = `agent-runtime-${++taskSequence}`
       tasks.set(taskId, { body: record.body })
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
@@ -455,6 +463,13 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
       baseURL, requests, images, videos, unexpected, close, generationProvider,
+      /** 已受理的 apimart 图片任务先停在 `processing`（true），放开后下一次轮询照常出图（false）。 */
+      holdTasks(on) { holdTasks = Boolean(on) },
+      /** 图片 create 先压着不回（true），放开后压着的那一笔照常受理（false）。 */
+      holdSubmits(on) {
+        if (on) submitsHeld ??= new Promise((resolve) => { releaseSubmits = resolve })
+        else { releaseSubmits(); submitsHeld = null }
+      },
       /** 供应商那边出片了：此后每次查询都回 completed + 真 mp4 的地址。 */
       releaseVideos() { videosHeld = false },
       /** 每个视频任务被查询过几次（证「宿主一直在问」而不是停手了）。 */
