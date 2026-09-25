@@ -19,7 +19,7 @@ const FULL = {
     },
   },
   // 数字混进字符串数组：真机（下方 CreateVideo/ImageResizeKJ 夹具）证实这是真实、正在用的形态，
-  // 不是「异形数据」——元素类型放宽到字符串|数字，数字转字符串收进来（见 classifyComboSpec 注释）。
+  // 不是「异形数据」——元素类型放宽到字符串|数字，且**数字保持数字**（见 comboValues / ComfyComboValue）。
   MixedTypeNode: { input: { required: { mixed: [[1, "a"]] } } },
   // 真正的「没见过的外壳」：名字里带 combo、既不是 "COMBO" 也不在已知白名单里 → 进 unknownComboShapes。
   FutureComboNode: { input: { required: { pick: ["SUPER_COMBO_V9", { options: ["a", "b"] }] } } },
@@ -36,7 +36,7 @@ describe("parseObjectInfoIndex（纯解析，全防御）", () => {
     expect(index.enumsByClass.get("KSampler")?.get("sampler_name")).toEqual(["euler", "ddim"]);
     expect(index.enumsByClass.get("KSampler")?.get("seed")).toBeUndefined();
     expect(index.enumsByClass.get("KSampler")?.get("extra")).toEqual(["x"]);
-    expect(index.enumsByClass.get("MixedTypeNode")?.get("mixed")).toEqual(["1", "a"]);
+    expect(index.enumsByClass.get("MixedTypeNode")?.get("mixed")).toEqual([1, "a"]);
   });
 
   it("没见过的外壳（名字带 combo 但不认识）→ 不进 enums，进 unknownComboShapes 供反馈诊断用", () => {
@@ -273,12 +273,13 @@ describe("真机夹具文件（electron/__fixtures__/comfyui-object-info-real-sa
     expect(index.enumsByClass.get("TripleCLIPLoader")?.get("clip_name1")).toEqual([]);
   });
 
-  it("真机撞到的混合类型 COMBO options（CreateVideo.bit_depth: [\"auto\", 8, 10]）现在能收，数字转字符串", () => {
-    expect(index.enumsByClass.get("CreateVideo")?.get("bit_depth")).toEqual(["auto", "8", "10"]);
+  it("真机撞到的混合类型 COMBO options（CreateVideo.bit_depth: [\"auto\", 8, 10]）能收，数字保持数字", () => {
+    // 改前收成 ["auto","8","10"]：烤成下拉选 8 → 发 "8" → ComfyUI `"8" in ["auto", 8, 10]` 为假 → value_not_in_list。
+    expect(index.enumsByClass.get("CreateVideo")?.get("bit_depth")).toEqual(["auto", 8, 10]);
   });
 
-  it("真机撞到的混合类型老格式数组（ImageResizeKJ.crop: [\"disabled\",\"center\",0]，第三方 KJNodes）同样能收", () => {
-    expect(index.enumsByClass.get("ImageResizeKJ")?.get("crop")).toEqual(["disabled", "center", "0"]);
+  it("真机撞到的混合类型老格式数组（ImageResizeKJ.crop: [\"disabled\",\"center\",0]，第三方 KJNodes）同样能收，0 仍是数字", () => {
+    expect(index.enumsByClass.get("ImageResizeKJ")?.get("crop")).toEqual(["disabled", "center", 0]);
   });
 
   it("DynamicCombo（COMFY_DYNAMICCOMBO_V3，嵌套子 schema，非扁平枚举）已知且故意排除，不进 unknownComboShapes", () => {
@@ -315,6 +316,24 @@ describe("classifyComboSpec 的没见过外壳判定（手工构造，覆盖真�
   it("普通类型名（INT/STRING/IMAGE）不是 combo 语义，不进 unknownComboShapes", () => {
     const index = parseObjectInfoIndex({ Normal: { input: { required: { a: ["INT", {}], b: ["STRING", {}], c: ["IMAGE", {}] } } } });
     expect(index.unknownComboShapes).toEqual([]);
+  });
+
+  it("全布尔老格式 combo（issue #861 原样 spec：easy hiresFix.rescale_after_model）→ 认得，选项按布尔原样收", () => {
+    // spec 逐字取自 issue #861 正文；上游 ComfyUI-Easy-Use py/nodes/fix.py:24（commit 8730ffd）同形。
+    const index = parseObjectInfoIndex({ "easy hiresFix": { input: { required: { rescale_after_model: [[false, true], { default: true }] } } } });
+    expect(index.unknownComboShapes).toEqual([]);
+    expect(index.enumsByClass.get("easy hiresFix")?.get("rescale_after_model")).toEqual([false, true]); // 不是 "false"/"true"
+    const reversed = parseObjectInfoIndex({ N: { input: { required: { on: [[true, false]], only: [[true]] } } } });
+    expect(reversed.unknownComboShapes).toEqual([]);
+    expect(reversed.enumsByClass.get("N")?.get("on")).toEqual([true, false]);
+  });
+
+  it("布尔混进字符串/数字（从没见过，说不清是开关还是枚举）→ 未知，不硬收", () => {
+    const index = parseObjectInfoIndex({
+      Weird: { input: { required: { boolStr: [[false, "auto"], {}], boolNum: [[true, 1], {}], v3BoolStr: ["COMBO", { options: [false, "x"] }] } } },
+    });
+    expect(index.enumsByClass.get("Weird")).toBeUndefined();
+    expect(index.unknownComboShapes.map((u) => u.inputKey)).toEqual(["boolStr", "boolNum", "v3BoolStr"]);
   });
 
   it("超过 50 条时截断，不让某台装了大量自定义节点的机器把诊断本身撑爆", () => {

@@ -175,7 +175,7 @@ function PreviewControl({
           ariaLabel={label}
           size="xs"
           value={value ?? String(field.defaultValue ?? field.options[0])}
-          options={field.options.map((option) => ({ value: option, label: option }))}
+          options={field.options.map((option) => ({ value: String(option), label: String(option) }))}
           onChange={onChange}
           triggerMaxWidth={170}
           className="w-full max-w-full justify-between"
