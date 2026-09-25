@@ -28,7 +28,7 @@ import {
 } from "./generation";
 import { SKILL_WRITE_CAPABILITY } from "./skillWrite";
 import { SKILL_READ_CAPABILITY } from "./skillRead";
-import { CAPABILITY_ALIAS_ENTRIES, CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, capabilityPlanReviewOf, capabilityRequiresPlanReview, resolveCapabilityAlias } from "./registry";
+import { CAPABILITY_ALIAS_ENTRIES, CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, capabilityPlanReviewOf, resolveCapabilityAlias } from "./registry";
 import type { ContractOnlyRegistry } from "./registry";
 
 type AssertNever<Value extends never> = Value;
@@ -50,10 +50,9 @@ it("derives fresh storyboard review from operation metadata without making ordin
   for (const operation of ["propose_storyboard_plan", "patch_shots"]) {
     expect(capabilityPlanReviewOf(CANVAS_WRITE_CAPABILITY, { operation }))
       .toEqual({ requiresPlanReview: true, planReviewAllowsReuse: false });
-    expect(capabilityRequiresPlanReview("nomi_canvas_edit", { operation })).toBe(true);
   }
-  // 退役名不是工具：`nomi_storyboard_write` 解析不到契约，因此也不要求审阅（不留兼容别名，拍板二.4）。
-  expect(capabilityRequiresPlanReview("nomi_storyboard_write", { operation: "propose_storyboard_plan" })).toBe(false);
+  // 退役名不是工具：`nomi_storyboard_write` 解析不到契约（不留兼容别名，拍板二.4）。
+  expect(resolveCapabilityAlias("nomi_storyboard_write")).toBeUndefined();
   expect(capabilityPlanReviewOf(CANVAS_WRITE_CAPABILITY, { operation: "set_node_prompt" }))
     .toEqual({ requiresPlanReview: false, planReviewAllowsReuse: true });
   expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, {}))

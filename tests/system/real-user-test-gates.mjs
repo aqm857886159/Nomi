@@ -136,5 +136,41 @@ export const REAL_USER_TEST_MANIFEST = Object.freeze({
       { status: 'not-applicable', reason: 'no visual acceptance is claimed by this MCP approval journey' },
       'provider transport boundary only; no paid call',
     ),
+    // ── 常驻 Agent 面板：两条红在产品侧的走查修好后接入（2026-09-24）──────────────────────────
+    // 同样只有远端文本模型是本机 loopback，渲染层 / IPC / pi lane / 磁盘持久化全走生产路径，零生成额度。
+    // 它们各自守着一次改名漏网的回归：时间轴计划卡认不出 `edit_timeline`（afe85411d8 之后的手抄名单），
+    // 技能 chip 印出 SKILL.md 的标识（8e89e19ce）。不在任何一条 CI 链里时，这两次都是十天后才被人手跑出来的。
+    journey(
+      'agent-real-user-conversation',
+      'agent-panel.real-user-conversation',
+      'tests/ux/agent-real-user-conversation.walk.mjs',
+      {
+        H: ready('a three-turn document conversation, canvas drafts, an approved irreversible delete and an approved timeline caption plan all land'),
+        B: ready('an over-tall reply renders whole; cancelled queue rows come back as drafts; an out-of-catalog tool fails visibly while collapsed'),
+        E: ready('the irreversible card and the timeline plan card offer only "this once" — no stop-asking escalation on either'),
+        T: ready('bounded station waits; stop keeps finished answers and nodes; two cold restarts keep nodes, threads and history'),
+        N: ready('every model call is a real HTTP request to the loopback provider; the cold opens send none'),
+      },
+      { status: 'required', evidence: 'canvas nodes, the applied caption and lane JSONL are read back from the saved project' },
+      { status: 'required', evidence: 'a second and third Electron process reopen the project with byte-identical lane transcripts' },
+      { status: 'pending-review', evidence: 'screenshots are captured; human visual review is still required' },
+      'model HTTP loopback only; no generation provider call',
+    ),
+    journey(
+      'agent-transcript-merge',
+      'agent-panel.transcript-and-skill-receipt',
+      'tests/ux/agent-transcript-merge.walk.mjs',
+      {
+        H: ready('text → tool → text → tool → text in one turn is one assistant bubble with both tool rows in order'),
+        B: ready('the skill chip on the sent bubble and the reply credential carry the library name the composer showed, never the skill key'),
+        E: ready('a turn without a skill prints no credential; the composer chip clears after send'),
+        T: ready('bounded station waits on every turn'),
+        N: ready('every model call is a real HTTP request to the loopback provider; any undeclared request fails the walk'),
+      },
+      { status: 'not-applicable', reason: 'a transcript-presentation walk; it asserts what the panel shows, not what is saved' },
+      { status: 'not-applicable', reason: 'no restart behaviour is claimed by this presentation walk' },
+      { status: 'pending-review', evidence: 'screenshots are captured; human visual review is still required' },
+      'model HTTP loopback only; no generation provider call',
+    ),
   ],
 })

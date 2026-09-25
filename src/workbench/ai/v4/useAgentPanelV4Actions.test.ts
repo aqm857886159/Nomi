@@ -20,11 +20,11 @@ const fixture = vi.hoisted(() => {
     activeStoryboardId: null as string | null,
     workbenchDocuments: [{ id: 'doc-1', title: 'Current document', updatedAt: 42,
       contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '第一句。' }] }] } }],
-    creationActiveSkill: null as { key: string; name: string } | null, selectedLibraryPrompt: null as { id: string } | null,
+    creationActiveSkill: null as { key: string; contentHash?: string } | null, selectedLibraryPrompt: null as { id: string } | null,
     projectAgentApprovalPolicy: { mode: 'safe-auto', spend: 'confirm' },
     setProjectAgentDraft(text: string) { state.projectAgentDraft = text; state.projectAgentDraftRevision++ },
     // 真店里这个 setter 一次清掉同一个引用槽的两半（`workbenchStore.setCreationActiveSkill`）。
-    setCreationActiveSkill(skill: { key: string; name: string } | null) {
+    setCreationActiveSkill(skill: { key: string; contentHash?: string } | null) {
       state.creationActiveSkill = skill
       state.selectedLibraryPrompt = null
       state.projectAgentDraftRevision++
@@ -99,7 +99,7 @@ describe('composer sends commit local cleanup only after current admission', () 
   it('preserves a new skill selection made while the captured send awaits admission', async () => {
     let release!: (models: never[]) => void
     fixture.models.mockReturnValue(new Promise<never[]>(resolve => { release = resolve }))
-    fixture.state.creationActiveSkill = { key: 'original', name: 'Original' }
+    fixture.state.creationActiveSkill = { key: 'original' }
     fixture.say.mockResolvedValue({ ok: true })
     const sending = mountActions().send('keep this draft')
     const next = { key: 'next', name: 'Next' }
@@ -157,11 +157,11 @@ describe('composer sends commit local cleanup only after current admission', () 
   })
 
   it('taking back one of several inputs swaps the complete current draft without merging or sending', async () => {
-    fixture.state.creationActiveSkill = { key: 'current-skill', name: 'Current' }
+    fixture.state.creationActiveSkill = { key: 'current-skill' }
     const currentAttachment = { id: 'current-file', fileName: 'current.txt', status: 'error' } as ComposerAttachment
     fixture.state.projectAgentAttachments = [currentAttachment]
     const pending = Promise.resolve({ ok: true, restoredInput: [
-      { text: 'First', skillKey: 'first', skillSnapshot: { name: 'First skill', contentHash: 'hash-1' } },
+      { text: 'First', skillKey: 'first', skillSnapshot: { name: 'first', contentHash: 'hash-1' } },
       { text: 'Second', skillKey: 'second' },
     ] })
     fixture.abort.mockReturnValue(pending)
@@ -170,7 +170,7 @@ describe('composer sends commit local cleanup only after current admission', () 
     const first = fixture.state.projectAgentRecoveredDrafts[0]
     takeRecoveredAgentDraft(first.id, 'uuid-a', { laneName: 'main', sessionId: 'session-main' })
     expect(fixture.state.projectAgentDraft).toBe('First')
-    expect(fixture.state.creationActiveSkill).toEqual({ key: 'first', name: 'First skill', contentHash: 'hash-1' })
+    expect(fixture.state.creationActiveSkill).toEqual({ key: 'first', contentHash: 'hash-1' })
     expect(fixture.state.projectAgentAttachments).toEqual([])
     expect(fixture.state.projectAgentRecoveredDrafts).toMatchObject([
       { text: 'Second', skill: { key: 'second' } },
@@ -182,12 +182,12 @@ describe('composer sends commit local cleanup only after current admission', () 
   it('restores the selected skill and pinned version along with an empty composer input', async () => {
     fixture.state.projectAgentDraft = ''
     const finished = Promise.resolve({ ok: true, restoredInput: [{ text: 'old queued instruction', skillKey: 'old-skill',
-      skillSnapshot: { name: 'Old skill', contentHash: 'old-hash' } }] })
+      skillSnapshot: { name: 'old-skill', contentHash: 'old-hash' } }] })
     fixture.abort.mockReturnValue(finished)
     mountActions().stop()
     await finished
     expect(fixture.state.projectAgentDraft).toBe('old queued instruction')
-    expect(fixture.state.creationActiveSkill).toEqual({ key: 'old-skill', name: 'Old skill', contentHash: 'old-hash' })
+    expect(fixture.state.creationActiveSkill).toEqual({ key: 'old-skill', contentHash: 'old-hash' })
   })
 
   it('captures the current catalog projection on every send', async () => {
@@ -221,7 +221,7 @@ describe('composer sends commit local cleanup only after current admission', () 
   // 技能是**这条消息的引用**，不是常驻开关：发出去就该跟着走，留在 composer 上等于
   // 告诉用户「以后每条都得挂着它」（2026-09-10 反馈）。失败那条路不摘，重发不用重选。
   it('releases the skill reference once the message is admitted', async () => {
-    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner', name: '分镜规划' }
+    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner' }
     fixture.say.mockResolvedValue({ ok: true })
     expect(await mountActions().send('plan the opening')).toBe(true)
     expect(fixture.say.mock.calls[0][2].skillKey).toBe('workbench-storyboard-planner')
@@ -230,11 +230,11 @@ describe('composer sends commit local cleanup only after current admission', () 
   })
 
   it.each(['negative-ack', 'exception'])('keeps the skill reference when the send fails with %s', async kind => {
-    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner', name: '分镜规划' }
+    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner' }
     if (kind === 'exception') fixture.say.mockRejectedValue(new Error('lane down'))
     else fixture.say.mockResolvedValue({ ok: false, code: 'agent_lane_execute_failed', diagnostic: 'lane down' })
     expect(await mountActions().send('plan the opening')).toBe(false)
-    expect(fixture.state.creationActiveSkill).toEqual({ key: 'workbench-storyboard-planner', name: '分镜规划' })
+    expect(fixture.state.creationActiveSkill).toEqual({ key: 'workbench-storyboard-planner' })
   })
 
   it('S24: preserves a newly edited draft even when the user retypes the same text before admission', async () => {
@@ -251,12 +251,12 @@ describe('composer sends commit local cleanup only after current admission', () 
   })
 
   it('S24: preserves a newly selected skill and prompt while the captured send is admitted', async () => {
-    const original = { key: 'original-skill', name: 'Original' }
+    const original = { key: 'original-skill' }
     fixture.state.creationActiveSkill = original
     const ack = deferred()
     fixture.say.mockReturnValue(ack.promise)
     const sent = mountActions().send('keep this draft')
-    const replacement = { key: 'next-skill', name: 'Next' }
+    const replacement = { key: 'next-skill' }
     fixture.state.creationActiveSkill = replacement
     fixture.state.selectedLibraryPrompt = { id: 'next-prompt' }
     ack.resolve({ ok: true })
@@ -267,7 +267,7 @@ describe('composer sends commit local cleanup only after current admission', () 
   })
 
   it('S21: replay carries only the original selector and leaves the new composer untouched', async () => {
-    fixture.state.creationActiveSkill = { key: 'unsent-skill', name: 'Unsent' }
+    fixture.state.creationActiveSkill = { key: 'unsent-skill' }
     fixture.state.projectAgentAttachments = [{ id: 'upload-next', status: 'uploading' } as ComposerAttachment]
     fixture.say.mockResolvedValue({ ok: true })
     const originalSkill = fixture.state.creationActiveSkill

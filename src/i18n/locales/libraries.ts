@@ -56,7 +56,6 @@ export const zhLibraries = {
   },
   skill: {
     source: { mine: '我的技能', builtin: 'Nomi 内置' },
-    authorName: 'AI 写技能',
     exportNotFound: '导出失败：没找到这个技能',
     deleteFailed: '删除失败',
     deleted: '已删除 · {{name}}',
@@ -229,7 +228,6 @@ export const enLibraries = {
   },
   skill: {
     source: { mine: 'My skills', builtin: 'Built into Nomi' },
-    authorName: 'AI skill author',
     exportNotFound: 'Export failed: skill not found',
     deleteFailed: 'Delete failed',
     deleted: 'Deleted · {{name}}',

@@ -9,7 +9,7 @@ import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '
 type DraftBuffer = {
   text: string
   displayText: string | null
-  skill: { key: string; name: string; contentHash?: string } | null
+  skill: { key: string; contentHash?: string } | null
   template: LibraryPrompt | null
   attachments: ComposerAttachment[]
   references: ProjectAgentReference[]
@@ -45,7 +45,7 @@ export function restoreProjectAgentInputs(projectUuid: string, conversation: Lan
   if (!inputs.length) return
   const recovered: RecoveredAgentDraft[] = inputs.map(input => ({
     id: crypto.randomUUID(), projectUuid, conversation, text: input.text, displayText: input.displayText ?? null,
-    skill: input.skillKey ? { key: input.skillKey, name: input.skillSnapshot?.name ?? input.skillKey,
+    skill: input.skillKey ? { key: input.skillKey,
       ...(input.skillSnapshot ? { contentHash: input.skillSnapshot.contentHash } : {}) } : null,
     template: null, references: [], intent: input.intent ?? null,
     attachments: composerAttachmentsFromProjectAgentRefs(input.attachments ?? []),
