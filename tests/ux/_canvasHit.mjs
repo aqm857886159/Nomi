@@ -482,28 +482,31 @@ export async function expectCanvasViewportHeld(page, before, message, { holdMs =
  * 一段 200ms 的动画来回可能恰好从两次取样之间溜过去。只观察、不改时序。
  */
 export async function recordCanvasViewportWrites(page) {
-  const token = `__walkViewportWrites_${Date.now()}_${Math.random().toString(36).slice(2)}`
-  const attached = await page.evaluate(({ selector, key }) => {
+  const record = await page.evaluateHandle((selector) => {
     const layer = document.querySelector(selector)
-    if (!layer) return false
+    if (!layer) return null
     const writes = []
     const observer = new MutationObserver(() => {
       const matrix = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
       writes.push({ x: matrix.m41, y: matrix.m42, zoom: matrix.a, at: Math.round(performance.now()) })
     })
     observer.observe(layer, { attributes: true, attributeFilter: ['style'] })
-    window[key] = { writes, observer, layer }
-    return true
-  }, { selector: CANVAS_VIEWPORT_SELECTOR, key: token })
-  if (!attached) throw new Error('recordCanvasViewportWrites：画布变换层没挂载，记不了视口改写')
+    return { writes, observer, layer }
+  }, CANVAS_VIEWPORT_SELECTOR)
+  if (!(await record.evaluate((entry) => entry !== null))) {
+    await record.dispose()
+    throw new Error('recordCanvasViewportWrites：画布变换层没挂载，记不了视口改写')
+  }
   return {
     /** 期间出现过的视口；`stop` 为真时顺手断开观察。变换层被整层重挂过也照实报（detached=true）。 */
-    read: ({ stop = false } = {}) => page.evaluate(({ key, stopNow, selector }) => {
-      const record = window[key]
-      if (!record) return { writes: [], detached: true }
-      if (stopNow) { record.observer.disconnect(); delete window[key] }
-      return { writes: record.writes.slice(), detached: document.querySelector(selector) !== record.layer }
-    }, { key: token, stopNow: stop, selector: CANVAS_VIEWPORT_SELECTOR }),
+    read: async ({ stop = false } = {}) => {
+      const result = await record.evaluate((entry, { stopNow, selector }) => {
+        if (stopNow) entry.observer.disconnect()
+        return { writes: entry.writes.slice(), detached: document.querySelector(selector) !== entry.layer }
+      }, { stopNow: stop, selector: CANVAS_VIEWPORT_SELECTOR })
+      if (stop) await record.dispose()
+      return result
+    },
   }
 }
 
