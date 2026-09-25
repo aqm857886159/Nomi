@@ -24,8 +24,11 @@ export function shouldRelocalizeResult(result: GenerationNodeResult | null | und
   return /^https?:\/\//i.test(String(result.url || '').trim())
 }
 
+// 只补视频封面：封面让画布平时不挂 <video>（32 个 1080p 全挂时 GPU 进程 1.7–2.0 GB）。图片不补——没有缩略图的旧图片节点直接显示原图（与 0.22.1 一致），
+// 否则打开项目后几秒内图片会一张张从原图换成缩略图（先解码原图、再解码缩略图，还闪一下；2026-09-25 核心冒烟抓到画面迟迟不安定）。
+// 新导入 / 新生成的图片在落盘时就带缩略图，不经过这里。
 export function shouldBackfillPreview(result: GenerationNodeResult | null | undefined): boolean {
-  if (!result || (result.type !== 'image' && result.type !== 'video')) return false
+  if (!result || result.type !== 'video') return false
   if (String(result.thumbnailUrl || '').trim()) return false
   return String(result.url || '').trim().startsWith('nomi-local://')
 }

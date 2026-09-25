@@ -53,21 +53,19 @@ describe('relocalizedResultPatch', () => {
 })
 
 describe('shouldBackfillPreview / backfilledPreviewPatch', () => {
-  it('只给没有封面的本地图/视频补', () => {
+  it('只给没有封面的本地视频补；图片不补（打开项目后不把已显示的原图换成缩略图）', () => {
     expect(shouldBackfillPreview(result({ url: 'nomi-local://asset/p1/assets/a.mp4' }))).toBe(true)
-    expect(shouldBackfillPreview(result({ type: 'image', url: 'nomi-local://asset/p1/assets/a.png' }))).toBe(true)
+    expect(shouldBackfillPreview(result({ type: 'image', url: 'nomi-local://asset/p1/assets/a.png' }))).toBe(false)
     expect(shouldBackfillPreview(result({ url: 'nomi-local://asset/p1/assets/a.mp4', thumbnailUrl: 'nomi-local://asset/p1/assets/a.preview.jpg' }))).toBe(false)
     expect(shouldBackfillPreview(result({ url: 'https://cdn.vendor.com/a.mp4' }))).toBe(false)
     expect(shouldBackfillPreview(result({ type: 'text', url: 'nomi-local://asset/p1/a.txt' }))).toBe(false)
     expect(shouldBackfillPreview(undefined)).toBe(false)
   })
 
-  it('派生出封面 → 写上；视频没派生出来 → 不写（下次打开再试）；小图没预览 → 源即预览', () => {
+  it('派生出封面 → 写上；视频没派生出来 → 不写（下次打开再试）', () => {
     const video = result({ url: 'nomi-local://asset/p1/assets/a.mp4' })
     expect(backfilledPreviewPatch(video, { thumbnailUrl: 'nomi-local://asset/p1/assets/a.preview.jpg' })?.thumbnailUrl).toBe('nomi-local://asset/p1/assets/a.preview.jpg')
     expect(backfilledPreviewPatch(video, {})).toBeNull()
     expect(backfilledPreviewPatch(video, null)).toBeNull()
-    const image = result({ type: 'image', url: 'nomi-local://asset/p1/assets/a.png' })
-    expect(backfilledPreviewPatch(image, {})?.thumbnailUrl).toBe('nomi-local://asset/p1/assets/a.png')
   })
 })
