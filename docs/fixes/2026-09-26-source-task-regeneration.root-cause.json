@@ -1,0 +1,872 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-source-task-regeneration",
+  "problem_type": "Source-task operation loses provenance",
+  "symptom": "H3 regeneration returns missing source_task_id/base_video (2013)",
+  "direct_cause": "Linked video never supplies the task-ID control; preflight ignores mappings without transforms.",
+  "class_root": "No declarative source provenance invariant before spend.",
+  "affected_population": [
+    "Connected and same-node task regeneration",
+    "Persisted official and APIMart mappings"
+  ],
+  "scope_paths": [
+    "electron/shared/videoCapabilities/types.ts",
+    "electron/shared/videoCapabilities/minimaxH3Regeneration.ts",
+    "electron/shared/videoCapabilities/sourceTaskInput.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskSource.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "electron/catalog/profileHttpRequest.ts",
+    "electron/desktopStrings.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "electron/shared/nomiErrorCodes.ts",
+    "src/workbench/observability/classifyError.ts"
+  ],
+  "entry_points": [
+    "buildCatalogTaskRequest",
+    "validateProfileRequestBeforeSpend"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimax.io/docs/api-reference/video-generation-v2-regeneration",
+      "checked_at": "2026-09-26",
+      "purpose": "Required source identity and 768P input constraint"
+    }
+  ],
+  "invariants": [
+    "Task operations require a nonempty source ID.",
+    "Known source provider, model and original parameters satisfy the declared requirements.",
+    "Current node settings and unrelated history cannot substitute source provenance."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneLegacyMigration.mts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelAdmissionSchema.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelAdmissionSchema.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/shotVerifyOrchestrate.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "resolveSourceTaskInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopLocale.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopStrings.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/settings/localePreference.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/availableModels.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneLegacyMigrationContract.ts",
+      "symbol": "DesktopLocale"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/customCapabilityContract.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/customCapabilityContract.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/imageCapabilities/runwayImageWireFacts.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/agnesImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/audioArchetype.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/doubaoTtsArchetype.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/dreaminaImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/dreaminaUpscale.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/elevenAudio.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/flux2Pro.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/gptImage2.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/gptImage25.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/higgsfieldSoul.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/hitem3d.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/hunyuan3d.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/imagen4.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/imagen4Kie.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/index.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/kieSeedream5.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/meshy6.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/meshy7.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/minimaxMusic3.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/minimaxSpeech28.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/modelscopeImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/nanoBanana.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/nanoBanana2.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/qwenImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/qwenImage3.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/runninghubImageArchetypes.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/runninghubImageArchetypes.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/runwayNativeImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/seedream.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/seedream5Pro.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/seedreamVolcengine.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/seedreamVolcengine5Pro.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/seedTtsArchetype.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/sunoAudio.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/types.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/types.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/zImage.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "NomiErrorCode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/agnesVideo.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/agnesVideo25.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/crossFieldConstraints.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/crossFieldConstraints.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/dreaminaMultiframe.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/dreaminaSeedance.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/geminiOmni11.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/grokImagine15Video.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/hailuo23.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/happyhorse.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/happyhorse11.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/higgsfieldDop.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/kling.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/kling30Turbo.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/minimaxH3.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/minimaxH3Apimart.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/minimaxH3Max.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/minimaxH3Regeneration.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/modeTransport.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/omniFlashExt.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runninghubSeedance.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runninghubVideoArchetypes.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runninghubVideoArchetypes.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runwayGen45.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runwayGen4Turbo.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/runwayWireFacts.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedance.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedance25.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedance25Apimart.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedanceApimart.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedanceVolcengine.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/seedanceVolcengine25.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/sora2.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/sourceTaskInput.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/types.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/types.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/veo31.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/viduQ3.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/wan27.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/wan30.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/wan30Apimart.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/config/modelCatalogMeta.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "zhGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/capabilityContractDraft.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/customCallScriptModes.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelCapabilityProjection.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/generationProposalEditing.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/ShotParamControls.tsx",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/composerBarModel.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/composerBarModel.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotReferenceCells.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardDialogue.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/parameterReferenceSlots.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/nodeCrossFieldConstraints.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/ParameterControlBody.tsx",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/referenceDependency.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "ModelParameterControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts",
+      "symbol": "ArchetypeMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "resolveCatalogSourceTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskSource.ts",
+      "symbol": "resolveSourceTaskInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/imageActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/videoActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "validateProfileRequestBeforeSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "symbol": "stripNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "stripNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "matchNomiErrorCode"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 148,
+    "why_not": "Existing GUI and runtime callers remain; policy types and locale readers are conservatively enumerated. All task-source projections converge on resolveSourceTaskInput."
+  },
+  "generality_proof": "A generic policy interprets declarative task requirements across both providers and all selected-source forms.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskSource.ts",
+      "symbol": "resolveCatalogSourceTask",
+      "responsibility": "Resolve selected result provenance to required source ID."
+    },
+    {
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "validateProfileRequestBeforeSpend",
+      "responsibility": "Reject missing source in rendered transport before spend."
+    },
+    {
+      "path": "electron/shared/videoCapabilities/sourceTaskInput.ts",
+      "symbol": "resolveSourceTaskInput",
+      "responsibility": "One source identity and eligibility validator for renderer and runtime."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/videoActions.ts",
+      "entry_point": "buildVideoGenerationRequest",
+      "disposition": "enforced",
+      "evidence": "Aliases shared catalog request builder."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "enforced",
+      "evidence": "Calls shared profile preflight before submission."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "All connected task-based models can lose source identity.",
+    "same_class_scan": [
+      "Machine scan: buildCatalogTaskRequest validateProfileRequestBeforeSpend resolveCatalogSourceTask resolveSourceTaskInput ArchetypeMode DesktopLocale ModelParameterControl; 141 production doors.",
+      "Checked GUI connected references and persisted official/APIMart mappings."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/videoCapabilities/sourceTaskInput.ts",
+    "invariant": "Nonempty source identity with validated known provenance.",
+    "failure_mode": "Actionable error before provider submission.",
+    "exception_policy": "none",
+    "strategy": "Declare model facts and enforce through generic projection and profile preflight.",
+    "artifacts": [
+      "electron/shared/videoCapabilities/sourceTaskInput.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskSource.ts",
+      "electron/catalog/profileHttpRequest.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/catalogTaskSource.test.ts",
+    "electron/catalog/profileSourceTask.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/catalogTaskSource.test.ts",
+    "electron/catalog/profileSourceTask.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Repair existing task-ID route without an alternate transport."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal provenance projection; no dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "Derive live source IDs during submission; preserve user mappings and project output.",
+  "residual_risks": [
+    "Provider enforces whitelist and seven-day validity.",
+    "Real paid 768P replay pending.",
+    "Current source already is 2K and must not be regenerated."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/videoCapabilities/sourceTaskInput.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/catalogTaskSource.test.ts",
+      "electron/catalog/profileSourceTask.test.ts"
+    ]
+  }
+}

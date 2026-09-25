@@ -10,6 +10,10 @@ import { normalizeComfyuiBaseUrl } from "../comfyui/endpointResolver";
 import { trim } from "../jsonUtils";
 import { validateRequestTransform } from "../tasks/requestTransforms";
 import type { TaskRequest } from "../runtime";
+import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveSourceTaskInput } from "../shared/videoCapabilities/sourceTaskInput";
+import { desktopT } from "../desktopStrings";
+import { tagNomiError } from "../shared/nomiErrorCodes";
 
 /** 共享 requestPipeline context 构造。铁律翻译层：渲染 body 前按 codec 的 paramMap 把档案中性参数译成该站 wire 字段。 */
 export function templateContext(
@@ -74,9 +78,22 @@ export async function validateProfileRequestBeforeSpend(input: {
   request: TaskRequest;
   operation: HttpOperation;
 }): Promise<void> {
+  const archetype = resolveArchetypeForModel(input.model);
+  const selection = input.request.extras?.archetype as { modeId?: string } | undefined;
+  const mode = archetype?.modes.find(candidate => candidate.id === selection?.modeId)
+    ?? archetype?.modes.find(candidate => candidate.id === archetype.defaultModeId);
+  const requirement = mode?.sourceTask;
   const transform = input.operation.request_transform;
-  if (!transform) return;
+  if (!transform && !requirement) return;
   const preflight = buildProfileHttpRequest(input);
+  if (requirement) {
+    const body = preflight.body as Record<string, unknown> | null;
+    const resolved = resolveSourceTaskInput(requirement, {
+      explicitId: body?.[requirement.inputKey], provider: input.model.vendorKey, sources: [],
+    });
+    if ('error' in resolved) throw new Error(tagNomiError('input-validation', desktopT('sourceTask.missing')));
+  }
+  if (!transform) return;
   await validateRequestTransform(transform, preflight.body, {
     baseUrl: String(input.vendor.baseUrlHint || ""),
     promptId: trim(input.request.extras?.comfyPromptId),
