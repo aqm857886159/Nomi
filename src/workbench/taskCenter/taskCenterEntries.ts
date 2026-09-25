@@ -87,10 +87,6 @@ export function summarizeTaskCenterRows(rows: readonly TaskCenterProjection[], p
   }
 }
 
-/** 按唯一的分组顺序排（稳定排序：组内保持各自映射给的顺序）。 */
-export function orderTaskCenterRows<T extends TaskCenterProjection>(rows: readonly T[]): T[] {
-  return [...rows].sort((a, b) => TASK_CENTER_GROUPS.indexOf(a.group) - TASK_CENTER_GROUPS.indexOf(b.group))
-}
 
 /**
  * 把队列条目 + 画布节点合成面板要画的行。

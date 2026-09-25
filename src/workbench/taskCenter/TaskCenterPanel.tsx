@@ -20,7 +20,7 @@ import { recoverNodeResult } from '../generationCanvas/runner/recoverTaskActions
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
-import { buildTaskCenterView, formatElapsed, orderTaskCenterRows, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
+import { buildTaskCenterView, formatElapsed, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
 import { notify } from '../../ui/notificationPolicy'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
@@ -108,7 +108,8 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
 
   if (!opened) return null
 
-  const rows: TaskCenterProjection[] = orderTaskCenterRows([...view.rows, ...productionRows, ...exportRows])
+  // 不排序：下面按 TASK_CENTER_GROUPS 逐组筛出来渲染，组的先后由那一份顺序决定，组内保持各映射给的顺序。
+  const rows: TaskCenterProjection[] = [...view.rows, ...productionRows, ...exportRows]
   const summary = summarizeTaskCenterRows(rows, view.summary.pausedBatchId)
   const rowsIn = (group: TaskCenterGroup) => rows.filter((row) => row.group === group)
   const queued = rowsIn('queued')
