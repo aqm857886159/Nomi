@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 
 const locale = process.argv.includes('--locale') ? process.argv[process.argv.indexOf('--locale') + 1] : 'zh-CN'
 const en = locale === 'en'
@@ -127,17 +128,19 @@ try {
   check('① 剪辑页左栏最窄（240）：素材来源标签的字不越出按钮、不压旁边的钮', editing.found && editing.rows.every((row) => !row.spills && !row.coversNext), `width=${widthAtMin} ${JSON.stringify(editing)}`)
 
   // 再往左拖过最小宽度 → 面板库把栏吸成收起条：内容也要换成收起条，而不是整块面板挤进 32px。
+  // 基线：同一个探针在收起前找得到左栏里的标签栏，后面「收起后没有它」才不是空话。
+  const sourceTablists = win.locator('#editing-surface-source [role="tablist"]')
+  const tablistProof = await proveProbe(sourceTablists, '展开的左栏里有镜头 / 素材标签栏')
   await dragHandle(win, handle, -300)
-  const collapsedState = await win.evaluate(() => {
-    const panel = document.querySelector('#editing-surface-source')
-    return {
-      width: Math.round(panel?.getBoundingClientRect().width ?? -1),
-      rail: Boolean(panel?.querySelector('.workbench-panel-rail')),
-      tablists: panel?.querySelectorAll('[role="tablist"]').length ?? -1,
-    }
-  })
+  const railVisible = await win.locator('#editing-surface-source .workbench-panel-rail').isVisible()
   await snap(win, '03-editing-source-drag-collapsed')
-  check('① 拖过最小宽度：左栏变成收起条，没有把面板内容挤进窄条', collapsedState.rail && collapsedState.tablists === 0, JSON.stringify(collapsedState))
+  check('① 拖过最小宽度：左栏变成收起条', railVisible)
+  try {
+    await expectAbsent(sourceTablists, { provenBy: tablistProof, message: '收起后不该还在 32px 里画整块面板（标签栏）' })
+    check('① 拖过最小宽度：没有把面板内容挤进窄条', true)
+  } catch (error) {
+    check('① 拖过最小宽度：没有把面板内容挤进窄条', false, String(error?.message || error).split('\n')[0])
+  }
   await dragHandle(win, handle, 300)
   const reopened = await win.evaluate(() => {
     const panel = document.querySelector('#editing-surface-source')

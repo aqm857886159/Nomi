@@ -71,7 +71,8 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
   // 随包引导示例图目录：引导 seed 与「旧项目里的构建产物地址 → 项目资产」迁移都从这里读原图。
   // 放 `resources/` 而不是 `src/`（Vite 加内容哈希，只有渲染进程算得出地址——事故起点）或 `public/`（进包两份）；
   // `resources/**` 在 package.json > build.files 里随包走，dev（仓库根）与打包版（app.asar 根）是同一条相对路径。
-  registerOnboardingDemoAssetSourceDir(path.join(app.getAppPath(), "resources", "onboarding-demo"));
+  // 登记的是解析函数：用到时才取 app 路径，注册本身不依赖 Electron app 已就绪。
+  registerOnboardingDemoAssetSourceDir(() => path.join(app.getAppPath(), "resources", "onboarding-demo"));
   // Explicit project/background imports retain disk identity without acquiring
   // interactive authority. Agent artifacts always provide the full binding.
   ipcMain.handle("nomi:clipboard:read-file-paths", (event) => {

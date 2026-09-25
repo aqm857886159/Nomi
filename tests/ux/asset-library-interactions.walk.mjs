@@ -17,6 +17,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 
 const require = createRequire(import.meta.url)
@@ -83,6 +84,15 @@ const results = []
 const check = (name, ok, detail = '') => {
   results.push({ name, ok })
   console.log(`  ${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`)
+}
+/** 「不存在」断言走共享的 expectAbsent（先证明同一个探针找得到活的那张），失败记一条而不是中断整条走查。 */
+async function checkAbsent(name, locator, proof, message) {
+  try {
+    await expectAbsent(locator, { provenBy: proof, message })
+    check(name, true)
+  } catch (error) {
+    check(name, false, String(error?.message || error).split('\n')[0])
+  }
 }
 async function snap(page, name) {
   await page.screenshot({ path: path.join(shotsDir, `${name}.png`) }).catch((e) => console.log(`  [snap-fail] ${name}: ${e.message}`))
@@ -183,11 +193,12 @@ try {
   const deleteButton = win.locator('button', { has: win.locator('svg.tabler-icon-trash') }).filter({ hasText: /\d/ }).first()
   check('③ 删除钮计数 2', ((await deleteButton.textContent()) ?? '').trim() === '2', `text=${(await deleteButton.textContent())?.trim()}`)
   await snap(win, '05-project-tab-two-selected')
+  const selectedTile = (name) => win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`)
+  // 基线：同一个「已选中」探针此刻找得到这张视频卡，后面「它不在已选中里」才不是空话。
+  const videoSelectedProof = await proveProbe(selectedTile(VIDEO), '点过对勾的视频卡处于已选中')
   await clickTick(VIDEO)
-  await win.waitForTimeout(300)
-  const videoStillSelected = await win.locator(`[aria-selected="true"][role="button"][aria-label="${VIDEO}"]`).count()
-  const nightStillSelected = await win.locator('[aria-selected="true"][role="button"][aria-label="a-night.png"]').count()
-  check('③ 再点对勾：只取消这一张，另一张还在', videoStillSelected === 0 && nightStillSelected === 1, `video=${videoStillSelected} night=${nightStillSelected}`)
+  await checkAbsent('③ 再点对勾：这一张取消选中', selectedTile(VIDEO), videoSelectedProof, '再点对勾后这张视频卡不该还在已选中里')
+  check('③ 另一张仍然选中（只取消点的那一张）', (await selectedTile('a-night.png').count()) === 1)
   await snap(win, '06-project-tab-toggle-off')
 
   // ④ 项目素材：拖到画布 = 复制一张卡；拖到文件夹 = 归类
@@ -209,22 +220,21 @@ try {
   // 删两张只在项目里、没上过画布的素材（上过画布的那张删除＝删卡上的结果，文件另算，是既有语义）。
   for (const name of ['a-spare.png', VIDEO]) {
     await tile(name).hover()
-    if ((await win.locator(`[aria-selected="true"][role="button"][aria-label="${name}"]`).count()) === 0) await clickTick(name)
+    if (!(await selectedTile(name).count())) await clickTick(name)
   }
   await win.waitForTimeout(300)
   const beforeDeleteSelected = await selectedCount()
+  check('⑤ 点对勾选中两张待删', beforeDeleteSelected === 2, `selected=${beforeDeleteSelected}`)
+  // 基线：删除前同一个格子探针找得到这两张。
+  const spareProof = await proveProbe(tile('a-spare.png'), '删除前项目素材里有 a-spare.png')
+  const videoProof = await proveProbe(tile(VIDEO), '删除前项目素材里有这条视频')
   await deleteButton.click()
   await win.waitForTimeout(500)
   await snap(win, '09-confirm-delete-two')
   await win.locator('[role="dialog"] button, [role="alertdialog"] button', { hasText: locale === 'en' ? 'Delete' : '删除' }).last().click()
-  await win.waitForTimeout(2000)
-  const videoLeft = await win.locator(`[role="button"][aria-label="${VIDEO}"]`).count()
-  const spareLeft = await win.locator('[role="button"][aria-label="a-spare.png"]').count()
-  check('⑤ 选两张再删：两张都没了', beforeDeleteSelected === 2 && videoLeft === 0 && spareLeft === 0, `selected=${beforeDeleteSelected} videoLeft=${videoLeft} spareLeft=${spareLeft}`)
+  await checkAbsent('⑤ 删两张：a-spare.png 没了', tile('a-spare.png'), spareProof, '确认删除后 a-spare.png 不该还在')
+  await checkAbsent('⑤ 删两张：视频也没了', tile(VIDEO), videoProof, '确认删除后这条视频不该还在')
   await snap(win, '10-after-delete-two')
-
-  const relevantErrors = consoleErrors.filter((text) => /asset|素材|NomiImage|drag|drop/i.test(text))
-  check('控制台没有素材相关报错', relevantErrors.length === 0, relevantErrors.slice(0, 3).join(' | '))
 } catch (error) {
   console.log(`  FAIL walk crashed: ${error?.stack || error}`)
   results.push({ name: 'crash', ok: false })

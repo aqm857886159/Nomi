@@ -19,7 +19,7 @@ const DEV_KID = "http://127.0.0.1:5273/src/workbench/onboarding/assets/robot/kid
 const PACKAGED_SHOT = "file:///Applications/Nomi.app/Contents/Resources/app.asar/dist/assets/shot-3-Qw3rTy12.jpg";
 
 const tempRoots: string[] = [];
-beforeEach(() => registerOnboardingDemoAssetSourceDir(DEMO_DIR));
+beforeEach(() => registerOnboardingDemoAssetSourceDir(() => DEMO_DIR));
 afterEach(() => {
   registerOnboardingDemoAssetSourceDir(null);
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
