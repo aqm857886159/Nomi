@@ -101,6 +101,37 @@
       ],
       "since": "2026-09-25",
       "notes": "2026-09-25 用户拍板：单个节点生成不弹窗，点数常驻在 ↑ 旁；Agent 发起 / 一下跑 ≥2 个 / 单次 ≥ SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS（10 点）/ 首次匿名托管告知 / 拿不到报价 才弹。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，档位判据仍归 electron/shared/agentCapabilities/capabilityApprovalPolicy.ts#spendDecidedByPolicy。"
+    },
+    {
+      "name": "新东西落在画布哪里（相对用户看得见的那块）",
+      "owner": {
+        "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+        "symbol": "visibleInsertionPoint"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+        "src/workbench/generationCanvas/store/resolveInsertionPosition.ts",
+        "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+        "src/workbench/assets/AssetLibraryPanel.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户拍板「程序不再主动平移 / 缩放画布；新建和导入尽量直接落在当前可见区域」（合同 docs/fixes/2026-09-25-canvas-no-auto-viewport.root-cause.json）。单点落点（visibleInsertionPoint，addNode 默认）、整批落点（placeBlockInVisibleArea）、可见区内找空位（resolveInsertionPosition 的 visibleArea 参数）都读这一份；舞台尺寸由画布宿主经 publishCanvasStageSize 发布（0×0 不覆盖）。不许再写死画布坐标当默认落点，也不许「落地后再挪画布露出」。"
+    },
+    {
+      "name": "谁能移动画布视口",
+      "owner": {
+        "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+        "symbol": "animateViewportTo"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+        "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+        "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts",
+        "src/workbench/production/useProductionStatus.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开分类时的「第一次摆全貌」归 useAutoFitOnLoad.shouldFitOnOpen，只在打开时本来就有内容时判一次。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
     }
   ]
 }

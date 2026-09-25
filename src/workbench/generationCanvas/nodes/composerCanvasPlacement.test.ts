@@ -24,6 +24,11 @@ function screenRect(visualSize: { width: number; height: number }, zoom: number,
   }
 }
 
+/** 剥掉注释再扫：注释里提到这些符号（记录历史的那几行）不算调用（check:walkthroughs「结构测试须剥注释」）。 */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+}
+
 describe('composerCanvasPlacement', () => {
   it('reported case: a 16:9 image node at 100% gets a 560px card centred right below it', () => {
     const rect = screenRect({ width: 320, height: 180 }, 1)
@@ -53,7 +58,7 @@ describe('composerCanvasPlacement', () => {
 
   // 不变量的结构面：浮框这一侧不许再长回「量屏幕 → 躲东西」的放置层。
   it('the canvas composer derives its position without measuring the screen', () => {
-    const source = fs.readFileSync(path.join(__dirname, 'NodeGenerationComposer.tsx'), 'utf8')
+    const source = stripComments(fs.readFileSync(path.join(__dirname, 'NodeGenerationComposer.tsx'), 'utf8'))
     expect(source).toContain('composerCanvasPlacement(visualSize, canvasZoom)')
     for (const forbidden of ['getBoundingClientRect', 'requestAnimationFrame', 'resolveAnchoredPlacement', 'w-max']) {
       expect(source, forbidden).not.toContain(forbidden)

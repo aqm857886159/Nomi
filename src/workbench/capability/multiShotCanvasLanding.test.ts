@@ -72,32 +72,28 @@ describe('materializeShots preserves the reading viewport on existing content', 
     expect(useWorkbenchStore.getState().canvasFitNonce).toBe(beforeFit)
   })
 
-  it('reveals newly created nodes, group and table', async () => {
+  // 2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到那个镜头生成去哪里了」。落地（新建镜头、组、
+  // 分镜表，单镜变多镜）一律不请求适应、不切分类；屏外的新东西由画布边缘提示指路。
+  it('reported case: paid-card landing creates nodes, group and table without moving the viewport', async () => {
+    const activeBefore = useWorkbenchStore.getState().activeCategoryId
     const result = await land()
     expect(result.createdNodeIds).toHaveLength(3)
     expect(result.groupId).toBeTruthy()
     expect(result.shotTableNodeId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(0)
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
+    expect(useWorkbenchStore.getState().activeCategoryId).toBe(activeBefore)
   })
 
-  it('reveals a newly added group even when all nodes already exist', async () => {
-    await land()
-    useGenerationCanvasStore.setState({ groups: [] })
-    const beforeFit = useWorkbenchStore.getState().canvasFitNonce
-    const result = await land()
-    expect(result.createdNodeIds).toEqual([])
-    expect(result.groupId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(beforeFit)
-  })
-
-  it('reveals added shots and the first table when a single shot becomes a multi-shot plan', async () => {
+  it('class: adding a group or growing a single shot into a multi-shot plan never requests a fit', async () => {
     const first = await land(shots.slice(0, 1))
     expect(first.shotTableNodeId).toBeNull()
-    const beforeFit = useWorkbenchStore.getState().canvasFitNonce
     const next = await land()
     expect(next.createdNodeIds).toHaveLength(2)
     expect(next.shotTableNodeId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(beforeFit)
+    useGenerationCanvasStore.setState({ groups: [] })
+    const regrouped = await land()
+    expect(regrouped.groupId).toBeTruthy()
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
   })
 })
 

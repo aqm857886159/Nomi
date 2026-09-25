@@ -118,10 +118,10 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
   creationActiveSkill: { key: string; name: string; contentHash?: string } | null
   /**
-   * 「请画布适应视图」一次性信号（nonce，仿 createCategoryNonce）。bump 一次 = 请生成画布
-   * 平滑 fit 到全部节点一次。用于落画布等「批量加节点到已加载画布」的场景——useAutoFitOnLoad
-   * 只在首次加载/切分类触发，加新节点不重跑，新节点会落在视口外（用户以为「没反应」）。
-   * 非持久化、非用户动作残留：只在显式动作时 bump。
+   * 「请画布适应视图」一次性信号（nonce，仿 createCategoryNonce）。bump 一次 = 请生成画布平滑 fit 一次（并切到目标分类）。
+   * **只许用户显式动作 bump**（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」）：以前落画布、导入、切图、
+   * Agent 批量建卡都会 bump，那就是「画布自己动、找不到东西」。新东西落在屏外改由画布边缘提示指路。
+   * 允许 bump 的调用处名单在 generationCanvas/components/canvasViewportMovers.structure.test.ts。
    */
   canvasFitNonce: number
   canvasFitCategoryId: string | null

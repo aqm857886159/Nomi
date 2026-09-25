@@ -1,4 +1,4 @@
-import { expect } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 
 // 画布命中几何的**单一 owner**：「哪儿是空白」「连线上哪个点真的点得到」。
 //
@@ -387,28 +387,265 @@ export async function findFrameDrawRectAround(page, { nodeSelectors, margin = 56
 }
 
 
-/** Fail on a clipped card instead of moving the canvas or choosing a forgiving click offset. */
+// ── 视口与「新到的卡」（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」）─────────────────────
+//
+// 拍板之前，新建 / 复制 / 落地 / 切图之后画布会自己挪过去（露出平移、连建缩小、落地适应、复制聚焦），
+// 走查于是可以默认「新卡一定在屏里」。现在只剩三件事是真的：
+//   ① 画布不自己动——新卡落地前后视口逐格相同（用户报的「付费卡点击之后画布就闪动一下」就是这一条破了）；
+//   ② 没有明确位置的新卡落在当前可见区（舞台宽 38%、高 28% 那一点，owner
+//      src/workbench/generationCanvas/store/canvasVisibleArea.ts `visibleInsertionPoint`），但可见区挤时
+//      螺旋避让仍可能把它推出屏；
+//   ③ 中心不在可见区里的新卡（产品判据 canvasArrivalModel.ts `isNodeSeen`：节点**中心**在可见区 = 看见了），
+//      舞台边上出一颗胶囊 `[data-canvas-arrival-hint="right|left|up|down"]`（`data-arrival-count` = 几张），
+//      **点它**画布才动画过去框住那一批，框住了胶囊自己消失。
+// 下面这几把尺把这三件事做成走查能直接调的断言，别再各自手写一份「等露出动画落地」。
+
+export const CANVAS_VIEWPORT_SELECTOR = '.react-flow__viewport'
+export const CANVAS_ARRIVAL_HINT_SELECTOR = '[data-canvas-arrival-hint]'
+/** 画布上的一张卡（生成节点本体）。`data-node-id` 与 React Flow 的 `data-id` 同值。 */
+export const CANVAS_CARD_SELECTOR = '.generation-canvas-v2-node[data-node-id]'
+/** 「视口没动」的容差：亚像素取整与缩放的浮点噪声。超过它就是真动了。 */
+export const CANVAS_VIEWPORT_TOLERANCE = Object.freeze({ px: 0.5, zoom: 0.001 })
+
+/** React Flow 变换层此刻的视口（读计算样式，量的是用户眼前那一帧，不读 store）。画布没挂载时 null。 */
+export async function readCanvasViewport(page) {
+  return page.evaluate((selector) => {
+    const layer = document.querySelector(selector)
+    if (!layer) return null
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
+    return { x: matrix.m41, y: matrix.m42, zoom: matrix.a }
+  }, CANVAS_VIEWPORT_SELECTOR)
+}
+
+/** 两份视口在容差内相同。任一为空一律算「不同」——读不到视口不能被当成「没动」。 */
+export function sameCanvasViewport(a, b, tolerance = CANVAS_VIEWPORT_TOLERANCE) {
+  if (!a || !b) return false
+  return Math.abs(b.x - a.x) <= tolerance.px
+    && Math.abs(b.y - a.y) <= tolerance.px
+    && Math.abs(b.zoom - a.zoom) <= tolerance.zoom
+}
+
+const formatViewport = (viewport) => viewport
+  ? `(${viewport.x.toFixed(1)}, ${viewport.y.toFixed(1)}) ×${viewport.zoom.toFixed(4)}`
+  : '（读不到视口）'
+
 /**
- * 等画布视口**停下来**。落节点之后画布会自己发一次「适应视图」（`useCanvasFitSignal`：挂载后 360ms 起一段
- * 200ms 动画），重开项目补齐重放也会发。人是看着画布自己缩好了才去点缩放/重置的；走查若在这个窗口里点，
- * 那次延迟 fit 会把用户的动作盖回去（2026-09-18 金路径真机：重置视图 → 滑块 70→95 → 又被拉回 59）。
- * 判据是稳定性，不是睡够多久：缩放滑块（产品自己的控件）连续 `holdMs` 内一格没动才算停。
+ * 等画布视口**停下来**，返回停下时的视口（当「之前」的基线用）。
+ *
+ * 2026-09-25 之前这里等的是「落节点之后画布自己发的那次延迟适应视图」；那扇门已经删了（程序不再主动挪画布）。
+ * 仍然要等的只剩两种**合法**移动：打开一个分类那一刻的一次性摆全貌（`useAutoFitOnLoad`：打开时里面本来就有
+ * 节点、且没有记住的视角或记住的视角里一个节点都看不见，350ms 后判一次），以及用户自己点出来的动画
+ * （适应视图 / 复位 / 定位 / 边缘提示，200–220ms）。走查若在这个窗口里读基线或点下一步，量到的是动画不是动作
+ * （2026-09-18 金路径真机：重置视图 → 滑块 70→95 → 又被当时的延迟适应拉回 59）。
+ * 判据是稳定性，不是睡够多久：变换层（平移 + 缩放都算）连续 `holdMs` 内一格没动才算停。
  */
-export async function waitForCanvasViewportSettled(page, { holdMs = 800, stepMs = 100 } = {}) {
-  const slider = page.getByRole('slider', { name: '缩放比例', exact: true })
-  await expect(slider, '画布上没有缩放滑块').toBeVisible()
+export async function waitForCanvasViewportSettled(page, { holdMs = 800, stepMs = 100, timeout = DEFAULT_TIMEOUT_MS } = {}) {
   const needed = Math.ceil(holdMs / stepMs)
   let last = null
   let stableFor = 0
   await expect.poll(async () => {
-    const value = await slider.inputValue()
-    stableFor = value === last ? stableFor + 1 : 0
-    last = value
+    const now = await readCanvasViewport(page)
+    stableFor = now && sameCanvasViewport(last, now) ? stableFor + 1 : 0
+    last = now
     return stableFor >= needed
-  }, { message: `画布视口 ${holdMs}ms 内一直在动，没有停下来`, intervals: Array.from({ length: needed * 4 }, () => stepMs) }).toBe(true)
-  return Number(last)
+  }, { message: `画布视口 ${holdMs}ms 内一直在动（或画布根本没挂载），没有停下来`, timeout, intervals: [stepMs] }).toBe(true)
+  return last
 }
 
+/**
+ * 断言画布**没有自己动**：从 `before` 起连续 `holdMs` 的取样里，视口一直等于 `before`（容差内）。
+ * 取样途中偏离一次就记下、立刻报红，不等到超时——「闪一下又回来」同样在这里现形，
+ * 因为取样是连续的而不是只比首尾（首尾相同的闪动由调用方另挂 `recordCanvasViewportWrites` 抓）。
+ */
+export async function expectCanvasViewportHeld(page, before, message, { holdMs = 1000, stepMs = 100, timeout = DEFAULT_TIMEOUT_MS } = {}) {
+  if (!before) throw new Error(`expectCanvasViewportHeld：${message} —— 没有基线视口（先用 waitForCanvasViewportSettled 取）`)
+  const needed = Math.ceil(holdMs / stepMs)
+  let heldFor = 0
+  let drift = null
+  await expect.poll(async () => {
+    if (drift) return 'moved'
+    const now = await readCanvasViewport(page)
+    if (!sameCanvasViewport(before, now)) {
+      drift = now ?? { x: NaN, y: NaN, zoom: NaN }
+      return 'moved'
+    }
+    heldFor += 1
+    return heldFor >= needed ? 'held' : 'holding'
+  }, { message: `${message}：${holdMs}ms 的取样窗口没能走完`, timeout, intervals: [stepMs] }).not.toBe('holding')
+  expect(drift, `${message} —— 基线 ${formatViewport(before)}，画布却自己变成了 ${formatViewport(drift)}`).toBeNull()
+  return before
+}
+
+/**
+ * 从现在起记下变换层的**每一次**改写（MutationObserver 看 style），返回一个 `read()`：交出期间出现过的
+ * 全部视口。用来抓「首尾相同、中间闪了一下」——`expectCanvasViewportHeld` 的取样间隔是 100ms，
+ * 一段 200ms 的动画来回可能恰好从两次取样之间溜过去。只观察、不改时序。
+ */
+export async function recordCanvasViewportWrites(page) {
+  const token = `__walkViewportWrites_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const attached = await page.evaluate(({ selector, key }) => {
+    const layer = document.querySelector(selector)
+    if (!layer) return false
+    const writes = []
+    const observer = new MutationObserver(() => {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
+      writes.push({ x: matrix.m41, y: matrix.m42, zoom: matrix.a, at: Math.round(performance.now()) })
+    })
+    observer.observe(layer, { attributes: true, attributeFilter: ['style'] })
+    window[key] = { writes, observer, layer }
+    return true
+  }, { selector: CANVAS_VIEWPORT_SELECTOR, key: token })
+  if (!attached) throw new Error('recordCanvasViewportWrites：画布变换层没挂载，记不了视口改写')
+  return {
+    /** 期间出现过的视口；`stop` 为真时顺手断开观察。变换层被整层重挂过也照实报（detached=true）。 */
+    read: ({ stop = false } = {}) => page.evaluate(({ key, stopNow, selector }) => {
+      const record = window[key]
+      if (!record) return { writes: [], detached: true }
+      if (stopNow) { record.observer.disconnect(); delete window[key] }
+      return { writes: record.writes.slice(), detached: document.querySelector(selector) !== record.layer }
+    }, { key: token, stopNow: stop, selector: CANVAS_VIEWPORT_SELECTOR }),
+  }
+}
+
+/**
+ * 此刻「新到的卡」的账：`knownIds` 以外、已渲染的卡各自在不在舞台里，外加边缘提示报的方向与张数。
+ * 注意 React Flow 开着 `onlyRenderVisibleElements`：整张在屏外的卡连 DOM 都没有，只能从提示的张数里数到它。
+ */
+export async function readArrivalLedger(page, knownIds = []) {
+  return page.evaluate(({ cardSelector, stageSelector, hintSelector, known }) => {
+    const stageEl = document.querySelector(stageSelector)
+    const stage = stageEl?.getBoundingClientRect()
+    const knownSet = new Set(known)
+    const cards = Array.from(document.querySelectorAll(cardSelector))
+      .filter((element) => !knownSet.has(element.getAttribute('data-node-id')))
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        const cx = rect.left + rect.width / 2
+        const cy = rect.top + rect.height / 2
+        return {
+          id: element.getAttribute('data-node-id'),
+          rect: { left: Math.round(rect.left), top: Math.round(rect.top), right: Math.round(rect.right), bottom: Math.round(rect.bottom) },
+          // 与产品同一判据：中心在可见区里 = 看见了（canvasArrivalModel.ts `isNodeSeen`）。
+          seen: Boolean(stage) && cx >= stage.left && cx <= stage.right && cy >= stage.top && cy <= stage.bottom,
+          fullyInside: Boolean(stage) && rect.width > 0 && rect.height > 0
+            && rect.left >= stage.left - 1 && rect.right <= stage.right + 1 && rect.top >= stage.top - 1 && rect.bottom <= stage.bottom + 1,
+        }
+      })
+    const hintEl = stageEl?.querySelector(hintSelector) ?? document.querySelector(hintSelector)
+    const hint = hintEl
+      ? { side: hintEl.getAttribute('data-canvas-arrival-hint'), count: Number(hintEl.getAttribute('data-arrival-count')), text: (hintEl.textContent || '').trim() }
+      : null
+    return {
+      stage: stage ? { left: Math.round(stage.left), top: Math.round(stage.top), right: Math.round(stage.right), bottom: Math.round(stage.bottom) } : null,
+      cards,
+      hint,
+    }
+  }, { cardSelector: CANVAS_CARD_SELECTOR, stageSelector: CANVAS_STAGE_SELECTOR, hintSelector: CANVAS_ARRIVAL_HINT_SELECTOR, known: [...knownIds] })
+}
+
+/**
+ * 一次创建（工具条建卡 / 复制变体 / 切图 / 导入……）之后的完整新契约：
+ *   ① 账平：看得见的新卡 + 边缘提示报的张数 = 这次该到的张数（`expectedCount`，从 `knownIds` 之外数）；
+ *   ② 画布没有自己动（给了 `viewportBefore` 才验；它必须是**点下创建之前**读的）；
+ *   ③ 有提示且 `followHint`：点它，方向 / 张数对得上、点完那一批完整进舞台、提示自己消失（见 `followArrivalHint`）。
+ * 返回 `{ path: 'in-view' | 'hint' | 'hint-pending', ids, hint, ledger }`：`ids` 是此刻看得见的新卡
+ * （走了提示则含被框进来的那批）。`in-view` 只保证中心在舞台里（产品的「看见了」），完整不完整由调用方按需再断。
+ */
+export async function expectArrivalsReachable(page, {
+  knownIds = [], expectedCount = 1, viewportBefore = null, label, followHint = true, holdMs = 1000, timeout = DEFAULT_TIMEOUT_MS,
+} = {}) {
+  if (!label) throw new Error('expectArrivalsReachable：label 必填，红的时候要说得出是哪一次创建')
+  let ledger = null
+  const accounted = (entry) => entry.cards.filter((card) => card.seen).length + (entry.hint?.count ?? 0)
+  await expect.poll(async () => {
+    ledger = await readArrivalLedger(page, knownIds)
+    return accounted(ledger)
+  }, {
+    message: `${label}：该到 ${expectedCount} 张新卡，但「落在舞台里的」加「边缘提示数到的」对不上——新卡要么没建出来，要么落到屏外却没有提示`,
+    timeout,
+  }).toBe(expectedCount)
+  if (viewportBefore) {
+    await expectCanvasViewportHeld(page, viewportBefore, `${label}：新卡落地后画布不许自己平移 / 缩放（2026-09-25 拍板）`, { holdMs })
+    // 保持窗口里账也不许变：变了说明还有东西在后面落地，前面那次「账平」是抢早了。
+    ledger = await readArrivalLedger(page, knownIds)
+    expect(accounted(ledger), `${label}：保持窗口之后账不平了 —— ${JSON.stringify(ledger)}`).toBe(expectedCount)
+  }
+  const seenIds = ledger.cards.filter((card) => card.seen).map((card) => card.id)
+  if (!ledger.hint) return { path: 'in-view', ids: seenIds, hint: null, ledger }
+  if (!followHint) return { path: 'hint-pending', ids: seenIds, hint: ledger.hint, ledger }
+  const followed = await followArrivalHint(page, { knownIds: [...knownIds, ...seenIds], label })
+  return { path: 'hint', ids: [...seenIds, ...followed.ids], hint: ledger.hint, ledger: followed.ledger }
+}
+
+/**
+ * 点边缘提示过去——用户唯一一种「让画布替我去找新卡」的方式。断言：
+ *   ① 提示报的方向与那一批卡（按**点之前**的视口）外接盒中心偏出舞台最多的那条轴一致
+ *      （与 canvasArrivalModel.ts `resolveArrivalHint` 同一判据；点之前它们多半不在 DOM，所以点完再按视口换算回去）；
+ *   ② 点完那一批完整落在舞台里，张数等于提示上的数；③ 提示自己消失。
+ * 只验「同一分类里」的方向提示；跨分类提示（「新节点在「分镜」里」）会先切分类，没有方向可验，调用方另写。
+ * `knownIds`：点之前就在（包括这次已经看得见的新卡）的卡，被框进来的只算它们之外的。
+ */
+export async function followArrivalHint(page, { knownIds = [], label }) {
+  const hint = page.locator(CANVAS_ARRIVAL_HINT_SELECTOR)
+  const hintProof = await proveProbe(hint, `${label}：新卡落在屏外，舞台边上该出边缘提示`)
+  const side = await hint.first().getAttribute('data-canvas-arrival-hint')
+  const count = Number(await hint.first().getAttribute('data-arrival-count'))
+  expect(['right', 'left', 'up', 'down'], `${label}：边缘提示的方向「${side}」不是四个方向之一`).toContain(side)
+  expect(count, `${label}：边缘提示上的张数「${count}」不是正整数`).toBeGreaterThan(0)
+  const geometryBefore = await readFlowGeometry(page)
+  await clickOrFail(hint, `${label}：边缘提示「${side} · ${count}」`)
+  await expectAbsent(hint, { provenBy: hintProof, message: `${label}：点过去之后新卡进了视野，边缘提示应自己消失` })
+  const viewportAfter = await waitForCanvasViewportSettled(page)
+  expect(sameCanvasViewport(geometryBefore.viewport, viewportAfter), `${label}：点了边缘提示，画布却一格没动`).toBe(false)
+  const ledger = await readArrivalLedger(page, knownIds)
+  expect(ledger.cards.length, `${label}：提示说有 ${count} 张，点过去框进来的却是 ${ledger.cards.length} 张 —— ${JSON.stringify(ledger)}`).toBe(count)
+  const clipped = ledger.cards.filter((card) => !card.fullyInside)
+  expect(clipped, `${label}：点了边缘提示，这一批仍有卡没完整进舞台 —— ${JSON.stringify(ledger)}`).toEqual([])
+  // 方向：把点完之后的屏幕位置按两份视口换算回「点之前」的屏幕，再按产品的判据算它该指哪边。
+  const geometryAfter = await readFlowGeometry(page)
+  const toBefore = (screenX, screenY) => {
+    const { origin } = geometryAfter
+    const a = geometryAfter.viewport
+    const b = geometryBefore.viewport
+    const canvasX = (screenX - origin.left - a.x) / a.zoom
+    const canvasY = (screenY - origin.top - a.y) / a.zoom
+    return { x: origin.left + canvasX * b.zoom + b.x, y: origin.top + canvasY * b.zoom + b.y }
+  }
+  const topLeft = toBefore(Math.min(...ledger.cards.map((card) => card.rect.left)), Math.min(...ledger.cards.map((card) => card.rect.top)))
+  const bottomRight = toBefore(Math.max(...ledger.cards.map((card) => card.rect.right)), Math.max(...ledger.cards.map((card) => card.rect.bottom)))
+  const center = { x: (topLeft.x + bottomRight.x) / 2, y: (topLeft.y + bottomRight.y) / 2 }
+  const stage = geometryBefore.stage
+  const width = stage.right - stage.left
+  const height = stage.bottom - stage.top
+  const overX = center.x < stage.left ? (stage.left - center.x) / width : center.x > stage.right ? (center.x - stage.right) / width : 0
+  const overY = center.y < stage.top ? (stage.top - center.y) / height : center.y > stage.bottom ? (center.y - stage.bottom) / height : 0
+  const horizontal = center.x < stage.left ? 'left' : 'right'
+  const vertical = center.y < stage.top ? 'up' : 'down'
+  // 产品按模型尺寸算外接盒、这里按渲染尺寸算，两轴偏出量差不到 5% 时哪边都算对（贴边的那一格不判方向）。
+  const acceptable = Math.abs(overX - overY) < 0.05
+    ? [overX > 0 ? horizontal : null, overY > 0 ? vertical : null, overX >= overY ? horizontal : vertical].filter(Boolean)
+    : [overX >= overY ? horizontal : vertical]
+  expect(acceptable, `${label}：边缘提示指「${side}」，但那一批卡点之前在舞台的 ${acceptable.join(' / ')} —— ${JSON.stringify({ center, stage, overX, overY })}`).toContain(side)
+  return { side, count, ids: ledger.cards.map((card) => card.id), ledger }
+}
+
+/** 画布坐标换算要的三样：视口、React Flow 容器原点（transform 以它为原点）、舞台框。 */
+async function readFlowGeometry(page) {
+  return page.evaluate(({ viewportSelector, stageSelector }) => {
+    const layer = document.querySelector(viewportSelector)
+    const flow = document.querySelector('.react-flow')?.getBoundingClientRect()
+    const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
+    if (!layer || !flow || !stage) throw new Error('画布没挂载：读不到视口 / React Flow 容器 / 舞台')
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
+    return {
+      viewport: { x: matrix.m41, y: matrix.m42, zoom: matrix.a },
+      origin: { left: flow.left, top: flow.top },
+      stage: { left: stage.left, top: stage.top, right: stage.right, bottom: stage.bottom },
+    }
+  }, { viewportSelector: CANVAS_VIEWPORT_SELECTOR, stageSelector: CANVAS_STAGE_SELECTOR })
+}
+
+/** Fail on a clipped card instead of moving the canvas or choosing a forgiving click offset. */
 export async function expectNodeInsideCanvas(page, node, message = '新卡完整位于舞台内') {
   await expect(node, message).toBeVisible()
   const geometry = await node.evaluate((element, stageSelector) => {

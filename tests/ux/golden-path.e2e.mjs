@@ -155,7 +155,10 @@ function readPersistedPayload(projectRoot) {
 
 // ── 画布：把分镜表带进视口并铺开。React Flow 开着 onlyRenderVisibleElements（视口外的节点连 DOM 都不进），
 //    表在低缩放（<80%）下又只剩镜号/关键帧两列（compact），画面与状态列都不在。所以按用户会做的三下来：
-//    ① 先等画布自己停下（落节点/重开项目后画布延迟发一次自动 fit，人是看它缩好了才动手的）；
+//    ① 先等画布停下：落节点本身不再挪画布（2026-09-25 拍板，以前这里等的是落地后那次延迟自动 fit），
+//       但进画布 / 重开项目那一刻，若记住的视角里一个节点都看不见，画布会一次性摆全貌（useAutoFitOnLoad，
+//       350ms 后判一次）——人是看它摆好了才动手的；Agent 在创作页落的镜头若在屏外，舞台边会出一颗
+//       「新节点在…」的边缘提示，这里不点它（下一步的「适应视图」是同样由用户发起、且框住全部节点的那一下）；
 //    ② 「适应视图」——全部节点入视口，证明表在；
 //    ③ 在空白处按住拖动，把表拖到舞台正中，再把缩放滑块（产品自己的控件）拨到 80%——滑块绕视口中心缩放，
 //       ≥80% 表就铺开成完整表格（shotTableDensityForZoom 的 full 档），而 100% 时 960px 宽的表在 800px 的舞台里
@@ -359,7 +362,8 @@ async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
   const after = shotPrompts((await readProject(win, projectId)).payload)
   expect(after[0], '第 1 镜被误改').toBe(SHOT_PROMPTS[0])
   expect(after[2], '第 3 镜被误改').toBe(SHOT_PROMPTS[2])
-  // 等待既有视口稳定窗口，避免断言抢在落地层延迟fit前误绿；改提示词应保留阅读位置。
+  // 改提示词应保留阅读位置：落地层早已不再发延迟 fit（2026-09-25），但仍先等视口停稳再逐字比——
+  // 真有程序移动，停下来的那一帧就和改前不同；抢在动画中途比会漏掉它。
   await waitForCanvasViewportSettled(win)
   await expect(viewport, '仅改已有镜头提示词不应移动或缩放画布').toHaveCSS('transform', beforeViewport)
   await expect(win.locator(SHOT_TABLE), '改提示词后完整表格应继续可读').toHaveAttribute('data-density', 'full')

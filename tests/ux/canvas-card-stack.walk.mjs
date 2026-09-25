@@ -15,7 +15,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
-import { findEdgeHitPoint } from './_canvasHit.mjs'
+import { expectArrivalsReachable, expectCanvasViewportHeld, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -277,21 +277,30 @@ try {
   await clickOrFail(imageNode.getByRole('button', { name: '2 版' }), '关闭结果版本托盘')
   await expectHidden(tray, '结果版本托盘应完成退场')
   await imageNode.click({ position: { x: 120, y: 120 } })
+  // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：复制变体以前会自动聚焦过去（撤销时再退回原视角），
+  // 两扇门都删了。现在验：复制前后视口逐格相同；变体要么落在舞台里，要么边缘提示指得到它、点一下框住
+  // （判据在 _canvasHit.mjs expectArrivalsReachable）；撤销只删节点，同样不挪画布。
+  const viewportBeforeDuplicate = await waitForCanvasViewportSettled(win)
   await clickOrFail(imageNode.getByRole('button', { name: '复制为变体' }), '复制当前节点为无结果的新变体')
-  const selectedNode = win.locator('.generation-canvas-v2-node[data-selected="true"]').first()
-  await expect.poll(() => selectedNode.getAttribute('data-node-id'), { message: '复制变体应选中新节点' }).toMatch(/^gen-v2-/)
-  const duplicateId = await selectedNode.getAttribute('data-node-id')
+  const duplicateArrival = await expectArrivalsReachable(win, {
+    knownIds: nodes.map((node) => node.id), expectedCount: 1, viewportBefore: viewportBeforeDuplicate, label: '复制为变体',
+  })
+  const [duplicateId] = duplicateArrival.ids
+  expect(duplicateId, '复制出来的是一张新变体节点').toMatch(/^gen-v2-/)
+  await expect(win.locator(`.generation-canvas-v2-node[data-node-id="${duplicateId}"]`), '复制变体应选中新节点').toHaveAttribute('data-selected', 'true')
   const duplicateFlowNode = win.locator(`.react-flow__node[data-id="${duplicateId}"]`)
-  await expectVisible(duplicateFlowNode, '复制出的变体应自动进入视口并可见')
+  await expectVisible(duplicateFlowNode, '复制出的变体看得到：落在舞台里，或点边缘提示过去（画布不替用户挪）')
   const duplicateProbe = await proveProbe(duplicateFlowNode, '复制出的变体已真实渲染')
-  check('复制变体新增一个节点且用户立即看得到', true)
+  check('复制变体新增一个节点、画布没自己动、用户看得到它', true, duplicateArrival.path)
+  const viewportBeforeUndo = await waitForCanvasViewportSettled(win)
   await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
   await expectAbsent(duplicateFlowNode, { provenBy: duplicateProbe, message: '撤销应同时移除复制节点和继承连线' })
   check('复制变体可一次撤销', true)
+  await expectCanvasViewportHeld(win, viewportBeforeUndo, '撤销复制只删节点，不替用户挪画布（不再「退回复制前的视角」）')
+  check('撤销复制不挪画布', true)
 
-  // Creating a variant pans the canvas. Undo removes the variant, but does not
-  // promise to restore the earlier viewport; navigate back to all nodes before
-  // opening a different node's version tray.
+  // 复制本身不挪画布；但若刚才走了边缘提示，视角停在变体那里，视频节点可能已在屏外。
+  // 像用户一样点「适应视图」找回全部节点，再去开另一个节点的版本托盘。
   await clickOrFail(win.getByLabel('适应视图', { exact: true }), '找回视频节点后查看历史版本')
   await videoNode.getByRole('button', { name: '2 版' }).click()
   const videoTray = videoNode.locator('[data-node-result-stack="video-versions"]')

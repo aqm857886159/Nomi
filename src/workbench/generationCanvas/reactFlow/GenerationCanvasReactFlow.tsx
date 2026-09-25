@@ -46,7 +46,8 @@ import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
 import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
-import { useCreatedNodeVisibilityPan, useRevealCreatedNodes } from '../components/useCreatedNodeVisibilityPan'
+import { useCanvasArrivalHint } from './useCanvasArrivalHint'
+import { visibleInsertionPoint } from '../store/canvasVisibleArea'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { hasPendingDirectorCameraMoveCapture, hasPendingDirectorStagingCapture } from '../components/directorCaptureHostActivation'
@@ -61,6 +62,7 @@ import {
   collectFlowPositionChanges,
   nextSelectionFromFlowChanges,
   flowViewportFromCanvas,
+  canvasViewportFromFlow,
   type GenerationFlowEdge,
   toGenerationFlowNode,
   type GenerationFlowNode,
@@ -235,13 +237,11 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   zoomRef.current = liveViewport.zoom
   offsetRef.current = { x: liveViewport.x, y: liveViewport.y }
 
-  const {
-    animateViewportTo,
-    readViewportTarget,
-    readLastAutoTarget,
-    cancelViewportAnimation,
-    healViewport,
-  } = useReactFlowViewportAnimation({ flow, zoomRef, offsetRef })
+  // 定位动画走完时记一次视口（动画中间帧 onMoveEnd 不写，见 GenerationCanvasReactFlowViewport）。
+  const { animateViewportTo, cancelViewportAnimation, isViewportAnimating, healViewport } = useReactFlowViewportAnimation({
+    flow, zoomRef, offsetRef,
+    onAnimationSettled: (settled) => { setLiveViewport(settled); rememberCategoryViewport(activeCategoryId, canvasViewportFromFlow(settled)) },
+  })
 
   React.useEffect(() => {
     const nextKey = `${activeCategoryId}:${viewport.x}:${viewport.y}:${viewport.zoom}`
@@ -330,11 +330,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const renameGroup = useGenerationCanvasStore((state) => state.renameGroup)
   const setGroupDescription = useGenerationCanvasStore((state) => state.setGroupDescription)
 
-  const getInsertionPosition = React.useCallback(() => {
-    const rect = hostRef.current?.getBoundingClientRect()
-    if (!rect) return { x: 240, y: 240 }
-    return flow.screenToFlowPosition({ x: rect.left + rect.width * 0.38, y: rect.top + rect.height * 0.28 })
-  }, [flow])
+  // 工具条新建 / 截图 / 浏览器素材落点：与 addNode 默认落点同一个 owner（store/canvasVisibleArea）。
+  const getInsertionPosition = React.useCallback(() => visibleInsertionPoint(activeCategoryId) ?? { x: 240, y: 240 }, [activeCategoryId])
   // 「适应视图」框住的是**节点 ∪ 框**，不只是节点：框的标签带比成员外接盒高 52px，
   // 只按节点 fit 会把用户刚起的框名切在舞台外（裁决与理由见 model/canvasFitBounds.ts）。
   // 缩放上下限（0.2 / 3）与留白（0.12）逐字沿用 flow.fitView 那一版，这次只换了外接盒。
@@ -416,8 +413,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   })
 
   useAutoFitOnLoad({
+    ready: isReady,
     nodes,
-    selectedNodeIds,
     activeCategoryId,
     categoryViewports,
     fitView,
@@ -426,8 +423,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     offsetRef,
   })
   useCanvasFitSignal(fitView)
-  // 「新建即可见」：避让把新卡推出视口时最小平移露出它（见 useCreatedNodeVisibilityPan 的头注释）。
-  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef: hostRef })
+  // 新东西落在屏外 / 别的分类：边缘提示，点了才过去（程序不再为「露出」主动挪画布，2026-09-25）。
+  const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
@@ -595,14 +592,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     selectCanvasFrame(null)
   }, [canvasPanMovedRef, clearSelection, readOnly, selectCanvasFrame])
 
-  const revealCreatedNodes = useRevealCreatedNodes({ animateViewportTo, readViewportTarget, stageRef: hostRef })
-  // ⌘D：副本被整簇避让推开后常落在视口外，由这次手势显式把整簇露出来（副本即复制后的选区）。
-  const duplicateSelectedNodes = React.useCallback(() => {
-    const state = useGenerationCanvasStore.getState()
-    state.duplicateSelectedNodes()
-    const next = useGenerationCanvasStore.getState()
-    if (next.nodes !== state.nodes) revealCreatedNodes(next.nodes.filter((node) => next.selectedNodeIds.includes(node.id)))
-  }, [revealCreatedNodes])
+  // ⌘D：副本落在屏外时由边缘提示指路，不再替用户挪画布（2026-09-25）。
+  const duplicateSelectedNodes = React.useCallback(() => { useGenerationCanvasStore.getState().duplicateSelectedNodes() }, [])
   const handleTidy = React.useCallback(() => tidy(stageSize.width / Math.max(1, stageSize.height)), [stageSize, tidy])
   // Tab 新建：与 Cmd+V 同一个落点判据（鼠标在舞台里 → 那一点；否则舞台中央）。
   const openAddNodeMenu = React.useCallback(() => {
@@ -714,6 +705,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         activeCategoryId={activeCategoryId}
         rememberCategoryViewport={rememberCategoryViewport}
         healViewport={healViewport}
+        isViewportAnimating={isViewportAnimating}
+        cancelViewportAnimation={cancelViewportAnimation}
         groupBoxes={groupBoxes}
         frame={frameInteraction}
         frameDrawPreview={frameTool.drawPreview}
@@ -748,14 +741,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         screenshotOverlay={screenshotOverlay}
         contextNodeMenu={contextNodeMenu}
         connectionCreateMenu={connectionCreateMenu}
-        onCreateEmpty={() =>
-          useGenerationCanvasStore.getState().addNode({
-            kind: 'image',
-            position: { x: 240, y: 240 },
-            categoryId: activeCategoryId,
-            select: true,
-          })
-        }
+        onCreateEmpty={() => useGenerationCanvasStore.getState().addNode({ kind: 'image', categoryId: activeCategoryId, select: true })}
         onNodeContextAction={handleNodeContextAction}
         onCloseContextNodeMenu={closeContextNodeMenu}
         onAddContextNode={handleAddContextNode}
@@ -783,6 +769,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onFrameMenuAction={frameActions.handleFrameMenuAction}
         frameToolArmed={frameTool.armed}
         onToggleFrameTool={frameTool.toggle}
+        arrivalHint={arrival.hint}
+        onGoToArrivals={arrival.goToArrivals}
       />
     </section>
   )

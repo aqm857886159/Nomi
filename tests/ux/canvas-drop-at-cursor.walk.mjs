@@ -28,7 +28,7 @@ import { execFileSync } from 'node:child_process'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
-import { CANVAS_PANE_SELECTOR, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
+import { CANVAS_PANE_SELECTOR, CANVAS_STAGE_SELECTOR, CANVAS_VIEWPORT_TOLERANCE, followArrivalHint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 
@@ -176,8 +176,8 @@ async function dropRealFile(filePath, point) {
 
 /**
  * 在松手点画一个圆圈标记（仅证据截图用，pointer-events:none，拍完即删）。
- * 标记按**画布坐标**投影回此刻的屏幕：放下后视口可能为露全新卡平移过，
- * 直接用当时的屏幕坐标会把标记画偏，截图就成了假证据。
+ * 标记按**画布坐标**投影回此刻的屏幕：放下本身不再挪画布，但卡片中心若被挤出舞台、走过一次边缘提示，
+ * 视口就被那一下点击挪过——直接用当时的屏幕坐标会把标记画偏，截图就成了假证据。
  */
 async function markDropPoints(rows) {
   const vp = await readViewport()
@@ -256,26 +256,36 @@ async function dropAndMeasure({ tag, file, point, existingId = null }) {
     `${tag}·出现第一帧：卡片屏幕框包含松手点`, { point, rect: rectOf(first) })
   check(Math.abs(first.cx - point.x) < first.width * 0.15 && Math.abs(first.cy - point.y) < first.height * 0.15,
     `${tag}·出现第一帧：卡片中心距松手点 < 宽高的 15%`, row.first)
-  // ② 导入安定后：松手点仍压在卡上、卡片完整在舞台内（出现时略出界的，由产品「新建即露出」平移补齐）。
+  // ② 导入安定后：松手点仍压在卡上。
   check(settled.left <= point.x && point.x <= settled.right && settled.top <= point.y && point.y <= settled.bottom,
     `${tag}·导入安定后：卡片屏幕框仍包含松手点`, { point, rect: rectOf(settled) })
-  check(settled.left >= stage.left - 1 && settled.right <= stage.right + 1 && settled.top >= stage.top - 1 && settled.bottom <= stage.bottom + 1,
-    `${tag}·导入安定后：卡片完整位于舞台可视区内`, { rect: rectOf(settled), stage: rectOf(stage) })
   // 安定后中心漂移只记录不判红：媒体真实比例回填后卡片尺寸会变（见报告 FINDING）。
   const drift = { dx: row.settled.dx, dy: row.settled.dy, w: row.settled.w, h: row.settled.h }
   if (Math.abs(drift.dx) >= drift.w * 0.15 || Math.abs(drift.dy) >= drift.h * 0.15) console.log(`FINDING ${tag}：导入安定后卡片中心偏离松手点 ${JSON.stringify(drift)}`)
-  // ③ 视口：只许为「把出界的新卡露全」而平移，且平移量不超过出界量 + 露出留白；没出界就一格不许动。
-  const overflow = {
-    x: Math.max(0, first.right - stage.right, stage.left - first.left),
-    y: Math.max(0, first.bottom - stage.bottom, stage.top - first.top),
+  // ③ 视口：一格不许动（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」）。以前这里允许「为露全出界的新卡
+  //    平移，量不超过出界量 + 32px 留白」——那段露出平移已经删了，所以任何平移 / 缩放都是回归。
+  const shift = { x: Math.abs(vpAfter.x - vpBefore.x), y: Math.abs(vpAfter.y - vpBefore.y), zoom: Math.abs(vpAfter.zoom - vpBefore.zoom) }
+  check(shift.x <= CANVAS_VIEWPORT_TOLERANCE.px && shift.y <= CANVAS_VIEWPORT_TOLERANCE.px && shift.zoom <= CANVAS_VIEWPORT_TOLERANCE.zoom,
+    `${tag}：放下之后画布一格不动（不平移、不缩放）`, { shift: { x: round(shift.x), y: round(shift.y), zoom: shift.zoom } })
+  // ④ 看不看得见：卡片中心压在松手点上、松手点在舞台里，所以按产品「看见了」的判据（中心在可见区里，
+  //    canvasArrivalModel.ts isNodeSeen）它总是看得见、不出边缘提示；靠舞台边松手时出界的那一截就留在舞台外
+  //    （FINDING 记下不判红——不再有平移去补齐它，这是拍板后的设计）。只有媒体比例回填把中心挤出了舞台，
+  //    才轮到边缘提示：那时它必须出现、方向对，点一下卡片完整进舞台（判据在 _canvasHit.mjs followArrivalHint）。
+  const settledInside = settled.left >= stage.left - 1 && settled.right <= stage.right + 1 && settled.top >= stage.top - 1 && settled.bottom <= stage.bottom + 1
+  const settledSeen = settled.cx >= stage.left && settled.cx <= stage.right && settled.cy >= stage.top && settled.cy <= stage.bottom
+  if (settledInside) {
+    check(true, `${tag}·导入安定后：卡片完整位于舞台可视区内`, { rect: rectOf(settled), stage: rectOf(stage) })
+  } else if (settledSeen) {
+    check(true, `${tag}·导入安定后：卡片中心在舞台可视区内（产品判「看见了」，不出边缘提示）`, { rect: rectOf(settled), stage: rectOf(stage) })
+    console.log(`FINDING ${tag}：卡片有一截在舞台外（松手点靠边），画布不再替用户平移补齐 ${JSON.stringify({ rect: rectOf(settled), stage: rectOf(stage) })}`)
+  } else {
+    try {
+      const followed = await followArrivalHint(getWin(), { knownIds: before, label: `${tag}·卡片中心出了舞台` })
+      check(followed.ids.includes(newId), `${tag}·卡片中心出了舞台：边缘提示指得到它，点一下完整进舞台`, { side: followed.side, ids: followed.ids })
+    } catch (error) {
+      check(false, `${tag}·卡片中心出了舞台：边缘提示指得到它，点一下完整进舞台`, String(error?.message || error).slice(0, 400))
+    }
   }
-  const shift = { x: Math.abs(vpAfter.x - vpBefore.x), y: Math.abs(vpAfter.y - vpBefore.y) }
-  const REVEAL_MARGIN_PX = 32
-  check(vpAfter.zoom === vpBefore.zoom
-    && shift.x <= (overflow.x > 0 ? overflow.x + REVEAL_MARGIN_PX : 1)
-    && shift.y <= (overflow.y > 0 ? overflow.y + REVEAL_MARGIN_PX : 1),
-  `${tag}：视口只为露全新卡而平移（不跳、不缩放）`, { overflow: { x: round(overflow.x), y: round(overflow.y) }, shift: { x: round(shift.x), y: round(shift.y) } })
-  if (shift.x >= 1 || shift.y >= 1) console.log(`FINDING ${tag}：放下后视口平移 ${JSON.stringify({ x: round(shift.x), y: round(shift.y) })}（新卡出界 ${JSON.stringify({ x: round(overflow.x), y: round(overflow.y) })}）`)
   if (existingId) {
     // 旧卡「不被推走」按画布坐标判：屏幕位移扣掉视口位移后必须为 0。
     const canvasMoved = {

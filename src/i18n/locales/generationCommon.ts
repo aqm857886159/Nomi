@@ -107,6 +107,15 @@ export const zhGenerationCommon = {
   },
   canvas: {
     aria: 'AI 影像创作画布',
+    // 画布边缘提示（新东西落在屏外 / 别的分类时，点它才过去）。一个 / 多个分开写：中文没有单复数，
+    // 「1 个新节点在右侧」读着别扭，单个就不带数。
+    arrival: {
+      one: { right: '新节点在右侧', left: '新节点在左侧', up: '新节点在上方', down: '新节点在下方' },
+      many: { right: '{{count}} 个新节点在右侧', left: '{{count}} 个新节点在左侧', up: '{{count}} 个新节点在上方', down: '{{count}} 个新节点在下方' },
+      categoryOne: '新节点在「{{category}}」里',
+      categoryMany: '{{count}} 个新节点在「{{category}}」里',
+      go: '点一下过去',
+    },
     noImportableAssets: '没有可导入画布的素材',
     importedOne: '已导入画布',
     importedMany: '已导入 {{count}} 个素材到画布',
@@ -1601,6 +1610,13 @@ export const enGenerationCommon = {
   },
   canvas: {
     aria: 'AI visual creation canvas',
+    arrival: {
+      one: { right: 'New node to the right', left: 'New node to the left', up: 'New node above', down: 'New node below' },
+      many: { right: '{{count}} new nodes to the right', left: '{{count}} new nodes to the left', up: '{{count}} new nodes above', down: '{{count}} new nodes below' },
+      categoryOne: 'New node in “{{category}}”',
+      categoryMany: '{{count}} new nodes in “{{category}}”',
+      go: 'Go there',
+    },
     noImportableAssets: 'No assets can be imported to the canvas',
     importedOne: 'Imported to canvas',
     importedMany: 'Imported {{count}} assets to the canvas',

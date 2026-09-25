@@ -88,7 +88,11 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   expect(originalGroup, 'Original placement must group the three shot nodes').toBeTruthy()
   await editor.locator(`[data-place-storyboard="${designId}"]`).click()
   await openCanvas(win)
-  await win.getByRole('button', { name: '适应视图', exact: true }).click()
+  // 放入画布不再让画布自己适应到新镜头上（2026-09-25 拍板「程序不再主动平移 / 缩放画布」）：镜头落在屏外时
+  // 舞台边只出一颗边缘提示。用户要看全三镜，自己点「适应视图」——它和点提示一样是用户发起的移动，且框住全部。
+  // 先等视口停稳：进画布那一刻若要一次性摆全貌（useAutoFitOnLoad，350ms 后判一次），别让它落在我们这一下之后。
+  await waitForCanvasViewportSettled(win)
+  await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应视图：看全放入画布的三镜')
   await waitForCanvasViewportSettled(win)
   const second = originalNodes.find(node => node.meta.shotId === shotId)
   // Materialization selects the last newly created node so its composer is ready. Close that

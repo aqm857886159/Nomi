@@ -59,6 +59,9 @@ type GenerationCanvasReactFlowViewportProps = {
   activeCategoryId: string
   rememberCategoryViewport: (categoryId: string, viewport: { zoom: number; offset: { x: number; y: number } }) => void
   healViewport: (broken: Viewport) => void
+  /** 我们自己的视口动画此刻是否在逐帧直写（useReactFlowViewportAnimation）。 */
+  isViewportAnimating: () => boolean
+  cancelViewportAnimation: () => void
   groupBoxes: readonly CanvasGroupBox[]
   frame?: CanvasFrameInteraction
   frameDrawPreview?: CanvasFrameRect | null
@@ -125,6 +128,8 @@ export function GenerationCanvasReactFlowViewport({
   activeCategoryId,
   rememberCategoryViewport,
   healViewport,
+  isViewportAnimating,
+  cancelViewportAnimation,
   groupBoxes,
   frame,
   frameDrawPreview,
@@ -233,7 +238,10 @@ export function GenerationCanvasReactFlowViewport({
       onConnect={onConnect}
       onConnectStart={onConnectStart}
       onConnectEnd={onConnectEnd}
-      onMoveStart={() => {
+      onMoveStart={(event) => {
+        // 用户自己开始拖 / 滚 / 捏（有来源事件）时，一段还在飞的定位动画必须立刻让位——否则它下一帧把视口盖回去，
+        // 手感是「画布在跟我抢」。我们自己逐帧直写的那几帧没有来源事件，不走这里。
+        if (event) cancelViewportAnimation()
         viewportGestureCategoryRef.current = activeCategoryId
         if (!canvasPointerStartRef.current) canvasPanMovedRef.current = false
       }}
@@ -244,7 +252,7 @@ export function GenerationCanvasReactFlowViewport({
           canvasPanMovedRef.current = false
         } })
       }}
-      onMoveEnd={(_event, nextViewport) => {
+      onMoveEnd={(event, nextViewport) => {
         // 无条件释放这张租约（`release()` 幂等，没升起时是空操作）。不许按 `canvasPanMovedRef` 判断要不要释放：
         // React Flow 在 panOnScroll 下把这次回调推迟 150ms，这期间画布内任何一次按下都会把那个布尔重置成 false，
         // 于是这里跳过释放、`data-dragging` 卡死（2026-09-22，见 docs/fixes/2026-09-22-canvas-dragging-flag-outlives-gesture.root-cause.json）。
@@ -259,6 +267,10 @@ export function GenerationCanvasReactFlowViewport({
           healViewport(nextViewport)
           return
         }
+        // 我们自己的动画逐帧直写（duration=0），React Flow 每一帧都报一次「移动结束」。中间帧不写 store、不重渲整张画布，
+        // 走完时由 useReactFlowViewportAnimation 的 onAnimationSettled 记一次（2026-09-25：以前这里每帧写 workbenchStore，
+        // 连带所有订了缩放的节点浮层每帧重算）。
+        if (!event && isViewportAnimating()) return
         setLiveViewport(nextViewport)
         // 记到**这次手势开始时那个分类**头上：被中断、或收尾正好落在切分类之后，都不许写到别人账上。
         rememberCategoryViewport(viewportGestureCategoryRef.current ?? activeCategoryId, canvasViewportFromFlow(nextViewport))

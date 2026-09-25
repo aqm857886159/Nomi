@@ -3,11 +3,13 @@ import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // 样张才能是「真实布局 + 改动」而不是脑补（CLAUDE.md 三闸①）。
 // 用法: node tests/ux/group-baseline.walk.mjs
 import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
-import { findCanvasBlankPoint, expectNodeInsideCanvas } from './_canvasHit.mjs'
+import {
+  expectArrivalsReachable, expectNodeInsideCanvas, findCanvasBlankPoint, followArrivalHint, waitForCanvasViewportSettled,
+} from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-baseline')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -44,17 +46,38 @@ await win.getByRole('button', { name: '生成', exact: true }).click()
 const addImage = win.locator('[aria-label="添加图片节点"]').first()
 await expectVisible(addImage, '生成画布已可添加节点')
 if (!(await addImage.count())) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
+// 连建四张（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」之后的样子）：以前连建会触发「连续创建适应」
+// 把画布自己缩小到装下四张，首卡因此留在舞台里；现在画布一格不动，新卡落在当前可见区（空画布上首卡必然
+// 完整落在舞台里），后面几张被螺旋避让推向右 / 下，中心出了舞台的由边缘提示数着。每建一张都验：
+// 视口和建第一张之前逐格相同、「舞台里看得见的」+「提示数到的」= 已建张数（判据在 _canvasHit.mjs）。
+const viewportBeforeCreates = await waitForCanvasViewportSettled(win)
 let firstCreatedId
+let arrivals = null
 for (let i = 0; i < 4; i += 1) {
   await addImage.click({ timeout: 4000 })
-  await win.waitForTimeout(280)
-  if (!firstCreatedId) {
-    firstCreatedId = await win.locator('.generation-canvas-v2-node[data-node-id]').first().getAttribute('data-node-id')
+  arrivals = await expectArrivalsReachable(win, {
+    knownIds: [], expectedCount: i + 1, viewportBefore: viewportBeforeCreates, label: `连建第 ${i + 1} 张图片卡`, followHint: false,
+  })
+  if (i === 0) {
+    expect(arrivals.path, '空画布上第一张新卡直接落在可见区里，不需要边缘提示').toBe('in-view')
+    firstCreatedId = arrivals.ids[0]
     if (!firstCreatedId) throw new Error('第一张新卡必须有真实 ID，不能把后续可见卡当成首卡')
+    await expectNodeInsideCanvas(win, win.locator(`.generation-canvas-v2-node[data-node-id="${firstCreatedId}"]`), '空画布上第一张新卡完整落在舞台内（画布没挪过去）')
   }
 }
-await win.waitForTimeout(900)
-await expectNodeInsideCanvas(win, win.locator(`.generation-canvas-v2-node[data-node-id="${firstCreatedId}"]`), '连续建完四张后首卡完整在舞台内')
+await expectNodeInsideCanvas(win, win.locator(`.generation-canvas-v2-node[data-node-id="${firstCreatedId}"]`), '连续建完四张后首卡仍完整在舞台内（画布没自己缩放 / 平移把它挤走）')
+// 有被推出屏的：像用户一样点边缘提示过去（方向、张数、点完完整进舞台都在 followArrivalHint 里验）。
+if (arrivals.path === 'hint-pending') {
+  await followArrivalHint(win, { knownIds: arrivals.ids, label: '连建四张后屏外那几张' })
+}
+// 这一页要拍的是「四张卡 + 选择浮条 / 组框」的真实样子，全选也只选得中已渲染的卡（onlyRenderVisibleElements）：
+// 用户想一眼看全四张，就点「适应视图」——这是他自己的动作，不是画布替他挪。
+await clickOrFail(win.getByLabel('适应视图', { exact: true }), '适应视图：一眼看全四张')
+await waitForCanvasViewportSettled(win)
+await expect(win.locator('.generation-canvas-v2-node[data-node-id]'), '适应视图后四张卡都在画布上').toHaveCount(4)
+for (const id of await win.locator('.generation-canvas-v2-node[data-node-id]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-node-id')))) {
+  await expectNodeInsideCanvas(win, win.locator(`.generation-canvas-v2-node[data-node-id="${id}"]`), `适应视图后卡 ${id} 完整在舞台内`)
+}
 await snap(win, 'canvas-4-nodes')
 
 // 全选 → 选择浮条（真实样子：计数 + 生成 N + 编组 + 关闭）

@@ -1,0 +1,156 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-canvas-no-auto-viewport",
+  "problem_type": "Program-initiated canvas viewport moves after content is created, imported or landed",
+  "symptom": "User 2026-09-25: \"老是动画布，我刚才用付费卡点击之后画布就闪动一下，然后我就找不到那个镜头生成去哪里了……有时候导入的时候不在中心展示导致找不到，好像修过，但类似问题反复发生\". Real-machine reproduction on origin/main d8824a0c5 (Windows, used fixture): clicking the toolbar's new-image button panned the whole canvas so the previously visible card left the screen.",
+  "direct_cause": "Creation paths each asked the canvas to move after the fact: useCreatedNodeVisibilityPan revealed every single new node (and zoomed out for consecutive creates), applyCanvasToolCall dispatched a focus (zoom ≥ 100% and centre) for one node or requested a fit for batches and switched category, multiShotCanvasLanding requested another fit 360 ms later (the two moves overlap into the reported flash), the asset library placed uploads at a fixed (120, 90) and then requested a fit, image grid split requested a fit, and duplicate/rerun/sidebar-regenerate dispatched focus. Default placements were fixed canvas coordinates unrelated to the viewport, which is why a reveal was needed at all.",
+  "class_root": "No owner decided where new content lands relative to what the user sees, so every creation path compensated by moving the viewport afterwards; any new creation path added another viewport mover.",
+  "affected_population": [
+    "Every canvas user creating, importing, duplicating or landing content (toolbar, paste, Agent, paid card, storyboard, asset library, grid split)",
+    "Users whose Agent writes into a category other than the one they are looking at"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/canvasVisibleArea.test.ts",
+      "src/workbench/generationCanvas/components/canvasArrivalModel.test.ts",
+      "src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts"
+    ],
+    "why": "canvasVisibleArea owns where new content lands relative to the visible area; canvasArrivalModel owns which arrivals still need pointing out; the structure test pins the only callers allowed to move the viewport (explicit user actions)."
+  },
+  "scope_paths": [
+    "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "src/workbench/generationCanvas/components/canvasArrivalModel.ts",
+    "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+    "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/sidebar/CategoryTree.tsx"
+  ],
+  "entry_points": [
+    "Toolbar / empty-state / prompt & skill library / selection-to-node creation without explicit position (addNode default)",
+    "Agent create_canvas_nodes (single and batch) and storyboard landing",
+    "Paid-card landing (multiShotCanvasLanding.materializeShots)",
+    "Asset-library upload and image grid split",
+    "Variant duplicate, rerun duplicate, sidebar regenerate-derived, ⌘D duplicate",
+    "Opening a project / switching category (useAutoFitOnLoad)",
+    "Explicit user moves: fit, reset, zoom, minimap, sidebar locate, locate-source badge, toast locate, notification deep link, open-stage, edge hint"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/d3/d3-zoom/blob/v3.0.0/src/zoom.js",
+      "checked_at": "2026-09-25",
+      "purpose": "schedule() divides by the extent width every frame (k = w / l[2]); with a 0-width cached extent every animated frame is NaN, which is why animated viewport moves stay on the in-house per-frame direct writer"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/xypanzoom/XYPanZoom.ts",
+      "checked_at": "2026-09-25",
+      "purpose": "XYPanZoom caches the pane extent from a ResizeObserver and feeds it to d3-zoom; installed @xyflow/system 0.0.81 still does this (dist/esm/index.js XYPanZoom cachedExtent)"
+    }
+  ],
+  "invariants": [
+    "The canvas viewport moves only on explicit user actions; requestCanvasFit and the focus event are called only from an allowlisted set of user-triggered entries",
+    "Content created without an explicit position lands at the visible-area insertion point of its category",
+    "New content that is not visible is announced by one edge hint; the viewport moves only when the user clicks it",
+    "Programmatic animation frames do not write the workbench store; the settled viewport is recorded once"
+  ],
+  "doors": [
+    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts", "symbol": "visibleInsertionPoint" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "symbol": "visibleInsertionPoint" },
+    { "kind": "write", "path": "src/workbench/assets/AssetLibraryPanel.tsx", "symbol": "visibleInsertionPoint" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx", "symbol": "visibleInsertionPoint" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "symbol": "placeBlockInVisibleArea" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts", "symbol": "nextUnseenArrivals" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts", "symbol": "animateViewportTo" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts", "symbol": "animateViewportTo" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts", "symbol": "animateViewportTo" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx", "symbol": "isViewportAnimating" },
+    { "kind": "write", "path": "src/workbench/sidebar/CategoryTree.tsx", "symbol": "FOCUS_GENERATION_NODE_EVENT" }
+  ],
+  "door_reduction": {
+    "before": 21,
+    "after": 11,
+    "why_not": "Before: 5 requestCanvasFit callers, 10 focus-event dispatchers (4 automatic), 6 animateViewportTo writers (3 in the reveal pan) — 21 viewport movers, most automatic. After: every remaining mover is a user click (fit/reset in the shell, explicit locate in the focus effect, the edge hint, open-stage, the allowlisted locate dispatchers), plus the placement owner and its three consumers that replace moving the viewport with landing in view. Each surviving door is either the single owner or a distinct user action; the allowlist test fails on any new mover."
+  },
+  "generality_proof": "New creation paths no longer need to move anything: placement defaults to the visible area in the store's addNode (the choke point every single-node creation passes through), batches are shifted as a block by the same owner, and anything still off-screen or in another category is detected by diffing the store's node set against a baseline tied to the loaded-canvas identity — so the hint covers every present and future creation path without a per-entry call. The two remaining global movers are pinned to an allowlist by a structure test.",
+  "shared_boundaries": [
+    { "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts", "symbol": "visibleInsertionPoint", "responsibility": "Where new content lands relative to what the user currently sees (single points and whole batches)" },
+    { "path": "src/workbench/generationCanvas/components/canvasArrivalModel.ts", "symbol": "nextUnseenArrivals", "responsibility": "Which arrived nodes have not been seen yet and where the edge hint points" },
+    { "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts", "symbol": "animateViewportTo", "responsibility": "The only animated viewport writer, used by explicit user moves; records the settled viewport once" }
+  ],
+  "same_class_entry_points": [
+    { "path": "src/workbench/capability/multiShotCanvasLanding.ts", "entry_point": "materializeShots", "disposition": "enforced", "evidence": "requestCanvasFit removed; nodes go through applyCanvasToolCall (block placed in view) and the edge hint covers the rest; multiShotCanvasLanding.test.ts asserts no fit and no category switch" },
+    { "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "entry_point": "create_canvas_nodes", "disposition": "enforced", "evidence": "focus dispatch and fit/category switch removed; batch layout shifted into view via placeBlockInVisibleArea; applyCanvasToolCall.test.ts asserts canvasFitNonce stays 0 and active category unchanged" },
+    { "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts", "entry_point": "splitIntoTiles", "disposition": "enforced", "evidence": "requestCanvasFit removed; allowlist test would fail if it came back" },
+    { "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx", "entry_point": "ToolbarDuplicateVariantButton", "disposition": "enforced", "evidence": "focus dispatch removed; canvasControlsStructure.test.ts asserts the file no longer mentions the focus event" },
+    { "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts", "entry_point": "useAutoFitOnLoad", "disposition": "enforced", "evidence": "fits only at category open when content already existed (shouldFitOnOpen, user answer to question 4); nodes arriving later never trigger it" },
+    { "path": "src/workbench/production/useProductionStatus.ts", "entry_point": "open-stage action", "disposition": "not-affected", "evidence": "Explicit user click on the production status card; the only allowlisted requestCanvasFit caller" }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Reveal/fit behaviour was added and patched repeatedly (2026-09-05 canvas-walkthrough-stage-width, 2026-09-09 canvas-acceptance-red, 2026-09-20 materialization-viewport, 2026-08-29 variant focus recovery); each new creation path added its own mover, and the user reports the class keeps coming back.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs requestCanvasFit (5 → 1)",
+      "node scripts/door-map.mjs FOCUS_GENERATION_NODE_EVENT plus rg \"'nomi-focus-generation-node'\" (a literal dispatch in CategoryTree.tsx was found and unified)",
+      "node scripts/door-map.mjs animateViewportTo (6 writers → 4)",
+      "rg \"position: \\{ x: 1[0-9]{2}, y:\" src/workbench for fixed default placements (addNode default, asset library, empty state)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "invariant": "New content lands in the visible area; the viewport moves only on explicit user actions",
+    "failure_mode": "If the visible area is unknown (canvas never mounted) placement falls back to the caller's own layout and the edge hint announces anything off-screen once the canvas is visible; nothing moves the viewport automatically",
+    "exception_policy": "none",
+    "strategy": "Own placement at the store choke point, detect arrivals by diffing the store instead of instrumenting entries, delete every automatic mover and pin the remaining explicit ones to an allowlist",
+    "artifacts": [
+      "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "src/workbench/generationCanvas/components/canvasArrivalModel.ts",
+      "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts",
+      "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasVisibleArea.test.ts",
+    "src/workbench/generationCanvas/components/canvasArrivalModel.test.ts",
+    "src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts",
+    "src/workbench/generationCanvas/components/canvasArrivalModel.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/useCreatedNodeVisibilityPan.ts",
+      "src/workbench/generationCanvas/components/viewportTargetTracker.ts"
+    ],
+    "rationale": "Deleted the created-node reveal pan (single reveal, consecutive-create zoom-out, ⌘D reveal, undo restore) and the target tracker that only served it; removed the fit/focus requests from agent creation, paid-card landing, asset upload, grid split, duplicate/rerun/sidebar regenerate; removed the undo-triggered viewport restore in the focus effect; useAutoFitOnLoad no longer fires on nodes appearing later"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@xyflow/system 0.0.81 with d3-zoom 3.0.0: animated setViewport/setCenter/fitView produce NaN frames when the cached pane extent is 0, and interrupted transitions never resolve",
+    "target": "React Flow's own animated viewport helpers (setViewport({ duration }))",
+    "rationale": "Explicit user moves keep a short animation for orientation; the framework's animation path is unsafe while the pane can measure 0x0, so the in-house per-frame direct writer (viewportAnimationCoordinator) is retained",
+    "exit_criteria": [
+      "An @xyflow/system or d3-zoom release guards zero-width extents in the transition (no NaN transform when the pane is 0x0) and resolves interrupted transitions",
+      "A walk that hides and re-shows the canvas mid-animation shows no blank canvas using setViewport({ duration })"
+    ]
+  },
+  "migration": "No persisted state changes. Remembered viewports keep working; only the automatic moves are gone.",
+  "residual_risks": [
+    "Crash-recovery event-tail replay after project open adds nodes without changing the loaded-canvas identity, so those nodes can show an edge hint once",
+    "Agent batches that do not fit the visible area stay below existing content; the user relies on the edge hint",
+    "Per-node spiral avoidance can still push a single new node just outside a crowded view; the edge hint covers it"
+  ]
+}

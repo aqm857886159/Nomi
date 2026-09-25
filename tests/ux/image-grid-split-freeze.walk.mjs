@@ -18,6 +18,9 @@
 // 用法：node tests/ux/image-grid-split-freeze.walk.mjs [档位]   3=九宫格(默认) / 2=四视图 / 1=裁剪
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectCount, expectVisible, screenshotSettled } from './_assert.mjs'
+import {
+  CANVAS_CARD_SELECTOR, CANVAS_STAGE_SELECTOR, expectArrivalsReachable, readArrivalLedger, waitForCanvasViewportSettled,
+} from './_canvasHit.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -139,6 +142,10 @@ try {
   const confirmSplit = getWin().getByRole('button', { name: GRID === 1 ? '确认裁剪' : '确认切图' })
   await expectVisible(confirmSplit.first(), `${GRID_LABEL}取景框没打开`)
   await snap('02-grid-overlay.png')
+  // 切图前的视口与「已有的卡」：切完画布不许自己动（2026-09-25 拍板，以前这里会自己适应视图），
+  // 新到的切片从原图之外数。
+  const sourceIds = await getWin().locator(CANVAS_CARD_SELECTOR).evaluateAll((cards) => cards.map((card) => card.getAttribute('data-node-id')))
+  const viewportBeforeSplit = await waitForCanvasViewportSettled(getWin())
   await getWin().evaluate(() => { window.__nomiHb.max = 0; window.__nomiHb.last = performance.now() })
 
   const t0 = Date.now()
@@ -162,26 +169,47 @@ try {
     throw new Error('__done__')
   }
 
-  // ① 逐步布局：切的过程中盯节点数——抓得到「多于 1、还没到满」的中间态才叫逐步。
+  // ① 逐步布局：切的过程中盯切片数——抓得到「已经有、还没到满」的中间态才叫逐步。
   //    （一次性落满的旧写法在这里必然抓不到中间态，所以这条断言测得到真东西。）
+  //    切片数 = 舞台里看得见的新卡 + 边缘提示数到的：React Flow 只渲染视口内的节点，画布又不再替用户挪过去，
+  //    落到屏外的切片不进 DOM，只有提示上的数数得到它（数 DOM 会永远停在「没满」）。
   let sawPartial = false
   let sawFeedback = false
   for (let i = 0; i < 60; i += 1) {
-    const [count, splitting] = await Promise.all([
-      getWin().locator('[data-node-id]').count(),
+    const [ledger, splitting] = await Promise.all([
+      readArrivalLedger(getWin(), sourceIds),
       getWin().getByRole('status', { name: /切图中/ }).count(),
     ])
+    const landed = ledger.cards.filter((card) => card.seen).length + (ledger.hint?.count ?? 0)
     if (splitting > 0) sawFeedback = true
-    if (count > 1 && count < NODES) sawPartial = true
-    if (count >= NODES) break
+    if (landed > 0 && landed < TILES) sawPartial = true
+    if (landed >= TILES) break
     if (i === 2) await snap('03-splitting.png')
     await getWin().waitForTimeout(120)
   }
 
-  // ② 结果对账：原图 1 + 切片 N = N+1 个节点（不是藏进堆叠的 N 张）
-  await expectCount(getWin().locator('[data-node-id]'), NODES, `${GRID_LABEL}没摊成 ${TILES} 个节点`, 60_000)
+  // ② 结果对账：原图 1 + 切片 N（不是藏进堆叠的 N 张）；切完画布一格不动（以前这里会自己适应视图）；
+  //    切片要么全落在舞台里，要么边缘提示指得到屏外那几张、点一下就框住（判据在 _canvasHit.mjs）。
+  const tileArrival = await expectArrivalsReachable(getWin(), {
+    knownIds: sourceIds, expectedCount: TILES, viewportBefore: viewportBeforeSplit, label: `${GRID_LABEL}切片`, timeout: 60_000,
+  })
   const elapsed = Date.now() - t0
-  console.log(`  · 确认 → ${TILES} 个切片节点全部就位 ${(elapsed / 1000).toFixed(1)} s`)
+  console.log(`  · 确认 → ${TILES} 个切片节点全部就位 ${(elapsed / 1000).toFixed(1)} s（${tileArrival.path === 'hint' ? `屏外 ${tileArrival.hint.count} 张经边缘提示「${tileArrival.hint.side}」框进来` : '全部落在舞台里'}）`)
+  check(`切完 ${TILES} 张：全落在舞台里，或边缘提示指得到屏外那几张、点一下框住（画布不自己动）`, tileArrival.ids.length === TILES, tileArrival.path)
+  // 下面要量组框与九宫格几何，得让原图 + 切片都在屏里：用户想一眼看全，就点「适应视图」——这是他自己的动作。
+  const allInside = async () => getWin().locator(CANVAS_CARD_SELECTOR).evaluateAll((cards, stageSelector) => {
+    const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
+    return Boolean(stage) && cards.every((card) => {
+      const r = card.getBoundingClientRect()
+      return r.left >= stage.left - 1 && r.top >= stage.top - 1 && r.right <= stage.right + 1 && r.bottom <= stage.bottom + 1
+    })
+  }, CANVAS_STAGE_SELECTOR)
+  if ((await getWin().locator(CANVAS_CARD_SELECTOR).count()) !== NODES || !(await allInside())) {
+    await clickOrFail(getWin().getByLabel('适应视图', { exact: true }), '适应视图：一眼看全原图与切片')
+    await waitForCanvasViewportSettled(getWin())
+  }
+  await expectCount(getWin().locator('[data-node-id]'), NODES, `${GRID_LABEL}没摊成 ${TILES} 个节点`, 60_000)
+  await expect.poll(allInside, { message: `原图与 ${TILES} 张切片没有全部完整落在舞台内` }).toBe(true)
 
   const hb = await getWin().evaluate(() => window.__nomiHb)
   check('切图期间有「切图中」反馈（不是点完没动静）', sawFeedback)
@@ -206,16 +234,7 @@ try {
   })
   check(`组框圈住 ${TILES} 张切片`, grouped.members === TILES, JSON.stringify(grouped))
 
-  // ⑤ 切完要能一眼看全：九张摊开比原图占地大得多，多半有一半在视口外 —— 复用批量落节点的 fit 信号揭出来
-  let allVisible = false
-  for (let i = 0; i < 20 && !allVisible; i += 1) {
-    allVisible = await getWin().evaluate(() => [...document.querySelectorAll('[data-node-id]')].every((n) => {
-      const r = n.getBoundingClientRect()
-      return r.left >= -2 && r.top >= -2 && r.right <= window.innerWidth + 2 && r.bottom <= window.innerHeight + 2
-    }))
-    if (!allVisible) await getWin().waitForTimeout(250)
-  }
-  check(`切完 ${TILES} 张全在视口里（不用自己找）`, allVisible)
+  // ⑤ 「切完一眼看全」已在 ② 里验过：画布不再自己适应视图，屏外那几张由边缘提示指路，看全靠用户点「适应视图」。
   await snap('04-tiles-grouped.png')
 
   // ⑤ 几何体检：算出来的格位 vs 真正渲染出来的方框，对不上就是用户说的「很乱」。

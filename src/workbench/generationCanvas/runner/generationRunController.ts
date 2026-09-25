@@ -53,7 +53,6 @@ import {
   resolveAssetUploadConsent,
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
-import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 
 function reportAuthorizationFailure(error: unknown, projectId: string, nodeId: string): void {
@@ -534,9 +533,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     if (!dup) return 'unavailable'
     runId = dup.id
     assertApprovedInputs = captureApprovedGenerationInputs([runId])
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: dup.id } }))
-    }
+    // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
   let grantId: string
   try {

@@ -18,7 +18,9 @@ import { mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import {
+  CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled,
+} from './_canvasHit.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -142,7 +144,7 @@ function canvasPointAt(transform, screen, origin) {
 const REACT_FLOW_AUTO_PAN_BAND_PX = 40
 const MARQUEE_STAGE_INSET_PX = REACT_FLOW_AUTO_PAN_BAND_PX + 8
 // 框选前把两张卡缩到只占画布这么大：余量因此是 stage 的两成起步，既大于自动平移带，
-// 也大于提示词面板让位平移的那几十像素。用比例而不是像素——画布宽度本来就随面板变。
+// 也给提示词面板在卡下方展开留出余量。用比例而不是像素——画布宽度本来就随面板变。
 const MARQUEE_MAX_BOUNDS_RATIO = 0.6
 
 // 两张卡在 stage 里占多大：框选余量够不够，唯一可信的判据是实测，不是猜。
@@ -320,28 +322,39 @@ async function selectedNodeIds() {
   )
 }
 
-/** 建一张卡，回报**这一次**新增的那个 React Flow 节点 id（下面按「新建即露出」逐张量）。 */
+/**
+ * 建一张卡，回报**这一次**新增的那张卡落地的经过（id + 落在屏里 / 点边缘提示过去）。
+ * 判据全在 `_canvasHit.mjs` 的 `expectArrivalsReachable`（单一 owner）：画布不自己动、新卡要么落在舞台里、
+ * 要么边缘提示指得到它并且点过去就完整框住。夹具里原有的卡（used 夹具有 24 张）和前面自己建的卡都算「已知」，
+ * 它们在视口一动时才进 DOM（只渲染可见节点），不能被当成「这一次新建的」。
+ */
 async function addNode(kind) {
-  const before = await getWin().evaluate(() =>
-    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
+  const knownIds = [...SEEDED_NODE_IDS, ...CREATED_NODE_IDS]
+  // 基线必须在点之前、且视口停稳时读：打开项目那一刻若摆过一次全貌（useAutoFitOnLoad），它得先落地。
+  const viewportBefore = await waitForCanvasViewportSettled(getWin())
   await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
-  await getWin().waitForTimeout(700)
-  const after = await getWin().evaluate(() =>
-    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
-  // 夹具里原有的卡（used 夹具有 24 张）在视口一动时才进 DOM（只渲染可见节点）——它们不是「这一次新建的」。
-  return after.find((id) => !before.includes(id) && !SEEDED_NODE_IDS.has(id)) ?? null
+  const arrival = await expectArrivalsReachable(getWin(), {
+    knownIds, expectedCount: 1, viewportBefore, label: `工具条新建${kind === 'image' ? '图片' : '视频'}卡`,
+  })
+  CREATED_NODE_IDS.push(...arrival.ids)
+  return { id: arrival.ids[0] ?? null, path: arrival.path, hint: arrival.hint }
 }
+const CREATED_NODE_IDS = []
 
 /** 某张卡此刻相对 stage 的位置。stage 尺寸一并交出来：判几何红时先看是不是舞台根本不是这么大。 */
 async function measurePlacement(nodeId) {
   return getWin().evaluate((id) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
     const node = id ? document.querySelector(`.react-flow__node[data-id="${id}"]`) : null
-    if (!stage || !node) return { id, inside: false, missing: true }
+    if (!stage || !node) return { id, inside: false, seen: false, missing: true }
     const r = node.getBoundingClientRect()
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
     return {
       id,
       inside: r.left >= stage.left - 1 && r.right <= stage.right + 1 && r.top >= stage.top - 1 && r.bottom <= stage.bottom + 1,
+      // 产品的「看见了」判据：中心在可见区里（canvasArrivalModel.ts isNodeSeen）。
+      seen: cx >= stage.left && cx <= stage.right && cy >= stage.top && cy <= stage.bottom,
       overflowRight: Math.round(r.right - stage.right),
       overflowLeft: Math.round(stage.left - r.left),
       stage: { w: Math.round(stage.width), h: Math.round(stage.height) },
@@ -393,21 +406,24 @@ try {
   await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
 
   // ── 任务准备：摆一个图片节点 + 一个视频节点 ─────────────────────────────
-  // 新建即可见：每建一张卡，**那张卡**的露出动画（60ms 延迟 + 200ms）与 composer 让位（160ms）
-  // 都得落地。所以逐张建、逐张量——而不是建完两张再要求「画布上所有卡同时都在 stage 内」：
-  // 那条更强的说法只在舞台宽到装得下两张时才成立，CI 的 Linux runner 会把窗口夹到 1280 宽
-  // （下面 resize(1600, 1000) 静默不生效），第一张卡被第二张的露出平移正常地推出左边界，
-  // 于是走查报的是「舞台不够宽」，却写着「被 Agent 面板遮住」。见 docs/lessons/
+  // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：以前每建一张卡画布会自己露出平移过去，这里等的是
+  // 那段动画；现在新卡落在当前可见区（舞台宽 38%、高 28% 那一点），可见区挤了螺旋避让会把第二张推向右/下，
+  // 中心出了舞台就由边缘提示指路、**点它**画布才过去。所以逐张建、逐张验三件事（判据在 _canvasHit.mjs）：
+  //   ① 建卡前后视口逐格相同（画布没自己动）；
+  //   ② 新卡落在舞台里（中心在 stage 内 = 产品「看见了」的判据，不被常驻 Agent 面板遮住——stage 不含那块面板）；
+  //   ③ 否则边缘提示出现、方向对、点一下那张卡完整进 stage。
+  // 「完整」只在走提示那条路上断：落在屏里的那张可能右缘被舞台切掉一截（CI 的 Linux runner 把窗口夹到 1280 宽，
+  // 下面 resize(1600, 1000) 静默不生效），产品按中心判它「看见了」、不出提示，这是拍板后的设计不是回归。
+  // 仍逐张量而不是建完两张再要求同时在 stage 内：点第二张的提示会把第一张挪向边缘。见 docs/lessons/
   // walkthrough-geometry-must-reverify-under-the-real-cursor.md 同一族。
   const createdPlacement = []
   for (const kind of ['image', 'video']) {
-    const createdId = await addNode(kind)
-    await getWin().waitForTimeout(700)
-    createdPlacement.push({ kind, ...(await measurePlacement(createdId)) })
+    const created = await addNode(kind)
+    createdPlacement.push({ kind, path: created.path, hint: created.hint?.side ?? null, ...(await measurePlacement(created.id)) })
   }
   assert(
-    createdPlacement.length === 2 && createdPlacement.every((entry) => entry.inside),
-    '每张新建的卡当场完整露出在 stage 内（不被常驻 Agent 面板遮住）',
+    createdPlacement.length === 2 && createdPlacement.every((entry) => entry.seen && (entry.path === 'in-view' || entry.inside)),
+    '每张新建的卡都在 stage 里看得见（不被常驻 Agent 面板遮住）：落在屏里，或点边缘提示过去完整框住；画布从不自己挪',
     JSON.stringify(createdPlacement),
   )
   const ownId = (kind) => createdPlacement.find((entry) => entry.kind === kind)?.id
@@ -441,7 +457,8 @@ try {
   // ── ① 空白左键拖 = 平移画布 ────────────────────────────────────────────
   const blank = await findBlankPoint()
   assert(Boolean(blank), '找得到一块画布空白', JSON.stringify(blank))
-  // 建卡后的「露出平移」是一段动画：它没停就读基线，量到的是动画而不是这次拖动（机器忙时实测 Δ 反号）。
+  // 建卡本身不再挪画布，但若第二张走了边缘提示，那一下点击是一段 220ms 的动画；composer 挂载、卡面出图
+  // 也还在收尾。没停就读基线，量到的是动画而不是这次拖动（机器忙时实测 Δ 反号）。
   // 等画面视觉安定（_assert.mjs 的共享判据）再开始。
   await waitForVisualQuiescence(getWin())
   const before = await readTransform()

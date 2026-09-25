@@ -4,24 +4,9 @@ import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
 
 type Viewport = { zoom: number; offset: { x: number; y: number } }
 
-/** 空画布里用户刚建出的首个节点已在当前视口且被选中，不应再被“加载适应”拉回画布中心。 */
-export function isInteractiveFirstNodeInsertion(
-  nodes: readonly GenerationCanvasNode[],
-  selectedNodeIds: readonly string[],
-  zoom: number,
-  offset: { x: number; y: number },
-  rectWidth: number,
-  rectHeight: number,
-): boolean {
-  return nodes.length === 1
-    && selectedNodeIds.length === 1
-    && selectedNodeIds[0] === nodes[0].id
-    && anyNodeVisibleInViewport([...nodes], zoom, offset, rectWidth, rectHeight)
-}
-
 /**
- * 当前视口是否框住了至少一个节点。用于「自愈式适应」：历史视口若停在空白处
- * （所有节点都在视口外），盲目恢复它会让用户以为「图全没了」——其实只是被平移挡住。
+ * 当前视口是否框住了至少一个节点。历史视口若停在空白处（所有节点都在视口外），盲目恢复它会让用户以为
+ * 「图全没了」——其实只是被平移挡住。
  */
 export function anyNodeVisibleInViewport(
   nodes: GenerationCanvasNode[],
@@ -42,15 +27,25 @@ export function anyNodeVisibleInViewport(
 }
 
 /**
- * 项目/分类首次加载时自动适应视图，让用户看到全局布局。
- * - 无历史视口 → 直接适应。
- * - 有历史视口但它框不住任何节点（图都在视口外、用户会误以为「图消失」）→ 自愈式适应。
- * - 正常的历史视口 → 保留用户位置，不打扰。
- * 每次 activeCategoryId 变化后重置，确保切换分类时也能触发。
+ * 打开一个分类那一刻，要不要一次性摆好全貌。
+ *
+ * 2026-09-25 用户拍板（样张第 4 题）：保留，但**只在打开那一刻**、只在打开时里面**本来就有东西**时判一次：
+ * 没有记住的视角，或记住的视角里一个节点都看不见 → 摆全貌（不带动画，那就是第一帧）；否则保留用户的视角。
+ * 打开时是空的 → 不摆：之后长出来的节点（Agent 建卡、导入、付费卡落地）是「新到的」，
+ * 由画布边缘提示指路，**不许**再借「第一次出现节点」触发一次适应——那正是「画布自己动」的一扇门。
+ */
+export function shouldFitOnOpen(input: { nodeCountAtOpen: number; hasRememberedViewport: boolean; anyNodeVisible: boolean }): boolean {
+  if (input.nodeCountAtOpen === 0) return false
+  return !input.hasRememberedViewport || !input.anyNodeVisible
+}
+
+/**
+ * 每个分类「被打开」只判一次：项目加载完成（store ready）那一刻判当前分类；之后用户切到别的分类，那一刻再判那个。
+ * 判定读的是打开那一刻的节点与视口（ref），不随之后的节点变化重跑。
  */
 export function useAutoFitOnLoad(params: {
+  ready: boolean
   nodes: GenerationCanvasNode[]
-  selectedNodeIds: string[]
   activeCategoryId: string
   categoryViewports: Record<string, Viewport | undefined>
   fitView: () => void
@@ -58,27 +53,27 @@ export function useAutoFitOnLoad(params: {
   zoomRef: React.MutableRefObject<number>
   offsetRef: React.MutableRefObject<{ x: number; y: number }>
 }): void {
-  const { nodes, selectedNodeIds, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef } = params
-  const autoFitDoneRef = React.useRef(false)
-  React.useEffect(() => { autoFitDoneRef.current = false }, [activeCategoryId])
+  const { ready, nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef } = params
+  const latest = React.useRef({ nodes, categoryViewports, fitView })
+  latest.current = { nodes, categoryViewports, fitView }
+  const decidedForRef = React.useRef<string | null>(null)
   React.useEffect(() => {
-    if (autoFitDoneRef.current || nodes.length === 0) return
-    autoFitDoneRef.current = true
+    if (!ready) { decidedForRef.current = null; return undefined }
+    if (decidedForRef.current === activeCategoryId) return undefined
+    decidedForRef.current = activeCategoryId
+    const nodeCountAtOpen = latest.current.nodes.length
+    if (nodeCountAtOpen === 0) return undefined
     const tid = setTimeout(() => {
       const rect = stageRef.current?.getBoundingClientRect()
-      const shows = rect
-        ? anyNodeVisibleInViewport(nodes, zoomRef.current, offsetRef.current, rect.width, rect.height)
-        : true // 量不到尺寸时保守：不打扰用户视口
-      if (rect && isInteractiveFirstNodeInsertion(
-        nodes,
-        selectedNodeIds,
-        zoomRef.current,
-        offsetRef.current,
-        rect.width,
-        rect.height,
-      )) return
-      if (!categoryViewports[activeCategoryId] || !shows) fitView()
+      // 量不到舞台尺寸时保守：不动用户视口。
+      if (!rect || rect.width <= 0 || rect.height <= 0) return
+      const { nodes: openNodes, categoryViewports: viewports, fitView: fit } = latest.current
+      if (shouldFitOnOpen({
+        nodeCountAtOpen,
+        hasRememberedViewport: Boolean(viewports[activeCategoryId]),
+        anyNodeVisible: anyNodeVisibleInViewport(openNodes, zoomRef.current, offsetRef.current, rect.width, rect.height),
+      })) fit()
     }, 350) // 等 DOM 完成一帧渲染
     return () => clearTimeout(tid)
-  }, [nodes, selectedNodeIds, categoryViewports, activeCategoryId, fitView, stageRef, zoomRef, offsetRef])
+  }, [ready, activeCategoryId, stageRef, zoomRef, offsetRef])
 }

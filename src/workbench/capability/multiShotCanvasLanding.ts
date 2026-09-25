@@ -13,7 +13,6 @@ import { withProjectAction, isProjectExecutionContextCurrent } from '../project/
 import { productionRunApi } from '../production/productionRunApi'
 import { projectStoryboardDesign } from '../creation/storyboard/exec/storyboardProjection'
 import i18n from '../../i18n'
-import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
 import { listAvailableModelsForAgent } from '../generationCanvas/agent/availableModels'
@@ -328,11 +327,9 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
     if (nodeId && shot.result) inLandingTxn(() => attachShotResult({ nodeId, shotId: shot.shotId, result: shot.result! }))
   }
 
-  // 只有新增内容才揭进视口；重绑定和结果回填不打断用户的缩放/分类。
-  // 原项目事务仍须校验，changedCanvasStructure 的 rebindable 不属于导航理由。
-  if (missing.length > 0 || willCreateGroup || willCreateTable) {
-    inLandingTxn(() => useWorkbenchStore.getState().requestCanvasFit(groupCategoryId))
-  }
+  // 付费卡确认落地不再挪画布、不再切分类（2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到
+  // 那个镜头生成去哪里了」——那一闪是单镜先聚焦放大、360ms 后再适应全图两次移动叠在一起）。
+  // 新镜头落在可见区（落不下就在已有内容下方），屏外 / 别的分类由画布边缘提示指路，点它才过去。
 
   const nodeById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
   const bindings = ordered
