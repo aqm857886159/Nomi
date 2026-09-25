@@ -1,8 +1,9 @@
 // 一次性：拍「模型接入」面板真实样子（出样张前必须先看真实 UI，零额度零 vendor 调用）。
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, existsSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -14,11 +15,15 @@ const projects = path.join(os.tmpdir(), 'nomi-panelshot-projects')
 mkdirSync(settings, { recursive: true })
 mkdirSync(projects, { recursive: true })
 // 用真实 dev catalog：要看「已接入」分组真实长什么样，空 catalog 只能看到「可接入」。
-const devCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
-if (existsSync(devCatalog)) copyFileSync(devCatalog, path.join(settings, 'model-catalog.json'))
+// 凭据钥匙（Windows 的 Local State）跟目录一起进隔离副本，user-data 与启动器默认同形、只是先建出来。
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'model-panel-shot-'))
+const userDataDir = path.join(tempRoot, 'user-data')
+if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: settings, userDataDir })
 
 const { app, win } = await launchNomiApp({
   name: 'model-panel-shot',
+  tempRoot,
+  userDataDir,
   settingsDir: settings,
   projectsDir: projects,
   settleMs: 2000,

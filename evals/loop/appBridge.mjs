@@ -2,16 +2,12 @@
 // 机制(照 tests/ux/r1-upload-verify.mjs):key 是 safeStorage 加密、绑 app 身份,纯 Node 解不开 →
 //   启真 app,密文传进主进程 safeStorage 解密 + 主进程内 fetch(明文 key 不回传 Node)。
 //   ⚠️ 启真 app → 运行时 Nomi 必须关着(单实例锁)。effect-first:自动从 catalog 挑 enabled 模型,免手填。
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
 import { launchNomiApp } from "../../tests/ux/_launchApp.mjs";
+import { readRealCatalog } from "../../tests/ux/_realProfile.mjs";
 
 
-function loadCatalog() {
-  const p = path.join(os.homedir(), "Library", "Application Support", "nomi", "model-catalog.json");
-  return JSON.parse(fs.readFileSync(p, "utf8"));
-}
+// 真实资料目录在哪只问 _realProfile.mjs（下面 isolate:false 起的就是同一份 userData，钥匙同源）。
+const loadCatalog = () => readRealCatalog();
 
 /** 把 vendor.baseUrlHint 规整成 root(去掉尾部 /v1),调用时统一拼 /v1+path。 */
 function vendorOf(catalog, vendorKey) {

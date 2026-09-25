@@ -73,7 +73,7 @@
 - [修过期走查先打探针，别读源码猜选择器](walkthrough-repair-probe-first.md) — 附画布 composer 已验证锚点与三个坑
 - [走查里别用 `win.reload()`](walkthrough-no-win-reload.md) — 原地刷新后活动项目恒 null，面板静默空掉，像极了真 bug
 - [走查默认跑隔离 profile，不是真实资料库](walkthrough-default-profile-is-isolated.md) — 要写真库得 `isolate:false`
-- [隔离实例的 key/设置组装三坑](iso-walkthrough-key-seeding-traps.md) — `hasApiKey=false` 不证解密失败；别手拷设置文件
+- [隔离实例的 key/设置组装五坑](iso-walkthrough-key-seeding-traps.md) — `hasApiKey=false` 不证解密失败；别手拷设置文件；Windows 上钥匙是 userData 的 `Local State`，目录备份也带密文（owner `tests/ux/_realProfile.mjs`）
 - [走查里种供应商：渲染层 bridge 种不出「能用」的那一家](walkthrough-cannot-seed-a-vendor-through-the-renderer.md) — 三个 sanitize 一律按下 `enabled`；「没钥匙 ⇒ 0 个可用」会以 `vendor_disabled` 的理由假绿，要逐字断言 reason
 - [断言计算色：别比字面串、翻主题先等 transition](walkthrough-computed-color-asserts.md) — oklch 序列化 + 插值帧两坑
 - [一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md) — 找到一处失效锚点就 grep 它的全部用法

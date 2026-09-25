@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { getJourneys } from "../evals/journeys/index.mjs";
 import { runJourneyTrial } from "../evals/lib/journeyRunner.mjs";
 import { aggregateTrials } from "../evals/lib/grading.mjs";
-import { realCatalogPath } from "../evals/lib/isoApp.mjs";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -42,7 +42,7 @@ try {
   process.exit(1);
 }
 
-const hasCatalog = fs.existsSync(realCatalogPath());
+const hasCatalog = fs.existsSync(realNomiProfile().catalogPath);
 const gitCommit = execSync("git rev-parse --short HEAD", { cwd: repoRoot, encoding: "utf8" }).trim();
 const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-");
 const runDir = path.join(repoRoot, "evals", "runs", `${stamp}-journeys${ci ? "-ci" : smoke ? "-smoke" : ""}`);

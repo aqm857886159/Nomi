@@ -293,11 +293,13 @@ export async function createMainProbe() {
 
 async function main() {
   if (process.env.CI || process.env.NOMI_AGENT_LIVE !== '1') throw new Error('manual-paid-opt-in-required')
-  const { prepareIsolation, realCatalogPath } = await import('../../evals/lib/isoApp.mjs')
+  const { prepareIsolation } = await import('../../evals/lib/isoApp.mjs')
+  const { realNomiProfile } = await import('./_realProfile.mjs')
   const { launchNomiApp } = await import('./_launchApp.mjs')
+  const realCatalog = realNomiProfile().catalogPath
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pd1-cache-'))
   const output = path.join(root, '.tmp', `pd1-cache-${Date.now()}.json`)
-  const sourceHash = createHash('sha256').update(fs.readFileSync(realCatalogPath())).digest('hex')
+  const sourceHash = createHash('sha256').update(fs.readFileSync(realCatalog)).digest('hex')
   let launched, report
   try {
     const iso = prepareIsolation(tempRoot)
@@ -324,7 +326,7 @@ async function main() {
   } finally {
     if (launched) await launched.close()
     fs.rmSync(tempRoot, { recursive: true, force: true })
-    const sourceUnchanged = createHash('sha256').update(fs.readFileSync(realCatalogPath())).digest('hex') === sourceHash
+    const sourceUnchanged = createHash('sha256').update(fs.readFileSync(realCatalog)).digest('hex') === sourceHash
     if (report) {
       report.temporaryCredentialRemoved = !fs.existsSync(tempRoot)
       report.sourceCatalogUnchanged = sourceUnchanged

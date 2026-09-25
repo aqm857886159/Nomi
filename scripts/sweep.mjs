@@ -13,7 +13,7 @@ import { DOCUMENT } from '../tests/ux/agent-runtime-walk-support.mjs'
 import { startEvidence, copyTranscripts, writeJson, saveCase, saveReport, scoreCollectedAgent } from '../tests/ux/g1/sweep-evidence.mjs'
 import { prepareRealText, attachRealText } from '../tests/ux/g1/sweep-real.mjs'
 import { requireCredential, recordBlocked } from '../tests/ux/g1/credential-precheck.mjs'
-import { realCatalogPath } from '../evals/lib/isoApp.mjs'
+import { realNomiProfile } from '../tests/ux/_realProfile.mjs'
 import { c0Invocation } from '../tests/ux/g1/sweep-c0.mjs'
 import { runSurface } from '../tests/ux/g1/sweep-surfaces.mjs'
 
@@ -59,7 +59,7 @@ for (const entry of cases) for (const input of entry.inputs) {
   if (needsCredential) {
     try {
       if (credentialBlock) throw Object.assign(Error('CREDENTIAL_BLOCKED'), { receipt: credentialBlock })
-      requireCredential(realCatalogPath(), target)
+      requireCredential(realNomiProfile().catalogPath, target)
     } catch (error) {
       if (!error.receipt) throw error
       credentialBlock = error.receipt
@@ -95,6 +95,8 @@ for (const entry of cases) for (const input of entry.inputs) {
     let executablePath = values.packaged
     if (executablePath?.endsWith('.app')) executablePath = path.join(executablePath, 'Contents/MacOS/Nomi')
     launched = await launchNomiApp({ name: id, tempRoot: profile, capabilityDir: path.join(profile, 'capability'), settleMs: 0,
+      // 真文本：凭据钥匙（Windows 的 Local State）已被 prepareIsolation 种进 iso.chromiumDir，App 必须就从那份 userData 起。
+      ...(real ? { userDataDir: real.iso.chromiumDir, settingsDir: real.iso.settingsDir } : {}),
       ...(executablePath ? { executablePath } : {}),
       env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' } })
     // Before collect: blocked credentials cannot become a failed/repaired station.

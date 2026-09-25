@@ -9,9 +9,10 @@
 //
 // 用法：pnpm build 后 node scripts/poll-cadence-live-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -30,13 +31,16 @@ const settings = path.join(os.tmpdir(), 'nomi-pollcadence-settings')
 const projects = path.join(os.tmpdir(), 'nomi-pollcadence-projects')
 mkdirSync(settings, { recursive: true })
 mkdirSync(projects, { recursive: true })
-const devCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
+// 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'poll-cadence-live-'))
+const userDataDir = path.join(tempRoot, 'user-data')
+const devCatalog = realNomiProfile().catalogPath
 if (!existsSync(devCatalog)) {
   console.log('✗ 缺 dev catalog（' + devCatalog + '）—— 没有已接模型就没法跑真生成')
   process.exit(1)
 }
 const iso = path.join(settings, 'model-catalog.json')
-copyFileSync(devCatalog, iso)
+seedRealCredentials({ settingsDir: settings, userDataDir })
 {
   const catalog = JSON.parse(readFileSync(iso, 'utf8'))
   let kept = 0
@@ -55,6 +59,8 @@ copyFileSync(devCatalog, iso)
 
 const { app, win } = await launchNomiApp({
   name: 'poll-cadence-live',
+  tempRoot,
+  userDataDir,
   settingsDir: settings,
   projectsDir: projects,
 })

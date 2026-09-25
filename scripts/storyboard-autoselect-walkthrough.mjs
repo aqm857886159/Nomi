@@ -3,9 +3,10 @@
 // 自动全选 → 既有多选浮条「生成 N 个」直接浮现（批量入口零学习成本）。不点生成（零图片额度，
 // 只花 planner 文本额度几分钱）。用法：pnpm build 后 node scripts/storyboard-autoselect-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, existsSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -17,14 +18,19 @@ const isolatedSettings = path.join(os.tmpdir(), 'nomi-sb-walk-settings')
 const isolatedProjects = path.join(os.tmpdir(), 'nomi-sb-walk-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
-const devCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
+// 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'storyboard-autoselect-'))
+const userDataDir = path.join(tempRoot, 'user-data')
+const devCatalog = realNomiProfile().catalogPath
 if (!existsSync(devCatalog)) { console.log('✗ 缺 dev catalog'); process.exit(1) }
-copyFileSync(devCatalog, path.join(isolatedSettings, 'model-catalog.json'))
+seedRealCredentials({ settingsDir: isolatedSettings, userDataDir })
 
 const STORY = '清晨的渔村码头，少年阿澈把一只旧木箱搬上小船。他回头望了一眼岸边的灯塔，咬咬牙解开缆绳。海面起雾，船影渐渐消失在白色雾气里。'
 
 const { app, win } = await launchNomiApp({
   name: 'storyboard-autoselect',
+  tempRoot,
+  userDataDir,
   settingsDir: isolatedSettings,
   projectsDir: isolatedProjects,
 })

@@ -12,9 +12,10 @@
 //
 // 用法：pnpm build 后 node scripts/retired-model-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -27,13 +28,14 @@ const projectsDir = path.join(os.tmpdir(), 'nomi-retired-walk-projects')
 const userDataDir = path.join(os.tmpdir(), 'nomi-retired-walk-userdata')
 for (const d of [settingsDir, projectsDir, userDataDir]) mkdirSync(d, { recursive: true })
 
-const devCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
+const devCatalog = realNomiProfile().catalogPath
 if (!existsSync(devCatalog)) {
   console.log('✗ 缺 dev catalog（' + devCatalog + '）')
   process.exit(1)
 }
 const catalogPath = path.join(settingsDir, 'model-catalog.json')
-copyFileSync(devCatalog, catalogPath)
+// 目录 + 凭据钥匙（Windows 的 Local State）一起进隔离副本，钥匙落在下面启动用的同一个 userDataDir。
+seedRealCredentials({ settingsDir, userDataDir })
 
 // 走查专用模型：第一阶段用 UI 真选中它，第二阶段把它从目录摘掉 → 复现「节点存的模型已下线」。
 // 必须是**非 curated** 的：curated 模型摘掉后会被 applyBuiltinSeeds 当场插回来（互斥机制在起作用，

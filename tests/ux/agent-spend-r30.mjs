@@ -2,9 +2,9 @@
 // R30：付费确认卡这条链的**两个数字**——工具写对率 + 回合成功率。
 //
 //   node tests/ux/agent-spend-r30.mjs                       # 零额度 loopback 夹具（进 CI 的那一档）
-//   NOMI_R30_ARM=deepseek node tests/ux/agent-spend-r30.mjs  # 真实模型（DeepSeek 便宜档，小额）
-//   （真实档直接复用这台机器上已配好的 DeepSeek 凭据——那条记录是 safeStorage 密文，
-//    原样拷进隔离副本，同机解得开；明文 key 因此不落任何文件、不进报告、不回显。）
+//   NOMI_SPEND_OK=1 NOMI_R30_ARM=deepseek node tests/ux/agent-spend-r30.mjs  # 真实模型（APIMart 上的 DeepSeek，小额 token）
+//   （真实档直接复用这台机器上已配好的 APIMart 凭据——那条记录是 safeStorage 密文，连同 Windows 的
+//    Local State 原样拷进隔离副本（tests/ux/_realProfile.mjs），同机解得开；明文 key 不落任何文件、不进报告、不回显。）
 //
 // 话术集在 `agent-spend-r30-cases.mjs`：**先写这 22 句用户会怎么说，再跑模型**
 // （2026-09-09 用户定的顺序；按界面面排 case 量到的是我们自己的界面，不是模型的能力）。
@@ -21,7 +21,6 @@
 //
 // 生成供应商两档都是 loopback 夹具：整场**一次付费调用都不会发生**。
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -31,6 +30,8 @@ import {
   openCanvas, readProject, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { SPEND_R30_CASES } from './agent-spend-r30-cases.mjs'
+import { assertPaidRunAllowed } from './_paidRun.mjs'
+import { removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 /**
  * 这一场里模型**实际按下了哪些工具**——从宿主自己的转录里数，不是从我们的期望里数。
@@ -64,9 +65,8 @@ function toolRouteCensus(projectRoot) {
 // 档位走**环境变量**而不是命令行参数：走查启动器自己要校验 argv（只允许 `--packaged <路径>`），
 // 多一个 flag 会被它当成用法错误挡下来。
 const DEEPSEEK = process.env.NOMI_R30_ARM === 'deepseek'
-const DEEPSEEK_VENDOR = 'api-deepseek-com'
-const DEEPSEEK_MODEL = 'deepseek-chat'
-const DEEPSEEK_LABEL = 'DeepSeek Chat'
+/** 真实档的大脑：APIMart（内置供应商，谁的机器上都有）上的 DeepSeek，真实目录里的那一行原样用。 */
+const DEEPSEEK_BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }
 const PRICE_TOTAL = '[data-v4-price="total"]'
 const CARD = `${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`
 
@@ -89,39 +89,20 @@ function lastUserText(body) {
 }
 
 /**
- * 真实档：把**这台机器上已经配好的** DeepSeek 接进那份隔离目录，当对话模型用。
+ * 真实档：把**这台机器上已经配好的** APIMart DeepSeek 接进那份隔离目录，当对话模型用。
  *
  * 为什么是「拷已有的记录」而不是「把 env 里的 key 写进去」：本仓对凭据是 fail-closed 的——
  * `enc:"plain"` 的 key 记录永远不会被当成可用凭据（`secrets.ts` 的 decryptApiKeyRecord 只认
- * safeStorage 密文），模型下拉也因此不会把这个供应商放进来。所以真实档复用真实目录里那条
- * **已加密**的记录（同一台机器解得开，`evals/lib/isoApp.mjs` 的 prepareIsolation 同一手法），
- * 明文 key 因此从头到尾不落任何文件、不进报告、不回显。
+ * safeStorage 密文）。所以真实档复用真实目录里那条**已加密**的记录与它的钥匙（owner：_realProfile.mjs），
+ * 明文 key 从头到尾不落任何文件、不进报告、不回显；它花的是真 token，所以走付费走查的同一道闸（_paidRun.mjs）。
  *
  * 生成模型仍是 loopback 夹具那一行：模型「决定要生成什么」是真的，真去生成永远到不了外面的钱。
  */
-function seedDeepSeek(settingsDir) {
-  const real = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', 'model-catalog.json')
-  if (!fs.existsSync(real)) throw new Error(`真实 model-catalog.json 不存在（${real}）——真实档需要这台机器上已配好的 DeepSeek`)
-  const source = JSON.parse(fs.readFileSync(real, 'utf8'))
-  const vendor = source.vendors.find((entry) => entry.key === DEEPSEEK_VENDOR)
-  const credential = source.apiKeysByVendor?.[DEEPSEEK_VENDOR]
-  if (!vendor) throw new Error(`真实目录里没有 ${DEEPSEEK_VENDOR} 这家供应商`)
-  if (credential?.enc !== 'safeStorage') throw new Error(`${DEEPSEEK_VENDOR} 的凭据不是 safeStorage 密文，真实档跑不起来（明文 key 本仓 fail-closed）`)
-  const file = path.join(settingsDir, 'model-catalog.json')
-  const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
-  const now = new Date().toISOString()
-  // 真实目录里这家是关着的（用户平时不用它对话）。隔离副本里打开，不碰用户那份。
-  catalog.vendors.push({ ...vendor, enabled: true })
-  catalog.models.push({
-    vendorKey: DEEPSEEK_VENDOR, modelKey: DEEPSEEK_MODEL, labelZh: DEEPSEEK_LABEL,
-    kind: 'text', published: true, enabled: true, createdAt: now, updatedAt: now,
-  })
-  catalog.apiKeysByVendor[DEEPSEEK_VENDOR] = credential
-  fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`)
-}
-
+const paidGuard = DEEPSEEK ? assertPaidRunAllowed('agent-spend-r30.mjs (deepseek arm)') : null
 const walk = await createRuntimeWalk(DEEPSEEK ? 'spend-r30-deepseek' : 'spend-r30-loopback')
-if (DEEPSEEK) seedDeepSeek(path.join(walk.report.tempRoot, 'settings'))
+const brainLabel = DEEPSEEK
+  ? seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models: [DEEPSEEK_BRAIN] })[0].labelZh
+  : FIXTURE_TEXT_MODEL_LABEL
 
 const rows = []
 let failure
@@ -129,8 +110,7 @@ try {
   const { win } = await walk.start({ first: true })
   const { projectId } = await walk.newProject()
   await openCanvas(win)
-  if (DEEPSEEK) await chooseAssistantModel(win, DEEPSEEK_LABEL, CANVAS_PANEL)
-  else await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, CANVAS_PANEL)
+  await chooseAssistantModel(win, brainLabel, CANVAS_PANEL)
 
   const nodeCount = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length
   const settled = async (count, timeout = DEFAULT_TIMEOUT_MS) =>
@@ -215,7 +195,7 @@ try {
   const pct = (n) => `${n}/${total} (${Math.round((n / total) * 1000) / 10}%)`
   Object.assign(walk.report, {
     r30: {
-      arm: DEEPSEEK ? 'deepseek-chat (real)' : 'loopback fixture (zero quota)',
+      arm: DEEPSEEK ? `${DEEPSEEK_BRAIN.vendorKey}/${DEEPSEEK_BRAIN.modelKey} (real)` : 'loopback fixture (zero quota)',
       cases: total,
       toolWriteRate: pct(toolCorrect),
       turnSuccessRate: pct(turnOk),
@@ -234,5 +214,11 @@ try {
   failure = error
   process.exitCode = 1
 } finally {
-  await walk.finish(failure)
+  // 真实档：App 关了之后删掉凭据副本、比对原库指纹（与其它付费走查同一套收尾）。
+  await walk.finish(failure, DEEPSEEK ? {
+    collect: () => ({
+      credentialCopyRemoved: removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir }),
+      realProfileAfter: paidGuard.assertRealProfileUntouched(),
+    }),
+  } : {})
 }

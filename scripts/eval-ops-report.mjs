@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
@@ -21,7 +22,7 @@ function discoverProjectDirs() {
   const candidates = new Set();
   const defaultRoot = path.join(os.homedir(), "Documents", "Nomi Projects");
   if (fs.existsSync(defaultRoot)) candidates.add(defaultRoot);
-  const registry = path.join(os.homedir(), "Library", "Application Support", "Nomi", "recent-workspaces.json");
+  const registry = path.join(realNomiProfile().userDataDir, "recent-workspaces.json");
   try {
     const parsed = JSON.parse(fs.readFileSync(registry, "utf8"));
     const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];

@@ -13,6 +13,7 @@ import {
   permissionTier, stopRuntimeApp, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
+import { realNomiProfile, removeRealCredentials, seedRealCredentialStore } from './_realProfile.mjs'
 
 if (process.env.NOMI_AGENT_LIVE !== '1') throw new Error('Explicit paid evaluation requires NOMI_AGENT_LIVE=1')
 const [flag, executablePath, ...extra] = process.argv.slice(2)
@@ -22,9 +23,10 @@ if (flag !== '--packaged' || !path.isAbsolute(executablePath ?? '') || extra.len
 
 const vendorKey = 'apimart'
 const modelKey = 'deepseek-v4-pro'
-const sourceRoot = process.env.NOMI_LIVE_SETTINGS || path.join(os.homedir(), 'Library/Application Support/Nomi')
-if (!path.isAbsolute(sourceRoot)) throw new Error('NOMI_LIVE_SETTINGS must be an absolute directory')
-const sourceFile = path.join(sourceRoot, 'model-catalog.json')
+// 真实资料目录在哪、钥匙是哪几份文件，只问 owner（三平台 + NOMI_REAL_PROFILE_USER_DATA 覆盖口）。
+const profile = realNomiProfile({ env: process.env })
+if (!path.isAbsolute(profile.userDataDir)) throw new Error('NOMI_REAL_PROFILE_USER_DATA must be an absolute directory')
+const sourceFile = profile.catalogPath
 const sourceBytes = fs.readFileSync(sourceFile)
 const source = JSON.parse(sourceBytes.toString('utf8'))
 const vendor = source.vendors.find((entry) => entry.key === vendorKey && entry.enabled !== false)
@@ -45,6 +47,8 @@ if (sourceEndpoint.origin !== 'https://api.apimart.ai' || vendor.providerKind !=
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pi-provider-'))
 const settingsDir = path.join(tempRoot, 'settings')
+// 显式给出并交给启动器：Windows 的钥匙（Local State）要在 App 起来之前放进它真正用的 userData。
+const userDataDir = path.join(tempRoot, 'user-data')
 const catalogFile = path.join(settingsDir, 'model-catalog.json')
 const outputDir = path.join(repoRoot, '.tmp', `pi-provider-packaged-${Date.now()}`)
 fs.mkdirSync(settingsDir, { recursive: true })
@@ -67,8 +71,9 @@ try {
   fs.writeFileSync(catalogFile, JSON.stringify({
     version: 8, vendors: [vendor], models: [model, ...imageModels], mappings: imageMappings, apiKeysByVendor: { [vendorKey]: credential },
   }), { flag: 'wx', mode: 0o600 })
+  seedRealCredentialStore(userDataDir, profile)
   launched = await launchNomiApp({
-    name: 'pi-live-provider', tempRoot, settingsDir, executablePath, settleMs: 0,
+    name: 'pi-live-provider', tempRoot, settingsDir, userDataDir, executablePath, settleMs: 0,
     env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
   })
   const { app, win } = launched
@@ -255,9 +260,8 @@ try {
     cleanup: [
       () => launched && stopRuntimeApp(launched.app),
       () => {
-        // Only our exclusive temporary credential copy is removed; never write the source.
-        if (fs.existsSync(catalogFile)) fs.unlinkSync(catalogFile)
-        report.temporaryCredentialRemoved = !fs.existsSync(catalogFile)
+        // Only our exclusive temporary credential copy (catalog + key store) is removed; never write the source.
+        report.temporaryCredentialRemoved = removeRealCredentials({ settingsDir, userDataDir, profile })
       },
     ],
     collect: () => {

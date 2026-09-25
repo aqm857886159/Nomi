@@ -2,6 +2,7 @@
 // 用法: node tests/ux/param-bar-models.walk.mjs
 // 隔离真 catalog + 构造含 3 个参数多模型节点的项目,逐个选中量底栏宽度+点「更多」截图。
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from './_realProfile.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
@@ -11,8 +12,8 @@ fs.mkdirSync(shotsDir, { recursive: true })
 const base = '/tmp/nomi-parambar-models'
 const settingsDir = path.join(base, 'settings'); const projectsDir = path.join(base, 'projects')
 fs.rmSync(base, { recursive: true, force: true }); fs.mkdirSync(settingsDir, { recursive: true }); fs.mkdirSync(projectsDir, { recursive: true })
-const realCatalog = '/Users/aoqimin/Library/Application Support/nomi/model-catalog.json'
-if (fs.existsSync(realCatalog)) fs.copyFileSync(realCatalog, path.join(settingsDir, 'model-catalog.json'))
+// 目录 + 凭据钥匙（Windows 的 Local State）一起进隔离副本；本走查 userData 与 settings 同目录。
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir, userDataDir: settingsDir })
 
 const mk = (id, kind, x, y, meta) => ({ id, kind, title: id, position: { x, y }, size: { width: 340, height: 270 }, prompt: '镜头', references: [], history: [], status: 'idle', categoryId: 'shots', shotIndex: 1, renderKind: 'shot-frame', meta })
 const nodes = [

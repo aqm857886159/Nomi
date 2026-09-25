@@ -2,6 +2,7 @@
 //   模型名/模式段（Vidu 参考生 · HH1.1 三模式 · Wan 角色参考）/变体段（Vidu 标准|Mix）/参数条/参考槽。
 // 用法: node tests/ux/new-models-20260729.walk.mjs（先 pnpm build，走 dist 产物）
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from './_realProfile.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
@@ -11,8 +12,8 @@ fs.mkdirSync(shotsDir, { recursive: true })
 const base = '/tmp/nomi-new-models-20260729'
 const settingsDir = path.join(base, 'settings'); const projectsDir = path.join(base, 'projects')
 fs.rmSync(base, { recursive: true, force: true }); fs.mkdirSync(settingsDir, { recursive: true }); fs.mkdirSync(projectsDir, { recursive: true })
-const realCatalog = '/Users/aoqimin/Library/Application Support/nomi/model-catalog.json'
-if (fs.existsSync(realCatalog)) fs.copyFileSync(realCatalog, path.join(settingsDir, 'model-catalog.json'))
+// 目录 + 凭据钥匙（Windows 的 Local State）一起进隔离副本；本走查 userData 与 settings 同目录。
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir, userDataDir: settingsDir })
 
 const mk = (id, kind, x, y, meta) => ({ id, kind, title: id, position: { x, y }, size: { width: 340, height: 270 }, prompt: '镜头', references: [], history: [], status: 'idle', categoryId: 'shots', shotIndex: 1, renderKind: 'shot-frame', meta })
 const nodes = [

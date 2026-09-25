@@ -1,11 +1,10 @@
 // Redacted provider/config preflight. It reports presence and public catalog metadata only;
 // never prints API-key plaintext, ciphertext, token, or environment values.
 import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import { liveCanaryReadiness } from './real-user-long-video.runner.mjs'
+import { realNomiProfile } from './_realProfile.mjs'
 
-const catalogPath = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', 'model-catalog.json')
+const catalogPath = realNomiProfile().catalogPath
 const result = {
   providerProfile: { provider: 'apimart', model: 'gemini-3.5-flash', credentialEnv: 'APIMART_API_KEY' },
   environment: liveCanaryReadiness(),

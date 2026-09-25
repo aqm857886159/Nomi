@@ -2,17 +2,15 @@
 // 自带 --disable-gpu 启动、不开窗(verify 只需主进程 safeStorage 解密 + fetch),绕开本机 GUI/GPU 启动崩。
 // 跑:node evals/verify-shot-smoke.mjs  (额度默认授权;需打包版 Nomi 关着)
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { readRealCatalog } from '../tests/ux/_realProfile.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-function loadCatalog() {
-  const p = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
-  return JSON.parse(fs.readFileSync(p, 'utf8'))
-}
+// 真实资料目录在哪只问 _realProfile.mjs（下面 isolate:false 起的就是同一份 userData，钥匙同源）。
+const loadCatalog = () => readRealCatalog()
 const isVision = (m) => /vision|multimodal|image[-_]?input|gpt-4o|claude-3|claude-opus-4|claude-sonnet-4|gemini|qwen.*-?vl|pixtral/i.test(JSON.stringify(m))
 function pickVision(c) {
   for (const m of c.models || []) {

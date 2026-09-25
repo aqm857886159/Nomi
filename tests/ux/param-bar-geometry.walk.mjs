@@ -3,6 +3,7 @@
 // 隔离复制真 catalog(含 seedance 多供应商=D2 触发条件) + 一个真实 Seedance 项目的 project.json，
 // 不碰用户真实数据。选中视频节点后量 composer 卡 / 参数栏 / 生成钮的几何，判断是否裁切。
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from './_realProfile.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
@@ -16,9 +17,9 @@ fs.rmSync(base, { recursive: true, force: true })
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.mkdirSync(projectsDir, { recursive: true })
 
-// 复制真 catalog（含 seedance 4 供应商 → 供应商下拉出现）
-const realCatalog = '/Users/aoqimin/Library/Application Support/nomi/model-catalog.json'
-if (fs.existsSync(realCatalog)) fs.copyFileSync(realCatalog, path.join(settingsDir, 'model-catalog.json'))
+// 复制真 catalog（含 seedance 4 供应商 → 供应商下拉出现）+ 凭据钥匙（Windows 的 Local State）；
+// 本走查 userData 与 settings 同目录。
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir, userDataDir: settingsDir })
 
 // 复制一个真实 Seedance 多视频节点项目的 project.json（只 project.json，不要 assets——量参数栏不需要真图）
 const srcProj = '/Users/aoqimin/Documents/Nomi Projects/未命名项目 06_18 11_56-mqiyx4om-5e071915/.nomi/project.json'

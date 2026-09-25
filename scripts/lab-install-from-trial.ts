@@ -5,7 +5,7 @@
  *
  * Reads trace.json from a lab trial dir, builds vendor + model + mapping
  * + apiKey records, and merges into:
- *   ~/Library/Application Support/Nomi/model-catalog.json   (mac)
+ *   <real Nomi userData>/model-catalog.json   (location owned by tests/ux/_realProfile.mjs)
  *
  * API key is written as enc:"plain" — when the user opens the desktop
  * app, runtime.ts's readCatalog() lazy-upgrades to safeStorage.
@@ -17,7 +17,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
 type Args = { trial?: string; key?: string; dryRun?: boolean; label?: string };
 
@@ -40,8 +40,7 @@ function readSecret(arg: string | undefined, env: string): string {
 }
 
 function catalogPath(): string {
-  // Hardcoded to macOS Electron userData path; Linux/Windows would vary.
-  return path.join(os.homedir(), "Library", "Application Support", "Nomi", "model-catalog.json");
+  return realNomiProfile().catalogPath;
 }
 
 function nowIso(): string {

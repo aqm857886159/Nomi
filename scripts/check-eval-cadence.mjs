@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitPaths } from "./lib/gitPaths.mjs";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TURN_THRESHOLD = 50;
@@ -29,7 +30,7 @@ function countTurnsSince(sinceMs) {
   const candidates = [path.join(os.homedir(), "Documents", "Nomi Projects")];
   try {
     const registry = JSON.parse(
-      fs.readFileSync(path.join(os.homedir(), "Library", "Application Support", "Nomi", "recent-workspaces.json"), "utf8"),
+      fs.readFileSync(path.join(realNomiProfile().userDataDir, "recent-workspaces.json"), "utf8"),
     );
     for (const item of Array.isArray(registry) ? registry : []) if (item?.rootPath) candidates.push(item.rootPath);
   } catch {

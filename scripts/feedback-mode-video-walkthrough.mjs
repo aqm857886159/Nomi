@@ -4,10 +4,11 @@
 // A) 图片节点连参考图（建边自动切图生图·既有）→ **换模型** → 生成方式不再回落「文生图」（本次修复）。
 // 截图进 .feedback-walk/ 人眼判断。用法：node scripts/feedback-mode-video-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import os from 'node:os'
 
@@ -22,8 +23,10 @@ const isolatedSettings = path.join(os.tmpdir(), 'nomi-feedback-walk-settings')
 const isolatedProjects = path.join(os.tmpdir(), 'nomi-feedback-walk-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
-const realCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', 'model-catalog.json')
-if (existsSync(realCatalog)) copyFileSync(realCatalog, path.join(isolatedSettings, 'model-catalog.json'))
+// 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'feedback-mode-video-'))
+const userDataDir = path.join(tempRoot, 'user-data')
+if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: isolatedSettings, userDataDir })
 
 // 夹具：mpeg4 AVI（Chromium 铁定播不了）+ 损坏 mp4 + 1x1 PNG（参考图）
 const fixtureDir = path.join(os.tmpdir(), 'nomi-feedback-walk-fixtures')
@@ -64,6 +67,8 @@ const readModeBar = (win) => win.evaluate(() => {
 
 const { app, win } = await launchNomiApp({
   name: 'feedback-mode-video',
+  tempRoot,
+  userDataDir,
   settingsDir: isolatedSettings,
   projectsDir: isolatedProjects,
   settleMs: 1200,
