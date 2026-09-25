@@ -1198,6 +1198,7 @@ export const zhGenerationCommon = {
       scriptReady: '剧本草稿已准备好，等待你的审核',
       storyboardReady: '分镜方案已准备好，等待你的确认',
       contractDeclined: '已拒绝这批生成',
+      cancelled: '这次制作已取消',
     },
     description: {
       submissionUnknown: '请求可能已经到达供应商；再次提交可能重复扣费，后续任务已停在安全边界。',
@@ -1220,8 +1221,14 @@ export const zhGenerationCommon = {
       scriptReady: '先审阅并确认剧本；确认前不会生成分镜，也不会调用付费模型。',
       storyboardReady: '先审阅并确认分镜，确认后 Nomi 才会把它落到画布并开始生成并计费。',
       contractDeclined: '本次决定已记录；没有提交生成任务，也没有产生支出。调整分镜或制作范围后可再确认一批新的生成。',
+      cancelled: '不会再提交新的任务；已完成的产物仍保存在当前本地项目中。',
     },
-    runTone: { working: '制作中', attention: '等待确认', danger: '需要处理', success: '已完成', neutral: '草稿' },
+    // 制作流程与阶段的人话名（身份串 generation.single-shot / brand.promo、阶段 id 不上屏）。
+    playbook: { shotGeneration: '镜头生成', brandPromo: '品牌宣传片', unknown: '制作流程' },
+    stage: {
+      brief: '制作摘要', direction: '创意方向', script: '剧本', storyboard: '分镜', build: '搭画布',
+      generate: '生成', qa: '审片', assemble: '粗剪', export: '导出', unknown: '其他阶段',
+    },
     origin: { nomi: 'Nomi', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
@@ -1255,7 +1262,7 @@ export const zhGenerationCommon = {
     },
     runDetails: {
       stages: '阶段进度',
-      stageCount: '{{completed}} / {{total}} 已完成',
+      stageCount: '{{completed}} / {{total}} 个阶段已完成',
       authorized: '已授权',
       reserved: '已预留',
       actual: '已结算',
@@ -2661,6 +2668,7 @@ export const enGenerationCommon = {
       scriptReady: 'The script draft is ready for your review',
       storyboardReady: 'The storyboard is ready for your review',
       contractDeclined: 'This batch of generation was declined',
+      cancelled: 'This production was cancelled',
     },
     description: {
       submissionUnknown: 'The request may have reached the provider. Retrying could charge twice, so later work is paused at a safe boundary.',
@@ -2683,8 +2691,13 @@ export const enGenerationCommon = {
       scriptReady: 'Review and confirm the script first. No storyboard or paid model call starts before approval.',
       storyboardReady: 'Review and confirm the storyboard first. Once you confirm, Nomi lays it out and starts generating and billing.',
       contractDeclined: 'This decision is recorded. No generation task was submitted and no spend occurred. Revise the storyboard or scope to confirm a new batch of generation.',
+      cancelled: 'Nothing new will be submitted; finished outputs stay in this local project.',
     },
-    runTone: { working: 'Producing', attention: 'Approval needed', danger: 'Needs attention', success: 'Complete', neutral: 'Draft' },
+    playbook: { shotGeneration: 'Shot generation', brandPromo: 'Brand promo', unknown: 'Production' },
+    stage: {
+      brief: 'Brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', build: 'Canvas',
+      generate: 'Generate', qa: 'Review', assemble: 'Rough cut', export: 'Export', unknown: 'Other stage',
+    },
     origin: { nomi: 'Nomi', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
@@ -2718,7 +2731,7 @@ export const enGenerationCommon = {
     },
     runDetails: {
       stages: 'Stage progress',
-      stageCount: '{{completed}} / {{total}} complete',
+      stageCount: '{{completed}} / {{total}} stages done',
       authorized: 'Authorized',
       reserved: 'Reserved',
       actual: 'Settled',

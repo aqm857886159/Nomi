@@ -1,5 +1,5 @@
 {
-  "debtCap": 60,
+  "debtCap": 59,
   "converged": [
     {
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。",
@@ -1754,12 +1754,13 @@
     },
     {
       "members": [
+        "attention",
         "done",
         "queued",
         "running"
       ],
-      "reason": "TaskCenterGroup 是 TaskCenter 排序分组的合法 view model：running、queued、done 将 generation queue 与 ProductionRun 的不同状态机投影为统一列表分区，不持久化为新的任务状态。",
-      "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterGroup/type-union"
+      "reason": "TASK_CENTER_GROUPS 是 TaskCenter 排序分组的合法 view model，也是面板从上到下的顺序：attention、running、queued、done（样张 2026-09-25 D1-A：要你动手的排最上面） 把 generation queue、ProductionRun 与导出任务各自的状态机投影为统一列表分区（attention = 没结束、卡在用户这儿），区段标题与制作卡状态签共用这一份，不持久化为新的任务状态。",
+      "site": "src/workbench/taskCenter/taskCenterProjection.ts::variable:TASK_CENTER_GROUPS/as-const"
     },
     {
       "members": [
@@ -2361,14 +2362,6 @@
       ],
       "reason": "该 found/not_found 是 ProductionRun job.reconcile 的投影；应在 ProductionRun/shared 定义 GenerationReconcileOutcome as const tuple 与 runtime schema，并按同一顺序生成 MCP JSON Schema enum、callback 类型、IPC validation、UI 类型及校验，随后删除所有本地字面量与手写分支。",
       "site": "src/workbench/production/useProductionStatus.ts::function:useProductionStatus/variable:onPrimaryAction/variable:outcome/type-union"
-    },
-    {
-      "members": [
-        "cancelled",
-        "completed"
-      ],
-      "reason": "ProductionRun 任务中心自己重写了 cancelled/completed 终态子集；应从 ProductionRunStatus 的唯一终态判定 derive，而不是与碰巧同值的视口动画结果共用。",
-      "site": "src/workbench/taskCenter/productionRunTaskCenter.ts::variable:TERMINAL/set"
     }
   ]
 }

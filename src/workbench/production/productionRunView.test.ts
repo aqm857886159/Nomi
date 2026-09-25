@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
-import { buildProductionRunView } from './productionRunView'
+import type { ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
+import { buildProductionRunView, isProductionRunTask, productionRunStatusGroup, type ProductionRunTone } from './productionRunView'
+
+/** 每一组允许的色调：状态签说「进行中」，颜色就不能是「等你确认」的琥珀色（排队组不会出现制作卡）。 */
+const VIEW_TONES_BY_GROUP: Readonly<Record<Exclude<TaskCenterGroup, 'queued'>, readonly ProductionRunTone[]>> = {
+  running: ['working'],
+  attention: ['attention', 'danger', 'neutral'],
+  done: ['success', 'neutral'],
+}
 
 const now = Date.parse('2026-08-08T08:10:00.000Z')
 
@@ -245,12 +253,58 @@ describe('production run view', () => {
       jobs: [{ ...run().jobs[0], progressPercent: undefined, lastVendorStateChangeAt: '2026-08-08T08:00:00.000Z' }],
     })
     const view = buildProductionRunView(value, now, { staleAfterMs: 60_000 })
+    // 2026-09-25 用户截图：状态签「等待确认」+ 标题「供应商长时间没有返回新状态」互相打架。
+    // 供应商慢时 Nomi 仍在查询、用户不用做任何事 → 进行中，不是「等你」。
     expect(view).toMatchObject({
-      tone: 'attention',
+      group: 'running',
+      tone: 'working',
       titleKey: 'generationCommon.production.status.providerStale',
       primaryAction: 'open-stage',
     })
     expect(view.percent).toBeUndefined()
+  })
+
+  it('每一个分支的分组与色调都是允许的搭配（状态签 = 分组名，颜色不许说另一件事）', () => {
+    const statuses: ProductionRunStatus[] = ['draft', 'awaiting_direction', 'awaiting_script_review', 'awaiting_storyboard_review',
+      'awaiting_contract', 'ready', 'running', 'pausing', 'paused', 'needs_attention', 'awaiting_rough_cut_review',
+      'awaiting_export', 'exporting', 'completed', 'cancelled']
+    const job = run().jobs[0]
+    const variants: ProductionRun[] = [
+      ...statuses.map((status) => run({ status })),
+      run({ jobs: [{ ...job, status: 'submission_unknown' }] }),
+      run({ jobs: [{ ...job, lastVendorStateChangeAt: '2026-08-08T07:00:00.000Z' }] }),
+      run({ jobs: [{ ...job, status: 'needs_attention' }] }),
+      run({ status: 'draft', stages: [], gates: [], jobs: [] }),
+      run({ gates: [{ gateId: 'gate-direction-1', scope: 'stage', status: 'waiting', title: 'Direction', summary: '', jobIds: [], createdAt: '2026-08-08T08:00:00.000Z' }] as never }),
+    ]
+    for (const value of variants) {
+      const view = buildProductionRunView(value, now)
+      expect(view.group, `${value.status} → ${view.titleKey}`).not.toBe('queued')
+      expect(VIEW_TONES_BY_GROUP[view.group as Exclude<TaskCenterGroup, 'queued'>], `${value.status} → ${view.titleKey}`).toContain(view.tone)
+    }
+    for (const status of statuses) expect(productionRunStatusGroup(status)).not.toBe('queued')
+  })
+
+  it('已取消的 Run 不再报「Nomi 正在继续制作」', () => {
+    expect(buildProductionRunView(run({ status: 'cancelled' }), now)).toMatchObject({
+      group: 'done', titleKey: 'generationCommon.production.status.cancelled', primaryAction: null,
+    })
+  })
+
+  it('流程身份不上屏：卡上的流程名是翻译键，不是 playbook.name', () => {
+    expect(buildProductionRunView(run({ playbook: { name: 'generation.single-shot', version: '1.0.0' } }), now).playbookLabelKey)
+      .toBe('generationCommon.production.playbook.shotGeneration')
+    expect(buildProductionRunView(run({ playbook: { name: 'someone.else', version: '1.0.0' } }), now).playbookLabelKey)
+      .toBe('generationCommon.production.playbook.unknown')
+  })
+
+  it('Agent 没出价的草稿、丢掉的计划不是任务；摆出报价卡 / 已封存 / 已提交 / 老 Run 才是', () => {
+    expect(isProductionRunTask({ generationPlan: { state: 'draft', cardHidden: true } })).toBe(false)
+    expect(isProductionRunTask({ generationPlan: { state: 'cancelled' } })).toBe(false)
+    expect(isProductionRunTask({ generationPlan: { state: 'draft' } })).toBe(true)
+    expect(isProductionRunTask({ generationPlan: { state: 'sealed' } })).toBe(true)
+    expect(isProductionRunTask({ generationPlan: { state: 'submitted', cardHidden: true } })).toBe(true)
+    expect(isProductionRunTask({})).toBe(true)
   })
 
   it('selects only the latest safe artifact preview', () => {

@@ -293,9 +293,24 @@ describe("production run IPC", () => {
     }));
   });
 
+  it("lists the summary projection in service mode, never full Runs", async () => {
+    const summary = { runId: "run-1", projectId: "project-1", status: "draft", generationPlan: { state: "draft", cardHidden: true } };
+    const service = {
+      repository: { list: vi.fn(() => [summary]) },
+      readFull: vi.fn(() => fakeRun()),
+      command: vi.fn(),
+    };
+    registerProductionRunIpc(service as never);
+
+    await expect(handlers.get("nomi:production-runs:list")?.(trustedEvent(), { projectId: "project-1" })).resolves.toEqual([summary]);
+    expect(service.repository.list).toHaveBeenCalledWith("project-1");
+    expect(service.readFull).not.toHaveBeenCalled();
+    expect(service.command).not.toHaveBeenCalled();
+  });
+
   it("preserves only validated storyboard bindings when crossing into the service", async () => {
     const service = {
-      listFull: vi.fn(() => [fakeRun()]),
+      repository: { list: vi.fn(() => []) },
       readFull: vi.fn(() => fakeRun()),
       createDraft: vi.fn(() => fakeRun()),
       command: vi.fn(async () => ({ run: fakeRun(), events: [] })),

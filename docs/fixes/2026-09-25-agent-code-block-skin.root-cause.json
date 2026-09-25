@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-agent-code-block-skin",
+  "problem_type": "A shared Markdown renderer re-colored the upstream code-block chrome instead of owning its shape, so every fenced block rendered as nested cards with sideways scrolling and code typography regardless of content.",
+  "symptom": "User report 2026-09-25 (\"粘贴框设计有问题吧，为什么这么丑\"): an Agent reply's English prompt under \"英文版（如果用的模型更吃英文）：\" sat in a bordered card with a large bordered copy pill, inside which a second bordered box held the text in a monospace font; the long line was cut off with a horizontal scrollbar. Reproduced in the real app by tests/ux/agent-code-block.walk.mjs on the pre-fix build: 3 bordered boxes per block, horizontal overflow 583-1709px, white-space: pre, ui-monospace for both prompts, copy chrome 38x34px (docs/evidence/2026-09-25-agent-panel-tidy/code-block-before.json).",
+  "direct_cause": "src/workbench/common/NomiMarkdown.tsx gave Streamdown's code-block, code-block-body and copy button only color/radius tokens (`border-nomi-line`, `bg-nomi-ink-05`); Streamdown's own container border + p-2 + header row, bordered body with p-4, bordered/blurred action pill and `[&_pre]:overflow-x-auto` stayed in force, and `[&_pre]:font-nomi-mono` applied to every fence. The Shiki theme also painted the body with the same translucent ink-05, doubling the surface.",
+  "class_root": "No layer decided what a fenced block is for. Models fence pasteable prose (prompts, copy) as often as code to get the copy button, but the renderer had a single code-only presentation and never looked at the fence language or content; the chrome itself was inherited from upstream defaults rather than owned by Nomi's one Markdown owner.",
+  "affected_population": [
+    "Every model reply in the resident Agent panel (creation, canvas, preview, storyboard surfaces) that contains a fenced block",
+    "Every other NomiMarkdown consumer: prompt library preview, skill detail, canvas artifact body, updater release notes (LazyNomiMarkdown)",
+    "Both themes and both locales; Windows shows the horizontal scrollbar permanently"
+  ],
+  "scope_paths": [
+    "src/workbench/common/NomiMarkdown.tsx",
+    "src/workbench/common/codeFenceTypeface.ts"
+  ],
+  "entry_points": [
+    "Agent panel assistant messages and receipts via AgentPanelV4Markdown -> NomiMarkdown",
+    "Prompt library preview, skill detail, canvas artifact body and updater notes via NomiMarkdown / LazyNomiMarkdown"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/vercel/streamdown/blob/main/apps/website/content/docs/styling.mdx",
+      "checked_at": "2026-09-25",
+      "purpose": "Streamdown documents data-streamdown attribute selectors (code-block et al.) as the supported way to restyle its blocks; Nomi keeps using that hook instead of replacing the code renderer."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/vercel/streamdown",
+      "checked_at": "2026-09-25",
+      "purpose": "Installed streamdown 2.6.0 dist: the default `pre` component only clones its child with data-block, MarkdownCode forwards extra props to CodeBlock, and CodeBlock spreads them onto the code-block-body element; this is how data-nomi-code reaches the skin without a parallel renderer."
+    }
+  ],
+  "invariants": [
+    "A fenced block renders exactly one bordered surface; lines wrap instead of scrolling sideways.",
+    "The copy control is a 24px ghost icon pinned to the container's top-right corner.",
+    "Typeface follows the fence: a language the highlighter recognises as code (other than markdown/plain text) stays monospace; otherwise the content decides, and pasteable prose uses the body typeface."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/common/NomiMarkdown.tsx",
+    "tests": [
+      "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+      "src/workbench/common/codeFenceTypeface.test.ts"
+    ],
+    "why": "NomiMarkdown is the single Markdown owner every surface renders through; the skin and the pre adapter live there, and codeFenceTypeface is the one classification it consults, so no consumer can opt out or diverge."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/common/codeFenceTypeface.ts",
+      "symbol": "looksLikeCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/common/NomiMarkdown.tsx",
+      "symbol": "codeFenceTypeface"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/UpdaterDialog.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/NomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "NomiMarkdown"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 9,
+    "why_not": "The seven NomiMarkdown doors are readers of the one renderer, each a distinct surface (agent reply, prompt preview, skill doc, canvas artifact, release notes, the lazy wrapper, and the owner itself); the fix lives inside the owner they all share, so none of them needs to change or merge. The two new write doors are the typeface decision itself: codeFenceTypeface is called only by the NomiMarkdown pre adapter, and looksLikeCode only by codeFenceTypeface."
+  },
+  "generality_proof": "The skin and the typeface decision are applied inside NomiMarkdown, which door-map shows is the only Markdown renderer every surface uses; Streamdown's code path is untouched, so every fence from any model, provider, locale or surface gets one surface, wrapping, a small copy icon and a content-driven typeface.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/common/NomiMarkdown.tsx",
+      "symbol": "NomiMarkdown",
+      "responsibility": "Owns the code-block skin (single surface, wrap, corner copy icon) and tags each fence via the pre adapter."
+    },
+    {
+      "path": "src/workbench/common/codeFenceTypeface.ts",
+      "symbol": "codeFenceTypeface",
+      "responsibility": "Decides code vs prose from the fence language (via the highlighter's supportsLanguage) and, when that is silent, from the content."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "entry_point": "AgentPanelV4Markdown",
+      "disposition": "enforced",
+      "evidence": "Renders through NomiMarkdown profile agent-v4; tests/ux/agent-code-block.walk.mjs measures 1 bordered box, 0px overflow, sans prompts, mono JSON, 24x24 copy icon 5px from the corner in zh and en."
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "entry_point": "PromptPreviewOverlay",
+      "disposition": "enforced",
+      "evidence": "Uses the same NomiMarkdown component and className; agentPanelV4MarkdownKernel.test.ts D11b proves the fence tag is emitted by the shared renderer independent of profile."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "entry_point": "ArtifactBody plain-text pre",
+      "disposition": "not-affected",
+      "evidence": "Its own <pre> renders raw non-Markdown artifact files (technical text, not model fences); tool-input JSON pres in AgentPanelV4Receipt/Cards and error stacks are genuine code and keep their mono styling."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any reply from any model that fences a prompt or long line hits the same renderer on every surface; the defect is structural, not tied to one message.",
+    "same_class_scan": [
+      "door-map NomiMarkdown LazyNomiMarkdown: 7 read doors, all through the one owner",
+      "rg '<pre' src --glob '*.tsx': AgentPanelV4Cards/Receipt tool JSON, AiAssistedOnboardingCard MCP snippet, ErrorBoundary stack, ArtifactBody plain file, NodeErrorReport, ProvenancePanel - all technical text outside model fences",
+      "rg 'data-streamdown' src: only NomiMarkdown styles code blocks"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/common/NomiMarkdown.tsx",
+    "invariant": "Every fenced block rendered anywhere in Nomi goes through one skin and one typeface classifier.",
+    "failure_mode": "An unrecognised or missing fence language falls back to the content heuristic; the heuristic defaults to prose only when no code signal (brackets, statement ends, keywords, operators, symbol density) is present.",
+    "exception_policy": "none",
+    "strategy": "Own the code-block chrome through Streamdown's documented data-streamdown hooks inside the single Markdown owner and tag each fence in the pre adapter, instead of per-surface styling.",
+    "artifacts": [
+      "src/workbench/common/NomiMarkdown.tsx",
+      "src/workbench/common/codeFenceTypeface.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+    "src/workbench/common/codeFenceTypeface.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/common/codeFenceTypeface.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/common/NomiMarkdown.tsx"
+    ],
+    "rationale": "The old recolor-only skin (bordered body, bordered action pill, horizontal pre scrolling, unconditional mono, ink-05 Shiki background) is replaced in place; no second skin remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Streamdown 2.6.0 behaves as documented; Nomi now owns the presentation through the supported data-streamdown selectors and the standard pre component override, so no upgrade or patch is involved.",
+    "exit_criteria": []
+  },
+  "migration": "Presentation only; no persisted data. Existing conversations re-render with the new skin.",
+  "residual_risks": [
+    "The content heuristic is a judgement: an unfenced-language one-line shell command without code punctuation (e.g. `npm install foo`) renders in the body typeface; models normally tag those as bash.",
+    "The language header (e.g. `json`) is no longer shown; the copy icon replaces it as the only chrome.",
+    "Other NomiMarkdown surfaces (prompt preview, skill detail, artifact body, updater notes) were verified through the shared renderer test, not each walked in the real app."
+  ]
+}

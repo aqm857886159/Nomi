@@ -1,0 +1,125 @@
+{
+  "label": "before",
+  "observations": {
+    "zh": {
+      "sections": [],
+      "rows": [
+        {
+          "id": "production-run:op-1275b8e6-b11c-4d75-997d-208a711a1383",
+          "group": "running",
+          "text": "Nomi 制作 · generation.single-shot 等待开始"
+        },
+        {
+          "id": "production-run:op-c4f4819c-b7a0-4588-bdb1-03280e6fbbd7",
+          "group": "running",
+          "text": "Nomi 制作 · generation.single-shot 等待开始"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-video-mufyztlh-bbgx",
+          "group": "done",
+          "text": "视频 已保存到项目"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-video-mufyztlh-3msm",
+          "group": "done",
+          "text": "视频 已保存到项目"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlg-t16d",
+          "group": "done",
+          "text": "小鹿 等待超时 · 上游可能仍在跑，可重新拉取"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlg-g208",
+          "group": "done",
+          "text": "相机店内景 已保存到项目"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlc-k3ch",
+          "group": "done",
+          "text": "老陈 等待超时 · 上游可能仍在跑，可重新拉取"
+        }
+      ],
+      "cards": [
+        {
+          "group": null,
+          "tone": "attention",
+          "chip": "等待确认",
+          "title": "供应商长时间没有返回新状态",
+          "text": "来自 Nomi 等待确认 供应商长时间没有返回新状态 Nomi 仍会查询已有任务，但不会因为等待过久而重复提交。 generation.single-shot 0 / 4 已完成 查看当前阶段 制作详情"
+        }
+      ],
+      "panel": "任务 3 进行中 进行中 3 来自 Nomi 等待确认 供应商长时间没有返回新状态 Nomi 仍会查询已有任务，但不会因为等待过久而重复提交。 generation.single-shot 0 / 4 已完成 查看当前阶段 制作详情 Nomi 制作 · generation.single-shot 等待开始 Nomi 制作 · generation.single-shot 等待开始 已完成 5 视频 已保存到项目 视频 已保存到项目 小鹿 等待超时 · 上游可能仍在跑，可重新拉取 相机店内景 已保存到项目 老陈 等待超时 · 上游可能仍在跑，可重新拉取"
+    },
+    "en": {
+      "sections": [],
+      "rows": [
+        {
+          "id": "production-run:op-1275b8e6-b11c-4d75-997d-208a711a1383",
+          "group": "running",
+          "text": "Nomi production · generation.single-shot Waiting to start"
+        },
+        {
+          "id": "production-run:op-c4f4819c-b7a0-4588-bdb1-03280e6fbbd7",
+          "group": "running",
+          "text": "Nomi production · generation.single-shot Waiting to start"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-video-mufyztlh-bbgx",
+          "group": "done",
+          "text": "视频 Saved to project"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-video-mufyztlh-3msm",
+          "group": "done",
+          "text": "视频 Saved to project"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlg-t16d",
+          "group": "done",
+          "text": "小鹿 Timed out · may still be running upstream, can re-fetch"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlg-g208",
+          "group": "done",
+          "text": "相机店内景 Saved to project"
+        },
+        {
+          "id": "batch-mufyztli-1:gen-v2-image-mufyztlc-k3ch",
+          "group": "done",
+          "text": "老陈 Timed out · may still be running upstream, can re-fetch"
+        }
+      ],
+      "cards": [
+        {
+          "group": null,
+          "tone": "attention",
+          "chip": "Approval needed",
+          "title": "The provider has not returned a new state for a while",
+          "text": "From Nomi Approval needed The provider has not returned a new state for a while Nomi will keep checking the existing task without resubmitting it because of the delay. generation.single-shot 0 / 4 complete Open current stage Production details"
+        }
+      ],
+      "panel": "Tasks 3 running Running 3 From Nomi Approval needed The provider has not returned a new state for a while Nomi will keep checking the existing task without resubmitting it because of the delay. generation.single-shot 0 / 4 complete Open current stage Production details Nomi production · generation.single-shot Waiting to start Nomi production · generation.single-shot Waiting to start Done 5 视频 Saved to project 视频 Saved to project 小鹿 Timed out · may still be running upstream, can re-fetch 相机店内景 Saved to project 老陈 Timed out · may still be running upstream, can re-fetch"
+    }
+  },
+  "listedRuns": [
+    {
+      "runId": "op-walk-stale-multishot",
+      "status": "running",
+      "plan": "submitted",
+      "jobs": 3
+    },
+    {
+      "runId": "op-1275b8e6-b11c-4d75-997d-208a711a1383",
+      "status": "draft",
+      "plan": "draft",
+      "jobs": 0
+    },
+    {
+      "runId": "op-c4f4819c-b7a0-4588-bdb1-03280e6fbbd7",
+      "status": "draft",
+      "plan": "draft",
+      "jobs": 0
+    }
+  ]
+}
