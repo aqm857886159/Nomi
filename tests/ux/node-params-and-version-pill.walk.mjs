@@ -189,7 +189,15 @@ try {
   await fitView()
 
   // ═══ P 平移完立刻点卡之后：浮框 / 参数条 / 「2 版」托盘都看得见、点得到 ═══
-  await dragPan(40, 10)
+  // 平移量 = 把这张卡挪到舞台中间（人会停在的位置）。2026-09-25 起浮框钉在节点正下方、定宽 560、
+  // 被挡就挡：卡贴着舞台边时浮框本来就会伸出去，那一截点不到是拍板的结果，不是这条要测的东西。
+  const emptyCentreDelta = await win.evaluate(({ stageSelector, nodeSelector }) => {
+    const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
+    const node = document.querySelector(nodeSelector)?.getBoundingClientRect()
+    if (!stage || !node) return { dx: 40, dy: 10 }
+    return { dx: (stage.left + stage.right) / 2 - (node.left + node.right) / 2, dy: stage.top + stage.height * 0.3 - (node.top + node.bottom) / 2 }
+  }, { stageSelector: CANVAS_STAGE_SELECTOR, nodeSelector: sel('empty-image') })
+  await dragPan(Math.round(emptyCentreDelta.dx), Math.round(emptyCentreDelta.dy))
   const pe = await nodePoint('empty-image')
   await humanClick(pe)
   await expect(win.locator(sel('empty-image')), '空图片卡没选中').toHaveClass(/selected/)

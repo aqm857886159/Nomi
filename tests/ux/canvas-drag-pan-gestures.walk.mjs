@@ -635,6 +635,26 @@ try {
   await getWin().waitForTimeout(250)
   assert((await selectedNodeIds()).length === 0, '半扫之前先把选区清空（否则选上了也说明不了问题）')
 
+  // 2026-09-25 起新卡优先落进可见区的空位——used 夹具里那常是贴着底边的一条缝，四周没有起手的空白。
+  // 像用户一样中键把两张卡拖到舞台中间再扫（用户自己的平移，允许动画布）。
+  const ownCentre = await getWin().evaluate((ownNode) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
+    const rects = Array.from(document.querySelectorAll(ownNode)).map((node) => node.getBoundingClientRect())
+    if (!stage || !rects.length) return null
+    return {
+      dx: (stage.left + stage.right) / 2 - (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2,
+      dy: (stage.top + stage.bottom) / 2 - (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2,
+    }
+  }, OWN.node)
+  if (ownCentre && (Math.abs(ownCentre.dx) > 40 || Math.abs(ownCentre.dy) > 40)) {
+    const panFrom = await findBlankPoint()
+    await getWin().mouse.move(panFrom.x, panFrom.y)
+    await getWin().mouse.down({ button: 'middle' })
+    await getWin().mouse.move(panFrom.x + ownCentre.dx, panFrom.y + ownCentre.dy, { steps: 12 })
+    await getWin().mouse.up({ button: 'middle' })
+    await waitForCanvasViewportSettled(getWin())
+  }
+
   const partialGesture = await getWin().evaluate(({ paneSelector, inset, ownNode }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll(ownNode))
