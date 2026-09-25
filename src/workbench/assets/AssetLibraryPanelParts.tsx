@@ -279,6 +279,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
   draggable = true,
   dragHint: dragHintProp,
   onSelect,
+  onToggleSelect,
   onDragStartAsset,
   onPreview,
   onDelete,
@@ -290,6 +291,8 @@ export const AssetGridCell = React.memo(function AssetGridCell({
   draggable?: boolean
   dragHint?: string
   onSelect?: (asset: AssetRef, event: AssetGridActivationEvent) => void
+  /** 右上角对勾＝多选开关（加进 / 移出，不动其它已选）；不传则对勾只是状态标记。 */
+  onToggleSelect?: (asset: AssetRef) => void
   onDragStartAsset?: (asset: AssetRef, event: React.DragEvent<HTMLDivElement>) => void
   /** 双击放大预览（#52）；缺省则不响应双击。 */
   onPreview?: (asset: AssetRef) => void
@@ -326,19 +329,33 @@ export const AssetGridCell = React.memo(function AssetGridCell({
     ? asset.kind === 'audio' ? t('assetLibrary.dragAudio') : t('assetLibrary.dragCanvas')
     : asset.kind === 'model3d' ? t('assetLibrary.previewModel3d') : t('assetLibrary.selectableProjectAsset'))
   const mediaAspectRatio = assetAspectRatio(asset)
-  const check = selectable ? (
-    <span
-      className={cn(
-        'absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-pill border shadow-nomi-sm',
-        selected
-          ? 'border-nomi-accent bg-nomi-accent text-nomi-paper'
-          : 'border-nomi-line bg-nomi-paper/85 text-transparent group-hover:text-nomi-ink-40',
-      )}
-      aria-hidden="true"
+  const checkClassName = cn(
+    'absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-pill border shadow-nomi-sm',
+    selected
+      ? 'border-nomi-accent bg-nomi-accent text-nomi-paper'
+      : 'border-nomi-line bg-nomi-paper/85 text-transparent group-hover:text-nomi-ink-40',
+  )
+  const check = !selectable ? null : onToggleSelect ? (
+    <button
+      type="button"
+      className={cn(checkClassName, 'z-[2] cursor-pointer hover:border-nomi-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40')}
+      data-asset-select-toggle={asset.name}
+      aria-pressed={selected}
+      aria-label={t('assetLibrary.toggleSelectNamed', { name: asset.name })}
+      draggable={false}
+      onClick={(event) => {
+        event.stopPropagation()
+        onToggleSelect(asset)
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
+      <IconCheck size={12} stroke={2.4} aria-hidden="true" />
+    </button>
+  ) : (
+    <span className={checkClassName} aria-hidden="true">
       <IconCheck size={12} stroke={2.4} />
     </span>
-  ) : null
+  )
   const deleteButton = onDelete ? (
     <button
       type="button"
