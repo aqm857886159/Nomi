@@ -17,9 +17,9 @@ import { useGenerationQueueStore } from '../generationCanvas/runner/generationQu
 import { useProductionRunStore } from '../production/productionRunStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { TaskCenterPanel } from './TaskCenterPanel'
-import { buildTaskCenterView, resolveTaskButtonTone } from './taskCenterEntries'
-import { buildProductionRunTaskRows, mergeProductionRunSummaries } from './productionRunTaskCenter'
-import { buildExportJobTaskRows } from './exportJobTaskCenter'
+import { buildTaskCenterView, pendingTaskCount, resolveTaskButtonTone, summarizeTaskCenterRows } from './taskCenterEntries'
+import { buildProductionRunTaskRows, mergeProductionRunSummaries, productionRunTaskLabels } from './productionRunTaskCenter'
+import { buildExportJobTaskRows, exportJobTaskLabels } from './exportJobTaskCenter'
 import { useBatchFinishNotifier } from './useBatchFinishNotifier'
 
 type Props = {
@@ -109,58 +109,15 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
     }
   }, [])
 
+  // 与任务面板同一套行与汇总（面板关着时没有打开的整卡，制作行按摘要状态分组；计数只看「没结束」，两种分法一致）。
   const summary = React.useMemo(() => {
-    const generation = buildTaskCenterView({ entries, batches, nodes, fallbackTitle: '', now: Date.now() }).summary
-    const production = buildProductionRunTaskRows(resolvedProductionRuns, {
-      title: t('taskCenter.productionRun.title'),
-      statuses: {
-        draft: t('taskCenter.productionRun.statuses.draft'),
-        awaiting_direction: t('taskCenter.productionRun.statuses.awaitingDirection'),
-        awaiting_script_review: t('taskCenter.productionRun.statuses.awaitingScriptReview'),
-        awaiting_storyboard_review: t('taskCenter.productionRun.statuses.awaitingStoryboardReview'),
-        awaiting_contract: t('taskCenter.productionRun.statuses.awaitingContract'),
-        ready: t('taskCenter.productionRun.statuses.ready'),
-        running: t('taskCenter.productionRun.statuses.running'),
-        pausing: t('taskCenter.productionRun.statuses.pausing'),
-        paused: t('taskCenter.productionRun.statuses.paused'),
-        needs_attention: t('taskCenter.productionRun.statuses.needsAttention'),
-        awaiting_rough_cut_review: t('taskCenter.productionRun.statuses.awaitingRoughCutReview'),
-        awaiting_export: t('taskCenter.productionRun.statuses.awaitingExport'),
-        exporting: t('taskCenter.productionRun.statuses.exporting'),
-        completed: t('taskCenter.productionRun.statuses.completed'),
-        cancelled: t('taskCenter.productionRun.statuses.cancelled'),
-      },
-      draftShots: (count: number) => t('taskCenter.productionRun.draftShots', { count }),
-    })
-    const exports = buildExportJobTaskRows(resolvedExportJobs, {
-      title: t('taskCenter.exportJob.title'),
-      failed: t('taskCenter.exportJob.failed'),
-      missingFile: t('taskCenter.exportJob.missingFile'),
-      diskFull: t('taskCenter.exportJob.diskFull'),
-      permissionDenied: t('taskCenter.exportJob.permissionDenied'),
-      mediaUnreadable: t('taskCenter.exportJob.mediaUnreadable'),
-      statuses: {
-        queued: t('taskCenter.exportJob.statuses.queued'),
-        preparing: t('taskCenter.exportJob.statuses.preparing'),
-        planning: t('taskCenter.exportJob.statuses.planning'),
-        rendering: t('taskCenter.exportJob.statuses.rendering'),
-        encoding: t('taskCenter.exportJob.statuses.encoding'),
-        muxing: t('taskCenter.exportJob.statuses.muxing'),
-        finalizing: t('taskCenter.exportJob.statuses.finalizing'),
-        succeeded: t('taskCenter.exportJob.statuses.succeeded'),
-        failed: t('taskCenter.exportJob.statuses.failed'),
-        cancelled: t('taskCenter.exportJob.statuses.cancelled'),
-      },
-    })
-    return {
-      ...generation,
-      running: generation.running + production.filter((row) => row.group === 'running').length + exports.filter((row) => row.group === 'running').length,
-      queued: generation.queued + production.filter((row) => row.group === 'queued').length + exports.filter((row) => row.group === 'queued').length,
-      failed: generation.failed + exports.filter((row) => row.outcome === 'error').length,
-    }
+    const generation = buildTaskCenterView({ entries, batches, nodes, fallbackTitle: '', now: Date.now() })
+    const production = buildProductionRunTaskRows(resolvedProductionRuns, productionRunTaskLabels((key, options) => t(key, options)))
+    const exports = buildExportJobTaskRows(resolvedExportJobs, exportJobTaskLabels((key) => t(key)))
+    return summarizeTaskCenterRows([...generation.rows, ...production, ...exports], generation.summary.pausedBatchId)
   }, [entries, batches, nodes, resolvedExportJobs, resolvedProductionRuns, t])
   const tone = resolveTaskButtonTone(summary)
-  const pending = summary.running + summary.queued
+  const pending = pendingTaskCount(summary)
 
   return (
     <>

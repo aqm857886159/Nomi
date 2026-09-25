@@ -37,6 +37,7 @@ const labels = {
     completed: '制作完成',
     cancelled: '已取消',
   },
+  playbook: (name: string) => (name === 'brand.promo' ? '品牌宣传片' : '镜头生成'),
 }
 
 describe('production run task-center projection', () => {
@@ -103,13 +104,13 @@ describe('production run task-center projection', () => {
     expect(row).not.toHaveProperty('elapsedMs')
   })
 
-  it('keeps human approval states active and routes to the exact Run', () => {
+  it('等人拍板的状态进「等你处理」组，并直达那一份 Run', () => {
     const [row] = buildProductionRunTaskRows([
       summary({ status: 'awaiting_rough_cut_review', runId: 'run-review-2' }),
     ], labels)
 
     expect(row).toMatchObject({
-      group: 'running',
+      group: 'attention',
       phaseText: '等待审核粗剪',
       target: { projectId: 'project-a', runId: 'run-review-2' },
     })
@@ -123,5 +124,31 @@ describe('production run task-center projection', () => {
 
     expect(rows[0]).toMatchObject({ group: 'done', outcome: 'success' })
     expect(rows[1]).toMatchObject({ group: 'done', outcome: 'cancelled' })
+  })
+
+  // 2026-09-25 用户截图：一张在跑的卡 + 两行「Nomi 制作 · generation.single-shot / 等待开始」。
+  it('Agent 没出价的草稿、丢掉的计划不成行；在跑的那份不受影响', () => {
+    const rows = buildProductionRunTaskRows([
+      summary({ runId: 'op-running', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'submitted' } }),
+      summary({ runId: 'op-hidden-a', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'draft', cardHidden: true } }),
+      summary({ runId: 'op-hidden-b', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'draft', cardHidden: true } }),
+      summary({ runId: 'op-discarded', status: 'draft', playbook: { name: 'generation.single-shot', version: '1.0.0' }, generationPlan: { state: 'cancelled' } }),
+    ], labels)
+    expect(rows.map((row) => row.runId)).toEqual(['op-running'])
+  })
+
+  it('行标题永远不含流程身份串：有作品名用作品名，没有用流程的人话名', () => {
+    const rows = buildProductionRunTaskRows([
+      summary({ runId: 'a', playbook: { name: 'generation.single-shot', version: '1.0.0' } }),
+      summary({ runId: 'b', playbook: { name: 'generation.single-shot', version: '1.0.0' }, authoring: { title: '小鹿进城' } }),
+      summary({ runId: 'c' }),
+    ], labels)
+    expect(rows.map((row) => row.title)).toEqual(['Nomi 制作 · 镜头生成', 'Nomi 制作 · 小鹿进城', 'Nomi 制作 · 品牌宣传片'])
+    for (const row of rows) expect(row.title).not.toMatch(/generation\.single-shot|brand\.promo/)
+  })
+
+  it('面板里打开成整卡的那份用它完整判断出的分组（卡在哪组 = 卡上写什么）', () => {
+    const [row] = buildProductionRunTaskRows([summary({ runId: 'run-open', status: 'running' })], labels, { runId: 'run-open', group: 'attention' })
+    expect(row.group).toBe('attention')
   })
 })

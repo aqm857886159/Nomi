@@ -206,7 +206,10 @@ export function registerProductionRunIpc(
     : null;
   const repository: ProductionRunRepository | null = service ? null : (repositoryOrService as ProductionRunRepository || createProductionRunRepository());
   const read = (projectId: string, runId: string) => service ? service.readFull(projectId, runId) : repository!.read(projectId, runId);
-  const list = (projectId: string) => repository ? repository.list(projectId) : service!.listFull(projectId);
+  // The list is the summary projection in both modes. It used to hand the renderer full Runs in service
+  // mode (every job, gate and plan, every 1.5s) while the bridge type promised summaries, so fields that
+  // only the projection derives (the draft line, plan presence) never reached the task list.
+  const list = (projectId: string) => (repository ?? service!.repository).list(projectId);
   ipcMain.handle("nomi:production-runs:list", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const raw = objectValue(payload, "production run list request");
