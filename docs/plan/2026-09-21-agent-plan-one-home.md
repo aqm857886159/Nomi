@@ -1,5 +1,7 @@
 # Agent 产出的分镜「一个家」（批次 A · Pass 2）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 分支 `integration/core-a-salvage-20260921`，起点 `eedad89b9`（Pass 1 完成态）。
 - 规格正本：scratchpad `crosscheck-agent-plan-home.md`（Q1–Q5 + 推荐 A）、`user-decisions.md`、`MASTER-PLAN.md` Pass 2 段。
 - 审计来源：D 主题 B/C/E/F/J/N、A 的 T5/T6/T11、B1 的 T3/T9、E 的 T4/T15/S4。

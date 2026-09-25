@@ -1,5 +1,7 @@
 # Antigravity CLI Windows 契约修复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：实现与本地验证完成，待 PR 审查；Windows 真机待群里那位用户用 RC 验。
 
 ## 范围与验收

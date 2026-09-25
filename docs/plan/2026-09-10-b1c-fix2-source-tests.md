@@ -1,5 +1,7 @@
 # B1c-fix2：测试从源码加载
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：已实现，局部与真实旅程验证通过；完整 gates 与远端交付见 PR #646。
 
 症状：#646 head 2632e87be 的 Unit / walkthrough contracts 找不到 dist-electron；resident bash denial 超时待独立验证。

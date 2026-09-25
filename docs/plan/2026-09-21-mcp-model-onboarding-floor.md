@@ -1,5 +1,7 @@
 # 接模型的底线形状（MCP 面 · F1–F6）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-09-21 · lane `lane/salvage-mcp-onboarding-20260921` · 规格正本：scratchpad `design-model-onboarding-floor.md`（§3 删除清单 / §4 密钥 / §7 三个生产者 / §11 F1–F6 / §12 验收数字）与 `mcp-onboarding-higgsfield.md`（K1–K10 真机轨迹）
 > 衡量标准只有一个（用户 09-21 拍板）：**接入成功率**。证明不了它提高成功率、且删掉不丢安全的步骤一律真删，不留旧流程并行、不留 fallback。
 
