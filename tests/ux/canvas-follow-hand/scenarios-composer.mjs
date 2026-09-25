@@ -48,8 +48,7 @@ export async function typingOneKey(s, idleId) {
   return { ...renders, otherNodeSample, composerOrFocus: (renders.byRegion.composer || 0) + (renders.byRegion.focusNode || 0) }
 }
 
-const listOpen = (s) => s.win.evaluate(() => Boolean(document.querySelector('[data-mention-list] [data-mention-item]')))
-async function waitList(s, ms = 2500) { for (let i = 0; i < ms / 40; i++) { if (await listOpen(s)) return true; await sleep(40) } return false }
+const waitList = (s, ms = 2500) => s.win.locator('[data-mention-list] [data-mention-item]').first().waitFor({ state: 'attached', timeout: ms }).then(() => true, () => false)
 
 /** 全能参考模式下 @：打 @ → 列表出现 → 缩略图全部出现 → 回车选中 → chip 出现；3 轮 + 1 轮渲染计数。 */
 export async function atMention(s, idleId, { rounds = 3 } = {}) {

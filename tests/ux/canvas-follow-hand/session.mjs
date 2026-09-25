@@ -65,14 +65,6 @@ async function seedPlaceholderKey(app, settingsDir) {
   fs.writeFileSync(file, JSON.stringify(catalog))
 }
 
-function reuseFixture(projDir) {
-  const files = [path.join(projDir, 'project.json'), path.join(projDir, '.nomi', 'project.json')].filter((f) => fs.existsSync(f))
-  files.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
-  const doc = JSON.parse(fs.readFileSync(files[0], 'utf8'))
-  const nodes = (doc.payload?.generationCanvas || doc.generationCanvas).nodes
-  return { projDir, projectId: doc.id, name: doc.name, nodeCount: nodes.length, videoIds: nodes.filter((n) => n.kind === 'video' && n.result).map((n) => n.id) }
-}
-
 async function setWindowViewport(app, win) {
   const bw = await app.browserWindow(win)
   await bw.evaluate((w, size) => w.setContentSize(size.width, size.height), VIEWPORT)
@@ -80,16 +72,13 @@ async function setWindowViewport(app, win) {
   return win.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio }))
 }
 
-/** tempRoot 给定时复用同一份 profile（user-data 里的 GPU 着色器缓存等会留着），用来比「装机后第一次」与「之后每次启动」。 */
-export async function openCanvasSession({ repo, workRoot, label, media, fixtureOptions = {}, tempRoot: reuseRoot = null }) {
-  const tempRoot = reuseRoot || path.join(workRoot, `cfh-${label}-${Date.now()}`)
+export async function openCanvasSession({ repo, workRoot, label, media, fixtureOptions = {} }) {
+  const tempRoot = path.join(workRoot, `cfh-${label}-${Date.now()}`)
   fs.mkdirSync(tempRoot, { recursive: true })
   const projectsDir = path.join(tempRoot, 'projects')
   const settingsDir = path.join(tempRoot, 'settings')
   fs.mkdirSync(projectsDir, { recursive: true })
-  // 复用 profile 时项目也原样复用：重写 project.json 会被当成「另一台电脑的更新」拦在库里。
-  const existing = reuseRoot && fs.existsSync(projectsDir) ? fs.readdirSync(projectsDir).find((d) => d.startsWith('cfh-')) : null
-  const fixture = existing ? reuseFixture(path.join(projectsDir, existing)) : buildProject(projectsDir, media, fixtureOptions)
+  const fixture = buildProject(projectsDir, media, fixtureOptions)
   const { launchNomiApp } = await import(pathToFileURL(path.join(repo, 'tests/ux/_launchApp.mjs')).href)
   const launched = await launchNomiApp({
     name: `cfh-${label}`, tempRoot, settingsDir, projectsDir, settleMs: 0, syntheticCredentialStorage: true,

@@ -33,14 +33,6 @@ export function shouldBackfillPreview(result: GenerationNodeResult | null | unde
   return String(result.url || '').trim().startsWith('nomi-local://')
 }
 
-function previewFields(result: GenerationNodeResult, sourceUrl: string, preview: MediaPreview | null | undefined): Partial<GenerationNodeResult> {
-  const thumbnailUrl = String(preview?.thumbnailUrl || '').trim()
-  return {
-    // 落盘边界派生了预览就用预览；图片没派生出来时源即预览；视频没封面就不带 thumbnailUrl（远端封面链已随源一起失效）。
-    ...(thumbnailUrl ? { thumbnailUrl } : result.type === 'image' ? { thumbnailUrl: sourceUrl } : { thumbnailUrl: undefined }),
-  }
-}
-
 export function relocalizedResultPatch(
   result: GenerationNodeResult,
   localUrl: string,
@@ -49,20 +41,21 @@ export function relocalizedResultPatch(
 ): GenerationNodeResult | null {
   const next = String(localUrl || '').trim()
   if (!next || next === result.url) return null
+  const previewUrl = String(preview?.thumbnailUrl || '').trim()
   return {
     ...result,
     url: next,
     providerUrl: result.providerUrl || result.url,
-    ...previewFields(result, next, preview),
+    // 落盘边界派生了预览就用预览；图片没派生出来时源即预览；视频没封面就不带 thumbnailUrl（远端封面链已随源一起失效）。
+    thumbnailUrl: previewUrl || (result.type === 'image' ? next : undefined),
     ...(assetId ? { assetId } : {}),
   }
 }
 
 export function backfilledPreviewPatch(result: GenerationNodeResult, preview: MediaPreview | null | undefined): GenerationNodeResult | null {
-  const fields = previewFields(result, String(result.url || ''), preview)
-  // 视频没派生出封面 → 不写（下次打开再试）；图片没派生出预览 = 源本身就是预览尺寸，记下来不再重试。
-  if (!fields.thumbnailUrl) return null
-  return { ...result, ...fields }
+  const thumbnailUrl = String(preview?.thumbnailUrl || '').trim()
+  // 没派生出封面 → 不写（下次打开再试）。
+  return thumbnailUrl ? { ...result, thumbnailUrl } : null
 }
 
 const attempted = new Set<string>()
