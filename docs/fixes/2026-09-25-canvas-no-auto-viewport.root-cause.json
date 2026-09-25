@@ -166,8 +166,8 @@
       "evidence": "focus dispatch removed; canvasControlsStructure.test.ts asserts the file no longer mentions the focus event"
     },
     {
-      "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
-      "entry_point": "useAutoFitOnLoad",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "open-time auto fit (useAutoFitOnLoad, its only caller; hook deleted 2026-09-26)",
       "disposition": "enforced",
       "evidence": "Deleted 2026-09-26 (coordinator ruling): it never took effect on main — it decided 350ms after nodes appeared, before they were measured, so the fit bounds were empty. Evidence: the magnetic-handle walk measured zoom=1 on main and the perf harness saw mounted < total. Repairing it would move the viewport on every project open (categoryViewports is project-lifetime memory) and mount every node of a large project. canvasViewportMovers.structure.test.ts asserts the file stays deleted."
     },
