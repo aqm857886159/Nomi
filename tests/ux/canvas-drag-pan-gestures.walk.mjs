@@ -430,6 +430,10 @@ try {
   OWN.image = `.generation-canvas-v2-node[data-node-id="${ownId('image')}"]`
   OWN.video = `.generation-canvas-v2-node[data-node-id="${ownId('video')}"]`
   OWN.node = `${OWN.image}, ${OWN.video}`
+  // 2026-09-25 起新卡放不进可见区时落在屏外、点边缘提示过去；过去之后第一张可能出了屏，被 React Flow
+  // 按可见性卸载（DOM 里数不到）。数之前像人一样点真实的「适应视图」把两张都收进来——这是用户自己的动作，
+  // 允许移动画布；画布「自己不动」那条已在上面 expectArrivalsReachable 里断过。
+  if ((await getWin().locator(OWN.node).count()) < 2) await frameOwnCards()
   const nodeIds = await getWin().evaluate((ownNode) =>
     Array.from(document.querySelectorAll(ownNode)).map((node) => ({
       id: node.getAttribute('data-node-id'),

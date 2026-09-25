@@ -25,3 +25,22 @@
 ```sh
 node docs/design/mockups/2026-09-25-canvas-ux-batch/build.mjs
 ```
+
+## 拍板结果（2026-09-25，5 题全按默认）
+
+浮框定宽 560 · 单次 ≥ 10 点才确认 · 打开项目只在「本来有内容且没有可用视角」时摆一次全貌 · Agent 跨分类不自动切（边缘提示点了才切）· 「展开」不给 Agent 付费卡。
+
+## 实现后逐项对账（真机：打包 Electron，Windows，used 夹具 1280×800，zh-CN + en）
+
+| 样张里的承诺 | 真机结果 | 证据 |
+|---|---|---|
+| 浮框钉在节点正下方，不躲、不翻、不压节点 | 选中靠下的节点：浮框顶 = 节点底 + 14，中线对齐；伸出屏幕与被「画面小窗」挡住的那截就挡着 | 探针量值 `cardTop 330.5 = nodeBottom 316.5 + 14`，[截图](evidence/after-zh-01-composer-low-node.jpg) |
+| 宽度恒 560，与缩放、模型、语言无关 | 100% 与 80% 缩放、图片 / 视频、zh / en 都是 560 | 探针量值 `cardWidth 560` |
+| 提示词装不下才出现展开钮，点开原地变高、再点收起 | 5 行装得下时不出现；6 遍长提示词时出现，展开后 `data-prompt-expanded=true` | [展开后](evidence/after-zh-04-long-prompt-expanded.jpg) |
+| ↑ 左边常驻点数，未标价写「未标价」 | `🪙 0.3`；×2 变 `🪙 0.6`；未标价模型显示「未标价 / Unpriced」 | [zh](evidence/after-zh-05d-footer-cost.png) · [en](evidence/after-en-05d-footer-cost.png) |
+| 单个、不贵、自己点 → 不弹 | 点 ↑ 后 1.5s 内无确认框，节点直接进入生成（夹具供应商随后报错是夹具不支持查询，与本改动无关） | 探针 `dialog count 0` |
+| 一下跑 ≥2 个 → 弹 | ×2 点 ↑ 弹「开始生成 · 将生成 2 张画面 · 0.6 点」 | [截图](evidence/after-zh-05c-variant-two-dialog.jpg) |
+| 新建不挪画布 | 工具条新建、⌘D 复制前后 `.react-flow__viewport` transform 不变 | 探针量值 |
+| 落在屏外 → 边缘提示，点了才过去，看见了自己消失 | 「新节点在下方 ↓」「2 个新节点在下方 ↓ / 2 new nodes below」；点后画布框住新节点、提示消失 | [新建](evidence/after-zh-02-new-node-no-pan.jpg) · [⌘D zh](evidence/after-zh-06-duplicate-hint.jpg) · [⌘D en](evidence/after-en-06-duplicate-hint.jpg) · [点提示后](evidence/after-zh-07-after-hint-click.jpg) |
+
+与样张不同的一处：样张里提示胶囊贴边位置是示意；实现中下方那颗抬在底部停靠区之上（`bottom-20`），左侧那颗让开左缘工具条（`left-16`）。
