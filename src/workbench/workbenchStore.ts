@@ -115,8 +115,11 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   rememberCategoryViewport: (categoryId: string, viewport: GraphViewport) => void
   creationSelectionText: string; storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
   creationAiModeId: string
-  /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
-  creationActiveSkill: { key: string; name: string; contentHash?: string } | null
+  /**
+   * 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。
+   * 只存 key（与恢复草稿时钉版本的 contentHash）——**不存名字**：名字由 `skillLabelForKey` 渲染时派生。
+   */
+  creationActiveSkill: { key: string; contentHash?: string } | null
   /**
    * 「请画布适应视图」一次性信号（nonce，仿 createCategoryNonce）。bump 一次 = 请生成画布平滑 fit 一次（并切到目标分类）。
    * **只许用户显式动作 bump**（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」）：以前落画布、导入、切图、
@@ -162,7 +165,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   setProjectSidebarWidth: (width: number) => void
   setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
-  setCreationActiveSkill: (skill: { key: string; name: string; contentHash?: string } | null) => void
+  setCreationActiveSkill: (skill: { key: string; contentHash?: string } | null) => void
   /** 请生成画布平滑 fit 一次；可显式切到并绑定目标分类。 */
   requestCanvasFit: (categoryId?: string) => void
   /** Resident ProjectAgent composer state. Draft/attachments are ephemeral UI state, not Host history. */

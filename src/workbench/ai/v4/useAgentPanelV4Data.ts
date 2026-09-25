@@ -14,7 +14,7 @@ import { projectV4Intervention } from './agentPanelV4Intervention'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto, type ModelCatalogVendorDto } from '../../api/modelCatalogApi'
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
-import { skillDisplayTitle } from '../../skillLibrary/skillDisplay'
+import { skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
@@ -74,6 +74,8 @@ export type AgentPanelV4Data = Readonly<{
   selectedModel: ModelCatalogModelDto | undefined
   modelLabel: string
   skills: readonly SkillListItemDto[]
+  /** 技能 key → 界面上的名字（`skillLabelForKey`）。气泡、composer、恢复草稿行都读它，谁都不另存名字。 */
+  skillLabel: (key: string) => string
   /** composer 上方的活 chip（还没发出去的那些）。 */
   liveChips: readonly V4Chip[]
   reloadModels: () => void
@@ -96,6 +98,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     return pref ? `${pref.vendorKey}:${pref.modelKey}` : ''
   })
   const [skills, setSkills] = React.useState<readonly SkillListItemDto[]>([])
+  const skillLabel = React.useCallback((key: string) => skillLabelForKey(skills, key, i18n.language), [skills, i18n.language])
   const [generationModels, setGenerationModels] = React.useState<readonly ModelCatalogModelDto[]>([])
   const orderedVendorKeys = useVendorPreferenceOrder()
   // 「新建卡片默认模型」已经有一个 owner（`generationModelDefaults`，设置页那四行读写的也是它）。
@@ -201,20 +204,15 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     formatMoney: (currency, amount) => formatMoney(i18n.language, currency, amount),
     taskUnknown: t('agentPanelV4.taskUnknown'),
     answered: t('agentPanelV4.questionAnswered'),
-    // 名字与 `/` 菜单、技能库画廊同一个 owner（`skillDisplayTitle`）：菜单里选的是「分镜规划」，
-    // 气泡上就得也叫「分镜规划」。库里查不到就原样印 key——用户确实挂过它，只是这台机器上
-    // 现在没有这份技能；把 chip 藏掉等于抹掉他做过的操作。
-    skillLabel: (key) => {
-      const found = skills.find((skill) => skill.name === key)
-      return found ? skillDisplayTitle(found, i18n.language) : key
-    },
+    // 名字与 `/` 菜单、技能库画廊同一个 owner：菜单里选的是「分镜规划」，气泡上就得也叫「分镜规划」。
+    skillLabel,
     // 封面与名字同一份目录、同一次查：气泡里那颗 chip 和 composer 上那颗（`liveChips`）
     // 因此长得一样，用户挂上去看见什么、发出去还是什么。
     skillMedia: (key) => {
       const found = skills.find((skill) => skill.name === key)
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
-  }, undoableToolCallId), [snapshot.active, i18n.language, skills, t, undoableToolCallId])
+  }, undoableToolCallId), [snapshot.active, i18n.language, skills, skillLabel, t, undoableToolCallId])
   const flow = React.useMemo(() => {
     const items = [...view.items]
     const last = items.at(-1)
@@ -265,7 +263,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     for (const attachment of attachments) chips.push({ id: attachment.id, kind: 'file', label: attachment.fileName, description: attachment.error })
     if (activeSkill) {
       const skill = skills.find(s => s.name === activeSkill.key)
-      chips.push({ kind: 'skill', label: activeSkill.name, cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
+      chips.push({ kind: 'skill', label: skillLabel(activeSkill.key), cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
     } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
     for (const selection of timelineSelection.selections) {
       // 时间轴片段的人话名字是 `label`；文本片段用它的正文。两者都可能是空串。
@@ -278,7 +276,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       })
     }
     return Object.freeze(chips)
-  }, [activeSkill, selectedLibraryPrompt, skills, attachments, t, timelineSelection])
+  }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineSelection])
 
   return {
     snapshot,
@@ -309,6 +307,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     selectedModel,
     modelLabel,
     skills,
+    skillLabel,
     liveChips,
     reloadModels,
     selectModel: (model) => {

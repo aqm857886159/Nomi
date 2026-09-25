@@ -221,6 +221,16 @@
         "symbol": "anchorsConsumedBy"
       },
       "reason": "同上，2026-09-21 档案搬家：anchorsConsumedBy 原样跟着 anchorPolicy.ts 搬到 electron/shared/modelArchetypes，函数名与函数体都没动，「一个模式消费哪些锚」仍由它说了算。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-05-approval-policy-effect-class.root-cause.json",
+      "path": "electron/shared/agentCapabilities/registry.ts",
+      "symbol": "resolveCapabilityEffectClass",
+      "anchor": {
+        "path": "electron/shared/agentCapabilities/registry.ts",
+        "symbol": "capabilityEffectClassOf"
+      },
+      "reason": "「按契约与 operation 覆盖解出效果类」这条不变量现在由同文件的 capabilityEffectClassOf 承担，lane 审批闸 laneApprovalGate 的 subjectOf 直接调它。resolveCapabilityEffectClass 是它按别名查契约的一层包装，旧 projectAgentHost 在 36f343204 删除后已无调用方，2026-09-24 同类扫描（docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json）一并删除。"
     }
   ],
   "retirements": [
@@ -559,6 +569,12 @@
       "path": "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
       "symbol": "referenceScrollportHeight",
       "reason": "2026-09-25 画布手感三改（用户拍板「固定在节点正下方、宽度固定、被挡就挡」）：这条不变量被**反转**了，不是搬家。原合同要浮框在视口里测量、避开节点 / 底部停靠区 / 屏幕边再定位；新不变量是「浮框只由节点尺寸 + 缩放决定，不测屏幕」，由 `src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts#composerCanvasPlacement` 持有，`composerCanvasPlacement.test.ts`（尺寸 × 缩放全扫 + 源码不许再出现 getBoundingClientRect / requestAnimationFrame / resolveAnchoredPlacement）钉住，合同 `docs/fixes/2026-09-25-composer-pinned-below-node.root-cause.json`。两条相抵，所以是退役不是改锚。 参考图滚动区高度改由浮框自身 max-h-36 决定，不再按视口剩余空间算。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-05-canonical-storyboard-proposal-transition.root-cause.json",
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "symbol": "isRendererOwnedStoryboardProposal",
+      "reason": "它的两个消费方 projectAgentExecutionCoordinator / projectAgentTurnExecution 在 agent-lane 切换（commit 36f343204 一系）中随旧 projectAgentHost 整体删除，之后全仓零调用方；lane 侧没有「渲染层持有的分镜提案」这一执行目标（分镜草稿走 draft_shots，不经提案登记）。2026-09-24 同类扫描按 P1 删除这个死符号，该合同针对旧运行时的不变量随之不再适用。"
     }
   ],
   "unverified": [

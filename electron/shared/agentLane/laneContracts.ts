@@ -51,6 +51,7 @@ export type LanePart =
        */
       readonly storyboardTarget?: StoryboardRequestTarget
       readonly skillKey?: string
+      /** 主进程确实注入了这份技能的凭据。`name` 是 SKILL.md 的标识（与 skillKey 同值），不是显示名。 */
       readonly skillSnapshot?: { name: string; contentHash: string }
     })
   | (LanePartIdentity & { readonly kind: 'assistant-text'; readonly text: string; readonly streaming: boolean; readonly interrupted?: true; readonly continuationEntryId?: string; readonly retryInputEntryId?: string })

@@ -1,17 +1,22 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import { modelToolShowsReviewCard, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
+import { TIMELINE_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapabilities/timelineWrite'
 import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import type { TimelineState } from '../../timeline/timelineTypes'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
 import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/timelinePlanSummary'
 
-/** Tool aliases whose arguments carry an edit plan worth previewing on the timeline. */
-const TIMELINE_PLAN_TOOLS: readonly string[] = ['propose_edit_plan', 'apply_edit_plan', 'nomi_timeline_edit']
-
-/** True when a pending tool call is a timeline edit plan, in either projection. */
+/**
+ * True when a pending tool call carries a timeline edit plan worth previewing.
+ *
+ * Both facts come from the verb declaration — the user reviews it before it applies, and it lands
+ * on `timeline.write` — so a rename moves this answer with it. `undo` is on the same contract but
+ * carries no plan, and it is not a review-card verb.
+ */
 export function isTimelinePlanTool(toolName: string): boolean {
-  return TIMELINE_PLAN_TOOLS.includes(toolName)
+  return modelToolShowsReviewCard(toolName) && resolveModelToolCapabilityId(toolName) === TIMELINE_WRITE_CAPABILITY.id
 }
 
 export type TimelineSelectionProjection = {
@@ -79,11 +84,10 @@ export function collectTimelineSelections(
   ]
 }
 
-/** Both the Pi alias and the MCP tool nest the plan; `propose_edit_plan` is flat. */
+/** The plan a pending call carries. `edit_timeline` takes its operations flat (`verbProjections.ts`). */
 export function timelinePlanOperationsForTool(toolName: string, args: unknown): ReturnType<typeof timelinePlanOperations> {
-  if (!TIMELINE_PLAN_TOOLS.includes(toolName) || !args || typeof args !== 'object') return []
-  const raw = args as { plan?: { operations?: unknown }; operations?: unknown }
-  return timelinePlanOperations(raw.plan && typeof raw.plan === 'object' ? raw.plan.operations : raw.operations)
+  if (!isTimelinePlanTool(toolName) || !args || typeof args !== 'object') return []
+  return timelinePlanOperations((args as { operations?: unknown }).operations)
 }
 
 /**
@@ -98,7 +102,7 @@ export function useTimelinePlanPreview(
   timeline: TimelineState,
   label: string,
 ): JSX.Element | null {
-  const pending = pendingTools.find(({ call }) => TIMELINE_PLAN_TOOLS.includes(call.toolName))
+  const pending = pendingTools.find(({ call }) => isTimelinePlanTool(call.toolName))
   const operations = React.useMemo(
     () => pending ? timelinePlanOperationsForTool(pending.call.toolName, pending.call.args) : [],
     [pending],

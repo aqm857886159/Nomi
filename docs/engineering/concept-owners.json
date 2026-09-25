@@ -269,6 +269,38 @@
       ],
       "since": "2026-09-25",
       "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开分类时的「第一次摆全貌」归 useAutoFitOnLoad.shouldFitOnOpen，只在打开时本来就有内容时判一次。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
+    },
+    {
+      "name": "模型工具的身份",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+        "symbol": "MODEL_FACING_TOOL_SPECS"
+      },
+      "consumers": [
+        "src/workbench/ai/resident/timelineAgentSurface.tsx",
+        "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+        "src/workbench/ai/resident/residentToolDisplay.ts",
+        "src/workbench/ai/v4/agentPanelV4ActionFamily.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "electron/agentLane/laneModelContext.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "一个应用内工具名是什么、它有什么事实（契约 id / nextAction / 分组）只问注册表（由 VERB_DECLARATIONS 派生），不许在别处手抄工具名做识别。2026-09-24 实例：timelineAgentSurface 手抄的计划工具名单在 20 动词改名后十天没人发现，计划卡退回通用卡并多出「不再问」（docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json）。执行绑定（laneVerbTransport 等）仍按名字分派，记在该合同 residual_risks。"
+    },
+    {
+      "name": "技能显示名",
+      "owner": {
+        "path": "src/workbench/skillLibrary/skillDisplay.ts",
+        "symbol": "skillLabelForKey"
+      },
+      "consumers": [
+        "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+        "src/workbench/ai/lane/laneViewModel.ts",
+        "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "src/workbench/skillLibrary/skillGallery.ts"
+      ],
+      "since": "2026-09-24",
+      "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
     }
   ]
 }
