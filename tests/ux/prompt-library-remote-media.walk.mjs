@@ -70,12 +70,22 @@ try {
     // 超过 4 条的来源组默认收起：像用户一样点开组头。
     const collapsed = win.locator('aside button[data-library-group][aria-expanded="false"]').first()
     if (await collapsed.count()) await collapsed.click()
-    await win.waitForTimeout(12000)
-    const counts = await win.evaluate(() => ({
-      videos: document.querySelectorAll('aside video').length,
-      loadedVideos: [...document.querySelectorAll('aside video')].filter((video) => video.readyState >= 1).length,
-      expired: document.querySelectorAll('aside [data-example-media-expired]').length,
-    }))
+    // 远端示例视频有大有小（Sora 官方 tokyo-walk 48MB、moov 在文件尾），固定等几秒会把「还在加载」当成「黑框」。
+    // 逐张等到落定：出了首帧，或者报错被换成「示例已失效」；45 秒还在加载的如实报出来。
+    const readCounts = () => win.evaluate(() => {
+      const videos = [...document.querySelectorAll('aside video')]
+      return {
+        videos: videos.length,
+        loadedVideos: videos.filter((video) => video.readyState >= 1).length,
+        expired: document.querySelectorAll('aside [data-example-media-expired]').length,
+        stillLoading: videos.filter((video) => video.readyState < 1).map((video) => (video.getAttribute('src') || '').split('/').pop()),
+      }
+    })
+    let counts = await readCounts()
+    for (let waited = 0; waited < 45000 && counts.loadedVideos < counts.videos; waited += 3000) {
+      await win.waitForTimeout(3000)
+      counts = await readCounts()
+    }
     console.log(`  [${source}] ${JSON.stringify(counts)}`)
     for (const key of Object.keys(tally)) tally[key] += counts[key]
     await snap(win, `0${index + 1}-${index === 0 ? 'sora2-twimg' : 'sora-official-openai'}`)
