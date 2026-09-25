@@ -11,7 +11,7 @@
 // 要么是连线 [源节点ID, 输出槽] （不可参数化，保持不动）。
 import { COMFYUI_VENDOR_KEY, type HttpOperation } from "./types";
 import { desktopT } from "../i18n";
-import type { ComfyObjectInfoIndex } from "../comfyuiObjectInfo";
+import type { ComfyComboValue, ComfyObjectInfoIndex } from "../comfyuiObjectInfo";
 import { normalizeWorkflowBinding } from "./comfyuiWorkflowBindingNormalize";
 import { comfyOutputCandidates, resolveComfyWorkflowOutput, suggestedComfyOutput } from "./comfyuiWorkflowOutput";
 import { resolveComfyWorkflowTaskKind } from "./comfyuiWorkflowTaskContract";
@@ -100,11 +100,12 @@ export type WorkflowAnalysis = {
 
 /** `image-url`：媒体输入槽。画布侧 looksLikeImageUrlControl 认这个 type，
  *  于是通用出槽器 buildImageUrlSlots 会**按条出槽**——声明几个就长几个，不再靠 key 名瞎猜。 */
-export type ParamControl = { key: string; label: string; type: WorkflowParamType | "select" | "image-url"; mediaKind?: "image" | "video" | "audio"; default: number | string | boolean; options?: string[] };
+export type ParamControl = { key: string; label: string; type: WorkflowParamType | "select" | "image-url"; mediaKind?: "image" | "video" | "audio"; default: number | string | boolean; options?: ComfyComboValue[] };
 export type ImportedWorkflow = { templatedGraph: ComfyGraph; parameters: ParamControl[]; kind: "image" | "video" | "model3d"; taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video" | "text_to_3d" | "image_to_3d" };
 export type ComfyWorkflowImportDraft = { text: string; binding: WorkflowBinding; uiWorkflowText?: string };
-/** (classType, inputKey) → 本机 combo 可选值（reconcile 顺手带出；导入/保存时烤进参数控件）。 */
-export type WorkflowEnumOption = { classType: string; inputKey: string; options: string[] };
+/** (classType, inputKey) → 本机 combo 可选值（reconcile 顺手带出；导入/保存时烤进参数控件）。
+ *  选项按 wire 原类型存（数字就是数字），画布下拉按选中项的声明类型发回 ComfyUI——见 ComfyComboValue。 */
+export type WorkflowEnumOption = { classType: string; inputKey: string; options: ComfyComboValue[] };
 
 // 节点类型识别（R5：class_type 命名——CLIPTextEncode/LoadImage/VHS_VideoCombine/SaveVideo/SaveImage/
 // WanVideoWrapper 系；宽松正则容社区变体）。
@@ -501,6 +502,7 @@ export function reconcileComfyWorkflow(graph: ComfyGraph, index: ComfyObjectInfo
     for (const [inputKey, value] of Object.entries(inputs)) {
       if (typeof value !== "string" || !value.trim() || value.includes("{{")) continue; // 连线/空值/模板占位不核
       const options = enums.get(inputKey);
+      // 严格按类型比对，与 ComfyUI 的 `val in combo_options` 同口径：字符串 "8" 对不上数字选项 8。
       if (!options || options.includes(value)) continue;
       missingEnumValues.push({ nodeId, classType, title: node._meta?.title, inputKey, value });
     }
@@ -524,7 +526,9 @@ export function collectGraphEnumOptions(graph: ComfyGraph, index: ComfyObjectInf
     if (!enums) continue;
     const inputs = node.inputs && typeof node.inputs === "object" ? node.inputs : {};
     for (const [inputKey, value] of Object.entries(inputs)) {
-      if (typeof value !== "string") continue; // combo widget 值必为字符串；连线/数值不核
+      // 只给字符串值的 widget 烤下拉：数值/布尔值的 combo（bit_depth=8、rescale_after_model=true）
+      // 导入面板按值推成数字框/开关，本身就按原类型发回，不用下拉；连线也不核。
+      if (typeof value !== "string") continue;
       const options = enums.get(inputKey);
       if (!options || options.length === 0) continue;
       const key = `${node.class_type} ${inputKey}`;
@@ -576,10 +580,10 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
     const options = resolvedType === "text" ? enumFor.get(`${graph[np.nodeId]?.class_type ?? ""} ${np.inputKey}`) : undefined;
     if (options && options.length > 0) {
       // default 不在本机选项里（离线导入的作者值）→ 前置保留，绝不静默丢用户值。
-      const defaultText = String(defaultValue);
+      // 按 wire 类型比对、不转字符串：选项的声明类型就是画布发回 ComfyUI 的类型。
       parameters.push({
         key: paramKey, label: np.label || np.inputKey, type: "select", default: defaultValue,
-        options: options.includes(defaultText) ? options : [defaultText, ...options],
+        options: options.includes(defaultValue) ? options : [defaultValue, ...options],
       });
       continue;
     }

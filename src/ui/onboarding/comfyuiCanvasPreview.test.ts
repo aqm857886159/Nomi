@@ -1,6 +1,8 @@
 // 「画布节点预览 · 实时」的视图模型。口径必须和生成画布一致（否则预览就是在骗人），
 // 关键一条：首帧/尾帧要**节点 + 输入键成对**才算绑上——与画布 buildComfyWorkflowImageUrlSlots 同判据。
 import { describe, expect, it } from 'vitest'
+import { parseModelParameterControls } from '../../config/modelCatalogMeta'
+import { parseControlInput } from '../../workbench/generationCanvas/nodes/controls/parameterControlModel'
 import { buildCanvasPreview, previewValuesToExtras } from './comfyuiCanvasPreview'
 import type { WorkflowBinding } from './comfyuiWorkflowBinding'
 
@@ -112,5 +114,29 @@ describe('预览里填的值 → 试跑 extras', () => {
   it('布尔按字符串 true 判', () => {
     expect(previewValuesToExtras(fields, { hires: 'true' }).hires).toBe(true)
     expect(previewValuesToExtras(fields, { hires: 'false' }).hires).toBe(false)
+  })
+
+  it('下拉按选中项的 wire 类型发（CreateVideo.bit_depth ["auto", 8, 10]）：选 8 发数字，不发 "8"', () => {
+    const selectFields = buildCanvasPreview(
+      { params: [{ nodeId: '1', inputKey: 'bit_depth', paramKey: 'comfy_bit_depth', label: 'bit depth', type: 'text', default: 'auto' }] },
+      {
+        classTypeByNodeId: new Map([['1', 'CreateVideo']]),
+        enumOptions: [{ classType: 'CreateVideo', inputKey: 'bit_depth', options: ['auto', 8, 10] }],
+      },
+    ).fields
+    expect(previewValuesToExtras(selectFields, { comfy_bit_depth: '8' }).comfy_bit_depth).toBe(8)
+    expect(previewValuesToExtras(selectFields, { comfy_bit_depth: 'auto' }).comfy_bit_depth).toBe('auto')
+    expect(previewValuesToExtras(selectFields, {}).comfy_bit_depth).toBe('auto')
+  })
+})
+
+describe('导入烤进 meta.parameters 的带类型选项，画布同样按类型发回', () => {
+  it('parseModelParameterControls + parseControlInput：数字选项回数字、字符串选项回字符串', () => {
+    const [control] = parseModelParameterControls({
+      parameters: [{ key: 'comfy_bit_depth', label: 'bit depth', type: 'select', default: 'auto', options: ['auto', 8, 10] }],
+    })
+    expect(control.options.map((option) => option.value)).toEqual(['auto', 8, 10])
+    expect(parseControlInput(control, '8')).toBe(8)
+    expect(parseControlInput(control, 'auto')).toBe('auto')
   })
 })
