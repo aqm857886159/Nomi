@@ -29,7 +29,6 @@ import {
 const MODEL_TURN_MS = stationTimeout({ turns: 1 })
 const VIDEO_LANDS_MS = stationTimeout({ turns: 2 })
 const GENERATE_ALL = '[data-storyboard-run-all="true"][data-batch-scope="all"]'
-const NODE_GENERATE = '[data-composer-host="canvas"] [data-bar-segment="generate"]'
 const ASK = '画两个视频镜头，先别生成：镜1，清晨的渔港，几只小船轻轻晃；镜2，同一个渔港的码头上，一只猫在晒太阳。'
   + `两镜都用 ${CHEAP_VIDEO_TERMS}。就这两镜，不要参考卡或锚点；起草完就停，不用问我。`
 const GO = '好，两镜都生成吧。'
@@ -122,7 +121,7 @@ try {
   const shot2GenerateEntry = async (label) => {
     await selectShot2()
     await waitForVisualQuiescence(win)
-    const generate = win.locator(`[data-node-id="${shot2}"] [data-bar-segment="generate"], ${NODE_GENERATE}`).first()
+    const generate = win.locator(`[data-node-id="${shot2}"] [data-bar-segment="generate"]`).first()
     const state = await generate.count() ? (await generate.isDisabled() ? 'disabled' : 'enabled') : 'not-rendered'
     expect(state, `${label}：第 2 镜的 ↑ 不能按`).not.toBe('enabled')
     return state
@@ -153,7 +152,8 @@ try {
     let last = ''
     const sample = () => {
       const node = document.querySelector(`[data-node-id="${shotId}"]`)
-      const button = document.querySelector(generate)
+      // ↑ 只看第 2 镜自己浮框里的那一颗：别的节点（比如用户那个闲置节点）选中时的 ↑ 不算。
+      const button = node?.querySelector(generate)
       const dock = document.querySelector(generateAll)
       const entry = {
         status: node?.getAttribute('data-status') ?? null,
@@ -167,7 +167,7 @@ try {
     window.__queuedShotLog = log
     sample()
     new MutationObserver(sample).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
-  }, { shotId: shot2, generate: NODE_GENERATE, generateAll: GENERATE_ALL })
+  }, { shotId: shot2, generate: '[data-bar-segment="generate"]', generateAll: GENERATE_ALL })
 
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮（全部）', { noWaitAfter: true })
   const dispatched = () => (readProductionRuns(projectRoot).find((run) => run.runId === runId)?.jobs ?? []).filter((job) => job.providerTaskId)
