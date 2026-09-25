@@ -14,6 +14,7 @@
     "src/workbench/ai/resident/timelineAgentSurface.tsx",
     "src/workbench/ai/v4/agentPanelV4Intervention.ts",
     "electron/agentLane/laneModelContext.ts",
+    "electron/agentLane/laneModelRead.mts",
     "scripts/validation-policy.mjs",
     "tests/system/real-user-test-gates.mjs",
     "docs/fixes/2026-09-24-stale-tool-name-lists.root-cause.json"
@@ -68,13 +69,23 @@
     {
       "kind": "read",
       "path": "electron/agentLane/laneModelContext.ts",
-      "symbol": "modelFacingToolSpecs"
+      "symbol": "modelCatalogReadSpec"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "symbol": "modelCatalogReadSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelRead.mts",
+      "symbol": "modelCatalogReadSpec"
     }
   ],
   "door_reduction": {
-    "before": 6,
-    "after": 6,
-    "why_not": "Every door is now a call to one registry fact, not a separate list. isTimelinePlanTool and timelinePlanOperationsForTool are the timeline projection: they add the timeline.write contract check and the flat operations read. agentPanelV4Intervention needs only the generic fact 'this verb shows a review card'. The MCP-only nested-plan branch of timelinePlanOperationsForTool was deleted because an MCP call never becomes a lane pending approval. modelFacingToolRegistry is the one place the fact is computed; laneModelContext reads the catalogue verb's name from the same specs."
+    "before": 8,
+    "after": 8,
+    "why_not": "Every door is now a call to one registry fact, not a separate list. isTimelinePlanTool and timelinePlanOperationsForTool are the timeline projection: they add the timeline.write contract check and the flat operations read. agentPanelV4Intervention needs only the generic fact 'this verb shows a review card'. The MCP-only nested-plan branch of timelinePlanOperationsForTool was deleted because an MCP call never becomes a lane pending approval. modelFacingToolRegistry is the one place both facts are computed; the lane's tool assembly (laneModelRead) and its system-prompt hint (laneModelContext) read the catalogue verb from the same modelCatalogReadSpec instead of each spelling 'list_models'."
   },
   "generality_proof": "Recognition goes through MODEL_FACING_TOOL_SPECS, which is built from VERB_DECLARATIONS at startup. Any verb, now or after a rename, is recognised by what its declaration says, and any name that is not declared is recognised as nothing. The class test iterates over every declared spec, not over edit_timeline alone. The one other live hand-spelled reference, the nomi_read hint in the lane prompt, is now derived the same way, from the spec that reads generation.context.read in the models group. Its test extracts every tool-shaped token from the rendered prompt and checks it is declared. The dead lists keyed on retired names were deleted, so they cannot be revived half-updated.",
   "shared_boundaries": [
@@ -148,7 +159,8 @@
       "src/workbench/ai/v4/agentPanelV4Intervention.ts",
       "electron/agentLane/laneModelContext.ts",
       "scripts/validation-policy.mjs",
-      "tests/system/real-user-test-gates.mjs"
+      "tests/system/real-user-test-gates.mjs",
+      "electron/agentLane/laneModelRead.mts"
     ]
   },
   "regression_tests": [
