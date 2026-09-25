@@ -7,6 +7,7 @@ import {
   jobAwaitsHuman,
   productionJobPhase,
   productionShotIdForNode,
+  productionShotOwnsGeneration,
 } from './productionShotPhase'
 import type { ProductionGenerationPlan, ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../productionRun/productionRunTypes'
 
@@ -193,5 +194,20 @@ describe('派出去了没有', () => {
     expect(isShotInDispatchedScope(submitted, 's2')).toBe(false)
     expect(isShotInDispatchedScope(run({}), 'cand-1')).toBe(true)
     expect(isShotInDispatchedScope(run({ planState: 'draft' }), 'cand-1')).toBe(false)
+  })
+})
+
+describe('productionShotOwnsGeneration — 画布能不能再发这一镜', () => {
+  it('报价卡等确认：付费范围里的镜归制作流程，不在范围里的不归', () => {
+    const r = run({ status: 'awaiting_contract', shots: [{ shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2', included: false }] })
+    r.generationPlan!.state = 'sealed'
+    expect(productionShotOwnsGeneration(r, 's1')).toBe(true)
+    expect(productionShotOwnsGeneration(r, 's2')).toBe(false)
+  })
+
+  it('已确认：排队的镜归制作流程，已停的不归', () => {
+    const shots = [{ shotId: 's1', nodeId: 'n1' }]
+    expect(productionShotOwnsGeneration(run({ status: 'running', shots }), 's1')).toBe(true)
+    expect(productionShotOwnsGeneration(run({ status: 'paused', shots }), 's1')).toBe(false)
   })
 })

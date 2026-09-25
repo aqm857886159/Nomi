@@ -99,6 +99,28 @@ export function isProductionJobInFlight(job: Pick<ProductionJob, "status" | "pro
   return Boolean(job.providerTaskId) && productionJobPhase(job.status) === "generating";
 }
 
+/**
+ * 这一镜此刻是否归制作流程生成——画布再发一次同一镜就是重复生成、重复扣费，所以画布的「能不能生成」「生成全部」都读它。
+ * 与「节点上显示哪一段」（deriveProductionShotState）是两件事，分开判，改显示不许顺带改归属：
+ * - Agent 拟好、报价卡还没摆出来（cardHidden 草稿）→ 不归，用户可在画布上自己生成；
+ * - 报价卡摆在用户面前等确认 → 归（用户会在卡上决定；画布先发 + 再确认 = 两次）；
+ * - 已确认：排队 / 生成中 → 归；已停 / 失败 / 完成 → 不归；丢掉的计划、不在付费范围里的镜 → 不归。
+ * （2026-09-25：Agent 起草的镜头卡片等确认时，底栏仍把它算进「生成全部」。）
+ */
+export function productionShotOwnsGeneration(run: ProductionRun | null | undefined, shotId: string | undefined): boolean {
+  const plan = run?.generationPlan;
+  if (!run || !plan || !shotId || plan.state === "cancelled") return false;
+  if (plan.state !== "submitted") return plan.cardHidden !== true && planIncludesShot(run, shotId);
+  const phase = deriveProductionShotState(run, shotId)?.phase;
+  return phase === "queued" || phase === "generating";
+}
+
+function planIncludesShot(run: ProductionRun, shotId: string): boolean {
+  if (isSingleShotPlan(run)) return shotId === run.generationPlan?.candidate.candidateId;
+  const shot = run.generationPlan?.shots?.find((candidate) => candidate.shotId === shotId);
+  return Boolean(shot && shot.included !== false);
+}
+
 // 「已停」而非「失败」的 job 错因：预算触顶 / 急停到达这镜（可续拍，warning 非 danger）。provider 拒 = 真失败。
 const HALT_ERROR_CODES = new Set(["budget_exhausted", "budget_halt", "batch_stopped", "restart_recovery_required"]);
 

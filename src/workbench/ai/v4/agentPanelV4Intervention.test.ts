@@ -98,7 +98,7 @@ describe('kind 判定', () => {
     expect(interventionKindOf({}, 'spend', false)).toBe('spend')
     expect(interventionKindOf({}, 'reversible_local', false)).toBe('approval-reversible')
     expect(interventionKindOf({}, 'irreversible', false)).toBe('approval-irreversible')
-    // 未登记别名 → `resolveCapabilityEffectClass` 给 undefined。当成可撤销的，
+    // 未登记别名 → `capabilityEffectClassOf` 给 undefined。当成可撤销的，
     // 等于替用户赌「反正能撤回来」。
     expect(interventionKindOf({}, undefined, false)).toBe('approval-irreversible')
   })
@@ -302,11 +302,32 @@ describe('要写进去的那段话，摘一行给用户看', () => {
   })
 })
 
+describe('时间轴计划卡只给「仅这一次」，不管清单行投影出来没有', () => {
+  // 卡种由动词的声明决定，不由清单行投影成没成功决定：行投影不出来时降成通用卡，就多出一颗「不再问 →」。
+  const editTimeline = {
+    toolName: 'edit_timeline',
+    args: { baseRevision: 'revision-1', summary: '片头加一条字幕', operations: [] },
+    effectClass: 'reversible_local' as const,
+    pendingCount: 1,
+  }
+
+  it('清单行还没投影出来：仍是计划卡，没有范围行（= 没有「不再问」）', () => {
+    const slot = projectV4Intervention(editTimeline, labels, t)
+    expect(slot.kind).toBe('plan')
+    expect(slot.scope).toBeUndefined()
+  })
+
+  it('同一个契约上不带计划的 undo 不是计划卡', () => {
+    expect(projectV4Intervention({ ...editTimeline, toolName: 'undo', args: { undoToken: 'u1' } }, labels, t).kind)
+      .toBe('approval-reversible')
+  })
+})
+
 describe('③ 槽里没有可编辑的东西', () => {
   it('投影只产出只读的清单行与参数 chip——编辑去对象自己的家', () => {
     const slot = projectV4Intervention(
       {
-        toolName: 'propose_edit_plan',
+        toolName: 'edit_timeline',
         args: { model: 'kling-o1' },
         effectClass: 'reversible_local',
         pendingCount: 1,
@@ -327,7 +348,7 @@ describe('③ 槽里没有可编辑的东西', () => {
   it('取消勾选的行在投影里就是没勾的——「不勾就是不做」得先勾得动', () => {
     const slot = projectV4Intervention(
       {
-        toolName: 'propose_edit_plan',
+        toolName: 'edit_timeline',
         args: {},
         effectClass: 'reversible_local',
         pendingCount: 1,

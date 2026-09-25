@@ -388,9 +388,14 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     if (part.kind === 'user') {
       // 用户说话 = 新回合开始。这是转录里唯一硬的回合分界（模型一轮回复内部没有分界可言）。
       turn += 1
-      if (part.skillSnapshot) skillOfTurn.set(turn, part.skillSnapshot.name)
-      const chip: V4Chip | undefined = part.skillKey
-        ? { kind: 'skill', label: part.skillSnapshot?.name ?? labels.skillLabel(part.skillKey), ...labels.skillMedia?.(part.skillKey) } : undefined
+      // 名字只从 `labels.skillLabel`（技能库的 `skillDisplayTitle`）来。快照的 `name` 是主进程按 SKILL.md
+      // 记下的**标识**、与 key 同值——把它当名字印，composer 上挂的「分镜规划」发出去就成了
+      // `workbench-storyboard-planner`（8e89e19ce 那次回归）。快照只回答另一件事：主进程这一轮
+      // **确实注入了**这份技能，有它才出回复头上那行凭据（S20）。
+      const skillName = part.skillKey ? labels.skillLabel(part.skillKey) : undefined
+      if (skillName && part.skillSnapshot) skillOfTurn.set(turn, skillName)
+      const chip: V4Chip | undefined = part.skillKey && skillName
+        ? { kind: 'skill', label: skillName, ...labels.skillMedia?.(part.skillKey) } : undefined
       push({ kind: 'user', text: part.text, ...(chip ? { chips: [chip] } : {}) })
       continue
     }

@@ -40,5 +40,3 @@ export const LAYOUT_WRITE_CAPABILITY = {
   id: 'layout.write', version: 1, aliases: { mcp: 'nomi_layout_write' }, inputSchema: layoutWriteInputSchema, outputSchema: layoutResultSchema,
   effect: 'reversible_write', effectClass: 'reversible_local', execution: { port: 'document', availability: 'renderer_required' }, exposure: 'mcp_safe', requiredScope: 'layout:write', targetKind: 'editing-layout',
 } as const satisfies CapabilityContract<z.infer<typeof layoutWriteInputSchema>, LayoutResult>
-
-export function layoutPiInputSchemaForAlias(alias: string) { return alias === 'layout_read' ? z.object({}).strict() : alias === 'layout_write' ? layoutWriteInputSchema.omit({ operation: true }) : undefined }
