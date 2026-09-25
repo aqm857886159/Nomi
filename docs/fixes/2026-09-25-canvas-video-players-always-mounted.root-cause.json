@@ -19,7 +19,8 @@
     "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
     "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
     "src/workbench/assets/AssetVideoCover.tsx",
-    "src/workbench/assets/useLocalAssetPreview.ts"
+    "src/workbench/assets/useLocalAssetPreview.ts",
+    ".github/workflows/quality-gate.yml"
   ],
   "entry_points": [
     "BaseGenerationNode video result (canvas card)",
@@ -176,7 +177,9 @@
     "strategy": "Keep the mount decision in the guard and cover derivation in the asset boundary; backfill instead of per-surface fallbacks.",
     "artifacts": [
       "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
-      "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts"
+      "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts",
+      ".github/workflows/quality-gate.yml",
+      "tests/ux/canvas-follow-hand.perf.mjs"
     ]
   },
   "regression_tests": [
