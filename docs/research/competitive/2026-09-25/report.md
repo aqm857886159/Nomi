@@ -11,10 +11,10 @@
 | attempted_at / completed_at | 2026-09-25T23:55:00+08:00 / 留空（partial） |
 | status | partial |
 | observation_window / baseline | 首轮基线：2026-08-23 至 2026-09-25；前周期 2026-09-22 partial，无成功基线 |
-| executor / branch / PR | Codex / `research/competitive-radar-2026-09-25` / pending |
+| executor / branch / PR | Codex / `research/competitive-radar-2026-09-25` / [PR #878](https://github.com/aqm857886159/Nomi/pull/878) |
 | Nomi build / commit | `origin/main` 基线 `504984bd21bf0be601f29a64fdcbb1f67259f7b6`；未启动 Electron，Nomi 对照为 unverified |
 | evidence_root | `/Users/aoqimin/Desktop/Nomi/outputs/competitive-radar/2026-09-25/` |
-| next_action | 2026-09-28 优先补 TapNow 登录应用、录屏与取消/错误恢复；再补扩展对象应用和四轮维度欠账 |
+| next_action | LibTV 先补成功/失败/返还与隔离录屏；2026-09-28 再补 TapNow 登录应用与录屏 |
 
 ## 本轮结论
 
@@ -80,6 +80,18 @@
 
 请求/翻页量以各 JSON 的 `summary.platforms[].pagesFetched` 为准；TikHub 只用于发现，官方身份、视频完整观看和转化均未由检索结果单独证明。
 
+## LibTV 设计拆解与状态矩阵
+
+本轮在已有画布旅程上继续补了帮助、快捷键、生成历史、素材库、角色造型室和故事板确认/取消分支。完整拆解见 [`libtv-design-notes.md`](./libtv-design-notes.md)；机器可读状态见稳定证据根目录的 `evidence/libtv/libtv-state-matrix.json`。
+
+新增的关键条件链是：
+
+`输入为空 → 提交 disabled`；`输入提示词 → 节点显示模型/参数/15 积分 → 进入故事板确认`；`确认页点取消 → Agent 再问是否运行 → 点暂不运行 → 明确回复已取消且节点保持未生成`；`6 积分余额 < 15 积分成本 → 供应站拦截，不开始生成`。
+
+这说明 LibTV 将“生成”拆成可逆的准备、确认、取消和最终运行四层，用户不会因为一次误触而丢失节点。生成历史、资产库、角色库和教程/快捷键则分别承担结果追踪、复用资产、角色一致性和学习支持。
+
+本轮没有买积分，因此成功图片、供应商失败、超时、返还和真实生成后回流仍保留 `unverified/blocked`，没有用“生成中”截图推断成功。
+
 ## Nomi 决策与实验回访
 
 | finding_id | 证据/摩擦 | Nomi 当前现状 | 分诊与最小实验 |
@@ -104,6 +116,8 @@
 | E-LIBTV-CLI-GUIDE | 声明+指南 | `https://resonate.feishu.cn/wiki/RjelwT2UoidnTMka2nCc2chGnud`；`.../guide.text.json` | CLI 画布闭环与版本记录 |
 | E-LIBTV-BLENDER | 声明+截图 | `https://www.liblib.tv/blender`；`.../blender.*` | Blender→LibTV 回流承诺 |
 | E-LIBTV-J01/J02 | 实测截图序列 | `.../evidence/libtv/journeys/01-*`、`02-*` | 真实画布主路径（partial） |
+| E-LIBTV-J03 | 实测条件矩阵 | `.../evidence/libtv/libtv-state-matrix.json`、`libtv-state-matrix.sha256` | 空提示、确认、两步取消、余额拦截与缺口 |
+| E-LIBTV-J04 | 实测截图序列 | `.../evidence/libtv/journeys/12-*` 至 `19-*` | 教程、快捷键、历史、素材/角色库、故事板确认与取消 |
 | E-TAPNOW-HOME | 官网声明 | `https://tapnow.ai/`；`web/static/tapnow.summary.json` | Creative OS 定位，非登录证明 |
 | E-HIGGSFIELD-HOME | 官网声明 | `https://higgsfield.ai/`；`web/static/higgsfield.summary.json` | Image/Video/Audio/MCP/API/Plugin 导航 |
 | E-MINIMAX-HOME | 官网声明 | `https://design.minimax.io/`；`web/static/minimax_design.summary.json` | Agent/Canvas/Skills/Local-first |
