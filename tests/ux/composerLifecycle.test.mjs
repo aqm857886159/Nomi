@@ -64,6 +64,17 @@ it('degrades only its own region and reaches for the one recovery that can work:
   expect(await page.locator('#unpublished-draft').inputValue()).toBe('still unpublished')
 })
 
+/**
+ * 把焦点交给一张 React Flow 节点，并确认「人能按键」的前提成立：节点已是选中态、焦点真落在它身上。
+ * reload 后立刻 focus+按键，React Flow 还没把节点挂好的那一刻，这一下按键会被吞掉。以前同页的浮框位置
+ * harness 跑着逐帧 rAF 测量、页面一直在出帧，把这个时序盖住了；它改成纯函数（2026-09-25）后时序才暴露。
+ */
+async function focusFlowNode(node) {
+  await expect.poll(() => node.evaluate((element) => element.classList.contains('selected'))).toBe(true)
+  await node.focus()
+  await expect.poll(() => node.evaluate((element) => element === document.activeElement)).toBe(true)
+}
+
 async function openEscapePopover() {
   await page.locator('[data-escape-anchor]').click()
   await expect.poll(() => page.locator('[data-escape-popover]').count()).toBe(1)
@@ -144,7 +155,7 @@ it('yields focus-outside Escape to a higher dialog before closing the parent', a
 it('preserves React Flow Escape deselection when no anchored popover owns the key', async () => {
   await page.reload()
   const flowNode = page.locator('.react-flow__node[data-id="escape-node"]')
-  await flowNode.focus()
+  await focusFlowNode(flowNode)
   await page.keyboard.press('Escape')
   await expect.poll(() => page.locator('[data-escape-composer]').count()).toBe(0)
   expect(await page.locator('[data-escape-node]').getAttribute('data-selected')).toBe('false')
@@ -272,9 +283,9 @@ it('keeps a slider keyboard edit projected through the original React Flow owner
 
 it('keeps original node keyboard movement from disabling subsequent projection updates', async () => {
   await page.reload()
-  await page.locator('.react-flow__node[data-id="projection-node"]').focus()
+  await focusFlowNode(page.locator('.react-flow__node[data-id="projection-node"]'))
   await page.keyboard.press('ArrowRight')
-  // 键盘移动经 React Flow 的 change 回调异步投影回来：等状态转换，不在按键后同一拍读（全量跑时偶发读到 40）。
+  // 键盘移动经 React Flow 的 change 回调异步投影回来：等状态转换，不在按键后同一拍读。
   await expect.poll(async () => (await page.evaluate(() => window.projectionSnapshot())).position.x).toBeGreaterThan(40)
   expect((await page.evaluate(() => window.projectionSnapshot())).ownsNodes).toBe(true)
   const slider = page.getByRole('slider', { name: 'projection duration' })

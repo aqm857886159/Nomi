@@ -42,7 +42,7 @@
 | `07-shot2-selected` | 第 2 行 `data-selected="true"` **且** 浮条显示「已选 1 镜」（两层，排除「浮条出来了但选的是别人」） |
 | `08-patch-awaits-approval` | 改提示词也停在批准边界；**批准前盘上三条提示词逐字未变**（提议没有偷跑） |
 | `09-shot2-prompt-patched` | 批准后：第 2 镜提示词变了；第 1、3 镜逐字未变；表上第 2 行也显示新词 |
-| `10-generation-awaits-confirm` | 生成前必弹花钱确认卡；**确认前 `fixture.images.length === 0`** |
+| ~~`10-generation-awaits-confirm`~~ | 2026-09-26 起作废：分镜表「生成 1 镜」是用户自己点的单份生成，不再弹花钱确认卡（2026-09-25 拍板，判据按份数不按入口）。改为：点之前 `fixture.images.length === 0`，点之后这一行变成已生成、供应商恰好收到 1 次 |
 | `11-shot2-generated` | 第 2 行 `data-storyboard-frame="done"`；结果节点按 `meta.shotId` 归位、`result.url` 是 `nomi-local://`；恰好 1 次图片调用 |
 | `12-restart-project-reopened` | 冷启动后从项目库「继续创作」回到**同一个** projectId |
 | `13-restart-changes-persist` | 盘上提示词与结果 URL 都在；屏上第 2 行显示新词、`done`、**图片 `naturalWidth > 0`**（真解码，不是只有 src） |

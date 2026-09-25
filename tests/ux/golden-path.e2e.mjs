@@ -45,7 +45,7 @@ import { runOriginalStoryboardGolden } from './_goldenOriginalStoryboard.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -386,13 +386,10 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
   })
   const table = win.locator(SHOT_TABLE)
   await expect(table.locator(row(nodeIds[1])), '第 2 镜不在未生成态').toContainText('未生成')
+  expect(walk.fixture.images, '点生成之前不得发生任何图片生成调用').toHaveLength(0)
+  // 「生成 1 镜」= 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
+  // 证据是下面「这一行变成已生成、供应商恰好收到 1 次」——若中间弹了卡而走查不去点，请求永远发不出去。
   await clickOrFail(table.locator('footer').getByRole('button', { name: '生成 1 镜', exact: true }), '生成选中的第 2 镜')
-  const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
-  const spendProof = await proveProbe(spendDialog, '生成前必须先弹花钱确认卡')
-  expect(walk.fixture.images, '确认之前不得发生任何图片生成调用').toHaveLength(0)
-  await shot('generation-awaits-confirm')
-  await clickOrFail(spendDialog.getByRole('button', { name: '生成', exact: true }), '确认生成（loopback 零额度）')
-  await expectAbsent(spendDialog, { provenBy: spendProof, message: '确认后花钱确认卡应持续消失' })
 
   await expect(table.locator(row(nodeIds[1])), '第 2 镜没有变成已生成').toContainText('已生成', { timeout: stationTimeout({ operations: 4 }) })
   await expect.poll(async () => shotNode((await readProject(win, projectId)).payload, SHOT_2_ID)?.result?.url ?? null,
