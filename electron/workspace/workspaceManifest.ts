@@ -28,6 +28,8 @@ import {
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
 import { logWarn } from "../logging/logger";
+import { mayContainBuildArtifactUrl } from "../shared/buildArtifactUrl";
+import { collectBuildArtifactUrls, createBuildArtifactRewriter, type BuildArtifactPolicy } from "./buildArtifactMigration";
 
 function workspaceId(): string {
   return `workspace-${crypto.randomUUID()}`;
@@ -112,14 +114,22 @@ function localizeEmbeddedDataUrl(
   return localAssetUrl(projectId, relativePath);
 }
 
+const MIGRATE_BUILD_ARTIFACTS: BuildArtifactPolicy = { rejectNew: false };
+
+/**
+ * 一遍遍历做两件落盘：内嵌 data: 媒体 → 项目文件；构建产物地址（app.asar / dev server 源码树）→ 项目资产
+ * （见 buildArtifactMigration.ts）。写路径传 rejectNew 策略：新带进来的、找不回字节的构建产物地址直接拒绝。
+ */
 function localizeEmbeddedMediaUrls<T>(
   rootPath: string,
   input: T,
   transaction: WorkspaceManifestTransaction,
+  buildArtifactPolicy: BuildArtifactPolicy = MIGRATE_BUILD_ARTIFACTS,
 ): { value: T; changed: boolean } {
   const rootRecord = toProjectRecordObject(input);
   const projectId = typeof rootRecord?.id === "string" && rootRecord.id.trim() ? rootRecord.id.trim() : "";
   if (!projectId) return { value: input, changed: false };
+  const rewriteBuildArtifacts = createBuildArtifactRewriter({ rootPath, projectId, transaction, policy: buildArtifactPolicy });
 
   let changed = false;
   let localizedCount = 0;
@@ -137,6 +147,11 @@ function localizeEmbeddedMediaUrls<T>(
       localizedByDataUrl.set(value, localized);
       changed = true;
       return localized;
+    }
+    if (typeof value === "string") {
+      const rewritten = rewriteBuildArtifacts(value);
+      if (rewritten !== value) changed = true;
+      return rewritten;
     }
     if (Array.isArray(value)) {
       let next: unknown[] | null = null;
@@ -415,7 +430,10 @@ function createMutationContext(
       const persistedValue =
         options.localizeEmbeddedMedia === false
           ? merged
-          : localizeEmbeddedMediaUrls(transaction.canonicalRootPath, merged, transaction).value;
+          : localizeEmbeddedMediaUrls(transaction.canonicalRootPath, merged, transaction, {
+              rejectNew: true,
+              tolerated: collectBuildArtifactUrls(mainRawBaseline),
+            }).value;
       const persisted = transaction.replaceJson(transaction.manifestPath, persistedValue);
       const persistedRecord = toProjectRecordObject(persisted);
       if (!persistedRecord) throw new Error("Persisted workspace manifest must be an object");
@@ -563,7 +581,9 @@ export function readWorkspaceManifestSnapshot(rootPath: string): WorkspaceProjec
     // Keep this check conservative: any data URL sends the caller to the safe
     // locked path rather than returning a snapshot that would never be
     // localized.
-    if (JSON.stringify(rawRecord).includes('"data:')) return null;
+    // 构建产物地址同理：迁移成项目资产要走加锁读（项目库封面也靠这一步修好）。
+    const rawText = JSON.stringify(rawRecord);
+    if (rawText.includes('"data:') || mayContainBuildArtifactUrl(rawText)) return null;
     return normalizeWorkspaceProjectRecord(rawRecord);
   } catch (error) {
     if (error instanceof WorkspaceProjectIdentityUnavailableError) throw error;
