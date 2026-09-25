@@ -217,8 +217,6 @@ export type SpendInitiator = 'user' | 'agent'
  */
 export const SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS = 10
 
-export type SpendConfirmReason = 'agent' | 'multiple-runs' | 'over-threshold' | 'hosting-disclosure' | 'no-quote'
-
 /**
  * 「这一下要不要弹付费确认」的**唯一判据**（2026-09-25 用户拍板：单个节点生成不弹窗）。
  *
@@ -241,14 +239,12 @@ export function spendConfirmationRequirement(input: {
   /** 主进程报价：数字 = 目录价；null = 目录未标价；undefined = 没拿到报价。 */
   amount: number | null | undefined
   hostingDisclosure: boolean
-}): { required: boolean; reasons: SpendConfirmReason[] } {
-  const reasons: SpendConfirmReason[] = []
-  if (input.initiator === 'agent') reasons[reasons.length] = 'agent'
-  if (input.runCount > 1) reasons[reasons.length] = 'multiple-runs'
-  if (typeof input.amount === 'number' && input.amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS) reasons[reasons.length] = 'over-threshold'
-  if (input.hostingDisclosure) reasons[reasons.length] = 'hosting-disclosure'
-  if (input.amount === undefined) reasons[reasons.length] = 'no-quote'
-  return { required: reasons.length > 0, reasons }
+}): boolean {
+  return input.initiator === 'agent'
+    || input.runCount > 1
+    || (typeof input.amount === 'number' && input.amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS)
+    || input.hostingDisclosure
+    || input.amount === undefined
 }
 
 /**
@@ -274,13 +270,13 @@ export async function confirmGenerationSpend(
     toast(error instanceof Error ? error.message : i18n.t('generationCommon.batchPlan.authorizationFailed'), 'error')
     return false
   }
-  const requirement = spendConfirmationRequirement({
+  const required = spendConfirmationRequirement({
     initiator: opts.initiator ?? 'user',
     runCount: nodes.length,
     amount: quote ? quote.amount : undefined,
     hostingDisclosure: Boolean(opts.hostingDisclosure),
   })
-  if (!requirement.required && quote) {
+  if (!required && quote) {
     opts.onQuoteConfirmed?.(quote.quoteId)
     return true
   }

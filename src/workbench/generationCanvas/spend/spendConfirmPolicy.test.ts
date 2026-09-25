@@ -15,12 +15,11 @@ const paidNode = { meta: { modelVendor: 'relay', modelKey: 'image' } }
 
 describe('spendConfirmationRequirement（唯一判据）', () => {
   it('reported case: I click ↑ on one node, 0.3 credits → no card', () => {
-    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: 0.3, hostingDisclosure: false }))
-      .toEqual({ required: false, reasons: [] })
+    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: 0.3, hostingDisclosure: false })).toBe(false)
   })
 
   it('unpriced single user run does not ask (unknown price never blocks generation)', () => {
-    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: null, hostingDisclosure: false }).required).toBe(false)
+    expect(spendConfirmationRequirement({ initiator: 'user', runCount: 1, amount: null, hostingDisclosure: false })).toBe(false)
   })
 
   it('class: asks exactly when one of agent / ≥2 runs / ≥ threshold / hosting / no quote holds', () => {
@@ -30,7 +29,7 @@ describe('spendConfirmationRequirement（唯一判据）', () => {
     for (const initiator of initiators) for (const runCount of runCounts) for (const amount of amounts) for (const hostingDisclosure of [false, true]) {
       const expected = initiator === 'agent' || runCount > 1 || (typeof amount === 'number' && amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS)
         || hostingDisclosure || amount === undefined
-      expect(spendConfirmationRequirement({ initiator, runCount, amount, hostingDisclosure }).required,
+      expect(spendConfirmationRequirement({ initiator, runCount, amount, hostingDisclosure }),
         JSON.stringify({ initiator, runCount, amount, hostingDisclosure })).toBe(expected)
     }
   })

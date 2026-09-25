@@ -28,7 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { repoRoot } from './_launchApp.mjs'
 import { expect, expectAbsent, expectHittable, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { findCanvasBlankPoint, findFrameDragHandlePoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR, CANVAS_VIEWPORT_SELECTOR } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findFrameDragHandlePoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 
@@ -127,36 +127,20 @@ async function nodePoint(id) {
  * 把一张卡拖到舞台里人会停的位置：默认中间偏上（浮框钉在卡正下方，偏上给它留出位置）；
  * `alignTop` 时卡顶贴舞台上沿，给浮框留最多的竖向空间。`xFraction` 是卡中心在舞台横向的位置。
  */
-const SEED_POSITION = { stack: { x: 80, y: 80 }, 'empty-image': { x: 620, y: 80 } }
 async function panCardToStageCentre(id, { xFraction = 0.5, alignTop = false } = {}) {
   const clamp = (v) => Math.max(-250, Math.min(250, Math.round(v)))
   for (let step = 0; step < 6; step += 1) {
-    const delta = await win.evaluate(({ stageSelector, nodeSelector, viewportSelector, flow, xFraction, alignTop }) => {
+    // 画布只渲染视野里的卡（onlyRenderVisibleElements）：整张出屏时 DOM 里没有它。人找不到卡会先按「适应视图」。
+    if (await win.locator(sel(id)).count() === 0) await fitView()
+    const delta = await win.evaluate(({ stageSelector, nodeSelector, xFraction, alignTop }) => {
       const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
-      if (!stage) return null
-      const rendered = document.querySelector(nodeSelector)?.getBoundingClientRect()
-      let cx
-      let cy
-      let top
-      if (rendered) {
-        cx = (rendered.left + rendered.right) / 2
-        cy = (rendered.top + rendered.bottom) / 2
-        top = rendered.top
-      } else {
-        // 画布只渲染视野里的卡（onlyRenderVisibleElements）：整张出屏时按夹具流坐标 + 眼前视口算大概位置，拖进来后再精确量。
-        const layer = document.querySelector(viewportSelector)
-        const origin = layer?.parentElement?.getBoundingClientRect()
-        if (!layer || !origin || !flow) return null
-        const m = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
-        cx = origin.left + m.m41 + (flow.x + 120) * m.a
-        cy = origin.top + m.m42 + (flow.y + 90) * m.a
-        top = origin.top + m.m42 + flow.y * m.a
-      }
+      const card = document.querySelector(nodeSelector)?.getBoundingClientRect()
+      if (!stage || !card) return null
       return {
-        dx: stage.left + stage.width * xFraction - cx,
-        dy: alignTop ? stage.top + 16 - top : stage.top + stage.height * 0.3 - cy,
+        dx: stage.left + stage.width * xFraction - (card.left + card.right) / 2,
+        dy: alignTop ? stage.top + 16 - card.top : stage.top + stage.height * 0.3 - (card.top + card.bottom) / 2,
       }
-    }, { stageSelector: CANVAS_STAGE_SELECTOR, nodeSelector: sel(id), viewportSelector: CANVAS_VIEWPORT_SELECTOR, flow: SEED_POSITION[id] ?? null, xFraction, alignTop })
+    }, { stageSelector: CANVAS_STAGE_SELECTOR, nodeSelector: sel(id), xFraction, alignTop })
     if (!delta || (Math.abs(delta.dx) < 24 && Math.abs(delta.dy) < 24)) return
     // 一次最多拖 250px（真人一把也就这么远），拖完重量再拖，不会一把拖出窗口。
     await dragPan(clamp(delta.dx), clamp(delta.dy))

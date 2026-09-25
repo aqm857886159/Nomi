@@ -1,3 +1,4 @@
+import { unionCanvasFitBounds } from '../model/canvasFitBounds'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import type { CanvasRect } from '../store/canvasVisibleArea'
@@ -69,14 +70,10 @@ export function resolveArrivalHint(input: {
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const pending = unseen.map((id) => byId.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node))
   const here = pending.filter((node) => categoryOf(node) === activeCategoryId)
-  if (here.length && visible) {
-    const rects = here.map(nodeRect)
-    const left = Math.min(...rects.map((rect) => rect.x))
-    const right = Math.max(...rects.map((rect) => rect.x + rect.width))
-    const top = Math.min(...rects.map((rect) => rect.y))
-    const bottom = Math.max(...rects.map((rect) => rect.y + rect.height))
-    const cx = (left + right) / 2
-    const cy = (top + bottom) / 2
+  const bounds = visible ? unionCanvasFitBounds(here.map(nodeRect)) : null
+  if (bounds && visible) {
+    const cx = bounds.x + bounds.width / 2
+    const cy = bounds.y + bounds.height / 2
     const overX = cx < visible.x ? (visible.x - cx) / visible.width : cx > visible.x + visible.width ? (cx - visible.x - visible.width) / visible.width : 0
     const overY = cy < visible.y ? (visible.y - cy) / visible.height : cy > visible.y + visible.height ? (cy - visible.y - visible.height) / visible.height : 0
     const direction: ArrivalDirection = overX >= overY
@@ -94,14 +91,5 @@ export function resolveArrivalHint(input: {
 /** 点提示时要框进屏里的那块（画布坐标）。 */
 export function arrivalBounds(nodeIds: readonly string[], nodes: readonly GenerationCanvasNode[]): CanvasRect | null {
   const set = new Set(nodeIds)
-  const rects = nodes.filter((node) => set.has(node.id)).map(nodeRect)
-  if (!rects.length) return null
-  const x = Math.min(...rects.map((rect) => rect.x))
-  const y = Math.min(...rects.map((rect) => rect.y))
-  return {
-    x,
-    y,
-    width: Math.max(...rects.map((rect) => rect.x + rect.width)) - x,
-    height: Math.max(...rects.map((rect) => rect.y + rect.height)) - y,
-  }
+  return unionCanvasFitBounds(nodes.filter((node) => set.has(node.id)).map(nodeRect))
 }
