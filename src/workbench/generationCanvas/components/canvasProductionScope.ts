@@ -1,5 +1,4 @@
-import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
-import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
+import { isNodeGenerationOwnedByProduction, type ProductionRunsById } from '../../production/productionShotOwnership'
 import type { ProfileKind } from '../../api/modelCatalogApi'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
@@ -74,7 +73,7 @@ export function nodesInCanvasProductionScope(
 export function eligibleGenerationNodeIds(
   nodes: readonly GenerationCanvasNode[],
   scope: CanvasGenerationScope = {},
-  productionRuns: Readonly<Record<string, ProductionRun>> = {},
+  productionRuns: ProductionRunsById = {},
 ): string[] {
   return nodesInCanvasProductionScope(nodes, scope)
     .filter((node) => {

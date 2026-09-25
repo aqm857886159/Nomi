@@ -1,6 +1,11 @@
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
 import { productionShotIdForNode, productionShotOwnsGeneration } from '../../../electron/shared/productionShotPhase'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
+
+/**
+ * 按 runId 索引的制作 Run。形状取自 owner 函数的签名：渲染层不直接引 electron/productionRun（check:boundaries
+ * 的 src-no-import-electron），只依赖中立层 electron/shared。
+ */
+export type ProductionRunsById = Readonly<Record<string, NonNullable<Parameters<typeof productionShotOwnsGeneration>[0]>>>
 
 /** 该节点是否属某制作 Run（meta.productionRunId）。非制作节点 → null。 */
 export function productionRunIdOf(node: Pick<GenerationCanvasNode, 'meta'>): string | null {
@@ -14,7 +19,7 @@ export function productionRunIdOf(node: Pick<GenerationCanvasNode, 'meta'>): str
  */
 export function isNodeGenerationOwnedByProduction(
   node: Pick<GenerationCanvasNode, 'id' | 'meta'>,
-  runs: Readonly<Record<string, ProductionRun>>,
+  runs: ProductionRunsById,
 ): boolean {
   const runId = productionRunIdOf(node)
   const run = runId ? runs[runId] : undefined
