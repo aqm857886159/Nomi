@@ -22,13 +22,19 @@ export class BuildArtifactUrlPersistError extends Error {
   }
 }
 
-export type BuildArtifactPolicy =
-  /** 读路径：迁移能迁的，其余原样留下。 */
-  | { rejectNew: false }
-  /** 写路径：迁移能迁的；`tolerated`（写入前记录里已有的）之外的一律拒绝。 */
-  | { rejectNew: true; tolerated: ReadonlySet<string> };
-
 type Transaction = Pick<WorkspaceManifestTransaction, "exists" | "readJson" | "writeFile">;
+
+/** 读路径的处置：找不回字节的留在原处，记一条日志。 */
+export function keepBuildArtifactUrl(projectId: string): (url: string) => void {
+  return (url) => logWarn("workspace", "build-artifact-url-kept", { projectId, url });
+}
+
+/** 写路径的处置：写入前记录里就有的（`existing`）照留，新带进来的一律拒绝。 */
+export function rejectNewBuildArtifactUrl(existing: ReadonlySet<string>): (url: string) => void {
+  return (url) => {
+    if (!existing.has(url)) throw new BuildArtifactUrlPersistError(url);
+  };
+}
 
 /** 记录里现有的构建产物地址（写路径据此只拒「新带进来的」）。 */
 export function collectBuildArtifactUrls(value: unknown, into = new Set<string>()): Set<string> {
@@ -56,16 +62,18 @@ function demoAssetPath(rootPath: string, fileName: string, transaction: Transact
   }
 }
 
-/** 一次遍历用一个：同一张示例图在一条记录里出现多次只落一份。 */
+/**
+ * 一次遍历用一个：示例图迁成项目资产（同一张在一条记录里出现多次只落一份）；
+ * 找不回字节的交给 `onUnrecoverable`（读路径保留记日志，写路径拒新值）。
+ */
 export function createBuildArtifactRewriter(args: {
   rootPath: string;
   projectId: string;
   transaction: Transaction;
-  policy: BuildArtifactPolicy;
+  onUnrecoverable: (url: string) => void;
 }): (value: string) => string {
-  const { rootPath, projectId, transaction, policy } = args;
+  const { rootPath, projectId, transaction, onUnrecoverable } = args;
   const seeded = new Map<string, string>();
-  const warned = new Set<string>();
 
   const seedDemo = (fileName: string): string | null => {
     const cached = seeded.get(fileName);
@@ -87,11 +95,7 @@ export function createBuildArtifactRewriter(args: {
       const local = seedDemo(artifact.fileName);
       if (local) return local;
     }
-    if (policy.rejectNew && !policy.tolerated.has(url)) throw new BuildArtifactUrlPersistError(url);
-    if (!warned.has(url)) {
-      warned.add(url);
-      logWarn("workspace", "build-artifact-url-kept", { projectId, url });
-    }
+    onUnrecoverable(url);
     return url;
   };
 

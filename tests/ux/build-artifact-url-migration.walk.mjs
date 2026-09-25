@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const locale = process.argv.includes('--locale') ? process.argv[process.argv.indexOf('--locale') + 1] : 'zh-CN'
 const shotsDir = path.join(repoRoot, `tests/ux/shots/build-artifact-url-migration-${locale}`)
@@ -78,7 +79,7 @@ try {
   const watch = (page) => page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') consoleErrors.push(message.text()) })
   watch(win)
   const projectCard = win.locator('[data-project-card]', { hasText: projectName }).first()
-  await projectCard.waitFor({ timeout: 20000 })
+  await projectCard.waitFor({ timeout: stationTimeout() })
   await win.waitForTimeout(2500)
   const cover = await projectCard.evaluate((el) => [...el.querySelectorAll('img')].map((img) => ({ src: img.getAttribute('src') || '', loaded: img.complete && img.naturalWidth > 0 })))
   await snap(win, '01-library-cover')
@@ -89,10 +90,10 @@ try {
   win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
   watch(win)
   await win.setViewportSize({ width: 1440, height: 900 })
-  await win.locator('.nomi-stepper').first().waitFor({ timeout: 20000 })
+  await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout() })
   const stage = win.locator('.react-flow__pane').first()
   if (!(await stage.isVisible().catch(() => false))) await win.locator('.nomi-stepper__step[data-mode="generation"]').first().click()
-  await stage.waitFor({ state: 'visible', timeout: 20000 })
+  await stage.waitFor({ state: 'visible', timeout: stationTimeout() })
   await win.locator(`button[aria-label="${locale === 'en' ? 'Fit view' : '适应视图'}"]`).first().click().catch(() => {})
   await win.waitForTimeout(3000)
   const images = await win.evaluate(() => [...document.querySelectorAll('.react-flow__node img')].map((img) => ({ src: img.getAttribute('src') || '', loaded: img.complete && img.naturalWidth > 0 })))

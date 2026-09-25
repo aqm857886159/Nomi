@@ -14,7 +14,7 @@
     "electron/workspace/workspaceManifest.ts",
     "electron/workspace/buildArtifactMigration.ts",
     "electron/onboarding/demoAssetSeed.ts",
-    "electron/main.ts"
+    "electron/assets/assetsIpc.ts"
   ],
   "entry_points": [
     "清单写入（electron/workspace/workspaceManifest.ts createMutationContext.replace）：渲染层 saveLocalProject / renameLocalProject、MCP 与 Agent 的 gateway / documentSurface 写入都经这里",
@@ -60,7 +60,7 @@
     },
     {
       "kind": "write",
-      "path": "electron/main.ts",
+      "path": "electron/assets/assetsIpc.ts",
       "symbol": "registerOnboardingDemoAssetSourceDir"
     },
     {
@@ -76,13 +76,23 @@
     {
       "kind": "write",
       "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "keepBuildArtifactUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "rejectNewBuildArtifactUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
       "symbol": "mayContainBuildArtifactUrl"
     }
   ],
   "door_reduction": {
     "before": 4,
-    "after": 8,
-    "why_not": "改前（node scripts/door-map.mjs electron/onboarding/demoAssetSeed.ts，在 d8824a0c5 上跑）只有引导 seed 这一条路径自己读随包图；项目数据边界上**零**扇门守这条不变量——这正是缺口。改后新增的门都挂在同一遍清单遍历上：rewriter（迁移 + 拒绝）、快照预筛、写路径收集「原来就有」的集合、开机登记随包目录；随包图的读盘收成 readOnboardingDemoAssetBytes 一处（seed 与迁移共用，原来 seed 自己 fs.readFileSync）。每扇都必须存在：少了预筛，项目库快照会绕过迁移返回旧记录；少了收集，存量未知地址会把项目砖化。"
+    "after": 10,
+    "why_not": "改前（node scripts/door-map.mjs electron/onboarding/demoAssetSeed.ts，在 d8824a0c5 上跑）只有引导 seed 这一条路径自己读随包图；项目数据边界上零扇门守这条不变量——这正是缺口。改后新增的门都挂在同一遍清单遍历上：rewriter（迁移）、两种处置回调（读路径 keepBuildArtifactUrl 保留记日志 / 写路径 rejectNewBuildArtifactUrl 拒新值）、快照预筛、写路径收集「原来就有」的集合；随包目录在 registerAssetsIpc 里与引导 seed 的 IPC 一起登记；随包图读盘收成 readOnboardingDemoAssetBytes 一处（seed 与迁移共用，原来 seed 自己 fs.readFileSync）。每扇都必须存在：少了预筛，项目库快照会绕过迁移返回旧记录；少了收集，存量未知地址会把项目砖化。"
   },
   "generality_proof": "守的是持久化边界，不是某个写入口：渲染层保存、MCP / Agent 写入、新建、恢复、打开、项目库列表都经 localizeEmbeddedMediaUrls 这一遍遍历，分类按地址形状（app.asar 包内 / dev server 源码树 / 构建输出里的示例图文件名），与是哪段代码写进来的无关。以后任何代码再把一个构建产物地址带进项目，保存当场失败，不会静默落盘。",
   "shared_boundaries": [
@@ -102,7 +112,7 @@
       "path": "electron/workspace/workspaceManifest.ts",
       "entry_point": "createMutationContext.replace（所有清单写入）",
       "disposition": "enforced",
-      "evidence": "localizeEmbeddedMediaUrls 带 rejectNew 策略；buildArtifactMigration.test.ts「新写入里认不出的构建产物地址直接拒绝，磁盘不变」「新写入里的示例图照样迁成资产」。"
+      "evidence": "localizeEmbeddedMediaUrls 传 rejectNewBuildArtifactUrl（只拒写入前记录里没有的）；buildArtifactMigration.test.ts「新写入里认不出的构建产物地址直接拒绝，磁盘不变」「新写入里的示例图照样迁成资产」。"
     },
     {
       "path": "electron/workspace/workspaceManifest.ts",
@@ -163,7 +173,7 @@
     "removed_paths": [
       "electron/onboarding/demoAssetSeed.ts"
     ],
-    "rationale": "demoAssetSeed 里自己 fs.readFileSync 读随包图、自带一份 DEMO_ASSET_FILES / DEMO_ASSET_KIND 的写法删除，改读 electron/shared/onboardingDemoAssets.ts 与 readOnboardingDemoAssetBytes（与迁移同一处）。"
+    "rationale": "demoAssetSeed 里自己 fs.readFileSync 读随包图、自带一份 DEMO_ASSET_FILES / DEMO_ASSET_KIND、以及 demoAssetSourceDir 的写法删除：清单与读盘改用 electron/shared/onboardingDemoAssets.ts 与 readOnboardingDemoAssetBytes（与迁移同一处），随包目录在 registerAssetsIpc 里登记一次。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",

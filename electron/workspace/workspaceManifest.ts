@@ -29,7 +29,7 @@ import {
 } from "./workspaceTypes";
 import { logWarn } from "../logging/logger";
 import { mayContainBuildArtifactUrl } from "../shared/buildArtifactUrl";
-import { collectBuildArtifactUrls, createBuildArtifactRewriter, type BuildArtifactPolicy } from "./buildArtifactMigration";
+import { collectBuildArtifactUrls, createBuildArtifactRewriter, keepBuildArtifactUrl, rejectNewBuildArtifactUrl } from "./buildArtifactMigration";
 
 function workspaceId(): string {
   return `workspace-${crypto.randomUUID()}`;
@@ -114,22 +114,26 @@ function localizeEmbeddedDataUrl(
   return localAssetUrl(projectId, relativePath);
 }
 
-const MIGRATE_BUILD_ARTIFACTS: BuildArtifactPolicy = { rejectNew: false };
-
 /**
  * 一遍遍历做两件落盘：内嵌 data: 媒体 → 项目文件；构建产物地址（app.asar / dev server 源码树）→ 项目资产
- * （见 buildArtifactMigration.ts）。写路径传 rejectNew 策略：新带进来的、找不回字节的构建产物地址直接拒绝。
+ * （见 buildArtifactMigration.ts）。找不回字节的构建产物地址默认保留记日志（读路径）；写路径传
+ * rejectNewBuildArtifactUrl：新带进来的一律拒绝。
  */
 function localizeEmbeddedMediaUrls<T>(
   rootPath: string,
   input: T,
   transaction: WorkspaceManifestTransaction,
-  buildArtifactPolicy: BuildArtifactPolicy = MIGRATE_BUILD_ARTIFACTS,
+  onUnrecoverableBuildArtifact?: (url: string) => void,
 ): { value: T; changed: boolean } {
   const rootRecord = toProjectRecordObject(input);
   const projectId = typeof rootRecord?.id === "string" && rootRecord.id.trim() ? rootRecord.id.trim() : "";
   if (!projectId) return { value: input, changed: false };
-  const rewriteBuildArtifacts = createBuildArtifactRewriter({ rootPath, projectId, transaction, policy: buildArtifactPolicy });
+  const rewriteBuildArtifacts = createBuildArtifactRewriter({
+    rootPath,
+    projectId,
+    transaction,
+    onUnrecoverable: onUnrecoverableBuildArtifact ?? keepBuildArtifactUrl(projectId),
+  });
 
   let changed = false;
   let localizedCount = 0;
@@ -430,10 +434,12 @@ function createMutationContext(
       const persistedValue =
         options.localizeEmbeddedMedia === false
           ? merged
-          : localizeEmbeddedMediaUrls(transaction.canonicalRootPath, merged, transaction, {
-              rejectNew: true,
-              tolerated: collectBuildArtifactUrls(mainRawBaseline),
-            }).value;
+          : localizeEmbeddedMediaUrls(
+              transaction.canonicalRootPath,
+              merged,
+              transaction,
+              rejectNewBuildArtifactUrl(collectBuildArtifactUrls(mainRawBaseline)),
+            ).value;
       const persisted = transaction.replaceJson(transaction.manifestPath, persistedValue);
       const persistedRecord = toProjectRecordObject(persisted);
       if (!persistedRecord) throw new Error("Persisted workspace manifest must be an object");

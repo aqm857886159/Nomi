@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const locale = process.argv.includes('--locale') ? process.argv[process.argv.indexOf('--locale') + 1] : 'zh-CN'
 const en = locale === 'en'
@@ -94,16 +95,16 @@ try {
     viewportSize: { width: 1440, height: 900 },
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
   }))
-  await win.locator('[data-project-card]', { hasText: projectName }).first().click({ timeout: 20000 })
+  await win.locator('[data-project-card]', { hasText: projectName }).first().click({ timeout: stationTimeout() })
   for (let i = 0; i < 40 && !app.windows().some((page) => /projectId=/.test(page.url())); i += 1) await win.waitForTimeout(250)
   win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
   await win.setViewportSize({ width: 1440, height: 900 })
-  await win.locator('.nomi-stepper').first().waitFor({ timeout: 20000 })
+  await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout() })
 
   // —— ② 生成页侧栏拉到最窄 ——
   const stage = win.locator('.react-flow__pane').first()
   if (!(await stage.isVisible().catch(() => false))) await win.locator('.nomi-stepper__step[data-mode="generation"]').first().click()
-  await stage.waitFor({ state: 'visible', timeout: 20000 })
+  await stage.waitFor({ state: 'visible', timeout: stationTimeout() })
   await win.locator(`aside nav button[aria-label="${en ? 'Asset library' : '素材库'}"]`).first().click()
   await win.waitForTimeout(800)
   await dragHandle(win, win.locator(`aside [aria-label="${en ? 'Resize sidebar' : '调整侧栏宽度'}"], aside [role="separator"]`).first(), -400)

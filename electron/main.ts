@@ -6,8 +6,6 @@ import { pathToFileURL } from "node:url";
 import { createProject, deleteProject, diagnoseProject, listProjects, readProject, recoverProject, saveProject } from "./projects/repository";
 import { registerProjectsIpc } from "./projects/projectsIpc";
 import { registerAssetsIpc } from "./assets/assetsIpc";
-import { registerOnboardingDemoAssetSourceDir } from "./onboarding/demoAssetSource";
-import { demoAssetSourceDir } from "./onboarding/demoAssetSeed";
 import {
   clearModelCatalogVendorApiKey,
   deleteModelCatalogMapping,
@@ -635,8 +633,6 @@ if (hasSingleInstanceLock)
         // Registration is best-effort in dev and on platforms that disallow it.
       }
       registerLocalProtocol();
-      // 引导示例图的随包目录：引导 seed 与「旧项目里构建产物地址 → 项目资产」迁移都从这里读原图。
-      registerOnboardingDemoAssetSourceDir(demoAssetSourceDir());
       installContentSecurityPolicy(session.defaultSession, {
         isDev,
         lowMemoryMode,

@@ -7,25 +7,11 @@
 // 换机器（路径变）之后统统失效，用户看到裂图 + CSP 报错。
 // 构建产物 URL 不配写进用户数据。这里把随包的示例图写成该项目的真实资产，返回稳定的
 // `nomi-local://asset/<projectId>/…`——CSP 已放行，且重建/升级/换机/导出都还成立。
-import { app } from "electron";
-import path from "node:path";
-
 import { listProjectAssets, writeAsset } from "../assets/projectAssetStore";
 import type { JsonRecord } from "../jsonUtils";
 import { logError } from "../logging/logger";
 import { DEMO_ASSET_FILES, DEMO_ASSET_KIND } from "../shared/onboardingDemoAssets";
 import { readOnboardingDemoAssetBytes } from "./demoAssetSource";
-
-/**
- * 随包示例图目录。放 `resources/` 而不是 `src/` 或 `public/`：
- * - `src/` 会被 Vite 加内容哈希，只有渲染进程算得出地址（就是本次事故的起点）；
- * - `public/` 会被 Vite 原样拷进 dist，同一批图进包两份（多 920K，白吃）。
- * `resources/**` 已在 package.json > build.files 里随包走，故 dev（仓库根）与打包版
- * （app.asar 根）是同一条相对路径——不必 dev/prod 分治。
- */
-export function demoAssetSourceDir(): string {
-  return path.join(app.getAppPath(), "resources", "onboarding-demo");
-}
 
 function assetUrlOf(dto: unknown): string {
   const data = (dto as { data?: JsonRecord } | null)?.data;
