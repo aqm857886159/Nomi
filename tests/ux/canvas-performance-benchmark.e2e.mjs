@@ -598,15 +598,23 @@ async function openProject(app, page, fixture) {
   await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 * openScale })
   const firstCanvasMs = Date.now() - startedAt
   const settleStartedAt = Date.now()
+  // 就绪 = 挂载数稳定：连续 500ms 一个没多、一个没少。以前判「挂载数 < 总数」（虚拟化生效）；打开时画布会一次性
+  // 适应全貌（useAutoFitOnLoad，2026-09-26 协调裁定 B 保留），大项目缩到低倍率后可能全部节点都在视野里、一次挂齐，
+  // 那条判据就永远等不到。性能要量的正是适应之后用户真正看到的那个状态。
   await page.waitForFunction(
-    ({ nodeCount }) => {
+    ({ nodeCount, holdMs }) => {
       const mountedNodes = document.querySelectorAll('.generation-canvas-v2-node').length
+      const now = performance.now()
+      const last = window.__perfMountProbe
+      if (!last || last.count !== mountedNodes) {
+        window.__perfMountProbe = { count: mountedNodes, since: now }
+        return false
+      }
       const nodesReady = nodeCount === 0 || mountedNodes > 0
-      const virtualizationReady = nodeCount <= 50 || mountedNodes < nodeCount
-      return nodesReady && virtualizationReady
+      return nodesReady && now - last.since >= holdMs
     },
-    { nodeCount: fixture.summary.nodes },
-    { timeout: 20_000 * openScale },
+    { nodeCount: fixture.summary.nodes, holdMs: 500 },
+    { timeout: 20_000 * openScale, polling: 100 },
   )
   await waitForVisibleMediaSettlement(page, {
     expectMedia: fixture.summary.imageNodes + fixture.summary.videoNodes > 0,

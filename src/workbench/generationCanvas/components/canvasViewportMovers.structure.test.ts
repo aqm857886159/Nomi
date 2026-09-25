@@ -62,9 +62,8 @@ describe('canvas viewport movers', () => {
     expect(dispatchers).toEqual(Object.keys(FOCUS_DISPATCHERS).sort())
   })
 
-  it('the created-node reveal pan, its target tracker and the open-time auto fit stay deleted', () => {
-    // useAutoFitOnLoad：2026-09-26 协调裁定：打开项目时的自动摆全貌在 main 上从未生效（节点量好尺寸之前就判定，外接盒为空）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。
-    for (const gone of ['useCreatedNodeVisibilityPan.ts', 'viewportTargetTracker.ts', 'useAutoFitOnLoad.ts']) {
+  it('the created-node reveal pan and its target tracker stay deleted', () => {
+    for (const gone of ['useCreatedNodeVisibilityPan.ts', 'viewportTargetTracker.ts']) {
       expect(fs.existsSync(path.join(__dirname, gone)), gone).toBe(false)
     }
   })

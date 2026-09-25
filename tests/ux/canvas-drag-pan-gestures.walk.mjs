@@ -330,7 +330,7 @@ async function selectedNodeIds() {
  */
 async function addNode(kind) {
   const knownIds = [...SEEDED_NODE_IDS, ...CREATED_NODE_IDS]
-  // 基线必须在点之前、且视口停稳时读（用户自己前一步点出来的动画得先落地）。
+  // 基线必须在点之前、且视口停稳时读：打开项目那一刻若摆过一次全貌（useAutoFitOnLoad），它得先落地。
   const viewportBefore = await waitForCanvasViewportSettled(getWin())
   await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
   const arrival = await expectArrivalsReachable(getWin(), {

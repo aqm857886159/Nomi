@@ -45,6 +45,7 @@ import { useCanvasBatchDockVisibility } from '../components/useCanvasBatchDockVi
 import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
+import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useCanvasArrivalHint } from './useCanvasArrivalHint'
 import { visibleInsertionPoint } from '../store/canvasVisibleArea'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
@@ -410,6 +411,17 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onFrameToolPointerDown: frameTool.handlePointerDown,
   })
 
+  useAutoFitOnLoad({
+    ready: isReady,
+    nodes,
+    activeCategoryId,
+    categoryViewports,
+    fitView,
+    stageRef: hostRef,
+    zoomRef,
+    offsetRef,
+    hasFlowNode: (id) => flowStore.getState().nodeLookup.has(id),
+  })
   useCanvasFitSignal(fitView)
   // 新东西落在屏外 / 别的分类：边缘提示，点了才过去（程序不再为「露出」主动挪画布，2026-09-25）。
   const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })

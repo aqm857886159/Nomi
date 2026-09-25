@@ -37,7 +37,7 @@
     "Paid-card landing (multiShotCanvasLanding.materializeShots)",
     "Asset-library upload and image grid split",
     "Variant duplicate, rerun duplicate, sidebar regenerate-derived, ⌘D duplicate",
-    "Opening a project / switching category (useAutoFitOnLoad — deleted 2026-09-26)",
+    "Opening a project / switching category (useAutoFitOnLoad, once, after nodes are measured)",
     "Explicit user moves: fit, reset, zoom, minimap, sidebar locate, locate-source badge, toast locate, notification deep link, open-stage, edge hint"
   ],
   "external_sources": [
@@ -166,10 +166,10 @@
       "evidence": "focus dispatch removed; canvasControlsStructure.test.ts asserts the file no longer mentions the focus event"
     },
     {
-      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
-      "entry_point": "open-time auto fit (useAutoFitOnLoad, its only caller; hook deleted 2026-09-26)",
+      "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+      "entry_point": "useAutoFitOnLoad",
       "disposition": "enforced",
-      "evidence": "Deleted 2026-09-26 (coordinator ruling): it never took effect on main — it decided 350ms after nodes appeared, before they were measured, so the fit bounds were empty. Evidence: the magnetic-handle walk measured zoom=1 on main and the perf harness saw mounted < total. Repairing it would move the viewport on every project open (categoryViewports is project-lifetime memory) and mount every node of a large project. canvasViewportMovers.structure.test.ts asserts the file stays deleted."
+      "evidence": "打开时适应一次 = 用户拍板保留；此前 main 上时序不稳，现改为节点量完后必定触发（2026-09-26 协调裁定 B）。Fits once per category open when there is no usable remembered viewport (categoryViewports is project-lifetime memory, so every reopen qualifies), gated on the canvas store being ready so it decides after nodes are measured — on main it decided 350 ms after nodes appeared, which fired on some paths (cold restart → 「继续创作」: zoom 0.36) and not on others (magnetic walk / perf fixture). Nodes arriving later never trigger it (shouldFitOnOpen reads the node count at open). Allowlisted in canvasViewportMovers.structure.test.ts; useAutoFitOnLoad.test.ts covers the decision table."
     },
     {
       "path": "src/workbench/production/useProductionStatus.ts",
@@ -181,7 +181,7 @@
       "path": "src/workbench/onboarding/journeyTourStore.ts",
       "entry_point": "60s guided tour lands the demo storyboard (applyCanvasToolCall create_canvas_nodes)",
       "disposition": "enforced",
-      "evidence": "On main the demo canvas was spread by applyCanvasToolCall's post-landing requestCanvasFit (main applyCanvasToolCall.ts:556, whose comment named the guided tour), not by the open-time auto fit. That fit was removed with the other automatic movers, so the tour now calls requestCanvasFit once itself after landing — a guide step the user started with 「看 Nomi 怎么出片」; allowlisted in canvasViewportMovers.structure.test.ts. evals j3-first-success guided-canvas passes."
+      "evidence": "On main the demo canvas was spread by applyCanvasToolCall's post-landing requestCanvasFit (main applyCanvasToolCall.ts:556, whose comment named the guided tour), not by the open-time auto fit. That fit was removed with the other automatic movers, so the tour now calls requestCanvasFit once itself after landing — a guide step the user started with 「看 Nomi 怎么出片」; allowlisted in canvasViewportMovers.structure.test.ts. evals j3-first-success guided-canvas passes. Still needed after ruling B restored the open-time fit (2026-09-26): the tour enters the project in creation mode with an empty canvas and lands the demo nodes afterwards, so useAutoFitOnLoad sees nodeCountAtOpen = 0 and (by design) does not fit — nodes arriving after open are never a reason to move the canvas. The two do not overlap: one fits content that existed at open, the other is a guide step the user started."
     }
   ],
   "recurrence": {

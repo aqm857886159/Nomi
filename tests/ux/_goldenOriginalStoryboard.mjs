@@ -90,6 +90,8 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   await openCanvas(win)
   // 放入画布不再让画布自己适应到新镜头上（2026-09-25 拍板「程序不再主动平移 / 缩放画布」）：镜头落在屏外时
   // 舞台边只出一颗边缘提示。用户要看全三镜，自己点「适应视图」——它和点提示一样是用户发起的移动，且框住全部。
+  // 先等视口停稳：进画布那一刻若要一次性摆全貌（useAutoFitOnLoad，画布量完节点后判一次），别让它落在我们这一下之后。
+  await waitForCanvasViewportSettled(win)
   await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应视图：看全放入画布的三镜')
   await waitForCanvasViewportSettled(win)
   const second = originalNodes.find(node => node.meta.shotId === shotId)
