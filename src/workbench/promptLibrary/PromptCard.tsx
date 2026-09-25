@@ -5,6 +5,7 @@ import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
 import { promptDisplayTitle, promptSourceLabel } from './promptDisplay'
+import { useRemoteExampleMedia } from '../../media/remoteExampleMedia'
 
 type Props = {
   prompt: LibraryPrompt
@@ -14,9 +15,9 @@ type Props = {
 // 单张提示词卡:封面(图<img>/视频<video 首帧>)+标题渐变压字+类型角标。memo 化(搜索/滚动重渲不重建)。
 export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: Props): JSX.Element {
   const { t } = useTranslation()
-  const [broken, setBroken] = React.useState(false)
+  const media = useRemoteExampleMedia(prompt.mediaUrl)
   const isVideo = prompt.mediaType === 'video'
-  const hasMedia = Boolean(prompt.mediaUrl) && !broken
+  const hasMedia = Boolean(prompt.mediaUrl) && !media.broken
 
   return (
     <Tooltip>
@@ -39,7 +40,7 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
                 playsInline
                 preload="metadata"
                 className={cn('absolute inset-0 w-full h-full object-cover')}
-                onError={() => setBroken(true)}
+                onError={media.onError}
               />
             ) : (
               <img
@@ -47,12 +48,13 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
                 alt={promptDisplayTitle(prompt)}
                 loading="lazy"
                 className={cn('absolute inset-0 w-full h-full object-cover')}
-                onError={() => setBroken(true)}
+                onError={media.onError}
               />
             )
           ) : (
-            <div className={cn('absolute inset-0 grid place-items-center text-nomi-ink-30')}>
+            <div className={cn('absolute inset-0 grid place-content-center justify-items-center gap-1 text-nomi-ink-30')}>
               {isVideo ? <IconVideo size={30} stroke={1.4} /> : <IconPhoto size={30} stroke={1.4} />}
+              {media.broken ? <span className={cn('text-micro text-nomi-ink-40')} data-example-media-expired>{t('libraries.prompt.card.expired')}</span> : null}
             </div>
           )}
 

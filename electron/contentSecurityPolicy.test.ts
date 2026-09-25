@@ -10,6 +10,7 @@ import {
   installContentSecurityPolicy,
   isLocalArtifactUrl,
 } from './contentSecurityPolicy'
+import { CROSS_ORIGIN_ISOLATION_HEADERS } from './shared/crossOriginIsolation'
 
 type Captured = { headers: Record<string, string[]> }
 
@@ -55,7 +56,16 @@ describe('宿主页面策略', () => {
     const captured = headersFor('file:///app/dist/index.html')
     expect(policyOf(captured)).toContain("default-src 'self' nomi-local:")
     expect(captured.headers['Cross-Origin-Opener-Policy']).toEqual(['same-origin'])
-    expect(captured.headers['Cross-Origin-Embedder-Policy']).toEqual(['require-corp'])
+    expect(captured.headers['Cross-Origin-Embedder-Policy']).toEqual(['credentialless'])
+  })
+
+  // 2026-09-25：require-corp 要求每个跨源子资源自带 CORP，提示词库的第三方示例视频 / 封面在 Mac 版全被拦。
+  // credentialless 让 no-cors 媒体不带 cookie 加载、不要求对方带 CORP，隔离与 SharedArrayBuffer 照样在
+  // （真机探针矩阵见 electron/shared/crossOriginIsolation.ts）。这一格防有人把模式改回 require-corp。
+  it('隔离模式是 credentialless：第三方示例媒体不因缺 CORP 被拦', () => {
+    expect(CROSS_ORIGIN_ISOLATION_HEADERS['Cross-Origin-Embedder-Policy']).toBe('credentialless')
+    const captured = headersFor('file:///app/dist/index.html')
+    expect(captured.headers['Cross-Origin-Embedder-Policy']).toEqual([CROSS_ORIGIN_ISOLATION_HEADERS['Cross-Origin-Embedder-Policy']])
   })
 })
 
