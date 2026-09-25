@@ -48,7 +48,7 @@ type Reconcile = {
   unknownNodeTypes: string[]
   missingEnumValues: Array<{ nodeId: string; classType: string; title?: string; inputKey: string; value: string }>
   /** (classType, inputKey) → 本机 combo 可选值；导入时烤进参数控件（画布真实文件下拉）。 */
-  enumOptions?: Array<{ classType: string; inputKey: string; options: string[] }>
+  enumOptions?: Array<{ classType: string; inputKey: string; options: Array<string | number | boolean> }>
   /** 没见过的 combo 外壳（node class + input key + 原始 spec）——2026-09-11 owner 拍板加的诊断，
    * 「反馈给 Nomi」一键把这仨信息拼进 GitHub issue，不用真机踩一次才发现新格式。 */
   unknownComboShapes?: Array<{ classType: string; inputKey: string; spec: unknown }>

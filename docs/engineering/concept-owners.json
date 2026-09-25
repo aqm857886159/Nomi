@@ -301,6 +301,20 @@
       ],
       "since": "2026-09-24",
       "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
+    },
+    {
+      "name": "制作镜头的生成归属",
+      "owner": {
+        "path": "electron/shared/productionShotPhase.ts",
+        "symbol": "productionShotOwnsGeneration"
+      },
+      "consumers": [
+        "src/workbench/production/productionShotOwnership.ts",
+        "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "src/workbench/generationCanvas/runner/generationRunController.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { isNodeGenerationOwnedByProduction, type ProductionRunsById } from '../../production/productionShotOwnership'
 import type { ProfileKind } from '../../api/modelCatalogApi'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
@@ -72,10 +73,13 @@ export function nodesInCanvasProductionScope(
 export function eligibleGenerationNodeIds(
   nodes: readonly GenerationCanvasNode[],
   scope: CanvasGenerationScope = {},
+  productionRuns: ProductionRunsById = {},
 ): string[] {
   return nodesInCanvasProductionScope(nodes, scope)
     .filter((node) => {
       if (!getGenerationNodeExecutionKind(node.kind)) return false
+      // 归制作流程生成的镜头（报价卡等确认 / 排队 / 生成中）节点状态仍是 idle——再算进「生成全部」就是重复扣费。
+      if (isNodeGenerationOwnedByProduction(node, productionRuns)) return false
       const status = node.status ?? 'idle'
       return status === 'idle' || status === 'error'
     })
