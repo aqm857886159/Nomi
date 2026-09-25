@@ -1,0 +1,448 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-model-catalog-sync-read-per-mount",
+  "problem_type": "Selecting a canvas card re-reads, re-migrates and re-decrypts the whole model catalog over sync IPC many times per mount",
+  "symptom": "Creating a video node or starting a drag on an unselected card stalls the frame (new node longest frame 71–102 ms, drag start 69–73 ms on 32 × 1080p). The prompt composer mounts on select and blocks the renderer on sync IPC.",
+  "direct_cause": "useChannelCreateBodies computed channel bodies twice per mount (useState initializer + an immediate effect recompute) and called listMappings once per mode and once per guidance candidate (7–12 sync IPC per mount). On the main side every call went through readCatalog, which re-read, re-parsed, migrated and decrypted every vendor key of a 300 KB file, then deep-cloned it before filtering.",
+  "class_root": "The catalog read choke point (readCatalog) had no notion of \"unchanged since last read\", and the renderer had no per-computation reuse, so the cost of a read scaled with the number of callers instead of with catalog changes.",
+  "affected_population": [
+    "Every desktop user selecting or creating a generation node (composer mount), worse with many vendors or a large catalog",
+    "Every main-process reader of readCatalog (52 call sites) pays a full re-parse and decrypt per call"
+  ],
+  "scope_paths": [
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/catalogFileAccess.ts",
+    "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+    "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts"
+  ],
+  "entry_points": [
+    "Composer mount on node select / new node (NodeParameterControls → useChannelCreateBodies)",
+    "Narrowed-mode guidance across candidate channels (useNarrowedModeGuidance)",
+    "Every main-process readCatalog caller (IPC list/health/upsert paths, generation providers)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/tutorial/ipc",
+      "checked_at": "2026-09-25",
+      "purpose": "Electron documents sendSync as blocking the renderer until the main process replies; each sync read is a frame-blocking round trip, so the count per mount matters."
+    }
+  ],
+  "invariants": [
+    "readCatalog re-parses and decrypts only when the file bytes changed, or when a key could not be decrypted (locked keychain is never cached)",
+    "Write flows always receive a private deep copy; read-only lists share a deep-frozen snapshot, and mutating it throws",
+    "One composer computation asks each vendor for its mappings at most once"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/catalogStore.ts",
+    "tests": [
+      "electron/catalog/catalogReadCache.test.ts"
+    ],
+    "why": "readCatalog is the single read choke point of the catalog file; the cache and the frozen shared snapshot live there, so every reader inherits them."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assetTransportIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/moduleCatalogBootstrap.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/usableVideoModelCandidates.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/antigravityCatalog.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDraft.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/vendorAuthSpec.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/secretsProvider.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/image/decomposeLayers.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/connectedModelScope.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceLanguageModels.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/spendQuote.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogFileAccess.ts",
+      "symbol": "readCatalogFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "readCatalogFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "readCatalogFileBytes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "listModelCatalogMappings"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "listModelCatalogMappings"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowOutputMigration.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelCapabilityProjection.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "selectTaskMapping"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "symbol": "createVendorMappingsReader"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "createVendorMappingsReader"
+    }
+  ],
+  "door_reduction": {
+    "before": 65,
+    "after": 65,
+    "why_not": "No door is removed: all readers already go through the one choke point (readCatalog); the fix makes that choke point cheap instead of adding a second read path. listModelCatalogMappings switches to the frozen shared snapshot of the same owner."
+  },
+  "generality_proof": "The cache sits inside readCatalog, keyed by path + raw bytes, so every present and future reader benefits and any writer (this process, another instance, a hand edit) invalidates it by changing the bytes. The renderer reader is scoped to one computation, so it cannot go stale.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "readCatalog",
+      "responsibility": "Byte-keyed read cache; deep copy for write flows; frozen shared snapshot for read-only lists."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "createVendorMappingsReader",
+      "responsibility": "Per-computation reuse of listMappings per vendor."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "entry_point": "useChannelCreateBodies (composer mount)",
+      "disposition": "enforced",
+      "evidence": "Computes once per (models/modes, catalog version) and uses one reader per pass; measured 3 sync IPC per mount (was 7–12)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "entry_point": "useNarrowedModeGuidance (candidate channels)",
+      "disposition": "enforced",
+      "evidence": "Shares one createVendorMappingsReader across all candidates and modes."
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "entry_point": "listModelCatalogMappings (IPC mappings:list, relayNativeWireUpgrade)",
+      "disposition": "enforced",
+      "evidence": "Reads the frozen shared snapshot; catalogReadCache.test.ts proves mutation throws."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new renderer surface that reads the catalog over sync IPC in a render path, or any new main reader, would have paid the full parse and decrypt again.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs readCatalog: 52 main-process readers, all behind the cached choke point",
+      "node scripts/door-map.mjs listModelCatalogMappings: IPC handler and relayNativeWireUpgrade, both read-only"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/catalogStore.ts",
+    "invariant": "A catalog read costs a file read plus a structured clone unless the bytes changed",
+    "failure_mode": "catalogReadCache.test.ts counts decrypt calls across repeated reads and asserts a locked keychain is not cached; mutation-checked (removing the cache, the copy or the freeze turns it red).",
+    "exception_policy": "none",
+    "strategy": "Fix at the single read choke point; renderer reuse is per computation only (no cross-call renderer cache, because the main process does not broadcast every catalog write).",
+    "artifacts": [
+      "electron/catalog/catalogStore.ts",
+      "electron/catalog/catalogReadCache.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/catalogReadCache.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/catalogReadCache.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing removed; the choke point gains a cache and a read-only accessor."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency involved.",
+    "exit_criteria": []
+  },
+  "migration": "No migration.",
+  "residual_risks": [
+    "The composer still makes up to 3 sync IPC per mount; converting the catalog bridge to async is a separate change."
+  ]
+}

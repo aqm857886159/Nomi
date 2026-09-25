@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
+import { deepFreeze, findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { sanitizeName } from "../projects/repository";
 import { configReadFailure, quarantineUnreadableConfigFile, writeConfigFileAtomic } from "../configFileStore";
 import {
@@ -7,6 +7,7 @@ import {
   catalogPath,
   modelCatalogReadOnlyStatus,
   readCatalogFile,
+  readCatalogFileBytes,
   snapshotBeforeMigration,
 } from "./catalogFileAccess";
 export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./catalogFileAccess";
@@ -67,7 +68,25 @@ function defaultCatalog(): CatalogState {
   };
 }
 
+// 读缓存（2026-09-25 画布跟手实测）：画布上选中一张卡，提示词面板经同步 IPC 连读十几次目录，每次都重新
+// 解析、迁移、逐家解密，渲染线程被卡 29–61 ms。盘上字节没变就复用上一次的结果——键是路径 + 原始字节，
+// 不是 mtime（同一毫秒两次写会漏），本进程 writeCatalog、别的实例、手改文件都自然失效。
+// 有密钥解不开（钥匙串锁着）时不缓存：解锁后下一次读必须重新解密，行为与无缓存时一致。
+// 两个读口：readCatalog() 给深拷贝，供「读 → 就地改 → writeCatalog」的写流程；readCatalogShared() 直接交出
+// 冻结的缓存本体，供纯读接口（列表）——300 KB 的目录每次整份深拷贝再过滤，一次同步 IPC 仍要约 4 ms（二轮实测）。
+// 缓存本体深冻结：哪个读口的调用方误改了它，严格模式下当场抛，而不是静默污染下一次读。
+let catalogReadCache: { path: string; bytes: string; state: CatalogState } | null = null;
+
 export function readCatalog(): CatalogState {
+  return structuredClone(readCatalogShared());
+}
+
+function readCatalogShared(): Readonly<CatalogState> {
+  const cachePath = catalogPath();
+  const bytes = readCatalogFileBytes();
+  if (bytes !== null && catalogReadCache?.path === cachePath && catalogReadCache.bytes === bytes) {
+    return catalogReadCache.state;
+  }
   const outcome = readCatalogFile();
   if (outcome.status === "missing") {
     const initial = defaultCatalog();
@@ -88,13 +107,16 @@ export function readCatalog(): CatalogState {
   const migrated = migrateCatalogForward(snapshotBeforeMigration(parsed), defaultCatalog, writeCatalog);
 
   const apiKeysByVendor = migrated.apiKeysByVendor || {};
-  return {
+  let everyKeyReadable = true;
+  const state: CatalogState = {
     ...migrated,
     vendors: migrated.vendors.map((vendor) => {
+      const keyStatus = apiKeyDecryptStatus(apiKeysByVendor[vendor.key]);
+      if (keyStatus === "locked") everyKeyReadable = false;
       const base: Vendor = {
         ...vendor,
         providerKind: normalizeProviderKind(vendor.providerKind),
-        hasApiKey: apiKeyDecryptStatus(apiKeysByVendor[vendor.key]) === "ok",
+        hasApiKey: keyStatus === "ok",
         credentialVerificationPending: apiKeysByVendor[vendor.key]?.verificationPending === true,
       };
       // Overlay the DECRYPTED proxy/header credentials onto the INTERNAL vendor at
@@ -107,6 +129,10 @@ export function readCatalog(): CatalogState {
     }),
     apiKeysByVendor,
   };
+  // 迁移可能刚把文件写了一遍：字节变了就先不缓存，下一次读再缓存新的那份。
+  const cacheable = bytes !== null && everyKeyReadable && readCatalogFileBytes() === bytes;
+  catalogReadCache = cacheable ? { path: cachePath, bytes, state: deepFreeze(state) } : null;
+  return state;
 }
 
 /**
@@ -192,8 +218,8 @@ export function listModelCatalogModels(params?: unknown): Array<Model & {
     availability: availability.of(model),
   })) as Array<Model & { published: boolean; publishedModes: ProfileKind[]; availability: ModelAvailability }>;
 }
-export function listModelCatalogMappings(params?: unknown): Mapping[] {
-  return filterByParams(readCatalog().mappings, params);
+export function listModelCatalogMappings(params?: unknown): readonly Readonly<Mapping>[] {
+  return filterByParams(readCatalogShared().mappings as Mapping[], params);
 }
 /** 单个可用 text「语言大脑」候选的解出形（onboarding 文档读取 / 审片环 judge 共用）。 */
 export type OnboardingAgent = {

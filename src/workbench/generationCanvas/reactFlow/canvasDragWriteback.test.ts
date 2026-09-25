@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { commitCanvasNodeDragStop } from './canvasDragWriteback'
+import { commitCanvasNodeDragStop, isKeyboardMoveBatch, keyboardMoveScope } from './canvasDragWriteback'
 import type { GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 
 vi.mock('../../../ui/toast', () => ({ toast: vi.fn() }))
@@ -22,5 +22,20 @@ describe('cancelled canvas drag writeback', () => {
     expect(dragDraftNodesRef.current).toEqual([])
     expect(moveNode).not.toHaveBeenCalled()
     expect(commitPersistedChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('keyboard move scope (arrow-key nudge)', () => {
+  it('authorizes exactly the nodes selected when the arrow key went down, regardless of when React Flow applies the move', async () => {
+    const scope = keyboardMoveScope({ key: 'ArrowRight' }, ['a', 'b'])
+    await Promise.resolve() // the old flag was cleared here, before React Flow applied the move
+    expect(isKeyboardMoveBatch([{ nodeId: 'a' }, { nodeId: 'b' }], scope)).toBe(true)
+    expect(isKeyboardMoveBatch([{ nodeId: 'a' }, { nodeId: 'c' }], scope)).toBe(false)
+  })
+  it('other keys, an empty selection or an empty batch authorize nothing', () => {
+    expect(keyboardMoveScope({ key: 'a' }, ['a'])).toBeNull()
+    expect(keyboardMoveScope({ key: 'ArrowUp' }, [])).toBeNull()
+    expect(isKeyboardMoveBatch([], new Set(['a']))).toBe(false)
+    expect(isKeyboardMoveBatch([{ nodeId: 'a' }], null)).toBe(false)
   })
 })

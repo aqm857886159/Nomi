@@ -47,6 +47,30 @@ describe('canvas gesture ownership', () => {
     expect(cancel).toHaveBeenCalledTimes(1)
     expect(a.hasAttribute(CANVAS_DRAGGING_ATTRIBUTE)).toBe(false)
   })
+  it('ends a button gesture once its release is lost: buttonless mouse move or native drag start', () => {
+    for (const lost of [
+      Object.assign(new Event('pointermove'), { pointerType: 'mouse', buttons: 0, clientX: 30, clientY: 40 }),
+      Object.assign(new Event('dragstart'), { clientX: 30, clientY: 40 }),
+    ]) {
+      const a = stage(); const onReleaseLost = vi.fn(); const cancel = vi.fn()
+      beginCanvasDragging(a, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel: cancel, onReleaseLost })
+      window.dispatchEvent(Object.assign(new Event('pointermove'), { pointerType: 'mouse', buttons: 1, clientX: 10, clientY: 20 }))
+      window.dispatchEvent(Object.assign(new Event('pointermove'), { pointerType: 'touch', buttons: 0, clientX: 10, clientY: 20 }))
+      expect(onReleaseLost).not.toHaveBeenCalled()
+      window.dispatchEvent(lost); window.dispatchEvent(lost)
+      expect(onReleaseLost).toHaveBeenCalledTimes(1)
+      expect(onReleaseLost).toHaveBeenCalledWith({ clientX: 30, clientY: 40 })
+      expect(cancel).not.toHaveBeenCalled()
+      expect(a.hasAttribute(CANVAS_DRAGGING_ATTRIBUTE)).toBe(false)
+    }
+  })
+  it('a lease without onReleaseLost ignores buttonless moves (wheel pans keep their flag)', () => {
+    const a = stage()
+    const lease = beginCanvasDragging(a, CANVAS_DRAGGING_OWNER.reactFlowViewport)
+    window.dispatchEvent(Object.assign(new Event('pointermove'), { pointerType: 'mouse', buttons: 0, clientX: 1, clientY: 1 }))
+    expect(a.hasAttribute(CANVAS_DRAGGING_ATTRIBUTE)).toBe(true)
+    lease.release()
+  })
   it('a deferred lease only takes the stage once it is activated', () => {
     // 跨过拖拽阈值才升旗（点一下空白不许写属性 → 不让整棵 stage 子树重算样式）。
     const a = stage()

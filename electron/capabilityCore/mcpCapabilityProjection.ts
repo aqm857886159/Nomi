@@ -1,3 +1,4 @@
+import { deepFreeze } from "../jsonUtils";
 import { z, type ZodTypeAny } from "zod";
 import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
 
@@ -96,12 +97,6 @@ export type McpCapabilityResolver = {
   readonly list: () => readonly McpCapabilityTool[];
   readonly resolve: (alias: string) => McpCapabilityTool | undefined;
 };
-
-function deepFreeze<T>(value: T): T {
-  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
-  return Object.freeze(value);
-}
 
 /** Clone transport JSON before freezing so registration callers cannot mutate the resolver later. */
 export function immutableSchemaSnapshot(schema: SchemaLike): SchemaLike {
