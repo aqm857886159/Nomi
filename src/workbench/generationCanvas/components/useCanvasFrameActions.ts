@@ -8,6 +8,7 @@
  *  · **解散 = ungroup，边一根都不撤**（model/groupInputLinks 的既有语义：解散的是组织方式，
  *    不是节点关系）。顺手把边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
  */
+import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { reportCanvasFeedback } from './canvasFeedback'
@@ -36,7 +37,11 @@ function frameEligibleIds(groupId: string): string[] {
   const state = useGenerationCanvasStore.getState()
   const group = state.groups.find((candidate) => candidate.id === groupId)
   if (!group?.nodeIds.length) return []
-  return eligibleGenerationNodeIds(state.nodes, resolveCanvasGenerationScope(group.categoryId, group.nodeIds))
+  return eligibleGenerationNodeIds(
+    state.nodes,
+    resolveCanvasGenerationScope(group.categoryId, group.nodeIds),
+    useProductionCanvasLandingStore.getState().runs,
+  )
 }
 
 export function useCanvasFrameActions({

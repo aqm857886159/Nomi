@@ -1,0 +1,173 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-canvas-generate-ignores-production-shot",
+  "problem_type": "Canvas generation entries treat a production-dispatched shot as idle and offer to generate it again",
+  "symptom": "While the priced card for an Agent-drafted shot waits for the user (and later while a confirmed shot is queued), the canvas bottom bar still says 「生成全部 1 个」 and the node's generate button stays enabled. Generating from the canvas and then confirming the card submits the same shot twice (double generation, double charge).",
+  "direct_cause": "eligibleGenerationNodeIds (batch bar, frame menu) and canRunGenerationNode (single-node button and run controller) read only node.status. The production run owns the shot from the moment its priced card is shown until it is generated or stopped, but the waiting-card and queued states live only in the run, so the node looks idle.",
+  "class_root": "Whether a shot is being generated has two sources: the canvas node record and the production run. The canvas generation entries consulted only the first.",
+  "affected_population": [
+    "Every user who confirms Agent-drafted shots (single or batch) and then uses 「生成全部」, the frame menu 「生成」, or the node generate button while the shot is queued"
+  ],
+  "scope_paths": [
+    "src/workbench/production/productionShotOwnership.ts",
+    "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
+    "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx"
+  ],
+  "entry_points": [
+    "Canvas bottom bar 「生成全部 N 个」 (useCanvasProductionActions → eligibleGenerationNodeIds)",
+    "Frame context menu 「生成」 (useCanvasFrameActions → eligibleGenerationNodeIds)",
+    "Node composer generate button and run controller (canRunGenerationNode)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal state ownership between the canvas node record and the production run; no external API or library behaviour is involved.",
+  "invariants": [
+    "A shot the production run owns (priced card awaiting the user, queued, or generating) is never offered to or accepted by a canvas generation entry",
+    "Ownership is judged only by productionShotOwnsGeneration, separately from the display phase (deriveProductionShotState), so changing how a draft is displayed cannot reopen the double-generation window"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/production/productionShotOwnership.ts",
+    "tests": [
+      "src/workbench/production/productionShotOwnership.test.ts"
+    ],
+    "why": "isNodeGenerationOwnedByProduction is the single renderer-side bridge from a canvas node to its production shot state; both canvas generation boundaries (eligibility and canRun) call it."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+      "symbol": "eligibleGenerationNodeIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
+      "symbol": "eligibleGenerationNodeIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "canRunGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canRunGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasNodeGenerationIndex.ts",
+      "symbol": "canRunGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "isNodeGenerationOwnedByProduction"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "isNodeGenerationOwnedByProduction"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "productionShotOwnsGeneration"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "symbol": "productionRunIdOf"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "productionRunIdOf"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "No door removed: the two canvas generation boundaries already existed and every entry goes through one of them; the fix makes both consult the production owner. productionRunIdOf moved out of ProductionShotPlaceholder into the shared helper (one copy)."
+  },
+  "generality_proof": "All canvas generation entries converge on eligibleGenerationNodeIds (batch/frame) or canRunGenerationNode (single node, run controller); both now exclude in-flight production shots, so any future entry built on them inherits the rule.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "isNodeGenerationOwnedByProduction",
+      "responsibility": "Bridge from a canvas node to productionShotOwnsGeneration."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "eligibleGenerationNodeIds",
+      "responsibility": "Which nodes a batch generation may include."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canRunGenerationNode",
+      "responsibility": "Whether a single node may start a canvas generation now."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
+      "entry_point": "Bottom bar 「生成全部」",
+      "disposition": "enforced",
+      "evidence": "Passes landing-store runs to eligibleGenerationNodeIds; productionShotOwnership.test.ts asserts a queued shot is excluded and a stopped one kept."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+      "entry_point": "Frame menu 「生成」",
+      "disposition": "enforced",
+      "evidence": "Same eligibility call with the landing-store runs."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "Node generate button / run controller",
+      "disposition": "enforced",
+      "evidence": "canRunGenerationNode returns false for an in-flight production shot; covered by productionShotOwnership.test.ts."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Second instance of the same two-source shape within a day (#870: node kept spinning after production finished). Any new canvas generation entry reading node.status alone would reintroduce it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs eligibleGenerationNodeIds: 2 callers, both pass runs",
+      "node scripts/door-map.mjs canRunGenerationNode: composer, run controller, generation index"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/production/productionShotOwnership.ts",
+    "invariant": "Canvas generation entries skip shots the production run owns",
+    "failure_mode": "productionShotOwnership.test.ts and productionShotPhase.test.ts cover card-waiting / draft / cancelled / queued / generating / stopped / done / excluded-shot and both canvas entries; mutation-checked (removing the card-waiting rule or either guard turns them red).",
+    "exception_policy": "none",
+    "strategy": "Ownership is its own concept next to the display phase in the owner module; both canvas generation boundaries consume it through one renderer bridge.",
+    "artifacts": [
+      "src/workbench/production/productionShotOwnership.ts",
+      "src/workbench/production/productionShotOwnership.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/production/productionShotOwnership.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/production/productionShotOwnership.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No file removed. The private productionRunIdOf copy in ProductionShotPlaceholder.tsx moved into productionShotOwnership.ts (one copy)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency involved.",
+    "exit_criteria": []
+  },
+  "migration": "No migration.",
+  "residual_risks": [
+    "The composer button reads the landing store at render time; if a run moves from queued to stopped without the node changing, the button may stay disabled until the next render. The run controller re-checks at click time, so no double submission is possible.",
+    "The structural cause (two execution engines, shot state in two places) remains; tracked as the 「两台发动机合一」 structural item."
+  ]
+}

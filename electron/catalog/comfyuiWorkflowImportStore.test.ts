@@ -66,6 +66,33 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     expect(mine?.enabled).toBe(false);
   });
 
+  it("IPC 传来的 enumOptions 按 wire 原类型落进 meta.parameters（数字选项不丢、不转字符串；坏值丢弃）", async () => {
+    emptyCatalog();
+    const { importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
+    const { listModelCatalogModels } = await import("./catalogStore");
+    const text = JSON.stringify({
+      "2": { class_type: "CLIPTextEncode", inputs: { text: "a cat", clip: ["3", 0] } },
+      "3": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "m.safetensors" } },
+      "4": { class_type: "KSampler", inputs: { seed: 2, positive: ["2", 0], model: ["3", 0] } },
+      "5": { class_type: "CreateVideo", inputs: { images: ["4", 0], fps: 16, bit_depth: "auto" } },
+      "6": { class_type: "SaveVideo", inputs: { video: ["5", 0], filename_prefix: "test" } },
+    });
+    const result = importComfyWorkflowToCatalog({
+      text,
+      binding: {
+        promptNodeId: "2", promptInputKey: "text", outputNodeId: "6", outputKind: "video",
+        params: [{ nodeId: "5", inputKey: "bit_depth", paramKey: "comfy_bit_depth", label: "bit depth", type: "text", default: "auto" }],
+      },
+      labelZh: "typed enum",
+      enumOptions: [{ classType: "CreateVideo", inputKey: "bit_depth", options: ["auto", 8, 10, { bad: true }, Number.NaN] }],
+    }, "typed1");
+    const modelKey = (result as { modelKey: string }).modelKey;
+    const model = (listModelCatalogModels({ vendorKey: (result as { vendorKey: string }).vendorKey }) as Array<{
+      modelKey: string; meta?: { parameters?: Array<{ key: string; type: string; options?: unknown[] }> };
+    }>).find((item) => item.modelKey === modelKey);
+    expect(model?.meta?.parameters?.find((p) => p.key === "comfy_bit_depth")).toMatchObject({ type: "select", options: ["auto", 8, 10] });
+  });
+
   it("导入时保存原始 workflow + 规范化 binding 草稿，供 UI 重新编辑", async () => {
     emptyCatalog();
     const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
