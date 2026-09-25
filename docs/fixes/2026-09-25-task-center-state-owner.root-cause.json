@@ -53,7 +53,7 @@
       "electron/productionRun/productionRunRepository.test.ts",
       "electron/productionRun/productionRunIpc.test.ts"
     ],
-    "why": "TASK_CENTER_GROUPS is the one group vocabulary and order; each task kind has one mapper into it (generationRowState, STATUS_GROUP, which buildProductionRunView uses as its default and overrides only where the full Run knows more (waiting gate, job needs attention, submission unknown, provider stale), buildExportJobTaskRows) and one presence rule (isProductionRunTask); Panel and Button only consume summarizeTaskCenterRows/orderTaskCenterRows. The Record<ProductionRunStatus, TaskCenterGroup> makes a new Run status a compile error until it is placed."
+    "why": "TASK_CENTER_GROUPS is the one group vocabulary and order; each task kind has one mapper into it (generationRowState, STATUS_GROUP, which buildProductionRunView uses as its default and overrides only where the full Run knows more (waiting gate, job needs attention, submission unknown, provider stale), buildExportJobTaskRows) and one presence rule (isProductionRunTask); Panel and Button only consume summarizeTaskCenterRows and render the groups in TASK_CENTER_GROUPS order. The Record<ProductionRunStatus, TaskCenterGroup> makes a new Run status a compile error until it is placed."
   },
   "doors": [
     {
@@ -234,11 +234,6 @@
     {
       "kind": "write",
       "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "orderTaskCenterRows"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
       "symbol": "summarizeTaskCenterRows"
     },
     {
@@ -294,8 +289,8 @@
   ],
   "door_reduction": {
     "before": 15,
-    "after": 47,
-    "why_not": "The count grows because the owners are now explicit functions that every consumer calls (summarizeTaskCenterRows, orderTaskCenterRows, pendingTaskCount, isProductionRunTask, productionRunStatusGroup, the two label builders and the label-key functions) instead of logic re-derived inline in TaskCenterPanel, TaskCenterButton, the card and the store. The remaining readers are distinct surfaces: the badge (Button), the drawer (Panel), the card and details, the spend summary, the active-Run store, the design-lab kit and the main-process list projection feeding them. The electron doors listed are the list projection path (types, repository summarize, service repository, IPC list) filtered from a wide door-map of their types."
+    "after": 46,
+    "why_not": "The count grows because the owners are now explicit functions that every consumer calls (summarizeTaskCenterRows, pendingTaskCount, isProductionRunTask, productionRunStatusGroup, the two label builders and the label-key functions) instead of logic re-derived inline in TaskCenterPanel, TaskCenterButton, the card and the store. The remaining readers are distinct surfaces: the badge (Button), the drawer (Panel), the card and details, the spend summary, the active-Run store, the design-lab kit and the main-process list projection feeding them. The electron doors listed are the list projection path (types, repository summarize, service repository, IPC list) filtered from a wide door-map of their types."
   },
   "generality_proof": "Every task kind reaches the screen only through its one mapper into TASK_CENTER_GROUPS and the shared summary/order functions, and every production identity only through the label-key functions, so any new state, playbook, stage, provider-latency case or draft lifecycle is either placed by the compiler-enforced status table or falls into a declared generic label; no component decides groups or strings on its own.",
   "shared_boundaries": [
