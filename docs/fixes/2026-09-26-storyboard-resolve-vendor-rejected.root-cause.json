@@ -114,7 +114,7 @@
       "evidence": "Passes params straight to the seam; the existing GUI-vs-MCP parity test still holds and the new test calls it through the same envelope shape as registerGenerationResolveIpc."
     },
     {
-      "path": "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
       "entry_point": "storyboardPlanSchema",
       "disposition": "not-affected",
       "evidence": "The other hand-written-type-plus-zod pair touched by #832; it already carries the same key-by-key guard (MissingSchemaKeys) added in 632677d15."
