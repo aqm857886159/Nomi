@@ -81,6 +81,23 @@ describe("ProductionRunRepository", () => {
     expect(repository().list("project-1")).toHaveLength(1);
   });
 
+  it("projects only the plan's presence facts into the list, never its candidates or contract", () => {
+    const candidate = { ...generationCandidate(), references: [] };
+    repository().createGenerationDraft({
+      operationId: "op-hidden", projectId: "project-1", origin: { host: "nomi" }, candidate, cardHidden: true,
+    });
+    repository().createGenerationDraft({
+      operationId: "op-shown", projectId: "project-1", origin: { host: "nomi" }, candidate,
+    });
+    createRun();
+
+    const byId = new Map(repository().list("project-1").map((summary) => [summary.runId, summary]));
+    expect(byId.get("op-hidden")?.generationPlan).toEqual({ state: "draft", cardHidden: true });
+    expect(byId.get("op-shown")?.generationPlan).toEqual({ state: "draft" });
+    expect(byId.get("run-1")).not.toHaveProperty("generationPlan");
+    expect(byId.get("op-shown")).not.toHaveProperty("jobs");
+  });
+
   it("serializes mutations with revision CAS and monotonic cursors", () => {
     createRun();
     const first = repository().execute("project-1", "run-1", {

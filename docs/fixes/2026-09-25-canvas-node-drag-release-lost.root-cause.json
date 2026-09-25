@@ -1,0 +1,184 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-canvas-node-drag-release-lost",
+  "problem_type": "A node drag never ends when the pointer release is lost, so the node sticks to the cursor",
+  "symptom": "User (Mac): import a video, click-drag the node, the cursor turns into a grab hand and the node keeps following the mouse after release. Reproduced on Windows by dragging stacked copies out one by one: 6 of 77 drags stuck; the page never received pointerup / mouseup, .react-flow__node stayed .dragging and data-dragging=\"true\".",
+  "direct_cause": "React Flow (XYDrag on d3-drag) ends a node drag only when window receives mouseup; it has no abort for a buttonless move, a native drag start, blur or pointercancel. The canvas drag lease reacted to blur / pointercancel / lostpointercapture but only reset our own state; the kernel drag stayed alive. 0.21's own drag had \"buttons released but still moving → end\" (useNodeDragResize), skipped under flowManagedDrag when the canvas moved to React Flow.",
+  "class_root": "Gesture lifetime had two owners: the lease (our flag and drafts) and the kernel (d3-drag). The lease could decide a gesture was over without ending the kernel gesture, and neither owner covered a lost release. Same layer as 2026-09-22-canvas-dragging-flag-outlives-gesture and the two 2026-09-23 dragging contracts (flag lifetime); this one closes the kernel half.",
+  "affected_population": [
+    "Every 0.22.x user dragging nodes when a release event is lost (native drag from a text selection, stacked cards, focus change mid-drag)",
+    "Not affected: selection box, group frame and pan gestures (their lifetime is ours alone)"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+  ],
+  "entry_points": [
+    "React Flow node drag (handleNodeDragStart lease)",
+    "cancel paths: window blur, pointercancel, lostpointercapture, hidden workspace",
+    "native dragstart inside a node card"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/d3/d3-drag/blob/3c44c76502ded73e8bae85abf969b049c0ff5fc5/src/drag.js#L50-L79",
+      "checked_at": "2026-09-25",
+      "purpose": "d3-drag listens for mouseup on the view in the capture phase and ends the gesture only there; mousemove does not look at buttons."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/3d35b57317576b0916c0bfeaaedd573aaacc2839/packages/system/src/xydrag/XYDrag.ts#L401-L409",
+      "checked_at": "2026-09-25",
+      "purpose": "XYDrag has no abort for lost releases; nodrag filtering is by closest(.nodrag) on the event target."
+    }
+  ],
+  "invariants": [
+    "A node drag ends when the release is lost (buttonless mouse move or native drag start) at the last pointer position",
+    "Cancelling a node drag also ends the kernel drag",
+    "Only explicitly draggable elements inside a card may start a native drag"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+    "tests": [
+      "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts"
+    ],
+    "why": "beginCanvasDragging owns the lifetime of every canvas gesture; onReleaseLost is opt-in for button gestures so wheel pans keep their flag. endKernelNodeDrag lives with the other drag endings in canvasDragWriteback."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "beginCanvasDragging"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "symbol": "beginCanvasDragging"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "beginCanvasDragging"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "beginCanvasDragging"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "symbol": "beginCanvasDragging"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "endKernelNodeDrag"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "endKernelNodeDrag"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "blockImplicitNativeDrag"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "restoreCanvasDragKernelOwnership"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "restoreCanvasDragKernelOwnership"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+      "symbol": "liveLeases"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "Five owners legitimately start a gesture (node drag, selection box, group resize, viewport pan, pointer pan); they share one lifetime owner already. Only the React Flow node drag has a kernel gesture to end, so only it passes onReleaseLost."
+  },
+  "generality_proof": "Every way a node drag can lose its release (native drag, buttonless move) or be interrupted (blur, pointercancel, capture loss, hidden workspace) now ends in the kernel's own end path, so the node cannot keep following the cursor regardless of which event was lost.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+      "symbol": "beginCanvasDragging",
+      "responsibility": "Gesture lifetime: cancel on interruption, onReleaseLost on lost release."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "endKernelNodeDrag",
+      "responsibility": "Ends the React Flow drag by delivering the missing mouseup to window."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "React Flow node drag lease (handleNodeDragStart)",
+      "disposition": "enforced",
+      "evidence": "Passes onReleaseLost → endKernelNodeDrag and ends the kernel drag on cancel; covered by canvasDraggingFlag.test.ts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "entry_point": "selection box drag",
+      "disposition": "not-affected",
+      "evidence": "Our own pointer listeners with pointer capture; lease cancel already ends it."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "entry_point": "non-flow host drag (design lab)",
+      "disposition": "not-affected",
+      "evidence": "Keeps the 0.21 buttons check on its own path."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new kernel-driven gesture or any new element that starts a native drag inside a card can lose the release again.",
+    "same_class_scan": [
+      "rg \"beginCanvasDragging(\" src: five owners, dispositions above",
+      "rg \"draggable\" src/workbench/generationCanvas/nodes: timeline notch and result stack items are the only intended native drags"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+    "invariant": "No node drag outlives its release",
+    "failure_mode": "canvasDraggingFlag.test.ts dispatches a buttonless move and a native dragstart and requires onReleaseLost once; the canvas-follow-hand structural check (stacked drags stuck = 0) covers the real app.",
+    "exception_policy": "none",
+    "strategy": "Lifetime decided by the lease; the kernel is ended through its own end path, never by a parallel drag state.",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+      "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing removed; the lease gains a trigger and the cancel path gains the kernel ending."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React Flow behaviour is used as documented; no upstream patch.",
+    "exit_criteria": []
+  },
+  "migration": "No migration.",
+  "residual_risks": [
+    "The user's exact Mac trigger (import then drag) did not reproduce on Windows in 18 tries; the fix covers every lost-release path, but the Mac trigger itself is unconfirmed."
+  ]
+}

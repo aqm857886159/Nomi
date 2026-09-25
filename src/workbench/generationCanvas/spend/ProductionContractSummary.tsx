@@ -3,6 +3,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '../../../utils/cn'
+import { productionPlaybookLabelKey } from '../../production/productionRunLabels'
 import type { ProductionContractView } from './productionContractView'
 
 function formatMoney(value: number, currency: string, language: string): string {
@@ -59,8 +60,9 @@ export function ProductionContractSummary({ view }: { view: ProductionContractVi
         <div>
           <div className={cn('text-micro text-nomi-ink-40')}>{t('generationCommon.production.contract.skills')}</div>
           <div className={cn('mt-1 flex flex-wrap gap-1.5')}>
+            {/* 技能证据记的是流程身份（name@version），上屏只给人话名。 */}
             {view.skills.length ? view.skills.map((skill) => (
-              <code key={`${skill.name}@${skill.version}`} className={cn('text-caption text-nomi-ink-80')}>{skill.name}@{skill.version}</code>
+              <span key={`${skill.name}@${skill.version}`} className={cn('text-caption text-nomi-ink-80')}>{t(productionPlaybookLabelKey(skill.name))}</span>
             )) : <span className={cn('text-caption text-nomi-ink-40')}>{t('generationCommon.production.contract.noneRecorded')}</span>}
           </div>
         </div>

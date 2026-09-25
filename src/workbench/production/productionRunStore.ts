@@ -3,6 +3,7 @@ import { create } from 'zustand'
 
 import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
 import { productionRunApi } from './productionRunApi'
+import { isProductionRunTask } from './productionRunView'
 
 type ProductionRunStore = {
   projectId: string | null
@@ -49,7 +50,10 @@ export const useProductionRunStore = create<ProductionRunStore>()((set, get) => 
     try {
       const summaries = await productionRunApi.list(clean)
       if (epoch !== loadRequestEpoch || get().projectId !== clean) return
-      const summary = (requestedRunId ? summaries.find((item) => item.runId === requestedRunId) : undefined) ?? summaries.find(isActive) ?? summaries[0]
+      // 整卡只给任务面板里真有的任务挑：Agent 没出价的草稿 / 丢掉的计划不是任务，不能顶掉正在跑的那份。
+      // 显式导航（requestedRunId）照旧直达。
+      const tasks = summaries.filter(isProductionRunTask)
+      const summary = (requestedRunId ? summaries.find((item) => item.runId === requestedRunId) : undefined) ?? tasks.find(isActive) ?? tasks[0]
       const run = summary ? await productionRunApi.read(clean, summary.runId) : null
       if (epoch !== loadRequestEpoch || get().projectId !== clean) return
       set({ run, cursor: run?.snapshotCursor ?? 0, loading: false, lastPolledAt: Date.now(), requestedRunId })

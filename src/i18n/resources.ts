@@ -112,20 +112,24 @@ export const zhCN = {
     cancelQueued: '取消排队的 {{count}} 个',
     retryFailed: '重试失败的 {{count}} 个',
     actionFailed: '这个操作没执行成，请再试一次',
-    sections: {
-      running: '进行中 {{count}}',
-      queued: '排队中 {{count}}',
-      done: '已完成 {{count}}',
+    // 任务分组的唯一一套名字：区段标题和制作卡的状态签都用它（数量另起一格，不拼进文案）。
+    groups: {
+      running: '进行中',
+      attention: '等你处理',
+      queued: '排队中',
+      done: '已完成',
     },
     summary: {
       running: '{{count}} 进行中',
+      attention: '{{count}} 等你处理',
       queued: '{{count}} 排队',
       failed: '{{count}} 失败',
     },
     row: {
       elapsed: '已跑 {{time}}',
       cancelled: '已取消（未提交，无费用）',
-      recoverable: '等待超时 · 上游可能仍在跑，可重新拉取',
+      recoverable: '等待超时 · 上游可能仍在跑',
+      recoverHint: '只查结果，不重新生成，不花钱',
       failed: '生成失败',
       submittedNoStop: '此任务暂不支持中止',
       cancel: '取消',
@@ -297,6 +301,9 @@ export const zhCN = {
     unsupported: '目标模型不支持这种参考连线',
     slotsFull: '参考槽已满（最多 {{max}} 个），多出的连线不会被使用',
     referenceFull: '该参考已满，多出的连线不会被使用',
+    mentionModeSwitched: '已切到「{{mode}}」，@ 的素材按参考使用',
+    mentionBlockedByFrameEdges: '这个节点连着首帧 / 尾帧，@ 不会自动切换生成方式；要按参考使用，请先切到参考类的生成方式',
+    mentionSlotsFull: '参考已满（最多 {{max}} 个），这次没有添加',
   },
   studio: {
     aria: 'Nomi Studio',
@@ -533,20 +540,23 @@ export const en = {
     cancelQueued: 'Cancel {{count}} queued',
     retryFailed: 'Retry {{count}} failed',
     actionFailed: 'That action did not go through. Try again.',
-    sections: {
-      running: 'Running {{count}}',
-      queued: 'Queued {{count}}',
-      done: 'Done {{count}}',
+    groups: {
+      running: 'Running',
+      attention: 'Waiting on you',
+      queued: 'Queued',
+      done: 'Done',
     },
     summary: {
       running: '{{count}} running',
+      attention: '{{count}} waiting on you',
       queued: '{{count}} queued',
       failed: '{{count}} failed',
     },
     row: {
       elapsed: 'running {{time}}',
       cancelled: 'Cancelled (never submitted, no charge)',
-      recoverable: 'Timed out · may still be running upstream, can re-fetch',
+      recoverable: 'Timed out · may still be running upstream',
+      recoverHint: 'Only fetches the result — no new generation, no charge',
       failed: 'Generation failed',
       submittedNoStop: 'This task cannot be stopped',
       cancel: 'Cancel',
@@ -713,6 +723,9 @@ export const en = {
     unsupported: 'The target model does not support this reference connection.',
     slotsFull: 'Reference slots are full (maximum {{max}}). Extra connections will not be used.',
     referenceFull: 'This reference input is full. Extra connections will not be used.',
+    mentionModeSwitched: 'Switched to "{{mode}}" so the mention is used as a reference.',
+    mentionBlockedByFrameEdges: 'This node has first/last frame inputs, so a mention will not switch its generation mode. Switch to a reference mode first.',
+    mentionSlotsFull: 'References are full (maximum {{max}}). Nothing was added.',
   },
   studio: {
     aria: 'Nomi Studio',

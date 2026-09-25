@@ -130,7 +130,9 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
         <AssetVideoCover asset={asset} />
         <span className={cn('absolute inset-0 bg-[oklch(0.2_0.01_80/0.28)]')} aria-hidden />
         <span className={cn('absolute inset-0 flex items-center justify-center z-[1]')} aria-hidden>
-          <IconPlayerPlayFilled size={playSize} className={cn('text-nomi-paper drop-shadow-[0_1px_2px_oklch(0_0_0/0.5)]')} />
+          {/* 不加 drop-shadow：底下已有暗色遮罩托住对比度；CSS 滤镜在 Windows（ANGLE/D3D11）上每次启动首次绘制都要现编译着色器，
+              实测 @ 列表首次打开那一帧因此多约 70 ms（2026-09-25，trace 见 docs/research/2026-09-25-canvas-follow-hand）。 */}
+          <IconPlayerPlayFilled size={playSize} className={cn('text-nomi-paper')} />
         </span>
       </>
     )

@@ -8,7 +8,7 @@ import type { ProductionRunView } from './productionRunView'
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 
 const view: ProductionRunView = {
-  tone: 'attention', titleKey: 'generationCommon.production.status.paused',
+  group: 'attention', tone: 'attention', playbookLabelKey: 'generationCommon.production.playbook.brandPromo', titleKey: 'generationCommon.production.status.paused',
   descriptionKey: 'generationCommon.production.description.paused', primaryAction: 'resume-run',
   controls: ['cancel'], decisionHome: 'nomi', originHost: 'nomi',
   details: {
@@ -19,7 +19,7 @@ const view: ProductionRunView = {
 function render(actionError: string | null) {
   return renderToStaticMarkup(React.createElement(MantineProvider, {
     children: React.createElement(ProductionRunTaskCard, {
-      projectId: 'project-1', playbookName: 'Promo', view, actionError, onPrimaryAction: vi.fn(), onControl: vi.fn(),
+      projectId: 'project-1', view, actionError, onPrimaryAction: vi.fn(), onControl: vi.fn(),
     }),
   }))
 }

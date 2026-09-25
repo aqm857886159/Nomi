@@ -8,8 +8,8 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { providerDispatcher, type ProviderNetworkConfig } from "../providerNetwork";
-import { hardenedFetch } from "../hardenedFetch";
+import type { ProviderNetworkConfig } from "../providerNetwork";
+import { fetchProviderMedia } from "./providerMediaFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
@@ -59,7 +59,8 @@ type LocalAssetRecord = {
   } & JsonRecord;
 };
 
-function contentTypeFromStoredFile(absolutePath: string): string {
+/** 已落盘文件的内容类型：先按扩展名，认不出再嗅文件头。列表与补封面共用这一份判定。 */
+export function contentTypeFromStoredFile(absolutePath: string): string {
   const extensionType = contentTypeFromPath(absolutePath);
   if (extensionType !== "application/octet-stream") return extensionType;
   try {
@@ -615,20 +616,10 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
     );
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
-  const providerRoute = options.providerNetwork ? providerDispatcher({ network: options.providerNetwork }) : undefined;
-  let fetched;
-  try {
-    fetched = await hardenedFetch(url, {
-      timeoutMs: 60_000,
-      maxBytes: 200 * 1024 * 1024,
-      allowContentTypes: ["image/", "video/", "audio/", "application/octet-stream"],
-      ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
-      ...(providerRoute ? { dispatcher: providerRoute } : {}),
-    });
-  } finally {
-    // per-download 连接池只属于这一次取回（与 vendorHttp 的同一条纪律）。
-    if (providerRoute) void providerRoute.close().catch(() => undefined);
-  }
+  const fetched = await fetchProviderMedia(url, {
+    ...(options.trustedPrivateOrigin ? { trustedPrivateOrigin: options.trustedPrivateOrigin } : {}),
+    ...(options.providerNetwork ? { providerNetwork: options.providerNetwork } : {}),
+  });
   const bytes = fetched.bytes;
   const hintedContentType = fetched.contentType || "application/octet-stream";
   const rawFileName = String(raw.fileName || path.basename(new URL(url).pathname) || "").trim();

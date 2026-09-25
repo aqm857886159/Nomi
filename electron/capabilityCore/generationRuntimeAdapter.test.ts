@@ -260,9 +260,10 @@ describe("GenerationRuntimeAdapter", () => {
       query,
     }] });
 
-    await expect(adapter.query({ providerId: "provider.image", providerTaskId: "task-1" }))
+    await expect(adapter.query({ providerId: "provider.image", providerTaskId: "task-1", context: { modelId: "m", mode: "text_to_image" } }))
       .resolves.toMatchObject({ state: "running", providerStatus: "processing", raw: { id: "task-1" } });
-    expect(query).toHaveBeenCalledWith("task-1");
+    // 这笔任务的模型 / 模式随查询递给供应商（新建的供应商实例靠它找回查询方式）。
+    expect(query).toHaveBeenCalledWith("task-1", { modelId: "m", mode: "text_to_image" });
     expect(submit).not.toHaveBeenCalled();
   });
 

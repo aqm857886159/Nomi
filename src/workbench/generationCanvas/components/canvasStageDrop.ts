@@ -324,6 +324,8 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
         id: `asset-ref-${node.id}-${Date.now()}`,
         type: assetDrag.kind,
         url: assetDrag.renderUrl,
+        // 画布挂落盘边界派生的预览；源留在 url 给编辑/导出/大图。
+        ...(assetDrag.thumbUrl ? { thumbnailUrl: assetDrag.thumbUrl } : {}),
         createdAt: Date.now(),
       }
       const originMeta =

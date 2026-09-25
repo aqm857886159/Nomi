@@ -235,15 +235,14 @@ export async function saveLocalProject(
   if (!id) throw new Error('projectId is required')
   const desktop = getDesktopBridge()
   const now = Date.now()
-  const existingRecord = desktop ? desktop.projects.read(id) : readJson(projectRecordKey(id))
+  // 自动保存每 700ms 走一次：只要旧记录的摘要字段（名称 / 创建时间 / 版本号 / 封面风格）。2026-09-25 画布跟手实测：
+  // 原来同步 IPC 读回整份项目、再用完整 schema 校验一遍只为取 revision，每次在界面线程上卡 41–154ms。
+  // 改为异步读（界面不等主进程读盘），版本号由 normalizeSummary 直接取。
+  const existingRecord = desktop ? null : readJson(projectRecordKey(id))
   const existing = desktop
-    ? normalizeSummary(existingRecord)
+    ? normalizeSummary(await (desktop.projects.readAsync ? desktop.projects.readAsync(id) : desktop.projects.read(id)))
     : readMergedProjectSummaries().find((item) => item.id === id)
-  const existingRevision = (() => {
-    const parsed = workbenchProjectRecordSchema.safeParse(existingRecord)
-    if (parsed.success && typeof parsed.data.revision === 'number') return parsed.data.revision
-    return existing?.revision ?? 0
-  })()
+  const existingRevision = existing?.revision ?? 0
   // 封面 = 本次保存内容的现场派生（媒体类型分流）。刻意不沿用 existing 旧封面：
   // 「派生为空就 keep 旧值」会让陈旧 URL（换环境失效 / 视频 url 混 <img>）永远钉在列表里。
   const cover = deriveProjectCoverFromNodes(state.generationCanvas.nodes)
