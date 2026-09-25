@@ -428,19 +428,6 @@ export const CANVAS_WRITE_OPERATIONS: readonly CanvasWriteOperation[] = Object.f
   canvasWriteSemanticInputUnion.options.map((option) => option.shape.operation.value as CanvasWriteOperation),
 );
 
-/**
- * Storyboard writes are semantically canvas capabilities but their durable
- * owner is the renderer's creation/storyboard store.  Keep this predicate at
- * the capability boundary so Host proposal registration and turn execution
- * agree on the same canonical operation set.
- */
-export function isRendererOwnedStoryboardProposal(toolName: string, args: unknown): boolean {
-  const operation = canvasWriteOperationForAlias(toolName)
-    ?? (toolName === "nomi_canvas_plan" && args && typeof args === "object" && !Array.isArray(args)
-      ? (args as Record<string, unknown>).operation : undefined);
-  return typeof operation === "string" && Object.prototype.hasOwnProperty.call(CANVAS_WRITE_CAPABILITY.operationPlanReview, operation);
-}
-
 export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | undefined {
   switch (alias) {
     case "set_node_prompt":

@@ -64,7 +64,6 @@ const SEMANTIC_EDIT_KEYS = new Set([
   'prompt', 'taskKind', 'moduleId', 'providerId', 'modelId', 'mode', 'modeId',
   'variantId', 'parameters', 'references', 'shots', 'scriptText', 'candidate',
 ])
-const SEMANTIC_TOOL_NAMES = new Set(['nomi_operation_create', 'nomi_submit_generation_plan'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
@@ -165,13 +164,6 @@ export function updateSemanticGenerationShot(
       : { ...shot, ...patch }
   })
   return { ...args, shots }
-}
-
-export function isGenerationProposalTool(toolName: string, args: unknown): boolean {
-  const normalized = toolName.toLowerCase()
-  const canvas = (normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')) && Boolean(asGenerationProposalArgs(args))
-  const semantic = SEMANTIC_TOOL_NAMES.has(normalized) && Boolean(asSemanticGenerationProposalArgs(args))
-  return canvas || semantic
 }
 
 export function updateGenerationProposalNode(

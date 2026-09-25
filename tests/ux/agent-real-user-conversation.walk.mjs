@@ -8,22 +8,22 @@ import { stationTimeout } from './_station-budget.mjs'
 // 最后去剪辑面让 Nomi 加一条片头字幕。
 //
 // 这条走查同时是审批分档、队列/插队/停止、模式弹层单一语义 owner 三件事的运行时证据：
-//   · reversible_local 且需要读计划的（apply_edit_plan）→ 计划卡只给本次确认，不承诺抬档；
-//   · irreversible（delete_canvas_nodes）→ 只给「这次」，并且必须画出边界行；
-//   · reversible_local 且不需读计划的（create_canvas_nodes）→ safe-auto 下**不出卡**，
+//   · reversible_local 且需要读计划的（edit_timeline）→ 计划卡只给本次确认，不承诺抬档；
+//   · irreversible（delete_from_canvas）→ 只给「这次」，并且必须画出边界行；
+//   · reversible_local 且不需读计划的（draft_shots 建草稿）→ safe-auto 下**不出卡**，
 //     但写入必须真的发生（先证探针会亮，再断言它不亮，避免空洞通过）。
 //
 // 只有远端供应商是本机 loopback；渲染层、IPC、AgentLane、pi SDK、磁盘持久化全走生产路径。
 // Run: pnpm run build && node tests/ux/agent-real-user-conversation.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
-import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, COMPOSER_PERMISSION,
   COMPOSER_SEND, CREATION_PANEL, DOCUMENT, HISTORY_BUTTON, INTERVENTION_CONFIRM,
-  INTERVENTION_ESCALATE, PERMISSION_POPOVER, PREVIEW_PANEL, QUEUE, QUEUE_ROW, THREAD_MENU,
+  INTERVENTION_ESCALATE, PERMISSION_POPOVER, PREVIEW_PANEL, PROCESS, QUEUE, QUEUE_ROW, THREAD_ROW,
   TOOL_RECEIPT, USER_BUBBLE, chooseAssistantModel, createRuntimeWalk,
-  hasToolResult, newConversation, openCanvas,
+  hasToolResult, newConversation, openCanvas, openProcess,
   recorded, sendCanvas, sendCreation, toolNames, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 import { laneDiskSnapshot, laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -118,11 +118,16 @@ try {
 
   /** 读回 app 自己持久化的项目记录（走它自己的项目 IPC，不是我们另开一把读盘）。 */
   const persisted = async () => win.evaluate((id) => window.nomiDesktop.projects.readAsync(id), projectId)
-  const canvasNodeIds = async () => {
+  const canvasNodes = async () => {
     const record = await persisted()
     const canvas = record?.payload?.generationCanvas ?? record?.generationCanvas ?? { nodes: [] }
-    return (canvas.nodes ?? []).map((node) => node.id)
+    return canvas.nodes ?? []
   }
+  const canvasNodeIds = async () => (await canvasNodes()).map((node) => node.id)
+  // 镜头节点。多镜草稿落画布时，同一个撤销步里还会长一张分镜表节点（`shot_table`，d65571cdb 2026-09-18
+  // 「分镜表读落地节点」）——它是这几镜的投影，不是第四个镜头。数镜头时不算它，表本身单独断言。
+  const shotNodeIds = async () => (await canvasNodes()).filter((node) => node.kind !== 'shot_table').map((node) => node.id)
+  const shotTableIds = async () => (await canvasNodes()).filter((node) => node.kind === 'shot_table').map((node) => node.id)
   const lanes = () => readLaneTranscripts(projectRoot)
   const nativeResult = (id) => lanes().flatMap(laneMessages).find((message) => message.role === 'toolResult' && message.toolCallId === id)
 
@@ -139,7 +144,8 @@ try {
   const t1Call = walk.fixture.expectText({
     label: 'turn 1 asks the document read tool',
     match: (body) => flattenRequestText(body).includes(T1) && !hasToolResult(body, READ_CALL),
-    reply: { type: 'tool', id: READ_CALL, name: 'read_full_text', args: {} },
+    // 读文稿 = `read_script`（document.read）；afe85411d8（2026-09-14，20 动词、不留别名）之前叫 `read_full_text`。
+    reply: { type: 'tool', id: READ_CALL, name: 'read_script', args: {} },
   })
   const t1Result = walk.fixture.expectText({
     label: 'turn 1 receives the real document text back',
@@ -155,6 +161,8 @@ try {
   expect(flattenRequestText(t1ResultWire.body), '工具结果里带着真实文稿').toContain('K_SEG_B')
   await expect(creation, '第一轮的回答必须出现在面板里').toContainText('K_T1_DONE')
 
+  // 收据住在这一轮默认收起的过程行「用了 1 个工具」里（33b30b851，2026-09-09）——像用户那样点开再读。
+  await openProcess(creation.locator(PROCESS).first(), '展开第一轮的运行过程')
   const readToolLine = creation.locator(TOOL_RECEIPT).first()
   await expect(readToolLine, '读文稿必须留下一行收据').toBeVisible()
   const readRowEffect = (await readToolLine.innerText()).replace(/\s+/g, ' ').trim()
@@ -298,10 +306,14 @@ try {
   const longFold = await foldStateOf(longReplyBubble)
   const shortFold = await foldStateOf(shortReplyBubble)
   record('assistantReplyFolding', { longChars: LONG_REPLY_FULL.length, longFold, shortChars: T2_REPLY.length, shortFold })
-  expect(longFold.folded, '超长回复必须折起来，而不是把誊本撑爆').toBe('true')
-  expect(longFold.expandLabel, '折起来的回复必须给得出「还有 N 行 · 展开」').toMatch(/还有 \d+ 行/)
-  expect(shortFold.folded, '短回复不许折——那是给一句话配一个展开钮').toBe(null)
-  note('长回复折到面板高 60% 并给出展开入口、短回复不折，两半都在同一个现场证过')
+  // 903d992f6a（2026-09-09，C57）拿掉了整条回复的按高度折叠：折到面板高 60% 会把「下一步」藏在像素切口后面。
+  // 所以这里证的是它的反面：一条比面板还高的回复整条都在——不折、没有「还有 N 行」、任何方向都不裁。
+  expect(longFold.folded, '长回复不再按高度折叠（C57）').toBe(null)
+  expect(longFold.expandLabel, '不该再有「还有 N 行 · 展开」').not.toMatch(/还有 \d+ 行/)
+  expect(shortFold.folded).toBe(null)
+  expect(await replyClipping(), '比面板还高的回复也不许被裁掉任何一个方向').toEqual([])
+  expect((await longReplyBubble.locator('[data-v4-markdown]').textContent()) ?? '', '长回复整条都在，末尾没被截').toContain(LONG_REPLY_FULL)
+  note('比面板还高的长回复整条渲染：不折、不裁、末尾完整（C57 拿掉按高度折叠）')
 
 
   // ── 幕四 · 生成面：safe-auto 直接写 / 不可逆要卡 / 再写仍不出卡 ─────────────────
@@ -315,7 +327,9 @@ try {
     reply: {
       type: 'tool', id: CREATE_CALL, name: 'draft_shots',
       // 20 动词：只有 draft_shots 能在画布上造出会生成的镜头（草稿落画布、不出卡、不花钱）。
+      // 点名模型：没设默认图片模型时宿主不替用户挑，回 generation_input_invalid「没有配置可用的图片模型」。
       args: {
+        candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL },
         shots: [
           { title: '招牌灯', prompt: '深夜街边招牌灯，暖光，中景', taskKind: 'text_to_image' },
           { title: '舀汤', prompt: '热气糊镜头，牛骨汤舀进碗，特写', taskKind: 'text_to_image' },
@@ -338,16 +352,18 @@ try {
   expect(hasToolResult(createResultWire.body, CREATE_CALL)).toBe(true)
   expect(nativeResult(CREATE_CALL), '建草稿必须有真实成功的落盘结果').toMatchObject({ isError: false, details: { operation: { state: 'draft' } } })
   await expect(canvas).toContainText('K_CANVAS1_DONE')
-  await expect.poll(canvasNodeIds, { message: '三个镜头节点必须真的落到画布上', timeout: 30_000 })
+  await expect.poll(shotNodeIds, { message: '三个镜头节点必须真的落到画布上', timeout: stationTimeout({ operations: 2 }) })
     .toHaveLength(3)
-  const nodesAfterCreate = await canvasNodeIds()
+  await expect.poll(shotTableIds, { message: '多镜草稿落地时同一步长出一张分镜表', timeout: stationTimeout({ operations: 2 }) }).toHaveLength(1)
+  const nodesAfterCreate = await shotNodeIds()
   await walk.snap('06-canvas-three-nodes-no-card')
 
   const deleteCall = walk.fixture.expectText({
     label: 'canvas turn 2 proposes an irreversible delete',
     match: (body) => flattenRequestText(body).includes('K_CANVAS2') && !hasToolResult(body, DELETE_CALL),
     reply: {
-      type: 'tool', id: DELETE_CALL, name: 'delete_canvas_nodes',
+      // afe85411d8（2026-09-14，20 动词、不留别名）：`delete_canvas_nodes` → `delete_from_canvas`（canvas.delete），入参形状不变。
+      type: 'tool', id: DELETE_CALL, name: 'delete_from_canvas',
       args: { nodeIds: [nodesAfterCreate[2]], reason: '这个镜头用不上' },
     },
   })
@@ -358,10 +374,10 @@ try {
   })
   await sendCanvas(win, 'K_CANVAS2：把第三个多余的镜头删除。')
   const deleteRequestWire = await recorded(deleteCall.received, 'canvas delete request')
-  expect(toolNames(deleteRequestWire.body), '维护工具常驻，真实执行仍须审批').toContain('delete_canvas_nodes')
+  expect(toolNames(deleteRequestWire.body), '维护工具常驻，真实执行仍须审批').toContain('delete_from_canvas')
   const approval = win.locator(INTERVENTION)
   const approvalProof = await proveProbe(approval, '不可逆动作会浮出介入槽审批卡')
-  expect(await canvasNodeIds(), '工具已调用但未经审批，节点必须保持原样').toEqual(nodesAfterCreate)
+  expect(await shotNodeIds(), '工具已调用但未经审批，节点必须保持原样').toEqual(nodesAfterCreate)
   await expect(approval, '删节点是不可逆动作').toHaveAttribute('data-kind', 'approval-irreversible')
   await expect(approval.locator(INTERVENTION_CONFIRM), '不可逆动作必须给「确认」（= 仅这一次）').toBeVisible()
   await expect(approval, '不可逆动作必须把授权范围写在卡面上').toContainText('范围：仅这一次')
@@ -369,17 +385,21 @@ try {
   await expectAbsent(approval.locator(INTERVENTION_ESCALATE),
     { provenBy: onceOnlyProof, message: '不可逆动作不该给「不再问 →」' })
   const deleteCardText = await approval.evaluate((node) => node.textContent || '')
-  const deleteHeading = await approval.evaluate((node) => ({
-    title: (node.querySelector('header')?.textContent || '').trim(),
-    summary: (node.querySelector('p')?.textContent || '').trim(),
-  }))
+  // 卡头不再是带底色的 <header> 条：701b358db（2026-09-22）换成安静外壳，标题是一句 `h3[data-v4-block="slot-title"]`，
+  // 摘要是紧跟其后的那段 Markdown（徽章「可撤销/不可逆」跟标题同一行）。
+  const SLOT_TITLE = '[data-v4-block="slot-title"]'
+  const SLOT_SUMMARY = `${SLOT_TITLE} ~ [data-v4-markdown]`
+  const deleteHeading = await approval.evaluate((node, selectors) => ({
+    title: (node.querySelector(selectors.title)?.textContent || '').trim(),
+    summary: (node.querySelector(selectors.summary)?.textContent || '').trim(),
+  }), { title: SLOT_TITLE, summary: SLOT_SUMMARY })
   record('deleteCardHeading', deleteHeading)
   record('deleteCardSummary', deleteCardText.slice(0, 200))
   expect(deleteHeading.title, '不可逆卡的抬头必须点名这次的动作').toContain('删除镜头卡')
   expect(deleteHeading.title, '抬头不许再是那句放之四海皆准的「执行确认」').not.toBe('执行确认')
   expect(deleteCardText, '整张卡上任何一处都不该再出现通用的「执行确认」').not.toContain('执行确认')
   expect(deleteCardText, 'v4 已删除详情折叠，动作不能退化成通用摘要').not.toContain('查看细节')
-  const summaryLine = approval.locator('p').first()
+  const summaryLine = approval.locator(SLOT_SUMMARY).first()
   await expect(summaryLine, '摘要那一行本身必须可见').toBeVisible()
   await expect(summaryLine, '摘要必须报出这次要删几个对象').toContainText('1 个对象')
   await expect(summaryLine, '模型给的理由必须在静息态就读得到，而不是折叠一层之下')
@@ -402,7 +422,7 @@ try {
   expect(hasToolResult(deleteWire.body, DELETE_CALL)).toBe(true)
   expect(nativeResult(DELETE_CALL), '批准后必须有真实成功的删除结果').toMatchObject({ isError: false, details: { applied: true, deletedNodeIds: [nodesAfterCreate[2]] } })
   await expect(canvas).toContainText('K_CANVAS2_DONE')
-  await expect.poll(canvasNodeIds, { message: '批准后的删除必须真的落盘', timeout: 30_000 }).toHaveLength(2)
+  await expect.poll(shotNodeIds, { message: '批准后的删除必须真的落盘', timeout: stationTimeout({ operations: 2 }) }).toHaveLength(2)
   await expect(canvas.locator(TOOL_RECEIPT).last(), '工具行必须叫它「删除镜头卡」，而不是一句通用的「查看细节」')
     .toContainText('删除镜头卡')
   await walk.snap('08-irreversible-applied')
@@ -413,7 +433,10 @@ try {
     match: (body) => flattenRequestText(body).includes('K_CANVAS3') && !hasToolResult(body, REFILL_CALL),
     reply: {
       type: 'tool', id: REFILL_CALL, name: 'draft_shots',
-      args: { shots: [{ title: '第一口', prompt: '她吸溜第一口，暖光特写', taskKind: 'text_to_image' }] },
+      args: {
+        candidate: { providerId: FIXTURE_VENDOR, modelId: FIXTURE_IMAGE_MODEL },
+        shots: [{ title: '第一口', prompt: '她吸溜第一口，暖光特写', taskKind: 'text_to_image' }],
+      },
     },
   })
   const refillResult = walk.fixture.expectText({
@@ -429,7 +452,7 @@ try {
   })
   await recorded(refillResult.received, 'canvas refill tool-result request')
   await expect(canvas).toContainText('K_CANVAS3_DONE')
-  await expect.poll(canvasNodeIds, { message: '不出卡不等于没写：这一笔必须真的落盘', timeout: 30_000 })
+  await expect.poll(shotNodeIds, { message: '不出卡不等于没写：这一笔必须真的落盘', timeout: stationTimeout({ operations: 2 }) })
     .toHaveLength(3)
   await walk.snap('09-safe-auto-write-without-card')
   note('safe-auto 的 draft_shots 全程无卡，但草稿节点确实写进去了')
@@ -439,6 +462,7 @@ try {
     label: 'canvas turn 4 calls a tool that is not on the table',
     match: (body) => flattenRequestText(body).includes('K_FAIL') && !hasToolResult(body, FAIL_CALL),
     reply: {
+      // unknown-tool-probe：故意调目录外的名字，验「一步失败必须不展开就看得见」（见 check:mcp-tool-refs）。
       type: 'tool', id: FAIL_CALL, name: 'fixture_unknown_canvas_write',
       args: {
         operation: 'create_canvas_nodes',
@@ -463,7 +487,7 @@ try {
   await expect(toolLine, '失败的那一行必须自己说「失败」，而不是安静地留在流里').toContainText('失败')
   await recorded(failFollow.received, 'post-failure request')
   await expect(canvas).toContainText('K_FAIL_DONE')
-  await expect.poll(canvasNodeIds, { message: '失败的那一步不许在画布上留下半个节点', timeout: 30_000 })
+  await expect.poll(shotNodeIds, { message: '失败的那一步不许在画布上留下半个节点', timeout: stationTimeout({ operations: 2 }) })
     .toHaveLength(3)
   await walk.snap('09b-failed-step-visible-while-collapsed')
   note('目录外的工具调用真的失败了：工具行 data-state=failed + 收起状态下的红色「1 步没成功」徽标')
@@ -485,9 +509,20 @@ try {
   await expect(canvas.locator(QUEUE_ROW), '只有尚未消费的两句列入队列').toHaveCount(2)
   await expect(canvas, '取消后重发的语义必须明说').toContainText('排队的指令可以取消后重发')
   for (const marker of ['K_QB：', 'K_QC：']) {
-    await clickOrFail(canvas.locator(QUEUE_ROW).filter({ hasText: marker }).getByRole('button', { name: '删', exact: true }), `取消 ${marker}`)
+    // 行尾那颗钮的字是「取消这条指令」（b65296add，2026-09-09；此前叫「删」）。
+    await clickOrFail(canvas.locator(QUEUE_ROW).filter({ hasText: marker }).getByRole('button', { name: '取消这条指令', exact: true }), `取消 ${marker}`)
   }
+  // 8e89e19ce（2026-09-19）起「取消」不再是删掉：被取消的那句原样回到手边可改——第一句回到空着的输入框，
+  // 后面的成了队列里一行「未发送」草稿（取回编辑 / 丢弃这条草稿）。先证「一句都没丢」，
+  // 再像用户那样把它们清走、按新顺序重发。
+  await expect(canvasInput, '第一条被取消的指令回到输入框，没有丢').toHaveValue(QUEUE_B)
+  const draftRow = canvas.locator(`${QUEUE_ROW}[data-status="draft"]`)
+  await expect(draftRow, '第二条被取消的指令成了一行未发送草稿，没有丢').toHaveCount(1)
+  await expect(draftRow).toContainText('K_QC：')
+  await expect(canvas.locator(`${QUEUE_ROW}:not([data-status="draft"])`), '真正排着队的一条都不剩').toHaveCount(0)
+  await clickOrFail(draftRow.getByRole('button', { name: '丢弃这条草稿', exact: true }), '丢弃 K_QC 那行草稿')
   await expect(canvas.locator(QUEUE_ROW)).toHaveCount(0)
+  // 输入框里还是被取消的 K_QB：用户改主意先插一句更急的，直接把它换掉。
   await enqueue(INSERT_D)
   await enqueue(QUEUE_B)
   await enqueue(QUEUE_C)
@@ -538,7 +573,7 @@ try {
   for (const marker of ['K_T1_DONE', 'K_T3_DONE', 'K_CANVAS2_DONE', 'K_CANVAS3_DONE']) {
     await expect(canvas, `停止后 ${marker} 必须仍在对话里`).toContainText(marker)
   }
-  expect(await canvasNodeIds(), '停止不能回滚已落盘的镜头').toHaveLength(3)
+  expect(await shotNodeIds(), '停止不能回滚已落盘的镜头').toHaveLength(3)
   await walk.snap('11-after-stop-transcript-intact')
   note('取消重发改变真实消费顺序；停止当前流保留已完成的回答和镜头')
 
@@ -570,13 +605,14 @@ try {
   note(`剪辑面工具目录：${toolNames(readWire.body).join(', ')}`)
   expect(toolNames(readWire.body), '剪辑面必须摆出时间轴读写链')
     .toContain('read_timeline')
-  expect(toolNames(readWire.body), '时间轴写工具常驻，真实执行仍须计划审批').toContain('apply_edit_plan')
+  // afe85411d8（2026-09-14，20 动词、不留别名）：`apply_edit_plan` → `edit_timeline`、`undo_timeline_edit` → `undo`（timeline.write）。
+  expect(toolNames(readWire.body), '时间轴写工具常驻，真实执行仍须计划审批').toContain('edit_timeline')
   const planWire = await recorded(planCall.received, 'timeline plan request')
-  expect(toolNames(planWire.body)).toEqual(expect.arrayContaining(['apply_edit_plan', 'undo_timeline_edit']))
+  expect(toolNames(planWire.body)).toEqual(expect.arrayContaining(['edit_timeline', 'undo']))
   planCall.release({
-    type: 'tool', id: TIMELINE_PLAN_CALL, name: 'apply_edit_plan',
+    // `planId` 不再由模型给：它是宿主按 toolCallId 派生的幂等键（`verbProjections.ts` 的 `editTimelinePlanId`）。
+    type: 'tool', id: TIMELINE_PLAN_CALL, name: 'edit_timeline',
     args: {
-      planId: 'k-plan-caption',
       baseRevision: revisionFromToolResult(planWire.body, TIMELINE_READ_CALL),
       summary: '片头加一条字幕',
       operations: [{
@@ -590,6 +626,9 @@ try {
   await expect(planApproval, '需要读计划的改动必须先浮出审批卡').toBeVisible({ timeout: 30_000 })
   await expect(planApproval, '这是可逆的本地改动').not.toHaveAttribute('data-kind', 'approval-irreversible')
   await expect(planApproval.locator(INTERVENTION_CONFIRM), '必须给「确认」（= 仅这一次）').toBeVisible()
+  // 2026-09-24 这一条红过十天：面板认「这是一份时间轴计划」靠一张手抄的工具名单，afe85411d8（2026-09-14）
+  // 把动词改成 `edit_timeline` 时名单没跟上，计划卡退回通用「可撤销」卡并多出「不再问 →」。现在认法从动词声明
+  // 派生（`modelToolShowsReviewCard`），这里守的是那次回归。
   await expect(planApproval.locator(INTERVENTION_ESCALATE), '计划卡按定稿不提供抬档').toHaveCount(0)
   await expect(planApproval, '不描述不存在的动作').not.toContainText('不再问')
   const planDetail = planApproval.locator('[data-v4-block="plan-detail"]')
@@ -657,8 +696,10 @@ try {
 
   await expect(win.locator('.generation-canvas-v2__stage'), '继续创作直接落在生成区')
     .toBeVisible({ timeout: 30_000 })
-  await expect(win.locator('.react-flow__node'), '重启后画布上的镜头节点数必须和重启前一样')
-    .toHaveCount(nodesBeforeRestart.length)
+  // 逐个 id 认画上的节点，不数 `.react-flow__node` 的总数：编组框与分镜表也是 React Flow 节点，总数说明不了「哪几个还在」。
+  for (const id of nodesBeforeRestart) {
+    await expect(win.locator(`.react-flow__node[data-id="${id}"]`), `重启后画布上必须还画着节点 ${id}`).toHaveCount(1)
+  }
   expect(await canvasNodeIds(), '落盘的节点 id 也要逐个对上').toEqual(nodesBeforeRestart)
 
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '重启后进入创作工作区')
@@ -670,9 +711,10 @@ try {
   }
 
   await clickOrFail(creationAfter.locator(HISTORY_BUTTON), '重启后打开会话列表')
-  const threadRows = win.locator(`${THREAD_MENU} > div`)
-  await expect(threadRows, '表头 + 唯一那条幸存对话').toHaveCount(2)
-  await clickOrFail(threadRows.nth(1).getByRole('button').first(), '重启后选回原来那条对话')
+  // 只数对话行：菜单里还有表头和末尾那格「查看轨迹」（414bf19a9，2026-09-10），它们都不是对话。
+  const threadRows = win.locator(THREAD_ROW)
+  await expect(threadRows, '唯一那条幸存对话').toHaveCount(1)
+  await clickOrFail(threadRows.first().getByRole('button').first(), '重启后选回原来那条对话')
   await expect(creationAfter, '选回来之后誊本仍是那一条').toContainText('K_T3_DONE')
 
   const persistedCaptions = async () => {
@@ -699,12 +741,12 @@ try {
   const newSession = lanes().find((session) => session.sessionId !== oldThreadId)
   await expect(creationAfter, '新对话必须为空').not.toContainText('K_T3_DONE')
   await clickOrFail(creationAfter.locator(HISTORY_BUTTON), '打开列表删除旧对话')
-  await expect(threadRows).toHaveCount(3)
+  await expect(threadRows).toHaveCount(2)
   const oldRow = threadRows.filter({ has: win.getByRole('button', { name: '未命名对话', exact: true }) })
   await clickOrFail(oldRow.getByRole('button', { name: '删除对话' }), '删除非当前的旧对话')
   await expect.poll(() => lanes().map((session) => session.sessionId), { timeout: stationTimeout({ operations: 2 }) }).toEqual([newSession.sessionId])
-  await expect(threadRows).toHaveCount(2)
-  await clickOrFail(threadRows.nth(1).getByRole('button', { name: '删除对话' }), '删除当前对话')
+  await expect(threadRows).toHaveCount(1)
+  await clickOrFail(threadRows.first().getByRole('button', { name: '删除对话' }), '删除当前对话')
   await expect.poll(() => ({ ids: lanes().map((session) => session.sessionId).filter((id) => id === newSession.sessionId), count: lanes().length }),
     { message: '删除当前对话必须切到新的独立空 session', timeout: stationTimeout({ operations: 2 }) }).toEqual({ ids: [], count: 1 })
   const survivingThreadId = lanes()[0].sessionId
@@ -733,8 +775,8 @@ try {
   record('agentErrorBannersAfterRestart',
     await win.locator('[data-agent-error="true"]').count())
   await clickOrFail(creationFinal.locator(HISTORY_BUTTON), '删完对话冷启后打开会话列表')
-  await expect(win.locator(`${THREAD_MENU} > div`), '表头 + 唯一那条幸存对话')
-    .toHaveCount(2)
+  await expect(win.locator(THREAD_ROW), '唯一那条幸存对话')
+    .toHaveCount(1)
   await clickOrFail(creationFinal.locator(HISTORY_BUTTON), '收起会话列表')
 
   const afterDelete = walk.fixture.expectText({
