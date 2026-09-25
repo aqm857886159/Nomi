@@ -1,21 +1,72 @@
 import type { DragEvent } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag, type AssetLibraryDragPayload } from '../../assets/assetLibraryDrag'
 import { WORKSPACE_FILE_DRAG_MIME } from '../../explorer/workspaceFileDrag'
 import { getGenerationNodeDefaultSize, getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import {
-  isAssetLibraryDropAllowed,
   importBrowserAssetsToGenerationCanvas,
   handleCanvasStageDrop,
   layoutBrowserAssetDropPositions,
   resolveDropOrigin,
 } from './canvasStageDrop'
 
-describe('asset-library canvas write boundary', () => {
-  it('allows current/canvas origins and rejects another project', () => {
-    expect(isAssetLibraryDropAllowed({ origin: { source: 'canvas', nodeId: 'n1' } }, 'current')).toBe(true)
-    expect(isAssetLibraryDropAllowed({ origin: { source: 'project', projectId: 'current', relativePath: 'a.png' } }, 'current')).toBe(true)
-    expect(isAssetLibraryDropAllowed({ origin: { source: 'project', projectId: 'other', relativePath: 'a.png' } }, 'current')).toBe(false)
+// 放下时签发的是此刻打开的项目 project-a（替身）；复制通道由宿主桥提供（替身）。
+const copyProjectAsset = vi.fn()
+vi.mock('../../project/projectCanvasReadSurface', () => {
+  const project = { binding: { projectId: 'project-a', immutableProjectUuid: 'uuid-a', projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
+  return { withProjectAction: (run: (issued: typeof project) => unknown) => run(project), isProjectExecutionContextCurrent: () => true }
+})
+vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ assets: { copyProjectAsset } }) }))
+
+function libraryDrop(items: AssetLibraryDragPayload[]): DragEvent<HTMLDivElement> {
+  const raw = serializeAssetLibraryDrag(items)
+  return {
+    clientX: 0,
+    clientY: 0,
+    preventDefault() {},
+    stopPropagation() {},
+    dataTransfer: { getData: (type: string) => (type === ASSET_LIBRARY_DRAG_MIME ? raw : ''), files: [] },
+  } as unknown as DragEvent<HTMLDivElement>
+}
+
+const dropCtx = { readOnly: false, toCanvasPoint: () => ({ x: 400, y: 300 }), activeCategoryId: 'shots' }
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+describe('handleCanvasStageDrop — 素材库拖入只写当前项目自己的引用', () => {
+  it('当前项目的素材直接落卡，不复制', async () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
+    copyProjectAsset.mockReset()
+    handleCanvasStageDrop(libraryDrop([{ kind: 'image', name: 'a.png', renderUrl: 'nomi-local://asset/project-a/assets/a.png', origin: { source: 'project', projectId: 'project-a', relativePath: 'assets/a.png' } }]), dropCtx)
+    await settle()
+    const [node] = useGenerationCanvasStore.getState().nodes
+    expect(copyProjectAsset).not.toHaveBeenCalled()
+    expect(node?.result?.url).toBe('nomi-local://asset/project-a/assets/a.png')
+  })
+
+  it('别的项目的素材：先复制进当前项目，卡上是复制品的地址（此前整批被拒，拖不出来）', async () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
+    copyProjectAsset.mockReset()
+    copyProjectAsset.mockResolvedValue({
+      id: 'project-a:assets/imported/b-city.png', name: 'b-city.png', projectId: 'project-a', createdAt: '', updatedAt: '',
+      data: { url: 'nomi-local://asset/project-a/assets/imported/b-city.png', relativePath: 'assets/imported/b-city.png', contentType: 'image/png' },
+    })
+    handleCanvasStageDrop(libraryDrop([{ kind: 'image', name: 'b-city.png', renderUrl: 'nomi-local://asset/project-b/assets/b-city.png', origin: { source: 'project', projectId: 'project-b', relativePath: 'assets/b-city.png' } }]), dropCtx)
+    await settle()
+    const nodes = useGenerationCanvasStore.getState().nodes
+    expect(copyProjectAsset).toHaveBeenCalledWith({ sourceProjectId: 'project-b', targetProjectId: 'project-a', relativePath: 'assets/b-city.png' })
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]?.result?.url).toBe('nomi-local://asset/project-a/assets/imported/b-city.png')
+    expect(nodes[0]?.meta).toMatchObject({ source: 'workspace-file', workspaceRelativePath: 'assets/imported/b-city.png' })
+  })
+
+  it('复制失败就不落卡，也不退回引用别的项目的地址', async () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
+    copyProjectAsset.mockReset()
+    copyProjectAsset.mockRejectedValue(new Error('Source project not found'))
+    handleCanvasStageDrop(libraryDrop([{ kind: 'image', name: 'b.png', renderUrl: 'nomi-local://asset/project-b/assets/b.png', origin: { source: 'project', projectId: 'project-b', relativePath: 'assets/b.png' } }]), dropCtx)
+    await settle()
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
   })
 })
 
@@ -99,7 +150,6 @@ describe('handleCanvasStageDrop — 落在松手的那一点', () => {
     const cursorOnCanvas = { x: -900, y: -350 }
     handleCanvasStageDrop(workspaceDrop(640, 480), {
       readOnly: false,
-      activeProjectId: 'p1',
       toCanvasPoint: () => cursorOnCanvas,
       activeCategoryId: 'shots',
     })
@@ -111,7 +161,7 @@ describe('handleCanvasStageDrop — 落在松手的那一点', () => {
 
   it('落在已有卡上也不被避让推走（用户指定的点优先）', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
-    const ctx = { readOnly: false, activeProjectId: 'p1', toCanvasPoint: () => ({ x: 400, y: 300 }), activeCategoryId: 'shots' }
+    const ctx = { readOnly: false, toCanvasPoint: () => ({ x: 400, y: 300 }), activeCategoryId: 'shots' }
     handleCanvasStageDrop(workspaceDrop(0, 0), ctx)
     handleCanvasStageDrop(workspaceDrop(0, 0), ctx)
     const [first, second] = useGenerationCanvasStore.getState().nodes

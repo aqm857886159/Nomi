@@ -10,6 +10,9 @@ import {
 } from './addAssetToTimeline'
 
 vi.mock('../../media/audioDurationProbe', () => ({ readAudioDurationSeconds: vi.fn() }))
+// 复制通道（宿主桥替身）：别的项目的素材落时间轴前先复制进 project-a。
+const copyProjectAsset = vi.fn()
+vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({ assets: { copyProjectAsset } }) }))
 // 拖放签发的是此刻打开的项目 project-a（替身）。
 vi.mock('../project/projectCanvasReadSurface', () => {
   const project = { binding: { projectId: 'project-a', immutableProjectUuid: 'uuid-a', projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
@@ -82,16 +85,24 @@ describe('asset timeline actions', () => {
   })
 
   it('accepts only the matching target track and reports the expected track', () => {
-    expect(resolveAssetDrop(payload('video'), 'video', 'project-a')).toMatchObject({ status: 'accept' })
-    expect(resolveAssetDrop(payload('video'), 'image', 'project-a')).toEqual({
+    expect(resolveAssetDrop(payload('video'), 'video')).toMatchObject({ status: 'accept' })
+    expect(resolveAssetDrop(payload('video'), 'image')).toEqual({
       status: 'reject',
       expectedTrack: 'video',
     })
   })
 
-  it('rejects a project asset from another project before timeline write', () => {
-    expect(resolveAssetDrop(payload('video'), 'video', 'project-b')).toEqual({ status: 'reject-external' })
-    expect(resolveAssetDrop(payload('video'), 'video')).toEqual({ status: 'reject-external' })
+  it('copies a project asset from another project in before the timeline write (was: rejected, so it could not be dragged in)', async () => {
+    copyProjectAsset.mockReset()
+    copyProjectAsset.mockRejectedValue(new Error('Source project not found'))
+    const foreign = { ...payload('video'), renderUrl: 'nomi-local://asset/project-b/assets/media.mp4', origin: { source: 'project' as const, projectId: 'project-b', relativePath: 'assets/media.mp4' } }
+    const onFailure = vi.fn()
+    const result = tryAddAssetFromDragData(JSON.stringify(foreign), { fps: 30, startFrame: 0, targetTrackType: 'video', onFailure })
+    expect(result).toEqual({ status: 'accept', kind: 'video' })
+    await vi.waitFor(() => expect(onFailure).toHaveBeenCalledTimes(1))
+    expect(copyProjectAsset).toHaveBeenCalledWith({ sourceProjectId: 'project-b', targetProjectId: 'project-a', relativePath: 'assets/media.mp4' })
+    // 复制失败时给的是「没能复制到本项目」这句人话，不是别的项目的地址进了时间轴。
+    expect(String((onFailure.mock.calls[0]?.[0] as Error)?.message)).toMatch(/copyIntoProjectFailed|复制|copied/)
   })
 
   it('finds the matching track end for click-to-append', () => {

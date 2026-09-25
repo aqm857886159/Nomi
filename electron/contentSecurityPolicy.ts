@@ -1,4 +1,5 @@
 import type { Session } from "electron";
+import { CROSS_ORIGIN_ISOLATION_HEADERS } from "./shared/crossOriginIsolation";
 import { LOCAL_ARTIFACT_CONTENT_SECURITY_POLICY, isLocalArtifactUrl } from "./shared/localArtifactPolicy";
 
 type ContentSecurityPolicyOptions = Readonly<{
@@ -71,13 +72,12 @@ export function installContentSecurityPolicy(targetSession: Session, options: Co
       ...details.responseHeaders,
       "Content-Security-Policy": [isArtifact ? LOCAL_ARTIFACT_CONTENT_SECURITY_POLICY : csp],
     };
-    // 跨源隔离照旧（画板抠图的多线程 WASM 要 SharedArrayBuffer，见 4d972c9d）。
+    // 跨源隔离头与模式的唯一定义在 shared/crossOriginIsolation.ts（为什么是 credentialless 也写在那里）。
     // 顺带记一笔真机结论，免得下一个人再试一遍：隔离开着时**跨源文档根本不能当 frame 加载**，
-    // 给产物响应补 COEP: require-corp 也救不回来（最小 Electron 探针逐个开关验过：
+    // 给产物响应补 COEP 也救不回来（最小 Electron 探针逐个开关验过：
     // require-corp 挡、credentialless 挡、关掉隔离才通）。所以产物走 srcdoc，不走 src 导航。
     if (!crossOriginIsolationDisabled) {
-      responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin"];
-      responseHeaders["Cross-Origin-Embedder-Policy"] = ["require-corp"];
+      for (const [name, value] of Object.entries(CROSS_ORIGIN_ISOLATION_HEADERS)) responseHeaders[name] = [value];
     }
     callback({ responseHeaders });
   });

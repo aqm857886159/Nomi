@@ -258,6 +258,98 @@
       ],
       "since": "2026-09-25",
       "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。"
+    },
+    {
+      "name": "素材库落点的项目归属（跨项目先复制）",
+      "owner": {
+        "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+        "symbol": "materializeAssetLibraryItems"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+        "src/workbench/timeline/addAssetToTimeline.ts",
+        "src/workbench/assets/AssetLibraryPanel.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "画布 / 时间轴只写当前项目自己的素材引用：本项目 / 本画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制。落点不许再各自判 assetBelongsToProject 决定拒收（2026-08-31 四处各写一份拒收，别的项目的素材从此拖不出来）。合同 docs/fixes/2026-09-25-asset-library-drop-materialize.root-cause.json。"
+    },
+    {
+      "name": "素材格子的选择规则",
+      "owner": {
+        "path": "src/workbench/assets/assetLibraryUsage.ts",
+        "symbol": "nextAssetSelection"
+      },
+      "consumers": [
+        "src/workbench/assets/AssetLibraryPanel.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "普通点换选、⌘/Ctrl 与右上角对勾加减、Shift 连选只在这一处定义；对勾不许再是装饰（此前点它等于换选，多选删除只删一张）。素材格子拖拽只发 application/x-nomi-asset-ref 一种载荷，文件夹归类与画布都读它。"
+    },
+    {
+      "name": "宿主跨源隔离头",
+      "owner": {
+        "path": "electron/shared/crossOriginIsolation.ts",
+        "symbol": "CROSS_ORIGIN_ISOLATION_HEADERS"
+      },
+      "consumers": [
+        "electron/contentSecurityPolicy.ts",
+        "vite.config.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "COOP / COEP 的名字与模式（credentialless）只在这里定义，主进程与开发服务器都展开它；不许再写字面量（require-corp 曾让 Mac 版第三方示例媒体整片被拦）。合同 docs/fixes/2026-09-25-third-party-media-coep.root-cause.json。"
+    },
+    {
+      "name": "第三方示例媒体的失效",
+      "owner": {
+        "path": "src/media/remoteExampleMedia.ts",
+        "symbol": "useRemoteExampleMedia"
+      },
+      "consumers": [
+        "src/workbench/promptLibrary/PromptCard.tsx",
+        "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+        "src/workbench/skillLibrary/SkillMedia.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "提示词库 / 技能库公开示例的媒体地址归第三方站点；失败一次即本次会话记为失效，统一显示「示例已失效」、同一地址不再请求。组件不许再各自维护 broken 状态。"
+    },
+    {
+      "name": "项目数据里的构建产物地址",
+      "owner": {
+        "path": "electron/workspace/buildArtifactMigration.ts",
+        "symbol": "createBuildArtifactRewriter"
+      },
+      "consumers": [
+        "electron/workspace/workspaceManifest.ts",
+        "electron/shared/buildArtifactUrl.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "app.asar 包内 / dev server 源码树地址不许进项目：挂在清单事务 localizeEmbeddedMediaUrls 那一遍遍历上，示例图迁成项目资产，新写入的其它构建地址拒绝。分类器 electron/shared/buildArtifactUrl.ts 是判据面，不是第二个 owner。合同 docs/fixes/2026-09-25-build-artifact-url-in-project-data.root-cause.json。"
+    },
+    {
+      "name": "剪辑面板的收起状态",
+      "owner": {
+        "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+        "symbol": "setEditingPanelLayout"
+      },
+      "consumers": [
+        "src/workbench/preview/PreviewWorkspace.tsx",
+        "src/workbench/preview/PreviewSourcePanel.tsx",
+        "src/workbench/preview/panelLayout.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "收起只有 editingPanelLayout.visibility 一份真相；面板库拖出来的收起 / 展开经 editingPanelResizeEffect 写回它（此前被丢掉，32px 里仍画整块面板）。"
+    },
+    {
+      "name": "叫回 Nomi 的入口",
+      "owner": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "symbol": "CollapsedAiChip"
+      },
+      "consumers": [
+        "src/ui/app-shell/NomiAppBar.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
     }
   ]
 }

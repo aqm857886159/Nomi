@@ -1,0 +1,189 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-build-artifact-url-in-project-data",
+  "problem_type": "构建产物地址（app.asar 包内 / 开发服务器源码树）被持久化进用户项目，换构建即裂图；项目数据边界没有拒绝它，存量也从未迁移",
+  "symptom": "用户 Mac 控制台 2026-09-25：`Not allowed to load local resource: file:///Applications/Nomi.app/Contents/Resources/app.asar/dist/assets/kid-Bv5PJ3l5.jpg`、`Loading the image 'http://127.0.0.1:5273/src/workbench/onboarding/assets/robot/kid.jpg' violates … img-src 'self' nomi-local: https: data: blob:`、`[NomiImage] 图片加载失败`（src/design/media.tsx:75）。真机复现（tests/ux/build-artifact-url-migration.walk.mjs，改前 0/5）：旧的「示例：修好一个小机器人」项目三张卡全是「加载失败 / 重试」，项目库封面空，控制台 CSP img-src 违规。",
+  "direct_cause": "v0.16.7–v0.18.0 的引导回放用 `new URL('./assets/robot/*.jpg', import.meta.url).href`（dev 下是 http://127.0.0.1:5273/src/…，打包版是 file://…/app.asar/dist/assets/<name>-<hash>.jpg）经 addNodeResult 写进节点 result/history、时间轴 clip、@ 引用。v0.18.1（84d98cc9e）让引导改走 seedOnboardingDemoAssets 落项目资产，堵了新写入，但以为「重看引导会复用同一项目覆盖旧地址」而没做迁移——实际上引导每次都 createLocalProject 新建项目，旧项目永远带着坏地址；项目数据的写入边界也没有任何一处拒绝这类地址。",
+  "class_root": "「项目数据只存稳定地址」没有一个持久化边界来守：构建产物地址进得去（写不拒），进去了也出不来（读不迁）。修一个写入口（引导）挡不住别的写入口，也救不了已经写进去的数据。",
+  "affected_population": [
+    "v0.16.7–v0.18.0 跑过引导回放的用户：他们的「示例：修好一个小机器人」项目（seedKey 项目永不回收）",
+    "任何写项目清单的入口：渲染层保存、MCP / Agent 写入、新建、恢复、读时迁移",
+    "全平台（Mac 报 Not allowed to load local resource，dev 报 CSP img-src 违规，Windows 同样裂图）"
+  ],
+  "scope_paths": [
+    "electron/workspace/workspaceManifest.ts",
+    "electron/workspace/buildArtifactMigration.ts",
+    "electron/onboarding/demoAssetSeed.ts",
+    "electron/assets/assetsIpc.ts"
+  ],
+  "entry_points": [
+    "清单写入（electron/workspace/workspaceManifest.ts createMutationContext.replace）：渲染层 saveLocalProject / renameLocalProject、MCP 与 Agent 的 gateway / documentSurface 写入都经这里",
+    "清单加锁读（electron/workspace/workspaceManifest.ts localizeManifestState / readProjectJsonInTransaction）：打开项目、项目库列表",
+    "清单恢复（electron/workspace/workspaceManifest.ts recoverWorkspaceManifest）",
+    "快照读取（electron/workspace/workspaceManifest.ts readWorkspaceManifestSnapshot）：含构建产物地址时退回加锁读"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "「构建产物地址不许进项目数据」是 Nomi 项目文件格式的内部约定；Vite 资产地址的形状（dev /src/、构建产物 <name>-<hash>.<ext>）由仓库自己的构建决定，事故地址原样取自用户控制台。",
+  "invariant_owner_layer": {
+    "layer": "electron/workspace/workspaceManifest.ts",
+    "tests": [
+      "electron/workspace/buildArtifactMigration.test.ts",
+      "electron/shared/buildArtifactUrl.test.ts"
+    ],
+    "why": "每次写清单、每次加锁读清单都走 localizeEmbeddedMediaUrls 这一遍遍历；构建产物地址的迁移与拒绝挂在同一遍遍历上，所以没有写入口能绕过去。"
+  },
+  "invariants": [
+    "项目清单里不出现新的构建产物地址：写入带进来的、找不回字节的构建产物地址直接拒绝（BuildArtifactUrlPersistError），磁盘不变。",
+    "引导示例图的构建产物地址（结果、历史、时间轴、提示词 @ 引用里）在读或写时都迁成本项目的 nomi-local 资产，sidecar 与引导 seed 同形，同一张图只落一份。",
+    "记录里原来就有、找不回字节的构建产物地址不拦读、不拦存（不砖化项目），只记日志。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/onboarding/demoAssetSeed.ts",
+      "symbol": "readOnboardingDemoAssetBytes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/buildArtifactMigration.ts",
+      "symbol": "collectBuildArtifactUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/buildArtifactMigration.ts",
+      "symbol": "readOnboardingDemoAssetBytes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "collectBuildArtifactUrls"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "registerOnboardingDemoAssetSourceDir"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/buildArtifactMigration.ts",
+      "symbol": "rewriteBuildArtifactUrls"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "createBuildArtifactRewriter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "keepBuildArtifactUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "rejectNewBuildArtifactUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "mayContainBuildArtifactUrl"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 10,
+    "why_not": "改前（node scripts/door-map.mjs electron/onboarding/demoAssetSeed.ts，在 d8824a0c5 上跑）只有引导 seed 这一条路径自己读随包图；项目数据边界上零扇门守这条不变量——这正是缺口。改后新增的门都挂在同一遍清单遍历上：rewriter（迁移）、两种处置回调（读路径 keepBuildArtifactUrl 保留记日志 / 写路径 rejectNewBuildArtifactUrl 拒新值）、快照预筛、写路径收集「原来就有」的集合；随包目录在 registerAssetsIpc 里与引导 seed 的 IPC 一起登记；随包图读盘收成 readOnboardingDemoAssetBytes 一处（seed 与迁移共用，原来 seed 自己 fs.readFileSync）。每扇都必须存在：少了预筛，项目库快照会绕过迁移返回旧记录；少了收集，存量未知地址会把项目砖化。"
+  },
+  "generality_proof": "守的是持久化边界，不是某个写入口：渲染层保存、MCP / Agent 写入、新建、恢复、打开、项目库列表都经 localizeEmbeddedMediaUrls 这一遍遍历，分类按地址形状（app.asar 包内 / dev server 源码树 / 构建输出里的示例图文件名），与是哪段代码写进来的无关。以后任何代码再把一个构建产物地址带进项目，保存当场失败，不会静默落盘。",
+  "shared_boundaries": [
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "localizeEmbeddedMediaUrls",
+      "responsibility": "每次写清单 / 加锁读清单的那一遍遍历：data: 媒体落盘 + 构建产物地址迁移或拒绝。"
+    },
+    {
+      "path": "electron/workspace/buildArtifactMigration.ts",
+      "symbol": "createBuildArtifactRewriter",
+      "responsibility": "示例图 → 本项目 nomi-local 资产（随包原图 + onboarding-demo sidecar）；其余构建产物地址按策略拒绝（写）或保留记日志（读）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "entry_point": "createMutationContext.replace（所有清单写入）",
+      "disposition": "enforced",
+      "evidence": "localizeEmbeddedMediaUrls 传 rejectNewBuildArtifactUrl（只拒写入前记录里没有的）；buildArtifactMigration.test.ts「新写入里认不出的构建产物地址直接拒绝，磁盘不变」「新写入里的示例图照样迁成资产」。"
+    },
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "entry_point": "localizeManifestState / readProjectJsonInTransaction（打开项目、项目库列表）",
+      "disposition": "enforced",
+      "evidence": "迁移策略；buildArtifactMigration.test.ts「打开即迁移：结果、历史、时间轴、@ 引用」+ 走查 ①②④（改前 0/5，改后 zh / en 各 5/5）。"
+    },
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "entry_point": "readWorkspaceManifestSnapshot（不抢锁的快照读取）",
+      "disposition": "enforced",
+      "evidence": "含构建产物地址时返回 null，调用方退回加锁读去迁移（buildArtifactMigration.test.ts 快照一条）。"
+    },
+    {
+      "path": "electron/onboarding/demoAssetSeed.ts",
+      "entry_point": "seedOnboardingDemoAssets（引导回放）",
+      "disposition": "enforced",
+      "evidence": "随包图改由 readOnboardingDemoAssetBytes 读；迁移落的资产与它同 kind、同文件名，existingDemoAssets 会复用。"
+    },
+    {
+      "path": "src/workbench/project/projectMediaMigration.ts",
+      "entry_point": "assertWorkbenchProjectMediaUrlsPersistable（渲染层保存前断言）",
+      "disposition": "not-affected",
+      "evidence": "只查 blob:，且只覆盖 result/history/clip；MCP 写入根本不经过它。构建产物地址的守门放在主进程清单边界（覆盖全部写入口），不在这里另写第二份判据。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何写入口都可能把构建产物地址带进项目（上一次是引导，堵了引导仍救不了存量）；存量项目只要打开就会继续裂图。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs --write=saveLocalProject,saveProject,saveWorkspaceProject,localizeEmbeddedMediaUrls,addNodeResult,writeAsset,appendEvents,seedOnboardingDemoAssets（子任务盘点：渲染层 3 扇、主进程清单 4 类写入）",
+      "git log -- src/workbench/onboarding/demoProject.ts：2ca5d2685 引入 new URL(import.meta.url) 成图（v0.16.7 起），84d98cc9e 改走 seed（v0.18.1），无迁移",
+      "rg -n \"import\\.meta\\.url\" src —— src/bundleAssetUrlBoundary.test.ts 已拦 new URL(字面量, import.meta.url)，目前 src 无其它会被持久化的包内资产地址"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/workspaceManifest.ts",
+    "invariant": "清单写入不接受新的构建产物地址；读写都把示例图地址迁成项目资产。",
+    "failure_mode": "新带进来、找不回字节的构建产物地址 → BuildArtifactUrlPersistError，整次写入不落盘；随包目录没登记（纯 Node / 单测）时示例图地址也按找不回处理。",
+    "exception_policy": "none",
+    "strategy": "把守门放在所有写入口汇合的持久化边界，并让同一遍遍历负责存量迁移，快照读取遇到这类地址交给加锁读。",
+    "artifacts": [
+      "electron/workspace/workspaceManifest.ts",
+      "electron/workspace/buildArtifactMigration.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/workspace/buildArtifactMigration.test.ts",
+    "electron/shared/buildArtifactUrl.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/workspace/buildArtifactMigration.test.ts",
+    "electron/shared/buildArtifactUrl.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/onboarding/demoAssetSeed.ts"
+    ],
+    "rationale": "demoAssetSeed 里自己 fs.readFileSync 读随包图、自带一份 DEMO_ASSET_FILES / DEMO_ASSET_KIND、以及 demoAssetSourceDir 的写法删除：清单与读盘改用 electron/shared/onboardingDemoAssets.ts 与 readOnboardingDemoAssetBytes（与迁移同一处），随包目录在 registerAssetsIpc 里登记一次。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方依赖决定这条不变量。",
+    "exit_criteria": []
+  },
+  "migration": "存量项目在第一次加锁读（打开项目或项目库列表）时迁移：示例图地址 → 随包原图落进该项目 assets/generated/<日期>/，写 onboarding-demo sidecar，记录改写后写回磁盘；之后快照读取直接拿到干净记录。备份文件（project.backup.json）不在迁移里改写，恢复时同一遍遍历会迁移。",
+  "residual_risks": [
+    "找不回字节的其它构建产物地址（证据上从未产生过）只保留并记日志，不会自动修好。",
+    "画布事件日志（.nomi/events）里旧的回放载荷不在迁移范围：打开时只回放 lastSeq 之后的事件，旧载荷不会再写回画布。",
+    "Mac 真机未走查（Windows 11 开发构建上 zh / en 各一遍，地址原样取自用户 Mac 控制台）。"
+  ]
+}

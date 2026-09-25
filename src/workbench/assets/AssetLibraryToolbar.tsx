@@ -168,7 +168,7 @@ export function AssetLibraryToolbar({
     <div
       className={cn(
         'inline-flex bg-nomi-ink-05 rounded-full p-0.5',
-        compact ? 'min-w-0 flex-1' : 'shrink-0',
+        compact ? 'min-w-0 flex-1 overflow-hidden' : 'shrink-0',
       )}
       role="tablist"
       aria-label={t('assetLibrary.sourceFilter')}
@@ -181,10 +181,12 @@ export function AssetLibraryToolbar({
             type="button"
             role="tab"
             aria-selected={active}
+            // 窄栏里放不下就在自己的格子里省略、悬停看全名——此前字不裁不换行，直接画到隔壁标签和链接钮上。
+            title={t(option.labelKey)}
             className={cn(
               'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
               'transition-[background,color] duration-nomi-fast ease-nomi-fast',
-              compact ? 'min-w-0 flex-1 px-1.5 py-1' : 'px-2.5 py-1',
+              compact ? 'min-w-0 flex-1 overflow-hidden text-ellipsis px-1.5 py-1' : 'px-2.5 py-1',
               active
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
                 : 'text-nomi-ink-60 hover:text-nomi-ink',
