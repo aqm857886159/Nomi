@@ -59,7 +59,6 @@ export function TimelineSecondaryAddRow({
     if (!result) return
     event.preventDefault()
     if (result.status === 'reject') presentFeedback(t('timelineEditor.track.wrongType', { track: result.expectedTrack === 'video' ? t('timelineEditor.track.videoLabel') : t('timelineEditor.track.audioLabel') }))
-    if (result.status === 'reject-external') presentFeedback(t('assetLibrary.externalAssetHint'))
   }
   const acceptsAudio = (types: readonly string[]) => showAudio && types.includes(ASSET_LIBRARY_DRAG_MIME)
 

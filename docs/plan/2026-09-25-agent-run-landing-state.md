@@ -1,5 +1,7 @@
 # Agent 付费卡生成的节点「视频早出好了还在转」——状态只留一个 owner
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实施（2026-09-25，分支 `claude/agent-run-landing-state`）· 根因合同：`docs/fixes/2026-09-25-agent-run-node-state-single-owner.root-cause.json` · 结构评审：`docs/audit/2026-09-25-agent-run-canvas-projection-structure-review.md`
 
 ## 用户摩擦

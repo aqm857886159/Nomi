@@ -1,5 +1,7 @@
 # pi history read-side repair
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Status: implementation; no paid model or real project access.
 
 ## Scope and invariant

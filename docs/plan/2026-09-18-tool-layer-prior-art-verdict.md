@@ -1,5 +1,7 @@
 # 工具层分层裁决：拿 14 条发现去对照顶尖产品（2026-09-18）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：现行 · 2026-09-18 · 分支 `research/tool-layer-prior-art-20260918`（基线 `fix/verb-host-contract-sweep-20260918` @ 3bc0ca364）
 > **输入**：`docs/plan/2026-09-18-tool-layer-findings-inventory.md`（14 条发现 + §4 九项已落地）与
 > `docs/audit/2026-09-18-agent-capability-restatement-layers.md`（结构评审）。两份都读完了；本文回答它们 §5 的四问。

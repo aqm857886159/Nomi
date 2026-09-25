@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { createLogger, defineConfig, loadEnv, type ConfigEnv, type Logger, type Plugin, type UserConfig } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
+import { CROSS_ORIGIN_ISOLATION_HEADERS } from './electron/shared/crossOriginIsolation'
 
 const NOMI_TAILWIND_CSS_PATH = '/tailwind.generated.css'
 const NOMI_TAILWIND_CSS_FILE = resolve(__dirname, 'public', 'tailwind.generated.css')
@@ -234,14 +235,8 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
       host: true,
       cors: true,
       // COOP/COEP 跨源隔离默认关：它会卡死 Playwright CDP 握手（R13 走查全挂的真根因）。
-      // 仅 ONNX 多线程推理需要时显式开 NOMI_DEV_CROSS_ORIGIN_ISOLATION=1。
-      headers:
-        process.env.NOMI_DEV_CROSS_ORIGIN_ISOLATION === '1'
-          ? {
-              'Cross-Origin-Opener-Policy': 'same-origin',
-              'Cross-Origin-Embedder-Policy': 'require-corp',
-            }
-          : undefined,
+      // 仅 ONNX 多线程推理需要时显式开 NOMI_DEV_CROSS_ORIGIN_ISOLATION=1；头与模式和主进程同一份定义。
+      headers: process.env.NOMI_DEV_CROSS_ORIGIN_ISOLATION === '1' ? { ...CROSS_ORIGIN_ISOLATION_HEADERS } : undefined,
       hmr: process.env.NOMI_DISABLE_VITE_HMR === '1' ? false : undefined,
       fs: {
         allow: [resolve(__dirname)],

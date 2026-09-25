@@ -35,6 +35,37 @@ export function shouldRunAssetItemAction(action: AssetLibraryItemAction, clickCo
   return action !== 'append' || clickCount <= 1
 }
 
+/**
+ * 素材格子的选择规则（唯一 owner）：普通点＝换选；⌘/Ctrl 点（以及右上角对勾）＝加进 / 移出；
+ * Shift 点＝从锚点连选（叠 ⌘/Ctrl 时并入已选）。
+ */
+export function nextAssetSelection(
+  current: ReadonlySet<string>,
+  visibleIds: readonly string[],
+  targetId: string,
+  anchorId: string | null,
+  event: Pick<AssetGridActivationEvent, 'metaKey' | 'ctrlKey' | 'shiftKey'>,
+): ReadonlySet<string> {
+  const additive = event.metaKey || event.ctrlKey
+  if (event.shiftKey && anchorId) {
+    const anchorIndex = visibleIds.indexOf(anchorId)
+    const targetIndex = visibleIds.indexOf(targetId)
+    if (anchorIndex >= 0 && targetIndex >= 0) {
+      const next = additive ? new Set(current) : new Set<string>()
+      for (let index = Math.min(anchorIndex, targetIndex); index <= Math.max(anchorIndex, targetIndex); index += 1) next.add(visibleIds[index])
+      return next
+    }
+  }
+  if (additive) {
+    const next = new Set(current)
+    if (next.has(targetId)) next.delete(targetId)
+    else next.add(targetId)
+    return next
+  }
+  if (current.size === 1 && current.has(targetId)) return current
+  return new Set([targetId])
+}
+
 export function isAssetGridActivationKey(key: string): boolean {
   return key === 'Enter' || key === ' '
 }

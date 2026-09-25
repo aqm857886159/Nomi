@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-import { DEMO_ASSET_FILES } from './demoAssetSeed'
+import { DEMO_ASSET_FILES } from '../shared/onboardingDemoAssets'
 import { buildDemoStoryboardPlan } from '../../src/workbench/onboarding/demoProject'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')

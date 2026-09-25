@@ -1,5 +1,7 @@
 # Agent 回复代码块 + 任务面板状态对账
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 用户 2026-09-25 两条反馈，一个分支两笔提交。任务面板这一版**只修乱码、状态和重复条目，不重新设计**
 > （改成「生成历史」那种页面是下一版的事）。根因合同：
 > `docs/fixes/2026-09-25-agent-code-block-skin.root-cause.json`、`docs/fixes/2026-09-25-task-center-state-owner.root-cause.json`。

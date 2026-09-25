@@ -41,7 +41,8 @@ import { assetProvenanceOf, countAssetProvenance } from './assetProvenance'
 import { useAssetLibraryFilters } from './useAssetLibraryFilters'
 import { filterCanvasLibraryAssets, filterPlayableAssets } from './assetLibrarySources'
 import { deleteAssetResult } from './deleteAssetResult'
-import { addAssetToTimelineEnd } from '../timeline/addAssetToTimeline'
+import { addAssetToTimelineEnd, assetRefFromDragPayload } from '../timeline/addAssetToTimeline'
+import { materializeAssetLibraryItems } from './assetLibraryMaterialize'
 import { useAssetLibraryLocalImport } from './assetLibraryLocalImport'
 import { logRendererError } from '../../desktop/rendererLog'
 import {
@@ -49,6 +50,7 @@ import {
   assetsForLibraryDrag,
   assetBelongsToProject,
   canManageAssetFolders,
+  nextAssetSelection,
   resolveAssetLibraryItemAction,
   shouldRunAssetItemAction,
   sourceOptionsForUsage,
@@ -355,29 +357,11 @@ export function AssetLibraryContent({
   }, [visibleIds])
 
   const selectAsset = React.useCallback((asset: AssetRef, event: AssetGridActivationEvent): void => {
-    const visibleAssets = visibleAssetsRef.current
-    const additive = event.metaKey || event.ctrlKey
+    const visibleIds = visibleAssetsRef.current.map((candidate) => candidate.id)
     const anchorId = lastSelectedIdRef.current
     setSelectedIds((current) => {
-      if (event.shiftKey && anchorId) {
-        const anchorIndex = visibleAssets.findIndex((candidate) => candidate.id === anchorId)
-        const targetIndex = visibleAssets.findIndex((candidate) => candidate.id === asset.id)
-        if (anchorIndex >= 0 && targetIndex >= 0) {
-          const start = Math.min(anchorIndex, targetIndex)
-          const end = Math.max(anchorIndex, targetIndex)
-          const next = additive ? new Set(current) : new Set<string>()
-          for (let index = start; index <= end; index += 1) next.add(visibleAssets[index].id)
-          return next
-        }
-      }
-      if (additive) {
-        const next = new Set(current)
-        if (next.has(asset.id)) next.delete(asset.id)
-        else next.add(asset.id)
-        return next
-      }
-      if (current.size === 1 && current.has(asset.id)) return current
-      return new Set([asset.id])
+      const next = nextAssetSelection(current, visibleIds, asset.id, anchorId, event)
+      return next === current ? current : new Set(next)
     })
     lastSelectedIdRef.current = asset.id
   }, [])
@@ -385,16 +369,18 @@ export function AssetLibraryContent({
   const activateAsset = React.useCallback((asset: AssetRef, event: AssetGridActivationEvent): void => {
     if (!shouldRunAssetItemAction(itemAction, event.detail)) return
     if (itemAction === 'append') {
-      // The all-project view is intentionally browse-only until a materialized
-      // copy contract exists. Never write another project's URL into this
-      // project's timeline; let the user inspect the source instead.
-      if (!assetBelongsToProject(asset, projectId)) {
-        setPreviewAsset(asset)
-        return
-      }
+      // 别的项目的素材先复制进本项目（与拖放同一个关口 materializeAssetLibraryItems），
+      // 时间轴只写本项目自己的地址。
       withProjectAction((project) => {
-        void addAssetToTimelineEnd(asset, project).then((added) => {
-          if (added) markLibraryUsed('asset', asset.id)
+        void materializeAssetLibraryItems([assetToDragPayload(asset)], project).then(({ items }) => {
+          const local = items[0] ? assetRefFromDragPayload(items[0]) : null
+          if (!local) {
+            if (isProjectExecutionContextCurrent(project)) report(t('assetLibrary.copyIntoProjectFailed', { count: 1 }), 'warning')
+            return
+          }
+          return addAssetToTimelineEnd(local, project).then((added) => {
+            if (added) markLibraryUsed('asset', asset.id)
+          })
         })
       })
       return
@@ -405,17 +391,21 @@ export function AssetLibraryContent({
       return
     }
     selectAsset(asset, event)
-  }, [itemAction, projectId, selectAsset])
+  }, [itemAction, projectId, report, selectAsset, t])
+
+  // 对勾是开关：点一下加进 / 移出选择，不动其它已选——和 ⌘/Ctrl 点同一条选择逻辑（selectAsset 唯一 owner）。
+  // 此前对勾只是装饰，点它等于普通点击＝换选：选不了第二张，也取消不了（2026-09-25 用户反馈）。
+  const toggleAssetSelection = React.useCallback((asset: AssetRef): void => {
+    selectAsset(asset, { metaKey: false, ctrlKey: true, shiftKey: false, detail: 1 })
+  }, [selectAsset])
 
 
+  // 两个 tab 同一份拖拽载荷：落在画布 / 时间轴＝用它（别的项目的先复制进来，见 assetLibraryMaterialize），
+  // 落在文件夹＝归类。不再按 tab 分两种拖拽（此前项目素材 tab 只发归类专用的 MIME，拖到画布没反应）。
   const handleAssetDragStart = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
-    if (!assetBelongsToProject(asset, projectId)) {
-      event.preventDefault()
-      return
-    }
+    present('')
     const currentSelection = selectedIdsRef.current
     const selectedForDrag = assetsForLibraryDrag(visibleAssetsRef.current, currentSelection, asset)
-      .filter((candidate) => assetBelongsToProject(candidate, projectId))
     if (!currentSelection.has(asset.id)) {
       setSelectedIds(new Set([asset.id]))
       lastSelectedIdRef.current = asset.id
@@ -431,19 +421,10 @@ export function AssetLibraryContent({
     event.dataTransfer.setData(ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag(payloads))
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData('text/plain', payloads.length > 1 ? `${payloads.length} 个素材` : asset.name)
-  }, [projectId])
+  }, [present])
 
-  // 项目素材 tab 的格子拖拽=归类进夹（独立 MIME,画布 drop 端不认识,不会误建重复节点）。
-  // 三件套 handler 抽在 useAssetFolderInteractions（R9 防巨壳）。
-  const { handleFolderAssignDragStart, handleFolderDropAssets, handleDeleteFolder } = useAssetFolderInteractions({
-    folderApi,
-    visibleAssetsRef,
-    selectedIdsRef,
-    setSelectedIds,
-    lastSelectedIdRef,
-    setActiveFolderId,
-    collectSelection: assetsForLibraryDrag,
-  })
+  // 落夹 / 删夹 handler 抽在 useAssetFolderInteractions（R9 防巨壳）。
+  const { handleFolderDropAssets, handleDeleteFolder } = useAssetFolderInteractions({ folderApi, setActiveFolderId })
   const assetDragHint = usageContext === 'timeline'
     ? t('timelineEditor.dragToTimeline')
     : projectSelectionEnabled
@@ -453,16 +434,6 @@ export function AssetLibraryContent({
     setPreviewAsset(asset)
     if (assetBelongsToProject(asset, projectId)) markLibraryUsed('asset', asset.id)
   } : undefined, [itemAction, projectId])
-  const assetDragStartAction = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
-    present('')
-    if (!assetBelongsToProject(asset, projectId)) {
-      event.preventDefault()
-      report(t('assetLibrary.externalAssetHint'), 'info')
-      return
-    }
-    if (projectSelectionEnabled) handleFolderAssignDragStart(asset, event)
-    else handleAssetDragStart(asset, event)
-  }, [handleAssetDragStart, handleFolderAssignDragStart, projectId, projectSelectionEnabled, present, report, t])
 
   const deleteSelectedProjectAssets = React.useCallback(async (): Promise<void> => {
     present('')
@@ -504,7 +475,7 @@ export function AssetLibraryContent({
     present('')
     const loaded = withProjectAction((project) => project) ?? null
     if (!assetBelongsToProject(asset, projectId)) {
-      report(t('assetLibrary.externalAssetHint'), 'info')
+      report(t('assetLibrary.externalAssetNoDelete'), 'info')
       return
     }
     const confirmed = await confirmDialog({
@@ -722,12 +693,12 @@ export function AssetLibraryContent({
                   asset={asset}
                   compact
                   selectable={projectSelectionEnabled}
-                  draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
                   selected={selectedIds.has(asset.id)}
                   dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                   onSelect={activateAsset}
+                  onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
                   onPreview={assetPreviewAction}
-                  onDragStartAsset={assetDragStartAction}
+                  onDragStartAsset={handleAssetDragStart}
                   onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
                 />
               ))}
@@ -757,12 +728,12 @@ export function AssetLibraryContent({
                         key={asset.id}
                         asset={asset}
                         selectable={projectSelectionEnabled}
-                        draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
                         selected={selectedIds.has(asset.id)}
                         dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                         onSelect={activateAsset}
+                        onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
                         onPreview={assetPreviewAction}
-                        onDragStartAsset={assetDragStartAction}
+                        onDragStartAsset={handleAssetDragStart}
                         onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
                       />
                     ))}

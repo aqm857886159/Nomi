@@ -1,5 +1,7 @@
 # 分镜模型身份成对写读（2026-09-21）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：已实施（分支 `fix/storyboard-model-vendor-20260921`）。根因合同：`docs/fixes/2026-09-21-storyboard-model-vendor.root-cause.json`；结构评审：`docs/audit/2026-09-21-model-identity-pair-structure.md`。
 
 ## 要解决的摩擦

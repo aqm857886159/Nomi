@@ -1,5 +1,7 @@
 # Asset publication identity
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 先查别人
 
 - [独立反方报告及已读官方依据](../research/2026-09-17-pr802/prior-art.md)：保留已有项目存储，身份与 UI 落点分离。

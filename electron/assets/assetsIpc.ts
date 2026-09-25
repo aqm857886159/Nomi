@@ -1,6 +1,7 @@
 // 素材域 IPC 注册器（2026-07-22 素材面收敛时从 main.ts 抽出,R9 巨壳门岗）：
 // 文件夹读写 + 本地文件导入 + 素材下载 + 自动另存/设置（集中设置页「文件与保存」）。
-import { clipboard, dialog, ipcMain } from "electron";
+import { app, clipboard, dialog, ipcMain } from "electron";
+import path from "node:path";
 import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downloadPrefs";
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
@@ -9,6 +10,7 @@ import type { AssetImportResult } from '../shared/contracts/assetImportResult';
 import type { AssetImportFailure } from '../shared/contracts/assetImportResult';
 import type { ProjectInteractionCapture } from './projectInteractionCapture';
 import { surfacePortFailure } from '../shared/surfacePortBinding';
+import { registerOnboardingDemoAssetSourceDir } from '../onboarding/demoAssetSource';
 
 function importFailure(error: unknown, reason: AssetImportFailure['reason'] = 'import-failed'): AssetImportResult<never> {
   return { ok: false, failure: { code: surfacePortFailure(error).code, reason } };
@@ -66,6 +68,11 @@ export function parseCopyProjectAssetPayload(payload: unknown): {
 }
 
 export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture): void {
+  // 随包引导示例图目录：引导 seed 与「旧项目里的构建产物地址 → 项目资产」迁移都从这里读原图。
+  // 放 `resources/` 而不是 `src/`（Vite 加内容哈希，只有渲染进程算得出地址——事故起点）或 `public/`（进包两份）；
+  // `resources/**` 在 package.json > build.files 里随包走，dev（仓库根）与打包版（app.asar 根）是同一条相对路径。
+  // 登记的是解析函数：用到时才取 app 路径，注册本身不依赖 Electron app 已就绪。
+  registerOnboardingDemoAssetSourceDir(() => path.join(app.getAppPath(), "resources", "onboarding-demo"));
   // Explicit project/background imports retain disk identity without acquiring
   // interactive authority. Agent artifacts always provide the full binding.
   ipcMain.handle("nomi:clipboard:read-file-paths", (event) => {
