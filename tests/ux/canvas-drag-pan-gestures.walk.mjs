@@ -1279,19 +1279,20 @@ try {
 
   // 用过的项目里的卡是 apimart 模型生成的，隔离资料里没有它的 key，App 会挂一条常驻的「模型当前不可用」提醒
   // （警告类 toast 要手动关）。它浮在所有弹层之上，正好压住设置弹窗右上角的关闭钮——人会先点掉提醒再关弹窗，走查照做。
+  // 每张挂过浮框的 apimart 卡各一条（图片、视频各一条就叠两层），关掉一条下一条会补上同一位置，所以逐条关到露出为止。
   async function clickPastToasts(locator) {
-    const box = await locator.boundingBox()
-    if (box) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const box = await locator.boundingBox()
+      if (!box) break
       const toastClose = await getWin().evaluate(({ x, y }) => {
         const toast = document.elementFromPoint(x, y)?.closest('.mantine-Notification-root')
         const close = toast?.querySelector('.mantine-Notification-closeButton')
         const rect = close?.getBoundingClientRect()
         return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null
       }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
-      if (toastClose) {
-        await getWin().mouse.click(toastClose.x, toastClose.y)
-        await getWin().waitForTimeout(300)
-      }
+      if (!toastClose) break
+      await getWin().mouse.click(toastClose.x, toastClose.y)
+      await getWin().waitForTimeout(300)
     }
     await locator.click()
   }
