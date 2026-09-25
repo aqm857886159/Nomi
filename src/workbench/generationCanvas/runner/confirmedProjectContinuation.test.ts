@@ -218,6 +218,7 @@ it('planned text manual draft edit must not replace approved connected prompt', 
 })
 
 it.each(['contentJson', 'textGenMode', 'textGenSelection'] as const)('text %s changed during approval must not execute', async field => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const text = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction' })
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
@@ -227,7 +228,7 @@ it.each(['contentJson', 'textGenMode', 'textGenSelection'] as const)('text %s ch
     return true
   })
   calls.execute.mockImplementation(async () => ({ id: 'generated', type: 'text', text: 'output', createdAt: 1 }))
-  await confirmAndRunNode(text.id, { initiator: 'user' })
+  await confirmAndRunNode(text.id, { initiator: 'agent' })
   expect(calls.execute).not.toHaveBeenCalled()
 })
 
@@ -329,6 +330,7 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
 })
 
 it.each(['append', 'replace'] as const)('original confirmation retries streamed %s from the approved document', async mode => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const original: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'approved initial document' }] }] }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction', meta: { modelVendor: 'v', modelKey: 'm', textGenMode: mode } })
@@ -347,7 +349,7 @@ it.each(['append', 'replace'] as const)('original confirmation retries streamed 
     projectTarget: context.projectTarget, runTextStream: stream,
   })
   calls.execute.mockImplementation(executor)
-  await confirmAndRunNode(node.id, { initiator: 'user' })
+  await confirmAndRunNode(node.id, { initiator: 'agent' })
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(stream).toHaveBeenCalledTimes(2)
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -364,6 +366,7 @@ it.each(['append', 'replace'] as const)('original confirmation retries streamed 
 })
 
 it.each(['append', 'replace'] as const)('original confirmation rejects streamed %s retry after a manual document edit', async mode => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction', meta: { modelVendor: 'v', modelKey: 'm', textGenMode: mode } })
@@ -377,7 +380,7 @@ it.each(['append', 'replace'] as const)('original confirmation rejects streamed 
     projectTarget: context.projectTarget, runTextStream: stream,
   })
   calls.execute.mockImplementation(executor)
-  await confirmAndRunNode(node.id, { initiator: 'user' })
+  await confirmAndRunNode(node.id, { initiator: 'agent' })
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(stream).toHaveBeenCalledOnce()
   expect(calls.execute).toHaveBeenCalledOnce()

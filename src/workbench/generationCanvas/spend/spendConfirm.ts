@@ -1,7 +1,6 @@
 import { declareStoreLifetime } from '../../project/storeLifetime'
 import { toast } from '../../../ui/toast'
 import { DEFAULT_CANVAS_BATCH_CONCURRENCY } from '../components/canvasProductionScope'
-import type { SpendQuote } from '../../../../electron/shared/contracts/spendQuote'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { create } from 'zustand'
 import { mintSpendGrant } from '../../api/taskApi'
@@ -212,40 +211,26 @@ export function generationSpendsCredits(nodes: Array<{ meta?: Record<string, unk
 export type SpendInitiator = 'user' | 'agent'
 
 /**
- * 单次报价达到这么多点（目录报价单位）才要确认。2026-09-25 用户拍板「≥ 10 点」：图片与大多数视频直接生成，
- * 贵的视频模型仍问一下。仓库里此前没有任何金额门槛（09-09 删了硬预算、09-14 删了 confirmFirstSpend），
- * 这是唯一一处；要改门槛只改这里。
- */
-export const SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS = 10
-
-/**
  * 「这一下要不要弹付费确认」的**唯一判据**（2026-09-25 用户拍板：单个节点生成不弹窗）。
  *
- * 为什么是这几条、别的都不问：确认卡的存在意义是「别让人意外花钱」。用户自己点一个节点的 ↑，
- * 点数已经常驻写在 ↑ 旁边（点之前就看得到），再弹一张卡复述同一个数，是每天几十次的白摩擦。
- * 剩下的都是「意外」的来源：
+ * 为什么是这几条、别的都不问：确认卡的存在意义是「别让人意外花钱」。用户自己点一个节点的 ↑ / 分镜表的
+ * 「生成镜 N」，就是他本人要这一张，再弹一张卡让他再点一次，是每天几十次的白摩擦。剩下的都是「意外」的来源：
  *   - Agent / 外部 MCP 发起：人不一定在看，钱这一步必须人点头；
  *   - 一下跑 ≥2 个（×N、多选、批量、先补参考再生成）：点一次花好几份，数目要人看一眼；
- *   - 单次 ≥ 门槛：贵；
- *   - 第一次走匿名托管：告知只能在这张卡里给；
- *   - 拿不到报价：不知道多少钱，保守问（宁可多问一次，不可偷偷花钱）。
- * **未标价不在里面**：目录没标价时 ↑ 旁写「未标价」，不挡生成（2026-09-21「未知价不许挡生成」）。
+ *   - 第一次走匿名托管：告知只能在这张卡里给。
+ * **不看金额**（2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」）：现在所有模型都走中转、
+ * 各家价格不一，Nomi 不计算价格，内置目录里的生成模型一条价都没有——拿金额当判据只会是永远不生效的死判据，
+ * 「拿不到报价就问」也会变成每次都问。等有了官方模型供应、价格可算时再重新设计。
  *
- * 纯函数、调用方只报事实（谁发起、跑几个、报价、要不要告知），不在入口上各判各的——
+ * 纯函数、调用方只报事实（谁发起、跑几个、要不要告知），不在入口上各判各的——
  * Ctrl+Enter 单选、重试、分镜行生成、结果卡重新生成走的是不同函数，但都落到这一个判据上。
  */
 export function spendConfirmationRequirement(input: {
   initiator: SpendInitiator
   runCount: number
-  /** 主进程报价：数字 = 目录价；null = 目录未标价；undefined = 没拿到报价。 */
-  amount: number | null | undefined
   hostingDisclosure: boolean
 }): boolean {
-  return input.initiator === 'agent'
-    || input.runCount > 1
-    || (typeof input.amount === 'number' && input.amount >= SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS)
-    || input.hostingDisclosure
-    || input.amount === undefined
+  return input.initiator === 'agent' || input.runCount > 1 || input.hostingDisclosure
 }
 
 /**
@@ -254,7 +239,7 @@ export function spendConfirmationRequirement(input: {
  * 不弹卡时**照样**先向主进程要报价、把 quoteId 交给调用方去铸令牌：主进程的花钱闸认的是「这一笔有一张
  * 被确认过的报价」（`electron/spendGrant.ts` `assertAndConsumeQuotedSpend`），不带报价的令牌会被它拦下、
  * 改弹一张「经 AI 助手驱动」的卡——那等于把一个弹窗换成另一个更吓人的弹窗。这里的「确认」由用户按 ↑
- * 那一下承担（点之前点数已写在 ↑ 旁）。
+ * 那一下承担。报价只拿来铸令牌，不参与「问不问」。
  */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
@@ -274,15 +259,14 @@ export async function confirmGenerationSpend(
   const required = spendConfirmationRequirement({
     initiator: opts.initiator,
     runCount: nodes.length,
-    amount: quote ? quote.amount : undefined,
     hostingDisclosure: Boolean(opts.hostingDisclosure),
   })
-  if (!required && quote) {
-    opts.onQuoteConfirmed?.(quote.quoteId)
+  if (!required) {
+    if (quote) opts.onQuoteConfirmed?.(quote.quoteId)
     return true
   }
+  // 卡上不印金额（2026-09-26 用户拍板：官方额度上线前隐藏价格维度）；报价照样拿，只用来铸令牌。
   const confirmed = await useSpendConfirmStore.getState().requestConfirm({
-    details: [spendQuoteDetail(quote ?? { amount: null })],
     title: opts.title,
     message: opts.message,
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
@@ -351,15 +335,6 @@ export function describeGenerationCost(count: number, kind: GenerationCostKind =
   return i18n.t('generationCommon.spend.cost.media', { count, unit, minutes })
 }
 
-
-export function spendQuoteDetail(quote: Pick<SpendQuote, 'amount'>): { label: string; value: string } {
-  return {
-    label: i18n.t('generationCommon.spend.estimatedAmount'),
-    value: quote.amount === null
-      ? i18n.t('generationCommon.spend.catalogUnpriced')
-      : i18n.t('generationCommon.spend.catalogCredits', { amount: quote.amount }),
-  }
-}
 
 /**
  * C1 寿命声明：付费待确认队列（审计 §9 点名「最值得先做真机的一条，涉钱」）。

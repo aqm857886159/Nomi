@@ -30,10 +30,10 @@
     "Storyboard row / anchor actions (user or Agent gesture)",
     "Decompose layers via confirmAndMintGrant"
   ],
-  "internal_only_reason": "The confirmation policy is a product decision recorded on 2026-09-25 (single node no dialog, ≥2 runs / ≥10 credits / Agent / hosting disclosure / missing quote confirm); no external specification governs it. The main-process quote-bound grant (electron/spendGrant.ts) is unchanged and still enforces that every paid submission consumes a current quote.",
+  "internal_only_reason": "The confirmation policy is a product decision recorded on 2026-09-25 (a single run the user starts does not ask; ≥2 runs / Agent / hosting disclosure ask) and narrowed on 2026-09-26: Nomi does not compute prices today (every model goes through a relay with differing prices; no built-in generation model carries pricing), so the policy takes no amount and nothing shows a price. No external specification governs it. The main-process quote-bound grant (electron/spendGrant.ts) is unchanged and still enforces that every paid submission consumes a current quote.",
   "invariants": [
-    "Whether to show the spend confirmation is decided only by spendConfirmationRequirement from (initiator, run count, quote amount, hosting disclosure)",
-    "Agent-initiated paid runs always confirm; runs without a quote always confirm",
+    "Whether to show the spend confirmation is decided only by spendConfirmationRequirement from (initiator, run count, hosting disclosure); the quote amount is never an input",
+    "Agent-initiated paid runs always confirm; a missing or unpriced quote is not a reason to confirm",
     "Runs that skip the dialog still obtain a quote and mint the grant with its quoteId",
     "initiator is required on every link of the chain (confirmGenerationSpend, confirmAndMintGrant, confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace, confirmAndRunPlan) with no default; storyboard row actions take either a gesture (its source derives the initiator) or an explicit initiator, never neither and never both"
   ],
@@ -99,8 +99,8 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
-    "invariant": "Confirmation is required iff agent-initiated, ≥2 runs, quote ≥ SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS, hosting disclosure, or no quote",
-    "failure_mode": "No quote → the dialog is shown; declining never transfers the quote id",
+    "invariant": "Confirmation is required iff agent-initiated, ≥2 runs, or hosting disclosure; the price never decides",
+    "failure_mode": "No quote → the run still starts for a single user run but no quote id is handed to the grant (the main-process gate then decides); declining a shown card never transfers the quote id",
     "exception_policy": "none",
     "strategy": "One pure predicate called only by the funnel; entries report facts; initiator threaded through the existing guard type",
     "artifacts": [
@@ -131,9 +131,9 @@
     "rationale": "Pure product policy in the renderer; the main-process quote/grant contract is unchanged",
     "exit_criteria": []
   },
-  "migration": "No persisted state. The threshold is a constant (no setting existed; 2026-09-09 removed the hard budget).",
+  "migration": "No persisted state. The first cut's ≥10-credit threshold and always-visible price next to ↑ were deleted on 2026-09-26 (no pricing exists to feed them).",
   "residual_risks": [
-    "A mis-click on ↑ now spends up to the threshold without a second step; providers have no cancel API. Mitigated by the always-visible cost next to ↑ and the threshold, as the user accepted",
-    "The renderer cost chip matches catalog rows case-insensitively while the main-process quote matches exactly; the dialog decision uses the main-process quote"
+    "A mis-click on ↑ now spends one run without a second step; providers have no cancel API. The user accepted this for single runs they start themselves",
+    "No price is shown anywhere before a single run starts; this is deliberate until official model supply makes prices computable (user, 2026-09-26)"
   ]
 }

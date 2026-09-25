@@ -713,11 +713,13 @@ className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
 | 用户此刻在哪 | 确认长在哪 | 状态 |
 |---|---|---|
 | 正在跟内嵌 agent 对话 | **对话流内的付费富卡**，对话暂停等回答（不弹居中窗——弹窗会打断「对话主驾」心流） | 🚧 待建，随 B5 落；规格见 [nomi-agent-interaction.md](nomi-agent-interaction.md) |
-| 画布上自己点生成（单个节点、< 10 点、非首次托管） | **不弹**：点数常驻在生成钮 ↑ 左边（`NodeComposerCost`，`IconCoin` + 数字 / 「未标价」，达到门槛转 warning 字色），按 ↑ 即开始，照样先报价再凭报价铸令牌（2026-09-25 用户拍板） | ✅ 现役 |
-| 画布上一下跑 ≥2 个（×N、多选、批量、先补参考）或单次 ≥ 10 点、首次匿名托管、拿不到报价 | `SpendConfirmDialog` 居中弹窗，金币图标 | ✅ 现役 |
+| 用户自己点单个生成（画布 ↑、分镜表「生成镜 N」、重试、重新生成；非首次托管） | **不弹**：按下即开始，照样先报价再凭报价铸令牌（2026-09-25 用户拍板）。**不显示价格**（2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格；等官方模型供应上线、价格可算时再设计） | ✅ 现役 |
+| 用户一下跑 ≥2 个（×N、多选、批量、先补参考）或首次匿名托管 | `SpendConfirmDialog` 居中弹窗，金币图标 | ✅ 现役 |
 | 人不在 Nomi，外部 MCP 驱动（`source: 'agent'`） | `SpendConfirmDialog` 居中弹窗 —— 这是唯一该「召唤注意力」的场景 | ✅ 现役 |
 
-「要不要弹」只有一个判据：`spend/spendConfirm.ts` 的 `spendConfirmationRequirement`（门槛常量 `SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS = 10`）。各入口只报事实（谁发起、跑几份），不各判各的。
+确认卡**不印金额行**（2026-09-26 用户拍板：官方额度上线前隐藏价格维度；本版只去掉 ↑ 旁点数与确认框价格行，其它价格面归下一版「钱边界」）。
+
+「要不要弹」只有一个判据：`spend/spendConfirm.ts` 的 `spendConfirmationRequirement`，只看事实：谁发起（Agent 必问）、一下跑几份（≥2 问）、首次匿名托管告知。**不看金额**，报价只用来铸令牌。各入口只报事实，不各判各的。
 
 `SpendConfirmDialog`（`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`，挂一次于工作区根）= **非对话场景**的唯一付费确认 UI：
 - 外部 MCP 驱动额外带：机器人图标（`IconRobot`）+ 副标「经 AI 助手（MCP）驱动」+ 明细行（节点/模型/产物）+ **60s 倒计时**（进度条 + 「N 秒后自动忽略」，到点按未确认返回——外部调用方那头在等，不死等）。
@@ -1048,7 +1050,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 
 | 语义 | 图标 | 用在哪 |
 |---|---|---|
-| 付费 / 消耗额度（用户直发或 agent 受理）| `IconCoin` | `SpendConfirmDialog`（§3.5）、生成钮旁的点数 `NodeComposerCost` |
+| 付费 / 消耗额度（用户直发或 agent 受理）| `IconCoin` | `SpendConfirmDialog`（§3.5）|
 | 外部 AI 助手 / MCP 驱动（agent 身份）| `IconRobot` | `SpendConfirmDialog` 的 `source: 'agent'` 头部（§3.5）|
 | 主角形象确认（锚定妆照检查点·免费质量门）| `IconUser` | `SpendConfirmDialog` 的 `kind: 'anchorCheckpoint'` 头部（§3.5，与 cast 分类同图标）|
 | 正在放量（广告花费档高，仅 TikTok 广告库有此数据）| `IconTrendingUp` | `FindReferencePanel` 参考卡的「放量」角标。**选趋势上升不选火苗**：隐喻要诚实——它表达的是「投放在加码」，不是「热门」|

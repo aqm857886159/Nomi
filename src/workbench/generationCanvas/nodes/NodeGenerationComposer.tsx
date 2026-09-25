@@ -50,9 +50,6 @@ import {
 } from './generationVariantCount'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
-import { NodeComposerCost } from './NodeComposerCost'
-import { estimatePlanCost } from '../spend/planCostEstimate'
-import { generationSpendsCredits } from '../spend/spendConfirm'
 import { composerCanvasPlacement } from './composerCanvasPlacement'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2 } from '@tabler/icons-react'
@@ -326,13 +323,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const canvasZoom = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.zoom ?? 1)
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const maxHeight = composerMaxHeight(node.kind)
-  // ↑ 旁的点数：这一下跑几份（×N）× 目录价。与主进程报价同一份算式；本地 ComfyUI 不花钱就不显示。
-  const runsPerClick = supportsGenerationVariants(nodeExecutionKind) ? variantCount : 1
-  const spendsCredits = generationSpendsCredits([node])
-  const costEstimate = React.useMemo(
-    () => estimatePlanCost(Array.from({ length: runsPerClick }, () => node), () => selectedModelOption ?? undefined),
-    [node, runsPerClick, selectedModelOption],
-  )
   const promptExpand = useComposerPromptExpand()
 
   const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
@@ -578,17 +568,13 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
                   ? t('generationCommon.composer.regenerate')
                   : t('generationCommon.composer.generate'))
           return (
-            <>
-            {/* 点数 + ↑ 一组贴右：ml-auto 挂在这个容器上（不花钱时容器是空的，照样把 ↑ 推到卡片右下角）。 */}
-            <span className={cn('ml-auto flex shrink-0 items-center')}>
-              {spendsCredits ? <NodeComposerCost estimate={costEstimate} /> : null}
-            </span>
             <span title={title} style={{ display: 'contents' }}>
-              {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。 */}
+              {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
+                  ml-auto：把生成钮推到底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
                 type="button"
                 data-bar-segment="generate"
-                className={cn(GENERATE_BUTTON_CLASS)}
+                className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
                 aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
                 disabled={!canGenerateNow}
                 onClick={handleGenerate}
@@ -596,7 +582,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
                 {isGenerating ? '···' : '↑'}
               </button>
             </span>
-            </>
           )
         })()}
       </div>}

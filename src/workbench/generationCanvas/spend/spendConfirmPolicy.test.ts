@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   confirmGenerationSpend,
-  SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS,
   spendConfirmationRequirement,
   useSpendConfirmStore,
   type SpendInitiator,
@@ -14,22 +13,17 @@ vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => (bridge.pres
 const paidNode = { meta: { modelVendor: 'relay', modelKey: 'image' } }
 
 describe('spendConfirmationRequirement（唯一判据）', () => {
-  const T = SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS
-  it.each<[string, SpendInitiator, number, number | null | undefined, boolean, boolean]>([
-    ['reported case: I click ↑ on one node, 0.3 credits', 'user', 1, 0.3, false, false],
-    ['free single run', 'user', 1, 0, false, false],
-    ['just under the threshold', 'user', 1, T - 0.01, false, false],
-    ['unpriced single run never blocks generation', 'user', 1, null, false, false],
-    ['at the threshold', 'user', 1, T, false, true],
-    ['well over the threshold', 'user', 1, 42, false, true],
-    ['×2 on one node', 'user', 2, 0.6, false, true],
-    ['batch of four, unpriced', 'user', 4, null, false, true],
-    ['Agent, single cheap run', 'agent', 1, 0.3, false, true],
-    ['Agent, unpriced', 'agent', 1, null, false, true],
-    ['first hosted run discloses', 'user', 1, 0.3, true, true],
-    ['no quote at all', 'user', 1, undefined, false, true],
-  ])('%s', (_label, initiator, runCount, amount, hostingDisclosure, expected) => {
-    expect(spendConfirmationRequirement({ initiator, runCount, amount, hostingDisclosure })).toBe(expected)
+  // 列：说明 / 发起方 / 一下跑几份 / 首次匿名托管告知 / 要不要确认。金额不在判据里（Nomi 现在不计算价格）。
+  it.each<[string, SpendInitiator, number, boolean, boolean]>([
+    ['reported case: I click ↑ on one node', 'user', 1, false, false],
+    ['storyboard row 「生成镜 N」, one shot', 'user', 1, false, false],
+    ['×2 on one node', 'user', 2, false, true],
+    ['batch of four', 'user', 4, false, true],
+    ['Agent, single run', 'agent', 1, false, true],
+    ['Agent, batch', 'agent', 3, false, true],
+    ['first hosted run discloses', 'user', 1, true, true],
+  ])('%s', (_label, initiator, runCount, hostingDisclosure, expected) => {
+    expect(spendConfirmationRequirement({ initiator, runCount, hostingDisclosure })).toBe(expected)
   })
 })
 
@@ -60,11 +54,20 @@ describe('confirmGenerationSpend 走判据', () => {
     expect(accepted).toHaveBeenCalledWith('quote-two')
   })
 
-  it('an expensive single run asks, and declining never transfers the quote', async () => {
-    quoteSpend.mockResolvedValue({ quoteId: 'quote-dear', amount: SINGLE_RUN_CONFIRM_THRESHOLD_CREDITS + 2, lines: [] })
+  it('an unpriced single user run (today\'s normal case) still starts without a card', async () => {
+    quoteSpend.mockResolvedValue({ quoteId: 'quote-unpriced', amount: null, lines: [] })
+    const card = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm')
+    const accepted = vi.fn()
+    expect(await confirmGenerationSpend([paidNode], { title: 'Generate', message: 'One video', onQuoteConfirmed: accepted, initiator: 'user' })).toBe(true)
+    expect(card).not.toHaveBeenCalled()
+    expect(accepted).toHaveBeenCalledWith('quote-unpriced')
+  })
+
+  it('declining a card that had to be shown never transfers the quote', async () => {
+    quoteSpend.mockResolvedValue({ quoteId: 'quote-two', amount: null, lines: [] })
     const card = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(false)
     const accepted = vi.fn()
-    const ok = await confirmGenerationSpend([paidNode], { title: 'Generate', message: 'One video', onQuoteConfirmed: accepted, initiator: 'user' })
+    const ok = await confirmGenerationSpend([paidNode, paidNode], { title: 'Generate', message: 'Two videos', onQuoteConfirmed: accepted, initiator: 'user' })
     expect(ok).toBe(false)
     expect(card).toHaveBeenCalledTimes(1)
     expect(accepted).not.toHaveBeenCalled()
@@ -77,10 +80,12 @@ describe('confirmGenerationSpend 走判据', () => {
     expect(card).toHaveBeenCalledTimes(1)
   })
 
-  it('without a quote it falls back to asking (never spends blind)', async () => {
+  it('a missing quote is not a reason to ask; the single user run starts and no quote id is invented', async () => {
     bridge.present = false
-    const card = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(false)
-    expect(await confirmGenerationSpend([paidNode], { title: 'Generate', message: 'One image', initiator: 'user' })).toBe(false)
-    expect(card).toHaveBeenCalledTimes(1)
+    const card = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm')
+    const accepted = vi.fn()
+    expect(await confirmGenerationSpend([paidNode], { title: 'Generate', message: 'One image', onQuoteConfirmed: accepted, initiator: 'user' })).toBe(true)
+    expect(card).not.toHaveBeenCalled()
+    expect(accepted).not.toHaveBeenCalled()
   })
 })
