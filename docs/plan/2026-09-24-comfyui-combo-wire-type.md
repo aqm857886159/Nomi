@@ -48,7 +48,8 @@ ComfyUI-Easy-Use 的 `easy hiresFix`.rescale_after_model 在 /object_info 里声
 - 仓库里 4 份真实 /object_info 样本没有新增未知外壳，唯二的非字符串字段现在保持数字（已跑）。
 - 真机走查（已做，Windows 11，脚本 `tests/ux/comfy-combo-wire-type.walk.mjs`，截图在 [`2026-09-24-comfyui-combo-wire-type-evidence/`](2026-09-24-comfyui-combo-wire-type-evidence/)）：
   - 用真实应用走一遍：模型设置 →「本地运行时与即梦会员」→ 本地 ComfyUI → 自定义 → 粘贴 → 分析，背后接的是本地假 ComfyUI，它返回 issue 里原样的 spec 和真机的 bit_depth。
-  - zh-CN 和 en 两种语言下，「没见过的格式」提示都没有出现（`*-notice-area.png` 拍到了原本出提示的那一段）。hiresFix 那一行被推断成「开关 / Toggle」。
+  - 同屏正对照：假服务器里再放一个外壳真正陌生的节点 `FutureUpscaler.mode`。zh-CN 和 en 两种语言下，提示条都照常出现，但只写「1 个输入」并只点名它，没有点名 `easy hiresFix.rescale_after_model`（`*-notice-area.png`）。改之前会写成 2 个，两个都点名。断言用的是 `proveProbe` → `expectAbsent`。
+  - hiresFix 那一行被推断成「开关 / Toggle」。
   - 点导入 → 开始自检，自检期间写进 catalog 的候选：`放大后重缩放` 是 `boolean`、默认 `true`；`视频位深` 是 `select`，选项是 `["auto", 8, 10]`，数字仍是数字。
   - 自检真实发出的 `/prompt` 由假服务器按 ComfyUI 的规则做类型敏感校验，结果通过：`rescale_after_model=true`（布尔）、`bit_depth="auto"`。
   - 对照组：`tests/ux/comfy-unknown-combo-feedback.walk.mjs` 里真正陌生的外壳，提示和「反馈给 Nomi」照常出现（`control-unknown-shape-still-reported.png`）。

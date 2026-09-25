@@ -1,7 +1,8 @@
 // R13 走查：issue #861——全布尔老格式 combo（ComfyUI-Easy-Use `easy hiresFix`.rescale_after_model，
 // /object_info spec [[false, true], {"default": true}]）不再被当成「没见过的格式」，且 combo 选项按
 // wire 原类型一路落库（布尔 → 开关参数；CreateVideo.bit_depth 的 8/10 仍是数字）、原样发给 ComfyUI。
-// 反例（真正没见过的外壳仍会提示）由 tests/ux/comfy-unknown-combo-feedback.walk.mjs 覆盖。
+// 同屏正对照：再放一个外壳真正陌生的节点，提示条照常出现并只点名它（完整的反馈链路见
+// tests/ux/comfy-unknown-combo-feedback.walk.mjs）。
 //
 // ⚠️ 走查跑的是 dist-electron/dist 编译产物：改完源码先 `pnpm run build`。
 // 用法: pnpm run build && node tests/ux/comfy-combo-wire-type.walk.mjs
@@ -9,7 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { clickOrFail, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { clickOrFail, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { openComfyImportPanel, pasteAndAnalyze, startFakeComfy } from './_comfyImportPanel.mjs'
 
 const evidenceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../docs/plan/2026-09-24-comfyui-combo-wire-type-evidence')
@@ -34,6 +35,9 @@ const objectInfo = {
   ...Object.fromEntries(Object.values(graph).map((node) => [node.class_type, { input: { required: {} } }])),
   'easy hiresFix': { input: { required: COMBOS['easy hiresFix'] } },
   CreateVideo: { input: { optional: COMBOS.CreateVideo } },
+  // 正对照：同一台机器上再装一个外壳真正陌生的节点。提示条必须出现、并且只点它——
+  // 证明「提示条里点名某个字段」这个探针是活的，下面断言它**不**点名 rescale_after_model 才有意义。
+  FutureUpscaler: { input: { required: { mode: ['SUPER_COMBO_V9', { options: ['fast', 'quality'] }] } } },
 }
 const allowed = { 'easy hiresFix': { rescale_after_model: [false, true] }, CreateVideo: { bit_depth: ['auto', 8, 10] } }
 const violations = (prompt) => Object.values(prompt).flatMap((node) => Object.entries(allowed[node?.class_type] ?? {})
@@ -85,14 +89,15 @@ async function walk(locale) {
     const { win, settingsDir } = panel
     await pasteAndAnalyze(panel, graph)
 
-    // 等对账回来（异步）后断言：没有「没见过的格式」提示、也没有反馈按钮。
-    await win.locator(`button:has-text("${text.addParam}")`).first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
-    await win.waitForTimeout(2500)
-    const reportCount = await win.locator('button', { hasText: panel.text.report }).count()
-    const mentionsField = await win.locator('text=easy hiresFix.rescale_after_model').count()
-    console.log(`  · [${locale}] 「${panel.text.report}」按钮数: ${reportCount}，提示里点名 rescale_after_model: ${mentionsField}`)
-    if (reportCount !== 0 || mentionsField !== 0) throw new Error(`[${locale}] 仍然出现了「没见过的格式」提示`)
-    // 改动区：提示原本出现在识别结果那一行和「提示词节点」之间——滚进画面再拍。
+    // 对账是异步的：先等提示条点名真正陌生的外壳（正对照，证明探针测得到东西），
+    // 再断言它没有点名 easy hiresFix.rescale_after_model——改前两者会一起被列出来。
+    const proof = await proveProbe(win.locator('text=FutureUpscaler.mode'), `[${locale}] 提示条点名了真正陌生的外壳 FutureUpscaler.mode`)
+    await expectAbsent(win.locator('text=easy hiresFix.rescale_after_model'), {
+      provenBy: proof,
+      message: `[${locale}] 提示条不再把全布尔老格式 easy hiresFix.rescale_after_model 当成没见过的格式`,
+    })
+    console.log(`  · [${locale}] 提示条只点名 FutureUpscaler.mode，没有点名 easy hiresFix.rescale_after_model`)
+    // 改动区：提示条在识别结果那一行和「提示词节点」之间——滚进画面再拍。
     await panel.textarea.scrollIntoViewIfNeeded()
     await win.mouse.wheel(0, 140)
     await screenshotSettled(win, { path: path.join(evidenceDir, `${locale}-notice-area.png`) })
