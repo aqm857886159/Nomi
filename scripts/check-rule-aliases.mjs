@@ -13,7 +13,7 @@
 // 它们写的是当时的编号，改了就是改历史；它们的换算走 L2 的「编号别名表」和 lessons INDEX 的映射表。
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const L1_FILE = 'CLAUDE.md'
@@ -134,4 +134,4 @@ function main() {
   )
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

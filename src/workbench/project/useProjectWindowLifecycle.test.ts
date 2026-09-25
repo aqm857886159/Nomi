@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const deps = vi.hoisted(() => ({
   closeRequest: null as null | ((payload: { requestId: string }) => void),
-  confirm: vi.fn(), save: vi.fn(), closed: vi.fn(), cancelled: vi.fn(), reload: vi.fn(), toast: vi.fn(),
+  confirm: vi.fn(), save: vi.fn(), closed: vi.fn(), cancelled: vi.fn(), reload: vi.fn(), toast: vi.fn(), logReport: vi.fn(),
   t: (key: string) => key,
   cleanups: [] as Array<() => void>,
 }))
@@ -13,6 +13,7 @@ vi.mock('./workbenchProjectSession', () => ({ persistActiveWorkbenchProjectNow: 
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({
   window: { onCloseRequest: (callback: typeof deps.closeRequest) => { deps.closeRequest = callback; return () => { deps.closeRequest = null } }, confirmClose: deps.closed, cancelClose: deps.cancelled },
   app: { hardReloadWindow: deps.reload },
+  log: { report: deps.logReport },
 }) }))
 import { useProjectLeaveAction, useProjectWindowLifecycle } from './useProjectWindowLifecycle'
 beforeEach(() => { vi.clearAllMocks(); deps.confirm.mockResolvedValue(true); vi.spyOn(console, 'error').mockImplementation(() => {}); vi.stubGlobal('window', new EventTarget()) })
@@ -55,12 +56,26 @@ describe('project window save receipts', () => {
     await vi.waitFor(() => expect(deps.cancelled).toHaveBeenCalledWith('close-failed'))
     expect(deps.closed).not.toHaveBeenCalled()
     expect(deps.toast).toHaveBeenCalledWith('studio.projectSaveFailed', 'error')
+    // 用户看到的是本地化文案；真因必须进主进程日志（诊断包里要看得到为什么）。
+    expect(deps.logReport).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      level: 'error', event: 'project-save-failed', fields: { trigger: 'window-close' },
+      error: expect.objectContaining({ name: 'Error', message: 'disk denied' }),
+    }))
+  })
+  it('says the project is in use elsewhere when the manifest lock is held, not "check disk permissions"', async () => {
+    // Electron invoke 带回来的真实形状：只剩「名字: 信息」。
+    deps.save.mockRejectedValueOnce(new Error("Error invoking remote method 'nomi:projects:save-async': WorkspaceManifestLockBusyError: Workspace manifest is owned on another host"))
+    useProjectWindowLifecycle()
+    deps.closeRequest?.({ requestId: 'close-busy' })
+    await vi.waitFor(() => expect(deps.cancelled).toHaveBeenCalledWith('close-busy'))
+    expect(deps.toast).toHaveBeenCalledExactlyOnceWith('studio.projectInUseElsewhere', 'error')
   })
   it('keeps a failed reload in place and permits a later successful retry', async () => {
     deps.save.mockRejectedValueOnce(new Error('disk denied')).mockResolvedValueOnce(null)
     useProjectWindowLifecycle()
     reloadKey()
     await vi.waitFor(() => expect(deps.toast).toHaveBeenCalledOnce())
+    expect(deps.logReport).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ event: 'project-save-failed', fields: { trigger: 'hard-reload' } }))
     expect(deps.reload).not.toHaveBeenCalled()
     reloadKey()
     await vi.waitFor(() => expect(deps.reload).toHaveBeenCalledOnce())

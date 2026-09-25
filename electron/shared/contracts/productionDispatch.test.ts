@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ProductionGenerationPlan, ProductionJob, ProductionJobStatus } from '../../productionRun/productionRunTypes'
-import { JOB_DISPATCH_PHASE, isCurrentRequestDispatched, isNodeInDispatchedScope, jobAwaitsHuman } from './productionDispatch'
+import { JOB_DISPATCH_PHASE, isCurrentRequestDispatched, isShotInDispatchedScope, jobAwaitsHuman } from './productionDispatch'
 
 const NOW = '2026-09-24T00:00:00.000Z'
 const CANDIDATE = { candidateId: 'c', revision: 1, moduleId: 'm', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text_to_image', prompt: '', parameters: {}, references: [] }
@@ -54,32 +54,31 @@ describe('isCurrentRequestDispatched', () => {
   })
 })
 
-describe('isNodeInDispatchedScope', () => {
+describe('isShotInDispatchedScope', () => {
   const shots = [
-    { shotId: 's1', nodeId: 'n1', candidate: CANDIDATE, updatedAt: NOW },
-    { shotId: 's2', nodeId: 'n2', included: false, candidate: CANDIDATE, updatedAt: NOW },
+    { shotId: 's1', candidate: CANDIDATE, updatedAt: NOW },
+    { shotId: 's2', included: false, candidate: CANDIDATE, updatedAt: NOW },
   ]
 
-  it('计划没提交：任何节点都不在范围里', () => {
+  it('计划没提交：任何镜都不在范围里', () => {
     for (const state of ['draft', 'sealed', 'cancelled'] as const) {
-      expect(isNodeInDispatchedScope({ generationPlan: plan(state, { shots }) }, 'n1'), state).toBe(false)
+      expect(isShotInDispatchedScope({ generationPlan: plan(state, { shots }) }, 's1'), state).toBe(false)
     }
   })
 
-  it('多镜已提交：勾进这一批的镜在范围里，勾掉的不在，没绑镜的节点不在', () => {
+  it('多镜已提交：勾进这一批的镜在范围里，勾掉的不在，不认识的镜不在', () => {
     const run = { generationPlan: plan('submitted', { shots }) }
-    expect(isNodeInDispatchedScope(run, 'n1')).toBe(true)
-    expect(isNodeInDispatchedScope(run, 'n2')).toBe(false)
-    expect(isNodeInDispatchedScope(run, 'unbound')).toBe(false)
+    expect(isShotInDispatchedScope(run, 's1')).toBe(true)
+    expect(isShotInDispatchedScope(run, 's2')).toBe(false)
+    expect(isShotInDispatchedScope(run, 'unknown')).toBe(false)
   })
 
-  it('单镜已提交：按顶层 nodeId 认', () => {
-    const run = { generationPlan: plan('submitted', { nodeId: 'n1' }) }
-    expect(isNodeInDispatchedScope(run, 'n1')).toBe(true)
-    expect(isNodeInDispatchedScope(run, 'n2')).toBe(false)
+  it('单镜已提交：只有那一镜，提交了就在', () => {
+    expect(isShotInDispatchedScope({ generationPlan: plan('submitted') }, 'c')).toBe(true)
+    expect(isShotInDispatchedScope({ generationPlan: plan('draft') }, 'c')).toBe(false)
   })
 
   it('没有生成计划：不在范围里', () => {
-    expect(isNodeInDispatchedScope({}, 'n1')).toBe(false)
+    expect(isShotInDispatchedScope({}, 's1')).toBe(false)
   })
 })

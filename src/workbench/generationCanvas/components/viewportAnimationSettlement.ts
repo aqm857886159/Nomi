@@ -1,3 +1,5 @@
+import { logRendererError } from '../../../desktop/rendererLog'
+
 export type ViewportAnimationSettlementOutcome = 'completed' | 'cancelled'
 
 export type ViewportAnimationSettlement = {
@@ -6,13 +8,6 @@ export type ViewportAnimationSettlement = {
 
 export type ViewportAnimationSettlementErrorReporter = (error: unknown) => void
 
-function consoleReport(...args: unknown[]): void {
-  try {
-    console.error(...args)
-  } catch {
-    // Error reporting must never become a second viewport-command failure.
-  }
-}
 
 function reportViewportAnimationSettlementError(error: unknown): void {
   const browserReportError = (globalThis as typeof globalThis & {
@@ -22,7 +17,7 @@ function reportViewportAnimationSettlementError(error: unknown): void {
     browserReportError.call(globalThis, error)
     return
   }
-  consoleReport('[nomi] viewport settlement callback failed:', error)
+  logRendererError('viewport-settlement-failed', error)
 }
 
 function safelyReportSettlementError(
@@ -32,12 +27,8 @@ function safelyReportSettlementError(
   try {
     reportError(error)
   } catch (reportingError) {
-    consoleReport(
-      '[nomi] viewport settlement error reporter failed:',
-      reportingError,
-      'Original settlement error:',
-      error,
-    )
+    // Error reporting must never become a second viewport-command failure; the log owner never throws.
+    logRendererError('viewport-settlement-reporter-failed', reportingError, { originalError: String(error) })
   }
 }
 

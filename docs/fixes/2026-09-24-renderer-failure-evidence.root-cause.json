@@ -1,0 +1,456 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-renderer-failure-evidence",
+  "problem_type": "Renderer-side failures leave no evidence in the persisted log, so exported diagnostics bundles show that something failed but never why",
+  "symptom": "A Windows user's diagnostics bundle (manifest.json + logs/nomi-crash.log + logs/nomi-2026-09-24.log + model-catalog.json) contained only main-process lines; the user saw 'studio.projectSaveFailed' but the bundle held no line about the save failure or its cause (WorkspaceManifestLockBusyError, fixed separately in PR #862).",
+  "direct_cause": "NomiStudioApp onSaveError (and the window-close / hard-reload save paths in useProjectWindowLifecycle) only called console.error(...) and then showed a localized toast; renderer console output is not persisted in packaged builds (devDiagnostics forwards it to stderr only in dev).",
+  "class_root": "The renderer had no persisted failure-evidence sink. 54 console.error/warn sites plus every uncaught error / unhandled rejection wrote only to DevTools; the single renderer-to-main log channel (nomi:log:renderer-crash) served the two crash boundaries only and took free text that the 200-char value cap truncated. In addition, the shared redaction cut Windows/POSIX paths at the first space, so the default 'Nomi Projects' root leaked project names into any logged error message.",
+  "affected_population": [
+    "Every packaged-build user on every platform whose failure is raised or observed in the renderer (project save/create/restore/delete/rename, asset import/delete, timeline, production, canvas, agent panel, crash boundaries, uncaught renderer errors)",
+    "Every user whose logged error messages contain a path with a space (the default project root is '~/Documents/Nomi Projects')"
+  ],
+  "scope_paths": [
+    "electron/crashLog.ts",
+    "electron/diagnostics/diagnosticsBundle.ts",
+    "electron/logging/logger.ts",
+    "electron/logging/redact.ts",
+    "electron/logging/rendererLog.ts",
+    "electron/main.ts",
+    "eslint.config.mjs",
+    "src/desktop/rendererLog.ts",
+    "src/main.tsx",
+    "src/ui/ErrorBoundary.tsx",
+    "src/ui/chunkBoundary.tsx",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/project/useProjectWindowLifecycle.ts"
+  ],
+  "entry_points": [
+    "Project save failure: autosave (NomiStudioApp onSaveError), rename save, window-close save, hard-reload save",
+    "Project create / demo create / restore (hydrate) / delete / rename / release failures in NomiStudioApp and project helpers",
+    "Asset library, browser asset, timeline, export, production, canvas, director, 3D viewer, memory, agent-panel failure handlers (54 console.error/warn sites in total)",
+    "Root and chunk error boundaries (previously the raw nomi:log:renderer-crash channel)",
+    "Uncaught renderer errors and unhandled promise rejections (previously no handler at all)",
+    "The other 33 migrated call sites are one-line consumer changes (console.error/warn -> owner); they are listed in doors and same_class_entry_points, not in scope_paths, because the invariant is owned by the logging boundary rather than by those modules"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/megahertz/electron-log/blob/master/docs/initialize.md",
+      "checked_at": "2026-09-24",
+      "purpose": "Prior art: electron-log sends renderer logs to the main process over a single IPC channel and the main process owns the file writer; we copy that shape but accept only structured scalar payloads because our logs ship in user-exported bundles."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/megahertz/electron-log/blob/master/docs/errors.md",
+      "checked_at": "2026-09-24",
+      "purpose": "Prior art: errorHandler.startCatching is installed in both processes to catch uncaught errors and unhandled rejections; installRendererErrorCapture is our renderer-side equivalent feeding the same channel."
+    }
+  ],
+  "invariants": [
+    "Every renderer failure report reaches the persisted main-process log through exactly one renderer owner (src/desktop/rendererLog.ts) and one main-process entry (electron/logging/rendererLog.ts).",
+    "No src/** production file calls console.error or console.warn except the owner (eslint no-console, hard zero).",
+    "The renderer never redacts; the main process applies the one shared redaction (redact.ts) to every renderer line, and malformed payloads are rejected with a logged reason.",
+    "An absolute path inside quotes, a drive-letter path, or a path under a user-content POSIX root is redacted as a whole even when its segments contain spaces."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/desktop/rendererLog.ts",
+    "tests": [
+      "src/desktop/rendererLog.test.ts",
+      "electron/logging/rendererLog.test.ts"
+    ],
+    "why": "The renderer owner is the only caller of bridge.log.report and eslint no-console makes it the only renderer failure outlet; electron/logging/rendererLog.ts validates, rate-limits and writes through the shared redaction. The end-to-end test drives the owner into the real log file."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/crashLog.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "read",
+      "path": "electron/diagnostics/diagnosticsBundle.ts",
+      "symbol": "listLogFilesForBundle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "listLogFilesForBundle"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/autoSaveAsset.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/downloadAsset.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/crashLog.ts",
+      "symbol": "formatLogFields"
+    },
+    {
+      "kind": "write",
+      "path": "electron/crashLog.ts",
+      "symbol": "redactLogValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/desktopNotification.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "redactLogValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/logger.ts",
+      "symbol": "formatLogFields"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/logger.ts",
+      "symbol": "redactLogValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/redact.ts",
+      "symbol": "redactLogValue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/rendererLog.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/rendererLog.ts",
+      "symbol": "createRendererLogRecorder"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerRendererLogIpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/attentionSoundIpc.ts",
+      "symbol": "logCrash"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "redactLogValue"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/media.tsx",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "forwardToMainLog"
+    },
+    {
+      "kind": "write",
+      "path": "src/main.tsx",
+      "symbol": "installRendererErrorCapture"
+    },
+    {
+      "kind": "write",
+      "path": "src/media/videoPlaybackDiagnostics.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/useBrowserAssetCaptureImport.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/chunkBoundary.tsx",
+      "symbol": "logRendererCrash"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/ErrorBoundary.tsx",
+      "symbol": "logRendererCrash"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/missingInterventionCard.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetLibraryLocalImport.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetSurfaceMigration.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/importAudioToLibrary.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/export/exportApi.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/useNodeImageUpload.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/MemoryFold.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/viewportAnimationSettlement.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/model3d/Model3DViewer.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/demoProject.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionShotActions.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectHydrationRecovery.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/useProjectWindowLifecycle.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "logRendererError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineSecondaryAddRow.tsx",
+      "symbol": "logRendererError"
+    }
+  ],
+  "door_reduction": {
+    "before": 16,
+    "after": 52,
+    "why_not": "Counted with the same door-map on the log write/read path before (logRendererCrash, registerRendererCrashIpc, logCrash, redactLogValue, listLogFilesForBundle = 16) and after (owner API + wire + recorder + logCrash/formatLogFields/redactLogValue + readers). The count rises on purpose: the 36 renderer failure sites that are new write doors previously wrote nowhere persistent, which is the defect. They all converge on one owner (src/desktop/rendererLog.ts); the raw wire has one renderer writer (forwardToMainLog, down from two window casts) and one main registration. The two listLogFilesForBundle readers (diagnostics zip, one-click feedback tail) and the existing main-process logCrash / redactLogValue callers are unchanged consumers of the same redacted file."
+  },
+  "generality_proof": "The fix is not per call site: (1) every explicit renderer failure report must go through logRendererError/Warn/Crash because eslint no-console makes any other console.error/warn in src/** a lint error; (2) failures nobody catches reach the same owner through installRendererErrorCapture (window error + unhandledrejection); (3) the main process accepts renderer lines only through registerRendererLogIpc, which validates shape, rate-limits, and writes through the same logger/redact code as main-process lines. A new failure path added anywhere in the renderer therefore either uses the owner or is caught globally; there is no third route to the file.",
+  "shared_boundaries": [
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "forwardToMainLog",
+      "responsibility": "Sole renderer caller of bridge.log.report: flattens errors (name/message/code/stack, one cause level) and scalar fields into the RendererLogEntry wire shape; never throws."
+    },
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "installRendererErrorCapture",
+      "responsibility": "Routes uncaught renderer errors and unhandled promise rejections to the same owner."
+    },
+    {
+      "path": "electron/logging/rendererLog.ts",
+      "symbol": "createRendererLogRecorder",
+      "responsibility": "Main-process entry: closed-shape validation (reject + log reason), per-event and total rate limits, level mapping onto logWarn/logError/logCrash with the shared redaction."
+    },
+    {
+      "path": "electron/logging/redact.ts",
+      "symbol": "redactLogValue",
+      "responsibility": "Single redaction owner for both processes; now removes quoted, drive-letter and user-root paths as a whole even with spaces in segments."
+    },
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "no-console",
+      "responsibility": "Hard-zero static gate: console.error/warn are forbidden in src/** production code outside the owner."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "onSaveError",
+      "disposition": "enforced",
+      "evidence": "Reported case; now logRendererError('project-save-failed', error, { trigger: 'autosave' }). The create/restore/hydrate/delete/rename/release handlers in the same file were migrated the same way (12 sites)."
+    },
+    {
+      "path": "src/workbench/project/useProjectWindowLifecycle.ts",
+      "entry_point": "useProjectWindowLifecycle",
+      "disposition": "enforced",
+      "evidence": "Window-close and hard-reload save failures now log project-save-failed with trigger window-close / hard-reload; useProjectWindowLifecycle.test.ts asserts the bridge receives them."
+    },
+    {
+      "path": "src/ui/ErrorBoundary.tsx",
+      "entry_point": "RootErrorBoundary.componentDidCatch",
+      "disposition": "enforced",
+      "evidence": "Moved off the raw logRendererCrash bridge call onto logRendererCrash('root-boundary', ...), which keeps the crash file and adds a component-name summary instead of a truncated free-text blob."
+    },
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "asset import/delete catch handlers",
+      "disposition": "enforced",
+      "evidence": "Four console.error sites migrated; same shape as the save path (user sees a toast, cause went only to DevTools)."
+    },
+    {
+      "path": "src/main.tsx",
+      "entry_point": "window error / unhandledrejection",
+      "disposition": "enforced",
+      "evidence": "No global handler existed (rg 'unhandledrejection' src returned nothing); installRendererErrorCapture is now installed at renderer start."
+    },
+    {
+      "path": "src/utils/startupDiagnostics.ts",
+      "entry_point": "console.info startup timings",
+      "disposition": "not-affected",
+      "evidence": "Informational timing lines, not failure evidence; console.log/info/debug stay allowed by the lint rule."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new renderer failure handler written in the existing style (console.error + toast) reproduces the gap for a different feature; the save path was just the one a user happened to hit.",
+    "same_class_scan": [
+      "rg -n \"console\\.(error|warn)\" src --glob '!*.test.*' --glob '!**/__tests__/**' -> 54 sites in 33 files, all migrated",
+      "rg -n \"unhandledrejection|window.onerror|addEventListener\\('error'\" src -> no global renderer handler existed",
+      "rg -n \"logRendererCrash|renderer-crash\" src electron -> 2 raw bridge callers + 1 main registration, replaced by one channel",
+      "node scripts/door-map.mjs forwardToMainLog registerRendererLogIpc --read=listLogFilesForBundle listLogFilesForBundle",
+      "redactLogValue probe on 'C:\\Users\\alice\\Documents\\Nomi Projects\\<project>\\...' and '/Users/alice/Documents/Nomi Projects/<project>/...' -> '<path> Projects\\<project>...' before the fix"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "console.error and console.warn are forbidden in src/** production code except src/desktop/rendererLog.ts, so every renderer failure report goes through the owner that persists it.",
+    "failure_mode": "pnpm run lint:ci fails with no-console on any new console.error/warn in src/**; the main process rejects malformed renderer payloads and logs renderer-log-rejected with the reason.",
+    "exception_policy": "none",
+    "strategy": "Close the class at the earliest layer the editor already shows (eslint), with no baseline because all 54 existing sites were migrated in the same change; uncaught failures are covered by the global capture on the same owner.",
+    "artifacts": [
+      "eslint.config.mjs",
+      "src/desktop/rendererLog.ts",
+      "electron/logging/rendererLog.ts",
+      "electron/shared/contracts/rendererLog.ts",
+      "electron/logging/redact.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/logging/rendererLog.test.ts",
+    "src/desktop/rendererLog.test.ts",
+    "electron/logging/redact.test.ts",
+    "src/workbench/project/useProjectWindowLifecycle.test.ts",
+    "src/workbench/ai/v4/missingInterventionCard.test.ts",
+    "src/workbench/generationCanvas/components/viewportAnimationSettlement.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/logging/rendererLog.test.ts",
+    "electron/logging/redact.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/crashLog.ts",
+      "electron/preload.ts",
+      "src/ui/ErrorBoundary.tsx",
+      "src/ui/chunkBoundary.tsx",
+      "scripts/ipc-sender-binding-baseline.json"
+    ],
+    "rationale": "registerRendererCrashIpc, the nomi:log:renderer-crash channel, the preload logRendererCrash method, both window-cast callers and the stale baseline identity are deleted in the same change; crashes now travel the one nomi:log:renderer channel at level crash. The two identical reloadRendererWindow copies in ErrorBoundary/chunkBoundary (each casting window around the typed bridge) are merged into src/desktop/bridge.ts reloadRendererWindow in the same change (structure review docs/audit/2026-09-24-src-desktop-ui-structure-review.md)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is added or changed; electron-log is cited as prior art only, not adopted (the existing logger/redact owner stays).",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. Old log files keep their format; renderer lines simply start appearing under scope 'renderer'. The channel rename is internal (preload and main ship together in one build).",
+  "residual_risks": [
+    "Unquoted POSIX paths with spaces outside the listed user-content roots (/Users, /home, /Volumes, /private, /tmp, /var, /Applications, /opt, /mnt, /media, /root, /srv, /data) are still cut at the first space.",
+    "Error messages are free text by nature: a renderer error whose message embeds prompt text is only bounded by the 200-char value cap, the same policy the main-process log already accepts.",
+    "Renderer code that swallows an error silently (catch without logging) is not caught by the lint rule; it produces neither console nor log evidence."
+  ]
+}

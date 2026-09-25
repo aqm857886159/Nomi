@@ -20,6 +20,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { pathToFileURL } from 'node:url'
 import {
   DEFAULT_BASE_URL,
   TikHubConfigError,
@@ -149,7 +150,7 @@ async function main() {
   return failures.length === platforms.length && platforms.length > 0 ? 3 : 0
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
 if (invokedDirectly) {
   main()
     .then((code) => process.exit(code))

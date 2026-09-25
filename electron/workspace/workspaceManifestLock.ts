@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { fsyncDirectoryIfDurable } from "../durability";
+import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from "../shared/contracts/workspaceBusy";
 import { isSharingViolation, readJsonFile, renameSyncWithRetry, retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
 import { workspaceNomiDir } from "./workspacePaths";
 
@@ -54,7 +55,8 @@ export class WorkspaceManifestLockBusyError extends Error {
 
   constructor(message = "Workspace manifest is being changed by another process", options?: { cause?: unknown }) {
     super(message);
-    this.name = "WorkspaceManifestLockBusyError";
+    // 名字是跨进程身份：渲染层只拿得到「名字: 信息」，据此报「项目正被别处占用」（见 shared/contracts/workspaceBusy）。
+    this.name = WORKSPACE_MANIFEST_BUSY_ERROR_NAME;
     if (options) Object.defineProperty(this, "cause", { configurable: true, value: options.cause });
   }
 }

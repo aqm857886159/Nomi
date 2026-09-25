@@ -1,0 +1,445 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-24-windows-main-guard-silent-green",
+  "problem_type": "脚本「我是不是被直接运行」的判断手拼 file URL，在 Windows 上恒为假，门岗静默零输出、退出码 0",
+  "symptom": "Windows 上直接跑 node scripts/check-rule-aliases.mjs 等 5 个 gates:contracts 门岗：零输出、退出码 0，和「检查通过」长得一模一样；install-agent-worktree-janitor / run-ci-e2e-chain / door-map / attention-cue/compose / real-user-long-video.runner 同样零输出不干活。",
+  "direct_cause": "入口判断写成 import.meta.url === `file://${process.argv[1]}`。Windows 上 import.meta.url 是 file:///C:/…（三道斜杠、正斜杠），process.argv[1] 是 C:\\…，两边永远不等，main() 一次都不执行。",
+  "class_root": "「这个模块是不是进程入口」没有唯一写法：72 个脚本各写各的，至少 7 种拼法，其中 3 种把 process.argv[1] 手拼成 URL（`file://${p}` 模板、new URL(p, \"file:\")、new URL(`file://${p}`)），与 Node 生成 import.meta.url 的规则（pathToFileURL）不同源。前两种在 Windows 上恒不等，第三种在路径含 # ? % 时在任何平台都不等。而判断为假的后果是 fail-open（静默退出 0），没有任何门岗看得见。",
+  "affected_population": [
+    "Windows 上跑 gates:contracts 的开发者（本机 Windows 开发机）：5 个门岗从未真正执行过",
+    "Windows 上手动跑 door-map / install-agent-worktree-janitor / test:e2e:ci-chain 的人：脚本静默不干活",
+    "任何平台上仓库路径含 # ? % 字符时：new URL(`file://${p}`) 那一族（check-research-sources、tikhub-search、skill catalog 原型）同样不执行"
+  ],
+  "scope_paths": [
+    "scripts/check-main-guard.mjs",
+    "scripts/check-generation-entrances.mjs",
+    "scripts/check-main-console.mjs",
+    "scripts/check-real-media-fixture.mjs",
+    "scripts/check-rule-aliases.mjs",
+    "scripts/check-supply-chain-pins.mjs",
+    "scripts/install-agent-worktree-janitor.mjs",
+    "scripts/run-ci-e2e-chain.mjs",
+    "scripts/door-map.mjs",
+    "scripts/check-research-sources.mjs",
+    "scripts/research/tikhub-search.mjs",
+    "scripts/attention-cue/compose.mjs",
+    "tests/ux/real-user-long-video.runner.mjs",
+    "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/validate-skill.mjs",
+    "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/collect.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-generation-entrances.mjs 等 5 个 gates:contracts 门岗的 CLI 入口判断",
+    "scripts/door-map.mjs、scripts/install-agent-worktree-janitor.mjs、scripts/run-ci-e2e-chain.mjs 的 CLI 入口判断",
+    "scripts/check-research-sources.mjs、scripts/research/tikhub-search.mjs、scripts/attention-cue/compose.mjs 的 CLI 入口判断",
+    "tests/ux/real-user-long-video.runner.mjs 与 docs/research 下两个原型脚本的 CLI 入口判断",
+    "scripts/check-supply-chain-pins.mjs 的 collectSources（入口修好后才首次在 Windows 上执行，暴露出反斜杠键）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/url.html#urlpathtofileurlpath",
+      "checked_at": "2026-09-24",
+      "purpose": "pathToFileURL 是 Node 把绝对路径转成 file URL 的官方函数（处理盘符、分隔符与百分号编码）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/esm.html#importmetamain",
+      "checked_at": "2026-09-24",
+      "purpose": "import.meta.main 自 v24.2.0 / v22.18.0 起提供；本机 Node 22.15.0 上为 undefined，所以本次不采用（见 dependency_lifecycle）。"
+    }
+  ],
+  "invariants": [
+    "任何源文件都不许把 process.argv[1] 手拼成 URL（file: 开头的模板/拼接，或未经 pathToFileURL 的 new URL）。",
+    "import.meta.url 只许与经 pathToFileURL / fileURLToPath 转换后的值比相等。",
+    "门岗的扫描键必须与登记表同一种写法（正斜杠），不许用 path.join 拼出平台分隔符再去查表。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/check-main-guard.mjs",
+    "tests": [
+      "scripts/check-main-guard.node-test.mjs",
+      "scripts/check-supply-chain-pins.node-test.mjs"
+    ],
+    "why": "入口判断是每个脚本自己的一行，没有运行时共享层可放；能看见全部 72 处的只有一道全仓静态门岗。门岗的测试钉住五种真实坏写法必红、正确写法零误伤、放行写法在当前平台（含 # 和空格路径）真的触发 main()。"
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/collect.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/validate-skill.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/agent-worktree-janitor.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/attention-cue/compose.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-dangling-tailwind.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-generation-entrances.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-icon-semantics.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-main-console.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-main-guard.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-mcp-scope-reachable.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-mockup-contracts.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-model-availability.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-model-schema.node-test.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-real-media-fixture.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-research-sources.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-rule-aliases.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-run-task-grant.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-supply-chain-pins.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/ci-annotation-hygiene.node-test.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/door-map.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/electron-build.test.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/install-agent-worktree-janitor.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/ponytail-review-branch.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/ponytail-review-claude-shim.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/render-deconstruction-shots.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/research/tikhub-search.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/run-ci-e2e-chain.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/network/proxy-cold-main.cjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/agent-askback-real-model.walk.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/agent-storyboard-real-model.walk.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/asset-library-native-import.walk.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/clip-node-clickable-mockup.e2e.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/media-import-matrix.walk.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/pd1-deferred-tools-cache.probe.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/real-media-export-overlay-cost.probe.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/real-user-long-video.runner.mjs",
+      "symbol": "pathToFileURL"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/storyboard-agent-canonical-patch.e2e.mjs",
+      "symbol": "pathToFileURL"
+    }
+  ],
+  "door_reduction": {
+    "before": 38,
+    "after": 39,
+    "why_not": "每个脚本都是独立的进程入口，Node 给每个模块各自一份 import.meta，入口判断只能在各自文件里写，所以门数不减；本次删掉的是 14 扇绕过转换函数的手拼门（修前 24 扇走 pathToFileURL + 14 扇手拼 = 38），修后全部 38 扇 + 门岗自身 1 扇都走 pathToFileURL，并由 check:main-guard 保证不再出现第二种写法。"
+  },
+  "generality_proof": "check:main-guard 用语法树扫全仓所有已跟踪和未跟踪未忽略的 JS/TS 源文件（5331 个），不按文件名或目录挑；任何把 process.argv[1] 手拼成 URL、或拿 import.meta.url 与手拼 URL / 裸 argv 比相等的写法都红。因此无论新脚本放在 scripts、tests、docs 还是 electron，无论用哪种手拼拼法，都在合入前被拦下。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-main-guard.mjs",
+      "symbol": "scanSource",
+      "responsibility": "全仓唯一的入口判断写法判据：只放行经 pathToFileURL / fileURLToPath 转换的比较。"
+    },
+    {
+      "path": "scripts/check-supply-chain-pins.mjs",
+      "symbol": "collectSources",
+      "responsibility": "扫描键统一为登记表的正斜杠写法。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-generation-entrances.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-main-console.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-real-media-fixture.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-rule-aliases.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-supply-chain-pins.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/install-agent-worktree-janitor.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/run-ci-e2e-chain.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/door-map.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-research-sources.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/research/tikhub-search.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/attention-cue/compose.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "tests/ux/real-user-long-video.runner.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/validate-skill.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/collect.mjs",
+      "entry_point": "CLI 入口判断",
+      "disposition": "enforced",
+      "evidence": "改为 process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href；check:main-guard 对修前版本逐条报红（14 处，2026-09-24 实跑）。"
+    },
+    {
+      "path": "scripts/check-git-path-quoting.mjs",
+      "entry_point": "path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)",
+      "disposition": "not-affected",
+      "evidence": "两边都是本地路径且经 fileURLToPath 转换，Windows 上实测相等；check:main-guard 放行。"
+    },
+    {
+      "path": "scripts/ponytail-review-branch.mjs",
+      "entry_point": "invokedPath = pathToFileURL(path.resolve(process.argv[1])).href",
+      "disposition": "not-affected",
+      "evidence": "先经 pathToFileURL 再比，同一规则生成两边。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "写新脚本的人（含 AI）照抄最近看到的入口判断；仓库里同时存在 7 种写法，坏写法已经被复制到 14 处、横跨 scripts/tests/docs 三片，而主力开发机是 macOS，坏写法在那里恰好能跑，不会有人察觉。",
+    "same_class_scan": [
+      "rg 同一行同时出现 import.meta.url 与 process.argv[1]：72 处入口判断，7 种拼法",
+      "rg 手拼 file URL（file://${ 模板与 'file://' + 拼接）全量：含非入口判断的 NOMI_RENDERER_URL 走查用法，另行处理",
+      "rg \"import.meta.url === invokedPath\"：ponytail 三个脚本先 pathToFileURL 再比，已确认安全",
+      "修后 node scripts/check-main-guard.mjs 对 origin/main 版本的 14 个文件逐条报红，对修后全仓 0 条"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-main-guard.mjs",
+    "invariant": "全仓没有手拼 file URL 的入口判断；import.meta.url 只与 pathToFileURL / fileURLToPath 转换后的值比较。",
+    "failure_mode": "check:main-guard 硬零无基线，出现一处即退出码 1 并给出 file:line 与改法；扫到 0 个源文件同样退出码 1（不许空扫报绿）。",
+    "exception_policy": "none",
+    "strategy": "门岗接入 gates:contracts（CI 的 contracts job 就跑这条链），本地 pnpm run gates 与 CI 同一判据；node-test 覆盖五种真实坏写法、零误伤、当前平台行为和空扫 fail-closed。",
+    "artifacts": [
+      "scripts/check-main-guard.mjs",
+      "scripts/check-main-guard.node-test.mjs",
+      "scripts/check-supply-chain-pins.mjs",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-main-guard.node-test.mjs",
+    "scripts/check-supply-chain-pins.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-main-guard.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-generation-entrances.mjs",
+      "scripts/check-main-console.mjs",
+      "scripts/check-real-media-fixture.mjs",
+      "scripts/check-rule-aliases.mjs",
+      "scripts/check-supply-chain-pins.mjs",
+      "scripts/install-agent-worktree-janitor.mjs",
+      "scripts/run-ci-e2e-chain.mjs",
+      "scripts/door-map.mjs",
+      "scripts/check-research-sources.mjs",
+      "scripts/research/tikhub-search.mjs",
+      "scripts/attention-cue/compose.mjs",
+      "tests/ux/real-user-long-video.runner.mjs",
+      "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/validate-skill.mjs",
+      "docs/research/2026-09-07-skill-ecosystem-catalog/prototype/collect.mjs"
+    ],
+    "rationale": "14 处手拼入口判断全部原地换成 pathToFileURL 写法，没有保留旧写法或兼容分支。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "node:url 的 pathToFileURL 手写比较（任何 Node 版本都可用；本机 Node 22.15.0）",
+    "target": "Node 内建的 import.meta.main（v22.18.0 / v24.2.0 起），由 Node 自己判断入口，连符号链接路径（macOS /var → /private/var）一并正确",
+    "rationale": "package.json engines 已写 >=22.19.0、CI 用 Node 24，但本机开发机是 22.15.0 且 pnpm 只警告不拦；在 22.15 上 import.meta.main 是 undefined，换过去等于把「静默不执行」原样搬回来。pathToFileURL 写法在所有版本上都对，先用它。",
+    "exit_criteria": [
+      "所有开发机与 CI 的 Node ≥ 22.18（engines 真正拦下低版本，例如 .npmrc engine-strict=true）。",
+      "全仓入口判断改为 if (import.meta.main)，check:main-guard 改为只放行这一种写法。",
+      "check:main-guard 的平台行为测试在 macOS 符号链接临时目录下（不做 realpath）也通过。"
+    ]
+  },
+  "migration": "无数据迁移。脚本入口判断原地替换；door-map.mjs 的改动与在飞 renderer-failure-log 分支逐字节相同，两边合并不冲突。",
+  "residual_risks": [
+    "符号链接路径：pathToFileURL(process.argv[1]) 不解符号链接，而 import.meta.url 是解过的真路径；仓库放在符号链接目录下时所有入口判断（含放行写法）仍为假。退出条件见 dependency_lifecycle（换 import.meta.main）。",
+    "判据按语法形状认：先把手拼 URL 存进变量、再在别处与 import.meta.url 比，只有比较处直接出现 file: 模板/字面量才认得出；其余间接写法认不出。",
+    "手拼 file URL 的非入口用法（约 50 处走查脚本的 NOMI_RENDERER_URL、skills-format-lib 的动态 import）不在本门管辖内；Chromium / Node 的 URL 解析对 Windows 盘符有容错，但路径含 # 时同样会坏，另行处理。"
+  ]
+}

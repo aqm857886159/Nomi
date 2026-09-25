@@ -5,7 +5,7 @@
 // 每个界面各自拿一个代理量猜「在不在排队」——占位节点猜「没有 job = 还没轮到」，任务中心猜
 // 「没终止 = 在跑」——于是一份还没点头的草稿被说成了在排队花钱。真相其实早就在：
 // 调度器那句「authorization_required is still waiting for a human」，和计划的 `submitted`。
-// 这里把它收成一份，三个进程侧的消费者都读它（占位节点 / 任务中心 / 调度器）。
+// 这里把它收成一份：「一镜在哪一段」（`electron/shared/productionShotPhase.ts`）、任务中心、任务卡、Run 摘要、调度器都读它。
 //
 // 住在中立契约层：主进程（Run 摘要、调度器）和渲染层（画布节点）都要问这一句，渲染层不许 import
 // `electron/productionRun/` 的实现（`check:boundaries`）。
@@ -60,15 +60,14 @@ export function isCurrentRequestDispatched(run: Pick<ProductionRun, "generationP
 }
 
 /**
- * 这个画布节点对应的镜，在已经交给执行的范围里吗。给**还没有 job** 的节点用：
- * 在范围里 = 真的在排队（批次会自己轮到它）；不在 = 用户还没点头，或者这镜没被勾进这一批。
- *
- * 多镜计划按 `shots[].nodeId` 找镜、看 `included`；单镜计划按顶层 `nodeId`。
+ * 这一镜在已经交给执行的范围里吗。给**还没有 job** 的镜用：
+ * 在范围里 = 真的在排队（批次会自己轮到它）；不在 = 用户还没点头（草稿 / 报价卡在等 / 没点头就取消），
+ * 或者这镜没被勾进这一批。单镜计划只有一镜（调用方已按候选 id 认过），计划提交了就在；多镜看 `included`。
  */
-export function isNodeInDispatchedScope(run: Pick<ProductionRun, "generationPlan">, nodeId: string): boolean {
+export function isShotInDispatchedScope(run: Pick<ProductionRun, "generationPlan">, shotId: string): boolean {
   const plan = run.generationPlan;
   if (!plan || plan.state !== "submitted") return false;
-  if (!plan.shots?.length) return plan.nodeId === nodeId;
-  const shot = plan.shots.find((candidate) => candidate.nodeId === nodeId);
+  if (!plan.shots?.length) return true;
+  const shot = plan.shots.find((candidate) => candidate.shotId === shotId);
   return Boolean(shot && shot.included !== false);
 }

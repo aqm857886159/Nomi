@@ -11,6 +11,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const RESERVED = ["anthropic", "claude", "nomi"];
 
@@ -110,5 +111,5 @@ function main() {
 }
 
 // 仅直接执行时跑 CLI（被 collect.mjs import 时跳过）
-const isDirectRun = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirectRun) main();

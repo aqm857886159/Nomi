@@ -8,6 +8,7 @@
 import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import { getAppLocale } from '../../i18n'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { logRendererError } from '../../desktop/rendererLog'
 
 /** 示例项目名（带「示例：」前缀，和用户真项目一眼区分）。 */
 export const DEMO_PROJECT_NAME = '示例：修好一个小机器人'
@@ -153,7 +154,7 @@ export async function seedDemoNodeImages(projectId: string): Promise<Record<stri
     return await seed({ projectId })
   } catch (error) {
     // 示例成图落不下来不阻断引导——画布照常演流水线，只是节点停在空态（诚实，不裂图）。
-    console.error('[nomi:onboarding] seed demo images failed', error)
+    logRendererError('demo-project-seed-failed', error)
     return {}
   }
 }

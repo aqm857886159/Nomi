@@ -14,7 +14,7 @@
 //     有对应条目——新接一家却忘了登记，在这里红，而不是等到上游某天悄悄换了东西。
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const REGISTRY_FILE = 'docs/engineering/supply-chain-pins.json'
@@ -73,22 +73,26 @@ export function evaluate({ registry, sources, today }) {
   return { errors, notes }
 }
 
-function collectSources() {
+/**
+ * 键用登记表 `sourceFile` 的同一种写法（正斜杠）。用 path.join 拼键，Windows 上会得到反斜杠，
+ * 与登记表永远对不上 → 每个已登记的文件都被报成「没登记」（2026-09-24 实跑才暴露：入口判断坏了，这段从没在 Windows 上跑过）。
+ */
+export function collectSources(root = repoRoot) {
   const sources = new Map()
   const walk = (dir) => {
-    const abs = path.join(repoRoot, dir)
+    const abs = path.join(root, dir)
     if (!fs.existsSync(abs)) return
     for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
-      const relative = path.join(dir, entry.name)
+      const relative = path.posix.join(dir, entry.name)
       if (entry.isDirectory()) walk(relative)
-      else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) sources.set(relative, fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+      else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) sources.set(relative, fs.readFileSync(path.join(root, relative), 'utf8'))
     }
   }
   for (const dir of SCAN_DIRS) walk(dir)
   return sources
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const registry = JSON.parse(fs.readFileSync(path.join(repoRoot, REGISTRY_FILE), 'utf8'))
   const { errors, notes } = evaluate({ registry, sources: collectSources(), today: Date.now() })
   for (const note of notes) console.log(note)

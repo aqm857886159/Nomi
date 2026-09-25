@@ -11,6 +11,7 @@
  * 旧实例的 epoch 必须作废，不能让上一代的 worker 把过期状态写进新运行时（stop()）。
  */
 import { logWarn } from '../logging/logger'
+import { isProductionJobInFlight } from '../shared/productionShotPhase'
 import type { MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import type { ProductionRun } from '../productionRun/productionRunTypes'
 import type { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
@@ -43,12 +44,16 @@ export type RunObservationDrivers = {
 
 export function createRunObservationDrivers(deps: {
   repository: ProductionRunRepository;
-  landCanvasBestEffort: (projectId: string, runId: string, isCurrent?: () => boolean) => Promise<boolean>;
   buildSchedulerForRun: (projectId: string, runId: string, run: ProductionRun) => Pick<MultiShotBatchScheduler, 'runToQuiescence'> | null;
 }): RunObservationDrivers {
-  const { repository, landCanvasBestEffort, buildSchedulerForRun } = deps
+  const { repository, buildSchedulerForRun } = deps
   const activeBatchDrives = new Set<string>()
-  const batchRekickTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  // 单镜与多镜共用的「过一会儿再来问一次」定时器。**两半必须是同一条规则**：
+  // 供应商在观察窗（默认 300s）内没给结论，就歇一歇再接着问，直到它给出终态。
+  // 2026-09-25 之前只有多镜这一半——单镜观察窗一过就静静退出、没有人再问，
+  // 一段要跑 6 分钟的 15 秒视频在供应商那边早就出好了，节点却永远停在「生成中」，
+  // 任务卡还说「Nomi 仍会查询已有任务」（其实已经没人在查）。
+  const rekickTimers = new Map<string, ReturnType<typeof setTimeout>>()
   // Single-shot submissions intentionally return the durable provider receipt
   // immediately. Keep observation outside the MCP turn, but dedupe it by Run
   // so a replay/reconnect can never start two poll/materialize loops. The
@@ -88,15 +93,27 @@ export function createRunObservationDrivers(deps: {
       return undefined
     }
   }
-  const scheduleBatchRekick = (projectId: string, runId: string): void => {
-    const key = `${projectId}:${runId}`
-    if (batchRekickTimers.has(key)) return
+  const scheduleRekick = (key: string, kick: () => void): void => {
+    if (rekickTimers.has(key)) return
     const timer = setTimeout(() => {
-      batchRekickTimers.delete(key)
-      kickSchedulerForRun(projectId, runId)
+      rekickTimers.delete(key)
+      kick()
     }, REKICK_DELAY_MS)
     timer.unref?.()
-    batchRekickTimers.set(key, timer)
+    rekickTimers.set(key, timer)
+  }
+  const scheduleBatchRekick = (projectId: string, runId: string): void => {
+    scheduleRekick(`batch:${projectId}:${runId}`, () => kickSchedulerForRun(projectId, runId))
+  }
+  /** 这个单镜 Run 还有没有一个「交给了供应商、还没结论」的任务——只有它才值得再问。 */
+  const singleShotStillInFlight = (projectId: string, runId: string): boolean => {
+    try {
+      const run = repository.read(projectId, runId)
+      if (!run || ['completed', 'cancelled'].includes(run.status)) return false
+      return run.jobs.some(isProductionJobInFlight)
+    } catch {
+      return false
+    }
   }
   const driveScheduler = (
     projectId: string,
@@ -143,17 +160,21 @@ export function createRunObservationDrivers(deps: {
           input: { projectId, operationId: runId },
           signal,
           isCurrent,
-          // The Run/artifact store remains the only result owner. Reusing the
-          // existing landing operation makes single-shot completion idempotent
-          // and lets the renderer attach the local artifact to its placeholder.
-          onMaterialized: async () => {
-            if (!isCurrent()) return
-            await landCanvasBestEffort(projectId, runId, isCurrent)
-          },
+          // 出片落盘之后画布怎么跟上，不归观察者管：物化写进 Run 的那一下经过仓库 execute 的事件旁路，
+          // 画布落地的跟随者（canvasLandingHost.followRunChange）据此把结果投到节点上——多镜、单镜、
+          // 恢复、返工都走那一条，这里不再另投一次。
         })
         // An owner stop is expected lifecycle control, not a provider failure;
         // leave the durable Run untouched for the next restart/open recovery.
         if (result.aborted) return
+        if (result.nextAction === 'observe') {
+          // 观察窗到了、供应商还没给结论：歇一歇再接着问（与多镜 quiescent:false 同一条规则）。
+          // 只查不交——这条路永远不调 start，不会多扣一次钱。
+          scheduleRekick(`single:${key}`, () => {
+            if (singleShotStillInFlight(projectId, runId)) observeSingleShotRun(submission, projectId, runId)
+          })
+          return
+        }
         if (result.nextAction === 'completed') {
           settleSingleShotCompleted(projectId, runId, {
             ...(result.materialized?.jobId ? { jobId: result.materialized.jobId } : {}),
@@ -186,8 +207,8 @@ export function createRunObservationDrivers(deps: {
     observeSingleShotRun,
     stop: () => {
       singleShotObservationLifecycle.stop()
-      for (const timer of batchRekickTimers.values()) clearTimeout(timer)
-      batchRekickTimers.clear()
+      for (const timer of rekickTimers.values()) clearTimeout(timer)
+      rekickTimers.clear()
     },
   }
 }

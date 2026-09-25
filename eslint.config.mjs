@@ -142,5 +142,13 @@ export default tseslint.config(
       'prefer-const': 'warn',
     },
   },
+  {
+    // 渲染层失败证据只有一个出口：src/desktop/rendererLog.ts（→ 主进程日志 → 诊断包）。
+    // console.error/warn 在打包版里没人接——2026-09-24 用户诊断包里看得到「保存失败」、看不到为什么，就是这么丢的。
+    // 硬零（存量 54 处已全部迁完）；log/info/debug 不是失败证据，放行。主进程那一半由 check:main-console 守。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/desktop/rendererLog.ts'],
+    rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
+  },
   prettier,
 )

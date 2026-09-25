@@ -42,6 +42,7 @@ import { filterCanvasLibraryAssets, filterPlayableAssets } from './assetLibraryS
 import { deleteAssetResult } from './deleteAssetResult'
 import { addAssetToTimelineEnd } from '../timeline/addAssetToTimeline'
 import { useAssetLibraryLocalImport } from './assetLibraryLocalImport'
+import { logRendererError } from '../../desktop/rendererLog'
 import {
   assetToDragPayload,
   assetsForLibraryDrag,
@@ -260,7 +261,7 @@ export function AssetLibraryContent({
           }
         })
         .catch((error) => {
-          console.error('asset library upload failed', error)
+          logRendererError('asset-import-failed', error)
           report(t('assetLibrary.importFailed'), 'error')
           setRejection(rejectionOf('failed', 1))
         })
@@ -275,7 +276,7 @@ export function AssetLibraryContent({
         })
         .catch((error) => {
           if (!isProjectExecutionContextCurrent(project) || isProjectImportCancellation(error)) return
-          console.error('asset library audio upload failed', error)
+          logRendererError('asset-audio-import-failed', error)
           report(t('assetLibrary.audioImportFailed'), 'error')
           setRejection(rejectionOf('failed', 1))
         })
@@ -494,7 +495,7 @@ export function AssetLibraryContent({
       if (removedCount === 0 && deletedFileCount === 0 && failedFileCount === 0) report(t('assetLibrary.cannotDeleteSelected'), 'warning')
       if (failedFileCount > 0) report(t('assetLibrary.failedFiles', { count: failedFileCount }), 'warning')
     } catch (error) {
-      console.error('delete project assets failed', error)
+      logRendererError('asset-delete-failed', error)
       report(t('assetLibrary.deleteFailed'), 'error')
     }
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, selectedProjectAssets, present, report, t])
@@ -520,7 +521,7 @@ export function AssetLibraryContent({
       setPreviewAsset((current) => current?.id === asset.id ? null : current)
       if (outcome.failedFileCount > 0) report(t('assetLibrary.failedFiles', { count: outcome.failedFileCount }), 'warning')
     } catch (error) {
-      console.error('delete asset result failed', error)
+      logRendererError('asset-result-delete-failed', error)
       report(t('assetLibrary.deleteFailed'), 'error')
     }
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, present, report, t])

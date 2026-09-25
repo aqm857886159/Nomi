@@ -37,7 +37,7 @@ describe("ComfyUI staged certification lifecycle", () => {
       ok: true; modelKey: string; vendorKey: string; revisionId: string; taskKind: "image_to_video";
     };
 
-    expect(selectTaskMapping(listModelCatalogMappings(), staged.vendorKey, staged.taskKind, staged.modelKey)).toBeNull();
+    expect(selectTaskMapping([...listModelCatalogMappings()], staged.vendorKey, staged.taskKind, staged.modelKey)).toBeNull();
     expect(resolveComfyStagedCandidate(staged)).toMatchObject({
       revisionId: staged.revisionId,
       model: { modelKey: staged.modelKey, enabled: false },

@@ -2,6 +2,7 @@
 import i18n from '../../i18n'
 import { notify } from '../../ui/notificationPolicy'
 import { productionRunApi, type ProductionActionResult } from './productionRunApi'
+import { logRendererError } from '../../desktop/rendererLog'
 
 function reportResult(result: ProductionActionResult, identity: string, present: (message: string) => void): ProductionActionResult {
   if (result.ok || result.code === 'rework_declined' || result.code === 'resume_declined') return result
@@ -24,7 +25,7 @@ export async function reworkProductionShot(projectId: string, runId: string, sho
   try {
     return reportResult(await productionRunApi.rework(projectId, runId, shotId), identity, present)
   } catch (error) {
-    console.error('[nomi:production] rework failed', error)
+    logRendererError('production-rework-failed', error)
     return reportResult({ ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }, identity, present)
   }
 }
@@ -36,7 +37,7 @@ export async function resumeProductionBatch(projectId: string, runId: string, re
   try {
     return reportResult(await productionRunApi.resumeBatch(projectId, runId, reason), identity, present)
   } catch (error) {
-    console.error('[nomi:production] resume failed', error)
+    logRendererError('production-resume-failed', error)
     return reportResult({ ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }, identity, present)
   }
 }

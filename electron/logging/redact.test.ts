@@ -38,11 +38,32 @@ describe("字段名黑名单（第一层：名字就说明了里面装的是什�
 
 describe("值形态脱敏（第二层）", () => {
   it("绝对路径不出现", () => {
-    expect(redactLogValue("/Users/someone/Documents/Nomi Projects/我的片子/a.mp4")).not.toContain("Users");
+    // 从前这条只断言「不含 Users」，于是 `<path> Projects/我的片子/a.mp4` 也算过——项目名照样漏了。
+    expect(redactLogValue("/Users/someone/Documents/Nomi Projects/我的片子/a.mp4")).toBe("<path>");
     expect(redactLogValue("failed at /Users/someone/x/y.png")).toBe("failed at <path>");
     expect(redactLogValue("C:\\Users\\someone\\Desktop\\a.png")).toBe("<path>");
     expect(redactLogValue("file:///Users/someone/a.png")).toBe("<path>");
     expect(redactLogValue("nomi-local://project/assets/a.png")).toBe("<path>");
+  });
+
+  // 默认项目根就叫 `Nomi Projects`：带空格的路径只抹前半段，剩下的正好是项目名（2026-09-24 实测）。
+  it.each([
+    [String.raw`EACCES: permission denied, open 'C:\Users\alice\Documents\Nomi Projects\猫咪短片\.nomi\project.json'`, "EACCES: permission denied, open '<path>'"],
+    ["ENOENT: no such file or directory, open '/Users/alice/Documents/Nomi Projects/My Film/x.json'", "ENOENT: no such file or directory, open '<path>'"],
+    [String.raw`C:\Users\alice\Documents\Nomi Projects\猫咪短片\a.png failed`, "<path> failed"],
+    ["C:/Users/alice/Nomi Projects/猫咪短片/a.png failed", "<path> failed"],
+    ["read /home/alice/Nomi Projects/My Film/cut.mp4 failed", "read <path> failed"],
+  ])("带空格的路径整段抹掉，项目名不漏：%s", (input, expected) => {
+    const out = redactLogValue(input);
+    expect(out).toBe(expected);
+    for (const secret of ["alice", "猫咪短片", "My Film", "Projects"]) expect(out).not.toContain(secret);
+  });
+
+  it("放开空格不许连带吃掉非路径的正文（抹过头 = 证据没了）", () => {
+    expect(redactLogValue("GET /v1/videos 502 then retry/2")).toBe("GET <path> 502 then retry/2");
+    expect(redactLogValue("ratio 1/2 and/or a/b, 2026/09/24")).toBe("ratio 1/2 and/or a/b, 2026/09/24");
+    // `https:` 的 `s:/` 不是盘符：主机名照留。
+    expect(redactLogValue("fetch https://api.apimart.ai/v1/x failed")).toBe("fetch https://api.apimart.ai/<path> failed");
   });
 
   it("URL 留 scheme+host（打的是哪家是排查必需），砍掉 path 与 query", () => {

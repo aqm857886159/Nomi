@@ -7,6 +7,7 @@
 // 文件夹/软删的迁移属切片 C/D，各用独立标记，互不影响。
 import { addUserPrompt, fetchUserPrompts, type PromptMediaType, type PromptReferenceImage } from '../api/promptLibraryApi'
 import { getDesktopBridge, type DesktopAssetFoldersState } from '../../desktop/bridge'
+import { logRendererError } from '../../desktop/rendererLog'
 
 export const LEGACY_BUCKET_PREFIX = 'nomi.browser.asset-library.v1:'
 export const PROMPTS_MIGRATED_PREFIX = 'nomi.browser.asset-library.migrated-prompts.v1:'
@@ -284,7 +285,7 @@ export function runAssetSurfaceMigrations(): void {
         }
       })
       .catch((error) => {
-        console.error('[nomi:migration] 素材盒提示词卡迁移失败:', error)
+        logRendererError('asset-prompt-card-migration-failed', error)
       })
   }
   if (bridge?.assets?.foldersGet && bridge?.assets?.foldersSave) {
@@ -305,7 +306,7 @@ export function runAssetSurfaceMigrations(): void {
         }
       })
       .catch((error) => {
-        console.error('[nomi:migration] 素材盒文件夹迁移失败:', error)
+        logRendererError('asset-folder-migration-failed', error)
       })
   }
 }

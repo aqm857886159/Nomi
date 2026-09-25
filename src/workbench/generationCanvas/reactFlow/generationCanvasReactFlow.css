@@ -206,7 +206,8 @@
    * 磁吸带只会出现在唯一主选中的那张卡上（generationCanvasReactFlowVisualContract.ts），所以常驻不会铺满画布。 */
   opacity: 0.82;
   pointer-events: none;
-  transition: left 180ms cubic-bezier(0.16, 1, 0.3, 1), top 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* 2026-09-25 画布跟手（用户拍板）：位置直接跟光标，不缓动——180ms 追光标就是「鼠标到了反馈才来」。颜色 / 透明度保留缓动。 */
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic:hover .generation-canvas-react-flow__handle-icon,

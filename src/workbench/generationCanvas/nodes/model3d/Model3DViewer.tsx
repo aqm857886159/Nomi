@@ -4,6 +4,7 @@ import { FencedCanvas } from '../fencedCanvas'
 import { Bounds, Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { cn } from '../../../../utils/cn'
 import { validateGlbStructure } from '../../../../../electron/assets/model3dValidation'
+import { logRendererError } from '../../../../desktop/rendererLog'
 
 /**
  * 生成出的 3D 模型（.glb）的卡内交互预览。
@@ -59,7 +60,7 @@ class GlbBoundary extends React.Component<
     return { failed: true }
   }
   componentDidCatch(error: unknown): void {
-    console.error('Failed to load 3D model glb.', error)
+    logRendererError('model3d-load-failed', error)
   }
   render(): React.ReactNode {
     return this.state.failed ? this.props.fallback : this.props.children

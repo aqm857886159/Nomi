@@ -186,7 +186,6 @@ function harness() {
     command: async (projectId, runId, command) => repository.execute(projectId, runId, command as Parameters<typeof repository.execute>[2]),
     requestRenderer: renderer.requestRenderer,
     resolveProjectRoot: () => root,
-    previewSecret: () => "preview-secret",
     isProjectOpen: () => true,
   });
   const operations = createProductionGenerationOperationStore(owner as never, {
@@ -213,7 +212,9 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     projectRevision: 0, intentMacKey: "test-intent-key", providers: [provider],
     materializeOutput: async ({ providerTaskId }) => {
       // 真写一个字节到项目里：落地时的产物投影要读得到这个文件，读不到就只落占位、不回填 result。
-      const relative = path.join(".nomi", "out", `${providerTaskId}.png`);
+      // 项目相对路径恒为 posix 形状（真物化器 writeDeterministicAsset 用的就是 path.posix.join）；
+      // 用 path.join 在 Windows 上会写出反斜杠，产物投影当场拒收，结果回填不了。
+      const relative = path.posix.join(".nomi", "out", `${providerTaskId}.png`);
       fs.mkdirSync(path.join(root, ".nomi", "out"), { recursive: true });
       fs.writeFileSync(path.join(root, relative), Buffer.from("89504e470d0a1a0a", "hex"));
       return { artifactId: `artifact-${providerTaskId}`, kind: "image" as const, contentHash: `hash-${providerTaskId}`, projectRelativePath: relative };

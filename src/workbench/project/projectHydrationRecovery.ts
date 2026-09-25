@@ -4,6 +4,7 @@ import { confirmDialog } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 import type { WorkbenchProjectPersistenceService } from './projectPersistenceService'
+import { logRendererError } from '../../desktop/rendererLog'
 
 /**
  * Hydrates one guarded project and owns the existing repair UX. Every async
@@ -65,6 +66,6 @@ export async function hydrateWorkbenchProjectWithRecovery(input: Readonly<{
   } else {
     present(t('studio.projectNotFound'))
   }
-  if (!hydrated && hydrateError) console.error('project hydrate failed', hydrateError)
+  if (!hydrated && hydrateError) logRendererError('project-hydrate-failed', hydrateError)
   return hydrated
 }

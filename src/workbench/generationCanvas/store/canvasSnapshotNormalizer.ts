@@ -17,12 +17,14 @@ import type {
   GenerationCanvasNode,
   GenerationCanvasSnapshot,
   GenerationNodeProgress,
+  GenerationNodeResult,
   GenerationNodeRunRecord,
   GenerationNodeRunStatus,
   GenerationNodeStatus,
   NodeGroup,
 } from '../model/generationCanvasTypes'
 import { isCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
+import { assetUrlForProductionPreview } from '../../../../electron/shared/productionPreviewUrl'
 
 /**
  * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
@@ -41,6 +43,24 @@ function convergeStuckMidFlightNode(
     ? [{ ...runs[0], status: nextRunStatus, progress: undefined }, ...runs.slice(1)]
     : runs
   return { ...node, status: nextStatus, progress: undefined, runs: nextRuns }
+}
+
+/**
+ * 旧版制作落地写进结果的签名预览链（5 分钟过期）→ 素材库永久地址。见 electron/shared/productionPreviewUrl.ts。
+ * 只改写认得出的那一种；别的地址一个字不动。
+ */
+function migrateProductionPreviewResult(result: GenerationNodeResult): GenerationNodeResult {
+  const url = assetUrlForProductionPreview(result.url)
+  const thumbnailUrl = assetUrlForProductionPreview(result.thumbnailUrl)
+  if (!url && !thumbnailUrl) return result
+  return { ...result, ...(url ? { url } : {}), ...(thumbnailUrl ? { thumbnailUrl } : {}) }
+}
+
+function migrateProductionPreviewResults(node: Omit<GenerationCanvasNode, 'categoryId'>): Omit<GenerationCanvasNode, 'categoryId'> {
+  const result = node.result && typeof node.result === 'object' ? migrateProductionPreviewResult(node.result) : node.result
+  const history = Array.isArray(node.history) ? node.history.map((entry) => entry && typeof entry === 'object' ? migrateProductionPreviewResult(entry) : entry) : node.history
+  if (result === node.result && (history === node.history || history?.every((entry, index) => entry === node.history?.[index]))) return node
+  return { ...node, ...(result ? { result } : {}), ...(history ? { history } : {}) }
 }
 
 export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot {
@@ -81,7 +101,7 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         // 这里只是它的三条读路径之一（另两条是事件尾巴重放与外部图应用），
         // 且必须在**重放之后**再收敛一次——2026-09-10 那句只在这里收敛的 `running → idle`
         // 会被事件尾巴原样盖回去，等于没收敛（T-ED-06）。
-        const convergedNode = convergeStuckMidFlightNode(normalizedNode)
+        const convergedNode = convergeStuckMidFlightNode(migrateProductionPreviewResults(normalizedNode))
         return [categoryId ? { ...convergedNode, categoryId } : convergedNode]
       })
     : []

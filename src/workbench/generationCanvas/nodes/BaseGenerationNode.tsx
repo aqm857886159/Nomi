@@ -39,7 +39,6 @@ import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeGenerationStatus } from './NodeGenerationStatus'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
 import { useProductionNodeRetry } from './useProductionNodeRetry'
-import { useProductionExecutionNode } from '../../production/useProductionExecutionNode'
 import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
 import { confirmAndRunNode } from '../runner/generationRunController'
@@ -62,10 +61,10 @@ import {
   FOCUS_GENERATION_NODE_EVENT,
   resolveNodeVisualSize,
 } from './nodeSizing'
-import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeMediaMeasurement } from './useNodeMediaMeasurement'
+import { useNodeVideoPreviewIntent } from './useNodeVideoPreviewIntent'
 import { useNodeMediaPreview } from './useNodeMediaPreview'
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
@@ -101,8 +100,6 @@ function BaseGenerationNodeImpl({
 
   const { t } = useTranslation()
   const productionRetry = useProductionNodeRetry(node, reportFeedback) // P4 S6：多镜节点失败→返工链；非多镜/项目没开→null 退回本地重跑（回归门）
-  // Agent 批次镜的失败在 Run 里（job 失败），不在 node.status：投影过来用同一张错误卡；「收起」只给本地失败——Run 里的失败是账本事实，收不掉。
-  const executionNode = useProductionExecutionNode(node)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -145,7 +142,7 @@ function BaseGenerationNodeImpl({
 
   const mediaMeasurement = useNodeMediaMeasurement(node)
 
-  const { handleVideoNodePointerEnter, handleVideoNodePointerLeave } = useNodeVideoHoverPreview(node.result?.type)
+  const videoPreview = useNodeVideoPreviewIntent(node.result?.type === 'video')
 
   const handleFocusSourceNode = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -221,6 +218,9 @@ function BaseGenerationNodeImpl({
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。
   const imageEditing = useNodeImageEditing(node, visualSize, reportFeedback)
   const { downloading: panoramaDownloading, download: downloadPanorama } = useResultDownload(node, reportFeedback)
+  // 面板挂载走可打断的低优先级渲染（按下即选中时同步挂面板，拖动起手实测顿 70–95 ms）：高亮与拖动先出，面板随后到，取消选中立即卸载。
+  const composerWanted = selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind)
+  const composerMounted = React.useDeferredValue(composerWanted)
   const showFlowConnectionHandle =
     node.kind !== 'panorama' && (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
 
@@ -248,8 +248,8 @@ function BaseGenerationNodeImpl({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerEnter={handleVideoNodePointerEnter}
-      onPointerLeave={handleVideoNodePointerLeave}
+      onPointerEnter={videoPreview.onPointerEnter}
+      onPointerLeave={videoPreview.onPointerLeave}
     >
 {feedback ? <p role="status" className="absolute inset-x-0 bottom-0 z-[15] m-0 bg-nomi-paper px-2 py-1 text-caption text-nomi-ink-60">{feedback}</p> : null}
 
@@ -346,10 +346,10 @@ function BaseGenerationNodeImpl({
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
 
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
-      {executionNode.status === 'error' && executionNode.error ? (
+      {status === 'error' && node.error ? (
         <NodeErrorReport summaryVisible={false}
-          message={executionNode.error} meta={node.meta}
-          onDismiss={node.status === 'error' ? () => useGenerationCanvasStore.getState().dismissNodeError(node.id) : undefined}
+          message={node.error} meta={node.meta}
+          onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'
               ? undefined
@@ -427,15 +427,15 @@ function BaseGenerationNodeImpl({
           ) : node.result.type === 'video' ? (
             // 播放守卫：decode 失败自动转码自愈一次（HEVC 存量/供应商 HEVC 产物），修不了给人话原因。
             <NodeVideoPlaybackGuard
-              nodeId={node.id}
-              rawUrl={node.result.url}
+              node={node}
+              previewRequested={videoPreview.requested}
+              engaged={selected && !isMultiSelectActive}
               data-node-preview-video="true"
               className={cn('w-full h-full min-h-0 object-contain pointer-events-auto', 'bg-nomi-ink-05 select-none')}
               priority={mediaPreviewPriority}
               crossOrigin="use-credentials"
               controls
               playsInline
-              preload="auto"
               draggable={false}
               onLoadedMetadata={mediaMeasurement.onVideoMetadata}
             />
@@ -447,7 +447,8 @@ function BaseGenerationNodeImpl({
                 localImageOpPending && 'blur-sm scale-[1.02] transition-[filter,opacity]',
                 localImageOpPending && 'animate-remove-bg-pulse-slow',
               )}
-              src={node.result.url}
+              // 画布只挂落盘边界派生的预览；源 URL 留给编辑/导出/大图预览，画布不为每个节点解码 4K/8K 原图。
+              src={node.result.thumbnailUrl || node.result.url}
               priority={mediaPreviewPriority}
               alt=""
               onLoad={mediaMeasurement.onImageLoad}
@@ -510,7 +511,7 @@ function BaseGenerationNodeImpl({
           ② composer 的 `useComposerViewportPlacement` 是**每帧 rAF 量矩形**的循环，
              用 invisible 藏起来等于让它在看不见的时候继续每帧 querySelectorAll + getBoundingClientRect。
           藏不等于卸载——不挂才是不跑。 */}
-      {selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind) ? (
+      {composerWanted && composerMounted ? (
         <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
       ) : null}
       {selected && !readOnly && !flowManagedLayout

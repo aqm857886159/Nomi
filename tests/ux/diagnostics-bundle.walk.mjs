@@ -48,7 +48,7 @@ try {
   if ((await section.getAttribute('data-diagnostics-state')) !== 'idle') failures.push('刚打开时应为 idle')
   await shot(win, '01-idle')
 
-  await clickOrFail(section.getByRole('button', { name: '导出诊断包', exact: true }), '导出诊断包')
+  await clickOrFail(section.getByRole('button', { name: '导出诊断', exact: true }), '导出诊断')
   await expectVisible(section.locator('[data-diagnostics-result]'), '导出结果行')
   const state = await section.getAttribute('data-diagnostics-state')
   if (state !== 'saved') failures.push(`导出后应为 saved，实际 ${state}`)

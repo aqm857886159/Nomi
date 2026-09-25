@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Original deterministic cues: change the score/timbre below, then rerun this file.
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 export const sound = {
   sampleRate: 48000,
@@ -57,7 +58,7 @@ export function compose(score, voice = sound) {
 }
 
 // This script is also imported by the verification test; importing does not write files.
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const output = new URL('./candidates/', import.meta.url)
   mkdirSync(output, { recursive: true })
   for (const [name, score] of Object.entries(scores)) {
