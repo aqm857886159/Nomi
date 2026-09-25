@@ -54,7 +54,7 @@ import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy 
 import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
 import { createCreationResourceTreeSlice, type CreationResourceTreeSlice } from './creation/creationResourceTreeCollapse'
 import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
-import { readTimelinePanelCollapsed, writeTimelinePanelCollapsed } from './timeline/timelinePanelPrefs'
+import { readDockCollapsed, writeDockCollapsed } from './generation/dockCollapsePrefs'
 import { TIMELINE_PANEL_DEFAULT, clampTimelinePanelHeight } from './timeline/timelinePanelBounds'
 import type { ExportQuality } from './export/exportTypes'
 
@@ -350,9 +350,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelineSnapGuide: null,
   timelineSplitMode: false,
   // 默认折叠以保持最小窗口的 composer 可用空间；用户仍可拖拽展开。
-  timelinePanelCollapsed: readTimelinePanelCollapsed(),
+  timelinePanelCollapsed: readDockCollapsed('timelinePanel'),
   setTimelinePanelCollapsed: (collapsed) => {
-    writeTimelinePanelCollapsed(Boolean(collapsed))
+    writeDockCollapsed('timelinePanel', Boolean(collapsed))
     set({ timelinePanelCollapsed: Boolean(collapsed) })
   },
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,

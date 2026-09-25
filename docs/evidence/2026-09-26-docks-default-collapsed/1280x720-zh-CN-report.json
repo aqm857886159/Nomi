@@ -1,0 +1,91 @@
+{
+  "tag": "1280x720-zh-CN",
+  "steps": [
+    {
+      "step": "open",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "miniPreviewPill": true,
+      "miniPreviewExpanded": false,
+      "minimapShown": false,
+      "nodes": 4
+    },
+    {
+      "step": "select",
+      "selected": "used-gen-v2-character-mqjqjir2-vg4f"
+    },
+    {
+      "step": "hits-before-pan",
+      "composer": true,
+      "send": {
+        "found": true,
+        "hit": false,
+        "at": "div.workbench-timeline__ruler-content.relative",
+        "rect": [
+          717,
+          565,
+          30,
+          30
+        ]
+      },
+      "model": {
+        "found": true,
+        "hit": false,
+        "at": "div.workbench-timeline__ruler-content.relative",
+        "rect": [
+          213,
+          566,
+          84,
+          28
+        ]
+      }
+    },
+    {
+      "step": "pan",
+      "ok": true,
+      "reason": null
+    },
+    {
+      "step": "hits-after-pan",
+      "composer": true,
+      "send": {
+        "found": true,
+        "hit": true,
+        "at": "button.inline-flex.items-center",
+        "rect": [
+          717,
+          374,
+          30,
+          30
+        ]
+      },
+      "model": {
+        "found": true,
+        "hit": true,
+        "at": "span.min-w-0.truncate",
+        "rect": [
+          213,
+          375,
+          84,
+          28
+        ]
+      }
+    },
+    {
+      "step": "expanded",
+      "miniPreviewPill": false,
+      "miniPreviewExpanded": true,
+      "minimapShown": true,
+      "nodes": 4
+    },
+    {
+      "step": "reopened",
+      "miniPreviewPill": false,
+      "miniPreviewExpanded": true,
+      "minimapShown": true,
+      "nodes": 4
+    }
+  ]
+}
