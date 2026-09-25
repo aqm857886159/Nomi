@@ -73,6 +73,18 @@ export function modelToolShowsReviewCard(name: string): boolean {
   return MODEL_FACING_TOOL_SPECS.some((spec) => spec.name === name && spec.nextAction === "user_sees_review_card");
 }
 
+/**
+ * 应用内「读模型目录」的那个动词（`generation.context.read`、`models` 组）。lane 的工具装配与系统提示词里
+ * 那句指路都从这里取，不各自手写名字——手写的那句在 2026-09-14 改名后一直叫模型去调 `nomi_read`。
+ * 恰好一个，否则当场抛：零个 = 声明被删了，两个 = 指路会随声明顺序悄悄换人。
+ */
+export function modelCatalogReadSpec(): ModelFacingToolSpec {
+  const specs = modelFacingToolSpecs("internal")
+    .filter((spec) => spec.contractId === "generation.context.read" && spec.internalGroup === "models");
+  if (specs.length !== 1) throw new Error(`Expected exactly one internal model-catalog read verb, found ${specs.length}`);
+  return specs[0];
+}
+
 /** 某个能力的全部别名说明书，按声明顺序。 */
 export function specsForCapability(contractId: string): readonly ModelFacingToolSpec[] {
   return MODEL_FACING_TOOL_SPECS.filter((spec) => spec.contractId === contractId || spec.alsoCovers?.includes(contractId));

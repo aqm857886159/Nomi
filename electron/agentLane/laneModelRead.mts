@@ -6,17 +6,13 @@ import {
   modelSpecDetail, modelSpecRow, resolveModelEntry,
   type ModelAvailabilityFacts,
 } from '../shared/agentCapabilities/modelSpecProjection.js';
-import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToolRegistry.js';
+import { modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry.js';
 import { laneToolModelDescription, type LaneToolSpec } from '../shared/agentLane/laneToolContract.js';
 import { toModelVisibleSchema } from './laneToolSchema.mjs';
 
-export const LANE_MODEL_READ_TOOL_NAME = 'list_models';
-
-/** 注册表里那份声明。找不到 = 有人把它从 `verbDeclarations.ts` 删了而没删这里——当场抛。 */
+/** 注册表里那份声明（`modelCatalogReadSpec`，按契约与分组认，不手写名字）。找不到或不唯一当场抛。 */
 export function laneModelReadSpec(): LaneToolSpec {
-  const spec = modelFacingToolSpecs('internal').find((candidate) => candidate.name === LANE_MODEL_READ_TOOL_NAME);
-  if (!spec) throw new Error(`${LANE_MODEL_READ_TOOL_NAME} is not declared in the model-facing tool registry`);
-  return spec;
+  return modelCatalogReadSpec();
 }
 
 /** pi 工具形状（描述取首句进 schema，全文进系统提示词——与 `laneTools.mts` 同一条纪律）。 */

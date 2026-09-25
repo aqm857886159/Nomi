@@ -1,17 +1,10 @@
 import { MODEL_ANCHOR_GUIDANCE } from '../shared/agentCapabilities/availableModels'
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
-import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 
-/**
- * 模型目录的完整读法住在哪个动词上——**从声明取**，不在提示词里手写名字。手写的那一版在 2026-09-14
- * 改名（afe85411d8）之后一直叫模型去调已经不存在的 `nomi_read target=models`。
- */
-const MODEL_CATALOG_READ_VERB = (() => {
-  const spec = modelFacingToolSpecs('internal').find((candidate) => candidate.contractId === 'generation.context.read' && candidate.internalGroup === 'models')
-  if (!spec) throw new Error('No internal verb reads the model catalog (generation.context.read, group models)')
-  return spec.name
-})()
+/** 完整模型目录住在哪个动词上：与 lane 装配的是同一个（`modelCatalogReadSpec`）。 */
+const MODEL_CATALOG_READ_VERB = modelCatalogReadSpec().name
 
 /** A discovery index, not a second model contract. Full modes/slots stay behind the catalog read verb. */
 export function formatLaneModelIndex(context: LaneComposerContext): string {

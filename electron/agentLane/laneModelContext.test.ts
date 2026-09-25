@@ -3,7 +3,7 @@
 // 2026-09-14 的 20 动词改名（afe85411d8，不留别名）把模型目录读从 `nomi_read target=models` 改成了
 // `list_models`，这句提示词没跟上：每一轮都在叫模型去调一个不存在的工具（2026-09-24 同类扫描发现）。
 import { describe, expect, it } from 'vitest'
-import { MODEL_FACING_TOOL_SPECS } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { MODEL_FACING_TOOL_SPECS, modelCatalogReadSpec } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 import { formatLaneModelIndex } from './laneModelContext'
 import { LANE_TOOL_REQUEST_TOOL_NAME } from './laneToolGroups.mjs'
@@ -27,8 +27,6 @@ describe('模型索引那句指路，只点名真能调的工具', () => {
     expect(text).not.toContain('nomi_read')
     expect(text).not.toContain('${')
     // 指路那句必须真的点名「读模型目录」的那个动词（它是谁由声明说了算）。
-    const catalogRead = MODEL_FACING_TOOL_SPECS.filter((spec) => spec.contractId === 'generation.context.read' && spec.internalGroup === 'models')
-    expect(catalogRead).toHaveLength(1)
-    expect(named).toContain(catalogRead[0].name)
+    expect(named).toContain(modelCatalogReadSpec().name)
   })
 })
