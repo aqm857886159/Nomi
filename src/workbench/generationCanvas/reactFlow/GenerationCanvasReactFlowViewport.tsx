@@ -61,6 +61,8 @@ type GenerationCanvasReactFlowViewportProps = {
   healViewport: (broken: Viewport) => void
   /** 我们自己的视口动画此刻是否在逐帧直写（useReactFlowViewportAnimation）。 */
   isViewportAnimating: () => boolean
+  /** 这次无来源事件的移动是不是「store → React Flow」同步的回声（值出自 store 或 1:1 兜底，不是新视角）。 */
+  isStoreSyncEcho: (viewport: Viewport) => boolean
   cancelViewportAnimation: () => void
   groupBoxes: readonly CanvasGroupBox[]
   frame?: CanvasFrameInteraction
@@ -129,6 +131,7 @@ export function GenerationCanvasReactFlowViewport({
   rememberCategoryViewport,
   healViewport,
   isViewportAnimating,
+  isStoreSyncEcho,
   cancelViewportAnimation,
   groupBoxes,
   frame,
@@ -271,6 +274,12 @@ export function GenerationCanvasReactFlowViewport({
         // 走完时由 useReactFlowViewportAnimation 的 onAnimationSettled 记一次（2026-09-25：以前这里每帧写 workbenchStore，
         // 连带所有订了缩放的节点浮层每帧重算）。
         if (!event && isViewportAnimating()) return
+        // store → React Flow 同步的回声：屏幕上的视口已经由同步那一步写进 liveViewport，store 里也本来就是它
+        // （或本来就没有记忆）。再记一次会把 1:1 兜底变成「用户留下的视角」，打开时适应就不摆了（见同步 effect 头注释）。
+        if (!event && isStoreSyncEcho(nextViewport)) {
+          viewportGestureCategoryRef.current = null
+          return
+        }
         setLiveViewport(nextViewport)
         // 记到**这次手势开始时那个分类**头上：被中断、或收尾正好落在切分类之后，都不许写到别人账上。
         rememberCategoryViewport(viewportGestureCategoryRef.current ?? activeCategoryId, canvasViewportFromFlow(nextViewport))

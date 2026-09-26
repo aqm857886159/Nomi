@@ -46,7 +46,6 @@ export function useGenerationCanvasReactFlowHostEffects({
   const { t } = useTranslation()
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
-  const markReady = useGenerationCanvasStore((state) => state.markReady)
   const pendingFocusRef = React.useRef<PendingCanvasFocus | null>(null)
   const focusFlashTimerRef = React.useRef<number | null>(null)
 
@@ -140,10 +139,6 @@ export function useGenerationCanvasReactFlowHostEffects({
     observer?.observe(host)
     return () => observer?.disconnect()
   }, [hostRef, setStageSize])
-
-  React.useEffect(() => {
-    markReady()
-  }, [markReady])
 
   React.useEffect(() => {
     const host = hostRef.current

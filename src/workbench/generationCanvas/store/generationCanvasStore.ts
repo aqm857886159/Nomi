@@ -65,7 +65,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   canUndo: false,
   canRedo: false,
   hasClipboard: false,
-  markReady: () => set({ isReady: true }),
   captureHistory: () => {
     pushUndoSnapshot(get())
     set((state) => {
