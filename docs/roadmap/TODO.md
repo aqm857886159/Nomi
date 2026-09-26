@@ -24,6 +24,7 @@
 | T-RL-08 | 拆解出来的秒数一堆小数 | done #795 | [原文 09-12](sources/2026-09-14-filehelper-transcript.md#09-12) | 已合（`shotTime.ts` 0.1s 量化是唯一 owner） |
 | T-RL-09 | 发版本身：0.21.0（8-27）仍是最新 release，主线积压三千多提交 | todo | 09-12 RC 切线拍板 | 列车合完打 RC；打包前置缺陷：`@anthropic-ai/sandbox-runtime` 原生二进制要 `asarUnpack` **且**显式递路径 |
 | T-RL-12 | v0.22.1 重打 RC：画布跟手（#871）+ Windows 修复（#862 #863 #864）+ 09-25 一批回归（#869 #870 #873 #874 #875 #876）+ 画布手感三改（#880） | doing | 用户 09-25 拍板「画布手感修完和 Windows 修复一起重打 RC」 | 协调会话推进：#880 合入 → release/0.22.1 并入 main → feel:nightly → RC → Windows 验收三项（卡顿巡检两遍 / Agent 三回合 / 打包沙箱）→ 用户 Mac 验收 → 点头再发；发版后回 #861 |
+| T-RL-13 | RC 从 main 触发、却把 release 分支填进 `ref` 输入：构建、验收全过，`Desktop Release` 到最后一步才报 `RC commit mismatch` 拒发 | todo（下一版） | 09-26 协调会话 v0.22.1 晋级被拦（Desktop Release run 36248271714；RC 36235580649 只能从同一提交重打成 36248506177） | 防线放在最早那一层（R17）：`.github/workflows/desktop-rc.yml` 的 validate 第一步比较 `github.sha` 与解析出来的 `inputs.ref`，不等就直接红（加规则先验它会红），`docs/release-process.md` §4 写明「Use workflow from 选 release 分支 / `--ref`」。另外 §5 的顺序要写清：release→main 的 PR 合并会触发 `delete_branch_on_merge` 删掉 release 分支，晋级前如果还要重打 RC，得先把分支推回原提交。教训见 `docs/lessons/rc-must-be-dispatched-on-the-release-branch.md` |
 
 ## B. Agent 质量
 
