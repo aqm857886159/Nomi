@@ -497,6 +497,20 @@
       ],
       "since": "2026-09-26",
       "notes": "真付费 T5：Agent 视频卡「全部」档点生成没反应——卡的改稿把没有值的控件写成 undefined，IPC 原样带过去，宿主只认 JSON 值。现在卡的改稿契约直接复用宿主这份 schema（类型层 GenerationJsonValue），不许再各写一份 z.record(z.unknown())（合同 docs/fixes/2026-09-26-spend-card-patch-json-values.root-cause.json）。"
+    },
+    {
+      "name": "制作节点的运行记录由谁写",
+      "owner": {
+        "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+        "symbol": "applyShotGeneration"
+      },
+      "consumers": [
+        "electron/productionRun/multiShotCanvasLanding.ts",
+        "electron/shared/productionShotPhase.ts",
+        "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "制作投影写进节点的那条运行记录（id 由 productionShotPhase.productionRunRecordId 生成、isProductionRunRecord 认）只归制作投影写：主进程 buildMaterializeShotsPayload 算出每镜的「生成中 / 失败 / 结束 / 出片」，渲染层 applyShotGeneration 落到节点上。画布自己的重开收敛（canvasSnapshotNormalizer.convergeStuckMidFlightNode）不许碰它——2026-09-26 真付费 T5：重开窗口后在跑的第 1 镜被当幽灵收成空闲，看着像没在跑（合同 docs/fixes/2026-09-26-inflight-shot-reload-display.root-cause.json）。"
     }
   ]
 }
