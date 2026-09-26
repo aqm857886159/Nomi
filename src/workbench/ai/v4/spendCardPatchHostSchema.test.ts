@@ -59,7 +59,8 @@ describe('付费卡改稿 → 宿主 schema · 每一个图片 / 视频档案', 
       const control = resolveRenderedControls(option, meta, node.kind === 'image', node.kind === 'video')
         .find((candidate) => candidate.binding === 'parameter' && (candidate.options?.length ?? 0) > 0)
       if (!control) return
-      const edited = { ...node, meta: { ...meta, [control.key]: control.options!.at(-1)!.value } }
+      const last = control.options!.at(-1)!
+      const edited = { ...node, meta: { ...meta, [control.key]: typeof last === 'string' ? last : last.value } }
       const patch = candidatePatchFromNode(edited, shot, option)
       expect(undefinedParameterKeys(patch), `${archetype.id}：改稿里没有值为 undefined 的参数`).toEqual([])
       expect(hostAccepts(patch ?? {}), `${archetype.id}：宿主 schema 收这条改稿`).toBe(true)
