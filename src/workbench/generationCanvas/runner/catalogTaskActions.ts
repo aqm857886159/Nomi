@@ -14,6 +14,7 @@ import type {
 } from '../model/generationCanvasTypes'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveGenerationReferences } from './generationReferenceResolver'
+import { resolveCatalogSourceTask } from './catalogTaskSource'
 import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { applyRelayFirstFrame } from './relayFrameResolver'
@@ -285,7 +286,7 @@ export function buildCatalogTaskRequest(
 
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
-  const meta = parameterContractRequestMeta(node.meta || {})
+  const meta = { ...parameterContractRequestMeta(node.meta || {}), ...resolveCatalogSourceTask(node, options) }
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被

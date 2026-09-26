@@ -13,6 +13,7 @@ import { getDesktopLocale, type DesktopLocale } from "./desktopLocale";
 
 const translations = {
   "zh-CN": {
+    "sourceTask.missing": "请连接一段符合要求的已生成视频，或填写它的源任务 ID；本次尚未提交生成。",
     "agent.legacySummary": "旧版摘要：",
     "agent.legacyUnverifiedTool": "旧版工具结果未验证。",
     "credential.invalid": "密钥验证失败，请检查密钥和权限后重试。",
@@ -215,6 +216,7 @@ const translations = {
     "customCall.emptyScript": "脚本为空——先写点内容或让 AI 生成",
   },
   en: {
+    "sourceTask.missing": "Connect a compatible generated video or enter its source task ID. No generation was submitted.",
     "agent.legacySummary": "Legacy summary: ",
     "agent.legacyUnverifiedTool": "Legacy tool outcome is unverified.",
     "credential.invalid": "Key validation failed. Check the key and permissions, then retry.",

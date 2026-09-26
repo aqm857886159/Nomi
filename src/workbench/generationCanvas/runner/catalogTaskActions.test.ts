@@ -872,6 +872,7 @@ describe('接入即验证（零额度）：每个档案/模式声明的参考槽
           modelVendor: 'kie', vendor: 'kie',
           archetype: { id: archetype.id, modeId: mode.id },
         }
+        if (mode.sourceTask) meta[mode.sourceTask.inputKey] = 'source-task-fixture'
         for (const s of refSlots) meta[SLOT_FILL[s.kind].key] = SLOT_FILL[s.kind].value
         const nodeKind = archetype.kind === 'image' ? 'image' : 'video'
         const node: GenerationCanvasNode = { id: 'g1', kind: nodeKind, title: '', position: { x: 0, y: 0 }, prompt: 'p', meta }
