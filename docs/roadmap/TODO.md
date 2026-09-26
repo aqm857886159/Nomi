@@ -56,6 +56,7 @@
 | T-AG-28 | Agent 单张图生成完后，右上任务角标一直是 1（Run 转入「等粗剪 / 导出」） | todo（先问用户期望） | 09-26 协调会话收口 · 卡 task_a899deab | 单图意图的 Run 完成即结清，还是角标只数要人动手的 |
 | T-AG-29 | 画布写入与时间轴读取两条 lane 把描述 / 传输方法名（不是动词）交给失败措辞查表，可能对模型说「草稿可能已花钱」或报错工具名 | todo | 09-26 协调会话收口 · 卡 task_bbf12ce3 | 查表入参改为动词身份 |
 | T-AG-30 | 「生成全部」仍把 Agent 在跑的镜头算进去 | todo（先核实，多半已被 #875 修掉） | 09-26 协调会话收口 · 卡 task_3c59a3c1 | 真机核一遍，已修就改 done #875 |
+| T-AG-31 | 让 Agent「加一个图片节点，先别生成」：节点当场建好了，它却说「现在画布上还没有节点」 | todo（下一版） | 09-26 协调会话 v0.22.1 RC 安装包验收（Agent 三回合真对话，截图 `02-turn-create`） | 与 T-ED-02 同一族：**回执写死**。`electron/agentLane/laneExtendedTools.ts:82` 的 `nextActionFor` 在 `draft_shots` 成功时无条件回「Saving does not imply canvas placement」；可画布 Agent 的草稿每次改动都经 `productionGenerationOperationStore` 的 `onPlanChanged` → `canvasLandingHost.landDraftOnCanvas` 当场落成节点（项目开着就落），只有文稿来源的草稿才要用户点「放入画布」。模型照着回执说反话。修法照 T-ED-02：回执从真实落地结果派生（落没落、落成哪几个节点），不改一句静态文案了事；回归要带真实模型的工具写对率 / 回合成功率（R13）。0.22.0 就有，不是 0.22.1 的回归 |
 
 ## C. 画布与节点
 
@@ -248,6 +249,7 @@
 | T-QA-36 | **分镜批量生成完，程序自己再调一次文本模型审片（花用户的钱，没问）**：`batchPlanPreview.ts` 成功后 `verifyShotsAndReport` → `shotVerifyJudge` 发 `/v1/chat/completions`；开关 `isShotVerifyEnabled` 默认开 | doing（本版已改：批量后不再自动审片；设置开关下一版） | 09-26 协调会话：`core-a-creation-plans.e2e.mjs` 在 loopback 上抓到 1 次「计划外」的 chat 请求；N4 会话此前也报过「生成后的自动镜头审核会调用文本模型」 | 属花钱边界：用户点的是「生成」，没点「审片」。要定的是默认开还是关、开着时要不要在确认卡 / 设置里说清。走查那一步现在红在这里  **09-26 用户拍板**：只关「分镜表生成全部」之后那一次自动审片（`batchPlanPreview.ts` 的触发删掉）；Agent 做片流程里的审片阶段照旧（`capabilityApplyHandler.verifyShotsForProduction`）。设置开关（下一版）先出样张再做，届时自动审片挂在开关后面 |
 | T-QA-38 | 走查 `agent-inflight-shots-reload` 判不了「重开后底栏『生成全部』不算在跑的制作镜头」：场景里两镜都归制作 Run、没有别的可生成节点，底栏本来就不出现，原断言「不在或置灰」永远过，已删 | todo | 09-26 协调会话收尾 N3c 时 check:walkthroughs 抓到（absence-without-baseline） | 场景里加一张用户自己的闲置节点作阳性对照：重开后底栏在、数的是 1 不是 3。归属判据现由 #875 单测守 |
 | T-QA-37 | 三条走查与现状漂移，不在任何 CI 链里：`agent-runtime-production.walk.mjs`（内联拆镜后等批准卡，但夹具的批准策略是「自动改」，方案直接写进去了）、`process-feedback-electron.e2e.mjs`（页面中途没了，catch 里截图先炸、原始错误被吞）、`decompose-ui.walk.mjs`（依赖本机 `.tmp/decompose-fixture.jpg`，仓库里没有） | todo | 09-26 协调会话在 `claude/walks-single-run-no-card` 上逐条真跑（Windows） | 前两条在本分支改动之前就红；另有两条只能在 Mac 验：`agent-runtime-video-export`（写死 `/opt/homebrew/bin/ffmpeg`）、`canvas-shortcut-parity`（要 `NOMI_REAL_MEDIA_DIR` 下的 4K HEVC 真素材） |
+| T-QA-39 | `pnpm run feel:nightly` 是空跑：截的是 `tests/ux/journeys/catalog.json` 里手写的 HTML 片段，不是产品 | todo | 09-26 协调会话打 v0.22.1 RC 时按 release-process 跑它才发现 | `scripts/feel-nightly.mjs:52` 用 `page.setContent(state.html)` 渲染夹具，记录里自己也写着 `evidence: rendered-fixture-not-product-walkthrough`——接触表「没有未分诊的发现」证明不了产品手感。发版清单（`docs/release-process.md:174`「RC 前必须运行…接触表无未分诊体感发现」）却把它当一道验收门。要么让它驱动真实应用（复用 `tests/ux/_walkthrough.mjs` 的真实启动），要么从发版清单里拿掉、别再当证据；二选一，不留两份 |
 
 ## J. 官网与发布
 
