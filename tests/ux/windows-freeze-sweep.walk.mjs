@@ -28,7 +28,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint } from './_canvasHit.mjs'
+import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint, revealArrivals } from './_canvasHit.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { placeCharacter } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -268,14 +268,18 @@ try {
       if (!generatedId) await new Promise((resolve) => setTimeout(resolve, 200))
     }
     if (!generatedId) throw new Error('右键新建图片节点后画布上没有新节点')
+    // 画布被导入的大图铺满时，右键那一点放不下一张新卡，它会落到屏外、舞台边出「新节点在…」提示——人会点提示过去。
+    await revealArrivals(win)
     const node = win.locator(`article[data-node-id="${generatedId}"]`)
     await node.click({ position: { x: 40, y: 15 } })
     await win.locator('[contenteditable=true]:visible').first().fill('傍晚河边，一位女孩望向远处的桥，电影画面。')
+    const jobsBefore = fixture.jobs.length
     await win.getByRole('button', { name: '生成素材', exact: true }).click()
-    await win.getByText('开始生成', { exact: true }).waitFor({ timeout: stationTimeout({ operations: 1 }) })
-    await win.getByRole('button', { name: '生成', exact: true }).last().click()
+    // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+    // 请求永远发不出去——下面假供应商收到这一单（fixture.jobs +1）就是证据。
     const deadline = Date.now() + 30_000
-    while (Date.now() < deadline && fixture.jobs.length < 1) await new Promise((resolve) => setTimeout(resolve, 200))
+    while (Date.now() < deadline && fixture.jobs.length < jobsBefore + 1) await new Promise((resolve) => setTimeout(resolve, 200))
+    if (fixture.jobs.length !== jobsBefore + 1) throw new Error(`点「生成素材」后假供应商应收到 1 单，实际 ${fixture.jobs.length - jobsBefore} 单`)
     await win.locator(`article[data-node-id="${generatedId}"] [data-process-fx]`).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   }, 6000)
   await step('生成完成 → 结果揭示', async () => {
@@ -290,6 +294,7 @@ try {
   }, 3000)
   await step('进入 3D 导演台 → 放一个角色 → 退出', async () => {
     await addCanvasNodeFromRail(win, 'director')
+    await revealArrivals(win)
     await win.locator('[data-testid="director-node-open"]').first().click({ timeout: stationTimeout({ operations: 2 }) })
     await win.locator('[data-testid="director-editor"]').waitFor({ timeout: stationTimeout({ operations: 4 }) })
     await win.waitForFunction(() => {

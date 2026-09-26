@@ -111,7 +111,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   },
   // ── generationCommon ──
   { prefix: 'generationCommon.assistant.toolCall', why: "动态: 工具调用的人话摘要;枚举来源: toolCallSummary.ts 的 tt(key)——键先存进 const T 再 `${T}.${key}` 拼,模板 head 为空、正反两道门岗都看不见,故必须在册(该文件里 summarizeToolCall/buildStepDetailLabels 传入的字面量 key)" },
-  { prefix: 'generationCommon.agentRuntime', why: '动态: 画布 agent 运行时动作;枚举来源: gate.ts 的 actionKey(agentRuntime.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.sections', why: '动态: 画布控件帮助分节;枚举来源: CanvasControlsHelpPopover 的 section.id(controlsHelp.sections.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.actions', why: '动态: 画布控件帮助动作行;枚举来源: CanvasControlsHelpPopover 的 row.actionKey(controlsHelp.actions.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.shortcuts', why: '动态: 画布控件帮助快捷键行;枚举来源: CanvasControlsHelpPopover 的 row.shortcutKey(controlsHelp.shortcuts.* 词条)' },
@@ -135,7 +134,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'generationCommon.production.origin', why: '动态: 制作发起来源;枚举来源: ProductionRunTaskCard 的 view.originHost 里非内置客户端的两个通用值 nomi / external(内置客户端用注册表 label,不进 i18n)' },
   { prefix: 'generationCommon.production.runAction', why: '动态: 制作运行动作;枚举来源: ProductionRunTaskCard 的 action(production.runAction.* 词条)' },
   { prefix: 'generationCommon.production.runDetails.stageStatus', why: '动态: 制作阶段状态;枚举来源: ProductionDetails 的 stage.status(runDetails.stageStatus.* 词条)' },
-  { prefix: 'generationCommon.production.runTone', why: '动态: 制作运行语气;枚举来源: ProductionRunTaskCard 的 view.tone(production.runTone.* 词条)' },
+  { prefix: 'taskCenter.groups', why: '动态: 任务分组名;枚举来源: taskCenterProjection 的 TASK_CENTER_GROUPS(区段标题与 ProductionRunTaskCard 状态签共用 taskCenter.groups.* 词条)' },
   { prefix: 'generationCommon.spend.cost.units', why: '动态: 花费单位;枚举来源: spendConfirm 的 kind(spend.cost.units.* 词条)' },
   // ── timelineEditor ──
   { prefix: 'timelineEditor.transition.types', why: '动态: 转场类型;枚举来源: 时间线转场 type 集(transition.types.* 词条)' },

@@ -113,6 +113,7 @@ export function labExec(over?: Partial<ShotRowExec>): ShotRowExec {
     ignoredAnchors: [],
     unlockedRefs: [],
     missingSlots: [],
+    plannedFirstFrame: null,
     changedRefs: [],
     resultUrl: null,
     progressPercent: null,

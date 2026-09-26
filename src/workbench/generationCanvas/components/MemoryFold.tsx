@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { notify } from '../../../ui/notificationPolicy'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
+import { logRendererError } from '../../../desktop/rendererLog'
 import {
   fetchProjectMemoryFacts,
   removeProjectMemoryFact,
@@ -56,7 +57,7 @@ export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element 
     void command(projectId)
       .then((next) => { if (current()) setFactState({ projectId, facts: next }) })
       .catch((error: unknown) => {
-        console.error('project memory command failed', error)
+        logRendererError('project-memory-command-failed', error)
         if (!current()) return
         notify({ identity: `memory:${projectId}`, reason: 'change-failed', message: t('generationCommon.memory.changeFailed'), type: 'error', level: 'inline', present: (message) => setFeedback({ projectId, message }) })
         void fetchProjectMemoryFacts(projectId).then((next) => { if (current()) setFactState({ projectId, facts: next }) }).catch(() => undefined)

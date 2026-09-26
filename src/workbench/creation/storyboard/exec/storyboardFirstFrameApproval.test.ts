@@ -42,7 +42,7 @@ const shot: PlanShot = {
   keyframe: { enabled: true, prompt: 'Approved frame', modelKey: 'approval-image', modelVendor: 'approval-fixture', modeId: 't2i' },
 }
 const plan: StoryboardPlan = { title: 'Original first-frame action', anchors: [], shots: [shot] }
-const context = { documentId: 'doc', designId: 'design', plan }
+const context = { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan }
 const state = () => useGenerationCanvasStore.getState()
 /** 方案写入会顺带建它的分镜表视图（与手建方案同一条路）；这里数的是生成类节点。 */
 const shotNodes = () => state().nodes.filter(node => node.kind !== 'shot_table')

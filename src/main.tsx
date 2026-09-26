@@ -23,6 +23,10 @@ import { NomiAppProviders } from './NomiAppProviders'
 import { NomiColorSchemeProvider } from './theme/NomiColorSchemeProvider'
 import { primeNomiColorScheme } from './theme/colorScheme'
 import { reportVideoCodecSupport } from './media/videoCodecProbe'
+import { installRendererErrorCapture } from './desktop/rendererLog'
+
+// 没人接住的渲染层异常也要进主进程日志（诊断包里要看得到）——越早装，漏的越少。
+installRendererErrorCapture()
 
 // 预渲染钉死 color-scheme 属性（未手动选过时按本地时间「天黑自动暗」、之后用户存储），让
 // tailwind base 层的 [data-mantine-color-scheme="dark|light"] 选择器即刻命中，避免首帧主题闪烁。

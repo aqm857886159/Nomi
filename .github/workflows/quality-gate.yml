@@ -386,6 +386,13 @@ jobs:
         run: pnpm run build
       - name: Core flow smoke
         run: xvfb-run -a pnpm run test:core-smoke -- --fixture ${{ matrix.fixture }}
+      # 画布跟手结构断言（2026-09-25 用户拍板：每个非纯文档 PR 都跑，docs/plan/2026-09-25-canvas-follow-hand.md「守住」第 1 条）。
+      # 判的是计数不是毫秒（空闲 <video> = 0、同时在播 ≤ 1、悬停离开不留播放器、打字 / 新建节点别的节点重渲 0、
+      # 叠放拖出不粘、方向键能挪），Linux 软件渲染上也判得准。它自带 76 节点真实素材画布、与冒烟夹具无关，
+      # 所以只在阻断的 empty 那一格跑、复用上面同一次构建（约 +2 分钟，不另起 runner、不重装依赖）。
+      - name: Canvas follow-hand structural
+        if: matrix.fixture == 'empty'
+        run: xvfb-run -a node tests/ux/canvas-follow-hand.perf.mjs --structural
       - name: Upload walkthrough evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -396,6 +403,7 @@ jobs:
             outputs/core-smoke/**
             tests/ux/shots/node-params-and-version-pill/**
             tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/canvas-follow-hand/**
           if-no-files-found: warn
           retention-days: 7
 

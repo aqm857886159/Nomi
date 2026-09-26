@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { useWorkbenchStore } from '../workbenchStore'
 import { TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN, clampTimelinePanelHeight } from './timelinePanelBounds'
-import { TIMELINE_PANEL_COLLAPSED_DEFAULT, readTimelinePanelCollapsed, writeTimelinePanelCollapsed } from './timelinePanelPrefs'
+import { dockCollapsedByDefault, readDockCollapsed, writeDockCollapsed } from '../generation/dockCollapsePrefs'
 
 const source = fs.readFileSync(path.join(process.cwd(), 'src/workbench/timeline/TimelinePanel.tsx'), 'utf8')
 
@@ -156,20 +156,20 @@ describe('收起状态记在本机偏好里', () => {
   })
 
   it('没存过时用默认值（收起）', () => {
-    expect(readTimelinePanelCollapsed()).toBe(TIMELINE_PANEL_COLLAPSED_DEFAULT)
+    expect(readDockCollapsed('timelinePanel')).toBe(dockCollapsedByDefault('timelinePanel'))
   })
 
   it('写过之后读得回来（展开 / 收起两个方向都要）', () => {
-    writeTimelinePanelCollapsed(false)
-    expect(readTimelinePanelCollapsed()).toBe(false)
-    writeTimelinePanelCollapsed(true)
-    expect(readTimelinePanelCollapsed()).toBe(true)
+    writeDockCollapsed('timelinePanel', false)
+    expect(readDockCollapsed('timelinePanel')).toBe(false)
+    writeDockCollapsed('timelinePanel', true)
+    expect(readDockCollapsed('timelinePanel')).toBe(true)
   })
 
   it('store 的 setter 顺手落盘，不只改内存', () => {
     useWorkbenchStore.getState().setTimelinePanelCollapsed(false)
-    expect(readTimelinePanelCollapsed()).toBe(false)
+    expect(readDockCollapsed('timelinePanel')).toBe(false)
     useWorkbenchStore.getState().setTimelinePanelCollapsed(true)
-    expect(readTimelinePanelCollapsed()).toBe(true)
+    expect(readDockCollapsed('timelinePanel')).toBe(true)
   })
 })

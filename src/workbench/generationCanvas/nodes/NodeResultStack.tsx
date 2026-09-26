@@ -29,6 +29,7 @@ import { historyVideoTimeFromPointer, nudgeHistoryVideoTime } from './historyVid
 import { resolveResultStackPlacement, type ResultStackPlacement } from './nodeResultStackPlacement'
 import { getGenerationNodeIcon } from './renderRegistry'
 import { CANVAS_RESULT_DRAG_MIME, encodeCanvasResultDrag } from '../components/canvasResultDrag'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 const INITIAL_VISIBLE_RESULTS = 12
 
@@ -350,7 +351,7 @@ export function NodeResultStack({
       const outcome = await deleteAssetResult(asset, loaded)
       if (outcome.failedFileCount > 0) reportFeedback(t('generationCommon.resultStack.deleteFileFailed'))
     } catch (error) {
-      console.error('delete node result failed', error)
+      logRendererError('node-result-delete-failed', error)
       reportFeedback(t('generationCommon.resultStack.deleteFailed'))
     }
   }

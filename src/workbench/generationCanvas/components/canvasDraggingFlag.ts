@@ -30,6 +30,8 @@ export const CANVAS_DRAGGING_OWNER = {
 export type CanvasDraggingOwner = (typeof CANVAS_DRAGGING_OWNER)[keyof typeof CANVAS_DRAGGING_OWNER]
 
 export type CanvasDragLease = { activate: () => void; release: () => void; cancel: () => void }
+/** 这次手势最后一次已知的指针位置（收尾时用来补发松手）。 */
+export type CanvasDragPoint = { clientX: number; clientY: number }
 const draggingOwnersByStage = new WeakMap<Element, Set<symbol>>()
 
 /**
@@ -125,11 +127,23 @@ export function cancelCanvasDraggingWithin(container: Element | null | undefined
 export function beginCanvasDragging(
   origin: Element | null | undefined,
   owner: CanvasDraggingOwner,
-  options: { onCancel?: () => void; pointerId?: number; active?: boolean } = {},
+  options: {
+    onCancel?: (lastPoint: CanvasDragPoint | null) => void
+    /**
+     * 按着鼠标键的手势才传（拖节点）：松手事件丢了——鼠标键已经松开还在移动，或者浏览器接管成了原生拖放
+     * （原生拖放期间不派发 pointerup / mouseup）——就把这次手势当作「在这里松手」收尾。
+     * 0.21 的自研拖动有这条保护（「按键已松仍收到移动就清掉拖动状态」），换成 React Flow 时丢了，
+     * 于是一次丢失的 mouseup 就让节点粘在光标上（2026-09-25 用户报：导入视频后单击拖动，一直跟着鼠标）。
+     */
+    onReleaseLost?: (lastPoint: CanvasDragPoint) => void
+    pointerId?: number
+    active?: boolean
+  } = {},
 ): CanvasDragLease {
   const stage = origin?.closest(STAGE_SELECTOR)
   const token = Symbol(owner)
   let released = false
+  let lastPoint: CanvasDragPoint | null = null
   const cleanup: Array<() => void> = []
   const activate = () => {
     if (!stage || released) return
@@ -153,7 +167,7 @@ export function beginCanvasDragging(
   const cancel = () => {
     if (released) return
     release()
-    options.onCancel?.()
+    options.onCancel?.(lastPoint)
   }
   if (origin && typeof window !== 'undefined') {
     const interrupted = (event: Event) => {
@@ -169,6 +183,21 @@ export function beginCanvasDragging(
     for (const name of ['blur', 'pointercancel', 'lostpointercapture']) {
       window.addEventListener(name, interrupted, true)
       cleanup.push(() => window.removeEventListener(name, interrupted, true))
+    }
+    if (options.onReleaseLost) {
+      const onReleaseLost = options.onReleaseLost
+      const releaseLost = (event: Event) => {
+        if (released) return
+        const pointer = event as PointerEvent
+        if (typeof pointer.clientX === 'number') lastPoint = { clientX: pointer.clientX, clientY: pointer.clientY }
+        if (event.type === 'pointermove' && (pointer.pointerType !== 'mouse' || pointer.buttons !== 0)) return
+        release()
+        onReleaseLost(lastPoint ?? { clientX: 0, clientY: 0 })
+      }
+      for (const name of ['pointermove', 'dragstart']) {
+        window.addEventListener(name, releaseLost, true)
+        cleanup.push(() => window.removeEventListener(name, releaseLost, true))
+      }
     }
     const visibility = () => { if (document.hidden) cancel() }
     document.addEventListener('visibilitychange', visibility)

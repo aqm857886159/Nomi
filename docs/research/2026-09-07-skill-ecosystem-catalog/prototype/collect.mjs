@@ -11,6 +11,7 @@
  * 原型实现：GitHub raw 直拉 + HF API；真实生产换 git clone/管线时保留同一输出形状。
  */
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 import { parseFrontmatter } from "./validate-skill.mjs";
 
 const RAW = "https://raw.githubusercontent.com";
@@ -194,5 +195,5 @@ async function main() {
   console.log(`\n写 ${entries.length} 条 -> ${outFile} | 分档 S=${tiers.S ?? 0} A=${tiers.A ?? 0} watch=${tiers.watch ?? 0} (P85=${p85} P15=${p15})`);
 }
 
-const isDirectRun = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirectRun) main();

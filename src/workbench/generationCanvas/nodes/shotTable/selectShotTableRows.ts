@@ -7,7 +7,7 @@ import type { ShotRowExec } from '../../../creation/storyboard/exec/storyboardRo
 import { effectiveShotValue } from '../../../creation/storyboard/shotRow/shotRowModel'
 import { referenceColumnOf, type ShotReferenceColumn } from '../../../creation/storyboard/shotRow/shotReferenceCells'
 import { stableShotId, effectiveShotDurationSec } from '../../agent/storyboardPlan'
-import { selectProductionShotRows, type LandedRun } from './productionShotRows'
+import { selectProductionShotRows } from './productionShotRows'
 
 export type ShotTableRowView = {
   id: string
@@ -31,12 +31,10 @@ export function selectShotTableRows(input: {
   nodes: readonly GenerationCanvasNode[]
   imageModelOptions: readonly ModelOption[]
   videoModelOptions: readonly ModelOption[]
-  /** 落地 store 缓存的 Run；只有 production 表读它（占位三态）。 */
-  run?: LandedRun | null
 }): ShotTableRowView[] {
   const { table, designs, nodes, imageModelOptions, videoModelOptions } = input
   if (table.source.kind === 'production') {
-    return selectProductionShotRows({ runId: table.source.runId, nodes, imageModelOptions, videoModelOptions, run: input.run })
+    return selectProductionShotRows({ runId: table.source.runId, nodes, imageModelOptions, videoModelOptions })
   }
   if (table.source.kind === 'deconstruction') {
     return (table.rows ?? []).map(row => ({

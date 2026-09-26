@@ -6,6 +6,7 @@
 import { launchNomiApp } from "./_launchApp.mjs";
 import { checkComposerFixedFooter } from "./_composerFixedFooter.mjs";
 import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
+import { panCanvasUntilInside } from "./_canvasHit.mjs";
 import { stationTimeout } from "./_station-budget.mjs";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -128,24 +129,10 @@ try {
   await promptInput.click();
   await promptInput.fill(longPrompt);
   await win.waitForTimeout(500);
-  // 画布平移：把 composer 拉进「AppBar 之下、窗口底之上」的可视带（节点落点随机，卡可能伸出窗口
-  // → elementFromPoint 打在视口外恒 null，误报被挡）。wheel 落在远离卡片的空白区。
-  for (let i = 0; i < 6; i++) {
-    const box = await composer.boundingBox();
-    if (!box) break;
-    const vp = await win.evaluate(() => ({
-      w: window.innerWidth,
-      h: window.innerHeight,
-      appbarBottom: document.querySelector(".nomi-appbar")?.getBoundingClientRect().bottom ?? 0,
-    }));
-    let dy = 0;
-    if (box.y < vp.appbarBottom + 8) dy = box.y - (vp.appbarBottom + 8);
-    else if (box.y + box.height > vp.h - 16) dy = Math.min(box.y + box.height - (vp.h - 16), box.y - (vp.appbarBottom + 8));
-    if (Math.abs(dy) < 4) break;
-    await win.mouse.move(vp.w - 80, Math.max(vp.appbarBottom + 40, 200));
-    await win.mouse.wheel(0, dy);
-    await win.waitForTimeout(250);
-  }
+  // 浮框钉在节点正下方、被挡就挡（09-25，不再自己躲进视口），伸出窗口那截 elementFromPoint 恒 null。
+  // 像用户一样在画布真空白处按住拖，把它整张拉进舞台、停在底部停靠栏之上（共用 panCanvasUntilInside）。
+  const composerPan = await panCanvasUntilInside(win, composer);
+  assert(composerPan.ok, `把浮框整张拖进舞台：${JSON.stringify(composerPan)}`);
   const composerCheck = await composer.evaluate((card) => {
     const editorEl = card.querySelector(".generation-canvas-v2-node__prompt-input");
     let scroller = editorEl;

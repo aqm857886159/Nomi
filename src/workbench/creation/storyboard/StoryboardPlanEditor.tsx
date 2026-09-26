@@ -705,7 +705,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             约 220px（中文约 110px），而左边那句**有行动价值**的进度/问题摘要正是靠 `truncate`
             在这点宽度上被切掉的——1280 + Agent 面板展开时 EN 被切 426px，连「还差几张参考卡」
             都看不见；1680 宽屏也仍被切 26px。让位顺序反了：零行动价值的重复说明不让，
-            要用户去做事的那句反而让。删掉重复的那句就是修在根因（R2「有行动价值吗，没有删」）。 */}
+            要用户去做事的那句反而让。删掉重复的那句就是修在根因（R2「有行动价值吗，没有删」）。
+            2026-09-26 提示行里那半句也删了：用户自己点的单行生成不再弹花钱确认卡，承诺不成立。 */}
         <div className="flex items-center gap-2.5 shrink-0">
           <WorkbenchButton
             variant="primary"

@@ -265,8 +265,12 @@ function sendReply(state, reply) {
  * Its received promise resolves on request arrival; a hold does not emit headers unless text is set.
  * release(text/tool) also works before arrival and is harmless after cancellation/close/completion.
  * close owns server connections, not caller directories. Call assertClean before closing a walk.
+ *
+ * `videoResultPath`：apimart 档出片地址的路径段（缺省 `/fixture/video.mp4`）。真供应商的产物地址常带一个很长的
+ * basename（签名段 / 哈希段），落盘时怎么起名要靠它复现（2026-09-26 长文件名被截成 `.bin`）。
  */
-export async function createAgentRuntimeFixture({ rootDir, settingsDir, generationProvider = 'loopback', userDataDir, appName }) {
+export async function createAgentRuntimeFixture({ rootDir, settingsDir, generationProvider = 'loopback', userDataDir, appName, videoResultPath = '/fixture/video.mp4' }) {
+  if (!/^\/fixture\/[^/?#]+$/.test(videoResultPath)) throw new TypeError('videoResultPath must be /fixture/<name>')
   if (!path.isAbsolute(rootDir) || !path.isAbsolute(settingsDir)) {
     throw new TypeError('Fixture rootDir and settingsDir must be absolute paths')
   }
@@ -283,12 +287,22 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   }
   const imageBytes = await readFile(path.join(rootDir, 'resources/onboarding-demo/shot-4.jpg'))
   const imageURL = `data:image/jpeg;base64,${imageBytes.toString('base64')}`
+  // 视频产物用一段**真的供应商出片**（2026-08-20 L3 全旅程审计里真模型生成的 mp4），不是合成色块：
+  // 宿主要把它下载、校验、落进项目素材库，再投成画布节点的 nomi-local:// 结果。
+  // 只在真有人来取视频时才读（非视频走查不必把近 1MB 读进内存）。
+  let videoBytes
+  const readVideoBytes = async () => (videoBytes ??= await readFile(path.join(rootDir, 'docs/audit/2026-08-20-l3-f1-full-journey/08-video-1787216968985.mp4')))
   /** apimart 是**异步**协议：create 回 task_id，query 轮询到 completed 才给出图的 URL。 */
   const tasks = new Map()
   let taskSequence = 0
   let fixtureOrigin = ''
   const requests = []
   const images = []
+  /** 视频生成的 create 请求（apimart `/v1/videos/generations`）。 */
+  const videos = []
+  // 真视频要跑**几分钟**：受理之后供应商一直回 `processing`，直到走查说「供应商那边出片了」。
+  // 默认就压着——一条走查若不 release，它看到的正是用户看到的「还在生成」。
+  let videosHeld = true
   const unexpected = []
   const expectations = []
   const sockets = new Set()
@@ -309,6 +323,13 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       response.end(imageBytes)
       return
     }
+    if (record.path === '/fixture/video.mp4' || record.path === videoResultPath) {
+      const bytes = await readVideoBytes()
+      if (!canWrite(response)) return
+      response.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': bytes.length })
+      response.end(bytes)
+      return
+    }
     // Higgsfield 轮询：`GET /requests/<id>/status`，产物键是 `images[0].url`（与 apimart 不对称）。
     const higgsfieldStatus = /^\/requests\/([^/?]+)\/status/.exec(record.path)
     if (higgsfieldStatus) {
@@ -324,6 +345,14 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     if (taskQuery) {
       const task = tasks.get(taskQuery[1])
       if (!task) { jsonResponse(response, 404, { code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }); return }
+      task.polls = (task.polls ?? 0) + 1
+      if (task.kind === 'video') {
+        // apimart 视频：结果在 data.result.videos[0].url[0]（url 本身是数组，见 APIMART_VIDEO_QUERY_OP）。
+        jsonResponse(response, 200, { code: 200, data: videosHeld
+          ? { id: taskQuery[1], status: 'processing' }
+          : { id: taskQuery[1], status: 'completed', result: { videos: [{ url: [`${fixtureOrigin}${videoResultPath}`] }] } } })
+        return
+      }
       jsonResponse(response, 200, { code: 200, data: {
         id: taskQuery[1], status: 'completed',
         result: { images: [{ id: taskQuery[1], url: [`${fixtureOrigin}/fixture/image.jpg`], filename: 'fixture.jpg' }] },
@@ -332,6 +361,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     }
     if (record.path === '/v1/chat/completions') requests.push(record)
     else if (record.path === '/v1/images/generations' || record.path.startsWith('/higgsfield-ai/')) images.push(record)
+    else if (record.path === '/v1/videos/generations') videos.push(record)
     const chunks = []
     for await (const chunk of request) chunks.push(chunk)
     record.body = Buffer.concat(chunks).toString('utf8')
@@ -349,6 +379,12 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       if (!apimartMode) { jsonResponse(response, 200, { data: [{ url: imageURL }] }); return }
       const taskId = `agent-runtime-${++taskSequence}`
       tasks.set(taskId, { body: record.body })
+      jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
+      return
+    }
+    if (apimartMode && record.path === '/v1/videos/generations') {
+      const taskId = `agent-runtime-video-${++taskSequence}`
+      tasks.set(taskId, { body: record.body, kind: 'video' })
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
       return
     }
@@ -390,6 +426,10 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       }
     })
   })
+  // Node 默认 5s 就关闲置 keep-alive 连接；宿主（undici）恰在那一刻复用它发付费提交，会读到 ECONNRESET，
+  // 而付费提交「回执未知不重试」是有意的 fail-closed。真供应商网关的闲置超时是分钟级，夹具取 30s（< headersTimeout 60s），
+  // 否则走查里任何一次「等画面停稳再点确认」的正常停顿都会撞上这个 5s 窗口。
+  server.keepAliveTimeout = 30_000
   server.on('connection', (socket) => {
     sockets.add(socket)
     socket.once('close', () => sockets.delete(socket))
@@ -422,7 +462,11 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     })
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
-      baseURL, requests, images, unexpected, close, generationProvider,
+      baseURL, requests, images, videos, unexpected, close, generationProvider,
+      /** 供应商那边出片了：此后每次查询都回 completed + 真 mp4 的地址。 */
+      releaseVideos() { videosHeld = false },
+      /** 每个视频任务被查询过几次（证「宿主一直在问」而不是停手了）。 */
+      videoTaskPolls() { return [...tasks.values()].filter((task) => task.kind === 'video').map((task) => task.polls ?? 0) },
       /** @param {{label:string, match?:(body:unknown, record:RequestRecord)=>boolean, reply:Reply}} options */
       expectText({ label, match = () => true, reply }) {
         if (closed) throw new Error('Fixture is closed')

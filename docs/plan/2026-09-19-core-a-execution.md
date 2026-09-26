@@ -1,5 +1,7 @@
 # Core A execution and acceptance
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-09-20 重新实施：现行指令以 [core-a-restart](2026-09-20-core-a-restart.md) 为准。本文件后续内容保留为历史记录；旧 T3 扩范围解释不再生效。
 
 Status: implementation in progress; no release approval.

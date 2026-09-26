@@ -10,6 +10,7 @@ import type { ExportQuality } from './exportTypes'
 import { buildRenderManifestRequest } from './renderManifest'
 import { renderTextOverlays } from './textOverlayPng'
 import { resolveTimelinePlaybackUrls } from '../timeline/timelinePlaybackUrl'
+import { logRendererWarn } from '../../desktop/rendererLog'
 
 const MP4_WEBM_IPC_CHUNK_BYTES = 1024 * 1024
 
@@ -139,7 +140,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
       try {
         await desktop.exports.cancel(jobId)
       } catch (cancelError) {
-        console.warn('Failed to cancel MP4 export job after renderer-side failure', cancelError)
+        logRendererWarn('export-cancel-failed', undefined, cancelError)
       }
     }
     const message = error instanceof Error ? error.message : i18n.t('runtime.export.mp4Failed')

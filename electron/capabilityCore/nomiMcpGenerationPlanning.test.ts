@@ -447,7 +447,9 @@ describe("MCP semantic generation planning journey", () => {
     expect(seedanceContext).toMatchObject({ modelId: "doubao-seedance-2.0", archetypeId: "seedance-2-apimart" });
     expect(seedanceContext?.variants.map((variant) => variant.id)).toEqual(expect.arrayContaining(["standard", "fast", "mini"]));
     const resolutionOptions = (modes: Array<{ parameters: Array<{ key: string; options?: Array<{ value: unknown }> }> }>) => modes.find((mode) => mode.id === "omni")?.parameters.find((parameter) => parameter.key === "resolution")?.options?.map((option) => option.value);
-    expect(resolutionOptions(seedanceContext?.modes ?? [])).toEqual(["480p", "720p", "1080p", "4k"]);
+    // 顶层模式 = 不传 variantId 时真正会跑的那个变体（默认 Fast）的参数面。2026-09-26 之前这里是 standard 的
+    // （目录基础行被反推成 standard），而卡上显示 Fast——模型读到的参数表与实际派发的不是同一档。
+    expect(resolutionOptions(seedanceContext?.modes ?? [])).toEqual(["480p", "720p"]);
     expect(resolutionOptions(seedanceContext?.variants.find((variant) => variant.id === "standard")?.modes ?? [])).toEqual(["480p", "720p", "1080p", "4k"]);
     expect(resolutionOptions(seedanceContext?.variants.find((variant) => variant.id === "fast")?.modes ?? [])).toEqual(["480p", "720p"]);
     const created = await harness.call(32, "tools/call", {

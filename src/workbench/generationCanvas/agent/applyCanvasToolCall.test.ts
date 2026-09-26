@@ -31,23 +31,21 @@ describe('applyCanvasToolCall clientId 翻译', () => {
     useWorkbenchStore.setState({ activeCategoryId: 'shots', canvasFitNonce: 0, canvasFitCategoryId: null })
   })
 
-  it('批量创建节点后请求一次适应视图，单节点不打断当前视口', async () => {
-    await applyCanvasToolCall('create_canvas_nodes', {
-      nodes: [{ clientId: 'solo', kind: 'image', title: '单节点', prompt: 'p' }],
-    })
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
-
+  // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：Agent 建卡（单个、批量、跨分类）一律不请求适应、
+  // 不派发聚焦、不切分类——屏外 / 别的分类的新节点由画布边缘提示指路。
+  it('reported case: creating nodes never moves the viewport, focuses a node, or switches category', async () => {
+    // 聚焦事件这一侧由 canvasViewportMovers.structure.test.ts 的名单守（这里是 node 环境，没有 window）。
+    await applyCanvasToolCall('create_canvas_nodes', { nodes: [{ clientId: 'solo', kind: 'image', title: '单节点', prompt: 'p' }] })
     await applyCanvasToolCall('create_canvas_nodes', {
       nodes: [
         { clientId: 'batch-1', kind: 'image', title: '批量 1', prompt: 'p1' },
         { clientId: 'batch-2', kind: 'video', title: '批量 2', prompt: 'p2' },
       ],
     })
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(1)
-    expect(useWorkbenchStore.getState().canvasFitCategoryId).toBe('shots')
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
   })
 
-  it('批量节点不在当前分类时切到包含新节点的主分类再 fit', async () => {
+  it('class: nodes landing in another category leave the active category and viewport alone', async () => {
     useWorkbenchStore.getState().setActiveCategoryId('audio')
     await applyCanvasToolCall('create_canvas_nodes', {
       nodes: [
@@ -55,9 +53,8 @@ describe('applyCanvasToolCall clientId 翻译', () => {
         { clientId: 'shot-1', kind: 'video', title: '镜头', prompt: 'p2' },
       ],
     })
-    expect(useWorkbenchStore.getState().activeCategoryId).toBe('shots')
-    expect(useWorkbenchStore.getState().canvasFitCategoryId).toBe('shots')
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(1)
+    expect(useWorkbenchStore.getState().activeCategoryId).toBe('audio')
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
   })
 
   it('resetClientIdRegistry 清表后旧 clientId 不再解析到旧项目节点(P1 治跨项目串台)', async () => {

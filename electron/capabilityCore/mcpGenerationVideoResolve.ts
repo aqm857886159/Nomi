@@ -14,7 +14,8 @@ import type {
   VideoGenerationRecommendationInput,
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
-import { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration, videoVariantIdsOf } from "../shared/videoCapabilities/recommendation";
+import { effectiveVideoModes, recommendVideoGeneration, videoVariantIdsOf } from "../shared/videoCapabilities/recommendation";
+import { canonicalArchetypeVariantId, resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode } from "../shared/videoCapabilities/types";
 
@@ -125,11 +126,9 @@ export function candidatesForCurrentVideoModel(
     || variantsFor(item).some((variant) => (variant.identifierPatterns ?? [])
       .some((identity) => normalizedModelIdentity(identity) === modelId)));
   const scoped = exactMatches.length > 0 ? exactMatches : aliasMatches;
-  const selectedVariantId = (item: VideoModelCandidate): string | undefined => {
-    const requested = typeof candidate.variantId === "string" ? candidate.variantId.trim() : "";
-    const requestedCanonical = canonicalVideoVariantId(item.archetype, requested);
-    return requestedCanonical || variantForModelId(item)?.id || item.variantId;
-  };
+  // 找行（上面）可以看模型名是不是这个档案的某个身份；**选哪个变体**只问唯一 owner。
+  const selectedVariantId = (item: VideoModelCandidate): string | undefined =>
+    resolveArchetypeVariant(item.archetype, { variantId: candidate.variantId, modelId: candidate.modelId })?.id;
   if (scoped.length > 0) return scoped.map((item) => ({ ...item, ...(selectedVariantId(item) ? { variantId: selectedVariantId(item) } : {}) }));
   return providerCandidates.length > 0 ? providerCandidates : candidates;
 }
@@ -143,11 +142,8 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
         || (variant.identifierPatterns ?? []).some((identity) => normalizedModelIdentity(identity) === modelId))
   ));
   if (!source) return null;
-  const inferredVariant = (source.archetype.variants ?? []).find((variant) => normalizedModelIdentity(variant.modelKey) === modelId
-    || (variant.identifierPatterns ?? []).some((identity) => normalizedModelIdentity(identity) === modelId));
   const requested = typeof candidate.variantId === "string" ? candidate.variantId.trim() : "";
-  const requestedCanonical = canonicalVideoVariantId(source.archetype, requested);
-  if (requested && !requestedCanonical) {
+  if (requested && !canonicalArchetypeVariantId(source.archetype, requested)) {
     // 旧实现只说「Unknown video variant: X」——模型读完仍然不知道该填什么，于是下一轮换个名字再猜。
     // 拒绝必须自带出路（合法变体清单），与参数值层同一条纪律（`ParameterRejection`）。
     const allowedVariantIds = videoVariantIdsOf(source.archetype);
@@ -157,7 +153,9 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
       { code: "unknown_variant", path: "variantId", allowedVariantIds },
     );
   }
-  const variantId = requestedCanonical ?? inferredVariant?.id ?? source.variantId ?? source.archetype.defaultVariantId;
+  // 付费卡与画布问的是同一个函数、同一组输入（variantId + 模型名）。以前这里拿目录模型名反推，
+  // 而 `doubao-seedance-2.0` 就是 standard 的 key——卡上写 Fast，派出去是 standard（2026-09-26）。
+  const variantId = resolveArchetypeVariant(source.archetype, { variantId: requested, modelId: candidate.modelId })?.id;
   const baseModelId = source.archetype.catalogModelKey?.trim() || source.modelKey;
   return {
     candidate: { ...candidate, modelId: baseModelId, ...(variantId ? { variantId } : {}) },
@@ -221,8 +219,9 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
 
 /** Exact provider wire model used by the existing catalog mappings. */
 export function videoTransportModelIdForPlan(candidate: PlanCandidate, videoCandidate: VideoModelCandidate, mode: ArchetypeMode): string {
-  const variantId = candidate.variantId ?? videoCandidate.variantId ?? videoCandidate.archetype.defaultVariantId;
-  const variant = videoCandidate.archetype.variants?.find((item) => item.id === variantId);
+  const variant = resolveArchetypeVariant(videoCandidate.archetype, {
+    variantId: candidate.variantId ?? videoCandidate.variantId, modelId: candidate.modelId,
+  });
   return variant?.modelKey?.trim() || mode.modelEnum?.trim() || videoCandidate.modelKey;
 }
 

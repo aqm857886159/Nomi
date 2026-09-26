@@ -5,7 +5,6 @@ import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { NodeLockBadge } from './NodeLockBadge'
-import { FOCUS_GENERATION_NODE_EVENT } from './nodeSizing'
 
 // 节点浮动工具栏的**单一共享实现**（P1 收口）：图片编辑 / 视频抽帧 / 全景 / 下载三+条以前是三份
 // 几乎一字不差的拷贝、且各自带一堆 token 违规（rgba 硬编码 / gap-[7px] / 图标 16/1.8…）。这里一次性
@@ -213,12 +212,8 @@ export function ToolbarDuplicateVariantButton({ nodeId }: { nodeId: string }): J
       icon={<IconCopy size={ICON.size} stroke={ICON.stroke} />}
       title={t('generationCommon.node.duplicateVariant')}
       ariaLabel={t('generationCommon.node.duplicateVariant')}
-      onClick={() => {
-        const duplicate = duplicateAsVariant(nodeId)
-        if (duplicate && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: duplicate.id } }))
-        }
-      }}
+      // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
+      onClick={() => { duplicateAsVariant(nodeId) }}
     />
   )
 }

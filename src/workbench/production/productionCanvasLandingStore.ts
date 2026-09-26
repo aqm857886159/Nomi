@@ -1,31 +1,35 @@
 import { declareStoreLifetime } from '../project/storeLifetime'
-// P4 S5 — 画布落地的运行时驱动（渲染层）。一个轻 store 持有「当前项目最活跃的多镜 Run 全量」，
-// 供占位节点派生三态（shotPlaceholderState）。真相源仍是主进程的 Run（这里只是它的只读投影缓存，非第二真相源）。
+// P4 S5 — 制作 Run 在渲染层的只读投影缓存（画布上**每一个**落了节点的 Run 各一份）。
+// 真相源仍是主进程的 Run；这里只喂「排队中 / 已停」两块制作专属小标与返工/续拍入口。
 //
-// 逐镜 result 回填**不在这里 poll**：由主进程调度器完成一镜即 requestRenderer('production.attach-shot-result')
-// 推过来（「逐个冒」），渲染层在 capability handler 里落地（multiShotCanvasLanding.attachShotResult）。
-// 打开项目补齐时的历史 result 由 materialize-shots 载荷一并带过来回填。故本 store 只管三态渲染，不碰 url。
+// 「生成中 / 结果 / 失败」**不从这里读**：主进程的画布落地投影把它们写进节点自己的运行记录
+// （materialize-shots），与普通生成同一份状态（2026-09-25，见 ProductionShotPlaceholder 头注释）。
+//
+// 以前这里只存「画布上第一个 Run」：画布上有两次 Agent 生成时，第二次的节点永远读不到自己的 Run。
 import { create } from 'zustand'
 
 import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
 
 type LandingStore = {
   projectId: string | null
-  run: ProductionRun | null
-  /** E2E 专用：钉住注入的 Run，让 host 的 poll 不覆盖（零额度走查构造各态并存的批次验三态占位）。生产恒 false。 */
+  /** runId → 该 Run 的最新快照。只含画布上有节点的 Run。 */
+  runs: Readonly<Record<string, ProductionRun>>
+  /** E2E 专用：钉住注入的 Run，让 host 的 poll 不覆盖（零额度走查构造各态并存的批次验占位）。生产恒 false。 */
   pinnedForE2E: boolean
-  setRun: (projectId: string, run: ProductionRun | null) => void
+  setRuns: (projectId: string, runs: Readonly<Record<string, ProductionRun>>) => void
   reset: () => void
 }
 
-/** 占位节点读它派生三态。只读投影缓存——写入只来自 host 的 poll（pinnedForE2E 时除外）。 */
+const EMPTY_RUNS: Readonly<Record<string, ProductionRun>> = Object.freeze({})
+
+/** 占位小标读它。只读投影缓存——写入只来自 host 的 poll（pinnedForE2E 时除外）。 */
 export const useProductionCanvasLandingStore = create<LandingStore>()((set, get) => ({
   projectId: null,
-  run: null,
+  runs: EMPTY_RUNS,
   pinnedForE2E: false,
-  // pin 住时 poll 的 setRun 是 no-op（走查注入的 Run 说了算）；生产从不 pin。
-  setRun: (projectId, run) => { if (!get().pinnedForE2E) set({ projectId, run }) },
-  reset: () => { if (!get().pinnedForE2E) set({ projectId: null, run: null }) },
+  // pin 住时 poll 的 setRuns 是 no-op（走查注入的 Run 说了算）；生产从不 pin。
+  setRuns: (projectId, runs) => { if (!get().pinnedForE2E) set({ projectId, runs }) },
+  reset: () => { if (!get().pinnedForE2E) set({ projectId: null, runs: EMPTY_RUNS }) },
 }))
 
 /**
@@ -34,6 +38,6 @@ export const useProductionCanvasLandingStore = create<LandingStore>()((set, get)
  */
 export const productionCanvasLandingStoreLifetime = declareStoreLifetime({
   store: 'useProductionCanvasLandingStore',
-  fields: { projectId: 'project', run: 'project', pinnedForE2E: 'project' },
+  fields: { projectId: 'project', runs: 'project', pinnedForE2E: 'project' },
   releaseProject: () => useProductionCanvasLandingStore.getState().reset(),
 })

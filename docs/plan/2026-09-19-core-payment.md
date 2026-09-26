@@ -1,5 +1,7 @@
 # Core payment and task identity repair
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Baseline: dfca9990b. Scope: K1-K3 of Core A. No paid calls, real projects, authoring migration, push or merge.
 
 Reuse reviewed payment-only deltas b39333729 and 883f6904b. Existing prior art: docs/research/2026-09-18-storyboard-single-ledger/prior-art.md and docs/plan/2026-09-18-tool-layer-prior-art-verdict.md. Keep ProductionRun CAS, immutable events and submission outbox as owners.

@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-composer-pinned-below-node",
+  "problem_type": "Canvas generation composer position and width depended on screen measurements, so the same node produced different rectangles over time",
+  "symptom": "User 2026-09-25: the parameter card under a node is misplaced, sometimes it sits in the middle of the node instead of below it, and its width keeps changing (\"偶尔长偶尔短\"). Real-machine reproduction on origin/main d8824a0c5 (Windows, used fixture, 1280x800): card top y=221 while the node top is y=168, i.e. the card covers the node; a freshly created image node's card was pushed to the upper-left with the node floating toolbar lying on top of the prompt; card width 483 px for one model and a different width for another.",
+  "direct_cause": "useComposerViewportPlacement ran a persistent requestAnimationFrame loop plus ResizeObserver/MutationObserver that measured the stage, the left toolbar, the bottom docks and the node chrome, then clamped the card into the usable viewport, flipped it above the node when the space below was short and shifted it back inside when neither side fit (Floating UI shift). With a small window, a timeline and the Agent panel open, the usable area is short, so shift moved the card onto the node. Width came from CSS w-max (360-880 px), so every model, language and parameter summary produced a different width.",
+  "class_root": "The composer rectangle was a function of the viewport and of every docked chrome element instead of a function of its own node. Any change in window size, docks, panels, toolbars or content re-placed the card, and the several fixes since 2026-09-10 each added one more avoided element to the same measurement loop.",
+  "affected_population": [
+    "Every canvas generation node (image, video, audio, 3D, text) on every platform when selected",
+    "Small windows and layouts with the timeline or Agent panel open, where the usable stage is short"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/composerCanvasPlacement.test.ts",
+      "tests/ux/composerLifecycle.test.mjs"
+    ],
+    "why": "The pure placement function is the single owner of the composer rectangle; its unit test sweeps node sizes x zooms and guards the composer source against screen measurement, and the browser harness test places the node at every stage edge with a toolbar and a bottom dock present."
+  },
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+  ],
+  "entry_points": [
+    "Selecting a single generation node mounts NodeGenerationComposer with host=canvas (BaseGenerationNode)",
+    "Changing aspect ratio in the composer re-anchors the node (buildAspectRatioNodePatch)",
+    "Design lab composer bar stage renders the same composer"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/components/node-toolbar",
+      "checked_at": "2026-09-25",
+      "purpose": "React Flow's own node overlay only takes position/align/offset and counter-scales; it does no viewport clamping or flipping. The user's pinned-below rule is the framework's answer; we keep the composer inside the node instead of NodeToolbar's portal because hiding the portal unmounts the TipTap editor during drags."
+    }
+  ],
+  "invariants": [
+    "The canvas composer's position and width are a pure function of the node visual size and the canvas zoom: top = node bottom + NODE_COMPOSER_GAP (canvas units), horizontal centre = node centre, screen width = NODE_COMPOSER_WIDTH",
+    "No canvas-host composer code measures the screen (no getBoundingClientRect, requestAnimationFrame loop, or placement against docks/viewport)"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+      "symbol": "composerCanvasPlacement"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "composerCanvasPlacement"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "buildAspectRatioNodePatch"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 3,
+    "why_not": "Before: useComposerViewportPlacement wrote the rectangle from four triggers (layout effect, rAF watch, ResizeObserver, MutationObserver), plus the aspect-ratio patch and the side flag. After: the pure owner, its single consumer, and the aspect-ratio patch. The owner and its consumer are one door split across definition and call site; buildAspectRatioNodePatch stays because it is the only node-geometry write that must keep the composer edge fixed, and it no longer takes a side."
+  },
+  "generality_proof": "The only writer of the composer rectangle now takes (visualSize, zoom) and nothing else, so no window size, dock, panel, toolbar, label row, neighbouring node or content length can move or resize it; every node kind and both locales go through the same function. The previous measurement inputs are deleted rather than bypassed.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+      "symbol": "composerCanvasPlacement",
+      "responsibility": "Single owner of the canvas composer rectangle: pinned below the node, centred, fixed screen width, counter-scaled"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "NodeGenerationComposer (host=canvas)",
+      "disposition": "enforced",
+      "evidence": "Spreads composerCanvasPlacement(visualSize, canvasZoom) into the anchor style; the structure test in composerCanvasPlacement.test.ts fails if getBoundingClientRect, requestAnimationFrame, resolveAnchoredPlacement or w-max reappear in this file"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "entry_point": "buildAspectRatioNodePatch",
+      "disposition": "enforced",
+      "evidence": "The attachment side parameter is gone; the node always keeps its bottom-centre fixed, which is exactly the edge the pinned composer hangs from"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "entry_point": "V4ContextRing popover via resolveAnchoredPlacement",
+      "disposition": "not-affected",
+      "evidence": "A panel popover, not a canvas overlay; it keeps flip/shift inside the panel. The composer-only dock and minimum-height inputs were removed from anchoredPlacement because this caller never passed them"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Composer placement has had root-cause contracts on 2026-09-09, 09-10, 09-19, 09-21 (twice) and 09-23; each added another measured obstacle. Any new docked chrome would have re-opened it.",
+    "same_class_scan": [
+      "rg useComposerViewportPlacement|resolveAnchoredPlacement|aboveClearanceFromNodeChrome|referenceScrollportHeight src tests evals",
+      "rg data-flipped|composerAttachmentSide|data-canvas-left-dock src tests evals",
+      "rg shouldPreserveComposerAttachmentOnRatioChange|didComposerAvailableSpaceChange|shouldAllowComposerAttachmentRecompute|composerPanRequestLifecycle src (test-only leftovers)",
+      "node scripts/door-map.mjs composerCanvasPlacement"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+    "invariant": "Composer rectangle = f(node visual size, zoom) only",
+    "failure_mode": "A non-finite or non-positive zoom falls back to scale(1); nothing else is an input, so there is no state in which the card is pushed onto the node",
+    "exception_policy": "none",
+    "strategy": "Replace the measurement loop with a pure placement function, delete the loop, its observers, the flip/clamp inputs and the helpers that only served it, and guard the composer source against re-introducing screen measurement",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+      "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "src/workbench/generationCanvas/nodes/anchoredPlacement.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerCanvasPlacement.test.ts",
+    "tests/ux/composerLifecycle.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerCanvasPlacement.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+      "src/workbench/generationCanvas/nodes/composerPanRequestLifecycle.ts",
+      "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "src/workbench/generationCanvas/nodes/anchoredPlacement.ts"
+    ],
+    "rationale": "Deleted the placement hook with its rAF/ResizeObserver/MutationObserver loop, the dead pan-request latch, the test-only attachment helpers and the ComposerAttachmentSide type in nodeSizing, the dock and minimum-height inputs of anchoredPlacement, and the data-canvas-left-dock marker whose only reader was the hook (the marker lived on CanvasToolbar.tsx and is removed in the same change)"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The composer lives inside the React Flow node transform by design; placement is application geometry and no dependency version is involved",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state: placement was never stored. Aspect-ratio patches now always keep the bottom edge, which matches the only side the composer can be on.",
+  "residual_risks": [
+    "Near the bottom or right edge of the stage the card is partly hidden by design; the user pans to see it (explicit user decision)",
+    "Width 560 fits the widest footer measured on 2026-09-25; a future footer control must fit inside it or the parameter summary truncates"
+  ]
+}

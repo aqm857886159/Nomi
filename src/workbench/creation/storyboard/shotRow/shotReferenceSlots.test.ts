@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SEEDANCE_2_5_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedance25'
 import { VEO_3_1_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/veo31'
 import { NANO_BANANA_2_ARCHETYPE } from '../../../../../electron/shared/modelArchetypes/nanoBanana2'
+import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedanceApimart'
 import type { ArchetypeMode, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { buildArchetypeInputParams } from '../../../generationCanvas/nodes/controls/archetypeMeta'
@@ -32,6 +33,7 @@ const SEEDANCE_FIRSTLAST = modeOf(SEEDANCE_2_5_ARCHETYPE, 'firstlast')
 const SEEDANCE_OMNI = modeOf(SEEDANCE_2_5_ARCHETYPE, 'omni')
 const VEO_FRAME = modeOf(VEO_3_1_ARCHETYPE, 'frame')
 const NANO_EDIT = modeOf(NANO_BANANA_2_ARCHETYPE, 'edit')
+const APIMART_SEEDANCE_2_I2V = modeOf(SEEDANCE_2_APIMART_ARCHETYPE, 'i2v')
 
 const shotOf = (over: Partial<PlanShot> = {}): PlanShot => ({
   index: 1,
@@ -139,12 +141,31 @@ describe('removeShotBinding / reorderShotBinding', () => {
 })
 
 describe('missingRequiredSlots — 按声明算，绑定能让它变绿', () => {
-  it('planned video keyframes satisfy only the first-frame slot across declared modes', () => {
+  // 计划首帧记在**生成时真正填的那个槽**上：模式有首帧槽就是首帧槽，没有就是 image_ref[0]
+  // （落画布时首帧图用一条 first_frame 边喂视频；发送侧把它同时放进 firstFrameUrl 与 referenceImages）。
+  // 这里曾经钉的是「只认 first_frame 槽」——于是只有 image_ref 的图生视频模式（APIMart Seedance 2.0 i2v 等
+  // 18 个）开了首帧也永远红、永远进不了批量，生成时那张首帧却照样发了出去。
+  it('planned video keyframes credit the slot generation actually fills (first_frame, else image_ref)', () => {
     const planned = shotOf({ shotKind: 'video', keyframe: { enabled: true } })
     expect(missingRequiredSlots(SEEDANCE_FIRST, planned, [])).toEqual([])
     expect(missingRequiredSlots(VEO_FRAME, planned, [])).toEqual([])
     expect(missingRequiredSlots(SEEDANCE_FIRSTLAST, planned, []).map(slot => slot.kind)).toEqual(['last_frame'])
-    expect(missingRequiredSlots(NANO_EDIT, planned, []).map(slot => slot.kind)).toEqual(['image_ref'])
+    expect(missingRequiredSlots(NANO_EDIT, planned, [])).toEqual([])
+    expect(missingRequiredSlots(APIMART_SEEDANCE_2_I2V, planned, [])).toEqual([])
+  })
+
+  it('APIMart Seedance 2.0 图生视频 + 开了首帧：不缺参考；没开首帧才缺', () => {
+    expect(missingRequiredSlots(APIMART_SEEDANCE_2_I2V, shotOf({ keyframe: { enabled: true } }), [])).toEqual([])
+    expect(missingRequiredSlots(APIMART_SEEDANCE_2_I2V, shotOf(), []).map(slot => slot.kind)).toEqual(['image_ref'])
+    expect(missingRequiredSlots(APIMART_SEEDANCE_2_I2V, shotOf({ shotKind: 'image', keyframe: { enabled: true } }), []).map(slot => slot.kind))
+      .toEqual(['image_ref'])
+  })
+
+  it('数组槽里计划首帧与已绑定参考都会发出去，两者相加（min=2 的多帧模式）', () => {
+    const twoRequired = { ...APIMART_SEEDANCE_2_I2V, slots: APIMART_SEEDANCE_2_I2V.slots.map(slot => ({ ...slot, min: 2 })) }
+    expect(missingRequiredSlots(twoRequired, shotOf({ keyframe: { enabled: true } }), []).map(slot => slot.kind)).toEqual(['image_ref'])
+    expect(missingRequiredSlots(twoRequired, shotOf({ keyframe: { enabled: true }, referenceBindings: { image_ref: [{ url: 'b.png' }] } }), []))
+      .toEqual([])
   })
 
   it('disabled keyframes and image shots do not supply a planned first frame', () => {

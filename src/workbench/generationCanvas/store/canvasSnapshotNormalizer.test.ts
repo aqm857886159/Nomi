@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { productionRunRecordId } from '../../../../electron/shared/productionShotPhase'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 
 // 重启收敛：磁盘里 status 仍 running/queued 的节点（上次退出时正在生成，已无活轮询循环）→
@@ -48,6 +49,33 @@ describe('normalizeStoreSnapshot — 重启收敛卡住的 mid-flight 节点', (
   })
 })
 
+// 2026-09-26 真付费 T5：两镜都在供应商那边跑，重开窗口后第 2 镜仍「生成中」、第 1 镜变成一张空白节点。
+// 制作投影写的「生成中」记录没有任务号（任务住在主进程的 Run 里），重开收敛把它当幽灵转圈收成了空闲；
+// 能不能回来全看事件尾巴里有没有它。这类记录只归制作投影管（主进程 Run 才知道它在不在跑），收敛不许碰。
+describe('normalizeStoreSnapshot — 制作投影写的「生成中」只归制作投影管', () => {
+  function productionNode(extra: Record<string, unknown>) {
+    return { id: 'shot-1-node', kind: 'video', title: '镜头 1', position: { x: 0, y: 0 }, meta: { productionRunId: 'op-1' }, ...extra }
+  }
+
+  it.each(['running', 'queued'] as const)('%s + 制作投影的记录（没有任务号）→ 原样留着，不收成空闲', (status) => {
+    const record = { id: productionRunRecordId('generation-op-1-shot-1-abc'), status, startedAt: 1, updatedAt: 2 }
+    const snap = normalizeStoreSnapshot({ nodes: [productionNode({ status, runs: [record] })] })
+    expect(snap.nodes[0].status).toBe(status)
+    expect(snap.nodes[0].runs?.[0]).toMatchObject({ id: record.id, status })
+  })
+
+  it('同一个制作节点上用户自己跑的那一次（本地记录、没任务号）照旧收敛成空闲', () => {
+    const snap = normalizeStoreSnapshot({
+      nodes: [productionNode({
+        status: 'running',
+        runs: [{ id: 'local-run-1', status: 'running', startedAt: 3, updatedAt: 4 }, { id: productionRunRecordId('job-0'), status: 'success', startedAt: 1, updatedAt: 2 }],
+      })],
+    })
+    expect(snap.nodes[0].status).toBe('idle')
+    expect(snap.nodes[0].runs?.[0]).toMatchObject({ id: 'local-run-1', status: 'cancelled' })
+  })
+})
+
 describe('normalizeStoreSnapshot — 连线身份修复', () => {
   it('旧快照中同两点多语义边的重复 id 会被确定性拆开', () => {
     const snapshot = normalizeStoreSnapshot({
@@ -80,5 +108,29 @@ describe('normalizeStoreSnapshot — plugin preservation', () => {
     expect(snapshot.nodes[0].pluginState?.state).toEqual({ checked: false })
     expect(snapshot.edges).toHaveLength(1)
     expect(snapshot.workflowTemplates).toHaveLength(1)
+  })
+})
+
+describe('normalizeStoreSnapshot — 旧版制作结果的签名预览链改写成素材库地址', () => {
+  it('result / history 里的 production-preview 链（5 分钟过期）→ nomi-local://asset；别的地址一个字不动', () => {
+    const stale = 'nomi-local://production-preview/project-1/op-1/asset-1/assets/generated/materialized/video-1.mp4?preview=expired-token'
+    const snapshot = normalizeStoreSnapshot({
+      nodes: [{
+        id: 'n1', kind: 'video', title: '镜头 58', position: { x: 0, y: 0 }, status: 'success',
+        result: { id: 'production-job-1', type: 'video', url: stale, thumbnailUrl: stale, createdAt: 1 },
+        history: [
+          { id: 'production-job-1', type: 'video', url: stale, createdAt: 1 },
+          { id: 'manual', type: 'video', url: 'nomi-local://asset/project-1/assets/manual.mp4', createdAt: 2 },
+        ],
+      }],
+      edges: [],
+    })
+    const node = snapshot.nodes[0]
+    expect(node.result?.url).toBe('nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4')
+    expect(node.result?.thumbnailUrl).toBe('nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4')
+    expect(node.history?.map((entry) => entry.url)).toEqual([
+      'nomi-local://asset/project-1/assets/generated/materialized/video-1.mp4',
+      'nomi-local://asset/project-1/assets/manual.mp4',
+    ])
   })
 })

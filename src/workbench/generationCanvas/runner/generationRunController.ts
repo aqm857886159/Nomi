@@ -6,10 +6,12 @@ import type { GenerationRunOutcome } from './generationRunOutcome'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
+import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
@@ -53,7 +55,6 @@ import {
   resolveAssetUploadConsent,
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
-import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 
 function reportAuthorizationFailure(error: unknown, projectId: string, nodeId: string): void {
@@ -97,9 +98,17 @@ export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
 export type AssetUploadConsentDecision = 'allow' | 'not-needed'
 
 /** Interactive validation is only for approval; author validation survives project switches. */
-export type GenerationConfirmationGuards =
+export type GenerationApprovalGuards =
   | { assertCurrent?: never; assertAuthorCurrent?: never }
   | { assertCurrent: () => Promise<void>; assertAuthorCurrent: () => Promise<void> }
+
+export type GenerationConfirmationGuards = GenerationApprovalGuards & {
+  /**
+   * 谁发起的。**必填、没有缺省**：付费确认按它判（Agent 发起一律弹，spendConfirmationRequirement）。
+   * 缺省成 'user' 就是 fail-open——下一个忘了报的新入口会被当成「用户点的便宜单张」静默花钱（R17：让编译器拦）。
+   */
+  initiator: SpendInitiator
+}
 
 export type RunGenerationNodeOptions = {
   assertAuthorCurrent?: () => Promise<void>
@@ -494,7 +503,7 @@ export async function runGenerationNodesBatch(
  * 单节点生成/重试/生成变体的轻确认 + 铸令牌 + 跑（付费守卫，务实纵深 A1）。
  * rerun=true 是「基于此生成变体」：先复制出新节点再绑令牌跑；普通重新生成走 regenerateNodeInPlace。
  */
-export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } & GenerationConfirmationGuards = {}): Promise<GenerationRunOutcome> {
+export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡、铸令牌）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
@@ -508,6 +517,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
     onQuoteConfirmed: (id) => { quoteId = id },
+    initiator: opts.initiator,
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.startGeneration'),
@@ -529,9 +539,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     if (!dup) return 'unavailable'
     runId = dup.id
     assertApprovedInputs = captureApprovedGenerationInputs([runId])
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: dup.id } }))
-    }
+    // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
   let grantId: string
   try {
@@ -557,7 +565,7 @@ export async function confirmAndRunNodeVariants(
   nodeId: string,
   count: number,
   // 托管同意由本函数自己的花钱卡问出来（下方固定传 'allow'），调用方给不了也不该给。
-  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent' | 'target' | 'assertAuthorCurrent'> & GenerationConfirmationGuards = {},
+  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent' | 'target' | 'assertAuthorCurrent'> & GenerationConfirmationGuards,
 ): Promise<void> {
   const project = withProjectAction((issued) => issued)
   if (!project) return
@@ -573,6 +581,7 @@ export async function confirmAndRunNodeVariants(
     let quoteId: string | undefined
     const ok = await confirmGenerationSpend(Array.from({ length: total }, () => node), {
       onQuoteConfirmed: (id) => { quoteId = id },
+      initiator: options.initiator,
       title: i18n.t('generationCommon.spend.startGeneration'),
       message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
       confirmLabel: i18n.t('generationCommon.spend.generate'),
@@ -604,7 +613,7 @@ export async function regenerateNodeInPlace(
   // 确认卡可带调用方的动作名（如分镜表「用新图重跑」）：用户点的是什么，卡上就回声什么，
   // 不让一张通用「重新生成」卡吃掉刚建立的语境（R16 情绪走查：小白在这一步会迟疑
   // 「到底用没用新图」）。缺省仍是「重新生成」，画布 composer 等既有调用方零变化。
-  opts?: { title?: string; confirmLabel?: string } & GenerationConfirmationGuards,
+  opts: { title?: string; confirmLabel?: string } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
@@ -619,15 +628,16 @@ export async function regenerateNodeInPlace(
   let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
     onQuoteConfirmed: (id) => { quoteId = id },
-    title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
+    initiator: opts.initiator,
+    title: opts.title || i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
-    confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
+    confirmLabel: opts.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
   // 「他点了取消」（见 `generationRunOutcome.ts`）。
   if (!ok) return 'declined'
-  await opts?.assertCurrent?.()
+  await opts.assertCurrent?.()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
   let grantId: string
   try {
@@ -636,10 +646,10 @@ export async function regenerateNodeInPlace(
     reportAuthorizationFailure(error, projectId, id)
     return 'unavailable'
   }
-  await opts?.assertCurrent?.()
+  await opts.assertCurrent?.()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
   try {
-    const result = await runGenerationNode(id, { assertAuthorCurrent: opts?.assertAuthorCurrent, assertApprovedInputs, grantId, assetUploadConsent: 'allow', target: project.binding })
+    const result = await runGenerationNode(id, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, grantId, assetUploadConsent: 'allow', target: project.binding })
     whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result))
   } catch {
     // 原任务队列保留失败原因；身份被替换时不向新项目写错误。
@@ -653,6 +663,8 @@ export function canRunGenerationNode(
   context: GenerationRunContext = {},
 ): boolean {
   if (!node) return false
+  // 这一镜归制作流程生成（报价卡等确认 / 排队 / 生成中）：画布再发一次就是重复生成、重复扣费。
+  if ('id' in node && node.id && isNodeGenerationOwnedByProduction(node, useProductionCanvasLandingStore.getState().runs)) return false
   const executionKind = getGenerationNodeExecutionKind(node.kind)
   if (executionKind === 'image') {
     // L3 护栏：档案当前模式是「图生图」(image_edit) 且声明了参考槽、却一张参考都递不进来 → 不可生成

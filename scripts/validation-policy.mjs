@@ -92,6 +92,13 @@ const JOURNEY_PATTERNS = [
   // The resident Agent shell is the shared UI entry point for real user journeys;
   // keep this boundary explicit instead of relying on the filename's `Agent` token.
   /^src\/workbench\/ai\/ProjectAgentResidentShell\.(?:ts|tsx)$/i,
+  // Two Agent-panel walks registered in REAL_USER_TEST_MANIFEST on 2026-09-24, and the display owners
+  // they guard: `resident/` decides which pending call is a timeline plan (a hand-copied tool-name
+  // list there rotted for ten days after the 2026-09-14 verb rename), `skillDisplay.ts` owns a
+  // skill's on-screen name. Neither path name carries the `agent`/`model` token matched below.
+  /^src\/workbench\/ai\/resident\//,
+  /^src\/workbench\/skillLibrary\/skillDisplay\.ts$/,
+  /^tests\/ux\/agent-(?:real-user-conversation|transcript-merge)\.walk\.mjs$/,
   /^electron\/(?:ai|catalog|comfyui|providerAdapter|vendor)(?:\/|$)/,
   /^electron\/runtime(?:\.|\/)/,
   /^src\/.*(?:agent|bridge|credential|model|provider|catalog|comfyui|network|security|generationCanvas\/runner).*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
@@ -111,7 +118,7 @@ const CANVAS_PATTERNS = [
 
 const FULL_CANVAS_PATTERNS = [
   /^src\/workbench\/generationCanvas\/reactFlow(?:\/|$)/,
-  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|canvas-magnetic-handle|selection-toolbar|group-baseline|group-reference).*/,
+  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|canvas-magnetic-handle|canvas-open-fit|selection-toolbar|group-baseline|group-reference).*/,
 ]
 
 const PERFORMANCE_PATTERNS = [

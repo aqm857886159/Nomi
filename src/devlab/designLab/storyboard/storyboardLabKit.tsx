@@ -13,6 +13,8 @@ import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/st
 import type { ShotVariant } from '../../../workbench/creation/storyboard/shotRow/shotVariants'
 import { FRAME_COLUMN_WIDTH } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import { REFERENCE_COLUMN_WIDTH } from '../../../workbench/creation/storyboard/shotRow/shotReferenceStackGeometry'
+import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
+import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { LAB_ANCHORS, LAB_IMAGE_MODELS, LAB_VIDEO_MODELS, labExec, labPlan, labShot, NOOP } from './storyboardFixtures'
 
 /**
@@ -103,7 +105,11 @@ type RowOverrides = {
 export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: number; height?: number } = {}): JSX.Element {
   const shot = labShot({ index: 1, ...overrides.shot })
   const plan = labPlan({ shots: [shot], ...overrides.plan })
-  const exec = labExec(overrides.exec)
+  // 红格读 exec.missingSlots（与真机同一个 owner）：夹具不自己编「缺什么」，按这一行的模式问 missingRequiredSlots。
+  // 场景要演别的状态时（如 sb-row-05）照样可以整份覆盖。
+  const models = shot.shotKind === 'image' ? LAB_IMAGE_MODELS : LAB_VIDEO_MODELS
+  const mode = resolveShotArchetypeMode(findModelOptionByIdentifier(models, shot.modelKey, shot.modelVendor), shot.modeId)?.mode ?? null
+  const exec = labExec({ missingSlots: missingRequiredSlots(mode, shot, LAB_ANCHORS), ...overrides.exec })
   return (
     <TableStage clip={overrides.clip ?? true} width={overrides.width} height={overrides.height}>
       <StoryboardShotRow

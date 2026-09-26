@@ -254,6 +254,8 @@ export { default as IconViewportWide } from '@tabler/icons-react/dist/esm/icons/
 export { default as IconAperture } from '@tabler/icons-react/dist/esm/icons/IconAperture.mjs'
 export { default as IconArrowDown } from '@tabler/icons-react/dist/esm/icons/IconArrowDown.mjs'
 export { default as IconArrowUp } from '@tabler/icons-react/dist/esm/icons/IconArrowUp.mjs'
+export { default as IconArrowsDiagonal } from '@tabler/icons-react/dist/esm/icons/IconArrowsDiagonal.mjs'
+export { default as IconArrowsDiagonalMinimize2 } from '@tabler/icons-react/dist/esm/icons/IconArrowsDiagonalMinimize2.mjs'
 export { default as IconAt } from '@tabler/icons-react/dist/esm/icons/IconAt.mjs'
 export { default as IconBolt } from '@tabler/icons-react/dist/esm/icons/IconBolt.mjs'
 export { default as IconCircleDashed } from '@tabler/icons-react/dist/esm/icons/IconCircleDashed.mjs'

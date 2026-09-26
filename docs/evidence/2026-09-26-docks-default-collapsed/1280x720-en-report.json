@@ -1,0 +1,101 @@
+{
+  "tag": "1280x720-en",
+  "ok": true,
+  "steps": [
+    {
+      "step": "open",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "miniPreviewPill": true,
+      "miniPreviewExpanded": false,
+      "minimapShown": false,
+      "nodes": 24,
+      "zoom": 0.26
+    },
+    {
+      "step": "select",
+      "selected": "used-gen-v2-image-mqjqjir6-vkr1"
+    },
+    {
+      "step": "hits-before-pan",
+      "send": {
+        "found": true,
+        "hit": true,
+        "at": "button.inline-flex.items-center",
+        "rect": [
+          751,
+          349,
+          30,
+          30
+        ]
+      },
+      "model": {
+        "found": true,
+        "hit": true,
+        "at": "span.min-w-0.truncate",
+        "rect": [
+          247,
+          350,
+          120,
+          28
+        ]
+      }
+    },
+    {
+      "step": "pan",
+      "ok": true,
+      "reason": null
+    },
+    {
+      "step": "hits-after-pan",
+      "send": {
+        "found": true,
+        "hit": true,
+        "at": "button.inline-flex.items-center",
+        "rect": [
+          751,
+          349,
+          30,
+          30
+        ]
+      },
+      "model": {
+        "found": true,
+        "hit": true,
+        "at": "span.min-w-0.truncate",
+        "rect": [
+          247,
+          350,
+          120,
+          28
+        ]
+      }
+    },
+    {
+      "step": "expanded-by-user",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "miniPreviewPill": false,
+      "miniPreviewExpanded": true,
+      "minimapShown": true,
+      "nodes": 24,
+      "zoom": 0.26
+    },
+    {
+      "step": "reopened",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "miniPreviewPill": false,
+      "miniPreviewExpanded": true,
+      "minimapShown": true,
+      "nodes": 24,
+      "zoom": 0.216
+    }
+  ]
+}

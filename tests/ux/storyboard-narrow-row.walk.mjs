@@ -206,7 +206,7 @@ async function openEditor(locale) {
   await expectVisible(row(), '第一镜未渲染')
   // 证明真的在这一语言的现场：这两句是同一块（批量条提示行）里只有那一种语言才有的说法。
   await expectVisible(
-    editor().getByText(locale === 'en' ? 'Cost is confirmed before every generation' : '每次生成前确认花费', { exact: false }).first(),
+    editor().getByText(locale === 'en' ? 'Generate reference cards to lock looks first' : '先生成参考卡锁住长相', { exact: false }).first(),
     `界面没有切到 ${locale}——这一轮拍出来的不是这门语言的证据`,
   )
 }

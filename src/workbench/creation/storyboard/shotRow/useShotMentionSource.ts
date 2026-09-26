@@ -100,7 +100,7 @@ export function useShotMentionSource(
   const libraryAssets = React.useMemo(
     () => projectAssets
       .filter((asset): asset is typeof asset & { kind: 'image' | 'video' | 'audio' } => Boolean(asset.renderUrl) && MEDIA_KINDS.has(asset.kind))
-      .map((asset) => ({ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind })),
+      .map((asset) => ({ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind, ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) })),
     [projectAssets],
   )
 
@@ -160,7 +160,7 @@ export function useShotMentionSource(
         const origin = asset.origin.source === 'canvas'
           ? `${asset.origin.nodeId}:${asset.origin.resultId}`
           : asset.id
-        out.push({ key: `shot-result:${origin}`, url: asset.renderUrl, label, kind: asset.kind as 'image' | 'video' | 'audio', group: 'canvas', groupLabelKey: 'assetLibrary.mentionGroupShotResult' })
+        out.push({ key: `shot-result:${origin}`, url: asset.renderUrl, label, kind: asset.kind as 'image' | 'video' | 'audio', group: 'canvas', groupLabelKey: 'assetLibrary.mentionGroupShotResult', ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) })
       })
 
       // 「素材库」组
@@ -176,6 +176,7 @@ export function useShotMentionSource(
           label,
           kind: asset.kind,
           group: 'library',
+          ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
         })
       }
 

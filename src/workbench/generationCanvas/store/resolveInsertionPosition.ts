@@ -1,6 +1,7 @@
 import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import {
+  resolveInsertionPositionInAreaWith,
   resolveInsertionPositionWith,
   resolveGroupInsertionDeltaWith,
   type NodeBox as SharedNodeBox,
@@ -34,7 +35,19 @@ export function resolveInsertionPosition(
   base: Point,
   existing: readonly NodeBox[],
   maxRings = 6,
+  /**
+   * 用户此刻看得见的那块（画布坐标）。给了、且 base 本来就在里面 → 先在这块里找离 base 最近的空位
+   * （2026-09-25「新建尽量直接落在当前可见区域」）；找不到才退回螺旋。
+   */
+  visibleArea?: { x: number; y: number; width: number; height: number } | null,
 ): Point {
+  const baseInView = visibleArea
+    && base.x >= visibleArea.x && base.x <= visibleArea.x + visibleArea.width
+    && base.y >= visibleArea.y && base.y <= visibleArea.y + visibleArea.height
+  if (visibleArea && baseInView) {
+    const inView = resolveInsertionPositionInAreaWith(footprint, newKind, base, existing as readonly SharedNodeBox[], visibleArea)
+    if (inView) return inView
+  }
   return resolveInsertionPositionWith(footprint, newKind, base, existing as readonly SharedNodeBox[], maxRings)
 }
 

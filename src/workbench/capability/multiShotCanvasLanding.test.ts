@@ -72,32 +72,28 @@ describe('materializeShots preserves the reading viewport on existing content', 
     expect(useWorkbenchStore.getState().canvasFitNonce).toBe(beforeFit)
   })
 
-  it('reveals newly created nodes, group and table', async () => {
+  // 2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到那个镜头生成去哪里了」。落地（新建镜头、组、
+  // 分镜表，单镜变多镜）一律不请求适应、不切分类；屏外的新东西由画布边缘提示指路。
+  it('reported case: paid-card landing creates nodes, group and table without moving the viewport', async () => {
+    const activeBefore = useWorkbenchStore.getState().activeCategoryId
     const result = await land()
     expect(result.createdNodeIds).toHaveLength(3)
     expect(result.groupId).toBeTruthy()
     expect(result.shotTableNodeId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(0)
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
+    expect(useWorkbenchStore.getState().activeCategoryId).toBe(activeBefore)
   })
 
-  it('reveals a newly added group even when all nodes already exist', async () => {
-    await land()
-    useGenerationCanvasStore.setState({ groups: [] })
-    const beforeFit = useWorkbenchStore.getState().canvasFitNonce
-    const result = await land()
-    expect(result.createdNodeIds).toEqual([])
-    expect(result.groupId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(beforeFit)
-  })
-
-  it('reveals added shots and the first table when a single shot becomes a multi-shot plan', async () => {
+  it('class: adding a group or growing a single shot into a multi-shot plan never requests a fit', async () => {
     const first = await land(shots.slice(0, 1))
     expect(first.shotTableNodeId).toBeNull()
-    const beforeFit = useWorkbenchStore.getState().canvasFitNonce
     const next = await land()
     expect(next.createdNodeIds).toHaveLength(2)
     expect(next.shotTableNodeId).toBeTruthy()
-    expect(useWorkbenchStore.getState().canvasFitNonce).toBeGreaterThan(beforeFit)
+    useGenerationCanvasStore.setState({ groups: [] })
+    const regrouped = await land()
+    expect(regrouped.groupId).toBeTruthy()
+    expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
   })
 })
 
@@ -110,7 +106,6 @@ describe('attachShotResult', () => {
   it('本地 url（nomi-local://）→ 回填成功，节点拿到 result', () => {
     const outcome = attachShotResult({
       nodeId: 'node-1',
-      shotId: 's1',
       result: { id: 'production-job-s1', type: 'video', url: 'nomi-local://production-preview/p/r/a/x.mp4?preview=t', createdAt: 1 },
     })
     expect(outcome).toEqual({ attached: true, nodeId: 'node-1' })
@@ -120,7 +115,6 @@ describe('attachShotResult', () => {
   it('非本地 url（https CDN）→ **当场抛**（R17 运行时断言，grep 棘轮抓不住）', () => {
     expect(() => attachShotResult({
       nodeId: 'node-1',
-      shotId: 's1',
       result: { id: 'r', type: 'video', url: 'https://cdn.example.com/x.mp4', createdAt: 1 },
     })).toThrow(/nomi-local/)
     // 断言拦下 → 节点不该被写入脏 url。
@@ -130,20 +124,18 @@ describe('attachShotResult', () => {
   it('节点已删（整批撤销）→ 静默跳过（返回 skipped:node-removed），不抛', () => {
     const outcome = attachShotResult({
       nodeId: 'node-gone',
-      shotId: 's1',
       result: { id: 'r', type: 'video', url: 'nomi-local://x', createdAt: 1 },
     })
     expect(outcome).toEqual({ skipped: 'node-removed' })
   })
 
   it('无 result → skipped:no-result', () => {
-    expect(attachShotResult({ nodeId: 'node-1', shotId: 's1' })).toEqual({ skipped: 'no-result' })
+    expect(attachShotResult({ nodeId: 'node-1' })).toEqual({ skipped: 'no-result' })
   })
 
   it('文本结果（无 url）→ 放行（不强制本地协议）', () => {
     const outcome = attachShotResult({
       nodeId: 'node-1',
-      shotId: 's1',
       result: { id: 'r', type: 'text', text: '一段字', createdAt: 1 } as never,
     })
     expect(outcome).toEqual({ attached: true, nodeId: 'node-1' })
@@ -190,7 +182,6 @@ describe('materializeShots undo transaction', () => {
     expect(shotNodeId).toBeTruthy()
     attachShotResult({
       nodeId: shotNodeId,
-      shotId: 'shot-1',
       result: { id: 'shot-1-result', type: 'video', url: 'nomi-local://shot-1.mp4', createdAt: 1 },
     })
 
@@ -348,4 +339,75 @@ it('rejects an explicitly different project and an unavailable project before an
   landingProject.close()
   await expect(materializeShots({ ...payload, projectId: undefined })).rejects.toThrow('storyboard_project_unavailable')
   expect(useGenerationCanvasStore.getState().nodes.map(node => node.id)).toEqual(['entry-sentinel'])
+})
+
+// 2026-09-25：制作的「生成中 / 失败 / 结果」写进节点自己的运行记录——与普通生成同一份状态，
+// 于是同一个 NodeGeneratingOverlay / NodeErrorReport 画它（以前另画一套「整卡模糊 + N 字标」、另判一份真相）。
+describe('materializeShots writes each shot\'s run state into the node itself', () => {
+  const materializationOperationId = 'canvas-landing:run-state'
+  const runId = 'run-state'
+  const base = { shotId: 'shot-1', role: 'shot' as const, kind: 'video' as const, prompt: '巨龙攻击村子' }
+  const land = (shot: Record<string, unknown> = {}, existingOnly = false) =>
+    materializeShots({ materializationOperationId, runId, existingOnly, shots: [{ ...base, ...shot }] })
+  const node = (id: string) => useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === id)!
+  const running = { state: 'running' as const, runRecordId: 'production-job-1', startedAt: 1_000 }
+
+  beforeEach(() => {
+    resetClientIdRegistry()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+  })
+
+  it('受理后 → 节点 running（普通生成的等待画面据此出现）；出片 → success + 结果，同一条运行记录收尾', async () => {
+    const { bindings } = await land({ generation: running })
+    const id = bindings[0].nodeId
+    expect(node(id).status).toBe('running')
+    expect(node(id).runs?.[0]).toMatchObject({ id: 'production-job-1', status: 'running' })
+
+    await land({ result: { id: 'production-job-1', type: 'video', url: 'nomi-local://asset/p/v.mp4', createdAt: 2_000 } }, true)
+    expect(node(id).status).toBe('success')
+    expect(node(id).result?.url).toBe('nomi-local://asset/p/v.mp4')
+    expect(node(id).runs?.[0]).toMatchObject({ id: 'production-job-1', status: 'success' })
+    expect(node(id).runs).toHaveLength(1)
+  })
+
+  it('失败 → 节点 error（普通生成的失败卡）；用户关掉失败卡之后，下一次跟随不把它重新弹出来', async () => {
+    const { bindings } = await land({ generation: running })
+    const id = bindings[0].nodeId
+    await land({ generation: { state: 'failed', runRecordId: 'production-job-1', startedAt: 1_000, message: '供应商拒绝了这次生成' } }, true)
+    expect(node(id).status).toBe('error')
+    expect(node(id).error).toBe('供应商拒绝了这次生成')
+    useGenerationCanvasStore.getState().dismissNodeError(id)
+    await land({ generation: { state: 'failed', runRecordId: 'production-job-1', startedAt: 1_000, message: '供应商拒绝了这次生成' } }, true)
+    expect(node(id).status).toBe('idle')
+  })
+
+  it('不在跑了（排队 / 已停）→ 只收掉本制作挂上的「生成中」；用户自己在节点上跑的那一次不动', async () => {
+    const { bindings } = await land({ generation: running })
+    const id = bindings[0].nodeId
+    await land({ generation: { state: 'ended' } }, true)
+    expect(node(id).status).toBe('idle')
+
+    useGenerationCanvasStore.getState().appendNodeRun(id, { id: 'user-run', status: 'running' })
+    await land({ generation: { state: 'ended' } }, true)
+    await land({ generation: running }, true)
+    expect(node(id).status).toBe('running')
+    expect(node(id).runs?.[0].id).toBe('user-run')
+  })
+
+  it('同一份产物只回填一次：用户切回别的版本之后，下一次跟随不把制作那一版硬塞回当前结果', async () => {
+    const result = { id: 'production-job-1', type: 'video' as const, url: 'nomi-local://asset/p/v.mp4', createdAt: 2_000 }
+    const { bindings } = await land({ result })
+    const id = bindings[0].nodeId
+    useGenerationCanvasStore.getState().addNodeResult(id, { id: 'manual-2', type: 'video', url: 'nomi-local://asset/p/v2.mp4', createdAt: 3_000 })
+    await land({ result }, true)
+    expect(node(id).result?.id).toBe('manual-2')
+  })
+
+  it('重开项目时幽灵转圈被收成 cancelled；补齐说这一次任务还在跑 → 照常续上「生成中」', async () => {
+    const { bindings } = await land({ generation: running })
+    const id = bindings[0].nodeId
+    useGenerationCanvasStore.getState().setNodeStatus(id, 'idle') // = 重开项目时的收敛（running → cancelled）
+    await land({ generation: running }, true)
+    expect(node(id).status).toBe('running')
+  })
 })

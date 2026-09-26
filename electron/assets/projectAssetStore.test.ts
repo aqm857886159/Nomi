@@ -8,12 +8,14 @@ import { writeWorkspaceManifest } from '../workspace/workspaceManifest';
 
 const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-asset-store-"));
 
-vi.mock("../projects/repository", () => ({
+// 只换项目根目录；sanitizeName 用**真的**。以前这里连它一起换成了一个不截断的替身——
+// 于是「长文件名被截到 90 字、扩展名跟着被截掉、落成 .bin」这件事在测试里结构上不可能出现（2026-09-26）。
+vi.mock("../projects/repository", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../projects/repository")>(),
   projectDirById: () => projectRoot,
-  sanitizeName: (value: unknown, fallback = "Untitled") => String(value || "").trim() || fallback,
 }));
 
-const { listProjectAssets, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
+const { copyAssetFile, listProjectAssets, moveAssetFile, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
 const mediaFixture = (name: string) => fs.readFileSync(path.join(__dirname, "../providerAdapter/__fixtures__/certification-media", name));
 
 function validGlb(): Buffer {
@@ -127,6 +129,51 @@ describe("writeAsset canonical media filename", () => {
 
     const item = listProjectAssets({ projectId: "project-1", limit: 20 }).items.find((entry) => entry.data.relativePath === relativePath);
     expect(item?.data).toMatchObject({ contentType: "video/mp4", kind: "video", mediaType: "video" });
+  });
+
+  // 供应商产物地址的原始 basename 常常很长（签名段、哈希段）。截断只许截主干：扩展名由字节嗅出的
+  // 内容类型定，永远不被截掉——否则落成 `.bin`，出了 App（下载、双击、MCP 预览、再上传）就认不出。
+  describe("long file names keep the extension from the sniffed content type", () => {
+    const longWithExtension = `${"a".repeat(120)}.mp4`;
+    const longWithoutExtension = "b".repeat(120);
+    type Stored = { data?: { relativePath?: string; contentType?: string } };
+
+    it.each([
+      ["120 chars + .mp4, declared video/mp4", longWithExtension, "video/mp4"],
+      ["120 chars, no extension, declared octet-stream", longWithoutExtension, "application/octet-stream"],
+    ])("writeDeterministicAsset: %s → .mp4", (_label, fileName, contentType) => {
+      const stored = writeDeterministicAsset("project-1", mediaFixture("valid.mp4"), fileName, contentType, { kind: "generated" }, `task-long:${fileName.length}:${contentType}`) as Stored;
+      expect(stored.data?.relativePath).toMatch(/\.mp4$/);
+      expect(stored.data?.contentType).toBe("video/mp4");
+      expect(fs.existsSync(path.join(projectRoot, stored.data?.relativePath || ""))).toBe(true);
+    });
+
+    it.each([
+      ["120 chars + .mp4, declared video/mp4", longWithExtension, "video/mp4"],
+      ["120 chars, no extension, declared octet-stream", longWithoutExtension, "application/octet-stream"],
+    ])("writeAsset: %s → .mp4, name stays within the sanitized budget", (_label, fileName, contentType) => {
+      const stored = writeAsset("project-1", mediaFixture("valid.mp4"), fileName, contentType, { kind: "generated" }) as Stored;
+      const relativePath = stored.data?.relativePath || "";
+      expect(relativePath).toMatch(/\.mp4$/);
+      expect(path.posix.basename(relativePath).length).toBeLessThanOrEqual(90);
+      expect(stored.data?.contentType).toBe("video/mp4");
+    });
+
+    // 类级：落盘路径由 uniqueAssetPath 定的另外两个入口（原生文件拷贝 / 挪入）走同一个裁法。
+    it.each(["copyAssetFile", "moveAssetFile"] as const)("%s: long provider name without an extension → .mp4", async (entry) => {
+      const source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-long-name-")), "source");
+      fs.writeFileSync(source, mediaFixture("valid.mp4"));
+      const stored = (entry === "copyAssetFile"
+        ? await copyAssetFile("project-1", source, longWithoutExtension, "application/octet-stream", { kind: "reference" })
+        : moveAssetFile("project-1", source, longWithoutExtension, "application/octet-stream", { kind: "reference" })) as Stored;
+      expect(stored.data?.relativePath).toMatch(/\.mp4$/);
+      expect(path.posix.basename(stored.data?.relativePath || "").length).toBeLessThanOrEqual(90);
+    });
+
+    it("a name whose only suffix is not a real extension keeps its text and gets .bin", () => {
+      const stored = writeAsset("project-1", Buffer.from("opaque bytes"), `${"c".repeat(20)}.not-an-extension`, "application/octet-stream", { kind: "reference" }) as Stored;
+      expect(path.posix.basename(stored.data?.relativePath || "")).toBe(`${"c".repeat(20)}.not-an-extension.bin`);
+    });
   });
 
   it("reuses one deterministic asset path when materialization is retried", () => {

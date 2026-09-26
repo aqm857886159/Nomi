@@ -5,6 +5,7 @@ import type {
   ModelParameterControl,
 } from "./types";
 import type { VideoModelCandidate } from "./recommendation";
+import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
 import { AGNES_VIDEO_ARCHETYPE } from "./agnesVideo";
 import { AGNES_VIDEO_25_ARCHETYPE, AGNES_VIDEO_25_FLASH_ARCHETYPE } from "./agnesVideo25";
 import { DREAMINA_MULTIFRAME_ARCHETYPE } from "./dreaminaMultiframe";
@@ -226,9 +227,9 @@ function specializeForProvider(archetype: ModelArchetype, provider: string): Mod
   };
 }
 
+/** 这条目录行默认跑哪个变体——问唯一 owner。基础行（如 `doubao-seedance-2.0`）是默认变体，不是反推出的 standard。 */
 function variantFor(model: VideoCatalogModel, archetype: ModelArchetype): string | undefined {
-  return archetype.variants?.find((variant) => variant.modelKey === model.modelKey)
-    ?.id ?? archetype.defaultVariantId;
+  return resolveArchetypeVariant(archetype, { modelId: model.modelKey })?.id;
 }
 
 /**

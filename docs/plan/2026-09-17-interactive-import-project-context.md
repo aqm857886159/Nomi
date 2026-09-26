@@ -1,5 +1,7 @@
 # Interactive import project context
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Approved PR 802 follow-up. Cross-pool review #2 confirmed capacity/image dimensions awaited before capturing a project; upload/recovery/video-duration completion can apply to the subsequently hydrated global store. Retry retained File but no originating identity. Prior art and product decisions remain in 2026-09-17-pr802-root-causes.md.
 
 The existing project coordinator owns a project execution context: immutable ProjectBinding plus permanent cancellation signal/assertion, independent of page and port revision. Capture it before any asynchronous import preparation; invalidate on hydration replacement, release, or coordinator unregistration. Guard every node mutation and upload completion. Pass originating binding and assertion to the shared byte/native/remote importer, so main session publication guards also apply. Retry stores this original context and cannot revive after A→B→A. Cancellation and stale identity terminate as handled empty results (retry returns false); ordinary recoverable upload errors retain their existing behavior. Clipboard captures before conversion or remote fetch and never falls back after cancellation. The library calls the adapter synchronously instead of awaiting a dynamic import before identity capture.

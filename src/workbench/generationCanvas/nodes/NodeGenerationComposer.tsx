@@ -2,7 +2,7 @@ import { notify } from '../../../ui/notificationPolicy'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { NomiLoadingMark, NomiSelect } from '../../../design'
+import { NomiLoadingMark, NomiSelect, WorkbenchIconButton } from '../../../design'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import { cn } from '../../../utils/cn'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
@@ -48,8 +48,11 @@ import {
   supportsGenerationVariants,
   type GenerationVariantCount,
 } from './generationVariantCount'
-import { useComposerViewportPlacement } from './useComposerViewportPlacement'
-import { COMPOSER_MIN_USABLE_HEIGHT } from './nodeSizing'
+import { useComposerPromptExpand } from './useComposerPromptExpand'
+import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
+import { composerCanvasPlacement } from './composerCanvasPlacement'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2 } from '@tabler/icons-react'
 import {
   findModelOptionByIdentifier,
   requiredModeForGenerationNode,
@@ -112,24 +115,17 @@ type Props = {
   readOnly?: boolean
 }
 
-type FloatingComposerLayout = {
-  maxHeight: number
-  gap: number
-}
-
-function floatingComposerLayout(_width: number, _height: number, kind: GenerationCanvasNode['kind']): FloatingComposerLayout {
-  // 宽度不再在这里算——它**内容驱动**（CSS `w-fit` + `min-w/max-w` 边界，见卡 className），
-  // 跟着该模型实际的参数横排自然撑开，参数少则窄、多则宽、触上限在卡内换行（绝不绑节点比例、不钉死常数）。
-  //
-  // 高度同理**内容驱动**，不再绑节点高（旧 `height*0.72` 是 bug 根因：小节点 → 矮卡，
-  // 「参考区 + 3 行提示词 + 底栏」放不下，overflow-hidden 把底栏的生成钮裁到卡外，修③④）。
-  // 卡片在 flex-col 里自然按内容长高；提示词 flex-1 overflow-auto，推荐项只占剩余空间，
-  // 底栏不收缩；提示词保留三行，推荐项不挤占输入和主行动。
-  const maxHeight = kind === 'video' ? 460 : 400
-  // 连接间距是空间关系，不应随节点画幅宽度跨阈值跳变；否则 1:1 → 21:9 时即使底边
-  // 锚点完全不动，composer 仍会被旧的 10px → 14px 分支推开，看起来像断开。
-  const gap = 14
-  return { maxHeight, gap }
+/**
+ * 画布浮框的高度上限（屏幕像素）。宽度与间距不在这里：宽度是定值 `NODE_COMPOSER_WIDTH`，间距是 `NODE_COMPOSER_GAP`。
+ *
+ * 高度**内容驱动**，不绑节点高（旧 `height*0.72` 是 bug 根因：小节点 → 矮卡，
+ * 「参考区 + 3 行提示词 + 底栏」放不下，overflow-hidden 把底栏的生成钮裁到卡外，修③④）。
+ * 卡片在 flex-col 里自然按内容长高；提示词 flex-1 overflow-auto，推荐项只占剩余空间，
+ * 底栏不收缩；提示词保留三行。上限只看 kind，不看屏幕还剩多少——同一个节点每次打开都一样高。
+ * 展开提示词时（右上角那颗钮）这个上限整个让开，卡片按全文长高。
+ */
+function composerMaxHeight(kind: GenerationCanvasNode['kind']): number {
+  return kind === 'video' ? 460 : 400
 }
 
 export default function NodeGenerationComposer({ onFeedback, node, visualSize, host = 'canvas', readOnly = false }: Props): JSX.Element {
@@ -156,9 +152,8 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const isGenerating = status === 'queued' || status === 'running'
   const hasResult = Boolean(node.result?.url)
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
-  const edges = useGenerationCanvasStore((state) => state.edges)
-  const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
+  // 只订派生出的那一个字符串：订整张 nodes / edges 会让画布上任何写入（含别的节点的生成进度）都把整个面板重渲一遍。
+  const requiredMode = useGenerationCanvasStore((state) => requiredModeForGenerationNode(node, { nodes: state.nodes, edges: state.edges }))
   const modelOptions = useGenerationModelOptionsState(node.kind, requiredMode).options
   const selectedModelAddress = nodeSelectedModelAddress(node.meta || {})
   const selectedModelOption = findModelOptionByIdentifier(
@@ -192,7 +187,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const hasPendingRefs = pendingRefKey.length > 0
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || (hasPendingRefs && !isGenerating)
-  const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind)
   const isTextKind = node.kind === 'text'
   // 声音节点：解析当前档案模式（配音 speech / 转写 transcribe），驱动「台词框 vs 音频参考槽」分流。
   const isAudioKind = isAudioLikeGenerationNodeKind(node.kind)
@@ -230,7 +224,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   const mentionLibraryAssets = React.useMemo(
     () => projectAssets.flatMap((asset) => {
       if ((asset.kind !== 'image' && asset.kind !== 'video' && asset.kind !== 'audio') || !asset.renderUrl) return []
-      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind }]
+      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind, ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) }]
     }),
     [projectAssets],
   )
@@ -312,23 +306,24 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
     // ×N 变体连发（样张拍板 2026-07-29）：一次确认按 N 张报成本，串行连跑，出图堆进本节点历史。
     if (variantCount > 1) {
-      await confirmAndRunNodeVariants(node.id, variantCount)
+      await confirmAndRunNodeVariants(node.id, variantCount, { initiator: 'user' })
       return
     }
     // 已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
-    if (hasResult) await regenerateNodeInPlace(node.id)
-    else await confirmAndRunNode(node.id)
+    if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
+    else await confirmAndRunNode(node.id, { initiator: 'user' })
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
   const minUsableHeight = acceptsPrompt ? COMPOSER_MIN_USABLE_HEIGHT : 0
-  const { anchorRef, canvasZoom, flipUp, left, top, maxWidth, maxHeight, referenceMaxHeight } = useComposerViewportPlacement({
-    node,
-    visualSize,
-    gap: composerLayout.gap,
-    preferredMaxHeight: composerLayout.maxHeight,
-    minUsableHeight,
-  })
+  // 位置只由两样东西决定：节点的画布尺寸、画布缩放（owner：composerCanvasPlacement）。**不量任何矩形、
+  // 不躲任何东西、不翻到上方**——出了屏幕就被挡住（2026-09-25 用户拍板「遮挡就遮挡了，保持位置」）。
+  // 这正是 React Flow 官方节点浮层 `NodeToolbar` 的定位法（只有锚点 + 反缩放，无视口避让）；没直接用它，
+  // 是因为它挂在 portal 里、隐藏即卸载，会丢掉拖动期间靠 visibility 保住的 TipTap 实例（见下面 invisible 那条注释）。
+  const canvasZoom = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.zoom ?? 1)
+  const anchorRef = React.useRef<HTMLDivElement>(null)
+  const maxHeight = composerMaxHeight(node.kind)
+  const promptExpand = useComposerPromptExpand()
 
   const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
 
@@ -350,7 +345,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   // 把面板搬到底栏**下面**这个落点，底栏就能恒一行，面板也拿到整幅宽度。
   const parameterPanelSlotRef = React.useRef<HTMLDivElement>(null)
 
-  // 卡宽由模型底栏驱动；推荐项让位，输入内滚、底栏固定。
+  // 卡宽恒定（NODE_COMPOSER_WIDTH）；推荐项让位，输入内滚、底栏固定。
 
   return (
     // 外层只做屏幕空间定位锚，反向缩放保持参数卡可读。
@@ -359,21 +354,15 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
       className={cn(
         'generation-canvas-v2-node__composer nokey',
         // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
-        inPanel ? 'w-full' : 'absolute z-[8] w-max',
+        inPanel ? 'w-full' : 'absolute z-[8]',
         // 画布拖动期间隐身（拖节点、拖选区/组框、拖画布平移都算；状态源=stage 的 data-dragging，见 canvasDraggingFlag）。
         // 刻意用 visibility 而非条件卸载：里面是 TipTap 编辑器实例，卸载 = 丢未提交的输入 +
         // 每次拖动重建编辑器（拖动是最高频动作）。
         !inPanel && 'group-data-[dragging=true]/canvas:invisible',
       )}
       data-composer-host={host}
-      data-flipped={flipUp ? 'true' : 'false'}
       style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
-        left,
-        top,
-        transform: `scale(${1 / (canvasZoom || 1)})`,
-        transformOrigin: 'top left',
-        maxWidth,
-        visibility: maxHeight > 0 && maxWidth > 0 ? undefined : 'hidden',
+        ...composerCanvasPlacement(visualSize, canvasZoom),
         cursor: 'default',
         userSelect: 'auto',
         touchAction: 'auto',
@@ -389,14 +378,13 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           NODE_SCROLL_REGION_CLASS_NAME,
           'relative flex flex-col gap-1.5 min-w-0',
           // 面板宿主里**卡壳是介入槽的**：再描一层边就成了框中框，而里外说的是同一张卡。
-          inPanel ? 'w-full p-0' : 'p-3 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
+          inPanel ? 'w-full p-0' : 'p-3 border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}
         style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
-          maxHeight,
-          maxWidth,
-          minWidth: Math.min(360, maxWidth),
+          width: NODE_COMPOSER_WIDTH,
+          ...(promptExpand.expanded ? {} : { maxHeight }),
           minHeight: Math.min(minUsableHeight, maxHeight),
           cursor: 'default',
           userSelect: 'auto',
@@ -412,7 +400,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
         </div>
       ) : null}
       {hasReferenceControls && !readOnly ? (
-        <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft')} style={inPanel ? undefined : { maxHeight: referenceMaxHeight }}>
+        // 参考区最多露两行参考格（56px 格 × 2 + 间距），更多在区内滚；卡片定宽后一行放 8 格，两行覆盖绝大多数模式。
+        // 以前这里的滚动口高度是按屏幕剩余空间逐帧现算的，那套随放置层一起删了。
+        <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft', !inPanel && 'max-h-36')}>
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
         </div>
       ) : null}
@@ -449,11 +439,20 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
       {/* 输入区始终保留三行，推荐项在剩余高度内展示。 */}
       {/* 转写模式无台词输入（音频参考即输入）。 */}
       {audioIsTranscribe || isTextKind || !acceptsPrompt ? null : (
-        // w-0 min-w-full keeps long prompts from widening the card. The bounded
-        // scrollport retains its minimum even when fixed controls exhaust the card.
+        // 外层不滚、只负责占位和挂「展开」钮；里层是滚动口。钮挂在滚动口外面，滚到底也还在右上角。
+        // 展开（2026-09-25 用户拍板，参考 LibTV）：卡片高度上限让开、滚动口长到全文（再长到 360 才内滚）。
+        // 只给画布宿主——付费确认卡的提示词是 Nomi 写好的、面板高度有限，那里不加（同日拍板第 2 题）。
+        <div className={cn('relative flex min-h-[72px] flex-col', promptExpand.expanded && !inPanel ? 'flex-none' : 'flex-1')}>
         <div
+          ref={inPanel ? undefined : promptExpand.scrollRef}
           data-node-composer-prompt
-          className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto overscroll-contain')}
+          data-prompt-expanded={promptExpand.expanded && !inPanel ? 'true' : 'false'}
+          className={cn(
+            NODE_SCROLL_REGION_CLASS_NAME,
+            'relative w-full min-h-[72px] overflow-y-auto overscroll-contain',
+            promptExpand.expanded && !inPanel ? 'max-h-[360px]' : 'flex-1',
+            !inPanel && promptExpand.canToggle && 'pr-7',
+          )}
           style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
         >
           <PromptEditor
@@ -469,6 +468,18 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
             mentionSearch={mentionSearch}
             onMentionSelect={(...args) => readOnlyRef.current ? null : onMentionSelect(...args)}
           />
+        </div>
+        {!inPanel && promptExpand.canToggle ? (
+          <WorkbenchIconButton
+            size="sm"
+            data-prompt-expand-toggle
+            className="absolute right-0 top-0"
+            label={promptExpand.expanded ? t('generationCommon.composer.collapsePrompt') : t('generationCommon.composer.expandPrompt')}
+            aria-expanded={promptExpand.expanded}
+            onClick={promptExpand.toggle}
+            icon={promptExpand.expanded ? <IconArrowsDiagonalMinimize2 /> : <IconArrowsDiagonal />}
+          />
+        ) : null}
         </div>
       )}
       {/* 推荐行不进面板宿主：卡上的提示词是 Nomi 已经写完的，这一刻不是重新起草的时候。 */}
@@ -490,7 +501,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           <NodeParameterControls
             node={node}
             section="parameters"
-            composerAttachmentSide={flipUp ? 'top' : 'bottom'}
             {...(inPanel
               ? {
                 parameterLayout: 'chips' as const,

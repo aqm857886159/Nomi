@@ -115,9 +115,13 @@ async function ensureParameterPanel(composer) {
     const rect = element.getBoundingClientRect()
     const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
     const composer = element.closest('.generation-canvas-v2-node__composer')
-    const stage = composer?.closest('.generation-canvas-v2__stage')
-    const composerRect = composer?.getBoundingClientRect()
-    const stageRect = stage?.getBoundingClientRect()
+    const card = composer?.querySelector('.generation-canvas-v2-node__composer-card')
+    const nodeEl = composer?.parentElement
+    const viewportEl = document.querySelector('.react-flow__viewport')
+    const cardRect = card?.getBoundingClientRect()
+    const nodeRect = nodeEl?.getBoundingClientRect()
+    // 画布缩放读 React Flow 视口自己的 transform（DOMMatrix.a），与 node-composer-placement.walk.mjs 同一口径。
+    const zoom = viewportEl ? new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a : 1
     const handle = document.querySelector('.workbench-generation__timeline-handle')
     const handleRect = handle?.getBoundingClientRect()
     const overlapWidth = handleRect ? Math.min(rect.right, handleRect.right) - Math.max(rect.left, handleRect.left) : 0
@@ -125,10 +129,15 @@ async function ensureParameterPanel(composer) {
     return {
       clear: hit === element || Boolean(hit && element.contains(hit)),
       overlapsTimeline: overlapWidth > 0 && overlapHeight > 0,
-      flipped: composer?.getAttribute('data-flipped'),
-      composerWithinStage: Boolean(
-        composerRect && stageRect && composerRect.top >= stageRect.top && composerRect.bottom <= stageRect.bottom,
-      ),
+      // 2026-09-25 起浮框钉在节点正下方（composerCanvasPlacement.ts）：顶边 = 节点底边 + 14×缩放、
+      // 中线 = 节点中线、屏幕宽恒 560；不再翻到上方、不再 clamp 进视口，所以这里不再量「在舞台内」。
+      pinned: Boolean(cardRect && nodeRect
+        && Math.abs(cardRect.top - (nodeRect.bottom + 14 * zoom)) <= 2
+        && Math.abs((cardRect.left + cardRect.right) / 2 - (nodeRect.left + nodeRect.right) / 2) <= 2
+        && Math.abs(cardRect.width - 560) <= 1),
+      card: cardRect ? box(cardRect) : null,
+      node: nodeRect ? box(nodeRect) : null,
+      zoom,
       workspaceFound: Boolean(composer?.closest('.workbench-generation__canvas')),
       trigger: box(rect),
       handle: handleRect ? box(handleRect) : null,
@@ -137,7 +146,7 @@ async function ensureParameterPanel(composer) {
   })
   assert(hitTest.clear, '生成参数按钮不被底部时间轴遮挡', JSON.stringify(hitTest))
   assert(!hitTest.overlapsTimeline, '生成参数按钮与底部时间轴没有视觉重叠', JSON.stringify(hitTest))
-  assert(hitTest.flipped === 'false' && hitTest.composerWithinStage, '新建节点的编辑框在下方完整可见', JSON.stringify(hitTest))
+  assert(hitTest.pinned, '新建节点的编辑框钉在节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 560）', JSON.stringify(hitTest))
   await trigger.click()
   const panel = getWin().getByRole('group', { name: '生成参数面板', exact: true }).first()
   await panel.waitFor({ timeout: 5000 })
@@ -320,14 +329,17 @@ try {
   )
   assert(Math.min(...areas) >= areas[0] * 0.965, '连续切换不会把节点越切越小')
 
-  const gaps = geometries.map((item) => {
-    const flipped = getWin().locator('.generation-canvas-v2-node__composer').first()
-    return flipped.getAttribute('data-flipped').then((value) =>
-      value === 'true' ? item.node.y - (item.composer.y + item.composer.height) : item.composer.y - (item.node.y + item.node.height),
-    )
+  // 浮框恒在节点正下方（2026-09-25 起不再翻到上方），间距只有一种量法：卡顶边 − 节点底边，应恒为 14×缩放。
+  const canvasZoom = await getWin().evaluate(() => {
+    const viewportEl = document.querySelector('.react-flow__viewport')
+    return viewportEl ? new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a : 1
   })
-  const resolvedGaps = await Promise.all(gaps)
-  assert(resolvedGaps.every((gap) => closeEnough(gap, resolvedGaps[0], 1)), '节点与编辑框连接间距保持一致')
+  const resolvedGaps = geometries.map((item) => item.composer.y - (item.node.y + item.node.height))
+  assert(
+    resolvedGaps.every((gap) => closeEnough(gap, 14 * canvasZoom, 2)),
+    '节点与编辑框连接间距保持一致（恒为 14×缩放，浮框在节点下方）',
+    `gaps=${resolvedGaps.map((gap) => gap.toFixed(1)).join('/')} zoom=${canvasZoom.toFixed(2)}`,
+  )
   await snap('02-dark-canvas-ratio-panel.png')
 
   // ③ 生成数量是明确的 1–4 选择，不再循环跳数；3 个是真选项。

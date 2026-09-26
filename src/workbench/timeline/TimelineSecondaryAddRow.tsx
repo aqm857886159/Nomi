@@ -11,6 +11,7 @@ import AssetPicker from '../assets/AssetPicker'
 import AssetPickerPopover from '../assets/AssetPickerPopover'
 import { useOpenProjectId } from '../project/useOpenProjectId'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
+import { logRendererError } from '../../desktop/rendererLog'
 
 /**
  * 叠加层收起条（方案 B 的空态 + 方案 A 的视觉，用户拍板）。
@@ -58,7 +59,6 @@ export function TimelineSecondaryAddRow({
     if (!result) return
     event.preventDefault()
     if (result.status === 'reject') presentFeedback(t('timelineEditor.track.wrongType', { track: result.expectedTrack === 'video' ? t('timelineEditor.track.videoLabel') : t('timelineEditor.track.audioLabel') }))
-    if (result.status === 'reject-external') presentFeedback(t('assetLibrary.externalAssetHint'))
   }
   const acceptsAudio = (types: readonly string[]) => showAudio && types.includes(ASSET_LIBRARY_DRAG_MIME)
 
@@ -101,7 +101,7 @@ export function TimelineSecondaryAddRow({
                   if (!clip) presentFeedback(t('timelineEditor.adoption.failedRecovered'))
                 })
                 .catch((error: unknown) => {
-                  console.error('add music to timeline failed', error)
+                  logRendererError('timeline-add-music-failed', error)
                   presentFeedback(error instanceof Error ? error.message : t('timelineEditor.adoption.failedRecovered'))
                 })
               setMusicPickerOpen(false)

@@ -15,18 +15,25 @@ export function readLaneTranscripts(projectRoot) {
   // under the wrong case id. Caught 2026-09-22 in run4: every per-case `trajectories/<id>.jsonl`
   // had the right length and the wrong contents. Sorting here is where it belongs: this is the
   // boundary that turns a directory into an observation sequence.
+  // 列目录与读文件不是一个原子动作：app 删对话时，文件可能在「列出来之后、读之前」消失
+  // （2026-09-24 Windows 真机，删对话那一步的 `expect.poll` 里撞到 ENOENT）。消失了的那条
+  // 已经不在这一刻的观测里——跳过它；其它错误照抛。
+  const vanished = (error) => error?.code === 'ENOENT'
   const transcripts = []
   for (const directory of fs.readdirSync(root, { withFileTypes: true })) {
     if (!directory.isDirectory() || directory.isSymbolicLink()) continue
     const folder = path.join(root, directory.name)
-    for (const file of fs.readdirSync(folder, { withFileTypes: true })) {
+    let files
+    try { files = fs.readdirSync(folder, { withFileTypes: true }) } catch (error) { if (vanished(error)) continue; throw error }
+    for (const file of files) {
       if (!file.isFile() || file.isSymbolicLink() || !file.name.endsWith('.jsonl')) continue
       transcripts.push({ name: file.name, filePath: path.join(folder, file.name) })
     }
   }
   transcripts.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
   for (const { filePath } of transcripts) {
-    const bytes = fs.readFileSync(filePath, 'utf8')
+    let bytes
+    try { bytes = fs.readFileSync(filePath, 'utf8') } catch (error) { if (vanished(error)) continue; throw error }
     // A writer may currently be appending a transaction. Only complete JSONL
     // records are committed observations; the full bytes remain available.
     const lines = bytes.slice(0, bytes.lastIndexOf('\n')).split('\n')

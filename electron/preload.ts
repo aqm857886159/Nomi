@@ -57,7 +57,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       return () => ipcRenderer.removeListener("nomi:canvas:zoom-shortcut", listener);
     },
   },
-  logRendererCrash: (message: unknown) => ipcRenderer.send("nomi:log:renderer-crash", message),
+  // 渲染层 → 主进程日志的唯一通道。渲染层只经 src/desktop/rendererLog.ts 调它；形状校验、脱敏、限流在主进程。
+  log: {
+    report: (entry: unknown) => ipcRenderer.send("nomi:log:renderer", entry),
+  },
   app: {
     reopenLibraryWindow: () => ipcRenderer.send("nomi:app:reopen-library-window"),
     hardReloadWindow: () => ipcRenderer.send("nomi:app:hard-reload-window"),

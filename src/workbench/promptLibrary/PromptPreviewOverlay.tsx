@@ -14,6 +14,7 @@ import {
 import { cn } from '../../utils/cn'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
 import { promptDisplayTitle, promptSourceLabel } from './promptDisplay'
+import { useRemoteExampleMedia } from '../../media/remoteExampleMedia'
 
 type Props = {
   prompt: LibraryPrompt
@@ -30,6 +31,8 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
   const { t } = useTranslation()
   const boxRef = React.useRef<HTMLDivElement>(null)
   const [closing, setClosing] = React.useState(false)
+  // 预览大图原来没有 onError：来源站点删了 / 防盗链时只剩一个黑框。失效与卡片同一份会话记账。
+  const media = useRemoteExampleMedia(prompt.mediaUrl)
   const [sent, setSent] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
   const isVideo = prompt.mediaType === 'video'
@@ -113,7 +116,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
         >
           {/* 媒体 16:9 */}
           <div className={cn('relative w-full bg-nomi-ink-05')} style={{ aspectRatio: '16 / 9' }}>
-            {hasMedia ? (
+            {hasMedia && !media.broken ? (
               isVideo ? (
                 <video
                   src={prompt.mediaUrl}
@@ -122,19 +125,23 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
                   muted
                   loop
                   playsInline
+                  onError={media.onError}
                   className={cn('absolute inset-0 w-full h-full object-cover')}
                 />
               ) : (
                 <img
                   src={prompt.mediaUrl}
                   alt={displayTitle}
+                  onError={media.onError}
                   className={cn('absolute inset-0 w-full h-full object-cover')}
                 />
               )
             ) : (
-              <div className={cn('absolute inset-0 grid place-items-center gap-1 text-nomi-ink-30')}>
+              <div className={cn('absolute inset-0 grid place-content-center justify-items-center gap-1 text-nomi-ink-30')}>
                 {isVideo ? <IconVideo size={40} stroke={1.3} /> : <IconPhoto size={40} stroke={1.3} />}
-                <span className={cn('text-caption text-nomi-ink-40')}>{t('libraries.prompt.preview.noCover')}</span>
+                <span className={cn('px-8 text-center text-caption text-nomi-ink-40')} {...(media.broken ? { 'data-example-media-expired': true } : {})}>
+                  {t(media.broken ? 'libraries.prompt.preview.expired' : 'libraries.prompt.preview.noCover')}
+                </span>
               </div>
             )}
             <span

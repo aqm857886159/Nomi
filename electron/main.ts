@@ -28,7 +28,6 @@ import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspac
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { registerWorkspaceFileDeleteIpc } from "./workspace/workspaceFileDelete";
 import { registerWorkspaceSyncIpc } from "./workspace/workspaceSyncIpc";
-import { registerRendererCrashIpc } from "./crashLog";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 import { registerExportJobIpc } from "./export/exportJobIpc";
 import { registerTextStreamIpc } from "./ai/textStreamIpc";
@@ -76,6 +75,7 @@ import { registerSkillIpc } from "./skills/skillIpc";
 import { logError, logInfo, logWarn } from "./logging/logger";
 import { seedFromStableInstallAtBoot } from "./settings/sideBySideInstallSeed";
 import { registerDevDiagnostics } from "./logging/devDiagnostics";
+import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
@@ -413,8 +413,8 @@ function registerIpc(): void {
   // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
   registerIntegrationHandoffIpc();
   registerIntegrationSessionIpc(installIntegrationSessionRuntime());
-  // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）；注册与 sender 守卫住在 crashLog（main.ts 巨壳只减不增）。
-  registerRendererCrashIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
+  // 渲染层失败与崩溃的唯一日志通道（崩溃另进崩溃日志，P0-8）；注册与 sender 守卫住在 logging/rendererLog（main.ts 巨壳只减不增）。
+  registerRendererLogIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
   // 而非闭包捕获某个窗口实例——后者会在第二次 createWindow（重开库/activate）时重复注册 handle 抛错、崩窗。
   ipcMain.handle("nomi:window:minimize", (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());

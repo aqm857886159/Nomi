@@ -1,0 +1,212 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-25-canvas-video-players-always-mounted",
+  "problem_type": "Every on-screen video node mounts a fully buffering <video>, while the poster the asset boundary already derives is never drawn",
+  "symptom": "Mac user, real project with 30+ 15-second 1080p generated video nodes: hovering the canvas lags behind the cursor, dragging and typing feel sticky. Measured on Windows with 32 such nodes in view: every node mounts <video preload=\"auto\" controls> (readyState 4, 12–15 s buffered each) and the GPU process holds 1.3–2.0 GB; the @ candidate list takes 1.1–2.9 s to show thumbnails because it loads originals and extracts a 16-frame filmstrip per video.",
+  "direct_cause": "BaseGenerationNode renders NodeVideoPlaybackGuard → DeferredNodeVideo with preload=\"auto\" for every video result and never reads result.thumbnailUrl. The media queue (deferredNodeMediaQueue) only limits concurrent loading, so loaded players stay mounted. electron/assets/assetPreview.ts derives a first-frame poster for every stored video (a20bf49ce), but the canvas half that consumed it (3a72f0ce7) was reverted together with an unrelated screen-size LOD change on 2026-09-15 (fae43a80e / 29e232a31) and never came back.",
+  "class_root": "Two owners of one fact drifted apart: the asset boundary decided \"the canvas draws a poster and creates <video> only on interaction\", the node card kept \"always mount a buffering player\". Nothing structural asserted the boundary's promise, so bundling it into a reverted commit removed it silently; bookkeeping (PR #787 merged, TODO T-CV-01 \"poster half landed\") kept saying it was there. Separately, three surfaces derived video covers three ways (asset preview, timeline filmstrip first cell, raw original).",
+  "affected_population": [
+    "Every user of 0.22.x with video results on the canvas; cost scales with the number of video nodes in view (worst on unified-memory Macs)",
+    "Old nodes whose results predate the asset-boundary poster, or entered through the reverted import / relocalize / library-drag paths, have no thumbnailUrl",
+    "Not affected: image nodes (already had lazy previews), timeline and preview dialog players (one player each)"
+  ],
+  "scope_paths": [
+    "electron/assets/assetsIpc.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/projectAssetStore.ts",
+    "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+    "src/workbench/assets/AssetVideoCover.tsx",
+    "src/workbench/assets/useLocalAssetPreview.ts",
+    ".github/workflows/quality-gate.yml"
+  ],
+  "entry_points": [
+    "BaseGenerationNode video result (canvas card)",
+    "import adapter / canvas stage drop / asset library drag (result.thumbnailUrl written at creation)",
+    "resultMediaBackfillBridge (project open: relocalize remote results, backfill posters for local results)",
+    "AssetVideoCover (asset library, pickers, @ list)"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://chromium.googlesource.com/chromium/src/+/a5a60aa3253ade09e0e89f738101521d08dd9beb/third_party/blink/renderer/platform/media/multi_buffer_data_source.cc#738",
+      "checked_at": "2026-09-25",
+      "purpose": "preload=auto pins roughly 10 s of bitrate (2–50 MB) per element and whole files under 25 MB; metadata stops the pipeline before decoder init. Idle players are reclaimed only after 15 s or beyond 8 idle players (renderer_web_media_player_delegate.cc#43), so 30 buffered players are not bounded by the browser."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/immich-app/immich/blob/e598e108966814fe8f70f81cd2a47c66dd5e7c71/web/src/lib/components/assets/thumbnail/VideoThumbnail.svelte#L37-L91",
+      "checked_at": "2026-09-25",
+      "purpose": "Prior art for many videos in one view: thumbnail <img> at rest, <video> mounted on hover and released (pause, remove src, load) on leave. Adopted; tldraw/ComfyUI keep <video> mounted, which in Electron (autoplay policy no-user-gesture-required) is not paused off-screen."
+    }
+  ],
+  "invariants": [
+    "A canvas video node at rest mounts no <video>; it draws the asset-boundary poster",
+    "At most one canvas node video plays at a time; a hover preview never interrupts a video the user is watching",
+    "Video covers everywhere come from the asset-boundary preview (one derivation owner)"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts",
+      "src/workbench/generationCanvas/resultMediaBackfillBridge.test.ts"
+    ],
+    "why": "NodeVideoPlaybackGuard is the only place that decides whether a canvas video has a <video> element (dwell / engaged / focus / user playback / unmeasured probe); nodeVideoPlayback owns how mounted elements play and the single-player claim. Poster derivation stays in electron/assets/assetPreview.ts, reached through ensureLocalAssetPreview for old results."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeVideoPlaybackGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "symbol": "claimNodeVideoPlayback"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+      "symbol": "playingVideo"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "symbol": "startNodeVideoHoverPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "ensureLocalAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+      "symbol": "backfilledPreviewPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetVideoCover.tsx",
+      "symbol": "useLocalAssetPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/useLocalAssetPreview.ts",
+      "symbol": "ensurePreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+      "symbol": "ensurePreview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/useLocalAssetPreview.ts",
+      "symbol": "ensurePreview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+      "symbol": "ensurePreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "contentTypeFromStoredFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "contentTypeFromStoredFile"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 13,
+    "why_not": "Cover derivation had three sources (asset preview, AssetVideoCover filmstrip first cell, raw originals in the @ list); after this change the asset-boundary preview is the only one. The guard is rendered only by BaseGenerationNode; claim / backfill / ensure-preview each have a single writer."
+  },
+  "generality_proof": "Whether a canvas video has a player is decided in one component for every entry (generated, imported, dragged, relocalized, old projects), and every entry that lacks a poster is healed by one bridge through the one derivation owner, so no card falls back to a permanently buffering player.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "symbol": "NodeVideoPlaybackGuard",
+      "responsibility": "Poster at rest; <video> only while hovered (after dwell), primary-selected, focused, user-playing or unmeasured; released on unmount."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "ensureLocalAssetPreview",
+      "responsibility": "Returns (deriving if needed) the asset-boundary preview for a stored nomi-local asset through attachStoredAssetPreview."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "entry_point": "lightweight card preview",
+      "disposition": "enforced",
+      "evidence": "resolveLightweightNodePreview already prefers result.thumbnailUrl; backfilled posters make it draw an image instead of a metadata <video>."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "version tray players",
+      "disposition": "not-affected",
+      "evidence": "Mounted only while the tray is open on one node; preload=metadata."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNodePreview.tsx",
+      "entry_point": "clip monitor",
+      "disposition": "not-affected",
+      "evidence": "One player per clip node, already has a poster; editing surfaces are out of this round."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same drift (boundary promises a poster, card mounts a player) can return from any new entry that creates video results without a thumbnail, or from any revert that bundles unrelated work.",
+    "same_class_scan": [
+      "rg \"DeferredNodeVideo|<video\" src/workbench/generationCanvas: guard, lightweight card, result stack, clip preview (dispositions above)",
+      "rg \"thumbnailUrl\" writers: import adapter, stage drop, asset library drag, relocalize, task localize — all forward the boundary preview now"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "invariant": "Idle canvas mounts zero <video>; at most one plays",
+    "failure_mode": "Unit tests on the playback policy and backfill; the canvas-follow-hand structural check (idle <video> = 0) runs in CI once the harness lands.",
+    "exception_policy": "none",
+    "strategy": "Keep the mount decision in the guard and cover derivation in the asset boundary; backfill instead of per-surface fallbacks.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+      "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts",
+      ".github/workflows/quality-gate.yml",
+      "tests/ux/canvas-follow-hand.perf.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts",
+    "src/workbench/generationCanvas/resultMediaBackfillBridge.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/nodeVideoPlayback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/useNodeVideoHoverPreview.ts",
+      "src/workbench/generationCanvas/nodes/useNodeVideoHoverPreview.test.ts",
+      "src/workbench/generationCanvas/resultUrlRelocalizeBridge.ts",
+      "src/workbench/generationCanvas/resultUrlRelocalizeBridge.test.ts"
+    ],
+    "rationale": "The DOM-querying hover hook is replaced by props into the guard; the relocalize bridge became resultMediaBackfillBridge (same owner, now also backfills posters); AssetVideoCover no longer uses the timeline filmstrip as a cover."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change; Chromium behaviour is used as documented.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Old results gain result.thumbnailUrl lazily when a project opens (persisted, no undo entry, no canvas event); nothing is rewritten if derivation fails.",
+  "residual_risks": [
+    "First hover on a video now pays player startup (after a 120 ms dwell); decode-failure healing also starts on first hover instead of at load.",
+    "Mac hover latency is attributed to memory pressure by inference; Mac confirmation is pending."
+  ]
+}

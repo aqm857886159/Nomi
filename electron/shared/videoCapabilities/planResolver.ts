@@ -24,7 +24,11 @@ import type { VideoModelCandidate } from "./recommendation";
 import { effectiveVideoModes } from "./recommendation";
 import { clampToRange, isParamValueAllowed, modeDurationRange, numericRangeOf } from "./paramConstraints";
 
-/** 逻辑镜头输入（调用方 = storyboard planner / GUI；durationSec 建议用演时换算的真实表演秒）。 */
+/**
+ * 逻辑镜头输入（调用方 = storyboard planner / GUI；durationSec 建议用演时换算的真实表演秒）。
+ * 主进程的接受集合是 `agentCapabilities/generation.ts` 的 `generationResolveInputSchema`（`.strict()`）——
+ * 这里加减一个键，那边的逐键守卫会让编译失败，别只改一边。
+ */
 export type PlanShotInput = {
   id: string;
   /** 语义表演时长（秒）。可为小数，落参数时按模式约束取整/钳值。 */

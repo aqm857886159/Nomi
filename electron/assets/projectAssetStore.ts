@@ -8,10 +8,10 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { providerDispatcher, type ProviderNetworkConfig } from "../providerNetwork";
-import { hardenedFetch } from "../hardenedFetch";
+import type { ProviderNetworkConfig } from "../providerNetwork";
+import { fetchProviderMedia } from "./providerMediaFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
-import { projectDirById, sanitizeName } from "../projects/repository";
+import { projectDirById, sanitizeName, SANITIZED_NAME_MAX_LENGTH } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
 import { broadcastAssetsUpdated } from "./assetEvents";
 import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
@@ -59,7 +59,8 @@ type LocalAssetRecord = {
   } & JsonRecord;
 };
 
-function contentTypeFromStoredFile(absolutePath: string): string {
+/** 已落盘文件的内容类型：先按扩展名，认不出再嗅文件头。列表与补封面共用这一份判定。 */
+export function contentTypeFromStoredFile(absolutePath: string): string {
   const extensionType = contentTypeFromPath(absolutePath);
   if (extensionType !== "application/octet-stream") return extensionType;
   try {
@@ -176,9 +177,23 @@ function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Ui
   }
 }
 
+/**
+ * 落盘文件名的**唯一**裁法：扩展名取自字节嗅出的内容类型（canonicalAssetFileName），**只截主干**；后缀不是
+ * 合法扩展名（`.[a-z0-9]{1,8}`）就整段算主干、另补 `.bin`。以前整段交给 sanitizeName 截到 90 字——供应商 URL 的
+ * 长 basename 连扩展名一起被截掉落成 `.bin`，出了 App（下载、双击、MCP 预览、再上传）就认不出（2026-09-26）。
+ */
+function storedAssetFileParts(fileName: string, contentType: string): { stem: string; ext: string } {
+  const parsed = path.parse(canonicalAssetFileName(fileName, contentType));
+  const ext = /^\.[a-z0-9]{1,8}$/i.test(parsed.ext) ? parsed.ext : ".bin";
+  const rawStem = ext === parsed.ext ? parsed.name : parsed.base;
+  const stem = sanitizeName(rawStem, "asset").slice(0, SANITIZED_NAME_MAX_LENGTH - ext.length).trim();
+  return { stem: stem || "asset", ext };
+}
+
 function uniqueAssetPath(
   projectId: string,
   fileName: string,
+  contentType: string,
   bucket: AssetBucket = "generated",
   context?: AssetWriteContext,
 ): { absolutePath: string; relativePath: string } {
@@ -187,9 +202,7 @@ function uniqueAssetPath(
   const today = new Date().toISOString().slice(0, 10);
   const assetDir = path.join(projectDir, "assets", bucket, today);
   ensureDir(assetDir);
-  const parsed = path.parse(sanitizeName(fileName, "asset.bin"));
-  const base = parsed.name || "asset";
-  const ext = parsed.ext || ".bin";
+  const { stem: base, ext } = storedAssetFileParts(fileName, contentType);
   let absolutePath = path.join(assetDir, `${base}${ext}`);
   for (let index = 2; fs.existsSync(absolutePath); index += 1) {
     absolutePath = path.join(assetDir, `${base}-${index}${ext}`);
@@ -229,7 +242,7 @@ export function writeAsset(
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   if (isContentAddressedUpload(meta)) return persistUploadBytes(projectId, bytes, storageFileName, actualContentType, meta, context);
   context?.assertCurrent();
-  const { absolutePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta), context);
+  const { absolutePath } = uniqueAssetPath(projectId, storageFileName, actualContentType, assetBucketFromMeta(meta), context);
   fs.writeFileSync(absolutePath, bytes);
   writeAssetSidecarMeta(absolutePath, meta);
   broadcastAssetsUpdated(projectId);
@@ -252,13 +265,12 @@ export function writeDeterministicAsset(
   const meta = validatedGeneratedMeta(sanitizeAssetMetaForKind(rawMeta), contentType, bytes);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
   validateStructuredAsset(actualContentType, bytes);
-  const storageFileName = canonicalAssetFileName(fileName, actualContentType);
-  const parsed = path.parse(sanitizeName(storageFileName, "asset"));
+  const { stem, ext } = storedAssetFileParts(fileName, actualContentType);
   const keyHash = crypto.createHash("sha256").update(materializationKey).digest("hex").slice(0, 24);
   const projectDir = projectDirById(projectId);
   if (!projectDir) throw new Error("Project not found");
   const bucket = assetBucketFromMeta(meta);
-  const relativePath = path.posix.join("assets", bucket, "materialized", `${parsed.name || "asset"}-${keyHash}${parsed.ext || ".bin"}`);
+  const relativePath = path.posix.join("assets", bucket, "materialized", `${stem}-${keyHash}${ext}`);
   const absolutePath = path.join(projectDir, relativePath);
   const contentHash = crypto.createHash("sha256").update(bytes).digest("hex");
   ensureDir(path.dirname(absolutePath));
@@ -347,7 +359,7 @@ async function copyNativeFileToBucket(context: AssetWriteContext, sourcePath: st
     await copyFileWithProgress(sourcePath, snapshot, onCopyProgress);
     const contentHash = await contentHashForFile(snapshot);
     context.assertCurrent();
-    const { absolutePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta), context);
+    const { absolutePath } = uniqueAssetPath(projectId, storageFileName, contentType, assetBucketFromMeta(meta), context);
     retryOnSharingViolation(() => fs.linkSync(snapshot, absolutePath));
     writeAssetSidecarMeta(absolutePath, meta);
     broadcastAssetsUpdated(projectId);
@@ -423,7 +435,7 @@ export function moveAssetFile(
   if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, fs.readFileSync(sourcePath), sourcePath);
   if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, fs.readFileSync(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
-  const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
+  const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, actualContentType, assetBucketFromMeta(meta));
   try {
     // 刚下载 / 刚生成的文件常被杀毒实时扫描短暂开着：改名先按共享冲突退避重试。
     renameSyncWithRetry(sourcePath, absolutePath);
@@ -615,20 +627,10 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
     );
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
-  const providerRoute = options.providerNetwork ? providerDispatcher({ network: options.providerNetwork }) : undefined;
-  let fetched;
-  try {
-    fetched = await hardenedFetch(url, {
-      timeoutMs: 60_000,
-      maxBytes: 200 * 1024 * 1024,
-      allowContentTypes: ["image/", "video/", "audio/", "application/octet-stream"],
-      ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
-      ...(providerRoute ? { dispatcher: providerRoute } : {}),
-    });
-  } finally {
-    // per-download 连接池只属于这一次取回（与 vendorHttp 的同一条纪律）。
-    if (providerRoute) void providerRoute.close().catch(() => undefined);
-  }
+  const fetched = await fetchProviderMedia(url, {
+    ...(options.trustedPrivateOrigin ? { trustedPrivateOrigin: options.trustedPrivateOrigin } : {}),
+    ...(options.providerNetwork ? { providerNetwork: options.providerNetwork } : {}),
+  });
   const bytes = fetched.bytes;
   const hintedContentType = fetched.contentType || "application/octet-stream";
   const rawFileName = String(raw.fileName || path.basename(new URL(url).pathname) || "").trim();

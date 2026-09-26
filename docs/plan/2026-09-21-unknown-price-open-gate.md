@@ -1,5 +1,7 @@
 # 未知价开闸 —— 恢复 2026-09-10 已拍板的「暂时算不出价格 / 仍要生成」
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 日期：2026-09-21 ｜ 分支 `integration/core-a-salvage-20260921`（批次 A · Pass 3a）
 - 用户拍板：`scratchpad/user-decisions.md`「未知价不能挡生成」「未知价 × 全自动 = 直接跑」「开闸范围 = 全部路径」
 - 数门正本：`scratchpad/doormap-unknown-price.md`（18 扇）｜根因合同：`docs/fixes/2026-09-21-unknown-price-blocks-generation.root-cause.json`

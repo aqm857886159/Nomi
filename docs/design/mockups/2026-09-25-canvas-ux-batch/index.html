@@ -1,0 +1,709 @@
+<title>画布手感三改</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* ── token 内嵌副本：值逐字抄自 src/theme/nomi-tokens.css（浅）与 tailwind.config.ts 暗色块。
+      样张和产品同一套值，样张上量出来的就是实现时该写的。 */
+:root {
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-radius-sm: 6px; --nomi-radius: 10px; --nomi-radius-lg: 16px;
+  --nomi-duration-fast: 140ms; --nomi-ease-fast: cubic-bezier(.2,.7,.3,1);
+  --canvas-dot: oklch(0.88 0.005 80);
+  --font-sans: "Inter Variable", Inter, -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "Fraunces Variable", Fraunces, Inter, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --nomi-bg: oklch(0.18 0.006 80); --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85); --nomi-ink-80: oklch(0.84 0.006 85); --nomi-ink-60: oklch(0.70 0.006 85);
+    --nomi-ink-40: oklch(0.62 0.006 85); --nomi-ink-30: oklch(0.50 0.006 85); --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85); --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.36 0.007 80); --nomi-line-soft: oklch(0.31 0.007 80);
+    --nomi-accent: oklch(0.70 0.13 250); --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+    --nomi-warning-ink: oklch(0.82 0.085 72); --nomi-warning-soft: oklch(0.295 0.04 72); --nomi-warning-edge: oklch(0.395 0.058 72);
+    --nomi-success: oklch(0.72 0.09 145); --nomi-danger-ink: oklch(0.82 0.13 25); --nomi-danger-soft: oklch(0.3 0.048 25);
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+    --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+    --canvas-dot: oklch(0.34 0.006 85);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80); --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85); --nomi-ink-80: oklch(0.84 0.006 85); --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85); --nomi-ink-30: oklch(0.50 0.006 85); --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85); --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-line: oklch(0.36 0.007 80); --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250); --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-warning-ink: oklch(0.82 0.085 72); --nomi-warning-soft: oklch(0.295 0.04 72); --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145); --nomi-danger-ink: oklch(0.82 0.13 25); --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --canvas-dot: oklch(0.34 0.006 85);
+}
+
+* { box-sizing: border-box; }
+body { background: var(--nomi-bg); color: var(--nomi-ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.6; }
+.page { max-width: 1120px; margin: 0 auto; padding-inline: 24px; padding-block: 32px 80px; display: grid; gap: 56px; }
+@media (max-width: 640px) { .page { padding-inline: 16px; } }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 28px; line-height: 1.25; letter-spacing: -0.01em; }
+h2 { font-size: 20px; font-weight: 600; line-height: 1.35; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.caption { font-size: 12px; color: var(--nomi-ink-60); }
+.micro { font-size: 11px; color: var(--nomi-ink-60); letter-spacing: .02em; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--nomi-ink-60); }
+code, .mono { font-family: var(--font-mono); font-size: 12px; }
+code { background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); border-radius: 4px; padding: 0 4px; }
+a { color: var(--nomi-accent); }
+
+header.top { display: grid; gap: 12px; }
+header.top .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); font-size: 12px; color: var(--nomi-ink-80); }
+.pill.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--nomi-bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--nomi-line); margin-inline: -24px; padding: 8px 24px; display: flex; gap: 4px; overflow-x: auto; }
+nav.toc a { flex: none; text-decoration: none; color: var(--nomi-ink-60); font-size: 13px; padding: 4px 10px; border-radius: var(--nomi-radius-sm); }
+nav.toc a:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+nav.toc .spacer { flex: 1; }
+.seg { display: inline-flex; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); padding: 2px; gap: 2px; }
+.seg button { border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 500; color: var(--nomi-ink-60); padding: 3px 10px; border-radius: 4px; cursor: pointer; min-height: 26px; }
+.seg button[aria-pressed="true"] { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); }
+button:focus-visible, a:focus-visible { outline: 2px solid color-mix(in srgb, var(--nomi-accent) 42%, transparent); outline-offset: 2px; }
+
+section.item { display: grid; gap: 20px; scroll-margin-top: 56px; }
+.quote { border-left: 2px solid var(--nomi-ink-20); padding: 2px 0 2px 14px; color: var(--nomi-ink-80); max-width: 72ch; }
+.quote b { color: var(--nomi-ink); font-weight: 600; }
+.decision { display: grid; gap: 4px; padding: 12px 14px; border-radius: var(--nomi-radius); background: var(--nomi-accent-soft); color: var(--nomi-ink); max-width: 80ch; }
+.pair { display: grid; gap: 20px; }
+.pair > .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.pair > figure { max-width: 560px; }
+figure { margin: 0; display: grid; gap: 6px; }
+figure img { width: 100%; border-radius: var(--nomi-radius); border: 1px solid var(--nomi-line); display: block; }
+figcaption { font-size: 12px; color: var(--nomi-ink-60); }
+figcaption b { color: var(--nomi-danger-ink); font-weight: 600; }
+.stack { display: grid; gap: 12px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--nomi-line-soft); }
+th { font-size: 12px; font-weight: 600; color: var(--nomi-ink-60); background: var(--nomi-ink-05); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); white-space: nowrap; }
+td .tag.keep { color: var(--nomi-ink); border-color: var(--nomi-ink-20); }
+td .tag.gone { color: var(--nomi-danger-ink); background: var(--nomi-danger-soft); border-color: transparent; }
+
+/* ── 可体验画布舞台（真实布局取景：左缘工具条、底部缩放条、点阵底） ── */
+.demo { display: grid; gap: 10px; }
+.demo-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.demo-bar .lbl { font-size: 12px; color: var(--nomi-ink-60); }
+.stagewrap { overflow-x: auto; border-radius: var(--nomi-radius); border: 1px solid var(--nomi-line); }
+.stage { position: relative; width: 100%; min-width: 800px; height: 500px; overflow: hidden; background-color: var(--nomi-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px); background-size: 20px 20px; }
+.stage .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform 320ms var(--nomi-ease-fast); }
+@media (prefers-reduced-motion: reduce) { .stage .world { transition: none; } }
+.leftdock { position: absolute; left: 12px; top: 64px; width: 40px; padding: 6px 0; display: grid; gap: 4px; justify-items: center; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-sm); z-index: 12; }
+.leftdock i { width: 28px; height: 28px; display: grid; place-items: center; color: var(--nomi-ink-60); border-radius: var(--nomi-radius-sm); }
+.zoomdock { position: absolute; left: 12px; bottom: 12px; height: 36px; display: flex; gap: 4px; align-items: center; padding: 0 6px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-sm); z-index: 12; font-size: 12px; color: var(--nomi-ink-60); }
+.zoomdock button { border: 0; background: transparent; color: var(--nomi-ink-60); width: 28px; height: 28px; border-radius: var(--nomi-radius-sm); display: grid; place-items: center; cursor: pointer; }
+.zoomdock button:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.zoomdock .val { min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.node { position: absolute; }
+.node .card { position: absolute; inset: 0; border-radius: var(--nomi-radius); overflow: hidden; background: var(--nomi-ink-05); box-shadow: var(--nomi-shadow-sm); }
+.node .card.media { background: linear-gradient(135deg, oklch(0.42 0.05 230), oklch(0.30 0.04 60)); }
+.node .card.empty { background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px); display: grid; place-items: center; color: var(--nomi-ink-40); }
+.node.selected .card { outline: 1.5px solid var(--nomi-accent); outline-offset: 0; }
+.node .label { position: absolute; left: 0; bottom: calc(100% + 6px); height: 28px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--nomi-ink-60); white-space: nowrap; transform-origin: 0 100%; }
+.node.fresh .card { box-shadow: 0 0 0 2px var(--nomi-accent), var(--nomi-shadow-md); }
+
+/* composer：屏幕像素定宽，不随缩放（反向缩放由 JS 给 scale(1/zoom)） */
+.composer { position: absolute; left: 50%; top: calc(100% + 14px); width: 560px; transform-origin: 50% 0; z-index: 8; }
+.composer .ccard { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.modebar { display: flex; align-items: center; gap: 8px; }
+.modebar .mlabel { font-size: 12px; color: var(--nomi-ink-60); }
+.hint { font-size: 12px; color: var(--nomi-ink-40); padding-bottom: 6px; border-bottom: 1px solid var(--nomi-line-soft); }
+.prompt { position: relative; min-height: 72px; max-height: 96px; overflow: hidden; font-size: 13px; line-height: 1.7; color: var(--nomi-ink); padding-right: 28px; transition: max-height var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.prompt.open { max-height: 360px; overflow-y: auto; }
+.prompt:not(.open)::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 22px; background: linear-gradient(transparent, var(--nomi-paper)); pointer-events: none; }
+.expand { position: absolute; right: 0; top: 0; width: 24px; height: 24px; border-radius: var(--nomi-radius-sm); border: 0; background: transparent; color: var(--nomi-ink-40); display: grid; place-items: center; cursor: pointer; z-index: 1; }
+.expand:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.footer { display: flex; align-items: center; gap: 8px; padding-top: 4px; flex-wrap: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); font-size: 12px; color: var(--nomi-ink-80); white-space: nowrap; cursor: pointer; font-family: inherit; max-width: 150px; }
+.chip span { overflow: hidden; text-overflow: ellipsis; }
+.chip:hover { background: var(--nomi-ink-05); }
+.divider { width: 1px; height: 16px; background: var(--nomi-line); flex: none; }
+.tool { width: 28px; height: 28px; display: grid; place-items: center; color: var(--nomi-ink-60); border-radius: var(--nomi-radius-sm); flex: none; }
+.go { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.cost { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--nomi-ink-60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cost.unpriced { color: var(--nomi-ink-40); }
+.cost.over { color: var(--nomi-warning-ink); }
+.send { width: 30px; height: 30px; border-radius: 999px; border: 0; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; cursor: pointer; flex: none; }
+.send:hover { background: var(--nomi-accent); }
+.floatbar { position: absolute; left: 50%; bottom: calc(100% + 40px); transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-md); transform-origin: 50% 100%; }
+.floatbar i { width: 28px; height: 28px; display: grid; place-items: center; color: var(--nomi-ink-60); }
+
+/* 状态条（GenerationStatusBar 取景：纸白胶囊 + 6px 状态点） */
+.status { position: absolute; left: 8px; top: 8px; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--nomi-paper); font-size: 11px; color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); }
+.status::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--nomi-accent); animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .status::before { animation: none; } }
+
+/* 付费确认弹窗（SpendConfirmDialog 取景：w-[380px] rounded-nomi-lg） */
+.scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--nomi-ink) 16%, transparent); display: grid; place-items: center; z-index: 30; }
+.dialog { width: 380px; max-width: calc(100% - 32px); background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); box-shadow: var(--nomi-shadow-md); padding: 16px; display: grid; gap: 12px; }
+.dialog .hd { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+.dialog .ic { width: 32px; height: 32px; border-radius: var(--nomi-radius); display: grid; place-items: center; background: var(--nomi-accent-soft); color: var(--nomi-accent); }
+.dialog .row { display: flex; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-sm); font-size: 13px; color: var(--nomi-ink-60); }
+.dialog .row b { color: var(--nomi-ink); font-weight: 500; }
+.dialog .acts { display: flex; justify-content: flex-end; gap: 8px; }
+.btn { height: 32px; padding: 0 14px; border-radius: var(--nomi-radius-sm); border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn.primary { background: var(--nomi-ink); color: var(--nomi-paper); border-color: var(--nomi-ink); }
+
+/* 画布边缘提示（新面，本样张要拍板的那一件） */
+.edgehint { position: absolute; z-index: 14; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); font: inherit; font-size: 12px; font-weight: 500; color: var(--nomi-ink); cursor: pointer; white-space: nowrap; }
+.edgehint:hover { background: var(--nomi-ink-05); }
+.edgehint .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--nomi-accent); }
+.edgehint.right { right: 12px; top: 50%; transform: translateY(-50%); }
+.edgehint.bottom { bottom: 60px; left: 50%; transform: translateX(-50%); }
+.edgehint.left { left: 64px; top: 50%; transform: translateY(-50%); }
+.edgehint.top { top: 12px; left: 50%; transform: translateX(-50%); }
+
+.rule { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+.rule .verdict { font-weight: 600; }
+.rule .verdict.no { color: var(--nomi-success); }
+.rule .verdict.yes { color: var(--nomi-warning-ink); }
+.log { font-size: 12px; color: var(--nomi-ink-60); min-height: 20px; }
+.counter { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--nomi-ink); }
+
+.qs { display: grid; gap: 12px; }
+.q { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+.q .def { font-size: 13px; }
+.q .def b { font-weight: 600; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .ladder { grid-template-columns: 1fr; } }
+.rung { display: grid; gap: 8px; align-content: start; padding: 12px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+.rung.pick { border-color: var(--nomi-accent); box-shadow: 0 0 0 1px var(--nomi-accent); }
+.rung .mini { height: 88px; border-radius: var(--nomi-radius-sm); position: relative; background-color: var(--nomi-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px); background-size: 12px 12px; overflow: hidden; border: 1px solid var(--nomi-line-soft); }
+.rung .mini .edgehint { transform: translateY(-50%) scale(.82); transform-origin: 100% 50%; }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="eyebrow">Claude Design 样张 · v1 · 2026-09-25 · 分支 claude/canvas-ux-batch</div>
+    <h1>画布手感三改：浮框钉住、点生成不弹窗、画布不自己动</h1>
+    <p>三件事都来自你 09-25 的反馈，方向你已经拍了。这张样张只做两件事：<b>把「拍了的方向」画成能点的样子让你确认细节</b>，以及<b>把没定的几个细节列成题、每题带默认答案</b>。底图和几何全部取自真机（1280×800 小窗、「用过的项目」夹具），不是脑补。</p>
+    <div class="meta">
+      <span class="pill">现状截图：本分支 main 构建 · Windows · zh-CN</span>
+      <span class="pill warn">要你拍板：第 4 节 5 道题</span>
+      <div class="seg" role="group" aria-label="样张语言">
+        <button type="button" id="lang-zh" aria-pressed="true">中文</button>
+        <button type="button" id="lang-en" aria-pressed="false">English</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="目录">
+    <a href="#composer">① 参数浮框</a>
+    <a href="#spend">② 点生成不弹窗</a>
+    <a href="#viewport">③ 画布不自己动</a>
+    <a href="#decide">④ 要你拍板</a>
+    <a href="#process">⑤ 盘点与流程产物</a>
+    <span class="spacer"></span>
+  </nav>
+
+  <!-- ───────────── ① 参数浮框 ───────────── -->
+  <section class="item" id="composer">
+    <div class="eyebrow">① 参数浮框</div>
+    <h2>钉在节点正下方，定宽，被挡就挡</h2>
+    <p class="quote">你的原话：「参数卡片位置错位……<b>长度老是变来变去的，偶尔长偶尔短</b>；拖过去它为了显示参数卡片导致都是错位的，<b>我觉得遮挡就遮挡了，保持位置</b>。」</p>
+    <div class="pair">
+      <div class="stack">
+        <figure>
+          <img src="evidence/01-left-node.jpg" alt="现状：浮框底部空间不够时被推到节点身上，盖住了节点的上半截" width="656" height="400">
+          <figcaption>现状 · 真机。节点下面放不下，浮框被<b>推回屏幕里、直接盖在节点身上</b>（节点顶在 y=168，浮框顶在 y=221）。</figcaption>
+        </figure>
+        <figure>
+          <img src="evidence/05-new-image-node.jpg" alt="现状：新建节点后浮框偏到左上，节点浮条压在提示词上" width="656" height="400">
+          <figcaption>现状 · 真机。新建图片节点：浮框被挤到左上角，<b>节点的浮动工具条压在提示词上</b>；宽度 483px，换个模型又是另一个宽度。</figcaption>
+        </figure>
+      </div>
+      <div class="demo">
+        <div class="demo-bar">
+          <span class="lbl">节点在屏幕哪：</span>
+          <div class="seg" role="group" aria-label="节点位置">
+            <button type="button" data-pos="mid" aria-pressed="true">中间</button>
+            <button type="button" data-pos="right" aria-pressed="false">靠右边</button>
+            <button type="button" data-pos="bottom" aria-pressed="false">靠底部</button>
+          </div>
+          <span class="lbl">缩放：</span>
+          <div class="seg" role="group" aria-label="缩放">
+            <button type="button" data-zoom="0.6" aria-pressed="false">60%</button>
+            <button type="button" data-zoom="1" aria-pressed="true">100%</button>
+            <button type="button" data-zoom="1.4" aria-pressed="false">140%</button>
+          </div>
+        </div>
+        <div class="stagewrap"><div class="stage" id="stage1">
+          <div class="world" id="world1"></div>
+          <div class="leftdock" aria-hidden="true"><i data-icon="photo"></i><i data-icon="video"></i><i data-icon="text"></i></div>
+          <div class="zoomdock" aria-hidden="true"><button type="button" tabindex="-1" data-icon="minus"></button><span class="val" id="zoomval1">100%</span><button type="button" tabindex="-1" data-icon="plus"></button></div>
+        </div></div>
+        <p class="caption">改后 · 可体验。切「靠右边 / 靠底部」：浮框<b>不躲、不翻、不变宽</b>，出了画布就被裁掉，想看全就自己拖画布。切缩放：节点变大变小，<b>浮框始终 560px</b>、始终居中在节点正下方 14 个画布单位处。点提示词右上角 <span data-icon="expand" style="display:inline-grid;vertical-align:-3px"></span> 试「展开」。</p>
+      </div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>这一块</th><th>现在</th><th>改后</th><th>为什么</th></tr></thead>
+      <tbody>
+        <tr><td>位置</td><td>居中→推回屏幕内→放不下翻到节点上方→再躲左缘工具条、底部缩放条/时间轴胶囊</td><td><b>永远在节点正下方、水平居中</b>，出屏就出屏</td><td>你拍板「被挡就挡」；这也正是 React Flow 官方节点浮层 <code>NodeToolbar</code> 的做法（只钉锚点+反缩放，不做任何躲避）</td></tr>
+        <tr><td>宽度</td><td><code>w-max</code>：跟着内容撑，360–880px 之间，换模型/换语言/参数摘要变长都会变</td><td><b>固定 560px</b>（屏幕像素，不随缩放）</td><td>「长度变来变去」的直接原因就是内容驱动宽度。560 = 现役最宽的视频节点底栏在英文下一行放得下的宽度（实现时实量，放不下就参数摘要截断，不换行）</td></tr>
+        <tr><td>高度</td><td>按屏幕剩余空间压缩，参考区压成滚动口</td><td>按内容，上限不变（图 400 / 视频 460），超出在卡内滚</td><td>不再看屏幕剩多少空间，同一个节点每次打开都一样高</td></tr>
+        <tr><td>性能</td><td>常驻 <code>requestAnimationFrame</code>：每帧 <code>querySelectorAll</code> + 量 N 个矩形</td><td><b>零 JS 定位</b>：纯 CSS <code>left:50%; top:calc(100% + 14px)</code> + 反缩放</td><td>整套放置 hook（<code>useComposerViewportPlacement.ts</code> 210 行）删掉，一个没有入参的东西不需要每帧算</td></tr>
+        <tr><td>提示词「展开」</td><td>没有，长提示词只能在 3 行小框里滚</td><td>右上角一颗 <span data-icon="expand" style="display:inline-grid;vertical-align:-3px"></span>，点开原地变高显示全文（上限 360px，再长卡内滚），再点收起</td><td>参考 LibTV 提示词框右上角的展开图标。只在提示词超过 3 行时出现</td></tr>
+      </tbody>
+    </table></div>
+    <div class="decision"><b>⚠️ 这一刀会推翻两条旧规矩，请一并确认</b>
+      <span>① 设计系统 §1.5.2 第 4 条「浮层尺寸由内容派生，不吃固定宽」——浮框改定宽，我会在那条下面登记「节点浮框豁免：用户 09-25 拍板定宽」。② 09-10 底栏 v1.1 有一条硬断言「提示词区右端不放任何控件」（当时 B 簇压在提示词右上角被读成「表头」）。这次放的只是<b>一颗无框的 24px 图标</b>，不是一簇带框的工具，我判断不会再被读成表头；走查断言会改成「右上角只允许这一颗」。</span></div>
+  </section>
+
+  <!-- ───────────── ② 点生成不弹窗 ───────────── -->
+  <section class="item" id="spend">
+    <div class="eyebrow">② 点生成不弹窗</div>
+    <h2>单个节点直接生成，花多少写在按钮旁边</h2>
+    <p class="quote">你的决定：<b>单个节点生成不弹窗</b>，预计花费显示在发送按钮旁（像 LibTV 的「⚡ 18」，未标价就写未标价）；<b>一次生成多个</b>或<b>单次超过某个金额</b>才弹确认；Agent 发起的付费照旧确认。</p>
+    <div class="pair">
+      <figure>
+        <img src="evidence/07-spend-dialog.jpg" alt="现状：每次点生成都弹开始生成确认窗" width="656" height="400">
+        <figcaption>现状 · 真机。点 ↑ 一次，弹一次「开始生成 · 预计金额」，<b>再点一次「生成」才真的开始</b>。</figcaption>
+      </figure>
+      <div class="demo">
+        <div class="demo-bar">
+          <span class="lbl">模型：</span>
+          <div class="seg" role="group" aria-label="模型报价">
+            <button type="button" data-price="0.3" aria-pressed="true">图片 · 0.3 点</button>
+            <button type="button" data-price="null" aria-pressed="false">未标价</button>
+            <button type="button" data-price="12" aria-pressed="false">贵视频 · 12 点</button>
+          </div>
+          <span class="lbl">一次几个：</span>
+          <div class="seg" role="group" aria-label="变体数">
+            <button type="button" data-count="1" aria-pressed="true">1</button>
+            <button type="button" data-count="2" aria-pressed="false">2</button>
+            <button type="button" data-count="4" aria-pressed="false">4</button>
+          </div>
+          <span class="lbl">谁发起：</span>
+          <div class="seg" role="group" aria-label="发起方">
+            <button type="button" data-src="user" aria-pressed="true">我点 ↑</button>
+            <button type="button" data-src="agent" aria-pressed="false">Agent</button>
+          </div>
+        </div>
+        <div class="stagewrap"><div class="stage" id="stage2" style="height:440px">
+          <div class="world" id="world2" style="width:100%;height:100%"></div>
+        </div></div>
+        <div class="rule" aria-live="polite">
+          <div>这一次：<span class="verdict" id="verdict">不弹，直接开始</span></div>
+          <div class="caption" id="why">单个节点 · 0.3 点 &lt; 10 点门槛 · 我自己点的</div>
+        </div>
+      </div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>判据（唯一 owner：<code>spend/spendConfirm.ts</code> 里一个纯函数）</th><th>弹不弹</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td>本地 ComfyUI，不花钱</td><td>不弹（现状就是）</td><td>本地显卡跑图</td></tr>
+        <tr><td>我自己点的、这一下只跑 <b>1 个</b>、报价 &lt; 门槛（含「未标价」）</td><td><b>不弹</b></td><td>节点 ↑ / 结果卡「重新生成」/ 失败卡「重试」/ 分镜行「生成」/ 选中 1 个按 Ctrl+Enter</td></tr>
+        <tr><td>这一下跑 <b>≥2 个</b></td><td>弹</td><td>×2 变体、多选「生成 N」、批量条、组框「生成」、带未出图上游的镜头（先补参考再生成）</td></tr>
+        <tr><td>单次报价 <b>≥ 门槛</b>（默认 10 点，见第 4 节第 3 题）</td><td>弹</td><td>贵的视频模型</td></tr>
+        <tr><td><b>Agent</b> 或外部 MCP 发起</td><td>弹（照旧）</td><td>Agent 付费卡、分镜草稿里 Agent 点的生成</td></tr>
+        <tr><td>第一次走匿名托管，要告知</td><td>弹（照旧，告知只能在卡里给）</td><td>托管通道首次使用</td></tr>
+      </tbody>
+    </table></div>
+    <div class="decision"><b>你在权衡的就一件事：少点一下 vs 手滑就花掉</b>
+      <span>不弹窗以后，点错 ↑ 就真的扣了（单次最多到门槛那么多）——供应商没有取消接口，扣了退不回来。能挡住它的只有两样：按钮旁<b>常驻的点数</b>（点之前就看得到要花多少）和<b>门槛</b>（贵的仍然问）。我建议接受，因为你一天点几十次生成，每次多一下是确定的成本；手滑是偶发的、且被门槛封了顶。</span></div>
+  </section>
+
+  <!-- ───────────── ③ 画布不自己动 ───────────── -->
+  <section class="item" id="viewport">
+    <div class="eyebrow">③ 画布不自己动</div>
+    <h2>程序不再平移/缩放画布；落在屏外就在边缘提示，点了才过去</h2>
+    <p class="quote">你的原话：「老是动画布，我刚才用付费卡点击之后<b>画布就闪动一下，然后我就找不到那个镜头生成去哪里了</b>……有时候导入的时候不在中心展示导致找不到，好像修过，但<b>类似问题反复发生</b>。」</p>
+    <div class="pair">
+      <div class="stack">
+        <figure>
+          <img src="evidence/00-canvas.jpg" alt="新建节点前的画布" width="656" height="400">
+          <figcaption>现状 · 真机 · 点「新建图片」之前。</figcaption>
+        </figure>
+        <figure>
+          <img src="evidence/05-new-image-node.jpg" alt="新建节点后画布被程序平移" width="656" height="400">
+          <figcaption>现状 · 真机 · 点之后：<b>整张画布被程序挪走了</b>（「林澈舰长」那张卡直接不见）。付费卡确认更狠：单个镜头先<b>放大聚焦</b>、360ms 后再<b>缩小适应全图</b>——两次移动叠在一起就是你看到的「闪一下」。</figcaption>
+        </figure>
+      </div>
+      <div class="demo">
+        <div class="demo-bar">
+          <button type="button" class="btn" id="sim-agent">模拟：付费卡确认，建 1 个镜头</button>
+          <button type="button" class="btn" id="sim-import">模拟：导入 3 张图</button>
+          <button type="button" class="btn" id="sim-far">模拟：Agent 建在远处</button>
+          <button type="button" class="btn" id="sim-reset">重置</button>
+        </div>
+        <div class="stagewrap"><div class="stage" id="stage3">
+          <div class="world" id="world3"></div>
+          <div class="leftdock" aria-hidden="true"><i data-icon="photo"></i><i data-icon="video"></i><i data-icon="text"></i></div>
+          <div class="zoomdock"><button type="button" id="fit3" title="适应视图" data-icon="fit"></button><span class="val" id="zoomval3">100%</span></div>
+        </div></div>
+        <p class="caption">程序主动移动画布的次数：<span class="counter" id="automoves">0</span>（改后恒为 0）。新东西先找<b>当前屏幕里的空位</b>落；屏里没空位，落在旁边并在那一侧边缘出一颗提示，<b>点它</b>画布才移过去。你自己拖画布把它们拖进屏里，提示也会自己消失。</p>
+        <p class="log" id="log3"></p>
+      </div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>谁在移动画布（实数 17 个写入口，门表见第 5 节）</th><th>改后</th></tr></thead>
+      <tbody>
+        <tr><td>新建 1 个节点后「露出」动画（工具条新建、⌘D 复制、复制变体、粘贴、侧栏「重新生成副本」）</td><td><span class="tag gone">删</span> 落在屏内；落不下 → 边缘提示</td></tr>
+        <tr><td>Agent / 付费卡落地：单个先聚焦放大，再适应全图；多个直接适应全图；还会<b>自动切分类</b></td><td><span class="tag gone">删</span> 不切分类、不移动；落在当前可见区，放不下 → 边缘提示（在别的分类就写「在『分镜』里」）</td></tr>
+        <tr><td>素材库上传 / 九宫格切图后「适应全图」</td><td><span class="tag gone">删</span> 导入落在屏幕中心附近（现在写死在 (120, 90)），放不下 → 边缘提示</td></tr>
+        <tr><td>「重新生成」复制出新节点后聚焦过去</td><td><span class="tag gone">删</span> 同上</td></tr>
+        <tr><td>打开项目时没有记住的视角 → 第一次摆好全貌</td><td><span class="tag keep">待定</span> 见第 4 节第 4 题（我建议保留：那是「第一帧」，不是「移动」）</td></tr>
+        <tr><td>你点的：适应视图、复位、缩放条/快捷键、小地图、侧栏点节点定位、「在画布上查看」、「定位来源」、通知/深链跳转、<b>边缘提示</b></td><td><span class="tag keep">留</span> 这些是你要它动</td></tr>
+        <tr><td>拖节点/框选到屏幕边缘时画布跟着滚</td><td><span class="tag keep">留</span> 手在拖，是你在动</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ───────────── ④ 要你拍板 ───────────── -->
+  <section class="item" id="decide">
+    <div class="eyebrow">④ 要你拍板</div>
+    <h2>5 道题，每题都有默认；不回的按默认做</h2>
+    <div class="qs">
+      <div class="q"><h3>1 · 浮框宽度：定死一个数，还是跟节点一样宽？</h3>
+        <div class="def"><b>默认：定死 560px</b>（屏幕像素，任何缩放都一样宽）。</div>
+        <div class="tablewrap"><table><thead><tr><th>方案</th><th>你看到什么</th><th>代价</th></tr></thead><tbody>
+          <tr><td>A 定死 560（推荐）</td><td>任何节点、任何缩放、任何模型，浮框一模一样宽</td><td>放大到 140% 以上时节点比浮框宽，浮框看着「窄」</td></tr>
+          <tr><td>B 跟节点同宽，最窄 560</td><td>放大时浮框跟着节点一起变宽，两条边对齐</td><td>缩放一下宽度就变，还是「变来变去」，只是变得有规律</td></tr>
+        </tbody></table></div></div>
+      <div class="q"><h3>2 · 「展开」要不要也给 Agent 面板里的付费卡？（连带面）</h3>
+        <div class="def"><b>默认：不给。</b>付费卡是同一个浮框组件的另一个宿主，那里提示词是 Nomi 写好的、卡在面板里高度有限；只改画布上的浮框。</div></div>
+      <div class="q"><h3>3 · 单次多贵开始要确认？</h3>
+        <div class="def"><b>默认：≥ 10 点</b>（目录报价的单位）。仓库里现在<b>没有</b>任何金额门槛配置（09-09 删了硬预算），只能新立一个常量；做成设置项要另起一个设置页入口，我不建议现在做。</div></div>
+      <div class="q"><h3>4 · 打开项目时「第一次摆好全貌」算不算程序动画布？（连带面）</h3>
+        <div class="def"><b>默认：保留</b>，但只在「这个分类第一次打开、没有记住的视角」时摆一次，而且不带动画（第一帧就是它）。之后再也不自动适应。</div></div>
+      <div class="q"><h3>5 · Agent 把东西建在<b>别的分类</b>里时，要不要自动切过去？（连带面）</h3>
+        <div class="def"><b>默认：不切。</b>边缘提示写「新镜头在『分镜』里」，点它才切分类并过去。现在是会自己切的——切分类本身就是一次「画布自己动」。</div></div>
+    </div>
+  </section>
+
+  <!-- ───────────── ⑤ 盘点与流程产物 ───────────── -->
+  <section class="item" id="process">
+    <div class="eyebrow">⑤ 盘点与流程产物（page-design-process 闸①②③）</div>
+    <h2>现状盘点、控件前后表、新小面的四件产物、自纠记录</h2>
+
+    <h3>现状盘点（file:line，均在 origin/main d8824a0c5 上实读）</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>这块</th><th>谁管</th><th>要动的点</th></tr></thead>
+      <tbody>
+        <tr><td>浮框外壳</td><td><code>nodes/NodeGenerationComposer.tsx:355-598</code></td><td><code>:362</code> / <code>:392</code> 的 <code>w-max</code>；<code>:371-375</code> 的 left/top/maxWidth；<code>:120</code> <code>floatingComposerLayout</code> 其实不算宽度</td></tr>
+        <tr><td>浮框放置</td><td><code>nodes/useComposerViewportPlacement.ts:72-210</code></td><td>整文件删；<code>:192</code> 常驻 rAF、<code>:95</code> 每帧 querySelectorAll</td></tr>
+        <tr><td>翻转后的比例锚边</td><td><code>NodeParameterControls.tsx:235</code> → <code>nodeSizing.ts:420</code></td><td>不再翻转 → 恒为 <code>'bottom'</code>，参数删掉</td></tr>
+        <tr><td>确认判据</td><td><code>spend/spendConfirm.ts:209</code> <code>confirmGenerationSpend</code></td><td>今天唯一规则是「全是 ComfyUI 就不弹」（<code>:195</code>）</td></tr>
+        <tr><td>主进程花钱闸</td><td><code>electron/spendGrant.ts:137</code></td><td>没带报价的令牌会被拦下、再弹一张更吓人的卡 → <b>不弹窗也必须走报价→铸令牌</b></td></tr>
+        <tr><td>Agent 来源丢失</td><td><code>capability/storyboardPresent.ts:52</code></td><td><code>source:'agent'</code> 没传进 <code>confirmAndRunNode</code> → 要接上，否则「单个不弹」会把 Agent 的也放掉</td></tr>
+        <tr><td>付费卡落地的两次移动</td><td><code>agent/applyCanvasToolCall.ts:540-559</code> + <code>capability/multiShotCanvasLanding.ts:333</code></td><td>聚焦放大 + 360ms 后适应全图 = 「闪」</td></tr>
+        <tr><td>新建后露出</td><td><code>components/useCreatedNodeVisibilityPan.ts:142-224</code></td><td>整文件删</td></tr>
+        <tr><td>视口动画</td><td><code>reactFlow/useReactFlowViewportAnimation.ts:48</code> + <code>components/viewportAnimationCoordinator.ts</code></td><td>自研 rAF 逐帧 <code>setViewport</code> → 每帧触发 <code>onMoveEnd</code>（<code>GenerationCanvasReactFlowViewport.tsx:262-264</code>）写 store。改用 React Flow 自带的带时长 <code>setViewport</code>：一次移动只结束一次、手一碰就打断</td></tr>
+        <tr><td>落点</td><td><code>store/canvasNodeActions.ts:69</code>（默认 (120,360)）、<code>AssetLibraryPanel.tsx:249</code>（写死 (120,90)）、<code>capabilityCore/canvasNodeLayout.ts:141</code>（Agent 批量排在<b>所有分类</b>最下面）</td><td>收成一个「落点」owner：先找当前可见区的空位</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>控件前后表（闸② · 现有面）</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>控件</th><th>现在在哪层</th><th>改后</th><th>手法</th><th>底栏常驻簇数</th></tr></thead>
+      <tbody>
+        <tr><td>预计点数</td><td>L3（点了 ↑ 才在弹窗里看到）</td><td>L1，贴 ↑ 左边的只读文字，不是按钮</td><td>就近</td><td rowspan="3">4 簇不变：模型+参数 │ 写提示词 │ ×N │ 走（点数并进「走」这一簇）</td></tr>
+        <tr><td>「开始生成」确认弹窗</td><td>每次都出</td><td>单个且不贵时删掉这一步</td><td>去重（↑ 和「生成」是同一个决定点两次）</td></tr>
+        <tr><td>提示词展开</td><td>无</td><td>L2，提示词超过 3 行才出</td><td>就近</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>新小面：画布边缘提示 · 四件产物</h3>
+    <p><b>任务卡：</b>「刚让 Agent / 导入 / 复制建了东西的人，在新东西不在屏幕里的那一刻，<b>知道它在哪、点一下到那儿</b>，就走。」</p>
+    <div class="ladder">
+      <div class="rung pick"><div class="micro">v1 · 只有一件事（推荐）</div><div class="mini"><button type="button" class="edgehint right" tabindex="-1"><span class="dot"></span><span>新镜头在右侧</span><span data-icon="arrow-right"></span></button></div><div class="caption">一颗胶囊：方向 + 几个 + 箭头。点了过去、自己消失。</div></div>
+      <div class="rung"><div class="micro">v2 · +1</div><div class="mini"><button type="button" class="edgehint right" tabindex="-1"><span style="width:18px;height:18px;border-radius:4px;background:linear-gradient(135deg, oklch(0.42 0.05 230), oklch(0.30 0.04 60))"></span><span>新镜头在右侧</span><span data-icon="arrow-right"></span></button></div><div class="caption">胶囊里带一张缩略图。</div></div>
+      <div class="rung"><div class="micro">v3 · 全都要</div><div class="mini"><button type="button" class="edgehint right" tabindex="-1"><span>3 个新节点</span><span data-icon="arrow-right"></span><span style="color:var(--nomi-ink-40)">× · 不再提示</span></button></div><div class="caption">+ 关闭钮、「不再提示」、小地图同步高亮、列出每一个。</div></div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>我没放上去的</th><th>为什么</th><th>要它时怎么找到</th></tr></thead>
+      <tbody>
+        <tr><td>缩略图</td><td>新节点多半还没出图（空卡/排队中），缩略图是一块条纹，没信息</td><td>点胶囊过去就看到节点本身</td></tr>
+        <tr><td>× 关闭</td><td>它自己会消失：点了、或你把那些节点拖进屏里、或它们被删</td><td>不需要</td></tr>
+        <tr><td>「不再提示」</td><td>它不打断任何事、不挡操作，关掉它等于回到「找不到」</td><td>不提供</td></tr>
+        <tr><td>逐个列出</td><td>一批一颗就够；点过去是把这一批一起摆进屏里</td><td>侧栏节点树仍然可以逐个定位</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>卡点</th><th>用户看到什么</th><th>会卡在哪</th><th>我们做什么</th><th>证据</th></tr></thead>
+      <tbody>
+        <tr><td>① 怎么知道</td><td>新东西落在屏外的那一刻，对应那条边出一颗胶囊</td><td>胶囊被底部缩放条/时间轴胶囊挡住</td><td>底边让位复用现役的停靠区判据</td><td><code>generation/workspaceBottomDocks.ts</code> <code>resolveUsableBottomAboveDocks</code></td></tr>
+        <tr><td>② 付出什么</td><td>点数常驻在 ↑ 旁；胶囊点了只移画布</td><td>未标价时不知道多贵</td><td>明写「未标价」，不挡生成</td><td><code>docs/plan/2026-09-21-unknown-price-open-gate.md</code>（未知价不许挡生成）</td></tr>
+        <tr><td>③ 空了/错了</td><td>点 ↑ 后节点上立刻出排队状态条</td><td>没弹窗，担心「到底点上没有」</td><td>状态条就是回执，不另加 toast</td><td><code>nodes/GenerationStatusBar.tsx</code>（排队 ink-30 → 进行 accent）</td></tr>
+        <tr><td>④ 凭什么信 / 怎么回头</td><td>点数和确认卡、主进程报价同一个公式</td><td>点错了已经扣钱</td><td>门槛封顶；供应商没有取消接口，这条如实告诉你</td><td><code>electron/shared/contracts/shotPricingRule.ts:93</code> <code>deriveShotPrice</code></td></tr>
+      </tbody>
+    </table></div>
+    <p><b>这条路几步？</b>生成：2 步（↑ → 弹窗「生成」）→ <b>1 步</b>。找新节点：现在 0 步但画布被抢走；改后 0 步（在屏内）或 1 步（点胶囊）。砍不掉的那一步是「点胶囊」——它换来的是画布不被抢。</p>
+
+    <h3>这一版推翻了自己的什么</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>我原来的判断</th><th>被什么推翻</th><th>来源</th><th>后果</th></tr></thead>
+      <tbody>
+        <tr><td>浮框宽度是 <code>floatingComposerLayout(visualSize)</code> 按节点尺寸算出来的，改公式就行</td><td><code>NodeGenerationComposer.tsx:120</code> 这函数把宽高参数直接丢掉，宽度来自 <code>w-max</code></td><td>自查（实读）</td><td>否则会去改一个根本不决定宽度的函数，宽度照样抖</td></tr>
+        <tr><td>「不弹窗」= 不调 <code>requestConfirm</code> 就行</td><td><code>electron/spendGrant.ts:137</code>：没报价的令牌被主进程拦下，改弹一张「经 AI 助手驱动」的卡</td><td>自查（实读）</td><td>会把一个弹窗换成另一个更吓人的弹窗</td></tr>
+        <tr><td>「开始生成」只从 <code>confirmAndRunNode</code> 出来</td><td>选中 1 个按 Ctrl+Enter 走的是批量路 <code>useCanvasProductionActions.ts:48</code>，文案一模一样</td><td>自查（实读）</td><td>判据挂在入口上会漏一条路；改成按「这一下跑几个」判</td></tr>
+        <tr><td>付费卡后的「闪」是一次适应全图</td><td><code>applyCanvasToolCall.ts:557</code> 先聚焦放大到 ≥100%，<code>multiShotCanvasLanding.ts:333</code> 360ms 后再缩小</td><td>自查（实读）</td><td>只删一处会留下另一处，还是会动</td></tr>
+        <tr><td>新建节点时画布只是「轻微让位」</td><td>真机截图 00→05：整张画布平移，原来的卡直接出屏</td><td>自查（真机）</td><td>比我以为的严重，所以「露出」动画整个删，而不是调小</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ── Tabler 图标（@tabler/icons outline 路径，stroke 1.6，与节点浮条同档） ──
+  const P = {
+    photo: '<path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/>',
+    video: '<path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/>',
+    text: '<path d="M4 7v-2h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/>',
+    minus: '<path d="M5 12l14 0"/>', plus: '<path d="M12 5l0 14"/><path d="M5 12l14 0"/>',
+    fit: '<path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/>',
+    expand: '<path d="M16 4l4 0l0 4"/><path d="M14 10l6 -6"/><path d="M8 20l-4 0l0 -4"/><path d="M4 20l6 -6"/>',
+    collapse: '<path d="M18 10h-4v-4"/><path d="M20 4l-6 6"/><path d="M6 14h4v4"/><path d="M10 14l-6 6"/>',
+    chevron: '<path d="M6 9l6 6l6 -6"/>',
+    cube: '<path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5"/><path d="M12 12l8 -4.5"/><path d="M12 12l0 9"/><path d="M12 12l-8 -4.5"/>',
+    file: '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/>',
+    lang: '<path d="M4 5h7"/><path d="M9 3v2c0 4.418 -2.239 8 -5 8"/><path d="M5 9c0 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4 -9l4 9"/><path d="M19.1 18h-6.2"/>',
+    coin: '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/>',
+    up: '<path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/>',
+    'arrow-right': '<path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/>',
+    'arrow-down': '<path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/>',
+    'arrow-left': '<path d="M5 12l14 0"/><path d="M5 12l6 6"/><path d="M5 12l6 -6"/>',
+    lock: '<path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z"/><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/>',
+    copy: '<path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/>',
+    download: '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/>',
+  }
+  const icon = (name, size = 16) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`
+  const nomiMark = (size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-ink)"/><rect x="5.5" y="6" width="4" height="16" rx="1" fill="var(--nomi-paper)"/><rect x="18.5" y="6" width="4" height="16" rx="1" fill="var(--nomi-paper)"/><polygon points="9.5,6 13.5,6 18.5,22 14.5,22" fill="var(--nomi-paper)"/></svg>`
+  const paintIcons = (root = document) => root.querySelectorAll('[data-icon]').forEach((el) => { if (!el.dataset.painted) { el.insertAdjacentHTML('beforeend', icon(el.dataset.icon, el.closest('.leftdock') ? 18 : 16)); el.dataset.painted = '1' } })
+
+  // ── zh/en 双轨（R15：EN 串长 1.5–2 倍，截断只有眼睛看得出） ──
+  const T = {
+    zh: { mode: '生成方式', t2i: '文生图', edit: '改图', hintTxt: '纯文字生成图像', model: 'Fixture 图片', ratio: '1024×1024', count: (n) => `${n} 个`, unpriced: '未标价', pts: (v) => `${v}`, costTitle: (v) => v == null ? '目录未标价' : `预计 ${v} 点（目录报价）`, expand: '展开提示词', collapse: '收起提示词', queued: '排队中', label: '镜头 7 · 图片', newRight: (n, cat) => cat ? `新镜头在「${cat}」里` : n > 1 ? `${n} 个新节点在右侧` : '新镜头在右侧', newBelow: (n) => n > 1 ? `${n} 个新节点在下方` : '新节点在下方', dlgTitle: '开始生成', dlgBody: (n) => `将生成 ${n} 张画面 · 预计约 1–3 分钟 · 会消耗模型额度`, est: '预计金额', cancel: '取消', gen: '生成',
+      prompt: '雨夜的旧港口，林澈舰长披着黄色雨衣站在集装箱之间，手电光从左下打上来，雨丝在光束里清晰可见；背景是模糊的吊臂和霓虹招牌，冷蓝主调、局部暖橙，胶片颗粒，35mm，浅景深，人物占画面三分之一，视线看向画外右侧，表情克制而疲惫。镜头缓慢推近，保持人物在三分线上，前景有一滴雨水划过镜头。' },
+    en: { mode: 'Mode', t2i: 'Text→Image', edit: 'Edit', hintTxt: 'Generate an image from text only', model: 'Fixture Image', ratio: '1024×1024', count: (n) => `×${n}`, unpriced: 'Unpriced', pts: (v) => `${v}`, costTitle: (v) => v == null ? 'Not priced in catalog' : `Est. ${v} credits (catalog)`, expand: 'Expand prompt', collapse: 'Collapse prompt', queued: 'Queued', label: 'Shot 7 · Image', newRight: (n, cat) => cat ? `New shot in “${cat}”` : n > 1 ? `${n} new nodes to the right` : 'New shot to the right', newBelow: (n) => n > 1 ? `${n} new nodes below` : 'New node below', dlgTitle: 'Start generating', dlgBody: (n) => `${n} image(s) · about 1–3 min · uses model credits`, est: 'Estimated cost', cancel: 'Cancel', gen: 'Generate',
+      prompt: 'An old harbor on a rainy night. Captain Lin Che in a yellow raincoat stands between containers, a flashlight lighting him from lower left, rain streaks crisp in the beam; blurred cranes and neon signs behind, cool blue key with warm orange accents, film grain, 35mm, shallow depth of field, subject filling a third of the frame, gaze off-screen right, restrained and tired. Slow push-in, keep him on the third line, a raindrop crossing the lens in the foreground.' },
+  }
+  let lang = 'zh'
+  const t = () => T[lang]
+
+  // ── 浮框 DOM（结构对照 NodeGenerationComposer.tsx：模式条 → 提示词 → 底栏三段 + 走） ──
+  function composerHTML({ price = 0.3, count = 1, expanded = false }) {
+    const L = t()
+    const threshold = 10
+    const costCls = price == null ? 'cost unpriced' : price * count >= threshold ? 'cost over' : 'cost'
+    const costTxt = price == null ? L.unpriced : L.pts(+(price * count).toFixed(2))
+    return `<div class="ccard">
+      <div class="modebar"><span class="mlabel">${L.mode}</span><div class="seg"><button type="button" aria-pressed="true">${L.t2i}</button><button type="button" aria-pressed="false">${L.edit}</button></div></div>
+      <div class="hint">${L.hintTxt}</div>
+      <div class="prompt ${expanded ? 'open' : ''}">${L.prompt}<button type="button" class="expand" data-act="expand" aria-label="${expanded ? L.collapse : L.expand}" title="${expanded ? L.collapse : L.expand}">${icon(expanded ? 'collapse' : 'expand', 14)}</button></div>
+      <div class="footer">
+        <button type="button" class="chip">${icon('cube', 14)}<span>${L.model}</span>${icon('chevron', 12)}</button>
+        <button type="button" class="chip"><span>${L.ratio}</span>${icon('chevron', 12)}</button>
+        <span class="divider"></span>
+        <span class="tool">${icon('file')}</span><span class="tool">${icon('lang')}</span><span class="tool">${nomiMark(16)}</span>
+        <span class="divider"></span>
+        <button type="button" class="chip"><span>${L.count(count)}</span>${icon('chevron', 12)}</button>
+        <span class="go"><span class="${costCls}" title="${L.costTitle(price == null ? null : +(price * count).toFixed(2))}">${icon('coin', 14)}${costTxt}</span><button type="button" class="send" data-act="send" aria-label="${L.gen}">${icon('up', 16)}</button></span>
+      </div>
+    </div>`
+  }
+
+  // ── 演示 1：浮框放置 ──
+  const s1 = { pos: 'mid', zoom: 1, expanded: false }
+  const NODE = { w: 240, h: 135 }
+  function render1() {
+    const world = document.getElementById('world1')
+    const z = s1.zoom
+    const stageW = 800, stageH = 500
+    const SW = document.getElementById('stage1').clientWidth || 800
+    const screen = { mid: { x: SW / 2, y: 150 }, right: { x: SW - 80, y: 150 }, bottom: { x: SW / 2, y: 380 } }[s1.pos]
+    // 节点中心钉在屏幕上这个点：世界坐标 = 屏幕点 / zoom
+    world.style.transition = 'none'
+    world.style.transform = `scale(${z})`
+    const cx = screen.x / z, cy = screen.y / z
+    world.innerHTML = `
+      <div class="node" style="left:${cx - 450 / z}px;top:${cy - 40 / z}px;width:${NODE.w}px;height:${NODE.h}px"><div class="card media"></div></div>
+      <div class="node selected" style="left:${cx - NODE.w / 2}px;top:${cy - NODE.h / 2}px;width:${NODE.w}px;height:${NODE.h}px">
+        <div class="label" style="transform:scale(${1 / z})">${t().label}</div>
+        <div class="floatbar" style="transform:translateX(-50%) scale(${1 / z})"><i>${icon('lock')}</i><i>${icon('copy')}</i><i>${icon('download')}</i></div>
+        <div class="card media"></div>
+        <div class="composer" style="transform:translateX(-50%) scale(${1 / z});top:calc(100% + 14px)">${composerHTML({ expanded: s1.expanded })}</div>
+      </div>`
+    document.getElementById('zoomval1').textContent = `${Math.round(z * 100)}%`
+    requestAnimationFrame(() => { world.style.transition = '' })
+  }
+  document.querySelectorAll('[data-pos]').forEach((b) => b.addEventListener('click', () => { s1.pos = b.dataset.pos; syncSeg('[data-pos]', b); render1() }))
+  document.querySelectorAll('[data-zoom]').forEach((b) => b.addEventListener('click', () => { s1.zoom = +b.dataset.zoom; syncSeg('[data-zoom]', b); render1() }))
+  document.getElementById('world1').addEventListener('click', (e) => { if (e.target.closest('[data-act="expand"]')) { s1.expanded = !s1.expanded; render1() } })
+
+  // ── 演示 2：点生成 ──
+  const s2 = { price: 0.3, count: 1, src: 'user', state: 'idle' }
+  const THRESHOLD = 10
+  function needsConfirm() {
+    const reasons = []
+    if (s2.src === 'agent') reasons.push(lang === 'zh' ? 'Agent 发起' : 'started by Agent')
+    if (s2.count > 1) reasons.push(lang === 'zh' ? `一次 ${s2.count} 个` : `${s2.count} at once`)
+    if (s2.price != null && s2.price * s2.count >= THRESHOLD) reasons.push(lang === 'zh' ? `${+(s2.price * s2.count).toFixed(2)} 点 ≥ ${THRESHOLD} 点门槛` : `${+(s2.price * s2.count).toFixed(2)} ≥ ${THRESHOLD} credit threshold`)
+    return reasons
+  }
+  function render2() {
+    const world = document.getElementById('world2')
+    world.style.transform = 'scale(1)'
+    const L = t()
+    const reasons = needsConfirm()
+    world.innerHTML = `
+      <div class="node selected" style="left:calc(50% - 120px);top:48px;width:240px;height:135px">
+        <div class="label" style="bottom:auto;top:-34px">${L.label}</div>
+        <div class="card ${s2.state === 'running' ? 'media' : 'empty'}">${s2.state === 'running' ? `<span class="status">${L.queued}</span>` : icon('photo', 28)}</div>
+        <div class="composer" style="transform:translateX(-50%)">${composerHTML({ price: s2.price, count: s2.count })}</div>
+      </div>
+      `
+    document.querySelector('#stage2 .scrim')?.remove()
+    if (s2.state === 'dialog') document.getElementById('stage2').insertAdjacentHTML('beforeend', `<div class="scrim"><div class="dialog" role="dialog" aria-label="${L.dlgTitle}">
+        <div class="hd"><span class="ic">${icon('coin', 18)}</span>${L.dlgTitle}</div>
+        <div class="caption">${L.dlgBody(s2.count)}</div>
+        <div class="row"><span>${L.est}</span><b>${s2.price == null ? L.unpriced : +(s2.price * s2.count).toFixed(2) + (lang === 'zh' ? ' 点（目录报价）' : ' credits')}</b></div>
+        <div class="acts"><button type="button" class="btn" data-act="cancel">${L.cancel}</button><button type="button" class="btn primary" data-act="confirm">${L.gen}</button></div>
+      </div></div>`)
+    const v = document.getElementById('verdict'), why = document.getElementById('why')
+    if (reasons.length) { v.textContent = lang === 'zh' ? '弹确认' : 'Asks first'; v.className = 'verdict yes'; why.textContent = reasons.join(' · ') }
+    else {
+      v.textContent = lang === 'zh' ? '不弹，直接开始' : 'Starts right away'; v.className = 'verdict no'
+      why.textContent = lang === 'zh' ? `单个节点 · ${s2.price == null ? '未标价（不挡生成）' : s2.price + ' 点 < ' + THRESHOLD + ' 点门槛'} · 我自己点的` : `one node · ${s2.price == null ? 'unpriced (never blocks)' : s2.price + ' < ' + THRESHOLD} · my own click`
+    }
+  }
+  document.querySelectorAll('[data-price]').forEach((b) => b.addEventListener('click', () => { s2.price = b.dataset.price === 'null' ? null : +b.dataset.price; s2.state = 'idle'; syncSeg('[data-price]', b); render2() }))
+  document.querySelectorAll('[data-count]').forEach((b) => b.addEventListener('click', () => { s2.count = +b.dataset.count; s2.state = 'idle'; syncSeg('[data-count]', b); render2() }))
+  document.querySelectorAll('[data-src]').forEach((b) => b.addEventListener('click', () => { s2.src = b.dataset.src; s2.state = 'idle'; syncSeg('[data-src]', b); render2() }))
+  document.getElementById('stage2').addEventListener('click', (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act
+    if (act === 'send') { s2.state = needsConfirm().length ? 'dialog' : 'running'; render2() }
+    if (act === 'cancel') { s2.state = 'idle'; render2() }
+    if (act === 'confirm') { s2.state = 'running'; render2() }
+  })
+
+  // ── 演示 3：画布不自己动 + 边缘提示 ──
+  let W = 800; const H = 500
+  const base = [
+    { x: 120, y: 90, w: 200, h: 112, media: true }, { x: 380, y: 90, w: 200, h: 112, media: true },
+    { x: 120, y: 280, w: 200, h: 112, media: true }, { x: 380, y: 280, w: 200, h: 112 },
+  ]
+  let s3 = { nodes: base.map((n) => ({ ...n })), view: { x: 0, y: 0, z: 1 }, pending: null, autoMoves: 0 }
+  const visibleRect = () => ({ left: (64 - s3.view.x) / s3.view.z, top: (12 - s3.view.y) / s3.view.z, right: (W - 12 - s3.view.x) / s3.view.z, bottom: (H - 60 - s3.view.y) / s3.view.z })
+  const overlaps = (a, b, pad = 24) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y
+  function placeInView(w, h) {
+    const v = visibleRect()
+    for (let y = v.top + 20; y + h <= v.bottom; y += 40) for (let x = v.left + 20; x + w <= v.right; x += 40) {
+      const r = { x, y, w, h }
+      if (!s3.nodes.some((n) => overlaps(r, n))) return r
+    }
+    return null
+  }
+  function add(count, { far = false } = {}) {
+    const added = []
+    for (let i = 0; i < count; i++) {
+      let r = far ? null : placeInView(200, 112)
+      if (!r) { const maxX = Math.max(visibleRect().right + 80, ...s3.nodes.map((n) => n.x + n.w + 80)); r = { x: maxX, y: 90 + i * 150, w: 200, h: 112 } }
+      const node = { ...r, fresh: true }
+      s3.nodes.push(node); added.push(node)
+    }
+    s3.nodes.forEach((n) => { if (!added.includes(n)) n.fresh = false })
+    const v = visibleRect()
+    const off = added.filter((n) => n.x > v.right || n.x + n.w < v.left || n.y > v.bottom || n.y + n.h < v.top)
+    s3.pending = off.length ? { nodes: off, dir: off.some((n) => n.x > v.right) ? 'right' : off.some((n) => n.y > v.bottom) ? 'bottom' : 'left' } : null
+    log(off.length ? (lang === 'zh' ? `屏里放不下，${off.length} 个落在屏外 → 边缘出提示；画布没动。` : `No room on screen; ${off.length} landed off-screen → edge hint; canvas did not move.`) : (lang === 'zh' ? `落在当前屏幕的空位里，画布没动。` : `Landed in free space on screen; canvas did not move.`))
+    render3()
+  }
+  function goToPending() {
+    if (!s3.pending) return
+    const ns = s3.pending.nodes
+    const minX = Math.min(...ns.map((n) => n.x)), maxX = Math.max(...ns.map((n) => n.x + n.w))
+    const minY = Math.min(...ns.map((n) => n.y)), maxY = Math.max(...ns.map((n) => n.y + n.h))
+    s3.view.x = (64 + (W - 12)) / 2 - ((minX + maxX) / 2) * s3.view.z
+    s3.view.y = (12 + (H - 60)) / 2 - ((minY + maxY) / 2) * s3.view.z
+    s3.pending = null
+    log(lang === 'zh' ? '你点了提示 → 画布移过去（这是你要它动）。' : 'You clicked the hint → canvas moves there (you asked).')
+    render3()
+  }
+  function log(msg) { document.getElementById('log3').textContent = msg }
+  function render3() {
+    W = document.getElementById('stage3').clientWidth || 800
+    const world = document.getElementById('world3')
+    world.style.transform = `translate(${s3.view.x}px, ${s3.view.y}px) scale(${s3.view.z})`
+    world.innerHTML = s3.nodes.map((n) => `<div class="node ${n.fresh ? 'fresh' : ''}" style="left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px"><div class="card ${n.media ? 'media' : 'empty'}">${n.media ? '' : icon('photo', 24)}</div></div>`).join('')
+    document.querySelectorAll('#stage3 .edgehint').forEach((el) => el.remove())
+    if (s3.pending) {
+      const n = s3.pending.nodes.length, dir = s3.pending.dir
+      const txt = dir === 'bottom' ? t().newBelow(n) : t().newRight(n)
+      const arrow = dir === 'bottom' ? 'arrow-down' : dir === 'left' ? 'arrow-left' : 'arrow-right'
+      document.getElementById('stage3').insertAdjacentHTML('beforeend', `<button type="button" class="edgehint ${dir}" id="hint3"><span class="dot"></span><span>${txt}</span>${icon(arrow, 14)}</button>`)
+      document.getElementById('hint3').addEventListener('click', goToPending)
+    }
+    document.getElementById('automoves').textContent = String(s3.autoMoves)
+    document.getElementById('zoomval3').textContent = `${Math.round(s3.view.z * 100)}%`
+  }
+  document.getElementById('sim-agent').addEventListener('click', () => add(1))
+  document.getElementById('sim-import').addEventListener('click', () => add(3))
+  document.getElementById('sim-far').addEventListener('click', () => add(1, { far: true }))
+  document.getElementById('sim-reset').addEventListener('click', () => { s3 = { nodes: base.map((n) => ({ ...n })), view: { x: 0, y: 0, z: 1 }, pending: null, autoMoves: 0 }; log(''); render3() })
+  document.getElementById('fit3').addEventListener('click', () => {
+    const minX = Math.min(...s3.nodes.map((n) => n.x)), maxX = Math.max(...s3.nodes.map((n) => n.x + n.w))
+    const minY = Math.min(...s3.nodes.map((n) => n.y)), maxY = Math.max(...s3.nodes.map((n) => n.y + n.h))
+    const z = Math.min(1, (W - 64 - 12 - 40) / (maxX - minX), (H - 12 - 60 - 40) / (maxY - minY))
+    s3.view = { z, x: (64 + W - 12) / 2 - ((minX + maxX) / 2) * z, y: (12 + H - 60) / 2 - ((minY + maxY) / 2) * z }
+    s3.pending = null
+    log(lang === 'zh' ? '你点了「适应视图」→ 画布移动（你要它动）。' : 'You clicked Fit → canvas moves (you asked).')
+    render3()
+  })
+  // 用户自己拖画布：拖进屏里提示自动消失
+  let drag = null
+  const st3 = document.getElementById('stage3')
+  st3.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; drag = { x: e.clientX, y: e.clientY, vx: s3.view.x, vy: s3.view.y }; st3.setPointerCapture(e.pointerId); document.getElementById('world3').style.transition = 'none' })
+  st3.addEventListener('pointermove', (e) => { if (!drag) return; s3.view.x = drag.vx + e.clientX - drag.x; s3.view.y = drag.vy + e.clientY - drag.y; document.getElementById('world3').style.transform = `translate(${s3.view.x}px, ${s3.view.y}px) scale(${s3.view.z})` })
+  st3.addEventListener('pointerup', () => {
+    if (!drag) return; drag = null; document.getElementById('world3').style.transition = ''
+    if (s3.pending) { const v = visibleRect(); if (s3.pending.nodes.every((n) => n.x >= v.left && n.x + n.w <= v.right && n.y >= v.top && n.y + n.h <= v.bottom)) { s3.pending = null; log(lang === 'zh' ? '你自己把它们拖进屏里了 → 提示自己消失。' : 'You panned them into view → hint goes away.') } }
+    render3()
+  })
+
+  function syncSeg(sel, btn) { document.querySelectorAll(sel).forEach((b) => b.setAttribute('aria-pressed', String(b === btn))) }
+  function setLang(next) { lang = next; document.getElementById('lang-zh').setAttribute('aria-pressed', String(next === 'zh')); document.getElementById('lang-en').setAttribute('aria-pressed', String(next === 'en')); render1(); render2(); render3() }
+  document.getElementById('lang-zh').addEventListener('click', () => setLang('zh'))
+  document.getElementById('lang-en').addEventListener('click', () => setLang('en'))
+  paintIcons(); render1(); render2(); render3()
+})()
+</script>

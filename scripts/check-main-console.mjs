@@ -20,7 +20,7 @@
 // 用法：node ./scripts/check-main-console.mjs
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -61,7 +61,7 @@ function collect(dir) {
   return files
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const hits = []
   for (const file of collect(path.join(repoRoot, 'electron'))) {
     for (const hit of scanSource(fs.readFileSync(file, 'utf8'))) {

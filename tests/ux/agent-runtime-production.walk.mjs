@@ -136,8 +136,10 @@ try {
       reason: 'F_VERIFY_LOW：杯子偏到画面边缘。', scores: { identity: 5, composition: 1 },
     }) },
   })
+  // 点之前零生图：规划/保存分镜方案都不许偷偷调生图供应商。
+  expect(walk.fixture.images).toHaveLength(0)
   await clickOrFail(win.locator('[data-storyboard-batch="true"]'), '生成未生成的镜头')
-  // materialize 是免费副作用：节点先建（零 vendor 调用），确认卡再守花钱那一步。
+  // materialize 是免费副作用：节点先建，再派发这一镜。
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
     { timeout: 30_000 }).toBe(1)
   const canvas = (await readProject(win, projectId)).payload.generationCanvas
@@ -145,12 +147,10 @@ try {
   expect(shot.kind).toBe('image')
   expect(shot.shotIndex).toBe(1)
   expect(shot.meta.modelKey).toBe(FIXTURE_IMAGE_MODEL)
-  const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
-  const spendProof = await proveProbe(spendDialog, 'Real batch generation asks for approval')
-  expect(walk.fixture.images).toHaveLength(0)
-  await walk.snap('batch-generation-awaits-approval')
-  await clickOrFail(spendDialog.getByRole('button', { name: '生成', exact: true }), '批准本机图片生成')
-  await expectAbsent(spendDialog, { provenBy: spendProof, message: 'Generation confirmation is consumed' })
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口；这批只有 1 镜）；
+  // 若中间弹卡而不点，请求永远发不出去——下面生图供应商收到恰好 1 单就是证据。
+  await expect.poll(() => walk.fixture.images.length, { timeout: stationTimeout({ operations: 2 }) }).toBe(1)
+  await walk.snap('batch-generation-started')
   const judgeWire = await recorded(judge.received, 'real renderer image-judge request')
   await openCanvas(win)
   expect(toolNames(judgeWire.body)).toEqual([])

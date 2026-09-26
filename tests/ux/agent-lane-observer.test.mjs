@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { laneDiskSnapshot, laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 
 const folders = []
@@ -45,3 +45,21 @@ test('rejects an old format and never treats a legacy Host file as lane evidence
   fs.writeFileSync(path.join(input.root, '.nomi', 'agent-session.json'), '{"messages":[]}')
   expect(readLaneTranscripts(input.root)).toEqual([])
 });
+
+test('a transcript deleted between listing and reading is no longer part of the observation', () => {
+  // 删对话时 app 可能正好在「列出来之后、读之前」删掉文件（2026-09-24 Windows 真机撞到 ENOENT）。
+  const input = fixture([header])
+  const gone = path.join(path.dirname(input.file), 'deleted.jsonl')
+  fs.writeFileSync(gone, `${JSON.stringify({ ...header, id: 'session-gone' })}\n`)
+  const read = fs.readFileSync
+  const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((file, ...rest) => {
+    if (file === gone) { fs.rmSync(gone); return read(file, ...rest) }
+    return read(file, ...rest)
+  })
+  try {
+    expect(readLaneTranscripts(input.root).map((session) => session.sessionId)).toEqual(['session-1'])
+  } finally { spy.mockRestore() }
+  // 别的读错误照抛，不被当成「消失了」吞掉。
+  const broken = vi.spyOn(fs, 'readFileSync').mockImplementation(() => { throw Object.assign(new Error('denied'), { code: 'EACCES' }) })
+  try { expect(() => readLaneTranscripts(input.root)).toThrow(/denied/) } finally { broken.mockRestore() }
+})

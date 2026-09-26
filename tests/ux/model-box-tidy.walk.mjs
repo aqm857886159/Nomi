@@ -150,11 +150,6 @@ const activeChipOf = async (win, label) => {
   await row.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   return row.locator('button[aria-pressed="true"]').first().innerText()
 }
-const spendDialog = async (win) => {
-  const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
-  await dialog.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
-  return dialog
-}
 
 let app
 let win
@@ -263,9 +258,10 @@ try {
   const currentNode = win.locator('[data-kind="image"][data-node-id]').last()
   const promptEditor = currentNode.locator('div[contenteditable="true"]').last()
   await promptEditor.click(); await promptEditor.fill('模型框整理真实生成验收图')
+  check(wireCalls.length === 0, '点「生成素材」之前没有任何生成请求')
   await currentNode.locator('button[aria-label="生成素材"]').first().click({ timeout: DEFAULT_TIMEOUT_MS })
-  const dialog = await spendDialog(win)
-  await dialog.getByRole('button', { name: '生成', exact: true }).click()
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面节点 success + 恰好 1 次请求落在 Kie（wireCalls）就是证据。
   await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: GENERATION_TIMEOUT_MS })
   check(wireCalls.length === 1 && wireCalls[0].vendorKey === 'kie' && wireCalls[0].model === 'model-box-alpha',
     `真实生成请求发到了手点过的那一家（${JSON.stringify(wireCalls)}）`)

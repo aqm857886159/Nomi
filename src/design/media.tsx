@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 import { IconPhoto } from '../vendor/tablerIcons'
+import { logRendererWarn } from '../desktop/rendererLog'
 
 /**
  * 统一图片基元。所有渲染图片的地方都该走它，而不是裸 <img>：
@@ -71,8 +72,8 @@ export function NomiImage({
       decoding="async"
       className={cn(className)}
       onError={(event) => {
-        // 诊断单源：失败 URL 打进控制台（区分 404/协议/跨项目），再切占位。
-        console.warn('[NomiImage] 图片加载失败', resolvedSrc)
+        // 诊断单源：失败地址进 DevTools（区分 404/协议/跨项目）+ 主进程日志（落盘只剩协议与主机），再切占位。
+        logRendererWarn('image-load-failed', { source: resolvedSrc })
         setFailed(true)
         onError?.(event)
       }}

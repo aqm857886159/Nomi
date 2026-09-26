@@ -6,6 +6,10 @@
 //
 // 断言链（J1）：确认落地 → 占位 + 组出现 → 三态同屏（构造排队+生成中+已停并存）光/暗截图 → 逐镜填充 →
 // 全部完成 → 一个 Cmd+Z 整组消失 → 撤销后节点没了（素材库产物由数据层保留，见回填断言）。
+//
+// 2026-09-25：「生成中」不再是一块占位——它写进节点自己的运行记录（materialize-shots 带 generation），
+// 由普通生成那张等待画面画；结果回填也走同一条 materialize-shots（专用的 attach-shot-result 已删）。
+// 占位只剩制作专属的「排队中 / 已停」。
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -141,8 +145,18 @@ try {
     // 走查侧把 nodeId 填进构造 run（materialize 时 shot.nodeId 还没经 plan.bind 写回，这里直接用画布真实 id）。
     run.generationPlan.shots = run.generationPlan.shots.map((shot) => ({ ...shot, nodeId: nodeIds[shot.shotId] }))
     run.jobs = run.jobs.map((job) => ({ ...job, nodeId: nodeIds[job.metadata.shotId] }))
-    window.__nomiProductionLandingStore.setState({ projectId, run, pinnedForE2E: true })
+    window.__nomiProductionLandingStore.setState({ projectId, runs: { [run.runId]: run }, pinnedForE2E: true })
   }, { run: threeStateRun(projectId, {}), projectId })
+  // shot-1 在生成：主进程的落地投影把「生成中」写进节点自己的运行记录（真 handler，只动已有节点）。
+  await win.evaluate(async (payload) => {
+    payload.projectId = new URLSearchParams(window.location.hash.split('?')[1]).get('projectId')
+    return window.__nomiCapabilityApply('production.materialize-shots', {
+      ...payload, existingOnly: true,
+      shots: payload.shots.map((shot) => shot.shotId === 'shot-1'
+        ? { ...shot, generation: { state: 'running', runRecordId: 'production-job-shot-1', startedAt: Date.now() } }
+        : shot),
+    })
+  }, MATERIALIZE_PAYLOAD)
   await win.waitForTimeout(400)
 
   // 「三态同屏」是用户看得到的判据，所以先做用户会做的那一步：点「适应视图」。
@@ -154,7 +168,7 @@ try {
   const placeholdersInView = async (timeout) =>
     win
       .waitForFunction(
-        (expected) => document.querySelectorAll('[data-shot-placeholder-state]').length >= expected,
+        (expected) => document.querySelectorAll('[data-shot-placeholder-state], [data-generating-placement="surface"]').length >= expected,
         expectedPlaceholders,
         { timeout },
       )
@@ -195,7 +209,13 @@ try {
   check(true, `适应视图后 ${expectedPlaceholders} 个占位全部进入视口`)
 
   const states = await win.evaluate(() => Array.from(document.querySelectorAll('[data-shot-placeholder-state]')).map((el) => el.getAttribute('data-shot-placeholder-state')))
-  check(states.includes('generating'), '三态：有「生成中」占位（shot-1 polling）')
+  check(!states.includes('generating'), '「生成中」不再是一块制作专属占位（第二套画法已删）')
+  const shot1Waiting = await win.evaluate(() => {
+    const id = window.__nomiCanvasStore.getState().nodes.find((node) => node.meta?.productionShotId === 'shot-1')?.id
+    const el = id ? document.querySelector(`[data-node-id="${id}"]`) : null
+    return Boolean(el?.querySelector('[data-generating-placement="surface"]')) && el?.getAttribute('data-status') === 'running'
+  })
+  check(shot1Waiting, '三态：shot-1 生成中 = 节点自己 running + 普通生成那张等待画面')
   check(states.includes('queued'), '三态：有「排队中」占位（shot-2 无 job）')
   check(states.includes('stopped'), '三态：有「已停」占位（shot-3 · run 预算 halt，warning 非 danger）')
   // 已停占位用 warning 底、非 danger（截计算色不比字面串）。
@@ -222,31 +242,36 @@ try {
   await win.evaluate(() => { document.documentElement.setAttribute('data-mantine-color-scheme', 'light'); document.documentElement.style.colorScheme = 'light' })
   await win.waitForTimeout(300)
 
-  // ── 逐镜填充：解 pin，真 attach-shot-result 给 shot-1 回填一个本地 result ──
-  await win.evaluate(() => window.__nomiProductionLandingStore.setState({ pinnedForE2E: false, run: null }))
+  // ── 逐镜填充：解 pin，真 materialize-shots 给 shot-1 回填一个本地 result ──
+  await win.evaluate(() => window.__nomiProductionLandingStore.setState({ pinnedForE2E: false, runs: {} }))
   const shot1NodeId = await win.evaluate(() => {
     const n = window.__nomiCanvasStore.getState().nodes.find((node) => node.meta?.productionShotId === 'shot-1')
     return n?.id
   })
-  const attach = await win.evaluate(async (nodeId) => {
-    const projectId = new URLSearchParams(window.location.hash.split('?')[1]).get('projectId')
-    return window.__nomiCapabilityApply('production.attach-shot-result', {
-      projectId, runId: 'run-s5-e2e', nodeId, shotId: 'shot-1',
-      result: { id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() },
+  const attach = await win.evaluate(async (payload) => {
+    payload.projectId = new URLSearchParams(window.location.hash.split('?')[1]).get('projectId')
+    return window.__nomiCapabilityApply('production.materialize-shots', {
+      ...payload, existingOnly: true,
+      shots: payload.shots.filter((shot) => shot.shotId === 'shot-1').map((shot) => ({
+        ...shot, result: { id: 'production-job-shot-1', type: 'video', url: 'nomi-local://asset/p/shot-1.mp4', createdAt: Date.now() },
+      })),
     })
-  }, shot1NodeId)
-  check(attach?.attached === true, 'attach-shot-result 回填 shot-1（本地 url 断言通过）')
+  }, MATERIALIZE_PAYLOAD)
+  check(attach?.bindings?.some((binding) => binding.nodeId === shot1NodeId), 'materialize-shots 回填 shot-1（本地 url 断言通过）')
   const shot1HasResult = await win.evaluate((nodeId) => Boolean(window.__nomiCanvasStore.getState().nodes.find((n) => n.id === nodeId)?.result?.url), shot1NodeId)
   check(shot1HasResult, 'shot-1 占位节点拿到 result（逐个冒：一个填一个）')
 
-  // attach 非本地 url → 断言当场抛（R17 运行时断言）。
-  const rejected = await win.evaluate(async (nodeId) => {
+  // 回填非本地 url → 断言当场抛（R17 运行时断言）。
+  const rejected = await win.evaluate(async (payload) => {
     try {
-      await window.__nomiCapabilityApply('production.attach-shot-result', { projectId: new URLSearchParams(window.location.hash.split('?')[1]).get('projectId'), runId: 'run-s5-e2e', nodeId, shotId: 'shot-1', result: { id: 'x', type: 'video', url: 'https://cdn.example.com/x.mp4', createdAt: Date.now() } })
+      await window.__nomiCapabilityApply('production.materialize-shots', {
+        ...payload, projectId: new URLSearchParams(window.location.hash.split('?')[1]).get('projectId'), existingOnly: true,
+        shots: payload.shots.filter((shot) => shot.shotId === 'shot-1').map((shot) => ({ ...shot, result: { id: 'x', type: 'video', url: 'https://cdn.example.com/x.mp4', createdAt: Date.now() } })),
+      })
       return 'no-throw'
     } catch (e) { return String(e?.message || e) }
-  }, shot1NodeId)
-  check(/nomi-local/.test(rejected), 'attach 非本地 url（https CDN）当场被断言拒（R17）')
+  }, MATERIALIZE_PAYLOAD)
+  check(/nomi-local/.test(rejected), '回填非本地 url（https CDN）当场被断言拒（R17）')
 
   // ── 整批一个 Cmd+Z：撤销后整组 + 全部占位节点消失 ──
   const beforeUndo = await win.evaluate((opId) => window.__nomiCanvasStore.getState().nodes.filter((n) => n.meta?.materializationOperationId === opId).length, OP_ID)

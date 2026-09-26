@@ -17,7 +17,7 @@ Nomi is an open-source, local-first desktop workbench for AI video. Use the mode
 ## WeChat / 微信联系
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-09-23.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-09-23.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-10-01.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-10-01.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
   &nbsp;&nbsp;
   <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="180" /></a>
 </p>

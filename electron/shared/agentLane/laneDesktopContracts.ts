@@ -30,7 +30,11 @@ export interface LaneComposerContext {
   skillKey?: string
   /** Optional pinned version for restored drafts; main rejects a changed installed skill. */
   expectedSkillHash?: string
-  /** Main-resolved immutable label/version, never accepted from renderer input. */
+  /**
+   * Main-resolved proof of which skill version was injected, never accepted from renderer input.
+   * `name` is the SKILL.md identifier (the same value as `skillKey`), **not a display label** — the
+   * renderer names a skill only through `skillLabelForKey`.
+   */
   skillSnapshot?: { name: string; contentHash: string }
   /** Untrusted selector: main validates the stopped entry on this lane's current branch. */
   continueFromEntryId?: string

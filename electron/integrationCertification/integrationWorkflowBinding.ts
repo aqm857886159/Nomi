@@ -4,6 +4,7 @@
 // 「外部交进来的这坨 JSON 里，哪些键、哪些形状是允许的」。抽出来是为了让那份被当作
 // 一个安全边界评审的状态机文件不再夹带一百多行纯解析代码。
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
+import { isComfyComboValue } from "../comfyuiObjectInfo";
 
 export function assertRecord(value: unknown): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid object");
@@ -123,7 +124,12 @@ export function sanitizeWorkflowEnumOptions(value: unknown): WorkflowEnumOption[
     return {
       classType: workflowString(raw.classType, "enum classType"),
       inputKey: workflowString(raw.inputKey, "enum inputKey"),
-      options: raw.options.map((option) => workflowString(option, "enum value", 8_192)),
+      // 选项按 wire 原类型收（CreateVideo.bit_depth 的 8/10 是数字，见 ComfyComboValue）；字符串照旧限长。
+      options: raw.options.map((option) => {
+        if (typeof option === "string") return workflowString(option, "enum value", 8_192);
+        if (isComfyComboValue(option)) return option;
+        throw new Error("Invalid enum value");
+      }),
     };
   });
 }

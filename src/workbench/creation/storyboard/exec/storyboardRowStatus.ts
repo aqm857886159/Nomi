@@ -7,7 +7,7 @@ import { stableShotId, type PlanAnchor, type PlanShot, type StoryboardPlan } fro
 import { anchorCarriesOwnMaterial, isVisualAnchor } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
 import { hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
-import { effectiveShotValue, missingRequiredSlots, referencedVisualAnchors, resolveShotArchetypeMode } from '../shotRow/shotRowModel'
+import { effectiveShotValue, missingRequiredSlots, plannedFirstFrameSlot, referencedVisualAnchors, resolveShotArchetypeMode } from '../shotRow/shotRowModel'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
 import { peekVendorPreferenceOrder } from '../../../common/useVendorPreference'
@@ -42,6 +42,11 @@ export type WaitingRef = {
   node: GenerationCanvasNode | null
 }
 
+export type PlannedFirstFrame = {
+  slotKind: ArchetypeReferenceSlot['kind']
+  url: string | null
+}
+
 export type ShotRowExec = {
   status: ShotRowStatus
   /** 该行绑定的画布节点（未 materialize 则 null）。 */
@@ -58,8 +63,16 @@ export type ShotRowExec = {
   ignoredAnchors: IgnoredAnchor[]
   /** 已出图但未锁定的引用锚：单跑不拦（画布同一破锁语义）、批量要等锁。 */
   unlockedRefs: PlanAnchor[]
-  /** 缺必填参考的槽（红态文案用第一个）。 */
+  /**
+   * 缺必填参考的槽（shotRowModel.missingRequiredSlots）。画面格「缺X参考」、批量排除、场组头计数、
+   * **参考列的红格**都读这一份——参考列不再自己拿「必填 + 没绑定」另判一遍（0.22.0 误报）。
+   */
   missingSlots: ArchetypeReferenceSlot[]
+  /**
+   * 计划首帧：生成时首帧图落进的那个槽 + 首帧图已出来时的缩略图（还没出来 = null）。
+   * 参考列把它画进那一格——那一格生成时本来就会被首帧填上。没开首帧 / 本模式收不下 → null。
+   */
+  plannedFirstFrame: PlannedFirstFrame | null
   /**
    * 参考已变（v5 §v3-3）：本行产物生成时用的参考图版本（吃参考节点的 meta.refSnapshot，
    * 提交时由 runner 打戳）与锚节点**当前** result 不一致的锚。done 态才亮
@@ -150,6 +163,10 @@ export function deriveShotRowExec(input: {
   }
 
   const missingSlots = missingRequiredSlots(mode, shot, plan.anchors)
+  const plannedSlot = plannedFirstFrameSlot(mode, shot)
+  const plannedFirstFrame: PlannedFirstFrame | null = plannedSlot
+    ? { slotKind: plannedSlot.kind, url: keyframeNode && hasUsableResult(keyframeNode) ? resultDisplayUrl(keyframeNode) : null }
+    : null
   const locked = Boolean(node && isAnchorFrozen(node) && hasUsableResult(node))
   const generating = isNodeActive(node) || isNodeActive(keyframeNode)
   const failedNode = isNodeFailed(node) ? node : isNodeFailed(keyframeNode) ? keyframeNode : null
@@ -210,6 +227,7 @@ export function deriveShotRowExec(input: {
     ignoredAnchors,
     unlockedRefs,
     missingSlots,
+    plannedFirstFrame,
     changedRefs,
     resultUrl: resultDisplayUrl(node),
     progressPercent: typeof percent === 'number' && Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : null,
@@ -256,6 +274,7 @@ export function deriveNodeRowExec(
     ignoredAnchors: [],
     unlockedRefs: [],
     missingSlots: [],
+    plannedFirstFrame: null,
     changedRefs: [],
     resultUrl: resultDisplayUrl(node),
     progressPercent: typeof percent === 'number' && Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : null,

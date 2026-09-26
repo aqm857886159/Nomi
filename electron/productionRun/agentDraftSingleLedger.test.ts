@@ -61,7 +61,6 @@ describe('materialize-shots wire carries the candidate model identity', () => {
   it('每一镜都带 vendor / modelKey / modeId / revision（节点模型从此以候选为准）', () => {
     const payload = buildMaterializeShotsPayload(run({}, [shot('a1', { role: 'anchor' }), shot('s1', { role: 'shot' })]), {
       projectRoot: null,
-      previewSecret: 'secret',
     })
     expect(payload).not.toBeNull()
     for (const wire of payload!.shots) {
@@ -76,13 +75,13 @@ describe('materialize-shots wire carries the candidate model identity', () => {
   })
 
   it('单镜草稿（shots[] 为空，候选在 plan 顶层）同样带身份', () => {
-    const payload = buildMaterializeShotsPayload(run(), { projectRoot: null, previewSecret: 'secret' })
+    const payload = buildMaterializeShotsPayload(run(), { projectRoot: null })
     expect(payload!.shots).toHaveLength(1)
     expect(payload!.shots[0].candidate?.modelKey).toBe('gpt-image-2')
   })
 
   it('绝不把 transportModelId（内部投影）或候选参数泄进 RPC 报文', () => {
-    const payload = buildMaterializeShotsPayload(run({}, [shot('s1')]), { projectRoot: null, previewSecret: 'secret' })
+    const payload = buildMaterializeShotsPayload(run({}, [shot('s1')]), { projectRoot: null })
     const serialized = JSON.stringify(payload)
     expect(serialized).not.toContain('transportModelId')
     expect(serialized).not.toContain('internal/gpt-image-2-wire')
@@ -193,7 +192,6 @@ describe('付费信封与自家画布投影的先后', () => {
       command: async () => undefined,
       requestRenderer,
       resolveProjectRoot: () => '/tmp/nomi-proj',
-      previewSecret: () => 'preview-secret',
       isProjectOpen: () => true,
     })
   }

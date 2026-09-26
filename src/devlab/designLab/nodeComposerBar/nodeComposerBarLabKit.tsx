@@ -199,9 +199,8 @@ function StageFrame({ children }: { children: React.ReactNode }): JSX.Element {
  *   ③ 底栏一行三段且不换行：模型/参数摘要 pill（两个值）· 运镜/效果/优化（缩小一号纯 icon，
  *      运镜已选带激活点）· ×N/生成。
  *
- * 刻意不套 `.generation-canvas-v2__stage`：套上会启用 useComposerViewportPlacement 的避让算法
- * （它按**屏幕坐标**算，取景一变位置就变），而这一屏要比的是底栏里有什么、挤不挤，不是浮框
- * 贴在哪一边。省掉它，浮框落在节点正下方的默认位，各格才可比。
+ * 浮框的位置只由节点尺寸与画布缩放决定（钉在节点正下方、定宽，2026-09-25），取景台里和画布上一样。
+ * 这一屏要比的是底栏里有什么、挤不挤。
  */
 export function ComposerBarStage({ kind, cameraPicked = false }: { kind: BarKind; cameraPicked?: boolean }): JSX.Element {
   const fixture = React.useMemo(() => makeBarNode(kind, { cameraPicked }), [kind, cameraPicked])

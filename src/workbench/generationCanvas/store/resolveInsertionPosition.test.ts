@@ -77,3 +77,29 @@ describe('resolveInsertionPosition (审计 A4 真碰撞避让)', () => {
     expect(overlap).toBe(false)
   })
 })
+
+describe('resolveInsertionPosition × visible area（2026-09-25「新建尽量直接落在当前可见区域」）', () => {
+  // 真机复现：可见区比两张卡宽一点，落点被一张已有卡占着，旧螺旋第一圈（跨一整张卡 + 48）就跨出了屏。
+  // 尺寸从默认卡尺寸派生，不抄数字。
+  const view = { x: 0, y: 0, width: Math.round(imageSize.width * 3.2), height: Math.round(imageSize.height * 1.6) }
+  const inside = (pos: { x: number; y: number }) =>
+    pos.x >= view.x && pos.y >= view.y && pos.x + imageSize.width <= view.x + view.width && pos.y + imageSize.height <= view.y + view.height
+
+  it('reported case: a crowded view centre still lands the new card on screen', () => {
+    const existing = [box('image', Math.round(view.width * 0.38), Math.round(view.height * 0.2))]
+    const placed = resolveInsertionPosition('image', { x: Math.round(view.width * 0.38), y: Math.round(view.height * 0.28) }, existing, 6, view)
+    expect(inside(placed)).toBe(true)
+    expect(existing.some((node) => placed.x < node.position.x + imageSize.width && placed.x + imageSize.width > node.position.x
+      && placed.y < node.position.y + imageSize.height && placed.y + imageSize.height > node.position.y)).toBe(false)
+  })
+
+  it('class: when the view has no free spot it falls back to the spiral instead of overlapping', () => {
+    const full = [box('image', 0, 0, { width: view.width, height: view.height })]
+    const placed = resolveInsertionPosition('image', { x: 300, y: 130 }, full, 6, view)
+    expect(inside(placed)).toBe(false)
+  })
+
+  it('a base outside the view keeps the old spiral behaviour (callers placing next to a source node)', () => {
+    expect(resolveInsertionPosition('image', { x: 3000, y: 3000 }, [], 6, view)).toEqual({ x: 3000, y: 3000 })
+  })
+})

@@ -9,7 +9,7 @@ export const shared = Object.freeze({
   licenseName: 'AGPL-3.0-only',
   licenseUrl: 'https://www.gnu.org/licenses/agpl-3.0.html',
   wechatId: 'TZ857886159',
-  groupQr: '/assets/group-wechat-2026-09-23.jpg',
+  groupQr: '/assets/group-wechat-2026-10-01.jpg',
   authorQr: '/assets/qingyang-wechat.jpg',
   quickstartUrl: '/quickstart',
   handbookUrl: '/handbook',

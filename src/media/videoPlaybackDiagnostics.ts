@@ -1,4 +1,5 @@
 import { buildVideoPlaybackUrl } from './videoPlaybackUrl'
+import { logRendererError } from '../desktop/rendererLog'
 
 export type VideoPlaybackFailureDiagnostics = {
   rawVideoUrl: string
@@ -70,7 +71,13 @@ export async function diagnoseVideoPlaybackFailure(
 }
 
 export function logVideoPlaybackFailure(diagnostics: VideoPlaybackFailureDiagnostics): void {
-  console.error('[nomi-video-playback-failure]', diagnostics)
+  logRendererError('video-playback-failed', undefined, {
+    source: diagnostics.rawVideoUrl,
+    playbackSource: diagnostics.playbackUrl,
+    mediaErrorCode: diagnostics.mediaErrorCode,
+    mediaErrorMessage: diagnostics.mediaErrorMessage,
+    probe: diagnostics.probeMessage,
+  })
 }
 
 // MediaError.code → 人话。地址已被探针证实可读时，失败一定出在「媒体本身」（解码/格式/传输），

@@ -1,0 +1,93 @@
+{
+  "label": "before",
+  "observations": {
+    "zh": [
+      {
+        "language": "",
+        "text": "清晨的老相机店，暖金色的光从橱窗斜照进来，空气里飘着细小的灰尘，货架上摆满胶片相机和镜头，柜台上一只小鹿摆件，电影感构图",
+        "borderedBoxes": 3,
+        "overflowX": 583,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      },
+      {
+        "language": "",
+        "text": "A cozy vintage camera shop at dawn, warm golden light slanti",
+        "borderedBoxes": 3,
+        "overflowX": 1709,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      },
+      {
+        "language": "json",
+        "text": "{ \"aspect_ratio\": \"16:9\", \"style\": \"cinematic\", \"negative_pr",
+        "borderedBoxes": 3,
+        "overflowX": 515,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      }
+    ],
+    "en": [
+      {
+        "language": "",
+        "text": "清晨的老相机店，暖金色的光从橱窗斜照进来，空气里飘着细小的灰尘，货架上摆满胶片相机和镜头，柜台上一只小鹿摆件，电影感构图",
+        "borderedBoxes": 3,
+        "overflowX": 583,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      },
+      {
+        "language": "",
+        "text": "A cozy vintage camera shop at dawn, warm golden light slanti",
+        "borderedBoxes": 3,
+        "overflowX": 1709,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      },
+      {
+        "language": "json",
+        "text": "{ \"aspect_ratio\": \"16:9\", \"style\": \"cinematic\", \"negative_pr",
+        "borderedBoxes": 3,
+        "overflowX": 515,
+        "whiteSpace": "pre",
+        "fontFamily": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace",
+        "copy": {
+          "width": 38,
+          "height": 34,
+          "fromRight": 9,
+          "fromTop": 8
+        }
+      }
+    ]
+  }
+}

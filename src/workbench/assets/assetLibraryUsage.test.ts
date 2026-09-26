@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assetBelongsToProject,
   canManageAssetFolders,
+  nextAssetSelection,
   resolveAssetLibraryItemAction,
   shouldRunAssetItemAction,
   sourceOptionsForUsage,
@@ -35,5 +36,27 @@ describe('asset library usage context', () => {
     expect(assetBelongsToProject({ origin: { source: 'project', projectId: 'current', relativePath: 'a.png' } }, 'current')).toBe(true)
     expect(assetBelongsToProject({ origin: { source: 'project', projectId: 'other', relativePath: 'a.png' } }, 'current')).toBe(false)
     expect(assetBelongsToProject({ origin: { source: 'canvas', nodeId: 'n1' } }, 'current')).toBe(true)
+  })
+})
+
+describe('nextAssetSelection — 项目素材的选择规则', () => {
+  const ids = ['a', 'b', 'c', 'd']
+  const plain = { metaKey: false, ctrlKey: false, shiftKey: false }
+  const tick = { metaKey: false, ctrlKey: true, shiftKey: false }
+
+  it('对勾（与 ⌘/Ctrl 点同语义）能加选第二张，再点能取消——此前对勾等于普通点，只会换选', () => {
+    const one = nextAssetSelection(new Set(), ids, 'a', null, tick)
+    const two = nextAssetSelection(one, ids, 'c', 'a', tick)
+    expect([...two]).toEqual(['a', 'c'])
+    const back = nextAssetSelection(two, ids, 'c', 'c', tick)
+    expect([...back]).toEqual(['a'])
+    expect([...nextAssetSelection(back, ids, 'a', 'a', tick)]).toEqual([])
+  })
+
+  it('普通点仍是换选；Shift 从锚点连选', () => {
+    expect([...nextAssetSelection(new Set(['a', 'c']), ids, 'b', 'a', plain)]).toEqual(['b'])
+    expect([...nextAssetSelection(new Set(['a']), ids, 'c', 'a', { ...plain, shiftKey: true })]).toEqual(['a', 'b', 'c'])
+    const same = new Set(['b'])
+    expect(nextAssetSelection(same, ids, 'b', 'b', plain)).toBe(same)
   })
 })

@@ -72,6 +72,15 @@ export const PARITY_CASES: readonly ParityCase[] = [
     referenceUrls: [REFERENCE_A],
   },
   {
+    id: "variant-default-t2v",
+    userStory: "⑤b 带变体的视频模型、用户没切变体（Seedance 2.0 默认 Fast）：每个入口派的都得是卡上写的那一档，不能有的发 standard。",
+    vendorKey: "apimart",
+    modelKey: "doubao-seedance-2.0",
+    taskKind: "text_to_video",
+    prompt: "一只橘猫在窗台上伸懒腰",
+    parameters: {},
+  },
+  {
     id: "non-apimart-vendor",
     userStory: "⑤非 APIMart 供应商（内置 Higgsfield，鉴权方案词是 `Key` 不是 `Bearer`）。",
     vendorKey: "higgsfield",

@@ -47,7 +47,7 @@ export type ResolvedReferenceSlot = {
 function assignEdgeToSlot(
   mode: GenerationCanvasEdgeMode | undefined,
   assetKind: ReferenceAssetKind,
-  slots: ArchetypeReferenceSlot[],
+  slots: readonly ArchetypeReferenceSlot[],
 ): { slotIndex: number; preferredPosition?: number } | null {
   const accepts = (slot: ArchetypeReferenceSlot) => SLOT_ACCEPTS[slot.kind].includes(assetKind)
   const findKind = (kind: ArchetypeReferenceSlotKind) => slots.findIndex((s) => s.kind === kind && accepts(s))
@@ -63,6 +63,18 @@ function assignEdgeToSlot(
   for (const kind of preferredSlotKinds('reference', assetKind)) { const i = findKind(kind); if (i >= 0) return { slotIndex: i } }
   const any = slots.findIndex(accepts)
   return any >= 0 ? { slotIndex: any } : null
+}
+
+/**
+ * 一条**首帧边**（图片源）落进这组声明槽里的哪一个——就是上面 `assignEdgeToSlot` 的判据，不另写一份。
+ * 首帧槽优先，没有就是 image_ref[0]；这与发送侧一致：generationReferenceResolver 把首帧边的图同时放进
+ * `firstFrameUrl`（喂首帧槽）与 `referenceImages`（喂 image_ref 数组槽），而没有模式同时声明这两种槽
+ * （shotRowModel.plannedFirstFrame.test.ts 按全部视频档案逐模式核对）。
+ * 消费方：分镜行「计划首帧」——那一行还没落画布，首帧边还不存在，但生成时它会落在这里。落不下 → null。
+ */
+export function firstFrameEdgeSlot(slots: readonly ArchetypeReferenceSlot[]): ArchetypeReferenceSlot | null {
+  const assignment = assignEdgeToSlot('first_frame', 'image', slots)
+  return assignment ? slots[assignment.slotIndex] ?? null : null
 }
 
 /**

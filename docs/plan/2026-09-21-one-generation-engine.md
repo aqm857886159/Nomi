@@ -1,5 +1,7 @@
 # 两台发动机合并 · 一个生成引擎（步骤 A + 步骤 B 的范围书）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：步骤 A 实施中（本文件随步骤 A 一起入库）｜分支 `integration/core-a-salvage-20260921`
 > 上游裁决：`user-decisions.md`「两条生成路径一定要合并（09-21 用户拍板）」「执行器合并 = 发版前做」
 > 现状证据：`sweep-one-intent-many-engines.md` A2/A3/A5、`sweep2-entrypoint-completeness.md` BL-1 与第二节表 1、

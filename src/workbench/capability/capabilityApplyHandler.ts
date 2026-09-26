@@ -5,7 +5,7 @@ import {
   MCP_REALTIME_SURFACE_CAPABILITY_OPS,
   capabilityProjectBindingError,
 } from './capabilityProjectBinding'
-import { spendQuoteDetail, useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
+import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { buildMultiShotContractView, type MultiShotGatePayload } from '../generationCanvas/spend/productionContractView'
 import { getDesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
@@ -192,9 +192,9 @@ async function confirmSpendFromMainProcess(info: SpendConfirmPayload): Promise<{
     ].join('\n'),
     confirmLabel: i18n.t(isDeconstruct ? 'runtime.capability.confirmDeconstruct' : 'runtime.capability.confirmGenerate'),
     source: isDeconstruct ? 'user' : 'agent',
+    // 不印金额行（2026-09-26 用户拍板：官方额度上线前隐藏价格维度）。
     details: [
-      spendQuoteDetail(info.quote ?? { amount: null }),
-      // 批量确认必须报出「这一下批掉几次调用」——只给总价，用户看不出批量有多大。
+      // 批量确认必须报出「这一下批掉几次调用」，用户才看得出批量有多大。
       ...(callCount ? [{ label: i18n.t('runtime.capability.callCount'), value: String(callCount) }] : []),
       // 项目行放第一位：用户可能不在这个项目里，先让他知道花在哪个项目。
       ...(projectName ? [{ label: i18n.t('runtime.capability.project'), value: projectName }] : []),
@@ -410,7 +410,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     plannerCapturedCanvasReadSnapshot = await sealCurrentProjectCanvasReadSnapshot(plannerBinding, plannerSnapshot)
   }
 
-  // P4 S5 画布落地（materialize-shots / attach-shot-result）——受上面的活动项目守卫约束（只动当前项目 store），
+  // P4 S5 画布落地（materialize-shots：建占位 + 每一镜的运行状态 / 结果）——受上面的活动项目守卫约束（只动当前项目 store），
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed

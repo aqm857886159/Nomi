@@ -1,5 +1,7 @@
 # 原分镜保存适配最小修复（方案待 root 复核）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 范围：简化 A K4，F02/F03/F04/F05 与内容CAS。只接现有Run保存对象，原editor/rowActions/canvas runner由root负责。禁止全T3、新编辑页面、第二可写plan、复制runner。当前阶段仅读代码、门表和红测。
 
 ## 规则回读与事实

@@ -1,42 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { anyNodeVisibleInViewport, isInteractiveFirstNodeInsertion } from './useAutoFitOnLoad'
+import { anyNodeVisibleInViewport, shouldFitOnOpen } from './useAutoFitOnLoad'
 
 const node = { id: 'node-1' } as GenerationCanvasNode
 
-describe('isInteractiveFirstNodeInsertion', () => {
-  it('recognizes the selected first node as an interactive insertion', () => {
-    expect(isInteractiveFirstNodeInsertion(
-      [{ ...node, position: { x: 240, y: 240 } }],
-      ['node-1'],
-      1,
-      { x: 0, y: 0 },
-      1200,
-      800,
-    )).toBe(true)
+describe('shouldFitOnOpen', () => {
+  it('reported case: an empty category that later receives Agent / imported nodes never auto-fits', () => {
+    // 打开时是空的：之后长出来的节点是「新到的」，交给边缘提示，画布不动。
+    expect(shouldFitOnOpen({ nodeCountAtOpen: 0, hasRememberedViewport: false, anyNodeVisible: false })).toBe(false)
   })
 
-  it('does not suppress auto-fit for loaded or multi-node canvases', () => {
-    expect(isInteractiveFirstNodeInsertion([node], [], 1, { x: 0, y: 0 }, 1200, 800)).toBe(false)
-    expect(isInteractiveFirstNodeInsertion(
-      [node, { ...node, id: 'node-2' }],
-      ['node-1'],
-      1,
-      { x: 0, y: 0 },
-      1200,
-      800,
-    )).toBe(false)
-  })
-
-  it('does not suppress auto-fit when the selected first node is off-screen', () => {
-    expect(isInteractiveFirstNodeInsertion(
-      [{ ...node, position: { x: 240, y: 240 } }],
-      ['node-1'],
-      1,
-      { x: -2000, y: -2000 },
-      1200,
-      800,
-    )).toBe(false)
+  it('class: fits only when content existed at open and there is no usable remembered view', () => {
+    for (const nodeCountAtOpen of [0, 1, 24]) for (const hasRememberedViewport of [false, true]) for (const anyNodeVisible of [false, true]) {
+      const expected = nodeCountAtOpen > 0 && (!hasRememberedViewport || !anyNodeVisible)
+      expect(shouldFitOnOpen({ nodeCountAtOpen, hasRememberedViewport, anyNodeVisible }), JSON.stringify({ nodeCountAtOpen, hasRememberedViewport, anyNodeVisible })).toBe(expected)
+    }
   })
 })
 

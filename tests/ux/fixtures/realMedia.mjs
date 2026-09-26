@@ -63,7 +63,9 @@ export function requireRealMediaAssets(assetIds, { env = process.env } = {}) {
   const missing = []
   for (const asset of entries) {
     const id = asset.id
-    if (asset.derivedFrom) {
+    // 派生素材只有在「没随仓库提交成品」时才由调用方现场生成；带 repoPath 的派生素材（离线转好、已入库，
+    // 如 video-canvas-follow-hand-1080p15）直接用仓库里那份——derivedFrom 此时只是来源记录。
+    if (asset.derivedFrom && !asset.repoPath) {
       resolved.set(id, { ...asset, file: null, derived: true })
       continue
     }

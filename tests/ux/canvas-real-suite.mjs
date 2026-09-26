@@ -28,6 +28,8 @@ export const FULL_CANVAS_SCENARIOS = [
   { id: 'canvas-landing', script: 'tests/ux/p4-s5-canvas-landing.e2e.mjs' },
   { id: 'canvas-reconcile', script: 'tests/ux/p4-s5-canvas-reconcile.e2e.mjs' },
   { id: 'magnetic-handle', script: 'tests/ux/canvas-magnetic-handle.walk.mjs' },
+  // 打开时适应一次：冷开 + 从项目库重开两条路（2026-09-26 重开那条曾不摆全貌）。
+  { id: 'open-fit', script: 'tests/ux/canvas-open-fit.walk.mjs' },
 ]
 
 export const PERFORMANCE_CANVAS_SCENARIOS = [
@@ -46,7 +48,7 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
 // 桶是显式清单而不是 index 取模：新场景加进 FULL_CANVAS_SCENARIOS 却没分桶时，
 // 每个 shard 启动即 fail-closed 抛错（见 assertFullCanvasShardPartition），场景不可能被静默漏跑。
 export const FULL_CANVAS_SHARDS = Object.freeze([
-  Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle']),
+  Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle', 'open-fit']),
   Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'selection-toolbar', 'canvas-landing']),
 ])
 

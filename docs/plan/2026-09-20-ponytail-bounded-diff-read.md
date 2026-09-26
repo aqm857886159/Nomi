@@ -1,5 +1,7 @@
 # Ponytail 大分支读取修复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 本次A＋T7交付遇到真实阻断：`review:branch`在模型调用前报`spawnSync git ENOBUFS`。最终分支unified=80 diff为8,106,786字节，大于既有8,064,000字节Git捕获缓冲。先整读、后分块使150KB分块机制还没执行就失败。已推任务分支，未合并；旧deferred收据不代表通过，补审前门岗继续红。
 
 ## 范围与原实现复用

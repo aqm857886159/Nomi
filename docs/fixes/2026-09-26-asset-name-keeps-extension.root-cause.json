@@ -1,0 +1,150 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-asset-name-keeps-extension",
+  "problem_type": "Generic name sanitizer truncates stored asset file names including the extension",
+  "symptom": "Real paid run T4 (2026-09-26): an Agent-generated video landed in the project as a `.bin` file. Inside Nomi it plays (type is sniffed from bytes), but canvas Download saves `.bin`, Windows cannot open it by double-click, and MCP preview answers application/octet-stream.",
+  "direct_cause": "electron/projects/repository.ts sanitizeName truncates the whole string to 90 characters. electron/assets/projectAssetStore.ts uniqueAssetPath and writeDeterministicAsset passed the full file name (stem + extension) through it, so a long provider URL basename (signature/hash segments, ~148 chars) lost its extension and both paths fell back to `.bin`. Separately, generationOutputMaterializer.fileNameFor took `path.basename(new URL(dataUrl).pathname)` for data: URLs, i.e. a slice of the base64 body.",
+  "class_root": "Stored asset file names were cut by a sanitizer that knows nothing about extensions, and each write path decided the extension on its own (parse after truncation, fall back to `.bin`), so any caller handing in a long name silently lost the file type.",
+  "migration": "Added storedAssetFileParts in projectAssetStore.ts as the single rule for on-disk asset names: extension from the byte-sniffed content type (canonicalAssetFileName), only the stem is sanitized and truncated to fit SANITIZED_NAME_MAX_LENGTH together with the extension. uniqueAssetPath (writeAsset, copyNativeFileToBucket, moveAssetFile) and writeDeterministicAsset now call it; their private `parse → || '.bin'` logic is deleted. data: URLs no longer yield a basename in fileNameFor.",
+  "affected_population": [
+    "Every generation whose provider result URL has a basename longer than ~86 characters (Agent paid-card path, which keeps the provider file name)",
+    "data: URL outputs (inline base64 images)",
+    "Imports / copies / moves of local files with very long names"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/assets/projectAssetStore.ts",
+    "tests": [
+      "electron/assets/projectAssetStore.test.ts",
+      "electron/capabilityCore/generationOutputMaterializer.test.ts",
+      "tests/ux/agent-spend-long-output-name.walk.mjs"
+    ],
+    "why": "projectAssetStore is the only layer that writes asset files to disk; storedAssetFileParts is the one naming rule every write path uses, and its tests use the real sanitizeName (the previous tests mocked it as non-truncating, which is why this was never caught)."
+  },
+  "scope_paths": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/projects/repository.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts"
+  ],
+  "entry_points": [
+    "electron/assets/projectAssetStore.ts writeAsset → uniqueAssetPath",
+    "electron/assets/projectAssetStore.ts writeDeterministicAsset",
+    "electron/assets/projectAssetStore.ts copyNativeFileToBucket → uniqueAssetPath",
+    "electron/assets/projectAssetStore.ts moveAssetFile → uniqueAssetPath",
+    "electron/capabilityCore/generationOutputMaterializer.ts fileNameFor",
+    "electron/assets/uploadContentStore.ts publish (content-addressed uploads)",
+    "electron/assets/projectCacheFile.ts projectCacheRelativePath"
+  ],
+  "invariants": [
+    "Every asset file written under assets/ ends with the extension of its byte-sniffed content type; the extension is never truncated",
+    "The stored name (stem + extension) fits SANITIZED_NAME_MAX_LENGTH; only the stem is shortened",
+    "A data: URL never contributes a file name"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "storedAssetFileParts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "fileNameFor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/projects/repository.ts",
+      "symbol": "SANITIZED_NAME_MAX_LENGTH"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 3
+  },
+  "regression_tests": [
+    "electron/assets/projectAssetStore.test.ts",
+    "electron/capabilityCore/generationOutputMaterializer.test.ts",
+    "tests/ux/agent-spend-long-output-name.walk.mjs"
+  ],
+  "residual_risks": [
+    "Content-addressed uploads (uploadContentStore.publish) keep the original basename untruncated; a pathologically long local file name could hit Windows MAX_PATH. Different failure (write error, not a wrong type) and not observed; left as is.",
+    "sanitizeName is still used for display names and project folder names, where truncation without an extension is correct; its doc comment now says not to use it for stored asset file names."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Purely internal naming logic; no external format or API is involved — the extension is derived from our own byte sniffing (canonicalAssetFileName).",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Four write paths each re-derived the extension after a generic truncation; any new write path or any provider with long URLs reproduces it. It has existed since 2026-08-24 and only surfaced when the Agent path started keeping provider file names.",
+    "same_class_scan": [
+      "electron/assets/projectAssetStore.ts:205 uniqueAssetPath — enforced via storedAssetFileParts",
+      "electron/assets/projectAssetStore.ts:268 writeDeterministicAsset — enforced via storedAssetFileParts",
+      "electron/capabilityCore/generationOutputMaterializer.ts fileNameFor — data: URL no longer yields a basename",
+      "electron/assets/uploadContentStore.ts:43 publish — keeps the untruncated basename; extension preserved; not affected",
+      "electron/assets/projectCacheFile.ts:20 — names are `<bucket>-<8 hex><ext>`, far below the limit; not affected",
+      "electron/projects/repository.ts:80,203 — display name / project folder name, no extension semantics; not affected"
+    ]
+  },
+  "generality_proof": "All on-disk asset naming in projectAssetStore now goes through storedAssetFileParts, which takes the content type as input and budgets the stem after the extension, so no caller can hand in a name that loses its type; new write paths reuse uniqueAssetPath or writeDeterministicAsset and inherit the rule.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "storedAssetFileParts",
+      "responsibility": "The single rule for stored asset file names: extension from sniffed content type, only the stem truncated"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "uniqueAssetPath",
+      "disposition": "enforced",
+      "evidence": "writeAsset / copyAssetFile / moveAssetFile tests with 120-char names (with and without extension) end in .mp4 within budget; red on the old code (mutation run 2026-09-26)"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "writeDeterministicAsset",
+      "disposition": "enforced",
+      "evidence": "Two writeDeterministicAsset tests end in .mp4; red on the old code; the long-name walk stores `seedance-output-…-<key>.mp4`"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "fileNameFor",
+      "disposition": "enforced",
+      "evidence": "Two data: URL tests (base64 with and without a slash) name the output generation-output.<ext>; red on the old code"
+    },
+    {
+      "path": "electron/assets/uploadContentStore.ts",
+      "entry_point": "publish",
+      "disposition": "not-affected",
+      "evidence": "Uses path.basename(fileName) without sanitizeName truncation, so the extension is preserved"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/projectAssetStore.ts",
+    "invariant": "Stored asset names keep the sniffed extension and fit the name budget",
+    "failure_mode": "projectAssetStore.test.ts long-name cases fail (they use the real sanitizeName); the long-name walk fails on the stored path or the download default name",
+    "exception_policy": "none",
+    "strategy": "One naming function takes the content type and budgets the stem after the extension; write paths no longer parse names themselves",
+    "artifacts": [
+      "electron/assets/projectAssetStore.ts",
+      "electron/projects/repository.ts",
+      "electron/assets/projectAssetStore.test.ts",
+      "tests/ux/agent-spend-long-output-name.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/assets/projectAssetStore.test.ts",
+    "tests/ux/agent-spend-long-output-name.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/projectAssetStore.ts"
+    ],
+    "rationale": "The per-path `path.parse(sanitizeName(...))` + `|| '.bin'` logic in uniqueAssetPath and writeDeterministicAsset is deleted in the same diff."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency involved.",
+    "exit_criteria": []
+  }
+}

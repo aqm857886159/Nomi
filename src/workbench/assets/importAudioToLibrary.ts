@@ -7,6 +7,7 @@
 
 import { importWorkbenchLocalAssetFile } from '../api/assetUploadApi'
 import { extensionsForKind } from '../../../electron/assets/mediaTypes'
+import { logRendererError } from '../../desktop/rendererLog'
 import {
   admitMediaImport,
   type MediaImportRejection,
@@ -89,7 +90,7 @@ export async function importAudioFilesToLibrary(
       } catch (error) {
         if (isProjectImportCancellation(error)) throw error
         failedCount += 1
-        console.error('asset library audio upload failed', error)
+        logRendererError('asset-audio-import-failed', error)
       }
     }),
   )

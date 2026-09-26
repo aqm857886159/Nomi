@@ -148,6 +148,12 @@ Script → Generate → Edit → Preview → Export
    （用 `Range` 量文字宽，不量被 `1fr` 拉伸的按钮框），门岗在
    `tests/ux/design-lab-node-composer-bar.walk.mjs`（两条，按实测矩形判）。
 
+   **豁免 · 画布节点生成浮框定宽 560**（2026-09-25 用户拍板）：浮框以前 `w-max` 跟内容撑（360–880），
+   换模型、换语言、参数摘要变长宽度都跟着变，用户原话「长度老是变来变去的，偶尔长偶尔短」。
+   这张卡是「同一个位置反复出现的工作面」，稳定比省那几十像素更重要，所以定宽、钉在节点正下方、
+   被挡就挡（owner：`nodes/composerCanvasPlacement.ts`，宽度常量 `NODE_COMPOSER_WIDTH`）。
+   这条豁免只管这张卡；卡里的参数面板等浮层仍按本条「由内容派生」。
+
 > **决定了「住哪一层」之后，还要决定「它该说话还是该画图标」——那是 §1.8，有门岗。**
 > 尤其是想加**第二颗文字按钮**的时候：先去看 §1.8.2 的反例表，多半它是主按钮的一个状态。
 
@@ -707,8 +713,13 @@ className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
 | 用户此刻在哪 | 确认长在哪 | 状态 |
 |---|---|---|
 | 正在跟内嵌 agent 对话 | **对话流内的付费富卡**，对话暂停等回答（不弹居中窗——弹窗会打断「对话主驾」心流） | 🚧 待建，随 B5 落；规格见 [nomi-agent-interaction.md](nomi-agent-interaction.md) |
-| 画布上自己点生成（`light`） | `SpendConfirmDialog` 居中弹窗，金币图标 + 「本会话不再提示」 | ✅ 现役 |
+| 用户自己点单个生成（画布 ↑、分镜表「生成镜 N」、重试、重新生成；非首次托管） | **不弹**：按下即开始，照样先报价再凭报价铸令牌（2026-09-25 用户拍板）。**不显示价格**（2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格；等官方模型供应上线、价格可算时再设计） | ✅ 现役 |
+| 用户一下跑 ≥2 个（×N、多选、批量、先补参考）或首次匿名托管 | `SpendConfirmDialog` 居中弹窗，金币图标 | ✅ 现役 |
 | 人不在 Nomi，外部 MCP 驱动（`source: 'agent'`） | `SpendConfirmDialog` 居中弹窗 —— 这是唯一该「召唤注意力」的场景 | ✅ 现役 |
+
+确认卡**不印金额行**（2026-09-26 用户拍板：官方额度上线前隐藏价格维度；本版只去掉 ↑ 旁点数与确认框价格行，其它价格面归下一版「钱边界」）。
+
+「要不要弹」只有一个判据：`spend/spendConfirm.ts` 的 `spendConfirmationRequirement`，只看事实：谁发起（Agent 必问）、一下跑几份（≥2 问）、首次匿名托管告知。**不看金额**，报价只用来铸令牌。各入口只报事实，不各判各的。
 
 `SpendConfirmDialog`（`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`，挂一次于工作区根）= **非对话场景**的唯一付费确认 UI：
 - 外部 MCP 驱动额外带：机器人图标（`IconRobot`）+ 副标「经 AI 助手（MCP）驱动」+ 明细行（节点/模型/产物）+ **60s 倒计时**（进度条 + 「N 秒后自动忽略」，到点按未确认返回——外部调用方那头在等，不死等）。
@@ -1044,6 +1055,8 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 主角形象确认（锚定妆照检查点·免费质量门）| `IconUser` | `SpendConfirmDialog` 的 `kind: 'anchorCheckpoint'` 头部（§3.5，与 cast 分类同图标）|
 | 正在放量（广告花费档高，仅 TikTok 广告库有此数据）| `IconTrendingUp` | `FindReferencePanel` 参考卡的「放量」角标。**选趋势上升不选火苗**：隐喻要诚实——它表达的是「投放在加码」，不是「热门」|
 | 这一步**还没轮到**（多步进度里尚未开始的那几行）| `IconCircleDashed` | `AssistedIntegrationProgress` 五步进度的 `pending` 行（§Progress）。词典里没有现成的：`IconCircleFilled` 是「有内容/已占位」、`IconCircleCheck` 是已完成、`IconAlertCircle` 是出事了——虚线圈才说得出「位置留着、还没发生」，而实心或空心圆都会被读成一个已存在的状态 |
+| 展开 / 收起提示词（原地变高显示全文）| `IconArrowsDiagonal` / `IconArrowsDiagonalMinimize2` | 生成节点浮框提示词区右上角那一颗（2026-09-25 用户拍板，参考 LibTV）。选对角双箭头而不是 `IconMaximize`：后者在本仓已是「全屏打开编辑器」（`scene3d.fullscreen.openEditor`），这里是原地变高、不离开当前面；收起用同族的收拢形，一眼看出是同一颗钮的两态 |
+| 画布外那一侧有新东西（点了过去）| `IconArrowDown`（与 `IconArrowUp` / `IconArrowLeft` / `IconArrowRight` 同族按方向取）| 画布边缘提示胶囊 `CanvasArrivalHint` 尾部那一颗（2026-09-25 用户拍板，样张 v1）。箭头只指方向、不是按钮本身的动作；不用 `IconChevron*`：那族在本仓是「展开/折叠」示能 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
 
 ### 选图规则

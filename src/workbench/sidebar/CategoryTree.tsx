@@ -186,7 +186,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     selectNode(nodeId)
     // v0.7.3 fix: 派发 focus 事件，让 canvas 切换到目标分类 + pan/zoom 到该节点
     // 这跟"独立副本定位源节点"用的是同一个机制（GenerationCanvas 监听 nomi-focus-generation-node）
-    window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId } }))
+    window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId } }))
   }, [selectNode])
 
   const handleDropNodeOnCategory = React.useCallback((nodeId: string, categoryId: string) => {
@@ -306,10 +306,8 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   }, [closeMenu, nodeById, updateNode, t])
 
   const handleRegenerateDerivedNode = React.useCallback((nodeId: string) => {
-    const duplicate = duplicateNodeForRegeneration(nodeId)
-    if (duplicate) {
-      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: duplicate.id } }))
-    }
+    // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
+    duplicateNodeForRegeneration(nodeId)
     closeMenu()
   }, [closeMenu, duplicateNodeForRegeneration])
 

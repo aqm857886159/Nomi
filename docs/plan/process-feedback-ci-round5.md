@@ -1,5 +1,7 @@
 # PR #658 CI round5：能力一致性与时间轴取证
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 状态：两处修复已通过定向验证与完整 gates，待正常提交推送。仅在指定 worktree / feat/process-feedback-phases-20260908 推进。
 
 ## 范围与不动项

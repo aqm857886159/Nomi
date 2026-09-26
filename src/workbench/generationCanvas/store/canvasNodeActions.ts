@@ -2,6 +2,7 @@ import { markStoryboardOverrides, overriddenShotFields } from '../model/storyboa
 import { createEdgeId, createGenerationNode, removeNodes, upsertNode } from '../model/graphOps'
 import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
+import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
 import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
@@ -69,7 +70,9 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const siblings = currentState.nodes.filter((node) => (node.categoryId || 'shots') === (categoryId || 'shots'))
     const position = input.exactPosition && input.position
       ? input.position
-      : resolveInsertionPosition(input.kind, input.position ?? { x: 120, y: 360 }, siblings)
+      // 没给落点 = 调用方不关心具体位置：落在用户此刻看得见的地方（2026-09-25 拍板：新建尽量直接落在可见区，
+      // 程序不再为了「露出」去挪画布）。画布从没挂载过（没有可见区）才退回固定原点。
+      : resolveInsertionPosition(input.kind, input.position ?? visibleInsertionPoint(categoryId) ?? { x: 120, y: 360 }, siblings, 6, visibleCanvasRect(categoryId))
     // 节点构造经**共用工厂**（与 electron 能力核/MCP 同一份纯函数）：title/size/prompt/references/history/
     // status/meta/categoryId/shotIndex 全由工厂按 UI 同款规则补齐。store 只留 store 关注点
     // （落点避让、撤销点、set、事件）。镜号 = 出生即分配的存储身份（max+1，审计 A2）——工厂据传入的
