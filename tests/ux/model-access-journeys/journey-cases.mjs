@@ -89,19 +89,20 @@ async function runCanvasNode(ui, recorder, { kind, modelId, prompt }) {
   const generate = composer.getByRole('button', { name: /生成素材|生成/ }).last()
   if (await generate.isDisabled()) throw new JourneyFailure('generate-disabled', `${labels[kind]}节点材料齐全后生成按钮仍不可用`)
   await generate.click()
-  // User-direct generation opens the spend-confirmation gate ("开始生成…会消耗模型
-  // 额度", buttons 取消/生成). It must be confirmed to mint the grant and dispatch;
-  // without this the node stays idle and never renders (probed 2026-09-01). The
-  // gate is a real product step every journey's operator would hit, not a mock.
+  // A single run the user starts on one node no longer shows the spend-confirmation
+  // card (2026-09-25 decision: shown only for agent-initiated runs, >1 runs, or the
+  // first anonymous-hosting disclosure); it dispatches straight away. The bounded
+  // gate check below stays so the journey still passes through the card if one of
+  // those conditions applies (e.g. the hosting disclosure on a fresh profile).
   await confirmSpendGate(ui.win)
   await recorder.screenshot(ui.win, `${kind}-node-submitted`)
   return { composer, node }
 }
 
 // The spend-confirm dialog is a full-screen modal (div.fixed.inset-0) whose
-// primary action reads 生成. On repeat generations within a session the user may
-// have suppressed it ("本次会话不再提示") — so its absence is expected, not a
-// failure. Bounded wait: only treat a visible gate as actionable.
+// primary action reads 生成. A single user-started run does not show it at all
+// (only agent runs, >1 runs, or the first hosting disclosure do) — so its absence
+// is expected, not a failure. Bounded wait: only treat a visible gate as actionable.
 async function confirmSpendGate(page, timeoutMs = 4000) {
   const gate = page.locator('div.fixed.inset-0').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()
   try {

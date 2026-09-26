@@ -226,34 +226,38 @@ try {
   await win.keyboard.press('Escape')
   await expect(preview).toBeHidden({ timeout: 5000 })
 
-  // ── 8. 行内生成真跑（fixture 零额度）：镜 4 ready → spendConfirm → runner → done ──
+  // ── 8. 行内生成真跑（fixture 零额度）：镜 4 ready → runner → done ──
+  const imagesBeforeRow = fixture.images.length
   await clickOrFail(win.locator('[data-storyboard-row="4"]').getByRole('button', { name: '生成镜 4' }), '点镜 4 画面格生成')
-  await expectVisible(spendDialog(), '行内生成没有弹花钱确认卡')
-  await snap('08-row-spend-confirm.png')
-  await clickOrFail(spendDialog().getByRole('button', { name: '生成', exact: true }), '确认（fixture 零额度）')
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面镜 4 进入 done、loopback 恰好多 1 次图片请求就是证据。
   await expect(frame(4)).toHaveAttribute('data-storyboard-frame', 'done', { timeout: 30_000 })
+  if (fixture.images.length !== imagesBeforeRow + 1) failures.push(`镜 4 行内生成应恰好发 1 次图片请求，实为 ${fixture.images.length - imagesBeforeRow}`)
   const footerAfterRun = await win.locator('[data-storyboard-progress="true"]').textContent()
   if (!/已生成 4\/8 镜/.test(footerAfterRun || '')) failures.push(`镜 4 真跑后 footer 应为 4/8，实为「${footerAfterRun}」`)
   await snap('09-row-generated.png')
 
   // ── 9. 锚卡就地生成真跑：天台夜景 空卡 → 生成 → done；镜 2 仍等陈默（诚实）──
+  const imagesBeforeAnchor = fixture.images.length
   await clickOrFail(win.locator('[data-anchor-card="rooftop"]').getByRole('button', { name: /^生成参考卡/ }), '点天台夜景就地生成')
-  await expectVisible(spendDialog(), '锚生成没有弹花钱确认卡')
-  await clickOrFail(spendDialog().getByRole('button', { name: '生成', exact: true }), '确认锚生成（fixture 零额度）')
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面天台锚卡进入 done 面、loopback 恰好多 1 次图片请求就是证据。
   // 「未锁定 · 满意就锁定」只印在收起态的 chip 上；展开行上「生成 → 出图」的证据是 done 面。
   await expect(win.locator('[data-anchor-card="rooftop"] [data-anchor-face="done"]'), '天台生成后应进入 done 面').toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   await expectCount(win.locator('[data-anchor-face="empty"]'), 1, '天台生成后应只剩陈默一张空卡')
+  if (fixture.images.length !== imagesBeforeAnchor + 1) failures.push(`天台锚卡生成应恰好发 1 次图片请求，实为 ${fixture.images.length - imagesBeforeAnchor}`)
   const shot2State = await frame(2).getAttribute('data-storyboard-frame')
   if (shot2State !== 'waiting-refs') failures.push(`镜 2 仍缺陈默参考图，应保持 waiting-refs，实为 ${shot2State}`)
   await snap('10-anchor-generated.png')
 
-  // ── 10. 参考已变一键补跑真跑：镜 8「新图重跑」→ 确认 → 红标消（快照重打）──
+  // ── 10. 参考已变一键补跑真跑：镜 8「新图重跑」→ 直接重跑 → 红标消（快照重打）──
+  // 原先这里还钉着「确认卡回声用户点的动作（主按钮=新图重跑）」。镜 8 一镜 = 单份生成，不再弹卡，
+  // 这条回声也就不存在了；改证「真的重跑了」：镜 8 回到 done + loopback 恰好多 1 次图片请求。
+  const imagesBeforeRerun = fixture.images.length
   await clickOrFail(win.getByRole('button', { name: '新图重跑' }), '点新图重跑')
-  await expectVisible(spendDialog(), '新图重跑没有走花钱确认（执行通路断了）')
-  // B4 R16 修复钉子：确认卡回声用户点的动作（标题/主按钮=「新图重跑」，ac2fa59e7 前叫「用新图重跑」），
-  // 不是通用「重新生成」——退化回通用卡这里就红。
-  await snap('11-rerun-fresh-refs-confirm.png')
-  await clickOrFail(spendDialog().getByRole('button', { name: '新图重跑', exact: true }), '确认重跑（fixture 零额度）')
+  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
+  // 请求永远发不出去——下面镜 8 回到 done、loopback 恰好多 1 次图片请求就是证据。
+  await expect.poll(() => fixture.images.length, { timeout: stationTimeout({ operations: 2 }), message: '新图重跑后 loopback 没收到图片请求' }).toBe(imagesBeforeRerun + 1)
   await expect(frame(8)).toHaveAttribute('data-storyboard-frame', 'done', { timeout: 30_000 })
   await expectAbsent(warnline, { provenBy: warnProof, message: '重跑后参考已变警示行应消失（快照已更新）' })
   await snap('12-ref-changed-cleared.png')

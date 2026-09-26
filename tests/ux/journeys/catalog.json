@@ -99,8 +99,7 @@
         "select-model",
         "choose-model",
         "write-prompt",
-        "generate",
-        "confirm-generation"
+        "generate"
       ],
       "owner": "src/workbench/generationCanvas",
       "experience": true

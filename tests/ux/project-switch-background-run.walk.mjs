@@ -239,22 +239,30 @@ try {
       await clickOrFail(generateAll, '生成全部')
     }
   }
-  const spend = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
-  await expect(spend, '提交前先看报价确认').toBeVisible({ timeout: stationTimeout() })
-  report.quoteText = await spend.innerText()
-  if (expectedRequests > 1) check(new RegExp(`${expectedRequests}\\s*(张|个|项|次|份)`).test(report.quoteText), '确认卡明确覆盖本次全部执行数量', report.quoteText)
-  if (mode === 'storyboard-first-frame') {
-    const nodes = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes)
-    const bound = nodes.filter(node => node.meta?.storyboardDesignId === DESIGN)
-    report.confirmedInputs = bound.map(node => ({ id: node.id, kind: node.kind, prompt: node.prompt, meta: node.meta }))
-    check(bound.length === 2 && bound.some(node => node.kind === 'image' && node.meta?.modelKey === IMAGE_MODEL
-      && node.meta?.modelVendor === VENDOR && node.meta?.archetype?.modeId === 't2i')
-      && bound.some(node => node.kind === 'video' && node.meta?.modelKey === VIDEO_MODEL
-        && node.meta?.modelVendor === VENDOR && node.meta?.archetype?.modeId === 'first'),
-    '确认前原首帧与视频节点使用指定模型和模式', JSON.stringify(report.confirmedInputs))
+  if (mode === 'single') {
+    // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口；画布上只有这一张待生成）；
+    // 若中间弹卡而不点，请求永远发不出去——下面供应商收到 1 次请求、节点进入 queued/running 就是证据。
+    report.spendConfirmation = 'not-shown: single user-initiated run'
+    report.quoteText = null
+  } else {
+    report.spendConfirmation = 'shown'
+    const spend = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
+    await expect(spend, '提交前先看报价确认').toBeVisible({ timeout: stationTimeout() })
+    report.quoteText = await spend.innerText()
+    if (expectedRequests > 1) check(new RegExp(`${expectedRequests}\\s*(张|个|项|次|份)`).test(report.quoteText), '确认卡明确覆盖本次全部执行数量', report.quoteText)
+    if (mode === 'storyboard-first-frame') {
+      const nodes = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes)
+      const bound = nodes.filter(node => node.meta?.storyboardDesignId === DESIGN)
+      report.confirmedInputs = bound.map(node => ({ id: node.id, kind: node.kind, prompt: node.prompt, meta: node.meta }))
+      check(bound.length === 2 && bound.some(node => node.kind === 'image' && node.meta?.modelKey === IMAGE_MODEL
+        && node.meta?.modelVendor === VENDOR && node.meta?.archetype?.modeId === 't2i')
+        && bound.some(node => node.kind === 'video' && node.meta?.modelKey === VIDEO_MODEL
+          && node.meta?.modelVendor === VENDOR && node.meta?.archetype?.modeId === 'first'),
+      '确认前原首帧与视频节点使用指定模型和模式', JSON.stringify(report.confirmedInputs))
+    }
+    await snap(win, 'original-confirmation')
+    await clickOrFail(spend.getByRole('button', { name: '生成', exact: true }), '确认生成')
   }
-  await snap(win, 'original-confirmation')
-  await clickOrFail(spend.getByRole('button', { name: '生成', exact: true }), '确认生成')
   await expect.poll(() => wireCalls.length, { message: '供应商收到请求（挂住未回）', timeout: stationTimeout({ operations: 2 }) }).toBe(mode === 'storyboard-batch' ? 6 : 1)
   const expectedNodes = mode === 'variants' ? 1 : expectedRequests
   await expect.poll(() => readCanvas(rootA).nodes.filter(node => mode.startsWith('storyboard-')
