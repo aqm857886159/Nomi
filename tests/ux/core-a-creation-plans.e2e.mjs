@@ -7,6 +7,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import { expect } from '@playwright/test'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { followArrivalHint, readArrivalLedger, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 
 /** 「一次都没问」的观察窗口：旧侧栏轮询是 1500ms 一次，这段窗口里它至少会问三次。 */
 const RUN_LIST_OBSERVATION_MS = 5_000
@@ -152,6 +153,12 @@ try {
   const nodes=await canvasNodes()
   check(nodes.length===1,'Original explicit placement creates one node')
   await editor.locator(`[data-place-storyboard="${ids.a1}"]`).click()
+  // 「查看画布」把人带到分镜表；表右侧新落的节点（含 a1 的图片节点）在舞台外。2026-09-25 起程序不替人挪画布，
+  // 屏外的新东西由边缘提示指路——像用户一样点它（followArrivalHint 验方向、张数、点完完整进舞台、提示消失）。
+  // 「看见过」与边缘提示同一口径（卡片中心在舞台里，canvasArrivalModel.isNodeSeen）：直接用 readArrivalLedger 的 seen。
+  await waitForCanvasViewportSettled(win)
+  const seenBeforeHint = (await readArrivalLedger(win)).cards.filter((card) => card.seen).map((card) => card.id)
+  await followArrivalHint(win, { knownIds: seenBeforeHint, label: '查看画布后表右侧的新节点' })
   await expect(win.locator('[data-kind="image"]').first()).toBeVisible()
   check(JSON.stringify((await canvasNodes()).map(node=>node.id))===JSON.stringify(nodes.map(node=>node.id)),'View on canvas retains node identity')
   await win.screenshot({path:path.join(shotsDir,'zh-canvas.png')})
