@@ -144,6 +144,7 @@
 - [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
 - [git 的文件列表默认是转义过的，中文名一律「不像 docs/」](git-path-output-is-quoted-by-default.md) — ✅ 已由 `check:git-path-quoting` + `check:hook-behavior` 轴 C 接管；纯文档 PR 白等五门 / 门岗静默少扫文件，都是它；读 git 路径一律 `-z`
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
+- [RC 必须在 release 分支上触发，不能只把分支名填进 `ref` 输入](rc-must-be-dispatched-on-the-release-branch.md) — 手动触发 `Desktop Release Candidate` 时；漏了 `--ref`，RC 全绿、验收做完，发布却在最后一步报 `RC commit mismatch`
 
 - [Windows 上删 worktree 会顺着 junction 删掉目标](windows-worktree-remove-follows-junctions.md) — 删 / 归档任何含 mklink /J 的工作树前；先 rmdir 链接本身；测试成片「Cannot find package」时先看包目录是不是空的
 ## D. 排查与平台故障
