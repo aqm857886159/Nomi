@@ -1,6 +1,9 @@
 # docs/plan 索引地图
 - [模型契约跨字段约束](2026-09-08-model-contract-cross-field-limits.md) — Hailuo 1080p/时长与 H3 混合参考总量。
 - [阶段 5b：目录活性 reconcile](2026-09-08-catalog-liveness-reconcile.md) — 自动禁用、保留配置、周探针与明暗样张。
+- [全仓架构治理定稿：单一事实、单向投影、入口收敛](2026-09-26-architecture-single-owner-governance.md) — 生命周期 owner、durable commit、迁移/回滚矩阵、vertical pilot 与真实验收门。
+- [架构方案质量清单与逐条审查](2026-09-26-architecture-solution-quality-checklist.md) — 16 项方案标准与当前方案的逐项结论。
+- [Phase -1：真实对象与生命周期账本执行计划](2026-09-26-phase-minus-one-lifecycle-ledger.md) — 入口矩阵、生命周期账本、提交边界、入口对账和恢复探针。
 
 > 方案/执行文档按**主题**分组的查找表。文件本身保持平铺（彼此有大量路径互链，移动会断链），本表负责「按主题/状态秒定位」。
 > 本索引仍有历史存量缺口；查不到时必须继续全量搜索。`check:docs-index` 保证缺口只减不增。
