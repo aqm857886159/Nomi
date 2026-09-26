@@ -4,6 +4,7 @@
 // 会消耗真实额度，默认跳过；显式 APIMART_E2E=1（使用 app 已保存的 key）或
 // APIMART_API_KEY=... 才执行。用法：pnpm run build && APIMART_E2E=1 node tests/ux/apimart-seedance25-h3.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { realNomiProfile, seedRealCredentials } from "./_realProfile.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,9 +18,9 @@ const ENV_KEY = process.env.APIMART_API_KEY;
 const ONLY = new Set((process.env.ONLY || "").split(",").map((value) => value.trim()).filter(Boolean));
 const REGEN_TASK_ID = (process.env.APIMART_REGEN_TASK_ID || "").trim();
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-apimart-seedance25-h3-"));
-const savedCatalog = path.join(os.homedir(), "Library/Application Support/nomi/model-catalog.json");
-if (!ENV_KEY && fs.existsSync(savedCatalog)) {
-  fs.copyFileSync(savedCatalog, path.join(userDataDir, "model-catalog.json"));
+// 目录 + 凭据钥匙（Windows 的 Local State）一起带进隔离 userData；settings 与 userData 同目录。
+if (!ENV_KEY && fs.existsSync(realNomiProfile().catalogPath)) {
+  seedRealCredentials({ settingsDir: userDataDir, userDataDir });
 }
 
 function assert(condition, message) {

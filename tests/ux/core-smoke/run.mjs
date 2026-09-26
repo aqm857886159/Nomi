@@ -4,7 +4,7 @@
 // 汇总写到 outputs/core-smoke/<fixture>/summary.json。三条硬规矩：
 //   1. 清单先自检（scenarios.mjs）：写了没登记的依赖 → 起进程之前就红（「缺依赖」），不静默跳过。
 //   2. 冒烟**不许写已跟踪文件**：跑完 `git status --porcelain` 必须与跑之前一字不差；CI 上还要求两头都为空。
-//   3. profile-copy 只在本机：cp -R 深拷贝用户真实 profile（不用硬链接），只在拷贝上跑，跑完删；
+//   3. profile-copy 只在本机：深拷贝用户真实 profile（fs.cpSync，不用硬链接），只在拷贝上跑，跑完删；
 //      原库的关键文件跑前跑后比指纹，变了就红（说明有东西写到了原库——或者你同时开着 Nomi，关掉再跑）。
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -12,6 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { REAL_PROFILE_ENV, realNomiProfile } from '../_realProfile.mjs'
 import { runCanvasScenario } from '../canvas-real-suite.mjs'
 import { checkCoreSmokeScenarios, CORE_SMOKE_FIXTURES, CORE_SMOKE_SCENARIOS, expandCoreSmokeRuns, LOCAL_ONLY_FIXTURES } from './scenarios.mjs'
 
@@ -49,10 +50,10 @@ export function checkWorkingTreeUntouched({ before, after, ci }) {
 
 // ── profile-copy ──────────────────────────────────────────────
 function defaultRealProfile() {
-  const userData = process.env.NOMI_REAL_PROFILE_USER_DATA
-    || (process.platform === 'darwin' ? path.join(os.homedir(), 'Library/Application Support/nomi') : null)
-  if (!userData || !fs.existsSync(userData)) {
-    throw new Error(`profile-copy 找不到用户真实资料目录（${userData ?? '未设置'}）。用 NOMI_REAL_PROFILE_USER_DATA 指向它`)
+  // 资料目录在哪只问 owner（三平台 + NOMI_REAL_PROFILE_USER_DATA 覆盖口都在那里）。
+  const userData = realNomiProfile().userDataDir
+  if (!fs.existsSync(userData)) {
+    throw new Error(`profile-copy 找不到用户真实资料目录（${userData}）。用 ${REAL_PROFILE_ENV} 指向它`)
   }
   let projectsRoot = process.env.NOMI_REAL_PROFILE_PROJECTS
   if (!projectsRoot) {
@@ -73,7 +74,8 @@ function fingerprint(files) {
 }
 
 function sourceWatchList({ userData, projectsRoot }) {
-  const files = ['recent-workspaces.json', 'model-catalog.json', 'preferences.json'].map((name) => path.join(userData, name))
+  const files = ['recent-workspaces.json', 'model-catalog.json', 'preferences.json', ...realNomiProfile().credentialStoreFiles]
+    .map((name) => path.join(userData, name))
   if (fs.existsSync(projectsRoot)) {
     for (const entry of fs.readdirSync(projectsRoot, { withFileTypes: true })) {
       if (entry.isDirectory()) files.push(path.join(projectsRoot, entry.name, '.nomi', 'project.json'))
@@ -82,14 +84,14 @@ function sourceWatchList({ userData, projectsRoot }) {
   return files.sort()
 }
 
-/** cp -R 深拷贝（不是硬链接：硬链接会共享 leveldb 锁，也会让拷贝上的写穿透回原库）。 */
+/** 深拷贝（不是硬链接：硬链接会共享 leveldb 锁，也会让拷贝上的写穿透回原库）。用 fs.cpSync 而不是外部 `cp -R`：Windows 上没有 cp。 */
 export function prepareProfileCopy(source = defaultRealProfile()) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-smoke-profile-copy-'))
   const userDataCopy = path.join(root, 'user-data')
   const projectsCopy = path.join(root, 'projects')
   const started = Date.now()
-  execFileSync('cp', ['-R', source.userData, userDataCopy])
-  if (fs.existsSync(source.projectsRoot)) execFileSync('cp', ['-R', source.projectsRoot, projectsCopy])
+  fs.cpSync(source.userData, userDataCopy, { recursive: true })
+  if (fs.existsSync(source.projectsRoot)) fs.cpSync(source.projectsRoot, projectsCopy, { recursive: true })
   else fs.mkdirSync(projectsCopy, { recursive: true })
   for (const name of fs.readdirSync(userDataCopy)) {
     if (/^Singleton|^DevToolsActivePort$/.test(name)) fs.rmSync(path.join(userDataCopy, name), { force: true, recursive: true })

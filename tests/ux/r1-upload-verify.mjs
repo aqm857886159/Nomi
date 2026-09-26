@@ -5,13 +5,14 @@
 // 验证 R1 最关键、单测覆盖不到的外部假设：本地素材真能变成 vendor 够得着的 URL。
 // 用法：pnpm run build && node tests/ux/r1-upload-verify.mjs   （无 KIE key 时自动跳过,不失败）
 import { launchNomiApp } from "./_launchApp.mjs";
+import { realNomiProfile, seedRealCredentialStore } from "./_realProfile.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
 
-// catalog 落在 userData/nomi/model-catalog.json（macOS: ~/Library/Application Support/nomi）。
-const catalogPath = path.join(os.homedir(), "Library", "Application Support", "nomi", "model-catalog.json");
+// catalog 落在真实 userData 的 model-catalog.json（在哪只问 _realProfile.mjs，三平台同一份判据）。
+const catalogPath = realNomiProfile().catalogPath;
 let rec = null;
 try {
   const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
@@ -25,7 +26,11 @@ if (!rec || !rec.apiKey) {
 
 const ONE_PX_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
 
-const { app } = await launchNomiApp({ name: "r1-upload-verify" });
+// 隔离 App 主进程要解真实目录的密文：凭据钥匙（Windows 的 Local State）先种进它将要用的 userData。
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "r1-upload-verify-"));
+const userDataDir = path.join(tempRoot, "user-data");
+seedRealCredentialStore(userDataDir);
+const { app } = await launchNomiApp({ name: "r1-upload-verify", tempRoot, userDataDir });
 
 try {
 

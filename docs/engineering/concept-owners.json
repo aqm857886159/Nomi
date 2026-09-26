@@ -422,6 +422,42 @@
       "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
     },
     {
+      "name": "用户真实资料目录（在哪 + 凭据由哪几份文件组成）",
+      "owner": {
+        "path": "tests/ux/_realProfile.mjs",
+        "symbol": "realNomiProfile"
+      },
+      "consumers": [
+        "evals/lib/isoApp.mjs",
+        "tests/ux/_paidRun.mjs",
+        "tests/ux/core-smoke/run.mjs",
+        "tests/ux/agent-runtime-provider.walk.mjs",
+        "tests/ux/agent-spend-r30.mjs",
+        "tests/ux/core-a-storyboard.paid.mjs",
+        "scripts/batch-generate-walkthrough.mjs"
+      ],
+      "since": "2026-09-26",
+      "notes": "测试 / 评测 / 走查侧唯一 owner（产品侧 userData 由 Electron app.getPath 决定，不在此列）。三平台：darwin ~/Library/Application Support/nomi、win32 %APPDATA%\\nomi、linux $XDG_CONFIG_HOME|~/.config/nomi，覆盖口 NOMI_REAL_PROFILE_USER_DATA。Windows 上 safeStorage 钥匙是 userData 里的 Local State，「凭据」是目录 + 钥匙两份文件；带进隔离副本只走 seedRealCredentials / seedRealModels，收尾只走 removeRealCredentials（删整族 model-catalog*.json，含 App 升级留下的 .bak）。其余真凭据走查（scripts/*walkthrough*、tests/ux/*.walk.mjs 等 30 余处）都是它的消费者，门表用 node scripts/door-map.mjs realNomiProfile --roots=tests,evals,scripts --include-tests 现场数。已知未迁：tests/agent-runtime/{replayShadowSources,agent-lane-replay-shadow}.mts（tsc 编译到 .tmp 后相对 import .mjs 断链）。"
+    },
+    {
+      "name": "付费走查的开关与收据",
+      "owner": {
+        "path": "tests/ux/_paidRun.mjs",
+        "symbol": "paidRunRefusal"
+      },
+      "consumers": [
+        "tests/ux/canvas-spend-policy.paid.mjs",
+        "tests/ux/agent-spend-real-image.paid.mjs",
+        "tests/ux/agent-video-landing.paid.mjs",
+        "tests/ux/agent-queued-shots.paid.mjs",
+        "tests/ux/core-a-storyboard.paid.mjs",
+        "tests/ux/agent-spend-r30.mjs",
+        "scripts/batch-generate-walkthrough.mjs"
+      ],
+      "since": "2026-09-26",
+      "notes": "真花钱的脚本开头只走 assertPaidRunAllowed：CI 拒跑、没有 NOMI_SPEND_OK=1 拒跑、用户 Nomi 开着拒跑；原库指纹跑前跑后比对。收据 spendReceipt 只记事实（供应商任务号、供应商回的 cost 字段、Agent token 用量），不折算金额——公开仓库不写价目。core-a 原来的 NOMI_CORE_A_LIVE 已删；APIMART_E2E 等开关在未迁的旧 e2e 里仍在，迁一个删一个。"
+    },
+    {
       "name": "执行计划检查的镜头字段表（resolve 输入）",
       "owner": {
         "path": "electron/shared/agentCapabilities/generation.ts",

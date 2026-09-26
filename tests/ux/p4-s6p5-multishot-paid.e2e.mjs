@@ -17,7 +17,8 @@
 // 跑：pnpm run build && APIMART_E2E=1 NOMI_SPEND_OK=1 node tests/ux/p4-s6p5-multishot-paid.e2e.mjs
 
 import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
-import { prepareIsolation, realCatalogPath, createBlankProject, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
+import { prepareIsolation, createBlankProject, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
+import { realNomiProfile } from './_realProfile.mjs'
 import { clickOrFail, proveProbe } from './_assert.mjs'
 import { createRequire } from 'node:module'
 import { spawn, execFileSync } from 'node:child_process'
@@ -40,8 +41,8 @@ if (!process.env.APIMART_E2E || !process.env.NOMI_SPEND_OK) {
   console.log('  pnpm run build && APIMART_E2E=1 NOMI_SPEND_OK=1 node tests/ux/p4-s6p5-multishot-paid.e2e.mjs')
   process.exit(0)
 }
-if (!fs.existsSync(realCatalogPath())) {
-  console.log(`SKIP: 真实 model-catalog.json 不存在（${realCatalogPath()}）——需已配置 APIMart key。`)
+if (!fs.existsSync(realNomiProfile().catalogPath)) {
+  console.log(`SKIP: 真实 model-catalog.json 不存在（${realNomiProfile().catalogPath}）——需已配置 APIMart key。`)
   process.exit(0)
 }
 

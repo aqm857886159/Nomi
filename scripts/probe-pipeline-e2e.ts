@@ -11,7 +11,6 @@
  * Never prints the API key.
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import {
   appendQueryParams,
@@ -20,8 +19,9 @@ import {
   extractTaskId,
   looksLikeLogicalError,
 } from "../electron/ai/requestPipeline";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
-const CATALOG = path.join(os.homedir(), "Library/Application Support/nomi/model-catalog.json");
+const CATALOG = realNomiProfile().catalogPath;
 const KEY_FILE = path.join(process.cwd(), ".secrets/target.key");
 
 type Op = { method: string; path: string; headers?: Record<string, string>; query?: Record<string, unknown>; body?: unknown; response_mapping?: Record<string, string> };

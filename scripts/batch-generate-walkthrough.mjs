@@ -1,25 +1,31 @@
 // R13 真机走查（批量生成现状核查·纯 UI 用户路径）：工具栏建 3 个图片节点 → 各打提示词 →
 // ⌘A 全选 → 浮条「生成 3 个」→ 轻确认一次 → 真实并发生成到全部落定。
 // 回答「我们现在能不能批量产出」。真花额度（3 张图，默认模型=用户同款路径）。
-// 用法：pnpm build 后 node scripts/batch-generate-walkthrough.mjs
+// 用法：pnpm build 后 NOMI_SPEND_OK=1 node scripts/batch-generate-walkthrough.mjs
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { assertPaidRunAllowed } from '../tests/ux/_paidRun.mjs'
+import { realNomiProfile, removeRealCredentials, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
-import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import os from 'node:os'
+
+// 真花钱：CI 拒跑、要显式 NOMI_SPEND_OK=1、用户 Nomi 开着拒跑、原库指纹跑前跑后比对（付费走查唯一那一份）。
+const paidGuard = assertPaidRunAllowed('batch-generate-walkthrough.mjs')
 
 const outDir = path.join(repoRoot, '.batch-walk')
 mkdirSync(outDir, { recursive: true })
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
-// 隔离档案 + 拷 dev 目录真 catalog（小写 nomi = 本 dev electron 写的，keychain 同源能解密）
+// 隔离档案 + 拷真实目录与凭据钥匙（owner：tests/ux/_realProfile.mjs；Windows 的钥匙是 userData 里的 Local State）
 const isolatedSettings = path.join(os.tmpdir(), 'nomi-batch-walk-settings')
 const isolatedProjects = path.join(os.tmpdir(), 'nomi-batch-walk-projects')
+const isolatedUserData = mkdtempSync(path.join(os.tmpdir(), 'nomi-batch-walk-user-data-'))
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
-const devCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'nomi', 'model-catalog.json')
-if (!existsSync(devCatalog)) { console.log('✗ 缺 dev catalog（' + devCatalog + '）'); process.exit(1) }
+const devCatalog = realNomiProfile().catalogPath
+if (!existsSync(devCatalog)) { console.log('✗ 缺真实 catalog（' + devCatalog + '）'); process.exit(1) }
+seedRealCredentials({ settingsDir: isolatedSettings, userDataDir: isolatedUserData })
 const isolatedCatalog = path.join(isolatedSettings, 'model-catalog.json')
-copyFileSync(devCatalog, isolatedCatalog)
 // 诊断开关：NOMI_WALK_DISABLE_MODEL=<modelKey,modelKey> 在隔离 catalog 里停用指定模型
 // （如上游挂掉的默认模型），让自动默认落到下一个健康模型，验证「换个模型批量是否全通」。
 const disableKeys = String(process.env.NOMI_WALK_DISABLE_MODEL || '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -34,6 +40,7 @@ const PROMPTS = ['一只橘色小猫的特写，柔和自然光', '一杯冒热�
 
 const { app, win } = await launchNomiApp({
   name: 'batch-generate',
+  userDataDir: isolatedUserData,
   settingsDir: isolatedSettings,
   projectsDir: isolatedProjects,
 })
@@ -200,6 +207,9 @@ try {
   for (const e of errors.slice(0, 8)) console.log('  ✗ ' + e.slice(0, 200))
 } finally {
   await app.close().catch(() => {})
+  // App 关了：删掉凭据副本（目录里的 key 密文 + 钥匙），原库必须一字未动。
+  removeRealCredentials({ settingsDir: isolatedSettings, userDataDir: isolatedUserData })
+  try { paidGuard.assertRealProfileUntouched() } catch (error) { console.log('  ✗ ' + error.message); failed = true }
 }
 if (failed) { console.log('WALKTHROUGH: FAIL'); process.exit(1) }
 console.log('WALKTHROUGH: PASS')

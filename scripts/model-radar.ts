@@ -30,6 +30,7 @@ import { BUILTIN_VENDOR_SEEDS } from "../electron/catalog/builtinVendorSeeds.ts"
 import { probeWeeklyModels, type LivenessReceipt } from "./model-liveness.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 import { MODEL_ARCHETYPES } from "../electron/shared/modelArchetypes/index.ts";
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins.ts";
 import { billingKindForTaskKind, type CatalogState, type Mapping } from "../electron/catalog/types.ts";
@@ -227,17 +228,9 @@ export function usableApiKeyFromRecord(record: { apiKey?: string; enc?: string }
   return record.apiKey;
 }
 
-/** 本机 Nomi catalog 的位置（与 electron 侧 userData 一致；两种大小写目录都试）。 */
+/** 本机 Nomi catalog 的位置：只问真实资料目录的唯一 owner（tests/ux/_realProfile.mjs，三平台同一份判据）。 */
 function localCatalogFiles(): string[] {
-  const home = process.env.HOME || "";
-  if (!home) return [];
-  const roots =
-    process.platform === "darwin"
-      ? [path.join(home, "Library", "Application Support")]
-      : [process.env.APPDATA || path.join(home, ".config")];
-  const out: string[] = [];
-  for (const root of roots) for (const dir of ["nomi", "Nomi"]) out.push(path.join(root, dir, "model-catalog.json"));
-  return out;
+  return [realNomiProfile().catalogPath];
 }
 
 /**

@@ -5,9 +5,9 @@
 // 安全铁律(评审后端#7):自动批准必须过工具白名单;白名单外一律拒绝;
 // eval:score 兜底断言 zeroVendorCalls(评测环境绝不烧生成额度)。
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { buildNomiLaunchEnv, launchNomiApp, prepareIsolatedCatalog } from "../../tests/ux/_launchApp.mjs";
+import { realNomiProfile, seedRealCredentials } from "../../tests/ux/_realProfile.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -18,21 +18,20 @@ export const TOOL_WHITELIST = new Set([
   "delete_canvas_nodes",
 ]);
 
-export function realCatalogPath() {
-  return path.join(os.homedir(), "Library", "Application Support", "Nomi", "model-catalog.json");
-}
-
-/** 建一套全新隔离环境;requireCatalog=true 时拷入真实 catalog(safeStorage 加密 key 同机可解)。 */
+/**
+ * 建一套全新隔离环境;requireCatalog=true 时拷入真实 catalog 与凭据钥匙(同机可解)。
+ * 真实资料目录在哪、凭据由哪几份文件组成,只问 tests/ux/_realProfile.mjs——Windows 上钥匙是
+ * userData 里的 Local State,只拷 catalog 那份密文解不开。
+ */
 export function prepareIsolation(isoDir, { requireCatalog = true } = {}) {
   fs.rmSync(isoDir, { recursive: true, force: true });
   for (const d of ["settings", "projects", "chromium", "capability"]) fs.mkdirSync(path.join(isoDir, d), { recursive: true });
-  const catalog = realCatalogPath();
-  if (requireCatalog && !fs.existsSync(catalog)) {
-    throw new Error(`真实 model-catalog.json 不存在(${catalog})——被测 agent 需要已配置的模型与 key`);
+  const profile = realNomiProfile();
+  if (requireCatalog && !fs.existsSync(profile.catalogPath)) {
+    throw new Error(`真实 model-catalog.json 不存在(${profile.catalogPath})——被测 agent 需要已配置的模型与 key`);
   }
-  if (fs.existsSync(catalog)) {
-    const isolatedCatalog = path.join(isoDir, "settings", "model-catalog.json");
-    fs.copyFileSync(catalog, isolatedCatalog);
+  if (fs.existsSync(profile.catalogPath)) {
+    seedRealCredentials({ settingsDir: path.join(isoDir, "settings"), userDataDir: path.join(isoDir, "chromium"), profile });
     const prepared = prepareIsolatedCatalog(path.join(isoDir, "settings"));
     if (prepared.status === "quarantined" && requireCatalog) {
       throw new Error(`真实 model-catalog.json 版本 ${prepared.diskVersion} 高于被测 app 版本 ${prepared.testedCatalogVersion}，已隔离到 ${prepared.quarantinePath}；需要兼容 catalog 才能继续`);

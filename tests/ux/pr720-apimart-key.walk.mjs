@@ -22,6 +22,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentialStore } from './_realProfile.mjs'
 import { screenshotSettled, clickOrFail, expectVisible } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_PANEL, COMPOSER, COMPOSER_MODEL, MODEL_POPOVER } from './agent-runtime-walk-support.mjs'
@@ -51,6 +52,8 @@ for (const d of ['settings', 'projects', 'chromium', 'capability']) {
   dirs[d] = path.join(isoDir, d)
   fs.mkdirSync(dirs[d], { recursive: true })
 }
+// 目录不拷，但凭据钥匙（Windows 的 Local State）要带进来：下面在这台隔离 App 主进程里解真实目录的密文。
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentialStore(dirs.chromium)
 
 const { app, win } = await launchNomiApp({
   name: 'pr720-apimart-key',
@@ -153,10 +156,10 @@ try {
 
   // key 从不进入本脚本：这里只读**密文**，解密与写剪贴板都在主进程里做。
   // （app.evaluate 里 require / 动态 import 都不可用，见 docs/lessons，所以文件在这一侧读。）
-  const realCatalogPath = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', 'model-catalog.json')
+  const realCatalog = realNomiProfile().catalogPath
   let cipher = null
-  if (fs.existsSync(realCatalogPath)) {
-    const rec = JSON.parse(fs.readFileSync(realCatalogPath, 'utf8'))?.apiKeysByVendor?.apimart
+  if (fs.existsSync(realCatalog)) {
+    const rec = JSON.parse(fs.readFileSync(realCatalog, 'utf8'))?.apiKeysByVendor?.apimart
     if (rec?.apiKey && rec.enc === 'safeStorage') cipher = rec.apiKey
   }
   const clipboardReady = cipher ? await app.evaluate(({ safeStorage, clipboard }, encrypted) => {

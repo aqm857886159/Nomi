@@ -11,8 +11,9 @@
 // **只到方案阶段**（收到 propose 即拒绝、不写画布、不生成），只花极少文本额度。
 // 额度闸：不显式 NOMI_R16=1 就 SKIP。用法：pnpm run build && NOMI_R16=1 node tests/ux/storyboard-methodology.walk.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { realNomiProfile, seedRealCredentials } from "./_realProfile.mjs";
 import { runAgentProbe } from "./_agentProbe.mjs";
-import { mkdirSync, mkdtempSync, copyFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -23,15 +24,14 @@ if (!process.env.NOMI_R16) {
 }
 
 // 隔离的 userData（不撞用户真项目/真运行实例），但拷进真 model-catalog.json 复用已连模型 +
-// safeStorage 加密 key（同机同用户可解密）。真 skills 从仓内 skills/ 加载，不需拷。
-const realSettings = process.env.NOMI_SETTINGS_DIR || path.join(os.homedir(), "Library/Application Support/Nomi");
+// safeStorage 加密 key（同机同用户可解密；Windows 连同 Local State 钥匙一起拷）。真 skills 从仓内 skills/ 加载，不需拷。
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), "nomi-r16-"));
 const userDataDir = path.join(tempRoot, "user-data");
 const projectsDir = path.join(tempRoot, "projects");
 mkdirSync(userDataDir, { recursive: true });
 mkdirSync(projectsDir, { recursive: true });
-const realCatalog = path.join(realSettings, "model-catalog.json");
-if (existsSync(realCatalog)) copyFileSync(realCatalog, path.join(userDataDir, "model-catalog.json"));
+const realCatalog = realNomiProfile().catalogPath;
+if (existsSync(realCatalog)) seedRealCredentials({ settingsDir: userDataDir, userDataDir });
 else { console.log(`SKIP: 找不到真 model-catalog.json（${realCatalog}）——app 里接一个文本大脑再跑。`); process.exit(0); }
 
 // 一段有「台词长度 + 动作 beat + 运镜 + 情绪」的真戏——给演时换算/物理化/运镜翻译足够材料。

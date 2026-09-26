@@ -5,6 +5,7 @@
 // → GUI 弹方案卡 → 截图人眼看 → 点「落到画布」→ stdio 拿到 ids。全程**不花额度**（只建节点，不生成）。
 // 用法：pnpm run build && node tests/ux/plan-gate.walk.mjs
 import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from './_realProfile.mjs'
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -24,8 +25,8 @@ const projectsDir = path.join(base, 'projects')
 const capDir = path.join(base, 'capability-core')
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.mkdirSync(projectsDir, { recursive: true })
-const realCat = path.join(os.homedir(), 'Library/Application Support/Nomi/model-catalog.json')
-if (fs.existsSync(realCat)) fs.copyFileSync(realCat, path.join(settingsDir, 'model-catalog.json'))
+// 目录 + 凭据钥匙（Windows 的 Local State）一起进隔离副本；本走查 userData 与 settings 同目录。
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir, userDataDir: settingsDir })
 
 const sharedEnv = {
   NOMI_E2E: '1',

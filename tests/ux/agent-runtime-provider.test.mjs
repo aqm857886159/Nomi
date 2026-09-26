@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import ts from 'typescript'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { finalizeRuntimeWalk, stopRuntimeApp } from './agent-runtime-walk-support.mjs'
+import { realNomiProfile, removeRealCredentials, seedRealCredentialStore } from './_realProfile.mjs'
 
 const source = fs.readFileSync(new URL('./agent-runtime-provider.walk.mjs', import.meta.url), 'utf8').replace(/^#![^\n]*\n/, '')
 const tree = ts.createSourceFile('provider.walk.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
@@ -24,7 +25,8 @@ const testTree = ts.factory.updateSourceFile(tree, tree.statements.filter((state
 }))
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 const execute = new AsyncFunction('fs', 'os', 'path', 'createHash', 'repoRoot', 'process',
-  'finalizeRuntimeWalk', 'stopRuntimeApp', 'runUiTask', 'expect', ts.createPrinter().printFile(testTree))
+  'finalizeRuntimeWalk', 'stopRuntimeApp', 'runUiTask', 'expect', 'realNomiProfile', 'removeRealCredentials', 'seedRealCredentialStore',
+  ts.createPrinter().printFile(testTree))
 const variableIndex = (name) => uiTry.tryBlock.statements.findIndex((statement) => ts.isVariableStatement(statement)
   && statement.declarationList.declarations.some((declaration) => declaration.name.getText(tree) === name))
 const evidenceStart = variableIndex('landed')
@@ -77,6 +79,8 @@ beforeEach(() => {
     models: [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-pro' }],
     apiKeysByVendor: { apimart: { apiKey: 'SYNTHETIC_OS_ENCRYPTED_VALUE', enc: 'safeStorage' } },
   }))
+  // Windows 上钥匙是 userData 里的 Local State（_realProfile.mjs）；合成一份，别的平台用不到它。
+  originalWrite(path.join(path.dirname(sourceFile), 'Local State'), '{"synthetic":true}')
   originalExitCode = process.exitCode
   process.exitCode = undefined
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -90,9 +94,9 @@ afterEach(() => {
 
 async function run(runUiTask = async () => {}) {
   const isolatedProcess = { argv: ['node', 'walk', '--packaged', '/synthetic/Nomi.app/Contents/MacOS/Nomi'],
-    env: { NOMI_AGENT_LIVE: '1', NOMI_LIVE_SETTINGS: path.dirname(sourceFile) } }
+    env: { NOMI_AGENT_LIVE: '1', NOMI_REAL_PROFILE_USER_DATA: path.dirname(sourceFile) } }
   await execute(fs, { ...os, tmpdir: () => root }, path, createHash, root, isolatedProcess,
-    finalizeRuntimeWalk, stopRuntimeApp, runUiTask, expect)
+    finalizeRuntimeWalk, stopRuntimeApp, runUiTask, expect, realNomiProfile, removeRealCredentials, seedRealCredentialStore)
   const output = fs.readdirSync(path.join(root, '.tmp'))
   expect(output).toHaveLength(1)
   return JSON.parse(fs.readFileSync(path.join(root, '.tmp', output[0], 'report.json'), 'utf8'))

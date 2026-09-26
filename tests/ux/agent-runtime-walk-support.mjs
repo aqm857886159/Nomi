@@ -6,7 +6,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
-import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
+import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
 const { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } = tsxRequire('../../electron/agentLane/laneToolCatalog.ts', import.meta.url)
@@ -403,6 +403,9 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   const mode = executablePath ? 'packaged' : 'development'
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-pi-${name}-`))
   const settingsDir = path.join(tempRoot, 'settings')
+  // 显式给出、并原样交给启动器：付费走查要在起 App 之前往这里放凭据钥匙（Windows 的 Local State，
+  // 见 _realProfile.mjs），它必须和 App 真正用的 userData 是同一个目录，不能靠两边各自猜默认值。
+  const userDataDir = path.join(tempRoot, 'user-data')
   const outputDir = path.join(repoRoot, '.tmp', `pi-${name}-${mode}-${Date.now()}`)
   fs.mkdirSync(outputDir, { recursive: true })
   // safeStorage 的加密身份 = app 名。开发态跑的是仓库目录（package.json 的 `nomi`），
@@ -411,7 +414,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
     rootDir: repoRoot, settingsDir, generationProvider,
     ...(videoResultPath ? { videoResultPath } : {}),
     ...(generationProvider === 'apimart' || generationProvider === 'higgsfield'
-      ? { userDataDir: path.join(tempRoot, 'user-data'), appName: executablePath ? 'Nomi' : 'nomi' }
+      ? { userDataDir, appName: executablePath ? 'Nomi' : 'nomi' }
       : {}),
   })
   const launches = []
@@ -427,7 +430,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
       .map((arg) => arg.trim())
       .filter(Boolean)
     current = await launchNomiApp({
-      name: `pi-${name}`, tempRoot, settingsDir, settleMs: 0,
+      name: `pi-${name}`, tempRoot, settingsDir, userDataDir, settleMs: 0,
       ...(executablePath ? { executablePath } : {}),
       ...(name === 'golden-path' ? {
         initialLocalStorage: {
@@ -536,19 +539,34 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
     await stopRuntimeApp(closed.app)
   }
 
-  async function finish(error) {
+  /**
+   * `collect`：App 关掉之后再取的证据（付费走查的收据、原库指纹）；抛错 = 这一场判红。
+   * `unscriptedFixture`：这一场根本没给夹具写剧本（付费走查的大脑和供应商都是真的）。那么夹具收到的
+   * 只可能是 App 自己发起的后台调用——例如出图后的镜级自评落到目录里第一个文本模型上——
+   * 如实记进报告（路径 + 请求里第一句话），不判红：它们不是这条走查在测的东西，也不花钱。
+   */
+  async function finish(error, { collect, unscriptedFixture = false } = {}) {
     if (error && current) {
       try { await current.win.screenshot({ path: path.join(outputDir, 'FAIL.png') }) }
       catch (captureError) { console.error('Failure screenshot unavailable:', captureError.message) }
     }
     await finalizeRuntimeWalk(report, {
       error, cleanup: [stopApp, () => fixture.close()],
-      collect: () => {
-        Object.assign(report, { textRequests: fixture.requests.length, imageRequests: fixture.images.length, unexpected: fixture.unexpected })
-        fixture.assertClean() // Includes requests received during app teardown, after the body checkpoint.
+      collect: async () => {
+        if (unscriptedFixture) {
+          report.backgroundFixtureCalls = fixture.unexpected.map((record) => ({
+            path: record.path,
+            firstUserLine: flattenRequestText({ messages: (record.body?.messages ?? []).filter((message) => message?.role === 'user').slice(-1) })
+              .trim().split('\n')[0].slice(0, 80),
+          }))
+        } else {
+          Object.assign(report, { textRequests: fixture.requests.length, imageRequests: fixture.images.length, unexpected: fixture.unexpected })
+          fixture.assertClean() // Includes requests received during app teardown, after the body checkpoint.
+        }
+        return collect?.()
       },
     })
   }
 
-  return { fixture, report, outputDir, start, newProject, snap, resizeWindow, stopApp, finish }
+  return { fixture, report, outputDir, settingsDir, userDataDir, start, newProject, snap, resizeWindow, stopApp, finish }
 }

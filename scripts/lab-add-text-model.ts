@@ -8,11 +8,10 @@
  * "openai-compatible".
  */
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
 
 function catalogPath(): string {
-  return path.join(os.homedir(), "Library", "Application Support", "nomi", "model-catalog.json");
+  return realNomiProfile().catalogPath;
 }
 
 function nowIso(): string {

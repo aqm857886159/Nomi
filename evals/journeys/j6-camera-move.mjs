@@ -34,6 +34,7 @@ import {
   readProjectPayload,
   TOOL_WHITELIST,
 } from "../lib/isoApp.mjs";
+import { realNomiProfile } from "../../tests/ux/_realProfile.mjs";
 
 const hasFfmpeg = spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).status === 0;
 
@@ -194,12 +195,11 @@ function sampleVideoFrames(file, frames = 6) {
 async function vlmMotionVerdict(app, frames, humanMove) {
   return app.evaluate(
     async ({ safeStorage }, a) => {
-      // 主进程上下文：electron safeStorage + 读 catalog（settings 目录由 NOMI_SETTINGS_DIR 指定）。
+      // 主进程上下文：electron safeStorage + 读 catalog（settings 目录由 NOMI_SETTINGS_DIR 指定；
+      // 缺省回落到真实资料目录——主进程里 import 不了模块，由调用方从 _realProfile.mjs 传进来）。
       const fsMod = require("node:fs");
       const pathMod = require("node:path");
-      const os2 = require("node:os");
-      const settingsDir = process.env.NOMI_SETTINGS_DIR ||
-        pathMod.join(os2.homedir(), "Library", "Application Support", "Nomi");
+      const settingsDir = process.env.NOMI_SETTINGS_DIR || a.realUserDataDir;
       let catalog;
       try {
         catalog = JSON.parse(fsMod.readFileSync(pathMod.join(settingsDir, "model-catalog.json"), "utf8"));
@@ -263,7 +263,7 @@ async function vlmMotionVerdict(app, frames, humanMove) {
         return { ok: false, reason: "fetch: " + String(e) };
       }
     },
-    { frames, humanMove },
+    { frames, humanMove, realUserDataDir: realNomiProfile().userDataDir },
   );
 }
 
