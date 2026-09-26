@@ -3,10 +3,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
   anchorNodePosition,
   buildAspectRatioNodePatch,
-  didComposerAvailableSpaceChange,
   resolveAreaPreservingSize,
-  shouldAllowComposerAttachmentRecompute,
-  shouldPreserveComposerAttachmentOnRatioChange,
 } from './nodeSizing'
 
 const bounds = {
@@ -46,92 +43,11 @@ describe('anchorNodePosition', () => {
   const current = { width: 380, height: 380 }
   const next = { width: 580, height: 250 }
 
-  it('keeps the bottom center fixed for a composer below the node', () => {
-    const anchored = anchorNodePosition(position, current, next, 'bottom')
+  it('keeps the bottom center fixed so the composer pinned below the node does not jump', () => {
+    const anchored = anchorNodePosition(position, current, next)
 
     expect(anchored.x + next.width / 2).toBe(position.x + current.width / 2)
     expect(anchored.y + next.height).toBe(position.y + current.height)
-  })
-
-  it('keeps the top center fixed for a composer above the node', () => {
-    const anchored = anchorNodePosition(position, current, next, 'top')
-
-    expect(anchored.x + next.width / 2).toBe(position.x + current.width / 2)
-    expect(anchored.y).toBe(position.y)
-  })
-})
-
-describe('shouldPreserveComposerAttachmentOnRatioChange', () => {
-  it('keeps the current attachment side while the ratio itself is changing', () => {
-    expect(shouldPreserveComposerAttachmentOnRatioChange('1:1', '21:9')).toBe(true)
-    expect(shouldPreserveComposerAttachmentOnRatioChange('21:9', '9:16')).toBe(true)
-  })
-
-  it('allows normal placement on mount and when the ratio is unchanged', () => {
-    expect(shouldPreserveComposerAttachmentOnRatioChange(null, '1:1')).toBe(false)
-    expect(shouldPreserveComposerAttachmentOnRatioChange('', '1:1')).toBe(false)
-    expect(shouldPreserveComposerAttachmentOnRatioChange('1:1', '1:1')).toBe(false)
-  })
-})
-
-describe('didComposerAvailableSpaceChange', () => {
-  const measured = {
-    anchor: { width: 472, height: 228 },
-    stage: { width: 1600, height: 900 },
-  }
-
-  it('releases attachment preservation when the composer or stage size changes', () => {
-    expect(
-      didComposerAvailableSpaceChange(measured, {
-        ...measured,
-        anchor: { ...measured.anchor, height: 260 },
-      }),
-    ).toBe(true)
-    expect(
-      didComposerAvailableSpaceChange(measured, {
-        ...measured,
-        stage: { ...measured.stage, height: 700 },
-      }),
-    ).toBe(true)
-  })
-
-  it('keeps preservation when available-space inputs are unchanged', () => {
-    expect(didComposerAvailableSpaceChange(measured, measured)).toBe(false)
-  })
-})
-
-describe('shouldAllowComposerAttachmentRecompute', () => {
-  it('keeps ratio switching stable when no available boundary changed', () => {
-    expect(
-      shouldAllowComposerAttachmentRecompute({
-        preserveForRatioChange: true,
-        availableSpaceChanged: false,
-        obstacleChanged: false,
-        attachmentObstructed: false,
-      }),
-    ).toBe(false)
-  })
-
-  it('releases ratio preservation when the timeline obstacle changes', () => {
-    expect(
-      shouldAllowComposerAttachmentRecompute({
-        preserveForRatioChange: true,
-        availableSpaceChanged: false,
-        obstacleChanged: true,
-        attachmentObstructed: false,
-      }),
-    ).toBe(true)
-  })
-
-  it('never preserves an attachment that is already off-screen or obstructed', () => {
-    expect(
-      shouldAllowComposerAttachmentRecompute({
-        preserveForRatioChange: true,
-        availableSpaceChanged: false,
-        obstacleChanged: false,
-        attachmentObstructed: true,
-      }),
-    ).toBe(true)
   })
 })
 
@@ -148,7 +64,7 @@ describe('buildAspectRatioNodePatch', () => {
 
   it('returns meta, size and position in one patch for an ungenerated node', () => {
     const node = imageNode()
-    const patch = buildAspectRatioNodePatch(node, { aspect_ratio: '21:9' }, 21 / 9, 'bottom')
+    const patch = buildAspectRatioNodePatch(node, { aspect_ratio: '21:9' }, 21 / 9)
 
     expect(patch.meta).toEqual({ aspect_ratio: '21:9' })
     expect(patch.size).toBeDefined()
@@ -162,7 +78,7 @@ describe('buildAspectRatioNodePatch', () => {
   })
 
   it('keeps current geometry for auto and only updates meta', () => {
-    const patch = buildAspectRatioNodePatch(imageNode(), { aspect_ratio: 'auto' }, null, 'bottom')
+    const patch = buildAspectRatioNodePatch(imageNode(), { aspect_ratio: 'auto' }, null)
 
     expect(patch).toEqual({ meta: { aspect_ratio: 'auto' } })
   })
@@ -174,7 +90,6 @@ describe('buildAspectRatioNodePatch', () => {
       }),
       { aspect_ratio: '9:16' },
       9 / 16,
-      'bottom',
     )
 
     expect(patch).toEqual({ meta: { aspect_ratio: '9:16' } })

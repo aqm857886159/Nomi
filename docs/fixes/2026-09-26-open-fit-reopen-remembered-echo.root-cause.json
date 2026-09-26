@@ -1,0 +1,192 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-open-fit-reopen-remembered-echo",
+  "problem_type": "Program-written echo recorded as the user's remembered canvas viewport, suppressing the open-time fit",
+  "symptom": "Coordinator real-machine run 2026-09-26 on merged main 7a004de61 (Windows, core-smoke used fixture, 24 cards): the first open from the project library fits the whole canvas (zoom 0.26, 24 cards mounted), but Back to projects → open the same project again stays at 1:1 on the top-left corner (zoom 1, 4 cards). User ruling 2026-09-25 (mockup Q4) keeps 'fit once when a project opens' and ruling B (2026-09-26) requires it to fire reliably.",
+  "direct_cause": "Leaving a project clears workbenchStore.categoryViewports, but the canvas component and its React Flow instance stay mounted at the old project's fitted viewport. The store→React Flow sync effect (GenerationCanvasReactFlow.tsx viewport memo + sync effect) sees no stored viewport, falls back to {zoom 1, offset 0,0} and pushes it with setViewport(duration 0). React Flow answers with an event-less onMoveEnd; GenerationCanvasReactFlowViewport.tsx onMoveEnd recorded it via rememberCategoryViewport. On reopen useAutoFitOnLoad reads hasRememberedViewport=true with cards visible and, by design, keeps it. Probe log: 'sync store->RF {from: zoom 0.2596, to: zoom 1, stored: null}' then 'decide {remembered: {zoom 1, offset 0,0}}'.",
+  "class_root": "The open-time fit decides on two inputs — 'the project content has loaded' (generationCanvasStore.isReady) and 'the user left a viewport for this category' (categoryViewports) — and both had writers that are the program's own bookkeeping rather than the fact they stand for: the sync effect's echo was recorded as a user viewport, and the canvas mount (markReady in useGenerationCanvasReactFlowEffects) marked content as loaded before restoreSnapshot. Whichever program write lands first decides whether the fit happens, which is why it 'sometimes works' (cold first open: React Flow already at 1:1, nothing to sync, fit fires).",
+  "migration": "Deleted the mount-time markReady action, its type, its write-boundary registration and the effect that called it; restoreSnapshot is the only writer that sets isReady=true and releaseProject the only one that clears it. The sync effect now tags the viewport it pushes (storeSyncEchoRef) and onMoveEnd skips recording a move that matches it (isStoreSyncEcho); nothing else about viewport memory changes. No fallback or parallel path kept.",
+  "affected_population": [
+    "Every user who leaves a project and opens one again in the same app session (Back to projects → project card), or switches projects, with the previous canvas left at any viewport other than 1:1 at the origin",
+    "Any future path where the canvas mounts before project content is restored (would see ready with an empty canvas)"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "tests": [
+      "tests/ux/canvas-open-fit.walk.mjs",
+      "src/workbench/generationCanvas/store/canvasReadyOwner.test.ts"
+    ],
+    "why": "GenerationCanvasReactFlow owns the store↔React Flow viewport sync, the only place where a program write can masquerade as a user viewport; the canvas store owns isReady. The walk drives the real app through cold open and reopen-after-fit; the unit test pins isReady to one writer."
+  },
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx store→React Flow sync effect (setViewport duration 0)",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx onMoveEnd → rememberCategoryViewport",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx onAnimationSettled → rememberCategoryViewport",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts finishPan → rememberCategoryViewport",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts restoreSnapshot (isReady=true) / releaseProject (isReady=false)",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts mount effect markReady (deleted)"
+  ],
+  "invariants": [
+    "categoryViewports[category] exists only when the user (or a user-triggered fit / reset / focus) left that viewport; the store→React Flow sync never records its own echo, so an empty store stays empty",
+    "generationCanvasStore.isReady is true only after restoreSnapshot has put this project's content into the store; mounting the canvas does not set it",
+    "Opening a project that has cards fits once on both paths: cold first open and reopening from the project library in the same session"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "rememberCategoryViewport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "rememberCategoryViewport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "symbol": "rememberCategoryViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "isStoreSyncEcho"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "restoreSnapshot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "isReady"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "useGenerationCanvasReactFlowHostEffects"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "documentActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "symbol": "isReady"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 9
+  },
+  "regression_tests": [
+    "tests/ux/canvas-open-fit.walk.mjs",
+    "src/workbench/generationCanvas/store/canvasReadyOwner.test.ts"
+  ],
+  "residual_risks": [
+    "The echo tag assumes React Flow reports the sync write through onMoveEnd with no source event (observed on @xyflow/react as installed); if a future React Flow version stops emitting it the tag simply lingers until the next event-less move, which then compares unequal and is recorded — the failure mode is 'recorded once more', not 'lost'.",
+    "Three writers of the remembered viewport remain on purpose (user gesture end, pointer pan end, our settled animation); each is user-originated. A new program-originated writer would need its own echo handling; the open-fit walk catches the reopen symptom but not every conceivable writer."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/react-flow#onmoveend",
+      "checked_at": "2026-09-26",
+      "purpose": "onMoveEnd is called with (event | null, viewport); a null event marks a programmatic viewport change such as setViewport, which is what the sync effect's echo arrives as"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Third occurrence of 'open-time fit sometimes does not happen': a 350 ms blind wait (before ruling B), then 'decided before React Flow measured the nodes' (fixed in #880), now 'program writes stood in for the user's facts'. Same mechanism each time: the decision's inputs are written by program bookkeeping whose timing varies by path.",
+    "same_class_scan": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:285 onMoveEnd — recorded event-less sync echo; now gated by isStoreSyncEcho",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx:243 onAnimationSettled — our own animations are started by user-triggered fit/reset/focus/arrival hint; records the user's intended result",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts:195 finishPan — middle/space pan, a user gesture",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts:145 markReady on mount — wrote isReady before content; deleted",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts:252 restoreSnapshot — the content-loaded fact; kept as sole writer",
+      "src/devlab/designLab/** rememberCategoryViewport — design lab fixtures seeding a viewport on purpose; not production"
+    ]
+  },
+  "generality_proof": "Both inputs of the open-time decision now have writers that only record the fact they name: the sync effect is the single store→React Flow bridge, so tagging its echo at that bridge covers every path that reaches it (project switch, category switch, release, external restore) rather than special-casing reopen; isReady has one writer at the one place project content enters the store. Any path that opens a project goes through restoreWorkbenchProjectPayload → restoreSnapshot and through the same sync effect, so the fit sees the same inputs on cold open and reopen.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "isStoreSyncEcho",
+      "responsibility": "The store→React Flow viewport sync tags what it pushes so its echo is not recorded as a user viewport"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "restoreSnapshot",
+      "responsibility": "Sole writer of isReady=true: the moment this project's content is in the store"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "entry_point": "onMoveEnd",
+      "disposition": "enforced",
+      "evidence": "Event-less moves matching the sync tag return before rememberCategoryViewport; open-fit walk reopen step red without it (mutation run 2026-09-26: '重开后 16 张卡全部挂出' timed out), green with it"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "entry_point": "markReady effect",
+      "disposition": "enforced",
+      "evidence": "Deleted; canvasReadyOwner.test.ts fails if markReady exists on the store again or any workbench file other than the store writes isReady (mutation run 2026-09-26 red)"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "entry_point": "finishPan",
+      "disposition": "not-affected",
+      "evidence": "Runs only at the end of a user middle-button / space pan; never fires from the sync effect"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "onAnimationSettled",
+      "disposition": "not-affected",
+      "evidence": "Only animateViewportTo reaches it; its callers are user-triggered (fit button, reset view, focus, arrival hint) per canvasViewportMovers.structure.test.ts"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "invariant": "The store→React Flow sync never records its own echo as a remembered viewport, and isReady has a single writer",
+    "failure_mode": "tests/ux/canvas-open-fit.walk.mjs (full canvas suite, shard 1) fails at the reopen step; canvasReadyOwner.test.ts fails on a second isReady writer",
+    "exception_policy": "none",
+    "strategy": "Tag the echo at the single sync bridge instead of patching the fit hook, and keep one writer for the content-loaded flag",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "tests/ux/canvas-open-fit.walk.mjs",
+      "tests/ux/canvas-real-suite.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "tests/ux/canvas-open-fit.walk.mjs",
+    "src/workbench/generationCanvas/store/canvasReadyOwner.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts"
+    ],
+    "rationale": "The mount-time markReady effect (and the markReady store action it called) is deleted in the same diff; restoreSnapshot remains the only writer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added or changed; relies on React Flow's documented onMoveEnd(event|null) contract.",
+    "exit_criteria": []
+  }
+}

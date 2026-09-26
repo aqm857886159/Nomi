@@ -87,6 +87,8 @@
 - [固定等待三连坑](fixed-station-waits-three-incidents.md) — 视频、审批、点击统一用状态判据与预算上限；R18 拦固定等待
 - [付费验收挂住时，第一步是截图，不是读日志](paid-acceptance-hang-screenshot-before-logs.md) — 「等上游」和「屏幕上有个框在等人点」在日志里长得一样；四个付费 e2e 因不铸 grant 长期默认 SKIP 也是同一类盲区
 
+- [Windows 笔记本的真实可用画布是 1280×720](windows-laptops-are-1280x720.md) — 改浮框 / 停靠物 / 面板位置前；1920×1080@150% = 1280×720，面板全开时生成钮会被画面小窗盖住，用 elementFromPoint 验可点
+- [判定「这段从没生效过」之前，先顺着效果找一遍所有来源](dead-code-verdict-must-trace-the-effect.md) — 以「main 上没生效」为由删代码或说服用户改拍板之前；按效果（如 requestCanvasFit）数门，别只看要删的那个调用者
 ## B. 测试与 CI 的红绿判读
 
 - [CI 的 E2E 链是串行 fail-fast，本地 gates 一条都不含——push 前先本地跑完整条链](ci-e2e-is-fail-fast-so-run-the-whole-chain-locally-before-push.md) — ✅ 已固化（`pnpm run test:e2e:ci-chain` + CI 汇总步 + 正文现取）；连红几轮但每轮红的是不同走查 = 发现被串行化，不是没到根因
@@ -124,6 +126,7 @@
 - [技能里的指令会跨代累积，模型服从的是过期那条](stale-directives-outlive-tool-renames.md) — Agent「只回文字不调工具」先翻这条；工具**名**过期有门岗，「该不该调用它」的祈使句过期没有任何机器看得见；删过期禁令要只删过期那半（「不许写画布」作废时「不许花钱」仍成立）
 - [走查手写的模型面调用没有类型，动词一改名它就静默失配](walkthrough-tool-args-are-a-compiler-blind-spot.md) — 改完动词字段名说「引用方都同步了」前；或走查报「某某没有落成」而你没动那条生产代码
 
+- [CI 门岗拿两个时间点比较，别人刚合的改动会算到你头上](ci-gates-compare-two-points-in-time.md) — Contracts 红在你没碰过的文件上、刚 rerun 或刚批准 fork 运行时；合 main 重推即可，别抬基线（根治 T-QA-33）
 ## C. Git 交付、分支与文档改动
 
 - [三点 diff 会掩盖过期分支的大回滚](three-dot-diff-hides-stale-branch-reverts.md) — 判断能不能合必须用两点 diff
@@ -142,7 +145,10 @@
 - [git 的文件列表默认是转义过的，中文名一律「不像 docs/」](git-path-output-is-quoted-by-default.md) — ✅ 已由 `check:git-path-quoting` + `check:hook-behavior` 轴 C 接管；纯文档 PR 白等五门 / 门岗静默少扫文件，都是它；读 git 路径一律 `-z`
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
+- [Windows 上删 worktree 会顺着 junction 删掉目标](windows-worktree-remove-follows-junctions.md) — 删 / 归档任何含 mklink /J 的工作树前；先 rmdir 链接本身；测试成片「Cannot find package」时先看包目录是不是空的
 ## D. 排查与平台故障
+
+- [程序自己的簿记不许冒充「用户留下的事实」](program-bookkeeping-must-not-pose-as-user-facts.md) — 一个判断「有时生效、有时不生效」、换条路径复现结果就变时读；先数它读的每个事实的全部写口，挡掉同步回声 / 挂载 / 默认值兜底
 - [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」
 - [手拼 `file://` 判断「我是不是入口」，Windows 上门岗静默零输出、退出码 0](main-guard-hand-built-file-url-is-silent-on-windows.md) — ✅ 已由 `check:main-guard` 接管；Windows 上某个门岗/脚本一行不打印就退出 0 时先读；入口判断只写 `pathToFileURL(process.argv[1]).href`
 - [修之前先数门：这份状态到底有几个入口](count-the-doors-before-fixing.md) — 判为 recurring、或同一模块这周又来一份合同时：先跑 `scripts/door-map.mjs` 把全部写/读入口摆出来再决定修在哪层；附 2026-09-11 三簇同根 bug 的 file:line
@@ -193,6 +199,8 @@
 - [一屏堆四颗文字按钮，是「规则缺席」不是「这四颗写错了」](text-buttons-pile-up-when-the-rule-is-missing.md) — 加第二颗文字按钮 / 给按钮想文案 / 纠结配什么 icon 之前；先问「它是不是主按钮的一个状态」
 - [连带面必须单独成题，不能埋在一句话里](coupled-face-must-be-its-own-question.md) — 出方案/grill 前先扫：改动会不会连带同一组件的另一个宿主；连带面单独开 Q、不许并进主题目的从句
 
+- [判据依赖的输入在现实里不存在，判据就是废话](a-rule-is-only-as-real-as-its-inputs.md) — 评审「按某个值决定行为」的规则前；先数那个值在真实数据里有几成存在（Nomi 目前不算价格）
+- [修一个「回归」之前，先问那个行为有没有人要](restoring-a-regression-needs-a-user-reason.md) — 老走查红了、准备把它当回归恢复之前；框架默认行为或无需求出处的，先交用户拍板（方向键微调那次）
 ## F. 多智能体编排
 
 > 编排纪律的主文档是 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)（`CLAUDE.md` R27 的 L2 详解）。本区只放**执行体自身的工具怪癖**——那不是编排原则，是踩过的具体坑。
@@ -213,6 +221,7 @@
 - [实验夹具必须经过真实调用点的投影](lab-fixtures-must-mirror-real-callsites.md) — 模型目录、档位与 canonical 参数不可手写平行真相。
 - [真机走查里的失败先查自己这条分支的调用链，再怪环境](branch-failure-blame-your-own-call-chain-first.md) — #777 把自己造的 `generation_surface_unavailable` 写成凭据问题；错误码字面量先找产生点、环境归因必须带排除证据、修法加门岗不补名字
 
+- [协调会话运作手册](../engineering/agent-orchestration-playbook.md#19-协调会话运作手册用户只和一个会话说话2026-09-26-拍板) — 用户只和协调会话说话；总账与恢复例程、工人不建卡不直接问用户、合并加收据、归档、额度恢复后主动唤醒、发版前真实付费矩阵
 ## 🤖 自动收录（待人工归位）
 
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，

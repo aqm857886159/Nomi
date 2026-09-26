@@ -29,7 +29,7 @@ export async function generateSelectedTableRows(nodeId: string, imageModelOption
     const selected = new Set(table.view.selectedRowIds)
     const nodeIds = productionShotNodes(canvas.nodes, table.source.runId).map(node => node.id).filter(id => selected.has(id))
     if (!nodeIds.length) return
-    await confirmAndRunPlan(buildDependencyWaves(nodeIds, { nodes: canvas.nodes, edges: canvas.edges }))
+    await confirmAndRunPlan(buildDependencyWaves(nodeIds, { nodes: canvas.nodes, edges: canvas.edges }), { initiator: 'user' })
     return
   }
   const workbench = useWorkbenchStore.getState()
@@ -63,5 +63,5 @@ export async function generateSelectedTableRows(nodeId: string, imageModelOption
     : table.view.selectedRowIds)
   const selected = rows.filter(row => selectedIds.has(row.shot.shotId ?? `shot-${row.shot.index}`))
   const batch = deriveStoryboardBatch(selected)
-  await runStoryboardBatch({ documentId: source.documentId, designId: source.designId, plan: design.plan }, batch.runnable, { groupTitle: design.title })
+  await runStoryboardBatch({ documentId: source.documentId, designId: source.designId, plan: design.plan, initiator: 'user' }, batch.runnable, { groupTitle: design.title })
 }

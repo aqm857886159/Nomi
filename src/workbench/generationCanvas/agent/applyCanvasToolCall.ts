@@ -21,7 +21,8 @@ import { buildModelEntryIndex, buildPlannedNodeMeta } from './plannedNodeMeta'
 import { indexMaterializedNodes, materializationKey, readNodeInputStamp } from './materializationStamp'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
-import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import { placeBlockInVisibleArea } from '../store/canvasVisibleArea'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
@@ -393,12 +394,6 @@ export async function applyCanvasToolCall(
     })
     // 分镜方案落画布（storyboardPlanToCreateNodesArgs 给 anchorCount）→ 参考行在上 + 镜头折行网格；
     // 其余（agent 直接建卡）→ 原轨迹分层布局。两者都从已有节点包围盒下方起、不压旧内容。
-    const existingCanvasNodes = readGenerationCanvasSnapshot().nodes
-    const storyboardAnchorCount = requestedAnchorCount === null ? null : retainedAnchorCount
-    const layout =
-      storyboardAnchorCount !== null
-        ? layoutStoryboardNodes(plannedKinds, storyboardAnchorCount, existingCanvasNodes)
-        : layoutPlannedNodes(plannedKinds, existingCanvasNodes)
     // 整批强制分类（分镜方案落画布用，用户拍板 A）：角色/场景/镜头落进同一分类，参考边
     // 同屏可见可连。仅程序化调用方（storyboardPlanToCreateNodesArgs）会设；agent 直接建卡
     // 不带 → 走 kind 默认。只认白名单分类，挡住脏值把节点丢进不存在的分类而消失。
@@ -406,6 +401,26 @@ export async function applyCanvasToolCall(
       typeof record.groupCategoryId === 'string' && (CATEGORY_IDS as readonly string[]).includes(record.groupCategoryId)
         ? (record.groupCategoryId as BuiltinCanvasCategoryId)
         : null
+    const existingCanvasNodes = readGenerationCanvasSnapshot().nodes
+    const storyboardAnchorCount = requestedAnchorCount === null ? null : retainedAnchorCount
+    const plannedLayout =
+      storyboardAnchorCount !== null
+        ? layoutStoryboardNodes(plannedKinds, storyboardAnchorCount, existingCanvasNodes)
+        : layoutPlannedNodes(plannedKinds, existingCanvasNodes)
+    // 整批尽量搬进用户此刻看得见的地方（块内相对位置不动）：以前整批落在「全部已有内容下方」、再请求
+    // 适应全图把画布挪过去——那一挪就是「闪一下、找不到」（2026-09-25）。装不下或会压到已有节点就留在
+    // 原处，由画布边缘提示指路。只在整批落同一个分类时搬（跨分类的批次各分类视口不同，没有同一个「可见区」）。
+    const plannedCategories = new Set(plannedKinds.map((kind) => groupCategoryId ?? getDefaultCategoryForNodeKind(kind)))
+    const layout = plannedCategories.size === 1
+      ? (() => {
+          const categoryId = [...plannedCategories][0]
+          const sizes = plannedKinds.map((kind) => resolveNodeVisualSize({ kind } as Parameters<typeof resolveNodeVisualSize>[0]))
+          const occupied = existingCanvasNodes
+            .filter((node) => (node.categoryId || 'shots') === categoryId && node.position)
+            .map((node) => ({ ...node.position!, ...resolveNodeVisualSize(node) }))
+          return placeBlockInVisibleArea(categoryId, plannedLayout.map((point, index) => ({ ...point, ...sizes[index] })), occupied)
+        })()
+      : plannedLayout
     // agent-artifact 交付：Agent 手写的内容必须先落盘为项目资产（nomi-local://）才能建节点——
     // 节点不塞内联源码（meta.artifact.url 引用资产文件）。落盘是纯 IO，先全部完成再进 store 事务，
     // 任一失败即整批中止（一个计划一次意志；不建「指向不存在文件」的半截节点）。
@@ -533,30 +548,9 @@ export async function applyCanvasToolCall(
       skippedEdges = outcome.skipped
     }
     // 首帧号由共享身份投影沿 first_frame 边读取视频 owner，不复制第二份编号。
-    // 批量落节点后统一请求适应视图。AI 直接建卡、方案确认和示例引导都走这里，
-    // 避免调用方漏触发后只看到被视口裁断的一部分新节点。单节点不重排全局视口，
-    // 但要把刚创建的卡居中：布局原点在已有内容下方，若时间轴占据底部，单卡可能
-    // 被裁在视口外；保留当前视口并不等于让用户自己猜卡片去了哪里。
-    if (created.length > 1) {
-      const workbench = useWorkbenchStore.getState()
-      const categoryCounts = new Map<string, { count: number; firstIndex: number }>()
-      created.forEach((node, index) => {
-        const categoryId = node.categoryId || 'shots'
-        const current = categoryCounts.get(categoryId)
-        categoryCounts.set(categoryId, { count: (current?.count ?? 0) + 1, firstIndex: current?.firstIndex ?? index })
-      })
-      const fitCategoryId = categoryCounts.has(workbench.activeCategoryId)
-        ? workbench.activeCategoryId
-        : [...categoryCounts.entries()].sort(
-            ([leftId, left], [rightId, right]) =>
-              right.count - left.count ||
-              Number(rightId === 'shots') - Number(leftId === 'shots') ||
-              left.firstIndex - right.firstIndex,
-          )[0]?.[0]
-      workbench.requestCanvasFit(fitCategoryId)
-    } else if (created[0] && typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: created[0].id } }))
-    }
+    // 建完**不挪画布、不切分类**（2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」）：以前这里批量请求
+    // 适应全图、单节点派发聚焦事件（放大到 ≥100% 再居中），和付费卡落地那次适应全图叠在一起就是「闪一下」。
+    // 落在屏外 / 别的分类的新节点由画布边缘提示（CanvasArrivalHint）指路，点它才过去。
     return {
       createdNodeIds: created.map((node) => node.id),
       clientIdToNodeId,

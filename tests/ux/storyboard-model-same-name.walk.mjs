@@ -7,7 +7,7 @@
 // 这条走查的验收点是**一条链两端对上**，不是截图好不好看：
 //   ① 真人手势在三个模型框里各选一次「APIMart 那家」（不是灌 store、不是调桥）
 //   ② 模型框回显的是那一家（触发器上的模型名 = APIMart 那一组）
-//   ③ 真人点「生成」→ 花钱确认卡 → 真执行通路 → loopback 收到的**出站请求**是那一家的 mapping 发出的
+//   ③ 真人点「生成」→（单份不弹确认卡）真执行通路 → loopback 收到的**出站请求**是那一家的 mapping 发出的
 // 阳性对照：第 3 镜保持在自定义那家先跑一次，请求必须来自自定义那家——证明这条仪器
 // 真分得清两家（否则 ③ 可能只是「两家恰好一样」的空洞通过）。
 //
@@ -36,13 +36,13 @@ const T = {
     projectName: '同名模型走查', creationTab: '创作', continueCreating: '继续创作',
     imageModel: '图片模型', bulkModel: '全部镜头的模型', anchorModel: '参考卡生成模型', expandAll: '全部展开',
     generateShot: (index) => `生成镜 ${index}`, generateAnchor: (name) => `生成参考卡「${name}」`,
-    spendDialog: /开始生成|额度/, confirm: '生成', anchorName: '主角',
+    anchorName: '主角',
   },
   en: {
     projectName: 'Same-name model walk', creationTab: 'Create', continueCreating: 'Continue creating',
     imageModel: 'Image model', bulkModel: 'Model for all shots', anchorModel: 'Model for reference card', expandAll: 'Expand all',
     generateShot: (index) => `Generate shot ${index}`, generateAnchor: (name) => `Generate reference card "${name}"`,
-    spendDialog: /Start generation|credit/i, confirm: 'Generate', anchorName: 'Hero',
+    anchorName: 'Hero',
   },
 }[LOCALE]
 
@@ -138,7 +138,6 @@ const { app, win } = await launchNomiApp({
 const failures = []
 const evidence = { locale: LOCALE, requests: [], echoes: {} }
 const snap = async (name) => { await screenshotSettled(win, { path: path.join(outDir, name) }) }
-const spendDialog = () => win.locator('div.fixed.inset-0').filter({ hasText: T.spendDialog }).last()
 
 /** 真人动作：点开 NomiSelect（portal 弹层）挑一条「文字里同时含 want 与 vendorHint」的选项。 */
 async function pickFromSelect(trigger, humanLabel, { want, vendorHint }) {
@@ -156,12 +155,14 @@ async function pickFromSelect(trigger, humanLabel, { want, vendorHint }) {
   return texts[index]
 }
 
-/** 花钱确认 → loopback 收到第 n 个图片请求 → 返回它（发出请求的 mapping 所属那家 = 实际花钱的那家）。 */
-async function confirmAndCapture(expectedCount, label) {
-  await expectVisible(spendDialog(), `${label}：没有弹花钱确认卡（执行通路断了）`)
-  await clickOrFail(spendDialog().getByRole('button', { name: T.confirm, exact: true }), `${label}：确认生成（loopback 零额度）`)
+/**
+ * loopback 收到第 n 个图片请求 → 返回它（发出请求的 mapping 所属那家 = 实际花钱的那家）。
+ * 这里每一下都是用户自己点的单份生成（生成镜 N / 生成参考卡），不弹付费确认卡（2026-09-25 拍板，
+ * 判据按份数不按入口）；若中间弹卡而不点，请求永远发不出去——loopback 请求数恰好到 n 就是证据。
+ */
+async function captureRequest(expectedCount, label) {
   await expect
-    .poll(() => fixture.images.length, { timeout: stationTimeout({ operations: 2 }), message: `${label}：确认后 loopback 没收到图片请求` })
+    .poll(() => fixture.images.length, { timeout: stationTimeout({ operations: 2 }), message: `${label}：点生成后 loopback 没收到图片请求` })
     .toBe(expectedCount)
   const record = fixture.images[expectedCount - 1]
   const vendor = String(record.headers?.['x-walk-vendor'] ?? 'unknown')
@@ -188,7 +189,7 @@ try {
   // ── 阳性对照：镜 3 不动，就在自定义那家跑一次——仪器必须分得清两家 ──
   if (fixture.images.length !== 0) failures.push(`点生成之前就发生了 ${fixture.images.length} 次供应商调用`)
   await clickOrFail(win.locator('[data-storyboard-row="3"]').getByRole('button', { name: T.generateShot(3) }), '阳性对照：点镜 3 生成')
-  const control = await confirmAndCapture(1, '阳性对照（镜 3 留在自定义那家）')
+  const control = await captureRequest(1, '阳性对照（镜 3 留在自定义那家）')
   if (control.vendor !== FIXTURE_VENDOR) failures.push(`阳性对照失败：镜 3 在自定义那家，请求却来自 ${control.vendor}——仪器分不清两家，后面的断言不作数`)
 
   // ── ① 镜头卡底栏：镜 1 选 APIMart 那一组 → 回显 → 生成 → 请求去 APIMart ──
@@ -197,7 +198,7 @@ try {
   evidence.echoes.shotCard = (await rowModel(1).textContent())?.trim()
   await snap('02-shot-card-picked-apimart.png')
   await clickOrFail(win.locator('[data-storyboard-row="1"]').getByRole('button', { name: T.generateShot(1) }), '点镜 1 生成')
-  const shotCard = await confirmAndCapture(2, '镜头卡底栏（镜 1）')
+  const shotCard = await captureRequest(2, '镜头卡底栏（镜 1）')
   if (shotCard.vendor !== STANDIN_VENDOR) failures.push(`镜头卡底栏：界面选的是 APIMart，请求却发给了 ${shotCard.vendor}`)
 
   // ── ② 批量条「统一模型」：选 APIMart 那一行 → 每一镜回显 → 生成镜 2 → 请求去 APIMart ──
@@ -206,7 +207,7 @@ try {
   evidence.echoes.bulk = (await rowModel(2).textContent())?.trim()
   await snap('03-bulk-picked-apimart.png')
   await clickOrFail(win.locator('[data-storyboard-row="2"]').getByRole('button', { name: T.generateShot(2) }), '点镜 2 生成')
-  const bulk = await confirmAndCapture(3, '批量条（镜 2）')
+  const bulk = await captureRequest(3, '批量条（镜 2）')
   if (bulk.vendor !== STANDIN_VENDOR) failures.push(`批量条：界面选的是 APIMart，请求却发给了 ${bulk.vendor}`)
 
   // ── ③ 锚行：展开参考卡区 → 锚的模型框选 APIMart 那一组 → 回显 → 生成 → 请求去 APIMart ──
@@ -218,7 +219,7 @@ try {
   evidence.echoes.anchor = (await anchorModel.textContent())?.trim()
   await snap('04-anchor-picked-apimart.png')
   await clickOrFail(win.locator('[data-anchor-card="hero"]').getByRole('button', { name: T.generateAnchor(T.anchorName) }), '点锚「主角」生成')
-  const anchor = await confirmAndCapture(4, '锚行（主角）')
+  const anchor = await captureRequest(4, '锚行（主角）')
   if (anchor.vendor !== STANDIN_VENDOR) failures.push(`锚行：界面选的是 APIMart，请求却发给了 ${anchor.vendor}`)
   await snap('05-all-generated.png')
 

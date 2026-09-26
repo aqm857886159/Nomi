@@ -67,14 +67,15 @@ try {
   await win.keyboard.insertText('一只猫跳下沙发')
   await win.waitForTimeout(500)
 
-  // 点生成 → 花费确认卡 → 确认
+  // 点生成 → 直接开跑。用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；
+  // 若中间弹卡而不点，请求永远发不出去——下面节点 data-status 离开 idle 就是证据。
   await win.locator('button[aria-label="生成素材"]').first().click()
-  await win.waitForTimeout(900)
-  // 花费确认卡（自定义 overlay，无 role=dialog）：等「开始生成」标题出现，点**最后一个**「生成」按钮
-  // （弹层 portal 挂 DOM 末尾；顶部 tab 的「生成」在前面）。真机截图核实文案。
-  await win.getByText('开始生成', { exact: true }).first().waitFor({ timeout: 8000 })
-  await win.getByRole('button', { name: '生成', exact: true }).last().click()
-  console.log('  ✅ 已确认花费卡（开始生成 → 生成）')
+  const nodeId = await node.getAttribute('data-node-id')
+  await win.waitForFunction((id) => {
+    const status = document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status')
+    return status === 'queued' || status === 'running' || status === 'error' || status === 'success'
+  }, nodeId, { timeout: 8000 })
+  console.log('  ✅ 已提交（节点离开 idle，未弹花费卡）')
   await shot(win, '01-submitted.png')
 
   // 关键断言：**不该**长时间「仍在生成」——CLI 快速失败（authsdk 行）→ 节点错误态 + 登录指引。

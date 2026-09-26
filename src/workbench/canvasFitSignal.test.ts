@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { useWorkbenchStore } from './workbenchStore'
 
-// 「请画布适应视图」一次性信号：落画布后揭示新镜头的根因修复。
-// useAutoFitOnLoad 只在首次加载/切分类触发，落画布在已加载画布加节点不重跑 →
-// 新镜头落视口外、用户以为「没反应」。requestCanvasFit bump nonce，画布消费后平滑 fit。
-describe('requestCanvasFit（落画布揭示新镜头信号）', () => {
+// 「请画布适应视图」一次性信号的语义（nonce 递增、可带目标分类）。2026-09-25 起它只由用户显式动作触发
+// （谁能调见 canvasViewportMovers.structure.test.ts），落画布 / 导入不再用它揭示新镜头——改由画布边缘提示指路。
+describe('requestCanvasFit（用户显式「去看看」的适应信号）', () => {
   it('初始 canvasFitNonce 为 0', () => {
     expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
     expect(useWorkbenchStore.getState().canvasFitCategoryId).toBeNull()

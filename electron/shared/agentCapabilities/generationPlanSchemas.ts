@@ -36,9 +36,15 @@ const planReferenceInput = z.lazy(() => z.object({
   role: z.enum(["character", "first_frame", "last_frame", "reference", "audio"]).optional(),
 }).strict());
 
-/** JSON values retain arbitrary nesting; the selected model catalog validates named parameters. */
-type GenerationJsonValue = string | number | boolean | null | GenerationJsonValue[] | { [key: string]: GenerationJsonValue };
-const generationJsonValueSchema: z.ZodType<GenerationJsonValue> = z.lazy(() => z.union([
+/**
+ * JSON values retain arbitrary nesting; the selected model catalog validates named parameters.
+ * This is the one answer to "what a generation parameter value can be" for every producer — the
+ * agent / MCP JSON transports and the renderer spend card (`spendCardDraft`) share it, so a producer
+ * that could emit `undefined` (IPC structured clone keeps it, JSON drops it) fails to type-check
+ * instead of being refused here at confirm time (2026-09-26, real paid T5).
+ */
+export type GenerationJsonValue = string | number | boolean | null | GenerationJsonValue[] | { [key: string]: GenerationJsonValue };
+export const generationJsonValueSchema: z.ZodType<GenerationJsonValue> = z.lazy(() => z.union([
   z.string(), z.number().finite(), z.boolean(), z.null(),
   z.array(generationJsonValueSchema), z.record(generationJsonValueSchema),
 ]));

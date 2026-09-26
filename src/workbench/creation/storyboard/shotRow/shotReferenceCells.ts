@@ -104,7 +104,10 @@ function referenceCapableSibling(
   return { modeLabel: modeDisplayLabel(preferred), slotLabel: slot.label }
 }
 
-/** 计数角标文案的数据（`max` 缺省时 total = null，UI 只显 N 不显分母）。 */
-export function cellCount(cell: ShotReferenceCell): { used: number; total: number | null } {
-  return { used: cell.bindings.length, total: cell.max ?? null }
+/**
+ * 计数角标文案的数据（`max` 缺省时 total = null，UI 只显 N 不显分母）。
+ * `planned` = 生成时还会进这一格、但不是绑定的张数（计划首帧）——它照样占名额，角标要算上。
+ */
+export function cellCount(cell: ShotReferenceCell, planned = 0): { used: number; total: number | null } {
+  return { used: cell.bindings.length + planned, total: cell.max ?? null }
 }

@@ -1,0 +1,309 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-generation-variant-single-owner",
+  "problem_type": "The answer to \"which archetype variant does this generation run on\" had two owners that disagree, so what the user is shown and what the host dispatches (and charges) could be different variants",
+  "symptom": "Real paid walkthrough T4/T5 (PR #883): the Agent spend card showed Seedance 2.0 \"Fast\", while the host dispatched transportModelId doubao-seedance-2.0 with variantId standard, the more expensive variant. The card shows one price and another is charged. Stopped before payment.",
+  "direct_cause": "videoCandidateForPlan / candidatesForCurrentVideoModel and registry.variantFor inferred the variant from the catalog model id; the APIMart catalog row doubao-seedance-2.0 is the same string as the standard variant modelKey, so the host always resolved standard. The renderer (currentArchetypeVariant) never infers from the model id and fell back to the default variant fast; the spend card node carried no variantId.",
+  "class_root": "There was no single owner of variant resolution. The renderer, the spend card, host dispatch, the recommender, admission and parameter specialisation each re-implemented canonicalisation / defaulting / model-id inference (about nine copies), with different rules: the host inferred from the base key (which the renderer explicitly forbids), specializeArchetypeForVariant did not fall back to the default for unknown ids, canonicalisation was case-sensitive on one side and not the other, and plannedNodeMeta used the unspecialised parameter surface when no variant was given.",
+  "affected_population": [
+    "Every in-app Agent generation on APIMart Seedance 2.0 without an explicit variant (card Fast, dispatched standard) since v0.22.0 wired the renderer default to host dispatch",
+    "Every external MCP / submit-execution-plan / auto-run / continue-batch dispatch of a model whose catalog key equals one variant key",
+    "Any spend card for a candidate that carries an explicit variantId (the card ignored it and showed the default)",
+    "Future archetypes with variants: any new copy of the rule could diverge again"
+  ],
+  "scope_paths": [
+    "electron/shared/modelArchetypes/variantResolution.ts",
+    "electron/shared/modelArchetypes/index.ts",
+    "electron/shared/videoCapabilities/registry.ts",
+    "electron/shared/videoCapabilities/recommendation.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/modelAdmissionSchema.ts",
+    "electron/shared/contracts/pendingSpendConfirm.ts",
+    "electron/productionRun/productionPendingSpend.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/ai/v4/spendCardDraft.ts"
+  ],
+  "entry_points": [
+    "Canvas node composer and renderer dispatch (currentArchetypeVariant -> variant modelKey on the wire)",
+    "Agent panel spend card (projectSpendNode -> currentArchetypeVariant)",
+    "Host candidate normalisation for every provider-engine entrance (videoCandidateForPlan / normalizeVideoCandidate / videoTransportModelIdForPlan)",
+    "Catalog -> video candidates (registry.buildVideoModelCandidates) used by recommendation and generation_context",
+    "Admission schema and parameter specialisation (modelAdmissionSchema, specializeArchetypeForVariant, effectiveVideoModes)",
+    "Agent-planned node meta (plannedNodeMeta)"
+  ],
+  "external_sources": [],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/modelArchetypes/variantResolution.ts",
+    "tests": [
+      "electron/shared/modelArchetypes/variantResolution.test.ts",
+      "electron/parity/variantResolutionParity.test.ts"
+    ],
+    "why": "Variant resolution is archetype semantics shared by the renderer and the main process; the leaf module next to specializeArchetypeForVariant is the earliest layer both sides already import, and it can be imported by the video registry without a cycle."
+  },
+  "internal_only_reason": "Variants are Nomi archetype semantics (electron/shared/videoCapabilities profiles and modelArchetypes); no third-party library or external format decides which variant a generation runs on.",
+  "invariants": [
+    "Every surface that shows, validates, specialises or dispatches a variant obtains it from resolveArchetypeVariant with the same inputs (explicit variantId + model id).",
+    "The base catalog key (catalogModelKey, else the default variant key) never selects a variant; only a variant-specific key or an explicit variantId does.",
+    "Whether a variant id is recognised is answered only by canonicalArchetypeVariantId (exact id or declared alias, case-insensitive)."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "canonicalArchetypeVariantId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelAdmissionSchema.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/pendingSpendConfirm.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/index.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "archetypeBaseModelKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "canonicalArchetypeVariantId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "archetypeVariantForModelId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "effectiveVideoModes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelSpendCard.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardEstimate.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardReferences.ts",
+      "symbol": "PendingSpendShot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "projectSpendNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "canonicalArchetypeVariantId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "archetypeBaseModelKey"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "canonicalArchetypeVariantId"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "archetypeVariantForModelId"
+    }
+  ],
+  "door_reduction": {
+    "before": 26,
+    "after": 28,
+    "why_not": "All remaining doors are readers of the one owner (resolveArchetypeVariant / canonicalArchetypeVariantId and its two helpers), of the variant-specialised modes it produces (effectiveVideoModes), or of the spend-card input that now carries the candidate variantId (PendingSpendShot / projectSpendNode); none computes its own answer any more. They must exist because they are different surfaces: the canvas node and its migration (archetypeMeta), agent-planned node meta (plannedNodeMeta), host normalisation and wire model (mcpGenerationVideoResolve), catalog candidates (registry), recommendation and mode surfaces (recommendation), admission (modelAdmissionSchema) and parameter specialisation (modelArchetypes/index). Before the change nine of these carried their own copy of the rule."
+  },
+  "generality_proof": "The rule now lives in one pure function and every consumer (renderer, spend card, host dispatch for all provider-engine entrances, recommendation, admission, parameter specialisation) calls it with the same inputs. The class test walks every video row with variants in the real seeded catalog and asserts renderer === host and wire model === that variant key; the owner test covers every archetype with variants (video and image); the parity matrix now runs the real host normalisation step, so any entrance that dispatches a different variant shows up as a body.model split.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "resolveArchetypeVariant",
+      "responsibility": "The only answer to which variant a generation runs on: explicit variant -> variant-specific model id (never the base key) -> default -> first."
+    },
+    {
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "canonicalArchetypeVariantId",
+      "responsibility": "The only answer to whether a requested variant id is recognised (exact id or declared alias, case-insensitive)."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "entry_point": "videoCandidateForPlan",
+      "disposition": "enforced",
+      "evidence": "Resolves the variant with resolveArchetypeVariant(variantId, modelId); the unknown-variant refusal uses canonicalArchetypeVariantId."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "entry_point": "videoTransportModelIdForPlan",
+      "disposition": "enforced",
+      "evidence": "The wire model is the owner-resolved variant modelKey."
+    },
+    {
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "entry_point": "buildVideoModelCandidates",
+      "disposition": "enforced",
+      "evidence": "variantFor asks the owner with the catalog modelKey; the base row resolves to the default variant."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "entry_point": "currentArchetypeVariant",
+      "disposition": "enforced",
+      "evidence": "Delegates to the owner with the stored variantId and meta.modelKey; the private canonicalVariantIdOf / defaultVariantIdOf copies are deleted."
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "entry_point": "projectSpendNode",
+      "disposition": "enforced",
+      "evidence": "Carries the candidate variantId (PendingSpendShot.variantId) into node meta so the card asks the owner with the same inputs as the host."
+    },
+    {
+      "path": "src/ui/onboarding/antigravityCardModel.ts",
+      "entry_point": "antigravityCardModel",
+      "disposition": "not-affected",
+      "evidence": "Picks an Antigravity CLI model entry for onboarding, not an archetype variant for a generation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every archetype with variants whose catalog key equals one variant key, every entrance that normalises candidates on the host, and every new consumer that re-implements defaulting could reproduce the split; nine copies existed.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs currentArchetypeVariant canonicalVariantIdOf canonicalVideoVariantId specializeArchetypeForVariant effectiveVideoModes videoCandidateForPlan candidatesForCurrentVideoModel variantFor normalizeArchetypeVariantMeta applyArchetypeVariantSwitch videoTransportModelIdForPlan (26 doors before)",
+      "rg \"variants?.find|variants.find|defaultVariantId\" electron src -> recommendation.ts:264, modelAdmissionSchema.ts:105, plannedNodeMeta canonicalVariantId (all now delegate)",
+      "Seeded catalog scan in electron/parity/variantResolutionParity.test.ts: every video row with variants (APIMart and KIE Seedance, Volcengine, Dreamina, Hailuo, Sora, Veo, Vidu, Wan)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/modelArchetypes/variantResolution.ts",
+    "invariant": "The variant shown, validated, specialised and dispatched is resolveArchetypeVariant(archetype, { variantId, modelId }) for the same inputs.",
+    "failure_mode": "An unrecognised explicit variant is refused at host admission with the allowed list; no surface can silently pick a different variant because none has its own rule.",
+    "exception_policy": "none",
+    "strategy": "Extract the renderer rule (never infer from the base key) into one leaf function, make every consumer delegate, delete the copies, and carry the candidate variantId to the spend card so both sides pass identical inputs.",
+    "artifacts": [
+      "electron/shared/modelArchetypes/variantResolution.ts",
+      "electron/shared/modelArchetypes/index.ts",
+      "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "electron/shared/videoCapabilities/registry.ts",
+      "electron/shared/videoCapabilities/recommendation.ts",
+      "electron/capabilityCore/modelAdmissionSchema.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "src/workbench/ai/v4/spendCardDraft.ts",
+      "electron/shared/contracts/pendingSpendConfirm.ts",
+      "electron/productionRun/productionPendingSpend.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/parity/variantResolutionParity.test.ts",
+    "electron/shared/modelArchetypes/variantResolution.test.ts",
+    "electron/shared/videoCapabilities/index.test.ts",
+    "electron/capabilityCore/nomiMcpGenerationPlanning.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/parity/variantResolutionParity.test.ts",
+    "electron/shared/modelArchetypes/variantResolution.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/videoCapabilities/recommendation.ts",
+      "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.ts"
+    ],
+    "rationale": "canonicalVideoVariantId (recommendation), the model-id inference in videoCandidateForPlan / candidatesForCurrentVideoModel, canonicalVariantIdOf / defaultVariantIdOf (archetypeMeta) and canonicalVariantId (plannedNodeMeta) are deleted in this change; no fallback path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls archetype variant resolution.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. Variants are derived on every read; node meta keeps its variantId field with the same meaning, and the existing legacy-key migration (normalizeArchetypeVariantMeta) now uses the owner helpers. Behaviour change: external MCP callers that pass the base model id without variantId now get the default variant (fast) instead of standard.",
+  "residual_risks": [
+    "Switching the variant on the spend card is still silently dropped (the card revisions do not carry variantId) — reported to the coordinating session for TODO.",
+    "draft_shots does not expose variantId to the model; adding it is a model-facing change that needs R13.3 numbers — reported for TODO.",
+    "normalizeArchetypeVariantMeta still lets a legacy variant-specific modelKey overwrite a stored variantId during migration (unchanged behaviour); display and dispatch agree before and after it runs because both ask the owner."
+  ]
+}

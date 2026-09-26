@@ -23,6 +23,11 @@ export type ViewportAnimationCoordinator = {
   ) => boolean
   /** 新的 direct/scheduled 命令取得所有权并取消旧动画；若取消回调重入了更新命令则返回 false。 */
   takeOwnershipAndCancel: () => boolean
+  /**
+   * 此刻有没有一段动画在逐帧写视口。逐帧直写会让 React Flow 每帧都报一次「移动结束」，
+   * 视口的落盘方（onMoveEnd → store）据此跳过中间帧，只在动画结算时记一次。
+   */
+  isAnimating: () => boolean
   dispose: () => void
 }
 
@@ -124,6 +129,7 @@ export function createViewportAnimationCoordinator(input: {
   return {
     animateTo,
     takeOwnershipAndCancel,
+    isAnimating: () => active !== null,
     dispose() {
       if (disposed) return
       disposed = true

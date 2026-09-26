@@ -21,6 +21,7 @@ import {
   zoomOutTo,
   GROUP_FRAME_NODE_COUNT,
   fitCanvasView,
+  resetCanvasView,
   groupSelectedNodes,
   marqueeSelectFirstNodes,
   runDragGroupFrame,
@@ -598,15 +599,23 @@ async function openProject(app, page, fixture) {
   await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 * openScale })
   const firstCanvasMs = Date.now() - startedAt
   const settleStartedAt = Date.now()
+  // 就绪 = 挂载数稳定：连续 500ms 一个没多、一个没少。以前判「挂载数 < 总数」（虚拟化生效）；打开时画布会一次性
+  // 适应全貌（useAutoFitOnLoad，2026-09-26 协调裁定 B 保留），大项目缩到低倍率后可能全部节点都在视野里、一次挂齐，
+  // 那条判据就永远等不到。冷开量的正是适应之后用户看到的那个状态；虚拟化那条改到「重置视图」之后判（waitForVirtualizedMount）。
   await page.waitForFunction(
-    ({ nodeCount }) => {
+    ({ nodeCount, holdMs }) => {
       const mountedNodes = document.querySelectorAll('.generation-canvas-v2-node').length
+      const now = performance.now()
+      const last = window.__perfMountProbe
+      if (!last || last.count !== mountedNodes) {
+        window.__perfMountProbe = { count: mountedNodes, since: now }
+        return false
+      }
       const nodesReady = nodeCount === 0 || mountedNodes > 0
-      const virtualizationReady = nodeCount <= 50 || mountedNodes < nodeCount
-      return nodesReady && virtualizationReady
+      return nodesReady && now - last.since >= holdMs
     },
-    { nodeCount: fixture.summary.nodes },
-    { timeout: 20_000 * openScale },
+    { nodeCount: fixture.summary.nodes, holdMs: 500 },
+    { timeout: 20_000 * openScale, polling: 100 },
   )
   await waitForVisibleMediaSettlement(page, {
     expectMedia: fixture.summary.imageNodes + fixture.summary.videoNodes > 0,
@@ -667,6 +676,19 @@ async function prepareScenario(page, scenario) {
     await sleep(page, 60)
   }
   await sleep(page, 800)
+}
+
+/** 1:1 下大项目只挂视野里那一部分（虚拟化生效）。打开时适应全貌那一刻可以全挂，所以这条放在重置视图之后判。 */
+async function waitForVirtualizedMount(page, nodeCount) {
+  if (nodeCount <= 50) return
+  await page.waitForFunction(
+    ({ total }) => {
+      const mounted = document.querySelectorAll('.generation-canvas-v2-node').length
+      return mounted > 0 && mounted < total
+    },
+    { total: nodeCount },
+    { timeout: 20_000 * (useDevServer ? 4 : 1) },
+  )
 }
 
 function combineProbeSummaries(probes) {
@@ -1171,7 +1193,13 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottleRate }).catch(() => {})
     }
     await installProbe(page)
-    if (scenario !== 'cold-open') await sleep(page, 500)
+    if (scenario !== 'cold-open') {
+      await sleep(page, 500)
+      // 冷开量的是打开那一刻用户看到的样子（适应全貌之后）；其余场景量的是「在画布上干活」，用户会先点
+      // 「重置视图」回 1:1——各场景的起手（滚轮缩到 0.72 / 0.45、点第一张图、看媒体、点重试）都以 100% 为前提。
+      await resetCanvasView(page)
+      await waitForVirtualizedMount(page, fixture.summary.nodes)
+    }
     await prepareScenario(page, scenario)
     if (scenario === 'marquee-select') await sleep(page, 500)
     const beforePage = await pageSnapshot(page)

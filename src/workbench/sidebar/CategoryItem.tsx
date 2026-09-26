@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
-import type { ProjectCategory } from '../project/projectCategories'
+import { categoryDisplayName, type ProjectCategory } from '../project/projectCategories'
 import { getCategoryIcon } from './categoryIcons'
 
 type Props = {
@@ -34,10 +34,7 @@ export default function CategoryItem({
   onContextMenu,
 }: Props): JSX.Element {
   const { t } = useTranslation()
-  const builtinCategoryIds = new Set(['shots', 'cast', 'scene', 'prop', 'audio'])
-  const displayName = builtinCategoryIds.has(category.id)
-    ? t(`libraries.sidebar.builtinCategory.${category.id}`)
-    : category.name
+  const displayName = categoryDisplayName(category)
   const [dragOver, setDragOver] = React.useState(false)
   const settledRef = React.useRef(false)
   React.useEffect(() => {

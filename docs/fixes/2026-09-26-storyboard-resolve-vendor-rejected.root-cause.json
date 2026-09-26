@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-storyboard-resolve-vendor-rejected",
+  "problem_type": "Renderer request type and main-process strict schema for the same IPC payload drift apart",
+  "symptom": "Every storyboard video shot whose model has a vendor recorded (e.g. APIMart Seedance 2.0) shows 「执行计划检查失败」 above the storyboard table, the per-row duration warnings never appear, and the pre-generation duration check lets over-long shots through.",
+  "direct_cause": "632677d15 (PR #832) added modelVendor to PlanShotInput and storyboardPlanToPlanShotInputs sends it whenever the shot has one, but generationResolveInputSchema's shot object is .strict() and had no modelVendor. resolveGenerationPlanForProject therefore rejected every such request with generation_input_invalid (\"Unrecognized key(s) in object: 'modelVendor'\"); useStoryboardStrategy turned that into the error banner and resolveGeneratableGate fails open on any error envelope.",
+  "class_root": "The resolve input shape had two hand-written field lists — the engine type PlanShotInput (which the renderer projection and GenerationResolvePlanRequest are typed by) and the main-process zod schema — with nothing forcing them to stay equal. Adding a key to one side compiled cleanly and the renderer's only tests used a fake client, so the rejection only surfaced in the real app.",
+  "affected_population": [
+    "All v0.22.0 users who pick a model (with its vendor) for a storyboard video shot through the shot composer, bulk bar or Agent planner",
+    "Agent/MCP callers of nomi_resolve_generation_plan that pass a vendor-qualified shot"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/generation.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/shared/videoCapabilities/planResolver.ts"
+  ],
+  "entry_points": [
+    "Storyboard editor execution-plan panel and per-row duration warnings (src/workbench/creation/storyboard/useStoryboardStrategy.ts → DesktopBridge.generationStrategy.resolvePlan → electron/capabilityCore/generationResolveIpc.ts)",
+    "Pre-generation duration gate for single/multi/batch row generation (src/workbench/creation/storyboard/strategyGate.ts resolveGeneratableGate)",
+    "Agent/MCP method nomi_resolve_generation_plan (electron/capabilityCore/mcpGenerationTools.ts resolvePlanAdvisory)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is the equality of two in-repo field lists for one internal IPC payload (PlanShotInput and generationResolveInputSchema); zod's documented .strict() behaviour (reject unknown keys) is what made the drift fatal and is intended, so no external source decides the fix.",
+  "invariants": [
+    "Every key of PlanShotInput is accepted by generationResolveInputSchema's shot object, and every key the schema accepts exists on PlanShotInput — enforced at compile time in both directions",
+    "The resolve seam passes the parsed shots to resolveGenerationPlan without an unchecked cast, so the compiler also checks value types",
+    "A storyboard plan with vendor-qualified video shots resolves successfully through the real main-process core and the vendor selects that vendor's archetype limits"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/generation.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/strategyGate.mainResolve.test.ts",
+      "electron/capabilityCore/generationResolveIpc.test.ts"
+    ],
+    "why": "generationResolveInputSchema is the single acceptance set for the resolve payload on both the GUI narrow IPC and the agent/MCP face; the key-by-key guard lives next to it, and strategyGate.mainResolve.test.ts drives the renderer's real projection through the real main-process core."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "generationResolveInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "symbol": "generationResolveInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/strategyGate.ts",
+      "symbol": "storyboardPlanToPlanShotInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/useStoryboardStrategy.ts",
+      "symbol": "storyboardPlanToPlanShotInputs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "symbol": "PlanShotInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "PlanShotInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/planResolutionContracts.ts",
+      "symbol": "PlanShotInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardStrategy.ts",
+      "symbol": "PlanShotInput"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "Both writers are required: useStoryboardStrategy runs the advisory check for the panel/row warnings and strategyGate runs it at generation time, and both already call the one projection storyboardPlanToPlanShotInputs. The schema readers are its definition and the seam safeParse. The PlanShotInput readers are the engine (planResolver), the GUI request type (planResolutionContracts), the renderer projection (storyboardStrategy) and now the key guard in generation.ts, which replaces the unchecked cast that mcpGenerationTools used to read it through. The fix makes the two field lists provably equal rather than adding or removing an entry."
+  },
+  "generality_proof": "The failure class is 'a key exists on one side of the resolve payload but not the other'. The two MissingKeys guards in generation.ts turn any such difference into a TS2344 compile error in either direction (mutation-checked: deleting modelVendor from the schema and adding a madeUpKey to it both fail tsc -p electron/tsconfig.json). Every producer (renderer projection, GenerationResolvePlanRequest, agent/MCP callers) and the only consumer (resolveGenerationPlan via the seam) are typed by PlanShotInput, so no caller can send a key the schema does not accept without breaking the build.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "symbol": "generationResolveInputSchema",
+      "responsibility": "Single acceptance set for resolve shots; accepts modelVendor and is key-for-key equal to PlanShotInput by compile-time guard."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createGenerationPlanningHandler",
+      "responsibility": "resolvePlanAdvisory parses with the schema and hands the typed result to resolveGenerationPlan without an unchecked cast."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/useStoryboardStrategy.ts",
+      "entry_point": "useStoryboardStrategy",
+      "disposition": "enforced",
+      "evidence": "Sends storyboardPlanToPlanShotInputs output; strategyGate.mainResolve.test.ts proves the real projection with modelVendor now resolves ok and produces the s1 overflow warning via shotDurationWarnings."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/strategyGate.ts",
+      "entry_point": "resolveGeneratableGate",
+      "disposition": "enforced",
+      "evidence": "Same projection; the test asserts the gate returns a split blocker for the 20s shot (was null = fail-open) and null for the 12s shot under APIMart's 15s max."
+    },
+    {
+      "path": "electron/capabilityCore/generationResolveIpc.ts",
+      "entry_point": "resolveGenerationPlanForProject",
+      "disposition": "enforced",
+      "evidence": "Passes params straight to the seam; the existing GUI-vs-MCP parity test still holds and the new test calls it through the same envelope shape as registerGenerationResolveIpc."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "entry_point": "storyboardPlanSchema",
+      "disposition": "not-affected",
+      "evidence": "The other hand-written-type-plus-zod pair touched by #832; it already carries the same key-by-key guard (MissingSchemaKeys) added in 632677d15."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future key added to PlanShotInput (or to the schema) reproduces the same total rejection for every shot that carries it, on every machine, and the renderer tests use fake clients that cannot see it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs generationResolveInputSchema: 2 read doors (schema + seam safeParse)",
+      "node scripts/door-map.mjs storyboardPlanToPlanShotInputs: 2 write doors (useStoryboardStrategy, strategyGate)",
+      "node scripts/door-map.mjs PlanShotInput: readers in planResolver.ts, planResolutionContracts.ts (GenerationResolvePlanRequest.shots), storyboardStrategy.ts and generation.ts only",
+      "git grep resolvePlan / capability: \"resolve\": the only runtime entries are the GUI narrow IPC and the MCP method alias; both go through resolvePlanAdvisory",
+      "git grep z.infer in electron/shared/agentCapabilities: the other capability schemas derive their TS types from zod (single list); generationResolveInputSchema was the one whose type lived separately in the engine"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentCapabilities/generation.ts",
+    "invariant": "keyof PlanShotInput and keyof z.infer<shot schema> are equal sets; the seam's parsed value is assignable to PlanShotInput without a cast.",
+    "failure_mode": "tsc fails with TS2344 naming the missing key; typecheck and CI stop before a mismatched pair can ship.",
+    "exception_policy": "none",
+    "strategy": "Guard the pair at the schema owner (the earliest shared boundary both faces parse through) instead of loosening .strict() or stripping keys in the renderer.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/generation.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/strategyGate.mainResolve.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/strategyGate.mainResolve.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpGenerationTools.ts"
+    ],
+    "rationale": "Removed the unchecked `parsed.data.shots as PlanShotInput[]` cast that hid the schema/type drift from the compiler."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "zod behaves as documented (.strict() rejects unknown keys); the defect was the two in-repo field lists, not the library.",
+    "exit_criteria": []
+  },
+  "migration": "None needed: the request is built fresh from the plan on every check; nothing about it is persisted.",
+  "residual_risks": [
+    "Other IPC payloads whose TS request type and main-process zod schema are written separately were not audited in this change; storyboardPlanSchema and generationResolveInputSchema are the two known pairs and both are now guarded.",
+    "resolveGeneratableGate still fails open on any error envelope (by design: advisory check, main-side clamping remains). With the key guard the known cause of a permanent error is gone, but a future non-schema error would again silently skip the duration gate; whether generation_input_invalid should fail closed is left to the coordinator."
+  ]
+}

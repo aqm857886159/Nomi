@@ -28,6 +28,7 @@ import { applySpendReferences, pendingReferenceInputs, referenceInputsFromNode }
 // 已经有逐镜覆写的字段，按优先级它改了也看不见，用户读到的是「改了又弹回去」。
 // 价格与最终落盘一律按**优先级后的有效值**算，显示层的分层只影响「你此刻在编哪一层」。
 import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
+import { generationJsonValueSchema, type GenerationJsonValue } from '../../../../electron/shared/agentCapabilities/generationPlanSchemas'
 import { resolveRenderedControls } from '../../generationCanvas/nodes/nodeModelArchetype'
 import type { ModelOption } from '../../../config/models'
 import { isGenerationNodeKind } from '../../generationCanvas/model/generationNodeKinds'
@@ -40,7 +41,9 @@ const spendCandidatePatchSchema = z.object({
   modelId: z.string().optional(),
   providerId: z.string().optional(),
   modeId: z.string().optional(),
-  parameters: z.record(z.unknown()).readonly().optional(),
+  // 参数值只许是宿主认的 JSON 值（与 `generationPlanInputSchema` 同一个 owner）：卡的改稿经 IPC 原样过去，
+  // 写成 `unknown` 就能混进 `undefined`，宿主只在确认那一刻才拒（2026-09-26 真付费 T5，卡点了没反应）。
+  parameters: z.record(generationJsonValueSchema).readonly().optional(),
   referenceInputs: z.array(spendReferenceInputSchema).readonly().optional(),
 }).strict().readonly()
 export type SpendCandidatePatch = z.infer<typeof spendCandidatePatchSchema>
@@ -145,14 +148,16 @@ export function candidatePatchFromNode(
   const referenceInputs = referenceInputsFromNode(node, shot)
   const baselineReferences = referenceInputsFromNode(applySpendReferences(node, baselineReferenceInputs ?? pendingReferenceInputs(shot)), shot)
   if (JSON.stringify(referenceInputs) !== JSON.stringify(baselineReferences)) patch.referenceInputs = referenceInputs
-  const parameters: Record<string, unknown> = {}
+  const parameters: Record<string, GenerationJsonValue> = {}
   let parametersChanged = false
   const selected = option ?? { modelKey: text(meta.modelKey), vendor: text(meta.modelVendor), value: text(meta.modelKey), label: text(meta.modelKey), kind: node.kind }
   const controls = resolveRenderedControls(selected as ModelOption, meta, node.kind === 'image', node.kind === 'video')
   const keys = new Set([...Object.keys(shot.parameters), ...controls.map(control => control.binding === 'parameter' ? control.key : control.binding)])
   for (const key of keys) {
     const next = meta[key]
-    parameters[key] = next === undefined ? shot.parameters[key] : next
+    // 参数条上有控件、节点和候选都没有值的键（如没填的 seed）= 这一镜不带它，不是「值为 undefined」。
+    const value = generationJsonValueSchema.safeParse(next === undefined ? shot.parameters[key] : next)
+    if (value.success) parameters[key] = value.data
     if (next !== undefined && next !== shot.parameters[key]) parametersChanged = true
   }
   if (parametersChanged) patch.parameters = parameters
@@ -234,7 +239,8 @@ export function projectSpendNode(shot: PendingSpendShot, placed?: GenerationCanv
       modelKey: shot.modelId,
       modelVendor: shot.providerId,
       ...(option ? { modelLabel: option.label } : {}),
-      ...(archetype ? { archetype: { id: archetype.id, modeId: shot.modeId ?? archetype.defaultModeId } } : {}),
+      // 候选上写着变体就一并带上：卡上这张框显示的变体与宿主派发的，问的是同一个 owner、同一组输入。
+      ...(archetype ? { archetype: { id: archetype.id, modeId: shot.modeId ?? archetype.defaultModeId, ...(shot.variantId ? { variantId: shot.variantId } : {}) } } : {}),
     },
   }, pendingReferenceInputs(shot))
 }

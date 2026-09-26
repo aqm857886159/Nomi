@@ -342,7 +342,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const handleRegenerate = React.useCallback((clipId: string) => {
     const clip = useWorkbenchStore.getState().timeline.tracks.flatMap((track) => track.clips).find((item) => item.id === clipId)
     if (!clip?.sourceNodeId) return
-    void import('../generationCanvas/runner/generationRunController').then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(clip.sourceNodeId))
+    void import('../generationCanvas/runner/generationRunController').then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(clip.sourceNodeId, { initiator: 'user' }))
   }, [])
   const handleChangeTransition = React.useCallback((fromClipId: string, toClipId: string) => {
     openTimelineTransitionPicker(fromClipId, toClipId)

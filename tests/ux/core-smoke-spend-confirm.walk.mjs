@@ -18,6 +18,9 @@
 //   pnpm run build && pnpm run test:core-smoke -- --fixture empty
 //   pnpm run build && node tests/ux/core-smoke-spend-confirm.walk.mjs   （单跑，默认 empty + confirm 例）
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import {
+  expectCanvasViewportHeld, recordCanvasViewportWrites, sameCanvasViewport, waitForCanvasViewportSettled,
+} from './_canvasHit.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM, INTERVENTION_REJECT,
@@ -118,6 +121,10 @@ try {
     console.log(`[core-smoke] spend-confirm/cancel 通过：节点 ${nodesWithDraft.length} 个不变，媒体请求 0 次`)
   } else {
     // ── ② 确认后供应商恰收一次 · ③ 节点出产物 ──────────────────────────────────────
+    // 点确认之前的视口：付费卡落地不许挪画布（用户原话「付费卡点击之后画布就闪动一下」——落地层以前会
+    // 请求一次适应视图，2026-09-25 拍板删了）。基线在视口停稳时读；另挂一个改写记录器，抓首尾相同的来回闪。
+    const viewportBeforeConfirm = await waitForCanvasViewportSettled(win)
+    const viewportWrites = await recordCanvasViewportWrites(win)
     await clickOrFail(card.locator(INTERVENTION_CONFIRM), '按下那颗印着价的确认钮')
     // 顺序照 `agent-spend-confirm-executes.walk.mjs:162-172`：先等出站请求（那是「钱真的动了」的第一个
     // 证据），再等 `generate` 把结论递回正在等的那个回合。反过来写会让「还没跑起来」以超时的形状报出来。
@@ -142,7 +149,15 @@ try {
     await expectAbsent(card, { provenBy: cardProof, message: '产物落定之后付款卡退出介入槽' })
     await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.map((entry) => entry.id).sort(),
       { timeout: DEFAULT_TIMEOUT_MS, message: '确认也不许凭空多出或少掉节点' }).toEqual(nodesWithDraft)
-    console.log(`[core-smoke] spend-confirm/confirm 通过：出站 1 次，节点 ${node.id} 落成 success`)
+    // 产物落定、卡已退场之后再连续取样 1.5s：视口始终等于点确认之前那一帧（容差 0.5px / 0.001 缩放）。
+    await expectCanvasViewportHeld(win, viewportBeforeConfirm,
+      '付费卡确认 → 产物落地，画布不许自己平移 / 缩放（「付费卡点击之后画布就闪动一下」）', { holdMs: 1_500 })
+    const { writes, detached } = await viewportWrites.read({ stop: true })
+    const moved = writes.filter((entry) => !sameCanvasViewport(viewportBeforeConfirm, entry))
+    expect(moved, `付费卡确认之后画布中途闪过 ${moved.length} 次（首尾相同也算）—— 基线 ${JSON.stringify(viewportBeforeConfirm)}，`
+      + `改写 ${JSON.stringify(moved.slice(0, 6))}`).toEqual([])
+    expect(detached, '画布变换层在确认之后被整层重挂（记录器跟丢了，「没闪」无从证明）').toBe(false)
+    console.log(`[core-smoke] spend-confirm/confirm 通过：出站 1 次，节点 ${node.id} 落成 success，画布一格未动`)
   }
 } catch (error) {
   failed = error

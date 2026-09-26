@@ -8,6 +8,8 @@ import FrameContextMenu, { type FrameContextMenuAction } from '../components/Fra
 import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
 import { NodeAddMenu } from '../components/CanvasToolbar'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
+import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
+import type { ArrivalHint } from '../components/canvasArrivalModel'
 import { hasClipboardContent } from '../store/canvasClipboard'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
@@ -54,6 +56,9 @@ type GenerationCanvasReactFlowOverlaysProps = {
   onFrameMenuAction: (action: FrameContextMenuAction) => void
   frameToolArmed: boolean
   onToggleFrameTool: () => void
+  /** 新东西落在屏外 / 别的分类时的边缘提示；null = 没有要指的。 */
+  arrivalHint: ArrivalHint | null
+  onGoToArrivals: () => void
 }
 
 export function GenerationCanvasReactFlowOverlays({
@@ -91,6 +96,8 @@ export function GenerationCanvasReactFlowOverlays({
   onFrameMenuAction,
   frameToolArmed,
   onToggleFrameTool,
+  arrivalHint,
+  onGoToArrivals,
 }: GenerationCanvasReactFlowOverlaysProps): JSX.Element {
   return (
     <>
@@ -173,6 +180,7 @@ export function GenerationCanvasReactFlowOverlays({
           ) : null
         }
       />
+      {arrivalHint ? <CanvasArrivalHint hint={arrivalHint} onGo={onGoToArrivals} /> : null}
       <SelectionPromptSaveController nodes={allNodes} disabled={readOnly} />
     </>
   )

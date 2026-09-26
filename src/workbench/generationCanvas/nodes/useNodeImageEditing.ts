@@ -9,7 +9,6 @@ import { computeGridCells, computeSplitLayout, type GridCell } from './render/cr
 import { removeBackgroundBlob } from '../../../lib/removeBackground'
 import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, removeBackgroundProgressMessage } from './localImageOpPhase'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
-import { useWorkbenchStore } from '../../workbenchStore'
 // 尺寸上下界与"卡片实际渲染多大"都从 nodeSizing 拿——这里再抄一份就是布局错位的温床。
 import { MAX_NODE_WIDTH, MIN_NODE_WIDTH, resolveNodeVisualSize } from './nodeSizing'
 import i18n from '../../../i18n'
@@ -277,9 +276,8 @@ export function useNodeImageEditing(
           i18n.t('generationCommon.imageToolbar.tileGroupName', { grid, source: nodeTitle || i18n.t('generationCommon.imageToolbar.image') }),
         )
       })
-      // 九张摊开比原图占地大得多，多半有一半落在视口外——用批量落节点那套既有的 fit 信号
-      // 把整块揭出来（同 3D 录完 take 的做法），否则用户只看到左边两列，以为切歪了。
-      useWorkbenchStore.getState().requestCanvasFit(nodeCategoryId)
+      // 九张摊开比原图占地大，可能有一部分落在视口外：不再替用户挪画布（2026-09-25 拍板），
+      // 屏外那几张由画布边缘提示指路，点它才过去。
       return tileIds.length
     },
     [nodeCategoryId, nodeId, nodePositionX, nodePositionY, nodeTitle, updateNode, visualWidth],

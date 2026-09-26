@@ -133,6 +133,11 @@ export type CanvasRunActions = {
 }
 
 export type GenerationCanvasState = {
+  /**
+   * 这个项目的画布内容已经载入。唯一置 true 的是 restoreSnapshot（打开项目时 restoreWorkbenchProjectPayload 调它），
+   * releaseProject 复位。「打开时适应一次」判的就是它——画布组件挂载不是「载入完」，不许在挂载时写它
+   * （挂载若先于内容，适应会看到「ready 了、画布是空的」而放弃；2026-09-26 删掉了挂载时那一处写入）。
+   */
   isReady: boolean
   persistRevision: number
   nodes: GenerationCanvasNode[]
@@ -149,7 +154,6 @@ export type GenerationCanvasState = {
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
-  markReady: () => void
   captureHistory: () => void
   setGenerationAiDraft: (draft: string) => void
   setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void

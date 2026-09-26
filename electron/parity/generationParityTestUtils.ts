@@ -178,7 +178,12 @@ export async function driveEngineB(capture: FetchCapture, input: EngineBTaskInpu
     // 两个真实宿主都接了那个解析器（`mcpStdioServer.ts:334` / `appIntegration.ts:325`）；
     // 夹具不给，就会把「宿主没接线」当成「Run 路投影不出 @image1」报成产品分裂。
     const referenceSourceUrls = references.map((reference) => input.referenceUrls?.[spendReferenceKey(reference)]);
-    contract = compileExecutionContract({
+    // 与真实宿主同形：编译前先把候选归一到它在目录里的视频档案——变体、模式、出站 model（transportModelId）
+    // 都在这一步定（`mcpGenerationTools.ts:330`，候选表 = `deriveUsableVideoModelCandidates`）。
+    // 夹具以前跳过这一步，「宿主按哪个变体派」根本没进矩阵：2026-09-26 卡上 Fast、派出去 standard，矩阵一直是绿的。
+    const { normalizeVideoCandidate } = await import("../capabilityCore/mcpGenerationVideoResolve");
+    const { deriveUsableVideoModelCandidates } = await import("../capabilityCore/usableVideoModelCandidates");
+    const candidate = normalizeVideoCandidate({
       candidateId: "parity-candidate",
       revision: 1,
       moduleId: "generation.single-shot",
@@ -189,7 +194,8 @@ export async function driveEngineB(capture: FetchCapture, input: EngineBTaskInpu
       prompt: input.prompt,
       parameters: input.parameters,
       references,
-    }, registry, {
+    }, deriveUsableVideoModelCandidates());
+    contract = compileExecutionContract(candidate, registry, {
       ...(referenceSourceUrls.length ? { referenceSourceUrls } : {}),
     });
   } catch (error) {

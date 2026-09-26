@@ -44,7 +44,7 @@ beforeEach(() => {
 
 it('lands selected rows under one explicit transaction, groups them and undoes the whole batch', async () => {
   const shots = [1, 2].map(index => ({ index, shotId: `fact-source-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }))
-  await runStoryboardBatch({ documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots } },
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots } },
     runtimeRows(shots), { groupTitle: 'Reference' })
   const state = useGenerationCanvasStore.getState()
   expect(state.nodes).toHaveLength(2)
@@ -62,7 +62,7 @@ it('lands selected rows under one explicit transaction, groups them and undoes t
 it('does not write into a replacement canvas while awaiting defaults', async () => {
   const shot = { index: 1, shotId: 'one', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }
   calls.onDefaults.mockImplementationOnce(() => useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] }))
-  await expect(runStoryboardBatch({ documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } },
+  await expect(runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } },
     runtimeRows([shot]), { groupTitle: 'Reference' })).rejects.toThrow()
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
   expect(calls.confirm).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ it('preserves existing user groups when selecting previously materialized rows',
   const store = useGenerationCanvasStore.getState()
   const nodes = shots.map(shot => store.addNode({ kind: 'image', meta: { storyboardDesignId: 'design', shotId: shot.shotId } }))
   const groups = nodes.map((node, index) => store.createGroup('shots', `User group ${index}`, { nodeIds: [node.id] })!)
-  await runStoryboardBatch({ documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots } },
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots } },
     runtimeRows(shots), { groupTitle: 'Reference' })
   expect(useGenerationCanvasStore.getState().groups.map(group => ({ id: group.id, nodeIds: group.nodeIds })))
     .toEqual(groups.map(group => ({ id: group.id, nodeIds: group.nodeIds })))
@@ -81,7 +81,7 @@ it('preserves existing user groups when selecting previously materialized rows',
 
 it('explicit placement is free and repeating it preserves user edits, results and groups', async () => {
   const shot = { index: 1, shotId: 'placed', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }
-  const ctx = { documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } }
+  const ctx = { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } }
   const placement = { groupTitle: 'Reference', placementOnly: true }
   await runStoryboardBatch(ctx, runtimeRows([shot]), placement)
   expect(calls.confirm).not.toHaveBeenCalled()
@@ -97,7 +97,7 @@ it('explicit placement is free and repeating it preserves user edits, results an
 it.each([0,1])('placement includes unused visual anchors with %i shots in the same group and one undo restores the empty canvas', async (shotCount) => {
   const shots = shotCount ? [{ index: 1, shotId: 'one', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }] : []
   const plan = { title: 'Reference', anchors: [{ id: 'anchor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }], shots }
-  await runStoryboardBatch({ documentId: 'doc', designId: 'design', plan }, runtimeRows(shots), { groupTitle: plan.title, placementOnly: true })
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'design', plan }, runtimeRows(shots), { groupTitle: plan.title, placementOnly: true })
   const store = useGenerationCanvasStore.getState()
   expect(store.nodes).toHaveLength(shotCount + 1)
   expect(store.groups[0].nodeIds).toHaveLength(shotCount + 1)
@@ -122,7 +122,7 @@ it('placement fills a missing keyframe without duplicating or rewriting its exis
   const store = useGenerationCanvasStore.getState()
   const node = store.addNode({ kind: 'video', prompt: 'User edited', meta: { storyboardDesignId: 'design', shotId: 'video' } })
   const before = structuredClone(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id))
-  await runStoryboardBatch({ documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } }, runtimeRows([shot]), { groupTitle: 'Reference', placementOnly: true })
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } }, runtimeRows([shot]), { groupTitle: 'Reference', placementOnly: true })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(2)
   expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)).toEqual(before)
   expect(calls.confirm).not.toHaveBeenCalled()
@@ -133,7 +133,7 @@ it('reuses the node already bound to this plan instead of duplicating it', async
   const shot = { index: 1, shotId: 'run-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Author' }
   useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Canvas override', meta: { storyboardDesignId: 'run', shotId: 'run-shot' } })
   const before = structuredClone(useGenerationCanvasStore.getState().nodes)
-  await runStoryboardBatch({ documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [], shots: [shot] } }, runtimeRows([shot]), { groupTitle: 'Run', placementOnly: true })
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [], shots: [shot] } }, runtimeRows([shot]), { groupTitle: 'Run', placementOnly: true })
   expect(useGenerationCanvasStore.getState().nodes).toEqual(before)
   expect(calls.confirm).not.toHaveBeenCalled()
 })
@@ -144,8 +144,8 @@ it('keeps the bound node and its canvas override across repeated placements', as
   const plan = { title: 'Run', anchors: [], shots: [shot] }
   const rows = deriveStoryboardRowRuntimes({ plan, designId: 'run', nodes: useGenerationCanvasStore.getState().nodes, imageModelOptions: [], videoModelOptions: [] })
   expect(rows[0].exec.node?.id).toBe(node.id)
-  await runStoryboardBatch({ documentId: 'doc', designId: 'run', plan }, rows, { groupTitle: 'Run', placementOnly: true })
-  await runStoryboardBatch({ documentId: 'doc', designId: 'run', plan }, rows, { groupTitle: 'Run', placementOnly: true })
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan }, rows, { groupTitle: 'Run', placementOnly: true })
+  await runStoryboardBatch({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan }, rows, { groupTitle: 'Run', placementOnly: true })
   expect(useGenerationCanvasStore.getState().nodes.map(value => value.id)).toEqual([node.id])
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toBe('Canvas override')
   expect(calls.confirm).not.toHaveBeenCalled()
@@ -155,7 +155,7 @@ it('finds a newly materialized shot through its own metadata on the next call', 
   const shot = { index: 1, shotId: 'new-run-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Author' }
   const plan = { title: 'Run', anchors: [], shots: [shot] }
   const rows = deriveStoryboardRowRuntimes({ plan, designId: 'run', nodes: [], imageModelOptions: [], videoModelOptions: [] })
-  const context = { documentId: 'doc', designId: 'run', plan }
+  const context = { initiator: 'user' as const, documentId: 'doc', designId: 'run', plan }
   await runStoryboardBatch(context, rows, { groupTitle: 'Run', placementOnly: true })
   const first = useGenerationCanvasStore.getState().nodes[0].id
   await runStoryboardBatch(context, rows, { groupTitle: 'Run', placementOnly: true })
@@ -167,13 +167,13 @@ it('bound row actions keep single-shot, three variants and regeneration on the o
   const shot = { index: 1, shotId: 'action-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Updated author prompt' }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Old prompt', meta: { storyboardDesignId: 'run', shotId: 'action-shot' } })
   const assertCurrent = vi.fn().mockResolvedValue(undefined)
-  const context = { assertCurrent, assertAuthorCurrent: assertCurrent, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [], shots: [shot] } }
+  const context = { initiator: 'user' as const, assertCurrent, assertAuthorCurrent: assertCurrent, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [], shots: [shot] } }
   await generateShotRow(context, shot, null)
   await generateShotRowVariants(context, shot, node, null)
   await regenerateShotRow(context, shot, node, null)
-  expect(calls.single).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent })
-  expect(calls.variants).toHaveBeenCalledWith(node.id, 3, { assertCurrent, assertAuthorCurrent: assertCurrent })
-  expect(calls.regenerate).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent })
+  expect(calls.single).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
+  expect(calls.variants).toHaveBeenCalledWith(node.id, 3, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
+  expect(calls.regenerate).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('Updated author prompt')
 })
@@ -181,8 +181,14 @@ it('bound row actions keep single-shot, three variants and regeneration on the o
 it('a bound anchor action reuses that anchor node and the original single runner', async () => {
   const anchor = { id: 'actor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'New description' }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Old description', meta: { storyboardDesignId: 'run', anchorId: 'actor' } })
-  await generateAnchorCard({ documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
-  expect(calls.single).toHaveBeenCalledWith(node.id, {})
+  await generateAnchorCard({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
+  expect(calls.single).toHaveBeenCalledWith(node.id, { initiator: 'user' })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+  // Agent 替他点的同一张锚卡（presentStoryboard 的 gesture.source='agent'）：来源必须原样报给付费判据，
+  // 否则「单个节点不弹窗」会把 Agent 的付费也放过去。
+  calls.single.mockClear()
+  await generateAnchorCard({ documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] },
+    gesture: { source: 'agent', txnId: 'agent-present', canWrite: () => true } }, anchor)
+  expect(calls.single).toHaveBeenCalledWith(node.id, { initiator: 'agent' })
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('New description')
 })

@@ -62,9 +62,9 @@ describe('background recovery owns the originating project and task', () => {
   })
 
   it.each([
-    ['generate', (id: string) => confirmAndRunNode(id)],
-    ['variants', (id: string) => confirmAndRunNodeVariants(id, 3)],
-    ['regenerate', (id: string) => regenerateNodeInPlace(id)],
+    ['generate', (id: string) => confirmAndRunNode(id, { initiator: 'user' })],
+    ['variants', (id: string) => confirmAndRunNodeVariants(id, 3, { initiator: 'user' })],
+    ['regenerate', (id: string) => regenerateNodeInPlace(id, { initiator: 'user' })],
   ])('%s authorization failures coalesce and retain origin while minting crosses projects', async (_name, run) => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Draft a shot' })
     mocks.mint.mockImplementation(async () => { await projectSession.open('other-project'); throw new Error('Authorization service unavailable') })

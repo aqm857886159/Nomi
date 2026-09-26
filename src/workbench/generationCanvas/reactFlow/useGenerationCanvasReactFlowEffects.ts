@@ -12,6 +12,7 @@ import { importBrowserAssetsToGenerationCanvas } from '../components/canvasStage
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { FOCUS_GENERATION_NODE_EVENT, resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { publishCanvasStageSize } from '../store/canvasVisibleArea'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { resolveCanvasFocusZoom, resolvePendingCanvasFocus, type PendingCanvasFocus } from './focusViewportRecovery'
 
@@ -45,9 +46,7 @@ export function useGenerationCanvasReactFlowHostEffects({
   const { t } = useTranslation()
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
-  const markReady = useGenerationCanvasStore((state) => state.markReady)
   const pendingFocusRef = React.useRef<PendingCanvasFocus | null>(null)
-  const focusedRecoveryRef = React.useRef<PendingCanvasFocus | null>(null)
   const focusFlashTimerRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
@@ -71,7 +70,6 @@ export function useGenerationCanvasReactFlowHostEffects({
         viewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom },
       }
       pendingFocusRef.current = focus
-      focusedRecoveryRef.current = focus
       setActiveCategoryId(target.categoryId || 'shots')
       if (select) selectNode(nodeId)
     }
@@ -117,8 +115,6 @@ export function useGenerationCanvasReactFlowHostEffects({
         220,
       )
     }
-    // Keep the pre-focus viewport until the focused node is confirmed to be gone.
-    // This covers Cmd/Ctrl+Z immediately after duplicating a variant.
     return
   }, [activeCategoryId, allNodes, animateViewportTo, cancelViewportAnimation, flow, hostRef, nodes, setFocusFlashNodeId, setLiveViewport, zoomRef])
 
@@ -126,16 +122,8 @@ export function useGenerationCanvasReactFlowHostEffects({
     if (focusFlashTimerRef.current !== null) window.clearTimeout(focusFlashTimerRef.current)
   }, [])
 
-  React.useEffect(() => {
-    const focused = focusedRecoveryRef.current
-    if (!focused || focused.categoryId !== activeCategoryId) return
-    if (allNodes.some((node) => node.id === focused.nodeId)) return
-    focusedRecoveryRef.current = null
-    setLiveViewport(focused.viewport)
-    // 撤销可能落在聚焦动画（220ms）还没跑完的时候：不先取消调度器，下一帧就把还原盖回去。
-    cancelViewportAnimation()
-    void flow.setViewport(focused.viewport, { duration: 0 })
-  }, [activeCategoryId, allNodes, cancelViewportAnimation, flow, nodes, setLiveViewport])
+  // 以前这里还有一段「撤销掉被聚焦的节点 → 把视口退回聚焦前」：它是给「复制变体后程序自动聚焦过去」配的撤销对称。
+  // 2026-09-25 起复制 / 落地都不再自动聚焦，聚焦只剩用户自己点的定位；撤销不再替他挪画布（程序不主动移动画布）。
 
   React.useEffect(() => {
     const host = hostRef.current
@@ -143,16 +131,14 @@ export function useGenerationCanvasReactFlowHostEffects({
     const updateSize = () => {
       const rect = host.getBoundingClientRect()
       setStageSize({ width: rect.width, height: rect.height })
+      // 新东西落在可见区要知道「可见区多大」：store 层的 addNode 够不到这个组件，读的是这份发布值（canvasVisibleArea）。
+      publishCanvasStageSize({ width: rect.width, height: rect.height })
     }
     updateSize()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateSize)
     observer?.observe(host)
     return () => observer?.disconnect()
   }, [hostRef, setStageSize])
-
-  React.useEffect(() => {
-    markReady()
-  }, [markReady])
 
   React.useEffect(() => {
     const host = hostRef.current
