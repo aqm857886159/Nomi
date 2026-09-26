@@ -14,8 +14,6 @@ import { resolveGenerationReferences } from '../runner/generationReferenceResolv
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
 import type { GenerationRunOutcome } from '../runner/generationRunOutcome'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { verifyShotsAndReport } from '../agent/shotVerifyStore'
-import { resolveShotIdentities } from '../model/shotNumbering'
 import i18n from '../../../i18n'
 import { normalizeCanvasBatchConcurrency } from './canvasProductionScope'
 
@@ -258,17 +256,9 @@ export async function runPlanWithToasts(
         },
       })
     }
-    // Stage 1:生成完成 → 对成功的镜头/首帧(共享身份判据,排除锚卡)跑画面校验(fire-and-forget,
-    // 不阻塞完成 toast;verify 失败静默,绝不把生成完成拖红)。
-    // 审片只给仍在前台的原项目：发起动作的项目生命周期还在（切走再切回 A→B→A 不复活）。
-    if (okCount > 0 && isProjectExecutionContextCurrent(options.project)) {
-      const { nodes, edges } = useGenerationCanvasStore.getState()
-      const identities = resolveShotIdentities(nodes, edges)
-      const shotIds = result.successes
-        .map((s) => s.nodeId)
-        .filter((id) => identities.has(id))
-      if (shotIds.length > 0) void verifyShotsAndReport(shotIds, options.project)
-    }
+    // 用户点「生成全部」只花生成的钱：跑完不再自动调文本模型审片（2026-09-26 用户拍板，TODO T-QA-36）。
+    // 审片仍是 Agent 做片流程里写明的一步（capabilityApplyHandler.verifyShotsForProduction）；
+    // 这里要自动审片，得等设置开关做出来（下一版），开关归 shotVerifyStore。
   } catch (error: unknown) {
     notify({
       identity: notificationId,
