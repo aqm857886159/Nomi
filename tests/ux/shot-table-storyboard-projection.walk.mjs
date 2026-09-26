@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { seedRealCredentials } from './_realProfile.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { AGENT_PANEL, COMPOSER_MODEL, CREATION_PANEL, MODEL_POPOVER, TOOL_RECEIPT, chooseAssistantModel, sendCreation, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
@@ -14,15 +15,16 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/shot-table-storyboard-proje
 const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-table-storyboard-'))
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
+const userDataDir = path.join(base, 'user')
 fs.mkdirSync(settingsDir); fs.mkdirSync(projectsDir); fs.mkdirSync(shotsDir, { recursive: true })
-const sourceSettings = process.env.NOMI_SETTINGS_DIR || path.join(os.homedir(), 'Library/Application Support/Nomi')
-// Only encrypted model connections; never copy project locations or the user's library.
-fs.copyFileSync(path.join(sourceSettings, 'model-catalog.json'), path.join(settingsDir, 'model-catalog.json'))
+// Only encrypted model connections (plus the Windows Local State key that decrypts them);
+// never copy project locations or the user's library.
+seedRealCredentials({ settingsDir, userDataDir })
 const story = '雨后清晨，一只白色纸船停在窗边的水盆里。微风吹动窗帘，纸船缓慢转向。阳光落到水面，一圈涟漪扩散。请拆为三个无人物镜头，每镜3秒，以图片镜头表达。'
 // Keep the user's three-minute no-transition ceiling below the shared model-turn safety budget.
 const modelStationBudget = Math.min(stationTimeout({ turns: 1 }), 3 * 60 * 1000)
 const editedPrompt = '月光映照纸船，水面安静。'
-const { app, win } = await launchNomiApp({ name: 'shot-table-storyboard-projection', settingsDir, projectsDir, userDataDir: path.join(base, 'user'), settleMs: 0 })
+const { app, win } = await launchNomiApp({ name: 'shot-table-storyboard-projection', settingsDir, projectsDir, userDataDir, settleMs: 0 })
 const snap = name => screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) })
 let step = 'library'
 try {

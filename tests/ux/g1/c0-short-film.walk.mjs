@@ -2,7 +2,7 @@
 import { stationTimeout } from '../_station-budget.mjs'
 import { completedExports } from './sweep-timeline.mjs'
 import { requireCredential, recordBlocked } from './credential-precheck.mjs'
-import { realCatalogPath } from '../../../evals/lib/isoApp.mjs'
+import { realNomiProfile } from '../_realProfile.mjs'
 // C0: one UI journey, with either synthetic or budgeted real provider dispatch.
 import fs from 'node:fs'
 import { videoWaitBudget, waitForVideos } from './c0-video-wait.mjs'
@@ -86,7 +86,7 @@ async function step(id, action, expected, run, interruption = '无自动检测�
   }
 }
 try {
-  if (values.real) requireCredential(realCatalogPath(), attemptDir)
+  if (values.real) requireCredential(realNomiProfile().catalogPath, attemptDir)
   // Check before importing Playwright so a missing development environment leaves a report.
   const missing = ['node_modules', ...(!values.packaged ? ['dist/index.html', 'dist-electron/main.js'] : [])]
     .filter((name) => !fs.existsSync(path.join(root, name)))

@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /* global process, localStorage, console */
 // Opt-in real-provider acceptance. All writes/spend use the original UI/runner.
-// NOMI_CORE_A_LIVE=1 node tests/ux/core-a-storyboard.paid.mjs [--packaged /absolute/Nomi] [--first-frame] [--resume-report /absolute/report.json]
+// NOMI_SPEND_OK=1 node tests/ux/core-a-storyboard.paid.mjs [--packaged /absolute/Nomi] [--first-frame] [--resume-report /absolute/report.json]
+//
+// 2026-09-26 付费确认新规则（spendConfirmationRequirement）：分镜表里用户自己点的**单行**「生成镜 N」不弹确认；
+// 一下跑 ≥2 份（「生成全部」两镜、首帧 + 视频两波）才弹，且确认框里不再有价格行。这条旅程按新规则走：
+// 两镜「生成全部」→ 弹框无价 → 取消一笔不发 → 单行「生成镜 1」不弹框出图 → 剩一镜的「生成全部」同样不弹框。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -10,14 +14,17 @@ import { parseArgs } from 'node:util'
 import { expect } from '@playwright/test'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { prepareIsolation, createBlankProject, readProjectPayload, realCatalogPath } from '../../evals/lib/isoApp.mjs'
+import { prepareIsolation, createBlankProject, readProjectPayload } from '../../evals/lib/isoApp.mjs'
+import { cheapVideoNodeProblems } from './_agentVideoPaid.mjs'
+import { PRICE_LINE, SPEND_DIALOG, assertPaidRunAllowed, spendReceipt, watchSpendDialogs } from './_paidRun.mjs'
+import { realNomiProfile, removeRealCredentials, seedRealCredentials } from './_realProfile.mjs'
 import { AGENT_PANEL, DOCUMENT, chooseAssistantModel, expandResidentPanel, sendCreation, waitForV4TurnIdle, stopRuntimeApp } from './agent-runtime-walk-support.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { proveProbe, expectAbsent } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-assert.ok(!process.env.CI, 'Paid acceptance is forbidden in CI')
-assert.equal(process.env.NOMI_CORE_A_LIVE, '1', 'Explicit NOMI_CORE_A_LIVE=1 is required; this journey spends real provider credit')
+// 开关、CI 拒跑、用户 Nomi 开着拒跑、原库指纹：付费走查唯一那一份（_paidRun.mjs）。
+const guard = assertPaidRunAllowed('core-a-storyboard.paid.mjs')
 const { values } = parseArgs({ options: { packaged: { type: 'string' }, 'first-frame': { type: 'boolean', default: false }, 'resume-report': { type: 'string' }, 'verify-only': { type: 'boolean', default: false }, 'output-dir': { type: 'string' } } })
 if (values.packaged) assert.ok(path.isAbsolute(values.packaged), '--packaged requires an absolute executable path')
 const resumed = values['resume-report'] ? JSON.parse(fs.readFileSync(path.resolve(values['resume-report']), 'utf8')) : null
@@ -26,6 +33,8 @@ const tempRoot = resumed ? path.resolve(resumed.tempRoot) : fs.mkdtempSync(path.
 // Never prepareIsolation on resume: that owner intentionally deletes its target.
 const iso = resumed ? (resumed.isolation ?? { projectsDir: path.join(tempRoot, 'projects'), settingsDir: path.join(tempRoot, 'settings'), chromiumDir: path.join(tempRoot, 'chromium'), capabilityDir: path.join(tempRoot, 'capability') }) : prepareIsolation(tempRoot)
 if (resumed) {
+  // 上一场收尾时凭据文件已经删了（见 finally）；续跑之前按同一个 owner 重新带进来。
+  seedRealCredentials({ settingsDir: iso.settingsDir, userDataDir: iso.chromiumDir })
   assert.equal(resumed.mode, values.packaged ? 'packaged' : 'source-build')
   assert.ok(resumed.projectId && resumed.runId && resumed.projectRoot)
   const relative = path.relative(iso.projectsDir, path.resolve(resumed.projectRoot))
@@ -37,7 +46,7 @@ if (resumed) {
 }
 // Prove that this script copied the real catalog, including encrypted credentials,
 // without changing prices, enabling models, or substituting provider endpoints.
-if (!resumed) assert.ok(fs.readFileSync(realCatalogPath()).equals(fs.readFileSync(path.join(iso.settingsDir, 'model-catalog.json'))))
+if (!resumed) assert.ok(fs.readFileSync(realNomiProfile().catalogPath).equals(fs.readFileSync(path.join(iso.settingsDir, 'model-catalog.json'))))
 const catalog = JSON.parse(fs.readFileSync(path.join(iso.settingsDir, 'model-catalog.json'), 'utf8'))
 const textModel = catalog.models.find(model => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2' && model.enabled)
 const imageModel = catalog.models.find(model => model.vendorKey === 'apimart' && model.modelKey === 'z-image-turbo' && model.enabled)
@@ -75,7 +84,7 @@ const boundNodes = () => nodes().filter(node => node.meta?.storyboardDesignId ==
 const execution = () => ({ jobs: run()?.jobs ?? [], nodes: nodes().map(node => ({ id: node.id, runs: node.runs ?? [], result: node.result ?? null, taskId: node.progress?.taskId ?? null })) })
 const identity = () => boundNodes().map(node => ({ nodeId: node.id, resultId: node.result?.id ?? null })).sort((a, b) => a.nodeId.localeCompare(b.nodeId))
 const editor = () => win.locator('[data-storyboard-editor="true"]')
-const dialog = () => win.locator('[data-spend-confirm-dialog]')
+const dialog = () => win.locator(SPEND_DIALOG)
 function completedResults() {
   return nodes().filter(node => node.result?.id && node.meta?.storyboardDesignId).map(node => ({
     runId: node.meta.storyboardDesignId, nodeId: node.id, resultId: node.result.id, taskId: node.result.taskId ?? null,
@@ -166,13 +175,30 @@ function validateDraft() {
   }
   assert.equal((plan()?.anchors ?? []).length, 0)
 }
-async function approve(label) {
+/** 确认框在屏上：它说的是几份、里面没有价格行（新规则），原文进报告。 */
+async function readDialog(label) {
+  await expect(dialog()).toBeVisible()
+  const text = await dialog().innerText()
+  assert.ok(!PRICE_LINE.test(text), `${label}: the confirmation dialog must not show a price line (got: ${text.replace(/\s+/g, ' ')})`)
+  report[label] = text
+  await snap(label)
+  return text
+}
+/**
+ * 用户自己点的单个生成：点下去**全程不弹确认框**，直接出图。观察者挂在真实 DOM 上（确认框可能一闪而过），
+ * 活体探针是这一行画框的状态——它没走过任何一个值，「0 次弹框」就不作数。
+ */
+async function generateWithoutDialog(label, click, row) {
   assert.equal(values['verify-only'], false, 'Read-only verification cannot approve spending')
   validateDraft()
-  await expect(dialog()).toBeVisible()
-  report[label] = await dialog().innerText() // Real quotation; no fixture price or inferred final cost.
-  await snap(label)
-  await dialog().getByRole('button', { name: '生成', exact: true }).click()
+  const frame = `[data-storyboard-editor="true"] [data-storyboard-row="${row}"] [data-storyboard-frame]`
+  const watch = await watchSpendDialogs(win, { selector: frame, attribute: 'data-storyboard-frame' })
+  await click()
+  await expect(editor().locator(`[data-storyboard-row="${row}"] [data-storyboard-frame]`)).toHaveAttribute('data-storyboard-frame', 'done', { timeout: stationTimeout({ operations: 12 }) })
+  const seen = await watch.read()
+  report[label] = seen
+  assert.ok(seen.liveness.length >= 2, `${label}: the observer must see the row frame change before trusting "no dialog" (${JSON.stringify(seen.liveness)})`)
+  assert.equal(seen.dialogs, 0, `${label}: a single user-initiated generation must not show a confirmation dialog`)
 }
 async function assertRestored(expected) {
   await openPlan()
@@ -258,12 +284,19 @@ async function firstFrameJourney() {
   assert.equal(dependency.length, 1)
   assert.ok(dependency.some(edge => edge.source === keyframe.id && edge.mode === 'first_frame'))
   assert.equal(video.meta.shotId, keyframe.meta.shotId)
-  const quote = await dialog().innerText()
+  // 花钱前核对画布执行器真正会派发的那一档：分镜表这条路按**节点 meta** 派发（不按 Run 里的草稿候选）。
+  const videoProblems = cheapVideoNodeProblems(video.meta)
+  report.firstFrameVideoMeta = { archetype: video.meta?.archetype, modelKey: video.meta?.modelKey, duration: video.meta?.duration, resolution: video.meta?.resolution, generate_audio: video.meta?.generate_audio }
+  if (videoProblems.length) {
+    await dialog().locator('[data-spend-confirm-action="cancel"]').click()
+    throw new Error(`First-frame video is not the authorised Seedance 2.0 fast · 480p · 4s · no-audio tier; cancelled before spending: ${videoProblems.join('; ')}`)
+  }
+  // 首帧 + 视频是一下跑两份：新规则下照样弹确认，框里说清两份、没有价格行。
+  const quote = await readDialog('zh-first-frame-quote')
   assert.match(quote, /2\s*(张|个|项|次|份)/, 'Original confirmation must cover both media tasks')
   report.firstFrame = { runId, imageRunId, quote, keyframeNodeId: keyframe.id, videoNodeId: video.id }
-  await snap('zh-first-frame-quote')
   validate()
-  await dialog().getByRole('button', { name: '生成', exact: true }).click()
+  await dialog().locator('[data-spend-confirm-action="confirm"]').click()
   await expect.poll(() => boundNodes().filter(node => node.result?.url).length, { timeout: stationTimeout({ turns: 3 }) }).toBe(2)
   await verifyFirstFrameResults(keyframePrompt)
 }
@@ -412,10 +445,13 @@ try {
     await expect.poll(() => plan()?.shots[0].prompt).toBe(editedPrompt)
     await snap('zh-original-edited')
     const firstGenerate = () => editor().locator('[data-storyboard-row="1"] [data-storyboard-generate-state]')
+    const batch = () => editor().locator('[data-storyboard-batch]')
+    // ① 两镜一起「生成全部」= 一下跑两份：弹确认框、框里没有价格行。先取消——一笔都不发。
     const beforeCancel = execution()
-    await firstGenerate().click()
-    const cancel = dialog().getByRole('button', { name: '取消', exact: true })
-    const proof = await proveProbe(cancel, 'The original single-shot confirmation is present')
+    await batch().click()
+    const cancel = dialog().locator('[data-spend-confirm-action="cancel"]')
+    const proof = await proveProbe(cancel, 'Generating both shots at once asks first')
+    assert.match(await readDialog('zh-batch-two-dialog'), /2\s*(张|个|项|次|份)/, 'The confirmation says two images')
     await expect.poll(() => boundNodes().length).toBeGreaterThan(0)
     const materialized = boundNodes().map(node => node.id)
     await cancel.click()
@@ -427,20 +463,19 @@ try {
       assert.deepEqual(node.result ?? null, prior?.result ?? null, 'Cancel must not create a result')
       assert.equal(node.progress?.taskId ?? null, prior?.taskId ?? null)
     }
-    assert.deepEqual(boundNodes().map(node => node.id), materialized, 'Cancel preserves the materialized node')
+    assert.deepEqual(boundNodes().map(node => node.id), materialized, 'Cancel preserves the materialized nodes')
     report.cancel = { nodesPreserved: materialized, newTasks: 0, newResults: 0 }
-    await firstGenerate().click()
-    await approve('zh-single-real-quote')
-    await expect(editor().locator('[data-storyboard-row="1"] [data-storyboard-frame]')).toHaveAttribute('data-storyboard-frame', 'done', { timeout: stationTimeout({ operations: 12 }) })
+    // ② 单行「生成镜 1」：用户自己点的单个生成，不弹框、直接出图。
+    await generateWithoutDialog('zh-single-row-no-dialog', () => firstGenerate().click(), 1)
     await expect.poll(() => boundNodes().filter(node => node.result?.url).length).toBe(1)
   }
   if (boundNodes().filter(node => node.result?.url).length !== 2) {
+    // ③ 只剩一镜的「生成全部」同样只跑一份：不弹框，而且不重跑已完成的第 1 镜。
     const firstResult = identity().find(item => item.resultId)
     assertRemainingImage()
     await expect(editor().locator('[data-storyboard-frame="done"]')).toHaveCount(1)
     await expect(editor().locator('[data-storyboard-batch]')).toBeEnabled()
-    await editor().locator('[data-storyboard-batch]').click()
-    await approve('zh-batch-remaining-real-quote')
+    await generateWithoutDialog('zh-batch-remaining-one-no-dialog', () => editor().locator('[data-storyboard-batch]').click(), 2)
     await expect(editor().locator('[data-storyboard-frame="done"]')).toHaveCount(2, { timeout: stationTimeout({ operations: 12 }) })
     await expect.poll(() => boundNodes().filter(node => node.result?.url).length).toBe(2)
     assert.deepEqual(identity().find(item => item.nodeId === firstResult.nodeId), firstResult, 'Batch must not regenerate the completed first shot')
@@ -489,6 +524,11 @@ try {
   const draftCalls = report.trajectory.calls.filter(call => call.name === 'draft_shots')
   report.draftToolWriteRate = { successful: draftCalls.filter(call => report.trajectory.results.some(result => result.id === call.id && !result.isError)).length, total: draftCalls.length }
   report.roundSuccessRate = { successful: report.rounds.filter(round => round.succeeded).length, total: report.rounds.length }
+  if (projectRoot) report.spend = spendReceipt(projectRoot)
+  // App 已关：凭据副本（目录里的 key 密文 + 钥匙）当场删掉，项目与隔离设置留作证据（续跑时按 owner 重新带进来）；原库必须一字未动。
+  report.credentialCopyRemoved = removeRealCredentials({ settingsDir: iso.settingsDir, userDataDir: iso.chromiumDir })
+  try { report.realProfileAfter = guard.assertRealProfileUntouched() } catch (error) { failure ??= error }
+  report.realProfileBefore = guard.realProfileBefore
   report.status = failure ? 'failed' : 'passed'
   report.error = failure ? String(failure.stack || failure) : undefined
   report.finishedAt = new Date().toISOString()

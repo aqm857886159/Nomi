@@ -6,12 +6,13 @@
 // 恰恰是下载那一步（localizeTaskAsset → importRemoteAsset → hardenedFetch 被自家 SSRF 门岗拒绝）。
 // 所以这里必须传 projectId，并断言产物真的变成了 `nomi-local://` 且**文件真的躺在磁盘上**。
 //
-// 零密钥经手：与既有付费 e2e 同款——把用户已保存的 model-catalog.json 拷进隔离 userDataDir，
-// safeStorage 同机可解，本脚本一个字节的明文密钥都不碰、不打印。
+// 零密钥经手：与既有付费 e2e 同款——把用户已保存的 model-catalog.json（Windows 连同 Local State 钥匙）
+// 拷进隔离 userDataDir，safeStorage 同机可解，本脚本一个字节的明文密钥都不碰、不打印。
 //
 // 花费：默认只跑一张图（约 ¥0.1）。加 WITH_VIDEO=1 才跑一条 MiniMax-H3 768P/4s（约 ¥2.4）。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/outbound-policy-paid-retrieval.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { realNomiProfile, seedRealCredentials } from "./_realProfile.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -26,8 +27,7 @@ const userDataDir = path.join(root, "settings");
 const projectsDir = path.join(root, "projects");
 fs.mkdirSync(userDataDir, { recursive: true });
 fs.mkdirSync(projectsDir, { recursive: true });
-const savedCatalog = path.join(os.homedir(), "Library/Application Support/nomi/model-catalog.json");
-if (fs.existsSync(savedCatalog)) fs.copyFileSync(savedCatalog, path.join(userDataDir, "model-catalog.json"));
+if (fs.existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: userDataDir, userDataDir });
 
 let passed = 0;
 function assert(condition, message) {

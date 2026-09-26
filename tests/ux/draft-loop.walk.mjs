@@ -6,6 +6,7 @@
 // **会花真实图额度**（图片分镜，默认档，最省）。额度闸：不显式 NOMI_R16_GEN=1 就 SKIP。
 // 用法：pnpm run build && NOMI_R16_GEN=1 node tests/ux/draft-loop.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from './_realProfile.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -21,16 +22,16 @@ if (!process.env.NOMI_R16_GEN) {
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-// 隔离 userData（不撞真实运行实例/项目），拷真 model-catalog.json 复用已连模型 + safeStorage key。
-const realSettings = process.env.NOMI_SETTINGS_DIR || path.join(os.homedir(), 'Library/Application Support/Nomi')
+// 隔离 userData（不撞真实运行实例/项目），拷真 model-catalog.json 复用已连模型 + safeStorage key
+// （Windows 连同 Local State 钥匙一起拷，否则密文解不开；真实资料目录在哪只问 _realProfile.mjs）。
 const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-draftloop-'))
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.mkdirSync(projectsDir, { recursive: true })
-const realCat = path.join(realSettings, 'model-catalog.json')
+const realCat = realNomiProfile().catalogPath
 if (!fs.existsSync(realCat)) { console.log(`SKIP: 找不到真 model-catalog.json（${realCat}）——app 里接图片+文本模型再跑。`); process.exit(0) }
-fs.copyFileSync(realCat, path.join(settingsDir, 'model-catalog.json'))
+seedRealCredentials({ settingsDir, userDataDir: settingsDir })
 
 // 一段有台词+动作+运镜的真戏（给规划师足够材料，控制在少量镜头以省额度/时间）。
 const STORY =

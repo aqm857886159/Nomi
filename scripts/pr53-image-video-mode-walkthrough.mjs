@@ -3,6 +3,7 @@
 // 方案编辑器（首帧图提示词框）→ 确认落画布 → 画布镜号硬断言（首帧图与视频共号、视频 1..N 连续）。
 // 截图进 .pr53-walk/ 人眼判断。用法：node scripts/pr53-image-video-mode-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { realNomiProfile, seedRealCredentials } from '../tests/ux/_realProfile.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
@@ -14,19 +15,23 @@ const shot = async (win, name) => { await win.screenshot({ path: path.join(outDi
 
 // 隔离档案：临时 settings（拷真实 model-catalog.json → planner 有真模型+key）+ 临时项目根
 // （垃圾项目不进用户库）。同时绕开与正开着的打包版抢 userData（走查坑：共享档案会互相写坏）。
-import { copyFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 const isolatedSettings = path.join(os.tmpdir(), 'nomi-pr53-settings')
 const isolatedProjects = path.join(os.tmpdir(), 'nomi-pr53-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
-const realCatalog = path.join(os.homedir(), 'Library', 'Application Support', 'Nomi', 'model-catalog.json')
-if (existsSync(realCatalog)) copyFileSync(realCatalog, path.join(isolatedSettings, 'model-catalog.json'))
+// 凭据钥匙（Windows 的 Local State）跟目录一起进隔离副本，user-data 与启动器默认同形、只是先建出来。
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'pr53-image-video-mode-'))
+const userDataDir = path.join(tempRoot, 'user-data')
+if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: isolatedSettings, userDataDir })
 
 const STORY = '深夜的天文台里，研究员苏芮盯着屏幕上突然出现的规律信号。她摘下眼镜揉了揉眼睛，又戴上，信号还在。她抓起内线电话，手指悬在按键上停了三秒，又放下——上一个上报异常信号的同事，第二天工位就空了。窗外，雪落在射电望远镜巨大的天线上。她把信号数据拷进私人硬盘，塞进大衣内袋，走向停车场。'
 
 const { app, win } = await launchNomiApp({
   name: 'pr53-image-video-mode',
+  tempRoot,
+  userDataDir,
   settingsDir: isolatedSettings,
   projectsDir: isolatedProjects,
 })
