@@ -4,9 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { writeWorkspaceManifest } from '../workspace/workspaceManifest'
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-import-dedup-')))
-vi.mock('../projects/repository', () => ({
+// sanitizeName 用真的：假替身不截断，落盘名的截断规则在这里就测不到（2026-09-26 `.bin` 扩展名）。
+vi.mock('../projects/repository', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../projects/repository')>(),
   projectDirById: (id: string) => path.join(root, id),
-  sanitizeName: (value: unknown, fallback = 'asset') => String(value || fallback),
 }))
 const { writeAsset, copyAssetFile, listProjectAssets } = await import('./projectAssetStore')
 type Asset = { id: string; data: { absolutePath: string; url: string } }

@@ -9,9 +9,10 @@ import { writeWorkspaceManifest } from '../workspace/workspaceManifest'
 // 素材明明已经落进项目，用户却看到「本地素材复制失败」。这组测试钉的是整类：
 // 共享冲突既不能把「已经落好」改写成失败，也不能让瞬时占用直接打断落盘。
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-import-sharing-')))
-vi.mock('../projects/repository', () => ({
+// sanitizeName 用真的：假替身不截断，落盘名的截断规则在这里就测不到（2026-09-26 `.bin` 扩展名）。
+vi.mock('../projects/repository', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../projects/repository')>(),
   projectDirById: (id: string) => path.join(root, id),
-  sanitizeName: (value: unknown, fallback = 'asset') => String(value || fallback),
 }))
 const { copyAssetFile, listProjectAssets, moveAssetFile } = await import('./projectAssetStore')
 const { reapAbandonedUploadStaging } = await import('./scratchCleanup')

@@ -144,6 +144,7 @@
 | T-MD-10 | 跨源隔离策略没有任何在「隔离开着」的进程里跑的测试（Windows 版与 `NOMI_E2E` 走查都关隔离） | todo | T-MD-08 | 把最小 Electron 探针做成 CI node-test：本地起不带 CORP 的跨源媒体服务，断言媒体能加载、http 宿主 crossOriginIsolated 为真，不依赖外网 |
 | T-MD-11 | 技能库 / 节点效果选择 / 斜杠菜单不虚拟化，打开即对几十条第三方示例媒体同时发 `preload="metadata"` 请求 | todo | T-MD-08 子任务盘点 | 只挂视口内的卡或改 `preload="none"` + 封面；失效记账已统一在 `src/media/remoteExampleMedia.ts` |
 | T-MD-12 | 同一张别的项目的素材反复拖入会各复制一份（主进程按文件名去重命名，不按内容） | todo | T-MD-08 残余风险 | 与工作流库跨项目复制同一现状；要去重得在 `copyProjectAsset` 按 contentHash 复用目标项目已有文件 |
+| T-MD-13 | **素材落盘收成一条流水线**：五扇写入口（writeAsset / writeDeterministicAsset / copy / move / 上传）各自排「命名→嗅类型→取字节→放置→sidecar→广播」，新规矩只会加进作者手上那一扇 | todo（发版后） | 09-26 check:symptom-cluster：electron/assets 7 天 6 份根因合同；结构评审 docs/audit/2026-09-26-electron-assets-write-entries-structure-review.md | 各写入口只给「字节从哪来、落哪个桶」；配结构测试：assets/ 下的写盘只许流水线本身做 |
 
 ## F. 设置 · 接模型 · MCP
 

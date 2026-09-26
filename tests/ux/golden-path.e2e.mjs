@@ -374,17 +374,12 @@ async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
 
 /**
  * ⑥⑦ 第 2 镜生成一张图片（loopback，零额度），结果回到该行。
- * 表里的「生成 N 镜」走节点自己那扇既有的付费门（confirmAndRunPlan → 画布批次 runner）；批次跑完 runner 会
- * 拿真图去问一次审片（「资深影视分镜审片」，零额度 loopback）——它是产品行为，必须预登记，否则收尾时
- * 以「未登记的模型请求」报红（第一次真跑就是这么红的）。审片的提示词里带的是模型拟的镜头标题与改后的
- * 提示词——这也是「值抵达了」的又一处证据，下面顺手断它。
+ * 表里的「生成 N 镜」走节点自己那扇既有的付费门（confirmAndRunPlan → 画布批次 runner）。
+ * 2026-09-26 用户拍板（TODO T-QA-36，#891）：批次跑完**不再**自动调文本模型审片——用户点的是「生成」，只花生成的钱。
+ * 这里刻意不预登记审片请求：产品若又发了，夹具收尾按「未登记的模型请求」报红，那一刀就是守这条拍板的。
+ * 「改后的提示词真的抵达了」改由图片生成请求本身证明（以前借审片的提示词顺手断）。
  */
 async function stepGenerateShot2Image(win, projectId, nodeIds) {
-  const judge = walk.fixture.expectText({
-    label: '批次完成后 runner 拿真图问审片',
-    match: (body) => flattenRequestText(body).includes('资深影视分镜审片'),
-    reply: { type: 'text', text: JSON.stringify({ reason: 'GOLDEN_JUDGE：构图与意图一致。', scores: { identity: 5, composition: 5 } }) },
-  })
   const table = win.locator(SHOT_TABLE)
   await expect(table.locator(row(nodeIds[1])), '第 2 镜不在未生成态').toContainText('未生成')
   expect(walk.fixture.images, '点生成之前不得发生任何图片生成调用').toHaveLength(0)
@@ -399,11 +394,8 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
   expect(shotPrompts((await readProject(win, projectId)).payload), '生成不许改动任何一镜的提示词')
     .toEqual([SHOT_PROMPTS[0], SHOT_2_NEW_PROMPT, SHOT_PROMPTS[2]])
   expect(walk.fixture.images, '这一步应当恰好发生 1 次图片生成调用').toHaveLength(1)
-  const judgeWire = await recorded(judge.received, '审片请求')
-  const judgeText = flattenRequestText(judgeWire.body)
-  expect(judgeText, '审片看到的不是模型拟的那个镜头标题').toContain(SHOT_TITLES[1])
-  expect(judgeText, '审片看到的不是改后的提示词').toContain(SHOT_2_NEW_PROMPT)
-  say(`第 2 镜（${SHOT_2_ID}）已生成，结果回到该行；审片拿到的是它的标题与改后提示词`)
+  expect(JSON.stringify(walk.fixture.images[0].body), '发给供应商的图片请求里不是改后的提示词').toContain(SHOT_2_NEW_PROMPT)
+  say(`第 2 镜（${SHOT_2_ID}）已生成，结果回到该行；发给供应商的就是改后的提示词，批次跑完没有自动审片`)
   await shot('shot2-generated')
   return { resultUrl }
 }
