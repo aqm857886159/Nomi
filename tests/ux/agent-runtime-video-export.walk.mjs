@@ -145,7 +145,9 @@ try {
   // the same generation controller, spend gate, catalog mapping and persistence path.
   const generateAsset = node.locator('button[aria-label="生成素材"]').first()
   await generateAsset.waitFor({ state: 'visible', timeout: 10_000 })
-  check(wireCalls.length === 0, '点「生成素材」之前 loopback 零请求', JSON.stringify(wireCalls.length))
+  // 点之前的请求数先记下，与点之后的「恰好 1 次」放进同一条判据：同一个计数器既证明「点之前没发」，
+  // 也证明它确实会涨（阳性对照），不是一条没有基线的「不存在」断言。
+  const callsBeforeClick = wireCalls.length
   await generateAsset.click()
   // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
   // 请求永远发不出去——下面节点 data-status 到 success 且 loopback 恰好收到 1 次请求（wireCalls）就是证据。
@@ -158,7 +160,7 @@ try {
     }, nodeId).catch(() => ({}))
     throw new Error(`${error.message}; wireCalls=${JSON.stringify(wireCalls)} node=${JSON.stringify(diagnostic)}`)
   }
-  check(wireCalls.length === 1 && wireCalls[0].model === MODEL, '视频请求通过真实 catalog mapping 发出', JSON.stringify({ model: wireCalls[0]?.model, prompt: wireCalls[0]?.prompt }))
+  check(callsBeforeClick === 0 && wireCalls.length === 1 && wireCalls[0].model === MODEL, '点之前零请求、点之后恰好 1 次，且通过真实 catalog mapping 发出', JSON.stringify({ callsBeforeClick, calls: wireCalls.length, model: wireCalls[0]?.model, prompt: wireCalls[0]?.prompt }))
   const projectFileAfterGeneration = findProjectJson(projectsDir)
   check(Boolean(projectFileAfterGeneration), '生成结果写入项目 .nomi/project.json')
   const generatedPayload = JSON.parse(fs.readFileSync(projectFileAfterGeneration, 'utf8')).payload
