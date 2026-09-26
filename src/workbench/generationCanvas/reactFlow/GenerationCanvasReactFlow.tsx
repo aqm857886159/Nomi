@@ -79,6 +79,7 @@ import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowVi
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
 import { useGenerationCanvasReactFlowProjection } from './useGenerationCanvasReactFlowProjection'
 import { useGenerationCanvasReactFlowMenus } from './useGenerationCanvasReactFlowMenus'
+import { useDockCollapsed } from '../../generation/useDockCollapsed'
 import {
   useBrowserAssetImportEffects,
   useGenerationCanvasReactFlowHostEffects,
@@ -108,7 +109,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null)
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
   const [stageSize, setStageSize] = React.useState({ width: 0, height: 0 })
-  const [minimapVisible, setMinimapVisible] = React.useState(true)
+  const [minimapCollapsed, setMinimapCollapsed] = useDockCollapsed('canvasMinimap') // 默认收起、开合记住（09-26 拍板）
   // #5 minimap 拖动中冻结门（纯渲染，只翻两次、不碰 RF 写入路径；冻结逻辑见 useStableCategoryNodes）。
   const [nodeDragActive, setNodeDragActive] = React.useState(false)
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
@@ -769,8 +770,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         zoomPercent={Math.round(liveViewport.zoom * 100)}
         offset={{ x: liveViewport.x, y: liveViewport.y }}
         stageSize={stageSize}
-        minimapVisible={minimapVisible}
-        onToggleMinimap={() => setMinimapVisible((visible) => !visible)}
+        minimapVisible={!minimapCollapsed}
+        onToggleMinimap={() => setMinimapCollapsed(!minimapCollapsed)}
         onJumpToCanvasPoint={handleMinimapJump}
         onFitView={() => fitView(true)}
         // 「重置视图」走我们自己的调度器，不走 React Flow 的 d3 过渡：紧接着「适应视图」点它时，

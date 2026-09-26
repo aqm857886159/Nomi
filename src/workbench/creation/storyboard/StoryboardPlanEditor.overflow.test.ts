@@ -55,18 +55,21 @@ describe('分镜页脚：让位的是说明文字，不是要用户去做事的�
     expect(enStoryboardEditor.footer).not.toHaveProperty('spendNote')
   })
 
-  /** zh 轨：那句话还在屏上，只是只剩一份——在提示行里。 */
-  it('zh：「每次生成前确认花费」仍在提示行里，只有一份', () => {
-    expect(zhStoryboardEditor.spendHint).toContain('每次生成前确认花费')
+  /**
+   * 「每次生成前确认花费」这句承诺整个删掉（2026-09-26）：用户自己点的单行生成不再弹花钱确认卡
+   * （spendConfirmationRequirement，2026-09-25 拍板），这句话在新规则下不成立；而用户自己点的生成，
+   * 这句话本来也没有行动价值（R2）。提示行只留流程指引，页脚也不许再长出它。
+   */
+  it('zh：提示行与页脚都不再承诺「每次生成前确认花费」', () => {
+    expect(zhStoryboardEditor.spendHint).toBe('先生成参考卡锁住长相，再生成镜头')
     const zhFooterValues: string[] = Object.values(zhStoryboardEditor.footer)
-    expect(zhFooterValues.some((value) => value.includes('确认花费'))).toBe(false)
+    expect([zhStoryboardEditor.spendHint, ...zhFooterValues].some((value) => value.includes('确认花费'))).toBe(false)
   })
 
-  /** en 轨：同一条，英文串更长，所以它白占的宽度也更多——这条才是把摘要挤没的那一条。 */
-  it('en：Cost is confirmed… 仍在提示行里，只有一份', () => {
-    expect(enStoryboardEditor.spendHint).toContain('Cost is confirmed before every generation')
+  it('en：hint and footer no longer promise "Cost is confirmed before every generation"', () => {
+    expect(enStoryboardEditor.spendHint).toBe('Generate reference cards to lock looks first, then shots')
     const enFooterValues: string[] = Object.values(enStoryboardEditor.footer)
-    expect(enFooterValues.some((value) => value.includes('Cost is confirmed'))).toBe(false)
+    expect([enStoryboardEditor.spendHint, ...enFooterValues].some((value) => value.includes('Cost is confirmed'))).toBe(false)
   })
 
   /** 页脚右组只剩主动作；左组仍是 `min-w-0` + `truncate`（摘要让位、按钮不让位）。 */
