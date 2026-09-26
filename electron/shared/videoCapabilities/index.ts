@@ -41,7 +41,7 @@ export { archetypeModeForModel, combineChannelForMode, referenceCombineChannelFo
 export type { ReferenceCombineChannel } from "./referenceChannels";
 export { applyMergeProposal, applySplitProposal, resolveGenerationPlan } from "./planResolver";
 export { GenerationResolveErrorCode } from "./planResolutionContracts";
-export { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration } from "./recommendation";
+export { effectiveVideoModes, recommendVideoGeneration } from "./recommendation";
 export type {
   VideoCatalogModel,
 } from "./registry";

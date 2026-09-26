@@ -46,6 +46,15 @@ import { RUNWAY_NATIVE_IMAGE_ARCHETYPES } from "./runwayNativeImage";
 import { RUNWAY_SEED_AUDIO_ARCHETYPE } from "./runwaySeedAudio";
 import type { ModelArchetype } from "./types";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
+import { resolveArchetypeVariant } from "./variantResolution";
+
+export {
+  archetypeBaseModelKey,
+  archetypeVariantForModelId,
+  canonicalArchetypeVariantId,
+  resolveArchetypeVariant,
+} from "./variantResolution";
+export type { VariantBearingArchetype } from "./variantResolution";
 
 export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeExpressionChannel, ArchetypeIntent, ArchetypeTransportTaskKind, ModelArchetypeVariant } from "./types";
 export { combineChannelForMode, modeTransportFor, recommendVideoGeneration } from "../videoCapabilities";
@@ -235,13 +244,12 @@ export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKe
  * **变体特化（A 变体轴的运行时叠加）**：把档案各 mode 的 params 按选中变体的 paramOverrides 收窄
  * （如 Seedance fast 变体的 resolution 仅 480/720）。仿 specializeArchetypeForVendor —— 身份/能力形状
  * （id/family/label/modes 结构/slots）不变，只 params 这层按变体叠加。无 variants、变体无 paramOverrides、
- * 或变体不存在 → 原样返回（零开销）。**纯函数**，渲染读取点与构造层共用，保证 UI 选项收窄与发送一致。
+ * 无变体、或变体无 paramOverrides → 原样返回（零开销）。**纯函数**，渲染读取点与构造层共用，保证 UI 选项收窄与发送一致。
+ * 哪个变体由唯一 owner `resolveArchetypeVariant` 定（认不出的 id 与不传一样落默认变体——以前这里落「不特化」，
+ * 于是参数面是标准版的、实际跑的却是默认的 fast）。手上有模型名的调用方先用 owner 连模型名一起解出 id 再传进来。
  */
 export function specializeArchetypeForVariant(archetype: ModelArchetype, variantId: string | null | undefined): ModelArchetype {
-  if (!archetype.variants || archetype.variants.length === 0) return archetype;
-  const requestedId = typeof variantId === "string" && variantId.trim() ? variantId.trim() : archetype.defaultVariantId;
-  const targetId = (requestedId && archetype.variantIdAliases?.[requestedId]) || requestedId;
-  const variant = archetype.variants.find((v) => v.id === targetId);
+  const variant = resolveArchetypeVariant(archetype, { variantId });
   const overrides = variant?.paramOverrides;
   if (!overrides) return archetype;
   return {

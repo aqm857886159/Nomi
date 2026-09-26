@@ -1,5 +1,6 @@
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype, ModelParameterControl, ModelParameterControlOption } from "./types";
 import { nearestNumber, numericOptionValues } from "./paramConstraints";
+import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
 
 type Scalar = ModelParameterControlOption["value"];
 
@@ -99,17 +100,10 @@ const modeMatchesReferences = (mode: ArchetypeMode, summary: ReferenceSummary): 
   return summary.first + summary.last + summary.images + summary.videos + summary.audios > 0;
 };
 
-export function canonicalVideoVariantId(archetype: ModelArchetype, requested?: string): string | undefined {
-  const normalized = typeof requested === "string" ? requested.trim().toLowerCase() : "";
-  if (!normalized) return undefined;
-  return archetype.variants?.find((variant) => variant.id.toLowerCase() === normalized)?.id
-    ?? Object.entries(archetype.variantIdAliases ?? {}).find(([alias]) => alias.toLowerCase() === normalized)?.[1];
-}
-
 /**
  * 这个档案声明过的全部变体 id（含别名指向的 id，去重、保声明序）。
- * 与 `canonicalVideoVariantId` 同一个主人：拒绝一个变体时要说得出「那合法的是哪些」，
- * 两处不许各数一遍。
+ * 拒绝一个变体时要说得出「那合法的是哪些」；认不认得一个 id 由唯一 owner
+ * `modelArchetypes/variantResolution.canonicalArchetypeVariantId` 判，这里只负责列清单。
  */
 export function videoVariantIdsOf(archetype: ModelArchetype): string[] {
   return [...new Set([
@@ -119,8 +113,8 @@ export function videoVariantIdsOf(archetype: ModelArchetype): string[] {
 }
 
 export const effectiveVideoModes = (candidate: VideoModelCandidate): ArchetypeMode[] => {
-  const variantId = candidate.variantId ?? candidate.archetype.defaultVariantId;
-  const variant = candidate.archetype.variants?.find((item) => item.id === variantId);
+  // 哪个变体只问唯一 owner（以前这里不认别名、认不出就不特化，与派发那一侧各算各的）。
+  const variant = resolveArchetypeVariant(candidate.archetype, { variantId: candidate.variantId, modelId: candidate.modelKey });
   return candidate.archetype.modes.map((mode) => {
     const override = variant?.paramOverrides?.[mode.id];
     return override ? { ...mode, params: override(mode.params) } : mode;
@@ -261,7 +255,7 @@ export function recommendVideoGeneration(input: VideoGenerationRecommendationInp
         provider: candidate.provider,
         modelKey: candidate.modelKey,
         label: candidate.label,
-        variantId: candidate.variantId ?? candidate.archetype.defaultVariantId,
+        variantId: resolveArchetypeVariant(candidate.archetype, { variantId: candidate.variantId, modelId: candidate.modelKey })?.id,
         modeId: mode.id,
         modeLabel: modeLabel(mode),
         params: built.params,

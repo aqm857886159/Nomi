@@ -2,7 +2,7 @@
   "//": "生成入口登记表。门岗 scripts/check-generation-entrances.mjs 反向扫全仓能组装或发出供应商生成请求的调用点，逐条与这张表对账。",
   "//2": "每条二选一：entrances = 对等矩阵里要跑的入口 id（electron/parity/generationEntrances.ts）；reason = 为什么它不是一个用户可达的生成入口。",
   "//3": "count 是当前扫到的调用次数，只许减不许增——同一个文件里新长出第二处调用同样要有人裁决。",
-  "matrix": { "entrances": 10, "cases": 6 },
+  "matrix": { "entrances": 10, "cases": 7 },
   "sites": [
     {
       "site": "src/workbench/generationCanvas/runner/catalogTaskActions.ts::runTask",

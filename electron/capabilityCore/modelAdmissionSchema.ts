@@ -13,7 +13,7 @@
 // 与 video 的关系：video 走 `mcpGenerationVideoResolve` 那条更富的路（它还管 vendor 特化、
 // 变体 modelKey 反查、多模式同 taskKind 的消歧），本文件**不重写它**，只在它认不出这个候选时
 // 接手——即 image/audio/3D 以及「档案在、但不是视频候选」的那些。
-import { resolveArchetypeForModel, specializeArchetypeForVariant } from "../shared/modelArchetypes";
+import { resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant } from "../shared/modelArchetypes";
 import type { ArchetypeMode, ModelArchetype } from "../shared/modelArchetypes";
 import type { ModelParameterControl } from "../shared/videoCapabilities/types";
 import type { ExecutionContractCompileOptions, PlanCandidate } from "./executionContract";
@@ -102,7 +102,8 @@ export function archetypeCompileOptions(
   });
   if (!base) return {};
   // 变体会覆盖参数（paramOverrides），所以先按候选选中的变体特化，再取模式参数。
-  const archetype = specializeArchetypeForVariant(base, candidate.variantId ?? base.defaultVariantId);
+  // 哪个变体问唯一 owner（带上模型名）：准入核的参数面必须就是派发那个变体的参数面。
+  const archetype = specializeArchetypeForVariant(base, resolveArchetypeVariant(base, { variantId: candidate.variantId, modelId: candidate.modelId })?.id);
   const mode = archetypeModeForCandidate(archetype, candidate);
   if (!mode) return { allowedVariantIds: archetypeVariantIds(base) };
   return {
