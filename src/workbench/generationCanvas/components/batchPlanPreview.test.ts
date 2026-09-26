@@ -87,7 +87,9 @@ describe('runPlanWithToasts concurrency', () => {
     mocks.confirmAndMintGrant.mockResolvedValue('retry-grant')
   })
 
-  it('verifies generated first frames using derived identity and excludes reference sheets', async () => {
+  // 2026-09-26 用户拍板（T-QA-36）：点「生成全部」只花生成的钱，跑完不再自动调文本模型审片。
+  // 以前这条钉的是「批量后按镜头身份审片」；现在钉反面：有成功的镜头也不审。
+  it('does not run the paid shot review after a user batch, even when shots succeed', async () => {
     mocks.nodes = [
       { id: 'video', kind: 'video', title: 'Video', position: { x: 0, y: 0 }, shotIndex: 5 },
       { id: 'frame', kind: 'image', title: 'Frame', position: { x: 0, y: 0 }, meta: { storyboardKeyframe: true } },
@@ -101,7 +103,9 @@ describe('runPlanWithToasts concurrency', () => {
     })
     const project = openProject()
     await runPlanWithToasts(plan({ waves: [['frame', 'anchor']] }), { assetUploadConsent: 'not-needed', project })
-    expect(verifyShotsAndReport).toHaveBeenCalledWith(['frame'], project)
+    // 阳性对照：这一批确实跑了、有成功的镜头；在这个前提下审片一次都没被调。
+    expect(runGenerationNodesByPlan).toHaveBeenCalledTimes(1)
+    expect(verifyShotsAndReport).not.toHaveBeenCalled()
   })
 
   it('passes the chosen concurrency to the dependency-wave runner', async () => {
