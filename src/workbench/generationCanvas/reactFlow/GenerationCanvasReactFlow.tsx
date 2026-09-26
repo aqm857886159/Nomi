@@ -79,7 +79,7 @@ import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowVi
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
 import { useGenerationCanvasReactFlowProjection } from './useGenerationCanvasReactFlowProjection'
 import { useGenerationCanvasReactFlowMenus } from './useGenerationCanvasReactFlowMenus'
-import { readDockCollapsed, writeDockCollapsed } from '../../generation/dockCollapsePrefs'
+import { useDockCollapsed } from '../../generation/useDockCollapsed'
 import {
   useBrowserAssetImportEffects,
   useGenerationCanvasReactFlowHostEffects,
@@ -109,8 +109,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null)
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
   const [stageSize, setStageSize] = React.useState({ width: 0, height: 0 })
-  // 小地图默认隐藏、开合记住（2026-09-26 用户拍板；偏好的唯一 owner：generation/dockCollapsePrefs.ts）。
-  const [minimapVisible, setMinimapVisible] = React.useState(() => !readDockCollapsed('canvasMinimap'))
+  const [minimapCollapsed, setMinimapCollapsed] = useDockCollapsed('canvasMinimap') // 默认收起、开合记住（09-26 拍板）
   // #5 minimap 拖动中冻结门（纯渲染，只翻两次、不碰 RF 写入路径；冻结逻辑见 useStableCategoryNodes）。
   const [nodeDragActive, setNodeDragActive] = React.useState(false)
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
@@ -771,12 +770,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         zoomPercent={Math.round(liveViewport.zoom * 100)}
         offset={{ x: liveViewport.x, y: liveViewport.y }}
         stageSize={stageSize}
-        minimapVisible={minimapVisible}
-        onToggleMinimap={() => {
-          // 现在看得见 → 这一下是收起：写 collapsed = minimapVisible。写偏好放在更新函数外，更新函数保持纯。
-          writeDockCollapsed('canvasMinimap', minimapVisible)
-          setMinimapVisible(!minimapVisible)
-        }}
+        minimapVisible={!minimapCollapsed}
+        onToggleMinimap={() => setMinimapCollapsed(!minimapCollapsed)}
         onJumpToCanvasPoint={handleMinimapJump}
         onFitView={() => fitView(true)}
         // 「重置视图」走我们自己的调度器，不走 React Flow 的 d3 过渡：紧接着「适应视图」点它时，

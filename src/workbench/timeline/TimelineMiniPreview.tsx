@@ -11,7 +11,7 @@ import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } 
 import { TimelineTransitionLayer } from '../preview/TimelineTransitionLayer'
 import { recordVideoPlaybackState } from '../../media/videoPlaybackTelemetry'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
-import { readDockCollapsed, writeDockCollapsed } from '../generation/dockCollapsePrefs'
+import { useDockCollapsed } from '../generation/useDockCollapsed'
 
 /**
  * 生成页时间轴的迷你画面窗：跟随播放头显示当前帧，治「画布上盲剪」——
@@ -23,11 +23,7 @@ export default function TimelineMiniPreview(): JSX.Element | null {
   const playheadFrame = useWorkbenchStore((state) => state.timeline.playheadFrame)
   const fps = useWorkbenchStore((state) => state.timeline.fps)
   // 默认收起成小签、点开一次就记住（偏好的唯一 owner：generation/dockCollapsePrefs.ts）。
-  const [collapsed, setCollapsed] = React.useState(() => readDockCollapsed('timelineMiniPreview'))
-  const setCollapsedPersist = (next: boolean) => {
-    setCollapsed(next)
-    writeDockCollapsed('timelineMiniPreview', next)
-  }
+  const [collapsed, setCollapsedPersist] = useDockCollapsed('timelineMiniPreview')
 
   const timeline = useWorkbenchStore((state) => state.timeline)
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
