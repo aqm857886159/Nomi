@@ -19,9 +19,10 @@ import path from "node:path";
 //   connectorDefinition.ts 之间的成员重复（双真相源风险）。
 //   不变量 1、3、4、6 的成员集由 connectorDefinition.ts 的类型联合单一决定。
 const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-src-evidence-"));
-vi.mock("../projects/repository", () => ({
+// sanitizeName 用真的（见 projectAssetStore.test.ts 顶部）。
+vi.mock("../projects/repository", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../projects/repository")>(),
   projectDirById: () => projectRoot,
-  sanitizeName: (value: unknown, fallback = "Untitled") => String(value || "").trim() || fallback,
 }));
 
 const { sanitizeSourceEvidence } = await import("./projectAssetStore");

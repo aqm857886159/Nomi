@@ -265,8 +265,12 @@ function sendReply(state, reply) {
  * Its received promise resolves on request arrival; a hold does not emit headers unless text is set.
  * release(text/tool) also works before arrival and is harmless after cancellation/close/completion.
  * close owns server connections, not caller directories. Call assertClean before closing a walk.
+ *
+ * `videoResultPath`：apimart 档出片地址的路径段（缺省 `/fixture/video.mp4`）。真供应商的产物地址常带一个很长的
+ * basename（签名段 / 哈希段），落盘时怎么起名要靠它复现（2026-09-26 长文件名被截成 `.bin`）。
  */
-export async function createAgentRuntimeFixture({ rootDir, settingsDir, generationProvider = 'loopback', userDataDir, appName }) {
+export async function createAgentRuntimeFixture({ rootDir, settingsDir, generationProvider = 'loopback', userDataDir, appName, videoResultPath = '/fixture/video.mp4' }) {
+  if (!/^\/fixture\/[^/?#]+$/.test(videoResultPath)) throw new TypeError('videoResultPath must be /fixture/<name>')
   if (!path.isAbsolute(rootDir) || !path.isAbsolute(settingsDir)) {
     throw new TypeError('Fixture rootDir and settingsDir must be absolute paths')
   }
@@ -319,7 +323,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       response.end(imageBytes)
       return
     }
-    if (record.path === '/fixture/video.mp4') {
+    if (record.path === '/fixture/video.mp4' || record.path === videoResultPath) {
       const bytes = await readVideoBytes()
       if (!canWrite(response)) return
       response.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': bytes.length })
@@ -346,7 +350,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
         // apimart 视频：结果在 data.result.videos[0].url[0]（url 本身是数组，见 APIMART_VIDEO_QUERY_OP）。
         jsonResponse(response, 200, { code: 200, data: videosHeld
           ? { id: taskQuery[1], status: 'processing' }
-          : { id: taskQuery[1], status: 'completed', result: { videos: [{ url: [`${fixtureOrigin}/fixture/video.mp4`] }] } } })
+          : { id: taskQuery[1], status: 'completed', result: { videos: [{ url: [`${fixtureOrigin}${videoResultPath}`] }] } } })
         return
       }
       jsonResponse(response, 200, { code: 200, data: {

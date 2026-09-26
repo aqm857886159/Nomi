@@ -386,13 +386,15 @@ export async function approvePendingIntervention(win, panel) {
 
 /**
  * @param {string} name
- * @param {{generationProvider?: 'loopback'|'apimart'|'higgsfield'}} [options]
+ * @param {{generationProvider?: 'loopback'|'apimart'|'higgsfield', videoResultPath?: string, env?: Record<string, string>}} [options]
  *   `generationProvider: 'apimart'` = 这条走查要走**真实那条生成供应商路径**：目录里装内置 apimart
  *   档案与 curated mapping，供应商地址由 `NOMI_E2E_PRODUCTION_FIXTURE` 那个只认 loopback 的口子
  *   指到本机这台夹具。不传 = 老样子（自造 loopback 供应商，只跑 SDK/画布那半边，按付费确认键会被
  *   宿主在供应商就绪那一步诚实拒绝）。
+ *   `videoResultPath` 透传给夹具（出片地址的路径段）；`env` 追加到被测 App 的进程环境（如把公网出口指到一个
+ *   只记账不放行的本地代理，证明走查碰不到真供应商）。都不传 = 老样子。
  */
-export async function createRuntimeWalk(name, { generationProvider = 'loopback' } = {}) {
+export async function createRuntimeWalk(name, { generationProvider = 'loopback', videoResultPath, env: extraEnv = {} } = {}) {
   const args = process.argv.slice(2)
   if (args.length && (args.length !== 2 || args[0] !== '--packaged' || !path.isAbsolute(args[1]))) {
     throw new Error('Usage: node <walk.mjs> [--packaged /absolute/Nomi.app/Contents/MacOS/Nomi]')
@@ -407,6 +409,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback' 
   // `--packaged` 跑的是打包后的 `Nomi`。给错只会解出 `locked`，模型照样显示为不可用。
   const fixture = await createAgentRuntimeFixture({
     rootDir: repoRoot, settingsDir, generationProvider,
+    ...(videoResultPath ? { videoResultPath } : {}),
     ...(generationProvider === 'apimart' || generationProvider === 'higgsfield'
       ? { userDataDir: path.join(tempRoot, 'user-data'), appName: executablePath ? 'Nomi' : 'nomi' }
       : {}),
@@ -433,6 +436,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback' 
         },
       } : {}),
       env: {
+        ...extraEnv,
         NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_DISABLE_AUTO_UPDATE: '1',
         // 这三个是同一个口子的三把钥匙（`safeFixtureBaseUrl` 只接受 http(s) 的 127.0.0.1/localhost/::1）：
         // 少一把就装不出可提交的生成供应商。默认仍是 '0'，老走查一个字都不变。
