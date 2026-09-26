@@ -20,4 +20,6 @@
 - 触发后立刻核对：`gh run list --workflow desktop-rc.yml --limit 1 --json headBranch,headSha` 里的 `headBranch` 必须是 release 分支，`headSha` 必须等于要发布的提交。不对就马上取消重来，别等构建和验收都做完才在发布那一步发现。
 - 真正的防线应该放在最早那一层（R17）：RC workflow 的 validate 第一步就比 `github.sha` 与解析出来的 `inputs.ref`，不等就直接红。这道门岗记在 TODO T-RL-13。
 
+**同一次晋级的第二个坑**：RC 对上之后，`Desktop Release` 又卡在「Create immutable tag」：CI 的 `pnpm install` 顺带装上了开发者 pre-push 钩子，工作流推标签时要 Ponytail 收据被拦（TODO T-RL-14）。修好之前，在本机先把同名标签打到 RC 提交上推上去再重跑发布：工作流对「标签已存在且指向 RC_SHA」会直接复用。
+
 **出处**：Desktop Release run `36248271714`（`RC commit mismatch: a5fd5e4d1…`）；检查逻辑在 `.github/workflows/desktop-release.yml` 的「Validate RC manifest」（`scripts/release-contract.mjs validate-manifest --sha "$RC_HEAD_SHA"`）。
