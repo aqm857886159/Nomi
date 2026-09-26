@@ -772,10 +772,11 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         offset={{ x: liveViewport.x, y: liveViewport.y }}
         stageSize={stageSize}
         minimapVisible={minimapVisible}
-        onToggleMinimap={() => setMinimapVisible((visible) => {
-          writeDockCollapsed('canvasMinimap', visible)
-          return !visible
-        })}
+        onToggleMinimap={() => {
+          // 现在看得见 → 这一下是收起：写 collapsed = minimapVisible。写偏好放在更新函数外，更新函数保持纯。
+          writeDockCollapsed('canvasMinimap', minimapVisible)
+          setMinimapVisible(!minimapVisible)
+        }}
         onJumpToCanvasPoint={handleMinimapJump}
         onFitView={() => fitView(true)}
         // 「重置视图」走我们自己的调度器，不走 React Flow 的 d3 过渡：紧接着「适应视图」点它时，
