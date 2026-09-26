@@ -22,7 +22,7 @@
 
 ## 先查别人
 
-- 仓库已有避障边界：[useComposerViewportPlacement](../../src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts) 的 recompute（第 44 行）已测内容自然尺寸，再交 [composerObstaclePlacement](../../src/workbench/generationCanvas/nodes/composerObstaclePlacement.ts) 分配空矩形。本次沿用，不另写定位器或几何算法。
+- 仓库已有避障边界：[useComposerViewportPlacement](https://github.com/aqm857886159/Nomi/blob/d8824a0c5/src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts#L44)（2026-09-25 画布手感三改已删除，浮框改为钉在节点正下方，链接指删除前的版本） 的 recompute（第 44 行）已测内容自然尺寸，再交 [composerObstaclePlacement](../../src/workbench/generationCanvas/nodes/composerObstaclePlacement.ts) 分配空矩形。本次沿用，不另写定位器或几何算法。
 - 仓库已有提示词最小内容：[PromptEditor](../../src/workbench/assets/PromptEditor.tsx) 第 223 行的 EditorContent，以及 [NodeGenerationComposer](../../src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx) 的三行 min-h-[72px]。缺的是其父滚动区同样不能塌缩；无需替换 Tiptap 或引入新依赖。
 - 现有走查经验：[真实光标几何教训](../lessons/walkthrough-geometry-must-reverify-under-the-real-cursor.md) 要求按实际命中取证，[走查真信号](../lessons/walkthrough-assertions-need-a-real-signal.md) 禁吞点击错误。此次按真实报错和截图修复共享布局，同时移除 group 的吞错路径。
 - 结论：用已有组件、原生 flex min-height 与 overflow；这是本分支新增效果行引发的内部布局回归，不涉及框架选型/升级或外部契约。未开展生态、自媒体搜索；它们不能替代此分支的修前真实几何证据。

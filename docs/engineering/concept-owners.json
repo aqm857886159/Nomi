@@ -146,7 +146,6 @@
       "consumers": [
         "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
         "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
-        "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
         "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
         "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
         "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
@@ -211,7 +210,64 @@
         "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx"
       ],
       "since": "2026-09-25",
-      "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。"
+      "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。 2026-09-25 claude/canvas-ux-batch 进展：程序动画的中间帧不再写 workbenchStore（动画走完记一次；用户手势照旧在移动结束时写），「每帧写」这一半已去掉；但 NodeLabelRow / NodeFloatingToolbar / NodeGeneratingOverlay / NodeImportingOverlay / NodeGenerationComposer 仍读 store 副本（其中浮框还有不在 ReactFlowProvider 里的面板宿主，NodeLabelRow 挂在每张卡上），迁读的人需要单独的性能评估，未做，所以仍 pending。"
+    },
+    {
+      "name": "画布生成浮框的位置与宽度",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+        "symbol": "composerCanvasPlacement"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」（合同 docs/fixes/2026-09-25-composer-pinned-below-node.root-cause.json）。位置与宽度只是（节点画布尺寸, 画布缩放）的纯函数：顶边 = 节点底边 + NODE_COMPOSER_GAP，中线 = 节点中线，屏幕宽 = NODE_COMPOSER_WIDTH。不许任何一侧再量屏幕去 clamp / 翻转 / 让停靠区——那套每帧量矩形的放置层就是「浮框跑到节点中间、忽宽忽窄」的来源，已整个删除。composerCanvasPlacement.test.ts 的结构断言守着浮框源码不许长回 getBoundingClientRect / requestAnimationFrame。"
+    },
+    {
+      "name": "付费生成要不要弹确认",
+      "owner": {
+        "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+        "symbol": "spendConfirmationRequirement"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户拍板：用户自己点的单个生成不弹窗；只有 Agent 发起 / 一下跑 ≥2 个 / 首次匿名托管告知 才弹。2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格，判据不看金额、也不显示价格（原「≥10 点」门槛、「拿不到报价就问」与 ↑ 旁点数已删）。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，档位判据仍归 electron/shared/agentCapabilities/capabilityApprovalPolicy.ts#spendDecidedByPolicy。"
+    },
+    {
+      "name": "新东西落在画布哪里（相对用户看得见的那块）",
+      "owner": {
+        "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+        "symbol": "visibleInsertionPoint"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+        "src/workbench/generationCanvas/store/resolveInsertionPosition.ts",
+        "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+        "src/workbench/assets/AssetLibraryPanel.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+      ],
+      "since": "2026-09-25",
+      "notes": "2026-09-25 用户拍板「程序不再主动平移 / 缩放画布；新建和导入尽量直接落在当前可见区域」（合同 docs/fixes/2026-09-25-canvas-no-auto-viewport.root-cause.json）。单点落点（visibleInsertionPoint，addNode 默认）、整批落点（placeBlockInVisibleArea）、可见区内找空位（resolveInsertionPosition 的 visibleArea 参数）都读这一份；舞台尺寸由画布宿主经 publishCanvasStageSize 发布（0×0 不覆盖）。不许再写死画布坐标当默认落点，也不许「落地后再挪画布露出」。"
+    },
+    {
+      "name": "谁能移动画布视口",
+      "owner": {
+        "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+        "symbol": "animateViewportTo"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+        "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+        "src/workbench/generationCanvas/reactFlow/useCanvasArrivalHint.ts",
+        "src/workbench/production/useProductionStatus.ts"
+      ],
+      "since": "2026-09-25",
+      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示 / 60 秒引导落完示例后铺开一次（用户点了「看 Nomi 怎么出片」，引导自己的一步，owner 是 onboarding/journeyTourStore.ts）。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开项目 / 分类时摆一次全貌归 useAutoFitOnLoad.shouldFitOnOpen（打开时适应一次 = 用户拍板保留；此前 main 上时序不稳，现改为节点量完后必定触发；只在打开那一刻、没有可用视角时判一次）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。）。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
     },
     {
       "name": "模型工具的身份",

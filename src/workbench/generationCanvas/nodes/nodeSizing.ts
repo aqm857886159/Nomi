@@ -35,51 +35,6 @@ export type NodeSizeBounds = {
     minHeight: number;
     maxHeight: number;
 };
-export type ComposerAttachmentSide = "top" | "bottom";
-
-/**
- * 比例切换会同时改节点尺寸和位置；这类同一用户动作不应顺带把 composer 翻到节点另一侧。
- * 首次挂载或比例未变时仍允许正常的视口避让逻辑决定连接侧。
- */
-export function shouldPreserveComposerAttachmentOnRatioChange(
-    previousRatio: string | null,
-    nextRatio: string,
-): boolean {
-    return previousRatio !== null && previousRatio !== "" && nextRatio !== "" && previousRatio !== nextRatio;
-}
-
-export type ComposerAvailableSpaceMeasurement = {
-    anchor: { width: number; height: number };
-    stage: { width: number; height: number };
-};
-
-/** composer 或舞台尺寸改变时，可用空间已经不同，必须解除比例切换期间的连接侧保持。 */
-export function didComposerAvailableSpaceChange(
-    previous: ComposerAvailableSpaceMeasurement,
-    next: ComposerAvailableSpaceMeasurement,
-): boolean {
-    return (
-        previous.anchor.width !== next.anchor.width ||
-        previous.anchor.height !== next.anchor.height ||
-        previous.stage.width !== next.stage.width ||
-        previous.stage.height !== next.stage.height
-    );
-}
-
-/** 比例切换只在边界完全没变时保持原连接侧；真实空间或浮层障碍变化必须重新避让。 */
-export function shouldAllowComposerAttachmentRecompute(input: {
-    preserveForRatioChange: boolean;
-    availableSpaceChanged: boolean;
-    obstacleChanged: boolean;
-    attachmentObstructed: boolean;
-}): boolean {
-    return (
-        !input.preserveForRatioChange ||
-        input.availableSpaceChanged ||
-        input.obstacleChanged ||
-        input.attachmentObstructed
-    );
-}
 // 非媒体节点（含 text）自由缩放时的 min/max。媒体（图/视频）走比例锁定分支，
 // 仍用上面的 MIN/MAX_NODE_*，故此处只为「自由拉伸」路径按 kind 取边界。
 export function getNodeSizeBounds(kind: GenerationCanvasNode["kind"]): NodeSizeBounds {
@@ -120,10 +75,19 @@ export const FOCUS_GENERATION_NODE_EVENT = "nomi-focus-generation-node";
  * 看着像还有个控件，其实一个也点不到（2026-08-26 win32 走查塌陷即此，卡片只剩 26px =
  * padding 12+12 + border 1+1，content box 归零）。
  *
- * 因此它同时是三处的**单一真相源**：卡片 CSS 的 min-height、「这一侧装不装得下」的判定下限、
- * 以及 maxHeight 的兜底下限。改这里三处一起动，别再各写各的魔数。
+ * 卡片 CSS 的 min-height 只读这一处。
  */
 export const COMPOSER_MIN_USABLE_HEIGHT = 150;
+
+/**
+ * 画布生成浮框的宽（**屏幕像素**，浮框反向缩放，任何缩放下都一样宽）与它离节点底边的间距（画布单位）。
+ *
+ * 2026-09-25 用户拍板「宽度固定、钉在节点正下方、被挡就挡」：宽度以前是 `w-max` 跟内容撑（360–880），
+ * 换模型 / 换语言 / 参数摘要变长都会变——那就是「长度老是变来变去」。560 = 最宽的视频节点底栏
+ * （模型 · 参数摘要 · 写提示词三颗 · ×N · 点数 · ↑）在英文下一行放得下的宽度；放不下时参数摘要自己截断。
+ */
+export const NODE_COMPOSER_WIDTH = 560;
+export const NODE_COMPOSER_GAP = 14;
 
 export function clampNumber(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
@@ -161,19 +125,18 @@ export function resolveAreaPreservingSize(
     };
 }
 
-/** 保持 composer 与节点相连的那条边的中心点不动。 */
+/**
+ * 比例切换后保持节点**底边中点**不动：生成浮框恒贴在节点正下方（2026-09-25 用户拍板，不再翻到上方），
+ * 底边不动 = 浮框不跳。
+ */
 export function anchorNodePosition(
     position: { x: number; y: number },
     current: { width: number; height: number },
     next: { width: number; height: number },
-    side: ComposerAttachmentSide,
 ): { x: number; y: number } {
     return {
         x: position.x + (current.width - next.width) / 2,
-        y:
-            side === "bottom"
-                ? position.y + current.height - next.height
-                : position.y,
+        y: position.y + current.height - next.height,
     };
 }
 
@@ -421,7 +384,6 @@ export function buildAspectRatioNodePatch(
     node: GenerationCanvasNode,
     nextMeta: Record<string, unknown>,
     targetRatio: number | null,
-    side: ComposerAttachmentSide,
 ): Partial<GenerationCanvasNode> {
     if (!targetRatio || node.result?.url) return { meta: nextMeta };
     const current = resolveNodeVisualSize(node);
@@ -433,7 +395,7 @@ export function buildAspectRatioNodePatch(
     return {
         meta: nextMeta,
         size,
-        position: anchorNodePosition(node.position, current, size, side),
+        position: anchorNodePosition(node.position, current, size),
     };
 }
 

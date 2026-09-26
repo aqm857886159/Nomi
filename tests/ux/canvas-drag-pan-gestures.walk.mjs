@@ -18,7 +18,9 @@ import { mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import {
+  CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled,
+} from './_canvasHit.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -142,7 +144,7 @@ function canvasPointAt(transform, screen, origin) {
 const REACT_FLOW_AUTO_PAN_BAND_PX = 40
 const MARQUEE_STAGE_INSET_PX = REACT_FLOW_AUTO_PAN_BAND_PX + 8
 // 框选前把两张卡缩到只占画布这么大：余量因此是 stage 的两成起步，既大于自动平移带，
-// 也大于提示词面板让位平移的那几十像素。用比例而不是像素——画布宽度本来就随面板变。
+// 也给提示词面板在卡下方展开留出余量。用比例而不是像素——画布宽度本来就随面板变。
 const MARQUEE_MAX_BOUNDS_RATIO = 0.6
 
 // 两张卡在 stage 里占多大：框选余量够不够，唯一可信的判据是实测，不是猜。
@@ -320,28 +322,39 @@ async function selectedNodeIds() {
   )
 }
 
-/** 建一张卡，回报**这一次**新增的那个 React Flow 节点 id（下面按「新建即露出」逐张量）。 */
+/**
+ * 建一张卡，回报**这一次**新增的那张卡落地的经过（id + 落在屏里 / 点边缘提示过去）。
+ * 判据全在 `_canvasHit.mjs` 的 `expectArrivalsReachable`（单一 owner）：画布不自己动、新卡要么落在舞台里、
+ * 要么边缘提示指得到它并且点过去就完整框住。夹具里原有的卡（used 夹具有 24 张）和前面自己建的卡都算「已知」，
+ * 它们在视口一动时才进 DOM（只渲染可见节点），不能被当成「这一次新建的」。
+ */
 async function addNode(kind) {
-  const before = await getWin().evaluate(() =>
-    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
+  const knownIds = [...SEEDED_NODE_IDS, ...CREATED_NODE_IDS]
+  // 基线必须在点之前、且视口停稳时读：打开项目那一刻若摆过一次全貌（useAutoFitOnLoad），它得先落地。
+  const viewportBefore = await waitForCanvasViewportSettled(getWin())
   await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
-  await getWin().waitForTimeout(700)
-  const after = await getWin().evaluate(() =>
-    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
-  // 夹具里原有的卡（used 夹具有 24 张）在视口一动时才进 DOM（只渲染可见节点）——它们不是「这一次新建的」。
-  return after.find((id) => !before.includes(id) && !SEEDED_NODE_IDS.has(id)) ?? null
+  const arrival = await expectArrivalsReachable(getWin(), {
+    knownIds, expectedCount: 1, viewportBefore, label: `工具条新建${kind === 'image' ? '图片' : '视频'}卡`,
+  })
+  CREATED_NODE_IDS.push(...arrival.ids)
+  return { id: arrival.ids[0] ?? null, path: arrival.path, hint: arrival.hint }
 }
+const CREATED_NODE_IDS = []
 
 /** 某张卡此刻相对 stage 的位置。stage 尺寸一并交出来：判几何红时先看是不是舞台根本不是这么大。 */
 async function measurePlacement(nodeId) {
   return getWin().evaluate((id) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
     const node = id ? document.querySelector(`.react-flow__node[data-id="${id}"]`) : null
-    if (!stage || !node) return { id, inside: false, missing: true }
+    if (!stage || !node) return { id, inside: false, seen: false, missing: true }
     const r = node.getBoundingClientRect()
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
     return {
       id,
       inside: r.left >= stage.left - 1 && r.right <= stage.right + 1 && r.top >= stage.top - 1 && r.bottom <= stage.bottom + 1,
+      // 产品的「看见了」判据：中心在可见区里（canvasArrivalModel.ts isNodeSeen）。
+      seen: cx >= stage.left && cx <= stage.right && cy >= stage.top && cy <= stage.bottom,
       overflowRight: Math.round(r.right - stage.right),
       overflowLeft: Math.round(stage.left - r.left),
       stage: { w: Math.round(stage.width), h: Math.round(stage.height) },
@@ -393,27 +406,34 @@ try {
   await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
 
   // ── 任务准备：摆一个图片节点 + 一个视频节点 ─────────────────────────────
-  // 新建即可见：每建一张卡，**那张卡**的露出动画（60ms 延迟 + 200ms）与 composer 让位（160ms）
-  // 都得落地。所以逐张建、逐张量——而不是建完两张再要求「画布上所有卡同时都在 stage 内」：
-  // 那条更强的说法只在舞台宽到装得下两张时才成立，CI 的 Linux runner 会把窗口夹到 1280 宽
-  // （下面 resize(1600, 1000) 静默不生效），第一张卡被第二张的露出平移正常地推出左边界，
-  // 于是走查报的是「舞台不够宽」，却写着「被 Agent 面板遮住」。见 docs/lessons/
+  // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：以前每建一张卡画布会自己露出平移过去，这里等的是
+  // 那段动画；现在新卡落在当前可见区（舞台宽 38%、高 28% 那一点），可见区挤了螺旋避让会把第二张推向右/下，
+  // 中心出了舞台就由边缘提示指路、**点它**画布才过去。所以逐张建、逐张验三件事（判据在 _canvasHit.mjs）：
+  //   ① 建卡前后视口逐格相同（画布没自己动）；
+  //   ② 新卡落在舞台里（中心在 stage 内 = 产品「看见了」的判据，不被常驻 Agent 面板遮住——stage 不含那块面板）；
+  //   ③ 否则边缘提示出现、方向对、点一下那张卡完整进 stage。
+  // 「完整」只在走提示那条路上断：落在屏里的那张可能右缘被舞台切掉一截（CI 的 Linux runner 把窗口夹到 1280 宽，
+  // 下面 resize(1600, 1000) 静默不生效），产品按中心判它「看见了」、不出提示，这是拍板后的设计不是回归。
+  // 仍逐张量而不是建完两张再要求同时在 stage 内：点第二张的提示会把第一张挪向边缘。见 docs/lessons/
   // walkthrough-geometry-must-reverify-under-the-real-cursor.md 同一族。
   const createdPlacement = []
   for (const kind of ['image', 'video']) {
-    const createdId = await addNode(kind)
-    await getWin().waitForTimeout(700)
-    createdPlacement.push({ kind, ...(await measurePlacement(createdId)) })
+    const created = await addNode(kind)
+    createdPlacement.push({ kind, path: created.path, hint: created.hint?.side ?? null, ...(await measurePlacement(created.id)) })
   }
   assert(
-    createdPlacement.length === 2 && createdPlacement.every((entry) => entry.inside),
-    '每张新建的卡当场完整露出在 stage 内（不被常驻 Agent 面板遮住）',
+    createdPlacement.length === 2 && createdPlacement.every((entry) => entry.seen && (entry.path === 'in-view' || entry.inside)),
+    '每张新建的卡都在 stage 里看得见（不被常驻 Agent 面板遮住）：落在屏里，或点边缘提示过去完整框住；画布从不自己挪',
     JSON.stringify(createdPlacement),
   )
   const ownId = (kind) => createdPlacement.find((entry) => entry.kind === kind)?.id
   OWN.image = `.generation-canvas-v2-node[data-node-id="${ownId('image')}"]`
   OWN.video = `.generation-canvas-v2-node[data-node-id="${ownId('video')}"]`
   OWN.node = `${OWN.image}, ${OWN.video}`
+  // 2026-09-25 起新卡放不进可见区时落在屏外、点边缘提示过去；过去之后第一张可能出了屏，被 React Flow
+  // 按可见性卸载（DOM 里数不到）。数之前像人一样点真实的「适应视图」把两张都收进来——这是用户自己的动作，
+  // 允许移动画布；画布「自己不动」那条已在上面 expectArrivalsReachable 里断过。
+  if ((await getWin().locator(OWN.node).count()) < 2) await frameOwnCards()
   const nodeIds = await getWin().evaluate((ownNode) =>
     Array.from(document.querySelectorAll(ownNode)).map((node) => ({
       id: node.getAttribute('data-node-id'),
@@ -441,7 +461,8 @@ try {
   // ── ① 空白左键拖 = 平移画布 ────────────────────────────────────────────
   const blank = await findBlankPoint()
   assert(Boolean(blank), '找得到一块画布空白', JSON.stringify(blank))
-  // 建卡后的「露出平移」是一段动画：它没停就读基线，量到的是动画而不是这次拖动（机器忙时实测 Δ 反号）。
+  // 建卡本身不再挪画布，但若第二张走了边缘提示，那一下点击是一段 220ms 的动画；composer 挂载、卡面出图
+  // 也还在收尾。没停就读基线，量到的是动画而不是这次拖动（机器忙时实测 Δ 反号）。
   // 等画面视觉安定（_assert.mjs 的共享判据）再开始。
   await waitForVisualQuiescence(getWin())
   const before = await readTransform()
@@ -504,6 +525,9 @@ try {
   assert(afterPan.zoom === before.zoom, '平移不改变缩放')
 
   // ── ② 平移不重建节点：拖完还是同一批 DOM 实例（React 没重挂），且没有新的页面错误 ──
+  // 上一笔平移可能把卡推到舞台边；再拖 90px 会让它整张出屏、被 React Flow 按可见性卸载——那是虚拟化，不是重建。
+  // 先像人一样把两张卡收回视野中央（点「适应视图」再凑近），这一笔验的才是「平移本身不重挂节点」。
+  await frameOwnCards()
   const nodeIdentity = await getWin().evaluate((ownNode) => {
     const nodes = Array.from(document.querySelectorAll(ownNode))
     window.__walkNodeRefs = nodes
@@ -518,9 +542,9 @@ try {
   const sameInstances = await getWin().evaluate((ownNode) => {
     const nodes = Array.from(document.querySelectorAll(ownNode))
     const refs = window.__walkNodeRefs || []
-    return nodes.length === refs.length && nodes.every((node, index) => node === refs[index])
+    return { same: nodes.length === refs.length && nodes.every((node, index) => node === refs[index]), before: refs.length, after: nodes.length }
   }, OWN.node)
-  assert(nodeIdentity >= 2 && sameInstances, '平移前后节点是同一批 DOM 实例（没有整层重建）')
+  assert(nodeIdentity >= 2 && sameInstances.same, '平移前后节点是同一批 DOM 实例（没有整层重建）', JSON.stringify(sameInstances))
 
   // ── ① 点一下空白 = 取消选中；Shift + 左键拖 = 框选并追加 ─────────────────
   // 点卡片本体的那一点由 `_canvasHit.mjs` 定（单一 owner）：外接盒角上的固定偏移在窄舞台下
@@ -614,6 +638,26 @@ try {
   await getWin().waitForTimeout(250)
   assert((await selectedNodeIds()).length === 0, '半扫之前先把选区清空（否则选上了也说明不了问题）')
 
+  // 2026-09-25 起新卡优先落进可见区的空位——used 夹具里那常是贴着底边的一条缝，四周没有起手的空白。
+  // 像用户一样中键把两张卡拖到舞台中间再扫（用户自己的平移，允许动画布）。
+  const ownCentre = await getWin().evaluate((ownNode) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
+    const rects = Array.from(document.querySelectorAll(ownNode)).map((node) => node.getBoundingClientRect())
+    if (!stage || !rects.length) return null
+    return {
+      dx: (stage.left + stage.right) / 2 - (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2,
+      dy: (stage.top + stage.bottom) / 2 - (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2,
+    }
+  }, OWN.node)
+  if (ownCentre && (Math.abs(ownCentre.dx) > 40 || Math.abs(ownCentre.dy) > 40)) {
+    const panFrom = await findBlankPoint()
+    await getWin().mouse.move(panFrom.x, panFrom.y)
+    await getWin().mouse.down({ button: 'middle' })
+    await getWin().mouse.move(panFrom.x + ownCentre.dx, panFrom.y + ownCentre.dy, { steps: 12 })
+    await getWin().mouse.up({ button: 'middle' })
+    await waitForCanvasViewportSettled(getWin())
+  }
+
   const partialGesture = await getWin().evaluate(({ paneSelector, inset, ownNode }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll(ownNode))
@@ -626,12 +670,15 @@ try {
       box.right > rect.left && box.left < rect.right && box.bottom > rect.top && box.top < rect.bottom
     const contains = (box, rect) =>
       box.left <= rect.left && box.right >= rect.right && box.top <= rect.top && box.bottom >= rect.bottom
+    // 四个角都试：2026-09-25 起新卡优先落进可见区的空位，常常紧挨着已有的卡 / 编组框，
+    // 只试左上角会因为起手点压在邻居身上而找不到——那是探测太窄，不是框选坏了。
+    const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]]
     for (const node of nodes) {
       const rect = node.getBoundingClientRect()
-      for (const gap of [56, 40, 28, 18, 12]) {
-        // 从卡左上外侧的空白起手，只扫到它的横向中线就松手：框与卡相交，但**不包含**它。
-        const start = { x: rect.left - gap, y: rect.top - gap }
-        const end = { x: rect.left + rect.width / 2, y: rect.bottom + gap }
+      for (const [dx, dy] of corners) for (const gap of [56, 40, 28, 18, 12]) {
+        // 从卡某个角外侧的空白起手，只扫到它的横向中线就松手：框与卡相交，但**不包含**它。
+        const start = { x: dx < 0 ? rect.left - gap : rect.right + gap, y: dy < 0 ? rect.top - gap : rect.bottom + gap }
+        const end = { x: rect.left + rect.width / 2, y: dy < 0 ? rect.bottom + gap : rect.top - gap }
         if (!insideStage(start) || !insideStage(end)) continue
         const hit = document.elementFromPoint(start.x, start.y)
         if (!hit || !stage.contains(hit) || !hit.matches(paneSelector)) continue
@@ -646,7 +693,8 @@ try {
           id: node.getAttribute('data-node-id'),
           start: { x: Math.round(start.x), y: Math.round(start.y) },
           end: { x: Math.round(end.x), y: Math.round(end.y) },
-          coveredRatio: Math.round(((box.right - rect.left) / rect.width) * 100) / 100,
+          // 框与卡的横向交叠占卡宽的比例（左右两侧起手都按真实交叠算）。
+          coveredRatio: Math.round(((Math.min(box.right, rect.right) - Math.max(box.left, rect.left)) / rect.width) * 100) / 100,
         }
       }
     }
@@ -743,9 +791,9 @@ try {
   const videoNode = getWin().locator(OWN.video).first()
 
   // 用过的项目里，画布底部挂着两样「底部停靠物」：时间轴有片段时的「画面小窗」、卡多时自动出现的小地图。
-  // 浮框要避让它们：1280×800 小窗里可用高度因此放不下浮框，选中卡的浮框按既定兜底被 clamp 到盖住卡本身
-  // 和连线握把（useComposerViewportPlacement.ts「放不下时宁可盖住节点一截」）。人会先把碍事的两样收起来
-  // 再连线，走查照做；empty 夹具里两样都不在，这一步什么都不做。
+  // 这一步原本是给旧浮框让路（它躲停靠区、放不下时被 clamp 到盖住卡本身和连线握把）；2026-09-25 起浮框
+  // 钉在节点正下方（composerCanvasPlacement.ts），不再躲停靠区、也不再重新定位，那条理由已不成立。
+  // 保留这一步只因为两样停靠物本身占着画布底部一片、人连线前也会顺手收起；empty 夹具里两样都不在，这一步什么都不做。
   for (const name of EN ? ['Collapse mini preview', 'Hide minimap'] : ['收起画面小窗', '隐藏地图']) {
     const dockToggle = getWin().getByRole('button', { name, exact: true })
     if (!(await dockToggle.isVisible())) continue
@@ -758,7 +806,7 @@ try {
 
   // 先摆位置（真实动作）：把视频卡拖到图片卡**右边同一行**，再像人一样把画布平移到两张卡贴近左上角——
   // 连线时图片卡的浮框在下沿展开，不会压住视频卡与右侧握把。
-  // （小窗里浮框放不下时会被 clamp 进视口、盖住卡本身，那是浮框的既定兜底，走查不能指望它让路。）
+  // （浮框恒钉在节点正下方、不 clamp 进视口，放不下就伸出舞台被裁，不会再翻上来盖住卡本身。）
   const deselectPoint = await findBlankPoint()
   await getWin().mouse.click(deselectPoint.x, deselectPoint.y)
   await getWin().waitForTimeout(200)
@@ -788,9 +836,8 @@ try {
   await getWin().mouse.move(panFrom.x + panBy.x, panFrom.y + panBy.y, { steps: 12 })
   await getWin().mouse.up()
   await getWin().waitForTimeout(320)
-  const visibleStage = await getWin().locator('.generation-canvas-v2__stage').boundingBox()
 
-  // 拖完视频卡它是选中态，浮框展开；小窗（used 夹具 1280×800）里浮框会盖住图片卡。
+  // 拖完视频卡它是选中态，浮框在它下沿展开（560 宽，可能横跨到图片卡下方那片）。
   // 真人会先点一下空白收起它，再去点图片卡上真正点得到的那一点（命中判据归 _canvasHit.mjs）。
   const collapseComposerAt = await findBlankPoint()
   await getWin().mouse.click(collapseComposerAt.x, collapseComposerAt.y)
@@ -873,13 +920,13 @@ try {
     console.log('  · DIAG handle', JSON.stringify({ handlePoint, imageBox, layout }))
   }
   assert(handleHit.magnetic, '图片节点右侧握把可点', JSON.stringify(handleHit))
+  // 松手点取视频卡上**真正露出来、点得到**的一点：选中图片卡时它的浮框钉在正下方、定宽 560（被挡就挡，09-25），
+  // 在 1280×800 的 Linux 字体下会盖住视频卡的几何中心——落在浮框上松手，人也连不上。人会把线拖到看得见的那块卡面上。
+  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
+  assert(Boolean(videoDropPoint), '视频卡上找得到一处露出来的松手点', JSON.stringify({ videoBox }))
   await getWin().mouse.move(handlePoint.x, handlePoint.y)
   await getWin().mouse.down()
-  const videoVisibleTarget = {
-    x: (Math.max(videoBox.x, visibleStage.x) + Math.min(videoBox.x + videoBox.width, visibleStage.x + visibleStage.width)) / 2,
-    y: (Math.max(videoBox.y, visibleStage.y) + Math.min(videoBox.y + videoBox.height, visibleStage.y + visibleStage.height)) / 2,
-  }
-  await getWin().mouse.move(videoVisibleTarget.x, videoVisibleTarget.y, { steps: 16 })
+  await getWin().mouse.move(videoDropPoint.x, videoDropPoint.y, { steps: 16 })
   await getWin().mouse.up()
   await getWin().waitForTimeout(700)
   // 刚连出来的那条线：夹具里原有的线不算（used 夹具有 27 条）。
@@ -1122,8 +1169,9 @@ try {
     const metrics = async () =>
       Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((m) => [m.name, m.value]))
     const panPoint = await findBlankPoint()
-    // 平移方向朝画布中心：把选中卡往停靠物（左侧工具条、底部导航）边缘推，浮框会被 clamp 住、每帧重新定位——
-    // 那是浮框的既定避让行为（useComposerViewportPlacement.ts），不是「平移本身」。这里量的是平移本身。
+    // 平移方向朝画布中心：让选中卡留在视野里、不被推到停靠物（左侧工具条、底部导航）边缘。
+    // 当初这么选是为了躲旧浮框的 clamp 重定位；2026-09-25 起浮框钉在节点下方（composerCanvasPlacement.ts，
+    // 只看节点尺寸 + 缩放），平移时不再重新定位，这条理由已不成立——方向保持不变，量的仍是平移本身。
     const panDirection = await getWin().evaluate(() => {
       const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
       const selected = document.querySelector('.react-flow__node.selected')?.getBoundingClientRect()
@@ -1233,19 +1281,20 @@ try {
 
   // 用过的项目里的卡是 apimart 模型生成的，隔离资料里没有它的 key，App 会挂一条常驻的「模型当前不可用」提醒
   // （警告类 toast 要手动关）。它浮在所有弹层之上，正好压住设置弹窗右上角的关闭钮——人会先点掉提醒再关弹窗，走查照做。
+  // 每张挂过浮框的 apimart 卡各一条（图片、视频各一条就叠两层），关掉一条下一条会补上同一位置，所以逐条关到露出为止。
   async function clickPastToasts(locator) {
-    const box = await locator.boundingBox()
-    if (box) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const box = await locator.boundingBox()
+      if (!box) break
       const toastClose = await getWin().evaluate(({ x, y }) => {
         const toast = document.elementFromPoint(x, y)?.closest('.mantine-Notification-root')
         const close = toast?.querySelector('.mantine-Notification-closeButton')
         const rect = close?.getBoundingClientRect()
         return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null
       }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
-      if (toastClose) {
-        await getWin().mouse.click(toastClose.x, toastClose.y)
-        await getWin().waitForTimeout(300)
-      }
+      if (!toastClose) break
+      await getWin().mouse.click(toastClose.x, toastClose.y)
+      await getWin().waitForTimeout(300)
     }
     await locator.click()
   }

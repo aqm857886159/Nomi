@@ -59,8 +59,8 @@ it.each(['no-switch', 'canvas-switch', 'storyboard-switch'] as const)('approved 
     return { id: `result-${executor.mock.calls.length}`, type: 'image', url: `nomi-local://asset/a/${executor.mock.calls.length}.png`, createdAt: executor.mock.calls.length }
   })
   await confirmAndRunNodeVariants(node.id, 3, scenario === 'storyboard-switch'
-    ? { executor, retry: { maxAttempts: 1 }, assertCurrent: async () => { interaction.assertCurrent() }, assertAuthorCurrent: async () => {} }
-    : { executor, retry: { maxAttempts: 1 } })
+    ? { initiator: 'user' as const, executor, retry: { maxAttempts: 1 }, assertCurrent: async () => { interaction.assertCurrent() }, assertAuthorCurrent: async () => {} }
+    : { initiator: 'user' as const, executor, retry: { maxAttempts: 1 } })
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.mint).toHaveBeenCalledExactlyOnceWith([node.id], 3, undefined)
   expect(executor).toHaveBeenCalledTimes(3)
@@ -81,7 +81,7 @@ it.each(['prompt', 'references', 'model', 'parameter'] as const)('rejects change
         : { meta: { modelKey: field === 'model' ? 'other-model' : 'gpt-image-2', modelVendor: 'kie', aspect_ratio: field === 'parameter' ? '16:9' : '1:1' } })
     return { id: `result-${executor.mock.calls.length}`, type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { executor, retry: { maxAttempts: 1 } })
+  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor, retry: { maxAttempts: 1 } })
   expect(executor).toHaveBeenCalledOnce()
   expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ status: 'error', result: { id: 'result-1' } })
 })
@@ -106,7 +106,7 @@ it.each(['first-frame-video', 'batch'] as const)('original plan confirmation con
     return { id: `result-${node.id}`, type: node.kind, url: 'nomi-local://asset/a/result.png', createdAt: 1 }
   })
   await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
-    assertCurrent: async () => interaction.assertCurrent(), assertAuthorCurrent: async () => {},
+    initiator: 'user' as const, assertCurrent: async () => interaction.assertCurrent(), assertAuthorCurrent: async () => {},
   })
   expect(calls.execute).toHaveBeenCalledTimes(2)
   expect(calls.confirm).toHaveBeenCalledOnce()
@@ -120,7 +120,7 @@ it.each(['confirmation', 'minting'] as const)('project switching during %s preve
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
   if (boundary === 'confirmation') calls.confirm.mockImplementation(async () => { await session.open('project-b'); return true })
   else calls.mint.mockImplementation(async () => { await session.open('project-b'); return 'grant' })
-  await confirmAndRunNodeVariants(node.id, 3, { executor: calls.execute })
+  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor: calls.execute })
   expect(calls.execute).not.toHaveBeenCalled()
   expect(calls.mint).toHaveBeenCalledTimes(boundary === 'confirmation' ? 0 : 1)
 })
@@ -136,7 +136,7 @@ it.each(['author', 'node'] as const)('the original variants confirmation refuses
     else useGenerationCanvasStore.getState().deleteNode(node.id)
     return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { executor, assertCurrent: assertAuthorCurrent, assertAuthorCurrent })
+  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor, assertCurrent: assertAuthorCurrent, assertAuthorCurrent })
   expect(executor).toHaveBeenCalledOnce()
   if (changed === 'author') expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ status: 'error', result: { id: 'first-result' } })
   else expect(useGenerationCanvasStore.getState().nodes).toEqual([])
@@ -149,7 +149,7 @@ it('permits result history and measured preview changes without changing approve
     useGenerationCanvasStore.getState().updateNode(node.id, { size: { width: 250, height: 180 }, meta: { previewHeight: 180, intrinsicWidth: 640, intrinsicHeight: 480 } })
     return { id: `result-${executor.mock.calls.length}`, type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { executor })
+  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor })
   expect(executor).toHaveBeenCalledTimes(3)
   expect(useGenerationCanvasStore.getState().nodes[0].history).toHaveLength(3)
 })
@@ -165,7 +165,7 @@ it('rejects a changed existing upstream asset while preserving the first variant
     useGenerationCanvasStore.getState().addNodeResult(reference.id, { id: 'reference-2', type: 'image', url: 'nomi-local://asset/ref2.png', createdAt: 2 })
     return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { executor })
+  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor })
   expect(executor).toHaveBeenCalledOnce()
   expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)).toMatchObject({ status: 'error', result: { id: 'first-result' } })
 })
@@ -181,7 +181,7 @@ it('rejects a manual history selection on a first frame produced by the same app
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().rollbackHistory(first.id, 'old-frame')
   }
   await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
-    assertCurrent: async () => {}, assertAuthorCurrent,
+    initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledOnce()
   expect(useGenerationCanvasStore.getState().nodes.find(node => node.id === second.id)).toMatchObject({ status: 'error' })
@@ -195,7 +195,7 @@ it('rerun duplicate edited while mint is pending must not execute unapproved pro
     return 'grant'
   })
   calls.execute.mockImplementation(async () => ({ id: 'generated', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }))
-  await confirmAndRunNode(node.id, { rerun: true })
+  await confirmAndRunNode(node.id, { rerun: true, initiator: 'user' })
   expect(calls.execute.mock.calls.map(([node]) => node.prompt)).toEqual([])
 })
 it('planned text manual draft edit must not replace approved connected prompt', async () => {
@@ -211,13 +211,14 @@ it('planned text manual draft edit must not replace approved connected prompt', 
   }
   const graph = useGenerationCanvasStore.getState()
   const plan = buildDependencyWaves([text.id, image.id], graph)
-  await confirmAndRunPlan(plan, { concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent })
+  await confirmAndRunPlan(plan, { initiator: 'user' as const, concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent })
   const last = calls.execute.mock.calls.at(-1)
   expect(last && collectConnectedTextPromptParts(last[0], last[1])).not.toContain('MANUAL UNAPPROVED DRAFT')
   expect(calls.execute).toHaveBeenCalledTimes(1)
 })
 
 it.each(['contentJson', 'textGenMode', 'textGenSelection'] as const)('text %s changed during approval must not execute', async field => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const text = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction' })
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
@@ -227,7 +228,7 @@ it.each(['contentJson', 'textGenMode', 'textGenSelection'] as const)('text %s ch
     return true
   })
   calls.execute.mockImplementation(async () => ({ id: 'generated', type: 'text', text: 'output', createdAt: 1 }))
-  await confirmAndRunNode(text.id)
+  await confirmAndRunNode(text.id, { initiator: 'agent' })
   expect(calls.execute).not.toHaveBeenCalled()
 })
 
@@ -242,7 +243,7 @@ it.each(['append', 'replace'] as const)('original generateText %s output is seal
     if (node.kind === 'text') return generateText(node, { projectTarget: context.projectTarget, runTask: async () => ({ id: 'text-task', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: 'generated output' } }] } }) })
     return { id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
   })
-  await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { concurrency: 1 })
+  await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 1 })
   expect(calls.execute).toHaveBeenCalledTimes(2)
   const completed = useGenerationCanvasStore.getState().nodes.find(node => node.id === text.id)!
   expect(generationNodeRunRecordSchema.parse(completed.runs?.[0]).textDocumentDigest).toBe(textDocumentDigest(completed.contentJson))
@@ -266,7 +267,7 @@ it.each(['append', 'replace'] as const)('manual edits after original generateTex
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(text.id, { contentJson: doc('UNAPPROVED DRAFT') })
   }
   await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), {
-    concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent,
+    initiator: 'user' as const, concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledOnce()
   const completed = useGenerationCanvasStore.getState().nodes.find(node => node.id === text.id)!
@@ -291,7 +292,7 @@ it('same-wave image admission during original text content delivery accepts legi
     return { id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
   })
   try {
-    await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent })
+    await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent })
     expect(calls.execute).toHaveBeenCalledTimes(2)
   } finally { unsubscribe() }
 })
@@ -323,12 +324,13 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
     return { id: 'image-result', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
   })
   await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), {
-    concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent,
+    initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent,
   })
   expect(calls.execute).toHaveBeenCalledTimes(2)
 })
 
 it.each(['append', 'replace'] as const)('original confirmation retries streamed %s from the approved document', async mode => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const original: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'approved initial document' }] }] }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction', meta: { modelVendor: 'v', modelKey: 'm', textGenMode: mode } })
@@ -347,7 +349,7 @@ it.each(['append', 'replace'] as const)('original confirmation retries streamed 
     projectTarget: context.projectTarget, runTextStream: stream,
   })
   calls.execute.mockImplementation(executor)
-  await confirmAndRunNode(node.id)
+  await confirmAndRunNode(node.id, { initiator: 'agent' })
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(stream).toHaveBeenCalledTimes(2)
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -364,6 +366,7 @@ it.each(['append', 'replace'] as const)('original confirmation retries streamed 
 })
 
 it.each(['append', 'replace'] as const)('original confirmation rejects streamed %s retry after a manual document edit', async mode => {
+  // 这组测的是「确认卡弹着的那段窗口里内容被改」：用户自己点的单个生成不弹卡（2026-09-25），窗口只在要确认的路径上存在，用 Agent 发起来开这扇窗。
   await session.open('project-a')
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'approved instruction', meta: { modelVendor: 'v', modelKey: 'm', textGenMode: mode } })
@@ -377,7 +380,7 @@ it.each(['append', 'replace'] as const)('original confirmation rejects streamed 
     projectTarget: context.projectTarget, runTextStream: stream,
   })
   calls.execute.mockImplementation(executor)
-  await confirmAndRunNode(node.id)
+  await confirmAndRunNode(node.id, { initiator: 'agent' })
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(stream).toHaveBeenCalledOnce()
   expect(calls.execute).toHaveBeenCalledOnce()

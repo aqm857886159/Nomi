@@ -40,7 +40,7 @@ export const useBatchPlanPreviewStore = create<BatchPlanPreviewState>()((set, ge
     const projectId = withProjectAction((project) => project.binding.projectId) ?? ''
     set({ running: true })
     try {
-      await confirmAndRunPlan(plan)
+      await confirmAndRunPlan(plan, { initiator: 'user' })
       set({ plan: null })
     } catch (error: unknown) {
       reportCanvasFeedback(
@@ -130,7 +130,7 @@ function hostingDisclosureFor(
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number } & GenerationConfirmationGuards = {},
+  options: { concurrency?: number } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
@@ -150,6 +150,7 @@ export async function confirmAndRunPlan(
     assertCurrent: async () => { await options.assertCurrent?.(); project.assertCurrent() },
     nodeIds: ids,
     nodes: ids.map((id) => nodesById.get(id)),
+    initiator: options.initiator,
     title: i18n.t('generationCommon.batchPlan.startTitle'),
     message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
       ...generationCostContextForNodes(ids.map((id) => nodesById.get(id)), project.binding.projectId),
@@ -249,7 +250,10 @@ export async function runPlanWithToasts(
           const state = useGenerationCanvasStore.getState()
           void confirmAndRunPlan(
             buildDependencyWaves(failureIds, { nodes: state.nodes, edges: state.edges }),
-            options.assertAuthorCurrent ? { concurrency: options.concurrency, assertCurrent: options.assertAuthorCurrent, assertAuthorCurrent: options.assertAuthorCurrent } : { concurrency: options.concurrency },
+            // 通知里的「重试失败的」是人按的这一下，不继承原批次的发起方。
+            options.assertAuthorCurrent
+              ? { concurrency: options.concurrency, assertCurrent: options.assertAuthorCurrent, assertAuthorCurrent: options.assertAuthorCurrent, initiator: 'user' }
+              : { concurrency: options.concurrency, initiator: 'user' },
           )
         },
       })

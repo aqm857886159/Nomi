@@ -123,6 +123,30 @@ async function nodePoint(id) {
   await expect.poll(async () => (point = await findNodeHitPoint(win, { nodeSelector: sel(id) })) !== null, { message: `${id} 卡上找不到一处点得到的地方` }).toBe(true)
   return point
 }
+/**
+ * 把一张卡拖到舞台里人会停的位置：默认中间偏上（浮框钉在卡正下方，偏上给它留出位置）；
+ * `alignTop` 时卡顶贴舞台上沿，给浮框留最多的竖向空间。`xFraction` 是卡中心在舞台横向的位置。
+ */
+async function panCardToStageCentre(id, { xFraction = 0.5, alignTop = false } = {}) {
+  const clamp = (v) => Math.max(-250, Math.min(250, Math.round(v)))
+  for (let step = 0; step < 6; step += 1) {
+    // 画布只渲染视野里的卡（onlyRenderVisibleElements）：整张出屏时 DOM 里没有它。人找不到卡会先按「适应视图」。
+    if (await win.locator(sel(id)).count() === 0) await fitView()
+    const delta = await win.evaluate(({ stageSelector, nodeSelector, xFraction, alignTop }) => {
+      const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
+      const card = document.querySelector(nodeSelector)?.getBoundingClientRect()
+      if (!stage || !card) return null
+      return {
+        dx: stage.left + stage.width * xFraction - (card.left + card.right) / 2,
+        dy: alignTop ? stage.top + 16 - card.top : stage.top + stage.height * 0.3 - (card.top + card.bottom) / 2,
+      }
+    }, { stageSelector: CANVAS_STAGE_SELECTOR, nodeSelector: sel(id), xFraction, alignTop })
+    if (!delta || (Math.abs(delta.dx) < 24 && Math.abs(delta.dy) < 24)) return
+    // 一次最多拖 250px（真人一把也就这么远），拖完重量再拖，不会一把拖出窗口。
+    await dragPan(clamp(delta.dx), clamp(delta.dy))
+    await win.waitForTimeout(120)
+  }
+}
 /** 真人的一次点击：按下后停 60ms 再抬（Playwright 的 down/up 是同一帧，d3 会把它当成拖动尾巴吞掉 click）。 */
 async function humanClick(p) {
   await win.mouse.move(p.x, p.y)
@@ -189,7 +213,9 @@ try {
   await fitView()
 
   // ═══ P 平移完立刻点卡之后：浮框 / 参数条 / 「2 版」托盘都看得见、点得到 ═══
-  await dragPan(40, 10)
+  // 平移量 = 把这张卡挪到舞台中间（人会停在的位置）。2026-09-25 起浮框钉在节点正下方、定宽 560、
+  // 被挡就挡：卡贴着舞台边时浮框本来就会伸出去，那一截点不到是拍板的结果，不是这条要测的东西。
+  await panCardToStageCentre('empty-image')
   const pe = await nodePoint('empty-image')
   await humanClick(pe)
   await expect(win.locator(sel('empty-image')), '空图片卡没选中').toHaveClass(/selected/)
@@ -197,14 +223,29 @@ try {
   await expect.poll(() => overlayVisible(emptyComposer), { timeout: 3_000 }).toBe(true).catch(() => undefined)
   check(await overlayVisible(emptyComposer), 'P1 空图片卡选中后生成浮框看得见', {})
   const emptyFooter = win.locator(`${sel('empty-image')} [data-node-composer-footer]`)
+  const footerFirstButton = emptyFooter.locator('button').first()
+  // 被挡就挡（09-25 拍板）：浮框是屏幕定尺寸（宽 560），1280×800 带 Agent 面板时舞台只剩约 800×480，
+  // 底栏常压在左缘工具条 / 左下小地图 / 右下画面小窗上。像用户一样挪画布：卡顶贴舞台上沿，横向换几个位置，
+  // 直到底栏第一颗按钮真的点得到——每挪一次浮框都要重新出现，这本身也是「平移后浮框看得见」的复核。
+  const footerHittable = () => footerFirstButton.evaluate((el) => {
+    const rect = el.getBoundingClientRect()
+    const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    return rect.width > 0 && Boolean(at) && (at === el || el.contains(at))
+  }).catch(() => false)
+  for (const xFraction of [0.5, 0.62, 0.4, 0.72]) {
+    if (await footerHittable()) break
+    await panCardToStageCentre('empty-image', { xFraction, alignTop: true })
+    await expect.poll(footerHittable, { timeout: 1_500 }).toBe(true).catch(() => undefined)
+  }
   check(await overlayVisible(emptyFooter), 'P1 参数条（浮框底栏）看得见', {})
   try {
-    await expectHittable(emptyFooter.locator('button').first(), 'P1 参数条第一颗按钮')
+    await expectHittable(footerFirstButton, 'P1 参数条第一颗按钮')
     check(true, 'P1 参数条按钮点得到（elementFromPoint 命中它自己）', {})
   } catch (error) { check(false, 'P1 参数条按钮点得到', String(error.message).split('\n')[0]) }
   await shot('01-empty-image-composer')
 
-  await dragPan(-40, -10)
+  // P1 为露出底栏把画布往上拖过一截，两版卡可能已在舞台外；程序不再替人把卡挪回来（09-25），人会自己拖回来。
+  await panCardToStageCentre('stack')
   const ps = await nodePoint('stack')
   await humanClick(ps)
   await expect(win.locator(sel('stack')), '两版卡没选中').toHaveClass(/selected/)
@@ -259,6 +300,8 @@ try {
     await waitForVisualQuiescence(win)
     return p
   }
+  // 先点空白取消选中：选中的那张卡的浮框钉在它正下方、不再躲开别的东西，会盖住框边（09-25 拍板「被挡就挡」）。
+  await humanClick(await blank())
   await fitView()
   await prove(frameSel('frame-rain'), '删之前框在画布上')
   await prove(MEMBERS, '删之前框里的两张卡在画布上')

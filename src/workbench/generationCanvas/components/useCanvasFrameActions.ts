@@ -135,6 +135,7 @@ export function useCanvasFrameActions({
       // 在这里另存一份的后果是：用户在浮条上改了并发，从框菜单发起时却没生效。
       void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: live.nodes, edges: live.edges }), {
         concurrency: readCanvasBatchConcurrency(),
+        initiator: 'user',
       })
       return
     }

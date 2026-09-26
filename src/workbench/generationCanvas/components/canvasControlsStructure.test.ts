@@ -84,17 +84,14 @@ describe('generation canvas control structure', () => {
     expect(flowStyles).not.toContain('.generation-canvas-v2-node__handle,')
   })
 
-  it('routes every duplicated variant through the shared focus recovery contract', () => {
+  // 2026-09-25 反转：复制变体 / 重新生成副本不再自动聚焦过去（程序不主动移动画布）；聚焦只剩用户自己点的定位。
+  // 允许谁移动视口的完整名单在 canvasViewportMovers.structure.test.ts。
+  it('duplicating a variant does not jump the viewport; explicit locate still resolves through the focus effect', () => {
     const runner = source('../runner/generationRunController.ts')
     const toolbar = source('../nodes/NodeFloatingToolbar.tsx')
     const focusEffects = source('../reactFlow/useGenerationCanvasReactFlowEffects.ts')
-
-    expect(runner).toMatch(
-      /duplicateNodeForRegeneration\(nodeId\)[\s\S]{0,320}FOCUS_GENERATION_NODE_EVENT[\s\S]{0,120}nodeId: dup\.id/,
-    )
-    expect(toolbar).toMatch(
-      /const duplicate = duplicateAsVariant\(nodeId\)[\s\S]{0,260}FOCUS_GENERATION_NODE_EVENT[\s\S]{0,120}nodeId: duplicate\.id/,
-    )
+    expect(runner).not.toContain('FOCUS_GENERATION_NODE_EVENT')
+    expect(toolbar).not.toContain('FOCUS_GENERATION_NODE_EVENT')
     expect(focusEffects).toContain('window.addEventListener(FOCUS_GENERATION_NODE_EVENT, handleFocusNode)')
     expect(focusEffects).toContain('resolvePendingCanvasFocus(')
   })
@@ -133,7 +130,7 @@ describe('generation canvas control structure', () => {
 
     // 框选状态归 React Flow 自己；我们只需保证辅助平移在 pointercancel 上有收尾入口。
     expect(host).toContain('onPointerCancel={handleCanvasPointerEnd}')
-    expect(generationCanvas).toContain('onMoveStart={() => {')
+    expect(generationCanvas).toContain('onMoveStart={(event) => {')
     expect(generationCanvas).toContain('beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowViewport, { onCancel:')
     expect(generationCanvas).toMatch(/onMoveEnd=\{[^]*?viewportLeaseRef\.current\?\.release\(\)/)
     // 2026-09-21：中断路径不许再整段 return。它原来跳过的是**整个** onMoveEnd —— 连 NaN 守卫

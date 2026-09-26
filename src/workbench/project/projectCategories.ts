@@ -161,3 +161,13 @@ export function normalizeCategories(input: unknown): ProjectCategory[] {
   }
   return Array.from(merged.values()).sort((a, b) => a.order - b.order)
 }
+
+/**
+ * 分类在界面上叫什么：内置分类走侧栏那份译名（随语言切换），自定义分类用用户自己起的名。
+ * 侧栏分类行与画布边缘提示读的是同一份（2026-09-25 收成一处）。
+ */
+export function categoryDisplayName(category: Pick<ProjectCategory, 'id' | 'name'>): string {
+  return (BUILTIN_CATEGORY_IDS as readonly string[]).includes(category.id)
+    ? i18n.t(`libraries.sidebar.builtinCategory.${category.id}` as 'libraries.sidebar.builtinCategory.shots')
+    : category.name
+}

@@ -8,7 +8,7 @@
 // 硬套会在卡上印一句「新节点」，那是假的。卡本身仍是全仓唯一那张（`useSpendConfirmStore`），
 // 报价仍来自同一个 owner；这里只换这件事自己的措辞。
 import i18n from '../../i18n'
-import { spendQuoteDetail, useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
+import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import type { SpendQuoteLine } from '../../../electron/shared/contracts/spendQuote'
 
 export type CredentialProbeSpendPayload = {
@@ -33,8 +33,8 @@ export async function confirmCredentialProbeSpend(info: CredentialProbeSpendPayl
     title: i18n.t('runtime.capability.credentialProbeTitle', { vendor: info.vendor || '' }),
     message: i18n.t('runtime.capability.credentialProbeMessage'),
     confirmLabel: i18n.t('runtime.capability.confirmCredentialProbe'),
+    // 不印金额行（2026-09-26 用户拍板：官方额度上线前隐藏价格维度）。
     details: [
-      spendQuoteDetail(info.quote ?? { amount: null }),
       { label: i18n.t('runtime.capability.model'), value: spendModelLine(info.vendor, info.modelKey) },
       { label: i18n.t('runtime.capability.callCount'), value: String(info.callCount ?? 1) },
     ],

@@ -55,9 +55,10 @@ describe('confirmAndRunNodeVariants', () => {
   it('describes text at every confirmation entry without inventing an image count or duration', async () => {
     confirmAnswer = false
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: '改写这句话' })
-    await confirmAndRunNode(node.id)
-    await regenerateNodeInPlace(node.id)
-    await confirmAndRunNodeVariants(node.id, 3)
+    // 确认卡的文案只在会弹卡的路径上出现：用户自己点的单个生成不弹（2026-09-25），所以单个入口用 Agent 发起来验卡上写什么。
+    await confirmAndRunNode(node.id, { initiator: 'agent' })
+    await regenerateNodeInPlace(node.id, { initiator: 'agent' })
+    await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' })
     expect(confirmMessages).toEqual([
       '将生成 1 段文本 · 会消耗模型额度',
       '将生成 1 段文本 · 会消耗模型额度',
@@ -78,8 +79,9 @@ describe('confirmAndRunNodeVariants', () => {
     await i18n.changeLanguage('en')
     confirmAnswer = false
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Rewrite' })
-    await confirmAndRunNode(node.id)
-    await confirmAndRunNodeVariants(node.id, 3)
+    // 确认卡的文案只在会弹卡的路径上出现：用户自己点的单个生成不弹（2026-09-25），所以单个入口用 Agent 发起来验卡上写什么。
+    await confirmAndRunNode(node.id, { initiator: 'agent' })
+    await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' })
     expect(confirmMessages).toEqual([
       'Will generate 1 text result · Uses model credits',
       'Will generate 3 text results · Uses model credits',
@@ -90,6 +92,7 @@ describe('confirmAndRunNodeVariants', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
     let runs = 0
     await confirmAndRunNodeVariants(node.id, 4, {
+      initiator: 'user',
       executor: async () => {
         runs += 1
         return fakeResult(`r${runs}`)
@@ -107,6 +110,7 @@ describe('confirmAndRunNodeVariants', () => {
     let runs = 0
 
     await confirmAndRunNodeVariants(node.id, 3, {
+      initiator: 'user',
       executor: async () => {
         runs += 1
         return fakeResult(`three-${runs}`)
@@ -122,6 +126,7 @@ describe('confirmAndRunNodeVariants', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
     let runs = 0
     await confirmAndRunNodeVariants(node.id, 4, {
+      initiator: 'user',
       executor: async () => {
         runs += 1
         return fakeResult(`r${runs}`)
@@ -134,6 +139,7 @@ describe('confirmAndRunNodeVariants', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
     let runs = 0
     await confirmAndRunNodeVariants(node.id, 4, {
+      initiator: 'user',
       retry: { maxAttempts: 1 },
       executor: async () => {
         runs += 1
@@ -150,6 +156,7 @@ describe('confirmAndRunNodeVariants', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
     let runs = 0
     await confirmAndRunNodeVariants(node.id, 0, {
+      initiator: 'user',
       executor: async () => {
         runs += 1
         return fakeResult(`r${runs}`)

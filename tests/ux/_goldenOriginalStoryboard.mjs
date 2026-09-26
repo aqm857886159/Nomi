@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
-import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { waitForCanvasViewportSettled, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -88,7 +88,11 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   expect(originalGroup, 'Original placement must group the three shot nodes').toBeTruthy()
   await editor.locator(`[data-place-storyboard="${designId}"]`).click()
   await openCanvas(win)
-  await win.getByRole('button', { name: '适应视图', exact: true }).click()
+  // 放入画布不再让画布自己适应到新镜头上（2026-09-25 拍板「程序不再主动平移 / 缩放画布」）：镜头落在屏外时
+  // 舞台边只出一颗边缘提示。用户要看全三镜，自己点「适应视图」——它和点提示一样是用户发起的移动，且框住全部。
+  // 先等视口停稳：进画布那一刻若要一次性摆全貌（useAutoFitOnLoad，画布量完节点后判一次），别让它落在我们这一下之后。
+  await waitForCanvasViewportSettled(win)
+  await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应视图：看全放入画布的三镜')
   await waitForCanvasViewportSettled(win)
   const second = originalNodes.find(node => node.meta.shotId === shotId)
   // Materialization selects the last newly created node so its composer is ready. Close that
@@ -131,13 +135,12 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   await expect(secondRow.locator('[data-storyboard-prompt-block] [contenteditable="true"]')).toHaveText(newPrompt)
   const collapse = win.locator('[data-creation-resource-tree-toggle="collapse"]:visible')
   if (await collapse.isVisible()) await collapse.click()
-  await secondRow.locator('[data-storyboard-frame]').getByRole('button', { name: '生成镜 2', exact: true }).click()
-  const spend = win.locator('[data-spend-confirm-dialog]')
-  const spendProof = await proveProbe(spend, 'Original shot generation must await explicit approval')
   expect(walk.fixture.images).toHaveLength(0)
-  await shot('original-shot2-awaits-confirmation')
-  await spend.getByRole('button', { name: '生成', exact: true }).click()
-  await expectAbsent(spend, { provenBy: spendProof, message: 'Original approval closes after confirming one shot' })
+  await secondRow.locator('[data-storyboard-frame]').getByRole('button', { name: '生成镜 2', exact: true }).click()
+  // 用户自己点「生成镜 2」= 他本人要这一张：不弹付费确认，直接开始（2026-09-25 拍板；09-26 起不看金额）。
+  // 证据是供应商真收到了这一张的请求、镜头走到 done——若中间弹了卡，走查不去点，请求永远发不出去。
+  await expect.poll(() => walk.fixture.images.length, { timeout: stationTimeout({ operations: 2 }),
+    message: 'A single shot the user starts goes straight to the provider without a confirmation card' }).toBe(1)
   await expect(secondRow.locator('[data-storyboard-frame]')).toHaveAttribute('data-storyboard-frame', 'done', { timeout: stationTimeout({ operations: 4 }) })
   await expect.poll(async () => (await readNodes()).find(node => node.meta.shotId === shotId)?.result?.url).toMatch(/^nomi-local:\/\//)
   expect(walk.fixture.images).toHaveLength(1)

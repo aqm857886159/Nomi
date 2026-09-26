@@ -321,6 +321,21 @@ export async function fitCanvasView(page, { expectZoomBelow = 0.9 } = {}) {
   return readCanvasZoom(page)
 }
 
+/**
+ * 真按钮「重置视图」回到 100%。打开项目那一刻画布会一次性摆全貌（useAutoFitOnLoad，2026-09-26 协调裁定 B），
+ * 大项目会缩到 0.2 左右、节点全是轻量外壳、最左一列压在项目资源管理器底下；用户要在画布上干活，先点它回 1:1。
+ * 缩放没回到 1 就当场红——点击静默丢失时后面量的就不是这个状态。
+ */
+export async function resetCanvasView(page) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await page.getByRole('button', { name: '重置视图', exact: true }).first().click()
+    await sleep(page, 800)
+    const zoom = await readCanvasZoom(page)
+    if (zoom !== null && Math.abs(zoom - 1) < 0.001) return zoom
+  }
+  throw new Error(`重置视图后缩放没有回到 100%（zoom=${await readCanvasZoom(page)}）`)
+}
+
 async function readCanvasZoom(page) {
   return page.evaluate(() => {
     const viewport = document.querySelector('.react-flow__viewport')
