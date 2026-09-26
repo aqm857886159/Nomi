@@ -55,6 +55,7 @@ function shotsOf(plan: ProductionGenerationPlan, resolvePricing: PricingResolver
     modelId: entry.candidate.modelId,
     ...(entry.candidate.mode ? { mode: entry.candidate.mode } : {}),
     ...(entry.candidate.modeId ? { modeId: entry.candidate.modeId } : {}),
+    ...(entry.candidate.variantId ? { variantId: entry.candidate.variantId } : {}),
     parameters: { ...(entry.candidate.parameters ?? {}) },
     references: entry.candidate.references.map(reference => ({ ...reference })),
     price: candidatePrice(entry.candidate, resolvePricing),

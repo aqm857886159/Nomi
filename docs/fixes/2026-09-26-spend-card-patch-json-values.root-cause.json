@@ -1,0 +1,150 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-spend-card-patch-json-values",
+  "problem_type": "A renderer-built generation patch carried undefined parameter values across IPC into a host schema that only accepts JSON values, so the host refused the whole confirmation",
+  "symptom": "Real paid T5 (2026-09-26): on an Agent video spend card in the 全部 scope, clicking 「生成 2 镜」 did nothing; no gate, no job, no provider call. Main log: spend-confirm-failed code=generation_not_started ZodError invalid_union.",
+  "direct_cause": "spendCardDraft.candidatePatchFromNode puts every rendered parameter-control key into patch.parameters, writing undefined for controls that neither the node nor the candidate has a value for (for example seed). As soon as the card composer auto-fills any default (size 16:9) the patch is sent; IPC structured clone keeps the undefined values and generationPlanInputSchema (parameters: record of JSON values) rejects them.",
+  "class_root": "The renderer spend-card patch contract typed parameter values as unknown while the host contract only accepts JSON values; nothing tied the two together, so any producer could emit a non-JSON value that only fails at confirm time. JSON transports (agent lane, MCP) cannot carry undefined, so only the IPC producer diverged.",
+  "affected_population": [
+    "Every Agent spend card whose composer auto-fills a default or whose user edits any parameter, for 59 of 80 image/video archetypes (any archetype with a rendered control that has no value)",
+    "Every future renderer producer of generation patches typed against the card contract"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "src/workbench/ai/v4/spendCardDraft.ts"
+  ],
+  "entry_points": [
+    "Agent panel spend card confirm (revisionsForConfirm -> productionRunApi.reviseSpend -> IPC nomi:production-runs:revise-spend -> appIntegrationSpendConfirm -> generationPlanInputSchema)"
+  ],
+  "external_sources": [],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "tests": [
+      "src/workbench/ai/v4/spendCardPatchHostSchema.test.ts"
+    ],
+    "why": "generationJsonValueSchema is the host contract for what a generation parameter value can be; the card contract now reuses it instead of declaring its own looser type, so the renderer producer is checked against the same owner at compile time and by construction."
+  },
+  "internal_only_reason": "The invariant is the Nomi host generation-plan contract; no third-party format decides which parameter values the host accepts.",
+  "invariants": [
+    "Every value in a spend-card patch.parameters is a GenerationJsonValue (the host schema type); undefined means the key is absent.",
+    "The card patch schema and the host patch schema share one definition of a parameter value (generationJsonValueSchema)."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "generationJsonValueSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "generationJsonValueSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "revisionsForConfirm"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "mergeCandidatePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "candidatePatchFromNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "draftAfterNodeEdit"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "Each door has its own role and none decides validity on its own any more: candidatePatchFromNode is the only producer of parameter values (now filtered through the shared schema), draftAfterNodeEdit and mergeCandidatePatch layer patches typed by the shared contract, revisionsForConfirm is the single exit to IPC, and generationPlanSchemas / spendCardDraft read the one schema."
+  },
+  "generality_proof": "The card patch type now derives from the host value schema, so assigning a non-JSON value to patch.parameters fails to type-check anywhere in the renderer, and the single producer filters through the same schema. The class test walks every image/video archetype (80), edits one control on the card and pushes the real candidatePatchFromNode output through the real generationPlanInputSchema; 59 failed before the fix, all pass after.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "generationJsonValueSchema",
+      "responsibility": "The single definition of a generation parameter value, shared by the host schema and the renderer spend-card contract."
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "candidatePatchFromNode",
+      "responsibility": "The only producer of spend-card parameter values; emits only values that pass the shared schema."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "entry_point": "candidatePatchFromNode",
+      "disposition": "enforced",
+      "evidence": "Parameter values go through generationJsonValueSchema.safeParse; keys without a value are omitted; the patch type is Record<string, GenerationJsonValue>."
+    },
+    {
+      "path": "electron/capabilityCore/generationResolveIpc.ts",
+      "entry_point": "nomi:generation:resolve-plan",
+      "disposition": "not-affected",
+      "evidence": "The storyboard resolve request schema types params as z.record(z.unknown()), so undefined values are not refused there (its strict-field issue is the separate N4 lane)."
+    },
+    {
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "entry_point": "generationPlanInputSchema (agent lane / MCP tool input)",
+      "disposition": "not-affected",
+      "evidence": "Model-facing tool input is JSON; JSON cannot carry undefined."
+    },
+    {
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "entry_point": "nomi:production-runs:command",
+      "disposition": "not-affected",
+      "evidence": "Renderer production commands are persisted through JSON serialisation, which drops undefined; no JSON-value-strict schema parses them."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "59 of 80 image/video archetypes reproduce it on any card edit; any new renderer producer typed as unknown could do the same.",
+    "same_class_scan": [
+      "rg \"generationPlanInputSchema|generationCandidateSchema|candidatePatch\" electron src -> host parse sites: appIntegrationSpendConfirm (renderer IPC), laneVerbTransport / mcpGenerationTools / generationTransportAdapters (JSON transports)",
+      "rg \"ipcMain.handle(\" electron | generation/production -> revise-spend (affected), resolve-plan (record(unknown)), production-runs:command (JSON persisted)",
+      "rg \"reviseSpend\" src -> single producer useAgentPanelSpendConfirm.persistEdits <- revisionsForConfirm <- candidatePatchFromNode",
+      "rg \"stripUndefined|omitUndefined|compactObject|toJsonValue\" electron src -> no shared cleanup helper exists"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "invariant": "Spend-card patch parameter values are GenerationJsonValue, derived from the host schema.",
+    "failure_mode": "A producer that assigns a non-JSON value fails to type-check; at runtime the only producer drops values the shared schema rejects instead of sending them.",
+    "exception_policy": "none",
+    "strategy": "Export the host value schema, make the card contract reuse it (type-level), and have the single producer filter through it.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "src/workbench/ai/v4/spendCardDraft.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/spendCardPatchHostSchema.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/spendCardPatchHostSchema.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The looser z.record(z.unknown()) card type is replaced in place; there is no parallel path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides host parameter values.",
+    "exit_criteria": []
+  },
+  "migration": "Persisted spend drafts are re-validated on load with the stricter schema; a stored draft containing a non-JSON value falls back to an empty draft (existing behaviour of loadSpendDraft for invalid drafts).",
+  "residual_risks": [
+    "Other renderer IPC payloads outside generation plans are not typed against a shared JSON value contract; the scan found none that feed a JSON-strict host schema today."
+  ]
+}

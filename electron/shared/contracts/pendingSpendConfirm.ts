@@ -43,6 +43,11 @@ export type PendingSpendShot = Readonly<{
   modelId: string;
   mode?: string;
   modeId?: string;
+  /**
+   * 候选上显式写着的变体（没写 = 缺席）。卡上那张生成框拿它和 `modelId` 问唯一 owner
+   * `resolveArchetypeVariant`——与宿主派发问的是同一个函数、同一组输入，卡上写哪个就派哪个（2026-09-26）。
+   */
+  variantId?: string;
   parameters: Readonly<Record<string, unknown>>;
   references?: readonly PendingSpendReference[];
   price: PendingSpendPrice;
