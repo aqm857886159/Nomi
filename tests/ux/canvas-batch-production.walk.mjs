@@ -2,7 +2,7 @@ import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
 import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
-import { findCanvasBlankPoint, findConnectionStartPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findConnectionStartPoint, findNodeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
@@ -170,16 +170,29 @@ function check(condition, message, details = '') {
 async function addNodeWithPrompt(win, kind, prompt) {
   await win.locator(`[aria-label="添加${kind}节点"]`).first().click({ timeout: 5000 })
   await win.waitForTimeout(900)
+  // 2026-09-25 起程序不替人挪画布：舞台放不下时新卡落在屏外、画布边缘出一颗「新节点在…」提示（1800 宽窗口里
+  // Agent 面板开着，两张大卡并排就放不下第二张）。人会点提示过去——走查照做。
+  const arrivalHint = win.locator('[data-canvas-arrival-hint]')
+  if (await arrivalHint.count()) {
+    await arrivalHint.first().click()
+    await expect(arrivalHint).toHaveCount(0)
+  }
   const nodes = win.locator(`[data-kind="${kind === '图片' ? 'image' : 'video'}"][data-node-id]`)
   const target = nodes.last()
   await target.waitFor({ timeout: 5000 })
   const id = await target.getAttribute('data-node-id')
+  // 卡贴着舞台边时浮框（钉在正下方、定宽 560、被挡就挡）会伸出舞台；先把卡整张拖进来。
+  const cardPan = await panCanvasUntilInside(win, win.locator(`.generation-canvas-v2-node[data-node-id="${id}"]`))
+  check(cardPan.ok, `${kind}卡整张拖进舞台`, JSON.stringify(cardPan))
   const editor = win.locator(`[data-node-id="${id}"] div[contenteditable="true"]`).last()
   // The editor's own box can remain tall while its flex scrollport collapses to zero.
   // Assert the actual visible input region for both image and video composers.
   await expect.poll(() => editor.evaluate(element => element.closest('[data-prompt-box]').parentElement.clientHeight), { message: `${kind}提示词区保留三行可输入空间` }).toBeGreaterThanOrEqual(72)
   await editor.click({ timeout: 5000 })
-  await expectComposerFooterHit(editor.locator('xpath=ancestor::*[contains(@class, "generation-canvas-v2-node__composer-card")]'), `${kind}生成`)
+  const composerCard = editor.locator('xpath=ancestor::*[contains(@class, "generation-canvas-v2-node__composer-card")]')
+  const composerPan = await panCanvasUntilInside(win, composerCard)
+  check(composerPan.ok, `${kind}浮框整张拖进舞台`, JSON.stringify(composerPan))
+  await expectComposerFooterHit(composerCard, `${kind}生成`)
   await editor.fill(prompt)
   await win.waitForTimeout(500)
   return id
@@ -430,14 +443,17 @@ try {
   check(wireCalls.length === callsBeforeSelectedCancel, '混合选中生成取消后 vendor 零新增调用')
 
   await win.locator('button[aria-label="清除选择"]').click()
+  // 前面为让浮框整张进舞台拖过画布，要点的两张卡可能已出视野（被按可见性卸载）。人会先点「适应视图」看全再点。
+  await win.getByRole('button', { name: '适应视图', exact: true }).first().click()
+  await waitForCanvasViewportSettled(win)
   await win.locator(`.react-flow__node[data-id="${retryImageId}"]`).click()
   await win.locator(`.react-flow__node[data-id="${sourceId}"]`).click({ modifiers: ['Shift'] })
   await win.waitForTimeout(800)
   const retrySelectionGenerate = win.locator('[data-batch-scope="selection"]')
   check((await retrySelectionGenerate.textContent())?.includes('1'), '选中批量只生成一个失败待测节点')
+  // 选中批量里只有 1 张 = 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
+  // 下面「节点进入排队 / 生成中」本身就是证据：若中间弹了卡而走查不去点，节点永远到不了排队态。
   await retrySelectionGenerate.click()
-  dialog = await spendDialog(win)
-  await dialog.getByRole('button', { name: '生成', exact: true }).click()
   const notificationRoot = win.locator('.mantine-Notifications-root[data-position="top-right"]')
   const retryNode = win.locator(`[data-node-id="${retryImageId}"]`)
   const runningAlert = retryNode.and(win.locator('[data-status="queued"], [data-status="running"]'))
@@ -463,9 +479,8 @@ try {
   check(await retryAction.count() === 1, '失败通知提供独立的重试按钮')
   await retryAction.waitFor({ timeout: 15000 })
   await snap(win, 'failed-with-retry-action')
+  // 「重试失败的」这里只有 1 张：同上，不弹卡、直接开始。
   await retryAction.click()
-  dialog = await spendDialog(win)
-  await dialog.getByRole('button', { name: '生成', exact: true }).click()
   await expect(retryNode).toHaveAttribute('data-status', /queued|running/)
   await expectAbsent(notificationRoot.getByRole('alert').filter({ hasText: /开始生成/ }), {
     provenBy: notificationProof, message: '重试确已运行时持续观测，不允许进度 toast 短暂出现',

@@ -355,7 +355,7 @@ function BaseGenerationNodeImpl({
               ? undefined
               // P4 S6：多镜物化节点走返工链（一功能一个家 §3.E）；否则本地重跑/素材重导入（单镜/普通节点不变=回归门）。
               : productionRetry ?? (() => {
-                  void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id))
+                  void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id, { initiator: 'user' }))
                 })
           }
         />
@@ -508,9 +508,7 @@ function BaseGenerationNodeImpl({
           大 composer 层叠糊成一片(用户反馈 bug，根因收口此唯一挂载入口)。批量生成走选中浮条。 */}
       {/* 只读画布不挂、结果堆叠展开时卸载（2026-09-21 收回来的两条）：
           ① 只读时挂上去会多浮出一张「只读画布」提示卡，那是一张没出过样张的新 UI；
-          ② composer 的 `useComposerViewportPlacement` 是**每帧 rAF 量矩形**的循环，
-             用 invisible 藏起来等于让它在看不见的时候继续每帧 querySelectorAll + getBoundingClientRect。
-          藏不等于卸载——不挂才是不跑。 */}
+          ② 藏不等于卸载：结果堆叠展开时浮框的编辑器、参考区订阅都还在跑，不挂才是不跑。 */}
       {composerWanted && composerMounted ? (
         <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
       ) : null}

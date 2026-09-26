@@ -26,7 +26,7 @@ vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
 }))
 const shot: PlanShot = { index: 3, shotId: 's3', prompt: '傍晚', durationSec: 5, anchorIds: [] }
 const plan: StoryboardPlan = { title: '故事', anchors: [], shots: [shot] }
-const ctx = { documentId: 'doc', designId: 'design', plan }
+const ctx = { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan }
 function node() { return useGenerationCanvasStore.getState().nodes[0] }
 beforeEach(() => {
   submitted.prompts = []

@@ -422,6 +422,10 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       }
     })
   })
+  // Node 默认 5s 就关闲置 keep-alive 连接；宿主（undici）恰在那一刻复用它发付费提交，会读到 ECONNRESET，
+  // 而付费提交「回执未知不重试」是有意的 fail-closed。真供应商网关的闲置超时是分钟级，夹具取 30s（< headersTimeout 60s），
+  // 否则走查里任何一次「等画面停稳再点确认」的正常停顿都会撞上这个 5s 窗口。
+  server.keepAliveTimeout = 30_000
   server.on('connection', (socket) => {
     sockets.add(socket)
     socket.once('close', () => sockets.delete(socket))

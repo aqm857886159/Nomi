@@ -45,7 +45,7 @@ import { runOriginalStoryboardGolden } from './_goldenOriginalStoryboard.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -155,7 +155,10 @@ function readPersistedPayload(projectRoot) {
 
 // ── 画布：把分镜表带进视口并铺开。React Flow 开着 onlyRenderVisibleElements（视口外的节点连 DOM 都不进），
 //    表在低缩放（<80%）下又只剩镜号/关键帧两列（compact），画面与状态列都不在。所以按用户会做的三下来：
-//    ① 先等画布自己停下（落节点/重开项目后画布延迟发一次自动 fit，人是看它缩好了才动手的）；
+//    ① 先等画布停下：落节点本身不再挪画布（2026-09-25 拍板，以前这里等的是落地后那次延迟自动 fit），
+//       但进画布 / 重开项目那一刻，若记住的视角里一个节点都看不见，画布会一次性摆全貌（useAutoFitOnLoad，
+//       画布量完节点后判一次）——人是看它摆好了才动手的；Agent 在创作页落的镜头若在屏外，舞台边会出一颗
+//       「新节点在…」的边缘提示，这里不点它（下一步的「适应视图」是同样由用户发起、且框住全部节点的那一下）；
 //    ② 「适应视图」——全部节点入视口，证明表在；
 //    ③ 在空白处按住拖动，把表拖到舞台正中，再把缩放滑块（产品自己的控件）拨到 80%——滑块绕视口中心缩放，
 //       ≥80% 表就铺开成完整表格（shotTableDensityForZoom 的 full 档），而 100% 时 960px 宽的表在 800px 的舞台里
@@ -359,7 +362,8 @@ async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
   const after = shotPrompts((await readProject(win, projectId)).payload)
   expect(after[0], '第 1 镜被误改').toBe(SHOT_PROMPTS[0])
   expect(after[2], '第 3 镜被误改').toBe(SHOT_PROMPTS[2])
-  // 等待既有视口稳定窗口，避免断言抢在落地层延迟fit前误绿；改提示词应保留阅读位置。
+  // 改提示词应保留阅读位置：落地层早已不再发延迟 fit（2026-09-25），但仍先等视口停稳再逐字比——
+  // 真有程序移动，停下来的那一帧就和改前不同；抢在动画中途比会漏掉它。
   await waitForCanvasViewportSettled(win)
   await expect(viewport, '仅改已有镜头提示词不应移动或缩放画布').toHaveCSS('transform', beforeViewport)
   await expect(win.locator(SHOT_TABLE), '改提示词后完整表格应继续可读').toHaveAttribute('data-density', 'full')
@@ -383,13 +387,10 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
   })
   const table = win.locator(SHOT_TABLE)
   await expect(table.locator(row(nodeIds[1])), '第 2 镜不在未生成态').toContainText('未生成')
+  expect(walk.fixture.images, '点生成之前不得发生任何图片生成调用').toHaveLength(0)
+  // 「生成 1 镜」= 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
+  // 证据是下面「这一行变成已生成、供应商恰好收到 1 次」——若中间弹了卡而走查不去点，请求永远发不出去。
   await clickOrFail(table.locator('footer').getByRole('button', { name: '生成 1 镜', exact: true }), '生成选中的第 2 镜')
-  const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
-  const spendProof = await proveProbe(spendDialog, '生成前必须先弹花钱确认卡')
-  expect(walk.fixture.images, '确认之前不得发生任何图片生成调用').toHaveLength(0)
-  await shot('generation-awaits-confirm')
-  await clickOrFail(spendDialog.getByRole('button', { name: '生成', exact: true }), '确认生成（loopback 零额度）')
-  await expectAbsent(spendDialog, { provenBy: spendProof, message: '确认后花钱确认卡应持续消失' })
 
   await expect(table.locator(row(nodeIds[1])), '第 2 镜没有变成已生成').toContainText('已生成', { timeout: stationTimeout({ operations: 4 }) })
   await expect.poll(async () => shotNode((await readProject(win, projectId)).payload, SHOT_2_ID)?.result?.url ?? null,

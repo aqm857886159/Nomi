@@ -107,6 +107,15 @@ export const zhGenerationCommon = {
   },
   canvas: {
     aria: 'AI 影像创作画布',
+    // 画布边缘提示（新东西落在屏外 / 别的分类时，点它才过去）。一个 / 多个分开写：中文没有单复数，
+    // 「1 个新节点在右侧」读着别扭，单个就不带数。
+    arrival: {
+      one: { right: '新节点在右侧', left: '新节点在左侧', up: '新节点在上方', down: '新节点在下方' },
+      many: { right: '{{count}} 个新节点在右侧', left: '{{count}} 个新节点在左侧', up: '{{count}} 个新节点在上方', down: '{{count}} 个新节点在下方' },
+      categoryOne: '新节点在「{{category}}」里',
+      categoryMany: '{{count}} 个新节点在「{{category}}」里',
+      go: '前往查看',
+    },
     noImportableAssets: '没有可导入画布的素材',
     importedOne: '已导入画布',
     importedMany: '已导入 {{count}} 个素材到画布',
@@ -565,9 +574,6 @@ export const zhGenerationCommon = {
     },
   },
   spend: {
-    estimatedAmount: '预计金额',
-    catalogUnpriced: '目录未标价',
-    catalogCredits: '{{amount}} 点（目录报价）',
     agentNotice: '经 AI 助手驱动 · 需你确认花费',
     agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     ignore: '忽略',
@@ -716,6 +722,8 @@ export const zhGenerationCommon = {
     // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
     variantCountAria: '每次生成几个',
+    expandPrompt: '展开提示词',
+    collapsePrompt: '收起提示词',
     variantCountTitle: '每次生成 {{count}} 个',
     variantCountOption: '{{count}} 个',
     generate: '生成',
@@ -1594,6 +1602,13 @@ export const enGenerationCommon = {
   },
   canvas: {
     aria: 'AI visual creation canvas',
+    arrival: {
+      one: { right: 'New node to the right', left: 'New node to the left', up: 'New node above', down: 'New node below' },
+      many: { right: '{{count}} new nodes to the right', left: '{{count}} new nodes to the left', up: '{{count}} new nodes above', down: '{{count}} new nodes below' },
+      categoryOne: 'New node in “{{category}}”',
+      categoryMany: '{{count}} new nodes in “{{category}}”',
+      go: 'Go there',
+    },
     noImportableAssets: 'No assets can be imported to the canvas',
     importedOne: 'Imported to canvas',
     importedMany: 'Imported {{count}} assets to the canvas',
@@ -2050,9 +2065,6 @@ export const enGenerationCommon = {
     },
   },
   spend: {
-    estimatedAmount: 'Estimated amount',
-    catalogUnpriced: 'Not priced in catalog',
-    catalogCredits: '{{amount}} credits (catalog quote)',
     agentNotice: 'Started by an AI assistant · Your approval is required before spending',
     agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     ignore: 'Ignore',
@@ -2187,6 +2199,8 @@ export const enGenerationCommon = {
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
     variantCountAria: 'Outputs per run',
+    expandPrompt: 'Expand prompt',
+    collapsePrompt: 'Collapse prompt',
     variantCountTitle: 'Generate {{count}} per run',
     variantCountOption: '{{count}} outputs',
     generate: 'Generate',

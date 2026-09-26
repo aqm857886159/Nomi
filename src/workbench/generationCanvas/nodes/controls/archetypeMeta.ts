@@ -18,8 +18,12 @@ import {
   type ArchetypeReferenceSlotKind,
   type ModelArchetype,
   type ModelArchetypeVariant,
+  archetypeBaseModelKey,
+  archetypeVariantForModelId,
+  canonicalArchetypeVariantId,
   combineChannelForMode,
   resolveArchetypeForModel,
+  resolveArchetypeVariant,
   specializeArchetypeForVariant,
 } from '../../../../../electron/shared/modelArchetypes'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
@@ -86,15 +90,6 @@ function readArchetypeNodeMeta(meta: Record<string, unknown> | undefined): Arche
   return { id, modeId, variantId }
 }
 
-/** 有效变体 id，兼容档案声明的历史别名；无匹配返回空串。 */
-function canonicalVariantIdOf(archetype: ModelArchetype, variantId: string | null | undefined): string {
-  const raw = typeof variantId === 'string' ? variantId.trim() : ''
-  if (!raw || !archetype.variants?.length) return ''
-  if (archetype.variants.some((v) => v.id === raw)) return raw
-  const alias = archetype.variantIdAliases?.[raw]
-  return alias && archetype.variants.some((v) => v.id === alias) ? alias : ''
-}
-
 /** 当前激活的模式（无命名空间 meta 或 modeId 失效时落到 defaultModeId）。 */
 export function currentArchetypeMode(
   archetype: ModelArchetype,
@@ -109,21 +104,23 @@ export function currentArchetypeMode(
   )
 }
 
+/** 这个节点存着的 variantId（只认同一档案的）与模型名——问唯一 owner 时的那组输入。 */
+function variantInputOf(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): { variantId?: string; modelId?: unknown } {
+  const stored = readArchetypeNodeMeta(meta)
+  return { ...(stored?.id === archetype.id ? { variantId: stored.variantId } : {}), modelId: meta?.modelKey }
+}
+
 /**
- * 当前激活的变体（对称 currentArchetypeMode）。读 `meta.archetype.variantId`，回落 defaultVariantId，
- * 再回落 variants[0]。无 variants 档案 → null（UI 不显示变体段，传输不带变体 model）。
+ * 当前激活的变体（对称 currentArchetypeMode）。判定只问唯一 owner `resolveArchetypeVariant`：
+ * 存着的 variantId → 模型名是某个变体的专属 key → 默认变体 → 第一个。付费卡与宿主派发问的是同一个函数、
+ * 同一组输入（2026-09-26：以前宿主自己拿模型名反推，卡上写 Fast、派出去是 standard）。
+ * 无 variants 档案 → null（UI 不显示变体段，传输不带变体 model）。
  */
 export function currentArchetypeVariant(
   archetype: ModelArchetype,
   meta: Record<string, unknown> | undefined,
 ): ModelArchetypeVariant | null {
-  const variants = archetype.variants
-  if (!variants || variants.length === 0) return null
-  const stored = readArchetypeNodeMeta(meta)
-  const variantId = stored?.id === archetype.id ? canonicalVariantIdOf(archetype, stored.variantId) : ''
-  return (
-    variants.find((v) => v.id === variantId) ?? variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]
-  )
+  return resolveArchetypeVariant(archetype, variantInputOf(archetype, meta))
 }
 
 export type ArchetypeVariantChoice = { id: string; label: string }
@@ -345,18 +342,9 @@ export function archetypeModeModelEnum(
   return currentArchetypeMode(archetype, meta).modelEnum ?? null
 }
 
-/** 默认变体 id（无 variants → 空串；声明 variants 时取 defaultVariantId 回落 variants[0]）。 */
-function defaultVariantIdOf(archetype: ModelArchetype): string {
-  const variants = archetype.variants
-  if (!variants || variants.length === 0) return ''
-  return (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).id
-}
-
-/** 保留当前 variantId（同档案）或回落默认（换档案 / 旧 meta 无 variantId）。 */
+/** 切模式时跟着写回的 variantId = 此刻显示的那个变体（无 variants → 空串）。 */
 function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArchetype): string {
-  const stored = readArchetypeNodeMeta(meta)
-  const keep = stored?.id === archetype.id ? canonicalVariantIdOf(archetype, stored.variantId) : ''
-  return keep || defaultVariantIdOf(archetype)
+  return currentArchetypeVariant(archetype, meta)?.id ?? ''
 }
 
 /**
@@ -421,11 +409,8 @@ export function applyArchetypeVariantSwitch(
   if (!variants || variants.length === 0) return meta
   const stored = readArchetypeNodeMeta(meta)
   const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
-  const canonicalNextId = canonicalVariantIdOf(archetype, nextVariantId)
-  const nextVariant =
-    variants.find((v) => v.id === canonicalNextId) ??
-    variants.find((v) => v.id === archetype.defaultVariantId) ??
-    variants[0]
+  // 用户点的那一档；认不出的 id 与不传一样落默认变体（唯一 owner 的规则）。
+  const nextVariant = resolveArchetypeVariant(archetype, { variantId: nextVariantId })!
   // 按新变体特化出当前模式的参数声明，把存量越界的 select 值夹回默认（D1：4k→fast 变体不再漏发）。
   const specialized = specializeArchetypeForVariant(archetype, nextVariant.id)
   const mode =
@@ -460,13 +445,12 @@ export function normalizeArchetypeVariantMeta(
   // 否则变体全串(doubao-seedance-2.0-fast)在 picker(只有基础选项 + findModelOptionByIdentifier 精确匹配)
   // 命中不到 → 选择显示空（这正是「最大风险点」）。变体信息只由 variantId 承载（与 applyArchetypeVariantSwitch
   // 一致：切变体只改 variantId、不动 modelKey）。
-  const baseModelKey =
-    archetype.catalogModelKey ?? (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).modelKey
+  const baseModelKey = archetypeBaseModelKey(archetype)!
   // modelKey 已是基础 → variantId 是权威（缺则 currentArchetypeVariant 回落默认），无需迁移、幂等 no-op。
-  // **绝不能用基础串反推变体**——基础串映射到 standard 会把已选的 fast/face 冲掉。
+  // **绝不能用基础串反推变体**——基础串映射到 standard 会把已选的 fast/face 冲掉（唯一 owner 同一条规则）。
   const stored = readArchetypeNodeMeta(meta)
   if (norm(currentKey) === norm(baseModelKey)) {
-    const canonicalStoredId = stored?.id === archetype.id ? canonicalVariantIdOf(archetype, stored.variantId) : ''
+    const canonicalStoredId = stored?.id === archetype.id ? canonicalArchetypeVariantId(archetype, stored.variantId) : ''
     // 已下线 variantId（face/fast-face）即使 modelKey 已折叠，也要改写成当前有效 id，避免节点默默回默认。
     if (canonicalStoredId && canonicalStoredId !== stored?.variantId) {
       return {
@@ -477,11 +461,7 @@ export function normalizeArchetypeVariantMeta(
     return null
   }
   // modelKey 是变体全串（旧项目钉死的具体变体）→ 折叠成基础 modelKey + 从串 derive variantId。
-  const matched = variants.find(
-    (variant) =>
-      norm(variant.modelKey) === norm(currentKey) ||
-      (variant.identifierPatterns ?? []).some((p) => norm(p) === norm(currentKey)),
-  )
+  const matched = archetypeVariantForModelId(archetype, currentKey)
   if (!matched) return null
   const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
   return { modelKey: baseModelKey, archetype: { id: archetype.id, modeId, variantId: matched.id } }
@@ -503,9 +483,9 @@ export function ensureArchetypeNodeMeta(
   // 已是该档案：若有变体但 variantId 缺/失效 → 补默认变体（旧 meta 升级）；否则幂等 null。
   if (stored?.id === archetype.id) {
     if (!(archetype.variants?.length ?? 0)) return null
-    const canonicalStoredId = canonicalVariantIdOf(archetype, stored.variantId)
+    const canonicalStoredId = canonicalArchetypeVariantId(archetype, stored.variantId)
     if (stored.variantId && canonicalStoredId === stored.variantId) return null
-    return applyArchetypeVariantSwitch(meta, archetype, canonicalStoredId || defaultVariantIdOf(archetype))
+    return applyArchetypeVariantSwitch(meta, archetype, currentArchetypeVariant(archetype, meta)?.id ?? '')
   }
   return applyArchetypeModeSwitch(meta, archetype, archetype.defaultModeId)
 }

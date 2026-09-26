@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { PAGE_PROBE } from './probe.mjs'
 import { buildProject } from './fixture.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
+import { panCanvasUntilInside } from '../_canvasHit.mjs'
 
 export const EDITOR = '[data-composer-host] .ProseMirror[contenteditable="true"]'
 export const STAGE = '.generation-canvas-v2__stage'
@@ -211,4 +212,8 @@ export async function selectIdle(s, idleId) {
   }
   await s.win.mouse.click(p.x, p.y)
   await s.win.locator(EDITOR).first().waitFor({ state: 'visible', timeout: stationTimeout() })
+  // 提示词面板钉在节点正下方、定宽 560、被挡就挡（2026-09-25）；打开时画布适应全貌到低倍率后，待写节点在最下一排，
+  // 面板底栏（模型 / 参数）会伸出窗口。人会中键拖画布把它拖进来——照做，只平移不缩放，量的仍是适应后的倍率。
+  const placed = await panCanvasUntilInside(s.win, s.win.locator('[data-composer-host]'))
+  if (!placed.ok) throw new Error(`提示词面板拖不进舞台：${JSON.stringify(placed)}`)
 }

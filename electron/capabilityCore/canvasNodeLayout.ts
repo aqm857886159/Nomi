@@ -37,6 +37,42 @@ function collidesAny(pos: Point, size: Size, existing: readonly NodeBox[], footp
   return existing.some((node) => overlaps(pos, size, node.position, footprint(node.kind, node.size)))
 }
 
+/**
+ * 在一块区域（用户此刻看得见的那块画布）里找离 base 最近的空位：整张卡都在区域内、且不压任何已有节点。
+ * 找不到返回 null，由调用方退回螺旋避让。
+ *
+ * 为什么不直接用螺旋：螺旋一步跨一整张卡（足迹 + GAP），窄画布上第一圈候选就出了屏——2026-09-25 真机：
+ * 重置到 100% 后点「新建图片」，可见区中心被已有卡占着，新卡被推到屏幕下方外面。用户拍板「新建尽量直接落在
+ * 当前可见区域」，所以落点本来就在可见区里时，先在可见区里按小步距找空位。
+ */
+export function resolveInsertionPositionInAreaWith(
+  footprint: FootprintResolver,
+  newKind: string,
+  base: Point,
+  existing: readonly NodeBox[],
+  area: { x: number; y: number; width: number; height: number },
+): Point | null {
+  const size = footprint(newKind)
+  if (size.width > area.width || size.height > area.height) return null
+  const inArea = (pos: Point) => pos.x >= area.x && pos.y >= area.y && pos.x + size.width <= area.x + area.width && pos.y + size.height <= area.y + area.height
+  if (inArea(base) && !collidesAny(base, size, existing, footprint)) return base
+  // 步距取足迹的 1/4：够细能钻进卡与卡之间的空当，又不至于在大可见区里算上万个点。
+  const step = Math.max(16, Math.round(Math.min(size.width, size.height) / 4))
+  let best: Point | null = null
+  let bestDistance = Infinity
+  for (let y = area.y; y + size.height <= area.y + area.height; y += step) {
+    for (let x = area.x; x + size.width <= area.x + area.width; x += step) {
+      const distance = (x - base.x) ** 2 + (y - base.y) ** 2
+      if (distance >= bestDistance) continue
+      const candidate = { x: Math.round(x), y: Math.round(y) }
+      if (collidesAny(candidate, size, existing, footprint)) continue
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
 // 8 个方向（先右/下，再四角/左/上），保证优先往右下铺、视觉自然。两个螺旋解算器共用。
 const SPIRAL_DIRS: readonly Point[] = [
   { x: 1, y: 0 },

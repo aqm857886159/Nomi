@@ -1,4 +1,9 @@
-// R13 走查：节点生成浮框「钉在节点下方、不出视口、不漂移」+ 底栏不被裁 + ×N 通用化。
+// R13 走查：节点生成浮框「钉在节点正下方、定宽、被挡就挡、不漂移」+ 底栏不被裁 + ×N 通用化。
+//
+// 2026-09-25 用户拍板改了放置规则：浮框不再 clamp 进视口、不再翻到上方、不再给左栏/底部停靠区让位，
+// 宽度恒 560（屏幕像素）。原话：「有时候位置不在下面而是在节点中间」「遮挡就遮挡了，保持位置」。
+// 所以这里的判据从「在视口内」换成「顶边 = 节点底边 + 14 × 缩放、中线 = 节点中线、宽 = 560」，
+// 并在窄画布下反过来断：浮框**不**被收窄、**不**被推回视口。
 //
 // 症状（2026-09-10 用户真机反馈 #10 / #11）：
 //   · 点击节点后浮出的 composer 来回漂移、不在节点正下方、有时被截断；
@@ -67,7 +72,7 @@ async function measure() {
     // card 从 anchor 里找，不再全局找：全局那句会把两个浮框混着取。
     const card = anchor?.querySelector('.generation-canvas-v2-node__composer-card')
     const nodeEl = anchor?.parentElement
-    const leftDockEl = document.querySelector('[data-canvas-left-dock="true"]')
+    const viewportEl = document.querySelector('.react-flow__viewport')
     if (!stage || !anchor || !card || !nodeEl) return null
     const box = (element) => {
       const rect = element.getBoundingClientRect()
@@ -103,10 +108,8 @@ async function measure() {
       stage: box(stage),
       node: box(nodeEl),
       card: box(card),
-      // 左缘常驻工具条（CanvasToolbar）的真实矩形——浮框左缘必须让在它右边，
-      // 不是硬编码一个宽度去比（2026-09-10 反馈 #10：截图 02 里浮框左缘被它压住）。
-      leftDock: leftDockEl ? box(leftDockEl) : null,
-      flipped: anchor.getAttribute('data-flipped'),
+      // 画布缩放：读 React Flow 视口自己的 transform（DOMMatrix.a），不读 store——量的是用户眼前那一帧。
+      zoom: viewportEl ? new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a : 1,
       // 「几行」按**竖直中心**聚类算，不能按 top：`items-center` 的同一行里控件高矮不同，
       // top 天生各不相同，按 top 数会把一条正常单行数成 4 行（第一版就是这么假红的）。
       footerRows: footer ? controls.reduce((rows, element) => {
@@ -163,11 +166,12 @@ async function measure() {
 }
 
 /**
- * 浮框刚挂上的那几帧里，`useComposerViewportPlacement` 还没算出可用区，卡上写着
- * `visibility: hidden`（见 NodeGenerationComposer 的 style）。此时 getBoundingClientRect
- * 照样有值、Playwright 也认它「visible」（隐的是**卡**不是锚点），但 getComputedStyle
- * 一律报 hidden——量到的是「0 个控件 / 0 行」，和「底栏整个没渲染」在观测上一模一样。
- * 所以量之前先等它真的定位完：条件是「底栏里有可见控件」，不是等一个墙钟（R18）。
+ * 浮框刚挂上的那几帧里，底栏还可能没渲染完（浮框按节点懒加载，见 LazyNodeGenerationComposer；
+ * 画布拖动期间整块 `invisible`）。此时锚点的 getBoundingClientRect 照样有值、Playwright 也认它
+ * 「visible」，但量到的是「0 个控件 / 0 行」，和「底栏整个没渲染」在观测上一模一样。
+ * （2026-09-25 前这里等的是旧视口放置层算出可用区前的 `visibility: hidden`；
+ * 那层已删，位置改由 composerCanvasPlacement 同步算出，不再有「未定位」这一态。）
+ * 所以量之前先等它真的挂好：条件是「底栏里有可见控件」，不是等一个墙钟（R18）。
  */
 async function settleComposer(label) {
   await expect.poll(async () => (await measure())?.controlCount ?? 0, {
@@ -224,8 +228,18 @@ function checkComposerBarV1(label, m) {
 // 输入框）时，上面那段会**静静跳过**，那种绿和真绿在观测上一模一样（走查里最贵的一类假绿）。
 let sawPanelPick = false
 
-const inside = (inner, outer, slack = 1) => inner.left >= outer.left - slack && inner.right <= outer.right + slack
-  && inner.top >= outer.top - slack && inner.bottom <= outer.bottom + slack
+// 浮框钉在节点正下方的唯一判据（与 composerCanvasPlacement 同一个不变量，这里在真机屏幕坐标里验）：
+// 顶边 = 节点底边 + 14 × 缩放；中线 = 节点中线；屏幕宽 = 560。不看视口、不看停靠区——那些不再是输入。
+const COMPOSER_WIDTH = 560
+const COMPOSER_GAP = 14
+function assertPinned(label, m) {
+  const expectedTop = m.node.bottom + COMPOSER_GAP * m.zoom
+  const centreDelta = (m.card.left + m.card.right) / 2 - (m.node.left + m.node.right) / 2
+  check(`${label}：浮框顶边 = 节点底边 + 14×缩放（在节点下面，不压在节点身上）`, Math.abs(m.card.top - expectedTop) <= 2,
+    `card.top=${Math.round(m.card.top)} 期望 ${Math.round(expectedTop)}（node.bottom=${Math.round(m.node.bottom)} zoom=${m.zoom.toFixed(2)}）`)
+  check(`${label}：浮框中线 = 节点中线`, Math.abs(centreDelta) <= 2, `偏 ${centreDelta.toFixed(1)}px`)
+  check(`${label}：浮框宽恒 560`, Math.abs(m.card.width - COMPOSER_WIDTH) <= 1, `实测 ${m.card.width.toFixed(1)}`)
+}
 
 /**
  * 首启引导/弹层清场。锚点抄自已跑通的 tests/ux/canvas-control-clarity.walk.mjs：
@@ -296,22 +310,8 @@ try {
   if (!first) throw new Error('量不到浮框几何：舞台 / 节点 / 卡片有一个没找到')
   console.log('  几何:', JSON.stringify(first, null, 2))
 
-  // ① 浮框顶边在节点底边下方（未翻转时），且不是压在节点身上。
-  check(
-    '浮框顶边在节点底边之下（贴着这个节点，不侧挂、不压图）',
-    first.flipped === 'true' ? first.card.bottom <= first.node.top + 1 : first.card.top >= first.node.bottom - 1,
-    `flipped=${first.flipped} card.top=${Math.round(first.card.top)} node.bottom=${Math.round(first.node.bottom)}`,
-  )
-  // ② 整框在视口内。
-  check('整框在画布视口内（左右上下都没出界）', inside(first.card, first.stage, 2),
-    `card=${JSON.stringify(first.card)} stage=${JSON.stringify(first.stage)}`)
-  // ②.5 浮框左缘不被左缘常驻工具条压住（2026-09-10 反馈 #10 复核：截图里「生成方式」
-  // 标签与第一个模式页签左半被 CanvasToolbar 盖住，根因是可用区算漏了这一块）。
-  check(
-    '浮框左缘 ≥ 左栏工具条右缘 + 间距（不被左栏压住）',
-    !first.leftDock || first.card.left >= first.leftDock.right + 1,
-    `card.left=${Math.round(first.card.left)} leftDock.right=${first.leftDock ? Math.round(first.leftDock.right) : 'n/a'}`,
-  )
+  // ① 钉在节点正下方：顶边 = 节点底边 + 14×缩放，中线 = 节点中线，宽 = 560。三条同一个判据函数。
+  assertPinned('视频节点', first)
   // ③ 底栏所有控件都在卡内并且真的点得到（不是被 overflow-hidden 裁在外面）。
   check('底栏控件全部在卡内', first.controlsInsideCard, `控件 ${first.controlCount} 个，${first.footerRows} 行`)
   check('底栏控件全部可命中（没有被别的东西盖住）', first.controlsHittable)
@@ -416,26 +416,13 @@ try {
     Math.abs(offsetAfter.y - offsetBefore.y) <= 2,
     `before=${JSON.stringify(offsetBefore)} after=${JSON.stringify(offsetAfter)}`,
   )
-  // 横向**不能**要求偏移不变：卡比节点宽得多，正常就贴着视口边被 clamp 住。
-  // 该断的是「横向 = 以节点为心、被视口 clamp 之后的那个唯一值」——既证明它跟着节点算，
-  // 也证明 clamp 的输入只有两个：VIEWPORT_MARGIN=12（与 useComposerViewportPlacement 同一个数）
-  // 和左栏工具条的真实矩形（LEFT_DOCK_GAP=12，同一份 stageLeft 公式）——不是硬编码宽度。
-  const expectedLeft = (item) => {
-    const margin = 12
-    const leftDockGap = 12
-    const leftDockUsable = item.leftDock && item.leftDock.width > 0 && item.leftDock.bottom > item.stage.top && item.leftDock.top < item.stage.bottom
-    const min = item.stage.left + (leftDockUsable ? Math.max(margin, item.leftDock.right - item.stage.left + leftDockGap) : margin)
-    const max = Math.max(min, item.stage.right - margin - item.card.width)
-    return Math.min(Math.max((item.node.left + item.node.right - item.card.width) / 2, min), max)
-  }
-  for (const [label, item] of [['拖动前', beforeDrag], ['拖动后', dragged]]) {
-    check(
-      `${label}横向 = 以节点为心 + 视口 clamp（没有第三个输入）`,
-      Math.abs(item.card.left - expectedLeft(item)) <= 2,
-      `实测 ${Math.round(item.card.left)} / 期望 ${Math.round(expectedLeft(item))}`,
-    )
-  }
-  check('拖动后整框仍在视口内', inside(dragged.card, dragged.stage, 2))
+  // 横向也必须逐像素不变：浮框不再被视口 clamp，横向偏移只由节点决定。
+  check(
+    '拖动画布后浮框横向偏移逐像素不变（不 clamp、不躲边）',
+    Math.abs(offsetAfter.x - offsetBefore.x) <= 2,
+    `before=${JSON.stringify(offsetBefore)} after=${JSON.stringify(offsetAfter)}`,
+  )
+  assertPinned('拖动后', dragged)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '02-after-canvas-drag.png') })
 
   // ⑦ ×N 通用化：声音节点以前没有这个控件，现在按执行类派生 → 也有。
@@ -450,9 +437,7 @@ try {
   const audio = await measure()
   if (!audio) throw new Error('量不到声音节点浮框几何')
   check('声音节点也有「每次生成几个」（×N 已按执行类派生，不再只给图片/视频）', audio.variantControl)
-  check('声音节点浮框同样贴在节点下方且在视口内',
-    (audio.flipped === 'true' ? audio.card.bottom <= audio.node.top + 1 : audio.card.top >= audio.node.bottom - 1) && inside(audio.card, audio.stage, 2),
-    `flipped=${audio.flipped}`)
+  assertPinned('声音节点', audio)
   check('声音节点底栏控件全部在卡内且可命中', audio.controlsInsideCard && audio.controlsHittable, `控件 ${audio.controlCount} 个，${audio.footerRows} 行`)
   check('声音节点底栏同样是单行', audio.footerRows === 1, `${audio.footerRows} 行`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '03-audio-node-composer.png') })
@@ -511,8 +496,8 @@ try {
   // React Flow 各读各的尺寸」——实测就是这条路先炸了：composer 整个从 DOM 消失，量了 8 次全
   // null）。真实会让画布变窄的是**拉宽常驻 Agent 面板**这个既有 UI（`AssistantPane` 的
   // 分隔条，键盘 End 直接跳到当前视口下的最大宽度），画布宽度因此被真实地挤掉一块，
-  // 不用碰原生窗口。浮框自然宽必须超出这块收窄后的可用区，才真的走到 anchoredPlacement
-  // 的「收窄到 stage 宽度」分支——不是把左栏那块也算进可用区、溢出到左栏底下或伸出视口。
+  // 不用碰原生窗口。2026-09-25 起这里断的是反面：画布变窄了，浮框**照旧** 560 宽、照旧钉在节点下，
+  // 伸出画布的那截就被挡住（用户拍板「遮挡就遮挡了」）——不收窄、不推回视口。
   const assistantResizer = getWin().getByRole('separator', { name: '拖动调整助手宽度' }).first()
   await assistantResizer.waitFor({ state: 'visible' })
   await assistantResizer.focus()
@@ -529,10 +514,7 @@ try {
   if (!narrow) throw new Error('拉宽 Agent 面板后量不到浮框几何')
   check('拉宽 Agent 面板确实挤窄了画布（这条断言不是摆设）', narrow.stage.width < first.stage.width - 40,
     `narrow.stage.width=${Math.round(narrow.stage.width)} first.stage.width=${Math.round(first.stage.width)}`)
-  check('窄画布下浮框仍完整在可用区内（不出视口）', inside(narrow.card, narrow.stage, 2),
-    `card=${JSON.stringify(narrow.card)} stage=${JSON.stringify(narrow.stage)}`)
-  check('窄画布下浮框左缘仍不压左栏工具条', !narrow.leftDock || narrow.card.left >= narrow.leftDock.right + 1,
-    `card.left=${Math.round(narrow.card.left)} leftDock.right=${narrow.leftDock ? Math.round(narrow.leftDock.right) : 'n/a'}`)
+  assertPinned('窄画布下', narrow)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '04-narrow-canvas.png') })
 
   check('「点开面板改一个值」这条路整场至少走到一次（否则那几条断言等于没跑）', sawPanelPick)

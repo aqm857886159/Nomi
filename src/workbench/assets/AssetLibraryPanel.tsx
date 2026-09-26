@@ -22,6 +22,7 @@ import { importAudioFilesToLibrary } from './importAudioToLibrary'
 import { importLocalMediaFilesToGenerationCanvas } from '../generationCanvas/adapters/assetImportAdapter'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
+import { visibleInsertionPoint } from '../generationCanvas/store/canvasVisibleArea'
 import { confirmDialog, DesignEmptyState, NomiLoadingMark, promptDialog, TooltipProvider } from '../../design'
 import { FindReferenceSection } from './FindReferenceSection'
 import type { ReferencePlatform } from '../../../electron/shared/contracts/referenceSearch'
@@ -248,19 +249,18 @@ export function AssetLibraryContent({
     event.currentTarget.value = ''
     const { mediaFiles, audioFiles, unsupported } = classifyUploadFiles(all)
     if (mediaFiles.length) withProjectAction((projectContext) => {
-      void importLocalMediaFilesToGenerationCanvas(mediaFiles, { projectContext, basePosition: { x: 120, y: 90 } })
+      const activeCategoryId = useWorkbenchStore.getState().activeCategoryId
+      void importLocalMediaFilesToGenerationCanvas(mediaFiles, { projectContext, basePosition: visibleInsertionPoint(activeCategoryId) ?? { x: 120, y: 90 } })
         .then((result) => {
           if (result.cancelled) return
           refreshProjectAssets()
           refreshAllProjectAssets()
           reportMediaImport(result, report, setRejection)
-          // 落点可见性（2026-08-07 飞书反馈「上传传到另一个位置没看到」）：选中首个新节点 +
-          // 请求画布 fit 平移视口过去（复用导演台节点同款组合，不造第二套）。
+          // 落点可见性（2026-08-07 飞书反馈「上传传到另一个位置没看到」）：以前是写死 (120, 90) 再请求 fit
+          // 把画布挪过去；2026-09-25 起直接落在用户此刻看得见的地方，不挪画布。落不下（整批太大）的部分
+          // 由画布边缘提示告诉用户在哪。选中首个新节点保留——那是「这就是刚导入的」的原地回执。
           const firstNode = result.created[0]?.node
-          if (firstNode) {
-            useGenerationCanvasStore.getState().selectNode(firstNode.id)
-            useWorkbenchStore.getState().requestCanvasFit()
-          }
+          if (firstNode) useGenerationCanvasStore.getState().selectNode(firstNode.id)
         })
         .catch((error) => {
           logRendererError('asset-import-failed', error)

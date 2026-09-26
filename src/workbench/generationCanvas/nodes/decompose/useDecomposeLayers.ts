@@ -62,6 +62,7 @@ export function useDecomposeLayers(node: GenerationCanvasNode, imageUrl: string,
       title: i18n.t('generationCommon.decompose.title'),
       message: `${describeGenerationCost(1, 'image', generationCostContextForNode(node, project.binding.projectId))}${i18n.t('generationCommon.decompose.costSuffix')}`,
       confirmLabel: i18n.t('generationCommon.decompose.confirm'),
+      initiator: 'user',
     })
     if (!grantId || !isProjectExecutionContextCurrent(project)) return
     setDecomposeBusy(true)

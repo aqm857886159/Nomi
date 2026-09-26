@@ -126,7 +126,7 @@ const frameLocator = (win) => win.locator('.generation-canvas-v2__group-box[data
 
 /**
  * 点一下「适应视图」。**不是**为了好看：React Flow 开了 `onlyRenderVisibleElements`，
- * 视口外的节点连 DOM 都不在，而生成/让位平移会把画面推走。不先把东西拉回视口，
+ * 视口外的节点连 DOM 都不在，而新建的卡可能落在屏外（画布 2026-09-25 起不再自己挪过去，只在边缘提示）。不先把东西拉回视口，
  * 后面每一条「节点上有没有片子」「框还在不在」都会读到 0，看着像功能坏了。
  */
 async function fitView(win) {
@@ -165,8 +165,8 @@ async function readNodeAndViewport(win, nodeId) {
  * （那一刻才有归属反馈可读）。
  *
  * 两个坑都踩过，都写在这儿：
- *  ① 抓点不能用「卡的左上角 + 固定偏移」。新建的节点会落在视口外（实测第 1、2 张卡的
- *     screen y 是负数），往负坐标 move 根本不触发拖动——三次断言全红、卡却一动没动，
+ *  ① 抓点不能用「卡的左上角 + 固定偏移」。新建的节点可能落在视口外（旧落点写死画布坐标时实测第 1、2 张卡的
+ *     screen y 是负数；现在落在可见区，挤了仍会被避让推出屏），往负坐标 move 根本不触发拖动——三次断言全红、卡却一动没动，
  *     看起来像功能坏了。`findNodeHitPoint` 找的是「这张卡上还露着、且不是按钮」的那一点。
  *  ② 落点要按**中心**算，不是按鼠标终点算。入组判据是卡的中心落没落在框里
  *     （canvasPointerGestureModel.frameContainsNodeCenter），而鼠标抓的是卡上的任意一点，
@@ -274,7 +274,7 @@ try {
     await win.waitForTimeout(200)
   }
   check(nodeIds.length === 3, '三个视频镜头都建出来了', nodeIds.join(', '))
-  // 适配视图：新建的卡会落到视口外（实测头两张的 screen y 是负数）。用户遇到这种情况
+  // 适配视图：连建三张，后面的卡会被避让推出可见区（画布不再自己挪过去，只出边缘提示）。用户想看全三张
   // 也是先点一下「适应视图」把东西找回来——这一步既是真实动作，也是后面拖拽的前提。
   await fitView(win)
   await snap(win, 'before-frame')
@@ -599,7 +599,7 @@ try {
     undefined,
     { timeout: 120_000 },
   ).catch(() => {})
-  // 生成会把视口推走（让位平移），而 onlyRenderVisibleElements 让视口外的节点连 DOM 都没有。
+  // 生成期间用户（和上面的拖拽）可能已把视口挪开，而 onlyRenderVisibleElements 让视口外的节点连 DOM 都没有。
   await fitView(win)
   if (process.env.FRAME_DEBUG) {
     console.log('    debug nodes', JSON.stringify(await win.evaluate(() =>

@@ -149,7 +149,7 @@ async function rectOf(selector) {
     return { left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }
   }, selector)
 }
-/** 画布坐标下的外接盒（扣掉视口，才能判「原件不动」「副本落在松手处」而不受自动让位平移影响）。 */
+/** 画布坐标下的外接盒（扣掉视口，才能判「原件不动」「副本落在松手处」而不受视口平移影响——画布不再自己让位平移，但用户的拖拽 / 缩放仍会动它）。 */
 async function canvasRectOf(selector) {
   const r = await rectOf(selector)
   if (!r) return null

@@ -86,6 +86,8 @@ const run = async (name, fn) => {
   log(`${name} ${Math.round((Date.now() - t) / 100) / 10}s`, JSON.stringify(result.scenarios[name]).slice(0, 400))
 }
 try {
+  // 打开那一刻画布自己适应过一次（useAutoFitOnLoad）：记下打开后停稳的视口，证明量的是适应之后的状态。
+  result.openTransform = await s.win.evaluate(() => document.querySelector(".react-flow__viewport")?.style.transform || "")
   result.fitTransform = await fitAll(s)
   // 快速档要在慢机（CI 的 2 核 Linux、软件渲染 / 软解）上也判得准：封面补齐与悬停起播都多给时间，只影响等多久，不影响判据。
   await run('settle', () => waitMediaSettled(s, structural ? { maxMs: 180_000 } : {}))
