@@ -422,6 +422,52 @@
       "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
     },
     {
+      "name": "执行计划检查的镜头字段表（resolve 输入）",
+      "owner": {
+        "path": "electron/shared/agentCapabilities/generation.ts",
+        "symbol": "generationResolveInputSchema"
+      },
+      "consumers": [
+        "electron/capabilityCore/mcpGenerationTools.ts",
+        "electron/capabilityCore/generationResolveIpc.ts",
+        "electron/shared/videoCapabilities/planResolver.ts",
+        "electron/shared/videoCapabilities/planResolutionContracts.ts",
+        "src/workbench/generationCanvas/agent/storyboardStrategy.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "接受集合只有这一份（GUI 窄 IPC 与 agent/MCP 同源）。引擎类型 PlanShotInput 是它的镜像，两边由 generation.ts 里的双向逐键守卫绑死，多一个键就是 tsc 红；0.22.0 曾因类型加了 modelVendor、schema 没加，每个记了供应商的视频镜都「执行计划检查失败」（合同 docs/fixes/2026-09-26-storyboard-resolve-vendor-rejected.root-cause.json）。"
+    },
+    {
+      "name": "首帧边落哪个参考槽",
+      "owner": {
+        "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+        "symbol": "assignEdgeToSlot"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/runner/referenceSlots.ts",
+        "src/workbench/creation/storyboard/shotRow/shotRowModel.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "首帧槽优先，没有就是 image_ref[0]；与发送侧（generationReferenceResolver 把首帧同时放进 firstFrameUrl 与 referenceImages）一致，shotRowModel.plannedFirstFrame.test.ts 按全部视频档案逐模式对账。对外只开 firstFrameEdgeSlot；分镜行的「计划首帧」经它问，不许再写一份。与「@ 引用落哪个槽」（参考语义）是两个判据。"
+    },
+    {
+      "name": "分镜行缺必填参考",
+      "owner": {
+        "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+        "symbol": "missingRequiredSlotsOf"
+      },
+      "consumers": [
+        "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+        "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+        "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+        "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
+      ],
+      "since": "2026-09-26",
+      "notes": "行状态 missing-required、画面格「缺X参考」、批量排除、场组头计数与参考列红格读同一份（镜头行 = exec.missingSlots）。参考列不许再按「必填 + 没绑定」自判——那样看不见计划首帧与锚（合同 docs/fixes/2026-09-26-storyboard-planned-first-frame-slot.root-cause.json）。"
+    },
+    {
       "name": "一次生成跑哪个变体",
       "owner": {
         "path": "electron/shared/modelArchetypes/variantResolution.ts",

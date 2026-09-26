@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
+import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities/seedanceApimart'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import {
   storyboardAnchorToCreateNodesArgs,
@@ -248,6 +249,26 @@ describe('deriveShotRowExec（行状态机）', () => {
     expect(derive([readyAnchor], firstFrameMode).status).toBe('missing-required')
   })
 
+  /**
+   * 0.22.0 误报：APIMart Seedance 2.0 图生视频只有一个 image_ref 槽（min 1），开了首帧的行
+   * 生成时那张首帧就发进这个槽，行却判「缺参考图」、红着、被批量跳过。
+   */
+  it('只有 image_ref 必填槽的图生视频 + 开了首帧 → 不缺参考、进批量', () => {
+    const apimartI2v = SEEDANCE_2_APIMART_ARCHETYPE.modes.find((mode) => mode.id === 'i2v')!
+    const shot = shotOf({ anchorIds: [], keyframe: { enabled: true } })
+    const exec = deriveShotRowExec({ plan: planOf([shot]), shot, designId: DESIGN, nodes: [], mode: apimartI2v })
+    expect(exec.missingSlots).toEqual([])
+    expect(exec.status).not.toBe('missing-required')
+    const batch = deriveStoryboardBatch([{ shot, mode: apimartI2v, exec }])
+    expect(batch.runnable.map((row) => row.shot.shotId)).toEqual(['shot-a'])
+    expect(batch.excluded.missingRequired).toBe(0)
+    // 对照：没开首帧的同一行确实缺参考、不进批量（判据没有被放宽成恒绿）。
+    const bare = shotOf({ anchorIds: [] })
+    const bareExec = deriveShotRowExec({ plan: planOf([bare]), shot: bare, designId: DESIGN, nodes: [], mode: apimartI2v })
+    expect(bareExec.status).toBe('missing-required')
+    expect(deriveStoryboardBatch([{ shot: bare, mode: apimartI2v, exec: bareExec }]).excluded.missingRequired).toBe(1)
+  })
+
   it('节点态：生成中 / 失败 / 已生成 / 已锁定', () => {
     const base = { storyboardDesignId: DESIGN, shotId: 'shot-a' }
     const running = nodeOf({ id: 'n1', status: 'running', progress: { percent: 40, updatedAt: 1 }, meta: base })
@@ -365,6 +386,7 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       ignoredAnchors: [],
       unlockedRefs: unlocked ? [hero] : [],
       missingSlots: [],
+      plannedFirstFrame: null,
       changedRefs: [],
       resultUrl: null,
       progressPercent: null,

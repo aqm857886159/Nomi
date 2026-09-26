@@ -24,7 +24,7 @@ import { findModelOptionByIdentifier } from '../../../../config/modelOptionResol
 import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
-import { resolveShotArchetypeMode } from './shotRowModel'
+import { missingRequiredSlots, resolveShotArchetypeMode } from './shotRowModel'
 import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
@@ -518,6 +518,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           archetype={resolved?.archetype ?? null}
           bindings={shot.referenceBindings}
           onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+          // 红格与画面格「缺X参考」、批量排除读同一份（exec.missingSlots）；没有 exec 的降级态直接问同一个 owner。
+          missingSlots={exec ? exec.missingSlots : missingRequiredSlots(resolvedMode, shot, anchors)}
+          plannedFirstFrame={exec?.plannedFirstFrame ?? null}
           anchors={anchors}
           onTriggerMention={triggerAtMention}
           mentionEnabled={Boolean(mentionSearch)}

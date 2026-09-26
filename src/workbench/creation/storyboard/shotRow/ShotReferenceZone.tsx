@@ -1,7 +1,7 @@
 import React from 'react'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction } from '../../../project/projectCanvasReadSurface'
 import { useTranslation } from 'react-i18next'
-import { IconPlus } from '../../../../vendor/tablerIcons'
+import { IconPhoto, IconPlus } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
 import { notify } from '../../../../ui/notificationPolicy'
@@ -9,8 +9,9 @@ import { useOpenProjectId } from '../../../project/useOpenProjectId'
 import type { AssetKind, AssetRef } from '../../../assets/assetTypes'
 import { importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
 import { assetUrl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
-import type { ModelArchetype, ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
+import type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanAnchor } from '../../../generationCanvas/agent/storyboardPlan'
+import type { PlannedFirstFrame } from '../exec/storyboardRowStatus'
 import { appendBinding, bindingsOf, removeBinding, reorderBinding, type ReferenceBindingMap } from './shotReferenceSlots'
 import { cellCount, referenceColumnOf, type ShotReferenceCell } from './shotReferenceCells'
 import ShotReferenceSlotPopover from './ShotReferenceSlotPopover'
@@ -52,6 +53,14 @@ type Props = {
    *  两者共用同一套参考列解剖（合同 §2.2），所以这里收的是绑定记录而不是某一种行的实体。 */
   bindings: ReferenceBindingMap | undefined
   onChangeBindings: (next: ReferenceBindingMap) => void
+  /**
+   * 这一行**缺**的必填槽（`shotRowModel.missingRequiredSlotsOf` 的结果；镜头行 = `exec.missingSlots`）。
+   * 红格只看它——不在这里拿「必填 + 没绑定」另判一遍：那样看不见计划首帧、看不见锚，
+   * 行状态说不缺、这里照样红（0.22.0 误报）。
+   */
+  missingSlots: readonly ArchetypeReferenceSlot[]
+  /** 计划首帧（`exec.plannedFirstFrame`）：生成时会填进的那一格画成首帧，而不是空格。锚行没有 → 缺省。 */
+  plannedFirstFrame?: PlannedFirstFrame | null
   anchors: readonly PlanAnchor[]
   /** 通用「@」入口（契约未知的默认模型行）；缺省 = 该行禁用 @。 */
   onTriggerMention?: (() => void) | undefined
@@ -80,20 +89,43 @@ function assetKindOfFile(file: File): AssetKind {
  * 卡片自己是 44×56，扇开之后要占到 65×73——少预留那一圈，扇面就压到右边的槽和下面的 caption 上；
  * 按张数动态占位则会让每个槽、每一行高高低低（2026-09-06 用户反馈四），所以这只盒是**固定**的。
  */
-function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
-  const { used, total } = cellCount(cell)
-  const box = referenceStackBox(cell.bindings.length)
-  const top = cell.bindings.slice(0, REFERENCE_STACK_VISIBLE_CARDS)
+/**
+ * 一格里要画的卡：计划首帧排最前（落画布后首帧边先于上传落槽，发出去也是第一张），其后是已绑定的素材。
+ * 计划首帧还没生成时 url = null——画一张占位卡，不是空格，更不是红格：生成时这一格会被它填上。
+ */
+type SlotTile = { url: string | null; planned: boolean }
+
+function slotTilesOf(cell: ShotReferenceCell, planned: PlannedFirstFrame | null): SlotTile[] {
+  return [
+    ...(planned ? [{ url: planned.url, planned: true }] : []),
+    ...cell.bindings.map((binding) => ({ url: binding.url, planned: false })),
+  ]
+}
+
+function TileFace({ tile, alt }: { tile: SlotTile; alt: string }): JSX.Element {
+  if (tile.url) return <NomiImage src={tile.url} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
+  return (
+    <span className="absolute inset-0 grid place-items-center text-nomi-ink-30" aria-hidden>
+      <IconPhoto size={16} stroke={1.6} />
+    </span>
+  )
+}
+
+function SlotStack({ cell, tiles }: { cell: ShotReferenceCell; tiles: readonly SlotTile[] }): JSX.Element {
+  const { used, total } = cellCount(cell, tiles.filter((tile) => tile.planned).length)
+  const box = referenceStackBox(tiles.length)
+  const top = tiles.slice(0, REFERENCE_STACK_VISIBLE_CARDS)
   return (
     <span
       className="relative block"
       data-storyboard-ref-stack={cell.key}
       style={{ width: `${box.width}px`, height: `${box.height}px` }}
     >
-      {top.map((binding, index) => (
+      {top.map((tile, index) => (
         <span
-          key={`${binding.url}-${index}`}
+          key={`${tile.url ?? 'planned'}-${index}`}
           className="absolute overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05"
+          {...(tile.planned ? { 'data-storyboard-ref-planned': 'first-frame' } : {})}
           style={{
             left: `${box.cardLeft}px`,
             top: `${box.cardTop}px`,
@@ -104,7 +136,7 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
             zIndex: REFERENCE_STACK_VISIBLE_CARDS - index,
           }}
         >
-          <NomiImage src={binding.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <TileFace tile={tile} alt="" />
         </span>
       ))}
       {cell.numbered ? (
@@ -126,7 +158,7 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
   )
 }
 
-export default function ShotReferenceZone({ mode, archetype, bindings, onChangeBindings, anchors, onTriggerMention, mentionEnabled }: Props): JSX.Element {
+export default function ShotReferenceZone({ mode, archetype, bindings, onChangeBindings, missingSlots, plannedFirstFrame, anchors, onTriggerMention, mentionEnabled }: Props): JSX.Element {
   const openProjectId = useOpenProjectId()
   const { t } = useTranslation()
   const narrow = useStoryboardRowNarrow()
@@ -206,15 +238,24 @@ export default function ShotReferenceZone({ mode, archetype, bindings, onChangeB
    * caption 只写**名字**：空槽写槽名（首帧/尾帧/参考图），有内容写来源名（锚名/素材名）。
    * 必填与否靠**颜色**说（红=必填、灰=可选）——56px 宽的 caption 塞不下「（必填）」，塞了就被截成
    * 「参考音频…」，红/灰的信号还在、括号里的字反而没了。完整说法留在 title（hover 可见）。
+   * 红只给**真的缺**的槽（`missingSlots`）：必填但生成时会被计划首帧或锚填上的槽不红。
+   * 第一张是计划首帧 → 写「本镜首帧」，title 说清这一格生成时由它填。
    */
+  const missingKinds = new Set(missingSlots.map((slot) => slot.kind))
+  const plannedFor = (cell: ShotReferenceCell): PlannedFirstFrame | null =>
+    plannedFirstFrame && plannedFirstFrame.slotKind === cell.key ? plannedFirstFrame : null
   const captionOf = (cell: ShotReferenceCell): { text: string; title: string; danger: boolean } => {
     const title = cell.required
       ? t('storyboardEditor.slot.requiredCaption', { label: cell.label })
       : t('storyboardEditor.slot.optionalCaption', { label: cell.label })
-    if (cell.bindings.length === 0) return { text: cell.label, title, danger: cell.required }
+    const danger = missingKinds.has(cell.declared.kind)
+    if (plannedFor(cell)) {
+      return { text: t('storyboardEditor.slot.plannedFirstFrame'), title: t('storyboardEditor.slot.plannedFirstFrameTitle', { label: cell.label }), danger }
+    }
+    if (cell.bindings.length === 0) return { text: cell.label, title, danger }
     const first = cell.bindings[0]
     const anchor = first.anchorId ? anchorsById.get(first.anchorId) ?? null : null
-    return { text: anchor?.name.trim() || first.name?.trim() || cell.label, title, danger: false }
+    return { text: anchor?.name.trim() || first.name?.trim() || cell.label, title, danger }
   }
 
   // 窄档下这一列只露第一格；其余的藏在「+N」后面，点一下摊开（摊开的仍是同一排格子）。
@@ -291,9 +332,16 @@ export default function ShotReferenceZone({ mode, archetype, bindings, onChangeB
         >
           {shownCells.map((cell, cellIndex) => {
             const caption = captionOf(cell)
-            const first = cell.bindings[0]
+            const tiles = slotTilesOf(cell, plannedFor(cell))
+            const first = tiles[0]
             return (
-              <span key={cell.key} className="relative flex shrink-0 flex-col items-start gap-0.5" style={{ width: `${REFERENCE_SLOT_BOX.width}px` }} data-storyboard-ref-slot={cell.key}>
+              <span
+                key={cell.key}
+                className="relative flex shrink-0 flex-col items-start gap-0.5"
+                style={{ width: `${REFERENCE_SLOT_BOX.width}px` }}
+                data-storyboard-ref-slot={cell.key}
+                data-storyboard-ref-state={caption.danger ? 'missing' : first ? 'filled' : 'empty'}
+              >
                 <button
                   type="button"
                   onClick={() => setOpenSlotKey((previous) => (previous === cell.key ? '' : cell.key))}
@@ -301,14 +349,15 @@ export default function ShotReferenceZone({ mode, archetype, bindings, onChangeB
                   className="flex w-full items-start rounded-nomi-sm"
                   style={{ height: `${REFERENCE_SLOT_BOX.height}px` }}
                 >
-                  {cell.bindings.length >= 2 ? (
-                    <SlotStack cell={cell} />
+                  {tiles.length >= 2 ? (
+                    <SlotStack cell={cell} tiles={tiles} />
                   ) : first ? (
                     <span
                       className="relative block size-14 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05"
                       data-storyboard-ref-tile={cell.key}
+                      {...(first.planned ? { 'data-storyboard-ref-planned': 'first-frame' } : {})}
                     >
-                      <NomiImage src={first.url} alt={caption.text} className="absolute inset-0 h-full w-full object-cover" />
+                      <TileFace tile={first} alt={caption.text} />
                       {cell.numbered ? (
                         <span className="absolute left-0 top-0 rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-media-ink tabular-nums">1</span>
                       ) : null}
@@ -317,7 +366,7 @@ export default function ShotReferenceZone({ mode, archetype, bindings, onChangeB
                     <span
                       className={cn(
                         'grid size-14 place-items-center rounded-nomi-sm border border-dashed',
-                        cell.required
+                        caption.danger
                           ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger'
                           : 'border-nomi-ink-20 text-nomi-ink-30 hover:border-nomi-accent hover:text-nomi-accent',
                       )}

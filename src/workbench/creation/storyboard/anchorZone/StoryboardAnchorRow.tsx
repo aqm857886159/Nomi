@@ -28,7 +28,7 @@ import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import { referenceColumnWidthOf, useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
 import ShotReferenceZone from '../shotRow/ShotReferenceZone'
 import { frameMediaBox, FRAME_COLUMN_WIDTH } from '../shotRow/shotFrameGeometry'
-import { resolveShotArchetypeMode } from '../shotRow/shotRowModel'
+import { missingRequiredSlotsOf, resolveShotArchetypeMode } from '../shotRow/shotRowModel'
 
 /**
  * 锚区的**展开态**（合同 v6 §2.2）——与镜头行**完全同一套解剖**：
@@ -277,6 +277,8 @@ export default function StoryboardAnchorRow({
             archetype={resolvedArchetype?.archetype ?? null}
             bindings={anchor.referenceBindings}
             onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+            // 锚行没有计划首帧、也不引用别的锚：缺不缺只看它自己的绑定——同一个 owner，零额外来源。
+            missingSlots={missingRequiredSlotsOf(resolvedMode, anchor.referenceBindings, { plannedFirstFrame: null, visualAnchorCount: 0 })}
             anchors={[]}
             mentionEnabled={false}
           />
