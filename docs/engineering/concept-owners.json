@@ -267,7 +267,21 @@
         "src/workbench/production/useProductionStatus.ts"
       ],
       "since": "2026-09-25",
-      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示 / 60 秒引导落完示例后铺开一次（用户点了「看 Nomi 怎么出片」，引导自己的一步，owner 是 onboarding/journeyTourStore.ts）。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开项目 / 分类时摆一次全貌归 useAutoFitOnLoad.shouldFitOnOpen（打开时适应一次 = 用户拍板保留；此前 main 上时序不稳，现改为节点量完后必定触发；只在打开那一刻、没有可用视角时判一次）。证据：main 上磁吸走查量到 zoom=1、性能测试挂载数 < 总数。按用户「程序不自己动视口」的规则直接删除，不修复。代价：内容离原点很远时，用户自己点一次「适应视图」。）。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
+      "notes": "只有用户显式动作能移动视口：适应视图 / 复位 / 缩放 / 小地图 / 侧栏定位 / 定位来源 / 通知跳转 / 生产状态「去看看」/ 画布边缘提示 / 60 秒引导落完示例后铺开一次（用户点了「看 Nomi 怎么出片」，引导自己的一步，owner 是 onboarding/journeyTourStore.ts）。requestCanvasFit 与聚焦事件的全部调用处名单在 components/canvasViewportMovers.structure.test.ts，新增一处而不进名单即红。新东西不在屏里 → 边缘提示（components/canvasArrivalModel.ts 判「新到且没看见」），不是加一扇移动的门。打开项目 / 分类时摆一次全貌归 useAutoFitOnLoad.shouldFitOnOpen（打开时适应一次 = 用户拍板保留；此前 main 上时序不稳，现改为节点量完后必定触发；只在打开那一刻、没有可用视角时判一次；它的两个输入各有唯一写口——「内容已载入」= generationCanvasStore.restoreSnapshot，「用户留下的视角」见下一条「画布记住的视角」；冷开与从项目库重开两条路由 tests/ux/canvas-open-fit.walk.mjs 守）。动画仍走自研逐帧直写（React Flow 带时长 setViewport 在面板 0×0 那帧算出 NaN，退出条件见合同）。"
+    },
+    {
+      "name": "画布记住的视角（每个分类）",
+      "owner": {
+        "path": "src/workbench/workbenchStore.ts",
+        "symbol": "rememberCategoryViewport"
+      },
+      "consumers": [
+        "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+        "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+      ],
+      "since": "2026-09-26",
+      "notes": "只记「用户留下的视角」：用户手势结束（GenerationCanvasReactFlowViewport onMoveEnd 有来源事件）、中键 / 空格平移结束（useGenerationCanvasReactFlowPointer finishPan）、用户触发的定位动画走完（onAnimationSettled），以及打开时适应那一次。「store → React Flow」同步推过去的那一下的回声不记（GenerationCanvasReactFlow.tsx isStoreSyncEcho）：2026-09-26 离开项目时 store 清空、画布还停在旧视角，同步把它推回 1:1 兜底，回声被记成了记忆，从项目库重开就不再摆全貌（合同 docs/fixes/2026-09-26-open-fit-reopen-remembered-echo.root-cause.json）。新增一个写口前先问：这是用户留下的，还是程序自己的簿记？"
     },
     {
       "name": "模型工具的身份",

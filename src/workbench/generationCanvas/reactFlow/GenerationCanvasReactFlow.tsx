@@ -9,6 +9,7 @@ import {
   type OnNodeDrag,
   type OnEdgesDelete,
   type OnNodesChange,
+  type Viewport,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './generationCanvasReactFlow.css'
@@ -242,6 +243,17 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onAnimationSettled: (settled) => { setLiveViewport(settled); rememberCategoryViewport(activeCategoryId, canvasViewportFromFlow(settled)) },
   })
 
+  // 下面这段同步把 store 的视口推给 React Flow；React Flow 随后回一次**没有来源事件**的 onMoveEnd。那是回声：
+  // 值本来就出自 store——或者 store 里没有这个分类的记忆时，出自上一行的 1:1 兜底。回声不许再被记成「用户留下的视角」：
+  // 2026-09-26 离开项目时 categoryViewports 清空，画布还停在上个项目的 0.26，同步把它推回兜底 1:1，回声把 1:1 记进了
+  // 新 store；重开时「打开时适应」看到「有记住的视角、里面也有卡」就按设计保留了它——从项目库重开从此不再摆全貌。
+  const storeSyncEchoRef = React.useRef<Viewport | null>(null)
+  const isStoreSyncEcho = React.useCallback((next: Viewport) => {
+    const echo = storeSyncEchoRef.current
+    storeSyncEchoRef.current = null
+    return Boolean(echo) && Math.abs(echo!.x - next.x) < 0.5 && Math.abs(echo!.y - next.y) < 0.5 && Math.abs(echo!.zoom - next.zoom) < 1e-3
+  }, [])
+
   React.useEffect(() => {
     const nextKey = `${activeCategoryId}:${viewport.x}:${viewport.y}:${viewport.zoom}`
     if (appliedViewportKeyRef.current === nextKey) return
@@ -252,6 +264,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     const current = flow.getViewport()
     if (Math.abs(current.x - viewport.x) < 0.5 && Math.abs(current.y - viewport.y) < 0.5 && Math.abs(current.zoom - viewport.zoom) < 1e-3) return
     cancelViewportAnimation()
+    storeSyncEchoRef.current = viewport
     void flow.setViewport(viewport, { duration: 0 })
   }, [activeCategoryId, cancelViewportAnimation, flow, viewport])
 
@@ -706,6 +719,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         rememberCategoryViewport={rememberCategoryViewport}
         healViewport={healViewport}
         isViewportAnimating={isViewportAnimating}
+        isStoreSyncEcho={isStoreSyncEcho}
         cancelViewportAnimation={cancelViewportAnimation}
         groupBoxes={groupBoxes}
         frame={frameInteraction}
