@@ -10,7 +10,7 @@ import { resolveOwnedArtifactFile, safeProjectRelativePath } from "./artifactPro
 import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionRun, ProductionGenerationShot } from "./productionRunTypes";
 import { logWarn } from "../logging/logger";
-import { deriveProductionShotState } from "../shared/productionShotPhase";
+import { deriveProductionShotState, productionRunRecordId } from "../shared/productionShotPhase";
 
 /**
  * 一镜候选的**模型身份**，随落地报文过 RPC。它是画布节点模型的唯一来源：带上它，渲染层就不再
@@ -60,11 +60,6 @@ export type MaterializeShotGenerationWire =
   | { state: "running"; runRecordId: string; startedAt: number }
   | { state: "failed"; runRecordId: string; startedAt: number; message?: string }
   | { state: "ended" };
-
-/** 节点运行记录的身份：这一镜那次任务。 */
-function productionRunRecordId(jobId: string): string {
-  return `production-${jobId}`;
-}
 
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {

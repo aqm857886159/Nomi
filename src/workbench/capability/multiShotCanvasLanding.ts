@@ -31,6 +31,7 @@ import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWr
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { createProductionShotTable, readShotTable } from '../../../electron/shared/canvas/shotTable'
+import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -57,8 +58,6 @@ export type MaterializeShotGeneration =
   | { state: 'failed'; runRecordId: string; startedAt: number; message?: string }
   | { state: 'ended' }
 
-/** 制作投影写进节点的运行记录都带这个前缀（与主进程 `productionRunRecordId` 同一个约定）。 */
-const PRODUCTION_RUN_RECORD_PREFIX = 'production-'
 
 /** 一镜/一锚要落的占位节点（主进程从 Run 的 generationPlan.shots 投影而来）。clientId = shotId（稳定寻址）。 */
 export type MaterializeShotInput = {
@@ -424,7 +423,7 @@ function applyShotGeneration(nodeId: string, generation: MaterializeShotGenerati
   const node = store.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return
   const latest = node.runs?.[0]
-  const latestIsOurs = Boolean(latest?.id.startsWith(PRODUCTION_RUN_RECORD_PREFIX))
+  const latestIsOurs = isProductionRunRecord(latest)
   const latestInFlight = latest?.status === 'running' || latest?.status === 'queued'
   if (generation.state === 'ended') {
     if (latestIsOurs && latestInFlight) store.setNodeStatus(nodeId, 'idle')
