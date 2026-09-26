@@ -25,17 +25,24 @@ import type {
 } from '../model/generationCanvasTypes'
 import { isCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import { assetUrlForProductionPreview } from '../../../../electron/shared/productionPreviewUrl'
+import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
 
 /**
  * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
  * 有 taskId（已落盘）→ 收敛成 `recoverable`：上游可能仍在跑/已出片，给「重新拉取结果」入口（重启后也能拉）。
  * 无 taskId（从没真发出去）→ 收敛成 `idle`：清掉幽灵转圈。progress 一律清空（重启不再假装在转）。
+ *
+ * **制作投影写的那条记录不归这里管**（`isProductionRunRecord`）：它本来就没有任务号——任务住在主进程的 Run 里，
+ * 只有 Run 知道它还在不在跑。收敛把它当幽灵收成空闲，重开窗口后在跑的镜就变成一张空白节点（2026-09-26 真付费 T5）。
+ * 它的「生成中 / 失败 / 结束 / 出片」只由制作投影写（`applyShotGeneration`）：App 重启时主进程重新补齐一次，
+ * 窗口重开期间 Run 的每次变化都由跟随者投影过来。
  */
 function convergeStuckMidFlightNode(
   node: Omit<GenerationCanvasNode, 'categoryId'>,
 ): Omit<GenerationCanvasNode, 'categoryId'> {
   if (node.status !== 'running' && node.status !== 'queued') return node
   const runs: GenerationNodeRunRecord[] = Array.isArray(node.runs) ? node.runs : []
+  if (isProductionRunRecord(runs[0])) return node
   const taskId = (runs[0]?.taskId || (node.progress as GenerationNodeProgress | undefined)?.taskId || '').trim()
   const nextStatus: GenerationNodeStatus = taskId ? 'recoverable' : 'idle'
   const nextRunStatus: GenerationNodeRunStatus = taskId ? 'recoverable' : 'cancelled'

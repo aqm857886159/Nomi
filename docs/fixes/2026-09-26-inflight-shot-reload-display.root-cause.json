@@ -1,0 +1,159 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-26-inflight-shot-reload-display",
+  "problem_type": "A canvas-local restart heuristic rewrote run records it does not own, so an in-flight production shot displayed as an idle node after the window reloaded",
+  "symptom": "Real paid T5 (2026-09-26): two Seedance shots in flight; after reloading the window (EN) shot 2 showed Generating while shot 1 showed an empty \"Video node · Add an image first as the video first frame\". On disk both jobs were polling and both nodes were persisted as running.",
+  "direct_cause": "canvasSnapshotNormalizer.convergeStuckMidFlightNode runs on every snapshot load and turns any running/queued node without a taskId into idle (record cancelled). Production-landing records (production-<jobId>) never carry a taskId, so both shots were reset; the event-tail replay only restored the shot whose run started after the last snapshot, and the main-process follower did not re-project because its projection signature was unchanged.",
+  "class_root": "Two writers decided whether a production node is generating: the canvas restart heuristic (written for canvas-local runs, unaware of production-owned records) and the production projection that #870 made the single writer. Nothing marked production records as off-limits to the canvas heuristic, and the record-id prefix was duplicated as a literal on each side.",
+  "affected_population": [
+    "Every production shot (Agent card, multi-shot batch, storyboard production) that is in flight when the window reloads, depending on whether its run started before the last canvas snapshot",
+    "Queued production shots on the same path"
+  ],
+  "scope_paths": [
+    "electron/shared/productionShotPhase.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+  ],
+  "entry_points": [
+    "Canvas snapshot load (window reload / project open) -> normalizeStoreSnapshot -> convergeStuckMidFlightNode",
+    "Production landing projection -> applyShotGeneration (renderer) fed by buildMaterializeShotsPayload (main)"
+  ],
+  "external_sources": [],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionShotPhase.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts"
+    ],
+    "why": "productionShotPhase is already the single owner of a production shot state on the canvas (#870) and both processes import it; the record identity (productionRunRecordId / isProductionRunRecord) belongs next to it so the writer and every reader agree on which records are production-owned."
+  },
+  "internal_only_reason": "The invariant is the contract between the Nomi canvas and its production runs; no third-party library or external format decides it.",
+  "invariants": [
+    "A node run record created by the production projection is written only by the production projection; canvas-local restart convergence leaves it untouched.",
+    "Production record identity is produced and recognised only through productionRunRecordId / isProductionRunRecord; no side repeats the prefix literal."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "PRODUCTION_RUN_RECORD_PREFIX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "isProductionRunRecord"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "isProductionRunRecord"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "productionRunRecordId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "applyShotGeneration"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "convergeStuckMidFlightNode"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 6,
+    "why_not": "The remaining doors each have one role and no second writer remains for production records: main writes the id (productionRunRecordId), the renderer projection is the only writer of the record state (applyShotGeneration), the canvas convergence now only reads isProductionRunRecord to skip them, and productionShotPhase owns the prefix. The two duplicated prefix literals are gone."
+  },
+  "generality_proof": "The skip lives in the single convergence function every snapshot load passes through, and it keys on the shared record identity rather than on a vendor, model or shot number, so every production shot (any provider, single or multi-shot, queued or generating) survives reloads while canvas-local runs keep the existing restart behaviour.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "isProductionRunRecord",
+      "responsibility": "The only answer to whether a node run record belongs to the production projection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "convergeStuckMidFlightNode",
+      "responsibility": "Converges only canvas-local stuck runs; skips production-owned records."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "entry_point": "convergeStuckMidFlightNode",
+      "disposition": "enforced",
+      "evidence": "Returns the node unchanged when isProductionRunRecord(runs[0])."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "applyShotGeneration",
+      "disposition": "enforced",
+      "evidence": "Recognises its own records with isProductionRunRecord instead of a local prefix literal."
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "entry_point": "buildMaterializeShotsPayload",
+      "disposition": "enforced",
+      "evidence": "Builds record ids with the shared productionRunRecordId."
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "entry_point": "followRunChange",
+      "disposition": "not-affected",
+      "evidence": "Signature dedupe stays; with the convergence no longer erasing production records there is nothing to re-project on a window reload, and a failed projection is not recorded (landOnce only stores the signature on success)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every reload with an in-flight production shot whose run started before the last snapshot reproduces it, on any provider.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs convergeStuckMidFlightNode applyShotGeneration isProductionRunRecord productionRunRecordId PRODUCTION_RUN_RECORD_PREFIX",
+      "rg \"production-\" electron src -> the two record-prefix literals (main productionRunRecordId, renderer PRODUCTION_RUN_RECORD_PREFIX) are now one; other hits are command ids / export job ids, not node run records",
+      "rg \"createRunId\" src -> canvas-local run records start with run-, so the production prefix cannot collide"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/productionShotPhase.ts",
+    "invariant": "Production-owned node run records are recognised through one shared function and only the production projection writes them.",
+    "failure_mode": "The canvas convergence leaves a production record as persisted; the production projection ends, fails or lands it.",
+    "exception_policy": "none",
+    "strategy": "Move record identity next to the production shot-state owner, delete both prefix literals, and make the canvas convergence skip records that identity recognises.",
+    "artifacts": [
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts",
+    "tests/ux/agent-inflight-shots-reload.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts"
+    ],
+    "rationale": "The local productionRunRecordId in main and the renderer PRODUCTION_RUN_RECORD_PREFIX literal are deleted in favour of the shared pair."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration: nodes were already persisted as running; they now simply keep that state across loads until the production projection changes it.",
+  "residual_risks": [
+    "If a Run ends while the window is closed or reloading and no later Run change follows, the node keeps showing generating until the project is next opened (startup reconcile re-projects everything). This errs toward \"still generating\" rather than \"looks idle\", which is the safer direction for spend.",
+    "The disabled-↑ reason text on production-owned nodes is still the generic first-frame hint (T-CV-22, separate card)."
+  ]
+}
