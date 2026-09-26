@@ -27,6 +27,18 @@ describe("generation output materializer", () => {
     await expect(materializer.materialize({ projectId: "project-1", providerTaskId: "task-3", output: { kind: "video", url: "data:image/png;base64,aW1hZ2U=" } })).rejects.toThrow(/does not match video/);
   });
 
+  // data: URL 没有文件名。以前这里把 `new URL(dataUrl).pathname` 的 basename 当文件名——那是 base64 正文里
+  // 最后一个 `/` 之后的一截（或者整段 `png;base64,…`），又长又不带扩展名，落盘时被截断成 `.bin`。
+  it.each([
+    ["base64 containing a slash", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg/abc="],
+    ["base64 without a slash", "data:image/png;base64,aW1hZ2U="],
+  ])("names a data: URL output generation-output.<ext> (%s)", async (_label, url) => {
+    const writeAsset = vi.fn(() => ({ id: "asset-data", data: { relativePath: "assets/generated/generation-output.png" } }));
+    const materializer = createGenerationOutputMaterializer({ fetchOutput: vi.fn(), writeAsset });
+    await materializer.materialize({ projectId: "project-1", providerTaskId: "task-data", output: { kind: "image", url } });
+    expect(writeAsset).toHaveBeenCalledWith("project-1", expect.any(Buffer), "generation-output.png", "image/png", expect.anything(), expect.any(String));
+  });
+
   it("downloads model3d as GLB and forwards it to the shared validated asset store", async () => {
     const bytes = Buffer.from("glTF-placeholder");
     const fetchOutput = vi.fn(async () => ({ bytes, contentType: "model/gltf-binary", status: 200, finalUrl: "https://cdn.example/model.glb", truncated: false }));
