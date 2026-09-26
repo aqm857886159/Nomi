@@ -2,9 +2,9 @@
 
 > 用途：判断一份架构方案是否足以指导真实迁移，而不是判断文档是否写得完整。
 > 被审方案：`docs/plan/2026-09-26-architecture-single-owner-governance.md`
-> 审查基线：`origin/main@c4b654d34`，审查日期：2026-09-26。
-> 状态：⏳ 已拍板·未开工（方案质量审查定稿）。
-> 当前结论：**方案设计定稿，可进入 Phase -1；生产实施与真实旅程证据尚未产生。**
+> 审查基线：`origin/main@1f39ea3cf`，审查日期：2026-09-26。
+> 状态：✅ 方案质量审查定稿；Phase 0 账本已完成。
+> 当前结论：**方案设计和 Phase 0 账本可施工；Phase 1 治理门、生产实施与真实旅程证据仍未产生。**
 
 ## 先查别人
 
@@ -95,34 +95,36 @@ TS、Zod、JSON wire、持久化 schema、默认值、可选字段、unknown 处
 
 | # | 检查项 | 当前状态 | 结论与缺口 |
 |---:|---|---|---|
-| 1 | 用户任务与真实摩擦 | 通过（实施待验） | 已写入三条闭环任务、可见行为和重复提交/恢复/投影延迟门；真实 Electron/provider 仍需 Phase 2 验证。 |
-| 2 | 类根因去重 | 通过（实施待验） | Phase 0 明确先去重 `class_root`、标记粗聚类误报、保留反例和 shared boundary；账本尚未实际生成。 |
-| 3 | bounded context / owner | 通过（实施待验） | 已按 subject/lifecycle/authority_kind/trust_domain 定义 owner，补充跨 context 的事件/窄引用/adapter 边界。 |
-| 4 | 生命周期模型 | 通过（实施待验） | 已冻结 PlanCandidate、ExecutionContractV1、授权 envelope、ProductionRun、provider observation、artifact、projection 的映射、身份、未知态和禁止事项。 |
-| 5 | 数据一致性与恢复 | 通过（实施待验） | 已选定 Run journal + intent log + 可重建副本协议，补 commitId、恢复矩阵和 crash-injection 门；代码尚未落地。 |
-| 6 | 契约闭合 | 通过（实施待验） | 已规定 canonical compiler、optional/default/unknown/strictness、双向守卫、入口 parity 顺序和 mutation test；尚未生成门岗。 |
-| 7 | 安全、信任、花费 | 通过（实施待验） | 已明确 typed trust、ProjectBinding、grant/envelope、destination guard、submit-time recheck 和 hash 锚点；需真实授权/出站验证。 |
-| 8 | 扩展性 | 通过（实施待验） | provider/model 只接入既有候选合同与 adapter，unsupported 显式传播；禁止新 `GenerationIntent` owner，版本升级显式迁移。 |
-| 9 | 迁移与回滚 | 通过（实施待验） | 已补旧 draft/contract/envelope/Run/canvas/legacy MCP/storage 的 single-write、compatibility、回滚和损坏矩阵。 |
-| 10 | 可观察性 | 通过（实施待验） | 已定义 command→contract→provider→observation→artifact→projection lineage、指标、repair audit 和 redaction；需运行时收据。 |
-| 11 | 性能与容量 | 通过（实施待验） | 已给出 commit/replay/projection/compaction/批量和 storage-environment 初始预算；需真实项目和真实 provider 测量。 |
+| 1 | 用户任务与真实摩擦 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已写入三条闭环任务、可见行为和重复提交/恢复/投影延迟门；真实 Electron/provider 仍需 Phase 2 验证。 |
+| 2 | 类根因去重 | DESIGN_PASS | Phase 0 已完成 `class_root` 去重、粗聚类误报规则、反例和 shared boundary 账本；实现仍待验。 |
+| 3 | bounded context / owner | DESIGN_PASS / IMPLEMENTATION_PENDING | 已按 subject/lifecycle/authority_kind/trust_domain 定义 owner，补充跨 context 的事件/窄引用/adapter 边界。 |
+| 4 | 生命周期模型 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已冻结 PlanCandidate、ExecutionContractV1、授权 envelope、ProductionRun、provider observation、artifact、projection 的映射、身份、未知态和禁止事项。 |
+| 5 | 数据一致性与恢复 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已选定 Run journal + intent log + 可重建副本协议，补 commitId、恢复矩阵和 crash-injection 门；代码尚未落地。 |
+| 6 | 契约闭合 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已规定 canonical compiler、optional/default/unknown/strictness、双向守卫、入口 parity 顺序和 mutation test；尚未生成门岗。 |
+| 7 | 安全、信任、花费 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已明确 typed trust、ProjectBinding、grant/envelope、destination guard、submit-time recheck 和 hash 锚点；需真实授权/出站验证。 |
+| 8 | 扩展性 | DESIGN_PASS / IMPLEMENTATION_PENDING | provider/model 只接入既有候选合同与 adapter，unsupported 显式传播；禁止新 `GenerationIntent` owner，版本升级显式迁移。 |
+| 9 | 迁移与回滚 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已补旧 draft/contract/envelope/Run/canvas/legacy MCP/storage 的 single-write、compatibility、回滚和损坏矩阵。 |
+| 10 | 可观察性 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已定义 command→contract→provider→observation→artifact→projection lineage、指标、repair audit 和 redaction；需运行时收据。 |
+| 11 | 性能与容量 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已给出 commit/replay/projection/compaction/批量和 storage-environment 初始预算；需真实项目和真实 provider 测量。 |
 | 12 | 结构与真实验收 | 部分通过 | 方案已覆盖静态、负向/变异、CAS/concurrency、crash/replay、真实 Electron、素材、provider、冷重启和平台边界；所有实现证据仍未跑。 |
-| 13 | 用户价值量化 | 通过（实施待验） | 已把三条用户任务绑定重复提交、跨项目写入、恢复路径和投影延迟等指标；真实用户任务尚未执行。 |
+| 13 | 用户价值量化 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已把三条用户任务绑定重复提交、跨项目写入、恢复路径和投影延迟等指标；真实用户任务尚未执行。 |
 | 14 | 依赖和顺序 | 通过 | Phase -1 → Phase 0 → durable commit/gates → 一条 vertical pilot → A/B/C 扩展，且明确不新增第三套合同。 |
 | 15 | 外部/内部反证 | 通过（已有证据） | 已接入仓库已有 storyboard ledger、provider integration、agent runtime、Automerge/Idempotency-Key/OpenTimelineIO/Temporal 对照资料；不因 prior art 新造框架。 |
-| 16 | 完成标准与债务出口 | 通过（实施待验） | 已规定 owner、evidence、due/阻断规则、ARCHITECTURE-NOW、registry、结构门岗、真实旅程和最终收据；落地后才可把条目记为 resolved。 |
+| 16 | 完成标准与债务出口 | DESIGN_PASS / IMPLEMENTATION_PENDING | 已规定 owner、evidence、due/阻断规则、ARCHITECTURE-NOW、registry、结构门岗、真实旅程和最终收据；落地后才可把条目记为 resolved。 |
 
 ## 当前方案的放行结论
 
-当前方案已经可以作为**施工蓝图**，但不能把它误报成**生产迁移已完成**。定稿解决的是“要建成什么、按什么顺序建、如何证明不再长出第二个 owner”；代码实施、门岗和真实旅程仍按 Phase -1 开始。
+当前方案已经可以作为**施工蓝图**，但不能把它误报成**生产迁移已完成**。定稿和 Phase 0 解决的是“要建成什么、按什么顺序建、如何证明不再长出第二个 owner”；代码实施、门岗和真实旅程从 Phase 1 准入开始。
 
-进入生产代码前，必须先完成以下五项：
+Phase 0 已完成以下五项账本工作：
 
-1. 建立四态生命周期对象图，并把已有合同逐一放进去。
-2. 冻结现有 `ExecutionContractV1`、授权 envelope、Run journal 作为候选基础，先证明是否需要合并，禁止直接新增第三套合同。
-3. 设计 Run command/approval/budget/event/snapshot/artifact 的 durable commit 和 crash recovery。
-4. 补齐旧数据、schema 版本、backfill、cutover、rollback 和损坏数据处理矩阵。
-5. 把 lineage、权限/信任、性能预算和用户任务指标加入验收矩阵。
+1. 四态生命周期对象图与现有合同映射已进入 Phase -1 审计包和逐合同账本。
+2. `ExecutionContractV1`、授权 envelope、Run journal 已冻结为候选基础，禁止新增第三套合同。
+3. Run command/approval/budget/event/snapshot/artifact 的 durable commit 和 crash recovery 已写入 Phase 1 准入卡，代码尚未落地。
+4. 旧数据、schema 版本、backfill、cutover、rollback 和损坏数据处理已列入七簇施工卡。
+5. lineage、权限/信任、性能预算和用户任务指标已进入清单与真实验收门。
+
+进入生产代码前，仍必须满足 Phase 1 准入：`check:concept-owners`、commit marker/crash injection、真实 Electron/provider、冷重启/Windows 证据，以及每张施工卡的 red test、门表、旧路径删除点和回滚收据。
 
 现有 `productionRunIntentLog.ts`、`submissionOutbox.ts` 和 artifact replay 机制必须优先复用；不得因为“需要统一事务”而另造一套持久化框架。
 

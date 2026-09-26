@@ -1,6 +1,6 @@
 # Nomi 全仓架构治理方案：单一事实、单向投影、入口收敛
 
-> 状态：⏳ 已拍板·未开工（架构定稿 v1.0）。本稿已完成问题定义、目标架构、生命周期映射规则、耐久提交策略、迁移/回滚方案和验收门槛；Phase -1 只读审计已完成，生产实施从 Phase 1 开始。
+> 状态：✅ 架构定稿 + Phase 0 账本完成；Phase 1 生产迁移仍未放行。本稿完成问题定义、目标架构、生命周期映射规则、耐久提交策略、迁移/回滚方案和验收门槛；Phase -1 只读审计与 Phase 0 全仓账本均已完成。
 > 审计基线：`origin/main@1f39ea3cf`，证据窗口：2026-09-20 至 2026-09-26；已纳入制作镜头重开修复、Windows 付费走查 harness 和素材物化边界修复。
 > 质量审查：见 [`2026-09-26-architecture-solution-quality-checklist.md`](2026-09-26-architecture-solution-quality-checklist.md)。结论是“方案层可施工，实施证据尚未产生”。
 
@@ -30,7 +30,7 @@
 - `docs/audit/2026-09-26-generation-derived-facts-two-engines-structure-review.md` 明确指出画布引擎与 `capabilityCore`/`productionRun` 是两台生成发动机；变体只是刚收掉的一份副本，模式和参数面仍在同一风险带。
 - `docs/audit/2026-09-26-storyboard-false-alarms-structure-review.md` 同时记录 IPC 类型/schema 双写和分镜对画布参考槽判据的重抄。
 - 第一轮 Phase -1 实扫又确认：语义/分镜路径已经走 `PlanCandidate → ExecutionContractV1 → AuthorizationEnvelope → ProductionRun`，但旧画布直生成仍由 `generationRunController → catalogTaskActions → runtime.runTask/submissionLedger` 直接提交 provider，不创建 `ProductionRun`/授权 envelope/ProductionJob；这是第二条真实的付费执行生命周期，必须先登记边界或迁移目标。
-- `docs/engineering/concept-owners.json` 当前登记 34 个概念，其中“出价/待决身份”和“画布缩放”仍是 `pending`；登记表目前能提示风险，但还不能阻止第二个写口。
+- `docs/engineering/concept-owners.json` 当前登记 38 个概念，其中“出价/待决身份”和“画布缩放”仍是有界 `pending`；登记表目前能提示风险，但 `check:concept-owners` 尚未实现，暂不能自动阻止第二个写口。
 - 2026-09-25 至 2026-09-26 的 main 提交连续出现 `agent-run-node-state-single-owner`、`generation-variant-single-owner`、`storyboard-planned-first-frame-slot`、`storyboard-resolve-vendor-rejected`、`open-fit-reopen-remembered-echo`、`spend-card-patch-json-values`，说明发现速度很快，但系统仍在靠反复发现后收口。
 
 ## 先查别人
@@ -339,7 +339,7 @@ pilot 的放行阈值是：crash injection 下重复付费提交为 0；跨入�
 
 ### 1. 把概念登记升级为可执行的 owner registry
 
-扩展 `docs/engineering/concept-owners.json`，每个条目增加：`subject`、`lifecycle`、`authority_kind`、`trust_domain`、`fact_kind`（durable/state-machine/value-object/projection）、`write_api`、`identity_fields`、`revision_source`、`replay_strategy`、`allowed_consumers`、`forbidden_derivations`、`parity_test`、`migration_strategy`、`migration_status`。`pending` 不得进入生产 lane；没有 owner 的新概念在合同检查中失败。
+扩展 `docs/engineering/concept-owners.json`，每个条目增加：`subject`、`lifecycle`、`authority_kind`、`trust_domain`、`fact_kind`（durable/state-machine/value-object/projection）、`write_api`、`identity_fields`、`revision_source`、`replay_strategy`、`allowed_consumers`、`forbidden_derivations`、`parity_test`、`migration_strategy`、`migration_status`。`pending` owner 禁止新增生产写入口；已有 read/projection consumers 只能按 Phase 0 例外账读取。没有 owner 的新概念在合同检查中失败。
 
 新增 `check:concept-owners`：
 
@@ -382,17 +382,27 @@ pilot 的放行阈值是：crash injection 下重复付费提交为 0；跨入�
 
 先不改生产逻辑，建立 `architecture-ledger`：先对全部根因合同的 `class_root` 去重，再标出“同层顺带改动/粗目录聚类”的误报，最后抽取 `shared_boundaries/doors/legacy_paths/residual_risks`，按五个桶聚类：语义 owner、跨边界契约、投影/状态机、身份/生命周期、供应商/资产线路。为每个真实簇选一个 owner 和一个反例。该账本成为后续唯一工作清单。
 
+Phase 0 已完成，交付包见 [`Phase 0 全仓架构账本`](2026-09-26-phase-zero-architecture-ledger.md)，其中包含：
+
+- [`契约卫生账本`](../audit/2026-09-26-phase-zero-contract-hygiene.md)：606 份合同的版本、字段和证据例外；历史 v1/v2 不回写。
+- [`逐合同结构映射`](../audit/2026-09-26-phase-zero-contract-cluster-map.json) 与 [`契约例外账`](../audit/2026-09-26-phase-zero-contract-exceptions.json)：每份合同的 cluster、class root、入口/门证据和责任人/到期日。
+- [`结构簇索引`](../audit/2026-09-26-phase-zero-cluster-index.md)：P0-1 至 P1-7 七个结构簇、目标 owner、旧路径和阻断。
+- [`七簇施工卡`](../audit/2026-09-26-phase-zero-construction-cards.md)：每簇的完整 owner、生命周期、身份、门、红测、真实证据、回滚和 blocker 字段。
+- [`依赖与迁移闸门`](../audit/2026-09-26-phase-zero-dependency-gates.md)：G0-G8 DAG、施工默认值和 Phase 1 准入条件。
+
+该阶段只写账本与治理材料，未切换 writer、未新增生产状态、未引入第三套生成意图对象。账本完成不等于生产迁移放行。
+
 输出必须包含：概念名、lifecycle、authority_kind、trust_domain、当前 owner、重复口、真实入口、持久化位置、允许消费者、待删旧路径、阻断级别。`door-map` 只负责事实入口清单；“决策门”数量要单独统计，避免门数增加被误读成结构变差。
 
 ### Phase 1：先建治理门与 durable commit，再迁移事实
 
 落地 owner registry、语义 parity、schema parity、生命周期 identity、durable commit/replay 五类门岗；每道门先用旧代码做阳性对照证明会红。durable commit 不能只作为验收愿望，必须在本阶段锁定本稿的“Run journal + intent log commit marker + side-ledger 可重建副本”组合，明确 source of truth、崩溃点 recovery、projection lag 和 repair API。没有门岗的概念不进入下一条新功能线。
 
-Phase 1 的第一条实现 lane 是 direct canvas paid generation：先让它通过同一 `ExecutionContractV1`、authorization、submission outbox、provider observation 和 artifact seam；只有明确为本地非付费操作的路径才保留独立 bounded context。禁止用长期双写把两条付费生命周期同时留下。
+Phase 1 只落地治理门、schema/owner parity、lifecycle identity 和 durable commit/replay 的最小骨架，并用旧路径写红测；不在本阶段同时迁移业务入口。direct canvas paid generation 是 Phase 2 的第一条 vertical pilot，先让它通过同一 `ExecutionContractV1`、authorization、submission outbox、provider observation 和 artifact seam；只有明确为本地非付费操作的路径才保留独立 bounded context。禁止用长期双写把两条付费生命周期同时留下。
 
 ### Phase 2：一条完整 vertical pilot，再扩展三条主线
 
-账本和 durable commit 稳定后，不先横向完成 A、再完成 B、最后完成 C。先做一条完整 vertical pilot：分镜行 → 现有 `ExecutionContractV1` → authorization envelope/grant → Run command/outbox → provider observation → materialize → canvas/task projection。它一次验证 authoring、generation、execution、provider、projection 是否真的通过同一条 seam，避免 A/B/C 各自拿 adapter 或 fixture 证明后再临时拼接。pilot 通过后，再按同一 seam 扩展批量、Agent、MCP 和其他入口。每次只让一个协调 lane 持有该概念，不能把同一 owner 拆给多条并行分支。
+账本和 durable commit 稳定后，第一条 pilot 采用 direct canvas paid → `ProductionRun` seam，优先验证重复扣费、未知提交、重开和产物投影；随后再做分镜行 → `ExecutionContractV1` → authorization envelope/grant → Run command/outbox → provider observation → materialize → canvas/task projection 的完整链路。不先横向完成 A、再完成 B、最后完成 C，也不让各入口用 fixture 各自证明后再临时拼接。pilot 通过后，再按同一 seam 扩展批量、Agent、MCP 和其他入口。每次只让一个协调 lane 持有该概念，不能把同一 owner 拆给多条并行分支。
 
 ### Phase 3：接入剩余子系统
 
@@ -413,7 +423,7 @@ Phase 1 的第一条实现 lane 是 direct canvas paid generation：先让它通
 
 ## 完成判据
 
-- 新增概念先有 owner，再有目录和实现；`pending` owner 不得被调用。
+- 新增概念先有 owner，再有目录和实现；`pending` owner 不得新增写入口，已有只读消费者必须命中例外账。
 - 对每个 `(concept, lifecycle, authority_kind, trust_domain)` 只有一个可写 owner 和一个决策函数；其余位置只能是声明过的 controller、adapter 或 read-only projection。
 - GUI、Agent、MCP、生产 Run、恢复路径共享同一 canonical contract；入口差异只剩信任包装和 UI 交互。
 - 新增字段会在 schema/类型/所有入口处同时报红；新增 provider 不会要求 renderer 增加一套规则。
