@@ -15,7 +15,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
-import { expectArrivalsReachable, expectCanvasViewportHeld, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { expectArrivalsReachable, expectCanvasViewportHeld, findEdgeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -277,6 +277,10 @@ try {
   await clickOrFail(imageNode.getByRole('button', { name: '2 版' }), '关闭结果版本托盘')
   await expectHidden(tray, '结果版本托盘应完成退场')
   await imageNode.click({ position: { x: 120, y: 120 } })
+  // 打开时适应全貌（useAutoFitOnLoad）后这张图贴着舞台左缘，节点上方的浮条左半截压在项目资源管理器底下。
+  // 画布不替人挪，人会自己把它拖出来——走查照做（panCanvasUntilInside，中键拖），再去点「复制为变体」。
+  const toolbarPan = await panCanvasUntilInside(win, imageNode.locator('[data-node-floating-toolbar="true"]'))
+  expect(toolbarPan.ok, `像用户一样把节点浮条拖进舞台：${JSON.stringify(toolbarPan)}`).toBe(true)
   // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：复制变体以前会自动聚焦过去（撤销时再退回原视角），
   // 两扇门都删了。现在验：复制前后视口逐格相同；变体要么落在舞台里，要么边缘提示指得到它、点一下框住
   // （判据在 _canvasHit.mjs expectArrivalsReachable）；撤销只删节点，同样不挪画布。
