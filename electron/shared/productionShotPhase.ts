@@ -130,6 +130,22 @@ function latestJob(jobs: readonly ProductionJob[]): ProductionJob | undefined {
   return jobs.reduce((latest, job) => (Date.parse(job.createdAt) >= Date.parse(latest.createdAt) ? job : latest));
 }
 
+const PRODUCTION_RUN_RECORD_PREFIX = "production-";
+
+/** 制作投影写进画布节点的那条运行记录的身份：这一镜那次任务（同一任务反复投影幂等，返工 = 新任务 = 新记录）。 */
+export function productionRunRecordId(jobId: string): string {
+  return `${PRODUCTION_RUN_RECORD_PREFIX}${jobId}`;
+}
+
+/**
+ * 这条节点运行记录是不是制作投影写的。它**只归制作投影管**（主进程 Run 才知道它在不在跑）：
+ * 画布自己的重开收敛（「没任务号的生成中 = 幽灵转圈」）不许碰它——2026-09-26 真付费 T5：重开窗口后
+ * 在跑的第 1 镜被收成空闲，看着像没在跑。主进程写 id、渲染层认 id 都经这两个函数，前缀不许各写一份。
+ */
+export function isProductionRunRecord(record: Readonly<{ id?: unknown }> | null | undefined): boolean {
+  return typeof record?.id === "string" && record.id.startsWith(PRODUCTION_RUN_RECORD_PREFIX);
+}
+
 /**
  * 画布节点 ↔ 镜的对应：单镜计划看 `generationPlan.nodeId`，多镜看 `shots[].nodeId`（「shot ↔ 画布节点」的单一真相）。
  * 返工要拿到 shotId 也走这里。

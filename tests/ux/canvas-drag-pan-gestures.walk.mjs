@@ -793,7 +793,8 @@ try {
   // 用过的项目里，画布底部挂着两样「底部停靠物」：时间轴有片段时的「画面小窗」、卡多时自动出现的小地图。
   // 这一步原本是给旧浮框让路（它躲停靠区、放不下时被 clamp 到盖住卡本身和连线握把）；2026-09-25 起浮框
   // 钉在节点正下方（composerCanvasPlacement.ts），不再躲停靠区、也不再重新定位，那条理由已不成立。
-  // 保留这一步只因为两样停靠物本身占着画布底部一片、人连线前也会顺手收起；empty 夹具里两样都不在，这一步什么都不做。
+  // 保留这一步只因为两样停靠物本身占着画布底部一片、人连线前也会顺手收起。2026-09-26 起两样都默认收起
+  // （generation/dockCollapsePrefs.ts），没表过态的夹具里它们本就收着，这一步什么都不做。
   for (const name of EN ? ['Collapse mini preview', 'Hide minimap'] : ['收起画面小窗', '隐藏地图']) {
     const dockToggle = getWin().getByRole('button', { name, exact: true })
     if (!(await dockToggle.isVisible())) continue

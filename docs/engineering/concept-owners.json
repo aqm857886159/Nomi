@@ -533,6 +533,35 @@
       ],
       "since": "2026-09-26",
       "notes": "真付费 T5：Agent 视频卡「全部」档点生成没反应——卡的改稿把没有值的控件写成 undefined，IPC 原样带过去，宿主只认 JSON 值。现在卡的改稿契约直接复用宿主这份 schema（类型层 GenerationJsonValue），不许再各写一份 z.record(z.unknown())（合同 docs/fixes/2026-09-26-spend-card-patch-json-values.root-cause.json）。"
+    },
+    {
+      "name": "生成面底部区域的收起偏好",
+      "owner": {
+        "path": "src/workbench/generation/dockCollapsePrefs.ts",
+        "symbol": "readDockCollapsed"
+      },
+      "consumers": [
+        "src/workbench/workbenchStore.ts",
+        "src/workbench/timeline/TimelineMiniPreview.tsx",
+        "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+        "src/workbench/generation/useDockCollapsed.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "时间轴面板 / 画面小窗 / 小地图三样的「收起还是展开」只有这一张表（键 + 默认值）：'1' 收起、'0' 用户明确展开过、没有值用默认。2026-09-26 用户拍板画面小窗与小地图默认收起（1280×800 + Agent 面板开着时它们盖住浮框的 ↑ 与模型钮）。以前三样各写一份（timelinePanelPrefs.ts / 组件内就地读写 / 小地图不记），已并到这里；dockCollapsePrefs.test.ts 类级断言全 src 没有别处直接读写这三个键。「节点够多才出现小地图」的门槛仍归 CanvasNavigationStack.hasMinimapContent。 组件内的开合状态（画面小窗、小地图）统一经 generation/useDockCollapsed 读写，不再各写一份「初值读偏好、改了写回」。"
+    },
+    {
+      "name": "制作节点的运行记录由谁写",
+      "owner": {
+        "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+        "symbol": "applyShotGeneration"
+      },
+      "consumers": [
+        "electron/productionRun/multiShotCanvasLanding.ts",
+        "electron/shared/productionShotPhase.ts",
+        "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+      ],
+      "since": "2026-09-26",
+      "notes": "制作投影写进节点的那条运行记录（id 由 productionShotPhase.productionRunRecordId 生成、isProductionRunRecord 认）只归制作投影写：主进程 buildMaterializeShotsPayload 算出每镜的「生成中 / 失败 / 结束 / 出片」，渲染层 applyShotGeneration 落到节点上。画布自己的重开收敛（canvasSnapshotNormalizer.convergeStuckMidFlightNode）不许碰它——2026-09-26 真付费 T5：重开窗口后在跑的第 1 镜被当幽灵收成空闲，看着像没在跑（合同 docs/fixes/2026-09-26-inflight-shot-reload-display.root-cause.json）。"
     }
   ]
 }

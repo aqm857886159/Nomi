@@ -144,6 +144,7 @@
 | T-MD-10 | 跨源隔离策略没有任何在「隔离开着」的进程里跑的测试（Windows 版与 `NOMI_E2E` 走查都关隔离） | todo | T-MD-08 | 把最小 Electron 探针做成 CI node-test：本地起不带 CORP 的跨源媒体服务，断言媒体能加载、http 宿主 crossOriginIsolated 为真，不依赖外网 |
 | T-MD-11 | 技能库 / 节点效果选择 / 斜杠菜单不虚拟化，打开即对几十条第三方示例媒体同时发 `preload="metadata"` 请求 | todo | T-MD-08 子任务盘点 | 只挂视口内的卡或改 `preload="none"` + 封面；失效记账已统一在 `src/media/remoteExampleMedia.ts` |
 | T-MD-12 | 同一张别的项目的素材反复拖入会各复制一份（主进程按文件名去重命名，不按内容） | todo | T-MD-08 残余风险 | 与工作流库跨项目复制同一现状；要去重得在 `copyProjectAsset` 按 contentHash 复用目标项目已有文件 |
+| T-MD-13 | **素材落盘收成一条流水线**：五扇写入口（writeAsset / writeDeterministicAsset / copy / move / 上传）各自排「命名→嗅类型→取字节→放置→sidecar→广播」，新规矩只会加进作者手上那一扇 | todo（发版后） | 09-26 check:symptom-cluster：electron/assets 7 天 6 份根因合同；结构评审 docs/audit/2026-09-26-electron-assets-write-entries-structure-review.md | 各写入口只给「字节从哪来、落哪个桶」；配结构测试：assets/ 下的写盘只许流水线本身做 |
 
 ## F. 设置 · 接模型 · MCP
 
@@ -245,6 +246,7 @@
 | T-QA-34 | **Windows 工具链（结构治理第 1 块）**：python3 商店别名让 push 闸门全拦（task_ad75f670）；干净 main 上 15 个门岗在 Windows 红（task_ae18fec0）；Ponytail 在 Windows 找不到 codex.exe（task_56031f5d）；vitest-fair-share 在 Windows ENOENT（task_0f781541）；主仓 node_modules 被多个 worktree 链接共用、删 worktree 会顺着链接删坏 | todo（发版后） | 09-26 协调会话收口 · 用户 09-25「按你的顺序来」 | 一块做：本机 `pnpm run gates` 在 Windows 干净 main 上全绿才算完；每个 worktree 自装依赖 |
 | T-QA-35 | `tests/ux/p4-s6-rework-version.e2e.mjs` 找 08-27 已删的版本条，第一步就红，且不在任何套件里 | todo | 09-26 协调会话收口 · 卡 task_3c5b7f25 | 按现在的卡片堆叠重写，或删掉并记账 |
 | T-QA-36 | **分镜批量生成完，程序自己再调一次文本模型审片（花用户的钱，没问）**：`batchPlanPreview.ts` 成功后 `verifyShotsAndReport` → `shotVerifyJudge` 发 `/v1/chat/completions`；开关 `isShotVerifyEnabled` 默认开 | doing（本版已改：批量后不再自动审片；设置开关下一版） | 09-26 协调会话：`core-a-creation-plans.e2e.mjs` 在 loopback 上抓到 1 次「计划外」的 chat 请求；N4 会话此前也报过「生成后的自动镜头审核会调用文本模型」 | 属花钱边界：用户点的是「生成」，没点「审片」。要定的是默认开还是关、开着时要不要在确认卡 / 设置里说清。走查那一步现在红在这里  **09-26 用户拍板**：只关「分镜表生成全部」之后那一次自动审片（`batchPlanPreview.ts` 的触发删掉）；Agent 做片流程里的审片阶段照旧（`capabilityApplyHandler.verifyShotsForProduction`）。设置开关（下一版）先出样张再做，届时自动审片挂在开关后面 |
+| T-QA-38 | 走查 `agent-inflight-shots-reload` 判不了「重开后底栏『生成全部』不算在跑的制作镜头」：场景里两镜都归制作 Run、没有别的可生成节点，底栏本来就不出现，原断言「不在或置灰」永远过，已删 | todo | 09-26 协调会话收尾 N3c 时 check:walkthroughs 抓到（absence-without-baseline） | 场景里加一张用户自己的闲置节点作阳性对照：重开后底栏在、数的是 1 不是 3。归属判据现由 #875 单测守 |
 | T-QA-37 | 三条走查与现状漂移，不在任何 CI 链里：`agent-runtime-production.walk.mjs`（内联拆镜后等批准卡，但夹具的批准策略是「自动改」，方案直接写进去了）、`process-feedback-electron.e2e.mjs`（页面中途没了，catch 里截图先炸、原始错误被吞）、`decompose-ui.walk.mjs`（依赖本机 `.tmp/decompose-fixture.jpg`，仓库里没有） | todo | 09-26 协调会话在 `claude/walks-single-run-no-card` 上逐条真跑（Windows） | 前两条在本分支改动之前就红；另有两条只能在 Mac 验：`agent-runtime-video-export`（写死 `/opt/homebrew/bin/ffmpeg`）、`canvas-shortcut-parity`（要 `NOMI_REAL_MEDIA_DIR` 下的 4K HEVC 真素材） |
 
 ## J. 官网与发布
