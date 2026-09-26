@@ -4,6 +4,17 @@
 > 各目录若有自己的索引（如 plan/），表里直接给出。
 
 - [「等用户」只有一个 owner（花钱路状态机 · 门表 · 反方评审）](plan/2026-09-22-waiting-for-user-one-owner.md)
+- [全仓架构治理定稿：单一事实、单向投影、入口收敛（生命周期 · durable commit · 迁移矩阵）](plan/2026-09-26-architecture-single-owner-governance.md)
+- [架构方案质量清单与逐条审查](plan/2026-09-26-architecture-solution-quality-checklist.md)
+- [Phase 0：全仓架构账本与迁移准入](plan/2026-09-26-phase-zero-architecture-ledger.md)
+- [Phase 0 契约卫生账本](audit/2026-09-26-phase-zero-contract-hygiene.md)
+- [Phase 0 逐合同结构映射](audit/2026-09-26-phase-zero-contract-cluster-map.json)
+- [Phase 0 契约例外账](audit/2026-09-26-phase-zero-contract-exceptions.json)
+- [Phase 0 七簇施工卡](audit/2026-09-26-phase-zero-construction-cards.md)
+- [Phase 0 结构簇索引](audit/2026-09-26-phase-zero-cluster-index.md)
+- [Phase 0 依赖与迁移闸门](audit/2026-09-26-phase-zero-dependency-gates.md)
+- [Phase -1：真实对象与生命周期账本执行计划](plan/2026-09-26-phase-minus-one-lifecycle-ledger.md)
+- [Phase -1 审计收据：入口、生命周期、提交边界、对账与恢复探针](audit/2026-09-26-phase-minus-one-entrance-matrix.md)
 - [通用反问：模型自己能问用户一句话（一份契约 · 三振转提问）](plan/2026-09-21-ask-user-tool.md)
 - [交付流程去堵：评审单位、机器锁与合并队列方案](plan/2026-09-08-delivery-flow-unclog.md)
 - [Agent runtime 测试资源生命周期修复](plan/2026-09-08-agent-runtime-flakes.md)

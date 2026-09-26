@@ -24,9 +24,15 @@
         "symbol": "PendingSpendConfirm",
         "pending": true
       },
-      "consumers": [],
+      "consumers": [
+        "electron/productionRun/productionPendingSpend.ts",
+        "electron/capabilityCore/spendDecisionWaiters.ts",
+        "src/workbench/ai/v4/spendCardDraft.ts",
+        "electron/spendQuote.ts",
+        "electron/spendGrant.ts"
+      ],
       "since": "2026-09-22",
-      "notes": "pending：唯一 owner 待总合并核定，这里先锚在跨进程契约上。身份字段是 operationId。2026-09-22 复盘实例——草稿键绑的是报价身份而不是 operationId，于是「这一笔」在两个地方有两种身份。收口人：集成分支 integration/core-a-salvage-20260921 追平 main 的那份总合并任务书；核定后去掉 pending 并补齐 consumers。"
+      "notes": "pending：DTO 不是 durable owner，只是跨进程投影契约。durable identity 目标是 ProductionRun/ProductionGenerationPlan.operationId（projectId + operationId）；quoteId 只表示报价/版本指纹。当前消费者包括 electron/productionRun/productionPendingSpend.ts、electron/capabilityCore/spendDecisionWaiters.ts、src/workbench/ai/v4/spendCardDraft.ts 以及对应 IPC/Agent projection；现有消费者允许继续读，新写消费者在 owner promotion 前禁止。直接画布 electron/spendQuote.ts + electron/spendGrant.ts 使用 nodeId + quoteId，是另一个 bounded context，记录为迁移候选，不得冒充全局待决身份。"
     },
     {
       "name": "参数准入",
@@ -207,10 +213,15 @@
       "consumers": [
         "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
         "src/workbench/generationCanvas/nodes/ClipNode.tsx",
-        "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx"
+        "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+        "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+        "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+        "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+        "src/workbench/generationCanvas/nodes/NodeLabelRow.tsx",
+        "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
       ],
       "since": "2026-09-25",
-      "notes": "pending：唯一真相是 React Flow transform[2]，但 workbenchStore 仍留一份缩放、动画期每帧写，卡片里还有 4 处读它——这是登记在案的第二个 owner。收口人：claude/canvas-ux-batch（程序不主动移动视口、删每帧写回）；收口后去掉 pending 并补齐 consumers。 2026-09-25 claude/canvas-ux-batch 进展：程序动画的中间帧不再写 workbenchStore（动画走完记一次；用户手势照旧在移动结束时写），「每帧写」这一半已去掉；但 NodeLabelRow / NodeFloatingToolbar / NodeGeneratingOverlay / NodeImportingOverlay / NodeGenerationComposer 仍读 store 副本（其中浮框还有不在 ReactFlowProvider 里的面板宿主，NodeLabelRow 挂在每张卡上），迁读的人需要单独的性能评估，未做，所以仍 pending。"
+      "notes": "pending：React Flow transform[2] 是 live zoom 的唯一真相；workbenchStore.categoryViewports[*].zoom 只是持久化的记住视角，不应被当成实时缩放。程序动画的中间帧已不再写 store，但 NodeFloatingToolbar、NodeGeneratingOverlay、NodeImportingOverlay、NodeLabelRow、NodeGenerationComposer 仍直接读 store 副本。迁移目标是 useCanvasLiveZoom，若宿主不在 ReactFlowProvider 内必须显式登记设计实验室例外并做性能验证；完成前保留 pending。"
     },
     {
       "name": "画布生成浮框的位置与宽度",
