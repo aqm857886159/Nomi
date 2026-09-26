@@ -9,7 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
-import { findEdgeHitPoint, findElementHitPoint } from './_canvasHit.mjs'
+import { findEdgeHitPoint, findElementHitPoint, followArrivalHint, readArrivalLedger, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -103,6 +103,9 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 
 const launched = await launchNomiApp({ name: 'clip-node-editing', userDataDir: settingsDir, settingsDir, projectsDir, settleMs: 1200 })
 const { app, win } = launched
+// 共享桌面上别人动一下真实鼠标，就会插进下面按屏幕像素做的拖拽里（片段拖不动、吸附等不到）。只收 CDP 送来的输入，
+// 真实光标一律忽略——与 canvas-magnetic-handle.walk.mjs 同一做法。
+await (await app.browserWindow(win)).evaluate((window) => window.setIgnoreMouseEvents(true))
 
 async function dismissOnboarding() {
   await win.evaluate(() => {
@@ -129,6 +132,12 @@ async function openCanvas() {
   await win.getByRole('button', { name: '生成', exact: true }).first().click().catch(() => {})
   const node = win.locator('[data-clip-node="true"][data-node-id="canvas-clip-editor"]')
   await node.waitFor({ state: 'visible', timeout: 8000 })
+  // 打开项目那一刻画布会摆一次全貌（useAutoFitOnLoad，v0.22.1）：缩放随窗口大小而变（CI 1280×933 约 0.6、Windows 本机约 1.07）。
+  // 这条走查按屏幕像素拖片段、量吸附（「拖到离轨道起点 3px」），前提是 1:1。像用户一样先点「重置视图」回到 100%，再开始。
+  await waitForCanvasViewportSettled(win)
+  await win.getByRole('button', { name: '重置视图', exact: true }).first().click()
+  const reset = await waitForCanvasViewportSettled(win)
+  if (!reset || Math.abs(reset.zoom - 1) > 0.001) throw new Error(`重置视图后缩放没有回到 100%：${JSON.stringify(await readCanvasViewport(win))}`)
   await node.click({ position: { x: 20, y: 20 } })
   return node
 }
@@ -528,6 +537,8 @@ try {
   await screenshotSettled(win, { path: screenshots.exportMenu })
 
   const outputEdges = win.locator('.generation-canvas-v2__edge[data-edge-id^="edge-canvas-clip-editor::"]')
+  // 导出之前画布上就有的卡：边缘提示只数导出新落的，这些不算「新到的」。
+  const cardsBeforeExport = await win.locator('.generation-canvas-v2-node[data-node-id]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-node-id')))
   await runExport('完整成片', '到画布', '已向画布导出 1 个视频节点')
   // React Flow 只把可视节点挂进 DOM；导出节点会落在当前视口外，不能用
   // [data-kind="video"] 计数判定写入是否成功。输出边由画布状态直接渲染，才是稳定的共享信号。
@@ -550,6 +561,11 @@ try {
   const fiveOutputEdges = (await outputEdges.count()) === 5
   const restingEdgesHaveNoLabels = (await win.locator('.generation-canvas-v2__edge-control').count()) === 0
   await preview.getByRole('button', { name: '关闭预览' }).click()
+  // v0.22.1 起「导出到画布」不再替人挪视口：新节点落在屏外，由画布边缘提示指路。像用户一样点提示过去看输出
+  // （followArrivalHint 验方向、张数、点完完整进舞台、提示消失）。已知 = 导出前就在的卡 + 新卡里已经看得见的（卡片中心在舞台里，与产品同口径）。
+  await waitForCanvasViewportSettled(win)
+  const seenBeforeHint = (await readArrivalLedger(win)).cards.filter((card) => card.seen).map((card) => card.id)
+  await followArrivalHint(win, { knownIds: [...cardsBeforeExport, ...seenBeforeHint], label: '导出到画布的输出节点' })
   // 沿连线取样、只点最上层真是这条 path 的那一点（单一 owner：_canvasHit.mjs）。
   const edgePoint = await findEdgeHitPoint(win, {
     edgeSelector: '.generation-canvas-v2__edge[data-edge-id^="edge-canvas-clip-editor::"] .generation-canvas-v2__edge-hit',
@@ -561,7 +577,7 @@ try {
   const clickingEdgeShowsNativeControl = (await win.locator('.generation-canvas-v2__edge-control[data-edge-id^="edge-canvas-clip-editor::"]').count()) === 1
   await screenshotSettled(win, { path: screenshots.outputs, fullPage: true })
 
-  // 导出新增节点后，画布会把视口带到输出区域；先走真实的「重置视图」动作，
+  // 刚才点边缘提示把视口带到了输出区域；先走真实的「重置视图」动作回到片段，
   // 再从当前 DOM 几何取命中点。固定中心坐标可能已经落到窗口外，Playwright
   // 会报 html 拦截点击，但用户从可见画布点片段本身仍然是可用的。
   await win.getByRole('button', { name: '重置视图', exact: true }).click()
