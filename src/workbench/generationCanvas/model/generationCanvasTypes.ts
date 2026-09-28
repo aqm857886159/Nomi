@@ -73,6 +73,8 @@ export type GenerationProvenance = {
 
 export type GenerationNodeResult = {
   id: string
+  /** Persistent version number within its node; assigned at the history entry boundary. */
+  versionNo?: number
   type: GenerationResultType
   url?: string
   thumbnailUrl?: string
@@ -155,6 +157,8 @@ export type GenerationCanvasNode = {
   references?: string[]
   result?: GenerationNodeResult
   history?: GenerationNodeResult[]
+  /** Whether this node's result cards are currently laid out on the canvas. */
+  resultStackOpen?: boolean
   progress?: GenerationNodeProgress
   runs?: GenerationNodeRunRecord[]
   status?: GenerationNodeStatus

@@ -56,6 +56,7 @@ export type CanvasNodeActions = {
   /** Apply many user edits with one undo barrier and one persist revision. */
   updateNodes: (updates: readonly { nodeId: string; patch: Partial<GenerationCanvasNode> }[]) => void
   updateNodePrompt: (nodeId: string, prompt: string, promptOverridden?: boolean) => void
+  setNodeResultStackOpen: (nodeId: string, open: boolean) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void

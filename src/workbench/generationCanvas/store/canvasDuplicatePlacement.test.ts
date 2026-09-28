@@ -137,8 +137,9 @@ describe('Alt/⌥ dragging one version out of the result stack', () => {
     expect(Math.abs(c.x - -520)).toBeLessThanOrEqual(1)
     expect(Math.abs(c.y - 330)).toBeLessThanOrEqual(1)
     const source = state.nodes.find((node) => node.id === 'gen')!
-    expect(source.result).toEqual(v1)
-    expect(source.history).toEqual([v1, v2])
+    expect(source.result).toMatchObject(v1)
+    expect(source.result?.versionNo).toBe(2)
+    expect(source.history).toEqual([{ ...v1, versionNo: 2 }, { ...v2, versionNo: 1 }])
   })
 
   it('is one undo step (card + its result)', () => {

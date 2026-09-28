@@ -14,6 +14,26 @@ export function resultIdentity(result: GenerationNodeResult): string {
   )
 }
 
+export function normalizeNodeResultVersionNumbers(
+  node: Pick<GenerationCanvasNode, 'result' | 'history'>,
+): Pick<GenerationCanvasNode, 'result' | 'history'> {
+  const entries = [node.result, ...(node.history ?? [])].filter((entry): entry is GenerationNodeResult => Boolean(entry))
+  if (entries.length === 0 || entries.every((entry) => Number.isInteger(entry.versionNo) && entry.versionNo! > 0)) return node
+  const seen = new Set<string>()
+  const unique = entries.filter((entry) => {
+    const identity = resultIdentity(entry)
+    if (!identity || seen.has(identity)) return false
+    seen.add(identity)
+    return true
+  })
+  const nextEntries = unique.map((entry, index) => ({ ...entry, versionNo: unique.length - index }))
+  const byIdentity = new Map(nextEntries.map((entry) => [resultIdentity(entry), entry]))
+  return {
+    result: node.result ? byIdentity.get(resultIdentity(node.result)) : undefined,
+    history: (node.history ?? []).map((entry) => byIdentity.get(resultIdentity(entry)) ?? entry),
+  }
+}
+
 function isVisualMediaResult(result: GenerationNodeResult | undefined): result is GenerationNodeResult {
   if (!result || (result.type !== 'image' && result.type !== 'video')) return false
   return Boolean(String(result.url || result.thumbnailUrl || '').trim())

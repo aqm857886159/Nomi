@@ -7,6 +7,7 @@ import { applyAssetResultDeletion, buildAssetResultDeletionPlan } from './assetR
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
+import { registerUndoHistoryEvictionHandler } from '../generationCanvas/events/canvasUndoJournal'
 
 export type DeleteAssetResultOutcome = {
   removedResultCount: number
@@ -15,6 +16,45 @@ export type DeleteAssetResultOutcome = {
 }
 
 const deletionQueues = new Map<string, Promise<void>>()
+type PendingFileDeletion = { projectId: string; relativePath: string }
+const pendingFileDeletions = new Map<string, PendingFileDeletion>()
+
+function pendingDeletionKey(target: PendingFileDeletion): string {
+  return `${target.projectId}\u0000${target.relativePath}`
+}
+
+export function queuePendingAssetDeletion(target: PendingFileDeletion): void {
+  pendingFileDeletions.set(pendingDeletionKey(target), target)
+}
+
+export async function flushPendingAssetDeletions(): Promise<{ deletedFileCount: number; failedFileCount: number }> {
+  const liveNodes = useGenerationCanvasStore.getState().nodes
+  const targets = [...pendingFileDeletions.values()].filter((target) => !liveNodes.some((node) => {
+    return [node.result, ...(node.history ?? [])].some((result) => {
+      if (!result) return false
+      return [result.url, result.thumbnailUrl].some((url) => typeof url === 'string' && url.includes(target.relativePath))
+    })
+  }))
+  const retained = [...pendingFileDeletions.values()].filter((target) => !targets.includes(target))
+  pendingFileDeletions.clear()
+  for (const target of retained) pendingFileDeletions.set(pendingDeletionKey(target), target)
+  const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
+  if (!deleteFiles) return { deletedFileCount: 0, failedFileCount: targets.length }
+  let deletedFileCount = 0
+  let failedFileCount = 0
+  for (const target of targets) {
+    try {
+      const result = await deleteFiles({ projectId: target.projectId, relativePaths: [target.relativePath] })
+      deletedFileCount += result.deletedCount
+      failedFileCount += result.failedCount
+    } catch {
+      failedFileCount += 1
+    }
+  }
+  return { deletedFileCount, failedFileCount }
+}
+
+registerUndoHistoryEvictionHandler(() => { void flushPendingAssetDeletions() })
 
 function serializeProjectDeletion<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
   const previous = deletionQueues.get(projectId) ?? Promise.resolve()
@@ -114,14 +154,8 @@ async function deleteAssetResultUnlocked(
     : []
   const fileTarget = buildAssetResultDeletionPlan(asset, currentNodes).fileTarget
   if (!fileTarget) return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
-  const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-  if (!deleteFiles) return { removedResultCount, deletedFileCount: 0, failedFileCount: 1 }
-  const result = await deleteFiles({ projectId: fileTarget.projectId, relativePaths: [fileTarget.relativePath] })
-  return {
-    removedResultCount,
-    deletedFileCount: result.deletedCount,
-    failedFileCount: result.failedCount,
-  }
+  queuePendingAssetDeletion(fileTarget)
+  return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
 }
 
 

@@ -27,7 +27,7 @@ vi.mock('../library/localProjectStore', () => ({
   saveLocalProject: mocks.saveLocalProject,
 }))
 
-import { deleteAssetResult } from './deleteAssetResult'
+import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 
 /** 发起删除时签发的已加载项目（测试替身）。 */
@@ -82,6 +82,8 @@ describe('deleteAssetResult durability', () => {
 
     expect(mocks.updateNode).toHaveBeenCalledOnce()
     expect(mocks.persistNow).toHaveBeenCalledOnce()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+    await flushPendingAssetDeletions()
     expect(mocks.deleteFiles).toHaveBeenCalledOnce()
     expect(mocks.persistNow.mock.invocationCallOrder[0]).toBeLessThan(mocks.deleteFiles.mock.invocationCallOrder[0])
   })

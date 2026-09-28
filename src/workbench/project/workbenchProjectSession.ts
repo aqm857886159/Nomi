@@ -5,6 +5,7 @@ import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
+import { flushPendingAssetDeletions } from '../assets/deleteAssetResult'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
@@ -283,6 +284,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     })
   }
   const flushPendingSave = () => {
+    void flushPendingAssetDeletions()
     if (!saveScheduled || disposed) return
     void flushSave()
   }

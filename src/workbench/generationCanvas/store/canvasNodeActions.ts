@@ -193,6 +193,19 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...(patch.meta ? [{ type: 'canvas.node.updated' as const, payload: { nodeId, patch: { meta: patch.meta } } }] : []),
     ])
   },
+  setNodeResultStackOpen: (nodeId, open) => {
+    const existing = get().nodes.find((node) => node.id === nodeId)
+    if (!existing || existing.resultStackOpen === open) return
+    pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.resultStackOpen = open
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { resultStackOpen: open } } }])
+  },
   setNodeLocked: (nodeId, locked) => {
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)
     if (!existing || Boolean(existing.locked) === locked) return

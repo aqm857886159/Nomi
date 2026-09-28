@@ -25,6 +25,12 @@ let journal: JournalEvent[] = []
 let undoBarriers: number[] = []
 let redoBarriers: number[] = []
 let generation = 0
+const historyEvictionHandlers = new Set<() => void | Promise<void>>()
+
+export function registerUndoHistoryEvictionHandler(handler: () => void | Promise<void>): () => void {
+  historyEvictionHandlers.add(handler)
+  return () => historyEvictionHandlers.delete(handler)
+}
 
 function replayTo(position: number): CanvasProjection {
   return replayCanvasEvents(journal.slice(0, position), base)
@@ -54,6 +60,7 @@ export function pushUndoSnapshot(_state?: unknown): void {
     journal = journal.slice(dropTo)
     undoBarriers = undoBarriers.slice(1).map((position) => position - dropTo)
     redoBarriers = redoBarriers.map((position) => position - dropTo)
+    for (const handler of historyEvictionHandlers) void handler()
   }
 }
 

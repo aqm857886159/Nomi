@@ -8,6 +8,7 @@ import { computeMediaMetaPatch, resolveNodeVisualSize, type MediaDimensions } fr
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord, GenerationNodeStatus, TiptapDocJson } from '../model/generationCanvasTypes'
 import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInput } from './runRecordHelpers'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
+import { resultIdentity } from '../model/nodeResultLifecycle'
 
 export type NodeRunOutcome =
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
@@ -28,14 +29,15 @@ function mergeResultHistory(
 ): GenerationNodeResult[] {
   const history: GenerationNodeResult[] = []
   const seen = new Set<string>()
-  const add = (result: GenerationNodeResult | undefined) => {
+  const maxVersion = [previousResult, ...(previousHistory || [])].reduce((max, result) => Math.max(max, result?.versionNo ?? 0), 0)
+  const add = (result: GenerationNodeResult | undefined, versionNo?: number) => {
     if (!result) return
-    const key = result.id || result.url || result.thumbnailUrl || result.text || ''
+    const key = resultIdentity(result)
     if (!key || seen.has(key)) return
     seen.add(key)
-    history.push(result)
+    history.push(versionNo ? { ...result, versionNo } : result)
   }
-  add(nextResult)
+  add(nextResult, maxVersion + 1)
   add(previousResult)
   ;(previousHistory || []).forEach(add)
   return history
@@ -74,8 +76,8 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
         ...(node.runs || []).slice(1),
       ]
     : node.runs
-  patch.result = result
   patch.history = mergeResultHistory(result, node.result, node.history)
+  patch.result = patch.history[0] ?? result
   patch.status = 'success'
   patch.error = undefined
   patch.progress = undefined

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from './generationCanvasTypes'
-import { listNodeMediaResults, listStableNodeMediaResults, removeNodeResult, resultIdentity } from './nodeResultLifecycle'
+import { listNodeMediaResults, listStableNodeMediaResults, normalizeNodeResultVersionNumbers, removeNodeResult, resultIdentity } from './nodeResultLifecycle'
 
 const image = (id: string, url: string): GenerationNodeResult => ({
   id,
@@ -78,5 +78,14 @@ describe('node result lifecycle', () => {
     const a = image('a', 'a.png')
     const patch = removeNodeResult(node(a, [a]), 'a')
     expect(patch).toMatchObject({ result: undefined, history: [], status: 'idle', error: undefined })
+  })
+
+  it('backfills legacy result numbers once in newest-first history order', () => {
+    const a = image('a', 'a.png')
+    const b = image('b', 'b.png')
+    const c = image('c', 'c.png')
+    const normalized = normalizeNodeResultVersionNumbers(node(c, [c, b, a]))
+    expect(normalized.result?.versionNo).toBe(3)
+    expect(normalized.history?.map((entry) => entry.versionNo)).toEqual([3, 2, 1])
   })
 })

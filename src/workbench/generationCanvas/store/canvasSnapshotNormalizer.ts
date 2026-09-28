@@ -27,6 +27,7 @@ import type {
 import { isCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import { assetUrlForProductionPreview } from '../../../../electron/shared/productionPreviewUrl'
 import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
+import { normalizeNodeResultVersionNumbers } from '../model/nodeResultLifecycle'
 
 /**
  * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
@@ -111,7 +112,8 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         // 这里只是它的三条读路径之一（另两条是事件尾巴重放与外部图应用），
         // 且必须在**重放之后**再收敛一次——2026-09-10 那句只在这里收敛的 `running → idle`
         // 会被事件尾巴原样盖回去，等于没收敛（T-ED-06）。
-        const convergedNode = convergeStuckMidFlightNode(migrateProductionPreviewResults(normalizedNode))
+        const versionedNode = normalizeNodeResultVersionNumbers(normalizedNode)
+        const convergedNode = convergeStuckMidFlightNode(migrateProductionPreviewResults({ ...normalizedNode, ...versionedNode }))
         return [categoryId ? { ...convergedNode, categoryId } : convergedNode]
       })
     : []
