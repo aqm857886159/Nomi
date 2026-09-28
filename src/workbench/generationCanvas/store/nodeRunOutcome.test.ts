@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { readNodeMediaAspectRatio, resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { nodeRunOutcomePatch } from './nodeRunOutcome'
-import { removeNodeResult } from '../model/nodeResultLifecycle'
+import { normalizeNodeResultVersionNumbers, removeNodeResult } from '../model/nodeResultLifecycle'
 
 const imageResult: GenerationNodeResult = {
   id: 'result-1',
@@ -60,5 +60,21 @@ describe('nodeRunOutcomePatch intrinsic media dimensions', () => {
     const afterRegenerate = { ...current, ...afterDelete }
     const next = nodeRunOutcomePatch(afterRegenerate, { kind: 'result', result: make('r4') })
     expect(next.history?.map((entry) => entry.versionNo)).toEqual([4, 3, 1])
+  })
+
+  it('continues the durable sequence after backfilling a legacy project', () => {
+    const older = { id: 'older', type: 'image' as const, url: 'older.png', createdAt: 1 }
+    const newest = { id: 'newest', type: 'image' as const, url: 'newest.png', createdAt: 2 }
+    const legacy = normalizeNodeResultVersionNumbers({ ...node(), result: older, history: [newest, older] })
+    const patch = nodeRunOutcomePatch({ ...node(), ...legacy, status: 'success' }, {
+      kind: 'result',
+      result: { id: 'next', type: 'image', url: 'next.png', createdAt: 3 },
+    })
+
+    expect(patch.history?.map((entry) => [entry.id, entry.versionNo])).toEqual([
+      ['next', 3],
+      ['older', 1],
+      ['newest', 2],
+    ])
   })
 })

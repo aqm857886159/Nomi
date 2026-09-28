@@ -29,10 +29,12 @@ export function normalizeNodeResultVersionNumbers(
     return true
   })
   const currentIdentity = currentResult ? resultIdentity(currentResult) : ''
-  const nextEntries = unique.map((entry, index) => ({
-    ...(currentIdentity && resultIdentity(entry) === currentIdentity ? currentResult : entry),
-    versionNo: index + 1,
-  }))
+  const nextEntries = unique.map((entry, index): GenerationNodeResult => {
+    const canonical = currentIdentity && resultIdentity(entry) === currentIdentity
+      ? currentResult as GenerationNodeResult
+      : entry
+    return { ...canonical, versionNo: unique.length - index }
+  })
   const byIdentity = new Map(nextEntries.map((entry) => [resultIdentity(entry), entry]))
   return {
     result: node.result ? byIdentity.get(resultIdentity(node.result)) : undefined,

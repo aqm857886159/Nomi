@@ -27,8 +27,9 @@ vi.mock('../library/localProjectStore', () => ({
   saveLocalProject: mocks.saveLocalProject,
 }))
 
-import { deleteAssetResult, flushPendingAssetDeletions, queuePendingAssetDeletion } from './deleteAssetResult'
+import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
+import { __resetCanvasUndoJournalForTests, appendToUndoJournal, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
 
 /** 发起删除时签发的已加载项目（测试替身）。 */
 function loaded(projectId: string): ProjectExecutionContext {
@@ -67,6 +68,7 @@ function projectAsset(resultId: string, relativePath = 'assets/generated/a.png')
 describe('deleteAssetResult durability', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetCanvasUndoJournalForTests()
     const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
     const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
     mocks.nodes = [node(a, [a, b])]
@@ -146,21 +148,34 @@ describe('deleteAssetResult durability', () => {
       history: [],
       status: 'idle',
     })
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
   })
 
-  it('flushes only deletions whose own undo step was evicted', async () => {
+  it('uses the real undo journal eviction boundary before deleting a loaded asset', async () => {
     mocks.nodes = []
     await flushPendingAssetDeletions()
     mocks.deleteFiles.mockClear()
-    queuePendingAssetDeletion({ projectId: 'project-1', relativePath: 'assets/generated/old.png', journalGeneration: 7, journalPosition: 0 })
-    queuePendingAssetDeletion({ projectId: 'project-1', relativePath: 'assets/generated/current.png', journalGeneration: 7, journalPosition: 4 })
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    mocks.nodes = [node(a, [a, b])]
+    for (let index = 0; index < 80; index += 1) {
+      pushUndoSnapshot()
+      appendToUndoJournal([{ type: 'test.gesture', payload: { index } }])
+    }
 
-    await flushPendingAssetDeletions({ generation: 7, throughPosition: 0 })
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
 
-    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
-    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/old.png'] })
-    await flushPendingAssetDeletions()
-    expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
-    expect(mocks.deleteFiles).toHaveBeenLastCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/current.png'] })
+    const appendGesture = (index: number) => {
+      pushUndoSnapshot()
+      appendToUndoJournal([{ type: 'test.gesture', payload: { index } }])
+    }
+    appendGesture(80)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+
+    for (let index = 81; index < 160; index += 1) appendGesture(index)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
   })
 })

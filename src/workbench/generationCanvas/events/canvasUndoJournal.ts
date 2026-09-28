@@ -25,7 +25,8 @@ let journal: JournalEvent[] = []
 let undoBarriers: number[] = []
 let redoBarriers: number[] = []
 let generation = 0
-export type UndoHistoryEviction = { generation: number; throughPosition: number }
+let journalBasePosition = 0
+export type UndoHistoryEviction = { generation: number; oldestReachablePosition: number }
 
 const historyEvictionHandlers = new Set<(eviction: UndoHistoryEviction) => void | Promise<void>>()
 
@@ -62,7 +63,9 @@ export function pushUndoSnapshot(_state?: unknown): void {
     journal = journal.slice(dropTo)
     undoBarriers = undoBarriers.slice(1).map((position) => position - dropTo)
     redoBarriers = redoBarriers.map((position) => position - dropTo)
-    for (const handler of historyEvictionHandlers) void handler({ generation, throughPosition: dropTo })
+    journalBasePosition += dropTo
+    const oldestReachablePosition = getOldestReachableUndoPosition()
+    for (const handler of historyEvictionHandlers) void handler({ generation, oldestReachablePosition })
   }
 }
 
@@ -89,6 +92,18 @@ export function popRedo(): CanvasProjection | undefined {
 /** S6-2 事务边界:记录当前日志位置(abort 清理的锚点)。 */
 export function getUndoJournalPosition(): number {
   return journal.length
+}
+
+export function getLatestUndoBarrierAbsolutePosition(): number | undefined {
+  const barrier = undoBarriers.at(-1)
+  return barrier === undefined ? undefined : journalBasePosition + barrier
+}
+
+export function getOldestReachableUndoPosition(): number {
+  const reachable = [...undoBarriers, ...redoBarriers]
+  return reachable.length === 0
+    ? journalBasePosition + journal.length
+    : journalBasePosition + Math.min(...reachable)
 }
 
 /** Loaded-canvas identity, not a content revision. A new chat does not change
@@ -136,6 +151,7 @@ export function dropUndoBarriersAfter(position: number): void {
 /** 切项目/hydrate:历史清零(会话内撤销语义,跨会话历史只在磁盘日志供审计)。 */
 export function clearHistory(): void {
   generation += 1
+  journalBasePosition = 0
   base = emptyCanvasProjection()
   journal = []
   undoBarriers = []
@@ -148,6 +164,7 @@ export function clearHistory(): void {
  */
 export function seedUndoJournalBase(projection: CanvasProjection): void {
   generation += 1
+  journalBasePosition = 0
   base = { nodes: projection.nodes, edges: projection.edges, groups: projection.groups }
   journal = []
   undoBarriers = []

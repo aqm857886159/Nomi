@@ -85,8 +85,8 @@ describe('node result lifecycle', () => {
     const b = image('b', 'b.png')
     const c = image('c', 'c.png')
     const normalized = normalizeNodeResultVersionNumbers(node(c, [c, b, a]))
-    expect(normalized.result?.versionNo).toBe(1)
-    expect(normalized.history?.map((entry) => entry.versionNo)).toEqual([1, 2, 3])
+    expect(normalized.result?.versionNo).toBe(3)
+    expect(normalized.history?.map((entry) => entry.versionNo)).toEqual([3, 2, 1])
   })
 
   it('uses durable history order when the current pointer refers to an older version', () => {
@@ -96,8 +96,8 @@ describe('node result lifecycle', () => {
 
     expect(normalized.result?.id).toBe('older')
     expect(normalized.history?.map((entry) => [entry.id, entry.versionNo])).toEqual([
-      ['newest', 1],
-      ['older', 2],
+      ['newest', 2],
+      ['older', 1],
     ])
     expect(normalizeNodeResultVersionNumbers(normalized)).toEqual(normalized)
   })

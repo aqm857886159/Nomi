@@ -7,7 +7,7 @@ import { applyAssetResultDeletion, buildAssetResultDeletionPlan } from './assetR
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { getUndoJournalGeneration, getUndoJournalPosition, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
+import { getLatestUndoBarrierAbsolutePosition, getUndoJournalGeneration, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
 
 export type DeleteAssetResultOutcome = {
   removedResultCount: number
@@ -37,7 +37,7 @@ export async function flushPendingAssetDeletions(eviction?: UndoHistoryEviction)
   const eligible = [...pendingFileDeletions.values()].filter((target) => !eviction || (
     target.journalGeneration === eviction.generation &&
     target.journalPosition !== undefined &&
-    target.journalPosition <= eviction.throughPosition
+    target.journalPosition < eviction.oldestReachablePosition
   ))
   const targets = eligible.filter((target) => !liveNodes.some((node) => {
     return [node.result, ...(node.history ?? [])].some((result) => {
@@ -112,7 +112,7 @@ async function deleteAssetResultUnlocked(
   const inLoadedStore = Boolean(metadataProjectId && metadataProjectId === loadedProjectId && isProjectExecutionContextCurrent(loaded ?? undefined))
   let removedResultCount = 0
   const journalGeneration = inLoadedStore ? getUndoJournalGeneration() : undefined
-  const journalPosition = inLoadedStore ? getUndoJournalPosition() : undefined
+  let journalPosition: number | undefined
 
   if (inLoadedStore) {
     const store = useGenerationCanvasStore.getState()
@@ -132,6 +132,7 @@ async function deleteAssetResultUnlocked(
       }]
     })
     for (const match of plan.matches) store.updateNode(match.nodeId, match.patch)
+    journalPosition = getLatestUndoBarrierAbsolutePosition()
     removedResultCount += plan.matches.length
     if (plan.matches.length > 0) {
       try {
@@ -165,7 +166,18 @@ async function deleteAssetResultUnlocked(
     ? useGenerationCanvasStore.getState().nodes
     : []
   const fileTarget = buildAssetResultDeletionPlan(asset, currentNodes).fileTarget
+    ?? (asset.origin.source === 'project' ? { projectId: asset.origin.projectId, relativePath: asset.origin.relativePath } : null)
   if (!fileTarget) return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
+  if (!inLoadedStore) {
+    const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
+    if (!deleteFiles) return { removedResultCount, deletedFileCount: 0, failedFileCount: 1 }
+    try {
+      const result = await deleteFiles({ projectId: fileTarget.projectId, relativePaths: [fileTarget.relativePath] })
+      return { removedResultCount, deletedFileCount: result.deletedCount, failedFileCount: result.failedCount }
+    } catch {
+      return { removedResultCount, deletedFileCount: 0, failedFileCount: 1 }
+    }
+  }
   queuePendingAssetDeletion({ ...fileTarget, journalGeneration, journalPosition })
   return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
 }
