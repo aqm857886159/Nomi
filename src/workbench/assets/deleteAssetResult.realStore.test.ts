@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { AssetRef } from './assetTypes'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { __resetCanvasUndoJournalForTests, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { __resetCanvasUndoJournalForTests, getOldestReachableUndoPosition, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 
 const mocks = vi.hoisted(() => ({
@@ -71,13 +71,34 @@ describe('deleteAssetResult with the real canvas store', () => {
     for (let index = 0; index < 80; index += 1) toggleGesture()
 
     await deleteAssetResult(projectAsset('a'), loaded('project-1'))
-    useGenerationCanvasStore.getState().moveNode('node-1', { x: 24, y: 12 })
+    const oldestBeforeGesture = getOldestReachableUndoPosition()
+    // An undo-creating gesture: it evicts an older step (not B's) from the full history.
+    toggleGesture()
     await waitForEvictionWork()
+    expect(getOldestReachableUndoPosition()).toBeGreaterThan(oldestBeforeGesture)
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
 
     useGenerationCanvasStore.getState().undo()
+    useGenerationCanvasStore.getState().undo()
     expect(useGenerationCanvasStore.getState().nodes[0].history?.map((entry) => entry.id)).toContain('a')
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('keeps B until its own step is evicted when the step before it changed the canvas', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    // 79 more steps evict every step before B's; B's own step is now the oldest reachable one.
+    for (let index = 0; index < 79; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+
+    toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
   })
 
   it('keeps B while an empty barrier shares its position, then deletes after B is evicted', async () => {
