@@ -1,0 +1,109 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
+import type { AssetRef } from './assetTypes'
+import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
+import { __resetCanvasUndoJournalForTests, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+
+const mocks = vi.hoisted(() => ({
+  deleteFiles: vi.fn(),
+  persistNow: vi.fn(),
+}))
+
+vi.mock('../../desktop/bridge', () => ({
+  getDesktopBridge: () => ({ workspace: { deleteFiles: mocks.deleteFiles } }),
+}))
+vi.mock('../project/workbenchProjectSession', () => ({
+  persistActiveWorkbenchProjectNow: mocks.persistNow,
+}))
+
+import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
+
+function loaded(projectId: string): ProjectExecutionContext {
+  return { binding: { projectId, immutableProjectUuid: `uuid-${projectId}`, projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
+}
+
+function image(id: string, url: string): GenerationNodeResult {
+  return { id, type: 'image', url, createdAt: Number(id === 'a' ? 1 : 2) }
+}
+
+function node(result: GenerationNodeResult, history: GenerationNodeResult[]): GenerationCanvasNode {
+  return { id: 'node-1', kind: 'image', title: 'result', position: { x: 0, y: 0 }, result, history, status: 'success' }
+}
+
+function projectAsset(resultId: string): AssetRef {
+  return {
+    id: `node-1:${resultId}`, kind: 'image', name: 'result',
+    renderUrl: `nomi-local://asset/project-1/assets/generated/${resultId}.png`,
+    ownerNodeId: 'node-1', ownerResultId: resultId, source: 'project',
+    origin: { source: 'project', projectId: 'project-1', relativePath: `assets/generated/${resultId}.png` },
+  }
+}
+
+function setCanvas(result: GenerationNodeResult, history: GenerationNodeResult[]): void {
+  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node(result, history)], edges: [], groups: [], selectedNodeIds: [] })
+}
+
+function toggleGesture(): void {
+  const store = useGenerationCanvasStore.getState()
+  store.setNodeResultStackOpen('node-1', !store.nodes[0]?.resultStackOpen)
+}
+
+async function waitForEvictionWork(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+describe('deleteAssetResult with the real canvas store', () => {
+  beforeEach(async () => {
+    setCanvas(image('a', 'nomi-local://asset/project-1/assets/generated/a.png'), [])
+    await flushPendingAssetDeletions()
+    __resetCanvasUndoJournalForTests()
+    mocks.deleteFiles.mockReset()
+    mocks.persistNow.mockReset()
+    mocks.persistNow.mockResolvedValue({ id: 'project-1' })
+    mocks.deleteFiles.mockResolvedValue({ deletedCount: 1, failedCount: 0 })
+  })
+
+  it('keeps B through an older-step eviction and restores it through the real undo path', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    useGenerationCanvasStore.getState().moveNode('node-1', { x: 24, y: 12 })
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0].history?.map((entry) => entry.id)).toContain('a')
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('keeps B while an empty barrier shares its position, then deletes after B is evicted', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+    pushUndoSnapshot()
+
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    for (let index = 0; index < 79; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+
+    toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
+  })
+
+  it('flushes a loaded project pending deletion when the project closes', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    setCanvas(a, [a])
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+
+    await flushPendingAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
+  })
+})

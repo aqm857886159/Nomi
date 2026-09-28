@@ -7,7 +7,7 @@ import { applyAssetResultDeletion, buildAssetResultDeletionPlan } from './assetR
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { getLatestUndoBarrierAbsolutePosition, getUndoJournalGeneration, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
+import { getLatestUndoBarrierAbsolutePosition, getUndoJournalGeneration, pushUndoSnapshot, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
 
 export type DeleteAssetResultOutcome = {
   removedResultCount: number
@@ -113,10 +113,13 @@ async function deleteAssetResultUnlocked(
   let removedResultCount = 0
   const journalGeneration = inLoadedStore ? getUndoJournalGeneration() : undefined
   let journalPosition: number | undefined
+  let fileTarget: { projectId: string; relativePath: string } | null = null
 
   if (inLoadedStore) {
     const store = useGenerationCanvasStore.getState()
     const plan = buildAssetResultDeletionPlan(asset, store.nodes)
+    fileTarget = plan.fileTarget
+    if (plan.matches.length > 0) pushUndoSnapshot(store)
     const rollbacks = plan.matches.flatMap((match) => {
       const existing = store.nodes.find((node) => node.id === match.nodeId)
       if (!existing) return []
@@ -149,6 +152,7 @@ async function deleteAssetResultUnlocked(
     const project = await readLocalProjectAsync(metadataProjectId)
     if (project) {
       const plan = buildAssetResultDeletionPlan(asset, project.payload.generationCanvas.nodes)
+      fileTarget = plan.fileTarget
       if (plan.matches.length > 0) {
         await saveLocalProject(metadataProjectId, {
           ...project.payload,
@@ -162,11 +166,6 @@ async function deleteAssetResultUnlocked(
     }
   }
 
-  const currentNodes = inLoadedStore && isProjectExecutionContextCurrent(loaded ?? undefined)
-    ? useGenerationCanvasStore.getState().nodes
-    : []
-  const fileTarget = buildAssetResultDeletionPlan(asset, currentNodes).fileTarget
-    ?? (asset.origin.source === 'project' ? { projectId: asset.origin.projectId, relativePath: asset.origin.relativePath } : null)
   if (!fileTarget) return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
   if (!inLoadedStore) {
     const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles

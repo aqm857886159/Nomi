@@ -3,7 +3,7 @@
   "id": "2026-09-28-version-cards-v1",
   "problem_type": "Canvas result lifecycle loses durable version order or deletes files before undo history can restore them",
   "symptom": "Undo history compaction used relative positions after the journal base moved, so deferred deletion could remain forever or release at the wrong time; legacy numbering must also preserve the durable newest-first sequence.",
-  "direct_cause": "Eviction compared a deletion position from an older relative journal coordinate with the current drop boundary, and legacy normalization assigned version numbers newest-first in the wrong direction.",
+  "direct_cause": "The closed-project path bypassed the deletion plan with a fallback target, and the V1c eviction test used a mocked store while real updateNode did not create a deletion undo barrier.",
   "class_root": "Result identity, durable history order, and physical-file deletion timing were not enforced at their shared lifecycle boundaries.",
   "affected_population": [
     "Projects with generated asset files and undo history eviction",
@@ -17,7 +17,8 @@
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
     "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
-    "src/workbench/generationCanvas/store/canvasDuplicatePlacement.test.ts"
+    "src/workbench/generationCanvas/store/canvasDuplicatePlacement.test.ts",
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "entry_points": [
     "deleteAssetResult",
@@ -29,7 +30,7 @@
   "internal_only_reason": "The invariant is an application-owned canvas journal and project persistence lifecycle; no third-party behavior decides it.",
   "invariants": [
     "A pending file deletion is released only when its absolute journal position is older than the oldest undo/redo-reachable position in the same generation.",
-    "The deletion records the latest undo barrier after the store mutation, so intermediate events cannot bind it to an earlier step.",
+    "Loaded result deletion creates one undo barrier at the shared deletion boundary before store mutation, then records that latest barrier position.",
     "Legacy version numbers follow durable newest-first history order, with newest entry receiving the highest number and oldest receiving 1; a regenerated result continues max+1."
   ],
   "doors": [
@@ -112,14 +113,19 @@
       "kind": "read",
       "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
       "symbol": "resultIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "pushUndoSnapshot"
     }
   ],
   "door_reduction": {
-    "before": 16,
-    "after": 16,
-    "why_not": "Deletion has asset-library, node-card, project-close, app-exit, queue, and flush doors; journal and lifecycle have independent readers and writers. They converge on the changed shared boundaries but cannot be removed without changing separate user and persistence flows."
+    "before": 17,
+    "after": 17,
+    "why_not": "Deletion has asset-library, node-card, project-close, app-exit, queue, flush, and barrier doors; journal and lifecycle retain independent readers and writers. They converge on the changed shared boundaries but cannot be removed without changing separate user and persistence flows."
   },
-  "generality_proof": "The journal owns an absolute base offset across every compaction, and all loaded deletion callers record the latest barrier after their shared store update. The lifecycle normalizer and nodeRunOutcomePatch share result identity and preserve the durable sequence for every legacy snapshot and subsequent generation.",
+  "generality_proof": "Every loaded deletion caller converges on deleteAssetResult, which creates the barrier because updateNode only histories prompt/meta/title/pluginState patches. Closed-project deletion uses the full persisted project plan, so shared references are checked before direct deletion.",
   "shared_boundaries": [
     {
       "path": "src/workbench/assets/deleteAssetResult.ts",
@@ -185,7 +191,7 @@
     "invariant": "Only pending deletions whose absolute journal position is older than the same-generation oldest reachable position are eligible during eviction; explicit close flushes remain comprehensive.",
     "failure_mode": "A pending record without a matching eviction remains queued, and a live reference prevents physical deletion.",
     "exception_policy": "none",
-    "strategy": "Carry absolute lifecycle metadata with the pending record, read the latest barrier after the deletion store mutation, and let the journal owner report the post-compaction reachability boundary. Normalize legacy ordering at the sole snapshot lifecycle boundary.",
+    "strategy": "Use the persisted or live plan as the sole file target authority, create the deletion barrier at the shared boundary before mutation, and use real canvas-store journeys to prove reachability and eviction.",
     "artifacts": [
       "src/workbench/assets/deleteAssetResult.ts",
       "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
@@ -195,12 +201,14 @@
   "regression_tests": [
     "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts"
+    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts"
+    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -221,7 +229,8 @@
     "tests": [
       "src/workbench/assets/deleteAssetResult.test.ts",
       "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-      "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts"
+      "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+      "src/workbench/assets/deleteAssetResult.realStore.test.ts"
     ],
     "why": "Deletion timing is enforced at the pending-file queue boundary; legacy ordering is normalized by the shared lifecycle model and covered by its class tests."
   }

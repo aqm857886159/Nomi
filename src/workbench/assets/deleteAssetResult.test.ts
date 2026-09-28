@@ -29,7 +29,7 @@ vi.mock('../library/localProjectStore', () => ({
 
 import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { __resetCanvasUndoJournalForTests, appendToUndoJournal, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
 
 /** 发起删除时签发的已加载项目（测试替身）。 */
 function loaded(projectId: string): ProjectExecutionContext {
@@ -151,31 +151,28 @@ describe('deleteAssetResult durability', () => {
     expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
   })
 
-  it('uses the real undo journal eviction boundary before deleting a loaded asset', async () => {
-    mocks.nodes = []
-    await flushPendingAssetDeletions()
-    mocks.deleteFiles.mockClear()
-    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
-    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
-    mocks.nodes = [node(a, [a, b])]
-    for (let index = 0; index < 80; index += 1) {
-      pushUndoSnapshot()
-      appendToUndoJournal([{ type: 'test.gesture', payload: { index } }])
+  it('does not directly delete a closed-project file while another node still references it', async () => {
+    const sharedUrl = 'nomi-local://asset/project-1/assets/generated/shared.png'
+    const first = image('a', sharedUrl)
+    const second = image('b', sharedUrl)
+    let storedProject = {
+      id: 'project-1',
+      name: 'shared',
+      payload: { generationCanvas: { nodes: [node(first, [first]), { ...node(second, [second]), id: 'node-2' }], edges: [], groups: [] } },
     }
+    mocks.readLocalProjectAsync.mockImplementation(() => Promise.resolve(storedProject))
+    mocks.saveLocalProject.mockImplementation((_id: string, payload: typeof storedProject.payload) => {
+      storedProject = { ...storedProject, payload }
+      return storedProject
+    })
 
-    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    const firstAsset = { ...projectAsset('a'), renderUrl: sharedUrl, origin: { source: 'project' as const, projectId: 'project-1', relativePath: 'assets/generated/shared.png' } }
+    await deleteAssetResult(firstAsset, loaded('another-project'))
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
 
-    const appendGesture = (index: number) => {
-      pushUndoSnapshot()
-      appendToUndoJournal([{ type: 'test.gesture', payload: { index } }])
-    }
-    appendGesture(80)
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(mocks.deleteFiles).not.toHaveBeenCalled()
-
-    for (let index = 81; index < 160; index += 1) appendGesture(index)
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
+    const secondAsset = { ...firstAsset, id: 'node-2:b', ownerNodeId: 'node-2', ownerResultId: 'b' }
+    await deleteAssetResult(secondAsset, loaded('another-project'))
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/shared.png'] })
   })
+
 })
