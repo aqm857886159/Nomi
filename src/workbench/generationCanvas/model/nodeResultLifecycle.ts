@@ -17,7 +17,9 @@ export function resultIdentity(result: GenerationNodeResult): string {
 export function normalizeNodeResultVersionNumbers(
   node: Pick<GenerationCanvasNode, 'result' | 'history'>,
 ): Pick<GenerationCanvasNode, 'result' | 'history'> {
-  const entries = [node.result, ...(node.history ?? [])].filter((entry): entry is GenerationNodeResult => Boolean(entry))
+  const entries = [...(node.history ?? [])].filter((entry): entry is GenerationNodeResult => Boolean(entry))
+  const currentResult = node.result
+  if (currentResult && !entries.some((entry) => resultIdentity(entry) === resultIdentity(currentResult))) entries.unshift(currentResult)
   if (entries.length === 0 || entries.every((entry) => Number.isInteger(entry.versionNo) && entry.versionNo! > 0)) return node
   const seen = new Set<string>()
   const unique = entries.filter((entry) => {
@@ -26,7 +28,11 @@ export function normalizeNodeResultVersionNumbers(
     seen.add(identity)
     return true
   })
-  const nextEntries = unique.map((entry, index) => ({ ...entry, versionNo: unique.length - index }))
+  const currentIdentity = currentResult ? resultIdentity(currentResult) : ''
+  const nextEntries = unique.map((entry, index) => ({
+    ...(currentIdentity && resultIdentity(entry) === currentIdentity ? currentResult : entry),
+    versionNo: index + 1,
+  }))
   const byIdentity = new Map(nextEntries.map((entry) => [resultIdentity(entry), entry]))
   return {
     result: node.result ? byIdentity.get(resultIdentity(node.result)) : undefined,

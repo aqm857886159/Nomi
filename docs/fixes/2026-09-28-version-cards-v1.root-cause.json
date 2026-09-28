@@ -1,0 +1,223 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-28-version-cards-v1",
+  "problem_type": "Canvas result lifecycle loses durable version order or deletes files before undo history can restore them",
+  "symptom": "Undoing an older result deletion after a later canvas action can restore metadata that points to a file already deleted; legacy projects can also label an older current pointer as the newest version.",
+  "direct_cause": "Pending file deletions were not tied to the undo journal step that created them, and legacy version normalization enumerated the current pointer before durable history order.",
+  "class_root": "Result identity, durable history order, and physical-file deletion timing were not enforced at their shared lifecycle boundaries.",
+  "affected_population": [
+    "Projects with generated asset files and undo history eviction",
+    "Legacy projects whose result pointer differs from history order",
+    "Loaded and closed-project deletion entry points"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+    "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
+    "src/workbench/assets/deleteAssetResult.test.ts"
+  ],
+  "entry_points": [
+    "deleteAssetResult",
+    "flushPendingAssetDeletions",
+    "normalizeNodeResultVersionNumbers",
+    "pushUndoSnapshot history eviction"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned canvas journal and project persistence lifecycle; no third-party behavior decides it.",
+  "invariants": [
+    "A pending file deletion is released by undo eviction only when the eviction reaches the journal generation and position that created it.",
+    "Physical deletion never occurs while any live canvas result still references the relative path.",
+    "Legacy version numbers follow durable history order, with newest entry numbered 1 and current prepended only when absent."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "DeleteAssetResultOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "flushPendingAssetDeletions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "queuePendingAssetDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
+      "symbol": "flushPendingAssetDeletions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "flushPendingAssetDeletions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "NodeRunOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "NodeRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "UndoHistoryEviction"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "pushUndoSnapshot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "resultIdentity"
+    }
+  ],
+  "door_reduction": {
+    "before": 16,
+    "after": 16,
+    "why_not": "Deletion has asset-library, node-card, project-close, app-exit, queue, and flush doors; journal and lifecycle have independent readers and writers. They converge on the changed shared boundaries but cannot be removed without changing separate user and persistence flows."
+  },
+  "generality_proof": "Every loaded deletion queues through deleteAssetResult and records the current journal generation/position; the only history eviction callback supplies the exact eviction boundary. Every legacy canvas snapshot passes through normalizeNodeResultVersionNumbers, so pointer order cannot change numbering.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "queuePendingAssetDeletion",
+      "responsibility": "Attach pending physical-file deletion to the undo generation and position, and flush only eligible evicted records."
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "pushUndoSnapshot",
+      "responsibility": "Report the generation and journal position removed by history eviction."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "normalizeNodeResultVersionNumbers",
+      "responsibility": "Normalize legacy result numbers from durable history order."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "deleteAssetResult",
+      "disposition": "enforced",
+      "evidence": "Asset library deletion calls the shared deletion boundary."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "deleteAssetResult",
+      "disposition": "enforced",
+      "evidence": "Node card deletion calls the same shared boundary."
+    },
+    {
+      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
+      "entry_point": "flushPendingAssetDeletions",
+      "disposition": "enforced",
+      "evidence": "Project release remains an explicit all-pending flush and does not rely on undo eviction."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "flushPendingAssetDeletions",
+      "disposition": "enforced",
+      "evidence": "App/project close remains an explicit all-pending flush."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "entry_point": "nodeRunOutcomePatch",
+      "disposition": "enforced",
+      "evidence": "All result outcomes converge on nodeRunOutcomePatch; version allocation for new results is an existing forward path outside legacy backfill."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same deletion can be followed by any later gesture until the bounded undo journal evicts its step, and any legacy project can load with a current pointer that differs from history order.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs src/workbench/assets/deleteAssetResult.ts",
+      "node scripts/door-map.mjs src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "rg normalizeNodeResultVersionNumbers across canvas snapshot loading",
+      "rg deleteAssetResult across asset library and node card entry points"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/assets/deleteAssetResult.ts",
+    "invariant": "Only pending deletions whose own journal generation and position were evicted are eligible during an eviction callback; explicit close flushes remain comprehensive.",
+    "failure_mode": "A pending record without a matching eviction remains queued, and a live reference prevents physical deletion.",
+    "exception_policy": "none",
+    "strategy": "Carry lifecycle metadata with the pending record and pass the exact eviction boundary from the journal owner. Normalize legacy ordering at the sole snapshot lifecycle boundary.",
+    "artifacts": [
+      "src/workbench/assets/deleteAssetResult.ts",
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "src/workbench/generationCanvas/model/nodeResultLifecycle.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/assets/deleteAssetResult.test.ts",
+    "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/assets/deleteAssetResult.test.ts",
+    "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old behaviors are replaced in place at the same shared boundaries; no standalone legacy production path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the lifecycle invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing pending records are in-memory only and disappear on restart; closed-project and app-exit explicit flushes remain unchanged. Legacy snapshots are normalized on load without changing result identity or current selection.",
+  "residual_risks": [
+    "A process crash before explicit close cleanup can leave an unreferenced generated file until a future startup cleanup path is added."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assets/deleteAssetResult.ts",
+    "tests": [
+      "src/workbench/assets/deleteAssetResult.test.ts",
+      "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts"
+    ],
+    "why": "Deletion timing is enforced at the pending-file queue boundary; legacy ordering is normalized by the shared lifecycle model and covered by its class tests."
+  }
+}

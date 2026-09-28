@@ -7,7 +7,7 @@ import { applyAssetResultDeletion, buildAssetResultDeletionPlan } from './assetR
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { registerUndoHistoryEvictionHandler } from '../generationCanvas/events/canvasUndoJournal'
+import { getUndoJournalGeneration, getUndoJournalPosition, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
 
 export type DeleteAssetResultOutcome = {
   removedResultCount: number
@@ -16,7 +16,12 @@ export type DeleteAssetResultOutcome = {
 }
 
 const deletionQueues = new Map<string, Promise<void>>()
-type PendingFileDeletion = { projectId: string; relativePath: string }
+type PendingFileDeletion = {
+  projectId: string
+  relativePath: string
+  journalGeneration?: number
+  journalPosition?: number
+}
 const pendingFileDeletions = new Map<string, PendingFileDeletion>()
 
 function pendingDeletionKey(target: PendingFileDeletion): string {
@@ -27,9 +32,14 @@ export function queuePendingAssetDeletion(target: PendingFileDeletion): void {
   pendingFileDeletions.set(pendingDeletionKey(target), target)
 }
 
-export async function flushPendingAssetDeletions(): Promise<{ deletedFileCount: number; failedFileCount: number }> {
+export async function flushPendingAssetDeletions(eviction?: UndoHistoryEviction): Promise<{ deletedFileCount: number; failedFileCount: number }> {
   const liveNodes = useGenerationCanvasStore.getState().nodes
-  const targets = [...pendingFileDeletions.values()].filter((target) => !liveNodes.some((node) => {
+  const eligible = [...pendingFileDeletions.values()].filter((target) => !eviction || (
+    target.journalGeneration === eviction.generation &&
+    target.journalPosition !== undefined &&
+    target.journalPosition <= eviction.throughPosition
+  ))
+  const targets = eligible.filter((target) => !liveNodes.some((node) => {
     return [node.result, ...(node.history ?? [])].some((result) => {
       if (!result) return false
       return [result.url, result.thumbnailUrl].some((url) => typeof url === 'string' && url.includes(target.relativePath))
@@ -54,7 +64,7 @@ export async function flushPendingAssetDeletions(): Promise<{ deletedFileCount: 
   return { deletedFileCount, failedFileCount }
 }
 
-registerUndoHistoryEvictionHandler(() => { void flushPendingAssetDeletions() })
+registerUndoHistoryEvictionHandler((eviction) => { void flushPendingAssetDeletions(eviction) })
 
 function serializeProjectDeletion<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
   const previous = deletionQueues.get(projectId) ?? Promise.resolve()
@@ -101,6 +111,8 @@ async function deleteAssetResultUnlocked(
   // 原项目此刻已是关闭项目，走下面按项目读写盘的既有路径，绝不去改新项目的 store。
   const inLoadedStore = Boolean(metadataProjectId && metadataProjectId === loadedProjectId && isProjectExecutionContextCurrent(loaded ?? undefined))
   let removedResultCount = 0
+  const journalGeneration = inLoadedStore ? getUndoJournalGeneration() : undefined
+  const journalPosition = inLoadedStore ? getUndoJournalPosition() : undefined
 
   if (inLoadedStore) {
     const store = useGenerationCanvasStore.getState()
@@ -154,7 +166,7 @@ async function deleteAssetResultUnlocked(
     : []
   const fileTarget = buildAssetResultDeletionPlan(asset, currentNodes).fileTarget
   if (!fileTarget) return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
-  queuePendingAssetDeletion(fileTarget)
+  queuePendingAssetDeletion({ ...fileTarget, journalGeneration, journalPosition })
   return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
 }
 

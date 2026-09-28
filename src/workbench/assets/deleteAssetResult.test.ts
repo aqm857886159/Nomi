@@ -27,7 +27,7 @@ vi.mock('../library/localProjectStore', () => ({
   saveLocalProject: mocks.saveLocalProject,
 }))
 
-import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
+import { deleteAssetResult, flushPendingAssetDeletions, queuePendingAssetDeletion } from './deleteAssetResult'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 
 /** 发起删除时签发的已加载项目（测试替身）。 */
@@ -146,5 +146,21 @@ describe('deleteAssetResult durability', () => {
       history: [],
       status: 'idle',
     })
+  })
+
+  it('flushes only deletions whose own undo step was evicted', async () => {
+    mocks.nodes = []
+    await flushPendingAssetDeletions()
+    mocks.deleteFiles.mockClear()
+    queuePendingAssetDeletion({ projectId: 'project-1', relativePath: 'assets/generated/old.png', journalGeneration: 7, journalPosition: 0 })
+    queuePendingAssetDeletion({ projectId: 'project-1', relativePath: 'assets/generated/current.png', journalGeneration: 7, journalPosition: 4 })
+
+    await flushPendingAssetDeletions({ generation: 7, throughPosition: 0 })
+
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/old.png'] })
+    await flushPendingAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
+    expect(mocks.deleteFiles).toHaveBeenLastCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/current.png'] })
   })
 })
