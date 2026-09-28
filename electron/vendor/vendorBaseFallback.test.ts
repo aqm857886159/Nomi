@@ -22,6 +22,14 @@ const APIB = "https://api.apib.ai";
 const connectFail = (code = "UND_ERR_CONNECT_TIMEOUT") =>
   Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error(code), { code }) });
 
+const tlsHandshakeReset = () =>
+  Object.assign(new TypeError("fetch failed"), {
+    cause: Object.assign(
+      new Error("Client network socket disconnected before secure TLS connection was established"),
+      { code: "ECONNRESET" },
+    ),
+  });
+
 const apimartGate = () =>
   new Response(JSON.stringify({ error: { message: "API key is required", type: "apimart_error" } }), { status: 401 });
 
@@ -47,6 +55,10 @@ describe("isConnectPhaseError（换线重发的安全闸）", () => {
     expect(isConnectPhaseError(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe(false);
     expect(isConnectPhaseError(connectFail("UND_ERR_HEADERS_TIMEOUT"))).toBe(false);
     expect(isConnectPhaseError(new Error("boom"))).toBe(false);
+  });
+  it("TLS 握手建立前的 ECONNRESET → true；请求后普通 reset → false", () => {
+    expect(isConnectPhaseError(tlsHandshakeReset())).toBe(true);
+    expect(isConnectPhaseError(Object.assign(new Error("socket reset after request"), { code: "ECONNRESET" }))).toBe(false);
   });
 });
 
@@ -111,7 +123,7 @@ describe("fetchVendorWithBaseFallback / requestJson 集成", () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => {
       const u = String(url);
       wireCalls.push(`${init?.method ?? "GET"} ${u}`);
-      if (u.startsWith(PRIMARY)) throw connectFail();
+      if (u.startsWith(PRIMARY)) throw tlsHandshakeReset();
       if (u.includes("/v1/models")) return apimartGate(); // 梯子的零额度探测
       return new Response(JSON.stringify({ ok: 1 }), { status: 200 });
     }));

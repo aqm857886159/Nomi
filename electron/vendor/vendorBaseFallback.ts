@@ -74,21 +74,29 @@ function normalizeOrigin(url: string): string {
   }
 }
 
-/** 沿 cause 链 + AggregateError.errors（happy-eyeballs 双栈失败的形态）收集错误码。 */
-function collectErrorCodes(error: unknown, depth = 0): string[] {
+type ErrorDetail = { code?: string; message?: string };
+
+/** 沿 cause 链 + AggregateError.errors（happy-eyeballs 双栈失败的形态）收集错误信息。 */
+function collectErrorDetails(error: unknown, depth = 0): ErrorDetail[] {
   if (depth > 5 || !error || typeof error !== "object") return [];
-  const codes: string[] = [];
-  const code = (error as { code?: unknown }).code;
-  if (typeof code === "string") codes.push(code);
-  const aggregate = (error as { errors?: unknown }).errors;
-  if (Array.isArray(aggregate)) for (const item of aggregate) codes.push(...collectErrorCodes(item, depth + 1));
-  codes.push(...collectErrorCodes((error as { cause?: unknown }).cause, depth + 1));
-  return codes;
+  const item = error as { code?: unknown; message?: unknown; errors?: unknown; cause?: unknown };
+  const details: ErrorDetail[] = [{
+    ...(typeof item.code === "string" ? { code: item.code } : {}),
+    ...(typeof item.message === "string" ? { message: item.message } : {}),
+  }];
+  if (Array.isArray(item.errors)) for (const nested of item.errors) details.push(...collectErrorDetails(nested, depth + 1));
+  details.push(...collectErrorDetails(item.cause, depth + 1));
+  return details;
 }
+
+const PRE_TLS_ECONNRESET = /before secure TLS connection was established|disconnected before secure TLS/i;
 
 /** 连接从未建立（请求从未离开本机）→ 换线重发对任何方法都安全。 */
 export function isConnectPhaseError(error: unknown): boolean {
-  return collectErrorCodes(error).some((code) => SAFE_RETRY_CODES.has(code));
+  return collectErrorDetails(error).some((detail) =>
+    (detail.code ? SAFE_RETRY_CODES.has(detail.code) : false) ||
+    (detail.code === "ECONNRESET" && PRE_TLS_ECONNRESET.test(detail.message ?? "")),
+  );
 }
 
 function persist(): void {
