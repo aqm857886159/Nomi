@@ -3,6 +3,8 @@ import { applyRequestTransform } from "../tasks/requestTransforms";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { normalizeApimartCanonicalModelId, validateOmniFlashExtBody } from "./apimartModelIds";
+import { firstMappedString } from "../tasks/responseParsing";
+import { APIMART_IMAGE_QUERY_OP, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
 
 const video = (modelKey: string, taskKind: string) => {
   const model = APIMART_VIDEO_MODELS.find((item) => item.modelKey === modelKey);
@@ -19,6 +21,17 @@ const image = (modelKey: string, taskKind: string) => {
 };
 
 describe("APIMart official model IDs and Omni reference contract", () => {
+  it.each([
+    ["image", APIMART_IMAGE_QUERY_OP, "image_url", "images", "png"],
+    ["video", APIMART_VIDEO_QUERY_OP, "video_url", "videos", "mp4"],
+  ] as const)("accepts both APIMart %s result URL shapes", (_kind, operation, mappingKey, resultKey, extension) => {
+    const mapping = operation.response_mapping;
+    const arrayUrl = `https://cdn.example/array.${extension}`;
+    const stringUrl = `https://cdn.example/string.${extension}`;
+    expect(firstMappedString({ data: { result: { [resultKey]: [{ url: [arrayUrl] }] } } }, mapping, mappingKey)).toBe(arrayUrl);
+    expect(firstMappedString({ data: { result: { [resultKey]: [{ url: stringUrl }] } } }, mapping, mappingKey)).toBe(stringUrl);
+  });
+
   it.each([
     ["doubao-seedream-4.5", "seedream-4.5"],
     ["doubao-seedream-5-0-pro", "seedream-5-0-pro"],

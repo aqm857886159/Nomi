@@ -66,7 +66,8 @@ export const APIMART_STATUS_MAPPING: Record<string, string[]> = {
 
 /**
  * 图片轮询 op（所有 apimart 图片模型共用）。task_id 走路径参数（path 会被模板渲染，见
- * requestPipeline.ts:239）；结果在 data.result.images[0].url[0]（url 本身是数组，已核验）。
+ * requestPipeline.ts:239）；结果通常在 data.result.images[0].url；旧响应里 url 是数组，新响应里也有
+ * 直接返回字符串的情况，所以映射保留两个候选路径，不能把 `.url.0` 写死。
  */
 export const APIMART_IMAGE_QUERY_OP: HttpOperation = {
   method: "GET",
@@ -75,17 +76,14 @@ export const APIMART_IMAGE_QUERY_OP: HttpOperation = {
   response_mapping: {
     task_id: "data.id",
     status: "data.status",
-    image_url: "data.result.images.0.url.0",
+    image_url: ["data.result.images.0.url.0", "data.result.images.0.url"],
     error_message: "data.error.message",
   },
 };
 
 /**
- * 视频轮询 op（所有 apimart 视频模型共用）。结果路径 data.result.videos.0.url.0 —— 与官方 status 文档化的
- * schema 一致（2026-06-30 核对 docs.apimart.ai/.../tasks/status：result.videos 与 result.images 平行、url 本身是数组），
- * 且 Seedance 真实 mp4 出片验证过（2026-06-16，见记忆 apimart-curated-onboarding）。
- * ⚠️ 官方未给「视频成品」的 verbatim 示例（只给图片示例 + 字段说明），故 url 若某模型返回裸字符串而非数组时此单路径会取空；
- *   transport-spike 的 apimart-ref.cjs 用 fallback 链 videos.0.url.0||videos.0.url||videos.0 兜底——生产侧若遇该情况再加链。
+ * 视频轮询 op（所有 apimart 视频模型共用）。结果通常在 data.result.videos[0].url；旧响应里 url 是数组，
+ * 新响应里也有直接返回字符串的情况，所以与图片一样保留两个候选路径。
  */
 export const APIMART_VIDEO_QUERY_OP: HttpOperation = {
   method: "GET",
@@ -94,7 +92,7 @@ export const APIMART_VIDEO_QUERY_OP: HttpOperation = {
   response_mapping: {
     task_id: "data.id",
     status: "data.status",
-    video_url: "data.result.videos.0.url.0",
+    video_url: ["data.result.videos.0.url.0", "data.result.videos.0.url"],
     error_message: "data.error.message",
   },
 };
