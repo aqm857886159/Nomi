@@ -51,6 +51,7 @@ import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from 
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
 import { APIMART_TEXT_MAPPINGS, APIMART_TEXT_MODELS } from "./apimartTexts";
+import { NOMI_SERVICE_VENDOR_SEED, NOMI_SERVICE_CURATED_MODELS, NOMI_SERVICE_CURATED_MAPPINGS } from "./nomiServiceVendor";
 import { AGNES_VENDOR_SEED, AGNES_STATUS_MAPPING } from "./agnesVendor";
 import { AGNES_IMAGE_MODELS } from "./agnesImages";
 import { AGNES_VIDEO_MODELS } from "./agnesVideos";
@@ -697,6 +698,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // 模型 insert + 对账（两家各跑同一套逻辑）。
   if (reconcileModels(models, KIE_VENDOR_SEED.key, KIE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, APIMART_VENDOR_SEED.key, APIMART_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, NOMI_SERVICE_VENDOR_SEED.key, NOMI_SERVICE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, AGNES_VENDOR_SEED.key, AGNES_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MODELS, now)) changed = true;
@@ -733,6 +735,8 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // mapping insert + 对账（两家各跑同一套逻辑）。
   if (reconcileMappings(mappings, KIE_VENDOR_SEED.key, KIE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, APIMART_VENDOR_SEED.key, APIMART_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileModels(models, NOMI_SERVICE_VENDOR_SEED.key, NOMI_SERVICE_CURATED_MODELS, now)) changed = true;
+  if (reconcileMappings(mappings, NOMI_SERVICE_VENDOR_SEED.key, NOMI_SERVICE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, AGNES_VENDOR_SEED.key, AGNES_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MAPPINGS, now)) changed = true;

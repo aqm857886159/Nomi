@@ -1,5 +1,6 @@
 import { KIE_VENDOR_SEED } from "./kieSeedance";
 import { APIMART_VENDOR_SEED } from "./apimartVendor";
+import { NOMI_SERVICE_VENDOR_SEED } from "./nomiServiceVendor";
 import { AGNES_VENDOR_SEED } from "./agnesVendor";
 import { MODELSCOPE_VENDOR_SEED } from "./modelscopeVendor";
 import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
@@ -50,6 +51,7 @@ export type VendorSeed = {
 export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   KIE_VENDOR_SEED,
   APIMART_VENDOR_SEED,
+  NOMI_SERVICE_VENDOR_SEED,
   AGNES_VENDOR_SEED, // Agnes AI 公开模型目录；以账户实际额度为准
   MODELSCOPE_VENDOR_SEED,
   VOLCENGINE_VENDOR_SEED,
