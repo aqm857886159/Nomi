@@ -72,10 +72,21 @@ describe('AI scene request ownership (real hook callbacks)', () => {
     expect(store.getState().timeline.currentTime).toBe(0)
   })
 
+  it('routes an ordinary scene sentence through the Agent Lane Director plan path', async () => {
+    const { builder, store } = setup(false)
+    const runtime = await import('../../../ai/agentLoopMode')
+    vi.mocked(runtime.runSingleShotAgent).mockClear()
+
+    expect(await builder.run('A character stands in a rainy street at night', [], 'current_layer')).toBe(true)
+    expect(vi.mocked(runtime.runSingleShotAgent)).toHaveBeenCalledWith(expect.objectContaining({ skillKey: 'director-cinematography', featureKey: 'director.preview-plan' }))
+    expect(store.getState().activeScene().objects.length).toBeGreaterThan(0)
+    expect(store.getState().activeScene().cameras[0]?.trajectoryClips).toHaveLength(1)
+  })
+
   it('result stays in the scene selected when the request started', async () => {
     const { builder, store, pending } = setup()
     const originalId = store.getState().project.activeSceneId
-    const running = builder.run('cafe', [], 'current_layer')
+    const running = builder.run('cafe', ['reference-image'], 'current_layer')
     const next = createDefaultScene('S2')
     store.setState((state) => ({ project: { ...state.project, scenes: [...state.project.scenes, next], activeSceneId: next.id } }))
     pending[0].resolve(AI_SCENE_FIXTURE)

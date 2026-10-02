@@ -28,8 +28,6 @@ const IDLE: AiSceneStatus = { phase: 'idle', message: '', elapsedSeconds: 0, str
 
 type AiSceneMock = (input: { prompt: string; images: string[] }) => Promise<AiSceneSpec> | AiSceneSpec
 
-const DIRECTOR_PLAN_INTENT = /(?:\b(?:shot|scene)\s*\d+|\b(?:first|second|third)\s+shot\b|push(?:\s+in)?|pull(?:\s+out)?|dolly|pan|truck|tilt|crane|orbit|follow|tracking|target\s*switch|slower|faster|keep(?:\s+the)?\s+target\s+centered|切换|切到|推进|推近|拉远|横移|俯仰|环绕|跟随|追踪|慢一点|快一点|目标居中|保持目标居中|第(?:一|二|三|[123])个镜头)/i
-
 function e2eMock(): AiSceneMock | null {
   try {
     if (typeof window === 'undefined' || window.localStorage?.getItem('__nomiE2E') !== '1') return null
@@ -135,9 +133,9 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
           setStatus((current) => (current.phase === 'running' ? { ...current, elapsedSeconds: elapsed } : current))
         }, 1000)
         try {
-          // Explicit shot/camera language takes the typed P0 plan path; plain scene descriptions
-          // keep the existing model-backed scene builder and reference-image flow.
-          if (target === 'current_layer' && images.length === 0 && DIRECTOR_PLAN_INTENT.test(trimmed)) {
+          // Text-only requests for the current layer take the typed P0 plan path. Reference-image
+          // requests and new-layer placement retain the existing scene-builder flow.
+          if (target === 'current_layer' && images.length === 0 && trimmed.length > 0) {
             const fixture = e2eMock()
             let planPrompt = trimmed
             if (!fixture) {
