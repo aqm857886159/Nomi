@@ -15,6 +15,9 @@ vi.mock('../../../../ui/toast', () => ({ toast: vi.fn() }))
 vi.mock('../../../api/assetUploadApi', () => ({ hostedAssetUrl: () => 'nomi-local://scene.json', importWorkbenchLocalAssetFile: vi.fn(async () => ({})) }))
 vi.mock('../../../api/promptLibraryApi', () => ({ getTextBrain: vi.fn() }))
 vi.mock('../../../api/taskApi', () => ({ runWorkbenchTextTaskStream: vi.fn() }))
+vi.mock('../../../ai/agentLoopMode', () => ({
+  runSingleShotAgent: vi.fn(async () => ({ status: 'finished', text: '{"prompt":"Shot 1: orbit around the character for 2s"}' })),
+}))
 
 function deferred<T = AiSceneSpec>() {
   let resolve!: (value: T) => void
@@ -22,10 +25,10 @@ function deferred<T = AiSceneSpec>() {
   return { promise, resolve }
 }
 
-function setup() {
+function setup(e2e = true) {
   const pending = [deferred(), deferred()]
   const mock = vi.fn().mockReturnValueOnce(pending[0].promise).mockReturnValueOnce(pending[1].promise)
-  vi.stubGlobal('window', { localStorage: { getItem: () => '1' }, __nomiDirectorAiMock: mock, setInterval: () => 1, clearInterval: () => {} })
+  vi.stubGlobal('window', { localStorage: { getItem: () => e2e ? '1' : '0' }, __nomiDirectorAiMock: mock, setInterval: () => 1, clearInterval: () => {} })
   const store = createDirectorStore({ defaultSceneName: 'S1' })
   let builder!: ReturnType<typeof useAiSceneBuilder>
   function Host() { builder = useAiSceneBuilder(); return null }
@@ -58,6 +61,15 @@ describe('AI scene request ownership (real hook callbacks)', () => {
     expect(mock).not.toHaveBeenCalled()
     expect(store.getState().activeScene().cameras[0]?.trajectoryClips).toHaveLength(1)
     expect(store.getState().activeScene().cameras[0]?.motionTrajectory?.length).toBeGreaterThan(1)
+  })
+
+  it('routes the production director path through the Agent Lane Skill and hands off POV', async () => {
+    const { builder, store } = setup(false)
+    const runtime = await import('../../../ai/agentLoopMode')
+    expect(await builder.run('orbit around the character', [], 'current_layer')).toBe(true)
+    expect(vi.mocked(runtime.runSingleShotAgent)).toHaveBeenCalledWith(expect.objectContaining({ skillKey: 'director-cinematography', featureKey: 'director.preview-plan' }))
+    expect(store.getState().activeCameraId).toMatch(/^dplan-camera-/)
+    expect(store.getState().timeline.currentTime).toBe(0)
   })
 
   it('result stays in the scene selected when the request started', async () => {

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: directorTypes / directorProject / cameraLens / vec3
  * [OUTPUT]: typed natural-language DirectorPlan, deterministic ids, whitebox project builder,
- *           semantic camera-track compiler, and preview application with last-playable preservation
+ *           semantic camera-track compiler, Lane response parsing, targeted shot edits, and preview application with last-playable preservation
  * [POS]: the P0 plan boundary. It is deliberately pure so prompt normalization and validation can
  *        run before a DirectorStore transaction; the existing scene, timeline, preview and MP4 paths
  *        consume the project it produces.
@@ -39,6 +39,15 @@ export type DirectorPlanEntity = {
   type: 'character' | 'cube' | 'sphere' | 'cylinder' | 'plane'
   position: Vec3
   scale: Vec3
+  actions?: DirectorPlanAction[]
+}
+
+export type DirectorPlanAction = {
+  id: string
+  name: string
+  actionPose: 'standard_walk' | 'running'
+  startTime: number
+  duration: number
 }
 
 export type DirectorLookAt = { type: 'entity'; entityId: string } | { type: 'point'; point: Vec3 }
@@ -91,6 +100,8 @@ export type DirectorPlanBuild = {
   status: DirectorPreviewStatus
 }
 
+export type DirectorRuntimePlanResponse = { prompt: string }
+
 export type DirectorPreviewStatus =
   | { phase: 'playable'; message: string; action: 'preview' | 'edit' }
   | {
@@ -120,6 +131,20 @@ function clamp(value: number, min: number, max: number): number {
 
 function cleanPrompt(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
+}
+
+/** The Lane director Skill returns a small JSON envelope; keep parsing at the plan boundary. */
+export function parseDirectorRuntimePlan(text: string): DirectorRuntimePlanResponse | null {
+  const candidate = text.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1]?.trim() ?? text.trim()
+  try {
+    const raw: unknown = JSON.parse(candidate)
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const prompt = (raw as { prompt?: unknown }).prompt
+    if (typeof prompt !== 'string' || !prompt.trim()) return null
+    return { prompt: cleanPrompt(prompt) }
+  } catch {
+    return null
+  }
 }
 
 function durationFrom(text: string): number {
@@ -192,7 +217,7 @@ function motionFrom(
   const patterns: Array<[DirectorMotionKind, RegExp, number]> = [
     ['target_switch', /(?:target\s*switch|switch\s+to|cut\s+to|切换|转向|切到)/i, 0],
     ['orbit', /(?:orbit|arc|circle|环绕|绕)/i, 90],
-    ['follow', /(?:follow|tracking|跟随|追踪)/i, 0],
+    ['follow', /(?:follow|tracking|跟随|追踪|keep(?:\s+the)?\s+target\s+centered|保持(?:目标)?居中|目标居中|锁定目标)/i, 0],
     ['push', /(?:push(?:\s+in)?|dolly\s+in|推进|推近)/i, 1.5],
     ['pull', /(?:pull(?:\s+out)?|dolly\s+out|拉远|后拉)/i, 1.5],
     ['pan', /(?:pan|truck|横移|摇摄)/i, 1],
@@ -300,6 +325,23 @@ export function normalizeDirectorPrompt(input: string): DirectorPlan {
     })
     time = 4
   }
+  for (const entity of entities) {
+    if (entity.type !== 'character') continue
+    const actions: DirectorPlanAction[] = []
+    for (const shot of shots) {
+      const source = rawShots[shot.order] ?? ''
+      const actionPose = /(?:run|running|sprint|跑步|奔跑)/i.test(source) ? 'running' : /(?:walk|walking|行走|走路|走)/i.test(source) ? 'standard_walk' : null
+      if (!actionPose) continue
+      actions.push({
+        id: stableDirectorId('action', `${shot.id}:${entity.id}:${actionPose}`),
+        name: actionPose === 'running' ? 'Running' : 'Walk',
+        actionPose,
+        startTime: shot.startTime,
+        duration: shot.duration,
+      })
+    }
+    if (actions.length > 0) entity.actions = actions
+  }
   return {
     version: DIRECTOR_PLAN_VERSION,
     prompt,
@@ -313,6 +355,96 @@ export function normalizeDirectorPrompt(input: string): DirectorPlan {
     timeline: { duration: clamp(time, 0, DIRECTOR_PLAN_MAX_DURATION), shotIds: shots.map((shot) => shot.id) },
     issues,
   }
+}
+
+function selectedShotIndex(prompt: string, shotCount: number): number | null {
+  const match = prompt.match(/(?:shot|scene|镜头|镜)\s*(\d+)/i)
+    ?? prompt.match(/第\s*(一|二|三|[123])\s*个?镜头/)
+    ?? prompt.match(/\b(first|second|third)\s+shot\b/i)
+  if (!match) return null
+  const raw = match[1].toLowerCase()
+  const index = raw === 'first' || raw === '一' ? 0 : raw === 'second' || raw === '二' ? 1 : raw === 'third' || raw === '三' ? 2 : Number(raw) - 1
+  return Number.isInteger(index) && index >= 0 && index < shotCount ? index : null
+}
+
+/** Apply a bounded, shot-targeted edit while retaining the existing plan's stable identities. */
+export function editDirectorPlan(previous: DirectorPlan, prompt: string): DirectorPlan | null {
+  const targetIndex = selectedShotIndex(prompt, previous.shots.length)
+  if (targetIndex === null) return null
+  const next = JSON.parse(JSON.stringify(previous)) as DirectorPlan
+  const shot = next.shots[targetIndex]
+  let changed = false
+  const slower = /(?:slower|slow(?:er)?|慢一点|慢些|放慢)/i.test(prompt)
+  const faster = /(?:faster|quick(?:er)?|快一点|加快)/i.test(prompt)
+  const center = /(?:keep(?:\s+the)?\s+target\s+centered|center(?:ed)?\s+target|保持(?:目标)?居中|目标居中|锁定目标)/i.test(prompt)
+  const orbit = /(?:orbit|arc|circle|环绕|绕)/i.test(prompt)
+  const direction = /(?:left|counterclockwise|逆时针|左)/i.test(prompt) ? -1 : 1
+  if (slower || faster) {
+    const factor = slower ? 1.5 : 0.75
+    shot.duration = clamp(shot.duration * factor, DIRECTOR_PLAN_MIN_DURATION, DIRECTOR_PLAN_MAX_DURATION)
+    shot.motions = shot.motions.map((motion) => ({ ...motion, duration: clamp(motion.duration * factor, DIRECTOR_PLAN_MIN_DURATION, DIRECTOR_PLAN_MAX_DURATION) }))
+    changed = true
+  }
+  if (center) {
+    const targetId = shot.subjectIds[0] ?? next.scene.entities[0]?.id
+    if (targetId) {
+      const existing = shot.motions.find((motion) => motion.kind === 'follow')
+      if (existing) {
+        existing.lookAt = { type: 'entity', entityId: targetId }
+        existing.toTargetId = targetId
+      } else if (shot.motions.length === 0) {
+        shot.motions.push({
+          id: stableDirectorId('motion', `${shot.id}:center-target`),
+          kind: 'follow',
+          startTime: shot.startTime,
+          duration: shot.duration,
+          easing: 'ease_in_out',
+          amount: 0,
+          lookAt: { type: 'entity', entityId: targetId },
+        })
+      } else {
+        // Existing motion clips already consume the shot duration. Keep them and bake the
+        // centered target into every editable waypoint rather than creating an overlapping clip.
+        shot.motions = shot.motions.map((motion) => ({ ...motion, lookAt: { type: 'entity', entityId: targetId }, toTargetId: targetId }))
+      }
+      changed = true
+    }
+  }
+  if (orbit) {
+    const existing = shot.motions.find((motion) => motion.kind === 'orbit')
+    if (existing) {
+      existing.amount = Math.abs(existing.amount || 90) * direction
+    } else {
+      const targetId = shot.subjectIds[0] ?? next.scene.entities[0]?.id
+      if (targetId) {
+        shot.motions.push({
+          id: stableDirectorId('motion', `${shot.id}:orbit`),
+          kind: 'orbit',
+          startTime: shot.startTime,
+          duration: shot.duration,
+          easing: 'ease_in_out',
+          amount: 90 * direction,
+          lookAt: { type: 'entity', entityId: targetId },
+        })
+      }
+    }
+    changed = true
+  }
+  if (!changed) return null
+  let time = 0
+  for (const item of next.shots.sort((a, b) => a.order - b.order)) {
+    item.startTime = time
+    let elapsed = 0
+    for (const motion of item.motions) {
+      motion.startTime = time + elapsed
+      elapsed += motion.duration
+    }
+    item.duration = clamp(Math.max(item.duration, elapsed), DIRECTOR_PLAN_MIN_DURATION, DIRECTOR_PLAN_MAX_DURATION)
+    time += item.duration
+  }
+  next.timeline = { duration: clamp(time, 0, DIRECTOR_PLAN_MAX_DURATION), shotIds: next.shots.map((item) => item.id) }
+  next.prompt = cleanPrompt(prompt)
+  return next
 }
 
 function pointFor(entity: DirectorPlanEntity | undefined): Vec3 {
@@ -478,6 +610,19 @@ function objectsForPlan(plan: DirectorPlan): DirectorObject[] {
     scale: { ...entity.scale },
     visible: true,
     locked: false,
+    ...(entity.actions?.length ? {
+      actionClips: entity.actions.map((action) => ({
+        id: action.id,
+        name: action.name,
+        clipType: 'action' as const,
+        actionPose: action.actionPose,
+        startTime: action.startTime,
+        endTime: action.startTime + action.duration,
+        startFrame: Math.round(action.startTime * 30),
+        endFrame: Math.round((action.startTime + action.duration) * 30),
+      })),
+      actionTrackEnabled: true,
+    } : {}),
   }))
 }
 
@@ -538,8 +683,17 @@ export function buildDirectorProjectFromPlan(plan: DirectorPlan, baseProject?: D
 }
 
 /** Atomic preview entry point: invalid updates never replace the last playable project. */
-export function applyDirectorPrompt(previous: DirectorProject, prompt: string): DirectorPlanBuild {
-  const plan = normalizeDirectorPrompt(prompt)
+export function applyDirectorPrompt(previous: DirectorProject, prompt: string, previousPlan?: DirectorPlan | null): DirectorPlanBuild {
+  const edited = previousPlan ? editDirectorPlan(previousPlan, prompt) : null
+  const plan = edited ?? normalizeDirectorPrompt(prompt)
+  if (previousPlan && selectedShotIndex(prompt, previousPlan.shots.length) !== null && !edited) {
+    plan.issues.push({
+      code: 'invalid_motion',
+      message: 'That shot edit did not contain a supported camera change.',
+      action: 'Try slower, faster, orbit, or keep the target centered.',
+      shotId: previousPlan.shots[selectedShotIndex(prompt, previousPlan.shots.length)!]?.id,
+    })
+  }
   const next = buildDirectorProjectFromPlan(plan, previous)
   if (!next.accepted) return { ...next, project: previous }
   return next

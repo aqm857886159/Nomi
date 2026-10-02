@@ -4,11 +4,19 @@ import {
   applyDirectorPrompt,
   buildDirectorProjectFromPlan,
   compileDirectorCameraTrack,
+  editDirectorPlan,
   normalizeDirectorPrompt,
+  parseDirectorRuntimePlan,
   stableDirectorId,
 } from './directorPlan'
 
 describe('directorPlan P0', () => {
+  it('parses the existing Lane director Skill envelope', () => {
+    expect(parseDirectorRuntimePlan('```json\n{"prompt":"Shot 1: orbit around the character for 2s"}\n```')).toEqual({
+      prompt: 'Shot 1: orbit around the character for 2s',
+    })
+    expect(parseDirectorRuntimePlan('not json')).toBeNull()
+  })
   it('normalizes one to three shots and gives stable ids', () => {
     const prompt = 'Shot 1: a character pushes in for 2s. Shot 2: orbit around the character for 3s.'
     const first = normalizeDirectorPrompt(prompt)
@@ -52,6 +60,16 @@ describe('directorPlan P0', () => {
     expect(normalizeDirectorPrompt('A character tilts down for 1s').shots[0].motions[0].amount).toBeLessThan(0)
   })
 
+  it('keeps shot identity and target while applying a local second-shot edit', () => {
+    const plan = normalizeDirectorPrompt('Shot 1: push in for 2s. Shot 2: pan right for 2s')
+    const edited = editDirectorPlan(plan, 'second shot slower and keep the target centered')!
+    expect(edited.shots.map((shot) => shot.id)).toEqual(plan.shots.map((shot) => shot.id))
+    expect(edited.shots[0].duration).toBe(plan.shots[0].duration)
+    expect(edited.shots[1].duration).toBeGreaterThan(plan.shots[1].duration)
+    expect(edited.shots[1].motions.every((motion) => motion.lookAt?.type === 'entity')).toBe(true)
+    expect(edited.shots[1].subjectIds).toEqual(plan.shots[1].subjectIds)
+  })
+
   it('builds a whitebox project that the existing timeline can play', () => {
     const plan = normalizeDirectorPrompt('A character in a room, push in for 2s')
     const built = buildDirectorProjectFromPlan(plan, createDefaultProject('Existing'))
@@ -61,6 +79,15 @@ describe('directorPlan P0', () => {
     expect(scene.cameras[0].motionTrajectory?.length).toBeGreaterThan(0)
     expect(scene.cameras[0].trajectoryClips?.[0]).toMatchObject({ startTime: 0, endTime: 2 })
     expect(scene.timelineTrackOrder[0]).toBe(scene.cameras[0].id)
+  })
+
+  it('compiles a bounded whitebox character action into the existing action track', () => {
+    const plan = normalizeDirectorPrompt('Shot 1: a character walks forward while the camera follows for 2s')
+    const built = buildDirectorProjectFromPlan(plan)
+    expect(built.accepted).toBe(true)
+    expect(built.project.scenes[0].objects[0].actionClips).toMatchObject([
+      { actionPose: 'standard_walk', startTime: 0, endTime: 2 },
+    ])
   })
 
   it('marks follow plans as a camera follow rig while retaining editable waypoints', () => {

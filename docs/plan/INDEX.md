@@ -547,3 +547,5 @@
 - [README](storyboard-anchor-policy-evidence/README.md)
 - [c0-video-wait-plan](sweep-evidence/c0-video-wait-plan.md)
 - [trace](trace-log-evidence/trace.md)
+
+| [2026-10-02-director-p0-vertical-slice.md](2026-10-02-director-p0-vertical-slice.md) | 3D Director P0 vertical slice：现有 Agent Lane/Skill 到白膜预演、稳定镜头轨道与可撤销局部修改 | 🚧 |
