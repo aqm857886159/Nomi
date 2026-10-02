@@ -27,6 +27,8 @@ const IDLE: AiSceneStatus = { phase: 'idle', message: '', elapsedSeconds: 0, str
 
 type AiSceneMock = (input: { prompt: string; images: string[] }) => Promise<AiSceneSpec> | AiSceneSpec
 
+const DIRECTOR_PLAN_INTENT = /(?:\b(?:shot|scene)\s*\d+|push(?:\s+in)?|pull(?:\s+out)?|dolly|pan|truck|tilt|crane|orbit|follow|tracking|target\s*switch|切换|切到|推进|推近|拉远|横移|俯仰|环绕|跟随|追踪)/i
+
 function e2eMock(): AiSceneMock | null {
   try {
     if (typeof window === 'undefined' || window.localStorage?.getItem('__nomiE2E') !== '1') return null
@@ -113,6 +115,20 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
           setStatus((current) => (current.phase === 'running' ? { ...current, elapsedSeconds: elapsed } : current))
         }, 1000)
         try {
+          // Explicit shot/camera language takes the typed P0 plan path; plain scene descriptions
+          // keep the existing model-backed scene builder and reference-image flow.
+          if (target === 'current_layer' && images.length === 0 && DIRECTOR_PLAN_INTENT.test(trimmed)) {
+            const result = store.getState().applyDirectorPlanPrompt(trimmed)
+            if (!ownsRequest()) return false
+            if (!result.accepted) {
+              setStatus({ phase: 'error', message: result.status.message, elapsedSeconds: elapsed, streamedChars: 0 })
+              toast(result.status.message, 'error')
+              return false
+            }
+            setStatus({ phase: 'done', message: result.status.message, elapsedSeconds: elapsed, streamedChars: 0 })
+            toast(result.status.message, 'success')
+            return true
+          }
           let spec: AiSceneSpec | null = null
           const mock = e2eMock()
           if (mock) {

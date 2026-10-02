@@ -23,6 +23,20 @@ describe('directorStore', () => {
     expect(store.getState().exportProject().scenes[0].name).toBe('S1')
   })
 
+  it('applies a valid director plan as one undoable project update and preserves it on invalid input', () => {
+    const store = createDirectorStore({ defaultSceneName: 'S1' })
+    const api = store.getState()
+    const before = api.exportProject()
+    const applied = api.applyDirectorPlanPrompt('A character pushes in for 2s')
+    expect(applied.accepted).toBe(true)
+    expect(store.getState().activeScene().cameras[0].trajectoryClips).toHaveLength(1)
+    const invalid = api.applyDirectorPlanPrompt('')
+    expect(invalid.accepted).toBe(false)
+    expect(store.getState().project).toEqual(applied.project)
+    api.undo()
+    expect(store.getState().project).toEqual(before)
+  })
+
   it('adds entities, selects them, and undo/redo restores the tree', () => {
     const store = createDirectorStore({ defaultSceneName: 'S1' })
     const api = store.getState()

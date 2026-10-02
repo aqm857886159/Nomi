@@ -52,6 +52,14 @@ beforeEach(async () => {
 afterEach(() => { unregister(); vi.unstubAllGlobals() })
 
 describe('AI scene request ownership (real hook callbacks)', () => {
+  it('routes explicit camera language through the typed Director plan path', async () => {
+    const { builder, store, mock } = setup()
+    expect(await builder.run('A character pushes in for 2s', [], 'current_layer')).toBe(true)
+    expect(mock).not.toHaveBeenCalled()
+    expect(store.getState().activeScene().cameras[0]?.trajectoryClips).toHaveLength(1)
+    expect(store.getState().activeScene().cameras[0]?.motionTrajectory?.length).toBeGreaterThan(1)
+  })
+
   it('result stays in the scene selected when the request started', async () => {
     const { builder, store, pending } = setup()
     const originalId = store.getState().project.activeSceneId

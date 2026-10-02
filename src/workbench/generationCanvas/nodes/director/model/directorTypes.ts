@@ -28,6 +28,8 @@ export type DirectorObjectType = 'character' | 'model' | 'group' | 'splat' | Dir
 export type DirectorRig = 'mixamo' | 'ue4'
 export type DirectorModelDisplayMode = 'solid' | 'translucent' | 'clay'
 
+export type WaypointEasing = 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out'
+
 export type Waypoint = {
   id: string
   x: number
@@ -44,6 +46,8 @@ export type Waypoint = {
   lookAtObjectId?: string
   // 机位专用：竖直 FOV（度）随路标插值（变焦推拉 / 希区柯克）；缺省 = 机位静态 fov
   fov?: number
+  // 语义运镜编译后保留在可编辑路标上；现有轨迹求值默认仍按线性插值。
+  easing?: WaypointEasing
 }
 
 export type TrajectoryClip = {

@@ -30,6 +30,7 @@ import { createEntityActions, type DirectorEntityActions } from './storeEntityAc
 import { createTimelineActions, type DirectorTimelineActions } from './storeTimelineActions'
 import type { ClipboardPayload } from './timelineClipboard'
 import { DIRECTOR_MAX_DURATION_SECONDS, ensureDurationSeconds, sceneContentEndSeconds } from './timeGrid'
+import { applyDirectorPrompt as applyDirectorPromptUpdate, type DirectorPlanBuild } from './directorPlan'
 
 export const HISTORY_LIMIT = 50
 const WHEEL_MERGE_MS = 200
@@ -118,6 +119,8 @@ export type DirectorStoreState = {
   setExportResolution: (resolution: DirectorExportResolution) => void
   patchSceneConfig: (patch: Partial<DirectorScene['sceneConfig']>) => void
   patchPanoramaConfig: (patch: Partial<DirectorScene['panoramaConfig']>) => void
+  /** Apply a normalized prompt atomically; invalid plans leave the playable project untouched. */
+  applyDirectorPlanPrompt: (prompt: string) => DirectorPlanBuild
   // ── 图层 ──
   createSceneLayer: (name: string) => string
   duplicateSceneLayer: (sceneId: string, suffix: string) => string
@@ -395,6 +398,13 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
       setExportResolution: (resolution) => get().withHistory(() => commitProject(project => { project.exportResolution = resolution })),
       patchSceneConfig: (patch) => commitProject((_, scene) => Object.assign(scene.sceneConfig, patch)),
       patchPanoramaConfig: (patch) => commitProject((_, scene) => Object.assign(scene.panoramaConfig, patch)),
+      applyDirectorPlanPrompt: (prompt) => {
+        const result = applyDirectorPromptUpdate(get().project, prompt)
+        if (!result.accepted) return result
+        get().withHistory(() => commitProject((project) => { Object.assign(project, result.project) }))
+        set({ selection: emptySelection(), activeCameraId: 'free', previewCameraId: result.cameraId, evaluatedPoses: {} })
+        return result
+      },
 
       createSceneLayer: (name) => {
         get().saveState()

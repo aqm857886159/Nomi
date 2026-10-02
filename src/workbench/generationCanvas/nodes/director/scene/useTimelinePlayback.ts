@@ -56,7 +56,10 @@ function evaluateCameraPose(camera: DirectorCamera, scene: DirectorScene, time: 
   let position = evaluated.position
   let rotation = evaluated.rotation
   let driven = evaluated.source !== 'rest'
-  const target = camera.lookAtObjectId ? scene.objects.find((item) => item.id === camera.lookAtObjectId) : undefined
+  // A compiled target-switch motion carries the active lookAt id on the sampled waypoint;
+  // fall back to the camera's static target for hand-authored tracks.
+  const targetId = evaluated.lookAtObjectId ?? camera.lookAtObjectId
+  const target = targetId ? scene.objects.find((item) => item.id === targetId) : undefined
   const targetNow = target ? evaluatedOf(target.id) : null
   if (target && targetNow && camera.rigType === 'follow') {
     // 跟随：保持机位相对目标静止位姿的偏移

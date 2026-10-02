@@ -38,6 +38,7 @@
 > exportSize.ts: 出片尺寸与帧数单一真相：分辨率档给短边、画幅比给宽高比（free = 视口比）、宽高取偶；30fps、总帧 = 内容末 × 30、上限 1800
 > storeOutputActions.ts: 产物动作：截图 / 视频增删（只存资产句柄）、录制进度瞬态
 > aiScene.ts: AI 搭场景纯层：zod 契约（sceneName / sceneConfig / groups[elements]）、容错解析（剥围栏抓 JSON）、类型名 → 八种几何体、旋转弧度启发式（全部 |r| ≤ 2π）、提示词模板、固定夹具「街角咖啡馆」
+> directorPlan.ts: P0 typed director plan：自然语言一至三镜归一、稳定 id、push/pull/pan/tilt/orbit/follow/target-switch 语义、lookAt/时长/easing 校验、白模工程与可编辑机位关键帧编译、无效更新保留上一个可播放工程
 > storeAiSceneActions.ts: AI 场景物化：当前图层固定为请求发起层并校验仍存在，或创建/激活新图层；几何分组与可选资产句柄在同一工程事务落下，一次撤销
 > assetKinds.ts: 资产类型判定单一真相（后缀 / MIME → model / splat / panorama / scene）+ 上传 accept 串，资产库与连线引用共用
 > storeAssetActions.ts: 资产句柄/目录增删改移共用历史；目录移动防环，删目录子项回上级、上传目标失效归根；场景导入先辨 AI groups 或工程 objects/cameras/lights，拒绝无关 JSON，物化/换 id 后新增图层
