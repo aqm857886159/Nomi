@@ -52,6 +52,47 @@ One short user sentence should produce a typed one-to-three-shot plan, a whitebo
 - Invalid Skill output, invalid targets, or invalid durations leave the last playable project unchanged and return an actionable status.
 - Local verification has evidence for focused tests, repository typecheck, targeted lint, and renderer production build; prior PR #960 Quality Gate run 4672 was green, including E2E.
 
+## Prompt → Playable Video Correspondence
+
+This evaluation measures whether the user's prompt is reflected in the final playable Director preview (and, where exported, its MP4), rather than measuring only whether code, schemas, or tests pass. A green build is necessary evidence for the implementation, but it is not evidence that the requested scene, action, camera, timing, or framing survived the full planning-to-preview path.
+
+### Expected director card
+
+Before running each prompt, create an expected director card. It records the intended **scene**, **objects**, **object actions**, **camera/framing**, **shot count**, **duration**, **motion** (including direction and target switches), and **aspect ratio**. The card is the comparison oracle for the generated typed plan, whitebox scene, camera track, timeline, active POV, and optional MP4. Unspecified details remain unconstrained instead of being scored as failures.
+
+### Correspondence metrics
+
+- **Generation success rate**: accepted typed plan and playable `DirectorProject` divided by valid prompts. A run counts as successful only when the preview has scene content, camera trajectory clips, a timeline, and an active preview camera.
+- **Prompt element correspondence**: weighted match between the expected card and the generated preview across scene, objects, actions, camera/framing, duration, motion/direction, target/look-at, shot count, and aspect ratio. Score each constrained field `1` (match), `0.5` (partially preserved or semantically equivalent), or `0` (missing/contradictory), then average the constrained fields.
+- **Playable completeness**: the fraction of required preview components present and usable: whitebox scene, object action track when requested, editable camera path, shot clips, timeline duration, active POV, and Play-button startability. Missing any required component is a visible completeness failure even if the plan text looks correct.
+- **Local modification accuracy**: for a prompt such as “second shot slower”, compare before/after cards and projects. The addressed shot must receive the requested timing/target/motion change while non-target shot IDs, targets, and tracks remain unchanged; the revision must be undoable in one step.
+- **User cost**: record model turns, user corrections, explicit retries, visible waiting time, and clicks from prompt submission to playable preview. This measures whether the one-sentence path remains low-friction; it is not a claim that the current branch has already met a time budget.
+- **Failure recoverability**: invalid plan/output, unknown target, or invalid duration must show an actionable error and preserve the prior playable project byte-for-byte at the project boundary. Recovery is scored separately from generation success.
+
+### Proposed P0 prompt corpus
+
+The initial corpus should cover a balanced cross-product of four contexts (**indoor**, **outdoor**, **product**, **character**) and two shot counts (**one-shot** and **three-shot**). Across every context/count cell, include the four required motion families: **push/pull**, **orbit**, **follow**, and **target switch**; vary direction, duration, and at least one Chinese and one English phrasing. This gives a proposed 32-prompt matrix (4 contexts × 2 shot counts × 4 motion families), with examples such as:
+
+- Indoor one-shot: a character walks through a room, slow push in, keep the face centered.
+- Outdoor three-shot: establish the street, follow the runner, then orbit right around the second subject.
+- Product one-shot: orbit clockwise around a bottle for 4 seconds, then switch target to the label.
+- Character three-shot: push in, track beside the actor, and cut to the second character.
+
+Each prompt is annotated with its expected director card before execution. The corpus is an acceptance target and test design; no correspondence score from this matrix has been measured in this PR.
+
+### Suggested P0 thresholds (not yet measured)
+
+These are proposed gates for the first real prompt-corpus run, not reported results:
+
+- generation success rate ≥ **90%** on valid prompts;
+- mean prompt element correspondence ≥ **80%** across constrained card fields, with no required scene/camera/shot-count field at `0` on a successful run;
+- playable completeness = **100%** for runs counted as generation successes;
+- local modification accuracy ≥ **90%**, with stable non-target shot IDs and one-step undo on every passing case;
+- failure recoverability = **100%** for deliberately invalid updates;
+- user cost reported as median turns, retries, clicks, and elapsed time, with a follow-up decision on the budget after baseline collection rather than inventing a measured latency claim.
+
+The current verification commands and evidence below validate the implementation contracts. They do not substitute for this prompt-to-preview measurement, which remains to be run.
+
 ## Non-goals
 
 No new Agent runtime, renderer, timeline, MP4 encoder, generic Agent Builder, or persistence format is introduced.
