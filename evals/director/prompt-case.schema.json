@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nomi.local/schemas/director-goal-eval/prompt-case.v1.json",
+  "title": "Nomi Director goal-alignment prompt case matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "cases"],
+  "properties": {
+    "schemaVersion": { "const": "director-goal-eval/v1" },
+    "status": { "const": "targets-only" },
+    "cases": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 32,
+      "items": { "$ref": "#/definitions/case" }
+    }
+  },
+  "definitions": {
+    "requiredElements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene", "object", "action", "camera", "timing", "aspect"],
+      "properties": {
+        "scene": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "object": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "action": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "camera": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shotCount", "minDurationSeconds"],
+          "properties": {
+            "shotCount": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "minDurationSeconds": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "aspect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ratio"],
+          "properties": {
+            "ratio": { "type": "string", "enum": ["16:9", "9:16", "1:1", "4:3"] }
+          }
+        }
+      }
+    },
+    "directorCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "shotCount", "scene", "objectFocus", "action", "camera", "aspectRatio"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "shotCount": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "scene": { "type": "string", "minLength": 1 },
+        "objectFocus": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "camera": { "type": "string", "minLength": 1 },
+        "aspectRatio": { "type": "string", "enum": ["16:9", "9:16", "1:1", "4:3"] }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "evaluationTarget",
+        "prompt",
+        "expectedDirectorCard",
+        "category",
+        "tags",
+        "required",
+        "expectedFailureBehavior"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^director-[a-z0-9-]+$" },
+        "evaluationTarget": { "const": true },
+        "prompt": { "type": "string", "minLength": 20 },
+        "expectedDirectorCard": { "$ref": "#/definitions/directorCard" },
+        "category": { "type": "string", "enum": ["indoor", "outdoor", "product", "person"] },
+        "tags": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "required": { "$ref": "#/definitions/requiredElements" },
+        "expectedFailureBehavior": { "type": "string", "minLength": 20 }
+      }
+    }
+  }
+}

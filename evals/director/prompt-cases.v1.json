@@ -1,0 +1,726 @@
+{
+  "schemaVersion": "director-goal-eval/v1",
+  "status": "targets-only",
+  "cases": [
+    {
+      "id": "director-01-indoor-push",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a hand reaches for a ceramic mug beside a sunlit window. Use push camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor mug — push",
+        "shotCount": 1,
+        "scene": "bright kitchen",
+        "objectFocus": "mug",
+        "action": "The camera pushes toward the mug as the hand reaches.",
+        "camera": "push",
+        "aspectRatio": "16:9"
+      },
+      "category": "indoor",
+      "tags": ["one-shot", "push"],
+      "required": {
+        "scene": ["bright kitchen", "whitebox viewport"],
+        "object": ["mug"],
+        "action": ["a hand reaches for a ceramic mug beside a sunlit window"],
+        "camera": ["push", "The camera pushes toward the mug as the hand reaches."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy push, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-02-indoor-pull",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a reader closes a red book and looks toward a tall bookshelf. Use pull camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor bookshelf — pull",
+        "shotCount": 1,
+        "scene": "quiet library",
+        "objectFocus": "bookshelf",
+        "action": "The camera pulls back to reveal the reader and the bookshelf.",
+        "camera": "pull",
+        "aspectRatio": "16:9"
+      },
+      "category": "indoor",
+      "tags": ["one-shot", "pull"],
+      "required": {
+        "scene": ["quiet library", "whitebox viewport"],
+        "object": ["bookshelf"],
+        "action": ["a reader closes a red book and looks toward a tall bookshelf"],
+        "camera": ["pull", "The camera pulls back to reveal the reader and the bookshelf."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy pull, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-03-indoor-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a barista prepares espresso while a customer enters and a cup is served. Use orbit camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor coffee machine — orbit",
+        "shotCount": 3,
+        "scene": "small cafe",
+        "objectFocus": "coffee machine",
+        "action": "Three shots orbit the coffee machine while preserving the serving action.",
+        "camera": "orbit",
+        "aspectRatio": "16:9"
+      },
+      "category": "indoor",
+      "tags": ["three-shot", "orbit"],
+      "required": {
+        "scene": ["small cafe", "whitebox viewport"],
+        "object": ["coffee machine"],
+        "action": ["a barista prepares espresso while a customer enters and a cup is served"],
+        "camera": ["orbit", "Three shots orbit the coffee machine while preserving the serving action."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-04-indoor-follow",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a person waters a hanging plant and walks to the balcony. Use follow camera motion and a 9:16 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor hanging plant — follow",
+        "shotCount": 3,
+        "scene": "loft apartment",
+        "objectFocus": "hanging plant",
+        "action": "Three shots follow the person from the plant to the balcony.",
+        "camera": "follow",
+        "aspectRatio": "9:16"
+      },
+      "category": "indoor",
+      "tags": ["three-shot", "follow"],
+      "required": {
+        "scene": ["loft apartment", "whitebox viewport"],
+        "object": ["hanging plant"],
+        "action": ["a person waters a hanging plant and walks to the balcony"],
+        "camera": ["follow", "Three shots follow the person from the plant to the balcony."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "9:16"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy follow, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-05-indoor-target-switch",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: the camera starts on a bedside lamp then switches target to a person opening the curtains. Use target-switch camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor lamp and person — target-switch",
+        "shotCount": 3,
+        "scene": "dark bedroom",
+        "objectFocus": "lamp and person",
+        "action": "The camera switches target from lamp to person without losing the room.",
+        "camera": "target-switch",
+        "aspectRatio": "16:9"
+      },
+      "category": "indoor",
+      "tags": ["three-shot", "target-switch", "camera-target"],
+      "required": {
+        "scene": ["dark bedroom", "whitebox viewport"],
+        "object": ["lamp and person"],
+        "action": ["the camera starts on a bedside lamp then switches target to a person opening the curtains"],
+        "camera": ["target-switch", "The camera switches target from lamp to person without losing the room."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy target-switch, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-06-indoor-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a model train leaves a station and passes a red signal. Use orbit camera motion and a 4:3 frame.",
+      "expectedDirectorCard": {
+        "title": "Indoor model train — orbit",
+        "shotCount": 1,
+        "scene": "hobby room",
+        "objectFocus": "model train",
+        "action": "One continuous orbit keeps the train and signal visible.",
+        "camera": "orbit",
+        "aspectRatio": "4:3"
+      },
+      "category": "indoor",
+      "tags": ["one-shot", "orbit"],
+      "required": {
+        "scene": ["hobby room", "whitebox viewport"],
+        "object": ["model train"],
+        "action": ["a model train leaves a station and passes a red signal"],
+        "camera": ["orbit", "One continuous orbit keeps the train and signal visible."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 6
+        },
+        "aspect": {
+          "ratio": "4:3"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-07-outdoor-push",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a child launches a red kite and the kite rises above the shoreline. Use push camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor red kite — push",
+        "shotCount": 1,
+        "scene": "windy beach",
+        "objectFocus": "red kite",
+        "action": "The camera pushes from the child toward the rising kite.",
+        "camera": "push",
+        "aspectRatio": "16:9"
+      },
+      "category": "outdoor",
+      "tags": ["one-shot", "push"],
+      "required": {
+        "scene": ["windy beach", "whitebox viewport"],
+        "object": ["red kite"],
+        "action": ["a child launches a red kite and the kite rises above the shoreline"],
+        "camera": ["push", "The camera pushes from the child toward the rising kite."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy push, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-08-outdoor-pull",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a cyclist slows at a crosswalk while pedestrians begin to cross. Use pull camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor bicycle — pull",
+        "shotCount": 1,
+        "scene": "city street",
+        "objectFocus": "bicycle",
+        "action": "The camera pulls back to show the cyclist and crossing pedestrians.",
+        "camera": "pull",
+        "aspectRatio": "16:9"
+      },
+      "category": "outdoor",
+      "tags": ["one-shot", "pull"],
+      "required": {
+        "scene": ["city street", "whitebox viewport"],
+        "object": ["bicycle"],
+        "action": ["a cyclist slows at a crosswalk while pedestrians begin to cross"],
+        "camera": ["pull", "The camera pulls back to show the cyclist and crossing pedestrians."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy pull, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-09-outdoor-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a musician plays beside a fountain while a passerby stops and listens. Use orbit camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor fountain — orbit",
+        "shotCount": 3,
+        "scene": "town square",
+        "objectFocus": "fountain",
+        "action": "Three shots orbit the musician and fountain with the passerby introduced in shot two.",
+        "camera": "orbit",
+        "aspectRatio": "16:9"
+      },
+      "category": "outdoor",
+      "tags": ["three-shot", "orbit"],
+      "required": {
+        "scene": ["town square", "whitebox viewport"],
+        "object": ["fountain"],
+        "action": ["a musician plays beside a fountain while a passerby stops and listens"],
+        "camera": ["orbit", "Three shots orbit the musician and fountain with the passerby introduced in shot two."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-10-outdoor-follow",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a dog runs after a ball along a park path and returns to its owner. Use follow camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor dog — follow",
+        "shotCount": 3,
+        "scene": "park path",
+        "objectFocus": "dog",
+        "action": "Three shots follow the dog out and back to the owner.",
+        "camera": "follow",
+        "aspectRatio": "16:9"
+      },
+      "category": "outdoor",
+      "tags": ["three-shot", "follow"],
+      "required": {
+        "scene": ["park path", "whitebox viewport"],
+        "object": ["dog"],
+        "action": ["a dog runs after a ball along a park path and returns to its owner"],
+        "camera": ["follow", "Three shots follow the dog out and back to the owner."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy follow, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-11-outdoor-target-switch",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: the camera starts on a bus stop sign then switches target to the arriving yellow bus. Use target-switch camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor sign and bus — target-switch",
+        "shotCount": 3,
+        "scene": "rainy bus stop",
+        "objectFocus": "sign and bus",
+        "action": "The camera switches target from sign to bus as it arrives.",
+        "camera": "target-switch",
+        "aspectRatio": "16:9"
+      },
+      "category": "outdoor",
+      "tags": ["three-shot", "target-switch", "camera-target"],
+      "required": {
+        "scene": ["rainy bus stop", "whitebox viewport"],
+        "object": ["sign and bus"],
+        "action": ["the camera starts on a bus stop sign then switches target to the arriving yellow bus"],
+        "camera": ["target-switch", "The camera switches target from sign to bus as it arrives."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy target-switch, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-12-outdoor-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a climber reaches the ridge and looks over a valley at sunset. Use orbit camera motion and a 9:16 frame.",
+      "expectedDirectorCard": {
+        "title": "Outdoor climber — orbit",
+        "shotCount": 1,
+        "scene": "rocky overlook",
+        "objectFocus": "climber",
+        "action": "One continuous orbit reveals the climber and valley.",
+        "camera": "orbit",
+        "aspectRatio": "9:16"
+      },
+      "category": "outdoor",
+      "tags": ["one-shot", "orbit"],
+      "required": {
+        "scene": ["rocky overlook", "whitebox viewport"],
+        "object": ["climber"],
+        "action": ["a climber reaches the ridge and looks over a valley at sunset"],
+        "camera": ["orbit", "One continuous orbit reveals the climber and valley."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 6
+        },
+        "aspect": {
+          "ratio": "9:16"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-13-product-push",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a matte black running shoe rotates on a pedestal as a light sweeps across its sole. Use push camera motion and a 1:1 frame.",
+      "expectedDirectorCard": {
+        "title": "Product running shoe — push",
+        "shotCount": 1,
+        "scene": "clean studio",
+        "objectFocus": "running shoe",
+        "action": "The camera pushes into the shoe while the light reveals the sole.",
+        "camera": "push",
+        "aspectRatio": "1:1"
+      },
+      "category": "product",
+      "tags": ["one-shot", "push"],
+      "required": {
+        "scene": ["clean studio", "whitebox viewport"],
+        "object": ["running shoe"],
+        "action": ["a matte black running shoe rotates on a pedestal as a light sweeps across its sole"],
+        "camera": ["push", "The camera pushes into the shoe while the light reveals the sole."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "1:1"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy push, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-14-product-pull",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a chilled tea bottle stands beside citrus slices and condensation runs down the label. Use pull camera motion and a 4:3 frame.",
+      "expectedDirectorCard": {
+        "title": "Product tea bottle — pull",
+        "shotCount": 1,
+        "scene": "wooden table",
+        "objectFocus": "tea bottle",
+        "action": "The camera pulls back to reveal the bottle, citrus, and table context.",
+        "camera": "pull",
+        "aspectRatio": "4:3"
+      },
+      "category": "product",
+      "tags": ["one-shot", "pull"],
+      "required": {
+        "scene": ["wooden table", "whitebox viewport"],
+        "object": ["tea bottle"],
+        "action": ["a chilled tea bottle stands beside citrus slices and condensation runs down the label"],
+        "camera": ["pull", "The camera pulls back to reveal the bottle, citrus, and table context."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "4:3"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy pull, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-15-product-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a pair of headphones is unboxed, worn, and placed beside a phone. Use orbit camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Product headphones — orbit",
+        "shotCount": 3,
+        "scene": "music desk",
+        "objectFocus": "headphones",
+        "action": "Three shots orbit the headphones through unboxing, wearing, and placement.",
+        "camera": "orbit",
+        "aspectRatio": "16:9"
+      },
+      "category": "product",
+      "tags": ["three-shot", "orbit"],
+      "required": {
+        "scene": ["music desk", "whitebox viewport"],
+        "object": ["headphones"],
+        "action": ["a pair of headphones is unboxed, worn, and placed beside a phone"],
+        "camera": ["orbit", "Three shots orbit the headphones through unboxing, wearing, and placement."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-16-product-follow",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a hand picks up a lotion bottle, applies lotion, and returns it to the shelf. Use follow camera motion and a 9:16 frame.",
+      "expectedDirectorCard": {
+        "title": "Product lotion bottle — follow",
+        "shotCount": 3,
+        "scene": "bathroom shelf",
+        "objectFocus": "lotion bottle",
+        "action": "Three shots follow the bottle from shelf to hand and back.",
+        "camera": "follow",
+        "aspectRatio": "9:16"
+      },
+      "category": "product",
+      "tags": ["three-shot", "follow"],
+      "required": {
+        "scene": ["bathroom shelf", "whitebox viewport"],
+        "object": ["lotion bottle"],
+        "action": ["a hand picks up a lotion bottle, applies lotion, and returns it to the shelf"],
+        "camera": ["follow", "Three shots follow the bottle from shelf to hand and back."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "9:16"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy follow, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-17-product-target-switch",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: the camera starts on a travel watch then switches target to the wrist fastening it. Use target-switch camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Product watch and wrist — target-switch",
+        "shotCount": 3,
+        "scene": "travel counter",
+        "objectFocus": "watch and wrist",
+        "action": "The camera switches target from watch to wrist during fastening.",
+        "camera": "target-switch",
+        "aspectRatio": "16:9"
+      },
+      "category": "product",
+      "tags": ["three-shot", "target-switch", "camera-target"],
+      "required": {
+        "scene": ["travel counter", "whitebox viewport"],
+        "object": ["watch and wrist"],
+        "action": ["the camera starts on a travel watch then switches target to the wrist fastening it"],
+        "camera": ["target-switch", "The camera switches target from watch to wrist during fastening."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy target-switch, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-18-product-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: an orange backpack rests on a bench while a hand lifts it before the train arrives. Use orbit camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Product orange backpack — orbit",
+        "shotCount": 1,
+        "scene": "train platform",
+        "objectFocus": "orange backpack",
+        "action": "One orbit keeps the backpack and train platform context legible.",
+        "camera": "orbit",
+        "aspectRatio": "16:9"
+      },
+      "category": "product",
+      "tags": ["one-shot", "orbit"],
+      "required": {
+        "scene": ["train platform", "whitebox viewport"],
+        "object": ["orange backpack"],
+        "action": ["an orange backpack rests on a bench while a hand lifts it before the train arrives"],
+        "camera": ["orbit", "One orbit keeps the backpack and train platform context legible."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 6
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-19-person-push",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a dancer takes a breath and steps forward into a pool of light. Use push camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Person dancer — push",
+        "shotCount": 1,
+        "scene": "rehearsal hall",
+        "objectFocus": "dancer",
+        "action": "The camera pushes toward the dancer as the step begins.",
+        "camera": "push",
+        "aspectRatio": "16:9"
+      },
+      "category": "person",
+      "tags": ["one-shot", "push"],
+      "required": {
+        "scene": ["rehearsal hall", "whitebox viewport"],
+        "object": ["dancer"],
+        "action": ["a dancer takes a breath and steps forward into a pool of light"],
+        "camera": ["push", "The camera pushes toward the dancer as the step begins."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy push, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-20-person-pull",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a chef tastes soup, nods, and turns toward a waiting server. Use pull camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Person chef — pull",
+        "shotCount": 1,
+        "scene": "open kitchen",
+        "objectFocus": "chef",
+        "action": "The camera pulls back to include the chef and server.",
+        "camera": "pull",
+        "aspectRatio": "16:9"
+      },
+      "category": "person",
+      "tags": ["one-shot", "pull"],
+      "required": {
+        "scene": ["open kitchen", "whitebox viewport"],
+        "object": ["chef"],
+        "action": ["a chef tastes soup, nods, and turns toward a waiting server"],
+        "camera": ["pull", "The camera pulls back to include the chef and server."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 5
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy pull, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-21-person-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a skater rolls in, lands a trick, and celebrates with a friend. Use orbit camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Person skater — orbit",
+        "shotCount": 3,
+        "scene": "empty plaza",
+        "objectFocus": "skater",
+        "action": "Three shots orbit the skater through approach, trick, and celebration.",
+        "camera": "orbit",
+        "aspectRatio": "16:9"
+      },
+      "category": "person",
+      "tags": ["three-shot", "orbit"],
+      "required": {
+        "scene": ["empty plaza", "whitebox viewport"],
+        "object": ["skater"],
+        "action": ["a skater rolls in, lands a trick, and celebrates with a friend"],
+        "camera": ["orbit", "Three shots orbit the skater through approach, trick, and celebration."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-22-person-follow",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: a hiker walks toward a bridge and waves to a friend on the other side. Use follow camera motion and a 9:16 frame.",
+      "expectedDirectorCard": {
+        "title": "Person hiker — follow",
+        "shotCount": 3,
+        "scene": "forest trail",
+        "objectFocus": "hiker",
+        "action": "Three shots follow the hiker to the bridge and friend.",
+        "camera": "follow",
+        "aspectRatio": "9:16"
+      },
+      "category": "person",
+      "tags": ["three-shot", "follow"],
+      "required": {
+        "scene": ["forest trail", "whitebox viewport"],
+        "object": ["hiker"],
+        "action": ["a hiker walks toward a bridge and waves to a friend on the other side"],
+        "camera": ["follow", "Three shots follow the hiker to the bridge and friend."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "9:16"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy follow, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-23-person-target-switch",
+      "evaluationTarget": true,
+      "prompt": "Create a three shot whitebox Director scene: the camera starts on a speaker then switches target to the audience reacting. Use target-switch camera motion and a 16:9 frame.",
+      "expectedDirectorCard": {
+        "title": "Person speaker and audience — target-switch",
+        "shotCount": 3,
+        "scene": "small theater",
+        "objectFocus": "speaker and audience",
+        "action": "The camera switches target from speaker to audience reaction.",
+        "camera": "target-switch",
+        "aspectRatio": "16:9"
+      },
+      "category": "person",
+      "tags": ["three-shot", "target-switch", "camera-target"],
+      "required": {
+        "scene": ["small theater", "whitebox viewport"],
+        "object": ["speaker and audience"],
+        "action": ["the camera starts on a speaker then switches target to the audience reacting"],
+        "camera": ["target-switch", "The camera switches target from speaker to audience reaction."],
+        "timing": {
+          "shotCount": 3,
+          "minDurationSeconds": 9
+        },
+        "aspect": {
+          "ratio": "16:9"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy target-switch, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    },
+    {
+      "id": "director-24-person-orbit",
+      "evaluationTarget": true,
+      "prompt": "Create a one shot whitebox Director scene: a violinist plays one phrase while the skyline glows behind them. Use orbit camera motion and a 4:3 frame.",
+      "expectedDirectorCard": {
+        "title": "Person violinist — orbit",
+        "shotCount": 1,
+        "scene": "rooftop",
+        "objectFocus": "violinist",
+        "action": "One orbit keeps the violinist and glowing skyline in frame.",
+        "camera": "orbit",
+        "aspectRatio": "4:3"
+      },
+      "category": "person",
+      "tags": ["one-shot", "orbit"],
+      "required": {
+        "scene": ["rooftop", "whitebox viewport"],
+        "object": ["violinist"],
+        "action": ["a violinist plays one phrase while the skyline glows behind them"],
+        "camera": ["orbit", "One orbit keeps the violinist and glowing skyline in frame."],
+        "timing": {
+          "shotCount": 1,
+          "minDurationSeconds": 6
+        },
+        "aspect": {
+          "ratio": "4:3"
+        }
+      },
+      "expectedFailureBehavior": "If generation cannot satisfy orbit, keep the last valid whitebox state, name the missing element, and offer retry or undo without silently changing unrelated scene content."
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nomi.local/schemas/director-goal-eval/report.v1.json",
+  "title": "Nomi Director goal-alignment evidence report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reportVersion",
+    "contractId",
+    "datasetVersion",
+    "runId",
+    "commit",
+    "caseId",
+    "prompt",
+    "expectedDirectorCard",
+    "observed",
+    "automatedChecks",
+    "humanJudgments",
+    "evidence",
+    "score",
+    "failureReason",
+    "markdown"
+  ],
+  "properties": {
+    "reportVersion": { "const": "director-goal-report/v1" },
+    "contractId": { "const": "director-goal-alignment" },
+    "datasetVersion": { "const": "director-goal-eval/v1" },
+    "runId": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "caseId": { "type": "string" },
+    "prompt": { "type": "string", "minLength": 20 },
+    "expectedDirectorCard": { "type": "object" },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generationSuccess",
+        "whiteboxScene",
+        "objectMotion",
+        "cameraMotion",
+        "playablePreview",
+        "localEditPrecision",
+        "timeToFirstPreviewMs"
+      ],
+      "properties": {
+        "generationSuccess": { "type": "boolean" },
+        "whiteboxScene": { "type": "boolean" },
+        "objectMotion": { "type": "boolean" },
+        "cameraMotion": { "type": "boolean" },
+        "playablePreview": { "type": "boolean" },
+        "localEditPrecision": { "enum": ["pass", "partial", "fail", "unobserved"] },
+        "timeToFirstPreviewMs": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "automatedChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "pass", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "pass": { "type": "boolean" },
+          "evidence": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "humanJudgments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "score", "note"],
+        "properties": {
+          "id": { "type": "string" },
+          "score": { "type": "number", "minimum": 0, "maximum": 4 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screenshots", "videos"],
+      "properties": {
+        "screenshots": { "type": "array", "items": { "type": "string" } },
+        "videos": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimensions", "overall", "automatedPass", "humanJudgmentCount", "measurementStatus"],
+      "properties": {
+        "dimensions": { "type": "object" },
+        "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "automatedPass": { "type": "boolean" },
+        "humanJudgmentCount": { "type": "integer", "minimum": 0 },
+        "measurementStatus": { "const": "observed-run" }
+      }
+    },
+    "failureReason": { "type": ["string", "null"] },
+    "markdown": { "type": "string", "minLength": 1 }
+  }
+}
