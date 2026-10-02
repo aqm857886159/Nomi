@@ -85,6 +85,8 @@ export type ArchetypeMode = {
   params: ModelParameterControl[];
   vendorParams?: Record<string, ModelParameterControl[]>;
   promptRequired: boolean;
+  /** Processing requires a completed task from the same provider, not an arbitrary URL. */
+  sourceTask?: { inputKey: string; modelKey: string; params: Record<string, string> };
   modelEnum?: string;
   transportTaskKind?: ArchetypeTransportTaskKind;
   /**
