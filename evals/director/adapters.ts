@@ -16,11 +16,19 @@ import type {
 } from '../../src/workbench/generationCanvas/nodes/director/model/directorTypes'
 import { lookAtAngles } from '../../src/workbench/generationCanvas/nodes/director/model/vec3'
 import type { DirectorCard } from './cardSchema'
+import { adaptS1Plan, adaptS1Prompt } from './s1Adapter'
+import { S1_ORACLE_PLANS } from './s1OraclePlans'
 
 export type AdaptedProject = {
   project: DirectorProject
   actorMap?: Record<string, string>
   anchors?: Record<string, AnchorSpec>
+  metadata?: {
+    plannerAttempts?: number
+    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedUsd?: number }
+    rawPlan?: string
+    issues?: Array<{ kind: string; message: string; actorId?: string; assetId?: string }>
+  }
 }
 export const PR960_ROOT_ENV = 'NOMI_EVAL_PR960_ROOT'
 type Pr960PlanModule = {
@@ -37,7 +45,7 @@ async function importPr960Plan(): Promise<Pr960PlanModule> {
     pathToFileURL(path.join(root, 'src/workbench/generationCanvas/nodes/director/model/directorPlan.ts')).href
   )) as Pr960PlanModule
 }
-export type Scheme = 'oracle' | 's0-pr960-raw' | 's0-pr960-ideal'
+export type Scheme = 'oracle' | 's0-pr960-raw' | 's0-pr960-ideal' | 's1' | 's1-oracle-plan'
 type PointOptions = { target: Vec3; fov: number }
 type ShotWindow = [number, number]
 type SubjectRef = { root: string; part?: string }
@@ -430,6 +438,25 @@ export function oracleForCard(card: DirectorCard): AdaptedProject {
 
 export async function adapt(prompt: string, card: DirectorCard, scheme: Scheme): Promise<AdaptedProject> {
   if (scheme === 'oracle') return oracleForCard(card)
+  if (scheme === 's1') {
+    const result = await adaptS1Prompt(prompt)
+    if (!result.ok) {
+      const error = new Error(`s1 planner/compiler failed for ${card.id}: ${result.errors.join('; ')}`) as Error & { planner?: unknown }
+      error.planner = result.planner
+      throw error
+    }
+    return {
+      ...result.adapted,
+      metadata: { plannerAttempts: result.planner.attempts, usage: result.planner.usage, rawPlan: result.planner.raw, issues: result.adapted.issues },
+    }
+  }
+  if (scheme === 's1-oracle-plan') {
+    const plan = S1_ORACLE_PLANS[card.id]
+    if (!plan) throw new Error(`s1-oracle-plan only supports the three benchmark cards; received ${card.id}`)
+    const result = adaptS1Plan(plan)
+    if ('errors' in result) throw new Error(`s1 oracle compiler failed for ${card.id}: ${result.errors.join('; ')}`)
+    return { ...result, metadata: { issues: result.issues } }
+  }
   if (scheme === 's0-pr960-ideal') {
     if (!new Set(['police-chase', 'perfume-orbit', 'courtyard-standoff']).has(card.id))
       throw new Error(`s0-pr960-ideal only supports benchmark cards; received ${card.id}`)

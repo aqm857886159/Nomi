@@ -10,6 +10,7 @@ function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name)
   return i >= 0 ? process.argv[i + 1] : undefined
 }
+const elapsedMs = (start: number) => Math.round((performance.now() - start) * 10) / 10
 async function loadCards(filter?: string): Promise<DirectorCard[]> {
   const raw = JSON.parse(await fs.readFile(path.join(root, 'cards/all.json'), 'utf8')) as unknown[]
   const cards = raw.map(parseDirectorCard)
@@ -72,22 +73,27 @@ function adapterErrorScore(card: DirectorCard, error: unknown): CardScore {
 
 async function main() {
   const scheme = (arg('--scheme') ?? 'oracle') as Scheme
-  if (!['oracle', 's0-pr960-raw', 's0-pr960-ideal'].includes(scheme)) throw new Error(`unknown scheme: ${scheme}`)
+  if (!['oracle', 's0-pr960-raw', 's0-pr960-ideal', 's1', 's1-oracle-plan'].includes(scheme)) throw new Error(`unknown scheme: ${scheme}`)
   const filter = arg('--cards')
   const cards = await loadCards(filter)
   const idealIds = new Set(['police-chase', 'perfume-orbit', 'courtyard-standoff'])
-  if (scheme === 's0-pr960-ideal' && filter && cards.some((c) => !idealIds.has(c.id)))
+  if ((scheme === 's0-pr960-ideal' || scheme === 's1-oracle-plan') && filter && cards.some((c) => !idealIds.has(c.id)))
     throw new Error(
       `s0-pr960-ideal only accepts police-chase, perfume-orbit, courtyard-standoff; filter ${filter} selected another card`,
     )
-  const selected = scheme === 's0-pr960-ideal' ? cards.filter((c) => idealIds.has(c.id)) : cards
+  const selected = scheme === 's0-pr960-ideal' || scheme === 's1-oracle-plan' ? cards.filter((c) => idealIds.has(c.id)) : cards
   const scores: CardScore[] = []
+  const metadata: Record<string, unknown> = {}
   for (const card of selected) {
+    const started = performance.now()
     try {
       const adapted = await adapt(card.prompt, card, scheme)
-      scores.push(scoreCard(card, adapted.project, adapted.actorMap))
+      scores.push(scoreCard(card, adapted.project, adapted.actorMap, adapted.anchors))
+      metadata[card.id] = { elapsedMs: elapsedMs(started), ...adapted.metadata }
     } catch (error) {
       scores.push(adapterErrorScore(card, error))
+      const planner = error && typeof error === 'object' && 'planner' in error ? (error as { planner?: unknown }).planner : undefined
+      metadata[card.id] = { elapsedMs: elapsedMs(started), planner }
     }
   }
   const stamp = new Date()
@@ -98,7 +104,7 @@ async function main() {
   await fs.mkdir(out, { recursive: true })
   await fs.writeFile(
     path.join(out, 'scores.json'),
-    JSON.stringify({ scheme, generatedAt: new Date().toISOString(), scores }, null, 2),
+    JSON.stringify({ scheme, generatedAt: new Date().toISOString(), scores, metadata }, null, 2),
   )
   await fs.writeFile(path.join(out, 'report.md'), report(scheme, scores))
   console.log(

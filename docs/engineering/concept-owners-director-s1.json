@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "name": "导演计划 v2 schema",
+      "subject": "director.plan.v2",
+      "lifecycle": "planning",
+      "authority_kind": "schema",
+      "trust_domain": "shared",
+      "fact_kind": "value-object",
+      "migration_status": "new",
+      "owner": { "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.ts", "symbol": "directorPlanSchema" },
+      "write_api": [{ "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.ts", "symbol": "directorPlanSchema" }],
+      "forbidden_derivations": [],
+      "allowed_consumers": ["src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts", "evals/director/s1Adapter.ts"],
+      "since": "2026-10-04",
+      "notes": "S1 只表达导演意图，不含 xyz。"
+    },
+    {
+      "name": "计划到 DirectorProject 编译",
+      "subject": "director.plan.compiler.s1",
+      "lifecycle": "execution",
+      "authority_kind": "writer",
+      "trust_domain": "shared",
+      "fact_kind": "derived",
+      "migration_status": "new",
+      "owner": { "path": "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts", "symbol": "compileDirectorPlan" },
+      "write_api": [{ "path": "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts", "symbol": "compileDirectorPlan" }],
+      "forbidden_derivations": [{ "symbol": "distanceForShotSize", "kind": "duplicate", "why": "景别距离唯一 owner 在第一棒测量模块" }],
+      "allowed_consumers": ["evals/director/s1Adapter.ts", "第三棒 stage_shot"],
+      "since": "2026-10-04",
+      "notes": "确定性、稳定 ID、原子返回。"
+    },
+    {
+      "name": "场景积木模板",
+      "subject": "director.scene.templates",
+      "lifecycle": "execution",
+      "authority_kind": "writer",
+      "trust_domain": "shared",
+      "fact_kind": "derived",
+      "migration_status": "new",
+      "owner": { "path": "src/workbench/generationCanvas/nodes/director/model/compiler/s1SceneTemplates.ts", "symbol": "buildS1TemplateObjects" },
+      "write_api": [{ "path": "src/workbench/generationCanvas/nodes/director/model/compiler/s1SceneTemplates.ts", "symbol": "buildS1TemplateObjects" }],
+      "forbidden_derivations": [],
+      "allowed_consumers": ["src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts"],
+      "since": "2026-10-04",
+      "notes": "street/room 语义复用既有模板；S1 新模板在新增适配层。"
+    }
+  ]
+}
