@@ -55,10 +55,11 @@ export async function launchDirectorLab({ name, viewport = { width: 1440, height
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 })
   page.setDefaultTimeout(stationTimeout())
   const pageErrors = []
-  page.on('pageerror', (error) => pageErrors.push(String(error)))
-  await page.addInitScript((key) => {
+  page.on('pageerror', (error) => pageErrors.push(error.stack || String(error)))
+  await page.addInitScript(([key, locale]) => {
     try {
       window.localStorage.setItem('__nomiE2E', '1')
+      if (locale === 'en' || locale === 'zh-CN') window.localStorage.setItem('nomi:locale:v1', locale)
       if (!window.sessionStorage.getItem(`${key}:initialized`)) {
         window.localStorage.removeItem(key)
         window.sessionStorage.setItem(`${key}:initialized`, '1')
@@ -66,7 +67,7 @@ export async function launchDirectorLab({ name, viewport = { width: 1440, height
     } catch {
       // 无本地存储：走查照跑，工程只活在内存
     }
-  }, PROJECT_KEY)
+  }, [PROJECT_KEY, process.env.NOMI_DIRECTOR_LOCALE ?? null])
   const base = server.url.replace(/\/index\.html$/, '')
   // Vite 冷启动首屏要做依赖预打包 + 整张模块图的首次转译（three / spark / drei）：实测全新服务 + headless 约 5 分钟，
   // 预热过的服务 5 秒。模块脚本会阻塞 DOMContentLoaded，所以只等导航提交，首屏用画中画元素做信号，上限 8 分钟。

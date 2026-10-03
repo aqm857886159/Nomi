@@ -1,8 +1,8 @@
 /**
- * [INPUT]: 依赖 react、react-i18next、../../../../ui/toast、../../../api/promptLibraryApi 的 getTextBrain、../../../api/taskApi 的 runWorkbenchTextTaskStream（Nomi 现有文本流式通道）、
+ * [INPUT]: 依赖 react、react-i18next、../../../../ui/toast、../../../api/promptLibraryApi 的 getTextBrain、../../../api/taskApi 的 runWorkbenchTextTaskStream（Nomi 现有文本流式通道）、../../../ai/agentLoopMode 的现有 Agent Lane single-shot、
  *          ../../../api/assetUploadApi（importWorkbenchLocalAssetFile / hostedAssetUrl）、./DirectorEditorContext、./model/aiScene（提示词 / 解析 / 规整 / 夹具）、
  *          ./model/storeAiSceneActions 的 exportAiScene / AiSceneTarget / AiSceneLibraryAsset、./panels/imageFile 的 readFileAsDataUrl
- * [OUTPUT]: 对外提供 useAiSceneBuilder() → { status, run, cancel, reset }、AiSceneStatus
+ * [OUTPUT]: 对外提供 useAiSceneBuilder() → { status, run, cancel, reset }、AiSceneStatus；导演运镜输入先过 director-cinematography Skill 再落 DirectorPlan
  * [POS]: director 根的 AI 搭场景编排（清单 §5.8）：描述 + ≤3 参考图 → 现有文本大脑（结构化 JSON 只回 JSON）→ 容错解析 → 规整 → store 物化（当前图层 / 新图层）
  *        → 先持久化，再把几何与资产条目原子写入发起图层；取消/重置/卸载使迟到结果失效；秒表与流式字数给状态条。
  *        无桌面运行时（开发入口）：有 E2E 夹具钩子（window.__nomiDirectorAiMock）就用夹具复现固定布局，否则明说没有文本模型。
@@ -16,6 +16,7 @@ import { runWorkbenchTextTaskStream } from '../../../api/taskApi'
 import { toast } from '../../../../ui/toast'
 import { useDirectorStoreApi } from './DirectorEditorContext'
 import { buildAiScenePrompt, normalizeAiScene, parseAiSceneText, type AiSceneSpec, type NormalizedAiScene } from './model/aiScene'
+import { parseDirectorRuntimePlan, type DirectorPlan } from './model/directorPlan'
 import { exportAiScene, type AiSceneTarget, type AiSceneLibraryAsset } from './model/storeAiSceneActions'
 import { readFileAsDataUrl } from './panels/imageFile'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction, type ProjectExecutionContext } from '../../../project/projectCanvasReadSurface'
@@ -37,11 +38,24 @@ function e2eMock(): AiSceneMock | null {
   }
 }
 
+function directorRuntimePrompt(request: string, currentPlan: DirectorPlan | null): string {
+  const existing = currentPlan
+    ? JSON.stringify({ shots: currentPlan.shots.map((shot) => ({ order: shot.order + 1, name: shot.name, duration: shot.duration, subjects: shot.subjectIds, motions: shot.motions.map((motion) => ({ kind: motion.kind, duration: motion.duration, amount: motion.amount, easing: motion.easing })) })) })
+    : 'none'
+  return [
+    "You are Nomi's 3D Director planning Skill. Read director-cinematography and translate the user request into a bounded playable whitebox camera plan.",
+    'Return JSON only, with exactly one object: {"prompt":"..."}. The prompt must contain one to three labelled Shot 1/Shot 2/Shot 3 descriptions, concrete subjects, semantic camera motions (push, pull, pan, tilt, orbit, follow or target switch), optional duration in seconds, and target-centering/look-at intent. Preserve the existing shot order when the request edits a shot.',
+    `Existing typed plan (use its shot numbering for local edits): ${existing}`,
+    `User request: ${request}`,
+  ].join('\n\n')
+}
+
 export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description: string, images: string[], target: AiSceneTarget) => Promise<boolean>; cancel: () => void; reset: () => void } {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const [status, setStatus] = React.useState<AiSceneStatus>(IDLE)
   const abortRef = React.useRef<AbortController | null>(null)
+  const runtimeCancelRef = React.useRef<(() => void) | null>(null)
   const timerRef = React.useRef<number | null>(null)
 
   const stopTimer = React.useCallback(() => {
@@ -51,13 +65,17 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
 
   React.useEffect(() => () => {
     abortRef.current?.abort()
+    runtimeCancelRef.current?.()
     abortRef.current = null
+    runtimeCancelRef.current = null
     stopTimer()
   }, [stopTimer])
 
   const reset = React.useCallback(() => {
     abortRef.current?.abort()
+    runtimeCancelRef.current?.()
     abortRef.current = null
+    runtimeCancelRef.current = null
     stopTimer()
     setStatus(IDLE)
   }, [stopTimer])
@@ -66,7 +84,9 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
   const cancel = React.useCallback(() => {
     if (!abortRef.current) return
     abortRef.current.abort()
+    runtimeCancelRef.current?.()
     abortRef.current = null
+    runtimeCancelRef.current = null
     stopTimer()
     setStatus((current) => ({ ...current, phase: 'cancelled', message: t('director.ai.cancelled') }))
   }, [stopTimer, t])
@@ -113,6 +133,45 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
           setStatus((current) => (current.phase === 'running' ? { ...current, elapsedSeconds: elapsed } : current))
         }, 1000)
         try {
+          // Text-only requests for the current layer take the typed P0 plan path. Reference-image
+          // requests and new-layer placement retain the existing scene-builder flow.
+          if (target === 'current_layer' && images.length === 0 && trimmed.length > 0) {
+            const fixture = e2eMock()
+            let planPrompt = trimmed
+            if (!fixture) {
+              const { runSingleShotAgent } = await import('../../../ai/agentLoopMode')
+              const response = await runSingleShotAgent({
+                projectId: project.binding.projectId,
+                featureKey: 'director.preview-plan',
+                prompt: directorRuntimePrompt(trimmed, store.getState().directorPlan),
+                displayPrompt: trimmed,
+                skillKey: 'director-cinematography',
+                onCancelReady: (cancelRuntime) => {
+                  if (abortRef.current === controller) runtimeCancelRef.current = cancelRuntime
+                },
+              })
+              if (!ownsRequest()) return false
+              const parsed = parseDirectorRuntimePlan(response.text)
+              if (!parsed) {
+                const message = 'Director Skill returned an invalid plan. Edit the prompt and try again.'
+                setStatus({ phase: 'error', message, elapsedSeconds: elapsed, streamedChars: response.text.length })
+                toast(message, 'error')
+                return false
+              }
+              planPrompt = parsed.prompt
+              chars = response.text.length
+            }
+            const result = store.getState().applyDirectorPlanPrompt(planPrompt)
+            if (!ownsRequest()) return false
+            if (!result.accepted) {
+              setStatus({ phase: 'error', message: result.status.message, elapsedSeconds: elapsed, streamedChars: chars })
+              toast(result.status.message, 'error')
+              return false
+            }
+            setStatus({ phase: 'done', message: result.status.message, elapsedSeconds: elapsed, streamedChars: chars })
+            toast(result.status.message, 'success')
+            return true
+          }
           let spec: AiSceneSpec | null = null
           const mock = e2eMock()
           if (mock) {
@@ -166,6 +225,7 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
         } finally {
           if (abortRef.current === controller) {
             stopTimer()
+            runtimeCancelRef.current = null
             abortRef.current = null
           }
         }

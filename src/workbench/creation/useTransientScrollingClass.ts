@@ -1,7 +1,7 @@
 import React from 'react'
 
 export function useTransientScrollingClass<TElement extends HTMLElement>(className: string): React.RefObject<TElement | null> {
-  const ref = React.useRef<TElement | null>(null)
+  const ref = React.useRef<TElement>(null)
 
   React.useEffect(() => {
     const element = ref.current

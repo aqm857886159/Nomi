@@ -22,6 +22,7 @@ import {
   type DirectorScene,
   type DirectorSceneConfig,
   type Vec3,
+  type Waypoint,
   DIRECTOR_ASSET_KINDS,
   type DirectorAssetKind,
 } from './directorTypes'
@@ -135,6 +136,7 @@ function normalizeTimelineFields(raw: Record<string, unknown>) {
       progress: typeof item.progress === 'number' ? item.progress : undefined,
       lookAtObjectId: typeof item.lookAtObjectId === 'string' ? item.lookAtObjectId : undefined,
       fov: typeof item.fov === 'number' && Number.isFinite(item.fov) ? item.fov : undefined,
+      easing: ['linear', 'ease_in', 'ease_out', 'ease_in_out'].includes(String(item.easing)) ? (item.easing as Waypoint['easing']) : undefined,
     }
   })
   const trajectoryClips = arrayOf(raw.trajectoryClips, (item) => {

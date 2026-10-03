@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 immer 的 produce（commitProject 草稿写入）、zustand/vanilla 的 createStore、./directorTypes、./directorProject（默认工程/克隆/归一）、
+ * [INPUT]: 依赖 immer 的 produce（commitProject 草稿写入）、zustand/vanilla 的 createStore、./directorTypes、./directorProject（默认工程/克隆/归一）、./directorPlan（typed plan 与单镜编辑）、
  *          ./timeGrid（sceneContentEndSeconds / ensureDurationSeconds / DIRECTOR_MAX_DURATION_SECONDS）、./storeEntityActions、./storeClipActions
  * [OUTPUT]: 对外提供 DirectorStore / DirectorStoreState / DirectorSelection / TimelineEditContext、createDirectorStore、
  *           HISTORY_LIMIT
@@ -30,6 +30,7 @@ import { createEntityActions, type DirectorEntityActions } from './storeEntityAc
 import { createTimelineActions, type DirectorTimelineActions } from './storeTimelineActions'
 import type { ClipboardPayload } from './timelineClipboard'
 import { DIRECTOR_MAX_DURATION_SECONDS, ensureDurationSeconds, sceneContentEndSeconds } from './timeGrid'
+import { applyDirectorPrompt as applyDirectorPromptUpdate, type DirectorPlan, type DirectorPlanBuild } from './directorPlan'
 
 export const HISTORY_LIMIT = 50
 const WHEEL_MERGE_MS = 200
@@ -63,10 +64,12 @@ export type TimelineEditContext = {
 
 export type EvaluatedPose = { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number }; fov?: number; lookAtCoords?: { x: number; y: number; z: number } }
 
-type HistoryEntry = { project: DirectorProject }
+type HistoryEntry = { project: DirectorProject; directorPlan: DirectorPlan | null }
 
 export type DirectorStoreState = {
   project: DirectorProject
+  /** Last accepted typed plan for targeted shot edits; transient editor state, never serialized. */
+  directorPlan: DirectorPlan | null
   selection: DirectorSelection
   activeCameraId: string // 'free' 或机位 id（主视口视角）
   previewCameraId: string // 画中画目标机位
@@ -118,6 +121,8 @@ export type DirectorStoreState = {
   setExportResolution: (resolution: DirectorExportResolution) => void
   patchSceneConfig: (patch: Partial<DirectorScene['sceneConfig']>) => void
   patchPanoramaConfig: (patch: Partial<DirectorScene['panoramaConfig']>) => void
+  /** Apply a normalized prompt atomically; invalid plans leave the playable project untouched. */
+  applyDirectorPlanPrompt: (prompt: string) => DirectorPlanBuild
   // ── 图层 ──
   createSceneLayer: (name: string) => string
   duplicateSceneLayer: (sceneId: string, suffix: string) => string
@@ -225,7 +230,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
   let historyDepth = 0
 
   return createStore<DirectorStoreState>()((set, get) => {
-    const snapshot = (): HistoryEntry => ({ project: cloneDirectorProject(get().project) })
+    const snapshot = (): HistoryEntry => ({ project: cloneDirectorProject(get().project), directorPlan: get().directorPlan })
 
     // 所有项目数据的写入口。动作按「改草稿」写，immer 产出结构共享的新树：被改到的实体 / 数组 / 场景 /
     // 项目全部换新引用，没改到的保持原引用——订阅方（useStore 的 Object.is 比对、React.memo）据此判断
@@ -258,6 +263,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
 
     const base: Omit<DirectorStoreState, keyof DirectorEntityActions | keyof DirectorClipActions | keyof DirectorTimelineActions | keyof DirectorCameraActions | keyof DirectorCharacterActions | keyof DirectorAssetActions | keyof DirectorOutputActions | keyof DirectorAiSceneActions> = {
       project: normalizeDirectorProject(options.rawProject, options.defaultSceneName),
+      directorPlan: null,
       selection: emptySelection(),
       activeCameraId: 'free',
       previewCameraId: '',
@@ -319,7 +325,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
           if (JSON.stringify(before.project) !== JSON.stringify(get().project)) {
             const last = before.undoStack[before.undoStack.length - 1]
             const stack = last && JSON.stringify(last.project) === JSON.stringify(before.project)
-              ? before.undoStack : [...before.undoStack, { project: cloneDirectorProject(before.project) }]
+              ? before.undoStack : [...before.undoStack, { project: cloneDirectorProject(before.project), directorPlan: before.directorPlan }]
             set({ undoStack: stack.slice(-HISTORY_LIMIT), redoStack: [] })
           }
           return result
@@ -336,6 +342,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
         if (!entry) return
         const current = snapshot()
         set({ undoStack: state.undoStack.slice(0, -1), redoStack: [...state.redoStack, current] })
+        set({ directorPlan: entry.directorPlan })
         commitProject((project) => {
           Object.assign(project, entry.project)
         })
@@ -347,6 +354,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
         if (!entry) return
         const current = snapshot()
         set({ redoStack: state.redoStack.slice(0, -1), undoStack: [...state.undoStack, current] })
+        set({ directorPlan: entry.directorPlan })
         commitProject((project) => {
           Object.assign(project, entry.project)
         })
@@ -358,6 +366,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
         const scene = activeSceneOf(project)
         set({
           project,
+          directorPlan: null,
           selection: emptySelection(),
           activeCameraId: 'free',
           previewCameraId: scene.cameras[0]?.id ?? '',
@@ -395,6 +404,13 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
       setExportResolution: (resolution) => get().withHistory(() => commitProject(project => { project.exportResolution = resolution })),
       patchSceneConfig: (patch) => commitProject((_, scene) => Object.assign(scene.sceneConfig, patch)),
       patchPanoramaConfig: (patch) => commitProject((_, scene) => Object.assign(scene.panoramaConfig, patch)),
+      applyDirectorPlanPrompt: (prompt) => {
+        const result = applyDirectorPromptUpdate(get().project, prompt, get().directorPlan)
+        if (!result.accepted) return result
+        get().withHistory(() => commitProject((project) => { Object.assign(project, result.project) }))
+        set({ directorPlan: result.plan, selection: emptySelection(), activeCameraId: result.cameraId, previewCameraId: result.cameraId, evaluatedPoses: {}, timeline: { ...get().timeline, currentTime: 0, isPlaying: false } })
+        return result
+      },
 
       createSceneLayer: (name) => {
         get().saveState()

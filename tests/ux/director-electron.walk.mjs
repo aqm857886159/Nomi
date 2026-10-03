@@ -4,8 +4,8 @@
 //   ① 项目库「新建空白项目」→ 生成区 → 工具栏加 图片 / 视频 / 导演台 三个节点 → 「进入导演台」→ 全屏壳
 //   ② 放一个角色 + 正面中景机位 → Ctrl+Shift+P 截图（真桌面桥落盘 PNG）→ 产出弹层「发送到画布」→ 退出
 //      → 磁盘上的项目多一个 image 节点（meta.source=director）+ 一条 director→image reference 边
-//   ③ 选中视频镜头 → 「运镜」芯片 → 应用 → 常驻 CameraMoveCaptureHost 离屏采帧 → ffmpeg 拼 mp4（真 IPC）
-//      → director 节点 meta.cameraMoveVideo.url 出现、标志清掉、目标视频节点被喂入（video_ref 或提示词地板）
+//   ③ 导演台时间轴 → POV 录制运镜 → 「录制 MP4」→ 常驻 Host 离屏采帧 → ffmpeg 拼 mp4（真 IPC）
+//      → director 节点 outputs.videos 里出现桌面资产句柄（当前产品入口；不再依赖已移除的「运镜」芯片）
 //   ④ 用 E2E 桥往画布塞一个带 stagingAutoCapture 的 director 节点（模拟 create_staging_reference 的下半场）
 //      → StagingCaptureHost 离屏出图 → image 节点（stagingComposition）+ reference / composition_ref 两条边
 //   ⑤ 关闭 App → 同隔离目录冷启动 → 从项目库重开，核对导演场景、PNG/MP4 引用及连边
@@ -187,7 +187,8 @@ for (const theme of ['light', 'dark']) {
   check(`② ${theme} 主题：选中片段白字白边、悬停保持不透明底色`, true)
 }
 await applyColorSchemeForShot(win, originalTheme)
-await win.keyboard.press('Control+Shift+P')
+// The production binding uses the platform's primary modifier: ⌘ on macOS, Ctrl elsewhere.
+await win.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+P' : 'Control+Shift+P')
 const screenshotToast = win.locator('[role="alert"], [role="status"]', { hasText: '已截图' }).first()
 await expectVisible(screenshotToast, '按 Ctrl+Shift+P 后没有「已截图」提示（桌面落盘桥没工作？）', stationTimeout({ operations: 2 }))
 check('② 截图经桌面桥落盘', true)
@@ -197,7 +198,7 @@ await clickOrFail(win.locator('[aria-label="发送到画布"]').first(), '产出
 await expectVisible(win.locator('[role="alert"], [role="status"]', { hasText: '已发送到画布' }).first(), '没有「已发送到画布」提示')
 await snap('outputs-sent')
 await clickOrFail(win.locator('[data-testid="director-exit"]').first(), '顶栏·退出')
-const confirmExit = win.getByRole('button', { name: '退出', exact: true }).last()
+const confirmExit = win.locator('[data-confirm-dialog-confirm="true"]').last()
 if (await confirmExit.isVisible().catch(() => false)) await confirmExit.click()
 await expectHidden(editor, '点退出后全屏壳还在')
 await snap('back-to-canvas')
@@ -208,33 +209,61 @@ const sent = await expect.poll(() => {
 }, { timeout: stationTimeout({ operations: 2 }), intervals: [1000] }).toBe(true).then(() => true, () => false)
 check('② 截图落成画布 image 节点 + reference 边（磁盘）', sent)
 
-// ③ 视频镜头 → 运镜芯片 → 应用 → 常驻 Host 出 mp4 + 喂目标镜头
-// 退出导演台后视口停在导演台节点上，视频节点在视口外（React Flow 视口外节点不可见）→ 先适应视图
-await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '画布·适应视图')
-await clickOrFail(win.locator(`[data-node-id="${VIDEO_ID}"]`).first(), '画布·选中视频节点')
-await clickOrFail(win.locator('[aria-label="运镜"]').first(), '视频 composer·运镜芯片')
-await clickOrFail(win.locator('button', { hasText: /^应用$/ }).first(), '运镜弹层·应用')
-// 新节点由 layoutPlannedNodes 排到既有节点旁，常在视口外（React Flow 只渲染视口内节点）→ 以磁盘为准
-const applied = await expect.poll(() => readCanvas().nodes.filter((node) => node.kind === 'director').length >= 2, { timeout: stationTimeout({ operations: 2 }), intervals: [1000] }).toBe(true).then(() => true, () => false)
-check('③ 应用后多出一个「运镜参考」director 节点（磁盘）', applied)
-await snap('camera-move-applied')
-const moved = await expect.poll(() => {
+// ③ 当前产品入口：回到原导演台，进入节目机位，用真实鼠标录一段运镜，再从时间轴录 MP4。
+// 「运镜」composer 芯片已从视频/图片节点移除；以真实 Director 时间轴入口覆盖同一条桌面编码链路。
+await clickOrFail(win.locator(`[data-node-id="${DIRECTOR_ID}"]`).getByTestId('director-node-open'), '画布·重开导演台')
+await expectVisible(win.getByTestId('director-editor'), '时间轴录制前导演台没有重开')
+// 机位刚创建时不一定已在时间轴；沿用户可见的「添加轨道」入口把它挂上，避免只在内存里录一段孤立 POV。
+await clickOrFail(win.getByTestId('director-timeline-tracks-header').getByRole('button', { name: /添加轨道/ }), '时间轴·添加机位轨道')
+const trackPopover = win.locator('[role="dialog"]').last()
+await clickOrFail(trackPopover.getByText('正面中景', { exact: true }), '时间轴·添加正面中景轨道')
+await expectVisible(win.getByTestId('director-timeline-track').filter({ hasText: '正面中景' }).first(), '正面中景没有进入时间轴')
+const reopenedPip = win.getByTestId('director-pip')
+await clickOrFail(reopenedPip.getByRole('button', { name: '进入视角' }), '画中画·进入视角（时间轴录制）')
+await expectVisible(win.getByTestId('director-pov-hud'), '时间轴录制前没有进入节目机位')
+const povRecordButton = win.getByTestId('director-pov-hud').getByRole('button', { name: /录制运镜/ })
+await clickOrFail(povRecordButton, 'POV·录制运镜')
+await expectVisible(win.getByTestId('director-pov-hud').getByRole('status'), 'POV 没进入录制状态')
+await win.mouse.move(600, 300)
+await win.mouse.down()
+for (let index = 1; index <= 20; index += 1) {
+  await win.mouse.move(600 + index * 10, 300 + index * 2)
+  await win.waitForTimeout(80)
+}
+await win.mouse.up()
+await win.waitForTimeout(600)
+await clickOrFail(win.getByTestId('director-pov-hud').getByRole('button', { name: '完成录制' }), 'POV·完成录制')
+await clickOrFail(win.getByTestId('director-pov-hud').getByRole('button', { name: '退出机位' }), 'HUD·退出机位（时间轴录制）')
+await expectHidden(win.getByTestId('director-pov-hud'), '退出节目机位后 POV HUD 还在')
+const recordButton = win.getByTestId('director-timeline-header').getByRole('button', { name: '录制 MP4', exact: true })
+await clickOrFail(recordButton, '时间轴·录制 MP4')
+await expectVisible(win.getByTestId('director-timeline-header').getByText(/录制中 \d+ \/ \d+ 帧/), '录制 MP4 没进入真实采样状态')
+await snap('recording-progress')
+const recordedVideo = await expect.poll(() => {
   const { nodes } = readCanvas()
-  const reference = nodes.find((node) => node.kind === 'director' && node.meta?.cameraMoveVideo?.url)
-  const target = nodes.find((node) => node.id === VIDEO_ID)
-  // 目标有 video_ref 槽（Seedance 全能参考）→ 填 referenceVideoUrls；工具栏默认模型没有槽 → 降级成提示词地板「镜头运动：」
-  const fed = (Array.isArray(target?.meta?.referenceVideoUrls) && target.meta.referenceVideoUrls.length > 0) || /镜头运动/.test(target?.prompt ?? '')
-  return Boolean(reference && !reference.meta?.cameraMoveAutoCapture && fed)
-}, { timeout: stationTimeout({ operations: 16 }), intervals: [3000] }).toBe(true).then(() => true, () => false)
-check('③ 运镜小片离屏出片 → mp4 落盘 → 喂进视频镜头（磁盘）', moved, moved ? '' : JSON.stringify(readCanvas().nodes.map((node) => [node.kind, Object.keys(node.meta || {})])))
-await snap('camera-move-done')
+  const videos = nodes.find((node) => node.id === DIRECTOR_ID)?.meta?.directorProject?.outputs?.videos ?? []
+  return videos.find((video) => typeof video.assetUrl === 'string' && video.assetUrl.length > 0 && !/^(data|blob):/.test(video.assetUrl)) ?? null
+}, { timeout: stationTimeout({ operations: 30 }), intervals: [3000] }).toBeTruthy().then(() => true, () => false)
+check('③ 时间轴录制 MP4 经过桌面桥落盘为 durable asset', recordedVideo, recordedVideo ? '' : JSON.stringify(readCanvas().nodes.find((node) => node.id === DIRECTOR_ID)?.meta?.directorProject?.outputs))
+await snap('timeline-video-done')
+// 录制完成后路径片段仍保持选中；先清掉时间轴选择，再走顶栏退出确认，避免指针被检查器层吞掉。
+await win.keyboard.press('Escape').catch(() => {})
+await clickOrFail(win.locator('[data-testid="director-exit"]').first(), '顶栏·退出（时间轴录制后）')
+const timelineConfirmExit = win.locator('[data-confirm-dialog-confirm="true"]').last()
+if (await timelineConfirmExit.isVisible().catch(() => false)) await timelineConfirmExit.click()
+else {
+  await win.keyboard.press('Escape')
+  await expectVisible(timelineConfirmExit, '时间轴录制后没有出现退出确认')
+  await timelineConfirmExit.click()
+}
+await expectHidden(win.getByTestId('director-editor'), '时间轴录制后导演台没有退出')
 
 // ④ 站位参考：塞一个带 stagingAutoCapture 的 director 节点（工程直接借运镜参考那份），Host 出图 + 连边
 const stagingNodeId = await win.evaluate((targetId) => {
   const store = window.__nomiCanvasStore
   if (!store) return null
   const state = store.getState()
-  const source = state.nodes.find((node) => node.kind === 'director' && node.meta?.directorProject && node.meta?.cameraMoveVideo)
+  const source = state.nodes.find((node) => node.kind === 'director' && node.meta?.directorProject)
   if (!source) return null
   const created = state.addNode({
     kind: 'director',

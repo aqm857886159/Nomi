@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-02-director-plan-ordinary-prompts",
+  "problem_type": "The Director AI bar selected the typed DirectorPlan path from camera-keyword matches instead of the request surface and target.",
+  "symptom": "An ordinary one-sentence scene prompt such as ‘A character stands in a rainy street at night’ fell through to the legacy prompt_refine scene builder, so it did not reliably produce a Director whitebox scene, editable camera motion, and a playable preview.",
+  "direct_cause": "useAiSceneBuilder gated the current-layer, text-only DirectorPlan branch with DIRECTOR_PLAN_INTENT, a keyword regular expression containing shot and camera terms; prompts without those words entered the prompt_refine branch.",
+  "class_root": "The shared Director AI request boundary had no default routing invariant for its primary text-only current-layer surface, so equivalent scene requests were split by vocabulary rather than by the selected target and available references.",
+  "migration": "No persisted data changes. Text-only current-layer requests now use the typed DirectorPlan route; requests with reference images or new-layer placement retain the existing scene-builder route.",
+  "affected_population": [
+    "Every Director AI bar request with text, no reference images, and the current-layer target whose wording does not contain a camera keyword",
+    "Every supported language and model response because the gate was a local input regex before the Agent Lane Skill ran"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+  ],
+  "entry_points": [
+    "AiSceneBar.submit → useAiSceneBuilder.run",
+    "useAiSceneBuilder.run current-layer text-only routing boundary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The routing invariant belongs to Nomi’s Director AI surface and its existing Agent Lane/DirectorPlan integration; no third-party contract decides which local request surface owns a prompt.",
+  "invariants": [
+    "Every non-empty text-only request targeting the current layer enters the Agent Lane director-cinematography → DirectorPlan path regardless of camera vocabulary.",
+    "Requests with reference images or new-layer placement continue through the existing scene-builder path.",
+    "The DirectorPlan path remains the owner of whitebox scene, camera trajectory, timeline, active POV, and playable preview construction."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "symbol": "AiScenePhase"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "symbol": "AiSceneStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx",
+      "symbol": "useAiSceneBuilder"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "The hook file's exported phase and status types are read by its own implementation and the panel remains the only write caller; these doors are required for the existing state/type contract and are unrelated to route selection."
+  },
+  "generality_proof": "The only production caller of useAiSceneBuilder is AiSceneBar, and useAiSceneBuilder.run is the single boundary that receives the description, references, and target before either downstream path is selected. Routing on target and reference presence there covers every wording, language, and model response entering this surface.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "symbol": "useAiSceneBuilder",
+      "responsibility": "Select the DirectorPlan or legacy scene-builder path from the request surface (target and reference inputs), then apply the chosen result through its existing owner. The returned run callback is the sole execution boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx",
+      "entry_point": "submit",
+      "disposition": "enforced",
+      "evidence": "The bar submits its description, image list, and target to useAiSceneBuilder.run; the shared hook now routes all non-empty text-only current-layer requests by surface inputs rather than keywords."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "entry_point": "run",
+      "disposition": "enforced",
+      "evidence": "The hook is the sole route selector; the regression drives it directly and verifies the Agent Lane skill call, whitebox objects, and camera trajectory for an ordinary sentence."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new ordinary scene wording, language, or model-generated request that omits the local keyword list could otherwise fall back to prompt_refine and lose the Director preview contract.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs useAiSceneBuilder: one production caller, AiSceneBar",
+      "rg useAiSceneBuilder src electron: AiSceneBar is the only UI entry; all path selection is inside useAiSceneBuilder.run",
+      "rg DIRECTOR_PLAN_INTENT prompt_refine: the deleted regex was the only ordinary-input discriminator before the shared boundary"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+    "invariant": "Non-empty text-only current-layer requests always use DirectorPlan; only references or new-layer target opt into the legacy scene-builder flow.",
+    "failure_mode": "Empty requests are still rejected before routing; malformed Director Skill output still fails with an actionable error and does not mutate the project.",
+    "exception_policy": "none",
+    "strategy": "Remove the vocabulary heuristic and make the earliest shared route boundary own the surface-level decision, with a class regression for an ordinary sentence and existing coverage for reference/new-layer requests.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts"
+    ],
+    "rationale": "The local DIRECTOR_PLAN_INTENT keyword gate is deleted. The legacy prompt_refine branch remains only for its explicit reference-image or new-layer surface inputs."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this request routing invariant; the change selects between existing Nomi-owned paths.",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "The real Skill/model response quality for arbitrary scene nouns remains covered by the existing DirectorPlan parser and acceptance work, not by this route-selection regression.",
+    "Full desktop/electron packaging was not required for this renderer-only routing change; renderer build and repository typecheck passed."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+    ],
+    "why": "The hook receives every Director AI request before branch selection and can enforce the route from target/reference inputs without duplicating keyword heuristics in the panel or downstream planners."
+  }
+}

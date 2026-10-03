@@ -86,7 +86,7 @@ function catmullRom(points: Waypoint[], prevIdx: number, nextIdx: number, alpha:
   return { position, tangent: len > 1e-4 ? { x: tangent.x / len, y: tangent.y / len, z: tangent.z / len } : { x: 0, y: 0, z: 1 } }
 }
 
-export type WaypointSample = { position: Vec3; tangent: Vec3; rotation: Vec3; fov?: number } // rotation = {x: pitch, y: yaw, z: roll}
+export type WaypointSample = { position: Vec3; tangent: Vec3; rotation: Vec3; fov?: number; lookAtObjectId?: string } // rotation = {x: pitch, y: yaw, z: roll}
 
 // 路标上的 fov 线性插值：两端都有才插，只有一端就用那一端，都没有 = 机位静态 fov
 function lerpFov(prev: Waypoint, next: Waypoint, alpha: number): number | undefined {
@@ -117,7 +117,8 @@ export function sampleWaypoints(waypoints: Waypoint[], time: number, clip?: Traj
   const pitch = lerpAngleDeg(prev.pitch, next.pitch, alpha)
   const roll = lerpAngleDeg(prev.roll, next.roll, alpha)
   const fov = lerpFov(prev, next, alpha)
-  return { position, tangent, rotation: { x: pitch, y: yaw, z: roll }, ...(fov !== undefined ? { fov } : {}) }
+  const lookAtObjectId = alpha < 0.5 ? prev.lookAtObjectId ?? next.lookAtObjectId : next.lookAtObjectId ?? prev.lookAtObjectId
+  return { position, tangent, rotation: { x: pitch, y: yaw, z: roll }, ...(fov !== undefined ? { fov } : {}), ...(lookAtObjectId ? { lookAtObjectId } : {}) }
 }
 
 export type EvaluatedTransform = {
@@ -125,6 +126,7 @@ export type EvaluatedTransform = {
   rotation: Vec3 // {x: pitch, y: yaw, z: roll}（度）
   // 机位路标带 fov 时的插值结果；缺省 = 用静态 fov
   fov?: number
+  lookAtObjectId?: string
   source: 'sample' | 'hold' | 'rest'
   sourceClipId?: string
   sourceKeyframeId?: string
@@ -146,7 +148,7 @@ export function evaluateEntityTransform(entity: TimelineEntity, time: number): E
     const inClip = waypointsOfClip(waypoints, active, clips)
     const sample = sampleWaypoints(inClip, time, active)
     if (sample) {
-      return { position: sample.position, rotation: sample.rotation, ...(sample.fov !== undefined ? { fov: sample.fov } : {}), source: 'sample', sourceClipId: active.id }
+      return { position: sample.position, rotation: sample.rotation, ...(sample.fov !== undefined ? { fov: sample.fov } : {}), ...(sample.lookAtObjectId ? { lookAtObjectId: sample.lookAtObjectId } : {}), source: 'sample', sourceClipId: active.id }
     }
   }
   const ended = lastClipEndedBefore(clips, time)
@@ -158,6 +160,7 @@ export function evaluateEntityTransform(entity: TimelineEntity, time: number): E
         position: { x: last.x, y: last.y, z: last.z },
         rotation: { x: last.pitch ?? rest.x, y: last.yaw ?? rest.y, z: last.roll ?? rest.z },
         ...(last.fov !== undefined ? { fov: last.fov } : {}),
+        ...(last.lookAtObjectId ? { lookAtObjectId: last.lookAtObjectId } : {}),
         source: 'hold',
         sourceClipId: ended.id,
         sourceKeyframeId: last.id,
