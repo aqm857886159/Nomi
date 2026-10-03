@@ -1,0 +1,89 @@
+{
+  "rubricVersion": "director-goal-rubric/v1",
+  "status": "targets-only",
+  "scale": { "min": 0, "max": 4, "meaning": "0 absent or unusable; 4 meets the P0 target" },
+  "dimensions": [
+    {
+      "id": "generationSuccess",
+      "weight": 0.2,
+      "owner": "automated",
+      "description": "The prompt creates a Director card and a whitebox scene without an infrastructure error.",
+      "anchors": {
+        "0": "No scene/card or generation error",
+        "2": "Partial scene/card with recovery needed",
+        "4": "Scene/card generated and persisted"
+      }
+    },
+    {
+      "id": "promptCorrespondence",
+      "weight": 0.25,
+      "owner": "human",
+      "description": "The scene, object, action, camera, timing, and aspect match the prompt and expected card.",
+      "anchors": {
+        "0": "Prompt is not recognisable",
+        "2": "Main subject matches but one required element is missing",
+        "4": "All required elements are visible and correctly interpreted"
+      }
+    },
+    {
+      "id": "playableCompleteness",
+      "weight": 0.2,
+      "owner": "automated+human",
+      "description": "The whitebox can be played and exposes the expected shot strip/timeline and camera path.",
+      "anchors": {
+        "0": "Cannot play or no playable content",
+        "2": "Playback starts but a required surface is missing",
+        "4": "Play, shot strip/timeline, camera motion, and preview all complete"
+      }
+    },
+    {
+      "id": "localizedEditPrecision",
+      "weight": 0.15,
+      "owner": "human",
+      "description": "A local edit changes the requested target while preserving unrelated scene, timing, and camera state.",
+      "anchors": {
+        "0": "Edit is global, wrong, or unrecoverable",
+        "2": "Target changes but collateral drift is visible",
+        "4": "Only the requested target changes and the result replays"
+      }
+    },
+    {
+      "id": "userEffortTimeToFirstPreview",
+      "weight": 0.1,
+      "owner": "automated+human",
+      "description": "The user reaches the first inspectable preview with the expected controls and reasonable effort.",
+      "anchors": {
+        "0": "No preview or repeated unexplained retries",
+        "2": "Preview requires workaround or more than 120 seconds",
+        "4": "First preview in 60 seconds or less with no workaround"
+      }
+    },
+    {
+      "id": "recoverabilityRollback",
+      "weight": 0.1,
+      "owner": "automated+human",
+      "description": "A failed generation or local edit exposes a clear recovery path and rollback preserves the last good state.",
+      "anchors": {
+        "0": "Failure loses work or has no recovery",
+        "2": "Recovery exists but is ambiguous or incomplete",
+        "4": "Failure is explicit, retry/undo restores the last good state"
+      }
+    }
+  ],
+  "p0Targets": {
+    "generationSuccess": { "target": 0.95, "unit": "case pass rate", "measurement": "future measured run" },
+    "promptCorrespondence": { "target": 0.9, "unit": "mean normalized score", "measurement": "future human judgment" },
+    "playableCompleteness": { "target": 0.95, "unit": "case pass rate", "measurement": "future automated + human run" },
+    "localizedEditPrecision": {
+      "target": 0.9,
+      "unit": "mean normalized score",
+      "measurement": "future human judgment"
+    },
+    "userEffortTimeToFirstPreview": {
+      "targetSecondsP50": 60,
+      "unit": "seconds to first preview",
+      "measurement": "future real-user run"
+    },
+    "recoverabilityRollback": { "target": 0.9, "unit": "case pass rate", "measurement": "future failure-injection run" }
+  }
+}

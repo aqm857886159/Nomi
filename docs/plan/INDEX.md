@@ -17,6 +17,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-10-02-agent-goal-evaluation-contract.md](2026-10-02-agent-goal-evaluation-contract.md) | **通用 Module/Feature Evaluation Contract**：让 coding-agent 先写用户目标/指标/旅程，再以自动检查 + 真实用户证据决定 PR；Director 为首个示例 pack | 🚧 |
 | [2026-09-08-vacuous-waitforfunction-sweep.md](2026-09-08-vacuous-waitforfunction-sweep.md) | 清扫七处 async 空等待，测试等待门岗覆盖 walk/e2e 并提供 R17 红证 | ✅ |
 | [2026-09-08-mcp-tool-refs-catalog-detection.md](2026-09-08-mcp-tool-refs-catalog-detection.md) | 工具引用按对象结构选择 Agent/MCP 目录；含 R17 红绿证据 | 📎 |
 | [2026-09-07-generation-strategy-resolver.md](2026-09-07-generation-strategy-resolver.md) | **生成策略解析器**：生成前按真实模型档案裁决每一镜的时长/参数上限，给出「必须合并 / 必须拆条」建议并一键采纳，落画布前再过一道闸；纯函数引擎 + GUI 审阅面板 + 行内警示 + 内外同源的 `resolve` 能力契约。附录 G 记 2026-09-07 接手 PR #573 的返工（判断有两份答案那一族根因） | 🚧 |

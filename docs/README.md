@@ -19,6 +19,8 @@
 - [交付流程去堵：评审单位、机器锁与合并队列方案](plan/2026-09-08-delivery-flow-unclog.md)
 - [Agent runtime 测试资源生命周期修复](plan/2026-09-08-agent-runtime-flakes.md)
 - [删除未接线的技能 playbook orchestrator](plan/2026-09-08-delete-playbook-orchestrator.md)
+- [通用 Module/Feature Evaluation Contract（coding-agent 目标→旅程→证据）](evals/module-feature-evaluation-contract.md)
+- [Agent goal-alignment product guide（Director 作为首个示例）](evals/2026-10-02-agent-goal-alignment.md)
 
 ## 按「我要找什么」定位
 
