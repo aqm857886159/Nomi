@@ -246,7 +246,8 @@
     "handoff:report": "node ./scripts/check-handoff.mjs",
     "test:eng-system": "node --test ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs",
     "eng:metrics": "node ./scripts/eng-metrics.mjs",
-    "merge:preflight": "node ./scripts/merge-preflight.mjs"
+    "merge:preflight": "node ./scripts/merge-preflight.mjs",
+    "eval:director": "tsx evals/director/run.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

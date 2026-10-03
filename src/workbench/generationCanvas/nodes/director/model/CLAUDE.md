@@ -26,6 +26,7 @@
 > editLayer.ts: 编辑层三态 rest / keyframe / evaluated-readonly（词表 owner）+ findTrajectoryClipAt / findWaypointAt
 > waypointAim.ts: 单/批路标按各自时间采样目标，转源父空间并按对象XYZ/相机YXZ烘焙朝向；目标metadata只记选择，非动态跟踪
 > trajectoryEval.ts: 路径求值：片段内 Catmull-Rom/线性采样 + 最短弧角度插值，片段后 hold，否则 rest
+> directorEvalMeasurement.ts: 零 three 的预演采样、针孔投影、景别/运镜识别与连续性检查，供 evals/director 与未来 agent 自检共用
 > closeupRig.ts: 目标相对自动运镜：锚点/方位/8 种运镜预设 → 机位位姿；findCloseupClipAt
 > programCamera.ts: 节目机位：按轨道顺序取有片段覆盖 t 的第一台，否则黑场
 > pathTools.ts: 手绘路径按弧长重采样（≤200 点）+ 按弧长分配时间
