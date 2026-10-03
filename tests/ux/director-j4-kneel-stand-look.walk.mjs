@@ -108,7 +108,14 @@ try {
   // 骨骼把手：按住右手把手往上拖 → 静止姿态写入
   await stopAtStart()
   await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角（重新选中）')
-  await clickOrFail(page.getByRole('button', { name: '骨骼与 IK 把手' }), '底部栏·骨骼把手')
+  // Stop leaves the last timeline clip selected; clear that inspector selection before opening the character tabs.
+  await page.keyboard.press('Escape')
+  await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角（清除片段后重新选中）')
+  // The skeleton toggle lives in the View menu (moved out of the bottom bar in the current chrome).
+  await clickOrFail(page.getByTestId('director-view-menu'), '顶栏·视图菜单')
+  await clickOrFail(page.getByRole('switch', { name: '骨骼与 IK 把手', exact: true }), '视图菜单·骨骼把手')
+  await page.keyboard.press('Escape')
+  await clickOrFail(page.getByRole('radio', { name: '骨骼', exact: true }), '检查器·骨骼页')
   // 拖把手前明确选择移动工具，使 gizmo 的操作模式可重复。
   await page.mouse.move(700, 300)
   await page.keyboard.press('1')

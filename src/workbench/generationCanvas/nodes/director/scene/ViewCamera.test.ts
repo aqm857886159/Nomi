@@ -150,6 +150,14 @@ describe('director picking eligibility', () => {
     click()
     expect(skinned.raycast).not.toHaveBeenCalled()
   })
+  it('skips mesh-like editor helpers without a raycast method', () => {
+    const { click } = PickingHarness(false, false, false)
+    const helper = new THREE.Object3D() as THREE.Object3D & { isMesh: boolean; raycast?: unknown }
+    helper.isMesh = true
+    helper.raycast = undefined
+    runtime.three.scene.add(helper)
+    expect(click).not.toThrow()
+  })
 })
 
 describe('camera world/local rendering agreement', () => {

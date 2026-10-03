@@ -31,7 +31,10 @@ function objectOrParentUnavailable(objects: DirectorObject[], id: string): boole
 }
 
 function isPickMesh(object: THREE.Object3D): boolean {
-  if (!(object as THREE.Mesh).isMesh || (object as THREE.SkinnedMesh).isSkinnedMesh) return false
+  // Drei controls and editor helpers can expose mesh-like objects while their raycast
+  // method is temporarily absent during attach/detach. Never hand those to Three's
+  // Raycaster: intersectObjects calls `object.raycast` unconditionally.
+  if (!(object as THREE.Mesh).isMesh || typeof object.raycast !== 'function' || (object as THREE.SkinnedMesh).isSkinnedMesh) return false
   return isWorldVisible(object)
 }
 

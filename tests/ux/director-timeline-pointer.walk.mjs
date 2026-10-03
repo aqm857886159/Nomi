@@ -5,7 +5,7 @@ import { expect } from './_assert.mjs'
 
 const fixture = '.tmp/director-full-audit-20260907/timeline-pointer.html'
 fs.mkdirSync('.tmp/director-full-audit-20260907', { recursive: true })
-fs.writeFileSync(fixture, `<html><head><link rel="stylesheet" href="/tailwind.generated.css"></head><body><div id="app"></div><script type="module">
+fs.writeFileSync(fixture, `<html><head><link rel="stylesheet" href="/tailwind.generated.css"><style>html,body,#app{margin:0;width:100%;height:100%;}</style></head><body><div id="app"></div><script type="module">
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { DirectorStoreContext } from '/src/workbench/generationCanvas/nodes/director/DirectorEditorContext.ts';

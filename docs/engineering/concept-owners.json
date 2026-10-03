@@ -3,6 +3,32 @@
   "schema_version": 2,
   "concepts": [
     {
+      "name": "导演计划请求路由",
+      "subject": "director.plan-routing",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+        "symbol": "useAiSceneBuilder"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+          "symbol": "useAiSceneBuilder"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx",
+        "src/workbench/generationCanvas/nodes/director/model/directorPlan.ts"
+      ],
+      "since": "2026-10-02",
+      "notes": "导演 AI 请求的路径判定只在共享 hook 的 run 边界完成：当前图层的纯文本请求走 DirectorPlan，带参考图或新图层目标保留场景搭建路径。面板只提交请求，不自行按词判断。"
+    },
+    {
       "name": "等用户",
       "subject": "agent-lane.awaiting-user",
       "lifecycle": "execution",

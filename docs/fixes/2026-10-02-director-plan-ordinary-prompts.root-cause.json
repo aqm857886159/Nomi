@@ -51,8 +51,8 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
-      "symbol": "useAiSceneBuilder.run",
-      "responsibility": "Select the DirectorPlan or legacy scene-builder path from the request surface (target and reference inputs), then apply the chosen result through its existing owner."
+      "symbol": "useAiSceneBuilder",
+      "responsibility": "Select the DirectorPlan or legacy scene-builder path from the request surface (target and reference inputs), then apply the chosen result through its existing owner. The returned run callback is the sole execution boundary."
     }
   ],
   "same_class_entry_points": [

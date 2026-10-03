@@ -507,7 +507,7 @@ export default function PanoramaViewer({
   const [captureRatioId, setCaptureRatioId] = React.useState<PanoramaCaptureRatioId>(DEFAULT_CAPTURE_RATIO_ID)
   const instanceId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const [panelElement, setPanelElement] = React.useState<HTMLElement | null>(null)
-  const captureFrameRef = React.useRef<HTMLDivElement | null>(null)
+  const captureFrameRef = React.useRef<HTMLDivElement>(null)
   const panelSize = useElementSize(panelElement)
   const captureRatio = getCaptureRatio(captureRatioId)
   const captureFrameSize = computeCaptureFrameSize(panelSize, captureRatio)
