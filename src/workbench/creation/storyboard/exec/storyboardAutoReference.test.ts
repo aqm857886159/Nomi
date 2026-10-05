@@ -87,7 +87,7 @@ describe('普查：所有档案 × 所有起步模式，@ 与绑定一起成、�
     for (const mode of archetype.modes) {
       it(`${archetype.id} · ${mode.id}`, () => {
         const before: PlanShot = { index: 1, shotId: 'shot-1', durationSec: 5, anchorIds: [], prompt: '林薇冲进后巷', modelKey, modeId: mode.id }
-        const resolvedHere = resolveArchetypeForModel({ modelKey })
+        const resolvedHere = resolveArchetypeForModel({ modelKey, vendorKey: null })
         if (resolvedHere?.id !== archetype.id) return // 识别串命中了别的档案：这一格不归它
         const next = autoReferenceShot(before, [LINWEI], true)
         const mentioned = mentionUrlsInOrder(next.prompt).includes(LINWEI.url)

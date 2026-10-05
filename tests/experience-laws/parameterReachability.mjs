@@ -10,9 +10,9 @@
 //                  + `archetypeModeChoices`（模式栏）+ `archetypeVariantChoices`（变体下拉）；
 //       Agent 付费卡 `projectSpendNode` 投影出卡体那张生成框，再走同一个 `resolveRenderedControls`
 //                  （卡体就是 `NodeGenerationComposer host="panel"`，chips + ⚙ 合起来装全部控件）；
-//       分镜表行底栏 `resolveShotArchetypeMode` + `composerBarParams`（select / boolean）+ 画幅覆盖
-//                  （`shotAspectChoices`，行菜单与批量条另给 `ASPECT_OPTIONS`）+ 时长胶囊（`shotDurationChoices`）
-//                  + `composerModeOptions`；分镜行没有变体选择器。
+//       分镜表行底栏 / 参考卡（2026-10-06 起同一条路）`storyboardComposerMeta`（落画布同一个构造器）
+//                  + `storyboardComposerControls`（= `resolveRenderedControls`，画布同款面板），生成方式在面板顶上一组；
+//                  分镜两入口没有变体选择器。
 //
 // 判据只有一条：declared ⊆ reachable。做不到的要么在豁免表（`reachabilityWaivers.json`，写清为什么这个入口
 // 本来就不该给），要么在已知缺口表（`reachabilityKnownGaps.json`，第一次跑出来、等协调会话决定修哪些的那批）。
@@ -23,7 +23,6 @@ import { applyBuiltinSeeds } from '../../electron/catalog/seedBuiltins'
 import { derivePublishedExecution } from '../../electron/shared/modelPublication'
 import { resolveArchetypeForModel, specializeArchetypeForVariant } from '../../electron/shared/modelArchetypes'
 import { modeTransportFor } from '../../electron/shared/videoCapabilities'
-import { ASPECT_OPTIONS } from '../../electron/shared/storyboard/storyboardShotScope'
 import { toCatalogModelOptions } from '../../src/config/modelOptionMappers'
 import { resolveRenderedControls } from '../../src/workbench/generationCanvas/nodes/nodeModelArchetype'
 import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes/controls/channelModeReach'
