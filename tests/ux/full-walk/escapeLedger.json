@@ -358,7 +358,7 @@
       "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["docs/evidence/2026-10-05-baseline-reapproval/comparisons/director-3dbox/d3-courtyard-director-zh.png（origin/evidence/card18-baseline-reapproval-20261006）", "bisect：4adb4668d 让青衣女子从门顶（y=1.2）落回地面后两名牌纵向只差 11–20px，名牌高 22px；名牌从来没有避让"],
-      "completionCommits": [],
+      "completionCommits": ["36b64cf6f"],
       "rootCauseContract": "docs/fixes/2026-10-06-director-character-label-overlap.root-cause.json",
       "classCheck": {"kind": "matrix", "file": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"},
       "fixedInPr": 1002
