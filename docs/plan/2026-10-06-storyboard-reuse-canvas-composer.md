@@ -63,3 +63,18 @@
 
 没碰：`StoryboardShotTable.tsx`、`StoryboardSelectionToolbar.tsx`、`StoryboardFrameActions.tsx`、行首复选框语义（L-sbtable）；`mcpGeneration*`、`writeVerbs.ts`、`storyboardPlanFromDraftSubjects`（L-sbplan）。
 需要协调的：①表格仍给行传 `aspectOverridden` / `aspectOptions`（行已不读，类型里标了可选），L-sbtable 顺手删传参；表格里 `ShotRowWithMention.onBindReference` 的「放进哪个槽」与本线 `ShotReferenceAddButton` 是两份判据，拍板后合到一处需要碰表格文件。②`generationPlanSchemas.ts` 加了一行 omit（`autoReferenced` 不进 Agent 起草 schema），L-sbplan 若在改同文件要知会。③旧屏 `storyboard`（分镜表 v6）的基线会因行结构变化而红，拍板后与本屏一起重录。
+
+## 第二轮（2026-10-06 用户：优化左侧显示、注意各比例与对齐、参考放回左边）
+
+版面由协调会话定，第一轮其余部分（参数复用画布、自动引用、删参考同步、方案 A）不变。成对图：`docs/evidence/2026-10-06-storyboard-reuse/round2/README.md`。
+
+- **行网格**（`StoryboardRowShell`）：`[行首 14 | 视觉列 | 内容列 1fr]`，内边距 12，内容列撑满行高。底栏和「生成」因此每行在同一位置（实测右缘一致）。
+- **预览框**（`shotFrameGeometry`）：由全表画幅定，全表同一只。横版宽 240、竖版高 240、1:1 为 180；窄档（行宽 < 740）等比缩到 176/240。单镜画幅不同时在框里 contain，浅底补空，左下角标画幅；未生成时画这一镜画幅的虚线轮廓。
+  - 「全表画幅」取的是**全表镜数最多的生效画幅**。原因：表格（L-sbtable 的文件）只递下来每镜的生效画幅，没有递整片默认。覆盖的镜不过半时，这就等于整片默认。要严格用整片默认，需要表格多递一个参数，改动就一行。
+- **参考缩略图条**（`ShotReferenceStrip`）：在视觉列、预览框下面。用画布同款 `AssetTile`，宽档 36、窄档 28、间距 4、折行；右上角 ×，左上角序号与芯片编号读同一份有序列表；末格「+」打开同一个素材选择器（方案 A 在这里切模式）。窄档一行放不下时折成「+N」浮层。第一轮里提示词框里的参考区和底栏的「加参考」按钮都删了。
+- **参考卡区**：同一套网格，参考卡按自己的画幅（`params.aspect_ratio`）contain 进框里。
+- **不确定（新增）**：
+  - ① 竖版整片时行高 ≈ 300，内容列里提示词下面有一大块空白（按「行高取较高一列」的规则就是这样）。可选做法：提示词区最多 5 行，底栏不贴底，紧跟提示词。但这样「生成」的 y 就不再逐行一致了。
+  - ② 「移除结果」不在框下的动作条里：那条动作条是 `StoryboardFrameActions`（L-sbtable 的文件），归 B5b。
+  - ③ 预览框上沿与内容列（提示词框的边框）上沿对齐；提示词第一行文字比框上沿低 8px（框内边距）。
+  - ④ 锚区和镜头表是两个容器，要让两区的框左缘对齐，需要在编辑器层统一两个容器的内边距。

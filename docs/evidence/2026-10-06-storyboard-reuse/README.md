@@ -1,5 +1,7 @@
 # 分镜表复用画布交互 · 成对样张（现在 → 改后）
 
+> **第二轮（版面：行首 / 视觉列 / 内容列）在 `round2/README.md`。** 本页是第一轮，其中「参考在提示词上方」那部分已被第二轮替换，其余（参数复用画布、自动引用、删参考同步、参考卡 ⋯ 菜单）不变。
+
 - 设计卡：`docs/plan/2026-10-06-storyboard-reuse-canvas-composer.md`（含「收掉的空间」表、模式不带参考槽的三个方案、不确定项）。
 - 每张图左边「现在」= `main 9992a69` 上的现役组件，右边「改后」= 本分支 `3030e8b` 上改过的组件。**两边是同一个设计实验室状态 id、同一份夹具数据**（`src/devlab/designLab/storyboardReuse/`），不是手画的，也不是截图拼贴。
 - 「自动引用」「删参考」两格的数据变化走真函数：现在那一版里它们是现役行为（不自动引用 / 只删绑定），改后那一版换成新 owner（`autoReferencePlan` → `insertAutoMentions`、`removeReferenceWithMention`）。
