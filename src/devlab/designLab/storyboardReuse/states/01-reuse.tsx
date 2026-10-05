@@ -166,27 +166,34 @@ export const REUSE_STATES: readonly LabState[] = [
 function ClickParams(): React.ReactElement {
   const plan = reusePlan([shotOmni()])
   return (
-    <ClickFirst selector="[data-storyboard-composer-switches]">
+    <ClickFirst selector="[data-parameter-summary]">
       <ShotRow plan={plan} shot={plan.shots[0]} />
     </ClickFirst>
   )
 }
 
 function AnchorParams(): React.ReactElement {
-  return <AnchorZone width={REUSE_WIDE} cards={reuseAnchorCards().slice(0, 1)} />
+  return (
+    <ClickFirst selector="[data-storyboard-composer-bar='anchor'] [data-parameter-summary]">
+      <AnchorZone width={REUSE_WIDE} cards={reuseAnchorCards().slice(0, 1)} />
+    </ClickFirst>
+  )
 }
 
 function AnchorMenu(): React.ReactElement {
-  return <AnchorZone width={REUSE_WIDE} cards={reuseAnchorCards().slice(0, 1)} />
+  return (
+    <ClickFirst selector="[data-storyboard-anchor-menu-trigger]">
+      <AnchorZone width={REUSE_WIDE} cards={reuseAnchorCards().slice(0, 1)} />
+    </ClickFirst>
+  )
 }
 
+/** 改后不用点：缩略图右上角的 × 本来就在那儿。 */
 function RemoveEntry(): React.ReactElement {
   const plan = reusePlan([shotImageEdit()])
   return (
     <ReuseStage width={REUSE_WIDE}>
-      <ClickFirst selector="[data-storyboard-ref-slot='image_ref'] button">
-        <ShotRow plan={plan} shot={plan.shots[0]} />
-      </ClickFirst>
+      <ShotRow plan={plan} shot={plan.shots[0]} />
     </ReuseStage>
   )
 }

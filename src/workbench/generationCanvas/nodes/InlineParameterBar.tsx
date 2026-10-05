@@ -98,8 +98,10 @@ type InlineParameterBarProps = {
    */
   panelMode?: InlineParameterBarPanelMode
   /** Width of the summary trigger in CSS pixels（只在 `summary` 下有意义）。The resident contract uses
-   * the wider 150px dialog pill; the canvas remains 110px. */
-  summaryWidth?: number
+   * the wider 150px dialog pill; the canvas remains 110px.
+   * `{ hug: N }` = 贴文字宽、最宽 N（分镜行：中文「全能参考 · 16:9 · 5 秒」与英文「Omni reference · 16:9 · 5s」
+   * 宽差近一倍，定宽要么英文截断、要么中文留一截空白）。 */
+  summaryWidth?: number | { hug: number }
   /**
    * 身份行两个下拉的浮层落点。
    *
@@ -124,6 +126,8 @@ type InlineParameterBarProps = {
   activeModeId?: string
   modeLabel?: string
   onModeSelect?: (id: string) => void
+  /** 模型按钮还没选模型时的字样。缺省 =「选择模型」；分镜行没选模型 = 落地时用默认模型，传「默认模型」。 */
+  modelPlaceholder?: string
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
@@ -186,6 +190,7 @@ export default function InlineParameterBar({
   activeModeId = '',
   modeLabel,
   onModeSelect,
+  modelPlaceholder,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -480,7 +485,8 @@ export default function InlineParameterBar({
     )
   }
 
-  const resolvedSummaryWidth = summaryWidth ?? (stacked ? 150 : 110)
+  const resolvedSummaryWidth = typeof summaryWidth === 'object' ? undefined : summaryWidth ?? (stacked ? 150 : 110)
+  const summaryMaxWidth = typeof summaryWidth === 'object' ? summaryWidth.hug : undefined
   // chips 形态的横排里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
   // 结果是「宽度不够时模型名先被榨没、chip 却一颗不少」——而模型是这一行的一等决策（§1.5.4）。
   // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
@@ -499,7 +505,7 @@ export default function InlineParameterBar({
     <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
         ariaLabel={t('generationCommon.parameters.model')}
-        placeholder={t('generationCommon.parameters.selectModel')}
+        placeholder={modelPlaceholder ?? t('generationCommon.parameters.selectModel')}
         triggerMaxWidth={stacked ? 132 : 150}
         className={modelChipClass}
         value={modelSelect.modelValue}
@@ -608,7 +614,7 @@ export default function InlineParameterBar({
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
         stacked && 'w-full',
       )}
-      style={{ width: stacked ? '100%' : resolvedSummaryWidth }}
+      style={stacked ? { width: '100%' } : summaryMaxWidth !== undefined ? { maxWidth: summaryMaxWidth } : { width: resolvedSummaryWidth }}
     >
       <span className="min-w-0 truncate" style={{ maxWidth: stacked ? 'calc(100% - 18px)' : 240 }}>
         {pillText || t('generationCommon.parameters.parameters')}

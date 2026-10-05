@@ -77,7 +77,7 @@ const describeAuthorFields = <T extends z.ZodRawShape>(shape:T):T => Object.from
 const originalBindings=planShotSchema.shape.referenceBindings.unwrap();
 const authorBindings=z.record(z.array(z.object(describeAuthorFields(originalBindings.element.element.shape))));
 const authorShape=planAnchorSchema.omit({id:true,name:true,description:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true})
-  .merge(planShotSchema.omit({shotId:true,index:true,prompt:true,shotKind:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true,keyframe:true,continuity:true,promptSegments:true})).partial().extend({
+  .merge(planShotSchema.omit({shotId:true,index:true,autoReferenced:true,prompt:true,shotKind:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true,keyframe:true,continuity:true,promptSegments:true})).partial().extend({
     referenceBindings:authorBindings.optional(),
     promptSegments:z.array(z.object(describeAuthorFields(planShotSchema.shape.promptSegments.unwrap().element.shape))).optional(),
     continuity:z.union([z.string(),z.number(),parameters]).optional(),

@@ -1,7 +1,8 @@
 import type { ModelOption } from '../../../config/models'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
-import { removeBinding } from '../../../workbench/creation/storyboard/shotRow/shotReferenceSlots'
+import { removeReferenceWithMention } from '../../../workbench/creation/storyboard/shotRow/shotReferenceSlots'
 import { encodeMention } from '../../../workbench/assets/promptMentions'
+import { autoReferencePlan } from '../../../workbench/creation/storyboard/exec/storyboardAutoReference'
 import { LAB_VIDEO_MODELS, STILL_NEON, STILL_PORTRAIT, STILL_PROP, labShot } from '../storyboard/storyboardFixtures'
 
 /**
@@ -110,17 +111,19 @@ export function reusePlan(shots: PlanShot[] = [shotOmni(), shotTextToVideo(), sh
  * 林薇出图之后，方案会变成什么样。
  *
  * 现在（main）：什么都不会发生——没有任何 owner 把参考卡的结果写回引用它的镜头（审计 U4）。
+ * 改后：走真 owner `autoReferencePlan`（→ `insertAutoMentions`）：「林薇」后面补一枚 @，参考框绑上这张图。
  */
 export function planAfterAnchorResult(plan: StoryboardPlan): StoryboardPlan {
-  return plan
+  return autoReferencePlan(plan, [{ anchorId: 'a-linwei', name: '林薇', url: LINWEI_RESULT }])
 }
 
 /**
  * 用户在镜 3 的参考里删掉第一张之后，镜头会变成什么样。
  *
  * 现在（main）：只删绑定，提示词里那枚 @ 留下来变成孤儿芯片（审计 U5 / A7）。
+ * 改后：走真函数 `removeReferenceWithMention`：绑定与 @ 一起删。
  */
 export function shotAfterRemovingFirstReference(shot: PlanShot): PlanShot {
-  const next = removeBinding(shot.referenceBindings, 'image_ref', 0)
-  return next ? { ...shot, referenceBindings: next } : shot
+  const next = removeReferenceWithMention(shot.prompt, shot.referenceBindings, 'image_ref', 0)
+  return next ? { ...shot, prompt: next.prompt, referenceBindings: next.bindings } : shot
 }

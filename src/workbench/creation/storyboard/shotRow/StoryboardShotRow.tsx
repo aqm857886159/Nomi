@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
   IconArrowRight,
-  IconAspectRatio,
   IconCopy,
   IconDots,
   IconGripVertical,
@@ -23,7 +22,7 @@ import { findModelOptionByIdentifier } from '../../../../config/modelOptionResol
 import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
-import { missingRequiredSlots, resolveShotArchetypeMode } from './shotRowModel'
+import { resolveShotArchetypeMode } from './shotRowModel'
 import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
@@ -31,21 +30,21 @@ import StoryboardRowShell from './StoryboardRowShell'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardFrameActions from './StoryboardFrameActions'
 import StoryboardVariantsDrawer from './StoryboardVariantsDrawer'
-import ShotReferenceZone from './ShotReferenceZone'
+import ShotReferenceStrip, { ShotReferenceAddButton } from './ShotReferenceStrip'
 import { modeDisplayLabel, referenceCapableSibling } from './shotReferenceCells'
+import { dropBindingsForUrls, hasShownReferences, removeReferenceWithMention } from './shotReferenceSlots'
+import { droppedMentionUrls } from '../../../assets/promptMentions'
 import ShotComposerBar from './ShotComposerBar'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import type { ShotVariant } from './shotVariants'
 
 /**
- * 分镜表 v6 的一行：`[grip 14 | 画面格 136 | 参考列 200 | 提示词块 1fr]`（设计合同
- * `docs/design/2026-09-05-storyboard-table-v6-design-contract.md`，用户逐条拍板）。
+ * 分镜表的一行：`[grip 14 | 画面格 136 | 提示词框 1fr]`。
  *
- * 与 v5 的四处结构性差异（其余语义原样保留）：
- *   ① 画面格列宽固定 136，媒体框按画幅缩放 → 横版镜头第一次有真实身材，混排仍左对齐（§2.4）；
- *   ② 参考列固定 200、一个槽一个格、永不换行（§4.1）；
- *   ③ 模型/模式/参数从**行上沿**搬进提示词框的**底栏**（§2.3）——批量观察与精细调参不再抢带宽；
- *   ④ 动作条从"压在图上的悬停浮层"移到**图下方常驻**，并新增「变体 ×N」抽屉入口（§2.9）。
+ * 2026-10-06（用户 10-05：「大部分是要利用我们目前的交互，复用」）：提示词框就是**画布节点的浮框**——
+ * 参考图在提示词上面（画布同款 `AssetReference`，缩略图带 ×），参数在下面（画布同款 `InlineParameterBar`），
+ * 「生成」钉在最右。原来夹在画面格与提示词之间的 200px 参考列、每个空槽一行的说明文字、
+ * 一排模式 / 时长 / ⋯ 胶囊都随之删除。画面格列宽固定 136、动作条在图下方常驻（v6 §2.4 / §2.9）不变。
  *
  * 行首那枚复选框是「本次跳过」（§2.10）：这一批不跑，跑完自动清；它与「锁定」是两回事
  * （锁定是持久的、要显式解锁），两者的挂点、视觉、清除时机都不许混。
@@ -60,9 +59,12 @@ type Props = {
   aspect: string
   /** 整张表共用的媒体盒（`tableFrameMediaBox`）——行不自己按画幅算，算了混排就又不齐（§2.4 修订）。 */
   frameBox: FrameMediaBox
-  /** 这一行是否覆盖了整片默认画幅——底栏那枚画幅胶囊只在 true 时出现（§2.4.1 规则 3）。 */
-  aspectOverridden: boolean
-  aspectOptions: readonly string[]
+  /**
+   * 旧底栏的「覆盖」胶囊与行菜单的画幅清单用的。画幅现在住参数面板，这两项这一行不再读；
+   * 表格（`StoryboardShotTable`，L-sbtable 线的文件）仍在传，等那条线顺手删掉传参再从这里删。
+   */
+  aspectOverridden?: boolean
+  aspectOptions?: readonly string[]
   /** 改这一行的画幅覆盖；传 null = 收回覆盖，跟随整片默认。 */
   onChangeAspect: (aspect: string | null) => void
   /** 「本次跳过」：不进这一次批量，跑完自动清（≠ 锁定）。 */
@@ -169,7 +171,7 @@ const ENTER_BELONGS_TO_CONTROL =
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
   const {
-    shot, anchors, modelOptions, exec, aspect, frameBox, aspectOverridden, aspectOptions, onChangeAspect,
+    shot, modelOptions, exec, aspect, frameBox, onChangeAspect,
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
     onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
@@ -178,16 +180,22 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   } = props
   const orderedVendorKeys = useVendorPreferenceOrder()
   const [actionsOpen, setActionsOpen] = React.useState(false)
-  const [aspectMenuOpen, setAspectMenuOpen] = React.useState(false)
   const [variantsOpen, setVariantsOpen] = React.useState(false)
   const editorRef = React.useRef<Editor | null>(null)
-  const triggerAtMention = React.useCallback(() => {
+  // 点参考缩略图 = 在提示词光标处插一枚指向它的 @（画布节点同一手势、同一条 editor 命令）。
+  const insertMention = React.useCallback((url: string) => {
     const editor = editorRef.current
     if (!editor || editor.isDestroyed) return
-    editor.chain().focus().insertContent('@').run()
-  }, [])
+    const position = (currentRefUrls ?? []).indexOf(url)
+    editor.chain().focus().insertAssetMention(url, position >= 0 ? position + 1 : undefined).run()
+  }, [currentRefUrls])
 
-  const closeMenus = (): void => { setActionsOpen(false); setAspectMenuOpen(false) }
+  const closeMenus = (): void => { setActionsOpen(false) }
+  // 生成时会被计划首帧填上的那一槽不摆进参考里（不是用户摆的参考）。
+  const hiddenSlotKeys = React.useMemo(
+    () => (exec?.plannedFirstFrame ? new Set([exec.plannedFirstFrame.slotKind]) : undefined),
+    [exec?.plannedFirstFrame],
+  )
 
   const isImageShot = shot.shotKind === 'image'
   // 档案按 (modelKey, modelVendor) 取：同名两家的档案/参数可以不同，按名字取会拿到另一家的模式表。
@@ -274,21 +282,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             </>
           ) : null}
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
-          {/* 画幅覆盖的入口。底栏那枚胶囊只在**已覆盖**时出现（§2.4.1 规则 3），
-              所以"把这一镜改成别的画幅"这个动作必须另有一个常驻的家——就是这里。 */}
-          <MenuItem
-            icon={<IconAspectRatio size={13} stroke={1.8} />}
-            label={t('storyboardEditor.aspectScope.rowMenu')}
-            onClick={() => setAspectMenuOpen((value) => !value)}
-          />
-          {aspectMenuOpen ? (
-            <div className="flex flex-col gap-0.5 rounded-nomi-sm bg-nomi-ink-05 p-1" data-storyboard-aspect-menu={shot.index}>
-              <MenuItem icon={<span className="size-3" aria-hidden />} label={t('storyboardEditor.aspectScope.followDefault')} onClick={() => { onChangeAspect(null); closeMenus() }} />
-              {aspectOptions.map((option) => (
-                <MenuItem key={option} icon={<span className="size-3" aria-hidden />} label={option} onClick={() => { onChangeAspect(option); closeMenus() }} />
-              ))}
-            </div>
-          ) : null}
+          {/* 画幅不再住这里：参数面板里「比例」那一组就是它的家（选回整片默认 = 收回覆盖）。 */}
           {onToggleLock ? <MenuItem icon={<IconLock size={13} stroke={1.8} />} label={t('storyboardEditor.frame.lock')} onClick={() => { onToggleLock(); closeMenus() }} /> : null}
           {onAgentHandoff ? (
             <MenuItem
@@ -311,7 +305,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         exec={exec}
         aspect={aspect}
         box={frameBox}
-        onGenerate={onGenerate}
         onOpenPreview={onOpenPreview}
         selected={props.selected}
         onSelect={props.onSelect}
@@ -394,7 +387,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         </>
       ) : null}
 
-      {/* composer：提示词正文 + 底栏，一个框（"就像图片节点那样"）。 */}
+      {/* composer：参考图 + 提示词正文 + 底栏，一个框——画布节点浮框同一副长相。 */}
       <div className={cn('rounded-nomi-sm border bg-nomi-paper', promptInvalid ? 'border-workbench-danger' : 'border-nomi-line')}>
         {sourceSegment ? (
           <div className="flex items-center gap-1.5 border-b border-nomi-line-soft px-2.5 py-1.5" data-storyboard-source-segment={sourceSegment.id} data-storyboard-prompt-origin={sourceSegment.edited ? 'script-edited' : 'script-derived'}>
@@ -410,11 +403,26 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             </span>
           </div>
         ) : null}
+        <ShotReferenceStrip
+          mode={resolvedMode}
+          bindings={shot.referenceBindings}
+          onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+          onRemove={(slotKey, index) => {
+            const next = removeReferenceWithMention(shot.prompt, shot.referenceBindings, slotKey, index)
+            if (next) onUpdate({ referenceBindings: next.bindings, ...(next.prompt !== shot.prompt ? { prompt: next.prompt } : {}) })
+          }}
+          onInsertMention={mentionSearch ? insertMention : undefined}
+          hiddenSlotKeys={hiddenSlotKeys}
+        />
         <PromptSkeletonSegments
           prompt={shot.prompt}
           profile={storyboardProfile}
           ranges={shot.promptSegments}
-          onChange={({ prompt: nextPrompt, ranges }) => onUpdate({ prompt: nextPrompt, promptSegments: ranges as PromptSegmentRange[] })}
+          onChange={({ prompt: nextPrompt, ranges }) => {
+            // 删掉一枚 @ = 这张图不要了：参考框里它的绑定一起删（反馈 #7 的另一半）。
+            const bindings = dropBindingsForUrls(shot.referenceBindings, droppedMentionUrls(shot.prompt, nextPrompt))
+            onUpdate({ prompt: nextPrompt, promptSegments: ranges as PromptSegmentRange[], ...(bindings !== shot.referenceBindings ? { referenceBindings: bindings } : {}) })
+          }}
           editorProps={{
             ariaLabel: t('storyboardEditor.promptAria', { index: shot.index }),
             placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
@@ -428,14 +436,19 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         />
         <ShotComposerBar
           shot={shot}
-          archetype={resolved?.archetype ?? null}
-          mode={resolvedMode}
           modelOptions={modelOptions}
           aspect={aspect}
-          aspectOverridden={aspectOverridden}
-          aspectOptions={aspectOptions}
           onChangeAspect={onChangeAspect}
           onUpdate={onUpdate}
+          addReference={hasShownReferences(resolvedMode, shot.referenceBindings, hiddenSlotKeys) ? null : (
+            <ShotReferenceAddButton
+              mode={resolvedMode}
+              archetype={resolved?.archetype ?? null}
+              bindings={shot.referenceBindings}
+              onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+              onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
+            />
+          )}
           onGenerate={statusTag ? undefined : onGenerate}
           generating={exec?.status === 'generating'}
           statusTag={statusTag}
@@ -514,21 +527,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       dropIndicator={props.isDragOver}
       grip={grip}
       frame={frame}
-      references={
-        <ShotReferenceZone
-          mode={resolvedMode}
-          archetype={resolved?.archetype ?? null}
-          bindings={shot.referenceBindings}
-          onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
-          // 红格与画面格「缺X参考」、批量排除读同一份（exec.missingSlots）；没有 exec 的降级态直接问同一个 owner。
-          missingSlots={exec ? exec.missingSlots : missingRequiredSlots(resolvedMode, shot, anchors)}
-          plannedFirstFrame={exec?.plannedFirstFrame ?? null}
-          anchors={anchors}
-          hideNoRefNotice={Boolean(exec?.ignoredAnchors?.length)}
-          onTriggerMention={triggerAtMention}
-          mentionEnabled={Boolean(mentionSearch)}
-        />
-      }
       prompt={prompt}
       footer={variantsOpen ? footer : undefined}
     />

@@ -273,6 +273,8 @@ export const zhStoryboardEditor = {
     descriptionAria: '参考卡描述',
     visualPlaceholder: '外貌/服装/光线，给生成模型的参考描述',
     textPlaceholder: '能用文字说清的特征（色调/品牌色/服装词），会拼进每个引用它的镜头',
+    carrierVisual: '生成参考图',
+    carrierText: '仅提示词',
     switchToText: '点切换为「仅提示词」',
     switchToVisual: '点切换为「生成参考图」',
     visual: '参考图',
@@ -633,6 +635,8 @@ export const enStoryboardEditor = {
     visualPlaceholder: 'Appearance, clothing, and lighting for the generation model reference',
     textPlaceholder:
       'Text-definable traits such as palette, brand colors, and clothing terms; included in every referencing shot',
+    carrierVisual: 'Generate reference image',
+    carrierText: 'Prompt only',
     switchToText: 'Switch to prompt only',
     switchToVisual: 'Switch to generated reference image',
     visual: 'Reference image',

@@ -25,7 +25,7 @@ import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
  *    半透明按钮压缩略图是设计系统 §1.5.3 点名的反例；媒体框下方本来就是空白，不需要遮住内容省这点空间。
  *
  * 状态（与 exec/storyboardRowStatus 同一份 derive，组头/footer 计数共用）：
- * ready 虚线空格 + 常驻「生成」/ missing-required 红虚线 /
+ * ready 虚线空格（「生成」只在提示词框底栏右端一处——2026-10-06 删掉画面格中间那颗重复的）/ missing-required 红虚线 /
  * generating 进度覆盖 / failed 红边 + 重试（重新花钱）/ recoverable 中性纸底 + 免费重新拉取 /
  * done 结果铺满 / locked 同 done + 🔒。
  */
@@ -38,7 +38,6 @@ type Props = {
   aspect: string
   /** 整张表共用的媒体盒（`tableFrameMediaBox`）。行不自己算，算了就又不齐了。 */
   box: FrameMediaBox
-  onGenerate?: (() => void) | undefined
   /** 结果态双击 → 放大预览（AssetPreviewDialog，编辑器统一挂）。 */
   onOpenPreview?: (() => void) | undefined
   selected?: boolean
@@ -50,7 +49,6 @@ export default function StoryboardShotFrame({
   exec,
   aspect,
   box,
-  onGenerate,
   onOpenPreview,
   selected,
   onSelect,
@@ -217,25 +215,15 @@ export default function StoryboardShotFrame({
     )
   }
 
-  // ready：空格即生成入口（虚线占位框按整片默认画幅撑出尺寸，合同 §2.4）。
+  // ready：虚线占位框按画幅撑出尺寸（合同 §2.4）。「生成」不在这里——同一行只有一颗，在提示词框底栏右端。
   return column(
     'ready',
     <div
-      className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 grid place-items-center"
+      className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05"
       style={mediaStyle}
       data-storyboard-frame-media={aspect || 'default'}
     >
       {indexBadge(true)}
-      {onGenerate ? (
-        <button
-          type="button"
-          onClick={onGenerate}
-          className="h-6 px-2.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-micro font-medium hover:opacity-90 active:opacity-80"
-          aria-label={t('storyboardEditor.frame.generateAria', { index: shot.index })}
-        >
-          {t('storyboardEditor.frame.generate')}
-        </button>
-      ) : null}
     </div>,
   )
 }
