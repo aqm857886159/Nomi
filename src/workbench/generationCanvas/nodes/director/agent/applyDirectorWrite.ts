@@ -7,7 +7,8 @@
  *        新建：编译 → 建导演节点（工程 + 计划 + 修订号 + 编译基线指纹 + 预演标志）；修订：比修订号 → 应用补丁 → 没变化就一个字不写、
  *        不重编译（unchanged）→ 整份重编译 → 叠手改覆盖层（planOverrides：直接改到且被新编译改了的手改丢弃并列出，其余重放）→
  *        测量对「编译 + 覆盖」后的工程测 → 编辑器开着走 3a 的唯一外部写口、关着写节点 meta。
- *        领域拒绝（过期 / 补丁不成立 / 编译不过 / 目标不在）不写画布，原样交回，由 lane 翻成模型读得懂的失败。永不花钱。
+ *        目标视频镜头声明了时长 → 计划时长必须与之一致（以镜头为准，宿主不缩放时间）。
+ *        领域拒绝（过期 / 补丁不成立 / 编译不过或时长不符 / 目标不在）不写画布，原样交回，由 lane 翻成模型读得懂的失败。永不花钱。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import i18n from '../../../../../i18n'
@@ -25,7 +26,7 @@ import { compileDirectorPlan, type DirectorCompileIssue } from '../model/compile
 import { measureContinuity, sampleDirectorProject } from '../model/directorEvalMeasurement'
 import { DIRECTOR_NODE_KIND, DIRECTOR_PLAN_META_KEY, DIRECTOR_PREVIEW_META_KEY, DIRECTOR_PROJECT_META_KEY } from '../model/directorNodeMeta'
 import {
-  DIRECTOR_PREVIEW_MAX_SECONDS, readDirectorPlanMeta, readDirectorPreview, type DirectorPreviewMeta,
+  DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS, DIRECTOR_PREVIEW_MAX_SECONDS, declaredShotDurationSeconds, readDirectorPlanMeta, readDirectorPreview, type DirectorPreviewMeta,
 } from '../model/directorPreviewState'
 import { normalizeDirectorProject } from '../model/directorProject'
 import { summarizeDirectorShots } from '../model/directorShotSummaries'
@@ -123,6 +124,21 @@ function compileOrReject(plan: DirectorPlan) {
   return compiled.ok ? compiled : { ok: false as const, rejection: { applied: false as const, rejected: 'compile_failed' as const, messages: compiled.errors.length ? compiled.errors : ['the compiler rejected this plan'] } }
 }
 
+/**
+ * 预演挂到哪一镜，就得和那一镜一样长（以镜头为准）：8 秒的预演当 6 秒视频的参考，视频模型只能截掉或拉伸运镜。
+ * 宿主不替模型缩放时间——拒绝并说清两条路。镜头没声明时长不拦。
+ */
+function durationRejection(targetNodeId: string | undefined, planSeconds: number): DirectorWriteDomainResult | null {
+  if (!targetNodeId) return null
+  const shotSeconds = declaredShotDurationSeconds(readGenerationCanvasSnapshot().nodes.find((node) => node.id === targetNodeId))
+  if (shotSeconds === undefined || Math.abs(shotSeconds - planSeconds) <= DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS) return null
+  const shot = `${Number(shotSeconds.toFixed(2))}s`
+  return {
+    applied: false, rejected: 'compile_failed',
+    messages: [`shot node ${targetNodeId} is ${shot} long but this plan runs to ${Number(planSeconds.toFixed(2))}s; the preview must match the shot. Fit every shot and blocking window into 0–${shot}, or first change this shot's duration with draft_shots.`],
+  }
+}
+
 type PlanMetaValue = { plan: DirectorPlan; revision: string; issueCount: number; compiledBase: DirectorCompiledBase }
 
 /**
@@ -167,6 +183,8 @@ function createPlan(input: Extract<DirectorWriteInput, { operation: 'create_dire
   const plan = canonicalDirectorPlan(input.plan)
   const compiled = compileOrReject(plan)
   if (!compiled.ok) return compiled.rejection
+  const tooShortOrLong = durationRejection(targetNodeId, compiled.duration)
+  if (tooShortOrLong) return tooShortOrLong
   const revision = directorPlanRevision(plan)
   const preview = previewMetaFor(targetNodeId, revision, compiled.duration, context.proposalId, missingActionNotes(plan, compiled.issues))
   const planMeta: PlanMetaValue = { plan, revision, issueCount: compiled.issues.length, compiledBase: fingerprintDirectorProject(compiled.project) }
@@ -219,6 +237,8 @@ function patchPlan(input: Extract<DirectorWriteInput, { operation: 'patch_direct
   }
   const compiled = compileOrReject(patched.plan)
   if (!compiled.ok) return compiled.rejection
+  const tooShortOrLong = durationRejection(currentPreview?.targetNodeId, compiled.duration)
+  if (tooShortOrLong) return tooShortOrLong
   // 方案 §6.2–6.4：整份重编译后按稳定 id 叠回手改；编译器不知道覆盖层（结构守卫 planOverrides.guard.test.ts）
   const overlay = overlayDirectorProject({ compiled: compiled.project, current, base: compiledBaseOf(node.meta?.[DIRECTOR_PLAN_META_KEY], base.data), touched: patched.touched })
   const issues = measuredIssues(compiled, overlay.project, overlay.replayedEntities)

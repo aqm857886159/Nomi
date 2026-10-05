@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./directorNodeMeta 的 DIRECTOR_NODE_KIND / DIRECTOR_PREVIEW_META_KEY / DIRECTOR_PLAN_META_KEY、../../../model/generationCanvasTypes
  * [OUTPUT]: 对外提供 DirectorPreviewMeta、DirectorPlanMeta、readDirectorPreview、readDirectorPlanMeta、directorPreviewSpendBlock、
- *           DIRECTOR_PREVIEW_MAX_SECONDS、DIRECTOR_PREVIEW_FPS
+ *           DIRECTOR_PREVIEW_MAX_SECONDS、DIRECTOR_PREVIEW_FPS、declaredShotDurationSeconds、DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS
  * [POS]: 3D-BOX 预演状态的**唯一判据**（方案 §8 花钱闸）：「这一镜挂着的参考预演还没好（渲染中 / 失败）就不许花钱」。
  *        判据只住这里；消费者是全部付费提交的唯一咽喉 `canRunGenerationNode`（生成钮 / runGenerationNode / 生成索引）
  *        与 `generate` 的出卡前检查（拿原因给 Agent）。纯函数、零 React / three，runner 可直接 import。
@@ -17,6 +17,22 @@ import { DIRECTOR_NODE_KIND, DIRECTOR_PLAN_META_KEY, DIRECTOR_PREVIEW_META_KEY }
 export const DIRECTOR_PREVIEW_FPS = 24
 /** 预演时长上限 = 离屏录制 240 帧 / 24fps。超过直接判失败并说明，不分段（分段与提上限待真机测内存）。 */
 export const DIRECTOR_PREVIEW_MAX_SECONDS = 10
+
+/** 预演时长与镜头声明时长允许差多少（秒）：小于 24fps 的一帧多一点，吸收计划窗口的小数尾巴。 */
+export const DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS = 0.05
+
+/**
+ * 这个视频镜头声明要多长（秒）：读节点上的时长参数——与主进程 `shotDurationSeconds` 认同两个键（`duration` / `durationSeconds`），
+ * 草稿候选落地时参数原样铺到节点 meta（buildPlannedNodeMeta）。没声明 = undefined（不拦）。不读 `videoDuration`：那是文件实测时长。
+ */
+export function declaredShotDurationSeconds(node: Pick<GenerationCanvasNode, 'meta'> | undefined): number | undefined {
+  for (const key of ['duration', 'durationSeconds']) {
+    const raw = node?.meta?.[key]
+    const value = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
+    if (Number.isFinite(value) && value > 0) return value
+  }
+  return undefined
+}
 
 export type DirectorPreviewFailure = 'too_long' | 'capture_failed'
 

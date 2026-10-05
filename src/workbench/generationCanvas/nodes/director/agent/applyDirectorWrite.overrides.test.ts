@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { applyCompensationOps } from '../../../agent/proposalUndo'
+import { generationCanvasTools } from '../../../agent/generationCanvasTools'
 import { useGenerationCanvasStore } from '../../../store/generationCanvasStore'
 import { registerEmbeddedEditorFlush } from '../../../agent/embeddedEditorFlush'
 import { createDirectorNodeSync } from '../directorNodeSync'
@@ -181,5 +182,37 @@ describe('3c 按指令最小改动 + 手改覆盖层', () => {
     if (!result.applied) throw new Error('patch failed')
     expect(cameraOf(projectOf(director.directorNodeId), 'shot:wide/camera').motionTrajectory?.every((point) => point.fov === 18)).toBe(true)
     expect((nodeById(director.directorNodeId)?.meta?.[DIRECTOR_PLAN_META_KEY] as { compiledBase?: unknown }).compiledBase).toBeTruthy()
+  })
+})
+
+describe('遗留 ②：预演时长以镜头时长为准', () => {
+  beforeEach(resetCanvas)
+  afterEach(resetCanvas)
+
+  function videoShot(seconds?: number): string {
+    const [node] = generationCanvasTools.create_nodes([{ kind: 'video', title: '镜头 1', prompt: '两个人在书房里说话', position: { x: 0, y: 0 } }])
+    if (seconds !== undefined) useGenerationCanvasStore.getState().updateNode(node.id, { meta: { ...nodeById(node.id)?.meta, duration: seconds } })
+    return node.id
+  }
+
+  it('镜头 6 秒、计划到 8 秒结束 → 拒绝并说出两个数，画布不多一个节点', async () => {
+    const shot = videoShot(6)
+    const count = useGenerationCanvasStore.getState().nodes.length
+    const { result } = await run({ operation: 'create_director_plan', shotNodeId: shot, plan: plan(8) } as DirectorWriteInput)
+    expect(result).toMatchObject({ applied: false, rejected: 'compile_failed' })
+    if (result.applied) return
+    expect(result.messages.join(' ')).toMatch(/6(\.0)?s[\s\S]*8(\.0)?s/)
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(count)
+  })
+
+  it('时长一致照常建；补丁把计划拉到 8 秒 → 拒绝；节点没声明时长不拦', async () => {
+    const shot = videoShot(6)
+    const { result } = await run({ operation: 'create_director_plan', shotNodeId: shot, plan: plan(6) } as DirectorWriteInput)
+    if (!result.applied) throw new Error('create failed')
+    const { result: patched } = await run({ operation: 'patch_director_plan', directorNodeId: result.directorNodeId, baseRevision: result.revision, edits: [{ op: 'replace', path: '/shots/close/window', value: [3, 8] }] })
+    expect(patched).toMatchObject({ applied: false, rejected: 'compile_failed' })
+    const free = videoShot()
+    const { result: unconstrained } = await run({ operation: 'create_director_plan', shotNodeId: free, plan: plan(8) } as DirectorWriteInput)
+    expect(unconstrained.applied).toBe(true)
   })
 })
