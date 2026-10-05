@@ -27,7 +27,7 @@ import { subscribePolicySpendDecisions } from '../capabilityCore/policySpendDeci
 //
 // ── 回合也从这里知道卡关没关（`whenCardCloses`）──
 //
-// 此前回合靠进程内转接表等结论：卡上四个动作各自在事后手工递一句「关了」。
+// 此前回合靠一张进程内转接表（`spendDecisionWaiters`）等结论：卡上四个动作各自在事后手工递一句「关了」。
 // 那是同一件事实的第三份副本，而且只认那四个动作——别的路把这次出价关掉（计划被取消……），回合就一直挂着。
 // 现在回合直接看账本：**它等的那一次出价不再开着**，就是卡关了；逐镜结局照旧只问宿主（`readPresentationOutcome`）。
 

@@ -40,7 +40,7 @@ import { readQuickActionMeta } from './deriveFromNode'
 import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } from './quickActionCatalog'
 
 /**
- * 图片节点浮条 · 快捷动作版（2026-10-04 批次 1；当前图片节点快捷动作的唯一入口）。
+ * 图片节点浮条 · 快捷动作版（2026-10-04 批次 1；取代了旧的 `NodeImageEditToolbar.tsx`，同一提交删掉旧文件）。
  * 纯展示：点多机位九宫格 / ▾ 下拉 / 改图里生成新图的项走 `useQuickActionHost` → `deriveFromNode`（生产宿主 `ImageQuickActionsToolbarHost`）。
  *
  * 一行四颗文字钮，和现在一样多（#969 刚收成一行，1280 窗口 + Agent 面板下英文锚卡已经折两行，

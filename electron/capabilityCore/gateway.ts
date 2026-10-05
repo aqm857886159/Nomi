@@ -7,7 +7,7 @@
 //   方案门弹实时卡。
 //
 // 网关**没有付费口**：外部 agent 的付费生成只走语义生成 → ProductionRun 的收据门。这里曾有
-// 一个「问人 + 铸令牌」的旧入口；它没有生产调用者，已于 2026-10-05 删除。
+// `confirmSpend`（问人 + 铸令牌），唯一调用方 core.generateOnProject 没有生产调用者，2026-10-05 一起删掉。
 //
 // 这样外部 agent 读写画布无论 app 开没开都走同一套 core 逻辑，只换网关——不存在并行版。
 import { readProject, saveProject } from '../projects/repository'
