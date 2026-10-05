@@ -1,10 +1,10 @@
 # 3D-BOX 段 3c：手改覆盖层 + 按指令最小改动 + 镜头选中 → Agent 上下文 设计卡
 
-> 状态：🚧 实施中（2026-10-05）。方案正本 `docs/plan/2026-10-04-director-3dbox-phase3.md` §6、§7 第 5 条、§10「3c」行；接 3b 设计卡「给 3c 留的接口」。
+> 状态：🚧 实施中（2026-10-05 起；10-06 用户拍板 Claude Design 画布「3D-BOX · 正在改：镜头 N」后补上 UI）。方案正本 `docs/plan/2026-10-04-director-3dbox-phase3.md` §6、§7 第 5 条、§10「3c」行；接 3b 设计卡「给 3c 留的接口」。
 > 全部改动在 `NOMI_DIRECTOR_3DBOX` 开关后：`director.write` 只在开关开时注册；编辑器 / 输入框里的新分支都先问 `isDirector3DBoxEnabled()`。开关关时行为与 main 一致。
-> 「正在改：镜头 N」标签是新界面：本段只做数据通路，UI 停在样张前（样张由协调会话出，规格见文末）。
+> 「正在改：镜头 N」标签是新界面：10-05 先做数据通路、停在样张前；10-06 画布拍板后按画布七态落地（对账表 docs/evidence/2026-10-06-director-3dbox-3c/README.md）。
 
-改动名：3D-BOX 3c · 线/负责人：L-3c `feat/director-3dbox-3c` · 类别：[可打断][新界面（只到数据通路，UI 待样张）][其他]
+改动名：3D-BOX 3c · 线/负责人：L-3c `feat/director-3dbox-3c` · 类别：[花钱（花钱闸复核预演时长）][可打断][新界面][其他]
 
 | 格 | 结论 | 证据 |
 |---|---|---|
@@ -103,3 +103,17 @@ AI 改动 vs 手改怎么合并，别家 3D / 设计工具的做法：
 ## 方向检查（「未测量」不显示，外包卡 20，10-06）
 
 `fix-churn` 命中 `director.ts#view` 词典键 14 天第 5 个 fix（此前几刀分属精修顶栏、镜头条文案、播放头读数，各不相同）。这一刀不改任何已有文案，只在拼字处（`shotLabels.makeShotLabels`，镜头卡 / 小窗 / 顶栏三处共用的唯一拼字点）判断「景别量不到就只写运镜」，词典只多一个「镜头 N · 运镜」模板键。根因一句话：量不到的事实被拼成了一个对用户没有信息的词；判断放在唯一的拼字点，三处同时生效。
+
+## 9 格补充：「正在改：镜头 N」界面（10-06）
+
+| 格 | 结论 | 证据 |
+|---|---|---|
+| ★1 用户怎么用 | 当创作者在导演视图里想对 Agent 说「这一镜改成特写」时，我想先点一下那张镜头卡、输入框上就出现「正在改：镜头 N · 实测」，以便不用再说「第几镜」、Agent 也不会改错镜。步骤：① 点镜头卡 = 选中这一镜并把播放头放到它开头；② Ctrl / Shift / ⌘ 点 = 加选 / 取消；③ 输入框上出标签（一镜带实测，两到三镜列编号，超过三镜写个数）；④ 发送时标签对应的镜头随消息一起走（director.shot 上下文）；⑤ 点标签上的 ×、或点 3D 画面空白处 = 取消选中，标签消失；⑥ Agent 改完这一镜，标签还在、实测更新。**不做**：画布单节点 ↑ 比时长、携带物挂到人身上（3c 之后单独排）。**已知坑**：导演台开着时 App 锁暗，亮色标签产品里看不到。 | `docs/evidence/2026-10-06-director-3dbox-3c/` 七态截图 + 无头交互核对 |
+| ★2 谁说了算 | 选中的唯一 owner = 编辑器 store 的 selection（新增 `multiCameraIds`，与 `multiObjectIds` 同一套写法，主选仍是 `cameraId`）；镜头条、顶栏标题、输入框标签、Agent 发送全读它；标签的 × 经会话登记处调 `clearShotFocus` 改 selection，不存第二份。外部改写（Agent 补丁、撤销重载）用 `loadProject(..., { keepView: true })` 保留选中与播放头。 | `directorShotFocusSession.test.ts` |
+| ★3 一致与复用 | 标签的实测文字与镜头卡同一个拼字点（`shotLabels.makeShotLabels`）；标签挂在输入框既有的 chip 行，不另起一行；颜色 / 圆角 / 字号全用 token（`rounded-nomi-sm`、`bg-nomi-accent-soft`、`border-nomi-accent/30`、`text-caption`）；图标用图标库的 `IconVideo`。新组件只有 `AgentPanelV4FocusTag`（纯展示）。 | `check:i18n`；画布对账表 |
+| ★4 全状态 | 七态见对账表：没选中 / 一镜 / 两到三镜 / 超过三镜 / Agent 改完 / 英文 / 亮色（产品里不可达）。中英文案走 `director.view.focus*`。 | 对账表 |
+| 5 中途表 | 标签只是只读投影：关导演台 = 会话注销、标签消失；Agent 正在跑时点卡 = 只改下一句的上下文，不影响在跑的这一轮；不涉网、不花钱、重启后选中不保留（瞬态，与编辑器其它选中一样）。 | 同上 |
+| 6 外部数据与失败 | 不适用：标签只读本地编辑器状态与节点上的计划修订号，没有外部来源。 | — |
+| 7 性能预算 | 播放时 store 每帧变：焦点按（工程引用、选中、修订号）缓存，读口返回同一个对象，标签不跟着重渲；实测只在工程变时重算一次。 | `directorShotFocusSession.test.ts`「同一个对象」 |
+| 8 真实条件 | Windows 11 无头 Chromium 1280×933 中英两轨截图 + 交互核对；真 App 走查 `pending-real-app`；视觉基线待 mac 上录（已登记 `pendingApprovalScreens`）。 | 对账表 |
+| ★9 验收与回滚 | 独立验收由协调会话另派一条线；回滚 = revert 这一组提交或构建不开 `NOMI_DIRECTOR_3DBOX`（开关关时 `useShotFocusTag` 恒为 null、会话不登记焦点）。 | PR 正文 `## 独立验收` |

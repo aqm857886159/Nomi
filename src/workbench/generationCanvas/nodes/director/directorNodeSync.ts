@@ -45,7 +45,7 @@ export function createDirectorNodeSync(input: Readonly<{
     },
     adoptNodeProject: (raw) => {
       if (raw === lastWritten) return false
-      input.store.getState().loadProject(raw, input.defaultSceneName)
+      input.store.getState().loadProject(raw, input.defaultSceneName, { keepView: true })
       lastWritten = raw
       savedProject = input.store.getState().project
       return true

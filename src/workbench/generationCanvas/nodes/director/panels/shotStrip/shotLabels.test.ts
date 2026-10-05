@@ -6,7 +6,7 @@ import { makeShotLabels } from './shotLabels'
 
 const shot = (shotSize: DirectorShotSummary['shotSize'], move: string): DirectorShotSummary => ({ start: 8.3, end: 10.3, cameraId: 'shot:c/camera', shotSize, move, actions: [] })
 
-describe.each([['zh-CN', false, '未测量', '固定', '中近景 · 固定', '镜头 3 · 固定'], ['en', true, i18n.getFixedT('en')('director.view.unknown'), 'Static', 'Medium close · Static', 'Shot 3 · Static']] as const)(
+describe.each([['zh-CN', false, '未测量', '固定', '中近景 · 固定', '镜头 3 · 固定'], ['en', true, 'Not measured', 'Static', 'Medium close · Static', 'Shot 3 · Static']] as const)(
   '%s',
   (lng, english, unknownWord, staticWord, measured, pipMoveOnly) => {
     afterAll(() => i18n.changeLanguage('zh-CN'))

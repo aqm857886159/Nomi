@@ -3,12 +3,13 @@ import { formatAgentContextSnapshot } from '../../../../../../electron/shared/ag
 import { buildResidentContextSnapshot, mergeResidentContextHandles } from '../../../../ai/resident/residentContextSnapshot'
 import { directorShotContextHandles, directorShotFocusFrom, shotIdOfCamera } from './directorShotFocus'
 
-const base = { directorNodeId: 'node-box', revision: 'dplan-abc', planShotIds: ['wide', 'close'], cutCameraIds: ['shot:wide/camera', 'shot:close/camera'] }
+const cut = (cameraId: string, start: number) => ({ start, end: start + 3, cameraId, shotSize: '中景' as const, move: 'static', actions: [] })
+const base = { directorNodeId: 'node-box', revision: 'dplan-abc', planShotIds: ['wide', 'close'], cuts: [cut('shot:wide/camera', 0), cut('shot:close/camera', 3)] }
 
 describe('镜头焦点（正在改：镜头 N 的数据）', () => {
   it('选中计划镜头的机位 → 镜头名 + 镜头条序号；用户自建机位 / 没选 / 没有计划 → 不带', () => {
     expect(shotIdOfCamera('shot:close/camera')).toBe('close')
-    expect(directorShotFocusFrom({ ...base, selectedCameraIds: ['shot:close/camera'] })).toEqual({ directorNodeId: 'node-box', revision: 'dplan-abc', shots: [{ shotId: 'close', index: 2 }] })
+    expect(directorShotFocusFrom({ ...base, selectedCameraIds: ['shot:close/camera'] })).toEqual({ directorNodeId: 'node-box', revision: 'dplan-abc', shots: [{ shotId: 'close', index: 2, measured: cut('shot:close/camera', 3) }] })
     expect(directorShotFocusFrom({ ...base, selectedCameraIds: ['camera-user-1'] })).toBeNull()
     expect(directorShotFocusFrom({ ...base, selectedCameraIds: [null] })).toBeNull()
     expect(directorShotFocusFrom({ ...base, revision: null, selectedCameraIds: ['shot:close/camera'] })).toBeNull()
@@ -16,8 +17,8 @@ describe('镜头焦点（正在改：镜头 N 的数据）', () => {
   })
 
   it('多选按镜头条顺序、去重；没进切点的退到计划顺序', () => {
-    const focus = directorShotFocusFrom({ ...base, cutCameraIds: ['shot:wide/camera'], selectedCameraIds: ['shot:close/camera', 'shot:wide/camera', 'shot:close/camera'] })
-    expect(focus?.shots).toEqual([{ shotId: 'wide', index: 1 }, { shotId: 'close', index: 2 }])
+    const focus = directorShotFocusFrom({ ...base, cuts: [cut('shot:wide/camera', 0)], selectedCameraIds: ['shot:close/camera', 'shot:wide/camera', 'shot:close/camera'] })
+    expect(focus?.shots.map((shot) => [shot.shotId, shot.index, shot.measured !== null])).toEqual([['wide', 1, true], ['close', 2, false]])
   })
 
   it('进模型的那段上下文里有导演节点、修订号和镜头名（补丁要用的三样），且和画布选中合在同一份快照', () => {
