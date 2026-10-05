@@ -42,8 +42,9 @@ import { LANE_CODING_TOOL_NAMES, loadPiCodingToolFactories } from "../electron/a
 import { laneToolModelDescription, type LaneToolSpec } from "../electron/shared/agentLane/laneToolContract";
 import {
   declaredProfileDrift, mcpProjectionDrift,
-  type JsonSchemaObject, type McpProfileTool,
+  type McpProfileTool,
 } from "../electron/shared/agentCapabilities/modelFacingTools";
+type JsonSchemaObject = Record<string, unknown>;
 import {
   mcpProfileTools, modelFacingToolSpecs,
 } from "../electron/shared/agentCapabilities/modelFacingToolRegistry";

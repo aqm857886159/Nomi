@@ -106,7 +106,8 @@ describe("executeProfileOperation adapter verification seam", () => {
           : null,
     });
 
-    const body = JSON.parse(String((fetchFn.mock.calls[0]?.[1] as RequestInit | undefined)?.body || "{}"));
+    const call = fetchFn.mock.calls[0] as unknown as [RequestInfo, RequestInit | undefined] | undefined;
+    const body = JSON.parse(String((call?.[1] as RequestInit | undefined)?.body || "{}"));
     expect(body.image).toBe(`data:image/png;base64,${PNG_BYTES.toString("base64")}`);
   });
 

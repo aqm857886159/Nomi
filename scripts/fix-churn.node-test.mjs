@@ -7,7 +7,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
 import { decideDirectionTrailer, docLooksReal, subjectOf } from './check-direction-trailer.mjs'
-import { churnFor, findHotspots, isFixSubject, isRevertOfFix, parseDirectionTrailer, PRIOR_FIX_THRESHOLD } from './fix-churn.mjs'
+import { conceptUnits, CONCEPT_MAX_FILES, loadUnits, selfWrittenUnits } from './fix-churn-units.mjs'
+import { churnFor, directionMessage, findHotspots, isUnitSource, isFixSubject, isRevertOfFix, namespaceLines, parseDirectionTrailer, parseHunks, PRIOR_FIX_THRESHOLD, ROOT_NS, stagedNamespaces, touchedNamespaces } from './fix-churn.mjs'
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
 
@@ -141,5 +142,203 @@ describe('真 git commit-msg 端到端', () => {
       assert.equal(run('Merge branch main').status, 0)
       assert.equal(run('feat: other').status, 0)
     } finally { r.cleanup() }
+  })
+})
+
+describe('词典按功能键（命名空间）计数', () => {
+  const FILE = 'src/i18n/locales/dict.ts'
+  const body = (a, b, c) => [
+    'export const zhDict = {',
+    '  title: \'顶层单句\',',
+    '  alpha: {', `    one: '${a}',`, '  },',
+    '  beta: {', `    two: '${b}',`, `    three: '${c}',`, '  },',
+    '}', '',
+    'export const enDict = {',
+    '  alpha: {', `    one: '${a}-en',`, '  },',
+    '  beta: {', `    two: '${b}-en',`, '  },',
+    '}', '',
+  ].join('\n')
+  const dictRepo = (steps) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-churn-ns-'))
+    const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    git('init', '-q'); git('config', 'user.email', 't@t'); git('config', 'user.name', 't')
+    fs.mkdirSync(path.join(root, 'src/i18n/locales'), { recursive: true })
+    const state = { a: 'a0', b: 'b0', c: 'c0' }
+    steps.forEach(([subject, patch], i) => {
+      Object.assign(state, patch)
+      fs.writeFileSync(path.join(root, FILE), body(state.a, state.b, state.c))
+      git('add', '-A'); git('commit', '-q', '-m', subject || `c${i}`)
+    })
+    return { root, git, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) }
+  }
+
+  test('namespaceLines：缩进 2 格、值是 { 的键是功能键；中英两段同名；其余归 (根)', () => {
+    const map = namespaceLines(body('a', 'b', 'c'))
+    assert.equal(map[1], ROOT_NS) // export 行
+    assert.equal(map[2], ROOT_NS) // 顶层单句
+    assert.equal(map[3], 'alpha')
+    assert.equal(map[4], 'alpha')
+    assert.equal(map[5], 'alpha') // 闭合行
+    assert.equal(map[7], 'beta')
+    assert.equal(map[10], ROOT_NS) // 文件末 }
+    assert.equal(map[14], 'alpha') // 英文段同名
+  })
+
+  test('touchedNamespaces：改动行按旧 / 新源码归属；一个提交改到几个键各计一次', () => {
+    const oldSrc = body('a0', 'b0', 'c0')
+    const newSrc = body('a1', 'b1', 'c0')
+    const hunks = parseHunks('@@ -4 +4 @@\n-x\n+y\n@@ -7 +7 @@\n-x\n+y\n@@ -2 +2 @@\n+z\n')
+    assert.deepEqual([...touchedNamespaces(hunks, oldSrc, newSrc)].sort(), [ROOT_NS, 'alpha', 'beta'].sort())
+  })
+
+  test('同一功能键 2 个 fix 后第 3 刀命中，并写出「文件#键」；别的键不受牵连', () => {
+    const r = dictRepo([['feat: add', {}], ['fix: a1', { a: 'a1' }], ['fix: a2', { a: 'a2' }], ['fix: b1', { b: 'b1' }]])
+    try {
+      const mk = (patch) => {
+        const state = { a: 'a2', b: 'b1', c: 'c0', ...patch }
+        fs.writeFileSync(path.join(r.root, FILE), body(state.a, state.b, state.c))
+        r.git('add', '-A')
+        return findHotspots(r.root, [FILE], { touched: stagedNamespaces(r.root, [FILE]) })
+      }
+      const hotA = mk({ a: 'a3' })
+      assert.equal(hotA.length, 1)
+      assert.match(hotA[0].reasons[0], /dict\.ts#alpha 近 14 天已有 2 个 fix，这一刀是第 3 个/)
+      r.git('reset', '-q', '--hard')
+      assert.equal(mk({ b: 'b2' }).length, 0) // beta 只有 1 个 fix
+      r.git('reset', '-q', '--hard')
+      assert.equal(findHotspots(r.root, [FILE]).length, 1) // 没给改动范围：报文件里已达标的键
+    } finally { r.cleanup() }
+  })
+
+  test('文件级不再响：同一词典文件散在 3 个不同功能键的 fix 不命中', () => {
+    const r = dictRepo([['feat: add', {}], ['fix: a', { a: 'a1' }], ['fix: b', { b: 'b1' }], ['fix: bb', { b: 'b2' }]])
+    try {
+      fs.writeFileSync(path.join(r.root, FILE), body('a2', 'b2', 'c0'))
+      r.git('add', '-A')
+      assert.equal(findHotspots(r.root, [FILE], { touched: stagedNamespaces(r.root, [FILE]) }).length, 0)
+    } finally { r.cleanup() }
+  })
+
+  test('一个提交改到两个键，两个键各计一次', () => {
+    const r = dictRepo([['feat: add', {}], ['fix: both1', { a: 'a1', b: 'b1' }], ['fix: both2', { a: 'a2', b: 'b2' }]])
+    try {
+      const hits = findHotspots(r.root, [FILE])
+      assert.deepEqual(hits[0].reasons.map((x) => x.match(/#(\S+)/)[1]).sort(), ['alpha', 'beta'])
+    } finally { r.cleanup() }
+  })
+
+  test('真 git commit-msg：词典第 3 个同键 fix 无 trailer 被拦，换一个键放行', () => {
+    const r = dictRepo([['feat: add', {}], ['fix: a1', { a: 'a1' }], ['fix: a2', { a: 'a2' }]])
+    try {
+      const msgPath = path.join(r.root, 'MSG')
+      const run = (msg) => { fs.writeFileSync(msgPath, msg); return spawnSync('node', [path.join(SCRIPTS, 'check-direction-trailer.mjs'), msgPath], { cwd: r.root, encoding: 'utf8' }) }
+      fs.writeFileSync(path.join(r.root, FILE), body('a3', 'b0', 'c0')); r.git('add', '-A')
+      const blocked = run('fix: a3')
+      assert.equal(blocked.status, 1)
+      assert.match(blocked.stderr, /dict\.ts#alpha/)
+      r.git('reset', '-q', '--hard')
+      fs.writeFileSync(path.join(r.root, FILE), body('a2', 'b9', 'c0')); r.git('add', '-A')
+      assert.equal(run('fix: b').status, 0)
+    } finally { r.cleanup() }
+  })
+})
+
+describe('按概念计数：自写登记条目（30 天 / 第 2 个）与 concept-owners 概念（14 天 / 第 3 个）', () => {
+  const day = 86400000
+  const registry = (entries, genericZones = []) => ({ genericZones, entries })
+  const entry = (over = {}) => ({ id: 'mcp-like', status: 'under-review', paths: ['src/mcp/a.ts', 'src/mcp/b.ts', 'src/mcp/c.ts'], ...over })
+
+  /** 真 git 仓库：每个提交 { subject, file, daysAgo }。 */
+  function dated(commits, extra = {}) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-churn-units-'))
+    const run = (env, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } })
+    run({}, 'init', '-q'); run({}, 'config', 'user.email', 't@t'); run({}, 'config', 'user.name', 't')
+    commits.forEach((c, i) => {
+      fs.mkdirSync(path.dirname(path.join(root, c.file)), { recursive: true })
+      fs.writeFileSync(path.join(root, c.file), `export const v = ${i}\n`)
+      const when = new Date(Date.now() - c.daysAgo * day).toISOString()
+      run({ GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when }, 'add', '-A')
+      run({ GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when }, 'commit', '-q', '-m', c.subject)
+    })
+    for (const [file, content] of Object.entries(extra)) { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), content) }
+    return { root, git: (...a) => run({}, ...a), cleanup: () => fs.rmSync(root, { recursive: true, force: true }) }
+  }
+
+  test('自写登记（under-review）：散在不同文件的 fix，30 天内第 2 个就命中，文件 / 目录那票不响', () => {
+    const r = dated([{ subject: 'feat: add', file: 'src/mcp/a.ts', daysAgo: 25 }, { subject: 'fix: one', file: 'src/mcp/a.ts', daysAgo: 20 }])
+    try {
+      const units = selfWrittenUnits(registry([entry()]))
+      assert.equal(findHotspots(r.root, ['src/mcp/b.ts'], { units: [] }).length, 0, '没有单位时，文件 / 目录都只有 1 个 fix，不响')
+      const hits = findHotspots(r.root, ['src/mcp/b.ts'], { units })
+      assert.equal(hits.length, 1)
+      assert.equal(hits[0].unit.id, 'mcp-like')
+      assert.match(hits[0].reasons[0], /近 30 天已有 1 个 fix，这一刀是第 2 个/)
+      assert.match(hits[0].reasons[0], /先评估接入现成方案/)
+      assert.match(hits[0].reasons[0], /为什么现在换不了、哪天换/)
+      assert.match(directionMessage(hits), /接入现成方案/)
+    } finally { r.cleanup() }
+  })
+
+  test('窗口边界：31 天前的 fix 不算；justified 且不在通用区的登记不算；justified 但在通用区（hooks / 轮询…）算', () => {
+    const r = dated([{ subject: 'fix: old', file: 'src/mcp/a.ts', daysAgo: 31 }, { subject: 'fix: recent', file: 'src/mcp/a.ts', daysAgo: 3 }])
+    try {
+      assert.equal(findHotspots(r.root, ['src/mcp/b.ts'], { units: selfWrittenUnits(registry([entry()])) }).length, 1, '近 30 天只有 recent 一个 → 这一刀是第 2 个')
+      const r2 = dated([{ subject: 'fix: old', file: 'src/mcp/a.ts', daysAgo: 31 }])
+      try { assert.equal(findHotspots(r2.root, ['src/mcp/b.ts'], { units: selfWrittenUnits(registry([entry()])) }).length, 0) } finally { r2.cleanup() }
+    } finally { r.cleanup() }
+    const justified = entry({ status: 'justified' })
+    assert.equal(selfWrittenUnits(registry([justified])).length, 0)
+    const generic = entry({ status: 'justified', paths: ['src/mcp/useThing.ts'] })
+    assert.equal(selfWrittenUnits(registry([generic], [{ path: '**/use[A-Z]*.ts', reason: 'hook' }])).length, 1)
+  })
+
+  test('commit-msg：自写登记命中的 fix 必须带复盘，且复盘里要点名那条登记的 id', () => {
+    const r = dated([{ subject: 'fix: one', file: 'src/mcp/a.ts', daysAgo: 5 }], {
+      'docs/engineering/self-written.json': JSON.stringify(registry([entry()])),
+      'docs/review-generic.md': '复盘，没有写登记 id。'.repeat(60),
+      'docs/review-named.md': '复盘：mcp-like 现在换不了，因为……，下周三换。'.repeat(30),
+    })
+    try {
+      fs.writeFileSync(path.join(r.root, 'src/mcp/b.ts'), 'export const b = 1\n')
+      r.git('add', 'src/mcp/b.ts')
+      const msgPath = path.join(r.root, 'MSG')
+      const run = (msg) => { fs.writeFileSync(msgPath, msg); return spawnSync('node', [path.join(SCRIPTS, 'check-direction-trailer.mjs'), msgPath], { cwd: r.root, encoding: 'utf8' }) }
+      const none = run('fix: two')
+      assert.equal(none.status, 1)
+      assert.match(none.stderr, /自写登记「mcp-like」/)
+      const generic = run('fix: two\n\nDirection-Check: docs/review-generic.md\n')
+      assert.equal(generic.status, 1)
+      assert.match(generic.stderr, /没有写到这些自写登记条目/)
+      assert.equal(run('fix: two\n\nDirection-Check: docs/review-named.md\n').status, 0)
+      assert.equal(run('feat: two').status, 0)
+    } finally { r.cleanup() }
+  })
+
+  test('概念（owner + write_api 的文件合起来）：14 天内第 3 个 fix 命中；单文件概念不单列；改大成「大概念」则不响', () => {
+    const concepts = (files) => ({ concepts: [{ name: '某概念', owner: { path: files[0] }, write_api: files.map((p) => ({ path: p })) }] })
+    const r = dated([{ subject: 'fix: one', file: 'src/c/a.ts', daysAgo: 6 }, { subject: 'fix: two', file: 'src/c/b.ts', daysAgo: 2 }])
+    try {
+      const units = conceptUnits(concepts(['src/c/a.ts', 'src/c/b.ts', 'src/c/c.ts']))
+      const hits = findHotspots(r.root, ['src/c/c.ts'], { units }).filter((h) => h.unit)
+      assert.equal(hits.length, 1)
+      assert.match(hits[0].reasons[0], /近 14 天已有 2 个 fix，这一刀是第 3 个/)
+      assert.equal(conceptUnits(concepts(['src/c/a.ts'])).length, 0)
+      // 概念大小上限：fix 碰过的不同文件超过上限，不当整体算
+      const many = Array.from({ length: CONCEPT_MAX_FILES + 1 }, (_, i) => `src/c/f${i}.ts`)
+      const r2 = dated(many.slice(0, CONCEPT_MAX_FILES + 1).map((file, i) => ({ subject: `fix: ${i}`, file, daysAgo: 3 })))
+      try { assert.equal(findHotspots(r2.root, [many[0]], { units: conceptUnits(concepts(many)) }).filter((h) => h.unit).length, 0) } finally { r2.cleanup() }
+    } finally { r.cleanup() }
+  })
+
+  test('真实登记表读得出单位；词典文件不进单位（按功能键另数）；git 失败 fail-open', () => {
+    const units = loadUnits(path.resolve(SCRIPTS, '..'))
+    assert.ok(units.some((u) => u.kind === 'self-written' && u.id === 'mcp-protocol'))
+    assert.ok(units.some((u) => u.kind === 'concept'))
+    assert.equal(isUnitSource('src/i18n/locales/zh.ts'), false)
+    assert.equal(isUnitSource('electron/a.test.ts'), false)
+    assert.equal(isUnitSource('scripts/check-x.mjs'), true)
+    assert.equal(loadUnits('/nonexistent-root').length, 0)
+    const git = () => { throw new Error('boom') }
+    assert.equal(findHotspots('/x', ['src/mcp/a.ts'], { git, units: selfWrittenUnits(registry([entry()])) }).length, 0)
   })
 })

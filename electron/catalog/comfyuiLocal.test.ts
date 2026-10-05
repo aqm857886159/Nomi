@@ -359,7 +359,7 @@ describe("ComfyUI 内置种子", () => {
 
   it("导出常量自洽：模型 meta.parameters 的 key 与 mapping 图里的 {{request.params.*}} 对应", () => {
     const paramKeys = new Set(
-      (COMFYUI_CURATED_MODELS[0].meta.parameters as Array<{ key: string }>).map((p) => p.key),
+      (COMFYUI_CURATED_MODELS[0].meta.parameters as unknown as Array<{ key: string }>).map((p) => p.key),
     );
     const bodyStr = JSON.stringify(COMFYUI_CURATED_MAPPINGS[0].create.body);
     // 图里每个 {{request.params.X}} 的 X 都必须在 meta.parameters 里声明（除 request.prompt 走标准槽）
@@ -466,8 +466,8 @@ describe("comfyui-prompt 会话封装", () => {
 
   it("生产 profile 请求对裸 host 补 http 协议", () => {
     const built = buildProfileHttpRequest({
-      vendor: { ...COMFYUI_VENDOR_SEED, baseUrlHint: "127.0.0.1:8188/" },
-      model: COMFYUI_CURATED_MODELS[0],
+      vendor: { ...COMFYUI_VENDOR_SEED, baseUrlHint: "127.0.0.1:8188/", createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+      model: { ...COMFYUI_CURATED_MODELS[0], vendorKey: "comfyui-local", enabled: true, createdAt: "2026-01-01", updatedAt: "2026-01-01" },
       apiKey: "",
       request: { kind: "text_to_image", prompt: "test", extras: {} } as never,
       operation: COMFYUI_CURATED_MAPPINGS[0].create,

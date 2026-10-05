@@ -29,7 +29,7 @@ const LANGUAGE_RULE_EN = [
 ].join("\n");
 
 function referenceCompose(parts: Array<string | undefined>): string | undefined {
-  const kept = parts.filter((p): p is string => Boolean(p) && p.length > 0);
+  const kept = parts.filter((p): p is string => typeof p === "string" && p.length > 0);
   if (kept.length === 0) return undefined;
   return sanitizeForBroadCompat([LANGUAGE_RULE_EN, ...kept, LANGUAGE_RULE_EN].join("\n\n"));
 }

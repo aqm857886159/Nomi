@@ -20,9 +20,9 @@ describe("M2 semantic editing surface", () => {
   it("returns the semantic intents from the real tools/list handler", async () => {
     const frames: unknown[] = [];
     const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke: async () => ({}) });
-    protocol.handleIncoming({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "test" } } });
+    protocol.handleIncoming({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "test", version: "1" } } });
     protocol.handleIncoming({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-    await Promise.resolve();
+    for (let index = 0; index < 5; index += 1) await new Promise<void>((resolve) => setImmediate(resolve));
     const listed = frames.find((frame) => (frame as { id?: number }).id === 2) as { result?: { tools?: Array<{ name: string }> } } | undefined;
     expect(listed?.result?.tools?.map(({ name }) => name)).toEqual(expect.arrayContaining([
       "nomi_timeline_read", "nomi_timeline_edit", "nomi_export_job", "nomi_media_query",
@@ -44,7 +44,7 @@ describe("M2 semantic editing surface", () => {
       params: {
         protocolVersion: "2025-11-25",
         capabilities: { elicitation: {} },
-        clientInfo: { name: "Claude Code" },
+        clientInfo: { name: "Claude Code", version: "1" },
       },
     });
     protocol.handleIncoming({
@@ -84,7 +84,7 @@ describe("M2 semantic editing surface", () => {
     const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code" } },
+      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code", version: "1" } },
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
@@ -105,7 +105,7 @@ describe("M2 semantic editing surface", () => {
     const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke, getLocale: () => "en" });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code" } },
+      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code", version: "1" } },
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
@@ -130,7 +130,7 @@ describe("M2 semantic editing surface", () => {
     const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex" } },
+      params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } },
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",
@@ -148,7 +148,7 @@ describe("M2 semantic editing surface", () => {
     const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code" } },
+      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code", version: "1" } },
     });
     protocol.handleIncoming({
       jsonrpc: "2.0", id: 2, method: "tools/call",

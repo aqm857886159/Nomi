@@ -14,7 +14,7 @@ describe("awaitAdapterStep", () => {
       operation: () => new Promise(() => {}),
     });
 
-    await expect(pending).rejects.toMatchObject<Partial<AdapterWaitError>>({ reason: "step_timeout" });
+    await expect(pending).rejects.toMatchObject({ reason: "step_timeout" });
   });
 
   it("aborts the operation signal when a step timeout wins", async () => {
@@ -34,7 +34,7 @@ describe("awaitAdapterStep", () => {
       },
     });
 
-    await expect(pending).rejects.toMatchObject<Partial<AdapterWaitError>>({ reason: "step_timeout" });
+    await expect(pending).rejects.toMatchObject({ reason: "step_timeout" });
     expect(operationSignal?.aborted).toBe(true);
     expect(run.signal.aborted).toBe(false);
   });
@@ -58,7 +58,7 @@ describe("awaitAdapterStep", () => {
 
     run.abort();
 
-    await expect(pending).rejects.toMatchObject<Partial<AdapterWaitError>>({ reason: "cancelled" });
+    await expect(pending).rejects.toMatchObject({ reason: "cancelled" });
     expect(operationSignal?.aborted).toBe(true);
   });
 });

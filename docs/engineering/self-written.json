@@ -442,19 +442,6 @@
       "revisitWhen": "0.24 S4 开工时按 plan 迁移；迁完整体删除"
     },
     {
-      "id": "spend-card-polling",
-      "capability": "付费确认卡每 1.5 秒轮询 Run 账本",
-      "status": "to-replace",
-      "plan": "docs/research/2026-09-29-agent-message-layer-conformance/report.md",
-      "paths": ["src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"],
-      "alternativesChecked": [
-        { "name": "pi 的待决确认是一种表示：按 id 匹配、阻塞到回复、可取消；我们的投影按引用 join、推送完整投影", "source": "node_modules/@earendil-works/pi-coding-agent/docs/rpc.md:1184" },
-        { "name": "事件触发重投影（laneHost 已在 lane 事件上推完整投影）", "source": "electron/shared/agentLane/laneProjection.ts:1" }
-      ],
-      "whyNotIntegrated": "没有领域理由用轮询：卡的内容（可编辑的报价）是领域，但「内容变了就通知」是通用机制。0.24 B 把付费卡并进对话投影，去掉轮询。",
-      "revisitWhen": "0.24 B 落地时删轮询（前置：枚举不走 lane 的待决付费来源）"
-    },
-    {
       "id": "telemetry-pipeline",
       "capability": "用量事件与 Agent 轨迹的出站管线：白名单事件、同意合同、发件箱、自建接收端",
       "status": "justified",
@@ -502,22 +489,21 @@
     },
     {
       "id": "mcp-protocol",
-      "capability": "MCP 协议层：JSON-RPC over stdio、握手、工具 / 资源 / 提示、进度与取消、参数校验",
-      "status": "under-review",
-      "reviewBy": "2026-11-15",
+      "capability": "MCP 在 Nomi 这一侧剩下的装配：方法处理器（目录 / 资源 / 提示的领域投影）、tools/call 里的审批与派发、入口拒未验证客户端、两个 stdio 启动器；协议本身（握手、路由、取消、进度帧、请求关联、stdio 分帧、参数校验引擎）已交给官方 SDK v2",
+      "status": "to-replace",
+      "plan": "docs/plan/2026-10-05-mcp-official-sdk.md",
       "paths": [
         "electron/capabilityCore/mcpProtocol.ts",
-        "electron/capabilityCore/mcpStdioLine.ts",
         "electron/capabilityCore/mcpStdioServer.ts",
-        "electron/capabilityCore/mcpArgValidation.ts",
+        "electron/capabilityCore/mcpNodeLauncher.ts",
         "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
       ],
       "alternativesChecked": [
-        { "name": "官方 MCP TypeScript SDK（server、stdio 传输、工具 / 资源 / 提示）", "source": "https://github.com/modelcontextprotocol/typescript-sdk" },
-        { "name": "仓库里没有 @modelcontextprotocol/sdk 依赖，协议层手写", "source": "package.json:1" }
+        { "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/" },
+        { "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md" }
       ],
-      "whyNotIntegrated": "尚未评估，不能当成合理自写。需要回答的是：官方 SDK 是否覆盖我们用到的 MCP Apps（内嵌 widget）、elicitation、取消与进度、以及按 Nomi 审批语义的拦截；能覆盖则接 SDK，Nomi 只留领域能力投影与审批。",
-      "revisitWhen": "出评估结论（官方 TypeScript SDK 存在，按 P0 默认应接入，评估只回答「覆盖不覆盖」）；评估前这里新增 mcp* 文件会被门岗报"
+      "whyNotIntegrated": "已接入：第 1 段（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器在第 2、3 段改成本机 HTTP + 转发口后收口。",
+      "revisitWhen": "第 2 段（本机 HTTP，createMcpHandler）与第 3 段（宿主配置迁移、旧启动器当转发器）完成后，mcpStdioServer.ts / mcpNodeLauncher.ts 收成一个薄转发口，本条改 justified 并只剩领域路径"
     },
     {
       "id": "network-stack",

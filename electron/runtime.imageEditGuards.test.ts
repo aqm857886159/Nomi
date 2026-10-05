@@ -153,7 +153,8 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
       },
     });
     expect(result.status).toBe("succeeded");
-    const body = JSON.parse(String((fetchFn.mock.calls[0]?.[1] as { body?: string })?.body || "{}")) as {
+    const call = fetchFn.mock.calls[0] as unknown as [RequestInfo, RequestInit | undefined] | undefined;
+    const body = JSON.parse(String((call?.[1] as { body?: string } | undefined)?.body || "{}")) as {
       messages?: Array<{ content?: Array<{ type?: string; image_url?: { url?: string } }> }>;
     };
     const parts = body.messages?.[0]?.content || [];
@@ -183,8 +184,9 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
       },
     });
     expect(result.status).toBe("succeeded");
-    expect(String(fetchFn.mock.calls[0]?.[0])).toBe("https://relay.example.com/v1/images/edits");
-    const body = JSON.parse(String((fetchFn.mock.calls[0]?.[1] as { body?: string })?.body || "{}"));
+    const call = fetchFn.mock.calls[0] as unknown as [RequestInfo, RequestInit | undefined] | undefined;
+    expect(String(call?.[0])).toBe("https://relay.example.com/v1/images/edits");
+    const body = JSON.parse(String((call?.[1] as { body?: string } | undefined)?.body || "{}"));
     expect(body.image).toEqual({ type: "image_url", url: "https://cdn.example.com/source.png" });
     expect(body).not.toHaveProperty("messages");
   }, 15_000);

@@ -1,0 +1,22 @@
+    "primary": {
+      "label": "Generate t",
+      "radius": "7px",
+      "height": 28,
+      "bg": "oklab(0.93 0.000522935 0.00597717)",
+      "side": "right"
+    },
+    "close": {
+      "size": "28×28",
+      "where": "top"
+    },
+    "scheme": "dark",
+    "nativeSchemes": [],
+    "composerScheme": "dark",
+    "uncheckedChecked": 0,
+    "composerWidth": 368,
+    "composerGap": 8
+  }
+]
+covers: the ask card rendered in its real place (conversation above, composer below, panel shell around) next to the paid confirm card in the same slot, with shell metrics (width, border, radius, shadow, head band, padding, primary button family, close button, composer gap) measured on both so they can be reconciled side by side.
+failures: en/light/spend：参数条里控件相互压住：Kling 3.0 → 16:9 | en/dark/spend：参数条里控件相互压住：Kling 3.0 → 16:9 | en/light/spend-batch：参数条里控件相互压住：Kling 3.0 → 16:9 | en/dark/spend-batch：参数条里控件相互压住：Kling 3.0 → 16:9 | en/light/spend-unknown：参数条里控件相互压住：Kling 3.0 → 16:9 | en/dark/spend-unknown：参数条里控件相互压住：Kling 3.0 → 16:9 | en/light/spend-confirmed：参数条里控件相互压住：Kling 3.0 → 16:9 | en/dark/spend-confirmed：参数条里控件相互压住：Kling 3.0 → 16:9
+RC=1

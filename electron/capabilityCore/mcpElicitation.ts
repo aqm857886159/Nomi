@@ -41,8 +41,10 @@ const normalizeAction = (raw: unknown): ElicitationAction =>
   raw === 'accept' || raw === 'decline' || raw === 'cancel' ? raw : 'cancel'
 
 export function createElicitationClient(deps: {
+  /** 服务端→客户端请求（请求关联、超时、取消由 SDK 承担）。 */
   sendServerRequest: (method: string, params: unknown, timeoutMs?: number, signal?: AbortSignal) => Promise<unknown>
-  send: (message: unknown) => void
+  /** 服务端→客户端通知（不带 jsonrpc 外壳，由 SDK 装帧）。 */
+  notify: (notification: { method: string; params: Record<string, unknown> }) => void
   /** Getters, not snapshots: both are only known after `initialize`. */
   supportsElicitation: () => boolean
   supportsUrlElicitation: () => boolean
@@ -94,7 +96,7 @@ export function createElicitationClient(deps: {
       }
     },
     notifyComplete(elicitationId) {
-      deps.send({ jsonrpc: '2.0', method: 'notifications/elicitation/complete', params: { elicitationId } })
+      deps.notify({ method: 'notifications/elicitation/complete', params: { elicitationId } })
     },
   }
 }

@@ -340,8 +340,6 @@ export function buildCatalogTaskRequest(
     modelAlias: asTrimmedString(meta.modelAlias) || modelKey,
     nodeId: node.id,
     nodeKind: node.kind,
-    // 付费守卫令牌：随 extras 下到主进程 runTask 核验消费（无则主进程拦截）。
-    ...(options.grantId ? { grantId: options.grantId } : {}),
     ...(options.anonymousAssetHostingConsent ? { anonymousAssetHostingConsent: options.anonymousAssetHostingConsent } : {}),
     // 提交幂等键：随 extras 下到主进程 runTask，同键提交内核 at-most-once（堵「丢回执→重试→二次下单」）。
     ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
@@ -376,11 +374,19 @@ export function buildCatalogTaskRequest(
   }
 }
 
-/** 单镜 Run 路的「交」：与 runWorkbenchTaskByVendor 同形，主进程按这一次运行记录号建 / 认这个 Run。 */
+/**
+ * 单镜 Run 路的「交」：与 runWorkbenchTaskByVendor 同形，主进程按这一次运行记录号建 / 认这个 Run。
+ * 批量卡上的这一镜在轮到它之前被去掉 / 整批 × 了（主进程回 `canvas_generation_withdrawn`）：没交、没花钱，按取消收尾。
+ */
 function canvasRunSubmitter(nodeId: string, runRecordId: string): NonNullable<CatalogTaskRunOptions['runTask']> {
-  return (vendor, request, projectId) => {
+  return async (vendor, request, projectId) => {
     if (!projectId) throw new Error('canvas generation requires a project')
-    return submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request })
+    try {
+      return await submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request })
+    } catch (error) {
+      if (String(error instanceof Error ? error.message : error).includes('canvas_generation_withdrawn')) throw new LocalTaskCancelledError()
+      throw error
+    }
   }
 }
 

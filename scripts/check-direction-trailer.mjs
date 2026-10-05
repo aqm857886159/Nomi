@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitPaths } from './lib/gitPaths.mjs'
-import { directionMessage, findHotspots, isFixSubject, parseDirectionTrailer, TRAILER_KEY } from './fix-churn.mjs'
+import { directionMessage, findHotspots, isFixSubject, parseDirectionTrailer, stagedNamespaces, TRAILER_KEY } from './fix-churn.mjs'
 
 const MIN_DOC_BYTES = 400
 
@@ -26,7 +26,15 @@ export function decideDirectionTrailer(message, deps) {
   const trailer = parseDirectionTrailer(message)
   if (!trailer) return { ok: false, hits, reason: `缺 ${TRAILER_KEY} trailer` }
   if (!deps.docOk(trailer)) return { ok: false, hits, reason: `${TRAILER_KEY} 指向的文档不存在、不在 docs/ 下、或内容不足 ${MIN_DOC_BYTES} 字节：${trailer}` }
+  // 自写通用能力连修第 2 次：复盘里必须点名那条登记（id），不能拿一份无关的复盘文档糊弄
+  const ids = hits.filter((h) => h.unit?.kind === 'self-written').map((h) => h.unit.id)
+  const missing = deps.docMentions ? ids.filter((id) => !deps.docMentions(trailer, id)) : []
+  if (missing.length) return { ok: false, hits, reason: `${TRAILER_KEY} 指向的复盘文档没有写到这些自写登记条目（id）：${missing.join('、')}——要写清为什么现在换不了现成方案、哪天换` }
   return { ok: true, trailer }
+}
+
+export function docMentions(root, rel, id) {
+  try { return fs.readFileSync(path.join(root, String(rel).split('\\').join('/')), 'utf8').includes(id) } catch { return false }
 }
 
 export function docLooksReal(root, rel) {
@@ -45,8 +53,9 @@ function main() {
     stagedFiles: () => {
       try { return gitPaths(['diff', '--cached', '--name-only', '--no-renames'], { cwd: root }) } catch { return [] }
     },
-    hotspots: (files) => findHotspots(root, files),
+    hotspots: (files) => findHotspots(root, files, { touched: stagedNamespaces(root, files) }),
     docOk: (rel) => docLooksReal(root, rel),
+    docMentions: (rel, id) => docMentions(root, rel, id),
   })
   if (result.ok) return 0
   console.error(`\n${directionMessage(result.hits)}\n\n拦下原因：${result.reason}\n`)

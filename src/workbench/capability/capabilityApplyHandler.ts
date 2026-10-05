@@ -18,7 +18,6 @@ import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStory
 import { createTimelineExportManifest } from '../export/exportApi'
 import { exportTimelineToWebm } from '../export/timelineWebmExport'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
-import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/storyboardPlan'
 import { projectPlanShotsOntoCreatedNodes } from '../creation/storyboard/exec/storyboardProjection'
@@ -733,16 +732,6 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         ? data.shotNodeIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
         : []
       return verifyShotsForProduction(shotNodeIds, loaded)
-    }
-    case 'production.check-frozen': {
-      // W2 冻结门：driver 提交任何镜头前，问渲染层「本 run 的画布上有哪些视觉锚（角色/场景/道具卡）还没冻结」。
-      // 读画布 store 的 node.meta.frozen（判据走 anchorBibleKeys 单一镜像，与 headless/GUI 依赖波次同语义）。
-      // 只回未冻结的那些（nodeId + 标题）；driver 据此设冻结门 waiting 或放行（全冻结 → 空数组 → 放行）。
-      const unfrozenAnchors = useGenerationCanvasStore
-        .getState()
-        .nodes.filter((node) => isVisualAnchorNode(node) && !isAnchorFrozen(node))
-        .map((node) => ({ nodeId: node.id, ...(node.title && node.title.trim() ? { title: node.title.trim() } : {}) }))
-      return { unfrozenAnchors }
     }
     case 'production.export': {
       const project = typeof data.projectId === 'string' ? data.projectId : ''

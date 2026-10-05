@@ -25,7 +25,8 @@ function formatElapsed(ms: number): string {
 }
 
 export function createProgressReporter(options: {
-  send: (frame: unknown) => void
+  /** 发一条 notifications/progress（不带 jsonrpc 外壳，由 SDK 装帧并关联到所属请求）。 */
+  send: (notification: { method: 'notifications/progress'; params: { progressToken: string | number; progress: number; message: string } }) => void
   /** 客户端在 tools/call params._meta.progressToken 给的令牌；没给 = 客户端不要进度 → 全 no-op。 */
   progressToken: string | number | null | undefined
   /** 起始帧消息（如参数回显「已提交 · kling · 9:16」）。可省。 */
@@ -38,6 +39,7 @@ export function createProgressReporter(options: {
 }): ProgressReporter {
   const { send, progressToken, startMessage } = options
   if (progressToken === null || progressToken === undefined || progressToken === '') return NOOP
+  const token: string | number = progressToken
   const heartbeatMs = options.heartbeatMs ?? 10_000
   const now = options.now ?? Date.now
   const locale = options.locale ?? 'zh-CN'
@@ -50,9 +52,8 @@ export function createProgressReporter(options: {
     if (stopped) return
     seq += 1
     send({
-      jsonrpc: '2.0',
       method: 'notifications/progress',
-      params: { progressToken, progress: seq, message },
+      params: { progressToken: token, progress: seq, message },
     })
   }
 

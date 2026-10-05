@@ -1,5 +1,5 @@
 {
-  "debtCap": 54,
+  "debtCap": 53,
   "converged": [
     {
       "reason": "阶段 4 前置 ③：observeStream.mts 搬成 electron/agentLane/laneStreamObserver.mts 时，把两处手抄的 [first-response | idle] 改成 NonNullable<RuntimeErrorFacts['timeoutPhase']> 派生——正是这两条 debt 自己写的收敛办法。canonical owner 同批从 harness/runtime/runtimePort.ts 搬到 electron/shared/agentCapabilities/transportContracts.ts（它的消费者全都活过阶段 4 的切换），所以 survivingOwner 记的是新住址。",
@@ -2053,16 +2053,6 @@
       ],
       "reason": "与 electron/productionRun/productionRunTypes.ts::type:ProductionGateStatus/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。",
       "site": "electron/productionRun/productionRunReducer.ts::variable:GATE_STATUSES/set"
-    },
-    {
-      "members": [
-        "materialized",
-        "provider_accepted",
-        "sealed",
-        "submitted_unknown"
-      ],
-      "reason": "Exact duplicate of electron/productionRun/productionRunRuntimeEnvelope.ts::type:RuntimeEnvelopeState/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set.",
-      "site": "electron/productionRun/productionRunResume.ts::type:GenerationResumeInput/property:envelopeState/type-union"
     },
     {
       "members": [

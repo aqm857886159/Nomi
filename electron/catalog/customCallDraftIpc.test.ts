@@ -28,7 +28,7 @@ describe("direct custom-call draft IPC security projection", () => {
       })),
       finalize: vi.fn(),
     };
-    registerCustomCallDraftIpc((channel, handler) => syncHandlers.set(channel, handler), actions);
+    registerCustomCallDraftIpc((channel, handler) => syncHandlers.set(channel, handler as unknown as (...args: unknown[]) => unknown), actions);
 
     const result = syncHandlers.get("nomi:model-catalog:custom-call:draft-create")?.({
       vendorName: " New provider ",
@@ -63,7 +63,7 @@ describe("direct custom-call draft IPC security projection", () => {
       create: vi.fn(),
       finalize: vi.fn(() => ({ vendorKey: "custom-script-1", modelKey: "m1", label: "M1", kind: "text" as const })),
     };
-    registerCustomCallDraftIpc((channel, handler) => syncHandlers.set(channel, handler), actions);
+    registerCustomCallDraftIpc((channel, handler) => syncHandlers.set(channel, handler as unknown as (...args: unknown[]) => unknown), actions);
 
     const result = syncHandlers.get("nomi:model-catalog:custom-call:draft-finalize")?.({
       vendorKey: " custom-script-1 ",

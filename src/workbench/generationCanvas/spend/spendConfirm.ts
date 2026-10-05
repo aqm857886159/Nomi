@@ -1,9 +1,7 @@
 import { declareStoreLifetime } from '../../project/storeLifetime'
-import { toast } from '../../../ui/toast'
 import { DEFAULT_CANVAS_BATCH_CONCURRENCY } from '../components/canvasProductionScope'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { create } from 'zustand'
-import { mintSpendGrant } from '../../api/taskApi'
 import type { ProductionContractView } from './productionContractView'
 import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 import i18n from '../../../i18n'
@@ -53,12 +51,10 @@ export type HostingDisclosure = {
   onRemember?: () => void | Promise<void>
 }
 
-// 付费生成确认 + 铸令牌（渲染层单一收口）。
-// 方案：docs/plan/2026-06-21-spend-confirmation-gate.md（所有付费入口使用本次报价确认）。
-//
-// 铸令牌只发生在真人动作之后：要么是这张卡上的「确认」，要么是用户自己按下的 ↑（单个、不贵、非 Agent，
-// 见 spendConfirmationRequirement——2026-09-25 用户拍板单个节点生成不弹窗）。两条都先向主进程要报价、
-// 凭报价铸令牌。Agent 发起的一律走这张卡（initiator: 'agent' 必问）。
+// 付费生成确认（渲染层单一收口）。
+// 方案：docs/plan/2026-06-21-spend-confirmation-gate.md；发动机收敛第一刀（2026-10-05）之后，批准住在制作流程的 Run 里：
+// 单节点 ↑ 那一下点击由主进程铸手势收据批；批量卡点了确认，卡上每一镜在主进程各开一份出价（consentCanvasShots）。
+// 这张卡只回答「他同意没有」，不再向主进程要报价、也不再铸令牌。Agent 发起的一律走这张卡（initiator: 'agent' 必问）。
 
 export type SpendConfirmRequest = {
   title: string
@@ -157,37 +153,6 @@ export const useSpendConfirmStore = create<SpendConfirmState>()((set, get) => ({
 }))
 
 /**
- * 确认 + 铸令牌一条龙。确认通过返回 grantId（随生成请求下传供主进程核验）；取消返回 null。
- * @param nodeIds 本次要生成的节点 id（grant 绑定它们，主进程按 nodeId 核验消费）。
- */
-export async function confirmAndMintGrant(opts: {
-  assertCurrent?: () => Promise<void>
-  nodeIds: string[]
-  title: string
-  message: string
-  confirmLabel?: string
-  maxAttemptsPerNode?: number
-  /** 本次要跑的每一份（报价按它逐份报；份数也是「一下跑几个」的判据，见 spendConfirmationRequirement）。 */
-  nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>
-  hostingDisclosure?: HostingDisclosure
-  /** 必填：见 GenerationConfirmationGuards.initiator（缺省即 fail-open）。 */
-  initiator: SpendInitiator
-}): Promise<string | null> {
-  let quoteId: string | undefined
-  const ok = await confirmGenerationSpend(opts.nodes, {
-    title: opts.title,
-    initiator: opts.initiator,
-    message: opts.message,
-    onQuoteConfirmed: (id) => { quoteId = id },
-    ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
-    ...(opts.hostingDisclosure ? { hostingDisclosure: opts.hostingDisclosure } : {}),
-  })
-  if (!ok) return null
-  await opts.assertCurrent?.()
-  return mintSpendGrant(opts.nodeIds, opts.maxAttemptsPerNode, quoteId)
-}
-
-/**
  * 这批节点跑起来**花不花额度**——本地 ComfyUI 跑在用户自己的显卡上，一分钱不花。
  *
  * 真机走查抓到的：给本地 ComfyUI 点生成，弹的卡上写着「会消耗模型额度」。这既是**假话**，
@@ -235,45 +200,25 @@ export function spendConfirmationRequirement(input: {
 
 /**
  * 付费确认（不花额度就直接放行，不弹卡；判据见 `spendConfirmationRequirement`）。返回 false = 用户取消。
- *
- * 不弹卡时**照样**先向主进程要报价、把 quoteId 交给调用方去铸令牌：主进程的花钱闸认的是「这一笔有一张
- * 被确认过的报价」（`electron/spendGrant.ts` `assertAndConsumeQuotedSpend`），不带报价的令牌会被它拦下、
- * 改弹一张「经 AI 助手驱动」的卡——那等于把一个弹窗换成另一个更吓人的弹窗。这里的「确认」由用户按 ↑
- * 那一下承担。报价只拿来铸令牌，不参与「问不问」。
+ * 卡上不印金额（2026-09-26 用户拍板：官方额度上线前隐藏价格维度）；批准与记账在制作流程的 Run 里。
  */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
-  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; onQuoteConfirmed?: (quoteId: string) => void; initiator: SpendInitiator },
+  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; initiator: SpendInitiator },
 ): Promise<boolean> {
   if (!generationSpendsCredits(nodes)) return true
-  const inputs = nodes.map((node) => {
-    const context = generationCostContextForNode(node, null)
-    return { vendorKey: context.vendorKey ?? '', modelKey: context.modelKey ?? '', parameters: node?.meta ?? {} }
-  })
-  let quote
-  try { quote = await getDesktopBridge()?.tasks.quoteSpend(inputs) }
-  catch (error) {
-    toast(error instanceof Error ? error.message : i18n.t('generationCommon.batchPlan.authorizationFailed'), 'error')
-    return false
-  }
   const required = spendConfirmationRequirement({
     initiator: opts.initiator,
     runCount: nodes.length,
     hostingDisclosure: Boolean(opts.hostingDisclosure),
   })
-  if (!required) {
-    if (quote) opts.onQuoteConfirmed?.(quote.quoteId)
-    return true
-  }
-  // 卡上不印金额（2026-09-26 用户拍板：官方额度上线前隐藏价格维度）；报价照样拿，只用来铸令牌。
-  const confirmed = await useSpendConfirmStore.getState().requestConfirm({
+  if (!required) return true
+  return useSpendConfirmStore.getState().requestConfirm({
     title: opts.title,
     message: opts.message,
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
     ...(opts.hostingDisclosure ? { hostingDisclosure: opts.hostingDisclosure } : {}),
   })
-  if (confirmed && quote) opts.onQuoteConfirmed?.(quote.quoteId)
-  return confirmed
 }
 
 export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'model3d' | 'mixed'

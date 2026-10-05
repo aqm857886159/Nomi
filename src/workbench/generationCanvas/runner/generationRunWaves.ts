@@ -4,6 +4,7 @@
 // 为什么单独一个文件：`generationRunController.ts` 是「一个节点怎么跑完」的 owner，
 // 这里是「一批节点按什么顺序跑」的 owner —— 两件事，分开之后控制器回到 800 行门岗之内
 // （R9）。**没有在旧文件留 re-export**：留了就是 P1 说的逃生口，两个入口迟早各长一份。
+import { withdrawCanvasShots } from '../../api/taskApi'
 import { deliverRunOutcome, readRunGraph } from './runProjectDelivery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { useGenerationQueueStore } from './generationQueueStore'
@@ -26,6 +27,7 @@ export async function runGenerationNodesByPlan(
   const batchId = useGenerationQueueStore
     .getState()
     .enqueueBatch([...plan.waves, plan.blocked.map((blocked) => blocked.nodeId)], options.target.projectId)
+  if (options.canvasRunRecordIds?.size) useGenerationQueueStore.getState().attachCanvasConsent(batchId, options.canvasRunRecordIds)
   const runOptions: RunGenerationNodesBatchOptions = { ...options, batchId }
   try {
     const failNode = async (nodeId: string, message: string) => {
@@ -89,6 +91,10 @@ export async function runGenerationNodesByPlan(
     }
     throw error
   } finally {
+    // 卡上点过确认、这一批跑完都没轮到的（上游失败、缺料、刹车后取消）：收回出价。已经交了的主进程不动它。
+    if (options.canvasRunRecordIds?.size) {
+      withdrawCanvasShots({ projectId: options.target.projectId, runRecordIds: [...options.canvasRunRecordIds.values()], by: 'stopped' })
+    }
     useGenerationQueueStore.getState().finishBatch(batchId)
   }
 }

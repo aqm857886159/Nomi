@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard, waitForProduction as waitFor } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, finishLegacyGenerationJobs, waitForProduction as waitFor } from './productionRunTestHelpers'
 import { buildQaRetryPlans, buildQaStageOutcome, adoptedGenerationShotNodeIds } from './productionQaVerdict'
 
 // W1.5 · 把审片接进 production run 路径②的 qa 阶段。
@@ -13,7 +13,10 @@ import { buildQaRetryPlans, buildQaStageOutcome, adoptedGenerationShotNodeIds } 
 // 先红后绿：qa 阶段此前只 markComplete、零判分事件；接线后 qa 会发 production.verify-shots，
 // 把 per-shot 判决落成 qa.verdict 事件 + qa 阶段摘要（判分失败/无镜头 → 诚实降级「审片跳过」，不阻断）。
 
-/** 走到「合同已批准、样片门已批准」→ driver 会跑完两镜、进 qa、再进 assemble 的公共前置。 */
+/**
+ * 走到「两镜已经生成、合同已批准」→ driver 进 qa、再进 assemble 的公共前置。旧剧本那台生成写手已退役（发动机收敛第一刀
+ * 第 4 步），「生成完成」这一段由夹具直接落进 Run 账本（finishLegacyGenerationJobs），审片这一段走真实 driver。
+ */
 async function driveToRoughCut(
   service: ReturnType<typeof createProductionRunService>,
   runId: string,
@@ -30,7 +33,7 @@ async function driveToRoughCut(
   await approveLatestStoryboard(service, 'project-1', runId)
   const planned = service.readFull('project-1', runId)!
   const storyboardId = planned.artifacts.find((a) => a.kind === 'storyboard')!.artifactId
-  const attached = await service.command('project-1', runId, {
+  await service.command('project-1', runId, {
     commandId: 'attach', expectedRevision: planned.revision, type: 'plan.attach',
     payload: { artifactId: storyboardId, bindings: [
       { nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' },
@@ -38,16 +41,10 @@ async function driveToRoughCut(
     ] },
     issuedAt: new Date().toISOString(),
   })
+  finishLegacyGenerationJobs(service, 'project-1', runId)
   await service.command('project-1', runId, {
-    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
+    commandId: 'contract', expectedRevision: service.readFull('project-1', runId)!.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
-  })
-  // 样片门：首镜落地后停一次 → 批准续跑剩余镜头 → qa → assemble → 粗剪。
-  await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
-  const atSample = service.readFull('project-1', runId)!
-  await service.command('project-1', runId, {
-    commandId: 'approve-sample', expectedRevision: atSample.revision, type: 'gate.decide', humanGesture: true,
-    payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
 }
 
@@ -62,11 +59,6 @@ function makeTwoShotService(root: string, verifyResponse: (shotNodeIds: string[]
       { index: 1, shotKind: 'video', prompt: 'shot one' },
       { index: 2, shotKind: 'video', prompt: 'shot two' },
     ] } }
-    if (op === 'production.generate-node') {
-      const retryDirective = (payload as Record<string, unknown>).retryDirective
-      if (typeof retryDirective === 'string' && retryDirective.trim()) seen.push(`retry-directive:${retryDirective}`)
-      return { assets: [{ type: 'video', url: 'nomi-local://asset/project-1/assets/generated/shot.mp4' }] }
-    }
     if (op === 'production.verify-shots') {
       const rawIds = (payload as Record<string, unknown>).shotNodeIds
       const ids = Array.isArray(rawIds) ? rawIds.filter((id): id is string => typeof id === 'string') : []
@@ -98,11 +90,12 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     }), seen)
     const runId = 'run-qa-1'
     await driveToRoughCut(service, runId)
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    // 红标的那一镜排了定向重滚；旧剧本的生成写手已退役，那一笔重滚停成「需要处理」，不发给渲染层、不进粗剪。
+    await waitFor(() => service.readFull('project-1', runId)!.status === 'needs_attention')
 
-    // 确实走了审片 IPC（在 arrange 之前）。
+    // 确实走了审片 IPC，没有任何一笔生成发给渲染层。
     expect(seen).toContain('production.verify-shots')
-    expect(seen.indexOf('production.verify-shots')).toBeLessThan(seen.indexOf('production.arrange'))
+    expect(seen).not.toContain('production.generate-node')
 
     // qa.verdict 事件：两镜各一条，过检/红标可辨、红标带维度与理由。
     const events = await service.readEvents('project-1', runId, 0, 0)
@@ -113,17 +106,14 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     expect(messages.some((m) => m.includes('审片通过'))).toBe(true)
     expect(messages.some((m) => m.includes('审片红标') && m.includes('身份') && m.includes('主体换脸了'))).toBe(true)
     expect(messages.some((m) => m.includes('已安排定向重滚'))).toBe(true)
-    expect(seen.some((item) => item.startsWith('retry-directive:') && item.includes('身份'))).toBe(true)
 
-    // qa 阶段摘要进投影（nomi_get_run 读得到），且 qa 阶段 completed。
+    // qa 阶段摘要进投影（nomi_get_run 读得到）；重滚那一笔带着原因，停在「旧写手已退役」。
     const projection = service.readProjection('project-1', runId)
     const qaStage = projection.stages.find((s) => s.stageId === 'qa')
-    expect(qaStage?.status).toBe('completed')
     expect((qaStage as { qaSummary?: string })?.qaSummary).toContain('红标')
+    expect((qaStage as { qaSummary?: string })?.qaSummary).toContain('定向重滚')
     const retryJob = projection.jobs.find((job) => job.retryCount === 1)
-    expect(retryJob).toMatchObject({ parentJobId: expect.stringContaining('shot-2'), retryReason: expect.stringContaining('身份') })
-    const retryArtifact = projection.artifacts.find((artifact) => artifact.retryCount === 1)
-    expect(retryArtifact).toMatchObject({ parentArtifactId: expect.stringContaining('shot-2'), retryReason: expect.stringContaining('身份') })
+    expect(retryJob).toMatchObject({ parentJobId: expect.stringContaining('shot-2'), retryReason: expect.stringContaining('身份'), status: 'needs_attention', errorCode: 'legacy_generation_writer_retired' })
     // 不新增门、不改花钱语义：qa 阶段没有新增任何 gate。
     expect(projection.gates.some((g) => g.gateId.startsWith('gate-qa'))).toBe(false)
   })

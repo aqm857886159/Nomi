@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // 一批里有一镜被画布拿走（删了它的节点 / 画布接手），其余镜全部出片后这一批必须收尾：调度器报完成 → Run 交给
 // 审片与粗剪 → 任务卡不再挂「进行中」。2026-09-29 #921 零额度彩排：被拿走的那一镜的 job 是 detached，调度器却把它数成
 // 「在跑」，批次永远凑不满完成数，Run 一直停在 running。两条路都走真入口：删节点经渲染层上报 → 真 IPC；
-// 画布接手经 runTask 前的 claimCanvasProductionShot；收尾经 appIntegration 同款 onBatchComplete → advanceSemanticProduction。
+// 画布接手经画布付费口（appIntegrationCanvasShot）准入里的认领；收尾经 appIntegration 同款 onBatchComplete → advanceSemanticProduction。
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
@@ -42,7 +42,7 @@ import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import { setMainWindow } from "../appWindowRegistry";
 import { reportDetachedShotNodes, type DetachReportApi } from "../../src/workbench/production/reportDetachedShotNodes";
 import { buildProductionRunView } from "../../src/workbench/production/productionRunView";
-import { claimCanvasProductionShot } from "./canvasShotClaim";
+import { setupCanvasShots } from "../capabilityCore/canvasShotTestUtils";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
@@ -189,7 +189,7 @@ describe("a batch settles once a shot leaves it for the canvas", () => {
     run = applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-pause", expectedRevision: run.revision, type: "run.control", payload: { action: "pause" }, issuedAt: now() }).run;
     expect(run.status).toBe("paused");
 
-    claimCanvasProductionShot(PROJECT, { productionRunId: RUN, productionShotId: "shot-2" });
+    await setupCanvasShots({ root, repository, now }).submit(NODE["shot-2"], "run-canvas-1", "shot-2", { productionRunId: RUN, productionShotId: "shot-2" });
     expect(jobOf(repository, "shot-2")).toMatchObject({ status: "detached", errorCode: "canvas_claimed" });
     run = repository.read(PROJECT, RUN)!;
     applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-resume", expectedRevision: run.revision, type: "run.control", payload: { action: "resume" }, issuedAt: now() });

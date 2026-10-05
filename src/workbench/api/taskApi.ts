@@ -125,12 +125,14 @@ function requireDesktopRuntime(feature: string): DesktopBridge {
   return desktop
 }
 
-/** 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回 grantId。仅由确认事件链调用。 */
-export async function mintSpendGrant(nodeIds: string[], maxAttemptsPerNode?: number, quoteId?: string): Promise<string> {
+/**
+ * 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回 grantId。画布已不用它（批准住在各自的单镜 Run 上）；
+ * 只剩新手引导的 ComfyUI 试生成这一处登记的例外（到期 2026-11-15，见 concept-owners 的 spend.pending-identity）。
+ */
+export async function mintSpendGrant(nodeIds: string[], maxAttemptsPerNode?: number): Promise<string> {
   const desktop = requireDesktopRuntime('spend authorization')
   const { grantId } = await desktop.tasks.grantSpend({
     nodeIds,
-    ...(quoteId ? { quoteId } : {}),
     ...(maxAttemptsPerNode ? { maxAttemptsPerNode } : {}),
   })
   return grantId
@@ -278,6 +280,28 @@ export async function pollCanvasShotRun(input: { projectId: string; runRecordId:
 /** 渲染层不再等这一次（点了停）：主进程把还在路上的交给观察者收完，钱花了的结果照样进项目。 */
 export async function releaseCanvasShotRun(input: { projectId: string; runRecordId: string }): Promise<void> {
   await getDesktopBridge()?.tasks?.canvasRelease?.(input)
+}
+
+/** 批量卡上要花钱的一镜：节点、它这一次的运行记录号、点确认那一刻选着的家 / 模型 / 任务种类。 */
+export type CanvasConsentShot = { nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string }
+
+/**
+ * 批量卡上点了确认：卡上列出的每一镜在主进程各建一个单镜 Run，出价开着 = 这一镜他同意了（这一张卡就是这一份授权）。
+ * 什么都还没交；轮到它时 `submitCanvasShotRun` 才冻住请求、批、交。主进程拒（没装好 / 出错）就抛，整批不开始、不花钱。
+ */
+export async function consentCanvasShots(input: { projectId: string; shots: CanvasConsentShot[] }): Promise<string[]> {
+  const desktop = requireDesktopRuntime('canvas batch generation')
+  if (!desktop.tasks.canvasConsent) throw new Error('canvas batch generation requires a newer desktop runtime')
+  return (await desktop.tasks.canvasConsent(input)).runIds
+}
+
+/**
+ * 收回还没交的那几镜的同意：`removed` = 任务列表里把排队的这一镜去掉了；`user_closed` = 整批点了 ×；
+ * `stopped` = 这一批跑完了还剩没轮到的（上游失败、缺料、被刹车后取消）。已经交出去的照常跑完，主进程对它们什么都不做。
+ */
+export function withdrawCanvasShots(input: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }): void {
+  if (input.runRecordIds.length === 0) return
+  void getDesktopBridge()?.tasks?.canvasWithdraw?.(input)?.catch(() => undefined)
 }
 
 export async function runComfyCandidateTestByVendor(

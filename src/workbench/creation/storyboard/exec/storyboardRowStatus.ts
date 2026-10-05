@@ -333,7 +333,7 @@ export type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowR
     locked: number
     generating: number
     /**
-     * 可找回：**永远**不进批量。这一镜已经付过钱了，批量走的是 `confirmAndRunPlan`（铸新的付费令牌 +
+     * 可找回：**永远**不进批量。这一镜已经付过钱了，批量走的是 `confirmAndRunPlan`（新开一份付费出价 +
      * 重新提交），把它算进「未生成」就是让用户一键重复付费。它的出路是行内那枚免费的「重新拉取结果」。
      */
     recoverable: number

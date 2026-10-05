@@ -1,0 +1,27 @@
+  · shot tests/ux/shots/director/ai-builder/01-failure.png
+  ✗ AI走查中断：Error: expect(locator).toBeDisabled() failed
+
+Locator:  getByTestId('director-ai-bar').locator('textarea')
+Expected: disabled
+Received: enabled
+Timeout:  5000ms
+
+Call log:
+  - Expect "to.be.disabled" with timeout 5000ms
+  - waiting for getByTestId('director-ai-bar').locator('textarea')
+    13 × locator resolved to <textarea rows="2" placeholder="描述要搭的场景，例如：雨夜街角的咖啡馆，门口有长椅和路灯…" class="mb-2 w-full resize-none rounded-nomi-sm border border-nomi-line bg-nomi-bg px-2 py-1.5 text-caption text-nomi-ink outline-none focus:border-nomi-accent">A cafe with a table and stool</textarea>
+       - unexpected value "enabled"
+
+✗ ai-builder：1 项失败 —— AI走查中断：Error: expect(locator).toBeDisabled() failed
+
+Locator:  getByTestId('director-ai-bar').locator('textarea')
+Expected: disabled
+Received: enabled
+Timeout:  5000ms
+
+Call log:
+  - Expect "to.be.disabled" with timeout 5000ms
+  - waiting for getByTestId('director-ai-bar').locator('textarea')
+    13 × locator resolved to <textarea rows="2" placeholder="描述要搭的场景，例如：雨夜街角的咖啡馆，门口有长椅和路灯…" class="mb-2 w-full resize-none rounded-nomi-sm border border-nomi-line bg-nomi-bg px-2 py-1.5 text-caption text-nomi-ink outline-none focus:border-nomi-accent">A cafe with a table and stool</textarea>
+       - unexpected value "enabled"
+
