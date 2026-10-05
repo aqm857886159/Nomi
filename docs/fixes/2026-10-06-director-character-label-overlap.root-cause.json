@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-director-character-label-overlap",
+  "detected_by": "walkthrough",
+  "problem_type": "Projected on-screen labels drawn at their anchors with no collision handling",
+  "symptom": "Director view, courtyard scene shot 2: the 黑衣侍卫 name tag covers the 青衣女子 name tag (outsourced card 18 baseline comparison, card 20 follow-up); they used to sit one above the other.",
+  "direct_cause": "ViewportLabels and directorCapture.drawLabels each drew every character label with its bottom pinned at the projected head anchor; when two heads project within one label height of each other the boxes overlap. The courtyard labels only looked stacked before 4adb4668d because the woman was wrongly standing on top of the gate (y = 1.2 m); after that physics fix both stand on the ground and their heads project 11–20 px apart, less than one 22 px label.",
+  "class_root": "Character name labels had no shared layout: each consumer placed labels independently and nothing guaranteed that two labels never cover each other, so any two actors standing roughly in line with the camera produce overlapping tags.",
+  "affected_population": [
+    "Every director-view and refine viewport with two or more visible characters whose heads project close together",
+    "Screenshots and recorded previews with burned-in labels (same drawing rule)"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportOverlays.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/capture/directorCapture.ts"
+  ],
+  "entry_points": [
+    "Viewport DOM labels (ViewportLabels, fed by LabelProjector)",
+    "Burned-in labels in screenshots and recordings (directorCapture.drawLabels, fed by CaptureBinder)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Label placement is an internal rendering rule of Nomi's director viewport; no external API or library decides it.",
+  "invariants": [
+    "After layout, no two character labels intersect, and every label sits at or above its own anchor."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"
+    ],
+    "why": "layoutCharacterLabels is the one placement rule for projected character labels; the viewport DOM labels and the burned-in capture labels both call it. Its test sweeps every registered oracle plan every 0.25 s under the director overview camera."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "symbol": "layoutCharacterLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportOverlays.tsx",
+      "symbol": "layoutCharacterLabels"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/capture/directorCapture.ts",
+      "symbol": "layoutCharacterLabels"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "characterLabel.ts owns the layout rule; the two drawers must both exist (one draws DOM labels over the live viewport, the other burns labels into exported pixels) and now call that single rule instead of each placing labels on their own."
+  },
+  "generality_proof": "The non-overlap rule lives in layoutCharacterLabels and both label drawers call it with their real box sizes, so the rule holds for any number of characters, any scene and any camera; the census test sweeps every registered oracle plan every 0.25 s under the director overview camera.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "symbol": "layoutCharacterLabels",
+      "responsibility": "Place projected label boxes so none intersect, nearest-on-screen first, deterministic order."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportOverlays.tsx",
+      "entry_point": "ViewportLabels",
+      "disposition": "enforced",
+      "evidence": "Calls layoutCharacterLabels with VIEWPORT_LABEL_METRICS box sizes and renders at the returned top."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/capture/directorCapture.ts",
+      "entry_point": "drawLabels",
+      "disposition": "enforced",
+      "evidence": "Measures each label with measureText and draws at the top returned by layoutCharacterLabels."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/shotStrip/DirectorShotStrip.tsx",
+      "entry_point": "DirectorShotStrip",
+      "disposition": "not-affected",
+      "evidence": "Shot cards are laid out by flexbox in a row, not projected from 3D anchors."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any plan where two actors stand roughly in line with the camera (standoffs, conversations seen from the side, queues) reproduces the overlap; the camera and actor positions change with every plan and hand edit.",
+    "same_class_scan": [
+      "git grep for label.y / drawLabels / ProjectedLabel under src/workbench/generationCanvas/nodes/director: only ViewportLabels and drawLabels draw projected character labels",
+      "Bisect of the courtyard plan across compiler commits (fbba3cfdc, 4adb4668d, 3247d0775, dc688f359, a3fda0c07) with the production camera builder: overlap starts at 4adb4668d, when the woman stops floating on the gate"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+    "invariant": "No two laid-out character labels intersect; each label is at or above its anchor.",
+    "failure_mode": "An intersecting label is moved up above the label it hits until it intersects nothing.",
+    "exception_policy": "none",
+    "strategy": "One layout function shared by the viewport and the capture path, plus a census over every registered oracle plan.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportOverlays.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/capture/directorCapture.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportOverlays.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/capture/directorCapture.ts"
+    ],
+    "rationale": "Both drawers no longer place labels at the raw anchor; the per-consumer placement is gone."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides label placement.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes; labels are computed every frame.",
+  "residual_risks": [
+    "The DOM label width is estimated before render (CJK = one font size, others 0.6); unusually wide glyphs could still touch by a pixel or two.",
+    "Labels pushed above the top edge of the viewport are clipped by the viewport container (very crowded scenes)."
+  ],
+  "recurrence_check_on": "2026-11-06"
+}
