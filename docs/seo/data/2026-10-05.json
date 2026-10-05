@@ -1,0 +1,1652 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-05T07:27:08.725Z",
+  "baseUrl": "https://nomiaqm.com",
+  "pages": [
+    {
+      "url": "https://nomiaqm.com/en/",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/models",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/agnes-video-2-5",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/flux-1-krea",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/flux-1-krea",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/flux-2-pro",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/flux-2-pro",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/gemini-omni-1-1-flash",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/gemini-omni-1-1-flash",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/gpt-image-2-5-flare",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/grok-imagine-1-5",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/hailuo-2-3",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/imagen-4-fast",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/kling-3-0",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/minimax-h3",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/minimax-h3",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/muse-image",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/nano-banana-2-lite",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/qwen-image-3-0",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/runway-gen-4-image",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/runway-gen-4-image",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/seedance-2-5",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/seedream-5-0-pro",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/seedream-5-0-pro",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/soul-cinema",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/vidu-q3",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/models/z-image",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/character",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/character",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/collections/imgedify-gpt4o",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/collections/imgedify-gpt4o",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/collections/sora2-viral",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/collections/sora2-viral",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/composition",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/composition",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/expressions",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/expressions",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/prompts/scene",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/scene",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/en/quickstart",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/brand-promo",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-candle-mood",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-cross-view",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-expression-sheet",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-film-storyboard",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-outpaint",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-product-condensation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-product-turntable",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/curated-restore-image",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-art-design",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-consistency",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-keyframe-review",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-shot-translation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-staging",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/director-transitions",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/model-integration",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/skill-author",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/workbench-fixation-planner",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/workbench-storyboard-planner",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/writer-behavior-psychology",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/writer-improv",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/writer-novel-digester",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/writer-screenwriter",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/skills/writer-structure",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/features",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/agnes-image-2-1",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/dop",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/flux-2-klein",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/gemini-image-3-pro",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/gpt-image-2",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/gpt-image-2-5-sunburst",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/grok-imagine-image-2",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/happyhorse-1-1",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/imagen-4-ultra",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/kling-3-0-turbo",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/minimax-h3-max",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/nano-banana-2",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/qwen-image",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/runway-gen-4-5",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/runway-gen-4-turbo",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/seedream-5-0-lite",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/soul-2",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/veo-3-1",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/wan-3-0",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/models/z-image-turbo",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/camera",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/camera",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/collections/evolink-gpt-image-2",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/evolink-gpt-image-2",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/collections/sora-official",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/sora-official",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/collections/youmind-nano-banana-pro",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/youmind-nano-banana-pro",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/editing",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/editing",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/natural-texture",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/natural-texture",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/prompts/storyboard",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/storyboard",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/skills",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "SCHEMA-WEBPAGE",
+          "severity": "error",
+          "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/skills",
+          "evidence": "JSON-LD WebPage",
+          "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+        }
+      ]
+    },
+    {
+      "url": "https://nomiaqm.com/skills/creation-edit",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-coffee-pour",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-expression-reference",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-eyewear-light",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-multi-view",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-product-before-after",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-product-exploded-view",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/curated-product-unboxing",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-action",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-cinematography",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-guzhuang",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-performance",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-sound",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/director-style-otomo-wright",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/drama-short",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/release-media-pack",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/workbench-creation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/workbench-generation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-adaptation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-dialogue",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-incubation",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-review",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-songfangjin",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/skills/writer-style-schrader",
+      "checked": 10,
+      "failures": [
+        {
+          "rule": "META-DESCRIPTION",
+          "severity": "error",
+          "message": "META-DESCRIPTION check failed for https://nomiaqm.com/skills/writer-style-schrader",
+          "evidence": "description",
+          "recommendation": "Add a page-specific 50–160 character meta description."
+        }
+      ]
+    }
+  ],
+  "sitemap": {
+    "checked": 212,
+    "entries": [],
+    "failures": []
+  },
+  "robots": {
+    "checked": 2,
+    "failures": []
+  },
+  "performance": {
+    "status": "not_configured"
+  },
+  "summary": {
+    "pages": 106,
+    "checks": 1274,
+    "failures": 130,
+    "networkFailures": 107,
+    "errors": 130
+  },
+  "failures": [
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/",
+      "evidence": "HTTP 403 for https://nomiaqm.com/",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/features",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/features",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/agnes-image-2-1",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/agnes-image-2-1",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/dop",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/dop",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/flux-2-klein",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/flux-2-klein",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/gemini-image-3-pro",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/gemini-image-3-pro",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/gpt-image-2",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/gpt-image-2",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/gpt-image-2-5-sunburst",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/gpt-image-2-5-sunburst",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/grok-imagine-image-2",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/grok-imagine-image-2",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/happyhorse-1-1",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/happyhorse-1-1",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/imagen-4-ultra",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/imagen-4-ultra",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/kling-3-0-turbo",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/kling-3-0-turbo",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/minimax-h3-max",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/minimax-h3-max",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/nano-banana-2",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/nano-banana-2",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/qwen-image",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/qwen-image",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/runway-gen-4-5",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/runway-gen-4-5",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/runway-gen-4-turbo",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/runway-gen-4-turbo",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/seedream-5-0-lite",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/seedream-5-0-lite",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/soul-2",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/soul-2",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/veo-3-1",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/veo-3-1",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/wan-3-0",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/wan-3-0",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/models/z-image-turbo",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/models/z-image-turbo",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/camera",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/camera",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/collections/evolink-gpt-image-2",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/collections/evolink-gpt-image-2",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/collections/sora-official",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/collections/sora-official",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/collections/youmind-nano-banana-pro",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/collections/youmind-nano-banana-pro",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/editing",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/editing",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/natural-texture",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/natural-texture",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/prompts/storyboard",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/prompts/storyboard",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/creation-edit",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/creation-edit",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-coffee-pour",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-coffee-pour",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-expression-reference",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-expression-reference",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-eyewear-light",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-eyewear-light",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-multi-view",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-multi-view",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-product-before-after",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-product-before-after",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-product-exploded-view",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-product-exploded-view",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/curated-product-unboxing",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/curated-product-unboxing",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-action",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-action",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-cinematography",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-cinematography",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-guzhuang",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-guzhuang",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-performance",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-performance",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-sound",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-sound",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/director-style-otomo-wright",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/director-style-otomo-wright",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/drama-short",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/drama-short",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/release-media-pack",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/release-media-pack",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/workbench-creation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/workbench-creation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/workbench-generation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/workbench-generation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-adaptation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-adaptation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-dialogue",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-dialogue",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-incubation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-incubation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-review",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-review",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-songfangjin",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-songfangjin",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/en/skills/writer-style-schrader",
+      "evidence": "HTTP 403 for https://nomiaqm.com/en/skills/writer-style-schrader",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/agnes-video-2-5",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/agnes-video-2-5",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/flux-1-krea",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/flux-1-krea",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/flux-2-pro",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/flux-2-pro",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/gemini-omni-1-1-flash",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/gemini-omni-1-1-flash",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/gpt-image-2-5-flare",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/gpt-image-2-5-flare",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/grok-imagine-1-5",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/grok-imagine-1-5",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/hailuo-2-3",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/hailuo-2-3",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/imagen-4-fast",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/imagen-4-fast",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/kling-3-0",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/kling-3-0",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/minimax-h3",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/minimax-h3",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/muse-image",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/muse-image",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/nano-banana-2-lite",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/nano-banana-2-lite",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/qwen-image-3-0",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/qwen-image-3-0",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/runway-gen-4-image",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/runway-gen-4-image",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/seedance-2-5",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/seedance-2-5",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/seedream-5-0-pro",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/seedream-5-0-pro",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/soul-cinema",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/soul-cinema",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/vidu-q3",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/vidu-q3",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/models/z-image",
+      "evidence": "HTTP 403 for https://nomiaqm.com/models/z-image",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/character",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/character",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/collections/imgedify-gpt4o",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/collections/imgedify-gpt4o",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/collections/sora2-viral",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/collections/sora2-viral",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/composition",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/composition",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/expressions",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/expressions",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/prompts/scene",
+      "evidence": "HTTP 403 for https://nomiaqm.com/prompts/scene",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/quickstart",
+      "evidence": "HTTP 403 for https://nomiaqm.com/quickstart",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/brand-promo",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/brand-promo",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-candle-mood",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-candle-mood",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-cross-view",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-cross-view",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-expression-sheet",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-expression-sheet",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-film-storyboard",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-film-storyboard",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-outpaint",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-outpaint",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-product-condensation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-product-condensation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-product-turntable",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-product-turntable",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/curated-restore-image",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/curated-restore-image",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-art-design",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-art-design",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-consistency",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-consistency",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-keyframe-review",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-keyframe-review",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-shot-translation",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-shot-translation",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-staging",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-staging",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/director-transitions",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/director-transitions",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/model-integration",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/model-integration",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/skill-author",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/skill-author",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/workbench-fixation-planner",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/workbench-fixation-planner",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/workbench-storyboard-planner",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/workbench-storyboard-planner",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/writer-behavior-psychology",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/writer-behavior-psychology",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/writer-improv",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/writer-improv",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/writer-novel-digester",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/writer-novel-digester",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/writer-screenwriter",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/writer-screenwriter",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/skills/writer-structure",
+      "evidence": "HTTP 403 for https://nomiaqm.com/skills/writer-structure",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-SITEMAP",
+      "severity": "error",
+      "message": "Could not fetch sitemap.xml",
+      "evidence": "HTTP 403 for https://nomiaqm.com/sitemap.xml",
+      "recommendation": "Keep robots.txt and sitemap.xml publicly reachable."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/models",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/flux-1-krea",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/flux-2-pro",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/gemini-omni-1-1-flash",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/minimax-h3",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/runway-gen-4-image",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/en/models/seedream-5-0-pro",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/character",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/collections/imgedify-gpt4o",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/collections/sora2-viral",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/composition",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/expressions",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/en/prompts/scene",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/camera",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/evolink-gpt-image-2",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/sora-official",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/collections/youmind-nano-banana-pro",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/editing",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/natural-texture",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/prompts/storyboard",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "SCHEMA-WEBPAGE",
+      "severity": "error",
+      "message": "SCHEMA-WEBPAGE check failed for https://nomiaqm.com/skills",
+      "evidence": "JSON-LD WebPage",
+      "recommendation": "Add valid JSON-LD containing a factual WebPage node."
+    },
+    {
+      "rule": "META-DESCRIPTION",
+      "severity": "error",
+      "message": "META-DESCRIPTION check failed for https://nomiaqm.com/skills/writer-style-schrader",
+      "evidence": "description",
+      "recommendation": "Add a page-specific 50–160 character meta description."
+    }
+  ]
+}
