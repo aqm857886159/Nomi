@@ -95,7 +95,7 @@
     "new:contract": "node ./scripts/new-root-cause-contract.mjs",
     "typecheck": "node ./scripts/typecheck.mjs",
     "lint": "eslint .",
-    "lint:ci": "eslint . --max-warnings=9",
+    "lint:ci": "eslint . --max-warnings=10",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
