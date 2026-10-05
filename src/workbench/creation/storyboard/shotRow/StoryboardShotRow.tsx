@@ -23,31 +23,29 @@ import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
 import { resolveShotArchetypeMode } from './shotRowModel'
-import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
+import { type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
 import StoryboardRowShell from './StoryboardRowShell'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardFrameActions from './StoryboardFrameActions'
 import StoryboardVariantsDrawer from './StoryboardVariantsDrawer'
-import ShotReferenceStrip, { ShotReferenceAddButton } from './ShotReferenceStrip'
+import ShotReferenceStrip from './ShotReferenceStrip'
 import { modeDisplayLabel, referenceCapableSibling } from './shotReferenceCells'
-import { dropBindingsForUrls, hasShownReferences, removeReferenceWithMention } from './shotReferenceSlots'
+import { dropBindingsForUrls, removeReferenceWithMention } from './shotReferenceSlots'
 import { droppedMentionUrls } from '../../../assets/promptMentions'
 import ShotComposerBar from './ShotComposerBar'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import type { ShotVariant } from './shotVariants'
 
 /**
- * 分镜表的一行：`[grip 14 | 画面格 136 | 提示词框 1fr]`。
+ * 分镜表的一行：`[行首 | 视觉列 | 内容列]`（2026-10-06 第二轮，版面由协调会话定；行网格在 `StoryboardRowShell`）。
  *
- * 2026-10-06（用户 10-05：「大部分是要利用我们目前的交互，复用」）：提示词框就是**画布节点的浮框**——
- * 参考图在提示词上面（画布同款 `AssetReference`，缩略图带 ×），参数在下面（画布同款 `InlineParameterBar`），
- * 「生成」钉在最右。原来夹在画面格与提示词之间的 200px 参考列、每个空槽一行的说明文字、
- * 一排模式 / 时长 / ⋯ 胶囊都随之删除。画面格列宽固定 136、动作条在图下方常驻（v6 §2.4 / §2.9）不变。
+ *   · 视觉列 = 预览框（全表同一只，整片画幅定）+ 结果动作（有结果才占位）+ 参考缩略图条（36 方块，带 ×、序号对芯片）；
+ *   · 内容列 = 提示词（内联 @ 芯片，2–5 行，超出滚动）+ 底栏（画布同款模型按钮 + 参数汇总按钮，右端「生成」）。
  *
- * 行首那枚复选框是「本次跳过」（§2.10）：这一批不跑，跑完自动清；它与「锁定」是两回事
- * （锁定是持久的、要显式解锁），两者的挂点、视觉、清除时机都不许混。
+ * 用户 10-05：「复用我们目前的交互」；10-06：「优化左侧的显示……我们原来的设计是为了空间，把参考的图片放到了左边」。
+ * 行首那枚复选框是「本次跳过」（§2.10，语义归 L-sbtable，这里不动）。
  */
 
 type Props = {
@@ -191,6 +189,10 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   }, [currentRefUrls])
 
   const closeMenus = (): void => { setActionsOpen(false) }
+  // 视觉列宽：这一行在行网格之外渲染，读不到网格量出的档位，所以参考条与降级框的宽度由 ShotReferenceStrip /
+  // 画面格在网格里面各自按档位缩（同一个 context）。这里给的是宽档值。
+  const visualWidth = frameBox.width
+  const visualHeight = frameBox.height
   // 生成时会被计划首帧填上的那一槽不摆进参考里（不是用户摆的参考）。
   const hiddenSlotKeys = React.useMemo(
     () => (exec?.plannedFirstFrame ? new Set([exec.plannedFirstFrame.slotKind]) : undefined),
@@ -298,53 +300,71 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     </div>
   )
 
-  const frame = exec ? (
-    <>
-      <StoryboardShotFrame
-        shot={shot}
-        exec={exec}
-        aspect={aspect}
-        box={frameBox}
-        onOpenPreview={onOpenPreview}
-        selected={props.selected}
-        onSelect={props.onSelect}
+  // 视觉列：预览框 → 结果动作（有结果才占位）→ 参考缩略图条。列宽 = 框宽（窄档由行网格和画面格按同一档位缩）。
+  const visual = (
+    <div className="flex flex-col" data-storyboard-visual={shot.index}>
+      {exec ? (
+        <>
+          <StoryboardShotFrame
+            shot={shot}
+            exec={exec}
+            aspect={aspect}
+            box={frameBox}
+            onOpenPreview={onOpenPreview}
+            selected={props.selected}
+            onSelect={props.onSelect}
+          />
+          <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} />
+          <StoryboardFrameActions
+            shot={shot}
+            exec={exec}
+            variants={variants}
+            outputTag={outputTag}
+            onRegenerate={onRegenerate}
+            onRecover={onRecover}
+            onOpenPreview={onOpenPreview}
+            onToggleLock={onToggleLock}
+            onOpenVariants={() => setVariantsOpen((open) => !open)}
+            onGenerate={onGenerate}
+            targetShots={targetShots}
+            allShots={allShots}
+            sourcePosition={sourcePosition}
+            onSaveAsReference={onSaveAsReference}
+            onSetAsFirstFrame={onSetAsFirstFrame}
+          />
+        </>
+      ) : (
+        /* exec 缺省（测试/降级）：纯占位框，仍按表级框出，不让行错位。 */
+        <div
+          className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05"
+          style={{ width: visualWidth, height: visualHeight }}
+          data-storyboard-frame-media={aspect || 'default'}
+          data-storyboard-visual-box="true"
+        >
+          <span className="absolute left-1 top-1 rounded-nomi-sm bg-nomi-ink-10 px-1 text-micro tabular-nums text-nomi-ink-60">
+            {String(shot.index).padStart(2, '0')}
+          </span>
+        </div>
+      )}
+      <ShotReferenceStrip
+        mode={resolvedMode}
+        archetype={resolved?.archetype ?? null}
+        bindings={shot.referenceBindings}
+        onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+        onRemove={(slotKey, index) => {
+          const next = removeReferenceWithMention(shot.prompt, shot.referenceBindings, slotKey, index)
+          if (next) onUpdate({ referenceBindings: next.bindings, ...(next.prompt !== shot.prompt ? { prompt: next.prompt } : {}) })
+        }}
+        onInsertMention={mentionSearch ? insertMention : undefined}
+        onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
+        hiddenSlotKeys={hiddenSlotKeys}
+        width={visualWidth}
       />
-      <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} />
-      <StoryboardFrameActions
-        shot={shot}
-        exec={exec}
-        variants={variants}
-        outputTag={outputTag}
-        onRegenerate={onRegenerate}
-        onRecover={onRecover}
-        onOpenPreview={onOpenPreview}
-        onToggleLock={onToggleLock}
-        onOpenVariants={() => setVariantsOpen((open) => !open)}
-        onGenerate={onGenerate}
-        targetShots={targetShots}
-        allShots={allShots}
-        sourcePosition={sourcePosition}
-        onSaveAsReference={onSaveAsReference}
-        onSetAsFirstFrame={onSetAsFirstFrame}
-      />
-    </>
-  ) : (
-    /* exec 缺省（测试/降级）：纯占位格，仍按固定列宽出，不让行错位。 */
-    <div style={{ width: FRAME_COLUMN_WIDTH }} data-storyboard-frame="ready">
-      <div
-        className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05"
-        style={{ width: frameBox.width, height: frameBox.height }}
-        data-storyboard-frame-media={aspect || 'default'}
-      >
-        <span className="absolute left-1 top-1 rounded-nomi-sm bg-nomi-ink-10 px-1 text-micro tabular-nums text-nomi-ink-60">
-          {String(shot.index).padStart(2, '0')}
-        </span>
-      </div>
     </div>
   )
 
   const prompt = (
-    <div className="flex min-w-0 flex-col gap-1.5" data-storyboard-prompt-block="true">
+    <div className="flex min-h-full min-w-0 flex-1 flex-col gap-1.5" data-storyboard-prompt-block="true">
       {exec?.node ? <StoryboardOverrideBadge node={exec.node} onResolve={(field, action) => props.onResolveOverride ? props.onResolveOverride(field, action) : resolveStoryboardOverride(exec.node!.id, field, action)} /> : null}
       {exec?.ignoredAnchors?.length ? (
         <span className="text-micro text-nomi-ink-40" data-storyboard-anchor-ignored={shot.index} title={exec.ignoredAnchors.map(anchor => `${anchor.name}: ${anchor.reason}`).join('\n')}>
@@ -387,8 +407,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         </>
       ) : null}
 
-      {/* composer：参考图 + 提示词正文 + 底栏，一个框——画布节点浮框同一副长相。 */}
-      <div className={cn('rounded-nomi-sm border bg-nomi-paper', promptInvalid ? 'border-workbench-danger' : 'border-nomi-line')}>
+      {/* composer：提示词 + 底栏，一个框，撑满内容列剩余高度——底栏和「生成」因此永远在右下角、每行同一位置。 */}
+      <div className={cn('flex min-h-0 flex-1 flex-col rounded-nomi-sm border bg-nomi-paper', promptInvalid ? 'border-workbench-danger' : 'border-nomi-line')}>
         {sourceSegment ? (
           <div className="flex items-center gap-1.5 border-b border-nomi-line-soft px-2.5 py-1.5" data-storyboard-source-segment={sourceSegment.id} data-storyboard-prompt-origin={sourceSegment.edited ? 'script-edited' : 'script-derived'}>
             {sourceSegment.onClick ? (
@@ -403,17 +423,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             </span>
           </div>
         ) : null}
-        <ShotReferenceStrip
-          mode={resolvedMode}
-          bindings={shot.referenceBindings}
-          onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
-          onRemove={(slotKey, index) => {
-            const next = removeReferenceWithMention(shot.prompt, shot.referenceBindings, slotKey, index)
-            if (next) onUpdate({ referenceBindings: next.bindings, ...(next.prompt !== shot.prompt ? { prompt: next.prompt } : {}) })
-          }}
-          onInsertMention={mentionSearch ? insertMention : undefined}
-          hiddenSlotKeys={hiddenSlotKeys}
-        />
         <PromptSkeletonSegments
           prompt={shot.prompt}
           profile={storyboardProfile}
@@ -426,7 +435,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           editorProps={{
             ariaLabel: t('storyboardEditor.promptAria', { index: shot.index }),
             placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
-            className: 'px-2.5 py-2 text-body-sm leading-normal [&_.ProseMirror]:min-h-[52px]',
+            // 至少两行、最多约五行，超出在框里滚动——行高由视觉列定，提示词不把行撑高。
+            className: 'flex-1 px-2.5 py-2 text-body-sm leading-normal [&_.ProseMirror]:min-h-[42px] [&_.ProseMirror]:max-h-[105px] [&_.ProseMirror]:overflow-y-auto',
             mentionCandidates: currentRefUrls,
             mentionSearch,
             onMentionSelect,
@@ -440,15 +450,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           aspect={aspect}
           onChangeAspect={onChangeAspect}
           onUpdate={onUpdate}
-          addReference={hasShownReferences(resolvedMode, shot.referenceBindings, hiddenSlotKeys) ? null : (
-            <ShotReferenceAddButton
-              mode={resolvedMode}
-              archetype={resolved?.archetype ?? null}
-              bindings={shot.referenceBindings}
-              onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
-              onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
-            />
-          )}
           onGenerate={statusTag ? undefined : onGenerate}
           generating={exec?.status === 'generating'}
           statusTag={statusTag}
@@ -526,7 +527,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       }}
       dropIndicator={props.isDragOver}
       grip={grip}
-      frame={frame}
+      visual={visual}
+      visualWidth={frameBox.width}
       prompt={prompt}
       footer={variantsOpen ? footer : undefined}
     />

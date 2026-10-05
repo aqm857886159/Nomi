@@ -23,10 +23,11 @@ import { findModelOptionByIdentifier } from '../../../../config/modelOptionResol
 import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { AnchorCardRuntime } from '../exec/storyboardRowStatus'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
-import ShotReferenceStrip, { ShotReferenceAddButton } from '../shotRow/ShotReferenceStrip'
+import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
-import { hasShownReferences, removeBinding } from '../shotRow/shotReferenceSlots'
-import { frameMediaBox, FRAME_COLUMN_WIDTH } from '../shotRow/shotFrameGeometry'
+import { removeBinding } from '../shotRow/shotReferenceSlots'
+import { containedBox, densityBox, frameMediaBox, sameAspectAsBox } from '../shotRow/shotFrameGeometry'
+import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
 import { resolveShotArchetypeMode } from '../shotRow/shotRowModel'
 
 /**
@@ -101,7 +102,6 @@ export default function StoryboardAnchorRow({
   const anchor = runtime.anchor
   const displayName = anchor.name.trim() || t('storyboardEditor.unnamed')
   const KindIcon = KIND_ICON[anchor.kind]
-  const box = frameMediaBox(aspect)
   const orderedVendorKeys = useVendorPreferenceOrder()
   const modelOption = findModelOptionByIdentifier(modelOptions, anchor.modelKey, anchor.modelVendor, orderedVendorKeys)
   const resolved = resolveShotArchetypeMode(modelOption, anchor.modeId)
@@ -165,7 +165,144 @@ export default function StoryboardAnchorRow({
     </div>
   )
 
-  const face = ((): JSX.Element => {
+
+  // 底栏右端那一颗「生成」：只有「出图、还没出过、不在跑、没失败、不可找回」时出现（其余状态的动作在画面格上）。
+  const canGenerate = runtime.visual && !runtime.resultUrl && !runtime.generating && !runtime.failed && !runtime.recoverable
+
+  return (
+    <StoryboardRowShell
+      dataAttributes={{ 'data-storyboard-anchor-row': anchor.id, 'data-anchor-card': anchor.id }}
+      className="border-t border-nomi-line-soft first:border-t-0"
+      grip={grip}
+      visualWidth={frameMediaBox(aspect).width}
+      visual={
+        <div className="flex flex-col" data-storyboard-frame={runtime.visual ? 'anchor' : 'anchor-text'}>
+          <AnchorFace
+            runtime={runtime}
+            filmAspect={aspect}
+            displayName={displayName}
+            onGenerate={onGenerate}
+            onRecover={onRecover}
+            onOpenPreview={onOpenPreview}
+          />
+          {runtime.visual && runtime.resultUrl ? (
+            <div className="mt-1 flex items-center gap-0.5" data-storyboard-actbar="anchor">
+              {runtime.locked ? (
+                <ActButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={14} stroke={1.8} /></ActButton>
+              ) : (
+                <>
+                  <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}><IconRefresh size={14} stroke={1.8} /></ActButton>
+                  <ActButton label={t('storyboardEditor.anchor.lockTitle')} onClick={onToggleLock}><IconLock size={14} stroke={1.8} /></ActButton>
+                </>
+              )}
+              {onOpenPreview ? <ActButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={14} stroke={1.8} /></ActButton> : null}
+            </div>
+          ) : null}
+          {runtime.visual ? (
+            <ShotReferenceStrip
+              mode={resolved?.mode ?? null}
+              archetype={resolved?.archetype ?? null}
+              bindings={anchor.referenceBindings}
+              onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
+              onRemove={(slotKey, index) => { const next = removeBinding(anchor.referenceBindings, slotKey, index); if (next) onUpdate({ referenceBindings: next }) }}
+              onSwitchMode={runtime.resultUrl || runtime.generating ? undefined : (modeId) => onUpdate({ modeId })}
+              width={frameMediaBox(aspect).width}
+            />
+          ) : null}
+        </div>
+      }
+      prompt={
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5" data-storyboard-prompt-block="anchor">
+          <div className="flex items-center gap-1.5">
+            <input
+              value={anchor.name}
+              onChange={(event) => onUpdate({ name: event.target.value })}
+              placeholder={t('storyboardEditor.anchor.namePlaceholder')}
+              aria-label={t('storyboardEditor.anchor.nameAria')}
+              className={cn(
+                'h-7 min-w-0 flex-1 rounded-nomi-sm border bg-nomi-paper px-2 text-body-sm font-medium text-nomi-ink outline-none focus:border-nomi-accent',
+                nameInvalid ? 'border-workbench-danger' : 'border-nomi-line',
+              )}
+            />
+            {runtime.referencedByCount > 0 && onFilterByAnchor ? (
+              <button
+                type="button"
+                onClick={onFilterByAnchor}
+                data-anchor-stat={anchor.id}
+                className="shrink-0 text-micro text-nomi-ink-40 hover:text-nomi-accent hover:underline"
+              >
+                {t('storyboardEditor.anchor.stat.referenced', { count: runtime.referencedByCount })}
+              </button>
+            ) : null}
+          </div>
+
+          {/* 提示词框：参考图 + 描述 + 底栏，与镜头行、画布节点浮框同一副长相。 */}
+          <div className="flex flex-1 flex-col rounded-nomi-sm border border-nomi-line bg-nomi-paper">
+            <AutoGrowTextarea
+              value={anchor.description}
+              onChange={(event) => onUpdate({ description: event.target.value })}
+              aria-label={t('storyboardEditor.anchor.descriptionAria')}
+              placeholder={anchor.carrier === 'visual' ? t('storyboardEditor.anchor.visualPlaceholder') : t('storyboardEditor.anchor.textPlaceholder')}
+              className="w-full border-0 bg-transparent px-2.5 py-2 text-body-sm leading-normal text-nomi-ink-80 outline-none"
+            />
+            {runtime.visual ? (
+              <div className="mt-auto flex min-w-0 flex-nowrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5" data-storyboard-composer-bar="anchor">
+                <StoryboardComposerParams
+                  target={anchor}
+                  kind="image"
+                  modelOptions={modelOptions}
+                  onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
+                  onModeChange={(modeId) => onUpdate({ modeId })}
+                  onChange={(change) => {
+                    // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
+                    const key = change.kind === 'param' ? change.key : 'aspect_ratio'
+                    onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
+                  }}
+                />
+                {canGenerate ? (
+                  <button
+                    type="button"
+                    onClick={onGenerate}
+                    aria-label={t('storyboardEditor.anchor.generateAria', { name: displayName })}
+                    className="ml-auto inline-flex h-7 shrink-0 items-center rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-medium text-nomi-paper hover:opacity-90 active:opacity-80"
+                  >
+                    {t('storyboardEditor.frame.generate')}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      }
+    />
+  )
+}
+
+/**
+ * 参考卡的预览框：与镜头行同一只表级框（整片画幅定、窄档按 176/240 缩），参考卡按它**自己的**画幅
+ * （角色 3:4、场景 16:9…）完整放进框里，浅底补空，左下角标它的画幅。要在网格里面渲染才读得到档位。
+ */
+function AnchorFace({
+  runtime, filmAspect, displayName, onGenerate, onRecover, onOpenPreview,
+}: {
+  runtime: AnchorCardRuntime
+  filmAspect: string
+  displayName: string
+  onGenerate: () => void
+  onRecover?: (() => void) | undefined
+  onOpenPreview?: (() => void) | undefined
+}): JSX.Element {
+  const { t } = useTranslation()
+  const narrow = useStoryboardRowNarrow()
+  const box = densityBox(frameMediaBox(filmAspect), narrow)
+  const raw = runtime.anchor.params?.aspect_ratio
+  const anchorAspect = typeof raw === 'string' ? raw : null
+  const ownAspect = Boolean(anchorAspect) && !sameAspectAsBox(box, anchorAspect)
+  const aspectTag = ownAspect ? (
+    <span className="absolute bottom-1 left-1 z-[3] rounded-nomi-sm bg-nomi-overlay-chip px-1 text-micro tabular-nums text-nomi-media-ink" data-storyboard-aspect-tag={anchorAspect ?? ''}>
+      {anchorAspect}
+    </span>
+  ) : null
     if (!runtime.visual) {
       return (
         <span className="inline-flex h-6 items-center rounded-pill bg-nomi-ink-10 px-2 text-micro text-nomi-ink-60">
@@ -181,8 +318,10 @@ export default function StoryboardAnchorRow({
           style={style}
           onDoubleClick={onOpenPreview}
           data-anchor-face={runtime.locked ? 'locked' : 'done'}
+          data-storyboard-visual-box="true"
         >
-          <NomiImage src={runtime.resultUrl} alt={t('storyboardEditor.anchor.resultAlt', { name: displayName })} className="absolute inset-0 h-full w-full object-cover" />
+          <NomiImage src={runtime.resultUrl} alt={t('storyboardEditor.anchor.resultAlt', { name: displayName })} className="absolute inset-0 h-full w-full object-contain" />
+          {aspectTag}
           {runtime.locked ? (
             <span className="absolute right-1 top-1 z-[2] inline-flex items-center gap-0.5 rounded-pill bg-nomi-overlay-chip-strong px-1 py-0.5 text-micro text-nomi-media-ink">
               <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
@@ -264,119 +403,13 @@ export default function StoryboardAnchorRow({
     }
     return (
       <div
-        className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05"
+        className={cn('relative grid place-items-center rounded-nomi bg-nomi-ink-05', !ownAspect && 'border border-dashed border-nomi-ink-20')}
         style={style}
         data-anchor-face="empty"
-      />
+        data-storyboard-visual-box="true"
+      >
+        {ownAspect ? <span className="rounded-nomi-sm border border-dashed border-nomi-ink-20" style={containedBox(box, anchorAspect)} aria-hidden /> : null}
+        {aspectTag}
+      </div>
     )
-  })()
-
-  // 底栏右端那一颗「生成」：只有「出图、还没出过、不在跑、没失败、不可找回」时出现（其余状态的动作在画面格上）。
-  const canGenerate = runtime.visual && !runtime.resultUrl && !runtime.generating && !runtime.failed && !runtime.recoverable
-
-  return (
-    <StoryboardRowShell
-      dataAttributes={{ 'data-storyboard-anchor-row': anchor.id, 'data-anchor-card': anchor.id }}
-      className="border-t border-nomi-line-soft first:border-t-0"
-      grip={grip}
-      frame={
-        <div style={{ width: FRAME_COLUMN_WIDTH }} data-storyboard-frame={runtime.visual ? 'anchor' : 'anchor-text'}>
-          {face}
-          {runtime.visual && runtime.resultUrl ? (
-            <div className="mt-1 flex items-center gap-0.5" data-storyboard-actbar="anchor">
-              {runtime.locked ? (
-                <ActButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={14} stroke={1.8} /></ActButton>
-              ) : (
-                <>
-                  <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}><IconRefresh size={14} stroke={1.8} /></ActButton>
-                  <ActButton label={t('storyboardEditor.anchor.lockTitle')} onClick={onToggleLock}><IconLock size={14} stroke={1.8} /></ActButton>
-                </>
-              )}
-              {onOpenPreview ? <ActButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={14} stroke={1.8} /></ActButton> : null}
-            </div>
-          ) : null}
-        </div>
-      }
-      prompt={
-        <div className="flex min-w-0 flex-col gap-1.5" data-storyboard-prompt-block="anchor">
-          <div className="flex items-center gap-1.5">
-            <input
-              value={anchor.name}
-              onChange={(event) => onUpdate({ name: event.target.value })}
-              placeholder={t('storyboardEditor.anchor.namePlaceholder')}
-              aria-label={t('storyboardEditor.anchor.nameAria')}
-              className={cn(
-                'h-7 min-w-0 flex-1 rounded-nomi-sm border bg-nomi-paper px-2 text-body-sm font-medium text-nomi-ink outline-none focus:border-nomi-accent',
-                nameInvalid ? 'border-workbench-danger' : 'border-nomi-line',
-              )}
-            />
-            {runtime.referencedByCount > 0 && onFilterByAnchor ? (
-              <button
-                type="button"
-                onClick={onFilterByAnchor}
-                data-anchor-stat={anchor.id}
-                className="shrink-0 text-micro text-nomi-ink-40 hover:text-nomi-accent hover:underline"
-              >
-                {t('storyboardEditor.anchor.stat.referenced', { count: runtime.referencedByCount })}
-              </button>
-            ) : null}
-          </div>
-
-          {/* 提示词框：参考图 + 描述 + 底栏，与镜头行、画布节点浮框同一副长相。 */}
-          <div className="rounded-nomi-sm border border-nomi-line bg-nomi-paper">
-            {runtime.visual ? (
-              <ShotReferenceStrip
-                mode={resolved?.mode ?? null}
-                bindings={anchor.referenceBindings}
-                onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
-                onRemove={(slotKey, index) => { const next = removeBinding(anchor.referenceBindings, slotKey, index); if (next) onUpdate({ referenceBindings: next }) }}
-              />
-            ) : null}
-            <AutoGrowTextarea
-              value={anchor.description}
-              onChange={(event) => onUpdate({ description: event.target.value })}
-              aria-label={t('storyboardEditor.anchor.descriptionAria')}
-              placeholder={anchor.carrier === 'visual' ? t('storyboardEditor.anchor.visualPlaceholder') : t('storyboardEditor.anchor.textPlaceholder')}
-              className="w-full border-0 bg-transparent px-2.5 py-2 text-body-sm leading-normal text-nomi-ink-80 outline-none"
-            />
-            {runtime.visual ? (
-              <div className="flex min-w-0 flex-nowrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5" data-storyboard-composer-bar="anchor">
-                <StoryboardComposerParams
-                  target={anchor}
-                  kind="image"
-                  modelOptions={modelOptions}
-                  onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
-                  onModeChange={(modeId) => onUpdate({ modeId })}
-                  onChange={(change) => {
-                    // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
-                    const key = change.kind === 'param' ? change.key : 'aspect_ratio'
-                    onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
-                  }}
-                />
-                {hasShownReferences(resolved?.mode ?? null, anchor.referenceBindings) ? null : (
-                  <ShotReferenceAddButton
-                    mode={resolved?.mode ?? null}
-                    archetype={resolved?.archetype ?? null}
-                    bindings={anchor.referenceBindings}
-                    onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
-                    onSwitchMode={runtime.resultUrl || runtime.generating ? undefined : (modeId) => onUpdate({ modeId })}
-                  />
-                )}
-                {canGenerate ? (
-                  <button
-                    type="button"
-                    onClick={onGenerate}
-                    aria-label={t('storyboardEditor.anchor.generateAria', { name: displayName })}
-                    className="ml-auto inline-flex h-7 shrink-0 items-center rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-medium text-nomi-paper hover:opacity-90 active:opacity-80"
-                  >
-                    {t('storyboardEditor.frame.generate')}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      }
-    />
-  )
 }

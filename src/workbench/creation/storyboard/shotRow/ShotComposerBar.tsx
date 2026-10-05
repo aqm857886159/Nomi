@@ -39,12 +39,10 @@ type Props = {
   generating?: boolean
   /** 已生成/已锁定时替代主按钮的那枚状态标签文案。 */
   statusTag?: string | null
-  /** 一张参考都没有时的「加参考」图标按钮（有参考时为 null：入口是参考那一排末尾的「+」）。 */
-  addReference?: React.ReactNode
 }
 
 export default function ShotComposerBar({
-  shot, modelOptions, aspect, onChangeAspect, onUpdate, onGenerate, generating = false, statusTag, addReference,
+  shot, modelOptions, aspect, onChangeAspect, onUpdate, onGenerate, generating = false, statusTag,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const isImageShot = shotTypeOf(shot) === 'image'
@@ -74,7 +72,7 @@ export default function ShotComposerBar({
 
   return (
     <div
-      className="flex min-w-0 flex-nowrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5"
+      className="mt-auto flex min-w-0 flex-nowrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5"
       data-storyboard-composer-bar="true"
     >
       <StoryboardComposerParams
@@ -92,8 +90,6 @@ export default function ShotComposerBar({
         }}
         onExtraChange={(_key, value) => onUpdate({ durationSec: Number(value) })}
       />
-
-      {addReference}
 
       {/* 「生成」永远钉在最右，和参数区同一基线。 */}
       <div className="ml-auto shrink-0">

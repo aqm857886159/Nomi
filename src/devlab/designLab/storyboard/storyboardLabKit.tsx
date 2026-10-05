@@ -11,7 +11,7 @@ import {
 import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { ShotVariant } from '../../../workbench/creation/storyboard/shotRow/shotVariants'
-import { FRAME_COLUMN_WIDTH } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
+import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { LAB_ANCHORS, LAB_IMAGE_MODELS, LAB_VIDEO_MODELS, labExec, labPlan, labShot, NOOP } from './storyboardFixtures'
@@ -33,7 +33,7 @@ export const STAGE_WIDTH = 900
  * 1280 视口 + Agent 面板展开 + 创作内容列收起时，真机量出来的就是这个数。
  */
 export const NARROW_STAGE_WIDTH =
-  389 + 56 + FRAME_COLUMN_WIDTH
+  389 + 62 + frameMediaBox('16:9').width
 export const STAGE_HEIGHT = 260
 
 export function TableStage({

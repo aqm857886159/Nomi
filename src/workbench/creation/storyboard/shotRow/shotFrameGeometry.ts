@@ -1,21 +1,23 @@
 /**
- * 画面格几何（设计合同 v6 §2.4）。
+ * 分镜行**视觉列**的几何（2026-10-06 第二轮，用户：「优化左侧的显示……给左边留出空间可以清晰预览……
+ * 注意各个比例的展示……对齐」；版面由协调会话定）。
  *
- * 规则一句话：**列宽固定 136px 不动，媒体框按画幅在列里缩放**。
- * v5 的画面格写死 76×132（竖版专用），横版镜头没有任何真实表达；样张原方案是"整行列宽切到
- * 176px"，09-05 讨论中被否——列宽一变，混合画幅的行就失去左边缘对齐，表格"扫一列看全片"
- * 这个最高价值就没了。所以变的是框，不是列。
+ * 一句话：**预览框由整片画幅定、全表同一只**，所有行同宽同高，左右边缘逐行对齐：
+ *   · 横版：宽固定 240，高 = 240 ÷ 比例（16:9 → 240×135，4:3 → 240×180，21:9 → 240×103）；
+ *   · 竖版：高固定 240，宽 = 240 × 比例（9:16 → 135×240，3:4 → 180×240）；
+ *   · 1:1：180×180（与横竖两族的短边同一量级，不做成一块 240 的大方砖）。
+ * 窄窗（最小窗口 + Agent 面板）整只按 176/240 等比缩：横版宽 176、竖版高 176、方图 132。
  *
- * 三条约束，缺一条都还原不出拍板样张（`docs/design/mockups/2026-09-05-storyboard-table-v6/Main.html`）：
- *   ① 宽 ≤ 136（列宽）；② 高 ≤ 135（行内容自然高度）；
- *   ③ **短边 ≤ 108**——没有这条，1:1 会算成 135×135，在一列竖版行里像块大方砖，把"图是主角"
- *      变成"方图是主角"；样张里 1:1 画的正是 108×108。
- * 三种拍板画幅的落点：9:16 → 76×135、16:9 → 136×77、1:1 → 108×108，与样张逐像素一致。
+ * 单镜画幅和整片不同：画面在这只框里**按比例完整显示**（contain），空出的地方是浅底——框不变形，
+ * 所以混排的行照样逐行对齐；画幅标签由画面格自己标在角上。
+ *
+ * 旧版（列宽固定 136、媒体框在列里缩）的三条封顶整套删除：那一版的目标是「省出宽度给参考列和提示词」，
+ * 现在参考在框下面、提示词列只放提示词和底栏，左边要的是**看得清**。
  */
 
-export const FRAME_COLUMN_WIDTH = 136
-const FRAME_MAX_HEIGHT = 135
-const FRAME_MAX_SHORT_EDGE = 108
+const LONG_EDGE = 240
+const SQUARE_EDGE = 180
+const NARROW_SCALE = 176 / 240
 /** 画幅缺省（模型没声明、plan 没定）时的兜底：竖屏，与项目主画幅一致。 */
 const FALLBACK_RATIO = { width: 9, height: 16 }
 
@@ -35,40 +37,60 @@ export function parseAspectRatio(aspect: string | null | undefined): { width: nu
   return null
 }
 
-/** 该画幅在固定 136px 列里的媒体框尺寸（整数 px；上面三条约束的唯一实现）。 */
+/** 某个画幅的预览框（宽档；整数 px）。 */
 export function frameMediaBox(aspect: string | null | undefined): FrameMediaBox {
   const ratio = parseAspectRatio(aspect) ?? FALLBACK_RATIO
-  const fit = Math.min(FRAME_COLUMN_WIDTH / ratio.width, FRAME_MAX_HEIGHT / ratio.height)
-  const shortEdge = Math.min(ratio.width, ratio.height) * fit
-  const scale = shortEdge > FRAME_MAX_SHORT_EDGE ? FRAME_MAX_SHORT_EDGE / Math.min(ratio.width, ratio.height) : fit
-  return {
-    width: Math.round(ratio.width * scale),
-    height: Math.round(ratio.height * scale),
-  }
+  const value = ratio.width / ratio.height
+  if (Math.abs(value - 1) < 0.01) return { width: SQUARE_EDGE, height: SQUARE_EDGE }
+  return value > 1
+    ? { width: LONG_EDGE, height: Math.round(LONG_EDGE / value) }
+    : { width: Math.round(LONG_EDGE * value), height: LONG_EDGE }
+}
+
+function ratioKey(aspect: string | null | undefined): string {
+  const ratio = parseAspectRatio(aspect) ?? FALLBACK_RATIO
+  return (ratio.width / ratio.height).toFixed(4)
 }
 
 /**
- * **整张表共用的一只媒体盒**（2026-09-06 用户反馈四：「不同画幅的行一放进来整个框就不齐……
- * 至少大家都同一个比例时，单个分镜行要排得很好、对齐」）。
+ * **整张表共用的一只预览框**：整片画幅的那只框。
  *
- * 上一版每行按自己的画幅算框：一列 9:16 里混进一行 16:9，两行的媒体框一个 76×135、一个 136×77，
- * 顶线对齐了、**底线和右边缘全错开**，参考列和参数行跟着上下浮动——用户看到的"整个框就不齐"。
- * 合同 §2.4 原写的"列宽固定就够齐了"在混排下不成立：列宽齐、盒子不齐，人眼读的是盒子。
- *
- * 所以盒子改成**表级 derive**，两种输入两种答案：
- *   - **全表同一画幅** → 盒子就是那个画幅的框（16:9 → 136×77、9:16 → 76×135、1:1 → 108×108）。
- *     缩略图正好铺满，没有一条黑边；所有行同高、四条线（顶线、盒、参数行、生成钮）逐行对齐。
- *   - **混合画幅** → 一只统一盒：宽取列宽上限、高取短边上限（`136×108`，两个数都是合同里已有的
- *     两条封顶，不是新编的数）。横版贴满宽、竖版贴满高、方图居中，各自 letterbox 在盒内——
- *     **盒不随内容变形**，于是混排行仍然行行同高、边缘同线。
- *
- * 缩略图在盒内 `object-contain` 居中（letterbox），不拉伸也不裁切：拉伸会让人对不上真实出画比例，
- * 裁切会把用户已经生成出来的画面切掉一块，两种都是拿"排得齐"去换真实性。
+ * 表只递得下来「每一镜的生效画幅」，这里取**镜数最多的那个画幅**当整片画幅（同数取先出现的）：
+ * 没有覆盖的行生效画幅就是整片默认，所以只要覆盖的镜不过半，它就是整片默认本身；覆盖过半时，
+ * 框跟着大多数镜走——那时候按「名义上的整片」画框，反而多数行都在框里留白。
+ * 混排的少数行在这只框里 contain + 角标（见 `StoryboardShotFrame`）。
  */
 export function tableFrameMediaBox(aspects: readonly (string | null | undefined)[]): FrameMediaBox {
-  const ratios = aspects.map((aspect) => parseAspectRatio(aspect) ?? FALLBACK_RATIO)
-  const first = ratios[0] ?? FALLBACK_RATIO
-  const uniform = ratios.every((ratio) => ratio.width * first.height === first.width * ratio.height)
-  if (uniform) return frameMediaBox(`${first.width}:${first.height}`)
-  return { width: FRAME_COLUMN_WIDTH, height: FRAME_MAX_SHORT_EDGE }
+  if (aspects.length === 0) return frameMediaBox(undefined)
+  const counts = new Map<string, { count: number; aspect: string | null | undefined }>()
+  for (const aspect of aspects) {
+    const key = ratioKey(aspect)
+    const entry = counts.get(key)
+    if (entry) entry.count += 1
+    else counts.set(key, { count: 1, aspect })
+  }
+  let best: { count: number; aspect: string | null | undefined } | null = null
+  for (const entry of counts.values()) if (!best || entry.count > best.count) best = entry
+  return frameMediaBox(best?.aspect)
+}
+
+/** 窄窗那一档：整只框等比缩到 176/240。 */
+export function densityBox(box: FrameMediaBox, narrow: boolean): FrameMediaBox {
+  if (!narrow) return box
+  return { width: Math.round(box.width * NARROW_SCALE), height: Math.round(box.height * NARROW_SCALE) }
+}
+
+/** 某个画幅在框里按比例完整放下（contain）的尺寸。 */
+export function containedBox(box: FrameMediaBox, aspect: string | null | undefined): FrameMediaBox {
+  const ratio = parseAspectRatio(aspect)
+  if (!ratio) return box
+  const scale = Math.min(box.width / ratio.width, box.height / ratio.height)
+  return { width: Math.round(ratio.width * scale), height: Math.round(ratio.height * scale) }
+}
+
+/** 这个画幅和框是不是同一个比例（不同才在角上标画幅）。 */
+export function sameAspectAsBox(box: FrameMediaBox, aspect: string | null | undefined): boolean {
+  const ratio = parseAspectRatio(aspect)
+  if (!ratio) return true
+  return Math.abs(ratio.width / ratio.height - box.width / box.height) < 0.02
 }

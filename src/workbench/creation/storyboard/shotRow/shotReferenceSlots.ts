@@ -135,15 +135,6 @@ export function reorderBinding(
   return withBucket(bindings, slotKey, next)
 }
 
-/** 这一行有没有摆着的参考（决定显示参考那一排，还是底栏那颗「加参考」按钮——两者只出现一个）。 */
-export function hasShownReferences(
-  mode: ArchetypeMode | null | undefined,
-  bindings: ReferenceBindingMap | undefined,
-  hiddenSlotKeys?: ReadonlySet<string>,
-): boolean {
-  return storyboardAssetSlots(mode).some((slot) => !hiddenSlotKeys?.has(slot.key) && bindingsOf(bindings, slot.key).length > 0)
-}
-
 /** 所有槽里还绑着的 url（同一张图可能同时在两个槽里）。 */
 function boundUrls(bindings: ReferenceBindingMap | undefined): Set<string> {
   return new Set(Object.keys(bindings ?? {}).flatMap((key) => bindingsOf(bindings, key).map((binding) => binding.url)))

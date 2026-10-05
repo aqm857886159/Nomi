@@ -3,29 +3,33 @@ import { useTranslation } from 'react-i18next'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction } from '../../../project/projectCanvasReadSurface'
 import { notify } from '../../../../ui/notificationPolicy'
 import { useOpenProjectId } from '../../../project/useOpenProjectId'
-import { WorkbenchIconButton } from '../../../../design'
-import { IconPhotoPlus } from '../../../../vendor/tablerIcons'
-import AssetReference, { type AssetSlot } from '../../../assets/AssetReference'
+import { AnchoredPopover } from '../../../../design'
+import AssetTile, { AssetAddTile } from '../../../assets/AssetTile'
 import AssetPicker from '../../../assets/AssetPicker'
 import AssetPickerPopover from '../../../assets/AssetPickerPopover'
 import type { AssetKind, AssetRef } from '../../../assets/assetTypes'
 import { importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
 import { assetUrl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
+import { referenceSlotAccept, slotAsArray } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
-import { appendBinding, bindingsOf, hasShownReferences, reorderBinding, storyboardAssetSlots, type ReferenceBindingMap } from './shotReferenceSlots'
+import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
+import { appendBinding, bindingsOf, type ReferenceBindingMap } from './shotReferenceSlots'
 import { imageReferenceMode } from '../exec/storyboardAutoReference'
+import { useStoryboardRowNarrow } from './storyboardRowDensity'
+import { densityBox } from './shotFrameGeometry'
 
 /**
- * 分镜行（镜头 / 参考卡）的参考图 = **画布节点同一个组件**（`AssetReference`）：缩略图一排、右上角直接有 ×、
- * 数组参考合并成一排 + 一个「+」、首尾帧两个槽时才各带一个小名字，没有每格一行的说明文字。
- * 它住在提示词框里、提示词上面——和画布节点的浮框同一个位置。
+ * 视觉列里、预览框下面那一条**参考缩略图条**（2026-10-06 第二轮：「我们原来的设计是为了空间，
+ * 把参考的图片放到了左边」——放回左边，换成小方块）。
  *
- * **一张参考都没有时不占一整行**（分镜一屏十几行，空的「+」大方块 × 每行 = 白白多出 64px）：
- * 这时入口是底栏里一颗图标按钮（`ShotReferenceAddButton`，与画布底栏的工具图标同一种按钮），
- * 点开就是同一个素材选择器。摆进第一张之后，这一排才出现。
+ * 每张是画布同款 `AssetTile`（cover 裁切、hover 放大、右上角 ×），宽档 36、窄档 28、间距 4，
+ * 在视觉列宽度里折行；左上角的序号就是这张在**提示词芯片编号**里的位置（`@图片1` ↔ 1）——
+ * 序号与芯片读同一份有序列表（这一行所有绑定按槽展开），所以两边永远对得上。
+ * 最后一格是同尺寸的「+」，点开同一个素材选择器（`AssetPicker`）。
+ * 窄档一行放不下：前几张 + 「+N」+「+」，「+N」点开浮层看全部（同样带 ×）。
  *
- * 当前模式收不了参考图（如「文生视频」）、而同一个模型里有能收参考图的模式：那颗按钮照样在，
- * 选完素材 = 切到那个模式并放进去（设计卡 §B 方案 A，待拍板）。没有这样的模式就不摆按钮。
+ * 当前模式收不了参考（如「文生视频」）、同一个模型里有能收参考图的模式、且这一镜还没出过结果：
+ * 「+」照样在，选完素材 = 切到那个模式再放进去（设计卡 §B 方案 A）。没有这样的模式就不摆「+」。
  */
 
 const WRONG_KIND_KEY: Record<'image' | 'video' | 'audio', string> = {
@@ -34,146 +38,182 @@ const WRONG_KIND_KEY: Record<'image' | 'video' | 'audio', string> = {
   audio: 'storyboardEditor.row.slotAccepts.audio',
 }
 
-type Editing = {
+const GAP = 4
+
+type Props = {
   mode: ArchetypeMode | null
+  archetype?: ModelArchetype | null
   bindings: ReferenceBindingMap | undefined
   onChangeBindings: (next: ReferenceBindingMap) => void
-}
-
-/** 放一张 / 传一张：拒绝理由都用人话说清（§1.6：禁用不做沟通死路）。两处入口共用这一份。 */
-function useReferenceIntake({ bindings, onChangeBindings }: Omit<Editing, 'mode'>) {
-  const { t } = useTranslation()
-  const [uploadingKey, setUploadingKey] = React.useState('')
-  const [error, setError] = React.useState('')
-  const identity = React.useId()
-  const report = React.useCallback((message: string) => {
-    notify({ identity: `storyboard-reference:${identity}`, reason: 'reference-input', level: 'inline', type: 'error', message, present: setError })
-  }, [identity])
-
-  const append = (slot: ArchetypeReferenceSlot, label: string, url: string, kind: AssetKind, extra: { name?: string; sourceNodeId?: string }): boolean => {
-    setError('')
-    const result = appendBinding(bindings, slot, { url, ...extra }, kind)
-    if (result.status === 'wrong-kind') { report(t(WRONG_KIND_KEY[result.accept], { label })); return false }
-    if (result.status === 'full') { report(t('storyboardEditor.row.slotFull', { label, max: result.max })); return false }
-    if (result.status === 'added') onChangeBindings(result.next)
-    return true
-  }
-
-  const upload = async (slot: ArchetypeReferenceSlot, label: string, file: File, onDone: () => void): Promise<void> => {
-    await withProjectAction(async (context) => {
-      setUploadingKey(slot.kind)
-      try {
-        const kind: AssetKind = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image'
-        const uploaded = await importWorkbenchLocalAssetFile(file, file.name || label, {
-          projectBinding: context.binding, assertCurrent: context.assertCurrent,
-          ...(kind === 'image' ? { taskKind: 'image_edit' as const } : {}),
-        })
-        context.assertCurrent()
-        if (append(slot, label, assetUrl(uploaded), kind, { name: uploaded.name || file.name })) onDone()
-      } catch (cause) {
-        if (!isProjectExecutionContextCurrent(context) || isProjectImportCancellation(cause)) return
-        setError(cause instanceof Error ? cause.message : String(cause))
-      } finally {
-        if (isProjectExecutionContextCurrent(context)) setUploadingKey('')
-      }
-    })
-  }
-
-  return { append, upload, uploadingKey, error }
-}
-
-/** 这一行摆着的参考（有一张以上才渲染）。 */
-export default function ShotReferenceStrip({
-  mode, bindings, onChangeBindings, onRemove, onInsertMention, hiddenSlotKeys,
-}: Editing & {
   /** 删一张：调用方负责把提示词里对应的 @ 一起删（`removeReferenceWithMention`）。 */
   onRemove: (slotKey: string, index: number) => void
   /** 点缩略图 = 在提示词光标处插一枚指向它的 @（画布同一手势）。 */
   onInsertMention?: ((url: string) => void) | undefined
+  /** 允许为放参考切模式（已出过结果的行不传：切了就和它手上的结果对不上）。 */
+  onSwitchMode?: ((modeId: string) => void) | undefined
   /** 生成时会被计划首帧填上的槽：不摆出来（不是用户摆的参考，删不掉也换不了）。 */
   hiddenSlotKeys?: ReadonlySet<string> | undefined
-}): JSX.Element | null {
-  const projectId = useOpenProjectId()
-  const [openSlotKey, setOpenSlotKey] = React.useState('')
-  const { append, upload, uploadingKey, error } = useReferenceIntake({ bindings, onChangeBindings })
-  const slots = storyboardAssetSlots(mode).filter((slot) => !hiddenSlotKeys?.has(slot.key))
-  if (!hasShownReferences(mode, bindings, hiddenSlotKeys)) return null
-  const declared = (slot: AssetSlot) => mode?.slots.find((candidate) => candidate.kind === slot.key)
-  const valuesByKey: Record<string, string | string[]> = Object.fromEntries(slots.map((slot) => {
-    const urls = bindingsOf(bindings, slot.key).map((binding) => binding.url)
-    return [slot.key, slot.form === 'array' ? urls : urls[0] ?? '']
-  }))
-  return (
-    <div className="px-2.5 pt-2" data-storyboard-refs="true">
-      <AssetReference
-        slots={slots}
-        valuesByKey={valuesByKey}
-        projectId={projectId}
-        openSlotKey={openSlotKey}
-        uploadingSlotKey={uploadingKey}
-        onTogglePicker={(key) => setOpenSlotKey((previous) => (previous === key ? '' : key))}
-        onPick={(slot, asset: AssetRef) => {
-          const target = declared(slot)
-          if (target && append(target, slot.label, asset.renderUrl, asset.kind, {
-            name: asset.name,
-            ...(asset.origin.source === 'canvas' ? { sourceNodeId: asset.origin.nodeId } : {}),
-          })) setOpenSlotKey('')
-        }}
-        onUpload={(slot, file) => { const target = declared(slot); if (target) void upload(target, slot.label, file, () => setOpenSlotKey('')) }}
-        onRemove={(slot, index) => onRemove(slot.key, index)}
-        {...(onInsertMention ? { onInsertMention } : {})}
-        onReorder={(slot, from, to) => { const next = reorderBinding(bindings, slot.key, from, to); if (next) onChangeBindings(next) }}
-        onBrowseAll={() => { setOpenSlotKey(''); window.dispatchEvent(new CustomEvent('nomi-open-files-panel')) }}
-      />
-      {error ? <span className="mt-1 block text-micro leading-tight text-workbench-danger" role="alert">{error}</span> : null}
-    </div>
-  )
+  /** 视觉列宽（宽档值；窄档在这里按行的档位缩，与画面格同一个 context）。 */
+  width: number
 }
 
-/**
- * 一张参考都没有时，底栏里那颗「加参考」图标按钮。点开是同一个素材选择器（`AssetPicker`）。
- * 放进哪个槽：当前模式的图片参考槽，没有就首帧槽；当前模式一个槽都没有 → 切到同模型能收参考图的模式再放。
- */
-export function ShotReferenceAddButton({
-  mode, archetype, bindings, onChangeBindings, onSwitchMode,
-}: Editing & {
-  archetype?: ModelArchetype | null
-  /** 允许切模式（已出过结果的行不传：切了就和它手上的结果对不上）。 */
-  onSwitchMode?: ((modeId: string) => void) | undefined
-}): JSX.Element | null {
+type Tile = { slot: ArchetypeReferenceSlot; slotKey: string; indexInSlot: number; number: number; url: string; name: string; kind: AssetKind }
+
+/** 「+」放进哪个槽：数组参考槽优先，其次第一个空的单槽（首帧 → 尾帧），都满了就替换第一个单槽。 */
+function slotFor(mode: ArchetypeMode, bindings: ReferenceBindingMap | undefined, kind: AssetKind): ArchetypeReferenceSlot | null {
+  const accepting = mode.slots.filter((slot) => referenceSlotAccept(slot.kind) === kind)
+  return accepting.find((slot) => slotAsArray(slot))
+    ?? accepting.find((slot) => bindingsOf(bindings, slot.kind).length === 0)
+    ?? accepting[0]
+    ?? null
+}
+
+export default function ShotReferenceStrip({
+  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, hiddenSlotKeys, width: wideWidth,
+}: Props): JSX.Element | null {
   const { t } = useTranslation()
   const projectId = useOpenProjectId()
-  const [open, setOpen] = React.useState(false)
-  const { append, upload, uploadingKey, error } = useReferenceIntake({ bindings, onChangeBindings })
-  const own = mode?.slots.find((slot) => slot.kind === 'image_ref') ?? mode?.slots.find((slot) => slot.kind === 'first_frame') ?? mode?.slots[0]
-  const switchTo = own ? null : onSwitchMode ? imageReferenceMode(archetype) : null
-  const slot = own ?? switchTo?.slots.find((candidate) => candidate.kind === 'image_ref') ?? null
-  if (!slot) return null
-  const accept = slot.kind === 'video_ref' ? 'video' : slot.kind === 'audio_ref' ? 'audio' : 'image'
-  const label = t('assetLibrary.addReference')
-  const commit = (place: () => boolean): void => {
+  const narrow = useStoryboardRowNarrow()
+  const size = narrow ? 28 : 36
+  const width = densityBox({ width: wideWidth, height: 0 }, narrow).width
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+  const [overflowOpen, setOverflowOpen] = React.useState(false)
+  const [uploading, setUploading] = React.useState(false)
+  const [error, setError] = React.useState('')
+  const identity = React.useId()
+  const overflowRef = React.useRef<HTMLButtonElement>(null)
+  const report = React.useCallback((message: string) => {
+    notify({ identity: `storyboard-reference:${identity}`, reason: 'reference-input', level: 'inline', type: 'error', message, present: setError })
+  }, [identity])
+
+  // 序号 = 这张在「所有绑定按槽展开」那份有序列表里的位置——与提示词芯片编号同一份列表。
+  const declared = new Map((mode?.slots ?? []).map((slot) => [slot.kind as string, slot]))
+  let counter = 0
+  const tiles: Tile[] = Object.keys(bindings ?? {}).flatMap((slotKey) => bindingsOf(bindings, slotKey).map((binding, indexInSlot) => {
+    counter += 1
+    const slot = declared.get(slotKey)
+    if (!slot || hiddenSlotKeys?.has(slotKey)) return null
+    return { slot, slotKey, indexInSlot, number: counter, url: binding.url, name: binding.name?.trim() || translateModelDisplayText(slot.label), kind: referenceSlotAccept(slot.kind) as AssetKind }
+  }).filter((tile): tile is Tile => tile !== null))
+
+  // 「+」：本模式能收什么；收不了参考且允许切 → 同模型能收参考图的模式。
+  const switchTo = mode && mode.slots.length === 0 && onSwitchMode ? imageReferenceMode(archetype) : null
+  const targetMode = mode && mode.slots.length > 0 ? mode : switchTo
+  const accepts = [...new Set((targetMode?.slots ?? []).map((slot) => referenceSlotAccept(slot.kind)))]
+  const canAdd = Boolean(targetMode) && accepts.length > 0
+
+  if (tiles.length === 0 && !canAdd) return null
+
+  const place = (asset: { url: string; kind: AssetKind; name?: string; sourceNodeId?: string }): boolean => {
+    if (!targetMode) return false
+    const slot = slotFor(targetMode, bindings, asset.kind)
+    if (!slot) { report(t(WRONG_KIND_KEY[accepts[0] ?? 'image'], { label: translateModelDisplayText(targetMode.slots[0]?.label ?? '') })); return false }
+    const result = appendBinding(bindings, slot, { url: asset.url, ...(asset.name ? { name: asset.name } : {}), ...(asset.sourceNodeId ? { sourceNodeId: asset.sourceNodeId } : {}) }, asset.kind)
+    const label = translateModelDisplayText(slot.label)
+    if (result.status === 'wrong-kind') { report(t(WRONG_KIND_KEY[result.accept], { label })); return false }
+    if (result.status === 'full') { report(t('storyboardEditor.row.slotFull', { label, max: result.max })); return false }
     if (switchTo) onSwitchMode?.(switchTo.id)
-    if (place()) setOpen(false)
+    if (result.status === 'added') onChangeBindings(result.next)
+    setError('')
+    return true
   }
-  return (
-    <span className="relative inline-flex shrink-0" data-storyboard-ref-add={switchTo ? 'switch-mode' : 'own'}>
-      <WorkbenchIconButton size="sm" icon={<IconPhotoPlus aria-hidden />} label={label} aria-expanded={open} onClick={() => setOpen((value) => !value)} />
-      {open ? (
-        <AssetPickerPopover onClose={() => setOpen(false)}>
-          <AssetPicker
-            projectId={projectId}
-            accept={[accept]}
-            uploading={uploadingKey === slot.kind}
-            onPick={(asset) => commit(() => append(slot, label, asset.renderUrl, asset.kind, {
-              name: asset.name,
-              ...(asset.origin.source === 'canvas' ? { sourceNodeId: asset.origin.nodeId } : {}),
-            }))}
-            onUpload={(file) => { if (switchTo) onSwitchMode?.(switchTo.id); void upload(slot, label, file, () => setOpen(false)) }}
-            onBrowseAll={() => { setOpen(false); window.dispatchEvent(new CustomEvent('nomi-open-files-panel')) }}
-          />
-        </AssetPickerPopover>
-      ) : null}
-      {error ? <span className="ml-1 self-center text-micro leading-tight text-workbench-danger" role="alert">{error}</span> : null}
+
+  const upload = async (file: File): Promise<void> => {
+    await withProjectAction(async (context) => {
+      setUploading(true)
+      try {
+        const kind: AssetKind = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image'
+        const uploaded = await importWorkbenchLocalAssetFile(file, file.name, {
+          projectBinding: context.binding, assertCurrent: context.assertCurrent,
+          ...(kind === 'image' ? { taskKind: 'image_edit' as const } : {}),
+        })
+        context.assertCurrent()
+        if (place({ url: assetUrl(uploaded), kind, name: uploaded.name || file.name })) setPickerOpen(false)
+      } catch (cause) {
+        if (!isProjectExecutionContextCurrent(context) || isProjectImportCancellation(cause)) return
+        setError(cause instanceof Error ? cause.message : String(cause))
+      } finally {
+        if (isProjectExecutionContextCurrent(context)) setUploading(false)
+      }
+    })
+  }
+
+  const tileClass = narrow ? 'w-7 h-7' : 'w-9 h-9'
+  const renderTile = (tile: Tile): JSX.Element => (
+    <span key={`${tile.slotKey}-${tile.url}-${tile.indexInSlot}`} title={translateModelDisplayText(tile.slot.label)} data-storyboard-ref-thumb={tile.number}>
+      <AssetTile
+        className={tileClass}
+        asset={{ id: tile.url, kind: tile.kind, name: tile.name, renderUrl: tile.url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }}
+        index={tile.number}
+        onRemove={() => onRemove(tile.slotKey, tile.indexInSlot)}
+        onClick={onInsertMention ? () => onInsertMention(tile.url) : undefined}
+      />
     </span>
+  )
+
+  // 窄档只排一行：放得下几格（含「+」）就放几张，其余收进「+N」。宽档折行，全摆。
+  const perRow = Math.max(1, Math.floor((width + GAP) / (size + GAP)))
+  const reserved = canAdd ? 1 : 0
+  const fold = narrow && tiles.length + reserved > perRow
+  const shown = fold ? tiles.slice(0, Math.max(0, perRow - reserved - 1)) : tiles
+  const hidden = tiles.length - shown.length
+
+  return (
+    <div className="mt-1.5 flex flex-col gap-1" data-storyboard-refs="true" data-storyboard-refs-size={size}>
+      <div className="flex flex-wrap" style={{ gap: GAP, width }}>
+        {shown.map(renderTile)}
+        {fold && hidden > 0 ? (
+          <button
+            ref={overflowRef}
+            type="button"
+            onClick={() => setOverflowOpen((open) => !open)}
+            aria-expanded={overflowOpen}
+            aria-label={t('storyboardEditor.slot.moreAria', { count: hidden })}
+            data-storyboard-ref-more={hidden}
+            className="grid place-items-center rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 text-micro tabular-nums text-nomi-ink-80 hover:border-nomi-accent"
+            style={{ width: size, height: size }}
+          >
+            +{hidden}
+          </button>
+        ) : null}
+        {canAdd ? (
+          <span className="relative inline-flex" data-storyboard-ref-add={switchTo ? 'switch-mode' : 'own'}>
+            <AssetAddTile className={tileClass} label={t('assetLibrary.addReference')} selected={pickerOpen} onClick={() => setPickerOpen((open) => !open)} />
+            {pickerOpen ? (
+              <AssetPickerPopover onClose={() => setPickerOpen(false)}>
+                <AssetPicker
+                  projectId={projectId}
+                  accept={accepts}
+                  uploading={uploading}
+                  onPick={(asset: AssetRef) => {
+                    if (place({ url: asset.renderUrl, kind: asset.kind, name: asset.name, ...(asset.origin.source === 'canvas' ? { sourceNodeId: asset.origin.nodeId } : {}) })) setPickerOpen(false)
+                  }}
+                  onUpload={(file) => { void upload(file) }}
+                  onBrowseAll={() => { setPickerOpen(false); window.dispatchEvent(new CustomEvent('nomi-open-files-panel')) }}
+                />
+              </AssetPickerPopover>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+      {overflowOpen ? (
+        <AnchoredPopover anchorRef={overflowRef} align="start" gap={6} onClose={() => setOverflowOpen(false)}>
+          <div className="flex max-w-[240px] flex-wrap gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-2 shadow-nomi-md" data-storyboard-ref-overflow="true">
+            {tiles.map((tile) => (
+              <span key={`all-${tile.slotKey}-${tile.url}-${tile.indexInSlot}`} title={translateModelDisplayText(tile.slot.label)}>
+                <AssetTile
+                  className="w-9 h-9"
+                  asset={{ id: tile.url, kind: tile.kind, name: tile.name, renderUrl: tile.url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }}
+                  index={tile.number}
+                  onRemove={() => onRemove(tile.slotKey, tile.indexInSlot)}
+                  onClick={onInsertMention ? () => onInsertMention(tile.url) : undefined}
+                />
+              </span>
+            ))}
+          </div>
+        </AnchoredPopover>
+      ) : null}
+      {error ? <span className="text-micro leading-tight text-workbench-danger" role="alert" style={{ maxWidth: width }}>{error}</span> : null}
+    </div>
   )
 }
