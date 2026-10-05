@@ -169,11 +169,9 @@ async function loadCapabilityCoreModule(): Promise<typeof import("./capabilityCo
   });
   return capabilityCoreModulePromise;
 }
-
 function getActiveCapabilityPort(): number | null {
   return capabilityPortCache;
 }
-
 let desktopLaneIpc: LaneIpcRegistration | undefined;
 async function startDesktopCapabilityCore(): Promise<void> {
   if (!desktopCanvasReadExecutionRuntime) throw new Error("Canvas read execution runtime is unavailable");
