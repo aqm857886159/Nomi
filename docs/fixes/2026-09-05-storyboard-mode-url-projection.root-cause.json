@@ -35,12 +35,12 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/WorkbenchShell.tsx",
-      "symbol": "workspaceMode URL synchronization effect",
+      "symbol": "STEP_PARAM_BY_MODE",
       "responsibility": "Project the shared mode store into the step query for every direct or indirect workspace transition."
     },
     {
       "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
-      "symbol": "StoryboardWorkspace plan projection",
+      "symbol": "StoryboardWorkspace",
       "responsibility": "Render the dedicated editor from the active document's canonical storyboard plan when the storyboard slot is active."
     }
   ],

@@ -59,7 +59,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-test-waits.mjs",
-      "symbol": "RULES.wallclock-budget-assertion",
+      "symbol": "RULES",
       "responsibility": "在 gates 链上统一裁决「单测是否拿墙钟耗时当判据」，是本类问题唯一的强制执行边界；并区分「量机器速度」（禁止）与「量生产硬超时」（登记基线）两种语义"
     },
     {

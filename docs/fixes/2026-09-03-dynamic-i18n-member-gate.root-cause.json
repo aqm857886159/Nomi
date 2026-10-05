@@ -47,7 +47,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-i18n-key-refs.ts",
-      "symbol": "staleRegisteredPrefixes 动态成员校验",
+      "symbol": "staleRegisteredPrefixes",
       "responsibility": "对带 members 的动态 subtree 同时检查前缀存在、成员来源有效，以及 zh-CN/en 每个完整叶子存在。"
     },
     {

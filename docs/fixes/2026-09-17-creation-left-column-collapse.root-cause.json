@@ -149,12 +149,12 @@
     },
     {
       "path": "src/workbench/creation/DocumentListSidebar.tsx",
-      "symbol": "aside 外框",
+      "symbol": "DocumentListSidebar",
       "responsibility": "拥有这根列唯一的外框写法（workspacePanelFrame），不再按宿主面分叉。"
     },
     {
       "path": "src/workbench/WorkbenchShell.tsx",
-      "symbol": "workbench-shell__body 的 p-4 gap-4 与树的挂载条件",
+      "symbol": "workbench-shell__body",
       "responsibility": "拥有创作/分镜两面唯一一份留白（gutter）来源与树的唯一挂载点。"
     }
   ],

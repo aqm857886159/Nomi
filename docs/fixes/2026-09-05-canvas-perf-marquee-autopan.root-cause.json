@@ -54,12 +54,12 @@
     },
     {
       "path": "tests/ux/_canvasHit.mjs",
-      "symbol": "findCanvasBlankPoint inset option",
+      "symbol": "findCanvasBlankPoint",
       "responsibility": "Own blank-point discovery for all canvas gestures and let a caller demand a start point outside the auto-pan band, returning null so the caller fails closed when none exists."
     },
     {
       "path": "scripts/check-canvas-gesture-determinism.mjs",
-      "symbol": "edge-hugging-drag-endpoint / literal-marquee-selection-count",
+      "symbol": "RULES / EDGE_HUGGING / LITERAL_MARQUEE_SELECTION",
       "responsibility": "Fail the build when a benchmark drag endpoint is written against the stage edge inside the auto-pan band, or when a swept-region selection verdict is compared with a numeric literal instead of a derived expectation."
     }
   ],

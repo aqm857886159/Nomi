@@ -38,7 +38,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "ProjectAgentResidentShell composer render",
+      "symbol": "ProjectAgentResidentShell",
       "responsibility": "Own composer order, capability/menu ownership, mode-only popover, running feedback, and storyboard receipt projection."
     },
     {

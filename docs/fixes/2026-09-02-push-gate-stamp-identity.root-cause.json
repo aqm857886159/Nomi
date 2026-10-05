@@ -28,17 +28,17 @@
   "shared_boundaries": [
     {
       "path": "scripts/claude-hooks/pre-push-check.sh",
-      "symbol": "戳的三项核验（新鲜度 / STAMP_WT == ROOT / STAMP_SHA == HEAD_SHA）",
+      "symbol": "STAMP_WT / STAMP_SHA / HEAD_SHA",
       "responsibility": "push 放行与否的唯一判定处。所有 `git push`（无论从哪棵 worktree、命令里带不带 cd）都收敛到这一处按三维身份核验凭据；判据不成立即 fail-closed exit 2。"
     },
     {
       "path": "scripts/stamp-gates-ok.mjs",
-      "symbol": "戳的唯一签发者（写 sha/worktree/at 到 $GIT_DIR/nomi-gates-ok）",
+      "symbol": "writeStamp / collectStampFields",
       "responsibility": "凭据格式与落点的唯一定义处：决定戳落在本树自己的 gitdir、并把 worktree 路径与 HEAD sha 写进内容。核验端的判据完全由这份格式决定，两端不各自解释格式。"
     },
     {
       "path": "scripts/root-cause-contracts.mjs",
-      "symbol": "HIGH_RISK_EXACT 中的闸门执行体条目",
+      "symbol": "HIGH_RISK_EXACT",
       "responsibility": "把「交付闸门的执行体」这一族纳入根因合同强制面：改它们必须带合同与本次变化中的类级回归测试，防止下一次静默失效在无人复核的情况下合入。"
     }
   ],

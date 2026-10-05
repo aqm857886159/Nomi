@@ -45,7 +45,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-framework-boundary.mjs",
-      "symbol": "evaluateReferenceConformance call site plus installedVersionsOf",
+      "symbol": "collectSources",
       "responsibility": "Own the one moment at which the requirement is applied: every contracts run reads the registry, resolves each declared package's installed version from node_modules, and refuses any framework or adopted dependency that has neither a comparison nor unexpired debt. Errors join the existing self-written-duplicate errors so a single gate speaks for both R29 deliverables."
     },
     {

@@ -120,7 +120,7 @@
     },
     {
       "path": "electron/agentLane/laneCodingPaths.mts",
-      "symbol": "createLaneCodingPaths 的 skillRoots 解析",
+      "symbol": "createLaneCodingPaths",
       "responsibility": "read 允许越出项目的可信根的唯一判定点：从来源取当前根集合，按集合缓存 realpath，根消失时摘掉而不是抛"
     },
     {

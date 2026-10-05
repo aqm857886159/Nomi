@@ -41,7 +41,7 @@
     },
     {
       "path": "electron/capabilityCore/mcpProtocol.ts",
-      "symbol": "tools/list projection",
+      "symbol": "MCP_TOOL_NAMES",
       "responsibility": "Select each tool's localized title from the transport locale at the MCP boundary."
     },
     {

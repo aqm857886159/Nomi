@@ -56,7 +56,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/claude-hooks/commit-bypass-check.sh",
-      "symbol": "commit-producing × bypass-spelling 判定循环",
+      "symbol": "INPUT",
       "responsibility": "在提交发生之前，对任何会产生提交的 git 子命令 + 任一绕口写法 exit 2 拒绝，并给出为什么与正确做法；读不懂命令时 fail-closed。"
     },
     {

@@ -37,7 +37,7 @@
     },
     {
       "path": "electron/runtime.ts",
-      "symbol": "runtime boundary exports",
+      "symbol": "executeProfileOperation",
       "responsibility": "Keep high-risk Electron runtime modules on the repository's declared host boundary."
     }
   ],

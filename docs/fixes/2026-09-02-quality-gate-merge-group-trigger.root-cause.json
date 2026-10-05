@@ -87,7 +87,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-quality-gate-workflow.node-test.mjs",
-      "symbol": "quality gate workflow shape guard (node --test)",
+      "symbol": "runCommands / workflow",
       "responsibility": "Pins the workflow trigger set and every diff-anchor expression byte-for-byte; the Contracts job fails on any unconscious edit."
     }
   ],

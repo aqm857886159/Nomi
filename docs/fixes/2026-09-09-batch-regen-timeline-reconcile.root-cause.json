@@ -24,7 +24,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "runGenerationNodesBatch worker",
+      "symbol": "runGenerationNodesBatch",
       "responsibility": "Reconcile timeline for each successfully regenerated node before reporting success."
     }
   ],

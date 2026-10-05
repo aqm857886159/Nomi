@@ -66,7 +66,7 @@
   "migration": "无存储写入迁移。画布节点持久化的是 meta.archetype.id；存量 \"runway-audio\" 节点由 resolveBaseArchetype 的 legacyIds 分支在**读时**按模型身份匹配映射到各自的真模型档案（seed_audio→runway-seed-audio、eleven_text_to_sound_v2→eleven-sfx-v2、eleven_multilingual_v2→eleven-multilingual-v2、eleven_v3→eleven-v3），不改写项目文件。回滚只需恢复被删的 runwayAudio.ts 与 4 行 archetypeId，无残留数据。三个 .generated.ts 桥接文件按新档案集合重新生成（pnpm run gen:archetype-defaults），消费侧均按 archetypeId 键取。注：存量节点若持久化过 sample_rate 等此后不再存在于该模型的参数，读时按档案 params 归一即被丢弃，不会发到 wire（此前它们也没发到 wire，故无行为回退）。",
   "residual_risks": [
     "**modelscope-image 仍在棘轮基线里（本轮 2 → 1），这是裁决不是待办。** 判据与证据见 same_class_scan 第三条：它没有『能力面取并集对成员撒谎』这个危害（6 行 wire 逐字相同、死参数 0、幻影模式 0），而强行拆分或复用现有比例串档案**都会引入**真缺陷。诚实标注两处不确定：① 上游模型卡确实显示原生分辨率有差异（Qwen-Image 原生 1328x1328、FLUX.2-klein 支持到 4MP、Z-Image-Turbo 示例 1024x1024），而当前档案给全部 6 个模型同一套 5 个像素值——这是**画质次优**（非原生分辨率出图质量下降），不是 wire 非法；② 魔搭 api-inference 官方文档未发布 per-model 参数表，故无法按官方依据给逐模型 size 表（R5：不凭推断写枚举）。若日后魔搭发布 per-model 参数表、或某模型需要自己的模式/槽（如 FLUX.2-klein 的多参考图编辑要在这条线缆上开），再按本轮同构手法拆。",
-      "**eleven_v3 的 seed 字段未暴露**：官方 spec 有 seed（int 0..4294967295），本轮未加控件——与仓内其他音频档案的口径一致（不暴露随机种子），属刻意取舍而非遗漏。需要时加一行即可，取值域已在 spec 注释里记明。",
+    "**eleven_v3 的 seed 字段未暴露**：官方 spec 有 seed（int 0..4294967295），本轮未加控件——与仓内其他音频档案的口径一致（不暴露随机种子），属刻意取舍而非遗漏。需要时加一行即可，取值域已在 spec 注释里记明。",
     "**eleven_v3 的 languageCode 给的是 7 个常用语言 + 自动**：官方 spec 只约束 minLength 2 / maxLength 5、**未给枚举**。给自由文本会让用户猜 BCP-47 格式（D1：不让用户学我们的格式），故给选择器；所列值均满足 2..5 位长度约束，但「Runway 实际支持哪些语言」没有官方清单可对账，这是全文件唯一一处取值不是逐字抄来的地方，已在 runwayAudioWireFacts.ts 就地标注。",
     "**seed_audio 的克隆音色路径未经真实生成验证**：voice:{type:\"reference-audio\",audioUri} 这条路径是本轮照 spec **新开**的（此前档案与 wire 都没有），已由结构测试证明槽可达、body 形状与 spec 一致，但没有付费实发。",
     "本轮**未做付费封印**（R5 第三段）：全部依据来自官方 OpenAPI（第一段）+ 零额度的结构/契约测试与逐 mapping 干跑对账（第二段）。4 个模型的真实生成产物双验未做——Runway 余额与最小花费预算未在本轮授权范围内。ledger 里这些行的 live 状态保持原样（seed_audio 仍是此前已获得的 live-certified，另三行仍是 blocked/simulated），未假称已封印。注意 seed_audio 那条既有 live 收据是在**旧 body**（无 voice 字段）上取得的；本轮给它的 text_to_speech body 增加了可选 voice 键，属 wire 契约变更，严格按 R5 应重封——记在此处不隐瞒。"
@@ -95,17 +95,17 @@
   "shared_boundaries": [
     {
       "path": "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
-      "symbol": "RUNWAY_AUDIO_ENDPOINTS / RUNWAY_VOICE_PRESETS / runway*Params()",
+      "symbol": "RUNWAY_AUDIO_ENDPOINTS / RUNWAY_VOICE_PRESETS / runwaySeedAudioParams / runwayElevenSfxParams / runwayVoicePresetParam / runwayElevenV3Params / runwayElevenMultilingualParams",
       "responsibility": "Runway 音频每模型「在哪个端点存在 / 有哪些可调字段及取值域 / 参考上限 / 官方音色枚举」的唯一真相源，同时供 UI 侧档案 params 与传输侧校验消费，杜绝「档案摆一套编的控件、mapping body 各发各的」。住 electron/shared/ 是分层纪律的必然结果：音频档案住 src/、归一器住 electron/catalog/，两侧唯一都够得着的中立地就是 shared（且 shared 禁 import catalog）。"
     },
     {
       "path": "scripts/check-platform-archetypes.mjs",
-      "symbol": "platformArchetypes 棘轮",
+      "symbol": "readArchetypes / offenders",
       "responsibility": "「一个档案罩多个不同产品」的机器闸，基线只减不增。本轮 2 → 1（runway-audio 拆除）。新建平台档案当场报红且不允许追加进基线；保留项必须在 baseline 的 _comment 里写明裁决理由与证据，不允许无声豁免。"
     },
     {
       "path": "electron/catalog/runwayAudioIdentity.test.ts",
-      "symbol": "Runway 音频四条不变量",
+      "symbol": "RUNWAY_AUDIO_ENDPOINTS / RUNWAY_VOICE_PRESETS / audioRows",
       "responsibility": "逐行断言：档案是模型专属（无跨产品共享）、声明的模式 = 官方端点归属（无幻影模式）、每个 UI 参数都到得了 wire（无假控件）、参考槽可达且音色只给官方 49 个预设（无焊死值）。让「能力面对该供应商撒谎」在测试期就红，而不是等用户发现调了没反应。已实证四条在旧形状下全部翻红。"
     }
   ],

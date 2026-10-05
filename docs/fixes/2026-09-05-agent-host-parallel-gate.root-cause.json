@@ -39,12 +39,12 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/WorkbenchShell.tsx",
-      "symbol": "agentDockRefs / agentDock portal",
+      "symbol": "agentDockRefs",
       "responsibility": "Own the one and only mount decision for the resident Agent across all four workspace surfaces; it is now unconditional."
     },
     {
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "resident header Beta badge",
+      "symbol": "ProjectAgentResidentShell",
       "responsibility": "Disclose in place that the surface is still being polished, replacing the hide-the-whole-thing gate."
     },
     {

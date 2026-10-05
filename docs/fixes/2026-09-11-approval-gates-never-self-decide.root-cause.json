@@ -80,7 +80,7 @@
   "shared_boundaries": [
     {
       "path": "electron/productionRun/batchScheduleDerivation.ts",
-      "symbol": "CheckpointStatus 联合类型 + checkpointStatus()",
+      "symbol": "CheckpointStatus / deriveCheckpoint",
       "responsibility": "「锚检查点能不能放行镜头批」的唯一判据。输入里不含时间，`waiting` 只能被一条真实的 gate.decide 推动；联合类型上不存在任何表示「自动放行」的成员"
     },
     {

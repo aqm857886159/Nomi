@@ -47,7 +47,7 @@
     },
     {
       "path": "tests/system/profiles.mjs",
-      "symbol": "STAGES.real-user-journeys",
+      "symbol": "STAGES",
       "responsibility": "把 loopback 真实用户旅程作为独立 journeys profile stage，供 ci-journeys/full-local 等风险 profile 显式消费。"
     }
   ],

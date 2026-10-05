@@ -26,7 +26,7 @@
   "shared_boundaries": [
     {
       "path": "electron/agentLane/laneHost.mts",
-      "symbol": "openLane before_tool",
+      "symbol": "openLane",
       "responsibility": "Check consumed input target before domain preparation and approval."
     }
   ],

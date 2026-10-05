@@ -39,7 +39,7 @@
   "shared_boundaries": [
     {
       "path": "vite.config.ts",
-      "symbol": "optimizeDeps.include (the @tiptap + @tiptap/pm pre-bundle set)",
+      "symbol": "optimizeDeps",
       "responsibility": "The single dev-mode module-graph boundary that decides which packages are pre-bundled together by esbuild. Listing `@tiptap/pm/view`/`state`/`model` next to `@tiptap/starter-kit` forces prosemirror-* to be deduped into one instance in the optimized graph, so every editor ProseMirror entry path shares one DecorationSet/Node/Mark identity. With noDiscovery:true this list is authoritative for the dev pre-bundle surface."
     }
   ],

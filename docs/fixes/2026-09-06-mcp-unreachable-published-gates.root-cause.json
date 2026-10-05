@@ -82,7 +82,7 @@
     },
     {
       "path": "scripts/check-mcp-scope-reachable.mjs",
-      "symbol": "check:mcp-scope-reachable",
+      "symbol": "loadAdapterScopes",
       "responsibility": "把声明面与放行面的差集钉成 0：公开的工具要的 scope 发不出来就红，故意不发的必须登记理由。"
     },
     {

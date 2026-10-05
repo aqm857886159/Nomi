@@ -77,7 +77,7 @@
     },
     {
       "path": "scripts/check-design-tokens.mjs",
-      "symbol": "第 5b 类零容忍块",
+      "symbol": "RULES",
       "responsibility": "把判定接进 gates:contracts，红时逐处列出表达式与修法（in oklab）。"
     }
   ],

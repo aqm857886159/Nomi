@@ -78,12 +78,12 @@
     },
     {
       "path": "electron/catalog/taskParams.ts",
-      "symbol": "taskTemplateParams 的 wireModel / params.model",
+      "symbol": "taskTemplateParams",
       "responsibility": "「变体 > 目录身份」这条回落的唯一发生地；保证 params.model 永不缺席，且裸模型的串与 {{model.modelKey}} 逐字一致。"
     },
     {
       "path": "electron/catalog/profileHttpRequest.ts",
-      "symbol": "templateContext 的 wireModelKey",
+      "symbol": "templateContext / wireModelKey",
       "responsibility": "把「模板看到的 model 身份」与「参数层回落用的身份」钉成同一个局部变量，杜绝两侧各算一次而漂移。"
     }
   ],

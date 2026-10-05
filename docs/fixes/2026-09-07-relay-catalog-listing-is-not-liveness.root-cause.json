@@ -54,7 +54,7 @@
     },
     {
       "path": "scripts/model-radar.ts",
-      "symbol": "apimart-llm lane",
+      "symbol": "buildApimartHealthInventory",
       "responsibility": "Deterministic detection: diffs the seeded chat catalog against the provider's authenticated listing and surfaces newly listed and no-longer-listed ids without spending generation credit."
     }
   ],

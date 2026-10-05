@@ -53,7 +53,7 @@
   "shared_boundaries": [
     {
       "path": ".github/workflows/docs-autosync.yml",
-      "symbol": "jobs.autosync.steps publish",
+      "symbol": "publish",
       "responsibility": "Publish only verified docs repairs using the upstream fixed-branch action and default token."
     }
   ],

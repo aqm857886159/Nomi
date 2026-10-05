@@ -60,7 +60,7 @@
     },
     {
       "path": "scripts/check-storyboard-owner.mjs",
-      "symbol": "film-level default census",
+      "symbol": "film",
       "responsibility": "把上面那条不变量做成机器判据：登记表 ↔ 两处 schema ↔ 三条落地路径。加一条整片级设置忘了补 schema、或某条落地路径绕开 resolver，都在门岗这一层显形，不等真机走查"
     }
   ],

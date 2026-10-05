@@ -32,17 +32,17 @@
   "shared_boundaries": [
     {
       "path": "package.json",
-      "symbol": "scripts.test:mcp-elicitation",
+      "symbol": "test:mcp-elicitation",
       "responsibility": "为 elicitation-first e2e 提供唯一可复制的本地和 CI 执行入口。"
     },
     {
       "path": ".github/workflows/quality-gate.yml",
-      "symbol": "desktop-linux MCP elicitation-first journey step",
+      "symbol": "mcp-elicitation",
       "responsibility": "在 journeys 风险面被选中时实际运行该 e2e。"
     },
     {
       "path": "scripts/check-quality-gate-workflow.node-test.mjs",
-      "symbol": "MCP elicitation-first script/workflow contract assertions",
+      "symbol": "runCommands / workflow",
       "responsibility": "阻止 package script、workflow step 或 journeys 条件任一处脱钩。"
     }
   ],

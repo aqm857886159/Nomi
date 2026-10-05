@@ -34,7 +34,7 @@
     },
     {
       "path": ".github/workflows/docs-autosync.yml",
-      "symbol": "Open a docs repair pull request",
+      "symbol": "publish",
       "responsibility": "Publish repaired docs through a bot branch and pull request so protected main is never written directly."
     }
   ],

@@ -68,22 +68,22 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
-      "symbol": "CanvasToolbar 根节点的 onPointerEnter/onPointerLeave + 更多菜单的间隙桥",
+      "symbol": "CanvasToolbar / onPointerEnter / onPointerLeave",
       "responsibility": "「更多」菜单 hover 开合的唯一判据：收起挂在覆盖了按钮与菜单全高的工具条根节点上（菜单与桥都是它的后代），展开仍挂在按钮那层；间隙桥是菜单的父层，宽度只写 8px 视觉间隙、高度由菜单自身 derive"
     },
     {
       "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
-      "symbol": "AgentPanelV4Composer 的 measure（useLayoutEffect + ResizeObserver）",
+      "symbol": "AgentPanelV4Composer / measure / ResizeObserver",
       "responsibility": "composer 内容高的唯一测量点：量之前让 textarea 脱离父 flex 对主轴尺寸的接管，量完原样还原；行数交给 rowsFromContentHeight/useComposerHeight 这一套既有规则"
     },
     {
       "path": "electron/agentLane/laneHost.mts",
-      "symbol": "composeSystemPrompt + transform_context 钩子",
+      "symbol": "composeSystemPrompt / transform_context",
       "responsibility": "一条 lane 每个回合的身份提示词由这里统一重拼：跟着设置走的段落必须在这一刻求值，而不是复用开 lane 时的闭包常量"
     },
     {
       "path": "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
-      "symbol": "KnownVendorKeyConnectPage 成功卡的状态分支",
+      "symbol": "KnownVendorKeyConnectPage",
       "responsibility": "接入成功卡文案与真实发布状态对齐：verificationPending / curatedModelsPublished / 已存 key 待验证 / 刚存未刷新四态各说各的实话"
     }
   ],

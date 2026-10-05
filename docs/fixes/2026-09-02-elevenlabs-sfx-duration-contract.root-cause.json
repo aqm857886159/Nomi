@@ -39,7 +39,7 @@
     },
     {
       "path": "electron/catalog/elevenlabs.ts",
-      "symbol": "ElevenLabs sound-effect parameter controls",
+      "symbol": "SFX_V2_CREATE / ELEVENLABS_OPERATIONS",
       "responsibility": "Expose the provider-backed duration range at the catalog boundary."
     }
   ],
@@ -77,11 +77,17 @@
       "electron/catalog/elevenlabs.test.ts"
     ]
   },
-  "regression_tests": ["electron/catalog/elevenlabs.test.ts"],
-  "class_regression_tests": ["electron/catalog/elevenlabs.test.ts"],
+  "regression_tests": [
+    "electron/catalog/elevenlabs.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/elevenlabs.test.ts"
+  ],
   "legacy_paths": {
     "status": "removed",
-    "removed_paths": ["electron/catalog/elevenlabs.ts"],
+    "removed_paths": [
+      "electron/catalog/elevenlabs.ts"
+    ],
     "rationale": "The stale 22-second parameter declaration is removed; the official 30-second declaration is the only active path.",
     "removal_evidence": "The test suite rejects 31 seconds and accepts 30 seconds against the retained mapping."
   },

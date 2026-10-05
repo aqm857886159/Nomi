@@ -76,7 +76,7 @@
     },
     {
       "path": "tests/fixtures/standard-formats/",
-      "symbol": "official fixtures plus SOURCES.md",
+      "symbol": "mcpServers",
       "responsibility": "Samples copied verbatim from the specifications, with their URLs and capture dates. They are the only artefact that can fail when our parser cannot read what an outsider wrote; every other test in the repository feeds inputs we authored ourselves."
     }
   ],

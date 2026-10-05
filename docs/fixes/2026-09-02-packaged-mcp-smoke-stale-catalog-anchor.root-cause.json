@@ -112,7 +112,7 @@
     },
     {
       "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
-      "symbol": "EXPECTED_TOOL_NAMES set-equality assert",
+      "symbol": "MCP_TOOL_NAMES",
       "responsibility": "Derives the expected catalog from dist-electron/capabilityCore/mcpToolCatalog.js (the exact module packed into app.asar) and fails with an explicit missing/unexpected diff when the packaged surface drifts."
     }
   ],

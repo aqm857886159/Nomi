@@ -62,7 +62,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-prior-art.mjs",
-      "symbol": "the plan scan plus the pull-request evaluation",
+      "symbol": "collectPlans / registryChangedInDiff",
       "responsibility": "Own the single moment at which an implementation can begin without a prior-art search: every contracts run reads the governed plan documents, and the pull_request event additionally reads the PR body against the diff budget."
     },
     {

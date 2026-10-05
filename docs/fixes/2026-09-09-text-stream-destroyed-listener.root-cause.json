@@ -24,7 +24,7 @@
   "shared_boundaries": [
     {
       "path": "electron/ai/textStreamIpc.ts",
-      "symbol": "registerTextStreamIpc stream handle",
+      "symbol": "registerTextStreamIpc",
       "responsibility": "Bind on stream start, unbind on stream end and on sender destruction."
     }
   ],

@@ -56,7 +56,7 @@
     },
     {
       "path": "scripts/check-run-task-grant.mjs",
-      "symbol": "check:run-task-grant",
+      "symbol": "scan",
       "responsibility": "机器边界：任何自拼 request 的 runTask 调用点必须出现 grantId，硬零无基线。"
     }
   ],

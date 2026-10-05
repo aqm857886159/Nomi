@@ -40,7 +40,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-framework-boundary.mjs",
-      "symbol": "collectSources plus the registry/baseline comparison",
+      "symbol": "collectSources",
       "responsibility": "Own the single moment at which a self-written version of a framework capability can enter the repository: every contracts run scans the declared scopes and refuses anything that is not registered debt."
     },
     {

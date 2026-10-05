@@ -24,7 +24,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
-      "symbol": "StoryboardShotTable layout effect",
+      "symbol": "StoryboardShotTable",
       "responsibility": "Consume navigation only after the workspace is active and the row exists."
     }
   ],

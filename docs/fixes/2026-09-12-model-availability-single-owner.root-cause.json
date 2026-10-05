@@ -125,7 +125,7 @@
     },
     {
       "path": "scripts/check-model-availability.mjs",
-      "symbol": "scanSource + READERS 普查表",
+      "symbol": "scanSource / READERS",
       "responsibility": "结构门岗：读者掉线或第二份判据出现时当场报红"
     }
   ],

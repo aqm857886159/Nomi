@@ -31,7 +31,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "loadModels effect",
+      "symbol": "buildV4ModelRows",
       "responsibility": "Own one catalog read/derive path, subscribe it to nomi-model-catalog-changed, and discard stale asynchronous reads."
     },
     {

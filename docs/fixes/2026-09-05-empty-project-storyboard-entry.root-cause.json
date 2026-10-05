@@ -12,8 +12,8 @@
   ],
   "scope_paths": [
     "src/workbench/generationCanvas/agent/storyboardPlan.ts",
-      "src/workbench/project/projectRepository.ts",
-      "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/project/projectRepository.ts",
+    "src/workbench/workbenchDocumentSlice.ts",
     "src/workbench/creation/CreationWorkspace.tsx",
     "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
     "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
@@ -42,7 +42,7 @@
     },
     {
       "path": "src/workbench/creation/CreationWorkspace.tsx",
-      "symbol": "starter storyboard routing effect",
+      "symbol": "CreationWorkspace",
       "responsibility": "Select the starter design and transition to the dedicated StoryboardWorkspace so the editor has one home."
     },
     {
@@ -52,7 +52,7 @@
     },
     {
       "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-      "symbol": "row surface click and data-selected",
+      "symbol": "data-selected",
       "responsibility": "Make the whole row selectable while preserving nested controls, and expose the selected state to the real journey contract."
     }
   ],
@@ -89,7 +89,7 @@
     "artifacts": [
       "src/workbench/generationCanvas/agent/storyboardPlan.ts",
       "src/workbench/project/projectRepository.ts",
-    "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/workbenchDocumentSlice.ts",
       "src/workbench/creation/CreationWorkspace.tsx",
       "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
       "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",

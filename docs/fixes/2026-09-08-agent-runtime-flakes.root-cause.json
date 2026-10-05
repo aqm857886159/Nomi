@@ -52,7 +52,7 @@
     },
     {
       "path": "scripts/check-test-waits.mjs",
-      "symbol": "unownedLaneCleanupLines / RULES[unowned-lane-directory-cleanup]",
+      "symbol": "unownedLaneCleanupLines / RULES",
       "responsibility": "测试夹具层 + 门岗层：fixture waits for all owner close completions; the gate rejects independent node:test removal hooks for lane/projectDir, including local aliases."
     }
   ],

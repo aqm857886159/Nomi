@@ -93,7 +93,7 @@
   "shared_boundaries": [
     {
       "path": "electron/director/mobileBridgeServer.ts",
-      "symbol": "MobileBridgeServer.start() 的同意闸 + admit()/ensurePairing()/rotatePairing() 的配对码",
+      "symbol": "MobileBridgeServer / start / admit / ensurePairing / rotatePairing",
       "responsibility": "拦住两件事：没拿到本次 App 运行的用户同意就 bind 端口；以及用一个过期的、已经被消费掉的、或者压根不匹配的凭据完成 WS upgrade。凭据比较走 timingSafeEqual，配对成功当场轮换并发 pairing 事件"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "path": "electron/director/mobileBridgeIpc.ts",
-      "symbol": "nomi:director:mobile:start handler 的 consent 装配",
+      "symbol": "nomi:director:mobile:start",
       "responsibility": "同意只从这一条受信 IPC 边界流进来：assertTrustedSender 之后，只有载荷明确带 consent:true 才调 server.grantConsent()；没同意时连 MobileBridgeServer 对象都不造，返回 consentRequired 状态"
     }
   ],

@@ -55,12 +55,12 @@
     },
     {
       "path": "src/design/NomiSelect.tsx",
-      "symbol": "Combobox.Options 的 className",
+      "symbol": "Combobox.Options",
       "responsibility": "设计系统通用下拉组件不知道自己会不会被挂进画布节点内部（portalTarget 指回节点 DOM），因此无条件带 React Flow 默认识别的 `nowheel nodrag`（不含画布自定义的 no-pan class 名——那是画布私有的覆盖值，通用组件不应该硬编码消费方的私有配置）"
     },
     {
       "path": "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts",
-      "symbol": "整份文件的两条静态扫描用例",
+      "symbol": "collectTsx",
       "responsibility": "对 `nodes/**` 下每个 overflow-auto/-scroll 元素与每个 `<textarea>` 强制要求 nowheel 标记存在，新增/遗漏在 CI 里直接标文件:行号，是本条不变量的机器化持有者"
     }
   ],
@@ -200,7 +200,7 @@
       "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx"
     ],
     "rationale": "三处从未生效的 `onWheel={(event) => event.stopPropagation()}` 在同一处改动里直接删除，换成共享常量；不保留旧手法作为『双保险』——它不生效，留着只会让下一个读代码的人误以为这里已经处理过 wheel 问题（P1：加新必删旧，无并行版）。shotTable/ShotTableGrid.tsx 此前手写的字面量 class 字符串同样删除，改为引用共享常量，避免『同一份 class 组合两处不同来源、以后改一处忘改另一处』"
-    },
+  },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "React Flow（@xyflow/react）版本未变（12.11.5），本次只是启用它已经提供、且没有被本画布覆盖掉的默认机制（noWheelClassName 默认值 'nowheel'），不涉及升级、不需要保留旧版本的退出条件",
@@ -209,8 +209,8 @@
   "migration": "纯渲染层 className 改动，不涉及任何持久化数据结构、不涉及 IPC 契约、不涉及画布快照格式。旧项目文件打开后节点照常渲染，只是内部滚动区域的 wheel 行为从『被画布吃掉』变成『交给内部滚动』，用户不需要做任何操作即可获得修复",
   "residual_risks": [
     "React Flow 的 nowheel 机制会**无条件**挡住 wheel（source: createZoomOnScrollHandler 在 hasNoWheelClass 为真时直接 return，不判断 ctrlKey/metaKey），因此按住 Ctrl/Cmd 在节点内滚动区域滚轮不会再强制缩放画布——这是采用框架原生机制后的架构性副作用，不是本次改动可选择保留的行为。仓库里存在一份更早、针对旧（React Flow 迁移前）画布实现写的走查 tests/ux/composer-long-prompt.walk.mjs，其中『Ctrl+滚轮仍缩放画布』『Command+滚轮仍缩放画布』『提示词区中间正常向下滚动』三条断言在 origin/main（本次改动之前）已经是红的——已用 git stash 验证过：前两条断言编码的是已经不适用于当前 React Flow 架构的旧契约，第三条是与本次改动无关的既有缺陷（未修，超出本次范围）；用户报的核心断言『提示词内部滚动时画布不动』在 main 上确实是红的，本次改动后转绿",
-      "本次没有对 `nodes/**` 之外的目录（如 src/workbench/generationCanvas/components/、src/workbench/generation/ 等画布周边组件）做同等的滚动区域普查——那些不是『画布节点』本身，超出用户『节点内』这个明确范围，留作后续如果有类似反馈时的下一批扫描面",
-      "director/ 子树的判断依据是『DirectorEditor 是全屏 portal』这一份 CLAUDE.md 头注释与源码阅读，未对 3D 导演台内部各面板（timeline/panels 下的滚动区域）逐一像 nodes/ 这样机器化扫描——它们的 portal 边界已确认在 pane DOM 子树之外，理论上天然免疫，但没有一条像 nodeInnerScrollNoWheel.test.ts 那样的机器化回归覆盖"
+    "本次没有对 `nodes/**` 之外的目录（如 src/workbench/generationCanvas/components/、src/workbench/generation/ 等画布周边组件）做同等的滚动区域普查——那些不是『画布节点』本身，超出用户『节点内』这个明确范围，留作后续如果有类似反馈时的下一批扫描面",
+    "director/ 子树的判断依据是『DirectorEditor 是全屏 portal』这一份 CLAUDE.md 头注释与源码阅读，未对 3D 导演台内部各面板（timeline/panels 下的滚动区域）逐一像 nodes/ 这样机器化扫描——它们的 portal 边界已确认在 pane DOM 子树之外，理论上天然免疫，但没有一条像 nodeInnerScrollNoWheel.test.ts 那样的机器化回归覆盖"
   ],
   "external_sources": [
     {

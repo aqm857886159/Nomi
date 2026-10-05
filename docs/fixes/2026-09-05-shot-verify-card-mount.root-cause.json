@@ -35,7 +35,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "generation resident transcript / requestContentFix",
+      "symbol": "recoverFromFailure",
       "responsibility": "Project the canonical shot verification state into the current Host Agent surface and route recovery through sendTurn."
     },
     {

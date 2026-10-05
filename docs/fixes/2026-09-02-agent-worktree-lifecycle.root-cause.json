@@ -33,7 +33,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/agent-worktree-janitor.mjs",
-      "symbol": "decideAction and stop/reap commands",
+      "symbol": "decideAction / reap",
       "responsibility": "Record the stopped lease, check activity and grace period, and select only safe dependency pruning or linked-worktree removal."
     },
     {
@@ -78,10 +78,17 @@
     "failure_mode": "Missing, malformed, fresh, active, dirty-code, detached, or full-clone state fails closed to skip or dependency-only pruning.",
     "exception_policy": "none",
     "strategy": "Make stop ownership explicit, then reuse one classifier for automatic Stop-hook cleanup and manual reap so equivalent entry points cannot invent different deletion rules.",
-    "artifacts": ["scripts/agent-worktree-janitor.mjs", "scripts/install-agent-worktree-janitor.mjs"]
+    "artifacts": [
+      "scripts/agent-worktree-janitor.mjs",
+      "scripts/install-agent-worktree-janitor.mjs"
+    ]
   },
-  "regression_tests": ["scripts/agent-worktree-janitor.node-test.mjs"],
-  "class_regression_tests": ["scripts/agent-worktree-janitor.node-test.mjs"],
+  "regression_tests": [
+    "scripts/agent-worktree-janitor.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/agent-worktree-janitor.node-test.mjs"
+  ],
   "legacy_paths": {
     "status": "not-applicable",
     "removed_paths": [],

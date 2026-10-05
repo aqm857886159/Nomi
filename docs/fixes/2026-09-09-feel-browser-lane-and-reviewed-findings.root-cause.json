@@ -41,7 +41,7 @@
     },
     {
       "path": "scripts/check-feel.mjs",
-      "symbol": "merge-base exemption ratchet",
+      "symbol": "base",
       "responsibility": "已提交豁免内容只减不增"
     }
   ],

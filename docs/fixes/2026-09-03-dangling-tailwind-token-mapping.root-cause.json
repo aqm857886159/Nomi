@@ -33,12 +33,12 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-dangling-tailwind.mjs",
-      "symbol": "正向棘轮（offenders）+ 反向棘轮（unmapped）",
+      "symbol": "findDanglingClasses / findUnmappedColorVars",
       "responsibility": "正向：src 静态类名引用的 token 键必须在 config 里存在。反向：config 里定义的颜色变量必须被 theme 映射或显式登记为 CSS-only。两者共用 --baseline，只减不增。"
     },
     {
       "path": "tailwind.config.ts",
-      "symbol": "theme.extend.colors + addBase(':root')",
+      "symbol": "addBase",
       "responsibility": "token 键与 CSS 自定义属性的唯一定义处；颜色映射一律走 tokenColor() 以保住 /NN 透明度修饰符。"
     }
   ],

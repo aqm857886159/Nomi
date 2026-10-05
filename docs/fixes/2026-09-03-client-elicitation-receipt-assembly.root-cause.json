@@ -44,7 +44,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-transport-assembly.mjs",
-      "symbol": "SURFACES[McpTransport].unwired",
+      "symbol": "SURFACES",
       "responsibility": "机器枚举 McpTransport 接口的全部可选成员，逐个核对每个生产装配点有没有传；漏传即报红，欠账名单里的「已接上」条目也报红（防名单腐烂）。新增可选成员自动纳入，不需要有人记得回来加规则。"
     }
   ],

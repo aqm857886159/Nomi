@@ -39,7 +39,7 @@
     },
     {
       "path": "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
-      "symbol": "keeps the C-02 deconstruction node anchors canonical",
+      "symbol": "generation canvas control structure",
       "responsibility": "Fail closed when a canonical C-02 anchor is removed or a legacy selector is reintroduced."
     },
     {

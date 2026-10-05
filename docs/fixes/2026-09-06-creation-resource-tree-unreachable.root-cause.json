@@ -42,7 +42,7 @@
     },
     {
       "path": "src/workbench/WorkbenchShell.tsx",
-      "symbol": "WorkbenchShell main region",
+      "symbol": "WorkbenchShell",
       "responsibility": "Own the tree's only mount point, mounting it for exactly the modes the constant names, next to the existing ProjectExplorerSidebar mount for generation mode."
     },
     {

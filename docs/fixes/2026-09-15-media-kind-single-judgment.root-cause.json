@@ -64,7 +64,7 @@
     },
     {
       "path": "scripts/check-media-import-owner.mjs",
-      "symbol": "RULES.adhoc-media-kind-branch",
+      "symbol": "RULES",
       "responsibility": "守住这条判断不再从任何新落点长出第二份（棘轮只减不增），并给主进程 / 渲染层各自指对该用哪个 owner。"
     }
   ],

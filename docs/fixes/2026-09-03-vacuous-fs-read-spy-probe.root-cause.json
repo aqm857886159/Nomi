@@ -48,7 +48,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-test-waits.mjs",
-      "symbol": "RULES 里的 'fs-read-spy-path-filter' 规则 + context.spiesOnFsRead",
+      "symbol": "RULES / spiesOnFsRead",
       "responsibility": "以硬零、按构造的方式在全仓测试文件上拦截「按路径过滤 fs 读 spy」这一恒真探针写法，取代靠人写 grep 的同类扫描。"
     }
   ],

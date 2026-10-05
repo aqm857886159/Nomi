@@ -45,7 +45,7 @@
   "shared_boundaries": [
     {
       "path": "scripts/check-model-identity.mjs",
-      "symbol": "check:model-identity",
+      "symbol": "MODEL_FIELDS / VENDOR_FIELDS",
       "responsibility": "签名层的身份规则执行体：在多供应商并存那一层拦截「带 modelKey 却不带供应商字段」的新增类型与函数参数。棘轮基线只减不增。"
     },
     {

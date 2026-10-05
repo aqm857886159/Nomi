@@ -179,7 +179,7 @@
   "shared_boundaries": [
     {
       "path": "electron/capabilityCore/residentSurfaceLifecycle.ts",
-      "symbol": "bootResidentSurfaceLifecycle / markResidentSurface* / readResidentSurfaceLifecycle / residentGenerationFactory / residentGenerationUnavailableMessage",
+      "symbol": "bootResidentSurfaceLifecycle / markResidentSurfaceReady / readResidentSurfaceLifecycle / residentGenerationFactory / residentGenerationUnavailableMessage",
       "responsibility": "常驻生成面「装没装、没装是为什么」的唯一真相：五种相的定义、相变入口、给 lane 的工厂派生、给模型的缺席文案。"
     },
     {

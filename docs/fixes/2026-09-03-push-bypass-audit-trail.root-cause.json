@@ -31,12 +31,12 @@
   "shared_boundaries": [
     {
       "path": "scripts/claude-hooks/pre-push-check.sh",
-      "symbol": "push bypass detection block",
+      "symbol": "TARGETS",
       "responsibility": "Detect push commands that skip native git hooks and append an immutable audit record to .claude/push-bypass.log before the push proceeds."
     },
     {
       "path": "scripts/check-push-bypass.mjs",
-      "symbol": "main gate logic",
+      "symbol": "unconfirmed / autoApproved",
       "responsibility": "Read the bypass log and fail the gate for any unconfirmed bypass without a matching gates stamp, auto-confirm those with matching stamps, and expose --accept and --clear-confirmed for human resolution."
     }
   ],

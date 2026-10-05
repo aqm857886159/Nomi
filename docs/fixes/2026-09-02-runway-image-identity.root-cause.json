@@ -88,12 +88,12 @@
     },
     {
       "path": "scripts/check-platform-archetypes.mjs",
-      "symbol": "platformArchetypes 棘轮",
+      "symbol": "readArchetypes / offenders",
       "responsibility": "「一个档案罩多个不同产品」的机器闸，基线只减不增。本轮 3 → 2（runway-image 拆除）。新建平台档案当场报红且不允许追加进基线。"
     },
     {
       "path": "electron/catalog/runwayImageIdentity.test.ts",
-      "symbol": "Runway 图像身份三条不变量",
+      "symbol": "RUNWAY_IMAGE_RATIO_ENUMS / imageRows",
       "responsibility": "逐行断言：档案是模型专属（无跨产品共享）、UI 给得出的每个比例值 ⊆ 官方 enum、参考槽在该 mapping 上真正可达。让「能力面对该供应商撒谎」在测试期就红，而不是等用户点生成。"
     }
   ],

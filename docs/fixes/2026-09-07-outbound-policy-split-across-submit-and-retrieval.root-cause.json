@@ -100,12 +100,12 @@
     },
     {
       "path": "electron/shared/nomiErrorCodes.ts",
-      "symbol": "NomiErrorCode 'outbound-blocked'",
+      "symbol": "outbound-blocked",
       "responsibility": "Stable cross-process identity for a refusal by our own policy, so the renderer classifies on a code rather than on a translatable sentence."
     },
     {
       "path": "scripts/check-outbound-policy.mjs",
-      "symbol": "outbound policy ratchet",
+      "symbol": "POLICY_OWNERS",
       "responsibility": "Makes 'only one owner classifies destinations' machine-checked: hard-zero on environment escape hatches in production files, identity ratchet on every appFetch and isPrivateHost importer."
     }
   ],

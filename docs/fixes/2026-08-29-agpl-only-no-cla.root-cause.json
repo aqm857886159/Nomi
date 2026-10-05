@@ -48,12 +48,12 @@
   "shared_boundaries": [
     {
       "path": "CLA.md",
-      "symbol": "Nomi contribution policy",
+      "symbol": "AGPL-3.0-only",
       "responsibility": "State the single current AGPL-only/no-CLA rule and the permitted AGPL-compliant paid service boundary."
     },
     {
       "path": "scripts/check-cla-workflow.node-test.mjs",
-      "symbol": "AGPL-only policy tests",
+      "symbol": "claDocument",
       "responsibility": "Fail closed if a CLA workflow, signature ledger, or missing AGPL/no-signature contributor rule returns."
     }
   ],

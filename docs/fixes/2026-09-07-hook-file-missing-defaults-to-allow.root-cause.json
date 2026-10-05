@@ -78,7 +78,7 @@
     },
     {
       "path": ".claude/settings.json",
-      "symbol": "hooks 注册表",
+      "symbol": "hooks",
       "responsibility": "闸门在运行期的唯一入口。自 b60f708b4 起它本身进 git（共享项目设置，随 checkout 生效），因此也是缺失守卫唯一能落脚的地方——它是这条链上唯一一定在场的文件。"
     }
   ],

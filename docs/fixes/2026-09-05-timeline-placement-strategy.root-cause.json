@@ -61,7 +61,7 @@
     },
     {
       "path": "src/workbench/timeline/TimelinePanel.tsx",
-      "symbol": "tracks viewport and fit effect",
+      "symbol": "TimelinePanel",
       "responsibility": "测量可视轨道宽度、在打开/内容变化时应用 fit，并允许垂直滚动。"
     }
   ],

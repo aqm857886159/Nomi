@@ -42,7 +42,7 @@
     },
     {
       "path": "src/workbench/capability/capabilityApplyHandler.ts",
-      "symbol": "handleCapabilityApply project identity gate",
+      "symbol": "handleCapabilityApply",
       "responsibility": "The one renderer entry for main-forwarded capability ops: applies the face split, raises the actionable binding error, and hands the verified projectId to the adapters."
     }
   ],

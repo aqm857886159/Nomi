@@ -34,7 +34,7 @@
   "shared_boundaries": [
     {
       "path": "tests/ux/resident-composer-receipt-fix.e2e.mjs",
-      "symbol": "resident-composer-receipt real-user journey",
+      "symbol": "sendResidentIntent / createRuntimeWalk",
       "responsibility": "Exercise the real composer, Host proposal, approval card, refusal, persistence, MCP write, and restart readback path."
     },
     {
