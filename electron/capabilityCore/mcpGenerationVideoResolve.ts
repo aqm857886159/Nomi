@@ -19,6 +19,7 @@ import { canonicalArchetypeVariantId, resolveArchetypeVariant } from "../shared/
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode } from "../shared/videoCapabilities/types";
 import { projectSemanticAspectRatio } from "./semanticAspectRatio";
+import { admitAuthoredDuration } from "./generationAuthoredDuration";
 
 // Keep mode/task comparisons tolerant of the wire's kebab/snake aliases.  This
 // local normalizer is intentionally dependency-free so candidate resolution
@@ -296,6 +297,8 @@ export function acceptedParameterSchema(
  * （`projectSemanticAspectRatio`，翻不了当场拒）。翻译必须在模式定下之后——同一个模型的不同模式，
  * 比例键与选项可以不一样（Nano Banana 2 的 kie 变体叫 `aspect_ratio`、apimart 变体叫 `size`）。
  * 落盘的候选里只剩真实键，付费卡、画布落地、派发读到的就是同一个值。
+ * 时长同一处核（`admitAuthoredDuration`）：这个模式不收时长、或不在它的档里，当场拒并说出合法值——
+ * 不留到封印那一刻，也不让画布节点自己回落到档案默认（铁律 ⑩ 首跑的两类静默）。
  */
 export function normalizeAuthoredCandidate(
   candidate: PlanCandidate,
@@ -308,7 +311,7 @@ export function normalizeAuthoredCandidate(
   const accepted = acceptedParameterSchema(normalized, registry, candidates);
   // 目录里认不出这个模型 / 模式：这里不替它编一句「没有比例」——紧接着的身份准入（`admitShotIdentity` /
   // `admitPlanCandidate`）会说出真正的原因；语义键原样留着，到不了线缆（编合同时是未知参数，当场拒）。
-  return accepted ? projectSemanticAspectRatio(normalized, accepted, tierReference) : normalized;
+  return accepted ? admitAuthoredDuration(projectSemanticAspectRatio(normalized, accepted, tierReference), accepted) : normalized;
 }
 
 /**

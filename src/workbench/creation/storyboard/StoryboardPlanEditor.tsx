@@ -143,7 +143,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const root = editorRef.current
     if (event.defaultPrevented || event.shiftKey || event.altKey || !(event.metaKey || event.ctrlKey)
       || event.key.toLowerCase() !== 'z' || !deletedPlanUndoRef.current || !plan
-      || !root || root.offsetParent === null || !(event.target instanceof Node) || !root.contains(event.target)
+      || !root || root.offsetParent === null || !(event.target instanceof Node)
+      || !(root.contains(event.target) || event.target === lastEditorFocusRef.current)
       || isCanvasTextEditingContext(event.target, document.activeElement)) return
     event.preventDefault()
     if (deletedPlanUndoRef.current.projectId !== projectId || deletedPlanUndoRef.current.documentId !== activeDocumentId
@@ -665,7 +666,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                   const ids = selected.flatMap(runtime => [runtime.exec.node?.id, runtime.exec.keyframeNode?.id]).filter((id): id is string => Boolean(id))
                   const deletion = deleteStoryboardRows(plan, selected.map(runtime => runtime.shot), ids, useGenerationCanvasStore.getState())
                   const focused = document.activeElement
-                  deletedFocusRef.current = focused && (editorRef.current.contains(focused) || focused.matches('[data-confirm-dialog-confirm="true"]'))
+                  // 行菜单等走 portal 的浮层不在编辑器的 DOM 里，但焦点事件沿 React 树冒泡，
+                  // onFocusCapture 记下的就是它：它也算编辑器自己的焦点，删除后同样要把焦点还给编辑器。
+                  deletedFocusRef.current = focused && (editorRef.current.contains(focused) || focused === lastEditorFocusRef.current
+                    || focused.matches('[data-confirm-dialog-confirm="true"]'))
                     ? focused : focused === document.body ? lastEditorFocusRef.current : null
                   deletedPlanUndoRef.current = { ...deletion.undo, projectId, documentId: activeDocumentId, designId }
                   setStoryboardPlan(deletion.plan)

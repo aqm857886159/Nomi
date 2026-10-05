@@ -189,10 +189,17 @@
       "ironLaws": ["⑪"],
       "useCases": ["S2"],
       "fullWalkJourneys": ["J01-generate-image", "J04-agent-multishot-spend"],
-      "status": "candidate",
-      "manualReview": "pending",
+      "status": "fixed",
+      "manualReview": "reviewed",
       "evidence": ["缺口类 node-bar|aspect_ratio、node-bar|ratio、spend-card|aspect_ratio、spend-card|ratio；去重判据在 src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts 的 dedupeParamControls / controlEquivalentKeys"],
-      "completionCommits": []
+      "completionCommits": ["a16564746"],
+      "rootCauseContract": "docs/fixes/2026-10-05-param-alias-dedupe.root-cause.json",
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      },
+      "fixedInPr": 1029
     },
     {
       "id": "LAW11-EMPTY-INPUT",
@@ -264,10 +271,17 @@
       "ironLaws": ["⑩"],
       "useCases": ["S1", "S2"],
       "fullWalkJourneys": ["J04-agent-multishot-spend"],
-      "status": "candidate",
-      "manualReview": "pending",
+      "status": "fixed",
+      "manualReview": "reviewed",
       "evidence": ["用例 duration-out-of-steps；节点值由 src/workbench/generationCanvas/agent/plannedNodeMeta.ts 的 buildPlannedNodeMeta 丢弃非法值回落默认；草稿与卡走 electron/shared/agentCapabilities/verbs/draftShotsProjection.ts 原样带 duration"],
-      "completionCommits": []
+      "completionCommits": ["bd587cab4"],
+      "rootCauseContract": "docs/fixes/2026-10-05-authored-duration-admission.root-cause.json",
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/intentShownEqualsDrafted.test.mjs",
+        "ref": "⑩"
+      },
+      "fixedInPr": 1029
     },
     {
       "id": "LAW10-SILENT-DROP",
@@ -279,10 +293,17 @@
       "ironLaws": ["⑩"],
       "useCases": ["S1"],
       "fullWalkJourneys": ["J04-agent-multishot-spend"],
-      "status": "candidate",
-      "manualReview": "pending",
+      "status": "fixed",
+      "manualReview": "reviewed",
       "evidence": ["用例 no-duration-param、still-with-duration；草稿 parameters.duration 有值，付费卡投影的 parameters 里没有"],
-      "completionCommits": []
+      "completionCommits": ["bd587cab4"],
+      "rootCauseContract": "docs/fixes/2026-10-05-authored-duration-admission.root-cause.json",
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/intentShownEqualsDrafted.test.mjs",
+        "ref": "⑩"
+      },
+      "fixedInPr": 1029
     },
     {
       "id": "LAW12-sb-row-more",
@@ -294,10 +315,17 @@
       "ironLaws": ["⑫"],
       "useCases": ["S6"],
       "fullWalkJourneys": ["J06-delete-shot"],
-      "status": "candidate",
-      "manualReview": "pending",
+      "status": "fixed",
+      "manualReview": "reviewed",
       "evidence": ["tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-row-more.png"],
-      "completionCommits": []
+      "completionCommits": ["bd9082871"],
+      "rootCauseContract": "docs/fixes/2026-10-05-storyboard-row-menu-dismiss.root-cause.json",
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/ux/full-walk/catalog.mjs",
+        "ref": "⑫"
+      },
+      "fixedInPr": 1029
     },
     {
       "id": "LAW12-sb-row-checkbox",
@@ -343,6 +371,21 @@
       "manualReview": "pending",
       "evidence": ["10-05 real test: draft node showed the empty-prompt hint while the card held a filled prompt"],
       "completionCommits": []
+    },
+    {
+      "id": "LAW11-ANCHOR-CARD",
+      "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
+      "category": "parameter-contract",
+      "problem": "分镜「跨镜头一致」里生成参考图的那张卡只有模型 / 供应商两个下拉：比例、清晰度、尺寸、质量、背景、输出格式、张数、种子、反向提示词、生成方式、变体一个都选不到（45 个发布的图片模型里，比例 aspect_ratio 28 个、清晰度 resolution 23 个、尺寸 size 25 个选不到）；PlanAnchor 类型里有 modeId / params 字段，界面没有入口",
+      "existingInvariants": [3],
+      "ironLaws": ["⑪"],
+      "useCases": ["S3"],
+      "fullWalkJourneys": ["J03-reference-generation", "J04-agent-multishot-spend"],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": ["用户 2026-10-05 原话：跨镜头一致的参考图卡没有比例选项，也没有其他参数", "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx 只用 useDedupedModelSelect；17 个缺口类登记在 tests/experience-laws/reachabilityLedger.json"],
+      "completionCommits": [],
+      "since": "2026-10-05"
     }
   ]
 }

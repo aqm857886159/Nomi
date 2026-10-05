@@ -6,6 +6,7 @@ import { ProductionGenerationAuthorizationError } from '../productionRun/product
 import { z } from "zod";
 import { logWarn } from "../logging/logger";
 import { GENERATION_ARGUMENT_REFUSAL, refuseToModel, safeTransportFailure } from "./transportFailure";
+import { ContractCompilationError } from "./executionContract";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
 import { generationPlanInputSchema, generationStatusInputSchema } from "../shared/agentCapabilities/generationPlanSchemas";
@@ -118,7 +119,12 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
       : value instanceof GenerationProviderCapabilityError || value instanceof GenerationProviderObservationError
         ? 'generation_provider_unavailable'
         : value instanceof ProductionGenerationAuthorizationError || value instanceof GenerationRuntimeBindingError
-          ? value.code : undefined,
+          ? value.code
+          // 参数 / 合同准入的拒绝（参数不在档里、模式不收时长、比例翻不了……）是**我们自己写的**、带合法值的话，
+          // 和 `refuseToModel` 是同一档。以前它不在这里，落进兜底码：Agent 只收到一个裸的 generation_not_started，
+          // 说不出拒了什么，于是同一份参数原样重试（铁律 ⑩ 宿主矩阵首跑抓到）。
+          : value instanceof ContractCompilationError ? GENERATION_ARGUMENT_REFUSAL : undefined,
+    ownMessage: (value) => (value instanceof ContractCompilationError ? value.message : undefined),
     // 收敛成码挡住的应当只有**供应商 / 凭据的原始文本**。连我们自己 schema 的字段级理由一起抹掉，
     // 模型拿到的就是一个说不出拒了什么的裸码，于是同一份载荷原样重试到回合超时——那正是
     // 2026-09-18 那份根因合同修掉的失效方式（`generation_input_invalid — shots.0.prompt: Required`）。

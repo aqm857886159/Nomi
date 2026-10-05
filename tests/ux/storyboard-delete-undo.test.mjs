@@ -36,7 +36,7 @@ for (const scenario of ['redo', 'consumed', 'hidden', 'later-edit', 'outside', '
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(2)
     const row = editor.locator('[data-storyboard-row="1"]')
     await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-    await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+    await page.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
     if (scenario === 'generated-immediate') await page.getByRole('dialog').getByRole('button', { name: '删除镜头', exact: true }).click()
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(1)
     const remaining = editor.locator('[data-storyboard-row="1"]')
@@ -65,7 +65,7 @@ test('delayed delete confirmation cannot delete after the editor target changed'
     const editor = page.locator('[data-storyboard-editor]')
     const row = editor.locator('[data-storyboard-row="1"]')
     await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-    await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+    await page.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     // A background author edit is controlled; the deletion and confirmation remain original UI.

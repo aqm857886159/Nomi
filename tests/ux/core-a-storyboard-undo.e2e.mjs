@@ -85,7 +85,7 @@ async function checkEditor() {
   const original = structuredClone(readPlan())
   const row = editor().locator('[data-storyboard-row="1"]')
   await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-  await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+  await win.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
   await expect(editor().locator('[data-storyboard-row]')).toHaveCount(2)
   // The delete menu has disappeared: direct keyboard Undo must work without test-created focus.
   await win.keyboard.press('Meta+z')
@@ -93,7 +93,7 @@ async function checkEditor() {
   await expect.poll(() => readPlan()).toEqual(original)
   report.checks.push({ host, scenario: 'immediate Undo after deletion, no additional focus or click' })
   await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-  await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+  await win.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
   await expect(editor().locator('[data-storyboard-row]')).toHaveCount(2)
   await expect.poll(() => readPlan().shots.length).toBe(2)
   const deletedPlan = structuredClone(readPlan())

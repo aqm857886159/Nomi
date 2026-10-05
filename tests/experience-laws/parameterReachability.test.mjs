@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   MODE_AXIS,
+  NOT_PARAMETER_ENTRIES,
+  PARAMETER_RENDERERS,
   REACHABILITY_ENTRIES,
   buildReachabilityMatrix,
   classifyGaps,
@@ -57,6 +59,20 @@ describe('铁律 ⑪ 能选到', () => {
       const entry = ledgerIds.get(gap.ledgerId)
       expect(entry, `${gap.class} 指向的账本条目 ${gap.ledgerId} 不存在`).toBeTruthy()
       expect(entry.ironLaws).toContain('⑪')
+    }
+  })
+
+  it('「跨镜头一致」参考卡的可选项来自它真实的源码：它一旦开始渲染参数 / 模式，这里的 anchorCardReach 必须跟着改', () => {
+    const source = fs.readFileSync(path.join(repoRoot, 'src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx'), 'utf8')
+    const used = PARAMETER_RENDERERS.filter((name) => new RegExp(`\b${name}\b`).test(source))
+    expect(used, 'StoryboardAnchorRow 开始用控件解析了：把 parameterReachability.mjs 的 anchorCardReach 改成调同一个函数').toEqual([])
+    expect(source).toMatch(/useDedupedModelSelect/)
+  })
+
+  it('碰到模型的其它界面都点过名，且文件都还在（数漏了或改名了就红）', () => {
+    for (const item of NOT_PARAMETER_ENTRIES) {
+      expect(fs.existsSync(path.join(repoRoot, item.owner)), `${item.owner} 不存在了，清单要跟着改`).toBe(true)
+      expect(item.why.length).toBeGreaterThan(10)
     }
   })
 

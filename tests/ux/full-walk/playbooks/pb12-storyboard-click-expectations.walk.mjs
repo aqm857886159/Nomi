@@ -188,26 +188,29 @@ try {
       await win().waitForTimeout(300)
       menuWhileOpen = await readPage()
       await monitor.screenshot('click-sb-row-more-open')
-      // 点别处：编辑器标题栏那一块空白（不是任何按钮）。
-      const editorBox = await editor().boundingBox()
-      if (editorBox) await win().mouse.click(editorBox.x + editorBox.width - 12, editorBox.y + 6)
+      // 点别处：点第 1 镜画面格右上角（菜单开在「⋯」下方，盖不到这一角）。这一下既要把菜单关上，
+      // 也要照样落到画面格上（选中第 1 镜）——菜单开着时不许吞掉用户对缩略图的点击。
+      const frameBox = await row(1).locator('[data-storyboard-frame-media]').first().boundingBox()
+      if (!frameBox) throw new Error('量不到第 1 镜的画面格')
+      await win().mouse.click(frameBox.x + frameBox.width - 8, frameBox.y + 8)
       await win().waitForTimeout(300)
     },
     judge: (_before, after) => {
       const menu = menuWhileOpen?.menus.find((entry) => entry.row === '1')
       const closed = !after.menus.some((entry) => entry.row === '1')
-      const ok = Boolean(menu) && menu.inViewport && closed
-      return { ok, actual: !menu ? '没有弹出菜单' : `弹出了菜单${menu.inViewport ? '，整块在窗口里' : '，有一部分出了窗口'}；点别处之后${closed ? '关上了' : '还开着'}` }
+      const landed = Boolean(rowOf(after, 1)?.selected)
+      const ok = Boolean(menu) && menu.inViewport && closed && landed
+      return { ok, actual: !menu ? '没有弹出菜单' : `弹出了菜单${menu.inViewport ? '，整块在窗口里' : '，有一部分出了窗口'}；点第 1 镜画面格之后菜单${closed ? '关上了' : '还开着'}，这一下${landed ? '照样选中了第 1 镜' : '没有落到画面格上'}` }
     },
   })
 
   // 菜单若还开着，像用户一样再点一次「⋯」把它收起来（这一下不是被测动作）——不收的话它盖着第 1 镜的画面格，
   // 后面点缩略图会点进菜单里（第一次跑就这样点中了「复制镜头」）。
   await monitor.step('再点一次第 1 镜的「⋯」把菜单收起（复原）', async () => {
-    if (await row(1).locator('[data-storyboard-row-menu="1"]').isVisible().catch(() => false)) {
+    if (await win().locator('[data-storyboard-row-menu="1"]').isVisible().catch(() => false)) {
       await clickOrFail(row(1).locator('[data-storyboard-row-menu-trigger="1"]').first(), '第 1 镜行首的「⋯」（收起）')
     }
-    await expect(row(1).locator('[data-storyboard-row-menu="1"]'), '菜单收起了').toHaveCount(0, { timeout: stationTimeout() })
+    await expect(win().locator('[data-storyboard-row-menu="1"]'), '菜单收起了').toHaveCount(0, { timeout: stationTimeout() })
   }, { surfaces: ['*'] })
 
   // ── 底栏「时长」格：选一个新值 ──

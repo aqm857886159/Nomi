@@ -55,8 +55,8 @@ export const STORYBOARD_CLICK_TARGETS = Object.freeze([
   SB_TARGET({
     id: 'sb-row-more', target: '行首的「⋯」',
     owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx#StoryboardShotRow',
-    userExpectation: '弹出这一镜的操作菜单（插入、复制、换画幅、删除……），整块都在窗口里；点别处它就关上',
-    actualObservation: '2026-10-05 pb12（zh / en）：菜单弹出、整块在窗口里；点编辑器别处后菜单仍开着，要再点一次「⋯」才收；开着时盖住下一镜的画面格与本镜缩略图 —— 不一致（LAW12-sb-row-more）',
+    userExpectation: '弹出这一镜的操作菜单（插入、复制、换画幅、删除……），整块都在窗口里；点别处它就关上，点的那一下照样生效',
+    actualObservation: '2026-10-05 pb12（zh）修复后复跑：菜单弹出、整块在窗口里；点第 1 镜画面格那一下关上菜单，并照样选中第 1 镜 —— 一致（LAW12-sb-row-more 已修，修前：点别处不关、盖住缩略图）',
   }),
   SB_TARGET({
     id: 'sb-param-duration', target: '底栏的「时长」格',
