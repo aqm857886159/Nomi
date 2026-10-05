@@ -30,6 +30,7 @@ import { getVendorPreference } from '../../../api/vendorPreferenceApi'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import type { StoryboardRowRuntime } from './storyboardRowStatus'
+import { storyboardComposerMeta } from '../shotRow/storyboardComposerModel'
 
 /**
  * 分镜表的**执行动作层**（v5 B）：行内/批量生成 = 按需 materialize（没建过的节点此刻建）+
@@ -292,11 +293,17 @@ export async function regenerateAnchorCard(ctx: RowActionContext, anchor: PlanAn
   return regenerateNodeInPlace(node.id, confirmationGuards(ctx))
 }
 
-/** 锚卡编辑写回节点（描述/静动特征改了再生成，出的是改后的卡）。 */
+/**
+ * 锚卡编辑写回节点（描述 / 静动特征 / **模型与参数**改了再生成，出的是改后的卡）。
+ *
+ * 模型与参数（审计 A2）：参考卡底栏显示的那份 meta 由 `storyboardComposerMeta` 算出（落画布同一个构造器），
+ * 写回节点也只用它——界面上选的模型 / 比例 / 清晰度就是重生成时发出去的。以前这里只同步提示词与特征，
+ * 改了模型再点重试，节点仍用旧模型（「界面说的 ≠ 发出的」）。没选模型（默认模型）就不动节点的模型。
+ */
 function syncAnchorNodeWithCard(ctx: RowActionContext, anchor: PlanAnchor, node: GenerationCanvasNode): void {
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard anchor update')
   const prompt = buildAnchorSheetPrompt(anchor)
-  const meta: Record<string, unknown> = { ...(node.meta || {}) }
+  const meta: Record<string, unknown> = { ...(node.meta || {}), ...storyboardComposerMeta(anchor, 'image') }
   const staticFeatures = (anchor.staticFeatures || '').trim()
   const dynamicFeatures = (anchor.dynamicFeatures || '').trim()
   if (staticFeatures) meta[ANCHOR_META_KEYS.staticFeatures] = staticFeatures

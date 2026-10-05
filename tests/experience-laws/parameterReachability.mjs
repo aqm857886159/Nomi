@@ -30,14 +30,7 @@ import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes
 import { archetypeVariantChoices } from '../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
 import { isParameterReferenceControl } from '../../src/workbench/generationCanvas/model/parameterReferenceSlots'
 import { projectSpendNode } from '../../src/workbench/ai/v4/spendCardDraft'
-import { resolveShotArchetypeMode } from '../../src/workbench/creation/storyboard/shotRow/shotRowModel'
-import {
-  composerBarParams,
-  composerModeOptions,
-  shotAspectChoices,
-  shotDurationChoices,
-} from '../../src/workbench/creation/storyboard/shotRow/composerBarModel'
-import { DURATION_OPTIONS_SEC } from '../../src/workbench/generationCanvas/agent/storyboardPlanEdits'
+import { storyboardComposerControls, storyboardComposerMeta } from '../../src/workbench/creation/storyboard/shotRow/storyboardComposerModel'
 
 /** 变体轴与模式轴不是档案参数，但同样是「用户要能选到」的东西；用保留键名进同一张表。 */
 export const MODE_AXIS = '(生成方式)'
@@ -61,7 +54,7 @@ export const REACHABILITY_ENTRIES = Object.freeze([
     id: 'storyboard-row',
     title: '分镜表行底栏',
     kinds: Object.freeze(['image', 'video']),
-    owner: 'src/workbench/creation/storyboard/shotRow/composerBarModel.ts#composerBarParams',
+    owner: 'src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts#storyboardComposerControls',
   }),
   // 2026-10-05 用户原话：「跨镜头一致」里生成参考图的那张卡没有比例选项，也没有其他参数。
   // 卡上只有模型 / 供应商两个下拉（视觉锚只走图片模型），模式与参数一个都不渲染——见 anchorCardReach 的守卫。
@@ -69,7 +62,7 @@ export const REACHABILITY_ENTRIES = Object.freeze([
     id: 'storyboard-anchor',
     title: '分镜「跨镜头一致」参考卡',
     kinds: Object.freeze(['image']),
-    owner: 'src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx#StoryboardAnchorRow',
+    owner: 'src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts#storyboardComposerControls',
   }),
 ])
 
@@ -175,42 +168,27 @@ function spendCardReach(row, mode) {
 }
 
 /**
- * 分镜表行：行底栏（select 胶囊 + ⋯ 里的开关）+ 画幅（行菜单 / 批量条给项目预设，覆盖后胶囊再并上档案的档）
- * + 时长胶囊（固定档 ∪ 当前值）+ 模式胶囊。分镜行没有变体选择器。
+ * 分镜行与参考卡（2026-10-06 起同一条路）：底栏 = 画布同款 `InlineParameterBar`，控件 = `storyboardComposerControls`
+ * 喂 `storyboardComposerMeta`（落画布同一个构造器），生成方式在面板顶上一组（档案有两种以上模式就全部可选）。
+ * 两个入口都没有变体选择器（PlanShot / PlanAnchor 不记变体，见 LAW11-SB-VARIANT）。
  */
-function storyboardReach(row, mode) {
-  const resolved = resolveShotArchetypeMode(row.option, mode.id)
-  const params = new Map()
-  if (resolved) {
-    for (const control of composerBarParams(resolved.mode)) {
-      params.set(control.key, control.options.map((option) => String(option.value)))
-    }
-    if (resolved.mode.params.some((control) => control.key === 'aspect_ratio')) {
-      params.set('aspect_ratio', shotAspectChoices(ASPECT_OPTIONS, resolved.mode, ''))
-    }
-    if (resolved.mode.params.some((control) => control.key === 'duration')) {
-      // 时长胶囊永远在（视频镜写生成时长、图片镜写停留时长）；可选值与这镜当前值无关的那部分就是固定档。
-      params.set('duration', shotDurationChoices(row.kind === 'image', Number.NaN, DURATION_OPTIONS_SEC).map(String))
-    }
-  }
+function storyboardComposerReach(row, mode, kind) {
+  const meta = storyboardComposerMeta({ modelKey: row.option.modelKey ?? row.option.value, modelVendor: row.vendorKey, modeId: mode.id }, kind)
+  const controls = storyboardComposerControls(row.option, meta, kind)
   return {
-    params,
-    modes: composerModeOptions(resolved?.archetype ?? row.archetype).map((option) => option.value),
+    params: controlsReach(controls),
+    modes: row.archetype.modes.length > 1 ? row.archetype.modes.map((candidate) => candidate.id) : [],
     variants: [],
   }
 }
 
-/**
- * 「跨镜头一致」参考卡：卡上只渲染模型 / 供应商下拉（`useDedupedModelSelect`），没有任何参数、模式、变体控件。
- * 这里没有一个「渲染哪些控件」的函数可调——它本来就不渲染。为了不让这句话过期，测试里有一道守卫：
- * `StoryboardAnchorRow.tsx` 一旦开始用任何控件解析函数，守卫就红，提醒把这个函数改成调它。
- */
-function anchorCardReach() {
-  return { params: new Map(), modes: [], variants: [] }
+function storyboardReach(row, mode) {
+  return storyboardComposerReach(row, mode, row.kind === 'image' ? 'image' : 'video')
 }
 
-/** 守卫用：参考卡源码里出现这些名字之一，就说明它开始渲染参数 / 模式了，anchorCardReach 要跟着改。 */
-export const PARAMETER_RENDERERS = Object.freeze(['resolveRenderedControls', 'composerBarParams', 'composerBarPlan', 'archetypeModeParams', 'NodeParameterControls', 'InlineParameterBar', 'ShotComposerBar', 'composerModeOptions', 'archetypeVariantChoices'])
+function anchorCardReach(row, mode) {
+  return storyboardComposerReach(row, mode, 'image')
+}
 
 const REACH_BY_ENTRY = Object.freeze({ 'node-bar': nodeBarReach, 'spend-card': spendCardReach, 'storyboard-row': storyboardReach, 'storyboard-anchor': anchorCardReach })
 

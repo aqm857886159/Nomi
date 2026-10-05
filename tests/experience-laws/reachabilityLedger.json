@@ -7,7 +7,12 @@
     "knownGaps：第一次跑出来、还没定修不修的缺口；ledgerId 指向 tests/ux/full-walk/escapeLedger.json 里的 candidate，由协调会话决定修哪些。",
     "棘轮：表外冒出新缺口 = 红；表里登记的缺口已经不存在 = 也红（修好了就删这一行，并在账本那条写 completionCommits）。"
   ],
-  "waivers": [],
+  "waivers": [
+    {
+      "class": "storyboard-row|aspect_ratio|options",
+      "reason": "跨字段约束：MiniMax-H3 参考生视频的「自适应」比例受同模式另一个参数约束（档案 optionConstraints → constrainParameterControls，画布与分镜同一个函数）。分镜行按落画布同一个构造器铺了档案默认参数，在这组默认值下「自适应」被收窄；面板里先改约束它的那个参数就能选到，不是分镜入口少给。"
+    }
+  ],
   "knownGaps": [
     {
       "class": "node-bar|bpm|param:number",
@@ -66,108 +71,24 @@
       "ledgerId": "LAW11-SB-VARIANT"
     },
     {
-      "class": "storyboard-row|duration|options",
-      "ledgerId": "LAW11-SB-DURATION"
-    },
-    {
-      "class": "storyboard-row|frame_rate|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|negative_prompt|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
       "class": "storyboard-row|num_inference_steps|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|output_count|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-row|seed|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|source_task_id|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-row|video_start_seconds|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|webhook|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-anchor|(变体)|axis",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|(生成方式)|axis",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|aspect_ratio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|aspectRatio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|background|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|batch_size|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|enhance_prompt|param:boolean",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|negative_prompt|param:text",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|output_count|param:number",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|output_format|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|promptExtend|param:boolean",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|quality|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|ratio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|resolution_type|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|resolution|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
+      "ledgerId": "LAW11-SB-VARIANT"
     },
     {
       "class": "storyboard-anchor|seed|param:number",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|size|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     }
   ]
 }

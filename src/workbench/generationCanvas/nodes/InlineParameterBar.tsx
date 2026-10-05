@@ -495,7 +495,7 @@ export default function InlineParameterBar({
   // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
   // summary 形态只有一颗定宽 pill，不存在「装不下」，行窄时让位的只有**模型**那枚：它的值区是有意的
   // 省略号、hover 的 title 是全名。变体是短枚举（「变体 5.0」），和分镜底栏的模式 / 时长同一条规则
-  // （`composerBarGeometry.ts`：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
+  // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
   // 5px，「Variant 5.0」读成「Variant E」，缩它省下的几像素换来的是一颗读不出的芯片。
   const modelChipClass = chipsMode && !stacked ? 'shrink-0' : undefined
   const variantChipClass = stacked ? undefined : 'shrink-0'

@@ -54,6 +54,11 @@ type Props = {
   onRemove: (slotKey: string, index: number) => void
   /** 点缩略图 = 在提示词光标处插一枚指向它的 @（画布同一手势）。 */
   onInsertMention?: ((url: string) => void) | undefined
+  /**
+   * 契约未知（默认模型、认不出档案，不知道能收什么参考）时「+」的去处：在提示词里起一个 @，
+   * 让用户从 @ 面板挑（选中即绑定，与手动 @ 同一条路）。缺省 = 不摆「+」。
+   */
+  onTriggerMention?: (() => void) | undefined
   /** 允许为放参考切模式（已出过结果的行不传：切了就和它手上的结果对不上）。 */
   onSwitchMode?: ((modeId: string) => void) | undefined
   /**
@@ -82,7 +87,7 @@ function slotFor(mode: ArchetypeMode, bindings: ReferenceBindingMap | undefined,
 }
 
 export default function ShotReferenceStrip({
-  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, planned, layout,
+  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onTriggerMention, onSwitchMode, planned, layout,
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const projectId = useOpenProjectId()
@@ -118,7 +123,8 @@ export default function ShotReferenceStrip({
   const accepts = [...new Set((targetMode?.slots ?? []).map((slot) => referenceSlotAccept(slot.kind)))]
   const canAdd = Boolean(targetMode) && accepts.length > 0
 
-  if (tiles.length === 0 && !canAdd && !planned) return null
+  const mentionEntry = !mode && !archetype && Boolean(onTriggerMention)
+  if (tiles.length === 0 && !canAdd && !planned && !mentionEntry) return null
 
   const place = (asset: { url: string; kind: AssetKind; name?: string; sourceNodeId?: string }): boolean => {
     if (!targetMode) return false
@@ -214,6 +220,11 @@ export default function ShotReferenceStrip({
           >
             +{hidden}
           </button>
+        ) : null}
+        {mentionEntry ? (
+          <span className="relative inline-flex" data-storyboard-ref-add="mention">
+            <AssetAddTile className={tileClass} label={t('storyboardEditor.row.atRefAria')} onClick={() => onTriggerMention?.()} />
+          </span>
         ) : null}
         {canAdd ? (
           <span className="relative inline-flex" data-storyboard-ref-add={switchTo ? 'switch-mode' : 'own'}>

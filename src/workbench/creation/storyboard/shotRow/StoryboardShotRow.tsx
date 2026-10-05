@@ -190,6 +190,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     editor.chain().focus().insertAssetMention(url, position >= 0 ? position + 1 : undefined).run()
   }, [currentRefUrls])
 
+  // 契约未知的行（默认模型）：参考条那枚「+」= 在提示词里起一个 @（@ 面板里挑，选中即绑定）。
+  const triggerAtMention = React.useCallback(() => {
+    const editor = editorRef.current
+    if (!editor || editor.isDestroyed) return
+    editor.chain().focus().insertContent('@').run()
+  }, [])
+
   const closeMenus = (): void => { setActionsOpen(false) }
   // 视觉列宽：这一行在行网格之外渲染，读不到网格量出的档位，所以参考条与降级框的宽度由 ShotReferenceStrip /
   // 画面格在网格里面各自按档位缩（同一个 context）。这里给的是宽档值。
@@ -364,6 +371,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           if (next) onUpdate({ referenceBindings: next.bindings, ...(next.prompt !== shot.prompt ? { prompt: next.prompt } : {}) })
         }}
         onInsertMention={mentionSearch ? insertMention : undefined}
+        onTriggerMention={mentionSearch ? triggerAtMention : undefined}
         onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
         planned={exec?.plannedFirstFrame ?? null}
         layout={portrait

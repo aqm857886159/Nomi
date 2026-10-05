@@ -192,3 +192,19 @@ it('a bound anchor action reuses that anchor node and the original single runner
   expect(calls.single).toHaveBeenCalledWith(node.id, { initiator: 'agent' })
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('New description')
 })
+
+it('参考卡改了模型 / 参数再生成：节点跟着用卡上选的模型与参数（审计 A2：界面说的 = 发出的）', async () => {
+  const anchor = {
+    id: 'hero', kind: 'character' as const, carrier: 'visual' as const, name: 'Hero', description: 'Short hair',
+    modelKey: 'gpt-image-2', modelVendor: 'apimart', params: { aspect_ratio: '3:4' },
+  }
+  const node = useGenerationCanvasStore.getState().addNode({
+    kind: 'image', prompt: 'Old', meta: { storyboardDesignId: 'run', anchorId: 'hero', modelKey: 'nano-banana-2', modelVendor: 'kie' },
+  })
+  await generateAnchorCard({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
+  const meta = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)!.meta as Record<string, unknown>
+  expect(meta.modelKey).toBe('gpt-image-2')
+  expect(meta.modelVendor).toBe('apimart')
+  expect(meta.aspect_ratio).toBe('3:4')
+  expect(meta.anchorId).toBe('hero')
+})

@@ -25,6 +25,7 @@ import type { AnchorCardRuntime } from '../exec/storyboardRowStatus'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
+import { ComposerBarRow, ComposerGenerateButton } from '../shotRow/ShotComposerBar'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
 import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
@@ -253,30 +254,26 @@ export default function StoryboardAnchorRow({
               className="w-full border-0 bg-transparent px-2.5 py-2 text-body-sm leading-normal text-nomi-ink-80 outline-none"
             />
             {runtime.visual ? (
-              <div className="mt-auto flex min-w-0 flex-nowrap items-center gap-2 border-t border-nomi-line-soft px-2 py-1.5" data-storyboard-composer-bar="anchor">
-                <StoryboardComposerParams
-                  target={anchor}
-                  kind="image"
-                  modelOptions={modelOptions}
-                  onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
-                  onModeChange={(modeId) => onUpdate({ modeId })}
-                  onChange={(change) => {
-                    // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
-                    const key = change.kind === 'param' ? change.key : 'aspect_ratio'
-                    onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
-                  }}
-                />
-                {canGenerate ? (
-                  <button
-                    type="button"
-                    onClick={onGenerate}
-                    aria-label={t('storyboardEditor.anchor.generateAria', { name: displayName })}
-                    className="ml-auto inline-flex h-7 shrink-0 items-center rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-medium text-nomi-paper hover:opacity-90 active:opacity-80"
-                  >
-                    {t('storyboardEditor.frame.generate')}
-                  </button>
+              <ComposerBarRow
+                barId="anchor"
+                params={(
+                  <StoryboardComposerParams
+                    target={anchor}
+                    kind="image"
+                    modelOptions={modelOptions}
+                    onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
+                    onModeChange={(modeId) => onUpdate({ modeId })}
+                    onChange={(change) => {
+                      // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
+                      const key = change.kind === 'param' ? change.key : 'aspect_ratio'
+                      onUpdate({ params: { ...(anchor.params ?? {}), [key]: change.value } })
+                    }}
+                  />
+                )}
+                action={canGenerate ? (
+                  <ComposerGenerateButton onGenerate={onGenerate} ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })} />
                 ) : null}
-              </div>
+              />
             ) : null}
           </div>
         </div>
