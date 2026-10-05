@@ -15,6 +15,8 @@ import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../.
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { appendBinding, bindingsOf, type ReferenceBindingMap } from './shotReferenceSlots'
 import { imageReferenceMode } from '../exec/storyboardAutoReference'
+import type { PlannedFirstFrame } from '../exec/storyboardRowStatus'
+import { IconPhoto } from '../../../../vendor/tablerIcons'
 import { useStoryboardRowNarrow } from './storyboardRowDensity'
 import { cn } from '../../../../utils/cn'
 import { densityBox } from './shotFrameGeometry'
@@ -54,8 +56,11 @@ type Props = {
   onInsertMention?: ((url: string) => void) | undefined
   /** 允许为放参考切模式（已出过结果的行不传：切了就和它手上的结果对不上）。 */
   onSwitchMode?: ((modeId: string) => void) | undefined
-  /** 生成时会被计划首帧填上的槽：不摆出来（不是用户摆的参考，删不掉也换不了）。 */
-  hiddenSlotKeys?: ReadonlySet<string> | undefined
+  /**
+   * 计划首帧（图片+视频镜：生成时先出首帧图、再把它发进这一槽）。排在最前面，没有 ×、没有序号——
+   * 它不是用户摆的参考（删不掉也换不了），也不是提示词里的芯片；还没出图时是一格虚线占位。
+   */
+  planned?: PlannedFirstFrame | null
   /**
    * 摆在哪、占多大（宽档值；窄档在这里按行的档位缩，与画面格同一个 context）：
    *   · `below`：横版 / 方图，排在预览框下面，宽 = 预览框宽，折行（窄档一行放不下折成 +N）；
@@ -77,7 +82,7 @@ function slotFor(mode: ArchetypeMode, bindings: ReferenceBindingMap | undefined,
 }
 
 export default function ShotReferenceStrip({
-  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, hiddenSlotKeys, layout,
+  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, planned, layout,
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const projectId = useOpenProjectId()
@@ -103,7 +108,7 @@ export default function ShotReferenceStrip({
   const tiles: Tile[] = Object.keys(bindings ?? {}).flatMap((slotKey) => bindingsOf(bindings, slotKey).map((binding, indexInSlot) => {
     counter += 1
     const slot = declared.get(slotKey)
-    if (!slot || hiddenSlotKeys?.has(slotKey)) return null
+    if (!slot) return null
     return { slot, slotKey, indexInSlot, number: counter, url: binding.url, name: binding.name?.trim() || translateModelDisplayText(slot.label), kind: referenceSlotAccept(slot.kind) as AssetKind }
   }).filter((tile): tile is Tile => tile !== null))
 
@@ -113,7 +118,7 @@ export default function ShotReferenceStrip({
   const accepts = [...new Set((targetMode?.slots ?? []).map((slot) => referenceSlotAccept(slot.kind)))]
   const canAdd = Boolean(targetMode) && accepts.length > 0
 
-  if (tiles.length === 0 && !canAdd) return null
+  if (tiles.length === 0 && !canAdd && !planned) return null
 
   const place = (asset: { url: string; kind: AssetKind; name?: string; sourceNodeId?: string }): boolean => {
     if (!targetMode) return false
@@ -165,7 +170,7 @@ export default function ShotReferenceStrip({
   // 窄档只排一行：放得下几格（含「+」）就放几张，其余收进「+N」。宽档折行，全摆。
   const perRow = Math.max(1, Math.floor((width + GAP) / (size + GAP)))
   const perColumn = right ? Math.max(1, Math.floor((height + GAP) / (size + GAP))) : 0
-  const reserved = canAdd ? 1 : 0
+  const reserved = (canAdd ? 1 : 0) + (planned ? 1 : 0)
   // 放得下的格数：竖版 = 右边那条带的列数 × 行数；横版窄档 = 一行；横版宽档折行不限。
   const capacity = right ? perRow * perColumn : narrow ? perRow : Number.POSITIVE_INFINITY
   const fold = tiles.length + reserved > capacity
@@ -181,6 +186,20 @@ export default function ShotReferenceStrip({
           ? { gap: GAP, width, gridAutoFlow: 'column', gridTemplateRows: `repeat(${perColumn}, ${size}px)`, gridAutoColumns: `${size}px` }
           : { gap: GAP, width }}
       >
+        {planned ? (
+          <span title={t('storyboardEditor.slot.plannedFirstFrameTitle', { label: translateModelDisplayText(declared.get(planned.slotKind)?.label ?? '') })} data-storyboard-ref-planned="first-frame">
+            {planned.url ? (
+              <AssetTile
+                className={tileClass}
+                asset={{ id: planned.url, kind: 'image', name: t('storyboardEditor.slot.plannedFirstFrame'), renderUrl: planned.url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }}
+              />
+            ) : (
+              <span className="grid place-items-center rounded-nomi-sm border border-dashed border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30" style={{ width: size, height: size }} aria-hidden>
+                <IconPhoto size={14} stroke={1.6} />
+              </span>
+            )}
+          </span>
+        ) : null}
         {shown.map(renderTile)}
         {fold && hidden > 0 ? (
           <button

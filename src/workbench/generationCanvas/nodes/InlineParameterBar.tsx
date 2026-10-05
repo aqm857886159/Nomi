@@ -126,8 +126,11 @@ type InlineParameterBarProps = {
   activeModeId?: string
   modeLabel?: string
   onModeSelect?: (id: string) => void
-  /** 模型按钮还没选模型时的字样。缺省 =「选择模型」；分镜行没选模型 = 落地时用默认模型，传「默认模型」。 */
-  modelPlaceholder?: string
+  /**
+   * 模型下拉最前面的一项「不指定模型」（值为空串，选它 = `onModelChange('')`）。
+   * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
+   */
+  leadingModelOption?: { label: string }
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
@@ -190,7 +193,7 @@ export default function InlineParameterBar({
   activeModeId = '',
   modeLabel,
   onModeSelect,
-  modelPlaceholder,
+  leadingModelOption,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -505,12 +508,12 @@ export default function InlineParameterBar({
     <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
         ariaLabel={t('generationCommon.parameters.model')}
-        placeholder={modelPlaceholder ?? t('generationCommon.parameters.selectModel')}
+        placeholder={t('generationCommon.parameters.selectModel')}
         triggerMaxWidth={stacked ? 132 : 150}
         className={modelChipClass}
         value={modelSelect.modelValue}
-        options={modelSelect.modelOptions}
-        onChange={modelSelect.onModelPick}
+        options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+        onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
         onChipChange={modelSelect.onModelProviderPick}
         footerAction={modelVisibilityFooterAction()}
         hiddenNote={modelSelect.hiddenNote}

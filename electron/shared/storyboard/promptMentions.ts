@@ -156,15 +156,25 @@ function isWordChar(char: string | undefined): boolean {
   return Boolean(char) && /[A-Za-z0-9_]/.test(char as string)
 }
 
-/** 在一段**纯文字**里找 name 第一次完整出现的位置（拉丁字母要整词，中文按字面）。 */
-function firstNameEnd(text: string, name: string): number {
+/**
+ * 在一段**纯文字**里找 name 第一次完整出现的位置（拉丁字母要整词，中文按字面），返回它的结束下标。
+ * `longer` 是别的、更长且包含 name 的候选名字：落在它们某次出现里面的那一处不算（「林」不命中「林薇」里的「林」）。
+ */
+function firstNameEnd(text: string, name: string, longer: readonly string[] = []): number {
+  const masked = longer.flatMap((other) => {
+    const spans: Array<[number, number]> = []
+    for (let at = text.indexOf(other); at >= 0; at = text.indexOf(other, at + 1)) spans.push([at, at + other.length])
+    return spans
+  })
   let from = 0
   while (from <= text.length) {
     const at = text.indexOf(name, from)
     if (at < 0) return -1
     const end = at + name.length
     const latinEdges = isWordChar(name[0]) || isWordChar(name[name.length - 1])
-    if (!latinEdges || (!isWordChar(text[at - 1]) && !isWordChar(text[end]))) return end
+    const wholeWord = !latinEdges || (!isWordChar(text[at - 1]) && !isWordChar(text[end]))
+    const insideLonger = masked.some(([start, stop]) => at >= start && end <= stop)
+    if (wholeWord && !insideLonger) return end
     from = at + 1
   }
   return -1
@@ -180,7 +190,7 @@ function firstNameEnd(text: string, name: string): number {
  *   ① 这个身份之前补过（`applied` 里有）——用户手动删掉的 @ 不许被补回来；
  *   ② 提示词里已经有这张图的 @（用户自己 @ 过）——记成补过，不重复；
  *   ③ 名字没出现在提示词的文字里（只搜文字段，不搜已有标记内部）——不往末尾塞。
- * 名字出现几次只补一次，补在第一次；名字互相包含（「林薇」与「林」）时长名字优先占位。
+ * 名字出现几次只补一次，补在第一次；名字互相包含（「林薇」与「林」）时，短名字不命中长名字里的那一段。
  * 纯函数：调用方负责把 `inserted` 那几张绑进参考框（分镜 = referenceBindings，画布 = 连边 / 上传槽）。
  */
 export function insertAutoMentions(
@@ -195,14 +205,16 @@ export function insertAutoMentions(
   const ordered = [...candidates]
     .filter((candidate) => candidate.name.trim() && candidate.url)
     .sort((a, b) => b.name.trim().length - a.name.trim().length)
+  const names = ordered.map((candidate) => candidate.name.trim())
   for (const candidate of ordered) {
     if (done.has(candidate.key)) continue
     if (present.has(candidate.url)) { done.add(candidate.key); continue }
     const name = candidate.name.trim()
-    const index = segments.findIndex((segment) => segment.type === 'text' && firstNameEnd(segment.value, name) >= 0)
+    const longer = names.filter((other) => other.length > name.length && other.includes(name))
+    const index = segments.findIndex((segment) => segment.type === 'text' && firstNameEnd(segment.value, name, longer) >= 0)
     if (index < 0) continue
     const segment = segments[index] as { type: 'text'; value: string }
-    const end = firstNameEnd(segment.value, name)
+    const end = firstNameEnd(segment.value, name, longer)
     segments = [
       ...segments.slice(0, index),
       { type: 'text', value: segment.value.slice(0, end) },

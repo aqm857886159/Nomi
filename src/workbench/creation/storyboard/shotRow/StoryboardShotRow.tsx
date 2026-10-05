@@ -195,11 +195,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const visualHeight = frameBox.height
   // 整片竖版：参考在框右边、提示词不撑满行高（用户选 A）；横版与方图：参考在框下面。
   const portrait = isPortraitBox(frameBox)
-  // 生成时会被计划首帧填上的那一槽不摆进参考里（不是用户摆的参考）。
-  const hiddenSlotKeys = React.useMemo(
-    () => (exec?.plannedFirstFrame ? new Set([exec.plannedFirstFrame.slotKind]) : undefined),
-    [exec?.plannedFirstFrame],
-  )
 
   const isImageShot = shot.shotKind === 'image'
   // 档案按 (modelKey, modelVendor) 取：同名两家的档案/参数可以不同，按名字取会拿到另一家的模式表。
@@ -361,7 +356,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         }}
         onInsertMention={mentionSearch ? insertMention : undefined}
         onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
-        hiddenSlotKeys={hiddenSlotKeys}
+        planned={exec?.plannedFirstFrame ?? null}
         layout={portrait
           ? { placement: 'right', columnWidth: visualColumnWidth(frameBox), frameWidth: frameBox.width, frameHeight: frameBox.height }
           : { placement: 'below', width: visualWidth }}

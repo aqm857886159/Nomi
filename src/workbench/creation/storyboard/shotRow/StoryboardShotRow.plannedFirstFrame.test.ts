@@ -21,10 +21,11 @@ vi.mock('../../../generationCanvas/nodes/DeferredNodeMedia', () => ({
 }))
 
 /**
- * 分镜行参考列的红态与「缺参考」是**同一份判据**（exec.missingSlots）——0.22.0 误报的第二半。
+ * 「缺必填参考」只有一份判据（exec.missingSlots）——0.22.0 误报的第二半。
  *
- * APIMart Seedance 2.0 图生视频只有一个 image_ref 槽（min 1）。开了首帧的行在生成时把首帧图发进这个槽，
- * 参考列却只看 `shot.referenceBindings`：空 + 必填 → 红，生成前、生成后都红。
+ * APIMart Seedance 2.0 图生视频只有一个 image_ref 槽（min 1）。开了首帧的行在生成时把首帧图发进这个槽：
+ * 生成前、生成后都**不算缺**；视觉列的参考条里最前面是一格只读的「本镜首帧」（出图前是虚线占位，出图后就是那张图）。
+ * 2026-10-06 起参考在视觉列（`ShotReferenceStrip`），「缺」的红只在预览框（`missing-required`）上说一次。
  */
 
 const DESIGN = 'design-1'
@@ -55,42 +56,42 @@ function renderRow(shot: PlanShot, nodes: GenerationCanvasNode[] = []): string {
   const exec = deriveShotRowExec({ plan, shot, designId: DESIGN, nodes, mode: I2V })
   return renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(StoryboardShotRow, {
     shot, anchors: [], modelOptions: OPTIONS, exec,
-    aspect: '16:9', frameBox: { width: 136, height: 77 }, aspectOverridden: false, aspectOptions: [],
+    aspect: '16:9', frameBox: { width: 240, height: 135 },
     onChangeAspect: () => {}, onUpdate: () => {}, onRemove: () => {},
   })))
 }
 
-/** 参考列里 image_ref 那一格（从 data-storyboard-ref-slot 起到下一格/列尾）。 */
-function imageRefSlot(html: string): string {
-  const start = html.indexOf('data-storyboard-ref-slot="image_ref"')
-  expect(start, 'row renders the image_ref slot').toBeGreaterThan(-1)
-  const next = html.indexOf('data-storyboard-ref-slot=', start + 1)
-  return html.slice(start, next === -1 ? undefined : next)
+/** 视觉列里的参考条（从 data-storyboard-refs 起到内容列开始）。 */
+function referenceStrip(html: string): string {
+  const start = html.indexOf('data-storyboard-refs=')
+  expect(start, 'row renders the reference strip').toBeGreaterThan(-1)
+  const end = html.indexOf('data-storyboard-content-column', start)
+  return html.slice(start, end === -1 ? undefined : end)
 }
+const missingFrame = (html: string): boolean => html.includes('data-storyboard-frame="missing-required"')
 
-describe('分镜行参考列 × 计划首帧（APIMart Seedance 2.0 图生视频）', () => {
-  it('生成前：image_ref 格不红，格里是「本镜首帧」占位', () => {
-    const slot = imageRefSlot(renderRow(shotOf()))
-    expect(slot).not.toContain('workbench-danger')
-    expect(slot).toContain('data-storyboard-ref-planned="first-frame"')
+describe('分镜行视觉列 × 计划首帧（APIMart Seedance 2.0 图生视频）', () => {
+  it('生成前：不算缺（预览框不红），参考条最前面是「本镜首帧」占位', () => {
+    const html = renderRow(shotOf())
+    expect(missingFrame(html)).toBe(false)
+    expect(referenceStrip(html)).toContain('data-storyboard-ref-planned="first-frame"')
   })
 
-  it('首帧图出来之后：格里就是那张首帧图', () => {
-    const slot = imageRefSlot(renderRow(shotOf(), [keyframeNode('nomi-local://asset/kf-1.png')]))
-    expect(slot).not.toContain('workbench-danger')
-    expect(slot).toContain('src="nomi-local://asset/kf-1.png"')
+  it('首帧图出来之后：参考条里那一格就是那张首帧图', () => {
+    const html = renderRow(shotOf(), [keyframeNode('nomi-local://asset/kf-1.png')])
+    expect(missingFrame(html)).toBe(false)
+    expect(referenceStrip(html)).toContain('src="nomi-local://asset/kf-1.png"')
   })
 
-  it('整镜生成完之后：仍不红（此前生成后参考列照样把这一格画成红色必填）', () => {
+  it('整镜生成完之后：仍不红（此前生成后照样画成红色必填）', () => {
     const html = renderRow(shotOf(), [keyframeNode('nomi-local://asset/kf-1.png'), videoNode()])
-    const slot = imageRefSlot(html)
-    expect(slot).not.toContain('workbench-danger')
-    expect(slot).toContain('src="nomi-local://asset/kf-1.png"')
+    expect(missingFrame(html)).toBe(false)
+    expect(referenceStrip(html)).toContain('src="nomi-local://asset/kf-1.png"')
   })
 
-  it('对照：没开首帧 → 这一格确实缺，照旧红', () => {
-    const slot = imageRefSlot(renderRow(shotOf({ keyframe: { enabled: false } })))
-    expect(slot).toContain('workbench-danger')
-    expect(slot).not.toContain('data-storyboard-ref-planned')
+  it('对照：没开首帧 → 这一镜确实缺，预览框红，参考条里没有计划首帧', () => {
+    const html = renderRow(shotOf({ keyframe: { enabled: false } }))
+    expect(missingFrame(html)).toBe(true)
+    expect(html).not.toContain('data-storyboard-ref-planned')
   })
 })

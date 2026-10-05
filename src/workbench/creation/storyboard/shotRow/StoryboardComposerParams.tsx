@@ -93,7 +93,7 @@ export default function StoryboardComposerParams({
         onParameterControlChange={(control, value) => route(control, value)}
         summaryOverride={summary}
         summaryWidth={{ hug: 210 }}
-        modelPlaceholder={t('storyboardEditor.defaultModel')}
+        leadingModelOption={{ label: t('storyboardEditor.defaultModel') }}
         {...(modeChoices.length ? { modeChoices, activeModeId: modeId, onModeSelect: onModeChange } : {})}
       />
     </span>
