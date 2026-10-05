@@ -1,7 +1,8 @@
-import React, { type JSX } from 'react'
+import React from 'react'
 import type { NotificationData } from '@mantine/notifications'
 import { notifications, notificationsStore } from '@mantine/notifications'
 import { IconAlertCircle, IconAlertTriangle, IconCircleCheck, IconInfoCircle } from '@tabler/icons-react'
+import { ToastMessage } from './ToastMessage'
 
 // 全仓唯一通用 toast。统一走 @mantine/notifications 的单一容器（main.tsx 的 <Notifications/>）。
 // 语义变体 showUndoToast（点击撤销）/ showInfoToast（一次性告知）也走同一容器，不再有本地并行 store/host。
@@ -44,15 +45,12 @@ type Toast = {
  * 容器（NomiAppProviders 的 notificationMaxHeight）与 ToastMessage 的文字区读同一个数：容器管「整条不出窗」，
  * 文字区管「再长的话在上限里滚动，不被切掉」。
  */
-export const TOAST_MAX_HEIGHT = 'calc((100vh - 8rem) / 2)'
 
 /**
  * 正文至少多宽。再窄就成了一条竖缝（2026-09-30 截图：按钮占掉行宽的 40%，英文一行只剩约 20 个字符、中文约 11 个字）。
  * 动作按钮放不进这一行时，折到正文下面，而不是把正文挤窄——宽度归这一个数管，e2e 读的也是它。
  */
-export const TOAST_MIN_BODY_WIDTH = '12.5rem'
 /** 动作按钮那一行（最多三行字 + 与正文的间距）在文字区最大高度里预留的高度：正文滚动，按钮不被挤出去。 */
-const TOAST_ACTION_ROW_RESERVE = '4rem'
 
 type ToastInput = Omit<Toast, 'id' | 'message'> & ({ id: string; message: React.ReactNode } | { id?: string; message: string })
 
@@ -76,43 +74,6 @@ function defaultTtl(type?: ToastType): number {
   if (type === 'warning') return 5000
   if (type === 'error') return 6000
   return 3000
-}
-
-function ToastMessage({
-  id,
-  message,
-  actionLabel,
-  onAction,
-  count = 1,
-}: Pick<Toast, 'id' | 'message' | 'actionLabel' | 'onAction' | 'count'>): JSX.Element {
-  const handleAction = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation()
-    notifications.hide(id)
-    onAction?.()
-  }
-
-  const hasAction = Boolean(actionLabel && onAction)
-  // 有动作时给按钮那一行留出位置：正文在自己的文字区里滚动，按钮永远看得见、够得着。
-  const bodyMaxHeight = `calc(${TOAST_MAX_HEIGHT} - 2rem${hasAction ? ` - ${TOAST_ACTION_ROW_RESERVE}` : ''})`
-
-  // flex-wrap 按真实像素宽度自己判：正文至少 TOAST_MIN_BODY_WIDTH，动作按钮放得进同一行（「撤销」「重试」这类短动作）就留在
-  // 正文右侧；放不进（带供应商名 / 模型名的长动作）就整个折到正文下面、靠右。按钮上的字永远完整——不截断，也不靠把正文让窄来换。
-  return (
-    <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-2">
-      <span className="flex-1 overflow-y-auto break-words text-body-sm text-nomi-ink-80" style={{ minWidth: TOAST_MIN_BODY_WIDTH, maxHeight: bodyMaxHeight }} data-toast-message>{message}{count > 1 ? <span className="ml-1 text-micro text-nomi-ink-40" data-notification-occurrences>{`×${count}`}</span> : null}</span>
-      {hasAction ? (
-        <button
-          type="button"
-          onClick={handleAction}
-          title={actionLabel}
-          data-toast-action
-          className="max-w-full shrink-0 rounded-nomi-sm bg-nomi-accent-soft px-2 py-1 text-left text-caption font-semibold text-nomi-accent [overflow-wrap:anywhere] hover:bg-nomi-ink-10"
-        >
-          {actionLabel}
-        </button>
-      ) : null}
-    </span>
-  )
 }
 
 export function buildToastNotification(input: Toast & { onClose?: () => void }): NotificationData {

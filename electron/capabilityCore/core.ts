@@ -81,7 +81,7 @@ export async function importProjectAsset(input: {
   if (!readProject(input.projectId)) throw new Error(`项目不存在: ${input.projectId}`)
   const raw = String(input.path || '')
   // I/O 先做（realpath 解软链 + stat），判据本身保持纯函数。
-  let realPath: string | null = null
+  let realPath: string | null
   let sizeBytes: number | null = null
   let isFile = false
   try {
@@ -115,7 +115,7 @@ export async function importProjectAsset(input: {
       { allowSourcePath: true },
     )) as typeof record
   } catch (error) {
-    if (error instanceof MediaImportRejectedError) throw new Error(mcpImportRejectionMessage(fileName, error.rejection))
+    if (error instanceof MediaImportRejectedError) throw Object.assign(new Error(mcpImportRejectionMessage(fileName, error.rejection)), { cause: error })
     throw error
   }
   const data = record.data

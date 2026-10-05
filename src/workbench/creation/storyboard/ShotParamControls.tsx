@@ -5,6 +5,7 @@ import type { ModelOption } from '../../../config/models'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { resolveShotArchetypeMode } from './shotRow/shotRowModel'
+import { drawerShotParams } from './shotParamUtils'
 
 /**
  * 镜行展开态的模型参数控件。参数**全 derive 自模型档案**（archetype），不为某模型写专属 UI（P4）。
@@ -21,10 +22,6 @@ type ParamIO = {
 }
 
 /** 抽屉参数 = 档案参数去掉行内已有一等胶囊的两项（时长/画幅）。纯函数便于单测。 */
-export function drawerShotParams(params: readonly ModelParameterControl[]): ModelParameterControl[] {
-  return params.filter((p) => p.key !== 'duration' && p.key !== 'aspect_ratio')
-}
-
 function makeParamIO(params: ParamIO['params'], onUpdate: ParamIO['onUpdate']) {
   const valueOf = (c: ModelParameterControl): string => {
     const v = params[c.key]

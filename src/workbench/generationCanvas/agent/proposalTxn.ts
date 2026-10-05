@@ -142,7 +142,6 @@ export async function applyProposalBatch(
   // A queued replacement can be superseded before its await continuation
   // receives the ownership handle. Keep that pre-write cancellation a normal
   // aborted outcome instead of touching temporal-dead-zone transaction state.
-  let release: () => void = () => {}
   let journalStart: number | undefined = undefined
   let receiptPrepared = false
   let receiptCommitInFlight = false
@@ -216,7 +215,7 @@ export async function applyProposalBatch(
     if (receiptCoordinator || receiptCommitInFlight) return false
     abort(new SurfacePortWireError('capability_cancelled'))
   })
-  release = typeof ownership === 'function' ? ownership : await ownership
+  const release = typeof ownership === 'function' ? ownership : await ownership
   try {
     if (aborted) return aborted
     try {

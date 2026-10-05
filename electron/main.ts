@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, session, shell } from "electron";
+import { createRequire } from "node:module";
 import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
 import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
 import type { Rectangle, WebContents } from "electron";
@@ -84,6 +85,7 @@ import { installWindowNavigation } from "./windowNavigation";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
+const lazyRequire = createRequire(__filename);
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
   // dev-electron.mjs 按 renderer 端口隔离 profile，避免复用旧 Vite chunk/code cache。
@@ -447,9 +449,9 @@ function registerIpc(): void {
   registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);
   registerSyncIpc("nomi:model-catalog:import", importRendererCatalogPackage);
   // 域 IPC 各住各的模块（给 main.ts 800 行门腾空间；新通道加到对应模块，别回填这里）。comfy 那棵树重 → 惰性 require；素材通道薄 → 顶部静态 import。
-  (require("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);
+  (lazyRequire("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);
   registerAssetTransportIpc(registerSyncIpc);
-  const { registerCustomCallIpc } = require("./catalog/customCallIpc") as typeof import("./catalog/customCallIpc");
+  const { registerCustomCallIpc } = lazyRequire("./catalog/customCallIpc") as typeof import("./catalog/customCallIpc");
   registerCustomCallIpc(registerSyncIpc);
   // 系统通知（notificationIpc.ts）：静态 import，该文件只依赖 electron 本身，载入零成本，不吃 no-require-imports 配额。
   registerNotificationIpc();
@@ -585,7 +587,7 @@ function registerIpc(): void {
   registerProxyIpc();
   registerBrowserViewIpc(getRendererUrl);
   registerOnboardingIpc();
-  (require("./localRuntime/localTextEndpointHandlers") as typeof import("./localRuntime/localTextEndpointHandlers")).registerLocalTextEndpointIpc();
+  (lazyRequire("./localRuntime/localTextEndpointHandlers") as typeof import("./localRuntime/localTextEndpointHandlers")).registerLocalTextEndpointIpc();
   registerProviderAdapterIpc();
   registerExistingConnectionIpc();
   registerProductionRunIpc();
@@ -674,7 +676,7 @@ app.on("before-quit", () => {
   stopDesktopCapabilityCore();
   void desktopLaneIpc?.dispose().catch((error) => logError("agent", "close-on-quit-failed", error));
   try {
-    const { abortAllActiveExports } = require("./export/exportJobs") as typeof import("./export/exportJobs");
+    const { abortAllActiveExports } = lazyRequire("./export/exportJobs") as typeof import("./export/exportJobs");
     const aborted = abortAllActiveExports();
     if (aborted > 0) logInfo("export", "aborted-on-quit", { count: aborted });
   } catch (error) {

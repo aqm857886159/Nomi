@@ -185,7 +185,7 @@ async function preferredDefaultModel(
   entries: readonly AgentModelEntry[],
   kind: 'image' | 'video',
 ): Promise<AgentModelEntry | undefined> {
-  let defaults: GenerationModelDefaultMap = {}
+  let defaults: GenerationModelDefaultMap
   try {
     defaults = await loadGenerationModelDefaults()
   } catch {

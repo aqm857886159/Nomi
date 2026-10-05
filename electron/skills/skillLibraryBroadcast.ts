@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 /**
  * 技能库变了，告诉所有窗口（2026-09-11）。
  *
@@ -16,6 +17,7 @@
  * 静默 no-op 是正确行为，不是被吞掉的错误。
  */
 
+const lazyRequire = createRequire(__filename);
 export const SKILL_LIBRARY_CHANGED_CHANNEL = "nomi:skill-library:changed";
 
 /** 一个能收广播的窗口。只写我们真的用到的两个成员，不把 Electron 的类型拖进这一层。 */
@@ -28,7 +30,7 @@ function electronWindows(): readonly SkillLibraryWindow[] {
   try {
     // 动态 require：这个模块被 `skillPackage.ts` 引用，而它也跑在没有 Electron 的进程里
     // （MCP 的 node 宿主、单测）。那里 `require` 本身可能就不存在，所以整段兜住。
-    const electron = require("electron") as { BrowserWindow?: { getAllWindows(): SkillLibraryWindow[] } };
+    const electron = lazyRequire("electron") as { BrowserWindow?: { getAllWindows(): SkillLibraryWindow[] } };
     return electron.BrowserWindow?.getAllWindows() ?? [];
   } catch {
     return [];

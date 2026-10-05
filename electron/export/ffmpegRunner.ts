@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createExportTempDir, createSafeOutputPaths } from "./exportPaths";
@@ -11,6 +12,7 @@ import { desktopT } from "../i18n";
 import type { ExportProfile } from "./exportTypes";
 import type { FfmpegFiltergraphPlan } from "./ffmpegFiltergraph";
 
+const lazyRequire = createRequire(__filename);
 export type FfmpegProcessResult = {
   code: number | null;
   stderr: string;
@@ -183,7 +185,7 @@ type ResolveFfmpegPathOptions = {
 function resolveBundledFfmpegPath(): string {
   try {
     // @ffmpeg-installer/ffmpeg resolves to the platform-specific binary shipped with the app.
-    const bundled = require("@ffmpeg-installer/ffmpeg") as { path?: unknown };
+    const bundled = lazyRequire("@ffmpeg-installer/ffmpeg") as { path?: unknown };
     return typeof bundled.path === "string" ? bundled.path : "";
   } catch {
     return "";
@@ -216,16 +218,15 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
     const child = spawn(command, args, { windowsHide: true });
     let stderr = "";
     let settled = false;
-    let onAbort: (() => void) | undefined;
-    const cleanup = () => {
-      if (onAbort) options.signal?.removeEventListener("abort", onAbort);
-    };
-    onAbort = () => {
+    const onAbort = () => {
       if (settled) return;
       child.kill();
       settled = true;
       cleanup();
       reject(new ExportCancelledError());
+    };
+    const cleanup = () => {
+      if (onAbort) options.signal?.removeEventListener("abort", onAbort);
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
 

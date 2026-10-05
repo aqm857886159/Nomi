@@ -123,7 +123,7 @@ describe("结构上拒绝 per-triple 豁免名单", () => {
     // 记号名拆开拼装，免得这条断言自己成为「仓库里存在该字符串」的反例。
     const marker = ["KNOWN", "LEGACY", "GAPS"].join("_");
     const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
-    let hits = "";
+    let hits: string;
     try {
       // git grep 只扫版本控制内的文件（天然跳过 node_modules / 构建产物）。
       hits = execFileSync("git", ["grep", "-n", "--", marker], { cwd: repoRoot, encoding: "utf8" });

@@ -167,8 +167,8 @@ test('S25 explicit Continue still addresses the original stopped entry after com
     { type: 'text', text: 'summary' },
     { type: 'text', text: 'continued' },
   ]);
-  let reference: string | undefined;
-  const input = { capture: () => ({ approvalPolicy: { mode: 'safe-auto' as const, spend: 'confirm' as const }, continueFromEntryId: reference }),
+  const reference = { value: undefined as string | undefined };
+  const input = { capture: () => ({ approvalPolicy: { mode: 'safe-auto' as const, spend: 'confirm' as const }, continueFromEntryId: reference.value }),
     activate: () => {}, providerContent: async (m: { content: string }) => m.content, rewritePayload: (p: unknown) => p };
   const host = await f.openLane({ ...f.options, input, model: { ...f.options.model, contextWindow: 1000000 } });
   const lane = await harness.lane('main', BACKGROUND_CONTEXT);
@@ -181,7 +181,7 @@ test('S25 explicit Continue still addresses the original stopped entry after com
   assert.ok(watch.snapshot.transcript.some(e => e.type === 'compaction'));
   assert.ok(!watch.snapshot.transcript.some(e => e.id === id));
   watch.unsubscribe();
-  reference = id;
+  reference.value = id;
   await host.execute({ kind: 'prompt', text: 'Continue the selected stopped response' });
   assert.match(JSON.stringify(f.http.requests.at(-1)!.body), /STOPPED_ORIGINAL/);
 });

@@ -16,28 +16,10 @@ import { isProjectExecutionContextCurrent, withProjectAction } from '../../proje
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { diffPromptWords } from './promptDiff'
-import i18n from '../../../i18n'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
+import { buildOptimizePrompt } from './promptOptimizer'
 
 /** 组改写指令。导出供单测——铁律有没有真进 prompt 必须可验，否则「加了 rubric」只是句口号（W4）。 */
-export function buildOptimizePrompt(original: string, idea: string, isVideo: boolean): string {
-  const kind = i18n.t(isVideo ? 'generationCommon.optimizer.videoKind' : 'generationCommon.optimizer.imageKind')
-  return [
-    i18n.t('generationCommon.optimizer.intro', {
-      kind,
-      resultType: i18n.t(isVideo ? 'generationCommon.optimizer.videoResult' : 'generationCommon.optimizer.imageResult'),
-    }),
-    `"""\n${original || i18n.t('generationCommon.optimizer.blank')}\n"""`,
-    idea ? i18n.t('generationCommon.optimizer.idea', { idea }) : '',
-    i18n.t(isVideo ? 'generationCommon.optimizer.videoDetails' : 'generationCommon.optimizer.imageDetails'),
-    // W4：视频镜额外注入污染词铁律（director-shot-translation 同源）——运镜/动作描述最容易在这翻车。
-    isVideo ? i18n.t('generationCommon.optimizer.pollutionRule') : '',
-    i18n.t('generationCommon.optimizer.outputRule'),
-  ]
-    .filter(Boolean)
-    .join('\n')
-}
-
 export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasNode; isVideo: boolean }): JSX.Element {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)

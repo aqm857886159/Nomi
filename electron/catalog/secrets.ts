@@ -48,7 +48,7 @@ let __safeStorageUnavailableWarned = false;
 
 export function isSafeStorageAvailable(): boolean {
   if (__safeStorageConfirmed) return true;
-  let available = false;
+  let available: boolean;
   try {
     available = safeStorage.isEncryptionAvailable();
   } catch {

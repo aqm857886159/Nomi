@@ -9,8 +9,6 @@ import type { ProviderAdapterDraft } from "./types";
 import { ProviderAdapterStore } from "./store";
 import type { AdapterVerificationResult } from "./verifier";
 import { writeCertificationJsonAtomic } from "../integrationCertification/operationLedger";
-import { OperationLedger } from "../integrationCertification/operationLedger";
-import { certificationModeOperationKey } from "../integrationCertification/modeIdentity";
 import { PromotionJournal } from "../integrationCertification/promotionJournal";
 import {
   ProviderAdapterService,
@@ -25,7 +23,6 @@ import {
 } from "./tests/serviceReservationRaceFixture";
 import { providedDocsUrn, resolveProviderDocs } from "./providedDocs";
 
-type VerifyInput = Parameters<ProviderAdapterServiceDependencies["verify"]>[0];
 type CompileInput = Parameters<ProviderAdapterServiceDependencies["compile"]>[0];
 
 const dirs: string[] = [];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyUploadFiles } from './AssetLibraryPanel'
+import { classifyUploadFiles } from './uploadClassification'
 import { assetsForLibraryDrag } from './assetLibraryUsage'
 import type { AssetRef } from './assetTypes'
 

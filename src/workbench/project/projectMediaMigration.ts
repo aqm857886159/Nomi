@@ -42,10 +42,6 @@ function recordHasBlobMediaUrls(record: WorkbenchProjectRecordV1): boolean {
   return false
 }
 
-function recordUrlFieldsHaveDataMedia(input: BlobLikeRecord | undefined): boolean {
-  return Boolean(input && (isDataMediaUrl(input.url) || isDataMediaUrl(input.thumbnailUrl)))
-}
-
 function countUrlFieldsDataMedia(input: BlobLikeRecord | undefined): number {
   if (!input) return 0
   let count = 0

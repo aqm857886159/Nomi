@@ -9,7 +9,7 @@ import { libraryGroup } from '../library/libraryGroups'
 // 「宿主真相怎么变成一行收据」这件事只能靠截图证明。拆开之后那部分是纯函数、有单测；
 // 这里剩下的都是**只有真实运行时才有的东西**（DOM 尺寸、事件桥、文件选择器）。
 import React, { type JSX } from 'react'
-import { openFeedbackFor } from '../../ui/community/FeedbackButton'
+import { openFeedbackFor } from '../../ui/community/feedbackEvents'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'

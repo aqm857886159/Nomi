@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge, type DesktopProxyMode, type DesktopProxyStatus } from '../../desktop/bridge'
+import { proxyPillTone } from './networkSectionModel'
 
 type TestState = { phase: 'idle' | 'running' | 'ok' | 'partial' | 'fail'; ms: number; ok: number; total: number }
 
@@ -27,18 +28,6 @@ const MODES: readonly DesktopProxyMode[] = ['system', 'custom', 'off']
  * 却按直连在跑——这时说「直连」是误导，必须说「检测到 SOCKS · 未生效」（同 describeNetworkError 的取舍）。
  * 纯函数，直测。
  */
-export function proxyPillTone(status: DesktopProxyStatus): { key: string; ok: boolean } {
-  if (status.unsupported) return { key: 'pillUnsupported', ok: false }
-  if (status.mode === 'off' || !status.activeUrl) {
-    // fake-ip 本地代理（Clash/Surge TUN）：app 侧看不到任何代理配置，说「直连」是**错的**——
-    // 流量其实全被本机解析器映射进 198.18/15 交给代理。同 unsupported 的取舍：宁可多说一句，
-    // 也不能让用户以为 Nomi 没走他的梯子（2026-09-06 验收现场）。
-    if (status.localProxyDetected) return { key: 'pillLocalProxy', ok: true }
-    return { key: 'pillDirect', ok: false }
-  }
-  return { key: status.mode === 'custom' ? 'pillCustom' : 'pillSystem', ok: true }
-}
-
 export function NetworkSection(): JSX.Element | null {
   const { t } = useTranslation()
   const bridge = getDesktopBridge()

@@ -122,7 +122,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
       throwOnNon2xx: false,
     });
   } catch (error: unknown) {
-    throw new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
+    throw Object.assign(new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) })), { cause: error });
   }
   if (fetched.status >= 400) {
     const detail = fetched.bytes.byteLength > 0 ? fetched.bytes.toString("utf8").slice(0, 300) : "";
@@ -197,7 +197,7 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
         response = await appFetch(appendQueryParams(built.url, built.query), { method: built.method, headers, body: form });
       } catch (error: unknown) {
         if (isRedirectRefusal(error)) throw Object.assign(new Error(desktopT("network.credentialRedirect")), { cause: error });
-        throw new Error(desktopT("transcribe.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
+        throw Object.assign(new Error(desktopT("transcribe.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) })), { cause: error });
       }
       if (!response.ok) {
         throw new Error(desktopT("transcribe.httpError", { vendor: vendor.key, status: response.status, detail: (await safeText(response)).slice(0, 300) || desktopT("common.noDetail") }));

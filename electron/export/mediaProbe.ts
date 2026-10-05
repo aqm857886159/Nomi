@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
@@ -6,6 +7,7 @@ import { resolveFfmpegPath } from "./ffmpegRunner";
 import { ensureExecutable } from "./ensureExecutable";
 import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 
+const lazyRequire = createRequire(__filename);
 export const MEDIA_DECODER_PROTOCOL_WHITELIST = "file,pipe,data";
 
 export type MediaProbeMetadata = {
@@ -400,7 +402,7 @@ function siblingFfprobePath(ffmpegPath: string): string {
 function bundledFfprobePath(): string {
   // 打包随附的 ffprobe（@ffprobe-installer），让"双击即用"用户无需自装 ffprobe 即可探测音轨
   try {
-    const installer = require("@ffprobe-installer/ffprobe") as { path?: string };
+    const installer = lazyRequire("@ffprobe-installer/ffprobe") as { path?: string };
     const installerPath = typeof installer?.path === "string" ? asarUnpackedPath(installer.path) : "";
     return installerPath && commandExists(installerPath) ? installerPath : "";
   } catch {

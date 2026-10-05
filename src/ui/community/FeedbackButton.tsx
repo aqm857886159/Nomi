@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FeedbackOpenRequest } from './feedbackTypes'
+import { openFeedbackFor } from './feedbackEvents'
 
 // 四个失败面上那**同一颗**「反馈」钮。
 //
@@ -11,10 +12,6 @@ import type { FeedbackOpenRequest } from './feedbackTypes'
 //
 // 走的是**既有**通道 `nomi-open-feedback-share`（2026-09-01 起就一个全局 host，
 // `src/ui/community/FeedbackShareHost.tsx`），不新开第二个 dialog host。
-export function openFeedbackFor(request: FeedbackOpenRequest): void {
-  window.dispatchEvent(new CustomEvent('nomi-open-feedback-share', { detail: request }))
-}
-
 export function FeedbackButton({
   request,
   className,

@@ -5,7 +5,6 @@ import {
   formatSeconds,
   loopedStillInput,
   secondsFromFrames,
-  type FfmpegFiltergraphErrorCode,
   type FfmpegFiltergraphPlanInput,
 } from "./ffmpegGraphPrimitives";
 import { buildTextOverlayGraph, type FfmpegTextOverlayInput } from "./ffmpegTextOverlayGraph";

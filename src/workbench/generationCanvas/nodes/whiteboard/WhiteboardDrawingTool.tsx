@@ -27,7 +27,8 @@ import {
   loadImageSize,
   serializeWhiteboardState,
 } from './whiteboardState'
-import { AspectRatioPopover, TOOL_ITEMS, ToolIconButton } from './WhiteboardToolbarControls'
+import { AspectRatioPopover, ToolIconButton } from './WhiteboardToolbarControls'
+import { TOOL_ITEMS } from './whiteboardToolItems'
 import { WhiteboardLibraryPanel, type WhiteboardLibraryTabKey } from './WhiteboardLibraryPanel'
 import { blobToDataUrl, removeBackgroundBlob } from '../../../../lib/removeBackground'
 import { removeBackgroundProgressMessage } from '../localImageOpPhase'

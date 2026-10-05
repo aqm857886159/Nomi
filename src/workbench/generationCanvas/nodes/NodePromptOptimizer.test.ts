@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildOptimizePrompt } from './NodePromptOptimizer'
+import { buildOptimizePrompt } from './promptOptimizer'
 
 // W4-2：提示词优化器此前是**纯自由文本改写**——不读任何铁律，模型看到「望向」照样强行出正脸，
 // 把用户要的背影镜毁掉（盘点 D#5）。这里钉死「污染词铁律真的进了改写指令」，不是加了句口号。

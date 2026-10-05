@@ -12,11 +12,7 @@ import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecut
 import { useTranslation } from 'react-i18next'
 import { Icon3dCubeSphere, IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
-import i18n from '../../../../i18n'
 import { NodeEmptyState } from './NodeEmptyState'
-
-export const STRIPED_BG_CLASS =
-  'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
 
 /**
  * 节点 body 左上角标题行（统一规格：可选「镜头 N」徽标 + text-body-sm font-semibold 标题）。
@@ -428,6 +424,3 @@ export function UploadFallback({
  * shots → "分镜 NN"（由 BaseGenerationNode 接管，不走这里）
  * 其它 → 分类名 / fallback title
  */
-export function placeholderLabel(categoryName: string | undefined, title: string | undefined): string {
-  return categoryName || title || i18n.t('generationCommon.card.node')
-}

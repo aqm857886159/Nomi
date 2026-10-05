@@ -167,7 +167,7 @@ export function parseShotVerifyVerdict(text: string): { scores: Record<ShotVerif
   if (fence) s = fence[1].trim()
   const brace = s.match(/\{[\s\S]*\}/)
   const candidate = brace ? brace[0] : s
-  const repaired = candidate.replace(/[\u0000-\u001f]+/g, " ").replace(/,(\s*[}\]])/g, "$1")
+  const repaired = Array.from(candidate, (character) => character.charCodeAt(0) <= 0x1f ? " " : character).join("").replace(/,(\s*[}\]])/g, "$1")
   let parsed: unknown = null
   for (const c of [candidate, repaired]) {
     try {

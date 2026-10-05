@@ -70,7 +70,6 @@ const COMPACT_ESTIMATED_ROW_HEIGHT = 113
 const UPLOAD_ACCEPT = acceptAttrForSurface('asset-library')
 
 // 上传文件分流住在 ./uploadClassification（R9：面板是壳）；re-export 保住既有 import 面。
-export { classifyUploadFiles, type UploadClassification } from './uploadClassification'
 import { classifyUploadFiles } from './uploadClassification'
 
 type AssetLibraryContentProps = {

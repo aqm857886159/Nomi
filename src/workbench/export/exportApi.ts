@@ -145,11 +145,11 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     }
     const message = error instanceof Error ? error.message : i18n.t('runtime.export.mp4Failed')
     if (!webmBlob) {
-      throw new Error(message)
+      throw Object.assign(new Error(message), { cause: error })
     }
     const fallbackName = createTimelineExportFilename('webm')
     downloadTimelineBlob(webmBlob, fallbackName)
-    throw new Error(i18n.t('runtime.export.webmFallbackDownloaded', { message, file: fallbackName }))
+    throw Object.assign(new Error(i18n.t('runtime.export.webmFallbackDownloaded', { message, file: fallbackName })), { cause: error })
   } finally {
     unsubscribe?.()
   }

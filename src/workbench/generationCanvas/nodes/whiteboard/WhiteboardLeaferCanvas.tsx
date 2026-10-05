@@ -106,7 +106,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
   strokes,
   activeObjectTarget,
   removingBackgroundTargetId,
-  removingBackgroundProgress,
+  removingBackgroundProgress: _removingBackgroundProgress,
   onStrokeCommit,
   onLayerSelect,
   onObjectSelect,

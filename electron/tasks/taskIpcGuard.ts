@@ -16,7 +16,7 @@ export async function runTaskIpcGuard<T>(payload: unknown, thunk: () => Promise<
         assetCount: 0,
         error: error.structured,
       });
-      throw new Error(encodeVendorErrorMessage(error));
+      throw new Error(encodeVendorErrorMessage(error), { cause: error });
     }
     const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code : undefined;
@@ -24,7 +24,7 @@ export async function runTaskIpcGuard<T>(payload: unknown, thunk: () => Promise<
       ? (error as { reason: string }).reason : undefined;
     if (code && reason) {
       const { encodeStructuredErrorMessage } = await import("../vendor/vendorHttp");
-      throw new Error(encodeStructuredErrorMessage({ code, reason }, error instanceof Error ? error.message : String(error)));
+      throw new Error(encodeStructuredErrorMessage({ code, reason }, error instanceof Error ? error.message : String(error)), { cause: error });
     }
     throw error;
   }

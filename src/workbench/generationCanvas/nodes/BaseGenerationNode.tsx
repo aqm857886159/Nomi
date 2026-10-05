@@ -25,8 +25,8 @@ import {
   PendingGenerationPlaceholder,
   LocalImageOpPendingStatus,
   RemoveBackgroundPendingPlaceholder,
-  STRIPED_BG_CLASS,
 } from './render/CardCommon'
+import { STRIPED_BG_CLASS } from './render/cardVisualConstants'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
 import { TimelineNotchDragHandle } from './NodeTimelineDragHandles'
 import { cn } from '../../../utils/cn'
@@ -221,9 +221,6 @@ function BaseGenerationNodeImpl({
   // 面板挂载走可打断的低优先级渲染（按下即选中时同步挂面板，拖动起手实测顿 70–95 ms）：高亮与拖动先出，面板随后到，取消选中立即卸载。
   const composerWanted = selected && !isMultiSelectActive && !readOnly && !resultStackOpen && nodeHasGenerationComposer(node.kind)
   const composerMounted = React.useDeferredValue(composerWanted)
-  const showFlowConnectionHandle =
-    node.kind !== 'panorama' && (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
-
   return (
     <article
       className={cn(

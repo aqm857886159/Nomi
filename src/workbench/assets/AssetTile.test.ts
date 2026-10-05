@@ -1,6 +1,6 @@
 // hover 放大浮层定位（#52「鼠标放置参考图自动弹出放大图片」）。默认贴块右侧，贴边翻左/夹回视口。
 import { describe, expect, it } from 'vitest'
-import { computeHoverZoomPosition } from './AssetTile'
+import { computeHoverZoomPosition } from './assetHoverZoom'
 
 const VIEWPORT = { width: 1440, height: 900 }
 

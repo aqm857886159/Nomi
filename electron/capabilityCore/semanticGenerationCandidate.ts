@@ -479,7 +479,7 @@ export function declaredDefaultDeviations(
   names: Readonly<Record<string, string>> = {},
 ): DeclaredDefaultDeviation[] {
   if (!defaultFor) return [];
-  return items.flatMap(({ shotId, params, candidate }): DeclaredDefaultDeviation[] => {
+  return items.flatMap(({ shotId, candidate }): DeclaredDefaultDeviation[] => {
     // 种类读建好的候选（它在建镜头那一刻已经和点名的模型对过账），不再按提示词另猜一遍。
     const taskKind = normalized(candidate.mode);
     if (!isTaskKind(taskKind)) return [];

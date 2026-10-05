@@ -1,7 +1,7 @@
 import { generateObject, NoObjectGeneratedError, type LanguageModelV1 } from "ai";
 import type { AdapterAuthType, ProviderAdapterCompilation, ProviderAdapterDraft } from "./types";
 import { adapterModelContractSchema, validateProviderAdapterDraft } from "./validator";
-import { redactAdapterSecrets, sanitizedAdapterJson } from "./redaction";
+import { redactAdapterSecrets } from "./redaction";
 
 export class AdapterNeedsAiError extends Error {
   constructor() {

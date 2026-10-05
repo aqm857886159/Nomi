@@ -123,7 +123,7 @@ export function assessWorkspaceFolderSafety(rootPath: string, options: SafetyOpt
   }
 
   const readdir = options.readdir ?? ((dir: string) => fs.readdirSync(dir));
-  let entries: string[] = [];
+  let entries: string[];
   try {
     entries = readdir(resolved);
   } catch {

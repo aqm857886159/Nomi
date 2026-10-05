@@ -42,7 +42,7 @@ import {
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
 import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
-import { currentCatalogFingerprint, dispatchModelOnboarding } from './modelOnboarding/dispatch'
+import { dispatchModelOnboarding } from './modelOnboarding/dispatch'
 import { buildOnboardingKit } from './modelOnboarding/kit'
 import { readTask } from './readTask'
 import { dispatchModelSpec } from './modelSpecRead'

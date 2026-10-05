@@ -293,7 +293,7 @@ describe('storyboard target identity across the shared proposal boundary', () =>
   it('replaces the selected plan and patches that same plan without making duplicate designs', async () => {
     const replacement: Extract<CanvasWriteInput, { operation: 'propose_storyboard_plan' }> = { operation: 'propose_storyboard_plan', title: plan.title, aspectRatio: '9:16',
       anchors: [{ id: 'hero', kind: 'character', name: 'Hero', description: 'Blue coat', carrier: 'text' }],
-      shots: plan.shots.map(({ index, shotKind, durationSec, anchorIds, prompt }) => ({ index, shotKind, durationSec, anchorIds: ['hero'], prompt })),
+      shots: plan.shots.map(({ index, shotKind, durationSec, prompt }) => ({ index, shotKind, durationSec, anchorIds: ['hero'], prompt })),
     }
     await executeCanvasWriteTarget(buildRequest(replacement), readGenerationCanvasSnapshot)
     const patch: CanvasWriteInput = { operation: 'patch_shots', select: { kind: 'indexes', indexes: [2] }, patch: { prompt: 'Night closing' } }

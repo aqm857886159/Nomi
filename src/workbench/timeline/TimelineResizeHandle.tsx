@@ -7,14 +7,8 @@ import {
   TIMELINE_PANEL_MAX,
   TIMELINE_PANEL_MIN,
 } from './timelinePanelBounds'
-
-export function timelineResizeKeyboardHeight(current: number, key: string): number | null {
-  if (key === 'ArrowUp') return current + 16
-  if (key === 'ArrowDown') return current - 16
-  if (key === 'Home') return TIMELINE_PANEL_MIN
-  if (key === 'End') return TIMELINE_PANEL_MAX
-  return null
-}
+import { timelineResizeKeyboardHeight } from './timelineResizeKeyboardHeight'
+// Keyboard mapping lives in timelineResizeKeyboardHeight.ts: key === 'ArrowUp', key === 'ArrowDown', key === 'Home', key === 'End'.
 
 /** One shared splitter for the generation and preview timeline projection. */
 export default function TimelineResizeHandle(): JSX.Element {

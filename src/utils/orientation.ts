@@ -3,7 +3,7 @@ export type Orientation = 'portrait' | 'landscape'
 const portraitHints = new Set(['portrait', 'vertical', '竖屏', '竖向', 'vertical-screen', 'portrait-mode'])
 const landscapeHints = new Set(['landscape', 'horizontal', '横屏', '横向', 'horizontal-screen', 'landscape-mode'])
 
-export function normalizeOrientation(raw: any): Orientation {
+export function normalizeOrientation(raw: unknown): Orientation {
   if (raw == null) return 'landscape'
   const val = String(raw).trim().toLowerCase()
   if (!val) return 'landscape'

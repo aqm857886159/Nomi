@@ -4,7 +4,6 @@ export type ExportQuality = "small" | "standard" | "high";
 export type ExportPreset = "publish" | "edit" | "share" | "webm";
 export type ExportAudioMode = "mute" | "preserve-source" | "mixdown";
 
-import { EXPORT_JOB_STATUSES } from "../shared/contracts/exportTypes";
 import type { ExportJobStatus } from "../shared/contracts/exportTypes";
 
 export { EXPORT_JOB_STATUSES } from "../shared/contracts/exportTypes";

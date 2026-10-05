@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../workbenchStore'
 import { clampTimelinePanelHeight, TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN } from './timelinePanelBounds'
-import { timelineResizeKeyboardHeight } from './TimelineResizeHandle'
+import { timelineResizeKeyboardHeight } from './timelineResizeKeyboardHeight'
 
 const source = fs.readFileSync(path.join(process.cwd(), 'src/workbench/timeline/TimelineResizeHandle.tsx'), 'utf8')
 

@@ -1,4 +1,5 @@
 import { sameCommittedProjectSelection } from "../shared/projectBinding";
+import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -31,6 +32,7 @@ import { ensureProjectFolders, projectDirById, resolveProjectRelativePath } from
 import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 import { desktopT } from "../i18n";
 
+const lazyRequire = createRequire(__filename);
 type TimelineMp4ExportRequest = {
   projectId?: string;
   webmBytes?: ArrayBuffer | Uint8Array | number[];
@@ -575,7 +577,7 @@ export function showExportInFolder(payload: unknown): { ok: true } {
   const resolved = resolveProjectRelativePath(projectId, normalized);
   if (!fs.existsSync(resolved)) throw new Error(desktopT("export.reveal.fileMissing"));
   // Lazy require keeps runtime.ts usable in tests that do not initialize Electron shell.
-  const { shell } = require("electron") as typeof import("electron");
+  const { shell } = lazyRequire("electron") as typeof import("electron");
   shell.showItemInFolder(resolved);
   return { ok: true };
 }

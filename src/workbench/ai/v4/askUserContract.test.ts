@@ -120,7 +120,7 @@ describe('ask_user：一份契约，两端对拍', () => {
     expect(Object.keys(properties(questionSchema)).sort()).toEqual(Object.keys(QUESTION_FIELDS).sort())
     for (const [field, assertCarried] of Object.entries({ ...FIELDS, ...QUESTION_FIELDS })) {
       try { assertCarried() } catch (cause) {
-        throw new Error(`ask_user 的 "${field}" 字段模型填得出来，但渲染层没把它画到卡上：${String(cause)}`)
+        throw new Error(`ask_user 的 "${field}" 字段模型填得出来，但渲染层没把它画到卡上：${String(cause)}`, { cause })
       }
     }
   })
@@ -131,7 +131,7 @@ describe('ask_user：一份契约，两端对拍', () => {
     expect(Object.keys(properties(optionSchema)).sort()).toEqual(Object.keys(OPTION_FIELDS).sort())
     for (const [field, assertCarried] of Object.entries(OPTION_FIELDS)) {
       try { assertCarried() } catch (cause) {
-        throw new Error(`选项的 "${field}" 字段模型填得出来，但渲染层没读：${String(cause)}`)
+        throw new Error(`选项的 "${field}" 字段模型填得出来，但渲染层没读：${String(cause)}`, { cause })
       }
     }
   })

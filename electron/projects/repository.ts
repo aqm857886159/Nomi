@@ -61,7 +61,8 @@ export const SANITIZED_NAME_MAX_LENGTH = 90;
 export function sanitizeName(value: unknown, fallback = "Untitled"): string {
   const text = String(value || "").trim() || fallback;
   return text
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(/[<>:"/\\|?*]/g, "_")
+    .replace(/[\s\S]/g, (character) => character.charCodeAt(0) <= 0x1f ? "_" : character)
     .replace(/\s+/g, " ")
     .slice(0, SANITIZED_NAME_MAX_LENGTH)
     .trim() || fallback;

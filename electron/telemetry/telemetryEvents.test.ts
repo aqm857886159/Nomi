@@ -44,7 +44,7 @@ describe('生成失败原因与自动化标记（只带类别码，不带内容�
   })
 
   it('errorType 装不下原文、路径、URL、提示词', () => {
-    for (const leak of ['C:\Users\me\a.png', 'https://api.example.com/v1?key=sk-1', 'a cat riding a bike', '/Users/me/Nomi/x', 'Error: 402 balance', 'x'.repeat(80), '']) {
+    for (const leak of [String.raw`C:\Users\me\a.png`, 'https://api.example.com/v1?key=sk-1', 'a cat riding a bike', '/Users/me/Nomi/x', 'Error: 402 balance', 'x'.repeat(80), '']) {
       expect(isTelemetryProps({ ...base, result: 'failure', errorType: leak }, 'generation.completed')).toBe(false)
     }
   })

@@ -6,25 +6,11 @@ import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { AssetVideoCover } from './AssetVideoCover'
 import type { AssetRef } from './assetTypes'
+import { computeHoverZoomPosition, HOVER_ZOOM_DELAY_MS, HOVER_ZOOM_MAX } from './assetHoverZoom'
 
 // hover 放大浮层（#52 群反馈「鼠标放置参考图自动弹出放大图片」）：参考块太小（56px）看不清细节，
 // 悬停延迟后在块旁弹一张放大图。延迟 450ms 防「划过」误触；浮层 pointer-events-none 不拦鼠标；
 // 贴边时翻到另一侧。图/视频（视频用首帧 thumbUrl）才弹，音频无缩略图跳过。
-const HOVER_ZOOM_MAX = 320
-const HOVER_ZOOM_DELAY_MS = 450
-
-/** 放大浮层定位：默认贴块右侧；右边放不下就翻到左侧；上边贴顶/下边溢出都夹回视口内。纯函数便于单测。 */
-export function computeHoverZoomPosition(
-  rect: { left: number; right: number; top: number },
-  viewport: { width: number; height: number },
-  size = HOVER_ZOOM_MAX,
-): { left: number; top: number } {
-  const left =
-    viewport.width - rect.right > size + 24 ? rect.right + 8 : Math.max(8, rect.left - size - 8)
-  const top = Math.max(8, Math.min(rect.top, viewport.height - size - 16))
-  return { left, top }
-}
-
 function useHoverZoom(zoomSrc: string | undefined): {
   onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => void
   onMouseLeave: () => void

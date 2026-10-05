@@ -1,20 +1,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconBrush, IconChevronDown, IconEraser, IconPointer, IconSquare } from '@tabler/icons-react'
+import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
-import { ASPECT_RATIOS, type AspectRatioKey, type ToolKey } from './lib/canvas'
+import { ASPECT_RATIOS, type AspectRatioKey } from './lib/canvas'
 
-export const TOOL_ITEMS: Array<{
-  key: ToolKey
-  labelKey: 'brush' | 'select' | 'eraser' | 'shape'
-  icon: React.ReactNode
-  disabled?: boolean
-}> = [
-  { key: 'brush', labelKey: 'brush', icon: <IconBrush size={17} stroke={1.7} /> },
-  { key: 'select', labelKey: 'select', icon: <IconPointer size={17} stroke={1.7} /> },
-  { key: 'eraser', labelKey: 'eraser', icon: <IconEraser size={17} stroke={1.7} /> },
-  { key: 'shape', labelKey: 'shape', icon: <IconSquare size={17} stroke={1.7} />, disabled: true },
-]
 
 type AspectRatioPopoverProps = {
   value: AspectRatioKey

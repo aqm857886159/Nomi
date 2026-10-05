@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommittedSurfaceProjectSelection } from "../capabilityCore/canvasReadSurfaceRegistry";
 
 const mocks = vi.hoisted(() => {
-  const handlers = new Map<string, (...args: any[]) => unknown>();
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
   return {
     handlers,
     send: vi.fn(),
@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (channel: string, handler: (...args: any[]) => unknown) => mocks.handlers.set(channel, handler),
+    handle: (channel: string, handler: (...args: unknown[]) => unknown) => mocks.handlers.set(channel, handler),
   },
   webContents: {
     fromId: () => ({ isDestroyed: () => false, send: mocks.send }),

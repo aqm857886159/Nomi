@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { drawerShotParams } from './ShotParamControls'
+import { drawerShotParams } from './shotParamUtils'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 
 const sel = (key: string, label: string): ModelParameterControl => ({ key, label, type: 'select', options: [{ value: 'a', label: 'a' }] })

@@ -59,7 +59,7 @@ async function loadSource(source: PromptSource): Promise<LibraryPrompt[]> {
   const parsed: LibraryPrompt[] = [];
   const seen = new Set<string>();
   for (const file of source.files) {
-    let markdown = "";
+    let markdown: string;
     try {
       const res = await hardenedFetchText(`${source.rawBase}/${file}`, { maxBytes: FETCH_MAX_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
       markdown = res.text;

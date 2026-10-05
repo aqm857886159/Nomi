@@ -30,10 +30,6 @@ function nodeX(column: number): number {
   return PADDING + column * (NODE_WIDTH + COLUMN_GAP)
 }
 
-function nodeY(row: number): number {
-  return PADDING + row * (NODE_HEIGHT + ROW_GAP)
-}
-
 /**
  * 列内**垂直居中**：短列（比如只有一个成品节点的最后一列）顶在最上边时，
  * 连线会从图中间斜甩到左上角，人一眼找不到主干。居中后主链大致走一条水平带。

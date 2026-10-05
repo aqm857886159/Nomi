@@ -8,7 +8,7 @@ import {
   type StructuredGenerator,
 } from "./compiler";
 
-const draft = (): ProviderAdapterDraft => ({
+const _draft = (): ProviderAdapterDraft => ({
   provider: { baseUrl: "https://api.example.com/v1", authType: "bearer" },
   sources: [
     {
@@ -352,4 +352,3 @@ describe("compileProviderAdapter", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 });
-

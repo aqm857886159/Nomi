@@ -474,6 +474,3 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
     </g>
   )
 }
-
-export const nodeTypes = { generation: GenerationFlowNodeView }
-export const edgeTypes = { generation: GenerationFlowEdgeView }
