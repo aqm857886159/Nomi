@@ -365,6 +365,21 @@ export function detectLostUserEdits(record: CommittedProposalRecord): string[] {
   return lost
 }
 
+/**
+ * 整份放回节点字段的补偿（今天只有 3D-BOX 的 stage_shot 用：工程 + 计划 + 预演一起放回）会把提交之后这个节点上的
+ * 一切改动一并抹掉——包括用户在导演台里的手调。提交之后它又被别的事务改过 → 不撤，说明原因（统一撤销的冲突规则）。
+ * 调用前先 flushEmbeddedEditors()，没落盘的手调也算「改过」。
+ */
+export function wholeNodeRestoreConflict(record: CommittedProposalRecord): string | null {
+  const restored = record.compensation.flatMap((op) => (op.kind === 'restore-node-fields' ? [op.nodeId] : []))
+  if (!restored.length) return null
+  const change = findCanvasChange(makeChangeId('canvas', record.proposalId))
+  const hit = restored.find((nodeId) => change?.conflictingObjectIds.includes(nodeId))
+  if (!hit) return null
+  const title = useGenerationCanvasStore.getState().nodes.find((node) => node.id === hit)?.title || hit
+  return `「${title}」在这笔改动之后又被你改过，撤销会把那些改动一起抹掉`
+}
+
 /** Synchronous dispatcher used by the shared `undo` surface.  The normal UI
  * path keeps its durable receipt CAS; this path reuses the same compensation
  * owner and journal conflict evidence without creating another history. */
@@ -507,6 +522,10 @@ async function ownReceiptRecoveryWindow(proposalId: string): Promise<() => void>
 export async function runProposalUndo(record: CommittedProposalRecord): Promise<void> {
   const proposal = parseProjectAgentCommittedProposal(record)
   if (!proposal) throw new Error('Project Agent proposal receipt is invalid')
+  // 与 Agent 撤销同一个落盘点：开着的导演台里没保存的手调先进日志，下面的冲突判据才看得见它们
+  flushEmbeddedEditors()
+  const wholeNodeConflict = wholeNodeRestoreConflict(proposal)
+  if (wholeNodeConflict) throw Object.assign(new Error(`undo_conflict: ${wholeNodeConflict}`), { code: 'undo_conflict' })
   const release = await ownReceiptRecoveryWindow(proposal.proposalId)
   let recoveryEvidenceLive = false
   let durablyCompleted = false
