@@ -1,0 +1,212 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "id": "2026-10-06-storyboard-reuse-canvas-composer",
+  "problem_type": "分镜表手写了第二套参数 / 参考交互，且没有任何 owner 把参考卡的结果接到引用它的镜头",
+  "symptom": "用户 10-05：参考卡选了 GPT Image 2 也没有比例 / 清晰度（U2、反馈 #3 #11）；参考图出来后下面的镜头不会自动引用（U4）；点开引用的浮层很乱、缩略图删不掉，删掉参考后提示词里的 @ 变成孤儿芯片（U5、U7 ③、反馈 #7）；跨镜头的参数选不全（U9）；最小窗口下「生成」被裁掉看不见（A13）",
+  "direct_cause": "镜头行底栏（ShotComposerBar 旧版的模式 / 时长 / ⋯ 胶囊 + composerBarModel 让位表）与参考卡底栏（ANCHOR_KINDS 按钮排 + 「生成模型」单下拉）各自手写，只从档案挑了一部分参数；参考列（ShotReferenceZone + ShotReferenceSlotPopover）是第二套参考 UI，删绑定不删 @；参考卡出图后没有任何代码写镜头的 referenceBindings / 提示词；锚卡重生成只同步提示词不同步模型参数（A2）",
+  "class_root": "分镜的「参数从哪来、参考摆在哪、引用怎么建」没有复用画布节点已有的唯一 owner（InlineParameterBar + resolveRenderedControls + buildPlannedNodeMeta、AssetTile / AssetPicker、@ 引用的持久化格式），于是每补一项就多一份手写定义；「参考卡结果 → 镜头引用」这条关系没有 owner",
+  "affected_population": [
+    "所有分镜方案的镜头行与「跨镜头要一致的」参考卡（中英两轨、宽窄两档、所有画幅）",
+    "画布上按名字写提示词、等参考图出来再生成的节点"
+  ],
+  "scope_paths": [
+    "electron/shared/storyboard/promptMentions.ts",
+    "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+    "src/workbench/generationCanvas/canvasAutoReference.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts"
+  ],
+  "entry_points": [
+    "分镜表每一行的参数区、参考缩略图条、提示词 @",
+    "「跨镜头要一致的」参考卡的参数区、参考缩略图条、⋯ 菜单、生成 / 重生成",
+    "参考卡出图（StoryboardPlanEditor 的出图签名）",
+    "画布节点出图（initCanvasAutoReferenceBridge）"
+  ],
+  "internal_only_reason": "Nomi 自己的档案 / 分镜方案 / @ 持久化格式约定，没有外部官方文档能裁决这条不变量；判据全部复用仓内唯一 owner（resolveRenderedControls、buildPlannedNodeMeta、resolveMentionReference、promptMentions）。",
+  "invariants": [
+    "分镜行与参考卡显示的参数 = 落画布 / 重生成时写进节点的参数（同一个构造器 buildPlannedNodeMeta，经 storyboardComposerMeta）",
+    "参考卡或画布节点出图后，引用它的提示词里只在它名字第一次出现的地方紧跟插一枚 @，@ 与参考绑定一起成、一起不成；用户删掉的 @ 不会被补回来",
+    "删一张参考 = 绑定与指向它的 @ 一起删；删掉一枚 @ = 那张图的绑定一起删"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+      "symbol": "insertAutoMentions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "symbol": "insertAutoMentions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardComposerMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "symbol": "storyboardComposerMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "removeReferenceWithMention"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "dropBindingsForUrls"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 6,
+    "why_not": "自动引用两扇门（分镜 / 画布）是用户点名的两个入口，必须各自把同一个 owner 的结果绑进各自的参考结构（plan.referenceBindings vs 画布参考边）；参数 meta 两扇门一扇是显示、一扇是写回节点，二者调同一个函数正是「显示 = 请求」的保证；删参考 / 删 @ 两扇门是同一处 UI 的两个方向。删掉的是旧的手写底栏（ShotComposerBar 胶囊 + composerBarModel）与参考卡「生成模型」下拉。"
+  },
+  "generality_proof": "参数：镜头行与参考卡都只经 StoryboardComposerParams → storyboardComposerMeta（buildPlannedNodeMeta）→ resolveRenderedControls → InlineParameterBar，与画布节点逐字节同一条路，档案声明的任何参数 / 模式都自动出现在两处（铁律 ⑪ 全量矩阵核对：分镜行与参考卡 21 个缺口类消失）。自动引用：分镜与画布都调 insertAutoMentions，插入位置、账本、去重只有这一份定义；绑定分别走各自已有的唯一写口（appendBinding / resolveMentionReference + connectNodes），不新造第三种引用。删除同步：removeReferenceWithMention / dropBindingsForUrls 是镜头行仅有的两条删除路径。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/storyboard/promptMentions.ts",
+      "symbol": "insertAutoMentions",
+      "responsibility": "自动引用的插入位置（名字第一次出现处紧后面、长名优先、短名不命中长名内部）、账本（补过不再补）、不往末尾塞"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "storyboardComposerMeta",
+      "responsibility": "分镜行 / 参考卡的参数 meta = 落画布同一个构造器 buildPlannedNodeMeta"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+      "symbol": "removeReferenceWithMention",
+      "responsibility": "删参考同步删 @（同一张图在别的槽还绑着就留 @）"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+      "symbol": "imageReferenceMode",
+      "responsibility": "收不了参考图时切到同模型「能收参考图且不缺别的必填槽」的模式（方案 A），自动引用与「+」共用"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "entry_point": "ShotComposerBar",
+      "disposition": "enforced",
+      "evidence": "底栏只剩 StoryboardComposerParams + 生成；结构测试钉死不许再直接摆 NomiSelect"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "entry_point": "StoryboardAnchorRow",
+      "disposition": "enforced",
+      "evidence": "参数走同一个 StoryboardComposerParams；铁律 ⑪ 的 storyboard-anchor 入口改调 storyboardComposerControls，缺口类从 17 个降到 2 个（变体轴、数字输入，与分镜行 / 画布同一原因）"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "syncAnchorNodeWithCard",
+      "disposition": "enforced",
+      "evidence": "重生成前写回 storyboardComposerMeta（审计 A2），storyboardBatchLanding.test 守住，变异 M8 红"
+    },
+    {
+      "path": "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "entry_point": "planCanvasAutoReference",
+      "disposition": "enforced",
+      "evidence": "画布侧调同一个 insertAutoMentions；绑定走手动 @ 的 resolveMentionReference + validateReferenceEdge；变异 M9 M10 红"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "entry_point": "ShotRowWithMention.onBindReference",
+      "disposition": "not-affected",
+      "evidence": "手动 @ 选中素材时的落槽，属 L-sbtable 线的文件（禁区）；它把素材放进当前模式的槽，不涉及自动引用与参数显示。下一刀与 ShotReferenceStrip 的 slotFor 合并为一处判据（残余风险已列）"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+      "entry_point": "StoryboardBulkBar",
+      "disposition": "not-affected",
+      "evidence": "批量条的整片画幅 / 统一模型属批 B7（等 L-aspect），不在本次的类内；逐镜参数已由行上底栏覆盖"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新档案参数、新模式、新入口（例如付费卡、Agent 起草）都会再次撞上「手写一份参数表 / 参考 UI」的诱惑；参考卡与画布节点每次出图都会再次需要「结果 → 引用」",
+    "same_class_scan": [
+      "rg \"useDedupedModelSelect|resolveRenderedControls|InlineParameterBar\" src/workbench（四个参数入口：画布节点、付费卡、分镜行、参考卡）",
+      "rg \"removeMention|encodeMention|mentionUrlsInOrder\" src electron（@ 持久化格式的全部读写口）",
+      "tests/experience-laws/parameterReachability.mjs 的 REACHABILITY_ENTRIES 与 NOT_PARAMETER_ENTRIES 全仓点名"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "invariant": "分镜行与参考卡的参数只来自 storyboardComposerMeta + storyboardComposerControls；自动引用只来自 insertAutoMentions",
+    "failure_mode": "铁律 ⑪ 全量矩阵（tests/experience-laws/parameterReachability.test.mjs）对分镜两入口逐模型逐模式核对，表外冒出新缺口即红；结构测试钉死两处都经 StoryboardComposerParams、底栏不许再摆 NomiSelect",
+    "exception_policy": "none",
+    "strategy": "删掉第二套手写参数 / 参考 UI，接到画布已有的唯一 owner；新增的自动引用 owner 放在 @ 持久化格式同一个文件，两个调用方共用",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "electron/shared/storyboard/promptMentions.ts",
+      "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+      "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+      "tests/experience-laws/parameterReachability.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/assets/promptAutoMention.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardAutoReference.test.ts",
+    "src/workbench/generationCanvas/canvasAutoReference.test.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.test.ts",
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.structure.test.ts",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.structure.test.ts",
+    "src/workbench/creation/storyboard/shotRow/shotFrameGeometry.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.plannedFirstFrame.test.ts",
+    "tests/experience-laws/parameterReachability.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/experience-laws/parameterReachability.test.mjs",
+    "src/workbench/assets/promptAutoMention.test.ts",
+    "src/workbench/generationCanvas/canvasAutoReference.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "src/workbench/creation/storyboard/shotRow/ShotReferenceSlotPopover.tsx",
+      "src/workbench/creation/storyboard/shotRow/shotReferenceStackGeometry.ts",
+      "src/workbench/creation/storyboard/shotRow/composerBarModel.ts",
+      "src/workbench/creation/storyboard/shotRow/composerBarGeometry.ts"
+    ],
+    "rationale": "旧参考列、浮层、扑克叠放几何、旧底栏胶囊模型与让位表同 commit 删除，没有并行版；storyboardRowDensity 以新语义（视觉列宽 / 窄两档）重建，旧的「参考列收一格 + N」整套不在了"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖的行为。",
+    "exit_criteria": []
+  },
+  "migration": "方案数据不迁移：PlanShot 新增可选 autoReferenced（账本，旧方案缺省 = 空，打开方案时按出图签名补一次）；旧绑定上的 ignore 字段从未进过请求，保留不读。画布节点 meta.autoReferenced 同理可缺省；画布侧只对新出的结果触发，打开旧项目不改任何节点。",
+  "residual_risks": [
+    "StoryboardShotTable（L-sbtable 禁区）仍传 aspectOverridden / aspectOptions 且只递每镜生效画幅：预览框按「镜数最多的画幅」近似整片画幅，等 L-sbtable 合入后补传整片默认",
+    "表格里手动 @ 的落槽判据（ShotRowWithMention.onBindReference）与参考条「+」的 slotFor 仍是两份，同在禁区文件，下一刀合并",
+    "分镜行 / 参考卡没有变体选择器（LAW11-SB-VARIANT，碰花钱边界，未在本次做）",
+    "画布侧自动引用只覆盖「同分区、未出图、提示词写了标题」的节点；标题与日常用词重合（如两字的普通词）仍可能误插，用户删掉 @ 后不再补",
+    "真 App 走查（窄档 / 首帧误报 / phasec）脚本已按新 DOM 改写但本线没有在真 App 上跑，交独立验收线"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.test.ts",
+      "tests/experience-laws/parameterReachability.test.mjs",
+      "src/workbench/assets/promptAutoMention.test.ts",
+      "src/workbench/generationCanvas/canvasAutoReference.test.ts"
+    ],
+    "why": "参数显示 = 请求由 storyboardComposerModel（经 buildPlannedNodeMeta）单点持有；自动引用由 electron/shared/storyboard/promptMentions.ts 的 insertAutoMentions 单点持有，分镜与画布两个调用方只调它、不各自判位置与账本。tests 是两层的类级与回归测试，改动这两条不变量必先让它们红（10 条变异均红，见 PR 正文）。"
+  }
+}
