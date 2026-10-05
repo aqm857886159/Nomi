@@ -49,6 +49,10 @@ import { orderedTimelineEntities } from './model/timelineTracks'
 import { registerDirectorSession } from './directorSessionRegistry'
 import { createDirectorNodeSync, type DirectorNodeSync } from './directorNodeSync'
 import { registerEmbeddedEditorFlush } from '../../agent/embeddedEditorFlush'
+import { directorShotFocusFrom, type DirectorShotFocus } from './model/directorShotFocus'
+import { summarizeDirectorShots } from './model/directorShotSummaries'
+import { readDirectorPlanMeta } from './model/directorPreviewState'
+import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { isDirector3DBoxEnabled } from '../../../../featureFlags/director3dbox'
 import { DirectorViewShell, type DirectorViewMode } from './DirectorViewShell'
 import { DirectorRefineShell } from './DirectorRefineShell'
@@ -161,6 +165,25 @@ function EditorStage({ nodeTitle, scopeRef, preferences, cancelCreationRef, time
   )
 }
 
+/**
+ * 3D-BOX「正在改：镜头 N」的数据：编辑器里选中的机位 → 计划镜头（方案 §7 第 5 条）。Agent 输入框发送时经会话登记处读一次；
+ * 修订号与计划镜头名取节点上的计划 meta（stage_shot 是它唯一的写者），序号取镜头条同一份实测切点。
+ */
+function readEditorShotFocus(nodeId: string, store: DirectorStore): DirectorShotFocus | null {
+  const state = store.getState()
+  const planMeta = readDirectorPlanMeta(useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId))
+  if (!planMeta || !state.selection.cameraId) return null
+  const shots = (planMeta.plan as { shots?: unknown }).shots
+  const planShotIds = Array.isArray(shots) ? shots.flatMap((shot) => (shot && typeof (shot as { id?: unknown }).id === 'string' ? [(shot as { id: string }).id] : [])) : []
+  return directorShotFocusFrom({
+    directorNodeId: nodeId,
+    revision: planMeta.revision,
+    planShotIds,
+    cutCameraIds: summarizeDirectorShots(state.project).map((cut) => cut.cameraId),
+    selectedCameraIds: [state.selection.cameraId],
+  })
+}
+
 function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferences, nodeId, onSendToCanvas, onExternalProjectChange }: EditorBodyProps): JSX.Element {
   const apiRef = React.useRef<ViewportApi | null>(null)
   const cancelCreationRef = React.useRef<(() => void) | null>(null)
@@ -189,7 +212,8 @@ function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferen
     store,
     defaultSceneName: t('director.node.sceneDefaultName'),
     onExternalProjectChange,
-  }), [nodeId, onExternalProjectChange, store, t])
+    ...(director3dBox && nodeId ? { shotFocus: () => readEditorShotFocus(nodeId, store) } : {}),
+  }), [director3dBox, nodeId, onExternalProjectChange, store, t])
 
   useDirectorHotkeys({
     scopeRef,

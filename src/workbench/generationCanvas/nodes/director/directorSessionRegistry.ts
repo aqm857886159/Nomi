@@ -1,11 +1,14 @@
 import type { DirectorProject } from './model/directorTypes'
 import type { DirectorStore } from './model/directorStore'
+import type { DirectorShotFocus } from './model/directorShotFocus'
 
 type Session = {
   store: DirectorStore
   defaultSceneName: string
   /** Persist the same export that the mounted editor now owns. */
   onExternalProjectChange?: (project: DirectorProject) => void
+  /** 3D-BOX: which planned shot the user has selected right now (read once per Agent send). */
+  shotFocus?: () => DirectorShotFocus | null
 }
 const sessions = new Map<string, Session>()
 
@@ -40,3 +43,11 @@ export function hasDirectorSession(nodeId: string): boolean {
   return sessions.has(nodeId)
 }
 
+/** The mounted editor's shot focus (one editor is open at a time; the newest registration wins). */
+export function readDirectorShotFocus(): DirectorShotFocus | null {
+  for (const session of [...sessions.values()].reverse()) {
+    const focus = session.shotFocus?.()
+    if (focus) return focus
+  }
+  return null
+}
