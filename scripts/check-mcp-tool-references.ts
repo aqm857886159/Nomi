@@ -39,7 +39,7 @@ let referenceCount = 0
 // outside this MCP gate. All real MCP tests and executable docs examples remain in.
 const scanTargets = [
   ...collectFiles(path.join(repoRoot, 'tests')).filter(
-    (file) => !file.includes(`${path.sep}tests${path.sep}agent-runtime${path.sep}`),
+    (file: string) => !file.includes(`${path.sep}tests${path.sep}agent-runtime${path.sep}`),
   ),
   ...collectFiles(path.join(repoRoot, 'docs'), { includeMarkdown: true }),
 ]
@@ -59,7 +59,7 @@ for (const file of scanTargets) {
       const context = `${lines[line - 2] ?? ''}\n${lines[line - 1] ?? ''}`
       if (context.includes(INTENTIONAL_UNKNOWN)) continue
       argCallCount += 1
-      const unknown = call.keys.map((entry) => entry.key).filter((key) => !properties.has(key))
+      const unknown = (call.keys as Array<{ key: string }>).map((entry) => entry.key).filter((key) => !properties.has(key))
       if (unknown.length > 0) argOffenders.push(`${relative}:${line} → ${call.name} 收不到入参 ${unknown.join(', ')}（已发布：${[...properties].sort().join(', ')}）`)
     }
   }

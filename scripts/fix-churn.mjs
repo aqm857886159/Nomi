@@ -12,6 +12,12 @@
 //   真正重复的那类反而被淹掉。词典文件改按「文件#顶层功能键」各数各的（中英两段同名键算同一个；一个提交改到几个键各计一次；
 //   落在键之外的行——文件头、export 行、顶层单句——归「文件#(根)」），阈值和窗口不变，且不再投目录那一票（词典目录不是一个概念）。
 //   盲区：同一类错（例如「界面谈钱」）若散在不同功能键里，这里数不到一起——由 check:i18n 的文案扫描补。
+// 再加两种「按概念数」的单位（scripts/fix-churn-units.mjs 定义哪些单位、各含哪些文件）：
+//   · 自写登记条目（self-written.json 的一条 entry，paths 下的文件合起来）：status 为 under-review / to-replace，
+//     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「先评估接入现成方案」；
+//   · 概念（concept-owners.json 的一个 concept，owner + write_api 的文件合起来，≥2 个文件才单列）——14 天 / 第 3 个，
+//     同样有「概念大小」上限（fix 碰过的不同源码文件 ≤ CONCEPT_MAX_FILES）。
+//   原因：MCP 的修补一个月 14 次、散在 6 个文件，按文件 / 目录都凑不够 3 个。
 // 另外三条触发（评测分数回滚、同线第 3 轮修补、第三个特例分支）没有 git 上的可算信号，靠派工书 / 复盘模板人工判。
 //
 // 用法：
@@ -23,6 +29,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitPaths } from './lib/gitPaths.mjs'
+import { loadUnits, SELF_WRITTEN_WINDOW_DAYS, unitMatches } from './fix-churn-units.mjs'
 
 export const FIX_WINDOW_DAYS = 14
 /** 近 14 天已有的 fix 数达到它，这一刀就是第 3 个。 */
@@ -43,6 +50,13 @@ const norm = (p) => String(p || '').split('\\').join('/')
 export function isWatchedSource(rel) {
   const r = norm(rel)
   return (r.startsWith('src/') || r.startsWith('electron/')) && SOURCE_FILE.test(r) && !NOT_SOURCE.test(r)
+}
+
+/** 单位里的文件要不要管：src/、electron/、scripts/ 下的非测试、非生成源码（自写登记里有 scripts 下的机制）。 */
+export function isUnitSource(rel) {
+  const r = norm(rel)
+  // 词典（locale）按「文件#功能键」另数，不进单位（否则每个 fix 都命中）
+  return /^(src|electron|scripts)\//.test(r) && SOURCE_FILE.test(r) && !NOT_SOURCE.test(r) && !r.startsWith('src/i18n/locales/')
 }
 
 export const isFixSubject = (s) => FIX_SUBJECT.test(String(s || '').trim())
@@ -212,6 +226,43 @@ export function evaluate(history, afterIndex, nowMs, rel, nsCtx) {
   return { path: file, dir, file: f, dirCounts: d, hot: reasons.length > 0, reasons }
 }
 
+/** 单位（登记条目 / 概念）在 history[afterIndex+1..] 里、自己的窗口内被 fix / revert-fix 碰了几次。 */
+export function tallyUnit(history, afterIndex, nowMs, unit) {
+  const cutoff = nowMs - unit.windowDays * 86400000
+  let fixes = 0
+  let reverts = 0
+  const fixFiles = new Set()
+  for (let i = afterIndex + 1; i < history.length; i++) {
+    const c = history[i]
+    if (c.ms < cutoff) continue
+    const mine = c.files.filter((f) => unitMatches(unit, f))
+    if (!mine.length) continue
+    if (isFixSubject(c.subject)) { fixes++; for (const f of mine) if (isUnitSource(f)) fixFiles.add(f) }
+    else if (isRevertOfFix(c.subject)) reverts++
+  }
+  return { fixes, reverts, fixFiles: fixFiles.size }
+}
+
+/** 这一刀碰到的文件属于哪些单位，逐个单位判一次（一个提交碰到单位里几个文件也只算一票）。返回 hit 形状同 evaluate（path = 单位名）。 */
+export function evaluateUnits(history, afterIndex, nowMs, files, units) {
+  const hits = []
+  const mine = [...new Set(files.map(norm))].filter(isUnitSource)
+  for (const unit of units ?? []) {
+    if (!mine.some((f) => unitMatches(unit, f))) continue
+    const t = tallyUnit(history, afterIndex, nowMs, unit)
+    if (unit.maxFiles && t.fixFiles > unit.maxFiles) continue
+    const reasons = []
+    if (t.fixes >= unit.prior) {
+      reasons.push(unit.kind === 'self-written'
+        ? `状态 ${unit.status}，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个——先评估接入现成方案（P0）；要继续补，必须在复盘里写清为什么现在换不了、哪天换`
+        : `含 ${unit.patterns.length} 个文件，近 ${unit.windowDays} 天已有 ${t.fixes} 个 fix，这一刀是第 ${t.fixes + 1} 个`)
+    }
+    if (t.reverts >= 1) reasons.push(`近 ${unit.windowDays} 天出现过 ${t.reverts} 次 revert fix`)
+    if (reasons.length) hits.push({ path: unit.label, unit: { kind: unit.kind, id: unit.id }, reasons, hot: true })
+  }
+  return hits
+}
+
 /** 兼容旧调用：文件近 N 天 fix 数。 */
 export function countRecentFixes(root, rel, opts = {}) {
   const file = norm(rel)
@@ -222,24 +273,35 @@ export function countRecentFixes(root, rel, opts = {}) {
 export function churnFor(root, rel, opts = {}) {
   const file = norm(rel)
   const dir = path.posix.dirname(file)
-  return evaluate(loadHistory(root, { ...opts, pathspecs: [dir === '.' ? file : dir] }), -1, Date.now(), file, makeNsCtx(root, opts.git))
+  const hit = evaluate(loadHistory(root, { ...opts, pathspecs: [dir === '.' ? file : dir] }), -1, Date.now(), file, makeNsCtx(root, opts.git))
+  const units = opts.units ?? loadUnits(root)
+  if (!units.some((u) => unitMatches(u, file))) return hit
+  const unitHits = evaluateUnits(loadHistory(root, { ...opts, days: SELF_WRITTEN_WINDOW_DAYS }), -1, Date.now(), [file], units)
+  return unitHits.length ? { ...hit, hot: true, reasons: [...hit.reasons, ...unitHits.flatMap((h) => h.reasons)] } : hit
 }
 
 /** 批量：只看 src/ electron/ 的源码（测试、生成物、文档不算）；只读一遍日志。 */
 export function findHotspots(root, paths, opts = {}) {
-  const files = [...new Set(paths.map(norm))].filter(isWatchedSource)
-  if (!files.length) return []
+  const all = [...new Set(paths.map(norm))]
+  const files = all.filter(isWatchedSource)
+  // 单位（登记条目 / 概念）：只有这一刀碰到了某个单位的文件，才多读一遍 30 天的全仓日志
+  const units = (opts.units ?? loadUnits(root)).filter((u) => all.some((f) => isUnitSource(f) && unitMatches(u, f)))
+  const unitHits = units.length ? evaluateUnits(loadHistory(root, { ...opts, days: SELF_WRITTEN_WINDOW_DAYS }), -1, Date.now(), all, units) : []
+  if (!files.length) return unitHits
   const dirs = [...new Set(files.map((f) => path.posix.dirname(f)))]
   const history = loadHistory(root, { ...opts, pathspecs: dirs })
   const now = Date.now()
   const nsCtx = makeNsCtx(root, opts.git)
   if (opts.touched) for (const [f, set] of opts.touched) nsCtx.touched.set(f, set)
-  return files.map((f) => evaluate(history, -1, now, f, nsCtx)).filter((e) => e.hot)
+  return [...files.map((f) => evaluate(history, -1, now, f, nsCtx)).filter((e) => e.hot), ...unitHits]
 }
 
 export const directionMessage = (hits) => [
   '【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：',
   ...hits.flatMap((h) => h.reasons.map((r) => `  · ${h.path}：${r}`)),
+  ...(hits.some((h) => h.unit?.kind === 'self-written')
+    ? ['自写通用能力连修第 2 次：复盘 §5 / §6 第一个选项是「接入现成方案」（写清哪个库或标准、给出处）；只要成熟方案存在，推荐项默认是接入，除非有领域约束。复盘文档里要写出该登记条目的 id。']
+    : []),
   '动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板；复盘前先写特征测试钉住现状。',
   `提交 fix 时在信息里加一行 \`${TRAILER_KEY}: <复盘文档路径>\`（git commit-msg 会校验）。`,
 ].join('\n')
@@ -256,17 +318,18 @@ export function parseDirectionTrailer(message) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────────────────
-export function rangeReport(root, range, git = defaultGit) {
+export function rangeReport(root, range, git = defaultGit, units = loadUnits(root)) {
   const inRange = new Set(git(root, ['log', '--no-merges', '--format=%H', range]).split('\n').filter(Boolean))
   if (!inRange.size) return []
   const head = range.includes('..') ? range.split('..')[1] || 'HEAD' : 'HEAD'
   const oldest = Math.min(...[...inRange].map((sha) => Date.parse(git(root, ['log', '-1', '--format=%cI', sha]).trim())))
-  const history = loadHistory(root, { ref: head, since: new Date(oldest - FIX_WINDOW_DAYS * 86400000).toISOString(), git })
+  const history = loadHistory(root, { ref: head, since: new Date(oldest - SELF_WRITTEN_WINDOW_DAYS * 86400000).toISOString(), git })
   const rows = []
   const nsCtx = makeNsCtx(root, git)
   history.forEach((c, idx) => {
     if (!inRange.has(c.sha) || !isFixSubject(c.subject)) return
     const hits = [...new Set(c.files)].filter(isWatchedSource).map((f) => evaluate(history, idx, c.ms, f, nsCtx)).filter((e) => e.hot)
+    hits.push(...evaluateUnits(history, idx, c.ms, c.files, units))
     if (!hits.length) return
     const trailer = parseDirectionTrailer(git(root, ['log', '-1', '--format=%B', c.sha]))
     let docOk = false

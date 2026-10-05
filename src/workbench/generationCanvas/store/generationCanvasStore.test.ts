@@ -411,12 +411,26 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(created).toBeTruthy()
 
     useGenerationCanvasStore.getState().renameGroup(created?.id || '', 'Board B')
-    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', '#ffcc00')
+    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', 'amber')
 
     const groupState = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)
     expect(groupState?.categoryId).toBe('shots')
     expect(groupState?.name).toBe('Board B')
-    expect(groupState?.color).toBe('#ffcc00')
+    expect(groupState?.color).toBe('amber')
+  })
+
+  it('arranges group members through one store action and keeps the frame around them', () => {
+    const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'a', categoryId: 'shots', exactPosition: true, position: { x: 400, y: 300 } })
+    const second = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'b', categoryId: 'shots', exactPosition: true, position: { x: 40, y: 40 } })
+    const group = useGenerationCanvasStore.getState().createGroup('shots', 'Arrange me', { nodeIds: [first.id, second.id] })
+    expect(group).toBeTruthy()
+
+    useGenerationCanvasStore.getState().arrangeGroup(group!.id, 'horizontal')
+
+    const state = useGenerationCanvasStore.getState()
+    const positions = state.nodes.filter((node) => group!.nodeIds.includes(node.id)).map((node) => node.position.x).sort((a, b) => a - b)
+    expect(positions[1]).toBeGreaterThan(positions[0])
+    expect(state.groups.find((candidate) => candidate.id === group!.id)?.frameBounds).toBeTruthy()
   })
 
   it('P4 S5: createGroup 带 materializationOperationId 章 + 明确成员 id（分镜组落地用）', () => {

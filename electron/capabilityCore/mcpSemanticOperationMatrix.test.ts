@@ -171,7 +171,7 @@ function makeClient(
       params: {
         protocolVersion: '2025-11-25',
         capabilities: { elicitation: {} },
-        clientInfo: { name: 'Codex semantic matrix' },
+        clientInfo: { name: 'Codex semantic matrix', version: '1' },
       },
     })
     return response

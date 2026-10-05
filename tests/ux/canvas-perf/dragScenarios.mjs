@@ -393,7 +393,7 @@ export async function marqueeSelectFirstNodes(page, count) {
   const boxes = await page.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node'))
     .map((element) => {
       const rect = element.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+      return { id: element.getAttribute('data-id'), x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     })
     .sort((a, b) => (a.y - b.y) || (a.x - b.x)))
   // 小规模（scale S/M）或窗口被夹小时挂不满 60 个。这时**降量但如实报**，不静默按 60 记账：
@@ -405,7 +405,21 @@ export async function marqueeSelectFirstNodes(page, count) {
   }
   const target = boxes[realized - 1]
   await marqueeRect(page, { toY: target.y + target.h * 0.55 })
-  return { requested: count, realized, selected: await selectedNodeCount(page) }
+  let selected = await selectedNodeCount(page)
+  // At very low zoom the marquee can clip the final row even though all target cards
+  // are mounted. Complete the same user selection with Shift-clicks so the metric is
+  // really N selected nodes, rather than a rectangle that happened to catch fewer.
+  if (selected < realized) {
+    const selectedIds = new Set(await page.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node.selected')).map((element) => element.getAttribute('data-id'))))
+    await page.keyboard.down('Shift')
+    for (const box of boxes.slice(0, realized)) {
+      if (box.id && selectedIds.has(box.id)) continue
+      await page.mouse.click(box.x + box.w / 2, box.y + box.h / 2)
+    }
+    await page.keyboard.up('Shift')
+    selected = await selectedNodeCount(page)
+  }
+  return { requested: count, realized, selected }
 }
 
 /** 把已选中的一批卡建成组（Cmd/Ctrl+G），返回画布上组框的个数。 */
@@ -474,7 +488,7 @@ async function groupFrameGrabPoint(page) {
       for (let x = rect.left + 3; x <= rect.right - 3; x += step) {
         if (x < area.minX || x > area.maxX || y < area.minY || y > area.maxY) continue
         const hit = document.elementFromPoint(Math.round(x), Math.round(y))
-        if (hit === frame) return { x: Math.round(x), y: Math.round(y), via: 'group-box' }
+        if (hit?.closest?.('[data-group-id]') === frame && !hit?.closest?.('[data-node-id]')) return { x: Math.round(x), y: Math.round(y), via: 'group-box' }
         const key = hit ? `${hit.tagName}.${String(hit.className).slice(0, 40)}` : 'nothing'
         blockers.set(key, (blockers.get(key) || 0) + 1)
       }
@@ -520,7 +534,7 @@ export async function runDragSelectionAll(page) {
 
 /**
  * drag-group-frame-60：抓**组框本体**（不是卡、不是选区罩子）拖同样的整圆。
- * 这条走的是我们手搓的 window pointermove + rAF，每帧替换整个 Zustand nodes 数组。
+ * 这条走的是 window pointermove + rAF 的视觉 shell 预览，松手时才一次性写回 Zustand。
  */
 export async function runDragGroupFrame(page, grouped = null) {
   const grab = await groupFrameGrabPoint(page)

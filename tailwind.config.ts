@@ -121,6 +121,12 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // outline:auto（用户设了橙/黄就冒橙环）。全局 :root → portal 到 body 的面板也生效。
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 42%, transparent)',
       '--nomi-track-text': 'var(--nomi-accent)',
+      '--nomi-group-ocean': 'oklch(0.55 0.13 250)',
+      '--nomi-group-teal': 'oklch(0.58 0.12 174)',
+      '--nomi-group-amber': 'oklch(0.68 0.14 75)',
+      '--nomi-group-coral': 'oklch(0.59 0.14 25)',
+      '--nomi-group-violet': 'oklch(0.57 0.13 300)',
+      '--nomi-group-rose': 'oklch(0.60 0.13 350)',
       '--nomi-track-image': 'oklch(0.7 0.13 200)',
       '--nomi-track-video': 'oklch(0.65 0.13 150)',
       '--nomi-snap': 'oklch(0.72 0.18 30)',
@@ -371,6 +377,12 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 50%, transparent)',
       // 时间轴三轨：暗底提亮以保持可辨（fork 未覆盖，本次补）。
       '--nomi-track-text': 'oklch(0.75 0.15 305)',
+      '--nomi-group-ocean': 'oklch(0.70 0.13 250)',
+      '--nomi-group-teal': 'oklch(0.72 0.12 174)',
+      '--nomi-group-amber': 'oklch(0.78 0.14 75)',
+      '--nomi-group-coral': 'oklch(0.72 0.14 25)',
+      '--nomi-group-violet': 'oklch(0.70 0.13 300)',
+      '--nomi-group-rose': 'oklch(0.73 0.13 350)',
       '--nomi-track-image': 'oklch(0.72 0.13 200)',
       '--nomi-track-video': 'oklch(0.70 0.13 150)',
       '--nomi-snap': 'oklch(0.78 0.18 30)',
@@ -764,6 +776,12 @@ export default {
           'info-ink': tokenColor('--nomi-info-ink'),
           'info-soft': tokenColor('--nomi-info-soft'),
           'info-edge': tokenColor('--nomi-info-edge'),
+          'group-ocean': tokenColor('--nomi-group-ocean'),
+          'group-teal': tokenColor('--nomi-group-teal'),
+          'group-amber': tokenColor('--nomi-group-amber'),
+          'group-coral': tokenColor('--nomi-group-coral'),
+          'group-violet': tokenColor('--nomi-group-violet'),
+          'group-rose': tokenColor('--nomi-group-rose'),
           // 时间轴三轨语义色。变量早在上方 addBase，但一直没映射进 theme —— `bg-nomi-track-video` 静默无
           // 底色，另两处只能退回 `bg-[var(--nomi-track-video)]` 任意值逃生口。补映射后两者一起收口。
           'track-text': tokenColor('--nomi-track-text'),

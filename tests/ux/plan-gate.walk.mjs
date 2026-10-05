@@ -92,7 +92,7 @@ try {
   // 起服务（等它探到运行中的 GUI）。
   let init = null
   for (let i = 0; i < 20 && !init; i++) {
-    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {} }, 4000) } catch { await sleep(1000) }
+    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'plan-gate-walk', version: '1.0' } }, 4000) } catch { await sleep(1000) }
   }
   ok(init?.result, 'stdio MCP 服务起来了（探到运行中的 GUI）')
 

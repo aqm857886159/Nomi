@@ -5,7 +5,7 @@ import type { TaskRequest } from "./runtime";
 describe("RuntimeTask execution binding", () => {
   it("carries the same provider-neutral binding regardless of task mode", () => {
     const request: TaskRequest = {
-      kind: "image",
+      kind: "text_to_image",
       prompt: "a red fox",
       extras: {
         mode: "image-to-image",
@@ -27,4 +27,3 @@ describe("RuntimeTask execution binding", () => {
     expect(request.extras?.executionBinding).toMatchObject({ runId: "run-1", contractHash: "a".repeat(64) });
   });
 });
-

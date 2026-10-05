@@ -87,7 +87,7 @@ afterEach(() => {
 describe('nomi-mcp · 技能库经 resources + prompts 暴露（渐进披露）', () => {
   it('initialize 广告 tools + resources + prompts 能力', async () => {
     harness = new SkillsHarness()
-    const res = await harness.call(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {} })
+    const res = await harness.call(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'skills-test', version: '1' } })
     const caps = (res.result as { capabilities?: Record<string, unknown> }).capabilities || {}
     expect(caps).toHaveProperty('tools')
     expect(caps).toHaveProperty('resources')

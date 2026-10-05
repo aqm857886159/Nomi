@@ -11,6 +11,7 @@ import { nodeGroupSchema } from '../model/generationCanvasSchema'
 import { isLegacyScene3DNode, migrateScene3DNode } from '../nodes/director/migration/migrateScene3dNode'
 import { backfillGroupFrameBounds } from '../model/canvasFrameBounds'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import { DEFAULT_GROUP_COLOR, normalizeGroupColor } from '../model/groupColor'
 import { isCategoryId } from './canvasGuards'
 import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefaults'
 import type {
@@ -150,6 +151,7 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         if (!parsed.success) return []
         return [{
           ...parsed.data,
+          color: normalizeGroupColor(parsed.data.color ?? DEFAULT_GROUP_COLOR),
           nodeIds: Array.from(new Set(parsed.data.nodeIds.filter((id) => nodeIds.has(id)))),
         }]
       })

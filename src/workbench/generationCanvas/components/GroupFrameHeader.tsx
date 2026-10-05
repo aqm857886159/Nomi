@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { IconDots, IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import type { GroupColorStyle } from '../model/groupColor'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -34,6 +35,7 @@ type GroupFrameHeaderProps = {
   onDescribe: (groupId: string, description: string) => void
   onCollapse?: (groupId: string) => void
   onOpenMenu?: (groupId: string, point: { x: number; y: number }) => void
+  colorStyle?: GroupColorStyle
 }
 
 /** 提交 = 失焦或回车；Esc 放弃。三条都要有，缺 Esc 的输入框会把人困在里面。 */
@@ -79,6 +81,7 @@ export function GroupFrameHeader({
   onDescribe,
   onCollapse,
   onOpenMenu,
+  colorStyle,
 }: GroupFrameHeaderProps): JSX.Element {
   const { t } = useTranslation()
   const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
@@ -143,10 +146,11 @@ export function GroupFrameHeader({
         GROUP_VISUAL_CLASS.label,
         connectable ? 'cursor-copy' : readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
+      style={{ borderColor: colorStyle?.borderColor }}
       // 编辑中不许把头部当拖动把手——否则点进输入框的那一下就把整个框拖走了。
       onPointerDown={editingField ? (event) => event.stopPropagation() : undefined}
     >
-      <span className={cn('size-2 shrink-0 rounded-full border', GROUP_VISUAL_CLASS.marker)} aria-hidden="true" />
+      <span className={cn('size-2 shrink-0 rounded-full border', GROUP_VISUAL_CLASS.marker)} style={{ borderColor: colorStyle?.borderColor, backgroundColor: colorStyle?.markerColor }} aria-hidden="true" />
       {editingField === 'name' ? (
         <input
           autoFocus

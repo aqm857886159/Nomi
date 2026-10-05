@@ -209,7 +209,7 @@ export type NodeGroup = {
   name: string
   categoryId: CategoryId
   nodeIds: string[]
-  /** @deprecated Kept only for persisted-project compatibility; group chrome is design-system neutral. */
+  /** Persisted semantic group color id. Legacy hex values are normalized at render time. */
   color?: string
   /**
    * 框（Frame）的边界——**用户画出来的那个矩形**，2026-09-06 起是真相之一。

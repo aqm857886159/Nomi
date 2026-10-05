@@ -24,6 +24,9 @@ import type { CanvasFrameInteraction } from '../components/GroupFrame'
 import type { CanvasFrameRect } from '../model/canvasFrameBounds'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { getSelectedBounds } from '../components/generationCanvasGeometry'
+import type { GroupArrangeMode } from '../model/groupArrange'
+import type { NodeGroup } from '../model/generationCanvasTypes'
+import type { GroupColorId } from '../model/groupColor'
 import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { canvasViewportFromFlow, isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
@@ -70,7 +73,11 @@ type GenerationCanvasReactFlowViewportProps = {
   /** 框工具就绪：这次拖动归画框，声明式地把平移与节点拖动让给它（R29 §6.2）。 */
   frameToolArmed?: boolean
   collapsedGroupCards: readonly CollapsedGroupCardProjection[]
-  onGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string, options?: { selectMembers?: boolean }) => void
+  onGroupFramePointerDown: (
+    event: React.PointerEvent<HTMLDivElement>,
+    groupId: string,
+    options?: { selectMembers?: boolean },
+  ) => void
   pendingConnection: boolean
   pendingConnectionSourceKind: 'node' | 'group'
   pendingConnectionSide: ConnectionAnchorSide
@@ -87,6 +94,20 @@ type GenerationCanvasReactFlowViewportProps = {
   onSaveWorkflow: () => void
   onClearSelection: () => void
   isNodeDragging: boolean
+  groupToolbar?: {
+    group: NodeGroup
+    memberCount: number
+    canGenerate: boolean
+    canSendToTimeline: boolean
+    canDownload: boolean
+    onGenerate: () => void
+    onSendToTimeline: () => void
+    onDissolve: () => void
+    onArrange: (mode: GroupArrangeMode) => void
+    onColor: (color: GroupColorId) => void
+    onDownload: () => void
+    onClearSelection: () => void
+  }
 }
 
 function CanvasNodeProjectionSync({
@@ -155,6 +176,7 @@ export function GenerationCanvasReactFlowViewport({
   onSaveWorkflow,
   onClearSelection,
   isNodeDragging,
+  groupToolbar,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
   // 这次视口手势**属于哪个分类**（在 moveStart 那一刻钉住）。
   //
@@ -166,11 +188,14 @@ export function GenerationCanvasReactFlowViewport({
   // 那就记住分类本身，而不是整段不记。moveStart 缺席（例如 fitView 的过渡）时回落到当前分类。
   const viewportGestureCategoryRef = React.useRef<string | null>(null)
   const viewportLeaseRef = React.useRef<CanvasDragLease | null>(null)
-  React.useEffect(() => () => {
-    viewportLeaseRef.current?.release()
-    viewportLeaseRef.current = null
-    canvasPanMovedRef.current = false
-  }, [activeCategoryId, canvasPanMovedRef, readOnly])
+  React.useEffect(
+    () => () => {
+      viewportLeaseRef.current?.release()
+      viewportLeaseRef.current = null
+      canvasPanMovedRef.current = false
+    },
+    [activeCategoryId, canvasPanMovedRef, readOnly],
+  )
   // 「画布手势」设置（#832）订阅式读：设置页改完，这块画布当场换语义，不用重开。
   // 翻译成内核开关的那一步住在 canvasViewportGestureProps（真值表仍归 resolveWheelIntent）。
   const wheelGestures = canvasWheelGestureProps(useCanvasGestureScheme())
@@ -250,10 +275,12 @@ export function GenerationCanvasReactFlowViewport({
       }}
       onMove={() => {
         if (!canvasPanMovedRef.current) return
-        viewportLeaseRef.current ??= beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowViewport, { onCancel: () => {
-          viewportLeaseRef.current = null
-          canvasPanMovedRef.current = false
-        } })
+        viewportLeaseRef.current ??= beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowViewport, {
+          onCancel: () => {
+            viewportLeaseRef.current = null
+            canvasPanMovedRef.current = false
+          },
+        })
       }}
       onMoveEnd={(event, nextViewport) => {
         // 无条件释放这张租约（`release()` 幂等，没升起时是空操作）。不许按 `canvasPanMovedRef` 判断要不要释放：
@@ -282,7 +309,10 @@ export function GenerationCanvasReactFlowViewport({
         }
         setLiveViewport(nextViewport)
         // 记到**这次手势开始时那个分类**头上：被中断、或收尾正好落在切分类之后，都不许写到别人账上。
-        rememberCategoryViewport(viewportGestureCategoryRef.current ?? activeCategoryId, canvasViewportFromFlow(nextViewport))
+        rememberCategoryViewport(
+          viewportGestureCategoryRef.current ?? activeCategoryId,
+          canvasViewportFromFlow(nextViewport),
+        )
         viewportGestureCategoryRef.current = null
       }}
       proOptions={{ hideAttribution: true }}
@@ -301,9 +331,10 @@ export function GenerationCanvasReactFlowViewport({
           pendingConnectionSide={pendingConnectionSide}
           onConnectToGroup={onConnectToGroup}
           onSetCollapsed={onSetGroupCollapsed}
+          toolbar={groupToolbar}
         />
       </ViewportPortal>
-      {selectionToolbarPlacement && selectedNodeIds.length > 1 && !readOnly ? (
+      {selectionToolbarPlacement && selectedNodeIds.length > 1 && selectedGroupIds.length === 0 && !readOnly ? (
         <CanvasSelectionToolbar
           selectedCount={selectedNodeIds.length}
           selectedGroupCount={selectedGroupIds.length}

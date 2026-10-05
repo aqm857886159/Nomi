@@ -1,0 +1,24 @@
+file://~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/_launchApp.mjs:442
+      throw new Error(diagnoseLaunchFailure(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
+            ^
+
+Error: 
+❌ Nomi 走查启动失败（director-electron）：等了 60000ms 没等到窗口
+
+按可能性排查：
+  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，
+     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。
+  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。
+  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；
+     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。
+
+（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）
+
+原始错误：electronApplication.firstWindow: Target page, context or browser has been closed
+    at launchNomiApp (file://~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/_launchApp.mjs:442:13)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:453:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+    at async file://~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/director-electron.walk.mjs:68:22
+
+Node.js v22.22.0

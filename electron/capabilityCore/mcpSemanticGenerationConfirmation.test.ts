@@ -210,7 +210,7 @@ describe("semantic MCP one-confirmation journey", () => {
       return next();
     };
 
-    await call(1, "initialize", { capabilities: { elicitation: {} }, clientInfo: { name: "Codex" } });
+    await call(1, "initialize", { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Codex", version: "1" } });
     const created = await call(2, "tools/call", { name: "nomi_operation_plan", arguments: { leaseHandle: lease, candidate: candidate() } });
     expect(created.result).toBeTruthy();
     const operationId = createdOperationId;

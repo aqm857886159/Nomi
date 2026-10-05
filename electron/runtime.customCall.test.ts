@@ -95,7 +95,7 @@ return 'data:image/png;base64,eA=='`,
     });
     expect(result.status).toBe("succeeded");
     expect(result.assets[0]?.url).toContain("data:image/png");
-    expect(result.provenance?.model?.modelKey ?? "cc-model").toBeTruthy();
+    expect(result.provenance?.modelKey ?? "cc-model").toBeTruthy();
   });
 
   it("文本脚本返回 { text }：不伪装成资产，raw 形状与文本主路径一致", async () => {

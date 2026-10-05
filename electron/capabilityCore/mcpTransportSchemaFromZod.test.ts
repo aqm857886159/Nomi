@@ -2,11 +2,30 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { CANVAS_WRITE_OPERATIONS, CANVAS_NODE_PROMPT_GUIDELINES, canvasWriteSemanticInputSchema, plannedNodeSchema } from "../shared/agentCapabilities/canvasWrite";
-import { findUnsupportedSchemaFeatures, validateToolArguments } from "./mcpArgValidation";
+import { validateToolArguments } from "./mcpProtocol";
 import { modelFacingToolSpecs } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
-import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
+import { findUnsupportedSchemaFeatures, transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
+
+describe("published keyword subset", () => {
+  it("reports keywords and types outside the published subset", () => {
+    expect(findUnsupportedSchemaFeatures(null)).toEqual([]);
+    expect(findUnsupportedSchemaFeatures("invalid")).toEqual([]);
+    expect(findUnsupportedSchemaFeatures([])).toEqual([]);
+    expect(findUnsupportedSchemaFeatures({ unknown: true })).toEqual(['<root>: 不支持的关键字 "unknown"']);
+    expect(findUnsupportedSchemaFeatures({ properties: { nested: { unknown: true } } })).toEqual(['nested: 不支持的关键字 "unknown"']);
+    expect(findUnsupportedSchemaFeatures({ type: "unsupported" })).toEqual(['<root>: 不支持的 type "unsupported"']);
+    expect(findUnsupportedSchemaFeatures({ type: 123 })).toEqual([]);
+    expect(findUnsupportedSchemaFeatures({ type: "object", properties: null, items: null })).toEqual([]);
+    expect(findUnsupportedSchemaFeatures({ properties: { nested: { type: "string" } }, items: { type: "string" } })).toEqual([]);
+  });
+
+  it("keeps the entire published catalog inside the subset", () => {
+    const unsupported = MCP_TOOL_RESOLVER.list().flatMap((tool) => findUnsupportedSchemaFeatures(tool.inputSchema).map((issue) => `${tool.name}: ${issue}`));
+    expect(unsupported).toEqual([]);
+  });
+});
 
 describe("transportSchemaFromZod", () => {
   it("flattens a discriminated union into a property superset with an intersected required list", () => {

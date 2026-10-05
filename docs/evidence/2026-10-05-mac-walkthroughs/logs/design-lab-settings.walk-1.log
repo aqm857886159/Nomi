@@ -1,0 +1,28 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2037ms.
+▶ 启动 vite dev server…
+  ✓ privacy-01-idle                    516×480  隐私与诊断 · 默认（遥测关 · 未导出）
+  ✓ privacy-02-exporting               516×480  正在打包（按钮禁用 · 文案换成「正在打包…」）
+  ✓ privacy-03-saved                   516×480  导出成功 · 结果行报条目数与体积
+  ✓ privacy-04-failed                  516×480  导出失败 · 结果行说人话并请再试
+  ✗ assisted-01-idle 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-01-idle                   516×285  用 AI 帮我接入 · 默认（Claude Code 已连上）
+  ✗ assisted-02-not-connected 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-02-not-connected          516×287  还没连上这家 · 一行状态 + 去连接（卡上没有第二颗「一键接入」）
+  ✗ assisted-03-progress 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-03-progress               516×439  外部 Agent 正在接 · 五步进度（stage=certifying）
+  ✗ assisted-04-failed 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-04-failed                 516×512  没有接进来 · 原始错误码 + Key 不丢（不复用「进行中」的壳）
+  ✗ assisted-05-idle-dark 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-05-idle-dark              516×285  用 AI 帮我接入 · 默认 · 暗
+  ✗ assisted-06-failed-dark 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证
+  ✓ assisted-06-failed-dark            516×512  没有接进来 · 暗
+
+▶ 接触表：~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/shots/design-lab-settings/_contact-sheet.png
+
+❌ 设计实验室走查失败 6 条
+RC=1

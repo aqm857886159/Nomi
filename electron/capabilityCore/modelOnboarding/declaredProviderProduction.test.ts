@@ -92,7 +92,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
 
   async function mcp(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { MCP_TOOL_RESOLVER } = await import("../mcpToolCatalog");
-    const { validateToolArguments } = await import("../mcpArgValidation");
+    const { validateToolArguments } = await import("../mcpProtocol");
     const { dispatch } = await import("../dispatcher");
     const { runTask } = await import("../../runtime");
     const tool = MCP_TOOL_RESOLVER.resolve(name)!;

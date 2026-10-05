@@ -116,7 +116,7 @@ describe("analyzeComfyWorkflow", () => {
     expect(a.suggested.promptNodeId).toBe("6"); // node3.positive → ["6",0]
     expect(a.suggested.firstFrameNodeId).toBeUndefined();
     expect(a.suggested.outputKind).toBe("image");
-    expect(a.suggested.numeric.map((n) => n.inputKey)).toEqual(expect.arrayContaining(["seed", "steps", "cfg", "width", "height"]));
+    expect(a.suggested.numeric!.map((n) => n.inputKey)).toEqual(expect.arrayContaining(["seed", "steps", "cfg", "width", "height"]));
   });
   it("WAN 图生视频：识别首帧(LoadImage 1)、正向提示词(2)、视频输出(VHS 10)", () => {
     const a = analyzeComfyWorkflow(WAN_I2V);
@@ -125,7 +125,7 @@ describe("analyzeComfyWorkflow", () => {
     expect(a.suggested.promptNodeId).toBe("2");
     expect(a.suggested.outputNodeId).toBe("10");
     expect(a.suggested.outputKind).toBe("video");
-    expect(a.suggested.numeric.map((n) => n.inputKey)).toEqual(expect.arrayContaining(["seed", "length", "frame_rate"]));
+    expect(a.suggested.numeric!.map((n) => n.inputKey)).toEqual(expect.arrayContaining(["seed", "length", "frame_rate"]));
   });
   it("Krea2：沿 positive 的 CLIPTextEncode.text 连线追到用户输入 PrimitiveStringMultiline.value", () => {
     const a = analyzeComfyWorkflow(KREA2_LINKED_PROMPT);
@@ -148,7 +148,7 @@ describe("analyzeComfyWorkflow", () => {
   it("LTX 常量节点：把 WIDTH/HEIGHT/FPS/seconds 暴露为可手动选择的 widget 输入", () => {
     const a = analyzeComfyWorkflow(LTX_CONSTANT_PARAMS);
     expect(a.widgetInputs.map((n) => `${n.nodeId}.${n.inputKey}`)).toEqual(expect.arrayContaining(["292.value", "293.value", "285.value", "291.value"]));
-    expect(a.suggested.numeric.map((n) => `${n.nodeId}.${n.inputKey}`)).not.toEqual(expect.arrayContaining(["292.value", "293.value", "285.value", "291.value"]));
+    expect(a.suggested.numeric!.map((n) => `${n.nodeId}.${n.inputKey}`)).not.toEqual(expect.arrayContaining(["292.value", "293.value", "285.value", "291.value"]));
   });
 });
 

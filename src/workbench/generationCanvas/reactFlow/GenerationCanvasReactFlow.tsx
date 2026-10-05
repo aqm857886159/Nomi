@@ -29,6 +29,7 @@ import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, unionCanvasFitBounds } from '../model
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
 import { useCanvasGroupActions } from '../components/useCanvasGroupActions'
+import { useCanvasGroupToolbar } from '../components/useCanvasGroupToolbar'
 import { measuredRectFromInternalNode } from './canvasMeasuredNodeRect'
 import { useCanvasPastePlacement } from './useCanvasPastePlacement'
 import { CANVAS_RESULT_DRAG_MIME } from '../components/canvasResultDrag'
@@ -218,14 +219,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     return overlayCanvasDragDraft(flowNodes, dragDraftNodesRef.current)
   }, [flowNodes])
   const pendingConnectionSourceKind = useGenerationCanvasStore((state) => state.pendingConnectionSourceKind)
-  const selectedGroupIds = React.useMemo(() => {
-    return visibleGroups
-      .filter((group) => {
-        const memberIds = group.nodeIds.filter((nodeId) => nodeById.has(nodeId))
-        return memberIds.length > 0 && memberIds.every((nodeId) => selectedSet.has(nodeId))
-      })
-      .map((group) => group.id)
-  }, [nodeById, selectedSet, visibleGroups])
+  const selectedGroupIds = React.useMemo(() => selectedGroupId ? [selectedGroupId] : [], [selectedGroupId])
   const selectedBounds = React.useMemo(() => getSelectedBounds(nodes, selectedNodeIds), [nodes, selectedNodeIds])
   const viewport = React.useMemo(
     () => flowViewportFromCanvas(categoryViewports[activeCategoryId] || { zoom: 1, offset: { x: 0, y: 0 } }),
@@ -441,6 +435,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
+  const selectedGroup = React.useMemo(() => visibleGroups.find((group) => group.id === selectedGroupId) ?? null, [selectedGroupId, visibleGroups])
+  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, readOnly, eligibleCount: production.eligibleIds.length, runFrameAction: frameActions.runFrameAction })
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
     membershipPreview: frameMembership.membershipPreview,
     editingGroupId: frameActions.editingFrameId,
@@ -448,16 +444,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onRename: renameGroup,
     onDescribe: setGroupDescription,
     onOpenMenu: frameActions.openFrameMenu,
-    selectedGroupId: frameActions.selectedFrameId,
-  }), [
-    frameActions.selectedFrameId,
-    frameActions.editingFrameId,
-    frameActions.openFrameMenu,
-    frameActions.setEditingFrameId,
-    frameMembership.membershipPreview,
-    renameGroup,
-    setGroupDescription,
-  ])
+    // Both complete-member and empty/collapsed selection must drive the same frame chrome.
+    selectedGroupId,
+  }), [frameActions.selectedFrameId, selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
 
   const batchDock = useCanvasBatchDockVisibility({
     readOnly,
@@ -548,8 +537,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     const state = useGenerationCanvasStore.getState()
     const draggedIds = originalIds.map((id) => duplicateDragIdsRef.current.get(id) ?? id)
     if (duplicateDragIdsRef.current.size) {
-      // Keep the existing collapsed-group projection. RF retains the original drag
-      // identities for this gesture; only its position changes are mapped to copies.
       dragDraftNodesRef.current = [
         ...flowNodes.map((node) => node.selected ? { ...node, selected: false, data: { ...node.data, primarySelection: false } } : node),
         ...state.nodes.filter((node) => draggedIds.includes(node.id))
@@ -743,6 +730,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onBuildContactSheet={handleBuildContactSheet}
         onSaveWorkflow={handleSaveWorkflow}
         onClearSelection={clearSelection}
+        groupToolbar={groupToolbar}
       />
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}

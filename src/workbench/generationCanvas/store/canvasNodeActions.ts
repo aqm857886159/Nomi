@@ -222,6 +222,28 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       emitCanvasGesture([{ type: 'canvas.node.moved', payload: { nodeId, position } }])
     }
   },
+  moveNodes: (updates, options) => {
+    const current = get()
+    const byId = new Map(updates.map((update) => [update.nodeId, update.position] as const))
+    const moved = current.nodes
+      .filter((node) => {
+        const position = byId.get(node.id)
+        return position && (position.x !== node.position.x || position.y !== node.position.y)
+      })
+      .map((node) => ({ nodeId: node.id, position: byId.get(node.id)! }))
+    if (!moved.length) return
+    set((state) => {
+      const positions = new Map(moved.map((update) => [update.nodeId, update.position] as const))
+      for (const node of state.nodes) {
+        const position = positions.get(node.id)
+        if (position) node.position = position
+      }
+      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
+    })
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture(moved.map(({ nodeId, position }) => ({ type: 'canvas.node.moved' as const, payload: { nodeId, position } })))
+    }
+  },
   moveSelectedNodes: (delta, options) => {
     set((state) => {
       const selected = new Set(state.selectedNodeIds)

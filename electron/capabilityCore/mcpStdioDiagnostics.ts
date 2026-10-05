@@ -10,5 +10,6 @@
 //
 // 这里刻意只放**名字**，不放格式化：两条路的行首前缀本就不同（logger 是 `[nomi:mcp]`，
 // 裸 Node 是 `[nomi-mcp]`），强行统一前缀等于让 logger 为一个调用点破例。
-export const MCP_OVERSIZED_LINE_EVENT = 'dropped-oversized-stdin-line'
+/** stdio 传输层出错（读缓冲超上限、对端发来不合规范的帧、写 stdout 失败）；读缓冲超限时 SDK 随即关连接。 */
+export const MCP_TRANSPORT_ERROR_EVENT = 'stdio-transport-error'
 export const MCP_CANCELLED_IN_FLIGHT_EVENT = 'cancelled-in-flight-on-disconnect'

@@ -750,7 +750,7 @@ describe("resolveAssetIngestionWithFallback (内容类型感知路由)", () => {
   it("image asset + apimart present → apimart still wins over litterbox", () => {
     const out = firstIngestion({ key: "apimart" }, [{ key: "apimart" }], keysOf("apimart"), "image");
     expect(out?.ingestion.strategy).toBe("upload-multipart");
-    expect(out?.ingestion.endpoint).toBe("https://api.apimart.ai/v1/uploads/images");
+    expect((out?.ingestion as Extract<AssetIngestion, { strategy: "upload-multipart" }>).endpoint).toBe("https://api.apimart.ai/v1/uploads/images");
     expect(out?.uploadApiKey).toBe("key-apimart");
   });
 

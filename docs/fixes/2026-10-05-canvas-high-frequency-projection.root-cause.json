@@ -1,0 +1,209 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-canvas-high-frequency-projection",
+  "problem_type": "High-frequency canvas position updates cross the React Flow projection and subscription boundary",
+  "symptom": "During real canvas dragging, React Flow edge-layer DOM mutations can scale with pointer moves because position changes are written to the domain store and fed back through a controlled nodes projection; related whole-graph selectors also invalidate readers that only need one node or a scalar.",
+  "direct_cause": "GenerationCanvasReactFlow.handleNodesChange calls the domain moveNodes action for every position change while React Flow receives nodes={flowNodes}; every tick therefore replaces the store nodes array and re-runs the canvas projection and React Flow reconciliation. Several mounted readers additionally subscribe to state.nodes/state.edges or allocate derived arrays in selectors.",
+  "class_root": "Transient interaction geometry, durable canvas state, graph edge projection, and per-node subscriptions do not have one enforced ownership boundary. A pointer sample must stay in the interaction kernel; durable store writes and graph projection updates must happen only at the shared commit boundary, while readers must subscribe to the smallest stable value they consume.",
+  "affected_population": [
+    "Creators dragging one or more generation canvas nodes",
+    "Projects with dense graph edges or many mounted canvas cards",
+    "macOS Electron canvas sessions; Windows, clean install, and provider-backed generation remain unverified"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowProjection.ts",
+    "src/workbench/generationCanvas/store/canvasNodeProjection.ts",
+    "src/workbench/generationCanvas/store/canvasNodeGenerationIndex.ts",
+    "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "tests/ux/canvas-perf/offCanvasRenderProbe.mjs"
+  ],
+  "entry_points": [
+    "React Flow onNodesChange during a node drag",
+    "React Flow controlled nodes/edges projection",
+    "Per-node Zustand selectors for graph relationships and generation readiness",
+    "Canvas performance MutationObserver and React commit probes"
+  ],
+  "external_sources": [
+    "@xyflow/react controlled node store and edge renderer"
+  ],
+  "internal_only_reason": "The performance invariant is Nomi's canvas ownership contract; the existing Electron walks and production store are the authoritative user path.",
+  "invariants": [
+    "A pointer-move position change does not write the durable canvas store or rebuild the graph projection.",
+    "Normal drag stop, cancel, blur, and lost-pointer paths have one shared writeback owner.",
+    "Position-only changes preserve edge structure and edge DOM identity.",
+    "A per-node reader never subscribes to the whole nodes/edges collection when a stable scalar or keyed projection is sufficient.",
+    "Performance evidence separates childList records, attribute records, React commits, long tasks, and actual component renders."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleNodesChange"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "symbol": "applyCanvasDragKernelPositionChanges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowProjection.ts",
+      "symbol": "useGenerationCanvasReactFlowProjection"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+      "symbol": "useMountedCards"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasNodeProjection.ts",
+      "symbol": "selectStableCanvasNodes"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "The framework boundary, drag draft, commit writeback, projection, relationship selectors, and stable off-canvas selector remain separate responsibilities; the fix makes their shared ownership explicit rather than hiding them behind one adapter."
+  },
+  "generality_proof": "Every canvas position gesture enters through React Flow onNodesChange and every mounted relationship reader consumes the same store collections. Fixing the kernel-to-store boundary and keyed selector boundary covers single-node, multi-node, dense-edge, and group-adjacent callers.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleNodesChange",
+      "responsibility": "Keep drag samples in the React Flow kernel and route only authorized keyboard/commit changes to the store."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "symbol": "applyCanvasDragKernelPositionChanges",
+      "responsibility": "Update only React Flow's transient nodeLookup geometry without replacing the durable node projection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop",
+      "responsibility": "Commit final dragged positions once and share normal/cancel/lost-pointer cleanup."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeProjection.ts",
+      "symbol": "selectStableCanvasNodes",
+      "responsibility": "Keep position-agnostic readers reference-stable across position-only store churn."
+    },
+    {
+      "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+      "symbol": "relationship selectors",
+      "responsibility": "Return stable scalar or cached relationship projections instead of allocating on every store notification."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "useGenerationCanvasStore selectors",
+      "disposition": "verified-safe-after-kernel-boundary",
+      "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "nodes/edges selectors",
+      "disposition": "verified-safe-after-kernel-boundary",
+      "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "entry_point": "nodes/edges selectors",
+      "disposition": "verified-safe-after-kernel-boundary",
+      "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "entry_point": "nodes selector",
+      "disposition": "verified-safe-after-kernel-boundary",
+      "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "entry_point": "selection/group frame pointer move",
+      "disposition": "fixed-shell-preview",
+      "evidence": "DOM shell translate during gesture; moveSelectedNodes/moveGroupNodes only run once at settle."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same leak can return through a new React Flow event handler, a new whole-graph selector, or a new derived array returned from a selector.",
+    "same_class_scan": [
+      "rg -n \"useGenerationCanvasStore.*state\\.(nodes|edges|groups)|state => state\\.(nodes|edges|groups)\" src/workbench/generationCanvas",
+      "rg -n 'setNodes|setEdges|moveNode|moveNodes' src/workbench/generationCanvas/reactFlow src/workbench/generationCanvas/store",
+      "node scripts/door-map.mjs handleNodesChange",
+      "node scripts/door-map.mjs selectStableCanvasNodes",
+      "rg -n 'scheduleSelectionMove|moveSelectedNodes|moveGroupNodes' src/workbench/generationCanvas/components"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "invariant": "Pointer-move geometry stays in React Flow's kernel; durable writes and graph projection changes happen only at the shared commit boundary.",
+    "failure_mode": "A future per-move store write or whole-graph selector causes edge-layer childList growth, commit amplification, or non-owner re-renders in the fixed benchmark.",
+    "exception_policy": "Keyboard moves and explicit non-drag edits may commit through their existing authorized path.",
+    "strategy": "Keep the existing kernel draft and projection sync helpers mounted, add mutation classification and selector regression tests, and gate the real Electron benchmark on edge childList and identity behavior.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/canvasDragDraft.test.ts",
+      "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.test.ts",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "tests/ux/canvas-perf/offCanvasRenderProbe.test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasDragDraft.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.test.ts",
+    "src/workbench/generationCanvas/store/canvasNodeProjection.test.ts",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "tests/ux/canvas-perf/offCanvasRenderProbe.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "tests/ux/selection-drag-lifecycle.test.mjs",
+    "tests/ux/grouping-optimization.walk.mjs",
+    "tests/ux/grouping-real-media.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The existing kernel draft and projection sync helpers are restored as the shared path; no persisted data path is removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is added or removed.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration. Existing node positions remain the durable source and are updated once at drag commit.",
+  "residual_risks": [
+    "React Flow internals may change across @xyflow/react upgrades; rerun the kernel ownership contract and real DOM identity benchmark after upgrades.",
+    "The current local benchmark is macOS arm64; Windows and clean-install evidence remain unverified.",
+    "Real media proof uses repository 1920x1080 H.264 fixture and real imported fixture assets; provider-backed generation and user-specific projects remain outside this receipt."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "tests": [
+      "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "src/workbench/generationCanvas/reactFlow/canvasDragDraft.test.ts"
+    ],
+    "why": "All pointer-move position changes enter this React Flow boundary before either the kernel or durable store can receive them."
+  }
+}

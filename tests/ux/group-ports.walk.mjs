@@ -7,8 +7,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
-import { findConnectionStartPoint } from './_canvasHit.mjs'
+import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { findConnectionStartPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -26,7 +26,7 @@ async function snap(win, name, clip) {
   // The pending connection state is intentionally captured while the pointer is down;
   // its preview line is interactive, so the generic quiescence guard cannot settle it.
   if (name === 'group-drop-target') {
-    await win.waitForTimeout(500)
+    await expect.poll(() => win.locator('.generation-canvas-v2__group-box').first().evaluate((element) => getComputedStyle(element).borderStyle)).toBe('dashed')
     await win.screenshot(options)
   } else {
     await screenshotSettled(win, options)
@@ -56,8 +56,11 @@ await win.getByRole('button', { name: '生成', exact: true }).click()
 const addImage = win.locator('[aria-label="添加图片节点"]').first()
 await addImage.waitFor({ state: 'visible' })
 if (!(await addImage.count())) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
-for (let i = 0; i < 4; i += 1) { await addImage.click({ timeout: 4000 }); await win.waitForTimeout(300) }
-await win.waitForTimeout(900)
+for (let i = 0; i < 4; i += 1) {
+  await addImage.click({ timeout: 4000 })
+  await expect.poll(() => win.locator('[data-node-id]').count()).toBeGreaterThanOrEqual(i + 1)
+}
+await expect.poll(() => win.locator('[data-node-id]').count()).toBeGreaterThanOrEqual(4)
 
 const nodeIds = await win.evaluate(() =>
   Array.from(document.querySelectorAll('[data-node-id]')).map((el) => el.getAttribute('data-node-id')).filter(Boolean))
@@ -67,13 +70,13 @@ if (nodeIds.length < 4) { console.error('❌ 节点不够'); await app.close(); 
 // ── 编组前 3 个：框选不好控，改用「全选后编组」再把第 4 个移出组太绕；
 //    直接全选 4 个编成一组，第 4 个当连线源就用组外新加的第 5 个。
 await win.keyboard.press('Control+a')
-await win.waitForTimeout(500)
+await expect.poll(() => win.locator('.generation-canvas-v2-node[data-selected="true"]').count()).toBe(4)
 const groupBtn = win.locator('[aria-label^="创建分组"]').first()
 if (!(await groupBtn.count())) { console.error('❌ 找不到「创建分组」'); await app.close(); process.exit(1) }
 await groupBtn.click({ timeout: 4000 })
-await win.waitForTimeout(1000)
+await expectVisible(win.locator('.generation-canvas-v2__group-box').first(), '组框已生成')
 await win.keyboard.press('Escape')
-await win.waitForTimeout(400)
+await expect.poll(() => win.locator('.generation-canvas-v2__group-box').count()).toBeGreaterThan(0)
 await snap(win, 'grouped')
 
 // 组框内找一个不压节点的空白点（点组框 = 选中全部成员；压着节点就变成选那一个了）
@@ -94,17 +97,16 @@ async function emptyPointInGroup() {
   }, gb)
 }
 
-// ① 整组运行：**本来就有**，入口是「点组框 → 全部成员被选中 → 选择浮条『生成 N 个』」。
-//    这里验的是它确实好使，**以及同屏只有这一个生成动作**——2026-08-02 我在组标签上加过第二个 ▶，
-//    与浮条上的「生成 N 个」同屏并存（相距约 600px），是并行版，已删。这条断言就是防它复发。
+// ① 整组运行：点组框后出现一条带文字的组工具条。组选择时旧的模型 / 并发浮条收起，
+//    生成入口只保留工具条上的「生成整组」，避免两个批量入口同屏漂移。
 const groupClickPoint = await emptyPointInGroup()
 check('组框内找得到不压节点的空白点', Boolean(groupClickPoint))
 await win.mouse.click(groupClickPoint.x, groupClickPoint.y)
-await win.waitForTimeout(900)
-const selectedText = await win.locator('.generation-canvas-v2__selection-toolbar').first().textContent().catch(() => '')
-console.log('  → 点组框后选择浮条:', JSON.stringify(selectedText))
-check('点组框 = 选中全部成员（整组运行的现成入口）', /已选\s*4\s*个/.test(selectedText || ''), String(selectedText))
-check('浮条上有「生成选中 4 个」', /生成选中\s*4\s*个/.test(selectedText || ''), String(selectedText))
+await expectVisible(win.locator('[data-group-toolbar="true"]'), '组工具条已出现')
+const selectedText = await win.locator('[data-group-toolbar="true"]').first().textContent().catch(() => '')
+console.log('  → 点组框后组工具条:', JSON.stringify(selectedText))
+check('点组框 = 选中全部成员（组工具条出现）', /组\s*·\s*4/.test(selectedText || ''), String(selectedText))
+check('工具条有「生成整组」', /生成整组/.test(selectedText || ''), String(selectedText))
 
 // 反并行版断言：整屏只应有**一个**「生成」动作，组标签上不许再挂第二个。
 const generateAffordances = await win.evaluate(() => ({
@@ -113,21 +115,21 @@ const generateAffordances = await win.evaluate(() => ({
 }))
 console.log('  → 同屏生成动作:', JSON.stringify(generateAffordances))
 check('组标签上没有第二个运行钮（并行版已删，防复发）', generateAffordances.onGroupLabel === 0, JSON.stringify(generateAffordances))
-check('生成动作全屏只有一个（就是选择浮条那个）', generateAffordances.runAll === 1, JSON.stringify(generateAffordances))
+check('旧选择浮条批量生成入口已收起', generateAffordances.runAll === 0, JSON.stringify(generateAffordances))
 {
   const box = await win.locator('.generation-canvas-v2__group-box-label').first().boundingBox().catch(() => null)
   if (box) await snap(win, 'group-label-no-run-button', { x: Math.max(0, box.x - 14), y: Math.max(0, box.y - 14), width: 420, height: 120 })
 }
 
-// ② 走浮条那条路跑整组：应当进现成的批量确认卡，张数 = 组成员数。
-await win.locator('[data-storyboard-run-all]').first().click({ timeout: 5000 })
+// ② 走组工具条那条路跑整组：仍进现成的批量确认卡，张数 = 组成员数。
+await win.getByRole('button', { name: '生成整组', exact: true }).click()
 // 等真实条件（确认卡出现），不是盲等固定毫秒：机器慢一点 sleep 就不够，读到空却报绿。
 // 超时不抛——下面的 check 仍要把「读到什么」打出来，保留这条走查的失败可读性。
 await win
   .locator('div.fixed.inset-0')
   .filter({ hasText: /开始生成/ })
   .last()
-  .waitFor({ state: 'visible', timeout: 15_000 })
+  .waitFor({ state: 'visible' })
   .catch(() => {})
 await snap(win, 'after-run-group')
 const confirmCard = await win.evaluate(() => {
@@ -140,23 +142,22 @@ check('确认卡张数 = 组成员数 4', /生成\s*4\s*张/.test(confirmCard ||
 
 const cancelBtn = win.locator('button', { hasText: /^取消$/ }).first()
 if (await cancelBtn.count()) await cancelBtn.click({ timeout: 4000 }).catch(() => {})
-await win.waitForTimeout(1200)
+await expect.poll(() => win.locator('[data-group-toolbar="true"]').count()).toBeGreaterThan(0)
 const veilGone = await win.evaluate(() => !Array.from(document.querySelectorAll('.fixed.inset-0')).some((element) => element.textContent?.includes('开始生成')))
 check('取消后确认卡收掉', veilGone)
 
 // ③ 连到组：加一个组外节点 → 从它拉线 → 组框应变成可落点（虚线 + 加深底色）
-await win.waitForTimeout(800)
 await addImage.click({ timeout: 4000 })
-await win.waitForTimeout(900)
+await expect.poll(() => win.locator('[data-node-id]').count()).toBeGreaterThanOrEqual(5)
 const allIds = await win.evaluate(() =>
   Array.from(document.querySelectorAll('[data-node-id]')).map((el) => el.getAttribute('data-node-id')))
 const srcId = allIds[allIds.length - 1]
 console.log('  → 连线源:', srcId)
 // 先「适应视图」：组框比视口还大时它的标签在视口外，截图就拍不到改动区（R13 眼见链第四问）。
 const fitBtn = win.locator('[aria-label="适应视图"]').first()
-if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1200) }
+if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await waitForCanvasViewportSettled(win) }
 await win.locator(`[data-node-id="${srcId}"]`).first().click({ timeout: 4000 })
-await win.waitForTimeout(800)
+await expect.poll(() => win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle`).count()).toBeGreaterThan(0)
 // 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 React Flow 的 onConnectEnd，
 // 和「点一下连接点再点目标」的 click 路是两条，必须两条都真的通（走查第一版就是漏了 pointerup 那条）。
 const handle = win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle[data-side="right"]`).last()
@@ -203,7 +204,7 @@ const hitHandle = await win.evaluate(({ x, y }) => {
 check('连接点中心命中 React Flow 握把', hitHandle.handle?.nodeId === srcId, JSON.stringify({ box: hb, ...hitHandle }))
 await win.mouse.down()
 await win.mouse.move(dropPoint.x, dropPoint.y, { steps: 12 })
-await win.waitForTimeout(500)
+  await expect.poll(() => win.locator('.generation-canvas-v2__group-box').first().evaluate((element) => getComputedStyle(element).borderStyle)).toBe('dashed')
 
 const pendingStyle = await win.evaluate(() => {
   const box = document.querySelector('.generation-canvas-v2__group-box')
@@ -223,8 +224,8 @@ check('可落点时 aria 说清「连到哪、几个」', /连到/.test(pendingS
 // ④ 松手落到组上 → 组内每个成员各一根边
 const edgesBefore = await win.evaluate(() => document.querySelectorAll('.generation-canvas-v2__edge-path').length)
 await win.mouse.up()
-await win.waitForTimeout(1600)
-const edgesAfter = await win.evaluate(() => document.querySelectorAll('.generation-canvas-v2__edge-path').length)
+await expect.poll(() => win.locator('.generation-canvas-v2__edge-path').count()).toBeGreaterThan(edgesBefore)
+const edgesAfter = await win.locator('.generation-canvas-v2__edge-path').count()
 console.log(`  → 边数 ${edgesBefore} → ${edgesAfter}`)
 check('连到组后组内 4 个成员各得一根边', edgesAfter - edgesBefore === 4, `实得 ${edgesAfter - edgesBefore}`)
 await snap(win, 'after-connect-to-group')

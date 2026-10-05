@@ -57,6 +57,7 @@ export function useCanvasFrameActions({
   editingFrameId: string | null
   setEditingFrameId: (groupId: string | null) => void
   handleFrameMenuAction: (action: FrameContextMenuAction) => void
+  runFrameAction: (groupId: string, action: FrameContextMenuAction) => void
   /** 单独选中的**空框**（没有成员可选，框本身就是选区）；有成员的框的选区就是它的成员。 */
   selectedFrameId: string | null
   selectFrame: (groupId: string | null) => void
@@ -98,55 +99,59 @@ export function useCanvasFrameActions({
     })
   }, [readOnly, stageRef])
 
-  const handleFrameMenuAction = React.useCallback((action: FrameContextMenuAction) => {
-    const menu = frameMenu
-    setFrameMenu(null)
-    if (!menu || readOnly) return
+  const runFrameAction = React.useCallback((groupId: string, action: FrameContextMenuAction) => {
+    if (readOnly) return
     const state = useGenerationCanvasStore.getState()
     const projectId = withProjectAction((project) => project.binding.projectId) ?? ''
-    const report = (message: string) => reportCanvasFeedback(message, 'warning', { projectId, identity: `frame:${menu.groupId}`, reason: action, nodeIds: state.groups.find((group) => group.id === menu.groupId)?.nodeIds })
+    const report = (message: string) => reportCanvasFeedback(message, 'warning', { projectId, identity: `frame:${groupId}`, reason: action, nodeIds: state.groups.find((group) => group.id === groupId)?.nodeIds })
     if (action === 'edit') {
-      setEditingFrameId(menu.groupId)
+      setEditingFrameId(groupId)
       return
     }
     if (action === 'collapse') {
-      state.setGroupCollapsed(menu.groupId, true)
+      state.setGroupCollapsed(groupId, true)
       return
     }
     if (action === 'delete') {
       // 与「选中框按 Delete」同一个结果：框和成员一起删，一个撤销点（deleteGroup 自己打快照）。
       setSelectedFrameId(null)
-      state.deleteGroup(menu.groupId, true)
+      state.deleteGroup(groupId, true)
       return
     }
     if (action === 'dissolve') {
-      // 节点留下、边一根不撤——这就是 ungroup 的语义，本项不额外做任何事。
-      state.ungroup(menu.groupId)
+      // 节点留下、边一根都不撤——这就是 ungroup 的语义，本项不额外做任何事。
+      state.ungroup(groupId)
       return
     }
     if (action === 'generate') {
-      const eligibleIds = frameEligibleIds(menu.groupId)
+      const eligibleIds = frameEligibleIds(groupId)
       if (!eligibleIds.length) {
         report(t('generationCommon.canvas.group.generateEmpty'))
         return
       }
       const live = useGenerationCanvasStore.getState()
-      // 并发读的是浮条写进去的**同一份**（canvasProductionScope 的 localStorage 口径）。
-      // 在这里另存一份的后果是：用户在浮条上改了并发，从框菜单发起时却没生效。
+      // 并发读的是浮条写进去的同一份，组工具条与旧菜单共用这条确认路径。
       void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: live.nodes, edges: live.edges }), {
         concurrency: readCanvasBatchConcurrency(),
         initiator: 'user',
       })
       return
     }
-    void sendFrameToTimeline(menu.groupId).then((result) => {
+    void sendFrameToTimeline(groupId).then((result) => {
       if (!result.ok) {
         report(t('generationCommon.canvas.group.timelineEmpty'))
         return
       }
       if (result.skipped > 0) report(t('generationCommon.canvas.group.timelineDoneWithSkips', { count: result.placed, skipped: result.skipped }))
     })
-  }, [frameMenu, readOnly, t])
+  }, [readOnly, t])
+
+  const handleFrameMenuAction = React.useCallback((action: FrameContextMenuAction) => {
+    const menu = frameMenu
+    setFrameMenu(null)
+    if (!menu) return
+    runFrameAction(menu.groupId, action)
+  }, [frameMenu, runFrameAction])
 
   // 菜单开着时点别处 / 按 Esc 就收——与节点右键菜单同一套开合心智，不让用户学第二种。
   React.useEffect(() => {
@@ -174,6 +179,7 @@ export function useCanvasFrameActions({
     editingFrameId,
     setEditingFrameId,
     handleFrameMenuAction,
+    runFrameAction,
     selectedFrameId,
     selectFrame: setSelectedFrameId,
     deleteSelectedFrame,

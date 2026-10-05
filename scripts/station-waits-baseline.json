@@ -458,10 +458,6 @@
   "tests/ux/g1/c0-short-film.walk.mjs": {
     "2607405759684432c0366cdf297d3b0956d569545a83830569088741e12bb5c2": 1
   },
-  "tests/ux/group-ports.walk.mjs": {
-    "ec603b975518de09708f62c9b20c64151a7039b1fab5d2c23e3ebc4fddd28170": 1,
-    "efa4241622c60094ae5d6a62e7619e8f0a2a542506a4512112faa11c26f0d52e": 1
-  },
   "tests/ux/group-reference-direction.walk.mjs": {
     "2a63b008f15a7d3a86cd31278cf1f6d77cc953cf46e6029f0459777756f03f89": 1,
     "708812d9eb5ea65da7cf866e3c8a861488ce6e0802ab26e5e3d5ae9c2370c766": 1,

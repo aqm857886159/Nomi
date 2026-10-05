@@ -9,11 +9,11 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import readline from 'node:readline'
 
-import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
-import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
-import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
+
+import { createNomiMcpServer, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_TRANSPORT_ERROR_EVENT } from './mcpStdioDiagnostics'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
@@ -338,8 +338,7 @@ async function invokeLiveRpc(
   return callViaRpc(instance, method, params, requestSignal ? { ...options, signal: requestSignal } : options)
 }
 
-const protocol = createMcpProtocol({
-  send: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
+const mcp = createNomiMcpServer({
   invoke: async (method, params, options) => {
     const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
     let instance = await ensureLiveInstance(requestSignal)
@@ -402,35 +401,17 @@ const protocol = createMcpProtocol({
   onClientDetected: (name) => { recordDetectedMcpClient(name) },
 })
 
-const input = readline.createInterface({ input: process.stdin })
-input.on('line', (line) => {
-  const parsed = parseMcpStdioLine(line)
-  if (parsed.kind === 'blank') return
-  if (parsed.kind === 'oversized') {
-    // 裸 Node launcher 够不着 logger（它要 electron 的 app.getPath），所以这里直写 stderr，
-    // 但事件名与字段与 Electron 那条逐字一致（同一个常量），宿主两边看到的是同一件事。
-    process.stderr.write(`[nomi-mcp] ${MCP_OVERSIZED_LINE_EVENT} limitBytes=${MAX_MCP_LINE_BYTES}\n`)
-    return
-  }
-  if (parsed.kind === 'parse-error') {
-    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })}\n`)
-    return
-  }
-  protocol.handleIncoming(parsed.value as Parameters<typeof protocol.handleIncoming>[0])
-})
-
-let closing = false
-function close(): void {
-  if (closing) return
-  closing = true
-  const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-  protocol.dispose()
-  if (cancelled > 0) process.stderr.write(`[nomi-mcp] ${MCP_CANCELLED_IN_FLIGHT_EVENT} count=${cancelled}\n`)
+// stdin/stdout 分帧、读缓冲上限、stdin 关闭即断连都归 SDK 的 StdioServerTransport。裸 Node 够不着 logger
+// （它要 electron 的 app.getPath），所以诊断直写 stderr，事件名与 Electron 那条共用同一个常量。
+mcp.server.onerror = (error) => {
+  process.stderr.write(`[nomi-mcp] ${MCP_TRANSPORT_ERROR_EVENT} message=${JSON.stringify(error.message)}\n`)
+}
+// 断连时 SDK 中止全部在途请求的信号（别把付费生成留在后台跑），然后本进程退出、不留孤儿。
+mcp.onClose((inFlightAtClose) => {
+  if (inFlightAtClose > 0) process.stderr.write(`[nomi-mcp] ${MCP_CANCELLED_IN_FLIGHT_EVENT} count=${inFlightAtClose}\n`)
   if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && booted?.child.pid) {
     try { booted.child.kill('SIGTERM') } catch { /* best effort test cleanup */ }
   }
   process.exit(0)
-}
-
-input.on('close', close)
-process.stdin.on('end', close)
+})
+void mcp.connect(new StdioServerTransport())

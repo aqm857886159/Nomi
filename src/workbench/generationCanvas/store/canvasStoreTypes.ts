@@ -1,6 +1,7 @@
 import type { CanvasPlacementAnchor } from '../model/canvasPlacement'
 import type { StateCreator } from 'zustand'
 import type { CanvasFrameRect } from '../model/canvasFrameBounds'
+import type { GroupArrangeMode } from '../model/groupArrange'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
@@ -59,6 +60,7 @@ export type CanvasNodeActions = {
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
+  moveNodes: (updates: readonly { nodeId: string; position: { x: number; y: number } }[], options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
   /** 一键整理：把某分类节点重排成 storyboard 网格（按屏幕宽高比铺成宽块）。可撤销。 */
   tidyCategory: (categoryId: string, targetAspect: number) => void
@@ -111,6 +113,7 @@ export type CanvasGraphActions = {
   /** 框头部那一句灰字说明。传空串 = 清空（与改名不同：说明本来就可以没有）。 */
   setGroupDescription: (groupId: string, description: string) => void
   setGroupColor: (groupId: string, color: string) => void
+  arrangeGroup: (groupId: string, mode: GroupArrangeMode) => void
   setGroupCollapsed: (groupId: string, collapsed: boolean) => void
   ungroup: (groupId: string) => void
   ungroupGroups: (groupIds: string[]) => void

@@ -105,7 +105,7 @@ for (const entry of DYNAMIC_KEY_PREFIXES) {
       staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: '前缀在 resources 树里不是子树' })
     }
     if (entry.members) {
-      const duplicates = entry.members.filter((member, index) => entry.members.indexOf(member) !== index)
+      const duplicates = entry.members.filter((member, index) => entry.members!.indexOf(member) !== index)
       if (entry.members.length === 0) {
         staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: '成员来源为空，无法证明动态键覆盖范围' })
       }

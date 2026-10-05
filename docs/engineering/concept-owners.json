@@ -1754,9 +1754,13 @@
       "migration_status": "converged",
       "owner": {
         "path": "electron/capabilityCore/mcpProtocol.ts",
-        "symbol": "createMcpProtocol"
+        "symbol": "createNomiMcpServer"
       },
       "write_api": [
+        {
+          "path": "electron/capabilityCore/mcpProtocol.ts",
+          "symbol": "createNomiMcpServer"
+        },
         {
           "path": "electron/capabilityCore/mcpProtocol.ts",
           "symbol": "createMcpProtocol"
@@ -1772,7 +1776,7 @@
         "scripts/check-mcp-payload.ts"
       ],
       "since": "2026-09-28",
-      "notes": "PR #916（合同 docs/fixes/2026-09-28-mcp-passive-request-cold-launch.root-cause.json）：外部 AI 工具列一下资源就把 Nomi 窗口拉起来。initialize / tools/list / resources/list / resources/templates/list / ping 这类被动发现在没有活实例时只读返回、不冷启动；分流只在 createMcpProtocol，只探测不拉起的调用走 invokeIfOpen。真实工具调用仍可后台拉起（用户拍板）。"
+      "notes": "PR #916（合同 docs/fixes/2026-09-28-mcp-passive-request-cold-launch.root-cause.json）：外部 AI 工具列一下资源就把 Nomi 窗口拉起来。initialize / tools/list / resources/list / resources/templates/list / ping 这类被动发现在没有活实例时只读返回、不冷启动；分流只在 createNomiMcpServer（2026-10-05 起协议层换官方 SDK，createMcpProtocol 只剩进程内连接），只探测不拉起的调用走 invokeIfOpen。真实工具调用仍可后台拉起（用户拍板）。"
     },
     {
       "name": "MCP 调用怎么找到活 Nomi 并把请求转过去",

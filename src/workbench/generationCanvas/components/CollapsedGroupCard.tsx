@@ -6,6 +6,7 @@ import type { CollapsedGroupCardProjection } from '../model/canvasCardStackModel
 import { CardStackPeeks } from './CardStackPeeks'
 import { COLLAPSED_GROUP_CARD_SIZE } from '../model/canvasCardStackModel'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { groupColorStyle } from '../model/groupColor'
 
 type Props = {
   card: CollapsedGroupCardProjection
@@ -36,6 +37,7 @@ export function CollapsedGroupCard({
   const { t } = useTranslation()
   const imageUrl = coverUrl(card)
   const countLabel = t('generationCommon.canvas.group.nodeStackCount', { count: card.memberCount })
+  const colorStyle = groupColorStyle(card.color)
 
   return (
     <article
@@ -62,9 +64,10 @@ export function CollapsedGroupCard({
           // 否则点它、拖它都穿到画布平面上（2026-09-24 真机：点折叠卡命中的是 react-flow__pane）。
           'absolute inset-0 z-[2] flex flex-col overflow-hidden rounded-nomi-lg border',
           readOnly ? 'pointer-events-none' : 'pointer-events-auto cursor-grab active:cursor-grabbing',
-          GROUP_VISUAL_CLASS.collapsedCard,
-          selected ? 'border-nomi-accent' : null,
-        )}
+        GROUP_VISUAL_CLASS.collapsedCard,
+        selected ? 'border-nomi-accent' : null,
+      )}
+        style={{ borderColor: selected ? undefined : colorStyle.borderColor }}
         data-frame-selected={selected ? 'true' : undefined}
         role="group"
         aria-label={t('generationCommon.canvas.group.collapsedAria', { name: card.name, count: card.memberCount })}
@@ -79,7 +82,7 @@ export function CollapsedGroupCard({
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-nomi-line px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 border-t border-nomi-line px-3 py-2.5" style={{ borderTopColor: colorStyle.borderColor }}>
           <div className="min-w-0">
             <div className="truncate text-body-sm font-semibold text-nomi-ink">{card.name}</div>
             <div className="text-micro text-nomi-ink-60">{countLabel}</div>

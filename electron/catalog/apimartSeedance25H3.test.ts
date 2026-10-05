@@ -8,7 +8,8 @@ import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
 
-const emptyCatalog = () => ({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+import type { CatalogState } from "./types";
+const emptyCatalog = (): CatalogState => ({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
 
 function renderH3I2vBody(extras: Record<string, unknown>) {
   const mapping = APIMART_VIDEO_MODELS.find((model) => model.modelKey === "MiniMax-H3")?.mappings.find((item) => item.taskKind === "image_to_video");

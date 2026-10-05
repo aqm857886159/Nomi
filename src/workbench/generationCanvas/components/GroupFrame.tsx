@@ -18,6 +18,7 @@ import { cn } from '../../../utils/cn'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { groupColorStyle } from '../model/groupColor'
 import { GroupFrameHeader, type FrameMembershipPreview } from './GroupFrameHeader'
 
 export type CanvasGroupBox = {
@@ -101,6 +102,7 @@ export default function GroupFrame({
       ? t('generationCommon.canvas.group.joinPreview', { name: box.group.name, count: preview.nextCount })
       : t('generationCommon.canvas.group.leavePreview', { name: box.group.name, count: preview.nextCount })
     : null
+  const colorStyle = groupColorStyle(box.group.color)
 
   return (
     <div
@@ -123,6 +125,8 @@ export default function GroupFrame({
         top: box.top,
         width: box.width,
         height: box.height,
+        borderColor: colorStyle.borderColor,
+        backgroundColor: colorStyle.surfaceColor,
       }}
       role={readOnly ? undefined : 'button'}
       tabIndex={readOnly ? undefined : 0}
@@ -177,6 +181,7 @@ export default function GroupFrame({
         onDescribe={frame?.onDescribe ?? noop}
         onCollapse={onCollapse}
         onOpenMenu={frame?.onOpenMenu}
+        colorStyle={colorStyle}
       />
     </div>
   )

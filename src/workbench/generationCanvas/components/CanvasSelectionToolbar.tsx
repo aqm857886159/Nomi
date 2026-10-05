@@ -47,6 +47,7 @@ export function CanvasSelectionToolbar({
   onClearSelection,
 }: CanvasSelectionToolbarProps): JSX.Element {
   const { t } = useTranslation()
+  const groupSelected = selectedGroupCount > 0
   return (
     <SelectionToolbarFrame
       className="generation-canvas-v2__selection-toolbar absolute z-[11] max-w-[760px]"
@@ -58,16 +59,16 @@ export function CanvasSelectionToolbar({
       <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>
         {t('generationCommon.selection.count', { count: selectedCount })}
       </span>
-      {executionGroups.map((group) => (
+      {!groupSelected ? executionGroups.map((group) => (
         <CanvasBulkModelSelect
           key={`${group.executionKind}:${group.requiredMode}`}
           group={group}
           peerGroups={executionGroups}
           onApplyModel={onApplyModel}
         />
-      ))}
-      <CanvasProductionRunButton scope="selection" count={eligibleCount} onClick={onGenerate} />
-      <CanvasProductionConcurrencySelect value={concurrency} onChange={onConcurrencyChange} />
+      )) : null}
+      {!groupSelected ? <CanvasProductionRunButton scope="selection" count={eligibleCount} onClick={onGenerate} /> : null}
+      {!groupSelected ? <CanvasProductionConcurrencySelect value={concurrency} onChange={onConcurrencyChange} /> : null}
       <span className={cn('w-px h-4 bg-nomi-line')} />
       {contactSheetCount >= 2 ? (
         <WorkbenchIconButton
