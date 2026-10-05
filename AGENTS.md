@@ -18,7 +18,7 @@ Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 
 
 **P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件或同目录 14 天第 3 个 fix、出现 revert fix、修复因评测掉分被回滚、同线第 3 轮修补、第三个特例分支，任一出现就停止派修补，先做类根因复盘（`docs/engineering/direction-check-template.md`）交用户拍板（RW；碰热点的 fix 提交须带 `Direction-Check:` trailer）。
 
-**P2 修根因不修症状** — 任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，先 `node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决。
+**P2 修根因不修症状** — 任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，先 `node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决；用户发现的问题进逃逸账本，结账必须挂结构性预防（类型约束 / 唯一 owner / 铁律或门岗级类检查），只修现场不算修好。
 
 **P3 全绿不等于完成** — 用户可见改动报完成前：和获批样张逐项对账，真截图自己亲眼 Read 过（zh/en 两轨）；功能交付要有真实任务闭环；没有真实资源记 `unverified`，不许 mock 绿灯顶替。
 
@@ -26,13 +26,13 @@ Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 
 
 ## 规则
 
-规则正本是 `docs/engineering/rules.json`（可读视图 `rules.md`，旧 R# 编号都在 aliases 里解析得到，`check:rule-aliases` 校验）。常驻只放 12 条（level=always）：上面的 P0 P1 P2 P3 P5+ 下面的状态词、并行纪律、多会话 + 用户 2026-10-02 拍板常驻的两条判断原则（决策自治、替用户做决策；执行点 manual）；其余触发才查 `docs/engineering-rules.md`。
+规则正本是 `docs/engineering/rules.json`（视图 `rules.md`，旧 R# 编号见 aliases）。常驻只放 12 条：上面的 P0 P1 P2 P3 P5+ 下面的状态词、并行纪律、多会话 + 用户 2026-10-02 拍板常驻的两条判断原则（决策自治、替用户做决策；执行点 manual）。
 
 **状态词只有四档**：已实现未推送 / 已推送待合入 / 已合入待验证 / 已解决（「已解决」需 merge SHA 上的 `delivery:verify-merged` 收据）。
 
 **并行纪律**：独立 sibling worktree 的干净任务分支先 `delivery:preflight`，新 worktree 先 `pnpm install`；不在共享主仓里切分支 / 提交 / 解冲突；推送前整合最新 `origin/main`（merge，不 reset、不压缩提交），只推任务分支并开 PR；不 force-push；评审 / 打捞分支先算 merge-base。
 
-**多会话**：同一时段只有一个协调会话，用户只和它说话。其他会话动手前向它报要碰的概念，冲突排队；做完只开 PR 并把号发给它，不自己合并；新问题和要拍板的问题都发消息给它（带推荐项和各选项代价），不建任务卡、不直接问用户。合并只由协调会话做：CI 绿 + 合并前扫描（`scripts/merge-preflight.mjs`）干净就合，最多 3 个在等收据，任何一个收据红了立刻停、交人定修还是回滚。同时进行的实现会话控制在 3 个左右。细节见编排手册 §19。
+**多会话**：同一时段只有一个协调会话，用户只和它说话。其他会话动手前向它报要碰的概念，冲突排队；做完只开 PR 并把号发给它，不自己合并；新问题和要拍板的问题都发消息给它（带推荐项和各选项代价），不建任务卡、不直接问用户。合并只由协调会话做：CI 绿 + 合并前扫描（`scripts/merge-preflight.mjs`）干净就合，最多 3 个在等收据，任何一个收据红了立刻停、交人定修还是回滚。细节见编排手册 §19。
 
 ## 决策自治
 

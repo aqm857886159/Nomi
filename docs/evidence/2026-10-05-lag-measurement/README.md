@@ -1,5 +1,3 @@
-# PR1014 Card 17 lag measurement evidence
+# Card 17 lag measurement (sanitized public evidence)
 
-This child PR contains sanitized textual summaries and metric JSON only. Full local screenshots, renderer traces, and CPU profiles are preserved in the Library artifact `card17-lag-measurement-evidence.zip` (SHA-256 `a107eca92dca97e1328091caefac41a312764174dea2c186186b9e5144fd440f`, 38,070,334 bytes) and are intentionally not duplicated in the public repository.
-
-Measured facts are separated from hypotheses in `measurement.md`; missing scenarios are recorded in `blockers.txt` and are not represented as passing numbers.
+This directory contains the coordinator-requested sanitized measurement report, blockers, and numeric summary. Private screenshots, traces and CPU profiles remain in the user-confirmed Library artifact `card17-lag-measurement-evidence.zip` and are intentionally excluded from the public PR.

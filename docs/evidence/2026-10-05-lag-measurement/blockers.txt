@@ -1,0 +1,14 @@
+1) `pnpm run delivery:preflight`:
+   `getaddrinfo ENOTFOUND github.com`
+   Network/DNS prevented GitHub fetch, push, and PR creation.
+
+2) I300 `node-drag-video`:
+   Fixture summary is `imageNodes:300, videoNodes:0`.
+   Sample 1 error: `Error: 没有可见的 video 节点` at `tests/ux/canvas-performance-benchmark.e2e.mjs:735:22`.
+   Sample 2 error: `locator.click: Application exited`; splash dialog intercepted pointer events while opening the project.
+
+3) Existing harness coverage:
+   No setup was found for empty-project creation, Agent streaming/idle project switching or new-project actions, 40 storyboard shots, 3 documents, or ~200 Agent history entries. These were not synthesized and have no numbers in the report.
+
+4) GUI execution:
+   Electron launch under the default sandbox aborts with exit 134; the benchmark/profile commands were run with the connected Mac GUI permission (`require_escalated`).

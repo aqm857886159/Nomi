@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "check:concept-owners 的棘轮基线（R17.0）：存身份（概念 + 文件 + 符号）不存裸数字，必须等于现状，只减不增。second_write_ports = 已知的第二写口债（每条写清为什么暂时收不掉）；pending_write_doors = pending 概念那条旧路在登记那一刻的全部生产写门，冻结——旧路上再长一扇就红，收掉一扇就必须删掉对应条目。新条目只能随「这次才登记 / 这次才转成 pending」的概念一起进来（和 merge-base 比）。本文件只能手改，没有 --update。",
+  "note": "check:concept-owners 的棘轮基线（R17.0）：存身份（概念 + 文件 + 符号）不存裸数字，必须等于现状，只减不增。second_write_ports = 已知的第二写口债（每条写清为什么暂时收不掉）；pending_write_doors = pending 概念那条旧路在登记那一刻的全部生产写门，冻结——旧路上再长一扇就红，收掉一扇就必须删掉对应条目。新条目只能随「这次才登记 / 这次才转成 pending」的概念一起进来（和 merge-base 比）。unregistered_boundaries = 受管合同声明了共享边界、但还没登记成概念写接口的存量债（2026-10-06 冻结 37 处，只减不增，新增当场红；登记 owner 要人判断，机器补不了，负责与清债节奏见 docs/engineering/experience-system.md「概念 owner 存量债」）。本文件只能手改，没有 --update。",
   "second_write_ports": [
     {
       "concept": "一镜对应哪些生成 job（镜 ↔ job 对应）",
@@ -22,5 +22,44 @@
     { "concept": "画布缩放", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx", "symbol": "rememberCategoryViewport" },
     { "concept": "画布缩放", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx", "symbol": "rememberCategoryViewport" },
     { "concept": "画布缩放", "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts", "symbol": "rememberCategoryViewport" }
+  ],
+  "unregistered_boundaries": [
+    {"contract":"docs/fixes/2026-10-03-canvas-submit-in-flight-switch.root-cause.json","path":"electron/tasks/nodeSubmitInFlight.ts","symbol":"withNodeSubmitExclusive"},
+    {"contract":"docs/fixes/2026-10-04-agent-undo-turn-hang.root-cause.json","path":"electron/agentLane/laneCanvasTools.ts","symbol":"canvasWriteNextAction"},
+    {"contract":"docs/fixes/2026-10-04-agent-undo-turn-hang.root-cause.json","path":"electron/agentLane/laneExtendedTools.ts","symbol":"nextActionFor"},
+    {"contract":"docs/fixes/2026-10-04-agent-undo-turn-hang.root-cause.json","path":"electron/agentLane/laneTools.mts","symbol":"createLaneTools"},
+    {"contract":"docs/fixes/2026-10-04-agent-undo-turn-hang.root-cause.json","path":"electron/capabilityCore/timelineTransportAdapters.ts","symbol":"createPiTimelineWriteTransportAdapter"},
+    {"contract":"docs/fixes/2026-10-04-agent-undo-turn-hang.root-cause.json","path":"electron/shared/surfacePortBinding.ts","symbol":"SURFACE_PORT_WIRE_ERROR_CODE_LIST"},
+    {"contract":"docs/fixes/2026-10-04-declared-provider-production-handoff.root-cause.json","path":"electron/capabilityCore/generationProviderBootstrap.ts","symbol":"createGenerationProviderBootstrap"},
+    {"contract":"docs/fixes/2026-10-04-deterministic-retrieval-failure-settles.root-cause.json","path":"electron/productionRun/productionGenerationSubmission.ts","symbol":"GenerationOutputRetrievalFailedError"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.ts","symbol":"evaluateCameraPose"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts","symbol":"recognizeCameraMotion"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"evals/director/binding.ts","symbol":"bindCardEntities"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"evals/director/judge/readback.ts","symbol":"compareCaptureReadback"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"evals/director/judge/render.ts","symbol":"renderProject"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"evals/director/judge/review.ts","symbol":"reviewOnce"},
+    {"contract":"docs/fixes/2026-10-04-director-3dbox-ruler.root-cause.json","path":"evals/director/judge/review.ts","symbol":"pairwiseOnce"},
+    {"contract":"docs/fixes/2026-10-04-director-bootstrap-ipc-startup.root-cause.json","path":"electron/main.ts","symbol":"createWindow"},
+    {"contract":"docs/fixes/2026-10-04-director-bootstrap-ipc-startup.root-cause.json","path":"electron/preload.ts","symbol":"director3dBox"},
+    {"contract":"docs/fixes/2026-10-04-director-external-write-persistence.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts","symbol":"writeExternalDirectorProject"},
+    {"contract":"docs/fixes/2026-10-04-director-external-write-persistence.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx","symbol":"registerDirectorSession"},
+    {"contract":"docs/fixes/2026-10-04-director-judge-blind-review.root-cause.json","path":"evals/director/judge/review.ts","symbol":"pairwiseOnce"},
+    {"contract":"docs/fixes/2026-10-04-director-judge-blind-review.root-cause.json","path":"evals/director/judge/preregister.ts","symbol":"preregister"},
+    {"contract":"docs/fixes/2026-10-04-director-judge-blind-review.root-cause.json","path":"evals/director/judge/run.ts","symbol":"main"},
+    {"contract":"docs/fixes/2026-10-04-director-s1r3.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts","symbol":"SYSTEM"},
+    {"contract":"docs/fixes/2026-10-04-director-s1r3.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts","symbol":"prompt"},
+    {"contract":"docs/fixes/2026-10-04-director-s1r3.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts","symbol":"solveCamera"},
+    {"contract":"docs/fixes/2026-10-04-headless-capture-reuse.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx","symbol":"DirectorHeadlessCapture"},
+    {"contract":"docs/fixes/2026-10-04-headless-capture-reuse.root-cause.json","path":"src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx","symbol":"capture"},
+    {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"electron/ipcSenderGuard.ts","symbol":"assertTrustedFireAndForget"},
+    {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"electron/logging/rendererLog.ts","symbol":"registerRendererLogIpc"},
+    {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"electron/browser/core/browserViews.ts","symbol":"runBrowserViewFireAndForget"},
+    {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"scripts/check-ipc-sender-binding.mjs","symbol":"scanFile"},
+    {"contract":"docs/fixes/2026-10-04-mockup-contract-real-lab.root-cause.json","path":"scripts/check-mockup-contracts.mjs","symbol":"validateLabContract"},
+    {"contract":"docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json","path":"electron/vendor/vendorOutboundGuard.ts","symbol":"trustedRetrievalOrigin"},
+    {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"electron/shared/agentCapabilities/changeId.ts","symbol":"makeChangeId"},
+    {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"src/workbench/generationCanvas/events/canvasUndoJournal.ts","symbol":"findCanvasChange"},
+    {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","symbol":"undoPlan"},
+    {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"electron/capabilityCore/dispatcher.ts","symbol":"dispatch"}
   ]
 }

@@ -226,3 +226,18 @@ judge 在人工标注达到约定一致性前，只作 advisory，不得把结�
 - [Google Research：Measuring the User Experience on a Large Scale](https://research.google/pubs/pub36299/)：指标必须从用户结果出发，而不是只统计系统内部事件。
 - [web.dev：Web Vitals](https://web.dev/articles/vitals)：性能指标应覆盖加载、交互和视觉稳定性，并用分位数描述真实用户体验。
 - Nomi 现有 [全功能走查纪律](../engineering/full-walk.md)、[storyboard 表格覆盖矩阵](2026-09-25-storyboard-table-coverage.md) 和 `tests/ux/full-walk`：本方案优先收拢现有资产，不复制第二套测试框架。
+
+## 12. 综合体验测试六块（2026-10-06 补：范围、现状、顺序；只写计划，不实现）
+
+闭环：发现 → 原话入逃逸账本 → 归类 → 根因合同 → 结构性预防 → `check:escape-ledger` 卡住才能结账（见 `docs/engineering/experience-system.md`）。下面六块是「发现」这一端的七层检测里要补齐的综合体验测试。每块写：范围、现有工具、还缺什么。
+
+| 块 | 范围 | 现有工具 | 还缺什么 | 顺序 |
+|---|---|---|---|---|
+| ① 全功能按钮普查 | 每个界面、每个可点目标，逐个落「方案预期 → 实际输入输出 → 偏差」三列 | `tests/ux/full-walk/catalog.mjs`（`CLICK_TARGET_CONTRACT`、分镜表格的 `STORYBOARD_CLICK_TARGETS`、`FULL_WALK_INVENTORY` 的 P04–P14 界面清单）、`pb12-storyboard-click-expectations` 走查、监视器写 `escapeLedger.json` candidate | 现在只有分镜表格一个界面落了预期 / 实际两列；缺：其余界面的可点目标清单自动生成（扫组件 / 测试 id，而不是手写）、预期的出处（设计卡 ★1）、偏差自动入账的覆盖面；`check:full-walk-catalog` 要加「清单里没有预期的目标 = 红」 | 1（与 Phase 1 同做，先补画布、生成面板、付费卡） |
+| ② 端到端任务链 | J01–J09 九条任务链，中英两轨，含失败注入与升级路径（暂停 / 恢复 / 删镜头 / 换模型 / 导出） | `FULL_WALK_JOURNEYS`、`pb01`–`pb12` playbook、monitor 九条铁律 | 失败注入（供应商 5xx / 断网 / 取回失败）只有零散几条；缺：每条任务链的「预期收据」清单与铁律 ⑩ ⑪ ⑫ 的统一断言入口；中文 / 英文两轨的逐条对账报告 | 2 |
+| ③ AI 创作者走查 | 一个扮演创作者的 AI 带真实任务走产品：每步先写预期，做完记感受，发现先进账本 candidate，由人复核转正 | `_feel.mjs` / `_feel-observer.mjs`（feel observer）、`feel:nightly`、`check:feel`、`escapeLedger.mjs` 的 `appendEscapeCandidates` | 现在 feel observer 只看遮挡 / 不可见 / 层叠；缺：「先写预期」的步骤格式（每步一行预期，做完对照）、感受记录落盘格式、与账本 candidate 的自动衔接；新界面合并前跑一次、每版发布再跑 | 3（依赖 ① 的目标清单） |
+| ④ 性能 | 真实规模项目（节点数、素材尺寸、编码、操作轨迹）的导入、预览、交互和恢复成本 | `test:canvas:performance`（`canvas-performance-benchmark.e2e.mjs`，已出 p95 / 最长）、`test:real-media`、`check:real-media-fixture` 棘轮 | 缺：脱敏的真实用户工程规模样本（Phase 2）、真实素材与合成素材成对跑的差异报告、跨平台阈值（未校准前只 advisory） | 4（Phase 2） |
+| ⑤ 指标报告 | 每版一张体验报告：逃逸数按类、铁律通过率、任务完成率、性能 p95；主指标是逃逸数 | `escapeLedger.json`（categories 已是分类维度；`since` 与 `status` 可算入账 / 结账时长）、`check:escape-ledger`、铁律测试输出（`artifacts/experience-laws/`）、性能基准 p95 | 缺：把上述四处读数汇成一张报告的脚本（零花费，每晚 CI 跑，每版出一张）；任务完成率的口径（哪几条任务链算分母）要先定 | 5（①②③④ 各有数据后） |
+| ⑥ 真付费抽检 | 每版抽少量真实供应商任务，核对扣费、回执和落地，零花费夹具不能顶替 | `*.paid.mjs`（`pb90-seedream5`、`pb91-storyboard-dragon`、`agent-*-real.paid.mjs`）、`_paidRun.mjs`、`_agentVideoPaid.mjs` | 缺：抽检清单（每版最小必要数量，先算再跑）、收据与账本 / 报告的衔接；子 agent 不认转述同意，真付费由协调会话亲自跑 | 6（发版前，与其余五块解耦） |
+
+顺序原则：先补「发现」的覆盖面（① ② ③），再补「衡量」（⑤），性能与真付费（④ ⑥）按发版节奏插入。每一块新增的发现都必须走上面的闭环，结账由 `check:escape-ledger` 把关；这份只是计划，没有实现任何一块。

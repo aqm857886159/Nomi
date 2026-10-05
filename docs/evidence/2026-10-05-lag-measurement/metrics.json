@@ -1,0 +1,16 @@
+{
+  "measurementDate": "2026-10-05",
+  "baselineCommit": "180224684e4d3dad93aad7f258d46a932eb70e35",
+  "runs": {"warmup": 1, "samples": 5, "percentile": "linear (n-1)*p"},
+  "scenarios": {
+    "i300_cold_open": {"nodes": 300, "images": 300, "videos": 0, "firstCanvasMs": {"median": 13842, "p95": 13864.8}, "mediaSettledMs": {"median": 2695, "p95": 2710.6}},
+    "i300_blank_pan": {"nodes": 300, "fps": {"median": 120.6, "p95": 120.7}, "frameP95Ms": {"median": 10.2, "p95": 10.38}, "longTasks": {"median": 0, "p95": 0}},
+    "i300_node_drag_image": {"nodes": 300, "fps": {"median": 120.1, "p95": 120.2}, "frameP95Ms": {"median": 10.4, "p95": 11.42}, "longTasks": {"median": 0, "p95": 0}},
+    "waiting_effects": {"runningImageNodes": 8, "fps": {"median": 120, "p95": 120}, "frameP95Ms": {"median": 9.8, "p95": 10}, "longTasks": {"median": 0, "p95": 0}},
+    "xl_node_drag_video": {"nodes": 320, "images": 160, "videos": 160, "fps": {"median": 116.2, "p95": 117.4}, "frameP95Ms": {"median": 11.4, "p95": 11.74}, "longTasks": {"median": 0, "p95": 0}},
+    "xl_drag_nodes_all": {"nodes": 320, "selectedNodes": 204, "samples": 1, "fps": 32.2, "frameP95Ms": 66.9, "maxFrameGapMs": 115.6, "longTasks": 249, "longestLongTaskMs": 184, "nodeStyleWrites": 79564},
+    "xl_zoom_slider_drag": {"nodes": 320, "samples": 1, "fps": 112.5, "frameP95Ms": 14.6, "maxFrameGapMs": 78.6, "longTasks": 1, "longestLongTaskMs": 68}
+  },
+  "coverage": {"videoInI300": false, "agentStreamingIdle": false, "emptyProjectCreate": false, "storyboard40Shots": false, "documents3": false, "agentHistory200": false},
+  "sourcePaths": ["tests/ux/canvas-performance-benchmark.e2e.mjs", "tests/perf/canvas-scale-bench.mjs", "tests/ux/fixtures/canvas-performance-fixture.mjs"]
+}
