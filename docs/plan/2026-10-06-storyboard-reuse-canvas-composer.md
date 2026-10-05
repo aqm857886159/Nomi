@@ -1,14 +1,40 @@
 # 设计卡 · 分镜表镜头行与参考卡复用画布交互（L-sbui）
 
 ```
-改动名：分镜表复用画布底栏 + 参考图带 × + 自动引用      线/负责人：L-sbui（实现）      类别：[新界面][其他]
+改动名：分镜表复用画布交互（参数 / 参考 / 自动引用 / 视觉列版面）      线/负责人：L-sbui（实现）      类别：[新界面][其他]
 ```
 
-状态：**样张待拍板**（成对图：`docs/evidence/2026-10-06-storyboard-reuse/README.md`）。拍板前只有样张提交，测试 / 根因合同 / 逃逸账本在拍板后补。
+状态：**三轮样张均已拍板（第一轮方向、第二轮版面、第三轮选 A），实现完成，待独立验收**。成对图：`docs/evidence/2026-10-06-storyboard-reuse/`（第一轮）、`round2/`、`round3/`。
 
-依据：用户 10-05 晚原话 4 条（任务书逐字）；审计 `docs/research/2026-10-05-storyboard-plan-user-audit.md` U2 / U4 / U5 / U7、批 B1 / B3 / B4。
+依据：用户 10-05 晚原话 4 条；10-06 第二轮原话（「优化左侧的显示……注意各个比例的展示……对齐……原来的设计是把参考放左边」）；10-06 第三轮「选 A 竖版参考挪右边」。审计 `docs/research/2026-10-05-storyboard-plan-user-audit.md` U2 / U4 / U5 / U7 / U9、批 B1 / B3 / B4。
 
-## 9 格
+**独立验收**：这是「新界面」四类，合并前必须由另一条验收线对着本卡逐格核（协调会话另派，验收线编号 ≠ L-sbui），PR 正文 `## 独立验收` 带报告链接。验收清单见 ★9。
+
+## 定稿 9 格
+
+| 格 | 结论 | 证据 |
+|---|---|---|
+| ★1 用户怎么用 | 当我在分镜表里排一组镜头，我想**用画布上已经会用的那套**选模型和参数、在每行左边看清这一镜长什么样和挂了哪些参考、随手删掉，参考卡出图后引用它的镜头自己挂上，以便不用一镜一镜点。步骤：①打开方案 → ②参考卡点参数汇总按钮调比例 / 清晰度 → ③生成参考卡 → ④镜头提示词里「林薇」后面自动出现 @ 芯片、视觉列参考条多一张带序号的缩略图 → ⑤不要就点缩略图右上角 × 或删 @（另一边跟着没）→ ⑥点「生成」。**不做**：批量 / 多选参数（B7，等 L-aspect）、「生成剩余」阶段化（B2）、勾选框语义与结果移除（B5b，L-sbtable）、Agent 起草协议（B6，L-sbplan）、变体选择器（LAW11-SB-VARIANT，碰花钱边界）、芯片双击灯箱的动作集（AUD-05 残留）。**已知坑**：见「残余」。真实任务：T1 Agent 起草 3 镜 + 1 角色卡，生成角色卡后看自动引用；T2 镜头换 Seedance「全能参考」配 2 张参考再删 1 张；T3 最小窗口 1100×690 + Agent 面板展开，整片 9:16，逐镜改比例并生成。主指标：每镜挂上参考卡所需点击（现在 ≈ 4 次 × 镜数，目标 0）；质量：界面参数 = 落画布参数（同一构造器）；护栏：行高不涨（竖版 264 / 横版 201）、最小窗口「生成」可达、横向溢出 0。新手人设：第一次用分镜表的创作者；老手：天天在画布上用节点的人——两人都不该需要读说明。 | 三轮成对图 README；T1–T3 由独立验收线按 `tests/ux/audit-storyboard.walk.mjs` 零额度夹具跑 |
+| ★2 谁说了算 | ① 自动引用：唯一 owner `insertAutoMentions`（`electron/shared/storyboard/promptMentions.ts`）；调用方 A `autoReferencePlan`（`src/workbench/creation/storyboard/exec/storyboardAutoReference.ts`，`StoryboardPlanEditor` 在出图签名变化时调）；调用方 B `initCanvasAutoReferenceBridge`（`src/workbench/generationCanvas/canvasAutoReference.ts`，`NomiStudioApp` 挂载）。账本：分镜 `PlanShot.autoReferenced`（锚 id，不进 Agent 起草 schema），画布 `node.meta.autoReferenced`（来源节点 id）。② 参数显示 = 写回：`storyboardComposerMeta`（`buildPlannedNodeMeta`）——底栏显示与 `syncAnchorNodeWithCard` 写回同一个函数。③ 删参考 ↔ 删 @：`removeReferenceWithMention` / `dropBindingsForUrls` + `droppedMentionUrls`。④ 版面几何：`shotFrameGeometry`（表级预览框、窄档、竖版视觉列宽）+ `storyboardRowDensity`（宽 / 窄档，判据 = 行宽 < 740）。 | `node scripts/door-map.mjs insertAutoMentions`：写 2 扇（分镜 / 画布）；`storyboardComposerMeta` 2 扇；`removeReferenceWithMention` 1 扇（+ 实验室夹具）；根因合同 `docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json` |
+| ★3 一致与复用 | 参数 = 画布 `InlineParameterBar`（summary 摆法，生成方式进面板顶上一组）；参考缩略图 = 画布 `AssetTile`（cover、hover 放大、右上 ×）+ `AssetAddTile` + `AssetPicker` / `AssetPickerPopover`；+N 浮层 = `AnchoredPopover`；参考卡 ⋯ = `WorkbenchMenu`；画布侧绑定 = 手动 @ 的 `resolveMentionReference` + `validateReferenceEdge` + `connectNodes`。对共享组件的改动：`InlineParameterBar` 加 `leadingModelOption`（分镜「默认模型」）与 `summaryWidth: { hug }`；`composerHeadlineSummary` 「自动」档本地化（画布同受益）。**自写的只有适配层**：`storyboardComposerModel.ts`（理由：分镜的画幅是「整片默认 + 行覆盖」两段、视频时长住 `durationSec`，领域独有）与 `ShotReferenceStrip.tsx` 的排布（理由：表格要求视觉列定宽对齐、竖版放框右边，画布浮框没有这个约束；单元仍是 AssetTile）。删掉的第二份定义：旧底栏胶囊 + `composerBarModel` / `composerBarGeometry`、`ShotReferenceZone` / `ShotReferenceSlotPopover` / `shotReferenceStackGeometry`、锚行类型按钮排与「生成模型」下拉。 | 结构测试 `StoryboardShotRow.structure.test.ts` / `StoryboardAnchorZone.structure.test.ts`；`check:self-written` |
+| ★4 全状态 | 无参考：横版 / 方图在框下只一格「+」，竖版在框右边一格「+」；有参考：36 方块（窄档 28）+ 序号 + ×，末格「+」；放不下：「+N」浮层（竖版按右边那条带的格数，横版窄档一行）；契约未知（默认模型）：「+」= 在提示词起 @；不吃参考的模式：「+」= 切到同模型能收参考图的模式再放（方案 A，用户已拍板）；计划首帧：参考条最前一格只读（出图前虚线占位、出图后就是那张图）；模型未选：模型按钮写「默认模型」（可选回）、无参数汇总；生成中：「生成」忙态 disabled；已生成 / 锁定 / 可找回：底栏右端换状态标签；失败：预览框红框 + 框下重试；缺必填参考：预览框红态（唯一一处）；单镜画幅 ≠ 整片：框内 contain + 左下角画幅标签，未生成画该画幅的虚线轮廓；自动引用失败（参考框满）：@ 与绑定都不留、账本不记；取消中：不适用（不新增异步动作）；过期：参考卡重生成后 url 变 → 现有「参考已变」警示。文案：新增 i18n 2 条（出图方式两个选项名，取自被删的区头说明）；删 33 个死键（中英各一份）。不谈钱。 | 三轮成对图（zh / en / 暗 / 窄 / 横竖方 / 混排 / 三状态）；`check:i18n` |
+| 5 中途表 | 本改动不新增花钱动作、不新增异步链：参数改的是方案字段（同步、可撤销）；「生成」的语义与落点不变（参考卡重生成前写回模型参数，属同一次点击里的同步写入）。自动引用是一次同步方案写入（一条撤销记录）；画布侧是同步的切模式 + 建边 + 写提示词（失败整条撤回）。关窗 / 重启：账本在方案 / 节点里，重开不会重复补；画布侧打开旧项目不触发。连点「+」只开关同一个选择器。 | 人工；独立验收线真窗口走查 |
+| 6 外部数据与失败 | 外部来源只有模型档案（内置，参数 / 模式 / 槽从档案 derive，与画布同一份）与用户上传 / 素材库（复用现有上传通道与拒绝理由文案）。模型不在目录 → 「默认模型」、不出参数（不假装知道）。跨字段约束（MiniMax-H3 自适应比例）按档案 optionConstraints 收窄，与画布同一函数。 | ⑪ 矩阵豁免条目（reachabilityLedger.json） |
+| 7 性能预算 | 每行一个 `InlineParameterBar`（与画布节点同量级，面板 portal 只在点开时渲染）、参考条按需渲染；`autoReferencePlan` 只在出图签名变化时跑（O(镜数 × 名字数)）；画布桥只对新出图结果跑。未量真规模。 | unverified（交独立验收在 30 镜方案上量首屏与滚动） |
+| 8 真实条件 | Windows：是（本机 Win11 实验室真组件截图）；英文界面：是；最小窗口：是（664 宽）；暗色：是；横 / 竖 / 方 / 混排：是；真规模 / 干净安装 / 真付费 / 键盘全程 / 真 App 走查：**unverified**（本线没起真 App，走查脚本已按新 DOM 改写，交独立验收线跑）。 | `docs/evidence/2026-10-06-storyboard-reuse/{,round2/,round3/}`，全部亲眼看过；对齐实测在 `round2/measures.json`、`round3/measures.json` |
+| ★9 验收与回滚 | 验收（独立验收线，编号 ≠ L-sbui）：①对着三轮 README 逐张对账（左缘 / 「生成」右缘 / 行高数值见 measures）；②硬门 ⑩（显示 = 请求：参数汇总与落画布同一构造器、参考卡重生成同步模型参数）/ ⑪（`tests/experience-laws/parameterReachability.test.mjs` 全量矩阵绿，分镜两入口 21 个缺口类已消失）/ ⑫（删一边另一边跟着）逐项对账；③真 App 跑 `tests/ux/storyboard-narrow-row.walk.mjs`、`storyboard-first-frame-false-alarms.walk.mjs`、`storyboard-table-phasec.walk.mjs`、`project-switch-background-run.walk.mjs`（零额度夹具，窗口在屏幕外）；④AI 创作者任务 T1–T3。逃逸账本：AUD-20261005-02 / 04 / 05 / 18、LAW11-ANCHOR-CARD / SB-DURATION / SB-NUMBER-TEXT 已复核（reviewed，PR 号开后转 fixed）。回滚：整个分支一个概念，revert 合并提交即可；数据层只多了可选字段 `autoReferenced`，回滚后旧版忽略它。 | PR 正文 `## 独立验收`；`tests/ux/full-walk/escapeLedger.json` |
+
+## 残余（交协调会话 / 下一刀）
+
+- `StoryboardShotTable`（L-sbtable 禁区）只递每镜生效画幅：预览框按「镜数最多的画幅」近似整片画幅；L-sbtable 合入后补传整片默认、删 `aspectOverridden` / `aspectOptions` 传参（协调会话通知后做）。
+- 表格里手动 @ 的落槽判据（`ShotRowWithMention.onBindReference`）与参考条「+」的 `slotFor` 仍是两份，同在禁区文件。
+- 首尾帧模式下「+」按「先空着的那一格」落（首帧 → 尾帧，都满了替换首帧）；两张都在时想单换尾帧要先点尾帧的 ×。
+- 芯片双击灯箱仍只有「关闭预览」（AUD-05 残留）。
+- 变体选择器（LAW11-SB-VARIANT）未做：会改实际调用的模型，属花钱边界。
+- `tests/ux/storyboard-reference-slots.walk.mjs` 在 main 上就已过期（断言的 `data-asset-slot` 来自 v5 的 AssetReference），本线未改，建议随下一刀重写或删除。
+- `electron/shared/modelArchetypes/anchorPolicy.structure.test.ts` 在本机（Windows）红，与本线无关（文件未动，main 上同样）。
+
+## 历史 · 第一轮的 9 格（样张阶段，已被下面的定稿替换；保留作对账）
 
 | 格 | 结论 | 证据 |
 |---|---|---|
