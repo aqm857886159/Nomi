@@ -1,0 +1,23 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2039ms.
+▶ 启动 vite dev server…
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+fraunces@5.2.9/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2" is outside of Vite serving allow list.
+[vite] 
+- /Users/aoqimin/Documents/Codex/2026-10-06/task-3
+- /Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/vite@7.3.5_@types+node@22.19.17_jiti@1.21.7_tsx@4.22.3_yaml@2.9.0/node_modules/vite/dist/client
+
+Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+inter@5.2.8/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2" is outside of Vite serving allow list.
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+fraunces@5.2.9/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2" is outside of Vite serving allow list.
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+inter@5.2.8/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2" is outside of Vite serving allow list.
+  ✓ d3-empty-director-zh               0×0  空工程 · 导演视图（中文）
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+fraunces@5.2.9/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2" is outside of Vite serving allow list.
+[vite] The request id "/Users/aoqimin/Desktop/Nomi/node_modules/.pnpm/@fontsource-variable+inter@5.2.8/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2" is outside of Vite serving allow list.
+  ✓ d3-courtyard-director-zh           0×0  庭院对峙 · 导演视图 · 点第 2 镜（中文）
+
+✅ 2 个状态全部渲染并截图：/Users/aoqimin/Documents/Codex/2026-10-06/task-3/tests/ux/shots/design-lab-director-3dbox

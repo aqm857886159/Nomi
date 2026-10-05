@@ -1,0 +1,622 @@
+[
+  {
+    "screen": "process-feedback",
+    "id": "pf-image-queued",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.033,
+    "changed_pixel_ratio": 0.1352,
+    "comparison": "comparisons/process-feedback/pf-image-queued.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-image-queued.png",
+    "current_raw": "raw/current/process-feedback/pf-image-queued.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-image-submitting",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.035,
+    "changed_pixel_ratio": 0.1352,
+    "comparison": "comparisons/process-feedback/pf-image-submitting.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-image-submitting.png",
+    "current_raw": "raw/current/process-feedback/pf-image-submitting.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-image-generating",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.086,
+    "changed_pixel_ratio": 0.1358,
+    "comparison": "comparisons/process-feedback/pf-image-generating.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-image-generating.png",
+    "current_raw": "raw/current/process-feedback/pf-image-generating.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-image-finalizing",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.038,
+    "changed_pixel_ratio": 0.1352,
+    "comparison": "comparisons/process-feedback/pf-image-finalizing.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-image-finalizing.png",
+    "current_raw": "raw/current/process-feedback/pf-image-finalizing.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-image-failed",
+    "status": "captured",
+    "baseline_commit": "ce5cfb336",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 0.032,
+    "changed_pixel_ratio": 0.0001,
+    "comparison": "comparisons/process-feedback/pf-image-failed.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-image-failed.png",
+    "current_raw": "raw/current/process-feedback/pf-image-failed.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-video-queued",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.033,
+    "changed_pixel_ratio": 0.1352,
+    "comparison": "comparisons/process-feedback/pf-video-queued.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-video-queued.png",
+    "current_raw": "raw/current/process-feedback/pf-video-queued.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-video-submitting",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.038,
+    "changed_pixel_ratio": 0.1353,
+    "comparison": "comparisons/process-feedback/pf-video-submitting.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-video-submitting.png",
+    "current_raw": "raw/current/process-feedback/pf-video-submitting.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-video-generating",
+    "status": "captured",
+    "baseline_commit": "a7381748c",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.086,
+    "changed_pixel_ratio": 0.1358,
+    "comparison": "comparisons/process-feedback/pf-video-generating.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-video-generating.png",
+    "current_raw": "raw/current/process-feedback/pf-video-generating.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-video-finalizing",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.038,
+    "changed_pixel_ratio": 0.1352,
+    "comparison": "comparisons/process-feedback/pf-video-finalizing.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-video-finalizing.png",
+    "current_raw": "raw/current/process-feedback/pf-video-finalizing.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-video-failed",
+    "status": "captured",
+    "baseline_commit": "ce5cfb336",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 0.032,
+    "changed_pixel_ratio": 0.0001,
+    "comparison": "comparisons/process-feedback/pf-video-failed.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-video-failed.png",
+    "current_raw": "raw/current/process-feedback/pf-video-failed.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-preview",
+    "status": "captured",
+    "baseline_commit": "a7381748c",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 0.545,
+    "changed_pixel_ratio": 0.005,
+    "comparison": "comparisons/process-feedback/pf-preview.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-preview.png",
+    "current_raw": "raw/current/process-feedback/pf-preview.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-preview-dark",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 1.604,
+    "changed_pixel_ratio": 0.0182,
+    "comparison": "comparisons/process-feedback/pf-preview-dark.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-preview-dark.png",
+    "current_raw": "raw/current/process-feedback/pf-preview-dark.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-late",
+    "status": "captured",
+    "baseline_commit": "da6b4c57f",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 6.104,
+    "changed_pixel_ratio": 0.1364,
+    "comparison": "comparisons/process-feedback/pf-late.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-late.png",
+    "current_raw": "raw/current/process-feedback/pf-late.png"
+  },
+  {
+    "screen": "process-feedback",
+    "id": "pf-zoom-60",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      632
+    ],
+    "current_size": [
+      800,
+      632
+    ],
+    "mean_abs_diff": 2.027,
+    "changed_pixel_ratio": 0.0452,
+    "comparison": "comparisons/process-feedback/pf-zoom-60.png",
+    "baseline_raw": "raw/baseline/process-feedback/pf-zoom-60.png",
+    "current_raw": "raw/current/process-feedback/pf-zoom-60.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-01-draft-inherited-aspect",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      161
+    ],
+    "current_size": [
+      900,
+      161
+    ],
+    "mean_abs_diff": 0.08,
+    "changed_pixel_ratio": 0.0004,
+    "comparison": "comparisons/storyboard/sb-row-01-draft-inherited-aspect.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-01-draft-inherited-aspect.png",
+    "current_raw": "raw/current/storyboard/sb-row-01-draft-inherited-aspect.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-02-aspect-override-16-9",
+    "status": "captured",
+    "baseline_commit": "af61d73c9",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      133
+    ],
+    "current_size": [
+      900,
+      133
+    ],
+    "mean_abs_diff": 0.099,
+    "changed_pixel_ratio": 0.0005,
+    "comparison": "comparisons/storyboard/sb-row-02-aspect-override-16-9.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-02-aspect-override-16-9.png",
+    "current_raw": "raw/current/storyboard/sb-row-02-aspect-override-16-9.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-03-aspect-override-1-1",
+    "status": "captured",
+    "baseline_commit": "af61d73c9",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      134
+    ],
+    "current_size": [
+      900,
+      134
+    ],
+    "mean_abs_diff": 0.098,
+    "changed_pixel_ratio": 0.0005,
+    "comparison": "comparisons/storyboard/sb-row-03-aspect-override-1-1.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-03-aspect-override-1-1.png",
+    "current_raw": "raw/current/storyboard/sb-row-03-aspect-override-1-1.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-05-missing-required",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      161
+    ],
+    "current_size": [
+      900,
+      161
+    ],
+    "mean_abs_diff": 0.084,
+    "changed_pixel_ratio": 0.0005,
+    "comparison": "comparisons/storyboard/sb-row-05-missing-required.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-05-missing-required.png",
+    "current_raw": "raw/current/storyboard/sb-row-05-missing-required.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-06-generating",
+    "status": "captured",
+    "baseline_commit": "486d87ee7",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      205
+    ],
+    "current_size": [
+      900,
+      205
+    ],
+    "mean_abs_diff": 0.095,
+    "changed_pixel_ratio": 0.0006,
+    "comparison": "comparisons/storyboard/sb-row-06-generating.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-06-generating.png",
+    "current_raw": "raw/current/storyboard/sb-row-06-generating.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-07-failed",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      189
+    ],
+    "current_size": [
+      900,
+      189
+    ],
+    "mean_abs_diff": 0.086,
+    "changed_pixel_ratio": 0.0008,
+    "comparison": "comparisons/storyboard/sb-row-07-failed.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-07-failed.png",
+    "current_raw": "raw/current/storyboard/sb-row-07-failed.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-08-done",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      900,
+      208
+    ],
+    "current_size": [
+      900,
+      208
+    ],
+    "mean_abs_diff": 0.103,
+    "changed_pixel_ratio": 0.0008,
+    "comparison": "comparisons/storyboard/sb-row-08-done.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-08-done.png",
+    "current_raw": "raw/current/storyboard/sb-row-08-done.png"
+  },
+  {
+    "screen": "storyboard",
+    "id": "sb-row-19-composer-demoted",
+    "status": "captured",
+    "baseline_commit": "af61d73c9",
+    "current_commit": "180224684",
+    "baseline_size": [
+      804,
+      161
+    ],
+    "current_size": [
+      804,
+      161
+    ],
+    "mean_abs_diff": 0.083,
+    "changed_pixel_ratio": 0.0004,
+    "comparison": "comparisons/storyboard/sb-row-19-composer-demoted.png",
+    "baseline_raw": "raw/baseline/storyboard/sb-row-19-composer-demoted.png",
+    "current_raw": "raw/current/storyboard/sb-row-19-composer-demoted.png"
+  },
+  {
+    "screen": "settings",
+    "id": "privacy-01-idle",
+    "status": "captured",
+    "baseline_commit": "18c571d14",
+    "current_commit": "180224684",
+    "baseline_size": [
+      516,
+      480
+    ],
+    "current_size": [
+      516,
+      480
+    ],
+    "mean_abs_diff": 8.774,
+    "changed_pixel_ratio": 0.1053,
+    "comparison": "comparisons/settings/privacy-01-idle.png",
+    "baseline_raw": "raw/baseline/settings/privacy-01-idle.png",
+    "current_raw": "raw/current/settings/privacy-01-idle.png"
+  },
+  {
+    "screen": "settings",
+    "id": "privacy-02-exporting",
+    "status": "captured",
+    "baseline_commit": "18c571d14",
+    "current_commit": "180224684",
+    "baseline_size": [
+      516,
+      480
+    ],
+    "current_size": [
+      516,
+      480
+    ],
+    "mean_abs_diff": 8.32,
+    "changed_pixel_ratio": 0.1023,
+    "comparison": "comparisons/settings/privacy-02-exporting.png",
+    "baseline_raw": "raw/baseline/settings/privacy-02-exporting.png",
+    "current_raw": "raw/current/settings/privacy-02-exporting.png"
+  },
+  {
+    "screen": "settings",
+    "id": "privacy-03-saved",
+    "status": "captured",
+    "baseline_commit": "18c571d14",
+    "current_commit": "180224684",
+    "baseline_size": [
+      516,
+      480
+    ],
+    "current_size": [
+      516,
+      480
+    ],
+    "mean_abs_diff": 8.876,
+    "changed_pixel_ratio": 0.1068,
+    "comparison": "comparisons/settings/privacy-03-saved.png",
+    "baseline_raw": "raw/baseline/settings/privacy-03-saved.png",
+    "current_raw": "raw/current/settings/privacy-03-saved.png"
+  },
+  {
+    "screen": "settings",
+    "id": "privacy-04-failed",
+    "status": "captured",
+    "baseline_commit": "18c571d14",
+    "current_commit": "180224684",
+    "baseline_size": [
+      516,
+      480
+    ],
+    "current_size": [
+      516,
+      480
+    ],
+    "mean_abs_diff": 8.896,
+    "changed_pixel_ratio": 0.1073,
+    "comparison": "comparisons/settings/privacy-04-failed.png",
+    "baseline_raw": "raw/baseline/settings/privacy-04-failed.png",
+    "current_raw": "raw/current/settings/privacy-04-failed.png"
+  },
+  {
+    "screen": "depth-action",
+    "id": "depth-action-01-toolbar",
+    "status": "captured",
+    "baseline_commit": "9490c0a99",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      460
+    ],
+    "current_size": [
+      800,
+      460
+    ],
+    "mean_abs_diff": 1.211,
+    "changed_pixel_ratio": 0.0098,
+    "comparison": "comparisons/depth-action/depth-action-01-toolbar.png",
+    "baseline_raw": "raw/baseline/depth-action/depth-action-01-toolbar.png",
+    "current_raw": "raw/current/depth-action/depth-action-01-toolbar.png"
+  },
+  {
+    "screen": "depth-action",
+    "id": "depth-action-04-done",
+    "status": "captured",
+    "baseline_commit": "ab027e3f1",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      460
+    ],
+    "current_size": [
+      800,
+      460
+    ],
+    "mean_abs_diff": 0.155,
+    "changed_pixel_ratio": 0.0004,
+    "comparison": "comparisons/depth-action/depth-action-04-done.png",
+    "baseline_raw": "raw/baseline/depth-action/depth-action-04-done.png",
+    "current_raw": "raw/current/depth-action/depth-action-04-done.png"
+  },
+  {
+    "screen": "director-3dbox",
+    "id": "d3-empty-director-zh",
+    "status": "captured",
+    "baseline_commit": "fbba3cfdc",
+    "current_commit": "180224684",
+    "baseline_size": [
+      1280,
+      933
+    ],
+    "current_size": [
+      1280,
+      933
+    ],
+    "mean_abs_diff": 0.018,
+    "changed_pixel_ratio": 0.0002,
+    "comparison": "comparisons/director-3dbox/d3-empty-director-zh.png",
+    "baseline_raw": "raw/baseline/director-3dbox/d3-empty-director-zh.png",
+    "current_raw": "raw/current/director-3dbox/d3-empty-director-zh.png"
+  },
+  {
+    "screen": "director-3dbox",
+    "id": "d3-courtyard-director-zh",
+    "status": "captured",
+    "baseline_commit": "fbba3cfdc",
+    "current_commit": "180224684",
+    "baseline_size": [
+      1280,
+      933
+    ],
+    "current_size": [
+      1280,
+      933
+    ],
+    "mean_abs_diff": 2.81,
+    "changed_pixel_ratio": 0.0537,
+    "comparison": "comparisons/director-3dbox/d3-courtyard-director-zh.png",
+    "baseline_raw": "raw/baseline/director-3dbox/d3-courtyard-director-zh.png",
+    "current_raw": "raw/current/director-3dbox/d3-courtyard-director-zh.png"
+  },
+  {
+    "screen": "canvas-frame",
+    "id": "canvas-frame-shot-label-outside",
+    "status": "captured",
+    "baseline_commit": "337472b01",
+    "current_commit": "180224684",
+    "baseline_size": [
+      800,
+      560
+    ],
+    "current_size": [
+      800,
+      560
+    ],
+    "mean_abs_diff": 0.059,
+    "changed_pixel_ratio": 0.0002,
+    "comparison": "comparisons/canvas-frame/canvas-frame-shot-label-outside.png",
+    "baseline_raw": "raw/baseline/canvas-frame/canvas-frame-shot-label-outside.png",
+    "current_raw": "raw/current/canvas-frame/canvas-frame-shot-label-outside.png"
+  }
+]

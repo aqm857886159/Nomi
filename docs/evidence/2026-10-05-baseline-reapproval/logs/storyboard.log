@@ -1,0 +1,17 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2066ms.
+▶ 启动 vite dev server…
+  ✓ sb-row-01-draft-inherited-aspect   900×161  行 · 待生成（画幅继承整片默认）
+  ✓ sb-row-02-aspect-override-16-9     900×133  行 · 画幅覆盖 16:9（横版第一次有身材）
+  ✓ sb-row-03-aspect-override-1-1      900×134  行 · 画幅覆盖 1:1
+  ✓ sb-row-05-missing-required         900×161  行 · 缺必填参考（红）
+  ✓ sb-row-06-generating               900×205  行 · 生成中 37%
+  ✓ sb-row-07-failed                   900×189  行 · 失败（红边 + 重试）
+  ✓ sb-row-08-done                     900×208  行 · 已生成（动作条在图下方 + @tag + 变体计数）
+  ✓ sb-row-19-composer-demoted         804×161  行 · 底栏装不下：清晰度进 ⋯，模型停在下限
+
+✅ 8 个状态全部渲染并截图：/Users/aoqimin/Documents/Codex/2026-10-06/task-3/tests/ux/shots/design-lab-storyboard

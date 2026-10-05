@@ -1,0 +1,13 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2092ms.
+▶ 启动 vite dev server…
+  ✓ privacy-01-idle                    516×480  隐私与诊断 · 默认（遥测关 · 未导出）
+  ✓ privacy-02-exporting               516×480  正在打包（按钮禁用 · 文案换成「正在打包…」）
+  ✓ privacy-03-saved                   516×480  导出成功 · 结果行报条目数与体积
+  ✓ privacy-04-failed                  516×480  导出失败 · 结果行说人话并请再试
+
+✅ 4 个状态全部渲染并截图：/Users/aoqimin/Documents/Codex/2026-10-06/task-3/tests/ux/shots/design-lab-settings

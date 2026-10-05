@@ -1,0 +1,4 @@
+现行树：origin/main
+提交：180224684
+截图命令使用仓库现有 tests/ux/design-lab/walkScreen.mjs；未运行 design-lab:update。
+辅助核对：本机可写副本取自 `codex/comprehensive-experience-acceptance-20261005`；`git diff origin/main..该分支 -- src tests/ux` 为空，因此截图所用产品 / 走查代码与 `origin/main` 一致。

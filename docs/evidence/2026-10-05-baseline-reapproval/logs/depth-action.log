@@ -1,0 +1,11 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2066ms.
+▶ 启动 vite dev server…
+  ✓ depth-action-01-toolbar            800×460  选中视频 · 浮条上多了「提取深度」
+  ✓ depth-action-04-done               800×460  完成 · 它就是一个普通视频节点，标题带出身
+
+✅ 2 个状态全部渲染并截图：/Users/aoqimin/Documents/Codex/2026-10-06/task-3/tests/ux/shots/design-lab-depth-action

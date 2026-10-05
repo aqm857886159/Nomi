@@ -1,0 +1,23 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 2034ms.
+▶ 启动 vite dev server…
+  ✓ pf-image-queued                    800×632  图片 · 排队
+  ✓ pf-image-submitting                800×632  图片 · 提交
+  ✓ pf-image-generating                800×632  图片 · 生成中
+  ✓ pf-image-finalizing                800×632  图片 · 落盘
+  ✓ pf-image-failed                    800×632  图片 · 失败
+  ✓ pf-video-queued                    800×632  视频 · 排队
+  ✓ pf-video-submitting                800×632  视频 · 提交
+  ✓ pf-video-generating                800×632  视频 · 生成中
+  ✓ pf-video-finalizing                800×632  视频 · 落盘
+  ✓ pf-video-failed                    800×632  视频 · 失败
+  ✓ pf-preview                         800×632  真实预览帧
+  ✓ pf-late                            800×632  软超时仍运行
+  ✓ pf-zoom-60                         800×632  60% 缩放可读
+  ✓ pf-preview-dark                    800×632  暗色真实预览
+
+✅ 14 个状态全部渲染并截图：/Users/aoqimin/Documents/Codex/2026-10-06/task-3/tests/ux/shots/design-lab-process-feedback
