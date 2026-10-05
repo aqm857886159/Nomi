@@ -2,7 +2,7 @@
 
 ## 为什么
 
-卡 3 的 lint 棘轮基线从 78 条警告降到 9 条；9 条全部在本任务卡明确的并行禁区内，未修改判据或使用 `eslint-disable`。
+卡 3 的 lint 棘轮基线从 78 条警告降到 10 条；9 条在本任务卡明确的并行禁区内，另 1 条是反馈卡为保持 request 生命周期而保留的依赖提示，未修改判据或使用 `eslint-disable`。
 
 ## 改了什么
 
@@ -15,8 +15,9 @@
 ## 测试
 
 - 改前：`pnpm run lint:ci` 输出 78 条警告（上限 79）。
-- 改后：`pnpm run lint:ci` 输出 9 条警告（退出码 0，上限 9）。
-- 残余（禁区，交协调会话处理）：
+- 改后：`pnpm run lint:ci` 输出 10 条警告（退出码 0，上限 10）。
+- 残余（1 条为运行时生命周期所需，9 条交协调会话处理）：
+  - `src/ui/community/FeedbackReportCard.tsx:52`：`react-hooks/exhaustive-deps`；`request` 必须保留在依赖中，否则同一个挂载的反馈卡切换请求时会继续显示旧的 openedAt。
   - `electron/capabilityCore/mcpStdioDocumentReceipt.test.ts:13,14,15`：`@typescript-eslint/no-require-imports`；`electron/capabilityCore/mcp*` 禁区。
   - `electron/productionRun/productionPendingSpend.test.ts:150`：`no-useless-assignment`；`electron/productionRun/` 禁区。
   - `src/workbench/generationCanvas/runner/dependencyWaves.ts:96`：`no-useless-assignment`；runner 禁区。

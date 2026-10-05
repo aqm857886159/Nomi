@@ -49,7 +49,7 @@ export function FeedbackReportCard({
   const [manifest, setManifest] = React.useState<DiagnosticsBundleManifest | null>(null)
   const [viewing, setViewing] = React.useState(false)
   // 摘要行里的时间是**这张卡打开的时刻**，不是渲染时刻——否则它会随每次重绘往前跳。
-  const openedAt = React.useMemo(() => new Date(), [])
+  const openedAt = React.useMemo(() => new Date(), [request])
 
   React.useEffect(() => {
     setIncludeContent(false)
