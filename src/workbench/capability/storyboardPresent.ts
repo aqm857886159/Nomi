@@ -67,11 +67,27 @@ export async function presentStoryboard(data: Record<string, unknown>) {
       rows.map(row => row.shot.shotId!))
     if (blocker) throw new Error('storyboard_strategy_blocked')
     await assertCurrent()
-    if (rows.length) outcomes.push(await runStoryboardBatch(context, rows))
+    // 整批：他在卡上点了确认、每一镜的出价开好那一刻就交回（发动机收敛第一刀第 3 步「交回 operation」）——不再等整批跑完才回话。
+    // 之后的派发、结果、每一镜的结局都在各自的单镜 Run 里（`operations`），批量照常在画布上跑完。
+    let operations: string[] | undefined
+    if (rows.length) {
+      let consented: (runIds: string[]) => void = () => undefined
+      const onConsent = new Promise<{ consented: string[] }>((resolve) => { consented = (runIds) => resolve({ consented: runIds }) })
+      const batch = runStoryboardBatch(context, rows, undefined, consented)
+      const first = await Promise.race([batch.then((outcome) => ({ outcome })), onConsent])
+      if ('consented' in first) {
+        operations = first.consented
+        outcomes.push('started')
+        // 已经交回了：整批在后台跑，跑挂由批量自己的失败汇总说话（runPlanWithToasts），这里不再有人等它的结果。
+        void batch.catch(() => undefined)
+      } else {
+        outcomes.push(first.outcome)
+      }
+    }
     // 2026-09-22：这里原来写着「Original confirmation returns void for both acceptance and
     // cancellation」，然后无条件回 `presented`——**结局被扔在这一行**。于是 Agent 的 `generate`
     // 读不到任何结论，只好以 `generation_approval_unavailable` 的**错误形状**回给模型并进熔断
     // （run5：A1 一次、A3 两次，与答框次数一一对应）。现在把它带回去。
-    return { status: 'presented' as const, designId, shotIds: scope, decision: mergeRunOutcomes(outcomes) }
+    return { status: 'presented' as const, designId, shotIds: scope, decision: mergeRunOutcomes(outcomes), ...(operations ? { operations } : {}) }
   }, () => { throw new Error('storyboard_project_unavailable') })
 }

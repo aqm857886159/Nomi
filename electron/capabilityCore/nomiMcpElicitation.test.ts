@@ -58,7 +58,7 @@ class ProtocolHarness {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion, capabilities: elicitation ? { elicitation: {} } : {} },
+      params: { protocolVersion, capabilities: elicitation ? { elicitation: {} } : {}, clientInfo: { name: 'harness', version: '1' } },
     })
     const res = await this.next()
     expect(res.id).toBe(1)

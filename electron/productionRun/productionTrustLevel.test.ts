@@ -5,13 +5,16 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard, waitForProduction as waitFor } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, finishLegacyGenerationJobs, waitForProduction as waitFor } from './productionRunTestHelpers'
 import { normalizeTrustLevel, trustLevelOf, DEFAULT_TRUST_LEVEL } from './productionRunTypes'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 
 // B3 信任档位（plan 2026-08-11-mcp-conversation-native-phase-b）：
 // key_confirm（默认）= 五门全开；budget_only（「别问了直接出」）= 自动批准创意/样片门、只留预算门（永不跳）；
 // confirm_all = 每镜提交前在 Nomi 停门。降档留痕（事件 commandId 自证）。
+// 2026-10-05 发动机收敛第一刀第 4 步：旧剧本那台生成写手（派发 production.generate-node、建样片门 / 逐镜门）已删；
+// 「生成完成」由夹具落进账本（finishLegacyGenerationJobs），这里只验档位与门的关系——预算门任何档位都不跳、
+// 自动批准永远碰不到付费门（旧 Run 里仍可能挂着逐镜门）。
 
 function makeService(root: string, trackCalls: { count: number }, userTrustLevel?: 'key_confirm' | 'budget_only' | 'confirm_all') {
   fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -47,14 +50,14 @@ function makeService(root: string, trackCalls: { count: number }, userTrustLevel
   })
 }
 
-/** 走到「合同已批准、driver 开始提镜」的公共前置（含方向门批准）。 */
+/** 走到「镜头已经生成、合同已批准」的公共前置（含方向门批准）。 */
 async function driveToContract(service: ReturnType<typeof createProductionRunService>, runId: string) {
   await waitFor(() => Boolean(service.readFull('project-1', runId)?.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'approved')))
   await approveLatestScript(service, 'project-1', runId)
   await approveLatestStoryboard(service, 'project-1', runId)
   const planned = service.readFull('project-1', runId)!
   const storyboardId = planned.artifacts.find((a) => a.kind === 'storyboard')!.artifactId
-  const attached = await service.command('project-1', runId, {
+  await service.command('project-1', runId, {
     commandId: 'attach', expectedRevision: planned.revision, type: 'plan.attach',
     payload: { artifactId: storyboardId, bindings: [
       { nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' },
@@ -62,8 +65,9 @@ async function driveToContract(service: ReturnType<typeof createProductionRunSer
     ] },
     issuedAt: new Date().toISOString(),
   })
+  finishLegacyGenerationJobs(service, 'project-1', runId)
   await service.command('project-1', runId, {
-    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
+    commandId: 'contract', expectedRevision: service.readFull('project-1', runId)!.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
 }
@@ -84,7 +88,7 @@ describe('normalizeTrustLevel / trustLevelOf (B3 收口)', () => {
 })
 
 describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
-  it('budget_only：草稿建好即自动批准方向门（留痕）+ 跳样片门，但预算门仍在等', async () => {
+  it('budget_only：草稿建好即自动批准方向门（留痕），但预算门仍在等', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-budgetonly-'))
     const calls = { count: 0 }
     // 2026-09-21：档位来自**用户的设置**，不再是调用方在 createDraft payload 里自报的那一个。
@@ -107,15 +111,15 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
     // 走到合同门（预算门）：driver 不会自动批它——预算门任何档位都不跳。
     await driveToContract(service, runId)
 
-    // 首镜提交后不设样片门（budget_only 跳）；直接批量到粗剪。
+    // 合同（预算门）是人批的；之后到粗剪。没有任何一笔经渲染层派发。
     await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
     const done = service.readFull('project-1', runId)!
-    expect(done.gates.some((g) => g.gateId === 'gate-sample-v1')).toBe(false) // 样片门被跳过
-    expect(calls.count).toBe(2) // 两镜连提，无样片门中断
+    expect(done.gates.find((g) => g.gateId === 'gate-contract-v1')?.status).toBe('approved')
+    expect(calls.count).toBe(0)
     expect(done.trustLevel ?? trustLevelOf(done.policy)).toBe('budget_only')
   })
 
-  it('key_confirm（默认）：方向门有候选、样片门在首镜后停——五门全开', async () => {
+  it('key_confirm（默认）：方向门有候选、不自动批；粗剪后导出门照样等人', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-keyconfirm-'))
     const calls = { count: 0 }
     const service = makeService(root, calls)
@@ -135,9 +139,9 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
       payload: { gateId: 'gate-direction-v1', status: 'approved', choiceKey: 'a' }, issuedAt: new Date().toISOString(),
     })
     await driveToContract(service, runId)
-    // 首镜后样片门停（key_confirm 要门）。
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
-    expect(calls.count).toBe(1) // 窗口化：只提了镜 1
+    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    expect(service.readFull('project-1', runId)!.gates.find((g) => g.scope === 'export')?.status).toBe('waiting')
+    expect(calls.count).toBe(0)
   })
 })
 
@@ -170,10 +174,10 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
     const events = await service.readEvents('project-1', runId, 0, 0)
     expect(events.events.some((event) => event.type === 'gate.decided' && (event.commandId || '').startsWith('auto-trust-budget-only:gate-direction-'))).toBe(true)
 
-    // 降档后 run 一路自动跑到粗剪（无样片门中断）。
+    // 降档后 run 一路跑到粗剪。
     await driveToContract(service, runId)
     await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
-    expect(service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1')).toBe(false)
+    expect(calls.count).toBe(0)
   })
 
   // 2026-09-10 根因回归闸：set_trust 只能由**客户端工具调用**发起（渲染层 IPC 把 run.control 收窄成
@@ -201,7 +205,12 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
       payload: { gateId: 'gate-direction-v1', status: 'approved', choiceKey: 'a' }, issuedAt: new Date().toISOString(),
     })
     await driveToContract(service, runId)
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId.startsWith('gate-shot-') && g.status === 'waiting'))
+    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    // 旧版本留下的一道还在等的逐镜付费门（旧剧本写手当年在每镜提交前建它；那段派发已删，旧 Run 里还可能挂着）。
+    const beforeShot = service.readFull('project-1', runId)!
+    const shotJob = beforeShot.jobs.find((job) => job.stageId === 'generate')!
+    service.repository.execute('project-1', runId, { commandId: 'legacy-shot-gate', expectedRevision: beforeShot.revision, type: 'gate.add', issuedAt: new Date().toISOString(),
+      payload: { gate: { gateId: `gate-shot-v${beforeShot.planVersion}-legacy-1`, scope: 'job_set', status: 'waiting', planHash: 'legacy-shot', jobIds: [shotJob.jobId], title: 'Approve shot before provider submission', summary: 'legacy', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86_400_000).toISOString() } } })
     const atShot = service.readFull('project-1', runId)!
     const shotGate = atShot.gates.find((g) => g.gateId.startsWith('gate-shot-') && g.status === 'waiting')!
     const submissionsBefore = calls.count

@@ -148,37 +148,42 @@ describe("task IPC local operation lifecycle", () => {
   });
 });
 
-// S1-5 同类（2026-10-03）：画布单点生成途中切项目再切回来，节点一度显示空闲、「生成全部」把它算进去——
-// 供应商收到第二笔，扣两次钱。花钱边界自己要兜底：同一节点有一笔还在主进程手里时，再来一笔直接拒，并说实话。
-describe("one paid submit in flight per canvas node", () => {
+// 批量卡（发动机收敛第一刀第 3 步）：卡上点了确认，卡上列出的每一镜在主进程各开一份出价；排队里去掉 / 整批 × 收回。
+// 同一节点「一次只许一笔在途」从这条 IPC 搬到了画布付费口自己的准入里（appIntegrationCanvasShot.test.ts）。
+describe("canvas batch consent and withdrawal", () => {
   beforeEach(() => { vi.resetAllMocks(); mocks.handlers.clear(); mocks.cancelAll.mockResolvedValue(undefined); });
-  const payload = (nodeId: string, projectId = "project-a") => ({ vendor: "fixture", request: { kind: "text_to_image", prompt: "p", extras: { projectId, nodeId } } });
 
-  it("reported case: a second run on a node whose first run has not returned is refused without reaching the provider", async () => {
-    let release!: () => void;
-    const first = new Promise<string>((resolve) => { release = () => resolve("first-result"); });
-    const runTask = vi.fn().mockReturnValueOnce(first).mockResolvedValue("second-result");
-    registerTaskIpcHandlers(async () => ({ runTask }) as unknown as Runtime, noCanvasCore);
-    const owner = sender(41);
-    const inFlight = call("run", owner, payload("node-1"));
-    await vi.waitFor(() => expect(runTask).toHaveBeenCalledTimes(1));
+  function core() {
+    const consentCanvasShots = vi.fn(() => ({ runIds: ["canvas-r1"] }));
+    const withdrawCanvasShots = vi.fn();
+    registerTaskIpcHandlers(async () => ({}) as unknown as Runtime, async () => ({ consentCanvasShots, withdrawCanvasShots, releaseCanvasShotSender: vi.fn() }) as never);
+    return { consentCanvasShots, withdrawCanvasShots };
+  }
 
-    await expect(call("run", owner, payload("node-1"))).rejects.toMatchObject({ code: "node_generation_in_flight" });
-    expect(runTask).toHaveBeenCalledTimes(1);
-
-    release();
-    await expect(inFlight).resolves.toBe("first-result");
-    await expect(call("run", owner, payload("node-1"))).resolves.toBe("second-result");
+  it("consent passes the validated shots and the real sender, never a payload-claimed owner", async () => {
+    const { consentCanvasShots } = core();
+    const shot = { nodeId: "node-1", runRecordId: "r1", vendor: "acme", modelKey: "m", kind: "image", senderId: 999 };
+    await expect(call("canvas-consent", sender(51), { projectId: "project-a", shots: [shot], senderId: 999 })).resolves.toEqual({ runIds: ["canvas-r1"] });
+    expect(consentCanvasShots).toHaveBeenCalledWith({ projectId: "project-a", senderId: 51, shots: [{ nodeId: "node-1", runRecordId: "r1", vendor: "acme", modelKey: "m", kind: "image" }] });
+    expect(mocks.guard).toHaveBeenCalled();
   });
 
-  it("class: other nodes, the same node id in another project, and requests without a node are not held back", async () => {
-    const runTask = vi.fn(() => new Promise(() => undefined));
-    registerTaskIpcHandlers(async () => ({ runTask }) as unknown as Runtime, noCanvasCore);
-    const owner = sender(42);
-    void call("run", owner, payload("node-1"));
-    void call("run", owner, payload("node-2"));
-    void call("run", owner, payload("node-1", "project-b"));
-    void call("run", owner, { vendor: "fixture", request: { kind: "text_to_image", prompt: "p", extras: {} } });
-    await vi.waitFor(() => expect(runTask).toHaveBeenCalledTimes(4));
+  it("consent refuses an empty card or a shot without its identity: nothing is opened", async () => {
+    const { consentCanvasShots } = core();
+    await expect(call("canvas-consent", sender(52), { projectId: "project-a", shots: [] })).rejects.toThrow(/consent is invalid/);
+    await expect(call("canvas-consent", sender(52), { projectId: "project-a", shots: [{ nodeId: "node-1", vendor: "acme", kind: "image" }] })).rejects.toThrow(/consent is invalid/);
+    expect(consentCanvasShots).not.toHaveBeenCalled();
+  });
+
+  it("withdraw keeps the user's reason (去掉 / ×) and treats anything else as a stop", async () => {
+    const { withdrawCanvasShots } = core();
+    await call("canvas-withdraw", sender(53), { projectId: "project-a", runRecordIds: ["r1"], by: "removed" });
+    await call("canvas-withdraw", sender(53), { projectId: "project-a", runRecordIds: ["r2"], by: "user_closed" });
+    await call("canvas-withdraw", sender(53), { projectId: "project-a", runRecordIds: ["r3"], by: "whatever" });
+    expect(withdrawCanvasShots.mock.calls.map(([input]) => input)).toEqual([
+      { projectId: "project-a", runRecordIds: ["r1"], by: "removed" },
+      { projectId: "project-a", runRecordIds: ["r2"], by: "user_closed" },
+      { projectId: "project-a", runRecordIds: ["r3"], by: "stopped" },
+    ]);
   });
 });

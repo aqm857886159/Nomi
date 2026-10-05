@@ -291,6 +291,46 @@
         "symbol": "connectionCreateVerdictsForSource"
       },
       "reason": "节点快捷动作批次 1（#1001）把「这个节点能接给谁」收成一份带原因的判据 connectionCreateVerdictsForSource，旧的只给种类列表的 connectionCreateKindsForSource 由它取代后删除；同一文件，判据不变，只是多带了接不上的原因。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-03-canvas-submit-in-flight-switch.root-cause.json",
+      "path": "electron/tasks/nodeSubmitInFlight.ts",
+      "symbol": "withNodeSubmitExclusive",
+      "anchor": {
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "assertNodeIdle"
+      },
+      "reason": "发动机收敛第一刀第 3 步（PR #1012）：画布付费生成改走单镜 Run，「同一节点在途时再来一笔就拒（node_generation_in_flight）」搬进画布付费口的准入 assertNodeIdle（进程内在途 + canvasShotRunIndex 盘上「没收尾」标记，重启后照样拒；结果未知的拒成 needs_reconcile），nomi:tasks:run 上那道包装随令牌路一起删除。不再经 Run 的 nomi:tasks:run（文本、本地 ComfyUI、附属付费口）不再有主进程按节点的在途拒绝。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-mcp-validation-diagnostic.root-cause.json",
+      "path": "electron/capabilityCore/mcpArgValidation.ts",
+      "symbol": "validateToolArguments",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpProtocol.ts",
+        "symbol": "guardMcpTransport / validateToolArguments"
+      },
+      "reason": "2026-10-05 MCP 协议层换官方 SDK v2（PR #1011，设计卡 docs/plan/2026-10-05-mcp-official-sdk.md）：mcpArgValidation.ts 删除，tools/call 参数校验的唯一边界搬到 mcpProtocol.ts 的 validateToolArguments（引擎换成 SDK 自带的 JSON Schema 校验器，仍挂 capability_input_invalid），校验前的参数容忍钩子在同文件 guardMcpTransport 的入口跑。不变量与判据不变，只是主人搬家。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-mcp-integration-q8-seams.root-cause.json",
+      "path": "electron/capabilityCore/mcpArgValidation.ts",
+      "symbol": "validateToolArguments",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpProtocol.ts",
+        "symbol": "guardMcpTransport / validateToolArguments"
+      },
+      "reason": "2026-10-05 MCP 协议层换官方 SDK v2（PR #1011，设计卡 docs/plan/2026-10-05-mcp-official-sdk.md）：mcpArgValidation.ts 删除，tools/call 参数校验的唯一边界搬到 mcpProtocol.ts 的 validateToolArguments（引擎换成 SDK 自带的 JSON Schema 校验器，仍挂 capability_input_invalid），校验前的参数容忍钩子在同文件 guardMcpTransport 的入口跑。不变量与判据不变，只是主人搬家。 additionalProperties 拒绝凭据形字段的语义由 SDK 校验器原样执行（特征测试 mcpWireContract.test.ts「多余参数同样被拒在领域之外」）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-06-mcp-stdio-host-stderr-diagnostics.root-cause.json",
+      "path": "electron/capabilityCore/mcpStdioDiagnostics.ts",
+      "symbol": "MCP_OVERSIZED_LINE_EVENT / MCP_CANCELLED_IN_FLIGHT_EVENT",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpStdioDiagnostics.ts",
+        "symbol": "MCP_TRANSPORT_ERROR_EVENT / MCP_CANCELLED_IN_FLIGHT_EVENT"
+      },
+      "reason": "2026-10-05 MCP 协议层换官方 SDK v2（PR #1011）：stdio 分帧归 SDK 的 StdioServerTransport，不再「丢弃超长行」，而是读缓冲超限报错并关连接；对应诊断事件改名 MCP_TRANSPORT_ERROR_EVENT（stdio-transport-error），仍在同一个文件里、仍是两条启动路共用的唯一名字定义，不变量（事件名单一定义、宿主经 stderr 看得见）不变。"
     }
   ],
   "retirements": [

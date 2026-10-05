@@ -27,8 +27,9 @@ export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' |
  * 付费门（spend gate）= **批准它会导致向供应商花钱**。这是「哪些门必须有真人授权」的唯一定义，
  * 由 scope 判、不看 gateId 前缀（前缀是展示用的身份，不是钱的语义）：
  * - `budget_envelope`：批准即写预算账本授权（productionRunRepository 只在这个 scope 上 authorize ledger）。
- * - `job_set`：按构造只有逐镜提交门（见 shotGateId / productionRunDriverOps），批准即放行
- *   `production.generate-node`，下一步就是真实供应商调用。
+ * - `job_set`：按构造只有逐镜提交门（见 shotGateId）。它们曾经放行旧剧本驱动对 `production.generate-node` 的派发；
+ *   那段派发已随发动机收敛第一刀第 4 步删除（旧剧本 Run 里没交的作业停成「需要处理」），旧 Run 里仍可能挂着这种门，
+ *   照旧按付费门对待（宁可多要一次真人授权）。
  * 其余 scope 都不发起付费调用：`stage`（方向/样片/冻结创意门）、`anchor_checkpoint`（定妆质量门，
  * 预算在确认卡上已批过）、`export`/`publish`（本地导出/发布，不调供应商）。
  *

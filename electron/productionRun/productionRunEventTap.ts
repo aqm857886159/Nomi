@@ -17,5 +17,13 @@ export function withEventTap(
       try { onEvents(result.events, result.run) } catch { /* 通知钩子不许影响制作 */ }
       return result
     },
+    // 一次落盘的一串命令：每一条的事件照样按顺序广播，监听者看到的与逐条执行相同。
+    executeBatch: (projectId, runId, expectedRevision, commands) => {
+      const results = repository.executeBatch(projectId, runId, expectedRevision, commands)
+      for (const result of results) {
+        try { onEvents(result.events, result.run) } catch { /* 通知钩子不许影响制作 */ }
+      }
+      return results
+    },
   }
 }

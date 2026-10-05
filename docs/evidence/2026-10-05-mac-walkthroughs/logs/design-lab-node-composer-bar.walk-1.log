@@ -1,0 +1,25 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 1872ms.
+▶ 启动 vite dev server…
+  ✗ composer-bar-v1-video 现役 composer 卡应有 1 张，实际 0 —— 这一格没渲染出真身
+  ✓ composer-bar-v1-video              900×720  v1.1 · 视频节点（模型 / 变体 / 参数摘要 pill）
+  ✗ composer-bar-v1-video-camera 现役 composer 卡应有 1 张，实际 0 —— 这一格没渲染出真身
+  ✓ composer-bar-v1-video-camera       900×720  v1.1 · 视频节点（运镜写在提示词）
+  ✗ composer-bar-v1-image 现役 composer 卡应有 1 张，实际 0 —— 这一格没渲染出真身
+  ✓ composer-bar-v1-image              900×720  v1.1 · 图片节点（无运镜；摘要按档案只报比例 + 清晰度）
+  ✗ composer-bar-v1-video-dark 现役 composer 卡应有 1 张，实际 0 —— 这一格没渲染出真身
+  ✓ composer-bar-v1-video-dark         900×720  v1.1 · 视频节点 · 暗（运镜写在提示词）
+  ✗ composer-bar-v1-image-dark 现役 composer 卡应有 1 张，实际 0 —— 这一格没渲染出真身
+  ✓ composer-bar-v1-image-dark         900×720  v1.1 · 图片节点 · 暗
+  ✓ composer-bar-chips-mode            900×720  chips 模式（付费卡用）· 同一组件的 parameterLayout 属性
+  ✓ composer-bar-panel-flat-options    900×720  v1.2 · 参数面板展开：选项全摊开，一个下拉都没有（比例带图形 / 清晰度 / 时长滑杆）
+  ✓ composer-bar-panel-solo-direct     900×720  v1.2 · 只有一个参数（Agnes Image 只声明「尺寸」）：点 pill 一步直出选项，没有面板壳
+
+▶ 接触表：~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/shots/design-lab-node-composer-bar/_contact-sheet.png
+
+❌ 设计实验室走查失败 5 条
+RC=1

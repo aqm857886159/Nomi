@@ -407,6 +407,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   // 默认就压着——一条走查若不 release，它看到的正是用户看到的「还在生成」。
   let videosHeld = true
   const unexpected = []
+  /** 启动对账发来的只读模型清单请求（见 handleRequest）；走查想核时可读。 */
+  const modelListProbes = []
   const expectations = []
   /**
    * 常驻应答（全功能走查用）：App 自己在后台发起、次数不定的文本调用（出图后的镜级审片等）。
@@ -508,6 +510,14 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       record.body = JSON.parse(record.body || '{}')
     } catch {
       rejectRequest(record, response, 'Invalid JSON request body')
+      return
+    }
+    // App 启动时的零额度模型清单对账（startCatalogReconciliation）会对有钥匙的文本供应商发只读 GET /models 或 /v1/models。
+    // 这是常驻应答，不算意外请求；清单照夹具目录里的模型原样回（对账看到「都在」就不会改目录）。其余路径仍照样判红。
+    if (request.method === 'GET' && (record.path === '/models' || record.path === '/v1/models')) {
+      const listed = JSON.parse(await readFile(path.join(settingsDir, 'model-catalog.json'), 'utf8')).models ?? []
+      modelListProbes.push(record)
+      jsonResponse(response, 200, { object: 'list', data: [...new Set(listed.map((model) => model.modelKey))].map((id) => ({ id, object: 'model' })) })
       return
     }
     if (request.method !== 'POST') {
@@ -644,7 +654,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     })
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
-      baseURL, requests, images, videos, unexpected, close, generationProvider,
+      baseURL, requests, images, videos, unexpected, modelListProbes, close, generationProvider,
       /** 已受理的 apimart 图片任务先停在 `processing`（true），放开后下一次轮询照常出图（false）。 */
       holdTasks(on) { holdTasks = Boolean(on) },
       /** apimart 图片 / 视频 create 先压着不回（true），放开后压着的那几笔照常受理（false）。 */

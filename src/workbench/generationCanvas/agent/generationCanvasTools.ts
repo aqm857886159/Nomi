@@ -38,7 +38,7 @@ export type GenerationCanvasToolAction =
   // 于是也绕开了托管同意——F16b 那张「每次生成都弹」的第二卡就有它们一份。
   // 2026-08-26 随旧卡一并删除（P1 不留死的并行入口）。真正现役的生成入口是
   // NodeGenerationComposer → confirmAndRunNode / batchPlanPreview → 花钱卡，
-  // 外部 agent 走 capability 的 production.generate-node。
+  // 外部 agent 走语义生成能力（generate → 付费卡 → 制作流程提交出口）。
   | { tool: 'send_to_timeline'; nodeId: string; options?: SendGenerationNodeToTimelineOptions }
 
 function toolResult<T>(input: GenerationCanvasToolResult<T>): GenerationCanvasToolResult<T> {

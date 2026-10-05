@@ -246,7 +246,7 @@ describe("MCP semantic generation planning journey", () => {
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
 
-    await harness.call(1, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex" } });
+    await harness.call(1, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
     const created = await harness.call(2, "tools/call", { name: "nomi_operation_plan", arguments: { leaseHandle: lease, candidate: makeCandidate() } });
     expect(created.result).toBeTruthy();
     const operationId = [...(await repository.list("project-1"))][0]?.runId;
@@ -279,7 +279,7 @@ describe("MCP semantic generation planning journey", () => {
       generationPlanning: handler,
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
-    await harness.call(11, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex" } });
+    await harness.call(11, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
     const created = await harness.call(12, "tools/call", { name: "nomi_operation_plan", arguments: { leaseHandle: lease, candidate: makeEditableCandidate() } });
     expect(created.result).toBeTruthy();
     const operationId = [...(await repository.list("project-1"))][0]?.runId;
@@ -327,7 +327,7 @@ describe("MCP semantic generation planning journey", () => {
       generationPlanning: handler,
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
-    await harness.call(21, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex" } });
+    await harness.call(21, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
     const created = await harness.call(22, "tools/call", {
       name: "nomi_operation_plan",
       arguments: {
@@ -433,7 +433,7 @@ describe("MCP semantic generation planning journey", () => {
       generationPlanning: handler,
     };
     const harness = new McpJourneyHarness((method, params) => dispatch(method, params, context));
-    await harness.call(31, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex" } });
+    await harness.call(31, "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "Codex", version: "1" } });
     const contextResponse = await harness.call(315, "tools/call", { name: "nomi_read", arguments: { target: "generation_context", leaseHandle: lease } });
     const contextPayload = JSON.parse((contextResponse.result as { content: Array<{ text: string }> }).content[0]!.text) as {
       videoModels?: Array<{

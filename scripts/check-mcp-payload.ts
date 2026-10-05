@@ -66,7 +66,10 @@ const protocol = createMcpProtocol({ send: (message) => frames.push(message as F
 async function run(): Promise<void> {
   try {
     protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
-    await new Promise<void>((resolve) => setImmediate(resolve))
+    // 协议层是官方 SDK，处理每一帧都是异步的：让事件循环转到有响应为止（最多几圈）。
+    for (let round = 0; round < 20 && !frames.some((frame) => frame.result !== undefined); round += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+    }
     if (!frames.some((frame) => frame.result !== undefined)) throw new Error('MCP tools/list returned no result')
     const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
     const actualBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())

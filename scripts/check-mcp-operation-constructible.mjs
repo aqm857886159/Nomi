@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const { MCP_TOOL_RESOLVER } = await import(path.join(repoRoot, 'electron/capabilityCore/mcpToolCatalog.ts'))
-const { validateToolArguments } = await import(path.join(repoRoot, 'electron/capabilityCore/mcpArgValidation.ts'))
+const { validateToolArguments } = await import(path.join(repoRoot, 'electron/capabilityCore/mcpProtocol.ts'))
 
 /**
  * 外部调用方从哪拿到这个值。键是 `<工具名> :: <字段路径>`，数组路径写成 `[]`。

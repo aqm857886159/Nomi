@@ -14,7 +14,7 @@ import {
   canvasReadSemanticInputSchema,
   projectCanvasRead,
 } from "../shared/agentCapabilities/canvasRead";
-import { findUnsupportedSchemaFeatures } from "./mcpArgValidation";
+import { findUnsupportedSchemaFeatures } from "./mcpTransportSchemaFromZod";
 import {
   CANVAS_READ_MCP_ADAPTER,
   MCP_CAPABILITY_RESOLVER,

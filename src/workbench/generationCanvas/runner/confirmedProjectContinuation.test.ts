@@ -15,7 +15,7 @@ import type { GenerationNodeResult, TiptapDocJson } from '../model/generationCan
 import type { GenerationNodeExecutor } from './generationNodeExecutor'
 import { createDefaultWorkbenchProjectPayload, type WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
-const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn() }))
+const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn(), consent: vi.fn() }))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
   saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload'], name: string) => {
@@ -24,11 +24,10 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint }))
+vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
-const COMFY_META = { modelKey: 'workflow', modelVendor: 'comfyui-local', vendor: 'comfyui-local' }
 let session: ProjectSessionTestHarness
 beforeEach(() => {
   calls.disk.clear()
@@ -36,6 +35,7 @@ beforeEach(() => {
   calls.execute.mockReset()
   vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.confirm)
   calls.mint.mockReset().mockResolvedValue('approved-three')
+  calls.consent.mockReset().mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => input.shots.map((shot) => `canvas-${shot.runRecordId}`))
   session = createProjectSessionTestHarness()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
@@ -112,21 +112,36 @@ it.each(['first-frame-video', 'batch'] as const)('original plan confirmation con
   })
   expect(calls.execute).toHaveBeenCalledTimes(2)
   expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.mint).toHaveBeenCalledOnce()
+  // 一张批量卡 = 一份授权：点了确认，卡上两个要花钱的节点在主进程各开一份出价（一次），不铸令牌。
+  expect(calls.consent).toHaveBeenCalledOnce()
+  expect(calls.consent.mock.calls[0][0].shots.map((shot: { nodeId: string }) => shot.nodeId)).toEqual([first.id, second.id])
+  expect(calls.mint).not.toHaveBeenCalled()
   expect(useGenerationCanvasStore.getState().nodes).toEqual([])
   expect(calls.disk.get(target.projectId)?.payload.generationCanvas.nodes.map(node => node.status)).toEqual(['success', 'success'])
 })
 
-it.each(['confirmation', 'minting'] as const)('project switching during %s prevents the first submission', async boundary => {
+it('project switching during confirmation prevents the first submission', async () => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
-  // 铸令牌这一格只剩令牌路（本地 ComfyUI 等登记的例外）还有；单镜 Run 路没有这段异步空档。
-  if (boundary === 'minting') useGenerationCanvasStore.getState().updateNode(node.id, { meta: COMFY_META })
-  if (boundary === 'confirmation') calls.confirm.mockImplementation(async () => { await session.open('project-b'); return true })
-  else calls.mint.mockImplementation(async () => { await session.open('project-b'); return 'grant' })
+  calls.confirm.mockImplementation(async () => { await session.open('project-b'); return true })
   await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor: calls.execute })
   expect(calls.execute).not.toHaveBeenCalled()
-  expect(calls.mint).toHaveBeenCalledTimes(boundary === 'confirmation' ? 0 : 1)
+  expect(calls.mint).not.toHaveBeenCalled()
+})
+
+// 批量卡点了确认之后、开始交之前还有一段异步：主进程为卡上每一镜开出价（一次 IPC）。这一段里换了项目 = 还没提交，
+// 这一批不开始（刚开的出价收回），与以前「铸令牌时换项目」同一条规则。
+it('project switching while the batch card opens its consents prevents the first submission', async () => {
+  await session.open('project-a')
+  const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
+  const other = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'second shot' })
+  calls.consent.mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => {
+    await session.open('project-b')
+    return input.shots.map((shot) => `canvas-${shot.runRecordId}`)
+  })
+  await expect(confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const })).resolves.toBe('unavailable')
+  expect(calls.execute).not.toHaveBeenCalled()
+  expect(calls.mint).not.toHaveBeenCalled()
 })
 
 
@@ -191,18 +206,17 @@ it('rejects a manual history selection on a first frame produced by the same app
   expect(useGenerationCanvasStore.getState().nodes.find(node => node.id === second.id)).toMatchObject({ status: 'error' })
 })
 
-it('rerun duplicate edited while mint is pending must not execute unapproved prompt', async () => {
+it('a node edited while the batch card opens its consents must not execute the unapproved prompt', async () => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
-  // 令牌路（本地 ComfyUI）才有「铸令牌在等」这一格。
-  useGenerationCanvasStore.getState().updateNode(node.id, { meta: COMFY_META })
-  calls.mint.mockImplementation(async (ids: string[]) => {
-    useGenerationCanvasStore.getState().updateNode(ids[0], { prompt: 'changed DURING mint' })
-    return 'grant'
+  const other = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'second shot' })
+  calls.consent.mockImplementation(async (input: { shots: Array<{ nodeId: string; runRecordId: string }> }) => {
+    useGenerationCanvasStore.getState().updateNode(input.shots[0].nodeId, { prompt: 'changed DURING consent' })
+    return input.shots.map((shot) => `canvas-${shot.runRecordId}`)
   })
-  calls.execute.mockImplementation(async () => ({ id: 'generated', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }))
-  await confirmAndRunNode(node.id, { rerun: true, initiator: 'user' })
-  expect(calls.execute.mock.calls.map(([node]) => node.prompt)).toEqual([])
+  calls.execute.mockImplementation(async (executed) => ({ id: 'generated-' + executed.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }))
+  await confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const })
+  expect(calls.execute.mock.calls.map(([executed]) => executed.prompt)).not.toContain('changed DURING consent')
 })
 it('planned text manual draft edit must not replace approved connected prompt', async () => {
   await session.open('project-a')

@@ -1,0 +1,12 @@
+file://~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/director-3dbox-shell.walk.mjs:26
+if (!rendererUrl) throw new Error('需要 NOMI_WALK_RENDERER_URL（本仓 vite dev 地址），见文件头用法')
+                        ^
+
+Error: 需要 NOMI_WALK_RENDERER_URL（本仓 vite dev 地址），见文件头用法
+    at file://~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/director-3dbox-shell.walk.mjs:26:25
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.0
+RC=1

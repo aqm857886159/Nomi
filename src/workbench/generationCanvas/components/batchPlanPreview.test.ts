@@ -10,7 +10,8 @@ import { verifyShotsAndReport } from '../agent/shotVerifyStore'
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   toastPush: vi.fn(),
-  confirmAndMintGrant: vi.fn(async () => 'retry-grant'),
+  confirmGenerationSpend: vi.fn(async () => true),
+  consentCanvasShots: vi.fn(async (input: { shots: Array<{ runRecordId: string }> }) => input.shots.map((shot) => `canvas-${shot.runRecordId}`)),
   nodes: [{ id: 'a', kind: 'image', title: 'A', position: { x: 0, y: 0 } }] as GenerationCanvasNode[],
   edges: [] as GenerationCanvasEdge[],
 }))
@@ -20,8 +21,10 @@ vi.mock('../../../ui/toast', () => ({
   useToastStore: { getState: () => ({ push: mocks.toastPush }) },
 }))
 
+vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
+
 vi.mock('../spend/spendConfirm', () => ({
-  confirmAndMintGrant: mocks.confirmAndMintGrant,
+  confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => '1 image'),
   generationCostContextForNodes: vi.fn(() => ({ vendorKey: 'v', modelKey: 'm', etaStats: [] })),
 }))
@@ -34,6 +37,12 @@ vi.mock('../agent/shotVerifyStore', () => ({ verifyShotsAndReport: vi.fn() }))
 
 vi.mock('../runner/generationRunController', () => ({
   spendCostKindForNodes: vi.fn(() => 'image'),
+  paidNodeLedger: vi.fn(() => 'run'),
+}))
+
+vi.mock('../runner/catalogTaskResolve', () => ({
+  selectedVendor: vi.fn(() => 'relay'),
+  selectedModelKey: vi.fn(() => 'image-model'),
 }))
 
 vi.mock('../runner/generationRunWaves', () => ({
@@ -84,7 +93,7 @@ describe('runPlanWithToasts concurrency', () => {
     projectSession = createProjectSessionTestHarness()
     await projectSession.open('project-a')
     vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, successes: [], failures: [] })
-    mocks.confirmAndMintGrant.mockResolvedValue('retry-grant')
+    mocks.confirmGenerationSpend.mockResolvedValue(true)
   })
 
   // 2026-09-26 用户拍板（T-QA-36）：点「生成全部」只花生成的钱，跑完不再自动调文本模型审片。
@@ -111,11 +120,12 @@ describe('runPlanWithToasts concurrency', () => {
   it('passes the chosen concurrency to the dependency-wave runner', async () => {
     const dependencyPlan = plan({ waves: [['a']] })
 
-    await runPlanWithToasts(dependencyPlan, { grantId: 'grant-1', concurrency: 4, assetUploadConsent: 'allow', project: openProject() })
+    const canvasRunRecordIds = new Map([['a', 'run-a-1']])
+    await runPlanWithToasts(dependencyPlan, { canvasRunRecordIds, concurrency: 4, assetUploadConsent: 'allow', project: openProject() })
 
     expect(runGenerationNodesByPlan).toHaveBeenCalledWith(dependencyPlan, {
       target: testProjectBinding('project-a'),
-      grantId: 'grant-1',
+      canvasRunRecordIds,
       concurrency: 4,
       // 托管决定必须原样透传到波次运行器——中途丢了就等于让 runner 自己去问（F16b 第二张卡）。
       assetUploadConsent: 'allow',
@@ -144,7 +154,7 @@ describe('runPlanWithToasts concurrency', () => {
     vi.stubGlobal('window', { dispatchEvent })
     await mocks.toastPush.mock.calls[0][0].onAction()
     expect(runGenerationNodesByPlan).toHaveBeenCalledTimes(1)
-    expect(mocks.confirmAndMintGrant).not.toHaveBeenCalled()
+    expect(mocks.confirmGenerationSpend).not.toHaveBeenCalled()
     expect(dispatchEvent.mock.calls[0][0]).toHaveProperty('detail.projectId', 'project-a')
   })
 
@@ -161,7 +171,7 @@ describe('runPlanWithToasts concurrency', () => {
     vi.stubGlobal('window', { dispatchEvent })
     await first.onAction()
     expect(dispatchEvent.mock.calls[0][0]).toHaveProperty('detail.projectId', 'project-a')
-    expect(mocks.confirmAndMintGrant).not.toHaveBeenCalled()
+    expect(mocks.confirmGenerationSpend).not.toHaveBeenCalled()
   })
 
   it('keeps the selected concurrency when the explicit retry action reruns failures', async () => {
@@ -189,9 +199,14 @@ describe('runPlanWithToasts concurrency', () => {
     failedToast.onAction()
     await vi.waitFor(() => expect(runGenerationNodesByPlan).toHaveBeenCalledTimes(2))
 
+    // 重试也是一张新卡：点了确认，失败的那几个在主进程重新各开一份出价（新的运行记录号，不复用上一轮的）。
+    expect(mocks.consentCanvasShots).toHaveBeenCalledTimes(1)
+    const retried = vi.mocked(runGenerationNodesByPlan).mock.calls.at(-1)![1].canvasRunRecordIds!
+    expect([...retried.keys()]).toEqual(['a'])
+    expect(mocks.consentCanvasShots.mock.calls[0][0]).toMatchObject({ projectId: 'project-a', shots: [{ nodeId: 'a', runRecordId: retried.get('a'), vendor: 'relay', modelKey: 'image-model', kind: 'image' }] })
     expect(runGenerationNodesByPlan).toHaveBeenLastCalledWith(expect.any(Object), {
       target: testProjectBinding('project-a'),
-      grantId: 'retry-grant',
+      canvasRunRecordIds: retried,
       assertAuthorCurrent: undefined,
       assertApprovedInputs: expect.any(Function),
       concurrency: 4,

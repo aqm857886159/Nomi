@@ -6,9 +6,12 @@ import { reportCanvasFeedback } from './canvasFeedback'
 import { notify, revealNotificationTarget } from '../../../ui/notificationPolicy'
 import { isProjectExecutionContextCurrent, isProjectOpen, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { captureApprovedGenerationInputs, type RunGraph, type RunProjectTarget } from '../runner/runProjectDelivery'
-import { spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
+import { paidNodeLedger, spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
-import { confirmAndMintGrant, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
+import { consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
+import { selectedModelKey, selectedVendor } from '../runner/catalogTaskResolve'
+import { createRunId } from '../store/canvasIds'
 import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
@@ -123,12 +126,33 @@ function hostingDisclosureFor(
 }
 
 /**
- * 用户直发批量（框选「生成 N 个」）：轻确认 + 铸令牌 + 跑。取消则零调用零扣费。
+ * 卡上点了确认之后，把这一批里要花钱的每一个节点在主进程开一份出价（一镜一个单镜 Run，出价开着 = 这一镜他同意了）。
+ * 不花钱的本地 / 文本节点不在里面。返回节点 → 运行记录号与主进程的 Run 号；一个要花钱的都没有时都是空的。
+ */
+async function consentPaidNodes(ids: readonly string[], projectId: string): Promise<{ recordIds: Map<string, string>; runIds: string[] }> {
+  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
+  const shots: CanvasConsentShot[] = []
+  for (const id of ids) {
+    const node = nodesById.get(id)
+    if (!node || paidNodeLedger(node) !== 'run') continue
+    shots.push({ nodeId: id, runRecordId: createRunId(id), vendor: selectedVendor(node), modelKey: selectedModelKey(node), kind: node.kind })
+  }
+  if (shots.length === 0) return { recordIds: new Map(), runIds: [] }
+  const runIds = await consentCanvasShots({ projectId, shots })
+  return { recordIds: new Map(shots.map((shot) => [shot.nodeId, shot.runRecordId])), runIds }
+}
+
+/**
+ * 用户直发批量（框选「生成 N 个」）：轻确认 + 卡上这一批开出价 + 跑。取消则零调用零扣费。
+ * 一张批量卡 = 一份授权，盖住卡上列出的节点（发动机收敛第一刀第 3 步）：点了确认，主进程为其中要花钱的每一个节点
+ * 开一份出价；排队里被去掉的、整批 × 掉的，主进程收回出价、再也交不出去。
  * 抽到此处而非内联进 GenerationCanvas（巨壳 800 行顶格，不喂）。
+ *
+ * `onConsented`：出价开好、开始跑的那一刻回调一次（Agent 对文稿方案的 `generate` 据此当场交回，不等整批跑完）。
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number } & GenerationConfirmationGuards,
+  options: { concurrency?: number; onConsented?: (runIds: string[]) => void } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
@@ -144,10 +168,7 @@ export async function confirmAndRunPlan(
   const hosting = await resolveBatchHosting(ids)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting) return 'declined'
-  const grantId = await confirmAndMintGrant({
-    assertCurrent: async () => { await options.assertCurrent?.(); project.assertCurrent() },
-    nodeIds: ids,
-    nodes: ids.map((id) => nodesById.get(id)),
+  const ok = await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
     initiator: options.initiator,
     title: i18n.t('generationCommon.batchPlan.startTitle'),
     message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
@@ -160,14 +181,23 @@ export async function confirmAndRunPlan(
   })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
   // 「他点了取消」，`generate` 只好报 `generation_approval_unavailable`（见 `generationRunOutcome.ts`）。
-  if (!grantId) return 'declined'
+  if (!ok) return 'declined'
   await options.assertCurrent?.()
+  project.assertCurrent()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+  const consented = await consentPaidNodes(ids, project.binding.projectId)
+  const canvasRunRecordIds = consented.recordIds
+  // 开出价那一下（一次 IPC）里换了项目：还没交任何东西，收回刚开的出价，这一批算没开始（与提交前换项目 = 取消同一条）。
+  if (!isProjectExecutionContextCurrent(project)) {
+    withdrawCanvasShots({ projectId: project.binding.projectId, runRecordIds: [...canvasRunRecordIds.values()], by: 'stopped' })
+    return 'unavailable'
+  }
+  options.onConsented?.(consented.runIds)
   await runPlanWithToasts(plan, {
     project,
     assertAuthorCurrent: options.assertAuthorCurrent,
     assertApprovedInputs,
-    grantId,
+    canvasRunRecordIds,
     concurrency: options.concurrency,
     // 用户刚在上面那张卡里同意了（或判定无需问）——决定在这里定死，波次里不再问第二次。
     assetUploadConsent: hosting.needsConfirmation ? 'allow' : 'not-needed',
@@ -176,12 +206,12 @@ export async function confirmAndRunPlan(
 }
 
 /** 按计划真实生成 + 可行动的失败反馈。「全部生成」与 S6b agent 受理路径共用(单一执行口)。
- * grantId：付费守卫令牌（确认后铸），随 plan 下到每个节点的 request.extras 供主进程核验。 */
+ * canvasRunRecordIds：卡上点了确认后主进程为要花钱的节点开好的出价（节点 → 运行记录号），每个节点交的时候认它。 */
 export async function runPlanWithToasts(
   plan: DependencyWavePlan,
   // assetUploadConsent 必填：整批的托管同意在上面那张批量花钱卡里问过了，这里只是把答案带下去。
   // 缺省会让 runner 无从判断「谁问的用户」，那正是 F16b 第二张卡的来源。
-  options: { assertAuthorCurrent?: () => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; grantId?: string; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
+  options: { assertAuthorCurrent?: () => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
 ): Promise<void> {
   // 运行属于发起它的项目：身份（target）在这里定死，之后用户切项目也照样落回原项目。
   const target: RunProjectTarget = options.project.binding
@@ -202,14 +232,15 @@ export async function runPlanWithToasts(
   }
   // Progress is already projected by nodes and the task center. Each paid run owns
   // its recovery action; unrelated batches must not overwrite one global slot.
-  const notificationId = `${BATCH_RUN_TOAST_ID}:${projectId}:${options.grantId ?? waves.flat().slice().sort().map(encodeURIComponent).join(':')}`
+  const consentKey = options.canvasRunRecordIds?.size ? [...options.canvasRunRecordIds.values()].sort()[0] : undefined
+  const notificationId = `${BATCH_RUN_TOAST_ID}:${projectId}:${consentKey ?? waves.flat().slice().sort().map(encodeURIComponent).join(':')}`
   try {
     const result = await runGenerationNodesByPlan(plan, {
       assertAuthorCurrent: options.assertAuthorCurrent,
       assertApprovedInputs: options.assertApprovedInputs,
       assetUploadConsent: options.assetUploadConsent,
       target,
-      ...(options.grantId ? { grantId: options.grantId } : {}),
+      ...(options.canvasRunRecordIds?.size ? { canvasRunRecordIds: options.canvasRunRecordIds } : {}),
       ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     })
     const okCount = result.successes.length
@@ -228,7 +259,7 @@ export async function runPlanWithToasts(
       })
     } else {
       // 失败汇总挂「重试失败的 N 个」一键动作（样张拍板 2026-07-29）：只对失败节点重建依赖波次
-      // → 重新轻确认（新令牌，不绕付费闸）→ 并发重跑；成功的不重付。上游仍缺果的会再次被
+      // → 重新轻确认（新的一张卡、新开的出价，不绕付费闸）→ 并发重跑；成功的不重付。上游仍缺果的会再次被
       // 人话拦下（describeBlockedNotice），不静默。ttl 放宽到 12s 给动作留点击窗口。
       const failureIds = result.failures.map((failure) => failure.nodeId)
       const message =

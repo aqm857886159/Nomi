@@ -57,11 +57,10 @@ const RUN_GENERATION_NODE_HOMES = new Set([
   'src/workbench/generationCanvas/agent/generationCanvasTools.ts', // 单节点 agent 工具（非批量循环）
   'src/workbench/capability/capabilityApplyHandler.ts', // 单节点 capability apply（语义单镜落节点）
 ])
+// 2026-10-05 发动机收敛第一刀第 4 步：brand.promo 驱动对 `production.generate-node` 的请求整段删掉（旧剧本那台生成写手退役），
+// 渲染层也早已不应答这条。剩下的只有 e2e 桩（拿它造本地样片）；谁再请求这条就是复活一台已退役的写手。
 const PRODUCTION_GENERATE_NODE_HOMES = new Set([
-  'electron/productionRun/productionRunDriverOps.ts', // #2 brand.promo 驱动**请求方**（S7b 收编后这里的循环删掉）
-  'src/workbench/capability/capabilityApplyHandler.ts', // 渲染层**应答方**（主进程 requestRenderer 的另一端，非新驱动）
   'electron/productionRun/productionRunE2eFixture.ts', // e2e 桩：模拟渲染层应答
-  'electron/capabilityCore/generationDispatcher.ts', // capability 声明（method→scope 映射，非调用）
 ])
 const FROZEN_JUDGMENT_HOMES = new Set([
   'electron/capabilityCore/anchorBible.ts', // 权威判据

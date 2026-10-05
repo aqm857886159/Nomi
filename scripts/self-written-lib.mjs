@@ -163,10 +163,56 @@ export function validateRegistry(registry, { exists = () => true, today } = {}) 
     if (entry.status === 'under-review' && !DATE_ONLY.test(entry.reviewBy ?? '')) {
       errors.push(`${label}: under-review 必须写 reviewBy（YYYY-MM-DD）——评估也有期限`)
     }
+    if (entry.status === 'to-replace' && Array.isArray(entry.paths) && entry.paths.length > 0 && entry.paths.every((path) => !exists(path))) {
+      errors.push(`${label}: to-replace 的 paths 已经全部不存在——已替换，请删这条登记（登记表不留死账）`)
+    }
+    if (entry.renewed !== undefined) {
+      const renewed = Array.isArray(entry.renewed) ? entry.renewed : null
+      if (!renewed || !renewed.every((item) => DATE_ONLY.test(item?.on ?? '') && DATE_ONLY.test(item?.from ?? '') && typeof item?.reason === 'string' && item.reason.trim().length >= 4)) {
+        errors.push(`${label}: renewed 必须是 [{ on, from, reason }]（续期日、原 reviewBy、为什么现在还下不了结论）`)
+      } else if (renewed.length > MAX_RENEWALS) {
+        errors.push(`${label}: 评估期限最多续 ${MAX_RENEWALS} 次，已续 ${renewed.length} 次——现在必须下结论（接入现成方案 / 改 to-replace / 写清只认领域约束的 justified）`)
+      }
+    }
     if (entry.revisitBy !== undefined && !DATE_ONLY.test(entry.revisitBy)) errors.push(`${label}: revisitBy 必须是 YYYY-MM-DD`)
   }
-  void today
   return { errors, stale }
+}
+
+/** 新登记的评估期限上限（天）、最多续几次。 */
+export const MAX_REVIEW_DAYS = 30
+export const MAX_RENEWALS = 1
+
+const addDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
+
+/**
+ * 评估到期真拦（P0）。输入：当前登记表、base 登记表（可空）、这次改动碰到的全部文件（可空）、今天。
+ *   · 过期 + 碰了它的 paths：under-review 的 reviewBy 已过（today > reviewBy），这次改动又碰了该条目的文件 → 报。
+ *     例外就是「改动本身是评估 / 替换」：同一次改动把它改离 under-review（或删掉条目）——那时它已不是 under-review，自然不报。
+ *     没碰它的 paths 的改动不被它拖住（它由 audit:self-written 列进周期清单）。
+ *   · 新登记（或刚改成 under-review）的 reviewBy 距今不超过 MAX_REVIEW_DAYS；存量条目的日期不动、不追溯。
+ *   · 延期（reviewBy 比 base 晚）必须同时在 renewed 里加一条记录，延后后仍不超过 MAX_REVIEW_DAYS；最多续 MAX_RENEWALS 次。
+ */
+export function evaluateReviewDeadlines({ registry, baseRegistry = null, changedFiles = null, today }) {
+  const errors = []
+  const baseById = new Map((baseRegistry?.entries ?? []).map((entry) => [entry.id, entry]))
+  const limit = addDays(today, MAX_REVIEW_DAYS)
+  for (const entry of registry?.entries ?? []) {
+    if (entry.status !== 'under-review' || !DATE_ONLY.test(entry.reviewBy ?? '')) continue
+    const label = `entries[${entry.id}]`
+    if (changedFiles && entry.reviewBy < today && changedFiles.some((file) => (entry.paths ?? []).some((pattern) => pathMatches(pattern, file)))) {
+      errors.push(`${label}: 评估已过期（reviewBy ${entry.reviewBy}），这次改动又碰了它的文件。先把评估做完：接入现成方案 / 改 to-replace（绑 plan）/ 改 justified（理由只认领域约束）；确实下不了结论，在 renewed 里记录并把 reviewBy 续到 ${limit} 之内（只能续 ${MAX_RENEWALS} 次）`)
+    }
+    if (!baseRegistry) continue
+    const base = baseById.get(entry.id)
+    if (!base || base.status !== 'under-review') {
+      if (entry.reviewBy > limit) errors.push(`${label}: 新登记的 under-review，reviewBy 距今不得超过 ${MAX_REVIEW_DAYS} 天（${entry.reviewBy} > ${limit}）`)
+    } else if (entry.reviewBy > base.reviewBy) {
+      if ((entry.renewed?.length ?? 0) !== (base.renewed?.length ?? 0) + 1) errors.push(`${label}: reviewBy 从 ${base.reviewBy} 往后推，必须同时在 renewed 里加一条记录（on / from / reason）`)
+      if (entry.reviewBy > limit) errors.push(`${label}: 续期后的 reviewBy 距今不得超过 ${MAX_REVIEW_DAYS} 天（${entry.reviewBy} > ${limit}）`)
+    }
+  }
+  return errors
 }
 
 /**
@@ -175,9 +221,9 @@ export function validateRegistry(registry, { exists = () => true, today } = {}) 
  * - 未被认领的新增模块：`today < enforceFrom` 出 warnings，之后出 errors；
  * - 陈旧登记（路径不存在）：同上分档。
  */
-export function evaluateSelfWritten({ registry, added, today, exists = () => true }) {
+export function evaluateSelfWritten({ registry, added, today, exists = () => true, baseRegistry = null, changedFiles = null }) {
   const shape = validateRegistry(registry, { exists, today })
-  const errors = [...shape.errors]
+  const errors = [...shape.errors, ...evaluateReviewDeadlines({ registry, baseRegistry, changedFiles, today })]
   const warnings = []
   const enforcing = typeof registry?.enforceFrom === 'string' && today >= registry.enforceFrom
   const bucket = enforcing ? errors : warnings

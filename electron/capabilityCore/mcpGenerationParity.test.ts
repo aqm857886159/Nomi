@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { generationCandidateSchema, generationPlanInputSchema } from '../shared/agentCapabilities/generationPlanSchemas'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationToolCatalog'
-import { validateToolArguments } from './mcpArgValidation'
+import { validateToolArguments } from './mcpProtocol'
 import { toPublishedJsonSchema } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 
 import { createPiGenerationTransportAdapter } from './generationTransportAdapters'

@@ -10,7 +10,6 @@ import type { StoryboardPlan } from '../agent/storyboardPlan'
  * `check:test-types` 报 TS2578 变红。只取类型、闭包从不执行，不在运行时加载这些模块。
  */
 declare const confirmGenerationSpend: typeof import('./spendConfirm').confirmGenerationSpend
-declare const confirmAndMintGrant: typeof import('./spendConfirm').confirmAndMintGrant
 declare const confirmAndRunNode: typeof import('../runner/generationRunController').confirmAndRunNode
 declare const confirmAndRunNodeVariants: typeof import('../runner/generationRunController').confirmAndRunNodeVariants
 declare const regenerateNodeInPlace: typeof import('../runner/generationRunController').regenerateNodeInPlace
@@ -22,8 +21,6 @@ describe('initiator 在付费链上必填', () => {
     const neverCalled = () => {
       // @ts-expect-error initiator 必填
       void confirmGenerationSpend([], { title: '', message: '' })
-      // @ts-expect-error initiator 必填
-      void confirmAndMintGrant({ nodeIds: [], nodes: [], title: '', message: '' })
       // @ts-expect-error 第二个参数（含 initiator）必填
       void confirmAndRunNode('node')
       // @ts-expect-error initiator 必填

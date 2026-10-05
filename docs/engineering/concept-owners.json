@@ -46,8 +46,7 @@
       "authority_kind": "schema",
       "trust_domain": "shared",
       "fact_kind": "value-object",
-      "migration_status": "pending",
-      "migration_strategy": "durable 身份的目标是 ProductionRun / ProductionGenerationPlan.operationId（projectId + operationId），quoteId 只作报价版本指纹。由 Phase 0 施工卡 P0-5（docs/audit/2026-09-26-phase-zero-construction-cards.md）收口；直接画布那条 nodeId + quoteId 的旧路随 Phase 2 的 direct canvas paid → ProductionRun 试点迁走。收口判据：PendingSpendConfirm 只剩 ProductionRun 投影这一个生产者，forbidden_derivations 里的四个报价 / 令牌函数不再有生产调用处。",
+      "migration_status": "converged",
       "owner": {
         "path": "electron/shared/contracts/pendingSpendConfirm.ts",
         "symbol": "PendingSpendConfirm"
@@ -66,22 +65,22 @@
         {
           "symbol": "prepareSpendQuote",
           "kind": "reference",
-          "why": "直接画布按 quoteId 出价——与 operationId 竞争「这一笔」身份的旧路（Phase 0 冻结决策：迁移前不新增消费者）"
+          "why": "按 quoteId 出价——与 operationId 竞争「这一笔」身份的旧路；画布已迁走（第一刀第 3–4 步），只剩登记的附属付费口例外（到期 2026-11-15）"
         },
         {
           "symbol": "takeSpendQuote",
           "kind": "reference",
-          "why": "直接画布按 quoteId 取回报价——同一条旧路，迁移前不新增消费者"
+          "why": "按 quoteId 取回报价——同一条旧路，只剩登记的附属付费口例外（到期 2026-11-15）"
         },
         {
           "symbol": "mintSpendGrant",
           "kind": "reference",
-          "why": "直接画布按 nodeId + quoteId 铸花钱令牌——同一条旧路，迁移前不新增调用处"
+          "why": "按 nodeId + quoteId 铸花钱令牌——同一条旧路，画布已不铸；只剩登记的附属付费口例外（到期 2026-11-15）"
         },
         {
           "symbol": "assertAndConsumeQuotedSpend",
           "kind": "reference",
-          "why": "直接画布按 quoteId 核销令牌——同一条旧路，迁移前不新增调用处"
+          "why": "按令牌核销——同一条旧路，只剩登记的附属付费口例外经 TOKEN_ADMISSION 走（到期 2026-11-15）"
         }
       ],
       "allowed_consumers": [
@@ -102,12 +101,10 @@
         "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
         "electron/capabilityCore/modelOnboarding/tryModel.ts",
         "electron/parity/generationParityTestUtils.ts",
-        "src/ui/onboarding/workflowPage/runTestGeneration.ts",
-        "src/workbench/generationCanvas/runner/generationRunController.ts",
-        "src/workbench/generationCanvas/spend/spendConfirm.ts"
+        "src/ui/onboarding/workflowPage/runTestGeneration.ts"
       ],
       "since": "2026-09-22",
-      "notes": "pending：DTO 不是 durable owner，只是跨进程投影契约。durable identity 目标是 ProductionRun/ProductionGenerationPlan.operationId（projectId + operationId）；quoteId 只表示报价/版本指纹。当前消费者包括 electron/productionRun/productionPendingSpend.ts、src/workbench/ai/v4/spendCardDraft.ts 以及对应 Agent projection（2026-10-05 起待决出价随对话投影推给面板，渲染层拉取它的 IPC 与进程内转接表 spendDecisionWaiters 已删）；现有消费者允许继续读，新写消费者在 owner promotion 前禁止。直接画布 electron/spendQuote.ts + electron/spendGrant.ts 使用 nodeId + quoteId，是另一个 bounded context，记录为迁移候选，不得冒充全局待决身份。 2026-10-05 第一刀第 1–2 步：直接画布的单节点入口不再铸令牌（generationRunController.authorizeSingleNode 只给文本与本地 ComfyUI 两类登记例外铸，到期：第二刀传输合一）；批准写进各自的单镜 Run（主进程手势收据）。批量（confirmAndMintGrant）与附属付费口（试跑、认证、视频拆解、新手试生成、提示词提取）仍用令牌，到期：第一刀第 3–4 步。"
+      "notes": "converged（2026-10-05 发动机收敛第一刀第 4 步）：「这一笔」的身份只有 ProductionRun / ProductionGenerationPlan.operationId（projectId + operationId）；PendingSpendConfirm 只剩 Run 投影 projectPendingSpendConfirm 这一个生产者（withSpendReferencePreviews 只给投影补参考图预览）。画布（单节点 ↑、批量卡、分镜整批、任务中心重试、Agent 文稿方案的 generate）不再出报价号、不再铸令牌：批准住在各自单镜 Run 的门上（主进程手势收据），批量卡上每一镜一份出价（consentCanvasShots）。 登记的例外（协调会话 2026-10-05 定：不落画布、不争镜头，这一刀不搬；到期 2026-11-15，到期前迁进 Run 或删）：① 试跑 electron/capabilityCore/modelOnboarding/tryModel.ts；② 认证 electron/integrationCertification/integrationSession.ts + integrationSessionRuntimeInstall.ts；③ 视频拆解与提示词提取 electron/spendConfirmGrant.ts（prepareSpendQuote → mintSpendGrant 一次批总价，调用方 electron/video/deconstructSpend.ts、electron/browser/settings/browserPromptExtractionSettings.ts）；④ 新手 ComfyUI 试生成 src/ui/onboarding/workflowPage/runTestGeneration.ts（经 nomi:tasks:grant-spend → electron/tasks/taskIpcHandlers.ts）。这些例外的令牌只在 electron/tasks/taskSpend.ts 的 TOKEN_ADMISSION 与 electron/spendGrant.ts 里核销；electron/spendQuote.ts / spendGrant.ts 是那条旧路本身。 读者：Agent 面板（spendCardDraft / agentPanelSpendCard / spendCardEstimate / useAgentPanelSpendConfirm）与 devlab 样张只读投影。"
     },
     {
       "name": "参数准入",
@@ -807,7 +804,7 @@
         "src/workbench/generationCanvas/components/canvasProductionScope.ts",
         "src/workbench/generationCanvas/runner/generationRunController.ts",
         "electron/productionRun/productionShotDispatchGuard.ts",
-        "electron/productionRun/canvasShotClaim.ts",
+        "electron/capabilityCore/appIntegrationCanvasShot.ts",
         "electron/productionRun/productionRunReducer.ts",
         "electron/productionRun/batchScheduleDerivation.ts",
         "electron/shared/productionShotPhase.ts",
@@ -815,7 +812,7 @@
         "src/workbench/observability/shotClaimCopy.ts"
       ],
       "since": "2026-09-25",
-      "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。 2026-09-28（#921）：判据收成 decideShotClaim——画布、制作两个请求方问同一个函数，Run reducer 的 shot.claim 是唯一的认领写口，原来的 productionShotOwnsGeneration 已删。2026-09-29：制作一侧的派发准入闸（productionShotDispatchGuard）由提交 outbox 在这次尝试的第一笔耐久写（预留 / 提交意向）之前调用，看到的是还没落盘的 job；它排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json。"
+      "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。 2026-09-28（#921）：判据收成 decideShotClaim——画布、制作两个请求方问同一个函数，Run reducer 的 shot.claim 是唯一的认领写口，原来的 productionShotOwnsGeneration 已删。2026-09-29：制作一侧的派发准入闸（productionShotDispatchGuard）由提交 outbox 在这次尝试的第一笔耐久写（预留 / 提交意向）之前调用，看到的是还没落盘的 job；它排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json。 2026-10-05 发动机收敛第一刀第 3 步：画布那一侧的认领只住画布付费口的准入（appIntegrationCanvasShot.claimBoundProductionShot），canvasShotClaim.ts 与 runtime.runTask 里那一行认领随令牌路一起删除。"
     },
     {
       "name": "素材库落点的项目归属（跨项目先复制）",
@@ -1754,9 +1751,13 @@
       "migration_status": "converged",
       "owner": {
         "path": "electron/capabilityCore/mcpProtocol.ts",
-        "symbol": "createMcpProtocol"
+        "symbol": "createNomiMcpServer"
       },
       "write_api": [
+        {
+          "path": "electron/capabilityCore/mcpProtocol.ts",
+          "symbol": "createNomiMcpServer"
+        },
         {
           "path": "electron/capabilityCore/mcpProtocol.ts",
           "symbol": "createMcpProtocol"
@@ -1772,7 +1773,7 @@
         "scripts/check-mcp-payload.ts"
       ],
       "since": "2026-09-28",
-      "notes": "PR #916（合同 docs/fixes/2026-09-28-mcp-passive-request-cold-launch.root-cause.json）：外部 AI 工具列一下资源就把 Nomi 窗口拉起来。initialize / tools/list / resources/list / resources/templates/list / ping 这类被动发现在没有活实例时只读返回、不冷启动；分流只在 createMcpProtocol，只探测不拉起的调用走 invokeIfOpen。真实工具调用仍可后台拉起（用户拍板）。"
+      "notes": "PR #916（合同 docs/fixes/2026-09-28-mcp-passive-request-cold-launch.root-cause.json）：外部 AI 工具列一下资源就把 Nomi 窗口拉起来。initialize / tools/list / resources/list / resources/templates/list / ping 这类被动发现在没有活实例时只读返回、不冷启动；分流只在 createNomiMcpServer（2026-10-05 起协议层换官方 SDK，createMcpProtocol 只剩进程内连接），只探测不拉起的调用走 invokeIfOpen。真实工具调用仍可后台拉起（用户拍板）。"
     },
     {
       "name": "MCP 调用怎么找到活 Nomi 并把请求转过去",
@@ -4074,38 +4075,6 @@
       "notes": "主进程在自己提交「打开了这个项目」的那一刻就会发按项目寻址的工作（打开项目时的画布落地对账），而这个窗口要等提交回执到了才认下项目；那一段里签发「没开项目」等于把每一次打开项目的对账都变成一条 warn（S1-5）。whenProjectAdopted：窗口此刻开着项目就签它，没开就等下一个认下的项目寿命（有上限）；调用方仍核对认下的就是它要的那个项目，不是就拒。和 withProjectAction / withMainProjectAction / subscribeProjectOpened 同住签发点模块，签发点契约测试（projectActionIssuance.contract.test.ts）认它。"
     },
     {
-      "name": "画布节点有没有一笔付费生成在途",
-      "subject": "canvas.node-submit-in-flight",
-      "lifecycle": "execution",
-      "authority_kind": "writer",
-      "trust_domain": "main",
-      "fact_kind": "state-machine",
-      "migration_status": "converged",
-      "owner": {
-        "path": "electron/tasks/nodeSubmitInFlight.ts",
-        "symbol": "withNodeSubmitExclusive"
-      },
-      "write_api": [
-        {
-          "path": "electron/tasks/nodeSubmitInFlight.ts",
-          "symbol": "withNodeSubmitExclusive"
-        },
-        {
-          "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.ts",
-          "symbol": "trackNodeSubmit"
-        }
-      ],
-      "forbidden_derivations": [],
-      "allowed_consumers": [
-        "electron/tasks/taskIpcHandlers.ts",
-        "src/workbench/api/taskApi.ts",
-        "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
-        "src/workbench/observability/classifyError.ts"
-      ],
-      "since": "2026-10-03",
-      "notes": "同一个项目里的同一个画布节点，一次只许一笔付费生成在途（合同 docs/fixes/2026-10-03-canvas-submit-in-flight-switch.root-cause.json）。主进程在 nomi:tasks:run 边界（幂等合并之后）用 withNodeSubmitExclusive 硬拒第二笔，结构化 code node_generation_in_flight，渲染层 classifyError 讲成「这个节点还在生成，这次这一次还没发出去」。渲染层 trackNodeSubmit 是同一批在途 IPC 调用在这个窗口里的记录（进程寿命，不归项目会话），只给装载收敛 convergeStuckMidFlightNode 用：切项目再切回来，在途的节点照旧是「生成中」、不进「生成全部」；重启后记录为空，幽灵转圈照旧收掉。 2026-10-05 发动机收敛第一刀第 1–2 步：画布单节点 ↑（↑ / 变体 / 原地重生成 / 重试 / 分镜行操作）改由单镜 Run 判在途（写口归概念 canvas.shot-run）——进程内一笔正在交 + 盘上的「没收尾」标记（canvasShotRunIndex，重启后照样拦，结果未知的拦成 needs_reconcile）；withNodeSubmitExclusive 只剩令牌路（批量「生成全部」、文本、本地 ComfyUI），第一刀第 3 步删。"
-    },
-    {
       "name": "预演测量",
       "subject": "director.eval.measurement",
       "lifecycle": "frozen-execution",
@@ -4350,14 +4319,13 @@
       "notes": "异步供应商提交即收费：非终态不是失败。tryModel 的提交与等待共用 40 秒预算（外部宿主工具超时约 60 秒）：提交到点未回返回 submission_unknown（不中止那次请求），已提交等不到终态返回 still_processing（带任务号、明说不要重试），出站证据只问 outboundDispatchEvidence，只有供应商自己报终态失败才是 provider_failed。设计卡 docs/plan/2026-10-04-try-model-async-queued.md，合同 docs/fixes/2026-10-04-try-model-async-queued.root-cause.json、docs/fixes/2026-10-05-try-model-submit-budget.root-cause.json。"
     },
     {
-      "name": "画布单节点付费生成（单镜 Run）",
+      "name": "画布付费生成（一镜一个单镜 Run）",
       "subject": "canvas.shot-run",
       "lifecycle": "execution",
       "authority_kind": "gateway",
       "trust_domain": "main",
       "fact_kind": "state-machine",
-      "migration_status": "pending",
-      "migration_strategy": "发动机收敛第一刀（docs/plan/2026-10-05-engine-convergence-cut1.md，岔路 B）。第 1–2 步：画布单节点 ↑ 每点一次建一个单镜 Run，批准 / 派发 / 记账只走提交出口；传输暂留画布那台（canvasTransportProvider）。第 3 步批量与分镜整批进 Run 后，令牌路与认领整文件删除，转 converged。",
+      "migration_status": "converged",
       "owner": {
         "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
         "symbol": "createCanvasShotRuns"
@@ -4399,10 +4367,38 @@
         "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
         "src/workbench/generationCanvas/runner/generationRunController.ts",
         "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-        "electron/parity/generationParityTestUtils.ts"
+        "electron/parity/generationParityTestUtils.ts",
+        "electron/capabilityCore/canvasShotTestUtils.ts",
+        "src/workbench/observability/classifyError.ts"
       ],
       "since": "2026-10-05",
-      "notes": "设计卡 docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md。准入（建 Run 前什么都不写）：同节点在途、3D-BOX 预演闸（主进程问渲染层判据 directorPreviewSpendBlock）、绑定制作镜头的认领（decideShotClaim）。批准 = 发起 IPC 的那个窗口铸的主进程手势收据（不弹卡，09-25 拍板不变）。等结果由渲染层驱动、每一次查都经 Run 的 poll / materialize；渲染层不在（关窗 / 崩溃 / 点停 / 重启）交给单镜观察者。画布 Run 目录名以 canvas- 开头，repository.list 不列（任务中心制作那一栏不显示，F5），打开项目只读「没收尾」标记那几个。"
+      "notes": "设计卡 docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md、docs/plan/2026-10-05-engine-convergence-cut1-step34-design-card.md。 画布上要花钱的每一次生成都是一个单镜 Run：单节点 ↑（变体、原地重生成、重试、分镜行操作同一条）交的那一刻建 Run，批准 = 发起 IPC 的那个窗口铸的主进程手势收据（不弹卡，09-25 拍板不变）； 批量卡（「生成全部」、分镜整批、框选生成，第 3 步）点了确认，卡上列出的每一个要花钱的节点各建一个单镜 Run、出价开着（consentCanvasShots）= 这一镜他同意了，轮到它时才冻住请求、批、交；排队里去掉 / 整批 × / 窗口没了 / 重开项目没人会再交，出价收回（withdrawCanvasShots），主进程拒交（canvas_generation_withdrawn）。 一镜一个 Run 而不是一批一个多镜 Run：提交出口按 Run 加锁、交的那一下在锁里，一批放进一个 Run 会把今天并行的批量变成一镜一镜地交。 准入（批之前什么都不写）：同节点在途（进程内 + canvasShotRunIndex 的「没收尾」标记，重启后照样拦，结果未知的拦成 needs_reconcile；批量卡上同意了还没交的不算在途）、3D-BOX 预演闸（主进程问渲染层判据 directorPreviewSpendBlock）、绑定制作镜头的认领（decideShotClaim → reducer shot.claim，canvasShotClaim.ts 已删，认领只住这一处准入）。 等结果由渲染层驱动、每一次查都经 Run 的 poll / materialize；渲染层不在（关窗 / 崩溃 / 点停 / 重启）交给单镜观察者。画布 Run 目录名以 canvas- 开头，repository.list 不列（结果未知的除外），打开项目只读「没收尾」标记那几个。 渲染层「这一笔还在等主进程回话」的窗口内记录不是这个概念（它不写 Run、不管钱），单独登记为 canvas.submit-awaiting-reply。原概念 canvas.node-submit-in-flight（主进程 withNodeSubmitExclusive）随第 3 步删除。 不进 Run 的：文本节点（走流式口）与本地 ComfyUI（不花钱，不要授权），登记的例外，到期：第二刀传输合一。"
+    },
+    {
+      "name": "画布提交等回话（窗口内提示）",
+      "subject": "canvas.submit-awaiting-reply",
+      "lifecycle": "session",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "state-machine",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.ts",
+        "symbol": "trackNodeSubmit"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.ts",
+          "symbol": "trackNodeSubmit"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/api/taskApi.ts",
+        "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "这个窗口发出去、主进程还没回话的画布生成请求（按节点 id，进程寿命，不落盘）。只服务装载收敛 convergeStuckMidFlightNode：切项目再切回来，还在路上的节点照旧显示生成中、不被收成空闲、不进「生成全部」。不管钱、不决定能不能再交：付费画布生成的同节点在途拒绝在主进程 appIntegrationCanvasShot（assertNodeIdle：进程内在途 + canvasShotRunIndex「没收尾」标记），Run 是真相。写口只有 taskApi 的两个提交口（submitCanvasShotRun、runWorkbenchTaskByVendor）在 await 前登记、回话后注销。2026-10-05 发动机收敛第一刀第 3 步删掉主进程那道 withNodeSubmitExclusive 之后从 canvas.shot-run 的写接口里拆出来单独登记（独立验收 V-1012 问题 1）。"
     }
   ]
 }
