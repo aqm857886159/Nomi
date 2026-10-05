@@ -3,15 +3,13 @@
 // 它取代原来的交工前评审收据：不再问「有没有跑过评审」，而是问两个暂停点有没有真的发生——
 //   ① 暂停点①设计卡：PR 正文 `## 设计卡` 是否填全（四类 9 格，其余只查 ★ 格 1、2、3、4、9）；
 //   ② 暂停点②独立验收：四类的 PR 正文 `## 独立验收` 是否带报告链接，且验收线编号不同于实现线；
-//   ③ 本 PR 把逃逸账本条目转成 fixed 时，有没有带 detected_by 的根因合同（判据看账本状态转换，不看正文用词）。
+//   ③ 修的是逃逸 bug 时，有没有带 detected_by 的根因合同。
 // 判四类的字符串规则与设计卡模板末尾那段一致（docs/engineering/design-card.md），宁可多报；误报由协调会话人工划掉。
 //
 // 用法：node scripts/merge-preflight.mjs <PR 号> [--repo owner/name]
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-
-import { ESCAPE_LEDGER_FILE, fixedTransitions } from './escape-ledger-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -126,30 +124,16 @@ export function checkIndependentAcceptance(body) {
   return { ok, lines }
 }
 
-/**
- * 逃逸 bug 的判据（2026-10-06）：不再看正文有没有「逃逸 / 用户反馈 / 发版后」这几个词（两头都出错：
- * 正文提到「逃逸账本」被误判成修逃逸 bug，#1026 修用户反馈却没写这几个词被漏掉），
- * 改看**逃逸账本里的状态转换**：本 PR 让某条逃逸 candidate / reviewed → fixed，才要求带根因合同。
- * 转换怎么算只有一份实现：scripts/escape-ledger-lib.mjs 的 fixedTransitions（check:escape-ledger 同源）。
- *
- * contracts: [{ file, detected_by }]，来自本 PR 新增 / 改动的 docs/fixes/*.root-cause.json；
- * transitions: 本 PR 变成 fixed 的账本条目 id；body 里提到的账本条目 id 没转换只给提示。
- */
-export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = []) {
+const ESCAPE_SIGNAL = /detected_by\s*[:：]\s*["']?(?:user|post-release)|逃逸|用户反馈|发版后|post-release/i
+
+/** contracts: [{ file, detected_by }]，来自本 PR 新增 / 改动的 docs/fixes/*.root-cause.json。 */
+export function checkEscapeContract(body, contracts) {
+  if (!ESCAPE_SIGNAL.test(String(body || ''))) return { applicable: false, ok: true, lines: ['· 未发现逃逸 bug 信号（正文没写 detected_by: user / post-release、逃逸、用户反馈、发版后），合同检查跳过'] }
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
-  const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
-  const mentioned = ledgerIds.filter((id) => String(body || '').includes(id) && !transitions.includes(id))
-  const hint = mentioned.length ? [`· 正文提到了账本条目 ${mentioned.join('、')}，但本 PR 没把它们改成 fixed——只是引用，不要求合同`] : []
-  if (transitions.length === 0 && userFound.length === 0) {
-    return { applicable: false, ok: true, lines: ['· 本 PR 没有让任何逃逸账本条目转成 fixed，合同检查跳过', ...hint] }
-  }
-  if (transitions.length === 0) {
-    return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${userFound.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger.json）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
-  }
   if (withField.length === 0) {
-    return { applicable: true, ok: false, lines: [`✖ 本 PR 把逃逸账本条目 ${transitions.join('、')} 转成 fixed，但没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）`] }
+    return { applicable: true, ok: false, lines: ['✖ 看起来修的是逃逸 bug，但本 PR 没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）'] }
   }
-  return { applicable: true, ok: true, lines: [`✅ 逃逸账本 ${transitions.join('、')} → fixed：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`, ...hint] }
+  return { applicable: true, ok: true, lines: [`✅ 逃逸 bug：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`] }
 }
 
 /**
@@ -200,7 +184,7 @@ export function main(argv = process.argv.slice(2)) {
     console.error('用法：node scripts/merge-preflight.mjs <PR 号> [--repo owner/name]')
     return 2
   }
-  const view = JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,files,headRefOid,baseRefName,headRepository,headRepositoryOwner,createdAt'], { repo }))
+  const view = JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,files,headRefOid,headRepository,headRepositoryOwner,createdAt'], { repo }))
   const files = (view.files ?? []).map((file) => ({ path: file.path, status: file.additions > 0 && file.deletions === 0 ? 'A' : 'M' }))
   let diff = ''
   try {
@@ -223,16 +207,6 @@ export function main(argv = process.argv.slice(2)) {
     }
   }
 
-  // 逃逸账本的状态转换：只有本 PR 改了账本才去取两版（base 取当前基线分支末端）
-  const ledger = { transitions: [], ids: [] }
-  if (slug && files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
-    const parse = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
-    const head = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
-    const base = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.baseRefName || 'main'))
-    ledger.transitions = fixedTransitions(base, head)
-    ledger.ids = (head?.entries ?? []).map((entry) => entry.id)
-  }
-
   let effectiveAt = null
   try {
     effectiveAt = JSON.parse(gh(['pr', 'view', String(RULES_INTRODUCED_BY_PR), '--json', 'mergedAt'], { repo })).mergedAt || null
@@ -245,7 +219,7 @@ export function main(argv = process.argv.slice(2)) {
     classification,
     design: checkDesignCard(body, classification),
     acceptance: checkIndependentAcceptance(body),
-    escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids),
+    escape: checkEscapeContract(body, contracts),
   })
   console.log(report.text)
   return report.blocked ? 1 : 0

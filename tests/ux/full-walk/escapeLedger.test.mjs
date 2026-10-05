@@ -24,7 +24,6 @@ describe('appendEscapeCandidates', () => {
     const ledger = JSON.parse(fs.readFileSync(file, 'utf8'))
     expect(ledger.entries).toHaveLength(before + 1)
     expect(ledger.entries.at(-1)).toMatchObject({ id: 'LAW12-test-a', status: 'candidate', manualReview: 'pending', evidence: ['shot.png'], completionCommits: [] })
-    expect(ledger.entries.at(-1).since).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     // 原有的紧凑写法（数组一行）保住：追加的 diff 只有新增那几行。
     expect(fs.readFileSync(file, 'utf8')).toContain('"statusValues": ["candidate", "reviewed", "fixed"]')
   })

@@ -2,7 +2,6 @@
 // gh 调用只在 main() 里，这里测的全是纯函数，输入都是真实 PR 正文的形状。
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { fixedTransitions } from './escape-ledger-lib.mjs'
 import {
   checkDesignCard,
   checkEscapeContract,
@@ -79,31 +78,12 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
 })
 
-test('逃逸合同：判据看账本状态转换，不看正文用词', () => {
-  const contract = { file: 'docs/fixes/2026-10-05-x.root-cause.json', detected_by: 'user' }
-  // 误报（#1025）：正文写了「逃逸账本」，但没有条目转成 fixed → 不判成修逃逸 bug
-  const mention = checkEscapeContract('这个 PR 新增逃逸账本的门岗，用户反馈见 #1', [], [])
-  assert.equal(mention.applicable, false)
-  assert.equal(mention.ok, true)
-  // 漏报（#1026）：正文没有任何关键词，但把账本条目转成 fixed → 必须带合同
-  const silent = checkEscapeContract('修分镜比例', [], ['LAW12-a'])
-  assert.equal(silent.applicable, true)
-  assert.equal(silent.ok, false)
-  assert.match(silent.lines.join(), /LAW12-a/)
-  assert.equal(checkEscapeContract('修分镜比例', [{ file: 'docs/fixes/2026-10-05-x.root-cause.json' }], ['LAW12-a']).ok, false, '合同没写 detected_by 不行')
-  assert.equal(checkEscapeContract('修分镜比例', [contract], ['LAW12-a']).ok, true)
-  // 合同声明用户发现、却没进账本：红（用户发现的问题必须进账本）
-  const unledgered = checkEscapeContract('普通修复', [contract], [])
-  assert.equal(unledgered.ok, false)
-  assert.match(unledgered.lines.join(), /逃逸账本/)
-  // 只引用账本条目 id、没转换：不要求合同，只给提示
-  const ref = checkEscapeContract('参考 LAW12-a', [], [], ['LAW12-a'])
-  assert.equal(ref.ok, true)
-  assert.match(ref.lines.join(), /只是引用/)
-  // 转换的判断只有一份实现：和 check:escape-ledger 共用 fixedTransitions
-  const base = { entries: [{ id: 'LAW12-a', status: 'candidate' }, { id: 'LAW12-b', status: 'fixed' }] }
-  const head = { entries: [{ id: 'LAW12-a', status: 'fixed' }, { id: 'LAW12-b', status: 'fixed' }] }
-  assert.deepEqual(fixedTransitions(base, head), ['LAW12-a'])
+test('逃逸合同：正文有逃逸信号时必须带含 detected_by 的合同', () => {
+  const body = '修用户反馈的卡死\ndetected_by: user'
+  assert.equal(checkEscapeContract(body, []).ok, false)
+  assert.equal(checkEscapeContract(body, [{ file: 'docs/fixes/2026-10-05-x.root-cause.json' }]).ok, false)
+  assert.equal(checkEscapeContract(body, [{ file: 'docs/fixes/2026-10-05-x.root-cause.json', detected_by: 'user' }]).ok, true)
+  assert.equal(checkEscapeContract('普通重构', []).applicable, false)
 })
 
 test('报告：非四类只查 ★ 格；四类缺验收则结论红；扫描干净才写「扫描干净」', () => {
@@ -112,7 +92,7 @@ test('报告：非四类只查 ★ 格；四类缺验收则结论红；扫描干
     classification: classifyChange([{ path: 'src/utils/format.ts', status: 'M' }]),
     design: checkDesignCard(FULL_CARD, { fourClass: false }),
     acceptance: checkIndependentAcceptance(FULL_CARD),
-    escape: checkEscapeContract('普通', [], []),
+    escape: checkEscapeContract('普通', []),
   })
   assert.equal(clean.blocked, false)
   assert.match(clean.text, /未命中，只查设计卡 ★ 格/)
@@ -124,7 +104,7 @@ test('报告：非四类只查 ★ 格；四类缺验收则结论红；扫描干
     classification: four,
     design: checkDesignCard(noAcceptance, four),
     acceptance: checkIndependentAcceptance(noAcceptance),
-    escape: checkEscapeContract('普通', [], []),
+    escape: checkEscapeContract('普通', []),
   })
   assert.equal(blocked.blocked, true)
   assert.match(blocked.text, /缺 `## 独立验收`/)
@@ -141,7 +121,7 @@ test('旧 PR（规则生效前开的）缺项只给警告、不判红；新 PR �
   assert.equal(isGrandfathered({ createdAt: '2026-10-05T10:00:00Z', effectiveAt: '2026-10-04T00:00:00Z' }), false)
   assert.equal(isGrandfathered({ createdAt: '2026-10-05T10:00:00Z', effectiveAt: null }), true, '#961 还没合并 = 规则尚未生效')
   const four = classifyChange([{ path: 'electron/productionRun/productionRunService.ts', status: 'M' }])
-  const input = { pr: 947, classification: four, design: checkDesignCard('随便', four), acceptance: checkIndependentAcceptance('随便'), escape: checkEscapeContract('普通', [], []) }
+  const input = { pr: 947, classification: four, design: checkDesignCard('随便', four), acceptance: checkIndependentAcceptance('随便'), escape: checkEscapeContract('普通', []) }
   const old = renderReport({ ...input, grandfathered: true })
   assert.equal(old.blocked, false)
   assert.doesNotMatch(old.text, /✖/)

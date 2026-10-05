@@ -14,7 +14,6 @@ function entryBlock(entry) {
   return [
     '    {',
     `      "id": ${JSON.stringify(entry.id)},`,
-    `      "since": ${JSON.stringify(entry.since ?? new Date().toISOString().slice(0, 10))},`,
     `      "source": ${JSON.stringify(entry.source)},`,
     `      "category": ${JSON.stringify(entry.category)},`,
     `      "problem": ${JSON.stringify(entry.problem)},`,

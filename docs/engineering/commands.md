@@ -43,4 +43,3 @@
 | `pnpm run eng:metrics` | 工程三个数一行（逃逸率 · 30 天复发 · 门岗误报 · 到期合同）；SessionStart 也会打印；不作为任何通过条件 |
 | `node scripts/gen-rules-view.mjs` | 由 `docs/engineering/rules.json` 重新生成可读视图 `rules.md` |
 | `pnpm run handoff:report -- <branch>` | 交接体检报告（原 `check:handoff`，不是门岗） |
-| `pnpm run check:escape-ledger` | 逃逸账本结账门岗（P2：账本格式不合法 → 红；条目改成 `fixed` 必须同时有根因合同、类级检查（铁律 ⑩ ⑪ ⑫ / inv:N 或矩阵 / 普查测试）、合入 PR 号；`candidate` 超 14 天警告。细则见 `docs/engineering/experience-system.md`） |

@@ -42,7 +42,7 @@ function registry(concepts) {
 }
 
 function baseline(overrides = {}) {
-  return { version: 1, note: 'test', second_write_ports: [], pending_write_doors: [], unregistered_boundaries: [], ...overrides }
+  return { version: 1, note: 'test', second_write_ports: [], pending_write_doors: [], ...overrides }
 }
 
 const BASE_FILES = {
@@ -562,49 +562,4 @@ test('trust_domain 由路径派生', () => {
   assert.equal(trustDomainOfPath('scripts/x.mjs'), 'tooling')
   assert.equal(trustDomainOfPath('worker/byteRange.ts'), 'site')
   assert.equal(trustDomainOfPath('wrangler.json'), 'site')
-})
-
-test('未登记的合同边界冻结成存量债棘轮：冻结的放行；新增 → 红；登记 / 合同删了而基线还留着 → 陈旧红；基线往上抬 → 红', () => {
-  const contract = (symbol) => ({
-    schema_version: 3,
-    shared_boundaries: [{ path: 'electron/shared/landing.ts', symbol, responsibility: 'test' }],
-  })
-  const frozen = { contract: 'docs/fixes/2026-09-29-new.root-cause.json', path: 'electron/shared/landing.ts', symbol: 'landingDefault' }
-  const repo = makeRepo({
-    files: {
-      'electron/shared/landing.ts': `${BASE_FILES['electron/shared/landing.ts']}\nexport function landingDefault(): string { return 'relay' }\nexport function landingOther(): string { return 'x' }\n`,
-      'docs/fixes/2026-09-29-new.root-cause.json': contract('landingDefault'),
-    },
-    base: baseline({ unregistered_boundaries: [frozen] }),
-  })
-  try {
-    const green = run(repo)
-    assert.equal(green.status, 0, green.output)
-    assert.match(green.output, /冻结在基线/)
-    // 新增一处未登记的边界：红，并写明「新增」
-    write(repo.root, { 'docs/fixes/2026-09-30-more.root-cause.json': contract('landingOther') })
-    const red = run(repo)
-    assert.equal(red.status, 1, red.output)
-    assert.match(red.output, /landingOther/)
-    assert.match(red.output, /新增：不在冻结的存量债里/)
-    // 还原后变绿
-    write(repo.root, { 'docs/fixes/2026-09-30-more.root-cause.json': null })
-    assert.equal(run(repo).status, 0)
-    // 合同删了、基线还冻着它：陈旧红
-    write(repo.root, { 'docs/fixes/2026-09-29-new.root-cause.json': null })
-    const stale = run(repo)
-    assert.equal(stale.status, 1, stale.output)
-    assert.match(stale.output, /baseline-stale/)
-    write(repo.root, { 'docs/fixes/2026-09-29-new.root-cause.json': contract('landingDefault') })
-    // 基线往上抬（把新边界塞进冻结账）：对照参照提交 → baseline-grew
-    write(repo.root, {
-      'docs/fixes/2026-09-30-more.root-cause.json': contract('landingOther'),
-      [BASELINE]: baseline({ unregistered_boundaries: [frozen, { ...frozen, contract: 'docs/fixes/2026-09-30-more.root-cause.json', symbol: 'landingOther' }] }),
-    })
-    const grew = run(repo)
-    assert.equal(grew.status, 1, grew.output)
-    assert.match(grew.output, /baseline-grew/)
-  } finally {
-    cleanup(repo)
-  }
 })
