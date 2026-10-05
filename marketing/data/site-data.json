@@ -6287,6 +6287,44 @@
       "body": "为参考中的{主体}补齐画面外部空白。保持原构图内的身份、比例和光线；让新区域自然衔接纹理、颗粒、焦点和透视，不加入额外主体或文字。"
     },
     {
+      "name": "effect-multi-angle-grid",
+      "kind": "effect",
+      "group": {
+        "zh-CN": "分镜",
+        "en": "Storyboard"
+      },
+      "groupId": "storyboard",
+      "title": {
+        "zh-CN": "多机位九宫格",
+        "en": "Multi-angle grid"
+      },
+      "summary": {
+        "zh-CN": "多机位九宫格：使用连接的参考，保留主体一致性。",
+        "en": "Multi-angle 3x3 sheet: same moment, nine camera positions, everything else held."
+      },
+      "appliesTo": [
+        "image"
+      ],
+      "slots": [],
+      "license": "Apache-2.0",
+      "licenseText": null,
+      "source": {
+        "url": "https://github.com/aqm857886159/Nomi/blob/a9ab76648cb634f9e29a38728a8d4f53256beef8/skills/effect-multi-angle-grid/SKILL.md",
+        "author": "Nomi contributors",
+        "revision": "a9ab76648cb634f9e29a38728a8d4f53256beef8",
+        "changes": "Original Nomi text, written to a task-framing / keep-and-change / fixed-output-spec structure; no upstream wording is reused. Not yet tested against a live model in Nomi."
+      },
+      "preview": {
+        "640": "/assets/library/effect-multi-angle-grid-640.webp",
+        "1280": "/assets/library/effect-multi-angle-grid-1280.webp",
+        "provenance": "illustration",
+        "sourceUrl": null
+      },
+      "repositoryPath": "skills/effect-multi-angle-grid",
+      "nomiTools": [],
+      "body": "这是一张 3×3 机位联系表：同一时刻、同一场景、同一批人物，只换九个机位。只改机位和取景；人物身份、服装、发型、动作、人数与左右站位、背景、光线和色调一律严格保持不变。按阅读顺序（左到右、上到下）九格依次为：1 正面平视，2 左前 3/4，3 右前 3/4，4 左侧，5 右侧，6 背面，7 俯拍，8 仰拍，9 荷兰角（地平线倾斜）。九格等大，格与格之间只用细的中性分隔线，不要文字、编号、字幕或界面元素。上面写的是观看位置，不是要加进画面的物体：不要画出相机、三脚架或取景框，不添加人物，不复制主体。如果提供了空白网格参考图，只按它的格线排版，不要把它的线条或空白当作画面内容。"
+    },
+    {
       "name": "effect-natural-texture",
       "kind": "effect",
       "group": {
@@ -6328,6 +6366,44 @@
       "repositoryPath": "skills/effect-natural-texture",
       "nomiTools": [],
       "body": "对参考中的{主体}做克制的自然质感调整。保持身份、姿势、构图和光线方向；减弱过度磨皮与均匀塑料反光，保留轻微颗粒、真实材质纹理和局部不完美。不要夸张锐化，不改变五官。"
+    },
+    {
+      "name": "effect-next-moment",
+      "kind": "effect",
+      "group": {
+        "zh-CN": "分镜",
+        "en": "Storyboard"
+      },
+      "groupId": "storyboard",
+      "title": {
+        "zh-CN": "下一刻",
+        "en": "Next moment"
+      },
+      "summary": {
+        "zh-CN": "下一刻：使用连接的参考，保留主体一致性。",
+        "en": "Render the most plausible moment a few seconds after the reference."
+      },
+      "appliesTo": [
+        "image"
+      ],
+      "slots": [],
+      "license": "Apache-2.0",
+      "licenseText": null,
+      "source": {
+        "url": "https://github.com/aqm857886159/Nomi/blob/a9ab76648cb634f9e29a38728a8d4f53256beef8/skills/effect-next-moment/SKILL.md",
+        "author": "Nomi contributors",
+        "revision": "a9ab76648cb634f9e29a38728a8d4f53256beef8",
+        "changes": "Original Nomi text, written to a task-framing / keep-and-change / fixed-output-spec structure; no upstream wording is reused. Not yet tested against a live model in Nomi."
+      },
+      "preview": {
+        "640": "/assets/library/effect-next-moment-640.webp",
+        "1280": "/assets/library/effect-next-moment-1280.webp",
+        "provenance": "illustration",
+        "sourceUrl": null
+      },
+      "repositoryPath": "skills/effect-next-moment",
+      "nomiTools": [],
+      "body": "这是一次推演任务：画出参考图之后几秒内最合理的下一个瞬间，把参考图当作导致这一刻的上一刻。只改动作的推进，机位可以随动作自然变化；参考中的人物身份、服装、发型、所处地点和光线逻辑严格保持，不添加新人物，不更换环境。动作要有看得见的进展（姿势、手势或视线已经变了），不要缩成一张面朝镜头的普通肖像，也不要原样复现参考图。输出单张图，不要文字、字幕或界面元素。"
     },
     {
       "name": "effect-object-six-view",
@@ -6416,6 +6492,44 @@
       "body": "将参考中的{场景}改为俯视角度。保留物体相对位置、数量与光线方向，不凭空加入人物或文字。"
     },
     {
+      "name": "effect-prev-moment",
+      "kind": "effect",
+      "group": {
+        "zh-CN": "分镜",
+        "en": "Storyboard"
+      },
+      "groupId": "storyboard",
+      "title": {
+        "zh-CN": "前一刻",
+        "en": "Previous moment"
+      },
+      "summary": {
+        "zh-CN": "前一刻：使用连接的参考，保留主体一致性。",
+        "en": "Render the most plausible moment a few seconds before the reference."
+      },
+      "appliesTo": [
+        "image"
+      ],
+      "slots": [],
+      "license": "Apache-2.0",
+      "licenseText": null,
+      "source": {
+        "url": "https://github.com/aqm857886159/Nomi/blob/a9ab76648cb634f9e29a38728a8d4f53256beef8/skills/effect-prev-moment/SKILL.md",
+        "author": "Nomi contributors",
+        "revision": "a9ab76648cb634f9e29a38728a8d4f53256beef8",
+        "changes": "Original Nomi text, written to a task-framing / keep-and-change / fixed-output-spec structure; no upstream wording is reused. Not yet tested against a live model in Nomi."
+      },
+      "preview": {
+        "640": "/assets/library/effect-prev-moment-640.webp",
+        "1280": "/assets/library/effect-prev-moment-1280.webp",
+        "provenance": "illustration",
+        "sourceUrl": null
+      },
+      "repositoryPath": "skills/effect-prev-moment",
+      "nomiTools": [],
+      "body": "这是一次推演任务：画出参考图之前几秒内最合理的上一个瞬间，让参考图成为这一刻自然导致的结果。只改动作的回退，机位可以随动作自然变化；参考中的人物身份、服装、发型、所处地点和光线逻辑严格保持，不添加新人物，不更换环境。动作要和参考图有看得见的差别（姿势、手势或视线还没到参考图那一步），不要缩成一张面朝镜头的普通肖像，也不要原样复现参考图。输出单张图，不要文字、字幕或界面元素。"
+    },
+    {
       "name": "effect-restore-drawing",
       "kind": "effect",
       "group": {
@@ -6500,6 +6614,44 @@
       "repositoryPath": "skills/effect-scene-three-view",
       "nomiTools": [],
       "body": "以参考中的{场景}为同一空间，制作正视、侧视与俯视三格场景设定。保持门窗位置、主体比例、材质和光线方向一致。每格表现同一空间，不要画成三个不同房间。"
+    },
+    {
+      "name": "effect-story-four-panel",
+      "kind": "effect",
+      "group": {
+        "zh-CN": "分镜",
+        "en": "Storyboard"
+      },
+      "groupId": "storyboard",
+      "title": {
+        "zh-CN": "剧情四宫格",
+        "en": "Four-beat story"
+      },
+      "summary": {
+        "zh-CN": "剧情四宫格：使用连接的参考，保留主体一致性。",
+        "en": "Four-beat story sheet: setup, escalation, climax, aftermath on one 2x2 sheet."
+      },
+      "appliesTo": [
+        "image"
+      ],
+      "slots": [],
+      "license": "Apache-2.0",
+      "licenseText": null,
+      "source": {
+        "url": "https://github.com/aqm857886159/Nomi/blob/a9ab76648cb634f9e29a38728a8d4f53256beef8/skills/effect-story-four-panel/SKILL.md",
+        "author": "Nomi contributors",
+        "revision": "a9ab76648cb634f9e29a38728a8d4f53256beef8",
+        "changes": "Original Nomi text, written to a task-framing / keep-and-change / fixed-output-spec structure; no upstream wording is reused. Not yet tested against a live model in Nomi."
+      },
+      "preview": {
+        "640": "/assets/library/effect-story-four-panel-640.webp",
+        "1280": "/assets/library/effect-story-four-panel-1280.webp",
+        "provenance": "illustration",
+        "sourceUrl": null
+      },
+      "repositoryPath": "skills/effect-story-four-panel",
+      "nomiTools": [],
+      "body": "这是一张从参考图推演出的四拍剧情 2×2 联系表。只改表情、机位、取景和动作的推进；参考中的角色、服装、地点、光线逻辑和世界观严格保持。按阅读顺序（左到右、上到下）四格依次为：1 铺垫（交代当下情境，最贴近参考图），2 升级（矛盾或动作推进），3 高潮（最强烈的一刻），4 后果（事件之后的余波）。四格等大，格与格之间只用细的中性分隔线，不要文字、对白气泡或编号；不添加新主角，不改变画风。如果提供了空白网格参考图，只按它的格线排版，不要把它的线条或空白当作画面内容。"
     },
     {
       "name": "effect-storyboard-panels",

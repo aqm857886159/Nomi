@@ -15,7 +15,7 @@ import { generateShotRow, runStoryboardBatch } from './storyboardRowActions'
 import { deriveStoryboardBatch, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { presentStoryboard } from '../../../capability/storyboardPresent'
 
-const calls = vi.hoisted(() => ({ execute: vi.fn<GenerationNodeExecutor>(), confirm: vi.fn(), mint: vi.fn() }))
+const calls = vi.hoisted(() => ({ execute: vi.fn<GenerationNodeExecutor>(), confirm: vi.fn(), consent: vi.fn() }))
 const models: ModelCatalogModelDto[] = [
   { modelKey: 'approval-image', labelZh: 'Image', kind: 'image', vendorKey: 'approval-fixture', meta: { archetypeId: 'agnes-image' },
     enabled: true, published: true, publishedModes: ['text_to_image'], availability: { usable: true }, createdAt: 't', updatedAt: 't' },
@@ -33,7 +33,7 @@ vi.mock('../../../api/modelCatalogApi', () => ({
   getWorkbenchModelCatalogHealth: async () => health,
 }))
 vi.mock('../../../api/vendorPreferenceApi', () => ({ getVendorPreference: async () => ({ orderedVendorKeys: [] }) }))
-vi.mock('../../../api/taskApi', () => ({ mintSpendGrant: calls.mint }))
+vi.mock('../../../api/taskApi', () => ({ consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 
 const shot: PlanShot = {
@@ -48,12 +48,16 @@ const state = () => useGenerationCanvasStore.getState()
 const shotNodes = () => state().nodes.filter(node => node.kind !== 'shot_table')
 const video = () => state().nodes.find(node => node.kind === 'video')!
 let session: ProjectSessionTestHarness
+const consentedRecordFor = (nodeId: string): string | undefined => calls.consent.mock.calls
+  .flatMap(([input]) => (input as { shots: Array<{ nodeId: string; runRecordId: string }> }).shots)
+  .find((one) => one.nodeId === nodeId)?.runRecordId
 
 beforeEach(async () => {
   notifyModelOptionsRefresh()
   calls.execute.mockReset().mockImplementation(async (node, execution) => {
     expect(execution.projectTarget?.projectId).toBe('project-a')
-    expect(execution.grantId).toBe('approved-frame-and-video')
+    // 批量卡点了确认 = 卡上每一镜在主进程开好的出价；每一镜交的时候带它自己那一份运行记录号（不铸令牌）。
+    expect(execution.canvasRun?.runRecordId).toBe(consentedRecordFor(node.id))
     if (node.kind === 'video') {
       expect(resolveGenerationReferences(node, execution).firstFrameUrl).toBe('https://fixture.invalid/frame.jpg')
     }
@@ -61,7 +65,7 @@ beforeEach(async () => {
       url: `https://fixture.invalid/${node.kind === 'image' ? 'frame.jpg' : 'video.mp4'}`, createdAt: 1 }
   })
   calls.confirm.mockReset().mockResolvedValue(true)
-  calls.mint.mockReset().mockResolvedValue('approved-frame-and-video')
+  calls.consent.mockReset().mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => input.shots.map((one) => `canvas-${one.runRecordId}`))
   vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.confirm)
   session = createProjectSessionTestHarness()
   await session.open('project-a')
@@ -84,7 +88,7 @@ function agentInput(referenceUrl?: string) {
 it('original Agent presentation rejects a missing required first frame before confirmation', async () => {
   await presentStoryboard(agentInput())
   expect(calls.confirm).not.toHaveBeenCalled()
-  expect(calls.mint).not.toHaveBeenCalled()
+  expect(calls.consent).not.toHaveBeenCalled()
   expect(calls.execute).not.toHaveBeenCalled()
   expect(shotNodes()).toHaveLength(0)
 })
@@ -97,9 +101,12 @@ it.each(['fresh', 'existing'] as const)('original Agent presentation projects th
         modelVendor: shot.modelVendor, archetype: { id: 'seedance-2', modeId: 'first' },
         firstFrameUrl: 'https://fixture.invalid/obsolete-frame.jpg' } }).id
   }
-  await presentStoryboard(agentInput('https://fixture.invalid/frame.jpg'))
+  const receipt = await presentStoryboard(agentInput('https://fixture.invalid/frame.jpg'))
   expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.mint).toHaveBeenCalledOnce()
+  expect(calls.consent).toHaveBeenCalledOnce()
+  // 交回 operation（发动机收敛第一刀第 3 步）：点了确认、出价开好就回话，带上每一镜的 Run 号；整批在画布上接着跑完。
+  expect(receipt).toMatchObject({ status: 'presented', decision: 'started', operations: [`canvas-${consentedRecordFor(video().id)}`] })
+  await vi.waitFor(() => expect(video().status).toBe('success'))
   expect(calls.execute).toHaveBeenCalledOnce()
   const [submitted, execution] = calls.execute.mock.calls[0]
   expect(resolveGenerationReferences(submitted, execution).firstFrameUrl).toBe('https://fixture.invalid/frame.jpg')
@@ -130,7 +137,8 @@ it('original batch includes a planned first frame and accepts the existing defau
   const batch = deriveStoryboardBatch(rows)
   await runStoryboardBatch(context, batch.runnable)
   expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.mint).toHaveBeenCalledOnce()
+  expect(calls.consent).toHaveBeenCalledOnce()
+  expect(calls.consent.mock.calls[0][0].shots).toHaveLength(2)
   expect(calls.execute.mock.calls.map(([node]) => node.kind)).toEqual(['image', 'video'])
   expect(state().nodes.map(node => node.status)).toEqual(['success', 'success'])
 })

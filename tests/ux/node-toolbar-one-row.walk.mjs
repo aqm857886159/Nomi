@@ -1,5 +1,5 @@
 // 图片/视频节点浮条一行放下走查（用户 10-03 拍板）：选中图片/视频/锚卡，断言浮条只有一行，
-// 并展开 裁切▾ 变换▾ 抽帧▾ 截图。零额度：本地 SVG/mp4 夹具。
+// 并展开 更多效果▾ 改图▾ 宫格▾ 抽帧▾ 截图。零额度：本地 SVG/mp4 夹具。
 // 用法：pnpm run build && NOMI_WALK_LOCALE=zh|en node tests/ux/node-toolbar-one-row.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
@@ -54,8 +54,8 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 
 const LOCALE = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh'
 const L = LOCALE === 'en'
-  ? { img: 'Image actions', vid: 'Video actions', cropSplit: 'Crop & split', transform: 'Transform', extract: 'Extract frame', breakDown: 'Break down', first: 'First frame', freeze: 'Confirm look' }
-  : { img: '图片操作', vid: '视频操作', cropSplit: '裁切', transform: '变换', extract: '抽帧', breakDown: '拆解', first: '首帧', freeze: '定妆' }
+  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Refine', grid: 'Grid', extract: 'Extract frame', breakDown: 'Break down', first: 'First frame', freeze: 'Confirm look' }
+  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '抽帧', breakDown: '拆解', first: '首帧', freeze: '定妆' }
 const { app, win } = await launchNomiApp({
   name: 'node-toolbar-one-row',
   userDataDir: settingsDir,
@@ -93,8 +93,9 @@ try {
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-1-image-bar.png`) })
   assert(r.rows === 1, `图片浮条一行（${r.rows} 行，${r.width}px / 窗口 ${r.vw}）`)
   assert(!r.labels.some((x) => /建参考卡|AI 编辑|AI edit|Create reference/.test(x)), '图片浮条没有建参考卡 / AI 编辑')
-  await openMenu(L.cropSplit, '2-crop-split-menu')
-  await openMenu(L.transform, '3-transform-menu')
+  await openMenu(L.presets, '2-presets-menu')
+  await openMenu(L.refine, '3-refine-menu')
+  await openMenu(L.grid, '8-grid-picker')
   r = await select('anchor-node', L.img)
   console.log('anchor', JSON.stringify(r))
   if (LOCALE === 'en' && r.rows !== 1) console.log('  ! 英文锚卡在 1280 + Agent 面板下折两行（已知，见 PR）')

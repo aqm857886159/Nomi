@@ -59,7 +59,9 @@ const vendorServer = http.createServer(async (req, res) => {
   if (shouldFail) failOncePending = false
   setTimeout(() => {
     call.finishedAt = Date.now()
-    call.status = shouldFail ? 500 : 200
+    // 当场明确拒绝（422：对方看完请求、亲口说不、没建任务）= 确定没受理、没扣钱，节点报原话、可以重试。
+    // 5xx 是「结果未知」（可能已收下），画布付费生成进了 Run 之后按设计锁住先核对（outboundDispatchEvidence F3），不再拿来演「失败可重试」。
+    call.status = shouldFail ? 422 : 200
     res.writeHead(call.status, { 'content-type': 'application/json' })
     res.end(shouldFail
       ? JSON.stringify({ error: { message: 'mock fail once' } })
@@ -492,7 +494,7 @@ try {
   await expectAbsent(notificationRoot.getByRole('alert').filter({ hasText: /已完成/ }), {
     provenBy: notificationProof, message: '节点已成功，普通完成不重复弹通知',
   })
-  check(wireCalls.filter((call) => call.prompt.includes('重试')).map((call) => call.status).join(',') === '500,200', '失败节点通过一键重试成功')
+  check(wireCalls.filter((call) => call.prompt.includes('重试')).map((call) => call.status).join(',') === '422,200', '失败节点通过一键重试成功')
   check(await win.evaluate(() => window.localStorage.getItem('nomi.canvas.batch-concurrency')) === '2', '重试后并发偏好仍为 2')
   await snap(win, 'retry-completed-dark')
 
@@ -530,7 +532,7 @@ try {
   check(await win.locator('section[aria-label="生成时间轴"]').count() === 1, '时间轴可从底部入口正常展开')
   await snap(win, 'timeline-unblocked')
 
-  const unexpectedConsoleErrors = consoleErrors.filter((message) => !/mock fail once|HTTP 500|生成失败/i.test(message))
+  const unexpectedConsoleErrors = consoleErrors.filter((message) => !/mock fail once|HTTP 422|生成失败/i.test(message))
   check(pageErrors.length === 0, '页面运行无 pageerror', pageErrors.join(' | '))
   check(unexpectedConsoleErrors.length === 0, '控制台无意外 error', unexpectedConsoleErrors.join(' | '))
   console.log(`  expected console errors from fail-once path: ${consoleErrors.length - unexpectedConsoleErrors.length}`)

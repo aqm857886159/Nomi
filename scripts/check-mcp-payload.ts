@@ -8,7 +8,8 @@ type Frame = { result?: unknown }
 const baselinePath = path.resolve('scripts/mcp-payload-baseline.json')
 const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8')) as { maxBytes?: number }
 const maxBytes = baseline.maxBytes
-if (!Number.isInteger(maxBytes) || maxBytes <= 0) throw new Error(`Invalid MCP payload baseline: ${baselinePath}`)
+if (!Number.isInteger(maxBytes) || (maxBytes as number) <= 0) throw new Error(`Invalid MCP payload baseline: ${baselinePath}`)
+const maxBytesValue = maxBytes as number
 
 /**
  * 抬基线必须逐条记账（2026-09-21）。
@@ -65,15 +66,18 @@ const protocol = createMcpProtocol({ send: (message) => frames.push(message as F
 async function run(): Promise<void> {
   try {
     protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
-    await new Promise<void>((resolve) => setImmediate(resolve))
+    // 协议层是官方 SDK，处理每一帧都是异步的：让事件循环转到有响应为止（最多几圈）。
+    for (let round = 0; round < 20 && !frames.some((frame) => frame.result !== undefined); round += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+    }
     if (!frames.some((frame) => frame.result !== undefined)) throw new Error('MCP tools/list returned no result')
     const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
     const actualBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())
     console.log(`MCP tools/list payload: ${actualBytes} bytes (zh-CN ${payloadBytesByLocale['zh-CN']}, en ${payloadBytesByLocale.en}; ratchet max ${maxBytes})`)
     assertLedgerExplainsBaseline(new Set((MCP_TOOL_RESOLVER.list() as unknown as { name?: unknown }[])
       .map((tool) => (typeof tool.name === 'string' ? tool.name : ''))))
-    if (actualBytes > maxBytes) {
-      throw new Error(`MCP payload ratchet failed: ${actualBytes} > ${maxBytes}`)
+    if (actualBytes > maxBytesValue) {
+      throw new Error(`MCP payload ratchet failed: ${actualBytes} > ${maxBytesValue}`)
     }
     console.log('MCP payload ratchet passed: baseline may only decrease')
   } finally {

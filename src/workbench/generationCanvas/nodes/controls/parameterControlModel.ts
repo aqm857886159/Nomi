@@ -14,7 +14,7 @@ import {
 } from '../../../../config/modelCatalogMeta'
 import { normalizeOrientation, type Orientation } from '../../../../utils/orientation'
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
-import { normalizeAspectRatioToWH } from '../aspectRatio'
+import { normalizeAspectRatioToWH } from '../../../../../electron/shared/aspectRatioValue'
 import { resultUrl } from '../../runner/referenceUrl'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import {

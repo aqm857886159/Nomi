@@ -10,6 +10,7 @@ export async function runLaneSingleShot(options: {
   model: NomiModelConfig;
   fetch: typeof globalThis.fetch;
   systemPrompt?: string;
+  systemPromptClosing?: string;
   prompt: string;
   input?: OpenLaneOptions['input'];
   signal?: AbortSignal;
@@ -29,7 +30,7 @@ export async function runLaneSingleShot(options: {
     : options.prompt;
   options.signal?.throwIfAborted();
   const message = await models.streamSimple(model, {
-    systemPrompt: [options.systemPrompt, captured?.systemPrompt, captured?.skillPrompt].filter(Boolean).join('\n\n'),
+    systemPrompt: [options.systemPrompt, captured?.systemPrompt, captured?.skillPrompt, options.systemPromptClosing].filter(Boolean).join('\n\n'),
     messages: [{ role: 'user', content, timestamp: Date.now() }],
     tools: [],
   }, {

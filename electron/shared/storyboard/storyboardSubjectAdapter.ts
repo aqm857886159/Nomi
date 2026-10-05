@@ -3,6 +3,8 @@ import { modelKindForTaskKind } from '../capabilityModeManifest'
 import type { PlanCandidate } from '../../capabilityCore/executionContract'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from './storyboardPlan'
 import { planAnchorSchema, planShotSchema } from './storyboardPlanSchema'
+import { foldRatioIntoSlot } from './storyboardShotScope'
+import { mergeNamedParameters } from '../generationParameterPatch'
 
 /**
  * 一个 Agent 草稿镜头 ↔ 原编辑器契约（`StoryboardPlan`）之间的**纯适配层**。
@@ -21,7 +23,9 @@ function candidateFields(candidate: PlanCandidate) {
     ...(candidate.modelId ? { modelKey: candidate.modelId } : {}),
     ...(candidate.providerId ? { modelVendor: candidate.providerId } : {}),
     ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
-    ...(Object.keys(candidate.parameters).length ? { params: structuredClone(candidate.parameters) } : {}),
+    // 比例收进分镜的比例槽（宿主起草时已翻成这个模型的真实键，分镜方案里比例只住 `aspect_ratio` 一个家）。
+    ...(Object.keys(candidate.parameters).length ? { params: foldRatioIntoSlot(structuredClone(candidate.parameters),
+      { modelKey: candidate.modelId, modelVendor: candidate.providerId, ...(candidate.modeId ? { modeId: candidate.modeId } : {}) }) } : {}),
   }
 }
 
@@ -64,7 +68,12 @@ export function patchStoryboardSubject(plan: StoryboardPlan, shotId: string, pat
     ...(patch.modelId !== undefined ? {modelKey:patch.modelId} : {}),
     ...(patch.providerId !== undefined ? {modelVendor:patch.providerId} : {}),
     ...(patch.modeId !== undefined ? {modeId:patch.modeId} : {}),
-    ...(patch.parameters !== undefined ? {params:patch.parameters} : {}),
+    // 改一镜 = 只改点名的参数（null 删键），与宿主改草稿同一个函数；比例收进分镜的比例槽。
+    ...(patch.parameters !== undefined ? {params:foldRatioIntoSlot(
+      mergeNamedParameters(subject.params ?? {}, patch.parameters as Record<string, unknown>),
+      {modelKey:patch.modelId !== undefined ? String(patch.modelId) : subject.modelKey,
+        modelVendor:patch.providerId !== undefined ? String(patch.providerId) : subject.modelVendor,
+        modeId:patch.modeId !== undefined ? String(patch.modeId) : subject.modeId})} : {}),
     ...(references ? {referenceBindings:references} : {}),
   } as PlanAnchor | PlanShot
   if (patch.taskKind !== undefined && !('description' in merged)) merged.shotKind = String(patch.taskKind).includes('video') ? 'video' : 'image'

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { verbToTransportCall } from "../../../agentLane/laneVerbTransport";
 import { NOT_YET_DECLARED, PROVENANCE_UNVERIFIABLE, VERB_FIELD_PROVENANCE } from "./verbFieldProvenance";
+import { VERB_DECLARATIONS } from "../verbDeclarations";
 
 const translate = (args: unknown) => verbToTransportCall({ toolCallId: "call-1", toolName: "draft_shots", args })!.call.args;
 
@@ -75,5 +76,29 @@ describe("「模型从哪拿到这个值」那条轴（投影接不住它，所�
     ]);
     // 两份名单不许有交集，加起来也不许漏掉任何一个动词——否则「没进表」就成了静默的第三种状态。
     expect([...Object.keys(VERB_FIELD_PROVENANCE), ...NOT_YET_DECLARED].sort().length).toBe(20);
+  });
+});
+
+describe("比例只有一个家（2026-10-05：用户说 16:9，卡上是档案默认）", () => {
+  const draftShots = VERB_DECLARATIONS.find((verb) => verb.name === "draft_shots")!;
+
+  it("①' shots[].aspectRatio 下沉到宿主的语义载体键 parameters.aspectRatio，与时长、已有参数合并", () => {
+    expect(translate({ shots: [{ prompt: "p", aspectRatio: "16:9", durationSec: 5, parameters: { resolution: "2K" } }] }))
+      .toMatchObject({ operation: "create", parameters: { resolution: "2K", duration: 5, aspectRatio: "16:9" } });
+    const multi = translate({ shots: [{ prompt: "a", aspectRatio: "1:1" }, { prompt: "b", aspectRatio: "9:16" }] }) as { shots: Array<Record<string, unknown>> };
+    expect(multi.shots.map((shot) => shot.parameters)).toEqual([{ aspectRatio: "1:1" }, { aspectRatio: "9:16" }]);
+    const patched = translate({ operationId: "op-1", shots: [{ shotId: "shot-2", aspectRatio: "9:16" }] }) as { patch: Record<string, unknown> };
+    expect(patched.patch).toEqual({ parameters: { aspectRatio: "9:16" } });
+  });
+
+  it("模型面上 parameters.aspectRatio 当场拒，点名 aspectRatio 字段——不再静默吞掉", () => {
+    expect(() => draftShots.prepareArguments!({ shots: [{ prompt: "p", parameters: { aspectRatio: "16:9" } }] }))
+      .toThrow(/set aspectRatio on the shot/);
+    // 阳性对照：写在自己的位置上不拒。
+    expect(() => draftShots.prepareArguments!({ shots: [{ prompt: "p", aspectRatio: "16:9" }] })).not.toThrow();
+  });
+
+  it("schema 收它（严格对象，少这一行模型写了也会被 ajv 拒）", () => {
+    expect(draftShots.schema.safeParse({ shots: [{ prompt: "p", aspectRatio: "16:9" }] }).success).toBe(true);
   });
 });

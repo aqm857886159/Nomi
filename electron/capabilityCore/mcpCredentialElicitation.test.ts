@@ -164,7 +164,7 @@ describe('elicitation capability negotiation', () => {
     const sendServerRequest = vi.fn(async () => ({ action: 'accept' }))
     const client = createElicitationClient({
       sendServerRequest,
-      send: vi.fn(),
+      notify: vi.fn(),
       supportsElicitation: () => true,
       supportsUrlElicitation: () => false,
     })
@@ -175,10 +175,10 @@ describe('elicitation capability negotiation', () => {
 
   it('emits the 2025-11-25 url-mode frame and the completion notification', async () => {
     const sendServerRequest = vi.fn(async () => ({ action: 'accept' }))
-    const send = vi.fn()
+    const notify = vi.fn()
     const client = createElicitationClient({
       sendServerRequest,
-      send,
+      notify,
       supportsElicitation: () => true,
       supportsUrlElicitation: () => true,
     })
@@ -190,8 +190,7 @@ describe('elicitation capability negotiation', () => {
       undefined,
     )
     client.notifyComplete('e1')
-    expect(send).toHaveBeenCalledWith({
-      jsonrpc: '2.0',
+    expect(notify).toHaveBeenCalledWith({
       method: 'notifications/elicitation/complete',
       params: { elicitationId: 'e1' },
     })

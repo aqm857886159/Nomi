@@ -5,9 +5,9 @@ import { createMcpProtocol, MCP_TOOL_NAMES, type McpTransport } from './mcpProto
 import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 import { classifyMcpGenerationRoute } from './mcpGenerationPolicy'
 
+// SDK 处理每一帧都是异步的：让事件循环转几圈再读回帧。
 const flush = async () => {
-  await Promise.resolve()
-  await Promise.resolve()
+  for (let index = 0; index < 5; index += 1) await new Promise<void>((resolve) => setImmediate(resolve))
 }
 
 describe('retired nomi_generate route', () => {

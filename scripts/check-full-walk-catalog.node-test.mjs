@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { FULL_WALK_INVENTORY, FULL_WALK_JOURNEYS, FULL_WALK_PLAYBOOKS } from '../tests/ux/full-walk/catalog.mjs'
+import { CLICK_TARGET_CONTRACT, FULL_WALK_INVENTORY, FULL_WALK_JOURNEYS, FULL_WALK_PLAYBOOKS, STORYBOARD_CLICK_TARGETS } from '../tests/ux/full-walk/catalog.mjs'
 import { loadDictionaries } from '../tests/ux/full-walk/invariants.mjs'
 import { USER_REPORTED_ISSUES } from '../tests/ux/full-walk/userReports.mjs'
 import { checkFullWalkCatalog, checkRuleRegistry, hasI18nKey, loadTelemetryEventNames, symbolDeclared } from './check-full-walk-catalog.mjs'
@@ -10,7 +10,7 @@ import { checkFullWalkCatalog, checkRuleRegistry, hasI18nKey, loadTelemetryEvent
 const dictionaries = loadDictionaries()
 const telemetryEvents = loadTelemetryEventNames()
 const check = (catalog) => checkFullWalkCatalog(catalog, { dictionaries, telemetryEvents })
-const real = { journeys: FULL_WALK_JOURNEYS, playbooks: FULL_WALK_PLAYBOOKS, inventory: FULL_WALK_INVENTORY }
+const real = { journeys: FULL_WALK_JOURNEYS, playbooks: FULL_WALK_PLAYBOOKS, inventory: FULL_WALK_INVENTORY, clickTargets: STORYBOARD_CLICK_TARGETS, clickContract: CLICK_TARGET_CONTRACT }
 const clone = (value) => JSON.parse(JSON.stringify(value))
 
 test('the checked-in catalog holds', () => {
@@ -80,4 +80,18 @@ test('helpers: declarations and plural keys', () => {
   assert.equal(symbolDeclared('// function Ghost() {}', 'Ghost'), false)
   assert.equal(hasI18nKey({ a: { b_one: 'x' } }, 'a.b'), true)
   assert.equal(hasI18nKey({ a: {} }, 'a.b'), false)
+})
+
+test('⑫ click targets: a row without a user expectation, an empty observation or a dangling owner is caught', () => {
+  assert.ok(STORYBOARD_CLICK_TARGETS.length >= 6, '分镜表的可点目标至少登记行、镜号、复选框、⋯、参数格、生成')
+  const clickTargets = clone(STORYBOARD_CLICK_TARGETS)
+  clickTargets[0].userExpectation = ''
+  clickTargets[1].actualObservation = ' '
+  clickTargets[2].owner = 'src/workbench/creation/storyboard/StoryboardShotTable.tsx#noSuchTable'
+  delete clickTargets[3].useCases
+  const problems = check({ ...real, clickTargets }).join('\n')
+  assert.match(problems, /userExpectation 要写一句/)
+  assert.match(problems, /actualObservation 不许空着/)
+  assert.match(problems, /没有声明 noSuchTable/)
+  assert.match(problems, /缺 useCases 列/)
 })

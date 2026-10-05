@@ -1,5 +1,8 @@
 import type { PlanShot, StoryboardPlan } from './storyboardPlan'
 import { storyboardProfileForKey } from './storyboardProfiles'
+import { ASPECT_RATIO_SEMANTIC_KEY, aspectRatioControlKey, aspectRatioControlsOf, placeAspectRatio, type AspectRatioControlLike } from '../aspectRatioValue'
+import { resolveArchetypeForModel } from '../modelArchetypes'
+import type { ModelParameterControl } from '../videoCapabilities/types'
 
 /**
  * 「整片默认 → 逐镜生成参数」的**单一 owner**（设计合同 v6 §2.4.1，2026-09-05 用户拍板；
@@ -49,8 +52,9 @@ export const ASPECT_OPTIONS: readonly string[] = ['16:9', '9:16', '1:1', '4:3', 
  * 两段的"生效值"永远是 `shotOverride ?? planValue`，不许有第三种读法。
  */
 type FilmDefaultSpec = {
-  /** 落进节点 params / 请求体的参数键——与模型档案 `control.key` 同名，供应商没有这个控件时由
-   *  `buildPlannedNodeMeta` 按档案丢弃（诚实缺席，不硬塞）。 */
+  /** 落进节点 params 的**语义槽**。画幅的槽叫 `aspect_ratio`，但它不是哪一家的参数名：落地那一层
+   *  （`buildPlannedNodeMeta` → `placeAspectRatio`）按这一镜模式的比例控件翻成真实键（Z-Image 叫 `size`），
+   *  这个模式没有这一档才诚实缺席（2026-10-05 之前只认同名控件，16:9 落到 Z-Image 上被丢掉）。 */
   readonly paramKey: string
   /** 它在 `StoryboardPlan` 上住的字段名。门岗据此核验方案 schema 与工具 envelope 都有这个键——
    *  少一个 = 规划师写的整片值在解析那一刻被静默丢弃（这一族 bug 的第二个出口）。 */
@@ -59,6 +63,8 @@ type FilmDefaultSpec = {
   readonly planValue: (plan: StoryboardPlan) => string
   /** 这一行自己写着的值（`null` = 没写）。 */
   readonly shotOverride: (shot: PlanShot) => string | null
+  /** 这个值在这一镜的模式上落不落得下（显示必须等于请求：落不下的界面要如实说）。 */
+  readonly placeable: (value: string, controls: readonly AspectRatioControlLike[]) => boolean
 }
 
 /** 这一行**自己写着的**画幅（没写 → null）。注意「写着」不等于「覆盖」——见 isAspectOverridden。 */
@@ -101,7 +107,8 @@ export function planDefaultAspect(plan: StoryboardPlan): string {
  * "抄进每一行"的老问题。见 `docs/plan/2026-09-12-storyboard-plan-defaults-passthrough.md` 的普查表。
  */
 const FILM_DEFAULTS: readonly FilmDefaultSpec[] = [
-  { paramKey: 'aspect_ratio', planKey: 'aspectRatio', planValue: planDefaultAspect, shotOverride: shotAspectOverride },
+  { paramKey: 'aspect_ratio', planKey: 'aspectRatio', planValue: planDefaultAspect, shotOverride: shotAspectOverride,
+    placeable: (value, controls) => placeAspectRatio({ aspect_ratio: value }, controls).outcome === 'placed' },
 ]
 
 /** 登记在案的整片级参数键（门岗与 UI 说明共用；不要在别处手抄这份清单）。 */
@@ -172,14 +179,55 @@ function withFilmDefaults(
 export function unsupportedFilmDefaultKeys(
   plan: StoryboardPlan,
   shot: PlanShot,
-  controls: readonly { key: string }[] | null | undefined,
+  controls: readonly ModelParameterControl[] | null | undefined,
 ): string[] {
   if (!controls) return [] // 无模型/无档案 → 无契约可判，不瞎报。
-  const supported = new Set(controls.map((control) => control.key))
+  // 判据与落地那一层同一个（`placeAspectRatio`）：比例控件叫什么键都认，像素档按同档挑，落不下才算不支持。
+  const ratioControls = aspectRatioControlsOf(controls)
   return FILM_DEFAULTS
-    .filter((spec) => !supported.has(spec.paramKey))
-    .filter((spec) => Boolean(spec.shotOverride(shot) ?? spec.planValue(plan)))
+    .filter((spec) => {
+      const value = spec.shotOverride(shot) ?? spec.planValue(plan)
+      return Boolean(value) && !spec.placeable(value, ratioControls)
+    })
     .map((spec) => spec.paramKey)
+}
+
+/**
+ * 一镜的模型 + 生成方式在档案里的参数控件（认不出档案 → null）。分镜这一层只靠档案判比例落在哪个键，
+ * 不读目录（主进程与渲染层都能调）。
+ */
+export function shotModeControls(model: Readonly<{ modelKey?: string; modelVendor?: string; modeId?: string; meta?: unknown }>): ModelParameterControl[] | null {
+  if (!model.modelKey) return null
+  const archetype = resolveArchetypeForModel({ modelKey: model.modelKey, vendorKey: model.modelVendor ?? null, meta: model.meta as never })
+  const mode = archetype?.modes.find((candidate) => candidate.id === model.modeId)
+    ?? archetype?.modes.find((candidate) => candidate.id === archetype.defaultModeId)
+  return mode ? [...mode.params] : null
+}
+
+/**
+ * 一镜参数里的比例收进分镜的比例槽（`aspect_ratio`）——**分镜方案里比例只有这一个家**，表格、整片默认、
+ * 行级覆盖读写的都是它；落画布时再按模式翻成真实键（`placeAspectRatio`）。
+ *
+ * 收两种写法：Agent 的语义键 `aspectRatio`，以及这个模式真实的比例键（Agent 起草时宿主已翻成 `size` 之类）。
+ * 不收的话，同一镜的比例会同时住两个键，整片默认一改就分不清谁是这一镜自己的值。
+ */
+export function foldRatioIntoSlot(
+  params: Readonly<Record<string, unknown>>,
+  model: Readonly<{ modelKey?: string; modelVendor?: string; modeId?: string }>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...params }
+  const controls = shotModeControls(model)
+  const realKey = controls ? aspectRatioControlKey(aspectRatioControlsOf(controls)) : undefined
+  const semantic = out[ASPECT_RATIO_SEMANTIC_KEY]
+  if (semantic !== undefined) {
+    delete out[ASPECT_RATIO_SEMANTIC_KEY]
+    if (realKey && realKey !== 'aspect_ratio') delete out[realKey]
+    out.aspect_ratio = semantic
+  } else if (realKey && realKey !== 'aspect_ratio' && out[realKey] !== undefined) {
+    out.aspect_ratio = out[realKey]
+    delete out[realKey]
+  }
+  return out
 }
 
 function withShotAspect(shot: PlanShot, aspect: string | null): PlanShot {

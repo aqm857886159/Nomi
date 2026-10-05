@@ -380,7 +380,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const {
     contextNodeMenu,
     closeContextNodeMenu,
-    connectionCreateMenu,
+    connectionCreateMenu, closeConnectionCreateMenu,
     handleStageContextMenu,
     handleFlowContextMenu,
     handleStagePointerDownCapture,
@@ -755,7 +755,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         selectedSet={selectedSet}
         screenshotOverlay={screenshotOverlay}
         contextNodeMenu={contextNodeMenu}
-        connectionCreateMenu={connectionCreateMenu}
+        connectionCreateMenu={connectionCreateMenu} onCloseConnectionCreateMenu={closeConnectionCreateMenu}
         onCreateEmpty={() => useGenerationCanvasStore.getState().addNode({ kind: 'image', categoryId: activeCategoryId, select: true })}
         onNodeContextAction={handleNodeContextAction}
         onCloseContextNodeMenu={closeContextNodeMenu}

@@ -160,7 +160,7 @@ try {
   await win.mouse.up()
   await win.waitForTimeout(600)
   await shot(win, '19-connection-create-menu.png')
-  await win.locator('.generation-canvas-v2__connection-create-menu').getByText('图片', { exact: true }).first().click()
+  await win.getByTestId('node-derive-menu').getByRole('menuitem', { name: /图片/ }).first().click()
   const imageNode = win.locator('[data-node-id][data-kind="image"]').first()
   await imageNode.waitFor({ timeout: 8000 })
   await win.waitForTimeout(800)

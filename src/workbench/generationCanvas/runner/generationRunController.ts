@@ -11,7 +11,7 @@ import { isNodeGenerationOwnedByProduction } from '../../production/productionSh
 import { directorPreviewSpendBlock } from '../nodes/director/model/directorPreviewState'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
-import { mintSpendGrant, releaseCanvasShotRun } from '../../api/taskApi'
+import { releaseCanvasShotRun } from '../../api/taskApi'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
@@ -34,7 +34,6 @@ import {
 // 错误分类(classifyGenerationError)已抽到 observability/classifyError(人话叶子层,生成域+对话域共用);
 // 这里 re-export 保持 NodeErrorReport / classifyGenerationError.test 等既有 import 不破。
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
-import type { DependencyWavePlan } from './dependencyWaves'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
 import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
@@ -121,10 +120,10 @@ export type RunGenerationNodeOptions = {
     maxAttempts?: number
     baseDelayMs?: number
   }
-  /** 付费守卫令牌：真人确认后铸的 grantId，透传到 executor → request.extras 供主进程核验（令牌路：批量，第 3 步收走）。 */
-  grantId?: string
-  /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（singleNodeLedger 定）。 */
+  /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（paidNodeLedger 定）。缺省 = 不花钱的本地 / 文本路。 */
   ledger?: 'run'
+  /** 批量卡上点确认时就定下的运行记录号（主进程已经为它开了出价）。缺省 = 这一次现起一个号（单节点 ↑）。 */
+  runRecordId?: string
   /** One-shot correction appended to the provider prompt for a bounded QA retry. */
   promptSuffix?: string
   /** 队列批次 id（任务中心的调度真相源，见 generationQueueStore）。不传 = 单发，内部自建 1 节点批次。 */
@@ -237,7 +236,7 @@ export async function runGenerationNode(
   const initialState = await readRunGraph(target)
   const initialNode = initialState?.nodes.find((node) => node.id === id)
   if (!initialState || !initialNode) throw new Error('node not found')
-  // 3D-BOX 花钱闸（方案 §8）：单镜 Run 路由主进程准入问它（appIntegrationCanvasShot）；令牌路（批量）暂留这一道，第 3 步进 Run 时删。
+  // 3D-BOX 预演闸（方案 §8）：要花钱的单镜 Run 路由主进程准入问它（appIntegrationCanvasShot）；不花钱的本地 / 文本路在这里问。
   const previewBlock = options.ledger === 'run' ? null : directorPreviewSpendBlock(id, initialState.nodes)
   if (previewBlock) {
     throw new Error(i18n.t(previewBlock.reason === 'rendering' ? 'director.agent.spendBlockedRendering' : 'director.agent.spendBlockedFailed'))
@@ -283,7 +282,7 @@ export async function runGenerationNode(
   // 健康记账记到的也是它——不是「失败时节点碰巧选着谁」（运行期间用户可以换家）。
   // 花钱前的确认已冻结 (模型, 供应商)（captureApprovedGenerationInputs），重试循环里它不会中途变。
   const attempt = dispatchedAttempt(initialNode)
-  const run = { id: createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
+  const run = { id: options.runRecordId ?? createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
   let runFailure: unknown
   let progressDelivery: Promise<void> = Promise.resolve()
   let progressDeliveryFailure: unknown
@@ -326,7 +325,6 @@ export async function runGenerationNode(
           nodes: state.nodes,
           edges: state.edges,
           projectTarget: target,
-          ...(options.grantId ? { grantId: options.grantId } : {}),
           ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id } } : {}),
           ...(options.promptSuffix || dialoguePromptSuffix
             ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
@@ -438,7 +436,12 @@ export async function runGenerationNode(
   }
 }
 
-export type RunGenerationNodesBatchOptions = RunGenerationNodeOptions & {
+export type RunGenerationNodesBatchOptions = Omit<RunGenerationNodeOptions, 'ledger' | 'runRecordId'> & {
+  /**
+   * 批量卡上点了确认之后主进程为每一个要花钱的节点开好的出价：节点 → 运行记录号。在这里的节点走单镜 Run（它自己那一份），
+   * 不在这里的是不花钱的本地 / 文本节点。缺省 = 这一批没有要花钱的节点。
+   */
+  canvasRunRecordIds?: ReadonlyMap<string, string>
   /** Maximum concurrent runs. Defaults to 6（用户拍板：同一波内尽量并行，框选 6 个镜头能一起跑，
    *  不再一个一个来）。有依赖的镜头仍按波次串行（锚先于镜头），这只调「同波内同时几个」。上限 8。 */
   concurrency?: number
@@ -499,7 +502,7 @@ export async function runGenerationNodesBatch(
           // 整批共用一个托管决定：批量确认卡对整批问了一次（batchPlanPreview），别在波次里逐个再问。
           assetUploadConsent: options.assetUploadConsent,
           target: options.target,
-          ...(options.grantId ? { grantId: options.grantId } : {}),
+          ...(options.canvasRunRecordIds?.has(nodeId) ? { ledger: 'run' as const, runRecordId: options.canvasRunRecordIds.get(nodeId)! } : {}),
           ...(options.batchId ? { batchId: options.batchId } : {}),
         })
         successes.push({ nodeId, result })
@@ -519,25 +522,25 @@ export async function runGenerationNodesBatch(
 }
 
 /**
- * 单节点入口走哪条付费口（发动机收敛第一刀）：单镜 Run（批准 = 这一下点击，主进程记账）；
- * 文本节点与本地 ComfyUI 仍走令牌路——登记的例外（concept-owners `spend.pending-identity`，到期：第二刀传输合一）。
+ * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
+ * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
+ * 文本走它自己的流式口。
  */
-function singleNodeLedger(node: GenerationCanvasNode | undefined): 'run' | 'grant' {
-  if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return 'grant'
-  return isComfyuiVendorKey(selectedVendor(node)) ? 'grant' : 'run'
+export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
+  if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
+  return isComfyuiVendorKey(selectedVendor(node)) ? undefined : 'run'
 }
 
-/** 令牌路才铸令牌；单镜 Run 路的批准在主进程（同一下点击的手势收据）。 */
-async function authorizeSingleNode(node: GenerationCanvasNode | undefined, nodeIds: string[], count: number | undefined, quoteId: string | undefined): Promise<Pick<RunGenerationNodeOptions, 'grantId' | 'ledger'>> {
-  return singleNodeLedger(node) === 'run' ? { ledger: 'run' } : { grantId: await mintSpendGrant(nodeIds, count, quoteId) }
+function ledgerOptions(node: GenerationCanvasNode | undefined): Pick<RunGenerationNodeOptions, 'ledger'> {
+  return paidNodeLedger(node) ? { ledger: 'run' } : {}
 }
 
 /**
- * 单节点生成/重试/生成变体的轻确认 + 批准 + 跑（单镜 Run 路；文本 / 本地 ComfyUI 仍铸令牌）。
- * rerun=true 是「基于此生成变体」：先复制出新节点再绑令牌跑；普通重新生成走 regenerateNodeInPlace。
+ * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本 / 本地 ComfyUI 不进 Run、不要授权。
+ * rerun=true 是「基于此生成变体」：先复制出新节点再跑；普通重新生成走 regenerateNodeInPlace。
  */
 export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
-  // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡、铸令牌）换了项目 = 取消，没花钱；
+  // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
@@ -547,9 +550,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   const hosting = await resolveHostingDisclosure(node)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting.allowed) return 'declined'
-  let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
-    onQuoteConfirmed: (id) => { quoteId = id },
     initiator: opts.initiator,
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
@@ -574,17 +575,8 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     assertApprovedInputs = captureApprovedGenerationInputs([runId])
     // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
-  let authority: Pick<RunGenerationNodeOptions, 'grantId' | 'ledger'>
   try {
-    authority = await authorizeSingleNode(node, [runId], undefined, quoteId)
-  } catch (error) {
-    reportAuthorizationFailure(error, projectId, runId)
-    return 'unavailable'
-  }
-  await opts.assertCurrent?.()
-  if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-  try {
-    await runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...authority, assetUploadConsent: 'allow', target: project.binding })
+    await runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
   } catch {
     // 原任务队列保留失败原因；原项目身份有效时，节点也显示错误。
   }
@@ -592,13 +584,13 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   return 'started'
 }
 
-/** ×N shares one approval/grant, runs serially on the original node, and retains completed
+/** ×N shares one approval (one card), runs serially on the original node, and retains completed
  * results if a later attempt fails. Switching foreground projects does not cancel approval. */
 export async function confirmAndRunNodeVariants(
   nodeId: string,
   count: number,
   // 托管同意由本函数自己的花钱卡问出来（下方固定传 'allow'），调用方给不了也不该给。
-  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent' | 'target' | 'assertAuthorCurrent'> & GenerationConfirmationGuards,
+  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent' | 'target' | 'assertAuthorCurrent' | 'ledger' | 'runRecordId'> & GenerationConfirmationGuards,
 ): Promise<void> {
   const project = withProjectAction((issued) => issued)
   if (!project) return
@@ -611,9 +603,7 @@ export async function confirmAndRunNodeVariants(
     const assertApprovedInputs = captureApprovedGenerationInputs([id])
     const hosting = await resolveHostingDisclosure(node)
     if (!hosting.allowed) return
-    let quoteId: string | undefined
     const ok = await confirmGenerationSpend(Array.from({ length: total }, () => node), {
-      onQuoteConfirmed: (id) => { quoteId = id },
       initiator: options.initiator,
       title: i18n.t('generationCommon.spend.startGeneration'),
       message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
@@ -623,12 +613,9 @@ export async function confirmAndRunNodeVariants(
     if (!ok) return
     await options.assertCurrent?.()
     if (!isProjectExecutionContextCurrent(project)) return
-    const authority = await authorizeSingleNode(node, [id], total, quoteId)
-    await options.assertCurrent?.()
-    if (!isProjectExecutionContextCurrent(project)) return
     for (let index = 0; index < total; index += 1) {
       try {
-        const result = await runGenerationNode(id, { ...options, assertAuthorCurrent: options.assertAuthorCurrent, assertApprovedInputs, ...authority, assetUploadConsent: 'allow', target: project.binding })
+        const result = await runGenerationNode(id, { ...options, assertAuthorCurrent: options.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
         whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result))
       } catch {
         return // 原任务队列保留失败；停发剩余变体。
@@ -658,9 +645,7 @@ export async function regenerateNodeInPlace(
   const hosting = await resolveHostingDisclosure(node)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting.allowed) return 'declined'
-  let quoteId: string | undefined
   const ok = await confirmGenerationSpend([node], {
-    onQuoteConfirmed: (id) => { quoteId = id },
     initiator: opts.initiator,
     title: opts.title || i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
@@ -672,17 +657,8 @@ export async function regenerateNodeInPlace(
   if (!ok) return 'declined'
   await opts.assertCurrent?.()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-  let authority: Pick<RunGenerationNodeOptions, 'grantId' | 'ledger'>
   try {
-    authority = await authorizeSingleNode(node, [id], undefined, quoteId)
-  } catch (error) {
-    reportAuthorizationFailure(error, projectId, id)
-    return 'unavailable'
-  }
-  await opts.assertCurrent?.()
-  if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-  try {
-    const result = await runGenerationNode(id, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...authority, assetUploadConsent: 'allow', target: project.binding })
+    const result = await runGenerationNode(id, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
     whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result))
   } catch {
     // 原任务队列保留失败原因；身份被替换时不向新项目写错误。

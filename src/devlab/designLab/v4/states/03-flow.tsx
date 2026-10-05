@@ -15,6 +15,8 @@ import { TooltipProvider } from '../../../../design'
 import { dockStatusLabel } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import { useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
+import { laneFlowItems, laneSnapshotConnectionDropped } from '../laneDrivenFixtures'
+import { labViewModelLabels } from './01-vocabulary'
 import type { LabState } from '../../labScreen'
 
 function FlowCreation(): JSX.Element {
@@ -172,7 +174,35 @@ function PanelWithApproval(): JSX.Element {
   )
 }
 
+/**
+ * 断线那一回合，**真投影**（pi 转录 → `projectLaneSnapshot` → `laneViewModel`）：
+ * `recovered` = 后面接上了成功回复 → 一行灰字「出错后已自动重试」；否则 = 没接上 → 红卡，归网络类（「连不上服务商」）。
+ */
+function PanelConnectionDropped({ recovered }: { recovered: boolean }): JSX.Element {
+  const fx = useV4Fixtures()
+  const flow = laneFlowItems(laneSnapshotConnectionDropped(recovered, !fx.locale.startsWith('zh')), labViewModelLabels(fx, fx.t('agentPanelV4.fixtureReadTimeline')))
+  return (
+    <AgentPanelV4Panel slotHandlers={V4_LAB_SLOT_HANDLERS} flow={flow} context={{ ...fx.context, used: 12000 }} height={420} />
+  )
+}
+
 export const V4_FLOW_STATES: readonly LabState[] = [
+  {
+    id: 'v4-panel-error-recovered',
+    name: '⑤ 断线后已自动重试——红卡退场，只留一行灰字',
+    source: '2026-10-05 Agent 错误说实话（docs/plan/2026-10-05-agent-error-honesty-and-language.md）；用户实测 DeepSeek 断线一次、重试成功后红卡还留着',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <PanelConnectionDropped recovered />,
+  },
+  {
+    id: 'v4-panel-error-network',
+    name: '⑤ 断线且没接上——红卡归网络类（连不上服务商 + 重试提示），不再说「认不出」',
+    source: '2026-10-05 Agent 错误说实话；transient 由 pi 判，渲染层只映射',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <PanelConnectionDropped recovered={false} />,
+  },
   {
     id: 'v4-panel-question-light',
     name: '⑤ 反问卡**在真面板里**——和对话流、composer、面板壳一起看',

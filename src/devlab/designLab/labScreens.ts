@@ -7,6 +7,8 @@ import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
 import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
+import { NODE_QUICK_ACTIONS_STATES } from './nodeQuickActions/nodeQuickActionsStates'
+import { QUICK_ACTIONS_CELL_HEIGHT, QUICK_ACTIONS_CELL_WIDTH } from './nodeQuickActions/nodeQuickActionsLabKit'
 import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
@@ -96,6 +98,13 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 八格取景一样大：这一屏要人比的是「同一个浮框，改前 vs 改后底栏里有什么」。
     // 格子不同宽，「挤没挤」就无从比起。
     cell: { width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT },
+  },
+  {
+    id: 'node-quick-actions',
+    label: '画布 · 节点快捷动作（批次 1 样张）',
+    states: NODE_QUICK_ACTIONS_STATES,
+    // 取景一样大：上方要装下「浮条 + 向上展开的菜单」，格子不同高就比不出浮条撑没撑宽。
+    cell: { width: QUICK_ACTIONS_CELL_WIDTH, height: QUICK_ACTIONS_CELL_HEIGHT },
   },
   {
     id: 'settings',

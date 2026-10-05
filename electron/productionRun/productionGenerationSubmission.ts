@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { findGenerationExecutionJob, readGenerationExecution } from "./productionGenerationHistory";
+import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
 import {
@@ -17,7 +17,7 @@ import {
 import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError, dispatchConsentOpen } from "../shared/productionDispatchConsent";
-import { createProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
+import { createProductionRunRuntimeEnvelope, type ProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
 import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunLock } from "./productionRunLock";
@@ -29,17 +29,16 @@ import {
   SubmissionReconciliationRequiredError,
   createSubmissionOutbox,
 } from "./submissionOutbox";
-import { classifyGenerationResume, type GenerationResumeDecision } from "./productionRunResume";
-import { createProductionExecutionBinding, type ProductionExecutionBinding } from "./productionExecutionBinding";
-import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun } from "./productionRunTypes";
+import { createProductionExecutionBinding, validateProductionExecutionBinding, type ProductionExecutionBinding } from "./productionExecutionBinding";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
+import { singleShotRunningCommand } from "./singleShotRunLifecycle";
 
 export { SubmissionReceiptUnknownError, SubmissionReconciliationRequiredError };
 
 export type GenerationSubmissionStartInput = {
   projectId: string;
   operationId: string;
-  definitelyNotSubmitted?: boolean;
   /** Explicitly selected attempt; omitted means the latest durable attempt. */
   attempt?: number;
   /**
@@ -113,12 +112,6 @@ function deterministicRetrievalFailure(error: unknown): error is RetrievalFailur
   const value = error as RetrievalFailure | null;
   return Boolean(value && typeof value === "object" && value.code === OUTPUT_RETRIEVAL_FAILED && value.deterministic === true);
 }
-
-export type GenerationSubmissionResumeResult = GenerationResumeDecision & {
-  operationId: string;
-  nextAction: "poll" | "reconcile" | "dispatch" | "attention";
-  providerTaskId?: string;
-};
 
 export type ProductionGenerationSubmissionDependencies = {
   repository: ProductionRunRepository;
@@ -265,6 +258,13 @@ function isFailedProviderStatus(status: string): boolean {
  * byte-identical). The providerIdempotencyKey MUST include the shotId so two shots that hash identically
  * derive different keys (#5): a two-shot batch with equal parameters must not collapse to one provider task.
  */
+function sealedBindingFor(sealed: ProductionRunRuntimeEnvelope | null, contract: ExecutionContractV1): ProductionExecutionBinding | undefined {
+  const candidate = (sealed?.request as { executionBinding?: unknown } | undefined)?.executionBinding;
+  if (!sealed || candidate === undefined || sealed.contractHash !== contract.contractHash) return undefined;
+  const binding = validateProductionExecutionBinding(candidate);
+  return binding.providerNamespace === contract.providerId ? binding : undefined;
+}
+
 function ensureBinding(deps: ProductionGenerationSubmissionDependencies, run: ProductionRun, contract: ExecutionContractV1, jobId: string, attempt: number, fencingEpoch: number, shotId?: string): ProductionExecutionBinding {
   const existing = run.jobs.find((job) => job.jobId === jobId)?.executionBinding;
   if (existing) {
@@ -351,8 +351,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     currency: string;
     expectedProviderRequestHash: string;
     preparedProviderRequest: unknown;
+    /** 这次执行的绑定还没落盘：交给提交出口，和预留 / 提交意向 / 提交中放进同一次落盘（交给供应商之前）。 */
+    leadingCommands: Array<Omit<RunCommand, "expectedRevision">>;
   } {
-    let current = run;
+    const current = run;
     const plan = current.generationPlan;
     const existingJob = current.jobs.find((job) => job.jobId === jobId);
     // 批这个 job 的**那一道门**（每点一次一份授权，信封住在门上）。不是计划上某一份：那一份已删——它让排在前面、
@@ -420,9 +422,16 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       throw new Error("Provider wire payload no longer matches the approved authorization");
     }
 
-    const binding = ensureBinding(deps, current, contract, jobId, attempt, fencingEpoch, shotId);
-    if (!existingJob.executionBinding) {
-      current = command(current, "job.patch", {
+    // 先封信封、绑定随提交前那一批一起落盘（发动机收敛第一刀第 3 步的性能尾巴，少一次 Run 落盘）。崩在两者之间：
+    // 信封里已经封着那一份绑定（含当时的锁纪元），重来时沿用它，信封 seal 幂等、交出去的还是同一份请求。
+    const sealedEnvelope = envelope(current.runId, jobId);
+    const binding = existingJob.executionBinding
+      ?? sealedBindingFor(sealedEnvelope.read(), contract)
+      ?? ensureBinding(deps, current, contract, jobId, attempt, fencingEpoch, shotId);
+    const leadingCommands: Array<Omit<RunCommand, "expectedRevision">> = existingJob.executionBinding ? [] : [{
+      commandId: `generation.runtime:${current.runId}:job-bind:${jobId}`,
+      type: "job.patch",
+      payload: {
         jobId,
         patch: {
           executionBinding: binding,
@@ -431,10 +440,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           idempotencyKey: binding.providerIdempotencyKey,
           runtimeEnvelopeRef: binding.runtimeEnvelopeRef,
         },
-      }, `job-bind:${jobId}`);
-    }
+      },
+      issuedAt: now(),
+    }];
     const resolved = resolveExecutionContract(contract, binding);
-    const sealedEnvelope = envelope(current.runId, jobId);
     sealedEnvelope.seal({
       runId: current.runId,
       jobId,
@@ -453,6 +462,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       currency: authorized.price.currency,
       expectedProviderRequestHash: authorized.providerWirePayloadHash,
       preparedProviderRequest: providerPreparation.providerRequest,
+      leadingCommands,
     };
   }
 
@@ -545,7 +555,16 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         planHash: prepared.authorizationDigest,
         costCeiling: prepared.costCeiling,
         currency: prepared.currency,
-        allowRetryAfterAbort: input.definitelyNotSubmitted === true,
+        leadingCommands: prepared.leadingCommands,
+        acceptedCommands: (accepting) => [
+          ...(accepting.generationPlan?.state === "submitted" ? [] : [{
+            commandId: `generation.runtime:${accepting.runId}:plan-submit:v${accepting.planVersion}`,
+            type: "generation.submit",
+            payload: {},
+            issuedAt: now(),
+          }]),
+          ...[singleShotRunningCommand(accepting, now)].filter((command) => command !== null),
+        ],
       });
       run = result.run;
       if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
@@ -686,36 +705,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     return { operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash, nextAction: "completed" };
   }
 
-  async function resume(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionResumeResult> {
-    const shotId = input.shotId;
-    let run = requiredRun(deps.repository, input.projectId, input.operationId);
-    // 恢复路径的既有契约：**找不到这次执行的那条 job 是一个可分诊的状态，不是异常。**
-    // 主干上它返回 `attention/invalid_recovery_state`，让上层把这次恢复交回给用户处置；
-    // 一路抛出去会把它变成一次没人接得住的失败。（冻结合同缺失仍然抛，主干也抛。）
-    if (!findGenerationExecutionJob(run, input)) {
-      return { operationId: run.runId, action: "attention", reason: "invalid_recovery_state", nextAction: "attention" };
-    }
-    const { job, currentAuthority } = readGenerationExecution(deps.repository, run, input);
-    const jobId = job.jobId;
-    const currentEnvelope = envelope(run.runId, jobId).read();
-    if (!currentEnvelope) return { operationId: run.runId, action: "attention", reason: "invalid_recovery_state", nextAction: "attention" };
-    if (currentAuthority && input.definitelyNotSubmitted === true && ["submission_unknown", "needs_attention"].includes(job.status)) {
-      const committed = intentLog(run.runId).list().some((intent) => intent.key === `${run.runId}:${jobId}:${job.attempt}` && intent.status === "committed");
-      if (committed) return { operationId: run.runId, action: "reconcile", reason: "submission_receipt_unknown", nextAction: "reconcile" };
-      if (currentEnvelope.state === "submitted_unknown") envelope(run.runId, jobId).markDefinitelyNotSubmitted();
-      // Suffix carries jobId so a per-shot explicit retry never dedupes against a sibling shot.
-      run = command(run, "job.status", { jobId, status: "submit_intent_persisted", patch: {} }, `explicit-retry:${jobId}`);
-      return { ...(await start({ projectId: run.projectId, operationId: run.runId, definitelyNotSubmitted: true, attempt: job.attempt, ...(shotId ? { shotId } : {}) })), action: "dispatch", nextAction: "dispatch" };
-    }
-    const decision = classifyGenerationResume({ jobStatus: job.status, providerTaskId: job.providerTaskId, envelopeState: currentEnvelope.state, definitelyNotSubmitted: input.definitelyNotSubmitted });
-    if (decision.action === "poll") return { operationId: run.runId, ...decision, nextAction: "poll", providerTaskId: job.providerTaskId };
-    if (decision.action === "reconcile") return { operationId: run.runId, ...decision, nextAction: "reconcile" };
-    if (decision.action === "dispatch" && !currentAuthority) return { operationId: run.runId, action: "attention", reason: "invalid_recovery_state", nextAction: "attention" };
-    if (decision.action === "dispatch") return { ...(await start(input)), action: "dispatch", nextAction: "dispatch" };
-    return { operationId: run.runId, ...decision, nextAction: "attention" };
-  }
-
-  return { start, poll, materialize, resume };
+  return { start, poll, materialize };
 }
 
 export type ProductionGenerationSubmission = ReturnType<typeof createProductionGenerationSubmission>;

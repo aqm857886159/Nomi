@@ -513,14 +513,17 @@ export async function presentStoryboardAuthoring(current: {candidate:PlanCandida
   if (!request || !current.sourceDocumentId) throw new Error('storyboard_renderer_required');
   const reply=await request('storyboard.present',{projectId,designId,sourceDocumentId:current.sourceDocumentId,
     ...(Array.isArray(requested) ? {shotIds:requested} : {})});
-  const receipt=reply as {status?:unknown;designId?:unknown;shotIds?:unknown;decision?:unknown} | null;
+  const receipt=reply as {status?:unknown;designId?:unknown;shotIds?:unknown;decision?:unknown;operations?:unknown} | null;
   if (!receipt || receipt.status!=='presented' || receipt.designId!==designId || !Array.isArray(receipt.shotIds)) throw new Error('storyboard_presentation_receipt_mismatch');
   const shots=receipt.shotIds as string[];
   const decision=storyboardUserDecision(receipt.decision);
+  // 整批点了确认之后，每一镜在制作流程里各有一个单镜 Run（发动机收敛第一刀第 3 步：交回 operation，不等整批跑完）。
+  const operations=Array.isArray(receipt.operations) ? (receipt.operations as unknown[]).filter((value):value is string=>typeof value==='string') : [];
   // 回执缺 `decision` = 对面是**旧的渲染层**（没跟上这一刀）。不许替用户编一个决定：
   // 照旧回 `presented`，`generateReceipt` 会照实说「这个宿主没有等他的答案」。
   if (!decision) return {taskRef:generationTaskReference(designId),status:receipt.decision==='nothing-to-run' ? 'nothing_to_generate' : 'presented',shots,nextAction:'inspect_canvas'};
   return {taskRef:generationTaskReference(designId),status:'presented',shots,nextAction:'inspect_canvas',
+    ...(operations.length ? {operations} : {}),
     [GENERATE_USER_DECISION_KEY]:decision};
 }
 

@@ -48,6 +48,30 @@ export const FAILURE_TAIL_LINES = 15
 export class GateConfigError extends Error {}
 
 /**
+ * 每个 advisory 门岗的**真实补齐机制**（2026-10-06）：汇总里的提示文案只许按这张表出，
+ * 不许对所有 advisory 统一说「自动补齐」——concept-owners 的失败是「登记 owner 要人判断」，docs-autosync 补不了，
+ * 那句话就是假的。kind: 'machine' = 有机器补齐主体（`by` 是工作流文件，必须真的存在并提到这个门岗）；
+ * kind: 'human' = 要人判断，`how` 写清谁、怎么补。没声明的 advisory 一律当 human 处理（不许默认说自动补齐）。
+ * 体检：run-gates-contracts.node-test.mjs 逐条核对「声明 ↔ 工作流 ↔ 打出来的文案」。
+ */
+export const ADVISORY_FILL = Object.freeze({
+  'check:docs-index': Object.freeze({ kind: 'machine', by: '.github/workflows/docs-autosync.yml' }),
+  'check:doc-status': Object.freeze({ kind: 'machine', by: '.github/workflows/docs-autosync.yml' }),
+  'check:ledger': Object.freeze({ kind: 'machine', by: '.github/workflows/docs-autosync.yml' }),
+  'check:concept-owners': Object.freeze({
+    kind: 'human',
+    how: '登记 owner 要人判断，机器补不了：新增的未登记边界在同一个 commit 当场登记；存量债冻结在 scripts/concept-owners-baseline.json（只减不增），清债由协调会话排期，见 docs/engineering/experience-system.md「概念 owner 存量债」',
+  }),
+})
+
+/** 一个 advisory 门岗在汇总 / 注解里的补齐说明（文案唯一出处）。 */
+export function advisoryNote(name) {
+  const fill = ADVISORY_FILL[name]
+  if (fill?.kind === 'machine') return { machine: true, text: `由 main 上的 ${fill.by} 自动补齐，不必为它单开 commit` }
+  return { machine: false, text: fill?.how ?? '没有声明补齐机制，按人工处理：请人判断并补上，不会有机器代劳' }
+}
+
+/**
  * 解析命令行。**任何不认识的东西都报错**：这条链是验证的总入口，
  * 「看不懂就跳过」会把一个本该跑的门岗变成静默不跑（正是 check:gates-chain 立项要防的事）。
  */
@@ -134,17 +158,19 @@ export async function runGateSuite({ gates, advisory, runGate, write = (text) =>
   )
 
   if (advisoryFailures.length > 0) {
-    write('\n⚠️ advisory 失败（由 main 上的 .github/workflows/docs-autosync.yml 自动补齐，不必为它单开 commit）：\n')
+    write('\n⚠️ advisory 失败（不阻断；补齐方式因门岗而异，见每条）：\n')
     for (const failure of advisoryFailures) {
-      write(`  · ${failure.name}\n`)
+      const note = advisoryNote(failure.name)
+      write(`  · ${failure.name}——${note.text}\n`)
       for (const line of failure.tail) write(`      ${line}\n`)
       if (inActions) {
         write(
           `${annotation(
             'warning',
-            'docs-autosync',
-            `${failure.name} 未通过：这是文档/生成物记账门，合入 main 后由 docs-autosync 工作流自动补齐并回写；`
-              + `本 PR 无需为它单开一个 commit。想现在就修：pnpm run ${failure.name}`,
+            note.machine ? 'docs-autosync' : failure.name,
+            note.machine
+              ? `${failure.name} 未通过：这是文档/生成物记账门，合入 main 后由 docs-autosync 工作流自动补齐并回写；本 PR 无需为它单开一个 commit。想现在就修：pnpm run ${failure.name}`
+              : `${failure.name} 未通过：${note.text}。想看详情：pnpm run ${failure.name}`,
           )}\n`,
         )
       }

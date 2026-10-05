@@ -67,6 +67,12 @@ import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
  * callback ref 在节点每次换人时都跑一遍，观察器跟着换到新节点上——这才是「量的是当下这个盒子」。
  * 0×0 另外直接丢掉：一个真实布局里的面板不会是 0 宽 0 高，那个数只可能来自已经摘掉的节点。
  */
+/** 流末尾那一条是「还没解决的失败」。已被自动重试化解的错误（灰字一行）不算——否则收起的 logo 会为一件已经好了的事挂红点。 */
+function lastFlowFailed(flow: readonly { kind: string; recovered?: true }[]): boolean {
+  const last = flow[flow.length - 1]
+  return last?.kind === 'error' && !last.recovered
+}
+
 function usePanelSize(): Readonly<{ width: number; height: number; measure: (node: HTMLElement | null) => void }> {
   const [size, setSize] = React.useState({ width: 390, height: 620 })
   const [node, measure] = React.useState<HTMLElement | null>(null)
@@ -313,7 +319,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const dockStatus = useV4DockStatus({
     running: data.running,
     pendingCount: dockPendingCount,
-    failed: Boolean(actions.error) || data.flow[data.flow.length - 1]?.kind === 'error',
+    failed: Boolean(actions.error) || lastFlowFailed(data.flow),
   })
 
   /**

@@ -95,11 +95,10 @@ function mergeNodeImageHistory(
 }
 
 // 图片本地编辑（切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
-// 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + NodeImageEditToolbar，
+// 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + ImageQuickActionsToolbar，
 // 不碰壳、不碰生成逻辑。编辑产物统一写回当前节点历史堆叠，并切为主图。
 
-// 切图入口仍是「四视图(2) / 九宫格(3)」两档；裁剪是 1 档。统一由可调框处理（见 CropGridSize）。
-export type ImageGridSize = 2 | 3
+// 切图入口是浮条「宫格 ▾」给的 {rows, cols}；裁剪是 {1,1}。统一由可调框处理（见 CropGridSize）。
 export type ImageTransformOp = 'rotate-left' | 'rotate-right' | 'flip-h' | 'flip-v'
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -131,7 +130,7 @@ function loadImageForCanvas(url: string): Promise<HTMLImageElement> {
 }
 
 export type NodeImageEditing = {
-  /** 当前打开的可调框：null=未开，1=裁剪，2/3=切图（四视图/九宫格）。 */
+  /** 当前打开的可调框：null=未开，{1,1}=裁剪，其余=切成 rows×cols 张。 */
   editGrid: CropGridSize | null
   openEdit: (gridSize: CropGridSize) => void
   cancelEdit: () => void
@@ -206,7 +205,7 @@ export function useNodeImageEditing(
         return resolveNodeVisualSize({
           kind: 'asset',
           size: { width, height },
-          meta: { source: `image-grid-split-${grid}x${grid}`, previewHeight: height },
+          meta: { source: `image-grid-split-${grid.rows}x${grid.cols}`, previewHeight: height },
           result: { id: 'probe', type: 'image', url: 'probe', createdAt },
         })
       })
@@ -254,11 +253,12 @@ export function useNodeImageEditing(
               meta: {
                 ...(created.meta || {}),
                 ...(mediaMeta || {}),
-                source: `image-grid-split-${grid}x${grid}`,
+                source: `image-grid-split-${grid.rows}x${grid.cols}`,
                 sourceNodeId: nodeId,
                 localOnly: stored.localOnly,
                 ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
-                gridSize: grid,
+                gridRows: grid.rows,
+                gridColumns: grid.cols,
                 gridRow: cell.row,
                 gridColumn: cell.column,
                 previewHeight: slot.height,
@@ -277,7 +277,7 @@ export function useNodeImageEditing(
         latest.selectNodes(tileIds)
         latest.groupSelectedNodes(
           nodeCategoryId || 'shots',
-          i18n.t('generationCommon.imageToolbar.tileGroupName', { grid, source: nodeTitle || i18n.t('generationCommon.imageToolbar.image') }),
+          i18n.t('generationCommon.imageToolbar.tileGroupName', { rows: grid.rows, cols: grid.cols, source: nodeTitle || i18n.t('generationCommon.imageToolbar.image') }),
         )
       })
       // 九张摊开比原图占地大，可能有一部分落在视口外：不再替用户挪画布（2026-09-25 拍板），

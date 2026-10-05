@@ -14,7 +14,7 @@
 // 跨「所有模式」union 校验(非当前模式):拒的是「这个模型根本不吃这类参考」的硬错(用户两例),
 // 不拒「模型支持但当前选错模式」的软错(那个由 availableModels 喂能力给 agent + 用户在计划卡
 // 改模式兜)——避免误伤可恢复的模式选择问题。目标未声明档案(未知/未设模型)一律放行(P4 通用回退)。
-import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeDefinition, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { MODEL_ARCHETYPES, resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
@@ -171,33 +171,39 @@ export function validateReferenceEdge(
   return satisfiable ? { ok: true } : { ok: false, reason: 'unsupported_reference' }
 }
 
-/** 从卡片「+」圈拖到空白处时，新建菜单里可选的节点种类（候选全集，顺序即菜单顺序）。 */
-const CONNECTION_CREATE_KINDS = ['image', 'video'] as const
-export type ConnectionCreateKind = (typeof CONNECTION_CREATE_KINDS)[number]
-
 /**
- * 从这个源拖一条线到空白处，能**新建并接上**哪几种生成节点——连线新建菜单的唯一 owner。
+ * 从这个源拖一条线到空白处（或点「+」圈），能**新建并接上**哪几种生成节点——连线新建菜单的唯一 owner。
  *
  * 由连线能力派生，不按 kind 名单：文本给下游当 prompt 上下文（isTextPromptEdge）；其余看源产出的
- * 参考资产，有任一该种类的模型档案在任一模式里有槽收它，才列进菜单。于是视频源 → 视频节点（参考视频 /
- * 尾帧接力），音频源 → 视频节点（参考音频），图片源 → 图片 + 视频。
+ * 参考资产，有任一该种类的模型档案在任一模式里有槽收它，才算接得上。于是视频源 → 视频节点（参考视频 /
+ * 尾帧接力），音频源 → 视频节点（参考音频），图片源 → 图片 + 视频。接不上的不藏，带原因（见下）。
  *
  * 2026-09-24 用户反馈「视频无法拖出下一个连线」：v0.22 起每张能连线的卡都有「+」圈，但松手处的菜单还按
  * 旧名单只认 text/image，视频拖出去松手直接被取消，连线凭空消失。
  */
-/** 从一个编组的右侧「+」拖到空白处：组内任一成员接得出的种类都列出（落下后组内每个成员各连一条，收不下的由连线侧说明）。 */
-export function connectionCreateKindsForSources(sources: readonly GenerationCanvasNode[]): ConnectionCreateKind[] {
-  return CONNECTION_CREATE_KINDS.filter((kind) => sources.some((source) => connectionCreateKindsForSource(source).includes(kind)))
-}
+/** 为什么接不上：源根本不产可参考的素材 / 这一类节点没有任何模型收这种素材。 */
+export type ConnectionCreateBlockReason = 'source_not_referenceable' | 'no_model_accepts'
 
-export function connectionCreateKindsForSource(source: GenerationCanvasNode): ConnectionCreateKind[] {
+export type ConnectionCreateVerdict<K extends GenerationNodeKind = GenerationNodeKind> =
+  | { kind: K; ok: true }
+  | { kind: K; ok: false; reason: ConnectionCreateBlockReason; asset: ReferenceAssetKind | null }
+
+/**
+ * 「从这个源能新建并接上哪一类节点」的**带原因**判据（2026-10-04 节点「用这个节点生成…」菜单：
+ * 接不上的要灰掉并说原因，不是藏起来）。两个入口（拖线松手 / 点「+」）问的是同一个问题，判据只有这一份。
+ */
+export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
+  source: GenerationCanvasNode,
+  kinds: readonly K[],
+): ConnectionCreateVerdict<K>[] {
   const asset = referenceAssetKindForNode(source)
-  return CONNECTION_CREATE_KINDS.filter((kind) => {
-    if (isTextPromptEdge(source, { ...source, kind })) return true
-    if (!asset) return false
-    return MODEL_ARCHETYPES.some((archetype) =>
+  return kinds.map((kind): ConnectionCreateVerdict<K> => {
+    if (isTextPromptEdge(source, { ...source, kind })) return { kind, ok: true }
+    if (!asset) return { kind, ok: false, reason: 'source_not_referenceable', asset }
+    const accepted = MODEL_ARCHETYPES.some((archetype) =>
       archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
     )
+    return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
   })
 }
 
@@ -411,4 +417,16 @@ export function partitionConnectableEdges(
     else dropped.push({ edge, reason: verdict.reason })
   }
   return { connectable, dropped }
+}
+
+/** 从一个编组的右侧「+」拖到空白处：组内任一成员接得上就算接得上（落下后组内每个成员各连一条，收不下的由连线侧说明）；都接不上时给第一个成员的原因。 */
+export function connectionCreateVerdictsForSources<K extends GenerationNodeKind>(
+  sources: readonly GenerationCanvasNode[],
+  kinds: readonly K[],
+): ConnectionCreateVerdict<K>[] {
+  const perSource = sources.map((source) => connectionCreateVerdictsForSource(source, kinds))
+  return kinds.map((kind, index): ConnectionCreateVerdict<K> => {
+    const candidates = perSource.map((verdicts) => verdicts[index])
+    return candidates.find((verdict) => verdict.ok) ?? candidates[0] ?? { kind, ok: false, reason: 'source_not_referenceable', asset: null }
+  })
 }

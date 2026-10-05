@@ -82,9 +82,9 @@ describe("builtin expression pack", () => {
     }
   });
 
-  it("内置包含 40 条策展效果，来自仓内技能目录的投影", async () => {
+  it("内置包含 44 条策展效果，来自仓内技能目录的投影", async () => {
     const curated = (await getBuiltinPrompts()).filter((p) => p.sourceId === "builtin-curated-effects");
-    expect(curated).toHaveLength(40);
+    expect(curated).toHaveLength(44);
   });
 
   it("withBuiltinPrompts 前置内置包并保持外部顺序", async () => {

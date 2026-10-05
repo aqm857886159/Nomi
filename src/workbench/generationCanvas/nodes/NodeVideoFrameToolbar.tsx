@@ -7,15 +7,16 @@ import {
   ToolbarDivider,
   ToolbarDuplicateVariantButton,
   ToolbarIconButton,
-  ToolbarMenu,
   ToolbarProvenanceButton,
   ToolbarReshootButton,
 } from './NodeFloatingToolbar'
+import { ToolbarActionMenu } from './ToolbarActionMenu'
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
 import NodeShotCutPanel from './NodeShotCutPanel'
 import NodeDepthActionButton from '../videoDepth/NodeDepthActionButton'
 import { deconstructToShotTable } from './shotTable/factBridge'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
+import type { WorkbenchMenuIcon } from '../../../design/menu'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 视频节点浮条（按「创作优先级」排左→右，与图片工具栏一致）：左·创作：抽帧▾（首/尾）· 拆解▾（按镜头拆/镜头表）｜ 右·工具：全屏 · 下载。
@@ -53,26 +54,31 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
 
     {shotCutOpen ? <NodeShotCutPanel onFeedback={reportFeedback} node={node} onClose={() => setShotCutOpen(false)} /> : null}
     <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
-      <ToolbarMenu
+      <ToolbarActionMenu
+        id="extract-frame"
         icon={<IconPhoto size={I.size} stroke={I.stroke} />}
         label={busy ? t('generationCommon.videoToolbar.extracting') : t('generationCommon.videoToolbar.extractFrame')}
+        menuLabel={t('generationCommon.videoToolbar.extractFrame')}
         disabled={busy !== null}
         items={[
-          { icon: <IconPlayerTrackPrev size={I.size} stroke={I.stroke} />, label: t('generationCommon.videoToolbar.firstFrame'), title: t('generationCommon.videoToolbar.firstFrameHint'), onClick: () => extract('first') },
-          { icon: <IconPlayerTrackNext size={I.size} stroke={I.stroke} />, label: t('generationCommon.videoToolbar.lastFrame'), title: t('generationCommon.videoToolbar.lastFrameHint'), onClick: () => extract('last') },
+          { id: 'extract-first', icon: IconPlayerTrackPrev as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.firstFrame'), description: t('generationCommon.videoToolbar.firstFrameHint'), onSelect: () => extract('first') },
+          { id: 'extract-last', icon: IconPlayerTrackNext as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.lastFrame'), description: t('generationCommon.videoToolbar.lastFrameHint'), onSelect: () => extract('last') },
         ]}
       />
-      <ToolbarMenu
+      <ToolbarActionMenu
+        id="break-down"
         icon={<IconScissors size={I.size} stroke={I.stroke} />}
         label={t('generationCommon.videoToolbar.breakDown')}
+        menuLabel={t('generationCommon.videoToolbar.breakDown')}
         disabled={busy !== null}
         items={[
-          { icon: <IconCut size={I.size} stroke={I.stroke} />, label: t('generationCommon.videoToolbar.shotCuts'), title: t('generationCommon.videoToolbar.shotCutsHint'), onClick: () => setShotCutOpen(true) },
+          { id: 'shot-cuts', icon: IconCut as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotCuts'), description: t('generationCommon.videoToolbar.shotCutsHint'), onSelect: () => setShotCutOpen(true) },
           {
-            icon: <IconScissors size={I.size} stroke={I.stroke} />,
+            id: 'shot-table',
+            icon: IconScissors as WorkbenchMenuIcon,
             label: t('generationCommon.videoToolbar.shotTable'),
-            title: t('generationCommon.videoToolbar.deconstructHint'),
-            onClick: () => { withProjectAction((project) => { void deconstructToShotTable(node.id, project).catch((error: unknown) => reportFeedback(error instanceof Error ? error.message : String(error))) }) },
+            description: t('generationCommon.videoToolbar.deconstructHint'),
+            onSelect: () => { withProjectAction((project) => { void deconstructToShotTable(node.id, project).catch((error: unknown) => reportFeedback(error instanceof Error ? error.message : String(error))) }) },
           },
         ]}
       />

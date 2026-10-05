@@ -5,6 +5,7 @@ import crypto from 'node:crypto'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 import { measureMcpToolsListPayload, measureMcpToolsListPayloadByLocale } from '../../scripts/mcp-payload.mjs'
 
@@ -15,14 +16,14 @@ import { measureMcpToolsListPayload, measureMcpToolsListPayloadByLocale } from '
 // 三个锚全部派生自真相源（手抄版三次被有意扩容撞红：#337 波、#360 slice-3；教训见
 // docs/fixes/2026-09-02-stale-hand-copied-surface-baseline.root-cause.json）：
 // 名单 ← 源码目录 MCP_TOOL_NAMES；只读表 ← catalog annotations.readOnlyHint；载荷 ← 棘轮 json（check:mcp-payload 单一真相）。
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BASELINE_PAYLOAD_BYTES = JSON.parse(fs.readFileSync(path.join(repoRoot, 'scripts', 'mcp-payload-baseline.json'), 'utf8')).maxBytes
 const { MCP_TOOL_NAMES } = tsxRequire('../../electron/capabilityCore/mcpProtocol.ts', import.meta.url)
 const { MCP_TOOL_RESOLVER } = tsxRequire('../../electron/capabilityCore/mcpToolCatalog.ts', import.meta.url)
 // C5 的 stderr 锚也派生自真相源：这条诊断的事件名由两条启动路（Electron stdio server /
 // 裸 Node launcher）共用一个常量，手抄一句散文的结局是改了代码这里静默漂成假绿。
-const { MAX_MCP_LINE_BYTES } = tsxRequire('../../electron/capabilityCore/mcpStdioLine.ts', import.meta.url)
-const { MCP_OVERSIZED_LINE_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
+const { MCP_TRANSPORT_ERROR_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
+const { SUPPORTED_PROTOCOL_VERSIONS } = tsxRequire('../../electron/capabilityCore/mcpProtocol.ts', import.meta.url)
 const { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } = tsxRequire('../../electron/agentLane/laneToolCatalog.ts', import.meta.url)
 const { toPublishedJsonSchema } = tsxRequire('../../electron/shared/agentCapabilities/modelVisibleJsonSchema.ts', import.meta.url)
 const LANE_TOOLS = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG]
@@ -73,8 +74,9 @@ async function main() {
     const badVersion = await mcp.rpc('initialize', {
       protocolVersion: '1999-01-01', capabilities: {}, clientInfo: { name: 'Codex MCP L1', version: '1.0.0' },
     }, 10_000)
-    check(badVersion.error?.code === -32602, 'C1 unsupported version returns -32602')
-    check(Array.isArray(badVersion.error?.data?.supported), 'C1 unsupported version includes supported array')
+    // 协议层换官方 SDK 后（设计卡 docs/plan/2026-10-05-mcp-official-sdk.md「行为差异」）：按规范回我们支持的最高版本，
+    // 由客户端决定断不断；不支持的版本绝不被原样协商成功。
+    check(badVersion.result?.protocolVersion === SUPPORTED_PROTOCOL_VERSIONS[0], 'C1 unsupported version is never echoed; the newest supported version is offered')
 
     // C2 · 工具名单/载荷/title/只读注解——三个锚全部派生自真相源，注释里**不写死个数**
     //（手抄的个数三次撞红：#337 波、#360 slice-3，以及 2026-09-05 这行自己就已经陈旧了）。
@@ -135,17 +137,20 @@ async function main() {
     check(cancellationRejected, 'C4 cancelled request does not return a response')
     check(!mcp.childExited(), 'C4 cancellation keeps stdio server alive')
 
-    // C5 · oversized line is dropped; the next malformed JSON line gets -32700.
-    const oversized = 'x'.repeat(5 * 1024 * 1024)
-    mcp.child.stdin.write(`${oversized}\n`)
-    mcp.child.stdin.write('not-json\n')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    // stderr 是**宿主协议面**（stdout 整条给了 JSON-RPC），所以断言连字段一起钉：只查事件名的话，
-    // 一个把日志降级成「只落盘、stderr 静默」或把字段丢光的回归照样能过（那正是本轨差点犯的）。
-    const dropLine = mcp.stderrText().split('\n').find((line) => line.includes(MCP_OVERSIZED_LINE_EVENT)) || ''
-    check(dropLine.includes('[nomi:mcp]') && dropLine.includes(`limitBytes=${MAX_MCP_LINE_BYTES}`), 'C5 oversized line is dropped with a stderr log')
-    check(mcp.messages().some((message) => message.error?.code === -32700), 'C5 malformed line returns -32700 parse error')
-    check(!mcp.childExited(), 'C5 malformed input does not kill stdio server')
+    // C5 · stdio 分帧归 SDK 的 StdioServerTransport：非 JSON 行跳过、连接照常；读缓冲超上限（10 MiB）即报错并关连接。
+    mcp.child.stdin.write('not-json' + String.fromCharCode(10))
+    const afterGarbage = await mcp.rpc('ping', {}, 10_000)
+    check(afterGarbage.result !== undefined && !mcp.childExited(), 'C5 a malformed line is skipped and the stdio server keeps answering')
+    // 超限后服务端按设计关连接、进程退出，我们这一侧再往它的 stdin 写就会收到 EPIPE——那正是「连接已关」的证据，
+    // 不是测试失败；不接住它，Node 会把这个流错误当未处理异常把整个走查进程打死（2026-10-05 CI 首跑就是这么红的）。
+    let stdinClosedByServer = false
+    mcp.child.stdin.on('error', (error) => { if (error?.code === 'EPIPE') stdinClosedByServer = true; else throw error })
+    mcp.child.stdin.write('x'.repeat(11 * 1024 * 1024))
+    for (let waited = 0; waited < 10_000 && !mcp.childExited(); waited += 100) await new Promise((resolve) => setTimeout(resolve, 100))
+    // stderr 是**宿主协议面**（stdout 整条给了 JSON-RPC），所以断言连前缀一起钉。
+    const errorLine = mcp.stderrText().split(String.fromCharCode(10)).find((line) => line.includes(MCP_TRANSPORT_ERROR_EVENT)) || ''
+    check(errorLine.includes('[nomi:mcp]'), 'C5 an oversized read buffer is reported on stderr')
+    check(Boolean(mcp.childExited()), `C5 the stdio server closes the connection and exits instead of buffering without bound (stdin EPIPE seen: ${stdinClosedByServer})`)
 
     console.log('MCP-L1 PASS: C1/C2/C3/C4/C5 green; C6 declaration green (change-source notification is covered by the A1 unit contract).')
   } finally {

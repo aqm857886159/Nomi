@@ -138,22 +138,6 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     return next;
   }
 
-  function markDefinitelyNotSubmitted(): ProductionRunRuntimeEnvelope {
-    const current = read();
-    if (!current || current.state !== "submitted_unknown") {
-      throw new RuntimeEnvelopeConflictError("An explicit not-submitted disposition requires a submitted-unknown envelope");
-    }
-    const next: ProductionRunRuntimeEnvelope = {
-      ...current,
-      state: "sealed",
-      providerTaskId: undefined,
-      rawReceipt: undefined,
-      updatedAt: now(),
-    };
-    writeJsonFileAtomic(deps.filePath, next);
-    return next;
-  }
-
   function markMaterialized(): ProductionRunRuntimeEnvelope {
     const current = read();
     if (!current || current.state !== "provider_accepted" || !current.providerTaskId) throw new RuntimeEnvelopeConflictError("Provider acceptance is required before materialization");
@@ -162,7 +146,7 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     return next;
   }
 
-  return { read, seal, markProviderAccepted, markPolled, markSubmittedUnknown, markDefinitelyNotSubmitted, markMaterialized };
+  return { read, seal, markProviderAccepted, markPolled, markSubmittedUnknown, markMaterialized };
 }
 
 export type ProductionRunRuntimeEnvelopeStore = ReturnType<typeof createProductionRunRuntimeEnvelope>;

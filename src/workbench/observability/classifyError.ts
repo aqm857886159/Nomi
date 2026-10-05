@@ -251,6 +251,14 @@ function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
     lower.includes('fetch failed') ||
     lower.includes('failed to fetch') ||
     lower.includes('network') ||
+    // 兜底词：openai 客户端断线的原话 `Connection error.`、`Request timed out.`、undici 的 `other side closed`。
+    // `terminated` 不进这张共享表（太宽：「account has been terminated」「terminated due to policy」会被说成连不上）；
+    // undici 断线的原话整串就是 `terminated`，下面单独按整串等于判。**主判据不在这张表**——Agent 对话那一路由 pi 的 `isRetryableAssistantError`
+    // 判「瞬时」后直接归网络类（laneProjection 的 `transient`）；这几个词只让生成域等其他入口也认得。
+    lower.includes('connection error') ||
+    lower.includes('timed out') ||
+    lower.includes('other side closed') ||
+    lower.trim().replace(/[.\s]+$/, '') === 'terminated' ||
     raw.includes('网络请求失败')
   )
     return 'network'

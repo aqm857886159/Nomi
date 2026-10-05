@@ -67,6 +67,26 @@ export function composerBarPlan(mode: ArchetypeMode | null | undefined): Compose
   }
 }
 
+/**
+ * 「时长」胶囊能选的秒数：视频镜 = 生成时长，图片镜 = 停留时长（进时间轴 / 顺播时停几秒）。
+ * 固定档 ∪（图片镜多一个 3 秒）∪ 当前值，升序。抽成纯函数是为了让铁律 ⑪「能选到」的检查
+ * 调的就是这一行真用的那份清单，而不是在测试里再抄一遍。
+ */
+export function shotDurationChoices(isImageShot: boolean, effectiveDuration: number, fixedOptions: readonly number[]): number[] {
+  return [...new Set([...fixedOptions, ...(isImageShot ? [3] : []), effectiveDuration])]
+    .filter((sec) => Number.isFinite(sec) && sec > 0)
+    .sort((a, b) => a - b)
+}
+
+/** 画幅覆盖胶囊能选的画幅 = 项目预设 ∪ 该模式档案声明的档 ∪ 当前值（档案声明了 adaptive 这类专有档时别丢）。 */
+export function shotAspectChoices(aspectOptions: readonly string[], mode: ArchetypeMode | null | undefined, aspect: string): string[] {
+  return [...new Set([
+    ...aspectOptions,
+    ...(mode?.params.find((control) => control.key === 'aspect_ratio')?.options ?? []).map((option) => String(option.value)),
+    ...(aspect ? [aspect] : []),
+  ])]
+}
+
 /** 模式胶囊的选项；只有一种模式的模型**不出这枚胶囊**（一个选项的选择器不是选择，是噪音）。 */
 export function composerModeOptions(
   archetype: ModelArchetype | null | undefined,

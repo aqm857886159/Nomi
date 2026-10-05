@@ -34,7 +34,7 @@ import type { StoryboardRowRuntime } from './storyboardRowStatus'
 /**
  * 分镜表的**执行动作层**（v5 B）：行内/批量生成 = 按需 materialize（没建过的节点此刻建）+
  * 既有 canvas runner 通路（confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace /
- * confirmAndRunPlan）。**只有这一条执行通路**：spendConfirm、付费令牌、失败即停、队列刹车、
+ * confirmAndRunPlan）。**只有这一条执行通路**：spendConfirm、批量卡开的出价、失败即停、队列刹车、
  * undo journal 全部沿用，不另起循环（check:batch-machines 钉死 runGenerationNode 不外扩）。
  *
  * 运行前通过 projectShotNode 投影方案；节点明确覆写的字段保留画布值。
@@ -320,6 +320,8 @@ export async function runStoryboardBatch(
   ctx: RowActionContext,
   rows: readonly StoryboardRowRuntime[],
   landing?: { groupTitle: string; placementOnly?: boolean },
+  /** 卡上点了确认、出价开好的那一刻（见 `confirmAndRunPlan` 的同名项）。Agent 的 `generate` 据此当场交回，不等整批跑完。 */
+  onConsented?: (runIds: string[]) => void,
 ): Promise<GenerationRunOutcome> {
   if (rows.length === 0 && !landing?.placementOnly) return 'nothing-to-run'
   if (landing?.placementOnly && rows.every(row => {
@@ -372,5 +374,5 @@ export async function runStoryboardBatch(
   const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), confirmationGuards(ctx))
+  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), ...(onConsented ? { onConsented } : {}) })
 }

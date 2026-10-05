@@ -289,10 +289,11 @@ export type DesktopBridge = DesktopMediaBridge &
     canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown }) => Promise<unknown>
     canvasPoll?: (payload: { projectId: string; runRecordId: string }) => Promise<unknown>
     canvasRelease?: (payload: { projectId: string; runRecordId: string }) => Promise<void>
+    canvasConsent?: (payload: { projectId: string; shots: Array<{ nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string }> }) => Promise<{ runIds: string[] }>
+    canvasWithdraw?: (payload: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }) => Promise<void>
     runComfyCandidateTest?: (payload: ComfyCandidateTestPayload) => Promise<ComfyCandidateTestResult>
     cancelComfyCandidateTest?: (payload: { revisionId: string; modelKey: string; taskKind: string }) => Promise<{ ok: boolean }>
-    quoteSpend: (inputs: import("../../electron/shared/contracts/spendQuote").SpendQuoteInput[]) => Promise<import("../../electron/shared/contracts/spendQuote").PreparedSpendQuote>
-    grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number; quoteId?: string }) => Promise<{ grantId: string }>
+    grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number }) => Promise<{ grantId: string }>
     runTextStream: (payload: unknown) => Promise<{ streamId: string }>
     cancelTextStream: (streamId: string) => Promise<unknown>
     onTextEvent: (streamId: string, callback: (event: unknown) => void) => () => void

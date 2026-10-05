@@ -37,17 +37,20 @@ describe('check:batch-machines · rogue-renderer-batch（禁白名单外调 runG
 
 describe("check:batch-machines · rogue-durable-submit（禁白名单外请求 production.generate-node）", () => {
   const OUTSIDE = 'electron/productionRun/__new_driver.ts'
-  const REQ_HOME = 'electron/productionRun/productionRunDriverOps.ts'
-  const RESP_HOME = 'src/workbench/capability/capabilityApplyHandler.ts'
+  const FIXTURE_HOME = 'electron/productionRun/productionRunE2eFixture.ts'
 
   it('抓：白名单外新起 production.generate-node 请求点', () => {
     expect(scanAs('rogue-durable-submit', OUTSIDE, "return req('production.generate-node', payload)")).toBeGreaterThan(0)
   })
-  it('不误报：请求方白名单家（brand.promo 驱动）', () => {
-    expect(scanAs('rogue-durable-submit', REQ_HOME, "await requestRenderer('production.generate-node', {})")).toBe(0)
+  // 发动机收敛第一刀第 4 步：brand.promo 驱动的请求与渲染层的应答都已删掉，它们不再是白名单家——复活哪一端都抓。
+  it('抓：复活已退役的 brand.promo 驱动请求', () => {
+    expect(scanAs('rogue-durable-submit', 'electron/productionRun/productionRunDriverOps.ts', "await requestRenderer('production.generate-node', {})")).toBeGreaterThan(0)
   })
-  it('不误报：应答方白名单家（渲染层 capabilityApplyHandler，桥的另一端）', () => {
-    expect(scanAs('rogue-durable-submit', RESP_HOME, "case 'production.generate-node': {")).toBe(0)
+  it('抓：复活渲染层应答', () => {
+    expect(scanAs('rogue-durable-submit', 'src/workbench/capability/capabilityApplyHandler.ts', "case 'production.generate-node': {")).toBeGreaterThan(0)
+  })
+  it('不误报：e2e 桩（模拟渲染层应答，拿它造本地样片）', () => {
+    expect(scanAs('rogue-durable-submit', FIXTURE_HOME, "if (operation === 'production.generate-node') {")).toBe(0)
   })
 })
 

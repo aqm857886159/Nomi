@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
-import { aspectControlOf, missingRequiredSlots, referencedVisualAnchors } from './shotRowModel'
+import { missingRequiredSlots, referencedVisualAnchors } from './shotRowModel'
 
 const shotOf = (over: Partial<PlanShot> = {}): PlanShot => ({
   index: 1,
@@ -71,14 +71,5 @@ describe('shotRowModel — 缺必填判定（画面格红态 + 组头计数共�
     const mode = modeOf({ slots: [{ kind: 'image_ref', label: '角色参考', min: 0, max: 9 }] })
     expect(missingRequiredSlots(mode, shotOf(), ANCHORS)).toHaveLength(0)
     expect(missingRequiredSlots(null, shotOf(), ANCHORS)).toHaveLength(0)
-  })
-})
-
-describe('shotRowModel — 画幅控件提取', () => {
-  it('取 aspect_ratio select；没有 → null', () => {
-    const aspect = { key: 'aspect_ratio', label: '比例', type: 'select' as const, options: [{ value: '16:9', label: '16:9' }] }
-    expect(aspectControlOf(modeOf({ params: [aspect] }))).toEqual(aspect)
-    expect(aspectControlOf(modeOf())).toBeNull()
-    expect(aspectControlOf(null)).toBeNull()
   })
 })

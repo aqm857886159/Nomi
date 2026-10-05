@@ -1,4 +1,5 @@
 import type { createProductionRunService } from './productionRunService'
+import type { ProductionJobStatus } from './productionRunTypes'
 
 type ProductionService = ReturnType<typeof createProductionRunService>
 
@@ -66,4 +67,31 @@ export async function approveLatestStoryboard(
     payload: { artifactId: storyboard.artifactId, decision: 'approved' },
     issuedAt: new Date().toISOString(),
   })
+}
+
+/**
+ * 旧剧本（brand.promo）测试夹具里「生成已经完成」的那一段：旧剧本那台生成写手已退役（发动机收敛第一刀第 4 步删掉了
+ * 它对渲染层 `production.generate-node` 的派发），审片 / 粗剪 / 导出这些后段测试需要一个「镜头已经生成并落进项目」的 Run
+ * 当起点。这里按写手当年的落盘顺序把每一个生成作业走到 adopted 并挂上本地产物——只动 Run 账本，不碰任何供应商。
+ */
+export function finishLegacyGenerationJobs(
+  service: ProductionService,
+  projectId: string,
+  runId: string,
+  projectRelativePath = 'assets/generated/shot.mp4',
+): void {
+  // 写手当年落盘的那一串状态（顺序即状态机的合法路径），不是一份新词表。
+  const steps: ProductionJobStatus[] = ['submit_intent_persisted', 'submitting', 'provider_accepted', 'polling', 'downloading', 'validating_technical', 'validating_content', 'ready']
+  for (const job of service.readFull(projectId, runId).jobs.filter((candidate) => candidate.stageId === 'generate' && (candidate.status === 'authorized' || candidate.status === 'authorization_required'))) {
+    const path: ProductionJobStatus[] = job.status === 'authorization_required' ? ['authorized', ...steps] : steps
+    for (const status of path) {
+      const run = service.readFull(projectId, runId)
+      service.repository.execute(projectId, runId, { commandId: `fixture-${job.jobId}-${status}`, expectedRevision: run.revision, type: 'job.status', payload: { jobId: job.jobId, status }, issuedAt: new Date().toISOString() })
+    }
+    let run = service.readFull(projectId, runId)
+    service.repository.execute(projectId, runId, { commandId: `fixture-${job.jobId}-artifact`, expectedRevision: run.revision, type: 'artifact.add', issuedAt: new Date().toISOString(),
+      payload: { artifact: { artifactId: `artifact-fixture-${job.jobId}`.replace(/[^A-Za-z0-9._-]/g, '-'), stageId: 'generate', jobId: job.jobId, kind: 'video', status: 'adopted', projectRelativePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } } })
+    run = service.readFull(projectId, runId)
+    service.repository.execute(projectId, runId, { commandId: `fixture-${job.jobId}-adopted`, expectedRevision: run.revision, type: 'job.status', payload: { jobId: job.jobId, status: 'adopted' }, issuedAt: new Date().toISOString() })
+  }
 }

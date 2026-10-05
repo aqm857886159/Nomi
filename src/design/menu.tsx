@@ -113,6 +113,12 @@ export type WorkbenchMenuProps = {
   onOpenChange: (open: boolean) => void
   /** 视口坐标（`event.clientX/clientY`）。菜单左上角贴这里，越界由 Radix 真实测量后避让。 */
   point: { x: number; y: number }
+  /**
+   * 往哪边展开。默认 `bottom`（右键菜单：左上角贴点位）。`top` = 菜单**底边**贴点位往上长——
+   * 节点浮条的下拉要用它：浮条浮在节点上方，往下开就盖住了这张图本身（§1.5.3 动作不许压在内容上）。
+   * 放不下时仍由 Radix 按真实尺寸翻边，不是写死。
+   */
+  side?: 'top' | 'bottom'
   items: readonly WorkbenchMenuNode[]
   /** 菜单本身的无障碍名。现役 6 个菜单没有（清单 C15），迁一个补一个。 */
   ariaLabel?: string
@@ -149,6 +155,12 @@ const DANGER_ITEM_CLASS = 'text-workbench-danger [&_svg]:text-workbench-danger'
 const SHORTCUT_CLASS = 'text-nomi-ink-40 tabular-nums'
 const SEPARATOR_CLASS = 'h-px my-1 mx-2 bg-nomi-line'
 const GROUP_LABEL_CLASS = 'px-2 py-1 text-micro text-workbench-muted select-none'
+/**
+ * 分段与单选组的盒子也要是一列 grid，和面板本身同一个间距。项是 `inline-flex`：直接挂在面板（grid）下
+ * 时各占一行，但包进一个普通块级 div 之后会**横着排成一行**——面板的 max-content 宽于是等于所有项宽之和
+ * （2026-10-04 快捷动作「改图▾」两段十项，面板被撑到 500+ px 宽）。
+ */
+const GROUP_CLASS = 'grid gap-0.5'
 
 /**
  * 一项的内容（[勾选槽 +] 图标 + 文案 [+ 第二行灰字]，右侧快捷键）。三种项形态共用，免得画三遍。
@@ -212,7 +224,7 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
     }
     if (node.kind === 'group') {
       return (
-        <DropdownMenuPrimitive.Group key={node.id}>
+        <DropdownMenuPrimitive.Group key={node.id} className={GROUP_CLASS}>
           {node.label ? (
             <DropdownMenuPrimitive.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</DropdownMenuPrimitive.Label>
           ) : null}
@@ -222,7 +234,7 @@ function renderNodes(nodes: readonly WorkbenchMenuNode[], ctx: RenderContext): R
     }
     if (node.kind === 'radio') {
       return (
-        <DropdownMenuPrimitive.RadioGroup key={node.id} value={node.value} onValueChange={node.onValueChange}>
+        <DropdownMenuPrimitive.RadioGroup key={node.id} className={GROUP_CLASS} value={node.value} onValueChange={node.onValueChange}>
           {node.label ? (
             <DropdownMenuPrimitive.Label data-menu-label className={GROUP_LABEL_CLASS}>{node.label}</DropdownMenuPrimitive.Label>
           ) : null}
@@ -277,6 +289,7 @@ export function WorkbenchMenu({
   open,
   onOpenChange,
   point,
+  side = 'bottom',
   items,
   ariaLabel,
   className,
@@ -304,7 +317,7 @@ export function WorkbenchMenu({
       )}
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
-          side="bottom"
+          side={side}
           align="start"
           sideOffset={0}
           alignOffset={0}

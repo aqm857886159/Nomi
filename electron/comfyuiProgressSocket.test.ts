@@ -99,7 +99,7 @@ describe("parsePreviewFrame（ComfyUI ws 二进制帧 [>I event][>I format][byte
 
 describe("ComfyUI 安全取消", () => {
   it("新服只发原子定向 jobs cancel，不再双发 queue/interrupt", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ cancelled: true })));
+    const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) => new Response(JSON.stringify({ cancelled: true })));
     await expect(cancelComfyuiPrompt("http://127.0.0.1:8188", "p1", fetchMock as typeof fetch))
       .resolves.toEqual({ ok: true, mode: "targeted" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -109,7 +109,7 @@ describe("ComfyUI 安全取消", () => {
   it("jobs cancel 恒 200：cancelled:false 是「没什么可取消」，不许当成功报出去", async () => {
     // 官方这条对已结束/不认识的 id 也回 200，只是 body 里 cancelled=false。
     // 光看 res.ok 会让「点了取消、GPU 还在转」显示成已取消。
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ cancelled: false })));
+    const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) => new Response(JSON.stringify({ cancelled: false })));
     await expect(cancelComfyuiPrompt("http://127.0.0.1:8188", "p9", fetchMock as typeof fetch))
       .resolves.toEqual({ ok: true, mode: "nothing-to-cancel" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -119,7 +119,7 @@ describe("ComfyUI 安全取消", () => {
     // /queue {delete} 走 delete_queue_item，只摘排队项；正在执行的那个必须靠 /interrupt。
     // 定向 /interrupt 带 prompt_id，只在它正好是当前运行的那个时才打断，不误伤别人。
     const urls: string[] = [];
-    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       urls.push(String(url));
       return String(url).endsWith("/cancel") ? new Response("missing", { status: 404 }) : new Response("{}");
     });
@@ -195,4 +195,3 @@ describe("ws 连接生命周期（open 超时 → 终止僵尸连接并重连）
     }
   });
 });
-

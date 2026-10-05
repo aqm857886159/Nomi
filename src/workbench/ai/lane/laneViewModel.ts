@@ -66,7 +66,9 @@ export interface LaneViewModelLabels {
    * 助手回合带回来的服务商报文 → 面板那一行红字。**原文不进界面**（可能是整段 JSON、带内部分类标记）：
    * 调用方按失败分类给人话 + 下一步，认不出就说「没见过的错误」。
    */
-  assistantFailure(text: string): string
+  assistantFailure(text: string, transient?: boolean): string
+  /** 错误已被自动重试化解（同一回合后面接上了成功的回复）时，取代红卡的那一行灰字。 */
+  assistantRecovered: string
   /** 失败的展开体：摘要 + 结构化字段（哪个字段、期望什么类型、合法值）。 */
   toolFailureDetail(failure: LaneToolPublicFailure): string
   /** 思考行左侧那个词。 */
@@ -373,7 +375,9 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     // ——同一句话说两遍是在骗用户，让他以为发生了两件事。收集在上面那一趟预扫里。
     if (part.kind === 'host-note') continue
     if (part.kind === 'error') {
-      push({ kind: 'error', reason: labels.assistantFailure(part.text) })
+      push(part.recovered
+        ? { kind: 'error', reason: labels.assistantRecovered, recovered: true, raw: part.text }
+        : { kind: 'error', reason: labels.assistantFailure(part.text, part.transient), raw: part.text, ...(part.transient ? { transient: true } : {}) })
       continue
     }
     if (part.kind === 'task') {

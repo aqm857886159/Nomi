@@ -26,7 +26,7 @@ describe("journey registry contracts", () => {
 
   test("zero-cost journeys do not contain agent prompts", () => {
     for (const journey of JOURNEYS.filter((candidate) => !candidate.needsAgent)) {
-      expect(journey.milestones.every((milestone) => !milestone.say), journey.id).toBe(true);
+      expect(journey.milestones.every((milestone) => !("say" in milestone) || !milestone.say), journey.id).toBe(true);
     }
   });
 });

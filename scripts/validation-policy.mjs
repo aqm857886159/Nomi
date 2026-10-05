@@ -138,7 +138,7 @@ const CANVAS_DISPLAY_OWNER_PATTERNS = [
   /^src\/workbench\/capability\/multiShotCanvasLanding(?:\.|$)/,
   /^src\/workbench\/production\/(?:ProductionCanvasLandingHost|productionCanvasLandingStore|productionShotOwnership|productionShotActions|reportDetachedShotNodes|watchDeletedProductionNodes)(?:\.|$)/,
   // 画布子树里产出显示的目录（reactFlow 另有自己的 full 规则）
-  /^src\/workbench\/generationCanvas\/(?:nodes|spend|store|runner|model|agent|events|adapters)\//,
+  /^src\/workbench\/generationCanvas\/(?:nodes|spend|store|runner|model|agent|events|adapters|quickActions)\//,
   /^src\/workbench\/generationCanvas\/[^/]+\.(?:ts|tsx)$/,
 ]
 

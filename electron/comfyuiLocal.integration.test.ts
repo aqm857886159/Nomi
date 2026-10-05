@@ -114,6 +114,7 @@ describe("本地 ComfyUI 传输链（真 HTTP 端到端）", () => {
     const uiWorkflow = { nodes: [{ id: 9, type: "SaveImage" }] };
     const mapping = {
       ...baseMapping,
+      vendorKey: "comfyui-local", enabled: true, createdAt: "", updatedAt: "",
       create: {
         ...baseMapping.create,
         body: {

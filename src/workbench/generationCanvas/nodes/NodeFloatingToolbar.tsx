@@ -111,15 +111,16 @@ type ToolbarButtonProps = {
   ariaBusy?: boolean
   title?: string
   ariaLabel?: string
+  className?: string
   onClick?: (event: React.MouseEvent) => void
 }
 
 /** 带文字的工具栏按钮（定妆 / 裁剪 / 下载 / 抽首帧…）。 */
-export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, onClick }: ToolbarButtonProps): JSX.Element {
+export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, className, onClick }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
-      className={cn(buttonBase, 'gap-1.5 px-3', accent && 'font-medium', variantClass(accent))}
+      className={cn(buttonBase, 'gap-1.5 px-3', accent && 'font-medium', variantClass(accent), className)}
       title={title}
       aria-label={ariaLabel ?? label}
       aria-busy={ariaBusy || undefined}
@@ -153,74 +154,44 @@ export function ToolbarDivider(): JSX.Element {
   return <span className="w-px h-5 bg-nomi-line" aria-hidden />
 }
 
-export type ToolbarMenuItem = {
+/**
+ * 分组下拉的**触发钮**（图标 + 字 + ▾）。单独导出，是因为下拉的「壳」有两种（`WorkbenchMenu` 的 `ToolbarActionMenu` /
+ * `AnchoredPopover` 的宫格点阵），但浮条上的钮只能长一个样——外观定义只留这一份。
+ */
+export const ToolbarMenuTrigger = React.forwardRef<HTMLButtonElement, {
   icon: React.ReactNode
   label: string
-  /** 悬停说明（原按钮的 hint 并进下拉项时保留）。 */
+  /** 只画图标 + ▾（label 仍是 aria-label）。 */
+  iconOnly?: boolean
+  className?: string
   title?: string
+  open: boolean
   disabled?: boolean
+  haspopup?: 'menu' | 'dialog'
   onClick: () => void
-}
-
-/** 分组下拉（裁切▾ / 变换▾ / 抽帧▾ / 拆解▾）：把低频同类动作收一处。向上展开（工具栏在节点上方，不挡节点），自带点外关闭。 */
-export function ToolbarMenu({ icon, label, items, disabled }: { icon: React.ReactNode; label: string; items: ToolbarMenuItem[]; disabled?: boolean }): JSX.Element {
-  const [open, setOpen] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => {
-    if (!open) return undefined
-    const onDown = (event: PointerEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
-    }
-    // 捕获阶段：浮条外壳 onPointerDown stopPropagation（防画布平移）会截断冒泡，导致点另一个菜单按钮时
-    // 本菜单的「点外关闭」收不到事件 → 两个下拉同时开、互相遮挡。捕获在 stopPropagation 之前触发，绕过它。
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
-  }, [open])
+  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void
+  dataAttributes?: Record<`data-${string}`, string>
+}>(function ToolbarMenuTrigger({ icon, label, iconOnly, className, title, open, disabled, haspopup = 'menu', onClick, onPointerDown, dataAttributes }, ref) {
   return (
-    <div ref={ref} className="relative inline-flex">
-      <button
-        type="button"
-        className={cn(buttonBase, 'gap-1 px-3', variantClass(false), open && 'bg-nomi-ink-05 text-nomi-ink')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => setOpen((value) => !value)}
-      >
-        {icon}
-        <span>{label}</span>
-        <IconChevronDown size={13} stroke={1.6} aria-hidden />
-      </button>
-      {open ? (
-        <div
-          className={cn(
-            // 向上展开，避免菜单跨过框外标签行并遮住媒体。
-            'absolute left-1/2 -translate-x-1/2 bottom-[calc(100%+6px)] z-[13]',
-            'inline-flex flex-col gap-0.5 min-w-max p-1',
-            'border border-nomi-line rounded-nomi bg-nomi-paper shadow-nomi-md',
-          )}
-          role="menu"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className={cn(buttonBase, 'gap-2 px-2.5 justify-start w-full', variantClass(false))}
-              title={item.title}
-              disabled={item.disabled}
-              onClick={() => { item.onClick(); setOpen(false) }}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <button
+      ref={ref}
+      type="button"
+      className={cn(buttonBase, 'gap-1', iconOnly ? 'px-2' : 'px-3', variantClass(false), open && 'bg-nomi-ink-05 text-nomi-ink', className)}
+      aria-haspopup={haspopup}
+      aria-expanded={open}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      {...dataAttributes}
+    >
+      {icon}
+      {iconOnly ? null : <span>{label}</span>}
+      <IconChevronDown size={13} stroke={1.6} aria-hidden />
+    </button>
   )
-}
+})
 
 /**
  * 「生成记录」按钮。原先住在卡片右上角，是 `bg-nomi-paper/[0.82]` 半透明**常驻**盖在图上的
@@ -233,7 +204,7 @@ export function ToolbarMenu({ icon, label, items, disabled }: { icon: React.Reac
  * 2026-08-04 对着渲染条件复核时改正——注释写错会让下一个人按错的前提做判断。
  *
  * 它是 ProvenancePanel 的**唯一入口**，所以只能搬不能删。一份定义、**四处**复用：
- * 图片与图编辑（同一条 NodeImageEditToolbar）/ 视频（NodeVideoFrameToolbar）/
+ * 图片与图编辑（同一条 ImageQuickActionsToolbar）/ 视频（NodeVideoFrameToolbar）/
  * 全景（BaseGenerationNode）/ 其余结果（NodeResultDownloadButton）。不留近似拷贝（P1）。
  */
 export function ToolbarProvenanceButton({ onOpen }: { onOpen: () => void }): JSX.Element {

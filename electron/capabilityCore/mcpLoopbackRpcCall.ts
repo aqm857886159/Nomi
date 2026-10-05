@@ -77,3 +77,43 @@ export async function callMcpLoopbackRpc(input: McpLoopbackRpcCallInput): Promis
   if (!body.ok) throw rpcErrorFromPayload(body, response.status)
   return body.result
 }
+
+type GateVerdict = { confirmed: boolean; receiptId?: string; receiptToken?: string }
+type GateChallenge = { handoff?: Record<string, unknown> }
+
+function gateVerdict(result: unknown): GateVerdict {
+  const typed = (result ?? {}) as { confirmed?: unknown; receiptId?: unknown; receiptToken?: unknown }
+  return {
+    confirmed: typed.confirmed === true,
+    ...(typeof typed.receiptId === 'string' && typed.receiptId ? { receiptId: typed.receiptId } : {}),
+    ...(typeof typed.receiptToken === 'string' && typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
+  }
+}
+
+/**
+ * 付费门的两条回环确认（「落 Nomi 兜底卡」与「客户端已同意 → 主进程验证并铸收据」）只有一份实现，
+ * 三个装配点（裸 Node 启动器 / Electron stdio / 本机 HTTP）都用它；收据只由主进程铸，这里只转话。
+ * `rpcIfOpen` 在没有活 Nomi 时返回 undefined——确认绝不为了问一句而冷启动 Nomi。
+ */
+export function createLoopbackGenerationConfirmation(deps: {
+  rpcIfOpen: (method: string, params: Record<string, unknown>) => Promise<unknown> | undefined
+  authenticatedClient: () => string | null
+}) {
+  const challengeTokenOf = (challenge: GateChallenge) =>
+    challenge.handoff && typeof challenge.handoff.challengeToken === 'string' ? challenge.handoff.challengeToken : ''
+  return {
+    confirmGenerationInNomi: async (challenge: GateChallenge): Promise<GateVerdict> => {
+      const challengeToken = challengeTokenOf(challenge)
+      const pending = challengeToken ? deps.rpcIfOpen('nomi_confirm_generation_gate', { challengeToken }) : undefined
+      return pending ? gateVerdict(await pending) : { confirmed: false }
+    },
+    verifyClientGenerationConfirmation: async (challenge: GateChallenge): Promise<GateVerdict> => {
+      const challengeToken = challengeTokenOf(challenge)
+      const authenticatedClient = deps.authenticatedClient()
+      const pending = challengeToken && authenticatedClient
+        ? deps.rpcIfOpen('nomi_verify_client_generation_gate', { challengeToken, authenticatedClient })
+        : undefined
+      return pending ? gateVerdict(await pending) : { confirmed: false }
+    },
+  }
+}

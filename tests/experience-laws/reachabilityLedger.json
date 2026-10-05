@@ -1,0 +1,121 @@
+{
+  "$schemaVersion": 1,
+  "_doc": [
+    "铁律 ⑪「能选到」的两张登记表，由 tests/experience-laws/parameterReachability.test.mjs 核对。",
+    "class = 入口|参数键|缺口形状（见 parameterReachability.mjs 的 gapClassKey）。同一结构原因在多少个模型上出现都只登记一类。",
+    "waivers：这个入口本来就不该给，reason 写清为什么（只认用户场景 / 领域约束）。",
+    "knownGaps：第一次跑出来、还没定修不修的缺口；ledgerId 指向 tests/ux/full-walk/escapeLedger.json 里的 candidate，由协调会话决定修哪些。",
+    "棘轮：表外冒出新缺口 = 红；表里登记的缺口已经不存在 = 也红（修好了就删这一行，并在账本那条写 completionCommits）。"
+  ],
+  "waivers": [],
+  "knownGaps": [
+    {
+      "class": "node-bar|aspect_ratio|param:select",
+      "ledgerId": "LAW11-ALIAS-DEDUPE"
+    },
+    {
+      "class": "node-bar|bpm|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|continueAt|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|guidance_scale|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|lyrics|param:text",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|num_inference_steps|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|ratio|param:select",
+      "ledgerId": "LAW11-ALIAS-DEDUPE"
+    },
+    {
+      "class": "node-bar|seed|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|sound_tempo|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|style|param:text",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|title|param:text",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "node-bar|video_start_seconds|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "spend-card|aspect_ratio|param:select",
+      "ledgerId": "LAW11-ALIAS-DEDUPE"
+    },
+    {
+      "class": "spend-card|num_inference_steps|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "spend-card|ratio|param:select",
+      "ledgerId": "LAW11-ALIAS-DEDUPE"
+    },
+    {
+      "class": "spend-card|seed|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "spend-card|video_start_seconds|param:number",
+      "ledgerId": "LAW11-EMPTY-INPUT"
+    },
+    {
+      "class": "storyboard-row|(变体)|axis",
+      "ledgerId": "LAW11-SB-VARIANT"
+    },
+    {
+      "class": "storyboard-row|duration|options",
+      "ledgerId": "LAW11-SB-DURATION"
+    },
+    {
+      "class": "storyboard-row|frame_rate|param:number",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|negative_prompt|param:text",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|num_inference_steps|param:number",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|output_count|param:number",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|seed|param:number",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|source_task_id|param:text",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|video_start_seconds|param:number",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    },
+    {
+      "class": "storyboard-row|webhook|param:text",
+      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+    }
+  ]
+}

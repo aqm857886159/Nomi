@@ -1,4 +1,4 @@
-// R13 走查 + 回归门：图片浮条「切图 ▾ → 九宫格(3×3)」不许再卡死（2026-08-20）。
+// R13 走查 + 回归门：图片浮条「宫格 ▾ → 9 宫格(3×3)」不许再卡死（2026-08-20）。
 //
 // 用户报告：「点击图片的切图功能 九宫格 直接卡死」。根因取证与修法见
 // docs/plan/2026-08-20-grid-split-freeze.md。修前（4096² 源图、空项目、M 系列 Mac）：
@@ -133,11 +133,12 @@ try {
   // —— 真实路径：选中节点 →（裁剪按钮 / 切图 ▾ 选档位）→ 确认 ——
   await clickOrFail(getWin().locator('[data-node-id]').first(), '图片节点')
   if (GRID === 1) {
-    await clickOrFail(getWin().getByRole('button', { name: '裁剪', exact: true }), '浮条「裁剪」')
+    await clickOrFail(getWin().getByRole('button', { name: '改图', exact: true }), '浮条「改图 ▾」')
+    await clickOrFail(getWin().getByRole('menuitem', { name: '裁剪' }), '菜单项「裁剪」')
   } else {
-    await clickOrFail(getWin().getByRole('button', { name: '切图', exact: true }), '浮条「切图 ▾」')
+    await clickOrFail(getWin().getByRole('button', { name: '宫格', exact: true }), '浮条「宫格 ▾」')
     await snap('01-split-menu.png')
-    await clickOrFail(getWin().getByRole('menuitem', { name: new RegExp(GRID_LABEL) }), `菜单项「${GRID_LABEL}」`)
+    await clickOrFail(getWin().getByRole('button', { name: new RegExp(`^${GRID * GRID} 宫格`) }), `宫格点阵「${GRID_LABEL}」`)
   }
   const confirmSplit = getWin().getByRole('button', { name: GRID === 1 ? '确认裁剪' : '确认切图' })
   await expectVisible(confirmSplit.first(), `${GRID_LABEL}取景框没打开`)

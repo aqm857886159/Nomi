@@ -68,7 +68,7 @@ class PlanHarness {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-11-25', capabilities: elicitation ? { elicitation: {} } : {}, clientInfo: { name: 'claude-code' } },
+      params: { protocolVersion: '2025-11-25', capabilities: elicitation ? { elicitation: {} } : {}, clientInfo: { name: 'claude-code', version: '1' } },
     })
     const res = await this.next()
     expect(res.id).toBe(1)
@@ -106,7 +106,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
     // 服务端先发 elicitation/create（把确认递进聊天），此时还没 invoke。
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
-    expect(typeof elicit.id).toBe('string')
+    expect(['string', 'number']).toContain(typeof elicit.id) // JSON-RPC id，由 SDK 分配
     const params = elicit.params as { message?: string }
     expect(params.message).toContain('3') // 「往画布加 3 个节点」
     expect(params.message).toContain('画布')
@@ -164,7 +164,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
     harness.addNodes(3, 'proj-b', 2)
     const elicitB = await harness.next()
     expect(elicitB.method).toBe('elicitation/create')
-    expect(typeof elicitB.id).toBe('string')
+    expect(['string', 'number']).toContain(typeof elicitB.id)
     harness.send({ jsonrpc: '2.0', id: elicitB.id, result: { action: 'accept', content: { confirm: true } } })
     const toolRes = await harness.next()
     expect(toolRes.id).toBe(3)

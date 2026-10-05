@@ -1,4 +1,7 @@
-import type { CropRect } from './ImageCropGridOverlay'
+import type { CropGridSize, CropRect } from './ImageCropGridOverlay'
+
+/** 纯裁剪：1 行 1 列，没有内线。 */
+export const CROP_ONLY: CropGridSize = { rows: 1, cols: 1 }
 
 // 可调切图的纯几何：把「外框 rect + 框内分割线」换算成一组 image 归一化 cell。
 // cols/rows 是「框内」切分分数（0~1，升序，长度 = gridSize-1；裁剪时为空）。

@@ -1,0 +1,162 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-storyboard-ratio-and-merge",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "problem_type": "The storyboard side (renderer document plans and the storyboard editor) carried its own copy of two semantics the host had already fixed: it placed the frame ratio only on a control literally keyed aspect_ratio, and it replaced a shot's parameters wholesale on revision",
+  "symptom": "A film-level 16:9 set in the storyboard editor is dropped on shots whose model calls its ratio size (Z-Image) or ratio (Agnes); the bulk bar marks those shots unsupported; Runway pixel-size controls drop the value. Agent revisions of a document-plan shot reset every other parameter.",
+  "direct_cause": "buildPlannedNodeMeta only accepted params whose key equals a control key, and FILM_DEFAULTS writes the ratio under aspect_ratio; unsupportedFilmDefaultKeys judged support by the literal key; projectShotNode's unchanged-model branch wrote aspect_ratio raw into node meta; patchStoryboardSubject set params to patch.parameters.",
+  "class_root": "One semantic, two implementations: the host owns ratio translation and merge-patch semantics, the storyboard side re-implemented both with the simplest local rule.",
+  "affected_population": [
+    "Storyboard editor plans whose shots use a model whose ratio control is not keyed aspect_ratio or offers pixel sizes",
+    "Agent revisions of document-plan shots"
+  ],
+  "scope_paths": [
+    "electron/shared/aspectRatioValue.ts",
+    "electron/shared/generationParameterPatch.ts",
+    "electron/shared/storyboard/storyboardShotScope.ts",
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/creation/storyboard/"
+  ],
+  "entry_points": [
+    "Storyboard editor -> materialize / write back -> resolveShotParams -> buildPlannedNodeMeta or projectShotNode",
+    "Storyboard bulk bar -> unsupportedFilmDefaultKeys",
+    "Agent draft_shots on a document plan -> patchStoryboardAuthoring -> renderer patchAgentStoryboardDesign -> patchStoryboardSubject",
+    "Agent draft_shots creating a document plan -> storyboardPlanFromDraftSubjects -> storyboardSubjectFromCandidate"
+  ],
+  "internal_only_reason": "Merge semantics follow RFC 7396 and the ratio vocabulary follows the AI SDK convention (both cited in the design card); the invariant is Nomi's own single-source rule between host and storyboard code.",
+  "invariants": [
+    "Every path that writes a storyboard shot's parameters onto a canvas node translates the ratio intent with placeAspectRatio from electron/shared/aspectRatioValue.ts.",
+    "The bulk bar reports a film-level value unsupported only when placeAspectRatio cannot place it on that shot's mode.",
+    "Inside a storyboard plan a shot's ratio lives only in params.aspect_ratio.",
+    "Revising a shot's parameters, on the host or in a document plan, goes through mergeNamedParameters."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/aspectRatioValue.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/storyboardRatioIntent.matrix.test.ts",
+      "electron/shared/aspectRatioValue.census.test.ts"
+    ],
+    "why": "The ratio judge already serves the host since #1023; the storyboard landing, write-back and bulk bar now call the same placeAspectRatio. The merge rule lives in electron/shared/generationParameterPatch.ts and is covered by generationPlanPatchMerge.test.ts and the matrix test."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardShotScope.ts",
+      "symbol": "placeAspectRatio"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "placeAspectRatio"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "placeAspectRatio"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "Three distinct consumers: plannedNodeMeta is the single node-landing write boundary (three landing paths share it), storyboardProjection writes back to an already-landed node when the model did not change, storyboardShotScope answers the bulk bar. Each now calls the one judge instead of its own literal-key rule."
+  },
+  "generality_proof": "The judge is chosen by option set, not key name, and is the one the host uses; the matrix test drives six real profiles (size, aspect_ratio, ratio, pixel sizes, no ratio choice) through landing, write-back, bulk bar and document revision. The census from #1023 bounds the catalog: 336 combinations, none with two ratio controls.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/aspectRatioValue.ts",
+      "symbol": "placeAspectRatio",
+      "responsibility": "Place the ratio intent (storyboard slot or semantic key) on the mode's real ratio key and option value, or report it unsupported."
+    },
+    {
+      "path": "electron/shared/generationParameterPatch.ts",
+      "symbol": "mergeNamedParameters",
+      "responsibility": "Merge named parameters into stored ones, null removes a key."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardShotScope.ts",
+      "symbol": "foldRatioIntoSlot",
+      "responsibility": "Keep a storyboard shot's ratio in the single aspect_ratio slot when authored or revised."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "entry_point": "buildPlannedNodeMeta",
+      "disposition": "enforced",
+      "evidence": "Matrix test section 1 lands six profiles."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "entry_point": "projectShotNode (unchanged model branch)",
+      "disposition": "enforced",
+      "evidence": "Matrix test section 1b."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "entry_point": "patchStoryboardSubject / storyboardSubjectFromCandidate",
+      "disposition": "enforced",
+      "evidence": "Matrix test section 3."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardStrategy.ts",
+      "entry_point": "storyboardPlanToPlanShotInputs (advisory strategy resolver)",
+      "disposition": "not-affected",
+      "evidence": "Advisory only: it feeds resolveGenerationPlan for merge/split suggestions and never writes parameters to a node or request."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every model whose ratio key is not aspect_ratio and every document-plan revision reaches it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs placeAspectRatio",
+      "node scripts/door-map.mjs mergeNamedParameters",
+      "git grep -n \"key === 'aspect_ratio'\" src electron (only the deleted aspectControlOf)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/aspectRatioValue.ts",
+    "invariant": "Ratio placement and parameter revision each have one shared implementation used by host and storyboard.",
+    "failure_mode": "A ratio that cannot be placed is omitted from the node and reported unsupported in the bulk bar; nothing is sent under an unknown key.",
+    "exception_policy": "none",
+    "strategy": "Route the storyboard's three ratio consumers and its revision merge through the shared functions; delete the literal-key judges.",
+    "artifacts": [
+      "electron/shared/aspectRatioValue.ts",
+      "electron/shared/generationParameterPatch.ts",
+      "electron/shared/storyboard/storyboardShotScope.ts",
+      "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardRatioIntent.matrix.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "electron/capabilityCore/generationPlanPatchMerge.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardRatioIntent.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "electron/shared/storyboard/storyboardShotScope.ts",
+      "electron/shared/storyboard/storyboardSubjectAdapter.ts"
+    ],
+    "rationale": "Deleted the literal-key aspectControlOf (no production caller), the literal-key support check in unsupportedFilmDefaultKeys, and the wholesale params replacement in patchStoryboardSubject."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Document plans created by the agent after #1023 may hold the ratio under the model's real key; they keep landing correctly (the real key is a valid control value) and are folded into the slot the next time the agent revises their parameters.",
+  "residual_risks": [
+    "Keyframe write-back when the model did not change resolves the mode from node meta; nodes without archetype identity keep the raw slot value (same as before).",
+    "The advisory strategy resolver still sees the aspect_ratio slot key.",
+    "Real App acceptance is unverified in this line."
+  ]
+}

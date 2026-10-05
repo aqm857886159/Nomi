@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import {
   SELF_WRITTEN_FILE,
   dueForReview,
+  evaluateReviewDeadlines,
   evaluateSelfWritten,
   exemptionOf,
   pathMatches,
@@ -317,4 +318,92 @@ test('端到端：新增文件路径带中文时门岗仍然认得出（git 默�
   })
   assert.equal(run.status, 1, run.stdout + run.stderr)
   assert.match(run.stderr, /electron\/agentLane\/中文通用能力\.ts/)
+})
+
+// —— 评估到期真拦 / 登记死账 ——
+const REVIEWING = { ...ENTRY, id: 'mcp-like', status: 'under-review', reviewBy: '2026-11-15', paths: ['electron/mcp/protocol.ts', 'electron/mcp/launcher.ts'] }
+const deadlines = (entry, extra = {}) => evaluateReviewDeadlines({ registry: registry({ entries: [entry] }), today: '2026-11-20', ...extra })
+
+test('评估到期：过期的 under-review，这次改动碰了它的 paths → 红；没碰 → 不红；改离 under-review（评估 / 替换完）→ 不红', () => {
+  assert.match(deadlines(REVIEWING, { changedFiles: ['electron/mcp/launcher.ts'] }).join(), /评估已过期/)
+  assert.deepEqual(deadlines(REVIEWING, { changedFiles: ['electron/other/x.ts'] }), [])
+  assert.deepEqual(deadlines({ ...REVIEWING, status: 'to-replace', plan: 'docs/plan/x.md' }, { changedFiles: ['electron/mcp/launcher.ts'] }), [])
+  assert.deepEqual(deadlines({ ...REVIEWING, reviewBy: '2026-11-20' }, { changedFiles: ['electron/mcp/launcher.ts'] }), [], '到期当天还没过期')
+  assert.deepEqual(deadlines(REVIEWING, { changedFiles: null }), [], '拿不到改动清单（无 base）不判，不拿算不出来当红')
+})
+
+test('新登记的 under-review：reviewBy 距今不超过 30 天；存量条目的日期不动、不追溯', () => {
+  const base = registry({ entries: [{ ...REVIEWING, reviewBy: '2026-12-31' }] })
+  const far = { ...ENTRY, id: 'fresh', status: 'under-review', reviewBy: '2026-12-31' }
+  const text = evaluateReviewDeadlines({ registry: registry({ entries: [far] }), baseRegistry: base, today: '2026-11-20', changedFiles: [] }).join()
+  assert.match(text, /不得超过 30 天/)
+  const ok = { ...far, reviewBy: '2026-12-20' }
+  assert.deepEqual(evaluateReviewDeadlines({ registry: registry({ entries: [ok] }), baseRegistry: base, today: '2026-11-20', changedFiles: [] }), [])
+  // 存量（base 里就是 under-review，日期没动）：远期日期不追溯
+  assert.deepEqual(evaluateReviewDeadlines({ registry: base, baseRegistry: base, today: '2026-11-20', changedFiles: [] }), [])
+  // 刚从 justified 改成 under-review 算新登记
+  const wasJustified = registry({ entries: [{ ...far, status: 'justified' }] })
+  assert.match(evaluateReviewDeadlines({ registry: registry({ entries: [far] }), baseRegistry: wasJustified, today: '2026-11-20', changedFiles: [] }).join(), /不得超过 30 天/)
+})
+
+test('续期：往后推 reviewBy 必须同时加 renewed 记录，续后仍 ≤ 30 天，最多续一次', () => {
+  const base = registry({ entries: [{ ...REVIEWING, reviewBy: '2026-11-25' }] })
+  const run = (entry) => evaluateReviewDeadlines({ registry: registry({ entries: [entry] }), baseRegistry: base, today: '2026-11-20', changedFiles: [] })
+  assert.match(run({ ...REVIEWING, reviewBy: '2026-12-10' }).join(), /必须同时在 renewed 里加一条记录/)
+  const renewal = { on: '2026-11-20', from: '2026-11-25', reason: '要等 SDK 发 1.0 才能评估' }
+  assert.deepEqual(run({ ...REVIEWING, reviewBy: '2026-12-10', renewed: [renewal] }), [])
+  assert.match(run({ ...REVIEWING, reviewBy: '2027-02-10', renewed: [renewal] }).join(), /续期后的 reviewBy/)
+  // 第二次续：形状层直接报
+  const twice = validateRegistry(registry({ entries: [{ ...REVIEWING, renewed: [renewal, { ...renewal, on: '2026-12-10', from: '2026-12-10' }] }] }), { exists: () => true })
+  assert.match(twice.errors.join(), /最多续 1 次/)
+  const sloppy = validateRegistry(registry({ entries: [{ ...REVIEWING, renewed: [{ on: '2026-11-20' }] }] }), { exists: () => true })
+  assert.match(sloppy.errors.join(), /renewed 必须是/)
+})
+
+test('to-replace 的 paths 已经全部不存在 → 红（已替换，请删登记）；还有一个在就不红', () => {
+  const entry = { ...ENTRY, id: 'gone', status: 'to-replace', plan: 'docs/plan/x.md', paths: ['electron/a.ts', 'electron/b.ts'] }
+  const none = validateRegistry(registry({ entries: [entry] }), { exists: () => false })
+  assert.match(none.errors.join(), /已替换，请删这条登记/)
+  const some = validateRegistry(registry({ entries: [entry] }), { exists: (file) => file === 'electron/b.ts' })
+  assert.deepEqual(some.errors.filter((message) => /已替换/.test(message)), [])
+  // 阻断期前也是红（不进警告期分档）
+  assert.ok(evaluateSelfWritten({ registry: registry({ entries: [entry] }), added: [], today: '2026-10-01', exists: () => false }).errors.some((m) => /已替换/.test(m)))
+})
+
+test('端到端：过期的 under-review 条目，改动碰它的文件时 CLI 退出 1，没碰时退出 0，改成 to-replace 后退出 0', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'self-written-due-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const write = (file, content) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    fs.writeFileSync(path.join(root, file), content)
+  }
+  git(root, 'init', '-q')
+  git(root, 'config', 'user.email', 't@example.com')
+  git(root, 'config', 'user.name', 't')
+  git(root, 'config', 'commit.gpgsign', 'false')
+  const entry = { ...REVIEWING, reviewBy: '2026-11-15' }
+  write(SELF_WRITTEN_FILE, JSON.stringify(registry({ entries: [entry] })))
+  write('electron/mcp/protocol.ts', 'export const v = 0\n')
+  write('electron/mcp/launcher.ts', 'export const l = 0\n')
+  write('electron/productionRun/seed.ts', 'export const seed = 1\n')
+  git(root, 'add', '-A')
+  git(root, 'commit', '-q', '-m', 'base')
+  const base = git(root, 'rev-parse', 'HEAD').trim()
+  const run = (today) => spawnSync(process.execPath, [path.join(here, 'check-self-written.mjs')], {
+    encoding: 'utf8', env: { ...process.env, SELF_WRITTEN_REPO_ROOT: root, SELF_WRITTEN_BASE_REF: base, SELF_WRITTEN_TODAY: today },
+  })
+  write('electron/productionRun/seed.ts', 'export const seed = 2\n')
+  git(root, 'commit', '-q', '-am', 'touch domain only')
+  assert.equal(run('2026-11-20').status, 0, '没碰 mcp 的 paths：不被过期条目拖住')
+  write('electron/mcp/launcher.ts', 'export const l = 1\n')
+  git(root, 'commit', '-q', '-am', 'fix(mcp): patch launcher')
+  const red = run('2026-11-20')
+  assert.equal(red.status, 1)
+  assert.match(red.stderr, /评估已过期/)
+  assert.equal(run('2026-11-10').status, 0, '没过期：不拦')
+  const reg = JSON.parse(fs.readFileSync(path.join(root, SELF_WRITTEN_FILE), 'utf8'))
+  Object.assign(reg.entries[0], { status: 'to-replace', plan: SELF_WRITTEN_FILE })
+  write(SELF_WRITTEN_FILE, JSON.stringify(reg))
+  git(root, 'commit', '-q', '-am', 'evaluate: switch to official sdk')
+  assert.equal(run('2026-11-20').status, 0, '同一次改动把它改离 under-review：评估 / 替换本身，放行')
 })

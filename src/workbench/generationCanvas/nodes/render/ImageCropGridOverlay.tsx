@@ -5,7 +5,8 @@ import { cn } from '../../../../utils/cn'
 
 export type CropRect = { x: number; y: number; w: number; h: number }
 export type CropGridResult = { rect: CropRect; cols: number[]; rows: number[] }
-export type CropGridSize = 1 | 2 | 3
+/** 行列数：{1,1} = 纯裁剪（无内线），其余 = 切成 rows×cols 张。 */
+export type CropGridSize = Readonly<{ rows: number; cols: number }>
 
 type CornerMode = 'nw' | 'ne' | 'sw' | 'se'
 type DragTarget =
@@ -40,16 +41,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
-// 默认等分线：gridSize n → [1/n, 2/n, …, (n-1)/n]（裁剪 gridSize 1 → 空）。
-function equalCuts(gridSize: CropGridSize): number[] {
+// 默认等分线：n 份 → [1/n, 2/n, …, (n-1)/n]（1 份 → 空）。
+function equalCuts(parts: number): number[] {
   const cuts: number[] = []
-  for (let i = 1; i < gridSize; i += 1) cuts.push(i / gridSize)
+  for (let i = 1; i < parts; i += 1) cuts.push(i / parts)
   return cuts
 }
 
 /**
  * 非破坏式可调取景框：裁剪与切图共用一个组件（P1，不留两套）。
- * gridSize 1 = 纯裁剪（无内线）；2/3 = 多 gridSize-1 条可拖横/竖分割线，默认等分。
+ * gridSize {1,1} = 纯裁剪（无内线）；其余 = cols-1 条竖线 + rows-1 条横线（可拖），默认等分。
  * 内线坐标 = 框内归一化分数（随外框缩放自动跟随）。确认时把 { rect, cols, rows } 交回父级，
  * 由父级按 cell 裁出新节点（原图零改动）。坐标约定：overlay 盒子 == 图片显示区（无 letterbox）。
  */
@@ -65,14 +66,15 @@ export default function ImageCropGridOverlay({
   onCancel: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const cropOnly = gridSize.rows === 1 && gridSize.cols === 1
   const boxRef = React.useRef<HTMLDivElement>(null)
   const dragRef = React.useRef<ActiveDrag | null>(null)
   // 切图默认框接近整图（通常要切整张）；纯裁剪沿用原来的居中八分。
   const [rect, setRect] = React.useState<CropRect>(
-    gridSize === 1 ? { x: 0.1, y: 0.1, w: 0.8, h: 0.8 } : { x: 0.04, y: 0.04, w: 0.92, h: 0.92 },
+    cropOnly ? { x: 0.1, y: 0.1, w: 0.8, h: 0.8 } : { x: 0.04, y: 0.04, w: 0.92, h: 0.92 },
   )
-  const [cols, setCols] = React.useState<number[]>(() => equalCuts(gridSize))
-  const [rows, setRows] = React.useState<number[]>(() => equalCuts(gridSize))
+  const [cols, setCols] = React.useState<number[]>(() => equalCuts(gridSize.cols))
+  const [rows, setRows] = React.useState<number[]>(() => equalCuts(gridSize.rows))
 
   const beginDrag = (target: DragTarget) => (event: React.PointerEvent) => {
     event.stopPropagation()
@@ -267,10 +269,10 @@ export default function ImageCropGridOverlay({
         <button
           type="button"
           aria-label={
-            gridSize === 1 ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
+            cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
           }
           title={
-            gridSize === 1 ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
+            cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
           }
           className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-nomi-ink text-nomi-paper shadow-nomi-md hover:bg-nomi-accent"
           onPointerDown={(event) => event.stopPropagation()}

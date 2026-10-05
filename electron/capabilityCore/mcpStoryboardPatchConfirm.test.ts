@@ -56,7 +56,7 @@ class StoryboardPatchHarness {
       params: {
         protocolVersion: '2025-11-25',
         capabilities: { elicitation: {} },
-        clientInfo: { name: 'canonical-storyboard-test' },
+        clientInfo: { name: 'canonical-storyboard-test', version: '1' },
       },
     })
     await this.next()

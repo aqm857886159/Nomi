@@ -179,6 +179,9 @@ describe("一条 lane 的系统提示词每回合整体重新求值（2026-09-11
     // 语言铁律与项目记忆必须在函数体里（每次求值都重读），不是先算好再传。
     expect(runtime).toContain("systemPrompt: () => [buildLanguageRule()");
     expect(runtime).toContain("currentProjectMemory(binding.projectId)");
+    // 语言规则首尾各放一次：头在 systemPrompt 函数里，尾是殿后段（单发路径同理）。定义仍只有 buildLanguageRule 一处。
+    expect(runtime).toContain("systemPromptClosing: buildLanguageRule,");
+    expect(runtime).toContain("systemPromptClosing: buildLanguageRule() })");
     expect(runtime).not.toMatch(/let memory = ''/);
     // 技能库同理：给函数，宿主每回合重读一次。
     expect(runtime).toContain("skills: async () => (await readSkillRecords()).filter(isSkillSelectableInWorkbench)");

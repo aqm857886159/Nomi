@@ -11,7 +11,8 @@ import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
 import ImageCropGridOverlay from './render/ImageCropGridOverlay'
-import NodeImageEditToolbar from './NodeImageEditToolbar'
+import { CROP_ONLY } from './render/cropGridGeometry'
+import { ImageQuickActionsToolbarHost } from '../quickActions/ImageQuickActionsToolbarHost'
 import { NodeResultStack } from './NodeResultStack'
 import { useNodeResultHistory, nodeHasResultStack } from './useNodeResultHistory'
 import { EmptyNodeVariantToolbar, FloatingToolbarShell, TOOLBAR_ICON as TBI, ToolbarButton, ToolbarDivider, ToolbarVariantProvenanceActions } from './NodeFloatingToolbar'
@@ -51,6 +52,8 @@ import { WorkbenchButton } from '../../../design'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
+import { DerivedReadyBadge } from '../quickActions/DerivedReadyBadge'
+import { isDerivedPromptReady } from '../quickActions/deriveFromNode'
 import { canDragGenerationNodeToTimeline } from '../model/timelineDragAffordance'
 import { useResultDownload } from './useResultDownload'
 import { useArtifactNodeSlots } from './artifact/artifactNodeSlots'
@@ -78,11 +81,9 @@ const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./m
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
 const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
 
-
 function NodeBodyLoading(): JSX.Element {
   return <div className="h-full w-full rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line" />
 }
-
 function BaseGenerationNodeImpl({
   node,
   selected,
@@ -294,14 +295,13 @@ function BaseGenerationNodeImpl({
       !resultStackOpen &&
       node.result?.type === 'image' &&
       node.result.url ? (
-        <NodeImageEditToolbar
+        <ImageQuickActionsToolbarHost
           reportFeedback={reportFeedback}
           node={node}
           editGrid={imageEditing.editGrid}
           imageOpBusy={imageEditing.imageOpBusy}
           {...anchorFreezeToolbarProps(node)}
-          onGridSplit={(g) => imageEditing.openEdit(g)}
-          onCrop={() => imageEditing.openEdit(1)}
+          onGridSplit={(spec) => imageEditing.openEdit(spec)} onCrop={() => imageEditing.openEdit(CROP_ONLY)}
           onTransform={(op) => void imageEditing.handleImageTransform(op)}
           onRemoveBackground={() => void imageEditing.handleRemoveBackground()}
           removeBackgroundBusy={isRemoveBackgroundPending(node)}
@@ -314,7 +314,7 @@ function BaseGenerationNodeImpl({
         <ShotPreviewOverlays {...shotIdentity} />
         {!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}
         {!isCardKind ? <ShotMountBadges cards={mountedCards} /> : null}
-        <TechnicalReviewBadge meta={node.meta} />
+        <TechnicalReviewBadge meta={node.meta} /><DerivedReadyBadge node={node} />
         {/* 拆解收起态（视图 07）：视频节点有拆解结果且面板未占槽时，挂「已拆解 · N 镜」角标 + 可点回浮条。 */}
         {/* 锁徽标已移到 NodeGenerationComposer 底栏（编辑面板），卡片预览保持干净（用户反馈②）。 */}
         {/* E.2C-25 副本角标：跨分类独立副本永久显示（derivedFrom 仅承载此语义；同分类重生成在 regeneratedFrom）。 */}
@@ -459,7 +459,7 @@ function BaseGenerationNodeImpl({
           <PendingGenerationPlaceholder
             kind={node.kind}
             selected={selected} needsFirstFrame={needsFirstFrame}
-            waitingUpstream={hasFrameSourceEdge}
+            waitingUpstream={hasFrameSourceEdge} derivedReady={isDerivedPromptReady(node)}
           />
         )}
         {imageEditing.editGrid !== null &&

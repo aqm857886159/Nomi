@@ -7,7 +7,7 @@ import NodeVideoFrameToolbar from './NodeVideoFrameToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 非图片结果（视频等）的浮条：视频结果 → 抽首帧/抽尾帧 + 下载（NodeVideoFrameToolbar）；
-// 其它非图片结果 → 仅下载。图片结果的下载在 NodeImageEditToolbar。仅在选中且有可下载结果时渲染。
+// 其它非图片结果 → 仅下载。图片结果的下载在 ImageQuickActionsToolbar。仅在选中且有可下载结果时渲染。
 
 type Props = {
   reportFeedback: (message: string) => void

@@ -481,7 +481,7 @@ test('画布显示的主人，单独改一个文件也要 full 画布验收（el
 test('generationCanvas 的每个子目录都必须明确归档：产出画布显示的 → full，只管手势/样式的 → critical（新目录没表态就红）', () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'workbench', 'generationCanvas')
   const dirs = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
-  const full = new Set(['reactFlow', 'nodes', 'spend', 'store', 'runner', 'model', 'agent', 'events', 'adapters'])
+  const full = new Set(['reactFlow', 'nodes', 'spend', 'store', 'runner', 'model', 'agent', 'events', 'adapters', 'quickActions'])
   const criticalOnly = new Set(['components', 'hooks', 'styles', 'textEdit', 'videoDepth', 'fixation', 'plugins'])
   for (const dir of dirs) {
     assert.ok(full.has(dir) || criticalOnly.has(dir), `src/workbench/generationCanvas/${dir} 没有在分类器里表态（full 还是 critical）`)

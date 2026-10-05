@@ -5,12 +5,78 @@
 //   · states：这条旅程会经过的每个状态——用户看到的字（i18n key）、这时能做的动作、代码里谁决定这个状态（文件#符号，
 //     尽量对上 docs/engineering/concept-owners.json）、非终态最长等多久（只引用现有登记处；没有登记就明写 gap——那本身就是发现）；
 //   · scripts：覆盖它的剧本 / 走查；invariants：核对的铁律（invariants.mjs）；metric：它该上报的成功 / 失败事件（没有就写 gap，反馈雷达要用）。
+//   · 每个 state.actions 的可点目标都要能补一行 click target 对照：
+//     { target, userExpectation, actualObservation, useCases, ironLaws }。
+//     userExpectation 是用户点之前合理以为会发生什么；actualObservation 只填真实走查 / 回执看到的结果，不能用实现推测代替。
 //
 // 目录自检（scripts/check-full-walk-catalog.mjs，接在 gates:contracts）：owner 指向的符号真实存在、每条旅程至少一条剧本、
 // 每个非终态都有 deadline（登记处引用 / 等用户 / 明写的 gap 三选一）、visibleText 的 key 在中英两份词典里都在。
 //
 // 加新功能或改了哪块：同一个 PR 里更新对应旅程的状态行和剧本（docs/engineering/full-walk.md）。
 // 注意：这是公开仓库——状态表里只写用户看得见的事实与代码位置，不写私有待办编号、价格或供应商合作信息。
+
+/**
+ * Phase 0 fixes the click-target columns for iron law ⑫「点了=以为的」.
+ * Phase 1 fills one row for every action; observations come from a real walk,
+ * provider receipt, or persisted state, and unknowns stay `unverified`.
+ */
+export const CLICK_TARGET_CONTRACT = Object.freeze({
+  fields: Object.freeze(['target', 'userExpectation', 'actualObservation', 'useCases', 'ironLaws']),
+  actualObservation: '真实 Electron 走查、供应商回执或落盘状态的证据；未知写 unverified，不得从代码推断',
+  candidateLedger: 'tests/ux/full-walk/escapeLedger.json',
+  ironLaw: '⑫ 点了=以为的',
+})
+
+/**
+ * ⑫ 第一批：分镜表这一屏的每个可点目标（方案 §4 S6）。userExpectation 是用户点之前合理以为会发生什么，用大白话写；
+ * actualObservation 只抄 pb12 真实走查看到的结果（证据在那一场的 monitor-report.json 的 clickTargets 与截图），
+ * 没跑过写 unverified。两者对不上的那几条，走查当场写进逃逸账本 LAW12-<id>。
+ */
+const SB_TARGET = (row) => Object.freeze({ useCases: Object.freeze(['S6']), ironLaws: Object.freeze(['⑫']), playbook: 'pb12-storyboard-click-expectations', fullWalkJourneys: Object.freeze(['J06-delete-shot']), ...row })
+export const STORYBOARD_CLICK_TARGETS = Object.freeze([
+  SB_TARGET({
+    id: 'sb-row-blank', target: '分镜行的空白处',
+    owner: 'src/workbench/creation/storyboard/StoryboardShotTable.tsx#StoryboardShotTable',
+    userExpectation: '这一行被选中、高亮；所有行照常显示，内容一个不少',
+    actualObservation: '2026-10-05 pb12 真实走查（zh / en 两档一致）：第 2 镜选中、高亮；所有行照常显示，没有东西消失 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-shot-number', target: '画面格左上角的镜号',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx#StoryboardShotFrame',
+    userExpectation: '和点这一行一样：选中这一镜，不触发生成，别的行不动',
+    actualObservation: '2026-10-05 pb12（zh / en）：第 3 镜选中，没有发生成，别的行不动 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-row-checkbox', target: '行首的小方框（复选框）',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx#StoryboardShotRow',
+    userExpectation: '勾上就是选中这一镜（像表格勾选），之后可以对勾上的几镜批量操作；这一镜照常显示，不变灰、不被藏起来',
+    actualObservation: '2026-10-05 pb12（zh / en）：这一镜没有被选中，整行变淡到 60%，打上「本次跳过 / Skipped this run」 —— 不一致（LAW12-sb-row-checkbox）',
+  }),
+  SB_TARGET({
+    id: 'sb-row-more', target: '行首的「⋯」',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx#StoryboardShotRow',
+    userExpectation: '弹出这一镜的操作菜单（插入、复制、换画幅、删除……），整块都在窗口里；点别处它就关上',
+    actualObservation: '2026-10-05 pb12（zh / en）：菜单弹出、整块在窗口里；点编辑器别处后菜单仍开着，要再点一次「⋯」才收；开着时盖住下一镜的画面格与本镜缩略图 —— 不一致（LAW12-sb-row-more）',
+  }),
+  SB_TARGET({
+    id: 'sb-param-duration', target: '底栏的「时长」格',
+    owner: 'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx#ShotComposerBar',
+    userExpectation: '展开可选的秒数；选一个新值，这一格显示新值，这一镜存下来的也是新值，别的镜不变',
+    actualObservation: '2026-10-05 pb12（zh / en）：下拉展开，选「3 秒 / 3 sec」后落盘的第 2 镜时长是 3 秒，别的镜不变 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-row-generate', target: '这一行最右的「生成」',
+    owner: 'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx#ShotComposerBar',
+    userExpectation: '只生成这一镜：这一镜马上显示在生成，别的镜不动，供应商只收到这一镜的一次请求',
+    actualObservation: '2026-10-05 pb12（zh / en）：供应商只收到这一镜一次请求，画面格换成结果，别的镜没动，没弹多余对话框 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-thumbnail-done', target: '已生成镜头的缩略图',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx#StoryboardShotFrame',
+    userExpectation: '点一下就打开这一镜的大图来看',
+    actualObservation: '2026-10-05 pb12（zh / en）：单击缩略图只选中这一行，什么也没打开；大图要双击或点缩略图下方的展开图标 —— 不一致（LAW12-sb-thumbnail-done）',
+  }),
+])
 
 const PHASE = 'src/workbench/generationCanvas/runner/generationPhaseDeadline.ts#GENERATION_PHASE_DEADLINE'
 const USER = Object.freeze({ waitsFor: 'user' })
@@ -76,6 +142,11 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
     id: 'pb08-cover-card-kind', script: 'tests/ux/full-walk/playbooks/pb08-cover-card-kind.walk.mjs', paid: false,
     title: Object.freeze({ 'zh-CN': '让 Agent 做一个 3:4 封面：付费卡标题 / 模型 / 画布节点到底是图还是视频', en: 'Ask the Agent for a 3:4 cover: is the card, model and node an image or a video' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' })]),
+  }),
+  Object.freeze({
+    id: 'pb12-storyboard-click-expectations', script: 'tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs', paid: false,
+    title: Object.freeze({ 'zh-CN': '分镜表上每个可点的地方各点一下：点了是不是用户以为的那件事（铁律 ⑫）', en: 'Click every target on the storyboard table: does it do what the user expected (law 12)' }),
+    variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
   }),
   Object.freeze({
     id: 'pb91-storyboard-dragon-paid', script: 'tests/ux/full-walk/playbooks/pb91-storyboard-dragon.paid.mjs', paid: true,
@@ -180,7 +251,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'undo-window', kind: 'system', visibleText: ['storyboardEditor.rowMenu.deleteUndoable'], actions: ['撤销'], owner: 'src/utils/showUndoToast.ts#showUndoToast', deadline: { ref: 'src/utils/showUndoToast.ts#DEFAULT_DURATION_MS' } },
       { id: 'deleted', kind: 'terminal', visibleText: [], actions: ['⌘Z'], owner: 'src/workbench/generationCanvas/agent/storyboardPlanEdits.ts#removeShotAt' },
     ].map(Object.freeze)),
-    scripts: Object.freeze(['tests/ux/storyboard-table-exec.walk.mjs', 'tests/ux/creation-plan-delete-undo.walk.mjs']),
+    scripts: Object.freeze(['tests/ux/storyboard-table-exec.walk.mjs', 'tests/ux/creation-plan-delete-undo.walk.mjs', 'tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs']),
     invariants: Object.freeze([1, 2, 6]),
     metric: Object.freeze({ gap: '删镜头没有上报；删掉排队中镜头之后制作流程还会不会派它，只能靠走查看 Run' }),
   }),

@@ -66,7 +66,9 @@ describe("一镜把同一件事写了两遍", () => {
     const spec = VERB_DECLARATIONS.find((declaration) => declaration.name === "draft_shots")!;
     const printed = JSON.stringify(spec.schema);
     expect(printed).toContain("The only place for length, never parameters");
-    expect(printed).toContain("except length (use durationSec)");
+    // parameters 的说明只承认时长与比例各有自己的家（2026-10-05 为压回 schema 预算，两件并成一句）。
+    expect(printed).toContain("but length/ratio; revisions change named keys only, null deletes.");
+    expect(printed).toContain("e.g. 16:9 or auto.");
   });
 });
 

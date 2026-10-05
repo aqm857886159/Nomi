@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { dispatch } from "./dispatcher";
-import { validateToolArguments } from "./mcpArgValidation";
+import { validateToolArguments } from "./mcpProtocol";
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
 import { IntegrationSessionService } from "../integrationCertification/integrationSession";
 

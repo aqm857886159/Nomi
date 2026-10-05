@@ -88,10 +88,9 @@ import { buildAspectRatioNodePatch } from './nodeSizing'
 import {
   ASPECT_RATIO_KEYS,
   collectInputAspectRatios,
-  normalizeAspectRatioToWH,
-  parseAspectRatioValue,
   preferredVideoAspect,
 } from './aspectRatio'
+import { normalizeAspectRatioToWH, parseAspectRatioValue } from '../../../../electron/shared/aspectRatioValue'
 import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
 
 const ASPECT_RATIO_KEY_SET = new Set<string>(ASPECT_RATIO_KEYS)

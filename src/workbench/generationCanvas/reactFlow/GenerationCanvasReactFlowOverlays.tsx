@@ -7,6 +7,7 @@ import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeC
 import FrameContextMenu, { type FrameContextMenuAction } from '../components/FrameContextMenu'
 import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
 import { NodeAddMenu } from '../components/CanvasToolbar'
+import { NodeDeriveMenu } from '../quickActions/NodeDeriveMenu'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
 import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
 import type { ArrivalHint } from '../components/canvasArrivalModel'
@@ -29,7 +30,8 @@ type GenerationCanvasReactFlowOverlaysProps = {
   selectedSet: Set<string>
   screenshotOverlay: React.ReactNode
   contextNodeMenu: CanvasContextNodeMenu | null
-  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'stageX' | 'stageY' | 'kinds'> | null
+  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'verdicts' | 'clientX' | 'clientY'> | null
+  onCloseConnectionCreateMenu: () => void
   onCreateEmpty: () => void
   onNodeContextAction: (action: NodeContextMenuAction) => void
   /** 节点菜单自己关（Esc / 点外面 / 选完）。空白「添加节点」菜单仍走原来的 window 监听。 */
@@ -77,6 +79,7 @@ export function GenerationCanvasReactFlowOverlays({
   onAddContextNode,
   onImportContextFiles,
   onAddConnectedNode,
+  onCloseConnectionCreateMenu,
   batchDock,
   production,
   timelineCollapsed,
@@ -115,6 +118,7 @@ export function GenerationCanvasReactFlowOverlays({
           onPointerDown={(event) => event.stopPropagation()}
           onClose={onCloseContextNodeMenu}
           onAction={onNodeContextAction}
+          onDuplicateVariant={selectedNodeIds.length === 1 ? () => onNodeContextAction('duplicate-variant') : undefined}
         />
       ) : contextNodeMenu ? (
         <NodeAddMenu
@@ -139,13 +143,12 @@ export function GenerationCanvasReactFlowOverlays({
         />
       ) : null}
       {connectionCreateMenu ? (
-        <NodeAddMenu
-          className="generation-canvas-react-flow__connection-create-menu generation-canvas-v2__connection-create-menu z-[20] left-auto w-[132px]"
-          style={{ left: connectionCreateMenu.stageX, top: connectionCreateMenu.stageY }}
-          kinds={connectionCreateMenu.kinds}
-          onPointerDown={(event) => event.stopPropagation()}
-          onContextMenu={(event) => event.preventDefault()}
-          onAddNode={onAddConnectedNode}
+        // 点「+」圈和拖线到空白处松手是同一个菜单：接不上的灰掉并说原因（`quickActions/NodeDeriveMenu`）。
+        <NodeDeriveMenu
+          verdicts={connectionCreateMenu.verdicts}
+          point={{ x: connectionCreateMenu.clientX, y: connectionCreateMenu.clientY }}
+          onPick={onAddConnectedNode}
+          onClose={onCloseConnectionCreateMenu}
         />
       ) : null}
       {batchDock.visible ? (

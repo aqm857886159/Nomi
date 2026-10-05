@@ -3,7 +3,6 @@ import { nodeShotField, overriddenShotFields } from '../../../generationCanvas/m
 import type { ModelOption } from '../../../../config/models'
 import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
-import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { defaultCarrierForKind } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import { slotAsArray } from '../../../generationCanvas/nodes/controls/archetypeMeta'
@@ -33,12 +32,6 @@ export function resolveShotArchetypeMode(
   const mode = modes.find((m) => m.id === modeId) ?? modes.find((m) => m.id === archetype.defaultModeId) ?? modes[0]
   if (!mode) return null
   return { archetype, mode }
-}
-
-/** 该 mode 的画幅控件（提示词块上沿的一等胶囊）。没有该参数的模型 → null（不渲染胶囊）。 */
-export function aspectControlOf(mode: ArchetypeMode | null | undefined): ModelParameterControl | null {
-  if (!mode) return null
-  return mode.params.find((control) => control.key === 'aspect_ratio' && control.type === 'select') ?? null
 }
 
 /** 这一行参考列里摆着的绑定，是不是来自这张锚（binding.anchorId）。「引用」只有这一种读法：看得见的绑定。 */

@@ -313,7 +313,14 @@ export type V4FlowItem = { readonly identity?: string } & (
       details?: readonly { item: V4FlowItem; index: number }[]
     }
   | { kind: 'task'; task: TaskCardData }
-  | { kind: 'error'; reason: string; action?: string }
+  | {
+      kind: 'error'; reason: string; action?: string
+      /** 错误已被自动重试化解：画成一行灰字，不是红卡。 */
+      recovered?: true
+      /** 服务商原始报文（只给 effect 记日志用，不进界面）与 pi 的「瞬时」判断。 */
+      raw?: string
+      transient?: true
+    }
 )
 
 export type QueueRowData = Readonly<{

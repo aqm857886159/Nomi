@@ -483,7 +483,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, or to change a shot's prompt, model, parameters or references. Pass shotId to update an existing draft; omit it to create. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). shots[] each with prompt, optional title, taskKind, durationSec, modelId (or candidate with providerId + modelId, never both for one shot), modeId, parameters, references, role. For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own. Model and parameter values come from list_models; reuse operationId and shotId from the current draft result. Two shapes: creating a shot needs prompt; revising one (operationId + shotId) carries only the fields you are changing — prompt, model, modeId, parameters, references — and leaves the rest out, including title and role, which are fixed when the shot is created. The host clamps values to the model's real limits and reports every clamp. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, or to change a shot's prompt, model, parameters or references. Pass shotId to update an existing draft; omit it to create. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). shots[] each with prompt, optional title, taskKind, durationSec, modelId (or candidate with providerId + modelId, never both for one shot), modeId, parameters, references, role. For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own. Model and parameter values come from list_models; reuse operationId and shotId from the current draft result. Two shapes: creating a shot needs prompt; revising one (operationId + shotId) carries only the fields you are changing — prompt, model, modeId, parameters, references — and leaves the rest out, including title and role, which are fixed when the shot is created. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": [
         "canvas-node-creation"
@@ -570,6 +570,10 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "aspectRatio": {
+                  "description": "e.g. 16:9 or auto.",
+                  "type": "string"
+                },
                 "candidate": {
                   "additionalProperties": true,
                   "description": "Catalog candidate identity when known.",
@@ -612,10 +616,11 @@
                     "type": [
                       "string",
                       "number",
-                      "boolean"
+                      "boolean",
+                      "null"
                     ]
                   },
-                  "description": "Values the model's profile declares, except length (use durationSec). The host clamps them and reports every clamp.",
+                  "description": "Profile values but length/ratio; revisions change named keys only, null deletes.",
                   "type": "object"
                 },
                 "prompt": {

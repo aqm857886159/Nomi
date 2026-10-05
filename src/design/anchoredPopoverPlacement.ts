@@ -8,6 +8,9 @@
 
 export type AnchoredPopoverAlign = 'start' | 'center' | 'end'
 
+/** 先往哪边放。`top` 给节点浮条用：浮条在节点上方，往下开就压在这张图上。放不下才翻到另一边。 */
+export type AnchoredPopoverSide = 'bottom' | 'top'
+
 const MARGIN = 8
 
 type Placement = { top: number; left: number }
@@ -18,12 +21,16 @@ export function resolveAnchoredPopoverPlacement(
   align: AnchoredPopoverAlign,
   gap: number,
   viewport: { width: number; height: number },
+  side: AnchoredPopoverSide = 'bottom',
 ): Placement {
-  // 下方放不下就往上翻；上方也放不下就顶到视口上边（宁可盖住锚点，也不许被切）。
-  let top = anchor.bottom + gap
-  if (top + size.height > viewport.height - MARGIN) {
-    top = Math.max(MARGIN, anchor.top - gap - size.height)
-  }
+  // 先放偏好的那一边；放不下就翻到另一边；两边都放不下就夹进视口（宁可盖住锚点，也不许被切）。
+  const below = anchor.bottom + gap
+  const above = anchor.top - gap - size.height
+  const fitsBelow = below + size.height <= viewport.height - MARGIN
+  const fitsAbove = above >= MARGIN
+  let top = side === 'top'
+    ? (fitsAbove || !fitsBelow ? Math.max(MARGIN, above) : below)
+    : (fitsBelow ? below : Math.max(MARGIN, above))
   top = Math.min(top, Math.max(MARGIN, viewport.height - MARGIN - size.height))
 
   let left = align === 'center'

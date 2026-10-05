@@ -135,20 +135,52 @@ export function laneFailureText(error: unknown, t: Translate): string {
  * 与 `laneFailureText` 同一套分类、同一条 fail-closed 规矩；区别只在兜底句：这一路的原文来自
  * 服务商，认不出就老实说「服务商返回了一个没见过的错误」并给出能做的事。原始串只进日志。
  */
-export function providerFailureText(raw: unknown, t: Translate): string {
+export function providerFailureText(raw: unknown, t: Translate, options?: { readonly transient?: boolean }): string {
   const text = asText(raw)
   if (!text.trim()) return t('agentResident.providerUnknownError')
-  return classifiedFailureText(text, t, 'agentResident.providerUnknownError', null)
+  return classifiedFailure(text, t, 'agentResident.providerUnknownError', options).text
+}
+
+/**
+ * 这条服务商报文会不会落到「认不出」兜底句。**纯判断，不记日志**——渲染层在 effect 里按条目去重后自己记一次。
+ * 以前日志写在 `providerFailureText` 里，而它在 `useMemo` 的投影里每个流式快照重算一次，同一条错误记了 28 次。
+ */
+export function providerFailureIsUnclassified(raw: unknown, options?: { readonly transient?: boolean }): boolean {
+  const text = asText(raw)
+  return Boolean(text.trim()) && classifiedFailure(text, () => '', 'agentResident.providerUnknownError', options).unclassified
+}
+
+/**
+ * 流里还没记过日志的「认不出」错误条目 → 要记的原始报文。`seen` 按条目 id 去重（调用方持有，跨渲染保留）：
+ * 同一份投影重算多少次，同一条错误只出一次。纯函数——真正写日志的是调用方的 effect。
+ */
+export function takeUnclassifiedProviderFailures(
+  items: readonly { readonly kind: string; readonly identity?: string; readonly raw?: string; readonly recovered?: true; readonly transient?: true }[],
+  seen: Set<string>,
+): string[] {
+  const diagnostics: string[] = []
+  for (const item of items) {
+    if (item.kind !== 'error' || item.recovered || !item.raw || !item.identity || seen.has(item.identity)) continue
+    seen.add(item.identity)
+    if (providerFailureIsUnclassified(item.raw, { transient: item.transient })) diagnostics.push(item.raw)
+  }
+  return diagnostics
 }
 
 function classifiedFailureText(raw: string, t: Translate, fallbackKey: 'agentResident.sendFailed' | 'agentResident.providerUnknownError', code: LaneErrorCode | null): string {
-  const report = classifyGenerationError(raw)
+  const result = classifiedFailure(raw, t, fallbackKey)
+  // 用户读不到的东西不留在界面上，但**必须**留在某处——否则这条错误就彻底消失了。
+  // 发送失败是一次性事件（catch 里调一次），在这里记；服务商报文那一路在 effect 里记（见 providerFailureIsUnclassified）。
+  if (result.unclassified) logRendererError('lane-unclassified-failure', undefined, { code, diagnostic: raw })
+  return result.text
+}
+
+function classifiedFailure(raw: string, t: Translate, fallbackKey: 'agentResident.sendFailed' | 'agentResident.providerUnknownError', options?: { readonly transient?: boolean }): { text: string; unclassified: boolean } {
+  const first = classifyGenerationError(raw)
+  // pi 判过「瞬时」（断线 / 超时 / 限流 / 5xx）而我们的关键词表没认出来 → 归到网络类，不让它落进「认不出」。
+  const report = first.kind === 'unknown' && options?.transient ? classifyGenerationError('network error') : first
   const reason = stripClassificationMarkers(report.reason)
-  if (report.kind === 'unknown' && !showableRaw(reason)) {
-    // 用户读不到的东西不留在界面上，但**必须**留在某处——否则这条错误就彻底消失了。
-    logRendererError('lane-unclassified-failure', undefined, { code, diagnostic: raw })
-    return t(fallbackKey)
-  }
-  const providerMessage = report.providerMessage ? stripClassificationMarkers(report.providerMessage) : ''
-  return providerMessage && !leaksInternals(providerMessage) ? `${reason}：${providerMessage}` : reason
+  if (report.kind === 'unknown' && !showableRaw(reason)) return { text: t(fallbackKey), unclassified: true }
+  const providerMessage = first.providerMessage ? stripClassificationMarkers(first.providerMessage) : ''
+  return { text: providerMessage && !leaksInternals(providerMessage) ? t('agentPanelV4.errorWithDetail', { reason, detail: providerMessage }) : reason, unclassified: false }
 }

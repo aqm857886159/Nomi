@@ -198,6 +198,9 @@ function V4FlowRowImpl({
       />
     )
   }
+  if (item.recovered) {
+    return <div className="px-2.5 text-caption text-nomi-ink-40" data-v4-block="error-recovered">{item.reason}</div>
+  }
   return (
     <V4ErrorBar
       reason={item.reason}

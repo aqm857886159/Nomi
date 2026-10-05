@@ -116,7 +116,8 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
         capture: () => context, prepare: prepareInput, activate: () => undefined, model: () => model })
       const { runLaneSingleShot } = createRequire(__filename)('./laneNativeLoader.cjs') as { runLaneSingleShot: RunLaneSingleShot }
       const result = await runLaneSingleShot({ fetch: appFetch, model: model.config, prompt: command.text, input, signal: actionSignal,
-        systemPrompt: [buildLanguageRule(), NOMI_AGENT_IDENTITY].filter(Boolean).join('\n\n') })
+        systemPrompt: [buildLanguageRule(), NOMI_AGENT_IDENTITY].filter(Boolean).join('\n\n'),
+        systemPromptClosing: buildLanguageRule() })
       actionSignal.throwIfAborted()
       surface.surfaceCapture.assertProjectSession(event, session)
       return result
@@ -179,6 +180,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           // 宿主每个回合求值一次（`laneHost` 的 `systemPromptForRun`），不是每次模型请求。
           systemPrompt: () => [buildLanguageRule(), NOMI_AGENT_IDENTITY, currentProjectMemory(binding.projectId)]
             .filter(Boolean).join('\n\n'),
+          systemPromptClosing: buildLanguageRule,
           tools: ports.tools, toolLifecycle: ports.toolLifecycle, input,
           tasks: tasks.resolve,
           spend: spend.resolve,

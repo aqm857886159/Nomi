@@ -96,6 +96,10 @@
 | effect-restore-drawing | 旧图重绘 | 一个断线矩形逐步接为完整墨线框，缺口用小色块连接 |
 | effect-scene-three-view | 场景三视图 | 三个相邻空框内，同一折角以三个方向展开 |
 | effect-storyboard-panels | 宽屏分镜 | 三个横向宽画框顺序排列，中间框有一小矩形 |
+| effect-multi-angle-grid | 多机位九宫格 | 三乘三方格阵，正中一格填蓝（本地绘制，非生成） |
+| effect-next-moment | 下一刻 | 左右两个宽画框，左框内空心小矩形、右框内同位移后的蓝色小矩形，中间一条短线（本地绘制） |
+| effect-prev-moment | 前一刻 | 同上，蓝色小矩形在左框、右框为空心（本地绘制） |
+| effect-story-four-panel | 剧情四宫格 | 二乘二宽画框，框内小矩形逐格变宽，末格填蓝（本地绘制） |
 | effect-transfer-expression | 参考表情 | 两张几何纸卡之间，一条弧线把弯曲线形传递到小色片 |
 
 ## 试产迭代

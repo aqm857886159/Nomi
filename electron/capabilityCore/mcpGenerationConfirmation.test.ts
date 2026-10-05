@@ -17,16 +17,18 @@ const challenge: GenerationGateChallengeProjection = {
   confirmationText: '允许 Nomi 在项目《短片 A》中使用模型 model-x，最多花费 ¥5，生成这一镜吗？',
 }
 
-function tick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0))
+// SDK 处理每一帧都是异步的：让事件循环转几圈再读回帧。
+async function tick(): Promise<void> {
+  for (let index = 0; index < 5; index += 1) await new Promise<void>((resolve) => setTimeout(resolve, 0))
 }
 
 async function initialized(transport: McpTransport) {
   const protocol = createMcpProtocol(transport)
   protocol.handleIncoming({
+    jsonrpc: '2.0',
     id: 1,
     method: 'initialize',
-    params: { capabilities: { elicitation: {} }, clientInfo: { name: 'Codex' } },
+    params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'Codex', version: '1' } },
   })
   await tick()
   return protocol
@@ -48,7 +50,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string; params: { message: string } }
     expect(request.params.message).toContain('最多花费 ¥5')
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'attestation-1' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'attestation-1' } } })
 
     await expect(resultPromise).resolves.toEqual({
       challengeId: 'challenge-1', confirmed: true, surface: 'client', nextAction: 'in_client',
@@ -110,7 +112,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const resultPromise = protocol.requestGenerationConfirmation(challenge)
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true } } })
     await expect(resultPromise).resolves.toEqual({
       challengeId: 'challenge-1', confirmed: true, surface: 'client', nextAction: 'in_client',
     })
@@ -134,7 +136,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const resultPromise = protocol.requestGenerationConfirmation(challenge)
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'invalid' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'invalid' } } })
     await expect(resultPromise).resolves.toMatchObject({
       challengeId: 'challenge-1', confirmed: true, surface: 'nomi', nextAction: 'in_nomi', receiptId: 'receipt-2',
     })
@@ -171,7 +173,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const resultPromise = protocol.requestGenerationConfirmation({ ...challenge, handoff: { clientAttestation: true, challengeToken: 'challenge-token' } })
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'signed-client-attestation' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true, attestation: 'signed-client-attestation' } } })
     await expect(resultPromise).resolves.toMatchObject({ surface: 'client', receiptId: 'receipt-semantic-1', receiptToken: 'token-semantic-1' })
     expect(confirmGenerationInNomi).not.toHaveBeenCalled()
     expect(verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1)
@@ -203,7 +205,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
     // 光秃秃的同意：没有 attestation 字段
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true } } })
     await expect(resultPromise).resolves.toMatchObject({ surface: 'client', receiptId: 'receipt-client-elicitation', receiptToken: 'token-client-elicitation' })
     // verifyClientGenerationConfirmation 被调（无论 attestation 字段是否存在），Nomi 确认卡不出现
     expect(verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1)
@@ -221,7 +223,7 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const resultPromise = protocol.requestGenerationConfirmation(challenge)
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
-    protocol.handleIncoming({ id: request.id, result: { action: 'decline' } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'decline' } })
     await expect(resultPromise).resolves.toMatchObject({ challengeId: 'challenge-1', confirmed: false, surface: 'client' })
   })
 })
@@ -258,7 +260,7 @@ describe('生产装配面：没有验证器时，客户端的同意换不来收�
     })
     await tick()
     const request = frames.find((f) => (f as { method?: string }).method === 'elicitation/create') as { id: string }
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content } })
     return promise
   }
 
@@ -356,7 +358,7 @@ describe('生产装配面：没有验证器时，客户端的同意换不来收�
     expect(request.params.message).toContain('#1 开场 · apimart · kling-v2 · 价格未知')
     expect(request.params.message).toContain('花多少事后才知道')
     expect(request.params.message).not.toMatch(/[¥$]\s?0(?!\d)/)
-    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: request.id, result: { action: 'accept', content: { confirm: true } } })
     await expect(promise).resolves.toMatchObject({ confirmed: true })
   })
 

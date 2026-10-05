@@ -11,7 +11,7 @@ import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, planModelSelection, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
-import { composerBarPlan, composerModeOptions } from './composerBarModel'
+import { composerBarPlan, composerModeOptions, shotAspectChoices, shotDurationChoices } from './composerBarModel'
 import {
   COMPOSER_CHIP_YIELD,
   composerModelChipMinWidth,
@@ -143,17 +143,11 @@ export default function ShotComposerBar({
 
   // 时长：视频镜=生成时长；图片镜=停留时长（进时间轴/顺播时这张图停几秒）。
   const effectiveDuration = effectiveShotDurationSec(shot)
-  const durationOptions = [...new Set([...DURATION_OPTIONS_SEC, ...(isImageShot ? [3] : []), effectiveDuration])]
-    .filter((sec) => Number.isFinite(sec) && sec > 0)
-    .sort((a, b) => a - b)
+  const durationOptions = shotDurationChoices(isImageShot, effectiveDuration, DURATION_OPTIONS_SEC)
     .map((sec) => ({ value: String(sec), label: t('storyboardEditor.second', { count: sec }) }))
 
-  // 画幅可选项 = 项目预设 ∪ 该模型档案声明的档 ∪ 当前值（档案声明了 adaptive 这类专有档时别丢）。
-  const aspectSelectOptions = [...new Set([
-    ...aspectOptions,
-    ...(mode?.params.find((control) => control.key === 'aspect_ratio')?.options ?? []).map((option) => String(option.value)),
-    ...(aspect ? [aspect] : []),
-  ])].map((value) => ({ value, label: value }))
+  // 画幅可选项 = 项目预设 ∪ 该模型档案声明的档 ∪ 当前值（判据在 shotAspectChoices）。
+  const aspectSelectOptions = shotAspectChoices(aspectOptions, mode, aspect).map((value) => ({ value, label: value }))
 
   // ── 让位第三步：都到下限了还装不下，就把可降级的枚举整枚挪进行尾 ⋯（2026-09-17 用户拍板方案 D）──
   // 判据是这一行自己那条 bar 的实测宽度 + 这一行真要渲染的那几个标签（见 composerBarGeometry）。

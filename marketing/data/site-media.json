@@ -504,11 +504,27 @@
     }
   },
   {
+    "source": "skills/effect-multi-angle-grid/assets/cover.png",
+    "sourceHash": "449055d2214bc1ef",
+    "files": {
+      "640": "/assets/library/effect-multi-angle-grid-640.webp",
+      "1280": "/assets/library/effect-multi-angle-grid-1280.webp"
+    }
+  },
+  {
     "source": "skills/effect-natural-texture/assets/cover.png",
     "sourceHash": "5d0b0836167bd6ee",
     "files": {
       "640": "/assets/library/effect-natural-texture-640.webp",
       "1280": "/assets/library/effect-natural-texture-1280.webp"
+    }
+  },
+  {
+    "source": "skills/effect-next-moment/assets/cover.png",
+    "sourceHash": "0a4ba1c4471bab19",
+    "files": {
+      "640": "/assets/library/effect-next-moment-640.webp",
+      "1280": "/assets/library/effect-next-moment-1280.webp"
     }
   },
   {
@@ -528,6 +544,14 @@
     }
   },
   {
+    "source": "skills/effect-prev-moment/assets/cover.png",
+    "sourceHash": "47e96329884b9806",
+    "files": {
+      "640": "/assets/library/effect-prev-moment-640.webp",
+      "1280": "/assets/library/effect-prev-moment-1280.webp"
+    }
+  },
+  {
     "source": "skills/effect-restore-drawing/assets/cover.png",
     "sourceHash": "fb4461dfb875616e",
     "files": {
@@ -541,6 +565,14 @@
     "files": {
       "640": "/assets/library/effect-scene-three-view-640.webp",
       "1280": "/assets/library/effect-scene-three-view-1280.webp"
+    }
+  },
+  {
+    "source": "skills/effect-story-four-panel/assets/cover.png",
+    "sourceHash": "5eb946c73f295b24",
+    "files": {
+      "640": "/assets/library/effect-story-four-panel-640.webp",
+      "1280": "/assets/library/effect-story-four-panel-1280.webp"
     }
   },
   {

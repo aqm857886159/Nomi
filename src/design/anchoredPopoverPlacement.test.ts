@@ -65,4 +65,20 @@ describe('resolveAnchoredPopoverPlacement', () => {
     )
     expect(at.left).toBe(300)
   })
+
+  it('side=top 上方放得下就贴在锚点上面（节点浮条的下拉：不压在图上）', () => {
+    const at = resolveAnchoredPopoverPlacement(
+      anchor({ left: 100, right: 140, top: 400, bottom: 420, width: 40 }),
+      { width: 200, height: 150 }, 'start', 6, viewport, 'top',
+    )
+    expect(at.top).toBe(400 - 6 - 150)
+  })
+
+  it('side=top 上方放不下就翻到下面（节点贴着画布上沿）', () => {
+    const at = resolveAnchoredPopoverPlacement(
+      anchor({ left: 100, right: 140, top: 60, bottom: 80, width: 40 }),
+      { width: 200, height: 150 }, 'start', 6, viewport, 'top',
+    )
+    expect(at.top).toBe(86)
+  })
 })

@@ -1,0 +1,22 @@
+  ✗ 资产走查中断：Error: expect(locator).toBeVisible() failed
+
+Locator: getByTestId('director-assets').locator('div.pl-6').filter({ hasText: 'chair' }).first()
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 5000ms
+  - waiting for getByTestId('director-assets').locator('div.pl-6').filter({ hasText: 'chair' }).first()
+
+✗ asset-tree：1 项失败 —— 资产走查中断：Error: expect(locator).toBeVisible() failed
+
+Locator: getByTestId('director-assets').locator('div.pl-6').filter({ hasText: 'chair' }).first()
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 5000ms
+  - waiting for getByTestId('director-assets').locator('div.pl-6').filter({ hasText: 'chair' }).first()
+

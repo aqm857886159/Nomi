@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { NOMI_OVERLAY_Z_INDEX, hasOpenDialogAbove, hasOpenPopupAbove, isInsidePopupAbove } from './overlayLayers'
-import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign } from './anchoredPopoverPlacement'
+import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type AnchoredPopoverSide } from './anchoredPopoverPlacement'
 
 /**
  * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。
@@ -65,6 +65,8 @@ export type AnchoredPopoverProps = {
   anchorRef?: React.RefObject<HTMLElement | null>
   /** 相对锚点的横向对齐。 */
   align?: AnchoredPopoverAlign
+  /** 先往哪边放（默认下方；放不下自动翻边）。 */
+  side?: AnchoredPopoverSide
   /** 锚点与浮层之间的缝。 */
   gap?: number
   /** 层级。默认走 overlayLayers 的 popover 档；调用方要压低（例如让位给更高的模态）才传。 */
@@ -79,6 +81,7 @@ type Placement = { top: number; left: number }
 export function AnchoredPopover({
   anchorRef,
   align = 'start',
+  side = 'bottom',
   gap = 4,
   zIndex,
   onClose,
@@ -98,8 +101,9 @@ export function AnchoredPopover({
       align,
       gap,
       { width: window.innerWidth, height: window.innerHeight },
+      side,
     ))
-  }, [align, anchorRef, gap])
+  }, [align, anchorRef, gap, side])
 
   // 两段式：先按估计尺寸放一次，渲染后按实测尺寸修正（修正前 visibility:hidden，不闪）。
   React.useLayoutEffect(reposition, [reposition])

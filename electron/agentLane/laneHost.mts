@@ -34,7 +34,7 @@ import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/l
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
@@ -206,6 +206,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 是浏览器也 import 的中立层，在那里 import 一个 pi 的函数就等于把整个 SDK 拖进渲染 bundle。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
+    isTransientError: isRetryableAssistantError,
     ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }) };
   const models = createModels({ credentials });
   models.setProvider(provider);
@@ -255,13 +256,16 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    * 粒度是回合不是请求：一个回合最多 `LANE_MAX_MODEL_REQUESTS` 次模型请求，按请求刷等于
    * 把技能库全量重扫乘 24，而且回合内会改口——那恰恰是评审裁决明确不要的行为。
    */
+  const composeClosing = (): string => typeof options.systemPromptClosing === 'function' ? options.systemPromptClosing() : options.systemPromptClosing ?? '';
   let promptRunId: string | undefined;
   let promptForRun = composeSystemPrompt();
+  let closingForRun = composeClosing();
   const systemPromptForRun = async (runId: string): Promise<string> => {
     if (runId === promptRunId) return promptForRun;
     promptRunId = runId;
     await native?.skillIndex.refresh();
     promptForRun = composeSystemPrompt();
+    closingForRun = composeClosing();
     return promptForRun;
   };
   const systemPrompt = promptForRun;
@@ -411,7 +415,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority].filter(Boolean).join('\n\n');
+    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority, closingForRun].filter(Boolean).join('\n\n');
     return { systemPrompt };
   });
 

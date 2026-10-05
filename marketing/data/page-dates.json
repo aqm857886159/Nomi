@@ -16,8 +16,8 @@
     "date": "2026-10-02"
   },
   "/en/models/agnes-image-2-1": {
-    "hash": "6243e91f9cf13dce",
-    "date": "2026-10-02"
+    "hash": "687ec8f473ea2054",
+    "date": "2026-10-05"
   },
   "/en/models/agnes-video-2-5": {
     "hash": "302ed622633d8770",
@@ -28,44 +28,44 @@
     "date": "2026-10-02"
   },
   "/en/models/flux-1-krea": {
-    "hash": "15b2f24aaefc1457",
-    "date": "2026-10-02"
+    "hash": "23e9b46c9c2ac6ae",
+    "date": "2026-10-05"
   },
   "/en/models/flux-2-klein": {
-    "hash": "e6cd1f43dcfcfa31",
-    "date": "2026-10-02"
+    "hash": "7d3e882bb53b741d",
+    "date": "2026-10-05"
   },
   "/en/models/flux-2-pro": {
-    "hash": "c00a5753a4260d06",
-    "date": "2026-10-02"
+    "hash": "0bab699b3ce20d21",
+    "date": "2026-10-05"
   },
   "/en/models/gemini-image-3-pro": {
-    "hash": "ba5b9d9d2ff79b1c",
-    "date": "2026-10-02"
+    "hash": "511bd10fd97cffa5",
+    "date": "2026-10-05"
   },
   "/en/models/gemini-omni-1-1-flash": {
     "hash": "120aaa5f15fe9877",
     "date": "2026-10-02"
   },
   "/en/models/gpt-image-2": {
-    "hash": "4672f0e6a3b31705",
-    "date": "2026-10-02"
+    "hash": "0d6370401ce9f861",
+    "date": "2026-10-05"
   },
   "/en/models/gpt-image-2-5-flare": {
-    "hash": "6da345cbe4ef5f66",
-    "date": "2026-10-02"
+    "hash": "92819f3b26c68036",
+    "date": "2026-10-05"
   },
   "/en/models/gpt-image-2-5-sunburst": {
-    "hash": "c57f54449fd5cb63",
-    "date": "2026-10-02"
+    "hash": "576eac3a2a349323",
+    "date": "2026-10-05"
   },
   "/en/models/grok-imagine-1-5": {
     "hash": "793cb28350226fe1",
     "date": "2026-10-02"
   },
   "/en/models/grok-imagine-image-2": {
-    "hash": "24c3564c1551023d",
-    "date": "2026-10-02"
+    "hash": "1c902f58918ad550",
+    "date": "2026-10-05"
   },
   "/en/models/hailuo-2-3": {
     "hash": "4e37fd99d1d79d8d",
@@ -76,12 +76,12 @@
     "date": "2026-10-02"
   },
   "/en/models/imagen-4-fast": {
-    "hash": "aac7a4daca8eed8e",
-    "date": "2026-10-02"
+    "hash": "2d63ec1fd3602e4d",
+    "date": "2026-10-05"
   },
   "/en/models/imagen-4-ultra": {
-    "hash": "16751566e35713f8",
-    "date": "2026-10-02"
+    "hash": "92131cc727ef8bdd",
+    "date": "2026-10-05"
   },
   "/en/models/kling-3-0": {
     "hash": "a1c338fcbe373c48",
@@ -100,32 +100,32 @@
     "date": "2026-10-02"
   },
   "/en/models/muse-image": {
-    "hash": "6661a9528ac50f79",
-    "date": "2026-10-02"
+    "hash": "51f79bd62340e159",
+    "date": "2026-10-05"
   },
   "/en/models/nano-banana-2": {
-    "hash": "355475ccf8d9bf68",
-    "date": "2026-10-02"
+    "hash": "f889ac82e4797eb0",
+    "date": "2026-10-05"
   },
   "/en/models/nano-banana-2-lite": {
-    "hash": "efba4b8a73ffb9ec",
-    "date": "2026-10-02"
+    "hash": "494268159811baf2",
+    "date": "2026-10-05"
   },
   "/en/models/qwen-image": {
-    "hash": "ac3ed8282ccdbd0d",
-    "date": "2026-10-02"
+    "hash": "a34cf2dca6e1ddbe",
+    "date": "2026-10-05"
   },
   "/en/models/qwen-image-3-0": {
-    "hash": "c115e2bfcad57317",
-    "date": "2026-10-02"
+    "hash": "70616c43fc0a7fb4",
+    "date": "2026-10-05"
   },
   "/en/models/runway-gen-4-5": {
     "hash": "d07387b2671da8b9",
     "date": "2026-10-02"
   },
   "/en/models/runway-gen-4-image": {
-    "hash": "ca4bf8e3c33a6495",
-    "date": "2026-10-02"
+    "hash": "9898cb29881ca89e",
+    "date": "2026-10-05"
   },
   "/en/models/runway-gen-4-turbo": {
     "hash": "ccb5bf123b2ff2da",
@@ -136,20 +136,20 @@
     "date": "2026-10-02"
   },
   "/en/models/seedream-5-0-lite": {
-    "hash": "7e2da755dfae973f",
-    "date": "2026-10-02"
+    "hash": "2066c427e15d9edc",
+    "date": "2026-10-05"
   },
   "/en/models/seedream-5-0-pro": {
-    "hash": "6292201256bdc4f2",
-    "date": "2026-10-02"
+    "hash": "10196b27557ec476",
+    "date": "2026-10-05"
   },
   "/en/models/soul-2": {
-    "hash": "1c48a62634fbfb47",
-    "date": "2026-10-02"
+    "hash": "3e09ac349cb28d3f",
+    "date": "2026-10-05"
   },
   "/en/models/soul-cinema": {
-    "hash": "9cf89c76a56ed5a6",
-    "date": "2026-10-02"
+    "hash": "15fb65625c53aad4",
+    "date": "2026-10-05"
   },
   "/en/models/veo-3-1": {
     "hash": "9733c42a68f9e3e9",
@@ -164,24 +164,24 @@
     "date": "2026-10-02"
   },
   "/en/models/z-image": {
-    "hash": "cfbbd592fe401c92",
-    "date": "2026-10-02"
+    "hash": "c4bfcdfc33156d94",
+    "date": "2026-10-05"
   },
   "/en/models/z-image-turbo": {
-    "hash": "474b47eee242d481",
-    "date": "2026-10-02"
+    "hash": "a0aee4284520c3a2",
+    "date": "2026-10-05"
   },
   "/en/prompts": {
-    "hash": "e1415a3bde4e367b",
-    "date": "2026-10-02"
+    "hash": "5a3528b2b6e3657b",
+    "date": "2026-10-05"
   },
   "/en/prompts/camera": {
-    "hash": "f47d9fa97e5c99bb",
-    "date": "2026-10-02"
+    "hash": "71a40a3c2f0ad04a",
+    "date": "2026-10-05"
   },
   "/en/prompts/character": {
-    "hash": "b27f1b85c8bac174",
-    "date": "2026-10-02"
+    "hash": "81269ed7ec0d78c0",
+    "date": "2026-10-05"
   },
   "/en/prompts/collections/evolink-gpt-image-2": {
     "hash": "95902006996a94a5",
@@ -204,28 +204,28 @@
     "date": "2026-10-02"
   },
   "/en/prompts/composition": {
-    "hash": "dcc115643b67a00d",
-    "date": "2026-10-02"
+    "hash": "e6b642ae90098d33",
+    "date": "2026-10-05"
   },
   "/en/prompts/editing": {
-    "hash": "2b6212349a688221",
-    "date": "2026-10-02"
+    "hash": "cfbce24b3c3125bb",
+    "date": "2026-10-05"
   },
   "/en/prompts/expressions": {
     "hash": "aa1a429458b484f9",
     "date": "2026-10-02"
   },
   "/en/prompts/natural-texture": {
-    "hash": "33e90761b0bd9df1",
-    "date": "2026-10-02"
+    "hash": "40c7079907e03980",
+    "date": "2026-10-05"
   },
   "/en/prompts/scene": {
-    "hash": "1453e37a1849c261",
-    "date": "2026-10-02"
+    "hash": "74f2bbe82591e1ec",
+    "date": "2026-10-05"
   },
   "/en/prompts/storyboard": {
-    "hash": "27b19b6c72c62e04",
-    "date": "2026-10-02"
+    "hash": "44afe1740d5e6fd7",
+    "date": "2026-10-05"
   },
   "/en/quickstart": {
     "hash": "e8a9f528f708eeef",
@@ -436,8 +436,8 @@
     "date": "2026-10-02"
   },
   "/models/agnes-image-2-1": {
-    "hash": "124beac592760cec",
-    "date": "2026-10-02"
+    "hash": "bce80bbdbb4ca1ae",
+    "date": "2026-10-05"
   },
   "/models/agnes-video-2-5": {
     "hash": "256b2be0b44a8054",
@@ -448,44 +448,44 @@
     "date": "2026-10-02"
   },
   "/models/flux-1-krea": {
-    "hash": "7095f44a2bc03bf2",
-    "date": "2026-10-02"
+    "hash": "8001116616b39c72",
+    "date": "2026-10-05"
   },
   "/models/flux-2-klein": {
-    "hash": "16f434e0743c609c",
-    "date": "2026-10-02"
+    "hash": "075521a9966f12f2",
+    "date": "2026-10-05"
   },
   "/models/flux-2-pro": {
-    "hash": "28104bc50305c585",
-    "date": "2026-10-02"
+    "hash": "0ee89bbd13cb5ce1",
+    "date": "2026-10-05"
   },
   "/models/gemini-image-3-pro": {
-    "hash": "41bdf783233d26d1",
-    "date": "2026-10-02"
+    "hash": "e1b4f373aad86ec8",
+    "date": "2026-10-05"
   },
   "/models/gemini-omni-1-1-flash": {
     "hash": "7295fd19434b8f57",
     "date": "2026-10-02"
   },
   "/models/gpt-image-2": {
-    "hash": "024e3c0bf042c677",
-    "date": "2026-10-02"
+    "hash": "61c5b223fe454f0f",
+    "date": "2026-10-05"
   },
   "/models/gpt-image-2-5-flare": {
-    "hash": "f1a76bc6464c5b2f",
-    "date": "2026-10-02"
+    "hash": "8f52b2a77345b95a",
+    "date": "2026-10-05"
   },
   "/models/gpt-image-2-5-sunburst": {
-    "hash": "b50407d7948f4a32",
-    "date": "2026-10-02"
+    "hash": "2d57d57d2c3a5631",
+    "date": "2026-10-05"
   },
   "/models/grok-imagine-1-5": {
     "hash": "5312507992589656",
     "date": "2026-10-02"
   },
   "/models/grok-imagine-image-2": {
-    "hash": "7dd5a04f3c6074f2",
-    "date": "2026-10-02"
+    "hash": "ed1b3cba9c55b2ba",
+    "date": "2026-10-05"
   },
   "/models/hailuo-2-3": {
     "hash": "d21af23483e54b55",
@@ -496,12 +496,12 @@
     "date": "2026-10-02"
   },
   "/models/imagen-4-fast": {
-    "hash": "9d5c82ce3addf789",
-    "date": "2026-10-02"
+    "hash": "e6660dba3036dc6e",
+    "date": "2026-10-05"
   },
   "/models/imagen-4-ultra": {
-    "hash": "b6a67f8542069848",
-    "date": "2026-10-02"
+    "hash": "118b03c7fe95017b",
+    "date": "2026-10-05"
   },
   "/models/kling-3-0": {
     "hash": "eb8abfe6818fdbb2",
@@ -520,32 +520,32 @@
     "date": "2026-10-02"
   },
   "/models/muse-image": {
-    "hash": "49f992bba5766fba",
-    "date": "2026-10-02"
+    "hash": "60c1a6d6dfade2e5",
+    "date": "2026-10-05"
   },
   "/models/nano-banana-2": {
-    "hash": "673cf81f96f654c9",
-    "date": "2026-10-02"
+    "hash": "e72e0dbe7f7e126f",
+    "date": "2026-10-05"
   },
   "/models/nano-banana-2-lite": {
-    "hash": "6628b20ede5d772d",
-    "date": "2026-10-02"
+    "hash": "1a78477c66fd9106",
+    "date": "2026-10-05"
   },
   "/models/qwen-image": {
-    "hash": "5370bf300f00476b",
-    "date": "2026-10-02"
+    "hash": "5f3e021f79678004",
+    "date": "2026-10-05"
   },
   "/models/qwen-image-3-0": {
-    "hash": "b716ab16d68f5cff",
-    "date": "2026-10-02"
+    "hash": "9ce2cf9d1c292ea5",
+    "date": "2026-10-05"
   },
   "/models/runway-gen-4-5": {
     "hash": "4890cd2a294a6bc7",
     "date": "2026-10-02"
   },
   "/models/runway-gen-4-image": {
-    "hash": "bc4d188164044ee5",
-    "date": "2026-10-02"
+    "hash": "7f47c4baa6d879b5",
+    "date": "2026-10-05"
   },
   "/models/runway-gen-4-turbo": {
     "hash": "e8b3c3ddd36baa91",
@@ -556,20 +556,20 @@
     "date": "2026-10-02"
   },
   "/models/seedream-5-0-lite": {
-    "hash": "e04e9a21c6c5f770",
-    "date": "2026-10-02"
+    "hash": "6ad499b60ea9a8da",
+    "date": "2026-10-05"
   },
   "/models/seedream-5-0-pro": {
-    "hash": "139da0636a4481ae",
-    "date": "2026-10-02"
+    "hash": "2663d42dfea1e440",
+    "date": "2026-10-05"
   },
   "/models/soul-2": {
-    "hash": "a9b46e27d4e40aa8",
-    "date": "2026-10-02"
+    "hash": "e16b12bdec4a3351",
+    "date": "2026-10-05"
   },
   "/models/soul-cinema": {
-    "hash": "f556da924cad8469",
-    "date": "2026-10-02"
+    "hash": "4be4d714ee15d4fb",
+    "date": "2026-10-05"
   },
   "/models/veo-3-1": {
     "hash": "9c129fc1cd3f17e4",
@@ -584,24 +584,24 @@
     "date": "2026-10-02"
   },
   "/models/z-image": {
-    "hash": "d3dacc7bab5d210d",
-    "date": "2026-10-02"
+    "hash": "f4d26aedf8cef4c9",
+    "date": "2026-10-05"
   },
   "/models/z-image-turbo": {
-    "hash": "7c302dc65997b566",
-    "date": "2026-10-02"
+    "hash": "e144f9605a0d9907",
+    "date": "2026-10-05"
   },
   "/prompts": {
-    "hash": "260abded3b28d9c1",
-    "date": "2026-10-02"
+    "hash": "f5752cb84d264424",
+    "date": "2026-10-05"
   },
   "/prompts/camera": {
-    "hash": "54e5fb2be7a1c027",
-    "date": "2026-10-02"
+    "hash": "98643462b30822d6",
+    "date": "2026-10-05"
   },
   "/prompts/character": {
-    "hash": "b20577ba77a8e344",
-    "date": "2026-10-02"
+    "hash": "5047fd9358e24f9f",
+    "date": "2026-10-05"
   },
   "/prompts/collections/evolink-gpt-image-2": {
     "hash": "203b403582e5a141",
@@ -624,28 +624,28 @@
     "date": "2026-10-02"
   },
   "/prompts/composition": {
-    "hash": "fdad06e15467d280",
-    "date": "2026-10-02"
+    "hash": "c83024c13f52f2f5",
+    "date": "2026-10-05"
   },
   "/prompts/editing": {
-    "hash": "e6dd5b4f87249edc",
-    "date": "2026-10-02"
+    "hash": "d4e0bdb2ad14b278",
+    "date": "2026-10-05"
   },
   "/prompts/expressions": {
     "hash": "5f7bb95f2cc86ce2",
     "date": "2026-10-02"
   },
   "/prompts/natural-texture": {
-    "hash": "1c49bec17d68cb62",
-    "date": "2026-10-02"
+    "hash": "cde08bdfb6289119",
+    "date": "2026-10-05"
   },
   "/prompts/scene": {
-    "hash": "6e58b332ec411a05",
-    "date": "2026-10-02"
+    "hash": "6f5faae389fdf13a",
+    "date": "2026-10-05"
   },
   "/prompts/storyboard": {
-    "hash": "b7d7a10031b2c3d9",
-    "date": "2026-10-02"
+    "hash": "baf364c50c035431",
+    "date": "2026-10-05"
   },
   "/quickstart": {
     "hash": "5a75b886612268e7",

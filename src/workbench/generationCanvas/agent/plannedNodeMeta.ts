@@ -13,6 +13,7 @@ import {
   type ModelArchetype,
 } from "../../../../electron/shared/modelArchetypes";
 import { pickImplicitVendorMatch } from "../../../config/modelIdentity";
+import { aspectRatioControlsOf, placeAspectRatio } from "../../../../electron/shared/aspectRatioValue";
 
 export type PlannedNodeModelInput = {
   modelKey?: unknown;
@@ -162,10 +163,15 @@ export function buildPlannedNodeMeta(
     if (control.defaultValue !== undefined) meta[control.key] = control.defaultValue;
   }
   // 2) agent 的合法参数覆盖（非法值丢弃，保留默认）
-  const rawParams =
+  //    比例意图（分镜的比例槽 `aspect_ratio` / 语义键 `aspectRatio`）先按这个模式的比例控件翻成真实键——
+  //    与宿主准入同一个判据（`electron/shared/aspectRatioValue.ts`）。以前这里只认同名控件：整片 16:9 落到
+  //    Z-Image（比例键叫 `size`）上被当未知键丢掉，节点是出厂 1:1。
+  const rawParams = placeAspectRatio(
     planned.params && typeof planned.params === "object" && !Array.isArray(planned.params)
       ? (planned.params as Record<string, unknown>)
-      : {};
+      : {},
+    aspectRatioControlsOf(mode.params),
+  ).parameters;
   for (const control of mode.params) {
     const value = rawParams[control.key];
     if (value === undefined) continue;

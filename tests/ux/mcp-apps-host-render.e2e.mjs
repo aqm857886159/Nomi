@@ -83,7 +83,7 @@ try {
   for (let i = 0; i < 20 && !init; i++) {
     // MCP Apps 的 UI 扩展独立于核心协议版本协商；Nomi 当前支持的核心版本是
     // 2025-11-25，不能把扩展规范日期误当成 initialize.protocolVersion。
-    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: { extensions: { [UI_EXT]: { mimeTypes: [MIME] } } } }, 4000) } catch { await new Promise((r) => setTimeout(r, 1000)) }
+    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: { extensions: { [UI_EXT]: { mimeTypes: [MIME] } } }, clientInfo: { name: 'mcp-apps-host-render', version: '1.0' } }, 4000) } catch { await new Promise((r) => setTimeout(r, 1000)) }
   }
   ok(init?.result, '真 Nomi stdio server 起来了（app 二进制 NOMI_MCP_STDIO）')
 

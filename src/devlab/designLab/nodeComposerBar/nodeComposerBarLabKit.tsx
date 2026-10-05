@@ -55,7 +55,7 @@ export type BarKind = 'video' | 'image'
  * 没有浮框的图。它还是**间歇性**的（chunk 先到就正常），所以不是「等久一点」能解决的东西：
  * 这里把 chunk 变成舞台自己的前置条件，加载完再挂节点，就绪旗自然落在它后面。
  */
-const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
+export const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
 
 // ── 只读目录桥 ────────────────────────────────────────────────────────────────
 // 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveArchetypeForModel 落空、
@@ -101,7 +101,7 @@ const CATALOG_VENDORS = [
   },
 ]
 
-function installCatalogBridge(): void {
+export function installCatalogBridge(): void {
   ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = {
     modelCatalog: {
       listVendors: () => CATALOG_VENDORS,

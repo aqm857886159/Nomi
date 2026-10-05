@@ -128,23 +128,30 @@ export function PendingGenerationPlaceholder({
   selected,
   needsFirstFrame,
   waitingUpstream = false,
+  derivedReady = false,
   kind,
 }: {
   selected: boolean
   needsFirstFrame: boolean
   waitingUpstream?: boolean
+  /** 派生出来、提示词已填好、还没生成（`isDerivedPromptReady`）。 */
+  derivedReady?: boolean
   kind: string
 }): JSX.Element {
   const { t } = useTranslation()
   const isVideo = kind === 'video'
   // 3D 模型节点也走这条通用占位（无专属卡 body）。不按 kind 分就会拿图片文案自称「图片节点」。
   const isModel3d = kind === 'model3d'
-  const titleText = isVideo
+  const titleText = derivedReady
+    ? t('generationCommon.nodeEmpty.derivedReady.title')
+    : isVideo
     ? t('generationCommon.nodeEmpty.video.title')
     : isModel3d
       ? t('generationCommon.nodeEmpty.model3d.title')
       : t('generationCommon.nodeEmpty.image.title')
-  const description = waitingUpstream
+  const description = derivedReady
+    ? t('generationCommon.nodeEmpty.derivedReady.description')
+    : waitingUpstream
     ? t('generationCommon.nodeEmpty.waiting')
     : needsFirstFrame
       ? t('generationCommon.nodeEmpty.firstFrame')

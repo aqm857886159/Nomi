@@ -1,0 +1,15 @@
+{
+  "dataset": "intent-draft",
+  "gitCommit": "fixture",
+  "smoke": false,
+  "trials": 1,
+  "startedAt": "2026-10-05T00:00:00.000Z",
+  "cases": [
+    "it-zh-01",
+    "it-en-03",
+    "it-zh-11",
+    "it-en-05",
+    "it-en-02"
+  ],
+  "_doc": "零额度夹具：手写的事件轨迹，只用来跑通 eval:score 的意图评分管线，不代表任何真模型的表现。"
+}

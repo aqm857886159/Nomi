@@ -184,6 +184,13 @@ export interface OpenLaneOptions {
    * 只有冷启动才生效。给函数时 `openLane` 每个回合重新求值（`transform_context`）。
    */
   systemPrompt: string | (() => string)
+  /**
+   * 殿后的一段：拼在**整份最终系统提示的最末尾**（技能、引用、权限清单之后）。回复语言规则放这里——
+   * 提示词主体几乎全是中文，规则只在最前面一次，英文界面会被后面的大段中文带回中文
+   * （老 `composeAgentSystemPrompt` 首尾各放一次，就是被用户抓过中英混答）。定义仍只有 `buildLanguageRule` 一处。
+   * 与 `systemPrompt` 同一条纪律：给函数，每个回合求值一次。
+   */
+  systemPromptClosing?: string | (() => string)
   /** Snapshot the composer per message; activate only after pi consumes that message. */
   input?: {
     capture(): LaneComposerContext
@@ -259,6 +266,8 @@ export type RunLaneSingleShot = (options: {
   fetch: typeof globalThis.fetch
   model: NomiModelConfig
   systemPrompt?: string
+  /** 见 `OpenLaneOptions.systemPromptClosing`：拼在整份提示的最末尾。 */
+  systemPromptClosing?: string
   prompt: string
   input?: OpenLaneOptions['input']
   signal?: AbortSignal

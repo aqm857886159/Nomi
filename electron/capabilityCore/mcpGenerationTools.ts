@@ -31,6 +31,7 @@ import {
   candidateHasCharacterReference,
   candidatesForCurrentVideoModel,
   modelSupportsReferenceImage,
+  normalizeAuthoredCandidate,
   normalizeVideoCandidate,
   shotDurationSeconds,
   videoCandidateForPlan,
@@ -475,7 +476,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // gate_request seals. Neither `shots` nor `scriptText` → single-shot (today, byte-identical).
       const draftShots = await resolveCreateShots(input.lease.projectId, params);
       if (draftShots) {
-        const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeVideoCandidate(shot.candidate, deps.videoModelCandidates) }));
+        const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, deps.registry, deps.videoModelCandidates) }));
         // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
         for (const shot of normalizedShots) admitShotIdentity(shot.candidate, deps.registry, shot.role);
         // 顶层 candidate = 第一个 shot 的 candidate (reducer seal 硬要顶层 contract 匹配顶层 draft candidate,
@@ -515,7 +516,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
         deps.assertReferencesResolvable(input.lease.projectId, singleCandidate.references);
       }
-      const normalizedSingle = normalizeVideoCandidate(singleCandidate, deps.videoModelCandidates);
+      const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, deps.registry, deps.videoModelCandidates);
       admitShotIdentity(normalizedSingle, deps.registry);
       const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedSingle, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
       const savedSingle = await saveDocumentPlan(capturedProjectId, input.origin, operation.operationId,

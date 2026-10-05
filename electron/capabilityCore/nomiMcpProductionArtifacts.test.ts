@@ -105,9 +105,9 @@ describe('external MCP production artifact reads', () => {
     const { protocol, frames, invoke } = harness()
     invoke.mockResolvedValueOnce({
       artifactId: 'artifact-script-v2', projectId: 'project-1', runId: 'run-1', kind: 'script', version: 2,
-      content: { title: 'safe', sourcePath: '/Users/aoqimin/private/script.json', providerUrl: 'https://provider.example/run' },
+      content: { title: 'safe', scenes: [], sourcePath: '/Users/aoqimin/private/script.json', providerUrl: 'https://provider.example/run' } as never,
       apiKey: 'do-not-leak', authorization: 'Bearer secret',
-    })
+    } as never)
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 5, method: 'resources/read',
       params: { uri: 'nomi://project/project-1/run/run-1/artifact/artifact-script-v2' },
@@ -125,7 +125,7 @@ describe('external MCP production artifact reads', () => {
     const { protocol, frames, invoke } = harness()
     invoke.mockResolvedValueOnce({
       artifactId: 'artifact-script-v2', projectId: 'project-1', runId: 'run-1', kind: 'script', status: 'adopted',
-      version: 2, contentHash: 'hash-script-v2', content: { title: 'safe' }, openInNomi: 'javascript:alert(1)',
+      version: 2, contentHash: 'hash-script-v2', source: 'fixture', nomiUri: 'nomi://artifact-script-v2', content: { title: 'safe', scenes: [] }, openInNomi: 'javascript:alert(1)',
     })
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 6, method: 'tools/call',

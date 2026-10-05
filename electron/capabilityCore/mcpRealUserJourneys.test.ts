@@ -153,7 +153,7 @@ describe('MCP production entrypoint user journeys', () => {
         jsonrpc: '2.0',
         id: 1,
         method: 'initialize',
-        params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'CI MCP user' } },
+        params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'CI MCP user', version: '1' } },
       })
       await settle()
       expect((responseFor(frames, 1).result as unknown as { protocolVersion?: string })?.protocolVersion).toBe('2025-11-25')
@@ -236,7 +236,6 @@ describe('MCP production entrypoint user journeys', () => {
         { id: 21, name: 'nomi_operation_plan', args: {} },
         { id: 22, name: 'nomi_operation_plan', args: { leaseHandle: 'lease-1', unexpected: true } },
         { id: 23, name: 'nomi_operation_control', args: { leaseHandle: 'lease-1', operationId: 'operation-1', action: 'explode' } },
-        { id: 24, name: 'nomi_read', args: null },
       ]
 
       for (const testCase of cases) {
@@ -244,6 +243,10 @@ describe('MCP production entrypoint user journeys', () => {
         expect(result?.isError).toBe(true)
         expect(errorCode(result)).toBe('capability_input_invalid')
       }
+      // `arguments` 不是对象（这里是 null）按规范是畸形请求：SDK 在进工具之前就回协议级 -32602，领域照样不被触达。
+      protocol.handleIncoming({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: { name: 'nomi_read', arguments: null } })
+      await vi.waitFor(() => expect(frames.find((frame) => frame.id === 24)).toBeDefined())
+      expect((frames.find((frame) => frame.id === 24) as { error?: { code?: number } }).error?.code).toBe(-32602)
       expect(calls).toHaveLength(0)
     } finally {
       protocol.dispose()

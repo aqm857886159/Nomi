@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
+import { isRetryableAssistantError } from '@earendil-works/pi-ai'
 import { projectLaneSnapshot } from './laneProjection'
 
 const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
@@ -21,6 +22,60 @@ describe('lane provider failure visibility', () => {
       kind: 'error', text: 'Connection closed before a response.', entryId: 'failed', sequence: 0, entrySeq: 1, contentIndex: 0,
     }])
     expect(projection.running).toBe(false)
+  })
+})
+
+describe('lane provider failure: transient / recovered', () => {
+  const facts = { pricing: 'unpriced' as const, supportedThinkingLevels: ['off' as const], isTransientError: isRetryableAssistantError }
+  type Entry = LaneSnapshot['transcript'][number]
+  const assistant = (id: string, seq: number, extra: Record<string, unknown>): Entry => ({ id, parentId: null, seq, timestamp: seq, type: 'message' as const, message: {
+    role: 'assistant' as const, content: [], api: 'openai-completions', provider: 'fixture', model: 'fixture', usage, timestamp: seq, ...extra } } as unknown as Entry)
+  const user = (id: string, seq: number): Entry => ({ id, parentId: null, seq, timestamp: seq, type: 'message' as const, message: { role: 'user' as const, content: 'hi', timestamp: seq } } as Entry)
+  const lane = (transcript: LaneSnapshot['transcript']): LaneSnapshot => ({
+    lane: 'main', tipId: 'tip', operation: null, queues: [], faulted: false,
+    configuration: { model: { provider: 'fixture', modelId: 'fixture' }, thinkingLevel: 'off', activeToolNames: [] },
+    stats: { messageCount: transcript.length, usage }, transcript })
+  const errors = (transcript: LaneSnapshot['transcript']) => projectLaneSnapshot(lane(transcript), facts).parts.filter((part) => part.kind === 'error')
+
+  it('marks a dropped connection transient via pi, and a plain failure not', () => {
+    const [connection] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' })])
+    expect(connection).toMatchObject({ kind: 'error', transient: true })
+    const [plain] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Invalid schema for tool x' })])
+    expect(plain).not.toHaveProperty('transient')
+  })
+
+  it('an error followed by a settled assistant reply in the same turn is recovered', () => {
+    const [failure] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' }),
+      assistant('ok', 3, { stopReason: 'stop', content: [{ type: 'text', text: 'done' }] })])
+    expect(failure).toMatchObject({ kind: 'error', recovered: true })
+  })
+
+  it('two errors in a row followed by success: both are recovered', () => {
+    const found = errors([user('u', 1), assistant('e1', 2, { stopReason: 'error', errorMessage: 'Connection error.' }),
+      assistant('e2', 3, { stopReason: 'error', errorMessage: 'Request timed out.' }), assistant('ok', 4, { stopReason: 'stop' })])
+    expect(found).toHaveLength(2)
+    for (const failure of found) expect(failure).toMatchObject({ recovered: true })
+  })
+
+  it('an error with nothing after it stays an error, and a reply in the NEXT turn does not heal it', () => {
+    const [last] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' })])
+    expect(last).not.toHaveProperty('recovered')
+    const [old] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' }),
+      user('u2', 3), assistant('ok', 4, { stopReason: 'stop' })])
+    expect(old).not.toHaveProperty('recovered')
+  })
+
+  it('a user stop (aborted) after the error is not a recovery', () => {
+    const [failure] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' }),
+      assistant('stopped', 3, { stopReason: 'aborted' })])
+    expect(failure).not.toHaveProperty('recovered')
+  })
+
+  it('a streaming retry in flight counts as recovered', () => {
+    const snapshot = lane([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.' })])
+    const streaming = { ...snapshot, operation: { status: 'open', runningTools: [], streamingMessage: (assistant('s', 3, { stopReason: 'stop' }) as { message: unknown }).message } } as unknown as LaneSnapshot
+    const [failure] = projectLaneSnapshot(streaming, facts).parts.filter((part) => part.kind === 'error')
+    expect(failure).toMatchObject({ recovered: true })
   })
 })
 
