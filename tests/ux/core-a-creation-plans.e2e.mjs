@@ -116,7 +116,7 @@ try {
     await expect(sharedEditor, 'Agent plans must open the existing storyboard editor').toBeVisible()
     await expect(sharedEditor.locator('[data-storyboard-bulkbar]')).toBeVisible()
     await expect(sharedEditor.locator('[data-storyboard-row]')).toHaveCount(1)
-    for (const selector of ['[data-storyboard-frame]', '[data-storyboard-refzone]', '[data-storyboard-prompt-block]']) {
+    for (const selector of ['[data-storyboard-frame]', '[data-storyboard-visual-column]', '[data-storyboard-prompt-block]']) {
       await expect(sharedEditor.locator(selector), 'Existing shot editing regions must remain reachable').toBeVisible()
     }
     await expect(sharedEditor.locator('[data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText(`Prompt ${id}`)
