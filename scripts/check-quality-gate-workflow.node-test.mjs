@@ -332,8 +332,8 @@ test('package scripts expose canonical separated profiles and classifier contrac
   assert.equal(scripts['test:system:performance'], 'python3 scripts/with-gates-lock.py -- node scripts/test-system.mjs ci-performance')
   assert.equal(scripts['test:canvas:performance'], 'python3 scripts/with-gates-lock.py -- node tests/ux/canvas-real-suite.mjs performance')
   // 棘轮只减不增：2026-09-06 v4 接线删掉旧面板后降到 81；2026-09-22 总合并清完合并带来的
-  // 未用 import 与两处 prefer-const 后降到 79。调高需要理由，调低直接改这一行。
-  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=79')
+  // 保护区保留 9 条既有 warning。调高需要理由，调低直接改这一行。
+  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=9')
   assert.match(scripts['check:quality-gate-workflow'], /validation-policy\.node-test\.mjs/)
   assert.match(scripts['check:quality-gate-workflow'], /real-user-test-gates\.node-test\.mjs/)
 })
