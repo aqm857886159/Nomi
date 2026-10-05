@@ -1,7 +1,7 @@
 import type { ProductionGenerationPlan } from '../productionRun/productionRunTypes'
 import { currentPresentation, presentationIsOpen } from '../shared/productionGenerationPresentation'
 
-// 回合等付费卡时，「卡关了没有」只问 Run 账本（2026-10-05，替掉进程内转接表 `spendDecisionWaiters`）。
+// 回合等付费卡时，「卡关了没有」只问 Run 账本（2026-10-05，替掉进程内转接表）。
 // 纯函数：读和订阅都由调用方给——生产里是 Run 服务与它的变更订阅（`laneDesktopSpend.ts`），测试里是夹具账本。
 
 /** 这一次出价的身份：开出来那一刻 + 它从哪道门开始算（和 `appIntegrationSpendConfirm.openPresentationOf` 同一个键）。 */

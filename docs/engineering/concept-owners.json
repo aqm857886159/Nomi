@@ -107,7 +107,7 @@
         "src/workbench/generationCanvas/spend/spendConfirm.ts"
       ],
       "since": "2026-09-22",
-      "notes": "pending：DTO 不是 durable owner，只是跨进程投影契约。durable identity 目标是 ProductionRun/ProductionGenerationPlan.operationId（projectId + operationId）；quoteId 只表示报价/版本指纹。当前消费者包括 electron/productionRun/productionPendingSpend.ts、src/workbench/ai/v4/spendCardDraft.ts 以及对应 Agent projection（2026-10-05 起待决出价随对话投影推给面板，渲染层拉取它的 IPC 与进程内转接表 spendDecisionWaiters 已删）；现有消费者允许继续读，新写消费者在 owner promotion 前禁止。直接画布 electron/spendQuote.ts + electron/spendGrant.ts 使用 nodeId + quoteId，是另一个 bounded context，记录为迁移候选，不得冒充全局待决身份。 2026-10-05 第一刀第 1–2 步：直接画布的单节点入口不再铸令牌（generationRunController.authorizeSingleNode 只给文本与本地 ComfyUI 两类登记例外铸，到期：第二刀传输合一）；批准写进各自的单镜 Run（主进程手势收据）。批量（confirmAndMintGrant）与附属付费口（试跑、认证、视频拆解、新手试生成、提示词提取）仍用令牌，到期：第一刀第 3–4 步。"
+      "notes": "pending：DTO 不是 durable owner，只是跨进程投影契约。durable identity 目标是 ProductionRun/ProductionGenerationPlan.operationId（projectId + operationId）；quoteId 只表示报价/版本指纹。当前消费者包括 electron/productionRun/productionPendingSpend.ts、src/workbench/ai/v4/spendCardDraft.ts 以及对应 Agent projection（2026-10-05 起待决出价随对话投影推给面板，渲染层拉取它的 IPC 与进程内转接已由 Run 账本统一）；现有消费者允许继续读，新写消费者在 owner promotion 前禁止。直接画布 electron/spendQuote.ts + electron/spendGrant.ts 使用 nodeId + quoteId，是另一个 bounded context，记录为迁移候选，不得冒充全局待决身份。 2026-10-05 第一刀第 1–2 步：直接画布的单节点入口不再铸令牌（generationRunController.authorizeSingleNode 只给文本与本地 ComfyUI 两类登记例外铸，到期：第二刀传输合一）；批准写进各自的单镜 Run（主进程手势收据）。批量（confirmAndMintGrant）与附属付费口（试跑、认证、视频拆解、新手试生成、提示词提取）仍用令牌，到期：第一刀第 3–4 步。"
     },
     {
       "name": "参数准入",

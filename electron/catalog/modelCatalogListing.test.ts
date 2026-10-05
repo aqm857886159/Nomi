@@ -339,6 +339,6 @@ describe("modelCatalogListing 的导出面", () => {
       "mappingsForModel",
       "modelModeBodies",
     ]);
-    // 2026-10-05：referenceModeForIntent / videoBodyKeysForModel 只服务于已删的 core.generateOnProject，随它一起删（P1）。
+    // 2026-10-05：referenceModeForIntent / videoBodyKeysForModel 只服务于已删的主进程单镜生成编排，随它一起删（P1）。
   });
 });
