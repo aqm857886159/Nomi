@@ -100,8 +100,12 @@ export function applyCanvasAutoReference(sourceId: string, ignoredTitles: Readon
 
 /** 系统给的默认标题（中英两份）：它们会在提示词里自然出现，不能当「名字」。 */
 function defaultTitles(): Set<string> {
-  const keys = ['referenceImage', 'referenceVideo', 'prompt', 'webMedia'] as const
-  return new Set(['zh-CN', 'en'].flatMap((lng) => keys.map((key) => i18n.t(`generationCommon.defaultTitles.${key}`, { lng }))))
+  return new Set(['zh-CN', 'en'].flatMap((lng) => [
+    i18n.t('generationCommon.defaultTitles.referenceImage', { lng }),
+    i18n.t('generationCommon.defaultTitles.referenceVideo', { lng }),
+    i18n.t('generationCommon.defaultTitles.prompt', { lng }),
+    i18n.t('generationCommon.defaultTitles.webMedia', { lng }),
+  ]))
 }
 
 /**

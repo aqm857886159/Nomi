@@ -1185,13 +1185,106 @@
       "allowed_consumers": [
         "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
         "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-        "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
         "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
         "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
         "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
       ],
       "since": "2026-09-26",
       "notes": "行状态 missing-required、画面格「缺X参考」、批量排除、场组头计数与参考列红格读同一份（镜头行 = exec.missingSlots）。参考列不许再按「必填 + 没绑定」自判——那样看不见计划首帧与锚（合同 docs/fixes/2026-09-26-storyboard-planned-first-frame-slot.root-cause.json）。"
+    },
+    {
+      "name": "自动引用（出图后在名字后面补 @ 并绑参考）",
+      "subject": "reference.auto-mention",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/storyboard/promptMentions.ts",
+        "symbol": "insertAutoMentions"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/storyboard/promptMentions.ts",
+          "symbol": "insertAutoMentions"
+        },
+        {
+          "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+          "symbol": "imageReferenceMode"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "src/workbench/generationCanvas/canvasAutoReference.ts",
+        "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
+        "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "用户 10-05：「小张@ …一旦小张图出来了，就加一个 @ 到小张后面」。插在哪（名字第一次出现处紧后面、短名不命中长名内部、不往末尾塞）、补不补（账本 autoReferenced：补过不再补，用户删掉的 @ 不回来）只有 insertAutoMentions 一份；分镜（autoReferencePlan → referenceBindings）与画布（initCanvasAutoReferenceBridge → 手动 @ 同一条建边路）两个调用方各自把结果绑进自己的参考结构，@ 与绑定一起成、一起不成。收不了参考图时切到同模型能收参考图的模式（imageReferenceMode，方案 A，自动引用与参考条「+」共用）。合同 docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json。"
+    },
+    {
+      "name": "分镜行 / 参考卡的参数显示（= 落画布写进节点的 meta）",
+      "subject": "storyboard.composer-meta",
+      "lifecycle": "projection",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+        "symbol": "storyboardComposerMeta"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+          "symbol": "storyboardComposerMeta"
+        }
+      ],
+      "forbidden_derivations": [
+        {
+          "symbol": "composerBarParams",
+          "kind": "definition",
+          "why": "2026-10-06 之前分镜底栏自己从档案挑一部分参数（固定时长档、⋯ 收开关），参考卡只有模型下拉；已删，参数一律经画布同款 InlineParameterBar"
+        }
+      ],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+        "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "tests/experience-laws/parameterReachability.mjs"
+      ],
+      "since": "2026-10-06",
+      "notes": "底栏显示的 meta 与参考卡重生成前写回节点的 meta 是同一个函数（buildPlannedNodeMeta，落画布同一个构造器）——显示 = 请求（审计 A2）。铁律 ⑪ 矩阵的分镜行 / 参考卡入口调的也是它。"
+    },
+    {
+      "name": "参考 ↔ 提示词 @ 同步删除",
+      "subject": "storyboard.reference-mention-sync",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+        "symbol": "removeReferenceWithMention"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+          "symbol": "removeReferenceWithMention"
+        },
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+          "symbol": "dropBindingsForUrls"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "反馈 #7：删掉参考时提示词里的 @ 一起删（同一张图别的槽还绑着就留 @），删掉一枚 @ 这张图的绑定一起删；从没被 @ 过的参考不受影响。"
     },
     {
       "name": "一次生成跑哪个变体",
