@@ -4,7 +4,7 @@ Measurement date: 2026-10-05. Baseline commit: 180224684e4d3dad93aad7f258d46a932
 
 ## Method
 
-The run reused `tests/ux/canvas-performance-benchmark.e2e.mjs`, `tests/perf/canvas-scale-bench.mjs`, and `tests/ux/fixtures/canvas-performance-fixture.mjs`. Executable scenarios used one warmup and five samples; p95 uses the benchmark's linear percentile. Renderer and main-process profile artifacts are retained privately in the Library evidence package and are not copied into this public PR.
+The run reused `tests/ux/canvas-performance-benchmark.e2e.mjs`, `tests/perf/canvas-scale-bench.mjs`, and `tests/ux/fixtures/canvas-performance-fixture.mjs`. Executable scenarios used one warmup and five samples. The public p95 values are report recomputations using linear percentile; harness summary values can differ slightly. One-sample profile batches report the single run. Renderer and main-process profile artifacts are retained privately in the evidence package and are not copied into this public PR.
 
 Fixture scale: I300 = 300 image nodes / 150 edges. XL mixed media = 160 image + 160 video nodes / 320 nodes / 640 edges. The media fixture used 80 image entries and 10 video entries from the authorized local fixture set.
 
@@ -32,11 +32,11 @@ The complete raw JSON, traces, screenshots and CPU profiles are in the user-conf
 
 The profiles identify production-bundle locations; source maps were absent, so minified names are retained rather than converted to invented source functions.
 
-### I300 cold-open renderer trace aggregation
+### I300 renderer trace aggregation (blank-pan, node-drag-image, waiting-effects only)
 
-The benchmark's `cold-open` timing is project-open action to the first stable canvas predicate (canvas stage visible with expected nodes/media settled). The captured dataset does not contain separate read-project, parse, node-build and first-render timestamps; those sub-stages are therefore `unavailable`, not estimated.
+The raw benchmark records `cold-open` firstCanvasMs and mediaSettledMs for five I300 runs. The evidence does not include the implementation of the timing predicate or separate read-project, parse, node-build and first-render timestamps; those predicate details and sub-stages are therefore unavailable, not estimated.
 
-Top renderer FunctionCall aggregates from the I300 trace set (self total; calls; max):
+Top renderer FunctionCall aggregates from the I300 trace set (sum of FunctionCall durations; calls; max duration):
 
 1. `ni` — `dist/assets/BaseGenerationNode-BloKw0LT.js:619`, 1,244,358 µs; 21,608; 1,692 µs.
 2. `frame` — injected probe, 1,071,089 µs; 23,856; 360 µs.
@@ -49,10 +49,18 @@ Top renderer FunctionCall aggregates from the I300 trace set (self total; calls;
 9. `<anonymous>` — `dist/assets/useGenerationFeedback-3p0boaJ4.js:1`, 12,378 µs; 180; 219 µs.
 10. `listener` — injected probe, 8,344 µs; 1,572; 204 µs.
 
-Main-process profile top self-time entries (the profile was captured during the same benchmark run; idle samples omitted): `readJsonFile` (`dist-electron/jsonFile.js:113`, 119,959 µs), `read` (110,108 µs), `fsync` (109,170 µs), `readFileUtf8` (102,333 µs), `(program)` (89,047 µs), `readFileSync` (`node:fs:434`, 72,110 µs), `readWorkspaceManifestSnapshot` (`dist-electron/workspace/workspaceManifest.js:426`, 50,328 µs), `internalModuleStat` (48,600 µs), `compileSourceTextModule` (`node:internal/modules/esm/utils:317`, 46,398 µs), and `wrapSafe` (`node:internal/modules/cjs/loader:1769`, 29,762 µs).
+Main-process profile top self-time entries (separate driver run; idle samples omitted): `readJsonFile` (`dist-electron/jsonFile.js:113`, 119,959 µs), `read` (110,108 µs), `fsync` (109,170 µs), `readFileUtf8` (102,333 µs), `(program)` (89,047 µs), `readFileSync` (`node:fs:434`, 72,110 µs), `readWorkspaceManifestSnapshot` (`dist-electron/workspace/workspaceManifest.js:426`, 50,328 µs), `internalModuleStat` (48,600 µs), `compileSourceTextModule` (`node:internal/modules/esm/utils:317`, 46,398 µs), and `wrapSafe` (`node:internal/modules/cjs/loader:1769`, 29,762 µs).
 
 ### XL drag-nodes-all profile
 
 Top renderer profile frames (self sample hits; share): `(program)` 53,260 (48.2%), `(idle)` 11,451 (10.4%), `(garbage collector)` 4,637 (4.2%), `<anonymous>@index-DooT7VsE.js` 3,169 (2.9%), `formatLanguageCode@index-DooT7VsE.js` 2,148 (1.9%), `we@react-vendor-BQQcTRIt.js` 1,626 (1.5%), `Pc@canvasViewportScale-mUvAWIFP.js` 1,498 (1.4%), `wc@react-vendor-BQQcTRIt.js` 1,290 (1.2%), `bs@react-vendor-BQQcTRIt.js` 1,281 (1.2%), and `setAttribute@(anonymous)` 1,231 (1.1%).
 
 The measured mutation counters were 79,564 node style writes, 275 DOM flushes and 665,454 subtree mutations across 320 nodes; the captured profile does not prove one unique source call stack. The largest named production-bundle frames are the canvas viewport-scale module and React vendor frames; the report intentionally keeps this as an observation rather than a root-cause claim.
+
+
+## Audit corrections
+
+- `renderer-trace-analysis.json` contains 18 traces: six each for I300 `blank-pan`, `node-drag-image`, and `waiting-effects` (including warmups). It contains no I300 `cold-open` trace. The renderer aggregate therefore must not be presented as a cold-open hotspot.
+- Renderer FunctionCall aggregate values are summed event durations (`totalUs`), not self time. Calls and maximum event duration are reported separately.
+- The main-process CPU profile came from `main-profile-driver.mjs`, a separate run that opens an I300 project, waits, pans, and then stops profiling; it is not the same run as the renderer trace benchmark.
+- The raw evidence does not verify the implementation/details of the cold-open timing predicate; only the recorded firstCanvasMs/mediaSettledMs values are reported.
