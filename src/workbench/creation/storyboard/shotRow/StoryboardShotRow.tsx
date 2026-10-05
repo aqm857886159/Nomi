@@ -16,6 +16,7 @@ import {
   IconTrash,
 } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
+import { AnchoredPopover } from '../../../../design'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { NO_SCENE_VALUE, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
@@ -179,6 +180,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const orderedVendorKeys = useVendorPreferenceOrder()
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [aspectMenuOpen, setAspectMenuOpen] = React.useState(false)
+  const actionsTriggerRef = React.useRef<HTMLButtonElement | null>(null)
   const [variantsOpen, setVariantsOpen] = React.useState(false)
   const editorRef = React.useRef<Editor | null>(null)
   const triggerAtMention = React.useCallback(() => {
@@ -245,6 +247,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         />
       ) : null}
       <button
+        ref={actionsTriggerRef}
         type="button"
         onClick={() => setActionsOpen((value) => !value)}
         aria-label={t('storyboardEditor.rowActions.open')}
@@ -255,9 +258,14 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       >
         <IconDots size={13} stroke={1.8} />
       </button>
+      {/* 行菜单贴着「⋯」开，点外面 / Esc 关：开合交给 AnchoredPopover（同一行底栏 ⋯ 弹层用的就是它），这里不另写监听。
+          以前是原地 absolute、只有再点一次「⋯」才收：点别处它一直开着，盖住本镜和下一镜的画面格，
+          用户以为在点缩略图，实际点进了「复制镜头」（铁律 ⑫ 走查 LAW12-sb-row-more）。
+          点外面那一下是 mousedown 关菜单、不吞事件，所以同一下照样落到被点的东西上。 */}
       {actionsOpen ? (
+        <AnchoredPopover anchorRef={actionsTriggerRef} align="start" gap={4} onClose={closeMenus}>
         <div
-          className="absolute left-5 top-5 z-30 flex min-w-40 flex-col gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md"
+          className="flex min-w-40 flex-col gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md"
           data-storyboard-row-menu={shot.index}
           onPointerDown={(event) => event.stopPropagation()}
         >
@@ -300,6 +308,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
           <MenuItem icon={<IconTrash size={13} stroke={1.8} />} label={t('storyboardEditor.rowMenu.deleteUndoable')} danger onClick={() => { onRemove(); closeMenus() }} />
         </div>
+        </AnchoredPopover>
       ) : null}
     </div>
   )

@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { INTENT_FIELDS, PENDING_FIELDS, observeIntent, seededWorld, violationsOf } from './intentShownEqualsDrafted.mjs'
+import { INTENT_FIELDS, observeIntent, seededWorld, violationsOf } from './intentShownEqualsDrafted.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const escapeLedger = JSON.parse(fs.readFileSync(path.join(here, '../ux/full-walk/escapeLedger.json'), 'utf8'))
@@ -24,22 +24,28 @@ const CASES = [
   { id: 'aspect-key-aspect_ratio', family: '比例键名 = aspect_ratio', intent: { providerId: 'apimart', modelId: 'kling-3.0-turbo', count: 1, durationSec: 5 }, expect: 'land' },
   { id: 'pixel-size', family: '像素档尺寸（size = 2048x2048 一类）', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 3 }, expect: 'land' },
   { id: 'duration-in-steps', family: '时长只收几个档，说中了', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 6 }, expect: 'land' },
-  { id: 'duration-out-of-steps', family: '时长只收几个档，说越界', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 8 }, expect: 'land',
-    knownViolations: { 'node.durationSec:differs(8→6)': 'LAW10-OUT-OF-RANGE-SPLIT' } },
-  { id: 'no-duration-param', family: '模型没有时长参数（视频）', intent: { providerId: 'apimart', modelId: 'veo3.1-fast', count: 1, durationSec: 8 }, expect: 'land',
-    knownViolations: { 'node.durationSec:dropped': 'LAW10-SILENT-DROP', 'card.durationSec:dropped': 'LAW10-SILENT-DROP' } },
-  { id: 'still-with-duration', family: '图片说了时长（说明书写「静帧不填」）', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, durationSec: 4 }, expect: 'land',
-    knownViolations: { 'node.durationSec:dropped': 'LAW10-SILENT-DROP', 'card.durationSec:dropped': 'LAW10-SILENT-DROP' } },
+  // 下面三条首跑是违反（LAW10-OUT-OF-RANGE-SPLIT / LAW10-SILENT-DROP）：宿主照收、各站各说各的。现在起草那一刻就拒，并说出合法值。
+  { id: 'duration-out-of-steps', family: '时长只收几个档，说越界', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 8 }, expect: 'refuse', refusal: /只支持 6 \/ 10 秒/ },
+  { id: 'no-duration-param', family: '模型没有时长参数（视频）', intent: { providerId: 'apimart', modelId: 'veo3.1-fast', count: 1, durationSec: 8 }, expect: 'refuse', refusal: /没有时长参数/ },
+  { id: 'still-with-duration', family: '图片说了时长（说明书写「静帧不填」）', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, durationSec: 4 }, expect: 'refuse', refusal: /没有时长参数/ },
   { id: 'references', family: '带一张素材库参考', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, references: ['asset-hero'] }, expect: 'land' },
   { id: 'count-four', family: '张数：一次四张', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 4 }, expect: 'land' },
+  // ── 比例一列（#1023：draft_shots 有了比例字段，宿主按所选模式翻成真实键）──
+  { id: 'ratio-via-size', family: '比例：真实键是 size（选项是比例）', intent: { providerId: 'apimart', modelId: 'doubao-seedance-2.5', count: 1, aspectRatio: '16:9' }, expect: 'land' },
+  { id: 'ratio-via-ratio', family: '比例：真实键是 ratio', intent: { providerId: 'volcengine', modelId: 'doubao-seedance-2-0-260128', count: 1, aspectRatio: '9:16' }, expect: 'land' },
+  { id: 'ratio-via-aspect_ratio', family: '比例：真实键是 aspect_ratio', intent: { providerId: 'apimart', modelId: 'kling-3.0-turbo', count: 1, aspectRatio: '1:1' }, expect: 'land' },
+  { id: 'ratio-next-to-size-tier', family: '比例：清晰度也叫 size（Agnes 视频 2.5，LAW11-ALIAS-DEDUPE 修过）', intent: { providerId: 'agnes', modelId: 'agnes-video-2.5', count: 1, aspectRatio: '16:9' }, expect: 'land' },
+  { id: 'ratio-pixel-colon', family: '比例：选项是冒号像素串（Runway 1280:720 一类）', intent: { providerId: 'runway', modelId: 'gpt_image_2', count: 1, aspectRatio: '16:9' }, expect: 'land' },
+  { id: 'ratio-pixel-x', family: '比例：只有像素档 size（2048x2048 一类，没有比例控件）', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 1, aspectRatio: '16:9' }, expect: 'refuse', refusal: /no frame-ratio choice/ },
+  { id: 'ratio-not-offered', family: '比例：模型不出这一档', intent: { providerId: 'apimart', modelId: 'veo3.1-fast', count: 1, aspectRatio: '1:1' }, expect: 'refuse', refusal: /16:9, 9:16/ },
   { id: 'reference-unknown', family: '参考给了素材库里没有的 id', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, references: ['shot-2'] }, expect: 'refuse' },
   { id: 'model-not-in-catalog', family: '点名一个目录里没有的模型', intent: { providerId: 'apimart', modelId: 'no-such-model-9', count: 1 }, expect: 'refuse' },
 ]
 
 describe('铁律 ⑩ 说的 = 摆的（宿主矩阵）', () => {
-  it('矩阵列覆盖语义字段；还没合入的列明写 pending，不假绿', () => {
+  it('矩阵列覆盖全部语义字段', () => {
     expect(INTENT_FIELDS).toEqual(['model', 'count', 'durationSec', 'references', 'aspectRatio'])
-    expect(Object.keys(PENDING_FIELDS)).toEqual(['aspectRatio'])
+    expect(CASES.filter((testCase) => testCase.intent.aspectRatio !== undefined).length, '比例一列至少覆盖 size / ratio / aspect_ratio / 冒号像素档 / Agnes 改名 / 两种拒绝').toBeGreaterThanOrEqual(7)
   })
 
   it('判据会咬人：任一站改值或悄悄丢掉都算违反，宿主拒绝不算', () => {
@@ -49,15 +55,19 @@ describe('铁律 ⑩ 说的 = 摆的（宿主矩阵）', () => {
     expect(violationsOf({ refused: false, said, draft: same, node: { ...same, durationSec: 6, references: undefined }, card: { ...same, durationSec: undefined, sentDurationSec: 8 } }))
       .toEqual(['card.durationSec:dropped', 'card.durationSec:shown≠sent(undefined/8)', 'node.durationSec:differs(8→6)'])
     expect(violationsOf({ refused: true, said })).toEqual([])
+    const ratioSaid = { model: 'v/m', count: 1, references: 0, aspectRatio: 16 / 9 }
+    const ratioSame = { ...ratioSaid, aspectRatio: 1280 / 720 }
+    expect(violationsOf({ refused: false, said: ratioSaid, draft: ratioSame, node: { ...ratioSame, references: undefined }, card: { ...ratioSame, sentAspectRatio: 16 / 9 } })).toEqual([])
+    expect(violationsOf({ refused: false, said: ratioSaid, draft: ratioSame, node: { ...ratioSame, aspectRatio: 1, references: undefined }, card: { ...ratioSame, sentAspectRatio: 16 / 9 } }))
+      .toEqual(['node.aspectRatio:differs(≈1.78→≈1.00)'])
   })
-
-  it.todo('比例 aspectRatio 一列：draft_shots 有了比例字段（#1023）后，按 size / ratio / aspect_ratio / 像素档四类核草稿、节点、付费卡')
 
   for (const testCase of CASES) {
     it(`${testCase.id} · ${testCase.family}`, async () => {
       const observation = await observeIntent(world, { prompt: PROMPT, ...testCase.intent })
       if (testCase.expect === 'refuse') {
         expect(observation.refused, `宿主应当场拒绝并说回给 Agent，实际落了草稿：${JSON.stringify(observation)}`).toBe(true)
+        if (testCase.refusal) expect(observation.refusal, '拒绝的话要说清合法值').toMatch(testCase.refusal)
         return
       }
       expect(observation.refused, `宿主不该拒绝：${observation.refusal ?? ''}`).toBe(false)

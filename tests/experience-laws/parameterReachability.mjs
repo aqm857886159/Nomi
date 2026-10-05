@@ -63,6 +63,28 @@ export const REACHABILITY_ENTRIES = Object.freeze([
     kinds: Object.freeze(['image', 'video']),
     owner: 'src/workbench/creation/storyboard/shotRow/composerBarModel.ts#composerBarParams',
   }),
+  // 2026-10-05 用户原话：「跨镜头一致」里生成参考图的那张卡没有比例选项，也没有其他参数。
+  // 卡上只有模型 / 供应商两个下拉（视觉锚只走图片模型），模式与参数一个都不渲染——见 anchorCardReach 的守卫。
+  Object.freeze({
+    id: 'storyboard-anchor',
+    title: '分镜「跨镜头一致」参考卡',
+    kinds: Object.freeze(['image']),
+    owner: 'src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx#StoryboardAnchorRow',
+  }),
+])
+
+/**
+ * 全仓数过一遍「碰到模型」的界面（2026-10-05：搜 useDedupedModelSelect / resolveRenderedControls /
+ * NodeGenerationComposer / NodeParameterControls / BulkModelPicker / 快捷动作）。上面四个是「用户在这里配一个模型怎么跑」的入口；
+ * 下面这些也碰模型，但**不是**配参数的地方——写明为什么，不许悄悄漏掉。协调会话要把哪一个升格成入口，挪到上面即可。
+ */
+export const NOT_PARAMETER_ENTRIES = Object.freeze([
+  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx', why: '分镜批量条：一次给多镜统一换模型 / 种类 / 整片画幅；各镜模型不同、参数表不同，逐参数批量设没有共同的一张表——单镜参数在行底栏配' }),
+  Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后统一换模型（按镜种分档），同上' }),
+  Object.freeze({ owner: 'src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx', why: '画布框选后统一换模型；换完每个节点的参数在各自底栏配（node-bar 已覆盖）' }),
+  Object.freeze({ owner: 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx', why: '图片快捷动作（改图 / 扩图 / 抠图 / 多机位）只派生一个新节点、不扣费；新节点的参数在它自己的底栏配（node-bar 已覆盖）' }),
+  Object.freeze({ owner: 'src/workbench/settings/ModelBoxOrderSection.tsx', why: '设置里排模型框顺序 / 隐藏模型，不生成、不配参数' }),
+  Object.freeze({ owner: 'src/workbench/generationCanvas/runner/runProjectDelivery.ts', why: '运行时读控件解析参数，不是用户可点的界面' }),
 ])
 
 const SEED_NOW = '2026-10-05T00:00:00.000Z'
@@ -178,7 +200,19 @@ function storyboardReach(row, mode) {
   }
 }
 
-const REACH_BY_ENTRY = Object.freeze({ 'node-bar': nodeBarReach, 'spend-card': spendCardReach, 'storyboard-row': storyboardReach })
+/**
+ * 「跨镜头一致」参考卡：卡上只渲染模型 / 供应商下拉（`useDedupedModelSelect`），没有任何参数、模式、变体控件。
+ * 这里没有一个「渲染哪些控件」的函数可调——它本来就不渲染。为了不让这句话过期，测试里有一道守卫：
+ * `StoryboardAnchorRow.tsx` 一旦开始用任何控件解析函数，守卫就红，提醒把这个函数改成调它。
+ */
+function anchorCardReach() {
+  return { params: new Map(), modes: [], variants: [] }
+}
+
+/** 守卫用：参考卡源码里出现这些名字之一，就说明它开始渲染参数 / 模式了，anchorCardReach 要跟着改。 */
+export const PARAMETER_RENDERERS = Object.freeze(['resolveRenderedControls', 'composerBarParams', 'composerBarPlan', 'archetypeModeParams', 'NodeParameterControls', 'InlineParameterBar', 'ShotComposerBar', 'composerModeOptions', 'archetypeVariantChoices'])
+
+const REACH_BY_ENTRY = Object.freeze({ 'node-bar': nodeBarReach, 'spend-card': spendCardReach, 'storyboard-row': storyboardReach, 'storyboard-anchor': anchorCardReach })
 
 /**
  * 全量矩阵：发布模型 × 这家发得出的模式 × 声明的参数 × 入口。
@@ -287,5 +321,9 @@ export function renderCoverageTable({ cells, gapClasses, waived, known }) {
     lines.push('')
   }
   lines.push(`入口标题：${[...entryTitle.entries()].map(([id, title]) => `\`${id}\` = ${title}`).join('；')}`)
+  lines.push('')
+  lines.push('## 碰到模型、但不算参数入口的界面')
+  lines.push('')
+  for (const item of NOT_PARAMETER_ENTRIES) lines.push(`- \`${item.owner}\`：${item.why}`)
   return `${lines.join('\n')}\n`
 }

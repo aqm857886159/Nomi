@@ -14,7 +14,7 @@ import {
 } from '../../../../config/modelCatalogMeta'
 import { normalizeOrientation, type Orientation } from '../../../../utils/orientation'
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
-import { normalizeAspectRatioToWH } from '../../../../../electron/shared/aspectRatioValue'
+import { normalizeAspectRatioToWH, optionsAreAspectRatios } from '../../../../../electron/shared/aspectRatioValue'
 import { resultUrl } from '../../runner/referenceUrl'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import {
@@ -163,6 +163,7 @@ const PARAMETER_ROLE_BY_BINDING: Partial<Record<DynamicCatalogControl['binding']
 /** 档案没有声明这个角色 → null（调用方据此「没有的不显示」，而不是补一个默认值假装有）。 */
 export function parameterControlRole(control: DynamicModelControl): ParameterRole | null {
   if (!isParameterControl(control)) return PARAMETER_ROLE_BY_BINDING[control.binding] ?? null
+  if (!parameterIsAspectAlias(control) && ASPECT_RATIO_ALIASES.includes(control.key)) return null
   return PARAMETER_ROLE_BY_KEY[control.key] ?? null
 }
 
@@ -309,8 +310,36 @@ function controlEquivalentKeys(key: string): string[] {
   return [key, ...(PARAMETER_CONTROL_BINDING_KEYS[key] || [])]
 }
 
+/**
+ * 这几个键名**本身不说明**它管的是比例：`size` 在一家是 `16:9`，在另一家是 `720P` / `2K` / `1024x1024`。
+ * 它们只有在选项真是比例时才和 `aspect_ratio` / `ratio` 是同一件事（判据是比例的唯一 owner
+ * `electron/shared/aspectRatioValue.ts` 的 `optionsAreAspectRatios`，这里不另写一份）。
+ * 以前按键名一律算比例：Agnes 视频 2.5 的清晰度叫 `size`、比例叫 `aspect_ratio`，去重把比例控件吞掉，
+ * 用户在节点底栏和付费卡上都选不到比例（铁律 ⑪ 首跑 LAW11-ALIAS-DEDUPE）。
+ */
+const KEYS_NAMING_NO_ROLE = new Set(['size', 'imageSize', 'videoSize', 'video_size', 'image_size'])
+
+function parameterIsAspectAlias(control: ModelParameterControl): boolean {
+  if (!ASPECT_RATIO_ALIASES.includes(control.key)) return false
+  if (!KEYS_NAMING_NO_ROLE.has(control.key)) return true
+  return optionsAreAspectRatios(control.options.map((option) => ({ value: option.value, text: option.label })))
+}
+
+/**
+ * 一个档案参数控件和哪些键是同一件事：别名表给出候选，`size` 一类还要看选项是不是比例。
+ * 两个方向都要收：选项不是比例的 `size` 只认它自己；名字就说明是比例的键（`aspect_ratio` / `ratio`…）
+ * 也不再把 `size` 一类算进同伙——那几个键是不是比例，只由它们**自己的选项**说了算。
+ * 两个都真是比例的控件（`size` 选项是 16:9…，又有 `aspect_ratio`）仍在 `aspect_ratio` 这些键上重叠，照旧去重。
+ */
+function parameterEquivalentKeys(control: ModelParameterControl): string[] {
+  if (!ASPECT_RATIO_ALIASES.includes(control.key)) return controlEquivalentKeys(control.key)
+  if (!parameterIsAspectAlias(control)) return [control.key]
+  if (KEYS_NAMING_NO_ROLE.has(control.key)) return controlEquivalentKeys(control.key)
+  return controlEquivalentKeys(control.key).filter((key) => !KEYS_NAMING_NO_ROLE.has(key))
+}
+
 function controlStoredKeys(control: DynamicModelControl): string[] {
-  if (isParameterControl(control)) return controlEquivalentKeys(control.key)
+  if (isParameterControl(control)) return parameterEquivalentKeys(control)
   if (control.binding === 'aspectRatio') return ['aspect_ratio', 'aspectRatio', 'aspect', 'size', 'imageSize']
   if (control.binding === 'imageSize') return ['imageSize', 'size']
   if (control.binding === 'durationSeconds') return ['durationSeconds', 'videoDuration']
@@ -468,7 +497,7 @@ function isEmptyInputControl(control: ModelParameterControl): boolean {
 function dedupeParamControls(controls: ModelParameterControl[]): ModelParameterControl[] {
   const usedKeys = new Set<string>()
   return controls.filter((control) => {
-    const keys = controlEquivalentKeys(control.key)
+    const keys = parameterEquivalentKeys(control)
     if (hasControlForAnyKey(usedKeys, keys)) return false
     keys.forEach((k) => usedKeys.add(k))
     return true
@@ -492,7 +521,7 @@ export function buildDynamicControls(input: {
     ...control,
     binding: 'parameter',
   }))
-  const usedKeys = new Set(controls.flatMap((control) => controlEquivalentKeys(control.key)))
+  const usedKeys = new Set(paramControls.flatMap((control) => parameterEquivalentKeys(control)))
   const catalogControls = input.isImageLike
     ? [
         ...explicitImageCatalogControls(input.imageCatalogConfig),

@@ -1,0 +1,106 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "internal_only_reason": "Nomi 自己的档案 / 宿主 / 界面约定，没有外部官方文档能裁决这条不变量；判据复用仓内唯一 owner。",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖的行为。",
+    "exit_criteria": []
+  },
+  "id": "2026-10-05-storyboard-row-menu-dismiss",
+  "problem_type": "分镜行弹出层各写各的开合，点外面不关",
+  "symptom": "分镜行「⋯」菜单点编辑器别处不关，盖住本镜和下一镜的画面格；走查点缩略图点进了「复制镜头」（铁律 ⑫ LAW12-sb-row-more）",
+  "direct_cause": "行菜单是原地 absolute，只有再点一次「⋯」才收，没有点外关闭",
+  "class_root": "同一行上的弹出层没有统一走 AnchoredPopover（底栏 ⋯ 已收编，行菜单没有）",
+  "affected_population": [
+    "所有分镜表行的「⋯」菜单"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+  ],
+  "entry_points": [
+    "分镜表每一行行首的「⋯」"
+  ],
+  "invariants": [
+    "分镜行上的弹出层点外面 / Esc 就关，且不吞掉那一下点击"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "actionsOpen"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "开合交给 AnchoredPopover（点外 mousedown 关、Esc 关、给更上层弹出让位），与底栏 ⋯ 同一实现；剧本 pb12 守住点外关闭且点击照样生效。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "StoryboardShotRow",
+      "responsibility": "行菜单交给 AnchoredPopover 开合，不另写监听；原语本身（src/design/AnchoredPopover.tsx）未改"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "entry_point": "StoryboardShotRow",
+      "disposition": "enforced",
+      "evidence": "行菜单改走 AnchoredPopover；pb12 sb-row-more 修前红、修后绿"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "entry_point": "ShotComposerBar",
+      "disposition": "not-affected",
+      "evidence": "底栏 ⋯ 早已用 AnchoredPopover"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "AnchoredPopover 注释登记的第 ④ 类原地定位弹出层还有 8 个文件",
+    "same_class_scan": [
+      "rg \"absolute left-5 top-5\" src/workbench",
+      "src/design/AnchoredPopover.tsx 注释里的四套清单"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "invariant": "锚点浮层点外 / Esc 关闭",
+    "failure_mode": "tests/ux/full-walk/catalog.mjs 里 sb-row-more 的用户预期（userExpectation）由 pb12 的 ⑫ 检查逐次对照，违反记逃逸账本",
+    "exception_policy": "none",
+    "strategy": "收编到现有浮层原语，不另写监听",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs",
+    "tests/ux/core-a-storyboard-undo.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+    ],
+    "rationale": "原地 absolute 的菜单容器同一提交删掉"
+  },
+  "migration": "无持久化状态",
+  "residual_risks": [
+    "行菜单里「换画幅…」仍是行内展开，矮窗口下未量过",
+    "其余 8 个原地定位弹出层未收编"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/design/AnchoredPopover.tsx",
+    "tests": [
+      "tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs"
+    ],
+    "why": "点外 / Esc 关闭由浮层原语负责；分镜行这一处由 pb12 的 ⑫ 真实走查守（修前红、修后绿）。"
+  }
+}

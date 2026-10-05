@@ -19,12 +19,28 @@ import { toCatalogModelOptions } from '../../src/config/modelOptionMappers'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../src/workbench/generationCanvas/agent/plannedNodeMeta'
 import { projectSpendNode } from '../../src/workbench/ai/v4/spendCardDraft'
 import { resolveRenderedControls } from '../../src/workbench/generationCanvas/nodes/nodeModelArchetype'
+import { parseAspectRatioValue } from '../../electron/shared/aspectRatioValue'
 
 const SEED_NOW = '2026-10-05T00:00:00.000Z'
 
-/** 矩阵的列：Agent 能用语义字段表达的意图。`aspectRatio` 等 #1023（比例上 draft_shots）合入后接上。 */
+/** 矩阵的列：Agent 能用语义字段表达的意图（比例随 #1023 上了 draft_shots）。 */
 export const INTENT_FIELDS = Object.freeze(['model', 'count', 'durationSec', 'references', 'aspectRatio'])
-export const PENDING_FIELDS = Object.freeze({ aspectRatio: 'draft_shots 还没有比例字段（#1023 未合入）；接口留在 INTENT_FIELDS，合入后补列' })
+
+/**
+ * 一站上的比例：参数里第一个「值本身是比例」的键（真实键各家不同：size / aspect_ratio / ratio …），
+ * 换算成同一种写法比（`1280:720` 与 `16:9` 是同一个比例，差 3% 以内算同一个——和宿主像素档的容差一致）。
+ * 值不是比例（`720P`、`2048x2048`、`auto`）的键跳过：它们管的不是比例。
+ */
+const ASPECT_CARRIERS = ['aspect_ratio', 'aspectRatio', 'ratio', 'size', 'image_size', 'imageSize', 'video_size', 'videoSize']
+function aspectOf(parameters) {
+  for (const key of ASPECT_CARRIERS) {
+    const ratio = parseAspectRatioValue(parameters?.[key])
+    if (ratio !== null) return { key, value: parameters[key], ratio }
+  }
+  return undefined
+}
+const ratioLabel = (ratio) => (ratio === undefined ? undefined : `≈${ratio.toFixed(2)}`)
+const sameRatio = (a, b) => Math.abs(a - b) / Math.max(a, b) <= 0.03
 
 /** 一份种子目录、一份模块目录、一份 Agent 可见的模型清单——和生产同一组派生。 */
 export function seededWorld() {
@@ -70,11 +86,13 @@ export async function observeIntent(world, intent) {
       candidate: { providerId: intent.providerId, modelId: intent.modelId },
       ...(intent.durationSec !== undefined ? { durationSec: intent.durationSec } : {}),
       ...(intent.references ? { references: intent.references } : {}),
+      ...(intent.aspectRatio !== undefined ? { aspectRatio: intent.aspectRatio } : {}),
     }))
     const draftCall = verbToTransportCall({ toolCallId: 'law10-draft', toolName: 'draft_shots', args: { shots } })
     const created = await callTool(transport, draftCall.call.toolName, draftCall.call.args)
-    const said = { model: `${intent.providerId}/${intent.modelId}`, count: intent.count, durationSec: intent.durationSec, references: intent.references?.length ?? 0 }
-    if (!created?.ok) return { refused: true, refusal: JSON.stringify(created?.error ?? created).slice(0, 300), said }
+    const saidRatio = intent.aspectRatio === undefined ? undefined : parseAspectRatioValue(intent.aspectRatio) ?? undefined
+    const said = { model: `${intent.providerId}/${intent.modelId}`, count: intent.count, durationSec: intent.durationSec, references: intent.references?.length ?? 0, aspectRatio: saidRatio }
+    if (!created?.ok) return { refused: true, refusal: JSON.stringify(created), said }
     await base.canvasLanding.settleCanvasLanding(PROJECT_ID)
     const operation = created.result.operation
     const generateCall = verbToTransportCall({ toolCallId: 'law10-present', toolName: 'generate', args: { operationId: operation.operationId } })
@@ -88,6 +106,7 @@ export async function observeIntent(world, intent) {
       count: draftShots.length,
       durationSec: durationOf(draftShots[0].candidate.parameters),
       references: draftShots[0].candidate.references?.length ?? 0,
+      aspectRatio: aspectOf(draftShots[0].candidate.parameters)?.ratio,
     }
 
     const wire = base.renderer.payloads.at(-1)?.shots ?? []
@@ -100,6 +119,7 @@ export async function observeIntent(world, intent) {
       durationSec: nodeMetas[0]?.duration === undefined ? undefined : Number(nodeMetas[0].duration),
       // 参考在画布上是节点的边，不在线缆的 meta 里——这一站只核数量能不能对上（线缆不带就记 undefined）。
       references: undefined,
+      aspectRatio: aspectOf(nodeMetas[0])?.ratio,
     }
 
     const card = built.withWindow.listPendingSpend(PROJECT_ID)[0]
@@ -108,12 +128,17 @@ export async function observeIntent(world, intent) {
     const cardNode = cardShot ? projectSpendNode(cardShot, undefined, option) : undefined
     const controls = cardNode ? resolveRenderedControls(option, cardNode.meta ?? {}, cardNode.kind === 'image', cardNode.kind === 'video') : []
     const shownDuration = cardNode ? displayedValue(controls, cardNode.meta ?? {}, 'duration') : { shown: false }
+    // 卡上比例那一格：发出去的参数里比例落在哪个键，卡体那张生成框上同一个键的控件此刻显示什么。
+    const sentAspect = aspectOf(cardShot?.parameters)
+    const shownAspect = sentAspect && cardNode ? displayedValue(controls, cardNode.meta ?? {}, sentAspect.key) : { shown: false }
     const cardView = {
       model: cardShot ? `${cardShot.providerId}/${cardShot.modelId}` : undefined,
       count: card?.shots.length ?? 0,
       durationSec: shownDuration.shown ? shownDuration.value : undefined,
       references: cardShot?.references?.length ?? 0,
       sentDurationSec: durationOf(cardShot?.parameters),
+      aspectRatio: shownAspect.shown ? parseAspectRatioValue(String(shownAspect.value)) ?? undefined : undefined,
+      sentAspectRatio: sentAspect?.ratio,
     }
     return { refused: false, said, draft, node, card: cardView }
   } finally {
@@ -129,6 +154,9 @@ export async function observeIntent(world, intent) {
 export function compareStation(said, station, field) {
   if (said[field] === undefined) return { field, verdict: 'not-said' }
   if (station[field] === undefined) return { field, verdict: 'not-carried' }
+  if (field === 'aspectRatio') {
+    return { field, verdict: sameRatio(station[field], said[field]) ? 'equal' : 'differs', said: ratioLabel(said[field]), shown: ratioLabel(station[field]) }
+  }
   return { field, verdict: station[field] === said[field] ? 'equal' : 'differs', said: said[field], shown: station[field] }
 }
 
@@ -147,13 +175,17 @@ export function violationsOf(observation) {
   if (observation.refused) return []
   const out = []
   for (const stationName of ['draft', 'node', 'card']) {
-    for (const field of ['model', 'count', 'durationSec', 'references']) {
+    for (const field of ['model', 'count', 'durationSec', 'references', 'aspectRatio']) {
       const cell = compareStation(observation.said, observation[stationName], field)
       if (cell.verdict === 'differs') out.push(`${stationName}.${field}:differs(${cell.said}→${cell.shown})`)
       if (cell.verdict === 'not-carried' && !NOT_CARRIED_BY_DESIGN[`${stationName}.${field}`]) out.push(`${stationName}.${field}:dropped`)
     }
   }
-  // 卡上「看到的」和「发出去的」也得一致（铁律 ③ 在这一站的投影，⑩ 顺手核一遍，不改 ③ 的判据）。
-  if (observation.card.sentDurationSec !== observation.card.durationSec) out.push(`card.durationSec:shown≠sent(${observation.card.durationSec}/${observation.card.sentDurationSec})`)
+  // 卡上「看到的」和「发出去的」也得一致（铁律 ③ 在这一站的投影，⑩ 只核 Agent 说过的字段，不改 ③ 的判据）。
+  if (observation.said.durationSec !== undefined && observation.card.sentDurationSec !== observation.card.durationSec) out.push(`card.durationSec:shown≠sent(${observation.card.durationSec}/${observation.card.sentDurationSec})`)
+  const { aspectRatio: shownRatio, sentAspectRatio } = observation.card
+  if (observation.said.aspectRatio !== undefined && ((shownRatio === undefined) !== (sentAspectRatio === undefined) || (shownRatio !== undefined && !sameRatio(shownRatio, sentAspectRatio)))) {
+    out.push(`card.aspectRatio:shown≠sent(${ratioLabel(shownRatio)}/${ratioLabel(sentAspectRatio)})`)
+  }
   return out.sort()
 }
