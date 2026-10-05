@@ -90,6 +90,7 @@ export function applyPreviewCaptured(nodeId: string, revision: string, videoUrl:
       status: 'ready',
       videoUrl,
       ...(assetId ? { assetId } : {}),
+      durationSeconds: output.duration,
       ...(outcome.kind === 'patch' ? { attach: outcome.mode } : {}),
       updatedAt: Date.now(),
     }

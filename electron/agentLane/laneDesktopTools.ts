@@ -28,7 +28,7 @@ import { createPiPhase4SurfaceTransportAdapter } from '../capabilityCore/phase4S
 import { createPiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters'
 import { createPiSkillWriteTransportAdapter } from '../capabilityCore/skillWriteTransportAdapters'
 import { requestRenderer } from '../capabilityCore/rendererBridge'
-import type { PiGenerationTransportAdapter } from '../capabilityCore/generationTransportAdapters'
+import type { PiGenerationTransportAdapter, ShotCandidateFacts } from '../capabilityCore/generationTransportAdapters'
 import { createLaneExtendedDesktopPorts, type LaneExtendedDesktopPortsInput } from './laneExtendedDesktopPorts'
 import { toSemanticInput } from '../shared/agentCapabilities/modelFacingTools'
 import { createAskUserLaneTools } from './laneAskUserTool'
@@ -238,8 +238,8 @@ export function createDesktopLaneTools(input: {
       return generation
     }, onTaskCreated: input.onTaskCreated, context: input.context,
     // 3D-BOX 花钱闸：只在开关开的构建接上（开关关时 generate 的预检逐字不变）。问的是渲染端唯一判据。
-    ...(director3dBoxFaceEnabled() ? { directorPreviewBlocks: async (operationId: string, shotIds: readonly string[] | undefined, candidateReferences: Readonly<Record<string, readonly string[]>>) => {
-      const reply = await requestRenderer("director.preview-blocks", { projectId: input.binding.projectId, operationId, ...(shotIds ? { shotIds } : {}), candidateReferences }, 10_000) as { blocks?: unknown } | null
+    ...(director3dBoxFaceEnabled() ? { directorPreviewBlocks: async (operationId: string, shotIds: readonly string[] | undefined, candidate: ShotCandidateFacts) => {
+      const reply = await requestRenderer("director.preview-blocks", { projectId: input.binding.projectId, operationId, ...(shotIds ? { shotIds } : {}), candidateReferences: candidate.references, candidateDurations: candidate.durationSeconds }, 10_000) as { blocks?: unknown } | null
       if (!reply || !Array.isArray(reply.blocks)) throw new Error("director_preview_blocks_unavailable")
       return reply.blocks as never
     } } : {}),

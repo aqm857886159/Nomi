@@ -50,6 +50,8 @@ export type DirectorPreviewMeta = Readonly<{
   videoUrl?: string
   /** ready 时预演 mp4 在项目素材库里的 id：Agent 改候选时把它放进 `draft_shots` 的 references。 */
   assetId?: string
+  /** ready 时渲染出来的预演有多长（离屏帧数 / 帧率）：花钱闸拿它和这一镜候选的时长比。 */
+  durationSeconds?: number
   /** 动作库没有的细节动作（编译器报 missing_asset 的那些）：挂接时写进视频节点提示词，交给视频模型演。 */
   notes?: readonly string[]
   updatedAt: number
@@ -111,11 +113,16 @@ export function directorPreviewSpendBlock(
 export type DirectorPreviewOperationBlock = Readonly<{
   nodeId: string
   shotId?: string
-  /** rendering / failed：预演没好；not_referenced：预演好了，但这一镜真正要付费提交的候选没带它。 */
-  reason: 'rendering' | 'failed' | 'not_referenced'
+  /**
+   * rendering / failed：预演没好；not_referenced：预演好了，但这一镜真正要付费提交的候选没带它；
+   * duration_mismatch：挂上去的预演和候选要生成的时长不一样长（预演挂好之后镜头时长又被改了）。
+   */
+  reason: 'rendering' | 'failed' | 'not_referenced' | 'duration_mismatch'
   failure?: DirectorPreviewFailure
   /** not_referenced 时：要放进候选 references 的那个素材 id。 */
   previewAssetId?: string
+  previewSeconds?: number
+  shotSeconds?: number
 }>
 
 function metaString(node: Pick<GenerationCanvasNode, 'meta'>, key: string): string | undefined {
@@ -138,6 +145,7 @@ export function directorPreviewBlocksForOperation(
   operationId: string,
   shotIds?: readonly string[],
   candidateReferences?: Readonly<Record<string, readonly string[]>>,
+  candidateDurations?: Readonly<Record<string, number>>,
 ): DirectorPreviewOperationBlock[] {
   const scope = shotIds && shotIds.length ? new Set(shotIds) : null
   const blocks: DirectorPreviewOperationBlock[] = []
@@ -155,9 +163,16 @@ export function directorPreviewBlocksForOperation(
       blocks.push({ nodeId: node.id, ...(shotId ? { shotId } : {}), reason: block.reason, ...(block.failure ? { failure: block.failure } : {}) })
       continue
     }
-    // 键 '' = 单镜草稿（没有镜头 id 的那一镜）；与主进程 readShotReferenceAssetIds 同一约定。
+    // 键 '' = 单镜草稿（没有镜头 id 的那一镜）；与主进程 readShotCandidateFacts 同一约定。
     const referenced = candidateReferences?.[shotId ?? '']
     const ready = latestDirectorPreviewFor(node.id, nodes)?.preview
+    // 以镜头为准：参考视频随付费载荷走（video_ref）时，它必须和候选要生成的那一镜一样长；只写进提示词的不比
+    const shotSeconds = candidateDurations?.[shotId ?? '']
+    if (ready?.status === 'ready' && ready.attach === 'video_ref' && typeof ready.durationSeconds === 'number' && typeof shotSeconds === 'number'
+      && Math.abs(ready.durationSeconds - shotSeconds) > DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS) {
+      blocks.push({ nodeId: node.id, ...(shotId ? { shotId } : {}), reason: 'duration_mismatch', previewSeconds: ready.durationSeconds, shotSeconds })
+      continue
+    }
     if (referenced && ready?.status === 'ready' && ready.attach === 'video_ref' && ready.assetId && !referenced.includes(ready.assetId)) {
       blocks.push({ nodeId: node.id, ...(shotId ? { shotId } : {}), reason: 'not_referenced', previewAssetId: ready.assetId })
     }

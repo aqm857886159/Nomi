@@ -1,3 +1,5 @@
+// 3D-BOX 花钱闸复核时长的主进程一半：出卡前预检从真的草稿账本（planning handler 的 read）读出每一镜候选的时长，
+// 与参考素材同一次读、同一个只读口（不另开通道）。时长按候选参数的唯一 owner shotDurationSeconds 读。
 import { describe, expect, it } from "vitest";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
@@ -9,7 +11,7 @@ const registry = createModuleRegistry([{
   inputKinds: ["text", "image"],
   outputKinds: ["image"],
   modes: ["text-to-image", "image-to-image"],
-  parameterSchema: { aspectRatio: { type: "enum", enum: ["1:1", "16:9"] } },
+  parameterSchema: { aspectRatio: { type: "enum", enum: ["1:1", "16:9"] }, duration: { type: "integer" } },
   assetInputSchema: { references: { kind: "image", max: 4 } },
   providers: [{
     providerId: "fixture-provider",
@@ -62,34 +64,16 @@ function candidate(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("V-3b: preflight candidate read on a SINGLE-shot draft (what draft_shots with one plain shot creates)", () => {
-  it("readShotCandidateFacts on a real single-shot operation", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
-    const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
-    const operationId = (created as { operation: { operationId: string } }).operation.operationId;
-    const read = await handler({ capability: "read", params: { operationId }, lease }) as { operation: Record<string, unknown> };
-    console.log("SINGLE_SHOT_OPERATION_KEYS", Object.keys(read.operation).join(","), "hasShots=", "shots" in read.operation);
-    const adapter = createPiGenerationTransportAdapter(
-      { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1 } as never,
-      { planning: (async (input: { capability: string; params: Record<string, unknown> }) => handler({ ...input, lease } as never)) as never, leaseFor: () => lease },
-    );
-    await expect(adapter.readShotCandidateFacts!(operationId)).resolves.toBeDefined();
-  });
-});
-
-describe("single-shot draft: references are read from operation.candidate; a missing operation still fails", () => {
+describe("readShotCandidateFacts: references and durations from one read of the real draft ledger", () => {
   const adapterFor = (handler: ReturnType<typeof createGenerationPlanningHandler>) => createPiGenerationTransportAdapter(
     { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1 } as never,
     { planning: (async (input: { capability: string; params: Record<string, unknown> }) => handler({ ...input, lease } as never)) as never, leaseFor: () => lease },
   );
-  it("a single-shot draft with a reference reports it under the no-shot key", async () => {
+  it("a single-shot draft reports its duration under the no-shot key; no duration parameter = not declared", async () => {
     const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
-    const created = await handler({ capability: "create", params: { candidate: candidate({ references: [{ assetId: "asset-pre", contentHash: "a".repeat(64), version: 1, kind: "video" }] }) }, lease });
-    const operationId = (created as { operation: { operationId: string } }).operation.operationId;
-    await expect(adapterFor(handler).readShotCandidateFacts!(operationId)).resolves.toEqual({ references: { "": ["asset-pre"] }, durationSeconds: {} });
-  });
-  it("an operation that does not exist is not mistaken for the single-shot shape", async () => {
-    const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
-    await expect(adapterFor(handler).readShotCandidateFacts!("op-missing")).rejects.toThrow();
+    const withDuration = await handler({ capability: "create", params: { candidate: candidate({ parameters: { aspectRatio: "16:9", duration: 6 } }) }, lease }) as { operation: { operationId: string } };
+    await expect(adapterFor(handler).readShotCandidateFacts!(withDuration.operation.operationId)).resolves.toEqual({ references: { "": [] }, durationSeconds: { "": 6 } });
+    const without = await handler({ capability: "create", params: { candidate: candidate({ candidateId: "candidate-2" }) }, lease }) as { operation: { operationId: string } };
+    await expect(adapterFor(handler).readShotCandidateFacts!(without.operation.operationId)).resolves.toEqual({ references: { "": [] }, durationSeconds: {} });
   });
 });
