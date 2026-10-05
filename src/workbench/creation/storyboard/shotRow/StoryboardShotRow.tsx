@@ -23,7 +23,7 @@ import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
 import { resolveShotArchetypeMode } from './shotRowModel'
-import { type FrameMediaBox } from './shotFrameGeometry'
+import { isPortraitBox, visualColumnWidth, type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
 import StoryboardRowShell from './StoryboardRowShell'
@@ -193,6 +193,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   // 画面格在网格里面各自按档位缩（同一个 context）。这里给的是宽档值。
   const visualWidth = frameBox.width
   const visualHeight = frameBox.height
+  // 整片竖版：参考在框右边、提示词不撑满行高（用户选 A）；横版与方图：参考在框下面。
+  const portrait = isPortraitBox(frameBox)
   // 生成时会被计划首帧填上的那一槽不摆进参考里（不是用户摆的参考）。
   const hiddenSlotKeys = React.useMemo(
     () => (exec?.plannedFirstFrame ? new Set([exec.plannedFirstFrame.slotKind]) : undefined),
@@ -302,7 +304,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
   // 视觉列：预览框 → 结果动作（有结果才占位）→ 参考缩略图条。列宽 = 框宽（窄档由行网格和画面格按同一档位缩）。
   const visual = (
-    <div className="flex flex-col" data-storyboard-visual={shot.index}>
+    <div className={portrait ? 'flex items-start gap-2' : 'flex flex-col'} data-storyboard-visual={shot.index}>
+      <div className="flex flex-col">
       {exec ? (
         <>
           <StoryboardShotFrame
@@ -346,6 +349,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           </span>
         </div>
       )}
+      </div>
       <ShotReferenceStrip
         mode={resolvedMode}
         archetype={resolved?.archetype ?? null}
@@ -358,7 +362,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         onInsertMention={mentionSearch ? insertMention : undefined}
         onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
         hiddenSlotKeys={hiddenSlotKeys}
-        width={visualWidth}
+        layout={portrait
+          ? { placement: 'right', columnWidth: visualColumnWidth(frameBox), frameWidth: frameBox.width, frameHeight: frameBox.height }
+          : { placement: 'below', width: visualWidth }}
       />
     </div>
   )
@@ -528,7 +534,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       dropIndicator={props.isDragOver}
       grip={grip}
       visual={visual}
-      visualWidth={frameBox.width}
+      visualWidth={visualColumnWidth(frameBox)}
+      contentStretch={!portrait}
       prompt={prompt}
       footer={variantsOpen ? footer : undefined}
     />

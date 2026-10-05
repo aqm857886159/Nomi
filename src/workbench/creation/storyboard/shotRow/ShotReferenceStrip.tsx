@@ -16,6 +16,7 @@ import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { appendBinding, bindingsOf, type ReferenceBindingMap } from './shotReferenceSlots'
 import { imageReferenceMode } from '../exec/storyboardAutoReference'
 import { useStoryboardRowNarrow } from './storyboardRowDensity'
+import { cn } from '../../../../utils/cn'
 import { densityBox } from './shotFrameGeometry'
 
 /**
@@ -39,6 +40,8 @@ const WRONG_KIND_KEY: Record<'image' | 'video' | 'audio', string> = {
 }
 
 const GAP = 4
+/** 竖版时预览框与右边参考带之间的间距（视觉列内）。 */
+export const RIGHT_GAP = 8
 
 type Props = {
   mode: ArchetypeMode | null
@@ -53,8 +56,13 @@ type Props = {
   onSwitchMode?: ((modeId: string) => void) | undefined
   /** 生成时会被计划首帧填上的槽：不摆出来（不是用户摆的参考，删不掉也换不了）。 */
   hiddenSlotKeys?: ReadonlySet<string> | undefined
-  /** 视觉列宽（宽档值；窄档在这里按行的档位缩，与画面格同一个 context）。 */
-  width: number
+  /**
+   * 摆在哪、占多大（宽档值；窄档在这里按行的档位缩，与画面格同一个 context）：
+   *   · `below`：横版 / 方图，排在预览框下面，宽 = 预览框宽，折行（窄档一行放不下折成 +N）；
+   *   · `right`：竖版（2026-10-06 用户选 A「竖版参考挪右边」），排在预览框右边的那条窄带里，
+   *     宽 = 视觉列宽 − 框宽 − 8，高 = 框高，竖着排、可多列，「+」在最后；放不下折成 +N。
+   */
+  layout: { placement: 'below'; width: number } | { placement: 'right'; columnWidth: number; frameWidth: number; frameHeight: number }
 }
 
 type Tile = { slot: ArchetypeReferenceSlot; slotKey: string; indexInSlot: number; number: number; url: string; name: string; kind: AssetKind }
@@ -69,13 +77,16 @@ function slotFor(mode: ArchetypeMode, bindings: ReferenceBindingMap | undefined,
 }
 
 export default function ShotReferenceStrip({
-  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, hiddenSlotKeys, width: wideWidth,
+  mode, archetype, bindings, onChangeBindings, onRemove, onInsertMention, onSwitchMode, hiddenSlotKeys, layout,
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const projectId = useOpenProjectId()
   const narrow = useStoryboardRowNarrow()
   const size = narrow ? 28 : 36
-  const width = densityBox({ width: wideWidth, height: 0 }, narrow).width
+  const scaled = (value: number): number => densityBox({ width: value, height: 0 }, narrow).width
+  const right = layout.placement === 'right'
+  const width = right ? scaled(layout.columnWidth) - scaled(layout.frameWidth) - RIGHT_GAP : scaled(layout.width)
+  const height = right ? densityBox({ width: layout.frameWidth, height: layout.frameHeight }, narrow).height : 0
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [overflowOpen, setOverflowOpen] = React.useState(false)
   const [uploading, setUploading] = React.useState(false)
@@ -153,14 +164,23 @@ export default function ShotReferenceStrip({
 
   // 窄档只排一行：放得下几格（含「+」）就放几张，其余收进「+N」。宽档折行，全摆。
   const perRow = Math.max(1, Math.floor((width + GAP) / (size + GAP)))
+  const perColumn = right ? Math.max(1, Math.floor((height + GAP) / (size + GAP))) : 0
   const reserved = canAdd ? 1 : 0
-  const fold = narrow && tiles.length + reserved > perRow
-  const shown = fold ? tiles.slice(0, Math.max(0, perRow - reserved - 1)) : tiles
+  // 放得下的格数：竖版 = 右边那条带的列数 × 行数；横版窄档 = 一行；横版宽档折行不限。
+  const capacity = right ? perRow * perColumn : narrow ? perRow : Number.POSITIVE_INFINITY
+  const fold = tiles.length + reserved > capacity
+  const shown = fold ? tiles.slice(0, Math.max(0, capacity - reserved - 1)) : tiles
   const hidden = tiles.length - shown.length
 
   return (
-    <div className="mt-1.5 flex flex-col gap-1" data-storyboard-refs="true" data-storyboard-refs-size={size}>
-      <div className="flex flex-wrap" style={{ gap: GAP, width }}>
+    <div className={cn('flex flex-col gap-1', !right && 'mt-1.5')} data-storyboard-refs={layout.placement} data-storyboard-refs-size={size}>
+      <div
+        className={right ? 'grid' : 'flex flex-wrap'}
+        style={right
+          // 竖着排：先填满一列再换下一列（序号 1、2、3 从上往下读）。
+          ? { gap: GAP, width, gridAutoFlow: 'column', gridTemplateRows: `repeat(${perColumn}, ${size}px)`, gridAutoColumns: `${size}px` }
+          : { gap: GAP, width }}
+      >
         {shown.map(renderTile)}
         {fold && hidden > 0 ? (
           <button

@@ -26,7 +26,7 @@ import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
-import { containedBox, densityBox, frameMediaBox, sameAspectAsBox } from '../shotRow/shotFrameGeometry'
+import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
 import { resolveShotArchetypeMode } from '../shotRow/shotRowModel'
 
@@ -102,6 +102,8 @@ export default function StoryboardAnchorRow({
   const anchor = runtime.anchor
   const displayName = anchor.name.trim() || t('storyboardEditor.unnamed')
   const KindIcon = KIND_ICON[anchor.kind]
+  const filmBox = frameMediaBox(aspect)
+  const portrait = isPortraitBox(filmBox)
   const orderedVendorKeys = useVendorPreferenceOrder()
   const modelOption = findModelOptionByIdentifier(modelOptions, anchor.modelKey, anchor.modelVendor, orderedVendorKeys)
   const resolved = resolveShotArchetypeMode(modelOption, anchor.modeId)
@@ -174,9 +176,11 @@ export default function StoryboardAnchorRow({
       dataAttributes={{ 'data-storyboard-anchor-row': anchor.id, 'data-anchor-card': anchor.id }}
       className="border-t border-nomi-line-soft first:border-t-0"
       grip={grip}
-      visualWidth={frameMediaBox(aspect).width}
+      visualWidth={visualColumnWidth(filmBox)}
+      contentStretch={!portrait}
       visual={
-        <div className="flex flex-col" data-storyboard-frame={runtime.visual ? 'anchor' : 'anchor-text'}>
+        <div className={portrait ? 'flex items-start gap-2' : 'flex flex-col'} data-storyboard-frame={runtime.visual ? 'anchor' : 'anchor-text'}>
+          <div className="flex flex-col">
           <AnchorFace
             runtime={runtime}
             filmAspect={aspect}
@@ -198,6 +202,7 @@ export default function StoryboardAnchorRow({
               {onOpenPreview ? <ActButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={14} stroke={1.8} /></ActButton> : null}
             </div>
           ) : null}
+          </div>
           {runtime.visual ? (
             <ShotReferenceStrip
               mode={resolved?.mode ?? null}
@@ -206,7 +211,9 @@ export default function StoryboardAnchorRow({
               onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
               onRemove={(slotKey, index) => { const next = removeBinding(anchor.referenceBindings, slotKey, index); if (next) onUpdate({ referenceBindings: next }) }}
               onSwitchMode={runtime.resultUrl || runtime.generating ? undefined : (modeId) => onUpdate({ modeId })}
-              width={frameMediaBox(aspect).width}
+              layout={portrait
+                ? { placement: 'right', columnWidth: visualColumnWidth(filmBox), frameWidth: filmBox.width, frameHeight: filmBox.height }
+                : { placement: 'below', width: filmBox.width }}
             />
           ) : null}
         </div>

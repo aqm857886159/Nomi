@@ -94,3 +94,16 @@ export function sameAspectAsBox(box: FrameMediaBox, aspect: string | null | unde
   if (!ratio) return true
   return Math.abs(ratio.width / ratio.height - box.width / box.height) < 0.02
 }
+
+/** 整片是竖版（框高 > 宽）：参考缩略图排在框右边，提示词不撑满行高（2026-10-06 用户选 A）。 */
+export function isPortraitBox(box: FrameMediaBox): boolean {
+  return box.height > box.width
+}
+
+/**
+ * 视觉列宽：横版与方图 = 框宽；**竖版与横版同宽（240）**——框靠左、参考在框右边那条带里，
+ * 这样整片竖版时各行左缘和内容列起点仍与横版表一致，参考也不再把行撑高。
+ */
+export function visualColumnWidth(box: FrameMediaBox): number {
+  return isPortraitBox(box) ? LONG_EDGE : box.width
+}

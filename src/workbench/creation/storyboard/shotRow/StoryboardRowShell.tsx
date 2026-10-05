@@ -21,8 +21,13 @@ type Props = {
   grip?: React.ReactNode
   /** 视觉列（预览框 + 结果动作 + 参考条）。 */
   visual: React.ReactNode
-  /** 视觉列宽（宽档的预览框宽；窄档由这里按 176/240 缩）。 */
+  /** 视觉列宽（宽档值，`visualColumnWidth`；窄档由这里按 176/240 缩）。 */
   visualWidth: number
+  /**
+   * 内容列撑满行高（默认）：底栏与「生成」逐行同一位置。整片竖版时传 false——提示词与底栏贴在一起、
+   * 空白留在框外（2026-10-06 用户选 A，接受「生成」纵向位置跟着内容走）。
+   */
+  contentStretch?: boolean
   prompt: React.ReactNode
   /** 整行下方跨列的附加区（变体抽屉…）；缺省 = 不占位。 */
   footer?: React.ReactNode
@@ -42,6 +47,7 @@ export default function StoryboardRowShell({
   grip,
   visual,
   visualWidth,
+  contentStretch = true,
   prompt,
   footer,
   dropIndicator,
@@ -66,7 +72,7 @@ export default function StoryboardRowShell({
         {dropIndicator ? <div className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden /> : null}
         <div className="relative self-start justify-self-center text-nomi-ink-20">{grip}</div>
         <div className="min-w-0 self-start" data-storyboard-visual-column="true">{visual}</div>
-        <div className="flex min-w-0 flex-col gap-1.5" data-storyboard-content-column="true">{prompt}</div>
+        <div className={cn('flex min-w-0 flex-col gap-1.5', !contentStretch && 'self-start')} data-storyboard-content-column="true">{prompt}</div>
         {footer ? <div className="col-start-2 col-span-2">{footer}</div> : null}
       </div>
     </StoryboardRowNarrowContext.Provider>
