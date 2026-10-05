@@ -50,7 +50,7 @@ type AssetReferenceProps = {
 }
 
 // 合并后的数组参考行用这个伪 key 记展开状态。
-export const MERGED_ARRAY_KEY = '__refs__'
+const MERGED_ARRAY_KEY = '__refs__'
 
 function displayRef(url: string, kind: AssetKind, name: string): AssetRef {
   return { id: url, kind, name, renderUrl: url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }
