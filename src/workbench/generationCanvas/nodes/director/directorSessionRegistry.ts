@@ -28,6 +28,15 @@ export function writeExternalDirectorProject(nodeId: string, project: DirectorPr
   return true
 }
 
+/**
+ * While the editor is open its store is the only writer (plan §3), so the hand edits an
+ * AI patch must preserve are read here — node meta can lag up to the 2s idle save.
+ */
+export function readDirectorSessionProject(nodeId: string): DirectorProject | null {
+  return sessions.get(nodeId)?.store.getState().exportProject() ?? null
+}
+
 export function hasDirectorSession(nodeId: string): boolean {
   return sessions.has(nodeId)
 }
+

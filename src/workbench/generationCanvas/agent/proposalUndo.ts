@@ -7,6 +7,7 @@
 // 时清内存槽(各项目各自文件,重开该项目时从盘种回)。
 // 补偿事件进 Cmd+Z 栈(一个 barrier):撤销「撤销」= 一次 Cmd+Z,AI 节点回来。
 import React from 'react'
+import { flushEmbeddedEditors } from './embeddedEditorFlush'
 import {
   parseProjectAgentCommittedProposal,
   type ProjectAgentCommittedProposalRecord,
@@ -368,6 +369,9 @@ export function detectLostUserEdits(record: CommittedProposalRecord): string[] {
  * path keeps its durable receipt CAS; this path reuses the same compensation
  * owner and journal conflict evidence without creating another history. */
 export function runProposalUndoByChangeId(changeId: string): void {
+  // An open embedded editor's unsaved hand edits must reach the journal first, so the
+  // conflict check below sees them instead of the compensation silently erasing them.
+  flushEmbeddedEditors()
   const parsed = parseChangeId(changeId)
   if (!parsed || parsed.kind !== 'canvas') {
     throw Object.assign(new Error('undo_change_not_found'), { code: 'undo_change_not_found' })
