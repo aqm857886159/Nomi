@@ -7,6 +7,7 @@ import {
   checkDesignCard,
   checkEscapeContract,
   checkIndependentAcceptance,
+  checkProtectedScope,
   classifyChange,
   extractSection,
   implementationLine,
@@ -147,4 +148,46 @@ test('旧 PR（规则生效前开的）缺项只给警告、不判红；新 PR �
   assert.doesNotMatch(old.text, /✖/)
   assert.match(old.text, /⚠ PR 正文没有/)
   assert.equal(renderReport({ ...input, grandfathered: false }).blocked, true)
+})
+
+test('规则与门岗范围：碰到受保护文件必须在正文点名，整文件删除要写理由（#1032 回退 #1031 的事故）', () => {
+  const files = [
+    { path: 'CLAUDE.md', status: 'modified' },
+    { path: 'scripts/check-escape-ledger.mjs', status: 'removed' },
+    { path: 'src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx', status: 'modified' },
+  ]
+  const silent = checkProtectedScope('## 为什么\n换基线', files)
+  assert.equal(silent.ok, false)
+  assert.match(silent.lines.join('\n'), /CLAUDE\.md/)
+  assert.match(silent.lines.join('\n'), /check-escape-ledger\.mjs（整文件删除）/)
+  const namedNoReason = checkProtectedScope('## 碰到的规则与门岗\n- CLAUDE.md：P2 改一句\n- scripts/check-escape-ledger.mjs', files)
+  assert.equal(namedNoReason.ok, false, '整文件删除只点名不写理由仍红')
+  const named = checkProtectedScope('## 碰到的规则与门岗\n- CLAUDE.md：P2 改一句\n- scripts/check-escape-ledger.mjs 删除：并进 check-ledger.mjs', files)
+  assert.equal(named.ok, true)
+  assert.equal(checkProtectedScope('', [{ path: 'src/a.ts', status: 'modified' }]).ok, true, '没碰受保护文件不要求这一节')
+})
+
+test('规则与门岗范围：package.json 删掉门岗命令也算；逃逸账本条目消失直接红', () => {
+  const pkg = checkProtectedScope('', [{ path: 'package.json', status: 'modified' }], { packageRemovedLines: ['    "check:escape-ledger": "node scripts/check-escape-ledger.mjs",'] })
+  assert.equal(pkg.ok, false)
+  assert.match(pkg.lines.join('\n'), /package\.json/)
+  assert.equal(checkProtectedScope('', [{ path: 'package.json', status: 'modified' }], { packageRemovedLines: ['    "vite": "^7.0.0",'] }).ok, true, '只改依赖不算')
+  const ledger = checkProtectedScope('', [], { ledgerRemovedIds: ['AUD-20261005-01'] })
+  assert.equal(ledger.ok, false)
+  assert.match(ledger.lines.join('\n'), /AUD-20261005-01/)
+})
+
+test('报告：规则与门岗范围红了，规则生效前开的 PR 也不放宽', () => {
+  const report = renderReport({
+    pr: 1,
+    grandfathered: true,
+    classification: { fourClass: false, classes: [], hits: [] },
+    design: { ok: false, lines: ['✖ 设计卡缺格'] },
+    acceptance: { ok: true, lines: [] },
+    escape: { ok: true, lines: [] },
+    scope: { ok: false, lines: ['✖ 碰到规则 / 门岗文件但正文没点名：CLAUDE.md'] },
+  })
+  assert.equal(report.blocked, true)
+  assert.match(report.text, /⚠ 设计卡缺格/)
+  assert.match(report.text, /✖ 碰到规则/)
 })

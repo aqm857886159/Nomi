@@ -157,13 +157,66 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
  * 只给警告、不判红。参考 PR 还没合并 = 规则尚未生效，所有开着的 PR 都只警告。
  */
 export const RULES_INTRODUCED_BY_PR = 961
+/**
+ * ④ 规则与门岗的改动范围（2026-10-05，#1032 事故：一张只该换截图基线的卡，提交里混进本地旧文件，
+ * 把刚合入的 #1031 整个回退——CLAUDE.md、rules.json、八个门岗脚本、逃逸账本，44 个文件删 752 行）。
+ * 判据：碰到下面这些路径的 PR，正文 `## 碰到的规则与门岗` 一节必须逐个点名；整文件删除那一行还要写「删除」和理由。
+ * 不靠审的人眼尖——没点名就红。逃逸账本另算：条目只许变多或改状态，不许消失。
+ */
+export const PROTECTED_PATHS = [
+  /^(?:CLAUDE|AGENTS)\.md$/,
+  /^docs\/engineering-rules\.md$/,
+  /^docs\/engineering\/(?:rules\.json|rules\.md|experience-system\.md|design-card\.md|self-written\.json|concept-owners\.json)$/,
+  /^scripts\/(?:check-[^/]+|run-gates[^/]*|merge-preflight[^/]*|validation-policy[^/]*|git-delivery[^/]*|[^/]+-lib\.mjs|[^/]*baseline[^/]*\.json)$/,
+  /^scripts\/claude-hooks\//,
+  /^\.github\/workflows\//,
+  /^\.claude\/settings[^/]*\.json$/,
+]
+export const SCOPE_SECTION = '碰到的规则与门岗'
+/** package.json 里被删掉的一行（已去掉 diff 的「-」前缀）是不是门岗命令。 */
+const GATE_SCRIPT_LINE = /^"(?:gates|check):[^"]*"\s*:/
+
+/** files: [{ path, status: 'added' | 'modified' | 'removed' | 'renamed' }]；packageRemovedLines: package.json 里被删的行。 */
+export function checkProtectedScope(body, files, { packageRemovedLines = [], ledgerRemovedIds = [] } = {}) {
+  const touched = files.filter((file) => PROTECTED_PATHS.some((pattern) => pattern.test(file.path)))
+  const gateLinesRemoved = packageRemovedLines.filter((line) => GATE_SCRIPT_LINE.test(line.trim()))
+  if (gateLinesRemoved.length) touched.push({ path: 'package.json', status: 'modified', gateLines: gateLinesRemoved })
+  const lines = []
+  let ok = true
+  if (ledgerRemovedIds.length) {
+    ok = false
+    lines.push(`✖ 逃逸账本里有条目被删掉：${ledgerRemovedIds.join('、')}（条目只许新增或改状态；多半是分支带着旧账本把别人的记录覆盖了）`)
+  }
+  if (!touched.length) {
+    lines.push('· 没碰规则与门岗文件')
+    return { ok, lines }
+  }
+  const section = extractSection(body, SCOPE_SECTION) ?? ''
+  const sectionLines = section.split('\n')
+  const missing = []
+  for (const file of touched) {
+    const mentions = sectionLines.filter((line) => line.includes(file.path))
+    if (!mentions.length) { missing.push(file.status === 'removed' ? `${file.path}（整文件删除）` : file.path); continue }
+    if (file.status === 'removed' && !mentions.some((line) => /删除\s*[：:—-]\s*\S/.test(line))) missing.push(`${file.path}（整文件删除，要写「删除：理由」）`)
+    if (file.gateLines && !mentions.some((line) => /删除|移除|去掉|改名/.test(line))) missing.push('package.json（删掉了门岗命令，要写清删了哪个、为什么）')
+  }
+  if (missing.length) {
+    ok = false
+    lines.push(`✖ 碰到规则 / 门岗文件但正文 \`## ${SCOPE_SECTION}\` 没点名：${missing.slice(0, 8).join('、')}${missing.length > 8 ? ` 等 ${missing.length} 个` : ''}`)
+    lines.push('  → 是本意就逐个写进那一节（删整文件写「删除：理由」）；不是本意就是分支带了旧文件，先 `git diff --stat origin/main...HEAD` 核对再重做')
+  } else {
+    lines.push(`✅ 规则与门岗：碰到 ${touched.length} 个，正文都点名了`)
+  }
+  return { ok, lines }
+}
+
 export function isGrandfathered({ createdAt, effectiveAt }) {
   if (!effectiveAt) return true
   if (!createdAt) return false
   return new Date(createdAt) < new Date(effectiveAt)
 }
 
-export function renderReport({ pr, classification, design, acceptance, escape, grandfathered = false }) {
+export function renderReport({ pr, classification, design, acceptance, escape, scope = { ok: true, lines: [] }, grandfathered = false }) {
   const lines = [`合并前扫描 · PR #${pr}`]
   lines.push(classification.fourClass
     ? `· 四类：命中（${classification.classes.join('、')}）——${classification.hits.slice(0, 5).map((hit) => hit.path).join('、')}${classification.hits.length > 5 ? ' …' : ''}`
@@ -172,8 +225,10 @@ export function renderReport({ pr, classification, design, acceptance, escape, g
   lines.push(...soften(design.lines))
   if (classification.fourClass) lines.push(...soften(acceptance.lines))
   lines.push(...soften(escape.lines))
+  // 规则与门岗的改动范围不吃「规则生效前开的 PR」那条宽限：#1032 这种回退正是旧分支带出来的。
+  lines.push(...scope.lines)
   if (grandfathered) lines.push('· 这是规则生效（#961 合并）之前开的 PR：缺项只给警告，不判红')
-  const blocked = !grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok)
+  const blocked = !scope.ok || (!grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok))
   lines.push(blocked ? '结论：✖ 有项没过，先别合（脚本只打印结论，不合并）' : '结论：✅ 扫描干净（脚本只打印结论，不合并；其余合并条件仍看 CI 与收据）')
   return { text: lines.join('\n'), blocked }
 }
@@ -224,14 +279,28 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   // 逃逸账本的状态转换：只有本 PR 改了账本才去取两版（base 取当前基线分支末端）
-  const ledger = { transitions: [], ids: [] }
+  const ledger = { transitions: [], ids: [], removed: [] }
   if (slug && files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
     const parse = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
     const head = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
     const base = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.baseRefName || 'main'))
     ledger.transitions = fixedTransitions(base, head)
     ledger.ids = (head?.entries ?? []).map((entry) => entry.id)
+    const headIds = new Set(ledger.ids)
+    ledger.removed = (base?.entries ?? []).map((entry) => entry.id).filter((id) => !headIds.has(id))
   }
+
+  // 规则与门岗的改动范围：要真实的文件状态（removed / modified），gh pr view 的 files 只给增删行数
+  let statusFiles = files.map((file) => ({ path: file.path, status: 'modified' }))
+  const baseSlug = repo ?? slug
+  if (baseSlug) {
+    try {
+      statusFiles = gh(['api', `repos/${baseSlug}/pulls/${prArg}/files`, '--paginate', '--jq', '.[] | [.filename, .status] | @tsv'])
+        .split('\n').filter(Boolean).map((row) => { const [path, status] = row.split('\t'); return { path, status } })
+    } catch { /* 取不到状态就按 modified 算：漏判整文件删除，但点名要求照旧 */ }
+  }
+  const packageBlock = diff.split(/^diff --git /m).find((block) => block.startsWith('a/package.json b/package.json')) ?? ''
+  const packageRemovedLines = packageBlock.split('\n').filter((line) => line.startsWith('-') && !line.startsWith('---')).map((line) => line.slice(1))
 
   let effectiveAt = null
   try {
@@ -246,6 +315,7 @@ export function main(argv = process.argv.slice(2)) {
     design: checkDesignCard(body, classification),
     acceptance: checkIndependentAcceptance(body),
     escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids),
+    scope: checkProtectedScope(body, statusFiles, { packageRemovedLines, ledgerRemovedIds: ledger.removed }),
   })
   console.log(report.text)
   return report.blocked ? 1 : 0
