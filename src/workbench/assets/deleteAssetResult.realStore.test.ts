@@ -18,7 +18,7 @@ vi.mock('../project/workbenchProjectSession', () => ({
 }))
 
 import { deleteAssetResult } from './deleteAssetResult'
-import { __resetPendingAssetDeletionsForTests, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
+import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, MAX_DELETE_ATTEMPTS, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
 
 function loaded(projectId: string): ProjectExecutionContext {
   return { binding: { projectId, immutableProjectUuid: `uuid-${projectId}`, projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
@@ -165,5 +165,53 @@ describe('deleteAssetResult with the real canvas store', () => {
     ])
     expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
     expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
+  })
+
+  it('a failed real delete stays on the list with its failure count, is retried, and is given up after the cap', async () => {
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(b, [b])
+    mocks.deleteFiles.mockResolvedValue({ deletedCount: 0, failedCount: 1 })
+    const saved = vi.fn()
+
+    await sweepPersistedAssetDeletions('project-1', [{ relativePath: 'assets/generated/a.png' }], saved)
+    // 删失败：路径不从清单里消失，记一次失败，并请项目存盘（失败次数要落到项目文件里）。
+    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
+    expect(saved).toHaveBeenCalledOnce()
+
+    // 下次打开：拿着项目文件里那份（带失败次数）再试。
+    let persisted = listPersistedAssetDeletions()
+    __resetPendingAssetDeletionsForTests()
+    await sweepPersistedAssetDeletions('project-1', persisted, saved)
+    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 2 }])
+
+    persisted = listPersistedAssetDeletions()
+    __resetPendingAssetDeletionsForTests()
+    await sweepPersistedAssetDeletions('project-1', persisted, saved)
+    // 第 MAX_DELETE_ATTEMPTS 次还失败：放弃（文件只占空间），不再无限重试。
+    expect(MAX_DELETE_ATTEMPTS).toBe(3)
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(3)
+
+    // 一次成功就销账。
+    mocks.deleteFiles.mockResolvedValue({ deletedCount: 1, failedCount: 0 })
+    await sweepPersistedAssetDeletions('project-1', [{ relativePath: 'assets/generated/c.png', failedAttempts: 2 }], saved)
+    expect(listPersistedAssetDeletions()).toBeUndefined()
+  })
+
+  it('an undo-window deletion whose real delete throws is kept for the next release instead of being lost', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    mocks.deleteFiles.mockRejectedValueOnce(new Error('EBUSY'))
+    for (let index = 0; index < 80; index += 1) toggleGesture()
+    await waitForEvictionWork()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
+    expect(listPersistedAssetDeletions()).toEqual([{ relativePath: 'assets/generated/a.png', failedAttempts: 1 }])
+
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(2)
+    expect(listPersistedAssetDeletions()).toBeUndefined()
   })
 })

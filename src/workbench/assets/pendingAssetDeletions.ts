@@ -8,6 +8,7 @@
 // 4. 待删清单跟着项目一起存盘（payload.pendingAssetDeletions）：App 直接退出来不及删的，
 //    下次打开这个项目时清扫（那时撤销日志是空的，没有任何一步能退回去）。
 // 每次真删之前都用 `isProjectFileReferenced` 再判一次：撤销回来的、时间轴还在用的，一律不删，只销账。
+// 真删失败（文件被占用、权限）不销账：留在清单里下次到点再试，连续失败 MAX_DELETE_ATTEMPTS 次才放弃并记日志。
 import { getDesktopBridge } from '../../desktop/bridge'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -20,10 +21,15 @@ export type PendingAssetDeletion = ProjectFileTarget & {
   journalGeneration?: number
   /** 删除这一步在撤销日志里的绝对位置（撤到这里 = 删之前）。 */
   journalPosition?: number
+  /** 已经真删失败过几次。 */
+  failedAttempts?: number
 }
 
-/** 存进项目文件的样子：项目自己知道自己是谁，只记相对路径。 */
-export type PersistedAssetDeletion = { relativePath: string }
+/** 存进项目文件的样子：项目自己知道自己是谁，只记相对路径（和失败过几次）。 */
+export type PersistedAssetDeletion = { relativePath: string; failedAttempts?: number }
+
+/** 同一份文件真删失败到第几次就放弃（文件留在盘上只占空间；不无限重试）。 */
+export const MAX_DELETE_ATTEMPTS = 3
 
 export type AssetDeletionRelease = { deletedFileCount: number; failedFileCount: number; keptReferencedCount: number }
 
@@ -48,7 +54,7 @@ export function forgetDeferredAssetDeletion(target: ProjectFileTarget): void {
  */
 export function listPersistedAssetDeletions(): PersistedAssetDeletion[] | undefined {
   if (pending.size === 0) return undefined
-  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath }))
+  return [...pending.values()].map((entry) => ({ relativePath: entry.relativePath, ...(entry.failedAttempts ? { failedAttempts: entry.failedAttempts } : {}) }))
 }
 
 function take(predicate: (entry: PendingAssetDeletion) => boolean): PendingAssetDeletion[] {
@@ -57,8 +63,21 @@ function take(predicate: (entry: PendingAssetDeletion) => boolean): PendingAsset
   return due
 }
 
+/**
+ * 删失败的那一笔记一次失败、放回清单（只在这个项目还开着时放回——它的清单随项目存盘；
+ * 换项目那一刻的失败不放回内存，项目文件里那一笔还在，下次打开再试）。到上限就放弃。
+ */
+function requeueFailed(entry: PendingAssetDeletion, requeue: boolean): void {
+  const failedAttempts = (entry.failedAttempts ?? 0) + 1
+  if (failedAttempts >= MAX_DELETE_ATTEMPTS) {
+    logRendererError('pending-asset-deletion-gave-up', new Error(`${entry.relativePath} failed ${failedAttempts} times`))
+    return
+  }
+  if (requeue) pending.set(keyOf(entry), { projectId: entry.projectId, relativePath: entry.relativePath, failedAttempts })
+}
+
 /** 到点的逐条再判一次引用：没人用了才删；有人用（撤销回来了 / 时间轴在用）只销账。 */
-async function release(due: readonly PendingAssetDeletion[]): Promise<AssetDeletionRelease> {
+async function release(due: readonly PendingAssetDeletion[], requeue: boolean): Promise<AssetDeletionRelease> {
   const outcome: AssetDeletionRelease = { deletedFileCount: 0, failedFileCount: 0, keptReferencedCount: 0 }
   if (due.length === 0) return outcome
   // 引用判定读的是此刻已加载项目的画布与时间轴——调用方保证到点的都是这个项目的（见各入口）。
@@ -69,6 +88,7 @@ async function release(due: readonly PendingAssetDeletion[]): Promise<AssetDelet
   const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
   if (!deleteFiles) {
     outcome.failedFileCount = unreferenced.length
+    for (const entry of unreferenced) requeueFailed(entry, requeue)
     return outcome
   }
   for (const entry of unreferenced) {
@@ -76,9 +96,11 @@ async function release(due: readonly PendingAssetDeletion[]): Promise<AssetDelet
       const result = await deleteFiles({ projectId: entry.projectId, relativePaths: [entry.relativePath] })
       outcome.deletedFileCount += result.deletedCount
       outcome.failedFileCount += result.failedCount
+      if (result.failedCount > 0) requeueFailed(entry, requeue)
     } catch (error) {
       outcome.failedFileCount += 1
       logRendererError('pending-asset-deletion-failed', error)
+      requeueFailed(entry, requeue)
     }
   }
   return outcome
@@ -90,7 +112,7 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
     entry.journalGeneration === eviction.generation
     && entry.journalPosition !== undefined
     && entry.journalPosition < eviction.oldestReachablePosition
-  )))
+  )), true)
 }
 
 /**
@@ -98,18 +120,27 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
  * **之前**同步调用——引用判定读的是此刻的画布（`take` 和判定都在第一个 await 之前完成）。
  */
 export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelease> {
-  return release(take(() => true))
+  return release(take(() => true), false)
 }
 
-/** 打开项目：上次没来得及删的（App 直接退出）现在删。只认清单里记过的路径，不扫目录。 */
-export function sweepPersistedAssetDeletions(projectId: string, persisted: unknown): Promise<AssetDeletionRelease> {
+/**
+ * 打开项目：上次没来得及删的（App 直接退出）、上次删失败的，现在删。只认清单里记过的路径，不扫目录。
+ * 清扫完清单变了（删掉了 / 失败次数加一）就请画布存一次盘，项目文件里的清单跟着变——否则失败次数永远停在
+ * 旧值，每次打开都再试一遍，上限形同虚设。
+ */
+export async function sweepPersistedAssetDeletions(projectId: string, persisted: unknown, onListChanged?: () => void): Promise<AssetDeletionRelease> {
   const entries = Array.isArray(persisted)
     ? persisted.flatMap((entry): PendingAssetDeletion[] => {
-        const relativePath = entry && typeof entry === 'object' ? (entry as { relativePath?: unknown }).relativePath : undefined
-        return typeof relativePath === 'string' && relativePath.trim() ? [{ projectId, relativePath }] : []
+        const raw = entry && typeof entry === 'object' ? entry as { relativePath?: unknown; failedAttempts?: unknown } : {}
+        const failedAttempts = Number.isInteger(raw.failedAttempts) && (raw.failedAttempts as number) > 0 ? raw.failedAttempts as number : undefined
+        return typeof raw.relativePath === 'string' && raw.relativePath.trim()
+          ? [{ projectId, relativePath: raw.relativePath, ...(failedAttempts ? { failedAttempts } : {}) }]
+          : []
       })
     : []
-  return release(entries)
+  const outcome = await release(entries, true)
+  if (entries.length > 0) onListChanged?.()
+  return outcome
 }
 
 registerUndoHistoryEvictionHandler((eviction) => {

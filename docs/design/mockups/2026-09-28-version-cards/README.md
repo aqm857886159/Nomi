@@ -1,6 +1,6 @@
 # 节点版本卡片 · 样张 v2「原地铺开」（2026-09-28）
 
-状态：**已拍板（2026-09-28）**（Claude Design 样张，只出样张，没改任何产品代码和测试）。
+状态：**已拍板（2026-09-28），2026-10-06 被宫格方向取代**（见 docs/plan/2026-10-06-version-cards-reconcile.md §7）（Claude Design 样张，只出样张，没改任何产品代码和测试）。
 
 在线样张：https://claude.ai/artifact/56CiBTTYaRwANu6PTSo3ry
 
@@ -32,7 +32,7 @@
 
 | 文件 | 是什么 |
 |---|---|
-| [index.html](index.html) | 单文件可交互样张。CSS/JS 内联；颜色、字号、圆角、间距只用 token（值逐字抄自 `src/theme/nomi-tokens.css` 与暗色块）；图标是 Tabler outline 原路径；画面是渐变与几何占位。满足 Artifact 页面契约（`<title>`、`:root` token、`prefers-color-scheme` + `data-theme` 双守卫、`body` 显式背景、无外部脚本、手机宽度不横向滚动）。 |
+| ~~index.html~~ | 单文件可交互样张（09-28 版）。**2026-10-06 已撤出本目录**：用户改向宫格（和节点一样、按宫格排、去掉版本图标），这一版 HTML 不再是验收合同；现行拍板物是设计实验室屏 `version-cards`（`src/devlab/designLab/versionCards/`），它的形态契约随 V2 接线一起交。原文件在 git 历史里（提交 ff5570809）与在线链接。 |
 | README.md | 本文件。 |
 | `before/` | 现状真机截图 3 张（收起态「3 版」胶囊、结果版本小窗、视频历史拖进度）。 |
 | `shots/` | 自检截图（Playwright，1440×900 视口，画布舞台 1310 宽、80% 缩放）。清单见文末。 |

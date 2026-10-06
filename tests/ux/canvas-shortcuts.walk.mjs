@@ -58,13 +58,17 @@ const c19MediaFile = path.join(repoRoot, 'resources/onboarding-demo/shot-3.jpg')
 const [c19Media] = JSON.parse(execFileSync(createRequire(import.meta.url)('@ffprobe-installer/ffprobe').path,
   ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'json', c19MediaFile], { encoding: 'utf8' })).streams
 if (!(c19Media?.width > 0 && c19Media?.height > 0)) throw new Error('C19 requires decoded real JPEG dimensions')
-const c19Result = { id: 'c19-existing-result', type: 'image', url: c19Image, createdAt: 1 }
+// 种的是**现行格式**的项目：每一版带「第 N 版」号、节点记着出过的最大号。旧格式（没号）的项目打开时会补号并写盘
+// （版本卡片 V1，nodeResultLifecycle.backfillNodeResultVersionNumbers），那正是下面「打开项目本身不写盘」要排除的东西——
+// 补号写盘由 nodeResultLifecycle.test.ts 与版本卡片真 App 核对守，这条走查守的是编组撤销与焦点。
+const c19Result = { id: 'c19-existing-result', type: 'image', url: c19Image, createdAt: 1, versionNo: 1 }
 const c19Nodes = ['source', 'one', 'two'].map((id, index) => ({
   id: `c19-${id}`, kind: 'image', categoryId: 'shots', title: `C19 ${id}`, prompt: `C19 prompt ${id}`,
   renderKind: 'shot-frame', shotIndex: index + 1,
   position: { x: 80 + index * 320, y: 120 }, size: { width: 240, height: 240 },
   status: 'success', result: { ...c19Result, id: `${c19Result.id}-${id}` },
   history: [{ ...c19Result, id: `${c19Result.id}-${id}` }],
+  resultVersionMax: 1,
   meta: { modelVendor: c19Model.vendorKey, modelKey: c19Model.modelKey, modeId: 't2i', promptSegments: [],
     imageWidth: c19Media.width, imageHeight: c19Media.height, imageAspectRatio: c19Media.width / c19Media.height,
     ...(index ? { storyboardDesignId: c19RunId, shotId: `shot-${id}` } : {}) },

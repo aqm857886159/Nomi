@@ -9,10 +9,11 @@ import type { GenerationCanvasNode, GenerationNodeResult } from './generationCan
 //
 // 两条不变量：
 // 1. history 是持久的「新 → 旧」顺序：加一版只往最前插，删一版只把它拿掉，换主图只改 `result` 指针。
-// 2. 每一版有自己的 `versionNo`（1 = 最早），号跟着版本走：删了留空号，新的一版 = 当前最大号 + 1。
+// 2. 每一版有自己的 `versionNo`（1 = 最早），号跟着版本走：删了留空号，新的一版 = **出过的**最大号 + 1。
+//    「出过的最大号」记在节点上（`resultVersionMax`，持久）：删掉最新一版之后再出一版，不会复用被删那版的号。
 
 export type NodeResultLifecyclePatch = Pick<GenerationCanvasNode, 'result' | 'history' | 'status' | 'error'>
-type NodeResults = Pick<GenerationCanvasNode, 'result' | 'history'>
+type NodeResults = Pick<GenerationCanvasNode, 'result' | 'history'> & Partial<Pick<GenerationCanvasNode, 'resultVersionMax'>>
 
 export function resultIdentity(result: GenerationNodeResult): string {
   return String(
@@ -83,16 +84,21 @@ export function normalizeNodeResultVersionNumbers<T extends NodeResults>(node: T
   }
   const historyMatchesEntries = (node.history ?? []).length === entries.length
     && (node.history ?? []).every((entry, index) => entry === entries[index])
-  if (missing.length === 0 && historyMatchesEntries) return node
+  const recordedMax = Number.isInteger(node.resultVersionMax) ? node.resultVersionMax as number : 0
+  if (missing.length === 0 && historyMatchesEntries) {
+    const seenMax = Math.max(...used)
+    return recordedMax >= seenMax ? node : { ...node, resultVersionMax: seenMax }
+  }
   const assigned = new Map<GenerationNodeResult, number>()
   if (used.size === 0) {
     entries.forEach((entry, index) => assigned.set(entry, entries.length - index))
   } else {
-    let next = Math.max(...used)
+    let next = Math.max(recordedMax, ...used)
     for (const entry of [...missing].reverse()) assigned.set(entry, (next += 1))
   }
   const numbered = entries.map((entry) => assigned.has(entry) ? { ...entry, versionNo: assigned.get(entry) } : entry)
-  return { ...node, result: canonicalResult(node, numbered), history: numbered }
+  const resultVersionMax = Math.max(recordedMax, ...numbered.map((entry) => entry.versionNo ?? 0))
+  return { ...node, result: canonicalResult(node, numbered), history: numbered, resultVersionMax }
 }
 
 /**
@@ -100,15 +106,15 @@ export function normalizeNodeResultVersionNumbers<T extends NodeResults>(node: T
  * （「新生成的版本自动变主图」是现行行为，见 docs/plan/2026-09-28-version-cards.md §5）。
  * 同一版再落一次（身份相同）不新增、不换号，只更新内容并顶成主图。
  */
-export function appendNodeResultVersion(node: NodeResults, incoming: GenerationNodeResult): Required<Pick<GenerationCanvasNode, 'history'>> & { result: GenerationNodeResult } {
+export function appendNodeResultVersion(node: NodeResults, incoming: GenerationNodeResult): Required<Pick<GenerationCanvasNode, 'history' | 'resultVersionMax'>> & { result: GenerationNodeResult } {
   const base = normalizeNodeResultVersionNumbers(node)
   const entries = base.history ?? []
   const identity = resultIdentity(incoming)
   const existing = identity ? entries.find((entry) => resultIdentity(entry) === identity) : undefined
-  const maxVersion = entries.reduce((max, entry) => Math.max(max, entry.versionNo ?? 0), 0)
+  const maxVersion = entries.reduce((max, entry) => Math.max(max, entry.versionNo ?? 0), base.resultVersionMax ?? 0)
   const landed: GenerationNodeResult = { ...incoming, versionNo: existing?.versionNo ?? maxVersion + 1 }
   const rest = identity ? entries.filter((entry) => resultIdentity(entry) !== identity) : entries
-  return { result: landed, history: [landed, ...rest] }
+  return { result: landed, history: [landed, ...rest], resultVersionMax: Math.max(maxVersion, landed.versionNo ?? 0) }
 }
 
 /** 换主图：只改指针，版本顺序和编号不动。找不到这一版 = null（调用方什么也不做）。 */
