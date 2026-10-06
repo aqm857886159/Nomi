@@ -56,6 +56,10 @@ export type CanvasNodeActions = {
   /** Apply many user edits with one undo barrier and one persist revision. */
   updateNodes: (updates: readonly { nodeId: string; patch: Partial<GenerationCanvasNode> }[]) => void
   updateNodePrompt: (nodeId: string, prompt: string, promptOverridden?: boolean) => void
+  /** 版本卡片铺开 / 收起（按节点存进项目，可撤销，同编组折叠）。 */
+  setNodeResultStackOpen: (nodeId: string, open: boolean) => void
+  /** 用户把某一版设为主图：一个撤销步；meta 是这一版的媒体尺寸（调用方读素材侧车算好，可省）。 */
+  setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
@@ -130,7 +134,6 @@ export type CanvasRunActions = {
   appendNodeRun: (nodeId: string, run: NodeRunRecordInput) => GenerationNodeRunRecord
   trackNodeRun: (nodeId: string, runId: string, patch: NodeRunRecordPatch) => void
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
-  rollbackHistory: (nodeId: string, resultId: string) => void
 }
 
 export type GenerationCanvasState = {

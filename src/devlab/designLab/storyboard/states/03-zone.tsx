@@ -87,7 +87,6 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onChange={NOOP}
         onGenerateRow={NOOP}
         onRegenerateRow={NOOP}
-        onVariantsRow={NOOP}
         onToggleLockRow={NOOP}
         onOpenPreviewRow={NOOP}
         onRerunFreshRefsRow={NOOP}
