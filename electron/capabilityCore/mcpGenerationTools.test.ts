@@ -10,6 +10,7 @@ import {
 import { MCP_GENERATION_TOOL_CATALOG } from "./mcpGenerationToolCatalog";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { buildVideoModelCandidates, recommendVideoGeneration, SEEDANCE_2_5_APIMART_ARCHETYPE } from "../shared/videoCapabilities";
+import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -776,6 +777,44 @@ describe("semantic MCP generation tools", () => {
       return { shotId, ...(role ? { role } : {}), candidate: candidate({ candidateId: `cand-${shotId}`, prompt }) };
     }
 
+    it("captures the draft scope once and passes its registry to every shot resolve", async () => {
+      const scopedRegistry = createModuleRegistry([{
+        moduleId: "generation.single-shot", version: "scoped", inputKinds: ["text"], outputKinds: ["image"], modes: ["text-to-image"],
+        parameterSchema: {}, assetInputSchema: { references: { kind: "asset" } },
+        providers: [{ providerId: "scoped-provider", models: [{
+          modelId: "scoped-model", modes: ["text-to-image"], parameterSchema: {},
+          capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+        }] }],
+      }]);
+      const scope: LiveGenerationRuntimeScope = {
+        readBootstrap: () => ({ providers: [], readinessByProvider: {} }),
+        registry: scopedRegistry,
+      };
+      const createDraftScope = vi.fn(() => scope);
+      const operations = createInMemoryGenerationOperationStore();
+      const handler = createGenerationPlanningHandler({
+        // The long-lived registry intentionally cannot resolve the scoped model.
+        registry,
+        createDraftScope,
+        operations,
+        now: () => "2026-08-23T00:00:00.000Z",
+      });
+
+      const created = await handler({ capability: "create", params: {
+        operationId: "op-scoped-registry",
+        shots: [
+          { shotId: "shot-1", candidate: candidate({ candidateId: "cand-1", providerId: "scoped-provider", modelId: "scoped-model", parameters: {} }) },
+          { shotId: "shot-2", candidate: candidate({ candidateId: "cand-2", providerId: "scoped-provider", modelId: "scoped-model", parameters: {} }) },
+        ],
+      }, lease }) as { operation: { shots?: Array<{ candidate: { providerId: string; modelId: string } }> } };
+
+      expect(createDraftScope).toHaveBeenCalledTimes(1);
+      expect(created.operation.shots?.map((shot) => [shot.candidate.providerId, shot.candidate.modelId])).toEqual([
+        ["scoped-provider", "scoped-model"],
+        ["scoped-provider", "scoped-model"],
+      ]);
+    });
+
     it("create({shots}) persists draft shots and gate_request seals a real multi-shot bundle (sub-contracts + planHash)", async () => {
       const operations = createInMemoryGenerationOperationStore();
       const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
@@ -846,6 +885,28 @@ describe("semantic MCP generation tools", () => {
       };
       expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_video");
       expect(created.operation.shots[0]?.candidate).toMatchObject({ providerId: "video-provider", modelId: "video-model", mode: "text-to-video" });
+    });
+
+    // 同一类缺陷的另一扇门（2026-10-05）：剧本自动拟镜那条路的兜底 id 曾经同样是「锚和镜混排的位置」。
+    it("scriptText 拟出的锚与镜头各自编号：锚 anchor-N，镜头 shot-N 只数镜头", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const image = { moduleId: "generation.single-shot", providerId: "fixture-provider", modelId: "fixture-model", mode: "text-to-image" };
+      const planStoryboard = vi.fn(() => ({ shots: [
+        { role: "anchor" as const, prompt: "主角 定妆", ...image },
+        { role: "shot" as const, prompt: "推门", ...image },
+        { role: "shot" as const, prompt: "对视", ...image },
+      ] }));
+      const handler = createGenerationPlanningHandler({ registry, operations, planStoryboard, now: () => "2026-10-05T00:00:00.000Z" });
+      const created = await handler({ capability: "create", params: { operationId: "op-script", scriptText: "两镜" }, lease }) as {
+        operation: { shots: Array<{ shotId: string }> };
+      };
+      expect(created.operation.shots.map((shot) => shot.shotId)).toEqual(["anchor-1", "shot-1", "shot-2"]);
+    });
+
+    it("调用方自带的 id 不许跨号段：锚叫 shot-1 当场拒给模型", async () => {
+      const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-10-05T00:00:00.000Z" });
+      await expect(handler({ capability: "create", params: { shots: [shotFrom("shot-1", "主角 定妆", "anchor"), shotFrom("shot-2", "推门", "shot")] }, lease }))
+        .rejects.toThrow(/shot-N ids are shot numbers/);
     });
   });
 

@@ -2,9 +2,10 @@
 //
 // 场景：用户自定义了一个 modelKey 也叫 gpt-image-2 的中转模型，与 APIMart 的 gpt-image-2 同名。
 // 画布节点模型框在 v0.21.0 已修（按 (value, vendor) 选），但分镜的三处模型框各自只写/只读 modelKey：
-//   ① 镜头卡底栏（ShotComposerBar）：调去重 hook 不传 vendor、回写只写 modelKey → 旧 modelVendor 残留；
+//   ① 镜头卡底栏（ShotComposerBar → 画布同款 InlineParameterBar，2026-10-06 起）：调去重 hook 不传 vendor、回写只写 modelKey → 旧 modelVendor 残留；
 //   ② 批量条（StoryboardBulkBar）：把 BulkModelPicker 回调的 vendor 丢了；
-//   ③ 锚行（StoryboardAnchorRow）：原生下拉 option value 是裸 modelKey，两家同值、只写 modelKey。
+//   ③ 锚行（StoryboardAnchorRow，同样改用画布同款底栏）：原生下拉 option value 是裸 modelKey，两家同值、只写 modelKey。
+// 两处的模型下拉现在是同一个组件（InlineParameterBar 的模型按钮），按它的无障碍名找。
 // 这里只用真实组件 + 被记录的 NomiSelect（不 mock 选择逻辑本身），断言「写进 plan 的供应商」。
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -66,10 +67,9 @@ describe('① 镜头卡底栏：选 APIMart 那条 → 镜头的 (modelKey, mode
   function renderBar(shot: PlanShot) {
     const onUpdate = vi.fn()
     renderToStaticMarkup(createElement(ShotComposerBar, {
-      shot, archetype: null, mode: null, modelOptions: OPTIONS,
-      aspect: '16:9', aspectOverridden: false, aspectOptions: [], onChangeAspect: () => {}, onUpdate,
+      shot, modelOptions: OPTIONS, aspect: '16:9', onChangeAspect: () => {}, onUpdate,
     }))
-    return { onUpdate, select: findSelect(i18n.t('storyboardEditor.imageModel')) }
+    return { onUpdate, select: findSelect(i18n.t('generationCommon.parameters.model')) }
   }
 
   it('当前在自定义那家，点 APIMart 那一行：写进去的供应商是 apimart（不是残留的自定义）', () => {
@@ -124,7 +124,7 @@ describe('③ 锚行模型框：两家同名模型是两个可区分的选项，
       aspect: '16:9', modelOptions: OPTIONS, onUpdate,
       onChangeKind: () => {}, onRemove: () => {}, onGenerate: () => {}, onRegenerate: () => {}, onToggleLock: () => {},
     }))
-    return { onUpdate, select: findSelect(i18n.t('storyboardEditor.anchor.modelAria')) }
+    return { onUpdate, select: findSelect(i18n.t('generationCommon.parameters.model')) }
   }
   const anchor = (over: Partial<PlanAnchor> = {}): PlanAnchor => ({
     id: 'a1', kind: 'character', name: 'Hero', description: '', carrier: 'visual', scope: 'all', ...over,

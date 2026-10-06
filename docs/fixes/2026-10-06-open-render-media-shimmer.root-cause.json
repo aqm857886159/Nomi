@@ -1,0 +1,114 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-open-render-media-shimmer",
+  "problem_type": "首帧渲染被装饰性动画拖慢：每个排队占位都挂无限扫光",
+  "symptom": "打开 300 张图的项目，节点挂上后约 0.8–0.9 秒才出第一张图（Windows 打包版 821ms 中位数）；用户 10-05 反馈 #1「进项目卡」",
+  "direct_cause": "可见的 180 个媒体占位每个都有一条无限扫光（渐变伪元素 + transform/opacity 动画），第一帧 GPU 栅格约 330ms，主线程 WaitForCommitCompletion 等它；媒体调度 scheduleAfterCanvasShellPaint 按设计等画壳两帧后才放第一张图",
+  "class_root": "加载占位的动效没有按「真正在加载」收窄：排队等待（可能排很久）的占位和拿到槽位的占位用同一套动画，动画数随可见卡数线性增长",
+  "affected_population": [
+    "所有平台，打开或滚动到大量媒体卡时；Windows 最明显"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+    "src/workbench/generationCanvas/styles/generationCanvas.css"
+  ],
+  "entry_points": [
+    "DeferredNodeImage / DeferredNodeVideo → DeferredNodeMediaPlaceholder（唯一占位渲染点）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/learn/advanced-use/performance",
+      "checked_at": "2026-10-06",
+      "purpose": "核对 onlyRenderVisibleElements 等现成能力已接入，不是瓶颈"
+    }
+  ],
+  "invariants": [
+    "扫光动画只挂在 data-media-state='loading' 的占位上",
+    "同时扫光的占位数不超过媒体槽位数（图 4、视频 1）"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "symbol": "DeferredNodeMediaPlaceholder"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "占位只有一个渲染组件、扫光只有一条样式规则；类级检查普查 src 下全部样式表里碰到占位类的动画规则与全部占位渲染点，以后任何新加的扫光规则或占位用法都会被同一条检查核对",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "symbol": "DeferredNodeMediaPlaceholder",
+      "responsibility": "把媒体状态交给占位，样式按状态决定动不动"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "entry_point": "DeferredNodeImage",
+      "disposition": "enforced",
+      "evidence": "传 state={media.state}"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "entry_point": "DeferredNodeVideo",
+      "disposition": "enforced",
+      "evidence": "传 state={media.state}"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次打开或平移到大量媒体卡都会触发；新加的加载动效也可能重犯",
+    "same_class_scan": [
+      "grep generation-canvas-v2-node__media-loading src：唯一样式表 generationCanvas.css 与唯一组件 DeferredNodeMedia.tsx",
+      "CDP LayerTree / trace：首帧 WaitForCommitCompletion 约 350ms，A/B 去掉扫光后「节点挂上 → 第一张图」911/889 → 449/515ms"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+    "invariant": "扫光只挂在正在加载的占位上",
+    "failure_mode": "新加的占位动画规则没收窄到 loading 态、或占位没拿到状态，类级检查变红",
+    "exception_policy": "none",
+    "strategy": "占位把状态作为 data 属性给样式；类级检查普查样式表与渲染点",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "src/workbench/generationCanvas/styles/generationCanvas.css"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "同一条样式规则收窄选择器，没有旧路径"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方行为",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts",
+      "tests/ux/project-open-stages.e2e.mjs"
+    ],
+    "why": "占位唯一渲染点把状态交给样式；类级检查核样式与渲染点，跑器量真 App"
+  },
+  "residual_risks": [
+    "「画布可见 → 节点挂上」约 700–850ms 未改：react-i18next 每实例 createI18nWrapper（上游 17.0.15 仍如此）与 Agent 输入框挂载时强制整页布局",
+    "界面变化（排队卡不扫光）需协调会话 / 用户确认"
+  ]
+}

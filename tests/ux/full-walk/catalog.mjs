@@ -22,6 +22,9 @@
  */
 export const CLICK_TARGET_CONTRACT = Object.freeze({
   fields: Object.freeze(['target', 'userExpectation', 'actualObservation', 'useCases', 'ironLaws']),
+  // 按钮预期表的七字段集（docs/engineering/test-routing.json 的 buttonExpectationFields）里，目前预期表还没填的可选字段：
+  // 设计链接 / 变体或状态 / 无障碍角色 + 名称（getByRole）/ 用户动作。逐步补，不填不红；映射由路由表的 catalogField 声明。
+  optionalFields: Object.freeze(['designRef', 'state', 'role', 'accessibleName', 'action']),
   actualObservation: '真实 Electron 走查、供应商回执或落盘状态的证据；未知写 unverified，不得从代码推断',
   candidateLedger: 'tests/ux/full-walk/escapeLedger.json',
   ironLaw: '⑫ 点了=以为的',

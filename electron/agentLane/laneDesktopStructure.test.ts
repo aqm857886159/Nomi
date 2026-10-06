@@ -123,13 +123,19 @@ describe("Agent lane production cutover structure", () => {
   it("hydrates proposal receipts only after the current lane workspace is installed", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
     const preload = preloadSurfaceSource();
-    const open = app.indexOf("await laneClient.open(committedBinding.binding)");
+    // 打开 lane 那一步外面包了一层打开分阶段计时（measureProjectOpenStage，2026-10-06）；
+    // 等的仍是同一个 laneClient.open，回执仍取自它装好的那个工作区。顺序语义不变：先装好、再核当前、再水合。
+    const open = app.indexOf("const opened = await measureProjectOpenStage('agent-lane-open', () => laneClient.open(committedBinding.binding))");
     const currentGuard = app.indexOf("surfaceEpoch.assertCurrent()", open);
-    const hydrate = app.indexOf("hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))", currentGuard);
+    const installedWorkspace = app.indexOf("const workspaceId = opened.workspaceId", currentGuard);
+    const hydrate = app.indexOf("hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))", installedWorkspace);
 
     expect(open).toBeGreaterThan(-1);
     expect(currentGuard).toBeGreaterThan(open);
-    expect(hydrate).toBeGreaterThan(currentGuard);
+    expect(installedWorkspace).toBeGreaterThan(currentGuard);
+    expect(hydrate).toBeGreaterThan(installedWorkspace);
+    // 水合回执只许有这一处，而且在打开之后（不许在别处提前水合一份）。
+    expect(app.indexOf("hydrateCommittedProposalReceipt(")).toBe(hydrate);
     expect(preload).toContain("LANE_IPC_CHANNELS.command");
     expect(preload).not.toContain("nomi:projectAgent:");
     expect(preload).not.toContain("projectRoot: proposal");

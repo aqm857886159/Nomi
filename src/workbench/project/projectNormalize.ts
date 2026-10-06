@@ -13,6 +13,7 @@ import {
 } from './projectRecordSchema'
 import { normalizeCategories } from './projectCategories'
 import { storyboardPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
+import { renumberStoryboardShots } from '../../../electron/shared/storyboard/storyboardSubjectIdentity'
 import i18n from '../../i18n'
 
 // 封面派生已收口到 ./projectCoverDerive（媒体类型分流版，2026-08-01）：
@@ -99,7 +100,7 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
   const legacyCommittedKey = ['storyboard', 'Plan', 'Committed'].join('')
   const legacyMap = raw[legacyMapKey] && typeof raw[legacyMapKey] === 'object' ? raw[legacyMapKey] as Record<string, unknown> : undefined
   const owner = payload.storyboardDesignsByDocumentId
-    ? payload.storyboardDesignsByDocumentId
+    ? withShotNumbersOnlyCountingShots(payload.storyboardDesignsByDocumentId)
     : (() => {
         const migrated: Record<string, StoryboardDesign[]> = {}
         // 迁移读不动一份旧方案时，用户失去的是整份分镜——那件事不许静默发生。schema 这一侧
@@ -257,4 +258,19 @@ export function seedDocFromMarkdown(markdown: string): unknown {
     }
   }
   return { type: 'doc', content: blocks }
+}
+
+/**
+ * 读盘归位（2026-10-05）：分镜主体身份的唯一 owner 落地之前，Agent 建的方案把参考卡排进了镜号
+ * （2 张参考卡 + 2 镜的方案，镜头行号是 03、04）。镜号只是「它在镜头里的位置」，镜头身份是 shotId，
+ * 所以每一镜都有 shotId 的方案按位置归位成 1..N 不改任何身份（分镜表与画布节点按 shotId 绑定）。
+ * 有镜头没 shotId 的（旧的手建方案，身份按镜号派生）一字不动——它们本来就是连续的，动了反而换身份。
+ */
+function withShotNumbersOnlyCountingShots(designs: Record<string, StoryboardDesign[]>): Record<string, StoryboardDesign[]> {
+  return Object.fromEntries(Object.entries(designs).map(([documentId, list]) => [documentId, list.map((design) => {
+    const shots = design.plan.shots
+    if (!shots.every((shot) => typeof shot.shotId === 'string' && shot.shotId.trim())) return design
+    const renumbered = renumberStoryboardShots(shots)
+    return renumbered.every((shot, position) => shot === shots[position]) ? design : { ...design, plan: { ...design.plan, shots: renumbered } }
+  })]))
 }

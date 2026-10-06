@@ -20,7 +20,7 @@ import {
   validatePlan,
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
-import { isEmptyStoryboardPlan, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { isEmptyStoryboardPlan, stableShotId, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 import { CreationResourceTreeToggle } from '../CreationResourceTreeToggle'
 import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
@@ -61,6 +61,7 @@ import { describeBlocker, describeIssue } from './strategyText'
 import { storyboardShotId } from '../../generationCanvas/agent/storyboardStrategy'
 import { FOCUS_GENERATION_NODE_EVENT } from '../../generationCanvas/nodes/nodeSizing'
 import { getDesktopBridge } from '../../../desktop/bridge'
+import { autoReferencePlan } from './exec/storyboardAutoReference'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -179,6 +180,27 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes }) : []),
     [plan, designId, canvasNodes],
   )
+
+  // 自动引用（设计卡 §B，owner = `insertAutoMentions`，画布调同一个函数）：参考卡出图 → 提示词里出现它名字的镜头，
+  // 在名字后面补一枚 @、参考框绑上这张图。只在「出图的那几张」变化时跑（含打开方案时补一次），
+  // 用户打字时不跑——打着字突然冒出一枚芯片会抢光标；名字是之后才写进去的，用户自己 @ 一下即可。
+  const readyAnchorSignature = anchorCards
+    .filter((card) => card.visual && card.resultUrl && !card.generating)
+    .map((card) => `${card.anchor.id}=${card.resultUrl}`)
+    .join('|')
+  React.useEffect(() => {
+    const current = currentTargetRef.current.plan
+    if (!current || !readyAnchorSignature) return
+    const ready = anchorCards
+      .filter((card) => card.visual && card.resultUrl && !card.generating)
+      .map((card) => ({ anchorId: card.anchor.id, name: card.anchor.name, url: card.resultUrl! }))
+    // 已经出过结果、正在跑或可找回的镜整镜不动（与画布侧只改未出图节点同一条线）：改了提示词，图和词就对不上了。
+    const settled = new Set(rows.filter((row) => row.exec.resultUrl || row.exec.status === 'generating' || row.exec.status === 'recoverable').map((row) => stableShotId(row.shot)))
+    const next = autoReferencePlan(current, ready, settled)
+    if (next !== current) setStoryboardPlan(next)
+    // 只认出图签名与方案身份；plan / rows 走 ref 与当帧值，避免每次编辑都重跑。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyAnchorSignature, designId])
 
   React.useEffect(() => {
     const onMentionPreview = (event: Event): void => {

@@ -47,7 +47,7 @@ type PlanPatch = z.infer<(typeof generationPlanInputSchema.options)[2]>;
 /** 模型面的一镜。 */
 export type DraftShot = z.infer<typeof draftShotSchema>;
 /** 模型面的顶层（`draft_shots` 自己的 schema 推出来的，不在这里重列）。 */
-export type DraftShotsArgs = { operationId?: string; taskKind?: DraftShot["taskKind"]; candidate?: DraftShot["candidate"]; shots: DraftShot[] };
+export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind?: DraftShot["taskKind"]; candidate?: DraftShot["candidate"]; shots: DraftShot[] };
 /** 宿主的多镜 create 里的一镜。 */
 type PlanShot = NonNullable<PlanCreate["shots"]>[number];
 /** 宿主的候选 patch（改草稿那一支）。 */
@@ -144,7 +144,7 @@ export function draftShotToFlatCreate(shot: DraftShot): PlanFlatCreate {
  * 宿主那份决定「没人说时按目录怎么合成」。）
  */
 export function withDraftShotsDefaults(args: DraftShotsArgs, shot: DraftShot): DraftShot {
-  const { taskKind, candidate, operationId: _selectsBranch, shots: _theseShots, ...unhandled } = args;
+  const { taskKind, candidate, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
   void (unhandled satisfies Record<string, never>);
   return {
     ...shot,

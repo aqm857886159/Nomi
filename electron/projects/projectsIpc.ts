@@ -7,6 +7,7 @@
 import { ipcMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
+import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
 
 type RegisterSyncIpc = (channel: string, handler: (...args: never[]) => unknown) => void;
 
@@ -47,7 +48,7 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
   registerSyncIpc("nomi:projects:read", readProject as (...args: never[]) => unknown);
   ipcMain.handle("nomi:projects:read-async", (event, projectId: unknown) => {
     assertTrustedSender(event);
-    return readProject(String(projectId || ""));
+    return measureProjectOpenMainStageSync("read-project", () => readProject(String(projectId || "")));
   });
   ipcMain.handle("nomi:projects:diagnose", (event, projectId: unknown) => {
     assertTrustedSender(event);

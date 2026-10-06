@@ -96,9 +96,20 @@ describe("draft_shots 的两种形状", () => {
     expect(issues({ operationId: "op-1", shots: [{ shotId: "shot-1" }] }).join("\n")).toMatch(/changes nothing/);
   });
 
-  it("说明书自己承认这两种形状——schema 与描述不许各说各的", () => {
+  it("说明书自己承认这三种形状——schema 与描述不许各说各的", () => {
+    // 新建 / 补新镜头 / 改一镜（2026-10-05 起「补」是一条正经的路，不再靠「下一次再新建一份」）。
     const spec = VERB_DECLARATIONS.find((declaration) => declaration.name === "draft_shots")!;
-    expect(spec.describe.params).toMatch(/Two shapes/);
-    expect(JSON.stringify(spec.schema)).toContain("Required for a new shot");
+    expect(spec.describe.params).toMatch(/No operationId: new plan/);
+    expect(spec.describe.params).toMatch(/operationId \+ shots without shotId: append/);
+    expect(spec.describe.params).toMatch(/operationId \+ one shotId: revise/);
+    expect(JSON.stringify(spec.schema)).toContain("required for a new shot");
+  });
+
+  it("带 operationId 的形状不许含糊：改一镜只改一镜，补新镜头要有 prompt，另起一份不带 operationId", () => {
+    expect(issues({ operationId: "op-1", shots: [{ shotId: "shot-1", prompt: "a" }, { shotId: "shot-2", prompt: "b" }] }).join(" | "))
+      .toMatch(/revise one shot per call/);
+    expect(issues({ operationId: "op-1", shots: [{ title: "结尾" }] }).join(" | ")).toMatch(/a new shot needs a prompt/);
+    expect(issues({ operationId: "op-1", newPlan: true, shots: [{ prompt: "a" }] }).join(" | ")).toMatch(/omit operationId/);
+    expect(issues({ operationId: "op-1", shots: [{ title: "结尾", prompt: "a" }] })).toEqual([]);
   });
 });

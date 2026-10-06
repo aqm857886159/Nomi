@@ -34,10 +34,10 @@ const generationParameters = z.record(z.union([z.string(), z.number(), z.boolean
 
 /** 一镜草稿：模型填的是**语义**（提示词/模型/参数/参考），候选身份由宿主按目录合成，与单镜路径同一个解析器。 */
 export const draftShotSchema = z.object({
-  shotId: shotId.optional().describe("Existing shot id to update; omit to create one."),
+  shotId: shotId.optional().describe("Shot id to revise; omit for a new shot."),
   storyboard: storyboardAuthorFieldsSchema.optional().describe("Original author fields; anchors require kind and carrier."),
   title: z.string().trim().min(1).max(120).optional().describe("Short human title in the user's language, shown on the canvas node and spend card."),
-  prompt: z.string().trim().min(1).max(8_000).optional().describe("Prompt in the user's language. Required for a new shot; when revising (operationId + shotId) send it only to change it."),
+  prompt: z.string().trim().min(1).max(8_000).optional().describe("Prompt in the user's language; required for a new shot."),
   // 2026-09-30（付费卡① 第 9 条）：种类不再按提示词猜。点名了模型（或 modeId）就由它定；两样都没点名时必须写明。
   // 措辞压到最短：这几句算在 draft_shots 的 schema 预算里（stage3-probe-p5 的 core 785），规矩写一遍在这里，modeId / modelId / 顶层只留指向。
   taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional().describe("What to make. Omit when modelId or modeId decides it; otherwise required."),
@@ -191,13 +191,14 @@ export function writeVerbs(): VerbDeclaration[] {
     effectGroups: ["canvas-node-creation"],
     describe: {
       does: "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement.",
-      useWhen: "Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, or to change a shot's prompt, model, parameters or references. Pass shotId to update an existing draft; omit it to create.",
+      useWhen: "Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references.",
       notWhen: "New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot).",
-      params: "shots[] each with prompt, optional title, taskKind, durationSec, modelId (or candidate with providerId + modelId, never both for one shot), modeId, parameters, references, role. For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own. Model and parameter values come from list_models; reuse operationId and shotId from the current draft result. Two shapes: creating a shot needs prompt; revising one (operationId + shotId) carries only the fields you are changing — prompt, model, modeId, parameters, references — and leaves the rest out, including title and role, which are fixed when the shot is created.",
+      params: "For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own; model values come from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed).",
     },
     promptGuidelines: [...READ_GUIDELINES, ...CANVAS_NODE_PROMPT_GUIDELINES],
     schema: z.object({
-      operationId: z.string().trim().min(1).max(160).optional().describe("operationId from an earlier draft_shots call, to update it."),
+      operationId: z.string().trim().min(1).max(160).optional().describe("Plan id from a draft_shots result."),
+      newPlan: z.boolean().optional().describe("Only if the user asks for a separate plan."),
       taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional().describe("Default taskKind for shots that set none."),
       candidate: z.object({
         providerId: z.string().trim().min(1).describe("Provider id from list_models."),
@@ -215,7 +216,9 @@ export function writeVerbs(): VerbDeclaration[] {
       // 「改草稿改的是提示词/模型/参数/参考」。于是只想改一个参数的那次被回了
       // `shots.0.prompt: must have required properties prompt`——它照做，把整段提示词重抄一遍，
       // 而重抄的那一遍就是它写坏 JSON 的地方。
-      if (value.operationId === undefined) {
+      const adding = value.operationId !== undefined && value.shots.every((shot) => shot.shotId === undefined)
+        && (value.shots.length > 1 || value.shots.some((shot) => shot.title !== undefined || shot.role !== undefined));
+      if (value.operationId === undefined || adding) {
         const missing = value.shots.findIndex((shot) => shot.prompt === undefined);
         if (missing >= 0) {
           context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots", missing, "prompt"],
@@ -233,6 +236,15 @@ export function writeVerbs(): VerbDeclaration[] {
       if (value.operationId === undefined && stray >= 0) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots", stray, "shotId"], message: "shotId only addresses a shot inside an existing draft — pass operationId too, or omit shotId to create" });
       }
+      // 2026-10-05：带 operationId 有两种形状——改一镜（一镜、带 shotId）或补新镜头（都不带 shotId）。
+      // 这里之前不拦「带 shotId 的不止一镜」：传输层只改第一镜，其余悄悄丢掉（同一类：草稿身份上的静默丢字段）。
+      if (value.operationId !== undefined && stray >= 0 && value.shots.length > 1) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots"],
+          message: "revise one shot per call (operationId + one shot with its shotId); to add new shots, send them without shotId" });
+      }
+      if (value.operationId !== undefined && value.newPlan === true) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["newPlan"], message: "newPlan starts a separate plan — omit operationId" });
+      }
       // `title` 是镜头**信封**上的字段（`generationShotEnvelope.ts`），而改草稿这条路递给宿主的是
       // **候选** patch（提示词/模型/参数/参考）——信封不在那份 patch 的形状里。不拦的话模型收到的是
       // 宿主的 `Unrecognized key(s): 'title'`：一个它看不懂为什么的拒绝。在这里拦，它当场知道该怎么做。
@@ -241,7 +253,8 @@ export function writeVerbs(): VerbDeclaration[] {
       // 模型看不懂的 `Unrecognized key`，要么无声消失。在这里拦，它当场知道该怎么做。
       // 这条与对应表上 `absentOn.patch = refuse` 是同一句话的两层：表保证它不会静默丢，这里保证模型先被告知。
       for (const field of ["title", "role"] as const) {
-        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot[field] !== undefined);
+        // 只拦「改一镜」：补新镜头（带 operationId、不带 shotId）时标题与角色正是新镜头该有的。
+        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot.shotId !== undefined && shot[field] !== undefined);
         if (index < 0) continue;
         context.addIssue({
           code: z.ZodIssueCode.custom, path: ["shots", index, field],
@@ -255,7 +268,7 @@ export function writeVerbs(): VerbDeclaration[] {
       //   · 锚本身就是要生成的图（它有候选、有价、`anchorChips` 在报价卡上逐张标价），
       //   · present/seal 的范围是 `shots.filter(included !== false)`——**锚本来就在里面**，会真的跑、真的扣钱，
       //   · 真正会坏的只有一处：`multiShotGateProjectionFor` 的行是按「非锚」筛的，全是锚就返回 undefined。
-      // 也就是说，拦的理由是**投影的管道**，不是领域。而「先建几张参考卡、镜头下一轮再补」是用户与
+      // 也就是说，拦的理由是**投影的管道**，不是领域。而「先建几张参考卡、镜头随后补进同一份」是用户与
       // Agent 都会走的正常路径（2026-09-18 实测 27 次失败里 11 次是模型在走标准分镜流程被这条拦下来），
       // 用户 2026-09-21 亲自点名过这条报错。按「不因为我们自己的缺省拦用户」：**放行**。
       //

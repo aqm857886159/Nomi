@@ -40,3 +40,5 @@ metadata:
 ---
 
 Rapid 0.5s intercut of charged details — sparks, eyes, blade, a held breath
+
+Keep the identities, props, setting, lighting, color, and continuity consistent across the details. Change only the 0.5s intercut rhythm and the charged detail order described here.

@@ -127,6 +127,6 @@ describe("③ 文稿方案改一镜：只改点名的，null 删键，比例收�
       candidateId: "c1", revision: 1, moduleId: "generation.single-shot", providerId: "apimart", modelId: "z-image-turbo",
       mode: "text_to_image", modeId: "t2i", prompt: "海边日出", parameters: { size: "16:9", resolution: "2K" }, references: [],
     };
-    expect((storyboardSubjectFromCandidate({ shotId: "s1", candidate }, 1) as PlanShot).params).toEqual({ aspect_ratio: "16:9", resolution: "2K" });
+    expect((storyboardSubjectFromCandidate({ shotId: "s1", candidate }) as PlanShot).params).toEqual({ aspect_ratio: "16:9", resolution: "2K" });
   });
 });

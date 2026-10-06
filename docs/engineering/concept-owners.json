@@ -1185,13 +1185,106 @@
       "allowed_consumers": [
         "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
         "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-        "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
         "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
         "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
         "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
       ],
       "since": "2026-09-26",
       "notes": "行状态 missing-required、画面格「缺X参考」、批量排除、场组头计数与参考列红格读同一份（镜头行 = exec.missingSlots）。参考列不许再按「必填 + 没绑定」自判——那样看不见计划首帧与锚（合同 docs/fixes/2026-09-26-storyboard-planned-first-frame-slot.root-cause.json）。"
+    },
+    {
+      "name": "自动引用（出图后在名字后面补 @ 并绑参考）",
+      "subject": "reference.auto-mention",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/storyboard/promptMentions.ts",
+        "symbol": "insertAutoMentions"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/storyboard/promptMentions.ts",
+          "symbol": "insertAutoMentions"
+        },
+        {
+          "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+          "symbol": "imageReferenceMode"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
+        "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "用户 10-05：「小张@ …一旦小张图出来了，就加一个 @ 到小张后面」。插在哪（名字第一次出现处紧后面、短名不命中长名内部、不往末尾塞）、补不补（账本 autoReferenced：补过不再补，用户删掉的 @ 不回来）只有 insertAutoMentions 一份；分镜（autoReferencePlan → referenceBindings）与画布（initCanvasAutoReferenceBridge → 手动 @ 同一条建边路）两个调用方各自把结果绑进自己的参考结构，@ 与绑定一起成、一起不成。收不了参考图时切到同模型能收参考图的模式（imageReferenceMode，方案 A，自动引用与参考条「+」共用）。合同 docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json。"
+    },
+    {
+      "name": "分镜行 / 参考卡的参数显示（= 落画布写进节点的 meta）",
+      "subject": "storyboard.composer-meta",
+      "lifecycle": "projection",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+        "symbol": "storyboardComposerMeta"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+          "symbol": "storyboardComposerMeta"
+        }
+      ],
+      "forbidden_derivations": [
+        {
+          "symbol": "composerBarParams",
+          "kind": "definition",
+          "why": "2026-10-06 之前分镜底栏自己从档案挑一部分参数（固定时长档、⋯ 收开关），参考卡只有模型下拉；已删，参数一律经画布同款 InlineParameterBar"
+        }
+      ],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+        "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "tests/experience-laws/parameterReachability.mjs"
+      ],
+      "since": "2026-10-06",
+      "notes": "底栏显示的 meta 与参考卡重生成前写回节点的 meta 是同一个函数（buildPlannedNodeMeta，落画布同一个构造器）——显示 = 请求（审计 A2）。铁律 ⑪ 矩阵的分镜行 / 参考卡入口调的也是它。"
+    },
+    {
+      "name": "参考 ↔ 提示词 @ 同步删除",
+      "subject": "storyboard.reference-mention-sync",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+        "symbol": "removeReferenceWithMention"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+          "symbol": "removeReferenceWithMention"
+        },
+        {
+          "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+          "symbol": "dropBindingsForUrls"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "反馈 #7：删掉参考时提示词里的 @ 一起删（同一张图别的槽还绑着就留 @），删掉一枚 @ 这张图的绑定一起删；从没被 @ 过的参考不受影响。"
     },
     {
       "name": "一次生成跑哪个变体",
@@ -4452,6 +4545,219 @@
       ],
       "since": "2026-10-05",
       "notes": "这个窗口发出去、主进程还没回话的画布生成请求（按节点 id，进程寿命，不落盘）。只服务装载收敛 convergeStuckMidFlightNode：切项目再切回来，还在路上的节点照旧显示生成中、不被收成空闲、不进「生成全部」。不管钱、不决定能不能再交：付费画布生成的同节点在途拒绝在主进程 appIntegrationCanvasShot（assertNodeIdle：进程内在途 + canvasShotRunIndex「没收尾」标记），Run 是真相。写口只有 taskApi 的两个提交口（submitCanvasShotRun、runWorkbenchTaskByVendor）在 await 前登记、回话后注销。2026-10-05 发动机收敛第一刀第 3 步删掉主进程那道 withNodeSubmitExclusive 之后从 canvas.shot-run 的写接口里拆出来单独登记（独立验收 V-1012 问题 1）。"
+    },
+    {
+      "name": "分镜方案里一行是谁、排第几（锚 / 镜头 id、镜号、按 id 寻址）",
+      "subject": "storyboard.subject-identity",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+        "symbol": "nextStoryboardSubjectIds"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "nextStoryboardSubjectIds"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "appendStoryboardSubjects"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "storyboardSubjectAt"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "renumberStoryboardShots"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/capabilityCore/mcpGenerationMultiShot.ts",
+        "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+        "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+        "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+        "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+        "src/workbench/project/projectNormalize.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "锚（参考卡）id 是 anchor-N、只数锚；镜头 id 是 shot-N、只数镜头；镜号 = 在镜头里的位置 1..N，锚不占号；shot-N 寻址只在镜头里找。Agent 首建（主进程）、补镜头 / 改一镜（渲染层）、手建加锚与删拖重排（编辑器）、读盘归位都调这里，不许再按「锚和镜混排数组的位置」自己编号（用户 10-05「分镜方案经常做错」：锚占号、改第 1 镜改到参考卡）。根因合同 docs/fixes/2026-10-05-storyboard-plan-single-owner.root-cause.json。"
+    },
+    {
+      "name": "一次请求写到哪一份文稿方案（首建 / 补到同一份 / 用户明说另起一份）",
+      "subject": "storyboard.plan-per-request",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/capabilityCore/generationDocumentPlan.ts",
+        "symbol": "createDocumentPlanAuthoring"
+      },
+      "write_api": [
+        {
+          "path": "electron/capabilityCore/generationDocumentPlan.ts",
+          "symbol": "createDocumentPlanAuthoring"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/capabilityCore/mcpGenerationTools.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "文稿方案 id 只在这里铸（= 草稿 id）。同一请求（storyboardTarget.requestId）里不带 operationId 的第二次起草补到这一请求已建的那份；模型传 newPlan（用户明确要另起一份）才新建；带 operationId 的新镜头补到那份；补到不存在的方案被拒，绝不新建。协调会话 D5 拍板：一次请求一份方案由宿主保证。"
+    },
+    {
+      "name": "项目身份（immutableProjectUuid + projectGeneration）从哪来、打开时怎么读",
+      "subject": "project.identity-ensure",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/workspace/workspaceProjectIdentity.ts",
+        "symbol": "ensureWorkspaceProjectIdentity"
+      },
+      "write_api": [
+        {
+          "path": "electron/workspace/workspaceProjectIdentity.ts",
+          "symbol": "ensureWorkspaceProjectIdentity"
+        },
+        {
+          "path": "electron/workspace/workspaceManifest.ts",
+          "symbol": "readSettledWorkspaceIdentity"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "身份只在主清单与备份都缺时生成一次、之后永不改；已落定就由 readSettledWorkspaceIdentity 无锁读出（与加锁路径同一个 sameCompleteIdentity 判据），没落定才进加锁写事务。打开项目是读，落定后的项目每次打开零写盘（docs/fixes/2026-10-06-open-project-read-path-writes.root-cause.json）。"
+    },
+    {
+      "name": "Agent 旧版对话迁移（终态判定与加锁迁移）",
+      "subject": "agent-lane.legacy-migration",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "state-machine",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneLegacyMigration.mts",
+        "symbol": "migrateLaneLegacy"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneLegacyMigration.mts",
+          "symbol": "migrateLaneLegacy"
+        },
+        {
+          "path": "electron/agentLane/laneNativeLoader.cts",
+          "symbol": "migrateLaneLegacy"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "自写登记 lane-legacy-migration（待删）。终态（从没旧对话 / 清单 completed）无锁直答，其余进加锁迁移；迁移窗口结束后整体删除。 laneNativeLoader.cts 的同名导出是 CJS → ESM 岛的唯一桥（只转发，不自判）。"
+    },
+    {
+      "name": "Agent 轨迹派生视图（trace.jsonl / trace.md）的写口",
+      "subject": "agent-lane.trace-view",
+      "lifecycle": "projection",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneTrace.mts",
+        "symbol": "writeTraceFile"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneTrace.mts",
+          "symbol": "writeTraceFile"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "派生视图由原生会话推出；内容没变不重写，打开项目刷新一次只是读。"
+    },
+    {
+      "name": "画布节点外壳什么时候重渲（纯坐标变化不重渲）",
+      "subject": "canvas.node-shell-render-gate",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+        "symbol": "sameGenerationFlowNodeRender"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+          "symbol": "sameGenerationFlowNodeRender"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "React Flow 唯一节点注册点 nodeTypes.generation 的 memo 判据：只忽略 positionAbsoluteX / Y（位置由 NodeWrapper 的 transform 摆），其余 prop 变化照常重渲（docs/fixes/2026-10-06-canvas-node-shell-rerender-on-drag.root-cause.json）。"
+    },
+    {
+      "name": "Agent 本机能力（bash / 沙箱 / pi 编码工具）什么时候装进主进程",
+      "subject": "agent-lane.native-desktop-load",
+      "lifecycle": "execution",
+      "authority_kind": "gateway",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneHost.mts",
+        "symbol": "loadLaneNativeDesktop"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneHost.mts",
+          "symbol": "loadLaneNativeDesktop"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "只在开带模型的 lane 时按需 import laneNativeDesktop（它会装 pi-coding-agent 入口，约 1500 个文件）；打开项目只读历史、迁移旧对话都不许静态引入入口。tests/agent-runtime/lane-open-graph.test.mts 在子进程里数真装载钉住（docs/fixes/2026-10-06-agent-runtime-lazy-load.root-cause.json）。"
+    },
+    {
+      "name": "画布媒体加载占位的外观（只有正在加载的才扫光）",
+      "subject": "canvas.media-loading-placeholder",
+      "lifecycle": "live-interaction",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+        "symbol": "DeferredNodeMediaPlaceholder"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+          "symbol": "DeferredNodeMediaPlaceholder"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "占位唯一渲染点，把媒体状态（deferredNodeMediaQueue 的 DeferredNodeMediaState）作为 data-media-state 交给样式；扫光只挂 loading 态（docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json，类检查 mediaPlaceholderShimmer.test.ts）。"
     }
   ]
 }

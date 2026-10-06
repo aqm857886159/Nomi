@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { CURRENT_SESSION_VERSION } from '@earendil-works/pi-coding-agent';
+// pi 会话头的版本号（pi-coding-agent dist/core/session-manager.js 的 CURRENT_SESSION_VERSION）。就地定义而不从
+// pi-coding-agent 入口取：为了一个常量，入口会把整个 CLI（约 1500 个文件）同步装进主进程，而这个模块在打开项目的
+// 迁移路径上（2026-10-06 L-perf）。漂移由 tests/agent-runtime/lane-open-graph.test.mts 对照上游常量钉住。
+export const LEGACY_PI_SESSION_VERSION = 3;
 import { z } from 'zod';
 
 // Version-locked to pi's public SessionEntry / Message contracts. Validate
@@ -56,7 +59,7 @@ export const snapshotEntrySchema = z.discriminatedUnion('type', [
 
 const dataSchema = z.object({
   header: z.object({
-    type: z.literal('session'), version: z.literal(CURRENT_SESSION_VERSION),
+    type: z.literal('session'), version: z.literal(LEGACY_PI_SESSION_VERSION),
     id: z.string().min(1), timestamp: z.string().datetime(), cwd: z.string(),
   }).passthrough(),
   entries: z.array(snapshotEntrySchema),

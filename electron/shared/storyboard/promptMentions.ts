@@ -131,3 +131,107 @@ export function removeMention(prompt: string, url: string): string {
   if (!prompt.includes(marker)) return prompt
   return collapsePromptWhitespace(prompt.split(marker).join(''))
 }
+
+/**
+ * 删掉的 @：上一版提示词里有、这一版没有的引用 url（「删 @ 同步删参考」那条路的判据）。
+ * 只比 url 集合：同一张图在提示词里出现几次都算一张；还剩一枚就不算删。
+ */
+export function droppedMentionUrls(previous: string, next: string): string[] {
+  const kept = new Set(mentionUrlsInOrder(next))
+  return mentionUrlsInOrder(previous).filter((url) => !kept.has(url))
+}
+
+/** 一张可被自动引用的图：`key` 是它的稳定身份（分镜 = 锚 id，画布 = 来源节点 id），不是 url。 */
+export type AutoMentionCandidate = { key: string; name: string; url: string }
+
+export type AutoMentionResult = {
+  prompt: string
+  /** 这一轮之后「补过」的身份全集（含之前补过的）。用户删掉的 @ 不会再补回来，判据就是它。 */
+  applied: string[]
+  /** 这一轮真的插进去的那几张（调用方据此把参考框也绑上）。 */
+  inserted: AutoMentionCandidate[]
+}
+
+function isWordChar(char: string | undefined): boolean {
+  return Boolean(char) && /[A-Za-z0-9_]/.test(char as string)
+}
+
+/**
+ * 在一段**纯文字**里找 name 第一次完整出现的位置（拉丁字母要整词，中文按字面），返回它的结束下标。
+ * `longer` 是别的、更长且包含 name 的候选名字：落在它们某次出现里面的那一处不算（「林」不命中「林薇」里的「林」）。
+ */
+function firstNameEnd(text: string, name: string, longer: readonly string[] = []): number {
+  const masked = longer.flatMap((other) => {
+    const spans: Array<[number, number]> = []
+    for (let at = text.indexOf(other); at >= 0; at = text.indexOf(other, at + 1)) spans.push([at, at + other.length])
+    return spans
+  })
+  let from = 0
+  while (from <= text.length) {
+    const at = text.indexOf(name, from)
+    if (at < 0) return -1
+    const end = at + name.length
+    const latinEdges = isWordChar(name[0]) || isWordChar(name[name.length - 1])
+    const wholeWord = !latinEdges || (!isWordChar(text[at - 1]) && !isWordChar(text[end]))
+    const insideLonger = masked.some(([start, stop]) => at >= start && end <= stop)
+    if (wholeWord && !insideLonger) return end
+    from = at + 1
+  }
+  return -1
+}
+
+/**
+ * **自动引用的唯一 owner**（分镜与画布共用，2026-10-06 用户拍板方向：「小张@」）。
+ *
+ * 一张图出来了 → 在引用它的提示词里，**紧跟在它名字第一次出现的地方**插一枚现有的 @ 引用标记
+ * （`@[asset:url]`，与手动 @ 同一种持久化格式），不插末尾、不加任何说明文字。
+ *
+ * 三条不插：
+ *   ① 这个身份之前补过（`applied` 里有）——用户手动删掉的 @ 不许被补回来；
+ *   ② 提示词里已经有这张图的 @（用户自己 @ 过）——记成补过，不重复；
+ *   ③ 名字没出现在提示词的文字里（只搜文字段，不搜已有标记内部）——不往末尾塞。
+ * 名字出现几次只补一次，补在第一次；名字互相包含（「小张」与「小张三」）时，短名字不命中长名字里的那一段。
+ *
+ * 「更长的名字」要从 `knownNames`（这一侧**所有**已知名字：分镜 = 全部参考卡名，画布 = 全部用户起的节点标题，
+ * 不管出没出图）里找，不能只看这一轮出图的候选——2026-10-06 独立验收 V-1042：「小张」出图、「小张三」还没出图时，
+ * 只看候选会把「小张三走进巷子」改成「小张@三走进巷子」。
+ * 纯函数：调用方负责把 `inserted` 那几张绑进参考框（分镜 = referenceBindings，画布 = 连边 / 上传槽）。
+ */
+export function insertAutoMentions(
+  prompt: string,
+  candidates: readonly AutoMentionCandidate[],
+  applied: readonly string[] = [],
+  knownNames: readonly string[] = [],
+): AutoMentionResult {
+  const done = new Set(applied)
+  const present = new Set(mentionUrlsInOrder(prompt))
+  const inserted: AutoMentionCandidate[] = []
+  let segments = parsePromptSegments(prompt)
+  const ordered = [...candidates]
+    .filter((candidate) => candidate.name.trim() && candidate.url)
+    .sort((a, b) => b.name.trim().length - a.name.trim().length)
+  const names = [...new Set([...ordered.map((candidate) => candidate.name), ...knownNames].map((name) => name.trim()).filter(Boolean))]
+  for (const candidate of ordered) {
+    if (done.has(candidate.key)) continue
+    if (present.has(candidate.url)) { done.add(candidate.key); continue }
+    const name = candidate.name.trim()
+    const longer = names.filter((other) => other.length > name.length && other.includes(name))
+    const index = segments.findIndex((segment) => segment.type === 'text' && firstNameEnd(segment.value, name, longer) >= 0)
+    if (index < 0) continue
+    const segment = segments[index] as { type: 'text'; value: string }
+    const end = firstNameEnd(segment.value, name, longer)
+    segments = [
+      ...segments.slice(0, index),
+      { type: 'text', value: segment.value.slice(0, end) },
+      { type: 'mention', url: candidate.url },
+      { type: 'text', value: segment.value.slice(end) },
+      ...segments.slice(index + 1),
+    ]
+    present.add(candidate.url)
+    done.add(candidate.key)
+    inserted.push(candidate)
+  }
+  if (!inserted.length) return { prompt, applied: [...done], inserted }
+  const next = segments.map((segment) => (segment.type === 'text' ? segment.value : encodeMention(segment.url))).join('')
+  return { prompt: next, applied: [...done], inserted }
+}

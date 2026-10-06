@@ -108,8 +108,19 @@ function manifestFromCatalog(state: CatalogState, readinessByProvider: Generatio
   // is published.  The previous model-level boolean admitted disabled vendors
   // and disabled task mappings, so a short request could select a mode that
   // preview accepted but the provider could never execute.
-  const publishedModesFor = (model: Model): ProfileKind[] =>
-    derivePublishedExecution(model, { mappings: state.mappings }).publishedModes;
+  // One registry build represents one immutable catalog snapshot. Reuse the
+  // publication verdict for that snapshot instead of rebuilding the model's
+  // evidence set in every filter/map pass below. The cache is local to this
+  // manifest build; it is never shared across draft lifecycles or catalog
+  // changes.
+  const publishedModesByModel = new WeakMap<object, ProfileKind[]>();
+  const publishedModesFor = (model: Model): ProfileKind[] => {
+    const cached = publishedModesByModel.get(model);
+    if (cached) return cached;
+    const publishedModes = derivePublishedExecution(model, { mappings: state.mappings }).publishedModes;
+    publishedModesByModel.set(model, publishedModes);
+    return publishedModes;
+  };
   // 「能不能用」交给唯一那道闸，不再自己拼 `model.enabled && vendor.enabled`（那是 P0-10 那一族副本之一）。
   //
   // 唯一刻意放行的是**钥匙那几档**：这一层答的是「目录声明了什么能力」，不是「此刻跑不跑得动」。

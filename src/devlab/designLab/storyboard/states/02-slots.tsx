@@ -1,6 +1,6 @@
 import React from 'react'
 import type { LabState } from '../../labScreen'
-import { AutoClick, SlotMatrixRow } from '../storyboardLabKit'
+import { SlotMatrixRow } from '../storyboardLabKit'
 import { STILL_NEON, STILL_PORTRAIT, STILL_PROP, STILL_ROOFTOP, STILL_WIDE } from '../storyboardFixtures'
 
 /**
@@ -67,26 +67,5 @@ export const SLOT_STATES: readonly LabState[] = [
       shotKind: 'image',
       referenceBindings: { image_ref: [{ url: STILL_PORTRAIT, name: '林薇', anchorId: 'a-linwei' }] },
     }),
-  },
-  {
-    id: 'sb-slot-07-slot-popover',
-    name: '槽浮层 · 描述 + 「要忽略的特征」（参考列本身不变宽）',
-    source: '合同 §4.4 槽引用锚点携带的三段声明',
-    coverage: 'shell',
-    /** 浮层走 BodyPortal + fixed 定位，所以这一格截的是**整屏**（见 labScreen 的 capture 字段）。 */
-    capture: 'viewport',
-    render: () => (
-      <AutoClick selector="[data-storyboard-ref-slot='image_ref'] button">
-        {SlotMatrixRow('nano-banana-2', 'edit', {
-          shotKind: 'image',
-          referenceBindings: {
-            image_ref: [
-              { url: STILL_PORTRAIT, name: '林薇', anchorId: 'a-linwei', ignore: '背景的霓虹招牌' },
-              { url: STILL_PROP, name: '旧怀表', anchorId: 'a-watch' },
-            ],
-          },
-        })}
-      </AutoClick>
-    ),
   },
 ]

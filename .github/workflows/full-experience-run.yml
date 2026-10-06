@@ -1,0 +1,42 @@
+# 体验测试全量跑（2026-10-06）。**只能手动触发**（workflow_dispatch），没有 schedule。
+# 用户 10-06 定：不要定时自动跑；重要的是每次代码改动都跑这些测试；全量由用户自己手动触发。
+# 平时的主力是每个 PR 按功能分类（docs/engineering/test-routing.json）跑对应的层；这里是全量入口：
+# 把路由表 fullRun.commands 里所有零花费层串起来跑，每层独立计结果，出一份汇总报告（job summary + artifact）。
+# 真付费、真模型的层不在这里跑（PR 上只要求正文交证据，发版时协调会话亲自抽检）。
+name: Full Experience Run
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    name: Full experience run (zero-cost layers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build desktop surfaces once
+        run: pnpm run build
+      - name: Install Chromium for browser mechanism tests
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run all zero-cost layers
+        run: xvfb-run -a pnpm run test:experience:full
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: experience-full-run-report
+          path: artifacts/experience-full-run/
+          if-no-files-found: warn

@@ -42,3 +42,5 @@ metadata:
 ---
 
 Rack focus from the foreground {object} to the figure behind it
+
+Keep the foreground object and background figure, their identity and appearance, setting, lighting, color, and continuity unchanged. Change only which depth plane is in focus as described here.

@@ -650,6 +650,16 @@
     },
     {
       "members": [
+        "lane-identity",
+        "lane-legacy-migration",
+        "lane-workspace-open",
+        "read-project"
+      ],
+      "reason": "打开项目在主进程里的计时阶段名（User Timing measure 名的后缀，前缀 nomi:open:main:）：只给真实规模性能跑器按名取数，不是状态机、不进任何判定或持久化。与渲染层 ProjectOpenStage 是两侧各自的阶段，read-project 同名是有意的——跑器把主进程那份记成 main:read-project，两者分别量 IPC 处理时间与渲染层含排队的总时间。",
+      "site": "electron/projects/projectOpenTimeline.ts::type:ProjectOpenMainStage/type-union"
+    },
+    {
+      "members": [
         "compile",
         "contract",
         "credential",
@@ -1830,6 +1840,20 @@
       ],
       "reason": "ProductionRun 的视觉语气投影（attention / danger / neutral / success / working），只决定呈现，不承载账本状态。",
       "site": "src/workbench/production/productionRunView.ts::type:ProductionRunTone/type-union"
+    },
+    {
+      "members": [
+        "agent-lane-open",
+        "canvas-read-commit",
+        "migrate",
+        "read-project",
+        "receipt-recovery",
+        "replay-events",
+        "restore-store",
+        "save-migrated"
+      ],
+      "reason": "打开项目在渲染层的计时阶段名（User Timing measure 名的后缀，前缀 nomi:open:）：按 hydrateProject 的真实步骤顺序命名，只给真实规模性能跑器按名取数，不参与任何判定、不落盘；默认关闭（localStorage nomi:perf-marks）。不复用项目水合或 Agent lane 的状态词表——那些是状态，这里是计时段。",
+      "site": "src/workbench/project/projectOpenTimeline.ts::type:ProjectOpenStage/type-union"
     },
     {
       "members": [

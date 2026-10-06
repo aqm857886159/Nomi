@@ -42,3 +42,5 @@ metadata:
 ---
 
 Match cut on a shape/color/motion — a tossed {object} becomes another object/place
+
+Keep the shape, color, and motion bridge legible, and preserve any recurring subject’s identity and clothing. Allow the object or place to change as described; change only the match-cut transition.

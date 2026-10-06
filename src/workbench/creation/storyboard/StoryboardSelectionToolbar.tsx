@@ -54,7 +54,7 @@ export default function StoryboardSelectionToolbar({
   const { t } = useTranslation()
   return (
     <SelectionToolbarFrame
-      className="sticky bottom-2 z-10 mx-auto max-w-full"
+      className="sticky bottom-2 z-10 mx-auto max-w-full flex-wrap justify-center overflow-x-visible rounded-3xl"
       ariaLabel={t('storyboardEditor.selection.aria')}
       dataStoryboardSelectionToolbar
       onPointerDown={(event) => event.stopPropagation()}

@@ -1,27 +1,22 @@
-// 镜头卡窄档走查（R13 · 2026-09-21 样张 v1 逐项对账）：真实 Electron / IPC / 渲染 / 项目文件，
-// **零生成额度**（全程不点生成）。
+// 镜头卡窄档走查（2026-10-06 第二轮版面重写，原样张 v1 的「参考列收一格 + N」随参考列一起删除）：
+// 真实 Electron / IPC / 渲染 / 项目文件，**零生成额度**（全程不点生成）。
 //
-// 要证的那句话：**左栏展开时，镜头卡里一个字都不许被切、一个控件都不许顶出卡外。**
-// 现场（样张第 1 节量过）：左栏展开 → 分镜编辑器只剩 585px → 行里的固定列雷打不动吃掉 415px →
-// 提示词列只剩 136px。v1 的修法是窄档下参考列从三格收成一格 + 「+N」。
+// 要证的那句话：**左栏展开（编辑器变窄）时，镜头行里一个控件都不许顶出卡外，「生成」必须看得见。**
+// 2026-10-06 起行 = 行首 / 视觉列（预览框 + 参考缩略图）/ 内容列（提示词 + 画布同款底栏）；
+// 窄档下视觉列整只按 176/240 缩，参考缩略图 36 → 28、放不下折成「+N」，省下的宽度给内容列。
 //
-// 四张真截图 = zh/en × 左栏收起/展开；每一张都配一条量出来的断言，不是「看着还行」：
-//   ① 左栏展开 → 行进窄档、参考列 = 一只固定盒、「+N」在、提示词列变宽；
-//   ② 左栏收起 → 行回宽档、三格并排；
+// 四张真截图 = zh/en × 左栏收起/展开；每一张都配一条量出来的断言：
+//   ① 左栏展开 → 行进窄档、视觉列变窄、零越界、「生成」在卡内；
+//   ② 左栏收起 → 行回宽档、零越界；
 //   ③ 占位文字必须待在它自己的盒子里（样张成因②：零高度浮动伪元素）；
-//   ④ 点「+N」→ 三格真的摊开（收成一格不是把信息删掉）。
-//
-// 关于底栏越界：胶囊装不下时的让位规则是 2026-09-17 用户逐字拍板的（模型可缩到下限、
-// 模式/时长不缩不降、只有档案枚举能进 ⋯）。所以这里**不**断言「永远零越界」——那会逼人
-// 去改用户拍过板的规则。断言的是：**一旦还有越界，行尾 ⋯ 必须已经在场**，即让位机制已经
-// 走到它的下限，剩下的是几何缺口而不是漏掉的一步；缺口多少像素照实记进 report。
+//   ④ 窄档省下的宽度真的回到了内容列。
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.NARROW_ROW_WALK_OUT || path.join(repoRoot, '.tmp', 'storyboard-narrow-row')
@@ -136,27 +131,25 @@ async function measureRow(label) {
         overflowPx = Math.max(overflowPx, Math.round(rect.right - cardRect.right))
       }
     }
-    const zone = element.querySelector('[data-storyboard-refzone]')
+    const zone = element.querySelector('[data-storyboard-visual-column]')
     const promptBox = element.querySelector('[data-prompt-box="true"]')
+    const generate = element.querySelector('[data-storyboard-generate-state]')
     const proseMirror = promptBox?.querySelector('.ProseMirror') ?? null
     return {
       density: element.getAttribute('data-storyboard-row-density'),
       rowWidth: Math.round(element.getBoundingClientRect().width),
-      referenceColumnWidth: zone ? Math.round(zone.getBoundingClientRect().width) : null,
+      visualColumnWidth: zone ? Math.round(zone.getBoundingClientRect().width) : null,
+      generateInside: generate ? generate.getBoundingClientRect().right <= cardRect.right + 1 : null,
       promptColumnWidth: promptBox ? Math.round(promptBox.getBoundingClientRect().width) : null,
-      slotCount: element.querySelectorAll('[data-storyboard-ref-slot]').length,
-      moreBadge: element.querySelectorAll('[data-storyboard-ref-more]').length,
       overflowing,
       overflowPx,
-      hasOverflowDots: element.querySelectorAll('[data-storyboard-composer-switches]').length > 0,
       placeholderSpill: proseMirror ? Math.round(proseMirror.scrollHeight - proseMirror.clientHeight) : null,
     }
   })
   measured.push({ label, ...data })
-  // 越界还在，但行尾 ⋯ 不在 = 让位机制少走了一步，这才是 bug。
-  if (data.overflowing.length > 0 && !data.hasOverflowDots) {
-    failures.push(`${label}：越界 ${data.overflowPx}px 且行尾 ⋯ 不在场——让位机制没走到下限 → ${data.overflowing.join(' / ')}`)
-  }
+  // 底栏只剩「模型 · 参数汇总 · 生成」三件，窄档也放得下：任何越界都是缺陷。
+  if (data.overflowing.length > 0) failures.push(`${label}：越界 ${data.overflowPx}px → ${data.overflowing.join(' / ')}`)
+  if (data.generateInside === false) failures.push(`${label}：「生成」被顶出卡外`)
   if (data.placeholderSpill !== null && data.placeholderSpill > 1) failures.push(`${label}：提示词框内容比盒子高 ${data.placeholderSpill}px（占位文字画到卡外）`)
   return data
 }
@@ -229,40 +222,19 @@ try {
     const narrow = await measureRow(`${tag}-左栏展开`)
     await snap(`${tag}-sidebar-open-narrow.png`)
     if (narrow.density !== 'narrow') failures.push(`${tag}：左栏展开时行没有进窄档（density=${narrow.density}，行宽 ${narrow.rowWidth}）`)
-    if (narrow.moreBadge !== 1) failures.push(`${tag}：窄档下没有「+N」计数（找到 ${narrow.moreBadge} 个）`)
-    if (narrow.slotCount !== 1) failures.push(`${tag}：窄档下参考列露了 ${narrow.slotCount} 格，v1 说好只露一格`)
-    // 下面那条「宽档下不该有 +N」的基线：先在这里证明这个选择器真的测得到东西。
-    const moreProof = await proveProbe(row().locator('[data-storyboard-ref-more]'), '窄档下「+N」真的在场')
 
-    // ── 左栏收起：宽档，三格并排 ──
+    // ── 左栏收起：宽档 ──
     await setSidebar('collapse')
     const wide = await measureRow(`${tag}-左栏收起`)
     await snap(`${tag}-sidebar-collapsed-wide.png`)
     if (wide.density !== 'wide') failures.push(`${tag}：左栏收起时行没有回宽档（density=${wide.density}，行宽 ${wide.rowWidth}）`)
-    if (wide.slotCount !== 3) failures.push(`${tag}：宽档下参考列只有 ${wide.slotCount} 格，三格并排没了`)
-    await expectAbsent(row().locator('[data-storyboard-ref-more]'),
-      { provenBy: moreProof, message: `${tag}：宽档三格并排，不该再出现「+N」` })
-    /**
-     * v1 的整句承诺：收掉的那 146px **真的回到了提示词列**。
-     * 拿两个不同宽度的数直接比是错的（窄档那一态本来行就窄）；要比的是**同一个行宽下**
-     * 窄档给的宽度 vs 旧的固定三格给的宽度——后者是算出来的反事实：`行宽 − 宽档固定开销`。
-     */
-    const savedByCollapsing = wide.referenceColumnWidth - narrow.referenceColumnWidth
-    const promptIfStillThreeSlots = narrow.promptColumnWidth - savedByCollapsing
-    if (savedByCollapsing < 100) failures.push(`${tag}：收参考列只省下 ${savedByCollapsing}px`)
-    if (!(narrow.promptColumnWidth > promptIfStillThreeSlots + 100)) {
-      failures.push(`${tag}：窄档提示词列 ${narrow.promptColumnWidth}px，三格不让路时只有 ${promptIfStillThreeSlots}px——收参考列没换来写字的地方`)
+    /** 窄档的视觉列整只按 176/240 缩：省下的宽度要真的回到内容列（同一行宽下比反事实）。 */
+    const saved = (wide.visualColumnWidth ?? 0) - (narrow.visualColumnWidth ?? 0)
+    if (saved < 30) failures.push(`${tag}：窄档视觉列只省下 ${saved}px（宽 ${wide.visualColumnWidth} / 窄 ${narrow.visualColumnWidth}）`)
+    const promptIfNotShrunk = (narrow.promptColumnWidth ?? 0) - saved
+    if (!((narrow.promptColumnWidth ?? 0) > promptIfNotShrunk + 20)) {
+      failures.push(`${tag}：窄档内容列 ${narrow.promptColumnWidth}px，视觉列不缩时只有 ${promptIfNotShrunk}px——缩视觉列没换来写字的地方`)
     }
-
-    // ── 「点一下仍摊开」：收成一格不是把信息删掉 ──
-    await setSidebar('expand')
-    const more = row().locator('[data-storyboard-ref-more]').first()
-    await expectVisible(more, '窄档下「+N」没渲染')
-    await clickOrFail(more, '点开「+N」')
-    await expectCount(row().locator('[data-storyboard-ref-slot]'), 3, '点「+N」没有把三格摊开')
-    await snap(`${tag}-sidebar-open-expanded.png`)
-    await clickOrFail(row().locator('[data-storyboard-ref-more]').first(), '再点一次收回')
-    await expectCount(row().locator('[data-storyboard-ref-slot]'), 1, '再点一次没有收回一格')
 
     await closeApp()
   }

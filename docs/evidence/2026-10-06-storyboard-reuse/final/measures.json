@@ -1,0 +1,1722 @@
+{
+  "zh-CN/sbl-01-film-16x9-wide": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-02-film-16x9-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 157,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-03-film-9x16-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 12,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-04-film-9x16-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 12,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-05-film-1x1-wide": [
+    {
+      "row": "1",
+      "rowHeight": 246,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 12,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 247,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 247,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-06-film-1x1-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 190,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 12,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 191,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 191,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-07-mixed-wide": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-08-mixed-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 157,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-09-anchors-wide": [
+    {
+      "row": "a-linwei",
+      "rowHeight": 189,
+      "box": {
+        "left": 52,
+        "right": 292,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 313,
+        "right": 574,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "a-alley",
+      "rowHeight": 190,
+      "box": {
+        "left": 52,
+        "right": 292,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 313,
+        "right": 579,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-10-anchors-narrow": [
+    {
+      "row": "a-linwei",
+      "rowHeight": 156,
+      "box": {
+        "left": 52,
+        "right": 228,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 249,
+        "right": 510,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "a-alley",
+      "rowHeight": 157,
+      "box": {
+        "left": 52,
+        "right": 228,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 249,
+        "right": 515,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-11-row-states": [
+    {
+      "row": "1",
+      "rowHeight": 229,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 829,
+        "right": 878,
+        "bottomFromRowBottom": 23
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 186,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 806,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 256,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbl-12-film-16x9-dark": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbp-01-film-9x16-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 12,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbp-02-film-9x16-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 12,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 91
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbp-03-film-3x4-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 12,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 834,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "zh-CN/sbp-04-film-3x4-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 12,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 91
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 598,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-01-film-16x9-wide": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-02-film-16x9-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 157,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-03-film-9x16-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 12,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-04-film-9x16-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 12,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-05-film-1x1-wide": [
+    {
+      "row": "1",
+      "rowHeight": 246,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 12,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 247,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 247,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 180
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-06-film-1x1-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 190,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 12,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 191,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 191,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 132
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-07-mixed-wide": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-08-mixed-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 157,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 158,
+      "box": {
+        "left": 39,
+        "right": 215,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-09-anchors-wide": [
+    {
+      "row": "a-linwei",
+      "rowHeight": 189,
+      "box": {
+        "left": 52,
+        "right": 292,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 313,
+        "right": 619,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "a-alley",
+      "rowHeight": 190,
+      "box": {
+        "left": 52,
+        "right": 292,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 313,
+        "right": 624,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-10-anchors-narrow": [
+    {
+      "row": "a-linwei",
+      "rowHeight": 156,
+      "box": {
+        "left": 52,
+        "right": 228,
+        "top": 12,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 249,
+        "right": 555,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "a-alley",
+      "rowHeight": 157,
+      "box": {
+        "left": 52,
+        "right": 228,
+        "top": 13,
+        "width": 176,
+        "height": 99
+      },
+      "generate": {
+        "left": 249,
+        "right": 560,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-11-row-states": [
+    {
+      "row": "1",
+      "rowHeight": 229,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 807,
+        "right": 878,
+        "bottomFromRowBottom": 23
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 186,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 778,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 256,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbl-12-film-16x9-dark": [
+    {
+      "row": "1",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 12,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 202,
+      "box": {
+        "left": 39,
+        "right": 279,
+        "top": 13,
+        "width": 240,
+        "height": 135
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 19
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbp-01-film-9x16-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 12,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 174,
+        "top": 13,
+        "width": 135,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbp-02-film-9x16-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 12,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 91
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 138,
+        "top": 13,
+        "width": 99,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbp-03-film-3x4-wide": [
+    {
+      "row": "1",
+      "rowHeight": 264,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 12,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 265,
+      "box": {
+        "left": 39,
+        "right": 219,
+        "top": 13,
+        "width": 180,
+        "height": 240
+      },
+      "generate": {
+        "left": 805,
+        "right": 878,
+        "bottomFromRowBottom": 158
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ],
+  "en/sbp-04-film-3x4-narrow": [
+    {
+      "row": "1",
+      "rowHeight": 200,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 12,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 91
+      },
+      "contentTop": 12,
+      "overflowRight": 0
+    },
+    {
+      "row": "2",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    },
+    {
+      "row": "3",
+      "rowHeight": 201,
+      "box": {
+        "left": 39,
+        "right": 171,
+        "top": 13,
+        "width": 132,
+        "height": 176
+      },
+      "generate": {
+        "left": 569,
+        "right": 642,
+        "bottomFromRowBottom": 94
+      },
+      "contentTop": 13,
+      "overflowRight": 0
+    }
+  ]
+}

@@ -38,6 +38,7 @@ import { createDesktopLaneSpend } from './laneDesktopSpend'
 import { createDesktopLaneAttachments } from './laneDesktopAttachments'
 import { readLaneDeclaredDefaults } from './laneDesktopModelDefaults'
 import { bindLaneProjectSession } from './laneProjectSession'
+import { measureProjectOpenMainStage } from '../projects/projectOpenTimeline'
 
 /** 选中技能 → 提示词。唯一注入点在岛上（pi 的 `formatSkillInvocation`），这里只是桥（形状手抄，理由见 `feedbackIpc.ts:57`）。 */
 function renderSelectedSkillPrompt(skill: SkillRecord): Promise<string> {
@@ -129,14 +130,14 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
       const session = surface.surfaceCapture.openProjectSession(event, binding)
       const projectDir = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps())
       if (!projectDir) throw new Error('project_identity_unavailable')
-      const identity = await ensureWorkspaceProjectIdentity(projectDir)
+      const identity = await measureProjectOpenMainStage('lane-identity', () => ensureWorkspaceProjectIdentity(projectDir))
       if (identity.projectId !== binding.projectId || identity.immutableProjectUuid !== binding.immutableProjectUuid
         || identity.projectGeneration !== binding.projectGeneration) throw new Error('project_binding_stale')
       const { migrateLaneLegacy } = createRequire(__filename)('./laneNativeLoader.cjs') as { migrateLaneLegacy: MigrateLaneLegacy }
-      await migrateLaneLegacy({ projectDir, userDataDir: getSettingsRoot(), binding, locale: getDesktopLocale(),
+      await measureProjectOpenMainStage('lane-legacy-migration', () => migrateLaneLegacy({ projectDir, userDataDir: getSettingsRoot(), binding, locale: getDesktopLocale(),
         labels: (locale) => ({ summaryPrefix: desktopT('agent.legacySummary', {}, locale),
           unverifiedToolResult: desktopT('agent.legacyUnverifiedTool', {}, locale) }),
-      })
+      }))
       // 权限档是**用户设置**，不是这条 lane 的会话状态：开项目的那一刻就按主进程持有的那份权威值起，
       // 不再从硬编码默认档起、等渲染层把它推上来（那一小段时间里主进程答的是别人的档位）。
       let composer: LaneComposerContext = parseLaneComposerContext({
@@ -169,7 +170,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
         capture: () => composer, prepare: prepareInput, activate: (context) => { activeInput = context }, model: () => selected })
       try {
         const { openDesktopLaneWorkspace } = createRequire(__filename)('./laneNativeLoader.cjs') as { openDesktopLaneWorkspace: OpenDesktopLaneWorkspace }
-        workspace = await openDesktopLaneWorkspace({ projectDir, fetch: appFetch,
+        workspace = await measureProjectOpenMainStage('lane-workspace-open', () => openDesktopLaneWorkspace({ projectDir, fetch: appFetch,
           // 给函数不给快照（下同）：用户在 Agent 面板旁边导入一个技能包、或者让 Agent 自己写一个落盘，
           // 都发生在这条 lane 活着的时候。传数组时那条技能要关掉项目重开才出现（2026-09-11 走查）。
           native: { settingsRoot: getSettingsRoot(), skills: async () => (await readSkillRecords()).filter(isSkillSelectableInWorkbench) },
@@ -187,7 +188,7 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           attachments: createDesktopLaneAttachments(binding.projectId),
           modelDefaults: readLaneDeclaredDefaults,
           approval: { hasUserInterface: true, policy: () => composer.approvalPolicy },
-        })
+        }))
       } catch (error) { ports.dispose(); tasks.dispose(); spend.dispose(); throw error }
       const opened = workspace
       const owner = { binding, session, workspace, receipts,

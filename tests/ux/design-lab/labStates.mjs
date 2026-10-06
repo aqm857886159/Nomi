@@ -41,6 +41,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboard/states'),
     baselineDir: path.join(BASELINE_ROOT, 'storyboard'),
   },
+  'storyboard-reuse': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboardReuse/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'storyboard-reuse'),
+  },
   'host-config': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/hostConfig/states'),
     baselineDir: path.join(BASELINE_ROOT, 'host-config'),

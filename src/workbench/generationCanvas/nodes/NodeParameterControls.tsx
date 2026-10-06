@@ -661,6 +661,7 @@ export default function NodeParameterControls({
       controls: renderedControls,
       meta,
       formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
+      autoLabel: t('generationCommon.parameters.auto'),
     })
     return (
       <InlineParameterBar

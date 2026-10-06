@@ -98,7 +98,8 @@ async function main() {
       assert.deepEqual(tools.find(tool => tool.name === 'nomi_run_start').inputSchema.properties.brief.properties[field], runSchema.properties[field], `C51 production ${field} is the lane schema`)
     }
     const { generationPlanInputSchema } = tsxRequire('../../electron/shared/agentCapabilities/generationPlanSchemas.ts', import.meta.url)
-    const create = toPublishedJsonSchema(generationPlanInputSchema.options[1].omit({ operation: true }))
+    // newPlan 只对文稿方案有意义，外部宿主不发布（mcpGenerationToolCatalog.ts 同样 omit）。
+    const create = toPublishedJsonSchema(generationPlanInputSchema.options[1].omit({ operation: true, newPlan: true }))
     for (const [field, schema] of Object.entries(create.properties)) {
       assert.deepEqual(tools.find(tool => tool.name === 'nomi_operation_plan').inputSchema.properties[field], schema, `C51 generation ${field} is the lane schema`)
     }

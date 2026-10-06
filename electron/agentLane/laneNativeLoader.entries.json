@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "Agent 岛入口登记表（2026-10-06，L-perf / 逃逸 FB-20261005-01-open-agent-load）。",
+    "laneNativeLoader.cts 是 CJS 主进程进入 ESM 岛（pi 运行时）的唯一一座桥；它的每一个 `await import('./X.mjs')` 都必须在这里登记一行，标明在哪个阶段被装：",
+    "  open = 打开项目 / 新建项目的路径上就会被装（主进程同步装载，期间不接任何 IPC）——这类模块的整张图里**不许**出现 pi-coding-agent 的入口（一整个 CLI，约 1500 个文件）；",
+    "  use  = 用户真用到某个能力时才装（发消息、看轨迹、选技能）——允许装入口，代价落在那一刻。",
+    "新增或删掉一个 import 而不改这里，tests/agent-runtime/lane-open-graph.test.mts 当场红（它从 laneNativeLoader.cts 源码里取出全部 import，与本表双向比对；并确认主进程没有第二座桥）。",
+    "把一个其实在打开路径上的模块标成 use，测试拦不住；真 App 里的兜底是 `node tests/ux/project-open-stages.e2e.mjs <label> --assert-no-cli-entry`（打开期间主进程装了入口就退出码非零）。"
+  ],
+  "entries": {
+    "./laneLegacyMigration.mjs": {
+      "phase": "open",
+      "via": "migrateLaneLegacy",
+      "when": "打开项目：laneDesktopRuntime.openWorkspace 先迁移旧版 Agent 对话"
+    },
+    "./laneWorkspace.mjs": {
+      "phase": "open",
+      "via": "openDesktopLaneWorkspace",
+      "when": "打开项目：laneDesktopRuntime.openWorkspace 打开 lane 工作区（只读历史）"
+    },
+    "./laneSkillCatalog.mjs": {
+      "phase": "open",
+      "via": "readSkillRecords",
+      "when": "打开项目后 Agent 面板立即拉技能清单（nomi:skill:list）"
+    },
+    "./laneSession.mjs": {
+      "phase": "open",
+      "via": "openLaneTraceDirectory / readLaneTraceTurns",
+      "when": "看轨迹时直接装；它同时是 laneWorkspace 打开历史的静态依赖，所以按 open 管"
+    },
+    "./laneSkillPrompt.mjs": {
+      "phase": "use",
+      "via": "renderSelectedSkillPrompt",
+      "when": "用户选了一个技能、发消息时"
+    },
+    "./laneSingleShot.mjs": {
+      "phase": "use",
+      "via": "runLaneSingleShot",
+      "when": "一次性提问（发消息）时"
+    }
+  }
+}

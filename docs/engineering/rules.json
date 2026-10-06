@@ -118,6 +118,8 @@
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "template:docs/engineering/design-card.md(★1/★9 指标与分档)",
+        "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；CI Contracts + push 前)",
+        "coordinator-tool:scripts/merge-preflight.mjs(同一份判据 + 规则与门岗改动范围)",
         "template:tests/ux/full-walk/catalog.mjs(⑫ click target 对照)",
         "hook:self-check(设计卡块)",
         "template:docs/design/nomi-design-flow-howto.md"

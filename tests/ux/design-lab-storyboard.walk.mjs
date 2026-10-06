@@ -12,9 +12,9 @@ await walkDesignLabScreen({
   // 端口按 worktree + 角色派生（design-lab/labServer.mjs）：写死端口在这台常年 20+ worktree
   // 的机器上一定会撞，撞了截回来的是别人分支的 UI。
   role: 'walk-storyboard',
-  // 一行是 `14 | 136 | 200 | 1fr`，舞台 900 宽；接触表里缩到 440 仍看得清底栏胶囊的排布。
+  // 一行是 `行首 14 | 视觉列 240 | 内容列 1fr`，舞台 900 宽；接触表里缩到 440 仍看得清底栏的排布。
   cellWidth: 440,
   columns: 3,
-  // 整屏取景的那几格（槽浮层）要装得下浮层，视口给高一点。
+  // 整屏取景的格要装得下浮层，视口给高一点。
   viewport: { width: 1440, height: 1100 },
 })

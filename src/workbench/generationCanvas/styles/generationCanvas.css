@@ -109,7 +109,7 @@
   pointer-events: none;
 }
 
-.generation-canvas-v2-node__media-loading::before {
+.generation-canvas-v2-node__media-loading[data-media-state='loading']::before {
   content: '';
   position: absolute;
   inset: -45%;

@@ -8,8 +8,11 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { buildArchetypeInputParams } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { missingRequiredSlots } from './shotRowModel'
 import { referenceColumnOf } from './shotReferenceCells'
+import { encodeMention, mentionUrlsInOrder } from '../../../assets/promptMentions'
 import {
   appendShotBinding,
+  dropBindingsForUrls,
+  removeReferenceWithMention,
   removeShotBinding,
   reorderShotBinding,
   shotReferenceMetaPatch,
@@ -291,5 +294,33 @@ describe('请求体构造 —— 走档案的 inputKey / asArray，分镜侧零�
     expect(shotReferenceMetaPatch(SEEDANCE_FIRSTLAST, shotOf().referenceBindings)).toEqual({ firstFrameUrl: '', lastFrameUrl: '' })
     expect(shotReferenceMetaPatch(SEEDANCE_OMNI, shotOf().referenceBindings))
       .toEqual({ referenceImageUrls: [], referenceVideoUrls: [], referenceAudioUrls: [] })
+  })
+})
+
+describe('删参考 ↔ 删 @（反馈 #7：删掉参考时提示词里的 @ 一起删，反过来删 @ 也同步删参考）', () => {
+  const A = 'nomi-local://asset/a.png'
+  const B = 'nomi-local://asset/b.png'
+  const prompt = `近景，${encodeMention(A)} 霓虹下，${encodeMention(B)} 反光`
+
+  it('删一张参考：绑定删掉 + 指向它的 @ 一起删', () => {
+    const next = removeReferenceWithMention(prompt, { image_ref: [{ url: A }, { url: B }] }, 'image_ref', 0)!
+    expect(next.bindings.image_ref).toEqual([{ url: B }])
+    expect(mentionUrlsInOrder(next.prompt)).toEqual([B])
+  })
+
+  it('同一张图还在别的槽里绑着 → @ 留着（它仍会被发出去）', () => {
+    const next = removeReferenceWithMention(prompt, { image_ref: [{ url: A }], first_frame: [{ url: A }] }, 'image_ref', 0)!
+    expect(mentionUrlsInOrder(next.prompt)).toEqual([A, B])
+  })
+
+  it('index 越界 → null（调用方跳过写入）', () => {
+    expect(removeReferenceWithMention(prompt, { image_ref: [{ url: A }] }, 'image_ref', 5)).toBeNull()
+  })
+
+  it('删 @ → 那张图在所有槽里的绑定一起删；从没被 @ 过的参考不受影响；没变化返回同一个对象', () => {
+    const bindings = { image_ref: [{ url: A }, { url: B }], first_frame: [{ url: A }] }
+    expect(dropBindingsForUrls(bindings, [A])).toEqual({ image_ref: [{ url: B }], first_frame: [] })
+    expect(dropBindingsForUrls(bindings, [])).toBe(bindings)
+    expect(dropBindingsForUrls(bindings, ['nomi-local://asset/other.png'])).toBe(bindings)
   })
 })

@@ -19,7 +19,7 @@ const gstr = (value: unknown): string => (typeof value === "string" ? value : ""
 
 // Assemble the complete envelope before publication: recursive references remain relative
 // to the final tool root, and every semantic field retains its canonical lane owner.
-const generationTransportSchema = generationPlanInputSchema.options[1].omit({ operation: true }).extend({
+const generationTransportSchema = generationPlanInputSchema.options[1].omit({ operation: true, newPlan: true }).extend({
   leaseHandle: z.string(),
   projectId: z.string().optional(),
   operationId: z.string().describe("缺省新建；给出则配合 patch 编辑。").optional(),
@@ -41,7 +41,8 @@ const { $schema: _dialect, ...generationInputSchema } = toPublishedJsonSchema(ge
  * **对外已发布的字段名一个都不改**：`vendor` / `modelKey` 是读侧别名，`operationId` / `undoToken` 是
  * 对外契约，动它们就是在改别人已经写好的调用。别名归一仍然保留，只是同样变成一张声明表。
  */
-const CREATE_BRANCH_SCHEMA = generationPlanInputSchema.options[1].omit({ operation: true });
+// `newPlan` 只对文稿方案有意义（同一请求里另起一份），外部宿主没有文稿方案，所以不发布它。
+const CREATE_BRANCH_SCHEMA = generationPlanInputSchema.options[1].omit({ operation: true, newPlan: true });
 const CREATE_FIELD_NAMES: readonly string[] = Object.freeze(Object.keys(CREATE_BRANCH_SCHEMA.shape));
 
 /** 读侧别名 → 写侧 canonical 名。canonical 名字优先；两个都给时别名被忽略（与改动前逐字相同）。 */

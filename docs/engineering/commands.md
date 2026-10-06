@@ -44,3 +44,4 @@
 | `node scripts/gen-rules-view.mjs` | 由 `docs/engineering/rules.json` 重新生成可读视图 `rules.md` |
 | `pnpm run handoff:report -- <branch>` | 交接体检报告（原 `check:handoff`，不是门岗） |
 | `pnpm run check:escape-ledger` | 逃逸账本结账门岗（P2：账本格式不合法 → 红；条目改成 `fixed` 必须同时有根因合同、类级检查（铁律 ⑩ ⑪ ⑫ / inv:N 或矩阵 / 普查测试）、合入 PR 号；`candidate` 超 14 天警告。细则见 `docs/engineering/experience-system.md`） |
+| `pnpm run check:pr-judgement` | PR 正文判据（CI Contracts + push 前）：按功能分类推路由——设计卡 `### 功能分类` 必须覆盖路径推出的类别、`## 验收证据` 逐项有证据或「未验证：原因」；并判规则与门岗改动范围（`## 碰到的规则与门岗` 逐个点名）。路由表 `docs/engineering/test-routing.json`；`--gaps` 列出工具缺口 |

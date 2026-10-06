@@ -40,3 +40,5 @@ metadata:
 ---
 
 Carry the next scene's sound in before the picture cuts
+
+Keep the picture’s subjects, composition, lighting, color, and continuity consistent within each shot, and preserve any recurring subject’s identity and clothing. Allow the next scene’s setting, time, and sound to change as described; change only the sound bridge.

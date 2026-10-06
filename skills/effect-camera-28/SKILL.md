@@ -42,3 +42,5 @@ metadata:
 ---
 
 First-person POV, the camera is {主体}'s eyes, frame sways with gait and breath
+
+Keep the first-person subject’s identity, viewpoint, setting, lighting, color, and continuity unchanged. Change only the eye-level sway with gait and breath described here; do not add an external observer.

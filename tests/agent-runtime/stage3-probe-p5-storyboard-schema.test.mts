@@ -82,7 +82,7 @@ test('P5 ① · size of the draft_shots schema, by pi\'s own estimator', () => {
     console.log(`[P5①]   ${tool.name}: ≈ ${size} tokens`);
   }
   const properties = Object.keys((storyboard.parameters as { properties: Record<string, unknown> }).properties);
-  assert.deepEqual(properties, ['operationId', 'taskKind', 'candidate', 'shots'], 'draft_shots root: the draft to revise, per-draft defaults, and the shots');
+  assert.deepEqual(properties, ['operationId', 'newPlan', 'taskKind', 'candidate', 'shots'], 'draft_shots root: the draft to revise, the explicit start-another-plan switch (#1038), per-draft defaults, and the shots');
   // B1c's original envelope still cannot grow prose beyond its original cap.
   assert.ok(coreTokens <= CORE_TOKEN_BUDGET, `core estimate (${coreTokens}) exceeds ${CORE_TOKEN_BUDGET}`);
   assert.ok(schemaTokens + descriptionTokens <= FULL_TOKEN_BUDGET,

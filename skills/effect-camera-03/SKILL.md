@@ -42,3 +42,5 @@ metadata:
 ---
 
 Extreme close-up on {hands/eyes}, micro-movement only, a tremor / a tightening grip
+
+Keep the referenced hands or eyes, their identity and appearance, the setting, lighting, color, and continuity unchanged. Change only the extreme close-up and the tiny tremor or grip movement described here.
