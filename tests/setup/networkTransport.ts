@@ -10,7 +10,7 @@ import { handOffToNetwork } from '../../electron/outboundDispatchEvidence';
 // real entry), so domain tests do not run under a looser policy than production.
 // Every request is also handed off through the same dispatch ledger as the real entry: a paid submission
 // that reached the network must never be read as "never left the machine" just because a test replaced the transport.
-vi.mock('../../electron/appFetch', () => ({
-  appFetch: (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
-    handOffToNetwork(input, init, () => globalThis.fetch(input, withCredentialRedirectPolicy(input, init))),
-}));
+// The mock only points appFetch at this named test double; electron/appFetch.ts stays the one definition (concept-owners).
+const appFetchTestDouble = (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) =>
+  handOffToNetwork(input, init, () => globalThis.fetch(input, withCredentialRedirectPolicy(input, init)));
+vi.mock('../../electron/appFetch', () => ({ appFetch: appFetchTestDouble }));

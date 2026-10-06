@@ -66,7 +66,10 @@ const fixture = smoke.needs.loopbackProvider
 standingBackgroundResponders(fixture)
 const win = () => smoke.win
 
-const O = { locale, checks: {} }
+const O = { locale, checks: {}, marks: [] }
+const startedAt = Date.now()
+/** 每一步点下去的时刻：失败时把回环收到的每一笔对到「是哪一步惹出来的」。 */
+const mark = (step) => O.marks.push({ step, atMs: Date.now() - startedAt })
 const failures = []
 const check = (name, ok, detail) => { O.checks[name] = { ok: Boolean(ok), detail }; if (!ok) failures.push(name) }
 const snap = async (name) => { await win().screenshot({ path: path.join(outDir, `${name}.png`) }) }
@@ -94,6 +97,9 @@ const setFixtureVendorHeader = (value) => {
 }
 
 try {
+  // 不打扰用户：窗口从建出来那一刻就在屏幕外、不可聚焦（tests/ux/_offscreenWindows.cjs）。
+  O.windows = await smoke.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => ({ pos: w.getPosition(), focusable: w.isFocusable(), focused: w.isFocused() })))
+  check('windows-offscreen-and-unfocusable', O.windows.length > 0 && O.windows.every((w) => w.pos[0] <= -10000 && w.pos[1] <= -10000 && !w.focusable && !w.focused), O.windows)
   await smoke.openProject()
   await win().locator('.nomi-stepper__step[data-mode="creation"]').first().click()
   await settle(700)
@@ -108,6 +114,7 @@ try {
   await settle(400)
   await win().getByRole('option', { name: /GPT Image 2(?!\.)/ }).first().click()
   await settle(700)
+  mark('hero:generate(gpt-image-2, blocked)')
   await hero().locator('[data-storyboard-composer-bar] [data-storyboard-generate-state]').click()
   const failed = await waitFace('failed')
   check('first-attempt-fails', failed)
@@ -125,6 +132,7 @@ try {
   await settle(400)
   await win().getByRole('option', { name: /Fixture/ }).first().click()
   await settle(600)
+  mark('hero:retry(fixture)')
   await hero().locator('[data-anchor-face="failed"] button').click()
   const done = await waitFace('done')
   await settle(800)
@@ -140,6 +148,7 @@ try {
   await win().getByRole('option', { name: /Fixture/ }).first().click()
   await settle(600)
   setFixtureVendorHeader('工作区')
+  mark('alley:generate(fixture, illegal header)')
   await alley.locator('[data-storyboard-composer-bar] [data-storyboard-generate-state]').click()
   const localFailed = await waitFace('failed', alley)
   await settle(600)
@@ -154,6 +163,7 @@ try {
 
   // ④ 把请求头改对，点「重试」：认领放行，真的出图（回环这时才收到第一笔）。
   setFixtureVendorHeader('')
+  mark('alley:retry(fixture)')
   await alley.locator('[data-anchor-face="failed"] button').click()
   const localDone = await waitFace('done', alley)
   await settle(800)
@@ -166,8 +176,21 @@ try {
   O.egressBlockedApimart = vendorHits.length
   O.fixtureImageRequests = fixture.images.length
   check('blocked-request-never-reached-a-vendor', vendorHits.every((e) => e.kind === 'blocked'), vendorHits.map((e) => e.via))
-  // 林薇重试 1 笔 + 后巷重试 1 笔；两次失败的尝试一笔都没到回环。
-  check('fixture-received-exactly-two-image-requests', fixture.images.length === 2, fixture.images.length)
+  // 林薇重试 1 笔 + 后巷重试 1 笔；两次失败的尝试一笔都没到回环。失败时把每一笔的时刻、提示词、模型、请求头列出来，
+  // 对着 O.marks 就知道是哪一步多发（或少发）的。
+  const imageRequests = fixture.images.map((record) => {
+    let body = record.body
+    if (typeof body === 'string') { try { body = JSON.parse(body) } catch { /* keep text */ } }
+    const prompt = String(body?.prompt ?? '')
+    return {
+      atMs: record.at - startedAt,
+      anchor: /短发|Short hair/.test(prompt) ? 'hero' : /窄巷|Narrow alley/.test(prompt) ? 'alley' : 'other',
+      prompt: prompt.slice(0, 60), model: body?.model ?? null, xWorkspace: record.headers?.['x-workspace'] ?? null,
+    }
+  })
+  O.imageRequests = imageRequests
+  check('fixture-received-exactly-two-image-requests', imageRequests.length === 2 && imageRequests.filter((r) => r.anchor === 'hero').length === 1 && imageRequests.filter((r) => r.anchor === 'alley').length === 1,
+    { count: imageRequests.length, requests: imageRequests, marks: O.marks })
   O.failures = failures
   fs.writeFileSync(path.join(outDir, 'observations.json'), `${JSON.stringify(O, null, 2)}\n`)
   await smoke.close().catch(() => undefined)
@@ -175,4 +198,5 @@ try {
   await relay.close().catch(() => undefined)
 }
 console.log(`[claim-unsent-retry] ${locale}: ${failures.length ? `FAILED ${failures.join(', ')}` : 'all checks passed'}`)
+for (const name of failures) if (O.checks[name]) console.log(`[claim-unsent-retry] ${name}: ${JSON.stringify(O.checks[name].detail)}`)
 process.exit(failures.length ? 1 : 0)
