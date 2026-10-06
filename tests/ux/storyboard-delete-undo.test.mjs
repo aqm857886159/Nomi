@@ -6,6 +6,10 @@ import { afterAll, beforeAll, test } from 'vitest'
 import { chromium } from 'playwright'
 import { expect } from '@playwright/test'
 import { createServer } from 'vite'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 let server, browser, cacheDir
 beforeAll(async () => {
   cacheDir = mkdtempSync(path.join(tmpdir(), 'nomi-storyboard-undo-vite-'))
@@ -29,14 +33,15 @@ for (const scenario of ['redo', 'consumed', 'hidden', 'later-edit', 'outside', '
   page.setDefaultTimeout(5000)
   try {
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/original-storyboard-editor-harness.html?undo=true${scenario === 'generated-immediate' ? '&confirm=true' : ''}`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'storyboard-delete-undo.test.mjs')
     const editor = page.locator('[data-storyboard-editor]')
     await expect(editor).toBeVisible()
     await editor.getByRole('button', { name: '添加镜头', exact: true }).click()
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(2)
     const row = editor.locator('[data-storyboard-row="1"]')
     await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-    await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+    await page.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
     if (scenario === 'generated-immediate') await page.getByRole('dialog').getByRole('button', { name: '删除镜头', exact: true }).click()
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(1)
     const remaining = editor.locator('[data-storyboard-row="1"]')
@@ -61,11 +66,12 @@ test('delayed delete confirmation cannot delete after the editor target changed'
   page.setDefaultTimeout(5000)
   try {
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/original-storyboard-editor-harness.html?undo=true&confirm=true`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'storyboard-delete-undo.test.mjs')
     const editor = page.locator('[data-storyboard-editor]')
     const row = editor.locator('[data-storyboard-row="1"]')
     await row.getByRole('button', { name: '镜头操作', exact: true }).last().click()
-    await row.locator('div.absolute').getByRole('button', { name: '删除', exact: true }).click()
+    await page.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: '删除', exact: true }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     // A background author edit is controlled; the deletion and confirmation remain original UI.

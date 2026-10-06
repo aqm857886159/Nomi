@@ -8,22 +8,20 @@ import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
 import { decideShotClaim } from "../shared/decideShotClaim";
 import { detachShotNodesCommandId } from "../shared/productionRunCommandId";
-import { claimCanvasProductionShot } from "./canvasShotClaim";
+import { setupCanvasShots } from "../capabilityCore/canvasShotTestUtils";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import { prepareProductionGenerationReauthorization } from "./prepareProductionGenerationAuthorization";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { applyRunControl } from "./productionRunControl";
 import { createProductionRunRepository } from "./productionRunRepository";
-import type { ProductionRunService } from "./productionRunService";
-import { registerProductionRunService, resetRegisteredProductionRunService } from "./productionRunServiceRegistry";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
 
 // 画布 ↔ 制作「这一镜归谁」的写命令：同一镜的第 2、3 次认领 / 删除必须各自落盘。
 // 根因合同：docs/fixes/2026-10-05-canvas-claim-attempt-id.root-cause.json；复盘：docs/plan/2026-10-05-engine-convergence-cut1.md §3。
-// 全程走真实的仓库 / reducer / 调度器 / 提交出口 / 派发闸；画布那一侧走真实的主进程认领入口 `claimCanvasProductionShot`
-// （runtime.runTask 里调的就是它）、删节点走真实的命令号生成处 `detachShotNodesCommandId`。供应商是进程内计数器。
+// 全程走真实的仓库 / reducer / 调度器 / 提交出口 / 派发闸；画布那一侧走真实的画布付费口（appIntegrationCanvasShot 的准入：
+// 绑着制作镜头的节点先经唯一判定口认领那一镜）、删节点走真实的命令号生成处 `detachShotNodesCommandId`。供应商是进程内计数器。
 
 const NOW_BASE = Date.parse("2026-10-05T00:00:00.000Z");
 const ELEVEN_MINUTES = 11 * 60 * 1000;
@@ -76,9 +74,9 @@ function setup(shotIds: string[], maxAttemptsPerJob = 3) {
     resolveShotPrice: () => ({ known: true, amount: 6 }), receiptId: "receipt-plan", now: now(),
   });
   repository.execute("project-1", "op-batch", { commandId: "submit", expectedRevision: 2, type: "generation.submit", payload: {}, issuedAt: now() });
-  // 画布那一侧的真实认领入口只要仓库：注册一个只带仓库的服务。
-  registerProductionRunService({ repository } as unknown as ProductionRunService);
-  return { root, repository };
+  // 画布那一侧：真实的画布付费口，和制作 Run 共用同一个项目仓库。
+  const canvas = setupCanvasShots({ root, repository, now });
+  return { root, repository, canvas };
 }
 
 function scheduler(root: string, repository: Repository, submits: string[], options: { maxShotsPerRun?: number } = {}) {
@@ -103,9 +101,11 @@ async function stopOnLapsedConsent(root: string, repository: Repository, submits
   expect(read(repository)).toMatchObject({ status: "needs_attention", stop: { reason: "consent_expired" } });
 }
 
-/** 画布按 ↑：主进程先经 `claimCanvasProductionShot` 认领（runtime.ts 里的那一行），认领不到就抛；认领到了就算发出一笔。 */
-function canvasGenerates(shotId: string, canvasSubmits: string[]): void {
-  claimCanvasProductionShot("project-1", { productionRunId: "op-batch", productionShotId: shotId });
+/** 画布按 ↑：经真实的画布付费口交——准入先认领那一镜（认领不到就拒），认领到了画布那台才发出一笔。 */
+let canvasClicks = 0;
+async function canvasGenerates(canvas: ReturnType<typeof setupCanvasShots>, shotId: string, canvasSubmits: string[]): Promise<void> {
+  canvasClicks += 1;
+  await canvas.submit(`node-${shotId}`, `run-canvas-${canvasClicks}`, shotId, { productionRunId: "op-batch", productionShotId: shotId });
   canvasSubmits.push(`canvas:${shotId}`);
 }
 
@@ -134,19 +134,18 @@ function claimOf(repository: Repository, shotId: string) {
 }
 
 afterEach(() => {
-  resetRegisteredProductionRunService();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
   clock = NOW_BASE;
 });
 
 describe("canvas ↔ production claim commands carry which attempt they are about", () => {
   it("first takeover: after the batch stops, the canvas claims shot-2 and 「继续」 never dispatches it", async () => {
-    const { root, repository } = setup(["shot-1", "shot-2"]);
+    const { root, repository, canvas: canvasPort } = setup(["shot-1", "shot-2"]);
     const submits: string[] = [];
     const canvas: string[] = [];
     await stopOnLapsedConsent(root, repository, submits);
 
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     await resume(root, repository, submits, "1");
 
     expect(canvas).toEqual(["canvas:shot-2"]);
@@ -156,17 +155,17 @@ describe("canvas ↔ production claim commands carry which attempt they are abou
   // 报告路径（双扣路径 6）：画布第二次接手同一镜。修前认领命令号是 `shot.claim:<run>:<shot>`，不带 attempt，
   // 仓库按命令号幂等重放、原样返回第一次的结果，这一次的认领没落盘；「继续」后制作照派 attempt 2——同一镜付两次钱。
   it("reported case: a second canvas takeover after a production rework lands, so 「继续」 does not pay for shot-2 again", async () => {
-    const { root, repository } = setup(["shot-1", "shot-2"]);
+    const { root, repository, canvas: canvasPort } = setup(["shot-1", "shot-2"]);
     const submits: string[] = [];
     const canvas: string[] = [];
     await stopOnLapsedConsent(root, repository, submits);
 
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     const attempt = reworkApproved(repository, "shot-2", submits, "2");
     expect(attempt).toBe(2);
 
     expect(decideShotClaim(read(repository), "shot-2", "canvas")).toMatchObject({ granted: true, holder: "canvas" });
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     expect(claimOf(repository, "shot-2")).toMatchObject({ by: "canvas", attempt: 2 });
 
     await resume(root, repository, submits, "2");
@@ -176,20 +175,20 @@ describe("canvas ↔ production claim commands carry which attempt they are abou
   });
 
   it("class: the 2nd and 3rd canvas claims of one shot each land on their own attempt; production never dispatches a claimed attempt", async () => {
-    const { root, repository } = setup(["shot-1", "shot-2"], 3);
+    const { root, repository, canvas: canvasPort } = setup(["shot-1", "shot-2"], 3);
     const submits: string[] = [];
     const canvas: string[] = [];
     await stopOnLapsedConsent(root, repository, submits);
 
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     expect(claimOf(repository, "shot-2")).toMatchObject({ by: "canvas", attempt: 1 });
 
     expect(reworkApproved(repository, "shot-2", submits, "a2")).toBe(2);
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     expect(claimOf(repository, "shot-2")).toMatchObject({ by: "canvas", attempt: 2 });
 
     expect(reworkApproved(repository, "shot-2", submits, "a3")).toBe(3);
-    canvasGenerates("shot-2", canvas);
+    await canvasGenerates(canvasPort, "shot-2", canvas);
     expect(claimOf(repository, "shot-2")).toMatchObject({ by: "canvas", attempt: 3 });
 
     const shot2Jobs = read(repository).jobs.filter((job) => job.metadata?.shotId === "shot-2");
@@ -204,14 +203,15 @@ describe("canvas ↔ production claim commands carry which attempt they are abou
   });
 
   it("class: a retried claim of the same attempt is still a single durable claim (idempotent replay inside one attempt)", async () => {
-    const { root, repository } = setup(["shot-1", "shot-2"]);
+    const { root, repository, canvas: canvasPort } = setup(["shot-1", "shot-2"]);
     const submits: string[] = [];
     await stopOnLapsedConsent(root, repository, submits);
-    claimCanvasProductionShot("project-1", { productionRunId: "op-batch", productionShotId: "shot-2" });
+    await canvasGenerates(canvasPort, "shot-2", []);
     const afterFirst = read(repository).revision;
-    // 同一 attempt 再来一次：判定口已经说「画布认领过了」，什么都不写。
-    claimCanvasProductionShot("project-1", { productionRunId: "op-batch", productionShotId: "shot-2" });
+    // 同一 attempt 再来一次：判定口已经说「画布认领过了」，制作那个 Run 什么都不写（画布照常再生成一次）。
+    await canvasGenerates(canvasPort, "shot-2", []);
     expect(read(repository).revision).toBe(afterFirst);
+    expect(canvasPort.vendor.executes).toHaveLength(2);
   });
 
   // 同类（删节点上报）：修前命令号只看 runId + 节点集合。用户删掉节点 → 撤销（节点 id 原样回来、落地对账重新绑上）→

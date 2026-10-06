@@ -112,9 +112,9 @@ async function startLoopbackVendor() {
  * 供应商适配器。`buildRequest` 把**合同里冻着的那份载荷**原样带出来，`submit` 原样发给 loopback ——
  * 于是 `vendor.bodies` 里躺着的就是「供应商真正收到的参数」，而不是我们复述的一份。
  */
-function loopbackProvider(origin: string, submits: string[]): GenerationProvider {
+function loopbackProvider(origin: string, submits: string[], providerId = "apimart"): GenerationProvider {
   return {
-    providerId: "apimart",
+    providerId,
     capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
     buildRequest: (input) => input,
     submit: async (request, idempotencyKey) => {
@@ -215,13 +215,23 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
    * （等形象确认、被并发挡着）时用户又点了第 2 镜；之后由 `dispatchNow()` 真的跑一轮调度。
    */
   holdDispatch?: () => boolean;
+  /**
+   * 换一份模块目录（缺省 = 本文件那份只有两个夹具模型的目录）。铁律 ⑩ 的宿主矩阵用真内置目录种子建的目录
+   * （`createCatalogModuleRegistry`），好让「键名不同 / 没有该参数 / 像素档」这几类真模型走同一条宿主链。
+   */
+  registry?: ReturnType<typeof createModuleRegistry>;
+  /** 换了目录就要有对应家的 loopback 供应商（缺省只有 apimart）。 */
+  providerIds?: readonly string[];
+  /** 项目素材库的身份解析（生产装配点绑 `resolveProjectAssetReferenceIdentity`）。缺省 = 不接，带 assetId 的参考当场被拒。 */
+  resolveAssetReferenceIdentity?: (projectId: string, assetId: string) => { contentHash: string; version: number; kind?: "image" | "video" | "audio" } | undefined;
 } = {}) {
   const { root, repository, owner, operations, canvasLanding } = base;
-  const provider = loopbackProvider(vendorOrigin, submits);
-  createGenerationRuntimeAdapter({ providers: [provider] }); // sanity: the real adapter accepts this provider
+  const moduleRegistry = hooks.registry ?? registry;
+  const providers = (hooks.providerIds ?? ["apimart"]).map((providerId) => loopbackProvider(vendorOrigin, submits, providerId));
+  createGenerationRuntimeAdapter({ providers }); // sanity: the real adapter accepts this provider
   const submission = createProductionGenerationSubmission({
     repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
-    intentMacKey: "test-intent-key", providers: [provider],
+    intentMacKey: "test-intent-key", providers,
     materializeOutput: async ({ providerTaskId }) => {
       // 真写一个字节到项目里：落地时的产物投影要读得到这个文件，读不到就只落占位、不回填 result。
       // 项目相对路径恒为 posix 形状（真物化器 writeDeterministicAsset 用的就是 path.posix.join）；
@@ -248,15 +258,16 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     await canvasLanding.landCanvasBestEffort(PROJECT_ID, operationId);
   };
   const handler = createGenerationPlanningHandler({
-    registry,
+    registry: moduleRegistry,
     operations,
     resolveModelPricing: () => (hooks.unpriced ? undefined : PRICING),
+    ...(hooks.resolveAssetReferenceIdentity ? { resolveAssetReferenceIdentity: hooks.resolveAssetReferenceIdentity } : {}),
     now,
     prepareAuthorization: ({ lease: projectLease, operation, contract, multiShot }) => prepareProductionGenerationAuthorization({
       lease: projectLease, projectRevision: 0, operation, contract,
       run: requiredHarnessRun(operation.projectId, operation.operationId),
       ...(multiShot ? { multiShot } : {}),
-      providers: [provider],
+      providers,
       resolveShotPrice: (shotContract) => {
         if (hooks.unpriced) return { known: false };
         // 价格按**合同里冻着的那份参数**算，不是按草稿现有的：改完参数重新封印之后，收据的上限
@@ -320,7 +331,7 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     leaseFor: async () => lease,
     resolvePricing: () => (hooks.unpriced ? undefined : PRICING),
     // 与生产同一条并入规则（同一个目录）：卡上改一下也过 resolvePlanPatch。
-    normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry }).normalizedPatch,
+    normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry: moduleRegistry }).normalizedPatch,
     now,
   });
   const window = () => ({ webContentsId: 1, frameId: 0, origin: "app://nomi" });

@@ -1,0 +1,3 @@
+{"id":"e1","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.tool.proposed","payload":{"toolCallId":"c1","toolName":"draft_shots","args":{"taskKind":"text_to_image","shots":[{"prompt":"ceramic mug, wooden table","parameters":{"size":"1:1"}},{"prompt":"ceramic mug, top view","parameters":{"size":"1:1"}}]}}}
+{"id":"e2","ts":"2026-10-05T00:00:00.000Z","source":"runtime","type":"agent.tool.completed","payload":{"toolCallId":"c1","toolName":"draft_shots","ok":true}}
+{"id":"e3","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.turn.finished","payload":{"status":"ok","finalTextHead":"Two 1:1 drafts are ready.","usage":{"totalTokens":42000}}}

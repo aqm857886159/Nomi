@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execSync, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   prepareIsolation,
   launchIsolatedApp,
@@ -53,13 +53,28 @@ const modelPref = (() => {
 
 const HARD_CAP = 60; // 评审后端#7:单次 run 的 case×trial 硬上限,防失控烧额度
 
-const { cases } = await import(path.join(repoRoot, "evals", "datasets", `${datasetName}.mjs`));
+const dataset = await import(pathToFileURL(path.join(repoRoot, "evals", "datasets", `${datasetName}.mjs`)).href);
+const { cases } = dataset;
 let selected = cases;
 if (smoke) selected = selected.filter((c) => c.smoke);
 if (onlyCases) selected = selected.filter((c) => onlyCases.has(c.id));
 if (selected.length === 0) {
   console.error("没有匹配的 case");
   process.exit(1);
+}
+// 显式花钱开关:数据集声明 requiresSpendOptIn 的(例如铁律 ⑩ 的 intent-draft),不带 --spend-ok 一律不跑真模型,
+// 并先报这一批大概要花多少 token(估算写在数据集的 TOKEN_ESTIMATE 里)。评分管线本身零额度,见 eval:score。
+if (dataset.requiresSpendOptIn) {
+  const estimate = dataset.TOKEN_ESTIMATE;
+  const runs = selected.length * trials;
+  const line = estimate
+    ? `这一批 ${runs} 次 Agent 回合,常见约 ${Math.round((runs * estimate.perCaseTypical) / 10_000)} 万 token,上限约 ${Math.round((runs * estimate.perCaseUpperBound) / 10_000)} 万(${estimate.basis})`
+    : `这一批 ${runs} 次 Agent 回合`;
+  if (!args.includes("--spend-ok")) {
+    console.error(`${datasetName} 会调真模型、花 token,默认不跑。${line}。确认要跑就加 --spend-ok。`);
+    process.exit(1);
+  }
+  console.log(`⚠ --spend-ok:${line}`);
 }
 if (selected.length * trials > HARD_CAP) {
   console.error(`case×trial=${selected.length * trials} 超过硬上限 ${HARD_CAP}——拆小批次跑`);

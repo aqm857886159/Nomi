@@ -34,7 +34,7 @@ import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/l
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
@@ -48,7 +48,11 @@ import { loadPiSkillFormatter, renderLaneSkillSection, laneSkillUnlockReason } f
 import { openLaneSession } from './laneSession.mjs';
 import { createLaneTools, takeLaneToolFailure } from './laneTools.mjs';
 import { projectLaneSnapshot, type LaneModelFacts } from '../shared/agentLane/laneProjection.js';
-import { openLaneNativeDesktop } from './laneNativeDesktop.mjs';
+// 本机能力（bash / 沙箱 / pi-coding-agent 的工具）只在真开一条带模型的 lane 时才装：静态引入会把 pi-coding-agent
+// 整个入口（约 1500 个文件，主进程同步装载）拖进「打开项目」那条只读历史的路径（2026-10-06 L-perf 实测）。
+// 与 laneCodingTools / laneSkillCatalog 的按需加载同一个做法。tests/agent-runtime/lane-open-graph.test.mts 钉住。
+type LaneNativeDesktop = Awaited<ReturnType<typeof import('./laneNativeDesktop.mjs').openLaneNativeDesktop>>;
+const loadLaneNativeDesktop = () => import('./laneNativeDesktop.mjs');
 import { LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog.js';
 import { appendLaneContinuation, laneContinuationText } from './laneContinuation.mjs';
 
@@ -168,7 +172,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const inputs = createLaneInputAdmission(context);
   const laneName = options.laneName ?? 'main';
   const { session, sessionId, release } = await openLaneSession({ ...options, laneName }, context);
-  let native: Awaited<ReturnType<typeof openLaneNativeDesktop>> | undefined;
+  let native: LaneNativeDesktop | undefined;
   // 会话一旦打开，这个进程就是它**唯一**的持有者。装配到一半失败（模型配置写错、
   // 工具名重复、schema 门岗报红）而不交还持有权，用户下一次打开同一条历史会撞上
   // 「已经有人开着」——而那个人是一个早就失败退出的调用。
@@ -184,7 +188,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   }
 
   async function assemble(): Promise<LaneHandleWithObservations> {
-  if (options.native) native = await openLaneNativeDesktop({ projectDir: options.projectDir,
+  if (options.native) native = await (await loadLaneNativeDesktop()).openLaneNativeDesktop({ projectDir: options.projectDir,
     ...options.native, deferredGroups: LANE_DEFERRED_TOOL_GROUPS.map(group => ({ ...group,
       toolNames: group.toolNames.filter(name => options.tools.some(tool => tool.name === name)),
     })).filter(group => group.toolNames.length > 0),
@@ -206,6 +210,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 是浏览器也 import 的中立层，在那里 import 一个 pi 的函数就等于把整个 SDK 拖进渲染 bundle。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
+    isTransientError: isRetryableAssistantError,
     ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }) };
   const models = createModels({ credentials });
   models.setProvider(provider);
@@ -255,13 +260,16 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    * 粒度是回合不是请求：一个回合最多 `LANE_MAX_MODEL_REQUESTS` 次模型请求，按请求刷等于
    * 把技能库全量重扫乘 24，而且回合内会改口——那恰恰是评审裁决明确不要的行为。
    */
+  const composeClosing = (): string => typeof options.systemPromptClosing === 'function' ? options.systemPromptClosing() : options.systemPromptClosing ?? '';
   let promptRunId: string | undefined;
   let promptForRun = composeSystemPrompt();
+  let closingForRun = composeClosing();
   const systemPromptForRun = async (runId: string): Promise<string> => {
     if (runId === promptRunId) return promptForRun;
     promptRunId = runId;
     await native?.skillIndex.refresh();
     promptForRun = composeSystemPrompt();
+    closingForRun = composeClosing();
     return promptForRun;
   };
   const systemPrompt = promptForRun;
@@ -411,7 +419,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority].filter(Boolean).join('\n\n');
+    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority, closingForRun].filter(Boolean).join('\n\n');
     return { systemPrompt };
   });
 

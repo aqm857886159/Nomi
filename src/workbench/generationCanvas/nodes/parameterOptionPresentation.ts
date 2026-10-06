@@ -1,7 +1,5 @@
-import { normalizeAspectRatioToWH } from './aspectRatio'
+import { isAutoOptionValue, optionsAreAspectRatios } from '../../../../electron/shared/aspectRatioValue'
 import { hasFlatOptions, type DynamicModelControl } from './controls/parameterControlModel'
-
-const AUTO_OPTION_PATTERN = /^(auto|automatic|adaptive|自动|智能)$/i
 
 type ParameterOption = { value: string; text: string }
 
@@ -19,7 +17,7 @@ export function localizeAutoOption(
   text: string,
   autoLabel: string,
 ): LocalizedParameterOption {
-  const isAuto = AUTO_OPTION_PATTERN.test(value.trim()) || AUTO_OPTION_PATTERN.test(text.trim())
+  const isAuto = isAutoOptionValue(value) || isAutoOptionValue(text)
   return { value, text: isAuto ? autoLabel : text, isAuto }
 }
 
@@ -29,13 +27,8 @@ export function resolveParameterOptionPurpose(
   requested: ParameterOptionPurpose = 'generic',
 ): ParameterOptionPurpose {
   if (requested !== 'generic') return requested
-  const explicitOptions = options.filter(({ value, text }) => (
-    !AUTO_OPTION_PATTERN.test(value.trim()) && !AUTO_OPTION_PATTERN.test(text.trim())
-  ))
-  const allRatios = explicitOptions.length > 0 && explicitOptions.every(({ value, text }) => (
-    normalizeAspectRatioToWH(value) !== null || normalizeAspectRatioToWH(text) !== null
-  ))
-  return allRatios ? 'aspect-ratio' : 'generic'
+  // 判据与宿主准入层「Agent 说的比例落到哪个控件」是同一个（`electron/shared/aspectRatioValue.ts`）。
+  return optionsAreAspectRatios(options) ? 'aspect-ratio' : 'generic'
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   optionValue,
   type DynamicModelControl,
 } from './controls/parameterControlModel'
+import { localizeAutoOption } from './parameterOptionPresentation'
 
 /**
  * 各执行类的「头两个值」按**控件 key** 挑，不按下标。
@@ -29,15 +30,20 @@ const HEADLINE_KEYS = {
   image: ['aspect_ratio', 'size', 'ratio', 'resolution'],
 } as const
 
-function controlDisplayValue(control: DynamicModelControl, meta: Record<string, unknown>): string {
+/**
+ * 一个控件当前值的显示文字。「自动」档（`auto` / `adaptive`）一律换成调用方给的本地化字样——
+ * 面板里那一格早就这么显示了（`localizeAutoOption`），摘要里却露出英文原值（2026-10-05 审计 A11：
+ * 中文界面里出现 `adaptive`），同一个值两种说法。
+ */
+function controlDisplayValue(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
   if (!isParameterControl(control)) {
     const value = catalogControlInitialValue(control, meta)
     const matched = control.options.find((option) => optionValue(option) === value)
-    return matched ? optionLabel(matched) : value
+    return localizeAutoOption(value, matched ? optionLabel(matched) : value, autoLabel).text
   }
   const value = controlInitialValue(control, meta)
   const matched = control.options.find((option) => controlValueToString(option.value) === value)
-  return matched ? matched.label : value
+  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
 }
 
 export function composerHeadlineSummary({
@@ -46,6 +52,7 @@ export function composerHeadlineSummary({
   controls,
   meta,
   formatSeconds,
+  autoLabel,
 }: {
   isImageLike: boolean
   isVideoLike: boolean
@@ -53,6 +60,8 @@ export function composerHeadlineSummary({
   meta: Record<string, unknown>
   /** 时长要带单位（`5` 读不出是秒还是帧）。文案留给调用方翻译，本模块不碰 i18n。 */
   formatSeconds: (value: string) => string
+  /** 「自动」档的本地化字样（`generationCommon.parameters.auto`）。 */
+  autoLabel: string
 }): string | undefined {
   // 只有图和视频有拍板过的「那两个值」。声音 / 文本 / 3D 没定过，就别替它们挑——
   // 挑错两个比不挑更糟（用户会以为那就是全部）。
@@ -62,7 +71,7 @@ export function composerHeadlineSummary({
     .filter((control) => (wanted as readonly string[]).includes(control.key))
     .sort((a, b) => (wanted as readonly string[]).indexOf(a.key) - (wanted as readonly string[]).indexOf(b.key))
     .map((control) => {
-      const text = controlDisplayValue(control, meta)
+      const text = controlDisplayValue(control, meta, autoLabel)
       if (!text) return ''
       // 时长补单位只在**纯数字**时做：档案里 duration 的选项标签有的是「5」、有的已经写成
       // 「5s」/「5 秒」。无条件套单位会渲出「5ss」——一条只在某些模型上才现形的假文案。

@@ -51,6 +51,8 @@ export const RULE_ROOTS = Object.freeze({
   'attachment-not-sent-to-model': rooted('B', 'P1-6'),
   '9a-single-version-pill': rooted('B', 'P0-2'),
   'provider-succeeded-nomi-failed': rooted('B', 'P0-4'),
+  // ⑫ 点了 = 以为的：控件长得像 A、点下去做的是 B——界面的意思不是从用户心智读出来的（初判 B，人复核后改）
+  'click-expectation': rooted('B', 'P0-2'),
   // C 没有上限或时限：该收场的不收场、该有边的没有边
   'spinner-without-deadline': rooted('C', 'P0-5'),
   'spinner-on-finished-node': rooted('C', 'P0-2'),

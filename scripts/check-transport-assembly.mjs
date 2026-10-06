@@ -40,6 +40,8 @@ const SURFACES = [
     assemblySites: [
       'electron/capabilityCore/mcpNodeLauncher.ts',
       'electron/capabilityCore/mcpStdioServer.ts',
+      // 2026-10-05 第 2 段：本机 HTTP 直连的每条会话（createLoopbackMcpHttpSession）。
+      'electron/capabilityCore/mcpHttpServer.ts',
     ],
     // member → 为什么这个生产装配点没接（必须是真理由，不是「以后再说」）
     // verifyClientGenerationConfirmation 已于 2026-09-03 在两个装配点（mcpNodeLauncher / mcpStdioServer）

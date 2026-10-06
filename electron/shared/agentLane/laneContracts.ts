@@ -52,7 +52,14 @@ export type LaneUserAttachment = Readonly<{ assetId: string; version: number; di
 export type LaneAttachmentResolver = (claims: readonly ProjectAgentAttachmentClaim[]) => readonly LaneUserAttachment[]
 
 export type LanePart =
-  | (LanePartIdentity & { readonly kind: 'error'; readonly text: string })
+  | (LanePartIdentity & {
+      readonly kind: 'error'
+      readonly text: string
+      /** pi 判这类错误值得再试（断线 / 超时 / 限流 / 5xx）。渲染层据此归到「网络」类，不再靠关键词猜。 */
+      readonly transient?: true
+      /** 同一回合里它后面又接上了成功的助手消息：错误已被自动重试化解，不该再画红卡。 */
+      readonly recovered?: true
+    })
   | (LanePartIdentity & {
       readonly kind: 'user'
       readonly text: string

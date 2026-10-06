@@ -10,6 +10,7 @@ import {
 import { resolveKeyframeParams, resolveShotParams } from './storyboardShotScope'
 
 import type { PlanAnchorKind, PlanAnchor, PlanShot, StoryboardPlan } from '../../../../electron/shared/storyboard/storyboardPlan'
+import { stableShotId } from '../../../../electron/shared/storyboard/storyboardSubjectIdentity'
 export type { PlanAnchorKind, PlanAnchorCarrier, StoryboardPromptSkeletonSegment, StoryboardProfile, PromptSegmentRange, PlanAnchor, PlanReferenceBinding, PlanShot, StoryboardPlan } from '../../../../electron/shared/storyboard/storyboardPlan'
 
 /**
@@ -150,12 +151,9 @@ function anchorKindToNodeKind(kind: PlanAnchorKind): string {
 
 /**
  * 该镜的稳定绑定 id（落画布写进 node.meta.shotId）——分镜表按它把行绑回画布节点
- * （B：行状态/结果/重跑全从「designId × shotId」的节点 derive），导出供绑定层用。
+ * （B：行状态/结果/重跑全从「designId × shotId」的节点 derive）。定义住分镜主体身份的唯一 owner。
  */
-export function stableShotId(shot: PlanShot): string {
-  const candidate = typeof shot.shotId === 'string' ? shot.shotId.trim() : ''
-  return /^[A-Za-z0-9._-]{1,160}$/.test(candidate) ? candidate : `shot-${shot.index}`
-}
+export { stableShotId }
 
 function shotClientId(shot: PlanShot): string {
   return stableShotId(shot)

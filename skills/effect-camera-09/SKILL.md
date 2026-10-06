@@ -42,3 +42,5 @@ metadata:
 ---
 
 Hard backlight, {主体} rendered as a near-black silhouette, bright rim only
+
+Keep the subject’s identity, clothing, pose, setting, composition, and color palette unchanged. Deliberately change the lighting into the hard backlight and near-black silhouette described here.

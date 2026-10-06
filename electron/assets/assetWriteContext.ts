@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { sameFileIdentity } from '../fileIdentity'
 import { projectDirById } from '../projects/repository'
 import { assertProjectAgentBinding, sameProjectAgentBinding, type ProjectBinding } from '../shared/projectBinding'
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
@@ -25,7 +26,7 @@ export async function captureAssetWriteContext(
   const resolved = projectDirById(projectId)
   if (!resolved) throw Object.assign(new Error('project_identity_unavailable'), { code: 'project_identity_unavailable' })
   const root = fs.realpathSync(resolved)
-  const originalStat = fs.statSync(root)
+  const originalStat = fs.statSync(root, { bigint: true })
   const identity = await ensureWorkspaceProjectIdentity(root)
   const binding = Object.freeze({ projectId, immutableProjectUuid: identity.immutableProjectUuid, projectGeneration: identity.projectGeneration })
   if (identity.projectId !== projectId || (expected && !sameProjectAgentBinding(expected, binding))) stale()
@@ -33,8 +34,7 @@ export async function captureAssetWriteContext(
     assertInteraction?.()
     const currentRoot = projectDirById(projectId)
     if (!currentRoot || fs.realpathSync(currentRoot) !== root) stale()
-    const stat = fs.statSync(root)
-    if (stat.dev !== originalStat.dev || stat.ino !== originalStat.ino) stale()
+    if (!sameFileIdentity(originalStat, fs.statSync(root, { bigint: true }))) stale()
     const current = readWorkspaceManifestSnapshot(root)
     if (!current || current.id !== projectId || current.immutableProjectUuid !== binding.immutableProjectUuid || current.projectGeneration !== binding.projectGeneration) stale()
   }

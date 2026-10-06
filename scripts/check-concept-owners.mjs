@@ -26,6 +26,7 @@ import {
   CONCEPT_OWNERS_SINCE,
   definitionSymbols,
   doorWatch,
+  applyBoundaryBaseline,
   evaluateBaseline,
   evaluateContracts,
   evaluateDoorPolicy,
@@ -36,6 +37,7 @@ import {
   isIdentifierSymbol,
   sanitizeConcepts,
   validateBaseline,
+  validateBoundaryBaseline,
   validateRegistry,
 } from './concept-owners-lib.mjs'
 import {
@@ -257,12 +259,14 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   // ⑥ 合同：受管合同的共享边界必须进账
   let mapping = []
   let governedCount = 0
+  const unregisteredBoundaries = []
   if (!diagnostic) {
     const { contracts, errors } = listContracts(source, repoRoot, sourceRef)
     for (const message of errors) findings.push({ rule: 'registry-invalid', message })
     governedCount = governedContracts(contracts).length
     const result = evaluateContracts({ concepts, contracts })
-    findings.push(...result.findings)
+    unregisteredBoundaries.push(...result.findings.filter((item) => item.rule === 'unregistered-boundary'))
+    findings.push(...result.findings.filter((item) => item.rule !== 'unregistered-boundary'))
     mapping = result.mapping
   }
 
@@ -272,6 +276,11 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   if (!baseline) findings.push({ rule: 'baseline-invalid', message: `缺少 ${BASELINE_PATH}` })
   const baselineFindings = validateBaseline(effectiveBaseline, { conceptsByName })
   findings.push(...baselineFindings)
+  const boundaryFindings = baseline ? validateBoundaryBaseline(effectiveBaseline) : []
+  findings.push(...boundaryFindings)
+  if (!diagnostic && boundaryFindings.length === 0) {
+    findings.push(...applyBoundaryBaseline({ baseline: effectiveBaseline, findings: unregisteredBoundaries }))
+  }
   if (baselineFindings.length === 0) {
     findings.push(...evaluateBaseline({
       baseline: effectiveBaseline,
@@ -320,7 +329,7 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   log(`✅ 概念 owner 门岗：${selected.length} 个概念（converged ${selected.length - pendingCount} / pending ${pendingCount}）`
     + ` · 写接口 ${apiCount} 个 · 第二写口 0 新增（基线在册 ${effectiveBaseline.second_write_ports.length}）`
     + ` · pending 冻结写门 ${pendingWriteDoors.length}`
-    + (diagnostic ? '' : ` · 身份比对 ${comparators.length} 处全部登记 · 受管合同 ${governedCount} 份的共享边界全部进账`)
+    + (diagnostic ? '' : ` · 身份比对 ${comparators.length} 处全部登记 · 受管合同 ${governedCount} 份，未登记的共享边界 ${effectiveBaseline.unregistered_boundaries?.length ?? 0} 处冻结在基线（只减不增）`)
     + ` · parity_test ${parityCount}/${selected.length}${historyNote}`)
   return 0
 }

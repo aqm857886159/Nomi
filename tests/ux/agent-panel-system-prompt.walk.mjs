@@ -15,7 +15,7 @@
 // 只把远端 vendor 换成本地 loopback fixture，于是能直接在 wire 上验。
 //
 // 判定（硬证据，不看截图也成立）：送往 /v1/chat/completions 的 system 消息里必须出现专长层原文，
-// 且排在共享身份层之后（composeAgentSystemPrompt 的层序：identity → panel → skill → memory）。
+// 且排在共享身份层之后（旧 composeAgentSystemPrompt 的层序：identity → panel → skill → memory，已随 lane 换代删除）。
 // 用法：pnpm run build && node tests/ux/agent-panel-system-prompt.walk.mjs [--packaged /abs/Nomi.app/Contents/MacOS/Nomi]
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'

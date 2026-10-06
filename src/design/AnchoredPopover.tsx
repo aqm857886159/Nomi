@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
+import { FocusScope } from '@radix-ui/react-focus-scope'
 import { NOMI_OVERLAY_Z_INDEX, hasOpenDialogAbove, hasOpenPopupAbove, isInsidePopupAbove } from './overlayLayers'
 import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type AnchoredPopoverSide } from './anchoredPopoverPlacement'
 
@@ -26,6 +27,8 @@ import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type Anchor
  * 上一版这里写的是「本组件是全站唯一的浮层定位机制」，那句话从来不是真的（当时就有 8 个反例）；
  * 别再写一句新的「全站唯一」，写清楚**判据**。
  *
+ * 焦点（打开聚焦 / 浮层内 Tab 循环 / 关闭还焦点）不属于这四套定位：归 Radix `FocusScope`（本组件对带 onClose 的浮层套它）。
+ *
  * ## 全仓浮层定位现有四套（2026-09-08 复核）
  *   ① 本组件 —— 生产侧 4 个消费者（`workbench/timeline/TimelineTransitionPicker.tsx`、
  *      `workbench/assets/AssetPickerPopover.tsx`、`workbench/library/ProjectSyncBadge.tsx`、
@@ -33,7 +36,9 @@ import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type Anchor
  *      ——后两个分别是 2026-09-12 与 2026-09-17 从 ④ 那类「原地 absolute」收编过来的；
  *      2026-09-21 又收编了 `generationCanvas/components/CanvasControlsHelpPopover.tsx`：它在画布导航竖列里
  *      原地 absolute，被困在竖列 z-8 的层叠上下文里，底部浮着的 Agent 收起坞与批量生成条都盖得住它），
- *      外加设计实验室的 3 处陈列；
+ *      外加设计实验室的 3 处陈列；2026-10-05 又收编了分镜表里四个原地 absolute 的行内浮层
+ *      （行 ⋯ 菜单、「用作…」菜单、提示词片段菜单、参考悬停预览——后者用 `passThrough`）：
+ *      行在表格的 overflow-hidden 里，最后一行的菜单被裁成一条边；
  *   ② Radix —— `src/design/tooltip.tsx`（tooltip 一族）**与 `src/design/menu.tsx`（菜单一族，
  *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
  *      `generationCanvas/components/NodeContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
@@ -73,10 +78,13 @@ export type AnchoredPopoverProps = {
   zIndex?: number
   /** 传了就接管「点外面 / Esc 关闭」。不传则由调用方自己管开合。 */
   onClose?: () => void
+  /** 纯展示浮层（悬停预览）：不接鼠标事件，指针穿过它去碰下面的东西。 */
+  passThrough?: boolean
   children: React.ReactNode
 }
 
 type Placement = { top: number; left: number }
+
 
 export function AnchoredPopover({
   anchorRef,
@@ -85,11 +93,17 @@ export function AnchoredPopover({
   gap = 4,
   zIndex,
   onClose,
+  passThrough = false,
   children,
 }: AnchoredPopoverProps): JSX.Element {
   const fallbackAnchorRef = React.useRef<HTMLSpanElement>(null)
   const popRef = React.useRef<HTMLDivElement>(null)
   const [placement, setPlacement] = React.useState<Placement | null>(null)
+  // 打开前谁有焦点。渲染期读：此时子树的 autoFocus 还没跑，读到的才是触发器；
+  // FocusScope 自己在挂载 effect 里记「之前的焦点」，那时子树里的输入框已经 autoFocus 了，记到的是输入框（关闭后它被卸载，焦点落空）。
+  const [openerBeforeOpen] = React.useState<Element | null>(() => (typeof document === 'undefined' ? null : document.activeElement))
+  // 只有「会被关掉的交互浮层」管焦点；悬停预览（passThrough）与自己管开合的浮层（没传 onClose）不碰。
+  const managesFocus = Boolean(onClose) && !passThrough
 
   const reposition = React.useCallback(() => {
     const anchor = anchorRef?.current ?? fallbackAnchorRef.current
@@ -163,7 +177,7 @@ export function AnchoredPopover({
     }
   }, [anchorRef, dismissOnEscape, onClose])
 
-  const layer = (
+  const body = (
     <div
       ref={popRef}
       // 浮层让位给自己弹出的下拉/菜单时不会 stopPropagation，那一下 Escape 会继续走到
@@ -176,7 +190,10 @@ export function AnchoredPopover({
         top: placement?.top ?? -9999,
         left: placement?.left ?? -9999,
         zIndex: zIndex ?? NOMI_OVERLAY_Z_INDEX.popover,
-        visibility: placement ? 'visible' : 'hidden',
+        // 放好位置前用 opacity 0 而不是 visibility:hidden——FocusScope 在挂载时就要聚焦，hidden 的元素聚焦不上。
+        opacity: placement ? 1 : 0,
+        outline: 'none',
+        ...(passThrough ? { pointerEvents: 'none' as const } : {}),
       }}
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
@@ -189,6 +206,24 @@ export function AnchoredPopover({
       {children}
     </div>
   )
+  // 焦点归 Radix FocusScope（已在依赖树里，菜单 / tooltip 同一家）：打开时进浮层（子树自己 autoFocus 的输入框不被抢）、
+  // 浮层内 Tab 循环、关闭还给打开前的元素。不自写 tabbable 查询。悬停预览与自己管开合的浮层不套。
+  const layer = managesFocus ? (
+    <FocusScope
+      asChild
+      loop
+      onUnmountAutoFocus={(event) => {
+        // 还给「打开前」的元素（见上），不用 FocusScope 默认记的那个；用户已把焦点挪到别处（点了另一个输入框）就不抢回来。
+        event.preventDefault()
+        const active = document.activeElement
+        if ((!active || active === document.body) && openerBeforeOpen instanceof HTMLElement && openerBeforeOpen.isConnected) {
+          openerBeforeOpen.focus({ preventScroll: true })
+        }
+      }}
+    >
+      {body}
+    </FocusScope>
+  ) : body
 
   return (
     <>

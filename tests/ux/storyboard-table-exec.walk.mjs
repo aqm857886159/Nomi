@@ -357,11 +357,12 @@ try {
 
   const gripMenu = win.locator('[data-storyboard-row="3"]')
   await clickOrFail(gripMenu.getByRole('button', { name: '镜头操作' }).last(), '打开镜头 grip 菜单')
-  await expectVisible(gripMenu.getByRole('button', { name: '复制镜头' }), 'grip 菜单缺复制镜头')
-  await expectVisible(gripMenu.getByRole('button', { name: '第二场 · 巷口追逐' }), 'grip 菜单缺移到场选项')
+  // 菜单走锚定浮层（portal，不在行的 DOM 里）：按菜单自己的 data-storyboard-row-menu 找，免得撞到行外那些同名按钮。
+  const rowMenu = win.locator('[data-storyboard-row-menu="3"]')
+  await expectVisible(rowMenu.getByRole('button', { name: '复制镜头' }), 'grip 菜单缺复制镜头')
+  await expectVisible(rowMenu.getByRole('button', { name: '第二场 · 巷口追逐' }), 'grip 菜单缺移到场选项')
   // 菜单项文案 v6（0d5a56d47）收成两字：`rowMenu.deleteUndoable` = 「删除」（旧「删除镜头」）。
-  // 仍钉在弹层（div.absolute）里，免得撞到行外那些同名按钮。
-  await expectVisible(gripMenu.locator('div.absolute').getByRole('button', { name: '删除', exact: true }), 'grip 菜单缺删除项')
+  await expectVisible(rowMenu.getByRole('button', { name: '删除', exact: true }), 'grip 菜单缺删除项')
   await snap('23-grip-menu.png')
   await win.keyboard.press('Escape')
 

@@ -17,6 +17,7 @@ import type { AssistantMessage } from '@earendil-works/pi-ai'
 import { LANE_APPROVAL_NOTE_TYPE } from '../../../../electron/shared/agentLane/laneContracts'
 import { projectLaneSnapshot, type LaneModelFacts } from '../../../../electron/shared/agentLane/laneProjection'
 import { laneViewModel, type LaneViewModelLabels } from '../../../workbench/ai/lane/laneViewModel'
+import type { V4FlowItem } from '../../../workbench/ai/v4/agentPanelV4Types'
 import type { ToolReceipt } from '../../../workbench/ai/v4/agentPanelV4Types'
 
 /** 冻结时间戳（基线不能随钟走）。 */
@@ -158,4 +159,33 @@ export function laneDrivenReceipt(lane: LaneSnapshot, labels: LaneViewModelLabel
   const tool = model.items.find((item) => item.kind === 'tool')
   if (!tool || tool.kind !== 'tool') throw new Error('the lane snapshot projected no tool receipt')
   return tool.receipt
+}
+
+/**
+ * 断线（`Connection error.`）那一回合：用户说话 → 助手以 error 收场；`recovered` 时后面接上了成功的回复
+ * （pi 自动重试后的样子——错误留在转录里、状态里已删）。两层投影真跑，红卡 / 灰行由数据决定。
+ */
+export function laneSnapshotConnectionDropped(recovered: boolean, english = false): LaneSnapshot {
+  const failed: AssistantMessage = { role: 'assistant', content: [], api: 'openai-completions', provider: 'nomi-lane', model: 'chosen-model',
+    usage, stopReason: 'error', errorMessage: 'Connection error.', timestamp: AT }
+  const settled: AssistantMessage = { ...failed, content: [{ type: 'text', text: english ? 'The timeline now has three shots.' : '好的，时间轴上现在有三段镜头。' }], stopReason: 'stop' }
+  delete (settled as { errorMessage?: string }).errorMessage
+  const asked = english
+    ? { ...userEntry, message: { ...userEntry.message, content: [{ type: 'text' as const, text: 'What is on the timeline right now?' }] } }
+    : userEntry
+  return snapshot([
+    asked,
+    { id: 'e2', parentId: 'e1', seq: 2, timestamp: AT, type: 'message', message: failed },
+    ...(recovered ? [{ id: 'e3', parentId: 'e2', seq: 3, timestamp: AT, type: 'message' as const, message: settled }] : []),
+  ])
+}
+
+/**
+ * 实验室跑在浏览器里，不能 import pi 的运行时，所以「是不是瞬时」这一问在这里用一个替身：
+ * 生产侧由 `laneHost.mts` 把 pi 的 `isRetryableAssistantError` 喂进 `LaneModelFacts.isTransientError`。
+ * 替身只认这一格的 `Connection error.`，别处不要借用。
+ */
+export function laneFlowItems(lane: LaneSnapshot, labels: LaneViewModelLabels): readonly V4FlowItem[] {
+  const facts: LaneModelFacts = { ...LAB_MODEL_FACTS, isTransientError: (message) => message.errorMessage === 'Connection error.' }
+  return laneViewModel(projectLaneSnapshot(lane, facts), labels).items
 }

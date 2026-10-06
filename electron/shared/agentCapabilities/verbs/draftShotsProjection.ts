@@ -11,6 +11,10 @@
 //   ② `candidate.{providerId,modelId}` → 顶层 `providerId` / `modelId`：**拍平嵌套**。宿主的逐镜
 //      `candidate` 是完整的内部候选（candidateId / revision / 传输接线），模型给不出；它给的两件按
 //      目录身份分别落位。平铺的 `modelId` 与 `candidate.modelId` 抢同一个落点，**逐镜点名的赢**。
+//   ①' `aspectRatio` → `parameters.aspectRatio`（2026-10-05）：同样是嵌套层级。这里落的是**语义载体键**，
+//      不是任何一家的参数名——哪家叫 `size`、哪家叫 `ratio`，这一层看不见（投影不知道最后选的是哪个模型，
+//      没点名时还是宿主按用户默认补的），所以翻成真实键由宿主在看得见所选模式参数表的那一处做
+//      （`capabilityCore/semanticAspectRatio.ts`）。三条路（多镜 / 单镜 / 改草稿）都过这一个函数，一处覆盖三条。
 //   ③ `references: string[]` → `{assetId}[]`：形状变了，内容哈希与版本由宿主按项目素材库补
 //      （`resolveProjectAssetReferenceIdentity`）。两个读动词都不返回那两件，模型根本拿不到它们——
 //      当年正是硬要它给，才让带参考图的分镜 100% 失败。
@@ -34,6 +38,7 @@ import type { z } from "zod";
 import { generationPlanInputSchema } from "../generationPlanSchemas";
 import { generationShotEnvelopeOf, type GenerationShotEnvelope } from "../../generationShotEnvelope";
 import { draftShotSchema } from "./writeVerbs";
+import { ASPECT_RATIO_SEMANTIC_KEY } from "../../aspectRatioValue";
 
 /** 宿主那两支的类型锚点（只在类型位置用，所以写成类型而不是 const——那会是一条 lint 噪音）。 */
 type PlanCreate = z.infer<(typeof generationPlanInputSchema.options)[1]>;
@@ -42,7 +47,7 @@ type PlanPatch = z.infer<(typeof generationPlanInputSchema.options)[2]>;
 /** 模型面的一镜。 */
 export type DraftShot = z.infer<typeof draftShotSchema>;
 /** 模型面的顶层（`draft_shots` 自己的 schema 推出来的，不在这里重列）。 */
-export type DraftShotsArgs = { operationId?: string; taskKind?: DraftShot["taskKind"]; candidate?: DraftShot["candidate"]; shots: DraftShot[] };
+export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind?: DraftShot["taskKind"]; candidate?: DraftShot["candidate"]; shots: DraftShot[] };
 /** 宿主的多镜 create 里的一镜。 */
 type PlanShot = NonNullable<PlanCreate["shots"]>[number];
 /** 宿主的候选 patch（改草稿那一支）。 */
@@ -66,7 +71,7 @@ const REFUSE_ON_FLAT = "单镜 create 把这一镜摊成顶层参数，顶层没
  */
 function semanticsOf(shot: DraftShot): CandidatePatch {
   const {
-    storyboard, prompt, taskKind, modeId, modelId, candidate, parameters, durationSec, references,
+    storyboard, prompt, taskKind, modeId, modelId, candidate, parameters, durationSec, aspectRatio, references,
     // 信封那三件不属于「语义」，由各自的调用点按这条路有没有位置处置。
     shotId: _envelopeShotId, role: _envelopeRole, title: _envelopeTitle,
     ...unhandled
@@ -78,8 +83,13 @@ function semanticsOf(shot: DraftShot): CandidatePatch {
     ...(prompt !== undefined ? { prompt } : {}),
     ...(taskKind !== undefined ? { taskKind } : {}),
     // ① 时长改的是嵌套层级：宿主只在 `parameters.duration` 读它，顶层没有时长字段。
-    ...(parameters !== undefined || durationSec !== undefined
-      ? { parameters: { ...(parameters ?? {}), ...(durationSec !== undefined ? { duration: durationSec } : {}) } }
+    // ①' 比例同样下沉，落语义载体键；宿主翻成所选模式的真实键（翻不了就拒，不回落默认）。
+    ...(parameters !== undefined || durationSec !== undefined || aspectRatio !== undefined
+      ? { parameters: {
+        ...(parameters ?? {}),
+        ...(durationSec !== undefined ? { duration: durationSec } : {}),
+        ...(aspectRatio !== undefined ? { [ASPECT_RATIO_SEMANTIC_KEY]: aspectRatio } : {}),
+      } }
       : {}),
     ...(modeId !== undefined ? { modeId } : {}),
     // ② 拍平嵌套；逐镜点名的 `candidate` 赢过平铺的 `modelId`（谁赢是**声明**出来的，不靠写的顺序）。
@@ -134,7 +144,7 @@ export function draftShotToFlatCreate(shot: DraftShot): PlanFlatCreate {
  * 宿主那份决定「没人说时按目录怎么合成」。）
  */
 export function withDraftShotsDefaults(args: DraftShotsArgs, shot: DraftShot): DraftShot {
-  const { taskKind, candidate, operationId: _selectsBranch, shots: _theseShots, ...unhandled } = args;
+  const { taskKind, candidate, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
   void (unhandled satisfies Record<string, never>);
   return {
     ...shot,

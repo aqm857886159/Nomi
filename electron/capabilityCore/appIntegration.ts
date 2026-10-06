@@ -69,9 +69,8 @@ import { createProductionActionHooks } from './appIntegrationProductionActions'
 import { installPendingSpendActions, pendingSpendDependencies, readInstalledPendingSpend } from './appIntegrationSpendConfirm'
 import { canvasLocalArtifactReceipt, createCanvasShotRuns, installCanvasShotRuns } from './appIntegrationCanvasShot'
 import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
-import { claimCanvasProductionShot } from '../productionRun/canvasShotClaim'
 import { quoteSpendLine } from '../spendQuote'
-export { submitCanvasShot, pollCanvasShot, releaseCanvasShot, releaseCanvasShotSender } from './appIntegrationCanvasShot'
+export { consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
 // 付费确认卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
 export { revisePendingSpendConfirmation, discardPendingSpendConfirmation, confirmPendingSpendConfirmation, removePendingSpendShot, confirmRemainingSpendShots } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'
@@ -207,6 +206,7 @@ export async function startCapabilityCore(
       }),
     })
     const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+    const initialGenerationScope = liveGenerationRuntime.createDraftScope()
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
@@ -215,7 +215,7 @@ export async function startCapabilityCore(
     // provider output downloads retain hardenedFetch's SSRF guard. The fetch
     // policy itself (timeout / size / provider route) is the shared owner's.
     const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
-    const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
+    const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
@@ -315,7 +315,7 @@ export async function startCapabilityCore(
       buildSchedulerForRun,
     })
     disposeSingleShotObservationLifecycle = runObservation.stop
-    const { settleSingleShotRunning, settleSingleShotCompleted, settleSingleShotAttention, driveScheduler, kickSchedulerForRun, observeSingleShotRun } = runObservation
+    const { settleSingleShotCompleted, settleSingleShotAttention, driveScheduler, kickSchedulerForRun, observeSingleShotRun } = runObservation
     // 画布单节点 ↑ 的唯一付费口（实现住 appIntegrationCanvasShot，这里只接线）。
     const canvasShots = createCanvasShotRuns({
       service: generationService,
@@ -329,7 +329,6 @@ export async function startCapabilityCore(
         const reason = reply?.blocks?.[0]?.reason
         return reason === 'rendering' || reason === 'failed' ? reason : null
       },
-      claimProductionShot: claimCanvasProductionShot,
       quote: (input) => { const amount = quoteSpendLine(input).amount; return amount === null ? { known: false } : { known: true, amount } },
       observe: observeSingleShotRun,
     })
@@ -339,6 +338,7 @@ export async function startCapabilityCore(
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
         registry: generationRegistry,
+        createDraftScope: liveGenerationRuntime.createDraftScope,
         operations: operationStore,
         requestRendererDecision,
         requestRenderer,
@@ -449,8 +449,8 @@ export async function startCapabilityCore(
             driveScheduler(lease.projectId, operation.operationId, scheduler, 'batch scheduler tick')
             return { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
           }
+          // 受理那一刻 Run 已经记成进行中（提交出口和「已受理」同一次落盘）。
           const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
-          settleSingleShotRunning(lease.projectId, operation.operationId)
           // Single-shot semantic plans keep their candidate at the plan root,
           // but they still belong to the same canvas materialization owner as
           // multi-shot runs. Land the real placeholder after the durable

@@ -172,6 +172,11 @@ function productionArtifactResource(uri: string): Record<string, string> {
 
 const invalidParams = (error: unknown) => new ProtocolError(ProtocolErrorCode.InvalidParams, error instanceof Error ? error.message : String(error))
 
+/** 未验证客户端的那一个回答（-32001 + 稳定码），每种传输的拒绝都用它，宿主看到的永远是同一帧。 */
+export function mcpUnauthenticatedResponse(id: string | number, error = new McpConnectionAuthenticationError()): JSONRPCMessage {
+  return { jsonrpc: '2.0', id, error: { code: -32001, message: error.message, data: { code: error.code } } }
+}
+
 /**
  * 工具的参数容忍钩子（modelFacingTools.ts 的 prepareMcpArguments）必须在**任何**校验之前跑：SDK 在进
  * tools/call 处理器之前就按规范要求 `arguments` 是对象，而真实模型会把整包参数序列化成一段 JSON 文本再发
@@ -202,9 +207,7 @@ export function guardMcpTransport(inner: Transport, host: Pick<McpHost, 'getAuth
       if (host.getAuthenticatedClient()) return null
       throw new McpConnectionAuthenticationError()
     } catch (error) {
-      if (error instanceof McpConnectionAuthenticationError) {
-        return { jsonrpc: '2.0', id: message.id, error: { code: -32001, message: error.message, data: { code: error.code } } }
-      }
+      if (error instanceof McpConnectionAuthenticationError) return mcpUnauthenticatedResponse(message.id, error)
       return { jsonrpc: '2.0', id: message.id, error: { code: ProtocolErrorCode.InternalError, message: error instanceof Error ? error.message : String(error) } }
     }
   }
@@ -262,14 +265,24 @@ export function createNomiMcpServer(host: McpHost) {
     for (const listener of closeListeners) listener(inFlightAtClose)
   }
 
+  // 每次工具调用的取消信号 → 它的 JSON-RPC 请求 id。确认弹框要挂在「所属那次调用」上发出去：
+  // 本机 HTTP 下服务端→客户端的请求得走那次 POST 的 SSE 流（没有关联就落到独立 GET 流，宿主可能根本没开）；
+  // stdio 下关联与否线上一样。领域确认流本来就把这次调用的信号递下来，所以按信号就能找回请求。
+  const requestIdBySignal = new WeakMap<AbortSignal, string | number>()
+
   // elicitation 线协议（form + url 两模式）的语义住 mcpElicitation.ts；请求关联、超时、取消交给 SDK。
   const elicitation = createElicitationClient({
     // 只有 elicitation/create 一种服务端请求：原样转给客户端（不加 SDK elicitInput 会补的 mode 字段，旧宿主线上不变）。
     sendServerRequest: (method, params, timeoutMs, signal) => {
       if (method !== 'elicitation/create') return Promise.reject(new Error(`未支持的服务端请求: ${method}`))
+      const relatedRequestId = signal ? requestIdBySignal.get(signal) : undefined
       return server.request(
         { method, params: params as ElicitRequestParams },
-        { timeout: timeoutMs ?? SERVER_REQUEST_TIMEOUT_MS, ...(signal ? { signal } : {}) },
+        {
+          timeout: timeoutMs ?? SERVER_REQUEST_TIMEOUT_MS,
+          ...(signal ? { signal } : {}),
+          ...(relatedRequestId !== undefined ? { relatedRequestId } : {}),
+        },
       )
     },
     notify: (notification) => {
@@ -509,6 +522,7 @@ export function createNomiMcpServer(host: McpHost) {
       startMessage: buildProgressStartMessage(tool.name, args, locale()) ?? undefined,
       locale: locale(),
     })
+    requestIdBySignal.set(ctx.mcpReq.signal, ctx.mcpReq.id)
     inFlightToolCalls += 1
     try {
       return server.projectCallToolResult(await dispatchTool(tool, args, ctx.mcpReq.signal) as CallToolResult, undefined)

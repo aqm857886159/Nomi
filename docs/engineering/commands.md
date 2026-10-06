@@ -13,7 +13,7 @@
 | `pnpm run test:core-smoke -- --fixture <empty\|used\|profile-copy>` | 核心流程冒烟（空节点 composer / 「2 版」托盘 / 编组框删除+⌘Z / 平移手势）：非纯文档 PR 与 main push 必跑，CI 两遍（空项目 / 用过的项目）；`profile-copy` 只在本机、深拷贝真实资料跑完即删。清单唯一 owner `tests/ux/core-smoke/scenarios.mjs` |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
-| `node scripts/merge-preflight.mjs <PR 号>` | 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同；只打印结论 |
+| `node scripts/merge-preflight.mjs <PR 号>` | 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同、规则与门岗改动范围（正文 `## 碰到的规则与门岗` 逐个点名，账本条目不许消失）；只打印结论 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
@@ -39,7 +39,9 @@
 
 | 命令 | 用途 |
 |---|---|
-| `node scripts/merge-preflight.mjs <PR 号>`（`pnpm run merge:preflight -- <PR 号>`）| 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同；只打印结论 |
+| `node scripts/merge-preflight.mjs <PR 号>`（`pnpm run merge:preflight -- <PR 号>`）| 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同、规则与门岗改动范围（正文 `## 碰到的规则与门岗` 逐个点名，账本条目不许消失）；只打印结论 |
 | `pnpm run eng:metrics` | 工程三个数一行（逃逸率 · 30 天复发 · 门岗误报 · 到期合同）；SessionStart 也会打印；不作为任何通过条件 |
 | `node scripts/gen-rules-view.mjs` | 由 `docs/engineering/rules.json` 重新生成可读视图 `rules.md` |
 | `pnpm run handoff:report -- <branch>` | 交接体检报告（原 `check:handoff`，不是门岗） |
+| `pnpm run check:escape-ledger` | 逃逸账本结账门岗（P2：账本格式不合法 → 红；条目改成 `fixed` 必须同时有根因合同、类级检查（铁律 ⑩ ⑪ ⑫ / inv:N 或矩阵 / 普查测试）、合入 PR 号；`candidate` 超 14 天警告。细则见 `docs/engineering/experience-system.md`） |
+| `pnpm run check:pr-judgement` | PR 正文判据（CI Contracts + push 前）：按功能分类推路由——设计卡 `### 功能分类` 必须覆盖路径推出的类别、`## 验收证据` 逐项有证据或「未验证：原因」；并判规则与门岗改动范围（`## 碰到的规则与门岗` 逐个点名）。路由表 `docs/engineering/test-routing.json`；`--gaps` 列出工具缺口 |

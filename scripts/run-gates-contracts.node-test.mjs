@@ -13,7 +13,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  ADVISORY_FILL,
   GateConfigError,
+  advisoryNote,
   assertGatesExist,
   parseGateArgs,
   runGateSuite,
@@ -197,4 +199,40 @@ test('Docs Gate Autosync never writes protected main directly and updates one fi
   assert.doesNotMatch(autosync, /git push[^\n]*HEAD:main/)
   assert.doesNotMatch(autosync, /gh pr create|DOCS_AUTOSYNC_TOKEN|gh workflow run/)
   assert.match(autosync, /token:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/)
+})
+
+test('体检：每个 advisory 门岗的提示文案和它真实的补齐机制对得上（有机器补齐主体的才可以说「自动补齐」）', async () => {
+  const { default: fs } = await import('node:fs')
+  const { default: path } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).scripts
+  const { advisory } = parseGateArgs(scripts['gates:contracts'].split(/\s+/).slice(5))
+  for (const name of [...advisory, ...Object.keys(ADVISORY_FILL)]) {
+    const fill = ADVISORY_FILL[name]
+    assert.ok(fill, `${name} 是 advisory 门岗，必须在 ADVISORY_FILL 里声明真实的补齐机制`)
+    const note = advisoryNote(name)
+    if (fill.kind === 'machine') {
+      const workflow = fs.readFileSync(path.join(repoRoot, fill.by), 'utf8')
+      assert.match(workflow, new RegExp(name.replace(':', '[:-]')), `${name} 声明由 ${fill.by} 补齐，但那个工作流没提到它`)
+      assert.match(note.text, /自动补齐/)
+    } else {
+      assert.equal(fill.kind, 'human')
+      assert.ok(fill.how && fill.how.length >= 12, `${name} 是人工补齐，必须写清谁、怎么补`)
+      assert.doesNotMatch(note.text, /自动补齐/, `${name} 要人判断，文案不许说自动补齐`)
+    }
+  }
+  // 没声明的 advisory 一律按人工，不许默认说自动补齐
+  assert.doesNotMatch(advisoryNote('check:not-declared').text, /自动补齐/)
+})
+
+test('advisory 失败的汇总按门岗各自的补齐机制出文案：concept-owners 不再被说成 docs-autosync 自动补齐', async () => {
+  const run = harness({ 'check:concept-owners': { code: 1, output: '登记缺了\n' }, 'check:docs-index': { code: 1, output: '索引缺了\n' } })
+  await runGateSuite({ gates: ['check:concept-owners', 'check:docs-index'], advisory: new Set(['check:concept-owners', 'check:docs-index']), runGate: run.runGate, write: run.write, env: {} })
+  const lines = run.output().split('\n')
+  const owners = lines.find((line) => line.includes('· check:concept-owners'))
+  const docs = lines.find((line) => line.includes('· check:docs-index'))
+  assert.doesNotMatch(owners, /自动补齐/)
+  assert.match(owners, /要人判断/)
+  assert.match(docs, /自动补齐/)
 })

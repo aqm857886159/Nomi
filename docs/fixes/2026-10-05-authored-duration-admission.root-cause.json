@@ -1,0 +1,144 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "internal_only_reason": "Nomi 自己的档案 / 宿主 / 界面约定，没有外部官方文档能裁决这条不变量；判据复用仓内唯一 owner。",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖的行为。",
+    "exit_criteria": []
+  },
+  "id": "2026-10-05-authored-duration-admission",
+  "problem_type": "Agent 写的参数值在起草时不核，各站各自解读；拒绝的话到不了 Agent",
+  "symptom": "Agent 给海螺 2.3 说 8 秒：草稿 / 付费卡 / 请求写 8，画布节点显示 6；给 Veo 3.1 Fast、GPT Image 2 说时长：草稿记着，节点与卡都看不到，没人告诉 Agent（铁律 ⑩ 首跑 LAW10-OUT-OF-RANGE-SPLIT / LAW10-SILENT-DROP，源自用户 10-05「说 16:9 摆成 1:1」同类反馈）",
+  "direct_cause": "create 写入口只核模型身份，参数值留到封印才核；buildPlannedNodeMeta 丢非法值回落默认；桌面 lane 生成传输层把 ContractCompilationError 收敛成裸的 generation_not_started",
+  "class_root": "起草这一步不做参数准入；我们自己写的准入拒绝被传输层当成未知异常吞掉",
+  "affected_population": [
+    "Agent 经 draft_shots 起草、durationSec 不在模型档里或模型没有时长参数的每一镜；#1023 的比例拒绝在桌面 lane 同样被吞"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/generationAuthoredDuration.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts"
+  ],
+  "entry_points": [
+    "多镜 create（mcpGenerationTools）",
+    "单镜 create（mcpGenerationTools）",
+    "改草稿（generationPlanPatch）"
+  ],
+  "invariants": [
+    "Agent 说的时长在落盘前要么落到参数表那个键上（类型与档位一致），要么当场拒并说出合法值",
+    "ContractCompilationError 到 Agent 是 generation_input_invalid + 原文"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationAuthoredDuration.ts",
+      "symbol": "admitAuthoredDuration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "safeFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 5,
+    "why_not": "新增的不是写入口：admitAuthoredDuration 与 normalizeAuthoredCandidate 是两扇写入口共用的同一道归一（定义处），safeFailure 是拒绝送到 Agent 的唯一出口；真正的写入口仍是 create 与改草稿两扇，各有自己的持久化步骤，不能合并"
+  },
+  "generality_proof": "三条写入口都调 normalizeAuthoredCandidate，判据只在 admitAuthoredDuration 一处；读参数表用准入层同一份 acceptedParameterSchema；拒绝统一由 safeFailure 认 ContractCompilationError 送出原文。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "normalizeAuthoredCandidate",
+      "responsibility": "调用方写下的候选落盘前的唯一归一：比例翻译 + 时长准入"
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "safeFailure",
+      "responsibility": "生成域异常 → 模型可见失败；我们写的准入拒绝原文送出"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "createGenerationPlanningHandler",
+      "disposition": "enforced",
+      "evidence": "多镜 / 单镜 create 都调 normalizeAuthoredCandidate；⑩ 宿主矩阵三条改为拒绝 + 合法值"
+    },
+    {
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "entry_point": "resolvePlanPatch",
+      "disposition": "enforced",
+      "evidence": "改草稿同一入口；且其后还调 admitPlanCandidate"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "entry_point": "buildPlannedNodeMeta",
+      "disposition": "not-affected",
+      "evidence": "分镜行生成走渲染层，不经 draft_shots；分镜时长选项由 L-aspect 另修"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "下一个语义字段（张数 / 清晰度）上 draft_shots 时同样会在起草时不被核",
+    "same_class_scan": [
+      "node scripts/door-map.mjs normalizeAuthoredCandidate",
+      "rg ContractCompilationError electron/capabilityCore"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "invariant": "起草时时长合法或当场拒",
+    "failure_mode": "ContractCompilationError（parameter_not_in_enum / parameter_out_of_range / unknown_parameter），到 Agent 为 generation_input_invalid + 合法值",
+    "exception_policy": "none",
+    "strategy": "挂在三扇写入口共用的归一函数里",
+    "artifacts": [
+      "electron/capabilityCore/generationAuthoredDuration.ts",
+      "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/generationAuthoredDuration.test.ts",
+    "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/generationAuthoredDuration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "新增准入在已有入口上；节点构造器的回落仍在（读旧数据用），见 residual_risks"
+  },
+  "migration": "只影响新起草：已落盘的草稿不改；剧本拟镜路径给出档外时长时现在在起草就拒（原来到封印才拒）",
+  "residual_risks": [
+    "parameters 里其它值仍到封印才核（docs/plan/2026-10-05-parameter-admission-direction-check.md 推荐下一刀起草即准入）",
+    "buildPlannedNodeMeta 的「非法值回落默认」仍在"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "tests": [
+      "electron/capabilityCore/generationAuthoredDuration.test.ts",
+      "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
+    ],
+    "why": "normalizeAuthoredCandidate 是三扇写入口共用的落盘前归一；时长判据的类测试与 ⑩ 宿主矩阵（真宿主链）分别守判据与到达 Agent。"
+  }
+}

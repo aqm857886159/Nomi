@@ -18,6 +18,7 @@ const labels: LaneViewModelLabels = {
   toolFailure: () => undefined,
   toolFailureDetail: (failure) => failure.code,
   assistantFailure: (text) => text,
+  assistantRecovered: '[已自动重试]',
   thinkingLabel: '[thinking]',
   formatTokens: (value) => `${value}t`,
   formatCost: (usd) => `$${usd.toFixed(4)}`,
@@ -680,6 +681,18 @@ describe('laneViewModel · 工具卡与失败行不摆原始内容', () => {
     next = 0
     const raw = '{"error":{"message":"bad","type":"invalid_request_error"}} [nomi-classified: server error]'
     const items = laneViewModel(projection([part({ kind: 'error', text: raw })]), { ...labels, assistantFailure: () => '[人话]' }).items
-    expect(items).toEqual([{ kind: 'error', reason: '[人话]' }])
+    expect(items).toEqual([{ kind: 'error', reason: '[人话]', raw }])
+  })
+
+  it('已被自动重试化解的错误不画红卡：一行灰字（recovered），原文不进 reason；pi 判的瞬时标记传给 assistantFailure', () => {
+    next = 0
+    const seen: Array<boolean | undefined> = []
+    const withLabels = { ...labels, assistantFailure: (_text: string, transient?: boolean) => { seen.push(transient); return '[网络]' } }
+    const healed = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', recovered: true })]), withLabels).items
+    expect(healed).toEqual([{ kind: 'error', reason: '[已自动重试]', recovered: true, raw: 'Connection error.' }])
+    expect(seen).toEqual([])
+    const live = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', transient: true })]), withLabels).items
+    expect(live).toEqual([{ kind: 'error', reason: '[网络]', raw: 'Connection error.', transient: true }])
+    expect(seen).toEqual([true])
   })
 })

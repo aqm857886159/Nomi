@@ -82,10 +82,36 @@ export async function migrateLaneLegacy(options: LegacyMigrationOptions): Promis
   finally { if (admissions.get(projectDir) === finished) admissions.delete(projectDir); }
 }
 
+const NO_LEGACY_COUNTS: LegacyMigrationCounts = Object.freeze({
+  projects: 0, sourceFiles: 0, conversations: 0, sourceItems: 0, parts: 0, archivedOnlyConversations: 0 });
+
+/**
+ * 打开项目每次都会走到迁移，而迁移只有两种终态是「什么都不用做」：从来没有旧版对话（没清单、没源文件、没旧归档），
+ * 或者早就迁完了（清单已 completed）。这两种终态不会自己变回去，所以先**不拿锁**看一眼：
+ * 命中就直接返回，不建锁文件、不 fsync——打开项目是读，不该写盘；进程中途被杀时也不会留下一把拦住下次打开的锁。
+ * 看不准（读失败、证据不齐、清单没迁完、绑定对不上）一律 undefined，交给下面加锁的完整流程按原规则处理或报错。
+ */
+function settledWithoutLock(access: ReturnType<typeof createLegacyFileAccess>, file: string, specs: SourcePath[],
+  nomi: string, options: LegacyMigrationOptions): LegacyMigrationCounts | undefined {
+  try {
+    const manifestBytes = access.read(file)?.bytes;
+    if (manifestBytes) {
+      const manifest = manifestSchema.parse(JSON.parse(manifestBytes.toString()));
+      const sameSources = manifest.sources.length === specs.length && manifest.sources.every((source, index) => source.id === specs[index].id);
+      return manifest.phase === 'completed' && same(manifest.binding, options.binding) && sameSources ? manifest.counts : undefined;
+    }
+    if (specs.some(spec => access.read(spec.file))) return undefined;
+    return readLegacyPriorArchive(access, nomi, options.binding) ? undefined : NO_LEGACY_COUNTS;
+  } catch { return undefined; }
+}
+
 async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigrationCounts> {
   const access = createLegacyFileAccess([options.projectDir, options.userDataDir]);
   const projectDir = resolve(options.projectDir); const nomi = join(projectDir, '.nomi');
   const file = join(nomi, 'lane-legacy-migration.json'); const specs = sourcePaths(options);
+  // 无锁这一眼用自己的一份访问器：它记下的目录身份不和加锁流程的混用。
+  const settled = settledWithoutLock(createLegacyFileAccess([options.projectDir, options.userDataDir]), file, specs, nomi, options);
+  if (settled) return settled;
   return withLegacyMigrationLock(access, projectDir, async () => {
     let manifestBytes = access.read(file)?.bytes;
     let manifest: Manifest | undefined;

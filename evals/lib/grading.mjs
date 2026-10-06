@@ -1,6 +1,7 @@
 // 评分器(免费段):把 dataset 的 expect 词表翻译成 componentResults。
 // GradingResult 三元组 {pass, score, reason} 全系统统一(抄 promptfoo);
 // 断言失败(assert)与基础设施错误(error)分开计数(评测方案 §3.1)。
+import { gradeIntent } from "./intentGrading.mjs";
 
 /** 从 EvalOutput 取"本轮创建的节点"=终态节点 − 基线节点。 */
 export function createdNodes(output) {
@@ -103,14 +104,22 @@ export function gradeCase(evalCase, output) {
   if (typeof expect.maxChainEdges === "number") {
     checks.push(component("maxChainEdges", edges.length <= expect.maxChainEdges, `edges=${edges.length} max=${expect.maxChainEdges}`));
   }
+  // 意图用例(铁律 ⑩ 模型半):期望字段 ↔ 第一份草稿,判据在 intentGrading.mjs。
+  let intentDraftCount;
+  if (expect.draft) {
+    const intent = gradeIntent(evalCase, output);
+    checks.push(...intent.checks);
+    intentDraftCount = intent.draftCount;
+  }
   // tool-args 语义谓词(缺口#4):agent 配的模型/档案必须真实可解析,
   // 且按 kind 带齐比例词表(image→size / video→aspect_ratio+duration,vendor 原词,P4)。
+  // 只对「拆镜头铺画布」那类用例(有 createdShots)核:意图用例停在草稿,画布节点由宿主补默认值,不归 Agent。
   const missingMeta = created.filter((n) => !n.meta?.modelKey || !n.meta?.archetype?.id);
-  checks.push(component("metaModelValid", missingMeta.length === 0, missingMeta.length ? `${missingMeta.length} 个节点缺 modelKey/archetype` : "meta ok"));
+  if (expect.createdShots) checks.push(component("metaModelValid", missingMeta.length === 0, missingMeta.length ? `${missingMeta.length} 个节点缺 modelKey/archetype` : "meta ok"));
   const missingRatio = created.filter((n) =>
     n.kind === "image" ? !n.meta?.size : n.kind === "video" ? !n.meta?.aspect_ratio || !n.meta?.duration : false,
   );
-  checks.push(component("ratioParamsValid", missingRatio.length === 0, missingRatio.length ? `${missingRatio.length} 个节点缺比例/时长参数` : "ratio params ok"));
+  if (expect.createdShots) checks.push(component("ratioParamsValid", missingRatio.length === 0, missingRatio.length ? `${missingRatio.length} 个节点缺比例/时长参数` : "ratio params ok"));
 
   const failed = checks.filter((c) => !c.pass);
   return {
@@ -119,6 +128,7 @@ export function gradeCase(evalCase, output) {
     reason: failed.length === 0 ? "all checks passed" : failed.map((c) => `${c.name}: ${c.reason}`).join("; "),
     failureReason: failed.length === 0 ? null : "assert",
     componentResults: checks,
+    ...(intentDraftCount !== undefined ? { intentDraftCount } : {}),
   };
 }
 

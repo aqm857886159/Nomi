@@ -49,7 +49,7 @@ import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } fro
 import type { ModuleRegistry } from './moduleRegistry'
 import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
-import { markSingleShotAttention, markSingleShotCompleted, markSingleShotRunning } from '../productionRun/singleShotRunLifecycle'
+import { markSingleShotAttention, markSingleShotCompleted } from '../productionRun/singleShotRunLifecycle'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { readCatalog } from '../catalog/catalogStore'
@@ -59,7 +59,7 @@ import { installCatalogRowLookup } from './modelSpecRead'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpStdioProjectSessionRouter } from './mcpStdioProjectSessionRouter'
 import { createProductionMcpStdioProjectSessionBinding } from './mcpStdioProjectSessionBinding'
-import { callMcpLoopbackRpc } from './mcpLoopbackRpcCall'
+import { callMcpLoopbackRpc, createLoopbackGenerationConfirmation } from './mcpLoopbackRpcCall'
 import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
@@ -286,8 +286,9 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     }),
   })
   const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+  const initialGenerationScope = liveGenerationRuntime.createDraftScope()
   const outputMaterializer = createGenerationOutputMaterializer()
-  const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
+  const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
   // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
   // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
@@ -297,6 +298,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
       registry: generationRegistry,
+      createDraftScope: liveGenerationRuntime.createDraftScope,
       operations: operationStore,
       get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
       defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
@@ -394,13 +396,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
             },
           })
         }
-        const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
-        // Keep the stdio transport on the same durable lifecycle as the GUI:
-        // accepting a provider task is an active Run, not a still-ready draft.
-        if (!operation.shots || operation.shots.length === 0) {
-          markSingleShotRunning(productionRuns.repository, lease.projectId, operation.operationId)
-        }
-        return started
+        // 受理那一刻单镜 Run 已经记成进行中（提交出口和「已受理」同一次落盘，GUI 与 stdio 同一处）。
+        return await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
       },
       reconcile: async (operation, outcome, lease) => {
         const providerBootstrap = readProviderBootstrap()
@@ -474,6 +471,13 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     projectSession(),
     canvasReadExecutionRuntime,
   )
+  const generationConfirmation = createLoopbackGenerationConfirmation({
+    rpcIfOpen: (method, params) => {
+      const instance = readLiveInstance(currentLibrary())
+      return instance ? callViaRpc(instance, method, params, projectSession().connection) : undefined
+    },
+    authenticatedClient: () => projectSession().connection.authenticatedClient,
+  })
   const mcp = createNomiMcpServer({
     invoke: invokeRequest,
     // This protocol instance is itself a live Nomi host. Its direct route does
@@ -482,29 +486,9 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
     getAuthenticatedClient: () => projectSession().connection.authenticatedClient,
     onClientDetected: (name) => { recordDetectedMcpClient(name) },
-    confirmGenerationInNomi: async (challenge) => {
-      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-        ? challenge.handoff.challengeToken
-        : ''
-      const instance = readLiveInstance(currentLibrary())
-      if (!challengeToken || !instance) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, projectSession().connection)
-      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
-    },
-    // Electron stdio 态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
-    // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
-    verifyClientGenerationConfirmation: async (challenge) => {
-      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-        ? challenge.handoff.challengeToken
-        : ''
-      const instance = readLiveInstance(currentLibrary())
-      const authenticatedClient = projectSession().connection.authenticatedClient
-      if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, projectSession().connection)
-      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
-    },
+    // 两条付费确认经回环 RPC 交给 GUI 主进程（弹兜底卡 / 验证客户端同意并铸收据）；实现三个装配点共用一份。
+    confirmGenerationInNomi: generationConfirmation.confirmGenerationInNomi,
+    verifyClientGenerationConfirmation: generationConfirmation.verifyClientGenerationConfirmation,
     getLocale: () => getDesktopLocale(),
   })
 

@@ -154,21 +154,33 @@ describe('片种模板声明的画幅', () => {
   })
 })
 
-describe('unsupportedFilmDefaultKeys：供应商没有这个控件时如实说明', () => {
-  it('该 mode 没有 aspect_ratio 控件 → 报出来（界面不许继续显示一个发不出去的值）', () => {
+const select = (key: string, values: string[]) => ({ key, label: key, type: 'select' as const, options: values.map((value) => ({ value, label: value })) })
+
+describe('unsupportedFilmDefaultKeys：这一镜的模式落不下这个值时如实说明', () => {
+  it('该 mode 没有比例控件 → 报出来（界面不许继续显示一个发不出去的值）', () => {
     const plan = planOf([shot(1)], '9:16')
-    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [{ key: 'duration' }, { key: 'resolution' }]))
+    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [select('duration', ['5', '10']), select('resolution', ['720p', '1080p'])]))
       .toEqual(['aspect_ratio'])
   })
 
-  it('该 mode 有这个控件 → 不报', () => {
+  it('该 mode 有比例控件且有这一档 → 不报', () => {
     const plan = planOf([shot(1)], '9:16')
-    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [{ key: 'aspect_ratio' }])).toEqual([])
+    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [select('aspect_ratio', ['16:9', '9:16'])])).toEqual([])
+  })
+
+  it('比例控件不叫 aspect_ratio（Z-Image 叫 size）也认——落画布时会翻成那个键（2026-10-05 之前这里报「不支持」）', () => {
+    const plan = planOf([shot(1)], '9:16')
+    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [select('size', ['1:1', '16:9', '9:16'])])).toEqual([])
+  })
+
+  it('有比例控件但没有这一档 → 报', () => {
+    const plan = planOf([shot(1)], '21:9')
+    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [select('size', ['1:1', '16:9', '9:16'])])).toEqual(['aspect_ratio'])
   })
 
   it('整片默认本来就没定 → 不报（没有值要丢，就不是"被丢了"）', () => {
     const plan = planOf([shot(1)])
-    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [{ key: 'duration' }])).toEqual([])
+    expect(unsupportedFilmDefaultKeys(plan, plan.shots[0], [select('duration', ['5'])])).toEqual([])
   })
 
   it('无模型/无档案 → 无契约可判，不瞎报', () => {

@@ -343,6 +343,75 @@ describe("workspace project identity", () => {
     expect(fs.readFileSync(workspaceProjectFile(root), "utf8")).toBe(before);
   });
 
+  it("answers a settled identity without the manifest lock and without touching disk (open is a read)", async () => {
+    const root = makeTempDir();
+    const settled = { immutableProjectUuid: "11111111-1111-4111-8111-111111111111", projectGeneration: 2 };
+    const mainBefore = writeRawManifest(root, legacyManifest(settled));
+    const backupBefore = writeRawBackup(root, legacyManifest(settled));
+    const nomiDirBefore = fs.readdirSync(path.dirname(workspaceProjectFile(root))).sort();
+    // 另一个进程正拿着清单写锁：加锁路径在 5ms 内拿不到就会报 project_identity_unavailable。
+    const held = tryAcquireWorkspaceManifestLock(root, { ownerId: "long-running-writer", randomId: () => "writer-nonce" });
+    const writes = [
+      vi.spyOn(fs, "fsyncSync"),
+      vi.spyOn(fs, "writeFileSync"),
+      vi.spyOn(fs, "renameSync"),
+    ];
+    try {
+      const identity = await ensureWorkspaceProjectIdentity(root, {
+        randomUuid: () => "22222222-2222-4222-8222-222222222222",
+        lockOptions: { retryDelayMs: 1, waitTimeoutMs: 5 },
+      });
+      expect(identity).toMatchObject({ projectId: "project-1", ...settled, canonicalRootPath: fs.realpathSync(root) });
+      for (const spy of writes) expect(spy).not.toHaveBeenCalled();
+    } finally {
+      for (const spy of writes) spy.mockRestore();
+      releaseWorkspaceManifestLock(held);
+    }
+    expect(fs.readFileSync(workspaceProjectFile(root), "utf8")).toBe(mainBefore);
+    expect(fs.readFileSync(workspaceProjectBackupFile(root), "utf8")).toBe(backupBefore);
+    expect(fs.readdirSync(path.dirname(workspaceProjectFile(root))).sort()).toEqual(nomiDirBefore);
+  });
+
+  // 身份完整但清单结构不合法：无锁快读不能替加锁路径答话（加锁路径会按原规则报错 / 修复）。
+  it.each([
+    ["main has an unknown version", { version: 3 }, {}],
+    ["main lost its name", { name: undefined }, {}],
+    ["backup has an unknown version", {}, { version: 3 }],
+    ["backup lost its name", {}, { name: undefined }],
+  ])("does not answer from a structurally invalid manifest even when identity is complete (%s)", async (_label, mainOverrides, backupOverrides) => {
+    const root = makeTempDir();
+    const settled = { immutableProjectUuid: "11111111-1111-4111-8111-111111111111", projectGeneration: 2 };
+    writeRawManifest(root, legacyManifest({ ...settled, ...mainOverrides }));
+    writeRawBackup(root, legacyManifest({ ...settled, ...backupOverrides }));
+    const held = tryAcquireWorkspaceManifestLock(root, { ownerId: "long-running-writer", randomId: () => "writer-nonce" });
+    try {
+      // 快读若答了话就会 resolve；没答 → 落到加锁路径 → 锁被占 → project_identity_unavailable。
+      await expect(
+        ensureWorkspaceProjectIdentity(root, { lockOptions: { retryDelayMs: 1, waitTimeoutMs: 5 } }),
+      ).rejects.toMatchObject({ code: "project_identity_unavailable" });
+    } finally {
+      releaseWorkspaceManifestLock(held);
+    }
+  });
+
+  it("still takes the locked path whenever the identity is not settled in both files", async () => {
+    const root = makeTempDir();
+    const settled = { immutableProjectUuid: "11111111-1111-4111-8111-111111111111", projectGeneration: 2 };
+    writeRawManifest(root, legacyManifest(settled));
+    // 备份还没有身份：必须走加锁路径把它补上（无锁快读不能替它做决定）。
+    writeRawBackup(root, legacyManifest());
+    const held = tryAcquireWorkspaceManifestLock(root, { ownerId: "long-running-writer", randomId: () => "writer-nonce" });
+    try {
+      await expect(
+        ensureWorkspaceProjectIdentity(root, { lockOptions: { retryDelayMs: 1, waitTimeoutMs: 5 } }),
+      ).rejects.toMatchObject({ code: "project_identity_unavailable" });
+    } finally {
+      releaseWorkspaceManifestLock(held);
+    }
+    await expect(ensureWorkspaceProjectIdentity(root)).resolves.toMatchObject(settled);
+    expect(JSON.parse(fs.readFileSync(workspaceProjectBackupFile(root), "utf8"))).toMatchObject(settled);
+  });
+
   (canCreateDirSymlink ? it : it.skip)(
     "derives the same root identity through a symlink and ignores manifest lastKnownRootPath",
     async () => {

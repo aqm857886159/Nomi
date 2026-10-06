@@ -2,15 +2,15 @@ import { notifications, notificationsStore } from '@mantine/notifications'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import { QUEUE_BRAKE_THRESHOLD, useGenerationQueueStore } from './generationQueueStore'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace } from './generationRunController'
+import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
-const mocks = vi.hoisted(() => ({ reveal: vi.fn(async () => true), mint: vi.fn() }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: mocks.mint }))
+const mocks = vi.hoisted(() => ({ reveal: vi.fn(async () => true), consent: vi.fn() }))
+vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../ui/notificationPolicy', async (importOriginal) => ({ ...await importOriginal<typeof import('../../../ui/notificationPolicy')>(), revealNotificationTarget: mocks.reveal }))
 
 const allNotices = () => [...notificationsStore.getState().notifications, ...notificationsStore.getState().queue]
@@ -61,19 +61,18 @@ describe('background recovery owns the originating project and task', () => {
     expect(useGenerationQueueStore.getState().batches[batchId].paused).toBe(false)
   })
 
-  it.each([
-    ['generate', (id: string) => confirmAndRunNode(id, { initiator: 'user' })],
-    ['variants', (id: string) => confirmAndRunNodeVariants(id, 3, { initiator: 'user' })],
-    ['regenerate', (id: string) => regenerateNodeInPlace(id, { initiator: 'user' })],
-  ])('%s authorization failures coalesce and retain origin while minting crosses projects', async (_name, run) => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Draft a shot' })
-    mocks.mint.mockImplementation(async () => { await projectSession.open('other-project'); throw new Error('Authorization service unavailable') })
+  // 发动机收敛第一刀之后，单节点 ↑ 没有「授权」这一段异步了（这一下点击就是批准）；还剩的那一段是批量卡点了确认之后
+  // 主进程为卡上每一镜开出价。它失败时的反馈同样要合并成一条、记住发起它的项目。
+  it('batch consent failures coalesce and retain origin while consenting crosses projects', async () => {
+    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Draft a shot' })
+    mocks.consent.mockImplementation(async () => { await projectSession.open('other-project'); throw new Error('Authorization service unavailable') })
     for (let attempt = 0; attempt < 5; attempt++) {
       await projectSession.open('origin-project')
-      await run(node.id)
+      useBatchPlanPreviewStore.getState().open({ waves: [[node.id]], blocked: [], edgesUsed: [] })
+      await useBatchPlanPreviewStore.getState().confirm()
     }
     expect(allNotices()).toHaveLength(1)
-    expect(allNotices()[0].id).toBe(`origin-project:node:${node.id}`)
+    expect(allNotices()[0].id).toBe(`origin-project:batch-plan:${node.id}`)
     expect(allNotices()[0]['data-notification-count']).toBe(5)
     expect(allNotices()[0]['data-notification-reason']).toBe('authorization')
     clickNoticeAction()

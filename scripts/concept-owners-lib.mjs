@@ -607,6 +607,47 @@ export function validateBaseline(baseline, { conceptsByName }) {
   return findings
 }
 
+// ─── 未登记的合同边界：冻结存量，只减不增（2026-10-06）────────────────────────
+// 受管合同里声明的共享边界还没登记成概念的写接口：存量债冻进基线（unregistered_boundaries），
+// 新增的直接红；登记或合同删除后基线里对应条目必须删（陈旧也红）。登记 owner 要人判断，机器补不了。
+
+export const boundaryKey = (entry) => `${entry.contract}|${normalizePath(entry.path)}|${entry.symbol}`
+
+export function validateBoundaryBaseline(baseline) {
+  const findings = []
+  const bucket = baseline?.unregistered_boundaries
+  if (!Array.isArray(bucket)) return [finding('baseline-invalid', { message: 'unregistered_boundaries 必须是数组（存量债冻结账）' })]
+  const seen = new Set()
+  for (const entry of bucket) {
+    if (!entry || !text(entry.contract) || !text(entry.path) || !text(entry.symbol)) {
+      findings.push(finding('baseline-invalid', { message: 'unregistered_boundaries 每一条都要有 contract / path / symbol' }))
+      continue
+    }
+    const key = boundaryKey(entry)
+    if (seen.has(key)) findings.push(finding('baseline-invalid', { message: `unregistered_boundaries 重复：${key}` }))
+    seen.add(key)
+  }
+  return findings
+}
+
+/** 把合同扫描里的 unregistered-boundary 发现和冻结账对：账内的放行，账外的红，账里有而现在没了的陈旧也红。 */
+export function applyBoundaryBaseline({ baseline, findings }) {
+  const known = new Set((baseline?.unregistered_boundaries ?? []).map(boundaryKey))
+  const live = new Set()
+  const out = []
+  for (const item of findings) {
+    if (item.rule !== 'unregistered-boundary') { out.push(item); continue }
+    const key = boundaryKey(item)
+    live.add(key)
+    if (!known.has(key)) out.push({ ...item, message: `${item.message}（新增：不在冻结的存量债里，必须当场登记）` })
+  }
+  for (const entry of baseline?.unregistered_boundaries ?? []) {
+    if (live.has(boundaryKey(entry))) continue
+    out.push(finding('baseline-stale', { path: entry.path, symbol: entry.symbol, message: `unregistered_boundaries 里这一条已经登记或合同已删——从基线删掉（棘轮只减不增）：${boundaryKey(entry)}` }))
+  }
+  return out
+}
+
 /** 观察到的 vs 基线：多出来的红（新的第二写口 / 新写门），基线里有而现在没有的也红（陈旧，要删——只减不增）。 */
 export function evaluateBaseline({ baseline, observed, include = () => true }) {
   const findings = []
@@ -684,6 +725,14 @@ export function evaluateHistory({ baseline, referenceBaseline, concepts, referen
         symbol: entry.symbol,
         message: `${bucket} 比参照提交多了这一条，而「${entry.concept}」早就登记过——基线只许随新登记的概念增加，已有概念的口子只减不增（R17.0）`,
       }))
+    }
+  }
+  // 未登记边界的冻结账：参照基线已有这个桶时，只许变少（参照还没有 = 首次引入，本身就是现状）
+  if (Array.isArray(referenceBaseline?.unregistered_boundaries)) {
+    const before = new Set(referenceBaseline.unregistered_boundaries.map(boundaryKey))
+    for (const entry of baseline.unregistered_boundaries ?? []) {
+      if (before.has(boundaryKey(entry))) continue
+      findings.push(finding('baseline-grew', { path: entry.path, symbol: entry.symbol, message: `unregistered_boundaries 比参照提交多了 ${boundaryKey(entry)}——存量债只许变少，新边界要当场登记，别抬基线（R17.0）` }))
     }
   }
   for (const reference of referenceConcepts) {

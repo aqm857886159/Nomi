@@ -1,6 +1,7 @@
-import { constants } from "node:fs";
+import { constants, type BigIntStats } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import path from "node:path";
+import { sameFileIdentity } from "../fileIdentity";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { runBoundedProcess } from "../export/mediaProbe";
 import type { AntigravityArtifact, AntigravityToolStep } from "./antigravityProtocol";
@@ -20,38 +21,33 @@ export async function readAntigravityFile(root: string, relative: string, limit:
     if (path.posix.isAbsolute(relative) || path.win32.isAbsolute(relative)
       || parts.some((part) => !part || part === "." || part === "..")) throw new Error();
     let current = root;
-    const directories: Array<{ path: string; dev: number; ino: number }> = [];
+    const directories: Array<{ path: string; info: BigIntStats }> = [];
     for (const part of ["", ...parts.slice(0, -1)]) {
       if (part) current = path.join(current, part);
-      const info = await lstat(current);
+      const info = await lstat(current, { bigint: true });
       if (!info.isDirectory() || info.isSymbolicLink()) throw new Error();
-      directories.push({ path: current, dev: info.dev, ino: info.ino });
+      directories.push({ path: current, info });
     }
     const file = await open(path.join(root, relative), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {
-      const info = await file.stat();
-      if (!info.isFile() || info.size <= 0 || info.size > limit) throw new Error();
+      const info = await file.stat({ bigint: true });
+      if (!info.isFile() || info.size <= 0n || info.size > BigInt(limit)) throw new Error();
+      const size = Number(info.size);
       // Recheck after open before reading; a renamed parent must not redirect a scoped read.
       for (const directory of directories) {
-        const now = await lstat(directory.path);
-        if (!now.isDirectory() || now.isSymbolicLink() || now.dev !== directory.dev || now.ino !== directory.ino) throw new Error();
+        const now = await lstat(directory.path, { bigint: true });
+        if (!now.isDirectory() || now.isSymbolicLink() || !sameFileIdentity(directory.info, now)) throw new Error();
       }
-      const named = await lstat(path.join(root, relative));
-      // libuv reports different `dev` values for an open handle and lstat on
-      // Windows, while the file index (`ino`) remains stable. Keep the
-      // identity race check strict on POSIX and use the stable Windows index.
-      const identityChanged = process.platform === "win32"
-        ? named.ino !== info.ino
-        : named.dev !== info.dev || named.ino !== info.ino;
-      if (named.isSymbolicLink() || identityChanged) throw new Error();
-      const bytes = Buffer.alloc(Math.min(info.size + 1, limit + 1));
+      const named = await lstat(path.join(root, relative), { bigint: true });
+      if (named.isSymbolicLink() || !sameFileIdentity(info, named)) throw new Error();
+      const bytes = Buffer.alloc(Math.min(size + 1, limit + 1));
       let offset = 0;
       while (offset < bytes.length) {
         const read = await file.read(bytes, offset, bytes.length - offset, offset);
         if (!read.bytesRead) break;
         offset += read.bytesRead;
       }
-      if (offset !== info.size) throw new Error();
+      if (offset !== size) throw new Error();
       return bytes.subarray(0, offset);
     } finally { await file.close(); }
   } catch { throw new Error("ANTIGRAVITY_ARTIFACT_UNSAFE"); }

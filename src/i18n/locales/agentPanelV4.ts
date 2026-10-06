@@ -162,6 +162,9 @@ export const zhAgentPanelV4 = {
   processAttempt: '第 {{count}} 次尝试',
   /** 展开过程行才看见的那句灰字。说的是「参数不合适」，不是「出错了」——它还在自己修。 */
   processRetryingDetail: '这一步的参数不合适，正在重来',
+  errorRecovered: '出错后已自动重试',
+  // 「原因 + 服务商原话」的拼法跟界面语言走：中文全角冒号，英文半角冒号加空格。
+  errorWithDetail: '{{reason}}：{{detail}}',
   // 实验室夹具：2026-09-06 打包版那次「重拆 10 镜」的六连失败
   fixtureShotCard: '创建或修改镜头卡',
   fixtureShotCardReason: 'nodes：必须是数组（收到 字符串）',
@@ -668,6 +671,8 @@ export const enAgentPanelV4 = {
   processAttempts: 'Tried {{count}} times',
   processAttempt: 'Attempt {{count}}',
   processRetryingDetail: 'Those arguments did not fit — trying again',
+  errorRecovered: 'Hit an error and retried automatically',
+  errorWithDetail: '{{reason}}: {{detail}}',
   fixtureShotCard: 'Create or edit shot cards',
   fixtureShotCardReason: 'nodes: expected array, received string',
   fixtureProcessOne: 'I see the parameter needs to be an array, not a string — let me fix that.',

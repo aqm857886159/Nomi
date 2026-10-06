@@ -42,3 +42,5 @@ metadata:
 ---
 
 Slow horizontal pan across a wide {场景}, revealing its full scale
+
+Keep the scene identity, spatial layout, lighting, color, and continuity unchanged. Change only the horizontal pan and the portion of the scene revealed described here.

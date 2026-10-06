@@ -124,7 +124,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     const batchIds = new Set(queued.filter((row): row is TaskCenterRow => row.kind === 'generation').map((row) => row.batchId))
     batchIds.forEach((batchId) => useGenerationQueueStore.getState().cancelBatchRemaining(batchId))
   }
-  // 失败重试：只对失败的重建依赖波次 → 走既有轻确认铸新令牌（不绕付费闸），成功的不重付。
+  // 失败重试：只对失败的重建依赖波次 → 走既有轻确认、新开一份出价（不绕付费闸），成功的不重付。
   const failedRows = done.filter((row): row is TaskCenterRow => row.kind === 'generation' && row.outcome === 'error' && !row.recoverable)
   const retryAllFailed = () => {
     const state = useGenerationCanvasStore.getState()

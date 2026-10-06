@@ -1,0 +1,1 @@
+{"id":"e1","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.turn.finished","payload":{"status":"ok","finalTextHead":"单个镜头最长 15 秒，90 秒一镜到底做不到；要不要我拆成 6 段、每段 15 秒？","usage":{"totalTokens":42000}}}

@@ -30,7 +30,7 @@ import {
   createMcpConnectionContext,
   type McpConnectionContext,
 } from './mcpConnectionContext'
-import { callMcpLoopbackRpc } from './mcpLoopbackRpcCall'
+import { callMcpLoopbackRpc, createLoopbackGenerationConfirmation } from './mcpLoopbackRpcCall'
 
 const CAPABILITY_DIR_ENV = 'NOMI_CAPABILITY_DIR'
 const PROJECTS_DIR_ENV = 'NOMI_PROJECTS_DIR'
@@ -338,6 +338,14 @@ async function invokeLiveRpc(
   return callViaRpc(instance, method, params, requestSignal ? { ...options, signal: requestSignal } : options)
 }
 
+const launcherGenerationConfirmation = createLoopbackGenerationConfirmation({
+  rpcIfOpen: (method, params) => {
+    const instance = readLiveInstance()
+    return instance ? callViaRpc(instance, method, params) : undefined
+  },
+  authenticatedClient: () => launcherConnection().authenticatedClient,
+})
+
 const mcp = createNomiMcpServer({
   invoke: async (method, params, options) => {
     const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
@@ -360,41 +368,10 @@ const mcp = createNomiMcpServer({
   },
   isAppOpen: () => Boolean(readLiveInstance()),
   getAuthenticatedClient: () => launcherConnection().authenticatedClient,
-  // 打包态：mcpNodeLauncher 以裸 Node 跑，无自己的 Electron 主进程，不能直接弹应用内卡。
-  // 通过 loopback RPC 把挑战令牌转给 GUI 进程的 nomi_confirm_generation_gate 端点，
-  // 由 GUI 负责弹真人确认卡并铸收据——与 mcpStdioServer.ts 的 confirmGenerationInNomi 同语义。
-  confirmGenerationInNomi: async (challenge) => {
-    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-      ? challenge.handoff.challengeToken
-      : ''
-    const instance = readLiveInstance()
-    if (!challengeToken || !instance) return { confirmed: false }
-    const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken })
-    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-    return {
-      confirmed: typed.confirmed === true,
-      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
-      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
-    }
-  },
-  // 打包态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
-  // 主进程持有 macKey，是唯一能签 client_elicitation attestation 的一方；
-  // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
-  verifyClientGenerationConfirmation: async (challenge) => {
-    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-      ? challenge.handoff.challengeToken
-      : ''
-    const instance = readLiveInstance()
-    const authenticatedClient = launcherConnection().authenticatedClient
-    if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
-    const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient })
-    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-    return {
-      confirmed: typed.confirmed === true,
-      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
-      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
-    }
-  },
+  // 打包态：裸 Node 没有自己的 Electron 主进程，不能弹应用内卡，也铸不了收据：两条确认都经回环 RPC 交给
+  // GUI 主进程（它持有 macKey，是唯一能签 client_elicitation 收据的一方）。实现与另两个装配点共用一份。
+  confirmGenerationInNomi: launcherGenerationConfirmation.confirmGenerationInNomi,
+  verifyClientGenerationConfirmation: launcherGenerationConfirmation.verifyClientGenerationConfirmation,
   getLocale: () => launcherLocale,
   // 打包态（裸 Node）与开发态（Electron stdio）共用同一套检测档案。
   // mcpDetectedClients 是 bare-Node safe，不引 electron，可安全接入。

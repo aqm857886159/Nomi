@@ -67,7 +67,7 @@ try {
   }, { surfaces: [] })
 
   await monitor.step('换家之后停一会儿（旧失败还在节点上）', async () => {
-    await win().waitForTimeout(monitor.limits.spendCardPollMs.value * 2)
+    await win().waitForTimeout(monitor.limits.runViewPollMs.value * 2)
     await monitor.screenshot('after-switch')
   }, { user: false, surfaces: [] })
 

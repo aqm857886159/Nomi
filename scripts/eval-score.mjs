@@ -3,9 +3,10 @@
 // 用法: pnpm eval:score [runDir]   (缺省取 evals/runs 下最新)
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { gradeCase, aggregateTrials, createdNodes } from "../evals/lib/grading.mjs";
 import { loadJudgeConfig, loadFewshots, judgeOne, QUALITY_DIMENSIONS } from "../evals/lib/judge.mjs";
+import { summarizeIntent } from "../evals/lib/intentGrading.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runsRoot = path.join(repoRoot, "evals", "runs");
@@ -25,7 +26,7 @@ if (!runDir || !fs.existsSync(path.join(runDir, "output.jsonl"))) {
   process.exit(1);
 }
 const meta = JSON.parse(fs.readFileSync(path.join(runDir, "meta.json"), "utf8"));
-const { cases } = await import(path.join(repoRoot, "evals", "datasets", `${meta.dataset}.mjs`));
+const { cases } = await import(pathToFileURL(path.join(repoRoot, "evals", "datasets", `${meta.dataset}.mjs`)).href);
 const caseById = new Map(cases.map((c) => [c.id, c]));
 
 function readEventsFromArtifacts(output) {
@@ -116,6 +117,9 @@ const qualityOverall = qualityByDimension
   ? +(Object.values(qualityByDimension).reduce((s, v) => s + v, 0) / QUALITY_DIMENSIONS.length).toFixed(3)
   : null;
 
+// 铁律 ⑩ 意图指标:数据集里有 expect.draft 的用例才算(首次通过率 / 各字段命中率 / 越界诚实率,train 与 test 分开)。
+const intentMetrics = cases.some((c) => c.expect?.draft) ? summarizeIntent(caseResults, caseById) : null;
+
 const scores = {
   runDir: path.basename(runDir),
   dataset: meta.dataset,
@@ -134,6 +138,7 @@ const scores = {
     qualityCalibrated: calibrated,
     qualityOverall,
     qualityByDimension,
+    ...(intentMetrics ? { intent: intentMetrics } : {}),
   },
   cases: caseResults.map((c) => ({
     caseId: c.caseId,
@@ -165,6 +170,18 @@ lines.push(`**${passAtK}/${totalCases} case 通过(pass@${meta.trials})** · pas
 if (worst.length) {
   lines.push("");
   lines.push(`最差 case:${worst.map((c) => `${c.caseId}(${c.meanScore})`).join(" / ")}`);
+}
+if (intentMetrics) {
+  const pct = (value) => (value === null ? "—" : `${Math.round(value * 100)}%`);
+  lines.push("");
+  lines.push("## 意图指标(铁律 ⑩ 说的 = 摆的)");
+  lines.push("");
+  lines.push("| 集 | trial | 首次通过率 | 平均草稿份数 | 越界诚实率 | 各字段命中率 |");
+  lines.push("|---|---|---|---|---|---|");
+  for (const [name, view] of Object.entries(intentMetrics)) {
+    const fields = Object.entries(view.fieldHitRate).map(([field, value]) => `${field} ${pct(value)}`).join(" · ");
+    lines.push(`| ${name} | ${view.trials} | ${pct(view.firstPassRate)} | ${view.meanDraftsPerTrial ?? "—"} | ${pct(view.honestyRate)} | ${fields || "—"} |`);
+  }
 }
 if (qualityByDimension) {
   lines.push("");

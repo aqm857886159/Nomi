@@ -211,8 +211,9 @@ try {
     await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '原分镜方案')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     if (mode === 'storyboard-first-frame') {
-      await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-slot="first_frame"]'),
-        '仅图生视频模型也在原编辑器显示首帧参考槽').toBeVisible()
+      // 2026-10-06 起参考在视觉列的缩略图条里；计划首帧是最前面那一格只读占位。
+      await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-planned="first-frame"]'),
+        '仅图生视频模型也在原编辑器显示计划首帧那一格').toBeVisible()
     }
     await snap(win, 'original-editor-before-approval')
     const action = win.locator('[data-storyboard-batch="true"]')

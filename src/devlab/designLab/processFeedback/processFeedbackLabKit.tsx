@@ -16,6 +16,33 @@ import type { TimelineClip as Clip } from '../../../workbench/timeline/timelineT
 
 export const PF_NODE_ID = 'process-feedback-node'
 const FRAME = '/fixtures/process-feedback-frame.svg'
+// Keep elapsed copy in process-feedback captures stable across runs. This is a devlab-only
+// clock; the production observability clock remains untouched.
+const PROCESS_FEEDBACK_FIXTURE_NOW = Date.parse('2026-09-08T12:00:00.000Z')
+const PROCESS_FEEDBACK_RAF_STEP_MS = 16
+
+type ProcessFeedbackClockRestore = () => void
+
+/** Freeze both elapsed copy and img-fx's frame clock for repeatable lab pixels. */
+function installProcessFeedbackFixtureClock(): ProcessFeedbackClockRestore {
+  const realDateNow = Date.now
+  const realRaf = window.requestAnimationFrame.bind(window)
+  const realPerformanceNow = window.performance.now.bind(window.performance)
+  const performanceNowDescriptor = Object.getOwnPropertyDescriptor(window.performance, 'now')
+  let frameNow = realPerformanceNow()
+  Date.now = () => PROCESS_FEEDBACK_FIXTURE_NOW
+  Object.defineProperty(window.performance, 'now', { configurable: true, value: () => frameNow })
+  window.requestAnimationFrame = (callback) => realRaf(() => {
+    frameNow += PROCESS_FEEDBACK_RAF_STEP_MS
+    callback(frameNow)
+  })
+  return () => {
+    Date.now = realDateNow
+    window.requestAnimationFrame = realRaf
+    if (performanceNowDescriptor) Object.defineProperty(window.performance, 'now', performanceNowDescriptor)
+    else delete (window.performance as unknown as { now?: () => number }).now
+  }
+}
 export type ProcessFixture = { kind: 'image' | 'video' | 'audio'; stage: GenerationProgressPhase | 'failed' | 'saved'; preview?: boolean; reduced?: boolean; preset?: ImageGenerationPreset; percent?: number; zoom?: number }
 
 /** Laboratory automation drives the same mounted host without creating a second store instance. */
@@ -28,7 +55,7 @@ export function setProcessFeedbackZoom(zoom: number): void {
 }
 
 function fixtureNode(fixture: ProcessFixture): GenerationCanvasNode {
-  const startedAt = Date.now() - (fixture.stage === 'still-generating' ? 360000 : 18000)
+  const startedAt = PROCESS_FEEDBACK_FIXTURE_NOW - (fixture.stage === 'still-generating' ? 360000 : 18000)
   return {
     id: PF_NODE_ID, kind: fixture.kind, title: '镜 1', categoryId: fixture.kind === 'audio' ? 'audio' : 'shots',
     position: { x: 0, y: 0 }, size: { width: 340, height: 240 },
@@ -62,6 +89,8 @@ function Surfaces({ zoom, reduced, preset }: { zoom: number; reduced?: boolean; 
 
 /** Host stores drive the real node, task row and timeline clip; no imitation status markup. */
 export function ProcessFeedbackStage(fixture: ProcessFixture): JSX.Element {
+  const fixtureClock = React.useRef<ProcessFeedbackClockRestore | null>(null)
+  if (!fixtureClock.current) fixtureClock.current = installProcessFeedbackFixtureClock()
   const [ready, setReady] = React.useState(false)
   const batchId = React.useRef('')
   React.useEffect(() => {
@@ -105,6 +134,7 @@ export function ProcessFeedbackStage(fixture: ProcessFixture): JSX.Element {
     else useNodeLivePreviewStore.getState().clearPreview(PF_NODE_ID)
     setReady(true)
   }, [fixture.kind, fixture.stage, fixture.percent, fixture.preview, fixture.zoom])
+  React.useEffect(() => () => { fixtureClock.current?.(); fixtureClock.current = null }, [])
   return ready ? <Surfaces zoom={fixture.zoom ?? 1} reduced={fixture.reduced} preset={fixture.preset} /> : <div />
 }
 
@@ -168,3 +198,4 @@ export function ProcessFeedbackFxStage({ transition, reduced = false, preset }: 
   }, [transition])
   return <div data-pf-fx-state data-pf-reduced={reduced || undefined}><ProcessFeedbackStage kind="image" stage="generating" reduced={reduced} preset={preset} /></div>
 }
+

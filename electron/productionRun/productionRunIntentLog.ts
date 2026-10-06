@@ -31,7 +31,6 @@ export type ProductionRunIntentPrepareInput = {
   key: string;
   payload: unknown;
   fencingEpoch?: number;
-  allowRetryAfterAbort?: boolean;
 };
 
 export type ProductionRunIntentLogDeps = {
@@ -213,13 +212,8 @@ export function createProductionRunIntentLog(deps: ProductionRunIntentLogDeps) {
         || (input.fencingEpoch ?? 0) !== existing.fencingEpoch) {
         throw new Error(`intent key conflict: ${key}`);
       }
-      if (existing.status === "aborted" && !input.allowRetryAfterAbort) throw new Error(`intent key already aborted: ${key}`);
-      if (existing.status === "aborted" && input.allowRetryAfterAbort) {
-        // An explicit definitely-not-submitted disposition opens a new attempt
-        // with the same provider key; callers must opt into this branch.
-      } else {
-        return existing;
-      }
+      if (existing.status === "aborted") throw new Error(`intent key already aborted: ${key}`);
+      return existing;
     }
     return append({
       schemaVersion: PRODUCTION_RUN_INTENT_LOG_SCHEMA_VERSION,

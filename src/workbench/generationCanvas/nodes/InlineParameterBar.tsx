@@ -98,8 +98,10 @@ type InlineParameterBarProps = {
    */
   panelMode?: InlineParameterBarPanelMode
   /** Width of the summary trigger in CSS pixels（只在 `summary` 下有意义）。The resident contract uses
-   * the wider 150px dialog pill; the canvas remains 110px. */
-  summaryWidth?: number
+   * the wider 150px dialog pill; the canvas remains 110px.
+   * `{ hug: N }` = 贴文字宽、最宽 N（分镜行：中文「全能参考 · 16:9 · 5 秒」与英文「Omni reference · 16:9 · 5s」
+   * 宽差近一倍，定宽要么英文截断、要么中文留一截空白）。 */
+  summaryWidth?: number | { hug: number }
   /**
    * 身份行两个下拉的浮层落点。
    *
@@ -124,6 +126,11 @@ type InlineParameterBarProps = {
   activeModeId?: string
   modeLabel?: string
   onModeSelect?: (id: string) => void
+  /**
+   * 模型下拉最前面的一项「不指定模型」（值为空串，选它 = `onModelChange('')`）。
+   * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
+   */
+  leadingModelOption?: { label: string }
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
@@ -186,6 +193,7 @@ export default function InlineParameterBar({
   activeModeId = '',
   modeLabel,
   onModeSelect,
+  leadingModelOption,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -480,13 +488,14 @@ export default function InlineParameterBar({
     )
   }
 
-  const resolvedSummaryWidth = summaryWidth ?? (stacked ? 150 : 110)
+  const resolvedSummaryWidth = typeof summaryWidth === 'object' ? undefined : summaryWidth ?? (stacked ? 150 : 110)
+  const summaryMaxWidth = typeof summaryWidth === 'object' ? summaryWidth.hug : undefined
   // chips 形态的横排里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
   // 结果是「宽度不够时模型名先被榨没、chip 却一颗不少」——而模型是这一行的一等决策（§1.5.4）。
   // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
   // summary 形态只有一颗定宽 pill，不存在「装不下」，行窄时让位的只有**模型**那枚：它的值区是有意的
   // 省略号、hover 的 title 是全名。变体是短枚举（「变体 5.0」），和分镜底栏的模式 / 时长同一条规则
-  // （`composerBarGeometry.ts`：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
+  // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
   // 5px，「Variant 5.0」读成「Variant E」，缩它省下的几像素换来的是一颗读不出的芯片。
   const modelChipClass = chipsMode && !stacked ? 'shrink-0' : undefined
   const variantChipClass = stacked ? undefined : 'shrink-0'
@@ -503,8 +512,8 @@ export default function InlineParameterBar({
         triggerMaxWidth={stacked ? 132 : 150}
         className={modelChipClass}
         value={modelSelect.modelValue}
-        options={modelSelect.modelOptions}
-        onChange={modelSelect.onModelPick}
+        options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+        onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
         onChipChange={modelSelect.onModelProviderPick}
         footerAction={modelVisibilityFooterAction()}
         hiddenNote={modelSelect.hiddenNote}
@@ -604,11 +613,14 @@ export default function InlineParameterBar({
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
         'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
-        'shrink-0 justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
+        // 贴文字宽（hug，分镜行）时允许收：行窄、字体宽（Linux / mac 字体比 Windows 宽）时先截断摘要文字，
+        // 不把右端的「生成」挤出卡外（2026-10-06 #1042）。定宽的画布节点照旧不收。
+        summaryMaxWidth !== undefined ? 'shrink' : 'shrink-0',
+        'justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
         stacked && 'w-full',
       )}
-      style={{ width: stacked ? '100%' : resolvedSummaryWidth }}
+      style={stacked ? { width: '100%' } : summaryMaxWidth !== undefined ? { maxWidth: summaryMaxWidth } : { width: resolvedSummaryWidth }}
     >
       <span className="min-w-0 truncate" style={{ maxWidth: stacked ? 'calc(100% - 18px)' : 240 }}>
         {pillText || t('generationCommon.parameters.parameters')}

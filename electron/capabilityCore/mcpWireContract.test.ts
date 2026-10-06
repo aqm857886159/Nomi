@@ -7,13 +7,21 @@
 // 有意改变的行为不在这里钉旧值，而是钉**两边都必须成立的不变量**（例如「不支持的协议版本绝不被原样协商成功」），
 // 改了什么写在设计卡「行为差异」一节。
 import crypto from 'node:crypto'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
 
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { MCP_APP_MIME_TYPE, NOMI_LIVE_DRAFT_UI_URI } from './mcpAppWidget'
+import { bridgeStdioToHttp } from './mcpHttpBridge'
+import { mcpHttpIdentityHeaders } from './mcpHttpEndpoint'
+import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createMcpProtocol, createNomiMcpServer, MCP_REQUEST_SIGNAL, type McpHost } from './mcpProtocol'
+import { ensureToken, signMcpClient } from './security'
 import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 import { registerProductionPlaybook } from '../productionRun/productionPlaybooks'
 import { measureMcpToolsListPayloadByLocale } from '../../scripts/mcp-payload.mjs'
@@ -37,7 +45,15 @@ type McpWireConnection = {
   deliver(frame: WireFrame): void
   /** 断开连接（stdio 关 stdin / HTTP 关会话）。 */
   close(): Promise<void>
+  /** 握手完成后传输自己还要准备的事（HTTP：宿主那条接收服务端通知的独立流要先建起来）。 */
+  afterInitialized?(): Promise<void>
 }
+
+/** 传输自带、规范规定的差异（不是实现差异）。 */
+type McpWireTraits = Readonly<{
+  /** Streamable HTTP 有会话：规范要求先 initialize 拿会话号，未握手的请求一律 400。 */
+  sessionRequiresInitialize?: boolean
+}>
 
 /** 一种「协议实现 × 传输」。emit 收服务端发出的每一帧。 */
 type McpWireConnector = (host: McpWireHost, emit: (frame: WireFrame) => void) => McpWireConnection
@@ -96,6 +112,7 @@ class WireClient {
   async initialize(capabilities: Record<string, unknown> = {}, protocolVersion = '2025-11-25'): Promise<WireFrame> {
     const response = await this.request('initialize', { protocolVersion, capabilities, clientInfo: { name: 'wire-contract-client', version: '1.0.0' } })
     this.send({ method: 'notifications/initialized' })
+    await this.connection.afterInitialized?.()
     return response
   }
 
@@ -172,7 +189,7 @@ const challenge = {
   handoff: { challengeToken: 'challenge-token', contractHash: 'contract-hash' },
 }
 
-function defineMcpWireContract(label: string, connector: McpWireConnector, signalOf: McpWireSignalOf): void {
+function defineMcpWireContract(label: string, connector: McpWireConnector, signalOf: McpWireSignalOf, traits: McpWireTraits = {}): void {
   describe(`MCP 协议边界特征（${label}）`, () => {
     const clients: WireClient[] = []
     const connect = (host: McpWireHost) => {
@@ -207,6 +224,7 @@ function defineMcpWireContract(label: string, connector: McpWireConnector, signa
       it('ping 回空对象，探测类请求不触达领域', async () => {
         const { host, invoke } = fakeHost()
         const client = connect(host)
+        await client.initialize()
         expect(resultOf(await client.request('ping'))).toEqual({})
         expect(invoke).not.toHaveBeenCalled()
       })
@@ -225,7 +243,8 @@ function defineMcpWireContract(label: string, connector: McpWireConnector, signa
         expect(invoke).not.toHaveBeenCalled()
       })
 
-      it('未握手也能列（宿主刷新工具列表不必先 initialize），且不触达领域', async () => {
+      // Streamable HTTP 按规范必须先握手拿会话号，这一条只对无会话的传输（stdio / 进程内）成立。
+      it.skipIf(traits.sessionRequiresInitialize)('未握手也能列（宿主刷新工具列表不必先 initialize），且不触达领域', async () => {
         const { host, invoke } = fakeHost()
         const client = connect(host)
         const listed = resultOf(await client.request('tools/list'))
@@ -578,5 +597,102 @@ const stdioPipe: McpWireConnector = (host, emit) => {
   }
 }
 
+// ── 本机 HTTP（第 2 段）：真的 Streamable HTTP 服务端（只听 127.0.0.1）+ SDK 的 HTTP 客户端传输；身份走真签名。 ──
+// capability 目录指到临时目录：签名用的 token 是这一次新铸的，不碰 ~/.nomi。
+process.env.NOMI_CAPABILITY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-wire-'))
+ensureToken()
+const HTTP_CLIENT = 'codex'
+
+/** 起一个只服务这次连接的 HTTP 端点；宿主口照用这组用例的假宿主，认人结果换成真签名认出来的那个人。 */
+function startWireHttpServer(host: McpWireHost): Promise<McpHttpServerHandle> {
+  return startMcpHttpServer({
+    port: 0,
+    sessionFor: (identity) => createNomiMcpServer({ ...(host as unknown as McpHost), getAuthenticatedClient: () => identity.connection.authenticatedClient }),
+  })
+}
+
+/**
+ * 宿主侧的 HTTP 客户端传输。未验证用例（假宿主报 getAuthenticatedClient → null）就不带身份头。
+ * 包一层 fetch 只为知道「接收服务端通知的独立 GET 流」什么时候建好——SDK 在发出 initialized 之后自己去建，
+ * 建好之前服务端发的 list_changed 没有地方投递（规范行为，不是 Nomi 的）。
+ */
+function wireHttpClient(host: McpWireHost, url: string) {
+  const authenticated = host.getAuthenticatedClient?.() !== null
+  let streamOpened!: () => void
+  const listening = new Promise<void>((resolve) => { streamOpened = resolve })
+  const observedFetch: typeof fetch = async (input, init) => {
+    const response = await fetch(input, init)
+    if ((init?.method ?? 'GET') === 'GET' && response.ok) streamOpened()
+    return response
+  }
+  const transport = new StreamableHTTPClientTransport(new URL(url), {
+    requestInit: { headers: authenticated ? mcpHttpIdentityHeaders(HTTP_CLIENT, signMcpClient(HTTP_CLIENT) ?? '') : {} },
+    fetch: observedFetch,
+  })
+  return { transport, listening: () => vi.waitFor(() => listening, { timeout: 3000 }) }
+}
+
+const httpDirect: McpWireConnector = (host, emit) => {
+  const ready = startWireHttpServer(host).then(async (server) => {
+    const client = wireHttpClient(host, server.url)
+    const initializeIds = new Set<unknown>()
+    client.transport.onmessage = (message) => {
+      const frame = message as WireFrame
+      if (initializeIds.delete(frame.id) && frame.result) client.transport.setProtocolVersion(String((frame.result as { protocolVersion?: unknown }).protocolVersion))
+      emit(frame)
+    }
+    await client.transport.start()
+    return { server, client, initializeIds }
+  })
+  return {
+    deliver: (frame) => {
+      void ready.then(({ client, initializeIds }) => {
+        if (frame.method === 'initialize') initializeIds.add(frame.id)
+        return client.transport.send(frame as never)
+      }).catch(() => {})
+    },
+    afterInitialized: async () => { await (await ready).client.listening() },
+    close: async () => {
+      const { server, client } = await ready
+      await client.transport.terminateSession().catch(() => {})
+      await client.transport.close()
+      await server.close()
+    },
+  }
+}
+
+/** Desktop 转发口：宿主（stdio）→ 转发桥 → 本机 HTTP。用例经 stdio 管道说话，桥里不认任何领域。 */
+const desktopForwarder: McpWireConnector = (host, emit) => {
+  const stdin = new PassThrough()
+  const stdout = new PassThrough()
+  let buffered = ''
+  stdout.setEncoding('utf8')
+  stdout.on('data', (chunk: string) => {
+    buffered += chunk
+    for (let newline = buffered.indexOf('\n'); newline >= 0; newline = buffered.indexOf('\n')) {
+      const line = buffered.slice(0, newline)
+      buffered = buffered.slice(newline + 1)
+      if (line.trim()) emit(JSON.parse(line) as WireFrame)
+    }
+  })
+  const ready = startWireHttpServer(host).then((server) => {
+    const client = wireHttpClient(host, server.url)
+    const bridged = bridgeStdioToHttp(new StdioServerTransport(stdin, stdout), client.transport)
+    return { server, client, bridged }
+  })
+  return {
+    deliver: (frame) => { void ready.then(() => stdin.write(`${JSON.stringify(frame)}\n`)) },
+    afterInitialized: async () => { await (await ready).client.listening() },
+    close: async () => {
+      const { server, bridged } = await ready
+      stdin.end()
+      await bridged
+      await server.close()
+    },
+  }
+}
+
 defineMcpWireContract('进程内', inProcess, signalOf)
 defineMcpWireContract('stdio 管道', stdioPipe, signalOf)
+defineMcpWireContract('本机 HTTP', httpDirect, signalOf, { sessionRequiresInitialize: true })
+defineMcpWireContract('Desktop 转发口（stdio→HTTP）', desktopForwarder, signalOf, { sessionRequiresInitialize: true })

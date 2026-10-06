@@ -1,0 +1,111 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "internal_only_reason": "Nomi 自己的档案 / 宿主 / 界面约定，没有外部官方文档能裁决这条不变量；判据复用仓内唯一 owner。",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖的行为。",
+    "exit_criteria": []
+  },
+  "id": "2026-10-05-param-alias-dedupe",
+  "problem_type": "参数控件按键名猜角色，把不是比例的 size 当成比例别名",
+  "symptom": "Agnes 视频 2.5 / 2.5 Flash、Agnes Image 2.1 Flash 在画布节点底栏与 Agent 付费卡上选不到比例（用户反馈「选不到参数」；铁律 ⑪ 首跑 LAW11-ALIAS-DEDUPE）",
+  "direct_cause": "dedupeParamControls 按 ASPECT_RATIO_ALIASES 把 size（清晰度 720P / 尺寸档 1K）与 aspect_ratio / ratio 视为同一键，先出现的 size 吞掉了比例控件",
+  "class_root": "「参数管的是哪件事」只看键名；size 一类键名本身不说明是比例，渲染层没有按选项判，而宿主侧已按选项判（electron/shared/aspectRatioValue.ts）",
+  "affected_population": [
+    "档案里同时声明非比例 size（清晰度 / 尺寸档 / 像素串）与真比例键的模型；首跑命中 3 个发布模型，节点底栏与付费卡两个入口"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
+  ],
+  "entry_points": [
+    "画布节点底栏 resolveRenderedControls → buildDynamicControls",
+    "Agent 付费卡 projectSpendNode → resolveRenderedControls → buildDynamicControls"
+  ],
+  "invariants": [
+    "size / imageSize / videoSize / video_size / image_size 只有在自己的选项是比例时才与 aspect_ratio / ratio 等同；名字就说明是比例的键不再把这几类算进同伙"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parameterEquivalentKeys"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "去重、存储键（removePreviousControlParams）、参数角色（parameterControlRole）三处都改走 parameterEquivalentKeys / parameterIsAspectAlias，判据是 optionsAreAspectRatios（宿主同用）；节点底栏与付费卡都经 buildDynamicControls，⑪ 全量 997 组合对账证明这一类缺口归零。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parameterEquivalentKeys",
+      "responsibility": "一个档案参数控件和哪些键是同一件事；size 一类按选项判"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeModelArchetype.ts",
+      "entry_point": "resolveRenderedControls",
+      "disposition": "enforced",
+      "evidence": "经 buildDynamicControls 去重；⑪ node-bar 的 aspect_ratio / ratio 两类缺口消失"
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "entry_point": "projectSpendNode",
+      "disposition": "enforced",
+      "evidence": "卡体生成框走同一个 resolveRenderedControls；⑪ spend-card 两类缺口消失"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/composerBarModel.ts",
+      "entry_point": "composerBarParams",
+      "disposition": "not-affected",
+      "evidence": "分镜行不去重，按档案参数逐个渲染；比例由 storyboardShotScope 另管"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "新接任何一家把清晰度叫 size 的模型都会再撞上；不修判据，会在别的模型上复现",
+    "same_class_scan": [
+      "rg ASPECT_RATIO_ALIASES src electron",
+      "tests/experience-laws/parameterReachability.test.mjs 全量 997 组合 × 4 入口"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "invariant": "size 一类只有选项是比例时才算比例别名",
+    "failure_mode": "⑪ 门：任何入口再选不到档案声明的参数即红（表外新缺口）",
+    "exception_policy": "none",
+    "strategy": "在唯一共享边界改判据，并由 ⑪ 全量对账守住",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.test.ts",
+    "tests/experience-laws/parameterReachability.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "判据就地替换，没有并行旧路径"
+  },
+  "migration": "旧节点 meta 不受影响：只改「哪些键是同一件事」的判断；Agnes 节点上原来缺的 aspect_ratio 现在按档案默认显示",
+  "residual_risks": [
+    "时长 / 清晰度别名仍按键名判（见 docs/plan/2026-10-05-param-alias-direction-check.md）"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/controls/parameterControlModel.test.ts",
+      "tests/experience-laws/parameterReachability.test.mjs"
+    ],
+    "why": "parameterEquivalentKeys 是渲染层「哪些键是同一件事」的唯一判据；类测试钉五种形状，⑪ 全量对账钉全部发布模型 × 四个入口。"
+  }
+}

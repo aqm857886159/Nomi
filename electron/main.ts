@@ -48,6 +48,7 @@ import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerNomiProtocolClient } from "./protocolRegistration";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
+import { startDesktopMcpHttp, stopDesktopMcpHttp } from "./capabilityCore/mcpHttpDesktop";
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
@@ -168,10 +169,6 @@ async function loadCapabilityCoreModule(): Promise<typeof import("./capabilityCo
   return capabilityCoreModulePromise;
 }
 
-function getActiveCapabilityPort(): number | null {
-  return capabilityPortCache;
-}
-
 let desktopLaneIpc: LaneIpcRegistration | undefined;
 async function startDesktopCapabilityCore(): Promise<void> {
   if (!desktopCanvasReadExecutionRuntime) throw new Error("Canvas read execution runtime is unavailable");
@@ -192,9 +189,11 @@ async function startDesktopCapabilityCore(): Promise<void> {
     },
   );
   capabilityPortCache = core.getCapabilityPort();
+  await startDesktopMcpHttp({ rpcPort: () => capabilityPortCache, onActivity: touchBackgroundActivity }); // MCP 本机 HTTP 直连：领域调用经上面的回环 RPC 进来，必须在它之后起
 }
 
 function stopDesktopCapabilityCore(): void {
+  stopDesktopMcpHttp();
   capabilityCoreModule?.stopCapabilityCore();
   capabilityPortCache = null;
 }
@@ -571,7 +570,7 @@ function registerIpc(): void {
   });
   registerTaskIpcHandlers(loadRuntimeModule, loadCapabilityCoreModule);
   // 「接入 AI 编程助手」卡：读接入状态/配置片段 + 一键写入/撤销 ~/.claude.json 的 mcpServers.nomi。
-  registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
+  registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(capabilityPortCache));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
   registerCustomMcpProfileIpc();

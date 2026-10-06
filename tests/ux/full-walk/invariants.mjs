@@ -59,6 +59,13 @@ export const INVARIANTS = Object.freeze([
     title: Object.freeze({ 'zh-CN': '不显示没用的东西', en: 'Nothing useless is shown' }),
     how: '逐条规则核对：9a 只有 1 版时不显示「几版」；9b「已保存到项目」过了登记的回执窗口不许还挂着；9c 同一条提示不因同一次失败重复叠「×N」。',
   }),
+  // 2026-10-05 体验铁律第一批（docs/plan/2026-10-05-experience-iron-laws-batch1.md）。⑩ ⑪ 是单测 / 评测，不在走查里判；
+  // ⑫ 要真点、真看，所以住在这里。它只在剧本显式调 `monitor.checkClickTarget` 时判，不改上面九条的任何判据。
+  Object.freeze({
+    id: 12, key: 'click-matches-expectation',
+    title: Object.freeze({ 'zh-CN': '点了 = 以为的', en: 'A click does what the user expected' }),
+    how: '对 catalog.mjs 登记的每个可点目标：点之前读下页面（行、选中、透明度、菜单、弹层、落盘状态），点之后再读一遍，和登记的 userExpectation 逐项对照；对不上就记违反，并把这一条写进逃逸账本的 candidate。实际结果只来自这一场真点出来的 DOM 与落盘，不从代码推断。',
+  }),
 ])
 
 export const NUISANCE_RULES = Object.freeze([
@@ -163,9 +170,11 @@ export function loadLimits() {
       if (!width || !height) throw new Error('full-walk 读不到 electron/main.ts 的 minWidth / minHeight——写法变了，监视器要跟着改')
       return { value: { width, height }, source: 'electron/main.ts BrowserWindow minWidth / minHeight（铁律 7「窗口缩到最小也要测」）' }
     })()),
-    spendCardPollMs: Object.freeze({
-      value: readNumericConstant('src/workbench/ai/v4/useAgentPanelSpendConfirm.ts', 'POLL_INTERVAL_MS', { exported: false }),
-      source: 'src/workbench/ai/v4/useAgentPanelSpendConfirm.ts POLL_INTERVAL_MS（付费卡与任务中心同一节拍）',
+    // 付费卡 2026-10-05 起随对话投影推送（38db4a3d9 删了它的 1.5 秒轮询，原来读的 POLL_INTERVAL_MS 跟着没了，
+    // 整个走查一起动就抛）。界面上还在按节拍追 Run 状态的是制作 Run 视图那一拍，收场检查点等的是它。
+    runViewPollMs: Object.freeze({
+      value: readNumericConstant('src/workbench/production/useActiveProductionRun.ts', 'POLL_INTERVAL_MS', { exported: false }),
+      source: 'src/workbench/production/useActiveProductionRun.ts POLL_INTERVAL_MS（制作 Run 视图追账本的节拍；付费卡已改推送，没有节拍）',
     }),
   })
   return cachedLimits
