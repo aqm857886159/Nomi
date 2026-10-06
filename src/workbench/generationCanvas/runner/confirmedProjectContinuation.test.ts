@@ -197,7 +197,7 @@ it('rejects a manual history selection on a first frame produced by the same app
   useGenerationCanvasStore.getState().connectNodes(first.id, second.id, 'first_frame')
   calls.execute.mockImplementation(async node => ({ id: `new-${node.id}`, type: node.kind, url: 'nomi-local://asset/new.png', createdAt: 2 }))
   const assertAuthorCurrent = async () => {
-    if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().rollbackHistory(first.id, 'old-frame')
+    if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().setNodeMainResult(first.id, 'old-frame')
   }
   await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
     initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent,

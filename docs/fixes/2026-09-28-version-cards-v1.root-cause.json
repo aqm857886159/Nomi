@@ -1,237 +1,213 @@
 {
   "schema_version": 3,
   "id": "2026-09-28-version-cards-v1",
-  "problem_type": "Canvas result lifecycle loses durable version order or deletes files before undo history can restore them",
-  "symptom": "Undo history compaction used relative positions after the journal base moved, so deferred deletion could remain forever or release at the wrong time; legacy numbering must also preserve the durable newest-first sequence.",
-  "direct_cause": "The closed-project path bypassed the deletion plan with a fallback target, and the V1c eviction test used a mocked store while real updateNode did not create a deletion undo barrier.",
-  "class_root": "Result identity, durable history order, and physical-file deletion timing were not enforced at their shared lifecycle boundaries.",
+  "problem_type": "A node's versions (main pointer + history) had several hand-copied owners, so version order, version numbers and the timing of physical file deletion could drift or lose data",
+  "symptom": "Version labels used the list index and shifted on every add or delete; setting an older version as main and generating again reordered the list; deleting a version removed its file immediately so undo restored an empty card; a version file still played by the timeline was deleted with the version.",
+  "direct_cause": "Three separate history mergers (run outcome, local image edit, whiteboard snapshot) each re-derived result identity and moved the current pointer to the front; removal moved the next main to the front; deleteAssetResult deleted the file right after saving; the deferred-deletion draft used its own substring reference check and flushed everything on app close; set-main went through a bare updateNode with no undo step and rollbackHistory duplicated it as an untested runtime action.",
+  "class_root": "The node-version lifecycle (append, number, set main, remove, delete file) had no single owner, and the question 'is this project file still referenced' had two implementations.",
   "affected_population": [
-    "Projects with generated asset files and undo history eviction",
-    "Legacy projects whose result pointer differs from history order",
-    "Loaded and closed-project deletion entry points"
+    "Every node with two or more versions (image, video, edited image, whiteboard snapshot)",
+    "Legacy projects whose versions have no number or whose main pointer is an older version",
+    "Any project where a version is deleted while undo can still bring it back, or where the timeline uses that version"
   ],
   "scope_paths": [
-    "src/workbench/assets/deleteAssetResult.ts",
-    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+    "src/workbench/generationCanvas/components/canvasResultDrag.ts",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/model/graphOps.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/assets/pendingAssetDeletions.ts",
+    "src/workbench/project/projectPersistenceService.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/releaseWorkbenchProjectSession.ts",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/projectNormalize.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-    "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
-    "src/workbench/generationCanvas/store/canvasDuplicatePlacement.test.ts",
+    "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "entry_points": [
-    "deleteAssetResult",
-    "flushPendingAssetDeletions",
-    "normalizeNodeResultVersionNumbers",
-    "pushUndoSnapshot history eviction"
+    "appendNodeResultVersion (run outcome, image edit, whiteboard snapshot)",
+    "setNodeMainResult store action",
+    "removeNodeResult via deleteAssetResult (node tray, asset library)",
+    "pendingAssetDeletions: undo eviction, project release, project open sweep",
+    "backfillNodeResultVersionNumbers on project open"
   ],
   "external_sources": [],
-  "internal_only_reason": "The invariant is an application-owned canvas journal and project persistence lifecycle; no third-party behavior decides it.",
+  "internal_only_reason": "Version numbering, undo-journal reachability and project file references are application-owned invariants; no third-party library decides them.",
   "invariants": [
-    "A pending file deletion is released only when its absolute journal position is older than the oldest undo/redo-reachable position in the same generation.",
-    "Loaded result deletion creates one undo barrier at the shared deletion boundary before store mutation, then records that latest barrier position.",
-    "Legacy version numbers follow durable newest-first history order, with newest entry receiving the highest number and oldest receiving 1; a regenerated result continues max+1."
+    "history is the durable newest-first order: appending inserts at the front, removing only removes, setting main only moves the result pointer.",
+    "Each version carries a versionNo that never changes once assigned; a new version gets max + 1; legacy versions are numbered once on open (oldest = 1) and written back.",
+    "A loaded-project deletion is one undo step; its file is deleted only after the undo journal can no longer reach that step, on project release, or on the next project open, and only if neither the canvas nor the timeline still references the file.",
+    "Pending deletions are saved in the same project write that removes the version, so an abrupt exit cannot lose track of them."
   ],
   "doors": [
     {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "symbol": "appendNodeResultVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+      "symbol": "appendNodeResultVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "appendNodeResultVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "deferAssetFileDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "isProjectFileReferenced"
+    },
+    {
       "kind": "read",
-      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "symbol": "deleteAssetResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "DeleteAssetResultOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "symbol": "deleteAssetResult"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "flushPendingAssetDeletions"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "queuePendingAssetDeletion"
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "symbol": "setNodeMainResult"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
-      "symbol": "deleteAssetResult"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
-      "symbol": "flushPendingAssetDeletions"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/project/workbenchProjectSession.ts",
-      "symbol": "flushPendingAssetDeletions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "NodeRunOutcome"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
-      "symbol": "NodeRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "nodeRunOutcomePatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/textActions.ts",
-      "symbol": "nodeRunOutcomePatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
-      "symbol": "nodeRunOutcomePatch"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
-      "symbol": "UndoHistoryEviction"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
-      "symbol": "pushUndoSnapshot"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
-      "symbol": "resultIdentity"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "pushUndoSnapshot"
+      "symbol": "setNodeMainResult"
     }
   ],
   "door_reduction": {
-    "before": 17,
-    "after": 17,
-    "why_not": "Deletion has asset-library, node-card, project-close, app-exit, queue, flush, and barrier doors; journal and lifecycle retain independent readers and writers. They converge on the changed shared boundaries but cannot be removed without changing separate user and persistence flows."
+    "before": 11,
+    "after": 8,
+    "why_not": "Three different producers (generation outcome, local image edit, whiteboard snapshot) genuinely create versions and all call the one append owner; the two reference-check doors are the plan (decide at deletion time) and the pending queue (decide again when the file is due) calling the same predicate; set-main has one read and one write door in the only UI that offers it."
   },
-  "generality_proof": "Every loaded deletion caller converges on deleteAssetResult, which creates the barrier because updateNode only histories prompt/meta/title/pluginState patches. Closed-project deletion uses the full persisted project plan, so shared references are checked before direct deletion.",
+  "generality_proof": "Every way a version enters, leaves or becomes main goes through nodeResultLifecycle.ts (the three hand-copied mergers and rollbackNodeHistory are deleted), and every physical deletion of a version file goes through isProjectFileReferenced, either in the plan or in the pending queue. A new producer cannot append without numbering because the only append function numbers, and a new deletion path cannot skip the timeline because the only reference check includes it.",
   "shared_boundaries": [
     {
-      "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "queuePendingAssetDeletion",
-      "responsibility": "Attach pending physical-file deletion to the absolute latest undo barrier and release only records older than the oldest reachable absolute position."
-    },
-    {
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
-      "symbol": "pushUndoSnapshot",
-      "responsibility": "Maintain the absolute journal base offset and report the oldest reachable undo/redo position after compaction."
-    },
-    {
       "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
-      "symbol": "normalizeNodeResultVersionNumbers",
-      "responsibility": "Normalize legacy result numbers from durable newest-first history order without changing the current pointer payload."
+      "symbol": "appendNodeResultVersion",
+      "responsibility": "Number a new version max + 1, insert it at the front and keep the durable order; normalize legacy numbers first without renumbering existing ones."
+    },
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "deferAssetFileDeletion",
+      "responsibility": "Hold a deleted version's file until its undo step is unreachable, the project is released, or the project is reopened; persist the queue with the project."
+    },
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "isProjectFileReferenced",
+      "responsibility": "The single answer to whether a project file is still used by any canvas version or timeline clip."
     }
   ],
   "same_class_entry_points": [
     {
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "entry_point": "appendNodeResultVersion",
+      "disposition": "enforced",
+      "evidence": "Crop / grid / transform / remove-background results used a private mergeNodeImageHistory; now call the shared append."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+      "entry_point": "appendNodeResultVersion",
+      "disposition": "enforced",
+      "evidence": "Whiteboard snapshots used a private mergeWhiteboardSnapshotHistory plus an inline array; both now call the shared append."
+    },
+    {
       "path": "src/workbench/assets/AssetLibraryPanel.tsx",
       "entry_point": "deleteAssetResult",
       "disposition": "enforced",
-      "evidence": "Asset library deletion calls the shared deletion boundary."
+      "evidence": "Asset library deletion calls the shared deletion boundary and therefore the deferred queue."
     },
     {
-      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
-      "entry_point": "deleteAssetResult",
+      "path": "src/workbench/generationCanvas/components/canvasResultDrag.ts",
+      "entry_point": "createNodeFromDraggedResult",
       "disposition": "enforced",
-      "evidence": "Node card deletion calls the same shared boundary."
+      "evidence": "Alt-drag copy strips the source version number and names the card by version number instead of list index."
     },
     {
-      "path": "src/workbench/project/releaseWorkbenchProjectSession.ts",
-      "entry_point": "flushPendingAssetDeletions",
-      "disposition": "enforced",
-      "evidence": "Project release remains an explicit all-pending flush and does not rely on undo eviction."
-    },
-    {
-      "path": "src/workbench/project/workbenchProjectSession.ts",
-      "entry_point": "flushPendingAssetDeletions",
-      "disposition": "enforced",
-      "evidence": "App/project close remains an explicit all-pending flush."
-    },
-    {
-      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
-      "entry_point": "nodeRunOutcomePatch",
-      "disposition": "enforced",
-      "evidence": "All result outcomes converge on nodeRunOutcomePatch; version allocation for new results is an existing forward path outside legacy backfill."
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "entry_point": "history: [result]",
+      "disposition": "not-affected",
+      "evidence": "Creates a brand-new node with a single fresh result; the first append or open backfill numbers it."
     }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "The same deletion can be followed by any later gesture until the bounded undo journal evicts its step, and any legacy project can load with a current pointer that differs from history order.",
+    "reason": "Any producer added later, any legacy project, and any deletion followed by more gestures or an abrupt exit can hit the same mechanisms.",
     "same_class_scan": [
-      "node scripts/door-map.mjs src/workbench/assets/deleteAssetResult.ts",
-      "node scripts/door-map.mjs src/workbench/generationCanvas/store/nodeRunOutcome.ts",
-      "rg normalizeNodeResultVersionNumbers across canvas snapshot loading",
-      "rg deleteAssetResult across asset library and node card entry points"
+      "rg \"history:\\s*\\[|\\.history\\s*=\" src (found three hand-copied mergers and one inline whiteboard array)",
+      "node scripts/door-map.mjs appendNodeResultVersion",
+      "node scripts/door-map.mjs deferAssetFileDeletion",
+      "node scripts/door-map.mjs isProjectFileReferenced",
+      "rg rollbackHistory src electron tests (no production caller; deleted)"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/assets/deleteAssetResult.ts",
-    "invariant": "Only pending deletions whose absolute journal position is older than the same-generation oldest reachable position are eligible during eviction; explicit close flushes remain comprehensive.",
-    "failure_mode": "A pending record without a matching eviction remains queued, and a live reference prevents physical deletion.",
+    "enforcement_path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+    "invariant": "No code outside nodeResultLifecycle.ts builds a node history from another history; no code deletes a version file without isProjectFileReferenced.",
+    "failure_mode": "An unnumbered or duplicate-numbered version is numbered max + 1 instead of renumbering others; a pending deletion whose step is still reachable stays queued; a referenced file is written off without deletion.",
     "exception_policy": "none",
-    "strategy": "Use the persisted or live plan as the sole file target authority, create the deletion barrier at the shared boundary before mutation, and use real canvas-store journeys to prove reachability and eviction.",
+    "strategy": "Delete the private mergers and the duplicate set-main action, route producers through one append, and make the deferred queue durable and reference-checked.",
     "artifacts": [
-      "src/workbench/assets/deleteAssetResult.ts",
-      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
-      "src/workbench/generationCanvas/model/nodeResultLifecycle.ts"
+      "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "src/workbench/assets/pendingAssetDeletions.ts",
+      "src/workbench/assets/assetResultDeletion.ts",
+      "src/workbench/assets/deleteAssetResult.ts"
     ]
   },
   "regression_tests": [
-    "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
     "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+    "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "class_regression_tests": [
-    "src/workbench/assets/deleteAssetResult.test.ts",
     "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
     "src/workbench/assets/deleteAssetResult.realStore.test.ts"
   ],
   "legacy_paths": {
-    "status": "not-applicable",
-    "removed_paths": [],
-    "rationale": "The old behaviors are replaced in place at the same shared boundaries; no standalone legacy production path remains."
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+      "src/workbench/generationCanvas/model/graphOps.ts",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/project/workbenchProjectSession.ts"
+    ],
+    "rationale": "Removed second owners of the same lifecycle step: mergeResultHistory (nodeRunOutcome.ts), mergeNodeImageHistory (useNodeImageEditing.ts), mergeWhiteboardSnapshotHistory (WhiteboardModal.tsx), rollbackNodeHistory (graphOps.ts), rollbackHistory (canvasRunActions.ts), and the pagehide flush that deleted still-undoable files (workbenchProjectSession.ts)."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "No third-party dependency controls the lifecycle invariant.",
     "exit_criteria": []
   },
-  "migration": "Existing pending records are in-memory only and disappear on restart; closed-project and app-exit explicit flushes remain unchanged. Legacy snapshots are normalized on load without changing result identity or current selection.",
+  "migration": "On project open, versions without a number are numbered once from the durable order (oldest = 1) and saved with the existing open-time migration write. The optional payload field pendingAssetDeletions is read on open and swept; older builds ignore it.",
   "residual_risks": [
-    "A process crash before explicit close cleanup can leave an unreferenced generated file until a future startup cleanup path is added."
+    "Ctrl+Z replays the journal prefix, so an undo after a generation landed can hide that landed result (pre-existing, outside this change; reported to the coordinator).",
+    "Pending deletions are released against the canvas and timeline only; other future consumers of result URLs must join isProjectFileReferenced."
   ],
   "invariant_owner_layer": {
-    "layer": "src/workbench/assets/deleteAssetResult.ts",
+    "layer": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
     "tests": [
-      "src/workbench/assets/deleteAssetResult.test.ts",
       "src/workbench/generationCanvas/model/nodeResultLifecycle.test.ts",
-      "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
       "src/workbench/assets/deleteAssetResult.realStore.test.ts"
     ],
-    "why": "Deletion timing is enforced at the pending-file queue boundary; legacy ordering is normalized by the shared lifecycle model and covered by its class tests."
+    "why": "The lifecycle model owns version order and numbering; the pending queue owns file timing and is proven with the real canvas store and undo journal."
   }
 }

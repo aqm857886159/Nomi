@@ -17,7 +17,8 @@ vi.mock('../project/workbenchProjectSession', () => ({
   persistActiveWorkbenchProjectNow: mocks.persistNow,
 }))
 
-import { deleteAssetResult, flushPendingAssetDeletions } from './deleteAssetResult'
+import { deleteAssetResult } from './deleteAssetResult'
+import { __resetPendingAssetDeletionsForTests, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
 
 function loaded(projectId: string): ProjectExecutionContext {
   return { binding: { projectId, immutableProjectUuid: `uuid-${projectId}`, projectGeneration: 1 }, signal: new AbortController().signal, assertCurrent: () => undefined }
@@ -56,7 +57,7 @@ async function waitForEvictionWork(): Promise<void> {
 describe('deleteAssetResult with the real canvas store', () => {
   beforeEach(async () => {
     setCanvas(image('a', 'nomi-local://asset/project-1/assets/generated/a.png'), [])
-    await flushPendingAssetDeletions()
+    __resetPendingAssetDeletionsForTests()
     __resetCanvasUndoJournalForTests()
     mocks.deleteFiles.mockReset()
     mocks.persistNow.mockReset()
@@ -124,7 +125,45 @@ describe('deleteAssetResult with the real canvas store', () => {
     await deleteAssetResult(projectAsset('a'), loaded('project-1'))
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
 
-    await flushPendingAssetDeletions()
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
+  })
+
+  it('a deletion that was undone is only written off on release: the file stays', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0].history?.map((entry) => entry.id)).toContain('a')
+
+    await releaseLoadedProjectAssetDeletions()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('one deletion is exactly one undo step', async () => {
+    const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(a, [a, b])
+    toggleGesture()
+    await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    useGenerationCanvasStore.getState().undo()
+    const node = useGenerationCanvasStore.getState().nodes[0]
+    expect(node.history?.map((entry) => entry.id)).toEqual(['a', 'b'])
+    // 前一步（铺开）还在：撤销只退了删除这一步。
+    expect(node.resultStackOpen).toBe(true)
+  })
+
+  it('opening the project sweeps files left behind by an abrupt exit, but never one the canvas still shows', async () => {
+    const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
+    setCanvas(b, [b])
+    await sweepPersistedAssetDeletions('project-1', [
+      { relativePath: 'assets/generated/a.png' },
+      { relativePath: 'assets/generated/b.png' },
+      { relativePath: '' },
+      'junk',
+    ])
+    expect(mocks.deleteFiles).toHaveBeenCalledTimes(1)
     expect(mocks.deleteFiles).toHaveBeenCalledWith({ projectId: 'project-1', relativePaths: ['assets/generated/a.png'] })
   })
 })

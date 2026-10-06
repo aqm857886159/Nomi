@@ -1,70 +1,32 @@
 import { getDesktopBridge } from '../../desktop/bridge'
+import { logRendererError } from '../../desktop/rendererLog'
 import { readLocalProjectAsync, saveLocalProject } from '../library/localProjectStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { useWorkbenchStore } from '../workbenchStore'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import type { AssetRef } from './assetTypes'
 import { applyAssetResultDeletion, buildAssetResultDeletionPlan } from './assetResultDeletion'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { getLatestUndoBarrierAbsolutePosition, getUndoJournalGeneration, pushUndoSnapshot, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
+import {
+  dropUndoBarriersAfter,
+  getLatestUndoBarrierAbsolutePosition,
+  getUndoJournalGeneration,
+  getUndoJournalPosition,
+  pushUndoSnapshot,
+} from '../generationCanvas/events/canvasUndoJournal'
+import { deferAssetFileDeletion, forgetDeferredAssetDeletion } from './pendingAssetDeletions'
 
 export type DeleteAssetResultOutcome = {
   removedResultCount: number
   deletedFileCount: number
   failedFileCount: number
+  /** 文件没当场删、等撤销窗口过去再删（已加载项目的删除都是这样）。 */
+  deferredFileCount: number
 }
 
 const deletionQueues = new Map<string, Promise<void>>()
-type PendingFileDeletion = {
-  projectId: string
-  relativePath: string
-  journalGeneration?: number
-  journalPosition?: number
-}
-const pendingFileDeletions = new Map<string, PendingFileDeletion>()
-
-function pendingDeletionKey(target: PendingFileDeletion): string {
-  return `${target.projectId}\u0000${target.relativePath}`
-}
-
-export function queuePendingAssetDeletion(target: PendingFileDeletion): void {
-  pendingFileDeletions.set(pendingDeletionKey(target), target)
-}
-
-export async function flushPendingAssetDeletions(eviction?: UndoHistoryEviction): Promise<{ deletedFileCount: number; failedFileCount: number }> {
-  const liveNodes = useGenerationCanvasStore.getState().nodes
-  const eligible = [...pendingFileDeletions.values()].filter((target) => !eviction || (
-    target.journalGeneration === eviction.generation &&
-    target.journalPosition !== undefined &&
-    target.journalPosition < eviction.oldestReachablePosition
-  ))
-  const targets = eligible.filter((target) => !liveNodes.some((node) => {
-    return [node.result, ...(node.history ?? [])].some((result) => {
-      if (!result) return false
-      return [result.url, result.thumbnailUrl].some((url) => typeof url === 'string' && url.includes(target.relativePath))
-    })
-  }))
-  const retained = [...pendingFileDeletions.values()].filter((target) => !targets.includes(target))
-  pendingFileDeletions.clear()
-  for (const target of retained) pendingFileDeletions.set(pendingDeletionKey(target), target)
-  const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-  if (!deleteFiles) return { deletedFileCount: 0, failedFileCount: targets.length }
-  let deletedFileCount = 0
-  let failedFileCount = 0
-  for (const target of targets) {
-    try {
-      const result = await deleteFiles({ projectId: target.projectId, relativePaths: [target.relativePath] })
-      deletedFileCount += result.deletedCount
-      failedFileCount += result.failedCount
-    } catch {
-      failedFileCount += 1
-    }
-  }
-  return { deletedFileCount, failedFileCount }
-}
-
-registerUndoHistoryEvictionHandler((eviction) => { void flushPendingAssetDeletions(eviction) })
 
 function serializeProjectDeletion<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
   const previous = deletionQueues.get(projectId) ?? Promise.resolve()
@@ -98,8 +60,11 @@ function rollbackAppliedPatches(
 }
 
 /**
- * 删除的是「一个生成结果」，不是整个节点。当前项目走画布 store，关闭的项目原样保留完整 payload
- * 只替换 generationCanvas.nodes；最后再删落盘文件，元数据与磁盘不会出现“文件先没了、项目仍引用”的窗口。
+ * 删除的是「一个生成结果」，不是整个节点。
+ * - 已加载项目：一个撤销步（先打撤销点再改画布），文件记进待删清单、和版本删除同一次存盘落盘；
+ *   真删推迟到撤销日志再也退不回这一步（`pendingAssetDeletions.ts`）。
+ * - 关闭的项目：原样保留完整 payload 只替换 generationCanvas.nodes，存盘后当场删文件（没有撤销可言）。
+ * 两条路的「文件还有没有人用」都由 `buildAssetResultDeletionPlan` 判（画布 + 时间轴）。
  */
 async function deleteAssetResultUnlocked(
   asset: AssetRef,
@@ -110,75 +75,70 @@ async function deleteAssetResultUnlocked(
   // 「在画布 store 里改」只认发起删除时签发、且此刻仍有效的那个已加载项目；排队期间换了项目，
   // 原项目此刻已是关闭项目，走下面按项目读写盘的既有路径，绝不去改新项目的 store。
   const inLoadedStore = Boolean(metadataProjectId && metadataProjectId === loadedProjectId && isProjectExecutionContextCurrent(loaded ?? undefined))
-  let removedResultCount = 0
-  const journalGeneration = inLoadedStore ? getUndoJournalGeneration() : undefined
-  let journalPosition: number | undefined
-  let fileTarget: { projectId: string; relativePath: string } | null = null
+  const outcome: DeleteAssetResultOutcome = { removedResultCount: 0, deletedFileCount: 0, failedFileCount: 0, deferredFileCount: 0 }
 
   if (inLoadedStore) {
     const store = useGenerationCanvasStore.getState()
-    const plan = buildAssetResultDeletionPlan(asset, store.nodes)
-    fileTarget = plan.fileTarget
-    if (plan.matches.length > 0) pushUndoSnapshot(store)
+    const plan = buildAssetResultDeletionPlan(asset, store.nodes, useWorkbenchStore.getState().timeline)
+    if (plan.matches.length === 0) return outcome
+    const barrierAt = getUndoJournalPosition()
+    pushUndoSnapshot(store)
     const rollbacks = plan.matches.flatMap((match) => {
       const existing = store.nodes.find((node) => node.id === match.nodeId)
       if (!existing) return []
       return [{
         nodeId: match.nodeId,
-        before: {
-          result: existing.result,
-          history: existing.history,
-          status: existing.status,
-          error: existing.error,
-        },
+        before: { result: existing.result, history: existing.history, status: existing.status, error: existing.error },
         applied: match.patch,
       }]
     })
+    // 撤销点由上面那一下打（updateNode 只给提示词 / 标题 / meta 打点，结果字段不打）：一次删除 = 一个 ⌘Z。
     for (const match of plan.matches) store.updateNode(match.nodeId, match.patch)
-    journalPosition = getLatestUndoBarrierAbsolutePosition()
-    removedResultCount += plan.matches.length
-    if (plan.matches.length > 0) {
-      try {
-        const persisted = await persistActiveWorkbenchProjectNow()
-        if (!persisted || persisted.id !== metadataProjectId) {
-          throw new Error(`Active project result deletion could not be persisted: ${metadataProjectId}`)
-        }
-      } catch (error) {
-        rollbackAppliedPatches(rollbacks)
-        throw error
+    const deferred = plan.fileTarget
+      ? { ...plan.fileTarget, journalGeneration: getUndoJournalGeneration(), journalPosition: getLatestUndoBarrierAbsolutePosition() }
+      : null
+    if (deferred) deferAssetFileDeletion(deferred)
+    outcome.removedResultCount = plan.matches.length
+    try {
+      const persisted = await persistActiveWorkbenchProjectNow()
+      if (!persisted || persisted.id !== metadataProjectId) {
+        throw new Error(`Active project result deletion could not be persisted: ${metadataProjectId}`)
       }
+    } catch (error) {
+      rollbackAppliedPatches(rollbacks)
+      if (deferred) forgetDeferredAssetDeletion(deferred)
+      // 没删成就不该留下一个「撤销了也什么都不变」的空撤销步。
+      dropUndoBarriersAfter(barrierAt)
+      throw error
     }
-  } else if (metadataProjectId) {
-    const project = await readLocalProjectAsync(metadataProjectId)
-    if (project) {
-      const plan = buildAssetResultDeletionPlan(asset, project.payload.generationCanvas.nodes)
-      fileTarget = plan.fileTarget
-      if (plan.matches.length > 0) {
-        await saveLocalProject(metadataProjectId, {
-          ...project.payload,
-          generationCanvas: {
-            ...project.payload.generationCanvas,
-            nodes: applyAssetResultDeletion(project.payload.generationCanvas.nodes, plan),
-          },
-        }, project.name)
-        removedResultCount += plan.matches.length
-      }
-    }
+    if (deferred) outcome.deferredFileCount = 1
+    return outcome
   }
 
-  if (!fileTarget) return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
-  if (!inLoadedStore) {
-    const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-    if (!deleteFiles) return { removedResultCount, deletedFileCount: 0, failedFileCount: 1 }
-    try {
-      const result = await deleteFiles({ projectId: fileTarget.projectId, relativePaths: [fileTarget.relativePath] })
-      return { removedResultCount, deletedFileCount: result.deletedCount, failedFileCount: result.failedCount }
-    } catch {
-      return { removedResultCount, deletedFileCount: 0, failedFileCount: 1 }
-    }
+  if (!metadataProjectId) return outcome
+  const project = await readLocalProjectAsync(metadataProjectId)
+  if (!project) return outcome
+  const plan = buildAssetResultDeletionPlan(asset, project.payload.generationCanvas.nodes, project.payload.timeline)
+  if (plan.matches.length > 0) {
+    await saveLocalProject(metadataProjectId, {
+      ...project.payload,
+      generationCanvas: {
+        ...project.payload.generationCanvas,
+        nodes: applyAssetResultDeletion(project.payload.generationCanvas.nodes, plan),
+      },
+    }, project.name)
+    outcome.removedResultCount = plan.matches.length
   }
-  queuePendingAssetDeletion({ ...fileTarget, journalGeneration, journalPosition })
-  return { removedResultCount, deletedFileCount: 0, failedFileCount: 0 }
+  if (!plan.fileTarget) return outcome
+  const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
+  if (!deleteFiles) return { ...outcome, failedFileCount: 1 }
+  try {
+    const result = await deleteFiles({ projectId: plan.fileTarget.projectId, relativePaths: [plan.fileTarget.relativePath] })
+    return { ...outcome, deletedFileCount: result.deletedCount, failedFileCount: result.failedCount }
+  } catch (error) {
+    logRendererError('closed-project-asset-delete-failed', error)
+    return { ...outcome, failedFileCount: 1 }
+  }
 }
 
 

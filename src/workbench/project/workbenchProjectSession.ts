@@ -5,7 +5,7 @@ import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
-import { flushPendingAssetDeletions } from '../assets/deleteAssetResult'
+import { listPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
@@ -21,6 +21,8 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
     editingPanelLayout: workbench.editingPanelLayout,
+    // 删掉的版本、文件还在等撤销窗口过去：跟项目一起存，App 直接退出时下次打开再删。
+    pendingAssetDeletions: listPersistedAssetDeletions(),
   }
 }
 
@@ -284,7 +286,6 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     })
   }
   const flushPendingSave = () => {
-    void flushPendingAssetDeletions()
     if (!saveScheduled || disposed) return
     void flushSave()
   }

@@ -275,7 +275,7 @@ export function NodeResultStack({
   }, [node.id, onFeedback])
 
   const { t } = useTranslation()
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  const setNodeMainResult = useGenerationCanvasStore((state) => state.setNodeMainResult)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_RESULTS)
   const [hoveredId, setHoveredId] = React.useState('')
@@ -340,7 +340,7 @@ export function NodeResultStack({
         // Result switching remains usable when an old sidecar cannot be read.
       }
     }
-    updateNode(node.id, { result: entry, ...(meta ? { meta } : {}), status: 'success', error: undefined })
+    setNodeMainResult(node.id, resultIdentity(entry), meta)
   }
 
   const remove = async (entry: GenerationNodeResult): Promise<void> => {

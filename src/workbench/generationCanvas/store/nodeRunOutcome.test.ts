@@ -71,10 +71,11 @@ describe('nodeRunOutcomePatch intrinsic media dimensions', () => {
       result: { id: 'next', type: 'image', url: 'next.png', createdAt: 3 },
     })
 
+    // 主图指向旧版也不打乱持久顺序（旧实现把主图挪到最前：next 3 / older 1 / newest 2）。
     expect(patch.history?.map((entry) => [entry.id, entry.versionNo])).toEqual([
       ['next', 3],
-      ['older', 1],
       ['newest', 2],
+      ['older', 1],
     ])
   })
 })

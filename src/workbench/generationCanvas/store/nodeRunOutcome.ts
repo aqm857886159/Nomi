@@ -8,7 +8,7 @@ import { computeMediaMetaPatch, resolveNodeVisualSize, type MediaDimensions } fr
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord, GenerationNodeStatus, TiptapDocJson } from '../model/generationCanvasTypes'
 import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInput } from './runRecordHelpers'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
-import { resultIdentity } from '../model/nodeResultLifecycle'
+import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 
 export type NodeRunOutcome =
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
@@ -21,27 +21,6 @@ export type NodeRunOutcome =
   | Readonly<{ kind: 'content'; contentJson: TiptapDocJson; runId?: string }>
 
 type NodeRunOutcomePatch = Partial<Pick<GenerationCanvasNode, 'size' | 'meta' | 'runs' | 'result' | 'history' | 'status' | 'error' | 'progress' | 'contentJson'>>
-
-function mergeResultHistory(
-  nextResult: GenerationNodeResult,
-  previousResult: GenerationNodeResult | undefined,
-  previousHistory: GenerationNodeResult[] | undefined,
-): GenerationNodeResult[] {
-  const history: GenerationNodeResult[] = []
-  const seen = new Set<string>()
-  const maxVersion = [previousResult, ...(previousHistory || [])].reduce((max, result) => Math.max(max, result?.versionNo ?? 0), 0)
-  const add = (result: GenerationNodeResult | undefined, versionNo?: number) => {
-    if (!result) return
-    const key = resultIdentity(result)
-    if (!key || seen.has(key)) return
-    seen.add(key)
-    history.push(versionNo ? { ...result, versionNo } : result)
-  }
-  add(nextResult, maxVersion + 1)
-  add(previousResult)
-  ;(previousHistory || []).forEach(add)
-  return history
-}
 
 function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, mediaDimensions?: MediaDimensions): NodeRunOutcomePatch {
   const latestRun = node.runs?.[0]
@@ -76,8 +55,9 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
         ...(node.runs || []).slice(1),
       ]
     : node.runs
-  patch.history = mergeResultHistory(result, node.result, node.history)
-  patch.result = patch.history[0] ?? result
+  const landed = appendNodeResultVersion(node, result)
+  patch.result = landed.result
+  patch.history = landed.history
   patch.status = 'success'
   patch.error = undefined
   patch.progress = undefined
