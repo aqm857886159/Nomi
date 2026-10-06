@@ -4830,6 +4830,80 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：可选连线模式只在模式菜单打开时算，文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
+    },
+    {
+      "name": "节点的几版（版本列表、主图、第 N 版）",
+      "subject": "canvas.node-versions",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+        "symbol": "appendNodeResultVersion"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "appendNodeResultVersion"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "removeNodeResult"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "setNodeMainResultPatch"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "normalizeNodeResultVersionNumbers"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+        "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+        "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+        "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+        "src/workbench/assets/assetResultDeletion.ts",
+        "src/workbench/project/projectPersistenceService.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "加一版、删一版、换主图、补号只在这里。history 是持久的新→旧顺序，versionNo 一旦给出不改（docs/plan/2026-09-28-version-cards.md）。之前生成落地 / 图片编辑 / 白板快照各有一份手抄合并，已删。"
+    },
+    {
+      "name": "被删版本的文件何时真删",
+      "subject": "asset.deferred-file-deletion",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/assets/pendingAssetDeletions.ts",
+        "symbol": "deferAssetFileDeletion"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/assets/pendingAssetDeletions.ts",
+          "symbol": "deferAssetFileDeletion"
+        },
+        {
+          "path": "src/workbench/assets/assetResultDeletion.ts",
+          "symbol": "isProjectFileReferenced"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/assets/deleteAssetResult.ts",
+        "src/workbench/project/workbenchProjectSession.ts",
+        "src/workbench/project/releaseWorkbenchProjectSession.ts",
+        "src/workbench/project/projectPersistenceService.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。"
     }
   ]
 }
