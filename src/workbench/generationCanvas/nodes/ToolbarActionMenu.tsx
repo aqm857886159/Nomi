@@ -3,7 +3,8 @@ import { IconChevronDown } from '@tabler/icons-react'
 import { AnchoredPopover } from '../../../design'
 import { WorkbenchMenu, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from '../../../design/menu'
 import { cn } from '../../../utils/cn'
-import { ToolbarButton, toolbarButtonClass } from './NodeFloatingToolbar'
+import { ToolbarButton } from './NodeFloatingToolbar'
+import { toolbarButtonClass } from './toolbarButtonClass'
 
 /**
  * 节点浮条上**每一个带 ▾ 的按钮**的唯一实现：触发钮长什么样、点开的东西放在哪、怎么开合，都只在这里

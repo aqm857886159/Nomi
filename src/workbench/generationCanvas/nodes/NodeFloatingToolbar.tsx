@@ -2,6 +2,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconInfoCircle, IconCopy, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { toolbarButtonClass } from './toolbarButtonClass'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { NodeLockBadge } from './NodeLockBadge'
@@ -94,18 +95,6 @@ export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { aria
   )
 }
 
-const buttonBase = cn(
-  'inline-flex items-center justify-center min-h-8 rounded-nomi-sm border-0 cursor-pointer',
-  'text-body-sm leading-none whitespace-nowrap',
-  'transition-colors duration-nomi-fast ease-nomi-fast',
-  'disabled:opacity-45 disabled:cursor-wait',
-)
-const variantClass = (accent?: boolean) =>
-  accent ? 'text-nomi-accent hover:bg-nomi-accent-soft' : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink'
-
-/** 浮条按钮的外观（底 + 文字 + 悬停）。带 ▾ 的那一族由 `ToolbarActionMenu` 画，也用这一份，钮只长一个样。 */
-export const toolbarButtonClass = (accent?: boolean): string => cn(buttonBase, variantClass(accent))
-
 type ToolbarButtonProps = {
   icon: React.ReactNode
   label?: string
@@ -141,7 +130,7 @@ export function ToolbarIconButton({ icon, disabled, title, ariaLabel, onClick }:
   return (
     <button
       type="button"
-      className={cn(buttonBase, 'w-8', variantClass(false))}
+      className={cn(toolbarButtonClass(false), 'w-8')}
       title={title}
       aria-label={ariaLabel}
       disabled={disabled}

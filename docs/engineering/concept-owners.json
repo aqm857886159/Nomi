@@ -578,7 +578,8 @@
         "src/workbench/workbenchStore.ts",
         "src/devlab/designLab/canvasFrame/states/02-shot-label.tsx",
         "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
-        "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx"
+        "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+        "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx"
       ],
       "since": "2026-09-25",
       "notes": "pending：React Flow transform[2] 是 live zoom 的唯一真相；workbenchStore.categoryViewports[*].zoom 只是持久化的记住视角，不应被当成实时缩放。程序动画的中间帧已不再写 store，但 NodeFloatingToolbar、NodeGeneratingOverlay、NodeImportingOverlay、NodeLabelRow、NodeGenerationComposer 仍直接读 store 副本。迁移目标是 useCanvasLiveZoom，若宿主不在 ReactFlowProvider 内必须显式登记设计实验室例外并做性能验证；完成前保留 pending。"
@@ -4830,6 +4831,72 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：可选连线模式只在模式菜单打开时算，文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
+    },
+    {
+      "name": "按钮点开的浮层放在哪儿（不压自己的触发钮和所在那一排）",
+      "subject": "ui.anchored-popup-placement",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/design/menu.tsx",
+        "symbol": "WorkbenchMenu"
+      },
+      "write_api": [
+        {
+          "path": "src/design/menu.tsx",
+          "symbol": "WorkbenchMenu"
+        },
+        {
+          "path": "src/design/anchoredPopoverPlacement.ts",
+          "symbol": "resolveAnchoredPopoverPlacement"
+        },
+        {
+          "path": "src/design/AnchoredPopover.tsx",
+          "symbol": "AnchoredPopover"
+        },
+        {
+          "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+          "symbol": "ToolbarActionMenu"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "菜单锚点 anchorRect / point 二选一（按钮点开的给矩形），富内容浮层几何不与锚点相交、放不下收高度；节点浮条上的下拉只由 ToolbarActionMenu 渲染，锚点 = 触发区 × 整条浮条（docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json，类检查 menu.structure.test.ts / ToolbarActionMenu.structure.test.ts / tests/ux/design-lab/popupGeometry.census.mjs）。"
+    },
+    {
+      "name": "抠图模型与运行时的下载（从哪儿拉、总进度、卡住判定、失败原因）",
+      "subject": "canvas.remove-background-download",
+      "lifecycle": "execution",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/lib/removeBackgroundDownload.ts",
+        "symbol": "createDownloadTracker"
+      },
+      "write_api": [
+        {
+          "path": "src/lib/removeBackgroundDownload.ts",
+          "symbol": "createDownloadTracker"
+        },
+        {
+          "path": "src/lib/removeBackgroundModelSource.ts",
+          "symbol": "REMOVE_BACKGROUND_PUBLIC_PATH"
+        },
+        {
+          "path": "src/lib/removeBackground.ts",
+          "symbol": "removeBackgroundBlob"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "资源只从自有镜像拉（版本钉 @imgly 包版本）；worker 包全局 fetch 数字节出一条总进度、60 秒无字节判卡住；失败原因随 RemoveBackgroundError 回传（docs/fixes/2026-10-06-remove-background-download.root-cause.json，类检查 removeBackgroundDownload.test.ts）。"
     }
   ]
 }
