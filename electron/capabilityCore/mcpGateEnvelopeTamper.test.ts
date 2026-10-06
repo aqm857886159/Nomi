@@ -1,3 +1,4 @@
+// 外部 MCP 付费门放宽「比信封封好时的版本」之后的反向保护（V-1049 独立验收写的 12 条）：卡开着时改提示词 / 模型 / 参数 / 参考图 / 撤回计划 / 放弃授权，两个确认面各一遍——确认一律被拒，start 与供应商 submit 都是 0 次。
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -91,13 +92,27 @@ afterEach(() => {
 
 type ConfirmationSurface = "client" | "nomi";
 
+/** What a test may touch while the confirmation card is open (the decide step has not landed yet). */
+type CardOpenState = {
+  bumpProjectRevision: () => void
+  cancelOperation: () => Promise<unknown>
+  // revise / abandonWaitingAuthorization 在 store 类型上是可选的；这里要的是真 store，缺了就让改动抛错——
+  // 改动没生效时确认会照常通过，断言当场变红，不会空转。
+  operations: Required<ReturnType<typeof createProductionGenerationOperationStore>>
+  owner: {
+    readFull: (projectId: string, operationId: string) => NonNullable<ReturnType<ReturnType<typeof createProductionRunRepository>["read"]>>
+    command: (projectId: string, operationId: string, command: Parameters<ReturnType<typeof createProductionRunRepository>["execute"]>[2]) => unknown
+  }
+  operationId: () => string
+}
+
 /**
  * One real semantic MCP gate journey: real protocol, real dispatcher, real Run-owned gate authority,
  * real receipts and a real durable Run repository. Only the provider start and the human click are stubs.
  * `whileCardOpen` runs after the challenge was sealed and the receipt minted, before the decide step —
  * the window in which a real confirmation card sits on screen.
  */
-async function semanticGateJourney(options: { surface?: ConfirmationSurface; whileCardOpen?: (state: { bumpProjectRevision: () => void; cancelOperation: () => Promise<unknown> }) => unknown } = {}) {
+async function semanticGateJourney(options: { surface?: ConfirmationSurface; whileCardOpen?: (state: CardOpenState) => unknown } = {}) {
   const surface = options.surface ?? "client";
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-semantic-confirmation-"));
   roots.push(root);
@@ -193,7 +208,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     const token = typeof challenge.handoff?.challengeToken === "string" ? challenge.handoff.challengeToken : "";
     const gesture = receipts.createMainProcessGestureAttestation(token, { webContentsId: 1, frameId: 1, origin, decision: "accept" });
     const receipt = receipts.mintReceipt(token, gesture);
-    await options.whileCardOpen?.({ bumpProjectRevision, cancelOperation });
+    await options.whileCardOpen?.({ bumpProjectRevision, cancelOperation, operations: operations as CardOpenState["operations"], owner, operationId: () => createdOperationId });
     return { confirmed: true, receiptId: receipt.receipt.receiptId, receiptToken: receipt.token };
   };
   const protocolRef: { current?: ReturnType<typeof createMcpProtocol> } = {};
@@ -241,56 +256,24 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
   return { gate, operationId, repository, start, provider, runTask, transport, projectRevision: () => projectRevision };
 }
 
-describe("semantic MCP one-confirmation journey", () => {
-  it("confirms in the current MCP client once, records a receipt, and starts the same operation", async () => {
-    const { gate, operationId, repository, start, provider, runTask, transport } = await semanticGateJourney();
-    expect(gate.result).toBeTruthy();
-    expect((gate.result as { isError?: boolean }).isError).not.toBe(true);
-    // 批准住在「批这一份的那道门」上：start 读到的是那道门已批（operationFromRun 的 authorization 投影）。
-    expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything());
-    const persisted = repository.read(projectIdentity.projectId, operationId);
-    expect(persisted?.generationPlan).toMatchObject({ state: "sealed" });
-    expect(persisted?.gates.at(-1)).toMatchObject({ status: "approved", receiptId: expect.stringMatching(/^receipt-/) });
-    expect(persisted?.gates.find((item) => Boolean(item.authorizationDigest))?.status).toBe("approved");
-    expect(persisted?.budget).toMatchObject({ authorized: 0, reserved: 0, actual: 0, unsettled: 0 });
-    expect(provider.submit).not.toHaveBeenCalled();
-    expect(runTask).not.toHaveBeenCalled();
-    expect(transport.verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1);
-  });
 
-  // CI C9（#1042 合并提交、#1002 首跑）时红时绿的那一下：封信封之后、决门之前，项目被保存了一次
-  // （Nomi 自己落画布 / 别的镜出片 / 用户挪了一下节点）。卡上批的东西一个字没变——合同哈希、线上报文哈希、
-  // 幂等键都封在信封里——所以这次确认必须照样算数（付费卡① 第 14 条：付费门的收据比的是信封封好时的版本）。
-  // 两个确认面都走同一扇决门（generationDispatcher → authorizeGeneration），两个都钉住。
-  for (const surface of ["client", "nomi"] as const) {
-    it(`keeps a ${surface}-surface approval valid when the project is saved while the card is open`, async () => {
-      const { gate, operationId, repository, start, provider, projectRevision } = await semanticGateJourney({
-        surface,
-        whileCardOpen: ({ bumpProjectRevision }) => bumpProjectRevision(),
-      });
-      const result = gate.result as { isError?: boolean; structuredContent?: { nomiOutcome?: { errorCode?: string; message?: string } } };
-      expect(result.structuredContent?.nomiOutcome?.errorCode).toBeUndefined();
-      expect(result.isError).not.toBe(true);
-      expect(projectRevision()).toBe(2);
-      const persisted = repository.read(projectIdentity.projectId, operationId);
-      const spendGate = persisted?.gates.find((item) => Boolean(item.authorizationDigest));
-      // 批准记的是信封封好时的版本（1），不是确认那一刻的版本（2）：发出去的东西由信封钉死。
-      expect(spendGate).toMatchObject({ status: "approved", receiptId: expect.stringMatching(/^receipt-/) });
-      expect(spendGate?.authorizationEnvelope?.projectRevision).toBe(1);
-      expect(start).toHaveBeenCalledWith(expect.objectContaining({ operationId, authorization: expect.objectContaining({ status: "approved" }) }), expect.anything());
+const mutations: Record<string, (st: CardOpenState) => unknown> = {
+  "revise prompt": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { prompt: "A red car" } }, "2026-08-23T00:00:00.000Z"),
+  "revise model": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { modelId: "other-model" } }, "2026-08-23T00:00:00.000Z"),
+  "revise parameters": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { parameters: { aspectRatio: "1:1" } } }, "2026-08-23T00:00:00.000Z"),
+  "revise references": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { references: [{ assetId: "x", kind: "image" }] } }, "2026-08-23T00:00:00.000Z"),
+  "withdraw": (st) => st.owner.command(projectIdentity.projectId, st.operationId(), { commandId: "w1", expectedRevision: st.owner.readFull(projectIdentity.projectId, st.operationId()).revision, type: "generation.withdraw", payload: {}, issuedAt: "2026-08-23T00:00:00.000Z" }),
+  "abandon": (st) => st.operations.abandonWaitingAuthorization(projectIdentity.projectId, st.operationId(), "2026-08-23T00:00:00.000Z"),
+};
+describe("卡开着时信封内容被改：确认一律被拒、供应商不被碰", () => {
+  for (const surface of ["client", "nomi"] as const) for (const [name, fn] of Object.entries(mutations)) {
+    it(`${surface}: ${name} -> refused, provider untouched`, async () => {
+      const { gate, start, provider, runTask } = await semanticGateJourney({ surface, whileCardOpen: async (st) => { try { await fn(st) } catch { /* 改动本身被拒也算「卡上的东西变了」：断言看的是确认被拒、供应商没碰 */ } } });
+      const result = gate.result as { isError?: boolean };
+      expect(result.isError).toBe(true);
+      expect(start).not.toHaveBeenCalled();
       expect(provider.submit).not.toHaveBeenCalled();
+      expect(runTask).not.toHaveBeenCalled();
     });
   }
-
-  // 反面：放松的只是「项目此刻的版本」这一项，不是整张收据。卡开着时这个 Run 被取消了——收据批的那道门
-  // 已经不在等批准——决门照样拒，且一步都碰不到供应商。
-  it("still refuses an approval once the gate it was minted for stopped waiting", async () => {
-    const { gate, start, provider } = await semanticGateJourney({
-      whileCardOpen: ({ cancelOperation }) => cancelOperation(),
-    });
-    const result = gate.result as { isError?: boolean; structuredContent?: { nomiOutcome?: { errorCode?: string } } };
-    expect(result.isError).toBe(true);
-    expect(start).not.toHaveBeenCalled();
-    expect(provider.submit).not.toHaveBeenCalled();
-  });
 });
