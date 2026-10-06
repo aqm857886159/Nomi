@@ -2190,6 +2190,78 @@
       }
     },
     {
+      "slug": "topaz-image-upscale",
+      "canonicalId": "topaz 图片放大",
+      "label": "Topaz 图片放大",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "topaz-image-upscale"
+      ],
+      "family": "image-upscale",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "kie",
+          "name": "Kie.ai",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "edit"
+        ],
+        "modeTerms": [
+          "图片放大"
+        ],
+        "references": {
+          "image_ref": 1
+        },
+        "resolutions": [],
+        "aspectRatios": [],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "recraft-crisp-upscale",
+      "canonicalId": "recraft 清晰放大",
+      "label": "Recraft 清晰放大",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "recraft-crisp-upscale"
+      ],
+      "family": "image-upscale",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "kie",
+          "name": "Kie.ai",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "edit"
+        ],
+        "modeTerms": [
+          "清晰放大"
+        ],
+        "references": {
+          "image_ref": 1
+        },
+        "resolutions": [],
+        "aspectRatios": [],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
       "slug": "happyhorse-1-1",
       "canonicalId": "happyhorse 1.1",
       "label": "HappyHorse 1.1",
