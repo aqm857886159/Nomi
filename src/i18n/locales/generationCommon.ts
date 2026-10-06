@@ -496,6 +496,10 @@ export const zhGenerationCommon = {
       missingEffect: '效果库里缺这一条',
       connectFailed: '没能把新节点连到这张图上，已撤回',
     },
+    // 能力此刻没有、但有一步可走的路（2026-10-06）：项不灰，第二行说缺什么、点它去补。
+    guides: {
+      upscaleAdd: '还没有放大模型 · 点这里添加',
+    },
     splitInto: '切成 {{count}} 张',
     splitIntoHint: '按生成时的 {{rows}} 行 × {{cols}} 列切开，切割线可拖',
     gridPicker: {
@@ -2099,6 +2103,9 @@ export const enGenerationCommon = {
       noUpscaleModel: 'No upscaling model yet',
       missingEffect: 'This effect is missing from the library',
       connectFailed: 'Could not connect the new node to this image; it was rolled back.',
+    },
+    guides: {
+      upscaleAdd: 'No upscaling model yet · click to add one',
     },
     splitInto: 'Split ×{{count}}',
     splitIntoHint: 'Split into the {{rows}} × {{cols}} grid it was generated with; cut lines stay draggable',

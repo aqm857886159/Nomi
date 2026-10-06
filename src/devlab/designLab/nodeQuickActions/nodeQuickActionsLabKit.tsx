@@ -167,6 +167,11 @@ export type ToolbarStageProps = {
   zoom?: number
   /** 这一格的界面语言（英文字长，浮条更宽、更容易折行）。 */
   locale?: 'zh-CN' | 'en'
+  /**
+   * 「高清」的三种处境（C 设计样张，2026-10-06）：`blocked` = 现在的死路（灰掉写原因）；`guide` = 没有放大模型但有路走
+   * （不灰，第二行「还没有放大模型 · 点这里添加」，点了去添加）；`ready` = 目录里有放大模型，照常可点。
+   */
+  upscale?: 'blocked' | 'guide' | 'ready'
 }
 
 const noop = (): void => {}
@@ -195,7 +200,7 @@ function useLabZoom(zoom: number | undefined): void {
   }, [zoom])
 }
 
-export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageWidth, edge, zoom, locale }: ToolbarStageProps): JSX.Element {
+export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageWidth, edge, zoom, locale, upscale = 'blocked' }: ToolbarStageProps): JSX.Element {
   const { t } = useTranslation()
   const localeReady = useLabLocale(locale)
   useLabZoom(zoom)
@@ -210,7 +215,8 @@ export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageW
   const ready = useCanvasStores(nodes) && localeReady
   useOpenOnMount(rootRef, ready ? open : undefined, hoverCell)
   // 放大要的是一个「放大」能力的模型；夹具目录里没有 → 这一项灰掉并说原因（与价格无关）。
-  const blocked = React.useMemo(() => ({ upscale: t('generationCommon.quickActions.blocked.noUpscaleModel') }), [t])
+  const blocked = React.useMemo(() => (upscale === 'blocked' ? { upscale: t('generationCommon.quickActions.blocked.noUpscaleModel') } : {}), [t, upscale])
+  const guides = React.useMemo(() => (upscale === 'guide' ? { upscale: { description: t('generationCommon.quickActions.guides.upscaleAdd'), onSelect: noop } } : undefined), [t, upscale])
   const width = stageWidth ?? QUICK_ACTIONS_CELL_WIDTH
   const left = edge === 'left' ? 8 : edge === 'right' ? width - CARD.width - 8 : Math.max(16, Math.round((width - CARD.width) / 2))
   const top = edge === 'top' ? EDGE_CARD_TOP : edge === 'bottom' ? QUICK_ACTIONS_CELL_HEIGHT - CARD.height - 8 : CARD_TOP
@@ -223,6 +229,7 @@ export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageW
       {...shared}
       onGridSplit={noop}
       quickActionBlocked={blocked}
+      quickActionGuides={guides}
       onQuickAction={noop}
     />
   )

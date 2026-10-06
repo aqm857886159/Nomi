@@ -63,6 +63,8 @@ import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } f
  * 「不把抠图收进 ▾ 凑数」优先于批次方案「抠图并进改图▾」；文字钮仍是 4 颗）。
  */
 
+export type QuickActionGuide = Readonly<{ description: string; onSelect: () => void }>
+
 export type ImageQuickActionsToolbarProps = {
   reportFeedback: (message: string) => void
   node: GenerationCanvasNode
@@ -78,8 +80,13 @@ export type ImageQuickActionsToolbarProps = {
   isAnchor?: boolean
   frozen?: boolean
   onToggleFreeze?: () => void
-  /** 点不了的快捷动作与原因（没有能改图的模型 / 效果库缺条目 …）。 */
+  /** 点不了的快捷动作与原因（效果库缺条目 …）：灰掉、第二行写原因。 */
   quickActionBlocked?: Partial<Record<QuickActionId, string>>
+  /**
+   * 这一项要的能力此刻没有（目录里没有能做这件事的模型），但有**一步可走的路**：项不灰，第二行说缺什么，
+   * 点它走 onSelect（去添加 / 换一个同能力的模型），不派生（2026-10-06 用户：高清没有模型时不能是死路）。
+   */
+  quickActionGuides?: Partial<Record<QuickActionId, QuickActionGuide>>
   onQuickAction: (id: QuickActionId) => void
 }
 
@@ -88,8 +95,19 @@ function quickActionItems(
   t: TFunction,
   blocked: ImageQuickActionsToolbarProps['quickActionBlocked'],
   onPick: (id: QuickActionId) => void,
+  guides?: ImageQuickActionsToolbarProps['quickActionGuides'],
 ): WorkbenchMenuNode[] {
   return actions.map((action) => {
+    const guide = guides?.[action.id]
+    if (guide) {
+      return {
+        id: `quick-${action.id}`,
+        label: t(action.labelKey),
+        icon: action.icon as unknown as WorkbenchMenuIcon,
+        description: guide.description,
+        onSelect: guide.onSelect,
+      }
+    }
     const reason = blocked?.[action.id]
     return {
       id: `quick-${action.id}`,
@@ -108,7 +126,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   const {
     reportFeedback, node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground,
     removeBackgroundBusy = false, onPreview, onOpenProvenance, isAnchor = false, frozen = false, onToggleFreeze,
-    quickActionBlocked, onQuickAction,
+    quickActionBlocked, quickActionGuides, onQuickAction,
   } = props
   const { t } = useTranslation()
   const { downloading, download } = useResultDownload(node, reportFeedback)
@@ -132,7 +150,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   ]).map(({ op, icon, key }) => ({ id: `transform-${op}`, label: t(key), icon: menuIcon(icon), onSelect: () => onTransform(op) }))
 
   const refineItems: WorkbenchMenuNode[] = [
-    { kind: 'group', id: 'refine-generate', label: t('generationCommon.quickActions.groups.generate'), items: quickActionItems(refines, t, quickActionBlocked, onQuickAction) },
+    { kind: 'group', id: 'refine-generate', label: t('generationCommon.quickActions.groups.generate'), items: quickActionItems(refines, t, quickActionBlocked, onQuickAction, quickActionGuides) },
     { kind: 'separator', id: 'refine-sep' },
     {
       kind: 'group',
