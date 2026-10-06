@@ -17,6 +17,16 @@ import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 import { measureProjectOpenStage, measureProjectOpenStageSync } from './projectOpenTimeline'
 import { sweepPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
 import { logRendererError } from '../../desktop/rendererLog'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+
+function isGuardCurrent(guard: ProjectHydrationGuard): boolean {
+  try {
+    guard.assertCurrent()
+    return true
+  } catch {
+    return false
+  }
+}
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
 
@@ -215,7 +225,10 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     // 上次删掉的版本、App 直接退出没来得及删的文件：现在撤销日志是空的，没有哪一步能退回去了。
     // 不挡打开（清扫在后台走），判定读的是刚载入、含事件尾巴的画布与时间轴。
     if (upgraded.payload.pendingAssetDeletions?.length) {
-      void sweepPersistedAssetDeletions(upgraded.id, upgraded.payload.pendingAssetDeletions)
+      void sweepPersistedAssetDeletions(upgraded.id, upgraded.payload.pendingAssetDeletions, () => {
+        // 还是这个项目开着才存（清扫期间换了项目就不碰下一个项目的盘；那一笔下次打开再扫）。
+        if (isGuardCurrent(guard)) useGenerationCanvasStore.getState().commitPersistedChange()
+      })
         .catch((error: unknown) => logRendererError('pending-asset-deletion-sweep-failed', error))
     }
     return upgraded

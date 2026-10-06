@@ -116,9 +116,27 @@ describe('node result lifecycle', () => {
   it('returns the same object when every version already has a unique number (no write on open)', () => {
     const a = { ...image('a', 'a.png'), versionNo: 1 }
     const b = { ...image('b', 'b.png'), versionNo: 3 }
-    const numbered = node(b, [b, a])
+    const numbered = { ...node(b, [b, a]), resultVersionMax: 3 }
     expect(normalizeNodeResultVersionNumbers(numbered)).toBe(numbered)
     expect(backfillNodeResultVersionNumbers([numbered])).toEqual({ nodes: [numbered], changed: false })
+    // 号齐了但还没记「出过的最大号」：只补这一项，号一个不动。
+    const withoutMax = node(b, [b, a])
+    expect(normalizeNodeResultVersionNumbers(withoutMax)).toEqual({ ...withoutMax, resultVersionMax: 3 })
+  })
+
+  it('never reuses the number of a deleted newest version: delete v3, generate again → v4', () => {
+    const v1 = { ...image('v1', 'v1.png'), versionNo: 1 }
+    const v2 = { ...image('v2', 'v2.png'), versionNo: 2 }
+    const v3 = { ...image('v3', 'v3.png'), versionNo: 3 }
+    const start = { ...node(v3, [v3, v2, v1]), resultVersionMax: 3 }
+    const afterDelete = { ...start, ...removeNodeResult(start, 'v3') }
+    expect(afterDelete.history?.map((entry) => entry.versionNo)).toEqual([2, 1])
+    const landed = appendNodeResultVersion(afterDelete, image('v4', 'v4.png'))
+    expect(landed.result.versionNo).toBe(4)
+    expect(landed.resultVersionMax).toBe(4)
+    // 一版不剩之后再出一版，也接着原来的号。
+    const emptied = { ...start, ...removeNodeResult({ ...start, history: [v3], result: v3 }, 'v3') }
+    expect(appendNodeResultVersion(emptied, image('v9', 'v9.png')).result.versionNo).toBe(4)
   })
 
   it('never renumbers an existing version; only missing numbers are appended after the max', () => {

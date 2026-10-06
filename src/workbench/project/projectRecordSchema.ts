@@ -79,7 +79,7 @@ export const workbenchProjectPayloadSchema = z.object({
   ).optional(),
   editingPanelLayout: editingPanelLayoutSchema.optional(),
   /** 删掉的版本还没真删的文件（撤销窗口内 / App 直接退出时来不及删的）；打开项目时清扫。 */
-  pendingAssetDeletions: z.array(z.object({ relativePath: z.string().min(1) })).optional(),
+  pendingAssetDeletions: z.array(z.object({ relativePath: z.string().min(1), failedAttempts: z.number().int().positive().optional() })).optional(),
 })
 
 export const workbenchProjectRecordSchema = workbenchProjectSummarySchema.extend({
@@ -144,7 +144,7 @@ export type WorkbenchProjectPayload = {
   /** Preview editing surface dimensions and visibility are project-local UI state. */
   editingPanelLayout?: EditingPanelLayout
   /** 删掉的版本还没真删的文件（见 assets/pendingAssetDeletions.ts）。 */
-  pendingAssetDeletions?: Array<{ relativePath: string }>
+  pendingAssetDeletions?: Array<{ relativePath: string; failedAttempts?: number }>
 }
 
 export type WorkbenchProjectRecordV1 = WorkbenchProjectSummary & {

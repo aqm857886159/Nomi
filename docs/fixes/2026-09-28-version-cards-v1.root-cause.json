@@ -44,9 +44,10 @@
   "internal_only_reason": "Version numbering, undo-journal reachability and project file references are application-owned invariants; no third-party library decides them.",
   "invariants": [
     "history is the durable newest-first order: appending inserts at the front, removing only removes, setting main only moves the result pointer.",
-    "Each version carries a versionNo that never changes once assigned; a new version gets max + 1; legacy versions are numbered once on open (oldest = 1) and written back.",
+    "Each version carries a versionNo that never changes once assigned; a new version gets (the highest number the node has ever issued, persisted as resultVersionMax) + 1, so deleting the newest version never frees its number; legacy versions are numbered once on open (oldest = 1) and written back.",
     "A loaded-project deletion is one undo step; its file is deleted only after the undo journal can no longer reach that step, on project release, or on the next project open, and only if neither the canvas nor the timeline still references the file.",
-    "Pending deletions are saved in the same project write that removes the version, so an abrupt exit cannot lose track of them."
+    "Pending deletions are saved in the same project write that removes the version, so an abrupt exit cannot lose track of them.",
+    "A real delete that fails stays on the pending list with a failure count and is retried at the next release or project open; after MAX_DELETE_ATTEMPTS (3) it is given up and logged, never retried forever."
   ],
   "doors": [
     {

@@ -52,3 +52,10 @@
 ## 特征测试清单
 
 `model/nodeResultLifecycle.test.ts`（追加 / 补号 / 删 / 换主图）、`store/nodeRunOutcome.test.ts`、`assets/deleteAssetResult.test.ts`、`assets/deleteAssetResult.realStore.test.ts`。
+
+## 补记：验收返工（V-1050，2026-10-06）
+
+同一个概念的第二刀，不是新的一类：验收线在唯一主人上找到两个洞，修在同一个主人里，没有另开口子。
+- 编号：「删了留空号」只对中间的版本成立，删掉最新一版后新版复用了它的号。根因是「出过的最大号」没有存储身份，只能从剩下的版本里推。改成节点持久字段 `resultVersionMax`，唯一写口仍是 `appendNodeResultVersion` / 打开时补号。
+- 延后删：真删失败时这一笔已从清单取走，文件永远遗留。改成失败留账、计次、到上限放弃，仍在 `pendingAssetDeletions.ts` 一处。
+两条都有「改回旧行为必红」的单测。

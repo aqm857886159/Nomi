@@ -159,6 +159,8 @@ export type GenerationCanvasNode = {
   history?: GenerationNodeResult[]
   /** Whether this node's result cards are currently laid out on the canvas. */
   resultStackOpen?: boolean
+  /** 这个节点出过的最大版本号（删掉的也算）；新的一版 = 它 + 1，删了最新一版也不复用号。 */
+  resultVersionMax?: number
   progress?: GenerationNodeProgress
   runs?: GenerationNodeRunRecord[]
   status?: GenerationNodeStatus
