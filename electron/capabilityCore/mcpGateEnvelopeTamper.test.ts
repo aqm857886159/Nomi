@@ -92,13 +92,27 @@ afterEach(() => {
 
 type ConfirmationSurface = "client" | "nomi";
 
+/** What a test may touch while the confirmation card is open (the decide step has not landed yet). */
+type CardOpenState = {
+  bumpProjectRevision: () => void
+  cancelOperation: () => Promise<unknown>
+  // revise / abandonWaitingAuthorization 在 store 类型上是可选的；这里要的是真 store，缺了就让改动抛错——
+  // 改动没生效时确认会照常通过，断言当场变红，不会空转。
+  operations: Required<ReturnType<typeof createProductionGenerationOperationStore>>
+  owner: {
+    readFull: (projectId: string, operationId: string) => NonNullable<ReturnType<ReturnType<typeof createProductionRunRepository>["read"]>>
+    command: (projectId: string, operationId: string, command: Parameters<ReturnType<typeof createProductionRunRepository>["execute"]>[2]) => unknown
+  }
+  operationId: () => string
+}
+
 /**
  * One real semantic MCP gate journey: real protocol, real dispatcher, real Run-owned gate authority,
  * real receipts and a real durable Run repository. Only the provider start and the human click are stubs.
  * `whileCardOpen` runs after the challenge was sealed and the receipt minted, before the decide step —
  * the window in which a real confirmation card sits on screen.
  */
-async function semanticGateJourney(options: { surface?: ConfirmationSurface; whileCardOpen?: (state: any) => unknown } = {}) {
+async function semanticGateJourney(options: { surface?: ConfirmationSurface; whileCardOpen?: (state: CardOpenState) => unknown } = {}) {
   const surface = options.surface ?? "client";
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-semantic-confirmation-"));
   roots.push(root);
@@ -194,7 +208,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
     const token = typeof challenge.handoff?.challengeToken === "string" ? challenge.handoff.challengeToken : "";
     const gesture = receipts.createMainProcessGestureAttestation(token, { webContentsId: 1, frameId: 1, origin, decision: "accept" });
     const receipt = receipts.mintReceipt(token, gesture);
-    await options.whileCardOpen?.({ bumpProjectRevision, cancelOperation, operations, owner, operationId: () => createdOperationId });
+    await options.whileCardOpen?.({ bumpProjectRevision, cancelOperation, operations: operations as CardOpenState["operations"], owner, operationId: () => createdOperationId });
     return { confirmed: true, receiptId: receipt.receipt.receiptId, receiptToken: receipt.token };
   };
   const protocolRef: { current?: ReturnType<typeof createMcpProtocol> } = {};
@@ -243,7 +257,7 @@ async function semanticGateJourney(options: { surface?: ConfirmationSurface; whi
 }
 
 
-const mutations: Record<string, (st: any) => Promise<unknown>> = {
+const mutations: Record<string, (st: CardOpenState) => unknown> = {
   "revise prompt": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { prompt: "A red car" } }, "2026-08-23T00:00:00.000Z"),
   "revise model": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { modelId: "other-model" } }, "2026-08-23T00:00:00.000Z"),
   "revise parameters": (st) => st.operations.revise(projectIdentity.projectId, st.operationId(), { patch: { parameters: { aspectRatio: "1:1" } } }, "2026-08-23T00:00:00.000Z"),
@@ -251,13 +265,11 @@ const mutations: Record<string, (st: any) => Promise<unknown>> = {
   "withdraw": (st) => st.owner.command(projectIdentity.projectId, st.operationId(), { commandId: "w1", expectedRevision: st.owner.readFull(projectIdentity.projectId, st.operationId()).revision, type: "generation.withdraw", payload: {}, issuedAt: "2026-08-23T00:00:00.000Z" }),
   "abandon": (st) => st.operations.abandonWaitingAuthorization(projectIdentity.projectId, st.operationId(), "2026-08-23T00:00:00.000Z"),
 };
-describe("v1049 tamper while card open", () => {
+describe("卡开着时信封内容被改：确认一律被拒、供应商不被碰", () => {
   for (const surface of ["client", "nomi"] as const) for (const [name, fn] of Object.entries(mutations)) {
     it(`${surface}: ${name} -> refused, provider untouched`, async () => {
-      let mutErr: unknown;
-      const { gate, start, provider, runTask, repository, operationId } = await semanticGateJourney({ surface, whileCardOpen: async (st: any) => { try { await fn(st) } catch (e) { mutErr = e } } });
-      const result = gate.result as any;
-      console.log(surface, name, "mutErr=", String(mutErr ?? "none").slice(0,80), "isError=", result.isError, "code=", result.structuredContent?.nomiOutcome?.errorCode, "gates=", JSON.stringify(repository.read(projectIdentity.projectId, operationId)?.gates.map((g: any) => g.status)));
+      const { gate, start, provider, runTask } = await semanticGateJourney({ surface, whileCardOpen: async (st) => { try { await fn(st) } catch { /* 改动本身被拒也算「卡上的东西变了」：断言看的是确认被拒、供应商没碰 */ } } });
+      const result = gate.result as { isError?: boolean };
       expect(result.isError).toBe(true);
       expect(start).not.toHaveBeenCalled();
       expect(provider.submit).not.toHaveBeenCalled();
