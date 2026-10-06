@@ -86,6 +86,11 @@ function CardShell({ children, className }: { children: React.ReactNode; classNa
   return <div className={cn('relative h-full w-full overflow-hidden rounded-nomi shadow-nomi-md ring-1 ring-inset ring-nomi-line bg-nomi-ink-05', className)}>{children}</div>
 }
 
+/**
+ * 悬停条。UI 统一的两条（用户 2026-10-06）：
+ * - 「✓」只表示**状态**（卡角的「✓ 主图」），不当动作图标：「设为主图」是纯文字按钮；
+ * - 常用的在前，**删除永远在最右**、用分隔线和前面隔开。
+ */
 function VersionCardBar({ versionNo, primary, onSetPrimary, onDownload, onDelete }: {
   versionNo: number
   primary: boolean
@@ -105,8 +110,7 @@ function VersionCardBar({ versionNo, primary, onSetPrimary, onDownload, onDelete
     >
       {!primary ? (
         <button type="button" className={cn(button, 'px-3 font-medium text-nomi-accent hover:bg-nomi-accent-soft')} onClick={onSetPrimary}>
-          <IconCheck size={16} stroke={1.6} aria-hidden="true" />
-          <span>{t('generationCommon.versionCards.setPrimary')}</span>
+          {t('generationCommon.versionCards.setPrimary')}
         </button>
       ) : null}
       <button type="button" className={cn(button, 'w-8 text-nomi-ink-80 hover:bg-nomi-ink-05')} aria-label={t('generationCommon.versionCards.download')} title={t('generationCommon.versionCards.download')} onClick={onDownload}>
