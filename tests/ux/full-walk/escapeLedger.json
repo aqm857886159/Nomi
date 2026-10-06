@@ -798,11 +798,12 @@
       "ironLaws": [],
       "useCases": [],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["类级检查 src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts：净缩放 11 档 × 贴边 5 种矩阵 + 报告现场，三次提交内收敛且再量为不动点；变异：把 floatingToolbarShift 的 k 改回 1 即红（现场用例抛 Maximum update depth exceeded）", "真机生产构建 tests/ux/canvas-toolbar-open-select.walk.mjs：--instant（摆全貌同一帧选中）修前 15/30（同一 App 再次打开 15/15 必崩）→ 修后 0/30；缺省节奏修后 0/30；--inject-toolbar-error 3/3 画布存活、只降级浮条", "根因与诊断见 docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json（崩溃那一轮浮条 scale(1)、React Flow 2.1，位移 285 → −28.5 → 316.6 → −63 … 发散）"],
       "completionCommits": [],
       "rootCauseContract": "docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json",
+      "fixedInPr": 1052,
       "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts" }
     }
   ]
