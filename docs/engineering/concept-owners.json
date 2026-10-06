@@ -4729,6 +4729,29 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "占位唯一渲染点，把媒体状态（deferredNodeMediaQueue 的 DeferredNodeMediaState）作为 data-media-state 交给样式；扫光只挂 loading 态（docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json，类检查 mediaPlaceholderShimmer.test.ts）。"
+    },
+    {
+      "name": "画布边组件拖动帧里只重算路径（贵派生按需 / 缓存）",
+      "subject": "canvas.edge-render-cost",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+        "symbol": "GenerationFlowEdgeView"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+          "symbol": "GenerationFlowEdgeView"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：可选连线模式只在模式菜单打开时算，文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
     }
   ]
 }
