@@ -358,12 +358,22 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
   const disconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const source = data?.sourceNode
   const target = data?.targetNode
-  const modes = source && target ? availableEdgeModes(source, target) : []
+  // 拖动时连到被拖节点的每条边每帧都重渲（端点坐标变了，路径必须重算）；这里的派生只依赖两端节点和文案，
+  // 不依赖坐标。可选连线模式要按目标模型的档案逐个校验（全选拖 320 张卡时累计 2.5 秒），只在菜单打开时才算；
+  // 无障碍标签等文案按它们真正依赖的值缓存，不每帧重新解析（2026-10-06 L-perf）。
+  const modes = React.useMemo(() => (menuOpen && source && target ? availableEdgeModes(source, target) : []), [menuOpen, source, target])
   const incident = Boolean(data?.incident)
   const mode = edge?.mode || 'reference'
-  const aggregateLabel = data?.aggregateDirection
-    ? t(`generationCommon.canvas.group.aggregate${data.aggregateDirection === 'input' ? 'Input' : 'Output'}`)
-    : null
+  const aggregateDirection = data?.aggregateDirection
+  const aggregateLabel = React.useMemo(() => aggregateDirection
+    ? t(`generationCommon.canvas.group.aggregate${aggregateDirection === 'input' ? 'Input' : 'Output'}`)
+    : null, [aggregateDirection, t])
+  const sourceLabel = source?.title || edge?.source || ''
+  const targetLabel = target?.title || edge?.target || ''
+  const selectLabel = React.useMemo(
+    () => t('generationCommon.canvas.edge.select', { source: sourceLabel, target: targetLabel }),
+    [sourceLabel, t, targetLabel],
+  )
   const showLabel = !readOnly && (menuOpen || (mode !== 'reference' && (incident || selected)))
 
   return (
@@ -390,10 +400,7 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
           strokeWidth={30}
           role="button"
           tabIndex={0}
-          aria-label={t('generationCommon.canvas.edge.select', {
-            source: source?.title || edge?.source || '',
-            target: target?.title || edge?.target || '',
-          })}
+          aria-label={selectLabel}
           onPointerDown={(event) => {
             event.stopPropagation()
             setMenuOpen(true)
