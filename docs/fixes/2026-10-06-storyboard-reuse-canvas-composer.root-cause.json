@@ -168,7 +168,8 @@
     "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.structure.test.ts",
     "src/workbench/creation/storyboard/shotRow/shotFrameGeometry.test.ts",
     "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.plannedFirstFrame.test.ts",
-    "tests/experience-laws/parameterReachability.test.mjs"
+    "tests/experience-laws/parameterReachability.test.mjs",
+    "tests/ux/asset-tile-badges-visible.test.mjs"
   ],
   "class_regression_tests": [
     "tests/experience-laws/parameterReachability.test.mjs",
@@ -197,7 +198,10 @@
     "表格里手动 @ 的落槽判据（ShotRowWithMention.onBindReference）与参考条「+」的 slotFor 仍是两份，同在禁区文件，下一刀合并",
     "分镜行 / 参考卡没有变体选择器（LAW11-SB-VARIANT，碰花钱边界，未在本次做）",
     "画布侧自动引用只覆盖「同分区、未出图、提示词写了标题」的节点；标题与日常用词重合（如两字的普通词）仍可能误插，用户删掉 @ 后不再补",
-    "真 App 走查（窄档 / 首帧误报 / phasec）脚本已按新 DOM 改写但本线没有在真 App 上跑，交独立验收线"
+    "真 App 走查（窄档 / 首帧误报 / phasec）脚本已按新 DOM 改写但本线没有在真 App 上跑，交独立验收线",
+    "分镜写回节点时模型索引的另外三扇现拼门（storyboardProjection.ts 两处 projectShotOntoNodeByPlanMode / projectStoryboardDesign、storyboardOverrideActions.ts 一处，main 上已有）仍拿 (modelKey, vendor) 现拼单条索引：只靠目录元数据认档案的模型（自建中转 / 导入 / 回环夹具）在方案编辑后的投影里不换模型；跑之前的写回（syncShotNodeWithRow / syncAnchorNodeWithCard）已经走真实目录，所以发出的请求不受影响。这三处都是同步调用，要么给模型目录缓存加同步读口、要么改成异步，属架构岔路，交协调会话排",
+    "分镜写回换模型时是在旧 meta 上叠新模型的 meta（projectShotNode 与 syncAnchorNodeWithCard 同一写法），上一个模型的参数键（如 aspect_ratio / resolution）会留在节点上；画布换模型走 buildNodeModelChangePatch 会清掉。按档案发请求时多余键不进请求体，暂未见实害，未改",
+    "参考卡第一次生成被出网闸拦下后，换模型点「重试」被镜头认领拒绝（production_shot_claimed: needs_reconcile），失败面只写「生成失败」，用户不知道为什么、也不知道怎么办（2026-10-06 真 App 审计走查 P8 实测）。这是花钱边界（请求没出本机时要不要放行认领）的产品取舍，交协调会话"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",

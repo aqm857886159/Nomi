@@ -13,6 +13,7 @@ import {
   storyboardComposerChange,
   storyboardComposerControls,
   storyboardComposerMeta,
+  composerEntryIndex,
   type ComposerChange,
   type ComposerTarget,
 } from './storyboardComposerModel'
@@ -48,8 +49,8 @@ export default function StoryboardComposerParams({
   const orderedVendorKeys = useVendorPreferenceOrder()
   const option = findModelOptionByIdentifier(modelOptions, target.modelKey, target.modelVendor, orderedVendorKeys)
   const meta = React.useMemo(
-    () => ({ ...storyboardComposerMeta(target, kind), ...(metaOverrides ?? {}) }),
-    [target, kind, metaOverrides],
+    () => ({ ...storyboardComposerMeta(target, composerEntryIndex(option)), ...(metaOverrides ?? {}) }),
+    [target, option, metaOverrides],
   )
   const modelControls = React.useMemo(() => storyboardComposerControls(option, meta, kind), [option, meta, kind])
   const controls: DynamicModelControl[] = React.useMemo(

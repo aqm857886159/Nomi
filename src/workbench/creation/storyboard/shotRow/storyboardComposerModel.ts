@@ -2,6 +2,7 @@ import type { ModelOption } from '../../../../config/models'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
+import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { resolveRenderedControls } from '../../../generationCanvas/nodes/nodeModelArchetype'
 import { isParameterControl, parseControlInput, type DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import { aspectRatioControlKey, aspectRatioControlsOf } from '../../../../../electron/shared/aspectRatioValue'
@@ -27,12 +28,24 @@ export type ComposerTarget = Readonly<{
   params?: Readonly<Record<string, unknown>>
 }>
 
-/** 画布节点 meta（与落画布同一个构造器）。没选模型 → 空：不知道是哪个模型就不假装知道它有什么参数。 */
-export function storyboardComposerMeta(target: ComposerTarget, kind: 'image' | 'video'): Record<string, unknown> {
+/**
+ * 这一行的模型在**真实目录**里的那一条，建成落画布用的模型索引。
+ *
+ * 不拿 (modelKey, vendor) 现拼一条：档案有时只能从目录元数据（`meta.archetypeId`）认出来——自建中转、导入的模型、
+ * 回环夹具都是这样——现拼的那条没有元数据，`buildAgentModelEntries` 认不出档案就整条丢掉，meta 成了 `{}`。
+ * 2026-10-06 真 App 审计走查实测：参考卡换成这类模型再点重试，节点还是旧模型（界面说的 ≠ 发出的）。
+ */
+export function composerEntryIndex(option: ModelOption | null): ReadonlyMap<string, AgentModelEntry> {
+  return buildModelEntryIndex(option ? buildAgentModelEntries([option]) : [])
+}
+
+/**
+ * 画布节点 meta（与落画布同一个构造器）。模型索引由调用方从真实目录给：界面用 `composerEntryIndex(当前选中的目录项)`，
+ * 跑之前的写回用 `listAvailableModelsForAgent()` 那一份（与镜头写回同一口）。
+ * 没选模型、或选的模型不在目录 → 空：不知道是哪个模型就不假装知道它有什么参数。
+ */
+export function storyboardComposerMeta(target: ComposerTarget, entries: ReadonlyMap<string, AgentModelEntry>): Record<string, unknown> {
   if (!target.modelKey) return {}
-  const entries = buildModelEntryIndex(buildAgentModelEntries([
-    { value: target.modelKey, label: target.modelKey, ...(target.modelVendor ? { vendor: target.modelVendor } : {}), kind },
-  ]))
   return buildPlannedNodeMeta({
     modelKey: target.modelKey,
     ...(target.modelVendor ? { modelVendor: target.modelVendor } : {}),

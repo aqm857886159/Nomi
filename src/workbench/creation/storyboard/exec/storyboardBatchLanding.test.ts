@@ -4,13 +4,15 @@ import { useGenerationCanvasStore } from '../../../generationCanvas/store/genera
 import { getActiveCanvasGestureContext, withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
 import { deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
+import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
+import type { ModelOption } from '../../../../config/models'
 
-const calls = vi.hoisted(() => ({ gestures: [] as unknown[], confirm: vi.fn(), single: vi.fn(), variants: vi.fn(), regenerate: vi.fn(), onDefaults: vi.fn() }))
+const calls = vi.hoisted(() => ({ gestures: [] as unknown[], confirm: vi.fn(), single: vi.fn(), variants: vi.fn(), regenerate: vi.fn(), onDefaults: vi.fn(), catalog: [] as unknown[] }))
 vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: calls.confirm }))
 vi.mock('../../../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: calls.single, confirmAndRunNodeVariants: calls.variants, regenerateNodeInPlace: calls.regenerate }))
 vi.mock('../../../generationCanvas/agent/availableModels', async importOriginal => ({
   ...await importOriginal<typeof import('../../../generationCanvas/agent/availableModels')>(),
-  resolveStoryboardImageDefault: async () => { calls.onDefaults(); return {} }, resolveStoryboardVideoDefault: async () => ({}), listAvailableModelsForAgent: async () => [],
+  resolveStoryboardImageDefault: async () => { calls.onDefaults(); return {} }, resolveStoryboardVideoDefault: async () => ({}), listAvailableModelsForAgent: async () => calls.catalog,
 }))
 vi.mock('../../../generationCanvas/agent/applyCanvasToolCall', () => ({
   applyCanvasToolCall: async (_tool: string, args: { nodes: { clientId: string; storyboardKeyframe?: boolean; metadata?: Record<string, unknown> }[] }, gesture?: CanvasGestureContext) => {
@@ -201,10 +203,33 @@ it('参考卡改了模型 / 参数再生成：节点跟着用卡上选的模型�
   const node = useGenerationCanvasStore.getState().addNode({
     kind: 'image', prompt: 'Old', meta: { storyboardDesignId: 'run', anchorId: 'hero', modelKey: 'nano-banana-2', modelVendor: 'kie' },
   })
-  await generateAnchorCard({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
+  calls.catalog = buildAgentModelEntries([{ value: 'gpt-image-2', label: 'GPT Image 2', vendor: 'apimart', modelKey: 'gpt-image-2', kind: 'image' } as ModelOption])
+  try {
+    await generateAnchorCard({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
+  } finally { calls.catalog = [] }
   const meta = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)!.meta as Record<string, unknown>
   expect(meta.modelKey).toBe('gpt-image-2')
   expect(meta.modelVendor).toBe('apimart')
   expect(meta.aspect_ratio).toBe('3:4')
   expect(meta.anchorId).toBe('hero')
+})
+
+it('参考卡换成「只靠目录元数据认档案」的模型（自建中转 / 导入 / 回环夹具）再重试：节点也跟着换（2026-10-06 真 App 审计走查实测）', async () => {
+  const anchor = {
+    id: 'hero', kind: 'character' as const, carrier: 'visual' as const, name: 'Hero', description: 'Short hair',
+    modelKey: 'relay-image', modelVendor: 'my-relay',
+  }
+  const node = useGenerationCanvasStore.getState().addNode({
+    kind: 'image', prompt: 'Old', meta: { storyboardDesignId: 'run', anchorId: 'hero', modelKey: 'gpt-image-2', modelVendor: 'apimart' },
+  })
+  // 档案只能从目录行的 meta.archetypeId 认出来：拿 (modelKey, vendor) 现拼一条认不出，写回会是空的。
+  calls.catalog = buildAgentModelEntries([{ value: 'relay-image', label: 'Relay Image', vendor: 'my-relay', modelKey: 'relay-image', kind: 'image', meta: { archetypeId: 'agnes-image' } } as ModelOption])
+  expect(calls.catalog).toHaveLength(1)
+  try {
+    await generateAnchorCard({ initiator: 'user' as const, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [anchor], shots: [] } }, anchor)
+  } finally { calls.catalog = [] }
+  const meta = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)!.meta as Record<string, unknown>
+  expect(meta.modelKey).toBe('relay-image')
+  expect(meta.modelVendor).toBe('my-relay')
+  expect((meta.archetype as { id: string }).id).toBe('agnes-image')
 })
