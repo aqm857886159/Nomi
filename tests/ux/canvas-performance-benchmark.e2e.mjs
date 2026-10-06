@@ -46,6 +46,7 @@ import {
   sweptRect,
 } from './canvas-perf/gestureGeometry.mjs'
 import { startDevRendererServer } from './canvas-perf/devRendererServer.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/ux/perf-results')
 const args = process.argv.slice(2)
@@ -61,7 +62,11 @@ const captureScreenshots = hasArg('--screenshots')
 const offscreenWindows = process.env.NOMI_PERF_OFFSCREEN === '1'
 const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
-const FIRST_RUN_SEEN = Object.freeze({ 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' })
+const FIRST_RUN_SEEN = Object.freeze({
+  'nomi:splash:v1': 'seen',
+  'nomi:journey-tour:v1': 'seen',
+  'nomi:canvas-gesture-hint:v1': 'seen',
+})
 const viewportOverride = argValue('--viewport-width')
   ? { width: Number(argValue('--viewport-width')), height: Number(argValue('--viewport-height') || 1000) }
   : null
@@ -792,9 +797,9 @@ async function runAction(page, scenario, fixture, app) {
       // node with its actual media, not a poster-only image path.
       await node.locator.hover()
       const video = node.locator.locator('video[src]').first()
-      await expect.poll(() => video.count(), { timeout: 10_000 }).toBeGreaterThan(0)
+      await expect.poll(() => video.count(), { timeout: stationTimeout({ operations: 1 }) }).toBeGreaterThan(0)
       await expect
-        .poll(() => video.evaluate((element) => element.readyState), { timeout: 20_000 })
+        .poll(() => video.evaluate((element) => element.readyState), { timeout: stationTimeout({ operations: 2 }) })
         .toBeGreaterThanOrEqual(1)
     }
     const start = { x: node.box.x + node.box.width * 0.5, y: node.box.y + 14 }

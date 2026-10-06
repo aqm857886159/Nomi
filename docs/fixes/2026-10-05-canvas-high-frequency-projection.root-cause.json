@@ -68,7 +68,7 @@
     {
       "kind": "read",
       "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
-      "symbol": "useMountedCards"
+      "symbol": "useNodeUsageCount"
     },
     {
       "kind": "read",
@@ -105,39 +105,39 @@
     },
     {
       "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
-      "symbol": "relationship selectors",
-      "responsibility": "Return stable scalar or cached relationship projections instead of allocating on every store notification."
+      "symbol": "useNodeUsageCount",
+      "responsibility": "Use WeakMap keyed relationship projections so each node reads a stable scalar instead of scanning or allocating from the whole graph on every notification."
     }
   ],
   "same_class_entry_points": [
     {
       "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
       "entry_point": "useGenerationCanvasStore selectors",
-      "disposition": "verified-safe-after-kernel-boundary",
+      "disposition": "enforced",
       "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
     },
     {
       "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
       "entry_point": "nodes/edges selectors",
-      "disposition": "verified-safe-after-kernel-boundary",
+      "disposition": "enforced",
       "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
     },
     {
       "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
       "entry_point": "nodes/edges selectors",
-      "disposition": "verified-safe-after-kernel-boundary",
+      "disposition": "enforced",
       "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
     },
     {
       "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
       "entry_point": "nodes selector",
-      "disposition": "verified-safe-after-kernel-boundary",
+      "disposition": "enforced",
       "evidence": "Position ticks stay in React Flow kernel; these readers no longer receive durable nodes-array notification during node drag."
     },
     {
       "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
       "entry_point": "selection/group frame pointer move",
-      "disposition": "fixed-shell-preview",
+      "disposition": "enforced",
       "evidence": "DOM shell translate during gesture; moveSelectedNodes/moveGroupNodes only run once at settle."
     }
   ],
