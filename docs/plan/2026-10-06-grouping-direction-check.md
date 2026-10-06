@@ -2,6 +2,15 @@
 
 > 范围：编组交互、选择归属、工具条和总览图动作。该复盘对应本次提交的 `Direction-Check` trailer；结构性结论随 PR 交用户与 PR #1014 协调线复核。
 
+## 先查别人
+
+- 依赖里已有：React Flow 的选择与拖动边界见 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)；画布接入点是 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
+- 仓库里已有：节点浮条 token/缩放外壳在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`，菜单原子在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`；这次采用接入而不是重写。
+- 生态里已有：菜单交互采用 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)；这类通用交互不登记为领域自写。
+- 用户参考：LibTV 交互依据是本会话提供的真实参考截图；没有把不可复核的自媒体内容当作验收证据。
+
+结论：只登记 Nomi 独有的编组拖动语义和已选媒体总览图动作，通用行为继续由现有库和组件承载。
+
 ### 0. 一句话根因
 
 画布的交互状态曾分散在 React Flow、画布 store 和工具条订阅中，导致同一用户意图被多个 owner 重复解释，表现为拖动重建、选择框分叉、工具条状态漂移和视觉补丁反复出现。

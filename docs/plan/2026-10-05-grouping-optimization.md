@@ -11,6 +11,15 @@
 类别：[长跑][新界面][其他]
 ```
 
+## 先查别人
+
+- 依赖里已有：`@xyflow/react` 已提供 React Flow 的受控节点、框选和 `onNodesChange` 手势边界；官方交互说明见 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)。本仓库的唯一运行时接入在 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
+- 仓库里已有：节点浮条的定位、反向缩放和 token 外壳在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`；菜单原语在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`。因此编组工具条接入这些组件，不再自写一套按钮/下拉。
+- 生态里已有：菜单的可访问语义沿用 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)；React Flow 负责通用手势，Nomi 只保留编组领域动作。
+- 用户参考：LibTV 的编组顺序、默认中性灰和组内空白拖整组来自本会话提供的真实参考截图；没有把无法复核的自媒体内容当实现依据，也没有新增 TikHub 结论。
+
+结论：通用选择、拖动、菜单和视觉原子使用已有库/仓库实现；只自写“已选媒体生成总览图”和“组内空白拖整组、节点拖单节点”的 Nomi 领域语义，登记见 `docs/engineering/self-written.json`。
+
 | 格 | 结论 | 证据 |
 |---|---|---|
 | ★1 用户怎么用 | 当创作者在画布整理一组镜头时，我想让组框持续可见、拉环稳定可用、拖动跟手，并用带文字的工具条完成排列、整组生成、进时间轴、解组和下载，以便不用猜图标或反复试错。真实任务覆盖：4 张节点建组后点空白；60 张节点拖组；选中组后依次打开工具条动作。已知坑：框丢失、拉环只在单击后出现、拖组卡顿、批量栏重复。 | `tests/ux/canvas-frame.walk.mjs`、`tests/ux/canvas-perf/dragScenarios.mjs`、`tests/ux/group-ports.walk.mjs` |

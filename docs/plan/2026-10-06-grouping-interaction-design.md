@@ -2,6 +2,15 @@
 
 这份设计把 LibTV 的可验证交互顺序与 Nomi 现有节点浮条的视觉语法合在一起。实现合同是生产 React 组件，不是手写 HTML mock：`CanvasGroupToolbar` 复用 `FloatingToolbarShell` 的 token、按钮和菜单原子，`GroupFrame` / `GroupFrameHeader` 负责组框和框外标题，React Flow 只负责节点手势投影。旧的 store 级 `selectNodesInRect` 已删除，选择只保留 React Flow 这一条运行时 owner，避免自定义框选与内核选择各维护一份状态。
 
+## 先查别人
+
+- 依赖里已有：React Flow 的节点选择、框选和拖动事件来自 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)；生产宿主入口在 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
+- 仓库里已有：`NodeFloatingToolbar` 的 token 外壳、反向缩放和锁边界在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`，`ToolbarActionMenu` 的菜单触发器在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`，本设计直接复用它们。
+- 生态里已有：菜单键盘和无障碍命名遵循 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)，不再创建第二套通用菜单。
+- 用户参考：LibTV 的组内空白/节点拖动分流、默认中性灰和工具条动作顺序来自本会话提供的真实参考截图；未用无法复核的自媒体文章替代真实组件走查。
+
+结论：通用能力接入 React Flow、WAI-ARIA 语义和 Nomi 现有 toolbar 原子；新增部分只表达编组和已选媒体总览图的领域语义。
+
 ## 交互地图
 
 | 状态 | 用户动作 | 结果 | 反馈 |
