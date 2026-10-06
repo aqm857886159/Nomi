@@ -1,0 +1,258 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-claim-release-unsent-attempt",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-06",
+  "problem_type": "A paid submission that provably never left the machine is recorded as 'result unknown', freezing the shot in reconciliation",
+  "symptom": "V-1042 real-app walk (audit-storyboard 22): the storyboard reference card's first generation was blocked before leaving the machine; after switching model the user clicked Retry and was refused with production_shot_claimed / needs_reconcile, while the card only said 'Generation failed'.",
+  "direct_cause": "productionGenerationSubmission's dispatch classified 'never written' only from connect-level codes in the final error's cause chain. Failures before any request is handed to the network (Nomi's own outbound policy refusal, illegal header, missing credential, network settings not ready, local reference checks, contract hash checks) carry no such evidence, so they were marked submission_unknown and the canvas shot owner refused every later attempt on that node as needs_reconcile. The walk's own egress guard additionally rejected fetch with a cause-less TypeError, a shape real undici never produces. Separately, decideShotClaim released a definitely-ended job only inside the 'plan submitted' branch, so a single-shot Run that ended before acceptance stayed production-held (awaiting_confirmation).",
+  "class_root": "'Did this paid attempt leave the machine?' had no owner at the only place that can know it: the network exit. The answer was guessed from the shape of whichever error surfaced last, so every pre-network failure type and every multi-request attempt fell outside the evidence rule.",
+  "affected_population": [
+    "Every paid generation entry that converges on productionGenerationSubmission.start: canvas node, storyboard reference card and shot rows (canvas-submit), Agent paid card, generate-remaining / batch scheduler, MCP generate",
+    "Users behind a blocking firewall, with a missing or malformed key, with network settings not ready, or whose vendor address is refused by Nomi's outbound policy"
+  ],
+  "scope_paths": [
+    "electron/outboundDispatchEvidence.ts",
+    "electron/appFetch.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/shared/decideShotClaim.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+    "scripts/walkthrough-network-guard.cjs"
+  ],
+  "entry_points": [
+    "nomi:tasks:canvas-submit (canvas node, storyboard reference card, storyboard shot row) -> createCanvasShotRuns.dispatch -> submission.start",
+    "Agent paid card confirm (createPendingSpendActions -> planning start / multiShotBatchScheduler) -> submission.start",
+    "generate remaining / batch -> multiShotBatchScheduler -> submission.start",
+    "MCP generate (mcpStdioServer) -> submission.start"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/async_context.html#class-asynclocalstorage",
+      "checked_at": "2026-10-06",
+      "purpose": "AsyncLocalStorage carries a per-dispatch store through awaits inside one async chain; used for the handoff ledger instead of hand-threading a token through runTask."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/nodejs/undici/blob/v6.19.8/lib/dispatcher/proxy-agent.js",
+      "checked_at": "2026-10-06",
+      "purpose": "Proxy CONNECT refusal surfaces as RequestAbortedError (UND_ERR_ABORTED) with only a message to tell it apart; left as unknown (residual risk)."
+    }
+  ],
+  "invariants": [
+    "An attempt is recorded as 'not sent' only when its transport declares that every request goes through appFetch AND no spend-capable request handed to appFetch during this dispatch may have been written (none handed off, or all failed before connecting). Anything else is 'result unknown'.",
+    "A shot whose latest attempt definitely ended before acceptance (provider_not_reached / provider_rejected) is released to the canvas regardless of plan state.",
+    "A local refusal (never_reached_network) is not auto-resent."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "SubmissionNotDispatchedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "SubmissionNotDispatchedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "jobEndedBeforeAcceptance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/appFetch.ts",
+      "symbol": "handOffToNetwork"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "observeSubmissionHandoffs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/decideShotClaim.ts",
+      "symbol": "jobEndedBeforeAcceptance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobEndedBeforeAcceptance"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/batchScheduleDerivation.ts",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionShotDispatchGuard.ts",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionShotOwnership.ts",
+      "symbol": "decideShotClaim"
+    }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 14,
+    "why_not": "Each surviving door is a distinct role: appFetch is the single network exit that records handoffs; productionGenerationSubmission is the single paid dispatch that asks the ledger; submissionOutbox is the single writer of not-dispatched vs unknown job state; decideShotClaim is the single claim decision read by canvas owner, scheduler, reducer, dispatch guard and renderer; productionShotJobs owns jobEndedBeforeAcceptance, which presentation also reads."
+  },
+  "generality_proof": "All paid entries converge on productionGenerationSubmission.start's dispatch closure (door-map createProductionGenerationSubmission), and all main-process HTTP converges on appFetch (check:network-entry). The ledger is opened at the first boundary and written at the second, so the verdict no longer depends on which layer threw or what the error looks like: any present or future pre-network failure is classified the same way, and any attempt where a spend-capable request may have been written stays unknown, including multi-request custom-call scripts. The claim side reads job state only through decideShotClaim.",
+  "shared_boundaries": [
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "observeSubmissionHandoffs",
+      "responsibility": "Opens a per-dispatch ledger and returns never_reached_network / connect_failed / null for a failed paid attempt."
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "handOffToNetwork",
+      "responsibility": "Records each spend-capable request handed to the network and strikes it only when it provably failed before connecting."
+    },
+    {
+      "path": "electron/appFetch.ts",
+      "symbol": "appFetch",
+      "responsibility": "The sole Node HTTP exit; every request passes through handOffToNetwork."
+    },
+    {
+      "path": "electron/shared/decideShotClaim.ts",
+      "symbol": "decideShotClaim",
+      "responsibility": "Releases a shot to the canvas when its latest attempt definitely ended before acceptance; keeps unknown outcomes production-held as needs_reconcile."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "createCanvasShotRuns.dispatch",
+      "disposition": "enforced",
+      "evidence": "Calls submission.start; unsentAttemptClaim.matrix.test.ts canvas-node and storyboard-reference-card columns."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "planning start (Agent paid card)",
+      "disposition": "enforced",
+      "evidence": "Calls submission.start; matrix Agent paid card column drives createPendingSpendActions.confirmPendingSpend."
+    },
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "createMultiShotBatchScheduler",
+      "disposition": "enforced",
+      "evidence": "Calls submission.start; submissionNotDispatched.test.ts and multiShotBatchScheduler.e2e.test.ts stay green."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createProductionGenerationSubmission",
+      "disposition": "enforced",
+      "evidence": "Builds the same submission with the same providers and calls submission.start."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "not-affected",
+      "evidence": "Model try-out creates no shot Run or claim; it keeps its own question to outboundRequestWasNeverWritten."
+    },
+    {
+      "path": "electron/productionRun/generationSubmission.ts",
+      "entry_point": "createRunOwnedGenerationSubmission",
+      "disposition": "not-affected",
+      "evidence": "No production caller (door-map shows only its own test); inherits the outbox semantics unchanged."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new local check, transport step, vendor, or multi-request script around the network exit would again throw an evidence-less error and freeze the shot, and a request written before a local refusal could be misread as unsent.",
+    "same_class_scan": [
+      "rg 'outboundRequestWasNeverWritten|SubmissionNotDispatchedError|markSubmittedUnknown' electron",
+      "node scripts/door-map.mjs createProductionGenerationSubmission / decideShotClaim / markSubmittedUnknown",
+      "rg 'authorizeSubmitDestination' electron: only engine A vendorHttp; engine B has no submit-side outbound policy (reported separately)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/outboundDispatchEvidence.ts",
+    "invariant": "Not-sent is concluded only from the dispatch ledger kept at appFetch (declared transports) or connect-level cause evidence (undeclared transports); never from error text.",
+    "failure_mode": "Anything unproven stays submission_unknown -> needs_reconcile; retry refused; no auto-resend.",
+    "exception_policy": "none",
+    "strategy": "Move the question to the network exit and the paid dispatch boundary, and make the single claim decision release definitely-ended jobs.",
+    "artifacts": [
+      "electron/outboundDispatchEvidence.ts",
+      "electron/appFetch.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/submissionOutbox.ts",
+      "electron/shared/decideShotClaim.ts",
+      "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "electron/capabilityCore/canvasTransportProvider.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts",
+      "tests/setup/networkTransport.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/unsentAttemptClaim.matrix.test.ts",
+    "electron/outboundDispatchEvidence.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardFailureCopy.test.ts",
+    "scripts/walkthrough-network-guard.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/unsentAttemptClaim.matrix.test.ts",
+    "electron/outboundDispatchEvidence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionGenerationSubmission.ts"
+    ],
+    "rationale": "The cause-chain-only classification inside the dispatch catch is deleted; the dispatch asks observeSubmissionHandoffs only."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "AsyncLocalStorage is a stable Node built-in; undici behaviour is only read through the existing connect-phase evidence.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. Jobs already frozen as submission_unknown stay in reconciliation (it cannot be proven after the fact that they were unsent); new attempts use the ledger.",
+  "residual_risks": [
+    "A paid request leaving the machine without appFetch inside a transport that declares app-fetch (electron net, a child process) would be misread as unsent; check:network-entry plus the fact that only the two production transports declare it are the guard.",
+    "A GET carrying no credentials, query or body is excluded from the ledger; a vendor billing such a request would be misread.",
+    "Engine B (catalog provider for Agent paid card / MCP / batch) has no submit-side outbound policy or credential-origin guard; out of scope, reported to the coordinator.",
+    "Proxy CONNECT refusals (undici RequestAbortedError 'Proxy response (403) !== 200') stay unknown: undici exposes no structured connect-phase marker; follow-up candidate is a dispatcher-level onConnect witness."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/outboundDispatchEvidence.ts",
+    "tests": [
+      "electron/outboundDispatchEvidence.test.ts",
+      "electron/productionRun/unsentAttemptClaim.matrix.test.ts"
+    ],
+    "why": "The dispatch evidence owner already answers 'was this request written'; the ledger extends the same owner from one error to one dispatch."
+  }
+}

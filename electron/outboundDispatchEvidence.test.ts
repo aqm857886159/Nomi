@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeOutboundFailure, isTransportLevelFailure, outboundRequestWasNeverWritten } from "./outboundDispatchEvidence";
+import { describeOutboundFailure, handOffToNetwork, isTransportLevelFailure, observeSubmissionHandoffs, outboundRequestWasNeverWritten } from "./outboundDispatchEvidence";
 
 /**
  * undici 的 SocketError 形状。字节计数**刻意带上**：它们是整条连接累计的，
@@ -83,5 +83,72 @@ describe("outboundRequestWasNeverWritten", () => {
     expect(described).not.toContain("10.0.0.9");
     expect(described).not.toContain("443");
     expect(described).toContain("ECONNREFUSED");
+  });
+});
+
+/**
+ * 按派发记账（L-claim，2026-10-06）。这一组测的是**类**的边界：「确定没离开本机」只在
+ * 「一个可能花钱的请求都没交给网络 / 交出去的全在连上之前就失败」时成立；其余（交出去了、结果不明）一律 null。
+ */
+describe("observeSubmissionHandoffs", () => {
+  const connectRefused = () => fetchFailed(Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:9"), { code: "ECONNREFUSED", syscall: "connect" }));
+  const handOff = (init: RequestInit, outcome: () => Promise<unknown>, url = "https://api.vendor.test/v1/x") =>
+    handOffToNetwork(url, init, outcome);
+
+  it("在本机就失败、一个请求都没交给网络 ⇒ never_reached_network（不管错误长什么样）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => { throw new Error("anything local"); });
+    expect(result).toMatchObject({ ok: false, notDispatched: "never_reached_network" });
+  });
+
+  it("交出去的那一笔在连上之前就失败 ⇒ connect_failed", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", () => handOff({ method: "POST", body: "{}" }, async () => { throw connectRefused(); }));
+    expect(result).toMatchObject({ ok: false, notDispatched: "connect_failed" });
+  });
+
+  it("交出去的那一笔写出去之后才断（对面关了连接）⇒ null（结果未知）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", () => handOff({ method: "POST", body: "{}" }, async () => { throw fetchFailed(socketError("other side closed")); }));
+    expect(result).toMatchObject({ ok: false, notDispatched: null });
+  });
+
+  it("先有一笔拿到了回复（写出去了），后面在本机被拦 ⇒ null：防双扣最要紧的一格", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await handOff({ method: "POST", body: "{}" }, async () => "response");
+      throw new Error("second step refused locally");
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: null });
+  });
+
+  it("不带凭据、没有 query、没有请求体的 GET（官方备用域探测那种）不算可能花钱；带了任何一样就算", async () => {
+    const probeThenLocal = await observeSubmissionHandoffs("app-fetch", async () => {
+      await handOff({ method: "GET" }, async () => "probe answered");
+      throw new Error("refused locally");
+    });
+    expect(probeThenLocal).toMatchObject({ notDispatched: "never_reached_network" });
+    for (const init of [{ method: "GET", headers: { "x-api-key": "k" } }, { method: "GET", body: undefined }] as RequestInit[]) {
+      const url = init.headers ? "https://api.vendor.test/v1/x" : "https://api.vendor.test/v1/x?key=k";
+      const result = await observeSubmissionHandoffs("app-fetch", async () => {
+        await handOff(init, async () => "answered", url);
+        throw new Error("refused locally");
+      });
+      expect(result, JSON.stringify(init)).toMatchObject({ notDispatched: null });
+    }
+  });
+
+  it("执行器没声明走 appFetch ⇒ 账本不作数，只认 cause 链证据（测试替身 / 别的传输不会被误判成没发出）", async () => {
+    expect(await observeSubmissionHandoffs(undefined, async () => { throw new Error("pure function provider"); })).toMatchObject({ notDispatched: null });
+    expect(await observeSubmissionHandoffs(undefined, async () => { throw connectRefused(); })).toMatchObject({ notDispatched: "connect_failed" });
+  });
+
+  it("不在任何派发里的请求不记账；嵌套派发时内层交出的请求外层也看得见", async () => {
+    await handOff({ method: "POST", body: "{}" }, async () => "outside any dispatch");
+    const outer = await observeSubmissionHandoffs("app-fetch", async () => {
+      await observeSubmissionHandoffs("app-fetch", () => handOff({ method: "POST", body: "{}" }, async () => "inner sent"));
+      throw new Error("outer refused locally");
+    });
+    expect(outer).toMatchObject({ notDispatched: null });
+  });
+
+  it("成功原样返回", async () => {
+    expect(await observeSubmissionHandoffs("app-fetch", async () => 42)).toEqual({ ok: true, value: 42 });
   });
 });

@@ -221,7 +221,7 @@ describe("SubmissionOutbox", () => {
     const paths = productionRunPaths(root, "run-1");
     const intentLog = createProductionRunIntentLog({ filePath: paths.intents, macKey: "test-app-owned-key" });
     const dispatch = vi.fn()
-      .mockRejectedValueOnce(new SubmissionNotDispatchedError("socket failed before write"))
+      .mockRejectedValueOnce(new SubmissionNotDispatchedError("socket failed before write", "connect_failed"))
       .mockResolvedValueOnce({ providerTaskId: "provider-task-1" });
 
     await outbox({ repository, dispatch, intentLog }).submit(request);
@@ -237,7 +237,7 @@ describe("SubmissionOutbox", () => {
     // 与下一条（收据丢了 → submission_unknown）是同一条轴的两端：
     // 「供应商那边什么都没发生」和「供应商可能已经收下」处置必须不同。
     const repository = setup();
-    const dispatch = vi.fn().mockRejectedValue(new SubmissionNotDispatchedError("socket failed before write"));
+    const dispatch = vi.fn().mockRejectedValue(new SubmissionNotDispatchedError("socket failed before write", "connect_failed"));
 
     await expect(outbox({ repository, dispatch }).submit(request)).rejects.toBeInstanceOf(SubmissionNotDispatchedError);
     expect(dispatch).toHaveBeenCalledTimes(2);
