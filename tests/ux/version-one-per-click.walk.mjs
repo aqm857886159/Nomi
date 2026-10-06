@@ -11,7 +11,7 @@
 // 会打到真实域名（夹具 key 是假的，回 401、不花钱，但出站本身就不该有）——已报协调会话。
 //
 // 用法：pnpm run build && node tests/ux/version-one-per-click.walk.mjs [zh-CN|en]
-import { DEFAULT_TIMEOUT_MS, expect } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
@@ -59,11 +59,15 @@ async function pressGenerateOnce(win) {
   await win.mouse.down()
   await win.waitForTimeout(60)
   await win.mouse.up()
-  // 截一帧：生成浮框是延迟挂载（useDeferredValue），窗口不接宿主输入时 Chromium 不主动出帧，不截就一直挂不上。
-  await win.screenshot()
   const send = win.locator('button[data-bar-segment="generate"]').first()
-  await expect(send, '选中节点后生成浮框里有 ↑').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // 生成浮框是延迟挂载（useDeferredValue）：窗口在屏幕外、不接宿主输入时 Chromium 不主动出帧，
+  // 延迟的那次渲染就一直不提交。每轮截一帧逼它出帧，直到浮框挂上。
+  await expect.poll(async () => { await win.screenshot(); return send.count() }, { timeout: DEFAULT_TIMEOUT_MS, message: '选中节点后生成浮框里有 ↑' }).toBeGreaterThan(0)
+  await expect(send, '选中节点后生成浮框里的 ↑ 看得见').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(send, '↑ 可以按').toBeEnabled({ timeout: DEFAULT_TIMEOUT_MS })
+  // 生成浮框底栏里不再有「每次生成几个」那一段。基线：同一条底栏的分段探针确实看得见东西（模型 / 生成钮这几段）。
+  const barProof = await proveProbe(win.locator('[data-bar-segment]'), '生成浮框底栏的分段（模型参数 / 生成钮）')
+  await expectAbsent(win.locator('[data-bar-segment="variants"]'), { provenBy: barProof, message: '「每次生成几个」下拉已删' })
   await send.click()
   const confirm = win.locator('[data-spend-confirm-action="confirm"]').first()
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
@@ -73,8 +77,6 @@ let failure = null
 try {
   const win = await smoke.openProject()
   await win.locator(nodeSelector).waitFor({ timeout: DEFAULT_TIMEOUT_MS })
-  // 生成浮框里不再有「每次生成几个」那一段。
-  expect(await win.locator('[data-bar-segment="variants"]').count(), '「每次生成几个」下拉已删').toBe(0)
   expect(fixture.images, '开局一次媒体请求都没有').toHaveLength(0)
 
   await pressGenerateOnce(win)
