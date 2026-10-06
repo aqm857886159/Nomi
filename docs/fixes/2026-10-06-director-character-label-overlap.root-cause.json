@@ -53,7 +53,7 @@
     "after": 3,
     "why_not": "characterLabel.ts owns the layout rule; the two drawers must both exist (one draws DOM labels over the live viewport, the other burns labels into exported pixels) and now call that single rule instead of each placing labels on their own."
   },
-  "generality_proof": "The non-overlap rule lives in layoutCharacterLabels and both label drawers call it with their real box sizes, so the rule holds for any number of characters, any scene and any camera; the census test sweeps every registered oracle plan every 0.25 s under the director overview camera.",
+  "generality_proof": "The non-overlap rule lives in layoutCharacterLabels and both label drawers call it with their real box sizes, so the rule holds for any number of characters, any scene and any camera. The test drives both drawers for real (ViewportLabels rendered with renderToStaticMarkup, drawLabels on a recording 2D context; reverting either drawer to the old anchor placement turns it red) and sweeps every registered oracle plan: the viewport under the director overview camera every 0.25 s, and the capture path under every shot camera (the one exports use) every 0.25 s inside its window. Both drawers ignore the 3D-BOX flag; the test runs with the flag off.",
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
