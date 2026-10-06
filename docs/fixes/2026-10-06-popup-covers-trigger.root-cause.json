@@ -1,0 +1,196 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-popup-covers-trigger",
+  "problem_type": "按钮点开的浮层翻边时压住自己的触发钮和它所在的那一排",
+  "symptom": "节点靠画布上沿时点浮条「改图 ▾」，菜单顶边压在浮条那一排上、盖住「宫格」按钮（用户 2026-10-06 截图，暗色）",
+  "direct_cause": "ToolbarActionMenu 把菜单贴在「触发钮上沿往上 6px」那个点上再 side=top；头顶放不下时 Radix 翻到下面，翻的是 0×0 的点，菜单上沿落在按钮之上，整块压回浮条",
+  "class_root": "浮层定位只认一个点（或只认触发钮本身），没有「不许盖住的那块矩形」这一概念：按钮点开的菜单拿按钮位置冒充点位、两边都放不下时 AnchoredPopover 夹进视口宁可盖住锚点；浮条上的下拉还有三种写法，各用各的定位",
+  "affected_population": [
+    "所有平台；节点靠画布上沿 / 窗口很矮 / 浮条折两行时打开任何浮条下拉；分镜表参考卡行「⋯」靠窗口底部时"
+  ],
+  "scope_paths": [
+    "src/design/menu.tsx",
+    "src/design/AnchoredPopover.tsx",
+    "src/design/anchoredPopoverPlacement.ts",
+    "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+    "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/GridSplitPicker.tsx",
+    "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx"
+  ],
+  "entry_points": [
+    "节点浮条上每一个带 ▾ 的按钮（图片：更多效果 / 改图 / 宫格；视频：抽帧 / 拆解）→ ToolbarActionMenu",
+    "分镜表参考卡行「⋯」→ WorkbenchMenu anchorRect",
+    "所有 AnchoredPopover 消费者（12 扇门）→ resolveAnchoredPopoverPlacement"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.radix-ui.com/primitives/docs/components/dropdown-menu",
+      "checked_at": "2026-10-06",
+      "purpose": "核对 Content 的 side / sideOffset / avoidCollisions 翻边，以及 --radix-dropdown-menu-content-available-height 可用高度变量"
+    }
+  ],
+  "invariants": [
+    "按钮点开的浮层与触发钮不相交；节点浮条上的下拉还与整条浮条不相交",
+    "两边都放不下时浮层收高度滚动，不跨过锚点、不探出窗口",
+    "节点浮条上带 ▾ 的按钮只由 ToolbarActionMenu 渲染"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/design/menu.tsx",
+    "tests": [
+      "src/design/anchoredPopoverPlacement.test.ts",
+      "src/design/menu.structure.test.ts",
+      "src/workbench/generationCanvas/nodes/ToolbarActionMenu.structure.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/primitivesMenu/states/01-menu.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/NodeContextMenu.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/NodeDeriveMenu.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "symbol": "WorkbenchMenu"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "这 7 扇是 WorkbenchMenu 的 7 个消费者，各是一个不同的菜单（右键 / 列菜单 / 连线落空 / 时间轴 / 浮条下拉 / 参考卡 ⋯ / 实验室陈列），合不成一个；本次把「锚点从哪来」收成类型上的二选一：没有触发元素的（右键、连线落空、列头右键、时间轴右键）给 point，按钮点开的（浮条下拉、参考卡 ⋯）给 anchorRect，menu.structure.test.ts 拦「量了按钮位置却给 point」。浮条上的下拉从三种写法收成 ToolbarActionMenu 一种（GridSplitPicker 的自拼触发钮 + 浮层、调用方手画的分体竖线已删）"
+  },
+  "generality_proof": "两套定位各在一处保证不变量：WorkbenchMenu 收到 anchorRect 时把虚拟锚点做成那块矩形，Radix 翻边以矩形另一边为起点、可用高度变量收高；resolveAnchoredPopoverPlacement 对任意锚点 × 尺寸 × 方向都返回不与锚点相交、在视口内的位置（单测全摆位普查）。浮条下拉只有 ToolbarActionMenu 一个 owner，它把锚点算成「触发区 × 整条浮条」。实验室弹层几何普查对所有屏所有 capture:viewport 的格量「浮层 ∩ 触发钮 = ∅、∩ 横向工具条 = ∅、在窗口里」，不认组件名",
+  "shared_boundaries": [
+    {
+      "path": "src/design/menu.tsx",
+      "symbol": "WorkbenchMenu",
+      "responsibility": "anchorRect 与 point 二选一；按钮点开的菜单按矩形翻边、按可用高度收高"
+    },
+    {
+      "path": "src/design/anchoredPopoverPlacement.ts",
+      "symbol": "resolveAnchoredPopoverPlacement",
+      "responsibility": "富内容浮层永远不与锚点相交；放不下就收高度"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+      "symbol": "ToolbarActionMenu",
+      "responsibility": "节点浮条上唯一的「▾ 触发钮 + 点开的东西」，锚点 = 触发区 × 整条浮条"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/GridSplitPicker.tsx",
+      "entry_point": "GridSplitPicker",
+      "disposition": "enforced",
+      "evidence": "改走 ToolbarActionMenu 的 panel，原先自拼的 ToolbarMenuTrigger + AnchoredPopover 已删"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "entry_point": "抽帧 ▾ / 拆解 ▾",
+      "disposition": "enforced",
+      "evidence": "本来就用 ToolbarActionMenu，随 owner 一起换成矩形锚点"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "entry_point": "参考卡行 ⋯",
+      "disposition": "enforced",
+      "evidence": "原先 point = 按钮下沿 +4px；改成 anchorRect = 按钮矩形，gap 4"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/NodeContextMenu.tsx",
+      "entry_point": "节点右键菜单",
+      "disposition": "not-affected",
+      "evidence": "右键在指针位置开，没有触发元素可盖；point 来自 clientX/Y"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "entry_point": "列头右键菜单",
+      "disposition": "not-affected",
+      "evidence": "ShotTableGrid onContextMenu 传 clientX/Y，不量按钮"
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/NodeDeriveMenu.tsx",
+      "entry_point": "「+」圈 / 拖线落空菜单",
+      "disposition": "not-affected",
+      "evidence": "point 是拖线松手处或「+」圈右侧的点，菜单贴在点的右下，不跨回「+」圈"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新的按钮下拉都可能再拿按钮位置算一个点；任何新的浮条下拉都可能再自写一份定位",
+    "same_class_scan": [
+      "node scripts/door-map.mjs WorkbenchMenu（7 扇）、node scripts/door-map.mjs AnchoredPopover（12 扇）",
+      "grep -rn \"getBoundingClientRect\" + \"point=\" 同文件：只有 StoryboardAnchorRow 一处，已改",
+      "grep -rln \"from '.*NodeFloatingToolbar'\"：8 个文件，只有 ToolbarActionMenu 含 ▾ / aria-haspopup / 浮层"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/menu.tsx",
+    "invariant": "按钮点开的浮层不与触发钮及其所在横向工具条相交，且整块在窗口里",
+    "failure_mode": "放不下时收高度滚动；结构测试与几何普查红灯",
+    "exception_policy": "none",
+    "strategy": "类型上二选一的锚点 + 定位函数不变量 + 浮条下拉单一 owner + 实验室全屏弹层几何普查（CI 跑）",
+    "artifacts": [
+      "src/design/menu.tsx",
+      "src/design/anchoredPopoverPlacement.ts",
+      "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/design/anchoredPopoverPlacement.test.ts",
+    "src/design/menu.structure.test.ts",
+    "src/workbench/generationCanvas/nodes/ToolbarActionMenu.structure.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/design/anchoredPopoverPlacement.test.ts",
+    "src/design/menu.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "src/workbench/generationCanvas/nodes/GridSplitPicker.tsx"
+    ],
+    "rationale": "NodeFloatingToolbar 导出的 ToolbarMenuTrigger 删掉（触发钮只在 ToolbarActionMenu 里）；GridSplitPicker 自拼的触发钮 + AnchoredPopover 删掉；ToolbarActionMenu 的 split 插槽（调用方手画分体 + 竖线）换成 primary"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Radix DropdownMenu 的翻边与可用高度本来就支持矩形锚点，问题在我们给的是点",
+    "exit_criteria": []
+  },
+  "migration": "无持久化状态；调用方 API：ToolbarActionMenu 的 split 改为 primary，WorkbenchMenu 新增 anchorRect（与 point 互斥）",
+  "residual_risks": [
+    "画布平移 / 缩放时已打开的菜单不跟随（与改前相同，菜单打开时的锚点矩形是点开那一刻量的）",
+    "弹层几何普查只量实验室里 capture:viewport 的格；真 App 里的边界摆位靠 pb13 浮条普查补"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06"
+}

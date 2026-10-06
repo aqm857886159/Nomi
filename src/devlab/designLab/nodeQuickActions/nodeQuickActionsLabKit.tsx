@@ -37,6 +37,8 @@ const CARD = { width: 340, height: 191 } as const
 const CARD_TOP = 520
 /** 右键 / 「+」菜单那几格：菜单往下开，卡放高一点。 */
 const MENU_CARD_TOP = 140
+/** 贴上沿：卡的上沿离舞台上沿 56px——头顶放不下浮条（被夹回舞台里），更放不下向上开的菜单。 */
+const EDGE_CARD_TOP = 56
 const SOURCE_TITLE = '雨夜街口 · 定场'
 
 const svg = (body: string): string =>
@@ -105,9 +107,11 @@ function Stage({ width = QUICK_ACTIONS_CELL_WIDTH, height = QUICK_ACTIONS_CELL_H
 }
 
 /** 节点卡（骨架，外壳类名与现役卡逐字相同）。浮条渲染在卡的定位祖先里——现役外壳是 `bottom: calc(100% + 40px)`。 */
-function Card({ left, top = CARD_TOP, frame, title, toolbar }: { left: number; top?: number; frame: string; title: string; toolbar?: React.ReactNode }): JSX.Element {
+function Card({ left, top = CARD_TOP, frame, title, toolbar, zoom = 1 }: { left: number; top?: number; frame: string; title: string; toolbar?: React.ReactNode; zoom?: number }): JSX.Element {
+  // 缩放：真画布里卡片在 React Flow 的视口里被整体 scale(zoom)，浮条再反向 scale(1/zoom)，净缩放是 1。
+  // 实验室没有视口，就把卡片自己按 zoom 缩（贴左上角缩），浮条的反向缩放才有东西可抵消。
   return (
-    <div className="group/node absolute" style={{ left, top, width: CARD.width, height: CARD.height }}>
+    <div className="group/node absolute" style={{ left, top, width: CARD.width, height: CARD.height, ...(zoom !== 1 ? { transform: `scale(${zoom})`, transformOrigin: 'top left' } : {}) }}>
       {toolbar}
       <div className={cn('generation-canvas-v2-node__preview', 'relative h-full w-full overflow-hidden rounded-nomi shadow-nomi-md ring-1 ring-inset ring-nomi-accent bg-nomi-ink-05')}>
         <img src={frame} alt="" className="h-full w-full object-cover" />
@@ -154,12 +158,47 @@ export type ToolbarStageProps = {
   derivedGrid?: boolean
   /** 窄画布（窗口小 / 右侧面板拉宽）：浮条按舞台宽折行，不裁切。 */
   stageWidth?: number
+  /**
+   * 节点贴着哪条边（边界态，2026-10-06 用户截图：节点靠画布上沿，「改图」菜单翻下来压住了浮条那一排）。
+   * `top` = 卡的上沿离舞台上沿只有 56px，浮条被夹回舞台里、头顶放不下菜单；`bottom` / `left` / `right` 同理。
+   */
+  edge?: 'top' | 'bottom' | 'left' | 'right'
+  /** 画布缩放（浮条反向缩放保持屏幕尺寸不变；菜单不许因此算错位置）。 */
+  zoom?: number
+  /** 这一格的界面语言（英文字长，浮条更宽、更容易折行）。 */
+  locale?: 'zh-CN' | 'en'
 }
 
 const noop = (): void => {}
 
-export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageWidth }: ToolbarStageProps): JSX.Element {
+/** 切到这一格要的语言；切完之前不举就绪旗（否则截到的是上一格的语言）。 */
+function useLabLocale(locale: ToolbarStageProps['locale']): boolean {
+  const { i18n } = useTranslation()
+  const want = locale ?? 'zh-CN'
+  const [applied, setApplied] = React.useState(i18n.language === want)
+  React.useEffect(() => {
+    if (i18n.language === want) { setApplied(true); return undefined }
+    const release = holdDesignLabReady(`quick-actions:locale:${want}`)
+    void i18n.changeLanguage(want).then(() => { setApplied(true); release() })
+    return release
+  }, [i18n, want])
+  return applied
+}
+
+/** 画布缩放：浮条外壳从工作台 store 读当前分类的缩放。 */
+function useLabZoom(zoom: number | undefined): void {
+  React.useLayoutEffect(() => {
+    if (zoom === undefined) return undefined
+    const previous = useWorkbenchStore.getState().categoryViewports
+    useWorkbenchStore.setState({ categoryViewports: { ...previous, shots: { x: 0, y: 0, zoom } } as never })
+    return () => { useWorkbenchStore.setState({ categoryViewports: previous }) }
+  }, [zoom])
+}
+
+export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageWidth, edge, zoom, locale }: ToolbarStageProps): JSX.Element {
   const { t } = useTranslation()
+  const localeReady = useLabLocale(locale)
+  useLabZoom(zoom)
   const rootRef = React.useRef<HTMLDivElement>(null)
   const node = React.useMemo(() => sourceNode(derivedGrid ? {
     id: 'qa-derived',
@@ -168,12 +207,13 @@ export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageW
     meta: { modelKey: 'gpt-image-2', modelVendor: 'apimart', [QUICK_ACTION_META_KEY]: { id: 'multi-angle-grid', sourceNodeId: 'qa-source', grid: { rows: 3, cols: 3 } } },
   } : {}), [derivedGrid, t])
   const nodes = React.useMemo(() => [node], [node])
-  const ready = useCanvasStores(nodes)
+  const ready = useCanvasStores(nodes) && localeReady
   useOpenOnMount(rootRef, ready ? open : undefined, hoverCell)
   // 放大要的是一个「放大」能力的模型；夹具目录里没有 → 这一项灰掉并说原因（与价格无关）。
   const blocked = React.useMemo(() => ({ upscale: t('generationCommon.quickActions.blocked.noUpscaleModel') }), [t])
   const width = stageWidth ?? QUICK_ACTIONS_CELL_WIDTH
-  const left = Math.max(16, Math.round((width - CARD.width) / 2))
+  const left = edge === 'left' ? 8 : edge === 'right' ? width - CARD.width - 8 : Math.max(16, Math.round((width - CARD.width) / 2))
+  const top = edge === 'top' ? EDGE_CARD_TOP : edge === 'bottom' ? QUICK_ACTIONS_CELL_HEIGHT - CARD.height - 8 : CARD_TOP
   const shared = {
     reportFeedback: noop, node, editGrid: null, imageOpBusy: false, onCrop: noop, onTransform: noop,
     onRemoveBackground: noop, onPreview: noop, onOpenProvenance: noop,
@@ -188,7 +228,7 @@ export function QuickToolbarStage({ open, hoverCell, derivedGrid = false, stageW
   )
   return (
     <Stage width={width}>
-      <div ref={rootRef}>{ready ? <Card left={left} frame={node.result?.url ?? STREET_FRAME} title={node.title} toolbar={toolbar} /> : null}</div>
+      <div ref={rootRef}>{ready ? <Card left={left} top={top} zoom={zoom} frame={node.result?.url ?? STREET_FRAME} title={node.title} toolbar={toolbar} /> : null}</div>
     </Stage>
   )
 }

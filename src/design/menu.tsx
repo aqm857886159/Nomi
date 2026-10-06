@@ -107,18 +107,38 @@ export type WorkbenchMenuNode =
   | WorkbenchMenuSeparator
   | WorkbenchMenuGroup
 
-export type WorkbenchMenuProps = {
+/** 视口坐标系里的一块矩形（`getBoundingClientRect()` 的子集）。 */
+export type WorkbenchMenuAnchorRect = Readonly<{ left: number; top: number; width: number; height: number }>
+
+/**
+ * 菜单贴哪儿——两种来源，二选一（类型上互斥）：
+ *
+ *   · `point`：**没有触发元素**的菜单（右键菜单、连线落空菜单）。菜单角贴在这个点上。
+ *   · `anchorRect`：**由一颗按钮点开**的菜单。给的是「菜单不许盖住的那块」——至少是触发钮本身，
+ *     浮条上的下拉还要连同它所在的那一排（`ToolbarActionMenu` 算好再传进来）。
+ *
+ * 为什么不能拿 `point` 冒充按钮（2026-10-06 用户截图那一类）：按钮点开时把点算在「按钮上沿往上 6px」、
+ * 再说 `side="top"`。头顶放得下时没事；节点靠画布上沿、头顶放不下时 Radix 翻到下面——可它翻的是
+ * 一个 0×0 的点，于是菜单的**上沿**落在按钮上沿之上 6px，整块压回按钮和浮条那一排（「改图」盖住「宫格」）。
+ * 给真实的矩形，翻边就以矩形的另一条边为起点，永远不会跨过它；两边都放不下时，菜单收高度、里面滚动，
+ * 也不跨过它（见下面 CONTENT 的 max-height）。
+ */
+type WorkbenchMenuAnchor =
+  | { point: { x: number; y: number }; anchorRect?: never }
+  | { anchorRect: WorkbenchMenuAnchorRect; point?: never }
+
+export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
   /** 受控开合。宿主自己决定什么时候开——原语不抢这个决定。 */
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 视口坐标（`event.clientX/clientY`）。菜单左上角贴这里，越界由 Radix 真实测量后避让。 */
-  point: { x: number; y: number }
   /**
-   * 往哪边展开。默认 `bottom`（右键菜单：左上角贴点位）。`top` = 菜单**底边**贴点位往上长——
+   * 往哪边展开。默认 `bottom`（右键菜单：左上角贴点位）。`top` = 菜单**底边**贴锚点往上长——
    * 节点浮条的下拉要用它：浮条浮在节点上方，往下开就盖住了这张图本身（§1.5.3 动作不许压在内容上）。
    * 放不下时仍由 Radix 按真实尺寸翻边，不是写死。
    */
   side?: 'top' | 'bottom'
+  /** 菜单与 `anchorRect` 之间的缝（只对按钮点开的菜单有意义；点位菜单贴点）。默认 6。 */
+  gap?: number
   items: readonly WorkbenchMenuNode[]
   /** 菜单本身的无障碍名。现役 6 个菜单没有（清单 C15），迁一个补一个。 */
   ariaLabel?: string
@@ -141,8 +161,9 @@ export type WorkbenchMenuProps = {
 }
 
 /** 面板与项的默认皮肤 = 2026-08-20 用户拍板的节点右键菜单那一套。 */
+// max-height 用 Radix 量出来的「这一边还剩多高」：两边都放不下时菜单收高度、里面滚动，而不是被推回去压住锚点。
 const CONTENT_CLASS =
-  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop'
+  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto'
 const ITEM_CLASS = cn(
   'inline-flex items-center justify-between gap-2 w-full min-h-8 px-2 rounded-nomi',
   'font-[inherit] text-caption text-workbench-ink outline-none select-none cursor-pointer',
@@ -289,7 +310,9 @@ export function WorkbenchMenu({
   open,
   onOpenChange,
   point,
+  anchorRect,
   side = 'bottom',
+  gap = 6,
   items,
   ariaLabel,
   className,
@@ -300,6 +323,10 @@ export function WorkbenchMenu({
   'data-testid': testId,
 }: WorkbenchMenuProps): JSX.Element {
   const ctx: RenderContext = { itemClassName, shortcutClassName, separatorClassName }
+  // 虚拟锚点：点位菜单是 0×0 的点；按钮点开的菜单是那块不许盖住的矩形（不接指针事件——它就叠在真按钮上）。
+  const anchorStyle: React.CSSProperties = anchorRect
+    ? { left: anchorRect.left, top: anchorRect.top, width: anchorRect.width, height: anchorRect.height, pointerEvents: 'none' }
+    : { left: point.x, top: point.y }
   return (
     <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
       {/*
@@ -311,7 +338,7 @@ export function WorkbenchMenu({
         tabIndex={-1}
         aria-label={ariaLabel}
         className="fixed size-0 border-0 bg-transparent p-0"
-        style={{ left: point.x, top: point.y }}
+        style={anchorStyle}
       />,
         document.body,
       )}
@@ -319,7 +346,7 @@ export function WorkbenchMenu({
         <DropdownMenuPrimitive.Content
           side={side}
           align="start"
-          sideOffset={0}
+          sideOffset={anchorRect ? gap : 0}
           alignOffset={0}
           // 8 = 现役画布菜单手写的 MENU_EDGE_GAP。差别在于避让用的是**真实测量的盒子**，
           // 不再是各处各猜一个「菜单多高」的常数（清单 §3.3）。

@@ -109,7 +109,7 @@ export default function StoryboardAnchorRow({
   const modelOption = findModelOptionByIdentifier(modelOptions, anchor.modelKey, anchor.modelVendor, orderedVendorKeys)
   const resolved = resolveShotArchetypeMode(modelOption, anchor.modeId)
   const [menuOpen, setMenuOpen] = React.useState(false)
-  const [menuPoint, setMenuPoint] = React.useState({ x: 0, y: 0 })
+  const [menuAnchor, setMenuAnchor] = React.useState({ left: 0, top: 0, width: 0, height: 0 })
   const menuTriggerRef = React.useRef<HTMLButtonElement>(null)
 
   const menuItems: WorkbenchMenuNode[] = [
@@ -148,7 +148,8 @@ export default function StoryboardAnchorRow({
         type="button"
         onClick={() => {
           const rect = menuTriggerRef.current?.getBoundingClientRect()
-          if (rect) setMenuPoint({ x: rect.left, y: rect.bottom + 4 })
+          // 交给菜单的是按钮这块矩形，不是按钮下沿那个点：下面放不下翻到上面时，点会让菜单压回按钮（2026-10-06 同一类）。
+          if (rect) setMenuAnchor({ left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           setMenuOpen((open) => !open)
         }}
         aria-label={t('storyboardEditor.anchor.actions')}
@@ -161,7 +162,8 @@ export default function StoryboardAnchorRow({
       <WorkbenchMenu
         open={menuOpen}
         onOpenChange={(next) => { if (!next) setMenuOpen(false) }}
-        point={menuPoint}
+        anchorRect={menuAnchor}
+        gap={4}
         items={menuItems}
         ariaLabel={t('storyboardEditor.anchor.actions')}
       />

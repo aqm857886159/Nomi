@@ -68,6 +68,11 @@ import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type Anchor
 export type AnchoredPopoverProps = {
   /** 贴谁。不给就贴「浮层原本在流里的那个位置」（组件会就地留一个 0 尺寸锚点）。 */
   anchorRef?: React.RefObject<HTMLElement | null>
+  /**
+   * 「不许盖住」的那块比锚点元素大时给（节点浮条的下拉：触发钮连同它所在的那一排，见 `ToolbarActionMenu`）。
+   * 只管放哪儿；「点在锚点上不算点外面」仍按 `anchorRef`。
+   */
+  anchorRect?: () => DOMRect
   /** 相对锚点的横向对齐。 */
   align?: AnchoredPopoverAlign
   /** 先往哪边放（默认下方；放不下自动翻边）。 */
@@ -83,11 +88,12 @@ export type AnchoredPopoverProps = {
   children: React.ReactNode
 }
 
-type Placement = { top: number; left: number }
+type Placement = { top: number; left: number; maxHeight?: number }
 
 
 export function AnchoredPopover({
   anchorRef,
+  anchorRect,
   align = 'start',
   side = 'bottom',
   gap = 4,
@@ -105,13 +111,17 @@ export function AnchoredPopover({
   // 只有「会被关掉的交互浮层」管焦点；悬停预览（passThrough）与自己管开合的浮层（没传 onClose）不碰。
   const managesFocus = Boolean(onClose) && !passThrough
 
+  // 调用方常写成内联函数：放进 ref，身份变了不重建 reposition（否则每次渲染都重算 → setState → 再渲染）。
+  const anchorRectRef = React.useRef(anchorRect)
+  React.useLayoutEffect(() => { anchorRectRef.current = anchorRect })
   const reposition = React.useCallback(() => {
     const anchor = anchorRef?.current ?? fallbackAnchorRef.current
     const pop = popRef.current
     if (!anchor || !anchor.isConnected) return
     setPlacement(resolveAnchoredPopoverPlacement(
-      anchor.getBoundingClientRect(),
-      { width: pop?.offsetWidth || 300, height: pop?.offsetHeight || 360 },
+      anchorRectRef.current ? anchorRectRef.current() : anchor.getBoundingClientRect(),
+      // 高度量内容的自然高（scrollHeight）：被 maxHeight 收过的高度会让下一次判成「放得下」，来回抖。
+      { width: pop?.offsetWidth || 300, height: pop?.scrollHeight || 360 },
       align,
       gap,
       { width: window.innerWidth, height: window.innerHeight },
@@ -192,6 +202,7 @@ export function AnchoredPopover({
         zIndex: zIndex ?? NOMI_OVERLAY_Z_INDEX.popover,
         // 放好位置前用 opacity 0 而不是 visibility:hidden——FocusScope 在挂载时就要聚焦，hidden 的元素聚焦不上。
         opacity: placement ? 1 : 0,
+        ...(placement?.maxHeight !== undefined ? { maxHeight: placement.maxHeight, overflowY: 'auto' as const } : {}),
         outline: 'none',
         ...(passThrough ? { pointerEvents: 'none' as const } : {}),
       }}

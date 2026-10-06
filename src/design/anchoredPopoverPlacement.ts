@@ -13,8 +13,20 @@ export type AnchoredPopoverSide = 'bottom' | 'top'
 
 const MARGIN = 8
 
-type Placement = { top: number; left: number }
+/** `maxHeight` 只在「两边都放不下」时给：浮层收到这一边剩下的高度、里面滚动。 */
+type Placement = { top: number; left: number; maxHeight?: number }
 
+/**
+ * 不变量（2026-10-06 起）：**浮层永远不与锚点相交**。锚点 = 调用方说「不许盖住」的那块
+ * （至少是触发钮；节点浮条的下拉还连同它所在的那一排，见 `ToolbarActionMenu`）。
+ *
+ * 先放偏好的那一边；放不下就翻到另一边；两边都放不下，就放在**剩得多的那一边**并收高度（`maxHeight`），
+ * 里面滚动。旧版这里是「夹进视口，宁可盖住锚点」——那正是用户截图里「改图菜单压住宫格」的同一种形状：
+ * 盖住触发钮，等于把用户刚点的东西和它旁边的按钮一起藏起来。
+ *
+ * `size.height` 要传**内容的自然高度**（`scrollHeight`），不是被收过的高度——否则收完一量「放得下了」，
+ * 下一帧又放开，来回抖。
+ */
 export function resolveAnchoredPopoverPlacement(
   anchor: DOMRect,
   size: { width: number; height: number },
@@ -23,15 +35,17 @@ export function resolveAnchoredPopoverPlacement(
   viewport: { width: number; height: number },
   side: AnchoredPopoverSide = 'bottom',
 ): Placement {
-  // 先放偏好的那一边；放不下就翻到另一边；两边都放不下就夹进视口（宁可盖住锚点，也不许被切）。
   const below = anchor.bottom + gap
   const above = anchor.top - gap - size.height
-  const fitsBelow = below + size.height <= viewport.height - MARGIN
-  const fitsAbove = above >= MARGIN
-  let top = side === 'top'
-    ? (fitsAbove || !fitsBelow ? Math.max(MARGIN, above) : below)
-    : (fitsBelow ? below : Math.max(MARGIN, above))
-  top = Math.min(top, Math.max(MARGIN, viewport.height - MARGIN - size.height))
+  const roomBelow = viewport.height - MARGIN - below
+  const roomAbove = anchor.top - gap - MARGIN
+  const fitsBelow = size.height <= roomBelow
+  const fitsAbove = size.height <= roomAbove
+  let vertical: Pick<Placement, 'top' | 'maxHeight'>
+  if (side === 'top' ? fitsAbove : (fitsAbove && !fitsBelow)) vertical = { top: above }
+  else if (fitsBelow) vertical = { top: below }
+  else if (roomAbove > roomBelow) vertical = { top: MARGIN, maxHeight: Math.max(0, roomAbove) }
+  else vertical = { top: below, maxHeight: Math.max(0, roomBelow) }
 
   let left = align === 'center'
     ? anchor.left + anchor.width / 2 - size.width / 2
@@ -40,5 +54,5 @@ export function resolveAnchoredPopoverPlacement(
       : anchor.left
   if (left + size.width > viewport.width - MARGIN) left = viewport.width - MARGIN - size.width
   left = Math.max(MARGIN, left)
-  return { top, left }
+  return { ...vertical, left }
 }

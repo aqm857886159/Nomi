@@ -50,12 +50,32 @@ describe('resolveAnchoredPopoverPlacement', () => {
     expect(at.left).toBe(8)
   })
 
-  it('上下都放不下的超高浮层：顶到视口上边而不是溢出到负坐标（宁可盖住锚点也不许被切）', () => {
+  it('上下都放不下的超高浮层：放在剩得多的那一边、收高度滚动——不盖锚点，也不被切（2026-10-06 起；旧版是「宁可盖住锚点」）', () => {
     const at = resolveAnchoredPopoverPlacement(
       anchor({ left: 100, right: 140, top: 400, bottom: 420, width: 40 }),
       { width: 200, height: 780 }, 'start', 6, viewport,
     )
-    expect(at.top).toBe(8)
+    // 上面剩 400-6-8=386，下面剩 800-8-426=366 → 放上面，顶到边距，高度收到 386。
+    expect(at).toEqual({ top: 8, left: 100, maxHeight: 386 })
+    expect(at.top + (at.maxHeight ?? 0)).toBeLessThanOrEqual(400 - 6)
+  })
+
+  it('不变量普查：任意锚点 × 尺寸 × 偏好方向，浮层都不与锚点相交、都在视口里', () => {
+    const misses: string[] = []
+    for (const side of ['top', 'bottom'] as const) {
+      for (let top = 0; top <= 780; top += 20) {
+        for (const height of [40, 150, 360, 600, 790]) {
+          const a = anchor({ left: 100, right: 140, top, bottom: top + 20, width: 40 })
+          const at = resolveAnchoredPopoverPlacement(a, { width: 200, height }, 'start', 6, viewport, side)
+          const shown = Math.min(height, at.maxHeight ?? height)
+          const bottom = at.top + shown
+          const overlaps = at.top < a.bottom && bottom > a.top
+          const outside = at.top < 0 || bottom > viewport.height
+          if (overlaps || outside) misses.push(`${side} top=${top} h=${height} → ${JSON.stringify(at)}`)
+        }
+      }
+    }
+    expect(misses).toEqual([])
   })
 
   it('end 对齐把浮层右缘对到锚点右缘', () => {
