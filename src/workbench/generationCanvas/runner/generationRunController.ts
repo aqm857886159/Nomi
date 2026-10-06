@@ -9,7 +9,6 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
 import { directorPreviewSpendBlock } from '../nodes/director/model/directorPreviewState'
-import { reportCanvasFeedback } from '../components/canvasFeedback'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { releaseCanvasShotRun } from '../../api/taskApi'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
@@ -58,11 +57,6 @@ import {
 import type { HostingDisclosure } from '../spend/spendConfirm'
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 import type { MediaDimensions } from '../nodes/nodeSizing'
-
-function reportAuthorizationFailure(error: unknown, projectId: string, nodeId: string): void {
-  const message = error instanceof Error && error.message ? error.message : i18n.t('generationCommon.batchPlan.authorizationFailed')
-  reportCanvasFeedback(message, 'error', { projectId, identity: `node:${nodeId}`, reason: 'authorization', nodeIds: [nodeId] })
-}
 
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
@@ -582,48 +576,6 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   }
   // 提交已经发出去了（跑挂了由任务队列记失败），对「用户同不同意这次」这一格就是 started。
   return 'started'
-}
-
-/** ×N shares one approval (one card), runs serially on the original node, and retains completed
- * results if a later attempt fails. Switching foreground projects does not cancel approval. */
-export async function confirmAndRunNodeVariants(
-  nodeId: string,
-  count: number,
-  // 托管同意由本函数自己的花钱卡问出来（下方固定传 'allow'），调用方给不了也不该给。
-  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent' | 'target' | 'assertAuthorCurrent' | 'ledger' | 'runRecordId'> & GenerationConfirmationGuards,
-): Promise<void> {
-  const project = withProjectAction((issued) => issued)
-  if (!project) return
-  const projectId = project.binding.projectId
-  try {
-    const id = String(nodeId || '').trim()
-    if (!id) return
-    const total = Math.max(1, Math.min(8, Math.floor(count)))
-    const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
-    const assertApprovedInputs = captureApprovedGenerationInputs([id])
-    const hosting = await resolveHostingDisclosure(node)
-    if (!hosting.allowed) return
-    const ok = await confirmGenerationSpend(Array.from({ length: total }, () => node), {
-      initiator: options.initiator,
-      title: i18n.t('generationCommon.spend.startGeneration'),
-      message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
-      confirmLabel: i18n.t('generationCommon.spend.generate'),
-      ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
-    })
-    if (!ok) return
-    await options.assertCurrent?.()
-    if (!isProjectExecutionContextCurrent(project)) return
-    for (let index = 0; index < total; index += 1) {
-      try {
-        const result = await runGenerationNode(id, { ...options, assertAuthorCurrent: options.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
-        whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result))
-      } catch {
-        return // 原任务队列保留失败；停发剩余变体。
-      }
-    }
-  } catch (error) {
-    reportAuthorizationFailure(error, projectId, nodeId)
-  }
 }
 
 /** Re-generate in place: retain node identity, add the result to its existing history, and

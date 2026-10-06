@@ -47,6 +47,15 @@ describe('walkthrough network guard', () => {
     expect(blocked[0].stack).toContain('probeVendorModels')
   })
 
+  it('a blocked fetch looks like a real connect refusal (cause on the connect phase), so the app can tell nothing was written', () => {
+    const { stdout } = runGuarded(`
+      fetch('https://api.vendor.invalid/v1/images', { method: 'POST', body: '{}' }).then(() => console.log('LEAKED'), (error) => {
+        console.log('CAUSE ' + error.name + ' ' + (error.cause && error.cause.code) + ' ' + (error.cause && error.cause.syscall))
+      })
+    `)
+    expect(stdout).toContain('CAUSE TypeError ECONNREFUSED connect')
+  })
+
   it('blocks a raw socket that bypasses fetch and http', () => {
     const { stdout, entries } = runGuarded(`
       require('node:net').connect(443, 'api.vendor.invalid').on('error', (error) => console.log('SOCKET ' + error.code))

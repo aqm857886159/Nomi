@@ -1,22 +1,18 @@
-// ×N 变体连发的付费语义（样张拍板 2026-07-29）：一次确认 N 次跑、串行、失败即停不连烧。
+// 生成确认卡上「将生成几段 / 几张」的文案：每个会弹卡的入口都说对数量与类型，不编时长。
+// （「×N 一次生成几个」入口 2026-10-06 按用户拍板删除，原来这里的连发语义测试随之删掉。）
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, spendCostKindForNodes } from './generationRunController'
+import { confirmAndRunNode, regenerateNodeInPlace, spendCostKindForNodes } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { describeGenerationCost, useSpendConfirmStore } from '../spend/spendConfirm'
 import i18n from '../../../i18n'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { resetModelHealthMemory } from './modelHealthMemory'
-import type { GenerationNodeResult } from '../model/generationCanvasTypes'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
 vi.mock('../../api/taskApi', () => ({
   mintSpendGrant: vi.fn(async () => `grant-${Math.random().toString(36).slice(2)}`),
 }))
-
-function fakeResult(id: string): GenerationNodeResult {
-  return { id, type: 'image', url: `https://example.com/${id}.png`, createdAt: Date.now() } as unknown as GenerationNodeResult
-}
 
 let projectSession: ProjectSessionTestHarness
 beforeEach(async () => {
@@ -25,7 +21,7 @@ beforeEach(async () => {
 })
 afterEach(() => projectSession.dispose())
 
-describe('confirmAndRunNodeVariants', () => {
+describe('generation confirmation copy', () => {
   let confirmCalls = 0
   let confirmAnswer = true
   let confirmMessages: string[] = []
@@ -58,11 +54,9 @@ describe('confirmAndRunNodeVariants', () => {
     // 确认卡的文案只在会弹卡的路径上出现：用户自己点的单个生成不弹（2026-09-25），所以单个入口用 Agent 发起来验卡上写什么。
     await confirmAndRunNode(node.id, { initiator: 'agent' })
     await regenerateNodeInPlace(node.id, { initiator: 'agent' })
-    await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' })
     expect(confirmMessages).toEqual([
       '将生成 1 段文本 · 会消耗模型额度',
       '将生成 1 段文本 · 会消耗模型额度',
-      '将生成 3 段文本 · 会消耗模型额度',
     ])
   })
 
@@ -81,87 +75,7 @@ describe('confirmAndRunNodeVariants', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Rewrite' })
     // 确认卡的文案只在会弹卡的路径上出现：用户自己点的单个生成不弹（2026-09-25），所以单个入口用 Agent 发起来验卡上写什么。
     await confirmAndRunNode(node.id, { initiator: 'agent' })
-    await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' })
-    expect(confirmMessages).toEqual([
-      'Will generate 1 text result · Uses model credits',
-      'Will generate 3 text results · Uses model credits',
-    ])
-  })
-
-  it('一次确认 → N 次串行执行，产物堆进同一节点（最后一张为主图）', async () => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
-    let runs = 0
-    await confirmAndRunNodeVariants(node.id, 4, {
-      initiator: 'user',
-      executor: async () => {
-        runs += 1
-        return fakeResult(`r${runs}`)
-      },
-    })
-    expect(confirmCalls).toBe(1)
-    expect(runs).toBe(4)
-    const after = useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)
-    expect(after?.result?.id).toBe('r4')
-    expect(after?.status).toBe('success')
-  })
-
-  it('显式选择 3 张时恰好执行三次', async () => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '三张构图' })
-    let runs = 0
-
-    await confirmAndRunNodeVariants(node.id, 3, {
-      initiator: 'user',
-      executor: async () => {
-        runs += 1
-        return fakeResult(`three-${runs}`)
-      },
-    })
-
-    expect(confirmCalls).toBe(1)
-    expect(runs).toBe(3)
-  })
-
-  it('取消确认 → 零执行零扣费', async () => {
-    confirmAnswer = false
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
-    let runs = 0
-    await confirmAndRunNodeVariants(node.id, 4, {
-      initiator: 'user',
-      executor: async () => {
-        runs += 1
-        return fakeResult(`r${runs}`)
-      },
-    })
-    expect(runs).toBe(0)
-  })
-
-  it('中途失败即停：剩余次数不再发起（不对坏通道连烧）', async () => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
-    let runs = 0
-    await confirmAndRunNodeVariants(node.id, 4, {
-      initiator: 'user',
-      retry: { maxAttempts: 1 },
-      executor: async () => {
-        runs += 1
-        if (runs === 2) throw new Error('上游挂了')
-        return fakeResult(`r${runs}`)
-      },
-    })
-    expect(runs).toBe(2)
-    const after = useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)
-    expect(after?.result?.id).toBe('r1') // 第一张成功保留
-  })
-
-  it('count 钳位：0/负数按 1 次跑', async () => {
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '一只猫' })
-    let runs = 0
-    await confirmAndRunNodeVariants(node.id, 0, {
-      initiator: 'user',
-      executor: async () => {
-        runs += 1
-        return fakeResult(`r${runs}`)
-      },
-    })
-    expect(runs).toBe(1)
+    expect(confirmMessages).toEqual(['Will generate 1 text result · Uses model credits'])
+    expect(describeGenerationCost(3, 'text')).toBe('Will generate 3 text results · Uses model credits')
   })
 })

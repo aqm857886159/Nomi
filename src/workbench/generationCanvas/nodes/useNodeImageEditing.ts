@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistNodeImageBlob } from '../adapters/persistNodeImage'
 import { isProjectImportCancellation } from '../adapters/assetImportAdapter'
@@ -73,26 +74,6 @@ async function transformBitmap(source: ImageBitmap, op: ImageTransformOp): Promi
   return canvasToPngBlob(canvas, width, height)
 }
 
-
-function mergeNodeImageHistory(
-  currentResult: GenerationNodeResult | undefined,
-  currentHistory: GenerationNodeResult[] | undefined,
-  newResults: GenerationNodeResult[],
-): GenerationNodeResult[] {
-  const merged: GenerationNodeResult[] = []
-  const seen = new Set<string>()
-  const add = (result: GenerationNodeResult | undefined) => {
-    if (!result) return
-    const key = result.id || result.url || result.thumbnailUrl || result.text || ''
-    if (!key || seen.has(key)) return
-    seen.add(key)
-    merged.push(result)
-  }
-  newResults.forEach(add)
-  add(currentResult)
-  ;(currentHistory || []).forEach(add)
-  return merged
-}
 
 // 图片本地编辑（切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
 // 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + ImageQuickActionsToolbar，
@@ -359,8 +340,7 @@ export function useNodeImageEditing(
           const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
           const newSize = imageGridTileNodeSize(cropped.width, cropped.height, preferredWidth)
           updateNode(nodeId, {
-            result,
-            history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+            ...appendNodeResultVersion(latest, result),
             status: 'success',
             error: undefined,
             progress: undefined,
@@ -426,8 +406,7 @@ export function useNodeImageEditing(
             height: out.height,
           })?.meta
           updateNode(nodeId, {
-            result,
-            history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+            ...appendNodeResultVersion(latest, result),
             status: 'success',
             error: undefined,
             ...(newSize && latest.meta?.userResized !== true
@@ -507,8 +486,7 @@ export function useNodeImageEditing(
         }
         const latest = latestNodeSnapshot()
         updateNode(nodeId, {
-          result,
-          history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+          ...appendNodeResultVersion(latest, result),
           status: 'success',
           error: undefined,
           progress: undefined,

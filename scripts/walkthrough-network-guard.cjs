@@ -85,7 +85,15 @@ if (typeof realFetch === 'function') {
     const target = typeof input === 'string' ? input : (input && input.url) || String(input)
     if (!isLocal(target)) {
       note({ kind: 'blocked', via: 'fetch', url: redact(target), host: hostOf(target), stack: callerStack() })
-      return Promise.reject(new TypeError('fetch failed (blocked by walkthrough network guard)'))
+      // 形状照真实 undici 拒连：外壳 `fetch failed`，cause 是 connect 阶段的 ECONNREFUSED。闸确实在连上之前就拦了，
+      // 所以 App 的出站证据（electron/outboundDispatchEvidence.ts）该读到的就是「没写出去」——以前这里只抛一个
+      // 不带 cause 的 TypeError，真实网络里不存在这种形状，App 只能按「结果未知」处理（V-1042 第 22 张截图）。
+      const host = hostOf(target)
+      const cause = Object.assign(
+        new Error(`connect ECONNREFUSED ${host} (blocked by walkthrough network guard)`),
+        { code: 'ECONNREFUSED', syscall: 'connect', address: host, port: 0 },
+      )
+      return Promise.reject(Object.assign(new TypeError('fetch failed (blocked by walkthrough network guard)'), { cause }))
     }
     return realFetch.call(this, input, init)
   }
