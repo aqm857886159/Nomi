@@ -1,0 +1,147 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-agent-runtime-lazy-load",
+  "problem_type": "关键路径上的同步模块装载：只读路径为一两个小符号静态引入整个 CLI 入口",
+  "symptom": "本进程第一次打开项目时「打开 Agent」阶段 1–2 秒、期间主进程不接任何 IPC（用户 10-05 #1：进项目、建新项目都卡）；CPU 剖面里 migrateLaneLegacy / openDesktopLaneWorkspace 的大头是 ESM 解析与同步链接",
+  "direct_cause": "legacyPiSnapshot 为一个版本常量、laneHost 经 laneNativeDesktop 为一个 bash 函数，静态引入 @earendil-works/pi-coding-agent 入口；入口是整个 CLI，连带 pi-tui、highlight.js、剪贴板原生模块等，打开路径的模块图 1780 个文件",
+  "class_root": "Agent 岛缺少「只读打开路径不装本机能力」的约束：包只开放入口一个导入点，任何一处顺手静态引入都会把整个 CLI 带进它所在的模块图，而 Electron 的 Node 同步装 ESM",
+  "affected_population": [
+    "所有平台，每次启动后第一次打开或新建项目",
+    "Windows 与刚装完更新（新包第一次被读）最明显"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneHost.mts",
+    "electron/shared/agentLane/legacyPiSnapshot.mts"
+  ],
+  "entry_points": [
+    "渲染层 hydrateProject → nomi:agent-lane:command(open) → laneDesktopRuntime.openWorkspace → migrateLaneLegacy（laneLegacyMigration → laneLegacyImportPlan → laneLegacyIntegrity → legacyPiSnapshot）",
+    "同上 → openDesktopLaneWorkspace（laneWorkspace → laneHost → laneNativeDesktop）"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/nodejs/node/blob/v24.x/lib/internal/modules/esm/module_job.js",
+      "checked_at": "2026-10-06",
+      "purpose": "Node 24 的 ESM 模块作业同步链接（ModuleJobSync / syncLink），import() 的整张图在主线程上同步解析与装载"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/module.html#customization-hooks",
+      "checked_at": "2026-10-06",
+      "purpose": "module.registerHooks 的 load 钩子：用来数真装载的文件（测试与跑器的探针）"
+    }
+  ],
+  "invariants": [
+    "打开项目（迁移旧对话 + 打开 lane 工作区只读历史）的模块图里没有 pi-coding-agent 入口",
+    "本机能力在真开带模型的 lane 时才装，装配失败走原收尾",
+    "Agent 岛的每个入口都在 laneNativeLoader.entries.json 登记阶段；open 阶段入口的模块图不含 pi-coding-agent 入口"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "openLaneNativeDesktop"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/legacyPiSnapshot.mts",
+      "symbol": "LEGACY_PI_SESSION_VERSION"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "两扇各是唯一调用点：laneHost 是本机能力的唯一装配处；legacyPiSnapshot 是版本常量的唯一使用处"
+  },
+  "generality_proof": "打开路径只经两个模块进入 pi-coding-agent 入口（子进程装载计数逐条列出的全部静态引入者，入口内部自引用除外）；两处都改成不引入后，入口从打开路径的模块图里消失。结构测试在子进程里装真实的两扇打开门、数真装载的文件，任何新加的静态引入都会让它变红",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "loadLaneNativeDesktop",
+      "responsibility": "本机能力只在开带模型的 lane 时按需 import"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "openLane",
+      "disposition": "enforced",
+      "evidence": "动态 import laneNativeDesktop；lane-close-resources / lane-surface-authority 走真实 openLane + native 通过"
+    },
+    {
+      "path": "electron/shared/agentLane/legacyPiSnapshot.mts",
+      "entry_point": "validateLegacyPiData",
+      "disposition": "enforced",
+      "evidence": "版本常量就地定义，lane-open-graph.test 对照上游 CURRENT_SESSION_VERSION"
+    },
+    {
+      "path": "electron/agentLane/laneCodingTools.mts",
+      "entry_point": "loadPiCodingToolFactories",
+      "disposition": "not-affected",
+      "evidence": "本来就是 await import，按需"
+    },
+    {
+      "path": "electron/agentLane/laneSkillCatalog.mts",
+      "entry_point": "loadPiSkillFormatter",
+      "disposition": "not-affected",
+      "evidence": "本来就是 await import，按需"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何模块顺手静态引入入口都会复发",
+    "same_class_scan": [
+      "git grep \"from '@earendil-works/pi-coding-agent'\" electron：运行期静态引入只有这两处（其余为 import type 或 await import）",
+      "子进程 registerHooks 装载计数：rootImporters 只有 legacyPiSnapshot 与 laneNativeDesktop（以及入口内部自引用）"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneHost.mts",
+    "invariant": "打开路径模块图不含 pi-coding-agent 入口",
+    "failure_mode": "新的静态引入让 lane-open-graph.test 变红；真 App 跑器 --assert-no-cli-entry 退出码非零",
+    "exception_policy": "none",
+    "strategy": "本机能力的唯一装配点按需 import；岛的唯一入口桥 laneNativeLoader.cts 的每个 import 都在 laneNativeLoader.entries.json 登记阶段（open / use）。类级检查 tests/agent-runtime/lane-open-graph.test.mts 从登记表取清单遍历：每个 open 入口在子进程里数真装载、不许出现 pi-coding-agent 入口；登记表与 loader 源码双向比对、并确认主进程没有第二座桥（新增入口忘登记即红）",
+    "artifacts": [
+      "electron/agentLane/laneHost.mts",
+      "electron/shared/agentLane/legacyPiSnapshot.mts",
+      "electron/agentLane/laneNativeLoader.entries.json"
+    ]
+  },
+  "regression_tests": [
+    "tests/agent-runtime/lane-open-graph.test.mts"
+  ],
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-open-graph.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "静态引入被改成按需引入，没有并行的旧路径"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "pi-coding-agent 只开放入口一个导入点（package.json exports 只有 \".\"），不能深导入小模块",
+    "current": "@earendil-works/pi-coding-agent 0.85.1",
+    "target": "上游开放子路径导出，或 Nomi 把 Agent 岛打成单文件（选项 A）",
+    "exit_criteria": [
+      "上游 exports 增加不拖 CLI 的子路径时改为子路径导入",
+      "或选项 A 落地后复查是否还需要按需加载"
+    ]
+  },
+  "migration": "无数据迁移；旧 pi 快照的版本校验仍是 3",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneHost.mts",
+    "tests": [
+      "tests/agent-runtime/lane-open-graph.test.mts",
+      "tests/ux/project-open-stages.e2e.mjs"
+    ],
+    "why": "本机能力的装配只在 openLane 一处；结构测试数打开路径的真装载，跑器在真 App 里数主进程新装模块"
+  },
+  "residual_risks": [
+    "第一次在 Agent 面板发消息时，本机能力（laneNativeDesktop，含 pi-coding-agent 入口，新装 705 个模块）挪到这一刻同步装载：Windows 打包版中位数 534ms / p95 750ms（装完新包后的第一次约 1.1s），开发版 2420ms / 2563ms（tests/ux/project-open-stages.e2e.mjs --first-send-load，零花费：在已打开项目的真 App 主进程里装同一个模块计时，不发真消息）。可由选项 C（项目库空闲时分段预热）或选项 A（打成单文件）再藏掉 / 削掉，见设计卡",
+    "打开路径剩下的模块图仍约 1076 个文件（typebox 660 个），选项 A（打成单文件）可再降"
+  ]
+}

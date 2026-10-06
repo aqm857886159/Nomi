@@ -32,6 +32,10 @@ const warmup = Math.max(0, Number(argValue('--warmup') || 1))
 const executablePath = argValue('--exe')
 const onscreen = args.includes('--onscreen')
 const assertReadOnly = args.includes('--assert-read-only')
+const assertNoCliEntry = args.includes('--assert-no-cli-entry')
+// 第一次在 Agent 面板发消息时主进程要装的那张图（本机能力：bash / 沙箱 / pi-coding-agent 入口）。不发真消息（零花费）：
+// 项目打开之后，在真 App 的主进程里装同一个模块（laneHost.loadLaneNativeDesktop 装的就是它），计时并数新装文件。
+const measureFirstSendLoad = args.includes('--first-send-load')
 const OPEN_TIMEOUT_MS = 90_000
 const SETTLE_AFTER_MEDIA_MS = 3_000
 
@@ -64,7 +68,7 @@ async function launch() {
     projectsDir,
     // Windows 把屏幕外窗口判成被遮挡、停掉渲染帧；关掉遮挡判定，量到的才是真的。
     args: ['--no-proxy-server', ...(onscreen ? [] : ['--disable-features=CalculateNativeWinOcclusion'])],
-    mainRequire: [path.join(here, 'perf', 'openWriteProbe.cjs'), ...(onscreen ? [] : [path.join(here, '_offscreenWindows.cjs')])],
+    mainRequire: [path.join(here, 'perf', 'openWriteProbe.cjs'), path.join(here, 'perf', 'openModuleProbe.cjs'), ...(onscreen ? [] : [path.join(here, '_offscreenWindows.cjs')])],
     initialLocalStorage: { ...FIRST_RUN_SEEN, 'nomi:perf-marks': '1' },
     env: { NOMI_PERF_MARKS: '1' },
     settleMs: 900,
@@ -100,6 +104,7 @@ async function openOnce(app, page, kind) {
   await app.evaluate((_electron, prefix) => {
     for (const entry of performance.getEntriesByType('measure')) if (entry.name.startsWith(prefix)) performance.clearMeasures(entry.name)
     globalThis.__nomiOpenWriteProbe.arm()
+    globalThis.__nomiOpenModuleProbe.arm()
   }, MAIN_PREFIX)
   const clickedAt = Date.now()
   await card.click()
@@ -108,6 +113,7 @@ async function openOnce(app, page, kind) {
   const clickToMediaMs = Date.now() - clickedAt
   await new Promise((resolve) => setTimeout(resolve, SETTLE_AFTER_MEDIA_MS))
   const writes = await app.evaluate(() => globalThis.__nomiOpenWriteProbe.take())
+  const modules = await app.evaluate(() => globalThis.__nomiOpenModuleProbe.take())
   const main = await app.evaluate((_electron, prefix) => performance.getEntriesByType('measure')
     .filter((entry) => entry.name.startsWith(prefix))
     .map((entry) => ({ name: entry.name.slice(prefix.length), ms: entry.duration })), MAIN_PREFIX)
@@ -128,6 +134,7 @@ async function openOnce(app, page, kind) {
     longTaskCount: renderer.longTasks.length,
     longTaskMs: renderer.longTasks.reduce((sum, value) => sum + value, 0),
     writes: summarizeWrites(writes),
+    modules,
     workingSetMB: Math.round(metrics.reduce((sum, metric) => sum + (metric.workingSetKB || 0), 0) / 1024),
   }
 }
@@ -159,7 +166,7 @@ function percentile(sorted, p) {
 }
 
 function summarize(samples) {
-  const keys = new Set(['clickToMediaMs', 'longTaskMs', 'writes.total', 'writes.fsync', 'workingSetMB'])
+  const keys = new Set(['clickToMediaMs', 'longTaskMs', 'writes.total', 'writes.fsync', 'workingSetMB', 'modules.count'])
   for (const sample of samples) for (const key of Object.keys(sample.stages)) keys.add(`stages.${key}`)
   const read = (sample, key) => key.split('.').reduce((value, part) => value?.[part], sample) ?? (key.startsWith('stages.') ? null : 0)
   const out = {}
@@ -184,7 +191,20 @@ try {
       await backToLibrary(win)
       const reopen = await openOnce(app, win, 'reopen')
       if (index >= warmup) results.samples.push(cold, reopen)
-      console.log(`run ${index + 1}/${warmup + runs}${index < warmup ? '（预热，不计）' : ''}: cold ${cold.clickToMediaMs}ms（写盘 ${cold.writes.total}，fsync ${cold.writes.fsync}） · reopen ${reopen.clickToMediaMs}ms（写盘 ${reopen.writes.total}，fsync ${reopen.writes.fsync}）`)
+      if (measureFirstSendLoad) {
+        const firstSend = await app.evaluate(async ({ app: electronApp }) => {
+          const nodePath = process.mainModule.require('node:path')
+          const target = nodePath.join(electronApp.getAppPath(), 'dist-electron', 'agentLane', 'laneNativeDesktop.mjs')
+          globalThis.__nomiOpenModuleProbe.arm()
+          const startedAt = performance.now()
+          process.mainModule.require(target)
+          const ms = performance.now() - startedAt
+          return { ms, modules: globalThis.__nomiOpenModuleProbe.take() }
+        })
+        if (index >= warmup) results.firstSend = [...(results.firstSend || []), firstSend]
+        console.log(`  首发装载：${Math.round(firstSend.ms)}ms，新装模块 ${firstSend.modules.count}${firstSend.modules.piCodingAgentEntry ? '（含 pi-coding-agent 入口）' : ''}`)
+      }
+      console.log(`run ${index + 1}/${warmup + runs}${index < warmup ? '（预热，不计）' : ''}: cold ${cold.clickToMediaMs}ms（写盘 ${cold.writes.total}，fsync ${cold.writes.fsync}，新装模块 ${cold.modules.count}${cold.modules.piCodingAgentEntry ? '，含 pi-coding-agent 入口' : ''}） · reopen ${reopen.clickToMediaMs}ms（写盘 ${reopen.writes.total}，fsync ${reopen.writes.fsync}，新装模块 ${reopen.modules.count}）`)
     } finally {
       await closeNomiApp(app)
     }
@@ -193,6 +213,11 @@ try {
   fs.rmSync(root, { recursive: true, force: true })
 }
 
+if (results.firstSend?.length) {
+  const values = results.firstSend.map((entry) => entry.ms).sort((a, b) => a - b)
+  results.firstSendSummary = { n: values.length, median: percentile(values, 0.5), p95: percentile(values, 0.95), modules: results.firstSend[0].modules.count }
+  console.log(`首发装载（${values.length} 次）：中位数 ${results.firstSendSummary.median}ms，p95 ${results.firstSendSummary.p95}ms，新装模块 ${results.firstSendSummary.modules}`)
+}
 results.summary = {
   cold: summarize(results.samples.filter((sample) => sample.kind === 'cold')),
   reopen: summarize(results.samples.filter((sample) => sample.kind === 'reopen')),
@@ -216,6 +241,15 @@ if (assertReadOnly) {
   if (offenders.length) {
     console.error(`\n打开稳定态项目仍在 fsync（读路径在写盘）：${offenders.map((sample) => `${sample.kind}:${sample.writes.fsync}`).join('，')}`)
     console.error(JSON.stringify(offenders[0].writes.firstFrames.filter((event) => /fsync/.test(event.op)).slice(0, 5), null, 1))
+    process.exitCode = 1
+  }
+}
+
+if (assertNoCliEntry) {
+  const offenders = results.samples.filter((sample) => sample.modules.piCodingAgentEntry)
+  if (offenders.length) {
+    console.error(`
+打开项目把 pi-coding-agent 入口装进了主进程：${offenders.map((sample) => sample.kind).join('，')}（见 docs/plan/2026-10-06-agent-runtime-lazy-load.md）`)
     process.exitCode = 1
   }
 }

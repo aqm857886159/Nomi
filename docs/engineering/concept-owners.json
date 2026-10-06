@@ -4683,6 +4683,29 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "React Flow 唯一节点注册点 nodeTypes.generation 的 memo 判据：只忽略 positionAbsoluteX / Y（位置由 NodeWrapper 的 transform 摆），其余 prop 变化照常重渲（docs/fixes/2026-10-06-canvas-node-shell-rerender-on-drag.root-cause.json）。"
+    },
+    {
+      "name": "Agent 本机能力（bash / 沙箱 / pi 编码工具）什么时候装进主进程",
+      "subject": "agent-lane.native-desktop-load",
+      "lifecycle": "execution",
+      "authority_kind": "gateway",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneHost.mts",
+        "symbol": "loadLaneNativeDesktop"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneHost.mts",
+          "symbol": "loadLaneNativeDesktop"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "只在开带模型的 lane 时按需 import laneNativeDesktop（它会装 pi-coding-agent 入口，约 1500 个文件）；打开项目只读历史、迁移旧对话都不许静态引入入口。tests/agent-runtime/lane-open-graph.test.mts 在子进程里数真装载钉住（docs/fixes/2026-10-06-agent-runtime-lazy-load.root-cause.json）。"
     }
   ]
 }
