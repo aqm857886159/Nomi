@@ -26,15 +26,6 @@ export const CHECKERBOARD_BG_CLASS =
   'bg-[repeating-conic-gradient(var(--nomi-ink-10)_0_25%,var(--nomi-paper)_0_50%)] bg-[length:16px_16px]'
 
 /**
- * 节点预览区的底纹：没出图时是斜纹占位（有结果后节点尺寸已贴合图片比例，不再露底纹，免得图外面套一层框）；
- * 抠图出来的透明图垫棋盘格；别的图不垫。
- */
-export function previewBackgroundClass(hasResult: boolean, transparentCutout: boolean): string | false {
-  if (!hasResult) return STRIPED_BG_CLASS
-  return transparentCutout && CHECKERBOARD_BG_CLASS
-}
-
-/**
  * 节点 body 左上角标题行（统一规格：可选「镜头 N」徽标 + text-body-sm font-semibold 标题）。
  * 收口占位卡 / 画板 / 音频等非图片 body 的标题——此前各写一套字号字重，扫节点找标题没稳定落点。
  * 图片卡（角色/场景/道具）的标题压在图上/图下是刻意沉浸式，不走这里（仅字号字重经 EditableNodeTitle 对齐）。

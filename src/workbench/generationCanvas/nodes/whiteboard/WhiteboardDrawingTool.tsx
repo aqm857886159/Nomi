@@ -467,7 +467,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
           }
         })
       },
-      [ownerNodeId, removeBgBusy, state.canvasAssets, t, reportFeedback],
+      [ownerNodeId, removeBgBusy, state.canvasAssets, reportFeedback],
     )
 
     return (

@@ -163,7 +163,7 @@ export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
 /** 面板与项的默认皮肤 = 2026-08-20 用户拍板的节点右键菜单那一套。 */
 // max-height 用 Radix 量出来的「这一边还剩多高」：两边都放不下时菜单收高度、里面滚动，而不是被推回去压住锚点。
 const CONTENT_CLASS =
-  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto'
+  'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-dropdown-menu-content-available-height,100vh)] overflow-y-auto'
 const ITEM_CLASS = cn(
   'inline-flex items-center justify-between gap-2 w-full min-h-8 px-2 rounded-nomi',
   'font-[inherit] text-caption text-workbench-ink outline-none select-none cursor-pointer',

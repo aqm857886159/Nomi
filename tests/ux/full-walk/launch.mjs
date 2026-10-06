@@ -71,8 +71,9 @@ async function waitForOtherNomiToExit({ pollMs = 10_000, maxWaitMs = 30 * 60_000
  * @param {object} [options.fixtureOptions]   交给 createAgentRuntimeFixture 的额外档位
  * @param {Record<string,string>} [options.preferences]
  * @param {boolean} [options.offscreen] 窗口放到屏幕外、不抢焦点（走查在用户桌面上跑时不打扰他）
+ * @param {Record<string,string>} [options.env] 额外的主进程环境变量（如 NOMI_WALK_URL_REDIRECTS：公网静态文件改投本机缓存）
  */
-export async function startPlaybook({ id, seed = null, needs, locale = 'zh-CN', fixtureOptions = {}, preferences = {}, emptyViewport, offscreen = false }) {
+export async function startPlaybook({ id, seed = null, needs, locale = 'zh-CN', fixtureOptions = {}, preferences = {}, emptyViewport, offscreen = false, env = {} }) {
   const environment = readPlaybookEnvironment()
   const variant = environment.variant
   const effectiveLocale = environment.locale ?? locale
@@ -96,7 +97,7 @@ export async function startPlaybook({ id, seed = null, needs, locale = 'zh-CN', 
       syntheticCredentialStorage: true,
       extras: {
         mainRequire: [...egress.mainRequire, ...(offscreen ? [OFFSCREEN_MODULE] : [])],
-        env: { ...egress.env, ...relay.env },
+        env: { ...egress.env, ...relay.env, ...env },
         needsOptions: { fixture: { usage: 'measured', ...fixtureOptions } },
       },
     })

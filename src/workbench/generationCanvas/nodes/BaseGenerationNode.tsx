@@ -25,8 +25,8 @@ import {
   PendingGenerationPlaceholder,
   LocalImageOpPendingStatus,
   RemoveBackgroundPendingPlaceholder,
-  previewBackgroundClass,
 } from './render/CardCommon'
+import { previewBackgroundClass } from './render/previewBackground'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
 import { TimelineNotchDragHandle } from './NodeTimelineDragHandles'
 import { cn } from '../../../utils/cn'
