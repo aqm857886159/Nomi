@@ -97,6 +97,27 @@ describe('S1 director compiler', () => {
       )
     }
   })
+  it('compiles target switches into stable, editable look-at waypoints with easing', () => {
+    const plan = {
+      version: 2 as const,
+      scene: { tags: ['room'], environment: 'day' as const, template: 'room' as const, setPieces: [] },
+      actors: [
+        { id: 'hero', kind: 'person' as const, desc: 'hero', placement: { relation: 'at' as const, ref: 's1-room-floor' } },
+        { id: 'friend', kind: 'person' as const, desc: 'friend', placement: { relation: 'in_front_of' as const, ref: 'hero' } },
+      ],
+      blocking: [],
+      shots: [{ id: 'switch', window: [0, 4] as [number, number], transitionIn: 'cut' as const, subject: 'hero', subjects: ['hero', 'friend'], size: '中景' as const, angle: 'front' as const, height: 'eye' as const, move: { kind: 'target_switch' as const, speed: 'medium' as const, easing: 'ease_in_out' as const } }],
+    }
+    const result = compileDirectorPlan(plan)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const camera = result.project.scenes[0].cameras[0]
+    expect(camera.id).toBe('shot:switch/camera')
+    expect(camera.trajectoryClips?.[0]).toMatchObject({ id: 'shot:switch/camera-clip', startTime: 0, easing: 'ease_in_out' })
+    expect(camera.trajectoryClips?.[0]?.endTime).toBeCloseTo(4, 3)
+    expect(camera.motionTrajectory?.[0].lookAtObjectId).toBe('actor:hero')
+    expect(camera.motionTrajectory?.at(-1)?.lookAtObjectId).toBe('actor:friend')
+  })
   it('keeps vehicle close shots outside the vehicle footprint and resolves template aliases', () => {
     const plan = {
       version: 2 as const,

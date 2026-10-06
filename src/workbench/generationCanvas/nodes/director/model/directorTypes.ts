@@ -46,12 +46,15 @@ export type Waypoint = {
   fov?: number
 }
 
+export type DirectorEasing = 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out'
+
 export type TrajectoryClip = {
   id: string
   startTime: number
   endTime: number
   startFrame: number
   endFrame: number
+  easing?: DirectorEasing
 }
 
 export type BoneKeyframe = {

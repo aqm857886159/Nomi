@@ -33,6 +33,18 @@ describe('director plan v2 schema', () => {
     expect(directorPlanSchema.safeParse(bad).success).toBe(false)
   })
   it('rejects an unknown subject', () => expect(directorPlanSchema.safeParse({ ...valid, shots: [{ ...valid.shots[0], subject: 'missing' }] }).success).toBe(false))
+  it('validates target switches', () => {
+    expect(directorPlanSchema.safeParse({ ...valid, shots: [{ ...valid.shots[0], move: { ...valid.shots[0].move, kind: 'target_switch' } }] }).success).toBe(false)
+  })
+  it('normalizes target switch aliases', () => {
+    const result = parseDirectorPlan({
+      ...valid,
+      actors: [valid.actors[0], { id: 'friend', kind: 'person', desc: 'friend', placement: { relation: 'in_front_of', ref: 'hero' } }],
+      shots: [{ ...valid.shots[0], subjects: ['hero', 'friend'], move: { ...valid.shots[0].move, kind: 'target switch' } }],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.shots[0].move.kind).toBe('target_switch')
+  })
   it('normalizes mixed-language enum synonyms before validation', () => {
     const normalized = normalizeDirectorPlan({
       ...valid,

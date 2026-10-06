@@ -114,11 +114,12 @@ function arrayOf<T>(value: unknown, map: (item: unknown) => T | null): T[] {
   return out
 }
 
-function normalizeClipTimes(raw: Record<string, unknown>): { startTime: number; endTime: number; startFrame: number; endFrame: number } | null {
+function normalizeClipTimes(raw: Record<string, unknown>): { startTime: number; endTime: number; startFrame: number; endFrame: number; easing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' } | null {
   const startTime = num(raw.startTime, Number.NaN)
   const endTime = num(raw.endTime, Number.NaN)
   if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) return null
-  return { startTime, endTime, startFrame: num(raw.startFrame, Math.round(startTime * 30)), endFrame: num(raw.endFrame, Math.round(endTime * 30)) }
+  const easing = raw.easing === 'linear' || raw.easing === 'ease_in' || raw.easing === 'ease_out' || raw.easing === 'ease_in_out' ? raw.easing : undefined
+  return { startTime, endTime, startFrame: num(raw.startFrame, Math.round(startTime * 30)), endFrame: num(raw.endFrame, Math.round(endTime * 30)), ...(easing ? { easing } : {}) }
 }
 
 function normalizeTimelineFields(raw: Record<string, unknown>) {

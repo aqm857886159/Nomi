@@ -23,6 +23,7 @@ import { DirectorViewport } from './panels/viewport/DirectorViewport'
 import { Cluster, ExitButton, HistoryButtons, ViewModeSwitch } from './panels/topbar/shellChrome'
 import { DirectorShotStrip } from './panels/shotStrip/DirectorShotStrip'
 import { useShotLabels } from './panels/shotStrip/shotLabels'
+import { OutputsPopover } from './panels/outputs/OutputsPopover'
 import { IconChevronDown } from '../../../../vendor/tablerIcons'
 
 export type DirectorViewMode = 'director' | 'refine'
@@ -89,9 +90,10 @@ export function DirectorViewShell({ nodeTitle, scopeRef, placement, boxDraw, can
         <Cluster label={t('director.view.historyAria')} testId="director-view-history-cluster">
           <HistoryButtons />
         </Cluster>
-        <div className="pointer-events-auto inline-flex shrink-0 rounded-nomi-lg border border-nomi-accent bg-nomi-accent text-body-sm font-semibold text-white shadow-nomi-md disabled:cursor-not-allowed disabled:opacity-60" role="group" aria-label={t('director.view.produce')} data-testid="director-produce-placeholder" title={`${t('director.view.produceDescription')} · ${t('director.view.producePlaceholder')}`}>
-          <button type="button" className="min-w-0 whitespace-nowrap px-3 py-2" disabled onClick={onProduce}>{t('director.view.produce')}</button>
-          <button type="button" className="grid shrink-0 place-items-center border-l border-white/25 px-2" disabled aria-label={t('director.view.produceMenu')}><IconChevronDown size={15} stroke={2} aria-hidden="true" /></button>
+        <OutputsPopover />
+        <div className="pointer-events-auto inline-flex shrink-0 rounded-nomi-lg border border-nomi-accent bg-nomi-accent text-body-sm font-semibold text-white shadow-nomi-md disabled:cursor-not-allowed disabled:opacity-60" role="group" aria-label={t('director.view.produce')} data-testid="director-produce" title={t('director.view.produceDescription')}>
+          <button type="button" className="min-w-0 whitespace-nowrap px-3 py-2" onClick={onProduce}>{t('director.view.produce')}</button>
+          <button type="button" className="grid shrink-0 place-items-center border-l border-white/25 px-2" aria-label={t('director.view.produceMenu')} onClick={onProduce}><IconChevronDown size={15} stroke={2} aria-hidden="true" /></button>
         </div>
       </div>
     </div>

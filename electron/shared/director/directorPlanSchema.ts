@@ -10,7 +10,7 @@ const template = z.enum(DIRECTOR_SCENE_TEMPLATES)
 const actorKind = z.enum(['person', 'vehicle', 'product', 'prop'])
 const anchorName = z.string().regex(/^[a-z][a-z0-9_]*$/)
 const move = z.enum(CAMERA_MOVES)
-const extendedMove = z.union([move, z.enum(['pan', 'tilt', 'whip', 'rack_focus'])])
+const extendedMove = z.union([move, z.enum(['pan', 'tilt', 'whip', 'rack_focus', 'target_switch'])])
 
 export const directorPlanSchema = z.object({
   version: z.literal(2).default(2),
@@ -56,6 +56,12 @@ export const directorPlanSchema = z.object({
   for (const shot of plan.shots) {
     const root = shot.subject.split('.')[0]
     if (!actorIds.has(root)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['shots', shot.id, 'subject'], message: `unknown subject ${root}` })
+    for (const reference of shot.subjects ?? []) {
+      const subjectRoot = reference.split('.')[0]
+      if (!actorIds.has(subjectRoot)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['shots', shot.id, 'subjects'], message: `unknown subject ${subjectRoot}` })
+    }
+    if (shot.move.kind === 'target_switch' && (shot.subjects ?? []).filter((reference) => reference.split('.')[0] !== root).length === 0)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['shots', shot.id, 'subjects'], message: 'target_switch requires a second subject' })
   }
 })
 
@@ -101,7 +107,7 @@ const dressingModel = aiSceneSchema.extend({
     }).strict()).default([]).describe('Primitive objects in this group.'),
   }).strict()).min(1).describe('Named groups of scene dressing.'),
 }).strict()
-const modelMoveKinds = z.enum([...move.options, 'pan', 'tilt', 'whip', 'rack_focus', 'follow', 'static'])
+const modelMoveKinds = z.enum([...move.options, 'pan', 'tilt', 'whip', 'rack_focus', 'target_switch', 'follow', 'static'])
 
 export const directorPlanModelSchema = directorPlanSchema.innerType().extend({
   // A numeric singleton range preserves v2 without emitting unsupported const.
@@ -186,7 +192,7 @@ const ENUM_ALIASES: Record<string, string> = {
   // Push/pull spellings preserve direction; separators are removed by `alias`.
   push: 'push_in', pushin: 'push_in', pull: 'pull_out', pullout: 'pull_out',
   // These names are exact canonical spellings or separator/case variants.
-  follow: 'follow', whip: 'whip', rackfocus: 'rack_focus',
+  follow: 'follow', whip: 'whip', rackfocus: 'rack_focus', targetswitch: 'target_switch',
   cut: 'cut', continuous: 'continuous',
 }
 

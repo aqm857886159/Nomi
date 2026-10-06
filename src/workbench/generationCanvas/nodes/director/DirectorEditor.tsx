@@ -240,7 +240,7 @@ function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferen
         director3dBox={director3dBox}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        onProduce={() => undefined}
+        onProduce={() => { void outputs.recordVideo() }}
       />
       <MobileConnectDialog />
       <SettingsDialog

@@ -29,20 +29,22 @@ const FPS = 30
 const v = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z })
 const add = (a: Vec3, b: Vec3): Vec3 => v(a.x + b.x, a.y + b.y, a.z + b.z)
 const sub = (a: Vec3, b: Vec3): Vec3 => v(a.x - b.x, a.y - b.y, a.z - b.z)
-const clip = (id: string, start: number, end: number) => ({
+const clip = (id: string, start: number, end: number, easing: DirectorPlanShot['move']['easing'] = 'linear') => ({
   id,
   startTime: start,
   endTime: end,
   startFrame: Math.round(start * FPS),
   endFrame: Math.round(end * FPS),
+  easing,
 })
-const wp = (id: string, position: Vec3, target: Vec3, time: number, fov = 45): Waypoint => ({
+const wp = (id: string, position: Vec3, target: Vec3, time: number, fov = 45, lookAtObjectId?: string): Waypoint => ({
   id,
   ...position,
   ...lookAtAngles(position, target),
   time,
   frameIndex: Math.round(time * FPS),
   fov,
+  ...(lookAtObjectId ? { lookAtObjectId } : {}),
 })
 const entityWp = (id: string, position: Vec3, time: number, yaw = 0): Waypoint => ({
   id,
@@ -302,6 +304,13 @@ function solveCamera(
   const aimOffset = aimOffsetFor(shot, subject, anchor)
   const target = aimAt(objects, subject, start, aimOffset)
   const subjectEndTarget = aimAt(objects, subject, end, aimOffset)
+  const subjectRoot = shot.subject.split('.')[0]
+  const targetSwitch = shot.move.kind === 'target_switch'
+    ? (shot.subjects ?? []).map((reference) => reference.split('.')[0]).find((reference) => reference !== subjectRoot)
+    : undefined
+  const targetSwitchObject = targetSwitch ? objects.find((object) => object.id === `actor:${targetSwitch}`) : undefined
+  const targetSwitchStartTarget = targetSwitchObject ? aimAt(objects, subject, start, aimOffset) : target
+  const targetSwitchEndTarget = targetSwitchObject ? aimAt(objects, targetSwitchObject, end, aimOffsetFor(shot, targetSwitchObject, undefined)) : subjectEndTarget
   // 画面右方（横移 / 摇镜的方向跟着机位转）
   const right = v(Math.cos((azimuth * Math.PI) / 180), 0, -Math.sin((azimuth * Math.PI) / 180))
   const sideways = (amount: number) => v(right.x * amount, 0, right.z * amount)
@@ -339,6 +348,7 @@ function solveCamera(
   if (shot.move.kind === 'track_left' || shot.move.kind === 'track_right')
     endPosition = add(endPosition, sideways(shot.move.kind === 'track_left' ? -trackAmount : trackAmount))
   let targetEnd = target
+  if (targetSwitchObject) targetEnd = targetSwitchEndTarget
   if (shot.move.kind === 'follow' && motionCarrier(objects, subject).motionTrajectory?.length) {
     const delta = sub(subjectEndPosition, subjectStart)
     endPosition = add(endPosition, delta)
@@ -374,7 +384,10 @@ function solveCamera(
         const point = v(target.x + Math.sin(angle) * radius, height, target.z + Math.cos(angle) * radius)
         return wp(`${id}-orbit-${index}`, point, target, start + (end - start) * ratio, fov + (endFov - fov) * ratio)
       })
-    : [wp(`${id}-start`, startPosition, target, start, fov), wp(`${id}-end`, endPosition, targetEnd, end, endFov)]
+    : [
+        wp(`${id}-start`, startPosition, targetSwitchStartTarget, start, fov, targetSwitchObject ? subject.id : undefined),
+        wp(`${id}-end`, endPosition, targetEnd, end, endFov, targetSwitchObject?.id),
+      ]
   return {
     id,
     name: shot.id,
@@ -385,7 +398,7 @@ function solveCamera(
     fov,
     focalLengthMm: 35,
     motionTrajectory,
-    trajectoryClips: [clip(`${id}-clip`, start, end)],
+    trajectoryClips: [clip(`${id}-clip`, start, end, shot.move.easing)],
   }
 }
 
@@ -426,8 +439,15 @@ function constrainCameraPath(
       if (candidates[0]) point = candidates[0]
     }
     const changed = Math.hypot(point.x - original.x, point.y - original.y, point.z - original.z) > 1e-6
+    const switchTarget = shot.move.kind === 'target_switch'
+      ? (shot.subjects ?? []).map((reference) => reference.split('.')[0]).find((reference) => reference !== shot.subject.split('.')[0])
+      : undefined
+    const switchObject = switchTarget ? objects.find((object) => object.id === `actor:${switchTarget}`) : undefined
+    const switched = switchObject && time >= (shot.window[0] + shot.window[1]) / 2
+    const targetObject = switched ? switchObject : subject
+    const targetOffset = targetObject === subject ? aimOffset : aimOffsetFor(shot, targetObject, undefined)
     return {
-      ...wp(`${camera.id}/frame:${frame}`, point, aimAt(objects, subject, time, aimOffset), time, pose.fov ?? camera.fov),
+      ...wp(`${camera.id}/frame:${frame}`, point, aimAt(objects, targetObject, time, targetOffset), time, pose.fov ?? camera.fov, targetObject.id),
       ...(changed ? {} : { yaw: pose.rotation.y, pitch: pose.rotation.x, roll: pose.rotation.z }),
       clipId: camera.trajectoryClips?.[0]?.id,
     }

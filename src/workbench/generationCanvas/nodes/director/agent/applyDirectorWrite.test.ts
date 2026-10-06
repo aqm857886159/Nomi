@@ -84,6 +84,16 @@ describe('applyDirectorWrite (3D-BOX stage_shot executor)', () => {
     expect(JSON.stringify(nodeById(created.directorNodeId)?.meta)).toBe(before)
   })
 
+  it('rejects a structurally invalid patch and preserves the last playable plan', async () => {
+    const created = (await run({ operation: 'create_director_plan', plan: plan() } as DirectorWriteInput)).result
+    if (!created.applied) throw new Error('create failed')
+    const before = JSON.stringify(nodeById(created.directorNodeId)?.meta)
+    const { result } = await run({ operation: 'patch_director_plan', directorNodeId: created.directorNodeId, baseRevision: created.revision, edits: [{ op: 'replace', path: '/shots/close/subject', value: 'missing' }] })
+    expect(result).toMatchObject({ applied: false, rejected: 'invalid_patch' })
+    expect(JSON.stringify(nodeById(created.directorNodeId)?.meta)).toBe(before)
+    expect((result as { messages?: string[] }).messages?.join(' ')).toMatch(/unknown subject|invalid/i)
+  })
+
   it('reports unchanged for an edit that restates the plan, writes nothing and leaves nothing to undo', async () => {
     const created = (await run({ operation: 'create_director_plan', plan: plan() } as DirectorWriteInput)).result
     if (!created.applied) throw new Error('create failed')
