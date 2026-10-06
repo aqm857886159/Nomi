@@ -58,12 +58,6 @@ type Props = {
   aspect: string
   /** 整张表共用的媒体盒（`tableFrameMediaBox`）——行不自己按画幅算，算了混排就又不齐（§2.4 修订）。 */
   frameBox: FrameMediaBox
-  /**
-   * 旧底栏的「覆盖」胶囊与行菜单的画幅清单用的。画幅现在住参数面板，这两项这一行不再读；
-   * 表格（`StoryboardShotTable`，L-sbtable 线的文件）仍在传，等那条线顺手删掉传参再从这里删。
-   */
-  aspectOverridden?: boolean
-  aspectOptions?: readonly string[]
   /** 改这一行的画幅覆盖；传 null = 收回覆盖，跟随整片默认。 */
   onChangeAspect: (aspect: string | null) => void
   /** 「本次跳过」：不进这一次批量，跑完自动清（≠ 锁定）。 */

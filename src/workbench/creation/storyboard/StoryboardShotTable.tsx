@@ -28,9 +28,7 @@ import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
 import { tableFrameMediaBox } from './shotRow/shotFrameGeometry'
 import {
-  ASPECT_OPTIONS,
   effectiveShotAspect,
-  isAspectOverridden,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
@@ -350,8 +348,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     // 媒体盒是**表级**的（§2.4 修订 · 2026-09-06 用户反馈四）：全表同画幅时盒=该画幅，
                     // 混排时全表共用一只盒、画面 letterbox 居中。行自己按画幅算就会一行一个尺寸。
                     frameBox: tableBox,
-                    aspectOverridden: isAspectOverridden(plan, shot),
-                    aspectOptions: ASPECT_OPTIONS,
                     onResolveOverride: runtime?.exec.node ? (field: string, action: 'adopt' | 'discard') => resolveStoryboardOverride(runtime.exec.node!.id, field, action, { plan, shot, change: onChange }) : undefined,
                     onChangeAspect: (next: string | null) => onChange(setShotAspectOverride(plan, pos, next)),
                     skipped: skippedShotIds?.has(shotKey) ?? false,

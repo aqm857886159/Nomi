@@ -6,9 +6,7 @@ import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workben
 import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import {
-  ASPECT_OPTIONS,
   effectiveShotAspect,
-  isAspectOverridden,
 } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { labAnchorRuntime, labExec, NOOP } from '../storyboard/storyboardFixtures'
@@ -64,8 +62,6 @@ export function ShotRow({ plan, shot }: { plan: StoryboardPlan; shot: PlanShot }
       exec={exec}
       aspect={aspect}
       frameBox={tableFrameMediaBox(plan.shots.map((candidate) => effectiveShotAspect(plan, candidate)))}
-      aspectOverridden={isAspectOverridden(plan, shot)}
-      aspectOptions={ASPECT_OPTIONS}
       onChangeAspect={NOOP}
       skipped={false}
       onToggleSkip={NOOP}

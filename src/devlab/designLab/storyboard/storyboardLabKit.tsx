@@ -4,9 +4,7 @@ import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../../work
 import type { AssetRef } from '../../../workbench/assets/assetTypes'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import {
-  ASPECT_OPTIONS,
   effectiveShotAspect,
-  isAspectOverridden,
 } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
@@ -108,8 +106,6 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         exec={exec}
         aspect={effectiveShotAspect(plan, shot)}
         frameBox={tableFrameMediaBox([effectiveShotAspect(plan, shot)])}
-        aspectOverridden={isAspectOverridden(plan, shot)}
-        aspectOptions={ASPECT_OPTIONS}
         onChangeAspect={NOOP}
         skipped={overrides.skipped ?? false}
         onToggleSkip={NOOP}

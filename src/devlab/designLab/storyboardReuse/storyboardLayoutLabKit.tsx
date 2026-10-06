@@ -5,7 +5,7 @@ import type { AnchorCardRuntime, ShotRowExec } from '../../../workbench/creation
 import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
 import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
-import { ASPECT_OPTIONS, effectiveShotAspect, isAspectOverridden } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
+import { effectiveShotAspect } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { labExec, NOOP } from '../storyboard/storyboardFixtures'
 import { REUSE_IMAGE_MODELS, REUSE_VIDEO_MODELS } from './storyboardReuseFixtures'
@@ -48,8 +48,6 @@ export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; 
               exec={exec}
               aspect={effectiveShotAspect(plan, shot)}
               frameBox={box}
-              aspectOverridden={isAspectOverridden(plan, shot)}
-              aspectOptions={ASPECT_OPTIONS}
               onChangeAspect={NOOP}
               skipped={false}
               onToggleSkip={NOOP}
