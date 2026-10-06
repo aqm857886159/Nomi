@@ -23,6 +23,7 @@ import {
 } from '../events/canvasUndoJournal'
 import { makeChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { directorWriteCompensation } from '../nodes/director/agent/directorWriteCompensation'
+import { flushEmbeddedEditors } from './embeddedEditorFlush'
 
 export type ProposalStep = {
   toolCallId: string
@@ -207,6 +208,10 @@ export async function applyProposalBatch(
     (aborted as Extract<ProposalOutcome, { status: 'aborted' }> | undefined)?.reason ?? 'Agent turn abandoned'
   const errorMessage = (error: unknown): string =>
     error instanceof Error && error.message ? error.message : String(error)
+  // An open embedded editor saves its pending edits first, as the user's own write:
+  // every step's undo baseline must contain them, and once the write slot is owned
+  // below, that save would count as a foreign write and cancel this proposal.
+  flushEmbeddedEditors()
   // Claim before opening our own Undo point: acquiring a new batch first
   // cleans up the old one, even when both approvals came from the same turn.
   const ownership = ownPendingCanvasWrite(proposalId, () => {

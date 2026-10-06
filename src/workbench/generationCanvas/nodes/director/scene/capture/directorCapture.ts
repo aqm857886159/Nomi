@@ -11,6 +11,7 @@ import * as THREE from 'three'
 import type { Vec3 } from '../../model/directorTypes'
 import { cameraQuaternion, THREE_CAMERA_FLIP } from '../cameraMath'
 import { DIRECTOR_EDITOR_ONLY_KEY } from '../sceneRefs'
+import { layoutCharacterLabels } from '../character/characterLabel'
 
 // 采集本次出片要隐藏的对象：带 editor-only 旗标的（tagEditorOnly 打的整棵子树）；调用方负责恢复 visible
 export function collectCaptureHiddenObjects(scene: THREE.Object3D): THREE.Object3D[] {
@@ -110,13 +111,14 @@ export function drawLabels(context: CanvasRenderingContext2D, labels: CaptureLab
   context.textBaseline = 'middle'
   const padX = fontSize * 0.6
   const padY = fontSize * 0.35
-  for (const label of labels) {
-    if (label.x < 0 || label.x > width || label.y < 0 || label.y > height) continue
-    const textWidth = context.measureText(label.text).width
-    const boxWidth = textWidth + padX * 2
-    const boxHeight = fontSize + padY * 2
+  const boxHeight = fontSize + padY * 2
+  const visible = labels.filter((label) => label.x >= 0 && label.x <= width && label.y >= 0 && label.y <= height)
+  // 与视口 DOM 名牌同一个排版函数：投影后重合的名牌往上错开（characterLabel.layoutCharacterLabels）
+  const placed = layoutCharacterLabels(visible.map((label, index) => ({ ...label, id: String(index), width: context.measureText(label.text).width + padX * 2, height: boxHeight })), Math.max(2, fontSize * 0.15))
+  for (const label of placed) {
+    const boxWidth = label.width
     const x = label.x - boxWidth / 2
-    const y = label.y - boxHeight
+    const y = label.top
     context.fillStyle = 'rgba(20, 20, 24, 0.72)'
     context.beginPath()
     context.roundRect(x, y, boxWidth, boxHeight, fontSize * 0.35)

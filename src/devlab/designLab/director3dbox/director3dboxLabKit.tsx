@@ -18,11 +18,20 @@ import i18n from '../../../i18n'
 import type { AppLocale } from '../../../i18n'
 import DirectorEditor from '../../../workbench/generationCanvas/nodes/director/DirectorEditor'
 import { compileDirectorPlan } from '../../../workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler'
+import { applyDirectorPlanEdits, canonicalDirectorPlan, directorPlanRevision } from '../../../../electron/shared/director/planPatch'
+import { parseDirectorPlan, type DirectorPlan } from '../../../../electron/shared/director/directorPlanSchema'
+import { DIRECTOR_NODE_KIND, DIRECTOR_PLAN_META_KEY, DIRECTOR_PROJECT_META_KEY } from '../../../workbench/generationCanvas/nodes/director/model/directorNodeMeta'
+import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
+import type { GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
+import { createDirectorStore } from '../../../workbench/generationCanvas/nodes/director/model/directorStore'
+import { registerDirectorSession } from '../../../workbench/generationCanvas/nodes/director/directorSessionRegistry'
+import { createEditorShotFocusSession } from '../../../workbench/generationCanvas/nodes/director/directorShotFocusSession'
+import { summarizeDirectorShots } from '../../../workbench/generationCanvas/nodes/director/model/directorShotSummaries'
 import type { DirectorProject } from '../../../workbench/generationCanvas/nodes/director/model/directorTypes'
 import type { DirectorE2EBridge } from '../../../workbench/generationCanvas/nodes/director/scene/E2EBridge'
 import { assistantPaneWidth } from '../../../workbench/assistantWidthBounds'
 import { S1_ORACLE_PLANS } from '../../../../evals/director/s1OraclePlans'
-import { ShellStage, labHostState } from '../v4/agentPanelV4LabHost'
+import { ShellStage, labAssistantItem, labHostState, labToolItem, labUserItem } from '../v4/agentPanelV4LabHost'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import type { Director3dBoxFixture, LabDrive, LabStep } from './director3dboxCell'
 /** 右侧 Agent 面板宽：与 v4 实验室同一取值，导演视图占的画布宽因此与真机 1280 窗口一致（≈858）。 */
@@ -32,14 +41,40 @@ const PLAN_ID = 'courtyard-standoff'
 // 节点标题是画布节点的数据（用户起的名字），不是界面文案：三镜格用样张里那个工程名，空工程用新建导演台节点的默认名
 const COURTYARD_TITLE: Record<AppLocale, string> = { 'zh-CN': '古装庭院对峙', en: 'Courtyard standoff' }
 
-let courtyardProject: DirectorProject | null = null
-/** 现役编译器把 oracle 计划编成工程；编不出来就当场抛（夹具坏了要红，不许悄悄换成空工程）。 */
-function courtyardFixture(): DirectorProject {
-  if (courtyardProject) return courtyardProject
-  const compiled = compileDirectorPlan(S1_ORACLE_PLANS[PLAN_ID])
+/** 导演台节点在画布上的 id：编辑器经它登记会话，「正在改：镜头 N」读这个节点上的计划修订号与镜头名。 */
+const LAB_DIRECTOR_NODE_ID = 'lab-director-3dbox'
+type CourtyardFixture = { plan: DirectorPlan; project: DirectorProject }
+const courtyardCache = new Map<'courtyard' | 'courtyard-after', CourtyardFixture>()
+/**
+ * 现役编译器把 oracle 计划编成工程；编不出来就当场抛（夹具坏了要红，不许悄悄换成空工程）。
+ * courtyard-after：同一份计划经现役补丁应用器把第 2 镜改成特写，再编——与 Agent 交补丁走同一个应用器。
+ */
+function courtyardFixture(kind: 'courtyard' | 'courtyard-after'): CourtyardFixture {
+  const cached = courtyardCache.get(kind)
+  if (cached) return cached
+  const parsed = parseDirectorPlan(S1_ORACLE_PLANS[PLAN_ID])
+  if (!parsed.success) throw new Error(`director3dbox lab: ${PLAN_ID} 计划不合法`)
+  let plan = canonicalDirectorPlan(parsed.data)
+  if (kind === 'courtyard-after') {
+    const second = plan.shots[1]?.id
+    const patched = second ? applyDirectorPlanEdits(plan, [{ op: 'replace', path: `/shots/${second}/size`, value: '特写' }]) : null
+    if (!patched?.ok) throw new Error('director3dbox lab: 第 2 镜补丁不成立')
+    plan = patched.plan
+  }
+  const compiled = compileDirectorPlan(plan)
   if (!compiled.ok) throw new Error(`director3dbox lab: ${PLAN_ID} 编译失败：${compiled.errors.join('; ')}`)
-  courtyardProject = compiled.project
-  return courtyardProject
+  const fixture = { plan, project: compiled.project }
+  courtyardCache.set(kind, fixture)
+  return fixture
+}
+
+/** 画布上放一个带计划正本的导演台节点（stage_shot 建出来的节点就长这样）：编辑器经它登记会话。 */
+function installCanvasNode(fixture: CourtyardFixture | null): void {
+  const node = fixture ? ({
+    id: LAB_DIRECTOR_NODE_ID, kind: DIRECTOR_NODE_KIND, title: '', position: { x: 0, y: 0 },
+    meta: { [DIRECTOR_PROJECT_META_KEY]: fixture.project, [DIRECTOR_PLAN_META_KEY]: { plan: fixture.plan, revision: directorPlanRevision(fixture.plan), issueCount: 0 } },
+  } as unknown as GenerationCanvasNode) : null
+  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: node ? [node] : [], edges: [], groups: [], selectedNodeIds: [] } as never)
 }
 
 // 只读开关证明：形状与 preload 给渲染端的那份一致（src/desktop/bridge.ts 的 featureFlags.director3dbox）。
@@ -128,8 +163,22 @@ async function pointerWhenPresent(selector: string, text: string): Promise<void>
   throw new Error(`director3dbox lab: 等不到 ${selector} 里的「${text}」`)
 }
 
+async function clickWithModifier(selector: string, modifier: 'ctrl' | 'shift'): Promise<void> {
+  for (let frame = 0; frame < SETTLE_MAX_FRAMES; frame += 1) {
+    const element = document.querySelector<HTMLElement>(selector)
+    if (element) {
+      element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: modifier === 'ctrl', shiftKey: modifier === 'shift' }))
+      await nextFrame()
+      return
+    }
+    await nextFrame()
+  }
+  throw new Error(`director3dbox lab: 等不到 ${selector}`)
+}
+
 async function runStep(step: LabStep): Promise<void> {
   if ('click' in step) return clickWhenPresent(step.click)
+  if ('clickWith' in step) return clickWithModifier(step.clickWith.selector, step.clickWith.modifier)
   if ('pointer' in step) return pointerWhenPresent(step.pointer.selector, step.pointer.text)
   if ('clickText' in step) return clickTextWhenPresent(step.clickText.selector, step.clickText.text)
   window.dispatchEvent(new KeyboardEvent('keydown', { key: step.press, bubbles: true, cancelable: true }))
@@ -167,17 +216,30 @@ export type Director3dBoxStageProps = {
   flag?: 'on' | 'off'
   /** Agent 面板宽：缺省 390（壳 858）；窄格给 520，把壳压到 728（真机最小窗 1100 × 默认 Agent 时的壳宽） */
   agentWidth?: number
+  /** 右侧对话：空，或「Agent 改完第 2 镜」那一轮（画布 ⑤）。 */
+  conversation?: 'empty' | 'after-patch'
   release: () => void
 }
 
-export function Director3dBoxStage({ locale, fixture, drive = 'none', steps = NO_STEPS, flag = 'on', agentWidth = AGENT_PANEL_WIDTH, release }: Director3dBoxStageProps): JSX.Element {
+/** 画布 ⑤ 那一轮对话：用户说话 → Agent 调 stage_shot → 复述被覆盖的手改（Agent 的话照 skill 1.1 的复述规则写）。 */
+function afterPatchItems(): ReturnType<typeof labHostState> {
+  return labHostState({ items: [
+    labUserItem('u1', i18n.t('director.view.labAfterUser')),
+    labToolItem('t1', 'director.write'),
+    labAssistantItem('a1', i18n.t('director.view.labAfterReply')),
+  ] })
+}
+
+export function Director3dBoxStage({ locale, fixture, drive = 'none', steps = NO_STEPS, flag = 'on', agentWidth = AGENT_PANEL_WIDTH, conversation = 'empty', release }: Director3dBoxStageProps): JSX.Element {
   React.useMemo(() => {
     installReadOnlyBridge(flag)
     // 导演台壳的右缘读工作台 store 的 Agent 宽（真机同一个值），实验室把它设成这一格要的宽
     useWorkbenchStore.getState().setAssistantWidth(agentWidth)
     void i18n.changeLanguage(locale)
   }, [agentWidth, flag, locale])
-  const project = React.useMemo(() => (fixture === 'courtyard' ? courtyardFixture() : null), [fixture])
+  const courtyard = React.useMemo(() => (fixture === 'empty' ? null : courtyardFixture(fixture)), [fixture])
+  const project = courtyard?.project ?? null
+  React.useMemo(() => installCanvasNode(courtyard), [courtyard])
   React.useEffect(() => {
     let alive = true
     driveAndSettle(drive, steps, project)
@@ -195,10 +257,37 @@ export function Director3dBoxStage({ locale, fixture, drive = 'none', steps = NO
   const noop = React.useCallback(() => undefined, [])
   return (
     <>
-      <DirectorEditor rawProject={project ?? undefined} nodeTitle={title} readOnly onClose={noop} onProjectChange={noop} />
+      <DirectorEditor rawProject={project ?? undefined} nodeTitle={title} readOnly nodeId={courtyard ? LAB_DIRECTOR_NODE_ID : undefined} onClose={noop} onProjectChange={noop} />
       <div className="fixed inset-y-0 right-0 bg-nomi-bg p-4" style={{ width: assistantPaneWidth(agentWidth) }}>
-        <ShellStage surface="generation" snapshot={labHostState({ items: [] })} width={agentWidth} height={window.innerHeight - assistantPaneWidth(0)} />
+        <ShellStage surface="generation" snapshot={conversation === 'after-patch' ? afterPatchItems() : labHostState({ items: [] })} width={agentWidth} height={window.innerHeight - assistantPaneWidth(0)} />
       </div>
     </>
+  )
+}
+
+/**
+ * 画布 ⑦「亮色」：导演台开着时整个 App 被锁暗（2026-09-09 用户拍板「这个面默认深色」），所以真实产品里看不到亮色的这枚标签。
+ * 这一格只把 Agent 面板放在亮色下，导演台不挂界面、只登记同一个会话读口（真编辑器 store + 真焦点会话，点的仍是第 2 镜），
+ * 用来证明标签只用 token、亮色下照样成立——取景说明里写明「产品里不可达」。
+ */
+export function Director3dBoxFocusTagOnlyStage({ locale, release }: { locale: AppLocale; release: () => void }): JSX.Element {
+  React.useMemo(() => {
+    installReadOnlyBridge('on')
+    void i18n.changeLanguage(locale)
+  }, [locale])
+  React.useEffect(() => {
+    const fixture = courtyardFixture('courtyard')
+    installCanvasNode(fixture)
+    const store = createDirectorStore({ rawProject: fixture.project, defaultSceneName: i18n.t('director.node.sceneDefaultName') })
+    const off = registerDirectorSession(LAB_DIRECTOR_NODE_ID, { store, defaultSceneName: '', ...createEditorShotFocusSession(LAB_DIRECTOR_NODE_ID, store) })
+    const second = summarizeDirectorShots(fixture.project)[1]?.cameraId
+    if (second) store.getState().select({ cameraId: second, multiCameraIds: [second] })
+    const frame = requestAnimationFrame(() => release())
+    return () => { cancelAnimationFrame(frame); off(); release() }
+  }, [release])
+  return (
+    <div className="fixed inset-0 flex justify-end bg-nomi-bg p-4">
+      <ShellStage surface="generation" snapshot={labHostState({ items: [] })} width={AGENT_PANEL_WIDTH} height={window.innerHeight - 32} />
+    </div>
   )
 }

@@ -7,7 +7,7 @@ import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabi
 import type { PiTimelineReadTransportAdapter, PiTimelineWriteTransportAdapter, PreparedTimelineWrite } from '../capabilityCore/timelineTransportAdapters'
 import type { PiCanvasWriteTransportAdapter, PreparedCanvasWrite } from '../capabilityCore/canvasWriteTransportAdapters'
 import type { PiPhase4SurfaceTransportAdapter, PreparedExportWrite } from '../capabilityCore/phase4SurfaceTransportAdapters'
-import type { PiGenerationTransportAdapter } from '../capabilityCore/generationTransportAdapters'
+import type { PiGenerationTransportAdapter, ShotCandidateFacts } from '../capabilityCore/generationTransportAdapters'
 import type { PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters'
 import type { PiSkillWriteTransportAdapter, PreparedSkillWrite } from '../capabilityCore/skillWriteTransportAdapters'
 import type { ProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
@@ -64,17 +64,33 @@ export interface LaneExtendedDesktopPortsInput {
    * 3D-BOX 花钱闸（开关开的构建才接上）：这次要生成的镜头里，哪些挂着还没好的参考预演。
    * 出卡**之前**问——问到了就不出卡、不花钱，原因交给模型；问不到（渲染层不在）也不出卡（fail-closed）。
    */
-  directorPreviewBlocks?(operationId: string, shotIds: readonly string[] | undefined, candidateReferences: Readonly<Record<string, readonly string[]>>): Promise<readonly DirectorPreviewBlock[]>
+  directorPreviewBlocks?(operationId: string, shotIds: readonly string[] | undefined, candidate: ShotCandidateFacts): Promise<readonly DirectorPreviewBlock[]>
 }
 
-export type DirectorPreviewBlock = Readonly<{ nodeId: string; shotId?: string; reason: 'rendering' | 'failed' | 'not_referenced'; failure?: string; previewAssetId?: string }>
+export type DirectorPreviewBlock = Readonly<{
+  nodeId: string
+  shotId?: string
+  reason: 'rendering' | 'failed' | 'not_referenced' | 'duration_mismatch'
+  failure?: string
+  previewAssetId?: string
+  /** duration_mismatch：挂上去的预演有多长、这一镜的候选要生成多长（秒）。 */
+  previewSeconds?: number
+  shotSeconds?: number
+}>
 
 /** 预演挡着的那几镜 → 一句模型读得懂、能照做的话（不出卡、没花钱、下一步是什么）。 */
 export function directorPreviewBlockedDecision(blocks: readonly DirectorPreviewBlock[]): Extract<RuntimeToolDecision, { ok: false }> {
   const rendering = blocks.filter((block) => block.reason === 'rendering')
   const failed = blocks.filter((block) => block.reason === 'failed')
   const unreferenced = blocks.filter((block) => block.reason === 'not_referenced')
+  const mismatched = blocks.filter((block) => block.reason === 'duration_mismatch')
   const name = (block: DirectorPreviewBlock) => block.shotId ?? block.nodeId
+  if (!rendering.length && !failed.length && mismatched.length) {
+    const seconds = (value: number | undefined) => `${Number((value ?? 0).toFixed(2))}s`
+    return { ok: false, code: 'director_preview_pending',
+      message: `No spend card was shown and nothing was spent: the 3D-BOX preview attached to ${mismatched.map((block) => `shot ${name(block)} is ${seconds(block.previewSeconds)} but that shot would be generated as ${seconds(block.shotSeconds)}`).join('; ')}. The preview must be exactly as long as the shot. `
+        + 'Either change the shot duration back to the preview length with draft_shots (same operationId and shotId), or change the 3D-BOX plan with stage_shot edits so every shot and blocking window fits the new duration (the preview re-renders and re-attaches). Tell the user which one you are doing, then call generate again.' }
+  }
   if (!rendering.length && !failed.length && unreferenced.length) {
     return { ok: false, code: 'director_preview_pending',
       message: `No spend card was shown and nothing was spent: the 3D-BOX preview is ready, but the draft that would be generated does not use it (${unreferenced.map((block) => `shot ${name(block)} needs preview asset ${block.previewAssetId}`).join('; ')}). `
@@ -234,10 +250,10 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       const shotIds = Array.isArray(args.shotIds) ? args.shotIds.filter((value): value is string => typeof value === 'string') : undefined
       let blocks: readonly DirectorPreviewBlock[]
       try {
-        // 只读：候选里每一镜带了哪些素材。写者仍只有 draft_shots。
-        if (!generation.readShotReferenceAssetIds) throw new Error('director_preview_candidate_unreadable')
-        const candidateReferences = await generation.readShotReferenceAssetIds(String(args.operationId ?? ''))
-        blocks = await input.directorPreviewBlocks(String(args.operationId ?? ''), shotIds, candidateReferences)
+        // 只读：候选里每一镜带了哪些素材、要生成多长。写者仍只有 draft_shots。
+        if (!generation.readShotCandidateFacts) throw new Error('director_preview_candidate_unreadable')
+        const candidate = await generation.readShotCandidateFacts(String(args.operationId ?? ''))
+        blocks = await input.directorPreviewBlocks(String(args.operationId ?? ''), shotIds, candidate)
       } catch {
         return { ok: false, code: 'director_preview_pending', message: 'No spend card was shown and nothing was spent: Nomi could not check whether the 3D-BOX previews for these shots are ready. Call generate again in a moment.' }
       }

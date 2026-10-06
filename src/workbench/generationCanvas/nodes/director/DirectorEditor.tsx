@@ -47,6 +47,9 @@ import { transformCameraPose } from './model/cameraCoordinateSpace'
 import { invertFrame, sceneFrame } from './model/sceneObjectGraph'
 import { orderedTimelineEntities } from './model/timelineTracks'
 import { registerDirectorSession } from './directorSessionRegistry'
+import { createDirectorNodeSync, type DirectorNodeSync } from './directorNodeSync'
+import { registerEmbeddedEditorFlush } from '../../agent/embeddedEditorFlush'
+import { createEditorShotFocusSession } from './directorShotFocusSession'
 import { isDirector3DBoxEnabled } from '../../../../featureFlags/director3dbox'
 import { DirectorViewShell, type DirectorViewMode } from './DirectorViewShell'
 import { DirectorRefineShell } from './DirectorRefineShell'
@@ -187,7 +190,9 @@ function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferen
     store,
     defaultSceneName: t('director.node.sceneDefaultName'),
     onExternalProjectChange,
-  }), [nodeId, onExternalProjectChange, store, t])
+    // 3D-BOX：「正在改：镜头 N」的读口（Agent 发送时带上；输入框上的标签订阅它）
+    ...(director3dBox && nodeId ? createEditorShotFocusSession(nodeId, store) : {}),
+  }), [director3dBox, nodeId, onExternalProjectChange, store, t])
 
   useDirectorHotkeys({
     scopeRef,
@@ -287,6 +292,25 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
   const assistantCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const onProjectChangeRef = React.useRef(onProjectChange)
   onProjectChangeRef.current = onProjectChange
+  // 3D-BOX：store ↔ 节点 meta 的同步账（一个写者、一本历史）；开关关时不建，行为与旧导演台一致
+  const syncRef = React.useRef<DirectorNodeSync | null>(null)
+  if (director3dBox && !syncRef.current) {
+    syncRef.current = createDirectorNodeSync({ store, defaultSceneName: t('director.node.sceneDefaultName'), initialRaw: rawProject, write: (project) => onProjectChangeRef.current(project) })
+  }
+  const persistProject = React.useCallback((project: DirectorProject) => {
+    if (syncRef.current) syncRef.current.persist(project)
+    else onProjectChangeRef.current(project)
+  }, [])
+  // 节点上的工程被外部换掉（Agent 撤销一笔 stage_shot）→ 编辑器当场重载；自己写出去的那份回来不算
+  React.useEffect(() => {
+    if (!readOnly) syncRef.current?.adoptNodeProject(rawProject)
+  }, [rawProject, readOnly])
+  // 提议事务 / Agent 撤销开始前先把没落盘的手改落盘（撤销基线里要有它们）
+  React.useEffect(() => {
+    const sync = syncRef.current
+    if (!sync || readOnly) return undefined
+    return registerEmbeddedEditorFlush(sync.saveNow)
+  }, [readOnly])
   const scopeRef = React.useRef<DirectorHotkeyScope>('viewport')
   // 偏好（漫游 / 灵敏度 / 视口主题）只存本机：改一次立刻生效并落 localStorage，不入工程不进撤销栈
   const [preferences, setPreferences] = React.useState<DirectorPreferences>(readDirectorPreferences)
@@ -306,14 +330,16 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
       if (timer !== null) window.clearTimeout(timer)
       timer = window.setTimeout(() => {
         timer = null
-        onProjectChangeRef.current(store.getState().exportProject())
+        // 3D-BOX：外部重载 / 已落盘的工程不再写一遍（多写一遍会在画布历史里多出一条、挡住撤销）
+        if (syncRef.current && !syncRef.current.isDirty()) return
+        persistProject(store.getState().exportProject())
       }, AUTOSAVE_IDLE_MS)
     })
     return () => {
       unsubscribe()
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [readOnly, store])
+  }, [persistProject, readOnly, store])
 
   // body 滚动锁（与 V1 壳同机制）
   React.useEffect(() => {
@@ -336,9 +362,9 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
       confirmLabel: t('director.editor.exitConfirmOk'),
     })
     if (!ok) return
-    if (!readOnly) onProjectChangeRef.current(store.getState().exportProject())
+    if (!readOnly) persistProject(store.getState().exportProject())
     onClose()
-  }, [onClose, readOnly, store, t])
+  }, [onClose, persistProject, readOnly, store, t])
 
   // Esc 归属（O5）：浮层/模式先吃；再清工具 + 选择；再退 POV；都没有 → 退出确认
   React.useEffect(() => {
@@ -404,7 +430,7 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
             onChangePreferences={changePreferences}
             nodeId={nodeId}
             onSendToCanvas={onSendToCanvas}
-            onExternalProjectChange={(project) => onProjectChangeRef.current(project)}
+            onExternalProjectChange={persistProject}
           />
         </div>
       </TooltipProvider>

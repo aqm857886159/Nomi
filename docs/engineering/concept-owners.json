@@ -4345,6 +4345,84 @@
       "notes": "计划执行与模型投影同源；原文件删除。"
     },
     {
+      "name": "导演手改覆盖层",
+      "subject": "director.plan.overrides",
+      "lifecycle": "execution",
+      "authority_kind": "projection",
+      "trust_domain": "renderer",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+        "symbol": "overlayDirectorProject"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+          "symbol": "overlayDirectorProject"
+        },
+        {
+          "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+          "symbol": "fingerprintDirectorProject"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "3D-BOX 3c：手改 = 当前工程相对上一次编译指纹（directorPlan.compiledBase）按稳定 id 逐顶层属性的差，不另记账；补丁直接改到且新编译改了的属性丢弃并列出，其余重放。编译器不读它（planOverrides.guard.test.ts 走静态 import 图）。"
+    },
+    {
+      "name": "导演补丁覆盖手调记录",
+      "subject": "director.plan.patch-notes",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/director/model/directorPatchNotes.ts",
+        "symbol": "recordDirectorPatchNote"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/director/model/directorPatchNotes.ts",
+          "symbol": "recordDirectorPatchNote"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts",
+        "src/workbench/ai/v4/useDirectorPatchNotices.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "3D-BOX 3c 真实测试 ④（C5）：哪一笔 stage_shot 补丁覆盖了哪些手调，按提议 id 记在 directorPlan.patchNotes（最近 20 笔）；Agent 面板按收据授权 host-note 认回那一行，确定性地说「这次改动覆盖了你在镜头 N 的手调，可撤销」。撤销 = 计划 meta 整份放回，记录随之消失。"
+    },
+    {
+      "name": "导演角色名牌避让",
+      "subject": "director.character-label.layout",
+      "lifecycle": "projection",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+        "symbol": "layoutCharacterLabels"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+          "symbol": "layoutCharacterLabels"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "外包卡 20：同一视口里所有角色名牌按屏幕投影统一避让（唯一判据），视口与成片取景共用；根因合同 docs/fixes/2026-10-06-director-character-label-overlap.root-cause.json。"
+    },
+    {
       "name": "导演计划词表",
       "subject": "director.plan.vocab",
       "lifecycle": "author",

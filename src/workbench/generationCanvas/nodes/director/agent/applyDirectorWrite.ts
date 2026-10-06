@@ -4,10 +4,11 @@
  *          ../model/directorPreviewState、../model/directorNodeMeta、../directorSessionRegistry、画布 store / create_nodes / 布局
  * [OUTPUT]: 对外提供 applyDirectorWrite（director.write 在渲染端的领域执行体）、DirectorWriteDomainResult
  * [POS]: 3D-BOX `stage_shot` 的执行那一半。只被 applyCanvasToolCall 在提议事务里调用（审批、收据、changeId、撤销都在外面那层）。
- *        新建：编译 → 建导演节点（工程 + 计划 + 修订号 + 预演标志）；修订：比修订号 → 应用补丁 → 没变化就一个字不写（unchanged）→
- *        重编译 → 编辑器开着走 3a 的唯一外部写口、关着写节点 meta。领域拒绝（过期 / 补丁不成立 / 编译不过 / 目标不在）
- *        不写画布，原样交回，由 lane 翻成模型读得懂的失败。永不花钱。
- *        3c 之前：整份重编译，不叠覆盖层（`reorderedOverrides` / `changedEntities` 恒为空）。
+ *        新建：编译 → 建导演节点（工程 + 计划 + 修订号 + 编译基线指纹 + 预演标志）；修订：比修订号 → 应用补丁 → 没变化就一个字不写、
+ *        不重编译（unchanged）→ 整份重编译 → 叠手改覆盖层（planOverrides：直接改到且被新编译改了的手改丢弃并列出，其余重放）→
+ *        测量对「编译 + 覆盖」后的工程测 → 编辑器开着走 3a 的唯一外部写口、关着写节点 meta。
+ *        目标视频镜头声明了时长 → 计划时长必须与之一致（以镜头为准，宿主不缩放时间）。
+ *        领域拒绝（过期 / 补丁不成立 / 编译不过或时长不符 / 目标不在）不写画布，原样交回，由 lane 翻成模型读得懂的失败。永不花钱。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import i18n from '../../../../../i18n'
@@ -20,12 +21,18 @@ import { layoutPlannedNodes } from '../../../agent/trajectoryLayout'
 import { getDefaultCategoryForNodeKind, isVideoLikeGenerationNodeKind } from '../../../model/generationNodeKinds'
 import type { GenerationNodeKind } from '../../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../../store/generationCanvasStore'
-import { hasDirectorSession, writeExternalDirectorProject } from '../directorSessionRegistry'
+import { hasDirectorSession, readDirectorSessionProject, writeExternalDirectorProject } from '../directorSessionRegistry'
 import { compileDirectorPlan, type DirectorCompileIssue } from '../model/compiler/directorPlanCompiler'
+import { measureContinuity, sampleDirectorProject } from '../model/directorEvalMeasurement'
 import { DIRECTOR_NODE_KIND, DIRECTOR_PLAN_META_KEY, DIRECTOR_PREVIEW_META_KEY, DIRECTOR_PROJECT_META_KEY } from '../model/directorNodeMeta'
-import { DIRECTOR_PREVIEW_MAX_SECONDS, readDirectorPlanMeta, readDirectorPreview, type DirectorPreviewMeta } from '../model/directorPreviewState'
+import {
+  DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS, DIRECTOR_PREVIEW_MAX_SECONDS, declaredShotDurationSeconds, readDirectorPlanMeta, readDirectorPreview, type DirectorPreviewMeta,
+} from '../model/directorPreviewState'
+import { normalizeDirectorProject } from '../model/directorProject'
 import { summarizeDirectorShots } from '../model/directorShotSummaries'
 import type { DirectorProject } from '../model/directorTypes'
+import { DIRECTOR_COMPILED_SCENE_ID, fingerprintDirectorProject, overlayDirectorProject, readDirectorCompiledBase, type DirectorCompiledBase } from '../model/planOverrides'
+import { readDirectorPatchNotes, recordDirectorPatchNote, type DirectorPatchNotes } from '../model/directorPatchNotes'
 
 type Issue = { kind: string; message: string; time?: number; ref?: string }
 type Cut = { shot: string | null; start: number; end: number; shotSize: string | null; move: string }
@@ -63,7 +70,9 @@ function issuesOf(issues: readonly DirectorCompileIssue[]): Issue[] {
 
 /** 逐 cut 实测（测量模块对工程的实测，不读计划值）；cut 名按编译器的稳定机位 id `shot:<name>/camera` 认回计划镜头。 */
 function cutsOf(project: DirectorProject): Cut[] {
-  return summarizeDirectorShots(project).map((summary) => ({
+  // 量编译出来的那一层（用户另建的图层不归计划）
+  const compiledLayer = project.scenes.some((scene) => scene.id === DIRECTOR_COMPILED_SCENE_ID) ? { ...project, activeSceneId: DIRECTOR_COMPILED_SCENE_ID } : project
+  return summarizeDirectorShots(compiledLayer).map((summary) => ({
     shot: summary.cameraId?.match(/^shot:(.+)\/camera$/)?.[1] ?? null,
     start: summary.start,
     end: summary.end,
@@ -116,6 +125,51 @@ function compileOrReject(plan: DirectorPlan) {
   return compiled.ok ? compiled : { ok: false as const, rejection: { applied: false as const, rejected: 'compile_failed' as const, messages: compiled.errors.length ? compiled.errors : ['the compiler rejected this plan'] } }
 }
 
+/**
+ * 预演挂到哪一镜，就得和那一镜一样长（以镜头为准）：8 秒的预演当 6 秒视频的参考，视频模型只能截掉或拉伸运镜。
+ * 宿主不替模型缩放时间——拒绝并说清两条路。镜头没声明时长不拦。
+ */
+function durationRejection(targetNodeId: string | undefined, planSeconds: number): DirectorWriteDomainResult | null {
+  if (!targetNodeId) return null
+  const shotSeconds = declaredShotDurationSeconds(readGenerationCanvasSnapshot().nodes.find((node) => node.id === targetNodeId))
+  if (shotSeconds === undefined || Math.abs(shotSeconds - planSeconds) <= DIRECTOR_PREVIEW_DURATION_TOLERANCE_SECONDS) return null
+  const shot = `${Number(shotSeconds.toFixed(2))}s`
+  return {
+    applied: false, rejected: 'compile_failed',
+    messages: [`shot node ${targetNodeId} is ${shot} long but this plan runs to ${Number(planSeconds.toFixed(2))}s; the preview must match the shot. Fit every shot and blocking window into 0–${shot}, or first change this shot's duration with draft_shots.`],
+  }
+}
+
+type PlanMetaValue = { plan: DirectorPlan; revision: string; issueCount: number; compiledBase: DirectorCompiledBase; patchNotes?: DirectorPatchNotes }
+
+/**
+ * 测量对「编译 + 覆盖」后的工程测（方案 §6.5）：连续性问题在最终工程上重量；编译期的几何判断（挤出实心、视线被挡）
+ * 说的是编译出来的摆位，对重放了手改的实体已不成立，去掉——否则 Agent 会为了「修」它去改那一镜，反把手改丢掉。
+ */
+function measuredIssues(compiled: Extract<ReturnType<typeof compileDirectorPlan>, { ok: true }>, project: DirectorProject, replayed: readonly string[]): DirectorCompileIssue[] {
+  if (!replayed.length) return compiled.issues
+  const handled = new Set(replayed)
+  const kept = compiled.issues.filter((issue) => issue.kind !== 'measurement' && !((issue.kind === 'overlap' || issue.kind === 'occluded') && issue.objectId && (handled.has(issue.objectId) || handled.has(`actor:${issue.objectId}`))))
+  const measured = { ...project, activeSceneId: DIRECTOR_COMPILED_SCENE_ID }
+  const scene = measured.scenes.find((item) => item.id === DIRECTOR_COMPILED_SCENE_ID)
+  if (!scene) return kept
+  const continuity = measureContinuity(sampleDirectorProject(measured, { fps: 30, duration: compiled.duration, anchors: compiled.anchors }), scene)
+  return [...kept, ...continuity.map((item) => ({ kind: 'measurement' as const, message: item.message, time: item.time, objectId: item.objectId }))]
+}
+
+/** 编辑器开着时它的 store 是唯一写者，手改以 store 为准（meta 最多落后 2 秒）；关着读节点 meta。 */
+function currentDirectorProject(nodeId: string, meta: Record<string, unknown> | undefined): DirectorProject {
+  return readDirectorSessionProject(nodeId) ?? normalizeDirectorProject(meta?.[DIRECTOR_PROJECT_META_KEY])
+}
+
+/** 上一次编译的指纹；3b 建的旧节点没有 → 用当前编译器重编旧计划求出来（一次性迁移，之后写回新指纹）。 */
+function compiledBaseOf(planMeta: unknown, plan: DirectorPlan): DirectorCompiledBase {
+  const stored = readDirectorCompiledBase((planMeta as { compiledBase?: unknown } | null)?.compiledBase)
+  if (stored) return stored
+  const recompiled = compileDirectorPlan(plan)
+  return recompiled.ok ? fingerprintDirectorProject(recompiled.project) : { v: 1, entities: {} }
+}
+
 function createPlan(input: Extract<DirectorWriteInput, { operation: 'create_director_plan' }>, context: ApplyDirectorWriteContext): DirectorWriteDomainResult {
   const nodes = readGenerationCanvasSnapshot().nodes
   let targetNodeId: string | undefined
@@ -130,8 +184,11 @@ function createPlan(input: Extract<DirectorWriteInput, { operation: 'create_dire
   const plan = canonicalDirectorPlan(input.plan)
   const compiled = compileOrReject(plan)
   if (!compiled.ok) return compiled.rejection
+  const tooShortOrLong = durationRejection(targetNodeId, compiled.duration)
+  if (tooShortOrLong) return tooShortOrLong
   const revision = directorPlanRevision(plan)
   const preview = previewMetaFor(targetNodeId, revision, compiled.duration, context.proposalId, missingActionNotes(plan, compiled.issues))
+  const planMeta: PlanMetaValue = { plan, revision, issueCount: compiled.issues.length, compiledBase: fingerprintDirectorProject(compiled.project) }
   const position = layoutPlannedNodes(['image'], nodes)[0]
   const created = context.inCtx(() => generationCanvasTools.create_nodes([{
     kind: DIRECTOR_NODE_KIND,
@@ -141,7 +198,7 @@ function createPlan(input: Extract<DirectorWriteInput, { operation: 'create_dire
     position,
     meta: {
       [DIRECTOR_PROJECT_META_KEY]: compiled.project,
-      [DIRECTOR_PLAN_META_KEY]: { plan, revision, issueCount: compiled.issues.length },
+      [DIRECTOR_PLAN_META_KEY]: planMeta,
       ...(preview ? { [DIRECTOR_PREVIEW_META_KEY]: preview } : {}),
     },
   }]))
@@ -170,34 +227,43 @@ function patchPlan(input: Extract<DirectorWriteInput, { operation: 'patch_direct
   const currentPreview = readDirectorPreview(node)
   const patched = applyDirectorPlanEdits(canonicalDirectorPlan(base.data), input.edits)
   if (!patched.ok) return { applied: false, rejected: 'invalid_patch', messages: [...patched.errors] }
+  const current = currentDirectorProject(directorNodeId, node.meta)
   if (patched.unchanged) {
-    const project = node.meta?.[DIRECTOR_PROJECT_META_KEY] as DirectorProject | undefined
+    // 方案 §6.1：指令不引起计划变化就不动——不重编译、不写画布；实测照当前工程（含手改）回读
     return {
       applied: true, directorNodeId, revision: planMeta.revision, unchanged: true, plan: patched.plan,
-      issues: [], cuts: project ? cutsOf(project) : [], touched: [], reorderedOverrides: [], changedEntities: [],
+      issues: [], cuts: cutsOf(current), touched: [], reorderedOverrides: [], changedEntities: [],
       preview: previewView(currentPreview),
     }
   }
   const compiled = compileOrReject(patched.plan)
   if (!compiled.ok) return compiled.rejection
+  const tooShortOrLong = durationRejection(currentPreview?.targetNodeId, compiled.duration)
+  if (tooShortOrLong) return tooShortOrLong
+  // 方案 §6.2–6.4：整份重编译后按稳定 id 叠回手改；编译器不知道覆盖层（结构守卫 planOverrides.guard.test.ts）
+  const overlay = overlayDirectorProject({ compiled: compiled.project, current, base: compiledBaseOf(node.meta?.[DIRECTOR_PLAN_META_KEY], base.data), touched: patched.touched })
+  const issues = measuredIssues(compiled, overlay.project, overlay.replayedEntities)
   const revision = directorPlanRevision(patched.plan)
   const preview = previewMetaFor(currentPreview?.targetNodeId, revision, compiled.duration, context.proposalId, missingActionNotes(patched.plan, compiled.issues))
+  // 这一笔覆盖了哪些手调（按提议 id 记）：Agent 面板在那一笔工具行下面确定性地说出来，不靠模型复述
+  const patchNotes = recordDirectorPatchNote(readDirectorPatchNotes(node.meta?.[DIRECTOR_PLAN_META_KEY]), context.proposalId, overlay.reorderedOverrides)
+  const planMetaValue: PlanMetaValue = { plan: patched.plan, revision, issueCount: issues.length, compiledBase: fingerprintDirectorProject(compiled.project), ...(Object.keys(patchNotes).length ? { patchNotes } : {}) }
   context.inCtx(() => {
     // 一个写者（方案 §3）：编辑器开着 → 进编辑器 store（3a 的唯一外部写口会立刻落到节点 meta）；关着 → 直接写节点 meta。
-    const mounted = hasDirectorSession(directorNodeId) && writeExternalDirectorProject(directorNodeId, compiled.project)
+    const mounted = hasDirectorSession(directorNodeId) && writeExternalDirectorProject(directorNodeId, overlay.project)
     const store = useGenerationCanvasStore.getState()
     const fresh = store.nodes.find((candidate) => candidate.id === directorNodeId)
     const meta: Record<string, unknown> = { ...(fresh?.meta ?? node.meta ?? {}) }
-    if (!mounted) meta[DIRECTOR_PROJECT_META_KEY] = compiled.project
-    meta[DIRECTOR_PLAN_META_KEY] = { plan: patched.plan, revision, issueCount: compiled.issues.length }
+    if (!mounted) meta[DIRECTOR_PROJECT_META_KEY] = overlay.project
+    meta[DIRECTOR_PLAN_META_KEY] = planMetaValue
     if (preview) meta[DIRECTOR_PREVIEW_META_KEY] = preview
     else delete meta[DIRECTOR_PREVIEW_META_KEY]
     store.updateNode(directorNodeId, { meta })
   })
   return {
     applied: true, directorNodeId, revision, unchanged: false, plan: patched.plan,
-    issues: issuesOf(compiled.issues), cuts: cutsOf(compiled.project), touched: [...patched.touched],
-    reorderedOverrides: [], changedEntities: [], preview: previewView(preview),
+    issues: issuesOf(issues), cuts: cutsOf(overlay.project), touched: [...patched.touched],
+    reorderedOverrides: overlay.reorderedOverrides, changedEntities: overlay.changedEntities, preview: previewView(preview),
   }
 }
 

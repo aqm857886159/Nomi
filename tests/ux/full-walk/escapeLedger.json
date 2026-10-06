@@ -11,7 +11,8 @@
     "performance-coverage": "真实任务的规模、素材或长跑成本没有被验收覆盖",
     "claims-and-outcomes": "界面 / Agent 对状态、断线或失败的描述与事实不一致",
     "language-surface": "语言轨道与用户所选界面不一致",
-    "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整"
+    "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整",
+    "overlay-legibility": "画面上的标注 / 名牌互相遮挡，用户读不出是谁"
   },
   "entries": [
     {
@@ -388,6 +389,24 @@
       "manualReview": "pending",
       "evidence": ["10-05 real test: draft node showed the empty-prompt hint while the card held a filled prompt"],
       "completionCommits": []
+    },
+    {
+      "id": "DIR-character-label-overlap",
+      "since": "2026-10-06",
+      "source": "外包卡 18 基线重审对比图（d3-courtyard-director-zh），外包卡 20 转协调会话，用户 10-05 拍板修",
+      "category": "overlay-legibility",
+      "problem": "庭院场景镜 2 里，「黑衣侍卫」的名牌盖住了「青衣女子」的名牌，原来是上下排开的；两个人前后站成一线时谁是谁读不出",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/evidence/2026-10-05-baseline-reapproval/comparisons/director-3dbox/d3-courtyard-director-zh.png（origin/evidence/card18-baseline-reapproval-20261006）", "bisect：4adb4668d 让青衣女子从门顶（y=1.2）落回地面后两名牌纵向只差 11–20px，名牌高 22px；名牌从来没有避让"],
+      "completionCommits": ["36b64cf6f"],
+      "rootCauseContract": "docs/fixes/2026-10-06-director-character-label-overlap.root-cause.json",
+      "classCheck": {"kind": "matrix", "file": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"},
+      "fixedInPr": 1002
     },
     {
       "id": "AUD-20261005-01",

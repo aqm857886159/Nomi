@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
 import {
-  REAL_PROFILE_ENV, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealCredentials, seedRealModels,
+  REAL_PROFILE_ENV, realNomiProcessesAlive, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealCredentials, seedRealModels,
 } from './_realProfile.mjs'
 import { paidRunRefusal, spendReceipt } from './_paidRun.mjs'
 
@@ -146,5 +146,32 @@ describe('付费走查的闸', () => {
     const receipt = spendReceipt(projectRoot)
     expect(receipt.media.map((entry) => [entry.source, entry.taskId]).sort()).toEqual([['canvas', 't1'], ['production-run', 't2']])
     expect(receipt.media.find((entry) => entry.taskId === 't1').providerCost).toEqual({ amount: 1, currency: 'credits', unit: 'actual' })
+  })
+})
+
+// 真实测试 ④ 前：tasklist 只按进程名判，本仓打的测试包（同名 Nomi.exe）和 0 线程的僵尸都被当成「用户的 Nomi 开着」而拒跑。
+describe('realNomiProcessesAlive：只算活着、且不是本仓测试包的 Nomi.exe', () => {
+  const installed = 'C:\\Users\\me\\AppData\\Local\\Programs\\Nomi\\Nomi.exe'
+  test('用户装的 Nomi 活着 = 开着', () => {
+    expect(realNomiProcessesAlive([{ ExecutablePath: installed, ThreadCount: 30 }])).toBe(true)
+  })
+  test('本仓 release*/win-unpacked 测试包不算（两种分隔符、大小写）', () => {
+    expect(realNomiProcessesAlive([{ ExecutablePath: 'D:\\Nomi-wt\\release\\win-unpacked\\Nomi.exe', ThreadCount: 12 }])).toBe(false)
+    expect(realNomiProcessesAlive([{ ExecutablePath: 'D:/Nomi-wt/release-rc/WIN-UNPACKED/nomi.exe', ThreadCount: 12 }])).toBe(false)
+  })
+  test('0 线程的僵尸不算', () => {
+    expect(realNomiProcessesAlive([{ ExecutablePath: installed, ThreadCount: 0 }])).toBe(false)
+  })
+  test('读不到路径（权限）但活着的照样算开着——宁可拒跑', () => {
+    expect(realNomiProcessesAlive([{ ExecutablePath: null, ThreadCount: 8 }])).toBe(true)
+    expect(realNomiProcessesAlive([{ ThreadCount: undefined }])).toBe(true)
+  })
+  test('没有进程 = 没开；混着一行真开着的就算开着', () => {
+    expect(realNomiProcessesAlive([])).toBe(false)
+    expect(realNomiProcessesAlive([
+      { ExecutablePath: 'D:\\Nomi-wt\\release\\win-unpacked\\Nomi.exe', ThreadCount: 9 },
+      { ExecutablePath: installed, ThreadCount: 0 },
+      { ExecutablePath: installed, ThreadCount: 25 },
+    ])).toBe(true)
   })
 })
