@@ -16,6 +16,9 @@ patchedDependencies:
   img-fx@0.5.1:
     hash: 154bb3edce60ffb8f481292650a5d341f6881802d6d9b354d380725f8536be89
     path: patches/img-fx@0.5.1.patch
+  react-i18next@17.0.10:
+    hash: 1ded9170776bf03e60dd63213691ee71cbc1e7104b3f384219868d2ef8195097
+    path: patches/react-i18next@17.0.10.patch
 
 importers:
 
@@ -318,7 +321,7 @@ importers:
         version: 19.3.0(react@19.3.0)
       react-i18next:
         specifier: 17.0.10
-        version: 17.0.10(i18next@26.3.6(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3)
+        version: 17.0.10(patch_hash=1ded9170776bf03e60dd63213691ee71cbc1e7104b3f384219868d2ef8195097)(i18next@26.3.6(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3)
       react-reconciler:
         specifier: 0.34.0
         version: 0.34.0(react@19.3.0)
@@ -13418,7 +13421,7 @@ snapshots:
       react: 19.3.0
       scheduler: 0.28.0
 
-  react-i18next@17.0.10(i18next@26.3.6(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3):
+  react-i18next@17.0.10(patch_hash=1ded9170776bf03e60dd63213691ee71cbc1e7104b3f384219868d2ef8195097)(i18next@26.3.6(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3):
     dependencies:
       '@babel/runtime': 7.29.2
       html-parse-stringify: 3.0.1
