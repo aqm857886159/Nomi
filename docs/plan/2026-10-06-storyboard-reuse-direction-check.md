@@ -74,3 +74,11 @@
 `fix-churn` 报 `src/workbench/generationCanvas/model/` 14 天内第 7 个 fix。前 6 个是别的线在这个目录里修的别的概念（节点类型、连线、参数引用等）。本分支在这里只做了一件事：新增默认标题的单一来源 `generationNodeDefaultTitles()`（V-1042 必修：画布自动引用把系统默认标题当名字）。之后的修改都是这同一个函数的门岗跟进：读资源子树改用 `getResource`，不走 `t()`。
 
 这不是对同一个 bug 反复打补丁。结构上的处理是「默认标题只从建节点用的那个函数取，不手抄」，测试按全部节点类型 × 中英两种语言清单遍历（`canvasAutoReference.test.ts`）。
+
+## 附：`InlineParameterBar.tsx` 命中（2026-10-06 补）
+
+这个文件 14 天内第 3 个 fix。本分支对它的改动都服务于同一件事：让分镜行复用画布的参数条。先是加了 `summaryWidth: { hug }` 和 `leadingModelOption`；这次是让「贴文字宽」的摘要按钮在行窄、字体宽时可以收窄，保证「生成」不被挤出卡外。
+
+改动只在 hug 摆法下生效（目前只有分镜行用），画布节点的定宽摘要不变。
+
+这里没有反复修同一个 bug。之前在 Linux CI 上红的真正根因，是测试页面没加载 Tailwind 样式（已修在测试夹具一层，见 `tests/ux/_freshTailwindCss.mjs`）。参数条这次的改动只是给更宽的字体留出余量。

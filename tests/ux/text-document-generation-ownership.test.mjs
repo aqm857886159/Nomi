@@ -7,6 +7,10 @@ import { chromium } from 'playwright'
 import { expect as browserExpect } from '@playwright/test'
 import { createServer } from 'vite'
 import { stationTimeout } from './_station-budget.mjs'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 
 let server, browser, cacheDir
 beforeAll(async () => {
@@ -26,7 +30,8 @@ test('selection rewrite persists its actual result body, reopens without replay,
   page.setDefaultTimeout(stationTimeout({ operations: 1 }))
   try {
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/text-document-generation-ownership.html`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'text-document-generation-ownership.test.mjs')
     const editor = page.locator('.ProseMirror')
     await browserExpect(editor).toBeVisible()
     await browserExpect(editor).toHaveText('Keep OLD tail')

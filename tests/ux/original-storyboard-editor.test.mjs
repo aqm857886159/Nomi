@@ -5,6 +5,10 @@ import { createServer } from 'vite'
 import fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 
 for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) test(`original storyboard ${locale}/${media} keeps loaded-model controls clickable at the established collapsed-sidebar editor width`, async () => {
   const en = locale === 'en'
@@ -16,7 +20,8 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } })
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/original-storyboard-editor-harness.html?locale=${locale}&media=${media}`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'original-storyboard-editor.test.mjs')
     await page.addStyleTag({ url: '/src/styles/index.css' })
     const editor = page.locator('[data-storyboard-editor]')
     await expect(editor).toBeVisible()
@@ -40,7 +45,7 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
       const controls = [...row.querySelectorAll('[data-storyboard-composer-bar] button')].map(element => {
         const rect = element.getBoundingClientRect()
         const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
-        return { label: element.getAttribute('aria-label') || element.textContent, generate: element.hasAttribute('data-storyboard-generate-state'), x: rect.x, width: rect.width, hit: Boolean(hit && element.contains(hit)) }
+        return { label: element.getAttribute('aria-label') || element.textContent, generate: element.hasAttribute('data-storyboard-generate-state'), x: rect.x, y: rect.y, width: rect.width, hit: Boolean(hit && element.contains(hit)), hitBy: hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 60)}` : null }
       })
       const anchor = document.querySelector('[data-storyboard-anchor-row]')
       const anchorControls = [...anchor.querySelectorAll('input,textarea,button')].map(element => {
@@ -67,7 +72,7 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     })
     const after = await read()
     fs.writeFileSync(path.join(tmpdir(), `nomi-storyboard-collapsed-width-${locale}-${media}.json`), JSON.stringify(after, null, 2))
-    for (const control of after.controls) expect(control.hit, `Composer control ${control.label} must be reachable without scrolling`).toBe(true)
+    for (const control of after.controls) expect(control.hit, `Composer control ${control.label} must be reachable without scrolling（中心点落在 ${control.hitBy}；控件 x=${Math.round(control.x)} y=${Math.round(control.y)} w=${Math.round(control.width)}；滚动区 ${JSON.stringify(after.scroll)}）`).toBe(true)
     expect(after.controls.find(control => control.generate)?.hit, 'Original generate control remains reachable at the established editor width').toBe(true)
     expect(after.scroll.left).toBe(0)
     const interactiveControls = row.locator('[data-storyboard-composer-bar] button')

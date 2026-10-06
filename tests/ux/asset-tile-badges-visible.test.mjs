@@ -11,6 +11,10 @@ import { chromium } from 'playwright'
 import { createServer } from 'vite'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const STRIP_STATES = [
@@ -65,6 +69,7 @@ function measureCorners() {
         clip,
         inside: rect.left >= clip.left - 0.5 && rect.top >= clip.top - 0.5 && rect.right <= clip.right + 0.5 && rect.bottom <= clip.bottom + 0.5,
         hit: Boolean(hit && element.contains(hit)),
+        hitBy: hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 60)}` : 'null（中心点在视口外）',
         overlapsSibling: Boolean(otherRect && rect.left < otherRect.right && otherRect.left < rect.right && rect.top < otherRect.bottom && otherRect.top < rect.bottom),
       }
     })
@@ -74,7 +79,7 @@ function measureCorners() {
 function expectCornersVisible(corners, where) {
   for (const corner of corners) {
     expect(corner.inside, `${where}: ${corner.what} 被裁剪祖先切掉（${JSON.stringify(corner.rect)} 不在 ${JSON.stringify(corner.clip)} 里）`).toBe(true)
-    expect(corner.hit, `${where}: ${corner.what} 的中心点不到它自己`).toBe(true)
+    expect(corner.hit, `${where}: ${corner.what} 的中心点不到它自己（落在 ${corner.hitBy} 上；角标 ${JSON.stringify(corner.rect)}）`).toBe(true)
     expect(corner.overlapsSibling, `${where}: ${corner.what} 和同一格里的另一枚压在一起`).toBe(false)
   }
 }
@@ -83,6 +88,8 @@ test('画布节点参考区：三张编号参考的序号和 × 都整枚可见'
   const page = await browser.newPage({ viewport: { width: 900, height: 500 } })
   try {
     await page.goto(`${origin}/tests/ux/fixtures/asset-tile-badges-harness.html`, { timeout: 90000 })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'canvas harness')
     await page.locator('[data-asset-tile-badge="3"]').waitFor({ timeout: 60000 })
     const corners = await page.evaluate(measureCorners)
     expect(corners.filter((corner) => corner.what.startsWith('badge'))).toHaveLength(3)
@@ -97,6 +104,9 @@ test('分镜行内参考条：各画幅、宽窄两档的序号和 × 都整枚�
     for (const state of STRIP_STATES) {
       await page.goto(`${origin}/design-lab.html?screen=storyboard-reuse&frame=1&state=${state}`, { timeout: 90000 })
       await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: 60000 })
+      await page.addStyleTag({ content: freshTailwindCss() })
+      await assertTailwindApplied(page, state)
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       const corners = await page.evaluate(measureCorners)
       expect(corners.length, `${state}: 应该量到参考缩略图`).toBeGreaterThan(0)
       expectCornersVisible(corners, state)

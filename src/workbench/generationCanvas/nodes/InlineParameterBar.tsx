@@ -613,7 +613,10 @@ export default function InlineParameterBar({
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
         'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
-        'shrink-0 justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
+        // 贴文字宽（hug，分镜行）时允许收：行窄、字体宽（Linux / mac 字体比 Windows 宽）时先截断摘要文字，
+        // 不把右端的「生成」挤出卡外（2026-10-06 #1042）。定宽的画布节点照旧不收。
+        summaryMaxWidth !== undefined ? 'shrink' : 'shrink-0',
+        'justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
         stacked && 'w-full',
       )}

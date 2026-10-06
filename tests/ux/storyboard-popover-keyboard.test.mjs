@@ -9,6 +9,10 @@ import { createServer } from 'vite'
 import fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 
 const POPOVERS = [
   {
@@ -56,7 +60,8 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } })
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/original-storyboard-editor-harness.html?locale=en&${item.query}`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'storyboard-popover-keyboard.test.mjs')
     await page.addStyleTag({ url: '/src/styles/index.css' })
     await expect(page.locator('[data-storyboard-editor]')).toBeVisible()
     await page.locator('[data-storyboard-editor]').evaluate((element, width) => { element.parentElement.style.width = `${width}px` }, item.width ?? 840)
@@ -79,7 +84,6 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
               width: Math.round(bar.getBoundingClientRect().width),
               scrollWidth: bar.scrollWidth,
               text: bar.innerText.replace(/\s+/g, ' ').trim(),
-              demoted: bar.getAttribute('data-storyboard-composer-demoted'),
               attrs: [...bar.querySelectorAll('*')].flatMap((node) => [...node.attributes].filter((a) => a.name.startsWith('data-storyboard')).map((a) => `${node.tagName.toLowerCase()}[${a.name}=${a.value}]`)),
               controls: [...bar.querySelectorAll('button,[role=combobox],input')].map((node) => node.getAttribute('aria-label') || node.textContent?.trim() || node.tagName),
             })),
