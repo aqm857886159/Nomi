@@ -4706,6 +4706,29 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "只在开带模型的 lane 时按需 import laneNativeDesktop（它会装 pi-coding-agent 入口，约 1500 个文件）；打开项目只读历史、迁移旧对话都不许静态引入入口。tests/agent-runtime/lane-open-graph.test.mts 在子进程里数真装载钉住（docs/fixes/2026-10-06-agent-runtime-lazy-load.root-cause.json）。"
+    },
+    {
+      "name": "画布媒体加载占位的外观（只有正在加载的才扫光）",
+      "subject": "canvas.media-loading-placeholder",
+      "lifecycle": "live-interaction",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+        "symbol": "DeferredNodeMediaPlaceholder"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+          "symbol": "DeferredNodeMediaPlaceholder"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "占位唯一渲染点，把媒体状态（deferredNodeMediaQueue 的 DeferredNodeMediaState）作为 data-media-state 交给样式；扫光只挂 loading 态（docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json，类检查 mediaPlaceholderShimmer.test.ts）。"
     }
   ]
 }

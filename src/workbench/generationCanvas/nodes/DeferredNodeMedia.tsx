@@ -10,9 +10,14 @@ import {
   useDeferredNodeMediaSrc,
 } from './deferredNodeMediaQueue'
 
-export const DeferredNodeMediaPlaceholder = React.forwardRef<HTMLDivElement, { className?: string }>(
-  function DeferredNodeMediaPlaceholder({ className }, ref): JSX.Element {
-    return <div ref={ref} className={cn('generation-canvas-v2-node__media-loading', className)} aria-hidden="true" />
+/**
+ * 媒体占位。扫光动画只给**真正在加载**的那几张（拿到槽位的，图最多 4、视频最多 1）；排队的只画静态底。
+ * 以前每张排队卡都挂一条无限扫光：打开 300 张图的项目时可见的 180 张一起扫，第一帧 GPU 栅格约 330ms，
+ * 而媒体调度要等两帧画完才放第一张图——「节点挂上 → 第一张图」被拖到约 900ms（2026-10-06 L-perf）。
+ */
+export const DeferredNodeMediaPlaceholder = React.forwardRef<HTMLDivElement, { className?: string; state: DeferredNodeMediaState }>(
+  function DeferredNodeMediaPlaceholder({ className, state }, ref): JSX.Element {
+    return <div ref={ref} className={cn('generation-canvas-v2-node__media-loading', className)} data-media-state={state} aria-hidden="true" />
   },
 )
 
@@ -84,7 +89,7 @@ export function DeferredNodeImage({
   return (
     <>
       <DeferredNodeMediaViewportAnchor state={media.state} anchorRef={media.placeholderRef} />
-      {media.loading && !media.readySrc ? <DeferredNodeMediaPlaceholder className={placeholderClassName} /> : null}
+      {media.loading && !media.readySrc ? <DeferredNodeMediaPlaceholder className={placeholderClassName} state={media.state} /> : null}
       {retainedSrc ? (
         <NomiImage
           {...props}
@@ -175,7 +180,7 @@ export function DeferredNodeVideo({
   return (
     <>
       <DeferredNodeMediaViewportAnchor state={media.state} anchorRef={media.placeholderRef} />
-      {media.loading && !media.readySrc ? <DeferredNodeMediaPlaceholder className={placeholderClassName} /> : null}
+      {media.loading && !media.readySrc ? <DeferredNodeMediaPlaceholder className={placeholderClassName} state={media.state} /> : null}
       {retainedSrc ? (
         <ManagedDeferredNodeVideo
           {...props}

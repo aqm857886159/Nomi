@@ -732,6 +732,24 @@
       "rootCauseContract": "docs/fixes/2026-10-06-agent-runtime-lazy-load.root-cause.json",
       "classCheck": { "kind": "matrix", "file": "tests/agent-runtime/lane-open-graph.test.mts" },
       "fixedInPr": 1044
+    },
+    {
+      "id": "FB-20261005-01-open-render",
+      "since": "2026-10-05",
+      "source": "用户 10-05 反馈 #1「右侧 Agent 运行时明显卡顿：进项目、建新项目都卡」（渲染层那一段）",
+      "category": "performance-coverage",
+      "problem": "打开几百张图的项目，节点挂上后约 0.8–0.9 秒才出第一张图：可见的 180 张卡每张都挂无限扫光，第一帧 GPU 栅格约 330ms，媒体调度等画壳两帧才放第一张图",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": ["S8"],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["Windows 打包版 5 次：节点挂上 → 第一张图 821 → 549ms（中位数），冷开点卡到第一张图 2597/2718 → 2206/2616ms", "类级检查 src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts 普查样式表与占位渲染点；变异：扫光规则去掉 loading 限定即红"],
+      "completionCommits": ["bdc40247a"],
+      "rootCauseContract": "docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json",
+      "fixedInPr": 1045,
+      "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts" }
     }
   ]
 }
