@@ -46,10 +46,25 @@ describe("draft_shots 的投影与对照表时代逐字节相同", () => {
   });
 
   it("信封落不进去的两条路上当场拒绝，不静默消失", () => {
-    expect(() => translate({ operationId: "op-1", shots: [{ prompt: "p", title: "标题" }] }))
+    // 改一镜（带 shotId）那条路上没有信封的位置。
+    expect(() => translate({ operationId: "op-1", shots: [{ shotId: "shot-1", prompt: "p", title: "标题" }] }))
       .toThrow(/shots\[\]\.title/);
     expect(() => translate({ shots: [{ prompt: "p", shotId: "shot-3" }] }))
       .toThrow(/shots\[\]\.shotId/);
+  });
+
+  it("带 operationId 的新镜头（不带 shotId、带标题或不止一镜）补到那份方案后面，信封随行（2026-10-05）", () => {
+    expect(translate({ operationId: "op-1", shots: [{ prompt: "p", title: "结尾" }] }))
+      .toMatchObject({ operation: "extend", operationId: "op-1", shots: [{ prompt: "p", title: "结尾" }] });
+    expect(translate({ operationId: "op-1", shots: [{ prompt: "a" }, { role: "anchor", title: "锚", prompt: "b" }] }))
+      .toMatchObject({ operation: "extend", shots: [{ prompt: "a" }, { role: "anchor", title: "锚", prompt: "b" }] });
+    // 只写一镜、没 shotId、没信封：照旧是改单镜草稿的顶层候选。
+    expect(translate({ operationId: "op-1", shots: [{ prompt: "换一句" }] })).toMatchObject({ operation: "patch" });
+  });
+
+  it("用户明确要另起一份：newPlan 随新建走到宿主", () => {
+    expect(translate({ newPlan: true, shots: [{ prompt: "p" }] })).toMatchObject({ operation: "create", newPlan: true });
+    expect(translate({ newPlan: true, shots: [{ prompt: "a" }, { prompt: "b" }] })).toMatchObject({ operation: "create", newPlan: true });
   });
 
   it("顶层缺省折进每一镜，逐镜自己写的优先", () => {

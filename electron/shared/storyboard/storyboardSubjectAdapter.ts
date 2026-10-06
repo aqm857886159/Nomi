@@ -5,6 +5,7 @@ import type { PlanAnchor, PlanShot, StoryboardPlan } from './storyboardPlan'
 import { planAnchorSchema, planShotSchema } from './storyboardPlanSchema'
 import { foldRatioIntoSlot } from './storyboardShotScope'
 import { mergeNamedParameters } from '../generationParameterPatch'
+import { StoryboardSubjectNotFoundError, storyboardSubjectAt } from './storyboardSubjectIdentity'
 
 /**
  * 一个 Agent 草稿镜头 ↔ 原编辑器契约（`StoryboardPlan`）之间的**纯适配层**。
@@ -29,8 +30,12 @@ function candidateFields(candidate: PlanCandidate) {
   }
 }
 
-/** Adapt an admitted Agent subject into the existing editor contract exactly once, at author creation. */
-export function storyboardSubjectFromCandidate(input: {shotId: string; role?: 'anchor' | 'shot'; title?: string; candidate: PlanCandidate}, index: number,
+/**
+ * Adapt an admitted Agent subject into the existing editor contract exactly once, at author creation.
+ * 镜号不在这里定：`index` 先写 0，接进方案时由分镜主体身份的唯一 owner（`appendStoryboardSubjects`）按
+ * 「它在镜头里的位置」发——这里曾经收调用方给的位置，而那个位置是锚和镜头混排的下标（行号从 03 起）。
+ */
+export function storyboardSubjectFromCandidate(input: {shotId: string; role?: 'anchor' | 'shot'; title?: string; candidate: PlanCandidate},
   authored?: StoryboardAuthorFields, referenceUrls: Readonly<Record<string, string>> = {}): PlanAnchor | PlanShot {
   const candidate = input.candidate
   const fields = candidateFields(candidate)
@@ -47,13 +52,15 @@ export function storyboardSubjectFromCandidate(input: {shotId: string; role?: 'a
     return planAnchorSchema.parse({...authored,...common,id:input.shotId,kind:authored.kind,carrier:authored.carrier,name:input.title ?? candidate.prompt,description:candidate.prompt})
   }
   if (authored?.kind || authored?.carrier) throw new Error('storyboard_subject_role_mismatch')
-  return planShotSchema.parse({durationSec:typeof candidate.parameters.duration === 'number' ? candidate.parameters.duration : 0,anchorIds:[],prompt:candidate.prompt,...shotKindOf(candidate),...authored,...common,shotId:input.shotId,index})
+  return planShotSchema.parse({durationSec:typeof candidate.parameters.duration === 'number' ? candidate.parameters.duration : 0,anchorIds:[],prompt:candidate.prompt,...shotKindOf(candidate),...authored,...common,shotId:input.shotId,index:0})
 
 }
 
 export function patchStoryboardSubject(plan: StoryboardPlan, shotId: string, patch: Record<string, unknown>, references?: Record<string, Array<{url: string}>>): PlanAnchor | PlanShot {
-  const subject = plan.anchors.find(anchor => anchor.id === shotId) ?? plan.shots.find(shot => shot.shotId === shotId)
-  if (!subject) throw new Error('Storyboard shot not found')
+  // 寻址只认分镜主体身份的唯一 owner：`shot-N` 只在镜头里找，永远不会落到参考卡上。
+  const found = storyboardSubjectAt(plan, shotId)
+  if (found.kind === 'missing') throw new StoryboardSubjectNotFoundError(shotId, found.shots, found.anchorHoldsShotNumber)
+  const subject: PlanAnchor | PlanShot = found.kind === 'anchor' ? found.anchor : found.shot
   const authored=patch.storyboard as StoryboardAuthorFields | undefined
   const duration = (patch.parameters as Record<string, unknown> | undefined)?.duration
   const merged = {...subject,...authored,

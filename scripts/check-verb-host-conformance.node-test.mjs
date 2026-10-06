@@ -28,7 +28,7 @@ test('这道门岗进了 contracts 档，不是一个没人跑的脚本', () => 
 const MUTATIONS = [
   ['A 类 · 拿掉动词那道拦截后，信封字段在改草稿那条路上必须当场被拒（不许静默消失）', [
     ['electron/shared/agentCapabilities/verbs/writeVerbs.ts',
-      '        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot[field] !== undefined);',
+      '        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot.shotId !== undefined && shot[field] !== undefined);',
       '        const index = -1;'],
   ]],
   ['B 类 · 宿主重新硬要模型拿不到的 contentHash / version', [

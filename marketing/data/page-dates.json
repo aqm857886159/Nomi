@@ -176,11 +176,11 @@
     "date": "2026-10-05"
   },
   "/en/prompts/camera": {
-    "hash": "71a40a3c2f0ad04a",
+    "hash": "a0a0d60f249ba24e",
     "date": "2026-10-05"
   },
   "/en/prompts/character": {
-    "hash": "81269ed7ec0d78c0",
+    "hash": "b10904b07797ba96",
     "date": "2026-10-05"
   },
   "/en/prompts/collections/evolink-gpt-image-2": {
@@ -204,7 +204,7 @@
     "date": "2026-10-02"
   },
   "/en/prompts/composition": {
-    "hash": "e6b642ae90098d33",
+    "hash": "48ddde50e42eef5a",
     "date": "2026-10-05"
   },
   "/en/prompts/editing": {
@@ -224,7 +224,7 @@
     "date": "2026-10-05"
   },
   "/en/prompts/storyboard": {
-    "hash": "44afe1740d5e6fd7",
+    "hash": "769f321147d84358",
     "date": "2026-10-05"
   },
   "/en/quickstart": {
@@ -380,8 +380,8 @@
     "date": "2026-10-02"
   },
   "/en/skills/workbench-storyboard-planner": {
-    "hash": "c2e73bcfbb279689",
-    "date": "2026-10-02"
+    "hash": "cc03ff5cf75793c1",
+    "date": "2026-10-06"
   },
   "/en/skills/writer-adaptation": {
     "hash": "ce11ceaa1a999a03",
@@ -596,11 +596,11 @@
     "date": "2026-10-05"
   },
   "/prompts/camera": {
-    "hash": "98643462b30822d6",
+    "hash": "e02c9b41335f0b8b",
     "date": "2026-10-05"
   },
   "/prompts/character": {
-    "hash": "5047fd9358e24f9f",
+    "hash": "8d6461b88e1607a8",
     "date": "2026-10-05"
   },
   "/prompts/collections/evolink-gpt-image-2": {
@@ -624,7 +624,7 @@
     "date": "2026-10-02"
   },
   "/prompts/composition": {
-    "hash": "c83024c13f52f2f5",
+    "hash": "b4bae9f94f241fc6",
     "date": "2026-10-05"
   },
   "/prompts/editing": {
@@ -644,7 +644,7 @@
     "date": "2026-10-05"
   },
   "/prompts/storyboard": {
-    "hash": "baf364c50c035431",
+    "hash": "5f82125eb067ecfe",
     "date": "2026-10-05"
   },
   "/quickstart": {
@@ -800,8 +800,8 @@
     "date": "2026-10-02"
   },
   "/skills/workbench-storyboard-planner": {
-    "hash": "5e83d220cd17658c",
-    "date": "2026-10-02"
+    "hash": "e390b39efa536bc2",
+    "date": "2026-10-06"
   },
   "/skills/writer-adaptation": {
     "hash": "7787238e1c90586d",

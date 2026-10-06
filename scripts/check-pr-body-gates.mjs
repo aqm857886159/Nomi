@@ -26,6 +26,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // 保证「本地说绿」和「CI 说绿」用的是同一份实现和同一份正文。
 const GATES = [
   { name: 'check:prior-art', script: 'scripts/check-prior-art.mjs' },
+  { name: 'check:pr-judgement', script: 'scripts/check-pr-judgement.mjs' },
 ]
 
 function main() {

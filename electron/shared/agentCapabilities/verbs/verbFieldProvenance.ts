@@ -75,6 +75,8 @@ const RAW: Readonly<Record<string, Readonly<Record<string, readonly VerbFieldPro
   draft_shots: {
     "shots.storyboard": ["model-authored"],
     operationId: ["from-read:draft_shots.operationId"],
+    // 用户明确说「另起一份 / 再做一版」时模型自己置 true；不读任何返回。
+    newPlan: ["model-authored"],
     taskKind: ["model-authored"],
     candidate: ["from-read:list_models.modelId"],
     "shots.prompt": ["model-authored"],

@@ -27,6 +27,18 @@ describe('normalizePayload — storyboard design owner', () => {
     const out = normalizePayload({ ...base, storyboardDesignsByDocumentId: { [documentId]: [design(documentId)] } })
     expect(out.storyboardDesignsByDocumentId?.[documentId]).toEqual([design(documentId)])
   })
+  it('Agent plans saved before shot numbers stopped counting reference cards load with rows 1..N; identities untouched', () => {
+    const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
+    const legacy: StoryboardPlan = { title: 'agent', anchors: [{ id: 'shot-1', kind: 'character', name: 'Hero', description: 'red coat', carrier: 'visual' }],
+      shots: [{ index: 3, shotId: 'shot-3', durationSec: 3, anchorIds: [], prompt: 'A' }, { index: 4, shotId: 'shot-4', durationSec: 3, anchorIds: [], prompt: 'B' }] }
+    const out = normalizePayload({ ...base, storyboardDesignsByDocumentId: { [documentId]: [{ ...design(documentId), plan: legacy }] } })
+    const loaded = out.storyboardDesignsByDocumentId?.[documentId]?.[0].plan
+    expect(loaded?.shots.map(shot => [shot.index, shot.shotId])).toEqual([[1, 'shot-3'], [2, 'shot-4']])
+    expect(loaded?.anchors).toEqual(legacy.anchors)
+    // 有镜头没 shotId（旧手建方案，身份按镜号派生）：一字不动。
+    const handMade = normalizePayload({ ...base, storyboardDesignsByDocumentId: { [documentId]: [{ ...design(documentId), plan: { ...plan, shots: [{ ...plan.shots[0], index: 2 }] } }] } })
+    expect(handMade.storyboardDesignsByDocumentId?.[documentId]?.[0].plan.shots[0].index).toBe(2)
+  })
   it('migrates the retired map into owner designs and drops the retired field', () => {
     const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
     const legacyKey = ['storyboard', 'Plans'].join('')

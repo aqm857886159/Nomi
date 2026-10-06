@@ -72,6 +72,16 @@ function generationCall(base: { toolCallId: string }, toolName: GenerationMethod
 }
 
 /**
+ * `draft_shots` 带 operationId 时，这一批是「补新镜头」还是「改一镜」：一镜都没写 shotId，并且不止一镜、
+ * 或者带着只有新建才有的信封（标题 / 角色）——那就是新镜头。只写一镜、没 shotId、没信封的，照旧是改单镜草稿
+ * 的顶层候选（画布上一句话生成的那张图就是这么改的）；文稿方案收到它会如实说「补新镜头要带标题」。
+ */
+function addsNewShots(shots: readonly DraftShot[]): boolean {
+  if (shots.some((shot) => shot.shotId !== undefined)) return false
+  return shots.length > 1 || shots.some((shot) => shot.title !== undefined || shot.role !== undefined)
+}
+
+/**
  * 把一个延迟组动词调用翻成传输层调用。返回 `undefined` = 这个动词不走延迟组（常驻工具自己绑执行）。
  * 参数在这里**只改形状不改语义**：schema 已由 pi 的 ajv 验过。
  */
@@ -86,6 +96,13 @@ export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | 
       // 顶层缺省折进每一镜；逐镜自己写的优先。
       const shots = draft.shots.map((shot) => withDraftShotsDefaults(draft, shot))
       // 分支判断是真逻辑（改草稿 / 单镜摊平 / 多镜），不是字段名单——它留在这里。
+      if (draft.operationId !== undefined && addsNewShots(shots)) {
+        // 带 operationId 的**新**镜头（不带 shotId，带标题或角色、或不止一镜）：补到那份方案后面——
+        // 「先立角色、再补镜头」「再加两镜」落在同一份上，不再新建一份（用户 10-05「建了好几个方案」）。
+        return generationCall(base, GENERATION_METHODS.plan, {
+          operation: 'extend', operationId: draft.operationId, shots: shots.map(draftShotToPlanShot),
+        })
+      }
       if (draft.operationId !== undefined) {
         // 修改已有草稿：带 `shotId` = 改多镜草稿里的那一镜（那一镜候选 revision +1 → 已落的节点按它重绑定）；
         // 不带 = 单镜草稿的顶层候选。一次调用改一镜（动词契约的例子就是这个形状）。
@@ -103,11 +120,11 @@ export function verbToTransportCall(call: RuntimeToolCall): VerbTransportCall | 
         // **带 role 或 title 的不走这条**：这两个都是镜头信封上的字段，而顶层没有它们的位置。
         // 摊平就只能悄悄丢掉——那正是这一整条链的病根。
         return generationCall(base, GENERATION_METHODS.plan, {
-          operation: 'create', ...draftShotToFlatCreate(shots[0]!), cardHidden: true,
+          operation: 'create', ...draftShotToFlatCreate(shots[0]!), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
         })
       }
       return generationCall(base, GENERATION_METHODS.plan, {
-        operation: 'create', shots: shots.map(draftShotToPlanShot), cardHidden: true,
+        operation: 'create', shots: shots.map(draftShotToPlanShot), cardHidden: true, ...(draft.newPlan ? { newPlan: true } : {}),
       })
     }
     case 'generate':

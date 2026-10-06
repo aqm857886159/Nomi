@@ -4516,6 +4516,73 @@
       ],
       "since": "2026-10-05",
       "notes": "这个窗口发出去、主进程还没回话的画布生成请求（按节点 id，进程寿命，不落盘）。只服务装载收敛 convergeStuckMidFlightNode：切项目再切回来，还在路上的节点照旧显示生成中、不被收成空闲、不进「生成全部」。不管钱、不决定能不能再交：付费画布生成的同节点在途拒绝在主进程 appIntegrationCanvasShot（assertNodeIdle：进程内在途 + canvasShotRunIndex「没收尾」标记），Run 是真相。写口只有 taskApi 的两个提交口（submitCanvasShotRun、runWorkbenchTaskByVendor）在 await 前登记、回话后注销。2026-10-05 发动机收敛第一刀第 3 步删掉主进程那道 withNodeSubmitExclusive 之后从 canvas.shot-run 的写接口里拆出来单独登记（独立验收 V-1012 问题 1）。"
+    },
+    {
+      "name": "分镜方案里一行是谁、排第几（锚 / 镜头 id、镜号、按 id 寻址）",
+      "subject": "storyboard.subject-identity",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+        "symbol": "nextStoryboardSubjectIds"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "nextStoryboardSubjectIds"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "appendStoryboardSubjects"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "storyboardSubjectAt"
+        },
+        {
+          "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+          "symbol": "renumberStoryboardShots"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/capabilityCore/mcpGenerationMultiShot.ts",
+        "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+        "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+        "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+        "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+        "src/workbench/project/projectNormalize.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "锚（参考卡）id 是 anchor-N、只数锚；镜头 id 是 shot-N、只数镜头；镜号 = 在镜头里的位置 1..N，锚不占号；shot-N 寻址只在镜头里找。Agent 首建（主进程）、补镜头 / 改一镜（渲染层）、手建加锚与删拖重排（编辑器）、读盘归位都调这里，不许再按「锚和镜混排数组的位置」自己编号（用户 10-05「分镜方案经常做错」：锚占号、改第 1 镜改到参考卡）。根因合同 docs/fixes/2026-10-05-storyboard-plan-single-owner.root-cause.json。"
+    },
+    {
+      "name": "一次请求写到哪一份文稿方案（首建 / 补到同一份 / 用户明说另起一份）",
+      "subject": "storyboard.plan-per-request",
+      "lifecycle": "author",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/capabilityCore/generationDocumentPlan.ts",
+        "symbol": "createDocumentPlanAuthoring"
+      },
+      "write_api": [
+        {
+          "path": "electron/capabilityCore/generationDocumentPlan.ts",
+          "symbol": "createDocumentPlanAuthoring"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/capabilityCore/mcpGenerationTools.ts"
+      ],
+      "since": "2026-10-05",
+      "notes": "文稿方案 id 只在这里铸（= 草稿 id）。同一请求（storyboardTarget.requestId）里不带 operationId 的第二次起草补到这一请求已建的那份；模型传 newPlan（用户明确要另起一份）才新建；带 operationId 的新镜头补到那份；补到不存在的方案被拒，绝不新建。协调会话 D5 拍板：一次请求一份方案由宿主保证。"
     }
   ]
 }

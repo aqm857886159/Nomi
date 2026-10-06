@@ -40,3 +40,5 @@ metadata:
 ---
 
 Hard flash to white, then resolve on a new time/place
+
+Keep any recurring subject’s identity, appearance, and clothing consistent across the transition. Allow the setting, time, and lighting to change in the new shot as described; change only the flash-to-white transition.

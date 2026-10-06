@@ -1,5 +1,6 @@
 import { GENERATION_ARGUMENT_REFUSAL, refuseToModel } from "./transportFailure";
-import type { StoryboardPlan } from '../shared/storyboard/storyboardPlan';
+import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
+import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
 import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision';
 import { storyboardSubjectFromCandidate, storyboardReferenceSlot } from '../shared/storyboard/storyboardSubjectAdapter';
@@ -105,10 +106,14 @@ export type StoryboardPlanResult = Readonly<{
 
 const SHOT_ROLES = new Set(["anchor", "shot"]);
 
-/** P4 S6.5: validate a shot's role/included/shotId envelope. Shared by the `plan` and `scriptText` paths. */
-function shotEnvelope(raw: Record<string, unknown>, index: number, fallbackId: string): GenerationShotEnvelope {
-  const rawShotId = typeof raw.shotId === "string" ? raw.shotId.trim() : "";
-  const shotId = rawShotId || fallbackId;
+/**
+ * P4 S6.5: validate a shot's role/included/shotId envelope. Shared by the `plan` and `scriptText` paths.
+ * `assignedId` 是这一镜的身份：调用方自带的照收，没带的由分镜主体身份的唯一 owner 发
+ * （`resolveCreateShots` 里一次发齐，见 `storyboardSubjectIdentity.ts`）。这里不再自己编号——
+ * 它曾经拿「锚和镜混排数组里的位置」当兜底号，于是锚叫 shot-1、第一个镜头叫 shot-3。
+ */
+function shotEnvelope(raw: Record<string, unknown>, index: number, assignedId: string): GenerationShotEnvelope {
+  const shotId = assignedId;
   if (!/^[A-Za-z0-9._:-]{1,120}$/.test(shotId)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Invalid shot id at ${index}`);
   const role = raw.role;
   if (role !== undefined && !SHOT_ROLES.has(String(role))) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Invalid shot role at ${index}`);
@@ -161,12 +166,13 @@ export type AssertReferencesResolvable = (projectId: string, references: Readonl
 export function draftShotFromPlan(
   value: unknown,
   index: number,
+  assignedId: string,
   parsers: MultiShotCandidateParsers,
   semantic?: Pick<SemanticGenerationCandidateDeps, "defaultModelForTaskKind" | "registry" | "allowRegistryFallback" | "resolveAssetReferenceIdentity">,
 ): GenerationOperationDraftShot {
   const raw = parsers.record(value, `generation shot ${index}`);
   const authored = raw.storyboard === undefined ? undefined : storyboardAuthorFieldsSchema.parse(raw.storyboard);
-  const env = shotEnvelope(raw,index,`shot-${index+1}`);
+  const env = shotEnvelope(raw, index, assignedId);
   const candidate = semanticCandidateFromParams({
     // 逐镜 candidateId 跟着 shotId 走（与 `draftShotFromStoryboard` 同一约定），草稿改一镜不动其它镜。
     operationId: env.shotId,
@@ -185,9 +191,9 @@ export function draftShotFromPlan(
  * (+ optional model/mode/refs); the handler fills module/provider/model defaults from the first configured
  * video candidate (single-provider v1 = APIMart). candidateId/revision are synthesized (draft-stable).
  */
-export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
+export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, assignedId: string, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
   const raw = draft as Record<string, unknown>;
-  const env = shotEnvelope(raw, index, `shot-${index + 1}`);
+  const env = shotEnvelope(raw, index, assignedId);
   if (typeof draft.prompt !== "string" || !draft.prompt.trim()) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Storyboard shot ${index} needs a prompt`);
   if (draft.durationSeconds !== undefined
     && (!Number.isFinite(draft.durationSeconds) || draft.durationSeconds <= 0)) {
@@ -267,6 +273,26 @@ export type MultiShotHelperDeps = {
   resolveAssetReferenceIdentity?: (projectId: string, assetId: string) => AssetReferenceIdentity | undefined;
 };
 
+/**
+ * 一次起草的全部主体一次发齐身份（锚 `anchor-N`、镜头 `shot-N`，各数各的），号由分镜主体身份的唯一 owner 发。
+ * 调用方自带的 id 照收，但锚不许占 `shot-N`、镜头不许占 `anchor-N`、同一份里不许重复——当场拒给模型。
+ */
+function hostAssignedSubjectIds(raw: readonly unknown[]): string[] {
+  const incoming = raw.map((value) => {
+    const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    return {
+      ...(record.role === "anchor" ? { role: "anchor" as const } : {}),
+      ...(typeof record.shotId === "string" && record.shotId.trim() ? { shotId: record.shotId.trim() } : {}),
+    };
+  });
+  try {
+    return nextStoryboardSubjectIds({ anchors: [], shots: [] }, incoming);
+  } catch (error) {
+    if (error instanceof StoryboardSubjectIdentityError) refuseToModel(GENERATION_ARGUMENT_REFUSAL, error.message);
+    throw error;
+  }
+}
+
 /** Minimal operation shape the seal helper reads (avoids importing the full GenerationOperation type). */
 /** 封印读的那一份计划：批过的镜带着它那份合同（范围外的镜原样随行时要带上）。 */
 type OperationWithShots = { candidate?: PlanCandidate; shots?: ReadonlyArray<GenerationOperationDraftShot & { contract?: ExecutionContractV1 }> };
@@ -295,13 +321,14 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
    * `params.shots` (client `plan` entrance) or `params.scriptText` (storyboard planner entrance) → draft
    * shots; neither → undefined (single-shot). Validation failures are human-readable (client-visible).
    * 2026-09-22 起**不再**要求至少一个非锚镜头：锚本身要生成、有价、会被 seal，「只有参考卡」是一条
-   * 正常的中间状态（镜头下一轮补）。草稿上给一条安静提示，不拒绝。
+   * 正常的中间状态（镜头随后补进同一份方案）。草稿上给一条安静提示，不拒绝。
    */
   const resolveCreateShots = async (projectId: string, params: Record<string, unknown>): Promise<GenerationOperationDraftShot[] | undefined> => {
     let shots: GenerationOperationDraftShot[];
     if (Array.isArray(params.shots)) {
       if (params.shots.length === 0) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "多镜生成需要至少一个镜头");
-      shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, deps.parsers, {
+      const ids = hostAssignedSubjectIds(params.shots);
+      shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, {
         ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
         ...(deps.registry.snapshot ? { registry: deps.registry } : {}),
         ...(deps.allowRegistryFallback ? { allowRegistryFallback: deps.allowRegistryFallback } : {}),
@@ -368,6 +395,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
       const inheritedParameters = targetDurationSeconds === undefined
         ? sharedParameters
         : Object.fromEntries(Object.entries(sharedParameters).filter(([key]) => key !== "duration" && key !== "durationSeconds"));
+      const ids = hostAssignedSubjectIds(board.shots);
       shots = board.shots.map((shot, index) => {
         const hasReferences = (shot.references ?? sharedReferences)?.length > 0;
         const requestedTaskKind = typeof params.taskKind === "string" ? params.taskKind.trim() : "";
@@ -384,23 +412,21 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
             : {}),
           ...(shot.references === undefined && sharedReferences !== undefined ? { references: sharedReferences } : {}),
         } as StoryboardShotDraft;
-        return draftShotFromStoryboard(inherited, index, () => storyboardDefaults(taskKind), deps.parsers);
+        return draftShotFromStoryboard(inherited, index, ids[index], () => storyboardDefaults(taskKind), deps.parsers);
       });
     } else {
       return undefined;
     }
-    const ids = new Set<string>();
     for (const shot of shots) {
-      if (ids.has(shot.shotId)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `镜头 id 重复：${shot.shotId}`);
-      ids.add(shot.shotId);
+      // 镜头 id 重复、锚占镜号段：发号时（`hostAssignedSubjectIds`）已经拒过。
       // P4 §5.1.4 锚复用授权面：每个镜的参考素材（复用锚）必须存在且属于本项目（对抗矩阵 #3）。
       if (deps.assertReferencesResolvable && shot.candidate.references.length > 0) {
         deps.assertReferencesResolvable(projectId, shot.candidate.references);
       }
     }
     // 2026-09-22：原来这里拒绝「只有形象参考」的计划。拦的理由是投影管道（报价行按「非锚」筛），
-    // 不是领域——锚本身有候选、有价，present/seal 的范围本来就含它。而「先建参考卡、镜头下一轮补」
-    // 是正常路径（用户 2026-09-21 亲自点名过这条报错）。放行；管道那一处同 commit 修好。
+    // 不是领域——锚本身有候选、有价，present/seal 的范围本来就含它。「先建参考卡、再补镜头」是正常路径
+    // （用户 2026-09-21 亲自点名过这条报错）。放行；镜头补在**同一份**方案上（`extend`），不是再建一份。
     return shots;
   };
 
@@ -451,25 +477,61 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
 export function storyboardPlanFromDraftSubjects(subjects: readonly GenerationOperationDraftShot[], projectId: string,
   resolveUrl?: (projectId:string,reference:PlanCandidate['references'][number])=>string): StoryboardPlan {
   const named = subjects.find(subject=>subject.role!=='anchor'&&subject.title?.trim()) ?? subjects.find(subject=>subject.title?.trim());
-  const plan: StoryboardPlan = {title:(named?.title?.trim() || subjects[0].candidate.prompt.split('\n')[0]).slice(0,500),anchors:[],shots:[]};
-  subjects.forEach((subject,index)=>{
+  const empty: StoryboardPlan = {title:(named?.title?.trim() || subjects[0].candidate.prompt.split('\n')[0]).slice(0,500),anchors:[],shots:[]};
+  // id 已在起草时发过（草稿与方案同一套）；镜号在这里由唯一 owner 按「它在镜头里的位置」定，锚不占号。
+  return appendStoryboardSubjects(empty, storyboardSubjectsFromDrafts(subjects, projectId, resolveUrl), { assignIds: false }).plan;
+}
+
+/** 已准入的草稿主体 → 编辑器契约的主体（参考图换成可预览的地址）。首建与补镜头共用这一处。 */
+export function storyboardSubjectsFromDrafts(subjects: readonly GenerationOperationDraftShot[], projectId: string,
+  resolveUrl?: (projectId:string,reference:PlanCandidate['references'][number])=>string): Array<PlanAnchor | PlanShot> {
+  return subjects.map((subject)=>{
     const urls=Object.fromEntries(subject.candidate.references.map(reference=>[reference.assetId,resolveUrl?.(projectId,reference) ?? '']));
-    const authored=storyboardSubjectFromCandidate(subject,index+1,subject.storyboard,urls);
-    if ('description' in authored) plan.anchors.push(authored); else plan.shots.push(authored);
+    return storyboardSubjectFromCandidate(subject,subject.storyboard,urls);
   });
-  return plan;
 }
 
 /**
  * 「方案已存、**没有替用户打开**」这一条事实。写给模型的回执必须带它——Agent 新建的方案只进创作页左栏的列表，
  * 打开是用户的动作；模型要靠这一条才知道该在回话里告诉用户去哪点开，而不是含糊地说「已生成」。
  */
-export type StoryboardSavedFact = Readonly<{ designId: string; title: string; opened: boolean; openFrom: string }>;
-export function storyboardSavedFact(designId: string, title: string, opened: boolean): StoryboardSavedFact {
-  return { designId, title, opened,
+export type StoryboardSavedFact = Readonly<{ designId: string; title: string; opened: boolean; openFrom: string;
+  /** 用户在表上看到的那几行：镜头带行号，参考卡不占号。模型说「第 N 镜」时用这里的 id。 */
+  shots: ReadonlyArray<Readonly<{ row: number; shotId: string }>>; anchors: readonly string[]; addShots: string }>;
+export function storyboardSavedFact(designId: string, plan: StoryboardPlan, opened: boolean): StoryboardSavedFact {
+  return { designId, title: plan.title, opened,
     openFrom: opened
       ? 'The user asked for this plan with the storyboard button, so it is already open for them.'
-      : 'Creation page, left column: the plan row under its source document. It is NOT opened for the user — tell them it is written and where to open it.' };
+      : 'Creation page, left column: the plan row under its source document. It is NOT opened for the user — tell them it is written and where to open it.',
+    shots: plan.shots.map((shot) => ({ row: shot.index, shotId: shot.shotId ?? `shot-${shot.index}` })),
+    anchors: plan.anchors.map((anchor) => anchor.id),
+    addShots: addShotsGuidance(designId) };
+}
+
+/**
+ * 「镜头补到哪」写给模型的那一句。它曾经是「请在**下一次** draft_shots 调用里补」——模型照做，下一次不带
+ * operationId，宿主就新建了第二份方案（审计 A-sb P10：一次请求左栏多出一份）。现在它点名**这一份**。
+ */
+export function addShotsGuidance(designId: string): string {
+  return `To add shots or reference cards to this plan, call draft_shots with operationId ${designId} and the new shots without shotId; `
+    + 'they are appended to this same plan and numbered after its existing shots. Within the same request a draft_shots call without operationId '
+    + 'is also added to this plan. Start a separate plan only when the user explicitly asks for another one: pass newPlan: true.';
+}
+
+/** 补进方案的那几行（id 由方案正本那一侧按方案此刻的样子发）。 */
+export type StoryboardExtendedFact = Readonly<{ designId: string; added: readonly AppendedStoryboardSubject[]; addShots: string }>;
+
+/**
+ * 在一份文稿方案后面补主体（参考卡 / 镜头）。方案正本在渲染层项目记录里，号也只能在那里发（主进程不知道
+ * 用户在编辑器里又加删过什么）；这里只发已准入、已适配的主体，回包里核对**真的补上了**、拿回发出的 id。
+ */
+export async function extendStoryboardDesign(request: RequestRenderer,
+  input: {projectId:string;documentId:string;designId:string;subjects:ReadonlyArray<PlanAnchor | PlanShot>}): Promise<StoryboardExtendedFact> {
+  const reply = await request('storyboard.extend-design', input, STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;designId?:unknown;added?:unknown} | null;
+  if (!reply || reply.status!=='saved' || reply.designId!==input.designId || !Array.isArray(reply.added) || reply.added.length!==input.subjects.length) {
+    throw new Error('storyboard_design_save_rejected');
+  }
+  return { designId: input.designId, added: reply.added as AppendedStoryboardSubject[], addShots: addShotsGuidance(input.designId) };
 }
 
 type RequestRenderer = (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>;
@@ -544,7 +606,7 @@ export async function patchStoryboardAuthoring(current: {sourceDocumentId?:strin
   resolveReferences:(projectId:string,value:unknown)=>PlanCandidate['references'],
   resolveUrl:((projectId:string,reference:PlanCandidate['references'][number])=>string) | undefined,
   request?: RequestRenderer): Promise<void> {
-  if (!current.sourceDocumentId || typeof params.shotId!=='string') refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'This storyboard revision needs the shotId of the shot you are changing.');
+  if (!current.sourceDocumentId || typeof params.shotId!=='string') refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'This storyboard revision needs the shotId of the shot you are changing. To add a new shot to this plan instead, give it a title and leave shotId out.');
   if (!params.patch || typeof params.patch!=='object' || Array.isArray(params.patch)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'patch must be an object holding the fields you are changing.');
   if (!request) throw new Error('storyboard_renderer_required');
   const patch=params.patch as Record<string,unknown>;
@@ -556,8 +618,22 @@ export async function patchStoryboardAuthoring(current: {sourceDocumentId?:strin
   }
   const reply = await request('storyboard.patch-design',
     {projectId,documentId:current.sourceDocumentId,designId,shotId:params.shotId,patch,...(references ? {references} : {})},
-    STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;shotId?:unknown} | null;
+    STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;shotId?:unknown;shots?:unknown;anchorHoldsShotNumber?:unknown} | null;
+  if (reply?.status==='shot-not-found') refuseToModel(GENERATION_ARGUMENT_REFUSAL, shotNotFoundMessage(String(params.shotId), reply));
   if (!reply || reply.status!=='saved' || reply.shotId!==params.shotId) throw new Error('storyboard_design_save_rejected');
+}
+
+/**
+ * 「改第 N 镜」写的 id 在方案里找不到：如实说，并把真实的镜头（id + 用户看到的行号）列给模型。
+ * 本 owner 之前 Agent 建的旧方案里，参考卡可能占着 `shot-N`——那张卡不会被当成第 N 镜改掉。
+ */
+function shotNotFoundMessage(shotId: string, reply: {shots?:unknown;anchorHoldsShotNumber?:unknown}): string {
+  const shots = Array.isArray(reply.shots) ? reply.shots as Array<{id?:unknown;row?:unknown}> : [];
+  const listed = shots.map((shot) => `row ${String(shot.row)} = ${String(shot.id)}`).join(', ');
+  const why = reply.anchorHoldsShotNumber === true
+    ? `In this older plan ${shotId} is a reference card, not a numbered shot, so it was not changed.`
+    : `This plan has no shot ${shotId}.`;
+  return `${why} Its shots are: ${listed || 'none yet'}. Use the shotId of the row the user means.`;
 }
 
 /** 付费门的那几格：这一刻有没有一道在等人决定、盖着哪几镜（operation 视图上最近那一道）。 */

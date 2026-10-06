@@ -847,6 +847,28 @@ describe("semantic MCP generation tools", () => {
       expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_video");
       expect(created.operation.shots[0]?.candidate).toMatchObject({ providerId: "video-provider", modelId: "video-model", mode: "text-to-video" });
     });
+
+    // 同一类缺陷的另一扇门（2026-10-05）：剧本自动拟镜那条路的兜底 id 曾经同样是「锚和镜混排的位置」。
+    it("scriptText 拟出的锚与镜头各自编号：锚 anchor-N，镜头 shot-N 只数镜头", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const image = { moduleId: "generation.single-shot", providerId: "fixture-provider", modelId: "fixture-model", mode: "text-to-image" };
+      const planStoryboard = vi.fn(() => ({ shots: [
+        { role: "anchor" as const, prompt: "主角 定妆", ...image },
+        { role: "shot" as const, prompt: "推门", ...image },
+        { role: "shot" as const, prompt: "对视", ...image },
+      ] }));
+      const handler = createGenerationPlanningHandler({ registry, operations, planStoryboard, now: () => "2026-10-05T00:00:00.000Z" });
+      const created = await handler({ capability: "create", params: { operationId: "op-script", scriptText: "两镜" }, lease }) as {
+        operation: { shots: Array<{ shotId: string }> };
+      };
+      expect(created.operation.shots.map((shot) => shot.shotId)).toEqual(["anchor-1", "shot-1", "shot-2"]);
+    });
+
+    it("调用方自带的 id 不许跨号段：锚叫 shot-1 当场拒给模型", async () => {
+      const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-10-05T00:00:00.000Z" });
+      await expect(handler({ capability: "create", params: { shots: [shotFrom("shot-1", "主角 定妆", "anchor"), shotFrom("shot-2", "推门", "shot")] }, lease }))
+        .rejects.toThrow(/shot-N ids are shot numbers/);
+    });
   });
 
   // J05 — plan patch model-change 应返回 changeset（modelChanged+previousModel+nextModel），
