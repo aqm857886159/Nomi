@@ -2,7 +2,7 @@ import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { NomiLoadingMark, NomiSelect, WorkbenchIconButton } from '../../../design'
+import { NomiLoadingMark, WorkbenchIconButton } from '../../../design'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import { cn } from '../../../utils/cn'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
@@ -16,7 +16,7 @@ import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeWriteAccessProvider, useNodeWriteAccess } from './nodeWriteAccess'
-import { canRunGenerationNode, confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
+import { canRunGenerationNode, confirmAndRunNode, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
 import { directorPreviewSpendBlock } from './director/model/directorPreviewState'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
@@ -43,12 +43,6 @@ import { applyArchetypeModeSwitch, currentArchetypeMode } from './controls/arche
 import { archetypeForNode, resolveModeForReferenceDemand } from '../agent/referenceEdgeCapability'
 import { addAssetUrlToNode } from './nodeAssetWrite'
 import { getTextGenMode, type TextGenMode } from '../runner/textActions'
-import {
-  GENERATION_VARIANT_COUNTS,
-  parseGenerationVariantCount,
-  supportsGenerationVariants,
-  type GenerationVariantCount,
-} from './generationVariantCount'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
 import { composerCanvasPlacement } from './composerCanvasPlacement'
@@ -226,8 +220,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     isModel3dLikeGenerationNodeKind(node.kind)
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
-  // 变体张数是会话态、不落盘；显式列出 1–4，避免循环按钮让用户猜下一档。
-  const [variantCount, setVariantCount] = React.useState<GenerationVariantCount>(1)
   // 拖文件到卡 → 加为参考（捷径 A）。仅当当前模式有数组参考槽时接管拖拽。
   const { acceptsDrop, isDragOver, isUploading, dropHandlers } = useNodeAssetDrop(node, reportFeedback, writeAccess)
   // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、
@@ -318,11 +310,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
       return
     }
     if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
-    // ×N 变体连发（样张拍板 2026-07-29）：一次确认按 N 张报成本，串行连跑，出图堆进本节点历史。
-    if (variantCount > 1) {
-      await confirmAndRunNodeVariants(node.id, variantCount, { initiator: 'user' })
-      return
-    }
+    // 每按一次 ↑ 只出一版；要几版就按几次，版本卡片把它们铺开（用户 2026-10-06 拍板删掉「每次生成几个」）。
     // 已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
     if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
     else await confirmAndRunNode(node.id, { initiator: 'user' })
@@ -532,23 +520,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
             </NodePromptToolCluster>
             <ToolbarDivider />
           </>
-        ) : null}
-        {/* 第三段：×N「一次生成几个」——支不支持从执行类派生（generationVariantCount.ts 唯一 owner），
-            不在这里按 kind 点名；图对图、视频对视频、音频对音频用的是同一个通用件（反馈 #11）。 */}
-        {supportsGenerationVariants(nodeExecutionKind) && !node.locked ? (
-          <div data-bar-segment="variants" className={cn('flex shrink-0 items-center')}>
-            <NomiSelect
-              ariaLabel={t('generationCommon.composer.variantCountAria')}
-              title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}
-              value={String(variantCount)}
-              disabled={isGenerating}
-              options={GENERATION_VARIANT_COUNTS.map((count) => ({
-                value: String(count),
-                label: t('generationCommon.composer.variantCountOption', { count }),
-              }))}
-              onChange={(value) => setVariantCount(parseGenerationVariantCount(value))}
-            />
-          </div>
         ) : null}
         {inPanel ? null : (() => {
           const disabledReason = directorPreviewBlock

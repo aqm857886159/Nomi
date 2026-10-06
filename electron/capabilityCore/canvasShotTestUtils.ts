@@ -34,6 +34,8 @@ export function setupCanvasShots(options: {
   repository?: ReturnType<typeof createProductionRunRepository>;
   now?: () => string;
   observe?: (submission: unknown, projectId: string, runId: string) => void;
+  /** 换掉画布那台的传输（缺省 = 进程内假供应商）。「没发出去」矩阵用它接真的 vendorHttp → appFetch。 */
+  transport?: CanvasTransport;
 } = {}) {
   const root = options.root ?? fs.mkdtempSync(path.join(os.tmpdir(), "nomi-canvas-shot-"));
   const imagePath = path.join(root, "assets", "out.png");
@@ -55,7 +57,7 @@ export function setupCanvasShots(options: {
     repository, projectRootResolver: () => root, requestRenderer: async () => { throw new Error("no renderer"); },
     approvalReceiptAuthority: receipts, projectRevisionResolver: () => 0,
   });
-  const providers = [createCanvasTransportProvider("acme", transport)];
+  const providers = [createCanvasTransportProvider("acme", options.transport ?? transport)];
   const observed: Array<[string, string]> = [];
   const previewCalls: string[] = [];
   const runs = createCanvasShotRuns({

@@ -224,10 +224,12 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
   providerIds?: readonly string[];
   /** 项目素材库的身份解析（生产装配点绑 `resolveProjectAssetReferenceIdentity`）。缺省 = 不接，带 assetId 的参考当场被拒。 */
   resolveAssetReferenceIdentity?: (projectId: string, assetId: string) => { contentHash: string; version: number; kind?: "image" | "video" | "audio" } | undefined;
+  /** 换一台执行器（缺省 = 本文件的 loopbackProvider）。「没发出去」矩阵用它接真的目录执行器（引擎 B 的 send）。 */
+  provider?: (providerId: string, origin: string, submits: string[]) => GenerationProvider;
 } = {}) {
   const { root, repository, owner, operations, canvasLanding } = base;
   const moduleRegistry = hooks.registry ?? registry;
-  const providers = (hooks.providerIds ?? ["apimart"]).map((providerId) => loopbackProvider(vendorOrigin, submits, providerId));
+  const providers = (hooks.providerIds ?? ["apimart"]).map((providerId) => (hooks.provider ?? ((id, origin, sent) => loopbackProvider(origin, sent, id)))(providerId, vendorOrigin, submits));
   createGenerationRuntimeAdapter({ providers }); // sanity: the real adapter accepts this provider
   const submission = createProductionGenerationSubmission({
     repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,

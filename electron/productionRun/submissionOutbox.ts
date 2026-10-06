@@ -1,5 +1,5 @@
 import { dedupeSubmission } from "../submissionLedger";
-import { providerExplicitlyRejected } from "../outboundDispatchEvidence";
+import { providerExplicitlyRejected, type NotDispatchedReason } from "../outboundDispatchEvidence";
 import { matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
 import { authorizeSubmission } from "./approvalPolicy";
 import type { ProductionRunRepository } from "./productionRunRepository";
@@ -7,10 +7,19 @@ import type { ProductionRunIntentLog } from "./productionRunIntentLog";
 import type { ProductionRunLock, ProductionRunLockLease } from "./productionRunLock";
 import type { ProductionJob, ProductionRun, RunCommand } from "./productionRunTypes";
 
+/**
+ * 「这次提交确定没离开本机」——判据只在 `outboundDispatchEvidence.observeSubmissionHandoffs`，这里只是它的带类型结论。
+ * `code` / `reason` 穿 IPC（`taskIpcGuard` 把带 code + reason 的错误编成结构化标记），渲染层按它说「没发出去」和为什么，
+ * 不靠猜文案。`reason` 区分在本机被拦（`never_reached_network`）和连不上（`connect_failed`）：前者重发一次也一样，不自动重发。
+ */
 export class SubmissionNotDispatchedError extends Error {
-  constructor(message: string) {
+  readonly code = "submission_not_sent" as const;
+  readonly reason: NotDispatchedReason;
+
+  constructor(message: string, reason: NotDispatchedReason) {
     super(message);
     this.name = "SubmissionNotDispatchedError";
+    this.reason = reason;
   }
 }
 
@@ -328,6 +337,8 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         // 不碰意图日志：这一次尝试的 `provider.submit` 意图已经 committed，它覆盖的正是
         // 「同一个 attempt、同一个幂等键」的这两次调用；崩溃恢复看到它仍然正确地说「未知」。
         const neverWritten = error instanceof SubmissionNotDispatchedError;
+        // 在本机就被拦下的（出网策略、本机检查、密钥缺失……）是确定性的：原样再派一次只会再被拦一次。
+        if (neverWritten && error.reason === "never_reached_network") throw error;
         if (!neverWritten && !deps.canResendAfterUnknown?.(error, dispatchInput)) throw error;
         if (!neverWritten) anyAttemptMayHaveReached = true;
         try {

@@ -311,11 +311,6 @@ try {
   await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, c9ProjectId)
   await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), c9ProjectId, { timeout: 10_000 })
   await win.getByText('C9 semantic four-shot generation', { exact: true }).waitFor({ timeout: 20_000 })
-  // Let the renderer finish its normal project-persistence tick before the
-  // challenge is sealed. The stale-receipt leg below is deliberate; this
-  // settle window keeps that leg attributable to the explicit revision write
-  // instead of the first project-open persistence pass.
-  await win.waitForTimeout(1_000)
   const c9Session = await call(mcp, 'nomi_session_open', { projectSelectionHandle: c9SelectionHandle })
   const c9SessionData = resultTextJson(c9Session)
   const c9Lease = c9SessionData.leaseHandle || resultData(c9Session).leaseHandle
@@ -363,54 +358,51 @@ try {
   const preview = await call(mcp, 'nomi_operation_preview', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId })
   const previewData = resultTextJson(preview)
   check(previewData.pricing?.shots?.length === 4 || previewData.pricing?.total?.unknownShotCount !== undefined, 'C9 operation_preview 返回四镜定价投影')
-  // C9-stale: a real project write after challenge creation invalidates the
-  // receipt. This is the production fail-closed contract, not a swallowed
-  // error: the result is retained and asserted before a fresh operation is
-  // planned. The bridge call uses the same persisted project record boundary
-  // as the app rename/save path, and only mutates this isolated E2E project.
-  const staleOperationId = operationId
-  const staleGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: staleOperationId, phase: 'request' }, { timeoutMs: 120_000 })
+  // C9 两条腿，钉住付费卡① 第 14 条在外部 MCP 这条路上也成立：付费门的收据批的是信封里冻住的那几镜，
+  // 不是「项目此刻的版本」。
+  //   · 停掉的那一份（fail-closed）：卡开着时这次操作被取消，那道门不再等批准——点了确认也绝不开跑、不碰供应商。
+  //   · 正常那一份（确定性注入）：卡开着时项目真实保存一次（revision +1），点确认照样开跑。
+  // 第二条就是 CI 时红时绿的那一下（#1042 合并提交、#1002 首跑：「receipt projectRevision does not
+  // match the current scope」）——以前靠运气躲开 GUI 自己的保存，现在每次都主动保存一次。
   const generationCard = win.locator('div.fixed.inset-0').filter({ hasText: /允许 Nomi 生成这一批镜头|生成这一批镜头/ }).first()
-  await generationCard.waitFor({ timeout: 20_000 })
+  // 卡没浮出来时，gate 往往已经带着原因回来了：等卡的同时盯住它，红的时候报它的原话，而不是一句 waitFor 超时。
+  const waitForGenerationCard = async (gatePromise, label) => {
+    const gateFirst = gatePromise.then((result) => ({ result }))
+    const winner = await Promise.race([generationCard.waitFor({ timeout: 20_000 }).then(() => null), gateFirst])
+    if (winner) throw new Error(`${label}: gate answered before any confirmation card appeared: ${JSON.stringify(winner.result)}`)
+  }
+  const stoppedOperationId = operationId
+  const stoppedGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: stoppedOperationId, phase: 'request' }, { timeoutMs: 120_000 })
+  await waitForGenerationCard(stoppedGatePromise, 'C9 stopped leg')
   await takeScreenshot(win, 'C9-generation-gate-stale')
-  // projects.save is the app's own asynchronous save-lock path (it resolves only
-  // after the manifest lock receipt lands), so the probe awaits the record the
-  // renderer would await too.
-  const staleRevisionWrite = await win.evaluate(async (id) => {
-    const projects = window.nomiDesktop?.projects
-    const current = projects?.read?.(id)
-    if (!projects?.save || !current) throw new Error('C9 stale-receipt probe could not read the isolated project')
-    const before = Number(current.revision)
-    const saved = await projects.save(id, {
-      ...current,
-      // A real persisted user-visible project edit is enough to invalidate a
-      // generation approval receipt. Keep the project isolated and make the
-      // edit explicit so the report can distinguish it from an accidental
-      // renderer save race.
-      name: `${String(current.name || 'C9 project')} stale-receipt edit`,
-    })
-    return { before, after: Number(saved?.revision) }
-  }, c9ProjectId)
-  check(Number.isInteger(staleRevisionWrite.before) && staleRevisionWrite.after === staleRevisionWrite.before + 1, 'C9 stale leg 真实项目保存使 revision 单调增加')
+  const cancelledWhileOpen = await call(mcp, 'nomi_operation_control', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: stoppedOperationId, action: 'cancel' })
+  const cancelledWhileOpenData = resultTextJson(cancelledWhileOpen)
+  check((cancelledWhileOpenData.operation || resultData(cancelledWhileOpen).operation)?.state === 'cancelled', 'C9 卡开着时取消这次操作，计划不再可提交')
   await generationCard.locator('[data-production-action="confirm"]').click()
-  const staleGate = await staleGatePromise
-  const staleOutcome = staleGate?.structuredContent?.nomiOutcome || resultData(staleGate)
-  check(staleGate?.isError === true && staleOutcome.errorCode === 'receipt_invalid', 'C9 stale receipt 被结构化拒绝为 receipt_invalid（不吞错）')
-  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C9 stale receipt 失败不触达供应商')
-  const cancelledStale = await call(mcp, 'nomi_operation_control', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: staleOperationId, action: 'cancel' })
-  const cancelledStaleData = resultTextJson(cancelledStale)
-  check((cancelledStaleData.operation || resultData(cancelledStale).operation)?.state === 'cancelled', 'C9 stale sealed Run 取消后不留可提交计划')
+  const stoppedGate = await stoppedGatePromise
+  check(stoppedGate?.isError === true, 'C9 已取消的那道门：点了确认也被结构化拒绝（不吞错）')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C9 已取消的那道门：一步都不碰供应商')
 
   const retryPlanned = await call(mcp, 'nomi_operation_plan', { projectId: c9ProjectId, leaseHandle: c9Lease, shots: c9Shots })
   const retryPlannedData = resultTextJson(retryPlanned)
   operationId = retryPlannedData.operation?.operationId || resultData(retryPlanned).operation?.operationId
-  check(typeof operationId === 'string' && operationId.length > 0 && operationId !== staleOperationId, 'C9 receipt_invalid 后重新创建四镜 operation')
+  check(typeof operationId === 'string' && operationId.length > 0 && operationId !== stoppedOperationId, 'C9 取消后重新创建四镜 operation')
   const retryPreview = await call(mcp, 'nomi_operation_preview', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId })
   const retryPreviewData = resultTextJson(retryPreview)
-  check(retryPreviewData.pricing?.shots?.length === 4 || retryPreviewData.pricing?.total?.unknownShotCount !== undefined, 'C9 re-confirm 前重新生成四镜定价投影')
+  check(retryPreviewData.pricing?.shots?.length === 4 || retryPreviewData.pricing?.total?.unknownShotCount !== undefined, 'C9 确认前重新生成四镜定价投影')
   const retryGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId, phase: 'request' }, { timeoutMs: 120_000 })
-  await generationCard.waitFor({ timeout: 20_000 })
+  await waitForGenerationCard(retryGatePromise, 'C9 confirm leg')
   await takeScreenshot(win, 'C9-generation-gate-reconfirm')
+  // projects.save 是 App 自己的异步保存锁路径（manifest 锁收据落地才 resolve），和渲染层自动保存是同一扇门。
+  const savedWhileOpen = await win.evaluate(async (id) => {
+    const projects = window.nomiDesktop?.projects
+    const current = projects?.read?.(id)
+    if (!projects?.save || !current) throw new Error('C9 save-while-open probe could not read the isolated project')
+    const before = Number(current.revision)
+    const saved = await projects.save(id, { ...current, name: `${String(current.name || 'C9 project')} saved while confirming` })
+    return { before, after: Number(saved?.revision) }
+  }, c9ProjectId)
+  check(Number.isInteger(savedWhileOpen.before) && savedWhileOpen.after === savedWhileOpen.before + 1, 'C9 卡开着时项目真实保存一次，revision +1')
   await generationCard.locator('[data-production-action="confirm"]').click()
   const gated = await retryGatePromise
   if (gated?.isError) {

@@ -9,7 +9,7 @@
  * 点一下仍是「切换为当前版本」。原节点与它的版本堆叠不变——这是**复制**，不是搬走。
  */
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
-import { listStableNodeMediaResults, resultIdentity } from '../model/nodeResultLifecycle'
+import { listNodeResultVersions, resultIdentity } from '../model/nodeResultLifecycle'
 import { CENTER_PLACEMENT_ANCHOR, placementOrigin } from '../model/canvasPlacement'
 import { getGenerationNodeDefaultSize } from '../model/generationNodeKinds'
 import { computeMediaMetaPatch, resolveNodeVisualSize } from '../nodes/nodeSizing'
@@ -69,12 +69,12 @@ export function createNodeFromDraggedResult(
   const store = useGenerationCanvasStore.getState()
   const source = store.nodes.find((node) => node.id === payload.sourceNodeId)
   if (!source) return null
-  const entries = listStableNodeMediaResults(source)
-  const index = entries.findIndex((entry) => resultIdentity(entry) === payload.resultIdentity)
-  const entry = entries[index]
+  const entry = listNodeResultVersions(source).find((candidate) => resultIdentity(candidate) === payload.resultIdentity)
   if (!entry?.url) return null
   const createdAt = Date.now()
-  const result: GenerationNodeResult = { ...entry, id: `result-copy-${source.id}-${createdAt}` }
+  // 复制出来的是一张新素材卡的第 1 版：版本号属于原节点，不跟着走（否则新卡一出生就叫「第 5 版」）。
+  const { versionNo: sourceVersionNo, ...copied } = entry
+  const result: GenerationNodeResult = { ...copied, id: `result-copy-${source.id}-${createdAt}` }
   const meta = copiedMediaMeta(source, entry, payload)
   // 与 addNode 出生时同一份默认尺寸（节点工厂取 kind 默认）+ 真实比例 → 卡面尺寸唯一真相源换算。
   const size = resolveNodeVisualSize({ kind: 'asset', size: getGenerationNodeDefaultSize('asset'), meta, result })
@@ -82,7 +82,7 @@ export function createNodeFromDraggedResult(
   // 建卡 + 填结果是两次 store 写入；第一次放行撤销点，第二次压住——⌘Z 一次撤掉整张卡（同切图 useNodeImageEditing）。
   const created = withCanvasGestureContext({ source: 'user', txnId: result.id }, () => store.addNode({
     kind: 'asset',
-    title: `${source.title || ''} · ${index + 1}`.trim(),
+    title: `${source.title || ''} · ${sourceVersionNo}`.trim(),
     prompt: '',
     position: { x: Math.round(origin.x), y: Math.round(origin.y) },
     categoryId: source.categoryId || fallbackCategoryId,

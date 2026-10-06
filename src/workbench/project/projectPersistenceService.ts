@@ -10,10 +10,23 @@ import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projec
 import { migrateProjectRecord, type CategoryMigrationDiagnostic } from './projectCategoryMigration'
 import { migrateProjectV51ToV60 } from './projectV51ToV60Migration'
 import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
+import { backfillNodeResultVersionNumbers } from '../generationCanvas/model/nodeResultLifecycle'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 import { measureProjectOpenStage, measureProjectOpenStageSync } from './projectOpenTimeline'
+import { sweepPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
+import { logRendererError } from '../../desktop/rendererLog'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+
+function isGuardCurrent(guard: ProjectHydrationGuard): boolean {
+  try {
+    guard.assertCurrent()
+    return true
+  } catch {
+    return false
+  }
+}
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
 
@@ -173,14 +186,16 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     // 镜头编号存储身份化（审计 A2）：存量项目缺 shotIndex 的镜头节点按
     // (y, x, id) 确定性回填一次；此后编号不再随布局/添加节点漂移。
     const shotBackfill = backfillShotIndexes(mediaDimensionsUpgraded.payload.generationCanvas.nodes)
-    const upgraded = shotBackfill.changed
+    // 「第 N 版」同理：旧项目的版本没有号，按持久顺序（最早 = 1）补一次并写盘，之后号跟着版本走。
+    const versionBackfill = backfillNodeResultVersionNumbers(shotBackfill.nodes)
+    const upgraded = shotBackfill.changed || versionBackfill.changed
       ? {
           ...mediaDimensionsUpgraded,
           payload: {
             ...mediaDimensionsUpgraded.payload,
             generationCanvas: {
               ...mediaDimensionsUpgraded.payload.generationCanvas,
-              nodes: shotBackfill.nodes,
+              nodes: versionBackfill.nodes,
             },
           },
         }
@@ -207,6 +222,15 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     abandonHydratingProjectOwnership()
     writeLastActiveProjectId(upgraded.id)
     guard.assertCurrent()
+    // 上次删掉的版本、App 直接退出没来得及删的文件：现在撤销日志是空的，没有哪一步能退回去了。
+    // 不挡打开（清扫在后台走），判定读的是刚载入、含事件尾巴的画布与时间轴。
+    if (upgraded.payload.pendingAssetDeletions?.length) {
+      void sweepPersistedAssetDeletions(upgraded.id, upgraded.payload.pendingAssetDeletions, () => {
+        // 还是这个项目开着才存（清扫期间换了项目就不碰下一个项目的盘；那一笔下次打开再扫）。
+        if (isGuardCurrent(guard)) useGenerationCanvasStore.getState().commitPersistedChange()
+      })
+        .catch((error: unknown) => logRendererError('pending-asset-deletion-sweep-failed', error))
+    }
     return upgraded
   }
 
