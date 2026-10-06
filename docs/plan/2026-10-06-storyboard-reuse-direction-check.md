@@ -68,3 +68,9 @@
 - `exec/storyboardBatchLanding.test.ts`：参考卡写回同步模型和参数
 - `src/workbench/generationCanvas/store/canvasAutoReference.test.ts`：画布侧自动引用
 - `tests/ux/original-storyboard-editor.test.mjs`：840px 宽下的可达性
+
+## 附：`generationCanvas/model/` 目录命中（2026-10-06 补）
+
+`fix-churn` 报 `src/workbench/generationCanvas/model/` 14 天内第 7 个 fix。前 6 个是别的线在这个目录里修的别的概念（节点类型、连线、参数引用等）。本分支在这里只做了一件事：新增默认标题的单一来源 `generationNodeDefaultTitles()`（V-1042 必修：画布自动引用把系统默认标题当名字）。之后的修改都是这同一个函数的门岗跟进：读资源子树改用 `getResource`，不走 `t()`。
+
+这不是对同一个 bug 反复打补丁。结构上的处理是「默认标题只从建节点用的那个函数取，不手抄」，测试按全部节点类型 × 中英两种语言清单遍历（`canvasAutoReference.test.ts`）。

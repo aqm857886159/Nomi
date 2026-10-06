@@ -92,7 +92,8 @@ export function generationNodeDefaultTitles(): ReadonlySet<string> {
     for (const kind of GENERATION_NODE_KINDS) {
       titles.add(getGenerationNodeDefaultTitle(kind, lng).trim())
     }
-    const entryDefaults = i18n.t('generationCommon.defaultTitles', { lng, returnObjects: true }) as unknown
+    // 读资源表本身（不经 t()）：这是一组文案的整棵子树，不是某一条要显示的文案。
+    const entryDefaults = i18n.getResource(lng, 'translation', 'generationCommon.defaultTitles') as unknown
     if (entryDefaults && typeof entryDefaults === 'object') {
       for (const value of Object.values(entryDefaults as Record<string, unknown>)) if (typeof value === 'string') titles.add(value.trim())
     }

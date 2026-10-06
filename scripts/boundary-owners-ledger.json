@@ -3,6 +3,13 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-10-dc24-quiet-defaults.root-cause.json",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "symbol": "ShotReferenceZone",
+      "anchor": { "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx", "symbol": "ShotReferenceStrip" },
+      "reason": "2026-10-06 分镜复用画布交互（#1042）：镜头行的参考区整块换成视觉列里的参考条 ShotReferenceStrip（缩略图带 ×、「+」开素材选择器）。dc24 的不变量「正常态不教学、只留可操作的状态」由它承担：没有参考时只有一格「+」，不摆说明文字。"
+    },
+    {
       "contract": "docs/fixes/2026-09-01-vendor-wire-drift-live-matrix.root-cause.json",
       "path": "electron/catalog/runwayOfficial.ts",
       "symbol": "normalizeRunwayImageReferences",
