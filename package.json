@@ -502,8 +502,7 @@
       "@ffprobe-installer/darwin-arm64"
     ],
     "patchedDependencies": {
-      "img-fx@0.5.1": "patches/img-fx@0.5.1.patch",
-      "react-i18next@17.0.10": "patches/react-i18next@17.0.10.patch"
+      "img-fx@0.5.1": "patches/img-fx@0.5.1.patch"
     }
   }
 }
