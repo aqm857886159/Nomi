@@ -761,11 +761,12 @@
       "ironLaws": [],
       "useCases": ["S8"],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["类级检查 src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts：遍历边类型登记表 edgeTypes 里每个边组件，三帧坐标下菜单关闭时不许调 availableEdgeModes；变异：改回每帧计算即红", "打包版拖动基准改前改后各 5 次（XL 全选拖动）：本机同一构建内脚本时间 3–23 秒波动，端到端在噪声内，不作结论；收益以剖面归因为准", "首挂段（react-i18next 每实例复制 i18n 约 46ms、整页首次强制排版、模型目录同步 IPC）留作残余，见 docs/plan/2026-10-06-open-mount.md"],
       "completionCommits": ["d6f85de5f"],
       "rootCauseContract": "docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json",
+      "fixedInPr": 1046,
       "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts" }
     }
   ]
