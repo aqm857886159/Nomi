@@ -229,10 +229,17 @@
       "ironLaws": ["⑪"],
       "useCases": ["S2"],
       "fullWalkJourneys": ["J04-agent-multishot-spend", "J06-delete-shot"],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["src/workbench/creation/storyboard/shotRow/composerBarModel.ts 的 composerBarParams；ShotParamControls.tsx 只被设计实验室引用"],
-      "completionCommits": []
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["src/workbench/creation/storyboard/shotRow/composerBarModel.ts 的 composerBarParams；ShotParamControls.tsx 只被设计实验室引用", "分镜行改用画布同款面板后 frame_rate / negative_prompt / output_count / source_task_id / webhook 五类缺口消失；余下 seed / num_inference_steps / video_start_seconds 与画布节点同一原因，归 LAW11-EMPTY-INPUT", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      }
     },
     {
       "id": "LAW11-SB-VARIANT",
@@ -259,10 +266,17 @@
       "ironLaws": ["⑪"],
       "useCases": ["S2"],
       "fullWalkJourneys": ["J04-agent-multishot-spend"],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["src/workbench/generationCanvas/agent/storyboardPlanEdits.ts 的 DURATION_OPTIONS_SEC；分镜行可选值来自 composerBarModel.ts 的 shotDurationChoices"],
-      "completionCommits": []
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["src/workbench/generationCanvas/agent/storyboardPlanEdits.ts 的 DURATION_OPTIONS_SEC；分镜行可选值来自 composerBarModel.ts 的 shotDurationChoices", "分镜行时长改由档案的 duration 控件给（画布同款时长滑条 / 分段），固定档表随旧底栏删除；storyboard-row|duration|options 缺口类消失", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      }
     },
     {
       "id": "LAW10-OUT-OF-RANGE-SPLIT",
@@ -403,10 +417,17 @@
       "ironLaws": ["⑪"],
       "useCases": ["S2"],
       "fullWalkJourneys": [],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/03-anchors-expanded.png", "tests/ux/shots/audit-storyboard/zh-CN/05-anchor-after-gpt-image-2.png"],
-      "completionCommits": []
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/03-anchors-expanded.png", "tests/ux/shots/audit-storyboard/zh-CN/05-anchor-after-gpt-image-2.png", "参考卡底栏改用画布同款 InlineParameterBar（StoryboardComposerParams），按档案出模式 / 比例 / 清晰度等全部参数；⑪ 矩阵 storyboard-anchor 入口 17 个缺口类降到 2 个（变体轴 → LAW11-SB-VARIANT，数字输入 → LAW11-EMPTY-INPUT，与画布节点同一原因）", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      }
     },
     {
       "id": "AUD-20261005-03",
@@ -433,10 +454,16 @@
       "ironLaws": ["⑩"],
       "useCases": ["S3"],
       "fullWalkJourneys": [],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/23-shots-after-anchor-generated-no-auto-reference.png", "observations.json P8"],
-      "completionCommits": []
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/23-shots-after-anchor-generated-no-auto-reference.png", "observations.json P8", "自动引用 owner insertAutoMentions（分镜 autoReferencePlan + 画布 initCanvasAutoReferenceBridge 共用）：参考卡出图后在提示词里它名字后面补 @ 并绑进参考；默认文生视频按方案 A 切到同模型能收参考图的模式；类检查 = 全部档案 × 全部起步模式的普查（@ 与绑定一起成、一起不成）", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/creation/storyboard/exec/storyboardAutoReference.test.ts"
+      }
     },
     {
       "id": "AUD-20261005-05",
@@ -448,10 +475,16 @@
       "ironLaws": ["⑫"],
       "useCases": ["S3", "S6"],
       "fullWalkJourneys": [],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/13-ref-popover-after-upload.png", "tests/ux/shots/audit-storyboard/zh-CN/16-chip-double-click-lightbox.png", "tests/ux/shots/audit-storyboard/zh-CN/17-binding-removed-chip-remains.png"],
-      "completionCommits": []
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/13-ref-popover-after-upload.png", "tests/ux/shots/audit-storyboard/zh-CN/16-chip-double-click-lightbox.png", "tests/ux/shots/audit-storyboard/zh-CN/17-binding-removed-chip-remains.png", "参考缩略图右上角直接有 ×（画布同款 AssetTile），浮层与 20px 垃圾桶随旧参考列删除；删参考同步删 @、删 @ 同步删参考（removeReferenceWithMention / dropBindingsForUrls）。残留：双击提示词芯片的灯箱仍只有「关闭预览」，未在本次改动范围内（下一刀）", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts"
+      }
     },
     {
       "id": "AUD-20261005-06",
@@ -573,8 +606,8 @@
       "fullWalkJourneys": [],
       "status": "candidate",
       "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/22-hero-model-changed-then-retry.png", "observations.json P8.heroPlanModel vs heroNode"],
-      "completionCommits": []
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/22-hero-model-changed-then-retry.png", "observations.json P8.heroPlanModel vs heroNode", "本线顺带修了（syncAnchorNodeWithCard 写回 storyboardComposerMeta，storyboardBatchLanding.test 守住、变异红），类级检查未挂，留 candidate 由协调会话定", "2026-10-06 真 App 复跑审计走查 P8：第一版修法用 (模型, 供应商) 现拼目录项，只靠目录元数据认档案的模型（回环夹具）写回为空、节点仍是 gpt-image-2；改走真实目录（ed5f21ef8）后复跑 heroNode.model = agent-runtime-image。重试仍被镜头认领拒绝（needs_reconcile），另记根因合同残余"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93", "ed5f21ef8"]
     },
     {
       "id": "AUD-20261005-14",
@@ -649,10 +682,16 @@
       "ironLaws": ["⑩"],
       "useCases": ["S7"],
       "fullWalkJourneys": [],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/08-shot-more-params-popover.png"],
-      "completionCommits": []
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/08-shot-more-params-popover.png", "参数汇总里「自动」档统一本地化（composerHeadlineSummary 修在 owner，画布同受益）；分镜行不再有「⋯」比例下拉", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      }
     },
     {
       "id": "LAW11-ANCHOR-CARD",
@@ -663,11 +702,18 @@
       "ironLaws": ["⑪"],
       "useCases": ["S3"],
       "fullWalkJourneys": ["J03-reference-generation", "J04-agent-multishot-spend"],
-      "status": "candidate",
-      "manualReview": "pending",
-      "evidence": ["用户 2026-10-05 原话：跨镜头一致的参考图卡没有比例选项，也没有其他参数", "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx 只用 useDedupedModelSelect；17 个缺口类登记在 tests/experience-laws/reachabilityLedger.json"],
-      "completionCommits": [],
-      "since": "2026-10-05"
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["用户 2026-10-05 原话：跨镜头一致的参考图卡没有比例选项，也没有其他参数", "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx 只用 useDedupedModelSelect；17 个缺口类登记在 tests/experience-laws/reachabilityLedger.json", "同 AUD-20261005-02；reachabilityLedger.json 里 storyboard-anchor 的 17 个缺口类删除 15 个，余下 2 个归 LAW11-SB-VARIANT / LAW11-EMPTY-INPUT", "docs/evidence/2026-10-06-storyboard-reuse/README.md"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"],
+      "since": "2026-10-05",
+      "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+      "fixedInPr": 1042,
+      "classCheck": {
+        "kind": "iron-law",
+        "file": "tests/experience-laws/parameterReachability.test.mjs",
+        "ref": "⑪"
+      }
     },
     {
       "id": "FB-20261005-01-open-agent-load",

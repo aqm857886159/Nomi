@@ -8,6 +8,7 @@ import {
   slotAsArray,
 } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
+import { removeMention } from '../../../assets/promptMentions'
 
 /**
  * 分镜行的**按槽参考绑定**层（纯函数，可单测）。
@@ -132,6 +133,45 @@ export function reorderBinding(
   if (!moved) return null
   next.splice(to, 0, moved)
   return withBucket(bindings, slotKey, next)
+}
+
+/** 所有槽里还绑着的 url（同一张图可能同时在两个槽里）。 */
+function boundUrls(bindings: ReferenceBindingMap | undefined): Set<string> {
+  return new Set(Object.keys(bindings ?? {}).flatMap((key) => bindingsOf(bindings, key).map((binding) => binding.url)))
+}
+
+/**
+ * 删一张参考 = 绑定删掉 + 提示词里指向它的 @ 一起删（反馈 #7：「删掉参考时提示词里的 @ 一起删」）。
+ * 同一张图在别的槽里还绑着 → @ 留着（它仍然会被发出去，芯片仍有所指）。index 越界 → null。
+ */
+export function removeReferenceWithMention(
+  prompt: string,
+  bindings: ReferenceBindingMap | undefined,
+  slotKey: string,
+  index: number,
+): { prompt: string; bindings: ReferenceBindingMap } | null {
+  const removed = bindingsOf(bindings, slotKey)[index]
+  const next = removeBinding(bindings, slotKey, index)
+  if (!removed || !next) return null
+  return { prompt: boundUrls(next).has(removed.url) ? prompt : removeMention(prompt, removed.url), bindings: next }
+}
+
+/**
+ * 反过来：提示词里删掉了某几张图的 @ → 这几张图的绑定一起删（反馈 #7 的另一半）。
+ * 只认「@ 被删掉」这一件事（调用方用 `droppedMentionUrls(旧, 新)` 算出 urls），
+ * 从来没被 @ 过、只摆在参考框里的图不受影响。没有变化 → 原样返回同一个对象。
+ */
+export function dropBindingsForUrls(bindings: ReferenceBindingMap | undefined, urls: readonly string[]): ReferenceBindingMap | undefined {
+  if (!bindings || urls.length === 0) return bindings
+  const dropped = new Set(urls)
+  let changed = false
+  const next: ReferenceBindingMap = {}
+  for (const [key, bucket] of Object.entries(bindings)) {
+    const kept = (Array.isArray(bucket) ? bucket : []).filter((binding) => !dropped.has(binding?.url))
+    if (kept.length !== (Array.isArray(bucket) ? bucket.length : 0)) changed = true
+    next[key] = kept
+  }
+  return changed ? next : bindings
 }
 
 export function removeShotBinding(shot: PlanShot, slotKey: string, index: number): Pick<PlanShot, 'referenceBindings'> | null {

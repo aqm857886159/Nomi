@@ -92,9 +92,17 @@ type AssetTileProps = {
 // 音频波形:固定高度图案(我们不分析音频,波形是纯形态符号)。
 const WAVE_HEIGHTS = [8, 16, 22, 12, 18, 9]
 
+// 角标与 × 都**收在格子里面**：格子自己 `overflow-hidden`（缩略图要按圆角裁），挂在格外的角标会被它切掉一角
+// （2026-10-06 分镜参考条 36 / 28 小格上切得最明显，画布 56 格同样被切）。边长按格子缩：大格保持 16，
+// 小格取「半边减 3」，保证序号和 × 在 28 格里也并排放得下、互不压。
+const CORNER_SIZE = 'h-[min(16px,calc(50%_-_3px))]'
+
 function NumberBadge({ index }: { index: number }): JSX.Element {
   return (
-    <span className={cn('absolute -top-[5px] -left-[5px] min-w-[16px] h-[16px] px-[4px] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none')}>
+    <span
+      data-asset-tile-badge={index}
+      className={cn('absolute top-[2px] left-[2px] min-w-[min(16px,calc(50%_-_3px))] px-[min(4px,8%)] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none z-[2]', CORNER_SIZE)}
+    >
       {index}
     </span>
   )
@@ -106,7 +114,8 @@ function RemoveButton({ label, onRemove }: { label: string; onRemove: () => void
     <button
       type="button"
       aria-label={t('assetLibrary.removeNamed', { name: label })}
-      className={cn('absolute -top-[5px] -right-[5px] w-[16px] h-[16px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer z-[2]')}
+      data-asset-tile-remove="true"
+      className={cn('absolute top-[2px] right-[2px] w-[min(16px,calc(50%_-_3px))] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer z-[2]', CORNER_SIZE)}
       onClick={(event) => { event.stopPropagation(); onRemove() }}
     >×</button>
   )

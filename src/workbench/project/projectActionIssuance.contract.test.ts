@@ -117,7 +117,7 @@ export const CURRENT_PROJECT_READER_ALLOWLIST: Record<string, { reads: number; r
   'src/workbench/generationCanvas/agent/applyCanvasToolCall.ts': { reads: 1, reason: 'agent tool call start: capture the artifact binding before any await; IO never retargets later' },
   'src/workbench/generationCanvas/nodes/ClipNode.tsx': { reads: 1, reason: 'display: which project library the clip asset picker lists (pick/upload issue their own context)' },
   'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx': { reads: 1, reason: 'display: asset reference picker listing' },
-  'src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx': { reads: 1, reason: 'display: asset reference picker listing' },
+  'src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx': { reads: 1, reason: 'display: asset reference picker listing (upload issues its own context)' },
   'src/workbench/creation/storyboard/shotRow/useShotMentionSource.ts': { reads: 1, reason: 'display: @-mention asset suggestions when the host passes no project' },
   'src/workbench/timeline/TimelineSecondaryAddRow.tsx': { reads: 1, reason: 'display: music picker listing (adding issues its own context)' },
   'src/workbench/preview/PreviewSourcePanel.tsx': { reads: 1, reason: 'display: preview source asset listing' },

@@ -136,7 +136,8 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   const collapse = win.locator('[data-creation-resource-tree-toggle="collapse"]:visible')
   if (await collapse.isVisible()) await collapse.click()
   expect(walk.fixture.images).toHaveLength(0)
-  await secondRow.locator('[data-storyboard-frame]').getByRole('button', { name: '生成镜 2', exact: true }).click()
+  // 「生成」在内容列底栏右端（2026-10-06 #1042 改版后画面格里不再放一颗）。
+  await secondRow.locator('[data-storyboard-composer-bar]').getByRole('button', { name: '生成镜 2', exact: true }).click()
   // 用户自己点「生成镜 2」= 他本人要这一张：不弹付费确认，直接开始（2026-09-25 拍板；09-26 起不看金额）。
   // 证据是供应商真收到了这一张的请求、镜头走到 done——若中间弹了卡，走查不去点，请求永远发不出去。
   await expect.poll(() => walk.fixture.images.length, { timeout: stationTimeout({ operations: 2 }),

@@ -62,15 +62,16 @@ describe('表内弹出层：全部走 AnchoredPopover，没有原地 absolute �
   /**
    * 数门：行 ⋯ 菜单（StoryboardShotRow）、「用作…」菜单（StoryboardFrameActions）、提示词片段菜单
    * （PromptSkeletonSegments）、参考悬停预览（StoryboardHoverPreview）。
-   * 底栏 ⋯（ShotComposerBar）与参考槽选择器（ShotReferenceSlotPopover → AssetPickerPopover）早就走它；
-   * 下拉走 NomiSelect（Mantine，withinPortal）；@ 候选走 body 上的 Tiptap 渲染器。
+   * 参考条（ShotReferenceStrip）的「+N」折叠浮层与「+」素材选择器（AssetPickerPopover）也走它；
+   * 2026-10-06 分镜复用画布交互后底栏没有自己的弹层了（旧底栏 ⋯ 与参考槽浮层已删）——参数面板是画布同款
+   * `InlineParameterBar` 的面板，自己 portal 到 body；下拉走 NomiSelect（Mantine，withinPortal）；@ 候选走 body 上的 Tiptap 渲染器。
    */
   const popoverUsers = [
     `${STORYBOARD_DIR}/shotRow/StoryboardShotRow.tsx`,
     `${STORYBOARD_DIR}/shotRow/StoryboardFrameActions.tsx`,
     `${STORYBOARD_DIR}/shotRow/PromptSkeletonSegments.tsx`,
     `${STORYBOARD_DIR}/StoryboardHoverPreview.tsx`,
-    `${STORYBOARD_DIR}/shotRow/ShotComposerBar.tsx`,
+    `${STORYBOARD_DIR}/shotRow/ShotReferenceStrip.tsx`,
   ]
   for (const relative of popoverUsers) {
     it(`${path.basename(relative)} 从 design 引 AnchoredPopover`, () => {

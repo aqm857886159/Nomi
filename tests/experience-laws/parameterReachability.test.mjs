@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest'
 import {
   MODE_AXIS,
   NOT_PARAMETER_ENTRIES,
-  PARAMETER_RENDERERS,
   REACHABILITY_ENTRIES,
   buildReachabilityMatrix,
   classifyGaps,
@@ -62,11 +61,14 @@ describe('铁律 ⑪ 能选到', () => {
     }
   })
 
-  it('「跨镜头一致」参考卡的可选项来自它真实的源码：它一旦开始渲染参数 / 模式，这里的 anchorCardReach 必须跟着改', () => {
-    const source = fs.readFileSync(path.join(repoRoot, 'src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx'), 'utf8')
-    const used = PARAMETER_RENDERERS.filter((name) => new RegExp(`\b${name}\b`).test(source))
-    expect(used, 'StoryboardAnchorRow 开始用控件解析了：把 parameterReachability.mjs 的 anchorCardReach 改成调同一个函数').toEqual([])
-    expect(source).toMatch(/useDedupedModelSelect/)
+  it('分镜行与参考卡的可选项来自它们真实的那条路：两处都用 StoryboardComposerParams（→ storyboardComposerControls）', () => {
+    for (const file of ['src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx', 'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx']) {
+      const source = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+      expect(source, `${file} 不再走 StoryboardComposerParams：storyboardReach / anchorCardReach 要跟着改`).toMatch(/<StoryboardComposerParams/)
+    }
+    const params = fs.readFileSync(path.join(repoRoot, 'src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx'), 'utf8')
+    expect(params).toMatch(/storyboardComposerControls\(/)
+    expect(params).toMatch(/storyboardComposerMeta\(/)
   })
 
   it('碰到模型的其它界面都点过名，且文件都还在（数漏了或改名了就红）', () => {

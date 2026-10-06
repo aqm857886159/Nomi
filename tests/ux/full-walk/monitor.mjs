@@ -426,12 +426,9 @@ export function createInvariantMonitor(options) {
    */
   async function consentStoryboardRows(shotIndexes, { kind = 'storyboard-row', label } = {}) {
     const rows = await win().evaluate((indexes) => {
-      // 参考列里摆着几张：叠放格读它自己的计数，单张格数一个（一个槽一个格，装几张都只占一格）。
-      const shownReferenceCount = (row) => [...row.querySelectorAll('[data-storyboard-ref-slot]')].reduce((sum, slot) => {
-        const stack = slot.querySelector('[data-storyboard-ref-stack-count]')
-        if (stack) return sum + (Number(stack.getAttribute('data-storyboard-ref-stack-count')) || 0)
-        return sum + (slot.querySelector('[data-storyboard-ref-tile]') ? 1 : 0)
-      }, 0)
+      // 参考缩略图条里摆着几张（2026-10-06 起在视觉列）：露出来的每张一格，折进「+N」的按 N 算。
+      const shownReferenceCount = (row) => row.querySelectorAll('[data-storyboard-ref-thumb]').length
+        + [...row.querySelectorAll('[data-storyboard-ref-more]')].reduce((sum, more) => sum + (Number(more.getAttribute('data-storyboard-ref-more')) || 0), 0)
       const editor = document.querySelector('[data-storyboard-editor="true"]')
       const editorText = String(editor?.innerText ?? '')
       return indexes.map((index) => {

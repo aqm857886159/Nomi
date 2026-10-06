@@ -218,12 +218,10 @@ async function walkLocale(locale) {
       await check(tag, `第 ${index} 行的「生成」点不到`, async () => {
         await expectReachable(row(index).locator('[data-storyboard-generate-state]'), `第 ${index} 行的「生成」`)
       })
-      const dots = row(index).locator(`[data-storyboard-composer-switches="${index}"]`)
-      if (await dots.count() > 0) {
-        await check(tag, `第 ${index} 行底栏的「⋯」点不到`, async () => {
-          await expectReachable(dots, `第 ${index} 行底栏的「⋯」`)
-        })
-      }
+      // 底栏的参数汇总按钮（2026-10-06 #1042 起底栏是画布同款参数条，原来的底栏「⋯」已删，开关进了这块面板）。
+      await check(tag, `第 ${index} 行底栏的参数汇总按钮点不到`, async () => {
+        await expectReachable(row(index).locator('[data-storyboard-composer-bar] [data-parameter-summary]').first(), `第 ${index} 行底栏的参数汇总按钮`)
+      })
     }
     // 整条底栏不许有叶子越过行右缘（越过的那部分被表格边界剪掉，人看不到）。
     const spill = await row(index).evaluate((element) => {

@@ -57,6 +57,8 @@ export const planShotSchema = z.object({
   anchorIds: z.array(z.string()),
   /** 按槽的参考绑定：键 = 槽 kind（未知键原样保留，前向兼容），值 = 有序素材。 */
   referenceBindings: referenceBindingsSchema.optional(),
+  /** 自动引用的账本（锚 id）：补过一次就不再补，用户删掉的 @ 不回来。只由自动引用写。 */
+  autoReferenced: z.array(z.string()).optional(),
   prompt: z.string(),
   promptSegments: z.array(promptSegmentRangeSchema).optional(),
   modelKey: z.string().optional(),

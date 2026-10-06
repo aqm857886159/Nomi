@@ -9,6 +9,10 @@ import { createServer } from 'vite'
 import fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+
+// 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
+freshTailwindCss()
 
 const POPOVERS = [
   {
@@ -33,15 +37,17 @@ const POPOVERS = [
     activate: (page) => page.locator('[data-storyboard-prompt-segment]').first().click(),
     menu: '[data-storyboard-prompt-menu]',
   },
+  // 「底栏 ⋯ 开关弹层」已随 2026-10-06 分镜复用画布交互（#1042）删除：底栏换成画布同款参数条，开关进了参数面板
+  // （画布 InlineParameterBar 自己的面板，不走 AnchoredPopover）。参考条的「+N」折叠浮层是这次新增的 Portal 弹层，补进清单。
   {
-    name: '底栏「⋯」弹层',
-    // 夹具模型用档案里带开关（boolean）参数的 rh-kling-3.0：开关一律住在行尾 ⋯ 里，出不出 ⋯ 不取决于字体 / 宽度
-    //（之前靠「枚举装不下被挪进 ⋯」，Windows 出、Linux CI 字体下整条装得下就不出）。
-    query: 'media=video&switch',
-    opener: '[data-storyboard-composer-switches="1"]',
-    focusOpener: (page) => page.locator('[data-storyboard-composer-switches="1"]').focus(),
+    name: '参考条「+N」折叠浮层',
+    // 夹具 `refs`：镜 1 挂 6 张参考；编辑器 640 宽走窄档（28 格一行放 5 格），确定性地折出「+N」。
+    query: 'refs',
+    width: 640,
+    opener: '[data-storyboard-ref-more]',
+    focusOpener: (page) => page.locator('[data-storyboard-row="1"] [data-storyboard-ref-more]').focus(),
     activate: (page) => page.keyboard.press('Enter'),
-    menu: '[data-storyboard-composer-switch-panel="1"]',
+    menu: '[data-storyboard-ref-overflow]',
   },
 ]
 
@@ -54,7 +60,8 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } })
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/original-storyboard-editor-harness.html?locale=en&${item.query}`)
-    await page.addStyleTag({ url: '/tailwind.generated.css' })
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await assertTailwindApplied(page, 'storyboard-popover-keyboard.test.mjs')
     await page.addStyleTag({ url: '/src/styles/index.css' })
     await expect(page.locator('[data-storyboard-editor]')).toBeVisible()
     await page.locator('[data-storyboard-editor]').evaluate((element, width) => { element.parentElement.style.width = `${width}px` }, item.width ?? 840)
@@ -67,7 +74,9 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
       if (!found) {
         const diagnostics = await page.evaluate(() => {
           const bars = [...document.querySelectorAll('[data-storyboard-composer-bar]')]
+          const strip = document.querySelector('[data-storyboard-row="1"] [data-storyboard-refs]')
           return {
+            refs: strip ? { placement: strip.getAttribute('data-storyboard-refs'), size: strip.getAttribute('data-storyboard-refs-size'), thumbs: strip.querySelectorAll('[data-storyboard-ref-thumb]').length, width: Math.round(strip.getBoundingClientRect().width) } : null,
             viewport: { w: innerWidth, h: innerHeight },
             editorWidth: document.querySelector('[data-storyboard-editor]')?.getBoundingClientRect().width,
             rowDensity: document.querySelector('[data-storyboard-row="1"]')?.getAttribute('data-storyboard-row-density'),
@@ -75,7 +84,6 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
               width: Math.round(bar.getBoundingClientRect().width),
               scrollWidth: bar.scrollWidth,
               text: bar.innerText.replace(/\s+/g, ' ').trim(),
-              demoted: bar.getAttribute('data-storyboard-composer-demoted'),
               attrs: [...bar.querySelectorAll('*')].flatMap((node) => [...node.attributes].filter((a) => a.name.startsWith('data-storyboard')).map((a) => `${node.tagName.toLowerCase()}[${a.name}=${a.value}]`)),
               controls: [...bar.querySelectorAll('button,[role=combobox],input')].map((node) => node.getAttribute('aria-label') || node.textContent?.trim() || node.tagName),
             })),

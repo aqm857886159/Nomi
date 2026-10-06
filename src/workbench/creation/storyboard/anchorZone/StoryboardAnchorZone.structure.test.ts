@@ -9,18 +9,30 @@ const stripComments = (source: string): string =>
 const row = stripComments(read('src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx'))
 const zone = stripComments(read('src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx'))
 
-describe('锚区 v6：两态 + 与镜头行同解剖（合同 §2.2）', () => {
-  it('展开态用的是镜头行那一份 RowShell，不是另画一套网格', () => {
+describe('参考卡区：与镜头行同一套网格与同一套交互', () => {
+  it('展开态用镜头行那一份 RowShell，不另画网格', () => {
     expect(row).toContain('<StoryboardRowShell')
     expect(row).not.toContain('grid-cols-[')
   })
 
-  it('展开态的参考列复用 ShotReferenceZone（同一套槽解剖，不为锚另造一份）', () => {
-    expect(row).toContain('<ShotReferenceZone')
+  it('参考缩略图复用镜头行那一条（ShotReferenceStrip），不为参考卡另造一份', () => {
+    expect(row).toContain('<ShotReferenceStrip')
   })
 
-  it('画面格几何与镜头行同一份（frameMediaBox），不写死 108×144', () => {
+  it('参数 = 画布同款底栏（StoryboardComposerParams），按模型出全部参数（反馈 #3 #11 / 审计 U2）', () => {
+    expect(row).toContain('<StoryboardComposerParams')
+    // 旧的「参考卡生成模型」单下拉不许复活。
+    expect(row).not.toContain('NomiSelect')
+  })
+
+  it('类型 / 出图方式 / 删除收进行首 ⋯（设计系统 WorkbenchMenu），不再常驻一整排按钮', () => {
+    expect(row).toContain('<WorkbenchMenu')
+    expect(row).not.toContain('ANCHOR_KINDS.map((kind) => {')
+  })
+
+  it('预览框几何与镜头行同一份（shotFrameGeometry），参考卡按自己的画幅 contain', () => {
     expect(row).toContain("from '../shotRow/shotFrameGeometry'")
+    expect(row).toContain('object-contain')
     expect(row).not.toContain('w-[108px] h-[144px]')
   })
 
@@ -31,8 +43,7 @@ describe('锚区 v6：两态 + 与镜头行同解剖（合同 §2.2）', () => {
     expect(zone).toContain('data-storyboard-anchors-toggle')
   })
 
-  it('模型缺失仍用共享的 warning token（沿用 v5 已拍板的这条）', () => {
-    expect(row).toContain('data-anchor-model-empty="true"')
-    expect(row).not.toContain(['text-workbench', 'warning'].join('-'))
+  it('区头不再挂一句说明（「生成参考图=锁长相…」随第二套控件一起删）', () => {
+    expect(zone).not.toContain('consistencyHint')
   })
 })
