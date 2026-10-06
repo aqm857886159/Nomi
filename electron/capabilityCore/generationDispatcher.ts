@@ -161,11 +161,13 @@ function requireApprovalReceipt(
   try {
     const token = suppliedToken || authority.resolveReceiptToken(receiptId)
     const receipt = authority.verifyReceipt(token)
-    const currentProjectRevision = ctx.projectRevisionResolver?.(lease.projectId)
-    if (!Number.isInteger(currentProjectRevision)) reject('receipt_invalid', 'Current project revision is unavailable')
-    if (params.projectRevision !== undefined && Number(params.projectRevision) !== currentProjectRevision) {
-      reject('receipt_invalid', 'Generation approval receipt project revision does not match the current project')
-    }
+    // 这一扇门**不读项目此刻的版本**。收据该比哪一个版本只有一个答案，住在门的主人那里
+    // （production.spend-approval-binding：封了信封的付费门比信封封好时的版本——付费卡① 第 14 条；
+    // 创意门 / 信任降档 / 没信封的旧门比此刻的版本），决门那一步（authorizeGeneration 的
+    // assertReceiptMatchesAuthorization、Run 服务 gate.decide 的 revisionRuleFor）都会再核一遍。
+    // 以前这里另拿活版本比：确认卡开着时任何一次项目保存（Nomi 自己落画布、别的镜出片、用户挪一下节点）
+    // 都让外部 MCP 的「确认」被拒成「此确认已失效」，而卡上批的东西一个字没变（CI C9 时红时绿就是它）。
+    // 调用方自己报了版本，就得是收据上那一个——和 sealedProjectRevision 同一条规矩。
     const bodyBinding: Array<[keyof HumanApprovalReceiptV1, unknown]> = [
       ['projectId', lease.projectId],
       ['immutableProjectUuid', lease.immutableProjectUuid],
@@ -174,7 +176,7 @@ function requireApprovalReceipt(
       ['gateId', params.gateId],
       ['contractHash', params.contractHash],
       ['targetHash', params.targetHash],
-      ['projectRevision', currentProjectRevision],
+      ['projectRevision', params.projectRevision],
       ['costScope', params.costScope],
       ['pricingSnapshotHash', params.pricingSnapshotHash],
     ]

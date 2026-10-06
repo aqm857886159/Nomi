@@ -68,8 +68,6 @@ type Props = {
   adoptedVariantId?: string | undefined
   onAdoptVariant?: ((variant: ShotVariant) => void) | undefined
   onDeleteVariant?: ((variant: ShotVariant) => void) | undefined
-  /** 「再出 3 版」——同镜连出三版追加进抽屉（不覆盖画面格）。 */
-  onGenerateVariants?: (() => void) | undefined
   /** 这次产出的 `@tag`（§2.10）——下一镜靠它 @ 得出来。 */
   outputTag?: string | undefined
   mentionSearch?: (query: string) => MentionSuggestionItem[]
@@ -165,7 +163,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
   const {
     shot, modelOptions, exec, aspect, frameBox, onChangeAspect,
-    skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
+    skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, outputTag,
     onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
     onRerunFreshRefs, onUpdate, onRemove, promptInvalid, durationWarning,
@@ -501,7 +499,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onAdopt={(variant) => onAdoptVariant?.(variant)}
           onDelete={onDeleteVariant ? (variant) => onDeleteVariant(variant) : undefined}
           onOpenPreview={onOpenPreview ? () => onOpenPreview() : undefined}
-          onGenerateMore={onGenerateVariants}
           onClose={() => setVariantsOpen(false)}
         />
       ) : null

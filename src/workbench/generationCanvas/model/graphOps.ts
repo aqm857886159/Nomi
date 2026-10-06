@@ -128,11 +128,3 @@ export function disconnectEdge(edges: GenerationCanvasEdge[], edgeId: string): G
   return edges.filter((edge) => edge.id !== edgeId)
 }
 
-export function rollbackNodeHistory(nodes: GenerationCanvasNode[], nodeId: string, resultId: string): GenerationCanvasNode[] {
-  return nodes.map((node) => {
-    if (node.id !== nodeId) return node
-    const result = (node.history || []).find((entry) => entry.id === resultId)
-    if (!result) return node
-    return { ...node, result, status: 'success', error: undefined }
-  })
-}

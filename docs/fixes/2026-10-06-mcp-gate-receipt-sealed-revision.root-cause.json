@@ -1,0 +1,151 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-mcp-gate-receipt-sealed-revision",
+  "detected_by": "ci",
+  "problem_type": "A spend approval receipt is compared against a different project revision on one door than on the gate owner: the external MCP decide door still reads the live project revision after the spend-approval binding moved to the sealed envelope revision.",
+  "symptom": "CI E2E Walkthroughs (Linux) real-user-journeys went red then green on rerun with the same code: on the #1042 merge commit 878f4ecc7 the mcp-l2-journeys C9 confirm leg failed with nomi_operation_gate receipt_invalid 'Generation approval receipt projectRevision does not match the current scope' after the user clicked confirm on the Nomi generation card (run 37419228198 attempt 1, job 112124735045). On PR #1002 run 37430466220 attempt 1 (job 112160032381) the same C9 confirm leg failed earlier: the generation confirmation card never appeared within 20s (locator.waitFor timeout at mcp-l2-journeys.e2e.mjs:412). For a real user driving Nomi from Codex/Claude over MCP the first shape reads 'This confirmation is no longer valid; confirm again in Nomi.' right after they confirmed, although nothing on the card changed.",
+  "direct_cause": "electron/capabilityCore/generationDispatcher.ts requireApprovalReceipt (the nomi_decide_generation_gate door that both MCP confirmation surfaces go through) bound receipt.projectRevision to ctx.projectRevisionResolver(projectId), i.e. the project document revision at decide time. Every project save bumps that counter (saveWorkspaceProject: revision = existing.revision + 1) and in the external MCP topology the GUI process keeps saving while the card is open (renderer 700ms debounced autosave, canvas landing persists, other shots' results), while the MCP stdio process seals and decides the gate in its own process where the in-process settleCanvasLanding barrier (dee25ff80) cannot reach. Any GUI save between seal and click therefore voided the approval. The E2E had been masking this with a fixed 1s waitForTimeout before sealing.",
+  "class_root": "Which project revision a spend receipt is checked against had more than one answer. 2026-10-01 (paid card 1, item 14, concept production.spend-approval-binding) moved sealed spend gates to the envelope revision and removed the four live checks in runOwnedGenerationGateAuthority plus switched productionRunApprovalReceipt to revisionRuleFor, but the dispatcher door that fronts the external MCP decide kept its own live comparison, so the invariant held on the in-app path and failed on the MCP path. The C9 E2E stale leg (written 2026-09-04, before item 14) still asserted the superseded behaviour and so kept the straggler door green.",
+  "affected_population": [
+    "Users who drive Nomi from an external MCP client (Codex, Claude, Gemini) with the Nomi window open: both the client-elicitation confirmation and the Nomi fallback card go through the same decide door.",
+    "Any project with background saves while a generation card is open: canvas landing of another run, another shot's result arriving, the user moving a node, renderer autosave after opening a project.",
+    "CI: real-user-journeys mcp-l2-journeys C9, observed twice in two days on Linux."
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/generationDispatcher.ts"
+  ],
+  "entry_points": [
+    "MCP tool nomi_operation_gate phase=request -> mcpSemanticGenerationFlow -> nomi_decide_generation_gate (client elicitation surface)",
+    "MCP tool nomi_operation_gate phase=request -> GUI fallback card confirmGenerationInNomi -> nomi_decide_generation_gate (Nomi card surface)",
+    "MCP tool nomi_operation_gate phase=decide called directly with a receiptId/receiptToken"
+  ],
+  "internal_only_reason": "The invariant is Nomi's own spend-approval binding (concept production.spend-approval-binding, docs/plan/2026-09-30-paid-card-per-shot.md item 6); no third-party contract decides which project revision a Nomi receipt is bound to.",
+  "external_sources": [],
+  "invariants": [
+    "A sealed spend gate's receipt is valid against the facts frozen in its envelope (gate, digest, contract hash, wire payload hash, project identity, envelope.projectRevision); the live project document revision never decides it on any door.",
+    "Only the gate owner (runOwnedGenerationGateAuthority.assertReceiptMatchesAuthorization and productionRunApprovalReceipt.revisionRuleFor) decides which revision a receipt is compared against; transport doors do not keep a second copy of that rule.",
+    "A caller-claimed projectRevision must equal the receipt's revision (same rule as sealedProjectRevision)."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "symbol": "requireApprovalReceipt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionTrustGrantChallenge.ts",
+      "symbol": "assertCurrentProjectRevision"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "symbol": "assertReceiptMatchesAuthorization"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "assertCurrentProjectRevision"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "verifySuppliedReceipt"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "The door map counts every receipt-verification site; each must exist. requireApprovalReceipt is the transport door (lease, receipt signature, claimed scope fields) and stays, but it no longer owns a revision rule: revision owners go from 3 (dispatcher live, revisionRuleFor, assertReceiptMatchesAuthorization) to the 2 owner-side sites that both read envelope.projectRevision for sealed spend gates (authorizeGeneration checks the envelope, then its gate.decide command is checked again by the Run service). productionTrustGrantChallenge and the live branch of productionRunApprovalReceipt keep comparing the live revision on purpose: trust downgrade, creative gates and legacy envelope-less spend gates approve 'the project as it is now' (item 14 kept them)."
+  },
+  "generality_proof": "Both MCP confirmation surfaces and a direct phase=decide call reach exactly one transport door, requireApprovalReceipt, and then exactly one decide owner, authorizeGeneration (generationPlanning's gate_decide branch throws 'must use the Run-owned authorization seam'). With the live comparison gone from the transport door, every spend decide on every surface is judged by the envelope rule owned by production.spend-approval-binding, which is the same rule the in-app paid card already uses. Background saves from any writer (renderer autosave, canvas landing, other runs, the user) change only the live counter, which no door for sealed gates reads anymore, so no writer can reintroduce the failure.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "symbol": "requireApprovalReceipt",
+      "responsibility": "The single transport door for nomi_decide_generation_gate (both MCP confirmation surfaces and direct phase=decide): verifies receipt signature, lease identity and caller-claimed scope fields, and defers the revision rule to the unchanged gate owner (runOwnedGenerationGateAuthority.assertReceiptMatchesAuthorization, then productionRunApprovalReceipt.verifySuppliedReceipt via revisionRuleFor), which compares envelope.projectRevision for sealed spend gates."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "prepareAuthorization (MCP stdio host)",
+      "disposition": "enforced",
+      "evidence": "Seals envelope.projectRevision from readWorkspaceProject at gate_request in the MCP process; no settleCanvasLanding exists there, so GUI saves after sealing are expected and now harmless because no sealed-gate door compares the live counter."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "prepareAuthorization (GUI host)",
+      "disposition": "enforced",
+      "evidence": "Same seal; the earlier settleCanvasLanding barrier stays (it keeps the sealed revision honest for Nomi's own in-flight landing) but is no longer load-bearing for the decide step."
+    },
+    {
+      "path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "entry_point": "decideRunOwnedGenerationGate / gestureGateApproval",
+      "disposition": "enforced",
+      "evidence": "In-app paid card and gesture paths already compare only envelope facts since 2026-10-01 (comment at the call sites); covered by appIntegrationProductionActions.test.ts and productionGenerationAuthorizationFlow.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/productionTrustGrantChallenge.ts",
+      "entry_point": "trust downgrade challenge",
+      "disposition": "not-affected",
+      "evidence": "Trust downgrade ('do not ask again under X') approves the project as it is now; item 14 explicitly keeps the live revision for it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every external-MCP generation confirmation races against GUI saves for as long as the card is open (human-length window), on every platform and every project; CI saw it twice in two days, and the 2026-09-11 fix (dee25ff80) closed only Nomi's own in-flight landing inside the GUI process.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs requireApprovalReceipt assertCurrentProjectRevision assertReceiptMatchesAuthorization verifySuppliedReceipt -> 5 doors, listed in doors",
+      "node scripts/door-map.mjs --read=verifyReceipt verifyReceipt -> generationTransportAdapters.receiptFromConfirmation feeds authorizeGeneration (owner checks envelope); approvalReceipt internal",
+      "node scripts/door-map.mjs saveWorkspaceProject / saveProject -> one repository writer, four callers (renderer autosave via projectsIpc, documentSurface, gateway, workbenchProjectSession); all bump revision by 1",
+      "grep projectRevisionResolver in electron/capabilityCore -> generationDispatcher gate_request fallback (seal time, unaffected), productionTrustGrantChallenge (live by design)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationDispatcher.ts",
+    "invariant": "The transport decide door never reads the live project revision; the revision rule lives only with the gate owner.",
+    "failure_mode": "A receipt whose envelope facts, gate, digest, project identity or claimed revision do not match still fails closed with receipt_invalid or a Run-owned refusal, and never reaches the provider.",
+    "exception_policy": "none",
+    "strategy": "Delete the second copy of the revision rule at the transport door so the MCP path converges on the owner's envelope rule; pin both confirmation surfaces with a real-protocol test that saves the project while the card is open.",
+    "artifacts": [
+      "electron/capabilityCore/generationDispatcher.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpSemanticGenerationConfirmation.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpSemanticGenerationConfirmation.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationDispatcher.ts",
+      "tests/ux/mcp-l2-journeys.e2e.mjs"
+    ],
+    "rationale": "Removed the dispatcher's live-revision comparison ('Current project revision is unavailable' and the live projectRevision binding), the C9 stale leg that asserted the superseded behaviour, and the fixed 1s waitForTimeout that hid the race."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides receipt binding; the change is inside Nomi's own capability core.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. Receipts already carry envelope.projectRevision; outstanding receipts minted before this change become acceptable when the envelope matches, which is exactly what the in-app path already accepts.",
+  "residual_risks": [
+    "Second CI shape (PR #1002: card never appeared within 20s) is not proven to be this door. The leading hypothesis is a different class: the MCP stdio process and the GUI process both write the same Run directory, and productionRunLock.acquire throws run_lock_busy immediately instead of waiting (the #1042 failure log shows the GUI canvas-landing bind losing exactly this race), so if the MCP-side seal loses it the gate request errors before any card. The E2E now prints the gate's own answer when no card appears, so the next occurrence is attributable. Not fixed here.",
+    "The 20x E2E loop could not run locally: dev Electron on Windows never delivers stdin to the main process, so MCP stdio journeys cannot start on this machine; Linux-loop evidence must come from CI reruns.",
+    "Lost-update side effect seen while tracing: the renderer save queue writes options.projectName captured at subscription time, so a rename done through another door (here the E2E's direct projects.save) is overwritten by the next autosave. Out of scope."
+  ],
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "tests": [
+      "electron/capabilityCore/mcpSemanticGenerationConfirmation.test.ts",
+      "electron/productionRun/productionRunApprovalReceipt.test.ts"
+    ],
+    "why": "The gate owner checks receipts against the sealed envelope; transport doors only verify signature, lease and claimed fields."
+  }
+}

@@ -25,7 +25,7 @@ vi.mock('../../../generationCanvas/agent/availableModels', () => ({
 }))
 vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
   confirmAndRunNode: async () => 'started',
-  confirmAndRunNodeVariants: vi.fn(),
+ 
   regenerateNodeInPlace: vi.fn(),
 }))
 vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: async () => 'started' }))

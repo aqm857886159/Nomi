@@ -22,6 +22,7 @@ import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
 import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { AnchorCardRuntime } from '../exec/storyboardRowStatus'
+import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
@@ -359,16 +360,17 @@ function AnchorFace({
       )
     }
     if (runtime.failed) {
+      const failure = storyboardFailureCopy(runtime.errorMessage)
       return (
         <div
           className="relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border border-workbench-danger bg-workbench-danger-soft p-2 text-center"
           style={style}
           data-anchor-face="failed"
         >
-          <span className="line-clamp-3 text-micro leading-tight text-workbench-danger" title={runtime.errorMessage ?? undefined}>
-            {t('storyboardEditor.frame.failed')}
+          <span className="line-clamp-3 text-micro leading-tight text-workbench-danger" title={failure.hint} data-anchor-failure-reason="true">
+            {failure.reason}
           </span>
-          <button
+          {failure.canRetry ? <button
             type="button"
             onClick={onGenerate}
             title={t('storyboardEditor.frame.retryHint')}
@@ -377,7 +379,7 @@ function AnchorFace({
           >
             <IconRefresh size={11} stroke={1.8} />
             {t('storyboardEditor.frame.retry')}
-          </button>
+          </button> : null}
         </div>
       )
     }

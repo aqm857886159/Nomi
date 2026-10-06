@@ -90,8 +90,8 @@ const composer = win.locator('.generation-canvas-v2-node__composer')
 const modeGroup = composer.locator('[role="group"][aria-label="生成方式"]')
 const modeButtons = modeGroup.locator('button')
 // 变体选择器 = InlineParameterBar 里紧跟模型芯片的小下拉，aria-label 走 i18n 的
-// generationCommon.parameters.variant（zh-CN = 「变体」）。它和「每次生成几个」(variantCountAria)
-// 是两个东西，别混。
+// generationCommon.parameters.variant（zh-CN = 「变体」）。它和已删的「每次生成几个」（2026-10-06 删）
+// 不是一回事，别混。
 const variantSelect = composer.locator('[aria-label="变体"]')
 
 /**

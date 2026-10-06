@@ -22,7 +22,7 @@ import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunLock } from "./productionRunLock";
 import type { ProductionRunRepository } from "./productionRunRepository";
-import { isTransportLevelFailure, outboundRequestWasNeverWritten, providerExplicitlyRejected } from "../outboundDispatchEvidence";
+import { isTransportLevelFailure, observeSubmissionHandoffs, providerExplicitlyRejected } from "../outboundDispatchEvidence";
 import {
   SubmissionNotDispatchedError,
   SubmissionReceiptUnknownError,
@@ -513,29 +513,28 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         dispatch: async (dispatchInput) => {
           const currentBinding = dispatchInput.job.executionBinding;
           if (!currentBinding) throw new Error("Generation job is missing its sealed execution binding");
-          try {
-            const result = await adapter.submit({
-              contract: lockedContract,
-              binding: currentBinding,
-              expectedProviderRequestHash: prepared.expectedProviderRequestHash,
-              preparedProviderRequest: prepared.preparedProviderRequest,
-            });
-            rawReceipt = result.raw;
-            return { providerTaskId: result.providerTaskId };
-          } catch (error) {
-            // 「一个字节都没写出去」是**可证明**的一档（只认连上之前的失败：DNS / 建连 / TLS 握手前），
-            // 它和「写出去了不知道结果」性质完全不同：前者供应商那边什么都没发生，后者可能已经在扣费。
-            // 连上之后的任何失败（连接被重置、对面关闭、响应超时）都是后者。判据只有一个 owner：
-            // `outboundDispatchEvidence.ts`。
-            if (error instanceof SubmissionNotDispatchedError) throw error;
-            if (outboundRequestWasNeverWritten(error)) {
-              throw new SubmissionNotDispatchedError(error instanceof Error ? error.message : String(error));
-            }
-            // 供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号）：确定没受理，信封留在封好的状态，由出口记成确定的失败。
-            if (providerExplicitlyRejected(error)) throw error;
-            prepared.envelope.markSubmittedUnknown();
-            throw error;
+          // 「一个字节都没离开本机」是**可证明**的一档：这次派发一个可能花钱的请求都没交给网络（在本机就被拦下），
+          // 或交出去的全在连上之前就失败了。它和「写出去了不知道结果」性质完全不同：前者供应商那边什么都没发生，
+          // 后者可能已经在扣费。判据只有一个 owner：`outboundDispatchEvidence.ts`；证明不了一律是后者。
+          const transport = providers.find((provider) => provider.providerId === lockedContract.providerId)?.networkTransport;
+          const observed = await observeSubmissionHandoffs(transport, () => adapter.submit({
+            contract: lockedContract,
+            binding: currentBinding,
+            expectedProviderRequestHash: prepared.expectedProviderRequestHash,
+            preparedProviderRequest: prepared.preparedProviderRequest,
+          }));
+          if (observed.ok) {
+            rawReceipt = observed.value.raw;
+            return { providerTaskId: observed.value.providerTaskId };
           }
+          const { error } = observed;
+          if (observed.notDispatched) {
+            throw new SubmissionNotDispatchedError(error instanceof Error ? error.message : String(error), observed.notDispatched);
+          }
+          // 供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号）：确定没受理，信封留在封好的状态，由出口记成确定的失败。
+          if (providerExplicitlyRejected(error)) throw error;
+          prepared.envelope.markSubmittedUnknown();
+          throw error;
         },
         afterDispatch: async (result, dispatchInput) => {
           prepared.envelope.markProviderAccepted({ providerTaskId: result.providerTaskId, rawReceipt });

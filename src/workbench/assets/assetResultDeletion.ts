@@ -7,6 +7,15 @@ import {
 } from '../generationCanvas/model/nodeResultLifecycle'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { AssetRef } from './assetTypes'
+import type { TimelineState } from '../timeline/timelineTypes'
+
+export type ProjectFileTarget = { projectId: string; relativePath: string }
+
+/** 项目里还有谁在用这份文件。画布是正本；时间轴上的片段也直接拿着结果的地址（删了它片段就黑了）。 */
+export type ProjectFileReferenceScope = {
+  nodes: readonly GenerationCanvasNode[]
+  timeline?: Pick<TimelineState, 'tracks'> | null
+}
 
 export type AssetResultDeletionMatch = {
   nodeId: string
@@ -29,16 +38,30 @@ function resultMatchesAsset(result: GenerationNodeResult, asset: AssetRef): bool
   return [result.url, result.thumbnailUrl].some((url) => comparableUrl(url) === targetUrl)
 }
 
-function resultReferencesFile(result: GenerationNodeResult, target: { projectId: string; relativePath: string }): boolean {
-  return [result.url, result.thumbnailUrl].some((url) => {
-    const parsed = parseNomiLocalAssetUrl(url)
-    return parsed?.projectId === target.projectId && parsed.relativePath === target.relativePath
-  })
+function urlReferencesFile(url: unknown, target: ProjectFileTarget): boolean {
+  const parsed = parseNomiLocalAssetUrl(url)
+  return parsed?.projectId === target.projectId && parsed.relativePath === target.relativePath
+}
+
+function resultReferencesFile(result: GenerationNodeResult, target: ProjectFileTarget): boolean {
+  return [result.url, result.thumbnailUrl].some((url) => urlReferencesFile(url, target))
+}
+
+/**
+ * 「这份落盘文件还有没有人用」的唯一判定：删一版当场判、延后真删到点再判、打开项目清扫遗留时再判，
+ * 都走这一个函数（2026-10-06 之前延后删那条路自己拿子串包含判，和这里是两套）。
+ */
+export function isProjectFileReferenced(target: ProjectFileTarget, scope: ProjectFileReferenceScope): boolean {
+  if (scope.nodes.some((node) => listNodeMediaResults(node).some((result) => resultReferencesFile(result, target)))) return true
+  return (scope.timeline?.tracks ?? []).some((track) => track.clips.some((clip) => (
+    urlReferencesFile(clip.url, target) || urlReferencesFile(clip.thumbnailUrl, target)
+  )))
 }
 
 export function buildAssetResultDeletionPlan(
   asset: AssetRef,
   nodes: readonly GenerationCanvasNode[],
+  timeline?: ProjectFileReferenceScope['timeline'],
 ): AssetResultDeletionPlan {
   const ownerNodeId = asset.ownerNodeId || (asset.origin.source === 'canvas' ? asset.origin.nodeId : '')
   const hintedResultId = asset.ownerResultId || (asset.origin.source === 'canvas' ? asset.origin.resultId : '')
@@ -65,12 +88,8 @@ export function buildAssetResultDeletionPlan(
   // image result and another node's video thumbnail). Remove the result from
   // metadata first, then only delete the file when no remaining result still
   // points at the same project-relative path.
-  const removedByNode = new Map(matches.map((match) => [match.nodeId, match.patch]))
-  const stillReferenced = nodes.some((node) => {
-    const patch = removedByNode.get(node.id)
-    const effective = patch ? { ...node, ...patch } : node
-    return listNodeMediaResults(effective).some((result) => resultReferencesFile(result, candidateFileTarget))
-  })
+  const afterDeletion = applyAssetResultDeletion(nodes, { matches, fileTarget: null })
+  const stillReferenced = isProjectFileReferenced(candidateFileTarget, { nodes: afterDeletion, timeline })
   return { matches, fileTarget: stillReferenced ? null : candidateFileTarget }
 }
 

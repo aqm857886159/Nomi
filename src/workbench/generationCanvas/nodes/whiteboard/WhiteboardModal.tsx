@@ -24,6 +24,7 @@ import type {
   GenerationCanvasNode,
   GenerationNodeResult,
 } from '../../model/generationCanvasTypes'
+import { appendNodeResultVersion } from '../../model/nodeResultLifecycle'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
 import { isProjectImportCancellation } from '../../adapters/assetImportAdapter'
@@ -52,26 +53,6 @@ function makeWhiteboardSnapshotResult(nodeId: string, url: string): GenerationNo
     url,
     createdAt: Date.now(),
   }
-}
-
-function mergeWhiteboardSnapshotHistory(
-  nextResult: GenerationNodeResult,
-  previousResult: GenerationNodeResult | undefined,
-  previousHistory: GenerationNodeResult[] | undefined,
-): GenerationNodeResult[] {
-  const history: GenerationNodeResult[] = []
-  const seen = new Set<string>()
-  const add = (result: GenerationNodeResult | undefined) => {
-    if (!result) return
-    const key = result.id || result.url || result.thumbnailUrl || result.text || ''
-    if (!key || seen.has(key)) return
-    seen.add(key)
-    history.push(result)
-  }
-  add(nextResult)
-  add(previousResult)
-  ;(previousHistory || []).forEach(add)
-  return history
 }
 
 function dimensionsForWhiteboardState(state: WhiteboardState | null): ReturnType<typeof getCanvasDimensions> | null {
@@ -177,8 +158,7 @@ export default function WhiteboardModal({
         ? mediaNodeSize(dimensions.width, dimensions.height, latestSource.size?.width)
         : null
       updateNode(nodeId, {
-        result: snapshotResult,
-        history: mergeWhiteboardSnapshotHistory(snapshotResult, latestSource.result, latestSource.history),
+        ...appendNodeResultVersion(latestSource, snapshotResult),
         status: 'success',
         error: undefined,
         progress: undefined,
@@ -306,11 +286,7 @@ export default function WhiteboardModal({
             ? computeMediaMetaPatch({ resultType: snapshotResult.type, meta: latestSourceAfterCreate?.meta || {}, width: dimensions.width, height: dimensions.height })?.meta
             : undefined
           updateNode(nodeId, {
-            result: snapshotResult,
-            history: [
-              snapshotResult,
-              ...(latestSourceAfterCreate?.history || []).filter((entry) => entry.id !== snapshotResult.id),
-            ],
+            ...appendNodeResultVersion(latestSourceAfterCreate ?? {}, snapshotResult),
             status: 'success',
             ...(sourceMeta ? { meta: sourceMeta } : {}),
           })
