@@ -8,6 +8,8 @@ import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
 import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
 import { NODE_QUICK_ACTIONS_STATES } from './nodeQuickActions/nodeQuickActionsStates'
+import { VERSION_CARDS_STATES } from './versionCards/versionCardsStates'
+import { VERSION_CARDS_CELL_HEIGHT, VERSION_CARDS_CELL_WIDTH } from './versionCards/versionCardsLabKit'
 import { QUICK_ACTIONS_CELL_HEIGHT, QUICK_ACTIONS_CELL_WIDTH } from './nodeQuickActions/nodeQuickActionsLabKit'
 import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
@@ -112,6 +114,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: NODE_QUICK_ACTIONS_STATES,
     // 取景一样大：上方要装下「浮条 + 向上展开的菜单」，格子不同高就比不出浮条撑没撑宽。
     cell: { width: QUICK_ACTIONS_CELL_WIDTH, height: QUICK_ACTIONS_CELL_HEIGHT },
+  },
+  {
+    id: 'version-cards',
+    label: '画布 · 版本卡片（宫格）',
+    states: VERSION_CARDS_STATES,
+    cell: { width: VERSION_CARDS_CELL_WIDTH, height: VERSION_CARDS_CELL_HEIGHT },
   },
   {
     id: 'settings',

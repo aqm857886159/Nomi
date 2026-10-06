@@ -61,6 +61,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/nodeComposerBar/states'),
     baselineDir: path.join(BASELINE_ROOT, 'node-composer-bar'),
   },
+  'version-cards': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/versionCards/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'version-cards'),
+  },
   'node-quick-actions': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/nodeQuickActions/states'),
     baselineDir: path.join(BASELINE_ROOT, 'node-quick-actions'),
