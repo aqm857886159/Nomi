@@ -6,7 +6,7 @@ import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import { currentReferenceMedia } from '../nodes/mentionCandidates'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../../project/projectCanvasReadSurface'
-import i18n from '../../../i18n'
+import { generationNodeDefaultTitles } from '../model/generationNodeKinds'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 /**
@@ -19,7 +19,9 @@ import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNo
  * 范围（设计卡 §B 第 7 条）：
  *   · 目标只取**还没出图、也不在跑**的图片 / 视频节点——已经出过图的节点改提示词会让「图」和「词」对不上；
  *   · 分镜方案落出来的节点不碰（它们的提示词由方案投影写，分镜那一侧自己补）；
- *   · 标题至少两个字，且不是系统给的默认标题（「参考图片」「提示词」这类会在提示词里自然出现）；
+ *   · 只有**用户自己起的名字**才算名字：标题至少两个字，且不是系统给的任何默认标题（`generationNodeDefaultTitles`，
+ *     与建节点同一份来源，全部节点类型 × 全部界面语言——「图片」「角色」「Image」这类会在提示词里自然出现）；
+ *   · 判断「名字包含」（「小张」与「小张三」）时用同一分区里**所有**用户起的名字，不只这一张出了图的；
  *   · 账本记在目标节点 `meta.autoReferenced`（来源节点 id）：用户删掉那枚 @，同一个节点不再补回来。
  */
 
@@ -33,6 +35,12 @@ export type CanvasAutoReferencePlan = {
   edgeMode: GenerationCanvasEdgeMode
 }
 
+/** 节点标题能不能当「名字」：用户自己起的（不是系统默认标题）、至少两个字。不能就返回空串。 */
+function userNodeName(node: Pick<GenerationCanvasNode, 'title'>, defaults: ReadonlySet<string>): string {
+  const title = (node.title || '').trim()
+  return title.length >= 2 && !defaults.has(title) ? title : ''
+}
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }
@@ -42,13 +50,17 @@ export function planCanvasAutoReference(
   nodes: readonly GenerationCanvasNode[],
   edges: readonly GenerationCanvasEdge[],
   sourceId: string,
-  ignoredTitles: ReadonlySet<string>,
 ): CanvasAutoReferencePlan[] {
   const source = nodes.find((node) => node.id === sourceId)
   if (!source || referenceAssetKindForNode(source) !== 'image') return []
   const url = resultUrl(source.result)
-  const title = (source.title || '').trim()
-  if (!url || title.length < 2 || ignoredTitles.has(title)) return []
+  const defaults = generationNodeDefaultTitles()
+  const title = userNodeName(source, defaults)
+  if (!url || !title) return []
+  const knownNames = nodes
+    .filter((node) => node.categoryId === source.categoryId)
+    .map((node) => userNodeName(node, defaults))
+    .filter(Boolean)
   const plans: CanvasAutoReferencePlan[] = []
   for (const target of nodes) {
     if (target.id === source.id) continue
@@ -58,7 +70,7 @@ export function planCanvasAutoReference(
     if (meta.storyboardDesignId) continue
     if (target.categoryId !== source.categoryId) continue
     const applied = stringList(meta[CANVAS_AUTO_REFERENCED_META_KEY])
-    const result = insertAutoMentions(target.prompt || '', [{ key: source.id, name: title, url }], applied)
+    const result = insertAutoMentions(target.prompt || '', [{ key: source.id, name: title, url }], applied, knownNames)
     if (result.inserted.length === 0) continue
     const route = resolveMentionReference(target, nodes, edges, 'image')
     if (!route.ok) continue
@@ -69,11 +81,11 @@ export function planCanvasAutoReference(
 }
 
 /** 把计划写进画布 store：切模式 → 建边 → 写提示词与账本；引用没真落进槽就整条撤回（与手动 @ 同一条兜底）。 */
-export function applyCanvasAutoReference(sourceId: string, ignoredTitles: ReadonlySet<string>): void {
+export function applyCanvasAutoReference(sourceId: string): void {
   const store = useGenerationCanvasStore.getState()
   const source = store.nodes.find((node) => node.id === sourceId)
   const url = resultUrl(source?.result)
-  for (const plan of planCanvasAutoReference(store.nodes, store.edges, sourceId, ignoredTitles)) {
+  for (const plan of planCanvasAutoReference(store.nodes, store.edges, sourceId)) {
     const state = useGenerationCanvasStore.getState()
     const target = state.nodes.find((node) => node.id === plan.targetId)
     if (!target || !url) continue
@@ -98,16 +110,6 @@ export function applyCanvasAutoReference(sourceId: string, ignoredTitles: Readon
   }
 }
 
-/** 系统给的默认标题（中英两份）：它们会在提示词里自然出现，不能当「名字」。 */
-function defaultTitles(): Set<string> {
-  return new Set(['zh-CN', 'en'].flatMap((lng) => [
-    i18n.t('generationCommon.defaultTitles.referenceImage', { lng }),
-    i18n.t('generationCommon.defaultTitles.referenceVideo', { lng }),
-    i18n.t('generationCommon.defaultTitles.prompt', { lng }),
-    i18n.t('generationCommon.defaultTitles.webMedia', { lng }),
-  ]))
-}
-
 /**
  * 每打开一个项目签发一次：盯着画布节点，**新出**的图片结果触发一次自动引用。
  * 打开项目时已经在的结果只记下、不触发——打开一个旧项目不该改动任何节点。返回解除函数。
@@ -116,7 +118,6 @@ export function initCanvasAutoReferenceBridge(): () => void {
   let unsubscribeStore: () => void = () => undefined
   const unsubscribeOpened = subscribeProjectOpened((project) => {
     unsubscribeStore()
-    const ignored = defaultTitles()
     const seen = new Map<string, string>()
     for (const node of useGenerationCanvasStore.getState().nodes) seen.set(node.id, resultUrl(node.result))
     unsubscribeStore = useGenerationCanvasStore.subscribe((state, previous) => {
@@ -128,7 +129,7 @@ export function initCanvasAutoReferenceBridge(): () => void {
         seen.set(node.id, url)
         if (url && referenceAssetKindForNode(node) === 'image') fresh.push(node.id)
       }
-      for (const id of fresh) applyCanvasAutoReference(id, ignored)
+      for (const id of fresh) applyCanvasAutoReference(id)
     })
   })
   return () => {

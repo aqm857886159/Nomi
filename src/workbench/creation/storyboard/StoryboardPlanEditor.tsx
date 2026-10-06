@@ -194,9 +194,9 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const ready = anchorCards
       .filter((card) => card.visual && card.resultUrl && !card.generating)
       .map((card) => ({ anchorId: card.anchor.id, name: card.anchor.name, url: card.resultUrl! }))
-    // 已经出过结果（或正在跑）的镜不切模式：切了就和它手上的结果对不上。
-    const generated = new Set(rows.filter((row) => row.exec.resultUrl || row.exec.status === 'generating').map((row) => stableShotId(row.shot)))
-    const next = autoReferencePlan(current, ready, generated)
+    // 已经出过结果、正在跑或可找回的镜整镜不动（与画布侧只改未出图节点同一条线）：改了提示词，图和词就对不上了。
+    const settled = new Set(rows.filter((row) => row.exec.resultUrl || row.exec.status === 'generating' || row.exec.status === 'recoverable').map((row) => stableShotId(row.shot)))
+    const next = autoReferencePlan(current, ready, settled)
     if (next !== current) setStoryboardPlan(next)
     // 只认出图签名与方案身份；plan / rows 走 ref 与当帧值，避免每次编辑都重跑。
     // eslint-disable-next-line react-hooks/exhaustive-deps

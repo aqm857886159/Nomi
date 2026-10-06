@@ -14,9 +14,14 @@ import { appendBinding } from '../shotRow/shotReferenceSlots'
  * 「引用它的镜」的判据：提示词的文字里出现了它的名字（与画布同一把尺）。方案里的 `anchorIds`
  * 不单独触发插入——名字不在提示词里就没有「紧跟在名字后面」这个位置，而往末尾塞是用户明确否掉的。
  *
- * 这一镜当前模式收不了参考图时（如 Agent 默认的「文生视频」）：**同一个模型**里有能收参考图的模式，
- * 且这一镜还没出过结果，就切过去（设计卡 §B 方案 A，待拍板）；否则这一镜不补。切过的模式写进账本同一条，
- * 用户切回去不会被再切一次。
+ * 只改**还没出结果、也不在跑**的镜（与画布侧只改未出图节点同一条线，2026-10-06 独立验收 V-1042）：
+ * 已经有结果的镜改了提示词，图和词就对不上了。
+ *
+ * 这一镜当前模式收不了参考图时（如 Agent 默认的「文生视频」）：**同一个模型**里有能收参考图的模式就切过去
+ * （设计卡 §B 方案 A，协调会话认可：只切一次、只在同一模型内、切之前「生成」上的报价照常显示）；否则这一镜不补。
+ * 切过的模式写进账本同一条，用户切回去不会被再切一次。
+ *
+ * 判断「名字包含」时用方案里**全部**参考卡的名字（不只出了图的那几张），见 `insertAutoMentions` 的 `knownNames`。
  */
 
 export type ReadyAnchorImage = { anchorId: string; name: string; url: string }
@@ -35,13 +40,12 @@ function takesImageReference(mode: ArchetypeMode | undefined): boolean {
 }
 
 /**
- * 这一镜放参考图的模式：当前模式收得了就是它；收不了且允许切 → 同模型里第一个收参考图、
+ * 这一镜放参考图的模式：当前模式收得了就是它；收不了 → 同模型里第一个收参考图、
  * 且除参考图之外没有别的必填槽的模式（切过去就能跑，不会把镜头切成「缺首帧」）。
  */
-function referenceMode(archetype: ModelArchetype, shot: PlanShot, mayChangeMode: boolean): ArchetypeMode | null {
+function referenceMode(archetype: ModelArchetype, shot: PlanShot): ArchetypeMode | null {
   const mode = currentMode(archetype, shot)
   if (takesImageReference(mode)) return mode ?? null
-  if (!mayChangeMode) return null
   return imageReferenceMode(archetype)
 }
 
@@ -54,16 +58,19 @@ export function imageReferenceMode(archetype: ModelArchetype | null | undefined)
     && candidate.slots.every((slot) => slot.kind === 'image_ref' || slot.min === 0)) ?? null
 }
 
-/** 一镜：补 @ + 绑参考（+ 必要时切模式）。没有变化就原样返回同一个对象。 */
-export function autoReferenceShot(shot: PlanShot, ready: readonly ReadyAnchorImage[], mayChangeMode: boolean): PlanShot {
+/**
+ * 一镜（调用方保证它还没出结果）：补 @ + 绑参考（+ 必要时切模式）。没有变化就原样返回同一个对象。
+ * `knownNames` = 方案里全部参考卡的名字。
+ */
+export function autoReferenceShot(shot: PlanShot, ready: readonly ReadyAnchorImage[], knownNames: readonly string[] = []): PlanShot {
   if (!ready.length) return shot
   const archetype = shotArchetype(shot)
   if (!archetype) return shot
-  const mode = referenceMode(archetype, shot, mayChangeMode)
+  const mode = referenceMode(archetype, shot)
   if (!mode) return shot
   const slot = mode.slots.find((candidate) => candidate.kind === 'image_ref')!
   const candidates: AutoMentionCandidate[] = ready.map((image) => ({ key: image.anchorId, name: image.name, url: image.url }))
-  const result = insertAutoMentions(shot.prompt, candidates, shot.autoReferenced ?? [])
+  const result = insertAutoMentions(shot.prompt, candidates, shot.autoReferenced ?? [], knownNames)
   let prompt = result.prompt
   let bindings = shot.referenceBindings
   const applied = new Set(result.applied)
@@ -89,18 +96,20 @@ export function autoReferenceShot(shot: PlanShot, ready: readonly ReadyAnchorIma
 }
 
 /**
- * 整份方案：参考卡出图（或方案打开）时跑一次。`generatedShotIds` = 已经出过结果的镜（`stableShotId`）——
- * 这些镜不切模式（切了就和它已有的结果对不上）。没有变化就原样返回同一个方案对象（调用方据此不写盘）。
+ * 整份方案：参考卡出图（或方案打开）时跑一次。`settledShotIds` = 已经出过结果、在跑或可找回的镜（`stableShotId`）——
+ * 这些镜**整镜不动**（提示词、参考、模式都不改）。没有变化就原样返回同一个方案对象（调用方据此不写盘）。
  */
 export function autoReferencePlan(
   plan: StoryboardPlan,
   ready: readonly ReadyAnchorImage[],
-  generatedShotIds: ReadonlySet<string> = new Set(),
+  settledShotIds: ReadonlySet<string> = new Set(),
 ): StoryboardPlan {
   if (!ready.length) return plan
+  const knownNames = plan.anchors.map((anchor) => anchor.name)
   let changed = false
   const shots = plan.shots.map((shot) => {
-    const next = autoReferenceShot(shot, ready, !generatedShotIds.has(stableShotId(shot)))
+    if (settledShotIds.has(stableShotId(shot))) return shot
+    const next = autoReferenceShot(shot, ready, knownNames)
     if (next !== shot) changed = true
     return next
   })

@@ -54,6 +54,34 @@ describe('insertAutoMentions：插在名字紧后面', () => {
   })
 })
 
+/**
+ * 名字互为前缀 × 出图状态（2026-10-06 独立验收 V-1042）：「小张」出图、「小张三」还没出图时，
+ * 只看本轮候选会把「小张三走进巷子」改成「小张@三走进巷子」。最长匹配要对**所有已知名字**做。
+ */
+describe('insertAutoMentions：前缀名字 × 出图状态（清单）', () => {
+  const PAIRS = [
+    { short: '小张', long: '小张三', prompt: '小张三走进巷子' },
+    { short: 'Lin', long: 'Lin Wei', prompt: 'Lin Wei walks into the alley' },
+    { short: 'Lin', long: 'Linwei', prompt: 'Linwei walks into the alley' },
+  ]
+  const SHORT_URL = 'nomi-local://asset/short.png'
+  const LONG_URL = 'nomi-local://asset/long.png'
+  for (const pair of PAIRS) {
+    for (const [shortReady, longReady] of [[true, false], [false, true], [true, true], [false, false]] as const) {
+      it(`${pair.short} ${shortReady ? '已' : '未'}出图 × ${pair.long} ${longReady ? '已' : '未'}出图`, () => {
+        const candidates = [
+          ...(shortReady ? [{ key: 'short', name: pair.short, url: SHORT_URL }] : []),
+          ...(longReady ? [{ key: 'long', name: pair.long, url: LONG_URL }] : []),
+        ]
+        const result = insertAutoMentions(pair.prompt, candidates, [], [pair.short, pair.long])
+        const rest = pair.prompt.slice(pair.long.length)
+        expect(result.prompt).toBe(longReady ? `${pair.long}${encodeMention(LONG_URL)}${rest}` : pair.prompt)
+        expect(mentionUrlsInOrder(result.prompt)).not.toContain(SHORT_URL)
+      })
+    }
+  }
+})
+
 describe('insertAutoMentions：用户删掉的 @ 不再补回来', () => {
   it('账本里有这个身份（之前补过）→ 不再插，哪怕名字还在、@ 已被删', () => {
     const result = insertAutoMentions('林薇冲进后巷', [{ key: 'a-linwei', name: '林薇', url: LINWEI }], ['a-linwei'])

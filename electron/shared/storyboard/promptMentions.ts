@@ -190,13 +190,18 @@ function firstNameEnd(text: string, name: string, longer: readonly string[] = []
  *   ① 这个身份之前补过（`applied` 里有）——用户手动删掉的 @ 不许被补回来；
  *   ② 提示词里已经有这张图的 @（用户自己 @ 过）——记成补过，不重复；
  *   ③ 名字没出现在提示词的文字里（只搜文字段，不搜已有标记内部）——不往末尾塞。
- * 名字出现几次只补一次，补在第一次；名字互相包含（「林薇」与「林」）时，短名字不命中长名字里的那一段。
+ * 名字出现几次只补一次，补在第一次；名字互相包含（「小张」与「小张三」）时，短名字不命中长名字里的那一段。
+ *
+ * 「更长的名字」要从 `knownNames`（这一侧**所有**已知名字：分镜 = 全部参考卡名，画布 = 全部用户起的节点标题，
+ * 不管出没出图）里找，不能只看这一轮出图的候选——2026-10-06 独立验收 V-1042：「小张」出图、「小张三」还没出图时，
+ * 只看候选会把「小张三走进巷子」改成「小张@三走进巷子」。
  * 纯函数：调用方负责把 `inserted` 那几张绑进参考框（分镜 = referenceBindings，画布 = 连边 / 上传槽）。
  */
 export function insertAutoMentions(
   prompt: string,
   candidates: readonly AutoMentionCandidate[],
   applied: readonly string[] = [],
+  knownNames: readonly string[] = [],
 ): AutoMentionResult {
   const done = new Set(applied)
   const present = new Set(mentionUrlsInOrder(prompt))
@@ -205,7 +210,7 @@ export function insertAutoMentions(
   const ordered = [...candidates]
     .filter((candidate) => candidate.name.trim() && candidate.url)
     .sort((a, b) => b.name.trim().length - a.name.trim().length)
-  const names = ordered.map((candidate) => candidate.name.trim())
+  const names = [...new Set([...ordered.map((candidate) => candidate.name), ...knownNames].map((name) => name.trim()).filter(Boolean))]
   for (const candidate of ordered) {
     if (done.has(candidate.key)) continue
     if (present.has(candidate.url)) { done.add(candidate.key); continue }

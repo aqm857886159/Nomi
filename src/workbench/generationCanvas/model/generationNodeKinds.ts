@@ -6,7 +6,7 @@ import {
   type GenerationNodePluginDefinition,
 } from '../nodes/registry'
 import type { GenerationCanvasNode } from './generationCanvasTypes'
-import i18n from '../../../i18n'
+import i18n, { SUPPORTED_LOCALES } from '../../../i18n'
 
 export { GENERATION_NODE_KINDS }
 export type { GenerationNodeExecutionKind, GenerationNodeKind }
@@ -73,8 +73,32 @@ export function getGenerationNodeLabel(kind: GenerationNodeKind): string {
   return i18n.t(`runtime.nodeRegistry.${kind}.menu` as 'runtime.nodeRegistry.text.menu')
 }
 
-export function getGenerationNodeDefaultTitle(kind: GenerationNodeKind): string {
-  return i18n.t(`runtime.nodeRegistry.${kind}.title` as 'runtime.nodeRegistry.text.title')
+/** 新建节点的默认标题（建节点工厂注入的就是它）；不给 `lng` = 当前界面语言。 */
+export function getGenerationNodeDefaultTitle(kind: GenerationNodeKind, lng?: string): string {
+  return i18n.t(`runtime.nodeRegistry.${kind}.title` as 'runtime.nodeRegistry.text.title', lng ? { lng } : undefined)
+}
+
+/**
+ * **系统给节点起的全部默认标题**（单一来源）：每种节点类型的默认标题（建节点工厂用的同一个 `getGenerationNodeDefaultTitle`
+ * 那份 i18n 键）× 每种界面语言，加上导入 / 粘贴 / 拖入入口给的默认标题（`generationCommon.defaultTitles.*`）。
+ *
+ * 用途：判断一个标题是不是**用户自己起的名字**。节点上没有「改过名」的标记，标题等于其中任何一个就当没改过名。
+ * 新增节点类型 / 新语言自动覆盖，不手抄列表（2026-10-06 独立验收 V-1042：画布自动引用把默认标题「图片」当名字，
+ * 「让这张图片动起来」被插了 @、一张无关的图进了付费请求）。
+ */
+export function generationNodeDefaultTitles(): ReadonlySet<string> {
+  const titles = new Set<string>()
+  for (const lng of SUPPORTED_LOCALES) {
+    for (const kind of GENERATION_NODE_KINDS) {
+      titles.add(getGenerationNodeDefaultTitle(kind, lng).trim())
+    }
+    const entryDefaults = i18n.t('generationCommon.defaultTitles', { lng, returnObjects: true }) as unknown
+    if (entryDefaults && typeof entryDefaults === 'object') {
+      for (const value of Object.values(entryDefaults as Record<string, unknown>)) if (typeof value === 'string') titles.add(value.trim())
+    }
+  }
+  titles.delete('')
+  return titles
 }
 
 export function getGenerationNodePromptPlaceholder(kind: GenerationNodeKind): string {
