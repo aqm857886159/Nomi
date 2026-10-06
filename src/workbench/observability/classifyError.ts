@@ -588,6 +588,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (outboundCode === 'submission-unknown') return reportFor('submission-unknown', cleanRaw, '')
   // 已生成、取回失败（#975 A2）：机器码先判，upstream 给 ''——失败在我们取回这一侧，不印「服务商原话」。
   if (outboundCode === 'output-retrieval-failed') return reportFor('output-retrieval-failed', cleanRaw, '')
+  // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
+  // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
+  // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
+  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid') {
+    return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
+  }
   // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
   // upstream 显式给 ''，与下面类型不符 / 缺文本大脑同理：这是我们自己的签名，服务商根本没被请求到。
   // 给 undefined 会从 raw 抠出「Model is retired: sora-2」，以「服务商原话：」印在退役卡正文里——

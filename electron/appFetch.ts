@@ -1,6 +1,7 @@
 import type { Dispatcher } from 'undici';
 import { getAppDispatcher } from './systemProxy';
 import { withCredentialRedirectPolicy } from './credentialRedirectPolicy';
+import { handOffToNetwork } from './outboundDispatchEvidence';
 
 // Own the implementation, not a route snapshot: later SDK global installs
 // cannot replace native Request/Response handling or the fetch implementation.
@@ -22,5 +23,7 @@ export const appFetch: typeof globalThis.fetch = async (input, init) => {
   const suppliedDispatcher = (init as RequestInit & { dispatcher?: Dispatcher } | undefined)?.dispatcher;
   const dispatcher = suppliedDispatcher ?? await getAppDispatcher(signal ?? undefined, target);
   const options: RequestInit & { dispatcher: Dispatcher } = { ...withCredentialRedirectPolicy(input, init), dispatcher };
-  return nativeFetch(input, options);
+  // 从这一行起请求可能离开本机：记进当前付费派发的那本账（不在派发里就不记）。上面取路由失败时请求还没交出去，
+  // 所以排在它后面。「哪些请求不可能花钱」与「连上之前就失败」的判据都住 outboundDispatchEvidence.ts。
+  return handOffToNetwork(input, init, () => nativeFetch(input, options));
 };
