@@ -806,12 +806,8 @@ export const zhGenerationCommon = {
     regenerate: '重新生成',
     // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
-    variantCountAria: '每次生成几个',
     expandPrompt: '展开提示词',
     collapsePrompt: '收起提示词',
-    variantCountTitle: '每次生成 {{count}} 个',
-    variantCountOption_one: '{{count}} 个',
-    variantCountOption_other: '{{count}} 个',
     generate: '生成',
     generateAsset: '生成素材',
     uploading: '上传中',
@@ -2391,13 +2387,9 @@ export const enGenerationCommon = {
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
-    variantCountAria: 'Outputs per run',
     expandPrompt: 'Expand prompt',
     collapsePrompt: 'Collapse prompt',
-    variantCountTitle: 'Generate {{count}} per run',
     // 复数走 i18n 规则，不拼串：「1 outputs」是 2026-10-01 真机截图上看到的。
-    variantCountOption_one: '{{count}} output',
-    variantCountOption_other: '{{count}} outputs',
     generate: 'Generate',
     generateAsset: 'Generate asset',
     uploading: 'Uploading',
