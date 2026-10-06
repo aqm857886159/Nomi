@@ -1,0 +1,41 @@
+# PR1014 Card 19 manifest
+
+- Source commit: 4e01e082d
+- Scope: 30 approved targets from card 18; d3-courtyard-director-zh excluded.
+- Two consecutive design-lab:update runs: 30 passed each. The 30 target SHA-256 lists are identical between runs.
+- Changed baseline PNGs (18):
+  - depth-action/depth-action-01-toolbar.png
+  - director-3dbox/d3-empty-director-zh.png
+  - process-feedback/pf-image-finalizing.png
+  - process-feedback/pf-image-generating.png
+  - process-feedback/pf-image-queued.png
+  - process-feedback/pf-image-submitting.png
+  - process-feedback/pf-late.png
+  - process-feedback/pf-preview-dark.png
+  - process-feedback/pf-preview.png
+  - process-feedback/pf-video-finalizing.png
+  - process-feedback/pf-video-generating.png
+  - process-feedback/pf-video-queued.png
+  - process-feedback/pf-video-submitting.png
+  - process-feedback/pf-zoom-60.png
+  - settings/privacy-01-idle.png
+  - settings/privacy-02-exporting.png
+  - settings/privacy-03-saved.png
+  - settings/privacy-04-failed.png
+- Unchanged baseline PNGs (12; retained explicitly and verified):
+  - canvas-frame/canvas-frame-shot-label-outside.png
+  - depth-action/depth-action-04-done.png
+  - process-feedback/pf-image-failed.png
+  - process-feedback/pf-video-failed.png
+  - storyboard/sb-row-01-draft-inherited-aspect.png
+  - storyboard/sb-row-02-aspect-override-16-9.png
+  - storyboard/sb-row-03-aspect-override-1-1.png
+  - storyboard/sb-row-05-missing-required.png
+  - storyboard/sb-row-06-generating.png
+  - storyboard/sb-row-07-failed.png
+  - storyboard/sb-row-08-done.png
+  - storyboard/sb-row-19-composer-demoted.png
+
+- Clock change is devlab-only: Date.now, performance.now and requestAnimationFrame are frozen inside process-feedback fixture.
+- calibration.json, assertions, product code and d3-courtyard-director-zh were not changed.
+- Full diff and run logs are preserved in the private Library artifact card19-card19-evidence.zip (SHA-256 de147ab499ac2cc89b4cd60332938a6b0b48e3224eceba50d2eddccd5204515a).
