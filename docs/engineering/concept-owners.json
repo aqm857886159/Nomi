@@ -3814,6 +3814,10 @@
         {
           "path": "electron/productionRun/productionRunApprovalReceipt.ts",
           "symbol": "assertCurrentProjectRevision"
+        },
+        {
+          "path": "electron/capabilityCore/generationDispatcher.ts",
+          "symbol": "requireApprovalReceipt"
         }
       ],
       "forbidden_derivations": [],
