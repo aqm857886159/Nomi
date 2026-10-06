@@ -1,0 +1,1736 @@
+<title>节点版本卡片</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* ── token 内嵌副本：值逐字抄自 src/theme/nomi-tokens.css（浅）与同文件暗色块（运行时真源 tailwind.config.ts）。
+      样张与产品同一套值；最后几个（--canvas-dot / --edge / --bracket）是样张自用的派生色，全部由 token 推出。 */
+:root {
+  color-scheme: light;
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-scrim: oklch(0.2 0.01 80 / 0.42);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.64);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 16px;
+  --nomi-duration-fast: 140ms;
+  --nomi-ease-fast: cubic-bezier(.2, .7, .3, 1);
+  --font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, "PingFang SC", "Microsoft YaHei", serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --canvas-dot: oklch(0.86 0.005 80);
+  --edge: oklch(0.78 0.01 80);
+  --bracket: oklch(0.80 0.006 80);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --nomi-bg: oklch(0.18 0.006 80);
+    --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85);
+    --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85);
+    --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-30: oklch(0.50 0.006 85);
+    --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85);
+    --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.36 0.007 80);
+    --nomi-line-soft: oklch(0.31 0.007 80);
+    --nomi-accent: oklch(0.70 0.13 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+    --nomi-info-ink: oklch(0.82 0.13 250);
+    --nomi-danger: oklch(0.72 0.13 25);
+    --nomi-danger-ink: oklch(0.82 0.13 25);
+    --nomi-danger-soft: oklch(0.3 0.048 25);
+    --nomi-success: oklch(0.72 0.09 145);
+    --nomi-warning-ink: oklch(0.82 0.085 72);
+    --nomi-warning-soft: oklch(0.295 0.04 72);
+    --nomi-warning-edge: oklch(0.395 0.058 72);
+    --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
+    --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.78);
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+    --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+    --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
+    --canvas-dot: oklch(0.34 0.006 85);
+    --edge: oklch(0.50 0.006 85);
+    --bracket: oklch(0.44 0.006 85);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.78);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
+  --canvas-dot: oklch(0.34 0.006 85);
+  --edge: oklch(0.50 0.006 85);
+  --bracket: oklch(0.44 0.006 85);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+a { color: var(--nomi-accent); }
+code { font-family: var(--font-mono); font-size: 12px; background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }
+:focus-visible { outline: 2px solid color-mix(in srgb, var(--nomi-accent) 70%, transparent); outline-offset: 2px; }
+.ic { display: block; flex: none; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+/* ── 顶栏：标题 + 三个切换 ── */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 100; background: color-mix(in srgb, var(--nomi-bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--nomi-line); }
+.topbar .in { max-width: 1360px; margin: 0 auto; padding-inline: 24px; padding-block: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; margin-right: auto; flex-wrap: wrap; }
+.brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 20px; line-height: 1.25; letter-spacing: -0.01em; }
+.pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); font-size: 12px; color: var(--nomi-ink-80); white-space: nowrap; }
+.pill.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ctl { display: flex; align-items: center; gap: 6px; }
+.ctl .lbl { font-size: 12px; color: var(--nomi-ink-60); }
+.seg { display: inline-flex; background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-sm); padding: 2px; gap: 2px; }
+.seg button { border: 0; background: transparent; font-size: 12px; font-weight: 500; color: var(--nomi-ink-60); padding: 0 10px; min-height: 26px; border-radius: 4px; cursor: pointer; white-space: nowrap; transition: background-color var(--nomi-duration-fast) var(--nomi-ease-fast), color var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.seg button:hover { color: var(--nomi-ink); }
+.seg button[aria-pressed="true"] { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); }
+.textbtn { border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: 12px; font-weight: 500; min-height: 28px; padding: 0 10px; border-radius: var(--nomi-radius-sm); cursor: pointer; white-space: nowrap; }
+.textbtn:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+
+/* ── 页面 ── */
+.wrap { max-width: 1360px; margin: 0 auto; padding-inline: 24px; }
+.page { padding-block: 16px 72px; display: grid; gap: 32px; }
+@media (max-width: 640px) { .wrap, .topbar .in { padding-inline: 16px; } }
+.intro { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px 36px; align-items: start; }
+@media (max-width: 960px) { .intro { grid-template-columns: minmax(0, 1fr); } }
+.intro p { margin: 0; max-width: 72ch; }
+.lead { color: var(--nomi-ink-80); }
+.task { margin-top: 8px !important; font-size: 13px; color: var(--nomi-ink-80); }
+.task b { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 999px; background: var(--nomi-accent-soft); color: var(--nomi-info-ink); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.quote { margin: 0; border-left: 2px solid var(--nomi-ink-20); padding: 2px 0 2px 14px; color: var(--nomi-ink-80); font-size: 13px; display: grid; gap: 6px; }
+.quote p { margin: 0; }
+.quote p.old { color: var(--nomi-ink-60); font-size: 12px; }
+.quote cite { display: block; font-style: normal; font-size: 12px; color: var(--nomi-ink-60); }
+h2.sec { font-size: 16px; font-weight: 600; line-height: 1.35; }
+.sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.sechead .note { font-size: 12px; color: var(--nomi-ink-60); }
+
+/* ── 画布舞台 ── */
+.demo { display: grid; gap: 14px; }
+.stagewrap { overflow-x: auto; border-radius: var(--nomi-radius-lg); border: 1px solid var(--nomi-line); background: var(--nomi-bg); }
+.stage { position: relative; min-width: 1100px; height: 720px; overflow: hidden; background-color: var(--nomi-bg); background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.3px); user-select: none; -webkit-user-select: none; cursor: default; outline: none; --inv: 1.25; }
+.stage.panning { cursor: grabbing; }
+.stage.alt .vmedia { cursor: copy; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+.edge.hot { stroke: var(--nomi-accent); stroke-width: 2.5; stroke-dasharray: 7 6; animation: edgeflow 0.7s linear infinite; }
+@keyframes edgeflow { to { stroke-dashoffset: -13; } }
+
+/* 节点（选中的在最上层：同产品 reactFlow/generationCanvasReactFlow.css:34-36 把选中节点抬到 z 5；内核的 elevateNodesOnSelect 在产品里是关着的） */
+.node { position: absolute; z-index: 1; }
+.node.selected { z-index: 10; }
+.nlabel { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); height: 28px; display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; }
+.nchip { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: var(--nomi-radius-sm); border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: 11px; }
+.ntitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ntag { flex: none; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--nomi-ink-05); color: var(--nomi-ink-60); font-size: 11px; }
+.stage.tiny .nlabel, .stage.tiny .vlabel { visibility: hidden; }
+.media { position: absolute; inset: 0; z-index: 2; border-radius: var(--nomi-radius); overflow: hidden; background: var(--nomi-ink-05); box-shadow: var(--nomi-shadow-md); cursor: grab; }
+.media.empty { background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px); }
+.media::after, .vmedia::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nomi-line) 80%, transparent); pointer-events: none; }
+.node.selected .media { outline: 1.5px solid var(--nomi-accent); outline-offset: 0; box-shadow: var(--nomi-shadow-lg); }
+.node.hot .media { box-shadow: 0 0 0 2.5px var(--nomi-accent), var(--nomi-shadow-lg); }
+.node.fresh .media { animation: freshring 1.4s var(--nomi-ease-fast) 1; }
+@keyframes freshring { 0% { box-shadow: 0 0 0 3px var(--nomi-accent), var(--nomi-shadow-lg); } 100% { box-shadow: var(--nomi-shadow-md); } }
+.art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.media.swap .art { animation: fadein 200ms var(--nomi-ease-fast); }
+@keyframes fadein { from { opacity: 0; } }
+.handle { position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--nomi-paper); border: 1.5px solid var(--nomi-ink-30); z-index: 3; }
+.handle.l { left: -5px; } .handle.r { right: -5px; }
+.vdur { position: absolute; left: 6px; bottom: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px 0 5px; border-radius: 999px; background: var(--nomi-overlay-chip); color: var(--nomi-media-ink); font-size: 11px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; }
+
+/* 背后叠卡边缘（照旧：CardStackPeeks 的静止 / 悬停两档变换）；铺开后叠卡「发出去」了，隐藏 */
+.rear { position: absolute; inset: 0; z-index: 0; border-radius: var(--nomi-radius-lg); border: 1px solid var(--nomi-line); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); transform-origin: left center; transition: transform 200ms ease-out, opacity var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.rear[data-i="0"] { transform: translate(11px, 4px) rotate(1.5deg); }
+.rear[data-i="1"] { transform: translate(20px, 8px) rotate(3deg); }
+.node:has(.vbadge:hover) .rear[data-i="0"], .node:has(.vbadge:focus-visible) .rear[data-i="0"] { transform: translate(18px, 3px) rotate(2.4deg); }
+.node:has(.vbadge:hover) .rear[data-i="1"], .node:has(.vbadge:focus-visible) .rear[data-i="1"] { transform: translate(34px, 8px) rotate(4.5deg); }
+.node.expanded .rear { opacity: 0; }
+.rglyph { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--nomi-ink-40); }
+
+/* 节点右侧的展开图标：层叠图标 + 数字；铺开后同一位置变「收拢」 */
+.vbadge { position: absolute; left: calc(100% + 4px); top: 16px; z-index: 9; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; min-width: 28px; justify-content: center; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-md); font-size: 11px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 150ms ease-out, background-color var(--nomi-duration-fast) var(--nomi-ease-fast), border-color var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.vbadge:hover { transform: translateY(-2px); border-color: var(--nomi-ink-20); background: var(--nomi-ink-05); }
+.vbadge[aria-expanded="true"] { padding: 0; width: 28px; background: var(--nomi-accent-soft); border-color: color-mix(in srgb, var(--nomi-accent) 45%, var(--nomi-line)); color: var(--nomi-info-ink); }
+
+/* 原地铺开的版本：画布上的一排节点卡（不是面板），跟着画布平移缩放；不挪别人、不动视口。
+   分组只靠一条细线：从图标下方拐到卡片底下（像托盘的底边）。 */
+.vgroup { position: absolute; z-index: 3; pointer-events: none; }
+.vgroup.selected { z-index: 9; }
+.stage.cover-under .vgroup:not(.selected) { z-index: 0; }
+/* 分组细线住在节点下面一层：只在空画布上看得见，碰到别的节点就被挡住，不划过别人的画面 */
+.vbracket { position: absolute; z-index: 0; pointer-events: none; border: 0 solid var(--bracket); }
+/* 遮挡规则：标签被上层的卡片 / 节点压到时先藏起来，免得两层字拼成一行；浮上来就恢复 */
+.nlabel, .vlabel { transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.node.label-hidden .nlabel, .vcard.label-hidden .vlabel { opacity: 0; }
+.vbracket.right { border-left-width: 1.5px; border-bottom-width: 1.5px; border-bottom-left-radius: 12px; }
+.vbracket.left { border-right-width: 1.5px; border-bottom-width: 1.5px; border-bottom-right-radius: 12px; }
+.vrow { position: absolute; top: -34px; pointer-events: none; display: grid; grid-template-columns: repeat(var(--cols), var(--cw)); column-gap: var(--gap); row-gap: 20px; align-items: start; }
+.vrow.right { left: calc(100% + 44px); }
+.vrow.left { right: calc(100% + 24px); direction: rtl; }
+.vrow.left > * { direction: ltr; }
+.vgroup.dealing .vcard { animation: deal 240ms var(--nomi-ease-fast) both; animation-delay: calc(var(--i) * 22ms); }
+.vgroup.dealing .vrow.left .vcard { animation-name: dealL; }
+.vbracket.dealing { animation: fadein 300ms var(--nomi-ease-fast) both; }
+@keyframes deal { from { opacity: 0; transform: translateX(-26px) scale(0.94); } }
+@keyframes dealL { from { opacity: 0; transform: translateX(26px) scale(0.94); } }
+.vcard { position: relative; width: var(--cw); display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
+.vcard:hover, .vcard:focus-within { z-index: 5; }
+.vcard.removing { animation: cardout 170ms var(--nomi-ease-fast) forwards; pointer-events: none; }
+@keyframes cardout { to { opacity: 0; transform: scale(0.9); } }
+.vcard.fresh .vmedia { animation: freshring 1.6s var(--nomi-ease-fast) 1; }
+.vlabel { height: 28px; display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; container-type: inline-size; }
+.vname .short { display: none; }
+@container (max-width: 150px) { .vname .long { display: none; } .vname .short { display: inline; } }
+.vmain { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 7px 0 5px; border-radius: 999px; background: var(--nomi-accent-soft); color: var(--nomi-info-ink); font-size: 11px; font-weight: 600; }
+.vmedia { position: relative; display: block; width: var(--cw); height: var(--ch); padding: 0; border: 0; border-radius: var(--nomi-radius); overflow: hidden; background: var(--nomi-ink-05); box-shadow: var(--nomi-shadow-md); cursor: zoom-in; transition: transform var(--nomi-duration-fast) var(--nomi-ease-fast), box-shadow var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.vcard:hover .vmedia { transform: translateY(-2px); box-shadow: var(--nomi-shadow-lg); }
+.vmedia:focus-visible { outline: 2px solid var(--nomi-accent); outline-offset: 3px; }
+.vcard.playing .vdur { opacity: 0; }
+
+/* 视频卡：悬停播放 + 底边进度条（HistoryVideoThumb 原样搬过来） */
+.vscrub { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 18px; padding: 9px 7px 5px; cursor: ew-resize; opacity: 0; transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.vcard:hover .vscrub, .vscrub:focus-visible, .vcard.playing .vscrub { opacity: 1; }
+.vscrub:focus-visible { outline: 2px solid var(--nomi-accent); outline-offset: -2px; border-radius: 4px; }
+.track { display: block; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--nomi-media-ink) 45%, transparent); overflow: hidden; box-shadow: var(--nomi-shadow-sm); }
+.fill { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--nomi-media-ink); }
+
+/* 悬停动作条：和节点浮动工具条同一套外壳（FloatingToolbarShell），反向缩放，恒定屏幕尺寸，浮在卡片上方不压画面 */
+.vbar { position: absolute; left: 50%; bottom: calc(100% + 6px); z-index: 10; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 2px 6px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); white-space: nowrap; transform: translateX(-50%) scale(var(--inv)); transform-origin: bottom center; opacity: 0; visibility: hidden; transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast), visibility var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.vbar::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 12px; }
+.vcard:hover .vbar, .vcard:focus-within .vbar { opacity: 1; visibility: visible; }
+.stage.panning .vbar, .stage.dragging .vbar { visibility: hidden; opacity: 0; }
+.tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 0; border-radius: var(--nomi-radius-sm); background: transparent; color: var(--nomi-ink-80); font-size: 13px; font-weight: 500; line-height: 1; cursor: pointer; white-space: nowrap; transition: background-color var(--nomi-duration-fast) var(--nomi-ease-fast), color var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.tb:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.tb.icon { width: 32px; padding: 0; }
+.tb.accent { color: var(--nomi-accent); font-weight: 600; }
+.tb.accent:hover { background: var(--nomi-accent-soft); color: var(--nomi-info-ink); }
+.tb.danger:hover { background: var(--nomi-danger-soft); color: var(--nomi-danger-ink); }
+.tb.done { color: var(--nomi-success); }
+.tdiv { width: 1px; height: 20px; background: var(--nomi-line); flex: none; }
+
+/* 「+N」卡、重拍位、排队中占位（同样是节点卡的样子） */
+.vtile { position: relative; display: grid; place-items: center; align-content: center; gap: 6px; width: var(--cw); height: var(--ch); padding: 0; border-radius: var(--nomi-radius); border: 1px dashed var(--nomi-ink-20); background: var(--nomi-ink-05); color: var(--nomi-ink-80); cursor: pointer; overflow: hidden; transition: background-color var(--nomi-duration-fast) var(--nomi-ease-fast), border-color var(--nomi-duration-fast) var(--nomi-ease-fast); }
+.vtile:hover { background: var(--nomi-ink-10); border-color: var(--nomi-ink-30); }
+.vtile .big { font-size: 20px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.vtile .cap { font-size: 12px; color: var(--nomi-ink-60); padding-inline: 8px; text-align: center; line-height: 1.3; }
+.peek { position: relative; width: 44%; aspect-ratio: var(--ar); }
+.peek span { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; box-shadow: var(--nomi-shadow-sm); border: 1px solid var(--nomi-line); }
+.peek span:nth-child(1) { transform: translate(12%, 6%) rotate(7deg); }
+.peek span:nth-child(2) { transform: translate(6%, 3%) rotate(3.5deg); }
+.slot { color: var(--nomi-accent); }
+.slot .cap { color: var(--nomi-ink-60); }
+.pending { position: relative; display: grid; place-items: center; align-content: center; gap: 4px; width: var(--cw); height: var(--ch); border-radius: var(--nomi-radius); background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px); color: var(--nomi-ink-60); font-size: 12px; box-shadow: inset 0 0 0 1px var(--nomi-line); }
+.pending b { font-weight: 600; color: var(--nomi-ink-80); }
+
+/* 左缘工具条（示意）与缩放条 */
+.leftdock { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 40; width: 40px; padding: 6px 0; display: grid; gap: 4px; justify-items: center; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-sm); color: var(--nomi-ink-40); }
+.leftdock i { width: 28px; height: 28px; display: grid; place-items: center; }
+.leftdock hr { width: 20px; height: 1px; border: 0; margin: 2px 0; background: var(--nomi-line); }
+.zoomdock { position: absolute; left: 12px; bottom: 12px; z-index: 40; height: 38px; display: flex; gap: 2px; align-items: center; padding: 0 4px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-sm); font-size: 12px; color: var(--nomi-ink-60); }
+.zoomdock button { width: 30px; height: 30px; border: 0; border-radius: var(--nomi-radius-sm); background: transparent; color: var(--nomi-ink-60); display: grid; place-items: center; cursor: pointer; }
+.zoomdock button:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.zval { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.zdiv { width: 1px; height: 18px; background: var(--nomi-line); margin: 0 2px; }
+
+/* 提示（撤销）：沿用通知容器规格——右上、宽 344、最多 2 条、间距 8，语义色只上图标 */
+.toasts { position: absolute; top: 12px; right: 12px; z-index: 60; width: 344px; max-width: calc(100% - 24px); display: grid; gap: 8px; pointer-events: none; }
+.toast { pointer-events: auto; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; gap: 10px; align-items: start; padding: 11px 8px 11px 14px; border-radius: var(--nomi-radius); background: var(--nomi-paper); border: 1px solid var(--nomi-line); box-shadow: var(--nomi-shadow-lg); animation: toastin 180ms var(--nomi-ease-fast); }
+@keyframes toastin { from { opacity: 0; transform: translateY(-6px); } }
+.toast.out { animation: toastout 140ms var(--nomi-ease-fast) forwards; }
+@keyframes toastout { to { opacity: 0; transform: translateY(-4px); } }
+.ticon { margin-top: 1px; color: var(--nomi-ink-60); }
+.ticon.success { color: var(--nomi-success); }
+.tmain { font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--nomi-ink); }
+.tsub { font-size: 12px; line-height: 1.45; color: var(--nomi-ink-60); }
+.tsub.down { color: var(--nomi-info-ink); }
+.tundo { align-self: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-sm); background: var(--nomi-paper); color: var(--nomi-ink); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.tundo:hover { background: var(--nomi-ink-05); }
+.tclose { align-self: center; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: var(--nomi-radius-sm); background: transparent; color: var(--nomi-ink-40); cursor: pointer; }
+.tclose:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+
+/* 预览大图（点卡片） */
+.preview { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: var(--nomi-scrim); animation: fadein 140ms var(--nomi-ease-fast); }
+.pv-panel { width: min(880px, 100%); max-height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; padding: 10px 12px 12px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); box-shadow: var(--nomi-shadow-lg); }
+.pv-head { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; min-height: 32px; }
+.pv-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--nomi-ink-80); }
+.pv-of { flex: none; color: var(--nomi-ink-60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pv-head .sp { flex: 1; }
+.pv-body { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 8px; min-height: 0; }
+.pv-media { position: relative; width: 100%; max-height: 520px; margin: 0 auto; border-radius: var(--nomi-radius); overflow: hidden; background: var(--nomi-ink-05); }
+.pv-nav { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink-80); display: grid; place-items: center; cursor: pointer; }
+.pv-nav:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.pv-nav:disabled { opacity: 0.35; cursor: default; }
+.pv-foot { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 12px; color: var(--nomi-ink-60); }
+.pv-foot .sp { flex: 1; }
+.pv-ctrl { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.pv-ctrl .track { flex: 1; cursor: ew-resize; height: 6px; background: var(--nomi-ink-10); }
+.pv-ctrl .fill { background: var(--nomi-accent); }
+.pv-time { font-variant-numeric: tabular-nums; min-width: 72px; }
+
+/* 复制拖拽的影子 */
+.ghost { position: fixed; left: 0; top: 0; z-index: 300; pointer-events: none; display: grid; gap: 6px; justify-items: start; }
+.ghost .gm { position: relative; border-radius: var(--nomi-radius); overflow: hidden; box-shadow: var(--nomi-shadow-lg); opacity: 0.9; }
+.ghost .gl { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--nomi-ink); color: var(--nomi-paper); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.ghost.bad .gm { opacity: 0.45; }
+.ghost.bad .gl { background: var(--nomi-ink-60); }
+
+.tip { position: fixed; z-index: 400; max-width: 280px; padding: 5px 9px; border-radius: var(--nomi-radius-sm); background: var(--nomi-ink); color: var(--nomi-paper); font-size: 12px; line-height: 1.4; pointer-events: none; box-shadow: var(--nomi-shadow-md); }
+
+/* ── 试试这些 ── */
+.try { display: grid; gap: 10px; }
+.try ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px 22px; }
+.try li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--nomi-ink-80); line-height: 1.5; }
+.try li::before { content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--nomi-ink-30); margin-top: 8px; }
+.try li b { color: var(--nomi-ink); font-weight: 600; }
+.gobtn { flex: none; margin-left: auto; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-accent); font-size: 12px; font-weight: 500; min-height: 24px; padding: 0 8px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.gobtn:hover { background: var(--nomi-accent-soft); }
+
+/* ── 说明区 ── */
+.notes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px; align-items: start; }
+@media (max-width: 1020px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.tablewrap { overflow-x: auto; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--nomi-line-soft); line-height: 1.5; }
+th { font-size: 12px; font-weight: 600; color: var(--nomi-ink-60); background: var(--nomi-ink-05); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { color: var(--nomi-ink-80); width: 36%; }
+.lv { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--nomi-line); font-size: 11px; color: var(--nomi-ink-60); white-space: nowrap; }
+.gone { margin: 10px 0 0; font-size: 12px; color: var(--nomi-ink-60); max-width: 72ch; }
+.finds { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.finds li { display: block; font-size: 13px; line-height: 1.6; color: var(--nomi-ink-80); max-width: 78ch; }
+.finds li b { display: block; margin-bottom: 2px; color: var(--nomi-ink); font-weight: 600; }
+.finds .grp { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nomi-ink-60); margin-top: 6px; }
+.qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.q { display: grid; gap: 8px; align-content: start; padding: 14px 16px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); }
+.q h3 { font-size: 14px; font-weight: 600; line-height: 1.4; }
+.q p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--nomi-ink-80); }
+.q .rec { color: var(--nomi-ink); }
+.q .rec b { color: var(--nomi-info-ink); }
+.q .cost { color: var(--nomi-ink-60); }
+.q .seg { justify-self: start; margin-top: 2px; }
+.foot { font-size: 12px; color: var(--nomi-ink-60); display: grid; gap: 4px; border-top: 1px solid var(--nomi-line); padding-top: 14px; }
+.foot p { margin: 0; max-width: 90ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+  .edge.hot { stroke-dasharray: none; }
+}
+</style>
+
+<header class="topbar">
+  <div class="in">
+    <div class="brand">
+      <h1 data-t="doc.title">节点版本卡片</h1>
+      <span class="pill warn" data-t="doc.status">样张 · 待拍板</span>
+    </div>
+    <div class="controls">
+      <div class="ctl"><span class="lbl" data-t="ui.theme">主题</span><div class="seg" data-ctl="theme"><button type="button" id="ctl-theme-dark" data-val="dark" data-t="ui.dark">暗</button><button type="button" id="ctl-theme-light" data-val="light" data-t="ui.light">亮</button></div></div>
+      <div class="ctl"><span class="lbl" data-t="ui.lang">语言</span><div class="seg" data-ctl="lang"><button type="button" id="ctl-lang-zh" data-val="zh">中</button><button type="button" id="ctl-lang-en" data-val="en">EN</button></div></div>
+      <div class="ctl"><span class="lbl" data-t="ui.size">卡片</span><div class="seg" data-ctl="size"><button type="button" id="ctl-size-node" data-val="node" data-t="ui.sizeNode">同节点大小</button><button type="button" id="ctl-size-compact" data-val="compact" data-t="ui.sizeCompact">紧凑</button></div></div>
+      <button type="button" class="textbtn" id="resetBtn" data-t="ui.reset">重置样张</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap page">
+  <section class="intro">
+    <div>
+      <p class="lead" data-t="intro.lead"></p>
+      <p class="task"><b data-t="intro.taskLabel"></b><span data-t="intro.task"></span></p>
+    </div>
+    <blockquote class="quote">
+      <p data-t="intro.quote"></p>
+      <p class="old" data-t="intro.quote2"></p>
+      <cite data-t="intro.cite"></cite>
+    </blockquote>
+  </section>
+
+  <section class="demo" aria-label="样张">
+    <div class="stagewrap">
+      <div class="stage" id="stage" tabindex="-1">
+        <div class="world" id="world"><svg class="edges" id="edges" aria-hidden="true"></svg></div>
+        <div class="leftdock" id="leftdock" aria-hidden="true"></div>
+        <div class="zoomdock" id="zoomdock" role="group">
+          <button type="button" id="zoomOut" data-zoom="out"></button>
+          <span class="zval" id="zval">80%</span>
+          <button type="button" id="zoomIn" data-zoom="in"></button>
+          <span class="zdiv" aria-hidden="true"></span>
+          <button type="button" id="zoomReset" data-zoom="reset"></button>
+        </div>
+        <div class="toasts" id="toasts" aria-live="polite"></div>
+        <div class="preview" id="preview" hidden></div>
+      </div>
+    </div>
+
+    <div class="try">
+      <div class="sechead"><h2 class="sec" data-t="try.title"></h2><span class="note" data-t="try.note"></span></div>
+      <ul id="trylist"></ul>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <div class="sechead"><h2 class="sec" data-t="map.title"></h2></div>
+      <div data-lang="zh">
+        <div class="tablewrap"><table>
+          <thead><tr><th>旧小窗里</th><th>现在的家</th></tr></thead>
+          <tbody>
+            <tr><td>看缩略图</td><td>原地铺开的版本卡本身<span class="lv">L2 点开</span></td></tr>
+            <tr><td>点一行＝设为当前版本</td><td>悬停版本卡 → 主按钮「设为主图」<span class="lv">L2 悬停</span>；点卡片改成预览，不会误改主图</td></tr>
+            <tr><td>眼睛＝预览大图</td><td>点卡片<span class="lv">L2</span>；预览里 ← → 翻版本（加速器）</td></tr>
+            <tr><td>下载这一版</td><td>悬停条 · 下载图标<span class="lv">L2 悬停</span></td></tr>
+            <tr><td>删除 + 确认框</td><td>悬停条 · 删除图标，贴右<span class="lv">L2 悬停</span>；不弹框，提示里「撤销」</td></tr>
+            <tr><td>重拍这镜（小窗头部，仅制作镜头）</td><td>悬停条 · 重拍图标<span class="lv">L2 悬停</span>（照方向；另一种放法见疑问 3）</td></tr>
+            <tr><td>视频悬停播放、拖进度、方向键微调</td><td>视频卡上原样保留<span class="lv">L2 悬停</span></td></tr>
+            <tr><td>按住 Alt 拖出＝复制成素材卡</td><td>版本卡上原样保留<span class="lv">加速器</span>；卡片悬停提示里写出来</td></tr>
+            <tr><td>再显示 12 个</td><td>先铺 8 张，更早的收成「+N」卡，点一下在下面换行铺开<span class="lv">L3</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="gone"><b>删掉的：</b>浮动小窗本身（标题「结果版本 · N 版」、外框、点别处就关的行为）、每行的「图片 / 视频」类型字、行内眼睛按钮（点卡片本身就是预览）、缩略图上的蓝色对勾（改成卡片标签行里的「主图」）。</p>
+      </div>
+      <div data-lang="en" hidden>
+        <div class="tablewrap"><table>
+          <thead><tr><th>In the old side window</th><th>Where it lives now</th></tr></thead>
+          <tbody>
+            <tr><td>See thumbnails</td><td>The version cards laid out in place<span class="lv">L2 open</span></td></tr>
+            <tr><td>Click a row = make it current</td><td>Hover a version card → primary button “Make primary”<span class="lv">L2 hover</span>; clicking the card now previews, so it can’t switch by accident</td></tr>
+            <tr><td>Eye = large preview</td><td>Click the card<span class="lv">L2</span>; ← → flips versions inside the preview</td></tr>
+            <tr><td>Download this version</td><td>Hover bar · download icon<span class="lv">L2 hover</span></td></tr>
+            <tr><td>Delete + confirm dialog</td><td>Hover bar · delete icon, right edge<span class="lv">L2 hover</span>; no dialog, Undo in the notice</td></tr>
+            <tr><td>Re-film shot (window header, production shots only)</td><td>Hover bar · re-film icon<span class="lv">L2 hover</span> (as directed; alternative in question 3)</td></tr>
+            <tr><td>Video hover-play, scrub, arrow-key nudge</td><td>Kept on video cards<span class="lv">L2 hover</span></td></tr>
+            <tr><td>Alt-drag = copy as an asset card</td><td>Kept on version cards<span class="lv">accelerator</span>; now spelled out in the card tooltip</td></tr>
+            <tr><td>Show 12 more</td><td>First 8 laid out, older ones fold into a “+N” card that wraps into a second row<span class="lv">L3</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="gone"><b>Removed:</b> the floating window itself (its “Result versions · N” title, frame, and closing when you click elsewhere), the per-row “Image / Video” text, the per-row eye button (the card itself previews), and the blue check on the thumbnail (now “Primary” in the card’s label row).</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="sechead"><h2 class="sec" data-t="finds.title"></h2></div>
+      <ul class="finds" data-lang="zh">
+        <li class="grp">方向里写了，这里说清它解决什么</li>
+        <li><b>原地铺开、一直留着、可以同时开好几个</b>旧小窗是临时浮层，一点别处就关，挑版本时没法顺手去改别的节点。现在铺开是画布上的一种摆放状态，跟编组折叠一样由你开关：点空白、按 Esc、去操作别的节点都不收，只有再点那个图标才收。</li>
+        <li><b>绝不挪别的节点、不动视口</b>铺开只在原节点旁边加卡片；右边放不下往左。位置不够时卡片会盖到邻居上（怎么盖见疑问 1），但不会把邻居推走，也不会自己平移画布（09-25 拍板）。</li>
+        <li><b>先铺 8 张，更早的收成「+N」；点开后换行成第二排</b>12 版一排要两千多像素宽。为什么点开后换行、不接着往右：第一排已经是屏幕上看得到的宽度，往右加只会伸出屏外，而程序不许替你挪画布；往下换行留在同一宽度里，读序仍是从新到旧。</li>
+        <li><b>设为主图后，提示里写明下游几个节点</b>换主图会改掉下游节点拿到的输入，现在悄悄发生；画布上也没有「参考已变」标记（只有分镜表有，<code>storyboardRowStatus.ts:77</code>）。提示写「下次生成会用它」，免得被读成下游会自动重跑、自动花钱——它不会。</li>
+        <li><b>删除不弹框，提示里撤销</b>每删一张少点一次确认。但现在删除会当场删掉盘上的文件（<code>deleteAssetResult.ts:117-122</code>）；要能撤销，实现时得把真删文件推迟到提示消失以后。这是数据层的改动，不只是换个界面。</li>
+        <li class="grp">我另外发现的</li>
+        <li><b>分组只靠一条细线</b>去掉外框以后，版本卡和节点长得一样，容易被当成「多出来 5 个节点」。样张用一条 1.5px 的细线，从展开图标下方拐到卡片底下，像托盘的底边；它住在节点下面一层，碰到别的节点就被挡住，不会划过别人的画面。</li>
+        <li><b>被压住的标题先藏起来（我补的）</b>版本卡盖在邻居上时，邻居的标题文字会从卡片标签的空隙里漏出来，和「第 N 版」拼成一行，读起来像出错了。样张的规则：谁在下面、标题又被压到，谁的标题先藏；点中它浮上来就恢复。实现时拿节点和版本卡的矩形求交就行（都在画布坐标里）。</li>
+        <li><b>铺开着也要能接着生成</b>现在展开版本时，节点自己的工具条、生成浮框、拖进时间轴把手都会被卸掉（<code>BaseGenerationNode.tsx:197,222,295</code>）——那是给临时小窗用的。铺开变成持久状态后必须去掉这条限制，否则铺着就没法生成下一版。</li>
+        <li><b>版本卡没有连线把手</b>长得像节点但不是节点：不能连线、不能单独跑生成。去掉左右把手，就是在视觉上说「这不是完整节点」。要拿某一版当下游参考：Alt 拖出一张独立素材卡再连。</li>
+        <li><b>拖版本卡＝拖整组</b>卡片属于节点，拖它就是拖节点（和它的版本一起走）；Alt 拖＝复制出来，和设计软件里「Alt 拖复制」同一个手势。</li>
+        <li><b>铺开状态要存进项目</b>和编组折叠一样按节点记住（我的默认）：关掉项目再打开还铺着。否则「持久」只持续到切页。</li>
+        <li><b>「同节点大小」很占地方</b>80% 缩放下 1:1 节点宽 240：同尺寸 5 张一排约 1010 屏幕像素；开着 Agent 面板时画布可见宽只有约 810（before 截图实量）。铺开又是常驻的，同尺寸会把同一排的邻居盖得只剩 5%～16%。「紧凑」（半宽半高）面积只有四分之一，5 张约 520，邻居露 20%～100%。见疑问 2。</li>
+        <li><b>「第 N 版」编号会漂</b>现在的编号是列表下标（<code>NodeResultStack.tsx:517</code>），列表又是最新在前（<code>nodeRunOutcome.ts:24-41</code>）：每出一版新的，所有旧版号 +1；删一版，后面的都 −1。样张改成号跟着版本走（1＝最早），删了留空号；最新一张紧挨节点，「+N」收的是最早的几版。</li>
+        <li><b>删主图会自动顶一个新主图</b>删掉当前版本时，剩下最新的一版自动成为主图（<code>nodeResultLifecycle.ts:77-81</code>），下游也跟着换。样张的删除提示写明「第 N 版成为主图」和下游个数。</li>
+        <li><b>层叠图标撞车</b><code>IconStack2</code> 在画布上已经是「编组」（<code>CollapsedGroupCard.tsx:78</code>、<code>GroupFrameHeader.tsx:218</code>），拿来当版本图标会被读成一个组。样张用 Tabler 的 <code>IconVersions</code>（名字就叫版本），收起用已登记的 <code>IconArrowsDiagonalMinimize2</code>（原地收拢）；实现时要进 <code>src/vendor/tablerIcons.ts</code> 并在设计系统 §6 登记。</li>
+        <li><b>「重拍这镜」是整镜动作，而且花钱</b>它只带镜头号、不带版本（<code>NodeResultStack.tsx:392</code>）；放进每张卡的悬停条，会被读成「按这一版重拍」，挨着下载也容易误点。见疑问 3。</li>
+        <li><b>新生成的版本自动变主图</b>每次生成完，新结果直接顶成主图（<code>nodeRunOutcome.ts:24-41</code>），下游一样悄悄换。这是现状，样张照画（重拍出的新版会自动带「主图」），要不要改归下一刀。</li>
+        <li><b>视频节点也叫「主图」</b>按用户原话只留一个词；中文里「主图视频」本来就常用。英文统一 Primary。</li>
+        <li><b>预览里暂不放「设为主图」</b>照「一功能一个家」，设主图只住悬停条。放大看完想当场定，是个真需求；要加得在 §1.5 登记例外。</li>
+        <li><b>竞品证据是空白</b>LibTV 做的是画布级全局「历史记录」（<code>libtv-full-feature-by-feature-comparison.md:51</code>），节点级版本怎么摆我们没调研过（<code>libtv-design-notes.md:142</code> 列为持续观察）。卡片解剖借 AI Elements Artifact（头＝标题＋动作，内容是纯媒体不被盖）和 Beautiful UI Selection Actions（动作条浮在目标上方）。</li>
+      </ul>
+      <ul class="finds" data-lang="en" hidden>
+        <li class="grp">In the direction — what each one solves</li>
+        <li><b>Lay out in place, stay open, several at once</b>The old window was a transient overlay that closed on any outside click, so you couldn’t touch another node while choosing. Now “laid out” is a canvas state you switch, like collapsing a group: clicking empty canvas, pressing Esc or working on other nodes never folds it; only the icon does.</li>
+        <li><b>Never move other nodes or the viewport</b>Cards are added beside the node, flipping left when the right side has no room. When space runs out they overlap neighbours (how, see question 1) but never push them away, and the app never pans for you (decided 09-25).</li>
+        <li><b>First 8, older ones fold into “+N”; expanding wraps to a second row</b>Twelve versions in one row is over 2,000 px. Why wrap instead of continuing right: the first row is already as wide as what’s on screen; adding to the right only runs off screen, and the app may not pan. Wrapping keeps the same width, and reading order is still newest to oldest.</li>
+        <li><b>The primary notice names downstream nodes</b>Switching the primary changes what downstream nodes receive, silently today, and the canvas has no “reference changed” marker (only the storyboard table has one, <code>storyboardRowStatus.ts:77</code>). “Will use it next time they generate” keeps it from reading as an automatic, paid re-run, which it isn’t.</li>
+        <li><b>Delete without a dialog, Undo in the notice</b>One click less per delete. But delete currently removes the file on disk immediately (<code>deleteAssetResult.ts:117-122</code>); to undo, the real deletion has to wait until the notice expires. That’s a data-layer change, not a UI swap.</li>
+        <li class="grp">What I found on top</li>
+        <li><b>Grouping by one thin line</b>Without a frame, version cards look like nodes and read as “five new nodes”. A single 1.5 px line runs from under the expand icon and turns under the cards, like the lip of a tray. It sits one layer below nodes, so it disappears behind any node it crosses instead of striking through its image.</li>
+        <li><b>Covered titles hide (my addition)</b>When cards cover a neighbour, its title leaks through the gaps between card labels and merges with “Version N” into one line that looks broken. The rule: whoever is underneath and has its label covered hides that label; it returns when the node is clicked and comes to the top. Implementation is a rectangle intersection between nodes and version cards, all in canvas coordinates.</li>
+        <li><b>Laid-out nodes must still generate</b>Today, opening versions unmounts the node’s toolbar, composer and timeline handle (<code>BaseGenerationNode.tsx:197,222,295</code>), which made sense for a transient window. With a persistent layout that rule has to go, or you can’t generate the next version while versions are out.</li>
+        <li><b>Version cards have no connection handles</b>They look like nodes but aren’t: no links, no separate generation. Dropping the side handles says so visually. To use a version downstream, Alt-drag it out as an asset card and connect that.</li>
+        <li><b>Dragging a version card drags the group</b>The card belongs to the node, so dragging it moves the node with its versions; Alt-drag copies it out, the same gesture as Alt-drag-to-duplicate in design tools.</li>
+        <li><b>The laid-out state should be saved in the project</b>Remembered per node like group collapse (my default), so it survives closing and reopening; otherwise “persistent” only lasts until you switch pages.</li>
+        <li><b>“Node size” takes a lot of room</b>At 80% zoom a 1:1 node is 240 wide: five node-size cards take about 1,010 screen px, while the canvas is about 810 px wide with the Agent panel open (measured on the before screenshot). Since rows now stay open, node-size cards leave same-row neighbours only 5–16% visible. Compact (half width, half height) is a quarter of the area: about 520 px for five, neighbours 20–100% visible. See question 2.</li>
+        <li><b>“Version N” numbers drift</b>Today the number is the list index (<code>NodeResultStack.tsx:517</code>) and the list is newest-first (<code>nodeRunOutcome.ts:24-41</code>): every new version bumps older numbers by one, every delete shifts them back. The mockup ties numbers to versions (1 = oldest, gaps stay after deletes); the newest sits next to the node and “+N” holds the oldest.</li>
+        <li><b>Deleting the primary silently promotes another</b>The newest remaining version becomes primary (<code>nodeResultLifecycle.ts:77-81</code>) and downstream follows. The delete notice now says which version became primary and how many downstream nodes are affected.</li>
+        <li><b>Stack icon collision</b><code>IconStack2</code> already means “group” on the canvas (<code>CollapsedGroupCard.tsx:78</code>, <code>GroupFrameHeader.tsx:218</code>). The mockup uses Tabler’s <code>IconVersions</code>, and folds with the registered <code>IconArrowsDiagonalMinimize2</code>; both need <code>src/vendor/tablerIcons.ts</code> and a §6 entry.</li>
+        <li><b>“Re-film shot” acts on the whole shot and costs money</b>It carries the shot, not a version (<code>NodeResultStack.tsx:392</code>). On every card’s hover bar it reads as “re-film from this version”, one slip away from Download. See question 3.</li>
+        <li><b>New versions become primary automatically</b>Each finished generation replaces the primary (<code>nodeRunOutcome.ts:24-41</code>), so downstream changes quietly there too. That’s today’s behaviour and the mockup follows it; changing it belongs to a later cut.</li>
+        <li><b>Video nodes also say “Primary”</b>One word, as the user put it; in Chinese “主图视频” is already common usage.</li>
+        <li><b>No “Make primary” inside the preview (yet)</b>Per “one home per action”, it lives on the hover bar only. Deciding right after a close look is a real need; adding it means registering an exception in §1.5.</li>
+        <li><b>No competitor evidence</b>LibTV has a canvas-wide history list (<code>libtv-full-feature-by-feature-comparison.md:51</code>); how anyone lays out per-node versions was never researched (<code>libtv-design-notes.md:142</code>). Card anatomy borrows AI Elements Artifact (header = title + actions, media never covered) and Beautiful UI Selection Actions (action bar floats above the target).</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="qs">
+    <div class="sechead"><h2 class="sec" data-t="qs.title"></h2><span class="note" data-t="qs.note"></span></div>
+    <div class="qgrid">
+      <article class="q">
+        <h3 data-t="q1.h"></h3>
+        <p class="rec" data-t-html="q1.rec"></p>
+        <p data-t="q1.why"></p>
+        <p class="cost" data-t="q1.cost"></p>
+        <div class="seg" data-ctl="cover"><button type="button" id="q1-over" data-val="over" data-t="q1.over"></button><button type="button" id="q1-under" data-val="under" data-t="q1.under"></button></div>
+      </article>
+      <article class="q">
+        <h3 data-t="q2.h"></h3>
+        <p class="rec" data-t-html="q2.rec"></p>
+        <p data-t="q2.why"></p>
+        <p class="cost" data-t="q2.cost"></p>
+        <div class="seg" data-ctl="size"><button type="button" id="q2-node" data-val="node" data-t="ui.sizeNode"></button><button type="button" id="q2-compact" data-val="compact" data-t="ui.sizeCompact"></button></div>
+      </article>
+      <article class="q">
+        <h3 data-t="q3.h"></h3>
+        <p class="rec" data-t-html="q3.rec"></p>
+        <p data-t="q3.why"></p>
+        <p class="cost" data-t="q3.cost"></p>
+        <div class="seg" data-ctl="rerun"><button type="button" id="q3-bar" data-val="bar" data-t="q3.bar"></button><button type="button" id="q3-slot" data-val="slot" data-t="q3.slot"></button></div>
+      </article>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p data-t="foot.a"></p>
+    <p data-t="foot.b"></p>
+  </footer>
+</main>
+
+<div class="ghost" id="ghost" hidden></div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script>
+(() => {
+'use strict'
+
+/* ───────── 图标：Tabler outline 原始路径（@tabler/icons-react 同源），stroke 取设计系统 §6 ───────── */
+const ICON = {
+  versions: '<path d="M10 7a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -10"/><path d="M7 7l0 10"/><path d="M4 8l0 8"/>',
+  collapse: '<path d="M18 10h-4v-4"/><path d="M20 4l-6 6"/><path d="M6 14h4v4"/><path d="M10 14l-6 6"/>',
+  check: '<path d="M5 12l5 5l10 -10"/>',
+  circleCheck: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/>',
+  download: '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/>',
+  trash: '<path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/>',
+  refresh: '<path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>',
+  x: '<path d="M18 6l-12 12"/><path d="M6 6l12 12"/>',
+  minus: '<path d="M5 12l14 0"/>',
+  plus: '<path d="M12 5l0 14"/><path d="M5 12l14 0"/>',
+  focus: '<path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/>',
+  photo: '<path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/>',
+  movie: '<path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/><path d="M4 8l4 0"/><path d="M4 16l4 0"/><path d="M4 12l16 0"/><path d="M16 8l4 0"/><path d="M16 16l4 0"/>',
+  wave: '<path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.45 -.749 -6 -2.749 -6s-2.5 3.582 -2.5 8s-.5 8 -2.5 8s-2.452 -2.547 -2.749 -6c-.1 -1.147 -.867 -2 -1.763 -2h-2"/>',
+  scissors: '<path d="M3 7a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M3 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/>',
+  upload: '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/>',
+  chevronLeft: '<path d="M15 6l-6 6l6 6"/>',
+  chevronRight: '<path d="M9 6l6 6l-6 6"/>',
+  copyPlus: '<path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666"/><path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/><path d="M11 14h6"/><path d="M14 11v6"/>',
+  play: '<path d="M6 4v16a1 1 0 0 0 1.524 .852l13 -8a1 1 0 0 0 0 -1.704l-13 -8a1 1 0 0 0 -1.524 .852z"/>',
+  pause: '<path d="M9 4h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"/><path d="M17 4h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"/>',
+}
+function ic(name, size = 16, stroke = 1.6) {
+  const filled = name === 'play' || name === 'pause'
+  const paint = filled ? 'fill="currentColor" stroke="none"' : `fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"`
+  return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" ${paint} aria-hidden="true">${ICON[name]}</svg>`
+}
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
+
+/* ───────── 文案（zh / en）───────── */
+const I18N = {
+  zh: {
+    'doc.title': '节点版本卡片', 'doc.status': '样张 · 待拍板',
+    'ui.theme': '主题', 'ui.dark': '暗', 'ui.light': '亮', 'ui.lang': '语言', 'ui.size': '卡片', 'ui.sizeNode': '同节点大小', 'ui.sizeCompact': '紧凑', 'ui.reset': '重置样张',
+    'intro.lead': '一个节点反复生成，会攒下好几版。现在挑版本要打开节点右边的小窗，在一列小缩略图里点来点去，点别处小窗就关。这版改成：点节点右侧的层叠图标，版本就在原地铺成一排卡片，一直留在画布上，你照样去处理别的节点；再点一下图标才收起。',
+    'intro.taskLabel': '任务卡',
+    'intro.task': '反复出图的创作者，在挑版本的那一刻：把几版铺开、定一张主图、删掉废片；铺开的可以留着对照，接着去处理别的节点。',
+    'intro.quote': '「是不是可以原地展开：比如右侧有一个 icon，点展开，就原地铺开几个节点，然后我也可以处理其他的。」',
+    'intro.quote2': '更早：「直接把所有版本展开收起成为卡片那样的设计，更方便简洁……那个『设为主图』得留下。」',
+    'intro.cite': '用户 · 2026-09-27～28',
+    'stage.aria': '画布样张', 'dock.aria': '画布左侧工具（示意）',
+    'zoom.group': '缩放', 'zoom.out': '缩小', 'zoom.in': '放大', 'zoom.reset': '回到默认视角',
+    'badge.open': '{n} 个版本 · 原地铺开', 'badge.close': '收起这 {n} 版',
+    'v.long': '第 {n} 版', 'v.short': '第 {n} 版', 'v.main': '主图',
+    'v.preview': '预览第 {n} 版', 'v.tip': '点开预览 · 拖动＝拖整组 · 按住 Alt 拖出＝复制成素材卡',
+    'row.aria': '{title} 的 {n} 个版本',
+    'bar.aria': '第 {n} 版的操作', 'bar.setMain': '设为主图', 'bar.download': '下载这一版', 'bar.downloaded': '已下载（样张示意）', 'bar.delete': '删除', 'bar.rerun': '重拍这镜',
+    'more.label': '更早', 'more.cap': '更早的 {n} 版', 'more.aria': '再铺开更早的 {n} 版',
+    'slot.label': '下一版', 'slot.title': '重拍这镜', 'slot.cap': '新版本落在这里',
+    'pending.queued': '排队中', 'pending.running': '生成中',
+    'toast.setMain': '已设为主图 · 第 {n} 版', 'toast.down': '下游 {n} 个节点下次生成会用它',
+    'toast.deleted': '已删除第 {n} 版', 'toast.promoted': '第 {n} 版成为主图',
+    'toast.undo': '撤销', 'toast.close': '关闭',
+    'pv.aria': '预览：{title} 第 {n} 版', 'pv.of': '第 {n} 版 · 共 {total} 版', 'pv.hint': '← → 切换版本 · Esc 关闭', 'pv.close': '关闭', 'pv.prev': '上一张', 'pv.next': '下一张', 'pv.play': '播放', 'pv.pause': '暂停',
+    'video.progress': '视频进度', 'video.value': '{c} / {d} 秒',
+    'asset.chip': '素材', 'asset.title': '{title} · 第 {n} 版',
+    'drop.ok': '松手＝复制成素材卡', 'drop.no': '拖到画布空白处',
+    'try.title': '试试这些', 'try.note': '样张里的素材、生成、下载都是示意；不改任何产品代码。',
+    'try.go': '去看',
+    'try.1': '<b>点节点右侧的层叠图标</b>：版本在原地铺成一排卡片。只有再点同一个图标才收起——点空白、按 Esc、去点别的节点都不会收。',
+    'try.2': '<b>悬停任一版本卡</b>：上方出「设为主图 / 下载 / 删除」。点卡片本身是大图预览，不会改主图。',
+    'try.3': '<b>同时铺开好几个</b>：再铺开「镜头 1」，然后去点、去拖「镜头 2」——两排都还在；被盖住的节点一点就浮到最上面。',
+    'try.4': '<b>「场景 · 雨巷」设主图</b>：它连着 3 个下游节点，提示里写明会用新主图，连线同时亮一下。',
+    'try.5': '<b>「角色 · 林雾」有 12 版</b>：先铺 8 张，点「+4」在下面换行铺开更早的。',
+    'try.6': '<b>「镜头 5 · 街角回望」贴着右边</b>：右边放不下，往左铺。',
+    'try.7': '<b>「镜头 3 · 雨中奔跑」是制作镜头</b>：悬停条多一个「重拍这镜」。',
+    'try.8': '<b>视频卡</b>：悬停就播，拖底边进度条；Tab 聚焦进度条后 ← → 一次挪 1 秒。',
+    'try.9': '<b>拖版本卡＝拖整组</b>（节点和它的版本一起走）；<b>按住 Alt 拖到空白处</b>＝复制成独立素材卡。',
+    'try.10': '<b>删除后点「撤销」</b>，或按 Ctrl / ⌘ + Z：卡片回到原位，主图也回来。',
+    'map.title': '旧小窗做的事，现在都在哪',
+    'finds.title': '你可能漏的',
+    'qs.title': '疑问（3 条，都能在样张里切换对比）', 'qs.note': '样张默认做的是推荐方案 / 协调方向；推荐项写在每条第一行。',
+    'q1.h': '1 · 铺开的卡片盖住邻居节点时怎么办？', 'q1.rec': '推荐：<b>盖在上面</b>；被盖住的邻居露出来的部分照样能点，点中它就浮到最上面；它的标题被压住时先藏起来，免得叠字。',
+    'q1.why': '不许挪人、不许动视口，挤的地方只能叠；「选中的在最上」是画布本来的规则。「卡片自动收紧」在挤的画布上不成立：样张里「镜头 1」右边空隙只有 120，一张紧凑卡都放不下。它要和疑问 2 一起定：同节点大小时，同一排的邻居只露出 5%～16%（样张实测），几乎点不到；紧凑时露 20%～100%。',
+    'q1.cost': '另一种：不选中时垫在下面——你去处理别的节点，铺开的就沉到邻居下面，邻居永远完整；代价是回来找版本时有的被挡住，要先点一下它的节点。',
+    'q1.over': '盖在上面（推荐）', 'q1.under': '不选中时垫下面',
+    'q2.h': '2 · 版本卡默认多大？', 'q2.rec': '推荐：<b>紧凑</b>（节点的一半宽、一半高）。',
+    'q2.why': '铺开现在是常驻的，卡片会长期占着画布。80% 缩放下同节点大小 5 张一排约 1010 屏幕像素（开着 Agent 面板时画布只有约 810），还会把同一排的邻居盖得只剩 5%～16%；紧凑面积是四分之一，5 张约 520。看细节交给点开预览。',
+    'q2.cost': '代价：卡片小，比细节要多点一下。样张默认按之前的方向用「同节点大小」。',
+    'q3.h': '3 · 「重拍这镜」放哪？', 'q3.rec': '推荐：<b>整排只放一张「重拍这镜」卡</b>，放在新版本会出现的位置（紧挨节点）。',
+    'q3.why': '重拍是整镜动作、要花钱；放进每张卡的悬停条既重复 N 次，又像「按这一版重拍」，还挨着下载。',
+    'q3.cost': '代价：和协调方向不同，排里多一张卡。样张默认按方向画在悬停条里。',
+    'q3.bar': '悬停条（方向）', 'q3.slot': '排头一张',
+    'foot.a': '源文件：docs/design/mockups/2026-09-28-version-cards/（README.md 有任务卡、控件层级表、删除清单与实现提示）。',
+    'foot.b': '图标全部是 Tabler outline 原路径；颜色、字号、圆角、间距只用 Nomi token；画面是渐变与几何占位，不是产品素材。',
+  },
+  en: {
+    'doc.title': 'Node version cards', 'doc.status': 'Mockup · awaiting sign-off',
+    'ui.theme': 'Theme', 'ui.dark': 'Dark', 'ui.light': 'Light', 'ui.lang': 'Language', 'ui.size': 'Cards', 'ui.sizeNode': 'Node size', 'ui.sizeCompact': 'Compact', 'ui.reset': 'Reset',
+    'intro.lead': 'A node you keep regenerating piles up versions. Today you open a small window beside the node, click through a column of thumbnails, and it closes as soon as you click elsewhere. Here, the stack icon on the node’s right lays the versions out in place as a row of cards that stays on the canvas while you work on other nodes; click the icon again to fold them.',
+    'intro.taskLabel': 'Task card',
+    'intro.task': 'A creator iterating on a shot, at the moment of choosing: lay the versions out, pick the primary, delete the misses; leave them out for comparison and move on to other nodes.',
+    'intro.quote': '“Could it expand in place: an icon on the right, click it, a few nodes spread out right there, and I can keep working on other things.”',
+    'intro.quote2': 'Earlier: “Lay all the versions out as cards you can open and fold, simpler… and keep ‘Set as primary’.”',
+    'intro.cite': 'User · 2026-09-27–28 (translated)',
+    'stage.aria': 'Canvas mockup', 'dock.aria': 'Canvas tools (decorative)',
+    'zoom.group': 'Zoom', 'zoom.out': 'Zoom out', 'zoom.in': 'Zoom in', 'zoom.reset': 'Back to default view',
+    'badge.open': '{n} versions · lay out in place', 'badge.close': 'Fold these {n} versions',
+    'v.long': 'Version {n}', 'v.short': 'v{n}', 'v.main': 'Primary',
+    'v.preview': 'Preview version {n}', 'v.tip': 'Click to preview · drag moves the group · Alt-drag copies as an asset card',
+    'row.aria': '{n} versions of {title}',
+    'bar.aria': 'Actions for version {n}', 'bar.setMain': 'Make primary', 'bar.download': 'Download this version', 'bar.downloaded': 'Downloaded (mockup)', 'bar.delete': 'Delete', 'bar.rerun': 'Re-film shot',
+    'more.label': 'Earlier', 'more.cap': '{n} earlier', 'more.aria': 'Lay out {n} earlier versions',
+    'slot.label': 'Next', 'slot.title': 'Re-film shot', 'slot.cap': 'New version lands here',
+    'pending.queued': 'Queued', 'pending.running': 'Generating',
+    'toast.setMain': 'Version {n} is now primary', 'toast.down': '{n} downstream nodes will use it next time they generate',
+    'toast.deleted': 'Deleted version {n}', 'toast.promoted': 'Version {n} is now primary',
+    'toast.undo': 'Undo', 'toast.close': 'Close',
+    'pv.aria': 'Preview: {title} version {n}', 'pv.of': 'Version {n} of {total}', 'pv.hint': '← → switch versions · Esc closes', 'pv.close': 'Close', 'pv.prev': 'Previous', 'pv.next': 'Next', 'pv.play': 'Play', 'pv.pause': 'Pause',
+    'video.progress': 'Video progress', 'video.value': '{c} / {d} seconds',
+    'asset.chip': 'Asset', 'asset.title': '{title} · v{n}',
+    'drop.ok': 'Release to copy as an asset card', 'drop.no': 'Drop on empty canvas',
+    'try.title': 'Try these', 'try.note': 'Media, generation and downloads are simulated; no product code changes.',
+    'try.go': 'Show',
+    'try.1': '<b>Click the stack icon</b> on a node’s right: its versions lay out in place as a row of cards. Only that same icon folds them; clicking empty canvas, Esc or other nodes never does.',
+    'try.2': '<b>Hover any version card</b>: Make primary / Download / Delete appear above it. Clicking the card itself previews and never changes the primary.',
+    'try.3': '<b>Open several at once</b>: also lay out “Shot 1”, then click and drag “Shot 2”; both rows stay. A covered node comes to the top when you click it.',
+    'try.4': '<b>Make a new primary on “Scene · Rainy alley”</b>: it feeds 3 downstream nodes; the notice says so and the links light up.',
+    'try.5': '<b>“Character · Lin Wu” has 12 versions</b>: 8 are laid out, “+4” wraps the older ones into a second row.',
+    'try.6': '<b>“Shot 5 · Glance back” sits at the right edge</b>: no room on the right, so it lays out leftwards.',
+    'try.7': '<b>“Shot 3 · Running in the rain” is a production shot</b>: its hover bar adds “Re-film shot”.',
+    'try.8': '<b>Video cards</b> play on hover and scrub along the bottom edge; Tab to the scrubber and ← → moves 1 second.',
+    'try.9': '<b>Dragging a version card moves the group</b>; <b>Alt-drag it onto empty canvas</b> to copy it out as a separate asset card.',
+    'try.10': '<b>Delete, then Undo</b> (or Ctrl / ⌘ + Z): the card and the primary come back.',
+    'map.title': 'Where the old window’s jobs went',
+    'finds.title': 'What you may have missed',
+    'qs.title': 'Open questions (3, each switchable in the mockup)', 'qs.note': 'The mockup shows the recommendation / the coordinator’s direction by default; the recommendation is each first line.',
+    'q1.h': '1 · What happens when laid-out cards cover a neighbour?', 'q1.rec': 'Recommend: <b>cards stay on top</b>; the neighbour’s visible part is still clickable, clicking it brings it to the top, and its title hides while covered so the text doesn’t collide.',
+    'q1.why': 'With no moving of nodes or the viewport, crowded spots can only overlap; “selected comes to the top” is already how the canvas works. Shrinking cards to fit fails on a crowded canvas: in the mockup “Shot 1” has 120 of free space on its right, not enough for one compact card. Decide it with question 2: at node size, neighbours in the same row stay only 5–16% visible (measured in the mockup), too little to click; compact leaves 20–100%.',
+    'q1.cost': 'The other way: sink below when not selected. Work on another node and the row slides under its neighbours, which always stay whole; coming back, some versions are hidden until you click their node.',
+    'q1.over': 'On top (recommended)', 'q1.under': 'Sink when not selected',
+    'q2.h': '2 · How big are version cards by default?', 'q2.rec': 'Recommend: <b>Compact</b> (half the node’s width and height).',
+    'q2.why': 'Rows now stay open, so cards occupy the canvas for long stretches. At 80% zoom five node-size cards take about 1,010 screen px (the canvas is about 810 px with the Agent panel open) and leave same-row neighbours 5–16% visible; compact is a quarter of the area, about 520 px for five. Detail belongs to the preview.',
+    'q2.cost': 'Cost: small cards, one more click to judge detail. The mockup defaults to node size, as first directed.',
+    'q3.h': '3 · Where does “Re-film shot” go?', 'q3.rec': 'Recommend: <b>one “Re-film shot” card per row</b>, where the new version will appear (next to the node).',
+    'q3.why': 'Re-filming acts on the whole shot and costs money; on every card’s hover bar it repeats N times, reads as “re-film from this version”, and sits next to Download.',
+    'q3.cost': 'Cost: departs from the coordinator’s direction; one extra card in the row. The mockup defaults to the hover bar, as directed.',
+    'q3.bar': 'Hover bar (direction)', 'q3.slot': 'One card up front',
+    'foot.a': 'Source: docs/design/mockups/2026-09-28-version-cards/ (README.md has the task card, control-layer table, removal list and implementation notes).',
+    'foot.b': 'Icons are Tabler outline paths; colour, type, radius and spacing come from Nomi tokens only; images are gradient and geometric placeholders, not product media.',
+  },
+}
+const P = { theme: 'dark', lang: 'zh', size: 'node', rerun: 'bar', cover: 'over' }
+const t = (k, v = {}) => String((I18N[P.lang] && I18N[P.lang][k]) ?? I18N.zh[k] ?? k).replace(/\{(\w+)\}/g, (_, n) => (v[n] ?? ''))
+const L = (o) => (o ? (o[P.lang] ?? o.zh) : '')
+
+/* ───────── 画面占位：渐变 + 几何（内容色，不是界面色；明暗主题下同一张图） ───────── */
+function hsh(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+function prng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296 } }
+const OK = (l, c, h, a) => `oklch(${l.toFixed(3)} ${c.toFixed(3)} ${Math.round((((h % 360) + 360) % 360))}${a != null ? ' / ' + a : ''})`
+const f1 = (v) => v.toFixed(1)
+const PTS = (pts) => pts.map(([x, y]) => `${f1(x)},${f1(y)}`).join(' ')
+let artSeq = 0
+
+function rainG(r, W, H, n, alpha, clipId) {
+  let s = ''
+  for (let i = 0; i < n; i++) {
+    const x = r() * W * 1.12, y = r() * H, len = 4 + r() * 6
+    s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x - len * 0.3)}" y2="${f1(y + len)}"/>`
+  }
+  return `<g${clipId ? ` clip-path="url(#${clipId})"` : ''}><g class="rain" stroke="${OK(0.96, 0.02, 240, alpha)}" stroke-width=".55" stroke-linecap="round"><g>${s}</g><g transform="translate(0 ${-H})">${s}</g></g></g>`
+}
+
+function sceneBody(scene, r, W, H, hue, id) {
+  let s = ''
+  let rain = ''
+  if (scene === 'mountain') {
+    const mx = W * (0.55 + r() * 0.3), my = H * (0.2 + r() * 0.12), mr = Math.min(W, H) * (0.085 + r() * 0.035)
+    s += `<circle cx="${f1(mx)}" cy="${f1(my)}" r="${f1(mr)}" fill="${OK(0.96, 0.03, hue + 30, 0.62)}"/>`
+    s += `<polygon points="${PTS([[0, H * 0.72], [W * (0.18 + r() * 0.12), H * (0.44 + r() * 0.1)], [W * 0.48, H * (0.6 + r() * 0.06)], [W * (0.7 + r() * 0.1), H * (0.38 + r() * 0.1)], [W, H * (0.56 + r() * 0.08)], [W, H], [0, H]])}" fill="${OK(0.38, 0.045, hue + 40)}"/>`
+    s += `<polygon points="${PTS([[0, H * 0.86], [W * (0.2 + r() * 0.12), H * (0.6 + r() * 0.08)], [W * (0.46 + r() * 0.06), H * 0.8], [W * (0.7 + r() * 0.1), H * (0.58 + r() * 0.08)], [W, H * 0.78], [W, H], [0, H]])}" fill="${OK(0.22, 0.03, hue + 60)}"/>`
+    rain = rainG(r, W, H, 26, 0.45)
+  } else if (scene === 'alley') {
+    s += `<ellipse cx="${f1(W * (0.4 + r() * 0.2))}" cy="${f1(H * 0.28)}" rx="${f1(W * 0.32)}" ry="${f1(H * 0.22)}" fill="${OK(0.92, 0.07, hue + 35, 0.32)}"/>`
+    let fx = W * 0.3
+    while (fx < W * 0.7) { const bw = W * (0.05 + r() * 0.06), bh = H * (0.25 + r() * 0.25); s += `<rect x="${f1(fx)}" y="${f1(H * 0.8 - bh)}" width="${f1(bw)}" height="${f1(bh)}" fill="${OK(0.33, 0.035, hue + 30)}"/>`; fx += bw + W * 0.006 }
+    s += `<polygon points="${PTS([[0, 0], [W * 0.31, H * 0.14], [W * 0.35, H * 0.8], [0, H]])}" fill="${OK(0.2, 0.03, hue + 45)}"/>`
+    s += `<polygon points="${PTS([[W, 0], [W * 0.69, H * 0.12], [W * 0.65, H * 0.8], [W, H]])}" fill="${OK(0.17, 0.03, hue + 45)}"/>`
+    for (let i = 0; i < 8; i++) { const left = r() < 0.5; const x = left ? W * (0.04 + r() * 0.2) : W * (0.72 + r() * 0.22); const y = H * (0.18 + r() * 0.5); s += `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(W * 0.035)}" height="${f1(H * 0.05)}" fill="${OK(0.86, 0.12, 75, 0.85)}"/>` }
+    s += `<polygon points="${PTS([[W * 0.35, H * 0.8], [W * 0.65, H * 0.8], [W, H], [0, H]])}" fill="${OK(0.27, 0.035, hue + 10)}"/>`
+    s += `<ellipse cx="${f1(W * 0.5)}" cy="${f1(H * 0.9)}" rx="${f1(W * 0.18)}" ry="${f1(H * 0.03)}" fill="${OK(0.86, 0.1, 75, 0.3)}"/>`
+    rain = rainG(r, W, H, 30, 0.5)
+  } else if (scene === 'cafe') {
+    const wx = W * (0.08 + r() * 0.08), wy = H * 0.12, ww = W * 0.46, wh = H * 0.52
+    s += `<rect x="${f1(wx)}" y="${f1(wy)}" width="${f1(ww)}" height="${f1(wh)}" rx="2" fill="${OK(0.32, 0.06, 245 + r() * 20)}"/>`
+    s += `<defs><clipPath id="${id}w"><rect x="${f1(wx)}" y="${f1(wy)}" width="${f1(ww)}" height="${f1(wh)}"/></clipPath></defs>`
+    s += rainG(r, W, H, 22, 0.55, `${id}w`)
+    s += `<line x1="${f1(wx + ww / 2)}" y1="${f1(wy)}" x2="${f1(wx + ww / 2)}" y2="${f1(wy + wh)}" stroke="${OK(0.22, 0.03, hue + 30)}" stroke-width="2"/>`
+    s += `<line x1="${f1(wx)}" y1="${f1(wy + wh / 2)}" x2="${f1(wx + ww)}" y2="${f1(wy + wh / 2)}" stroke="${OK(0.22, 0.03, hue + 30)}" stroke-width="2"/>`
+    const lx = W * (0.72 + r() * 0.12)
+    s += `<circle cx="${f1(lx)}" cy="${f1(H * 0.3)}" r="${f1(H * 0.24)}" fill="${OK(0.93, 0.09, 80, 0.32)}"/>`
+    s += `<line x1="${f1(lx)}" y1="0" x2="${f1(lx)}" y2="${f1(H * 0.2)}" stroke="${OK(0.2, 0.02, hue)}" stroke-width="1"/>`
+    s += `<polygon points="${PTS([[lx - W * 0.05, H * 0.31], [lx + W * 0.05, H * 0.31], [lx + W * 0.025, H * 0.2], [lx - W * 0.025, H * 0.2]])}" fill="${OK(0.25, 0.03, hue + 20)}"/>`
+    s += `<rect x="0" y="${f1(H * 0.74)}" width="${W}" height="${f1(H * 0.26)}" fill="${OK(0.24, 0.035, hue + 20)}"/>`
+    s += `<rect x="0" y="${f1(H * 0.72)}" width="${W}" height="${f1(H * 0.04)}" fill="${OK(0.36, 0.045, hue + 10)}"/>`
+    const cx = W * (0.56 + r() * 0.18)
+    s += `<rect x="${f1(cx)}" y="${f1(H * 0.6)}" width="${f1(W * 0.06)}" height="${f1(H * 0.12)}" rx="1" fill="${OK(0.93, 0.015, 80)}"/>`
+    s += `<path d="M${f1(cx + W * 0.06)},${f1(H * 0.63)} q${f1(W * 0.03)},${f1(H * 0.03)} 0,${f1(H * 0.06)}" fill="none" stroke="${OK(0.93, 0.015, 80)}" stroke-width="1"/>`
+    s += `<path d="M${f1(cx + W * 0.02)},${f1(H * 0.56)} q${f1(W * 0.02)},${f1(-H * 0.06)} 0,${f1(-H * 0.12)}" fill="none" stroke="${OK(0.95, 0.01, 80, 0.4)}" stroke-width=".8"/>`
+  } else if (scene === 'figure') {
+    const ox = W * (0.5 + (r() - 0.5) * 0.08)
+    s += `<circle cx="${f1(ox)}" cy="${f1(H * 0.36)}" r="${f1(W * 0.34)}" fill="${OK(0.92, 0.05, hue + 25, 0.3)}"/>`
+    s += `<path d="M${f1(W * 0.06)},${H} Q${f1(W * 0.08)},${f1(H * 0.7)} ${f1(ox)},${f1(H * 0.66)} Q${f1(W * 0.92)},${f1(H * 0.7)} ${f1(W * 0.94)},${H} Z" fill="${OK(0.2, 0.035, hue + 40)}"/>`
+    s += `<rect x="${f1(ox - W * 0.055)}" y="${f1(H * 0.5)}" width="${f1(W * 0.11)}" height="${f1(H * 0.17)}" fill="${OK(0.25, 0.03, hue + 40)}"/>`
+    s += `<ellipse cx="${f1(ox)}" cy="${f1(H * 0.42)}" rx="${f1(W * 0.15)}" ry="${f1(H * 0.11)}" fill="${OK(0.27, 0.03, hue + 40)}"/>`
+    const side = r() < 0.5 ? -1 : 1
+    s += `<ellipse cx="${f1(ox)}" cy="${f1(H * 0.355)}" rx="${f1(W * 0.17)}" ry="${f1(H * 0.085)}" fill="${OK(0.15, 0.025, hue + 60)}"/>`
+    s += `<path d="M${f1(ox + side * W * 0.15)},${f1(H * 0.37)} Q${f1(ox + side * W * 0.25)},${f1(H * 0.5)} ${f1(ox + side * W * 0.21)},${f1(H * 0.64)} L${f1(ox + side * W * 0.1)},${f1(H * 0.58)} Z" fill="${OK(0.15, 0.025, hue + 60)}"/>`
+    s += `<path d="M${f1(ox + W * 0.15)},${f1(H * 0.39)} Q${f1(ox + W * 0.17)},${f1(H * 0.44)} ${f1(ox + W * 0.13)},${f1(H * 0.5)}" fill="none" stroke="${OK(0.94, 0.07, hue, 0.65)}" stroke-width="1.2"/>`
+    s += `<rect x="0" y="${f1(H * 0.8)}" width="${W}" height="${f1(H * 0.2)}" fill="${OK(0.95, 0.02, hue, 0.12)}"/>`
+  } else if (scene === 'run') {
+    s += `<circle cx="${f1(W * 0.82)}" cy="${f1(H * 0.22)}" r="${f1(H * 0.28)}" fill="${OK(0.9, 0.06, 80, 0.26)}"/>`
+    s += `<line x1="${f1(W * 0.82)}" y1="${f1(H * 0.2)}" x2="${f1(W * 0.82)}" y2="${f1(H * 0.8)}" stroke="${OK(0.2, 0.02, hue)}" stroke-width="1.4"/>`
+    s += `<rect x="0" y="${f1(H * 0.8)}" width="${W}" height="${f1(H * 0.2)}" fill="${OK(0.2, 0.035, hue + 20)}"/>`
+    s += `<rect x="0" y="${f1(H * 0.8)}" width="${W}" height="0.8" fill="${OK(0.7, 0.05, hue, 0.4)}"/>`
+    const bx = W * (0.34 + r() * 0.18), by = H * 0.36, k = H / 90, col = OK(0.12, 0.02, hue + 40), a = r() * 0.4
+    const ln = (x1, y1, x2, y2, w) => `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" stroke="${col}" stroke-width="${f1(w)}" stroke-linecap="round"/>`
+    s += `<circle cx="${f1(bx)}" cy="${f1(by)}" r="${f1(4.2 * k)}" fill="${col}"/>`
+    s += ln(bx, by + 5 * k, bx - 4 * k, by + 22 * k, 5.5 * k)
+    s += ln(bx - 1 * k, by + 9 * k, bx + 9 * k, by + (14 + a * 10) * k, 2.6 * k)
+    s += ln(bx - 2 * k, by + 10 * k, bx - 11 * k, by + (16 - a * 8) * k, 2.6 * k)
+    s += ln(bx - 4 * k, by + 22 * k, bx + 7 * k, by + 34 * k, 3.2 * k)
+    s += ln(bx - 4 * k, by + 22 * k, bx - 14 * k, by + (30 + a * 6) * k, 3.2 * k)
+    s += `<ellipse cx="${f1(bx)}" cy="${f1(H * 0.86)}" rx="${f1(W * 0.08)}" ry="${f1(H * 0.02)}" fill="${OK(0.8, 0.05, hue, 0.2)}"/>`
+    rain = rainG(r, W, H, 34, 0.55)
+  } else if (scene === 'street') {
+    s += `<polygon points="${PTS([[0, H * 0.22], [W * 0.42, H * 0.12], [W * 0.42, H * 0.8], [0, H * 0.86]])}" fill="${OK(0.3, 0.045, hue + 25)}"/>`
+    s += `<polygon points="${PTS([[W * 0.42, H * 0.12], [W * 0.58, H * 0.2], [W * 0.58, H * 0.78], [W * 0.42, H * 0.8]])}" fill="${OK(0.22, 0.04, hue + 25)}"/>`
+    for (let i = 0; i < 6; i++) { const x = W * (0.05 + (i % 3) * 0.12), y = H * (0.3 + Math.floor(i / 3) * 0.18); s += `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(W * 0.07)}" height="${f1(H * 0.09)}" fill="${r() < 0.55 ? OK(0.86, 0.11, 78, 0.85) : OK(0.2, 0.03, hue + 25)}"/>` }
+    s += `<circle cx="${f1(W * 0.8)}" cy="${f1(H * 0.3)}" r="${f1(H * 0.16)}" fill="${OK(0.92, 0.09, 80, 0.3)}"/>`
+    s += `<line x1="${f1(W * 0.8)}" y1="${f1(H * 0.3)}" x2="${f1(W * 0.8)}" y2="${f1(H * 0.84)}" stroke="${OK(0.18, 0.02, hue)}" stroke-width="1.4"/>`
+    s += `<polygon points="${PTS([[0, H * 0.86], [W, H * 0.8], [W, H], [0, H]])}" fill="${OK(0.24, 0.04, hue + 15)}"/>`
+    const fx = W * (0.64 + r() * 0.08), fy = H * 0.7, turn = (r() - 0.5) * W * 0.02
+    s += `<path d="M${f1(fx - W * 0.035)},${f1(fy + H * 0.13)} L${f1(fx - W * 0.03)},${f1(fy)} Q${f1(fx)},${f1(fy - H * 0.03)} ${f1(fx + W * 0.03)},${f1(fy)} L${f1(fx + W * 0.035)},${f1(fy + H * 0.13)} Z" fill="${OK(0.14, 0.02, hue + 40)}"/>`
+    s += `<circle cx="${f1(fx + turn)}" cy="${f1(fy - H * 0.05)}" r="${f1(H * 0.03)}" fill="${OK(0.14, 0.02, hue + 40)}"/>`
+    rain = rainG(r, W, H, 20, 0.35)
+  }
+  return { s, rain }
+}
+
+/** 一张版本画面。node 给场景和色相；no = 版本号（决定变体）；w/h 决定画幅。 */
+function artSVG(node, no, w, h) {
+  const W = 160, H = Math.round((160 * h) / w)
+  const r = prng(hsh(node.id + '#' + no))
+  const id = 'a' + (++artSeq)
+  const hue = node.hue + (no - 1) * 23 + r() * 12
+  const sky1 = OK(0.66 + r() * 0.1, 0.1 + r() * 0.03, hue)
+  const sky2 = OK(0.3 + r() * 0.06, 0.05 + r() * 0.02, hue + 50)
+  const { s, rain } = sceneBody(node.scene, r, W, H, hue, id)
+  const cap = `${L(node.cap)} · ${String(no).padStart(2, '0')}`
+  return `<svg class="art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${id}s" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="${sky1}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs><rect width="${W}" height="${H}" fill="url(#${id}s)"/><g class="cam" style="transform-origin:${W / 2}px ${H / 2}px">${s}${rain}</g><text x="8" y="15" font-size="9" font-weight="600" fill="oklch(1 0 0)" fill-opacity=".94" paint-order="stroke" stroke="oklch(0 0 0 / .28)" stroke-width="1.6" font-family="Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif">${esc(cap)}</text></svg>`
+}
+
+/* ───────── 数据：6 个演示节点 + 5 条连线 ───────── */
+const Z0 = 0.8, PX0 = 20, PY0 = 64
+let NODES = [], EDGES = [], S = null
+const V = (count) => Array.from({ length: count }, (_, i) => ({ no: i + 1 }))
+
+function makeNodes(stageW) {
+  const vis = (stageW - PX0) / Z0
+  /* 「靠右边缘」的节点：画布够宽就放在下排最右，窄了就挪到上排最右——两种都贴着右边 */
+  const eX = Math.round(vis - 84 - 240) /* 右侧留出图标与叠卡边缘的位置 */
+  const eLow = eX >= 1190
+  return [
+    { id: 'D', kind: 'image', x: 60, y: 40, w: 240, h: 240, scene: 'alley', hue: 222, chip: { zh: '参考', en: 'Ref' }, title: { zh: '场景 · 雨巷', en: 'Scene · Rainy alley' }, cap: { zh: '雨巷', en: 'ALLEY' }, versions: V(4), mainNo: 2, nextNo: 5 },
+    { id: 'C', kind: 'image', x: 60, y: 380, w: 240, h: 320, scene: 'figure', hue: 280, chip: { zh: '参考', en: 'Ref' }, title: { zh: '角色 · 林雾', en: 'Character · Lin Wu' }, cap: { zh: '林雾', en: 'LIN WU' }, versions: V(12), mainNo: 9, nextNo: 13 },
+    { id: 'A', kind: 'image', x: 470, y: 380, w: 240, h: 240, scene: 'mountain', hue: 30, chip: { zh: '镜头 1', en: 'Shot 1' }, title: { zh: '雨夜入场', en: 'Rainy night entrance' }, cap: { zh: '雨夜', en: 'RAIN' }, versions: V(5), mainNo: 3, nextNo: 6 },
+    { id: 'B', kind: 'video', x: 830, y: 380, w: 320, h: 180, scene: 'cafe', hue: 55, duration: 5, chip: { zh: '镜头 2 · 视频', en: 'Shot 2 · Video' }, title: { zh: '推镜进入咖啡馆', en: 'Push into the café' }, cap: { zh: '咖啡馆', en: 'CAFÉ' }, versions: V(3), mainNo: 3, nextNo: 4 },
+    { id: 'F', kind: 'video', x: 830, y: 612, w: 320, h: 180, scene: 'run', hue: 235, duration: 4, production: true, chip: { zh: '镜头 3 · 视频', en: 'Shot 3 · Video' }, title: { zh: '雨中奔跑', en: 'Running in the rain' }, tag: { zh: '制作', en: 'Production' }, cap: { zh: '奔跑', en: 'RUN' }, versions: V(2), mainNo: 2, nextNo: 3 },
+    { id: 'E', kind: 'image', x: eX, y: eLow ? 380 : 40, w: 240, h: 240, scene: 'street', hue: 300, chip: { zh: '镜头 5', en: 'Shot 5' }, title: { zh: '街角回望', en: 'Glance back' }, cap: { zh: '街角', en: 'CORNER' }, versions: V(3), mainNo: 3, nextNo: 4 },
+  ]
+}
+
+const stage = document.getElementById('stage')
+const world = document.getElementById('world')
+const edgesSvg = document.getElementById('edges')
+const toastBox = document.getElementById('toasts')
+const previewBox = document.getElementById('preview')
+const ghost = document.getElementById('ghost')
+const tipEl = document.getElementById('tip')
+const byId = (id) => NODES.find((n) => n.id === id)
+const artSrc = (n) => (n.src ? byId(n.src.nodeId) || n : n)
+const artNo = (n, no) => (n.src ? n.src.no : no)
+const hasStack = (n) => n.versions.length >= 2 || (n.production && n.versions.length >= 1)
+const rearCount = (n) => (n.versions.length <= 1 ? 0 : n.versions.length === 2 ? 1 : 2)
+const downstreamOf = (id) => [...new Set(EDGES.filter((e) => e.from === id).map((e) => e.to))]
+const isOpen = (id) => S.expanded.has(id)
+const placementOf = (n) => (S.expanded.get(n.id) || { placement: 'right' }).placement
+
+function init() {
+  NODES = makeNodes(stage.clientWidth || 1312)
+  EDGES = [{ from: 'D', to: 'A' }, { from: 'D', to: 'B' }, { from: 'D', to: 'F' }, { from: 'C', to: 'A' }, { from: 'C', to: 'B' }]
+  S = { zoom: Z0, px: PX0, py: PY0, expanded: new Map(), selectedId: null, showAll: {}, pending: {}, hotIds: new Set(), hotEdges: new Set(), hotTimer: 0, dealingId: null, swapId: null, freshNo: {}, preview: null }
+  toasts.splice(0).forEach((rec) => { clearTimeout(rec.timer); rec.el.remove() })
+  closePreview(false)
+  renderAll()
+  expand('D', { focus: false })
+}
+
+/* ───────── 版本卡的排法 ───────── */
+function cardSize(n) {
+  const f = P.size === 'node' ? 1 : 0.5
+  return { cw: Math.round(n.w * f), ch: Math.round(n.h * f), gap: P.size === 'node' ? 16 : 12 }
+}
+/** 最新在前（紧挨节点）；超过 8 张时最早的收进「+N」；点开后按 8 张一排换行。 */
+function rowItems(n) {
+  const sorted = [...n.versions].sort((a, b) => b.no - a.no)
+  const items = []
+  if (S.pending[n.id]) items.push({ type: 'pending' })
+  else if (n.production && P.rerun === 'slot') items.push({ type: 'slot' })
+  let shown = sorted, hidden = []
+  if (!S.showAll[n.id] && sorted.length > 8) { shown = sorted.slice(0, 8); hidden = sorted.slice(8) }
+  shown.forEach((v) => items.push({ type: 'ver', no: v.no }))
+  if (hidden.length) items.push({ type: 'more', hidden })
+  return items
+}
+function rowLayout(n) {
+  const { cw, ch, gap } = cardSize(n)
+  const items = rowItems(n)
+  const cols = S.showAll[n.id] ? Math.min(8, items.length) : items.length
+  const rows = Math.ceil(items.length / cols)
+  const width = cols * cw + (cols - 1) * gap
+  const height = rows * (34 + ch) + (rows - 1) * 20
+  return { items, cols, rows, cw, ch, gap, width, height }
+}
+/** 右边放不下（按视口）才往左；两边都放不下选空间大的那边——不挪任何节点，不动视口。 */
+function computePlacement(n) {
+  const W = stage.clientWidth
+  const edgePad = 12
+  const required = rowLayout(n).width * S.zoom
+  const rightSpace = W - (S.px + (n.x + n.w + 44) * S.zoom) - edgePad
+  const leftSpace = S.px + (n.x - 24) * S.zoom - edgePad
+  if (rightSpace >= required) return 'right'
+  if (leftSpace >= required) return 'left'
+  return rightSpace >= leftSpace ? 'right' : 'left'
+}
+
+/* ───────── 渲染 ───────── */
+function vName(no) {
+  return `<span class="long">${esc(t('v.long', { n: no }))}</span><span class="short">${esc(t('v.short', { n: no }))}</span>`
+}
+function durChip(n) {
+  return `<span class="vdur">${ic('play', 9)}0:${String(n.duration).padStart(2, '0')}</span>`
+}
+
+function nodeHTML(n) {
+  const expanded = isOpen(n.id)
+  const count = n.versions.length
+  let h = `<div class="nlabel"><span class="nchip">${esc(L(n.chip))}</span><span class="ntitle">${esc(L(n.title))}</span>${n.tag ? `<span class="ntag">${esc(L(n.tag))}</span>` : ''}</div>`
+  const rears = hasStack(n) ? rearCount(n) : 0
+  for (let i = 0; i < rears; i++) h += `<div class="rear" data-i="${i}">${i === rears - 1 ? `<span class="rglyph">${ic(n.kind === 'video' ? 'movie' : 'photo', 14, 1.6)}</span>` : ''}</div>`
+  h += count
+    ? `<div class="media${S.swapId === n.id ? ' swap' : ''}" data-role="media">${artSVG(artSrc(n), artNo(n, n.mainNo), n.w, n.h)}${n.kind === 'video' ? durChip(n) : ''}</div>`
+    : '<div class="media empty" data-role="media"></div>'
+  h += '<span class="handle l" aria-hidden="true"></span><span class="handle r" aria-hidden="true"></span>'
+  if (hasStack(n)) {
+    const label = expanded ? t('badge.close', { n: count }) : t('badge.open', { n: count })
+    h += `<button type="button" class="vbadge" data-act="badge" aria-expanded="${expanded}" aria-label="${esc(label)}" data-tip="${esc(label)}">${expanded ? ic('collapse', 14, 1.8) : `${ic('versions', 14, 1.8)}<span>${count}</span>`}</button>`
+  }
+  return h
+}
+
+function barHTML(n, no, isMain) {
+  const parts = []
+  if (!isMain) parts.push(`<button type="button" class="tb accent" data-act="main">${ic('check', 16, 1.6)}<span>${esc(t('bar.setMain'))}</span></button>`)
+  parts.push(`<button type="button" class="tb icon" data-act="download" aria-label="${esc(t('bar.download'))}" data-tip="${esc(t('bar.download'))}">${ic('download', 16, 1.6)}</button>`)
+  if (n.production && P.rerun === 'bar') parts.push(`<button type="button" class="tb icon" data-act="rerun" aria-label="${esc(t('bar.rerun'))}" data-tip="${esc(t('bar.rerun'))}">${ic('refresh', 16, 1.6)}</button>`)
+  parts.push('<span class="tdiv" aria-hidden="true"></span>')
+  parts.push(`<button type="button" class="tb icon danger" data-act="delete" aria-label="${esc(t('bar.delete'))}" data-tip="${esc(t('bar.delete'))}">${ic('trash', 16, 1.6)}</button>`)
+  return `<div class="vbar" role="toolbar" aria-label="${esc(t('bar.aria', { n: no }))}">${parts.join('')}</div>`
+}
+
+function itemHTML(n, it, i) {
+  const st = `style="--i:${i}"`
+  if (it.type === 'ver') {
+    const no = it.no, isMain = no === n.mainNo, video = n.kind === 'video'
+    const fresh = S.freshNo[n.id] === no
+    return `<div class="vcard${isMain ? ' is-main' : ''}${video ? ' video' : ''}${fresh ? ' fresh' : ''}" data-no="${no}" ${st}>`
+      + `<div class="vlabel"><span class="nchip vname">${vName(no)}</span>${isMain ? `<span class="vmain">${ic('check', 12, 2)}${esc(t('v.main'))}</span>` : ''}</div>`
+      + `<button type="button" class="vmedia" data-act="preview" aria-label="${esc(t('v.preview', { n: no }))}" data-tip="${esc(t('v.tip'))}" data-tip-pos="below">${artSVG(artSrc(n), artNo(n, no), n.w, n.h)}${video ? durChip(n) : ''}</button>`
+      + (video ? `<div class="vscrub" role="slider" tabindex="0" aria-label="${esc(t('video.progress'))}" aria-valuemin="0" aria-valuemax="${n.duration}" aria-valuenow="0" aria-valuetext="${esc(t('video.value', { c: 0, d: n.duration }))}"><span class="track"><span class="fill"></span></span></div>` : '')
+      + barHTML(n, no, isMain)
+      + '</div>'
+  }
+  if (it.type === 'more') {
+    const peek = it.hidden.slice(0, 3).reverse().map((v) => `<span>${artSVG(artSrc(n), artNo(n, v.no), n.w, n.h)}</span>`).join('')
+    return `<div class="vcard" ${st}><div class="vlabel"><span class="nchip">${esc(t('more.label'))}</span></div>`
+      + `<button type="button" class="vtile" data-act="more" aria-label="${esc(t('more.aria', { n: it.hidden.length }))}"><span class="peek" style="--ar:${n.w}/${n.h}">${peek}</span><span class="big">+${it.hidden.length}</span><span class="cap">${esc(t('more.cap', { n: it.hidden.length }))}</span></button></div>`
+  }
+  if (it.type === 'slot') {
+    return `<div class="vcard" ${st}><div class="vlabel"><span class="nchip">${esc(t('slot.label'))}</span></div>`
+      + `<button type="button" class="vtile slot" data-act="rerun">${ic('refresh', 22, 1.6)}<span class="big" style="font-size:14px">${esc(t('slot.title'))}</span><span class="cap">${esc(t('slot.cap'))}</span></button></div>`
+  }
+  const phase = S.pending[n.id]
+  return `<div class="vcard" ${st}><div class="vlabel"><span class="nchip vname">${vName(n.nextNo)}</span></div>`
+    + `<div class="pending" role="status"><b>${esc(t(phase === 'running' ? 'pending.running' : 'pending.queued'))}</b></div></div>`
+}
+
+function groupEl(n) {
+  const pl = placementOf(n)
+  const lay = rowLayout(n)
+  const g = document.createElement('div')
+  g.className = `vgroup${S.dealingId === n.id ? ' dealing' : ''}`
+  g.dataset.for = n.id
+  g.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px`
+  g.style.setProperty('--cw', lay.cw + 'px')
+  g.style.setProperty('--ch', lay.ch + 'px')
+  g.style.setProperty('--gap', lay.gap + 'px')
+  g.style.setProperty('--cols', String(lay.cols))
+  g.innerHTML = `<div class="vrow ${pl}" role="group" aria-label="${esc(t('row.aria', { title: L(n.title), n: n.versions.length }))}">${lay.items.map((it, i) => itemHTML(n, it, i)).join('')}</div>`
+  return g
+}
+
+/** 分组细线：从展开图标下方往下，再拐到卡片底下（像托盘的底边）；靠左铺时镜像到节点左侧。单独一层，住在节点下面。 */
+function bracketGeom(n) {
+  const pl = placementOf(n)
+  const lay = rowLayout(n)
+  const rowBottom = -34 + lay.height
+  if (pl === 'right') { const left = n.w + 18, top = 50; return { pl, left, top, width: n.w + 44 + lay.width - left, height: rowBottom + 12 - top } }
+  const right = -12, top = 16, left = -(24 + lay.width)
+  return { pl, left, top, width: right - left, height: rowBottom + 12 - top }
+}
+function bracketEl(n) {
+  const b = bracketGeom(n)
+  const el = document.createElement('div')
+  el.className = `vbracket ${b.pl}${S.dealingId === n.id ? ' dealing' : ''}`
+  el.dataset.for = n.id
+  el.dataset.dx = String(b.left)
+  el.dataset.dy = String(b.top)
+  el.style.cssText = `left:${n.x + b.left}px;top:${n.y + b.top}px;width:${b.width}px;height:${Math.max(0, b.height)}px`
+  return el
+}
+
+function buildNode(n) {
+  const el = document.createElement('div')
+  el.className = 'node'
+  el.dataset.id = n.id
+  el.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px`
+  el.innerHTML = nodeHTML(n)
+  syncNodeClasses(el, n)
+  return el
+}
+
+/** 重建一个节点和它的版本组（组紧跟在节点后面，Tab 顺序：图标 → 它的版本卡）。 */
+function refreshNode(n) {
+  const old = world.querySelector(`.node[data-id="${n.id}"]`)
+  const oldG = world.querySelector(`.vgroup[data-for="${n.id}"]`)
+  const a = document.activeElement
+  let restore = null
+  if (a && ((old && old.contains(a)) || (oldG && oldG.contains(a)))) {
+    if (a.classList.contains('vbadge')) restore = { sel: '.vbadge', inGroup: false }
+    else { const c = a.closest('.vcard'); if (c && c.dataset.no) restore = { sel: `.vcard[data-no="${c.dataset.no}"] .vmedia`, inGroup: true } }
+  }
+  if (play && ((oldG && oldG.contains(play.card)))) stopPlay()
+  const el = buildNode(n)
+  if (old) old.replaceWith(el); else world.appendChild(el)
+  if (oldG) oldG.remove()
+  world.querySelector(`.vbracket[data-for="${n.id}"]`)?.remove()
+  let g = null
+  if (isOpen(n.id)) { g = groupEl(n); el.after(g); world.appendChild(bracketEl(n)) }
+  syncNodeClasses(el, n)
+  if (g) g.classList.toggle('selected', S.selectedId === n.id)
+  if (restore) {
+    const target = (restore.inGroup ? g && g.querySelector(restore.sel) : el.querySelector(restore.sel)) || el.querySelector('.vbadge')
+    if (target) target.focus({ preventScroll: true })
+  }
+  return el
+}
+
+function syncNodeClasses(el, n) {
+  el.classList.toggle('selected', S.selectedId === n.id)
+  el.classList.toggle('expanded', isOpen(n.id))
+  el.classList.toggle('hot', S.hotIds.has(n.id))
+}
+function syncAll() {
+  world.querySelectorAll('.node').forEach((el) => { const n = byId(el.dataset.id); if (n) syncNodeClasses(el, n) })
+  world.querySelectorAll('.vgroup').forEach((g) => g.classList.toggle('selected', S.selectedId === g.dataset.for))
+  stage.classList.toggle('cover-under', P.cover === 'under')
+  renderEdges()
+  updateOcclusion()
+}
+
+/* 遮挡规则：按真实层级（选中节点 10 > 选中的版本组 9 > 版本组 3 > 节点 1 > 「垫下面」模式里的版本组 0）
+   找出被上层压到的标签，先藏起来。只看文字本身占的地方，不看整条标签行。 */
+function unionRect(els) {
+  const rs = els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+  if (!rs.length) return null
+  return { left: Math.min(...rs.map((r) => r.left)), top: Math.min(...rs.map((r) => r.top)), right: Math.max(...rs.map((r) => r.right)), bottom: Math.max(...rs.map((r) => r.bottom)) }
+}
+const hitRect = (a, b) => a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+function updateOcclusion() {
+  const nodeZ = (id) => (S.selectedId === id ? 10 : 1)
+  const groupZ = (id) => (S.selectedId === id ? 9 : P.cover === 'under' ? 0 : 3)
+  const nodes = [...world.querySelectorAll('.node')].map((el) => ({ el, id: el.dataset.id, z: nodeZ(el.dataset.id), box: unionRect([el.querySelector('.media'), ...el.querySelectorAll('.nlabel > *')]), label: unionRect([...el.querySelectorAll('.nlabel > *')]) }))
+  const cards = [...world.querySelectorAll('.vgroup .vcard')].map((el) => { const owner = el.closest('.vgroup').dataset.for; return { el, owner, z: groupZ(owner), box: el.getBoundingClientRect(), label: unionRect([...el.querySelectorAll('.vlabel > *')]) } })
+  for (const n of nodes) {
+    const hidden = cards.some((c) => c.owner !== n.id && c.z > n.z && hitRect(c.box, n.label)) || nodes.some((m) => m.id !== n.id && m.z > n.z && hitRect(m.box, n.label))
+    n.el.classList.toggle('label-hidden', hidden)
+  }
+  for (const c of cards) {
+    const hidden = nodes.some((m) => m.id !== c.owner && m.z > c.z && hitRect(m.box, c.label)) || cards.some((d) => d.owner !== c.owner && d.z > c.z && hitRect(d.box, c.label))
+    c.el.classList.toggle('label-hidden', hidden)
+  }
+}
+function select(id) {
+  if (S.selectedId === id) return
+  S.selectedId = id
+  syncAll()
+}
+
+function renderEdges() {
+  let s = ''
+  for (const e of EDGES) {
+    const a = byId(e.from), b = byId(e.to)
+    if (!a || !b) continue
+    const sx = a.x + a.w, sy = a.y + a.h / 2, tx = b.x, ty = b.y + b.h / 2
+    const dx = Math.max(60, Math.abs(tx - sx) * 0.5)
+    s += `<path class="edge${S.hotEdges.has(e.from + '>' + e.to) ? ' hot' : ''}" d="M${f1(sx)},${f1(sy)} C${f1(sx + dx)},${f1(sy)} ${f1(tx - dx)},${f1(ty)} ${f1(tx)},${f1(ty)}"/>`
+  }
+  edgesSvg.innerHTML = s
+}
+
+function applyView() {
+  world.style.transform = `translate(${S.px}px, ${S.py}px) scale(${S.zoom})`
+  stage.style.setProperty('--inv', (1 / S.zoom).toFixed(4))
+  stage.style.backgroundSize = `${20 * S.zoom}px ${20 * S.zoom}px`
+  stage.style.backgroundPosition = `${S.px}px ${S.py}px`
+  document.getElementById('zval').textContent = Math.round(S.zoom * 100) + '%'
+  stage.classList.toggle('tiny', S.zoom < 0.4)
+}
+
+function renderAll() {
+  applyStaticTexts()
+  world.querySelectorAll('.node, .vgroup, .vbracket').forEach((el) => el.remove())
+  for (const n of NODES) {
+    world.appendChild(buildNode(n))
+    if (isOpen(n.id)) { world.appendChild(groupEl(n)); world.appendChild(bracketEl(n)) }
+  }
+  syncAll()
+  applyView()
+  if (S.preview) renderPreview()
+}
+
+/* ───────── 铺开 / 收起：持久；只有节点右侧那个图标能收 ───────── */
+function expand(id, { focus = true } = {}) {
+  const n = byId(id)
+  if (!n || !hasStack(n)) return
+  S.showAll[id] = false
+  S.expanded.set(id, { placement: 'right' })
+  S.expanded.set(id, { placement: computePlacement(n) })
+  S.selectedId = id
+  S.dealingId = id
+  const el = refreshNode(n)
+  syncAll()
+  if (focus) el.querySelector('.vbadge')?.focus({ preventScroll: true })
+  setTimeout(() => {
+    if (S.dealingId === id) S.dealingId = null
+    world.querySelectorAll(`[data-for="${id}"].dealing`).forEach((it) => it.classList.remove('dealing'))
+    updateOcclusion()
+  }, 700)
+}
+function collapse(id, { focus = false } = {}) {
+  const n = byId(id)
+  if (!n || !isOpen(id)) return
+  S.expanded.delete(id)
+  const el = refreshNode(n)
+  syncAll()
+  if (focus) el.querySelector('.vbadge')?.focus({ preventScroll: true })
+}
+
+/* ───────── 设为主图 / 删除 / 重拍 ───────── */
+function flashDownstream(fromId) {
+  const outs = EDGES.filter((e) => e.from === fromId)
+  if (!outs.length) return
+  S.hotEdges = new Set(outs.map((e) => e.from + '>' + e.to))
+  S.hotIds = new Set(outs.map((e) => e.to))
+  syncAll()
+  clearTimeout(S.hotTimer)
+  S.hotTimer = setTimeout(() => { S.hotEdges = new Set(); S.hotIds = new Set(); syncAll() }, 2600)
+}
+
+function setMain(n, no) {
+  const prev = n.mainNo
+  if (prev === no || !n.versions.some((v) => v.no === no)) return
+  n.mainNo = no
+  S.swapId = n.id
+  refreshNode(n)
+  S.swapId = null
+  syncAll()
+  if (S.preview) renderPreview()
+  const down = downstreamOf(n.id).length
+  flashDownstream(n.id)
+  toast({
+    icon: 'circleCheck', tone: 'success',
+    main: t('toast.setMain', { n: no }),
+    subs: down ? [{ text: t('toast.down', { n: down }), cls: 'down' }] : [],
+    undo: () => { if (n.mainNo !== no || !n.versions.some((v) => v.no === prev)) return; n.mainNo = prev; S.swapId = n.id; refreshNode(n); S.swapId = null; syncAll(); if (S.preview) renderPreview() },
+  })
+}
+
+function removeVersion(n, no, cardEl) {
+  const idx = n.versions.findIndex((v) => v.no === no)
+  if (idx < 0) return
+  const commit = () => {
+    const removed = n.versions[idx]
+    const wasMain = n.mainNo === no
+    const prevMain = n.mainNo
+    const wasOpen = isOpen(n.id)
+    const prevPlacement = placementOf(n)
+    n.versions.splice(idx, 1)
+    if (wasMain && n.versions.length) n.mainNo = Math.max(...n.versions.map((v) => v.no))
+    if (!hasStack(n)) S.expanded.delete(n.id)
+    if (wasMain) S.swapId = n.id
+    refreshNode(n)
+    S.swapId = null
+    syncAll()
+    if (S.preview && S.preview.id === n.id) closePreview()
+    const down = wasMain ? downstreamOf(n.id).length : 0
+    if (wasMain) flashDownstream(n.id)
+    const subs = []
+    if (wasMain && n.versions.length) subs.push({ text: t('toast.promoted', { n: n.mainNo }) })
+    if (down) subs.push({ text: t('toast.down', { n: down }), cls: 'down' })
+    toast({
+      icon: 'trash', tone: '',
+      main: t('toast.deleted', { n: no }), subs,
+      undo: () => {
+        if (n.versions.some((v) => v.no === no)) return
+        const at = n.versions.findIndex((v) => v.no > no)
+        n.versions.splice(at < 0 ? n.versions.length : at, 0, removed)
+        n.mainNo = prevMain
+        if (wasOpen && !isOpen(n.id)) S.expanded.set(n.id, { placement: prevPlacement })
+        if (wasMain) S.swapId = n.id
+        refreshNode(n)
+        S.swapId = null
+        syncAll()
+      },
+    })
+  }
+  if (cardEl) { cardEl.classList.add('removing'); setTimeout(commit, 170) } else commit()
+}
+
+function rerun(n) {
+  if (S.pending[n.id]) return
+  S.pending[n.id] = 'queued'
+  refreshNode(n)
+  setTimeout(() => { if (!S.pending[n.id]) return; S.pending[n.id] = 'running'; refreshNode(n) }, 1300)
+  setTimeout(() => {
+    if (!S.pending[n.id]) return
+    delete S.pending[n.id]
+    const no = n.nextNo++
+    n.versions.push({ no })
+    n.mainNo = no /* 现状：新结果自动顶成主图（nodeRunOutcome.ts mergeResultHistory） */
+    S.freshNo[n.id] = no
+    S.swapId = n.id
+    refreshNode(n)
+    S.swapId = null
+    syncAll()
+    setTimeout(() => { if (S.freshNo[n.id] === no) delete S.freshNo[n.id] }, 1800)
+  }, 3600)
+}
+
+function flashDownload(btn) {
+  if (!btn) return
+  btn.classList.add('done')
+  btn.innerHTML = ic('check', 16, 1.8)
+  btn.dataset.tip = t('bar.downloaded')
+  setTimeout(() => { if (!btn.isConnected) return; btn.classList.remove('done'); btn.innerHTML = ic('download', 16, 1.6); btn.dataset.tip = t('bar.download') }, 1400)
+}
+
+/* ───────── 提示（撤销）───────── */
+const toasts = []
+let toastSeq = 0
+function toast({ icon, tone, main, subs = [], undo }) {
+  const el = document.createElement('div')
+  el.className = 'toast'
+  el.setAttribute('role', 'status')
+  el.innerHTML = `<span class="ticon ${tone || ''}">${ic(icon, 18, 1.6)}</span><div class="tbody"><div class="tmain">${esc(main)}</div>${subs.map((s) => `<div class="tsub ${s.cls || ''}">${esc(s.text)}</div>`).join('')}</div>${undo ? `<button type="button" class="tundo">${esc(t('toast.undo'))}</button>` : '<span></span>'}<button type="button" class="tclose" aria-label="${esc(t('toast.close'))}">${ic('x', 14, 1.8)}</button>`
+  toastBox.prepend(el)
+  const rec = { id: ++toastSeq, el, undo, timer: 0, left: 8000, since: performance.now() }
+  toasts.unshift(rec)
+  while (toasts.length > 2) dismiss(toasts[toasts.length - 1])
+  const run = () => { rec.since = performance.now(); rec.timer = setTimeout(() => dismiss(rec), rec.left) }
+  el.addEventListener('pointerenter', () => { clearTimeout(rec.timer); rec.left -= performance.now() - rec.since })
+  el.addEventListener('pointerleave', run)
+  el.querySelector('.tundo')?.addEventListener('click', () => { rec.undo?.(); dismiss(rec) })
+  el.querySelector('.tclose').addEventListener('click', () => dismiss(rec))
+  run()
+}
+function dismiss(rec) {
+  const i = toasts.indexOf(rec)
+  if (i >= 0) toasts.splice(i, 1)
+  clearTimeout(rec.timer)
+  rec.el.classList.add('out')
+  setTimeout(() => rec.el.remove(), 150)
+}
+
+/* ───────── 预览大图 ───────── */
+function previewOrder(n) {
+  const sorted = [...n.versions].sort((a, b) => b.no - a.no).map((v) => v.no)
+  return isOpen(n.id) && placementOf(n) === 'left' ? sorted.reverse() : sorted
+}
+let pvPlay = null
+function openPreview(n, no, origin) {
+  S.preview = { id: n.id, no, origin }
+  hideTip()
+  renderPreview()
+}
+function closePreview(restore = true) {
+  if (!S || !S.preview) { previewBox.hidden = true; previewBox.innerHTML = ''; return }
+  const origin = S.preview.origin
+  S.preview = null
+  stopPvPlay()
+  previewBox.hidden = true
+  previewBox.innerHTML = ''
+  if (restore && origin && origin.isConnected) origin.focus({ preventScroll: true })
+}
+function renderPreview() {
+  const pv = S.preview
+  if (!pv) return
+  const n = byId(pv.id)
+  if (!n || !n.versions.some((v) => v.no === pv.no)) { closePreview(); return }
+  stopPvPlay()
+  delete previewBox.dataset.time
+  const order = previewOrder(n)
+  const idx = order.indexOf(pv.no)
+  const isMain = pv.no === n.mainNo
+  const video = n.kind === 'video'
+  previewBox.innerHTML = `<div class="pv-panel" role="dialog" aria-modal="true" aria-label="${esc(t('pv.aria', { title: L(n.title), n: pv.no }))}">`
+    + `<div class="pv-head"><span class="nchip">${esc(L(n.chip))}</span><span class="pv-title">${esc(L(n.title))}</span><span class="pv-of">${esc(t('pv.of', { n: pv.no, total: n.versions.length }))}</span>${isMain ? `<span class="vmain">${ic('check', 12, 2)}${esc(t('v.main'))}</span>` : ''}<span class="sp"></span><button type="button" class="tb icon" data-pv="close" aria-label="${esc(t('pv.close'))}" data-tip="${esc(t('pv.close'))}">${ic('x', 18, 1.6)}</button></div>`
+    + `<div class="pv-body"><button type="button" class="pv-nav" data-pv="prev" aria-label="${esc(t('pv.prev'))}" ${idx <= 0 ? 'disabled' : ''}>${ic('chevronLeft', 18, 1.8)}</button>`
+    + `<div class="pv-media" style="aspect-ratio:${n.w}/${n.h};max-width:${Math.round(520 * n.w / n.h)}px">${artSVG(artSrc(n), artNo(n, pv.no), n.w, n.h)}</div>`
+    + `<button type="button" class="pv-nav" data-pv="next" aria-label="${esc(t('pv.next'))}" ${idx >= order.length - 1 ? 'disabled' : ''}>${ic('chevronRight', 18, 1.8)}</button></div>`
+    + `<div class="pv-foot">${video ? `<div class="pv-ctrl"><button type="button" class="tb icon" data-pv="play" aria-label="${esc(t('pv.play'))}">${ic('play', 14)}</button><span class="track" data-pv="seek"><span class="fill"></span></span><span class="pv-time">0.0 / ${n.duration}.0 s</span></div>` : '<span class="sp"></span>'}<span>${esc(t('pv.hint'))}</span></div>`
+    + '</div>'
+  previewBox.hidden = false
+  previewBox.querySelector('[data-pv="close"]').focus({ preventScroll: true })
+}
+function stepPreview(d) {
+  const pv = S.preview
+  if (!pv) return
+  const n = byId(pv.id)
+  const order = previewOrder(n)
+  const i = order.indexOf(pv.no) + d
+  if (i < 0 || i >= order.length) return
+  pv.no = order[i]
+  renderPreview()
+}
+function stopPvPlay() { if (pvPlay) { cancelAnimationFrame(pvPlay.raf); pvPlay = null } }
+function pvSetTime(n, time) {
+  const svg = previewBox.querySelector('.pv-media .art')
+  const fill = previewBox.querySelector('.pv-ctrl .fill')
+  const lab = previewBox.querySelector('.pv-time')
+  if (!svg) return
+  setVideoFrame(svg, time, n.duration)
+  if (fill) fill.style.width = `${(time / n.duration) * 100}%`
+  if (lab) lab.textContent = `${time.toFixed(1)} / ${n.duration}.0 s`
+}
+function togglePvPlay() {
+  const n = byId(S.preview.id)
+  const btn = previewBox.querySelector('[data-pv="play"]')
+  if (!btn) return
+  if (pvPlay) { const keep = pvPlay.time; stopPvPlay(); pvSetTime(n, keep); btn.innerHTML = ic('play', 14); btn.setAttribute('aria-label', t('pv.play')); previewBox.dataset.time = keep; return }
+  const start = performance.now(), offset = Number(previewBox.dataset.time || 0)
+  btn.innerHTML = ic('pause', 14)
+  btn.setAttribute('aria-label', t('pv.pause'))
+  pvPlay = { time: offset, raf: 0 }
+  const tick = (now) => { if (!pvPlay) return; pvPlay.time = (offset + (now - start) / 1000) % n.duration; pvSetTime(n, pvPlay.time); pvPlay.raf = requestAnimationFrame(tick) }
+  pvPlay.raf = requestAnimationFrame(tick)
+}
+
+/* ───────── 视频卡：悬停播放 + 拖进度 ───────── */
+function setVideoFrame(svg, time, duration) {
+  const p = duration > 0 ? time / duration : 0
+  const H = svg.viewBox.baseVal.height || 90
+  svg.querySelectorAll('.rain').forEach((g) => g.setAttribute('transform', `translate(0 ${((time * 38) % H).toFixed(2)})`))
+  svg.querySelectorAll('.cam').forEach((g) => { g.style.transform = `scale(${(1 + p * 0.12).toFixed(4)})` })
+}
+let play = null
+function ownerOf(el) {
+  const g = el.closest('.vgroup')
+  return g ? byId(g.dataset.for) : null
+}
+function cardVideo(card) {
+  const n = ownerOf(card)
+  return n && n.kind === 'video' ? n : null
+}
+function paintCard(card, n, time) {
+  const svg = card.querySelector('.vmedia .art')
+  if (svg) setVideoFrame(svg, time, n.duration)
+  const fill = card.querySelector('.vscrub .fill')
+  if (fill) fill.style.width = `${(time / n.duration) * 100}%`
+  const sl = card.querySelector('.vscrub')
+  if (sl) { sl.setAttribute('aria-valuenow', time.toFixed(1)); sl.setAttribute('aria-valuetext', t('video.value', { c: Math.round(time), d: n.duration })) }
+}
+function startPlay(card) {
+  const n = cardVideo(card)
+  if (!n) return
+  if (play && play.card === card) return
+  stopPlay()
+  card.classList.add('playing')
+  play = { card, n, start: performance.now(), offset: 0, time: 0, raf: 0 }
+  const tick = (now) => {
+    if (!play || play.card !== card) return
+    if (!card.isConnected) { play = null; return }
+    play.time = (play.offset + (now - play.start) / 1000) % n.duration
+    paintCard(card, n, play.time)
+    play.raf = requestAnimationFrame(tick)
+  }
+  play.raf = requestAnimationFrame(tick)
+}
+function seekPlay(card, time) {
+  if (!play || play.card !== card) startPlay(card)
+  if (!play) return
+  play.offset = time
+  play.start = performance.now()
+  play.time = time
+  paintCard(card, play.n, time)
+}
+function stopPlay(card) {
+  if (!play) return
+  if (card && play.card !== card) return
+  cancelAnimationFrame(play.raf)
+  const c = play.card, n = play.n
+  play = null
+  if (c.isConnected) { c.classList.remove('playing'); paintCard(c, n, 0) }
+}
+
+/* ───────── 事件：点击 ───────── */
+let suppressClick = false
+stage.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-act]')
+  if (!btn || !stage.contains(btn)) return
+  if (suppressClick) { suppressClick = false; e.preventDefault(); return }
+  const nodeEl = btn.closest('.node')
+  const n = nodeEl ? byId(nodeEl.dataset.id) : ownerOf(btn)
+  if (!n) return
+  const card = btn.closest('.vcard')
+  const no = card && card.dataset.no ? Number(card.dataset.no) : null
+  const act = btn.dataset.act
+  if (act === 'badge') { if (isOpen(n.id)) collapse(n.id, { focus: true }); else expand(n.id); return }
+  if (act === 'preview' && no != null) { openPreview(n, no, btn); return }
+  if (act === 'main' && no != null) { setMain(n, no); return }
+  if (act === 'download') { flashDownload(btn); return }
+  if (act === 'delete' && no != null) { removeVersion(n, no, card); return }
+  if (act === 'rerun') { rerun(n); return }
+  if (act === 'more') { S.showAll[n.id] = true; refreshNode(n); syncAll(); return }
+})
+
+previewBox.addEventListener('click', (e) => {
+  if (e.target === previewBox) { closePreview(); return }
+  const b = e.target.closest('[data-pv]')
+  if (!b) return
+  const act = b.dataset.pv
+  if (act === 'close') closePreview()
+  else if (act === 'prev') stepPreview(-1)
+  else if (act === 'next') stepPreview(1)
+  else if (act === 'play') togglePvPlay()
+})
+previewBox.addEventListener('pointerdown', (e) => {
+  const tr = e.target.closest('[data-pv="seek"]')
+  if (!tr || !S.preview) return
+  const n = byId(S.preview.id)
+  const seek = (ev) => { const r = tr.getBoundingClientRect(); const time = clamp((ev.clientX - r.left) / r.width, 0, 1) * n.duration; const was = !!pvPlay; stopPvPlay(); previewBox.dataset.time = time; pvSetTime(n, time); if (was) togglePvPlay() }
+  seek(e)
+  const mv = (ev) => seek(ev)
+  window.addEventListener('pointermove', mv)
+  window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mv), { once: true })
+})
+
+/* ───────── 事件：指针（平移、拖节点 / 拖整组、Alt 拖出复制、拖进度）───────── */
+stage.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return
+  const tg = e.target
+  if (tg.closest('.preview, .toasts, .zoomdock, .leftdock')) return
+  const scrub = tg.closest('.vscrub')
+  if (scrub) { startScrub(e, scrub); return }
+  const vm = tg.closest('.vmedia')
+  if (vm) {
+    const owner = ownerOf(vm)
+    if (!owner) return
+    select(owner.id)
+    if (e.altKey) startCopyDrag(e, vm)
+    else startNodeDrag(e, owner)
+    return
+  }
+  if (tg.closest('.vbadge, .vtile, .vbar, .vlabel')) return
+  const nodeEl = tg.closest('.node')
+  if (nodeEl) { const n = byId(nodeEl.dataset.id); if (n) { select(n.id); startNodeDrag(e, n) } return }
+  startPan(e)
+})
+
+function track(onMove, onUp) {
+  const mv = (ev) => onMove(ev)
+  const up = (ev) => {
+    window.removeEventListener('pointermove', mv)
+    window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
+    onUp(ev)
+  }
+  window.addEventListener('pointermove', mv)
+  window.addEventListener('pointerup', up)
+  window.addEventListener('pointercancel', up)
+}
+
+function startScrub(e, scrub) {
+  e.preventDefault()
+  const card = scrub.closest('.vcard')
+  const n = cardVideo(card)
+  if (!n) return
+  scrub.focus({ preventScroll: true })
+  const seek = (ev) => { const r = scrub.getBoundingClientRect(); seekPlay(card, clamp((ev.clientX - r.left) / r.width, 0, 1) * n.duration * 0.999) }
+  seek(e)
+  track(seek, () => {})
+}
+
+function startPan(e) {
+  const x0 = e.clientX, y0 = e.clientY, px = S.px, py = S.py
+  let moved = false
+  track((ev) => {
+    const dx = ev.clientX - x0, dy = ev.clientY - y0
+    if (!moved && Math.hypot(dx, dy) < 4) return
+    moved = true
+    stage.classList.add('panning')
+    S.px = px + dx
+    S.py = py + dy
+    applyView()
+  }, () => {
+    stage.classList.remove('panning')
+    if (!moved) select(null) /* 点空白只取消选中；铺开的版本照样留着 */
+  })
+}
+
+/** 拖节点，或拖它的任一张版本卡——整组一起走。别的节点一概不动。 */
+function startNodeDrag(e, n) {
+  const x0 = e.clientX, y0 = e.clientY, nx = n.x, ny = n.y
+  let moved = false
+  track((ev) => {
+    const dx = ev.clientX - x0, dy = ev.clientY - y0
+    if (!moved && Math.hypot(dx, dy) < 4) return
+    moved = true
+    stage.classList.add('dragging')
+    n.x = Math.round(nx + dx / S.zoom)
+    n.y = Math.round(ny + dy / S.zoom)
+    const el = world.querySelector(`.node[data-id="${n.id}"]`)
+    const g = world.querySelector(`.vgroup[data-for="${n.id}"]`)
+    const br = world.querySelector(`.vbracket[data-for="${n.id}"]`)
+    for (const it of [el, g]) if (it) { it.style.left = n.x + 'px'; it.style.top = n.y + 'px' }
+    if (br) { br.style.left = n.x + Number(br.dataset.dx) + 'px'; br.style.top = n.y + Number(br.dataset.dy) + 'px' }
+    renderEdges()
+    if (!startNodeDrag.raf) startNodeDrag.raf = requestAnimationFrame(() => { startNodeDrag.raf = 0; updateOcclusion() })
+  }, () => {
+    stage.classList.remove('dragging')
+    if (moved) { suppressClick = true; setTimeout(() => { suppressClick = false }, 0); updateOcclusion() }
+  })
+}
+
+function validDrop(ev) {
+  const el = document.elementFromPoint(ev.clientX, ev.clientY)
+  if (!el || !stage.contains(el)) return false
+  return !el.closest('.vgroup .vrow, .node, .toasts, .zoomdock, .leftdock, .preview')
+}
+function startCopyDrag(e, vm) {
+  e.preventDefault()
+  const card = vm.closest('.vcard')
+  const n = ownerOf(vm)
+  const no = Number(card.dataset.no)
+  const r = vm.getBoundingClientRect()
+  const w = Math.min(r.width, 160), h = (w * n.h) / n.w
+  ghost.innerHTML = `<div class="gm" style="width:${w}px;height:${h}px">${artSVG(artSrc(n), artNo(n, no), n.w, n.h)}</div><div class="gl">${ic('copyPlus', 14, 1.6)}<span>${esc(t('drop.no'))}</span></div>`
+  ghost.hidden = false
+  let moved = false
+  const place = (ev) => {
+    ghost.style.transform = `translate(${ev.clientX + 14}px, ${ev.clientY + 14}px)`
+    const ok = validDrop(ev)
+    ghost.classList.toggle('bad', !ok)
+    ghost.querySelector('.gl span').textContent = ok ? t('drop.ok') : t('drop.no')
+  }
+  place(e)
+  track((ev) => { if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 4) moved = true; place(ev) }, (ev) => {
+    ghost.hidden = true
+    ghost.innerHTML = ''
+    if (moved) { suppressClick = true; setTimeout(() => { suppressClick = false }, 0) }
+    if (moved && validDrop(ev)) createCopy(n, no, ev)
+  })
+}
+let copySeq = 0
+function createCopy(n, no, ev) {
+  const rect = stage.getBoundingClientRect()
+  const cx = (ev.clientX - rect.left - S.px) / S.zoom, cy = (ev.clientY - rect.top - S.py) / S.zoom
+  const src = artSrc(n), srcNo = artNo(n, no)
+  const copy = {
+    id: 'X' + (++copySeq), kind: n.kind, w: n.w, h: n.h, x: Math.round(cx - n.w / 2), y: Math.round(cy - n.h / 2),
+    scene: src.scene, hue: src.hue, cap: src.cap, duration: n.duration,
+    chip: { zh: I18N.zh['asset.chip'], en: I18N.en['asset.chip'] },
+    title: { zh: I18N.zh['asset.title'].replace('{title}', src.title.zh).replace('{n}', srcNo), en: I18N.en['asset.title'].replace('{title}', src.title.en).replace('{n}', srcNo) },
+    versions: [{ no: 1 }], mainNo: 1, nextNo: 2, src: { nodeId: src.id, no: srcNo },
+  }
+  NODES.push(copy)
+  const el = buildNode(copy)
+  el.classList.add('fresh')
+  world.appendChild(el)
+  S.selectedId = copy.id
+  syncAll()
+  setTimeout(() => el.classList.remove('fresh'), 1500)
+}
+
+/* 悬停视频卡就播；离开复位到开头（HistoryVideoThumb 的现状行为） */
+stage.addEventListener('pointerover', (e) => {
+  const card = e.target.closest('.vcard.video')
+  if (card) startPlay(card)
+})
+stage.addEventListener('pointerout', (e) => {
+  const card = e.target.closest('.vcard.video')
+  if (!card || card.contains(e.relatedTarget)) return
+  if (card.contains(document.activeElement) && document.activeElement.classList.contains('vscrub')) return
+  stopPlay(card)
+})
+stage.addEventListener('focusin', (e) => { if (e.target.classList?.contains('vscrub')) startPlay(e.target.closest('.vcard')) })
+stage.addEventListener('focusout', (e) => {
+  if (!e.target.classList?.contains('vscrub')) return
+  const card = e.target.closest('.vcard')
+  if (card && !card.matches(':hover')) stopPlay(card)
+})
+stage.addEventListener('keydown', (e) => {
+  const sl = e.target.closest?.('.vscrub')
+  if (!sl || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+  e.preventDefault()
+  e.stopPropagation()
+  const card = sl.closest('.vcard')
+  const n = cardVideo(card)
+  const cur = play && play.card === card ? play.time : 0
+  seekPlay(card, clamp(cur + (e.key === 'ArrowLeft' ? -1 : 1), 0, n.duration * 0.999))
+})
+
+/* ───────── 键盘：Esc 只关预览（不收起铺开的版本），Ctrl·⌘+Z 撤销，Alt 显示复制光标 ───────── */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Alt') stage.classList.add('alt')
+  if (S.preview) {
+    if (e.key === 'Escape') { e.preventDefault(); closePreview(); return }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); stepPreview(-1); return }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepPreview(1); return }
+    if (e.key === ' ' && byId(S.preview.id)?.kind === 'video' && !e.target.closest?.('button')) { e.preventDefault(); togglePvPlay(); return }
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    const rec = toasts.find((r) => r.undo)
+    if (rec) { e.preventDefault(); rec.undo(); dismiss(rec) }
+  }
+})
+document.addEventListener('keyup', (e) => { if (e.key === 'Alt') stage.classList.remove('alt') })
+window.addEventListener('blur', () => stage.classList.remove('alt'))
+
+/* ───────── 缩放 ───────── */
+function zoomTo(z) {
+  z = clamp(Math.round(z * 100) / 100, 0.3, 1.2)
+  const rect = stage.getBoundingClientRect()
+  const cx = rect.width / 2, cy = rect.height / 2
+  const wx = (cx - S.px) / S.zoom, wy = (cy - S.py) / S.zoom
+  S.zoom = z
+  S.px = cx - wx * z
+  S.py = cy - wy * z
+  applyView()
+}
+document.getElementById('zoomdock').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-zoom]')
+  if (!b) return
+  if (b.dataset.zoom === 'in') zoomTo(S.zoom + 0.1)
+  else if (b.dataset.zoom === 'out') zoomTo(S.zoom - 0.1)
+  else { S.zoom = Z0; S.px = PX0; S.py = PY0; applyView() }
+})
+
+/* ───────── 悬停名字（图标按钮的 hover 名，§1.8） ───────── */
+let tipTimer = 0, tipFor = null
+function showTip(el) {
+  if (!el.isConnected || !el.dataset.tip) return
+  tipEl.textContent = el.dataset.tip
+  tipEl.hidden = false
+  const r = el.getBoundingClientRect(), tr = tipEl.getBoundingClientRect()
+  const x = clamp(r.left + r.width / 2 - tr.width / 2, 8, window.innerWidth - tr.width - 8)
+  let y = el.dataset.tipPos === 'below' ? r.bottom + 8 : r.top - tr.height - 8
+  if (y < 8) y = r.bottom + 8
+  if (y + tr.height > window.innerHeight - 8) y = r.top - tr.height - 8
+  tipEl.style.left = `${x}px`
+  tipEl.style.top = `${y}px`
+}
+function hideTip() { clearTimeout(tipTimer); tipTimer = 0; tipFor = null; tipEl.hidden = true }
+document.addEventListener('pointerover', (e) => {
+  const el = e.target.closest?.('[data-tip]')
+  if (el === tipFor) return
+  hideTip()
+  if (!el) return
+  tipFor = el
+  tipTimer = setTimeout(() => showTip(el), el.classList.contains('vmedia') ? 700 : 350)
+})
+document.addEventListener('focusin', (e) => {
+  const el = e.target.closest?.('[data-tip]')
+  if (el && el.matches(':focus-visible')) { tipFor = el; showTip(el) }
+})
+document.addEventListener('focusout', hideTip)
+document.addEventListener('pointerdown', hideTip)
+window.addEventListener('scroll', hideTip, true)
+
+/* ───────── 文案与切换 ───────── */
+function applyStaticTexts() {
+  document.documentElement.lang = P.lang === 'zh' ? 'zh-CN' : 'en'
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t) })
+  document.querySelectorAll('[data-t-html]').forEach((el) => { el.innerHTML = t(el.dataset.tHtml) })
+  document.querySelectorAll('[data-lang]').forEach((el) => { el.hidden = el.dataset.lang !== P.lang })
+  stage.setAttribute('aria-label', t('stage.aria'))
+  document.getElementById('leftdock').innerHTML = ['photo', 'movie', 'wave', 'scissors', 'upload'].map((k) => `<i>${ic(k, 16, 1.6)}</i>`).join('') + '<hr><i>' + ic('plus', 16, 1.6) + '</i>'
+  const zd = document.getElementById('zoomdock')
+  zd.setAttribute('aria-label', t('zoom.group'))
+  const zb = { zoomOut: ['minus', 'zoom.out'], zoomIn: ['plus', 'zoom.in'], zoomReset: ['focus', 'zoom.reset'] }
+  for (const [id, [icon, key]] of Object.entries(zb)) { const b = document.getElementById(id); b.innerHTML = ic(icon, 16, 1.6); b.setAttribute('aria-label', t(key)); b.dataset.tip = t(key) }
+  const go = { 3: 'A', 4: 'D', 5: 'C', 6: 'E', 7: 'F', 8: 'B' }
+  document.getElementById('trylist').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => `<li><span>${t('try.' + i)}</span>${go[i] ? `<button type="button" class="gobtn" data-go="${go[i]}">${esc(t('try.go'))}</button>` : ''}</li>`).join('')
+  syncSegs()
+}
+function syncSegs() {
+  document.querySelectorAll('.seg[data-ctl]').forEach((seg) => {
+    const key = seg.dataset.ctl
+    seg.querySelectorAll('button[data-val]').forEach((b) => b.setAttribute('aria-pressed', String(P[key] === b.dataset.val)))
+  })
+}
+function relayoutOpen() {
+  for (const id of [...S.expanded.keys()]) {
+    const n = byId(id)
+    if (!n) continue
+    S.expanded.set(id, { placement: 'right' })
+    S.expanded.set(id, { placement: computePlacement(n) })
+    refreshNode(n)
+  }
+  syncAll()
+}
+function setPref(key, val) {
+  if (P[key] === val) return
+  P[key] = val
+  try { localStorage.setItem('nomi-version-cards-mockup', JSON.stringify(P)) } catch (_) { /* 无存储时照常工作 */ }
+  if (key === 'theme') { document.documentElement.setAttribute('data-theme', val); syncSegs(); return }
+  if (key === 'lang') { renderAll(); return }
+  syncSegs()
+  if (key === 'size' || key === 'rerun') relayoutOpen()
+  if (key === 'cover') syncAll()
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.seg[data-ctl] button[data-val]')
+  if (b) { setPref(b.closest('.seg').dataset.ctl, b.dataset.val); return }
+  const go = e.target.closest('[data-go]')
+  if (go) {
+    const n = byId(go.dataset.go)
+    stage.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (n && !isOpen(n.id)) expand(n.id, { focus: false })
+    else if (n) select(n.id)
+  }
+})
+document.getElementById('resetBtn').addEventListener('click', () => init())
+
+/* 读回上次的偏好（仅本浏览器；读不到就用默认：暗、中文、同节点大小） */
+let hadSaved = false
+try { const raw = localStorage.getItem('nomi-version-cards-mockup'); const saved = JSON.parse(raw || 'null'); if (saved && typeof saved === 'object') { hadSaved = true; for (const k of Object.keys(P)) if (typeof saved[k] === 'string') P[k] = saved[k] } } catch (_) { /* 无存储时用默认 */ }
+/* 宿主明确选了主题就跟宿主；没选（跟随系统）时样张默认暗色——before 截图与夜间默认都是暗色 */
+const hostTheme = document.documentElement.getAttribute('data-theme')
+if (!hadSaved && (hostTheme === 'light' || hostTheme === 'dark')) P.theme = hostTheme
+document.documentElement.setAttribute('data-theme', P.theme)
+
+window.__demo = {
+  expand: (id) => expand(id, { focus: false }), collapse: (id) => collapse(id), select, setPref, zoomTo,
+  view: (z, px, py) => { S.zoom = z; S.px = px; S.py = py; applyView() },
+  openPreview: (id, no) => openPreview(byId(id), no, null), state: () => S, prefs: () => P, reset: () => init(),
+}
+init()
+})()
+</script>
