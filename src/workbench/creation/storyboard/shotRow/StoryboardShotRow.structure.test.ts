@@ -83,12 +83,12 @@ describe('分镜行：对齐（预览框全表同一只、「生成」每行同�
     expect(shell).toContain('data-storyboard-content-column')
   })
 
-  it('预览框由整张表 derive（tableFrameMediaBox），行和画面格不按自己的画幅算框', () => {
+  it('预览框由整张表 derive（整片默认画幅 planDefaultAspect），行和画面格不按自己的画幅算框', () => {
     expect(frame).toContain("from './shotFrameGeometry'")
     expect(frame).not.toContain('frameMediaBox(')
     expect(row).not.toContain('frameMediaBox(')
     const table = stripComments(read('src/workbench/creation/storyboard/StoryboardShotTable.tsx'))
-    expect(table).toContain('tableFrameMediaBox')
+    expect(table).toContain('frameMediaBox(planDefaultAspect(plan))')
     // 单镜画幅 ≠ 框：在框里完整显示（contain），不拉伸不裁切。
     expect(frame).toContain('object-contain')
     expect(frame).not.toContain('object-cover')
