@@ -3,17 +3,17 @@ import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/St
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime, ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
-import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
+import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
-import { effectiveShotAspect } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
+import { effectiveShotAspect, planDefaultAspect } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { labExec, NOOP } from '../storyboard/storyboardFixtures'
 import { REUSE_IMAGE_MODELS, REUSE_VIDEO_MODELS } from './storyboardReuseFixtures'
 
 /**
  * 第二轮版面（视觉列 + 内容列）的取景台。**只用三个版本（main / 上一版 / 本版）都有的 API**：
- * 表格递给行的那组 props、锚区的 props、`tableFrameMediaBox`——这样同一格能在三个版本上各渲染一次，成对出图。
- * 媒体盒和表格一样由 `tableFrameMediaBox(全表生效画幅)` 给出（真表 `StoryboardShotTable` 就是这么算的）。
+ * 表格递给行的那组 props、锚区的 props、整片画幅的预览框——这样同一格能在三个版本上各渲染一次，成对出图。
+ * 媒体盒和表格一样由 `frameMediaBox(planDefaultAspect(plan))` 给出（真表 `StoryboardShotTable` 就是这么算的）。
  */
 export const LAYOUT_WIDE = 900
 export const LAYOUT_NARROW = 664
@@ -31,7 +31,7 @@ export function LayoutStage({ width, children }: { width: number; children: Reac
 }
 
 export function LayoutRows({ plan, width, execs = {} }: { plan: StoryboardPlan; width: number; execs?: Partial<Record<number, Partial<ShotRowExec>>> }): JSX.Element {
-  const box = tableFrameMediaBox(plan.shots.map((shot) => effectiveShotAspect(plan, shot)))
+  const box = frameMediaBox(planDefaultAspect(plan))
   return (
     <LayoutStage width={width}>
       <div className="flex flex-col divide-y divide-nomi-line-soft">

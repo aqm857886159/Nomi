@@ -6,7 +6,7 @@ import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanv
 import {
   effectiveShotAspect,
 } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
-import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
+import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { ShotVariant } from '../../../workbench/creation/storyboard/shotRow/shotVariants'
 import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
@@ -105,7 +105,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         modelOptions={shot.shotKind === 'image' ? LAB_IMAGE_MODELS : LAB_VIDEO_MODELS}
         exec={exec}
         aspect={effectiveShotAspect(plan, shot)}
-        frameBox={tableFrameMediaBox([effectiveShotAspect(plan, shot)])}
+        frameBox={frameMediaBox(effectiveShotAspect(plan, shot))}
         onChangeAspect={NOOP}
         skipped={overrides.skipped ?? false}
         onToggleSkip={NOOP}

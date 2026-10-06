@@ -26,9 +26,10 @@ import { referenceSlotAccept } from '../../generationCanvas/nodes/controls/arche
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
-import { tableFrameMediaBox } from './shotRow/shotFrameGeometry'
+import { frameMediaBox } from './shotRow/shotFrameGeometry'
 import {
   effectiveShotAspect,
+  planDefaultAspect,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
@@ -255,12 +256,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
 
   // 组头小结：与行状态同一份 derive（rows 按 startPos 切片；F2 禁静态快照）。
   // 媒体盒**一张表算一次**（§2.4 修订 · 2026-09-06 用户反馈四「不同画幅的行一放进来整个框就不齐」）：
-  // 全表同一画幅 → 盒就是那个画幅的框，缩略图铺满、行行同高；混排 → 全表共用一只盒，各自 letterbox。
-  // 输入是**全部镜头**（不是当前可见的那几行）——按可见行算，展开/折叠一个场就会让盒子跳一次尺寸。
-  const tableBox = React.useMemo(
-    () => tableFrameMediaBox(plan.shots.map((shot) => effectiveShotAspect(plan, shot))),
-    [plan],
-  )
+  // 盒子 = **整片默认画幅**的框（`planDefaultAspect`，与落画布同一个 resolver）；覆盖了画幅的镜在这只框里
+  // contain + 角标。2026-10-06 起不再用「镜数最多的画幅」近似——覆盖过半时那样算会让整张表跟着少数派变形。
+  const tableBox = React.useMemo(() => frameMediaBox(planDefaultAspect(plan)), [plan])
 
   const groupRowsOf = (group: SceneGroup): StoryboardRowRuntime[] =>
     group.shots

@@ -47,32 +47,6 @@ export function frameMediaBox(aspect: string | null | undefined): FrameMediaBox 
     : { width: Math.round(LONG_EDGE * value), height: LONG_EDGE }
 }
 
-function ratioKey(aspect: string | null | undefined): string {
-  const ratio = parseAspectRatio(aspect) ?? FALLBACK_RATIO
-  return (ratio.width / ratio.height).toFixed(4)
-}
-
-/**
- * **整张表共用的一只预览框**：整片画幅的那只框。
- *
- * 表只递得下来「每一镜的生效画幅」，这里取**镜数最多的那个画幅**当整片画幅（同数取先出现的）：
- * 没有覆盖的行生效画幅就是整片默认，所以只要覆盖的镜不过半，它就是整片默认本身；覆盖过半时，
- * 框跟着大多数镜走——那时候按「名义上的整片」画框，反而多数行都在框里留白。
- * 混排的少数行在这只框里 contain + 角标（见 `StoryboardShotFrame`）。
- */
-export function tableFrameMediaBox(aspects: readonly (string | null | undefined)[]): FrameMediaBox {
-  if (aspects.length === 0) return frameMediaBox(undefined)
-  const counts = new Map<string, { count: number; aspect: string | null | undefined }>()
-  for (const aspect of aspects) {
-    const key = ratioKey(aspect)
-    const entry = counts.get(key)
-    if (entry) entry.count += 1
-    else counts.set(key, { count: 1, aspect })
-  }
-  let best: { count: number; aspect: string | null | undefined } | null = null
-  for (const entry of counts.values()) if (!best || entry.count > best.count) best = entry
-  return frameMediaBox(best?.aspect)
-}
 
 /** 窄窗那一档：整只框等比缩到 176/240。 */
 export function densityBox(box: FrameMediaBox, narrow: boolean): FrameMediaBox {

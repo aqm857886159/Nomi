@@ -3,10 +3,11 @@ import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/St
 import StoryboardAnchorZone from '../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
 import type { AnchorCardRuntime } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import { missingRequiredSlots, resolveShotArchetypeMode } from '../../../workbench/creation/storyboard/shotRow/shotRowModel'
-import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
+import { frameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import {
   effectiveShotAspect,
+  planDefaultAspect,
 } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { labAnchorRuntime, labExec, NOOP } from '../storyboard/storyboardFixtures'
@@ -61,7 +62,7 @@ export function ShotRow({ plan, shot }: { plan: StoryboardPlan; shot: PlanShot }
       modelOptions={models}
       exec={exec}
       aspect={aspect}
-      frameBox={tableFrameMediaBox(plan.shots.map((candidate) => effectiveShotAspect(plan, candidate)))}
+      frameBox={frameMediaBox(planDefaultAspect(plan))}
       onChangeAspect={NOOP}
       skipped={false}
       onToggleSkip={NOOP}

@@ -16,7 +16,7 @@ import { useStoryboardRowNarrow } from './storyboardRowDensity'
 /**
  * 画面格 = 视觉列顶上那只预览框（2026-10-06 第二轮）——行状态机的脸。
  *
- * 框是**表级**的（`tableFrameMediaBox`：整片画幅定，全表同一只；窄档按 176/240 等比缩），所以每一行
+ * 框是**表级**的（`frameMediaBox(planDefaultAspect(plan))`：整片画幅定，全表同一只；窄档按 176/240 等比缩），所以每一行
  * 左右边缘、上沿逐行对齐。这一镜的画幅和框不同时，画面在框里按比例完整显示（contain）、空处是浅底，
  * 左下角标这一镜的画幅——框不变形，混排照样对齐；未生成时框里画一只这一镜画幅的虚线轮廓，
  * 让用户在生成前就看得到「这镜出来是竖的」。
@@ -32,7 +32,7 @@ type Props = {
   /** 这一行**生效**的画幅（storyboardShotScope.effectiveShotAspect）；只用于挂点与图片语义，
    *  几何不读它——几何来自表级的 `box`。 */
   aspect: string
-  /** 整张表共用的预览框（`tableFrameMediaBox`，宽档尺寸；窄档在这里按行的档位缩）。行不自己算，算了就又不齐了。 */
+  /** 整张表共用的预览框（整片默认画幅的框，宽档尺寸；窄档在这里按行的档位缩）。行不自己算，算了就又不齐了。 */
   box: FrameMediaBox
   /** 结果态双击 → 放大预览（AssetPreviewDialog，编辑器统一挂）。 */
   onOpenPreview?: (() => void) | undefined

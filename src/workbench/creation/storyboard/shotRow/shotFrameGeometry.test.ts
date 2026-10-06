@@ -6,9 +6,10 @@ import {
   isPortraitBox,
   parseAspectRatio,
   sameAspectAsBox,
-  tableFrameMediaBox,
   visualColumnWidth,
 } from './shotFrameGeometry'
+import { planDefaultAspect } from '../../../generationCanvas/agent/storyboardShotScope'
+import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 
 /**
  * 视觉列几何（2026-10-06 第二 / 三轮，版面由协调会话定、用户拍板）：
@@ -48,19 +49,18 @@ describe('预览框：由画幅定的那只框', () => {
   })
 })
 
-describe('表级：全表同一只框（各行左右边缘逐行对齐的唯一几何输入）', () => {
-  it('全表同一画幅 → 就是那个画幅的框', () => {
-    expect(tableFrameMediaBox(['16:9', '16x9', '32:18'])).toEqual(frameMediaBox('16:9'))
-    expect(tableFrameMediaBox(['9:16'])).toEqual(frameMediaBox('9:16'))
+describe('表级：全表同一只框 = 整片默认画幅的框', () => {
+  // 2026-10-06：表格递整片默认画幅（planDefaultAspect，与落画布同一个 resolver），不再按「镜数最多的画幅」近似。
+  const shot = (index: number, aspect?: string): PlanShot => ({
+    index, shotId: `s${index}`, durationSec: 5, anchorIds: [], prompt: '', ...(aspect ? { params: { aspect_ratio: aspect } } : {}),
   })
-
-  it('混排 → 镜数最多的那个画幅（少数行在框里 contain），与行数无关、同数取先出现的', () => {
-    expect(tableFrameMediaBox(['16:9', '9:16', '16:9', '1:1'])).toEqual(frameMediaBox('16:9'))
-    expect(tableFrameMediaBox(['9:16', '16:9'])).toEqual(frameMediaBox('9:16'))
+  it('覆盖了画幅的镜占多数，框照样是整片默认的那只（少数派不带着整张表变形）', () => {
+    const plan: StoryboardPlan = { title: 't', anchors: [], aspectRatio: '16:9', shots: [shot(1, '9:16'), shot(2, '9:16'), shot(3)] }
+    expect(frameMediaBox(planDefaultAspect(plan))).toEqual(frameMediaBox('16:9'))
   })
-
-  it('空表走兜底（竖版）', () => {
-    expect(tableFrameMediaBox([])).toEqual(frameMediaBox('9:16'))
+  it('整片没设画幅 → 按 planDefaultAspect 的规则 derive（全镜共同值）', () => {
+    const plan: StoryboardPlan = { title: 't', anchors: [], shots: [shot(1, '1:1'), shot(2, '1:1')] }
+    expect(frameMediaBox(planDefaultAspect(plan))).toEqual(frameMediaBox('1:1'))
   })
 })
 
