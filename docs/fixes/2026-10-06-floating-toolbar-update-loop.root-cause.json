@@ -1,0 +1,288 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-floating-toolbar-update-loop",
+  "detected_by": "walkthrough",
+  "problem_type": "布局反馈环（量 → setState → 再量）按「假定的缩放」换算位移，假定值和贴在 DOM 上的缩放不一致时不收敛，同步无限更新把整块画布带崩",
+  "symptom": "生产构建刚打开项目、马上选中图片节点，整块画布崩成「React Flow 画布 加载失败」：React error #185（Maximum update depth exceeded），栈在节点浮条 FloatingToolbarShell 的位置测量 useLayoutEffect（L-qa2 10-06 撞到，5 次 1 次）",
+  "direct_cause": "浮条的反向缩放读 workbenchStore.categoryViewports 里「记住的视角」的 zoom，而这份只在 onMoveEnd（React Flow 的 setTimeout 之后）/ 动画结算时才写。打开项目「摆全貌」那一刻 React Flow 已是 2.1 倍、store 还是 1：浮条屏幕宽 1352 = 644 × 2.1。测量把已施加位移当屏幕像素（净缩放=1）还原自然位置，实际屏幕位移是记账的 2.1 倍，迭代 s ← c − 1.1·s 发散（真机诊断：285 → −28.5 → 316.6 → −63 → 354.5 …），layout effect 同步 setState 超过 50 次即 #185；画布外层只有一个 chunk 边界，整块画布被换掉",
+  "class_root": "画布浮层的屏幕几何有两个缩放来源：React Flow 的 transform（贴在 DOM 上的真相）和 workbenchStore 里滞后写入的记忆视角；而浮条的测量环没有「一次测量即不动点」的收敛不变量——它的换算依赖一个没量过的缩放假设，假设一错就从收敛变成发散",
+  "affected_population": [
+    "所有平台、所有用户：打开项目摆全貌（放大到 ≥ 约 1.9 倍，即节点少、舞台大）后立刻选中有浮条的节点（图片快捷动作 / 视频抽帧 / 全景 / 下载 / 空节点变体 / 手艺产物，六条共用一个外壳）",
+    "同一窗口的其他时刻：滚轮 / 捏合缩放手势进行中（store 在手势结束才写）、我们自己的定位动画中途（只在结算时写）、store→React Flow 同步那一拍，若此时浮条因节点数据变化（如生成进度）重渲且两边缩放比 ≥ 约 1.9",
+    "设置「修饰键缩放」（panOnScroll）的用户：onMoveEnd 被 React Flow 推迟 150ms，窗口更宽"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+    "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/devlab/designLab/labCanvasViewport.tsx",
+    "src/devlab/designLab/canvasFrame/states/02-shot-label.tsx",
+    "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
+    "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+    "src/devlab/designLab/videoDepth/videoDepthLabKit.tsx"
+  ],
+  "entry_points": [
+    "FloatingToolbarShell（六条浮条的唯一外壳）的位置测量 useLayoutEffect → nextFloatingToolbarPlacement",
+    "NodeGenerationComposer 画布宿主的定位锚（composerCanvasPlacement 的缩放来源）"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/xypanzoom/eventhandler.ts",
+      "checked_at": "2026-10-06",
+      "purpose": "确认 onMoveEnd 经 setTimeout 推迟（panOnScroll 时 150ms，否则 0ms）——setViewport 之后、store 写入之前必有一段两边缩放不一致的窗口（本机装的 @xyflow/system 0.0.81 dist createPanZoomEndHandler 同样如此）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/react/src/container/Viewport/index.tsx",
+      "checked_at": "2026-10-06",
+      "purpose": "确认 Viewport 经 store.subscribe 同步直写 DOM transform（本机装的 @xyflow/react 12.11.5 dist 同样如此）：订 transform[2] 的组件提交时读到的缩放与 DOM 上的一致"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary",
+      "checked_at": "2026-10-06",
+      "purpose": "确认错误边界能接住提交阶段（layout effect 里 setState 触发）的错误，浮条外壳的边界只降级浮条"
+    }
+  ],
+  "invariants": [
+    "浮条测量环一次测量即算出不动点：同一帧再量一次结果原样不变，至多三次提交（净缩放从 DOM 量出：变换后宽 / 布局宽）",
+    "按屏幕几何摆放的画布浮层（节点浮条、生成浮框画布宿主）的反向缩放只读 React Flow 的 transform（useCanvasLiveZoom），不读 workbenchStore.categoryViewports",
+    "浮条渲染出错只降级这一条浮条（记崩溃日志），不冒到「React Flow 画布」chunk 边界"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasFrame/states/02-shot-label.tsx",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeLabelRow.tsx",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "categoryViewports"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "useCanvasLiveZoom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "symbol": "useCanvasLiveZoom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "useCanvasLiveZoom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "useCanvasLiveZoom"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+      "symbol": "nextFloatingToolbarPlacement"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "symbol": "nextFloatingToolbarPlacement"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/labCanvasViewport.tsx",
+      "symbol": "LabCanvasViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasFrame/states/02-shot-label.tsx",
+      "symbol": "LabCanvasViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
+      "symbol": "LabCanvasViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+      "symbol": "LabCanvasViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/videoDepth/videoDepthLabKit.tsx",
+      "symbol": "LabCanvasViewport"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 19,
+    "why_not": "记忆视角（categoryViewports）的读门 10 → 8：去掉的是按屏幕几何摆放的两扇（NodeFloatingToolbar、NodeGenerationComposer），改走 React Flow 的 transform（useCanvasLiveZoom 读门 2 → 4，与 ClipNode、边标签同一个真相）。留下的八扇都不做屏幕几何换算：workbenchStore 是记忆视角的 owner；GenerationCanvasReactFlow 与 useAutoFitOnLoad 是记忆视角的本职读者（恢复 / 打开时是否摆全貌）；canvasVisibleArea 在用户动作那一刻算新节点落点（手势已结束、store 已写）；NodeLabelRow / NodeGeneratingOverlay / NodeImportingOverlay 只拿缩放做 0.4 门槛的细节档位，没有几何换算、没有测量环，改订 React Flow 会让等待动效在缩放每帧重渲（canvas-perf 的 waitingFx 场景盯着它），不在这次做；02-shot-label 实验室用它驱动外框 scale(zoom)。新增的 6 扇是测量函数本身（floatingToolbarClamp 定义 + 外壳一个调用点）和设计实验室给样张喂 React Flow 缩放的 LabCanvasViewport（1 写 4 读）：实验室没有真画布，浮条 / 浮框又只认 React Flow 的缩放，样张必须经它拿到同一个来源，否则实验室会渲不出浮条"
+  },
+  "generality_proof": "六条浮条只有一个外壳 FloatingToolbarShell、一个测量函数 nextFloatingToolbarPlacement；函数从 DOM 量出净缩放后用闭式解求不动点，不再依赖任何缩放来源是否正确——视口缩放滞后、节点弹入动画的 scale 0.82→1、实验室外框 scale(zoom) 都只是净缩放的不同取值，类级测试对净缩放 0.1–15 × 五种贴边位置全部三次提交内收敛。缩放来源这一面，按屏幕几何摆放的两个浮层都改订 React Flow 的 transform（与 ClipNode、边标签、分镜表密度同一个真相），源码检查钉住它们不读记忆视角。最外一层错误边界只包浮条，即使将来浮条里出现别的渲染错，也只丢这一条浮条",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+      "symbol": "nextFloatingToolbarPlacement",
+      "responsibility": "浮条测量环的唯一换算：从 DOM 量净缩放、一步算出限宽与上下左右位移，返回 null 即收敛"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "symbol": "FloatingToolbarShell",
+      "responsibility": "六条浮条的唯一外壳：缩放只订 useCanvasLiveZoom，测量只经 nextFloatingToolbarPlacement，外包 FloatingToolbarBoundary 只降级浮条"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "entry_point": "ImageQuickActionsToolbar",
+      "disposition": "enforced",
+      "evidence": "经 FloatingToolbarShell 渲染（报告现场就是这一条：图片节点选中）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "entry_point": "NodeVideoFrameToolbar",
+      "disposition": "enforced",
+      "evidence": "经 FloatingToolbarShell 渲染"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "全景浮条 / EmptyNodeVariantToolbar",
+      "disposition": "enforced",
+      "evidence": "经 FloatingToolbarShell 渲染"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx",
+      "entry_point": "NodeResultDownloadButton",
+      "disposition": "enforced",
+      "evidence": "经 FloatingToolbarShell 渲染"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactNodeToolbar.tsx",
+      "entry_point": "ArtifactNodeToolbar",
+      "disposition": "enforced",
+      "evidence": "经 FloatingToolbarShell 渲染（lockNodeId=null）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "CanvasComposerAnchor",
+      "disposition": "enforced",
+      "evidence": "同一个缩放来源问题（反向缩放读记忆视角），但不量屏幕、没有反馈环，只会在窗口里忽大忽小、不会崩；改订 useCanvasLiveZoom，面板宿主不订（不在 React Flow 里）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "结果堆叠 placement 的 useLayoutEffect",
+      "disposition": "not-affected",
+      "evidence": "也是量 → setState，但只在左右两档之间二选一、输入全是 DOM 实量（节点 / 托盘 / 舞台矩形），不读任何缩放；deps 写死 [node.id, open, placement]"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts",
+      "entry_point": "useCanvasBottomDockRects",
+      "disposition": "not-affected",
+      "evidence": "量底部常驻控件矩形，sameRects 相等即返回旧引用，不读缩放"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "entry_point": "Popover 翻面 / 夹回窗口",
+      "disposition": "not-affected",
+      "evidence": "窗口坐标、不在画布视口里，修正后再进 effect 已放得下就不改"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeLabelRow.tsx",
+      "entry_point": "NodeLabelRow",
+      "disposition": "not-affected",
+      "evidence": "只拿缩放做 <0.4 隐藏的档位，没有几何换算、没有测量环（见 door_reduction.why_not）"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "store 滞后于 React Flow 是设计（09-25 起中间帧不写 store），每次打开项目摆全貌、每次滚轮 / 捏合缩放、每段定位动画都会再开一次窗口；任何用户、任何项目只要摆全貌放大到约 1.9 倍以上并在窗口里选中带浮条的节点就会再撞",
+    "same_class_scan": [
+      "node scripts/door-map.mjs FloatingToolbarShell：6 个渲染点全在 generationCanvas 下、全经同一个外壳",
+      "node scripts/door-map.mjs categoryViewports：10 扇读门（改后 8），逐个核对是几何换算还是档位 / 恢复",
+      "rg useLayoutEffect + getBoundingClientRect（src/workbench/generationCanvas）：NodeFloatingToolbar、NodeResultStack、InlineParameterBar、ClipNode、ClipNodeTimeline、useCanvasBottomDockRects、director Popover、PanoramaViewer、WhiteboardLeaferCanvas——只有浮条把缩放带进测量换算",
+      "rg 'scale\\(\\$\\{1 / ' 与 composerCanvasPlacement：按屏幕几何反向缩放的只有浮条与生成浮框（边标签已走 edgeLabelTransform + useCanvasLiveZoom）",
+      "真机：tests/ux/canvas-toolbar-open-select.walk.mjs --trace 记下崩溃那一轮每次测量的 transform 与矩形"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+    "invariant": "浮条测量环一次测量即不动点（净缩放从 DOM 量出），至多三次提交收敛；外壳缩放只读 React Flow 的 transform",
+    "failure_mode": "量不到尺寸（宽 0）就不量、不 setState；万一浮条里还有别的渲染错，FloatingToolbarBoundary 只把这一条浮条换成空并写崩溃日志",
+    "exception_policy": "none",
+    "strategy": "在六条浮条共用的外壳与测量函数上一次修掉：换算不再依赖缩放假设（闭式不动点），缩放来源收成 React Flow 的 transform 一个；浮条外包最小错误边界",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+      "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+    ],
+    "rationale": "两个文件里读 workbenchStore.categoryViewports[activeCategoryId].zoom 的那一行同一提交删除；浮条外壳里三个独立 setState（shift / shiftY / maxWidth）与「净缩放恒为 1」的换算一并删除，测量只剩 nextFloatingToolbarPlacement 一条路"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React Flow 推迟 onMoveEnd 与 Viewport 直写 DOM 都是它的既定行为、不是缺陷；我们的不变量（只认它的 transform、测量自量缩放）在现版本与将来版本上都成立，不需要升级或钉版本",
+    "exit_criteria": []
+  },
+  "migration": "无持久化数据变化：浮条位移 / 宽度是组件内瞬态；workbenchStore.categoryViewports 的写入方与含义（记住的视角）不变。设计实验室里渲染浮条 / 生成浮框的四个格子改经 LabCanvasViewport 给出 React Flow store",
+  "residual_risks": [
+    "NodeLabelRow / NodeGeneratingOverlay / NodeImportingOverlay 仍按记忆视角判 0.4 档位：缩放手势中途档位晚一拍（只影响藏标签 / 等待动效开关，不影响几何、不会崩）；若要统一，需把等待动效改成订门槛布尔并同步改 canvas-perf 的 data-process-zoom 判据",
+    "真机回归循环用的是单图片节点项目、中文、1280×933 内容区；英文长文案或更多浮条按钮只改变浮条宽度，已由类级测试的净缩放 × 贴边矩阵覆盖，没有逐一真机跑"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts",
+      "tests/ux/canvas-toolbar-open-select.walk.mjs"
+    ],
+    "why": "六条浮条共用的测量函数拥有「一次测量即不动点」；类级测试扫净缩放 × 贴边矩阵，真机循环在生产构建里复现原现场"
+  },
+  "recurrence_check_on": "2026-11-06"
+}

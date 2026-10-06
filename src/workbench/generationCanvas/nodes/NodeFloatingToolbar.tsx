@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { IconInfoCircle, IconChevronDown, IconCopy, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { useWorkbenchStore } from '../../workbenchStore'
 import { NodeLockBadge } from './NodeLockBadge'
-import { floatingToolbarShift } from './floatingToolbarClamp'
+import { nextFloatingToolbarPlacement, type FloatingToolbarPlacement } from './floatingToolbarClamp'
+import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
+import { logRendererCrash } from '../../../desktop/rendererLog'
 import { productionMetaOf } from '../model/productionMeta'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { reworkProductionShot } from '../../production/productionShotActions'
@@ -27,16 +28,45 @@ const ICON = { size: 16, stroke: 1.6 } as const
  * 写成可选，下一条浮条忘了传就是静默少一把锁——让编译器拦（R28），别留给走查。
  * `null` 是合法的一档：手艺产物浮条挂的不是生成节点，它没有锁。
  */
-export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { ariaLabel: string; lockNodeId: string | null; children: React.ReactNode }): JSX.Element {
-  const viewport = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId])
-  const canvasZoom = viewport?.zoom ?? 1
+export function FloatingToolbarShell(props: { ariaLabel: string; lockNodeId: string | null; children: React.ReactNode }): JSX.Element {
+  return (
+    <FloatingToolbarBoundary label={props.ariaLabel}>
+      <FloatingToolbarFrame {...props} />
+    </FloatingToolbarBoundary>
+  )
+}
+
+/**
+ * 浮条的故障隔离：浮条是挂在节点上的附件，它渲染出错只该让这一条浮条消失，不该把整块画布带崩——
+ * 画布外层只有「React Flow 画布」那一个 chunk 边界，节点里任何渲染错都会冒到那里，整块画布换成「加载失败」
+ * （2026-10-06 浮条测量无限更新就是这样把画布带走的）。不吞：照样写进渲染层崩溃日志；
+ * 浮条只在选中时挂载，取消选中再选中就是一次干净的重试。
+ */
+class FloatingToolbarBoundary extends React.Component<{ label: string; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    logRendererCrash('floating-toolbar-boundary', error, info.componentStack, { boundary: this.props.label })
+  }
+
+  render(): React.ReactNode {
+    return this.state.failed ? null : this.props.children
+  }
+}
+
+function FloatingToolbarFrame({ ariaLabel, lockNodeId, children }: { ariaLabel: string; lockNodeId: string | null; children: React.ReactNode }): JSX.Element {
+  // 反向缩放用的必须是**此刻贴在 DOM 上的那个缩放**——React Flow 的 transform（唯一真相，见 canvasViewportScale）。
+  // 不许读 workbenchStore 里「记住的视角」：那份只在手势 / 动画结束时才写，打开项目摆全貌那一刻还停在 1，
+  // 和屏幕上的 2.1 倍差出一倍多，下面的测量环就是被它带进无限更新的（React #185，整块画布崩）。
+  const canvasZoom = useCanvasLiveZoom()
   const shellRef = React.useRef<HTMLDivElement>(null)
-  // 浮条整条留在可见画布里（左右夹住，让开右侧面板）：屏幕像素的位移，渲染后量一次、变了才改。
-  const [shift, setShift] = React.useState(0)
-  // 竖直方向同理：节点贴着舞台上沿时，头顶的浮条不许钻进顶栏底下。
-  const [shiftY, setShiftY] = React.useState(0)
-  // 浮条比可见画布还宽（窄窗口、英文）时折成两行，而不是被裁掉：最大宽度 = 舞台宽度 - 两侧留白（净缩放恒为 1，本地像素 = 屏幕像素）。
-  const [maxWidth, setMaxWidth] = React.useState<number | undefined>(undefined)
+  // 浮条整条留在可见画布里（上下左右夹住，让开右侧面板 / 顶栏）；舞台太窄就限宽折行。
+  // 位移与宽度只由测量环决定，规则与收敛性归 nextFloatingToolbarPlacement（一次测量就是不动点）。
+  const [placement, setPlacement] = React.useState<FloatingToolbarPlacement>({ shiftX: 0, shiftY: 0, maxWidth: undefined })
   // 窗口 / 面板拖宽拖窄时舞台尺寸变了，但 React 不一定重渲：舞台一变就推一次渲染，让下面那次测量重新跑。
   const [, setStageTick] = React.useState(0)
   React.useEffect(() => {
@@ -46,24 +76,22 @@ export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { aria
     observer.observe(stage)
     return () => observer.disconnect()
   }, [])
-  // 刻意不写依赖：画布平移、节点落位、窗口缩放都会改浮条的屏幕位置，每次渲染后量一次最省心；
-  // 只在位移 / 宽度真的变了（>0.5px）才 setState，所以会收敛，不会无限更新。
+  // 刻意不写依赖：画布平移、缩放、节点落位、窗口缩放都会改浮条的屏幕位置，每次渲染后量一次最省心；
+  // nextFloatingToolbarPlacement 返回 null 就是已收敛——同一帧至多三次提交。
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useLayoutEffect(() => {
     const shell = shellRef.current
     const stage = shell?.closest<HTMLElement>('.generation-canvas-v2__stage')
     if (!shell || !stage) return
-    const rect = shell.getBoundingClientRect()
-    const bounds = stage.getBoundingClientRect()
-    if (rect.width === 0) return
-    const edge = 8
-    const limit = Math.max(240, Math.floor(bounds.width - 2 * edge))
-    if (limit !== maxWidth) { setMaxWidth(limit); return }
-    const next = floatingToolbarShift({ rectLeft: rect.left, rectRight: rect.right, appliedShift: shift, min: bounds.left + edge, max: bounds.right - edge })
-    if (Math.abs(next - shift) > 0.5) setShift(next)
-    const nextY = floatingToolbarShift({ rectLeft: rect.top, rectRight: rect.bottom, appliedShift: shiftY, min: bounds.top + edge, max: bounds.bottom - edge })
-    if (Math.abs(nextY - shiftY) > 0.5) setShiftY(nextY)
+    const next = nextFloatingToolbarPlacement({
+      rect: shell.getBoundingClientRect(),
+      layoutWidth: shell.offsetWidth,
+      stage: stage.getBoundingClientRect(),
+      applied: placement,
+    })
+    if (next) setPlacement(next)
   })
+  const zoom = canvasZoom || 1
   return (
     <div
       ref={shellRef}
@@ -78,7 +106,7 @@ export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { aria
         'group-data-[dragging=true]/canvas:invisible',
       )}
       data-node-floating-toolbar="true"
-      style={{ maxWidth, transform: `translate(${shift / (canvasZoom || 1)}px, ${shiftY / (canvasZoom || 1)}px) translateX(-50%) scale(${1 / (canvasZoom || 1)})`, transformOrigin: 'bottom center' }}
+      style={{ maxWidth: placement.maxWidth, transform: `translate(${placement.shiftX / zoom}px, ${placement.shiftY / zoom}px) translateX(-50%) scale(${1 / zoom})`, transformOrigin: 'bottom center' }}
       role="toolbar"
       aria-label={ariaLabel}
       onPointerDown={(event) => event.stopPropagation()}

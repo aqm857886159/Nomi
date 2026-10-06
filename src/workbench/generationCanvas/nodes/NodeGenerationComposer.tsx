@@ -52,7 +52,7 @@ import {
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
 import { composerCanvasPlacement } from './composerCanvasPlacement'
-import { useWorkbenchStore } from '../../workbenchStore'
+import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
 import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2 } from '@tabler/icons-react'
 import {
   findModelOptionByIdentifier,
@@ -334,7 +334,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   // 不躲任何东西、不翻到上方**——出了屏幕就被挡住（2026-09-25 用户拍板「遮挡就遮挡了，保持位置」）。
   // 这正是 React Flow 官方节点浮层 `NodeToolbar` 的定位法（只有锚点 + 反缩放，无视口避让）；没直接用它，
   // 是因为它挂在 portal 里、隐藏即卸载，会丢掉拖动期间靠 visibility 保住的 TipTap 实例（见下面 invisible 那条注释）。
-  const canvasZoom = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.zoom ?? 1)
+  // 画布缩放由画布宿主的定位锚（CanvasComposerAnchor）自己读 React Flow 的 transform——见文件尾。
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const maxHeight = composerMaxHeight(node.kind)
   const promptExpand = useComposerPromptExpand()
@@ -363,8 +363,10 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
 
   return (
     // 外层只做屏幕空间定位锚，反向缩放保持参数卡可读。
-    <NodeWriteAccessProvider value={writeAccess}><div
-      ref={anchorRef}
+    <NodeWriteAccessProvider value={writeAccess}><ComposerAnchor
+      inPanel={inPanel}
+      anchorRef={anchorRef}
+      visualSize={visualSize}
       className={cn(
         'generation-canvas-v2-node__composer nokey',
         // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
@@ -375,12 +377,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
         !inPanel && 'group-data-[dragging=true]/canvas:invisible',
       )}
       data-composer-host={host}
-      style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
-        ...composerCanvasPlacement(visualSize, canvasZoom),
-        cursor: 'default',
-        userSelect: 'auto',
-        touchAction: 'auto',
-      }}
+      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       {...(acceptsDrop ? dropHandlers : {})}
@@ -625,6 +622,30 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           </span>
         </div>
       ) : null}
-    </div></NodeWriteAccessProvider>
+    </ComposerAnchor></NodeWriteAccessProvider>
   )
+}
+
+type ComposerAnchorProps = React.HTMLAttributes<HTMLDivElement> & {
+  inPanel: boolean
+  anchorRef: React.Ref<HTMLDivElement>
+  visualSize: { width: number; height: number }
+  'data-composer-host': NodeComposerHost
+}
+
+/** 浮框最外层：面板宿主是普通内容流里的一个 div；画布宿主是钉在节点下沿的定位锚。 */
+function ComposerAnchor({ inPanel, anchorRef, visualSize, ...rest }: ComposerAnchorProps): JSX.Element {
+  return inPanel ? <div ref={anchorRef} {...rest} /> : <CanvasComposerAnchor anchorRef={anchorRef} visualSize={visualSize} {...rest} />
+}
+
+/**
+ * 画布宿主的定位锚：位置 = composerCanvasPlacement(节点尺寸, 画布缩放)。
+ * 缩放读 React Flow 的 transform（唯一真相，见 reactFlow/canvasViewportScale）——不读 workbenchStore 里「记住的视角」：
+ * 那份只在手势 / 动画结束时才写，中途和贴在屏幕上的缩放差一截，浮框就忽大忽小（2026-10-06 同源问题把节点浮条带进了无限更新）。
+ * 单独成一层：缩放每帧变时只有这一层重渲，里面的编辑器（children 引用不变）不跟着重渲。
+ * 面板宿主不在 React Flow 里、订不到它，所以只有画布宿主走这里。
+ */
+function CanvasComposerAnchor({ anchorRef, visualSize, style, ...rest }: Omit<ComposerAnchorProps, 'inPanel'>): JSX.Element {
+  const canvasZoom = useCanvasLiveZoom()
+  return <div ref={anchorRef} {...rest} style={{ ...composerCanvasPlacement(visualSize, canvasZoom), ...style }} />
 }

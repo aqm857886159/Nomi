@@ -25,6 +25,7 @@
 // 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2）；底栏上印什么值，
 // 因此全是档案 derive 出来的真货（比例 / 时长 / 清晰度），不是在这里手打的一句文案。
 import React, { type JSX } from 'react'
+import { LabCanvasViewport } from '../labCanvasViewport'
 
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import InlineParameterBar from '../../../workbench/generationCanvas/nodes/InlineParameterBar'
@@ -187,7 +188,7 @@ function StageFrame({ children }: { children: React.ReactNode }): JSX.Element {
       className="workbench-generation__canvas relative overflow-hidden rounded-nomi border border-nomi-line bg-[var(--workbench-surface)]"
       style={{ width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT }}
     >
-      {children}
+      <LabCanvasViewport>{children}</LabCanvasViewport>
     </div>
   )
 }
