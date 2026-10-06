@@ -38,6 +38,7 @@ import WhiteboardModal from '../nodes/whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio, readWhiteboardState } from '../nodes/whiteboard/whiteboardState'
 import { readQuickActionMeta } from './deriveFromNode'
 import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } from './quickActionCatalog'
+import type { QuickActionGuide } from './capabilityGuide'
 
 /**
  * 图片节点浮条 · 快捷动作版（2026-10-04 批次 1；取代了旧的 `NodeImageEditToolbar.tsx`，同一提交删掉旧文件）。
@@ -62,8 +63,6 @@ import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } f
  * 「抠图」留在一级、「画板」改纯图标（2026-10-05 用户在两条拍板冲突时选的：设计系统 §1.5.4 反例第 1 行
  * 「不把抠图收进 ▾ 凑数」优先于批次方案「抠图并进改图▾」；文字钮仍是 4 颗）。
  */
-
-export type QuickActionGuide = Readonly<{ description: string; onSelect: () => void }>
 
 export type ImageQuickActionsToolbarProps = {
   reportFeedback: (message: string) => void
@@ -139,8 +138,10 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   const more = quickActionsInGroup('more')
   const refines = quickActionsInGroup('refine')
 
-  const moreItems = quickActionItems(more, t, quickActionBlocked, onQuickAction)
+  const moreItems = quickActionItems(more, t, quickActionBlocked, onQuickAction, quickActionGuides)
   const featuredBlocked = featured ? quickActionBlocked?.[featured.id] : undefined
+  // 能力此刻没有（没有能改图的模型）：主体照样可点，点了去补；悬停说缺什么。
+  const featuredGuide = featured ? quickActionGuides?.[featured.id] : undefined
 
   const transformItems: WorkbenchMenuNode[] = ([
     { op: 'rotate-left' as const, icon: IconRotate2, key: 'generationCommon.imageToolbar.rotateLeft' as const },
@@ -201,9 +202,9 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
           primary={featured ? {
             icon: <featured.icon size={I.size} stroke={I.stroke} />,
             label: t(featured.labelKey),
-            title: featuredBlocked ?? t('generationCommon.quickActions.featuredHint'),
-            disabled: !imageUrl || Boolean(featuredBlocked),
-            onClick: () => onQuickAction(featured.id),
+            title: featuredGuide?.description ?? featuredBlocked ?? t('generationCommon.quickActions.featuredHint'),
+            disabled: !imageUrl || (!featuredGuide && Boolean(featuredBlocked)),
+            onClick: featuredGuide ? featuredGuide.onSelect : () => onQuickAction(featured.id),
           } : undefined}
         />
         {onRemoveBackground ? (

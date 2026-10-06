@@ -5,6 +5,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { loadPromptLibraryItems, usePromptLibrary } from '../../promptLibrary/usePromptLibrary'
 import { deriveFromNode, findUpscaleModelOption, type DeriveBlockReason } from './deriveFromNode'
 import { QUICK_ACTIONS, type QuickActionId } from './quickActionCatalog'
+import { capabilityGuide, type QuickActionGuide } from './capabilityGuide'
 
 /**
  * 图片浮条「预设场景 ▾ / 改图 ▾」的宿主逻辑：哪些项点不了、为什么，以及点了之后走 `deriveFromNode`。
@@ -28,28 +29,42 @@ export function useQuickActionHost({
 }: {
   node: GenerationCanvasNode
   reportFeedback: (message: string) => void
-}): { quickActionBlocked: Partial<Record<QuickActionId, string>>; onQuickAction: (id: QuickActionId) => void } {
+}): {
+  quickActionBlocked: Partial<Record<QuickActionId, string>>
+  quickActionGuides: Partial<Record<QuickActionId, QuickActionGuide>>
+  onQuickAction: (id: QuickActionId) => void
+} {
   const { t } = useTranslation()
   const models = useGenerationModelOptionsState('image', 'image_edit')
   const library = usePromptLibrary(true)
   const editModelOptions = models.options
 
+  // 「这个能力此刻没有」不是死路（2026-10-06 用户拍板）：项不灰，第二行说缺什么，点了直接去补。
+  // 目录还在加载时不判（不闪）；加载完仍没有才挂引导。点了派生却发现没有（加载中点的）也走同一条路。
+  const missing = React.useMemo(() => {
+    if (models.loading) return { upscale: false, imageEdit: false }
+    return { upscale: !findUpscaleModelOption(editModelOptions), imageEdit: editModelOptions.length === 0 }
+  }, [editModelOptions, models.loading])
+
+  const quickActionGuides = React.useMemo(() => {
+    const guides: Partial<Record<QuickActionId, QuickActionGuide>> = {}
+    for (const action of QUICK_ACTIONS) {
+      const capability = action.requires === 'upscale' ? 'upscale' : 'imageEdit'
+      if (missing[capability]) guides[action.id] = capabilityGuide(capability, t)
+    }
+    return guides
+  }, [missing, t])
+
   const quickActionBlocked = React.useMemo(() => {
     const blocked: Partial<Record<QuickActionId, string>> = {}
-    // 目录 / 效果库还在加载时不拦：先灰掉再亮起来比「点不了又不知道为什么」好，但更好的是不闪。
-    const modelsKnown = !models.loading
     const libraryKnown = !library.loading && library.items.length > 0
     for (const action of QUICK_ACTIONS) {
-      if (modelsKnown && action.requires === 'upscale' && !findUpscaleModelOption(editModelOptions)) {
-        blocked[action.id] = t(BLOCK_MESSAGE_KEYS['no-upscale-model'])
-      } else if (modelsKnown && action.requires === 'image-edit' && editModelOptions.length === 0) {
-        blocked[action.id] = t(BLOCK_MESSAGE_KEYS['no-image-model'])
-      } else if (libraryKnown && action.effectId && !library.items.some((item) => item.id === action.effectId)) {
+      if (libraryKnown && action.effectId && !library.items.some((item) => item.id === action.effectId)) {
         blocked[action.id] = t(BLOCK_MESSAGE_KEYS['missing-effect'])
       }
     }
     return blocked
-  }, [editModelOptions, library.items, library.loading, models.loading, t])
+  }, [library.items, library.loading, t])
 
   const onQuickAction = React.useCallback((id: QuickActionId) => {
     void deriveFromNode(
@@ -65,9 +80,13 @@ export function useQuickActionHost({
         },
       },
     ).then((outcome) => {
-      if (outcome.status === 'blocked') reportFeedback(t(BLOCK_MESSAGE_KEYS[outcome.reason]))
+      if (outcome.status !== 'blocked') return
+      reportFeedback(t(BLOCK_MESSAGE_KEYS[outcome.reason]))
+      // 目录加载中点的、派生时才发现缺能力：同样把去补的路打开，不停在一句话上。
+      if (outcome.reason === 'no-upscale-model') capabilityGuide('upscale', t).onSelect()
+      if (outcome.reason === 'no-image-model') capabilityGuide('imageEdit', t).onSelect()
     })
   }, [editModelOptions, node.id, reportFeedback, t])
 
-  return { quickActionBlocked, onQuickAction }
+  return { quickActionBlocked, quickActionGuides, onQuickAction }
 }
