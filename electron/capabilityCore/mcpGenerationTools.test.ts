@@ -10,6 +10,7 @@ import {
 import { MCP_GENERATION_TOOL_CATALOG } from "./mcpGenerationToolCatalog";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { buildVideoModelCandidates, recommendVideoGeneration, SEEDANCE_2_5_APIMART_ARCHETYPE } from "../shared/videoCapabilities";
+import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
 
 const videoModelCandidates = buildVideoModelCandidates([
   { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
@@ -775,6 +776,44 @@ describe("semantic MCP generation tools", () => {
     function shotFrom(shotId: string, prompt: string, role?: "anchor" | "shot") {
       return { shotId, ...(role ? { role } : {}), candidate: candidate({ candidateId: `cand-${shotId}`, prompt }) };
     }
+
+    it("captures the draft scope once and passes its registry to every shot resolve", async () => {
+      const scopedRegistry = createModuleRegistry([{
+        moduleId: "generation.single-shot", version: "scoped", inputKinds: ["text"], outputKinds: ["image"], modes: ["text-to-image"],
+        parameterSchema: {}, assetInputSchema: { references: { kind: "asset" } },
+        providers: [{ providerId: "scoped-provider", models: [{
+          modelId: "scoped-model", modes: ["text-to-image"], parameterSchema: {},
+          capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+        }] }],
+      }]);
+      const scope: LiveGenerationRuntimeScope = {
+        readBootstrap: () => ({ providers: [], readinessByProvider: {} }),
+        registry: scopedRegistry,
+      };
+      const createDraftScope = vi.fn(() => scope);
+      const operations = createInMemoryGenerationOperationStore();
+      const handler = createGenerationPlanningHandler({
+        // The long-lived registry intentionally cannot resolve the scoped model.
+        registry,
+        createDraftScope,
+        operations,
+        now: () => "2026-08-23T00:00:00.000Z",
+      });
+
+      const created = await handler({ capability: "create", params: {
+        operationId: "op-scoped-registry",
+        shots: [
+          { shotId: "shot-1", candidate: candidate({ candidateId: "cand-1", providerId: "scoped-provider", modelId: "scoped-model", parameters: {} }) },
+          { shotId: "shot-2", candidate: candidate({ candidateId: "cand-2", providerId: "scoped-provider", modelId: "scoped-model", parameters: {} }) },
+        ],
+      }, lease }) as { operation: { shots?: Array<{ candidate: { providerId: string; modelId: string } }> } };
+
+      expect(createDraftScope).toHaveBeenCalledTimes(1);
+      expect(created.operation.shots?.map((shot) => [shot.candidate.providerId, shot.candidate.modelId])).toEqual([
+        ["scoped-provider", "scoped-model"],
+        ["scoped-provider", "scoped-model"],
+      ]);
+    });
 
     it("create({shots}) persists draft shots and gate_request seals a real multi-shot bundle (sub-contracts + planHash)", async () => {
       const operations = createInMemoryGenerationOperationStore();

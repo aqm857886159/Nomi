@@ -1,0 +1,228 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-storyboard-table-structure",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "problem_type": "Controls and overlays that live inside an overflow-hidden frame (a sticky bar, in-flow absolute menus) and a row-density rung whose threshold ignored what the row's composer bar needs",
+  "symptom": "Storyboard table: after selecting a row the multi-select bar is invisible until the page is scrolled to the very bottom; the row menu, the \"use as\" menu and the prompt-segment menu of the last row are cut by the table border; at the minimum window (1100x690, Agent panel open) the composer bar of every shot row is cut at the right edge, so the per-row Generate button and the ellipsis cannot be seen or clicked, in Chinese and worse in English (user audit 2026-10-05, A1 / A13). After the overlays moved into a Portal, Tab from the \"use as\" trigger jumped to the prompt box instead of into the menu (found by independent review V-1039).",
+  "direct_cause": "StoryboardShotTable.tsx rendered StoryboardSelectionToolbar (sticky bottom-2) inside the div that carries overflow-hidden, which becomes its nearest scrolling ancestor but never scrolls; four row overlays (StoryboardShotRow row menu, StoryboardFrameActions ResultIntakeMenu, PromptSkeletonSegments segment menu, StoryboardHoverPreview) were absolute inside that same clipping frame; storyboardRowDensity.ts decided the narrow tier only by \"prompt column narrower than the reference column\" (626px) so a 666px row stayed wide with a 251px prompt column for a composer bar that needs 343px (zh) / 417px (en) after its own yield steps.",
+  "class_root": "Two yield layers that each decide alone. (1) Placement: the table frame clips, and anything positioned in-flow inside it (sticky or absolute) is clipped with it; the shared placement mechanism (AnchoredPopover, Portal to body) existed but each overlay chose its own positioning. (2) Width: the composer bar yields (model shrinks, enums go to the ellipsis) and the row yields (reference column collapses) but the row never asked what the bar still needs after its yield, so a band of widths fell between the two.",
+  "migration": "No stored data. The four in-row absolute overlays are replaced by AnchoredPopover in the same commit (no parallel version); the toolbar moves out of the clipping div, the rows div keeps the rounded border and the clip. The narrow row tier now starts at fixed width + max(reference column, composer bar floor) and also tightens column gap and side padding.",
+  "affected_population": [
+    "Every user who selects a storyboard row (the multi-select bar was only reachable at the end of the page)",
+    "Every user who opens a row or result menu on the last row of a storyboard table",
+    "Users at the minimum window or with the Agent panel open, especially in English, where shot rows cut Generate and the ellipsis"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/",
+    "src/design/AnchoredPopover.tsx"
+  ],
+  "entry_points": [
+    "StoryboardShotTable.tsx StoryboardSelectionToolbar (sticky bar placement)",
+    "shotRow/StoryboardShotRow.tsx row menu, shotRow/StoryboardFrameActions.tsx ResultIntakeMenu, shotRow/PromptSkeletonSegments.tsx segment menu, StoryboardHoverPreview.tsx (in-row overlays)",
+    "shotRow/storyboardRowDensity.ts STORYBOARD_ROW_NARROW_BELOW -> shotRow/StoryboardRowShell.tsx storyboardRowIsNarrow (row tier)"
+  ],
+  "invariants": [
+    "The multi-select bar is never a descendant of an overflow-hidden element; it follows the scroll area (sticky) and is hittable without scrolling.",
+    "Every overlay opened from a storyboard row is a child of AnchoredPopover (Portal to body); no absolute z-20/z-30 bordered panel exists under src/workbench/creation/storyboard/.",
+    "The narrow row tier starts where the prompt column can no longer hold the composer bar floor (COMPOSER_BAR_FLOOR_WIDTH from composerBarGeometry.ts), not only where it is narrower than the reference column.",
+    "At 1100x690 in zh and en, the per-row Generate button and the ellipsis are hittable (elementFromPoint) and no composer bar leaf passes the row edge (tests/ux/storyboard-table-structure.walk.mjs).",
+    "Every interactive AnchoredPopover (one that takes onClose) moves focus inside when it opens, cycles Tab inside, and returns focus to what had it before when it closes (tests/ux/storyboard-popover-keyboard.test.mjs walks the four storyboard popovers as one list)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/design/AnchoredPopover.tsx",
+    "tests": [
+      "src/workbench/creation/storyboard/storyboardTableReach.structure.test.ts",
+      "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.test.ts"
+    ],
+    "why": "Placement of overlays has one shared Portal mechanism; the row tier threshold is derived from the composer bar yield geometry. The real layout proof is the walk tests/ux/storyboard-table-structure.walk.mjs (elementFromPoint at 1100x690, zh and en), which the unit tests cannot replace because clipping does not change getBoundingClientRect."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/AssetPickerPopover.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardHoverPreview.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/GridSplitPicker.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/ProjectSyncBadge.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineTransitionPicker.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "StoryboardSelectionToolbar"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardRowShell.tsx",
+      "symbol": "storyboardRowIsNarrow"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 14,
+    "why_not": "These are consumers of the one shared placement mechanism, not competing implementations: before this change 8 sites used AnchoredPopover and 4 storyboard row overlays positioned themselves; now all 12 use it; the other two doors are the toolbar mount and the row tier decision, each with one caller. The count grows because 4 hand-placed overlays joined the single boundary, which is the reduction that matters (hand-placed in-row overlays 4 -> 0). The remaining sites are different surfaces (timeline, assets, project sync, canvas) that each anchor to their own trigger."
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/storyboardTableReach.structure.test.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.test.ts",
+    "tests/ux/storyboard-popover-keyboard.test.mjs"
+  ],
+  "residual_risks": [
+    "English rows between about 735 and 834px wide still cut the composer bar: the narrow tier uses the Chinese (343px) bar floor on purpose, because the English floor (417px) would also collapse the three reference cells of Chinese rows that fit today (the approved 807px sample). Needs a decision on a locale-aware floor or a last yield step inside the composer bar (ShotComposerBar.tsx, owned by another line).",
+    "At the minimum window the English bar fits with almost no spare room (the \"Omni reference\" mode label). A longer mode label or model name would cut it again; the guarantee for any label length needs a last yield step inside the composer bar (chips yield so the ellipsis and Generate stay pinned).",
+    "Rows narrower than about 605px (Chinese) / 680px (English) at the narrow tier cannot fit the bar by any current yield step; at the supported minimum window the row is 666px.",
+    "Real App with real generation: unverified (zero-credit fixture, no generation clicked).",
+    "Hover preview now sits in a Portal with pointer-events none; verified in the structure test only, not by a hover walk.",
+    "AnchoredPopover now moves focus for every consumer that passes onClose (asset picker, timeline transition picker, sync badge, canvas popovers): covered by the design unit tests and the storyboard keyboard list, not by a walk of each surface."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Both halves are about Nomi's own layout (overflow clipping of sticky/absolute descendants is standard CSS behaviour already documented in src/design/AnchoredPopover.tsx; the row tier threshold is derived from Nomi's own geometry constants).",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same clipped-overlay class was fixed before for the timeline transition picker (2026-09-06), project sync badge (2026-09-12), composer bar ellipsis (2026-09-17) and canvas help popover (2026-09-21); each fix moved one overlay and left the rest of the table. The width gap is the second layer of the same \"each layer yields alone\" shape.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs AnchoredPopover: 12 consumers after this change",
+      "className with absolute + z-20/z-30 + border + shadow under src/workbench/creation/storyboard: 0 after this change (storyboardTableReach.structure.test.ts)",
+      "Reference stack expansion (ShotReferenceZone z-[5]) draws inside its own row, NomiSelect uses Mantine withinPortal, the @ mention list is appended to document.body: not clipped by the table",
+      "Iron law 12 (tests/ux/full-walk/catalog.mjs, pb12 storyboard click expectations) is the class-level full-walk check this contract points at; the keyboard list test covers the four portal popovers"
+    ]
+  },
+  "generality_proof": "Overlays opened from a table row now share one Portal placement, so a new overlay inherits \"not clipped by the table, flips at the viewport edge, Esc and outside click close it\"; the structure test fails on any new in-row absolute bordered panel. The tier threshold is computed from the composer bar yield geometry, so a change to chip chrome or floors moves the threshold with it instead of leaving a gap.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "AnchoredPopover",
+      "responsibility": "Portal to body and fixed placement next to the trigger, flip at the viewport edge, Esc and outside-click close, pass-through mode for display-only previews. Interactive popovers also own focus: focus in on open, Tab cycle, focus back to the opener on close."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.ts",
+      "symbol": "STORYBOARD_ROW_NARROW_BELOW",
+      "responsibility": "Decide the row tier from what the prompt column must hold: the larger of the reference column and the composer bar floor."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "entry_point": "row menu (data-storyboard-row-menu)",
+      "disposition": "enforced",
+      "evidence": "Now AnchoredPopover anchored to the row ellipsis; walk checks the last-row menu is fully hittable and closes on outside click."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "entry_point": "ResultIntakeMenu",
+      "disposition": "enforced",
+      "evidence": "Now AnchoredPopover; walk checks the last-row \"use as\" menu is fully hittable."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx",
+      "entry_point": "segment menu",
+      "disposition": "enforced",
+      "evidence": "Now AnchoredPopover on a zero-size anchor at the clicked segment; walk checks it is fully hittable; it also gains Esc and outside-click close."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardHoverPreview.tsx",
+      "entry_point": "hover preview",
+      "disposition": "enforced",
+      "evidence": "Now AnchoredPopover with passThrough; structure test pins it."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+      "entry_point": "expanded reference stack",
+      "disposition": "not-affected",
+      "evidence": "The same row of cells drawn on a raised plate at the top of its own cell; it stays inside its row, never past the table border (seen in the narrow-row walk screenshots)."
+    },
+    {
+      "path": "src/design/NomiSelect.tsx",
+      "entry_point": "dropdown panel",
+      "disposition": "not-affected",
+      "evidence": "Mantine withinPortal: the panel is in body."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/AnchoredPopover.tsx",
+    "invariant": "Overlays opened from table rows are placed by AnchoredPopover, never by in-row absolute positioning; the row tier threshold includes the composer bar floor. Focus entry, Tab cycle and focus return live in AnchoredPopover, not in each menu.",
+    "failure_mode": "storyboardTableReach.structure.test.ts fails on a new absolute bordered panel in the storyboard folder or a toolbar back inside the clipping div; storyboardRowDensity.test.ts fails if the threshold stops reading the bar floor; the walk reports unreachable controls with what is drawn at the click point.",
+    "exception_policy": "none",
+    "strategy": "Keep one Portal placement mechanism for row overlays and derive the row tier from the bar yield geometry; prove reach with elementFromPoint, not with rects.",
+    "artifacts": [
+      "src/design/AnchoredPopover.tsx",
+      "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.ts",
+      "src/workbench/creation/storyboard/shotRow/composerBarGeometry.ts",
+      "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "tests/ux/storyboard-popover-keyboard.test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/storyboardTableReach.structure.test.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.test.ts",
+    "tests/ux/storyboard-popover-keyboard.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx",
+      "src/workbench/creation/storyboard/StoryboardHoverPreview.tsx"
+    ],
+    "rationale": "The in-row absolute overlay markup in these four files is replaced by AnchoredPopover in the same commit; the toolbar moved out of the clipping div; no parallel version is kept."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls the invariant; Portal placement is already done by the in-repo AnchoredPopover.",
+    "exit_criteria": []
+  }
+}

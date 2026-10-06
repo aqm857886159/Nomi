@@ -1,8 +1,17 @@
 import { createGenerationProviderBootstrap, type GenerationProviderBootstrap } from "./generationProviderBootstrap";
 import { createCatalogModuleRegistry } from "./moduleCatalogBootstrap";
-import type { ModuleRegistry, ModuleResolveInput, ResolvedModule } from "./moduleRegistry";
+import type { ModuleRegistry } from "./moduleRegistry";
 import { readCatalog } from "../catalog/catalogStore";
 import type { CatalogState } from "../catalog/types";
+
+export type LiveGenerationRegistry = Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
+
+export type LiveGenerationRuntimeScope = Readonly<{
+  /** The immutable provider/readiness view captured for this planning call. */
+  readBootstrap: () => GenerationProviderBootstrap;
+  /** The immutable catalog-derived module registry captured for this planning call. */
+  registry: LiveGenerationRegistry;
+}>;
 
 /**
  * Runtime view of the generation catalog.
@@ -15,7 +24,13 @@ import type { CatalogState } from "../catalog/types";
  */
 export type LiveGenerationRuntime = {
   readBootstrap: () => GenerationProviderBootstrap;
-  registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
+  /**
+   * Capture one catalog/bootstrap/registry snapshot for one draft lifecycle.
+   *
+   * This deliberately is a factory rather than a runtime-wide cache: a later
+   * planning call starts a new scope and therefore observes catalog changes.
+   */
+  createDraftScope: () => LiveGenerationRuntimeScope;
 };
 
 export type LiveGenerationRuntimeFactories = {
@@ -30,16 +45,14 @@ export function createLiveGenerationRuntime(factories: LiveGenerationRuntimeFact
   const registryFactory = factories.registry ?? ((state, readiness) => createCatalogModuleRegistry(state, { readinessByProvider: readiness }));
 
   const readBootstrap = (): GenerationProviderBootstrap => bootstrap(catalogReader(), { catalogReader });
-  const readRegistry = () => {
+  const createDraftScope = (): LiveGenerationRuntimeScope => {
     const state = catalogReader();
-    return registryFactory(state, readBootstrap().readinessByProvider);
+    const capturedBootstrap = bootstrap(state, { catalogReader });
+    const capturedRegistry = registryFactory(state, capturedBootstrap.readinessByProvider);
+    return {
+      readBootstrap: () => capturedBootstrap,
+      registry: capturedRegistry,
+    };
   };
-
-  // Keep a stable object identity for the planning handler while resolving
-  // against a fresh catalog/readiness snapshot for each planning operation.
-  const registry: LiveGenerationRuntime["registry"] = {
-    resolve: (request: ModuleResolveInput): ResolvedModule => readRegistry().resolve(request),
-    snapshot: () => readRegistry().snapshot?.() ?? [],
-  };
-  return { readBootstrap, registry };
+  return { readBootstrap, createDraftScope };
 }

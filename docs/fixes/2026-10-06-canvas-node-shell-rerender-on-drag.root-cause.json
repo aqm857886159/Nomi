@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-canvas-node-shell-rerender-on-drag",
+  "problem_type": "拖动热路径重渲：只有坐标变化时整张节点卡重渲",
+  "symptom": "全选 320 节点（XL：160 图 + 160 视频）拖动卡成幻灯片：卡 17（mac）32 帧、249 个长任务、节点样式写 7.9 万次；Windows 同场景 250 次移动累计长任务 66 秒；修完外壳重渲后剩下的大头是合成层：全选 180 张时浏览器有 1137 个合成层（每张选中卡 8 个缩放把手，全因 Overlap 被提层），拖动每帧 Layerize 约 55ms",
+  "direct_cause": "自定义节点外壳 GenerationFlowNodeView 没有 memo；React Flow 每帧把被拖节点的 positionAbsoluteX / positionAbsoluteY 作为新 props 传给节点组件，整张卡（含 BaseGenerationNode、每个 t() 文案、浮层计算）每帧重算",
+  "class_root": "节点外壳的重渲染门缺失：几何变化（位置由外层 NodeWrapper 的 transform 摆放）与内容变化没有分开，任何坐标变化都触发内容重渲",
+  "affected_population": [
+    "所有平台；节点越多、选中越多越明显；Windows 最重",
+    "任何会移动节点的手势：单拖、多选拖、全选拖、键盘移动"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+  ],
+  "entry_points": [
+    "React Flow NodeWrapper → nodeTypes.generation（唯一的节点组件注册点）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/learn/advanced-use/performance",
+      "checked_at": "2026-10-06",
+      "purpose": "官方性能指南：自定义节点必须 React.memo；避免在组件里订阅整个 nodes"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/react/src/components/NodeWrapper/index.tsx",
+      "checked_at": "2026-10-06",
+      "purpose": "确认传给节点组件的 props：positionAbsoluteX/Y 每帧变化，data 引用在我们的拖动内核里保持不变"
+    }
+  ],
+  "invariants": [
+    "只有 positionAbsoluteX / positionAbsoluteY 变化时节点外壳不重渲",
+    "其余任何 prop 变化照常重渲",
+    "节点外壳不读这两个坐标",
+    "缩放把手只挂在唯一选中的卡上（多选时不挂），合成层数不随选中张数增长"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "sameGenerationFlowNodeRender"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "nodeTypes"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "一扇是注册点（nodeTypes 交给 ReactFlow 的唯一位置），一扇是门判据本身被外壳 memo 使用；都只有一处，无可合并"
+  },
+  "generality_proof": "门判据挂在 React Flow 的唯一节点组件注册点 nodeTypes.generation 上，所有节点类型（图、视频、文本、镜头、编组端口）都经这一个外壳渲染，所以任何手势、任何节点类型的纯坐标变化都被同一个门拦下",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+      "symbol": "sameGenerationFlowNodeRender",
+      "responsibility": "判定一次节点 props 变化是否只是坐标；只是坐标就复用上一次渲染"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView",
+      "disposition": "enforced",
+      "evidence": "nodeTypes.generation = React.memo(GenerationFlowNodeView, sameGenerationFlowNodeRender)；generationFlowNodeMemo.test.ts 钉住 memo 与判据"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowEdgeView",
+      "disposition": "not-affected",
+      "evidence": "连线的 sourceX/Y、targetX/Y 就是它要画的路径，坐标变了必须重算；只有连到被拖节点的边会变"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "NodeResizer",
+      "disposition": "enforced",
+      "evidence": "isVisible 改为 data.primarySelection（唯一选中）；CDP LayerTree 实测全选 180 张时合成层 1137 → 57（隐藏把手后）"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次拖动任何节点都会触发；节点数越多越重",
+    "same_class_scan": [
+      "git grep \"nodeTypes\" src/：唯一注册点",
+      "性能基准 XL drag-nodes-all 与 I300 node-drag-image 两个场景都经同一外壳"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+    "invariant": "纯坐标变化不重渲节点外壳",
+    "failure_mode": "任何非坐标 prop 变化（含新增 prop）都判不等、照常重渲，不会显示旧内容",
+    "exception_policy": "none",
+    "strategy": "在唯一注册点包 memo；源码断言外壳签名只读 data / selected，防止以后有人读坐标却被门挡掉；缩放把手按「唯一选中」挂载，合成层数不再随选中数线性增长",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationFlowNodeMemo.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationFlowNodeMemo.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "只是给现有外壳加 memo，没有被替换的旧路径"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "按 @xyflow/react 12.11.5 官方推荐用法使用，不需要升级或保留旧版",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/generationFlowNodeMemo.test.ts",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs"
+    ],
+    "why": "重渲染门归节点注册层管；单测钉住判据与外壳签名，性能基准 drag-nodes-all 量结果"
+  },
+  "residual_risks": [
+    "拖动时被拖节点仍由 React Flow 每帧写 transform（每节点一次样式写），这是框架本身的移动方式",
+    "连到被拖节点的连线仍每帧重算路径（必要的）"
+  ]
+}

@@ -4583,6 +4583,106 @@
       ],
       "since": "2026-10-05",
       "notes": "文稿方案 id 只在这里铸（= 草稿 id）。同一请求（storyboardTarget.requestId）里不带 operationId 的第二次起草补到这一请求已建的那份；模型传 newPlan（用户明确要另起一份）才新建；带 operationId 的新镜头补到那份；补到不存在的方案被拒，绝不新建。协调会话 D5 拍板：一次请求一份方案由宿主保证。"
+    },
+    {
+      "name": "项目身份（immutableProjectUuid + projectGeneration）从哪来、打开时怎么读",
+      "subject": "project.identity-ensure",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/workspace/workspaceProjectIdentity.ts",
+        "symbol": "ensureWorkspaceProjectIdentity"
+      },
+      "write_api": [
+        {
+          "path": "electron/workspace/workspaceProjectIdentity.ts",
+          "symbol": "ensureWorkspaceProjectIdentity"
+        },
+        {
+          "path": "electron/workspace/workspaceManifest.ts",
+          "symbol": "readSettledWorkspaceIdentity"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "身份只在主清单与备份都缺时生成一次、之后永不改；已落定就由 readSettledWorkspaceIdentity 无锁读出（与加锁路径同一个 sameCompleteIdentity 判据），没落定才进加锁写事务。打开项目是读，落定后的项目每次打开零写盘（docs/fixes/2026-10-06-open-project-read-path-writes.root-cause.json）。"
+    },
+    {
+      "name": "Agent 旧版对话迁移（终态判定与加锁迁移）",
+      "subject": "agent-lane.legacy-migration",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "state-machine",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneLegacyMigration.mts",
+        "symbol": "migrateLaneLegacy"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneLegacyMigration.mts",
+          "symbol": "migrateLaneLegacy"
+        },
+        {
+          "path": "electron/agentLane/laneNativeLoader.cts",
+          "symbol": "migrateLaneLegacy"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "自写登记 lane-legacy-migration（待删）。终态（从没旧对话 / 清单 completed）无锁直答，其余进加锁迁移；迁移窗口结束后整体删除。 laneNativeLoader.cts 的同名导出是 CJS → ESM 岛的唯一桥（只转发，不自判）。"
+    },
+    {
+      "name": "Agent 轨迹派生视图（trace.jsonl / trace.md）的写口",
+      "subject": "agent-lane.trace-view",
+      "lifecycle": "projection",
+      "authority_kind": "writer",
+      "trust_domain": "main",
+      "fact_kind": "projection",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneTrace.mts",
+        "symbol": "writeTraceFile"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneTrace.mts",
+          "symbol": "writeTraceFile"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "派生视图由原生会话推出；内容没变不重写，打开项目刷新一次只是读。"
+    },
+    {
+      "name": "画布节点外壳什么时候重渲（纯坐标变化不重渲）",
+      "subject": "canvas.node-shell-render-gate",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+        "symbol": "sameGenerationFlowNodeRender"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+          "symbol": "sameGenerationFlowNodeRender"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "React Flow 唯一节点注册点 nodeTypes.generation 的 memo 判据：只忽略 positionAbsoluteX / Y（位置由 NodeWrapper 的 transform 摆），其余 prop 变化照常重渲（docs/fixes/2026-10-06-canvas-node-shell-rerender-on-drag.root-cause.json）。"
     }
   ]
 }

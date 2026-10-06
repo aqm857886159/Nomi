@@ -40,11 +40,8 @@ import {
   videoRecommendationInput,
 } from "./mcpGenerationVideoResolve";
 import type { ModuleRegistry } from "./moduleRegistry";
+import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
 import type { ProjectLeaseV2 } from "./projectLease";
-import {
-  classifyGenerationProviderCapabilities,
-  type GenerationProviderCapabilityProfile,
-} from "./generationProviderCapabilities";
 import { GenerationProviderCapabilityError } from "./generationRuntimeAdapter";
 import type {
   VideoGenerationRecommendationInput,
@@ -59,6 +56,7 @@ import type { GenerationDefaultTaskKind } from "../settings/generationModelDefau
 import { DECLARED_DEFAULT_DEVIATION_NOTE, admitShotIdentity, declaredDefaultDeviations, semanticCandidateFromParams } from "./semanticGenerationCandidate";
 import { projectGenerationOperationPreview } from "./mcpGenerationPreview";
 import { generationCandidateSchema } from "../shared/agentCapabilities/generationPlanSchemas";
+import { resolveProviderReadiness } from "./mcpGenerationProviderReadiness";
 
 // J06 — 诚实 ETA：冷启动给区间（low/high），不再硬编 40/180s 点值。
 // 历史 P50/P90 落盘后可切 etaBasis='historical'；当前全部为 coldstart。
@@ -94,6 +92,8 @@ import type { GenerationAuthorizationPreparation, GenerationOperation, Generatio
 
 export type GenerationPlanningHandlerDependencies = {
   registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
+  /** Capture one immutable catalog registry at the start of a draft_shots call. */
+  createDraftScope?: () => LiveGenerationRuntimeScope;
   operations: GenerationOperationStore;
   now?: () => string;
   resolveStoryboardReferenceUrl?: (projectId: string, reference: PlanCandidate["references"][number]) => string;
@@ -212,43 +212,6 @@ function pinReference(
   return pinAssetReference(value, resolve ? (assetId: string) => resolve(projectId, assetId) : undefined);
 }
 
-const RECOVERY_CAPABILITIES = ["submitIdempotency", "query", "reconcile", "cancel"] as const;
-
-type ProviderReadiness = {
-  providerReady: boolean;
-  providerCapabilityProfile: GenerationProviderCapabilityProfile;
-  recoveryNotice: string;
-  providerCapabilitiesMissing: string[];
-  missingForSubmit: string[];
-};
-
-function recoveryNotice(profile: GenerationProviderCapabilityProfile): string {
-  if (profile === "full_recovery") return "可正常生成；异常时 Nomi 可以继续查询并恢复。";
-  if (profile === "observe_only") return "可正常生成；如果提交结果不确定，需要到供应商核对任务，Nomi 不会自动重提。";
-  return "可正常生成；如果提交结果不确定，需要你到供应商核对后再决定，Nomi 不会自动重提。";
-}
-
-function resolveProviderReadiness(
-  deps: Pick<GenerationPlanningHandlerDependencies, "registry" | "providerReadiness">,
-  candidate: PlanCandidate,
-): ProviderReadiness {
-  const resolved = deps.registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });
-  const providerCapabilitiesMissing = RECOVERY_CAPABILITIES.filter((capability) => !resolved.capabilities[capability]);
-  const adapterReadiness = deps.providerReadiness?.({
-    providerId: resolved.providerId,
-    modelId: resolved.modelId,
-    moduleId: resolved.moduleId,
-    mode: resolved.mode,
-  }) ?? { providerReady: true };
-  return {
-    providerReady: adapterReadiness.providerReady,
-    providerCapabilityProfile: classifyGenerationProviderCapabilities(resolved.capabilities),
-    recoveryNotice: recoveryNotice(classifyGenerationProviderCapabilities(resolved.capabilities)),
-    providerCapabilitiesMissing,
-    missingForSubmit: adapterReadiness.missingForSubmit ?? [],
-  };
-}
-
 export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerDependencies) {
   const now = deps.now ?? (() => new Date().toISOString());
   // P4 S2: derive a candidate's real per-shot price from the catalog pricing. Unknown (never a
@@ -312,17 +275,26 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
   });
 
   /** 起草的每一镜：同一套准入（候选合成 → 归一 → 身份核对）。首建与补镜头都过这一处，不另写一台。 */
-  const admitDraftShots = async (projectId: string, params: Record<string, unknown>): Promise<GenerationOperationDraftShot[] | undefined> => {
-    const draftShots = await resolveCreateShots(projectId, params);
+  const admitDraftShots = async (
+    projectId: string,
+    params: Record<string, unknown>,
+    registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
+  ): Promise<GenerationOperationDraftShot[] | undefined> => {
+    const draftShots = await resolveCreateShots(projectId, params, registry);
     if (!draftShots) return undefined;
-    const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, deps.registry, deps.videoModelCandidates) }));
+    const normalizedShots = draftShots.map((shot) => ({ ...shot, candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates) }));
     // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
-    for (const shot of normalizedShots) admitShotIdentity(shot.candidate, deps.registry, shot.role);
+    for (const shot of normalizedShots) admitShotIdentity(shot.candidate, registry, shot.role);
     return normalizedShots;
   };
 
   /** 单镜起草（一句话生成一张图）的准入。新建单镜草稿与「补一镜到这一请求的方案」共用。 */
-  const admitSingleCandidate = (projectId: string, operationId: string, params: Record<string, unknown>): PlanCandidate => {
+  const admitSingleCandidate = (
+    projectId: string,
+    operationId: string,
+    params: Record<string, unknown>,
+    registry: GenerationPlanningHandlerDependencies["registry"] = deps.registry,
+  ): PlanCandidate => {
     // A natural-language create request only needs `prompt`.  Keep the
     // explicit candidate path intact, but compile the short path at this
     // boundary so the model never has to invent internal candidate IDs or
@@ -332,7 +304,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       params,
       candidateFrom,
       ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
-      ...(deps.registry.snapshot ? { registry: deps.registry } : {}),
+      ...(registry.snapshot ? { registry } : {}),
       ...(deps.resolveAssetReferenceIdentity
         ? { resolveAssetReferenceIdentity: (assetId: string) => deps.resolveAssetReferenceIdentity!(projectId, assetId) }
         : {}),
@@ -342,8 +314,8 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
       deps.assertReferencesResolvable(projectId, singleCandidate.references);
     }
-    const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, deps.registry, deps.videoModelCandidates);
-    admitShotIdentity(normalizedSingle, deps.registry);
+    const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, registry, deps.videoModelCandidates);
+    admitShotIdentity(normalizedSingle, registry);
     return normalizedSingle;
   };
 
@@ -497,15 +469,20 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     }
     const operationId = typeof params.operationId === "string" && params.operationId.trim() ? params.operationId.trim() : `op-${crypto.randomUUID()}`;
     if (input.capability === "create") {
+      // draft_shots is the lifecycle boundary for a multi-shot draft. Capture
+      // the catalog once here and thread this registry explicitly through all
+      // shot resolves; a later draft call creates a new scope and sees catalog
+      // edits without an implicit microtask cache.
+      const draftRegistry = deps.createDraftScope?.().registry ?? deps.registry;
       // P4 S6.5 生产入口: a multi-shot draft is created from `shots` (client gives每镜 plan) or `scriptText`
       // (storyboard planner 拟稿). Both land the same durable draft.shots that S1 patch/preview address and
       // gate_request seals. Neither `shots` nor `scriptText` → single-shot (today, byte-identical).
-      const normalizedShots = await admitDraftShots(input.lease.projectId, params);
+      const normalizedShots = await admitDraftShots(input.lease.projectId, params, draftRegistry);
       // 一次请求一份方案（D5，宿主保证）：这一请求已经起草过文稿方案，这次又不带 operationId——补到那一份上。
       const sameRequestPlan = documentPlans.planToExtend(capturedProjectId, input.origin?.sourceDocument, input.storyboardTarget, params.newPlan === true);
       const requestPlan = sameRequestPlan ? await deps.operations.read(capturedProjectId, sameRequestPlan) : undefined;
       if (requestPlan?.sourceDocumentId === input.origin?.sourceDocument?.documentId && requestPlan?.sourceDocumentId) {
-        const shots = normalizedShots ?? [{ shotId: "shot-1", candidate: admitSingleCandidate(capturedProjectId, operationId, params),
+        const shots = normalizedShots ?? [{ shotId: "shot-1", candidate: admitSingleCandidate(capturedProjectId, operationId, params, draftRegistry),
           ...(params.storyboard ? { storyboard: params.storyboard as GenerationOperationDraftShot['storyboard'] } : {}) }];
         return extendedReceipt(requestPlan, shots, `Added to plan ${requestPlan.operationId}, which this request already drafted, instead of starting a second plan. ${addShotsGuidance(requestPlan.operationId)}`);
       }
@@ -530,7 +507,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
             ? `This plan has only reference cards so far; no shot reuses them yet. ${savedPlan.addShots}`
             : "This draft has only reference cards; no shot reuses them yet. That is fine — generate the cards on their own, or draft the shots that reuse them." } : {}) };
       }
-      const normalizedSingle = admitSingleCandidate(input.lease.projectId, operationId, params);
+      const normalizedSingle = admitSingleCandidate(input.lease.projectId, operationId, params, draftRegistry);
       const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedSingle, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
       const savedSingle = await documentPlans.saveDocumentPlan(capturedProjectId, input.origin?.sourceDocument, operation.operationId,
         [{shotId:normalizedSingle.candidateId,candidate:normalizedSingle,storyboard:params.storyboard as GenerationOperationDraftShot['storyboard']}], input.storyboardTarget);
@@ -553,7 +530,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (input.capability === "extend") {
       // 在一份已有的文稿方案后面补镜头 / 参考卡（「再加两镜」）。只有文稿方案有「补」：画布草稿改一镜带 shotId，另起一份不带 operationId。
       if (!current.sourceDocumentId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "Adding shots works on a storyboard plan saved on a document. This is a canvas draft: change one of its shots with its shotId, or start a new draft without operationId.");
-      const shots = await admitDraftShots(capturedProjectId, { shots: params.shots });
+      const shots = await admitDraftShots(capturedProjectId, { shots: params.shots }, deps.createDraftScope?.().registry ?? deps.registry);
       if (!shots) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "Adding to a plan needs the new shots.");
       return extendedReceipt(current, shots);
     }

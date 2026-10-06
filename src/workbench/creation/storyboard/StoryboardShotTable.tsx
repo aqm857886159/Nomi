@@ -268,6 +268,10 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
+    // 外层不裁切：多选浮条是 `sticky`，它的「粘住」只认**最近的滚动祖先**——放在 `overflow-hidden` 的框里，
+    // 那个框就成了它的滚动祖先（却永远不滚），浮条于是不跟屏、只在滚到最底时才出现。
+    // 所以圆角描边的裁切只留给行区这一层，浮条挂在它外面、直接坐在分镜页的滚动区里。
+    <div>
     <div ref={tableRef} className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
@@ -445,7 +449,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
           </React.Fragment>
         )
       })}
-      {selectedRows.length > 0 ? (
+    </div>
+    {selectedRows.length > 0 ? (
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
           modelGroups={selectedModelGroups}

@@ -271,6 +271,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           用户以为在点缩略图，实际点进了「复制镜头」（铁律 ⑫ 走查 LAW12-sb-row-more）。
           点外面那一下是 mousedown 关菜单、不吞事件，所以同一下照样落到被点的东西上。 */}
       {actionsOpen ? (
+        // Portal 贴锚点：行在表格的 overflow-hidden 里，原地 absolute 的菜单在最后一行会被裁成一条边。
         <AnchoredPopover anchorRef={actionsTriggerRef} align="start" gap={4} onClose={closeMenus}>
         <div
           className="flex min-w-40 flex-col gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md"

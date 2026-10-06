@@ -206,6 +206,7 @@ export async function startCapabilityCore(
       }),
     })
     const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+    const initialGenerationScope = liveGenerationRuntime.createDraftScope()
     // 提交出口认得的执行器：目录执行器 + 画布那台的传输（按家各一个 `canvas:<key>`，发动机收敛第一刀）。
     const canvasTransport = lazyCanvasTransport()
     const submissionProviders = () => [...readProviderBootstrap().providers, ...canvasTransportProviders(readCatalog().vendors.map((vendor) => vendor.key), canvasTransport)]
@@ -214,7 +215,7 @@ export async function startCapabilityCore(
     // provider output downloads retain hardenedFetch's SSRF guard. The fetch
     // policy itself (timeout / size / provider route) is the shared owner's.
     const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? { trustedPrivateOrigin: fixtureBaseUrlOverride } : {})
-    const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
+    const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
@@ -337,6 +338,7 @@ export async function startCapabilityCore(
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
         registry: generationRegistry,
+        createDraftScope: liveGenerationRuntime.createDraftScope,
         operations: operationStore,
         requestRendererDecision,
         requestRenderer,

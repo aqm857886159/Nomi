@@ -32,6 +32,7 @@ import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasR
 import { selectFlowZoom } from './canvasViewportScale'
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
 import { readGroupPort } from '../model/groupPort'
+import { sameGenerationFlowNodeRender } from '../nodes/flowNodeRenderGate'
 import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
 import { edgeLabelTransform, useCanvasLiveZoom } from './canvasViewportScale'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
@@ -218,8 +219,10 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       } as React.CSSProperties}
       aria-hidden={groupPort || undefined}
     >
+      {/* 缩放把手只给「唯一选中」的那张卡：多选时每张卡各挂 8 个把手（全选 180 张 = 1440 个），每个都被浏览器
+          提成一个合成层（实测 1137 层，拖动时每帧 Layerize 约 55ms）；多选时拖一张卡的角也只会缩那一张，不是用户要的。 */}
       <NodeResizer
-        isVisible={selected && !data.readOnly && CARD_FIXED_WIDTH[resolveNodeRenderKind(node) ?? ''] === undefined}
+        isVisible={data.primarySelection && !data.readOnly && CARD_FIXED_WIDTH[resolveNodeRenderKind(node) ?? ''] === undefined}
         keepAspectRatio={keepMediaAspect}
         minWidth={bounds.minWidth}
         minHeight={bounds.minHeight}
@@ -475,5 +478,5 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
   )
 }
 
-export const nodeTypes = { generation: GenerationFlowNodeView }
+export const nodeTypes = { generation: React.memo(GenerationFlowNodeView, sameGenerationFlowNodeRender) }
 export const edgeTypes = { generation: GenerationFlowEdgeView }

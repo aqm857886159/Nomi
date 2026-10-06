@@ -69,6 +69,7 @@ import { ProductionCanvasLandingHost } from './production/ProductionCanvasLandin
 import { ProjectHydrationSupersededError, createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurface } from './project/projectCanvasReadSurface'
 import { openCreatedProject, shareInFlight, type ProjectCreationOutcome } from './project/projectCreationFlight'
 import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationRecovery'
+import { markProjectOpenMoment, markProjectOpenStart, measureProjectOpenStage } from './project/projectOpenTimeline'
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
@@ -308,6 +309,7 @@ export default function NomiStudioApp(): JSX.Element {
       // This call synchronously invokes Surface suspend. Its ACK is deliberately
       // the first await: neither a lazy import nor readLocalProjectAsync may run
       // while the outgoing project's main route is still executable.
+      markProjectOpenStart()
       const surfaceEpoch = projectSurface.beginHydration()
       const hydrationSequence = ++hydrationSequenceRef.current
       hydratingProjectRef.current = true
@@ -337,20 +339,24 @@ export default function NomiStudioApp(): JSX.Element {
         activeProjectIdRef.current = hydrated.id
         setActiveProject(hydrated)
         surfaceEpoch.assertCurrent()
-        const committedBinding = await surfaceEpoch.commitCanvasRead(hydrated.id)
+        const committedBinding = await measureProjectOpenStage('canvas-read-commit', () => surfaceEpoch.commitCanvasRead(hydrated.id))
         surfaceEpoch.assertCurrent()
         if (committedBinding) {
-          const opened = await laneClient.open(committedBinding.binding)
+          const opened = await measureProjectOpenStage('agent-lane-open', () => laneClient.open(committedBinding.binding))
           surfaceEpoch.assertCurrent()
           if (!opened.ok) throw new LaneCommandFailure(opened.code, opened.diagnostic)
-          if (!opened.workspaceId) throw new Error('agent_lane_closed')
-          hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))
-          await recoverPendingProposalReceipt()
+          const workspaceId = opened.workspaceId
+          if (!workspaceId) throw new Error('agent_lane_closed')
+          await measureProjectOpenStage('receipt-recovery', async () => {
+            hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))
+            await recoverPendingProposalReceipt()
+          })
           surfaceEpoch.assertCurrent()
           // The lane projection is the sole conversation display source.
         }
         surfaceEpoch.assertCurrent()
         setView('studio')
+        markProjectOpenMoment('studio-visible')
         navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.

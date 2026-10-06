@@ -13,6 +13,7 @@ import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
+import { measureProjectOpenStage, measureProjectOpenStageSync } from './projectOpenTimeline'
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
 
@@ -156,16 +157,19 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     abandonHydratingProjectOwnership()
     clearActiveWorkbenchProjectSaveTarget()
     guard.assertCurrent()
-    const project = await readLocalProjectAsync(projectId)
+    const project = await measureProjectOpenStage('read-project', () => readLocalProjectAsync(projectId))
     guard.assertCurrent()
     if (!project) return null
-    const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)
-    guard.assertCurrent()
-    const { record: catUpgraded, diagnostic } = migrateProjectRecord(mediaUpgraded)
-    const { record: v60Upgraded } = migrateProjectV51ToV60(catUpgraded)
-    // A1.5：历史导入/切图/裁剪/截图的 image 节点改判为 asset（素材卡）。
-    const assetUpgraded = normalizeLegacyImageAssetKinds(v60Upgraded)
-    const mediaDimensionsUpgraded = await backfillCanvasMediaDimensions(assetUpgraded)
+    const { diagnostic, mediaDimensionsUpgraded } = await measureProjectOpenStage('migrate', async () => {
+      const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)
+      guard.assertCurrent()
+      const { record: catUpgraded, diagnostic } = migrateProjectRecord(mediaUpgraded)
+      const { record: v60Upgraded } = migrateProjectV51ToV60(catUpgraded)
+      // A1.5：历史导入/切图/裁剪/截图的 image 节点改判为 asset（素材卡）。
+      const assetUpgraded = normalizeLegacyImageAssetKinds(v60Upgraded)
+      const mediaDimensionsUpgraded = await backfillCanvasMediaDimensions(assetUpgraded)
+      return { diagnostic, mediaDimensionsUpgraded }
+    })
     // 镜头编号存储身份化（审计 A2）：存量项目缺 shotIndex 的镜头节点按
     // (y, x, id) 确定性回填一次；此后编号不再随布局/添加节点漂移。
     const shotBackfill = backfillShotIndexes(mediaDimensionsUpgraded.payload.generationCanvas.nodes)
@@ -188,14 +192,14 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       categoryMigrationDiagnostics.set(guard, diagnostic)
     }
     if (changed) {
-      await saveLocalProject(upgraded.id, upgraded.payload, upgraded.name)
+      await measureProjectOpenStage('save-migrated', () => saveLocalProject(upgraded.id, upgraded.payload, upgraded.name))
     }
     // A turn begun while the read was pending still targets the outgoing project.
     abandonHydratingProjectOwnership()
     guard.assertCurrent()
-    restoreWorkbenchProjectPayload(upgraded.payload)
+    measureProjectOpenStageSync('restore-store', () => restoreWorkbenchProjectPayload(upgraded.payload))
     // S5-b-1:重放快照没盖到的事件尾巴(崩溃恢复),完成后以含尾后态发 genesis。
-    await replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload, guard)
+    await measureProjectOpenStage('replay-events', () => replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload, guard))
     guard.assertCurrent()
     // Event-tail replay crosses IPC and the restored canvas is already visible. A turn may
     // start in that window with the outgoing project's identity; close the hydration epoch

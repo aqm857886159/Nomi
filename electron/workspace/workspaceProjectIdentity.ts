@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
-import { withWorkspaceManifestMutation } from "./workspaceManifest";
+import { readSettledWorkspaceIdentity, withWorkspaceManifestMutation } from "./workspaceManifest";
 import type { WorkspaceManifestLockOptions } from "./workspaceManifestLock";
 import { WorkspaceProjectIdentityUnavailableError, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
 
@@ -70,10 +70,35 @@ function projectIdentity(record: IdentityCompleteWorkspaceRecord, canonicalRootP
   };
 }
 
+/**
+ * 身份已经落定时的无锁读（判据在 workspaceManifest.readSettledWorkspaceIdentity，与加锁路径同一个 sameCompleteIdentity）。
+ * 打开项目每次都要问两遍身份（提交画布读面、打开右侧 Agent）；以前每问一遍都走一次加锁写事务
+ * （锁主人文件 + 候选目录 + 锁改名 + 释放，各一次 fsync），读路径在写盘。落定了就不拿锁、不写盘；没落定回加锁路径。
+ */
+function readSettledWorkspaceProjectIdentity(actualRootPath: string): WorkspaceProjectIdentity | null {
+  let canonicalRootPath: string;
+  try {
+    canonicalRootPath = fs.realpathSync(actualRootPath);
+  } catch {
+    return null;
+  }
+  const settled = readSettledWorkspaceIdentity(canonicalRootPath);
+  if (!settled) return null;
+  return {
+    projectId: settled.id,
+    immutableProjectUuid: settled.immutableProjectUuid,
+    projectGeneration: settled.projectGeneration,
+    canonicalRootPath,
+    canonicalRootDigest: digestCanonicalRoot(canonicalRootPath),
+  };
+}
+
 export async function ensureWorkspaceProjectIdentity(
   actualRootPath: string,
   options: EnsureWorkspaceProjectIdentityOptions = {},
 ): Promise<WorkspaceProjectIdentity> {
+  const settled = readSettledWorkspaceProjectIdentity(actualRootPath);
+  if (settled) return settled;
   try {
     return await withWorkspaceManifestMutation(
       actualRootPath,

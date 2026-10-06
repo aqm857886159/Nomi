@@ -305,6 +305,7 @@
     "@photo-sphere-viewer/core": "5.14.3",
     "@playwright/test": "1.60.0",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-focus-scope": "1.1.16",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.11",
     "@react-three/drei": "^10.7.9",

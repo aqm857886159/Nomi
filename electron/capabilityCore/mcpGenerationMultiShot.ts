@@ -323,14 +323,18 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
    * 2026-09-22 起**不再**要求至少一个非锚镜头：锚本身要生成、有价、会被 seal，「只有参考卡」是一条
    * 正常的中间状态（镜头随后补进同一份方案）。草稿上给一条安静提示，不拒绝。
    */
-  const resolveCreateShots = async (projectId: string, params: Record<string, unknown>): Promise<GenerationOperationDraftShot[] | undefined> => {
+  const resolveCreateShots = async (
+    projectId: string,
+    params: Record<string, unknown>,
+    registry: MultiShotHelperDeps["registry"] = deps.registry,
+  ): Promise<GenerationOperationDraftShot[] | undefined> => {
     let shots: GenerationOperationDraftShot[];
     if (Array.isArray(params.shots)) {
       if (params.shots.length === 0) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "多镜生成需要至少一个镜头");
       const ids = hostAssignedSubjectIds(params.shots);
       shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, {
         ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
-        ...(deps.registry.snapshot ? { registry: deps.registry } : {}),
+        ...(registry.snapshot ? { registry } : {}),
         ...(deps.allowRegistryFallback ? { allowRegistryFallback: deps.allowRegistryFallback } : {}),
         ...(deps.resolveAssetReferenceIdentity
           ? { resolveAssetReferenceIdentity: (assetId: string) => deps.resolveAssetReferenceIdentity!(projectId, assetId) }

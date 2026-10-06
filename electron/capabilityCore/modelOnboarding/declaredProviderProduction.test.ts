@@ -180,7 +180,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
       candidateId: "candidate-975", revision: 1, moduleId: "generation.single-shot",
       providerId: vendorKey, modelId: MODEL_KEY, mode: "text_to_video",
       prompt: "a red apple rolls across a white table", parameters: {}, references: [],
-    }, createLiveGenerationRuntime().registry);
+    }, createLiveGenerationRuntime().createDraftScope().registry);
     const adapter = createGenerationRuntimeAdapter({ providers: boot.providers });
     const sealed = adapter.prepareAuthorization({ contract, providerIdempotencyKey: "idem-975" });
 

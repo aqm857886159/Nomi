@@ -135,3 +135,33 @@ test('live credential echo stays redacted after deleting derived files and rebui
   await openLaneTraceDirectory(fixture.projectDir, 'main');
   assert.equal(await readFile(join(directory, 'trace.jsonl'), 'utf8'), before);
 });
+
+test('rewriting an unchanged derived trace is a read: same file, no temp, no rename', async t => {
+  const { mkdtemp } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { writeTraceFile } = await import('../../electron/agentLane/laneTrace.mjs');
+  const directory = await mkdtemp(join(tmpdir(), 'nomi-trace-same-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeTraceFile(directory, 'trace.md', 'same\n');
+  const before = await stat(join(directory, 'trace.md'));
+  await writeTraceFile(directory, 'trace.md', 'same\n');
+  const after = await stat(join(directory, 'trace.md'));
+  assert.equal(after.ino, before.ino);
+  assert.equal(after.mtimeMs, before.mtimeMs);
+  assert.deepEqual(await readdir(directory), ['trace.md']);
+  await writeTraceFile(directory, 'trace.md', 'changed\n');
+  assert.equal(await readFile(join(directory, 'trace.md'), 'utf8'), 'changed\n');
+});
+
+test('an unchanged trace still re-tightens a loosened trace directory (skip the write, not the permission repair)', { skip: process.platform === 'win32' && 'POSIX modes only' }, async t => {
+  const { mkdtemp, chmod } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { writeTraceFile } = await import('../../electron/agentLane/laneTrace.mjs');
+  const directory = await mkdtemp(join(tmpdir(), 'nomi-trace-mode-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeTraceFile(directory, 'trace.md', 'same\n');
+  const tightened = (await stat(directory)).mode & 0o777;
+  await chmod(directory, 0o777);
+  await writeTraceFile(directory, 'trace.md', 'same\n');
+  assert.equal((await stat(directory)).mode & 0o777, tightened);
+});
