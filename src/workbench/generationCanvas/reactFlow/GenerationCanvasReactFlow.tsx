@@ -436,7 +436,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const selectedGroup = React.useMemo(() => visibleGroups.find((group) => group.id === selectedGroupId) ?? null, [selectedGroupId, visibleGroups])
-  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, readOnly, eligibleCount: production.eligibleIds.length, runFrameAction: frameActions.runFrameAction })
+  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, canvasZoom: liveViewport.zoom, readOnly, eligibleCount: production.eligibleIds.length, runFrameAction: frameActions.runFrameAction })
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
     membershipPreview: frameMembership.membershipPreview,
     editingGroupId: frameActions.editingFrameId,
@@ -530,7 +530,10 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     dragLeaseRef.current?.release()
     // 取消：先还原位置再结束内核拖动（否则回来时节点仍跟着光标）；松手丢了：当作在最后位置松手，走正常收尾。
     dragLeaseRef.current = beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel: (lastPoint) => { cancelNodeDragRef.current(); endKernelNodeDrag(lastPoint) }, onReleaseLost: endKernelNodeDrag, ...('pointerId' in event && typeof event.pointerId === 'number' ? { pointerId: event.pointerId } : {}) })
-    const originalIds = selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
+    // Selecting a group is a frame-level context. The blank frame surface owns
+    // whole-group dragging; a card inside it keeps the single-node drag contract.
+    const draggingInsideSelectedGroup = Boolean(selectedGroup?.nodeIds.includes(draggedNode.id))
+    const originalIds = !draggingInsideSelectedGroup && selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
     duplicateDragIdsRef.current = 'altKey' in event && event.altKey
       ? useGenerationCanvasStore.getState().duplicateNodesForDrag(originalIds) : new Map()
     if (!duplicateDragIdsRef.current.size) captureHistory()
@@ -550,7 +553,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         return node ? [[nodeId, { ...node.position }] as const] : []
       }),
     )
-  }, [captureHistory, flowNodes, flowStore, readOnly, selectedNodeIds, selectedSet])
+  }, [captureHistory, flowNodes, flowStore, readOnly, selectedGroup, selectedNodeIds, selectedSet])
 
   // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
   const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {

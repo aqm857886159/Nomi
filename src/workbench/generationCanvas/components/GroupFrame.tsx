@@ -133,6 +133,9 @@ export default function GroupFrame({
       // 拖线松手时落点模型（reactFlow/canvasConnectionDropTarget）靠这个属性在元素栈里认出组框
       // （与 data-node-id 同一套命中法）。
       data-group-id={box.group.id}
+      // Blank frame surface is the group drag handle; React Flow node cards sit above it
+      // and keep their own single-node drag contract.
+      data-group-drag-surface="true"
       data-frame-empty={box.empty ? 'true' : undefined}
       data-frame-membership={preview ? preview.change : undefined}
       aria-label={
@@ -182,6 +185,7 @@ export default function GroupFrame({
         onCollapse={onCollapse}
         onOpenMenu={frame?.onOpenMenu}
         colorStyle={colorStyle}
+        outside
       />
     </div>
   )

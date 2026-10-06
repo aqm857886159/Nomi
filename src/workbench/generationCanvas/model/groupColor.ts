@@ -1,8 +1,10 @@
-export const GROUP_COLOR_IDS = ['ocean', 'teal', 'amber', 'coral', 'violet', 'rose'] as const
+// LibTV's default group is a visible neutral grey: it reads as a group boundary
+// without competing with image/video content. Named colors remain opt-in.
+export const GROUP_COLOR_IDS = ['neutral', 'ocean', 'teal', 'amber', 'coral', 'violet', 'rose'] as const
 
 export type GroupColorId = (typeof GROUP_COLOR_IDS)[number]
 
-export const DEFAULT_GROUP_COLOR: GroupColorId = 'ocean'
+export const DEFAULT_GROUP_COLOR: GroupColorId = 'neutral'
 
 const LEGACY_COLOR_ALIASES: Record<string, GroupColorId> = {
   '#3b82f6': 'ocean',

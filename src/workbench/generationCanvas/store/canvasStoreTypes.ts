@@ -69,8 +69,6 @@ export type CanvasNodeActions = {
   selectNodes: (nodeIds: readonly string[]) => void
   clearSelection: () => void
   selectAllNodes: (categoryId?: string) => void
-  /** 框选：选中与矩形（画布坐标）相交的当前分类节点；additive 时并入现有选区。 */
-  selectNodesInRect: (rect: { x1: number; y1: number; x2: number; y2: number }, categoryId?: string, additive?: boolean) => void
   duplicateNodeForRegeneration: (nodeId: string) => GenerationCanvasNode | null
   /** Phase E: move a node into a different category (sidebar drop / right-click). */
   reassignNodeCategory: (nodeId: string, categoryId: string) => void

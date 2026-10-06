@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { IconFolderMinus, IconFolderPlus, IconLayoutGrid, IconRoute, IconX } from '../../../vendor/tablerIcons'
+import { IconCards, IconFolderMinus, IconFolderPlus, IconRoute, IconX } from '../../../vendor/tablerIcons'
 import { useTranslation } from 'react-i18next'
 import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
@@ -7,6 +7,7 @@ import { CanvasBulkModelSelect, type CanvasApplyModelInput } from './CanvasBulkM
 import type { CanvasGenerationExecutionGroup } from './canvasProductionScope'
 import { CanvasProductionConcurrencySelect, CanvasProductionRunButton } from './CanvasProductionControls'
 import { SelectionToolbarFrame } from './SelectionToolbarFrame'
+import { ToolbarButton } from '../nodes/NodeFloatingToolbar'
 
 type CanvasSelectionToolbarProps = {
   selectedCount: number
@@ -71,36 +72,36 @@ export function CanvasSelectionToolbar({
       {!groupSelected ? <CanvasProductionConcurrencySelect value={concurrency} onChange={onConcurrencyChange} /> : null}
       <span className={cn('w-px h-4 bg-nomi-line')} />
       {contactSheetCount >= 2 ? (
-        <WorkbenchIconButton
-          data-contact-sheet="true"
-          size="sm"
-          className="shrink-0"
-          label={t('generationCommon.contactSheet.action', { count: contactSheetCount })}
-          icon={<IconLayoutGrid size={16} />}
+        <ToolbarButton
+          dataContactSheet="true"
+          label={t('generationCommon.contactSheet.shortAction')}
+          title={t('generationCommon.contactSheet.action', { count: contactSheetCount })}
+          ariaLabel={t('generationCommon.contactSheet.action', { count: contactSheetCount })}
+          icon={<IconCards size={16} stroke={1.6} />}
           onClick={onBuildContactSheet}
         />
       ) : null}
       {selectedGroupCount > 0 ? (
-        <WorkbenchIconButton
-          size="sm"
-          className="shrink-0"
-          label={t('generationCommon.selection.ungroup')}
+        <ToolbarButton
+          label={t('generationCommon.selection.shortUngroup')}
+          title={t('generationCommon.selection.ungroup')}
+          ariaLabel={t('generationCommon.selection.ungroup')}
           icon={<IconFolderMinus size={16} />}
           onClick={onUngroupSelectedNodes}
         />
       ) : (
-        <WorkbenchIconButton
-          size="sm"
-          className="shrink-0"
-          label={t('generationCommon.selection.group')}
+        <ToolbarButton
+          label={t('generationCommon.selection.shortGroup')}
+          title={t('generationCommon.selection.group')}
+          ariaLabel={t('generationCommon.selection.group')}
           icon={<IconFolderPlus size={16} />}
           onClick={onGroupSelectedNodes}
         />
       )}
-      <WorkbenchIconButton
-        size="sm"
-        className="shrink-0"
-        label={t('generationCommon.selection.saveWorkflow')}
+      <ToolbarButton
+        label={t('generationCommon.selection.shortSaveWorkflow')}
+        title={t('generationCommon.selection.saveWorkflow')}
+        ariaLabel={t('generationCommon.selection.saveWorkflow')}
         icon={<IconRoute size={16} />}
         onClick={onSaveWorkflow}
       />

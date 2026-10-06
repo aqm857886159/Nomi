@@ -52,7 +52,7 @@
 | 编组框、拉环、空白点击 | 真实 Electron 走查覆盖：组内空白点击选中整组且两侧磁吸拉环=2；空白画布清掉工具条和拉环；再次点组框可恢复；组端口真手势落组后 0→4 条边，组框从虚线恢复实线。设计实验室 `canvas-frame` 8 格（含注册表、空框、有内容、拖入、拖出、折叠、菜单、镜头标签）全部通过。 | 已实现待提交 |
 | 60 节点拖组性能 | 真实资产夹具 `mediaProfile=real-assets`：1920×1080 H.264 视频 + 1920px 图片，M 档实际选中 60、拖动 250 次；本次单次收据 `frameGapP95=10.1ms`、`maxFrameGap=39.4ms`、长任务数 0，边层 childList 314 发生在一次 settle 提交，96/96 边身份保持。单节点 I60 为 60 moves / childList 4 / P95 10.3ms，多选为 22 moves / childList 44 / P95 11.2ms；真实解码视频为 60 moves / childList 12 / P95 10.4ms，longTasks 均为 0。视频解码证据使用单独真实媒体场景，Windows、干净安装和供应商生成仍为 unverified。 | 已实现待提交 |
 | 位置/选中单一 owner | React Flow 使用 `defaultNodes={flowNodes}` 加现有 `CanvasNodeProjectionSync`；position tick 只进入 React Flow kernel draft，删除逐帧 durable store 写入，节点最终位置在共享 settle 边界一次性写回，组拖动使用 DOM shell 预览后一次性 `moveGroupNodes`；选中组由单一 resolver 产出。单节点、多选和真实媒体样本没有 pointer-tick 级全画布级联重渲染，结构测试、相关单测、生产构建通过。 | 已实现待提交 |
-| 编组工具条 | 真实 Electron 工具条可见并覆盖排列、生成整组、进时间轴、解组、下载、清选；新建和旧数据组默认归一为语义 `ocean` 海蓝，颜色菜单使用海蓝/青绿/琥珀/珊瑚/紫罗兰/玫瑰 token。设计实验室 `canvas-frame` 8 格通过。 | 已实现待提交 |
+| 编组工具条 | 真实 Electron 工具条改为复用节点浮条的 token 壳、文字按钮和反向缩放；组标题使用 Stack 图标+组名+成员数，颜色/排列可读且菜单仍按 LibTV 顺序；新建和旧数据组默认归一为 LibTV 风格的语义 `neutral` 中性灰。框内左上角重复胶囊已迁移到框外标题。 | 已实现待提交 |
 | Frame/Group 命名统一 | 编组用户文案已逐项改为“组/Group”，包括工具、空态、改名、说明、菜单、删除提示、工具条和连接提示；`Frame` 只保留在内部组件/模型标识（`GroupFrame`、`frameBounds`），不再作为用户可见名称。中英文走查均记录工具条文本。 | 已实现待提交 |
 
 ### 证据文件
@@ -62,6 +62,7 @@
 - [真实媒体排列截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/grouping-real-media/02-real-media-arranged.png)
 - [组端口落点截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/group-ports/04-group-drop-target.png)
 - [真实性能 JSON](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/perf-results/canvas-grouping-real-1080p.json)
+- [编组交互与生产组件设计](/Users/aoqimin/.codex/worktrees/7e00/Nomi/docs/plan/2026-10-06-grouping-interaction-design.md)
 
 ### 门岗结果
 

@@ -112,11 +112,13 @@ type ToolbarButtonProps = {
   title?: string
   ariaLabel?: string
   className?: string
+  /** Stable hook for behavior tests that need to target a labeled toolbar action. */
+  dataContactSheet?: string
   onClick?: (event: React.MouseEvent) => void
 }
 
 /** 带文字的工具栏按钮（定妆 / 裁剪 / 下载 / 抽首帧…）。 */
-export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, className, onClick }: ToolbarButtonProps): JSX.Element {
+export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, className, dataContactSheet, onClick }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -124,6 +126,7 @@ export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, 
       title={title}
       aria-label={ariaLabel ?? label}
       aria-busy={ariaBusy || undefined}
+      data-contact-sheet={dataContactSheet}
       disabled={disabled}
       onClick={onClick}
     >

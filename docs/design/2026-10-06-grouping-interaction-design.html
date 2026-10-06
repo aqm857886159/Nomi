@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nomi · 临时多选与编组交互设计</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202124;
+      --muted: #6d7075;
+      --quiet: #92969b;
+      --line: #dedfe2;
+      --paper: #fff;
+      --canvas: #f7f7f8;
+      --accent: #1769e0;
+      --accent-soft: #eaf2ff;
+      --selection: #8f949a;
+      --group: #697078;
+      --success: #18794e;
+      --warning: #8c5a05;
+      --shadow: 0 10px 30px rgba(35, 40, 45, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 38px 28px 72px; }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 6px 0 8px; font-size: 30px; line-height: 1.2; letter-spacing: -.03em; }
+    h2 { margin: 0; font-size: 18px; line-height: 1.3; }
+    h3 { margin: 0 0 5px; font-size: 14px; }
+    p { margin: 0; color: var(--muted); }
+    .intro { max-width: 760px; margin-bottom: 22px; }
+    .notice { display: flex; gap: 10px; align-items: flex-start; margin: 20px 0 26px; padding: 13px 15px; border: 1px solid #cbdcf9; border-radius: 12px; background: var(--accent-soft); color: #314d74; }
+    .notice strong { color: var(--ink); }
+    .actions { display: flex; gap: 9px; flex-wrap: wrap; margin: 18px 0 30px; }
+    .action { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--paper); text-decoration: none; box-shadow: 0 1px 1px rgba(0,0,0,.02); }
+    .action.primary { border-color: var(--accent); color: #fff; background: var(--accent); }
+    .action:hover { border-color: var(--accent); }
+    .card { margin: 16px 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 2px 8px rgba(35, 40, 45, .03); }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .caption { color: var(--quiet); font-size: 12px; }
+    .state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+    .state { min-height: 204px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: #fbfbfc; }
+    .stage { position: relative; height: 120px; margin: 12px 0 11px; overflow: hidden; border: 1px solid #e4e5e7; border-radius: 9px; background-image: radial-gradient(circle, #dfe1e4 1px, transparent 1px); background-size: 15px 15px; }
+    .node { position: absolute; width: 76px; height: 42px; border: 1px solid #d8dade; border-radius: 7px; background: #fff; box-shadow: 0 3px 8px rgba(35,40,45,.08); }
+    .node.one { left: 21px; top: 46px; } .node.two { left: 111px; top: 26px; } .node.three { left: 201px; top: 46px; }
+    .node::after { content: "图片 / 视频"; position: absolute; left: 8px; bottom: 6px; color: var(--quiet); font-size: 9px; }
+    .selection-box { position: absolute; inset: 15px 13px; border: 1px dashed var(--selection); border-radius: 9px; pointer-events: none; }
+    .group-box { position: absolute; inset: 15px 13px; border: 1px solid var(--group); border-radius: 9px; background: rgba(105,112,120,.06); pointer-events: none; }
+    .group-label { position: absolute; top: 6px; left: 15px; color: var(--group); font-size: 10px; font-weight: 700; }
+    .mini-toolbar { position: absolute; top: 5px; right: 10px; display: inline-flex; align-items: center; gap: 4px; min-height: 25px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: var(--shadow); color: var(--ink); font-size: 9px; }
+    .mini-toolbar b { color: var(--accent); font-weight: 700; }
+    .rule-list { display: grid; gap: 8px; margin: 0; padding-left: 18px; color: var(--muted); }
+    .rule-list li::marker { color: var(--accent); }
+    .flow { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; counter-reset: step; }
+    .step { position: relative; min-height: 108px; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #fbfbfc; }
+    .step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 21px; height: 21px; margin-bottom: 9px; border-radius: 50%; color: #fff; background: var(--accent); font-size: 11px; font-weight: 700; }
+    .step strong { display: block; margin-bottom: 3px; }
+    .step span { display: block; color: var(--muted); font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--quiet); font-size: 11px; letter-spacing: .04em; font-weight: 700; }
+    td strong { color: var(--ink); }
+    .tag { display: inline-block; margin-right: 5px; padding: 2px 7px; border-radius: 999px; color: var(--success); background: #e9f6ef; font-size: 11px; font-weight: 700; }
+    .tag.warn { color: var(--warning); background: #fff4d8; }
+    .embed { padding: 0; overflow: hidden; }
+    .embed-head { display:flex; align-items: center; justify-content: space-between; gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+    iframe { display: block; width: 100%; height: 690px; border: 0; background: #fff; }
+    code { padding: 2px 5px; border-radius: 5px; color: #4c4f54; background: #f0f1f3; font-size: 12px; }
+    .footer { margin-top: 22px; color: var(--quiet); font-size: 12px; }
+    @media (max-width: 760px) {
+      .page { padding: 25px 16px 55px; }
+      h1 { font-size: 25px; }
+      .state-grid, .flow { grid-template-columns: 1fr; }
+      .card { padding: 16px; }
+      iframe { height: 560px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="eyebrow">Nomi · Canvas interaction design</div>
+    <h1>临时多选与编组：动作有名称，状态有边界</h1>
+    <p class="intro">本页是交互合同和检查入口。可交互的设计来自 Nomi Design Lab 的生产 React 组件；下面的静态示意只解释语义，不替代生产实现。</p>
+    <div class="notice"><span aria-hidden="true">●</span><div><strong>这次修正的两个无名图标：</strong>生成总览图和保存流程现在在多选工具条上显示文字。生成总览图使用“多张卡片合成一张”的图标；创建编组 / 解除分组也显示文字；清除选择保留为标准关闭图标，并提供可访问名称。</div></div>
+    <div class="actions">
+      <a class="action primary" href="http://127.0.0.1:5273/design-lab.html?screen=canvas-grouping&state=canvas-grouping-interaction" target="_blank" rel="noreferrer">打开真实组件设计实验室</a>
+      <a class="action" href="../plan/2026-10-06-grouping-interaction-design.md">查看交互设计卡</a>
+      <a class="action" href="https://github.com/leonxlnx/taste-skill" target="_blank" rel="noreferrer">Taste Skill 约束</a>
+    </div>
+
+    <section class="card">
+      <div class="card-head"><h2>1. 两种状态必须一眼分开</h2><span class="caption">LibTV 交互语义 + Nomi token</span></div>
+      <div class="state-grid">
+        <article class="state">
+          <h3>临时多选 · transient selection</h3>
+          <div class="stage" aria-label="临时多选示意">
+            <div class="node one"></div><div class="node two"></div><div class="node three"></div>
+            <div class="selection-box"></div>
+            <div class="mini-toolbar"><b>已选节点 · 3</b><span>创建编组</span><span>生成总览图（3 张）</span><span>保存为流程</span></div>
+          </div>
+          <ul class="rule-list"><li>虚线框只表示本次选择，不改变节点归属。</li><li>点击节点卡片仍然只操作单一节点。</li><li>点“创建编组”后才进入持久编组状态。</li></ul>
+        </article>
+        <article class="state">
+          <h3>持久编组 · persistent group</h3>
+          <div class="stage" aria-label="持久编组示意">
+            <div class="group-box"></div><div class="group-label">车辆镜头 · 3</div>
+            <div class="node one"></div><div class="node two"></div><div class="node three"></div>
+            <div class="mini-toolbar"><b>颜色</b><span>排列</span><span>生成整组</span><span>进时间轴</span><span>解组</span></div>
+          </div>
+          <ul class="rule-list"><li>实线边界表示持久归属，默认色为中性灰。</li><li>抓住框内空白区域拖动，整组移动。</li><li>抓住节点卡片拖动，只移动该节点。</li></ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>2. 交互路径</h2><span class="caption">所有动作都使用现有 Nomi 组件</span></div>
+      <div class="flow">
+        <div class="step"><strong>选择多个节点</strong><span>虚线只表示本次临时选择，工具条显示清晰的文字动作。</span></div>
+        <div class="step"><strong>创建编组</strong><span>写入 group owner，显示框外组名、成员数和中性灰边界。</span></div>
+        <div class="step"><strong>进入组区域</strong><span>空白区域拖整组；节点卡片拖单节点，互不抢手势。</span></div>
+        <div class="step"><strong>执行或解组</strong><span>整组生成使用每个节点已有的模型和参数；解组回到临时多选。</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>3. 组内拖动判定</h2><span class="caption">同一个组内，两种指针目标，两种 owner</span></div>
+      <table>
+        <thead><tr><th>按下位置</th><th>拥有手势的组件</th><th>拖动中</th><th>松手时</th></tr></thead>
+        <tbody>
+          <tr><td><strong>组框内空白</strong></td><td><code>GroupFrame</code> 的 blank surface</td><td>只更新视觉 shell，组框和成员卡片一起移动；React Flow 节点 wrapper 保持稳定，避免边层重建。</td><td>一次性提交 group 与成员位置，保留一次撤销记录。</td></tr>
+          <tr><td><strong>节点卡片</strong></td><td><code>React Flow</code> node drag</td><td>只移动被抓住的节点；组框实时跟随边界，其他成员不跟手。</td><td>一次性提交节点位置；跨组时才提交成员归属变化。</td></tr>
+          <tr><td><strong>连线待连接状态</strong></td><td>组框成为落点，不再是拖动把手</td><td>保持连接反馈，不触发整组移动。</td><td>点击/松手提交连接，避免“想连线却把组拖走”。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>4. 工具条文字合同</h2><span class="caption">避免依赖猜图标</span></div>
+      <table>
+        <thead><tr><th>状态</th><th>动作</th><th>呈现</th><th>验收</th></tr></thead>
+        <tbody>
+          <tr><td><strong>临时多选</strong></td><td>创建编组</td><td>文件夹图标 + 文字</td><td><span class="tag">可见</span>用户不需要猜图标</td></tr>
+          <tr><td><strong>临时多选</strong></td><td>生成总览图</td><td>多张卡片图标 + “生成总览图（N 张）”</td><td><span class="tag">可见</span>动作目的和数量同时可读</td></tr>
+          <tr><td><strong>临时多选</strong></td><td>保存工作流</td><td>路径图标 + “保存为流程”</td><td><span class="tag">可见</span>与导出/下载区分</td></tr>
+          <tr><td><strong>已编组</strong></td><td>生成整组 / 进时间轴 / 解组</td><td>图标 + 文字，按主次排列</td><td><span class="tag">可见</span>动作不会被误认成节点生成</td></tr>
+          <tr><td><strong>任意选择</strong></td><td>清除选择</td><td>关闭图标 + title / aria-label</td><td><span class="tag warn">保留图标</span>这是标准撤销选择动作</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card embed">
+      <div class="embed-head"><div><h2>5. 真实组件预览</h2><p>运行 <code>pnpm run dev:renderer</code> 后，下面加载 Design Lab 取景台。</p></div><span class="caption">component-only · not a hand-written production mock</span></div>
+      <iframe title="Nomi 编组交互真实组件设计实验室" src="http://127.0.0.1:5273/design-lab.html?screen=canvas-grouping&state=canvas-grouping-interaction"></iframe>
+    </section>
+
+    <p class="footer">实现来源：<code>BaseGenerationNode</code>、<code>GroupFrame</code>、<code>CanvasGroupToolbar</code>、<code>SelectionToolbarFrame</code>、<code>ToolbarButton</code>。静态说明页不是实现合同，生产视觉以 Design Lab 真实组件和用户拍板基线为准。</p>
+  </main>
+</body>
+</html>

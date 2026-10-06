@@ -13,6 +13,7 @@ export function useCanvasGroupToolbar({
   selectedGroup,
   allNodes,
   visibleNodeIds,
+  canvasZoom,
   readOnly,
   eligibleCount,
   runFrameAction,
@@ -20,6 +21,7 @@ export function useCanvasGroupToolbar({
   selectedGroup: NodeGroup | null
   allNodes: readonly GenerationCanvasNode[]
   visibleNodeIds: ReadonlySet<string>
+  canvasZoom: number
   readOnly: boolean
   eligibleCount: number
   runFrameAction: (groupId: string, action: FrameContextMenuAction) => void
@@ -27,12 +29,12 @@ export function useCanvasGroupToolbar({
   const { t } = useTranslation()
   const arrangeGroup = useGenerationCanvasStore((state) => state.arrangeGroup)
   const setGroupColor = useGenerationCanvasStore((state) => state.setGroupColor)
-  const clearSelection = useGenerationCanvasStore((state) => state.clearSelection)
   return React.useMemo(() => {
     if (!selectedGroup || selectedGroup.collapsed || !selectedGroup.nodeIds.length || readOnly) return undefined
     const targets = groupDownloadTargets(allNodes, selectedGroup.nodeIds)
     return {
       group: selectedGroup,
+      canvasZoom,
       memberCount: selectedGroup.nodeIds.filter((nodeId) => visibleNodeIds.has(nodeId)).length,
       canGenerate: eligibleCount > 0,
       canSendToTimeline: frameHasTimelineUnits(selectedGroup.id),
@@ -45,7 +47,6 @@ export function useCanvasGroupToolbar({
       onDownload: () => {
         void downloadGroupResults(targets, selectedGroup.name || 'group', (count) => toast(t('generationCommon.canvas.group.toolbarDownloadSaved', { count }), 'success'))
       },
-      onClearSelection: clearSelection,
     }
-  }, [allNodes, arrangeGroup, clearSelection, eligibleCount, readOnly, runFrameAction, selectedGroup, setGroupColor, t, visibleNodeIds])
+  }, [allNodes, arrangeGroup, canvasZoom, eligibleCount, readOnly, runFrameAction, selectedGroup, setGroupColor, t, visibleNodeIds])
 }

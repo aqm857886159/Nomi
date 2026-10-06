@@ -1,6 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
+    "canvas-grouping": "2026-10-06 · 临时多选与编组的真实组件设计先给用户确认；确认后在 darwin 上跑 pnpm run design-lab:update -- --screen canvas-grouping 录基线，并删除本登记。当前不把设计提案误当成用户拍板基线。",
     "director-3dbox": "2026-10-06 · 3c「正在改：镜头 N」按 Claude Design 画布（用户 10-06 拍板）落地：新增 6 格（d3-focus-1-none / -3-two / -4-many / -5-after-zh / -5-after-en / -7-light），原 d3-courtyard-director-zh/-en 两格的外观也变了（输入框上出了标签、名牌错开、量不到景别的卡只写运镜）。基线要在 darwin 上录（Windows 上 design-lab:update 起不来）：跑 pnpm run design-lab:update -- --screen director-3dbox 并**删掉本条登记**。Windows 实现线的截图证据在 docs/evidence/2026-10-06-director-3dbox-3c/。",
     "storyboard-reuse": "2026-10-06 立屏（L-sbui）· 分镜表镜头行与参考卡复用画布节点底栏（模型按钮 + 参数汇总按钮 + 平铺面板）、参考图复用画布同款 AssetReference（缩略图带 ×）、自动引用、删参考同步删 @。每格同一个 id 在 main 上是「现在」、本分支上是「改后」，成对图在 docs/evidence/2026-10-06-storyboard-reuse/。**等用户拍板**；拍板后在 darwin 上跑 pnpm run design-lab:update -- --screen storyboard-reuse 录基线并**删掉本条登记**。",
     "storyboard": "2026-10-06（L-sbui）· 分镜表 v6 这一屏画的是真镜头行 / 参考卡，本分支把它们改成复用画布底栏、视觉列放预览框和参考（版面见 storyboard-reuse 屏与 docs/evidence/2026-10-06-storyboard-reuse/），所以这一屏现有基线全部过期；只能展示已删界面的 4 格（sb-row-18/19/20 底栏 ⋯ 开关与让位、sb-slot-07 槽浮层）连同基线一起删了，sb-slot-01~06 现在画的是每种模式下的新参考条。和 storyboard-reuse 同一次拍板；拍板后在 darwin 上跑 pnpm run design-lab:update -- --screen storyboard 重录并**删掉本条登记**。",

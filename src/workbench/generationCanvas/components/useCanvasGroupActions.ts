@@ -1,5 +1,5 @@
 /**
- * 「成组处理」这一族画布动作：编组 / 解组 / 连到组 / 拼联系表。
+ * 「成组处理」这一族画布动作：编组 / 解组 / 连到组 / 生成总览图。
  *
  * 批量生成由 useCanvasProductionActions 单独收口，避免两个生成入口逐渐分叉。
  */
@@ -18,7 +18,7 @@ export function useCanvasGroupActions(params: {
   handleGroupSelectedNodes: () => void
   handleUngroupSelectedNodes: () => void
   handleConnectToGroup: (groupId: string) => void
-  /** 选中里已出图的张数（<2 就没有联系表可拼，浮条上那个钮不出现）。 */
+  /** 选中里已出图的张数（<2 就没有总览图可生成，浮条上那个钮不出现）。 */
   contactSheetCount: number
   handleBuildContactSheet: () => void
 } {
@@ -58,7 +58,7 @@ export function useCanvasGroupActions(params: {
     }
   }, [t])
 
-  // 联系表：把选中的成图拼成一张，给客户/团队看整场戏。产物是普通图片节点（不新增节点 kind）。
+  // 总览图：把选中的成图排成一张，给客户/团队看整场戏。产物是普通图片节点（不新增节点 kind）。
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const contactSheetCount = React.useMemo(
     () => contactSheetSources(selectedNodeIds, nodes).length,

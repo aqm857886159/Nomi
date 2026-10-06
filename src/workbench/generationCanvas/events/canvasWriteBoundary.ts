@@ -18,7 +18,7 @@ const documentActions = {
   addNode: true, commitPersistedChange: false, updateNode: true, updateNodes: true,
   updateNodePrompt: true, setNodeLocked: true, moveNode: true, moveNodes: true, moveSelectedNodes: true,
   tidyCategory: true, deleteSelectedNodes: true, selectNode: false, selectNodes: false,
-  clearSelection: false, selectAllNodes: false, selectNodesInRect: false,
+  clearSelection: false, selectAllNodes: false,
   duplicateNodeForRegeneration: true, reassignNodeCategory: true, copyNodeToCategory: true, deleteNode: true,
   saveSelectedAsWorkflowTemplate: true, instantiateWorkflowTemplate: true, instantiateWorkflowTemplateSnapshot: true,
   startConnection: false, startGroupConnection: false, cancelConnection: false, connectToNode: true, connectNodes: true,

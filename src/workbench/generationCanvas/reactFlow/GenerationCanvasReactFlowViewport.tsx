@@ -107,7 +107,6 @@ type GenerationCanvasReactFlowViewportProps = {
     onArrange: (mode: GroupArrangeMode) => void
     onColor: (color: GroupColorId) => void
     onDownload: () => void
-    onClearSelection: () => void
   }
 }
 

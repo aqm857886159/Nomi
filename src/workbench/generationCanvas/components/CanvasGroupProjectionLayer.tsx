@@ -46,6 +46,7 @@ export function CanvasGroupProjectionLayer({
   drawPreview?: CanvasFrameRect | null
   toolbar?: {
     group: NodeGroup
+    canvasZoom: number
     memberCount: number
     canGenerate: boolean
     canSendToTimeline: boolean
@@ -56,7 +57,6 @@ export function CanvasGroupProjectionLayer({
     onArrange: (mode: GroupArrangeMode) => void
     onColor: (color: GroupColorId) => void
     onDownload: () => void
-    onClearSelection: () => void
   }
 }): JSX.Element {
   const toolbarBox = toolbar ? boxes.find((box) => box.group.id === toolbar.group.id) : null
@@ -84,7 +84,7 @@ export function CanvasGroupProjectionLayer({
         onCollapse={readOnly ? undefined : (groupId) => onSetCollapsed(groupId, true)}
       />
       {toolbar && toolbarBox ? (
-        <div className="pointer-events-none absolute" style={{ left: toolbarBox.left, top: toolbarBox.top }}>
+        <div className="pointer-events-none absolute" style={{ left: toolbarBox.left, top: toolbarBox.top, width: toolbarBox.width }}>
           <div className="pointer-events-auto">
             <CanvasGroupToolbar {...toolbar} />
           </div>

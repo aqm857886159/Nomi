@@ -966,63 +966,6 @@ describe('generationCanvasStore result history', () => {
   })
 })
 
-describe('selectNodesInRect (框选 AABB)', () => {
-  // 节点默认 200x200（无 size 时回退 300x220，这里显式给 size 控制几何）
-  function sized(id: string, categoryId: GenerationCanvasNode['categoryId'], x: number, y: number): GenerationCanvasNode {
-    return { ...node(id, categoryId), position: { x, y }, size: { width: 100, height: 100 } }
-  }
-  beforeEach(() => {
-    useGenerationCanvasStore.getState().restoreSnapshot({
-      nodes: [
-        sized('a', 'shots', 0, 0), // 0..100
-        sized('b', 'shots', 300, 300), // 300..400
-        sized('c', 'cast', 50, 50), // 50..150，但属于别的分类
-      ],
-      edges: [],
-      selectedNodeIds: [],
-      groups: [],
-    })
-  })
-
-  it('只选中与矩形相交且同分类的节点', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: -20, y1: -20, x2: 120, y2: 120 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['a'])
-  })
-
-  it('框到分类外的节点不选（cast 不在 shots 框选里）', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 40, y1: 40, x2: 160, y2: 160 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['a'])
-  })
-
-  it('反向拖（x2<x1）归一化后仍正确相交', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 420, y1: 420, x2: 280, y2: 280 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['b'])
-  })
-
-  it('additive 与现有选区并集', () => {
-    useGenerationCanvasStore.getState().selectNode('b')
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: -10, y1: -10, x2: 110, y2: 110 }, 'shots', true)
-    expect([...useGenerationCanvasStore.getState().selectedNodeIds].sort()).toEqual(['a', 'b'])
-  })
-
-  it('按真实媒体预览框选，不因持久化高度过期漏掉可见节点', () => {
-    useGenerationCanvasStore.getState().restoreSnapshot({
-      nodes: [{
-        ...sized('loaded-image', 'shots', 0, -400),
-        size: { width: 360, height: 280 },
-        meta: { previewHeight: 432 },
-        result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
-      }],
-      edges: [],
-      selectedNodeIds: [],
-      groups: [],
-    })
-
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 0, y1: 0, x2: 40, y2: 20 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['loaded-image'])
-  })
-})
-
 describe('updateNodes', () => {
   it('keeps derived media measurements out of durable revisions and events', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({

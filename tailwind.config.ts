@@ -121,6 +121,7 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // outline:auto（用户设了橙/黄就冒橙环）。全局 :root → portal 到 body 的面板也生效。
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 42%, transparent)',
       '--nomi-track-text': 'var(--nomi-accent)',
+      '--nomi-group-neutral': 'oklch(0.68 0.01 80)',
       '--nomi-group-ocean': 'oklch(0.55 0.13 250)',
       '--nomi-group-teal': 'oklch(0.58 0.12 174)',
       '--nomi-group-amber': 'oklch(0.68 0.14 75)',
@@ -377,6 +378,7 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 50%, transparent)',
       // 时间轴三轨：暗底提亮以保持可辨（fork 未覆盖，本次补）。
       '--nomi-track-text': 'oklch(0.75 0.15 305)',
+      '--nomi-group-neutral': 'oklch(0.62 0.006 85)',
       '--nomi-group-ocean': 'oklch(0.70 0.13 250)',
       '--nomi-group-teal': 'oklch(0.72 0.12 174)',
       '--nomi-group-amber': 'oklch(0.78 0.14 75)',
@@ -776,6 +778,7 @@ export default {
           'info-ink': tokenColor('--nomi-info-ink'),
           'info-soft': tokenColor('--nomi-info-soft'),
           'info-edge': tokenColor('--nomi-info-edge'),
+          'group-neutral': tokenColor('--nomi-group-neutral'),
           'group-ocean': tokenColor('--nomi-group-ocean'),
           'group-teal': tokenColor('--nomi-group-teal'),
           'group-amber': tokenColor('--nomi-group-amber'),

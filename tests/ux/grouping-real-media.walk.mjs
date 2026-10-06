@@ -222,10 +222,10 @@ try {
   await win.mouse.click(point.x, point.y)
   await expectVisible(win.locator('[data-group-toolbar="true"]'), '真实媒体编组工具条已出现')
   await expect(win.locator('.generation-canvas-v2__group-box').first()).toHaveAttribute('data-frame-selected', 'true')
-  await expect(win.getByRole('button', { name: '排列', exact: true })).toBeVisible()
+  await expect(win.locator('[data-toolbar-action-menu="group-arrange"]')).toBeVisible()
   await screenshotSettled(win, { path: path.join(outputDir, '01-real-media-group-toolbar.png') })
-  await win.getByRole('button', { name: '排列', exact: true }).click()
-  await win.getByRole('button', { name: '网格', exact: true }).click()
+  await win.locator('[data-toolbar-action-menu="group-arrange"]').click()
+  await win.getByRole('menuitem', { name: '网格', exact: true }).click()
   await screenshotSettled(win, { path: path.join(outputDir, '02-real-media-arranged.png') })
   const facts = await win.evaluate(() => ({
     media: [...document.querySelectorAll('[data-node-id]')].map((node) => ({
