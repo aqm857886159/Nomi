@@ -2523,6 +2523,18 @@
         {
           "path": "electron/systemProxy.ts",
           "symbol": "createFreshConnectionDispatcher"
+        },
+        {
+          "path": "electron/outboundDispatchEvidence.ts",
+          "symbol": "observeSubmissionHandoffs"
+        },
+        {
+          "path": "electron/outboundDispatchEvidence.ts",
+          "symbol": "handOffToNetwork"
+        },
+        {
+          "path": "electron/appFetch.ts",
+          "symbol": "appFetch"
         }
       ],
       "forbidden_derivations": [],
@@ -2534,7 +2546,7 @@
         "electron/productionRun/submissionOutbox.ts"
       ],
       "since": "2026-10-02",
-      "notes": "根因合同 docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json：只有连上之前的失败才算确定没写出去（DNS / 建连 / TLS 握手前），UND_ERR_SOCKET 与连接被重置一律是结果未知；付费 POST 每次用 createFreshConnectionDispatcher 新建的连接，从构造上消掉「复用的旧连接」这一种歧义。重发规则住在 submissionOutbox.submitOnce（属 production.submission-admission 的写口），不在这里。2026-10-05 加第三档 providerExplicitlyRejected（用户拍板 F3，合同 docs/fixes/2026-10-05-provider-explicit-rejection.root-cause.json）：只认收到了响应、4xx 或 2xx + 失败信封、没有任务号；执行器只挂证据（providerAnswer），判在这里，落盘在 submissionOutbox.markProviderRejected。"
+      "notes": "根因合同 docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json：只有连上之前的失败才算确定没写出去（DNS / 建连 / TLS 握手前），UND_ERR_SOCKET 与连接被重置一律是结果未知；付费 POST 每次用 createFreshConnectionDispatcher 新建的连接，从构造上消掉「复用的旧连接」这一种歧义。重发规则住在 submissionOutbox.submitOnce（属 production.submission-admission 的写口），不在这里。2026-10-05 加第三档 providerExplicitlyRejected（用户拍板 F3，合同 docs/fixes/2026-10-05-provider-explicit-rejection.root-cause.json）：只认收到了响应、4xx 或 2xx + 失败信封、没有任务号；执行器只挂证据（providerAnswer），判在这里，落盘在 submissionOutbox.markProviderRejected。 2026-10-06 L-claim：判据从「最后那个错误」扩到「这一次派发」——提交出口用 observeSubmissionHandoffs 开一本账，appFetch 经 handOffToNetwork 记下交给网络的每个可能花钱的请求；执行器声明 networkTransport=app-fetch 时，一笔可能写出去的都没有才算确定没发出（在本机被拦 / 全在连上之前失败），否则结果未知。矩阵 electron/productionRun/unsentAttemptClaim.matrix.test.ts，合同 docs/fixes/2026-10-06-claim-release-unsent-attempt.root-cause.json。 V-1047：appFetch 是这本账的 HTTP 写口；子进程由 outboundDispatchEvidence 订阅 child_process 诊断通道记账，其余不经 appFetch 的出网口由 electron/offLedgerEgress.structure.test.ts 逐个登记。"
     },
     {
       "name": "跨供应商同一模型的身份（canonical 模型 id）",
@@ -3815,6 +3827,10 @@
         {
           "path": "electron/productionRun/productionRunApprovalReceipt.ts",
           "symbol": "assertCurrentProjectRevision"
+        },
+        {
+          "path": "electron/capabilityCore/generationDispatcher.ts",
+          "symbol": "requireApprovalReceipt"
         }
       ],
       "forbidden_derivations": [],
@@ -4831,6 +4847,80 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：可选连线模式只在模式菜单打开时算，文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
+    },
+    {
+      "name": "节点的几版（版本列表、主图、第 N 版）",
+      "subject": "canvas.node-versions",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+        "symbol": "appendNodeResultVersion"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "appendNodeResultVersion"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "removeNodeResult"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "setNodeMainResultPatch"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+          "symbol": "normalizeNodeResultVersionNumbers"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+        "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+        "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+        "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+        "src/workbench/assets/assetResultDeletion.ts",
+        "src/workbench/project/projectPersistenceService.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "加一版、删一版、换主图、补号只在这里。history 是持久的新→旧顺序，versionNo 一旦给出不改（docs/plan/2026-09-28-version-cards.md）。之前生成落地 / 图片编辑 / 白板快照各有一份手抄合并，已删。"
+    },
+    {
+      "name": "被删版本的文件何时真删",
+      "subject": "asset.deferred-file-deletion",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "durable",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/assets/pendingAssetDeletions.ts",
+        "symbol": "deferAssetFileDeletion"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/assets/pendingAssetDeletions.ts",
+          "symbol": "deferAssetFileDeletion"
+        },
+        {
+          "path": "src/workbench/assets/assetResultDeletion.ts",
+          "symbol": "isProjectFileReferenced"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/assets/deleteAssetResult.ts",
+        "src/workbench/project/workbenchProjectSession.ts",
+        "src/workbench/project/releaseWorkbenchProjectSession.ts",
+        "src/workbench/project/projectPersistenceService.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。"
     },
     {
       "name": "按钮点开的浮层放在哪儿（不压自己的触发钮和所在那一排）",

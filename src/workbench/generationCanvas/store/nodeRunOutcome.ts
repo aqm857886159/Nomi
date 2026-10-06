@@ -8,6 +8,7 @@ import { computeMediaMetaPatch, resolveNodeVisualSize, type MediaDimensions } fr
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord, GenerationNodeStatus, TiptapDocJson } from '../model/generationCanvasTypes'
 import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInput } from './runRecordHelpers'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
+import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 
 export type NodeRunOutcome =
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
@@ -19,27 +20,7 @@ export type NodeRunOutcome =
   /** 文本生成定稿后的文档（续写/重写落地）。 */
   | Readonly<{ kind: 'content'; contentJson: TiptapDocJson; runId?: string }>
 
-type NodeRunOutcomePatch = Partial<Pick<GenerationCanvasNode, 'size' | 'meta' | 'runs' | 'result' | 'history' | 'status' | 'error' | 'progress' | 'contentJson'>>
-
-function mergeResultHistory(
-  nextResult: GenerationNodeResult,
-  previousResult: GenerationNodeResult | undefined,
-  previousHistory: GenerationNodeResult[] | undefined,
-): GenerationNodeResult[] {
-  const history: GenerationNodeResult[] = []
-  const seen = new Set<string>()
-  const add = (result: GenerationNodeResult | undefined) => {
-    if (!result) return
-    const key = result.id || result.url || result.thumbnailUrl || result.text || ''
-    if (!key || seen.has(key)) return
-    seen.add(key)
-    history.push(result)
-  }
-  add(nextResult)
-  add(previousResult)
-  ;(previousHistory || []).forEach(add)
-  return history
-}
+type NodeRunOutcomePatch = Partial<Pick<GenerationCanvasNode, 'size' | 'meta' | 'runs' | 'result' | 'history' | 'resultVersionMax' | 'status' | 'error' | 'progress' | 'contentJson'>>
 
 function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, mediaDimensions?: MediaDimensions): NodeRunOutcomePatch {
   const latestRun = node.runs?.[0]
@@ -74,8 +55,10 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
         ...(node.runs || []).slice(1),
       ]
     : node.runs
-  patch.result = result
-  patch.history = mergeResultHistory(result, node.result, node.history)
+  const landed = appendNodeResultVersion(node, result)
+  patch.result = landed.result
+  patch.history = landed.history
+  patch.resultVersionMax = landed.resultVersionMax
   patch.status = 'success'
   patch.error = undefined
   patch.progress = undefined

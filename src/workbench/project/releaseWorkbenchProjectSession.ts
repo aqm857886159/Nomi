@@ -6,6 +6,8 @@ import { clearPendingRetryImports } from '../generationCanvas/adapters/assetImpo
 import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 import { storeLifetimeRegistry } from './storeLifetime'
+import { releaseLoadedProjectAssetDeletions } from '../assets/pendingAssetDeletions'
+import { logRendererError } from '../../desktop/rendererLog'
 // 注册是 import 的副作用：每个 store 文件在模块顶层调 `declareStoreLifetime` 把自己登记进来。
 // 这里逐个 import 而不是靠「反正别处也会 import 到」——打包器只保留被引用的模块，
 // 少一条 import 就少清一个 store，而那种漏法**不会报错**，只会在用户切项目时露出来。
@@ -42,6 +44,8 @@ import '../workbenchStoreLifetime'
  * 「字段没声明寿命」「声明了 project 却给不出 releaseProject」「这里又出现手写 setState」。
  */
 export function releaseWorkbenchProjectRuntimeState(): void {
+  // 撤销日志下面就清零：被删版本的文件到点了（判定读此刻的画布，所以排在最前、同步取走）。
+  void releaseLoadedProjectAssetDeletions().catch((error: unknown) => logRendererError('pending-asset-deletion-release-failed', error))
   invalidateAgentTurnStates()
   abandonPendingCanvasWrite()
   clearCommittedProposal()

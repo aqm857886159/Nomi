@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { runStoryboardBatch, generateShotRowVariants, regenerateShotRow, generateShotRow, generateAnchorCard } from './storyboardRowActions'
+import { runStoryboardBatch, regenerateShotRow, generateShotRow, generateAnchorCard } from './storyboardRowActions'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { getActiveCanvasGestureContext, withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
 import { deriveStoryboardRowRuntimes } from './storyboardRowStatus'
@@ -7,9 +7,9 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
 import type { ModelOption } from '../../../../config/models'
 
-const calls = vi.hoisted(() => ({ gestures: [] as unknown[], confirm: vi.fn(), single: vi.fn(), variants: vi.fn(), regenerate: vi.fn(), onDefaults: vi.fn(), catalog: [] as unknown[] }))
+const calls = vi.hoisted(() => ({ gestures: [] as unknown[], confirm: vi.fn(), single: vi.fn(), regenerate: vi.fn(), onDefaults: vi.fn(), catalog: [] as unknown[] }))
 vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: calls.confirm }))
-vi.mock('../../../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: calls.single, confirmAndRunNodeVariants: calls.variants, regenerateNodeInPlace: calls.regenerate }))
+vi.mock('../../../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: calls.single, regenerateNodeInPlace: calls.regenerate }))
 vi.mock('../../../generationCanvas/agent/availableModels', async importOriginal => ({
   ...await importOriginal<typeof import('../../../generationCanvas/agent/availableModels')>(),
   resolveStoryboardImageDefault: async () => { calls.onDefaults(); return {} }, resolveStoryboardVideoDefault: async () => ({}), listAvailableModelsForAgent: async () => calls.catalog,
@@ -38,7 +38,6 @@ beforeEach(() => {
   calls.gestures.length = 0
   calls.confirm.mockReset()
   calls.single.mockReset()
-  calls.variants.mockReset()
   calls.regenerate.mockReset()
   calls.onDefaults.mockReset()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
@@ -165,16 +164,14 @@ it('finds a newly materialized shot through its own metadata on the next call', 
 })
 
 
-it('bound row actions keep single-shot, three variants and regeneration on the original runner', async () => {
+it('bound row actions keep single-shot and regeneration on the original runner', async () => {
   const shot = { index: 1, shotId: 'action-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Updated author prompt' }
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Old prompt', meta: { storyboardDesignId: 'run', shotId: 'action-shot' } })
   const assertCurrent = vi.fn().mockResolvedValue(undefined)
   const context = { initiator: 'user' as const, assertCurrent, assertAuthorCurrent: assertCurrent, documentId: 'doc', designId: 'run', plan: { title: 'Run', anchors: [], shots: [shot] } }
   await generateShotRow(context, shot, null)
-  await generateShotRowVariants(context, shot, node, null)
   await regenerateShotRow(context, shot, node, null)
   expect(calls.single).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
-  expect(calls.variants).toHaveBeenCalledWith(node.id, 3, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
   expect(calls.regenerate).toHaveBeenCalledWith(node.id, { assertCurrent, assertAuthorCurrent: assertCurrent, initiator: 'user' })
   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
   expect(useGenerationCanvasStore.getState().nodes[0].prompt).toContain('Updated author prompt')

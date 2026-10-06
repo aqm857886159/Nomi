@@ -9,7 +9,7 @@ const calls = vi.hoisted(() => ({ preload: vi.fn(), defaults: vi.fn(), confirm: 
 vi.mock('../../config/useModelOptions', () => ({ preloadModelOptions: calls.preload }))
 vi.mock('../project/projectCanvasReadSurface', () => ({ withProjectAction: (action: (value: unknown) => unknown) => action({ binding: { projectId: 'p' }, signal: new AbortController().signal, assertCurrent: () => { if (!calls.current) throw new Error('changed project') } }) }))
 vi.mock('../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: calls.confirm }))
-vi.mock('../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: calls.single, confirmAndRunNodeVariants: vi.fn(), regenerateNodeInPlace: vi.fn() }))
+vi.mock('../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: calls.single, regenerateNodeInPlace: vi.fn() }))
 vi.mock('../generationCanvas/agent/availableModels', async importOriginal => ({
   ...await importOriginal<typeof import('../generationCanvas/agent/availableModels')>(),
   resolveStoryboardImageDefault: async () => { calls.defaults(); return {} }, resolveStoryboardVideoDefault: async () => ({}), listAvailableModelsForAgent: async () => [],

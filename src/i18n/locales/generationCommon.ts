@@ -394,6 +394,10 @@ export const zhGenerationCommon = {
         reason: '这一镜可能已被服务商收下，结果没法确认',
         hint: '请求发出去之后，Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。',
       },
+      submissionNotSent: {
+        reason: '这次生成没有发出去，停在了这台电脑上',
+        hint: '请求还没离开这台电脑就停下了，服务商没有收到它，也就不会有重复提交的问题。常见原因：出网被拦（代理 / 防火墙 / 网络设置）、密钥缺失或请求头里有非法字符、参考素材读不到。具体原因见下方技术详情；处理好之后可以直接重试，换个模型也行。',
+      },
       // 已生成、取回失败（#975 A2）：只给「去任务面板重新取回」，绝不给重试——重试 = 再生成一份新的。
       outputRetrievalFailed: {
         reason: '已经生成，但结果没能取回到本机',
@@ -812,12 +816,8 @@ export const zhGenerationCommon = {
     regenerate: '重新生成',
     // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
-    variantCountAria: '每次生成几个',
     expandPrompt: '展开提示词',
     collapsePrompt: '收起提示词',
-    variantCountTitle: '每次生成 {{count}} 个',
-    variantCountOption_one: '{{count}} 个',
-    variantCountOption_other: '{{count}} 个',
     generate: '生成',
     generateAsset: '生成素材',
     uploading: '上传中',
@@ -2005,6 +2005,10 @@ export const enGenerationCommon = {
         reason: 'Result unconfirmed: the provider may have received this shot',
         hint: 'The request was sent, but Nomi never got a reply, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.',
       },
+      submissionNotSent: {
+        reason: 'This generation was never sent; it stopped on this computer',
+        hint: 'The request stopped before it left this computer, so the provider never received it and it cannot be submitted twice. Common causes: outbound traffic was blocked (proxy, firewall or network settings), a missing or malformed API key or request header, or an unreadable reference file. The technical details below say which; once it is fixed you can simply retry, or switch to another model.',
+      },
       outputRetrievalFailed: {
         reason: 'Generated, but the result could not be retrieved',
         hint: 'The provider finished this shot; the step that failed is Nomi downloading the result into your project (the address was not allowed, the download was refused, or what came back was not a usable file). Do not generate again — that makes a brand-new one. Open the task panel and click “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
@@ -2401,13 +2405,9 @@ export const enGenerationCommon = {
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
-    variantCountAria: 'Outputs per run',
     expandPrompt: 'Expand prompt',
     collapsePrompt: 'Collapse prompt',
-    variantCountTitle: 'Generate {{count}} per run',
     // 复数走 i18n 规则，不拼串：「1 outputs」是 2026-10-01 真机截图上看到的。
-    variantCountOption_one: '{{count}} output',
-    variantCountOption_other: '{{count}} outputs',
     generate: 'Generate',
     generateAsset: 'Generate asset',
     uploading: 'Uploading',
