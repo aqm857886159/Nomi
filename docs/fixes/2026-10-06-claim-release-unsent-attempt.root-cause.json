@@ -350,7 +350,7 @@
     },
     {
       "path": "electron/outboundDispatchEvidence.ts",
-      "symbol": "diagnosticsChannel.subscribe(child_process)",
+      "symbol": "diagnosticsChannel.subscribe(\"child_process\"",
       "responsibility": "Records every ChildProcess created inside a dispatch; a process that started makes the attempt unknown."
     }
   ],
