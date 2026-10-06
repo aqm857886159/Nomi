@@ -7,7 +7,7 @@ import { storyboardAuthorFieldsSchema } from '../generationPlanSchemas'
 // 一律 `wrong_verb` 拒绝并点名 `draft_shots`（判据 `electron/shared/canvas/nodeExecutionKinds.ts`，不手写名单）。
 // 只有 `generate` 会把报价卡摆到用户面前；它的返回值是 GitHub MCP `issue_write` 的形状：isError + 明文「不要再调工具」。
 import { z } from "zod";
-import { timelineWriteResultSchema } from "../timelineWrite";
+import { TIMELINE_WRITE_ALIASES, timelineWriteResultSchema } from "../timelineWrite";
 import { exportWriteResultSchema } from "../exportCapabilities";
 
 import {
@@ -436,6 +436,8 @@ export function writeVerbs(): VerbDeclaration[] {
 
   const editTimeline: VerbDeclaration = {
     name: "edit_timeline", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "timeline.write", effect: "reversible_local", nextAction: "user_sees_review_card", internalGroup: "timeline",
+    // 别名定死分支：审批按它认出「这是一份编辑计划」（要复审），撤销不是（见 timeline.write 的 operationPlanReview）。
+    aliasBoundInput: { operation: TIMELINE_WRITE_ALIASES.applyPlan },
     describe: {
       does: "Apply one transaction of timeline operations (move, trim, split, ripple, transition, text, audio) against the revision you read.",
       useWhen: "The user asks to cut, trim, reorder, or add captions or transitions on the timeline.",
@@ -458,6 +460,7 @@ export function writeVerbs(): VerbDeclaration[] {
 
   const undo: VerbDeclaration = {
     name: "undo", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "timeline.write", effect: "reversible_local", nextAction: "none", internalGroup: "timeline",
+    aliasBoundInput: { operation: TIMELINE_WRITE_ALIASES.undo },
     describe: {
       does: "Revert one reversible change you made, by the changeId its result returned.",
       useWhen: "The user says undo, go back, or that the last change was wrong.",

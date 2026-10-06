@@ -28,6 +28,15 @@ describe('resident tool display projection', () => {
     expect(readableToolName(translate, 'nomi_request_tools')).toBe('agentResident.toolPrepareTools')
   })
 
+  // 真实测试 ④：撤销一笔画布改动，面板那一行写「调整时间线」——撤销与编辑计划同属 timeline.write，按契约名认就认错了。
+  it('names undo as undo, and says which surface it puts back', () => {
+    expect(readableToolName(translate, 'undo', { changeId: 'canvas:v1:receipt-1' })).toBe('agentResident.toolUndo')
+    expect(readableToolSummary(translate, 'undo', { changeId: 'canvas:v1:receipt-1' })).toBe('agentResident.toolUndoCanvasSummary')
+    expect(readableToolPreview(translate, 'undo', { changeId: 'canvas:v1:receipt-1' })).toBe('agentResident.toolUndoCanvasSummary')
+    expect(readableToolSummary(translate, 'undo', { changeId: 'timeline:v1:receipt-2', expectedRevision: 'r-2' })).toBe('agentResident.toolUndoTimelineSummary')
+    expect(readableToolName(translate, 'edit_timeline', { baseRevision: 'r-1', summary: 's', operations: [] })).toBe('agentResident.toolTimelineWrite')
+  })
+
   it('keeps the first layer compact while retaining generation intent', () => {
     const args = { prompt: 'a small cat avatar', modelId: 'provider/image-fast', parameters: { aspectRatio: '1:1', quality: 'standard' } }
     expect(readableToolPreview(translate, 'nomi_start_generation', args)).toBe('agentResident.toolGenerationSummary')

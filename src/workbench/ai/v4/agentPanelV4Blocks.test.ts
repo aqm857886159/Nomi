@@ -673,3 +673,16 @@ describe('thinking disclosure boundary', () => {
     expect(markup).not.toContain('inline-flex h-7')
   })
 })
+
+// 真实测试 ④（C5）：「这次改动覆盖了你在镜头 2 的手调，可撤销」由宿主确定性给出，画在流水行外面——
+// 过程行收起时，里面那条收据看不见，这句话也不能跟着藏起来。
+it('the host notice on a receipt shows even when its process row is collapsed', () => {
+  const noted: ToolReceipt = { label: '3D 预演', action: 'canvas', status: 'output-available', toolCallId: 'call-2', notice: '这次改动覆盖了你在镜头 2 的手调，可撤销' }
+  const markup = html(el(AgentPanelV4Panel, { slotHandlers: NO_HANDLERS, context: usage, flow: [
+    { kind: 'process', label: '处理中', segments: [], details: [{ index: 0, item: { kind: 'tool', receipt: noted } }] },
+    { kind: 'assistant', text: '第二镜已改成特写。', status: 'complete' },
+  ] }))
+  expect(markup.match(/data-v4-notice="director-patch"/g)).toHaveLength(1)
+  expect(markup).toContain('这次改动覆盖了你在镜头 2 的手调，可撤销')
+  expect(markup.indexOf('data-v4-notice')).toBeLessThan(markup.indexOf('第二镜已改成特写'))
+})

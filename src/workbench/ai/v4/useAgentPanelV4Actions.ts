@@ -11,7 +11,11 @@ import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import { getDocumentSessionPort } from '../../project/documentSessionPort'
 import { projectAgentAttachmentClaims } from '../projectAgentAttachments'
 import { restoreProjectAgentInputs } from '../projectAgentDraftRecovery'
-import { buildResidentContextSnapshot, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
+import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
+import i18n from '../../../i18n'
+import { isDirector3DBoxEnabled } from '../../../featureFlags/director3dbox'
+import { readDirectorShotFocus } from '../../generationCanvas/nodes/director/directorSessionRegistry'
+import { directorShotContextHandles } from '../../generationCanvas/nodes/director/model/directorShotFocus'
 import { composeResidentSystemPrompt } from '../resident/residentPromptSelection'
 import { friendlyError, type ResidentSurface } from '../resident/residentShellDisplay'
 import { LaneCommandFailure } from '../lane/laneCommandFailure'
@@ -50,7 +54,7 @@ function captureSendContext(surface: ResidentSurface): ResidentSendContext {
   const documentState = getDocumentSessionPort().readState()
   const selectedNodeIds = surface === 'generation' ? Object.freeze([...canvas.selectedNodeIds]) : Object.freeze([])
   const selectedClipIds = surface === 'preview' ? Object.freeze([...workbench.selectedTimelineClipIds]) : Object.freeze([])
-  const snapshot = buildResidentContextSnapshot({
+  const selection = buildResidentContextSnapshot({
     document: document
       ? {
           id: document.id,
@@ -71,6 +75,11 @@ function captureSendContext(surface: ResidentSurface): ResidentSendContext {
         }
       : null,
   })
+  // 3D-BOX：导演台里选中的计划镜头随这一句一起走（「正在改：镜头 N」的数据；模型按镜头名补丁）
+  const directorShots = surface === 'generation' && isDirector3DBoxEnabled()
+    ? directorShotContextHandles(readDirectorShotFocus(), (index) => i18n.t('director.agent.focusShot', { index }), i18n.t('director.agent.boxPreview'))
+    : []
+  const snapshot = mergeResidentContextHandles(selection, directorShots)
   return Object.freeze({ snapshot, activeDocumentId, selectedNodeIds, selectedClipIds, documentState })
 }
 

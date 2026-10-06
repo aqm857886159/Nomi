@@ -1282,7 +1282,8 @@
         "Place actors and set pieces against the fixed template anchors: street = s1-street-ground, s1-street-road-left, s1-street-road-right, s1-street-building-left, s1-street-building-right; room = s1-room-floor, s1-room-back, s1-room-left; courtyard = s1-courtyard-ground, s1-courtyard-wall-north, s1-courtyard-wall-east, s1-courtyard-gate, s1-courtyard-tree; product_stage = s1-product-ground, s1-product-backdrop, s1-product-pedestal. Pick the closest template by spatial layout; keep the real place name in scene.tags.",
         "Shots cover the brief in time order with second-based windows and no gaps. Use transitionIn continuous only when the camera should carry on from where the previous shot ended. Shot/reverse-shot coverage of two people keeps one side of the axis for the whole scene.",
         "To change an existing plan, send only the edits the user asked for, addressed by name (/shots/<name>/size, /actors/<name>/placement); everything else stays as it is. If the result says unchanged, tell the user it already is that way instead of rewriting.",
-        "Read the returned issues and measured cuts. Fix real problems in at most two or three more calls, then tell the user what the preview now shows and what still differs."
+        "Read the returned issues and measured cuts. Fix real problems in at most two or three more calls, then tell the user what the preview now shows and what still differs.",
+        "The user may hand-adjust the preview in the editor; a patch keeps those adjustments. When a result lists reorderedOverrides, tell the user each one: it was his own adjustment that this instruction directly overrode, it has been recomputed for the new instruction, and undo brings it back. When it lists changedEntities, say in one sentence what moved along with the change; his adjustments on those are kept."
       ],
       "promptSnippet": "Build or change a 3D-BOX director plan; Nomi compiles a gray 3D preview with blocking and cameras and attaches it to the shot as reference video.",
       "publishedJsonSchema": {
@@ -2293,7 +2294,9 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "apply_edit_plan"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
       "description": "Apply one transaction of timeline operations (move, trim, split, ripple, transition, text, audio) against the revision you read. The user asks to cut, trim, reorder, or add captions or transitions on the timeline. Not without a fresh read_timeline — a stale revision is rejected and resending it cannot succeed. Not for shot content (draft_shots). To revert use undo. baseRevision from read_timeline, a one-line summary, and 1-128 operations in frames. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio. The user sees the plan highlighted with a review card before it applies (in full-auto mode it applies and the result says so). The edit is reversible.",
@@ -2558,7 +2561,9 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "undo_timeline_edit"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
       "description": "Revert one reversible change you made, by the changeId its result returned. The user says undo, go back, or that the last change was wrong. It cannot un-spend money or un-export; those are not undoable and check_job or cancel_job are the verbs there. If a later edit touched the same object, undo is rejected with the conflict reason. changeId from any reversible Agent write; expectedRevision is required only for a timeline change and may be omitted for a canvas change. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",

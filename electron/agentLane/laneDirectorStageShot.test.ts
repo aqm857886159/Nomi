@@ -54,7 +54,7 @@ describe('stage_shot (3D-BOX) lane binding', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
     expect(outcome.text).toContain('revision dplan-0123456789abcdef')
-    expect(outcome.text).toContain('- wide 0.0-3.0s: 全景, static')
+    expect(outcome.text).toContain('- shot 1 (wide) 0.0-3.0s: measured 全景, move static; plan asked 全景, matches')
     expect(outcome.text).toContain('Preview: rendering for node-v1')
     expect(outcome.text).toContain('"shots"')
     expect(outcome.nextAction).toMatchObject({ kind: 'none', changeId: 'canvas:v1:prop-1' })
@@ -65,6 +65,25 @@ describe('stage_shot (3D-BOX) lane binding', () => {
     const outcome = await tool.execute({ target: { directorNodeId: 'node-d1' }, baseRevision: 'dplan-0123456789abcdef', edits: [{ op: 'replace', path: '/shots/wide/size', value: '全景' }] }, context)
     expect(seen[0]).toMatchObject({ operation: 'patch_director_plan', directorNodeId: 'node-d1', baseRevision: 'dplan-0123456789abcdef' })
     expect(outcome.ok && outcome.text).toMatch(/^Unchanged: the plan already says this/)
+  })
+
+  // 真实测试 ④（DeepSeek）：计划要特写、实测近景，模型把计划里的 size 当实测复述成「特写（实测）」；被覆盖的手调收据里根本没有。
+  it('puts measured framing next to the requested size and names the hand adjustments the edit replaced', async () => {
+    const plan = { ...PLAN, shots: [PLAN.shots[0], { ...PLAN.shots[0], id: 'close', window: [3, 6], size: '特写' }] }
+    const { tool } = await stageShotTool(() => applied({
+      operation: 'patch_director_plan', plan,
+      cuts: [{ shot: 'wide', start: 0, end: 3, shotSize: '全景', move: 'static' }, { shot: 'close', start: 3, end: 6, shotSize: '近景', move: 'push_in' }],
+      reorderedOverrides: ['shot:close/camera.position'], changedEntities: ['actor:friend'],
+    }))
+    const outcome = await tool.execute({ target: { directorNodeId: 'node-d1' }, baseRevision: 'dplan-0123456789abcdef', edits: [{ op: 'replace', path: '/shots/close/size', value: '特写' }] }, context)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+    expect(outcome.text).toContain('- shot 2 (close) 3.0-6.0s: measured 近景, move push_in; plan asked 特写, measured differs — say so')
+    expect(outcome.text).toContain('Hand adjustments REPLACED by this edit: shot 2 (close) camera position.')
+    expect(outcome.text).toContain('undo brings them back')
+    expect(outcome.text).toContain('undo with changeId canvas:v1:prop-1')
+    expect(outcome.text).toContain('Also moved by recompiling (the user\'s hand adjustments there are kept): actor:friend.')
+    expect(outcome.text).toContain('"size" fields are REQUESTS, not measurements')
   })
 
   it('renders a stale revision as a failure that names the current revision', async () => {

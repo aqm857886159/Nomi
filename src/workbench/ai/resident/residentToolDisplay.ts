@@ -1,6 +1,8 @@
 import { MODEL_FACING_TOOL_SPECS, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { GENERATION_METHOD_NAMES } from '../../../../electron/shared/agentCapabilities/generation'
 import type { TranslationKey } from '../../../i18n/translationKey'
+import { TIMELINE_WRITE_ALIASES } from '../../../../electron/shared/agentCapabilities/timelineWrite'
+import { parseChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import type { ResidentApprovalDetail, ResidentProposalData } from './residentProposalDisplay'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
@@ -42,8 +44,10 @@ function semanticArgsOf(name: string, args?: unknown): unknown {
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : undefined
   if (!record) return args
   const spec = MODEL_FACING_TOOL_SPECS.find((candidate) => candidate.name === name)
-  if (!spec?.semanticInputOf) return args
-  try { return spec.semanticInputOf(record) } catch { return args }
+  // 动词名定死的语义字段（`undo` = undo_timeline_edit）先补上：认分支只看参数，撤销就被认成「调整时间线」。
+  const bound = spec?.aliasBoundInput ? { ...spec.aliasBoundInput, ...record } : record
+  if (!spec?.semanticInputOf) return bound
+  try { return spec.semanticInputOf(bound) } catch { return args }
 }
 
 function toolIdentity(name: string, rawArgs?: unknown): string {
@@ -60,6 +64,17 @@ function toolIdentity(name: string, rawArgs?: unknown): string {
 
 function canonicalCapabilityId(name: string, args?: unknown): string {
   return resolveModelToolCapabilityId(name, args) ?? ''
+}
+
+/**
+ * 撤销：和「调整时间线」同一份契约（timeline.write 的 undo 分支），但不是一回事——它撤回的可能是画布上的一笔
+ * （3D-BOX 计划补丁、画布排版），面板上不能叫「调整时间线」。返回撤回的是哪一面；不是撤销返回 null。
+ */
+function undoSurfaceOf(name: string, args?: unknown): 'canvas' | 'timeline' | null {
+  if (!toolIdentity(name, args).split(' ').includes(TIMELINE_WRITE_ALIASES.undo)) return null
+  const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
+  const changeId = typeof record.changeId === 'string' ? record.changeId : typeof record.undoToken === 'string' ? record.undoToken : ''
+  return parseChangeId(changeId)?.kind === 'canvas' ? 'canvas' : 'timeline'
 }
 
 function isStoryboardPlanWrite(name: string, args?: unknown): boolean {
@@ -243,6 +258,7 @@ export function readableToolName(t: Translate, name: string, rawArgs?: unknown):
   if (normalized.includes('canvas.read') || normalized.includes('canvas_read')) return t('agentResident.toolCanvasRead')
   if (normalized.includes('canvas.write') || normalized.includes('canvas_edit')) return t('agentResident.toolCanvasWrite')
   if (normalized.includes('timeline.read') || normalized.includes('timeline_read')) return t('agentResident.toolTimelineRead')
+  if (undoSurfaceOf(name, args)) return t('agentResident.toolUndo')
   if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWrite')
   if (normalized.includes('asset.read') || normalized.includes('media_query')) return t('agentResident.toolAssetRead')
   if (normalized.includes('production.artifact')) return t('agentResident.toolArtifactRevise')
@@ -312,6 +328,8 @@ export function readableToolSummary(t: Translate, name: string, rawArgs?: unknow
     return [t('agentResident.toolCanvasWriteArtifactSummary'), shotCards ? t('agentResident.toolShotConfig', { details: shotCards }) : ''].filter(Boolean).join(' · ')
   }
   if (isCanvasWriteToolName(name, args)) return [t('agentResident.toolCanvasWriteSummary'), shotCards ? t('agentResident.toolShotConfig', { details: shotCards }) : '', relations, t('agentResident.toolNoGeneration'), details].filter(Boolean).join(' · ')
+  const undoSurface = undoSurfaceOf(name, args)
+  if (undoSurface) return t(undoSurface === 'canvas' ? 'agentResident.toolUndoCanvasSummary' : 'agentResident.toolUndoTimelineSummary')
   if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return details ? `${t('agentResident.toolTimelineWriteSummary')} · ${details}` : t('agentResident.toolTimelineWriteSummary')
   if (isGenerationToolName(name)) return details ? `${t('agentResident.toolGenerationSummary')} · ${details}` : t('agentResident.toolGenerationSummary')
   return details || t('agentResident.toolPendingSummary')
@@ -341,6 +359,8 @@ export function readableToolPreview(t: Translate, name: string, rawArgs?: unknow
     if (isAllArtifactDelivery(args)) return t('agentResident.toolArtifactCount', { count: nodes })
     return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolCanvasWriteSummary')
   }
+  const undoSurface = undoSurfaceOf(name, args)
+  if (undoSurface) return t(undoSurface === 'canvas' ? 'agentResident.toolUndoCanvasSummary' : 'agentResident.toolUndoTimelineSummary')
   if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWriteSummary')
   if (isGenerationToolName(name)) return t('agentResident.toolGenerationSummary')
   if (normalized.includes('layout_write') || normalized.includes('layout.write')) return t('agentResident.toolLayoutWriteSummary')
