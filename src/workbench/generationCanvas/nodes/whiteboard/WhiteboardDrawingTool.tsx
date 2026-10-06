@@ -30,7 +30,7 @@ import {
 import { AspectRatioPopover, TOOL_ITEMS, ToolIconButton } from './WhiteboardToolbarControls'
 import { WhiteboardLibraryPanel, type WhiteboardLibraryTabKey } from './WhiteboardLibraryPanel'
 import { blobToDataUrl, removeBackgroundBlob } from '../../../../lib/removeBackground'
-import { removeBackgroundProgressMessage } from '../localImageOpPhase'
+import { removeBackgroundFailureMessage, removeBackgroundProgressMessage } from '../localImageOpPhase'
 import {
   ASSET_DRAG_MIME,
   assessDeleteTarget,
@@ -456,7 +456,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
             setActiveTool('select')
           } catch (error) {
             if (project.signal.aborted || isProjectImportCancellation(error)) return
-            reportFeedback(t('generationCommon.whiteboard.removeBackgroundFailed'))
+            reportFeedback(removeBackgroundFailureMessage(error))
           } finally {
             if (!project.signal.aborted) {
               setRemoveBgBusy(false)

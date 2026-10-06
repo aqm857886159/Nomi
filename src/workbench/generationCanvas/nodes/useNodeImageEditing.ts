@@ -7,7 +7,7 @@ import { withProjectAction, type ProjectExecutionContext } from '../../project/p
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells, computeSplitLayout, type GridCell } from './render/cropGridGeometry'
 import { removeBackgroundBlob } from '../../../lib/removeBackground'
-import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, removeBackgroundProgressMessage } from './localImageOpPhase'
+import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, REMOVE_BACKGROUND_RESULT_ID_PREFIX, removeBackgroundFailureMessage, removeBackgroundProgressMessage } from './localImageOpPhase'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 // 尺寸上下界与"卡片实际渲染多大"都从 nodeSizing 拿——这里再抄一份就是布局错位的温床。
 import { computeMediaMetaPatch, MAX_NODE_WIDTH, MIN_NODE_WIDTH, resolveNodeVisualSize } from './nodeSizing'
@@ -500,7 +500,7 @@ export function useNodeImageEditing(
         const stored = await persistNodeImageBlob(blob, nodeId, `remove-bg-${nodeId}-${createdAt}.png`, project)
         project.assertCurrent()
         const result: GenerationNodeResult = {
-          id: `image-remove-bg-${nodeId}-${createdAt}`,
+          id: `${REMOVE_BACKGROUND_RESULT_ID_PREFIX}${nodeId}-${createdAt}`,
           type: 'image' as const,
           url: stored.url,
           createdAt,
@@ -521,12 +521,12 @@ export function useNodeImageEditing(
         })
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
-        // removeBackground 失败（离线/CDN 不通）时静默报错 toast
+        // 抠图失败（下载卡住 / 下载失败 / 图处理不了）：图恢复原样，按原因说一句带下一步的话。
         updateNode(nodeId, {
           status: previousStatus,
           progress: undefined,
         })
-        reportFeedback(i18n.t('generationCommon.whiteboard.removeBackgroundFailed'))
+        reportFeedback(removeBackgroundFailureMessage(error))
       } finally {
         if (!project.signal.aborted) setImageOpBusy(false)
       }

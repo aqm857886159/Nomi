@@ -53,6 +53,7 @@
 - 菜单 / 浮层定位：不是独有。行为全走 Radix（`@radix-ui/react-dropdown-menu`，用它的翻边 + `--radix-dropdown-menu-content-available-height`）；我们只补「锚点是哪块矩形」这一条领域约束（浮条那一排是触发钮的一部分）。`AnchoredPopover` 的几何是已登记的自写件，本次只改不变量，不加新件。
 - 抠图：继续用 `@imgly/background-removal` 1.7.0，只改 `publicPath`（官方配置项）指向自己的镜像；下载进度 / 卡住判定是包一层 `fetch`，不改第三方。
 - 高清：不自写放大；接中转里现成的放大模型（kie 的 Topaz Image Upscale、Recraft Crisp Upscale），见 C 设计卡。
+- 自写登记 `gate-family`（门岗族，评估中）：本次只动 `scripts/check-file-sizes.mjs` 一行基线（`BaseGenerationNode.tsx` 557 → 555，门岗自己要求「瘦身后下调以锁定」），不加新门岗逻辑；弹层几何普查放在 `tests/ux/design-lab/`（走查工具，不是门岗脚本），判据只认 DOM 几何。为什么现在不换现成方案：文件体积棘轮的替代（如 ESLint `max-lines` 加基线）要整族一起评估，那是 `gate-family` 那张登记的事，不在这一刀里换；哪天换跟那张登记的评估结论走。
 
 ## 6. 对比表 + 推荐
 
