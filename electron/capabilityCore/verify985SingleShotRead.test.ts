@@ -63,7 +63,7 @@ function candidate(overrides: Record<string, unknown> = {}) {
 }
 
 describe("V-3b: preflight candidate read on a SINGLE-shot draft (what draft_shots with one plain shot creates)", () => {
-  it("readShotReferenceAssetIds on a real single-shot operation", async () => {
+  it("readShotCandidateFacts on a real single-shot operation", async () => {
     const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
@@ -73,7 +73,7 @@ describe("V-3b: preflight candidate read on a SINGLE-shot draft (what draft_shot
       { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1 } as never,
       { planning: (async (input: { capability: string; params: Record<string, unknown> }) => handler({ ...input, lease } as never)) as never, leaseFor: () => lease },
     );
-    await expect(adapter.readShotReferenceAssetIds!(operationId)).resolves.toBeDefined();
+    await expect(adapter.readShotCandidateFacts!(operationId)).resolves.toBeDefined();
   });
 });
 
@@ -86,10 +86,10 @@ describe("single-shot draft: references are read from operation.candidate; a mis
     const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
     const created = await handler({ capability: "create", params: { candidate: candidate({ references: [{ assetId: "asset-pre", contentHash: "a".repeat(64), version: 1, kind: "video" }] }) }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
-    await expect(adapterFor(handler).readShotReferenceAssetIds!(operationId)).resolves.toEqual({ "": ["asset-pre"] });
+    await expect(adapterFor(handler).readShotCandidateFacts!(operationId)).resolves.toEqual({ references: { "": ["asset-pre"] }, durationSeconds: {} });
   });
   it("an operation that does not exist is not mistaken for the single-shot shape", async () => {
     const handler = createGenerationPlanningHandler({ registry, operations: createInMemoryGenerationOperationStore(), now: () => "2026-08-23T00:00:00.000Z" });
-    await expect(adapterFor(handler).readShotReferenceAssetIds!("op-missing")).rejects.toThrow();
+    await expect(adapterFor(handler).readShotCandidateFacts!("op-missing")).rejects.toThrow();
   });
 });

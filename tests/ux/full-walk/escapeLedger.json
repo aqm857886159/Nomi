@@ -11,7 +11,8 @@
     "performance-coverage": "真实任务的规模、素材或长跑成本没有被验收覆盖",
     "claims-and-outcomes": "界面 / Agent 对状态、断线或失败的描述与事实不一致",
     "language-surface": "语言轨道与用户所选界面不一致",
-    "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整"
+    "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整",
+    "overlay-legibility": "画面上的标注 / 名牌互相遮挡，用户读不出是谁"
   },
   "entries": [
     {
@@ -390,6 +391,24 @@
       "completionCommits": []
     },
     {
+      "id": "DIR-character-label-overlap",
+      "since": "2026-10-06",
+      "source": "外包卡 18 基线重审对比图（d3-courtyard-director-zh），外包卡 20 转协调会话，用户 10-05 拍板修",
+      "category": "overlay-legibility",
+      "problem": "庭院场景镜 2 里，「黑衣侍卫」的名牌盖住了「青衣女子」的名牌，原来是上下排开的；两个人前后站成一线时谁是谁读不出",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["docs/evidence/2026-10-05-baseline-reapproval/comparisons/director-3dbox/d3-courtyard-director-zh.png（origin/evidence/card18-baseline-reapproval-20261006）", "bisect：4adb4668d 让青衣女子从门顶（y=1.2）落回地面后两名牌纵向只差 11–20px，名牌高 22px；名牌从来没有避让"],
+      "completionCommits": ["36b64cf6f"],
+      "rootCauseContract": "docs/fixes/2026-10-06-director-character-label-overlap.root-cause.json",
+      "classCheck": {"kind": "matrix", "file": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.test.ts"},
+      "fixedInPr": 1002
+    },
+    {
       "id": "AUD-20261005-01",
       "since": "2026-10-05",
       "source": "用户 10-05 反馈 #1",
@@ -750,6 +769,24 @@
       "rootCauseContract": "docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json",
       "fixedInPr": 1045,
       "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/nodes/mediaPlaceholderShimmer.test.ts" }
+    },
+    {
+      "id": "FB-20261005-01-open-mount",
+      "since": "2026-10-05",
+      "source": "用户 10-05 反馈 #1「右侧 Agent 运行时明显卡顿：进项目、建新项目都卡」（首挂与拖动那一段）；卡 17 全选拖动卡顿",
+      "category": "performance-coverage",
+      "problem": "全选拖动时连到被拖节点的每条边每帧按目标模型档案校验可选连线模式、重新解析无障碍文案（非压缩构建剖面：拖 250 下累计约 2.5s + 1.9s 脚本）",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": ["S8"],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["类级检查 src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts：遍历边类型登记表 edgeTypes 里每个边组件，三帧坐标下菜单关闭时不许调 availableEdgeModes；变异：改回每帧计算即红", "打包版拖动基准改前改后各 5 次（XL 全选拖动）：本机同一构建内脚本时间 3–23 秒波动，端到端在噪声内，不作结论；收益以剖面归因为准", "首挂段（react-i18next 每实例复制 i18n 约 46ms、整页首次强制排版、模型目录同步 IPC）留作残余，见 docs/plan/2026-10-06-open-mount.md"],
+      "completionCommits": ["d6f85de5f"],
+      "rootCauseContract": "docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json",
+      "fixedInPr": 1046,
+      "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts" }
     }
   ]
 }

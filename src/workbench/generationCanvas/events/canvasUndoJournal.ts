@@ -10,7 +10,13 @@ import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
 
 type JournalEvent = { type: string; payload: Record<string, unknown>; source?: string; txnId?: string }
 
-export type CanvasChangeConflict = Readonly<{ changeId: string; objectIds: readonly string[]; conflictingEventTypes: readonly string[] }>
+export type CanvasChangeConflict = Readonly<{
+  changeId: string
+  objectIds: readonly string[]
+  conflictingEventTypes: readonly string[]
+  /** 这笔改动碰过、之后又被别的事务改到的那些对象。 */
+  conflictingObjectIds: readonly string[]
+}>
 
 const HISTORY_LIMIT = 80
 
@@ -92,6 +98,7 @@ export function findCanvasChange(changeId: string): CanvasChangeConflict | null 
     : []
   const ids = new Set(objectIds)
   const conflictingEventTypes = new Set<string>()
+  const conflictingObjectIds = new Set<string>()
   for (const event of journal.slice(commitIndex + 1)) {
     if (event.payload.changeId === changeId || event.txnId === journal[commitIndex].txnId) continue
     const payloadIds = Object.values(event.payload).flatMap((value) => {
@@ -100,9 +107,11 @@ export function findCanvasChange(changeId: string): CanvasChangeConflict | null 
       if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).filter((item): item is string => typeof item === 'string')
       return []
     })
-    if (event.type === 'canvas.snapshot.restored' || payloadIds.some((id) => ids.has(id))) conflictingEventTypes.add(event.type)
+    const touched = payloadIds.filter((id) => ids.has(id))
+    touched.forEach((id) => conflictingObjectIds.add(id))
+    if (event.type === 'canvas.snapshot.restored' || touched.length) conflictingEventTypes.add(event.type)
   }
-  return { changeId, objectIds, conflictingEventTypes: [...conflictingEventTypes] }
+  return { changeId, objectIds, conflictingEventTypes: [...conflictingEventTypes], conflictingObjectIds: [...conflictingObjectIds] }
 }
 
 /**

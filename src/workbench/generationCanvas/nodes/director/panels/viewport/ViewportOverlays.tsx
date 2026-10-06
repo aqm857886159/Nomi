@@ -7,18 +7,23 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ProjectedLabel } from '../../scene/LabelProjector'
+import { estimateLabelWidth, layoutCharacterLabels, VIEWPORT_LABEL_METRICS as LABEL } from '../../scene/character/characterLabel'
 import type { BoxDrawApi } from '../../scene/creation/useBoxDraw'
 import type { CharacterPlacementApi } from '../../scene/creation/useCharacterPlacement'
 import type { PathDrawApi } from '../../scene/creation/usePathDraw'
 
 export function ViewportLabels({ labels }: { labels: ProjectedLabel[] }): JSX.Element {
+  // 与截图 / 录像烧进画面的名牌同一个排版函数：投影后重合的名牌往上错开，谁也不盖住谁
+  const placed = React.useMemo(() => layoutCharacterLabels(labels.map((label) => ({
+    ...label, y: label.y - LABEL.lift, width: estimateLabelWidth(label.name, LABEL.fontPx, LABEL.paddingX), height: LABEL.height,
+  })), 2), [labels])
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {labels.map((label) => (
+      {placed.map((label) => (
         <div
           key={label.id}
-          className="absolute -translate-x-1/2 -translate-y-full select-none rounded-nomi-sm border border-nomi-line bg-nomi-paper/90 px-1.5 py-0.5 text-micro font-semibold text-nomi-ink shadow-nomi-sm backdrop-blur"
-          style={{ left: label.x, top: label.y - 6 }}
+          className="absolute -translate-x-1/2 select-none rounded-nomi-sm border border-nomi-line bg-nomi-paper/90 px-1.5 py-0.5 text-micro font-semibold leading-4 text-nomi-ink shadow-nomi-sm backdrop-blur"
+          style={{ left: label.x, top: label.top }}
         >
           {label.name}
         </div>

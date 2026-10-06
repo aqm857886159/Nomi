@@ -6,6 +6,7 @@ import { laneFailureFromDecision } from '../shared/agentLane/laneFailureFromDeci
 import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision'
 import { LANE_DEFERRED_TOOL_CATALOG } from './laneToolCatalog'
 import { bindLaneTool, LaneDomainFailure, type LaneToolDescriptor } from './laneRuntimePort'
+import { parseChangeId } from '../shared/agentCapabilities/changeId'
 
 export interface LaneExtendedPort {
   execute(call: RuntimeToolCall, signal: AbortSignal): Promise<RuntimeToolDecision>
@@ -98,8 +99,13 @@ function nextActionFor(
       const changeId = typeof record.changeId === 'string' ? record.changeId : undefined
       return { kind: 'none', userSees: 'The canvas change is applied. It is reversible; call undo to take it back.', ...(changeId ? { changeId } : {}) }
     }
-    case 'undo':
-      return { kind: 'none', userSees: 'The timeline is back to before that change.' }
+    case 'undo': {
+      // 同一个动词撤两种面上的改动，回执跟着 changeId 的前缀走（真实测试 ④：撤销画布改动却回「时间线回去了」）。
+      const kind = typeof record.changeId === 'string' ? parseChangeId(record.changeId)?.kind : undefined
+      return { kind: 'none', userSees: kind === 'canvas'
+        ? 'The canvas is back to before that change (for a 3D-BOX plan edit: back to its previous revision, and any hand adjustments that edit replaced are restored).'
+        : 'The timeline is back to before that change.' }
+    }
     case 'delete_from_canvas':
       // 不可逆动词在每一档都先出确认卡（`capabilityIsHardGated`），但 `kind` 仍从真实结论取：
       // 写死的那一刻，下一个动词就会再来一次 T-ED-02。

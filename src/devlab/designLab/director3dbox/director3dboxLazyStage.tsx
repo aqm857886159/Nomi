@@ -16,6 +16,7 @@ export type Director3dBoxLazyStageProps = {
   steps?: readonly LabStep[]
   flag?: 'on' | 'off'
   agentWidth?: number
+  conversation?: 'empty' | 'after-patch'
 }
 
 export function Director3dBoxLazyStage(props: Director3dBoxLazyStageProps): JSX.Element {
@@ -23,6 +24,18 @@ export function Director3dBoxLazyStage(props: Director3dBoxLazyStageProps): JSX.
   return (
     <React.Suspense fallback={null}>
       <Stage {...props} release={release} />
+    </React.Suspense>
+  )
+}
+
+const TagOnlyStage = React.lazy(() => import('./director3dboxLabKit').then((module) => ({ default: module.Director3dBoxFocusTagOnlyStage })))
+
+/** 画布 ⑦ 亮色：只挂 Agent 面板（导演台在产品里锁暗，这一格看的是标签本身在亮色下的样子）。 */
+export function Director3dBoxFocusTagOnlyLazyStage({ locale }: { locale: AppLocale }): JSX.Element {
+  const [release] = React.useState(() => holdDesignLabReady('director-3dbox'))
+  return (
+    <React.Suspense fallback={null}>
+      <TagOnlyStage locale={locale} release={release} />
     </React.Suspense>
   )
 }

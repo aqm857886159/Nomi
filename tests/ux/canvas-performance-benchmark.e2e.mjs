@@ -59,6 +59,7 @@ const hasArg = (name) => args.includes(name)
 const captureScreenshots = hasArg('--screenshots')
 // 在用户自己的电脑上跑时窗口挂屏幕外、不抢焦点（NOMI_PERF_OFFSCREEN=1）。Windows 会把屏幕外窗口判成「被遮挡」
 // 而停掉渲染帧，所以同时关掉遮挡判定，帧率才是真的。
+const packagedExecutable = argValue('--exe')
 const offscreenWindows = process.env.NOMI_PERF_OFFSCREEN === '1'
 const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
@@ -1213,6 +1214,8 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
   try {
     ;({ app, win: page } = await launchNomiApp({
       name: 'canvas-perf-benchmark',
+      // --exe <打包好的 Nomi.exe>：量用户真正跑的打包版（渲染层同一份产物，主进程在 asar 里）。
+      ...(packagedExecutable ? { executablePath: packagedExecutable } : {}),
       userDataDir,
       settingsDir: userDataDir,
       projectsDir,

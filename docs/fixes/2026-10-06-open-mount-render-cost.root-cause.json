@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-open-mount-render-cost",
+  "problem_type": "拖动热路径上的重复派生：边组件每帧重做只依赖两端节点和语言的工作",
+  "symptom": "全选 180 张卡拖动每下约 100ms 长任务（用户 10-05 反馈 #1 及卡 17 拖动卡顿）；剖面里边组件 GenerationFlowEdgeView 占脚本约 5.3 秒",
+  "direct_cause": "边组件每帧按目标模型档案校验可选连线模式（availableEdgeModes → validateReferenceEdge → resolveArchetypeForModel，拖 250 下累计约 2.5s），并重新解析无障碍文案（约 1.9s）；两者都不依赖坐标",
+  "class_root": "只依赖节点数据 / 语言、与坐标无关的派生放在了每帧重跑的边渲染函数里，没有按需或缓存",
+  "affected_population": [
+    "所有平台；连到被拖节点的边越多越明显"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+  ],
+  "entry_points": [
+    "React Flow EdgeWrapper → edgeTypes.generation（GenerationFlowEdgeView）每帧重渲"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/learn/advanced-use/performance",
+      "checked_at": "2026-10-06",
+      "purpose": "官方性能指南：避免在每次渲染里做昂贵派生"
+    }
+  ],
+  "invariants": [
+    "边组件在模式菜单关闭时不做按模型档案的连线模式校验",
+    "边组件文案按依赖值缓存，拖动帧不重新解析"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "availableEdgeModes"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "边组件只有登记表 edgeTypes 一个注册点；类检查遍历登记表里每个边组件，在三帧坐标下核对菜单关闭时不调 availableEdgeModes",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowEdgeView",
+      "responsibility": "拖动帧只重算路径，可选模式按需、文案按依赖缓存"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView",
+      "disposition": "not-affected",
+      "evidence": "#1041 已按坐标 memo，拖动时不重渲"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowEdgeView",
+      "disposition": "enforced",
+      "evidence": "edgeViewDragCost.test.ts"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次打开、每次拖动都触发；新组件 / 新派生会重犯",
+    "same_class_scan": [
+      "全选拖动 CPU 剖面（非压缩构建）：GenerationFlowEdgeView 5.3s，内含 availableEdgeModes 2.5s、t() 1.9s",
+      "git grep availableEdgeModes：唯一调用点在 GenerationFlowEdgeView"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "invariant": "拖动帧里边组件只重算路径",
+    "failure_mode": "有人把可选模式改回每帧计算，edgeViewDragCost.test 变红",
+    "exception_policy": "none",
+    "strategy": "可选模式按菜单打开按需计算，文案 useMemo；类检查遍历 edgeTypes 登记表",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "同一处改为按需"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方行为（i18n 那一项已撤回，不打补丁）",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs"
+    ],
+    "why": "边组件唯一注册点；类检查遍历登记表，基准量真 App"
+  },
+  "residual_risks": [
+    "react-i18next 每实例首挂复制 i18n（约 46ms，打开首挂），不打补丁，可考虑向上游提 issue",
+    "打开首挂时整页强制排版、模型目录同步 IPC 未改",
+    "拖动时 640 条 SVG 边每帧重绘的渲染管线成本未改"
+  ]
+}

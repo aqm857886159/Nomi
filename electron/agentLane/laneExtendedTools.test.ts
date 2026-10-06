@@ -132,6 +132,15 @@ describe('工具回执从真实审批结论派生', () => {
     expect(outcome.nextAction?.userSees).toMatch(/now applied/)
   })
 
+  // 真实测试 ④：撤销一笔 3D-BOX 画布改动，回执却说「时间线回去了」。同一个动词撤两种面，回执跟 changeId 前缀走。
+  it('撤销的回执说的是被撤的那一面', async () => {
+    const canvas = await runVerb('undo', { operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'r-1', changeId: 'canvas:v1:receipt-1' }, 'auto-granted', { changeId: 'canvas:v1:receipt-1' })
+    expect(canvas.nextAction?.userSees).toMatch(/^The canvas is back/)
+    expect(canvas.nextAction?.userSees).not.toMatch(/timeline/)
+    const timeline = await runVerb('undo', { operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'r-1', changeId: 'timeline:v1:receipt-2' }, 'auto-granted', { changeId: 'timeline:v1:receipt-2', expectedRevision: 'r-2' })
+    expect(timeline.nextAction?.userSees).toBe('The timeline is back to before that change.')
+  })
+
   it('不可逆动词的 kind 也从结论取：没出过卡就不说出过', async () => {
     const confirmed = await runVerb('delete_from_canvas', {}, 'granted-once', { nodeIds: ['node-1'] })
     expect(confirmed.nextAction?.kind).toBe('user_sees_confirm_card')

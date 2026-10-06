@@ -106,15 +106,47 @@ function directorRejection(result: DirectorRejected) {
     nextAction: "Fix exactly these points and call stage_shot again. Nothing was changed." };
 }
 
-/** 收据：修订号、问题、逐 cut 实测、预演状态。规范化后的完整计划在 details 里（下一次补丁的基准）。 */
+type PlanShotView = { id: string; index: number; size?: string };
+
+function planShotsOf(plan: unknown): Map<string, PlanShotView> {
+  const shots = (plan as { shots?: { id?: unknown; size?: unknown }[] } | null)?.shots;
+  return new Map((Array.isArray(shots) ? shots : []).map((shot, index) => [String(shot.id ?? ""), { id: String(shot.id ?? ""), index: index + 1, ...(typeof shot.size === "string" ? { size: shot.size } : {}) }]));
+}
+
+/** 手调条目 `shot:<名>/camera.position` → 「shot 2 (over_shoulder) camera」，模型能原样复述给用户。 */
+function overrideLabel(item: string, shots: ReadonlyMap<string, PlanShotView>): string {
+  const camera = /^shot:(.+)\/camera(?:\.(.+))?$/.exec(item);
+  if (camera) {
+    const shot = shots.get(camera[1]);
+    return `${shot ? `shot ${shot.index} (${camera[1]})` : camera[1]} camera${camera[2] ? ` ${camera[2]}` : ""}`;
+  }
+  return item;
+}
+
+/**
+ * 收据：修订号、被覆盖的手调、逐 cut 实测（与计划要求并排写明）、问题、预演状态，最后是规范化后的完整计划（下一次补丁的基准）。
+ * 真实测试 ④ 两条教训定了写法：①计划 JSON 里的 size 是「要求」，模型曾把它当实测复述（说的≠摆的）——每行实测都点名「实测」并把计划要求写在旁边；
+ * ②被覆盖的手调此前根本不在收据里，模型没法提——现在逐条列出、并说明撤销能放回来（面板上另有宿主确定性的一句，不靠这里）。
+ */
 function directorReceiptText(result: DirectorApplied): string {
+  const shots = planShotsOf(result.plan);
   const lines = [result.unchanged
     ? `Unchanged: the plan already says this (revision ${result.revision}). No recompile, no new preview.`
-    : `Applied (undoable). 3D-BOX node ${result.directorNodeId}, revision ${result.revision}.`];
+    : `Applied (undoable: undo with changeId ${result.changeId}). 3D-BOX node ${result.directorNodeId}, revision ${result.revision}.`];
   if (result.touched.length) lines.push(`Changed: ${result.touched.join(", ")}.`);
+  if (result.reorderedOverrides.length) {
+    lines.push(`Hand adjustments REPLACED by this edit: ${result.reorderedOverrides.map((item) => overrideLabel(item, shots)).join(", ")}. The user had adjusted these by hand; tell them in one sentence that this change replaced those adjustments and that undo brings them back.`);
+  }
+  if (result.changedEntities.length) lines.push(`Also moved by recompiling (the user's hand adjustments there are kept): ${result.changedEntities.map((item) => overrideLabel(item, shots)).join(", ")}.`);
   if (result.cuts.length) {
-    lines.push("Measured cuts:");
-    for (const cut of result.cuts) lines.push(`- ${cut.shot ?? "?"} ${cut.start.toFixed(1)}-${cut.end.toFixed(1)}s: ${cut.shotSize ?? "no measurable subject"}, ${cut.move}`);
+    lines.push("Measured cuts — what the 3D preview ACTUALLY frames. When you report framing to the user, report these measured values, never the plan's requested size:");
+    for (const cut of result.cuts) {
+      const shot = cut.shot === null ? undefined : shots.get(cut.shot);
+      const name = shot ? `shot ${shot.index} (${cut.shot})` : cut.shot ?? "unmatched cut";
+      const measured = cut.shotSize ?? "no measurable subject";
+      const asked = shot?.size ? (shot.size === cut.shotSize ? `; plan asked ${shot.size}, matches` : `; plan asked ${shot.size}, measured differs — say so`) : "";
+      lines.push(`- ${name} ${cut.start.toFixed(1)}-${cut.end.toFixed(1)}s: measured ${measured}, move ${cut.move}${asked}`);
+    }
   }
   lines.push(result.issues.length
     ? `Issues (${result.issues.length}): ${result.issues.slice(0, 12).map((issue) => `[${issue.kind}] ${issue.message}`).join("; ")}`
@@ -125,6 +157,6 @@ function directorReceiptText(result: DirectorApplied): string {
     : preview.status === "failed" ? `Preview: failed (${preview.reason ?? "unknown"}); generation of that shot stays blocked until it is retried.`
       : preview.status === "ready" ? `Preview: attached${preview.attach === "prompt_only" ? " as a text description only (this model takes no reference video; camera accuracy will be lower)" : " as reference video"}${preview.assetId ? `; preview asset id ${preview.assetId}` : ""}.`
         : "Preview: standalone (no shot attached).");
-  lines.push(`Plan at ${result.revision} (base for the next edits): ${JSON.stringify(result.plan)}`);
+  lines.push(`Plan at ${result.revision} (base for the next edits; its "size" fields are REQUESTS, not measurements): ${JSON.stringify(result.plan)}`);
   return lines.join("\n");
 }

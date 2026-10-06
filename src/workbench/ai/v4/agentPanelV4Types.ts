@@ -121,6 +121,12 @@ export type ToolReceipt = Readonly<{
    * 它登记在案的外部参照（AI Elements 七态），而这一行要改的本来就只是**怎么读**。
    */
   answered?: true
+  /**
+   * 宿主确定性给出的一句提示（不是模型说的）：今天只有 3D-BOX 补丁覆盖了用户手调时的
+   * 「这次改动覆盖了你在镜头 2 的手调，可撤销」（useDirectorPatchNotices 是唯一产地）。
+   * 它画在这一行流水**外面**，收起的过程行也照样看得见。
+   */
+  notice?: string
 }>
 
 export type TaskCandidate = Readonly<{ tag: string; pending?: boolean } & Partial<LaneTaskCandidate>>

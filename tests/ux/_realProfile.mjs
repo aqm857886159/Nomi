@@ -178,9 +178,24 @@ export function realProfileFingerprint(profile = realNomiProfile()) {
  * 开发构建跑的是 electron 可执行文件，不在此列。
  */
 export function realNomiIsRunning(platform = process.platform) {
-  const probe = platform === 'win32'
-    ? spawnSync('tasklist', ['/FI', 'IMAGENAME eq Nomi.exe', '/FO', 'CSV', '/NH'], { encoding: 'utf8' })
-    : spawnSync('pgrep', ['-x', platform === 'darwin' ? 'Nomi' : APP_NAME], { encoding: 'utf8' })
+  if (platform === 'win32') {
+    // 只看进程名会误报：本仓打出来的测试包（release*/win-unpacked/Nomi.exe，用临时资料目录）同名；
+    // 已退出但句柄没被回收的僵尸进程（0 个线程）也还在列表里。只算「活着、且不是本仓测试包」的 Nomi.exe；
+    // 路径读不到（权限）但活着的照样算开着——宁可拒跑。
+    const probe = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command',
+      "@(Get-CimInstance Win32_Process -Filter \"Name='Nomi.exe'\" | Select-Object ExecutablePath, ThreadCount) | ConvertTo-Json -Compress"],
+    { encoding: 'utf8' })
+    if (probe.error || probe.status !== 0) throw new Error(`查不了 Nomi 是否在运行：${probe.error?.message ?? probe.stderr}`)
+    const rows = [JSON.parse(probe.stdout.trim() || '[]')].flat()
+    return realNomiProcessesAlive(rows)
+  }
+  const probe = spawnSync('pgrep', ['-x', platform === 'darwin' ? 'Nomi' : APP_NAME], { encoding: 'utf8' })
   if (probe.error) throw new Error(`查不了 Nomi 是否在运行：${probe.error.message}`)
-  return platform === 'win32' ? /"Nomi\.exe"/i.test(probe.stdout || '') : probe.status === 0
+  return probe.status === 0
+}
+
+/** Windows 进程行 → 用户自己的 Nomi 开着没有（纯函数，见 realNomiIsRunning）。 */
+export function realNomiProcessesAlive(rows) {
+  const repoTestBuild = /[\\/]release[^\\/]*[\\/]win-unpacked[\\/]Nomi\.exe$/i
+  return rows.some((row) => Number(row?.ThreadCount ?? 1) > 0 && !repoTestBuild.test(String(row?.ExecutablePath ?? '')))
 }

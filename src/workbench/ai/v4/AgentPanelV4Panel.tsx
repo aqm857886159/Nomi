@@ -23,7 +23,8 @@ import { AgentPanelV4Composer, type AgentPanelV4ComposerProps } from './AgentPan
 import { V4ContextRing } from './AgentPanelV4Context'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
-import { V4ErrorBar, V4Process, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
+import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
+import { flowItemNotices } from './useDirectorPatchNotices'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import type { V4QuestionReply } from './agentPanelV4Question'
@@ -404,13 +405,16 @@ export function AgentPanelV4Panel({
         {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
         {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
         {flow.map((item, index) => (
-          <V4FlowRow
-            key={item.identity ?? `${item.kind}-${index}`}
-            item={item}
-            index={index}
-            darkMode={darkMode}
-            handlers={stableFlowHandlers}
-          />
+          <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
+            <V4FlowRow
+              item={item}
+              index={index}
+              darkMode={darkMode}
+              handlers={stableFlowHandlers}
+            />
+            {/* 宿主确定性的提示（例如 3D-BOX 补丁覆盖了手调）画在这一行外面：收起的过程行也照样看得见 */}
+            {flowItemNotices(item).map((notice, position) => <V4ReceiptNotice key={position} text={notice} />)}
+          </React.Fragment>
         ))}
         {flowTail}
       </div>
