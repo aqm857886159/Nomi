@@ -4,7 +4,7 @@ import { textDocumentDigest } from './textGenerationDocument'
 import { buildDependencyWaves } from './dependencyWaves'
 import { collectConnectedTextPromptParts } from './connectedTextPrompt'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { confirmAndRunNode, confirmAndRunNodeVariants } from './generationRunController'
+import { confirmAndRunNode } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
@@ -42,50 +42,25 @@ beforeEach(() => {
 })
 afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 
-it.each(['no-switch', 'canvas-switch', 'storyboard-switch'] as const)('approved ×3 continues at the original confirmation entry: %s', async scenario => {
-  const target = await session.open('project-a')
-  const interaction = withProjectAction(project => project)!
-  const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
-  const foreignNode = { id: 'b-node', kind: 'image' as const, title: 'B', prompt: 'unrelated B', shotIndex: 1, position: { x: 0, y: 0 } }
-  const executor = vi.fn<GenerationNodeExecutor>(async (_node, context): Promise<GenerationNodeResult> => {
-    expect(context.projectTarget).toEqual(target)
-    // 单镜 Run 路（发动机收敛第一刀）：不铸令牌，每一次运行带自己的运行记录号去主进程建 Run。
-    expect(context.canvasRun?.runRecordId).toMatch(/^run-/)
-    if (executor.mock.calls.length === 1 && scenario !== 'no-switch') {
-      const state = useGenerationCanvasStore.getState()
-      calls.disk.set(target.projectId, structuredClone({ id: target.projectId, name: 'A', version: 1, createdAt: 1, updatedAt: 1,
-        immutableProjectUuid: target.immutableProjectUuid, projectGeneration: target.projectGeneration, payload: { ...createDefaultWorkbenchProjectPayload(), generationCanvas: { nodes: state.nodes, edges: state.edges, groups: state.groups, selectedNodeIds: [] } } }) as WorkbenchProjectRecordV1)
-      await session.open('project-b')
-      useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [foreignNode], edges: [], groups: [], selectedNodeIds: [] })
-    }
-    return { id: `result-${executor.mock.calls.length}`, type: 'image', url: `nomi-local://asset/a/${executor.mock.calls.length}.png`, createdAt: executor.mock.calls.length }
-  })
-  await confirmAndRunNodeVariants(node.id, 3, scenario === 'storyboard-switch'
-    ? { initiator: 'user' as const, executor, retry: { maxAttempts: 1 }, assertCurrent: async () => { interaction.assertCurrent() }, assertAuthorCurrent: async () => {} }
-    : { initiator: 'user' as const, executor, retry: { maxAttempts: 1 } })
-  expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.mint).not.toHaveBeenCalled()
-  expect(executor).toHaveBeenCalledTimes(3)
-  if (scenario !== 'no-switch') {
-    expect(useGenerationCanvasStore.getState().nodes).toEqual([foreignNode])
-    expect(calls.disk.get(target.projectId)?.payload.generationCanvas.nodes[0].result?.id).toBe('result-3')
-  }
-})
+// 一份确认里有多次提交，现在只剩批量卡（波次）这一条（「×N 一次生成几个」2026-10-06 删除）：后面的波次照样逐个核已批准的输入。
+function twoWavePlan(firstId: string, secondId: string) {
+  return { waves: [[firstId], [secondId]], edgesUsed: [], blocked: [] }
+}
 
-
-it.each(['prompt', 'references', 'model', 'parameter'] as const)('rejects changed approved node %s before remaining variants', async field => {
+it.each(['prompt', 'references', 'model', 'parameter'] as const)('rejects a later-wave node whose approved %s changed after the first submission', async field => {
   await session.open('project-a')
+  const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
   useGenerationCanvasStore.getState().updateNode(node.id, { meta: { modelKey: 'gpt-image-2', modelVendor: 'kie', aspect_ratio: '1:1' } })
-  const executor = vi.fn<GenerationNodeExecutor>(async (): Promise<GenerationNodeResult> => {
-    if (executor.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(node.id,
+  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResult> => {
+    if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(node.id,
       field === 'prompt' ? { prompt: 'changed after approval' } : field === 'references' ? { references: ['nomi-local://asset/changed.png'] }
         : { meta: { modelKey: field === 'model' ? 'other-model' : 'gpt-image-2', modelVendor: 'kie', aspect_ratio: field === 'parameter' ? '16:9' : '1:1' } })
-    return { id: `result-${executor.mock.calls.length}`, type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }
+    return { id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor, retry: { maxAttempts: 1 } })
-  expect(executor).toHaveBeenCalledOnce()
-  expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ status: 'error', result: { id: 'result-1' } })
+  await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
+  expect(calls.execute).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes.find((value) => value.id === node.id)?.result).toBeUndefined()
 })
 
 
@@ -123,8 +98,11 @@ it.each(['first-frame-video', 'batch'] as const)('original plan confirmation con
 it('project switching during confirmation prevents the first submission', async () => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
+  // 两镜才弹批量卡（用户自己点的单镜不弹卡，2026-09-25）：在卡上点确认的那一刻已经换了项目。
+  const other = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'second shot' })
   calls.confirm.mockImplementation(async () => { await session.open('project-b'); return true })
-  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor: calls.execute })
+  await confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const }).catch(() => undefined)
+  expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.execute).not.toHaveBeenCalled()
   expect(calls.mint).not.toHaveBeenCalled()
 })
@@ -145,48 +123,48 @@ it('project switching while the batch card opens its consents prevents the first
 })
 
 
-it.each(['author', 'node'] as const)('the original variants confirmation refuses a genuinely changed %s after first submission', async changed => {
+it.each(['author', 'node'] as const)('the original plan confirmation refuses a genuinely changed %s after the first submission', async changed => {
   await session.open('project-a')
+  const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
   let authorCurrent = true
   const assertAuthorCurrent = async () => { if (!authorCurrent) throw new Error('storyboard_content_conflict') }
-  const executor = vi.fn<GenerationNodeExecutor>(async (): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (): Promise<GenerationNodeResult> => {
     if (changed === 'author') authorCurrent = false
     else useGenerationCanvasStore.getState().deleteNode(node.id)
     return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor, assertCurrent: assertAuthorCurrent, assertAuthorCurrent })
-  expect(executor).toHaveBeenCalledOnce()
-  if (changed === 'author') expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ status: 'error', result: { id: 'first-result' } })
-  else expect(useGenerationCanvasStore.getState().nodes).toEqual([])
+  await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
+  expect(calls.execute).toHaveBeenCalledOnce()
 })
 
 it('permits result history and measured preview changes without changing approved generation inputs', async () => {
   await session.open('project-a')
+  const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
-  const executor = vi.fn<GenerationNodeExecutor>(async (): Promise<GenerationNodeResult> => {
-    useGenerationCanvasStore.getState().updateNode(node.id, { size: { width: 250, height: 180 }, meta: { previewHeight: 180, intrinsicWidth: 640, intrinsicHeight: 480 } })
-    return { id: `result-${executor.mock.calls.length}`, type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
+  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResult> => {
+    if (running.id === first.id) useGenerationCanvasStore.getState().updateNode(node.id, { size: { width: 250, height: 180 }, meta: { previewHeight: 180, intrinsicWidth: 640, intrinsicHeight: 480 } })
+    return { id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor })
-  expect(executor).toHaveBeenCalledTimes(3)
-  expect(useGenerationCanvasStore.getState().nodes[0].history).toHaveLength(3)
+  await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
+  expect(calls.execute).toHaveBeenCalledTimes(2)
 })
 
 
-it('rejects a changed existing upstream asset while preserving the first variant', async () => {
+it('rejects a later-wave node whose existing upstream asset changed after approval', async () => {
   await session.open('project-a')
   const reference = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'reference' })
   useGenerationCanvasStore.getState().addNodeResult(reference.id, { id: 'reference-1', type: 'image', url: 'nomi-local://asset/ref1.png', createdAt: 1 })
+  const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
   useGenerationCanvasStore.getState().connectNodes(reference.id, node.id, 'reference')
-  const executor = vi.fn<GenerationNodeExecutor>(async (): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (): Promise<GenerationNodeResult> => {
     useGenerationCanvasStore.getState().addNodeResult(reference.id, { id: 'reference-2', type: 'image', url: 'nomi-local://asset/ref2.png', createdAt: 2 })
     return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunNodeVariants(node.id, 3, { initiator: 'user' as const, executor })
-  expect(executor).toHaveBeenCalledOnce()
-  expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)).toMatchObject({ status: 'error', result: { id: 'first-result' } })
+  await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
+  expect(calls.execute).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)?.result).toBeUndefined()
 })
 
 it('rejects a manual history selection on a first frame produced by the same approved plan', async () => {
