@@ -242,6 +242,7 @@ export const zhStoryboardEditor = {
     namePlaceholder: '起个名字',
     nameAria: '参考卡名字',
     delete: '删除参考卡',
+    actions: '参考卡操作',
     descriptionAria: '参考卡描述',
     visualPlaceholder: '外貌/服装/光线，给生成模型的参考描述',
     textPlaceholder: '能用文字说清的特征（色调/品牌色/服装词），会拼进每个引用它的镜头',
@@ -570,6 +571,7 @@ export const enStoryboardEditor = {
     namePlaceholder: 'Name it',
     nameAria: 'Reference card name',
     delete: 'Delete reference card',
+    actions: 'Reference card actions',
     descriptionAria: 'Reference card description',
     visualPlaceholder: 'Appearance, clothing, and lighting for the generation model reference',
     textPlaceholder:

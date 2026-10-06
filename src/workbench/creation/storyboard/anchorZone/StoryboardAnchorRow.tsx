@@ -151,7 +151,7 @@ export default function StoryboardAnchorRow({
           if (rect) setMenuPoint({ x: rect.left, y: rect.bottom + 4 })
           setMenuOpen((open) => !open)
         }}
-        aria-label={t('storyboardEditor.rowActions.open')}
+        aria-label={t('storyboardEditor.anchor.actions')}
         aria-expanded={menuOpen}
         data-storyboard-anchor-menu-trigger={anchor.id}
         className="relative grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 after:absolute after:-inset-1.5 after:content-[''] hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
@@ -163,7 +163,7 @@ export default function StoryboardAnchorRow({
         onOpenChange={(next) => { if (!next) setMenuOpen(false) }}
         point={menuPoint}
         items={menuItems}
-        ariaLabel={t('storyboardEditor.rowActions.open')}
+        ariaLabel={t('storyboardEditor.anchor.actions')}
       />
     </div>
   )

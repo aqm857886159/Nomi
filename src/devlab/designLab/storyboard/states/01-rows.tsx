@@ -2,7 +2,6 @@ import React from 'react'
 import type { LabState } from '../../labScreen'
 import { AutoClick, RowStage } from '../storyboardLabKit'
 import { LAB_VARIANTS, STILL_NEON, STILL_ROOFTOP } from '../storyboardFixtures'
-import { NARROW_STAGE_WIDTH } from '../storyboardLabKit'
 
 /**
  * 设计实验室 · 分镜表 v6 —— **行**的形态（合同 `docs/design/2026-09-05-storyboard-table-v6-design-contract.md`）。
@@ -174,47 +173,5 @@ export const ROW_STATES: readonly LabState[] = [
     source: '合同 §2.7 剧本连接 / §3 行·来自剧本已改',
     coverage: 'shell',
     render: () => RowStage({ sourceSegment: { id: 'F_SEG_B', edited: true } }),
-  },
-  {
-    // 开关搬进 ⋯ 之后，弹层这一形态必须被取景钉住——不钉就只能靠人记得它存在（假绿，
-    // 2026-09-06 场组头 ▶「播放本场」刚踩过同一个坑）。点的是真按钮，走的是真状态机。
-    id: 'sb-row-18-composer-switches',
-    name: '行 · 底栏 ⋯ 开关弹层（生成音频 / 返回尾帧）',
-    source: '合同 §2.3 修订（2026-09-06 用户反馈三）：开关的家是行尾 ⋯，不摆在行上',
-    coverage: 'shell',
-    render: () => (
-      // 2026-09-17 起这枚弹层 Portal 贴锚点、开在钮**下方**（原来是原地 absolute 开在上方，
-      // 盖住同一行的提示词，而且被祖先 overflow-hidden 裁）。取景要留够高度，
-      // 否则截出来只剩半张弹层——那是「看着有、其实没照全」的假证据。
-      <AutoClick selector="[data-storyboard-composer-switches='1']">
-        {RowStage({ clip: false, height: 240 })}
-      </AutoClick>
-    ),
-  },
-  {
-    id: 'sb-row-19-composer-demoted',
-    name: '行 · 底栏装不下：清晰度进 ⋯，模型停在下限',
-    source: '合同 §2.3 修订（2026-09-17 用户拍板：方案 D + 让位下限）',
-    coverage: 'shell',
-    /**
-     * 这一档照的是 1280 视口 + Agent 面板展开 + 左栏收起时的底栏宽度。
-     * 和 `sb-row-18` 同一行、同一个模型，只是取景变窄——对着看就是这次改动的全部内容。
-     * 看点有两个，缺一个都算没修好：**清晰度那枚枚举不在行上了**（它进了行尾 ⋯），
-     * 而**模型胶囊还读得出型号名**——上一版这里是一颗光秃秃的齿轮图标。
-     */
-    render: () => RowStage({ width: NARROW_STAGE_WIDTH }),
-  },
-  {
-    id: 'sb-row-20-composer-demoted-open',
-    name: '行 · 装不下时点开 ⋯：挪下来的枚举是能改值的控件',
-    source: '合同 §2.3 修订（2026-09-17）：进 ⋯ 的是决定，不是说明文字',
-    coverage: 'shell',
-    render: () => (
-      <AutoClick selector="[data-storyboard-composer-switches='1']">
-        {/* 弹层现在 Portal 到 body、开在钮下方，取景要留够高度——截出来只剩半张弹层
-            就是「假证据」那一类（看着有、其实没照全）。 */}
-        {RowStage({ clip: false, width: NARROW_STAGE_WIDTH, height: 260 })}
-      </AutoClick>
-    ),
   },
 ]

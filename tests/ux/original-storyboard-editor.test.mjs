@@ -28,9 +28,9 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     // Full-shell preference/toggle behavior is covered by the Electron journey.
     await editor.evaluate(element => { element.parentElement.style.width = '840px' })
     const row = editor.locator('[data-storyboard-row="1"]')
-    const modelLabel = media === 'image' ? (en ? 'Image model' : '图片模型') : (en ? 'Video model' : '视频模型')
-    await expect(row.getByRole('button', { name: modelLabel, exact: true })).toContainText(media === 'image' ? 'Fixture 图片' : 'Fixture 视频')
-    await expect(row.getByRole('button', { name: en ? 'Mode' : '模式', exact: true })).toBeVisible()
+    // 底栏复用画布节点的参数条（2026-10-06 分镜复用画布交互）：模型按钮 + 一颗参数汇总按钮 + 「生成」。
+    await expect(row.getByRole('button', { name: en ? 'Model' : '模型', exact: true })).toContainText(media === 'image' ? 'Fixture 图片' : 'Fixture 视频')
+    await expect(row.getByRole('button', { name: en ? 'Generation parameters' : '生成参数', exact: true })).toBeVisible()
     const button = row.locator('[data-storyboard-generate-state]')
     await expect(button).toBeVisible()
     const read = () => page.evaluate(() => {
@@ -52,14 +52,14 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
         row: { clientWidth: row.clientWidth, scrollWidth: row.scrollWidth, columns: getComputedStyle(row).gridTemplateColumns },
         prompt: { clientWidth: prompt.clientWidth, scrollWidth: prompt.scrollWidth }, controls }
     })
-    // ResizeObserver demotes optional parameters asynchronously. Wait for its
-    // measured bar and demotion signature to settle before collecting geometry.
+    // Fonts and the hugging summary pill settle asynchronously. Wait for the
+    // measured bar to stop changing before collecting geometry.
     await row.evaluate(async element => {
       const bar = element.querySelector('[data-storyboard-composer-bar]')
       let last = ''; let stable = 0
       for (let frame = 0; frame < 120 && stable < 4; frame++) {
         await new Promise(resolve => requestAnimationFrame(resolve))
-        const next = `${bar.clientWidth}:${bar.getAttribute('data-storyboard-composer-demoted')}:${bar.scrollWidth}`
+        const next = `${bar.clientWidth}:${bar.scrollWidth}`
         stable = next === last ? stable + 1 : 0
         last = next
       }
@@ -77,6 +77,9 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     }
     expect(after.prompt.clientWidth, 'Prompt column must retain editable width').toBeGreaterThan(120)
     expect(after.anchor.controls.find(control => control.label === (en ? 'Reference card description' : '参考卡描述'))?.hit, 'Expanded reference description remains reachable at the established editor width').toBe(true)
-    expect(after.anchor.controls.find(control => control.label === (en ? 'Delete reference card' : '删除参考卡'))?.hit, 'Expanded reference action must remain reachable').toBe(true)
+    // 删除收进参考卡行首的 ⋯（类型、出图方式、删除同一个菜单）：⋯ 要点得到，点开要看得到「删除参考卡」。
+    expect(after.anchor.controls.find(control => control.label === (en ? 'Reference card actions' : '参考卡操作'))?.hit, 'Expanded reference actions menu must remain reachable').toBe(true)
+    await editor.locator('[data-storyboard-anchor-row]').getByRole('button', { name: en ? 'Reference card actions' : '参考卡操作', exact: true }).click()
+    await expect(page.getByRole('menuitem', { name: en ? 'Delete reference card' : '删除参考卡', exact: true })).toBeVisible()
   } finally { await browser?.close(); await server.close(); fs.rmSync(cacheDir, { recursive: true, force: true }) }
 })
