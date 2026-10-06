@@ -14,7 +14,10 @@ describe('分镜画面格失败态：说原因、说下一步，不再只写「�
     try {
       const copy = storyboardFailureCopy(ipc('submission_not_sent', 'never_reached_network', 'acme connection is disabled, missing, or locked'))
       expect(copy.reason).toBe(i18n.t('generationCommon.observability.error.submissionNotSent.reason'))
-      expect(copy.hint).toBe(i18n.t('generationCommon.observability.error.submissionNotSent.hint'))
+      expect(copy.hint.startsWith(i18n.t('generationCommon.observability.error.submissionNotSent.hint')), copy.hint).toBe(true)
+      // 「见下方技术详情」在画面格的悬停里也成立：下面真的接着这一次的原因（没有 IPC 外壳）。
+      expect(copy.hint).toContain(`${i18n.t('generationCommon.error.technicalDetails')}${lang === 'en' ? ': ' : '：'}acme connection is disabled, missing, or locked`)
+      expect(copy.hint).not.toContain('Error invoking remote method')
       expect(copy.canRetry).toBe(true)
       expect(copy.reason).not.toBe(i18n.t('storyboardEditor.frame.failed'))
     } finally {

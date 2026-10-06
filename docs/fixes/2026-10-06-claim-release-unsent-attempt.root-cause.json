@@ -5,7 +5,7 @@
   "recurrence_check_on": "2026-11-06",
   "problem_type": "A paid submission that provably never left the machine is recorded as 'result unknown', freezing the shot in reconciliation",
   "symptom": "V-1042 real-app walk (audit-storyboard 22): the storyboard reference card's first generation was blocked before leaving the machine; after switching model the user clicked Retry and was refused with production_shot_claimed / needs_reconcile, while the card only said 'Generation failed'.",
-  "direct_cause": "productionGenerationSubmission's dispatch classified 'never written' only from connect-level codes in the final error's cause chain. Failures before any request is handed to the network (Nomi's own outbound policy refusal, illegal header, missing credential, network settings not ready, local reference checks, contract hash checks) carry no such evidence, so they were marked submission_unknown and the canvas shot owner refused every later attempt on that node as needs_reconcile. The walk's own egress guard additionally rejected fetch with a cause-less TypeError, a shape real undici never produces. Separately, decideShotClaim released a definitely-ended job only inside the 'plan submitted' branch, so a single-shot Run that ended before acceptance stayed production-held (awaiting_confirmation).",
+  "direct_cause": "productionGenerationSubmission's dispatch classified 'never written' only from connect-level codes in the final error's cause chain. Failures before any request is handed to the network (Nomi's own outbound policy refusal, illegal header, missing credential, network settings not ready, local reference checks, contract hash checks) carry no such evidence, so they were marked submission_unknown and the canvas shot owner refused every later attempt on that node as needs_reconcile. The walk's own egress guard additionally rejected fetch with a cause-less TypeError, a shape real undici never produces. Separately, decideShotClaim released a definitely-ended job only inside the 'plan submitted' branch, so a single-shot Run that ended before acceptance stayed production-held (awaiting_confirmation). Independent acceptance V-1047 B1 found the first version incomplete: the canvas transport declared app-fetch while runTask's process branch (dreamina / Antigravity CLI) spawns child processes that do their own networking, so a CLI that started and then timed out left an empty ledger and was misread as never sent.",
   "class_root": "'Did this paid attempt leave the machine?' had no owner at the only place that can know it: the network exit. The answer was guessed from the shape of whichever error surfaced last, so every pre-network failure type and every multi-request attempt fell outside the evidence rule.",
   "affected_population": [
     "Every paid generation entry that converges on productionGenerationSubmission.start: canvas node, storyboard reference card and shot rows (canvas-submit), Agent paid card, generate-remaining / batch scheduler, MCP generate",
@@ -25,7 +25,8 @@
     "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
     "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
     "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
-    "scripts/walkthrough-network-guard.cjs"
+    "scripts/walkthrough-network-guard.cjs",
+    "electron/catalog/processOperation.ts"
   ],
   "entry_points": [
     "nomi:tasks:canvas-submit (canvas node, storyboard reference card, storyboard shot row) -> createCanvasShotRuns.dispatch -> submission.start",
@@ -50,7 +51,8 @@
   "invariants": [
     "An attempt is recorded as 'not sent' only when its transport declares that every request goes through appFetch AND no spend-capable request handed to appFetch during this dispatch may have been written (none handed off, or all failed before connecting). Anything else is 'result unknown'.",
     "A shot whose latest attempt definitely ended before acceptance (provider_not_reached / provider_rejected) is released to the canvas regardless of plan state.",
-    "A local refusal (never_reached_network) is not auto-resent."
+    "A local refusal (never_reached_network) is not auto-resent.",
+    "Any child process created during a paid dispatch that actually started (has a pid) counts as 'may have written'; every other non-appFetch egress primitive in electron/ is registered with a disposition, and paid CLI submit subcommands are never auto-rerun."
   ],
   "doors": [
     {
@@ -122,12 +124,207 @@
       "kind": "write",
       "path": "src/workbench/production/productionShotOwnership.ts",
       "symbol": "decideShotClaim"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/antigravityConnection.ts",
+      "symbol": "execFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpVerify.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "WebSocket"
+    },
+    {
+      "kind": "read",
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "WebSocket"
+    },
+    {
+      "kind": "read",
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "WebSocketServer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneCodingSandbox.mts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityProcess.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/fixtures/antigravity.mjs",
+      "symbol": "execFileSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/fixtures/antigravity.mjs",
+      "symbol": "execSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/fixtures/antigravity.mjs",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "spawnSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/attentionSoundPlayer.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpVerify.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaCli.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaLoginIpc.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/ffmpegRunner.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechTranscribe.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunE2eFixture.ts",
+      "symbol": "spawnSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/review/technicalCheck.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/detectShotCuts.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractAudioTrack.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractVideoFrame.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/framesToVideo.ts",
+      "symbol": "spawn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "narrateGenerationErrorActions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "networkTransport"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "networkTransport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaLoginIpc.ts",
+      "symbol": "runDreaminaCli"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/processOperation.ts",
+      "symbol": "runDreaminaCli"
     }
   ],
   "door_reduction": {
-    "before": 14,
-    "after": 14,
-    "why_not": "Each surviving door is a distinct role: appFetch is the single network exit that records handoffs; productionGenerationSubmission is the single paid dispatch that asks the ledger; submissionOutbox is the single writer of not-dispatched vs unknown job state; decideShotClaim is the single claim decision read by canvas owner, scheduler, reducer, dispatch guard and renderer; productionShotJobs owns jobEndedBeforeAcceptance, which presentation also reads."
+    "before": 53,
+    "after": 53,
+    "why_not": "Each surviving door is a distinct role: appFetch is the single network exit that records handoffs; productionGenerationSubmission is the single paid dispatch that asks the ledger; submissionOutbox is the single writer of not-dispatched vs unknown job state; decideShotClaim is the single claim decision read by canvas owner, scheduler, reducer, dispatch guard and renderer; productionShotJobs owns jobEndedBeforeAcceptance, which presentation also reads. The off-ledger egress doors (child_process / ws / WebSocket) stay as they are: async child processes are recorded by the child_process diagnostics-channel subscription in outboundDispatchEvidence (no per-site wiring), and every remaining egress primitive is registered with a disposition in electron/offLedgerEgress.structure.test.ts, which fails on any new unregistered one."
   },
   "generality_proof": "All paid entries converge on productionGenerationSubmission.start's dispatch closure (door-map createProductionGenerationSubmission), and all main-process HTTP converges on appFetch (check:network-entry). The ledger is opened at the first boundary and written at the second, so the verdict no longer depends on which layer threw or what the error looks like: any present or future pre-network failure is classified the same way, and any attempt where a spend-capable request may have been written stays unknown, including multi-request custom-call scripts. The claim side reads job state only through decideShotClaim.",
   "shared_boundaries": [
@@ -150,6 +347,11 @@
       "path": "electron/shared/decideShotClaim.ts",
       "symbol": "decideShotClaim",
       "responsibility": "Releases a shot to the canvas when its latest attempt definitely ended before acceptance; keeps unknown outcomes production-held as needs_reconcile."
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "diagnosticsChannel.subscribe(child_process)",
+      "responsibility": "Records every ChildProcess created inside a dispatch; a process that started makes the attempt unknown."
     }
   ],
   "same_class_entry_points": [
@@ -188,6 +390,18 @@
       "entry_point": "createRunOwnedGenerationSubmission",
       "disposition": "not-affected",
       "evidence": "No production caller (door-map shows only its own test); inherits the outbox semantics unchanged."
+    },
+    {
+      "path": "electron/catalog/dreaminaCli.ts",
+      "entry_point": "runDreaminaCli",
+      "disposition": "enforced",
+      "evidence": "spawn is recorded by the child_process channel; matrix CLI timeout / killed / non-zero cells stay in reconciliation; processOperation passes retries:0 for submit subcommands."
+    },
+    {
+      "path": "electron/ai/antigravityProcess.ts",
+      "entry_point": "spawn (Antigravity CLI)",
+      "disposition": "enforced",
+      "evidence": "Same child_process channel; registered as ledger in offLedgerEgress.structure.test.ts."
     }
   ],
   "recurrence": {
@@ -215,18 +429,23 @@
       "electron/capabilityCore/generationRuntimeAdapter.ts",
       "electron/capabilityCore/canvasTransportProvider.ts",
       "electron/capabilityCore/apimartGenerationProvider.ts",
-      "tests/setup/networkTransport.ts"
+      "tests/setup/networkTransport.ts",
+      "electron/catalog/processOperation.ts",
+      "electron/offLedgerEgress.structure.test.ts"
     ]
   },
   "regression_tests": [
     "electron/productionRun/unsentAttemptClaim.matrix.test.ts",
     "electron/outboundDispatchEvidence.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardFailureCopy.test.ts",
-    "scripts/walkthrough-network-guard.test.mjs"
+    "scripts/walkthrough-network-guard.test.mjs",
+    "electron/offLedgerEgress.structure.test.ts",
+    "electron/catalog/processOperation.test.ts"
   ],
   "class_regression_tests": [
     "electron/productionRun/unsentAttemptClaim.matrix.test.ts",
-    "electron/outboundDispatchEvidence.test.ts"
+    "electron/outboundDispatchEvidence.test.ts",
+    "electron/offLedgerEgress.structure.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -242,10 +461,11 @@
   },
   "migration": "No stored data changes. Jobs already frozen as submission_unknown stay in reconciliation (it cannot be proven after the fact that they were unsent); new attempts use the ledger.",
   "residual_risks": [
-    "A paid request leaving the machine without appFetch inside a transport that declares app-fetch (electron net, a child process) would be misread as unsent; check:network-entry plus the fact that only the two production transports declare it are the guard.",
+    "A paid egress through a primitive that is neither appFetch nor a ChildProcess (WebSocket, electron net, raw socket, worker/utility process, sync spawn) inside a declared transport would be misread; offLedgerEgress.structure.test.ts forces each such site to be registered as outside paid dispatch, so a new one fails CI until someone decides.",
     "A GET carrying no credentials, query or body is excluded from the ledger; a vendor billing such a request would be misread.",
     "Engine B (catalog provider for Agent paid card / MCP / batch) has no submit-side outbound policy or credential-origin guard; out of scope, reported to the coordinator.",
-    "Proxy CONNECT refusals (undici RequestAbortedError 'Proxy response (403) !== 200') stay unknown: undici exposes no structured connect-phase marker; follow-up candidate is a dispatcher-level onConnect witness."
+    "Proxy CONNECT refusals (undici RequestAbortedError 'Proxy response (403) !== 200') stay unknown: undici exposes no structured connect-phase marker; follow-up candidate is a dispatcher-level onConnect witness.",
+    "Engine A process branch: the main-process message for an illegal header is hard-coded Chinese (describeIllegalHeader), so the English technical-details line shows Chinese text; pre-existing, not changed here."
   ],
   "invariant_owner_layer": {
     "layer": "electron/outboundDispatchEvidence.ts",

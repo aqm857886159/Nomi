@@ -22,6 +22,7 @@ const { startEgressWatch, readEgressLog } = await import('./full-walk/egress.mjs
 const { startUploadRelay } = await import('./full-walk/uploadRelay.mjs')
 const { standingBackgroundResponders } = await import('./full-walk/brain.mjs')
 const { repoRoot } = await import('./_launchApp.mjs')
+const { FIXTURE_VENDOR } = await import('./agent-runtime-fixture.mjs')
 
 const DOC = 'doc-1'
 const DESIGN = 'claim-sb'
@@ -29,9 +30,10 @@ const plan = {
   title: t('雨夜追逐', 'Rainy chase'),
   anchors: [
     { id: 'hero', kind: 'character', name: t('林薇', 'Lin Wei'), description: t('短发，风衣，眼神冷', 'Short hair, trench coat, cold eyes'), carrier: 'visual' },
+    { id: 'alley', kind: 'scene', name: t('后巷', 'Back alley'), description: t('窄巷，霓虹，积水', 'Narrow alley, neon, puddles'), carrier: 'visual' },
   ],
   shots: [
-    { index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 3, anchorIds: ['hero'], prompt: t('林薇冲进后巷', 'Lin Wei runs into the alley') },
+    { index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 3, anchorIds: ['hero', 'alley'], prompt: t('林薇冲进后巷', 'Lin Wei runs into the alley') },
   ],
 }
 
@@ -71,12 +73,24 @@ const snap = async (name) => { await win().screenshot({ path: path.join(outDir, 
 const settle = (ms = 700) => win().waitForTimeout(ms)
 const readProject = () => JSON.parse(fs.readFileSync(path.join(smoke.project.projectRoot, '.nomi', 'project.json'), 'utf8')).payload
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
-const hero = () => editor().locator('[data-storyboard-anchor-row="hero"]')
+const anchorRow = (id) => editor().locator(`[data-storyboard-anchor-row="${id}"]`)
+const hero = () => anchorRow('hero')
 const modelButton = (scope) => scope.locator('[data-storyboard-composer-bar]').getByRole('button', { name: t('模型', 'Model'), exact: true }).first()
-const heroNode = () => readProject().generationCanvas.nodes.find((n) => n.meta?.anchorId === 'hero')
-const waitFace = async (face) => {
-  for (let i = 0; i < 40; i += 1) { await settle(1000); if (await hero().locator(`[data-anchor-face="${face}"]`).count()) return true }
+const anchorNode = (id) => readProject().generationCanvas.nodes.find((n) => n.meta?.anchorId === id)
+const heroNode = () => anchorNode('hero')
+const waitFace = async (face, row = hero()) => {
+  for (let i = 0; i < 40; i += 1) { await settle(1000); if (await row.locator(`[data-anchor-face="${face}"]`).count()) return true }
   return false
+}
+// 「在本机就被拦下」的真实场景：回环供应商这一家的自定义请求头里混进了中文（用户在接入页粘错的那一种），
+// 主进程的请求头守卫在交给网络之前就拒了。改的是主进程每次都现读的那份目录文件，不碰界面。
+const catalogFile = () => path.join(smoke.settingsDir, 'model-catalog.json')
+const setFixtureVendorHeader = (value) => {
+  const catalog = JSON.parse(fs.readFileSync(catalogFile(), 'utf8'))
+  const vendor = catalog.vendors.find((v) => v.key === FIXTURE_VENDOR)
+  vendor.meta = { ...(vendor.meta ?? {}), extraHeaders: value ? { 'X-Workspace': value } : {} }
+  fs.writeFileSync(catalogFile(), `${JSON.stringify(catalog, null, 2)}
+`)
 }
 
 try {
@@ -118,6 +132,33 @@ try {
   O.afterRetry = { face: await hero().locator('[data-anchor-face]').first().getAttribute('data-anchor-face'), nodeStatus: heroNode()?.status, nodeError: String(heroNode()?.error ?? '').slice(0, 200) }
   check('retry-succeeds', done, O.afterRetry)
   check('retry-not-refused-as-reconcile', !/needs_reconcile/.test(O.afterRetry.nodeError), O.afterRetry.nodeError)
+
+  // ③ 后巷：回环模型，但这一家的请求头里混进了中文 → 在本机就被拦下（一个字节都没出去）。
+  const alley = anchorRow('alley')
+  await modelButton(alley).click()
+  await settle(400)
+  await win().getByRole('option', { name: /Fixture/ }).first().click()
+  await settle(600)
+  setFixtureVendorHeader('工作区')
+  await alley.locator('[data-storyboard-composer-bar] [data-storyboard-generate-state]').click()
+  const localFailed = await waitFace('failed', alley)
+  await settle(600)
+  await snap('03-stopped-on-this-computer')
+  const localText = (await alley.locator('[data-anchor-failure-reason]').innerText().catch(() => '')).trim()
+  const localHint = await alley.locator('[data-anchor-failure-reason]').getAttribute('title').catch(() => null)
+  O.localRefusal = { faceText: localText, faceHint: localHint, nodeError: String(anchorNode('alley')?.error ?? '').slice(0, 400), fixtureImagesBefore: fixture.images.length }
+  check('local-refusal-fails', localFailed)
+  check('local-refusal-says-not-sent', localText === t('这次生成没有发出去，停在了这台电脑上', 'This generation was never sent; it stopped on this computer'), localText)
+  check('local-refusal-hover-has-technical-details', /技术详情：|Technical details: /.test(String(localHint)), localHint)
+  check('local-refusal-is-released', /submission_not_sent/.test(Buffer.from(String(O.localRefusal.nodeError.match(/NOMI_VENDOR_ERR_B64::([^:]+)::/)?.[1] ?? ''), 'base64').toString('utf8')), O.localRefusal.nodeError)
+
+  // ④ 把请求头改对，点「重试」：认领放行，真的出图（回环这时才收到第一笔）。
+  setFixtureVendorHeader('')
+  await alley.locator('[data-anchor-face="failed"] button').click()
+  const localDone = await waitFace('done', alley)
+  await settle(800)
+  await snap('04-fixed-header-retry-succeeds')
+  check('local-refusal-retry-succeeds', localDone, { face: await alley.locator('[data-anchor-face]').first().getAttribute('data-anchor-face') })
 } catch (error) {
   failures.push(`walk-error: ${String(error?.message ?? error).split('\n')[0]}`)
 } finally {
@@ -125,7 +166,8 @@ try {
   O.egressBlockedApimart = vendorHits.length
   O.fixtureImageRequests = fixture.images.length
   check('blocked-request-never-reached-a-vendor', vendorHits.every((e) => e.kind === 'blocked'), vendorHits.map((e) => e.via))
-  check('fixture-received-exactly-one-image-request', fixture.images.length === 1, fixture.images.length)
+  // 林薇重试 1 笔 + 后巷重试 1 笔；两次失败的尝试一笔都没到回环。
+  check('fixture-received-exactly-two-image-requests', fixture.images.length === 2, fixture.images.length)
   O.failures = failures
   fs.writeFileSync(path.join(outDir, 'observations.json'), `${JSON.stringify(O, null, 2)}\n`)
   await smoke.close().catch(() => undefined)

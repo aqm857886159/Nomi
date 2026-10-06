@@ -13,10 +13,13 @@
  *
  * 变异（必须红）：
  *   · 把「确定没发出 → 释放」改回旧行为（observeSubmissionHandoffs 只认 cause 链）→ 「本机被拦」各格红；
- *   · 把「发出后网络断」误判成「没发出」（例如账本不看已交出的请求）→ 「发出后断 / 5xx / 先发一笔再被拦」各格红。
+ *   · 把「发出后网络断」误判成「没发出」（例如账本不看已交出的请求）→ 「发出后断 / 5xx / 先发一笔再被拦」各格红；
+ *   · 账本不看子进程（V-1047 B1 那一版：画布那台声明全走 appFetch，CLI 子进程账上 0 笔）→ CLI 「超时 / 被杀 / 非零退出」各格红。
  */
 import http from "node:http";
 import type net from "node:net";
+import os from "node:os";
+import path from "node:path";
 import type { Session } from "electron";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +32,7 @@ import {
 } from "../capabilityCore/agentPanelSpendConfirmTestUtils";
 import type { CatalogState, Vendor } from "../catalog/types";
 import { requestJson } from "../vendor/vendorHttp";
+import { runDreaminaCli } from "../catalog/dreaminaCli";
 import { setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
 import { applySystemProxy } from "../systemProxy";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";
@@ -82,7 +86,8 @@ type Kind = {
   /** 第一次尝试的回环行为（网络类）；本机类第一次根本到不了回环。 */
   server: Behaviour;
   /** 第一次尝试在本机怎么失败（只用于本机类）；第二次尝试一律正常。 */
-  local?: "outbound-policy" | "illegal-header" | "credential-missing" | "fetch-layer-blocked" | "write-then-refused";
+  local?: "outbound-policy" | "illegal-header" | "credential-missing" | "fetch-layer-blocked" | "write-then-refused"
+    | "cli-timeout" | "cli-killed" | "cli-nonzero" | "cli-not-installed";
   expect: "released" | "reconcile" | "rejected";
   /** 失败面的分类（classifyGenerationError 的 kind）。 */
   face: string;
@@ -97,7 +102,20 @@ const KINDS: Kind[] = [
   { id: "server-error", label: "供应商 5xx", server: "server-error", expect: "reconcile", face: "submission-unknown" },
   { id: "reject-400", label: "供应商明确拒绝（400）", server: "reject-400", expect: "rejected", face: "" },
   { id: "write-then-refused", label: "先发出一笔、再在本机被拦（自定义脚本多步）", server: "accept", local: "write-then-refused", expect: "reconcile", face: "submission-unknown" },
+  // 即梦 / Antigravity 这类 CLI 执行器：子进程自己出网，不经 appFetch（V-1047 B1）。跑起来了就算可能已交出去。
+  { id: "cli-timeout", label: "CLI 子进程跑起来后超时被杀", server: "accept", local: "cli-timeout", expect: "reconcile", face: "submission-unknown" },
+  { id: "cli-killed", label: "CLI 子进程被杀", server: "accept", local: "cli-killed", expect: "reconcile", face: "submission-unknown" },
+  { id: "cli-nonzero", label: "CLI 子进程非零退出", server: "accept", local: "cli-nonzero", expect: "reconcile", face: "submission-unknown" },
+  { id: "cli-not-installed", label: "CLI 没装（进程根本没起来）", server: "accept", local: "cli-not-installed", expect: "released", face: "submission-not-sent" },
 ];
+
+/** 一共交出去了几笔：HTTP 回环收到的 + CLI 子进程真跑起来的次数。防双扣只看这一个数。 */
+const cliRuns = { count: 0 };
+const CLI_SCRIPTS: Record<string, string> = {
+  "cli-timeout": "setTimeout(() => {}, 20000)",
+  "cli-killed": "process.kill(process.pid, 'SIGKILL')",
+  "cli-nonzero": "process.stderr.write('submit failed'); process.exit(3)",
+};
 
 /** 「那一刻 fetch 层被闸拦下」：形状同真实 undici 拒连（也同走查闸 scripts/walkthrough-network-guard.cjs）。 */
 function fetchLayerBlocked(): never {
@@ -120,6 +138,7 @@ beforeAll(async () => {
 });
 afterAll(() => { vi.unstubAllGlobals(); });
 beforeEach(() => {
+  cliRuns.count = 0;
   phase.failing = false;
   phase.local = undefined;
   setSubmitOutboundDepsForTests({
@@ -151,6 +170,14 @@ function engineATransport(origin: string): CanvasTransport {
       // 引擎 A 的密钥在 runTask 的模型解析里取（findExecutableModel）；这里是那一步的最小替身——判据不看错误长什么样，
       // 只看这次派发有没有请求交给网络，所以替身的错误文案无关紧要。
       if (local === "credential-missing") throw new Error("acme connection is disabled, missing, or locked");
+      if (local?.startsWith("cli-")) {
+        // 引擎 A 的 process 分支（processOperation → runDreaminaCli → spawn）：真的起一个子进程扮 CLI，提交类子命令不自动重跑。
+        const installed = local !== "cli-not-installed";
+        if (installed) cliRuns.count += 1;
+        const bin = installed ? process.execPath : path.join(os.tmpdir(), "nomi-no-such-dreamina-cli.exe");
+        const ran = await runDreaminaCli(["-e", CLI_SCRIPTS[local] ?? "0"], { bin, timeoutMs: 1500, retries: 0 });
+        throw new Error(`dreamina CLI exited ${ran.code}: ${ran.stderr.slice(0, 200)}`);
+      }
       if (local === "write-then-refused") {
         // 自定义调用脚本：第一步真发出去了（供应商收下），第二步去了一个出网策略不放行的地址。
         await requestJson(vendor(origin), apiKey, "POST", `${origin}/v1/images/generations`, { Authorization: `Bearer ${apiKey}` }, {}, { prompt: payload.request.prompt, step: 1 });
@@ -216,7 +243,8 @@ describe.each(ENTRIES)("入口：$label", (entry) => {
     phase.failing = false;
     const run = canvasRunOf(fx.repository, "rr-1");
     const job = run ? [...run.jobs].sort((a, b) => b.attempt - a.attempt)[0] : undefined;
-    const firstReceived = vendor.received.length;
+    const submissions = () => vendor.received.length + cliRuns.count;
+    const firstReceived = submissions();
 
     if (kind.expect === "reconcile") {
       expect(job?.status, "说不清：结果未知，进对账").toBe("submission_unknown");
@@ -226,7 +254,8 @@ describe.each(ENTRIES)("入口：$label", (entry) => {
       // 重试（换不换模型都一样）：被认领拒成 needs_reconcile，供应商一笔都没多收。
       const retry = fx.submit(node, "rr-2", "林薇，短发风衣", entry.extras("img-model"));
       await expect(retry).rejects.toMatchObject({ code: "production_shot_claimed", reason: "needs_reconcile" });
-      expect(vendor.received.length, "防双扣：重试没有再发一笔").toBe(firstReceived);
+      expect(submissions(), "防双扣：重试没有再发一笔").toBe(firstReceived);
+      expect(firstReceived, "第一次确实交出去了一笔").toBe(1);
       return;
     }
 
@@ -242,7 +271,7 @@ describe.each(ENTRIES)("入口：$label", (entry) => {
     // 用户直接重试（参考卡这一格还换了模型）：认领放行，这一次真的发出去，供应商只多收一笔。
     const retried = await fx.submit(node, "rr-2", "林薇，短发风衣", entry.extras("img-model"));
     expect(retried.id).toMatch(/^task-/);
-    expect(vendor.received.length, "重试只发一笔").toBe(firstReceived + 1);
+    expect(submissions(), "重试只发一笔").toBe(firstReceived + 1);
   });
 });
 
@@ -290,8 +319,8 @@ function engineBProvider(origin: string): GenerationProvider {
   } as GenerationProvider;
 }
 
-/** 引擎 B 没有提交侧出网策略（另报），也没有多步脚本：这两格不适用，矩阵里如实标出来。 */
-const ENGINE_B_KINDS = KINDS.filter((kind) => kind.local !== "outbound-policy" && kind.local !== "write-then-refused");
+/** 引擎 B 没有提交侧出网策略（另报）、没有多步脚本、也没有 CLI 子进程：这几格不适用，矩阵里如实标出来。 */
+const ENGINE_B_KINDS = KINDS.filter((kind) => kind.local !== "outbound-policy" && kind.local !== "write-then-refused" && !kind.local?.startsWith("cli-"));
 
 describe("入口：Agent 付费卡", () => {
   it.each(ENGINE_B_KINDS)("$label", async (kind) => {

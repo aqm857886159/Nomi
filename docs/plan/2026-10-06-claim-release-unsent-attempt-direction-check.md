@@ -64,3 +64,9 @@ socks-proxy-agent、Electron session.setProxy），它们回答的是「怎么�
 
 - `electron/productionRun/submissionNotDispatched.test.ts`、`electron/capabilityCore/apimartFreshConnection.test.ts`、`electron/providerExplicitRejection.test.ts`、`electron/productionRun/doubleChargeMap.e2e.test.ts`、`electron/shared/productionShotPhase.test.ts`、`electron/productionRun/multiShotBatchScheduler.e2e.test.ts`：改动前后都绿（原有三档语义未变）。
 - 新增类检查：`electron/productionRun/unsentAttemptClaim.matrix.test.ts`、`electron/outboundDispatchEvidence.test.ts`（`observeSubmissionHandoffs` 一组）。
+
+## V-1047 补记
+
+独立验收找到同一类的又一种形状：子进程（即梦 / Antigravity CLI）自己出网，派发账看不见。这正是 §2 说的「证据住错了层」——
+所以修法不是在 CLI 那一处补一刀，而是让派发账在**进程创建**这一层也有一个不需要各处记得的入口（Node `child_process` 诊断通道），
+再用结构测试把剩下所有不经 appFetch 的出网口逼成「要么进账、要么写明不在付费派发里」。

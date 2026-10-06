@@ -75,9 +75,10 @@ export type GenerationProvider = {
   providerId: string;
   capabilities: GenerationProviderCapabilities;
   /**
-   * 这个执行器的**每一个**出站请求都经 `appFetch` 出去。声明了，提交出口才能凭「这次派发一个可能花钱的请求都没交给网络」
-   * 判定确定没发出（`outboundDispatchEvidence.observeSubmissionHandoffs`）；不声明（测试替身、别的传输）只认连接层证据。
-   * 声明错了就是把一笔可能扣过的钱说成没发出，所以只有两台生产执行器在确实走 appFetch 时才写它。
+   * 这个执行器的**每一次**出网都在派发账上留得下痕迹：HTTP 只经 `appFetch`，子进程（CLI）由 `child_process` 诊断通道记账，
+   * 其余不经 appFetch 的出网口一个都不走（`electron/offLedgerEgress.structure.test.ts` 逐个登记）。声明了，提交出口才能凭
+   * 「这次派发一笔可能写出去的都没有」判定确定没发出（`outboundDispatchEvidence.observeSubmissionHandoffs`）；不声明（测试替身、
+   * 别的传输）只认连接层证据。声明错了就是把一笔可能扣过的钱说成没发出，所以只有两台生产执行器写它。
    */
   networkTransport?: "app-fetch";
   buildRequest: (input: GenerationProviderRequestInputV1) => unknown;

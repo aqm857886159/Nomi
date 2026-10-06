@@ -16,6 +16,7 @@
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import diagnosticsChannel from "node:diagnostics_channel";
 import { requestCarriesCredentials } from "./credentialRedirectPolicy";
 
 type ErrorLike = {
@@ -196,15 +197,33 @@ export type NotDispatchedReason =
   /** 交给网络层的请求全都在连上之前就失败了（DNS / 建连 / TLS 握手前）。 */
   | "connect_failed";
 
+const ledgerStorage = new AsyncLocalStorage<HandoffLedger>();
+
 type HandoffLedger = {
   /** 交给网络层、可能花钱的请求，还没被证明「没写出去」的那几笔。 */
   readonly open: Set<symbol>;
   /** 交给网络层、可能花钱的请求总数（含后来被证明没写出去的）。 */
   spendCapableHandoffs: number;
+  /**
+   * 这次派发期间起的子进程（即梦 / Antigravity CLI……它们自己出网，不经 appFetch）。真的跑起来了（有 pid）就一律算
+   * 「可能写出去了」——我们看不见子进程里发生了什么；只有连进程都没起来（spawn 失败，没有 pid）才不算。
+   */
+  readonly processes: Set<{ readonly pid?: number }>;
   readonly parent: HandoffLedger | undefined;
 };
 
-const ledgerStorage = new AsyncLocalStorage<HandoffLedger>();
+/**
+ * 不经 appFetch 的出网口里，**子进程**是付费派发里真会走到的那一种（runTask 的 process 分支）。它不靠每个 spawn 处记得记账：
+ * Node 每建一个 ChildProcess 都会在 `child_process` 诊断通道上发一条（同步、在调用方的异步上下文里），这里统一接住。
+ * 同步的 spawnSync / execSync 不走这条通道——不经 appFetch 的其余出网口（含它们）由结构测试 `electron/offLedgerEgress.structure.test.ts`
+ * 逐个登记：要么记账，要么说明为什么不在付费派发里；新加一个没登记就红。
+ */
+diagnosticsChannel.subscribe("child_process", (message) => {
+  const child = (message as { process?: { readonly pid?: number } } | null)?.process;
+  if (!child) return;
+  for (let ledger = ledgerStorage.getStore(); ledger; ledger = ledger.parent) ledger.processes.add(child);
+});
+
 
 function ledgerChain(): HandoffLedger[] {
   const chain: HandoffLedger[] = [];
@@ -259,14 +278,15 @@ export type ObservedSubmission<T> =
  * `transport` 是执行器的声明（见上）；只有 `"app-fetch"` 才读这本账，否则退回 cause 链判据。
  */
 export async function observeSubmissionHandoffs<T>(transport: "app-fetch" | undefined, submit: () => Promise<T>): Promise<ObservedSubmission<T>> {
-  const ledger: HandoffLedger = { open: new Set(), spendCapableHandoffs: 0, parent: ledgerStorage.getStore() };
+  const ledger: HandoffLedger = { open: new Set(), spendCapableHandoffs: 0, processes: new Set(), parent: ledgerStorage.getStore() };
   try {
     return { ok: true, value: await ledgerStorage.run(ledger, submit) };
   } catch (error) {
     if (transport !== "app-fetch") {
       return { ok: false, error, notDispatched: outboundRequestWasNeverWritten(error) ? "connect_failed" : null };
     }
-    if (ledger.open.size > 0) return { ok: false, error, notDispatched: null };
+    const processRan = [...ledger.processes].some((child) => child.pid !== undefined);
+    if (ledger.open.size > 0 || processRan) return { ok: false, error, notDispatched: null };
     return { ok: false, error, notDispatched: ledger.spendCapableHandoffs === 0 ? "never_reached_network" : "connect_failed" };
   }
 }

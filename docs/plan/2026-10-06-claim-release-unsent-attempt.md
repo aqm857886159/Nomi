@@ -51,3 +51,11 @@
 
 - `observeSubmissionHandoffs` / `handOffToNetwork`（约 70 行）：「这一次付费派发有没有离开本机」是**按镜头的花钱语义**（领域目录内），判据只能住在我们自己的出口上；上下文传递用 Node 内置 `AsyncLocalStorage`，不自写。
 - `storyboardFailureCopy`（20 行）：只是把现有分类器的结论放进分镜画面格，没有新判据。
+
+## V-1047 验收后的修订（2026-10-06）
+
+- **B1 子进程执行器**：画布那台的 runTask 里有 process 分支（即梦 CLI、Antigravity CLI），子进程自己出网、不经 appFetch，第一版账上 0 笔 → CLI 跑起来后超时会被判成「没发出」。修法：派发账订阅 Node 的 `child_process` 诊断通道，派发期间建的每个子进程都进账；**真的跑起来了（有 pid）就算可能写出去**，只有连进程都没起来（CLI 没装，spawn 失败）才算没发出。同时即梦提交类子命令不再自动重跑（只有 `query_result` 可以），否则超时重跑本身就是第二笔。
+- **其余不经 appFetch 的出网口**：`electron/offLedgerEgress.structure.test.ts` 逐个登记（异步子进程 = 进账；ws / 浏览器 session.fetch / 同步 spawn / 测试替身脚本 = 写明为什么不在付费派发里）；新加一个没登记、或登记了代码里已没有，就红。数门：`node scripts/door-map.mjs spawn execFile fork spawnSync execFileSync execSync WebSocket WebSocketServer utilityProcess`（门表已并进根因合同）。
+- **矩阵补格**：CLI 子进程「跑起来后超时被杀 / 被杀 / 非零退出」→ 进对账、重试被拒、0 笔多发；「CLI 没装」→ 释放、可重试。变异：账本不看子进程 → 6 格红；把没起来的子进程也算进账 → 「CLI 没装」2 格红。
+- **★4 补真 App 截图**：主文案「这次生成没有发出去，停在了这台电脑上」用真实的本机拦截场景走了一遍（回环供应商的自定义请求头里混进中文，请求头守卫在交给网络前拒），中英两轨，改对请求头后重试出图：`tests/ux/shots/claim-unsent-retry/{zh-CN,en}/03-stopped-on-this-computer.png`、`04-fixed-header-retry-succeeds.png`。
+- **「见下方技术详情」**：分镜画面格的悬停说明末尾接上「技术详情：<这一次的原始原因>」，那句话在画面格里也成立。

@@ -50,8 +50,9 @@ export type CanvasTransport = {
   /** `runtime.fetchTaskResult`。 */
   fetchResult: (payload: Record<string, unknown>) => Promise<{ result: CanvasTaskResult }>;
   /**
-   * 交的那一段的每个出站请求都经 `appFetch`（见 `GenerationProvider.networkTransport`）。生产的 `lazyCanvasTransport` 是：
-   * runTask 的付费请求只走 vendorHttp.requestVendor（含自定义调用脚本、同步音频、multipart），它经 vendorBaseFallback 调 appFetch。
+   * 交的那一段每一次出网都在派发账上（见 `GenerationProvider.networkTransport`）。生产的 `lazyCanvasTransport` 是：runTask 的 HTTP
+   * 只走 vendorHttp.requestVendor（含自定义调用脚本、同步音频、multipart）→ appFetch；process 分支（即梦 / Antigravity CLI）是子进程，
+   * 由 `child_process` 诊断通道记账——跑起来了就算可能写出去（V-1047 B1）。
    */
   networkTransport?: "app-fetch";
 };

@@ -148,6 +148,17 @@ describe("observeSubmissionHandoffs", () => {
     expect(outer).toMatchObject({ notDispatched: null });
   });
 
+  it("派发里起了子进程（CLI 自己出网，不经 appFetch）：跑起来了 ⇒ null；进程根本没起来（spawn 失败）⇒ never_reached_network", async () => {
+    const { spawn } = await import("node:child_process");
+    const run = (command: string) => observeSubmissionHandoffs("app-fetch", () => new Promise((_resolve, reject) => {
+      const child = spawn(command, ["-e", "process.exit(2)"], { windowsHide: true });
+      child.on("error", reject);
+      child.on("close", (code) => reject(new Error(`exited ${code}`)));
+    }));
+    expect(await run(process.execPath)).toMatchObject({ ok: false, notDispatched: null });
+    expect(await run("nomi-no-such-cli-binary")).toMatchObject({ ok: false, notDispatched: "never_reached_network" });
+  });
+
   it("成功原样返回", async () => {
     expect(await observeSubmissionHandoffs("app-fetch", async () => 42)).toEqual({ ok: true, value: 42 });
   });

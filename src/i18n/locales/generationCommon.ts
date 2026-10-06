@@ -396,7 +396,7 @@ export const zhGenerationCommon = {
       },
       submissionNotSent: {
         reason: '这次生成没有发出去，停在了这台电脑上',
-        hint: '请求还没离开这台电脑就停下了，服务商没有收到它，也就不会有重复提交的问题。常见原因：出网被拦（代理 / 防火墙 / 网络设置）、密钥缺失、参考素材读不到。具体原因见下方技术详情；处理好之后可以直接重试，换个模型也行。',
+        hint: '请求还没离开这台电脑就停下了，服务商没有收到它，也就不会有重复提交的问题。常见原因：出网被拦（代理 / 防火墙 / 网络设置）、密钥缺失或请求头里有非法字符、参考素材读不到。具体原因见下方技术详情；处理好之后可以直接重试，换个模型也行。',
       },
       // 已生成、取回失败（#975 A2）：只给「去任务面板重新取回」，绝不给重试——重试 = 再生成一份新的。
       outputRetrievalFailed: {
@@ -2006,7 +2006,7 @@ export const enGenerationCommon = {
       },
       submissionNotSent: {
         reason: 'This generation was never sent; it stopped on this computer',
-        hint: 'The request stopped before it left this computer, so the provider never received it and nothing can be submitted twice. Common causes: outbound traffic was blocked (proxy, firewall or network settings), a missing API key, or an unreadable reference file. The technical details below say which; once it is fixed you can simply retry, or switch to another model.',
+        hint: 'The request stopped before it left this computer, so the provider never received it and it cannot be submitted twice. Common causes: outbound traffic was blocked (proxy, firewall or network settings), a missing or malformed API key or request header, or an unreadable reference file. The technical details below say which; once it is fixed you can simply retry, or switch to another model.',
       },
       outputRetrievalFailed: {
         reason: 'Generated, but the result could not be retrieved',
