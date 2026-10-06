@@ -592,8 +592,8 @@
       "fullWalkJourneys": [],
       "status": "candidate",
       "manualReview": "pending",
-      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/22-hero-model-changed-then-retry.png", "observations.json P8.heroPlanModel vs heroNode", "本线顺带修了（syncAnchorNodeWithCard 写回 storyboardComposerMeta，storyboardBatchLanding.test 守住、变异红），类级检查未挂，留 candidate 由协调会话定"],
-      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93"]
+      "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/22-hero-model-changed-then-retry.png", "observations.json P8.heroPlanModel vs heroNode", "本线顺带修了（syncAnchorNodeWithCard 写回 storyboardComposerMeta，storyboardBatchLanding.test 守住、变异红），类级检查未挂，留 candidate 由协调会话定", "2026-10-06 真 App 复跑审计走查 P8：第一版修法用 (模型, 供应商) 现拼目录项，只靠目录元数据认档案的模型（回环夹具）写回为空、节点仍是 gpt-image-2；改走真实目录（ed5f21ef8）后复跑 heroNode.model = agent-runtime-image。重试仍被镜头认领拒绝（needs_reconcile），另记根因合同残余"],
+      "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93", "ed5f21ef8"]
     },
     {
       "id": "AUD-20261005-14",

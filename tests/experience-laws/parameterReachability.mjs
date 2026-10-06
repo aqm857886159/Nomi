@@ -29,7 +29,7 @@ import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes
 import { archetypeVariantChoices } from '../../src/workbench/generationCanvas/nodes/controls/archetypeMeta'
 import { isParameterReferenceControl } from '../../src/workbench/generationCanvas/model/parameterReferenceSlots'
 import { projectSpendNode } from '../../src/workbench/ai/v4/spendCardDraft'
-import { storyboardComposerControls, storyboardComposerMeta } from '../../src/workbench/creation/storyboard/shotRow/storyboardComposerModel'
+import { composerEntryIndex, storyboardComposerControls, storyboardComposerMeta } from '../../src/workbench/creation/storyboard/shotRow/storyboardComposerModel'
 
 /** 变体轴与模式轴不是档案参数，但同样是「用户要能选到」的东西；用保留键名进同一张表。 */
 export const MODE_AXIS = '(生成方式)'
@@ -172,7 +172,7 @@ function spendCardReach(row, mode) {
  * 两个入口都没有变体选择器（PlanShot / PlanAnchor 不记变体，见 LAW11-SB-VARIANT）。
  */
 function storyboardComposerReach(row, mode, kind) {
-  const meta = storyboardComposerMeta({ modelKey: row.option.modelKey ?? row.option.value, modelVendor: row.vendorKey, modeId: mode.id }, kind)
+  const meta = storyboardComposerMeta({ modelKey: row.option.modelKey ?? row.option.value, modelVendor: row.vendorKey, modeId: mode.id }, composerEntryIndex(row.option))
   const controls = storyboardComposerControls(row.option, meta, kind)
   return {
     params: controlsReach(controls),
