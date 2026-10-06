@@ -10,6 +10,7 @@ import {
   IconDots,
   IconGripVertical,
   IconLock,
+  IconPlayerSkipForward,
   IconPlus,
   IconRobot,
   IconTrash,
@@ -46,7 +47,8 @@ import type { ShotVariant } from './shotVariants'
  *   · 内容列 = 提示词（内联 @ 芯片，2–5 行，超出滚动）+ 底栏（画布同款模型按钮 + 参数汇总按钮，右端「生成」）。
  *
  * 用户 10-05：「复用我们目前的交互」；10-06：「优化左侧的显示……我们原来的设计是为了空间，把参考的图片放到了左边」。
- * 行首那枚复选框是「本次跳过」（§2.10，语义归 L-sbtable，这里不动）。
+ * 行首那枚复选框是**选中**（2026-10-06 B5b：以前它的意思是「本次跳过」，和表格通用心智相反）；
+ * 「本次跳过」（§2.10）收进行菜单与多选浮条，行上仍有那枚标签 + 60% 透明。
  */
 
 type Props = {
@@ -63,6 +65,13 @@ type Props = {
   /** 「本次跳过」：不进这一次批量，跑完自动清（≠ 锁定）。 */
   skipped?: boolean
   onToggleSkip?: (() => void) | undefined
+  /** 行首复选框：把这一行加入 / 移出选中集合（与按住 Ctrl / ⌘ 点行同一件事）。 */
+  onToggleSelect?: (() => void) | undefined
+  /**
+   * 移除这一镜的结果：回到「未生成」态，可撤销（⌘Z）；历史版本仍在变体抽屉里。
+   * 它**不是**删镜头，也不是重生成——不花钱、不丢提示词与参考。
+   */
+  onRemoveResult?: (() => void) | undefined
   /** 这一镜的历史变体（§2.9）；重生成往里追加，画面格不动。 */
   variants?: readonly ShotVariant[]
   adoptedVariantId?: string | undefined
@@ -125,16 +134,19 @@ function MenuItem({
   label,
   danger,
   onClick,
+  ...dataAttributes
 }: {
   icon: React.ReactNode
   label: string
   danger?: boolean
   onClick: () => void
+  'data-storyboard-skip'?: number | undefined
 }): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
+      {...dataAttributes}
       className={cn(
         'flex items-center gap-2 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-left text-micro',
         danger ? 'text-workbench-danger hover:bg-workbench-danger-soft' : 'text-nomi-ink-80 hover:bg-nomi-ink-05',
@@ -243,14 +255,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       >
         <IconGripVertical size={15} stroke={1.6} aria-hidden />
       </button>
-      {onToggleSkip ? (
+      {props.onToggleSelect ? (
         <input
           type="checkbox"
-          checked={Boolean(skipped)}
-          onChange={onToggleSkip}
-          aria-label={t('storyboardEditor.skip.aria', { index: shot.index })}
-          title={t('storyboardEditor.skip.hint')}
-          {...(skipped ? { 'data-storyboard-skip': shot.index } : {})}
+          checked={Boolean(props.selected)}
+          onChange={props.onToggleSelect}
+          aria-label={t('storyboardEditor.selection.rowAria', { index: shot.index })}
+          data-storyboard-select={shot.index}
           className="size-3 accent-[var(--nomi-accent)]"
         />
       ) : null}
@@ -291,6 +302,14 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             </>
           ) : null}
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
+          {onToggleSkip ? (
+            <MenuItem
+              icon={<IconPlayerSkipForward size={13} stroke={1.8} />}
+              label={skipped ? t('storyboardEditor.rowMenu.unskip') : t('storyboardEditor.rowMenu.skip')}
+              onClick={() => { onToggleSkip(); closeMenus() }}
+              data-storyboard-skip={skipped ? shot.index : undefined}
+            />
+          ) : null}
           {/* 画幅不再住这里：参数面板里「比例」那一组就是它的家（选回整片默认 = 收回覆盖）。 */}
           {onToggleLock ? <MenuItem icon={<IconLock size={13} stroke={1.8} />} label={t('storyboardEditor.frame.lock')} onClick={() => { onToggleLock(); closeMenus() }} /> : null}
           {onAgentHandoff ? (
@@ -333,6 +352,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             onRecover={onRecover}
             onOpenPreview={onOpenPreview}
             onToggleLock={onToggleLock}
+            onRemoveResult={props.onRemoveResult}
             onOpenVariants={() => setVariantsOpen((open) => !open)}
             onGenerate={onGenerate}
             targetShots={targetShots}
@@ -533,7 +553,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       }}
       // 「本次跳过」的视觉：整行降到 60% 不透明度（§2.10）——一眼看得出这一批不跑它，
       // 但内容、参考、参数原样留着，和"删掉"或"锁定"是三件不同的事。
-      className={cn(skipped && 'opacity-60')}
+      className={cn(skipped && 'opacity-60', props.selected && 'bg-nomi-accent-soft')}
       dataAttributes={{
         'data-storyboard-row': shot.index,
         ...(props.selected ? { 'data-selected': 'true' } : {}),

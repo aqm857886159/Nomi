@@ -20,25 +20,25 @@ describe('分镜多选条：「统一模型」按镜种分档，不再拼一条�
   it('表不再把两份模型清单拼起来去重', () => {
     expect(table).not.toContain('[...imageModelOptions, ...videoModelOptions]')
     expect(table).not.toContain('selectableModelOptions')
-    expect(table).toContain('storyboardBulkModelGroups(')
+    expect(table).toContain('storyboardBulkParamGroups(')
     expect(table).toContain('applyBulkModelToShots(')
   })
 
   it('多选条收的是分好档的 modelGroups，一档一个下拉', () => {
-    expect(toolbar).toContain('modelGroups: readonly StoryboardBulkModelGroup[]')
+    expect(toolbar).toContain('modelGroups: readonly StoryboardBulkParamGroup[]')
     expect(toolbar).toContain('modelGroups.map(')
     expect(toolbar).toContain('data-storyboard-model-group={group.kind}')
   })
 
-  it('作用域写在下拉的 leadingLabel 上（「图片 ×N」），与画布框选工具条同一套词', () => {
+  it('作用域写在组前的小标签上（「图片 ×N」），与画布框选工具条同一套词', () => {
     expect(toolbar).toContain('generationCommon.production.modelGroup.${group.kind}')
     expect(toolbar).toContain('count: group.count')
-    expect(toolbar).toContain('leadingLabel={scope}')
+    expect(toolbar).toContain('{scope}</span>')
   })
 
   /** 混选时条上有两枚下拉：无障碍名各带自己那一档，两个一模一样的「统一模型」等于没有名字。 */
-  it('无障碍名带作用域，不是两枚同名控件', () => {
-    expect(toolbar).toContain("ariaLabel={t('storyboardEditor.selection.applyModelScoped', { scope })}")
+  it('每组自带 data-storyboard-model-group 标记，走查与读屏分得清是哪一档', () => {
+    expect(toolbar).toContain('data-storyboard-model-group={group.kind}')
   })
 
   it('选中回传 (kind, modelKey, vendor) 三件，镜种不留给下游猜', () => {
@@ -46,10 +46,11 @@ describe('分镜多选条：「统一模型」按镜种分档，不再拼一条�
     expect(toolbar).toContain('onApplyModel(group.kind, value, vendor)')
   })
 
-  /** P1：批量下拉全仓只有 `BulkModelPicker` 一份实现——这里不许再长一个原生 <select>。 */
-  it('复用 BulkModelPicker，不自己写模型 <select>', () => {
-    expect(toolbar).toContain("import BulkModelPicker from '../../common/BulkModelPicker'")
-    expect(toolbar).not.toContain('selection.applyModel\')}</option>')
+  /** P1：模型 + 参数全仓只有 `InlineParameterBar` 一份实现（画布节点、镜头行、这里同一个）——不许再长一个原生 <select>。 */
+  it('复用 StoryboardBulkParams（InlineParameterBar），不自己写模型 <select>', () => {
+    expect(toolbar).toContain("import StoryboardBulkParams from './StoryboardBulkParams'")
+    expect(toolbar).not.toContain('BulkModelPicker')
+    expect(toolbar).not.toContain('<select')
   })
 })
 

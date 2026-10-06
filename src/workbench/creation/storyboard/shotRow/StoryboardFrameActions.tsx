@@ -2,6 +2,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconArrowUpRight,
+  IconEraser,
   IconLayersSubtract,
   IconLock,
   IconLockOpen,
@@ -45,6 +46,8 @@ type Props = {
   onRecover?: (() => void) | undefined
   onOpenPreview?: (() => void) | undefined
   onToggleLock?: (() => void) | undefined
+  /** 移除结果：回到未生成态，可撤销；历史版本仍在变体抽屉里。 */
+  onRemoveResult?: (() => void) | undefined
   onOpenVariants?: (() => void) | undefined
   onGenerate?: (() => void) | undefined
   targetShots?: readonly PlanShot[]
@@ -169,6 +172,7 @@ export default function StoryboardFrameActions({
   onRecover,
   onOpenPreview,
   onToggleLock,
+  onRemoveResult,
   onOpenVariants,
   onGenerate,
   targetShots = [],
@@ -256,6 +260,11 @@ export default function StoryboardFrameActions({
           onClick={onToggleLock}
         >
           {locked ? <IconLockOpen size={14} stroke={1.8} /> : <IconLock size={14} stroke={1.8} />}
+        </ActButton>
+      ) : null}
+      {hasResult && !locked && onRemoveResult ? (
+        <ActButton label={t('storyboardEditor.frame.removeResult')} onClick={onRemoveResult}>
+          <IconEraser size={14} stroke={1.8} />
         </ActButton>
       ) : null}
       {hasResult && !locked && onSaveAsReference ? (

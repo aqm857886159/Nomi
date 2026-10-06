@@ -1,11 +1,12 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLock, IconPlayerPlay, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
-import BulkModelPicker from '../../common/BulkModelPicker'
+import { IconLock, IconPlayerPlay, IconPlayerSkipForward, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
+import StoryboardBulkParams from './StoryboardBulkParams'
 import { NomiSelect } from '../../../design'
 import { SelectionToolbarFrame } from '../../generationCanvas/components/SelectionToolbarFrame'
 import { NO_SCENE_VALUE } from '../../generationCanvas/agent/storyboardPlanEdits'
-import type { StoryboardBulkModelGroup, StoryboardShotKind } from './storyboardBulkModelScope'
+import type { StoryboardShotKind } from './storyboardBulkModelScope'
+import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
 
 /**
  * 分镜页多选浮条。布局/作用域语义对齐画布 `CanvasSelectionToolbar`：纸白圆角浮条、已选计数、
@@ -19,9 +20,10 @@ import type { StoryboardBulkModelGroup, StoryboardShotKind } from './storyboardB
  * 所以判据就写在渲染条件上，而不是靠一句提示解释一个空控件。
  * 标题也不再是那条既当标签又当选项的 `<option value="">`：它是 `NomiSelect` 的真占位，选不中。
  *
- * 「统一模型」不是本文件自己的下拉：它与画布框选工具条、分镜「全部镜头」批量条共用
- * `BulkModelPicker`（厂商明确、自带去重与健康度排序）。选中集合里有几种镜种就有几个下拉，
- * 作用域写在 `leadingLabel` 上（「图片 ×3」），镜种分组由 `storyboardBulkModelScope` 派生。
+ * 「模型 + 参数」不是本文件自己的下拉：它与镜头行底栏、画布节点底栏共用 `InlineParameterBar`（见 `StoryboardBulkParams`）。
+ * 选中集合里有几种镜种就有几组，作用域写在组前的小标签上（「图片 ×3」），镜种分组由 `storyboardBulkModelScope` 派生，
+ * 参数 = 这一组各镜所用模型档案的公共可选集（`storyboardBulkParamScope`）。
+ * 「本次跳过」（以前住在行首复选框上）在这里：它作用于已选镜，和锁定一样是一个选中后的动作。
  */
 export default function StoryboardSelectionToolbar({
   selectedCount,
@@ -30,6 +32,9 @@ export default function StoryboardSelectionToolbar({
   onGenerate,
   onMoveToScene,
   onApplyModel,
+  onApplyParam,
+  allSkipped = false,
+  onSkip,
   onDelete,
   onClear,
   onAgentHandoff,
@@ -37,13 +42,19 @@ export default function StoryboardSelectionToolbar({
 }: {
   selectedCount: number
   /** 按选中集合的镜种分好的模型档（`storyboardBulkModelGroups`）；一档一个下拉。 */
-  modelGroups: readonly StoryboardBulkModelGroup[]
+  modelGroups: readonly StoryboardBulkParamGroup[]
   /** 这份分镜里的场；空数组 = 没有分场，「移到场」整枚不出现。 */
   sceneOptions: readonly { id: string; title: string }[]
   onGenerate: () => void
   onMoveToScene: (sceneId: string) => void
   /** 选中即定死 (kind, modelKey, vendor)——镜种随选项一起回传，下游不用再猜这条属于哪一档。 */
   onApplyModel: (kind: StoryboardShotKind, modelKey: string, vendor?: string) => void
+  /** 面板里改了一个公共参数（作用于这一档镜种的已选镜）。 */
+  onApplyParam: (kind: StoryboardShotKind, control: Parameters<React.ComponentProps<typeof StoryboardBulkParams>['onParamChange']>[0], raw: string) => void
+  /** 已选镜**全部**已是「本次跳过」时，按钮改说「取消跳过」。 */
+  allSkipped?: boolean
+  /** 「本次跳过」已选镜（与锁定不同：只是这一批不跑，内容原样留着）。 */
+  onSkip?: (() => void) | undefined
   onDelete: () => void
   onClear: () => void
   /** 「交给 Agent」：把选中的这几镜交给常驻 Agent 改（改动就地预览 + 确认卡）。 */
@@ -100,19 +111,30 @@ export default function StoryboardSelectionToolbar({
       {modelGroups.map((group) => {
         const scope = t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })
         return (
-          <span key={group.kind} className="shrink-0" data-storyboard-model-group={group.kind}>
-            <BulkModelPicker
+          <span key={group.kind} className="inline-flex shrink-0 items-center gap-1.5" data-storyboard-model-group={group.kind}>
+            <span className="whitespace-nowrap text-micro text-nomi-ink-40">{scope}</span>
+            <StoryboardBulkParams
+              scope={group.scope}
+              kind={group.kind}
               modelOptions={group.options}
-              onPick={(value, vendor) => onApplyModel(group.kind, value, vendor)}
-              ariaLabel={t('storyboardEditor.selection.applyModelScoped', { scope })}
-              leadingLabel={scope}
-              placeholder={t('storyboardEditor.selection.applyModel')}
-              size="sm"
-              triggerMaxWidth={140}
+              selectedModel={group.selectedModel}
+              onModelChange={(value, vendor) => onApplyModel(group.kind, value, vendor)}
+              onParamChange={(control, raw) => onApplyParam(group.kind, control, raw)}
             />
           </span>
         )
       })}
+      {onSkip ? (
+        <button
+          type="button"
+          onClick={onSkip}
+          data-storyboard-selection-skip={allSkipped ? 'on' : 'off'}
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 text-micro text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-accent"
+        >
+          <IconPlayerSkipForward size={13} stroke={1.8} />
+          {allSkipped ? t('storyboardEditor.selection.unskip') : t('storyboardEditor.selection.skip')}
+        </button>
+      ) : null}
       {onLock ? (
         <button
           type="button"

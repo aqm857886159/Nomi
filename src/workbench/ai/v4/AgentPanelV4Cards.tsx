@@ -507,9 +507,13 @@ export function V4Intervention({
           // 清单自己滚：卡壳是 `overflow-hidden`（圆角要它），所以清单不给自己一个滚动容器
           // 就等于「第 9 行起不存在」——用户 2026-09-11 报的 8 镜计划卡正是这样，
           // 下面几镜连同底栏一起被裁在卡外。高度上限按 6 行留（再多就该收起来读）。
-          <div className="flex max-h-[13.5rem] flex-col gap-1 overflow-y-auto" data-v4-block="plan-rows">
+          <div className={cn('flex flex-col gap-1 overflow-y-auto', data.plan.some((row) => row.group) ? 'max-h-[17rem]' : 'max-h-[13.5rem]')} data-v4-block="plan-rows">
             {data.plan.map((row, index) => (
-              <div key={`${index}-${row.label}`} className="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80">
+              <React.Fragment key={`${index}-${row.label}`}>
+              {row.group && row.group !== data.plan?.[index - 1]?.group ? (
+                <div className={cn('text-micro font-semibold text-nomi-ink-40', index > 0 && 'pt-1.5')} data-v4-block="plan-group">{row.group}</div>
+              ) : null}
+              <div className="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80">
                 <input
                   type="checkbox"
                   aria-label={row.label}
@@ -525,8 +529,14 @@ export function V4Intervention({
                     </summary>
                     <pre className="m-0 mt-1 whitespace-pre-wrap break-all font-nomi-mono text-micro text-nomi-ink-40">{row.technical}</pre>
                   </details>
+                ) : row.aside ? (
+                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <div className="min-w-0 flex-1 truncate"><AgentPanelV4Markdown text={row.label} /></div>
+                    <span className="shrink-0 text-micro text-nomi-ink-40" data-v4-block="plan-aside">{row.aside}</span>
+                  </div>
                 ) : <div className="min-w-0 flex-1"><AgentPanelV4Markdown text={row.label} />{row.detail ? <AgentPanelV4Markdown text={row.detail} /> : null}</div>}
               </div>
+              </React.Fragment>
             ))}
           </div>
         ) : null}

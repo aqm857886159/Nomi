@@ -3,23 +3,20 @@ import { useTranslation } from 'react-i18next'
 import { IconStack2 } from '@tabler/icons-react'
 import { NomiSelect } from '../../../design'
 import type { ModelOption } from '../../../config/models'
-import BulkModelPicker from '../../common/BulkModelPicker'
+import StoryboardBulkParams from './StoryboardBulkParams'
+import { applyBulkModelToShots } from './storyboardBulkModelScope'
+import { applyBulkParamToShots, projectAspectOptions, storyboardBulkParamGroups } from './storyboardBulkParamScope'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import {
-  DURATION_OPTIONS_SEC,
   MIXED_VALUE,
-  applyDurationToAll,
-  applyModelToAll,
   applyShotKindToAll,
-  deriveBulkDuration,
-  deriveBulkModelKey,
   deriveBulkShotKind,
   type ShotTypeValue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import {
-  ASPECT_OPTIONS,
+  effectiveShotAspect,
   overriddenAspectCount,
   planDefaultAspect,
   setPlanDefaultAspect,
@@ -52,30 +49,20 @@ type Props = {
 export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelOptions, onChange }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const bulkKind = deriveBulkShotKind(plan)
-  const bulkModelKey = deriveBulkModelKey(plan)
-  const bulkDuration = deriveBulkDuration(plan)
   // 画幅在 v6 是**项目级设置**（§2.4.1）：这枚胶囊声明的是**整片默认**，不是"把同一个值抄进每一行"。
   // 行级只在"这一镜真的不一样"时覆盖；改这里，已覆盖的行不跟着变（右侧提示如实写出来）。
   const planAspect = planDefaultAspect(plan)
   const overriddenRows = overriddenAspectCount(plan)
 
-  // 生效类型：全镜一致 → 那一档；混合 → 按 image 之外处理不了，取视频清单（混合里只要有视频镜就有视频模型可选）。
-  const effectiveKind: ShotTypeValue = bulkKind ?? 'video'
-  const isImageKind = effectiveKind === 'image'
-  const modelOptions = isImageKind ? imageModelOptions : videoModelOptions
+  // 模型 + 参数按镜种分档（与多选浮条同一份 `storyboardBulkParamGroups`）：参数 = 这一档各镜所用模型档案的公共可选集。
+  const groups = React.useMemo(() => storyboardBulkParamGroups({
+    shots: plan.shots,
+    imageModelOptions,
+    videoModelOptions,
+    aspectOf: (shot) => effectiveShotAspect(plan, shot),
+  }), [plan, imageModelOptions, videoModelOptions])
 
-  // 批量选模型：走 BulkModelPicker（与画布框选工具条同一份实现，P1 无并行版），选项厂商明确。
-  //
-  // 2026-09-12 补齐：这里以前把 BulkModelPicker 回调的第二个参数（vendor）丢掉，只写 modelKey——
-  // 落画布时 buildPlannedNodeMeta 按 modelKey 反查厂商，而目录按 modelKey 首次出现去重，
-  // 于是落地厂商 = 目录里第一家，与用户所选无关（「选 A 家发去 B 家」）。现在 vendor 与 key 成对写进
-  // 每一镜（PlanShot.modelVendor 一直就有这个字段），与镜卡逐镜选模型同口径。
   const orderedVendorKeys = useVendorPreferenceOrder()
-  const onBulkModelPick = React.useCallback(
-    (value: string, vendor?: string) => onChange(applyModelToAll(plan, value, vendor)),
-    [plan, onChange],
-  )
-
   // 整片画幅设了，但有几镜的模型根本没有画幅参数（如只吃参考图的首帧路）——那几镜发出去时
   // 不会带画幅。界面必须如实说出来，而不是继续把它们画成竖的假装设上了（显示 ≡ 请求）。
   const unsupportedAspectRows = React.useMemo(() => {
@@ -102,24 +89,12 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
     { value: 'image-video', label: t('storyboardEditor.imageVideo') },
   ]
 
-  // 固定项（「混合」= 当前不一致的显示态；「默认模型」= 清空该镜模型）排在摊平的厂商行之前。
-  const modelLeadingOptions = [
-    ...(bulkModelKey === null ? [mixedOption] : []),
-    { value: '', label: t('storyboardEditor.defaultModel') },
-  ]
-
-  const durationOptions = [
-    ...(bulkDuration === null ? [mixedOption] : []),
-    ...[...new Set([...DURATION_OPTIONS_SEC, ...(bulkDuration !== null ? [bulkDuration] : [])])]
-      .filter((sec) => Number.isFinite(sec) && sec > 0)
-      .sort((a, b) => a - b)
-      .map((sec) => ({ value: String(sec), label: t('storyboardEditor.second', { count: sec }) })),
-  ]
-
-  // 预设 ∪ 当前值（Agent 可能写了预设外的档，别让触发器显错）。'' = 还没定，按模型默认走。
+  // 整片默认画幅的候选 = 各镜模型各自声明的画幅取交集（不再是一份写死的固定表）∪ 当前值（Agent 可能写了候选外的档，别让触发器显错）。
+  // '' = 还没定，按模型默认走。没有任何一镜带画幅控件时退回只留「按模型默认」。
+  const derivedAspects = projectAspectOptions({ shots: plan.shots, imageModelOptions, videoModelOptions, aspectOf: (shot) => effectiveShotAspect(plan, shot) })
   const aspectOptions = [
     { value: '', label: t('storyboardEditor.bulk.aspectDefault') },
-    ...[...new Set([...ASPECT_OPTIONS, ...(planAspect ? [planAspect] : [])])].map((aspect) => ({ value: aspect, label: aspect })),
+    ...[...new Set([...(derivedAspects ?? []), ...(planAspect ? [planAspect] : [])])].map((aspect) => ({ value: aspect, label: aspect })),
   ]
 
   // 选「混合」这个临时项不做事（它只是「当前不一致」的显示态，不是可应用的值）。
@@ -143,32 +118,21 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
         options={kindOptions}
         onChange={(value) => applyIfReal(value, (v) => onChange(applyShotKindToAll(plan, v as ShotTypeValue)))}
       />
-      <BulkModelPicker
-        modelOptions={modelOptions}
-        ariaLabel={t('storyboardEditor.bulk.modelAria')}
-        leadingLabel={t('storyboardEditor.model')}
-        placeholder={t('generationCommon.production.unifyModel')}
-        size="xs"
-        triggerMaxWidth={150}
-        leadingOptions={modelLeadingOptions}
-        // 触发上只显得出固定项（「混合」/「默认模型」）——摊平项的 value 是厂商寻址串，
-        // 而 plan 只存 modelKey，对不上；选过具体模型后回落占位「统一模型」（它本就是一次性命令）。
-        value={bulkModelKey === null ? MIXED_VALUE : ''}
-        // vendor 必须一路带到 applyModelToAll：这里曾经是 `(value) => onBulkModelPick(value)`，把第二个参数丢了，
-        // 于是每一镜都按名字落到「同名里排第一的那家」（2026-09-21：选 APIMart、钱花在自定义中转）。
-        onPick={onBulkModelPick}
-        onPickLeadingOption={(value) => applyIfReal(value, () => onBulkModelPick(''))}
-      />
-      {!isImageKind ? (
-        <NomiSelect
-          ariaLabel={t('storyboardEditor.bulk.durationAria')}
-          leadingLabel={t('storyboardEditor.duration')}
-          size="xs"
-          value={bulkDuration === null ? MIXED_VALUE : String(bulkDuration)}
-          options={durationOptions}
-          onChange={(value) => applyIfReal(value, (v) => onChange(applyDurationToAll(plan, Number(v))))}
-        />
-      ) : null}
+      {groups.map((group) => (
+        <span key={group.kind} className="inline-flex shrink-0 items-center gap-1.5" data-storyboard-bulk-group={group.kind}>
+          {groups.length > 1 ? <span className="whitespace-nowrap text-micro text-nomi-ink-40">{t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })}</span> : null}
+          <StoryboardBulkParams
+            scope={group.scope}
+            kind={group.kind}
+            modelOptions={group.options}
+            selectedModel={group.selectedModel}
+            omitAspect
+            // vendor 必须一路带到写入：只写 key 会让落地按名字落到「同名里排第一的那家」（2026-09-21：选 APIMart、钱花在自定义中转）。
+            onModelChange={(value, vendor) => onChange(applyBulkModelToShots({ plan, isSelected: () => true, kind: group.kind, modelKey: value, vendor }))}
+            onParamChange={(control, raw) => onChange(applyBulkParamToShots({ plan, isSelected: () => true, kind: group.kind, control, raw, controls: group.scope.controls }))}
+          />
+        </span>
+      ))}
       <span data-storyboard-aspect-default={planAspect || 'model-default'}>
         <NomiSelect
           ariaLabel={t('storyboardEditor.bulk.aspectAria')}
