@@ -12,6 +12,7 @@ import { registerEmbeddedEditorFlush } from '../../../agent/embeddedEditorFlush'
 import { createDirectorNodeSync } from '../directorNodeSync'
 import { registerDirectorSession } from '../directorSessionRegistry'
 import { DIRECTOR_PLAN_META_KEY, DIRECTOR_PROJECT_META_KEY } from '../model/directorNodeMeta'
+import { findDirectorPatchNote } from '../model/directorPatchNotes'
 import { normalizeDirectorProject } from '../model/directorProject'
 import { summarizeDirectorShots } from '../model/directorShotSummaries'
 import { createDirectorStore } from '../model/directorStore'
@@ -42,7 +43,7 @@ function plan(lastEnd = 6) {
 async function run(input: DirectorWriteInput) {
   const outcome = await applyProposalBatch([{ toolCallId: `call-${Math.random()}`, toolName: input.operation, effectiveArgs: input as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error(`aborted: ${outcome.reason}`)
-  return { result: outcome.results[0] as DirectorWriteDomainResult, compensation: outcome.compensation }
+  return { result: outcome.results[0] as DirectorWriteDomainResult, compensation: outcome.compensation, proposalId: outcome.proposalId }
 }
 
 const nodeById = (id: string) => useGenerationCanvasStore.getState().nodes.find((node) => node.id === id)
@@ -99,7 +100,7 @@ describe('3c 按指令最小改动 + 手改覆盖层', () => {
     const handEdited = JSON.stringify(nodeById(director.directorNodeId)?.meta)
     const wideBefore = cameraOf(projectOf(director.directorNodeId), 'shot:wide/camera')
 
-    const { result, compensation } = await run({ operation: 'patch_director_plan', directorNodeId: director.directorNodeId, baseRevision: director.revision, edits: [{ op: 'replace', path: '/shots/close/size', value: '特写' }] })
+    const { result, compensation, proposalId } = await run({ operation: 'patch_director_plan', directorNodeId: director.directorNodeId, baseRevision: director.revision, edits: [{ op: 'replace', path: '/shots/close/size', value: '特写' }] })
     expect(result.applied && result.unchanged).toBe(false)
     if (!result.applied) return
     expect(result.reorderedOverrides).toEqual(expect.arrayContaining(['shot:close/camera.motionTrajectory', 'shot:close/camera.fov']))
@@ -108,9 +109,12 @@ describe('3c 按指令最小改动 + 手改覆盖层', () => {
     expect(cameraOf(after, 'shot:wide/camera').motionTrajectory).toEqual(wideBefore.motionTrajectory)
     expect(actorOf(after, 'actor:reader').name).toBe('老读者')
     expect(cameraOf(after, 'shot:close/camera').motionTrajectory?.every((point) => point.fov === 18)).toBe(false)
+    // 面板上那句「这次改动覆盖了你在镜头 2 的手调」的数据：按这笔提议 id 记在计划 meta 上（不靠模型复述）
+    expect(findDirectorPatchNote(useGenerationCanvasStore.getState().nodes, proposalId)).toEqual([{ kind: 'shot', index: 2 }])
 
     applyCompensationOps(compensation)
     expect(JSON.stringify(nodeById(director.directorNodeId)?.meta)).toBe(handEdited)
+    expect(findDirectorPatchNote(useGenerationCanvasStore.getState().nodes, proposalId), '撤销后那句话随之消失').toBeNull()
   })
 
   it('连带变化的实体照常重放手改，并列进 changedEntities', async () => {
