@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { encodeMention } from '../assets/promptMentions'
+import { encodeMention } from '../../assets/promptMentions'
 import { applyCanvasAutoReference, planCanvasAutoReference } from './canvasAutoReference'
-import { useGenerationCanvasStore } from './store/generationCanvasStore'
-import type { GenerationCanvasNode } from './model/generationCanvasTypes'
+import { useGenerationCanvasStore } from './generationCanvasStore'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 /**
  * 画布侧自动引用调用方：与分镜同一个 owner（insertAutoMentions），绑定走手动 @ 同一条路（真边 + 能力闸 + 落槽判据）。

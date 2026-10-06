@@ -14,7 +14,7 @@
   "scope_paths": [
     "electron/shared/storyboard/promptMentions.ts",
     "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-    "src/workbench/generationCanvas/canvasAutoReference.ts",
+    "src/workbench/generationCanvas/store/canvasAutoReference.ts",
     "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
     "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
     "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
@@ -41,7 +41,7 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
       "symbol": "insertAutoMentions"
     },
     {
@@ -113,7 +113,7 @@
       "evidence": "重生成前写回 storyboardComposerMeta（审计 A2），storyboardBatchLanding.test 守住，变异 M8 红"
     },
     {
-      "path": "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
       "entry_point": "planCanvasAutoReference",
       "disposition": "enforced",
       "evidence": "画布侧调同一个 insertAutoMentions；绑定走手动 @ 的 resolveMentionReference + validateReferenceEdge；变异 M9 M10 红"
@@ -152,7 +152,7 @@
       "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
       "electron/shared/storyboard/promptMentions.ts",
       "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "src/workbench/generationCanvas/canvasAutoReference.ts",
+      "src/workbench/generationCanvas/store/canvasAutoReference.ts",
       "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
       "tests/experience-laws/parameterReachability.mjs"
     ]
@@ -160,7 +160,7 @@
   "regression_tests": [
     "src/workbench/assets/promptAutoMention.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardAutoReference.test.ts",
-    "src/workbench/generationCanvas/canvasAutoReference.test.ts",
+    "src/workbench/generationCanvas/store/canvasAutoReference.test.ts",
     "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.test.ts",
     "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
@@ -173,7 +173,7 @@
   "class_regression_tests": [
     "tests/experience-laws/parameterReachability.test.mjs",
     "src/workbench/assets/promptAutoMention.test.ts",
-    "src/workbench/generationCanvas/canvasAutoReference.test.ts"
+    "src/workbench/generationCanvas/store/canvasAutoReference.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -205,7 +205,7 @@
       "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.test.ts",
       "tests/experience-laws/parameterReachability.test.mjs",
       "src/workbench/assets/promptAutoMention.test.ts",
-      "src/workbench/generationCanvas/canvasAutoReference.test.ts"
+      "src/workbench/generationCanvas/store/canvasAutoReference.test.ts"
     ],
     "why": "参数显示 = 请求由 storyboardComposerModel（经 buildPlannedNodeMeta）单点持有；自动引用由 electron/shared/storyboard/promptMentions.ts 的 insertAutoMentions 单点持有，分镜与画布两个调用方只调它、不各自判位置与账本。tests 是两层的类级与回归测试，改动这两条不变量必先让它们红（10 条变异均红，见 PR 正文）。"
   }

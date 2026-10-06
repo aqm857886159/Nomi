@@ -1217,7 +1217,7 @@
       "forbidden_derivations": [],
       "allowed_consumers": [
         "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-        "src/workbench/generationCanvas/canvasAutoReference.ts",
+        "src/workbench/generationCanvas/store/canvasAutoReference.ts",
         "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
         "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
       ],

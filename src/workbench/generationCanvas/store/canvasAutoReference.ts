@@ -1,13 +1,13 @@
-import { insertAutoMentions } from '../assets/promptMentions'
-import { resultUrl } from './runner/referenceUrl'
-import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode } from './agent/referenceEdgeCapability'
-import { resolveMentionReference } from './model/canvasReferenceConnection'
-import { applyArchetypeModeSwitch } from './nodes/controls/archetypeMeta'
-import { currentReferenceMedia } from './nodes/mentionCandidates'
-import { useGenerationCanvasStore } from './store/generationCanvasStore'
-import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../project/projectCanvasReadSurface'
-import i18n from '../../i18n'
-import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from './model/generationCanvasTypes'
+import { insertAutoMentions } from '../../assets/promptMentions'
+import { resultUrl } from '../runner/referenceUrl'
+import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode } from '../agent/referenceEdgeCapability'
+import { resolveMentionReference } from '../model/canvasReferenceConnection'
+import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
+import { currentReferenceMedia } from '../nodes/mentionCandidates'
+import { useGenerationCanvasStore } from './generationCanvasStore'
+import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../../project/projectCanvasReadSurface'
+import i18n from '../../../i18n'
+import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 /**
  * 画布这一侧的**自动引用调用方**（owner 是 `insertAutoMentions`，分镜那一侧调同一个函数）。

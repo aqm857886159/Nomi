@@ -66,5 +66,5 @@
 - `shotRow/storyboardComposerModel.test.ts`：参数走画布构造器
 - `shotRow/shotFrameGeometry.test.ts`：预览框几何
 - `exec/storyboardBatchLanding.test.ts`：参考卡写回同步模型和参数
-- `src/workbench/generationCanvas/canvasAutoReference.test.ts`：画布侧自动引用
+- `src/workbench/generationCanvas/store/canvasAutoReference.test.ts`：画布侧自动引用
 - `tests/ux/original-storyboard-editor.test.mjs`：840px 宽下的可达性
