@@ -54,7 +54,10 @@ async function interrupt(reason) {
   }, reason)
   await frames()
 }
-for (const target of ['group', 'selection']) {
+// 拖动所有者 × 收尾原因的矩阵：每一种「用 DOM 预览代替逐样本写 store」的拖动所有者，
+// 在每一种结束方式下都必须只在落点写一次、拖动途中 revision / events 纹丝不动。
+const DRAG_OWNER_MATRIX = ['group', 'selection']
+for (const target of DRAG_OWNER_MATRIX) {
   it.each(['pointerup', 'blur', 'hidden', 'unmount', 'readOnly', 'pointercancel', 'lostpointercapture'])(
     `${target} settles applied positions once on %s`,
     async (reason) => {

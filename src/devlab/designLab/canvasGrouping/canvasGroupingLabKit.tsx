@@ -63,7 +63,6 @@ function demoGroup(nodeIds: readonly string[]): NodeGroup {
     description: '已配置模型与参数',
     categoryId: 'shots',
     nodeIds: [...nodeIds],
-    color: 'neutral',
     frameBounds: FRAME_BOUNDS,
     createdAt: 1,
     updatedAt: 1,
@@ -212,6 +211,8 @@ export function CanvasGroupingStage(): JSX.Element {
                   <CanvasGroupToolbar
                     group={group}
                     canvasZoom={1}
+                    placement={{ side: 'above', offset: 38 }}
+                    horizontal={{ frameLeft: 36, frameWidth: 976, offsetX: 0, stageWidth: CANVAS_GROUPING_CELL_WIDTH }}
                     memberCount={NODE_IDS.length}
                     canGenerate
                     canSendToTimeline
@@ -221,7 +222,10 @@ export function CanvasGroupingStage(): JSX.Element {
                     onDissolve={dissolveGroup}
                     onArrange={arrange}
                     onColor={(color: GroupColorId) => {
-                      setGroup((current) => ({ ...current, color }))
+                      setGroup((current) => {
+                        const { colorToken: _previous, ...rest } = current
+                        return color === 'neutral' ? rest : { ...rest, colorToken: color }
+                      })
                       setStatus(`编组颜色已切换为 ${color}。`)
                     }}
                     onDownload={() => setStatus('下载编组结果。')}

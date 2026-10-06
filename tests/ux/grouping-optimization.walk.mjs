@@ -1,5 +1,5 @@
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -62,9 +62,11 @@ try {
   await expect(groupPortHandles).toHaveCount(2)
   const stage = await win.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布舞台缺失')
+  const toolbarProof = await proveProbe(win.locator('[data-group-toolbar="true"]'), '选中整组时组工具条真的在屏上')
+  const portProof = await proveProbe(groupPortHandles, '选中整组时左右两个编组端口真的在屏上')
   await win.mouse.click(stage.x + 8, stage.y + 8)
-  await expect(win.locator('[data-group-toolbar="true"]')).toHaveCount(0)
-  await expect(groupPortHandles).toHaveCount(0)
+  await expectAbsent(win.locator('[data-group-toolbar="true"]'), { provenBy: toolbarProof, message: '点画布空白后组工具条收起' })
+  await expectAbsent(groupPortHandles, { provenBy: portProof, message: '点画布空白后编组端口收起' })
   await win.mouse.click(selectedBlank.x, selectedBlank.y)
   await expectVisible(win.locator('[data-group-toolbar="true"]'), '再次点击空白组框后工具条出现')
 

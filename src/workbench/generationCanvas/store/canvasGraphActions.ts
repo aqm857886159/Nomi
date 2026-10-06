@@ -13,7 +13,8 @@ import { arrangeGroupNodes, type GroupArrangeMode } from '../model/groupArrange'
 import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
 import { createCanvasGroupMoveActions } from './canvasGroupMoveActions'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { DEFAULT_GROUP_COLOR, normalizeGroupColor } from '../model/groupColor'
+import i18n from '../../../i18n'
+import { normalizeGroupColorToken } from '../model/groupColor'
 import { bumpPersistRevision, isCategoryId } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
@@ -389,10 +390,9 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     )
     const group: NodeGroup = {
       id: createGroupId(id),
-      name: (name || '').trim() || `组 ${existingCount + 1}`,
+      name: (name || '').trim() || i18n.t('generationCommon.canvas.group.defaultName', { n: existingCount + 1 }),
       categoryId: id,
       nodeIds: explicitNodeIds,
-      color: DEFAULT_GROUP_COLOR,
       ...(frameBounds ? { frameBounds } : {}),
       ...(stamp ? { materializationOperationId: stamp } : {}),
       createdAt: now,
@@ -436,10 +436,9 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     )
     const group: NodeGroup = {
       id: createGroupId(id),
-      name: (name || '').trim() || `组 ${existingCount + 1}`,
+      name: (name || '').trim() || i18n.t('generationCommon.canvas.group.defaultName', { n: existingCount + 1 }),
       categoryId: id,
       nodeIds,
-      color: DEFAULT_GROUP_COLOR,
       ...(frameBounds ? { frameBounds } : {}),
       createdAt: now,
       updatedAt: now,
@@ -486,15 +485,17 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (renamed) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: renamed } }])
   },
   setGroupColor: (groupId, color) => {
-    const nextColor = normalizeGroupColor(color)
+    // 灰 = 没有 colorToken。只存 token 名，不再写旧的 color 字段。
+    const nextColor = normalizeGroupColorToken(color)
     const current = get()
     const existing = current.groups.find((group) => group.id === groupId)
-    if (!existing || existing.color === nextColor) return
+    if (!existing || existing.colorToken === nextColor) return
     pushUndoSnapshot(current)
     set((state) => {
       const group = state.groups.find((candidate) => candidate.id === groupId)
       if (!group) return
-      group.color = nextColor
+      if (nextColor) group.colorToken = nextColor
+      else delete group.colorToken
       group.updatedAt = Date.now()
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())

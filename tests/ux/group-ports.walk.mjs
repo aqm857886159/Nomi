@@ -7,7 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
@@ -105,17 +105,20 @@ await win.mouse.click(groupClickPoint.x, groupClickPoint.y)
 await expectVisible(win.locator('[data-group-toolbar="true"]'), '组工具条已出现')
 const selectedText = await win.locator('[data-group-toolbar="true"]').first().textContent().catch(() => '')
 console.log('  → 点组框后组工具条:', JSON.stringify(selectedText))
-check('点组框 = 选中全部成员（组工具条出现）', /组\s*·\s*4/.test(selectedText || ''), String(selectedText))
+// 组名夹在中间（默认名「组 1」/ 英文「Group 1」），所以认「成员数 4」这个独立节点而不是拼全文。
+check('点组框 = 选中全部成员（组工具条出现）', (await win.locator('[data-group-toolbar-count="true"]').first().textContent().catch(() => '') || '').replace(/\s+/g, '').endsWith('·4'), String(selectedText))
 check('工具条有「生成整组」', /生成整组/.test(selectedText || ''), String(selectedText))
 
 // 反并行版断言：整屏只应有**一个**「生成」动作，组标签上不许再挂第二个。
 const generateAffordances = await win.evaluate(() => ({
   onGroupLabel: document.querySelectorAll('[data-group-run]').length,
-  runAll: document.querySelectorAll('[data-storyboard-run-all]').length,
 }))
 console.log('  → 同屏生成动作:', JSON.stringify(generateAffordances))
 check('组标签上没有第二个运行钮（并行版已删，防复发）', generateAffordances.onGroupLabel === 0, JSON.stringify(generateAffordances))
-check('旧选择浮条批量生成入口已收起', generateAffordances.runAll === 0, JSON.stringify(generateAffordances))
+// 批量生成只剩组工具条上的「生成整组」：旧的框选浮条（含「生成选中 N 个」）选中整组时不出现。
+const groupToolbarProof = await proveProbe(win.locator('[data-group-toolbar="true"]'), '组工具条在屏上（证明同屏探针是活的）')
+await expectAbsent(win.locator('.generation-canvas-v2__selection-toolbar'), { provenBy: groupToolbarProof, message: '选中整组后不出旧的框选浮条' })
+check('同屏只有一个批量生成入口「生成整组」', (await win.getByRole('button', { name: '生成整组', exact: true }).count()) === 1)
 {
   const box = await win.locator('.generation-canvas-v2__group-box-label').first().boundingBox().catch(() => null)
   if (box) await snap(win, 'group-label-no-run-button', { x: Math.max(0, box.x - 14), y: Math.max(0, box.y - 14), width: 420, height: 120 })

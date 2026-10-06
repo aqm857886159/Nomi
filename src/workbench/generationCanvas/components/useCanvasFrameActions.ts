@@ -2,9 +2,8 @@
  * 框的四个动作 + 那份菜单的开合：改名/说明、生成整框、整框进时间轴、折叠、解散。
  *
  * 两条不许破的纪律：
- *  · **生成整框走的就是浮条那一条批量生产路径**（resolveCanvasGenerationScope →
- *    eligibleGenerationNodeIds → buildDependencyWaves → confirmAndRunPlan），只是把 scope
- *    从「选中集」换成「框内成员」。一份实现两个入口，不是第二套生成（P1）。
+ *  · **生成整框是画布上唯一的批量生成入口**（groupEligibleNodeIds → buildDependencyWaves →
+ *    confirmAndRunPlan）；每个节点用它自己已选好的模型和参数。右键菜单与组工具条共用这一份。
  *  · **解散 = ungroup，边一根都不撤**（model/groupInputLinks 的既有语义：解散的是组织方式，
  *    不是节点关系）。顺手把边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
  */
@@ -16,7 +15,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameToTimeline'
 import { confirmAndRunPlan } from './batchPlanPreview'
-import { eligibleGenerationNodeIds, readCanvasBatchConcurrency, resolveCanvasGenerationScope } from './canvasProductionScope'
+import { groupEligibleNodeIds } from './canvasProductionScope'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
@@ -36,12 +35,7 @@ const MENU_EDGE_GAP = 8
 function frameEligibleIds(groupId: string): string[] {
   const state = useGenerationCanvasStore.getState()
   const group = state.groups.find((candidate) => candidate.id === groupId)
-  if (!group?.nodeIds.length) return []
-  return eligibleGenerationNodeIds(
-    state.nodes,
-    resolveCanvasGenerationScope(group.categoryId, group.nodeIds),
-    useProductionCanvasLandingStore.getState().runs,
-  )
+  return groupEligibleNodeIds(group, state.nodes, useProductionCanvasLandingStore.getState().runs)
 }
 
 export function useCanvasFrameActions({
@@ -130,9 +124,8 @@ export function useCanvasFrameActions({
         return
       }
       const live = useGenerationCanvasStore.getState()
-      // 并发读的是浮条写进去的同一份，组工具条与旧菜单共用这条确认路径。
+      // 每个节点用它自己已选好的模型和参数，这里不弹模型选择、不改模型；并发交给调度器默认值。
       void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: live.nodes, edges: live.edges }), {
-        concurrency: readCanvasBatchConcurrency(),
         initiator: 'user',
       })
       return

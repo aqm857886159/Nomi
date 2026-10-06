@@ -14,13 +14,18 @@ import { cn } from '../../../utils/cn'
 import type { WorkbenchMenuIcon, WorkbenchMenuNode } from '../../../design/menu'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { GroupArrangeMode } from '../model/groupArrange'
-import { GROUP_COLOR_IDS, normalizeGroupColor, groupColorStyle, type GroupColorId } from '../model/groupColor'
+import { GROUP_COLOR_IDS, resolveGroupColor, groupColorClass, type GroupColorId } from '../model/groupColor'
+import { resolveGroupToolbarShiftX, type GroupToolbarPlacement } from './groupToolbarPlacement'
 import { ToolbarActionMenu } from '../nodes/ToolbarActionMenu'
 import { ToolbarButton, ToolbarDivider, ToolbarIconButton, TOOLBAR_ICON } from '../nodes/NodeFloatingToolbar'
 
 export type CanvasGroupToolbarProps = {
   group: NodeGroup
   canvasZoom: number
+  /** 放在组框的哪一侧（上 / 下 / 框内贴顶），由 groupToolbarPlacement 按组在舞台里的位置算出。 */
+  placement: GroupToolbarPlacement
+  /** 组框在舞台里的水平位置：工具条要靠它把自己拉回舞台内（组框比视口宽、贴边时中线会在舞台外）。 */
+  horizontal: GroupToolbarHorizontal
   memberCount: number
   canGenerate: boolean
   canSendToTimeline: boolean
@@ -33,25 +38,25 @@ export type CanvasGroupToolbarProps = {
   onDownload: () => void
 }
 
+export type GroupToolbarHorizontal = { frameLeft: number; frameWidth: number; offsetX: number; stageWidth: number }
+
+/** 调用方（hook）给的版本：还没有组框位置，placement 由投影层按框的位置补上。 */
+export type CanvasGroupToolbarModel = Omit<CanvasGroupToolbarProps, 'placement' | 'horizontal'> & { canvasOffsetX: number; canvasOffsetY: number; stageWidth: number; stageHeight: number }
+
 const iconProps = { size: TOOLBAR_ICON.size, stroke: TOOLBAR_ICON.stroke } as const
 
 /** The color swatch is a menu icon, so the selected group color remains visible at all times. */
 function colorMenuIcon(color: GroupColorId): WorkbenchMenuIcon {
   return function GroupColorSwatch(): JSX.Element {
-    const style = groupColorStyle(color)
-    return (
-      <span
-        className="size-3 rounded-full border border-nomi-paper shadow-sm"
-        style={{ backgroundColor: style.markerColor }}
-        aria-hidden="true"
-      />
-    )
+    return <span className={cn('size-3 rounded-full', groupColorClass(color).dot)} aria-hidden="true" />
   }
 }
 
 export function CanvasGroupToolbar({
   group,
   canvasZoom,
+  placement,
+  horizontal,
   memberCount,
   canGenerate,
   canSendToTimeline,
@@ -64,7 +69,19 @@ export function CanvasGroupToolbar({
   onDownload,
 }: CanvasGroupToolbarProps): JSX.Element {
   const { t } = useTranslation()
-  const selectedColor = normalizeGroupColor(group.color)
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const [toolbarWidth, setToolbarWidth] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const element = rootRef.current
+    if (!element) return undefined
+    const measure = () => setToolbarWidth(element.offsetWidth)
+    measure()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    observer?.observe(element)
+    return () => observer?.disconnect()
+  }, [])
+  const shiftX = resolveGroupToolbarShiftX({ ...horizontal, zoom: canvasZoom, toolbarWidth })
+  const selectedColor = resolveGroupColor(group.colorToken)
   const colorItems: WorkbenchMenuNode[] = [
     {
       kind: 'radio',
@@ -103,20 +120,30 @@ export function CanvasGroupToolbar({
       onSelect: () => onArrange('vertical'),
     },
   ]
-  const colorStyle = groupColorStyle(selectedColor)
+  const colorClass = groupColorClass(selectedColor)
 
   return (
     <div
+      ref={rootRef}
       className={cn(
-        'generation-canvas-v2__group-toolbar absolute left-1/2 top-[-58px] z-[12] -translate-x-1/2',
+        'generation-canvas-v2__group-toolbar absolute left-1/2 z-[12] -translate-x-1/2',
         'inline-flex w-max flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1',
         'rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md',
       )}
       data-group-toolbar="true"
-      data-group-toolbar-layout="libtv"
       aria-label={t('generationCommon.canvas.group.toolbarAria', { name: group.name })}
       role="toolbar"
-      style={{ transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`, transformOrigin: 'bottom center' }}
+      data-group-toolbar-side={placement.side}
+      style={{
+        left: `calc(50% + ${shiftX}px)`,
+        transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
+        // 外壳（投影层里和组框同大的锚点）：above 从框上沿往上抬，below 从框下沿往下放，inside 从框上沿往下放。
+        ...(placement.side === 'above'
+          ? { bottom: `calc(100% + ${placement.offset}px)`, transformOrigin: 'bottom center' }
+          : placement.side === 'below'
+            ? { top: `calc(100% + ${placement.offset}px)`, transformOrigin: 'top center' }
+            : { top: placement.offset, transformOrigin: 'top center' }),
+      }}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <span
@@ -130,11 +157,7 @@ export function CanvasGroupToolbar({
       <ToolbarActionMenu
         id="group-color"
         icon={
-          <span
-            className="size-3.5 rounded-full border-2 border-nomi-paper shadow-sm"
-            style={{ backgroundColor: colorStyle.markerColor }}
-            aria-hidden="true"
-          />
+          <span className={cn('size-3.5 rounded-full', colorClass.dot)} aria-hidden="true" />
         }
         label={t('generationCommon.canvas.group.toolbarColor')}
         menuLabel={t('generationCommon.canvas.group.toolbarColor')}
@@ -162,19 +185,20 @@ export function CanvasGroupToolbar({
         disabled={!canSendToTimeline}
         onClick={onSendToTimeline}
       />
-      <ToolbarButton
-        icon={<IconFolderMinus {...iconProps} />}
-        label={t('generationCommon.canvas.group.toolbarDissolve')}
-        title={t('generationCommon.canvas.group.toolbarDissolve')}
-        onClick={onDissolve}
-      />
-      <ToolbarDivider />
       <ToolbarIconButton
         icon={<IconDownload {...iconProps} />}
         title={t('generationCommon.canvas.group.toolbarDownload')}
         ariaLabel={t('generationCommon.canvas.group.toolbarDownload')}
         disabled={!canDownload}
         onClick={onDownload}
+      />
+      {/* 解散是这一排里最「重」的动作：常用的在前，它放最右并用分隔线隔开，免得手滑。 */}
+      <ToolbarDivider />
+      <ToolbarButton
+        icon={<IconFolderMinus {...iconProps} />}
+        label={t('generationCommon.canvas.group.toolbarDissolve')}
+        title={t('generationCommon.canvas.group.toolbarDissolve')}
+        onClick={onDissolve}
       />
     </div>
   )

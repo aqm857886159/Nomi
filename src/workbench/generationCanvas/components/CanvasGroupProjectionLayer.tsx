@@ -7,10 +7,8 @@ import { cn } from '../../../utils/cn'
 import type { CollapsedGroupCardProjection } from '../model/canvasCardStackModel'
 import { GroupFrameList } from './GroupFrame'
 import { CollapsedGroupCard } from './CollapsedGroupCard'
-import { CanvasGroupToolbar } from './CanvasGroupToolbar'
-import type { GroupArrangeMode } from '../model/groupArrange'
-import type { NodeGroup } from '../model/generationCanvasTypes'
-import type { GroupColorId } from '../model/groupColor'
+import { CanvasGroupToolbar, type CanvasGroupToolbarModel } from './CanvasGroupToolbar'
+import { resolveGroupToolbarPlacement } from './groupToolbarPlacement'
 
 type GroupPointerDown = (
   event: React.PointerEvent<HTMLDivElement>,
@@ -44,20 +42,7 @@ export function CanvasGroupProjectionLayer({
   frame?: CanvasFrameInteraction
   /** 正在拖出来的那个框（画布坐标）。和框体同一层渲染，所以缩放/平移天然对齐。 */
   drawPreview?: CanvasFrameRect | null
-  toolbar?: {
-    group: NodeGroup
-    canvasZoom: number
-    memberCount: number
-    canGenerate: boolean
-    canSendToTimeline: boolean
-    canDownload: boolean
-    onGenerate: () => void
-    onSendToTimeline: () => void
-    onDissolve: () => void
-    onArrange: (mode: GroupArrangeMode) => void
-    onColor: (color: GroupColorId) => void
-    onDownload: () => void
-  }
+  toolbar?: CanvasGroupToolbarModel
 }): JSX.Element {
   const toolbarBox = toolbar ? boxes.find((box) => box.group.id === toolbar.group.id) : null
   return (
@@ -84,9 +69,19 @@ export function CanvasGroupProjectionLayer({
         onCollapse={readOnly ? undefined : (groupId) => onSetCollapsed(groupId, true)}
       />
       {toolbar && toolbarBox ? (
-        <div className="pointer-events-none absolute" style={{ left: toolbarBox.left, top: toolbarBox.top, width: toolbarBox.width }}>
+        <div className="pointer-events-none absolute" style={{ left: toolbarBox.left, top: toolbarBox.top, width: toolbarBox.width, height: toolbarBox.height }}>
           <div className="pointer-events-auto">
-            <CanvasGroupToolbar {...toolbar} />
+            <CanvasGroupToolbar
+              {...toolbar}
+              placement={resolveGroupToolbarPlacement({
+                frameTop: toolbarBox.top,
+                frameHeight: toolbarBox.height,
+                zoom: toolbar.canvasZoom,
+                offsetY: toolbar.canvasOffsetY,
+                stageHeight: toolbar.stageHeight,
+              })}
+              horizontal={{ frameLeft: toolbarBox.left, frameWidth: toolbarBox.width, offsetX: toolbar.canvasOffsetX, stageWidth: toolbar.stageWidth }}
+            />
           </div>
         </div>
       ) : null}

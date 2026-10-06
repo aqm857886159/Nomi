@@ -416,7 +416,11 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     const groupState = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)
     expect(groupState?.categoryId).toBe('shots')
     expect(groupState?.name).toBe('Board B')
-    expect(groupState?.color).toBe('amber')
+    expect(groupState?.colorToken).toBe('amber')
+    // 旧的 color 字段不再写；换回灰 = 清掉 colorToken。
+    expect(groupState?.color).toBeUndefined()
+    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', 'neutral')
+    expect(useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)?.colorToken).toBeUndefined()
   })
 
   it('arranges group members through one store action and keeps the frame around them', () => {

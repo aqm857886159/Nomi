@@ -28,13 +28,11 @@ describe('generation model option production adapter', () => {
     expect(mocks.useModelOptionsState).toHaveBeenCalledWith('video', 'image_to_video')
   })
 
-  it('keeps the live node and batch picker call sites wired to the required mode', () => {
+  it('keeps the live node picker call site wired to the required mode', () => {
     const configHook = fs.readFileSync(new URL('../../../config/useModelOptions.ts', import.meta.url), 'utf8')
     const nodePicker = fs.readFileSync(new URL('../nodes/NodeParameterControls.tsx', import.meta.url), 'utf8')
-    const batchPicker = fs.readFileSync(new URL('../components/CanvasBulkModelSelect.tsx', import.meta.url), 'utf8')
 
     expect(configHook).toContain('preloadModelOptions(kind, requiredMode)')
     expect(nodePicker).toContain('useGenerationModelOptionsState(node.kind, requiredMode)')
-    expect(batchPicker).toContain('useGenerationModelOptionsState(group.representativeKind, group.requiredMode)')
   })
 })

@@ -7,7 +7,7 @@
 - 依赖里已有：React Flow 的选择与拖动边界见 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)；画布接入点是 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
 - 仓库里已有：节点浮条 token/缩放外壳在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`，菜单原子在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`；这次采用接入而不是重写。
 - 生态里已有：菜单交互采用 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)；这类通用交互不登记为领域自写。
-- 用户参考：LibTV 交互依据是本会话提供的真实参考截图；没有把不可复核的自媒体内容当作验收证据。
+- 用户参考：交互依据是用户提供的同类画布真实截图；没有把不可复核的自媒体内容当作验收证据。
 
 结论：只登记 Nomi 独有的编组拖动语义和已选媒体总览图动作，通用行为继续由现有库和组件承载。
 
@@ -34,7 +34,7 @@
 |---|---|---|
 | ⑩ 说的=摆的 | 生成总览图只汇总已选节点的真实输出，不再引导重新选图片/视频模型 | `tests/ux/contact-sheet.walk.mjs` 实际 4 个素材节点、自然尺寸 1024×664、`nomi-local://` |
 | ⑪ 能选到 | 编组、解组、存流程、总览图动作都同时有可见短标签、完整 title 和 aria-label | `check:controls`、i18n parity、真实 Electron walk |
-| ⑫ 点了=以为的 | 空白组内拖动移动整组，节点卡片拖动只移动该节点；按钮顺序与 LibTV 语义一致 | `tests/ux/grouping-optimization.walk.mjs` 真实媒体走查及截图 |
+| ⑫ 点了=以为的 | 空白组内拖动移动整组，节点卡片拖动只移动该节点；按钮顺序：常用在前、解组最右并用分隔线隔开 | `tests/ux/grouping-optimization.walk.mjs` 真实媒体走查及截图 |
 
 ### 3. 不改结构的话，接下来会冒出什么
 
@@ -74,3 +74,13 @@
 - `src/workbench/generationCanvas/store/generationCanvasStore.test.ts`：删除重复框选入口后的 store contract。
 - `pnpm run check:controls`、`check:i18n`、`check:tokens`、`check:icons`、`check:framework-boundary`、`check:heavy-path`：设计系统与边界门。
 - 未钉住：全量设计实验室和 walkthrough 的历史 baseline 漂移，列为合入前独立处理项，不伪装成编组通过。
+
+### 5. 2026-10-06 用户拍板后的收敛（L-group 接手本 PR）
+
+| 拍板 | 做了什么 | 不留的并行版 |
+|---|---|---|
+| 批量生成只走组：「本来这些节点模型已经选择好了，只要编组弄好，他直接生成全部就好了」 | 删画布底部批量栏（按类型统一换模型 + 「并发」+「生成全部」）、框选浮条上的「生成选中 N 个」及其模型下拉 / 并发下拉、⌘Enter「生成所选」；「生成整组」逐个节点用**节点自己已选好的模型和参数**，不弹模型选择、不改模型，并发交给调度器默认值（用户不再选） | `CanvasBatchGenerateDock`、`CanvasProductionControls`、`CanvasBulkModelSelect`、`useCanvasProductionActions`、`useCanvasBatchDockVisibility`、`canvasBatchModelLabel` 整条删；旧 `nomi.canvas.batch-concurrency` 偏好不再读写 |
+| 组色方案 B | 默认中性灰；可选色只上边框和标题前小圆点，不做底色填充；老项目旧 `NodeGroup.color` 不上色，只认新字段 `colorToken`（读盘归一化 + 单测「旧项目打开组仍是灰」） | 旧 `groupColorStyle` 行内样式（底色 `color-mix` 把七色都算成粉红的 bug 随之消失）、`LEGACY_COLOR_ALIASES` 十六进制映射 |
+| UI 统一规范 | 决定栏主动作最右、取消在左；动作条常用在前、删除类最右并用分隔线隔开；「✓」只表状态不当动作图标；同类控件全仓一个组件 | 框选浮条的「清除选择」改用与组工具条同一个 `ToolbarIconButton`（原来是另一个 `WorkbenchIconButton`，同条里高度 28/32 不齐）；`ToolbarButton` 去掉只给总览图用的 `dataContactSheet` 属性 |
+
+类根因：这批问题的共同形状是「同一个用户意图有两个入口、各自推导一份」——批量生成既在底栏又在浮条又在组上；可生成集合在工具条可用态（按选中节点）和点击派发（按组成员）各算一遍。收敛后只剩 `groupEligibleNodeIds` 一份，工具条可用态与派发共用。

@@ -104,7 +104,7 @@ const toolbar = win.locator('.generation-canvas-v2__selection-toolbar').first()
   const box = await toolbar.boundingBox().catch(() => null)
   if (box) await snap(win, 'toolbar-with-action', { x: Math.max(0, box.x - 20), y: Math.max(0, box.y - 20), width: box.width + 40, height: box.height + 40 })
 }
-const sheetBtn = win.locator('[data-contact-sheet]').first()
+const sheetBtn = toolbar.getByRole('button', { name: /^(生成总览图|Create overview)/ }).first()
 check('多选浮条上出现「生成总览图」', await sheetBtn.count() > 0)
 const btnLabel = await sheetBtn.getAttribute('aria-label').catch(() => null)
 check('钮上标明会生成几张总览图', /生成总览图（4 张）/.test(btnLabel || ''), String(btnLabel))
@@ -123,20 +123,45 @@ const built = await win.evaluate(() => document.querySelectorAll('[data-node-id]
 const overviewNode = win.locator('.generation-canvas-v2-node').filter({ hasText: /总览图/ }).first()
 check('多出一个总览图节点', built >= 5 && await overviewNode.count() > 0, `实得 ${built}`)
 
-// 取成品图，验真实节点尺寸。nomi-local:// 图片属于 Electron 的自定义协议，
-// 在页面里用 canvas 读像素会被浏览器按跨源资源拦截；用真实 img 的自然尺寸和截图
-// 验证产物，避免把安全策略误报成生成失败。
-const verdict = await overviewNode.locator('img').first().evaluate((img) => ({
-  width: img.naturalWidth || 0,
-  height: img.naturalHeight || 0,
-  src: img.currentSrc || img.getAttribute('src') || '',
-})).catch(() => ({ error: '没找到总览图成品' }))
+// 取成品图，验尺寸 + 采样比色（真正证明「哪张进了哪格」）。
+// nomi-local:// 的 <img> 直接画进 canvas 会被当成跨源图拦住读像素；这里改用 fetch 取回字节 →
+// createImageBitmap（字节来源是我们自己 fetch 的，不带污染标记）再采样，既不绕过协议的安全边界，也不丢这条断言。
+const verdict = await overviewNode.locator('img').first().evaluate(async (img) => {
+  const src = img.currentSrc || img.getAttribute('src') || ''
+  const out = { width: img.naturalWidth || 0, height: img.naturalHeight || 0, src }
+  try {
+    const blob = await (await fetch(src)).blob()
+    const bitmap = await createImageBitmap(blob)
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(bitmap, 0, 0)
+    // 排版常量与 contactSheetLayout.ts 默认值一致：cell 480x270, gap 16, padding 24, caption 30
+    const P = 24, CW = 480, CH = 270, GAP = 16, CAP = 30
+    const at = (col, row) => {
+      const d = ctx.getImageData(Math.round(P + col * (CW + GAP) + CW / 2), Math.round(P + row * (CH + CAP + GAP) + CH / 2), 1, 1).data
+      return [d[0], d[1], d[2]]
+    }
+    return { ...out, width: bitmap.width, height: bitmap.height, cells: [at(0, 0), at(1, 0), at(0, 1), at(1, 1)] }
+  } catch (error) {
+    return { ...out, sampleError: String(error?.message || error) }
+  }
+}).catch(() => ({ error: '没找到总览图成品' }))
 console.log('  → 成品:', JSON.stringify(verdict))
 check('拿到总览图成品', !verdict.error && verdict.width > 0 && verdict.height > 0, verdict.error || `${verdict.width}x${verdict.height}`)
 if (!verdict.error) {
   // 4 张 → 2 列 2 行；宽 = 24*2 + 2*480 + 16 = 1024；高 = 24*2 + 2*(270+30) + 16 = 664
   check('成品尺寸符合排版公式（2×2）', verdict.width === 1024 && verdict.height === 664, `${verdict.width}x${verdict.height}`)
   check('成品落在本地资源协议上', verdict.src.startsWith('nomi-local://'), verdict.src)
+  check('成品图能读到像素（才能证明哪张进了哪格）', Array.isArray(verdict.cells), verdict.sampleError || '')
+  if (Array.isArray(verdict.cells)) {
+    const near = (got, want) => got.every((v, i) => Math.abs(v - want[i]) < 40)
+    const expected = COLORS.map((c) => c.rgb)
+    const okCells = verdict.cells.map((got, i) => near(got, expected[i]))
+    check('四个格子里真是对应的四张图（成品图上采样比色）', okCells.every(Boolean),
+      verdict.cells.map((c, i) => `${COLORS[i].name}:${okCells[i] ? 'ok' : `got rgb(${c})`}`).join(' '))
+  }
 }
 
 await snap(win, 'canvas-final')

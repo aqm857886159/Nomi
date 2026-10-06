@@ -1,13 +1,13 @@
 # 编组交互与生产组件设计
 
-这份设计把 LibTV 的可验证交互顺序与 Nomi 现有节点浮条的视觉语法合在一起。实现合同是生产 React 组件，不是手写 HTML mock：`CanvasGroupToolbar` 复用 `FloatingToolbarShell` 的 token、按钮和菜单原子，`GroupFrame` / `GroupFrameHeader` 负责组框和框外标题，React Flow 只负责节点手势投影。旧的 store 级 `selectNodesInRect` 已删除，选择只保留 React Flow 这一条运行时 owner，避免自定义框选与内核选择各维护一份状态。
+这份设计把用户给的同类画布参考里可验证的交互顺序，与 Nomi 现有节点浮条的视觉语法合在一起。实现合同是生产 React 组件，不是手写 HTML mock：`CanvasGroupToolbar` 复用 `FloatingToolbarShell` 的 token、按钮和菜单原子，`GroupFrame` / `GroupFrameHeader` 负责组框和框外标题，React Flow 只负责节点手势投影。旧的 store 级 `selectNodesInRect` 已删除，选择只保留 React Flow 这一条运行时 owner，避免自定义框选与内核选择各维护一份状态。
 
 ## 先查别人
 
 - 依赖里已有：React Flow 的节点选择、框选和拖动事件来自 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)；生产宿主入口在 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
 - 仓库里已有：`NodeFloatingToolbar` 的 token 外壳、反向缩放和锁边界在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`，`ToolbarActionMenu` 的菜单触发器在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`，本设计直接复用它们。
 - 生态里已有：菜单键盘和无障碍命名遵循 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)，不再创建第二套通用菜单。
-- 用户参考：LibTV 的组内空白/节点拖动分流、默认中性灰和工具条动作顺序来自本会话提供的真实参考截图；未用无法复核的自媒体文章替代真实组件走查。
+- 用户参考：组内空白 / 节点拖动分流、默认中性灰和工具条动作顺序来自用户提供的真实参考截图；未用无法复核的自媒体文章替代真实组件走查。
 
 结论：通用能力接入 React Flow、WAI-ARIA 语义和 Nomi 现有 toolbar 原子；新增部分只表达编组和已选媒体总览图的领域语义。
 
@@ -24,17 +24,17 @@
 | 组已选中 | 点击 ⋯ | 打开上下文菜单 | 改名、说明、折叠、生成整组等动作集中在一个菜单 |
 | 组已选中 | 拖动节点到另一组 | 预览归属变化 | 目标组强调，计数显示松手后的结果；松手才提交成员关系 |
 | 组已选中 | 点击连接拉环 | 进入连线 | 组是连线落点/来源，待连状态下组框不再响应整组拖动 |
-| 组已选中 | 点击工具条颜色 | 选择语义色 | 菜单使用 `menuitemradio`；默认中性灰，颜色只表达归属，不抢选中强调色 |
+| 组已选中 | 点击工具条颜色 | 选择语义色 | 菜单使用 `menuitemradio`；默认中性灰，颜色只上边框和标题圆点、不填底色，不抢选中强调色 |
 | 组已选中 | 点击工具条排列 | 选择网格/横向/纵向 | 复用现有排列模型，一次性更新成员位置 |
-| 组已选中 | 点击整组生成/时间轴/解组/下载 | 调用现有动作 owner | 主动作有文字，次动作有 icon 和 title；不可用时保留位置并说明 disabled |
+| 组已选中 | 点击整组生成/时间轴/下载/解组 | 调用现有动作 owner | 主动作有文字，次动作有 icon 和 title；不可用时保留位置并说明 disabled；「生成整组」逐个节点用它自己已选好的模型和参数，不弹模型选择 |
 
 ## 视觉合同
 
 - 工具条沿用 `NodeFloatingToolbar`：`rounded-nomi`、`border-nomi-line`、`bg-nomi-paper`、`shadow-nomi-md`、`min-h-9`、16px Tabler icon、8px 密度；在画布缩放时反向缩放，屏幕尺寸恒定。
-- 工具条顺序固定为：明确的 Stack 编组标题（组名和成员数）→ 颜色（图标+文字+下拉）→ 排列（图标+文字+下拉）→ 分隔线 → 主动作“生成整组” → 时间轴/解组 → 分隔线 → 下载。动作顺序与 LibTV 的颜色、排列、主动作、次动作、下载层级一致，同时保持 Nomi 节点浮条的文字可辨识性。
+- 工具条顺序固定为：明确的 Stack 编组标题（组名和成员数）→ 颜色（图标+文字+下拉）→ 排列（图标+文字+下拉）→ 分隔线 → 主动作“生成整组” → 进时间轴 → 下载 → 分隔线 → 解组（最右）。常用在前、最重的动作放最右并隔开；同时保持 Nomi 节点浮条的文字可辨识性。
 - 临时多选工具条不再把高频动作藏在无名图标里：总览图用多张卡片图标和短标签“总览图”，数量与完整后果放在 title/aria-label（“生成总览图（N 张）”）；保存流程用“存流程”，创建/解除编组用“编组/解组”，完整动作名同样保留在 title/aria-label。只有“清除选择”保留关闭图标，并提供 title/aria-label。
 - 组标题在框外，使用 Stack 图标和组名；框内不再放重复的左上角胶囊。折叠和更多操作仍在标题区域，避免把节点内容当作工具栏背景。
-- 默认组色为 LibTV 可见的中性灰；语义色通过 `groupColorStyle` 和设计 token 提供。选中时边框的 accent 只表示当前交互状态，不能与默认颜色混淆。
+- 组色方案 B（用户 2026-10-06 拍板）：默认中性灰；可选色只上边框和标题前的小圆点，不做底色填充；颜色由 `groupColorClass` 经设计 token 的静态类名提供，不写行内 style。旧项目里存的自定义色（`NodeGroup.color`）不上色，只认新选色器写的 `colorToken`。选中时边框的 accent 只表示当前交互状态，不能与组色混淆。
 - 所有菜单走 `ToolbarActionMenu` / `WorkbenchMenu`，不用第二套下拉；生产截图必须来自真实画布、真实节点组件和真实资源路径。
 
 ## 状态与性能边界
@@ -44,7 +44,7 @@
 ## 验收清单
 
 1. 中文和英文都能通过标题、Stack 图标、颜色/排列文字区分“编组工具条”和节点工具条。
-2. 默认中性灰在新建组、旧数据归一化、颜色菜单和真实截图中一致。
+2. 默认中性灰在新建组、旧数据读盘（老项目的组仍是灰）、颜色菜单和真实截图中一致；选了色只在边框和标题圆点出现、没有底色填充。
 3. 组内空白拖动整组，节点卡片拖动单节点；两条路径分别有真实位置断言。
 4. 框外标题、折叠、更多、拉环、工具条和空白清选在同一个真实窗口闭环通过。
 5. 真实媒体拖动达到当前 60 节点预算：frame gap P95 ≤ 22ms、long task ≤ 3，且节点/边 identity 不因 pointer move 被重建。

@@ -21,7 +21,7 @@ type DragRecord = {
 }
 
 /**
- * `duplicateOnMove`：按下时按着 Alt/⌥（LibTV「Option + 拖动」同款）。第一次真的移动时才复制——
+ * `duplicateOnMove`：按下时按着 Alt/⌥（Option + 拖动 = 复制，同画布惯例）。第一次真的移动时才复制——
  * 只点一下不拖不会凭空多出一个框（tldraw Translating.startCloning / Excalidraw 同样在移动时才复制）。
  */
 type GroupDragRecord = DragRecord & {

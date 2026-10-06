@@ -16,7 +16,7 @@
 - 依赖里已有：`@xyflow/react` 已提供 React Flow 的受控节点、框选和 `onNodesChange` 手势边界；官方交互说明见 [React Flow Adding Interactivity](https://reactflow.dev/learn/concepts/adding-interactivity)。本仓库的唯一运行时接入在 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:30-70`。
 - 仓库里已有：节点浮条的定位、反向缩放和 token 外壳在 `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:22-45`；菜单原语在 `src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx:5-35`。因此编组工具条接入这些组件，不再自写一套按钮/下拉。
 - 生态里已有：菜单的可访问语义沿用 [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)；React Flow 负责通用手势，Nomi 只保留编组领域动作。
-- 用户参考：LibTV 的编组顺序、默认中性灰和组内空白拖整组来自本会话提供的真实参考截图；没有把无法复核的自媒体内容当实现依据，也没有新增 TikHub 结论。
+- 用户参考：编组顺序、默认中性灰和组内空白拖整组来自用户提供的同类画布真实截图；没有把无法复核的自媒体内容当实现依据，也没有新增 TikHub 结论。
 
 结论：通用选择、拖动、菜单和视觉原子使用已有库/仓库实现；只自写“已选媒体生成总览图”和“组内空白拖整组、节点拖单节点”的 Nomi 领域语义，登记见 `docs/engineering/self-written.json`。
 
@@ -29,7 +29,7 @@
 | 5 中途表 | 组拖动中止：恢复原位置；关闭窗口：已落盘的组状态恢复，未提交帧不写入；断网：只影响生成/下载动作，组结构不丢；重启：组和成员关系从项目恢复；连点：动作幂等，不能重复建组或重复移动。 | `tests/ux/canvas-frame.walk.mjs`、`src/workbench/generationCanvas/store/generationCanvasStore.test.ts` |
 | 6 外部数据与失败 | 外部只涉及 React Flow 的测量与 pointer 事件。量不到成员真实矩形时，编组判定不猜尺寸；性能探针缺失时只记录 `unverified`，不伪造通过。 | `src/workbench/generationCanvas/components/useCanvasFrameMembership.ts`、`tests/ux/canvas-performance-benchmark.e2e.mjs` |
 | 7 性能预算 | 60 节点拖组场景记录帧间隔和长任务数；当前量具的 M 档使用 48 张真实图片 + 48 个真实 1080p 视频资产，规模门槛为 frameGap P95 ≤ 22ms、longTask P95 ≤ 80ms、长任务数 ≤ 3。不得因组位置/选中写回导致整张画布重渲染。 | `pnpm run test:canvas:performance`、`tests/ux/canvas-perf/dragScenarios.mjs` |
-| 8 真实条件 | macOS Electron 真实窗口、中文、1920×1200 视口覆盖、60 节点组、真实项目存储；编组专项使用仓库登记的真实 1920×1080 H.264 视频和真实 1920px PNG，走查确认视频 `videoWidth=1920`、`videoHeight=1080`；性能量具额外记录当前节点是否仍处于海报态。Windows、干净安装和真供应商生成在本批记为 `unverified`，不以 mock 代替。 | `tests/ux/grouping-real-media.walk.mjs`；截图目录 `tests/ux/shots/grouping-real-media/`；`tests/ux/perf-results/canvas-grouping-real-1080p.json` |
+| 8 真实条件 | macOS Electron 真实窗口、中文、1920×1200 视口覆盖、60 节点组、真实项目存储；编组专项使用仓库登记的真实 1920×1080 H.264 视频和真实 1920px PNG，走查确认视频 `videoWidth=1920`、`videoHeight=1080`；性能量具额外记录当前节点是否仍处于海报态。Windows、干净安装和真供应商生成在本批记为 `unverified`，不以 mock 代替。 | `tests/ux/grouping-real-media.walk.mjs`；截图目录 `tests/ux/shots/grouping-real-media/` |
 | ★9 验收与回滚 | 实现线完成后复跑新增编组走查、现有 `canvas-frame`/`group-ports` 和性能场景，逐项对照本卡；回滚为 revert 当前任务分支上的改动。 | 走查日志、截图和性能 JSON；本轮由任务分支提交并开 PR，PR #1014 协调线负责独立验收 |
 
 ## 先行测试矩阵
@@ -58,20 +58,19 @@
 
 | TODO | 当前证据 | 状态 |
 |---|---|---|
-| 编组框、拉环、空白点击 | 真实 Electron 走查覆盖：组内空白点击选中整组且两侧磁吸拉环=2；空白画布清掉工具条和拉环；再次点组框可恢复；组端口真手势落组后 0→4 条边，组框从虚线恢复实线。设计实验室 `canvas-frame` 8 格（含注册表、空框、有内容、拖入、拖出、折叠、菜单、镜头标签）全部通过。 | 已实现待提交 |
-| 60 节点拖组性能 | 真实资产夹具 `mediaProfile=real-assets`：1920×1080 H.264 视频 + 1920px 图片，M 档实际选中 60、拖动 250 次；本次单次收据 `frameGapP95=10.1ms`、`maxFrameGap=39.4ms`、长任务数 0，边层 childList 314 发生在一次 settle 提交，96/96 边身份保持。单节点 I60 为 60 moves / childList 4 / P95 10.3ms，多选为 22 moves / childList 44 / P95 11.2ms；真实解码视频为 60 moves / childList 12 / P95 10.4ms，longTasks 均为 0。视频解码证据使用单独真实媒体场景，Windows、干净安装和供应商生成仍为 unverified。 | 已实现待提交 |
-| 位置/选中单一 owner | React Flow 使用 `defaultNodes={flowNodes}` 加现有 `CanvasNodeProjectionSync`；position tick 只进入 React Flow kernel draft，删除逐帧 durable store 写入，节点最终位置在共享 settle 边界一次性写回，组拖动使用 DOM shell 预览后一次性 `moveGroupNodes`；选中组由单一 resolver 产出。单节点、多选和真实媒体样本没有 pointer-tick 级全画布级联重渲染，结构测试、相关单测、生产构建通过。 | 已实现待提交 |
-| 编组工具条 | 真实 Electron 工具条改为复用节点浮条的 token 壳、文字按钮和反向缩放；组标题使用 Stack 图标+组名+成员数，颜色/排列可读且菜单仍按 LibTV 顺序；新建和旧数据组默认归一为 LibTV 风格的语义 `neutral` 中性灰。框内左上角重复胶囊已迁移到框外标题。 | 已实现待提交 |
-| Frame/Group 命名统一 | 编组用户文案已逐项改为“组/Group”，包括工具、空态、改名、说明、菜单、删除提示、工具条和连接提示；`Frame` 只保留在内部组件/模型标识（`GroupFrame`、`frameBounds`），不再作为用户可见名称。中英文走查均记录工具条文本。 | 已实现待提交 |
+| 编组框、拉环、空白点击 | 真实 Electron 走查覆盖：组内空白点击选中整组且两侧磁吸拉环=2；空白画布清掉工具条和拉环；再次点组框可恢复；组端口真手势落组后 0→4 条边，组框从虚线恢复实线。设计实验室 `canvas-frame` 8 格（含注册表、空框、有内容、拖入、拖出、折叠、菜单、镜头标签）全部通过。 | 已实现未推送 |
+| 60 节点拖组性能 | **unverified**。原先随 PR 带的性能 JSON 是 Mac 上单样本、0 预热、脏工作树、提交号不在本 PR 里，且与「之前」对照数字相反（p95 28ms vs 9.2ms），不能复现，已删除，不再当证据。机制层的结论只剩结构性事实：拖动期间 durable store 与 events 纹丝不动、落点一次写回（`tests/ux/selection-drag-lifecycle.test.mjs` 对 group / selection 两种拖动所有者 × 7 种收尾方式的矩阵）。要宣称「更快」，需同机同构建 ≥5 次（中位数 + p95）的前后对照，用 `tests/ux/canvas-performance-benchmark.e2e.mjs` 重跑后再补。 | 未验证 |
+| 位置/选中单一 owner | React Flow 使用 `defaultNodes={flowNodes}` 加现有 `CanvasNodeProjectionSync`；position tick 只进入 React Flow kernel draft，删除逐帧 durable store 写入，节点最终位置在共享 settle 边界一次性写回，组拖动使用 DOM shell 预览后一次性 `moveGroupNodes`；选中组由单一 resolver 产出。单节点、多选和真实媒体样本没有 pointer-tick 级全画布级联重渲染，结构测试、相关单测、生产构建通过。 | 已实现未推送 |
+| 编组工具条 | 真实 Electron 工具条改为复用节点浮条的 token 壳、文字按钮和反向缩放；组标题使用 Stack 图标+组名+成员数，颜色/排列可读；组色按用户 10-06 拍板的方案 B：默认中性灰，可选色只上边框和标题前小圆点、不填底色，老项目里的旧自定义色不上色（读盘归一化 + 单测钉死）。框内左上角重复胶囊已迁移到框外标题。 | 已实现未推送 |
+| Frame/Group 命名统一 | 编组用户文案已逐项改为“组/Group”，包括工具、空态、改名、说明、菜单、删除提示、工具条和连接提示；`Frame` 只保留在内部组件/模型标识（`GroupFrame`、`frameBounds`），不再作为用户可见名称。中英文走查均记录工具条文本。 | 已实现未推送 |
 
 ### 证据文件
 
-- [编组工具条截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/grouping-optimization/01-group-toolbar.png)
-- [真实 1080p 媒体工具条截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/grouping-real-media/01-real-media-group-toolbar.png)
-- [真实媒体排列截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/grouping-real-media/02-real-media-arranged.png)
-- [组端口落点截图](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/shots/group-ports/04-group-drop-target.png)
-- [真实性能 JSON](/Users/aoqimin/.codex/worktrees/7e00/Nomi/tests/ux/perf-results/canvas-grouping-real-1080p.json)
-- [编组交互与生产组件设计](/Users/aoqimin/.codex/worktrees/7e00/Nomi/docs/plan/2026-10-06-grouping-interaction-design.md)
+- [编组工具条截图](../../tests/ux/shots/grouping-optimization/01-group-toolbar.png)
+- [真实 1080p 媒体工具条截图](../../tests/ux/shots/grouping-real-media/01-real-media-group-toolbar.png)
+- [真实媒体排列截图](../../tests/ux/shots/grouping-real-media/02-real-media-arranged.png)
+- [组端口落点截图](../../tests/ux/shots/group-ports/04-group-drop-target.png)
+- [编组交互与生产组件设计](2026-10-06-grouping-interaction-design.md)
 
 ### 门岗结果
 

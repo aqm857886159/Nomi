@@ -42,8 +42,6 @@ import type { CanvasFrameInteraction } from '../components/GroupFrame'
 import { useCanvasShortcuts } from '../components/useCanvasShortcuts'
 import { connectSelectedCanvasNodes } from '../components/canvasSelectionConnection'
 import { useCanvasScreenshotCapture } from '../components/useCanvasScreenshotCapture'
-import { useCanvasProductionActions } from '../components/useCanvasProductionActions'
-import { useCanvasBatchDockVisibility } from '../components/useCanvasBatchDockVisibility'
 import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
@@ -116,7 +114,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
   const categoryViewports = useWorkbenchStore((state) => state.categoryViewports)
   const rememberCategoryViewport = useWorkbenchStore((state) => state.rememberCategoryViewport)
-  const timelineCollapsed = useWorkbenchStore((state) => state.timelinePanelCollapsed)
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
   const allEdges = useGenerationCanvasStore((state) => state.edges)
   const groups = useGenerationCanvasStore((state) => state.groups)
@@ -434,9 +431,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 新东西落在屏外 / 别的分类：边缘提示，点了才过去（程序不再为「露出」主动挪画布，2026-09-25）。
   const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
-  const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const selectedGroup = React.useMemo(() => visibleGroups.find((group) => group.id === selectedGroupId) ?? null, [selectedGroupId, visibleGroups])
-  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, canvasZoom: liveViewport.zoom, readOnly, eligibleCount: production.eligibleIds.length, runFrameAction: frameActions.runFrameAction })
+  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, canvasZoom: liveViewport.zoom, canvasOffsetX: liveViewport.x, canvasOffsetY: liveViewport.y, stageWidth: stageSize.width, stageHeight: stageSize.height, readOnly, runFrameAction: frameActions.runFrameAction })
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
     membershipPreview: frameMembership.membershipPreview,
     editingGroupId: frameActions.editingFrameId,
@@ -446,13 +442,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onOpenMenu: frameActions.openFrameMenu,
     // Both complete-member and empty/collapsed selection must drive the same frame chrome.
     selectedGroupId,
-  }), [frameActions.selectedFrameId, selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
+  }), [selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
 
-  const batchDock = useCanvasBatchDockVisibility({
-    readOnly,
-    selectedCount: selectedNodeIds.length,
-    eligibleIds: production.eligibleIds,
-  })
   const { screenshotOverlay } = useCanvasScreenshotCapture({
     readOnly,
     getInsertPosition: getInsertionPosition,
@@ -628,7 +619,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     redo,
     duplicateSelectedNodes,
     connectSelectedNodes: connectSelectedCanvasNodes,
-    generateSelectedNodes: production.generate,
     openAddNodeMenu,
     tidyCanvas: handleTidy,
   })
@@ -726,10 +716,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         selectedBounds={selectedBounds}
         selectedNodeIds={selectedNodeIds}
         selectedGroupIds={selectedGroupIds}
-        production={production}
         contactSheetCount={contactSheetCount}
         onGroupSelectedNodes={handleGroupSelectedNodes}
-        onUngroupSelectedNodes={handleUngroupSelectedNodes}
         onBuildContactSheet={handleBuildContactSheet}
         onSaveWorkflow={handleSaveWorkflow}
         onClearSelection={clearSelection}
@@ -753,9 +741,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onAddContextNode={handleAddContextNode}
         onImportContextFiles={handleImportContextFiles}
         onAddConnectedNode={handleAddConnectedNode}
-        batchDock={batchDock}
-        production={production}
-        timelineCollapsed={timelineCollapsed}
         hasBatchPlanPreview={hasBatchPlanPreview}
         zoom={liveViewport.zoom}
         zoomPercent={Math.round(liveViewport.zoom * 100)}

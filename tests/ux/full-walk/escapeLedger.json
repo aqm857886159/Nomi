@@ -803,14 +803,13 @@
       "evidence": [
         "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
         "tests/ux/canvas-performance-benchmark.e2e.mjs",
-        "tests/ux/perf-results/canvas-grouping-real-1080p.json",
         "tests/ux/grouping-optimization.walk.mjs",
         "tests/ux/grouping-real-media.walk.mjs"
       ],
       "completionCommits": ["1da15ba6f", "5a7336cc4"],
       "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
       "fixedInPr": 1048,
-      "classCheck": { "kind": "matrix", "file": "tests/ux/canvas-performance-benchmark.e2e.mjs" }
+      "classCheck": { "kind": "matrix", "file": "tests/ux/selection-drag-lifecycle.test.mjs" }
     }
   ]
 }

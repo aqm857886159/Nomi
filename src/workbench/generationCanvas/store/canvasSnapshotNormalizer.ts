@@ -11,7 +11,7 @@ import { nodeGroupSchema } from '../model/generationCanvasSchema'
 import { isLegacyScene3DNode, migrateScene3DNode } from '../nodes/director/migration/migrateScene3dNode'
 import { backfillGroupFrameBounds } from '../model/canvasFrameBounds'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { DEFAULT_GROUP_COLOR, normalizeGroupColor } from '../model/groupColor'
+import { normalizeGroupColorToken } from '../model/groupColor'
 import { isCategoryId } from './canvasGuards'
 import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefaults'
 import type {
@@ -72,6 +72,11 @@ function migrateProductionPreviewResults(node: Omit<GenerationCanvasNode, 'categ
   const history = Array.isArray(node.history) ? node.history.map((entry) => entry && typeof entry === 'object' ? migrateProductionPreviewResult(entry) : entry) : node.history
   if (result === node.result && (history === node.history || history?.every((entry, index) => entry === node.history?.[index]))) return node
   return { ...node, ...(result ? { result } : {}), ...(history ? { history } : {}) }
+}
+
+function colorTokenField(value: unknown): { colorToken?: string } {
+  const token = normalizeGroupColorToken(value)
+  return token ? { colorToken: token } : {}
 }
 
 export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot {
@@ -149,9 +154,11 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
     ? raw.groups.flatMap((group): NodeGroup[] => {
         const parsed = nodeGroupSchema.safeParse(group)
         if (!parsed.success) return []
+        const { colorToken, ...groupFields } = parsed.data
         return [{
-          ...parsed.data,
-          color: normalizeGroupColor(parsed.data.color ?? DEFAULT_GROUP_COLOR),
+          ...groupFields,
+          // 旧 color（#3b82f6 之类）原样留在存档里但永不渲染；colorToken 只认合法 token 名，其余回到灰。
+          ...colorTokenField(colorToken),
           nodeIds: Array.from(new Set(parsed.data.nodeIds.filter((id) => nodeIds.has(id)))),
         }]
       })

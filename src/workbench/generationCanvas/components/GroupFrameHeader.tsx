@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { IconDots, IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
-import type { GroupColorStyle } from '../model/groupColor'
+import { groupColorClass } from '../model/groupColor'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -39,8 +39,9 @@ type GroupFrameHeaderProps = {
   onDescribe: (groupId: string, description: string) => void
   onCollapse?: (groupId: string) => void
   onOpenMenu?: (groupId: string, point: { x: number; y: number }) => void
-  colorStyle?: GroupColorStyle
-  /** LibTV places the group name above the frame; the old in-frame capsule is no longer used. */
+  /** 组颜色 token 名；没选过 = 灰。只用来画标题前的小圆点。 */
+  colorToken?: string
+  /** 组名放在框外上方；框内胶囊（outside=false）只剩给旧调用方。 */
   outside?: boolean
 }
 
@@ -87,7 +88,7 @@ export function GroupFrameHeader({
   onDescribe,
   onCollapse,
   onOpenMenu,
-  colorStyle,
+  colorToken,
   outside = false,
 }: GroupFrameHeaderProps): JSX.Element {
   const { t } = useTranslation()
@@ -154,11 +155,11 @@ export function GroupFrameHeader({
         outside ? 'bg-transparent' : GROUP_VISUAL_CLASS.label,
         connectable ? 'cursor-copy' : readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
-      style={outside ? undefined : { borderColor: colorStyle?.borderColor }}
       // 编辑中不许把头部当拖动把手——否则点进输入框的那一下就把整个框拖走了。
       onPointerDown={editingField ? (event) => event.stopPropagation() : undefined}
     >
-      <IconStack2 className="shrink-0" size={outside ? 15 : 12} stroke={outside ? 1.8 : 1.9} style={{ color: colorStyle?.borderColor }} aria-hidden="true" />
+      <span className={cn('size-2 shrink-0 rounded-full', groupColorClass(colorToken).dot)} data-group-color-dot="true" aria-hidden="true" />
+      <IconStack2 className="shrink-0" size={outside ? 15 : 12} stroke={outside ? 1.8 : 1.9} aria-hidden="true" />
       {editingField === 'name' ? (
         <input
           autoFocus

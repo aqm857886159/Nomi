@@ -16,6 +16,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
+import { setCanvasBatchConcurrencyForE2E } from '../generationCanvas/components/canvasProductionScope'
 import { watchDeletedProductionNodes } from './watchDeletedProductionNodes'
 
 const POLL_INTERVAL_MS = 1500
@@ -56,6 +57,7 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
           __nomiCanvasStore?: unknown
           __nomiBuildDependencyWaves?: unknown
           __nomiConfirmAndRunPlan?: unknown
+          __nomiSetBatchConcurrency?: unknown
         }
         w.__nomiProductionLandingStore = useProductionCanvasLandingStore
         w.__nomiCanvasStore = useGenerationCanvasStore
@@ -65,6 +67,8 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
         // → 合并花钱卡带披露块 → runPlanWithToasts）。挂的是那一个真函数，不是复制品——手写 requestConfirm
         // 参数的走查会绕过策略解析与 i18n 键，任何一处回归都还是绿的（F16b 前那条就栽在这）。
         w.__nomiConfirmAndRunPlan = confirmAndRunPlan
+        // 走查造「排队中」：并发压到 1（产品界面没有并发选项，批量并发只由调度器默认值定）。
+        w.__nomiSetBatchConcurrency = setCanvasBatchConcurrencyForE2E
       }
     } catch {
       // localStorage 不可用 → 跳过

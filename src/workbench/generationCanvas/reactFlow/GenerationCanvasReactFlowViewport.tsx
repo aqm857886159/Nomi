@@ -24,10 +24,7 @@ import type { CanvasFrameInteraction } from '../components/GroupFrame'
 import type { CanvasFrameRect } from '../model/canvasFrameBounds'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { getSelectedBounds } from '../components/generationCanvasGeometry'
-import type { GroupArrangeMode } from '../model/groupArrange'
-import type { NodeGroup } from '../model/generationCanvasTypes'
-import type { GroupColorId } from '../model/groupColor'
-import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
+import type { CanvasGroupToolbarModel } from '../components/CanvasGroupToolbar'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { canvasViewportFromFlow, isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
 import { edgeTypes, nodeTypes } from './GenerationCanvasReactFlowNodes'
@@ -87,27 +84,13 @@ type GenerationCanvasReactFlowViewportProps = {
   selectedBounds: ReturnType<typeof getSelectedBounds>
   selectedNodeIds: readonly string[]
   selectedGroupIds: readonly string[]
-  production: ReturnType<typeof useCanvasProductionActions>
   contactSheetCount: number
   onGroupSelectedNodes: () => void
-  onUngroupSelectedNodes: () => void
   onBuildContactSheet: () => void
   onSaveWorkflow: () => void
   onClearSelection: () => void
   isNodeDragging: boolean
-  groupToolbar?: {
-    group: NodeGroup
-    memberCount: number
-    canGenerate: boolean
-    canSendToTimeline: boolean
-    canDownload: boolean
-    onGenerate: () => void
-    onSendToTimeline: () => void
-    onDissolve: () => void
-    onArrange: (mode: GroupArrangeMode) => void
-    onColor: (color: GroupColorId) => void
-    onDownload: () => void
-  }
+  groupToolbar?: CanvasGroupToolbarModel
 }
 
 function CanvasNodeProjectionSync({
@@ -168,10 +151,8 @@ export function GenerationCanvasReactFlowViewport({
   selectedBounds,
   selectedNodeIds,
   selectedGroupIds,
-  production,
   contactSheetCount,
   onGroupSelectedNodes,
-  onUngroupSelectedNodes,
   onBuildContactSheet,
   onSaveWorkflow,
   onClearSelection,
@@ -338,18 +319,10 @@ export function GenerationCanvasReactFlowViewport({
       {selectionToolbarPlacement && selectedNodeIds.length > 1 && selectedGroupIds.length === 0 && !readOnly ? (
         <CanvasSelectionToolbar
           selectedCount={selectedNodeIds.length}
-          selectedGroupCount={selectedGroupIds.length}
           transform={selectionToolbarPlacement.transform}
           maxWidth={selectionToolbarPlacement.maxWidth}
-          eligibleCount={production.eligibleIds.length}
-          executionGroups={production.executionGroups}
-          concurrency={production.concurrency}
           contactSheetCount={contactSheetCount}
-          onConcurrencyChange={production.setConcurrency}
-          onGenerate={production.generate}
-          onApplyModel={production.applyModel}
           onGroupSelectedNodes={onGroupSelectedNodes}
-          onUngroupSelectedNodes={onUngroupSelectedNodes}
           onBuildContactSheet={onBuildContactSheet}
           onSaveWorkflow={onSaveWorkflow}
           onClearSelection={onClearSelection}
