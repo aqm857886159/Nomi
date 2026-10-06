@@ -33,9 +33,7 @@
 - 变体选择器（LAW11-SB-VARIANT）未做：会改实际调用的模型，属花钱边界。
 - `tests/ux/storyboard-reference-slots.walk.mjs` 在 main 上就已过期（断言的 `data-asset-slot` 来自 v5 的 AssetReference），本线未改，建议随下一刀重写或删除。
 - `electron/shared/modelArchetypes/anchorPolicy.structure.test.ts` 在本机（Windows）红，与本线无关（文件未动，main 上同样）。
-- 参考缩略图的序号角标和 × 被切掉一角：画布同一个 `AssetTile` 自己 `overflow-hidden`、角标外偏 5px，画布上同样被切，36 / 28 小格更明显。改它会动画布外观，需另出样张。
 - 设计实验室 `storyboard` 屏（分镜表 v6）画的是真镜头行，现有基线全部过期，已登记进 `pendingApprovalScreens`，与 `storyboard-reuse` 同一次拍板后在 darwin 上重录；只能画已删界面的 4 格已连同基线删除。
-- `tests/ux/audit-storyboard.walk.mjs`（#1030 审计用的一次性走查）断言旧参考区 `data-storyboard-ref-slot`，在本分支上会找不到元素；它记录的是审计时的旧界面，建议审计线决定留作历史还是删。
 
 ## 历史 · 第一轮的 9 格（样张阶段，已被下面的定稿替换；保留作对账）
 
