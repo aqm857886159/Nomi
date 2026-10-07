@@ -50,6 +50,26 @@ function isLocal(rawUrl) {
   return isLocalHost(url.hostname)
 }
 
+/**
+ * 走查把「公网上的静态文件」换成本机缓存（只给 Chromium 这一层用）：NOMI_WALK_URL_REDIRECTS = [{ from, to }]，
+ * 请求地址以 from 开头就改投 to（必须是本机地址）。例：抠图模型镜像——App 照常请求镜像地址（产品代码一行不改），
+ * 这里把它转给剧本起在 127.0.0.1 上的缓存，公网照样零出站；每一次改投都记一笔 redirected。
+ */
+const REDIRECTS = (() => {
+  try {
+    const parsed = JSON.parse(process.env.NOMI_WALK_URL_REDIRECTS || '[]')
+    return Array.isArray(parsed) ? parsed.filter((rule) => rule && typeof rule.from === 'string' && typeof rule.to === 'string' && isLocal(rule.to)) : []
+  } catch {
+    return []
+  }
+})()
+
+function redirectOf(rawUrl) {
+  const value = String(rawUrl)
+  const rule = REDIRECTS.find((entry) => value.startsWith(entry.from))
+  return rule ? rule.to + value.slice(rule.from.length) : null
+}
+
 function hostOf(rawUrl) {
   try {
     return new URL(String(rawUrl)).hostname
@@ -160,6 +180,12 @@ if (electronApp && typeof electronApp.on === 'function') {
       session.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (details, callback) => {
         if (isLocal(details.url)) {
           callback({})
+          return
+        }
+        const redirectURL = redirectOf(details.url)
+        if (redirectURL) {
+          note({ kind: 'redirected', via: 'chromium', url: redact(details.url), to: redact(redirectURL), host: hostOf(details.url) })
+          callback({ redirectURL })
           return
         }
         note({ kind: 'blocked', via: 'chromium', url: redact(details.url), host: hostOf(details.url), method: details.method, resourceType: details.resourceType })

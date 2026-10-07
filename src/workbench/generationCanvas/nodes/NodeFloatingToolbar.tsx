@@ -1,7 +1,8 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconInfoCircle, IconChevronDown, IconCopy, IconRefresh } from '@tabler/icons-react'
+import { IconInfoCircle, IconCopy, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { toolbarButtonClass } from './toolbarButtonClass'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { NodeLockBadge } from './NodeLockBadge'
@@ -94,15 +95,6 @@ export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { aria
   )
 }
 
-const buttonBase = cn(
-  'inline-flex items-center justify-center min-h-8 rounded-nomi-sm border-0 cursor-pointer',
-  'text-body-sm leading-none whitespace-nowrap',
-  'transition-colors duration-nomi-fast ease-nomi-fast',
-  'disabled:opacity-45 disabled:cursor-wait',
-)
-const variantClass = (accent?: boolean) =>
-  accent ? 'text-nomi-accent hover:bg-nomi-accent-soft' : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink'
-
 type ToolbarButtonProps = {
   icon: React.ReactNode
   label?: string
@@ -120,7 +112,7 @@ export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, 
   return (
     <button
       type="button"
-      className={cn(buttonBase, 'gap-1.5 px-3', accent && 'font-medium', variantClass(accent), className)}
+      className={cn(toolbarButtonClass(accent), 'gap-1.5 px-3', accent && 'font-medium', className)}
       title={title}
       aria-label={ariaLabel ?? label}
       aria-busy={ariaBusy || undefined}
@@ -138,7 +130,7 @@ export function ToolbarIconButton({ icon, disabled, title, ariaLabel, onClick }:
   return (
     <button
       type="button"
-      className={cn(buttonBase, 'w-8', variantClass(false))}
+      className={cn(toolbarButtonClass(false), 'w-8')}
       title={title}
       aria-label={ariaLabel}
       disabled={disabled}
@@ -153,45 +145,6 @@ export function ToolbarIconButton({ icon, disabled, title, ariaLabel, onClick }:
 export function ToolbarDivider(): JSX.Element {
   return <span className="w-px h-5 bg-nomi-line" aria-hidden />
 }
-
-/**
- * 分组下拉的**触发钮**（图标 + 字 + ▾）。单独导出，是因为下拉的「壳」有两种（`WorkbenchMenu` 的 `ToolbarActionMenu` /
- * `AnchoredPopover` 的宫格点阵），但浮条上的钮只能长一个样——外观定义只留这一份。
- */
-export const ToolbarMenuTrigger = React.forwardRef<HTMLButtonElement, {
-  icon: React.ReactNode
-  label: string
-  /** 只画图标 + ▾（label 仍是 aria-label）。 */
-  iconOnly?: boolean
-  className?: string
-  title?: string
-  open: boolean
-  disabled?: boolean
-  haspopup?: 'menu' | 'dialog'
-  onClick: () => void
-  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void
-  dataAttributes?: Record<`data-${string}`, string>
-}>(function ToolbarMenuTrigger({ icon, label, iconOnly, className, title, open, disabled, haspopup = 'menu', onClick, onPointerDown, dataAttributes }, ref) {
-  return (
-    <button
-      ref={ref}
-      type="button"
-      className={cn(buttonBase, 'gap-1', iconOnly ? 'px-2' : 'px-3', variantClass(false), open && 'bg-nomi-ink-05 text-nomi-ink', className)}
-      aria-haspopup={haspopup}
-      aria-expanded={open}
-      aria-label={label}
-      title={title}
-      disabled={disabled}
-      onClick={onClick}
-      onPointerDown={onPointerDown}
-      {...dataAttributes}
-    >
-      {icon}
-      {iconOnly ? null : <span>{label}</span>}
-      <IconChevronDown size={13} stroke={1.6} aria-hidden />
-    </button>
-  )
-})
 
 /**
  * 「生成记录」按钮。原先住在卡片右上角，是 `bg-nomi-paper/[0.82]` 半透明**常驻**盖在图上的

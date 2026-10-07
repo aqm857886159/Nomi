@@ -1,14 +1,14 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconLayoutGrid } from '@tabler/icons-react'
-import { AnchoredPopover } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { TOOLBAR_ICON as I, ToolbarMenuTrigger } from './NodeFloatingToolbar'
+import { TOOLBAR_ICON as I } from './NodeFloatingToolbar'
+import { ToolbarActionMenu } from './ToolbarActionMenu'
 
 /**
  * 浮条「宫格 ▾」：等分 4 / 9 / 16 / 25 + 自定义行列点阵（2026-10-04 节点快捷动作批次 1）。
  *
- * 为什么是 `AnchoredPopover` 而不是菜单：点阵是「移上去看行列、点一下定」的富内容，不是一列动作
+ * 为什么是富内容浮层（`ToolbarActionMenu` 的 `panel`，壳是 `AnchoredPopover`）而不是菜单：点阵是「移上去看行列、点一下定」的富内容，不是一列动作
  * （`AnchoredPopover.tsx` 头注的判据表）。等分那四项是动作，但和点阵同在一块里读——拆成「菜单 + 子菜单」
  * 要多一层悬停，而全仓唯一的子菜单（3D 工具条）正是被点名要拆的那种。
  *
@@ -36,30 +36,15 @@ export function GridSplitPicker({
   onSplit: (spec: GridSplitSpec) => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const [open, setOpen] = React.useState(false)
-  const triggerRef = React.useRef<HTMLButtonElement>(null)
-  const pick = (spec: GridSplitSpec): void => {
-    setOpen(false)
-    onSplit(spec)
-  }
   return (
-    <>
-      <ToolbarMenuTrigger
-        ref={triggerRef}
-        icon={<IconLayoutGrid size={I.size} stroke={I.stroke} />}
-        label={t('generationCommon.quickActions.grid')}
-        open={open}
-        disabled={disabled}
-        haspopup="dialog"
-        onClick={() => setOpen((value) => !value)}
-        dataAttributes={{ 'data-toolbar-action-menu': 'grid' }}
-      />
-      {open ? (
-        <AnchoredPopover anchorRef={triggerRef} side="top" gap={6} onClose={() => setOpen(false)}>
-          <GridSplitPanel onPick={pick} />
-        </AnchoredPopover>
-      ) : null}
-    </>
+    <ToolbarActionMenu
+      id="grid"
+      icon={<IconLayoutGrid size={I.size} stroke={I.stroke} />}
+      label={t('generationCommon.quickActions.grid')}
+      menuLabel={t('generationCommon.quickActions.gridPicker.aria')}
+      disabled={disabled}
+      panel={(close) => <GridSplitPanel onPick={(spec) => { close(); onSplit(spec) }} />}
+    />
   )
 }
 

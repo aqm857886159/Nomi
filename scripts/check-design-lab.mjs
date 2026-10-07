@@ -45,18 +45,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(
-  path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')
-)
+const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')).href)
 
-const { triageLabRun, collectDiffImages, formatLabFailure } = await import(
-  path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')
-)
-const { inspectLabPort, formatForeignHolder } = await import(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs'))
-const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs'))
+const { triageLabRun, collectDiffImages, formatLabFailure } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')).href)
+const { inspectLabPort, formatForeignHolder } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
+const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs')).href)
 
 const UPDATE = process.argv.includes('--update')
 const SKIP_VISUAL = process.argv.includes('--structure-only')
@@ -71,7 +67,7 @@ const fail = (message) => errors.push(message)
 // 一处少了一层 `../` 的相对路径能一路静默到 Playwright 跑十几分钟后整屏白屏。
 // 防线建在最早能拦住的那层（R28）：先跑一遍 tsconfig.devlab.json，再谈截图。
 {
-  const typecheck = spawnSync('npx', ['tsc', '--noEmit', '-p', 'tsconfig.devlab.json'], {
+  const typecheck = spawnSync(process.execPath, [path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'], {
     cwd: repoRoot,
     encoding: 'utf8',
   })
