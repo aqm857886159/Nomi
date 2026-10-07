@@ -101,6 +101,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorRefine/states'),
     baselineDir: path.join(BASELINE_ROOT, 'director-refine'),
   },
+  'director-crowd': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorCrowd/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'director-crowd'),
+  },
 }
 
 export const LAB_SCREEN_IDS = Object.keys(LAB_SCREENS)

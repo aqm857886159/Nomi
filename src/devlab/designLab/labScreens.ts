@@ -33,6 +33,8 @@ import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_
 import { DIRECTOR_3DBOX_STATES } from './director3dbox/director3dboxStates'
 import { DIRECTOR_3DBOX_CELL_HEIGHT, DIRECTOR_3DBOX_CELL_WIDTH } from './director3dbox/director3dboxCell'
 import { DIRECTOR_REFINE_STATES } from './directorRefine/directorRefineStates'
+import { DIRECTOR_CROWD_ALL_STATES } from './directorCrowd/directorCrowdStates'
+import { DIRECTOR_CROWD_CELL_HEIGHT, DIRECTOR_CROWD_CELL_WIDTH } from './directorCrowd/directorCrowdConstants'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -184,6 +186,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: DIRECTOR_REFINE_STATES,
     // 与导演视图屏同一个取景台、同一个尺寸（真机走查窗口内容区），新旧精修可以并排比
     cell: { width: DIRECTOR_3DBOX_CELL_WIDTH, height: DIRECTOR_3DBOX_CELL_HEIGHT },
+  },
+  {
+    id: 'director-crowd',
+    label: '导演台 · 群众并进加人（样张，待拍板）',
+    states: DIRECTOR_CROWD_ALL_STATES,
+    cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
   },
 ]
 
