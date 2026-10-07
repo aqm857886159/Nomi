@@ -2,7 +2,7 @@ import { normalizeLegacyPresentation } from "../shared/productionGenerationPrese
 import { describe, expect, it } from "vitest";
 
 import type { PlanCandidate } from "../capabilityCore/executionContract";
-import { listPendingSpendConfirms, projectPendingSpendConfirm } from "./productionPendingSpend";
+import { assertPendingSpendIdentity, listPendingSpendConfirms, projectPendingSpendConfirm } from "./productionPendingSpend";
 import type { ModelPricing } from "./shotPricing";
 import type { ProductionRun } from "./productionRunTypes";
 
@@ -61,6 +61,25 @@ describe("付费卡的宿主投影", () => {
     expect(pending!.shots[0].price).toEqual({ known: true, amount: 0.3 });
     expect(pending!.knownSubtotal).toBeCloseTo(0.3, 5);
     expect(pending!.unknownShotCount).toBe(0);
+    expect(pending!.presentationId).toBe("op-a:presentation:1");
+    expect(pending!.presentationEpoch).toBe(1);
+    expect(pending!.policySnapshot).toEqual({ mode: "safe-auto", spend: "confirm" });
+  });
+
+  it("旧卡的身份是 durable epoch：策略切换不会把同一张卡改成另一张", () => {
+    const pending = projectPendingSpendConfirm(run(), resolvePricing)!;
+    expect(() => assertPendingSpendIdentity(pending, {
+      presentationId: pending.presentationId,
+      presentationEpoch: pending.presentationEpoch,
+      planVersion: pending.planVersion,
+      quoteId: pending.quoteId,
+    })).not.toThrow();
+    expect(() => assertPendingSpendIdentity(pending, {
+      presentationId: pending.presentationId,
+      presentationEpoch: pending.presentationEpoch + 1,
+      planVersion: pending.planVersion,
+      quoteId: pending.quoteId,
+    })).toThrowError("generation_presentation_stale");
   });
 
   it("命中的规格加价进价格（价目就是目录里那份，不是这里编的）", () => {

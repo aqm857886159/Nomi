@@ -62,6 +62,21 @@ function run(opts: {
 
 const open = (shotIds: string[], fromGate = 0, extra: Partial<GenerationPresentation> = {}): GenerationPresentation => ({ shotIds, openedAt: NOW, fromGate, ...extra })
 
+describe('generation presentation identity', () => {
+  it('每次出价都有持久 identity、epoch 和策略快照', () => {
+    const r = run({ presentations: [{
+      presentationId: 'run-1:presentation:7', presentationEpoch: 7,
+      shotIds: ['s1'], openedAt: NOW, fromGate: 0,
+      policySnapshot: { mode: 'step', spend: 'confirm' },
+    }] })
+    expect(r.generationPlan?.presentations?.[0]).toMatchObject({
+      presentationId: 'run-1:presentation:7',
+      presentationEpoch: 7,
+      policySnapshot: { mode: 'step', spend: 'confirm' },
+    })
+  })
+})
+
 describe('undecidedShotIds — 卡上摆的、标题数的就是它', () => {
   it('点了「生成这张」（门批了）的那一镜不再算没决定；另一镜还在卡上', () => {
     const r = run({ presentations: [open(['s1', 's2'])], gates: [gate('g1', 'approved', ['s1'])] })
