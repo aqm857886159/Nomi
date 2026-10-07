@@ -855,7 +855,10 @@
       "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["设计卡 ★4 加「能力不可用」一格、test-routing 加 ui-capability-unavailable 证据项；C 设计 10-06 用户拍板（引导接专用放大模型）", "pb13 真 App（zh 亮 / en 暗）：高清看着能点、没有第二行说明，点了不建节点也没有去添加的地方——比实验室里「灰掉写原因」还隐蔽（目录加载态下不判 blocked）"],
-      "completionCommits": []
+      "completionCommits": ["627abb205","980983648"],
+      "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
+      "fixedInPr": 1053,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
     },
     {
       "id": "FB-NF-0928-0004-borrowed-upload",
@@ -864,16 +867,26 @@
       "category": "reference-integrity",
       "problem": "用 Agnes 改图，参考图借了 APIMart 的上传通道（用户在那一家的账户），那一家 402 整次失败；失败面不说借了谁，提示还说走了免费图床",
       "existingInvariants": [],
-      "ironLaws": ["⑫"],
+      "ironLaws": [
+        "⑫"
+      ],
       "useCases": [],
       "fullWalkJourneys": [],
       "status": "fixed",
       "manualReview": "reviewed",
-      "evidence": ["electron/catalog/assetLocalization.test.ts：Agnes 改图端点内联直达；借用失败行点名那一家", "变异：去掉端点声明优先 → 报障现场红"],
-      "completionCommits": ["7c9c5f0c4"],
+      "evidence": [
+        "electron/catalog/assetLocalization.test.ts：Agnes 改图端点内联直达；借用失败行点名那一家",
+        "变异：去掉端点声明优先 → 报障现场红"
+      ],
+      "completionCommits": [
+        "7c9c5f0c4"
+      ],
       "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
       "fixedInPr": 1056,
-      "classCheck": { "kind": "matrix", "file": "electron/catalog/assetLocalization.test.ts" }
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/catalog/assetLocalization.test.ts"
+      }
     },
     {
       "id": "FB-NF-0928-0001-model-not-exist",
@@ -882,22 +895,26 @@
       "category": "claims-and-outcomes",
       "problem": "上游原话「Model not exist.」被说成「参数不被接受」，动作指向改参数而不是换模型",
       "existingInvariants": [],
-      "ironLaws": ["⑫"],
+      "ironLaws": [
+        "⑫"
+      ],
       "useCases": [],
       "fullWalkJourneys": [],
       "status": "fixed",
       "manualReview": "reviewed",
-      "evidence": ["src/workbench/generationCanvas/runner/classifyGenerationError.test.ts：归 model-unavailable-upstream、主动作 switch-model", "变异：措辞表去掉 not exists? → 红"],
-      "completionCommits": ["7c9c5f0c4"],
+      "evidence": [
+        "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts：归 model-unavailable-upstream、主动作 switch-model",
+        "变异：措辞表去掉 not exists? → 红"
+      ],
+      "completionCommits": [
+        "7c9c5f0c4"
+      ],
       "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
       "fixedInPr": 1056,
-      "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts" }
-    },
-    {
-      "completionCommits": ["627abb205","980983648"],
-      "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
-      "fixedInPr": 1053,
-      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+      }
     }
   ]
 }

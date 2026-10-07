@@ -868,10 +868,11 @@ describe('失败原因按上游自己的码与话归类（一张目录，没有�
 
   // 应用内反馈 NF-0928-0001（自建渠道，0.22.1）：上游原话「Model not exist.」被归成「参数不被接受」。
   // 出口仍是这一类自己的「换一个模型」（switch-model），不另造按钮。
-  it('报障原文「Model not exist.」：归「模型用不了」、动作是换模型；不带 model 一词的「not exist」不算', () => {
+  it('报障原文「Model not exist.」：归「模型用不了」、主动作换同能力的另一个、次动作换模型（#1053 的口径）；不带 model 一词的「not exist」不算', () => {
     const report = classifyGenerationError(encode({ ...walkPayload, upstreamMsg: 'Model not exist.' }))
     expect(report.kind).toBe('model-unavailable-upstream')
-    expect(report.primary).toBe('switch-model')
+    expect(report.primary).toBe('switch-same-capability')
+    expect(report.secondary).toBe('switch-model')
     expect(classifyGenerationError(encode({ ...walkPayload, upstreamMsg: 'Project not exist.' })).kind).not.toBe('model-unavailable-upstream')
   })
 
