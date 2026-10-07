@@ -14,7 +14,7 @@ import {
 import type { Direction, DirectorCard } from './cardSchema'
 import { bindCardEntities } from './binding'
 import type { AnchorSpec } from '../../src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement'
-import { ACTION_LIBRARY, findActionEntry, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
+import { ACTION_LIBRARY, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
 
 /** `null` = the card does not constrain this layer, so it is left out of the total (spec: unconstrained fields are not scored). */
 export type LayerScores = {
@@ -123,7 +123,7 @@ const IDLE_ACTION_ID = actionIdFor('idle')
 const STATIC_ACTION_IDS = new Set(ACTION_LIBRARY.filter((entry) => !entry.tags.includes('locomotion') && entry.kind !== 'once').map((entry) => entry.id))
 
 function actionClipCovers(scene: DirectorScene, objectId: string, window: [number, number], actionId: string): boolean {
-  if (!findActionEntry(actionId)) return false
+  if (!resolveActionAlias(actionId)) return false
   const object = scene.objects.find((candidate) => candidate.id === objectId)
   if (!object || object.type !== 'character') return true
   return (object.actionClips ?? []).some(
@@ -145,11 +145,13 @@ function actionEvidence(
   if (action.verb === 'hide_object_behind_back') return { ok: false, missingAsset: 'hide_object_behind_back' }
   if (action.verb === 'hold_pose') {
     const actionId = action.action
-    if (!actionId || !findActionEntry(actionId)) return { ok: false, missingAsset: actionId ?? 'hold_pose' }
-    return { ok: actionClipCovers(scene, objectId, window, actionId), missingAsset: actionId }
+    // 规划器 schema 归一会把动作词小写化（electron/shared/director/directorPlanSchema），动作 id / 别名一律经动作库解析，与编译器同口径
+    const resolved = actionId ? resolveActionAlias(actionId)?.id : undefined
+    if (!resolved) return { ok: false, missingAsset: actionId ?? 'hold_pose' }
+    return { ok: actionClipCovers(scene, objectId, window, resolved), missingAsset: resolved }
   }
   if (action.verb === 'stop') {
-    const actionId = action.action && findActionEntry(action.action) ? action.action : IDLE_ACTION_ID
+    const actionId = (action.action ? resolveActionAlias(action.action)?.id : undefined) ?? IDLE_ACTION_ID
     const ok = STATIC_ACTION_IDS.has(actionId) && actionClipCovers(scene, objectId, window, actionId)
     return { ok, missingAsset: actionId }
   }
@@ -222,7 +224,7 @@ export function scoreBlocking(
     if (ok) good++
     else if (
       action.capability === 'missing_asset' ||
-      (evidence.missingAsset && !findActionEntry(evidence.missingAsset))
+      (evidence.missingAsset && !resolveActionAlias(evidence.missingAsset))
     ) {
       // A card-declared unavailable capability is recorded as a partial oracle result, not a silent zero.
       good += 0.6

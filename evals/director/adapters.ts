@@ -17,7 +17,7 @@ import type {
   Waypoint,
 } from '../../src/workbench/generationCanvas/nodes/director/model/directorTypes'
 import { lookAtAngles } from '../../src/workbench/generationCanvas/nodes/director/model/vec3'
-import { findActionEntry, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
+import { resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
 import type { DirectorCard } from './cardSchema'
 import type { SpatialAuditContext } from '../../src/workbench/generationCanvas/nodes/director/model/directorSpatialAudit'
 import { adaptS1Plan, adaptS1Prompt } from './s1Adapter'
@@ -224,7 +224,7 @@ function applyBlocking(
     }
     const addActionClip = (actionId: string | undefined) => {
       if (actor.type !== 'character') return
-      const entry = actionId ? findActionEntry(actionId) : undefined
+      const entry = actionId ? resolveActionAlias(actionId) : undefined
       if (!entry) return
       actor.actionClips = [
         ...(actor.actionClips ?? []),

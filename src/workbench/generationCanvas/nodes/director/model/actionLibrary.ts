@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./assetCatalog/ualActions 的 UAL_ACTIONS（scripts/director-assets/prepare_ual.py 从 UAL glb 生成的动作元数据）
  * [OUTPUT]: 对外提供 T_POSE_ACTION_ID、ActionKind、ActionLibraryEntry、ACTION_LIBRARY、ACTION_ALIASES、LEGACY_APPROXIMATE_ACTIONS、
- *           findActionEntry、resolveActionAlias、LEGACY_POSE_TO_ACTION、legacyPoseToAction
+ *           findActionEntry、resolveActionAlias、PLANNER_ACTION_IDS、LEGACY_POSE_TO_ACTION、legacyPoseToAction
  * [POS]: director/model 的动作库单一真相：T-Pose（绑定姿态）+ 默认人偶 UAL 自带的 43 个原生动作（45 个去掉两个带根运动的 _RM 重复版——
  *        我们的重定向只套骨盆，根运动播不出来）。同一份清单同时是「动作片段」与角色「静止姿态预设」（posePreset）的可选项，
  *        也是规划器提示词、评测尺子、动作选择器的来源（不许各自手抄）。动作 id = glb 里的 clip 名；动画数据住 scene/character/poseClipLibrary（model 层不碰 URL / three）。
@@ -205,3 +205,14 @@ export function resolveActionAlias(text: string): ActionLibraryEntry | undefined
   const alias = ACTION_ALIASES[key] ?? ACTION_ALIASES[text.trim().replace(/\s+/g, '')]
   return alias ? findActionEntry(alias) : undefined
 }
+
+/**
+ * 规划器提示词里列给模型的常用动作（施工计划 §2：只列 12–16 个，43 个全列会涨提示词也让小模型乱选）。
+ * 按「动作词」写、经别名表解析成库里的 id——库换了这里跟着换，不手抄 id；别名缺了在模块加载时就炸（单测钉住）；放在文件末尾，等 resolveActionAlias 依赖的表都建好。
+ */
+const PLANNER_ACTION_WORDS = ['idle', 'talk', 'walk', 'run', 'sprint', 'sit', 'sitting_talking', 'crouch', 'kneel', 'hit', 'fall', 'jump', 'interact', 'pick_up', 't-pose']
+export const PLANNER_ACTION_IDS: readonly string[] = PLANNER_ACTION_WORDS.map((word) => {
+  const entry = resolveActionAlias(word)
+  if (!entry) throw new Error(`planner action word has no library entry: ${word}`)
+  return entry.id
+})
