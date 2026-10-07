@@ -143,7 +143,7 @@
     {"path":"src/workbench/generationCanvas/videoDepth/","reason":"视频深度节点：生成画布上的深度估计节点与结果呈现"},
     {"path":"src/workbench/generationCanvas/quickActions/","reason":"节点快捷动作：从一个画布节点一键派生下游节点（连参考、引用效果库条目、沿用模型、按镜头花钱走唯一派发口）——画布节点与按镜头花钱语义，Nomi 独有"},
     {"path":"src/workbench/generationCanvas/components/","reason":"画布上的业务组件：批量计划、到达提示等"},
-    {"path":"src/workbench/generationCanvas/events/","reason":"画布事件、撤销日志与写边界"},
+    {"path":"src/workbench/generationCanvas/events/","reason":"画布事件（撤销日志与写边界是通用能力，单独登记为 entries.canvas-undo-journal-write-boundary）"},
     {"path":"src/workbench/production/","reason":"制作流程的界面与状态：Run、镜头认领、落地宿主"},
     {"path":"src/workbench/capability/","reason":"能力落地到画布 / 分镜的渲染层写入点"},
     {"path":"src/workbench/creation/","reason":"创作：文稿与分镜的编辑与编译"},
@@ -758,6 +758,26 @@
       ],
       "whyNotIntegrated": "领域约束：第一次点抠图要当场下 56MB，用户判断「卡住没有」只靠这一条进度和这一句话；现成的只有按资源的整块进度和总时长超时，前者在慢网下几十秒不动，后者会把还在慢慢下的误杀。代码只包一层 fetch 计字节，下载本身仍是 @imgly 自己做。",
       "revisitWhen": "@imgly 提供按字节进度与无进展超时时；或抠图模型改成随包 / 主进程下载时"
+    },
+    {
+      "id": "canvas-undo-journal-write-boundary",
+      "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
+      "status": "under-review",
+      "reviewBy": "2026-11-06",
+      "paths": [
+        "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+        "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+        "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
+      ],
+      "alternativesChecked": [
+        { "name": "Yjs UndoManager 的 trackedOrigins（只撤指定来源的事务）", "source": "https://github.com/yjs/docs/blob/main/api/undo-manager.md" },
+        { "name": "tldraw editor.run(fn, { history: 'ignore' }) 与 document / session / presence 记录分域", "source": "https://github.com/tldraw/tldraw/blob/main/apps/docs/content/sdk-features/store.mdx" },
+        { "name": "Immer produceWithPatches 的反向补丁（服务端改的字段不被撤回）", "source": "https://github.com/immerjs/immer/blob/main/website/docs/patches.mdx" },
+        { "name": "zundo 的 partialize（撤销只记一部分状态）", "source": "https://github.com/charkour/zundo" },
+        { "name": "逐项结论", "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md" }
+      ],
+      "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
+      "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
     }
   ]
 }

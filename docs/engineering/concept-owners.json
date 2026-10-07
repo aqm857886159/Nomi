@@ -1340,6 +1340,14 @@
           "symbol": "settleNodeFacts"
         },
         {
+          "path": "electron/shared/canvas/landedNodeFields.ts",
+          "symbol": "withLiveNodeFacts"
+        },
+        {
+          "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+          "symbol": "CANVAS_ACTION_LAYERS"
+        },
+        {
           "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
           "symbol": "popUndo"
         },

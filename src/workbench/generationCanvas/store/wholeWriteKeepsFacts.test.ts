@@ -22,6 +22,7 @@ import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { pushUndoSnapshot } from '../events/canvasUndoJournal'
 import {
   clearCommittedProposal,
+  applyCompensationOps,
   hydrateCommittedProposalReceipt,
   recoverPendingProposalReceipt,
   runProposalUndo,
@@ -253,5 +254,94 @@ describe('putting a node\'s fields back (restore-node-fields) only reverts edits
     const record = proposalThatRewroteFields('prop-fields-edited')
     store().updateNode('kept', { title: 'user retitled' })
     expect(wholeNodeRestoreConflict(record)).toMatch(/撤销会把那些改动一起抹掉/)
+  })
+})
+
+// 类级矩阵：每一扇整写的门（统一提交口的每一种写）× 两种事实处境。新加一扇门就在这张表里加一行。
+type WholeWriteDoor = Readonly<{
+  name: string
+  /** 节点一直在：先由这扇门之前的编辑 / 读图打底（prepare），然后落一次结果，再走这扇门（write）。 */
+  prepare: () => () => void
+}>
+
+const SURVIVING_DOORS: readonly WholeWriteDoor[] = [
+  { name: 'undo', prepare: () => { store().updateNodePrompt('kept', 'user edit'); return () => store().undo() } },
+  { name: 'redo', prepare: () => { store().updateNodePrompt('kept', 'user edit'); store().undo(); return () => store().redo() } },
+  {
+    name: 'external write',
+    prepare: () => {
+      const base = snapshotOf()
+      const next = { ...base, nodes: base.nodes.map((candidate) => (candidate.id === 'kept' ? { ...candidate, prompt: 'external', result: undefined, history: [] } : candidate)) }
+      return () => store().applyExternalGraph({ base, next })
+    },
+  },
+  {
+    name: 'put node fields back',
+    prepare: () => {
+      const before = node('kept')!
+      store().updateNode('kept', { prompt: 'agent edit', meta: { directorPlan: 'plan' } })
+      return () => store().restoreNodeFields('kept', { ...(before.meta ?? {}) }, before.prompt ?? '')
+    },
+  },
+  {
+    name: 'proposal before-image',
+    prepare: () => {
+      const before = snapshotOf()
+      store().updateNode('kept', { prompt: 'agent edit' })
+      return () => applyCompensationOps([{ kind: 'restore-snapshot', snapshot: { nodes: before.nodes, edges: before.edges, groups: before.groups } }])
+    },
+  },
+]
+
+type ReturningDoor = Readonly<{ name: string; prepare: () => () => void }>
+
+const RETURNING_DOORS: readonly ReturningDoor[] = [
+  { name: 'undo the deletion', prepare: () => { store().deleteNode('kept'); return () => store().undo() } },
+  {
+    name: 'external write re-adds it',
+    prepare: () => {
+      const withNode = snapshotOf()
+      store().deleteNode('kept')
+      const base = snapshotOf()
+      return () => store().applyExternalGraph({ base, next: { ...base, nodes: [...base.nodes, withNode.nodes.find((candidate) => candidate.id === 'kept')!] } })
+    },
+  },
+  {
+    name: 'put deleted nodes back',
+    prepare: () => {
+      const deleted = snapshotOf().nodes.filter((candidate) => candidate.id === 'kept')
+      store().deleteNode('kept')
+      return () => store().restoreGraph(deleted, [])
+    },
+  },
+  {
+    name: 'proposal before-image',
+    prepare: () => {
+      const before = snapshotOf()
+      store().deleteNode('kept')
+      return () => applyCompensationOps([{ kind: 'restore-snapshot', snapshot: { nodes: before.nodes, edges: before.edges, groups: before.groups } }])
+    },
+  },
+]
+
+describe('class: no whole-write door takes the fact layer from what it was handed', () => {
+  it.each(SURVIVING_DOORS.map((door) => [door.name, door] as const))('%s keeps a result that landed on a node that never left', async (_name, door) => {
+    await startRun('kept', 'run-kept')
+    const write = door.prepare()
+    await land('kept', { width: 1280, height: 720 })
+    write()
+    expectLanded('kept')
+    expect(node('kept')?.runs?.[0]).toMatchObject({ id: 'run-kept', status: 'success' })
+    expect(node('kept')?.meta).toMatchObject({ imageWidth: 1280, imageHeight: 720 })
+  })
+
+  it.each(RETURNING_DOORS.map((door) => [door.name, door] as const))('%s lays the outcome that arrived while the node was gone', async (_name, door) => {
+    await startRun('kept', 'run-kept')
+    const write = door.prepare()
+    expect(node('kept')).toBeUndefined()
+    await land('kept')
+    write()
+    expectLanded('kept')
+    expect(store().heldNodeOutcomes.kept).toBeUndefined()
   })
 })
