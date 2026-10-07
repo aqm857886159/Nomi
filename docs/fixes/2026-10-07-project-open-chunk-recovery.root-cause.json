@@ -1,0 +1,150 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-project-open-chunk-recovery",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-10-07",
+  "invariant_owner_layer": {
+    "layer": "src/ui/chunkBoundary.tsx + src/workbench/NomiStudioApp.tsx",
+    "tests": ["src/ui/chunkBoundary.test.ts"],
+    "why": "chunkBoundary owns retry/cooldown; NomiStudioApp owns preserving the project target before reload."
+  },
+  "problem_type": "Dynamic renderer chunk failure leaves project hydration on the library route",
+  "symptom": "In the v0.23.0 project-open path, a stale, missing, or transient renderer chunk can make clicking a project return to the library with no route that retries the same project.",
+  "direct_cause": "NomiStudioApp dynamically imports projectPersistenceService during hydrateProject. The import was outside the shared chunk retry/reload boundary; its rejection was caught as a generic project restore failure and returned false, while the library URL remained project-free.",
+  "class_root": "Every dynamic renderer chunk used by project opening must either recover once in the current document or preserve the project target across one bounded renderer reload; otherwise a chunk failure is indistinguishable from a dead project card.",
+  "affected_population": [
+    "v0.23.0 installs with a stale renderer index or missing projectPersistenceService chunk",
+    "Any platform where an asar/filesystem read transiently rejects a dynamic import",
+    "Projects opened from the library, including native and folder-backed projects"
+  ],
+  "scope_paths": [
+    "src/ui/chunkBoundary.tsx",
+    "src/workbench/project/projectPersistenceLoader.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/ui/chunkBoundary.test.ts"
+  ],
+  "entry_points": [
+    "ProjectLibraryPage card click -> NomiStudioApp.openProject -> hydrateProject",
+    "NomiStudioApp.ensureProjectPersistenceService -> projectPersistenceLoader",
+    "React.lazy surfaces -> chunkBoundary scheduleChunkReload"
+  ],
+  "internal_only_reason": "The invariant is owned entirely by the renderer's chunk loader and project hydration flow; no third-party behavior is required to decide the recovery contract.",
+  "invariants": [
+    "A transient dynamic-import failure is retried twice before surfacing.",
+    "A project-open chunk failure preserves the target projectId in the URL before reloading.",
+    "The reload is session-cooldown bounded, so a permanently missing asset cannot loop forever.",
+    "Non-chunk hydration errors keep the existing visible project restore failure path."
+  ],
+  "doors": [
+    {"kind":"write","path":"src/NomiRouterApp.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/ui/chunkBoundary.tsx","symbol":"isChunkLoadNetworkError"},
+    {"kind":"write","path":"src/ui/chunkBoundary.tsx","symbol":"scheduleChunkReload"},
+    {"kind":"write","path":"src/ui/chunkBoundary.tsx","symbol":"importWithRetry"},
+    {"kind":"write","path":"src/workbench/explorer/ProjectExplorerSidebar.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generation/GenerationWorkspace.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/components/GenerationCanvas.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/nodes/artifact/artifactNodeSlots.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/nodes/director/DirectorNode.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/nodes/LazyNodeGenerationComposer.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/NomiStudioApp.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/NomiStudioApp.tsx","symbol":"isChunkLoadNetworkError"},
+    {"kind":"write","path":"src/workbench/NomiStudioApp.tsx","symbol":"scheduleChunkReload"},
+    {"kind":"write","path":"src/workbench/preview/PreviewSourcePanel.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/project/projectPersistenceLoader.ts","symbol":"importWithRetry"},
+    {"kind":"write","path":"src/workbench/settings/AutomationPermissionsSection.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/settings/SettingsDialog.tsx","symbol":"lazyWithChunkBoundary"},
+    {"kind":"write","path":"src/workbench/WorkbenchShell.tsx","symbol":"lazyWithChunkBoundary"}
+  ],
+  "door_reduction": {
+    "before": 22,
+    "after": 22,
+    "why_not": "These are independent dynamic-import consumers. The fix centralizes retry/cooldown behavior in chunkBoundary but does not remove or merge unrelated lazy surfaces; each remains responsible for its own UI boundary."
+  },
+  "generality_proof": "All checked dynamic renderer imports converge on importWithRetry/isChunkLoadNetworkError/scheduleChunkReload, while projectPersistenceLoader now uses importWithRetry and NomiStudioApp preserves the project route before a bounded reload. A future chunk consumer that uses lazyWithChunkBoundary inherits the same cooldown behavior; a project-open failure cannot silently lose its target URL.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/chunkBoundary.tsx",
+      "symbol": "scheduleChunkReload",
+      "responsibility": "Own retry cooldown and one bounded renderer reload for dynamic chunk failures."
+    },
+    {
+      "path": "src/workbench/project/projectPersistenceLoader.ts",
+      "symbol": "loadProjectPersistenceModule",
+      "responsibility": "Load the project persistence/migration chunk through importWithRetry."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProject",
+      "responsibility": "Preserve the projectId route before scheduling recovery so the next document retries the same project."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/project/projectPersistenceLoader.ts",
+      "entry_point": "loadProjectPersistenceModule",
+      "disposition": "enforced",
+      "evidence": "This is the dynamic import that gates every library project hydration and now calls importWithRetry."
+    },
+    {
+      "path": "src/ui/chunkBoundary.tsx",
+      "entry_point": "lazyWithChunkBoundary",
+      "disposition": "enforced",
+      "evidence": "All existing React.lazy surfaces already share importWithRetry and now share scheduleChunkReload cooldown semantics."
+    },
+    {
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "entry_point": "hydrateProject",
+      "disposition": "not-affected",
+      "evidence": "Persistence/migration failures after the module loads remain ordinary hydration errors and keep the visible recovery/diagnose path; this change does not swallow them."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Chunk hashes change on every production build and filesystem/asar reads can fail transiently, so another project or lazy surface can encounter the same class.",
+    "same_class_scan": [
+      "rg lazyWithChunkBoundary src across router, workbench, canvas, preview, settings, and explorer",
+      "rg importWithRetry/isChunkLoadNetworkError src/ui/chunkBoundary.tsx src/workbench",
+      "Historical reproduction in docs/audit/2026-06-07-ux-walkthrough.md:21-25"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/chunkBoundary.tsx",
+    "invariant": "A chunk failure gets bounded retry/reload behavior, and project opening preserves its target route before recovery.",
+    "failure_mode": "After retries and one cooldown-bounded reload, the existing localized project restore error is shown; no project is deleted or silently replaced.",
+    "exception_policy": "none",
+    "strategy": "Route every project persistence chunk import through importWithRetry and use the shared session cooldown for reload recovery.",
+    "artifacts": [
+      "src/ui/chunkBoundary.tsx",
+      "src/workbench/project/projectPersistenceLoader.ts",
+      "src/workbench/NomiStudioApp.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/chunkBoundary.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/ui/chunkBoundary.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/NomiStudioApp.tsx"
+    ],
+    "rationale": "The direct loader is replaced by projectPersistenceLoader; no fallback import path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the application-level route/retry invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted project schema changes. A failed open reloads the renderer with the same projectId query parameter and retries the existing hydration path.",
+  "residual_risks": [
+    "This environment has no DISPLAY/Xvfb, so a real Electron click-through on v0.23.0 cannot be executed here.",
+    "A permanently missing packaged chunk still requires the existing visible restore error after the cooldown-bounded reload; packaging integrity remains a separate release gate."
+  ]
+}
