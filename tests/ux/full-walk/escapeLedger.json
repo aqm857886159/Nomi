@@ -873,8 +873,8 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [
-        "类级检查 src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts：5 扇落地门 × 5 种用户编辑矩阵 + 撤销后落地再重做 + 删节点后撤销 + 撤销删版本 + 撤销建节点（手动 / Agent 提议 × 有 / 没结果）+ 复制分组后撤销，共 37 条；前 32 条在 main 上全红",
-        "变异：撤销改回直接用前缀投影 32 红；去掉结果落地记账 14 红；运行态不取此刻 12 红；文本定稿改回 updateNode 6 红；撤销建节点时不留有落地的节点 2 红；不摘被撤分组标记 1 红",
+        "类级检查 src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts：5 扇落地门 × 5 种用户编辑矩阵 + 撤销后落地再重做 + 删节点后撤销 + 撤销删版本 + 撤销建节点（手动 / Agent 提议 × 有 / 没结果）+ 复制分组后撤销，共 43 条；前 32 条在 main 上全红；V-1065 补出的「改写选区」门 5 格补门前全红",
+        "变异：撤销改回直接用前缀投影 32 红；去掉结果落地记账 14 红；运行态不取此刻 12 红；文本定稿改回 updateNode 6 红；撤销建节点时不留有落地的节点 2 红；不摘被撤分组标记 1 红；改写选区正文不走 landNodeContent 6 红；改写落地后的记账打撤销点 3 红",
         "撤销「建节点」：协调会话 10-07 定 B——带着落地结果的节点留下，这一步其它内容照撤（docs/plan/2026-10-07-undo-keeps-landed-results.md）"
       ],
       "completionCommits": [],
