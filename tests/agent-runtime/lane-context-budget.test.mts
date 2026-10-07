@@ -241,3 +241,31 @@ test('C58 skill-only reads reject symlink escapes and allow project reads only a
   await call('nomi_request_tools', { group: 'coding' });
   assert.match(JSON.stringify(await call('read', { path: 'private.txt' })), /project contents/);
 });
+
+// NF-0928-0003（应用内反馈 NF-0928-0003）：同一个用户回合里读稿 → 写稿 → 再读 → 再写，三回合输入约 39 万 / 38 万 / 88 万 token，
+// 第三回合撞上下文窗口。这里用真回环 + 真 pi 循环重放那个形状：一回合内反复读整份长稿（单次结果按 50KB 截断），
+// 数每一次请求体里有多少汉字（中文一字约一 token；pi 的 chars/4 估算对中文低估 3–4 倍，不能当尺子）。
+// 改前（2026-10-06 实测）：14809 → 29509 → 44209 → 58909 → 73623，每读一次之后每次请求都多带一份旧副本，
+// pi 的阈值压缩切不进当前回合、摘要请求白发。不变量：同一资源只带最新那一份。
+test('NF-0928-0003 one user turn that keeps re-reading a long script carries only the latest copy', async (t) => {
+  const script = '第一场 冬夜 公交车站。阿泽把围巾往上拉了拉，雪落在站牌上。\n'.repeat(1400);
+  const reads = 5;
+  const fixture = await createLaneFixture(t, [
+    ...Array.from({ length: reads }, (_, index) => ({ type: 'tool' as const,
+      calls: [{ id: `read-${index}`, name: 'read_script', arguments: index % 2 ? { scope: 'full' } : {} }] })),
+    { type: 'text' as const, text: '逐场核对完了。' },
+  ]);
+  await fixture.document.write({ operation: 'replace', content: script });
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: '把剧本从头读一遍，逐场核对。' });
+  const han = fixture.http.requests.map((request) => (JSON.stringify(request.body).match(/\p{Script=Han}/gu) ?? []).length);
+  t.diagnostic(JSON.stringify({ requests: han.length, han }));
+  assert.equal(han.length, reads + 1, 'no compaction request is needed when only the latest copy is carried');
+  const oneCopy = han[1]! - han[0]!;
+  assert.ok(oneCopy > 10_000, 'the fixture really reads a long script');
+  for (const [index, count] of han.entries()) {
+    assert.ok(count <= han[0]! + oneCopy * 1.05, `request ${index} carries ${count} Han chars; one copy is ${oneCopy}: ${JSON.stringify(han)}`);
+  }
+  // 旧副本换成的那一行说明指向取代它的调用，而不是悄悄消失。
+  assert.match(JSON.stringify(fixture.http.requests.at(-1)!.body), /Earlier read_script result omitted[^"]*read-4/);
+});

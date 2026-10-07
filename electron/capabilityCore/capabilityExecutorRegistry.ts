@@ -74,6 +74,7 @@ import {
   revalidateVerifiedCapabilityInvocation,
   type VerifiedCapabilityInvocation,
 } from "./verifiedCapabilityInvocation";
+import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE, MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
 
 export type CapabilityExecutionErrorCode =
   | "capability_input_invalid"
@@ -211,7 +212,18 @@ type CapabilityResult<Input> =
                   : Input extends import("../shared/agentCapabilities/timelineWrite").TimelineWriteInput ? TimelineWriteResult
                     : CanvasReadResult;
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+/**
+ * 一次能力执行等多久——**只有一个主人**：动词声明的读 / 写预算（`verbDeclaration.ts`）。
+ *
+ * 2026-10-06（NF-1001-0002）之前这里另有一个 15 秒的缺省，而 lane 给同一次调用的预算是读 30 秒 / 写 60 秒
+ * （`laneTools.mts` 按动词声明计时）、「准备中」回执的期限也按 60 秒算。两个数管同一件事：渲染端落一份大稿子
+ * 花了 16 秒，lane 以为还有 44 秒，执行器已经在第 15 秒掐断——写已经开始，于是报「结果没对上账」
+ * （`capability_receipt_unresolved`），文稿里其实已经写进去了（真实反馈 NF-1001-0002）。
+ * 现在缺省就是声明那两个数；构造参数只给测试缩短用。
+ */
+function declaredTimeout(mutating: boolean): number {
+  return mutating ? MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE : MODEL_TOOL_READ_TIMEOUT_MS_VALUE;
+}
 const executionOptionsBySignal = new WeakMap<AbortSignal, CapabilityExecuteOptions>();
 const PASSTHROUGH_CODES = new Set([
   ...SURFACE_PORT_WIRE_ERROR_CODES,
@@ -238,8 +250,8 @@ function safeStageError(error: unknown): Error {
     : new CapabilityExecutionError("capability_execution_failed");
 }
 
-function positiveTimeout(value: number | undefined): number {
-  if (value === undefined) return DEFAULT_TIMEOUT_MS;
+function positiveTimeout(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined;
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new CapabilityExecutionError("capability_execution_failed");
   }
@@ -445,7 +457,8 @@ function projectOutput(
  */
 export class CapabilityExecutorRegistry {
   readonly #resolveCanvasReadPort: CanvasReadPortResolver;
-  readonly #timeoutMs: number;
+  /** 只有测试会传；生产缺省按每次调用的读 / 写取 `declaredTimeout`。 */
+  readonly #timeoutMs: number | undefined;
 
   constructor(options: CapabilityExecutorRegistryOptions) {
     const resolveCanvasReadPort = options.resolveCanvasReadPort;
@@ -594,7 +607,7 @@ export class CapabilityExecutorRegistry {
     let writeStarted = false;
 
     return bounded(
-      this.#timeoutMs,
+      this.#timeoutMs ?? declaredTimeout(mutating),
       options.signal,
       async (signal) => {
         await revalidate(invocation);
