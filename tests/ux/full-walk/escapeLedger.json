@@ -578,13 +578,14 @@
       ],
       "useCases": [],
       "fullWalkJourneys": [],
-      "status": "candidate",
-      "manualReview": "pending",
+      "status": "fixed",
+      "manualReview": "reviewed",
       "evidence": [
         "回执从落地后读到的 Run 账本派生：落了（点名节点）/文稿来源没落/项目没开没落/没落成/宿主未报 五种各说真话——electron/agentLane/laneExtendedTools.test.ts、electron/productionRun/agentDraftSingleLedger.test.ts、electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts（真实路径）",
         "分镜表建表前再读一次是否已有：src/workbench/capability/multiShotCanvasLanding.test.ts 重叠落地用例（修前红）"
       ],
-      "completionCommits": [],
+      "completionCommits": ["fb3ee6a35", "225dfd4a9"],
+      "fixedInPr": 1074,
       "rootCauseContract": "docs/fixes/2026-10-07-agent-receipts-from-landing.root-cause.json",
       "classCheck": {
         "kind": "matrix",
