@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { repoRoot, makeIsolatedDirs } from '../ux/_mcpJourney.mjs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { realNomiProfile } from '../ux/_realProfile.mjs'
 const require = createRequire(import.meta.url)
 
 export function parseMcpServerNames(configText = '') {
@@ -18,7 +19,25 @@ export function parseMcpServerNames(configText = '') {
   return names
 }
 
-export function buildCodexOverrides(configText, { command, args = [], env = { NOMI_MCP_STDIO: '1' } }) {
+function assertIsolatedNomiEnv(env) {
+  const required = ['NOMI_MCP_STDIO', 'NOMI_ELECTRON_USER_DATA_DIR', 'NOMI_SETTINGS_DIR', 'NOMI_PROJECTS_DIR', 'NOMI_CAPABILITY_DIR']
+  for (const key of required) {
+    if (!env || typeof env[key] !== 'string' || !env[key].trim()) throw new Error(`Codex MCP env missing ${key}`)
+  }
+  if (env.NOMI_MCP_STDIO !== '1') throw new Error('Codex MCP env requires NOMI_MCP_STDIO=1')
+  const root = path.resolve(env.NOMI_SETTINGS_DIR)
+  const tempRoot = path.resolve(os.tmpdir())
+  const relativeRoot = path.relative(tempRoot, root)
+  if (!relativeRoot || relativeRoot === '..' || relativeRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeRoot)) {
+    throw new Error('Codex MCP isolation root must be a child of the system temp directory')
+  }
+  for (const [key, child] of [['NOMI_ELECTRON_USER_DATA_DIR', 'user-data'], ['NOMI_PROJECTS_DIR', 'projects'], ['NOMI_CAPABILITY_DIR', 'capability']]) {
+    if (path.resolve(env[key]) !== path.join(root, child)) throw new Error(`Codex MCP env ${key} must be inside the isolation root`)
+  }
+}
+
+export function buildCodexOverrides(configText, { command, args = [], env }) {
+  assertIsolatedNomiEnv(env)
   const key = (name) => /^[A-Za-z0-9_-]+$/.test(name) ? name : JSON.stringify(name)
   const disabled = parseMcpServerNames(configText).map((name) => `mcp_servers.${key(name)}.enabled=false`)
   const commandValue = JSON.stringify(command)
@@ -39,7 +58,16 @@ export function captureFingerprint(home = os.homedir()) {
   const capability = fs.existsSync(capabilityDir)
     ? fs.readdirSync(capabilityDir).sort().map((name) => fileFingerprint(path.join(capabilityDir, name)))
     : []
-  return { files: files.map(fileFingerprint), capability }
+  const profile = realNomiProfile({ homedir: home })
+  const profileFiles = [
+    path.join(profile.userDataDir, 'Preferences'),
+    path.join(profile.userDataDir, 'Local Storage', 'leveldb', 'LOG'),
+  ]
+  const logsDir = path.join(profile.userDataDir, 'logs')
+  const logs = fs.existsSync(logsDir)
+    ? fs.readdirSync(logsDir).sort().map((name) => fileFingerprint(path.join(logsDir, name)))
+    : []
+  return { files: files.map(fileFingerprint), capability, realProfile: { files: profileFiles.map(fileFingerprint), logs } }
 }
 
 export function compareFingerprints(before, after) {
@@ -97,7 +125,13 @@ export async function main(argv = process.argv.slice(2)) {
   if (client === 'codex') {
     const configPath = path.join(os.homedir(), '.codex', 'config.toml')
     const configText = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : ''
-    const overrides = buildCodexOverrides(configText, { command: electron, args: nomiArgs })
+    const overrides = buildCodexOverrides(configText, { command: electron, args: nomiArgs, env: {
+      NOMI_MCP_STDIO: '1',
+      NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir,
+      NOMI_SETTINGS_DIR: dirs.settingsDir,
+      NOMI_PROJECTS_DIR: dirs.projectsDir,
+      NOMI_CAPABILITY_DIR: dirs.capabilityDir,
+    } })
     const codexArgs = ['exec', '--skip-git-repo-check', ...overrides.flatMap((value) => ['-c', value]), '列出 nomi 服务器的工具名，并调用 nomi_read 的只读 projects 工具，把结果原样贴出。']
     if (process.platform === 'win32') {
       const globalCodex = path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@openai', 'codex', 'bin', 'codex.js')

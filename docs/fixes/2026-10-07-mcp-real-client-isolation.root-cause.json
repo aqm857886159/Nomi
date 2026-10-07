@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-mcp-real-client-isolation",
+  "problem_type": "Real MCP client test process isolation",
+  "symptom": "A Codex-launched Nomi process received only NOMI_MCP_STDIO and wrote to the user's real profile instead of the temporary test directories.",
+  "direct_cause": "buildCodexOverrides defaulted to a one-key env object while main kept the four isolation paths only in the parent process environment.",
+  "class_root": "The client configuration boundary did not require or validate the complete isolated Nomi environment before serializing it into the child client's MCP server configuration.",
+  "affected_population": [
+    "Codex real-client runs on Windows, macOS, and Linux",
+    "Any future caller that omits one of the Nomi isolation directories"
+  ],
+  "scope_paths": [
+    "tests/system/mcp-real-client.mjs",
+    "tests/system/mcp-real-client.node-test.mjs"
+  ],
+  "entry_points": [
+    "main -> buildCodexOverrides",
+    "captureFingerprint -> realNomiProfile metadata scan"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-owned: this harness must serialize the same four temporary directories already required by Nomi's stdio boundary.",
+  "invariants": [
+    "Every Codex MCP env contains NOMI_MCP_STDIO=1 and all four isolated directory variables.",
+    "The settings directory is a child of the system temp directory and the other three directories are its fixed children.",
+    "Real profile verification reads metadata only and never file contents."
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/main.ts", "symbol": "main" },
+    { "kind": "read", "path": "electron/workspace/workspaceManifest.ts", "symbol": "main" },
+    { "kind": "read", "path": "src/devlab/directorAssetCatalog.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/devlab/skillLibrarySpecimen.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/library/ProjectLibraryPage.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/WorkbenchShell.tsx", "symbol": "main" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "The door map reports existing application readers, but this test-harness fix cannot consolidate those unrelated production readers; all client callers converge at buildCodexOverrides instead."
+  },
+  "generality_proof": "The only serialized Codex MCP environment is built by buildCodexOverrides; requiring the complete directory tuple there makes omitted, host-profile, and cross-platform callers fail before a client can start.",
+  "shared_boundaries": [
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "buildCodexOverrides",
+      "responsibility": "Validate and serialize the complete temporary Nomi environment for the child client."
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "captureFingerprint",
+      "responsibility": "Record metadata-only fingerprints for configured files and the real Nomi profile."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "entry_point": "main (codex client)",
+      "disposition": "enforced",
+      "evidence": "The Codex branch now passes the validated five-key isolation env into buildCodexOverrides."
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "entry_point": "main (claude client)",
+      "disposition": "enforced",
+      "evidence": "The Claude branch already serializes the same four directories and NOMI_MCP_STDIO in its strict temporary config."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new real-client caller or omitted env key could reconnect Nomi to the host profile unless the shared serializer rejects it.",
+    "same_class_scan": [
+      "rg buildCodexOverrides tests/system package.json",
+      "Reviewed both codex and claude branches in tests/system/mcp-real-client.mjs",
+      "Reviewed makeIsolatedDirs in tests/ux/_mcpJourney.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/system/mcp-real-client.mjs:buildCodexOverrides",
+    "invariant": "Only a complete tuple rooted below the system temp directory may be serialized to Codex.",
+    "failure_mode": "Throw before spawning Codex when any key is missing, NOMI_MCP_STDIO is wrong, or a path escapes the temporary root.",
+    "exception_policy": "none",
+    "strategy": "Make the env argument mandatory and validate its fixed directory topology at the single serializer used by the real Codex run.",
+    "artifacts": [
+      "tests/system/mcp-real-client.mjs",
+      "tests/system/mcp-real-client.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/system/mcp-real-client.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/system/mcp-real-client.node-test.mjs (missing key and outside-temp fail-closed cases)"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "buildCodexOverrides default env containing only NOMI_MCP_STDIO"
+    ],
+    "rationale": "The unsafe default is deleted; every caller must now provide and pass the complete isolation tuple."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure was caused by the harness-owned env serialization boundary, not a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or user configuration changes; the next test invocation fails closed until its caller supplies the required temporary directories.",
+  "residual_risks": [
+    "A live real-client run still depends on local Codex authentication and installed Electron; it is separately reported by the command result."
+  ]
+}
