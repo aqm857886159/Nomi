@@ -12,6 +12,7 @@ import {
   extractSection,
   implementationLine,
   isGrandfathered,
+  parsePullFileRows,
   renderReport,
 } from './merge-preflight.mjs'
 
@@ -190,4 +191,14 @@ test('报告：规则与门岗范围红了，规则生效前开的 PR 也不放�
   assert.equal(report.blocked, true)
   assert.match(report.text, /⚠ 设计卡缺格/)
   assert.match(report.text, /✖ 碰到规则/)
+})
+
+test('分页文件表：超过 100 个文件也全收，账本排在后面照样认得出（#1048 有 129 个文件曾被截断）', () => {
+  const rows = Array.from({ length: 129 }, (_, i) => `src/f${String(i).padStart(3, '0')}.ts\tmodified\t1\t0`)
+  rows.push('tests/ux/full-walk/escapeLedger.json\tmodified\t20\t0', 'docs/old.md\tremoved\t0\t9')
+  const parsed = parsePullFileRows(rows.join('\n') + '\n')
+  assert.equal(parsed.length, 131)
+  assert.ok(parsed.some((row) => row.path === 'tests/ux/full-walk/escapeLedger.json'))
+  assert.deepEqual(parsed.at(-1), { path: 'docs/old.md', status: 'removed', additions: 0, deletions: 9 })
+  assert.deepEqual(parsePullFileRows(''), [])
 })
