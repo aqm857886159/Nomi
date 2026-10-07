@@ -1,6 +1,7 @@
 {
   "schema_version": 3,
   "detected_by": "user",
+  "recurrence_check_on": "2026-11-08",
   "id": "2026-10-08-pending-spend-presentation",
   "problem_type": "Durable identity lost when a pending spend card is re-read",
   "symptom": "Switching approval mode or restarting could make an existing paid card disappear, while delayed actions could target a newer quote.",
@@ -14,7 +15,17 @@
   "scope_paths": [
     "electron/productionRun/productionPendingSpend.ts",
     "electron/shared/productionGenerationPresentation.ts",
-    "electron/capabilityCore/appIntegrationSpendConfirm.ts"
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
   ],
   "entry_points": [
     "Agent-panel pending-spend projection",
@@ -26,6 +37,15 @@
     "A card action is accepted only when quoteId, planVersion, presentationId, and presentationEpoch still match the current card.",
     "A policy switch never rewrites an existing presentation's pending decision."
   ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionPendingSpend.ts",
+    "tests": [
+      "electron/productionRun/productionPendingSpend.test.ts",
+      "electron/shared/productionGenerationPresentation.test.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+    ],
+    "why": "The production presentation edit boundary assigns identity and policy snapshots; the pending-spend projection/action boundary is the only place that can reject stale card identities. These tests exercise legacy normalization, projection, and renderer retention at those owners."
+  },
   "doors": [
     {
       "kind": "write",
@@ -41,12 +61,62 @@
       "kind": "write",
       "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
       "symbol": "assertCardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "cardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationOperationStore.ts",
+      "symbol": "operationFromRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "presentGenerationPlan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "GenerationPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "normalizeLegacyPresentation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "GenerationPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "cardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "plan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createGenerationPlanningHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "createGenerationDraft"
     }
   ],
   "door_reduction": {
-    "before": 4,
-    "after": 3,
-    "why_not": "Presentation creation, pending-card projection, and action validation are separate ownership boundaries: collapsing them would reintroduce UI policy into the repository or make IPC actions bypass the shared stale-card guard."
+    "before": 13,
+    "after": 13,
+    "why_not": "Presentation creation, repository migration, operation projection, IPC identity forwarding, pending-card projection, and action validation are separate ownership boundaries. Each must remain explicit so policy cannot re-enter the repository or bypass the shared stale-card guard."
   },
   "generality_proof": "All desktop card reads pass through projectPendingSpendConfirm/listPendingSpendConfirms and all mutating card actions pass through appIntegrationSpendConfirm's identity guard, so mode switches, restart reads, and delayed IPC calls share the same durable contract.",
   "shared_boundaries": [
@@ -96,7 +166,17 @@
     "artifacts": [
       "electron/shared/productionGenerationPresentation.ts",
       "electron/productionRun/productionPendingSpend.ts",
-      "electron/capabilityCore/appIntegrationSpendConfirm.ts"
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts",
+      "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "electron/productionRun/productionRunReducer.ts",
+      "electron/productionRun/productionRunRepository.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunTypes.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
     ]
   },
   "regression_tests": [
@@ -107,8 +187,9 @@
   ],
   "class_regression_tests": [
     "electron/productionRun/productionPendingSpend.test.ts",
-    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
-    "electron/productionRun/productionActionIpcPendingSpend.test.ts"
+    "electron/shared/productionGenerationPresentation.test.ts",
+    "electron/agentLane/laneDesktopSpend.test.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
