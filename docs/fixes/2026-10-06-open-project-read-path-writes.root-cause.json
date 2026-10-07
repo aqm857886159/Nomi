@@ -1,0 +1,233 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-open-project-read-path-writes",
+  "problem_type": "读路径写盘：打开项目（只读意图）经过的 owner 在读时拿写锁、写盘、fsync",
+  "symptom": "打开一个已有项目时主进程 CPU 剖面里出现 fsync / 写锁；每次打开 12 次 fsync、约 35 次写盘调用（Windows 打包版实测），打开期间主进程被同步写阻塞；卡 17 报告「主进程打开项目时有同步 readJsonFile、read、fsync」",
+  "direct_cause": "ensureWorkspaceProjectIdentity 每次都走 withWorkspaceManifestMutation 加锁写事务（锁主人文件 + 候选目录 + 锁改名 + 释放，各一次 fsync），打开流程问两遍；migrateLaneLegacy 每次打开建 / 删 lane-legacy-migration.lock（2 次 fsync）；writeLaneTrace 每次打开整份重写轨迹文件",
+  "class_root": "身份、旧对话迁移、轨迹派生视图三个 owner 都没有「已落定的终态只读直答」：无论状态是否需要改变，都先进入写路径；打开项目整体缺少「读路径不写盘」的不变量",
+  "affected_population": [
+    "所有平台、所有用户，每次打开任意已有项目（含新建后再打开）",
+    "Windows 上 fsync 与杀毒扫描叠加最明显",
+    "进程中途被杀留下的迁移锁在 pid 被复用时会让下次打开判成 busy"
+  ],
+  "scope_paths": [
+    "electron/workspace/workspaceProjectIdentity.ts",
+    "electron/agentLane/laneLegacyMigration.mts",
+    "electron/agentLane/laneTrace.mts",
+    "electron/projects/projectsIpc.ts",
+    "electron/workspace/workspaceManifest.ts"
+  ],
+  "entry_points": [
+    "渲染层 hydrateProject → nomi:surface:commitCanvasRead → canvasReadSurfaceRuntime.resolveProjectIdentity → ensureWorkspaceProjectIdentity",
+    "渲染层 hydrateProject → nomi:agent-lane:command(open) → laneDesktopRuntime.openWorkspace → ensureWorkspaceProjectIdentity / migrateLaneLegacy / openLaneWorkspace → openLaneHistory → writeLaneTrace → writeTraceFile"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "身份何时可视为落定、迁移何时算终态是 Nomi 自己的持久化契约（workspaceManifest 的 initializeWorkspace 只在两份清单都缺身份时生成，之后永不改；迁移清单 phase=completed 不回退），官方文档与第三方源码无法裁定",
+  "invariants": [
+    "身份在主清单与备份中完整且一致时，ensureWorkspaceProjectIdentity 不拿清单写锁、不写盘",
+    "迁移处于终态（无任何旧来源 / 清单已 completed）时，migrateLaneLegacy 不建锁文件、不写盘",
+    "派生轨迹内容不变时 writeTraceFile 不写盘",
+    "任何不确定一律回到原加锁 / 原写路径，行为与以前一致"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetWriteContext.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasReadExecutionRuntime.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasReadSurfaceRuntime.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/projectSessionRuntime.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/diagnostics/diagnosticsIpc.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportJobs.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "migrateLaneLegacy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "migrateLaneLegacy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSession.mts",
+      "symbol": "writeTraceFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "writeTraceFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceProjectIdentity.ts",
+      "symbol": "withWorkspaceManifestMutation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneLegacyMigration.mts",
+      "symbol": "withLegacyMigrationLock"
+    },
+    {
+      "kind": "read",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "readProject"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceProjectIdentity.ts",
+      "symbol": "readSettledWorkspaceIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "sameCompleteIdentity"
+    }
+  ],
+  "door_reduction": {
+    "before": 17,
+    "after": 17,
+    "why_not": "这次修的是每扇门进去之后的 owner（三个共享边界），不是门的数量：8 扇身份门是 8 个不同功能（打开画布读面、Agent、素材写入、执行读面、项目会话、诊断、导出、MCP 读）各自需要身份；2 扇迁移门是加载器转发 + 唯一调用点；2 扇轨迹门是打开时刷新 + 实时记录器。所有门都经同一个 owner 函数，无锁直答在 owner 内部生效，门无需合并；另记三扇 owner 内部的门：身份加锁事务（withWorkspaceManifestMutation，只在未落定时进）、迁移锁（withLegacyMigrationLock，只在非终态时进）、打开时读项目的 IPC（projectsIpc 的 nomi:projects:read-async，本 PR 只在其外包一层默认关闭的计时，读语义不变）"
+  },
+  "generality_proof": "无锁直答放在三个 owner 函数内部（不是调用方），8 + 2 + 2 扇门全部经过它们，所以任何调用方、任何供应商、任何平台、任何已落定的旧项目都同样受益；判据只看持久化状态本身（身份字段 / 迁移清单 phase / 文件内容），不看调用方是谁；状态不确定时原样回落到加锁路径，不新增特例分支",
+  "shared_boundaries": [
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "readSettledWorkspaceIdentity",
+      "responsibility": "用加锁路径同一个 sameCompleteIdentity 判据无锁判定「主清单与备份身份已落定」；不确定一律 null"
+    },
+    {
+      "path": "electron/workspace/workspaceProjectIdentity.ts",
+      "symbol": "ensureWorkspaceProjectIdentity",
+      "responsibility": "身份已落定（readSettledWorkspaceIdentity 非空）时无锁直答，否则走原加锁事务"
+    },
+    {
+      "path": "electron/agentLane/laneLegacyMigration.mts",
+      "symbol": "migrateLaneLegacy",
+      "responsibility": "迁移终态无锁直答（settledWithoutLock），否则走原加锁迁移"
+    },
+    {
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "writeTraceFile",
+      "responsibility": "派生视图内容没变就不重写"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/canvasReadSurfaceRuntime.ts",
+      "entry_point": "resolveProjectIdentity",
+      "disposition": "enforced",
+      "evidence": "打开流程第一问身份；经 ensureWorkspaceProjectIdentity，跑器实测打开稳定态项目 fsync 12→0"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "entry_point": "openWorkspace",
+      "disposition": "enforced",
+      "evidence": "打开流程第二问身份 + 迁移 + 轨迹刷新；三处都经对应 owner"
+    },
+    {
+      "path": "electron/workspace/workspaceSyncIpc.ts",
+      "entry_point": "nomi:workspace:sync-inspect",
+      "disposition": "not-affected",
+      "evidence": "只在基线缺失（项目首次进库）或用户显式采纳时写基线，属一次性登记，不在每次打开的路径上"
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "replayCanvasEventTailAndSealGenesis",
+      "disposition": "not-affected",
+      "evidence": "每次打开写一条 genesis 事件 + 快照边车（无 fsync），是 S5-b-1 崩溃恢复的设计；改它涉及事件日志语义，列入残余风险，交协调会话决定"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次打开任何项目都会触发，且任何新加入打开流程的 owner 都可能再带一组写盘",
+    "same_class_scan": [
+      "主进程 fs 写探针（tests/ux/perf/openWriteProbe.cjs）在打开稳定态项目期间记录的全部写调用及栈：身份 ×2、迁移锁、轨迹 ×2、事件 genesis",
+      "git grep withWorkspaceManifestMutation：身份是唯一在打开路径上调用它的 owner",
+      "git grep withLegacyMigrationLock：仅 migrateLaneLegacy 使用"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/workspaceProjectIdentity.ts",
+    "invariant": "已落定状态的读不进写路径",
+    "failure_mode": "读到任何不确定（缺备份、半缺、不一致、解析失败、迁移未到终态）都回落到原加锁路径，由原路径按原规则补齐或报错",
+    "exception_policy": "none",
+    "strategy": "在三个 owner 内部加终态只读直答；跑器 --assert-read-only 把「打开稳定态项目 fsync = 0」做成可复跑判据",
+    "artifacts": [
+      "electron/workspace/workspaceProjectIdentity.ts",
+      "electron/agentLane/laneLegacyMigration.mts",
+      "electron/agentLane/laneTrace.mts",
+      "electron/workspace/workspaceManifest.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/workspace/workspaceProjectIdentity.test.ts",
+    "tests/agent-runtime/lane-legacy-migration.test.mts",
+    "tests/agent-runtime/lane-trace.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/workspace/workspaceProjectIdentity.test.ts",
+    "tests/agent-runtime/lane-legacy-migration.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "加锁路径仍是状态未落定时唯一的写路径，不是旧实现；没有被替换掉的旧代码"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不变量由 Nomi 自己的持久化格式决定，不依赖第三方行为",
+    "exit_criteria": []
+  },
+  "migration": "无需迁移：判据只读现有字段；未落定的老项目第一次打开照旧由加锁路径补齐，之后进入无锁直答",
+  "residual_risks": [
+    "事件日志 genesis 每次打开仍写一份全量快照边车 + 一行日志（无 fsync），未改",
+    "Agent 运行时首次装载在打开关键路径上同步阻塞主进程（打包版约 1.4–1.6 s），本 PR 未改，见报告中的选项",
+    "lane-legacy-migration 是待删代码，这层检查随其删除"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/workspace/workspaceProjectIdentity.ts",
+    "tests": [
+      "electron/workspace/workspaceProjectIdentity.test.ts",
+      "tests/agent-runtime/lane-legacy-migration.test.mts",
+      "tests/agent-runtime/lane-trace.test.mts",
+      "tests/ux/project-open-stages.e2e.mjs"
+    ],
+    "why": "「已落定状态的读不进写路径」归各状态的 owner 函数管（身份 / 迁移 / 派生轨迹），不归调用方：所有门都经 owner，owner 里只读直答一处生效即覆盖全部门。三个 owner 各有单测证明「落定 → 零写、无锁」「未落定 → 照走原加锁路径」；整条打开流程由真实规模跑器 --assert-read-only 数主进程 fsync 兜底。"
+  }
+}

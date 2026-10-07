@@ -56,6 +56,13 @@ const argValue = (name) => {
 }
 const hasArg = (name) => args.includes(name)
 const captureScreenshots = hasArg('--screenshots')
+// 在用户自己的电脑上跑时窗口挂屏幕外、不抢焦点（NOMI_PERF_OFFSCREEN=1）。Windows 会把屏幕外窗口判成「被遮挡」
+// 而停掉渲染帧，所以同时关掉遮挡判定，帧率才是真的。
+const packagedExecutable = argValue('--exe')
+const offscreenWindows = process.env.NOMI_PERF_OFFSCREEN === '1'
+const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
+const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
+const FIRST_RUN_SEEN = Object.freeze({ 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' })
 const viewportOverride = argValue('--viewport-width')
   ? { width: Number(argValue('--viewport-width')), height: Number(argValue('--viewport-height') || 1000) }
   : null
@@ -1133,10 +1140,20 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
   try {
     ;({ app, win: page } = await launchNomiApp({
       name: 'canvas-perf-benchmark',
+      // --exe <打包好的 Nomi.exe>：量用户真正跑的打包版（渲染层同一份产物，主进程在 asar 里）。
+      ...(packagedExecutable ? { executablePath: packagedExecutable } : {}),
       userDataDir,
       settingsDir: userDataDir,
       projectsDir,
-      args: ['--no-proxy-server', ...args.filter(arg => arg.startsWith('--use-gl=') || arg.startsWith('--use-angle=') || ['--enable-unsafe-swiftshader', '--disable-gpu', '--in-process-gpu'].includes(arg))],
+      args: [
+        '--no-proxy-server',
+        ...(offscreenWindows ? OFFSCREEN_CHROMIUM_ARGS : []),
+        ...args.filter(arg => arg.startsWith('--use-gl=') || arg.startsWith('--use-angle=') || ['--enable-unsafe-swiftshader', '--disable-gpu', '--in-process-gpu'].includes(arg)),
+      ],
+      // 首次启动的开场动画（约 11 秒）盖在项目库上：不跳过的话「冷开」量到的是动画时长，不是打开项目
+      //（2026-10-05 卡 17 的 13.8 秒就是这么来的）。老用户每次启动看到的是没有动画的项目库。
+      initialLocalStorage: FIRST_RUN_SEEN,
+      mainRequire: offscreenWindows ? [OFFSCREEN_MODULE] : [],
       timeout: launchTimeoutMs,
       settleMs: 900,
       env: {

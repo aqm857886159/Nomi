@@ -56,7 +56,7 @@ type _SchemaShotKeysOnPlanShotInput = AssertNoMissingKeys<MissingKeys<Generation
  * 少一边改名，现在是 `tsc` 红，不是运行期静默。
  */
 export const GENERATION_METHODS = Object.freeze({
-  /** 语义入口：`operation` 判别（context / create / patch / present / preview）。 */
+  /** 语义入口：`operation` 判别（context / create / patch / present / preview / extend）。 */
   plan: "nomi_generation_plan",
   /** 语义入口：`operation` 判别（read / cancel / reconcile）。 */
   status: "nomi_generation_status",
@@ -65,6 +65,8 @@ export const GENERATION_METHODS = Object.freeze({
   patch: "nomi_submit_generation_plan",
   /** `generate` 动词：把草稿的报价卡摆到用户面前（草稿不变，只翻 `cardHidden`）。 */
   present: "nomi_present_generation_plan",
+  /** `draft_shots` 带 operationId 的新镜头：补到那份文稿方案后面（只在内部面）。 */
+  extend: "nomi_extend_generation_plan",
   preview: "nomi_preview_execution",
   resolve: "nomi_resolve_generation_plan",
   gateRequest: "nomi_request_generation_gate",
@@ -108,7 +110,7 @@ export const GENERATION_PLAN_CAPABILITY = {
   // 看不见它们，但 `resolveCapabilityAlias` 仍认。
   additionalAliases: Object.freeze({
     pi: Object.freeze(["generate"]),
-    method: Object.freeze([GENERATION_METHODS.plan, GENERATION_METHODS.create, GENERATION_METHODS.patch, GENERATION_METHODS.present, GENERATION_METHODS.preview]),
+    method: Object.freeze([GENERATION_METHODS.plan, GENERATION_METHODS.create, GENERATION_METHODS.patch, GENERATION_METHODS.present, GENERATION_METHODS.preview, GENERATION_METHODS.extend]),
   }),
   inputSchema: generationPlanInputSchema,
   outputSchema: z.unknown(), // create/patch/present/preview 各有返回；GenerationOperation/ExecutionContractV1 尚无运行时结果 schema，待 owner 提供后复用。

@@ -1,0 +1,114 @@
+{
+  "$schemaVersion": 1,
+  "_comment": [
+    "测试路由表（唯一一份，2026-10-06）：按功能分类决定每个 PR 必交哪些测试证据。用户 10-05：「设计了新功能，要根据功能分类对应到不同的测试体系，要确保我们的设计没有问题」。",
+    "类别可多选，必交证据取并集。pathRules 按改动路径推出一组类别——这组是下限：设计卡「功能分类」里勾的只能比它多、不能比它少。",
+    "四类（花钱 / 长跑 / 可打断 / 新界面）的判定也在这里（pathRules 的 legacy 字段），不再另起一套；fourClass 为 true 的类别触发设计卡 9 格与独立验收。",
+    "evidence[].when：只有两种取值——pr = 每个 PR 按功能分类跑（零花费且能在 CI 跑的由 CI 自动跑；paid: true 的——真付费、真模型的——在 PR 上只要求正文交证据，不在 CI 自动跑）；manual-full = 只在用户手动触发的全量跑里跑（PR 正文不要求）。没有定时触发。",
+    "evidence[].tool：exists = 工具已有；missing = 还没有工具——PR 对这类证据可以写「未验证：工具未建」，扫描器和体检报告会把缺口列出来，免得缺工具变成永久豁免。",
+    "判据代码在 scripts/pr-judgement-lib.mjs，合并前扫描（scripts/merge-preflight.mjs）和 CI（pnpm run check:pr-judgement）调用同一份。可读视图在 docs/engineering/experience-system.md。",
+    "pathRules.pattern / scope 是正则源码（大小写不敏感）；scope 限定它只对哪些路径生效；added = 只在文件是新增（status A）时命中；exclude = 命中这个正则的路径不算（设计实验室本身不算改交互）；skipTests 默认 true（测试、文档、json 不推类别）。"
+  ],
+  "effectiveFrom": "2026-10-07",
+  "effectiveNote": "此日期之前开的 PR 只给警告，不判红（旧 PR 没机会照新模板写）；之后开的 PR 缺项就红。",
+  "categories": {
+    "ui": {
+      "label": "新界面 / 改交互",
+      "fourClass": true,
+      "evidence": [
+        { "id": "ui-mockup", "when": "pr", "paid": false, "label": "真组件样张（用户已拍板）", "aliases": ["样张", "设计实验室", "mockup"], "tool": "exists", "toolRef": "设计实验室 + ShellStage（docs/design/nomi-design-system.md）" },
+        { "id": "ui-click-census", "when": "pr", "paid": false, "label": "按钮普查：每个可点目标按七字段预期表逐项对照（设计来源 / 组件、变体 / 状态、无障碍角色 + 名称、用户动作、预期的界面状态和副作用、测试 ID、证据）", "aliases": ["按钮普查","点击普查","click-census","按钮预期表"], "tool": "playwright-a11y-tree+axe (planned)", "toolRef": "现有：tests/ux/full-walk/catalog.mjs（铁律 ⑫）的预期表只覆盖分镜表格，字段映射见本表 buttonExpectationFields。计划接：Playwright 无障碍树枚举可点目标（getByRole 角色 + 名称定位）+ @axe-core/playwright，全量跑里加带种子的 gremlins.js 抓崩溃；不接 Storybook / Cucumber（避免和设计实验室并行两套）" },
+        { "id": "ui-capability-unavailable", "when": "pr", "paid": false, "label": "能力不可用时：每个要模型 / 要外部资源才做得了的动作，写清「没有这个能力（没装 / 此刻上游不可用 / 本机资源下不来）时界面显示什么、下一步是什么」——只灰掉说原因不算", "aliases": ["能力不可用","capability-unavailable"], "tool": "exists", "toolRef": "设计卡 ★4 全状态（docs/engineering/design-card.md）；来源：2026-10-06 高清死路（docs/plan/2026-10-06-node-quick-actions-round2-direction-check.md）" },
+        { "id": "ui-ai-walk", "when": "pr", "paid": true, "label": "AI 用户走查：每步先写预期、做完记感受", "aliases": ["AI 走查","AI 用户走查","创作者走查","ai-walk"], "tool": "stagehand (planned)", "toolRef": "现有：feel observer（tests/ux/_feel-observer.mjs）只看遮挡 / 层叠。计划：先试 Stagehand（MIT，约 2.5 万 star，observe / act / extract，能直接接 Playwright Page，带 OTel trace）——用 Playwright _electron 拿到 Page 再交给它；只有接不上时才自己写薄跑器记录「预期 → 实际 → 感受」（参考 UXAgent 的画像 / 日志 / 指标）；不用 BrowserGym、WebArena" },
+        { "id": "ui-screens", "when": "pr", "paid": false, "label": "中文、英文、窄窗截图", "aliases": ["截图", "中英文截图", "窄窗", "screens"], "tool": "exists", "toolRef": "tests/ux full-walk 走查 + 设计实验室截图" }
+      ]
+    },
+    "spend": {
+      "label": "花钱",
+      "fourClass": true,
+      "evidence": [
+        { "id": "spend-paid-sample", "when": "pr", "paid": true, "label": "最小量真付费抽检 + 三方对账（界面 / 回执 / 供应商账）", "aliases": ["真付费", "付费抽检", "三方对账", "paid"], "tool": "exists", "toolRef": "tests/ux/*.paid.mjs（由协调会话亲自跑，先算最小量）" },
+        { "id": "spend-fault-injection", "when": "pr", "paid": false, "label": "故障注入：断网、供应商报错、超时", "aliases": ["故障注入", "失败注入", "断网", "fault"], "tool": "exists", "toolRef": "tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs 等" }
+      ]
+    },
+    "long-run": {
+      "label": "长跑 / 可打断",
+      "fourClass": true,
+      "evidence": [
+        { "id": "run-e2e-chain", "when": "pr", "paid": false, "label": "端到端任务链：关窗、重启、断网后续上，且不重复扣费", "aliases": ["任务链", "端到端", "续上", "e2e-chain"], "tool": "exists", "toolRef": "tests/ux/full-walk 的 J05 暂停 / 恢复、pb05" }
+      ]
+    },
+    "agent": {
+      "label": "Agent 行为",
+      "fourClass": false,
+      "evidence": [
+        { "id": "agent-intent-eval", "when": "pr", "paid": true, "label": "意图评测：⑩ 说的=摆的、建了几份方案、首次做对率", "aliases": ["意图评测", "intent-eval", "evals"], "tool": "exists", "toolRef": "evals/ + tests/experience-laws/intentShownEqualsDrafted.test.mjs" }
+      ]
+    },
+    "scale": {
+      "label": "大数据量 / 画布 / 长列表",
+      "fourClass": false,
+      "evidence": [
+        { "id": "perf-real-scale", "when": "manual-full", "paid": false, "label": "真实规模性能：p95 和最长卡顿，只许变好", "aliases": ["性能", "真实规模", "p95", "perf"], "tool": "playwright-electron+contentTracing (planned)", "toolRef": "现有：pnpm run test:canvas:performance 是合成规模基准。计划接：Playwright _electron 真实规模场景 + Electron contentTracing + app.getAppMetrics() + User Timing 打点 + React Profiler，预算进 CI；不用 Lighthouse CI" }
+      ]
+    },
+    "gen-quality": {
+      "label": "生成效果",
+      "fourClass": false,
+      "evidence": [
+        { "id": "gen-eval-set", "when": "pr", "paid": true, "label": "效果评测题集：跨镜一致、参考有没有用上", "aliases": ["效果评测", "题集", "跨镜一致", "gen-eval"], "tool": "llm-pairwise-eval (planned)", "toolRef": "现有：evals/director 只评导演计划，不评出图 / 出片效果。计划接：照 OpenAI 图片评测 cookbook 的 LLM 成对比较评一致性，照 DreamBench++ 的思路评「参考图有没有用上」；VBench 以后再说" }
+      ]
+    },
+    "data-format": {
+      "label": "数据格式",
+      "fourClass": false,
+      "evidence": [
+        { "id": "upgrade-path", "when": "pr", "paid": false, "label": "升级路径：老项目能打开、能继续", "aliases": ["升级路径", "老项目", "旧项目", "upgrade"], "tool": "exists", "toolRef": "tests/ux/core-a-old-project.packaged.mjs" }
+      ]
+    }
+  },
+  "buttonExpectationFields": {
+    "_note": "按钮预期表的字段集（调研：#1035 docs/research/2026-10-06-experience-testing-prior-art.md「Design-to-button expectation table」）。没有公开的跨厂商标准，我们自己的表就是这份字段集，不另造格式。⑫ 的 tests/ux/full-walk/catalog.mjs 预期表映射到这些字段（catalogField）；「新界面 / 改交互」类的 ui-click-census 证据按这个字段集写。catalogField 里 CLICK_TARGET_CONTRACT.optionalFields 列出的是还没填的可选字段，逐步补。",
+    "fields": [
+      { "id": "designSource", "label": "设计来源 / 组件", "catalogField": ["owner", "designRef"] },
+      { "id": "variantState", "label": "变体 / 状态", "catalogField": ["state"] },
+      { "id": "roleName", "label": "无障碍角色 + 名称（getByRole）", "catalogField": ["role", "accessibleName"] },
+      { "id": "userAction", "label": "用户动作", "catalogField": ["action"] },
+      { "id": "expectedState", "label": "预期的界面状态和副作用", "catalogField": ["userExpectation"] },
+      { "id": "testId", "label": "测试 ID（Playwright tag）", "catalogField": ["id"] },
+      { "id": "evidence", "label": "证据（截图 / trace）", "catalogField": ["actualObservation"] }
+    ]
+  },
+  "pathRules": [
+    { "category": "spend", "legacy": "花钱", "pattern": "(?:^|/)(?:spend[^/]*|[^/]*pricing[^/]*|[^/]*variant[^/]*|[^/]*credits[^/]*|[^/]*charge[^/]*|generationScheduler[^/]*)$", "scope": "^(?:src|electron)/" },
+    { "category": "long-run", "legacy": "长跑", "pattern": "(?:^|/)[^/]*(?:task|queue|production|retriev|export|import)[^/]*$", "scope": "^(?:src|electron)/" },
+    { "category": "long-run", "legacy": "可打断", "pattern": "(?:^|/)[^/]*(?:cancel|resume|stop|abort)[^/]*$", "scope": "^(?:src|electron)/" },
+    { "category": "ui", "legacy": "新界面", "pattern": "^src/design/" },
+    { "category": "ui", "legacy": "新界面", "pattern": "^src/.*\\.tsx$", "added": true },
+    { "category": "ui", "pattern": "^src/.*\\.tsx$", "exclude": "^src/devlab/" },
+    { "category": "agent", "pattern": "^(?:electron/agentLane/|electron/agentHost/|src/workbench/ai/|evals/)" },
+    { "category": "scale", "pattern": "^src/workbench/(?:generationCanvas|timeline)/" },
+    { "category": "gen-quality", "pattern": "^(?:electron/shared/storyboard/|src/workbench/generationCanvas/nodes/director/|electron/capabilityCore/semanticGeneration|evals/director/)" },
+    { "category": "data-format", "pattern": "(?:^|/)[^/]*(?:schema|migrat|persist|projectFile|projectStore|projectVersion)[^/]*\\.(?:ts|tsx|mts|cts|mjs)$", "scope": "^(?:src|electron)/" }
+  ],
+  "abortSignal": { "category": "long-run", "legacy": "可打断", "pattern": "\\bnew\\s+AbortController\\b|\\bAbortSignal\\b", "scope": "^(?:src|electron)/" },
+  "fullRun": {
+    "trigger": "workflow_dispatch",
+    "workflow": ".github/workflows/full-experience-run.yml",
+    "script": "scripts/experience-full-run.mjs",
+    "note": "全量入口：用户手动触发（没有 schedule）；把所有零花费层串起来跑，每层独立计结果，出一份汇总报告。真付费、真模型的层（paid）不在这里跑。",
+    "commands": [
+      { "id": "catalog", "label": "全功能走查清单一致性", "script": "check:full-walk-catalog" },
+      { "id": "laws", "label": "体验铁律测试（⑩ 说的=摆的、⑪ 能选到）", "script": "test:experience-laws" },
+      { "id": "feel", "label": "界面体感机制（feel observer）", "script": "test:feel:browser" },
+      { "id": "experience", "label": "体验评分采集与报告单测", "script": "experience:test" },
+      { "id": "smoke", "label": "Electron 冒烟", "script": "test:e2e" },
+      { "id": "journeys", "label": "CI 安全的用户任务链", "script": "test:journeys" },
+      { "id": "canvas-acceptance", "label": "画布全量验收", "script": "test:canvas:acceptance" },
+      { "id": "canvas-performance", "label": "画布性能（合成规模，p95 / 最长卡顿）", "script": "test:canvas:performance" }
+    ]
+  },
+  "layerToolGaps": [
+    { "id": "layer-health", "label": "测试体系体检：每层多久没跑、哪些用例时好时坏", "tool": "missing", "toolRef": "计划：汇总全量跑与 PR 上的 Playwright JSON 报告；Stryker 先不上，继续手动变异校验" }
+  ]
+}

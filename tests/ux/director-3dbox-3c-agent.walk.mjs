@@ -26,8 +26,8 @@
 //   C2 进导演台点第 2 张卡后，输入框上出现「正在改：镜头 2」；
 //   C3 只说「这一镜改成特写」：计划里第 2 镜的景别变成特写，其余镜不变（Agent 用对了焦点上下文，没改错镜）；
 //   C4 第 2 镜机位的手调被重算（不再是手调的 fov），第 1 镜机位的手调原样保留；
-//   C5 Agent 回复里说到了被覆盖的手调（「手调 / 手动 / 撤销」任一字样）；
-//   C6 说「撤销」后计划回到改之前的修订号，第 2 镜手调回来；
+//   C5 面板上确定性地出现「这次改动覆盖了你在镜头 2 的手调，可撤销」（宿主给的，不靠模型复述；模型说没说只记录）；
+//   C6 说「撤销」后计划回到改之前的修订号，第 2 镜手调回来，那句覆盖提示随之消失；
 //   C7 全程没有确认 / 报价卡、没有生成任务目录、0 个 pageerror；
 //   C8 原库凭据文件指纹跑前跑后一字不差，副本里的凭据已删。
 import fs from 'node:fs'
@@ -87,6 +87,7 @@ const cameraOf = (node, shotId) => node?.meta?.directorProject?.scenes?.find((sc
 const handTuned = (camera) => Boolean(camera?.motionTrajectory?.length) && camera.motionTrajectory.every((point) => point.fov === 18)
 const transcript = () => win.locator('[data-v4-block="assistant"], [data-v4-block="tool"], [data-v4-block="intervention"]').allInnerTexts().catch(() => [])
 const running = async () => (await win.locator('[data-v4-control="send"][data-v4-send-intent="stop"]').count().catch(() => 0)) > 0
+const notices = async () => (await win.locator('[data-v4-notice="director-patch"]').allInnerTexts().catch(() => [])).join(' | ')
 const cardVisible = async () => (await win.locator('[data-v4-control="confirm"], [data-spend-confirm-dialog]').count().catch(() => 0)) > 0
 let cardSeen = false
 
@@ -161,7 +162,14 @@ try {
   check('手调落到了节点工程（两镜机位 fov = 18）', handTuned(cameraOf(director, first)) && handTuned(cameraOf(director, second)))
 
   // ④ 进导演台、点第 2 张卡 → 输入框上出「正在改：镜头 2」
-  await win.locator(`[data-testid="director-node-open"]`).first().click({ timeout: stationTimeout({ operations: 2 }) })
+  // 画布只挂视口里的节点（onlyRenderVisibleElements）：Agent 把预演建在别的分区 / 视口外时，「打开」按钮根本不在 DOM 里。
+  // 像真用户一样点画布上的「新节点在…里 →」提示过去；没有提示（已在视口里）就直接点。
+  const openButton = win.locator(`[data-testid="director-node-open"]`).first()
+  if (!(await openButton.isVisible().catch(() => false))) {
+    const arrival = win.locator('[data-canvas-arrival-hint]').first()
+    if (await arrival.isVisible().catch(() => false)) await arrival.click()
+  }
+  await openButton.click({ timeout: stationTimeout({ operations: 2 }) })
   await win.locator('[data-testid="director-shot-2"]').first().click({ timeout: stationTimeout({ operations: 4 }) })
   const tag = win.locator('[data-v4-focus-tag]').first()
   await tag.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
@@ -181,7 +189,10 @@ try {
     JSON.stringify({ before: secondSizeBefore, after: after.find((item) => item.id === second)?.size, changed }))
   check('C4 第 2 镜手调被重算、第 1 镜手调保留', !handTuned(cameraOf(director, second)) && handTuned(cameraOf(director, first)))
   const reply = patchTurn.transcript.join('\n')
-  check('C5 Agent 说到了被覆盖的手调', /手调|手动|撤销/.test(reply), reply.slice(-400))
+  // 那句话由宿主确定性给出（真实测试 ④：DeepSeek 一句没提）；模型自己有没有复述只记录、不判
+  const noticeText = await notices()
+  check('C5 面板确定性说出覆盖了镜头 2 的手调、可撤销', /镜头 2/.test(noticeText) && /手调/.test(noticeText) && /可撤销/.test(noticeText), noticeText)
+  report.modelMentionedOverride = { mentioned: /手调|手动|撤销/.test(reply), replyTail: reply.slice(-400) }
   await shot('03-after-patch')
 
   // ⑥ 撤销
@@ -190,8 +201,9 @@ try {
     until: async () => directorNode(await canvasNodes())?.meta?.directorPlan?.revision === revisionBefore,
   })
   director = directorNode(await canvasNodes())
-  check('C6 撤销回到改之前（修订号回去、第 2 镜手调回来）', director?.meta?.directorPlan?.revision === revisionBefore && handTuned(cameraOf(director, second)),
-    `${director?.meta?.directorPlan?.revision} vs ${revisionBefore}`)
+  const noticeAfterUndo = await notices()
+  check('C6 撤销回到改之前（修订号回去、第 2 镜手调回来、覆盖提示消失）', director?.meta?.directorPlan?.revision === revisionBefore && handTuned(cameraOf(director, second)) && !noticeAfterUndo,
+    `${director?.meta?.directorPlan?.revision} vs ${revisionBefore}; notice=${noticeAfterUndo}`)
   await shot('04-after-undo')
 } catch (error) {
   check('走查未抛错', false, error?.stack ?? String(error))

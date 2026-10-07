@@ -163,6 +163,7 @@ const PLAN_BRANCH_FOR_METHOD: Readonly<Record<string, string>> = {
   [GENERATION_METHODS.present]: "present",
   [GENERATION_METHODS.preview]: "preview",
   [GENERATION_METHODS.context]: "context",
+  [GENERATION_METHODS.extend]: "extend",
 };
 
 function branchByOperation(
@@ -215,7 +216,7 @@ function parsedArgs(call: RuntimeToolCall): Record<string, unknown> {
 /** 语义入口的 `operation` → 方法名。两张小表都只引用 `GENERATION_METHODS`，不再出现字符串字面量。 */
 const PLAN_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
   context: GENERATION_METHODS.context, create: GENERATION_METHODS.create, patch: GENERATION_METHODS.patch,
-  present: GENERATION_METHODS.present, preview: GENERATION_METHODS.preview,
+  present: GENERATION_METHODS.present, preview: GENERATION_METHODS.preview, extend: GENERATION_METHODS.extend,
 });
 const STATUS_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
   read: GENERATION_METHODS.read, cancel: GENERATION_METHODS.cancel, reconcile: GENERATION_METHODS.reconcile,
@@ -239,6 +240,7 @@ const CAPABILITY_BY_METHOD: Readonly<Partial<Record<GenerationMethodName, string
   [GENERATION_METHODS.patch]: "plan",
   [GENERATION_METHODS.present]: "present",
   [GENERATION_METHODS.preview]: "preview",
+  [GENERATION_METHODS.extend]: "extend",
   [GENERATION_METHODS.read]: "read",
   [GENERATION_METHODS.cancel]: "cancel",
   [GENERATION_METHODS.reconcile]: "reconcile",

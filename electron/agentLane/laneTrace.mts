@@ -1,6 +1,6 @@
 // Rebuildable views of pi entries. No second session writer or raw JSONL parser.
 import { applyTraceRedactions } from './laneTraceRedaction.mjs';
-import { mkdir, writeFile, rename, lstat, chmod, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rename, lstat, chmod, rm, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Entry, Session } from '@earendil-works/pi-agent-core';
@@ -142,8 +142,11 @@ export function laneTraceDirectory(metadata: JsonlSessionMetadata): string {
 export async function writeTraceFile(directory: string, name: string, content: string): Promise<void> {
   await mkdir(directory, { recursive: true, mode: LANE_DIR_MODE });
   if ((await lstat(directory)).isSymbolicLink()) throw new Error('Refusing a symbolic trace directory');
+  // 权限照旧每次收紧（只改元数据，不写内容、不 fsync）：内容没变提前返回也不能放过被改坏的目录权限。
   await chmod(directory, LANE_DIR_MODE);
   const destination = join(directory, name);
+  // 派生视图没变就不重写：打开项目会刷新一次轨迹，历史没动时这一步应当只是读（打开项目零写入）。
+  if (await readFile(destination, 'utf8').then(existing => existing === content, () => false)) return;
   const temporary = `${destination}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, content, { mode: LANE_FILE_MODE, flag: 'wx' });

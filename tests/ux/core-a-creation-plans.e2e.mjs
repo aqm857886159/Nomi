@@ -116,7 +116,7 @@ try {
     await expect(sharedEditor, 'Agent plans must open the existing storyboard editor').toBeVisible()
     await expect(sharedEditor.locator('[data-storyboard-bulkbar]')).toBeVisible()
     await expect(sharedEditor.locator('[data-storyboard-row]')).toHaveCount(1)
-    for (const selector of ['[data-storyboard-frame]', '[data-storyboard-refzone]', '[data-storyboard-prompt-block]']) {
+    for (const selector of ['[data-storyboard-frame]', '[data-storyboard-visual-column]', '[data-storyboard-prompt-block]']) {
       await expect(sharedEditor.locator(selector), 'Existing shot editing regions must remain reachable').toBeVisible()
     }
     await expect(sharedEditor.locator('[data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText(`Prompt ${id}`)
@@ -177,7 +177,7 @@ try {
   const spendDialog = win.locator('[data-spend-confirm-dialog]')
   const submissionsBefore=fixture.images.length
   const restoredEditor = win.locator('[data-storyboard-editor="true"]')
-  await restoredEditor.locator('[data-storyboard-row="1"] [data-storyboard-frame]').getByRole('button',{name:'生成镜 1',exact:true}).click()
+  await restoredEditor.locator('[data-storyboard-row="1"] [data-storyboard-composer-bar]').getByRole('button',{name:'生成镜 1',exact:true}).click()
   // 用户自己点的单份生成不弹付费确认卡；若中间弹卡而不点，请求永远发不出去——下面 frame done + 恰好 1 次提交就是证据。
   await expect(restoredEditor.locator('[data-storyboard-frame]').first()).toHaveAttribute('data-storyboard-frame','done',{timeout:stationTimeout({operations:1})})
   await expect(spendDialog).toHaveCount(0)

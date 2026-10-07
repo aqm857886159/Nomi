@@ -10,24 +10,21 @@ import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyb
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
-import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
+import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
+import { containedBox, densityBox, sameAspectAsBox, type FrameMediaBox } from './shotFrameGeometry'
+import { useStoryboardRowNarrow } from './storyboardRowDensity'
 
 /**
- * 画面格（v6 §2.4）——行状态机的脸。
+ * 画面格 = 视觉列顶上那只预览框（2026-10-06 第二轮）——行状态机的脸。
  *
- * v6 相对 v5 改了两件事，其余状态语义原样：
- * ① **列宽固定 136px，媒体盒由整张表 derive**（v5 写死 76×132，横版镜头没有任何真实表达）。
- *    盒子是**表级**的（`tableFrameMediaBox`，2026-09-06 用户反馈四）：全表同一画幅时盒子就是那个
- *    画幅的框、缩略图铺满；混排时全表共用一只 136×108 的盒，画面在盒内 letterbox 居中。
- *    盒不随行内容变形，所以每一行的顶线、盒、参数行、生成钮四条线都对得上——
- *    "列宽固定就够齐了"在混排下不成立，人眼读的是盒子不是列。
- * ② **动作条搬到图下方常驻**（`StoryboardFrameActions`），不再是压在图上的半透明悬停浮层。
- *    半透明按钮压缩略图是设计系统 §1.5.3 点名的反例；媒体框下方本来就是空白，不需要遮住内容省这点空间。
+ * 框是**表级**的（`frameMediaBox(planDefaultAspect(plan))`：整片画幅定，全表同一只；窄档按 176/240 等比缩），所以每一行
+ * 左右边缘、上沿逐行对齐。这一镜的画幅和框不同时，画面在框里按比例完整显示（contain）、空处是浅底，
+ * 左下角标这一镜的画幅——框不变形，混排照样对齐；未生成时框里画一只这一镜画幅的虚线轮廓，
+ * 让用户在生成前就看得到「这镜出来是竖的」。
  *
- * 状态（与 exec/storyboardRowStatus 同一份 derive，组头/footer 计数共用）：
- * ready 虚线空格 + 常驻「生成」/ missing-required 红虚线 /
- * generating 进度覆盖 / failed 红边 + 重试（重新花钱）/ recoverable 中性纸底 + 免费重新拉取 /
- * done 结果铺满 / locked 同 done + 🔒。
+ * 状态（与 exec/storyboardRowStatus 同一份 derive）：ready 虚线轮廓（「生成」只在内容列底栏右端一处）/
+ * missing-required 红虚线 / generating 进度覆盖 / failed 红边（重试在框下动作条）/
+ * recoverable 中性纸底 + 免费重新拉取 / done 结果 / locked 同 done + 🔒。
  */
 
 type Props = {
@@ -36,9 +33,8 @@ type Props = {
   /** 这一行**生效**的画幅（storyboardShotScope.effectiveShotAspect）；只用于挂点与图片语义，
    *  几何不读它——几何来自表级的 `box`。 */
   aspect: string
-  /** 整张表共用的媒体盒（`tableFrameMediaBox`）。行不自己算，算了就又不齐了。 */
+  /** 整张表共用的预览框（整片默认画幅的框，宽档尺寸；窄档在这里按行的档位缩）。行不自己算，算了就又不齐了。 */
   box: FrameMediaBox
-  onGenerate?: (() => void) | undefined
   /** 结果态双击 → 放大预览（AssetPreviewDialog，编辑器统一挂）。 */
   onOpenPreview?: (() => void) | undefined
   selected?: boolean
@@ -50,14 +46,22 @@ export default function StoryboardShotFrame({
   exec,
   aspect,
   box,
-  onGenerate,
   onOpenPreview,
   selected,
   onSelect,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const presentation = shotPresentation(shot, shot.index)
-  const mediaStyle = { width: box.width, height: box.height }
+  const narrow = useStoryboardRowNarrow()
+  const frame = densityBox(box, narrow)
+  const mediaStyle = { width: frame.width, height: frame.height }
+  const ownAspect = !sameAspectAsBox(frame, aspect)
+  // 这一镜画幅 ≠ 框：左下角标出它自己的画幅（混排时一眼看出哪镜是竖的）。
+  const aspectTag = ownAspect && aspect ? (
+    <span className="absolute bottom-1 left-1 z-[3] rounded-nomi-sm bg-nomi-overlay-chip px-1 text-micro tabular-nums text-nomi-media-ink" data-storyboard-aspect-tag={aspect}>
+      {aspect}
+    </span>
+  ) : null
 
   // One decoder boundary for final results and retained media during a rerun.
   // A raw video URL is never an image; an explicit thumbnail can use NomiImage.
@@ -103,9 +107,9 @@ export default function StoryboardShotFrame({
     </span>
   )
 
-  /** 固定 136 列的外框；里面那一格才是按比例缩放的媒体框（两个几何概念，走查分别断言）。 */
+  /** 视觉列宽 = 框宽；`data-storyboard-visual-box` 是对齐量尺的锚点（各行左右边缘逐像素一致）。 */
   const column = (status: string, media: JSX.Element): JSX.Element => (
-    <div style={{ width: FRAME_COLUMN_WIDTH }} data-storyboard-frame={status}>
+    <div style={{ width: frame.width }} data-storyboard-frame={status}>
       {media}
     </div>
   )
@@ -119,10 +123,12 @@ export default function StoryboardShotFrame({
         style={mediaStyle}
         onDoubleClick={onOpenPreview}
         data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
       >
         {/* 盒是固定的，画面在盒内 letterbox 居中（object-contain）：混排时不拉伸也不裁切。 */}
         {renderResult('absolute inset-0 w-full h-full object-contain', t('storyboardEditor.frame.resultAlt', { index: shot.index }))}
         {indexBadge(false)}
+        {aspectTag}
         {durationBadge}
         {locked ? (
           <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-media-ink inline-flex items-center gap-0.5">
@@ -147,6 +153,7 @@ export default function StoryboardShotFrame({
         className="relative rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
         style={mediaStyle}
         data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
       >
         {renderResult('absolute inset-0 w-full h-full object-contain opacity-50', '')}
         {indexBadge(false)}
@@ -156,20 +163,23 @@ export default function StoryboardShotFrame({
   }
 
   if (exec.status === 'failed') {
+    const failure = storyboardFailureCopy(exec.errorMessage)
     return column(
       'failed',
       <div
         className="relative rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-1.5 text-center"
         style={mediaStyle}
         data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
       >
         {renderResult('absolute inset-0 w-full h-full object-contain opacity-40', '')}
         {indexBadge(true)}
         <span
           className="relative z-[1] text-micro text-workbench-danger leading-tight line-clamp-3"
-          title={exec.errorMessage ?? undefined}
+          title={failure.hint}
+          data-storyboard-failure-reason="true"
         >
-          {t('storyboardEditor.frame.failed')}
+          {failure.reason}
         </span>
       </div>,
     )
@@ -185,6 +195,7 @@ export default function StoryboardShotFrame({
         style={mediaStyle}
         title={t(recoverableHintKey(exec.recoverableNode))}
         data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
       >
         {indexBadge(true)}
         <IconClockSearch size={14} stroke={1.6} className="text-nomi-ink-60" aria-hidden />
@@ -206,6 +217,7 @@ export default function StoryboardShotFrame({
         style={mediaStyle}
         title={t('storyboardEditor.row.missingRequiredHint')}
         data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
       >
         {indexBadge(true)}
         <span className="text-micro text-workbench-danger leading-normal">
@@ -217,25 +229,20 @@ export default function StoryboardShotFrame({
     )
   }
 
-  // ready：空格即生成入口（虚线占位框按整片默认画幅撑出尺寸，合同 §2.4）。
+  // ready：虚线占位框按画幅撑出尺寸（合同 §2.4）。「生成」不在这里——同一行只有一颗，在提示词框底栏右端。
   return column(
     'ready',
     <div
-      className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 grid place-items-center"
+      className={cn('relative grid place-items-center rounded-nomi bg-nomi-ink-05', !ownAspect && 'border border-dashed border-nomi-ink-20')}
       style={mediaStyle}
       data-storyboard-frame-media={aspect || 'default'}
+        data-storyboard-visual-box="true"
     >
-      {indexBadge(true)}
-      {onGenerate ? (
-        <button
-          type="button"
-          onClick={onGenerate}
-          className="h-6 px-2.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-micro font-medium hover:opacity-90 active:opacity-80"
-          aria-label={t('storyboardEditor.frame.generateAria', { index: shot.index })}
-        >
-          {t('storyboardEditor.frame.generate')}
-        </button>
+      {ownAspect ? (
+        <span className="rounded-nomi-sm border border-dashed border-nomi-ink-20" style={containedBox(frame, aspect)} aria-hidden />
       ) : null}
+      {indexBadge(true)}
+      {aspectTag}
     </div>,
   )
 }

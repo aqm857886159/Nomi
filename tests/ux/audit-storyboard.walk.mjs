@@ -11,6 +11,10 @@
 // 为什么没用 full-walk 的 startPlaybook：它在装监视器时读 useAgentPanelSpendConfirm.ts 的 POLL_INTERVAL_MS，
 // 而付费卡并进对话那一刀（38db4a3d9）把它删了，所以 main 上 startPlaybook 起不来（走查基座本身红了）。
 // 这里直接用它下面的零件（夹具 / 出网闸 / 上传中继 / 脚本化大脑）。
+//
+// 2026-10-06（分镜复用画布交互，L-sbui）：镜头行的参考区、模式下拉、底栏 ⋯ 开关弹层、参考卡空画面格里的
+// 「生成」都已删，换成视觉列里的参考条（缩略图带 × + 「+」开素材选择器）、画布同款参数条（汇总按钮 → 平铺面板）、
+// 底栏右端的「生成」。定位器跟着改到新界面；测的问题不变，截图名里写着旧结论的几张改成中性名字。
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
@@ -114,6 +118,10 @@ async function backToCreation() {
 }
 const nodesOf = () => readProject().generationCanvas.nodes
 const metaBrief = (n) => ({ kind: n.kind, title: n.title, status: n.status, model: n.meta?.modelKey ?? n.meta?.imageModel ?? null, vendor: n.meta?.modelVendor ?? null, anchorId: n.meta?.anchorId ?? null, shotId: n.meta?.shotId ?? null })
+const refAdd = (index) => row(index).locator('[data-storyboard-ref-add] [data-asset-add-tile]').first()
+const picker = () => win().locator('[data-testid="asset-picker"]').last()
+const paramsPill = (scope) => scope.getByRole('button', { name: t('生成参数', 'Generation parameters'), exact: true }).first()
+const modelButton = (scope) => scope.locator('[data-storyboard-composer-bar]').getByRole('button', { name: t('模型', 'Model'), exact: true }).first()
 const rectOf = (selector) => win().evaluate((s) => { const e = document.querySelector(s); const r = e?.getBoundingClientRect(); return r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), bottom: Math.round(r.bottom) } : null }, selector)
 
 try {
@@ -130,7 +138,8 @@ try {
     r.hintLine = (await editor().locator('header + div').innerText()).replace(/\n+/g, ' ')
     r.batchButton = await editor().locator('[data-storyboard-batch]').innerText()
     r.anchorChips = await editor().locator('[data-storyboard-anchor-chip]').allInnerTexts()
-    r.rowRefHint = await editor().locator('[data-storyboard-row="1"] [data-storyboard-refzone]').innerText()
+    r.rowRefThumbs = await row(1).locator('[data-storyboard-ref-thumb]').count()
+    r.rowRefAdd = await row(1).locator('[data-storyboard-ref-add]').first().getAttribute('data-storyboard-ref-add').catch(() => null)
     r.rowNumbers = await editor().locator('[data-storyboard-row]').evaluateAll((els) => els.map((e) => e.getAttribute('data-storyboard-row')))
   })
 
@@ -142,8 +151,7 @@ try {
     const bar = (id) => win().evaluate((anchorId) => [...document.querySelectorAll(`[data-storyboard-anchor-row="${anchorId}"] [data-storyboard-composer-bar] button`)].map((b) => (b.getAttribute('aria-label') || b.title || b.textContent || '').trim().replace(/\s+/g, ' ')).filter(Boolean), id)
     r.heroBarBefore = await bar('hero')
     // 选一个有「比例 / 清晰度 / 张数」参数的图片模型，看锚的参数区会不会长出来。
-    const modelTrigger = editor().locator('[data-storyboard-anchor-row="hero"] [data-storyboard-composer-bar] [aria-haspopup="listbox"]').first()
-    await modelTrigger.click()
+    await modelButton(editor().locator('[data-storyboard-anchor-row="hero"]')).click()
     await settle(400)
     r.anchorModelOptions = (await visibleOptions()).slice(0, 14)
     await snap('04-anchor-model-menu')
@@ -159,22 +167,22 @@ try {
     await editor().locator('[data-storyboard-anchors-toggle="true"]').click() // 收起，回到镜头
     await settle(400)
     await scrollTo(120)
-    const modeTrigger = row(1).locator('[aria-haspopup="listbox"]').nth(1)
-    r.defaultModeLabel = (await modeTrigger.innerText()).trim()
-    await modeTrigger.click()
-    await settle(400)
-    r.modeOptions = await visibleOptions()
-    await snap('06-shot-mode-menu')
-    // 切到带参考槽的模式（最后一项 = 全能参考）
-    await win().getByRole('option', { name: r.modeOptions.at(-1), exact: true }).first().click()
-    await settle(700)
-    r.refZoneAfterOmni = (await row(1).locator('[data-storyboard-refzone]').innerText()).replace(/\n+/g, ' | ')
-    await snap('07-shot1-omni-mode')
-    const dots = row(1).getByRole('button', { name: /开关|收起来的设置|Switches for this shot|Settings tucked away/ }).first()
-    await dots.click()
+    // 模式不再是行上的一颗下拉：和画布节点一样在参数汇总按钮的面板里（生成方式一组 + 其余参数平铺）。
+    const pill = paramsPill(row(1))
+    r.defaultModeLabel = (await pill.innerText()).trim()
+    await pill.click()
     await settle(500)
-    r.shotParamPopover = (await win().evaluate(() => { const p = [...document.querySelectorAll('[role=dialog], [data-radix-popper-content-wrapper], [data-anchored-popover]')].map((e) => e.innerText).filter(Boolean); return p.join(' || ') })).replace(/\n+/g, ' / ').slice(0, 300)
-    await snap('08-shot-more-params-popover')
+    const panel = win().locator('[data-agent-parameter-panel]').last()
+    const modes = panel.locator('[data-agent-generation-mode] [role="radio"]')
+    r.modeOptions = (await modes.allInnerTexts()).map((text) => text.trim())
+    await snap('06-shot-params-panel')
+    // 切到带参考槽的模式（最后一项 = 全能参考）
+    await modes.last().click()
+    await settle(700)
+    r.shotParamPanel = (await panel.innerText().catch(() => '')).replace(/\n+/g, ' / ').slice(0, 300)
+    r.refsAfterOmni = { add: await row(1).locator('[data-storyboard-ref-add]').first().getAttribute('data-storyboard-ref-add').catch(() => null), thumbs: await row(1).locator('[data-storyboard-ref-thumb]').count() }
+    await snap('07-shot1-omni-mode')
+    // 旧 08（底栏 ⋯ 开关弹层）已删：生成音频 / 返回尾帧这类开关现在就在上面这块面板里，06 那张已经照到。
     await win().keyboard.press('Escape')
   })
 
@@ -210,21 +218,22 @@ try {
   await phase('P6-reference-slot', async (r) => {
     await scrollTo(120)
     const png = path.join(smoke.project.projectRoot, 'assets', 'imported', 'frame-1.png')
-    await row(1).locator('[data-storyboard-ref-slot="image_ref"] button').first().click()
+    await refAdd(1).click()
     await settle(700)
-    await snap('12-ref-popover-empty')
-    await win().locator('[data-storyboard-slot-popover] input[type="file"]').setInputFiles(png)
-    await settle(3500)
-    await snap('13-ref-popover-after-upload')
-    r.popoverRect = await rectOf('[data-storyboard-slot-popover]')
+    await snap('12-ref-picker-empty')
+    r.popoverRect = await rectOf('[data-testid="asset-picker"]')
     r.viewportH = (await win().evaluate(() => innerHeight))
-    r.removeButton = await win().evaluate(() => { const b = document.querySelector('[data-storyboard-slot-popover] button[aria-label]'); const e = b?.getBoundingClientRect(); return e ? { label: b.getAttribute('aria-label'), x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.width), h: Math.round(e.height), color: getComputedStyle(b).color } : null })
     r.popoverTopOverlapsHeader = r.popoverRect ? r.popoverRect.y < 88 : null
+    await picker().locator('input[type="file"]').setInputFiles(png)
+    await settle(3500)
+    await snap('13-ref-picker-after-upload')
     await win().keyboard.press('Escape')
     await settle(500)
-    await snap('14-ref-tile-no-remove-affordance')
-    r.tileHasInlineRemove = await row(1).locator('[data-storyboard-ref-slot="image_ref"] [data-storyboard-ref-tile] button, [data-storyboard-ref-slot="image_ref"] [data-storyboard-ref-stack] button').count()
-    r.tileRect = await row(1).locator('[data-storyboard-ref-slot="image_ref"] [data-storyboard-ref-tile]').first().boundingBox()
+    // 删参考的入口：缩略图右上角的 ×（画布同款 AssetTile），不用再点开浮层。
+    r.removeButton = await win().evaluate(() => { const b = document.querySelector('[data-storyboard-row="1"] [data-asset-tile-remove]'); const e = b?.getBoundingClientRect(); return e ? { label: b.getAttribute('aria-label'), x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.width), h: Math.round(e.height), color: getComputedStyle(b).color } : null })
+    await snap('14-ref-tile-remove-affordance')
+    r.tileHasInlineRemove = await row(1).locator('[data-storyboard-ref-thumb] [data-asset-tile-remove]').count()
+    r.tileRect = await row(1).locator('[data-storyboard-ref-thumb]').first().boundingBox()
     // @ 引用：只列「某镜结果 / 素材库」？
     const box = row(1).locator('[data-storyboard-prompt-block] [contenteditable="true"]').first()
     await box.click()
@@ -247,22 +256,17 @@ try {
     await win().keyboard.press('Escape')
     await settle(500)
     // 把绑定在槽里删掉，看提示词里的引用还在不在
-    r.slotsBefore = await row(1).locator('[data-storyboard-ref-tile], [data-storyboard-ref-stack]').count()
-    for (const key of ['image_ref']) {
-      await row(1).locator(`[data-storyboard-ref-slot="${key}"] button`).first().click()
-      await settle(500)
-      for (let i = 0; i < 3; i += 1) {
-        const remove = win().locator('[data-storyboard-slot-popover] button[aria-label]').filter({ has: win().locator('svg') }).first()
-        if (!(await remove.count())) break
-        await remove.click()
-        await settle(400)
-      }
+    r.slotsBefore = await row(1).locator('[data-storyboard-ref-thumb]').count()
+    for (let i = 0; i < 3; i += 1) {
+      const remove = row(1).locator('[data-storyboard-ref-thumb] [data-asset-tile-remove]').first()
+      if (!(await remove.count())) break
+      await remove.click()
+      await settle(400)
     }
-    await win().keyboard.press('Escape')
     await settle(600)
     r.chipsAfterBindingRemoved = await win().locator('[data-storyboard-mention-chip]').allInnerTexts()
-    r.tilesAfterBindingRemoved = await row(1).locator('[data-storyboard-ref-tile]').count()
-    await snap('17-binding-removed-chip-remains')
+    r.tilesAfterBindingRemoved = await row(1).locator('[data-storyboard-ref-thumb]').count()
+    await snap('17-binding-removed-chips-after')
   })
 
   await phase('P7-skip-and-selection', async (r) => {
@@ -301,11 +305,12 @@ try {
     await settle(500)
     // 后巷：先换成回环图片模型再生成（零额度）。
     const alley = editor().locator('[data-storyboard-anchor-row="alley"]')
-    await alley.locator('[data-storyboard-composer-bar] [aria-haspopup="listbox"]').first().click()
+    await modelButton(alley).click()
     await settle(400)
     await win().getByRole('option', { name: /Fixture/ }).first().click()
     await settle(500)
-    await alley.locator('[data-anchor-face="empty"] button').click()
+    // 「生成」在参考卡底栏右端（画面格里不再放一颗）。
+    await alley.locator('[data-storyboard-composer-bar] [data-storyboard-generate-state]').click()
     for (let i = 0; i < 30; i += 1) { await settle(1000); if (await alley.locator('[data-anchor-face="done"]').count()) break }
     await settle(800)
     await scrollTo(0)
@@ -313,33 +318,37 @@ try {
     r.alleyFace = await alley.locator('[data-anchor-face]').first().getAttribute('data-anchor-face')
     // 林薇：先用 GPT Image 2（出网闸会拦 → 失败），换成回环模型再重试：看节点用的是哪个模型。
     const hero = editor().locator('[data-storyboard-anchor-row="hero"]')
-    await hero.locator('[data-anchor-face="empty"] button').click()
-    await settle(2500)
-    await hero.locator('[data-storyboard-composer-bar] [aria-haspopup="listbox"]').first().click()
+    await hero.locator('[data-storyboard-composer-bar] [data-storyboard-generate-state]').click()
+    // 等它真的失败再换模型：只等固定 2.5 秒时，失败面还没出来，「重试」那一下就没点上，测的问题落空。
+    for (let i = 0; i < 30; i += 1) { await settle(1000); if (await hero.locator('[data-anchor-face="failed"]').count()) break }
+    r.heroFailedBeforeRetry = await hero.locator('[data-anchor-face="failed"]').count() > 0
+    await modelButton(hero).click()
     await settle(400)
     await win().getByRole('option', { name: /Fixture/ }).first().click()
     await settle(600)
     if (await hero.locator('[data-anchor-face="failed"] button').count()) await hero.locator('[data-anchor-face="failed"] button').click()
-    await settle(3500)
+    for (let i = 0; i < 30; i += 1) { await settle(1000); if (await hero.locator('[data-anchor-face="done"]').count()) break }
+    await settle(800)
     await snap('22-hero-model-changed-then-retry')
     await settle(2500)
     const design = readProject().storyboardDesignsByDocumentId[DOC].find((d) => d.id === DESIGN)
     r.heroPlanModel = design.plan.anchors.find((a) => a.id === 'hero')?.modelKey
     r.heroNode = metaBrief(nodesOf().find((n) => n.meta?.anchorId === 'hero') ?? {})
+    { const heroRaw = nodesOf().find((n) => n.meta?.anchorId === 'hero'); r.heroNodeDetail = heroRaw ? { status: heroRaw.status, error: String(heroRaw.error ?? '').slice(0, 200), metaKeys: Object.keys(heroRaw.meta ?? {}).sort() } : null }
     // 自动引用：锚出图后，引用它的镜头有没有拿到
     await editor().locator('[data-storyboard-anchors-toggle="true"]').click()
     await settle(500)
     await scrollTo(120)
     r.anchorChipsAfter = await editor().locator('[data-storyboard-anchor-chip]').allInnerTexts()
     r.shot1Bindings = (design.plan.shots[0].referenceBindings ?? null)
-    r.shotRefStates = await editor().locator('[data-storyboard-row]').evaluateAll((els) => els.map((e) => ({ row: e.getAttribute('data-storyboard-row'), slots: [...e.querySelectorAll('[data-storyboard-ref-slot]')].map((s) => `${s.getAttribute('data-storyboard-ref-slot')}:${s.getAttribute('data-storyboard-ref-state')}`), hint: e.querySelector('[data-storyboard-refzone]')?.innerText.slice(0, 40) })))
+    r.shotRefStates = await editor().locator('[data-storyboard-row]').evaluateAll((els) => els.map((e) => ({ row: e.getAttribute('data-storyboard-row'), thumbs: e.querySelectorAll('[data-storyboard-ref-thumb]').length, add: e.querySelector('[data-storyboard-ref-add]')?.getAttribute('data-storyboard-ref-add') ?? null, prompt: e.querySelector('[data-storyboard-prompt-block]')?.innerText.slice(0, 40) })))
     r.anchorsListedByAnchorIds = design.plan.shots.map((s) => ({ shot: s.index, anchorIds: s.anchorIds }))
-    await snap('23-shots-after-anchor-generated-no-auto-reference')
-    // 槽的选择器里能挑到锚的图吗（手动一张张挑）
-    await row(1).locator('[data-storyboard-ref-slot="image_ref"] button').first().click()
+    await snap('23-shots-after-anchor-generated')
+    // 参考条「+」开的素材选择器里能挑到锚的图吗（手动一张张挑）
+    await refAdd(1).click()
     await settle(700)
-    r.pickerCanvasSection = await win().evaluate(() => [...document.querySelectorAll('[data-storyboard-slot-popover] button')].map((b) => (b.getAttribute('aria-label') || b.title || b.textContent || '').trim()).filter((x) => x && !/^embedded-/.test(x)).slice(0, 8))
-    await snap('24-slot-picker-anchor-listed-only-as-canvas-result')
+    r.pickerCanvasSection = await win().evaluate(() => [...document.querySelectorAll('[data-testid="asset-picker"] button')].map((b) => (b.getAttribute('aria-label') || b.title || b.textContent || '').trim()).filter((x) => x && !/^embedded-/.test(x)).slice(0, 8))
+    await snap('24-ref-picker-anchor-results')
     await win().keyboard.press('Escape')
   })
 
@@ -438,10 +447,10 @@ try {
     await editor().locator('[data-storyboard-anchors-toggle="true"]').click()
     await settle(400)
     await scrollTo(120)
-    await row(1).locator('[data-storyboard-ref-slot] button').first().click().catch(() => {})
+    await refAdd(1).click().catch(() => {})
     await settle(700)
-    await snap('32-min-window-ref-popover')
-    r.minPopoverRect = await rectOf('[data-storyboard-slot-popover]')
+    await snap('32-min-window-ref-picker')
+    r.minPopoverRect = await rectOf('[data-testid="asset-picker"]')
     await win().keyboard.press('Escape')
     await row(3).locator('[data-storyboard-frame]').first().click({ position: { x: 5, y: 5 } }).catch(() => {})
     await settle(600)

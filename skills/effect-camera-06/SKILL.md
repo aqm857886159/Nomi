@@ -42,3 +42,5 @@ metadata:
 ---
 
 High overhead looking straight down, {主体} small within a larger pattern
+
+Keep the subject’s identity, appearance, clothing, the larger pattern, lighting, color, and continuity unchanged. Change only the overhead viewpoint and scale described here.

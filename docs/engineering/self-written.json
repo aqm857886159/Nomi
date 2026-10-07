@@ -702,6 +702,58 @@
       "whyNotIntegrated": "领域约束：同一张 Agent 工具面在主进程、preload、pi 岛、MCP 进程、门岗与 vitest 六处于导入期装配成常量，开关必须在每个进程首个导入时就定死且彼此一致（打包只认烤进去的值）；运行时求值的 SDK 回答不了「导入那一刻是哪张面」，渲染端 define 也到不了主进程。两个文件合计不到 120 行，且随开关 2026-11-15 到期整体删除。",
       "revisitWhen": "切换 PR（门槛达标后）同 commit 删开关与这两个文件；或出现第二个需要跨进程一致的构建开关时改接现成方案",
       "revisitBy": "2026-11-15"
+    },
+    {
+      "id": "director-shot-focus-and-patch-notices",
+      "capability": "3D-BOX 3c 在 Agent 面板上的两样领域呈现：「正在改：镜头 N」标签（导演台选中的计划镜头随消息一起走），和「这次改动覆盖了你在镜头 N 的手调，可撤销」（哪一笔补丁丢了哪些手调）。三颗薄 hook 只把导演台选择 / 计划 meta 接到面板，一个标签组件按获批画布落地",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/director/useDirectorShotFocus.ts",
+        "src/workbench/generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag.ts",
+        "src/workbench/ai/v4/AgentPanelV4FocusTag.tsx",
+        "src/workbench/ai/v4/useDirectorPatchNotices.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "面板已有的引用 chip（V4Chip：文件 / 技能 / 片段附件）：是随消息发走的附件，不是「这一刻选中的是哪一镜」的活上下文，也不会随导演台取消选择消失",
+          "source": "src/workbench/ai/v4/agentPanelV4Types.ts"
+        },
+        {
+          "name": "行尾「撤销」用的收据授权 host-note：直接复用它认回那一笔（toolCallId ↔ 提议 id），不另存第二份身份",
+          "source": "src/workbench/ai/lane/laneReceiptUndo.ts"
+        },
+        {
+          "name": "让模型在回复里复述被覆盖的手调（stage_shot 写法指导）：真实测试 ④ 里 DeepSeek 一句没提，不能当唯一出口",
+          "source": "electron/shared/director/directorPlanGuidelines.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：镜头焦点来自导演台的计划镜头选择，覆盖提示来自导演计划的手改覆盖层（按稳定 id 的手调差）；两者都是 3D-BOX 独有的事实，文件以 use 开头只因为是 React hook，里面没有通用能力。",
+      "revisitWhen": "Agent 面板有了统一的「宿主提示」槽或统一的上下文标签时，把这两样并进去；或 3D-BOX 开关到期（2026-11-15）随开关一起复查"
+    },
+    {
+      "id": "remove-background-download",
+      "capability": "抠图模型首次下载：只从自有镜像拉、按字节出一条总进度、60 秒没收到字节判卡住并中止、失败分原因",
+      "status": "justified",
+      "paths": [
+        "src/lib/removeBackgroundDownload.ts",
+        "src/lib/removeBackgroundModelSource.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@imgly/background-removal 的 progress 回调：按资源各报、每个 chunk 下完才报一次，没有超时",
+          "source": "node_modules/@imgly/background-removal/dist/index.mjs（loadAsBlob）"
+        },
+        {
+          "name": "@imgly 的 fetchArgs：只能传 RequestInit，传不进按字节的进度和「多久没字节」的判定",
+          "source": "https://github.com/imgly/background-removal-js"
+        },
+        {
+          "name": "AbortSignal.timeout：总时长超时，大文件慢网会误杀；要的是「多久没进展」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：第一次点抠图要当场下 56MB，用户判断「卡住没有」只靠这一条进度和这一句话；现成的只有按资源的整块进度和总时长超时，前者在慢网下几十秒不动，后者会把还在慢慢下的误杀。代码只包一层 fetch 计字节，下载本身仍是 @imgly 自己做。",
+      "revisitWhen": "@imgly 提供按字节进度与无进展超时时；或抠图模型改成随包 / 主进程下载时"
     }
   ]
 }

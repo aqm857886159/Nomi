@@ -49,6 +49,12 @@ export type CanvasTransport = {
   execute: (payload: CanvasWireRequest) => Promise<CanvasTaskResult>;
   /** `runtime.fetchTaskResult`。 */
   fetchResult: (payload: Record<string, unknown>) => Promise<{ result: CanvasTaskResult }>;
+  /**
+   * 交的那一段每一次出网都在派发账上（见 `GenerationProvider.networkTransport`）。生产的 `lazyCanvasTransport` 是：runTask 的 HTTP
+   * 只走 vendorHttp.requestVendor（含自定义调用脚本、同步音频、multipart）→ appFetch；process 分支（即梦 / Antigravity CLI）是子进程，
+   * 由 `child_process` 诊断通道记账——跑起来了就算可能写出去（V-1047 B1）。
+   */
+  networkTransport?: "app-fetch";
 };
 
 /**
@@ -116,6 +122,7 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
   return {
     providerId,
     capabilities: { submitIdempotency: false, query: true, reconcile: false, cancel: false, materialize: true },
+    ...(transport.networkTransport ? { networkTransport: transport.networkTransport } : {}),
     buildRequest: (input) => structuredClone(wire(input)),
     submit,
     query: async (providerTaskId, context) => {
@@ -155,6 +162,7 @@ export function canvasTransportProviders(vendorKeys: readonly string[], transpor
 /** 运行时那两个函数（懒加载：能力核不在启动时拉起整个运行时）。交 = 带 RUN_APPROVED_ADMISSION 的 runTask。 */
 export function lazyCanvasTransport(): CanvasTransport {
   return {
+    networkTransport: "app-fetch",
     execute: async (payload) => {
       const [{ runTask }, { RUN_APPROVED_ADMISSION }] = await Promise.all([import("../runtime"), import("../tasks/taskSpend")]);
       return runTask(payload, RUN_APPROVED_ADMISSION) as Promise<CanvasTaskResult>;

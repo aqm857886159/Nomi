@@ -30,11 +30,12 @@ describe('DC24 quiet defaults preserve actionable boundaries', () => {
     expect(secondary).toContain('timelineEditor.secondary.addMusic')
   })
 
-  it('makes a known no-reference mode quiet only when it has no mode-switch action', () => {
-    const code = source('creation/storyboard/shotRow/ShotReferenceZone.tsx')
-    expect(code).not.toContain("t('storyboardEditor.row.noRefAccepted',")
-    expect(code).toContain("t('storyboardEditor.row.noRefAcceptedSwitchSame',")
-    expect(code).toContain("t('storyboardEditor.row.noRefAcceptedSwitch',")
+  it('a no-reference mode is quiet: the reference strip offers the switch as an action (「+」), never as a sentence', () => {
+    // 2026-10-06 用户：「为什么要设计冗余的一些文字说明」。不吃参考的模式下参考条只摆一枚「+」，
+    // 点它 = 切到同模型能收参考图的模式再放（ShotReferenceStrip），不再挂「不吃参考 · 切…可挂参考」整句。
+    const code = source('creation/storyboard/shotRow/ShotReferenceStrip.tsx')
+    expect(code).not.toContain('storyboardEditor.row.noRefAccepted')
+    expect(code).toContain('imageReferenceMode(')
   })
 
   it('keeps selected gestures and shared permissions, removes repeated teaching', () => {

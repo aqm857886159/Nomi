@@ -6,6 +6,7 @@ import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
 import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import { resultIdentity, setNodeMainResultPatch } from '../model/nodeResultLifecycle'
 import { assignClonedShotIndexes, backfillShotIndexes, changesShotIdentity, isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
 import { buildCanvasNode } from '../../../../electron/capabilityCore/canvasNodeFactory'
 import { RENDERER_NODE_FACTORY_DEPS } from './rendererNodeFactoryDeps'
@@ -192,6 +193,35 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       { type: 'canvas.node.prompt-changed', payload: { nodeId, prompt } },
       ...(patch.meta ? [{ type: 'canvas.node.updated' as const, payload: { nodeId, patch: { meta: patch.meta } } }] : []),
     ])
+  },
+  setNodeResultStackOpen: (nodeId, open) => {
+    const existing = get().nodes.find((node) => node.id === nodeId)
+    if (!existing || Boolean(existing.resultStackOpen) === open) return
+    pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.resultStackOpen = open
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { resultStackOpen: open } } }])
+  },
+  setNodeMainResult: (nodeId, identity, meta) => {
+    const existing = get().nodes.find((node) => node.id === nodeId)
+    if (!existing || (existing.result && resultIdentity(existing.result) === identity)) return
+    const lifecycle = setNodeMainResultPatch(existing, identity)
+    if (!lifecycle) return
+    const patch: Partial<GenerationCanvasNode> = { ...lifecycle, ...(meta ? { meta } : {}) }
+    pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, patch)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch } }])
   },
   setNodeLocked: (nodeId, locked) => {
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)

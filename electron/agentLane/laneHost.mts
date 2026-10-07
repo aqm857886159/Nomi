@@ -48,7 +48,11 @@ import { loadPiSkillFormatter, renderLaneSkillSection, laneSkillUnlockReason } f
 import { openLaneSession } from './laneSession.mjs';
 import { createLaneTools, takeLaneToolFailure } from './laneTools.mjs';
 import { projectLaneSnapshot, type LaneModelFacts } from '../shared/agentLane/laneProjection.js';
-import { openLaneNativeDesktop } from './laneNativeDesktop.mjs';
+// 本机能力（bash / 沙箱 / pi-coding-agent 的工具）只在真开一条带模型的 lane 时才装：静态引入会把 pi-coding-agent
+// 整个入口（约 1500 个文件，主进程同步装载）拖进「打开项目」那条只读历史的路径（2026-10-06 L-perf 实测）。
+// 与 laneCodingTools / laneSkillCatalog 的按需加载同一个做法。tests/agent-runtime/lane-open-graph.test.mts 钉住。
+type LaneNativeDesktop = Awaited<ReturnType<typeof import('./laneNativeDesktop.mjs').openLaneNativeDesktop>>;
+const loadLaneNativeDesktop = () => import('./laneNativeDesktop.mjs');
 import { LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog.js';
 import { appendLaneContinuation, laneContinuationText } from './laneContinuation.mjs';
 
@@ -168,7 +172,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const inputs = createLaneInputAdmission(context);
   const laneName = options.laneName ?? 'main';
   const { session, sessionId, release } = await openLaneSession({ ...options, laneName }, context);
-  let native: Awaited<ReturnType<typeof openLaneNativeDesktop>> | undefined;
+  let native: LaneNativeDesktop | undefined;
   // 会话一旦打开，这个进程就是它**唯一**的持有者。装配到一半失败（模型配置写错、
   // 工具名重复、schema 门岗报红）而不交还持有权，用户下一次打开同一条历史会撞上
   // 「已经有人开着」——而那个人是一个早就失败退出的调用。
@@ -184,7 +188,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   }
 
   async function assemble(): Promise<LaneHandleWithObservations> {
-  if (options.native) native = await openLaneNativeDesktop({ projectDir: options.projectDir,
+  if (options.native) native = await (await loadLaneNativeDesktop()).openLaneNativeDesktop({ projectDir: options.projectDir,
     ...options.native, deferredGroups: LANE_DEFERRED_TOOL_GROUPS.map(group => ({ ...group,
       toolNames: group.toolNames.filter(name => options.tools.some(tool => tool.name === name)),
     })).filter(group => group.toolNames.length > 0),

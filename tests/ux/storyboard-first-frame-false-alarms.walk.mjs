@@ -150,7 +150,8 @@ const failures = []
 const evidence = { locale: LOCALE, checks: {}, requests: {} }
 const snap = async (name) => { await screenshotSettled(win, { path: path.join(outDir, name) }) }
 const row = (index) => win.locator(`[data-storyboard-row="${index}"]`).first()
-const refSlot = (index) => row(index).locator('[data-storyboard-ref-slot="image_ref"]').first()
+// 2026-10-06 起参考在视觉列的缩略图条（ShotReferenceStrip）；计划首帧是最前面那一格只读占位。
+const plannedTile = (index) => row(index).locator('[data-storyboard-ref-planned="first-frame"]').first()
 const spendDialog = () => win.locator('div.fixed.inset-0').filter({ hasText: T.spendDialog }).last()
 
 try {
@@ -178,10 +179,7 @@ try {
 
   // ── C. 开了首帧的图生视频镜：不缺参考、不红、进批量 ──
   await expectVisible(row(1).locator('[data-storyboard-frame="ready"]'), 'C：镜 1 画面格不是就绪态（仍判「缺参考」？）')
-  const slotProbe = await proveProbe(refSlot(1), 'C：镜 1 的 image_ref 格')
-  await expect(refSlot(1), 'C：镜 1 的 image_ref 格仍是红的缺参考').toHaveAttribute('data-storyboard-ref-state', 'filled')
-  await expectVisible(refSlot(1).locator('[data-storyboard-ref-planned="first-frame"]'), 'C：镜 1 的 image_ref 格里没有「本镜首帧」')
-  await expect(refSlot(1), 'C：镜 1 的 image_ref 格说明文字不是「本镜首帧」').toContainText(T.plannedCaption)
+  const slotProbe = await proveProbe(plannedTile(1), 'C：镜 1 参考条里的「本镜首帧」那一格')
   await expectAbsent(row(1).locator('[data-storyboard-frame="missing-required"]'), { provenBy: slotProbe, message: 'C：镜 1 画面格仍显示缺必填参考' })
   const batchButton = win.locator('[data-storyboard-batch="true"]').first()
   // 两镜都判「缺参考」时批量一镜都跑不了、按钮是灰的；页脚的排除原因里也不该再有「缺参考」。
@@ -216,14 +214,13 @@ try {
     failures.push(`D：视频请求的 image_urls 应当恰好是那一张首帧图（${fixture.baseURL}/fixture/image.jpg），实际 ${JSON.stringify(imageUrls)}`)
   }
   // 出片前（视频还在跑）：首帧图已出，参考格里就是它。
-  await expectVisible(refSlot(1).locator('[data-storyboard-ref-planned="first-frame"] img'), 'D：首帧图出来后参考格里没有那张图')
-  await expect(refSlot(1), 'D：生成中那一格变红了').toHaveAttribute('data-storyboard-ref-state', 'filled')
+  await expectVisible(plannedTile(1).locator('img'), 'D：首帧图出来后参考条里没有那张图')
+  await expectAbsent(row(1).locator('[data-storyboard-frame="missing-required"]'), { provenBy: slotProbe, message: 'D：生成中镜 1 变成缺必填参考' })
   await snap('03-first-frame-in-slot-while-video-runs.png')
   fixture.releaseVideos()
   await expectVisible(row(1).locator('[data-storyboard-frame="done"]'), 'D：视频出片后镜 1 没有变成已生成', stationTimeout({ operations: 6 }))
-  await expect(refSlot(1), 'D：出片后那一格又变红了').toHaveAttribute('data-storyboard-ref-state', 'filled')
-  await expectVisible(refSlot(1).locator('[data-storyboard-ref-planned="first-frame"] img'), 'D：出片后参考格里不是首帧图')
-  evidence.checks.afterGeneration = await refSlot(1).getAttribute('data-storyboard-ref-state')
+  await expectVisible(plannedTile(1).locator('img'), 'D：出片后参考条里不是首帧图')
+  evidence.checks.afterGeneration = await row(1).locator('[data-storyboard-frame]').first().getAttribute('data-storyboard-frame')
   await snap('04-after-generation.png')
 
   // 生成通路只许打到这两条：一张首帧图、一段视频。夹具没预期的**生成**请求一律算失败。

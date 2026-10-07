@@ -57,6 +57,13 @@ it("derives fresh storyboard review from operation metadata without making ordin
     .toEqual({ requiresPlanReview: false, planReviewAllowsReuse: true });
   expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, {}))
     .toEqual({ requiresPlanReview: true, planReviewAllowsReuse: true });
+  // 真实测试 ④：撤销不是一份要先读的编辑计划；认不出的 operation 仍按整体复审（fail-closed）
+  expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, { operation: "apply_edit_plan" }))
+    .toEqual({ requiresPlanReview: true, planReviewAllowsReuse: true });
+  expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, { operation: "undo_timeline_edit" }))
+    .toEqual({ requiresPlanReview: false, planReviewAllowsReuse: true });
+  expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, { operation: "bogus" }))
+    .toEqual({ requiresPlanReview: true, planReviewAllowsReuse: true });
 });
 
 describe("capability contract registry", () => {

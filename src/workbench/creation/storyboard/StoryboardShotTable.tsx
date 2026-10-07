@@ -26,11 +26,10 @@ import { referenceSlotAccept } from '../../generationCanvas/nodes/controls/arche
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
-import { tableFrameMediaBox } from './shotRow/shotFrameGeometry'
+import { frameMediaBox } from './shotRow/shotFrameGeometry'
 import {
-  ASPECT_OPTIONS,
   effectiveShotAspect,
-  isAspectOverridden,
+  planDefaultAspect,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
@@ -77,9 +76,6 @@ type Props = {
    * 缺省时那枚按钮就不出现——但绝不许拿 `onGenerateRow` 顶替（那是付费重跑）。
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
-  /** 「再出 3 版」：同镜连出三版，追加进变体抽屉。 */
-  onVariantsRow: (runtime: StoryboardRowRuntime) => void
-  /** 浮条 ×3 变体。 */
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击 / 浮条 ⛶ 放大预览。 */
@@ -162,7 +158,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -257,12 +253,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
 
   // 组头小结：与行状态同一份 derive（rows 按 startPos 切片；F2 禁静态快照）。
   // 媒体盒**一张表算一次**（§2.4 修订 · 2026-09-06 用户反馈四「不同画幅的行一放进来整个框就不齐」）：
-  // 全表同一画幅 → 盒就是那个画幅的框，缩略图铺满、行行同高；混排 → 全表共用一只盒，各自 letterbox。
-  // 输入是**全部镜头**（不是当前可见的那几行）——按可见行算，展开/折叠一个场就会让盒子跳一次尺寸。
-  const tableBox = React.useMemo(
-    () => tableFrameMediaBox(plan.shots.map((shot) => effectiveShotAspect(plan, shot))),
-    [plan],
-  )
+  // 盒子 = **整片默认画幅**的框（`planDefaultAspect`，与落画布同一个 resolver）；覆盖了画幅的镜在这只框里
+  // contain + 角标。2026-10-06 起不再用「镜数最多的画幅」近似——覆盖过半时那样算会让整张表跟着少数派变形。
+  const tableBox = React.useMemo(() => frameMediaBox(planDefaultAspect(plan)), [plan])
 
   const groupRowsOf = (group: SceneGroup): StoryboardRowRuntime[] =>
     group.shots
@@ -270,6 +263,10 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
+    // 外层不裁切：多选浮条是 `sticky`，它的「粘住」只认**最近的滚动祖先**——放在 `overflow-hidden` 的框里，
+    // 那个框就成了它的滚动祖先（却永远不滚），浮条于是不跟屏、只在滚到最底时才出现。
+    // 所以圆角描边的裁切只留给行区这一层，浮条挂在它外面、直接坐在分镜页的滚动区里。
+    <div>
     <div ref={tableRef} className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
@@ -350,8 +347,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     // 媒体盒是**表级**的（§2.4 修订 · 2026-09-06 用户反馈四）：全表同画幅时盒=该画幅，
                     // 混排时全表共用一只盒、画面 letterbox 居中。行自己按画幅算就会一行一个尺寸。
                     frameBox: tableBox,
-                    aspectOverridden: isAspectOverridden(plan, shot),
-                    aspectOptions: ASPECT_OPTIONS,
                     onResolveOverride: runtime?.exec.node ? (field: string, action: 'adopt' | 'discard') => resolveStoryboardOverride(runtime.exec.node!.id, field, action, { plan, shot, change: onChange }) : undefined,
                     onChangeAspect: (next: string | null) => onChange(setShotAspectOverride(plan, pos, next)),
                     skipped: skippedShotIds?.has(shotKey) ?? false,
@@ -364,7 +359,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onAgentHandoff: runtime && onAgentHandoff ? () => onAgentHandoff([runtime]) : undefined,
                     onInsertAbove: () => onChange(insertShotAt(plan, pos)),
                     onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
-                    onGenerateVariants: runtime ? () => onVariantsRow(runtime) : undefined,
                     targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
                     allShots: plan.shots,
                     sourcePosition: pos,
@@ -449,7 +443,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
           </React.Fragment>
         )
       })}
-      {selectedRows.length > 0 ? (
+    </div>
+    {selectedRows.length > 0 ? (
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
           modelGroups={selectedModelGroups}

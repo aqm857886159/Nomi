@@ -16,7 +16,7 @@ const documentActions = {
   duplicateNodesForDrag: true, duplicateSelectedNodes: true, pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,
   restoreSnapshot: true, applyEventTail: true, applyExternalGraph: true,
   addNode: true, commitPersistedChange: false, updateNode: true, updateNodes: true,
-  updateNodePrompt: true, setNodeLocked: true, moveNode: true, moveSelectedNodes: true,
+  updateNodePrompt: true, setNodeResultStackOpen: true, setNodeMainResult: true, setNodeLocked: true, moveNode: true, moveSelectedNodes: true,
   tidyCategory: true, deleteSelectedNodes: true, selectNode: false, selectNodes: false,
   clearSelection: false, selectAllNodes: false, selectNodesInRect: false,
   duplicateNodeForRegeneration: true, reassignNodeCategory: true, copyNodeToCategory: true, deleteNode: true,
@@ -28,7 +28,7 @@ const documentActions = {
   ungroup: true, ungroupGroups: true, deleteGroup: true, moveNodeToGroup: true,
   removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true,
   setNodeStatus: false, dismissNodeError: false, setNodeProgress: false, appendNodeRun: false,
-  trackNodeRun: false, addNodeResult: true, rollbackHistory: true,
+  trackNodeRun: false, addNodeResult: true,
 } satisfies Record<ActionName, boolean>
 
 type PendingWrite = { proposalId: string; cancel: () => void | false }

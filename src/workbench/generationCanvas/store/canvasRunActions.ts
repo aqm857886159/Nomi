@@ -1,4 +1,3 @@
-import { rollbackNodeHistory } from '../model/graphOps'
 import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
 import { nodeRunOutcomePatch } from './nodeRunOutcome'
 import { createRunId } from './canvasIds'
@@ -95,16 +94,6 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       bumpPersistRevision(state)
     })
     emitRunUpdated(nodeId)
-  },
-  rollbackHistory: (nodeId, resultId) => {
-    const before = get().nodes
-    set((state) => {
-      const nextNodes = rollbackNodeHistory(state.nodes, nodeId, resultId)
-      if (nextNodes === state.nodes) return
-      state.nodes = nextNodes
-      bumpPersistRevision(state)
-    })
-    if (get().nodes !== before) emitRunUpdated(nodeId)
   },
   }
 }

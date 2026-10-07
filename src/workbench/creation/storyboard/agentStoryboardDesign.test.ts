@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from './agentStoryboardDesign'
+import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from './agentStoryboardDesign'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
@@ -54,6 +54,37 @@ describe('the agent writes into the same plan list a hand-made plan lives in', (
       .toEqual({ status: 'saved', shotId: 'shot-1' })
     expect(designs()[0].plan.shots[0]).toMatchObject({ prompt: 'A at dusk', modelKey: 'm', modelVendor: 'v' })
     expect(designs()[0].plan.shots[1].prompt).toBe('B')
+  })
+
+  it('appends shots and reference cards to the named plan, numbering shots after the existing ones and never in the anchor range', () => {
+    upsert('op-1', { title: 'Plan', anchors: [{ id: 'anchor-1', kind: 'character', carrier: 'visual', name: 'Hero', description: 'red coat' }], shots: [
+      { index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'A' },
+    ] })
+    const reply = extendAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-1', subjects: [
+      { index: 0, shotId: 'pending', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'B' },
+      { id: 'pending-anchor', kind: 'scene', carrier: 'visual', name: 'Alley', description: 'neon' },
+    ] })
+    expect(reply).toEqual({ status: 'saved', designId: 'op-1', added: [{ role: 'shot', id: 'shot-2', row: 2 }, { role: 'anchor', id: 'anchor-2', title: 'Alley' }] })
+    expect(designs()).toHaveLength(1)
+    expect(designs()[0].plan.shots.map(shot => [shot.index, shot.shotId, shot.prompt])).toEqual([[1, 'shot-1', 'A'], [2, 'shot-2', 'B']])
+    expect(designs()[0].plan.anchors.map(anchor => anchor.id)).toEqual(['anchor-1', 'anchor-2'])
+  })
+
+  it('refuses to add to a plan that is gone instead of starting a new one', () => {
+    expect(() => extendAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-missing', subjects: [
+      { index: 0, shotId: 'pending', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'B' },
+    ] })).toThrow('storyboard_design_missing')
+    expect(designs()).toEqual([])
+  })
+
+  it('answers with the real shots when "shot 1" is a reference card in an older plan, and changes nothing', () => {
+    upsert('op-1', { title: 'Old', anchors: [{ id: 'shot-1', kind: 'character', carrier: 'visual', name: 'Hero', description: 'red coat' }], shots: [
+      { index: 2, shotId: 'shot-2', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'A' },
+    ] })
+    expect(patchAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-1', shotId: 'shot-1', patch: { prompt: 'rooftop' } }))
+      .toEqual({ status: 'shot-not-found', shotId: 'shot-1', shots: [{ id: 'shot-2', row: 2 }], anchorHoldsShotNumber: true })
+    expect(designs()[0].plan.anchors[0].description).toBe('red coat')
+    expect(designs()[0].plan.shots[0].prompt).toBe('A')
   })
 
   it('refuses to invent a plan when the model names one that is gone', () => {

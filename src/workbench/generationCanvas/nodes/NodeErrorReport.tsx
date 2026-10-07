@@ -19,12 +19,14 @@ import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { stageForGenerationError } from '../../../ui/community/feedbackTypes'
 import { builtinVendorKeyOfKey } from '../../../../electron/shared/builtinVendorIdentity'
 import { revealNotificationTarget } from '../../../ui/notificationPolicy'
+import { useSameCapabilityAlternative } from './useSameCapabilityAlternative'
 import { productionMetaOf } from '../model/productionMeta'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
 const ACTION_ICON: Record<GenerationErrorAction, typeof IconRefresh> = {
   retry: IconRefresh,
   'switch-model': IconReplace,
+  'switch-same-capability': IconReplace,
   'open-model-access': IconSettings,
   'fix-model-kind': IconWand,
   // 「查看任务」去的是任务中心：和任务中心按钮同一个动作，用同一个图标。
@@ -51,6 +53,7 @@ export function NodeErrorReport({
   onRetry,
   onDismiss,
   meta,
+  nodeId,
   summaryVisible = true,
 }: {
   message: string
@@ -61,6 +64,8 @@ export function NodeErrorReport({
   onDismiss?: () => void
   /** 节点 meta（内部经 nodeSelectedModelAddress 取双键寻址，防同名 modelKey 误路由）。 */
   meta?: Record<string, unknown>
+  /** 失败卡挂在哪个节点上（「换成同能力的另一个」要读它的种类、请求类型和当前模型）。 */
+  nodeId?: string
 }): JSX.Element {
   const { t } = useTranslation()
   const report = React.useMemo(() => classifyGenerationError(message), [message])
@@ -115,6 +120,16 @@ export function NodeErrorReport({
    * 故意不在卡里内联第二个 picker：换模型要跟着重置参数/解析档案（NodeParameterControls 的
    * handleModelChange），复制一份就是并行版（P1）。这里只做一次 UI nudge，写入仍走那个唯一入口。
    */
+  // 上游不可用：同能力里此刻可用的另一个（只在这一类错误时算，别的错误不读模型清单）。
+  const sameCapability = useSameCapabilityAlternative(report.kind === 'model-unavailable-upstream' ? nodeId : undefined)
+  const handleSwitchSameCapability = React.useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation()
+      sameCapability?.apply()
+    },
+    [sameCapability],
+  )
+
   const handleSwitchModel = React.useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation()
@@ -204,6 +219,7 @@ export function NodeErrorReport({
   const actionHandlers: Record<GenerationErrorAction, ((event: React.MouseEvent) => void) | undefined> = {
     retry: onRetry ? handleRetry : undefined,
     'switch-model': handleSwitchModel,
+    'switch-same-capability': sameCapability ? handleSwitchSameCapability : undefined,
     'open-model-access': handleOpenModelAccess,
     'fix-model-kind': kindFixTarget ? handleFixModelKind : undefined,
     reconcile: handleReconcile,
@@ -211,10 +227,11 @@ export function NodeErrorReport({
     // 只有制作里的镜（有 runId）才放得了行；放行是把 Run 里那次未知尝试记掉，没有 Run 就没东西可记。
     'release-regenerate': releaseRunId ? (event: React.MouseEvent) => { event.stopPropagation(); setConfirmingRelease(true) } : undefined,
   }
-  const primaryAction = actionHandlers[report.primary] ? report.primary : 'open-model-access'
+  // 主动作点不了（例：同能力里没有另一个）时退到次动作，再不行才去模型接入。
+  const primaryAction = actionHandlers[report.primary] ? report.primary : report.secondary && actionHandlers[report.secondary] ? report.secondary : 'open-model-access'
   const secondaryAction = report.secondary && report.secondary !== primaryAction && actionHandlers[report.secondary] ? report.secondary : null
   // 「改成图片」要点出改成**哪个**类型，否则按钮只是「改类型」——用户还得自己再想一步。
-  const actionLabelParams = kindFixTarget ? { kind: narrateModelKind(kindFixTarget.requested) } : undefined
+  const actionLabelParams: Record<string, string> | undefined = kindFixTarget ? { kind: narrateModelKind(kindFixTarget.requested) } : sameCapability ? { model: sameCapability.option.label } : undefined
 
   const handleCopy = React.useCallback(
     async (event: React.MouseEvent) => {

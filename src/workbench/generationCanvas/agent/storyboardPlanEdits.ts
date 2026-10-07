@@ -1,5 +1,6 @@
 import { validateAnchorModelFit, type AnchorModelFitIssue } from './storyboardAnchorPolicy'
 import { effectiveShotDurationSec, type PlanAnchor, type PlanAnchorCarrier, type PlanAnchorKind, type PlanShot, type StoryboardPlan } from './storyboardPlan'
+import { nextStoryboardSubjectIds, renumberStoryboardShots } from '../../../../electron/shared/storyboard/storyboardSubjectIdentity'
 
 /**
  * 分镜方案的**纯编辑 + 校验**层（S3 字段编辑器的领域逻辑，与渲染解耦、可单测）。
@@ -88,12 +89,9 @@ export function defaultScopeForKind(kind: PlanAnchorKind): 'all' | 'selective' {
   return kind === 'style' ? 'all' : 'selective'
 }
 
-/** 生成不与现有冲突的锚 id（落画布时直接当 create_canvas_nodes 的 clientId）。 */
+/** 生成不与现有冲突的锚 id（落画布时直接当 create_canvas_nodes 的 clientId）。号由分镜主体身份的唯一 owner 发。 */
 export function makeAnchorId(plan: StoryboardPlan): string {
-  const existing = new Set(plan.anchors.map((anchor) => anchor.id))
-  let n = plan.anchors.length + 1
-  while (existing.has(`anchor-${n}`)) n += 1
-  return `anchor-${n}`
+  return nextStoryboardSubjectIds(plan, [{ role: 'anchor' }])[0]
 }
 
 export function updateTitle(plan: StoryboardPlan, title: string): StoryboardPlan {
@@ -162,9 +160,7 @@ export function removeAnchor(plan: StoryboardPlan, id: string): StoryboardPlan {
 }
 
 /** 镜号重排成连续 1..N（删除/拖动后调用，保证 shot.index 唯一且连续，转换器据此生成 clientId）。 */
-function renumber(shots: PlanShot[]): PlanShot[] {
-  return shots.map((shot, i) => (shot.index === i + 1 ? shot : { ...shot, index: i + 1 }))
-}
+const renumber = renumberStoryboardShots<PlanShot>
 
 export function addShot(plan: StoryboardPlan): StoryboardPlan {
   // 新镜头继承上一镜的种类/模型/模式/画幅/时长/所属场（v5：手加的镜头别突然换血统）；空方案默认视频 5s（旧行为）。

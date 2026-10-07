@@ -53,7 +53,7 @@ describe('InlineParameterBar catalog variant control', () => {
 
   // 2026-09-21 走查：1100×720 英文下画布节点（summary 摆法）的变体芯片被压到值区只剩 5px，
   // 「Variant 5.0」读成「Variant E」。行窄时让位的只许是模型那枚（有意省略号 + title 全名）；
-  // 变体是短枚举，从不缩——与分镜底栏 composerBarGeometry 的「短枚举不缩」同一条规则。
+  // 变体是短枚举，从不缩——与分镜旧底栏让位表的「短枚举不缩」同一条规则（分镜 2026-10-06 起直接用本组件）。
   it('summary: only the model chip yields width; the short variant enum never shrinks', () => {
     render(['low', 'medium', 'high'], 'high')
     const [model, variant] = captured.selects

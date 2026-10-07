@@ -140,8 +140,13 @@ export function capabilityPlanReviewOf(contract: AnyCapabilityContract | undefin
 }> {
   const operation = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>).operation : undefined;
   const review = typeof operation === "string" ? contract?.operationPlanReview?.[operation] : undefined;
-  return { requiresPlanReview: review !== undefined || contract?.requiresPlanReview === true,
-    planReviewAllowsReuse: review?.allowReuse ?? true };
+  // 契约既声明整体复审、又给了按 operation 的表时，认得出的 operation 只听表（表外的不复审，例如撤销）；
+  // 认不出 operation 才退回整体那一条（fail-closed）。只给表、不声明整体的契约（canvas.write）行为不变。
+  const operationKnown = typeof operation === "string" && contract?.operationPlanReview !== undefined
+    && (contract.aliases.method === operation || (contract.additionalAliases?.method ?? []).includes(operation)
+      || (contract.operationEffectClasses !== undefined && operation in contract.operationEffectClasses));
+  const requiresPlanReview = review !== undefined || (contract?.requiresPlanReview === true && !operationKnown);
+  return { requiresPlanReview, planReviewAllowsReuse: review?.allowReuse ?? true };
 }
 
 /** The single place that reads a contract's effect class, honouring its per-operation map. */

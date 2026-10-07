@@ -33,6 +33,7 @@ import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
 import { AgentPanelV4FocusTag } from './v4/AgentPanelV4FocusTag'
+import { useDirectorPatchNotices } from './v4/useDirectorPatchNotices'
 import { useShotFocusTag } from '../generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
@@ -253,6 +254,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
   // 3D-BOX：导演台里选中了计划镜头 → 输入框上「正在改：镜头 N」（画布面才有导演台；开关关时恒为 null）
   const shotFocusTag = useShotFocusTag()
+  // 3D-BOX：补丁覆盖了用户手调的那一笔，工具行下面确定性地说一句（不靠模型复述）
+  const flow = useDirectorPatchNotices(data.flow, data.snapshot.active.parts)
   const focusTag = surface === 'generation' && shotFocusTag ? <AgentPanelV4FocusTag {...shotFocusTag} /> : undefined
   // 系统提示词编辑器（2026-09-14 从设置 → AI 策略搬来）：权限弹层底部那一行打开，Mantine 弹窗承载。
   const [systemPromptOpen, setSystemPromptOpen] = React.useState(false)
@@ -582,7 +585,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         width={size.width}
         height={actions.error ? size.height - 20 : size.height}
         legacy={data.snapshot.active.legacy}
-        flow={data.flow}
+        flow={flow}
         historyIdentity={historyIdentity}
         historyCursor={data.snapshot.active.history?.before}
         onLoadOlder={historyIdentity && data.loadOlder ? async () => {

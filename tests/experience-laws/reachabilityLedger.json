@@ -66,108 +66,24 @@
       "ledgerId": "LAW11-SB-VARIANT"
     },
     {
-      "class": "storyboard-row|duration|options",
-      "ledgerId": "LAW11-SB-DURATION"
-    },
-    {
-      "class": "storyboard-row|frame_rate|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|negative_prompt|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
       "class": "storyboard-row|num_inference_steps|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|output_count|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-row|seed|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|source_task_id|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-row|video_start_seconds|param:number",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
-    },
-    {
-      "class": "storyboard-row|webhook|param:text",
-      "ledgerId": "LAW11-SB-NUMBER-TEXT"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     },
     {
       "class": "storyboard-anchor|(变体)|axis",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|(生成方式)|axis",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|aspect_ratio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|aspectRatio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|background|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|batch_size|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|enhance_prompt|param:boolean",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|negative_prompt|param:text",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|output_count|param:number",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|output_format|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|promptExtend|param:boolean",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|quality|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|ratio|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|resolution_type|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|resolution|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
+      "ledgerId": "LAW11-SB-VARIANT"
     },
     {
       "class": "storyboard-anchor|seed|param:number",
-      "ledgerId": "LAW11-ANCHOR-CARD"
-    },
-    {
-      "class": "storyboard-anchor|size|param:select",
-      "ledgerId": "LAW11-ANCHOR-CARD"
+      "ledgerId": "LAW11-EMPTY-INPUT"
     }
   ]
 }

@@ -61,7 +61,6 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
     <section data-storyboard-anchors="true" data-storyboard-anchors-expanded={expanded ? 'true' : 'false'}>
       <div className="mb-2 flex items-baseline gap-2">
         <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
-        <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.consistencyHint')}</span>
         {visual.length > 0 ? (
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-micro text-nomi-ink-40">
             {ready > 0 ? <span className="text-workbench-success">{t('storyboardEditor.anchor.headReady', { count: ready })}</span> : null}

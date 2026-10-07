@@ -32,6 +32,7 @@ import { normalizeDirectorProject } from '../model/directorProject'
 import { summarizeDirectorShots } from '../model/directorShotSummaries'
 import type { DirectorProject } from '../model/directorTypes'
 import { DIRECTOR_COMPILED_SCENE_ID, fingerprintDirectorProject, overlayDirectorProject, readDirectorCompiledBase, type DirectorCompiledBase } from '../model/planOverrides'
+import { readDirectorPatchNotes, recordDirectorPatchNote, type DirectorPatchNotes } from '../model/directorPatchNotes'
 
 type Issue = { kind: string; message: string; time?: number; ref?: string }
 type Cut = { shot: string | null; start: number; end: number; shotSize: string | null; move: string }
@@ -139,7 +140,7 @@ function durationRejection(targetNodeId: string | undefined, planSeconds: number
   }
 }
 
-type PlanMetaValue = { plan: DirectorPlan; revision: string; issueCount: number; compiledBase: DirectorCompiledBase }
+type PlanMetaValue = { plan: DirectorPlan; revision: string; issueCount: number; compiledBase: DirectorCompiledBase; patchNotes?: DirectorPatchNotes }
 
 /**
  * 测量对「编译 + 覆盖」后的工程测（方案 §6.5）：连续性问题在最终工程上重量；编译期的几何判断（挤出实心、视线被挡）
@@ -244,7 +245,9 @@ function patchPlan(input: Extract<DirectorWriteInput, { operation: 'patch_direct
   const issues = measuredIssues(compiled, overlay.project, overlay.replayedEntities)
   const revision = directorPlanRevision(patched.plan)
   const preview = previewMetaFor(currentPreview?.targetNodeId, revision, compiled.duration, context.proposalId, missingActionNotes(patched.plan, compiled.issues))
-  const planMetaValue: PlanMetaValue = { plan: patched.plan, revision, issueCount: issues.length, compiledBase: fingerprintDirectorProject(compiled.project) }
+  // 这一笔覆盖了哪些手调（按提议 id 记）：Agent 面板在那一笔工具行下面确定性地说出来，不靠模型复述
+  const patchNotes = recordDirectorPatchNote(readDirectorPatchNotes(node.meta?.[DIRECTOR_PLAN_META_KEY]), context.proposalId, overlay.reorderedOverrides)
+  const planMetaValue: PlanMetaValue = { plan: patched.plan, revision, issueCount: issues.length, compiledBase: fingerprintDirectorProject(compiled.project), ...(Object.keys(patchNotes).length ? { patchNotes } : {}) }
   context.inCtx(() => {
     // 一个写者（方案 §3）：编辑器开着 → 进编辑器 store（3a 的唯一外部写口会立刻落到节点 meta）；关着 → 直接写节点 meta。
     const mounted = hasDirectorSession(directorNodeId) && writeExternalDirectorProject(directorNodeId, overlay.project)

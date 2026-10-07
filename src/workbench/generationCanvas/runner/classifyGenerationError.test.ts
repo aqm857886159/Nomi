@@ -472,12 +472,13 @@ describe('上游「模型不存在」不再退化成一句 taskId（2026-07-30 �
   // 修复后 describeTaskFailure 拿到的是真原话；这里锁的是拿到之后的分类不能再误导。
   const REAL_UPSTREAM = 'Requested entity was not found. (taskId=task_01KYRKKK35KCAASMFC7ND2PR6P, kind=text_to_image)'
 
-  it('主动作 = 换个模型（不是重试）——重试必再撞同一堵墙', () => {
+  it('主动作 = 换成同能力的另一个（不是重试）——重试必再撞同一堵墙', () => {
     const report = classifyGenerationError(REAL_UPSTREAM)
     expect(report.reason).toBe('这个模型服务商这边取不到')
-    expect(report.primary).toBe('switch-model')
-    // 重试降为次动作：不堵死用户，但也不许在建议文案里假装它有用。
-    expect(report.secondary).toBe('retry')
+    // 2026-10-06 用户拍板：主按钮「换成〈同能力里此刻可用的另一个〉」，点一下才换；次按钮「换个模型」打开下拉自己挑，
+    // 同能力里一个都没有时失败卡也退到它（不退到重试：重试必再撞同一堵墙）。
+    expect(report.primary).toBe('switch-same-capability')
+    expect(report.secondary).toBe('switch-model')
     expect(report.hint).not.toMatch(/稍等|稍后再试/)
   })
 
@@ -529,13 +530,13 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
     'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'outbound-blocked': true,
     'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
-    'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'output-retrieval-failed': true, unknown: true,
+    'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, unknown: true,
   }
 
   it('已下线、读不出来以外的每一类，次动作都和改表前的规则一样（主动作是重试 / 一键改对 → 换个模型；其余 → 重试）', () => {
     for (const kind of Object.keys(EVERY_KIND) as GenerationErrorKind[]) {
       const { primary, secondary } = narrateGenerationErrorActions(kind)
-      const before = primary === 'retry' || primary === 'fix-model-kind' ? 'switch-model' : 'retry'
+      const before = primary === 'retry' || primary === 'fix-model-kind' || primary === 'switch-same-capability' ? 'switch-model' : 'retry'
       // 已下线、读不出来：这两类不给第二个动作（重试必再撞同一张卡 / 换供应商不是解法）；
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败：只指路去任务面板「重新取回」，不给第二个动作（重试 = 再生成一份）。
@@ -853,7 +854,9 @@ describe('失败原因按上游自己的码与话归类（一张目录，没有�
     const report = classifyGenerationError(encode({ ...walkPayload, upstreamCode: 'model_not_found' }))
     expect(report.kind).toBe('model-unavailable-upstream')
     expect(report.reason).not.toBe(i18n.t('generationCommon.observability.error.input.reason'))
-    expect(report.primary).toBe('switch-model')
+    // 2026-10-06：主按钮是「换成〈同能力的另一个〉」（点一下才换），没有另一个时失败卡退回次按钮「换个模型」。
+    expect(report.primary).toBe('switch-same-capability')
+    expect(report.secondary).toBe('switch-model')
     expect(`${report.reason}${report.hint}`).not.toMatch(/比例|尺寸|参数/)
     // 供应商自己的话仍然可见（次要信息），只是不再顶替标题。
     expect(report.providerMessage).toBe(DEPRECATED)

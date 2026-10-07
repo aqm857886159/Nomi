@@ -128,6 +128,12 @@ export type PlanShot = {
    * 切模式**不删**绑定：未被当前 mode 声明的键原样保留（前向兼容 + 切回来还在）。
    */
   referenceBindings?: Record<string, PlanReferenceBinding[]>
+  /**
+   * 自动引用补过的锚 id（`insertAutoMentions` 的账本）。参考卡出图后在提示词里它名字后面补一枚 @
+   * 并绑进参考框；补过一次就记在这里——用户手动删掉那枚 @，同一张参考卡不会再被补回来。
+   * 只由自动引用写，Agent 不写（不进起草 schema）。
+   */
+  autoReferenced?: string[]
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
   /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */

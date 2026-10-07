@@ -266,6 +266,7 @@ export const zhGenerationCommon = {
       releaseRegenerate: { main: '我核对过了，重新生成', alt: '我核对过了，重新生成' },
       retry: { main: '重试', alt: '仍要重试' },
       switchModel: { main: '换个模型', alt: '换个模型' },
+      switchSameCapability: { main: '换成 {{model}}', alt: '换成 {{model}}' },
       modelAccess: { main: '检查模型', alt: '检查模型' },
       fixModelKind: { main: '改成{{kind}}并重试', alt: '改成{{kind}}' },
     },
@@ -394,6 +395,10 @@ export const zhGenerationCommon = {
         reason: '这一镜可能已被服务商收下，结果没法确认',
         hint: '请求发出去之后，Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。',
       },
+      submissionNotSent: {
+        reason: '这次生成没有发出去，停在了这台电脑上',
+        hint: '请求还没离开这台电脑就停下了，服务商没有收到它，也就不会有重复提交的问题。常见原因：出网被拦（代理 / 防火墙 / 网络设置）、密钥缺失或请求头里有非法字符、参考素材读不到。具体原因见下方技术详情；处理好之后可以直接重试，换个模型也行。',
+      },
       // 已生成、取回失败（#975 A2）：只给「去任务面板重新取回」，绝不给重试——重试 = 再生成一份新的。
       outputRetrievalFailed: {
         reason: '已经生成，但结果没能取回到本机',
@@ -429,13 +434,19 @@ export const zhGenerationCommon = {
     // download 是首次抠图专有：模型+运行时约 50MB 要下载,只发生一次,之后走本地缓存。
     // 不说清「只此一次」,用户会以为每次抠图都这么慢。
     matteProgress: {
-      download: '首次抠图，正在下载模型（约 50MB，仅此一次）',
+      download: '首次抠图，正在下载模型（约 56MB，仅此一次）',
       decode: '读取图片中',
       inference: '识别主体中',
       mask: '生成透明遮罩',
       encode: '导出透明 PNG',
       model: '加载抠图模型',
       fallback: '抠图中',
+    },
+    // 抠图失败按原因说（removeBackgroundFailureMessage）：不再一律「检查网络」——卡住和断开要分开说，图本身处理不了也要明说。
+    removeBackgroundFailure: {
+      stalled: '抠图模型下载卡住了：1 分钟没收到数据。检查网络后再点一次「抠图」',
+      download: '抠图模型没下载下来（第一次抠图要下载约 56MB）。检查网络后再点一次「抠图」',
+      other: '这张图没能抠出来，再点一次「抠图」试试',
     },
     aria: '图片操作',
     fullscreen: '全屏预览',
@@ -489,6 +500,11 @@ export const zhGenerationCommon = {
       noUpscaleModel: '还没有能放大的模型',
       missingEffect: '效果库里缺这一条',
       connectFailed: '没能把新节点连到这张图上，已撤回',
+    },
+    // 能力此刻没有、但有一步可走的路（2026-10-06）：项不灰，第二行说缺什么、点它去补。
+    guides: {
+      upscaleAdd: '还没有放大模型 · 点这里接入 kie（Topaz / Recraft 放大）',
+      imageEditAdd: '还没有能改图的图片模型 · 点这里去添加',
     },
     splitInto: '切成 {{count}} 张',
     splitIntoHint: '按生成时的 {{rows}} 行 × {{cols}} 列切开，切割线可拖',
@@ -806,12 +822,8 @@ export const zhGenerationCommon = {
     regenerate: '重新生成',
     // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
     // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
-    variantCountAria: '每次生成几个',
     expandPrompt: '展开提示词',
     collapsePrompt: '收起提示词',
-    variantCountTitle: '每次生成 {{count}} 个',
-    variantCountOption_one: '{{count}} 个',
-    variantCountOption_other: '{{count}} 个',
     generate: '生成',
     generateAsset: '生成素材',
     uploading: '上传中',
@@ -831,7 +843,6 @@ export const zhGenerationCommon = {
     copyName: '{{name}} 副本',
     resultImage: '结果图片',
     backgroundRemoved: '已替换为抠图结果',
-    removeBackgroundFailed: '抠图失败，请检查网络连接后重试',
     title: '画板',
     openAria: '打开画板',
     removingBackgroundAria: '抠图处理中',
@@ -1873,6 +1884,7 @@ export const enGenerationCommon = {
       releaseRegenerate: { main: "I've checked, generate again", alt: "I've checked, generate again" },
       retry: { main: 'Retry', alt: 'Retry anyway' },
       switchModel: { main: 'Switch model', alt: 'Switch model' },
+      switchSameCapability: { main: 'Switch to {{model}}', alt: 'Switch to {{model}}' },
       modelAccess: { main: 'Check models', alt: 'Check models' },
       fixModelKind: { main: 'Set to {{kind}} and retry', alt: 'Set to {{kind}}' },
     },
@@ -2000,6 +2012,10 @@ export const enGenerationCommon = {
         reason: 'Result unconfirmed: the provider may have received this shot',
         hint: 'The request was sent, but Nomi never got a reply, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.',
       },
+      submissionNotSent: {
+        reason: 'This generation was never sent; it stopped on this computer',
+        hint: 'The request stopped before it left this computer, so the provider never received it and it cannot be submitted twice. Common causes: outbound traffic was blocked (proxy, firewall or network settings), a missing or malformed API key or request header, or an unreadable reference file. The technical details below say which; once it is fixed you can simply retry, or switch to another model.',
+      },
       outputRetrievalFailed: {
         reason: 'Generated, but the result could not be retrieved',
         hint: 'The provider finished this shot; the step that failed is Nomi downloading the result into your project (the address was not allowed, the download was refused, or what came back was not a usable file). Do not generate again — that makes a brand-new one. Open the task panel and click “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
@@ -2029,13 +2045,18 @@ export const enGenerationCommon = {
   },
   imageToolbar: {
     matteProgress: {
-      download: 'First cut-out: downloading the model (~50MB, one time only)',
+      download: 'First cut-out: downloading the model (~56MB, one time only)',
       decode: 'Reading the image',
       inference: 'Detecting the subject',
       mask: 'Generating the transparency mask',
       encode: 'Exporting transparent PNG',
       model: 'Loading the cut-out model',
       fallback: 'Cutting out',
+    },
+    removeBackgroundFailure: {
+      stalled: 'The cut-out model download stalled: no data for 1 minute. Check your network, then click Remove background again.',
+      download: 'The cut-out model could not be downloaded (the first cut-out downloads about 56MB). Check your network, then click Remove background again.',
+      other: 'This image could not be cut out. Click Remove background to try again.',
     },
     aria: 'Image actions',
     fullscreen: 'Fullscreen preview',
@@ -2089,6 +2110,10 @@ export const enGenerationCommon = {
       noUpscaleModel: 'No upscaling model yet',
       missingEffect: 'This effect is missing from the library',
       connectFailed: 'Could not connect the new node to this image; it was rolled back.',
+    },
+    guides: {
+      upscaleAdd: 'No upscaling model yet · click to connect kie (Topaz / Recraft upscale)',
+      imageEditAdd: 'No image model that can edit images yet · click to add one',
     },
     splitInto: 'Split ×{{count}}',
     splitIntoHint: 'Split into the {{rows}} × {{cols}} grid it was generated with; cut lines stay draggable',
@@ -2391,13 +2416,9 @@ export const enGenerationCommon = {
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
-    variantCountAria: 'Outputs per run',
     expandPrompt: 'Expand prompt',
     collapsePrompt: 'Collapse prompt',
-    variantCountTitle: 'Generate {{count}} per run',
     // 复数走 i18n 规则，不拼串：「1 outputs」是 2026-10-01 真机截图上看到的。
-    variantCountOption_one: '{{count}} output',
-    variantCountOption_other: '{{count}} outputs',
     generate: 'Generate',
     generateAsset: 'Generate asset',
     uploading: 'Uploading',
@@ -2417,7 +2438,6 @@ export const enGenerationCommon = {
     copyName: '{{name}} copy',
     resultImage: 'Result image',
     backgroundRemoved: 'Replaced with the background-removed result',
-    removeBackgroundFailed: 'Background removal failed. Check your network connection and try again.',
     title: 'Whiteboard',
     openAria: 'Open whiteboard',
     removingBackgroundAria: 'Removing background',

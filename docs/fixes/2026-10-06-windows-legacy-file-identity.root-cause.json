@@ -1,0 +1,156 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-windows-legacy-file-identity",
+  "problem_type": "文件身份比较在 Windows 旧 libuv 上恒假（dev 不一致 + ino 丢精度）",
+  "symptom": "验收线在 Windows + Node 22.15 上跑 tests/agent-runtime/lane-legacy-migration.test.mts：35 条全红，抛 legacy-file-identity-or-content-changed；只要读到真实存在的旧文件就失败。",
+  "direct_cause": "electron/agentLane/laneLegacyFiles.ts sameIdentity 用 Number 版 dev + ino 比较 lstat（按路径）与 fstat（按句柄）。libuv 1.49.2（Node 22.15）Windows 上路径 stat 的 dev 恒为 0、句柄 fstat 是真卷号，两边永远不等；另外 Windows 文件 ID 超 2^53，Number 取 ino 丢低位。",
+  "class_root": "「是不是同一个文件」这个判断在三个模块里各写各的（laneLegacyFiles 严格比 dev+ino；antigravityArtifacts 为了同一个 Windows 差异单独写了 win32 分支；assetWriteContext 手比 dev/ino），没有共享的、平台感知的、bigint 的唯一实现。",
+  "migration": "新增 electron/fileIdentity.ts 的 sameFileIdentity（bigint，dev 只在两边都非 0 时比，ino 永远比）；三处手写比较在同一提交里改为调用它，antigravityArtifacts 的 win32 特例分支删除。无落盘数据变化。",
+  "affected_population": [
+    "跑在 libuv<1.51 的 Node 上的 Windows 开发机 / 测试（产品运行的 Electron 43 = libuv 1.52.1，实测 dev 一致，不受影响）",
+    "旧 Agent 对话迁移、Antigravity 产物读取、素材写入上下文的目录身份校验（Number ino 精度）"
+  ],
+  "scope_paths": [
+    "electron/fileIdentity.ts",
+    "electron/agentLane/laneLegacyFiles.ts",
+    "electron/ai/antigravityArtifacts.ts",
+    "electron/assets/assetWriteContext.ts"
+  ],
+  "entry_points": [
+    "electron/agentLane/laneLegacyFiles.ts sameIdentity（readRegular / directory / archive / remove / withLegacyMigrationLock）",
+    "electron/ai/antigravityArtifacts.ts readAntigravityFile",
+    "electron/assets/assetWriteContext.ts assertCurrent"
+  ],
+  "invariants": [
+    "同一个文件按路径取与按句柄取，必须判为同一个（含 Windows 旧 libuv 的 dev=0）",
+    "被换成另一个文件、另一个目录、符号链接、或 ID 只差 1 的相邻文件，必须判为不同",
+    "身份比较只用 bigint stat；electron/ 下除 fileIdentity.ts 外不得手写 .ino 比较"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/fileIdentity.ts",
+      "symbol": "sameFileIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneLegacyFiles.ts",
+      "symbol": "sameFileIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityArtifacts.ts",
+      "symbol": "sameFileIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetWriteContext.ts",
+      "symbol": "sameFileIdentity"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 4,
+    "why_not": "门表按符号出现位置数：1 个实现（fileIdentity.ts）+ 3 个调用方；调用方必须各自存在（三个不同的读 / 写场景），减掉的是『手写比较』的实现数，3 份 → 1 份。"
+  },
+  "regression_tests": [
+    "electron/fileIdentity.test.ts",
+    "tests/agent-runtime/lane-legacy-migration.test.mts"
+  ],
+  "residual_risks": [
+    "本机没有符号链接权限（EPERM），真符号链接那一项在这台机器上跳过；规则本身由 lstat 的 isSymbolicLink 与 ino 比较双重拦，并在有权限的机器 / CI 上跑",
+    "dev 为 0 时不再比卷号：同一个 ino 出现在另一个卷且一侧报 dev=0 的极端情形无法区分；而旧 libuv 的 dev=0 本就不携带卷信息，且比较的两个路径来自同一已捕获目录树"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/libuv/libuv/pull/4698",
+      "checked_at": "2026-10-06",
+      "purpose": "libuv Windows 路径 stat 与 fstat 的 volume serial 不一致（修复在较新 libuv）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/affaan-m/ECC/issues/3041",
+      "checked_at": "2026-10-06",
+      "purpose": "外部项目遇到同一现象：Windows 上 lstat 的 dev 为 0、fstat 为真卷号；建议两边都非 0 才比 dev"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个 Windows 差异已经在 antigravityArtifacts 单独补过一次，这次在 laneLegacyFiles 又出现；每个新写文件身份检查的模块都会再踩。",
+    "same_class_scan": [
+      "git grep -nE '\\.(dev|ino) *(===|!==)' → laneLegacyFiles.ts:14、antigravityArtifacts.ts:37,44,45、assetWriteContext.ts:37，三处已收口；scripts/electron-install-identity.mjs:67 本就是 statSync bigint 两侧同 API，不受影响",
+      "node scripts/door-map.mjs sameIdentity：另一个同名函数 canvasReadPortResolver.ts:49 比的是项目身份摘要，与文件无关"
+    ]
+  },
+  "generality_proof": "所有文件 / 目录身份比较走 sameFileIdentity：bigint 保住 Windows 64 位文件 ID，dev=0 只放行路径 stat 的缺值；类级测试扫描 electron/ 禁止手写 .ino 比较，新副本会当场红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/fileIdentity.ts",
+      "symbol": "sameFileIdentity",
+      "responsibility": "唯一的文件身份判断：bigint ino 必须相等，dev 仅在两边都非 0 时参与"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneLegacyFiles.ts",
+      "entry_point": "sameIdentity",
+      "disposition": "enforced",
+      "evidence": "改为调 sameFileIdentity，stat / fstat 全部 bigint；在 Node 22.15 与 Electron 43 上 lane-legacy-migration 通过。"
+    },
+    {
+      "path": "electron/ai/antigravityArtifacts.ts",
+      "entry_point": "readAntigravityFile",
+      "disposition": "enforced",
+      "evidence": "删掉 win32 特例分支，改调 sameFileIdentity，POSIX 严格比较的意图保留（两边 dev 都非 0 时仍比）。"
+    },
+    {
+      "path": "electron/assets/assetWriteContext.ts",
+      "entry_point": "assertCurrent",
+      "disposition": "enforced",
+      "evidence": "两侧同为路径 statSync 不会触发 dev 差异，但 Number ino 丢精度；改 bigint + sameFileIdentity。"
+    },
+    {
+      "path": "scripts/electron-install-identity.mjs",
+      "entry_point": "isPhysicalPathInside",
+      "disposition": "not-affected",
+      "evidence": "两侧都是 statSync(..., { bigint: true })，同一 API 同一来源，dev/ino 一致且不丢精度；且是构建脚本不进产品。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/fileIdentity.ts",
+    "invariant": "文件身份只有一份实现，bigint，dev 缺值不当不同",
+    "failure_mode": "electron/fileIdentity.test.ts 的类级扫描在有人手写 .ino 比较时变红；表驱动用例在判断退回旧写法时变红（变异实测）",
+    "exception_policy": "none",
+    "strategy": "收成一个共享判断，同提交删三处手写比较",
+    "artifacts": [
+      "electron/fileIdentity.ts",
+      "electron/fileIdentity.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/fileIdentity.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/antigravityArtifacts.ts"
+    ],
+    "rationale": "antigravityArtifacts 里按 win32 分支的单独身份判断同提交删除，改走共享实现。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "差异来自 libuv 版本；产品所用 Electron 43 已修复，不需要升级依赖，只需不依赖 dev 在路径 / 句柄间一致。",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/fileIdentity.ts",
+    "tests": [
+      "electron/fileIdentity.test.ts"
+    ],
+    "why": "所有文件身份比较的最早共同边界；类级扫描禁止别处手写 .ino 比较。"
+  }
+}
