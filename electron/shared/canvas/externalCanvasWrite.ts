@@ -7,9 +7,10 @@
 // - 外部删掉的：从当前删掉；
 // - 外部改了的字段：只写那几个字段；当前画布已经没有这个节点（用户删了）就不复活；
 // - 外部没碰的、以及读图之后才出现的节点 / 边 / 组：保持当前的样子；
-// - 节点上的运行态与落地字段（landedNodeFields）外部写入永远改不动：以当前真实值为准。
+// - 节点上的事实层（landedNodeFields：运行态 / 落地 / 跟主图走的媒体尺寸）外部写入永远改不动：
+//   合出来的每个已有节点再过一遍 withLiveNodeFacts，以当前真实值为准（与渲染层统一提交口同一个函数）。
 // 合完把两端已不在的边去掉，免得悬挂。
-import { NODE_LANDED_FIELDS, NODE_RUN_STATE_FIELDS } from './landedNodeFields'
+import { withLiveNodeFacts } from './landedNodeFields'
 
 type Keyed = { id: string } & Record<string, unknown>
 export type CanvasDocLike = { nodes: readonly unknown[]; edges: readonly unknown[]; groups?: readonly unknown[] }
@@ -20,9 +21,6 @@ export function isCanvasDocument(value: unknown): value is CanvasDocLike {
   return Boolean(doc) && typeof doc === 'object' && Array.isArray(doc!.nodes) && Array.isArray(doc!.edges)
 }
 
-const NODE_SYSTEM_FIELDS: ReadonlySet<string> = new Set([...NODE_RUN_STATE_FIELDS, ...NODE_LANDED_FIELDS])
-const NO_PROTECTED_FIELDS: ReadonlySet<string> = new Set()
-
 const isKeyed = (value: unknown): value is Keyed =>
   Boolean(value) && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string'
 
@@ -32,7 +30,7 @@ function mergeKeyed(
   base: readonly unknown[],
   next: readonly unknown[],
   current: readonly unknown[],
-  protectedFields: ReadonlySet<string>,
+  keepFacts?: (patched: Keyed, current: Keyed) => Keyed,
 ): unknown[] {
   const baseById = new Map(base.filter(isKeyed).map((item) => [item.id, item]))
   const nextById = new Map(next.filter(isKeyed).map((item) => [item.id, item]))
@@ -46,11 +44,11 @@ function mergeKeyed(
     if (!before || !after || same(before, after)) { merged.push(item); continue }
     const patched: Record<string, unknown> = { ...item }
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (protectedFields.has(key) || same(before[key], after[key])) continue
+      if (same(before[key], after[key])) continue
       if (key in after && after[key] !== undefined) patched[key] = after[key]
       else delete patched[key]
     }
-    merged.push(patched)
+    merged.push(keepFacts ? keepFacts(patched as Keyed, item) : patched)
   }
   for (const item of next) {
     if (isKeyed(item) && !baseById.has(item.id) && !currentIds.has(item.id)) merged.push(item) // 外部新增
@@ -60,12 +58,12 @@ function mergeKeyed(
 
 export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonly<{ base: CanvasDocLike; next: CanvasDocLike; current: T }>): T {
   const { base, next, current } = input
-  const nodes = mergeKeyed(base.nodes, next.nodes, current.nodes, NODE_SYSTEM_FIELDS)
+  const nodes = mergeKeyed(base.nodes, next.nodes, current.nodes, withLiveNodeFacts)
   const nodeIds = new Set(nodes.filter(isKeyed).map((node) => node.id))
-  const edges = mergeKeyed(base.edges, next.edges, current.edges, NO_PROTECTED_FIELDS).filter((edge) => {
+  const edges = mergeKeyed(base.edges, next.edges, current.edges).filter((edge) => {
     const { source, target } = edge as { source?: unknown; target?: unknown }
     return typeof source === 'string' && typeof target === 'string' && nodeIds.has(source) && nodeIds.has(target)
   })
-  const groups = mergeKeyed(base.groups ?? [], next.groups ?? [], current.groups ?? [], NO_PROTECTED_FIELDS)
+  const groups = mergeKeyed(base.groups ?? [], next.groups ?? [], current.groups ?? [])
   return { ...current, nodes, edges, groups }
 }

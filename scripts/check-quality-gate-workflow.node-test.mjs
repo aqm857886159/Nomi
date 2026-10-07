@@ -8,6 +8,7 @@ import { load } from 'js-yaml'
 import { CI_E2E_CHAIN } from './run-ci-e2e-chain.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_CHECK_NAMES, CORE_SMOKE_FIXTURES, coreSmokeCheckName } from './validation-policy.mjs'
 import { REQUIRED_MERGED_CHECKS } from './git-delivery.mjs'
+import { CHROMIUM_INSTALL_STEP as PLAYWRIGHT_INSTALL_STEP } from './ci-browser-install.mjs'
 import { CORE_SMOKE_SCENARIOS } from '../tests/ux/core-smoke/scenarios.mjs'
 import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
 import { assertFullCanvasShardPartition, FULL_CANVAS_SHARDS } from '../tests/ux/canvas-real-suite.mjs'
@@ -19,7 +20,7 @@ const runCommands = (job) => job.steps?.flatMap((step) => (typeof step.run === '
 
 test('the unit lane provisions Chromium before either browser integration test entry', () => {
   const steps = workflow.jobs.unit.steps
-  const install = steps.findIndex(step => step.run === 'pnpm exec playwright install --with-deps chromium')
+  const install = steps.findIndex(step => step.run === PLAYWRIGHT_INSTALL_STEP)
   assert.ok(install >= 0, 'Unit runs real browser integration tests and must provision Chromium')
   assert.equal(steps[install].if, undefined, 'Both focused and full lanes need the browser')
   for (const command of ['pnpm run test:system:unit', 'pnpm run test:system:focused']) {
@@ -431,7 +432,7 @@ test('取消式并发组不得按共用 ref 分组：push 触发的 workflow 必
 
 test('browser feel fixtures run in the Chromium-equipped desktop lane, never Unit', () => {
   const commands = runCommands(workflow.jobs['desktop-linux'])
-  const install = commands.indexOf('pnpm exec playwright install --with-deps chromium')
+  const install = commands.indexOf(PLAYWRIGHT_INSTALL_STEP)
   const run = commands.indexOf('pnpm run test:feel:browser')
   assert.ok(install >= 0 && run > install)
   for (const [name, job] of Object.entries(workflow.jobs)) {
@@ -482,10 +483,20 @@ test('every workflow job that runs browser-backed tests installs Chromium before
       )
       if (runIndex < 0) continue
       jobsWithBrowserTests += 1
-      const installIndex = steps.findIndex((step) => typeof step.run === 'string' && /playwright install\b.*\bchromium\b/.test(step.run))
+      const installIndex = steps.findIndex((step) => typeof step.run === 'string' && step.run.split('\n').some((line) => line.trim() === PLAYWRIGHT_INSTALL_STEP))
       if (installIndex < 0 || installIndex > runIndex) offenders.push(`${file}:${jobName}`)
     }
   }
   assert.ok(jobsWithBrowserTests > 0, '断言空转：没有找到任何跑浏览器测试的 job')
   assert.deepEqual(offenders, [], `这些 job 跑了浏览器测试却没在它之前装 Chromium：${offenders.join('、')}`)
+})
+
+test('workflows delegate Chromium installation to the shared script', () => {
+  const dir = path.join(repoRoot, '.github/workflows')
+  const offenders = []
+  for (const file of fs.readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))) {
+    const source = fs.readFileSync(path.join(dir, file), 'utf8')
+    if (/playwright install/.test(source)) offenders.push(file)
+  }
+  assert.deepEqual(offenders, [], `workflow 中禁止直接出现 playwright install：${offenders.join('、')}`)
 })

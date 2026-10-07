@@ -122,29 +122,31 @@ describe('buildMentionCandidates — 上限', () => {
   })
 })
 
+const CANVAS_HOST = { canConnect: true, projectId: 'p1' } as const
+
 describe('planMentionInsert — 选中后该干什么', () => {
   it('已是参考 → 直接插 chip，编号 = 下标+1', () => {
-    expect(planMentionInsert({ key: 'k', url: 'u', label: '图片2', group: 'current', referenceIndex: 1 }))
+    expect(planMentionInsert({ key: 'k', url: 'u', label: '图片2', group: 'current', referenceIndex: 1 }, CANVAS_HOST))
       .toEqual({ kind: 'insert', url: 'u', mediaKind: 'image', index: 2 })
   })
 
   it('画布节点 → 先建边', () => {
-    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas', sourceNodeId: 'a' }))
+    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas', sourceNodeId: 'a' }, CANVAS_HOST))
       .toEqual({ kind: 'connect', sourceNodeId: 'a', url: 'u', mediaKind: 'image' })
   })
 
   it('素材库 → 落上传参考槽', () => {
-    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'library' }))
+    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'library' }, CANVAS_HOST))
       .toEqual({ kind: 'attach', url: 'u', mediaKind: 'image' })
   })
 
   it('canvas 组丢了 sourceNodeId → 退化成 attach，不产生「连了个寂寞」的边', () => {
-    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas' }))
+    expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas' }, CANVAS_HOST))
       .toEqual({ kind: 'attach', url: 'u', mediaKind: 'image' })
   })
 
   it('视频参考 → 选择后保留 video 类型', () => {
-    expect(planMentionInsert({ key: 'k', url: 'u', label: '视频1', kind: 'video', group: 'current', referenceIndex: 0 }))
+    expect(planMentionInsert({ key: 'k', url: 'u', label: '视频1', kind: 'video', group: 'current', referenceIndex: 0 }, CANVAS_HOST))
       .toEqual({ kind: 'insert', url: 'u', mediaKind: 'video', index: 1 })
   })
 })
