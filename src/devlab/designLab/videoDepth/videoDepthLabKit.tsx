@@ -11,6 +11,7 @@
 // 与现役卡**逐字相同**——这一屏要人回答的问题是「这几件东西看着是不是一家的」，
 // 卡的边框、圆角、阴影不对，那个问题就白问了。
 import React, { type JSX } from 'react'
+import { LabCanvasViewport } from '../labCanvasViewport'
 
 import { GeneratingOverlay } from '../../../workbench/generationCanvas/nodes/render/CardCommon'
 import { cn } from '../../../utils/cn'
@@ -145,7 +146,7 @@ export function DepthActionStage({ children }: { children: React.ReactNode }): J
       style={{ width: DEPTH_ACTION_CELL_WIDTH, height: DEPTH_ACTION_CELL_HEIGHT }}
       data-design-lab-stage="depth-action"
     >
-      {children}
+      <LabCanvasViewport>{children}</LabCanvasViewport>
     </div>
   )
 }
