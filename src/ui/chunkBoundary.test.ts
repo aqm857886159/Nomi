@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { importWithRetry, isChunkLoadNetworkError, lazyWithChunkBoundary } from './chunkBoundary'
+import { importWithRetry, isChunkLoadNetworkError, lazyWithChunkBoundary, scheduleChunkReload } from './chunkBoundary'
 
 // 审计 A5：chunk 加载的瞬时失败（构建竞态/IO 抖动）由工厂层自动重试吃掉，
 // 持久失败再交给 ChunkErrorBoundary 降级该区域（不再全 app 崩根错误页）。
@@ -48,7 +48,9 @@ describe('isChunkLoadNetworkError', () => {
   it('识别动态 chunk 网络失败', () => {
     expect(
       isChunkLoadNetworkError(
-        new TypeError('Failed to fetch dynamically imported module: http://127.0.0.1:5274/src/workbench/NomiStudioApp.tsx'),
+        new TypeError(
+          'Failed to fetch dynamically imported module: http://127.0.0.1:5274/src/workbench/NomiStudioApp.tsx',
+        ),
       ),
     ).toBe(true)
     expect(isChunkLoadNetworkError(new Error('net::ERR_NETWORK_CHANGED'))).toBe(true)
@@ -56,5 +58,42 @@ describe('isChunkLoadNetworkError', () => {
 
   it('普通渲染错误不触发 chunk 自动恢复', () => {
     expect(isChunkLoadNetworkError(new Error('Cannot read properties of undefined'))).toBe(false)
+  })
+})
+
+describe('scheduleChunkReload', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('reloads once for a persistent project-open chunk failure and respects the cooldown', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value)
+      },
+    }
+    const reload = vi.fn()
+
+    expect(scheduleChunkReload('project-open', { storage, reload, now: 100_000, delayMs: 600 })).toBe(true)
+    expect(scheduleChunkReload('project-open', { storage, reload, now: 101_000, delayMs: 600 })).toBe(false)
+    vi.advanceTimersByTime(600)
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('allows a retry after the cooldown so a recovered build is not permanently stuck', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value)
+      },
+    }
+    const reload = vi.fn()
+
+    expect(scheduleChunkReload('project-open', { storage, reload, now: 100_000, delayMs: 600 })).toBe(true)
+    expect(scheduleChunkReload('project-open', { storage, reload, now: 116_001, delayMs: 600 })).toBe(true)
+    vi.advanceTimersByTime(600)
+    expect(reload).toHaveBeenCalledTimes(2)
   })
 })
