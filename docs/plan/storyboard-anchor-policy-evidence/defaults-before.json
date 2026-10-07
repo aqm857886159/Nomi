@@ -1523,6 +1523,42 @@
     },
     "video": {}
   },
+  "topaz-image-upscale/kie": {
+    "image": {
+      "modelKey": "topaz/image-upscale",
+      "modelVendor": "kie",
+      "modeId": "upscale",
+      "refModeId": "upscale"
+    },
+    "video": {}
+  },
+  "topaz-image-upscale/apimart": {
+    "image": {
+      "modelKey": "topaz/image-upscale",
+      "modelVendor": "apimart",
+      "modeId": "upscale",
+      "refModeId": "upscale"
+    },
+    "video": {}
+  },
+  "recraft-crisp-upscale/kie": {
+    "image": {
+      "modelKey": "recraft/crisp-upscale",
+      "modelVendor": "kie",
+      "modeId": "upscale",
+      "refModeId": "upscale"
+    },
+    "video": {}
+  },
+  "recraft-crisp-upscale/apimart": {
+    "image": {
+      "modelKey": "recraft/crisp-upscale",
+      "modelVendor": "apimart",
+      "modeId": "upscale",
+      "refModeId": "upscale"
+    },
+    "video": {}
+  },
   "all": {
     "image": {
       "modelKey": "gpt-image-2",

@@ -834,10 +834,13 @@
       "ironLaws": ["⑪", "⑫"],
       "useCases": ["S6"],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["设计卡 ★4 加「能力不可用」一格、test-routing 加 ui-capability-unavailable 证据项；C 设计 10-06 用户拍板（引导接专用放大模型）", "pb13 真 App（zh 亮 / en 暗）：高清看着能点、没有第二行说明，点了不建节点也没有去添加的地方——比实验室里「灰掉写原因」还隐蔽（目录加载态下不判 blocked）"],
-      "completionCommits": []
+      "completionCommits": ["627abb205","980983648"],
+      "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
+      "fixedInPr": 1053,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
     }
   ]
 }

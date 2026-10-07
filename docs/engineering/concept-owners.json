@@ -4987,6 +4987,33 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "资源只从自有镜像拉（版本钉 @imgly 包版本）；worker 包全局 fetch 数字节出一条总进度、60 秒无字节判卡住；失败原因随 RemoveBackgroundError 回传（docs/fixes/2026-10-06-remove-background-download.root-cause.json，类检查 removeBackgroundDownload.test.ts）。"
+    },
+    {
+      "name": "快捷动作缺能力时的引导（缺什么、去哪儿补）与上游不可用时的同能力替代",
+      "subject": "canvas.capability-unavailable-guide",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+        "symbol": "capabilityGuide"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+          "symbol": "capabilityGuide"
+        },
+        {
+          "path": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+          "symbol": "pickSameCapabilityAlternative"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
     }
   ]
 }
