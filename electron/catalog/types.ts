@@ -420,6 +420,16 @@ export type HttpOperation = {
    * baseUrl 尾部的版本段（/v1、/v3、…）再 join。显式声明，不在 joinUrl 里塞按路径猜的魔法。
    */
   pathFrom?: "host-root";
+  /**
+   * **这个操作自己**怎么收本机参考素材（覆盖供应商级声明，只对这一个端点生效）。
+   *
+   * 为什么要有操作级：同一家的不同端点收参考的方式不一样。Agnes 图片端点的 `extra_body.image` 收
+   * 「公共图像 URL 或 Data URI Base64」（官方文档 agnes-image-21-flash），视频端点只收公网 URL。
+   * 供应商级只能写一种，于是 Agnes 整家都没声明，图片参考图被派到**别家账户**的上传通道去
+   * （应用内反馈 NF-0928-0004：用 Agnes 生图，参考图走了 APIMart 的素材上传，APIMart 余额不足 402，整次失败）。
+   * 声明在端点上之后，这个端点的参考图只走它自己的方式，不再借别家。
+   */
+  assetIngestion?: AssetIngestion;
   headers?: Record<string, string>;
   query?: Record<string, unknown>;
   body?: unknown;
