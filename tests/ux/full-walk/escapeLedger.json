@@ -805,6 +805,57 @@
       "rootCauseContract": "docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json",
       "fixedInPr": 1052,
       "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts" }
+    },
+    {
+      "id": "FB-20261006-qa2-menu-covers-toolbar",
+      "since": "2026-10-06",
+      "source": "用户 10-06 第 1 条「点出来的框不能遮挡原来的按钮」+ 截图（暗色，节点靠画布上沿，改图菜单盖住宫格）",
+      "category": "interaction-semantics",
+      "problem": "节点靠画布上沿时打开浮条下拉，菜单翻到下面压住整条浮条、盖住旁边的按钮；「多机位九宫格 ▾」中间有竖线，和「宫格 ▾」样子不一",
+      "existingInvariants": [],
+      "ironLaws": ["⑫"],
+      "useCases": ["S6"],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["设计实验室 node-quick-actions qa-20/21/26 改前菜单压住浮条、改后不压（截图交协调会话）", "类级检查 tests/ux/design-lab/popupGeometry.census.mjs：所有屏 capture:viewport 的格量浮层与触发钮 / 横向工具条不相交；变异：锚点改回点即 3 格红", "根因合同 docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json"],
+      "completionCommits": ["997bdbd9f","b8c81ba9b"],
+      "rootCauseContract": "docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json",
+      "fixedInPr": 1051,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "FB-20261006-qa2-remove-background-stuck",
+      "since": "2026-10-06",
+      "source": "用户 10-06 第 2 条「抠图功能没法使用」",
+      "category": "interaction-semantics",
+      "problem": "首次抠图从外站下 56MB，没有卡住超时、进度按资源来回跳、识别段原地不动；亮色下白卡上看不出透明——点了像没反应或一直转圈",
+      "existingInvariants": [],
+      "ironLaws": ["⑫"],
+      "useCases": ["S6"],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": ["真 App（dev / 生产构建 / 打包版）点浮条抠图：三次都成功但 90–140 秒，进度 35%→100%→35% 来回跳", "改后：只从自有镜像拉，总进度单调；镜像挂住 62 秒后报「下载卡住了」、按钮恢复", "根因合同 docs/fixes/2026-10-06-remove-background-download.root-cause.json"],
+      "completionCommits": ["23945d9b5"],
+      "rootCauseContract": "docs/fixes/2026-10-06-remove-background-download.root-cause.json",
+      "fixedInPr": 1051,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "FB-20261006-qa2-upscale-dead-end",
+      "since": "2026-10-06",
+      "source": "用户 10-06 第 3 条「所谓的高清就是换一个高清模型，如果没有这个模型怎么办？」",
+      "category": "interaction-semantics",
+      "problem": "改图 ▾ 里「高清」在没有放大档模型时只灰掉写「还没有能放大的模型」，没有下一步；同一类：反馈雷达 0.23 image model-unavailable-upstream ×7",
+      "existingInvariants": [],
+      "ironLaws": ["⑪", "⑫"],
+      "useCases": ["S6"],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": ["设计卡 ★4 加「能力不可用」一格、test-routing 加 ui-capability-unavailable 证据项；C 设计 10-06 用户拍板（引导接专用放大模型）", "pb13 真 App（zh 亮 / en 暗）：高清看着能点、没有第二行说明，点了不建节点也没有去添加的地方——比实验室里「灰掉写原因」还隐蔽（目录加载态下不判 blocked）"],
+      "completionCommits": []
     }
   ]
 }

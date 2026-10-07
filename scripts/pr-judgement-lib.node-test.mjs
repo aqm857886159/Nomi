@@ -95,7 +95,7 @@ test('证据行判据：链接 / 路径 / 截图 / 运行号 / PR 号算；「�
 
 test('验收证据：必交证据取并集；缺条目红；条目没证据红；未验证:工具未建 接受并列出缺口', () => {
   const req = requiredEvidence(['ui', 'spend'], table).map((item) => item.id)
-  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-ai-walk', 'ui-screens', 'spend-paid-sample', 'spend-fault-injection'])
+  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-capability-unavailable', 'ui-ai-walk', 'ui-screens', 'spend-paid-sample', 'spend-fault-injection'])
   const none = checkRoutingEvidence('## 设计卡\nx', ['ui'], table)
   assert.equal(none.ok, false)
   assert.match(none.lines.join('\n'), /ui-mockup/)
@@ -106,6 +106,7 @@ test('验收证据：必交证据取并集；缺条目红；条目没证据红�
     '- ui-mockup：https://example.com/mockup',
     '- ui-click-census：未验证：工具未建',
     '- 按钮普查之外：无',
+    '- ui-capability-unavailable：docs/plan/example-design-card.md',
     '- AI 用户走查：未验证：工具未建',
     '- ui-screens：tests/ux/shots/zh-CN.png、tests/ux/shots/en.png、tests/ux/shots/narrow.png',
   ].join('\n')
@@ -114,7 +115,7 @@ test('验收证据：必交证据取并集；缺条目红；条目没证据红�
   assert.deepEqual(ok.gaps.map((gap) => gap.id), ['ui-click-census', 'ui-ai-walk'])
   assert.match(ok.lines.join('\n'), /缺工具：ui-click-census/)
   // 工具已有的证据写「未验证」也接受，但不进缺口
-  const exists = checkRoutingEvidence('## 验收证据\n- ui-mockup：未验证：本次没有新界面\n- ui-click-census：未验证：工具未建\n- ui-ai-walk：未验证：工具未建\n- ui-screens：未验证：无窄窗', ['ui'], table)
+  const exists = checkRoutingEvidence('## 验收证据\n- ui-mockup：未验证：本次没有新界面\n- ui-click-census：未验证：工具未建\n- ui-capability-unavailable：未验证：本次没有要模型的动作\n- ui-ai-walk：未验证：工具未建\n- ui-screens：未验证：无窄窗', ['ui'], table)
   assert.equal(exists.ok, true)
   assert.deepEqual(exists.gaps.map((gap) => gap.id), ['ui-click-census', 'ui-ai-walk'])
 })
