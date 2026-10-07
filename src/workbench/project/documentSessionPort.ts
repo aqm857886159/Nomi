@@ -8,7 +8,8 @@
 //   · **基线端口**：随项目会话永远在。从 store 派生正文（`generateText` 用和编辑器同一套 schema，
 //     所以同一份文档两边算出的正文与 contentHash 逐字相同）；支持 `full` 读、whole-document 的
 //     `append` / `replace` 写。需要光标/选区的动作（`selection` 读、`insert`、定位锚）在基线态回
-//     **语义正确**的 `capability_unsupported`——「没有」不再说成「过期」。
+//     **语义正确**的 `document_position_unavailable`——「没有」不再说成「过期」，也不再说成泛泛的「做不了」
+//     （NF-1001-0001：用户站在画布上说「这个」，模型去读文稿选区，用户只看到一句「这件事在当前页面做不了」就停了）。
 //   · **增强覆盖**：创作页编辑器挂载时用带选区/锚点的版本 **覆盖**（`overrideDocumentSessionPort`），
 //     卸载时退回基线。读方永远拿到一个端口，类型上写不出 `!tools`。
 //
@@ -40,7 +41,7 @@ export type DocumentSessionWriteResult = Readonly<{ applied: true; revision: num
 /** 当前生效的文稿端口——基线（随项目会话）或增强（创作页编辑器挂载时覆盖）。永远非空。 */
 export type DocumentSessionPort = Readonly<{
   readFullText: () => string
-  /** 基线态没有选区：抛 `capability_unsupported`，不是返回空串装作「没选」。 */
+  /** 基线态没有选区：抛 `document_position_unavailable`，不是返回空串装作「没选」。 */
   readSelectionText: () => string
   readState: () => DocumentSessionState
   applyDocumentWrite: (input: DocumentSessionWriteInput) => DocumentSessionWriteResult
@@ -61,8 +62,9 @@ export function documentSessionState(document: WorkbenchDocument, anchor: Docume
   return Object.freeze({ revision: document.updatedAt, contentHash: documentContentHash(workbenchDocumentPlainText(document)), anchor })
 }
 
-function unsupported(): never {
-  throw new SurfacePortWireError('capability_unsupported')
+/** 选区 / 光标 / 定位锚只有创作页编辑器验得了；基线态（编辑器没挂）说不出「位置」。 */
+function positionUnavailable(): never {
+  throw new SurfacePortWireError('document_position_unavailable')
 }
 
 function activeDocument(): WorkbenchDocument {
@@ -74,14 +76,14 @@ function activeDocument(): WorkbenchDocument {
 
 /**
  * whole-document 写：不需要编辑器，直接改 store 里的 contentJson。
- * `insert` 需要一个位置，整篇文档没有位置——回 `capability_unsupported`，让模型改用 append/replace。
+ * `insert` 需要一个位置，整篇文档没有位置——回 `document_position_unavailable`，让模型改用 append/replace。
  */
 export function applyWholeDocumentWrite(
   document: WorkbenchDocument,
   operation: DocumentWriteOperation,
   content: string,
 ): WorkbenchDocument {
-  if (operation === 'insert') unsupported()
+  if (operation === 'insert') positionUnavailable()
   const nodes = markdownToTiptapContent(content)
   if (!nodes.length) throw new SurfacePortWireError('capability_input_invalid')
   const current = normalizeWorkbenchContentJson(document.contentJson) as { type: 'doc'; content?: unknown[] }
@@ -98,13 +100,13 @@ function assertDocumentTarget(target: TargetRef, documentId: string): Extract<Ta
 
 const baselineDocumentPort: DocumentSessionPort = Object.freeze({
   readFullText: () => workbenchDocumentPlainText(activeDocument()),
-  readSelectionText: () => unsupported(),
+  readSelectionText: () => positionUnavailable(),
   readState: () => documentSessionState(activeDocument()),
   applyDocumentWrite: (input) => {
     const document = activeDocument()
     const target = assertDocumentTarget(input.target, document.id)
     // 定位锚（光标/选区/文末哈希）只有编辑器能验；基线态说不出「位置」，只认整篇。
-    if (target.anchor.kind !== 'whole-document') unsupported()
+    if (target.anchor.kind !== 'whole-document') positionUnavailable()
     assertDocumentWritePreconditions(input.preconditions.document, documentSessionState(document))
     const next = applyWholeDocumentWrite(document, input.operation, input.content)
     useWorkbenchStore.getState().setWorkbenchDocument(next)

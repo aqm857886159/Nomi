@@ -1,0 +1,256 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-grouping-interaction",
+  "problem_type": "Canvas group interaction state and action entry points drift apart",
+  "symptom": "Frame click, member selection, group ports, and group toolbar could disagree; the old group chrome also had no persisted default color and user-facing copy mixed Frame/组.",
+  "direct_cause": "Selection identity was derived in more than one projection path, React Flow geometry used an uncontrolled internal node table plus store projection sync, and group visual color was explicitly neutral with no default color at group creation.",
+  "class_root": "Group interaction state, geometry ownership, visual identity, and language need one shared boundary: one selectedGroupId, one store-owned node position stream, and one semantic group-color token.",
+  "affected_population": [
+    "Creators using expanded groups in the generation canvas",
+    "Projects with one or more persisted NodeGroup records",
+    "macOS Electron canvas sessions; Windows and provider-backed generation remain unverified"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/components/GroupFrame.tsx",
+    "src/workbench/generationCanvas/components/GroupFrameHeader.tsx",
+    "src/workbench/generationCanvas/components/CollapsedGroupCard.tsx",
+    "src/workbench/generationCanvas/components/CanvasGroupToolbar.tsx",
+    "src/workbench/generationCanvas/components/groupVisualContract.ts",
+    "src/workbench/generationCanvas/model/groupColor.ts",
+    "tailwind.config.ts",
+    "src/theme/nomi-tokens.css",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+    "src/workbench/generationCanvas/model/selectedGroup.ts",
+    "src/workbench/generationCanvas/reactFlow/groupConnectionPorts.ts",
+    "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts",
+    "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+    "src/workbench/generationCanvas/model/canvasCardStackModel.ts",
+    "src/workbench/generationCanvas/model/generationCanvasTypes.ts",
+    "src/workbench/generationCanvas/model/generationCanvasSchema.ts",
+    "src/workbench/generationCanvas/components/CanvasGroupProjectionLayer.tsx"
+  ],
+  "entry_points": [
+    "Click or drag an expanded group frame",
+    "Select all members of a group through a marquee or node click",
+    "Start a connection from a group port",
+    "Use the group action toolbar"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's internal canvas projection contract; the repository's store, React Flow adapter, and existing UX walks are the authoritative sources.",
+  "invariants": [
+    "A frame click or exact member selection resolves one selectedGroupId shared by frame chrome, port projection, and toolbar.",
+    "React Flow owns transient drag geometry through its kernel draft; the durable canvas store receives one shared writeback at gesture settle.",
+    "Every new or loaded group has a semantic default color token; legacy hex values normalize to a token and no JSX palette uses raw colors.",
+    "User-facing grouping copy uses Group/组 consistently while technical Frame identifiers remain internal."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "resolveSelectedGroupId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "projectGroupConnectionPorts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "handleGroupFramePointerDown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleGroupFramePointerDown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "moveGroupNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "moveGroupNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "moveNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "moveNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "moveNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts",
+      "symbol": "setGroupColor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts",
+      "symbol": "setGroupColor"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts",
+      "symbol": "arrangeGroup"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts",
+      "symbol": "arrangeGroup"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 13,
+    "why_not": "The resolver, projection, custom group-drag path, controlled position write path, and toolbar action adapters are separate framework boundaries; each remains a checked entry point but they now share the selectedGroupId, semantic color, and batched store contract."
+  },
+  "generality_proof": "Every checked group entry point resolves through the same selectedGroupId and store action boundaries. Keeping the projection and action surface keyed by that identity prevents a future caller from fixing frame chrome, ports, or toolbar state independently.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/model/selectedGroup.ts",
+      "symbol": "resolveSelectedGroupId",
+      "responsibility": "Resolve the one selected group identity from frame or exact member selection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/groupConnectionPorts.ts",
+      "symbol": "projectGroupConnectionPorts",
+      "responsibility": "Project selected group connection affordances from that identity."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "symbol": "setGroupColor",
+      "responsibility": "Persist group visual changes through the canvas store."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "handleGroupFramePointerDown",
+      "responsibility": "Start group selection and movement without a second gesture owner."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "moveNodes",
+      "responsibility": "Commit durable node positions once at the shared gesture boundary; pointer samples remain in the React Flow kernel."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "resolveSelectedGroupId",
+      "disposition": "enforced",
+      "evidence": "Expanded and collapsed group selection both pass through this resolver before projection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+      "entry_point": "CanvasSelectionToolbar",
+      "disposition": "enforced",
+      "evidence": "This is the duplicate batch-bar entry point shown when group members are selected."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CollapsedGroupCard.tsx",
+      "entry_point": "CollapsedGroupCard",
+      "disposition": "enforced",
+      "evidence": "Collapsed groups use the same selectedGroupId contract but retain their card projection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "ResultDownloadButton",
+      "disposition": "not-affected",
+      "evidence": "Per-node result download is outside group selection and remains the shared media download primitive."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new group entry point can otherwise update only one of the frame, port, or toolbar surfaces and recreate the disappearing-selection class.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolveSelectedGroupId",
+      "node scripts/door-map.mjs projectGroupConnectionPorts",
+      "node scripts/door-map.mjs handleGroupFramePointerDown",
+      "git grep -n selectedFrameId src/workbench/generationCanvas",
+      "node scripts/door-map.mjs arrangeGroup",
+      "node scripts/door-map.mjs runFrameAction"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "invariant": "All group visual and action projections consume the same resolved selectedGroupId.",
+    "failure_mode": "Missing or stale group identity produces no group toolbar or port affordance and leaves persisted group data unchanged.",
+    "exception_policy": "none",
+    "strategy": "Make the resolver the only selection identity source at the React Flow boundary and cover frame click, exact member selection, and blank-pane clear in one contract test.",
+    "artifacts": [
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/model/selectedGroup.test.ts",
+    "src/workbench/generationCanvas/model/groupToolbarActions.test.ts",
+    "src/workbench/generationCanvas/model/groupArrange.test.ts",
+    "src/workbench/generationCanvas/components/groupDownload.test.ts",
+    "tests/ux/grouping-optimization.walk.mjs",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.test.ts",
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts",
+    "tests/ux/selection-drag-lifecycle.test.mjs",
+    "tests/ux/grouping-real-media.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/model/selectedGroup.test.ts",
+    "tests/ux/group-ports.walk.mjs",
+    "tests/ux/grouping-optimization.walk.mjs",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.test.ts",
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.test.ts",
+    "tests/ux/selection-drag-lifecycle.test.mjs",
+    "tests/ux/grouping-real-media.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old projection synchronizer is no longer mounted, but its module remains available for historical tests; no persisted data path is removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the group selection invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Persisted NodeGroup records keep their existing ids, member ids, colors, and frame bounds. Only renderer selection projection and new action affordances change; no data migration is needed.",
+  "residual_risks": [
+    "The real 1080p 60-node drag run is a macOS arm64 observation: it exercised real 1920x1080 H.264 video and image fixtures, with the separate decoded-video walk covering active video evidence. Windows, clean-install, and provider-backed generation/download paths remain unverified.",
+    "The grouping canvas-frame design-lab screen was rebaselined from production components and its 8 states pass. Other design-lab screens still have unrelated pending-approval or baseline differences and are outside these five grouping TODOs.",
+    "The large group drag keeps transient shell geometry out of the durable store; if a future host bypasses the React Flow kernel, it must adopt the same shell-preview and single-settle contract."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+      "tests/ux/grouping-optimization.walk.mjs"
+    ],
+    "why": "The React Flow boundary derives selectedGroupId, routes transient geometry through the kernel draft, and shares the durable writeback consumed by every expanded-group surface."
+  }
+}

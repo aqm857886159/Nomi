@@ -6,6 +6,7 @@ import { expect, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
+import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
 
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/shot-nodes-evidence')
@@ -14,7 +15,7 @@ const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-shot-nodes-'))
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = await createProcessFixture(root, settingsDir)
 const app = await launchNomiApp({ name: 'shot-nodes-lifecycle', tempRoot, settingsDir, settleMs: 0,
-  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi.canvas.batch-concurrency': '1' },
+  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
   env: { VITE_DEV_SERVER_URL: 'http://127.0.0.1:5199', NOMI_DISABLE_AUTO_UPDATE: '1' }, args: ['--no-proxy-server'] })
 const page = app.win
 const receipt = { paidCalls: 0, supplier: 'loopback; real UI/queue/store/materialization', screenshots: [], checks: [] }
@@ -33,6 +34,9 @@ try {
   await page.locator('[data-project-card]').first().dblclick()
   await page.getByRole('button', { name: '生成', exact: true }).click()
   await expect(page.locator('.generation-canvas-v2__stage')).toBeVisible()
+  // 产品里没有并发选项；走查要造「排队中」，经 E2E 桥把整批并发压到 1。
+  await expect.poll(() => page.evaluate(() => typeof window.__nomiSetBatchConcurrency)).toBe('function')
+  await page.evaluate(() => window.__nomiSetBatchConcurrency(1))
   await app.app.evaluate(async (_, root) => {
     const require = process.mainModule.require.bind(process.mainModule)
     const store = require(root + '/dist-electron/assets/projectAssetStore.js')
@@ -60,7 +64,9 @@ try {
   await page.keyboard.press('Escape')
   const empty = await findCanvasBlankPoint(page)
   await page.mouse.click(empty.x, empty.y)
-  await page.locator('[data-batch-scope=all]').click()
+  // 批量生成只走组：全选两个节点 → 编组 → 组工具条「生成整组」。
+  await page.keyboard.press('Control+a')
+  await groupSelectedNodesAndGenerate(page)
   await expect(page.getByText('开始生成', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '生成', exact: true }).last().click()
   await expect.poll(() => fixture.jobs.length).toBe(1)
@@ -87,7 +93,7 @@ try {
   await expect(second.locator('[data-node-inline-status] [data-generation-message]')).toContainText('模型未配置')
   await second.click({ position: { x: 40, y: 15 } })
   await capture('failed')
-  receipt.checks.push('Queued from actual concurrency=1 batch, first operation completes through real asset localization, next fails after vendor is disabled')
+  receipt.checks.push('Queued from an actual concurrency=1 group batch, first operation completes through real asset localization, next fails after vendor is disabled')
   await page.evaluate(() => {
     const catalog = window.nomiDesktop.modelCatalog
     const vendor = catalog.listVendors().find(v => v.key === 'agent-runtime-loopback')

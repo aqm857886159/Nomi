@@ -84,6 +84,26 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
 })
 
+test('账本删除判定对 merge-base 比：main 后来新加的条目不算本 PR 删的（#1055 / #1065）——一条一个文件后由文件表天然保证', () => {
+  const dir = 'tests/ux/full-walk/escapeLedger'
+  // PR 文件表是对 merge-base 算的：main 后来加的 OTHER-PR.json 不在表里，所以根本不会被取、更不会被判成「删了」
+  const fork = { [`${dir}/A.json`]: { id: 'A', status: 'candidate' }, [`${dir}/B.json`]: { id: 'B', status: 'candidate' } }
+  const head = { ...fork, [`${dir}/MINE.json`]: { id: 'MINE', status: 'candidate' } }
+  const fetch = (file, side) => {
+    const value = (side === 'base' ? fork : head)[file]
+    return value ? JSON.stringify(value) : null
+  }
+  assert.deepEqual(ledgerChanges([{ path: `${dir}/MINE.json`, status: 'added' }], fetch).removed, [])
+  // 真删了自己起点里的条目照样红
+  const dropped = { ...head }
+  delete dropped[`${dir}/B.json`]
+  const fetchDropped = (file, side) => {
+    const value = (side === 'base' ? fork : dropped)[file]
+    return value ? JSON.stringify(value) : null
+  }
+  assert.deepEqual(ledgerChanges([{ path: `${dir}/MINE.json`, status: 'added' }, { path: `${dir}/B.json`, status: 'removed' }], fetchDropped).removed, ['B'])
+})
+
 test('逃逸合同：修订已结账的合同不要求再转换；新合同 / 未结账的照旧红（#1061）', () => {
   const file = 'docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json'
   const baseLedger = { entries: [

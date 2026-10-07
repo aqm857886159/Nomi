@@ -197,7 +197,7 @@ export default function WorkbenchEditor(): JSX.Element {
         const range = input.target.anchor.kind === 'whole-document'
           ? input.operation === 'append' ? { from: size, to: size }
             : input.operation === 'replace' ? { from: 0, to: size }
-              : (() => { throw new SurfacePortWireError('capability_unsupported') })()
+              : (() => { throw new SurfacePortWireError('document_position_unavailable') })()
           : resolveDocumentWriteRange(documentReader(), input.target.anchor, input.operation)
         tools.applyAtRange(input.content, range)
         const next = enhanced.readState()

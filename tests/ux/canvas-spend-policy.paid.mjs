@@ -8,7 +8,7 @@
 // 零额度夹具证得到「判据怎么判」，证不到「真供应商上按一下 ↑ 就真出一张图、任务面板只记一笔」——所以这一条花真钱。
 //
 //   T1 单个图片节点按 ↑ → 全程**没有**确认框 → 供应商恰收一笔 → 任务面板恰一行 → 图落在这个节点上；
-//   T2 再放两个节点，点「生成全部」→ 弹确认框、框里没有价格 → 先「取消」：一笔都不发 →
+//   T2 再放两个节点，编成一组、点组工具条「生成整组」→ 弹确认框、框里没有价格 → 先「取消」：一笔都不发 →
 //      切成 English 再点一次 → 确认 → 两笔、两张图（A 那一笔不重跑）。
 //
 // 模型：APIMart 最便宜的图模型 z-image-turbo（隔离副本里只发布它一个图模型，节点默认就落在它上，花销可预期）。
@@ -16,12 +16,12 @@
 // 明文 key 从头到尾不落任何文件、不进报告、不回显；跑完凭据副本当场删除，原库指纹跑前跑后比对。
 import { clickOrFail, expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { groupGenerateButton, groupSelectedNodes } from './_groupGenerate.mjs'
 import { PRICE_LINE, SPEND_DIALOG, openPaidWalk, watchSpendDialogs } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
 
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
-const GENERATE_ALL = '[data-storyboard-run-all="true"][data-batch-scope="all"]'
 const NODE_GENERATE = '[data-composer-host="canvas"] [data-bar-segment="generate"]'
 const TASK_TRIGGER = '[data-task-center-trigger="true"]'
 const TASK_PANEL = '[data-nomi-right-panel="tasks"]'
@@ -84,15 +84,18 @@ try {
   await walk.snap('t1-zh-single-generate-no-dialog-one-task')
   await win.keyboard.press('Escape')
 
-  // ═══ T2 · 两个节点「生成全部」：弹框、无价格行；取消一笔不发；确认两笔两张 ═══
+  // ═══ T2 · 两个节点编组后「生成整组」：弹框、无价格行；取消一笔不发；确认两笔两张 ═══
   const nodeB = await addImageNode('雨后的石板小巷，路灯倒影，电影感')
   const nodeC = await addImageNode('雪山脚下的木屋，炊烟，蓝调时刻')
   const blank = await findCanvasBlankPoint(win)
-  expect(Boolean(blank), '画布上找得到空白处（取消选择才会出现底栏「生成全部」）').toBe(true)
+  expect(Boolean(blank), '画布上找得到空白处（先取消选择，再只选刚加的两个）').toBe(true)
   await win.mouse.click(blank.x, blank.y)
-  const generateAll = win.locator(GENERATE_ALL)
-  await expect(generateAll, 'T2：「生成全部」只算还没生成的两个（A 已出图不算）').toContainText('2', { timeout: stationTimeout() })
-  await clickOrFail(generateAll, '底栏「生成全部」')
+  // 只把还没生成的 B、C 编成一组（A 已出图，不进组）：点 B，Shift 点 C，再点浮条「编组」。
+  await clickOrFail(win.locator(`.react-flow__node[data-id="${nodeB}"]`), '选中节点 B')
+  await clickOrFail(win.locator(`.react-flow__node[data-id="${nodeC}"]`), 'Shift 加选节点 C', { modifiers: ['Shift'] })
+  await groupSelectedNodes(win)
+  const generateAll = groupGenerateButton(win)
+  await clickOrFail(generateAll, '组工具条「生成整组」')
   const dialog = win.locator(SPEND_DIALOG)
   const dialogProof = await proveProbe(dialog, 'T2：一下跑两份，弹确认框')
   const zhText = await expectNoPriceLine(dialog, 'T2（中文）')
@@ -109,15 +112,14 @@ try {
   }
   expect((await nodeOnDisk(nodeA)).runs, 'T2：取消也没碰 A').toEqual(tasksBeforeCancel.find((node) => node.id === nodeA).runs)
 
-  // 真人切语言：设置 → 通用 → English（与 agent-spend-real-image.paid.mjs 同一走法），再点一次「生成全部」。
+  // 真人切语言：设置 → 通用 → English（与 agent-spend-real-image.paid.mjs 同一走法），再点一次「生成整组」。
   await clickOrFail(win.getByRole('button', { name: /^(设置|Settings)$/ }).first(), '顶栏「设置」按钮')
   await clickOrFail(win.locator('[data-settings-tab-id="general"]'), '设置导航「通用」')
   await clickOrFail(win.locator('[data-settings-locale="en"]'), '语言分段控件「English」')
   await expect(win.locator('[data-settings-locale="en"][aria-pressed="true"]'), '界面已切到 English').toBeVisible()
   await clickOrFail(win.locator('[data-settings-close]'), '设置对话框「关闭」按钮')
-  await win.mouse.click(blank.x, blank.y)
-  await expect(generateAll, 'T2 (EN): Generate all still counts the two pending nodes').toContainText('2', { timeout: stationTimeout() })
-  await clickOrFail(generateAll, 'Generate all (EN)')
+  await expect(generateAll, 'T2 (EN): the group toolbar is still there and Generate group is enabled').toBeEnabled({ timeout: stationTimeout() })
+  await clickOrFail(generateAll, 'Generate group (EN)')
   await proveProbe(dialog, 'T2 (EN): the confirmation dialog appears')
   await expectNoPriceLine(dialog, 'T2 (EN)')
   await walk.snap('t2-en-generate-all-dialog-no-price')

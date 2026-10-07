@@ -4,6 +4,9 @@
 // 等价性:barrier 落点 = 原 pushUndoSnapshot 调用点(同名导出,调用方零改动)——
 // 撤销粒度与旧栈逐手势一致(addNode 后的默认参数 patch 不设 barrier,跟旧行为一样随上一 barrier 回退)。
 // 内存:HISTORY_LIMIT=80 维持;最老 barrier 被挤出时把前缀压进 base(紧凑化),journal 不无界。
+// 撤销只回退**用户编辑**:生成结局落地(run-updated 事件带 `landed`)是系统事实,前缀重放会把 barrier
+// 之后落地的结果一起丢掉(钱花了、图没了)——所以 undo/redo 连同目标位置之后的全部落地一起交出去,
+// 由 store 重新叠回(store/nodeRunOutcome.reapplyLandedOutcomes)。
 import { replayCanvasEvents, emptyCanvasProjection, type CanvasProjection } from './canvasEventReducer'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
@@ -39,6 +42,24 @@ function replayTo(position: number): CanvasProjection {
   return replayCanvasEvents(journal.slice(0, position), base)
 }
 
+/** 一次生成结局落地:哪个节点、落了什么(结局原样,store 侧解释)。 */
+export type CanvasLanding = Readonly<{ nodeId: string; landed: Readonly<Record<string, unknown>> }>
+/** 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)。 */
+export type UndoRestore = Readonly<{ projection: CanvasProjection; landingsAfter: readonly CanvasLanding[] }>
+
+function landingsAfter(position: number): CanvasLanding[] {
+  return journal.slice(position).flatMap((event) => {
+    const landed = event.payload.landed
+    const nodeId = (event.payload.node as { id?: unknown } | undefined)?.id
+    if (event.type !== 'canvas.node.run-updated' || !landed || typeof landed !== 'object' || typeof nodeId !== 'string') return []
+    return [{ nodeId, landed: landed as Record<string, unknown> }]
+  })
+}
+
+function restoreTo(position: number): UndoRestore {
+  return { projection: replayTo(position), landingsAfter: landingsAfter(position) }
+}
+
 /** 发射器同步喂(canvas 域全部事件,含 snapshot.restored)。 */
 export function appendToUndoJournal(events: readonly JournalEvent[]): void {
   for (const event of events) journal.push(event)
@@ -69,24 +90,24 @@ export function pushUndoSnapshot(_state?: unknown): void {
   }
 }
 
-/** undo:弹出最近 barrier,返回该位置的前缀重放投影;当前长度入 redo 栈。 */
-export function popUndo(): CanvasProjection | undefined {
+/** undo:弹出最近 barrier,返回该位置的前缀重放投影(+ 其后的落地);当前长度入 redo 栈。 */
+export function popUndo(): UndoRestore | undefined {
   interruptPendingCanvasWrite()
   const barrier = undoBarriers.at(-1)
   if (barrier === undefined) return undefined
   undoBarriers = undoBarriers.slice(0, -1)
   redoBarriers = [...redoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return replayTo(barrier)
+  return restoreTo(barrier)
 }
 
 /** redo:回到撤销前的日志位置(该位置前缀=撤销前画布,因为日志只追加)。 */
-export function popRedo(): CanvasProjection | undefined {
+export function popRedo(): UndoRestore | undefined {
   interruptPendingCanvasWrite()
   const position = redoBarriers.at(-1)
   if (position === undefined) return undefined
   redoBarriers = redoBarriers.slice(0, -1)
   undoBarriers = [...undoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return replayTo(position)
+  return restoreTo(position)
 }
 
 /** S6-2 事务边界:记录当前日志位置(abort 清理的锚点)。 */

@@ -46,7 +46,7 @@ function applyToStore(nodeId: string, outcome: NodeRunOutcome): boolean {
   }
   else if (outcome.kind === 'status') store.setNodeStatus(nodeId, outcome.status, outcome.error)
   else if (outcome.kind === 'run-started') store.appendNodeRun(nodeId, outcome.run)
-  else if (outcome.kind === 'content') store.updateNode(nodeId, nodeRunOutcomePatch(node, outcome))
+  else if (outcome.kind === 'content') store.landNodeContent(nodeId, outcome.contentJson, outcome.runId)
   else store.setNodeProgress(nodeId, outcome.progress)
   return true
 }
@@ -104,7 +104,7 @@ export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string
     const node = canvas?.nodes.find((candidate) => candidate.id === nodeId)
     if (!record || !canvas || !node) return false
     const nodes = canvas.nodes.map((candidate) => candidate.id === nodeId ? { ...candidate, ...nodeRunOutcomePatch(candidate, outcome) } : candidate)
-    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, record.name, target)
+    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, target)
     return false
   })
 }

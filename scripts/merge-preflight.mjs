@@ -318,7 +318,15 @@ export function main(argv = process.argv.slice(2)) {
     ? apiRows.map((row) => ({ path: row.path, status: row.status, previousPath: row.previousPath }))
     : files.map((file) => ({ path: file.path, status: file.status }))
   if (slug && ledgerRows.some((row) => escapeIdOfPath(row.path) || (row.previousPath && escapeIdOfPath(row.previousPath)))) {
-    const changes = ledgerChanges(ledgerRows, (file, side) => ghApiFile(slug, file, side === 'base' ? baseRef : view.headRefOid))
+    // 「转成 fixed」和「条目被删」都对本 PR 自己的起点（merge-base）比，不对 main 末端比（10-07 #1055 / #1065）：
+    // PR 文件表本来就是对 merge-base 算的，main 后来新加的条目根本不在表里；base 那一版也取 merge-base 上的。
+    // 取不到 merge-base 就退回 base 分支末端（fail-closed 不变）。
+    let forkRef = baseRef
+    try {
+      const forkSha = gh(['api', `repos/${slug}/compare/${baseRef}...${view.headRefOid}`, '--jq', '.merge_base_commit.sha']).trim()
+      if (/^[0-9a-f]{40}$/.test(forkSha)) forkRef = forkSha
+    } catch { forkRef = baseRef }
+    const changes = ledgerChanges(ledgerRows, (file, side) => ghApiFile(slug, file, side === 'base' ? forkRef : view.headRefOid))
     ledger.transitions = changes.transitions
     ledger.removed = changes.removed
     // 正文提到的条目 id（只做提示）：列一次 head 目录的文件名，不取内容

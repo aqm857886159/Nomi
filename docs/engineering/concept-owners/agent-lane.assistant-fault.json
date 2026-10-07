@@ -1,0 +1,31 @@
+{
+  "name": "Agent 回合失败里不是服务商原话的那几类（看门狗相位 / 半路断流 / 上下文溢出）",
+  "subject": "agent-lane.assistant-fault",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentLane/laneAssistantFault.ts",
+    "symbol": "laneAssistantFaultOf"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneModelTimeoutMessage"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/shared/agentLane/laneProjection.ts",
+    "electron/agentLane/laneStreamObserver.mts",
+    "electron/telemetry/trajectoryProjection.ts"
+  ],
+  "since": "2026-10-06",
+  "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-0928-0003 / NF-1001-0003 / NF-1001-0004）：看门狗那句话的格式只在这里铸、只在这里认；投影把它变成 fault，渲染层按 fault 取本地词条，原文不进界面。服务商溢出原话由宿主喂 pi 的 isContextOverflow。"
+}

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createLocalProject, readLocalProject, saveLocalProject } from './projectRepository'
+import { createLocalProject, readLocalProject, saveProjectRecord } from './projectRepository'
 import { migrateProjectRecord } from './projectCategoryMigration'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopBridge } from '../../desktop/bridge'
@@ -238,6 +238,6 @@ it('passes the original background binding through the existing desktop save cal
   const record = { ...fixture, id: expectedBinding.projectId, immutableProjectUuid: expectedBinding.immutableProjectUuid, projectGeneration: expectedBinding.projectGeneration }
   const save = vi.fn(async (_id: string, value: unknown) => value)
   mockedGetDesktopBridge.mockReturnValue(stubBridge({ read: () => record, save }))
-  await saveLocalProject(record.id, record.payload, record.name, expectedBinding)
+  await saveProjectRecord(record.id, record.payload, expectedBinding)
   expect(save).toHaveBeenCalledExactlyOnceWith(record.id, expect.objectContaining({ expectedBinding, payload: record.payload }))
 })

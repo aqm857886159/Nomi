@@ -552,16 +552,20 @@ try {
     reply: { type: 'text', text: [INSERT_D_REPLY, QUEUE_B_REPLY, QUEUE_C_REPLY].join('\n') } })
   held.release({ type: 'text', text: '当前检查结束。' })
   await recorded(queuedD.received, 'urgent instruction request')
-  await recorded(queuedB.received, 'first resent request')
+  const queueBWire = await recorded(queuedB.received, 'first resent request')
   const queueWire = await recorded(queuedC.received, 'second resent request')
   await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: canvas.getByText('K_QC_DONE', { exact: false }).last() })
   const queueNodeIds = await canvasNodeIds()
-  for (const id of ['k-queue-d-read', 'k-queue-b-read']) {
+  // 每一次读在「它还是最新那份」的请求里，模型看到的是完整画布（canvasReadCompact 的散文形状，不是 JSON 信封）；
+  // 同一份画布后来又读了一次之后，旧的那份只剩一行说明指向新的那次（应用内反馈 NF-0928-0003：回合内旧快照不再随每次请求重发）。
+  for (const [id, wire] of [['k-queue-d-read', queueBWire], ['k-queue-b-read', queueWire]]) {
     expect(nativeResult(id), 'The scheduling boundary must also complete the real canvas read')
       .toMatchObject({ isError: false, details: { nodeCount: queueNodeIds.length } })
-    // The established canvasReadCompact presentation is prose, not a JSON envelope.
-    for (const nodeId of queueNodeIds) expect(toolResultText(queueWire.body, id)).toContain(`- ${nodeId} | `)
+    for (const nodeId of queueNodeIds) expect(toolResultText(wire.body, id)).toContain(`- ${nodeId} | `)
   }
+  expect(toolResultText(queueWire.body, 'k-queue-d-read'), '被后来同样的读取取代的旧画布快照不再整份重发')
+    .toContain('Earlier look_at_canvas result omitted')
+  expect(toolResultText(queueWire.body, 'k-queue-d-read')).toContain('k-queue-b-read')
   const stopRequest = walk.fixture.expectText({ label: 'user stops a new actual stream',
     match: (body) => flattenRequestText(body).includes('K_STOP_ONLY'), reply: { type: 'hold', text: '这一步正在继续检查。' } })
   await sendCanvas(win, 'K_STOP_ONLY：再核对一次这些镜头。')

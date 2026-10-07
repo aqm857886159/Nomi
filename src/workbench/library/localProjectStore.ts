@@ -8,7 +8,7 @@ import {
   readLocalProject,
   readLocalProjectAsync,
   renameLocalProject as renameProjectRecord,
-  saveLocalProject as saveProjectRecord,
+  saveProjectRecord,
 } from '../project/projectRepository'
 import type {
   WorkbenchProjectPayload,
@@ -135,10 +135,9 @@ export { readLocalProject, readLocalProjectAsync }
 export async function saveLocalProject(
   projectId: string,
   state: WorkbenchProjectPayload,
-  name?: string,
   expectedBinding?: ProjectBinding,
 ): Promise<LocalProjectRecord> {
-  const record = await saveProjectRecord(projectId, state, name, expectedBinding)
+  const record = await saveProjectRecord(projectId, state, expectedBinding)
   publishLocalProjectRecord(record)
   return record
 }

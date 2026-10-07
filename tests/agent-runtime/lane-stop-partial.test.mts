@@ -20,7 +20,7 @@ for (const kind of ['openai-compatible', 'openai-responses', 'anthropic'] as con
       t.after(held.release)
       const fixture = await createLaneFixture(t, [{ type: 'text', text: 'ACTUAL_PARTIAL', beforeFinish: held.beforeFinish }])
       const { provider, model, credentials } = await createNomiProvider({ ...fixture.options.model, kind }, globalThis.fetch,
-        guarded ? { firstResponseMs: 30_000, idleMs: 30_000 } : undefined)
+        guarded ? { firstResponseMs: 30_000, firstTokenMs: 30_000, idleMs: 30_000 } : undefined)
       const models = createModels({ credentials })
       models.setProvider(provider)
       const controller = new AbortController()
@@ -98,7 +98,7 @@ for (const cause of ['abort', 'timeout'] as const) {
     let timeout!: () => void
     const controller = new AbortController()
     const guarded = guardProviderStreams({ stream: () => upstream, streamSimple: () => upstream }, {
-      firstResponseMs: 30_000, idleMs: 30_000,
+      firstResponseMs: 30_000, firstTokenMs: 30_000, idleMs: 30_000,
       clock: { set: (callback) => { timeout = callback; return callback }, clear: () => undefined },
     })
     const stream = guarded.stream(model, { messages: [] }, { signal: controller.signal })
