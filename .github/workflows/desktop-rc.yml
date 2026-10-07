@@ -31,6 +31,13 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
+      - name: Verify workflow ref matches dispatched commit
+        env:
+          WORKFLOW_REF: ${{ inputs.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          TRIGGER_REF: ${{ github.ref }}
+          TRIGGER_EVENT: ${{ github.event_name }}
+        run: node scripts/verify-workflow-ref.mjs
       - uses: pnpm/action-setup@v4
         with:
           version: 10.8.1
@@ -43,7 +50,8 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
       - name: Install Chromium for release validation browser tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       - name: Validate version
         run: node scripts/release-contract.mjs validate-version --root . --version "$RELEASE_VERSION"
       - name: Repository gates
