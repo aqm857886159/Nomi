@@ -3,7 +3,8 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const DIRECTOR = path.resolve(__dirname, '../..')
-const read = (relative: string): string => fs.readFileSync(path.join(DIRECTOR, relative), 'utf8')
+const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+const read = (relative: string): string => stripComments(fs.readFileSync(path.join(DIRECTOR, relative), 'utf8'))
 
 // 2026-10-07 用户反馈：「批量生成群众队列」独立面板不在加人那里。群众并进「＋→角色→群众」，旧面板删除，不许复活。
 describe('crowd lives in the add menu only (no second entry)', () => {
@@ -15,7 +16,7 @@ describe('crowd lives in the add menu only (no second entry)', () => {
   it('no inspector panel calls batchCreateCrowd; the only UI caller is the placement hook', () => {
     const inspectorDir = path.join(DIRECTOR, 'panels/inspector')
     for (const file of fs.readdirSync(inspectorDir).filter((name) => name.endsWith('.tsx'))) {
-      expect(fs.readFileSync(path.join(inspectorDir, file), 'utf8'), file).not.toMatch(/batchCreateCrowd/)
+      expect(stripComments(fs.readFileSync(path.join(inspectorDir, file), 'utf8')), file).not.toMatch(/batchCreateCrowd/)
     }
     expect(read('scene/creation/useCharacterPlacement.ts')).toMatch(/batchCreateCrowd/)
   })
@@ -29,7 +30,7 @@ describe('crowd lives in the add menu only (no second entry)', () => {
   })
 
   it('the old standalone-panel i18n keys are removed in both locales', () => {
-    const locale = fs.readFileSync(path.resolve(DIRECTOR, '../../../../i18n/locales/director.ts'), 'utf8')
+    const locale = stripComments(fs.readFileSync(path.resolve(DIRECTOR, '../../../../i18n/locales/director.ts'), 'utf8'))
     expect(locale).not.toMatch(/crowdTitle|crowdConfirm/)
     expect(locale).not.toMatch(/\{\{name\}\}（群众组）|\{\{name\}\} \(crowd\)/)
   })

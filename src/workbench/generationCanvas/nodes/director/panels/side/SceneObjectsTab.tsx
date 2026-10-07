@@ -63,7 +63,9 @@ export function SceneObjectsTab(): JSX.Element {
   const scene = useDirectorStore((state) => state.activeScene())
   const selection = useDirectorStore((state) => state.selection)
   const [query, setQuery] = React.useState('')
-  const [folded, setFolded] = React.useState<Set<string>>(new Set())
+  // 组（含群众组）默认折叠成一行，点箭头才展开成员；记的是「用户展开过的组」
+  const [opened, setOpened] = React.useState<Set<string>>(new Set())
+  const folded = React.useMemo(() => new Set(scene.objects.filter((object) => object.type === 'group' && !opened.has(object.id)).map((object) => object.id)), [scene, opened])
   const [layerMenu, setLayerMenu] = React.useState<string | null>(null)
   const [rowMenu, setRowMenu] = React.useState<string | null>(null)
   const [renaming, setRenaming] = React.useState<{ kind: 'layer' | RowKind; id: string; draft: string } | null>(null)
@@ -213,7 +215,7 @@ export function SceneObjectsTab(): JSX.Element {
                         data-testid="director-outliner-row"
                       >
                         {row.type === 'group' ? (
-                          <button type="button" className="rounded-nomi-sm p-0.5 hover:bg-workbench-hover" onClick={(event) => { event.stopPropagation(); setFolded((current) => { const next = new Set(current); if (next.has(row.id)) next.delete(row.id); else next.add(row.id); return next }) }}>
+                          <button type="button" className="rounded-nomi-sm p-0.5 hover:bg-workbench-hover" onClick={(event) => { event.stopPropagation(); setOpened((current) => { const next = new Set(current); if (next.has(row.id)) next.delete(row.id); else next.add(row.id); return next }) }}>
                             {folded.has(row.id) ? <IconChevronRight size={12} stroke={2} /> : <IconChevronDown size={12} stroke={2} />}
                           </button>
                         ) : (

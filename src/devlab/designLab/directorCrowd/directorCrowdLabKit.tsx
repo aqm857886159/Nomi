@@ -79,23 +79,23 @@ async function clickWhenPresent(find: () => HTMLElement | undefined): Promise<vo
 const popoverButton = (text: string) => (): HTMLElement | undefined =>
   [...document.querySelectorAll<HTMLElement>('[data-nomi-escape-layer="director-popover"] button')].find((button) => button.textContent?.includes(text))
 
-/** 走真按钮：＋ →「角色」→「群众」→（可选）「动作」。 */
-async function drive(stage: 'character' | 'crowd' | 'action'): Promise<void> {
+/** 走真按钮：＋ →「角色」(depth 1) →「群众」(2) →「动作」(3)，depth 是走到第几层。 */
+async function drive(depth: number): Promise<void> {
   await clickWhenPresent(() => document.querySelector<HTMLElement>('[data-testid="director-add-menu"]') ?? undefined)
   await clickWhenPresent(popoverButton(i18n.t('director.creation.character')))
-  if (stage === 'character') return
+  if (depth <= 1) return
   await clickWhenPresent(popoverButton(i18n.t('director.creation.crowd')))
-  if (stage === 'crowd') return
+  if (depth <= 2) return
   await clickWhenPresent(() => document.querySelector<HTMLElement>('[data-testid="director-action-pick"]') ?? undefined)
 }
 
-function AddMenu({ locale, stage }: { locale: AppLocale; stage: 'character' | 'crowd' | 'action' }): JSX.Element {
+function AddMenu({ locale, depth }: { locale: AppLocale; depth: number }): JSX.Element {
   useLocale(locale)
   const store = React.useMemo(() => createDirectorStore({ defaultSceneName: i18n.t('director.node.sceneDefaultName') }), [])
   const viewportRef = React.useRef(null) as ViewportApiRef
   React.useEffect(() => {
-    void drive(stage)
-  }, [stage])
+    void drive(depth)
+  }, [depth])
   return (
     <DirectorStoreContext.Provider value={store}>
       <CreationModeContext.Provider value={CREATION}>
@@ -160,9 +160,9 @@ export function DirectorCrowdStage({ cell, locale, release }: { cell: CrowdCell;
   }, [cell, release])
   return (
     <Frame cell={cell} locale={locale}>
-      {cell === 'add-menu-character' ? <AddMenu locale={locale} stage="character" /> : null}
-      {cell === 'crowd-panel' ? <AddMenu locale={locale} stage="crowd" /> : null}
-      {cell === 'action-picker' ? <AddMenu locale={locale} stage="action" /> : null}
+      {cell === 'add-menu-character' ? <AddMenu locale={locale} depth={1} /> : null}
+      {cell === 'crowd-panel' ? <AddMenu locale={locale} depth={2} /> : null}
+      {cell === 'action-picker' ? <AddMenu locale={locale} depth={3} /> : null}
       {cell === 'placed-group' ? <PlacedGroup locale={locale} changed={false} /> : null}
       {cell === 'group-action-changed' ? <PlacedGroup locale={locale} changed /> : null}
     </Frame>

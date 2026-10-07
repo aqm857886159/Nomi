@@ -18,8 +18,8 @@ export function ActionPickField({ label, actionId, onOpen, mixed }: { label: str
   return (
     <div className="mb-2 grid grid-cols-[64px_1fr] items-center gap-2 text-caption">
       <span className="truncate text-nomi-ink-60">{label}</span>
-      <WorkbenchButton size="sm" className="w-full justify-between" data-testid="director-action-pick" onClick={onOpen}>
-        <span className="truncate">{name}</span>
+      <WorkbenchButton size="sm" className="w-full" data-testid="director-action-pick" onClick={onOpen}>
+        <span className="min-w-0 flex-1 truncate text-left">{name}</span>
         <IconChevronRight size={14} stroke={1.9} className="text-nomi-ink-40" />
       </WorkbenchButton>
     </div>
