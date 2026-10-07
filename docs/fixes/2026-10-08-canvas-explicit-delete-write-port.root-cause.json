@@ -12,6 +12,7 @@
     "Headless or hybrid gateway writes interleaved with renderer delivery"
   ],
   "scope_paths": [
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
     "src/workbench/production/productionCanvasSignals.ts",
     "src/workbench/production/ProductionCanvasLandingHost.tsx",
     "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
@@ -175,7 +176,7 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
-      "symbol": "emitProductionNodeDelta"
+      "symbol": "replayProductionCanvasIntent"
     },
     {
       "kind": "write",
@@ -196,15 +197,25 @@
       "kind": "write",
       "path": "src/workbench/production/productionCanvasSignals.ts",
       "symbol": "emitProductionCanvasSignal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal"
     }
   ],
   "door_reduction": {
     "before": 32,
-    "after": 32,
-    "why_not": "The original deletion map had 20 doors. The fixed boundary adds the main IPC/write queue, explicit signal emitter, and their callers; all 32 doors remain listed for independent checking."
+    "after": 33,
+    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the history signal recorder; all listed doors remain independently checkable."
   },
   "generality_proof": "Every listed deletion caller converges on the canvas store actions or document commit before a production signal can be emitted, while every project canvas disk writer converges on serializeProjectCanvasWrite. A future caller cannot silently infer a delete or write around the boundary without adding a new door that the door map exposes.",
   "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal",
+      "responsibility": "Records the explicit production signal intent on the active history gesture so undo inverts it and redo replays it without snapshot-diff inference."
+    },
     {
       "path": "src/workbench/production/productionCanvasSignals.ts",
       "symbol": "emitProductionCanvasSignal",
@@ -219,9 +230,9 @@
   "same_class_entry_points": [
     {
       "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
-      "entry_point": "emitProductionNodeDelta",
+      "entry_point": "replayProductionCanvasIntent",
       "disposition": "enforced",
-      "evidence": "Undo, redo, external graph writes and put-back emit explicit deltas; load paths do not call it."
+      "evidence": "Undo and redo replay the history record signal intent (undo inverted); external whole-graph writes record explicit action-time deltas, and load paths do not call it."
     },
     {
       "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
@@ -254,6 +265,7 @@
     "exception_policy": "none",
     "strategy": "Move renderer delivery to an IPC patch and share one main queue with gateway writes; make delete intent an explicit signal at the canvas write boundary.",
     "artifacts": [
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
       "electron/projects/projectCanvasWrite.ts",
       "src/workbench/production/productionCanvasSignals.ts",
       "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
@@ -262,11 +274,13 @@
   "regression_tests": [
     "src/workbench/production/redoReattachesProductionShots.test.ts",
     "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
-    "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts"
+    "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/production/redoReattachesProductionShots.test.ts",
-    "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts"
+    "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

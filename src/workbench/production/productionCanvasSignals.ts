@@ -1,4 +1,5 @@
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
+import { recordProductionCanvasSignal } from '../generationCanvas/events/canvasUndoJournal'
 
 export type ProductionCanvasSignal =
   | Readonly<{ kind: 'detach'; nodes: readonly GenerationCanvasNode[] }>
@@ -15,5 +16,6 @@ export function subscribeProductionCanvasSignals(sink: SignalSink): () => void {
 
 export function emitProductionCanvasSignal(signal: ProductionCanvasSignal): void {
   if (signal.nodes.length === 0) return
+  recordProductionCanvasSignal(signal)
   for (const sink of sinks) sink(signal)
 }

@@ -18,7 +18,7 @@
 import { backfillShotIndexes } from '../model/shotNumbering'
 import { replayCanvasEvents } from '../events/canvasEventReducer'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase, type UndoRestore } from '../events/canvasUndoJournal'
+import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase, type ProductionCanvasHistoryIntent, type UndoRestore } from '../events/canvasUndoJournal'
 import { mergeExternalCanvasWrite, type CanvasDocLike } from '../../../../electron/shared/canvas/externalCanvasWrite'
 import { withLiveNodeFacts, withLiveRunState } from '../../../../electron/shared/canvas/landedNodeFields'
 import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
@@ -37,7 +37,7 @@ export type CanvasDocumentWrite =
   /** 打开项目时重放快照之后落盘的事件尾巴（崩溃恢复）。 */
   | Readonly<{ kind: 'load-tail'; events: readonly { type: string; payload: Record<string, unknown> }[] }>
   /** 撤销 / 重做：目标位置的投影 + 之后的落地。 */
-  | Readonly<{ kind: 'rewind'; restore: UndoRestore }>
+  | Readonly<{ kind: 'rewind'; restore: UndoRestore; direction: 'undo' | 'redo' }>
   /** 外部 MCP 整张写回：base = 外部读到的那份，next = 它算出的整张；只合它自己改了的编辑。 */
   | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike }>
   /** 按原 id 放回被删的节点 / 边（已在的跳过，不覆盖现状）。 */
@@ -126,11 +126,30 @@ function emitReturnedLandings(returned: readonly Returned[]): void {
 
 type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
-function emitProductionNodeDelta(before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
+function emitProductionSignalsForDocumentChange(before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
   const beforeIds = new Set(before.map((node) => node.id))
   const afterIds = new Set(after.map((node) => node.id))
   emitProductionCanvasSignal({ kind: 'detach', nodes: before.filter((node) => !afterIds.has(node.id)) })
   emitProductionCanvasSignal({ kind: 'reattach', nodes: after.filter((node) => !beforeIds.has(node.id)) })
+}
+
+function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): ProductionCanvasHistoryIntent {
+  if (intent.kind === 'none') return intent
+  return {
+    kind: 'signals',
+    signals: intent.signals.map((signal) => ({
+      kind: signal.kind === 'detach' ? 'reattach' : 'detach',
+      nodes: signal.nodes,
+    })),
+  }
+}
+
+function replayProductionCanvasIntent(restore: UndoRestore, direction: 'undo' | 'redo'): void {
+  const intent = direction === 'undo'
+    ? invertProductionCanvasIntent(restore.productionCanvasIntent)
+    : restore.productionCanvasIntent
+  if (intent.kind === 'none') return
+  for (const signal of intent.signals) emitProductionCanvasSignal(signal)
 }
 
 export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActions> = (set, get) => {
@@ -194,7 +213,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // 影子记账:撤销=全量后态(replay≡snapshot 恒真)
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: next.nodes, edges: next.edges, groups: next.groups } } }])
         emitReturnedLandings(next.returned)
-        emitProductionNodeDelta(live.nodes, next.nodes)
+        replayProductionCanvasIntent(write.restore, write.direction)
         return
       }
       case 'external': {
@@ -211,7 +230,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         })
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: next } }])
         emitReturnedLandings(settled.returned)
-        emitProductionNodeDelta(live.nodes, next.nodes)
+        emitProductionSignalsForDocumentChange(live.nodes, next.nodes)
         return
       }
       case 'put-back': {
@@ -259,11 +278,11 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
     applyEventTail: (events) => commit({ kind: 'load-tail', events }),
     undo: () => {
       const restore = popUndo()
-      if (restore) commit({ kind: 'rewind', restore })
+      if (restore) commit({ kind: 'rewind', restore, direction: 'undo' })
     },
     redo: () => {
       const restore = popRedo()
-      if (restore) commit({ kind: 'rewind', restore })
+      if (restore) commit({ kind: 'rewind', restore, direction: 'redo' })
     },
     applyExternalGraph: ({ base, next }) => commit({ kind: 'external', base, next }),
     restoreGraph: (nodes, edges) => commit({ kind: 'put-back', nodes, edges }),

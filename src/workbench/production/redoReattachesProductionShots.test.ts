@@ -71,27 +71,24 @@ afterEach(() => {
   project.dispose()
 })
 
-describe('prediction ①: undo then redo of a production batch landing', () => {
-  it('undo explicitly reports the three shots without results as detached', async () => {
+describe('production batch creation history', () => {
+  it('undoing the creation does not infer deletion from the resulting node set', async () => {
     const nodeIds = await landBatch()
     useGenerationCanvasStore.getState().undo()
     expect(useGenerationCanvasStore.getState().nodes.map((node) => node.id)).toEqual([nodeIds[0]])
 
-    await vi.waitFor(() => expect(commandsOfType('plan.detach-shot-nodes')).toHaveLength(1))
-    expect(commandsOfType('plan.detach-shot-nodes')[0][2].payload).toEqual({ nodeIds: nodeIds.slice(1) })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(commandsOfType('plan.detach-shot-nodes')).toHaveLength(0)
   })
 
-  it('redo explicitly re-attaches the shots to the Run', async () => {
+  it('redoing the creation does not infer reattachment either', async () => {
     const nodeIds = await landBatch()
     useGenerationCanvasStore.getState().undo()
-    await vi.waitFor(() => expect(commandsOfType('plan.detach-shot-nodes')).toHaveLength(1))
 
     useGenerationCanvasStore.getState().redo()
     expect(useGenerationCanvasStore.getState().nodes.map((node) => node.id)).toEqual(expect.arrayContaining(nodeIds))
 
-    await vi.waitFor(() => expect(commandsOfType('plan.bind-shot-nodes')).toHaveLength(1))
-    expect(commandsOfType('plan.bind-shot-nodes')[0][2].payload).toMatchObject({
-      bindings: nodeIds.slice(1).map((nodeId, index) => ({ shotId: `shot-${index + 2}`, nodeId })),
-    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(commandsOfType('plan.bind-shot-nodes')).toHaveLength(0)
   })
 })

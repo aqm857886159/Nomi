@@ -17,7 +17,11 @@
     },
     {
       "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
-      "symbol": "emitProductionNodeDelta"
+      "symbol": "replayProductionCanvasIntent"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal"
     }
   ],
   "forbidden_derivations": [],

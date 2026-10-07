@@ -10,6 +10,7 @@
 import { replayCanvasEvents, emptyCanvasProjection, type CanvasProjection } from './canvasEventReducer'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
+import type { ProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 type JournalEvent = { type: string; payload: Record<string, unknown>; source?: string; txnId?: string }
 
@@ -27,6 +28,9 @@ let base: CanvasProjection = emptyCanvasProjection()
 let journal: JournalEvent[] = []
 let undoBarriers: number[] = []
 let redoBarriers: number[] = []
+let undoRecords: HistoryRecord[] = []
+let redoRecords: HistoryRecord[] = []
+let activeRecord: HistoryRecord | null = null
 let generation = 0
 let journalBasePosition = 0
 export type UndoHistoryEviction = { generation: number; oldestReachablePosition: number }
@@ -48,10 +52,19 @@ export type CanvasLanding = Readonly<{ nodeId: string; landed: Readonly<Record<s
  * 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)
  * + 目标位置及之前在画布上出现过的节点(撤销「建节点」才留下带落地的节点;重做「删节点」照删)。
  */
+export type ProductionCanvasHistoryIntent =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'signals'; signals: readonly ProductionCanvasSignal[] }>
+
+type HistoryRecord = {
+  intent: ProductionCanvasHistoryIntent
+}
+
 export type UndoRestore = Readonly<{
   projection: CanvasProjection
   landingsAfter: readonly CanvasLanding[]
   nodeIdsSeenBefore: ReadonlySet<string>
+  productionCanvasIntent: ProductionCanvasHistoryIntent
 }>
 
 // 落地记账只有一种:run-updated 带 landed(节点在时落下的,或节点被带回来时补落的暂存结局)。
@@ -79,13 +92,29 @@ function nodeIdsSeenBefore(position: number): Set<string> {
   return seen
 }
 
-function restoreTo(position: number): UndoRestore {
-  return { projection: replayTo(position), landingsAfter: landingsAfter(position), nodeIdsSeenBefore: nodeIdsSeenBefore(position) }
+function restoreTo(position: number, record: HistoryRecord): UndoRestore {
+  return {
+    projection: replayTo(position),
+    landingsAfter: landingsAfter(position),
+    nodeIdsSeenBefore: nodeIdsSeenBefore(position),
+    productionCanvasIntent: record.intent,
+  }
 }
 
 /** 发射器同步喂(canvas 域全部事件,含 snapshot.restored)。 */
 export function appendToUndoJournal(events: readonly JournalEvent[]): void {
   for (const event of events) journal.push(event)
+}
+
+export function recordProductionCanvasSignal(signal: ProductionCanvasSignal): void {
+  if (!activeRecord || signal.nodes.length === 0) return
+  const nextSignal = {
+    kind: signal.kind,
+    nodes: signal.nodes.map((node) => structuredClone(node)),
+  } as ProductionCanvasSignal
+  activeRecord.intent = activeRecord.intent.kind === 'signals'
+    ? { kind: 'signals', signals: [...activeRecord.intent.signals, nextSignal] }
+    : { kind: 'signals', signals: [nextSignal] }
 }
 
 export function getHistoryFlags(): { canUndo: boolean; canRedo: boolean } {
@@ -98,14 +127,19 @@ export function getHistoryFlags(): { canUndo: boolean; canRedo: boolean } {
 export function pushUndoSnapshot(_state?: unknown): void {
   interruptPendingCanvasWrite()
   if (getActiveCanvasGestureContext()?.suppressUndoBarriers) return
+  const record: HistoryRecord = { intent: { kind: 'none' } }
   undoBarriers.push(journal.length)
+  undoRecords.push(record)
   redoBarriers = []
+  redoRecords = []
+  activeRecord = record
   if (undoBarriers.length > HISTORY_LIMIT) {
     // 紧凑化:最老 barrier 之前的前缀压进 base,所有位置左移
     const dropTo = undoBarriers[0]
     base = replayTo(dropTo)
     journal = journal.slice(dropTo)
     undoBarriers = undoBarriers.slice(1).map((position) => position - dropTo)
+    undoRecords = undoRecords.slice(1)
     redoBarriers = redoBarriers.map((position) => position - dropTo)
     journalBasePosition += dropTo
     const oldestReachablePosition = getOldestReachableUndoPosition()
@@ -119,8 +153,11 @@ export function popUndo(): UndoRestore | undefined {
   const barrier = undoBarriers.at(-1)
   if (barrier === undefined) return undefined
   undoBarriers = undoBarriers.slice(0, -1)
+  const record = undoRecords.pop() ?? { intent: { kind: 'none' } as const }
   redoBarriers = [...redoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return restoreTo(barrier)
+  redoRecords = [...redoRecords, record].slice(-HISTORY_LIMIT)
+  activeRecord = null
+  return restoreTo(barrier, record)
 }
 
 /** redo:回到撤销前的日志位置(该位置前缀=撤销前画布,因为日志只追加)。 */
@@ -129,8 +166,11 @@ export function popRedo(): UndoRestore | undefined {
   const position = redoBarriers.at(-1)
   if (position === undefined) return undefined
   redoBarriers = redoBarriers.slice(0, -1)
+  const record = redoRecords.pop() ?? { intent: { kind: 'none' } as const }
   undoBarriers = [...undoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return restoreTo(position)
+  undoRecords = [...undoRecords, record].slice(-HISTORY_LIMIT)
+  activeRecord = null
+  return restoreTo(position, record)
 }
 
 /** S6-2 事务边界:记录当前日志位置(abort 清理的锚点)。 */
@@ -196,8 +236,17 @@ export function findCanvasChange(changeId: string): CanvasChangeConflict | null 
  * 但指向事务中段的 barrier 必须拔掉,否则 Cmd+Z 会复活半截态。
  */
 export function dropUndoBarriersAfter(position: number): void {
-  undoBarriers = undoBarriers.filter((barrier) => barrier < position)
-  redoBarriers = redoBarriers.filter((barrier) => barrier < position)
+  const keptUndo = undoBarriers
+    .map((barrier, index) => ({ barrier, record: undoRecords[index] }))
+    .filter(({ barrier }) => barrier < position)
+  undoBarriers = keptUndo.map(({ barrier }) => barrier)
+  undoRecords = keptUndo.map(({ record }) => record)
+  const keptRedo = redoBarriers
+    .map((barrier, index) => ({ barrier, record: redoRecords[index] }))
+    .filter(({ barrier }) => barrier < position)
+  redoBarriers = keptRedo.map(({ barrier }) => barrier)
+  redoRecords = keptRedo.map(({ record }) => record)
+  activeRecord = null
 }
 
 /** 切项目/hydrate:历史清零(会话内撤销语义,跨会话历史只在磁盘日志供审计)。 */
@@ -208,6 +257,9 @@ export function clearHistory(): void {
   journal = []
   undoBarriers = []
   redoBarriers = []
+  undoRecords = []
+  redoRecords = []
+  activeRecord = null
 }
 
 /**
@@ -221,6 +273,9 @@ export function seedUndoJournalBase(projection: CanvasProjection): void {
   journal = []
   undoBarriers = []
   redoBarriers = []
+  undoRecords = []
+  redoRecords = []
+  activeRecord = null
 }
 
 export function __resetCanvasUndoJournalForTests(): void {
