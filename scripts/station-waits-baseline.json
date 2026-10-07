@@ -676,11 +676,6 @@
     "03cb54e08253d0183959cc6992bb3d5d87527eaf18008868da1bd6e4aa5e5d48": 1,
     "9c85abfc97beaaaaf0ba221523e5f2baf311317477af950b6ffd8e3e35eed59f": 1
   },
-  "tests/ux/p4-s6-rework-version.e2e.mjs": {
-    "03cb54e08253d0183959cc6992bb3d5d87527eaf18008868da1bd6e4aa5e5d48": 1,
-    "9c85abfc97beaaaaf0ba221523e5f2baf311317477af950b6ffd8e3e35eed59f": 1,
-    "7fed1fdddcf820d4eba00faed87a3c04151134741ce1de63f708b87b73f51769": 1
-  },
   "tests/ux/p4-s6p5-multishot-paid.e2e.mjs": {
     "bf87cdc378070c931777f0697a7408d072c9f986cdf052b09e92dc3f4648f7fd": 1,
     "5e1b47adc88893fc2ee8706184f8d05e4b923f3c4c414e4b239b66cfe001f940": 1
