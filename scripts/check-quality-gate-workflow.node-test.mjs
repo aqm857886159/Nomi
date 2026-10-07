@@ -8,6 +8,7 @@ import { load } from 'js-yaml'
 import { CI_E2E_CHAIN } from './run-ci-e2e-chain.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_CHECK_NAMES, CORE_SMOKE_FIXTURES, coreSmokeCheckName } from './validation-policy.mjs'
 import { REQUIRED_MERGED_CHECKS } from './git-delivery.mjs'
+import { CHROMIUM_INSTALL_STEP as PLAYWRIGHT_INSTALL_STEP } from './ci-browser-install.mjs'
 import { CORE_SMOKE_SCENARIOS } from '../tests/ux/core-smoke/scenarios.mjs'
 import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
 import { assertFullCanvasShardPartition, FULL_CANVAS_SHARDS } from '../tests/ux/canvas-real-suite.mjs'
@@ -15,7 +16,6 @@ import { assertFullCanvasShardPartition, FULL_CANVAS_SHARDS } from '../tests/ux/
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workflow = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
 const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
-const PLAYWRIGHT_INSTALL_STEP = 'bash scripts/ci-install-chromium.sh'
 const runCommands = (job) => job.steps?.flatMap((step) => (typeof step.run === 'string' ? [step.run] : [])) ?? []
 
 test('the unit lane provisions Chromium before either browser integration test entry', () => {

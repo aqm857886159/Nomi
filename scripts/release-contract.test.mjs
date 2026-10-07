@@ -6,6 +6,7 @@ import path from 'node:path'
 import process from 'node:process'
 import zlib from 'node:zlib'
 import yaml from 'js-yaml'
+import { CHROMIUM_INSTALL_STEP } from './ci-browser-install.mjs'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   assertReleaseVersion,
@@ -166,7 +167,7 @@ describe('release contract', () => {
 
   it('provisions Chromium before the RC gates that run browser-backed tests', () => {
     const rc = fs.readFileSync(path.join(process.cwd(), '.github/workflows/desktop-rc.yml'), 'utf8')
-    const install = 'pnpm exec playwright install --with-deps chromium'
+    const install = CHROMIUM_INSTALL_STEP
     expect(rc).toContain(install)
     expect(rc.indexOf(install)).toBeLessThan(rc.indexOf('pnpm run gates'))
   })
