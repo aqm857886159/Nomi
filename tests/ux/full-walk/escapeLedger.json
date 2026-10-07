@@ -789,27 +789,22 @@
       "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts" }
     },
     {
-      "id": "PERF-20261006-CANVAS-HF",
+      "id": "CRASH-20261006-toolbar-update-loop",
       "since": "2026-10-06",
-      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
-      "category": "performance-coverage",
-      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
+      "source": "L-qa2 10-06 生产构建走查顺查：打开项目马上选中图片节点，5 次 1 次整块画布崩（React #185）",
+      "category": "interaction-semantics",
+      "problem": "刚打开项目、马上点一张图，预期出浮条，实际整块画布变成「React Flow 画布 加载失败」（React #185 无限更新，栈在节点浮条位置测量）",
       "existingInvariants": [],
       "ironLaws": [],
-      "useCases": ["S8"],
+      "useCases": [],
       "fullWalkJourneys": [],
       "status": "fixed",
       "manualReview": "reviewed",
-      "evidence": [
-        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
-        "tests/ux/canvas-performance-benchmark.e2e.mjs",
-        "tests/ux/grouping-optimization.walk.mjs",
-        "tests/ux/grouping-real-media.walk.mjs"
-      ],
-      "completionCommits": ["1da15ba6f", "5a7336cc4"],
-      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
-      "fixedInPr": 1048,
-      "classCheck": { "kind": "matrix", "file": "tests/ux/selection-drag-lifecycle.test.mjs" }
+      "evidence": ["类级检查 src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts：净缩放 11 档 × 贴边 5 种矩阵 + 报告现场，三次提交内收敛且再量为不动点；变异：把 floatingToolbarShift 的 k 改回 1 即红（现场用例抛 Maximum update depth exceeded）", "真机生产构建 tests/ux/canvas-toolbar-open-select.walk.mjs：--instant（摆全貌同一帧选中）修前 15/30（同一 App 再次打开 15/15 必崩）→ 修后 0/30；缺省节奏修后 0/30；--inject-toolbar-error 3/3 画布存活、只降级浮条", "根因与诊断见 docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json（崩溃那一轮浮条 scale(1)、React Flow 2.1，位移 285 → −28.5 → 316.6 → −63 … 发散）"],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json",
+      "fixedInPr": 1052,
+      "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts" }
     },
     {
       "id": "FB-20261006-qa2-menu-covers-toolbar",
@@ -857,10 +852,44 @@
       "ironLaws": ["⑪", "⑫"],
       "useCases": ["S6"],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["设计卡 ★4 加「能力不可用」一格、test-routing 加 ui-capability-unavailable 证据项；C 设计 10-06 用户拍板（引导接专用放大模型）", "pb13 真 App（zh 亮 / en 暗）：高清看着能点、没有第二行说明，点了不建节点也没有去添加的地方——比实验室里「灰掉写原因」还隐蔽（目录加载态下不判 blocked）"],
-      "completionCommits": []
+      "completionCommits": ["627abb205","980983648"],
+      "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
+      "fixedInPr": 1053,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "PERF-20261006-CANVAS-HF",
+      "since": "2026-10-06",
+      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
+      "category": "performance-coverage",
+      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [
+        "S8"
+      ],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+        "tests/ux/canvas-performance-benchmark.e2e.mjs",
+        "tests/ux/grouping-optimization.walk.mjs",
+        "tests/ux/grouping-real-media.walk.mjs"
+      ],
+      "completionCommits": [
+        "1da15ba6f",
+        "5a7336cc4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+      "fixedInPr": 1048,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/ux/selection-drag-lifecycle.test.mjs"
+      }
     }
   ]
 }

@@ -38,6 +38,7 @@ import WhiteboardModal from '../nodes/whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio, readWhiteboardState } from '../nodes/whiteboard/whiteboardState'
 import { readQuickActionMeta } from './deriveFromNode'
 import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } from './quickActionCatalog'
+import type { QuickActionGuide } from './capabilityGuide'
 
 /**
  * 图片节点浮条 · 快捷动作版（2026-10-04 批次 1；取代了旧的 `NodeImageEditToolbar.tsx`，同一提交删掉旧文件）。
@@ -78,8 +79,13 @@ export type ImageQuickActionsToolbarProps = {
   isAnchor?: boolean
   frozen?: boolean
   onToggleFreeze?: () => void
-  /** 点不了的快捷动作与原因（没有能改图的模型 / 效果库缺条目 …）。 */
+  /** 点不了的快捷动作与原因（效果库缺条目 …）：灰掉、第二行写原因。 */
   quickActionBlocked?: Partial<Record<QuickActionId, string>>
+  /**
+   * 这一项要的能力此刻没有（目录里没有能做这件事的模型），但有**一步可走的路**：项不灰，第二行说缺什么，
+   * 点它走 onSelect（去添加 / 换一个同能力的模型），不派生（2026-10-06 用户：高清没有模型时不能是死路）。
+   */
+  quickActionGuides?: Partial<Record<QuickActionId, QuickActionGuide>>
   onQuickAction: (id: QuickActionId) => void
 }
 
@@ -88,8 +94,19 @@ function quickActionItems(
   t: TFunction,
   blocked: ImageQuickActionsToolbarProps['quickActionBlocked'],
   onPick: (id: QuickActionId) => void,
+  guides?: ImageQuickActionsToolbarProps['quickActionGuides'],
 ): WorkbenchMenuNode[] {
   return actions.map((action) => {
+    const guide = guides?.[action.id]
+    if (guide) {
+      return {
+        id: `quick-${action.id}`,
+        label: t(action.labelKey),
+        icon: action.icon as unknown as WorkbenchMenuIcon,
+        description: guide.description,
+        onSelect: guide.onSelect,
+      }
+    }
     const reason = blocked?.[action.id]
     return {
       id: `quick-${action.id}`,
@@ -108,7 +125,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   const {
     reportFeedback, node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground,
     removeBackgroundBusy = false, onPreview, onOpenProvenance, isAnchor = false, frozen = false, onToggleFreeze,
-    quickActionBlocked, onQuickAction,
+    quickActionBlocked, quickActionGuides, onQuickAction,
   } = props
   const { t } = useTranslation()
   const { downloading, download } = useResultDownload(node, reportFeedback)
@@ -121,8 +138,10 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   const more = quickActionsInGroup('more')
   const refines = quickActionsInGroup('refine')
 
-  const moreItems = quickActionItems(more, t, quickActionBlocked, onQuickAction)
+  const moreItems = quickActionItems(more, t, quickActionBlocked, onQuickAction, quickActionGuides)
   const featuredBlocked = featured ? quickActionBlocked?.[featured.id] : undefined
+  // 能力此刻没有（没有能改图的模型）：主体照样可点，点了去补；悬停说缺什么。
+  const featuredGuide = featured ? quickActionGuides?.[featured.id] : undefined
 
   const transformItems: WorkbenchMenuNode[] = ([
     { op: 'rotate-left' as const, icon: IconRotate2, key: 'generationCommon.imageToolbar.rotateLeft' as const },
@@ -132,7 +151,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   ]).map(({ op, icon, key }) => ({ id: `transform-${op}`, label: t(key), icon: menuIcon(icon), onSelect: () => onTransform(op) }))
 
   const refineItems: WorkbenchMenuNode[] = [
-    { kind: 'group', id: 'refine-generate', label: t('generationCommon.quickActions.groups.generate'), items: quickActionItems(refines, t, quickActionBlocked, onQuickAction) },
+    { kind: 'group', id: 'refine-generate', label: t('generationCommon.quickActions.groups.generate'), items: quickActionItems(refines, t, quickActionBlocked, onQuickAction, quickActionGuides) },
     { kind: 'separator', id: 'refine-sep' },
     {
       kind: 'group',
@@ -183,9 +202,9 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
           primary={featured ? {
             icon: <featured.icon size={I.size} stroke={I.stroke} />,
             label: t(featured.labelKey),
-            title: featuredBlocked ?? t('generationCommon.quickActions.featuredHint'),
-            disabled: !imageUrl || Boolean(featuredBlocked),
-            onClick: () => onQuickAction(featured.id),
+            title: featuredGuide?.description ?? featuredBlocked ?? t('generationCommon.quickActions.featuredHint'),
+            disabled: !imageUrl || (!featuredGuide && Boolean(featuredBlocked)),
+            onClick: featuredGuide ? featuredGuide.onSelect : () => onQuickAction(featured.id),
           } : undefined}
         />
         {onRemoveBackground ? (

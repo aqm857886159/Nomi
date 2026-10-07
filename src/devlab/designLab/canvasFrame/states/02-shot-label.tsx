@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import type { ShotLabelFixture } from '../shotLabelFixture'
 import type { LabState } from '../../labScreen'
+import { LabCanvasViewport } from '../../labCanvasViewport'
 import BaseGenerationNode from '../../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import { useGenerationCanvasStore } from '../../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../../../workbench/workbenchStore'
@@ -43,7 +44,8 @@ function ShotLabelStage(): JSX.Element {
   }, [])
   return <div data-label-stage className="workbench-generation__canvas relative bg-nomi-paper" style={{ width: 800, height: 560 }}>
     {ready && node ? <div className="absolute" style={{ left: 160, top: 160, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-      <BaseGenerationNode node={node} selected={selected} />
+      {/* 外框 scale(zoom) 冒充视口缩放；浮条 / 浮框的反向缩放读 React Flow 的 transform，这里报同一个数。 */}
+      <LabCanvasViewport zoom={zoom}><BaseGenerationNode node={node} selected={selected} /></LabCanvasViewport>
     </div> : null}
   </div>
 }

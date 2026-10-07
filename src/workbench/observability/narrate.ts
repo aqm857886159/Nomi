@@ -219,7 +219,7 @@ export function narrateModelKind(kind: string): string {
 // fix-model-kind：**直接把缺口补上**（改类型 + 按新类型重建调用通道），不是又把用户送去某一页
 // 自己找。这是这次唯一新增的动作——因为它是唯一一类「我们确切知道哪里错、也确切知道怎么改对」的
 // 失败。其余类别我们只知道现象、改不动，所以只能给「去哪儿」或「换一个」。
-export type GenerationErrorAction = 'retry' | 'switch-model' | 'open-model-access' | 'fix-model-kind' | 'reconcile' | 'view-task' | 'release-regenerate'
+export type GenerationErrorAction = 'retry' | 'switch-model' | 'switch-same-capability' | 'open-model-access' | 'fix-model-kind' | 'reconcile' | 'view-task' | 'release-regenerate'
 
 // 每类的主动作 + 次动作都写在表里（2026-09-29 起）。次动作默认是「另一个最可能有用的」：主动作不是重试 →
 // 次给重试（想试还能试，不堵死用户）；主动作就是重试 → 次给换模型（等不及就换一家）。下面三个常量就是这条
@@ -231,7 +231,9 @@ const ACCESS_FIRST: GenerationErrorActions = { primary: 'open-model-access', sec
 
 const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   // 换模型才有救：上游/目录层面就没有这个模型，配置和重试都改不了它。
-  'model-unavailable-upstream': SWITCH_FIRST,
+  // 2026-10-06 用户拍板：主按钮直接写出「换成〈同能力里此刻可用的另一个〉」，点一下才换（不自动换、换完不自动跑）；
+  // 没有同能力的另一个时，失败卡退回「换个模型」（打开下拉，useSameCapabilityAlternative 返回 null）。
+  'model-unavailable-upstream': { primary: 'switch-same-capability', secondary: 'switch-model' },
   // 已下线：目录里整条都没有了，重试必然再撞同一张卡（免费、不出门，但毫无意义）——不给次动作
   // （2026-09-29 协调会话裁决：撤 Sora 2 以后这张卡会被更多人看到）。
   'model-retired': { primary: 'switch-model', secondary: null },
@@ -351,6 +353,7 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 
 const ACTION_KEY: Record<GenerationErrorAction, string> = {
   'switch-model': 'switchModel',
+  'switch-same-capability': 'switchSameCapability',
   'open-model-access': 'modelAccess',
   'fix-model-kind': 'fixModelKind',
   retry: 'retry',
