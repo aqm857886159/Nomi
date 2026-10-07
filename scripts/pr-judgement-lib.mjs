@@ -232,12 +232,19 @@ export function routingEnforced(createdAt, table = loadRoutingTable()) {
 export const PROTECTED_PATHS = [
   /^(?:CLAUDE|AGENTS)\.md$/,
   /^docs\/engineering-rules\.md$/,
-  /^docs\/engineering\/(?:rules\.json|rules\.md|experience-system\.md|design-card\.md|test-routing\.json|self-written\.json|concept-owners\.json)$/,
+  /^docs\/engineering\/(?:rules\.json|rules\.md|experience-system\.md|design-card\.md|test-routing\.json|self-written\.json)$/,
+  /^docs\/engineering\/concept-owners\/[^/]+$/,
   /^scripts\/(?:check-[^/]+|run-gates[^/]*|merge-preflight[^/]*|experience-full-run[^/]*|validation-policy[^/]*|git-delivery[^/]*|[^/]+-lib\.mjs|[^/]*baseline[^/]*\.json)$/,
   /^scripts\/claude-hooks\//,
   /^\.github\/workflows\//,
   /^\.claude\/settings[^/]*\.json$/,
 ]
+/**
+ * 一条一个文件的登记目录（2026-10-07 概念登记从单个 concept-owners.json 拆成目录）：保护的单位仍是「这本登记」，
+ * 正文点名目录（或具体文件）就算点名了，和原来点名那一个文件同一个强度；删掉其中一个文件照旧要写「删除：理由」。
+ */
+export const PROTECTED_DIRECTORIES = ['docs/engineering/concept-owners/']
+const mentionKeys = (file) => [file, ...PROTECTED_DIRECTORIES.filter((dir) => file.startsWith(dir))]
 /** package.json 里被删掉的一行（已去掉 diff 的「-」前缀）是不是门岗命令。 */
 const GATE_SCRIPT_LINE = /^"(?:gates|check):[^"]*"\s*:/
 const isRemoved = (status) => status === 'removed' || status === 'D'
@@ -261,7 +268,8 @@ export function checkProtectedScope(body, files, { packageRemovedLines = [], led
   const sectionLines = section.split('\n')
   const missing = []
   for (const file of touched) {
-    const mentions = sectionLines.filter((line) => line.includes(file.path))
+    const keys = mentionKeys(file.path)
+    const mentions = sectionLines.filter((line) => keys.some((key) => line.includes(key)))
     if (!mentions.length) { missing.push(isRemoved(file.status) ? `${file.path}（整文件删除）` : file.path); continue }
     if (isRemoved(file.status) && !mentions.some((line) => /删除\s*[：:—-]\s*\S/.test(line))) missing.push(`${file.path}（整文件删除，要写「删除：理由」）`)
     if (file.gateLines && !mentions.some((line) => /删除|移除|去掉|改名/.test(line))) missing.push('package.json（删掉了门岗命令，要写清删了哪个、为什么）')

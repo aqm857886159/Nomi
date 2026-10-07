@@ -122,7 +122,7 @@ const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
 // 「谁决定画布上显示什么」——改它们等于改画布上用户看得见的状态，必须跑 full 画布验收
 // （canvas-landing / canvas-reconcile / batch-production 只在 full 档里）。
 // 来历：#934 改了制作镜头占位的状态判定、#940 / #937 也碰了这一类，只拿到 critical，
-// S5 回归就这样进了 main（画布显示归属那次回归）。清单对着 docs/engineering/concept-owners.json 里
+// S5 回归就这样进了 main（画布显示归属那次回归）。清单对着 docs/engineering/concept-owners/ 里
 // 画布显示相关概念的 owner 与写口列的（production.shot-phase / shot-jobs / shot-generation-ownership /
 // run-stop-reason / run-lifecycle-settle / node-run-record），再加画布子树里产出显示的目录。
 // generationCanvas 的每个子目录必须在 scripts/validation-policy.node-test.mjs 里表态

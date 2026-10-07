@@ -1,0 +1,29 @@
+{
+  "name": "分镜行缺必填参考",
+  "subject": "storyboard.missing-required-reference",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+    "symbol": "missingRequiredSlotsOf"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "missingRequiredSlotsOf"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
+  ],
+  "since": "2026-09-26",
+  "notes": "行状态 missing-required、画面格「缺X参考」、批量排除、场组头计数与参考列红格读同一份（镜头行 = exec.missingSlots）。参考列不许再按「必填 + 没绑定」自判——那样看不见计划首帧与锚（合同 docs/fixes/2026-09-26-storyboard-planned-first-frame-slot.root-cause.json）。"
+}

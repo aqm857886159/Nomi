@@ -1,0 +1,37 @@
+{
+  "name": "一镜对应哪些生成 job（镜 ↔ job 对应）",
+  "subject": "production.shot-jobs",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionShotJobs.ts",
+    "symbol": "jobsForShot"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobsForShot"
+    },
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "latestJobForShot"
+    },
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "currentShotAttempt"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/productionRun/batchScheduleDerivation.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/shared/decideShotClaim.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/productionRun/productionQaVerdict.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #921（合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json）：每个按镜找 job 的调用方只许问这一份对应关系（含单镜计划的旧形状：单镜没有 shots[]，唯一那一镜的身份就是候选 id）。门岗在合并那一刻报出两份遗留的同名实现，已记进基线：productionShotPhase.ts 私有的 jobsForShot（多镜分支不按 stageId === 'generate' 过滤，比主人宽）与 productionQaVerdict.ts 的 latestJobForShot（按画布节点 id 找、排序键也不同）。本 PR 不改生产文件；收口 = 前者改 import 这一份，后者先判是不是同一件事。"
+}

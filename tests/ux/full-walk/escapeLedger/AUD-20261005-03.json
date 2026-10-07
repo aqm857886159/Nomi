@@ -1,0 +1,22 @@
+{
+  "id": "AUD-20261005-03",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #3",
+  "category": "cross-shot-order",
+  "problem": "「生成剩余」只跑镜头、不含未生成的参考卡，对话框只写「4 个素材」无清单；与「先生成参考卡再生成镜头」不一致",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S5"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/10-generate-remaining-dialog.png"
+  ],
+  "completionCommits": []
+}

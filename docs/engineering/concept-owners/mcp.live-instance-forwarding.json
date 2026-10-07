@@ -1,0 +1,30 @@
+{
+  "name": "MCP 调用怎么找到活 Nomi 并把请求转过去",
+  "subject": "mcp.live-instance-forwarding",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+    "symbol": "callMcpLoopbackRpc"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+      "symbol": "callMcpLoopbackRpc"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "ensureLiveInstance"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/mcpLoopbackRpcCall.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpStdioServer.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "合同 docs/fixes/2026-10-04-mcp-launcher-relaunch.root-cause.json：两份 MCP 启动器转发给活 Nomi 的请求（planConfirmed / documentConfirmed、超时、取消、错误解析）只在 callMcpLoopbackRpc 构造；裸 Node launcher 的「连现成实例 / 快速失败 / 重新拉起」只在 ensureLiveInstance 判断，按广告 + 自己拉起的子进程状态每轮重判。"
+}

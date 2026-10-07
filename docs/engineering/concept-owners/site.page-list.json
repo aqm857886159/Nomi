@@ -1,0 +1,27 @@
+{
+  "name": "官网页面清单",
+  "subject": "site.page-list",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/marketing/pages.mjs",
+    "symbol": "sitePages"
+  },
+  "write_api": [
+    {
+      "path": "scripts/marketing/pages.mjs",
+      "symbol": "sitePages"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/seo/sitemap.node.mjs",
+  "allowed_consumers": [
+    "scripts/build-marketing-site.mjs",
+    "scripts/build-marketing-sitemap.mjs"
+  ],
+  "since": "2026-10-01",
+  "notes": "「官网有哪些页面」只在这里说。页面生成器（build-marketing-site.mjs 经 renderSiteOutputs）、sitemap（computeSitemapEntries，lastmod 按内容哈希）都从它派生，每周 SEO 巡检读的是它的输出（已提交的 sitemap.xml）；地址 ↔ 文件的换算只在 routes.mjs。手写的 site-manifest.mjs（只列了 5 页）已删，合同 docs/fixes/2026-10-01-site-data-drift.root-cause.json。"
+}

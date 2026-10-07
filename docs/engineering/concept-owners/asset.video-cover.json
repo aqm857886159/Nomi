@@ -1,0 +1,31 @@
+{
+  "name": "视频封面",
+  "subject": "asset.video-cover",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/assetPreview.ts",
+    "symbol": "attachStoredAssetPreview"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "attachStoredAssetPreview"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/assets/assetSidecar.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/assets/projectAssetStore.ts",
+    "src/workbench/assets/useLocalAssetPreview.ts",
+    "src/workbench/assets/AssetVideoCover.tsx",
+    "src/workbench/generationCanvas/resultMediaBackfillBridge.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "落盘边界抽首帧；渲染层只经 bridge.assets.ensurePreview（ensureLocalAssetPreview）要，不许自己抽帧（旧的胶片条推导已删）。老节点缺封面由 resultMediaBackfillBridge 打开项目后补。"
+}

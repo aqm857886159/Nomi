@@ -1,0 +1,42 @@
+{
+  "name": "生成产物能不能解码（出没出画面）",
+  "subject": "asset.generated-media-decode",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/generatedMediaDecode.ts",
+    "symbol": "verifyGeneratedMediaDecodes"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "verifyGeneratedMediaDecodes"
+    },
+    {
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "interpretDecodeRun"
+    },
+    {
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "decodeInvocation"
+    },
+    {
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "decodeTimeoutMs"
+    },
+    {
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "generatedMediaValidationError"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/assets/generatedMediaDecode.test.ts",
+  "allowed_consumers": [
+    "electron/assets/projectAssetStore.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "合同 docs/fixes/2026-09-29-generated-media-decode-verdict.root-cause.json：供应商已经出了图、Nomi 却判 decode_failed——旧判定把「解码器一句抱怨都没有」当成「能解码」（-xerror + -err_detect explode），IEND 之后多几个字节的完整 PNG 也被拒收。现在「能不能解码」= 解码器把第一帧拿出来、宽高为正（三态：decodable / undecodable / unverified），ffmpeg 原话进日志、不进判决；超时随文件大小放宽。生成产物校验的所有失败（解码 / 冒充网页 / 认不出字节 / 类型不符 / 格式不支持）统一带机器码 output-unreadable。另外两处仍用严格判据、刻意不并进来：mediaProbe.decodeMediaInput 只服务模型 / 工作流认证（providerAdapter/certificationMedia.ts，certifyOutput 才走）——认证要的是「产物干净」的证据，不是「能不能显示」；antigravityArtifacts.validateAntigravityImage 是 Antigravity 本机通道自己的安全校验（精确的 PNG / JPEG / WebP 终止字节 + -xerror，输入图与输出图都过它），受信域和错误码（ANTIGRAVITY_IMAGE_INVALID）都是它自己的。"
+}

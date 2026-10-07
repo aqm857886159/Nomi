@@ -1,0 +1,26 @@
+{
+  "name": "模型介绍与目录对得上",
+  "subject": "site.model-intro-parity",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/check-site-editorial.mjs",
+    "symbol": "findEditorialProblems"
+  },
+  "write_api": [
+    {
+      "path": "scripts/check-site-editorial.mjs",
+      "symbol": "findEditorialProblems"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/check-site-editorial.node-test.mjs",
+  "allowed_consumers": [
+    "package.json"
+  ],
+  "since": "2026-10-01",
+  "notes": "拦住模型介绍与 App 目录对不上：孤儿介绍（模型退役或并入别的模型）、前言 model 与目录身份不符、缺一种语言、多余页面；介绍格式本身的定义只在 scripts/marketing/library/editorial.mjs。门岗接在 check:site 里，每个 PR 都跑。"
+}

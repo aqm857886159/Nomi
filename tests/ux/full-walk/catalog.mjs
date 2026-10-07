@@ -3,7 +3,7 @@
 // 用户要的是一张「所有用户功能 × 每个功能的各个状态」的表，出问题时能查表修（Google「关键用户旅程」+ UI 状态规范那一路）。
 // 所以这里的每一行是一条**用户旅程**，不是一个脚本：
 //   · states：这条旅程会经过的每个状态——用户看到的字（i18n key）、这时能做的动作、代码里谁决定这个状态（文件#符号，
-//     尽量对上 docs/engineering/concept-owners.json）、非终态最长等多久（只引用现有登记处；没有登记就明写 gap——那本身就是发现）；
+//     尽量对上 docs/engineering/concept-owners/）、非终态最长等多久（只引用现有登记处；没有登记就明写 gap——那本身就是发现）；
 //   · scripts：覆盖它的剧本 / 走查；invariants：核对的铁律（invariants.mjs）；metric：它该上报的成功 / 失败事件（没有就写 gap，反馈雷达要用）。
 //   · 每个 state.actions 的可点目标都要能补一行 click target 对照：
 //     { target, userExpectation, actualObservation, useCases, ironLaws }。
@@ -26,7 +26,7 @@ export const CLICK_TARGET_CONTRACT = Object.freeze({
   // 设计链接 / 变体或状态 / 无障碍角色 + 名称（getByRole）/ 用户动作。逐步补，不填不红；映射由路由表的 catalogField 声明。
   optionalFields: Object.freeze(['designRef', 'state', 'role', 'accessibleName', 'action']),
   actualObservation: '真实 Electron 走查、供应商回执或落盘状态的证据；未知写 unverified，不得从代码推断',
-  candidateLedger: 'tests/ux/full-walk/escapeLedger.json',
+  candidateLedger: 'tests/ux/full-walk/escapeLedger/',
   ironLaw: '⑫ 点了=以为的',
 })
 

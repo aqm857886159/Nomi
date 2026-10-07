@@ -198,10 +198,10 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 派工切的是概念不是文件夹：并行 lane 按目录派工时，同一概念在合并前就各自长出第二份实现，两条 lane 改的文件一个都不重叠，`git merge` 看不见，而两份都有测试都绿。
 
-- **谁说了算在动手前回答**：设计卡 ★2 格写概念 → 唯一 owner（`concept-owners.json` 的 id）→ 允许的消费者；owner 落到文件 + 符号，owner 未定标 `pending` 并写清由哪份任务书收口。
+- **谁说了算在动手前回答**：设计卡 ★2 格写概念 → 唯一 owner（`concept-owners/` 的 id）→ 允许的消费者；owner 落到文件 + 符号，owner 未定标 `pending` 并写清由哪份任务书收口。
 - **同一时段同一概念只归一条 lane**（R33.2）：编排者维护全局占用表；跨概念改动只能由持有者做或等它合并；目录不冲突不是理由。
 - **验收多一问**（R33.3）：这一刀有没有让任何概念多出第二个 owner（第二份状态 / 规则 / 判据，或渲染层替主进程做决定的补偿逻辑）？有就打回，测试绿不作放行理由。
-- **概念登记表** `docs/engineering/concept-owners.json`（R33.4）与 `check:concept-owners`（**警告档**，判据 `scripts/concept-owners-lib.mjs`）：只登记碰到的概念，当场登记；同一概念出现第二个写口即违规；`pending` 条目必须写 `migration_strategy`；owner 只写真实存在的文件。字段：`name` / `subject` / `lifecycle` / `authority_kind` / `trust_domain` / `fact_kind` / `migration_status` / `owner` / `write_api` / `forbidden_derivations` / `allowed_consumers` / `identity_fields`（身份比对必填）/ `parity_test` / `since` / `notes`。门岗只抓形状：同一件事换名字再写一份它看不见，那一半归对拍测试、真实旅程和收货那一问。
+- **概念登记表** `docs/engineering/concept-owners/`（R33.4；一个概念一个文件 `<subject>.json`，顶层字段在 `_meta.json`，只经 `scripts/concept-registry-lib.mjs` 的 `loadConceptRegistry` 读）与 `check:concept-owners`（**警告档**，判据 `scripts/concept-owners-lib.mjs`）：只登记碰到的概念，当场登记；同一概念出现第二个写口即违规；`pending` 条目必须写 `migration_strategy`；owner 只写真实存在的文件。字段：`name` / `subject` / `lifecycle` / `authority_kind` / `trust_domain` / `fact_kind` / `migration_status` / `owner` / `write_api` / `forbidden_derivations` / `allowed_consumers` / `identity_fields`（身份比对必填）/ `parity_test` / `since` / `notes`。门岗只抓形状：同一件事换名字再写一份它看不见，那一半归对拍测试、真实旅程和收货那一问。
 - **对等矩阵**（R33.5）：多入口（Agent 面板 / 画布 / 外部 MCP / 批量）共享同一概念时，要有一条会红的判据证明同源——同一输入 → 各入口出站报文逐字节相同；新入口必须登记。
 
 ## SECRET 敏感数据

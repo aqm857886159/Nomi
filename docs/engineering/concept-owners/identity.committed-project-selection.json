@@ -1,0 +1,30 @@
+{
+  "name": "已提交的项目选择是不是同一个",
+  "subject": "identity.committed-project-selection",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/projectBinding.ts",
+    "symbol": "sameCommittedProjectSelection"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/projectBinding.ts",
+      "symbol": "sameCommittedProjectSelection"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/canvasReadPortResolver.ts",
+    "electron/capabilityCore/canvasReadSurfaceRegistry.ts",
+    "electron/capabilityCore/currentProjectResolver.ts",
+    "electron/export/exportJobIpc.ts",
+    "electron/export/exportJobManager.ts",
+    "electron/export/exportJobs.ts"
+  ],
+  "since": "2026-09-18",
+  "notes": "已提交的项目选择 = 项目绑定（委托 sameProjectAgentBinding）+ canonicalRootDigest。合同 docs/fixes/2026-09-18-ownership-single-source.root-cause.json 声明的边界。它委托绑定比对、只直接比一维，身份比对的形状探测看不见它（这正是「从 owner import 就隐身」的设计），所以不写 identity_fields，靠这条登记与第二写口判据守着。"
+}

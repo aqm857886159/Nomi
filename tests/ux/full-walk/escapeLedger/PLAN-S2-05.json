@@ -1,0 +1,25 @@
+{
+  "id": "PLAN-S2-05",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "agent-convergence",
+  "problem": "Agent 起草分镜容易出错，需要反复创建多个方案",
+  "existingInvariants": [
+    3,
+    4,
+    8
+  ],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S1"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

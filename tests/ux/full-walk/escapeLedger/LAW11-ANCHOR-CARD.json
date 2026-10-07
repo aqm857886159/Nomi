@@ -1,0 +1,42 @@
+{
+  "id": "LAW11-ANCHOR-CARD",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
+  "category": "parameter-contract",
+  "problem": "分镜「跨镜头一致」里生成参考图的那张卡只有模型 / 供应商两个下拉：比例、清晰度、尺寸、质量、背景、输出格式、张数、种子、反向提示词、生成方式、变体一个都选不到（45 个发布的图片模型里，比例 aspect_ratio 28 个、清晰度 resolution 23 个、尺寸 size 25 个选不到）；PlanAnchor 类型里有 modeId / params 字段，界面没有入口",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S3"
+  ],
+  "fullWalkJourneys": [
+    "J03-reference-generation",
+    "J04-agent-multishot-spend"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "用户 2026-10-05 原话：跨镜头一致的参考图卡没有比例选项，也没有其他参数",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx 只用 useDedupedModelSelect；17 个缺口类登记在 tests/experience-laws/reachabilityLedger.json",
+    "同 AUD-20261005-02；reachabilityLedger.json 里 storyboard-anchor 的 17 个缺口类删除 15 个，余下 2 个归 LAW11-SB-VARIANT / LAW11-EMPTY-INPUT",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "since": "2026-10-05",
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  }
+}

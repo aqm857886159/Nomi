@@ -1,0 +1,23 @@
+{
+  "name": "画布媒体加载占位的外观（只有正在加载的才扫光）",
+  "subject": "canvas.media-loading-placeholder",
+  "lifecycle": "live-interaction",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+    "symbol": "DeferredNodeMediaPlaceholder"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx",
+      "symbol": "DeferredNodeMediaPlaceholder"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "占位唯一渲染点，把媒体状态（deferredNodeMediaQueue 的 DeferredNodeMediaState）作为 data-media-state 交给样式；扫光只挂 loading 态（docs/fixes/2026-10-06-open-render-media-shimmer.root-cause.json，类检查 mediaPlaceholderShimmer.test.ts）。"
+}

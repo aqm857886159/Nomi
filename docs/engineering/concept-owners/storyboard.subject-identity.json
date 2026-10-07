@@ -1,0 +1,42 @@
+{
+  "name": "分镜方案里一行是谁、排第几（锚 / 镜头 id、镜号、按 id 寻址）",
+  "subject": "storyboard.subject-identity",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "symbol": "nextStoryboardSubjectIds"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "appendStoryboardSubjects"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "storyboardSubjectAt"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "renumberStoryboardShots"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/project/projectNormalize.ts"
+  ],
+  "since": "2026-10-05",
+  "notes": "锚（参考卡）id 是 anchor-N、只数锚；镜头 id 是 shot-N、只数镜头；镜号 = 在镜头里的位置 1..N，锚不占号；shot-N 寻址只在镜头里找。Agent 首建（主进程）、补镜头 / 改一镜（渲染层）、手建加锚与删拖重排（编辑器）、读盘归位都调这里，不许再按「锚和镜混排数组的位置」自己编号（用户 10-05「分镜方案经常做错」：锚占号、改第 1 镜改到参考卡）。根因合同 docs/fixes/2026-10-05-storyboard-plan-single-owner.root-cause.json。"
+}
