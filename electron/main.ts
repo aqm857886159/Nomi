@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createProject, deleteProject, diagnoseProject, listProjects, readProject, recoverProject, saveProject } from "./projects/repository";
 import { registerProjectsIpc } from "./projects/projectsIpc";
+import { applyCanvasNodePatch } from "./projects/projectCanvasWrite";
 import { registerAssetsIpc } from "./assets/assetsIpc";
 import {
   clearModelCatalogVendorApiKey,
@@ -417,6 +418,7 @@ function registerIpc(): void {
     deleteProject,
     diagnoseProject,
     recoverProject,
+    applyCanvasNodePatch,
   });
   ipcMain.on("nomi:app:reopen-library-window", (event) => {
     if (!assertTrustedFireAndForget(event, "nomi:app:reopen-library-window", assertTrustedSender)) return;

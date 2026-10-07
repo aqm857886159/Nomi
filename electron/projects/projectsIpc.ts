@@ -8,6 +8,7 @@ import { ipcMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
+import type { ProjectBinding } from "../shared/projectBinding";
 
 type RegisterSyncIpc = (channel: string, handler: (...args: never[]) => unknown) => void;
 
@@ -20,6 +21,7 @@ export type ProjectsIpcDeps = {
   deleteProject: (projectId: string) => unknown;
   diagnoseProject: (projectId: string) => unknown;
   recoverProject: (projectId: string) => unknown;
+  applyCanvasNodePatch?: (input: { projectId: string; nodeId: string; patch: Record<string, unknown>; expectedBinding?: ProjectBinding }) => Promise<{ applied: boolean }>;
 };
 
 export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
@@ -32,6 +34,7 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
     deleteProject,
     diagnoseProject,
     recoverProject,
+    applyCanvasNodePatch,
   } = deps;
 
   registerSyncIpc("nomi:projects:list", listProjects as (...args: never[]) => unknown);
@@ -62,5 +65,19 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
     assertTrustedSender(event);
     return saveProject(String(projectId || ""), record);
   });
+  if (applyCanvasNodePatch) {
+    ipcMain.handle("nomi:projects:apply-canvas-node-patch", (event, input: unknown) => {
+      assertTrustedSender(event);
+      if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid canvas node patch");
+      const value = input as Record<string, unknown>;
+      const projectId = typeof value.projectId === "string" ? value.projectId : "";
+      const nodeId = typeof value.nodeId === "string" ? value.nodeId : "";
+      const patch = value.patch && typeof value.patch === "object" && !Array.isArray(value.patch)
+        ? value.patch as Record<string, unknown>
+        : null;
+      if (!projectId || !nodeId || !patch) throw new Error("Invalid canvas node patch");
+      return applyCanvasNodePatch({ projectId, nodeId, patch, expectedBinding: value.expectedBinding as ProjectBinding | undefined });
+    });
+  }
   registerSyncIpc("nomi:projects:delete", deleteProject as (...args: never[]) => unknown);
 }

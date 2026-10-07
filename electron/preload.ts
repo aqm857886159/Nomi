@@ -180,6 +180,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     recover: (projectId: string) => ipcRenderer.invoke("nomi:projects:recover", projectId),
     save: (projectId: string, record: unknown) =>
       ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
+    applyCanvasNodePatch: (input: { projectId: string; nodeId: string; patch: Record<string, unknown>; expectedBinding?: unknown }) =>
+      ipcRenderer.invoke("nomi:projects:apply-canvas-node-patch", input),
     delete: (projectId: string) => invokeSync("nomi:projects:delete", projectId),
   },
   clipboard: {
