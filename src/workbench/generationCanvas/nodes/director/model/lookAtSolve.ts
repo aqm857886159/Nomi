@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 ./directorTypes（LookAtClip / LookAtBodyPart / Vec3）、./closeupRig 的 ANCHOR_HEIGHTS、./vec3（lookAtAngles / signedDeg）、./timeGrid 的 FRAME_EPSILON
  * [OUTPUT]: 对外提供 LOOK_AT_PITCH_LIMIT / LOOK_AT_SHARES、lookAtWeightAt、bodyPartAnchor、HeadAim、solveHeadAim、distributeHeadAim
  * [POS]: director/model 的视线纯数学：片段权重（缓入缓出 × weight）、头部相对身体的 yaw/pitch（限幅 + 超限 smoothstep 衰减）、
- *        分配到 颈 0.15 / 脊 0.3 / 头 0.55。骨骼旋转在 scene 层按分配结果叠加。
+ *        减去动作层已转过的头 yaw 得「还要转多少」，分配到 颈 0.15 / 脊 0.3 / 头 0.55。骨骼旋转在 scene 层按分配结果叠加。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { ANCHOR_HEIGHTS } from './closeupRig'
@@ -37,14 +37,16 @@ export function bodyPartAnchor(targetPosition: Vec3, part: LookAtBodyPart, heigh
 
 export type HeadAim = { yaw: number; pitch: number; weight: number }
 
-// 头部相对身体朝向的转角：|yaw| 超过 clampingAngle 就夹住，并在其后 40° 内 smoothstep 衰减权重；pitch ±60°，关掉 enablePitch 时归 0
-export function solveHeadAim(input: { headPosition: Vec3; targetPosition: Vec3; bodyYaw: number; clampingAngle: number; enablePitch: boolean; weight: number }): HeadAim {
+// 头部相对身体朝向的转角：|yaw| 超过 clampingAngle 就夹住，并在其后 40° 内 smoothstep 衰减权重；pitch ±60°，关掉 enablePitch 时归 0。
+// 返回的 yaw 是「还要再转多少」：减去动作层已经让头转过的 currentHeadYaw（相对身体）——偏移是叠在动作姿态上的，
+// 动作本身转了头（UAL 的跪地维修、坐着说话…）还照「相对身体」整份叠，头会转过头（2026-10-07 实测侧前方机位多转 45°）。限幅与衰减仍按相对身体算。
+export function solveHeadAim(input: { headPosition: Vec3; targetPosition: Vec3; bodyYaw: number; clampingAngle: number; enablePitch: boolean; weight: number; currentHeadYaw?: number }): HeadAim {
   const angles = lookAtAngles(input.headPosition, input.targetPosition)
   const relativeYaw = signedDeg(angles.yaw - input.bodyYaw)
   const clamp = Math.max(0, input.clampingAngle)
   const excess = Math.abs(relativeYaw) - clamp
   const falloff = excess <= 0 ? 1 : 1 - smoothstep(0, LOOK_AT_FALLOFF_DEG, excess)
-  const yaw = Math.max(-clamp, Math.min(clamp, relativeYaw))
+  const yaw = signedDeg(Math.max(-clamp, Math.min(clamp, relativeYaw)) - (input.currentHeadYaw ?? 0))
   const pitch = input.enablePitch ? Math.max(-LOOK_AT_PITCH_LIMIT, Math.min(LOOK_AT_PITCH_LIMIT, angles.pitch)) : 0
   return { yaw, pitch, weight: clamp01(input.weight) * falloff }
 }

@@ -3,12 +3,14 @@
 > 导演台 V2 的纯层：零 React、除 directorSpace 外零 THREE（该文件只用几何类与 Box3 量包围盒，无 WebGL），全部可在 node 单测里跑。渲染层与面板只消费这里的求值与判定，不各自算。
 > 成员清单
 > assetFolders.ts: 资产目录祖先链与目标可移动性共用判定；拒绝父环，折叠搜索保留命中祖先
-> rigs.ts: rig无关的语义骨映射、体形预设、关节轴文案键，骨架操作共用
+> rigs.ts: rig无关的语义骨映射（mixamo / ue4 / ual，UAL 写 three 去点后的骨名）、体形预设、关节轴文案键，骨架操作共用
 > ikChains.ts: IK靶点/极向量/骨盆胸腔配置与真实骨名解析
-> directorTypes.ts: V2 工程 schema+ 资产库（文件夹 / 条目只存句柄）+ 连线引用类型、字面量联合、isDirectorCamera
+> directorTypes.ts: 工程 schema（版本 3 = 默认人偶 UAL）+ 资产库（文件夹 / 条目只存句柄）+ 连线引用类型、字面量联合、isDirectorCamera
 > directorIds.ts: id 工厂（时间戳 + 随机后缀，前缀 d*，与 V1 不撞）
 > directorNodeMeta.ts: 画布节点 meta 键单一真相（DIRECTOR_NODE_KIND、directorProject、stagingAutoCapture、cameraMoveAutoCapture）：节点卡片 / 迁移器 / AI 来导 / 画布壳的 Host 门都从这里取，零依赖
-> directorProject.ts: 默认工程/图层、normalizeDirectorProject / normalizeScene（unknown → 合法工程 / 图层，逐字段容错，含资产库）、remapSceneIds（图层复制与导入场景共用换 id）、clone、projectStats
+> characterRigMigration.ts: 角色 → UAL 读时迁移（纯函数、幂等）：内置人偶（builtin:* 且 rig 缺省 / mixamo）整个迁——动作 id 走动作库别名表、boneRotations 键 mixamorig* → UAL 骨名值原样、手指 / 末端丢弃计数；用户上传的角色只换动作 id，骨架 / 模型 / 手调骨骼不碰
+> characterRigMigration.test.ts: 旧工程 fixture（__fixtures__/legacy-xbot-project.v2.json：走路 / 坐姿 + 手调骨骼 + 姿态关键帧 / 跪与坐地 / 上传 Mixamo 角色）：迁移结果、说明计数、幂等、只读、旧版存过再读、导入图层
+> directorProject.ts: 默认工程/图层、normalizeDirectorProject / normalizeScene（unknown → 合法工程 / 图层，逐字段容错，含资产库；normalizeObject 是内置人偶读时迁移的唯一入口）、ualMigrationNoteOf（迁移说明只在内存）、remapSceneIds（图层复制与导入场景共用换 id）、clone、projectStats
 > directorStore.ts: zustand vanilla store 工厂：编辑期真相、互斥选择及子选择归属、完整工程50步撤销、图层操作；withHistory 同步嵌套事务一次入栈且异常回滚，commitProject 是工程唯一写入口；组装各 action 集
 > defaultCharacter.ts: 默认角色模板（模型 / 绑定 / 颜色 / 默认群众动作）：「加人」放置与群众（batchCreateCrowd）共用，群众永远和加人是同一个人偶
 > storeEntityActions.ts: 对象/机位/灯 CRUD、分组解组群众（默认角色模板建群众组，一次撤销撤整组）、跨图层复制移动、显隐锁定、经编辑层的 write*SpatialTransform
@@ -51,8 +53,8 @@
 > splatReveal.ts: 泼溅显现纯参数：效果 id / 默认随机池 Magic|Spread / ×2 倍速 / 尾停 1s / 按半径与最低点推着色器时长 / 三次缓出
 > mobileCamera.ts: 手机虚拟相机纯数学：32 字节 Float32 包编解码、摇杆/升降按 2m/s·1.5m/s 积分、陀螺仪增量累加、焦距换算；electron 桥与渲染层共用
 > storeCharacterActions.ts: 角色骨骼级动作：单骨写入 / 合并 / 拖动逐帧写、全部复位（清微调 + 骨盆归零，保留预设）、复位此肢体（按把手清对应骨）、左右镜像（{x,−y,−z}，源侧空则清目标侧）、播放头对齐骨骼关键帧、姿态预设（切换清全部微调）、快捷体形、骨盆偏移、片段改名 / 换动作
-> posePresets.ts: V1 手写静态姿态化石（切换门入籍，只给迁移 / AI 来导词表用）：PoseVec3、MANNEQUIN_POSE_PRESETS（预设 id → 逐骨欧拉偏移）、findPosePreset / presetPoseRotations；V1 的「自然站姿基线」已删（x-bot rest 就是 Mixamo bind，复位 = 纯 bind）
-> actionLibrary.ts: 动作库单一真相（= 动作清单 + 别名表）：T-Pose + 9 个 Mixamo FBX 动画（站立 / 站立到单膝跪 / 单膝跪 / 跪起身 / 行走 / 跑 / 普通坐姿 / 坐地上 / 双膝跪），同一份清单既是动作片段可选项也是角色静止姿态预设（posePreset）；循环 / 静态由 FBX 时长在运行时判定；LEGACY_POSE_TO_ACTION 给 V1 手写预设找对应动画
+> posePresets.ts: V1 手写静态姿态化石（切换门入籍，只给迁移 / AI 来导词表用）：PoseVec3、MANNEQUIN_POSE_PRESETS（预设 id → 逐骨欧拉偏移）、findPosePreset / presetPoseRotations；V1 的「自然站姿基线」已删（复位 = 纯 bind）；数值是 Mixamo 骨名 + 规范轴，UAL 经读档迁移换名、canonicalBoneFrame 换轴
+> actionLibrary.ts: 动作库单一真相（= 动作清单 + 别名表）：T-Pose + UAL 43 个原生动作（从 assetCatalog/ualActions 推出，去掉 _RM），同一份清单既是动作片段可选项也是角色静止姿态预设（posePreset），规划器提示词（PLANNER_ACTION_IDS：15 个常用动作词经别名表解析）/ 评测尺子也从它推；kind = 循环 / 单次 / 单姿势；ACTION_ALIASES 一份三用（AI 词、旧 Mixamo id 读档迁移、中文），LEGACY_APPROXIMATE_ACTIONS 标出只能落到近似动作的旧 id；LEGACY_POSE_TO_ACTION 给 V1 手写预设找对应动画
 > poseBlend.ts: 动作混合纯数学：片段头 0.25s 淡入（上一片段间隙 <0.2s 从其末帧交叉，否则从静止）/ 片段尾不淡出 / 片段外：相邻间隙 ≤0.5s 交叉、否则尾后 0.25s 淡回静止；姿态片段不参与交叉；custom_pose 关键帧对与插值系数
 > lookAtSolve.ts: 视线纯数学：片段权重缓入缓出、头部相对身体 yaw/pitch 限幅 + 超限 smoothstep 衰减、颈 0.15 / 脊 0.3 / 头 0.55 分配
 > *.test.ts: 与同名模块对照参考数值案例的单测
