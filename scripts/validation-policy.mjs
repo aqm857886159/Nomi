@@ -117,6 +117,16 @@ const JOURNEY_PATTERNS = [
   /^tests\/ux\/(?:resident-composer-receipt-fix|storyboard-agent-canonical-patch|production-mcp-journey|golden-path)\.(?:e2e\.)?mjs$/i,
 ]
 
+// Paid-path safety walks are loopback/Electron walks (the *.paid.mjs files are
+// deliberately excluded). Keep this registration beside the policy data so a
+// change to a spending surface selects the same Linux journey lane that runs
+// these checks in quality-gate.yml.
+export const SPEND_WALK_PATTERNS = Object.freeze([
+  /^tests\/ux\/agent-(?:panel-missing-card|spend-(?:card|confirm-executes|full-auto|generate-remaining|long-output-name|nonapimart-vendor|per-shot|priced-card|reprice|stop-midway|unknown-price|video-landing|waiting-owner))\.walk\.mjs$/,
+  /^tests\/ux\/core-smoke-spend-confirm\.walk\.mjs$/,
+  /^tests\/ux\/spend-confirm-a11y\.walk\.mjs$/,
+])
+
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
 
 // 「谁决定画布上显示什么」——改它们等于改画布上用户看得见的状态，必须跑 full 画布验收
@@ -296,6 +306,11 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
       policy.unit = 'full'
       policy.journeys = true
       policy.reasons.push(`journey:${path}`)
+    }
+    if (matchesAny(path, SPEND_WALK_PATTERNS)) {
+      policy.unit = 'full'
+      policy.journeys = true
+      policy.reasons.push(`spend-journey:${path}`)
     }
     if (matchesAny(path, DESKTOP_PATTERNS)) {
       policy.unit = 'full'

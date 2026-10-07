@@ -245,6 +245,31 @@ jobs:
       - name: Golden path (Agent storyboard lands on canvas)
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:golden
+      # Spending-path walks are registered in validation-policy.mjs. The full
+      # set is too expensive for every PR, so the six highest-risk loopback
+      # walks are blocking here; the remaining registered walks run nightly.
+      - name: Spending path walkthroughs (blocking subset)
+        if: needs.scope.outputs.journeys == 'true'
+        env:
+          SPEND_WALKS: >-
+            tests/ux/agent-spend-card.walk.mjs
+            tests/ux/agent-spend-confirm-executes.walk.mjs
+            tests/ux/agent-spend-full-auto.walk.mjs
+            tests/ux/agent-spend-generate-remaining.walk.mjs
+            tests/ux/agent-spend-stop-midway.walk.mjs
+            tests/ux/core-smoke-spend-confirm.walk.mjs
+        run: |
+          set -o pipefail
+          mkdir -p outputs/spend-walks
+          failed=0
+          for walk in $SPEND_WALKS; do
+            name=$(basename "$walk" .walk.mjs)
+            echo "[spend-walk] $walk"
+            if ! xvfb-run -a node "$walk" 2>&1 | tee "outputs/spend-walks/$name.log"; then
+              failed=1
+            fi
+          done
+          test "$failed" = 0
       - name: Critical canvas acceptance
         id: canvas-critical
         continue-on-error: true
@@ -289,6 +314,14 @@ jobs:
             tests/ux/shots/group-ports/**
             tests/ux/shots/react-flow-read-only/**
             tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload spending walkthrough evidence
+        if: always() && needs.scope.outputs.journeys == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: spend-walk-evidence
+          path: outputs/spend-walks/**
           if-no-files-found: warn
           retention-days: 7
 

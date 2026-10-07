@@ -1,0 +1,133 @@
+name: Nightly Walkthroughs
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-walkthroughs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  walks:
+    name: Walk batch ${{ matrix.batch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build desktop surfaces
+        run: pnpm run build
+      - name: Run non-paid walkthrough batch
+        env:
+          BATCH: ${{ matrix.batch }}
+        run: |
+          set -o pipefail
+          mkdir -p nightly-walks
+          : > "nightly-walks/results-${BATCH}.tsv"
+          mapfile -t walks < <(find tests/ux -maxdepth 1 -type f -name '*.walk.mjs' ! -name '*.paid.mjs' | sort)
+          failed=0
+          for index in "${!walks[@]}"; do
+            [ "$((index % 4))" = "$BATCH" ] || continue
+            walk="${walks[$index]}"
+            name=$(basename "$walk")
+            log="nightly-walks/${name}.log"
+            started=$(date +%s)
+            set +e
+            xvfb-run -a node "$walk" >"$log" 2>&1
+            status=$?
+            set -e
+            ended=$(date +%s)
+            duration=$((ended - started))
+            printf '%s\t%s\t%s\t%s\n' "$walk" "$status" "$duration" "$log" >> "nightly-walks/results-${BATCH}.tsv"
+            if [ "$status" -ne 0 ]; then failed=1; fi
+          done
+          exit "$failed"
+      - name: Upload nightly batch evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-walks-${{ matrix.batch }}
+          path: nightly-walks/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  report:
+    name: Summarize nightly walkthroughs
+    if: always()
+    needs: walks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: nightly-walks-*
+          path: nightly-results
+          merge-multiple: true
+      - name: Publish summary and update issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const cp = require('node:child_process')
+          const root = 'nightly-results'
+          const rows = []
+          for (const file of fs.readdirSync(root, { recursive: true })) {
+            if (!String(file).endsWith('.tsv')) continue
+            for (const line of fs.readFileSync(`${root}/${file}`, 'utf8').split('\n').filter(Boolean)) {
+              const [walk, status, seconds, log] = line.split('\t')
+              rows.push({ walk, status: Number(status), seconds: Number(seconds), log })
+            }
+          }
+          rows.sort((a, b) => a.walk.localeCompare(b.walk))
+          const failed = rows.filter((row) => row.status !== 0)
+          const skipped = rows.filter((row) => row.status === 125)
+          const lines = [
+            `Nightly walkthroughs: ${rows.length - failed.length}/${rows.length} passed; ${failed.length} failed; ${skipped.length} skipped.`,
+            '', '| Walkthrough | Result | Seconds |', '|---|---:|---:|',
+            ...rows.map((row) => `| ${row.walk} | ${row.status === 0 ? 'passed' : row.status === 125 ? 'skipped' : `failed (${row.status})`} | ${row.seconds} |`),
+          ]
+          fs.writeFileSync('nightly-summary.md', lines.join('\n') + '\n')
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n')
+          const title = '夜跑走查失败'
+          const existing = JSON.parse(cp.execFileSync('gh', ['issue', 'list', '--repo', process.env.GH_REPO, '--state', 'open', '--search', `${title} in:title`, '--json', 'number,title'], { encoding: 'utf8' }))
+          if (!failed.length) {
+            if (existing.length) cp.execFileSync('gh', ['issue', 'comment', String(existing[0].number), '--repo', process.env.GH_REPO, '--body', `夜跑 ${new Date().toISOString()} 已恢复：${rows.length} 条全部通过。`])
+            process.exit(0)
+          }
+          const body = [
+            `夜跑时间：${new Date().toISOString()}`,
+            `失败 ${failed.length} 条，共 ${rows.length} 条。`, '',
+            ...failed.map((row) => `- ${row.walk}（exit ${row.status}，${row.seconds}s；日志：${row.log}）`),
+            '', '完整结果见本次 workflow 的 nightly-walks-* artifacts。',
+          ].join('\n')
+          if (existing.length) cp.execFileSync('gh', ['issue', 'edit', String(existing[0].number), '--repo', process.env.GH_REPO, '--body', body])
+          else cp.execFileSync('gh', ['issue', 'create', '--repo', process.env.GH_REPO, '--title', title, '--body', body])
+          NODE
+      - name: Upload nightly summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-walk-summary
+          path: nightly-summary.md
+          if-no-files-found: error
+          retention-days: 30
