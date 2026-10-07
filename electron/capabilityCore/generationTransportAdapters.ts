@@ -17,7 +17,6 @@ import type { DispatchContext } from "./dispatcher";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "./approvalReceipt";
 import { decideGenerationSpend, generationChallengeTokenOf } from "./generationSpendDecision";
 import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
-import { beginPolicySpendDecision } from "./policySpendDecision";
 import { cardActionsSettled } from "./spendCardActionQueue";
 import type { GenerationInvocationContext } from "../shared/agentCapabilities/generationInvocationContext";
 import { shotDurationSeconds } from "./mcpGenerationVideoResolve";
@@ -370,6 +369,7 @@ export function createPiGenerationTransportAdapter(
       origin: { host: "nomi", actorId: "project-agent-host", ...(context?.sourceDocument ? { sourceDocument: context.sourceDocument } : {}) },
       ...(context?.storyboardTarget ? { storyboardTarget: context.storyboardTarget } : {}),
       ...(context?.modelNames ? { modelNames: context.modelNames } : {}),
+      ...(deps.approvalPolicy ? { approvalPolicy: deps.approvalPolicy() } : {}),
     })),
     signal,
   );
@@ -541,22 +541,6 @@ export function createPiGenerationTransportAdapter(
         // operationId is required by every non-create descriptor. Parsing it
         // here keeps malformed model calls out of the durable operation store.
         if (capability !== "context" && capability !== "create") operationId(args);
-        // ── 「这一笔由档位代答，别把它投影成卡」（T-AG-04）──
-        //
-        // Run 一变就把待决出价推给面板，而 `plan()` 一落盘，报价卡就可见了——代答跑在它之后。
-        // 所以占位必须**早于草稿落盘**，晚一步用户就会看见那张他刚授权过「不用再问」的卡闪出来。
-        //
-        // `present`（`generate` 动词，真机上唯一会让卡露面的那条）入参里带着 operationId，直接占。
-        // `create` 的 id 由宿主生成、这一刻还不存在：它在**紧接着 `plan()` 的同步语句里**补占
-        // （中间没有 await，IPC 读进不来）。桌面 lane 的 `create` 本来就带 `cardHidden`、不出卡，
-        // 那一支是给外部宿主与夹具留的。
-        const policyAnswers = spendDecidedByPolicy(deps.approvalPolicy?.());
-        const claimPolicyDecision = (operation: string | undefined): (() => void) | undefined =>
-          policyAnswers && operation ? beginPolicySpendDecision(currentLease.projectId, operation) : undefined;
-        const claimed = typeof args.operationId === "string" && args.operationId.trim() ? args.operationId.trim() : undefined;
-        // 释放放在 `finally`：代答**失败**时卡要回到原处等用户（「策略答不了才问人」）。
-        let releasePolicyClaim = claimPolicyDecision(claimed);
-        try {
         const result = await plan(capability, args, currentLease, signal, context);
           addressed = draftedOperationIdOrNone(result, args) ?? addressed;
           // 记下「这份方案是这条 lane 从哪份文稿起草的」。只记 create 成功的那一刻，键是宿主发的 id。
@@ -569,7 +553,6 @@ export function createPiGenerationTransportAdapter(
           const cardShown = capability === "present"
             || ((capability === "create" || capability === "plan") && !planCardHidden(result));
           if (cardShown) {
-            if (!releasePolicyClaim) releasePolicyClaim = claimPolicyDecision(draftedOperationIdOrNone(result, args));
             const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
             if (decided) return { ok: true, result: decided };
           }
@@ -581,9 +564,6 @@ export function createPiGenerationTransportAdapter(
             }
           }
           return { ok: true, result, silent: capability === "context" || capability === "read" };
-        } finally {
-          releasePolicyClaim?.();
-        }
       } catch (error) {
         const failure = safeFailure(error);
         // 「结果可能未知」只有在真的有提交意图落过盘时才是真的。认不出的异常先落到兜底码，这里问账本一句：

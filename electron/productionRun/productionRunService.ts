@@ -45,6 +45,7 @@ import type {
   RunEvent,
   RunCommand,
 } from './productionRunTypes'
+import type { ProjectAgentApprovalPolicy } from '../shared/agentCapabilities/capabilityApprovalPolicy'
 import { eventProjection, runProjection } from './productionRunProjections'
 import type { ProductionEventProjection, ProductionRunProjection } from './productionRunProjections'
 // 投影类型的公共 API 位置不变：外部调用方仍从本模块 import。
@@ -187,6 +188,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     candidate: ProductionGenerationPlan['candidate']
     currency?: string
     policy?: Partial<AutomationPolicy>
+    policySnapshot?: ProjectAgentApprovalPolicy
     shots?: ReadonlyArray<Pick<ProductionGenerationShot, 'shotId' | 'role' | 'included' | 'candidate'>>
     cardHidden?: boolean
   }): ProductionRun {

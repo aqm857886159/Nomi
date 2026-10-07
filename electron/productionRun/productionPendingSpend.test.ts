@@ -76,7 +76,7 @@ describe("付费卡的宿主投影", () => {
     })).not.toThrow();
     expect(() => assertPendingSpendIdentity(pending, {
       presentationId: pending.presentationId,
-      presentationEpoch: pending.presentationEpoch + 1,
+      presentationEpoch: pending.presentationEpoch! + 1,
       planVersion: pending.planVersion,
       quoteId: pending.quoteId,
     })).toThrowError("generation_presentation_stale");
@@ -177,15 +177,16 @@ describe("付费卡的宿主投影", () => {
   // 照旧出卡」是**必须保留**的行为（策略答不了才问人，也包括用户看着一张卡时切进全自动）；
   // ③ 封印那一支一个字不动——代答链第一步就是封印，之后任何一步失败都停在「sealed + 门还等着」。
   it("全自动档代答中的那一笔不投影成卡（草稿落盘到封印之间不许闪卡）", () => {
-    const answered = (projectId: string, operationId: string) => projectId === "project-1" && operationId === "op-a";
-    expect(projectPendingSpendConfirm(run(), resolvePricing, answered)).toBeUndefined();
-    expect(listPendingSpendConfirms([run()], resolvePricing, answered)).toEqual([]);
+    const fullAuto = run();
+    fullAuto.generationPlan = { ...fullAuto.generationPlan!, presentations: [{
+      ...fullAuto.generationPlan!.presentations![0], policySnapshot: { mode: "project", spend: "confirm" },
+    }] };
+    expect(projectPendingSpendConfirm(fullAuto, resolvePricing)).toBeUndefined();
+    expect(listPendingSpendConfirms([fullAuto], resolvePricing)).toEqual([]);
   });
 
   it("没有代答在飞的草稿照旧出卡（每步问 / 自动改两档，以及代答失败后卡回到原处）", () => {
-    const answeringSomethingElse = (_projectId: string, operationId: string) => operationId === "op-other";
-    expect(projectPendingSpendConfirm(run(), resolvePricing, answeringSomethingElse)).toBeDefined();
-    // 谓词缺席 = 外部 MCP 宿主那条路，逐字不变。
+    expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();
     expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();
   });
 
@@ -194,7 +195,7 @@ describe("付费卡的宿主投影", () => {
       gates: [{ gateId: "gate-a", scope: "budget_envelope", status: "waiting", planHash: "d-a", authorizationDigest: "d-a", authorizationEnvelope: { gateId: "gate-a", jobs: [] } as never, title: "", summary: "", jobIds: [], createdAt: NOW, expiresAt: NOW } as ProductionRun["gates"][number]],
     });
     sealed.generationPlan = { ...sealed.generationPlan!, state: "sealed" };
-    expect(projectPendingSpendConfirm(sealed, resolvePricing, () => true)).toBeDefined();
+    expect(projectPendingSpendConfirm(sealed, resolvePricing)).toBeDefined();
   });
 
   it("一个项目里多笔时按 updatedAt 排序（介入槽只显示第一张，其余算「还有 N 条」）", () => {

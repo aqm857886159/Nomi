@@ -18,6 +18,7 @@ import type {
 } from "../productionRun/productionRunTypes";
 import { spendAuthorizationGates } from "./productionSpendAuthority";
 import { jobEndedBeforeAcceptance, jobsForShot } from "./productionShotJobs";
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from "./agentCapabilities/capabilityApprovalPolicy";
 
 type PlanView = Pick<ProductionGenerationPlan, "state" | "candidate" | "shots" | "presentations">;
 
@@ -177,7 +178,18 @@ function failedBeforeSendingIn(run: Pick<ProductionRun, "gates" | "generationPla
  */
 export function normalizeLegacyPresentation<T extends Pick<ProductionRun, "gates" | "generationPlan">>(run: T): T {
   const plan = run.generationPlan as (ProductionGenerationPlan & { cardHidden?: boolean }) | undefined;
-  if (!plan || plan.presentations || !("cardHidden" in plan || plan.state === "draft" || plan.state === "sealed")) return run;
+  if (!plan) return run;
+  if (plan.presentations) {
+    if (plan.presentations.every((presentation) => presentation.presentationId && presentation.presentationEpoch !== undefined && presentation.policySnapshot)) return run;
+    const presentations = plan.presentations.map((presentation, index) => ({
+      ...presentation,
+      presentationId: presentation.presentationId ?? `${plan.operationId}:presentation:${index + 1}`,
+      presentationEpoch: presentation.presentationEpoch ?? index + 1,
+      policySnapshot: presentation.policySnapshot ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+    }));
+    return { ...run, generationPlan: { ...plan, presentations } as ProductionGenerationPlan };
+  }
+  if (!("cardHidden" in plan || plan.state === "draft" || plan.state === "sealed")) return run;
   const { cardHidden, ...rest } = plan;
   const gates = spendAuthorizationGates(run);
   const firstWaiting = gates.findIndex((gate) => gate.status === "waiting");
@@ -188,6 +200,11 @@ export function normalizeLegacyPresentation<T extends Pick<ProductionRun, "gates
   return {
     ...run,
     // 门在等的那一份属于这一次出价（它就是卡上那一下还没点完的点击）。
-    generationPlan: { ...rest, ...(open ? { presentations: [{ shotIds, openedAt: plan.updatedAt, fromGate: firstWaiting >= 0 ? firstWaiting : gates.length }] } : {}) } as ProductionGenerationPlan,
+    generationPlan: { ...rest, ...(open ? { presentations: [{
+      presentationId: `${plan.operationId}:presentation:1`,
+      presentationEpoch: 1,
+      policySnapshot: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+      shotIds, openedAt: plan.updatedAt, fromGate: firstWaiting >= 0 ? firstWaiting : gates.length,
+    }] } : {}) } as ProductionGenerationPlan,
   };
 }

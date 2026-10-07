@@ -28,7 +28,7 @@ import { deriveShotPrice, type ModelPricing, type ShotPrice } from "./shotPricin
 import type { ProductionGenerationPlan, ProductionRun } from "./productionRunTypes";
 import type { PendingSpendConfirm, PendingSpendShot } from "../shared/contracts/pendingSpendConfirm";
 import { waitingAuthorizationGates } from "../shared/productionSpendAuthority";
-import { presentationIsOpen, undecidedShotIds } from "../shared/productionGenerationPresentation";
+import { currentPresentation, presentationIsOpen, undecidedShotIds } from "../shared/productionGenerationPresentation";
 
 /** Agent lane 自己发起的那条路。`generationTransportAdapters` 的 `plan()` 就是这么盖的章。 */
 export const IN_APP_AGENT_ORIGIN_HOST = "nomi";
@@ -69,13 +69,43 @@ function shotsOf(plan: ProductionGenerationPlan, undecided: readonly string[], r
 }
 
 /**
- * 「这一笔此刻正由**档位**代答」。`true` = 它不在等用户，别投影成卡。
+ * 展示快照决定待决卡是否存在；策略切换不会重新解释已经展示的卡。
  *
- * 事实的 owner 是 `capabilityCore/policySpendDecision.ts`（进程内，有始有终）；这里只收一个谓词，
+ * 读模型只依据生成展示快照投影待决卡；策略切换不会重新解释已经展示的卡。
  * 因为本文件是纯投影，不认识宿主。缺席 = 没有任何档位在代答，行为逐字不变（外部 MCP 宿主那条路
  * 从来不传它）。
  */
-export type SpendAnsweredByPolicy = (projectId: string, operationId: string) => boolean;
+export type PendingSpendIdentity = Readonly<{
+  presentationId?: string;
+  presentationEpoch?: number;
+  planVersion: number;
+  quoteId: string;
+}>;
+
+/** Fail closed when an action came from a card version that is no longer current. */
+export function assertPendingSpendIdentity(pending: PendingSpendConfirm, expected: PendingSpendIdentity): void {
+  if (pending.quoteId !== expected.quoteId
+    || pending.planVersion !== expected.planVersion
+    || pending.presentationId !== expected.presentationId
+    || pending.presentationEpoch !== expected.presentationEpoch) {
+    throw Object.assign(new Error("generation_presentation_stale"), { code: "generation_presentation_stale" });
+  }
+}
+
+function projectionErrorCard(run: ProductionRun, error: unknown): PendingSpendConfirm {
+  const presentation = currentPresentation(run.generationPlan);
+  const code = error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "pending_spend_projection_failed";
+  return Object.freeze({
+    projectId: run.projectId, runId: run.runId, operationId: run.generationPlan?.operationId ?? run.runId,
+    planVersion: run.planVersion, quoteId: `error:${presentation?.presentationId ?? run.runId}:${run.planVersion}`,
+    candidateRevision: run.generationPlan?.candidate.revision ?? 0,
+    ...(presentation?.presentationId ? { presentationId: presentation.presentationId } : {}),
+    ...(presentation?.presentationEpoch !== undefined ? { presentationEpoch: presentation.presentationEpoch } : {}),
+    ...(presentation?.policySnapshot ? { policySnapshot: structuredClone(presentation.policySnapshot) } : {}),
+    currency: run.budget.currency, shots: Object.freeze([]), knownSubtotal: 0, unknownShotCount: 0,
+    error: { code, message: error instanceof Error ? error.message : String(error) },
+  });
+}
 
 /**
  * 「这份计划此刻**正摆在用户面前等他点头**吗」——这条判据只有这一份。
@@ -86,7 +116,6 @@ export type SpendAnsweredByPolicy = (projectId: string, operationId: string) => 
  */
 export function awaitingSpendDecision(
   run: ProductionRun,
-  spendAnsweredByPolicy?: SpendAnsweredByPolicy,
 ): Readonly<{ plan: ProductionGenerationPlan; undecided: readonly string[]; gateId?: string }> | undefined {
   if (run.origin.host !== IN_APP_AGENT_ORIGIN_HOST) return undefined;
   const plan = run.generationPlan;
@@ -98,7 +127,11 @@ export function awaitingSpendDecision(
   const undecided = undecidedShotIds(run);
   if (undecided.length === 0) return undefined;
   // 「全自动」档正在替用户决这一笔（草稿落盘到封印之间那一段）。它不在等人，别摆卡；策略答不了、门还在等时照旧出卡。
-  if (plan.state === "draft" && spendAnsweredByPolicy?.(run.projectId, plan.operationId) === true) return undefined;
+  const presentation = currentPresentation(plan);
+  // A newly opened full-auto draft is hidden while the unified policy decision is
+  // in flight. Once a card was opened under another policy it remains visible even
+  // if the user changes settings later.
+  if (plan.state === "draft" && presentation?.policySnapshot?.mode === "project") return undefined;
   const waiting = waitingAuthorizationGates(run).at(-1);
   return { plan, undecided, ...(waiting ? { gateId: waiting.gateId } : {}) };
 }
@@ -123,9 +156,8 @@ export function awaitingSpendDecision(
 export function projectPendingSpendConfirm(
   run: ProductionRun,
   resolvePricing: PricingResolver,
-  spendAnsweredByPolicy?: SpendAnsweredByPolicy,
 ): PendingSpendConfirm | undefined {
-  const awaiting = awaitingSpendDecision(run, spendAnsweredByPolicy);
+  const awaiting = awaitingSpendDecision(run);
   if (!awaiting) return undefined;
   const { plan, gateId, undecided } = awaiting;
   const shots = shotsOf(plan, undecided, resolvePricing);
@@ -146,8 +178,13 @@ export function projectPendingSpendConfirm(
     runId: run.runId,
     operationId: plan.operationId,
     planVersion: run.planVersion,
+    ...(currentPresentation(plan)?.presentationId ? { presentationId: currentPresentation(plan)!.presentationId } : {}),
+    ...(currentPresentation(plan)?.presentationEpoch !== undefined ? { presentationEpoch: currentPresentation(plan)!.presentationEpoch } : {}),
+    ...(currentPresentation(plan)?.policySnapshot ? { policySnapshot: structuredClone(currentPresentation(plan)!.policySnapshot) } : {}),
     quoteId: createHash("sha256").update(JSON.stringify({
       projectId: run.projectId, operationId: plan.operationId, planVersion: run.planVersion,
+      presentationId: currentPresentation(plan)?.presentationId,
+      presentationEpoch: currentPresentation(plan)?.presentationEpoch,
       candidateRevision: plan.candidate.revision,
       revisions: plan.shots?.filter((shot) => undecided.includes(shot.shotId)).map((shot) => [shot.shotId, shot.candidate.revision]),
       shots: shots.map(({ nodeId: _nodeId, ...shot }) => shot), currency: run.budget.currency,
@@ -168,13 +205,15 @@ export function projectPendingSpendConfirm(
 export function listPendingSpendConfirms(
   runs: readonly ProductionRun[],
   resolvePricing: PricingResolver,
-  spendAnsweredByPolicy?: SpendAnsweredByPolicy,
 ): readonly PendingSpendConfirm[] {
   return Object.freeze(
     runs
       .slice()
       .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt))
-      .map((run) => projectPendingSpendConfirm(run, resolvePricing, spendAnsweredByPolicy))
+      .map((run) => {
+        try { return projectPendingSpendConfirm(run, resolvePricing); }
+        catch (error) { return projectionErrorCard(run, error); }
+      })
       .filter((value): value is PendingSpendConfirm => Boolean(value)),
   );
 }
