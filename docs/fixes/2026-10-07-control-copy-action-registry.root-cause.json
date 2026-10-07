@@ -107,8 +107,10 @@
   ],
   "legacy_paths": {
     "status": "removed",
-    "removed_paths": [],
-    "rationale": "确认动作中的“知道了”旧词典归类已删除；没有并行词典或兼容回退。"
+    "removed_paths": [
+      "docs/GLOSSARY.md"
+    ],
+    "rationale": "docs/GLOSSARY.md 里把「知道了 / 我知道了」归在「确认」下的那一行旧词典归类已删除，改成独立的「知道了」词条（纯告知收尾，不代表接受或执行决定）；没有并行词典或兼容回退。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
