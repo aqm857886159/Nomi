@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖 react、three、@react-three/fiber（createPortal / useFrame / useThree）、../../DirectorEditorContext、../sceneRefs（isDirectorObjectVisible / tagEditorOnly / DIRECTOR_BONE_KEY / BoneTag）、
- *          ../sceneTheme 的 SKELETON_COLORS、../../model/rigs（FK_JOINTS / SemanticBone）、../../model/directorTypes 的 DirectorRig、./characterRig 的 findSemanticBone / BoneIndex
+ *          ../sceneTheme 的 SKELETON_COLORS、../../model/rigs（FK_JOINTS / SemanticBone）、../../model/directorTypes 的 DirectorRig、./characterRig 的 findSemanticBone / BoneIndex、./skeletonVisualBones（isVisualBone / boneChainOf）
  * [OUTPUT]: 对外提供 SkeletonVisual：角色骨骼可视化——每段骨一枚细菱形（八面体，宽 = 长 × 0.14，按脊柱 / 手臂 / 腿分色）+ 关节小黄点，
  *           17 颗 FK 关节另带一层透明拾取球（比可见点大一圈，DIRECTOR_BONE_KEY 标记给拾取），选中骨 / 关节变红
  * [POS]: director/scene/character 的骨骼层：显示规则：该角色骨骼页聚焦，或没有任何角色聚焦且图层开了「显示骨骼」；
  *        IK 模式下关节拾取球只在聚焦时出现（避免和把手抢点击）。样子按用户 2026-09-04 给的参考图（细菱形骨 + 小圆点关节），不再用 SkeletonHelper 线 + 大球：
- *        大球在真人尺寸下盖住肢体、根本点不准。手指 / 脚趾末端 / 头顶 End 骨不画。
+ *        大球在真人尺寸下盖住肢体、根本点不准。手指 / 脚趾末端 / 头顶 End 骨 / 骨架根不画（按规范基名判断，Mixamo 与 UAL 同一条规则）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -17,6 +17,7 @@ import { FK_JOINTS, type SemanticBone } from '../../model/rigs'
 import { DIRECTOR_BONE_KEY, isDirectorObjectVisible, tagEditorOnly, type BoneTag } from '../sceneRefs'
 import { SKELETON_COLORS } from '../sceneTheme'
 import { findSemanticBone, type BoneIndex } from './characterRig'
+import { boneChainOf, isVisualBone } from './skeletonVisualBones'
 
 /** 关节可见点 / 拾取球半径（米，真人 1.75m 尺度） */
 const JOINT_RADIUS = 0.012
@@ -24,8 +25,6 @@ const PICK_RADIUS = 0.03
 /** 菱形骨宽 = 段长 × 这个比例；最宽处在离父关节 18% 处 */
 const BONE_WIDTH_RATIO = 0.14
 const BONE_WAIST = 0.18
-/** 不画的骨：手指、脚趾末端、头顶 End 骨 */
-const SKIP_BONE = /Thumb|Index|Middle|Ring|Pinky|_End$|Toe_End/i
 
 const _parent = new THREE.Vector3()
 const _child = new THREE.Vector3()
@@ -36,12 +35,9 @@ const _quat = new THREE.Quaternion()
 // 17 颗 FK 关节 = FK 关节表左右展开（头 / 颈 / 腰 + 两侧肩 / 大臂 / 前臂 / 手 / 大腿 / 膝 / 脚）
 const PICK_BONES: SemanticBone[] = FK_JOINTS.flatMap((joint) => (joint.mirror ? [joint.bone, joint.mirror] : [joint.bone]))
 
-/** 骨段配色：按名字归到脊柱 / 手臂 / 腿三条链 */
-function chainColor(name: string): number {
-  if (/Arm|Shoulder|Hand/i.test(name)) return SKELETON_COLORS.boneArm
-  if (/UpLeg|Leg|Foot|Toe/i.test(name)) return SKELETON_COLORS.boneLeg
-  return SKELETON_COLORS.boneSpine
-}
+/** 骨段配色：按规范基名归到脊柱 / 手臂 / 腿三条链（UAL 的 thigh / shin 也归腿） */
+const CHAIN_COLOR = { spine: SKELETON_COLORS.boneSpine, arm: SKELETON_COLORS.boneArm, leg: SKELETON_COLORS.boneLeg } as const
+const chainColor = (name: string): number => CHAIN_COLOR[boneChainOf(name)]
 
 /** 单位菱形骨：底在原点、尖在 (0,1,0)，腰在 y=BONE_WAIST、半径 1（实例按段长 / 宽缩放） */
 function boneGeometry(): THREE.BufferGeometry {
@@ -158,12 +154,12 @@ export function SkeletonVisual({ objectId, rig, root, boneIndex }: { objectId: s
     const segments: BoneSegment[] = []
     const joints: Array<{ bone: THREE.Bone; semantic: SemanticBone | null }> = []
     root.traverse((object) => {
-      if (!(object as THREE.Bone).isBone || SKIP_BONE.test(object.name)) return
+      if (!(object as THREE.Bone).isBone || !isVisualBone(object.name)) return
       const bone = object as THREE.Bone
       joints.push({ bone, semantic: semanticOf.get(bone) ?? null })
       const parent = bone.parent
       // 一段骨的 FK 语义 = 它的父关节（LeftArm 骨从肩到肘，three 里 LeftArm 节点在肩）
-      if (parent && (parent as THREE.Bone).isBone) segments.push({ parent: parent as THREE.Bone, child: bone, color: chainColor(bone.name), semantic: semanticOf.get(parent as THREE.Bone) ?? null })
+      if (parent && (parent as THREE.Bone).isBone && isVisualBone(parent.name)) segments.push({ parent: parent as THREE.Bone, child: bone, color: chainColor(bone.name), semantic: semanticOf.get(parent as THREE.Bone) ?? null })
     })
     return { segments, joints }
   }, [boneIndex, rig, root])

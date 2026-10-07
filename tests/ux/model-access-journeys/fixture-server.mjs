@@ -30,7 +30,7 @@ async function requestBody(request) {
 
 /**
  * Smallest spec-correct GLB (one untextured triangle, ~700B). Why not reuse
- * src/assets/x-bot.glb (1.8MB): 3D results are delivered as inline data: URLs
+ * a real character GLB (megabytes): 3D results are delivered as inline data: URLs
  * (same SSRF reasoning as image/video below), and a multi-MB base64 blob is the
  * exact shape that already blew the certification media path once (see the
  * video-asset comment) — the certification harness re-reads the data URL every
@@ -79,7 +79,8 @@ export async function startFixtureServer({ repoRoot, fault = {} } = {}) {
     // clip keeps the data URL well under that limit. (Product note filed
     // separately: large data: video URLs should degrade, not overflow.)
     video: path.join(repoRoot, 'tests/ux/fixtures/fixture-video.mp4'),
-    model3d: path.join(repoRoot, 'src/assets/x-bot.glb'),
+    // 走 /assets 直链的 3D 结果：仓库里现成的 CC0 小模型（Kenney 桌子，7KB）；x-bot.glb 已随 2026-10-07 导演台换 UAL 删除
+    model3d: path.join(repoRoot, 'src/assets/director/props/kenney-table.glb'),
   }
   // Generation results are delivered as inline `data:` URLs, not loopback
   // `${origin}/assets/*` links. Reason (probed 2026-09-01): the renderer can load
