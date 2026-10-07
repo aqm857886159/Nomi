@@ -1,0 +1,80 @@
+
+[full-walk] ▶▶ pb10-node-display-rules--en--en
+file://<repo>/tests/ux/_launchApp.mjs:414
+    throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
+          ^
+
+Error: 
+❌ Nomi 走查启动失败（core-smoke-fw-pb10-node-display-rules-empty）：Electron 起不来（electron.launch 失败/超时，60000ms）
+
+按可能性排查：
+  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，
+     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。
+  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。
+  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；
+     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。
+
+（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）
+
+原始错误：electron.launch: Process failed to launch!
+    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:414:11)
+    at async launchCoreSmoke (file://<repo>/tests/ux/core-smoke/fixture.mjs:330:16)
+    at async startPlaybook (file://<repo>/tests/ux/full-walk/launch.mjs:90:13)
+    at async file://<repo>/tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs:24:12
+
+Node.js v24.19.0
+
+[full-walk] ▶▶ pb06-failure-small-window--en--en
+file://<repo>/tests/ux/_launchApp.mjs:414
+    throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
+          ^
+
+Error: 
+❌ Nomi 走查启动失败（core-smoke-fw-pb06-failure-small-window-empty）：Electron 起不来（electron.launch 失败/超时，60000ms）
+
+按可能性排查：
+  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，
+     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。
+  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。
+  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；
+     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。
+
+（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）
+
+原始错误：electron.launch: Process failed to launch!
+    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:414:11)
+    at async launchCoreSmoke (file://<repo>/tests/ux/core-smoke/fixture.mjs:330:16)
+    at async startPlaybook (file://<repo>/tests/ux/full-walk/launch.mjs:90:13)
+    at async file://<repo>/tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs:24:12
+
+Node.js v24.19.0
+
+[full-walk] ▶▶ pb12-storyboard-click-expectations--en--en
+file://<repo>/tests/ux/_launchApp.mjs:414
+    throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
+          ^
+
+Error: 
+❌ Nomi 走查启动失败（core-smoke-fw-pb12-storyboard-click-expectations-empty）：Electron 起不来（electron.launch 失败/超时，60000ms）
+
+按可能性排查：
+  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，
+     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。
+  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。
+  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；
+     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。
+
+（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）
+
+原始错误：electron.launch: Process failed to launch!
+    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:414:11)
+    at async launchCoreSmoke (file://<repo>/tests/ux/core-smoke/fixture.mjs:330:16)
+    at async startPlaybook (file://<repo>/tests/ux/full-walk/launch.mjs:90:13)
+    at async file://<repo>/tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs:38:12
+
+Node.js v24.19.0
+
+[full-walk] 报告：tests/ux/full-walk/reports/20261007-0.23.0-520466c13.md
+
+full-walk：3 场 · 0 条违反 · 有剧本没走通
+exit=2
