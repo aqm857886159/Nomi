@@ -266,12 +266,13 @@ describe('⑤ 介入槽 · 八种内容体', () => {
     expect(markup).toContain('生成 3 镜')
     expect(markup).toContain('改一下')
     expect(markup).toContain('收起 ▴')
-    // 否定动作永远是那颗 ×（文字只当无障碍名），计划卡不再是唯一没有它的档
-    // ——2026-09-11 用户实测「8 镜计划卡无法取消」。
-    // 2026-09-22 换壳后它由外壳统一摆在**右上**，锚点随之改名；断言一条没少。
+    // 否定动作：计划卡不再是唯一没有它的档——2026-09-11 用户实测「8 镜计划卡无法取消」。
+    // 2026-10-07 用户拍板（设计系统 §1.9.1）：内联卡片不是窗口，右上角不再有 ×，
+    // 取消是决定栏里的**文字按钮**，锚点沿用 slot-dismiss，且在主动作左边。
     expect(markup).toContain('data-v4-control="slot-dismiss"')
-    expect(markup).toMatch(/data-v4-control="slot-dismiss"[^>]*class="[^"]*right-1\.5[^"]*top-1\.5/)
-    expect(markup).not.toContain('>不要<')
+    expect(markup).not.toMatch(/data-v4-control="slot-dismiss"[^>]*class="[^"]*right-1.5[^"]*top-1.5/)
+    expect(markup.indexOf('data-v4-control="slot-dismiss"')).toBeLessThan(markup.indexOf('data-v4-control="confirm"'))
+    expect(markup).toContain('>不要<')
   })
 
   it('收起态只换字、不丢底栏；展开态清单自己有滚动容器', () => {
@@ -340,10 +341,10 @@ describe('⑤ 介入槽 · 八种内容体', () => {
     expect(ask.match(/用什么画幅？/g)).toHaveLength(1)
     expect(ask).toContain('data-v4-block="ask-question"')
 
-    // ③ × 由外壳统一钉在右上——两张卡同一处，不再一个在右上一个在页脚。
-    for (const markup of [ask, spend]) {
-      expect(markup).toMatch(/data-v4-control="slot-dismiss"[^>]*class="[^"]*right-1\.5[^"]*top-1\.5/)
-    }
+    // ③ 反问卡的 × 仍由外壳钉在右上；确认类卡（spend）2026-10-07 起没有 ×，取消是决定栏里的文字按钮（§1.9.1）。
+    expect(ask).toMatch(/data-v4-control="slot-dismiss"[^>]*class="[^"]*right-1.5[^"]*top-1.5/)
+    expect(spend).toContain('data-v4-control="slot-dismiss"')
+    expect(spend).not.toMatch(/data-v4-control="slot-dismiss"[^>]*class="[^"]*right-1.5[^"]*top-1.5/)
 
     // ④ 没有确认/不要，也没有「不再问」（它根本没有那颗钮）。
     expect(ask).not.toContain('不要')

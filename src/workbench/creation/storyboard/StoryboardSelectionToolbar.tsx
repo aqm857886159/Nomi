@@ -54,7 +54,7 @@ export default function StoryboardSelectionToolbar({
   const { t } = useTranslation()
   return (
     <SelectionToolbarFrame
-      className="sticky bottom-2 z-10 mx-auto max-w-full flex-wrap justify-center overflow-x-visible rounded-3xl"
+      className="sticky bottom-2 z-10 mx-auto max-w-full flex-wrap justify-center gap-1.5 overflow-x-visible rounded-3xl"
       ariaLabel={t('storyboardEditor.selection.aria')}
       dataStoryboardSelectionToolbar
       onPointerDown={(event) => event.stopPropagation()}
@@ -62,6 +62,14 @@ export default function StoryboardSelectionToolbar({
       <span className="whitespace-nowrap pl-1.5 pr-1 text-body-sm text-nomi-ink-60">
         {t('storyboardEditor.selection.count', { count: selectedCount })}
       </span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={t('storyboardEditor.selection.clear')}
+        className="grid size-7 shrink-0 -ml-1 place-items-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
+      >
+        <IconX size={14} stroke={1.8} />
+      </button>
       <button
         type="button"
         onClick={onGenerate}
@@ -130,14 +138,6 @@ export default function StoryboardSelectionToolbar({
       >
         <IconTrash size={13} stroke={1.8} />
         {t('storyboardEditor.selection.delete')}
-      </button>
-      <button
-        type="button"
-        onClick={onClear}
-        aria-label={t('storyboardEditor.selection.clear')}
-        className="grid size-7 shrink-0 place-items-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
-      >
-        <IconX size={14} stroke={1.8} />
       </button>
     </SelectionToolbarFrame>
   )
