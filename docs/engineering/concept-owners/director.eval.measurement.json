@@ -1,0 +1,30 @@
+{
+  "name": "预演测量",
+  "subject": "director.eval.measurement",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+    "symbol": "sampleDirectorProject"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "symbol": "sampleDirectorProject"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "symbol": "measureContinuity"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "evals/director",
+    "src/workbench/generationCanvas/nodes/director/agent"
+  ],
+  "since": "2026-10-03",
+  "notes": "离线确定性预演测量唯一 owner；复用 trajectoryEval/programCamera/evaluatedSceneObject，零 three。"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Agent 轨迹派生视图（trace.jsonl / trace.md）的写口",
+  "subject": "agent-lane.trace-view",
+  "lifecycle": "projection",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneTrace.mts",
+    "symbol": "writeTraceFile"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "writeTraceFile"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "派生视图由原生会话推出；内容没变不重写，打开项目刷新一次只是读。"
+}

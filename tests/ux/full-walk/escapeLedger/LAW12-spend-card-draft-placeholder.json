@@ -1,0 +1,27 @@
+{
+  "id": "LAW12-spend-card-draft-placeholder",
+  "since": "2026-10-05",
+  "source": "2026-10-05 协调会话转述的真实测试",
+  "category": "interaction-semantics",
+  "problem": "付费卡等用户确认时，画布上那张草稿节点写着「在下方输入提示词，点击生成」，可提示词其实已经填好了：节点上的引导话让用户以为还要自己写提示词、自己点生成，和「卡上点一下就生成」的真实下一步对不上",
+  "existingInvariants": [
+    4,
+    9
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S1",
+    "S4"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "10-05 real test: draft node showed the empty-prompt hint while the card held a filled prompt"
+  ],
+  "completionCommits": []
+}

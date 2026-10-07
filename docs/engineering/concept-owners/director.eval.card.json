@@ -1,0 +1,27 @@
+{
+  "name": "导演卡",
+  "subject": "director.eval.card",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "schema",
+  "trust_domain": "test",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "evals/director/cardSchema.ts",
+    "symbol": "directorCardSchema"
+  },
+  "write_api": [
+    {
+      "path": "evals/director/cardSchema.ts",
+      "symbol": "directorCardSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "evals/director/run.ts",
+    "evals/director/scorer.ts",
+    "evals/director/adapters.ts"
+  ],
+  "since": "2026-10-03",
+  "notes": "评测标准答案卡 schema 唯一 owner；未约束字段不计分。"
+}

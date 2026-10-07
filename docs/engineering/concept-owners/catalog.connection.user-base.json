@@ -1,0 +1,27 @@
+{
+  "name": "用户连接 base",
+  "subject": "catalog.connection.user-base",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/userVendorBase.ts",
+    "symbol": "userVendorBaseUrl"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/userVendorBase.ts",
+      "symbol": "userVendorBaseUrl"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/ai/onboarding/vendorHealth.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/assetIngestionRegistry.ts"
+  ],
+  "since": "2026-10-03",
+  "notes": "用户连接的 base 地址与夹具回环覆盖由唯一回答者统一提供；上传与健康探测只消费该判据。"
+}

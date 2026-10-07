@@ -1,0 +1,26 @@
+{
+  "name": "新建文件时给 agent 看的「已有能力清单」（从两张登记表现算，不入库）",
+  "subject": "agent-rules.existing-capability-index",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-01",
+  "owner": {
+    "path": "scripts/build-capability-index.mjs",
+    "symbol": "buildCapabilityIndex"
+  },
+  "write_api": [
+    {
+      "path": "scripts/build-capability-index.mjs",
+      "symbol": "buildCapabilityIndex"
+    }
+  ],
+  "parity_test": "scripts/build-capability-index.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/edit-time-reminder.mjs"
+  ],
+  "notes": "清单只读 concept-owners.json 与 framework-boundaries.json，每次现算，不写文件、不入库，不许另起第三份「已有能力」登记；登记表漏登的能力这里就列不出来（pi 的 context-compaction 就是这样漏过 laneContextFit 的），所以补登记是前置。"
+}

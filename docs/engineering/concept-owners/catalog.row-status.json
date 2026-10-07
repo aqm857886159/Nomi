@@ -1,0 +1,33 @@
+{
+  "name": "目录里这一行现在怎么了（已退役 / 未配置 / 类型不符）",
+  "subject": "catalog.row-status",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/executableModel.ts",
+    "symbol": "findExecutableModel"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "resolveExecutableNodeFromCatalog"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/retiredRowParity.test.ts",
+  "allowed_consumers": [
+    "electron/runtime.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/video/deconstructVideo.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "PR #926（合同 docs/fixes/2026-09-29-retired-model-card-reachable.root-cause.json）：「这一行现在怎么了」原来两层各答一遍——执行侧 findExecutableModel 三分（整条不在 = 已退役 / 在但停用 = 未配置 / 在但类型不符），渲染层却在请求出门前一律答「供应商断开」。现在判定只在执行侧；渲染层的 resolveExecutableNodeFromCatalog 只管「行还在但用不了」的恢复路，行整条不在就不抢答。"
+}

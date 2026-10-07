@@ -1,0 +1,26 @@
+{
+  "name": "导演场景 dressing schema",
+  "subject": "director.scene.dressing-schema",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/director/aiSceneSchema.ts",
+    "symbol": "aiSceneSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/director/aiSceneSchema.ts",
+      "symbol": "aiSceneSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/shared/director/directorPlanSchema.ts",
+    "src/workbench/generationCanvas/nodes/director/model/aiScene.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "原渲染层定义移动到共享层，保持同一 Zod 形状；渲染层继续消费。"
+}

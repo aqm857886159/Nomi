@@ -1,0 +1,31 @@
+{
+  "name": "「生成剩下 N 张」跑到一半的停下（× 不排队、认这一叠出过的报价、停下后照实说批下了几张）",
+  "subject": "agent-panel.spend-batch-stop",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "symbol": "confirmRemainingShots"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "confirmRemainingShots"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "discardPendingSpend"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/agentPanelSpendRemaining.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionActionIpc.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+  ],
+  "since": "2026-10-02",
+  "notes": "真 App 实测（合同 docs/fixes/2026-10-02-generate-remaining-stop.root-cause.json）：「生成剩下 6 张」要走半分钟，这半分钟里卡上的 × 走渲染层的 act()，被 busy 闸吞掉，6 张全发；就算送到宿主，每批下一张报价就换一版，× 带着的那一版也会被「报价对不上」挡回去。现在批到哪一张停在哪一张只由宿主定：confirmRemainingShots 在两张之间看卡还在不在，停下时回 batchStopped（批下几张、没发几张）；discardPendingSpend 认这一次出价里被卡上的「决定」换掉过的每一版报价（noteReplacing：生成这张 / 去掉这张 / 生成剩下的每一张；改了内容的不认，C09；10-02 走查：「生成这张」紧接着点 ×，× 曾被「报价对不上」挡回去、卡还开着）；Agent 重新出价是新的一次出价，旧卡的 × 照旧挡回去。渲染层只做两件事：× 任何时候直接送过去（落候选那一段自己在下一张之前停），卡上照宿主那份投影画「正在发出 k/N」、停下后照 batchStopped 说那一句——不保存第二份「批到第几张」。"
+}

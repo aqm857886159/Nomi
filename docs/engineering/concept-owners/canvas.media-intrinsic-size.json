@@ -1,0 +1,49 @@
+{
+  "name": "画布媒体节点的固有尺寸（图片 / 视频宽高）",
+  "subject": "canvas.media-intrinsic-size",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+    "symbol": "computeMediaMetaPatch"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "symbol": "computeMediaMetaPatch"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "path": "src/workbench/project/projectMediaMigration.ts",
+      "symbol": "backfillCanvasMediaDimensions"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "src/workbench/generationCanvas/components/canvasResultDrag.ts",
+    "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+    "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/buildContactSheetNode.ts",
+    "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
+    "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+    "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+    "src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts",
+    "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+    "src/workbench/generationCanvas/runner/projectAssetHealthCheck.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/runner/textActions.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/project/projectPersistenceService.ts"
+  ],
+  "since": "2026-09-27",
+  "notes": "v0.22.3 热修 295a7018a（合同 docs/fixes/2026-09-27-canvas-media-aspect-from-landing.root-cause.json）：结果落地后节点外框按错误比例摆。每个媒体结果的落地边界都经 computeMediaMetaPatch 写规范的宽高，最早的共享落地点是 nodeRunOutcomePatch，老项目打开时由 backfillCanvasMediaDimensions 从素材记录补齐。不许各落地点自己量尺寸写 meta。"
+}

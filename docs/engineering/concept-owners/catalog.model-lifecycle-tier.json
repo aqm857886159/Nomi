@@ -1,0 +1,27 @@
+{
+  "name": "curated 模型的分档（旗舰 / 性价比 / 陪跑 / 退役）",
+  "subject": "catalog.model-lifecycle-tier",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/seedModelIdentity.ts",
+    "symbol": "curatedCatalogLifecycle"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "symbol": "curatedCatalogLifecycle"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/seedBuiltins.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/seedBuiltins.ts",
+    "src/devlab/designLab/catalogLiveness/states/01-listing.tsx"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #926（同上合同）：curated 行的分档只由这一个函数判；同一 canonical 组里渠道行与中转站行同档，合并成一条之后「取最强线路」不会让这个模型在下拉里悄悄换档。"
+}

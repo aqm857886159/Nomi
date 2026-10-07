@@ -1,0 +1,24 @@
+{
+  "id": "PLAN-S2-04",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "reference-integrity",
+  "problem": "参考图没有自动引用",
+  "existingInvariants": [
+    1,
+    3
+  ],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S3"
+  ],
+  "fullWalkJourneys": [
+    "J03-reference-generation"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

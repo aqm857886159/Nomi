@@ -1,0 +1,32 @@
+{
+  "name": "被删版本的文件何时真删",
+  "subject": "asset.deferred-file-deletion",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assets/pendingAssetDeletions.ts",
+    "symbol": "deferAssetFileDeletion"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "deferAssetFileDeletion"
+    },
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "isProjectFileReferenced"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/releaseWorkbenchProjectSession.ts",
+    "src/workbench/project/projectPersistenceService.ts"
+  ],
+  "since": "2026-10-06",
+  "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。"
+}

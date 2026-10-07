@@ -1,0 +1,23 @@
+{
+  "id": "AUD-20261005-17",
+  "since": "2026-10-05",
+  "source": "本次审计（docs/research/2026-10-05-storyboard-plan-user-audit.md）",
+  "category": "interaction-semantics",
+  "problem": "提示词 @ 菜单没有「参考卡」身份：锚出图后只以画布普通结果出现；同一东西有四个名字（跨镜头要一致的 / 参考卡 / 参考图 / 锚），载体开关叫「参考图」且外观像第五种类型",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S3"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/15-at-mention-menu.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/24-slot-picker-anchor-listed-only-as-canvas-result.png"
+  ],
+  "completionCommits": []
+}

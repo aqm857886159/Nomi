@@ -1,0 +1,23 @@
+{
+  "id": "AUD-20261005-08",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #8",
+  "category": "cross-shot-order",
+  "problem": "生成视频的逻辑：批次不分先后、无跨镜依赖（镜 N 尾帧→镜 N+1）、默认文生视频模式让锚进不去、取消批量后画布已建节点",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩",
+    "⑫"
+  ],
+  "useCases": [
+    "S5"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/11-after-cancel-nodes-left-behind.png"
+  ],
+  "completionCommits": []
+}

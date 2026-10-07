@@ -1,0 +1,29 @@
+{
+  "name": "导演手改覆盖层",
+  "subject": "director.plan.overrides",
+  "lifecycle": "execution",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+    "symbol": "overlayDirectorProject"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "overlayDirectorProject"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "fingerprintDirectorProject"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts"
+  ],
+  "since": "2026-10-05",
+  "notes": "3D-BOX 3c：手改 = 当前工程相对上一次编译指纹（directorPlan.compiledBase）按稳定 id 逐顶层属性的差，不另记账；补丁直接改到且新编译改了的属性丢弃并列出，其余重放。编译器不读它（planOverrides.guard.test.ts 走静态 import 图）。"
+}
