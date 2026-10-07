@@ -3,6 +3,7 @@
 // 无界面 Chromium 是软件渲染（SwiftShader）：帧间隔只当相对参考，真 GPU 帧率另记 unverified。
 // 用法：node tests/ux/director-ual-crowd.walk.mjs（先开着 `vite --port 5175` 走热路径）
 import { addTrack, clickOrFail, expectVisible, launchDirectorLab, placeCharacter, rowAddClipMenu } from './_directorLab.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const lab = await launchDirectorLab({ name: 'ual-crowd', viewport: { width: 1600, height: 900 } })
 const { page, check } = lab
@@ -54,11 +55,11 @@ try {
   await ranges.nth(count - 2).fill('10')
   await ranges.nth(count - 1).fill('1.2')
   await clickOrFail(page.getByTestId('director-crowd-confirm'), '确定生成')
-  await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 101", '10×10 群众生成', 60_000)
+  await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 101", '10×10 群众生成', stationTimeout({ operations: 8 }))
   await page.waitForFunction(() => {
     const bridge = window.__nomiDirectorE2E
     return bridge && bridge.findAll('characterMount').length >= 101
-  }, null, { timeout: 120_000 })
+  }, null, { timeout: stationTimeout({ operations: 16 }) })
   check('101 个人偶都挂上了', (await lab.bridge('findAll', 'characterMount')).length >= 101)
   // 视角拉远看全体：Esc 清选择后按 F（无选中 = 框全部）
   await page.mouse.move(800, 300)

@@ -7,6 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { clickOrFail, expectVisible, launchDirectorLab, repoRoot } from './_directorLab.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 
 const FIXTURE = path.join(repoRoot, 'src/workbench/generationCanvas/nodes/director/model/__fixtures__/legacy-xbot-project.v2.json')
 const KEY = 'nomi:director-lab:project'
@@ -28,8 +29,9 @@ try {
   await page.evaluate(([key, text]) => window.localStorage.setItem(key, text), [KEY, fixtureText])
   await page.reload({ waitUntil: 'commit' })
   await reopen()
-  await expectVisible(page.getByText('已换成新的默认人偶和动作库', { exact: false }).first(), '打开旧工程没有迁移提示')
-  const toastText = await page.getByText('已换成新的默认人偶和动作库', { exact: false }).first().innerText()
+  const migrationToast = page.getByText('已换成新的默认人偶和动作库', { exact: false }).first()
+  const toastProof = await proveProbe(migrationToast, '打开旧工程时的迁移提示')
+  const toastText = await migrationToast.innerText()
   check('迁移提示说清近似动作与丢弃的细节姿势数', toastText.includes('4 处') && toastText.includes('3 处'), toastText)
   await waitCharacters(['walker', 'sitter', 'kneeler'])
   await page.waitForTimeout(1500)
@@ -67,7 +69,8 @@ try {
   await reopen()
   await waitCharacters(['walker', 'sitter', 'kneeler'])
   await page.waitForTimeout(1500)
-  check('已迁移工程重开不再提示', (await page.getByText('已换成新的默认人偶和动作库', { exact: false }).count()) === 0)
+  await expectAbsent(migrationToast, { provenBy: toastProof, message: '已迁移工程重开不该再提示' })
+  check('已迁移工程重开不再提示', true)
   const sitterAgain = await headOf('sitter')
   const drift = Math.hypot(...sitterAgain.position.map((value, index) => value - sitterHead.position[index]))
   check('重开后坐着的人头位置与迁移当场一致（< 1cm）', drift < 0.01, `${(drift * 100).toFixed(2)}cm`)
