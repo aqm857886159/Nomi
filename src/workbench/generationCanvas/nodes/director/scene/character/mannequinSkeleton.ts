@@ -30,7 +30,7 @@ export function rememberMannequinRestPose(root: THREE.Object3D): void {
   })
 }
 
-// 把每根骨复位到 bind rest（重复调用幂等）。x-bot.glb 的 rest 与 Mixamo FBX 的 bind 逐骨一致（2026-09-04 实测含手指 0.0°），
+// 把每根骨复位到 bind rest（重复调用幂等）。人偶 glb 的 rest 就是绑定姿态（UAL 是 T 字；旧 x-bot 与 Mixamo FBX 的 bind 逐骨一致，2026-09-04 实测），
 // 这就是 「T-Pose (绑定姿态)」；V1 那层「自然站姿基线」（手臂下压 67.5°、头颈抬 18°）已删——它让复位态偏离 bind，
 // 动作库套骨时手 / 手臂整体拧掉 83°，用户「动作库的手看起来很奇怪」。
 export function applyMannequinSkeletonPose(root: THREE.Object3D): void {
