@@ -134,7 +134,7 @@ describe('S1 director compiler', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const woman = result.project.scenes[0].objects.find((object) => object.id === result.actorMap.woman)!
-    expect([...new Set(woman.actionClips?.map((clip) => clip.actionPose))]).toEqual(['standard_walk', 'standing_idle'])
+    expect([...new Set(woman.actionClips?.map((clip) => clip.actionPose))]).toEqual(['Walk_Loop', 'Idle_Loop'])
     expect(woman.actionClips?.some((clip) => clip.actionPose === 'hide_object_behind_back')).toBe(false)
     expect(result.issues.some((issue) => issue.kind === 'missing_asset')).toBe(true)
   })
@@ -192,6 +192,10 @@ describe('S1 director compiler', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const scene = result.project.scenes[0]
+    // 旧 Mixamo 动作 id（规划器 / 旧回归里还写着 standing_idle）经别名表解析成 UAL 动作，不报缺资产
+    const guard = scene.objects.find((object) => object.id === result.actorMap.guard)!
+    expect(guard.actionClips?.some((clip) => clip.actionPose === 'Idle_Loop' && clip.startTime === 0)).toBe(true)
+    expect(guard.actionClips?.some((clip) => clip.actionPose === 'standing_idle')).toBe(false)
     const frames = sampleDirectorProject(result.project, { duration: result.duration }).frames
     const before = frames.find((frame) => frame.time === 6)!.objects[result.actorMap.guard].position
     const after = frames.find((frame) => frame.time > 6)!.objects[result.actorMap.guard].position

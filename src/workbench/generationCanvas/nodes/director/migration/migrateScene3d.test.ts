@@ -127,7 +127,7 @@ describe('migrateScene3DState', () => {
     const hero = byId('hero')!
     const clips = hero.actionClips!
     const walk = clips.find((clip) => clip.clipType === 'action')!
-    expect(walk.actionPose).toBe('standard_walk')
+    expect(walk.actionPose).toBe('Walk_Loop')
     expect(walk.startTime).toBe(1)
     expect(walk.endTime).toBe(5)
     const pose = clips.find((clip) => clip.clipType === 'custom_pose')!

@@ -14,7 +14,7 @@
 import * as THREE from 'three'
 import { syncFocalLength } from '../model/cameraLens'
 import { createClipId, createKeyframeId, createObjectId, createWaypointId } from '../model/directorIds'
-import { legacyPoseToAction } from '../model/actionLibrary'
+import { legacyPoseToAction, resolveActionAlias } from '../model/actionLibrary'
 import { createDefaultProject } from '../model/directorProject'
 import type {
   ActionClip, BoneKeyframe, DirectorCamera, DirectorExportRatio, DirectorLight, DirectorObject, DirectorPrimitiveType, DirectorProject, DirectorScene,
@@ -373,7 +373,7 @@ export function migrateScene3DState(raw: unknown, options: MigrateScene3DOptions
     if (legacy.locomotionClip === 'walk' || legacy.locomotionClip === 'run') {
       const start = quantizeToFrame(binding?.startTime ?? 0)
       const end = quantizeToFrame(Math.max(start + 1, binding?.endTime ?? contentEnd))
-      clips.push({ id: createClipId('action'), name: legacy.locomotionClip, clipType: 'action', actionPose: legacy.locomotionClip === 'run' ? 'running' : 'standard_walk', startTime: start, endTime: end, startFrame: Math.round(start * DIRECTOR_FPS), endFrame: Math.round(end * DIRECTOR_FPS) })
+      clips.push({ id: createClipId('action'), name: legacy.locomotionClip, clipType: 'action', actionPose: resolveActionAlias(legacy.locomotionClip === 'run' ? 'run' : 'walk')!.id, startTime: start, endTime: end, startFrame: Math.round(start * DIRECTOR_FPS), endFrame: Math.round(end * DIRECTOR_FPS) })
     }
     if (legacy.poseTrack && legacy.poseTrack.length > 0) {
       const sorted = [...legacy.poseTrack].sort((a, b) => a.time - b.time)

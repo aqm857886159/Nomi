@@ -106,8 +106,8 @@ describe('directorStore', () => {
     const api = store.getState()
     const a = api.addObject(character('A'))
     const cube = api.addObject({ ...character('C'), type: 'cube' })
-    expect(api.addActionClip(cube, { name: 'walk', clipType: 'action', actionPose: 'standard_walk' })).toBeNull()
-    const walk = api.addActionClip(a, { name: 'walk', clipType: 'action', actionPose: 'standard_walk' })!
+    expect(api.addActionClip(cube, { name: 'walk', clipType: 'action', actionPose: 'Walk_Loop' })).toBeNull()
+    const walk = api.addActionClip(a, { name: 'walk', clipType: 'action', actionPose: 'Walk_Loop' })!
     const pose = api.addActionClip(a, { name: 'pose', clipType: 'custom_pose' })!
     expect(pose.startTime).toBe(walk.endTime)
     expect(api.insertBoneKeyframe(a, 1)).toBeNull()

@@ -1,10 +1,9 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design（DesignModal / WorkbenchButton）、../../../../../../vendor/tablerIcons、../../../../../../utils/cn、
- *          ../../model/actionLibrary（ACTION_LIBRARY / ActionLibraryEntry / resolveActionAlias）、../../scene/character/poseClipLibrary 的 poseClipInfo、./ActionPreview
- * [OUTPUT]: 对外提供 ActionSelectModal：左 搜索「搜索动作名称...」+ 动作列表（图标 / 名字 / 「连续动作 (循环)」或「单帧姿态」/ 当前勾选，双击直接添加；无结果「未找到相关动作」）
+ *          ../../model/actionLibrary（ACTION_LIBRARY / ActionLibraryEntry / ActionKind / resolveActionAlias）、./ActionPreview
+ * [OUTPUT]: 对外提供 ActionSelectModal：左 搜索「搜索动作名称...」+ 动作列表（图标 / 名字 / 「循环动作」「单次动作」「单帧姿态」/ 当前勾选，双击直接添加；无结果「未找到相关动作」）
  *           右 「动作实时预览」+ 动画 / 静态 徽标 + 重置视角 + 3D 预览 + 「当前动作 X」；底部 提示 + 「添加「X」片段」
- * [POS]: director/panels/dialogs 的动作库弹窗：初选 = walking 别名（行走）；循环 / 静态按 FBX 时长判定（参考产品按 walking/jogging/sprint_start/crawling 四个别名判，
- *        与它自己的库 id 不相交、全部显示成「单帧姿态」，属实现瑕疵，这里按意图实现）。
+ * [POS]: director/panels/dialogs 的动作库弹窗：初选 = walking 别名（走路）；循环 / 单次 / 单帧按动作库条目的 kind（UAL 元数据推出，不等加载完）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -12,11 +11,12 @@ import { useTranslation } from 'react-i18next'
 import { DesignModal, WorkbenchButton } from '../../../../../../design'
 import { IconLoader2, IconMoodConfuzed, IconRefresh, IconRun, IconSearch, IconUser, IconX } from '../../../../../../vendor/tablerIcons'
 import { cn } from '../../../../../../utils/cn'
-import { ACTION_LIBRARY, resolveActionAlias, type ActionLibraryEntry } from '../../model/actionLibrary'
-import { poseClipInfo } from '../../scene/character/poseClipLibrary'
+import { ACTION_LIBRARY, resolveActionAlias, type ActionKind, type ActionLibraryEntry } from '../../model/actionLibrary'
 import { ActionPreview } from './ActionPreview'
 
 const INITIAL_ACTION = resolveActionAlias('walking')?.id ?? ACTION_LIBRARY[1]?.id ?? ACTION_LIBRARY[0].id
+const KIND_LABEL_KEY: Record<ActionKind, string> = { loop: 'director.action.kindLoop', once: 'director.action.kindOnce', pose: 'director.action.kindStatic' }
+const KIND_BADGE_KEY: Record<ActionKind, string> = { loop: 'director.action.previewAnimated', once: 'director.action.previewOnce', pose: 'director.action.previewStatic' }
 
 export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (entry: ActionLibraryEntry) => void }): JSX.Element {
   const { t } = useTranslation()
@@ -32,10 +32,6 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
     return ACTION_LIBRARY.filter((entry) => entry.id.toLowerCase().includes(needle) || String(t(`director.action.library.${entry.id}`)).toLowerCase().includes(needle))
   }, [query, t])
   const selected = ACTION_LIBRARY.find((entry) => entry.id === selectedId) ?? null
-  const isLoop = (id: string) => {
-    const info = poseClipInfo(id)
-    return info ? !info.isStatic : false
-  }
   const pick = (entry: ActionLibraryEntry) => {
     onPick(entry)
     onClose()
@@ -63,7 +59,7 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
           <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto p-0.5" role="listbox" aria-label={t('director.action.modalTitle')}>
             {entries.map((entry) => {
               const active = selectedId === entry.id
-              const loop = isLoop(entry.id)
+              const loop = entry.kind === 'loop'
               const label = t(`director.action.library.${entry.id}`)
               return (
                 <button
@@ -85,7 +81,7 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
                     </span>
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-body-sm font-medium">{label}</span>
-                      <span className="text-micro text-nomi-ink-40">{loop ? t('director.action.kindLoop') : t('director.action.kindStatic')}</span>
+                      <span className="text-micro text-nomi-ink-40">{t(KIND_LABEL_KEY[entry.kind])}</span>
                     </span>
                   </span>
                   {active ? <span className="size-2 shrink-0 rounded-full bg-nomi-ink" aria-hidden /> : null}
@@ -106,7 +102,7 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
             <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink-80">
               {t('director.action.previewTitle')}
               {selected ? (
-                <span className="rounded-nomi-sm bg-nomi-ink-05 px-1.5 py-0.5 font-nomi-mono text-micro text-nomi-ink-60">{isLoop(selected.id) ? t('director.action.previewAnimated') : t('director.action.previewStatic')}</span>
+                <span className="rounded-nomi-sm bg-nomi-ink-05 px-1.5 py-0.5 font-nomi-mono text-micro text-nomi-ink-60">{t(KIND_BADGE_KEY[selected.kind])}</span>
               ) : null}
             </span>
             <button type="button" className="flex items-center gap-1 text-micro text-nomi-ink-40 hover:text-nomi-ink" title={t('director.action.previewResetHint')} onClick={() => setResetSignal((value) => value + 1)}>

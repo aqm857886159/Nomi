@@ -17,7 +17,7 @@ import type {
   Waypoint,
 } from '../../src/workbench/generationCanvas/nodes/director/model/directorTypes'
 import { lookAtAngles } from '../../src/workbench/generationCanvas/nodes/director/model/vec3'
-import { findActionEntry } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
+import { findActionEntry, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
 import type { DirectorCard } from './cardSchema'
 import type { SpatialAuditContext } from '../../src/workbench/generationCanvas/nodes/director/model/directorSpatialAudit'
 import { adaptS1Plan, adaptS1Prompt } from './s1Adapter'
@@ -125,7 +125,7 @@ function makeObject(id: string, category: string, position: Vec3): DirectorObjec
     scale,
     visible: true,
     locked: false,
-    ...(category === 'person' ? { rig: 'mixamo' as const, posePreset: 'standing_idle' } : {}),
+    ...(category === 'person' ? { rig: 'ual' as const, posePreset: resolveActionAlias('idle')!.id } : {}),
   }
 }
 function makeSceneObject(id: string): DirectorObject {
@@ -286,18 +286,19 @@ function applyBlocking(
         `${actor.id}-stop`,
       )
     }
-    const actionId =
+    const actionWord =
       action.verb === 'walk_to'
-        ? 'standard_walk'
+        ? 'walk'
         : action.verb === 'run_to'
-          ? 'running'
+          ? 'run'
           : action.verb === 'stop'
-            ? 'standing_idle'
+            ? 'idle'
             : action.verb === 'sidestep_block'
-              ? 'standard_walk'
+              ? 'walk'
               : action.verb === 'hold_pose'
                 ? action.action
                 : undefined
+    const actionId = actionWord ? (resolveActionAlias(actionWord)?.id ?? actionWord) : undefined
     addActionClip(actionId)
   }
 }
