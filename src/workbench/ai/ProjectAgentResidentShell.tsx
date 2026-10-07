@@ -34,6 +34,7 @@ import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
+import { LaneCommandFailure, laneFailureText } from './lane/laneCommandFailure'
 import { useAgentPanelSpendConfirm } from './v4/useAgentPanelSpendConfirm'
 import { assertAnnouncedCardRendered } from './v4/missingInterventionCard'
 import { useAgentPanelAutoMode } from './v4/useAgentPanelAutoMode'
@@ -103,6 +104,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   const data = useAgentPanelV4Data(surface)
   const actions = useAgentPanelV4Actions(surface, data)
+  const connectionFailure = data.connectionFailure
+  const connectionError = connectionFailure && !connectionFailure.ok
+    ? laneFailureText(new LaneCommandFailure(connectionFailure.code, connectionFailure.diagnostic), t)
+    : null
+  const panelError = connectionError || actions.error
   const recoveredDrafts = useWorkbenchStore(state => state.projectAgentRecoveredDrafts)
   const admitting = useWorkbenchStore(state => Boolean(state.projectAgentAdmissionId))
   const conversation = laneConversationOf(data.snapshot)
@@ -559,15 +565,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       <TimelineAgentReceiptEffect />
       {timelinePlanPreviewPortal}
       {attachmentInput}
-      {actions.error ? (
+      {panelError ? (
         <div className="shrink-0 px-3 pt-1 text-micro text-workbench-danger" role="alert" data-agent-error="true">
-          {actions.error}
+          <span>{panelError}</span>
+          {connectionFailure && !connectionFailure.ok ? <button type="button" className="ml-2 underline" onClick={() => { void actions.reconnect() }}>{t('agentPanelV4.reconnect')}</button> : null}
         </div>
       ) : null}
       <AgentPanelV4Panel
         scrollMemory={flowScroll}
         width={size.width}
-        height={actions.error ? size.height - 20 : size.height}
+        height={panelError ? size.height - 20 : size.height}
         legacy={data.snapshot.active.legacy}
         flow={data.flow}
         historyIdentity={historyIdentity}

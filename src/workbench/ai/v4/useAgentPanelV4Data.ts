@@ -77,6 +77,7 @@ export function shareFlowItems(previous: readonly V4FlowItem[], next: readonly V
 
 
 export type AgentPanelV4Data = Readonly<{
+  connectionFailure: ReturnType<typeof laneClient.connectionFailure>
   snapshot: LaneWorkspaceProjection
   activeThreadId: string | null
   flow: readonly V4FlowItem[]
@@ -129,6 +130,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const toolDisplayCache = React.useMemo(() => createToolDisplayCache(t), [t])
   const previousFlowRef = React.useRef<readonly V4FlowItem[]>([])
   const snapshot = React.useSyncExternalStore(laneClient.subscribe, laneClient.workspace, laneClient.workspace)
+  const connectionFailure = React.useSyncExternalStore(laneClient.subscribeConnection, laneClient.connectionFailure, laneClient.connectionFailure)
   const committedProposal = React.useSyncExternalStore(subscribeCommittedProposal, getCommittedProposal, getCommittedProposal)
   const undoableToolCallId = undoableLaneToolCallId(snapshot.active.parts, committedProposal)
   const activeThreadId = snapshot.lanes.find((lane) => lane.laneName === snapshot.active.lane)?.sessionId ?? null
@@ -326,6 +328,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   }, [activeSkill, selectedLibraryPrompt, skills, skillLabel, attachments, t, timelineSelection])
 
   return {
+    connectionFailure,
     snapshot,
     activeThreadId,
     flow,

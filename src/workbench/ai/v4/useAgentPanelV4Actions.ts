@@ -75,6 +75,7 @@ function captureSendContext(surface: ResidentSurface): ResidentSendContext {
 }
 
 export type AgentPanelV4Actions = Readonly<{
+  reconnect: () => Promise<boolean>
   error: string
   clearError: () => void
   /** True means the lane accepted the input, not that the model or generation succeeded. */
@@ -275,6 +276,12 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
     return t('agentPanelV4.newConversation', { number })
   }
   return {
+    reconnect: async () => {
+      const ok = await laneClient.retryOpen()
+      if (!ok) setError(t('agentPanelV4.reconnect'))
+      else setError('')
+      return ok
+    },
     error, clearError: () => setError(''), send,
     stop: () => {
       if (!visibleAddress) return

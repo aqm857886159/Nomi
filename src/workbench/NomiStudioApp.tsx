@@ -70,6 +70,7 @@ import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAss
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
 import { FeedbackShareHost } from '../ui/community/FeedbackShareHost'
+import { openProjectAgentLane } from './project/projectAgentLaneOpen'
 type AppView = 'library' | 'studio'
 // 项目创建规格：所有创建入口拼装项目的单一真相源（P1）。
 // 各入口各自决定 workspaceMode / seedKey / 创建+刷新+hydrate 的编排时约定不统一——
@@ -331,12 +332,14 @@ export default function NomiStudioApp(): JSX.Element {
         const committedBinding = await surfaceEpoch.commitCanvasRead(hydrated.id)
         surfaceEpoch.assertCurrent()
         if (committedBinding) {
-          const opened = await laneClient.open(committedBinding.binding)
-          surfaceEpoch.assertCurrent()
-          if (!opened.ok) throw new LaneCommandFailure(opened.code, opened.diagnostic)
-          if (!opened.workspaceId) throw new Error('agent_lane_closed')
-          hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))
-          await recoverPendingProposalReceipt()
+          await openProjectAgentLane(committedBinding.binding, {
+            open: (binding) => measureProjectOpenStage('agent-lane-open', () => laneClient.open(binding)),
+            recoverReceipts: (workspaceId) => measureProjectOpenStage('receipt-recovery', async () => {
+              hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))
+              await recoverPendingProposalReceipt()
+            }),
+            reportFailure: (failure) => logRendererError('agent-lane-open-failed', failure),
+          })
           surfaceEpoch.assertCurrent()
           // The lane projection is the sole conversation display source.
         }
