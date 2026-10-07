@@ -70,10 +70,12 @@ import { ProjectHydrationSupersededError, createProjectCanvasReadSurfaceCoordina
 import { openCreatedProject, shareInFlight, type ProjectCreationOutcome } from './project/projectCreationFlight'
 import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationRecovery'
 import { markProjectOpenMoment, markProjectOpenStart, measureProjectOpenStage } from './project/projectOpenTimeline'
+import { loadProjectPersistenceModule } from './project/projectPersistenceLoader'
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
 import { FeedbackShareHost } from '../ui/community/FeedbackShareHost'
+import { isChunkLoadNetworkError, scheduleChunkReload } from '../ui/chunkBoundary'
 type AppView = 'library' | 'studio'
 // 项目创建规格：所有创建入口拼装项目的单一真相源（P1）。
 // 各入口各自决定 workspaceMode / seedKey / 创建+刷新+hydrate 的编排时约定不统一——
@@ -204,7 +206,7 @@ export default function NomiStudioApp(): JSX.Element {
   const ensureProjectPersistenceService = React.useCallback(async () => {
     let module = projectPersistenceModuleRef.current
     if (!module) {
-      module = await import('./project/projectPersistenceService')
+      module = await loadProjectPersistenceModule()
       projectPersistenceModuleRef.current = module
     }
     let service = projectPersistenceServiceRef.current
@@ -364,6 +366,14 @@ export default function NomiStudioApp(): JSX.Element {
         module.consumeCategoryMigrationDiagnostic(surfaceEpoch)
       } catch (error) {
         if (error instanceof ProjectHydrationSupersededError) throw error
+        // A stale or partially written renderer chunk used to leave the user on the library with
+        // no route to retry. Keep the target project in the URL and give the shared chunk boundary
+        // one bounded reload; the next document retries hydration, while the session cooldown
+        // prevents a persistent missing asset from becoming an infinite reload loop.
+        if (isChunkLoadNetworkError(error)) {
+          navigate(buildStudioUrl(projectId), { replace: true })
+          scheduleChunkReload('project-open')
+        }
         logRendererError('project-restore-failed', error)
         // 主进程的原始串不进这条横幅：它可能是一句内部断言（2026-09-11 面板顶部那行红色英文
         // 就是这么来的）。lane 失败按码取文案，其余一律走这句本地化兜底。
