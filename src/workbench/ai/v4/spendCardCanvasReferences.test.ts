@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { PendingSpendShot } from '../../../desktop/productionRunBridgeTypes'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { applyPatchToNode, candidatePatchFromNode, draftAfterNodeEdit, effectivePatchForShot, EMPTY_SPEND_DRAFT, keptReferenceUrls, projectSpendNode, type SpendDraft } from './spendCardDraft'
-import { canvasReferenceInputs, referenceInputsFromNode } from './spendCardReferences'
+import { referenceInputsFromNode } from './spendCardReferences'
+import { edgeReferenceInputs } from '../../generationCanvas/model/referenceInputSlots'
 import { decideArrayReferenceRemoval, resolveReferenceSlots } from '../../generationCanvas/runner/referenceSlots'
 import { referenceSlotStorage } from '../../generationCanvas/nodes/controls/archetypeMeta'
 
@@ -42,7 +43,7 @@ function shown(target: PendingSpendShot, graph: ReturnType<typeof canvas>, draft
 describe('付费卡 · 画布连线带来的参考图', () => {
   it('卡上摆出画布连到这一镜的参考图，确认时它在发出去的那一份里（第 7 行）', () => {
     const graph = canvas()
-    expect(canvasReferenceInputs(graph.placed, graph.nodes, graph.edges).map((input) => input.url)).toEqual([REF_URL])
+    expect(edgeReferenceInputs(graph.placed, graph.nodes, graph.edges).map((input) => input.url)).toEqual([REF_URL])
     const card = projectSpendNode(shot, graph.placed, undefined, graph)!
     expect(urlsOn(card, shot), '卡上看得见这张参考图').toContain(REF_URL)
     const sent = candidatePatchFromNode(card, shot)
@@ -132,6 +133,6 @@ describe('付费卡 · 画布连线带来的参考图', () => {
   it('连了线但源还没出图：此刻发不出去，卡上也不说会发', () => {
     const { placed, nodes, edges } = canvas()
     const pendingSource = nodes.map((node) => node.id === 'img-1' ? { ...node, result: undefined, status: 'idle' } as unknown as GenerationCanvasNode : node)
-    expect(canvasReferenceInputs(placed, pendingSource, edges)).toEqual([])
+    expect(edgeReferenceInputs(placed, pendingSource, edges)).toEqual([])
   })
 })

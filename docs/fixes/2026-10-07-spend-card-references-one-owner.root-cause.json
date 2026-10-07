@@ -1,0 +1,273 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-spend-card-references-one-owner",
+  "problem_type": "The reference list of one paid generation had several partial copies (host candidate, paid card, canvas placeholder node, @ candidates) synchronised ad hoc, so what the card showed, what was sent and what the canvas node held could disagree.",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-07",
+  "symptom": "On the Agent paid card: (1) a reference the user put into the canvas placeholder's own first-frame slot (picked asset, no edge) was neither on the card nor sent - the paid image came out without it; (2) typing @ on the card listed none of this project's canvas images and said there was nothing to reference; (3) @-ing an image from another project and pressing generate was refused with 'adjust it and press again', with no hint what to change; (4) after generating with a reference from the card, the canvas node's reference slot was empty and only the @ chip in the prompt remained.",
+  "direct_cause": "(1) spendCardReferences.placeSpendReferences read only edge-origin fills of the placeholder (canvasReferenceInputs filtered origin=edge), never the placeholder's own slot values. (2) mentionCandidates.buildMentionCandidates de-duplicated library assets against canvas results, then useNodeMentionSource filtered the whole canvas group out on hosts without connectNodes (the paid card), so the same image vanished from both groups. (3) The @ library group lists every project's assets and attached the other project's nomi-local URL directly, bypassing the asset-library copy gate (materializeAssetLibraryItems); the host's resolveSpendReferenceInputs correctly rejects assets outside this project's index (generation_reference_asset_unsupported) and spendActionFailureCopy ignored the reason code. (4) multiShotCanvasLanding.candidateWire carried only scalar parameters; candidate.references never reached the renderer, so rebinding the placeholder wrote the prompt chips but no slot values.",
+  "class_root": "No single owner for 'which references this generation carries': the canvas placeholder, the card frame and the host candidate each derived their own partial view, the @ source differed by host, and the candidate-to-canvas projection omitted references. Every reference must be read from the canvas through one resolver, placed into and read back from a node through one role-to-slot table, admitted into the project through the one asset-library gate, and projected back to the canvas node from the candidate.",
+  "affected_population": [
+    "Agent paid-card generations whose placeholder node carries a reference in its own slot (picked asset into the first-frame / reference slot on the canvas)",
+    "Anyone typing @ on the paid card while the project canvas has generated images",
+    "Anyone @-ing an image from another project (paid card refused it; canvas node stored a cross-project address that breaks when the project is moved)",
+    "Every paid-card generation that carried references (canvas node slot stayed empty after landing)"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+    "src/workbench/ai/v4/spendCardReferences.ts",
+    "src/workbench/ai/v4/spendCardDraft.ts",
+    "src/workbench/ai/v4/spendCardFailure.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/assets/AssetMentionSuggestion.ts",
+    "src/workbench/assets/PromptEditor.tsx",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/canvasLandingHost.ts",
+    "electron/capabilityCore/appIntegration.ts"
+  ],
+  "entry_points": [
+    "Canvas edge into the placeholder (reference / first-frame slot) -> paid card -> host -> landing",
+    "Canvas placeholder's own slot value (asset picked into the first-frame slot, no edge) -> paid card -> host -> landing",
+    "@ on the paid card of an image already on this project's canvas",
+    "@ on the paid card (or a canvas node) of an asset from another project",
+    "Host revise rejecting a reference outside this project's asset index -> card failure copy"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's own data ownership between its paid card, its canvas document and its production Run; no third-party API or library decides it.",
+  "invariants": [
+    "The paid card's default references are the host candidate's references united with everything the placeholder node would send itself (edges and its own current-mode slot values), read through edgeReferenceInputs / nodeOwnReferenceInputs.",
+    "A reference is placed into a node and read back from it only through referenceInputSlots (placeReferenceInputs / referenceRoleOfSlot).",
+    "@ candidates are the same three groups on every host; the host only changes how a selection lands (connect on canvas, upload slot on the card, copy-then-attach for another project's asset).",
+    "A reference from another project enters a node only after materializeAssetLibraryItems copied it into the current project.",
+    "Every landing that creates or rebinds a shot projects the candidate's references onto the node (edge for canvas results, slot value otherwise), add-only.",
+    "A host refusal for a reference outside the project names the reference and offers removal or re-pick with @."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+    "tests": [
+      "src/workbench/generationCanvas/model/referenceInputSlots.test.ts",
+      "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "placeReferenceInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/spendCardReferences.ts",
+      "symbol": "placeReferenceInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "symbol": "placeReferenceInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/spendCardDraft.ts",
+      "symbol": "placeSpendReferences"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "planReferenceProjection"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "symbol": "planMentionInsert"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "resolveSpendReferenceInputs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "buildMaterializeShotsPayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "buildMaterializeShotsPayload"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "resolveIndexedReferencePreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/spendCardFailure.ts",
+      "symbol": "REFERENCE_NOT_IN_PROJECT"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "edgeModeForReferenceRole"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+      "symbol": "MentionHost"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/AssetMentionSuggestion.ts",
+      "symbol": "MentionSelection"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/PromptEditor.tsx",
+      "symbol": "MentionSelection"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "useNodeMentionSource"
+    }
+  ],
+  "door_reduction": {
+    "before": 18,
+    "after": 16,
+    "why_not": "placeReferenceInputs keeps three call sites because they are three moments of one table: the card applying its draft (spendCardDraft), the card placing host plus canvas references (spendCardReferences), and the landing projection (referenceInputSlots.planReferenceProjection). placeSpendReferences is the only canvas-to-card reader. planReferenceProjection is the only candidate-to-canvas writer. planMentionInsert is the only @ landing decision. resolveSpendReferenceInputs is the only host admission of card references. Before: applySpendReferences (2 files) + canvasReferenceInputs + placeSpendReferences + planMentionInsert + a separate canvas-group filter in useNodeMentionSource + resolveSpendReferenceInputs + candidateWire (references dropped) + rebindLandedShots (no references). The remaining doors are the wiring of those owners, not parallel copies: canvasLandingHost / multiShotCanvasLanding build the one landing payload, appIntegration binds the production asset index into it, spendCardFailure reads the host reason, referenceEdgeCapability owns the role-to-edge-mode mapping both the card and the landing use, mentionCandidates declares the host capability planMentionInsert takes, AssetMentionSuggestion / PromptEditor carry the (possibly async) @ selection result, and NodeGenerationComposer is the one host that mounts the @ source with project asset origins."
+  },
+  "generality_proof": "Each entry converges on a declared boundary rather than on a per-entry fix: every canvas read for the card goes through placeSpendReferences (edges and own slot values via referenceInputSlots), every node placement and readback through placeReferenceInputs / referenceRoleOfSlot, every @ selection through planMentionInsert with the host capability as input, every cross-project asset through materializeAssetLibraryItems, and every landing of a created or rebound shot through planReferenceProjection fed by the candidate's own references. A new host, slot kind or entry inherits the rule because none of them owns a private copy of the list.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "symbol": "placeReferenceInputs",
+      "responsibility": "The one role-to-slot table: place references into a node's current-mode slots and read them back (nodeOwnReferenceInputs / edgeReferenceInputs)."
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardReferences.ts",
+      "symbol": "placeSpendReferences",
+      "responsibility": "The card's only canvas reader: host references plus the placeholder's edges and own slot values, mode aligned by the canvas rule, card removals honoured."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+      "symbol": "planMentionInsert",
+      "responsibility": "Decides how an @ selection lands per host (connect / attach / copy-then-attach); candidates are identical on every host."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "symbol": "planReferenceProjection",
+      "responsibility": "Projects the candidate's references onto the canvas node, add-only: edge for canvas results, slot value otherwise, mode aligned."
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "buildMaterializeShotsPayload",
+      "responsibility": "Carries the candidate's pinned references (resolved to project asset URLs) to the renderer on every landing."
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardFailure.ts",
+      "symbol": "spendActionFailureCopy",
+      "responsibility": "Names a reference outside the project and gives the real next step."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/spendCardReferences.ts",
+      "entry_point": "placeSpendReferences",
+      "disposition": "enforced",
+      "evidence": "Matrix entries 'canvas edge', 'edge into first-frame slot' and 'placeholder first-frame slot value' all show on the card, are pinned by the host and are on the canvas node after landing (spendCardReferenceOwner.matrix.test.ts); removing the own-slot read turns the third entry red."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "entry_point": "createMentionSearch / createMentionSelect",
+      "disposition": "enforced",
+      "evidence": "Matrix entry '@ this project's canvas image' lists canvas:<id> on the card and lands it in the card's slot; re-adding the canvas-group filter or planning 'connect' without canConnect turns it red."
+    },
+    {
+      "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+      "entry_point": "materializeAssetLibraryItems",
+      "disposition": "enforced",
+      "evidence": "Matrix entry '@ another project's image' copies via the gate and attaches the copy's URL; without the import plan the chip points at the original and the host refuses it."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "materializeShots",
+      "disposition": "enforced",
+      "evidence": "Every matrix entry checks resolveReferenceSlots on the landed placeholder; removing projectLandedReferences or the wire references turns the @ entries red; agentPanelSpendReferences.e2e.test.ts checks the wire carries them after a real confirm."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/useShotMentionSource.ts",
+      "entry_point": "useShotMentionSource",
+      "disposition": "not-affected",
+      "evidence": "Storyboard rows reference visual cards and this project's uploads/results only (resultAssets / uploadedAssets / boundVisualCards); it never lists other projects' assets and is not a paid-card host."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "entry_point": "resolveGenerationReferences",
+      "disposition": "not-affected",
+      "evidence": "The canvas's own generation reads edges, slot values and parameter slots of the node it sends; it already matched what the canvas node shows. The card now reads the same two sources for archetype models."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any user who edits references on the canvas placeholder, uses @ on the paid card, picks another project's asset, or generates from the card hits one of the four paths; the same split would recur with every new host or slot kind that kept a private list.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs placeReferenceInputs / placeSpendReferences / planReferenceProjection / planMentionInsert / resolveSpendReferenceInputs",
+      "rg -n \"resolveReferenceSlots\\(\" src/workbench/ai -> only spendCardReferences.ts readers, all through referenceInputSlots",
+      "rg -n \"connectNodes\" src/workbench/generationCanvas/nodes/useNodeMentionSource.ts -> host capability only decides the landing plan",
+      "rg -n \"materializeAssetLibraryItems\" src -> canvas drop, timeline drop, asset panel and now @ selection",
+      "rg -n \"references\" electron/productionRun/multiShotCanvasLanding.ts -> buildMaterializeShotsPayload carries them; candidateWire stays scalar-only by design"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+    "invariant": "Card, host and canvas node read and write one reference list through referenceInputSlots, planMentionInsert, materializeAssetLibraryItems and buildMaterializeShotsPayload.",
+    "failure_mode": "A reference outside the project is refused by the host before any request (generation_not_started) and the card names it; a reference the node cannot hold in any mode is not placed rather than relabelled.",
+    "exception_policy": "none",
+    "strategy": "Move the role-to-slot table out of the card into the canvas model layer, make the card read every canvas source through it, make @ candidates host-independent with a host-aware landing plan, route cross-project assets through the existing copy gate, and project candidate references back to the canvas node on landing.",
+    "artifacts": [
+      "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "src/workbench/ai/v4/spendCardReferences.ts",
+      "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+      "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "electron/productionRun/canvasLandingHost.ts",
+      "src/workbench/ai/v4/spendCardFailure.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts",
+    "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts",
+    "src/workbench/generationCanvas/model/referenceInputSlots.test.ts",
+    "src/workbench/ai/v4/spendCardFailure.test.ts",
+    "src/workbench/generationCanvas/nodes/mentionCandidates.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts",
+    "src/workbench/generationCanvas/model/referenceInputSlots.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/spendCardReferences.ts",
+      "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+    ],
+    "rationale": "applySpendReferences / slotRole / canvasReferenceInputs moved into referenceInputSlots (no second copy left in the card); the canvas-group filter in useNodeMentionSource is deleted."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls which references a Nomi generation carries.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. Placeholder nodes landed before this change get their references projected the next time their candidate gets a new revision (rebind); until then their slots stay as they were, and the card still shows and sends the candidate's references. Drafts saved in localStorage keep working because the card's ledger shape is unchanged.",
+  "residual_risks": [
+    "User-added models without a Nomi archetype that declare their own image parameter (for example a NewAPI-compatible video model's image_url): a reference connected into that parameter on the canvas placeholder is still neither on the paid card nor sent by the production host, whose reference projection has no channel for arbitrary parameter keys. Reported to the coordinator; not changed here.",
+    "Placeholder nodes landed before this change are not back-filled until their candidate's next revision.",
+    "A reference the host imports from an http URL still keeps the original URL in the prompt chip; the card UI no longer produces such URLs (uploads, canvas results and copied library assets are all project addresses)."
+  ]
+}

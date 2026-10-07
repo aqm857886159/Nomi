@@ -13,7 +13,7 @@
 //      一份 Run 快照另画一套；两份真相各判各的，供应商早出片了节点还在转。
 // 共用是刻意的（P1 一个家）：几条各写一份的话，任何一份漏了幂等章就会堆出重复节点。
 // 同一个 Run 的落地**逐个排队**：并发的两次 materialize 都会看见「节点还没建」，然后各建一份。
-import { buildMaterializeShotsPayload, landCanvasForRun, materializeShotsSignature, runHasBeenOnCanvas } from "./multiShotCanvasLanding";
+import { buildMaterializeShotsPayload, landCanvasForRun, materializeShotsSignature, runHasBeenOnCanvas, type ReferenceUrlResolver } from "./multiShotCanvasLanding";
 import type { ProductionRun } from "./productionRunTypes";
 
 export type CanvasLandingHostDeps = {
@@ -26,6 +26,11 @@ export type CanvasLandingHostDeps = {
   resolveProjectRoot: (projectId: string) => string | null;
   /** 该项目此刻是不是打开着的（草稿投影只在项目开着时落，其余交给 reconcile 补齐）。 */
   isProjectOpen: (projectId: string) => boolean;
+  /**
+   * 候选参考 → 本项目素材库里的地址（生产装配点绑 `resolveIndexedReferencePreview`）。必填：少接这根线，
+   * 卡上带参考生成之后画布节点的参考槽就又是空的，只剩提示词里的 @ 芯片。
+   */
+  resolveReferenceUrl: ReferenceUrlResolver;
 };
 
 export type CanvasLandingHost = {
@@ -117,6 +122,7 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
     const signature = signatureOf(run, projectId);
     const landed = await landCanvasForRun(run, {
       requestRenderer: deps.requestRenderer,
+      referenceUrl: deps.resolveReferenceUrl,
       projectRoot: deps.resolveProjectRoot(projectId),
       planName: run.authoring?.title ?? run.brief?.goal,
       ...(existingOnly ? { existingOnly: true } : {}),

@@ -23,6 +23,8 @@ import { prepareProductionGenerationAuthorization } from "../productionRun/prepa
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
+import type { SpendReferenceAssets } from "./pendingSpendReferences";
+import type { GenerationReference } from "../shared/agentCapabilities/generationPlanSchemas";
 
 // 「确认 → 真的开始生成」的端到端夹具（P1.1a · 2026-09-11）。
 //
@@ -119,13 +121,14 @@ function loopbackProvider(origin: string, submits: string[], providerId = "apima
     buildRequest: (input) => input,
     submit: async (request, idempotencyKey) => {
       submits.push(idempotencyKey);
-      const contract = (request ?? {}) as { modelId?: string; parameters?: Record<string, unknown> };
+      const contract = (request ?? {}) as { modelId?: string; parameters?: Record<string, unknown>; references?: readonly unknown[] };
       const res = await hardenedFetch(`${origin}/v1/images/generations`, {
         // Exact origin belongs to this test server; redirects remain forbidden.
         allowedPrivateOrigins: [origin],
         allowContentTypes: ["application/json"],
         method: "POST",
-        body: JSON.stringify({ idempotencyKey, model: contract.modelId, parameters: contract.parameters ?? {} }),
+        // 参考素材原样带出（合同里钉住的那几条）：供应商那一侧收到了哪几张参考，断言读这里。
+        body: JSON.stringify({ idempotencyKey, model: contract.modelId, parameters: contract.parameters ?? {}, ...(contract.references?.length ? { references: contract.references } : {}) }),
       });
       const json = JSON.parse(res.bytes.toString("utf8")) as { data: Array<{ task_id: string }> };
       return { providerTaskId: json.data[0].task_id, raw: json };
@@ -147,6 +150,23 @@ function candidate(modelId: string, parameters: Record<string, unknown>) {
  * 每个 `(materializationOperationId, shotId)` 至多一个节点。所以「同一次生成落了两个节点」
  * 只可能来自宿主每次换了一个章，而这正是这条断言要抓的东西。
  */
+/**
+ * 夹具项目的素材库（参考图的唯一身份来源）：测试往里放一张图，宿主按地址钉住它、落地回写时按 assetId 读回地址——
+ * 和生产那一份（`projectSpendReferenceAssets` / `resolveIndexedReferencePreview`）同一个形状，只是住在内存里。
+ */
+const referenceAssetIndex: Array<{ id: string; data: { url: string; contentType: string } }> = [];
+export function addReferenceAsset(id: string, url: string, contentType = "image/png"): void {
+  referenceAssetIndex.push({ id, data: { url, contentType } });
+}
+export const harnessReferenceAssets: SpendReferenceAssets = {
+  list: () => referenceAssetIndex,
+  identity: (_projectId, assetId) => (referenceAssetIndex.some((asset) => asset.id === assetId) ? { contentHash: "hash-" + assetId, version: 1 } : undefined),
+  import: async () => undefined,
+};
+function referenceUrlFor(_projectId: string, reference: GenerationReference): string | undefined {
+  return referenceAssetIndex.find((asset) => asset.id === reference.assetId)?.data.url;
+}
+
 function recordingRenderer() {
   const payloads: MaterializeShotsWirePayload[] = [];
   const nodes = new Map<string, string>();
@@ -189,6 +209,7 @@ function harness() {
     requestRenderer: renderer.requestRenderer,
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
+    resolveReferenceUrl: (projectId, reference) => referenceUrlFor(projectId, reference),
   });
   const operations = createProductionGenerationOperationStore(owner as never, {
     onPlanChanged: (projectId, operationId) => canvasLanding.landDraftOnCanvas(projectId, operationId),
@@ -334,6 +355,7 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     resolvePricing: () => (hooks.unpriced ? undefined : PRICING),
     // 与生产同一条并入规则（同一个目录）：卡上改一下也过 resolvePlanPatch。
     normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry: moduleRegistry }).normalizedPatch,
+    referenceAssets: harnessReferenceAssets,
     now,
   });
   const window = () => ({ webContentsId: 1, frameId: 0, origin: "app://nomi" });
@@ -435,6 +457,7 @@ export async function settleMicrotasks(): Promise<void> {
 
 export function resetSpendFixture() {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  referenceAssetIndex.splice(0);
   clock = NOW_BASE;
 }
 export function advanceClock(milliseconds: number) { clock += milliseconds; }

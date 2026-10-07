@@ -32,6 +32,7 @@ import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSes
 import { createProductionShotTable, readShotTable } from '../../../electron/shared/canvas/shotTable'
 import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 import type { MediaDimensions } from '../generationCanvas/nodes/nodeSizing'
+import { planReferenceProjection, type CandidateReferenceInput } from '../generationCanvas/model/referenceInputSlots'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -75,6 +76,11 @@ export type MaterializeShotInput = {
   mediaDimensions?: MediaDimensions
   /** 没有 result 时：这一镜在节点上的运行状态。 */
   generation?: MaterializeShotGeneration
+  /**
+   * 候选此刻钉住的参考（主进程 MaterializeShotWire.references：素材库地址 + 媒体种类 + 用途）。
+   * 候选是「这次生成带哪些参考」的主人，节点是它的投影：新建 / 重绑定这一镜时把节点上还没有的补上（只补不删，见 projectLandedReferences）。
+   */
+  references?: CandidateReferenceInput[]
   /**
    * Run 里这一镜记着 detached：只许动画布上已有的节点，绝不新建（主进程 MaterializeShotWire.existingOnly）。
    * 节点还在就照常回填并回报绑定——画布文档才是「节点在不在」的 owner，主进程据绑定纠正那条记录。
@@ -185,6 +191,35 @@ async function rebindLandedShots(
       ...(title ? { title } : {}),
       meta: { ...currentMeta, ...(modelMeta ?? {}), ...candidateStamp(shot.candidate) },
     }))
+  }
+}
+
+/**
+ * 把候选里的参考补到画布节点上（卡上带参考生成之后，画布节点的参考槽里看得见这次发出去的那几张，而不是只剩提示词里的 @ 芯片）。
+ * 补法只有一份（`planReferenceProjection`）：画布上某个节点出的图补一条真边，其余补进参考槽；节点上已有的不重复、不删。
+ * 只对这次**新建**和**重绑定**（候选变新了）的镜做——跟随者每一拍都会重放落地，用户在画布上自己拿掉的那张不会被一拍拍补回来。
+ */
+function projectLandedReferences(
+  shots: readonly MaterializeShotInput[],
+  nodeIdByShot: Readonly<Record<string, string>>,
+  inLandingTxn: <T>(fn: () => T) => T,
+): void {
+  for (const shot of shots) {
+    const nodeId = nodeIdByShot[shot.shotId]
+    const references = Array.isArray(shot.references)
+      ? shot.references.filter((reference) => typeof reference?.url === 'string' && reference.url && ['image', 'video', 'audio'].includes(reference.kind))
+      : []
+    if (!nodeId || !references.length) continue
+    const state = useGenerationCanvasStore.getState()
+    const node = state.nodes.find((candidate) => candidate.id === nodeId)
+    if (!node) continue
+    const projection = planReferenceProjection(node, references, state.nodes, state.edges)
+    if (!projection.meta && !projection.connect.length) continue
+    inLandingTxn(() => {
+      const store = useGenerationCanvasStore.getState()
+      if (projection.meta) store.updateNode(nodeId, { meta: projection.meta })
+      for (const edge of projection.connect) store.connectNodes(edge.sourceNodeId, nodeId, edge.mode)
+    })
   }
 }
 
@@ -321,6 +356,8 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 候选是意图，节点是它的投影，改了意图就该在用户眼前变，而不是等下次重开项目。
   if (rebindable.length > 0) await rebindLandedShots(rebindable, existingByShot, inLandingTxn)
   project.assertCurrent()
+  // 候选里的参考补到这次新建 / 重绑定的节点上（同一 txn → 同一个撤销步）。
+  projectLandedReferences([...missing, ...rebindable], clientIdToNodeId, inLandingTxn)
 
   // 编组（幂等章）：先按 op 章找已建的分镜组复用；没有才建。名字即时命名「分镜组·<计划名>」。
   const allNodeIds = ordered.map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
