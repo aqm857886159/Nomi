@@ -11,8 +11,7 @@ import prettier from 'eslint-config-prettier'
 
 const windowsPathSelectors = [
   {
-    selector:
-      'MemberExpression[object.type="NewExpression"][object.callee.name="URL"][object.arguments.1.type="MemberExpression"][object.arguments.1.object.type="MetaProperty"][object.arguments.1.object.meta.name="import"][object.arguments.1.object.property.name="meta"][property.name="pathname"]',
+    selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
     message: 'Use node:url fileURLToPath for filesystem paths; URL.pathname is not a Windows filesystem path.',
   },
 ]
@@ -116,8 +115,8 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
-    // Temporary allowlist: scripts/check-model-schema.ts, check-spend-confirmation-receipt.mjs,
-    // check-transport-assembly.mjs, and check-walkthrough-tool-args.ts stay ignored until gate-source migration.
+    // scripts/** 与 tests/ux/** 在上面的全局 ignore 里，本规则管不到；那两处的平台路径问题归门岗换底层线
+    // （在 Windows 上跑通 gates 时一并兜住），见 docs/fixes/2026-10-07-windows-local-gates.root-cause.json。
     files: ['docs/design/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
