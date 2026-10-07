@@ -1,6 +1,7 @@
 import type { CanvasPlacementAnchor } from '../model/canvasPlacement'
 import type { StateCreator } from 'zustand'
 import type { CanvasFrameRect } from '../model/canvasFrameBounds'
+import type { GroupArrangeMode } from '../model/groupArrange'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
@@ -58,12 +59,14 @@ export type CanvasNodeActions = {
   updateNodes: (updates: readonly { nodeId: string; patch: Partial<GenerationCanvasNode> }[]) => void
   updateNodePrompt: (nodeId: string, prompt: string, promptOverridden?: boolean) => void
   /** 版本卡片铺开 / 收起（按节点存进项目，可撤销，同编组折叠）。 */
-  setNodeResultStackOpen: (nodeId: string, open: boolean) => void
+  /** 铺开 / 收起版本卡片。铺开时带上往哪边铺（点开那一刻量的），收起时清掉。一步撤销。 */
+  setNodeResultStackOpen: (nodeId: string, open: boolean, side?: 'left' | 'right') => void
   /** 用户把某一版设为主图：一个撤销步；meta 是这一版的媒体尺寸（调用方读素材侧车算好，可省）。 */
   setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
+  moveNodes: (updates: readonly { nodeId: string; position: { x: number; y: number } }[], options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
   /** 一键整理：把某分类节点重排成 storyboard 网格（按屏幕宽高比铺成宽块）。可撤销。 */
   tidyCategory: (categoryId: string, targetAspect: number) => void
@@ -72,8 +75,6 @@ export type CanvasNodeActions = {
   selectNodes: (nodeIds: readonly string[]) => void
   clearSelection: () => void
   selectAllNodes: (categoryId?: string) => void
-  /** 框选：选中与矩形（画布坐标）相交的当前分类节点；additive 时并入现有选区。 */
-  selectNodesInRect: (rect: { x1: number; y1: number; x2: number; y2: number }, categoryId?: string, additive?: boolean) => void
   duplicateNodeForRegeneration: (nodeId: string) => GenerationCanvasNode | null
   /** Phase E: move a node into a different category (sidebar drop / right-click). */
   reassignNodeCategory: (nodeId: string, categoryId: string) => void
@@ -116,6 +117,7 @@ export type CanvasGraphActions = {
   /** 框头部那一句灰字说明。传空串 = 清空（与改名不同：说明本来就可以没有）。 */
   setGroupDescription: (groupId: string, description: string) => void
   setGroupColor: (groupId: string, color: string) => void
+  arrangeGroup: (groupId: string, mode: GroupArrangeMode) => void
   setGroupCollapsed: (groupId: string, collapsed: boolean) => void
   ungroup: (groupId: string) => void
   ungroupGroups: (groupIds: string[]) => void

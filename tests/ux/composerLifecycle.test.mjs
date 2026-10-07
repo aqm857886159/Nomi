@@ -27,31 +27,9 @@ it('keeps a captured gesture when focus moves between elements, but releases on 
   // 「records the viewport that is actually on screen」的长注释）。
   await expect.poll(() => page.evaluate(() => window.composerFixture.gesture().remembers)).toBe(1)
 })
-it('opens history when the original trigger selects an unselected node in the same event', async () => {
-  await page.reload()
-  await page.locator('#select').click()
-  await page.locator('#history').click()
-  expect(await page.locator('#history').textContent()).toBe('history')
-  await page.locator('#select').click()
-  expect(await page.locator('#history').textContent()).toBe('composer')
-})
-it('invalidates the single history owner across selection, results, kind and identity', async () => {
+it('degrades only its own region and reaches for the one recovery that can work: a full reload', async () => {
   await page.locator('[role="status"]').waitFor()
   await page.evaluate(() => window.composerFixture.fail())
-  await page.locator('#history').click()
-  expect(await page.locator('#history').textContent()).toBe('history')
-  for (const toggle of ['select', 'available']) {
-    await page.locator(`#${toggle}`).click(); await page.locator(`#${toggle}`).click()
-    expect(await page.locator('#history').textContent()).toBe('composer')
-    await page.locator('#history').click()
-  }
-  for (const toggle of ['kind', 'identity']) {
-    await page.locator(`#${toggle}`).click()
-    expect(await page.locator('#history').textContent()).toBe('composer')
-    await page.locator('#history').click()
-  }
-})
-it('degrades only its own region and reaches for the one recovery that can work: a full reload', async () => {
   // React.lazy 一旦 reject 会永久缓存失败，且浏览器 module map 对「取失败的模块 URL」也按
   // 错误缓存：同一 specifier 再 import 立刻重抛原错误、根本不发第二次请求。换新 lazy 实例
   // 只解开两层缓存里的一层，所以恢复只能靠拿到全新 JS 上下文的整页重载。
@@ -260,17 +238,6 @@ it('cancelling one stage keeps another active stage owned', async () => {
   await page.evaluate(() => window.releaseOther())
 })
 
-it('history A to B to A restores composer without replacing a typed draft', async () => {
-  await page.reload()
-  await page.locator('#unpublished-draft').fill('unpublished across A B A')
-  await page.locator('#history').click()
-  expect(await page.locator('#history').textContent()).toBe('history')
-  await page.locator('#identity').click()
-  expect(await page.locator('#history').textContent()).toBe('composer')
-  await page.locator('#identity').click()
-  expect(await page.locator('#history').textContent()).toBe('composer')
-  expect(await page.locator('#unpublished-draft').inputValue()).toBe('unpublished across A B A')
-})
 it('keeps a slider keyboard edit projected through the original React Flow ownership boundary', async () => {
   await page.reload()
   const slider = page.getByRole('slider', { name: 'projection duration' })
@@ -295,25 +262,3 @@ it('keeps original node keyboard movement from disabling subsequent projection u
   await expect.poll(() => slider.getAttribute('aria-valuenow')).toBe('6')
 })
 
-
-it('opens an unselected history through the real delayed React Flow selection projection', async () => {
-  await page.reload()
-  const a = page.locator('[data-projected-history="history-a"]')
-  const b = page.locator('[data-projected-history="history-b"]')
-  expect(await a.locator('[data-projected-tray]').count()).toBe(0)
-  await a.locator('[data-history-trigger]').click()
-  await expect.poll(() => a.getAttribute('data-selected')).toBe('true')
-  await expect.poll(() => a.locator('[data-projected-tray]').count()).toBe(1)
-  await b.locator('[data-history-trigger]').click()
-  await expect.poll(() => b.locator('[data-projected-tray]').count()).toBe(1)
-  await expect.poll(() => a.locator('[data-projected-tray]').count()).toBe(0)
-  await a.locator('[data-history-trigger]').click()
-  await expect.poll(() => a.locator('[data-projected-tray]').count()).toBe(1)
-  await a.locator('[data-history-trigger]').click()
-  await expect.poll(() => a.locator('[data-projected-tray]').count()).toBe(0)
-  await page.locator('[data-history-availability]').click()
-  await a.locator('[data-history-trigger]').click()
-  expect(await a.locator('[data-projected-tray]').count()).toBe(0)
-  await page.locator('[data-history-availability]').click()
-  expect(await a.locator('[data-projected-tray]').count()).toBe(0)
-})

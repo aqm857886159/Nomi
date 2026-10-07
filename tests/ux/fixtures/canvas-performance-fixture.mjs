@@ -321,6 +321,16 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
       }))
     }
   }
+  // 版本卡片铺开（NOMI_CANVAS_PERF_VERSION_STACKS=N）：前 N 张图片节点各攒 4 版、宫格铺开着（2×2 盖在邻居上）。
+  // 用来量「铺开着几组版本卡时拖 300 节点画布还顺不顺」（版本卡片 V2）；不设就和以前一模一样。
+  const versionStacks = Math.max(0, Number(process.env.NOMI_CANVAS_PERF_VERSION_STACKS || 0))
+  for (const node of nodes.filter((candidate) => candidate.kind === 'image').slice(0, versionStacks)) {
+    const versions = [4, 3, 2, 1].map((versionNo) => ({ ...node.result, id: `${node.id}-v${versionNo}`, createdAt: versionNo, versionNo }))
+    node.result = versions[0]
+    node.history = versions
+    node.resultVersionMax = 4
+    node.resultStackOpen = true
+  }
   const payload = {
     ...clone(snapshot.payload),
     generationCanvas: {

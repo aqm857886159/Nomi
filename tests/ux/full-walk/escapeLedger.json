@@ -1105,6 +1105,37 @@
       "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
       "fixedInPr": 1053,
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "PERF-20261006-CANVAS-HF",
+      "since": "2026-10-06",
+      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
+      "category": "performance-coverage",
+      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [
+        "S8"
+      ],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+        "tests/ux/canvas-performance-benchmark.e2e.mjs",
+        "tests/ux/grouping-optimization.walk.mjs",
+        "tests/ux/grouping-real-media.walk.mjs"
+      ],
+      "completionCommits": [
+        "1da15ba6f",
+        "5a7336cc4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+      "fixedInPr": 1048,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/ux/selection-drag-lifecycle.test.mjs"
+      }
     }
   ]
 }
