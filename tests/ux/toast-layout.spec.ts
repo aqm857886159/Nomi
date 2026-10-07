@@ -51,8 +51,9 @@ describe('toast readability in a narrow notification', () => {
           row: element.parentElement!.getBoundingClientRect().width,
           clipped: element.scrollWidth > element.clientWidth,
         }))
-        assert.ok(geometry.action <= geometry.row * 0.4 + 1)
-        assert.equal(geometry.clipped, true)
+        // 2026-10-01（bb66718e2）起动作字永远完整：放不下就折到正文下面，不再按行宽 40% 截断。
+        assert.ok(geometry.action <= geometry.row + 1, 'action stays inside the row')
+        assert.equal(geometry.clipped, false, 'action label is never clipped')
         console.log(JSON.stringify({ width, language, glyphsPerLine: lines, ...geometry }))
       }
     } finally {
