@@ -712,7 +712,15 @@ export async function panCanvasUntilInside(page, locator, { margin = {}, maxStep
  */
 export async function expectToolbarInsideStage(page, toolbarLocator, label = '节点浮条') {
   await waitForCanvasViewportSettled(page)
-  const box = await toolbarLocator.first().boundingBox()
+  // 浮条外壳的错误兜底会留 `data-floating-toolbar-failed` 记号：先认它，别让「浮条静默消失」只报成「找不到浮条」
+  // （2026-10-07：测量环转到 #185 被兜底吞掉，验收只看到 30 秒超时）。
+  const failedMarker = page.locator('[data-floating-toolbar-failed]')
+  const box = await toolbarLocator.first().boundingBox().catch(async (error) => {
+    const failed = await failedMarker.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-floating-toolbar-failed'))).catch(() => [])
+    if (failed.length) throw new Error(`${label}：浮条渲染出错被错误兜底藏掉了（${failed.join('、')}）——去渲染层崩溃日志找 floating-toolbar-boundary`)
+    throw error
+  })
+  expect(await failedMarker.count(), `${label}：没有浮条被错误兜底藏掉`).toBe(0)
   const stage = await page.locator(CANVAS_STAGE_SELECTOR).first().boundingBox()
   expect(Boolean(box && stage), `${label}：浮条与舞台都量得到`).toBe(true)
   const inside = box.x >= stage.x - 0.5 && box.x + box.width <= stage.x + stage.width + 0.5

@@ -30,15 +30,17 @@ describe('floatingToolbarShift', () => {
  * 限宽后按行折。`k ≠ 1` 就是「反向缩放用的 zoom ≠ 贴在 DOM 上的 zoom」——
  * 打开项目摆全貌那一刻 store 还是 1、React Flow 已是 2.1（2026-10-06 L-qa2 真机撞到的 #185）。
  */
-function screenBox(k: number, natural: { left: number; top: number }, layout: { width: number; height: number }, p: FloatingToolbarPlacement) {
+// roundLayout：外壳量到的布局宽是取整过的（offsetWidth），屏幕宽却带小数——Linux CI 上字体排版出小数宽是常态。
+function screenBox(k: number, natural: { left: number; top: number }, layout: { width: number; height: number }, p: FloatingToolbarPlacement, roundLayout = false) {
   const width = Math.min(layout.width, p.maxWidth ?? Infinity)
-  const rows = Math.ceil(layout.width / width)
+  const rows = Math.ceil(layout.width / width - 1e-9)
   const left = natural.left + p.shiftX * k
   const top = natural.top + p.shiftY * k
-  return { left, right: left + width * k, top, bottom: top + layout.height * rows * k, width: width * k, layoutWidth: width }
+  return { left, right: left + width * k, top, bottom: top + layout.height * rows * k, width: width * k, layoutWidth: roundLayout ? Math.round(width) : width }
 }
 
-function simulate({ k, natural, layout, stageRect }: {
+function simulate({ k, natural, layout, stageRect, roundLayout = false }: {
+  roundLayout?: boolean
   k: number
   natural: { left: number; top: number }
   layout: { width: number; height: number }
@@ -47,7 +49,7 @@ function simulate({ k, natural, layout, stageRect }: {
   // React 的嵌套更新上限（NESTED_UPDATE_LIMIT）：layout effect 里连续 setState 超过 50 次就抛 #185。
   const REACT_NESTED_UPDATE_LIMIT = 50
   let placement: FloatingToolbarPlacement = { shiftX: 0, shiftY: 0, maxWidth: undefined }
-  const screenOf = (p: FloatingToolbarPlacement) => screenBox(k, natural, layout, p)
+  const screenOf = (p: FloatingToolbarPlacement) => screenBox(k, natural, layout, p, roundLayout)
   const stageBox = { ...stageRect, width: stageRect.right - stageRect.left }
   for (let commits = 0; commits <= REACT_NESTED_UPDATE_LIMIT; commits += 1) {
     const screen = screenOf(placement)
@@ -98,6 +100,28 @@ describe('nextFloatingToolbarPlacement：一次测量就是不动点（React #18
       })
     }
   }
+
+  // 2026-10-07 CI 画布验收（canvas-card-stack 窄窗口那一格）：浮条折行时宽度 = 限宽（带小数），布局宽取整后
+  // 净缩放带 ±0.5/宽 的噪声，限宽每量一次抖近 1 像素；旧容差 0.5（本地单位）盖不住，宽度一变取整一变，转到 #185，
+  // 浮条被错误兜底藏掉。矩阵：小数宽清单 × 舞台宽清单，布局宽一律取整。
+  const fractionalWidths = Array.from({ length: 160 }, (_, i) => 600 + i * 5.37)
+  const stageWidths = [700.5, 731.25, 812.7, 884, 899.3]
+  it('布局宽取整（offsetWidth）× 小数屏幕宽 × 折行：全部三次提交内收敛，右缘不出舞台', () => {
+    const failures: string[] = []
+    for (const width of fractionalWidths) {
+      for (const stageWidth of stageWidths) {
+        const stageRect = { left: 60, right: 60 + stageWidth, top: 56, bottom: 932 }
+        try {
+          const result = simulate({ k: 1, natural: { left: 100, top: 200 }, layout: { width, height: 42 }, stageRect, roundLayout: true })
+          if (result.commits > 3) failures.push(`宽 ${width} 舞台 ${stageWidth}：${result.commits} 次提交`)
+          if (result.screen.right > stageRect.right - 8 + 2) failures.push(`宽 ${width} 舞台 ${stageWidth}：右缘 ${result.screen.right} 出界`)
+        } catch (error) {
+          failures.push(`宽 ${width} 舞台 ${stageWidth}：${String(error)}`)
+        }
+      }
+    }
+    expect(failures).toEqual([])
+  })
 
   it('还没布局（宽 0）时不量、不 setState', () => {
     expect(nextFloatingToolbarPlacement({

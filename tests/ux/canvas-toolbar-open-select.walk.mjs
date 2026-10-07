@@ -150,7 +150,8 @@ try {
       const shell = document.querySelector('[data-node-floating-toolbar="true"]')
       const rect = shell?.getBoundingClientRect()
       const canvasAlive = Boolean(document.querySelector('[data-node-id="still"]')) && !document.querySelector('[data-chunk-boundary]')
-      return { canvasAlive, flowZoom, toolbar: Boolean(shell), netScale: shell && rect ? rect.width / shell.offsetWidth : null, clickedAtZoom: window.__toolbarInstantClickZoom ?? null, imageAtClick: window.__toolbarInstantClickImage ?? null, samples: window.__toolbarSamples ?? null, mountedBeforeStoreSync: window.__toolbarInstantMounted ?? null }
+      const toolbarFailed = Boolean(document.querySelector('[data-floating-toolbar-failed]'))
+      return { canvasAlive, toolbarFailed, flowZoom, toolbar: Boolean(shell), netScale: shell && rect ? rect.width / shell.offsetWidth : null, clickedAtZoom: window.__toolbarInstantClickZoom ?? null, imageAtClick: window.__toolbarInstantClickImage ?? null, samples: window.__toolbarSamples ?? null, mountedBeforeStoreSync: window.__toolbarInstantMounted ?? null }
     }).catch(() => ({ canvasAlive: false, flowZoom: null, toolbar: false, netScale: null }))
     const crashed = crashedThisRound
     if (process.argv.includes('--trace')) {
@@ -161,8 +162,10 @@ try {
     if (crashed) failures.push(`第 ${round} 轮：React #185 无限更新`)
     if (!probe.canvasAlive) failures.push(`第 ${round} 轮：画布没了（节点不在或整块换成了加载失败）`)
     // 注入模式下浮条该被边界降级掉；其余模式选中后浮条必须挂出来。
+    // 兜底必须留记号：注入时要看得见，平时一个都不许有（浮条静默消失骗过验收的那条路堵死）。
+    if (injectToolbarError ? !probe.toolbarFailed : probe.toolbarFailed) failures.push(`第 ${round} 轮：错误兜底记号${injectToolbarError ? '没出现（兜底静默）' : '出现了（浮条被兜底藏掉）'}`)
     if (injectToolbarError ? probe.toolbar : !probe.toolbar) failures.push(`第 ${round} 轮：浮条${injectToolbarError ? '出错后仍挂着（边界没接住）' : '没有挂出来'}`)
-    console.log(`round ${round}: ${crashed ? 'CRASH' : 'ok'} canvasAlive=${probe.canvasAlive} flowZoom=${probe.flowZoom?.toFixed?.(3)} toolbar=${probe.toolbar} netScale=${probe.netScale?.toFixed?.(3)} clickedAtZoom=${probe.clickedAtZoom} imageAtClick=${probe.imageAtClick} mountedBeforeStoreSync=${probe.mountedBeforeStoreSync} samples=${JSON.stringify(probe.samples?.filter((x, i, a) => i === 0 || JSON.stringify(x.slice(1)) !== JSON.stringify(a[i - 1].slice(1))))}`)
+    console.log(`round ${round}: ${crashed ? 'CRASH' : 'ok'} canvasAlive=${probe.canvasAlive} toolbarFailed=${probe.toolbarFailed} flowZoom=${probe.flowZoom?.toFixed?.(3)} toolbar=${probe.toolbar} netScale=${probe.netScale?.toFixed?.(3)} clickedAtZoom=${probe.clickedAtZoom} imageAtClick=${probe.imageAtClick} mountedBeforeStoreSync=${probe.mountedBeforeStoreSync} samples=${JSON.stringify(probe.samples?.filter((x, i, a) => i === 0 || JSON.stringify(x.slice(1)) !== JSON.stringify(a[i - 1].slice(1))))}`)
     if (crashed || !probe.canvasAlive) {
       await run.close().catch(() => {})
       await launch()

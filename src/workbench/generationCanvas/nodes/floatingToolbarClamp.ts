@@ -18,8 +18,15 @@
 export const FLOATING_TOOLBAR_EDGE = 8
 /** 舞台再窄，浮条也至少这么宽（屏幕像素），再窄就让它被裁。 */
 export const FLOATING_TOOLBAR_MIN_WIDTH = 240
-/** 低于这个变化量（本地单位）就算收敛：不再 setState。 */
-const SETTLE = 0.5
+/**
+ * 低于这个变化量（**屏幕像素**）就算收敛：不再 setState。
+ *
+ * 必须大于测量本身的噪声：布局宽可能是取整过的（offsetWidth），净缩放就带着 ±0.5/宽 的误差，
+ * 限宽 = 舞台宽 / 净缩放 每量一次会抖将近 1 像素；容差若小于这个抖动，浮条折行时宽度一变、取整一变、
+ * 限宽再变，永远停不下来（2026-10-07 CI 画布验收窄窗口那一格就是这样转到 #185 的）。
+ * 2 像素远小于离舞台边的 8 像素留白，看不出来。
+ */
+const SETTLE_PX = 2
 
 /**
  * 单轴夹取。`rectLeft / rectRight` 是浮条此刻的屏幕位置（已经带着 `appliedShift`），`min / max` 是舞台内缘，
@@ -58,7 +65,8 @@ export type FloatingToolbarPlacement = {
 /**
  * 一次测量 → 下一份摆放；返回 `null` 表示已经收敛，**不许再 setState**。
  *
- * `layoutWidth` 是浮条不含 transform 的布局宽（`offsetWidth`），和屏幕宽一除就是净缩放。
+ * `layoutWidth` 是浮条不含 transform 的布局宽（外壳传带小数的计算宽；就算传取整的 offsetWidth，容差也盖得住），
+ * 和屏幕宽一除就是净缩放。
  * 先定宽（宽度一变矩形就变，这一拍不算位移），宽度稳了再一步算出两个方向的位移。
  */
 export function nextFloatingToolbarPlacement(input: {
@@ -71,9 +79,9 @@ export function nextFloatingToolbarPlacement(input: {
   if (!(rect.width > 0) || !(layoutWidth > 0)) return null
   const scale = rect.width / layoutWidth
   const limit = Math.max(FLOATING_TOOLBAR_MIN_WIDTH, Math.floor(stage.width - 2 * FLOATING_TOOLBAR_EDGE)) / scale
-  if (applied.maxWidth === undefined || Math.abs(limit - applied.maxWidth) > SETTLE) return { ...applied, maxWidth: limit }
+  if (applied.maxWidth === undefined || Math.abs(limit - applied.maxWidth) * scale > SETTLE_PX) return { ...applied, maxWidth: limit }
   const shiftX = floatingToolbarShift({ rectLeft: rect.left, rectRight: rect.right, appliedShift: applied.shiftX, scale, min: stage.left + FLOATING_TOOLBAR_EDGE, max: stage.right - FLOATING_TOOLBAR_EDGE })
   const shiftY = floatingToolbarShift({ rectLeft: rect.top, rectRight: rect.bottom, appliedShift: applied.shiftY, scale, min: stage.top + FLOATING_TOOLBAR_EDGE, max: stage.bottom - FLOATING_TOOLBAR_EDGE })
-  if (Math.abs(shiftX - applied.shiftX) <= SETTLE && Math.abs(shiftY - applied.shiftY) <= SETTLE) return null
+  if (Math.abs(shiftX - applied.shiftX) * scale <= SETTLE_PX && Math.abs(shiftY - applied.shiftY) * scale <= SETTLE_PX) return null
   return { ...applied, shiftX, shiftY }
 }

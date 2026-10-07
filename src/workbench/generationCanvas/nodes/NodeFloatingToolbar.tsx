@@ -39,7 +39,8 @@ export function FloatingToolbarShell(props: { ariaLabel: string; lockNodeId: str
 /**
  * 浮条的故障隔离：浮条是挂在节点上的附件，它渲染出错只该让这一条浮条消失，不该把整块画布带崩——
  * 画布外层只有「React Flow 画布」那一个 chunk 边界，节点里任何渲染错都会冒到那里，整块画布换成「加载失败」
- * （2026-10-06 浮条测量无限更新就是这样把画布带走的）。不吞：照样写进渲染层崩溃日志；
+ * （2026-10-06 浮条测量无限更新就是这样把画布带走的）。不吞：照样写进渲染层崩溃日志，并在原处留
+ * `data-floating-toolbar-failed` 记号给走查断言；
  * 浮条只在选中时挂载，取消选中再选中就是一次干净的重试。
  */
 class FloatingToolbarBoundary extends React.Component<{ label: string; children: React.ReactNode }, { failed: boolean }> {
@@ -54,7 +55,10 @@ class FloatingToolbarBoundary extends React.Component<{ label: string; children:
   }
 
   render(): React.ReactNode {
-    return this.state.failed ? null : this.props.children
+    if (!this.state.failed) return this.props.children
+    // 留一个看不见的记号：走查 / 验收能当场认出「浮条被兜底藏了」，而不是只看到「浮条没出现」去猜
+    // （2026-10-07 CI 画布验收就是这样被骗了一轮：测量环转到 #185，兜底静默吞掉，验收只报找不到浮条）。
+    return <span hidden data-floating-toolbar-failed={this.props.label} />
   }
 }
 
@@ -89,7 +93,8 @@ function FloatingToolbarFrame({ ariaLabel, lockNodeId, children }: { ariaLabel: 
     if (!shell || !stage) return
     const next = nextFloatingToolbarPlacement({
       rect: shell.getBoundingClientRect(),
-      layoutWidth: shell.offsetWidth,
+      // 带小数的布局宽（border-box，不含 transform）：offsetWidth 取整，净缩放会带噪声。
+      layoutWidth: Number.parseFloat(getComputedStyle(shell).width),
       stage: stage.getBoundingClientRect(),
       applied: placement,
     })

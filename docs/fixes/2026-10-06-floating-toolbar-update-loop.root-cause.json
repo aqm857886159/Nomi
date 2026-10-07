@@ -242,7 +242,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
     "invariant": "浮条测量环一次测量即不动点（净缩放从 DOM 量出），至多三次提交收敛；外壳订 React Flow 整个视口，平移 / 缩放后必重量",
-    "failure_mode": "量不到尺寸（宽 0）就不量、不 setState；万一浮条里还有别的渲染错，FloatingToolbarBoundary 只把这一条浮条换成空并写崩溃日志",
+    "failure_mode": "量不到尺寸（宽 0）就不量、不 setState；变化不足屏幕 2 像素（测量噪声以下）算收敛；万一浮条里还有别的渲染错，FloatingToolbarBoundary 只把这一条浮条换成看不见的 data-floating-toolbar-failed 记号并写崩溃日志，验收助手认这个记号直接报红",
     "exception_policy": "none",
     "strategy": "在六条浮条共用的外壳与测量函数上一次修掉：换算不再依赖缩放假设（闭式不动点），缩放来源收成 React Flow 的 transform 一个；浮条外包最小错误边界",
     "artifacts": [
@@ -275,7 +275,8 @@
   "residual_risks": [
     "NodeLabelRow / NodeGeneratingOverlay / NodeImportingOverlay 仍按记忆视角判 0.4 档位：缩放手势中途档位晚一拍（只影响藏标签 / 等待动效开关，不影响几何、不会崩）；若要统一，需把等待动效改成订门槛布尔并同步改 canvas-perf 的 data-process-zoom 判据",
     "真机回归循环用的是单图片节点项目、中文、1280×933 内容区；英文长文案或更多浮条按钮只改变浮条宽度，已由类级测试的净缩放 × 贴边矩阵覆盖，没有逐一真机跑",
-    "2026-10-07 CI 画布验收抓到一次回归：首版外壳只订缩放标量，平移后不重渲、不重量（旧代码靠订 categoryViewports 整个对象、平移结束换新对象碰巧重渲），节点贴左边时浮条停在旧位置；已改订 useViewport。这一条只能用源码检查（NodeFloatingToolbar.test.ts）+ 真机画布验收（tests/ux/canvas-card-stack.walk.mjs 的 expectToolbarInsideStageEverywhere）钉住，纯函数测不到「有没有重渲」"
+    "2026-10-07 CI 画布验收抓到一次回归：首版外壳只订缩放标量，平移后不重渲、不重量（旧代码靠订 categoryViewports 整个对象、平移结束换新对象碰巧重渲），节点贴左边时浮条停在旧位置；已改订 useViewport。这一条只能用源码检查（NodeFloatingToolbar.test.ts）+ 真机画布验收（tests/ux/canvas-card-stack.walk.mjs 的 expectToolbarInsideStageEverywhere）钉住，纯函数测不到「有没有重渲」",
+    "2026-10-07 CI 画布验收第二次回归（窄窗口折行那一格浮条消失）：浮条自然宽带小数（Linux 字体，CI 上 581.64）时 offsetWidth 取整让量出的净缩放带 ±0.5/宽 噪声，折行后限宽每量一次抖近 1 像素，旧容差 0.5（本地单位）盖不住，测量环转到 #185，被浮条错误兜底静默吞掉。已改：容差改成屏幕 2 像素（大于测量噪声、远小于 8 像素留白），布局宽改读带小数的计算宽；兜底改为留 data-floating-toolbar-failed 记号，tests/ux/_canvasHit.mjs 的 expectToolbarInsideStage 先认它。本机用一个 0.37px 伪元素把浮条宽弄成小数即可复现（修前同样超时、修后整条走查过）；类级检查是 floatingToolbarClamp.test.ts 的「布局宽取整 × 小数宽 × 折行」矩阵（改回旧容差即红）"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
