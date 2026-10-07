@@ -1,11 +1,8 @@
 /**
- * [INPUT]: 依赖 react、../../DirectorEditorContext 的 useDirectorStoreApi、../ViewportApiContext 的 useViewportApi、../../model/vec3
- *          ../../model/sceneObjectGraph 的完整预览 TRS 世界→图层转换；Orbit 生命周期由 DirectorViewport 统一拥有
- * [OUTPUT]: 对外提供 PlacementGhostState、useCharacterPlacement（放置模式：地面幽灵体跟随 → 点击落点 → 按住拖拽定朝向 → 松开创建）
- * [POS]: director/scene/creation 的角色落地放置（清单 §2.2 V4a）：DOM 指针事件在视口容器上处理，幽灵体状态放 ref 给
- *        PlacementGhost 每帧读取；右键/Esc 取消。创建走 store.addObject（名字「角色N」、posePreset tpose、系统模型；模板来自 model/defaultCharacter）；
- *        带 crowd 参数时落点改建群众组（store.batchCreateCrowd，同一个默认角色）。
- * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ * [INPUT]: 渚濊禆 react銆?./../DirectorEditorContext 鐨?useDirectorStoreApi銆?./ViewportApiContext 鐨?useViewportApi銆?./../model/vec3
+ *          ../../model/sceneObjectGraph 鐨勫畬鏁撮瑙?TRS 涓栫晫鈫掑浘灞傝浆鎹紱Orbit 鐢熷懡鍛ㄦ湡鐢?DirectorViewport 缁熶竴鎷ユ湁
+ * [OUTPUT]: 瀵瑰鎻愪緵 PlacementGhostState銆乽seCharacterPlacement锛堟斁缃ā寮忥細鍦伴潰骞界伒浣撹窡闅?鈫?鐐瑰嚮钀界偣 鈫?鎸変綇鎷栨嫿瀹氭湞鍚?鈫?鏉惧紑鍒涘缓锛? * [POS]: director/scene/creation 鐨勮鑹茶惤鍦版斁缃紙娓呭崟 搂2.2 V4a锛夛細DOM 鎸囬拡浜嬩欢鍦ㄨ鍙ｅ鍣ㄤ笂澶勭悊锛屽菇鐏典綋鐘舵€佹斁 ref 缁? *        PlacementGhost 姣忓抚璇诲彇锛涘彸閿?Esc 鍙栨秷銆傚垱寤鸿蛋 store.addObject锛堝悕瀛椼€岃鑹睳銆嶃€乸osePreset tpose銆佺郴缁熸ā鍨嬶紱妯℃澘鏉ヨ嚜 model/defaultCharacter锛夛紱
+ *        甯?crowd 鍙傛暟鏃惰惤鐐规敼寤虹兢浼楃粍锛坰tore.batchCreateCrowd锛屽悓涓€涓粯璁よ鑹诧級銆? * [PROTOCOL]: 鍙樻洿鏃舵洿鏂版澶撮儴锛岀劧鍚庢鏌?CLAUDE.md
  */
 import React from 'react'
 import { useDirectorStoreApi } from '../../DirectorEditorContext'
@@ -18,7 +15,7 @@ import { useViewportApi } from '../ViewportApiContext'
 
 export type PlacementGender = CharacterGender
 
-/** 群众放置：落点处建一个群众组（参数来自「＋→角色→群众」浮层） */
+/** 缇や紬鏀剧疆锛氳惤鐐瑰寤轰竴涓兢浼楃粍锛堝弬鏁版潵鑷€岋紜鈫掕鑹测啋缇や紬銆嶆诞灞傦級 */
 export type CrowdPlacementSpec = Pick<CrowdSpec, 'rows' | 'cols' | 'spacing' | 'actionId'>
 
 export type PlacementGhostState = {
@@ -29,12 +26,13 @@ export type PlacementGhostState = {
   dragTarget: Vec3 | null
 }
 
+// 鐢?/ 濂崇洰鍓嶆槸鍚屼竴涓粯璁?UAL 浜哄伓锛屽彧宸鑹诧紙UAL 鍙湁涓€涓腑鎬т汉鍋讹級
 export type CharacterPlacementApi = {
   active: boolean
   gender: PlacementGender | null
   headingDeg: number
   ghostRef: React.MutableRefObject<PlacementGhostState>
-  /** 有 crowd = 放置群众（幽灵体只示意落点，落地建一个群众组）；没有 = 放一个角色 */
+  /** 鏈?crowd = 鏀剧疆缇や紬锛堝菇鐏典綋鍙ず鎰忚惤鐐癸紝钀藉湴寤轰竴涓兢浼楃粍锛夛紱娌℃湁 = 鏀句竴涓鑹?*/
   crowd: CrowdPlacementSpec | null
   start: (gender: PlacementGender, crowd?: CrowdPlacementSpec) => void
   cancel: () => void
@@ -81,8 +79,9 @@ export function useCharacterPlacement({ characterName, crowdNames }: { character
       const state = store.getState()
       const transform = frameTransform(multiplyFrames(invertFrame(sceneFrame(state.activeScene().sceneConfig)), localFrame({ position, rotation: { x: 0, y: heading, z: 0 }, scale: { x: 1, y: 1, z: 1 } })))
       if (crowd) {
-        // 群众：落点 = 队列中心，朝向转整个队列；建组选中整组，工具回到移动方便整体摆位
-        if (state.batchCreateCrowd({ ...crowd, transform, groupName: crowdNames.group, memberName: crowdNames.member })) state.setTransformMode('translate')
+        if (state.batchCreateCrowd({ ...crowd, transform, groupName: crowdNames.group, memberName: crowdNames.member })) {
+          state.setTransformMode('translate')
+        }
         return
       }
       const index = state.activeScene().objects.filter((object) => object.type === 'character').length + 1

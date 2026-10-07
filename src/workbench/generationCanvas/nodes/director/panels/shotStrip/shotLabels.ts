@@ -41,7 +41,7 @@ export function makeShotLabels(t: Translate, english: boolean): ShotLabels {
       return measured ? t('director.view.pipShotLabel', { index: index + 1, size: measured, move: move(shot) }) : t('director.view.pipShotMoveOnly', { index: index + 1, move: move(shot) })
     },
     actions: (shot) => shot.actions.length
-      ? shot.actions.map((action) => t('director.view.shotAction', { name: action.objectName, action: t(`director.action.library.${action.actionPose}` as 'director.action.library.standing_idle', { defaultValue: action.clipName }) })).join(' · ')
+      ? shot.actions.map((action) => t('director.view.shotAction', { name: action.objectName, action: t(`director.action.library.${action.actionPose}` as 'director.action.library.Idle_Loop', { defaultValue: action.clipName }) })).join(' · ')
       : t('director.view.noShotAction'),
   }
 }
