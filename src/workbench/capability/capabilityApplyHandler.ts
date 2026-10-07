@@ -39,7 +39,7 @@ import {
   type CapturedCanvasReadSnapshotHandleWire,
 } from '../../../electron/shared/surfacePortBinding'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
-import { mergeExternalCanvasWrite } from '../../../electron/shared/canvas/externalCanvasWrite'
+import { isCanvasDocument, mergeExternalCanvasWrite } from '../../../electron/shared/canvas/externalCanvasWrite'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
@@ -94,13 +94,6 @@ type GenerationGateConfirmPayload = {
    * 不造并行卡，P1）；无它 → 走今日扁平单镜卡（字节不动，单镜 E2E 是回归门）。
    */
   shots?: MultiShotGatePayload
-}
-
-type CanvasDocumentWire = { nodes: unknown[]; edges: unknown[]; groups?: unknown[] }
-
-function isCanvasDocument(value: unknown): value is CanvasDocumentWire {
-  const doc = value as Partial<CanvasDocumentWire> | null
-  return Boolean(doc) && typeof doc === 'object' && Array.isArray(doc!.nodes) && Array.isArray(doc!.edges)
 }
 
 function describeIntent(intent: string | undefined): string {

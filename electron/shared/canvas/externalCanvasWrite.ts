@@ -12,7 +12,13 @@
 import { NODE_LANDED_FIELDS, NODE_RUN_STATE_FIELDS } from './landedNodeFields'
 
 type Keyed = { id: string } & Record<string, unknown>
-type CanvasDocLike = { nodes: readonly unknown[]; edges: readonly unknown[]; groups?: readonly unknown[] }
+export type CanvasDocLike = { nodes: readonly unknown[]; edges: readonly unknown[]; groups?: readonly unknown[] }
+
+/** 线上收到的画布文档（外部写入的 base / next）：至少要有 nodes 与 edges 两个数组。 */
+export function isCanvasDocument(value: unknown): value is CanvasDocLike {
+  const doc = value as Partial<CanvasDocLike> | null
+  return Boolean(doc) && typeof doc === 'object' && Array.isArray(doc!.nodes) && Array.isArray(doc!.edges)
+}
 
 const NODE_SYSTEM_FIELDS: ReadonlySet<string> = new Set([...NODE_RUN_STATE_FIELDS, ...NODE_LANDED_FIELDS])
 const NO_PROTECTED_FIELDS: ReadonlySet<string> = new Set()
