@@ -158,7 +158,7 @@ const FULL_CANVAS_PATTERNS = [
 
 const PERFORMANCE_PATTERNS = [
   /^src\/workbench\/generationCanvas\/reactFlow(?:\/|$)/,
-  /^src\/workbench\/generationCanvas\/nodes\/(?:DeferredNodeMedia|deferredNodeMediaQueue|renderRegistry|BaseGenerationNode|ClipNode(?:Preview)?|NodeVideoPlaybackGuard|useNodeVideoHoverPreview|nodeSizing|nodeResultStackPlacement)(?:\.|\/)/,
+  /^src\/workbench\/generationCanvas\/nodes\/(?:DeferredNodeMedia|deferredNodeMediaQueue|renderRegistry|BaseGenerationNode|ClipNode(?:Preview)?|NodeVideoPlaybackGuard|useNodeVideoHoverPreview|nodeSizing|versionCards)(?:\.|\/)/,
   /^tests\/ux\/(?:canvas-performance|fixtures\/canvas-performance).*/,
   // 真实素材登记表与它的执行层（R13「四件真实」第④件，2026-09-14）。改登记表 = 改这条 lane 的输入：
   // 素材换一份、覆盖面动一类，画布与性能两条腿量到的东西就变了，必须当场重量一次，不能等下一个 PR。

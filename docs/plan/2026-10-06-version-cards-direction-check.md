@@ -59,3 +59,12 @@
 - 编号：「删了留空号」只对中间的版本成立，删掉最新一版后新版复用了它的号。根因是「出过的最大号」没有存储身份，只能从剩下的版本里推。改成节点持久字段 `resultVersionMax`，唯一写口仍是 `appendNodeResultVersion` / 打开时补号。
 - 延后删：真删失败时这一笔已从清单取走，文件永远遗留。改成失败留账、计次、到上限放弃，仍在 `pendingAssetDeletions.ts` 一处。
 两条都有「改回旧行为必红」的单测。
+
+## 补记：V2 接进节点（2026-10-06）
+
+同一个概念的渲染那一刀：节点上的「几版」从此只有一个界面——铺开的版本卡片。删的是并行旧版：浮动小窗 `NodeResultStack`、「N 版」胶囊、`useNodeResultHistory` / `nodeResultStackPlacement`、浮条「重拍这镜」。热文件（`BaseGenerationNode.tsx`、`NodeFloatingToolbar.tsx`）这次是**删分支**，不是加特例：`resultStackOpen` 门控整片删掉，挂载点换成一个 `NodeVersionCardsHost`。
+接线后真画布实测补了三处，都修在最早的共享边界上：
+- 预览弹层是挂在节点里的门户，点击 / 双击顺 React 组件树冒回节点（会选中节点、弹生成框）。两个调用者都在节点里，截在 `NodeMediaPreviewDialog` 根上一次，不在两个调用者各截一遍。
+- 版本卡悬停条的点击冒泡到节点：截在悬停条根上。
+- 宫格往哪边铺是挂载时量的，节点滚出屏再滚回来会换边：改成点开那一刻量好、随铺开状态存进节点（`resultStackSide`，唯一写口仍是 `setNodeResultStackOpen`）。
+入口位置：叠卡往右露会被连线把手盖住；先试了下沿露出（方案 A），用户 10-07 否掉、选了「图片右上角内侧的数字角标」。同一提交删掉叠卡层、下沿入口、悬停「N 版」小标——入口只剩一个。

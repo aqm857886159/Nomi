@@ -54,7 +54,6 @@
   "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx": 1,
   "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx": 3,
   "src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx": 1,
-  "src/workbench/generationCanvas/nodes/NodeResultStack.tsx": 1,
   "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx": 3,
   "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx": 1,
   "src/workbench/generationCanvas/nodes/render/CharacterCardNode.tsx": 1,

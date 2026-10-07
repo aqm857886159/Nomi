@@ -120,6 +120,14 @@ export function getLatestUndoBarrierAbsolutePosition(): number | undefined {
   return barrier === undefined ? undefined : journalBasePosition + barrier
 }
 
+/**
+ * 「撤销日志此刻的头」：之后任何一笔事件（手势、生成落地）都会让它变。提示条上的「撤销」只在它没变时才给——
+ * 撤销是前缀重放，头变了再撤，会把那之后落地的生成结果也一起撤掉。
+ */
+export function getUndoHeadToken(): string {
+  return `${generation}:${journalBasePosition + journal.length}`
+}
+
 export function getOldestReachableUndoPosition(): number {
   const reachable = [...undoBarriers, ...redoBarriers]
   return reachable.length === 0

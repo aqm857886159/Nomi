@@ -18,7 +18,8 @@
         "gate:scripts/check-direction-trailer.mjs(自写登记连修第 2 次要带点名该登记的复盘)",
         "coordinator-tool:scripts/self-written-review.mjs(排版本计划时跑，到期清单给用户看)",
         "gate:check:prior-art",
-        "hook:self-check(先查别人块)"
+        "hook:self-check(先查别人块)",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)"
       ],
       "evidence": "CI 里 check:self-written / prior-art 有红记录；用户纠正过「先接入再自写」",
       "owner": "协调会话",
@@ -79,6 +80,7 @@
       "enforcement": [
         "gate:scripts/check-direction-trailer.mjs",
         "coordinator-tool:scripts/fix-churn.mjs",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)",
         "hook:edit-time-reminder",
         "hook:self-check(方向检查块)",
         "template:docs/engineering/direction-check-template.md"

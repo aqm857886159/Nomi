@@ -33,7 +33,7 @@
     "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
     "src/workbench/generationCanvas/nodes/buildContactSheetNode.ts",
     "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
-    "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
     "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
     "src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts",
     "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
