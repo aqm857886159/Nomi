@@ -28,7 +28,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "PLAN-S2-02",
@@ -43,7 +43,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "PLAN-S2-03",
@@ -58,7 +58,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "PLAN-S2-04",
@@ -73,7 +73,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "PLAN-S2-05",
@@ -88,7 +88,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "PLAN-S2-06",
@@ -121,7 +121,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": [],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "REAL-20261005-01",
@@ -136,7 +136,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["10-05 real test: 16:9 shown, outbound ratio missing"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "REAL-20261005-02",
@@ -151,7 +151,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["10-05 real test: disconnect was reported as success"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "REAL-20261005-03",
@@ -166,7 +166,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["10-05 real test: English UI received Chinese answer"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "REAL-20261005-04",
@@ -181,7 +181,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["10-05 real test: deleting a shot left an empty group"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "LAW11-ALIAS-DEDUPE",
@@ -218,7 +218,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts 的 isEmptyInputControl；seed 一类影响 10 个模型"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "LAW11-SB-NUMBER-TEXT",
@@ -255,7 +255,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["src/workbench/creation/storyboard/shotRow/shotRowModel.ts 的 resolveShotArchetypeMode 不读变体；画布节点用 archetypeVariantChoices"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "LAW11-SB-DURATION",
@@ -358,7 +358,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-row-checkbox.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "LAW12-sb-thumbnail-done",
@@ -373,7 +373,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-thumbnail-done.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "LAW12-spend-card-draft-placeholder",
@@ -388,7 +388,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["10-05 real test: draft node showed the empty-prompt hint while the card held a filled prompt"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "DIR-character-label-overlap",
@@ -461,7 +461,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/10-generate-remaining-dialog.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-04",
@@ -518,7 +518,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/18-checkbox-means-skip.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-07",
@@ -533,7 +533,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/25-done-shot-frame-actions.png", "tests/ux/shots/audit-storyboard/zh-CN/26-use-as-menu-clipped.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-08",
@@ -548,7 +548,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/11-after-cancel-nodes-left-behind.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-09",
@@ -563,7 +563,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/09-bulk-aspect-menu.png", "tests/ux/shots/audit-storyboard/zh-CN/08-shot-more-params-popover.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-10",
@@ -578,7 +578,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "已合并到 AUD-20261005-08"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-11",
@@ -593,7 +593,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "已合并到 AUD-20261005-09"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-12",
@@ -641,7 +641,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/11-after-cancel-nodes-left-behind.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-15",
@@ -656,7 +656,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/full-walk/invariants.mjs"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-16",
@@ -689,7 +689,7 @@
       "status": "candidate",
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/15-at-mention-menu.png", "tests/ux/shots/audit-storyboard/zh-CN/24-slot-picker-anchor-listed-only-as-canvas-result.png"],
-      "completionCommits": []
+      "completionCommits": ["7c9c5f0c4"]
     },
     {
       "id": "AUD-20261005-18",
@@ -795,7 +795,7 @@
       "fullWalkJourneys": [],
       "status": "reviewed",
       "manualReview": "reviewed",
-      "completionCommits": [],
+      "completionCommits": ["7c9c5f0c4"],
       "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
       "id": "FB-NF-0928-0004-borrowed-upload",
       "source": "应用内反馈 NF-0928-0004（0.22.3 Windows）",
@@ -812,7 +812,7 @@
       "fullWalkJourneys": [],
       "status": "reviewed",
       "manualReview": "reviewed",
-      "completionCommits": [],
+      "completionCommits": ["7c9c5f0c4"],
       "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
       "id": "FB-NF-0928-0001-model-not-exist",
       "source": "应用内反馈 NF-0928-0001（0.22.1）",
