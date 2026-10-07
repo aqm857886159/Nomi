@@ -447,9 +447,6 @@ export function V4Intervention({
                   // 单动作最小宽 72px（agent 专章 §8.2），否则两个字的按钮会缩成小方块。尺寸阶梯上没有 72，取上一档 80（`min-w-20`），不写任意值。
                   className="min-w-20 shrink-0"
                 >
-                  {data.kind === 'approval-irreversible' || data.kind === 'spend' ? (
-                    <IconCheck aria-hidden="true" />
-                  ) : null}
                   {data.confirmLabel ?? labels.confirm}
                   <span aria-hidden="true" className="text-micro opacity-70">⏎</span>
                 </WorkbenchButton>

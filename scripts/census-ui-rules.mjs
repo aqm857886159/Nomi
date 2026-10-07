@@ -191,6 +191,7 @@ const isDesignFile = (rel) => rel.startsWith('src/design/')
 const orderStats = { correct: 0, wrong: 0, pairs: 0 }
 const rawControl = { button: {}, select: {}, checkbox: {}, radio: {}, range: {} }
 const iconUse = {}
+const r26Pending = []
 const iconSizeUse = {}
 const iconStrokeUse = {}
 
@@ -232,7 +233,7 @@ for (const rel of tsxFiles) {
           const info = btns.map((b) => {
             const d = describe(b)
             const variant = attrStringValue(b, 'variant')
-            const isCancel = RE_CANCEL.test(d.blob) && !RE_DELETE.test(d.keys.join(' '))
+            const isCancel = RE_CANCEL.test(d.blob) && !RE_DELETE.test(d.keys.join(' ')) && !/production\.control/.test(d.blob)
             const isPrimary = !isCancel && (variant === 'primary' || RE_PRIMARY.test(d.blob))
             const isDelete = !isCancel && RE_DELETE.test(d.blob + ' ' + b.getText().match(/IconTrash\w*/)?.[0])
             return { node: b, isCancel, isPrimary, isDelete, blob: d.blob.slice(0, 50) }
@@ -244,10 +245,26 @@ for (const rel of tsxFiles) {
               else orderStats.correct += 1
             }
           }))
-          info.forEach((a, i) => {
-            if (a.isDelete && i < info.length - 1 && !info.slice(i + 1).every((x) => x.isDelete)) {
-              hit('UI-R03', rel, lineOf(sf, a.node), `删除类(${a.blob}) 后面还有按钮`)
-            }
+          // 按「弹性间隔」切段：删除住在自己那一段的最左（决定栏 leading）或最右（动作条）都行，夹在中间才算
+          const segOf = new Map()
+          let seg = 0
+          const flat = []
+          const walkKids = (n) => {
+            if (isJsx(n) && BUTTON_TAGS.has(tagOf(n))) { segOf.set(n, seg); flat.push(n) }
+            else if (isJsx(n) && /flex-1|\bgrow\b|ml-auto|mr-auto|justify-between/.test(classNameOf(n)) && !(ts.isJsxElement(n) && n.children.some((c) => isJsx(c) && BUTTON_TAGS.has(tagOf(c))))) seg += 1
+            else if (ts.isJsxExpression(n) && n.expression) walkKids(n.expression)
+            else if (ts.isParenthesizedExpression(n)) walkKids(n.expression)
+            else if (ts.isConditionalExpression(n)) { walkKids(n.whenTrue); walkKids(n.whenFalse) }
+            else if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) walkKids(n.right)
+          }
+          node.children.forEach(walkKids)
+          info.forEach((a) => {
+            if (!a.isDelete) return
+            const same = info.filter((x) => segOf.get(x.node) === segOf.get(a.node) && x !== a)
+            const idx = info.indexOf(a)
+            const before = same.some((x) => info.indexOf(x) < idx)
+            const after = same.some((x) => info.indexOf(x) > idx && !x.isDelete)
+            if (before && after) hit('UI-R03', rel, lineOf(sf, a.node), `删除类(${a.blob}) 夹在别的按钮中间`)
           })
         }
       }
@@ -302,7 +319,8 @@ for (const rel of tsxFiles) {
       // ---- UI-R26 主动作写「确认」
       if (BUTTON_TAGS.has(tag)) {
         const d26 = describe(node)
-        if (d26.keys.some((k) => /(^|.)(confirm|ok)$/i.test(k)) || d26.texts.some((x) => /^(确认|确定|OK|Ok|Confirm)$/.test(x))) hit('UI-R26', rel, lineOf(sf, node), `按钮文案是泛词：${d26.keys.concat(d26.texts).join(' ').slice(0, 50)}`)
+        for (const k of d26.keys) if (/(^|\.)(confirm|ok)$/i.test(k)) r26Pending.push({ rel, line: lineOf(sf, node), key: k })
+        if (d26.texts.some((x) => /^(确认|确定|OK|Ok|Confirm)$/.test(x))) hit('UI-R26', rel, lineOf(sf, node), `按钮文案是泛词：${d26.texts.join(' ').slice(0, 50)}`)
       }
 
       // ---- UI-R33 图标尺寸 / 描边
@@ -517,6 +535,14 @@ for (const rel of i18nFiles) {
 stats.copyEntries = copyEntries.length
 
 const lastSeg = (key) => key.split('.').pop()
+{
+  const GENERIC_ZH = new Set(['确认', '确定', '好', '好的', '是', 'OK'])
+  for (const c of r26Pending) {
+    const tail = c.key.split('.').slice(1).join('.')
+    const hitEntry = copyEntries.find((e) => e.lang === 'zh' && (e.key === c.key || e.key === tail))
+    if (hitEntry && GENERIC_ZH.has(hitEntry.value.trim())) hit('UI-R26', c.rel, c.line, `按钮文案是泛词「${hitEntry.value}」（${c.key}）`)
+  }
+}
 const isLabelKey = (e) => /(^|\.)(cancel|confirm|close|delete|save|retry|back|next|done|apply|ok|later|dismiss|undo|redo|add|remove|rename|duplicate|copy|download|upload|export|import|generate|regenerate|reset|clear|edit|create|open|skip|continue|stop|pause|play|search)\w*$/i.test(e.key)
 const cancelWordings = { zh: {}, en: {} }
 for (const e of copyEntries) {
@@ -525,7 +551,7 @@ for (const e of copyEntries) {
     const v = e.value.trim()
     cancelWordings[e.lang][v] = (cancelWordings[e.lang][v] ?? 0) + 1
     const standard = e.lang === 'zh' ? v.startsWith('取消') : v.startsWith('Cancel')
-    if (!standard && /(cancel|dismiss|decline|notnow|negative|reject)/i.test(lastSeg(e.key)) && v.length <= 12 && !/可随时|anytime/.test(v)) hit('UI-R02', e.file, e.line, `${e.key} = 「${v}」（标准词：${e.lang === 'zh' ? '取消' : 'Cancel'}）`)
+    if (!standard && /^(不要|不用|算了|否|No|Not now|Nope)$/.test(v)) hit('UI-R02', e.file, e.line, `${e.key} = 「${v}」（标准词：${e.lang === 'zh' ? '取消' : 'Cancel'}）`)
   }
   const short = e.value.length <= 24 && !e.value.includes('{{')
   // UI-R20 省略号 / 句末标点

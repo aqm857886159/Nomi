@@ -1,6 +1,6 @@
 # Nomi UI 基本规则（草案 · 2026-10-07）
 
-> 状态：**草案，待用户拍板**。第一阶段只调研 + 普查，不改产品代码、不改设计系统文档。
+> 状态：**用户 10-07 对 §4 冲突点按推荐拍板 6 条，已写进设计系统 §1.9 / §1.8 与 `Design.md`**（见 §4 开头的「已拍板」表）；其余规则仍是草案。第一阶段（调研 + 普查）之后，第二阶段第一批「所有对话框 / 确认卡底栏」已做，结果见 §8。
 > **方向（用户 10-07 补充）：规则重点放在「组件级的小规则」——图标放哪边、和文字怎么对齐、尺寸 / 描边是否统一、按钮内边距、顺序、禁用态、悬停 / 按下 / 焦点态、截断与 tooltip、弹层不压触发钮。不做布局结构、侧栏、页面重排这类大改，也不出整页样张。普查按组件（文件 / 控件族）出清单，每条违例直接定位到「改哪个组件的哪一处」。**
 > 范围：和视觉风格无关、几家官方都认的基本规则（按钮顺序、破坏性操作、状态反馈、图标语义、点击目标 / 焦点 / 键盘 / 对比度、文案、间距 / 层级）。**不碰 Nomi 的风格**（色板、圆角、字体、密度都不动）。
 > 规则正本是本文件；机器可数的那一半在 `scripts/census-ui-rules.mjs`（静态扫 `src/`）和 `tests/ux/ui-rules-census.dom.mjs`（设计实验室 DOM 普查），两个都是只读脚本，不是门岗。
@@ -102,7 +102,7 @@
 为什么：用户不必读完所有按钮就能找到「安全出口」。
 检查：静态（i18n 里 cancel / dismiss / decline 类键的文案分布）。
 
-**UI-R03 动作条里常用动作在左，删除类固定在最右并和其它动作隔开；删除后面不再跟别的按钮。**
+**UI-R03 动作条里常用动作在左，删除类固定在最右并和其它动作隔开；决定栏里删除放最左并隔开，不夹在取消和主动作之间。**（10-07 落地口径：普查只抓「夹在中间」。）
 各家：Apple 上下文菜单「list them at the end of the menu and identify them as destructive」（A-ctx，注明仅 iOS / iPadOS / visionOS）；微软「physically separate destructive commands from other commands」（W-confirm「Prevent errors」）；Apple 工具栏「Group toolbar items logically by function and frequency of use」（A-toolbars）。
 为什么：危险动作放在固定、远离高频动作的位置，减少误点。
 检查：静态（同一容器里删除类按钮后面还有别的按钮）+ DOM（同一行里删除按钮右边还有按钮）。「隔开」的距离只能人工。
@@ -288,7 +288,18 @@ Nomi 是桌面 + 鼠标为主，所以 24 是底线（AA）、28 是目标；触
 
 ## 4. 和现有设计系统（`docs/design/nomi-design-system.md`、`Design.md`）冲突 / 缺口的地方
 
-> 我**没有改**设计系统文档；下面是要你定的点，每条给了我的建议。
+> 下面是第一阶段列的冲突点。**用户 10-07 已按推荐拍板其中 6 条，并已落进文档：**
+>
+> | 拍板 | 落在哪 |
+> |---|---|
+> | ① 标题栏 × 只关窗口，决定栏必须有文字「取消」放主动作左边（= C1） | 设计系统 §1.8 规则 4、§1.8.2 表、新 §1.9.1 |
+> | ② 纯图标按钮键盘聚焦时也显示名字（= C2） | §1.8 规则 2 补充 |
+> | ③ 能撤销的不弹确认、给撤销提示，不可逆或花钱的才弹（= C4） | 新 §1.9.2、§3.5（**行为未改**，候选清单见 §7） |
+> | ④ 主动作仍在最右，不跟微软 | §1.9.1 第一行 |
+> | ⑤ `Design.md`「Light-only」改成光 / 暗双模式（= C6） | `Design.md` Principles |
+> | ⑥ 最小点击目标 24px（= C9） | 新 §1.9.3 |
+>
+> 未拍板、仍待定：C3（禁用说明改成可聚焦原因）、C5（「确认」词）、C7（间距半档）、C8（文本框焦点）。以下原文保留当时的分析。
 
 **C1 · §1.8 规则 4「拒绝 / 取消 / 关闭 / 丢弃一律 ×，或统一的次按钮样式」+ §1.8.2 正例「弹窗右上角一个 × 收掉所有否定路径」 与 你 10-06 的「取消在主动作左边」打架。**
 官方：Apple「Always use the title "Cancel"」（A-alerts）；微软「Use Cancel or Close for negative commit buttons」（W-dialog）；Apple 弹出层「Use a Close button for confirmation and guidance only」（A-popovers）。
@@ -441,3 +452,62 @@ DOM（设计实验室 343 格）：
 - **Esc / 回车 / Tab 顺序（UI-R29）**：静态样张里没有真交互，只能真 App 键盘走查；本轮没起真 App（不起可见窗口的约束）。
 - **M3 原文没读到**（§1）；中文空格、图标「更多」横竖没有官方依据（§1）。
 - 设计实验室只覆盖它登记的格（380 格、24 屏），**没覆盖的真实界面**（设置的大部分页、项目库、导出页等）只有静态扫描能看到。
+
+## 7. ③「能撤销就不弹确认」候选清单（本批**不改行为**，只列）
+
+规则已写进设计系统 §1.9.2。下面是全仓 45 处 `confirmDialog(` 里**可能**能换成撤销提示的；判据是「操作有撤销栈或能恢复」。**我没有逐个验证撤销栈**，标「需确认」的要对应线先查。
+
+| 候选（可能换成撤销 toast） | 位置 | 备注 |
+|---|---|---|
+| 删画布节点 / 分组 / 分类 | `sidebar/CategoryTree.tsx:284/318/341` | 设计实验室里 ps-11 的确认卡文案自己写着「可用 Cmd+Z 撤销」却仍弹确认，最该先换 |
+| 删结果栈里的一张结果 | `generationCanvas/nodes/NodeResultStack.tsx:351` | 需确认能否恢复 |
+| 删分镜行（仅已生成过的才弹） | `creation/storyboard/StoryboardShotTable.tsx:231/404` | 需确认撤销栈覆盖 |
+| 删创作文档 | `creation/DocumentListSidebar.tsx:92` | 需确认有无回收 |
+| 删系统提示词 | `ai/systemPrompt/SystemPromptSection.tsx:207` | 需确认能否恢复 |
+| 删素材（多选 / 单个） | `assets/AssetLibraryPanel.tsx:449/481`、`browser/popover/useBrowserAssetActions.ts:190` | 若是删文件本体则不可逆，**保留确认** |
+
+**必须保留确认**（不可逆 / 花钱 / 丢未保存内容）：未保存离开（`settings.unsaved`：`SettingsDialog.tsx:103`、`ModelSettingsDetailDialog.tsx:36`、`CustomCallEditor.tsx:124/376`、`ModelCapabilityEditor.tsx:144`）；断开 / 删除供应商与密钥（`VendorOnboardCard.tsx:148`、`CustomVendorManage.tsx:113`、`vendorDeleteAction.ts:18`、`ComfyuiLocalCard.tsx:165/186`、`ComfyuiWorkflowSettingsPage.tsx:268/286`）；删项目（`NomiStudioApp.tsx:497`）；制作线取消 / 放行（`production/useProductionStatus.ts:115/177/203/214/429`）；导演台那几处（`nodes/director/*`，本批不碰，UAL 线在改）。
+落地顺序建议：先换 CategoryTree 三处（用户天天碰、且已有撤销栈），验证 `showUndoToast` 的撤销真能恢复后再扩。
+
+## 8. 第二阶段第一批：「对话框 / 确认卡底栏」做了什么（2026-10-07）
+
+**开工三问**
+- **fix-churn（近 14 天这些文件被改的次数，其中 fix 类）**：`confirmDialog.tsx` 4（1）、`AgentPanelV4Cards.tsx` 8（2）、`AgentPanelV4Consent.tsx` 4（1）、`CustomCallEditor.tsx` 4（1）、`StoryboardSelectionToolbar.tsx` 5（2）、`TelemetrySection.tsx` 4（1）、`ComfyuiLocalCard.tsx` 4（1）；**`NodeErrorReport.tsx` 12（5）已超过「第三次」线**——这次只动它的「放行确认」那一小排（换成共享决定栏，顺序对调），没有加特例分支，也没有碰它别的逻辑。根因判断：这些不是各自的 bug，是「决定栏没有共用组件，每处手写一份」这一个类根因，所以修在共享边界（`DecisionBar`），不是逐处补丁。
+- **成熟方案**：顺序 / 措辞 / ✓ 语义全部照 Apple HIG、Material、微软、NN/g 的官方条文（§2、§3）；点击目标照 WCAG 2.2 AA。组件本身是 Nomi 领域外的通用能力，所以只做一个 40 行的薄壳（包 `WorkbenchButton`），不引新库。
+- **补 / 换 / 删**：**补** `DecisionBar`（`src/design/decisionBar.tsx`）；**换** `confirmDialog` 与 9 处手写底栏改走它；**删** 这 9 处手写按钮排、4 处 ✓ 图标 + 两处 ✕ 图标按钮、`AgentPanelV4Cards` 里的 ✓。
+
+**改了哪些底栏**（每处「改前 → 改后」）
+| 位置 | 改动 |
+|---|---|
+| `design/confirmDialog.tsx`（全产品确认框，共享） | 迁入 `DecisionBar`（取消在左、主动作在最右；行为与锚点 `data-confirm-dialog-*` 不变） |
+| `ai/v4/AgentPanelV4Cards.tsx`（Agent 删除 / 付费确认卡） | 主按钮去掉 ✓（一处改，17 个实验室格生效） |
+| `ai/v4/AgentPanelV4Consent.tsx` | 「愿意 \| 不分享」→「不分享 \| 愿意」，提示文字移到左边 |
+| `onboarding/AddComfyuiInstanceButton.tsx` | 「接入检测 \| 取消」→「取消 \| 接入检测」 |
+| `onboarding/ComfyuiLocalCard.tsx`、`workflowPage/WorkflowSidebar.tsx` | 地址行内编辑：✓ ✕ 两个小图标钮 → 文字「取消 \| 保存地址 / 保存」 |
+| `onboarding/VendorBaseUrlField.tsx` | 「保存 \| 取消」→「取消 \| 保存」 |
+| `onboarding/CustomCallEditor.tsx` | 底栏顺序改为「删除（最左，隔开）… 取消 \| 保存草稿 \| 主动作」，去掉主动作 ✓ |
+| `browser/prompt/BrowserPromptExtractionSettingsModal.tsx` | 底栏走 `DecisionBar`：恢复默认 / 删除住最左隔开，取消 \| 保存，去掉 ✓ |
+| `settings/TelemetrySection.tsx` | 删除全部的行内确认：「确认 \| 取消」(11px 无边框字) → 「取消 \| 删除全部」(危险色，≥28px) |
+| `generationCanvas/nodes/NodeErrorReport.tsx` | 放行确认：「继续 \| 取消」→「取消 \| 继续」 |
+| `generationCanvas/nodes/render/ImageCropGridOverlay.tsx` | 画布上 ✕ ✓ 两个圆形图标钮 → 文字「取消 \| 确认裁剪 / 确认切图」 |
+| `creation/storyboard/StoryboardSelectionToolbar.tsx` | 删除固定最右（清除选择 × 挪到计数旁）；间距收到 `gap-1.5`，英文不再把整条挤成两行 |
+| `onboarding/IntegrationSelfCheckPanel.tsx`、`ModelPickerScreen.tsx`、`StoryboardPlanStrategyPanel.tsx`、`StoryboardOverrideBadge.tsx` | 去掉动作按钮里的 ✓；后两个同时把命中区撑到 ≥24px |
+| `onboarding/VendorFieldLossNotice.tsx` | 纯告知的「确认」→「知道了」 |
+| `i18n/locales/agentPanelV4.ts` | 「不要 / 不用 / No / Not now」→「取消 / Cancel」（3 个键 × 2 语言） |
+
+**没动的（同样是普查命中，但不是本批范围或不该动）**：`ProductionRunTaskCard`（任务控制条，不是决定栏）、`SpendConfirmDialog`（顺序与文案本来就对，只是还没迁进 `DecisionBar`，下一批）、导演台 `nodes/director/*`（UAL 线在改，`SceneObjectsTab` 的 R03 命中留着）、画布落地链、门岗脚本、两本账本。
+
+**普查前后对比**（同一份脚本，改前在 `ffd01e2aa` 的干净副本上跑，改后在本分支跑）
+| 规则 | 静态 前 → 后 | DOM 前 → 后（agent-panel-v4 / storyboard / primitives-surfaces / settings 四屏，171 格） |
+|---|---|---|
+| R01 取消在主动作右边 | 8 → **0** | 1 → **0** |
+| R02 口语否定词 | 6 → **0** | — |
+| R03 删除夹在中间 | 3 → 1（剩导演台，不碰） | 1 → **0** |
+| R04 ✓ 当动作 | 9 → **0** | 15 → **0** |
+| R26 主动作「确认」 | 3 → **0** | — |
+| R10 点击目标 <24 | 31 → 31 | 212 → 212（**没动**：命中集中在分镜行把手 / 勾选、Agent 面板「历史会话 / 收起」，不是决定栏，留给下一批「图标按钮」） |
+| R33–R35 | 图标越档 364 → 359 | 图标按钮渲染尺寸分布基本不变 |
+
+**验证**：`pnpm typecheck` 绿、`eslint`（改到的文件）0 警告；`vitest` 312 个测试文件 3127 条全绿（`src/design`、`ai/v4`、`ui/onboarding`、`settings`、`creation/storyboard`、`generationCanvas/nodes`、`ui/browser`）；`check:controls`、`check:icon-semantics`、`check:tokens`（中途抓到我写的 `ml-auto` 违反「行尾贴边」，已改）、`check:i18n`、`check:filesize`、`check:feel` 绿。`check:concept-owners`（8 处历史 root-cause 声明边界未登记）与 `check:walkthroughs`（C0 凭证类 2 条）红，**指向的文件都不是本批改的**，未在 main 上复核；本批不碰账本与门岗。前后对比截图：`docs/research/2026-10-07-decision-bar-shots/pairs/`（11 张，每张 左改前 / 右改后，zh / en × 亮 / 暗 4 行），原图在同目录 `before/` `after/`。设计实验室基线若因此变化只记清单：受影响的格 = `agent-panel-v4`（v4-intervention-* / v4-spend-params-* / v4-panel-spend-* / v4-flow-generation / v4-consent-first-ask）、`primitives-surfaces/ps-11-confirm-dialog`、`storyboard/sb-zone-06-selection-toolbar`（darwin 基线由 Mac 录，本机没录）。
+
+**没有截图验证的（诚实标注）**：`TelemetrySection` 删除确认态（实验室只有 idle 格）、`ComfyuiLocalCard` / `WorkflowSidebar` 地址编辑态、`CustomCallEditor` 底栏、`NodeErrorReport` 放行确认、`StoryboardPlanStrategyPanel` / `StoryboardOverrideBadge`、`IntegrationSelfCheckPanel` / `ModelPickerScreen` ——实验室没有这些格，我只做了类型 / 单测 / 普查验证；`DecisionBar` 在这些位置的真实观感需要用户或独立验收线在真 App 里点一遍。

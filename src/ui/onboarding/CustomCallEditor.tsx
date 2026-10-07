@@ -400,14 +400,6 @@ export function CustomCallEditor({
           {t('onboardingProviders.customCall.removeScope', { scope: selectedScopeLabel })}
         </DesignButton>
       ) : null}
-      {target.draft && !testPassed && !testBusy ? (
-        <DesignButton variant="light" onClick={saveDraft}>
-          {t('onboardingProviders.customCall.saveDraft')}
-        </DesignButton>
-      ) : null}
-      <DesignButton variant="subtle" onClick={() => { void requestClose() }}>
-        {t('common.cancel')}
-      </DesignButton>
       <span className="min-w-0 flex-1" />
       {saveError ? <span className="basis-full text-caption text-workbench-danger sm:basis-auto">{saveError}</span> : null}
       {test.phase === 'done' ? (
@@ -420,11 +412,19 @@ export function CustomCallEditor({
             : 'onboardingProviders.customCall.footerTestFailed')}
         </span>
       ) : null}
+      {/* 决定栏顺序（UI-R01）：取消 → 次动作 → 主动作；删除脚本固定在最左、与决定隔开。 */}
+      <DesignButton variant="subtle" onClick={() => { void requestClose() }}>
+        {t('common.cancel')}
+      </DesignButton>
+      {target.draft && !testPassed && !testBusy ? (
+        <DesignButton variant="light" onClick={saveDraft}>
+          {t('onboardingProviders.customCall.saveDraft')}
+        </DesignButton>
+      ) : null}
       {testPassed ? (
         <DesignButton
           variant="filled"
           onClick={saveTestedScript}
-          leftSection={<IconCheck size={14} stroke={2} aria-hidden="true" />}
           size="md"
         >
           {requiresCapabilitySetup

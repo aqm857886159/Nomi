@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconEye, IconTrash } from '@tabler/icons-react'
-import { DesignButton } from '../../design'
+import { DecisionBar, DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { TelemetrySettingsView, TelemetrySummary } from '../../../electron/shared/contracts/telemetry'
 
@@ -70,10 +70,16 @@ export function TelemetrySection(): JSX.Element {
           {t('settings.general.telemetry.viewSummary')}
         </DesignButton>
         {confirmingDelete ? (
-          <div className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line px-2 py-1.5" data-telemetry-delete-confirm>
-            <span className="text-micro text-nomi-ink-60">{t('settings.general.telemetry.deleteConfirm')}</span>
-            <button type="button" className="border-0 bg-transparent px-1 text-micro text-nomi-accent cursor-pointer" onClick={() => { setConfirmingDelete(false); void removeAll() }}>{t('common.confirm')}</button>
-            <button type="button" className="border-0 bg-transparent px-1 text-micro text-nomi-ink-60 cursor-pointer" onClick={() => setConfirmingDelete(false)}>{t('common.cancel')}</button>
+          <div className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line px-2 py-1" data-telemetry-delete-confirm>
+            <span className="text-caption text-nomi-ink-60">{t('settings.general.telemetry.deleteConfirm')}</span>
+            <DecisionBar
+              inline
+              cancelLabel={t('common.cancel')}
+              onCancel={() => setConfirmingDelete(false)}
+              primaryLabel={t('settings.general.telemetry.deleteAll')}
+              onPrimary={() => { setConfirmingDelete(false); void removeAll() }}
+              tone="danger"
+            />
           </div>
         ) : (
           <DesignButton type="button" variant="subtle" disabled={busy || !summary || (summary.pendingCount + summary.sentCount === 0)} leftSection={<IconTrash size={14} aria-hidden="true" />} onClick={() => setConfirmingDelete(true)}>

@@ -13,11 +13,11 @@ import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
-import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconCheck, IconX, IconTrash, IconChevronRight } from '@tabler/icons-react'
+import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconTrash, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notify } from '../notificationPolicy'
-import { confirmDialog } from '../../design'
+import { confirmDialog, DecisionBar } from '../../design'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ComfyuiWorkflowImportPanel } from './ComfyuiWorkflowImportPanel'
 import { ComfyuiPresetSection } from './ComfyuiPresetSection'
@@ -228,8 +228,13 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
             autoFocus
             className="flex-1 h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
           />
-          <button type="button" onClick={handleSaveAddr} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-workbench-success hover:bg-nomi-ink-05" aria-label={t('onboardingProviders.comfyLocal.saveAddress')}><IconCheck size={15} stroke={1.8} /></button>
-          <button type="button" onClick={cancelAddressEditing} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05" aria-label={t('common.cancel')}><IconX size={15} stroke={1.8} /></button>
+          <DecisionBar
+            inline
+            cancelLabel={t('common.cancel')}
+            onCancel={cancelAddressEditing}
+            primaryLabel={t('onboardingProviders.comfyLocal.saveAddress')}
+            onPrimary={handleSaveAddr}
+          />
         </div>
       ) : (
         <>

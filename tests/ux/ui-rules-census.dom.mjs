@@ -194,7 +194,8 @@ function probe() {
       }
     }
     for (const d of rs.filter((x) => deleteRe.test(x.t) || x.b.querySelector('.tabler-icon-trash'))) {
-      if (rs.some((o) => o !== d && !(deleteRe.test(o.t)) && sameLine(d, o) && o.r.left > d.r.right - 1)) add('UI-R03', d.b, { with: rs.filter((o) => o !== d).map((o) => o.t.slice(0, 10)).join('|') })
+      // 只抓「夹在中间」：它左右两边同一行都有别的按钮（删除在最左 / 最右都行）
+      if (rs.some((o) => o !== d && !(deleteRe.test(o.t)) && sameLine(d, o) && o.r.left > d.r.right - 1) && rs.some((o) => o !== d && sameLine(d, o) && o.r.right < d.r.left + 1)) add('UI-R03', d.b, { with: rs.filter((o) => o !== d).map((o) => o.t.slice(0, 10)).join('|') })
     }
   }
   for (const b of btns) {

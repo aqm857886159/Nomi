@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconCheck, IconLock } from '../../vendor/tablerIcons'
+import { IconAlertTriangle, IconLock } from '../../vendor/tablerIcons'
 import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { integrationSelfCheckOutcome } from './integrationSelfCheckOutcome'
@@ -131,7 +131,6 @@ export function IntegrationSelfCheckPanel({ handoff, onDone }: Props): JSX.Eleme
       ) : null}
       <div className="flex justify-end gap-2">
         <DesignButton variant="filled" onClick={() => void startSelfCheck()} loading={busy} disabled={!session || busy}>
-          <IconCheck size={15} aria-hidden="true" />
           {t('modelSetup.integrationSelfCheckAction')}
         </DesignButton>
       </div>

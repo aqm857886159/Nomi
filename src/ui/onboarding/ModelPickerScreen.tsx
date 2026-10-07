@@ -24,7 +24,6 @@ import {
   IconMicrophone,
   IconCube,
   IconPlus,
-  IconCheck,
   IconCloudDownload,
 } from '@tabler/icons-react'
 import {
@@ -426,7 +425,6 @@ export function ModelPickerScreen({
         </DesignButton>
         <DesignButton
           variant="filled"
-          leftSection={<IconCheck size={14} />}
           onClick={confirm}
           disabled={controlsBlocked || count === 0}
           loading={confirming}

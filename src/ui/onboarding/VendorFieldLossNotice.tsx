@@ -43,7 +43,7 @@ export function VendorFieldLossNotice({ noticeAt, onDismiss, disabled }: VendorF
         disabled={disabled}
         className="self-start inline-flex items-center h-7 px-2.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-caption font-semibold hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {t('common.confirm')}
+        {t('runtime.design.gotIt')}
       </button>
     </div>
   )
