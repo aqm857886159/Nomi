@@ -53,7 +53,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
   afterEach(() => vi.useRealTimers())
 
   it('cancels the queued save for the same mutation before an immediate canonical save', async () => {
-    const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => {
+    const saveProject = vi.fn(async (_projectId: string, _payload: unknown) => {
       const record = { id: 'project-a', version: 1, revision: ++deps.revision }
       deps.saves.push(record)
       return record as never
@@ -77,7 +77,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     deps.workbenchState.activeDocumentId = 'doc-a'
     let hydrating = false
     let canPersist = true
-    const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
+    const saveProject = vi.fn(async (_projectId: string, _payload: unknown) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
     const dispose = subscribeWorkbenchProjectPersistence({
       projectId: 'project-a',
       isHydrating: () => hydrating,
@@ -103,7 +103,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
 
   it('cleanup flush uses the payload captured at schedule time, never the hydrated successor data', async () => {
     deps.workbenchState.activeDocumentId = 'doc-a'
-    const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
+    const saveProject = vi.fn(async (_projectId: string, _payload: unknown) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
     const dispose = subscribeWorkbenchProjectPersistence({
       projectId: 'project-a',
       isHydrating: () => false,

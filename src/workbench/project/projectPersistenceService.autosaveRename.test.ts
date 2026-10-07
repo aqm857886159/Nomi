@@ -55,7 +55,7 @@ import { createProjectRecord } from './projectNormalize'
 const PROJECT_ID = 'project-autosave'
 
 function seedDisk(name: string) {
-  const base = createProjectRecord(name)
+  const base = createProjectRecord({ id: PROJECT_ID, name, createdAt: 0, updatedAt: 0 })
   deps.disk.set(PROJECT_ID, { ...base, id: PROJECT_ID, name, thumbStyle: 'warm', seedKey: 'seed-a', revision: 1 })
   const payload = base.payload
   Object.assign(deps.workbenchState, {
