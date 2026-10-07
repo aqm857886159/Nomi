@@ -6,7 +6,7 @@
 // 内存:HISTORY_LIMIT=80 维持;最老 barrier 被挤出时把前缀压进 base(紧凑化),journal 不无界。
 // 撤销只回退**用户编辑**:生成结局落地(run-updated 事件带 `landed`)是系统事实,前缀重放会把 barrier
 // 之后落地的结果一起丢掉(钱花了、图没了)——所以 undo/redo 连同目标位置之后的全部落地一起交出去,
-// 由 store 重新叠回(store/nodeRunOutcome.reapplyLandedOutcomes)。
+// 由画布 store 的统一提交口重新叠回(store/canvasDocumentCommit.ts)。
 import { replayCanvasEvents, emptyCanvasProjection, type CanvasProjection } from './canvasEventReducer'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
@@ -17,7 +17,7 @@ export type CanvasChangeConflict = Readonly<{
   changeId: string
   objectIds: readonly string[]
   conflictingEventTypes: readonly string[]
-  /** 这笔改动碰过、之后又被别的事务改到的那些对象。 */
+  /** 这笔改动碰过、之后又被别的事务改到**编辑层**的那些对象(运行写的事实层不算:整节点放回经统一提交口,事实取活的)。 */
   conflictingObjectIds: readonly string[]
 }>
 
@@ -44,23 +44,43 @@ function replayTo(position: number): CanvasProjection {
 
 /** 一次生成结局落地:哪个节点、落了什么(结局原样,store 侧解释)。 */
 export type CanvasLanding = Readonly<{ nodeId: string; landed: Readonly<Record<string, unknown>> }>
-/** 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)。 */
-export type UndoRestore = Readonly<{ projection: CanvasProjection; landingsAfter: readonly CanvasLanding[] }>
+/**
+ * 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)
+ * + 目标位置及之前在画布上出现过的节点(撤销「建节点」才留下带落地的节点;重做「删节点」照删)。
+ */
+export type UndoRestore = Readonly<{
+  projection: CanvasProjection
+  landingsAfter: readonly CanvasLanding[]
+  nodeIdsSeenBefore: ReadonlySet<string>
+}>
 
-// 落地记账两种：节点在时落下的（run-updated 带 landed）；节点不在时到达、暂存的（outcome-held）。
+// 落地记账只有一种:run-updated 带 landed(节点在时落下的,或节点被带回来时补落的暂存结局)。
 function landingsAfter(position: number): CanvasLanding[] {
   return journal.slice(position).flatMap((event) => {
     const landed = event.payload.landed
-    const nodeId = event.type === 'canvas.node.run-updated'
-      ? (event.payload.node as { id?: unknown } | undefined)?.id
-      : event.type === 'canvas.node.outcome-held' ? event.payload.nodeId : undefined
+    const nodeId = event.type === 'canvas.node.run-updated' ? (event.payload.node as { id?: unknown } | undefined)?.id : undefined
     if (!landed || typeof landed !== 'object' || typeof nodeId !== 'string') return []
     return [{ nodeId, landed: landed as Record<string, unknown> }]
   })
 }
 
+function nodeIdsIn(event: JournalEvent): string[] {
+  const { node, snapshot } = event.payload as { node?: { id?: unknown }; snapshot?: { nodes?: unknown } }
+  const ids = typeof node?.id === 'string' ? [node.id] : []
+  if (Array.isArray(snapshot?.nodes)) {
+    for (const candidate of snapshot.nodes as Array<{ id?: unknown }>) if (typeof candidate?.id === 'string') ids.push(candidate.id)
+  }
+  return ids
+}
+
+function nodeIdsSeenBefore(position: number): Set<string> {
+  const seen = new Set(base.nodes.map((node) => node.id))
+  for (const event of journal.slice(0, position)) for (const id of nodeIdsIn(event)) seen.add(id)
+  return seen
+}
+
 function restoreTo(position: number): UndoRestore {
-  return { projection: replayTo(position), landingsAfter: landingsAfter(position) }
+  return { projection: replayTo(position), landingsAfter: landingsAfter(position), nodeIdsSeenBefore: nodeIdsSeenBefore(position) }
 }
 
 /** 发射器同步喂(canvas 域全部事件,含 snapshot.restored)。 */
@@ -164,7 +184,7 @@ export function findCanvasChange(changeId: string): CanvasChangeConflict | null 
       return []
     })
     const touched = payloadIds.filter((id) => ids.has(id))
-    touched.forEach((id) => conflictingObjectIds.add(id))
+    if (event.source !== 'runtime') touched.forEach((id) => conflictingObjectIds.add(id))
     if (event.type === 'canvas.snapshot.restored' || touched.length) conflictingEventTypes.add(event.type)
   }
   return { changeId, objectIds, conflictingEventTypes: [...conflictingEventTypes], conflictingObjectIds: [...conflictingObjectIds] }

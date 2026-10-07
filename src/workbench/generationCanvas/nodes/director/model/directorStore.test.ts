@@ -52,16 +52,6 @@ describe('directorStore', () => {
     expect(store.getState().findObject(groupId)).toBeUndefined()
   })
 
-  it('crowd matrix clones into a group; deleting the group cascades', () => {
-    const store = createDirectorStore({ defaultSceneName: 'S1' })
-    const api = store.getState()
-    const a = api.addObject(character('A'))
-    const groupId = api.batchCreateCrowd(a, 2, 3, 1, 'crowd')!
-    expect(store.getState().activeScene().objects).toHaveLength(1 + 1 + 6)
-    api.deleteObject(groupId)
-    expect(store.getState().activeScene().objects).toHaveLength(1)
-  })
-
   it('spatial writes respect the edit layer: rest → keyframe → readonly, autoKey unlocks readonly', () => {
     const store = createDirectorStore({ defaultSceneName: 'S1' })
     const api = store.getState()

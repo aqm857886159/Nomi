@@ -26,6 +26,7 @@
     "seo:audit": "node scripts/seo/seo-audit.mjs",
     "test:seo": "node --test tests/seo/*.node.mjs scripts/seo/seo-audit.node.mjs",
     "check:site": "node ./scripts/check-site.mjs",
+    "test:toast-layout": "node scripts/build-tailwind.mjs && tsx --test tests/ux/toast-layout.spec.ts",
     "test:packaging": "node scripts/packaging/platform-binaries.test.cjs",
     "audit:package-size": "node scripts/audit-package.mjs",
     "start": "node ./scripts/start-electron.mjs",

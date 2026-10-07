@@ -25,10 +25,15 @@ function positionPopup(el: HTMLElement, rect: DOMRect | null): void {
   el.style.left = `${left}px`
 }
 
+/**
+ * 选中一条候选的结果：最终该插的 chip 编号（建边 / 落槽后算出来的）；null = 没插成（如能力校验没过）；
+ * 或一份还在路上的结果——别的项目的素材要先复制进本项目，复制品的地址和编号到手后再插（地址就是复制品的地址）。
+ */
+export type MentionSelection = number | null | Promise<{ url: string; index: number } | null>
+
 export function createAssetMentionSuggestion(options: {
   getCandidates: (query: string) => MentionSuggestionItem[]
-  /** 选中一条候选。返回最终该插的 chip 编号（建边/落槽后算出来的）；返回 null = 没插成（如能力校验没过）。 */
-  onSelect: (item: MentionSuggestionItem) => number | null
+  onSelect: (item: MentionSuggestionItem) => MentionSelection
   getUpload?: () => MentionUploadControls | undefined
 }): Extension {
   return Extension.create({
@@ -53,10 +58,15 @@ export function createAssetMentionSuggestion(options: {
           command: ({ editor, range, props }) => {
             const item = props as MentionSuggestionItem
             // 先建立真实引用（可能被能力校验拒），拿到最终编号再插 chip；拒了就只删掉 @ 触发段、不留假引用。
-            const index = options.onSelect(item)
+            const selection = options.onSelect(item)
             const chain = editor.chain().focus().deleteRange(range)
-            if (index === null) { chain.run(); return }
-            chain.insertAssetMention(item.url, index, item.kind).run()
+            if (selection === null) { chain.run(); return }
+            if (typeof selection === 'number') { chain.insertAssetMention(item.url, selection, item.kind).run(); return }
+            // 复制进本项目还在路上：先把 @ 触发段删掉，复制品落进槽之后在光标处插它的 chip（地址是复制品的）。
+            chain.run()
+            void selection.then((placed) => {
+              if (placed && !editor.isDestroyed) editor.chain().focus().insertAssetMention(placed.url, placed.index, item.kind).run()
+            })
           },
           render: () => {
             let renderer: ReactRenderer<MentionSuggestionListRef> | null = null

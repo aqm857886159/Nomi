@@ -38,7 +38,7 @@ export function PlacementHud({ placement, boxDraw }: { placement: CharacterPlace
     return (
       <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-2 rounded-full border border-nomi-line bg-nomi-paper/95 px-3 py-1 text-caption text-nomi-ink shadow-nomi-sm">
         <span className="text-nomi-ink-40">{t('director.hud.placementLabel')}</span>
-        <span className="font-semibold">{placement.gender === 'female' ? t('director.creation.female') : t('director.creation.male')}</span>
+        <span className="font-semibold">{placement.crowd ? t('director.creation.crowd') : placement.gender === 'female' ? t('director.creation.female') : t('director.creation.male')}</span>
         <span className="text-nomi-ink-40">{t('director.hud.placementHint', { heading: placement.headingDeg.toFixed(0) })}</span>
       </div>
     )
