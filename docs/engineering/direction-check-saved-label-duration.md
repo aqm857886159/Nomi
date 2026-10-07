@@ -49,3 +49,7 @@
 - 已有：`src/workbench/observability/generationFeedback.test.ts` 覆盖 0/2.5/3 秒窗口和淡出值。
 - 新增：`src/workbench/observability/useGenerationFeedback.test.ts` 锁定闸门必须使用共享外部时钟。
 - 未完成：zh/en Electron 真实宿主在 0/2/5/10 秒截图对账，交付报告标 `unverified`。
+
+## 放行
+
+- 2026-10-07 协调会话放行：「已保存」确认标签的显示时长统一读共享外部时钟，测试从源码字符串断言换成行为测试（假时钟 + 外部 store 快照）。改动面限于 `useGenerationFeedback.ts` 一处闸门，不改凭据持久状态。zh / en 真宿主分秒截图对账仍是 unverified，正文已标。
