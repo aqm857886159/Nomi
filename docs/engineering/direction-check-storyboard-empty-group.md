@@ -54,3 +54,7 @@
 ## 暂停点
 
 本文件由 `node scripts/fix-churn.mjs src/workbench/generationCanvas/store/canvasNodeActions.ts` 命中第 3 次修补触发。按公共规矩，生产补丁暂停，结构性结论交协调会话/用户拍板后再继续。
+
+## 放行
+
+- 2026-10-08 协调会话放行：按「补」——在共享删除写口统一计算「因本次删除而变空的组」并在同一次删除、同一条撤销记录里一起删除；用户主动建的空组不动。三扇删除入口（`deleteNode` / `deleteSelectedNodes` / `cutSelectedNodes`）都必须经这一处，不在入口各补。注意 `refactor/canvas-explicit-delete`（落地链第二刀，在验收）同样改删除写口与历史记录：保持最小改动，合并时以它的「历史记录带信号」结构为准再接上空组清理。
