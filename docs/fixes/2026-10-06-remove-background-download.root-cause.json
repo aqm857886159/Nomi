@@ -1,0 +1,158 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-remove-background-download",
+  "problem_type": "本机能力的首次资源下载依赖外站，且卡住与在跑分不清",
+  "symptom": "用户 2026-10-06「抠图功能没法使用」。真 App 复现（dev / 生产构建 / 打包版，本机走代理）：首次抠图 90–140 秒，下载进度按资源各算各的来回跳（35%→100%→35%→100%），识别段 25% 原地 15–28 秒；连接挂住不断开时永远转圈；亮色下白底图抠完落在白卡上看不出变化",
+  "direct_cause": "@imgly/background-removal 默认从 staticimgly.com 拉约 56MB；它的 progress 只在整块（约 4MB）下完时按资源报一次；它没有超时；初始化是 memoize 的，失败那次的 rejection 会被缓存，不换 worker 重试也一样失败；节点卡下面没有棋盘格",
+  "class_root": "首次使用才下载的本机能力，下载这一段没有 owner：资源从哪儿来、总量多大、多久没进度算卡住、失败怎么说，都交给第三方默认值",
+  "affected_population": [
+    "所有平台首次抠图的用户；国内不走代理的用户最明显；节点画布与画板两个入口"
+  ],
+  "scope_paths": [
+    "src/lib/removeBackground.ts",
+    "src/lib/removeBackground.worker.ts",
+    "src/lib/removeBackgroundDownload.ts",
+    "src/lib/removeBackgroundModelSource.ts",
+    "src/workbench/generationCanvas/nodes/localImageOpPhase.ts",
+    "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/render/CardCommon.tsx"
+  ],
+  "entry_points": [
+    "节点浮条「抠图」→ useNodeImageEditing.handleRemoveBackground → removeBackgroundBlob",
+    "画板里选中素材「抠图」→ WhiteboardDrawingTool.handleRemoveBackground → removeBackgroundBlob",
+    "⑫ 真 App 普查：tests/ux/full-walk/catalog.mjs 的 NODE_TOOLBAR_CLICK_TARGETS（pb13 逐个点浮条动作）"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/imgly/background-removal-js",
+      "checked_at": "2026-10-06",
+      "purpose": "核对 publicPath 配置项、loadAsBlob 按 chunk fetch 并按资源报 progress、init 按 JSON.stringify(config) memoize（node_modules/@imgly/background-removal/dist/index.mjs）"
+    }
+  ],
+  "invariants": [
+    "抠图资源只从 removeBackgroundModelSource 里登记的镜像根拉，版本与装着的 @imgly 包一致",
+    "下载段一条总进度，按要用的几样资源的字节总数算，单调不减",
+    "下载中 60 秒没收到字节就中止并报「卡住」，失败后换新 worker",
+    "失败按原因说一句带下一步的话；抠图结果下面垫棋盘格"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/lib/removeBackgroundDownload.ts",
+    "tests": [
+      "src/lib/removeBackgroundDownload.test.ts",
+      "src/lib/removeBackgroundModelSource.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "symbol": "removeBackgroundBlob"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx",
+      "symbol": "removeBackgroundBlob"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "节点画布和画板是两个不同的界面，各自要把结果写回自己的数据（节点版本堆叠 / 画板素材）；两扇门共用同一个 removeBackgroundBlob、同一份进度文案 removeBackgroundProgressMessage 和失败文案 removeBackgroundFailureMessage"
+  },
+  "generality_proof": "镜像根、资源清单、卡住阈值只在 removeBackgroundModelSource 一处；字节计数与卡住判定在 worker 里包住全局 fetch，@imgly 内部任何一次拉镜像都经过它；失败原因随 worker 回传、由 removeBackground.ts 包成 RemoveBackgroundError，两扇门都只调 removeBackgroundFailureMessage",
+  "shared_boundaries": [
+    {
+      "path": "src/lib/removeBackgroundModelSource.ts",
+      "symbol": "REMOVE_BACKGROUND_PUBLIC_PATH",
+      "responsibility": "资源从哪儿来、要哪几样、多久算卡住"
+    },
+    {
+      "path": "src/lib/removeBackgroundDownload.ts",
+      "symbol": "createDownloadTracker",
+      "responsibility": "字节级总进度、卡住中止、失败分类"
+    },
+    {
+      "path": "src/lib/removeBackground.ts",
+      "symbol": "removeBackgroundBlob",
+      "responsibility": "带原因的失败、失败后换新 worker"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "entry_point": "handleRemoveBackground",
+      "disposition": "enforced",
+      "evidence": "catch 里改用 removeBackgroundFailureMessage(error)"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx",
+      "entry_point": "handleRemoveBackground",
+      "disposition": "enforced",
+      "evidence": "同上"
+    },
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/videoDepth.worker.ts",
+      "entry_point": "视频深度模型下载",
+      "disposition": "not-affected",
+      "evidence": "模型由主进程下载、校验后经 nomi-local://runtime 伺服（8e0c22d76），不在渲染进程从外站拉"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每个首次使用才下载的本机能力都会遇到外站慢 / 挂住；升级 @imgly 时版本目录会变",
+    "same_class_scan": [
+      "grep -rn \"staticimgly\" src：改后 0 处（只剩 removeBackgroundModelSource 的注释）",
+      "grep -rn \"removeBackgroundBlob\" src：两扇门（节点、画板）",
+      "videoDepth：主进程下载 + 校验 + 本地伺服，不同机制，不受影响"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/lib/removeBackgroundDownload.ts",
+    "invariant": "抠图下载段有总进度、有卡住超时、失败带原因",
+    "failure_mode": "60 秒无字节 → 中止在途请求，报 download-stalled；连不上 / 断开 → download-failed；界面恢复原图并说下一步",
+    "exception_policy": "none",
+    "strategy": "镜像根单一常量 + 版本钉测试；worker 包全局 fetch 计字节；失败换 worker",
+    "artifacts": [
+      "src/lib/removeBackgroundModelSource.ts",
+      "src/lib/removeBackgroundDownload.ts",
+      "src/lib/removeBackground.ts",
+      "src/lib/removeBackground.worker.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/lib/removeBackgroundDownload.test.ts",
+    "src/lib/removeBackgroundModelSource.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/lib/removeBackgroundDownload.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/lib/removeBackground.worker.ts",
+      "src/i18n/locales/generationCommon.ts"
+    ],
+    "rationale": "worker 不再用 @imgly 默认的 staticimgly.com（没有退回外站的分支）；@imgly 按资源报的 fetch: 进度不再往外发；一律「请检查网络连接后重试」的 whiteboard.removeBackgroundFailed 文案删掉，换成按原因的三句"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "@imgly/background-removal 1.7.0 保留；只用官方 publicPath 配置项。升级时数据包版本目录会变，镜像要先传新版本文件",
+    "current": "@imgly/background-removal 1.7.0",
+    "target": "下一个 @imgly 版本（镜像同步后）",
+    "exit_criteria": [
+      "removeBackgroundModelSource.test.ts 的版本钉随升级改，镜像上新版本目录的 resources.json 可取"
+    ]
+  },
+  "migration": "无持久化数据；已下载过的用户的浏览器缓存里是 staticimgly 的地址，换镜像后首次会从镜像重新下一次",
+  "residual_risks": [
+    "国内不走代理时镜像的实际速度没测（本机全程走代理），unverified",
+    "识别段在 Windows 上是单线程（跨源隔离在 Windows 无边框窗口下关着），15–30 秒没有细分进度，本次未改",
+    "镜像本身挂了只会报「下载失败」，没有第二个来源（按 P1 不留外站退路）"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06"
+}

@@ -266,6 +266,7 @@ export const zhGenerationCommon = {
       releaseRegenerate: { main: '我核对过了，重新生成', alt: '我核对过了，重新生成' },
       retry: { main: '重试', alt: '仍要重试' },
       switchModel: { main: '换个模型', alt: '换个模型' },
+      switchSameCapability: { main: '换成 {{model}}', alt: '换成 {{model}}' },
       modelAccess: { main: '检查模型', alt: '检查模型' },
       fixModelKind: { main: '改成{{kind}}并重试', alt: '改成{{kind}}' },
     },
@@ -433,13 +434,19 @@ export const zhGenerationCommon = {
     // download 是首次抠图专有：模型+运行时约 50MB 要下载,只发生一次,之后走本地缓存。
     // 不说清「只此一次」,用户会以为每次抠图都这么慢。
     matteProgress: {
-      download: '首次抠图，正在下载模型（约 50MB，仅此一次）',
+      download: '首次抠图，正在下载模型（约 56MB，仅此一次）',
       decode: '读取图片中',
       inference: '识别主体中',
       mask: '生成透明遮罩',
       encode: '导出透明 PNG',
       model: '加载抠图模型',
       fallback: '抠图中',
+    },
+    // 抠图失败按原因说（removeBackgroundFailureMessage）：不再一律「检查网络」——卡住和断开要分开说，图本身处理不了也要明说。
+    removeBackgroundFailure: {
+      stalled: '抠图模型下载卡住了：1 分钟没收到数据。检查网络后再点一次「抠图」',
+      download: '抠图模型没下载下来（第一次抠图要下载约 56MB）。检查网络后再点一次「抠图」',
+      other: '这张图没能抠出来，再点一次「抠图」试试',
     },
     aria: '图片操作',
     fullscreen: '全屏预览',
@@ -493,6 +500,11 @@ export const zhGenerationCommon = {
       noUpscaleModel: '还没有能放大的模型',
       missingEffect: '效果库里缺这一条',
       connectFailed: '没能把新节点连到这张图上，已撤回',
+    },
+    // 能力此刻没有、但有一步可走的路（2026-10-06）：项不灰，第二行说缺什么、点它去补。
+    guides: {
+      upscaleAdd: '还没有放大模型 · 点这里接入 kie（Topaz / Recraft 放大）',
+      imageEditAdd: '还没有能改图的图片模型 · 点这里去添加',
     },
     splitInto: '切成 {{count}} 张',
     splitIntoHint: '按生成时的 {{rows}} 行 × {{cols}} 列切开，切割线可拖',
@@ -839,7 +851,6 @@ export const zhGenerationCommon = {
     copyName: '{{name}} 副本',
     resultImage: '结果图片',
     backgroundRemoved: '已替换为抠图结果',
-    removeBackgroundFailed: '抠图失败，请检查网络连接后重试',
     title: '画板',
     openAria: '打开画板',
     removingBackgroundAria: '抠图处理中',
@@ -1881,6 +1892,7 @@ export const enGenerationCommon = {
       releaseRegenerate: { main: "I've checked, generate again", alt: "I've checked, generate again" },
       retry: { main: 'Retry', alt: 'Retry anyway' },
       switchModel: { main: 'Switch model', alt: 'Switch model' },
+      switchSameCapability: { main: 'Switch to {{model}}', alt: 'Switch to {{model}}' },
       modelAccess: { main: 'Check models', alt: 'Check models' },
       fixModelKind: { main: 'Set to {{kind}} and retry', alt: 'Set to {{kind}}' },
     },
@@ -2041,13 +2053,18 @@ export const enGenerationCommon = {
   },
   imageToolbar: {
     matteProgress: {
-      download: 'First cut-out: downloading the model (~50MB, one time only)',
+      download: 'First cut-out: downloading the model (~56MB, one time only)',
       decode: 'Reading the image',
       inference: 'Detecting the subject',
       mask: 'Generating the transparency mask',
       encode: 'Exporting transparent PNG',
       model: 'Loading the cut-out model',
       fallback: 'Cutting out',
+    },
+    removeBackgroundFailure: {
+      stalled: 'The cut-out model download stalled: no data for 1 minute. Check your network, then click Remove background again.',
+      download: 'The cut-out model could not be downloaded (the first cut-out downloads about 56MB). Check your network, then click Remove background again.',
+      other: 'This image could not be cut out. Click Remove background to try again.',
     },
     aria: 'Image actions',
     fullscreen: 'Fullscreen preview',
@@ -2101,6 +2118,10 @@ export const enGenerationCommon = {
       noUpscaleModel: 'No upscaling model yet',
       missingEffect: 'This effect is missing from the library',
       connectFailed: 'Could not connect the new node to this image; it was rolled back.',
+    },
+    guides: {
+      upscaleAdd: 'No upscaling model yet · click to connect kie (Topaz / Recraft upscale)',
+      imageEditAdd: 'No image model that can edit images yet · click to add one',
     },
     splitInto: 'Split ×{{count}}',
     splitIntoHint: 'Split into the {{rows}} × {{cols}} grid it was generated with; cut lines stay draggable',
@@ -2432,7 +2453,6 @@ export const enGenerationCommon = {
     copyName: '{{name}} copy',
     resultImage: 'Result image',
     backgroundRemoved: 'Replaced with the background-removed result',
-    removeBackgroundFailed: 'Background removal failed. Check your network connection and try again.',
     title: 'Whiteboard',
     openAria: 'Open whiteboard',
     removingBackgroundAria: 'Removing background',

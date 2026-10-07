@@ -729,6 +729,31 @@
       ],
       "whyNotIntegrated": "领域约束：镜头焦点来自导演台的计划镜头选择，覆盖提示来自导演计划的手改覆盖层（按稳定 id 的手调差）；两者都是 3D-BOX 独有的事实，文件以 use 开头只因为是 React hook，里面没有通用能力。",
       "revisitWhen": "Agent 面板有了统一的「宿主提示」槽或统一的上下文标签时，把这两样并进去；或 3D-BOX 开关到期（2026-11-15）随开关一起复查"
+    },
+    {
+      "id": "remove-background-download",
+      "capability": "抠图模型首次下载：只从自有镜像拉、按字节出一条总进度、60 秒没收到字节判卡住并中止、失败分原因",
+      "status": "justified",
+      "paths": [
+        "src/lib/removeBackgroundDownload.ts",
+        "src/lib/removeBackgroundModelSource.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@imgly/background-removal 的 progress 回调：按资源各报、每个 chunk 下完才报一次，没有超时",
+          "source": "node_modules/@imgly/background-removal/dist/index.mjs（loadAsBlob）"
+        },
+        {
+          "name": "@imgly 的 fetchArgs：只能传 RequestInit，传不进按字节的进度和「多久没字节」的判定",
+          "source": "https://github.com/imgly/background-removal-js"
+        },
+        {
+          "name": "AbortSignal.timeout：总时长超时，大文件慢网会误杀；要的是「多久没进展」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：第一次点抠图要当场下 56MB，用户判断「卡住没有」只靠这一条进度和这一句话；现成的只有按资源的整块进度和总时长超时，前者在慢网下几十秒不动，后者会把还在慢慢下的误杀。代码只包一层 fetch 计字节，下载本身仍是 @imgly 自己做。",
+      "revisitWhen": "@imgly 提供按字节进度与无进展超时时；或抠图模型改成随包 / 主进程下载时"
     }
   ]
 }

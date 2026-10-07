@@ -18,7 +18,7 @@ import { nodeHasVersionCards } from './versionCards/nodeVersionEntries'
 import { useLabelCoveredByVersionGrid } from './versionCards/versionGridCoverage'
 import { EmptyNodeVariantToolbar, FloatingToolbarShell, TOOLBAR_ICON as TBI, ToolbarButton, ToolbarDivider, ToolbarVariantProvenanceActions } from './NodeFloatingToolbar'
 import { useNodeImageEditing } from './useNodeImageEditing'
-import { isLocalImageOpPending, isRemoveBackgroundPending } from './localImageOpPhase'
+import { isLocalImageOpPending, isRemoveBackgroundPending, isRemoveBackgroundResult } from './localImageOpPhase'
 import { useNodeDragResize } from './useNodeDragResize'
 import { useHasFrameSourceEdge, useShotIdentity, useMountedCards } from '../hooks/useNodeRelationships'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
@@ -26,8 +26,8 @@ import {
   PendingGenerationPlaceholder,
   LocalImageOpPendingStatus,
   RemoveBackgroundPendingPlaceholder,
-  STRIPED_BG_CLASS,
 } from './render/CardCommon'
+import { previewBackgroundClass } from './render/previewBackground'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
 import { TimelineNotchDragHandle } from './NodeTimelineDragHandles'
 import { cn } from '../../../utils/cn'
@@ -350,7 +350,7 @@ function BaseGenerationNodeImpl({
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
       {status === 'error' && node.error ? (
         <NodeErrorReport summaryVisible={false}
-          message={node.error} meta={node.meta}
+          message={node.error} meta={node.meta} nodeId={node.id}
           onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'
@@ -393,9 +393,7 @@ function BaseGenerationNodeImpl({
           'relative z-[2] w-full h-full min-h-0 overflow-hidden',
           // ring=中性细描边（box-shadow，零布局位移）：缩小/密集时卡片有边界、不糊进浅色画布（②）。
           'rounded-nomi shadow-nomi-md cursor-grab touch-none ring-1 ring-inset ring-nomi-line',
-          // 棋盘格占位底纹只在「未生成」态出现；有结果后节点尺寸已贴合图片比例，
-          // 不再露出底纹，避免图片外面套一层框。
-          !hasResult && STRIPED_BG_CLASS,
+          previewBackgroundClass(hasResult, isRemoveBackgroundResult(node.result)),
           isGenerating &&
             node.progress?.phase === 'clipboard-import' &&
             'ring-nomi-accent/50 animate-remove-bg-pulse',

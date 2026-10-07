@@ -1,3 +1,15 @@
+import type { RemoveBackgroundFailure } from './removeBackgroundDownload'
+
+/** 抠图失败，带原因（下载卡住 / 下载失败 / 别的）。界面按 `reason` 说人话，不再一律说「检查网络」。 */
+export class RemoveBackgroundError extends Error {
+  readonly reason: RemoveBackgroundFailure
+  constructor(message: string, reason: RemoveBackgroundFailure) {
+    super(message)
+    this.name = 'RemoveBackgroundError'
+    this.reason = reason
+  }
+}
+
 type RemoveBackgroundProgress = {
   key: string
   current: number
@@ -9,7 +21,7 @@ type WorkerRequestInput = { type: 'remove'; blob: Blob }
 type WorkerResponse =
   | { id: number; type: 'done'; blob?: Blob }
   | { id: number; type: 'progress'; key: string; current: number; total: number }
-  | { id: number; type: 'error'; error: string }
+  | { id: number; type: 'error'; error: string; reason: RemoveBackgroundFailure }
 
 type PendingRequest = {
   reject: (error: Error) => void
@@ -39,19 +51,28 @@ function getRemoveBackgroundWorker(): Worker {
 
     pendingRequests.delete(response.id)
     if (response.type === 'error') {
-      pending.reject(new Error(response.error))
+      pending.reject(new RemoveBackgroundError(response.error, response.reason))
+      // 失败后整个 worker 换新的：@imgly 的初始化是 memoize 的，下载失败那一次的 rejection 会被缓存住，
+      // 不换 worker，用户点「重试」永远拿到同一个失败。
+      resetRemoveBackgroundWorker()
       return
     }
     pending.resolve(response.blob)
   })
   removeBackgroundWorker.addEventListener('error', (event) => {
-    const error = new Error(event.message || 'Remove background worker failed')
+    const error = new RemoveBackgroundError(event.message || 'Remove background worker failed', 'failed')
     pendingRequests.forEach((pending) => pending.reject(error))
     pendingRequests.clear()
-    removeBackgroundWorker?.terminate()
-    removeBackgroundWorker = null
+    resetRemoveBackgroundWorker()
   })
   return removeBackgroundWorker
+}
+
+function resetRemoveBackgroundWorker(): void {
+  // 还有排着队的请求时不换（它们在这个 worker 里），等它们各自结束。
+  if (pendingRequests.size) return
+  removeBackgroundWorker?.terminate()
+  removeBackgroundWorker = null
 }
 
 function postWorkerRequest(

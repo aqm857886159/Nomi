@@ -1,0 +1,167 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-capability-unavailable-dead-end",
+  "problem_type": "要模型才做得了的动作，在「这个能力此刻没有」时只有原因、没有下一步",
+  "symptom": "用户 2026-10-06：「高清就是换一个高清模型，如果没有这个模型怎么办」。改图 ▾ 里「高清」没有放大模型时灰掉写「还没有能放大的模型」，没有去处；同一类：没有能改图的模型时多机位九宫格等灰掉；上游说模型不可用（反馈雷达 0.23 model-unavailable-upstream ×7）时失败卡只给「换个模型」让用户自己翻下拉",
+  "direct_cause": "useQuickActionHost 把「缺能力」算成 blocked（灰掉 + 原因），目录里也没有通用放大模型可接；失败卡对 model-unavailable-upstream 只有打开下拉一个动作",
+  "class_root": "「能力不可用」这一态没有登记处：动作目录只声明要什么能力，不声明缺了以后去哪儿补；设计卡 ★4 全状态里也没有这一行，所以每个新动作都默认做成死路",
+  "affected_population": [
+    "目录里没有放大模型 / 没有能改图的模型的用户；上游临时下线某个模型时的所有用户"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+    "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+    "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+    "src/workbench/generationCanvas/nodes/useSameCapabilityAlternative.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/settings/useSettingsDialogController.ts",
+    "src/workbench/settings/SettingsDialog.tsx",
+    "electron/shared/modelArchetypes/imageUpscale.ts",
+    "electron/catalog/kieImages2026.ts",
+    "electron/catalog/seedBuiltins.ts"
+  ],
+  "entry_points": [
+    "浮条「多机位九宫格」主体与 ▾ 里各项、改图 ▾ 里「高清 / 扩图」→ useQuickActionHost.quickActionGuides → capabilityGuide",
+    "目录加载中点了、派生时才发现缺能力 → deriveFromNode blocked → capabilityGuide",
+    "失败卡 model-unavailable-upstream → useSameCapabilityAlternative",
+    "⑫ 真 App 普查：tests/ux/full-walk/catalog.mjs 的 tb-refine-upscale（pb13 点「高清」）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/topaz/image-upscale.md",
+      "checked_at": "2026-10-06",
+      "purpose": "Topaz 图片放大的输入字段与倍率枚举（接入目录的依据）"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/recraft/crisp-upscale.md",
+      "checked_at": "2026-10-06",
+      "purpose": "Recraft 清晰放大的输入字段"
+    }
+  ],
+  "invariants": [
+    "要模型才做得了的快捷动作，能力此刻没有时菜单项不灰、第二行说缺什么、点了去补（capabilityGuide），不派生、不花钱",
+    "上游说模型不可用时，失败卡主按钮是「换成同能力里此刻可用的另一个」，只换不跑；没有另一个时退回打开下拉"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+    "tests": [
+      "src/workbench/generationCanvas/quickActions/capabilityGuide.test.ts",
+      "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.test.ts",
+      "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+      "symbol": "capabilityGuide"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "symbol": "quickActionGuides"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx",
+      "symbol": "quickActionGuides"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+      "symbol": "quickActionGuides"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "一扇写（宿主算出哪项缺什么）、三扇读：浮条本体渲染、生产宿主转交、设计实验室取景台（陈列同一个浮条），各是同一份数据的一个必要消费者"
+  },
+  "generality_proof": "缺能力的判定按动作目录的 requires（按能力，不按模型名）在宿主一处算，所有快捷动作共用；去哪儿补只在 capabilityGuide 一处；上游不可用的替代按「同请求类型 + 放大与否」在 pickSameCapabilityAlternative 一处挑。新加一个要模型的动作，只要在目录里声明 requires，就自动有引导；设计卡 ★4 与测试路由的 ui-capability-unavailable 证据项让新界面在设计阶段就要写这一态",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+      "symbol": "capabilityGuide",
+      "responsibility": "缺哪种能力 → 一句说明 + 一步可走的路（打开设置到对应位置）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+      "symbol": "pickSameCapabilityAlternative",
+      "responsibility": "上游不可用时同能力里挑另一个可用模型"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+      "entry_point": "quickActionGuides",
+      "disposition": "enforced",
+      "evidence": "upscale / image-edit 两种缺能力都走 capabilityGuide；原来的 no-upscale-model / no-image-model 灰掉分支删除"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "entry_point": "switch-same-capability",
+      "disposition": "enforced",
+      "evidence": "model-unavailable-upstream 主动作改为换成同能力的另一个"
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/NodeDeriveMenu.tsx",
+      "entry_point": "用这个节点生成…",
+      "disposition": "not-affected",
+      "evidence": "只建空节点、不选模型；接不上的是连线能力（参考边），不是模型能力"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每加一个要模型的动作都会遇到「此刻没有这个能力」；上游模型随时会下线",
+    "same_class_scan": [
+      "grep -rn \"requires:\" src/workbench/generationCanvas/quickActions/quickActionCatalog.ts：两种能力（image-edit / upscale），都接了 capabilityGuide",
+      "grep -rn \"model-unavailable-upstream\" src/workbench/observability：分类与动作表只在 classifyError.ts / narrate.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+    "invariant": "缺能力的快捷动作有一步可走的路，不是死路",
+    "failure_mode": "目录加载完仍没有该能力的模型：菜单项挂引导；加载中点的、派生才发现：同样打开去补的地方",
+    "exception_policy": "none",
+    "strategy": "动作目录声明能力 + 宿主一处判定 + 一处引导；设计卡 ★4 与测试路由证据项要求新界面写这一态",
+    "artifacts": [
+      "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+      "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+      "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/quickActions/capabilityGuide.test.ts",
+    "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "electron/catalog/kieImages2026.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/quickActions/capabilityGuide.test.ts",
+    "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts"
+    ],
+    "rationale": "宿主里「缺放大模型 / 缺改图模型 → 灰掉写原因」的两条 blocked 分支删除，改为引导"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "放大模型经 kie 中转接入，走现有 kie 全家桶通道，不新增依赖；Topaz 官方 API（@ai-sdk/topaz）本版不接",
+    "exit_criteria": []
+  },
+  "migration": "无持久化变化；新目录行随内置种子对账进入已有用户的目录（接了 kie 才可用）",
+  "residual_risks": [
+    "即梦超清（本地免钥匙的家）在可用性判据里恒为可用，所以多数机器上「高清」会选到它，没装即梦 CLI / 没会员的用户要到点 ↑ 才知道——可用性 owner 的事，已上报",
+    "没有放大模型那一态的真 App 走查在本机做不了（夹具关不掉即梦），由单测与设计实验室 qa-31 证明"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06"
+}

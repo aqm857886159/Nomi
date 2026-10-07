@@ -30,7 +30,8 @@ describe("official vendor-doc audit wire construction", () => {
     const mappings = state.mappings.filter((mapping) => mapping.vendorKey === "kie" || mapping.vendorKey === "apimart");
     // 2026-09-18 +6 kie（GPT Image 2.5 Flare/Sunburst 各 t2i+改图 = 4，Imagen 4 Fast/Ultra 各纯文生 = 2）
     // 与 +7 apimart（GPT Image 2.5 两档各 2 = 4，Gemini 3 Pro 图 t2i+改图 = 2，Grok Imagine 2.0 **只有** t2i = 1）。
-    expect(mappings.filter((mapping) => mapping.vendorKey === "kie")).toHaveLength(38);
+    // 2026-10-06 +2 kie：Topaz 图片放大、Recraft 清晰放大，各只有一条 image_edit（没有 prompt，见 imageUpscale.ts）。
+    expect(mappings.filter((mapping) => mapping.vendorKey === "kie")).toHaveLength(40);
     // 2026-09-28 −2 apimart：Sora 2 退役（文生 + 图生两条 mapping 随目录行一起摘掉）。
     expect(mappings.filter((mapping) => mapping.vendorKey === "apimart")).toHaveLength(54);
 

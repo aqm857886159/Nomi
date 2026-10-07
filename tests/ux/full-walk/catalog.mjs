@@ -81,6 +81,85 @@ export const STORYBOARD_CLICK_TARGETS = Object.freeze([
   }),
 ])
 
+/**
+ * ⑫ 第二批：图片节点浮条上每个动作（2026-10-06 用户第 2 / 4 条：抠图点了没法用、为什么没被拦住——第一批只登记了分镜表，
+ * 浮条一个都没有）。pb13 在真 App 里用回环供应商把每一项各点一下，本机动作（抠图 / 旋转 / 裁剪 / 宫格）也算。
+ * actualObservation 只抄 pb13 真实走查看到的结果；没跑过写 unverified。
+ */
+const TB = 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx#ImageQuickActionsToolbar'
+const TB_TARGET = (row) => Object.freeze({ useCases: Object.freeze(['S6']), ironLaws: Object.freeze(['⑫']), playbook: 'pb13-node-toolbar-actions', fullWalkJourneys: Object.freeze(['J01-generate-image']), owner: TB, ...row })
+export const NODE_TOOLBAR_CLICK_TARGETS = Object.freeze([
+  TB_TARGET({
+    id: 'tb-multi-angle-grid', target: '浮条「多机位九宫格」（字那一块）',
+    userExpectation: '旁边多出一个连着这张图、填好九宫格提示词的图片节点，不开始生成、不花钱；原图不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、提示词已填；供应商没收到请求；原图不变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-more-next-moment', target: '「多机位九宫格」右边的 ▾ → 下一刻',
+    userExpectation: '同上：多出一个连着这张图、填好「下一刻」提示词的空闲节点，不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、提示词已填；供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-outpaint', target: '改图 ▾ → 扩图',
+    userExpectation: '多出一个连着这张图、填好扩图提示词的空闲节点，不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、扩图提示词已填；供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-upscale', target: '改图 ▾ → 高清',
+    userExpectation: '有能放大的模型：多一个连着这张图的空闲放大节点，不花钱；没有：告诉我缺一个放大模型、要接谁，并给一条一步可走的路（点了去接入），不是只灰掉，也不偷偷建节点或花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（第二行引导、点了落到 kie 接入页）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-rotate', target: '改图 ▾ → 向右旋转 90°',
+    userExpectation: '这张图就地转 90°（宽高对调），成为新的一版，原来那版还在版本里',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：版本 1 → 2，640×360 → 360×640，当前版换成新的一版 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-crop', target: '改图 ▾ → 裁剪',
+    userExpectation: '图上出现裁剪框；按取消后图不变、版本数不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：出现裁剪框；点取消后图和版本都没变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-grid-four', target: '宫格 ▾ → 4 宫格 → 确认切分',
+    userExpectation: '切成 4 张新图片节点并编成一组，原图不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 4 个带图的节点，编成 1 组，原图不变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-remove-background', target: '浮条「抠图」',
+    userExpectation: '背景被抠掉（透明底 PNG），成为新的一版并设为当前版；第一次要下载模型，有一条往前走的进度，不会一直转',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：当前版换成抠图结果、版本 +1、角上透明、卡下垫棋盘格；用时 26–36 秒（镜像由本机缓存应答，不含公网下载；公网下载另测 79–124 秒）—— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-whiteboard', target: '浮条画板图标',
+    userExpectation: '打开画板，里面已经放好这张图',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：画板打开 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-fullscreen', target: '浮条「全屏预览」',
+    userExpectation: '打开这张图的大图预览，Esc 关上',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：打开这张图的预览，Esc 关上 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-provenance', target: '浮条「查看生成记录」',
+    userExpectation: '打开这张图的生成记录',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：打开了生成记录 —— 一致；但面板比窗口还高（1280×800 窗口里面板高 1160），下半截出了窗口（铁律 7，另记）',
+  }),
+  TB_TARGET({
+    id: 'tb-duplicate-variant', target: '浮条「复制为变体」',
+    userExpectation: '多出一个空的变体节点（不带结果），连着原来的上游；不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空的图片节点（不带结果），供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-menu-near-top', target: '节点贴画布上沿时打开「改图 ▾」',
+    owner: 'src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx#ToolbarActionMenu',
+    userExpectation: '菜单整块在窗口里，不盖住「改图」本身，也不盖住浮条上别的按钮',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：把节点拖到画布上沿再开「改图 ▾」：菜单整块在浮条下面、在窗口里，没压住「改图」和别的按钮（弹层几何探针零违例）—— 一致',
+  }),
+])
+
+/** ⑫ 可点目标全表（目录自检对它逐行查）。 */
+export const CLICK_TARGETS = Object.freeze([...STORYBOARD_CLICK_TARGETS, ...NODE_TOOLBAR_CLICK_TARGETS])
+
 const PHASE = 'src/workbench/generationCanvas/runner/generationPhaseDeadline.ts#GENERATION_PHASE_DEADLINE'
 const USER = Object.freeze({ waitsFor: 'user' })
 
@@ -152,6 +231,11 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
   }),
   Object.freeze({
+    id: 'pb13-node-toolbar-actions', script: 'tests/ux/full-walk/playbooks/pb13-node-toolbar-actions.walk.mjs', paid: false,
+    title: Object.freeze({ 'zh-CN': '图片节点浮条上每个动作各点一下：派生 / 改图 / 宫格 / 抠图 / 画板 / 预览 / 记录，点了是不是用户以为的（铁律 ⑫）', en: 'Click every action on the image node toolbar: does each do what the user expected (law 12)' }),
+    variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
+  }),
+  Object.freeze({
     id: 'pb91-storyboard-dragon-paid', script: 'tests/ux/full-walk/playbooks/pb91-storyboard-dragon.paid.mjs', paid: true,
     title: Object.freeze({ 'zh-CN': '（付费小额）分镜里写「巨龙」，真出图一张，结果是龙不是人', en: '(paid) Storyboard row says dragon, one real image, it must be a dragon' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' })]),
@@ -181,7 +265,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'error', kind: 'terminal', visibleText: ['generationCommon.observability.action.retry.main', 'generationCommon.observability.action.switchModel.main', 'generationCommon.node.providerFailed', 'generationCommon.node.switchProvider', 'generationCommon.observability.error.outputUnreadable.reason', 'generationCommon.observability.error.outputUnreadable.hint'], actions: ['重试', '换个模型', '切到另一家'], owner: 'src/workbench/observability/classifyError.ts#classifyGenerationError' },
       { id: 'recoverable', kind: 'user', visibleText: ['generationCommon.recoverable.title', 'generationCommon.production.runAction.retry-retrieval'], actions: ['重新取回（免费）', '标记失败'], owner: 'src/workbench/generationCanvas/runner/recoverTaskActions.ts#recoverNodeResult', deadline: USER },
     ].map(Object.freeze)),
-    scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb02-reference-image.walk.mjs', 'tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs', 'tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs', 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', 'tests/ux/full-walk/playbooks/pb11-canvas-single-run.walk.mjs', 'tests/ux/node-params-and-version-pill.walk.mjs', 'tests/ux/full-walk/playbooks/pb90-seedream5.paid.mjs']),
+    scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb02-reference-image.walk.mjs', 'tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs', 'tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs', 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', 'tests/ux/full-walk/playbooks/pb11-canvas-single-run.walk.mjs', 'tests/ux/full-walk/playbooks/pb13-node-toolbar-actions.walk.mjs', 'tests/ux/node-params-and-version-pill.walk.mjs', 'tests/ux/full-walk/playbooks/pb90-seedream5.paid.mjs']),
     invariants: Object.freeze([1, 2, 3, 5, 7, 9]),
     metric: Object.freeze({ success: 'generation.completed{result=success}', failure: 'generation.completed{result=failure}', owner: 'src/workbench/api/taskApi.ts' }),
   }),

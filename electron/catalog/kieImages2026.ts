@@ -192,6 +192,36 @@ export const KIE_IMAGE_MODELS_2026: KieImageModel[] = [
   }),
 ];
 
+/**
+ * 通用图片放大（2026-10-06，浮条「改图 ▾ → 高清」的推荐预置）：只有一条 image_edit mapping、**不发 prompt**
+ * （两个端点 input 里没有提示词字段，档案见 electron/shared/modelArchetypes/imageUpscale.ts）。
+ * 输入图字段名两家不同（Topaz image_url / Recraft image），各按档案槽的 inputKey 取值。
+ */
+function upscaleModel(p: { modelKey: string; labelZh: string; archetypeId: string; seedKey: string; input: Record<string, unknown> }): KieImageModel {
+  return {
+    modelKey: p.modelKey,
+    labelZh: p.labelZh,
+    archetypeId: p.archetypeId,
+    mappings: [{
+      id: `seed-kie-${p.seedKey}-image_edit`,
+      taskKind: "image_edit",
+      name: `${p.labelZh} · 放大`,
+      create: { method: "POST", path: "/api/v1/jobs/createTask", headers: CREATE_HEADERS, body: { model: ROW_MODEL_REF, input: p.input } },
+    }],
+  };
+}
+
+export const KIE_UPSCALE_MODELS: KieImageModel[] = [
+  upscaleModel({
+    modelKey: "topaz/image-upscale", labelZh: "Topaz 图片放大", archetypeId: "topaz-image-upscale", seedKey: "topaz-image-upscale",
+    input: { image_url: "{{request.params.image_url}}", upscale_factor: "{{request.params.upscale_factor}}" },
+  }),
+  upscaleModel({
+    modelKey: "recraft/crisp-upscale", labelZh: "Recraft 清晰放大", archetypeId: "recraft-crisp-upscale", seedKey: "recraft-crisp-upscale",
+    input: { image: "{{request.params.image}}" },
+  }),
+];
+
 /** 本族所有 mapping 共用的轮询 + 状态归一（seedBuiltins 注册时套上）。 */
 export const KIE_IMAGE_2026_QUERY = KIE_QUERY_OP;
 export const KIE_IMAGE_2026_STATUS = KIE_STATUS_MAPPING;
