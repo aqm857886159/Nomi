@@ -358,6 +358,11 @@ try {
   await win.mouse.move(12, 12)
   await expect.poll(() => historyVideo.evaluate((video) => video.paused && video.currentTime < 0.2), { message: '离开视频版本卡后播放暂停并回到起点', timeout: stationTimeout() }).toBe(true)
   check('离开视频版本卡后播放暂停并回到起点', true)
+  // 人是先悬停、看到卡在播再点。悬停那一下视频才挂上来、换掉封面；按下和松开之间要是正赶上这次换图，
+  // 浏览器会补发一次 mousemove，画布内核（节点点击距离 0）就把这一下当成拖、吞掉点击。所以先悬停等它播起来再点。
+  await videoHistoryCard.hover()
+  await expectVisible(videoHistoryCard.locator('[data-version-card-bar]'), '悬停视频版本卡出动作条')
+  await expect.poll(() => historyVideo.evaluate((video) => !video.paused), { message: '悬停后视频版本卡在播', timeout: 5_000 }).toBe(true)
   await clickOrFail(videoHistoryCard.locator('button[aria-label^="预览"]'), '点视频版本卡打开预览')
   const videoPreview = win.locator('[role="dialog"][aria-label*="推镜进入咖啡馆"]').first()
   await expectVisible(videoPreview, '视频版本预览弹层应可见')

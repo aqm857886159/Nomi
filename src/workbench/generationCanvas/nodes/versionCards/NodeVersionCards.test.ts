@@ -93,3 +93,22 @@ describe('versionGridCoverage · 被压住的邻居藏标题', () => {
     expect(isLabelCoveredByOtherGrids('neighbour', { x: 440, y: 120, ...NODE })).toBe(false)
   })
 })
+
+describe('卡上能点 / 能拖的部件不触发画布内核拖节点', () => {
+  // 画布内核拖节点挂的是节点元素上的原生 mousedown，React 的 stopPropagation 截不住，只认 nodrag 类。
+  it('悬停条、视频进度条、叠卡入口、「+N」都带 nodrag；卡身本身不带（按住拖 = 拖整组）', () => {
+    const video = [2, 1].map((versionNo) => ({ identity: `m${versionNo}`, versionNo, type: 'video' as const, previewUrl: `m${versionNo}.png`, url: `m${versionNo}.mp4` }))
+    const html = renderToStaticMarkup(React.createElement(NodeVersionGrid, {
+      nodeId: 'n1', layout: layoutVersionGrid(versionGridItems(video), NODE, 'right'), node: NODE, primaryIdentity: 'm2', hoveredIdentity: 'm1',
+    }))
+    expect(/<div role="toolbar"[^>]*class="nodrag /.test(html)).toBe(true)
+    expect(/<div class="nodrag [^"]*"[^>]*role="slider"/.test(html)).toBe(true)
+    expect(/<button[^>]*aria-label="generationCommon\.versionCards\.previewAria[^>]*>/.exec(html)?.[0]).not.toContain('nodrag')
+    const stack = renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 3, expanded: false, onToggle: () => undefined }))
+    expect(/<button[^>]*data-version-stack-handle[^>]*>/.exec(stack)?.[0]).toContain('nodrag')
+    expect(grid().includes('data-version-card="more"')).toBe(false)
+    const many = Array.from({ length: 12 }, (_, index) => ({ identity: `x${12 - index}`, versionNo: 12 - index, type: 'image' as const, previewUrl: 'x.png' }))
+    const more = renderToStaticMarkup(React.createElement(NodeVersionGrid, { nodeId: 'n1', layout: layoutVersionGrid(versionGridItems(many), NODE, 'right'), node: NODE, primaryIdentity: 'x12' }))
+    expect(/data-version-card="more"><button[^>]*class="nodrag /.test(more)).toBe(true)
+  })
+})

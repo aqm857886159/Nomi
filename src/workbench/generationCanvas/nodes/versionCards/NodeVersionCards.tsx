@@ -79,7 +79,7 @@ export function NodeVersionStackHandle({
       {/* 叠卡露出来的那条下沿就是可点的地方；左右各让出一截，不碰两侧连线把手。 */}
       <button
         type="button"
-        className="pointer-events-auto absolute inset-x-3 top-[calc(100%-2px)] h-[16px] cursor-pointer rounded-b-nomi border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-nomi-accent"
+        className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute inset-x-3 top-[calc(100%-2px)] h-[16px] cursor-pointer rounded-b-nomi border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-nomi-accent"
         aria-label={expanded ? t('generationCommon.versionCards.collapseAria') : t('generationCommon.versionCards.expandAria', { count })}
         aria-expanded={expanded}
         data-version-stack-handle
@@ -129,7 +129,7 @@ function VersionCardBar({ versionNo, primary, readOnly, onSetPrimary, onDownload
       aria-label={t('generationCommon.versionCards.barAria', { n: versionNo })}
       data-version-card-bar
       // 拖动画布 / 拖整组时动作条跟其它浮层一起隐身（同一面画布级拖动旗）；卡片本身是组的一部分，照样跟着走。
-      className="pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md group-data-[dragging=true]/canvas:invisible"
+      className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md group-data-[dragging=true]/canvas:invisible"
       onPointerDown={(event) => event.stopPropagation()}
       // 点动作不选中节点：选中会浮出生成框、正好压住下面一排版本卡（和点卡片预览同一条）。
       onClick={(event) => event.stopPropagation()}
@@ -204,7 +204,9 @@ function VersionVideoMedia({ entry, active }: { entry: VersionCardEntry; active:
       ) : null}
       <div
         className={cn(
-          'absolute bottom-0 left-0 right-0 z-[3] h-4 cursor-ew-resize px-1.5 pb-1 pt-2 transition-opacity duration-150',
+          // nodrag / no-pan：画布内核的拖节点是挂在节点元素上的原生 mousedown，React 的 stopPropagation 截不住；
+          // 不标这两个类，拖进度条会同时拖动整个节点，画布停在「拖动中」、之后的点击都被吞（10-06 真画布实测）。
+          'nodrag generation-canvas-react-flow__no-pan absolute bottom-0 left-0 right-0 z-[3] h-4 cursor-ew-resize px-1.5 pb-1 pt-2 transition-opacity duration-150',
           active ? 'opacity-100' : 'pointer-events-none opacity-0',
           'focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-1',
         )}
@@ -309,7 +311,7 @@ export function NodeVersionGrid({
             <div key="more" className="absolute" style={style} data-version-card="more">
               <button
                 type="button"
-                className="pointer-events-auto block h-full w-full cursor-pointer rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 p-0 text-nomi-ink-80 hover:border-nomi-ink-40"
+                className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto block h-full w-full cursor-pointer rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 p-0 text-nomi-ink-80 hover:border-nomi-ink-40"
                 aria-label={t('generationCommon.versionCards.moreAria', { count: cell.hidden.length })}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => { event.stopPropagation(); onShowAll?.() }}
