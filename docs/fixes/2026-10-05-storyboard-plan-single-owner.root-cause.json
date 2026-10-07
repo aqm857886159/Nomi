@@ -1,0 +1,279 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-storyboard-plan-single-owner",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "problem_type": "Storyboard plan identity and shot numbering had no single owner: the Agent draft path numbered reference cards (anchors) and shots in one shared sequence, and nothing owned 'which plan does this request write to'",
+  "symptom": "User 2026-10-05: the Agent's storyboard plans often come out wrong — several plans appear in the left column, the shot count is off, and only at the end do they merge into one. Audit A-sb zero-quota loopback (PR #1030, P10) reproduced three host behaviours: an anchors-only draft is answered with 'add the shots in a later draft_shots call' and the next call creates a second plan; a 2-shot plan with 2 anchors shows rows 03 and 04; 'change shot 1' written as shot-1 edits the first character reference card instead of the first shot.",
+  "direct_cause": "shotEnvelope's fallback id was shot-${index+1} over the mixed anchor+shot array (anchors became shot-1, shot-2; the first shot shot-3); storyboardPlanFromDraftSubjects passed index+1 over the same mixed array as the row number; patchStoryboardSubject looked up anchors before shots; the create receipt for an anchors-only draft told the model to add shots in a later draft_shots call while no host path could append shots to an existing document plan (with operationId only one shot could be patched, and a document plan refused a patch without shotId), so the only way to add shots was another create, which mints a new plan id.",
+  "class_root": "The hand-made editor already had the rule (anchors anchor-N, shot numbers count only shots and are renumbered 1..N), but it lived in renderer helpers; the Agent draft path re-implemented identity and numbering with array positions, addressing searched anchors first, and plan identity per request was owned by nobody, so 'add to this plan' had no door.",
+  "affected_population": [
+    "Every Agent-drafted document storyboard plan that contains reference cards (anchors), in any language",
+    "Agent requests that create anchors and shots in more than one draft_shots call",
+    "Agent revisions addressed by shot number (shot-N) on such plans, including plans saved before this fix",
+    "External MCP callers creating multi-shot drafts with or without explicit shot ids (same create handler)"
+  ],
+  "scope_paths": [
+    "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/capabilityCore/generationDocumentPlan.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+    "electron/agentLane/laneVerbTransport.ts",
+    "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "electron/shared/agentCapabilities/generation.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+    "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+    "electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/project/projectNormalize.ts"
+  ],
+  "entry_points": [
+    "Agent draft_shots without operationId -> laneVerbTransport create -> generation transport adapter -> mcpGenerationTools create -> resolveCreateShots (ids) -> saveDocumentPlan -> renderer storyboard.upsert-design",
+    "Agent draft_shots without operationId, second call in the same request -> create -> planToExtend -> renderer storyboard.extend-design",
+    "Agent draft_shots with operationId and new shots -> laneVerbTransport extend -> mcpGenerationTools extend -> renderer storyboard.extend-design",
+    "Agent draft_shots with operationId + shotId -> patch -> patchStoryboardAuthoring -> renderer storyboard.patch-design -> patchStoryboardSubject",
+    "Storyboard planner scriptText create -> resolveCreateShots -> draftShotFromStoryboard",
+    "External MCP nomi_operation_plan create with shots (explicit or host ids) -> same create handler",
+    "Hand-made editor add reference card -> makeAnchorId; delete / move / insert shot -> renumber",
+    "Project load -> normalizePayload (plans saved before this fix)"
+  ],
+  "internal_only_reason": "Shot numbering, reference cards and plan identity are Nomi's storyboard domain (self-written domain catalogue); no third-party library or standard decides them.",
+  "invariants": [
+    "Every id given to a storyboard subject comes from nextStoryboardSubjectIds: anchors anchor-N counting only anchors, shots shot-N counting only shots; caller-supplied ids are kept but an anchor may not be named shot-N and a shot may not be named anchor-N.",
+    "A shot's row number (PlanShot.index) is its position among shots, 1..N; anchors never take a number.",
+    "Addressing a subject by a shot-N id resolves only among shots; it never lands on a reference card.",
+    "Within one user request (storyboardTarget.requestId) a document draft without operationId is appended to the plan that request already drafted, unless the model passes newPlan for an explicit user request.",
+    "Adding shots to an existing document plan appends to that plan and never creates another one; a missing plan is refused."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "tests": [
+      "electron/shared/storyboard/storyboardSubjectIdentity.test.ts",
+      "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts"
+    ],
+    "why": "The main process (first draft) and the renderer (append, revise, hand-made anchors, renumbering) both call this module; plan-per-request is owned by electron/capabilityCore/generationDocumentPlan.ts, the only place that mints document plan ids."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "storyboardPlanFromDraftSubjects"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "upsertStoryboardDesign"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "extendStoryboardDesign"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "appendStoryboardSubjects"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "symbol": "storyboardSubjectAt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "extendAgentStoryboardDesign"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "patchStoryboardSubject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "appendStoryboardSubjects"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "addsNewShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "extendDocumentPlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "planToExtend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "saveDocumentPlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "renumberStoryboardShots"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 18,
+    "why_not": "Before (door-map on origin/main for the old symbols, plus the editor's local renumber and the handler's saveDocumentPlan): 8 doors carrying 5 independent numbering/addressing rules (shotEnvelope fallback twice, storyboardPlanFromDraftSubjects index+1, makeAnchorId, renumber, patchStoryboardSubject anchors-first). After: 18 doors and one rule. The count grew on purpose because the missing doors were the defect: an append path for document plans (lane shape choice addsNewShots, handler extendDocumentPlan, renderer extendAgentStoryboardDesign/appendStoryboardSubjects), the plan-per-request decision (planToExtend) and load-time renumbering of plans saved before the fix. Each surviving door has a distinct job — first draft in main (mints plan and shot ids before the operation is stored), append and revise in the renderer (the only side that sees the plan as the user last edited it), hand-made anchors and renumbering in the editor, load-time normalisation — and every one of them calls the owner module instead of its own rule."
+  },
+  "generality_proof": "Numbering and addressing no longer depend on which caller produced the subjects: Agent lane, storyboard planner (scriptText), external MCP shots and the hand-made editor all get ids from nextStoryboardSubjectIds and rows from appendStoryboardSubjects/renumberStoryboardShots, and every revision is addressed through storyboardSubjectAt. 'One plan per request' is decided where document plan ids are minted, so it holds for both the multi-shot and the single-shot create branches. The loopback test drives the real chain (verb schema -> lane translation -> transport adapter -> handler -> renderer functions) in Chinese and English; the class test covers explicit ids, appending to plans with legacy numbering, and addressing in old plans.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "nextStoryboardSubjectIds",
+      "responsibility": "Assign or validate subject ids: anchor-N for anchors, shot-N for shots, each counting only its own kind; refuse cross-range and duplicate ids."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "appendStoryboardSubjects",
+      "responsibility": "Append subjects to a plan; shot rows are positions among shots, renumbered 1..N."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "storyboardSubjectAt",
+      "responsibility": "Resolve a revision target; shot-N ids resolve only among shots, and a legacy anchor holding shot-N is reported with the real shot list instead of being edited."
+    },
+    {
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "createDocumentPlanAuthoring",
+      "responsibility": "Save document plans, remember the plan drafted per request, and append to an existing plan instead of minting a second one."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "entry_point": "resolveCreateShots (params.shots and scriptText branches)",
+      "disposition": "enforced",
+      "evidence": "Both branches call hostAssignedSubjectIds before parsing; mcpGenerationTools.test.ts 'scriptText 拟出的锚与镜头各自编号' and the loopback AUD1 case."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "entry_point": "patchAgentStoryboardDesign / extendAgentStoryboardDesign",
+      "disposition": "enforced",
+      "evidence": "agentStoryboardDesign.test.ts: append numbering, missing plan refused, legacy shot-1 anchor answered with the real shots."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "entry_point": "makeAnchorId / renumber (hand-made editor)",
+      "disposition": "enforced",
+      "evidence": "Both now delegate to the owner module; existing storyboardPlanEdits tests pass unchanged."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "entry_point": "normalizePayload (plans saved before this fix)",
+      "disposition": "enforced",
+      "evidence": "projectNormalize.test.ts: an old Agent plan with rows 3, 4 loads as 1, 2 with the same shot ids; hand-made plans without shot ids are untouched."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "nomi_canvas_plan patch_shots / propose_storyboard_plan (external canvas path)",
+      "disposition": "not-affected",
+      "evidence": "patch_shots addresses shots by their row index inside plan.shots, never anchors; propose_storyboard_plan receives anchors and shots as separate arrays authored by the caller, so no shared sequence exists there."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Agent plan with reference cards, every multi-call drafting turn and every shot-number revision hit the same mechanism, for any model and language; plans saved before the fix keep the wrong numbering on disk.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs storyboardPlanFromDraftSubjects upsertStoryboardDesign patchStoryboardSubject shotEnvelope makeAnchorId storyboardSubjectFromCandidate (before: 6 doors, 5 independent numbering/addressing rules)",
+      "node scripts/door-map.mjs nextStoryboardSubjectIds appendStoryboardSubjects storyboardSubjectAt patchStoryboardSubject storyboardPlanFromDraftSubjects extendStoryboardDesign upsertStoryboardDesign extendAgentStoryboardDesign (after: 11 doors, one rule)",
+      "git grep -n 'shot-${index' electron src (only the legacy stableShotId derivation, now inside the owner module)",
+      "git grep -n 'later draft_shots call' electron (removed)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "invariant": "Subject ids and shot rows are assigned and resolved only by the owner module; one document plan per request is decided where plan ids are minted.",
+    "failure_mode": "Cross-range or duplicate ids are refused to the model; a shot-N revision that hits a legacy anchor is refused with the real shot list; appending to a missing plan is refused, never turned into a new plan.",
+    "exception_policy": "none",
+    "strategy": "Move numbering and addressing into one shared module called by main and renderer, add an explicit append path for document plans, remember the plan per request where document plans are created, and delete the old position-based fallbacks and the 'later draft_shots call' hint.",
+    "artifacts": [
+      "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "electron/capabilityCore/generationDocumentPlan.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/agentLane/laneVerbTransport.ts",
+      "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "src/workbench/project/projectNormalize.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts",
+    "electron/shared/storyboard/storyboardSubjectIdentity.test.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.test.ts",
+    "electron/capabilityCore/mcpGenerationTools.test.ts",
+    "electron/shared/agentCapabilities/verbs/draftShotsProjection.test.ts",
+    "electron/shared/agentCapabilities/malformedJsonArgument.test.ts",
+    "src/workbench/project/projectNormalize.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/storyboard/storyboardSubjectIdentity.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlan.ts"
+    ],
+    "rationale": "Deleted shotEnvelope's shot-${index+1} fallback, storyboardPlanFromDraftSubjects' index+1 row number, the index parameter of storyboardSubjectFromCandidate, the anchors-first lookup in patchStoryboardSubject, the editor's local makeAnchorId loop, renumber and stableShotId bodies (now the owner's), and the anchors-only 'add the shots in a later draft_shots call' note."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides storyboard numbering or plan identity.",
+    "exit_criteria": []
+  },
+  "migration": "Plans saved before this fix: on load, an Agent plan whose shots all carry shot ids is renumbered to rows 1..N (ids unchanged, canvas nodes bind by shot id). Anchor ids are not rewritten: canvas reference-card nodes bind by anchor id, so renaming would orphan generated cards; a revision that addresses such an anchor by shot-N is refused with the real shot list instead, and the card stays editable in the editor.",
+  "residual_risks": [
+    "Old Agent plans keep anchors whose ids look like shot-N; the Agent cannot revise those cards by id (refused with the real shot list); the user can edit them in the editor.",
+    "The per-request plan memory lives in the main process; if the app restarts in the middle of a request, the next draft in that request starts a new plan (the request itself is gone after a restart).",
+    "Whether a model splits a 2-shot request into 4 shots is model behaviour; the host now neither invites a second plan nor counts anchors as shots, and the planner skill says to use the user's shot count.",
+    "Real App acceptance: the audit walk (tests/ux/audit-storyboard.walk.mjs from PR #1030, phases P1 + P10 only, offscreen window, loopback provider, egress guard with no outbound attempt) was run on this branch in zh-CN and en: the agent plan shows rows 1, 2 with anchors anchor-1/anchor-2, 'change shot 1' edits the first shot, and the anchors-then-shots request adds one plan instead of two. The full audit walk (P2-P9, P11) was not rerun.",
+    "When a request's first draft holds only reference cards, the plan is named after the first card (existing title rule: first shot title, else any title); shots appended later do not rename it."
+  ]
+}

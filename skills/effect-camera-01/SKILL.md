@@ -42,3 +42,5 @@ metadata:
 ---
 
 Slow drift across an empty {场景}, no subject in frame; hold, then the next shot opens on a matching color/tone
+
+Keep the frame empty and preserve the scene identity, color/tone, and continuity; do not add a person or subject. Change only the drift, hold, and matching transition described here.

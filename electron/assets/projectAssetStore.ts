@@ -720,12 +720,17 @@ function projectAgentAttachmentClaim(value: unknown): ProjectAgentAttachmentClai
 export function resolveProjectAssetReferenceIdentity(
   projectId: string,
   assetId: string,
-): Readonly<{ contentHash: string; version: 1 }> | undefined {
+): Readonly<{ contentHash: string; version: 1; kind?: "image" | "video" | "audio" }> | undefined {
   const wanted = assetId.trim();
   if (!wanted) return undefined;
   const asset = findProjectAssetById(wanted, cursor => listProjectAssets({ projectId, limit: 500, cursor }));
   if (!asset || asset.projectId !== projectId) return undefined;
-  return assetIdentityOf(asset);
+  const identity = assetIdentityOf(asset);
+  if (!identity) return undefined;
+  // 参考的种类归素材本身（媒体类型），不归调用方——传输层按它选图片 / 视频通道。
+  const contentType = asset.data.contentType;
+  const mediaKind = typeof contentType === "string" ? assetKindFromContentType(contentType) : undefined;
+  return mediaKind === "image" || mediaKind === "video" || mediaKind === "audio" ? { ...identity, kind: mediaKind } : identity;
 }
 
 /** Resolve untrusted renderer claims against the exact main-owned project asset index. */

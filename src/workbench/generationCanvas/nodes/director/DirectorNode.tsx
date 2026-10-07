@@ -20,7 +20,8 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { resolveNodeVisualSize } from '../nodeSizing'
 import { assetKindOfFileName } from './model/assetKinds'
-import { DIRECTOR_PROJECT_META_KEY } from './model/directorNodeMeta'
+import { DIRECTOR_PREVIEW_META_KEY, DIRECTOR_PROJECT_META_KEY } from './model/directorNodeMeta'
+import { DIRECTOR_PREVIEW_MAX_SECONDS, readDirectorPreview } from './model/directorPreviewState'
 import { normalizeDirectorProject, projectStats } from './model/directorProject'
 import type { DirectorLinkedAsset, DirectorProject } from './model/directorTypes'
 import type { DirectorOutput } from './OutputsContext'
@@ -128,6 +129,17 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
     [node.id, t],
   )
 
+  // 3D-BOX 预演状态（只有 stage_shot 建的节点才有）：渲染中 / 失败要让人看见，失败给重试——
+  // 重试就是把同一修订重新标成「渲染中」，常驻 Host 扫到即重渲；超长的不给重试（改短才行）。
+  const preview = readDirectorPreview(node)
+  const handleRetryPreview = React.useCallback(() => {
+    const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+    const latest = readDirectorPreview(current)
+    if (!current || !latest || latest.status !== 'failed' || latest.reason === 'too_long') return
+    const { reason: _reason, ...rest } = latest
+    updateNode(node.id, { meta: { ...(current.meta || {}), [DIRECTOR_PREVIEW_META_KEY]: { ...rest, status: 'rendering', updatedAt: Date.now() } } })
+  }, [node.id, updateNode])
+
   const handleClose = React.useCallback(() => {
     setOpen(false)
     void persistActiveWorkbenchProjectNow().catch(() => {})
@@ -186,6 +198,28 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
             </>
           )}
           {incomingSummary ? <span className="text-micro text-nomi-ink-40">{incomingSummary}</span> : null}
+          {preview?.status === 'rendering' ? (
+            <span className="text-micro text-nomi-ink-60" data-testid="director-node-preview-status" data-status="rendering">{t('director.agent.previewRendering')}</span>
+          ) : null}
+          {preview?.status === 'failed' ? (
+            <span className="flex items-center gap-2 text-micro text-nomi-danger" data-testid="director-node-preview-status" data-status="failed">
+              {preview.reason === 'too_long' ? t('director.agent.previewTooLong', { seconds: DIRECTOR_PREVIEW_MAX_SECONDS }) : t('director.agent.previewFailed')}
+              {preview.reason !== 'too_long' && !readOnly ? (
+                <WorkbenchButton
+                  size="sm"
+                  variant="default"
+                  data-testid="director-node-preview-retry"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleRetryPreview()
+                  }}
+                >
+                  {t('director.agent.previewRetry')}
+                </WorkbenchButton>
+              ) : null}
+            </span>
+          ) : null}
           {!readOnly ? (
             <WorkbenchButton
               size="sm"
@@ -228,6 +262,7 @@ export default React.memo(
     (previous.node as GenerationCanvasNode).id === (next.node as GenerationCanvasNode).id &&
     (previous.node as GenerationCanvasNode).title === (next.node as GenerationCanvasNode).title &&
     (previous.node as GenerationCanvasNode).meta?.[DIRECTOR_PROJECT_META_KEY] === (next.node as GenerationCanvasNode).meta?.[DIRECTOR_PROJECT_META_KEY] &&
+    (previous.node as GenerationCanvasNode).meta?.[DIRECTOR_PREVIEW_META_KEY] === (next.node as GenerationCanvasNode).meta?.[DIRECTOR_PREVIEW_META_KEY] &&
     (previous.node as GenerationCanvasNode).size === (next.node as GenerationCanvasNode).size &&
     previous.selected === next.selected &&
     previous.readOnly === next.readOnly,

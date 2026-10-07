@@ -1,0 +1,734 @@
+{
+  "source": "evals/runs/director-judge-20261004032450/results.json",
+  "checked": 87,
+  "consistent": 7,
+  "disagreements": 80,
+  "counts": {
+    "渲染粗糙导致看不出": 47,
+    "词表/粒度": 26,
+    "评审错": 3,
+    "测量错": 4
+  },
+  "rows": [
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "前段以庭院远景/中远景为主，末段转为人物近景",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "接触表共显示16个采样画面，末段未出现明确双人同框对峙",
+      "expected": "manual review",
+      "observed": "00:07-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "画面由庭院建立远景推进到中近景",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "结尾未能确认双方同框对峙",
+      "expected": "manual review",
+      "observed": "00:07-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "开头为庭院与人物的远景，后段逐渐进入中近景",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "女性角色大致从画面左侧向庭院内部移动",
+      "expected": "follow",
+      "observed": "00:00-00:07",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "接触表显示多个镜头阶段，但具体切点不清晰",
+      "expected": "3",
+      "observed": "00:00-00:10",
+      "category": "评审错"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "0个可辨识人物或场景",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "0个可确认的镜头切换",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff",
+      "scheme": "s0-pr960-raw",
+      "repeat": 1,
+      "claim": "10个采样画面均未呈现可辨识的人物、庭院或剧情动作",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "镜头围绕主体移动，环绕方向不明确",
+      "expected": "orbit_right",
+      "observed": "00:00-00:06",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "全程大致保持中远景，未形成瓶盖近景",
+      "expected": "manual review",
+      "observed": "00:00-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "展台边缘视角逐帧变化，呈现环绕方向运动",
+      "expected": "orbit_right",
+      "observed": "00:00-00:06",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "瓶子保持中景左右，未进入瓶盖特写",
+      "expected": "manual review",
+      "observed": "00:06-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "接触表中未见明显硬切",
+      "expected": "1",
+      "observed": "00:00-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Orbiting movement around the bottle is visible",
+      "expected": "orbit_right",
+      "observed": "00:00-00:06",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Bottle remains in a wide/medium full-object framing",
+      "expected": "manual review",
+      "observed": "00:00-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Bottle scale stays approximately constant during the ending segment",
+      "expected": "manual review",
+      "observed": "00:06-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "画面呈持续向前推近趋势",
+      "expected": "orbit_right",
+      "observed": "00:06-00:09",
+      "category": "测量错"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "由中景逐步变为极近距离局部画面",
+      "expected": "manual review",
+      "observed": "00:00-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "环绕运动无法从画面确认",
+      "expected": "manual review",
+      "observed": "00:00-00:06",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 1,
+      "claim": "后段出现明显向主体推进的镜头运动",
+      "expected": "orbit_right",
+      "observed": "00:06-00:09",
+      "category": "测量错"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 1,
+      "claim": "主体由较小画面逐步变为大幅近距离裁切",
+      "expected": "manual review",
+      "observed": "00:06-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 2,
+      "claim": "画面从居中中景逐渐变为明显放大的近距离画面",
+      "expected": "orbit_right",
+      "observed": "00:00-00:09",
+      "category": "测量错"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s1",
+      "repeat": 2,
+      "claim": "早段约为中景，后段接近极近距离裁切",
+      "expected": "manual review",
+      "observed": "00:00-00:09",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "perfume-orbit",
+      "scheme": "s0-pr960-raw",
+      "repeat": 2,
+      "claim": "后段物体在画面中逐渐变大，呈现推近趋势",
+      "expected": "push_in",
+      "observed": "00:06-00:09",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "police-chase",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "0辆可辨识的警车或逃逸车",
+      "expected": "manual review",
+      "observed": "00:00-00:12",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "police-chase",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "接触表中未出现可辨识车辆、城市街道或警匪追逐内容",
+      "expected": "manual review",
+      "observed": "00:00-00:12",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "police-chase",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "景别无法从抽象块面可靠判断",
+      "expected": "manual review",
+      "observed": "00:00-00:12",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "police-chase",
+      "scheme": "s1",
+      "repeat": 0,
+      "claim": "剪辑切换无法从当前接触表可靠判断",
+      "expected": "5",
+      "observed": "00:00-00:12",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "镜头朝中央人形主体推近",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "结尾主体占画面较大区域，接近中景",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "持续向中央人物推近",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "人物由较远景别逐渐接近中景",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "未见明显跳切，画面连续推进",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "主体在连续帧中逐渐变大，疑似向前推近",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "未见明显剪切，画面保持连续构图",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "画面呈持续向主体推近",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "主体尺寸由小逐步增大，末帧接近中景但不确定",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "未见明显剪切，画面连续",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 1,
+      "claim": "中央主体逐帧变大，呈现向前推近",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 1,
+      "claim": "结尾主体明显放大，但中景构图无法确认",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 2,
+      "claim": "可见主体尺度逐帧增大，呈推近趋势",
+      "expected": "push_in",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-01-push",
+      "scheme": "s0-pr960-raw",
+      "repeat": 2,
+      "claim": "结尾较开头更近，但中景无法确认",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "Apparent pull-out / widening",
+      "expected": "pull_out",
+      "observed": "0.0-4.0s",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "Close view to wider view",
+      "expected": "manual review",
+      "observed": "0.0-4.0s",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "Continuous pull-out/zoom-out visible across the sequence",
+      "expected": "pull_out",
+      "observed": "0.0-4.0s",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "Close view widens to a medium-to-wider full-body view",
+      "expected": "manual review",
+      "observed": "0.0-4.0s",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Apparent continuous pull-out/widening",
+      "expected": "pull_out",
+      "observed": "0.0-4.0s",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-02-pull",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Close view widens toward a medium/full-body view",
+      "expected": "manual review",
+      "observed": "0.0-4.0s",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "向右摇摄",
+      "expected": "pan",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "接触表中未见明显切换，疑似单一连续镜头",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "向右摇摄",
+      "expected": "pan",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "向右摇摄",
+      "expected": "pan",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "人物由中央移动至右侧并在末段出画",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "未观察到可确认的切换；各帧内容近乎相同",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "评审错"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "向右摇摄不可确认",
+      "expected": "static",
+      "observed": "00:00-00:04",
+      "category": "测量错"
+    },
+    {
+      "cardId": "t1-03-pan",
+      "scheme": "s0-pr960-raw",
+      "repeat": 0,
+      "claim": "景别不可确认",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-04-tilt",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "Bottle-like object remains centered at similar scale",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-04-tilt",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "No visible cut can be confirmed from the contact sheet",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-04-tilt",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "No model is visibly holding the bottle in the sampled frames",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-04-tilt",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "Model holding the bottle is not visible",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-05-orbit",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "Rightward orbit not confirmed from the silhouette-only samples",
+      "expected": "orbit_right",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-05-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "咖啡杯在可见帧中保持近似相同大小并位于画面中央",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-05-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "右向环绕方向不明确",
+      "expected": "orbit_right",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-05-orbit",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "未见明显场景切换",
+      "expected": "0",
+      "observed": "00:00-00:04",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "t1-06-follow",
+      "scheme": "oracle",
+      "repeat": 0,
+      "claim": "Centered full-body frontal framing",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-06-follow",
+      "scheme": "oracle",
+      "repeat": 1,
+      "claim": "No cyclist or bicycle visible",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-06-follow",
+      "scheme": "oracle",
+      "repeat": 2,
+      "claim": "The subject remains approximately centered in the visible frames.",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-06-follow",
+      "scheme": "s0-pr960-raw",
+      "repeat": 2,
+      "claim": "Cyclist not visible in sampled frames",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "t1-06-follow",
+      "scheme": "s0-pr960-raw",
+      "repeat": 2,
+      "claim": "Street environment not visible in sampled frames",
+      "expected": "manual review",
+      "observed": "00:00-00:04",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-reverse-direction",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "前段存在庭院与人物同框的远景/中远景构图",
+      "expected": "manual review",
+      "observed": "00:00-00:07",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-reverse-direction",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "后段转为人物近景，主体占画面较大",
+      "expected": "manual review",
+      "observed": "00:07-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-reverse-direction",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "接触表显示构图多次变化，但无法仅凭画面确认具体剪切次数",
+      "expected": "3",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-missing-shot",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "女子在庭院中持续向墙体/院门方向移动",
+      "expected": "follow",
+      "observed": "00:00-00:07",
+      "category": "词表/粒度"
+    },
+    {
+      "cardId": "courtyard-standoff-missing-shot",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "前段为远景至中远景，结尾转为侍卫单人近景",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-missing-shot",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "至少1次主要切换：行进画面转为侍卫近景",
+      "expected": "3",
+      "observed": "00:07-00:10",
+      "category": "评审错"
+    },
+    {
+      "cardId": "courtyard-standoff-out-of-frame",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "宽景/建立视角占主导",
+      "expected": "manual review",
+      "observed": "00:00-00:03",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-out-of-frame",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "0个可明确识别的侍卫与女子对峙画面",
+      "expected": "manual review",
+      "observed": "00:07-00:10",
+      "category": "渲染粗糙导致看不出"
+    },
+    {
+      "cardId": "courtyard-standoff-no-action",
+      "scheme": "bait",
+      "repeat": null,
+      "claim": "16格接触表中约前10格有人物，后6格为空场",
+      "expected": "manual review",
+      "observed": "00:00-00:10",
+      "category": "渲染粗糙导致看不出"
+    }
+  ]
+}

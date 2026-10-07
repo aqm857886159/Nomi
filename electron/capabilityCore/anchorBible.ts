@@ -78,31 +78,3 @@ export function anchorStaticFeatures(
   const prompt = node?.prompt
   return typeof prompt === 'string' ? prompt.trim() : ''
 }
-
-/**
- * 从一批节点里挑出「需要冻结但还没冻结」的视觉锚（冻结门的判据）。
- * 纯函数、可裸测：GUI 依赖波次拦截与 production 冻结门共用这一份判据（P1 单一真相源）。
- */
-export function unfrozenVisualAnchors<T extends AnchorNodeLike & { id?: string; title?: string }>(
-  nodes: readonly T[],
-): T[] {
-  return nodes.filter((node) => isVisualAnchorNode(node) && !isAnchorFrozen(node))
-}
-
-/**
- * 单镜生成时「你引用的这几张卡还没冻结」的提醒判据（W2 冻结门的**第三层**，2026-08-20 补）。
- *
- * 为什么需要第三层：旧单次生成路曾能绕开 ProductionRun，一镜一镜循环，二十个镜头全建在没定妆的脸上。
- * 该路已退役；纯判据仍供既有画布逻辑使用，避免同类回归。
- *
- * **但这一层只提醒不拦。** 单镜生成是低层工具，用户就想出一张图时不该被批量语义的门挡住
- * （同审片环哲学：增益不是关卡）。所以这里返回「该被提醒的锚」，由结果文本如实带一句给 agent——
- * 它读到后可以自己决定先请用户过目，或者明知故犯地继续。信息到位，选择权留给上面。
- *
- * 纯函数：调用方把「这一镜实际引用了哪些源节点」算好传进来，我们不猜边。
- */
-export function unfrozenAnchorsForShot<T extends AnchorNodeLike & { id?: string; title?: string }>(
-  referencedNodes: readonly T[],
-): T[] {
-  return unfrozenVisualAnchors(referencedNodes)
-}

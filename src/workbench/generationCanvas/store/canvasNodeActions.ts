@@ -6,6 +6,7 @@ import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
 import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import { resultIdentity, setNodeMainResultPatch } from '../model/nodeResultLifecycle'
 import { assignClonedShotIndexes, backfillShotIndexes, changesShotIdentity, isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
 import { buildCanvasNode } from '../../../../electron/capabilityCore/canvasNodeFactory'
 import { RENDERER_NODE_FACTORY_DEPS } from './rendererNodeFactoryDeps'
@@ -193,6 +194,37 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...(patch.meta ? [{ type: 'canvas.node.updated' as const, payload: { nodeId, patch: { meta: patch.meta } } }] : []),
     ])
   },
+  setNodeResultStackOpen: (nodeId, open, side) => {
+    const existing = get().nodes.find((node) => node.id === nodeId)
+    if (!existing || Boolean(existing.resultStackOpen) === open) return
+    pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.resultStackOpen = open
+      if (open && side) node.resultStackSide = side
+      else delete node.resultStackSide
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { resultStackOpen: open, ...(open && side ? { resultStackSide: side } : {}) } } }])
+  },
+  setNodeMainResult: (nodeId, identity, meta) => {
+    const existing = get().nodes.find((node) => node.id === nodeId)
+    if (!existing || (existing.result && resultIdentity(existing.result) === identity)) return
+    const lifecycle = setNodeMainResultPatch(existing, identity)
+    if (!lifecycle) return
+    const patch: Partial<GenerationCanvasNode> = { ...lifecycle, ...(meta ? { meta } : {}) }
+    pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, patch)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch } }])
+  },
   setNodeLocked: (nodeId, locked) => {
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)
     if (!existing || Boolean(existing.locked) === locked) return
@@ -220,6 +252,28 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     })
     if (shouldEmitCanvasMutation(options)) {
       emitCanvasGesture([{ type: 'canvas.node.moved', payload: { nodeId, position } }])
+    }
+  },
+  moveNodes: (updates, options) => {
+    const current = get()
+    const byId = new Map(updates.map((update) => [update.nodeId, update.position] as const))
+    const moved = current.nodes
+      .filter((node) => {
+        const position = byId.get(node.id)
+        return position && (position.x !== node.position.x || position.y !== node.position.y)
+      })
+      .map((node) => ({ nodeId: node.id, position: byId.get(node.id)! }))
+    if (!moved.length) return
+    set((state) => {
+      const positions = new Map(moved.map((update) => [update.nodeId, update.position] as const))
+      for (const node of state.nodes) {
+        const position = positions.get(node.id)
+        if (position) node.position = position
+      }
+      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
+    })
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture(moved.map(({ nodeId, position }) => ({ type: 'canvas.node.moved' as const, payload: { nodeId, position } })))
     }
   },
   moveSelectedNodes: (delta, options) => {
@@ -341,28 +395,6 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
         .filter((n) => !categoryId || (n.categoryId || 'shots') === categoryId)
         .map((n) => n.id)
       state.selectedNodeIds = ids
-    })
-  },
-  // 框选：选中与矩形相交（AABB）的当前分类节点。additive 时与现有选区并集。
-  selectNodesInRect: (rect, categoryId, additive = false) => {
-    const left = Math.min(rect.x1, rect.x2)
-    const right = Math.max(rect.x1, rect.x2)
-    const top = Math.min(rect.y1, rect.y2)
-    const bottom = Math.max(rect.y1, rect.y2)
-    set((state) => {
-      const hits = state.nodes.filter((node) => {
-        if (categoryId && (node.categoryId || 'shots') !== categoryId) return false
-        const { width: w, height: h } = resolveNodeVisualSize(node)
-        return node.position.x + w >= left && node.position.x <= right &&
-          node.position.y + h >= top && node.position.y <= bottom
-      }).map((node) => node.id)
-      if (!additive) {
-        state.selectedNodeIds = hits
-        return
-      }
-      const merged = new Set(state.selectedNodeIds)
-      hits.forEach((id) => merged.add(id))
-      state.selectedNodeIds = Array.from(merged)
     })
   },
   duplicateNodeForRegeneration: (nodeId) => {

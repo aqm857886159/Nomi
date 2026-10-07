@@ -17,9 +17,9 @@ hook 命中时会顶出一行「设计流程提示」，确保 AI 不跳步。
 |---|---|---|
 | ① 先看真实样子 | 读完整外壳组件或真机截图 | 改现有 UI 脑补错位（栽过 3 次） |
 | ② 查设计系统 + 复用 | Beautiful UI / AI Elements 整件复用，四步流水线 | 手搓重复，半年后不一致 |
-| ③ 出样张 | HTML + 真实 token + `data-*` 挂点 + 五种异常态 | 拍板后实现跑偏，无机器信号发现 |
+| ③ 出样张 | 设计实验室屏：生产组件 + 真实宿主数据（ShellStage 手法）+ `data-mockup-region` 区域 + 五种异常态；HTML / widget 只标 `exploration` 做方向探索 | 拍板后实现跑偏，无机器信号发现 |
 | ④ 交付走读 | 逐屏逐件：这是什么 / 为什么 / 什么时候碰 | 用户拍不了板（统计表看不到决策理由） |
-| ⑤ 拍板后产契约 | `pnpm run check:mockup-contracts` 产 `.auto.mjs` + 手写 `.intent.mjs` | 实现漂移（骨架段跑到框外了，36 门全绿也发现不了） |
+| ⑤ 拍板后产契约 | 合同登记 `labScreen`（屏 / 状态 / 宿主 / 生产组件）与完整 `reconciliation`；`pnpm run check:mockup-contracts` 再产 `.auto.mjs` + 手写 `.intent.mjs` | 实现漂移（骨架段跑到框外了，36 门全绿也发现不了） |
 
 ## 外部参考来源（灵感 ≠ 复用）
 
@@ -49,8 +49,8 @@ hook 命中时会顶出一行「设计流程提示」，确保 AI 不跳步。
 
 ## 常见问题
 
-**Q：步骤③的 `data-*` 挂点命名规范是什么？**
-`data-[功能域]-[元素名]`，如 `data-agent-header`、`data-storyboard-plan-card`。
+**Q：步骤③的区域挂点命名规范是什么？**
+验收区域使用静态 `data-mockup-region="<区域 id>"`；每个区域必须在合同 `reconciliation` 中有且只有一行。其他 `data-*` 仍按功能域命名，例如 `data-agent-header`、`data-storyboard-plan-card`。
 
 **Q：异常态漏画了会怎样？**
 `check:mockup-contracts` 不会直接报异常态缺失（它检查几何/containment/order），但步骤⑤的 intent 层可以写「P0 缺口必须画」的断言。先查 `docs/design/agent-ui-state-coverage-gaps.md` 的 P0 列表。

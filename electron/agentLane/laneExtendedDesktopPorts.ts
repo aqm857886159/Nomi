@@ -7,7 +7,7 @@ import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabi
 import type { PiTimelineReadTransportAdapter, PiTimelineWriteTransportAdapter, PreparedTimelineWrite } from '../capabilityCore/timelineTransportAdapters'
 import type { PiCanvasWriteTransportAdapter, PreparedCanvasWrite } from '../capabilityCore/canvasWriteTransportAdapters'
 import type { PiPhase4SurfaceTransportAdapter, PreparedExportWrite } from '../capabilityCore/phase4SurfaceTransportAdapters'
-import type { PiGenerationTransportAdapter } from '../capabilityCore/generationTransportAdapters'
+import type { PiGenerationTransportAdapter, ShotCandidateFacts } from '../capabilityCore/generationTransportAdapters'
 import type { PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters'
 import type { PiSkillWriteTransportAdapter, PreparedSkillWrite } from '../capabilityCore/skillWriteTransportAdapters'
 import type { ProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
@@ -21,7 +21,6 @@ import { createExtendedLaneTools } from './laneExtendedTools'
 import { LaneDomainFailure, type OpenLaneOptions } from './laneRuntimePort'
 import { verbToTransportCall, type VerbTransportCall } from './laneVerbTransport'
 import { taskReferenceSchema } from '../shared/agentCapabilities/taskReference'
-import { registerSpendWaiter, type SpendDecision } from '../capabilityCore/spendDecisionWaiters'
 import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision'
 import type { GenerationInvocationContext } from '../shared/agentCapabilities/generationInvocationContext'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
@@ -54,8 +53,56 @@ export interface LaneExtendedDesktopPortsInput {
   /** Main generation owner may become ready after the project opens. */
   generation(): PiGenerationTransportAdapter | undefined
   receipts: Pick<ProjectAgentProposalReceiptService, 'read'>
+  /**
+   * 「这一次出价关了没有」——回合等付费卡时唯一的消息来源，直接看 Run 账本（`laneDesktopSpend.whenCardCloses`）。
+   * 卡上每一镜都决定了、点了 ×、计划被取消……哪条路关的都一样：关了就去问宿主逐镜结局。
+   */
+  spendCard: Readonly<{ whenCardCloses(operationId: string): Readonly<{ closed: Promise<void>; dispose(): void }> }>
   onTaskCreated?(call: RuntimeToolCall, result: unknown): Promise<void>
   context?(): LaneComposerContext
+  /**
+   * 3D-BOX 花钱闸（开关开的构建才接上）：这次要生成的镜头里，哪些挂着还没好的参考预演。
+   * 出卡**之前**问——问到了就不出卡、不花钱，原因交给模型；问不到（渲染层不在）也不出卡（fail-closed）。
+   */
+  directorPreviewBlocks?(operationId: string, shotIds: readonly string[] | undefined, candidate: ShotCandidateFacts): Promise<readonly DirectorPreviewBlock[]>
+}
+
+export type DirectorPreviewBlock = Readonly<{
+  nodeId: string
+  shotId?: string
+  reason: 'rendering' | 'failed' | 'not_referenced' | 'duration_mismatch'
+  failure?: string
+  previewAssetId?: string
+  /** duration_mismatch：挂上去的预演有多长、这一镜的候选要生成多长（秒）。 */
+  previewSeconds?: number
+  shotSeconds?: number
+}>
+
+/** 预演挡着的那几镜 → 一句模型读得懂、能照做的话（不出卡、没花钱、下一步是什么）。 */
+export function directorPreviewBlockedDecision(blocks: readonly DirectorPreviewBlock[]): Extract<RuntimeToolDecision, { ok: false }> {
+  const rendering = blocks.filter((block) => block.reason === 'rendering')
+  const failed = blocks.filter((block) => block.reason === 'failed')
+  const unreferenced = blocks.filter((block) => block.reason === 'not_referenced')
+  const mismatched = blocks.filter((block) => block.reason === 'duration_mismatch')
+  const name = (block: DirectorPreviewBlock) => block.shotId ?? block.nodeId
+  if (!rendering.length && !failed.length && mismatched.length) {
+    const seconds = (value: number | undefined) => `${Number((value ?? 0).toFixed(2))}s`
+    return { ok: false, code: 'director_preview_pending',
+      message: `No spend card was shown and nothing was spent: the 3D-BOX preview attached to ${mismatched.map((block) => `shot ${name(block)} is ${seconds(block.previewSeconds)} but that shot would be generated as ${seconds(block.shotSeconds)}`).join('; ')}. The preview must be exactly as long as the shot. `
+        + 'Either change the shot duration back to the preview length with draft_shots (same operationId and shotId), or change the 3D-BOX plan with stage_shot edits so every shot and blocking window fits the new duration (the preview re-renders and re-attaches). Tell the user which one you are doing, then call generate again.' }
+  }
+  if (!rendering.length && !failed.length && unreferenced.length) {
+    return { ok: false, code: 'director_preview_pending',
+      message: `No spend card was shown and nothing was spent: the 3D-BOX preview is ready, but the draft that would be generated does not use it (${unreferenced.map((block) => `shot ${name(block)} needs preview asset ${block.previewAssetId}`).join('; ')}). `
+        + 'Update those shots with draft_shots (same operationId and shotId): add the preview asset id to references and pick a mode of that model that accepts a reference video (list_models). Then call generate again.' }
+  }
+  const parts = [
+    rendering.length ? `the 3D-BOX preview for ${rendering.map(name).join(", ")} is still rendering` : '',
+    failed.length ? `the 3D-BOX preview for ${failed.map(name).join(", ")} failed${failed.some((block) => block.failure === 'too_long') ? ' (longer than the 10-second preview limit)' : ''}` : '',
+  ].filter(Boolean)
+  return { ok: false, code: 'director_preview_pending',
+    message: `No spend card was shown and nothing was spent: ${parts.join('; ')}. Generating now would send the shot without its reference video. `
+      + (failed.length ? 'Tell the user; shorten the plan with stage_shot edits or ask him to press Retry preview on the 3D-BOX node, then call generate again.' : 'Tell the user the preview is still rendering and call generate again once look_at_canvas shows preview=ready.') }
 }
 
 function failure(code: string): Extract<RuntimeToolDecision, { ok: false }> {
@@ -191,18 +238,30 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
    * 此前这一步住在 execute 里：报价卡那条路以「错误 + STOP」把回合当场结束（用户点完「生成」之后没有回合接结果），
    * 文稿方案那条路干脆在工具执行里等用户点头，撞 60 秒写类预算——三轮实测一次没成过。
    *
-   * 顺序：先登记「我在等这一笔」→ 再 present（卡出现）→ 卡真的在等人才向闸借一次等待。
-   * 先登记后出卡，是因为卡一落盘面板就读得到：晚一步，用户手快的那一下点击就没人接。
+   * 顺序：present（卡出现）→ 卡真的在等人才向闸借一次等待 → 等到账本里**这一次出价**不再开着。
+   * 用户手快、在借到等待之前就点完了也接得住：结论在账本里，不在一次会错过的递送里（2026-10-05 删掉转接表）。
    * 全自动档由策略当场决完、文稿方案在它自己的确认里等完——这两条路 present 返回时就已经有结局，不借等待。
    */
   async function preflightGenerate(entry: Pending, host: NonNullable<Parameters<NonNullable<OpenLaneOptions['toolLifecycle']>['approved']>[2]>): Promise<RuntimeToolDecision> {
     const generation = input.generation()
     if (!generation) return generationSurfaceUnavailable()
+    if (input.directorPreviewBlocks) {
+      const args = entry.call.args as { operationId?: unknown; shotIds?: unknown }
+      const shotIds = Array.isArray(args.shotIds) ? args.shotIds.filter((value): value is string => typeof value === 'string') : undefined
+      let blocks: readonly DirectorPreviewBlock[]
+      try {
+        // 只读：候选里每一镜带了哪些素材、要生成多长。写者仍只有 draft_shots。
+        if (!generation.readShotCandidateFacts) throw new Error('director_preview_candidate_unreadable')
+        const candidate = await generation.readShotCandidateFacts(String(args.operationId ?? ''))
+        blocks = await input.directorPreviewBlocks(String(args.operationId ?? ''), shotIds, candidate)
+      } catch {
+        return { ok: false, code: 'director_preview_pending', message: 'No spend card was shown and nothing was spent: Nomi could not check whether the 3D-BOX previews for these shots are ready. Call generate again in a moment.' }
+      }
+      if (blocks.length) return directorPreviewBlockedDecision(blocks)
+    }
     const { call: transport } = translate(entry.call)
     const operationId = String((entry.call.args as { operationId?: unknown }).operationId ?? '')
-    let early: SpendDecision | undefined
-    let forward: ((decision: SpendDecision) => void) | undefined
-    const release = registerSpendWaiter(input.binding.projectId, operationId, (decision) => { if (forward) forward(decision); else early = decision })
+    let card: ReturnType<typeof input.spendCard.whenCardCloses> | undefined
     try {
       const presented = await generation.tryExecute(transport, host.signal, entry.generationContext) ?? generationSurfaceUnavailable()
       if (!presented.ok || !awaitsUserOnSpendCard(presented.result)) return presented
@@ -213,15 +272,12 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
         await generation.withdrawPresentation(operationId, 'stopped')
         return { ok: false, code: 'generation_approval_unavailable', message: 'This session has no window where the user could approve the spend, so nothing was generated.' }
       }
-      let outcome: Awaited<ReturnType<typeof host.waitForUser>['outcome']>
-      if (early) outcome = early
-      else {
-        const wait = host.waitForUser()
-        forward = (decision) => { wait.settle(decision) }
-        outcome = await wait.outcome
-      }
-      // 卡关了（每一镜都决定了，或者 × ——那条路上宿主已经把这一次出价关好了）：每一镜的结局只问宿主，这里不替它说。
-      if (outcome.kind === 'confirmed' || outcome.kind === 'declined') {
+      const wait = host.waitForUser()
+      card = input.spendCard.whenCardCloses(operationId)
+      void card.closed.then(() => { wait.settle({ kind: 'card-closed' }) })
+      const outcome = await wait.outcome
+      // 卡关了（每一镜都决定了 / × / 计划被取消——关它的那条路已经把账本写好了）：每一镜的结局只问宿主，这里不替它说。
+      if (outcome.kind === 'card-closed') {
         const shots = await generation.readPresentationOutcome(operationId)
         // 读不到结局就不编：卡上可能已经有镜在生成，照实说「结果要去核对」，而不是「都开始了」或「什么都没发生」。
         if (!shots) return { ok: false, code: 'generation_execution_failed', message: 'generation_execution_failed' }
@@ -240,7 +296,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       void generation.withdrawPresentation(operationId, 'stopped').catch(() => undefined)
       return { ok: false, code: 'generation_cancelled', message: 'generation_cancelled', denied: true }
     } finally {
-      release()
+      card?.dispose()
     }
   }
 

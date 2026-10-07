@@ -44,6 +44,10 @@ export type NomiErrorCode =
   // 付费提交发出后没拿到回复（连接被重置 / 响应超时 / 提交途中进程退出）：供应商**可能已经收下**，
   // Nomi 没法自动核对。不能说「没发到」，也不能自动重发；下一步是先去服务商后台核对。
   | 'submission-unknown'
+  // 供应商已经做完、钱已经花了，但 Nomi 把结果**取回到本机**这一步确定性地没成（出站策略拒、对方答 4xx /
+  // 跳转 / 类型不对 / 超上限）。与 outbound-blocked 不同：那条只说「策略拦了、去看网络」；这条覆盖整个
+  // 取回失败族，而且下一步只有一个——在任务面板点「重新取回」（免费、不重新生成）。绝不给重试（= 再生成再付钱）。
+  | 'output-retrieval-failed'
 
 const MARKER_PREFIX = 'NOMI_ERR::'
 const MARKER_SUFFIX = '::'

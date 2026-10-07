@@ -19,7 +19,7 @@ const { execFileSync, execSync } = require('node:child_process')
 const REPO_ROOT = path.resolve(__dirname, '..')
 
 // 装的 hook（source-of-truth 在 scripts/，随 git 走）。顺序是契约：
-//   · commit-msg = 原有提交信息进度校验。
+//   · commit-msg = 原有提交信息进度校验 + 方向检查 trailer（fix 碰热点必须带 Direction-Check，见 fix-churn.mjs）。
 //   · pre-commit = 敏感数据扫描，**只有这一件**（2026-09-15 起不再在提交时刻跑模型评审）。
 //   · pre-push = PR 正文门岗的本地半场，不跑模型（2026-10-02 起不再有评审收据校验）。
 //     正文门岗放在这里的理由见 scripts/check-pr-body-gates.mjs：那两条判据此前只在 CI 里跑，
@@ -29,6 +29,7 @@ const HOOKS = Object.freeze([
     name: 'commit-msg',
     commands: Object.freeze([
       Object.freeze({ target: 'scripts/check-progress-update.cjs', passArgs: true }),
+      Object.freeze({ target: 'scripts/check-direction-trailer.mjs', passArgs: true }),
     ]),
   }),
   Object.freeze({
@@ -64,8 +65,8 @@ function renderHookContent(hook) {
   }))
   // 钩子文件住在 .git 里，比分支活得久：checkout 到一条还没有这些脚本的旧分支时，
   // 钩子必须安静地让路，而不是因为 `node: cannot find module` 把 push 拦死。
-  // 守卫只给 pre-push——commit-msg / pre-commit 的目标自项目之初就在树上。
-  const guards = hook.name === 'pre-push'
+  // 守卫给 pre-push 和 commit-msg（方向检查脚本较新，旧分支可能没有）；pre-commit 的目标自项目之初就在树上。
+  const guards = (hook.name === 'pre-push' || hook.name === 'commit-msg')
     ? hook.commands.map(({ target }) => `[ -f "$ROOT/${target}" ] || exit 0\n`).join('')
     : ''
   return `#!/usr/bin/env bash

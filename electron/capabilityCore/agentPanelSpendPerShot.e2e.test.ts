@@ -5,10 +5,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
-import { registerSpendWaiter } from "./spendDecisionWaiters";
 import {
   PROJECT_ID, OPERATION_ID, now, candidate, startLoopbackVendor, harness, buildActions, callTool, resetSpendFixture, advanceClock,
-  imageDraft, shotsSent,
+  imageDraft, shotsSent, watchCardForTurn, settleMicrotasks,
 } from "./agentPanelSpendConfirmTestUtils";
 
 afterEach(resetSpendFixture);
@@ -28,10 +27,11 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
     const base = harness();
     const submits: string[] = [];
     const { withWindow, handler } = buildActions(base, vendor.origin, submits);
-    const heard: string[] = [];
-    const release = registerSpendWaiter(PROJECT_ID, OPERATION_ID, (decision) => heard.push(decision.kind));
+    let turn: ReturnType<typeof watchCardForTurn> | undefined;
     try {
       await imageDraft(base, handler);
+      // 回合那一侧看的是账本里这一次出价开没开着（生产里 = laneDesktopSpend.whenCardCloses）。
+      turn = watchCardForTurn(base);
       const card = withWindow.listPendingSpend(PROJECT_ID)[0];
       expect(card.shots.map((shot) => shot.shotId)).toEqual(["shot-1", "shot-2"]);
       advanceClock(1000);
@@ -43,9 +43,10 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
       expect(after[0].shots.map((shot) => shot.shotId), "标题只数还没决定的那一张").toEqual(["shot-2"]);
       const shot2 = base.repository.read(PROJECT_ID, OPERATION_ID)!.generationPlan!.shots!.find((shot) => shot.shotId === "shot-2")!;
       expect(shot2.included, "第 2 张没有被移出这一批").not.toBe(false);
-      expect(heard, "卡还开着，回合不许被告知「都开始了」").toEqual([]);
+      await settleMicrotasks();
+      expect(turn.closed(), "卡还开着，回合不许被告知「都开始了」").toBe(false);
     } finally {
-      release();
+      turn?.dispose();
       await vendor.close();
     }
   });
@@ -55,10 +56,11 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
     const base = harness();
     const submits: string[] = [];
     const { withWindow, handler } = buildActions(base, vendor.origin, submits);
-    const heard: string[] = [];
-    const release = registerSpendWaiter(PROJECT_ID, OPERATION_ID, (decision) => heard.push(decision.kind));
+    let turn: ReturnType<typeof watchCardForTurn> | undefined;
     try {
       await imageDraft(base, handler);
+      // 回合那一侧看的是账本里这一次出价开没开着（生产里 = laneDesktopSpend.whenCardCloses）。
+      turn = watchCardForTurn(base);
       for (const shotId of ["shot-1", "shot-2"]) {
         advanceClock(1000);
         const card = withWindow.listPendingSpend(PROJECT_ID)[0];
@@ -68,9 +70,10 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
       }
       expect(promptsSent(vendor.bodies, submits)).toEqual(["shot-1", "shot-2"]);
       expect(withWindow.listPendingSpend(PROJECT_ID), "两张都决定了，卡关掉").toEqual([]);
-      expect(heard, "卡关掉那一刻才递一次结论").toHaveLength(1);
+      await settleMicrotasks();
+      expect(turn.closed(), "卡关掉那一刻回合才醒").toBe(true);
     } finally {
-      release();
+      turn?.dispose();
       await vendor.close();
     }
   });
@@ -132,10 +135,10 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
     const base = harness();
     const submits: string[] = [];
     const { withWindow, handler } = buildActions(base, vendor.origin, submits);
-    const heard: string[] = [];
-    const release = registerSpendWaiter(PROJECT_ID, OPERATION_ID, (decision) => heard.push(decision.kind));
+    let turn: ReturnType<typeof watchCardForTurn> | undefined;
     try {
       await imageDraft(base, handler, 5);
+      turn = watchCardForTurn(base);
       const actions = withWindow as PerShotActions;
       const quoteId = () => actions.listPendingSpend(PROJECT_ID)[0].quoteId;
       const target = { projectId: PROJECT_ID, operationId: OPERATION_ID };
@@ -145,11 +148,13 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
       advanceClock(1000);
       expect(await actions.confirmPendingSpend({ ...target, quoteId: quoteId(), shotId: "shot-3" })).toMatchObject({ ok: true });
       expect(actions.listPendingSpend(PROJECT_ID)[0].shots.map((shot) => shot.shotId), "卡上只剩还没决定的两张").toEqual(["shot-4", "shot-5"]);
-      expect(heard, "卡还开着，回合还在等").toEqual([]);
+      await settleMicrotasks();
+      expect(turn.closed(), "卡还开着，回合还在等").toBe(false);
       expect(await actions.discardPendingSpend({ ...target, quoteId: quoteId() })).toMatchObject({ ok: true });
       expect(promptsSent(vendor.bodies, submits), "只发了点过的 1、3").toEqual(["shot-1", "shot-3"]);
       expect(actions.listPendingSpend(PROJECT_ID), "× 关掉了卡").toEqual([]);
-      expect(heard, "× 那一刻递一次结论").toEqual(["declined"]);
+      await settleMicrotasks();
+      expect(turn.closed(), "× 那一刻回合醒来").toBe(true);
       expect(generationPresentationOutcome(base.repository.read(PROJECT_ID, OPERATION_ID)!)).toEqual({
         closedBy: "user_closed",
         generating: ["shot-1", "shot-3"],
@@ -159,7 +164,7 @@ describe("付费卡逐镜：点了的生成，去掉的不生成", () => {
         undecided: [{ shotId: "shot-4", reason: "user_closed" }, { shotId: "shot-5", reason: "user_closed" }],
       });
     } finally {
-      release();
+      turn?.dispose();
       await vendor.close();
     }
   });

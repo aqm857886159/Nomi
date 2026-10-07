@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 three 的 Object3D 类型、../model/directorTypes 的 DirectorScene
- * [OUTPUT]: 对外提供 DIRECTOR_ENTITY_ID_KEY / DIRECTOR_ENTITY_KIND_KEY / DIRECTOR_EDITOR_ONLY_KEY、SceneRefRegistry、
+ * [OUTPUT]: 对外提供 DIRECTOR_ENTITY_ID_KEY / DIRECTOR_ENTITY_KIND_KEY / DIRECTOR_EDITOR_ONLY_KEY / DIRECTOR_REFERENCE_HELPER_KEY、SceneRefRegistry、tagReferenceHelper / isReferenceHelper、
  *           createSceneRefRegistry、tagEntityObject、findEntityFromObject、isWorldVisible / isDirectorObjectVisible（继承可见性）
  * [POS]: director/scene 的运行时对象表：store 只存数据，three 对象由各 Entity 组件挂载后登记到这里；拾取、gizmo 挂载、
  *        标签投影、离屏出片都靠 id ↔ Object3D 互查。编辑器专用对象（把手/辅助线）打 editor-only 标记，出片时统一隐藏。
@@ -13,6 +13,7 @@ import type { CaptureFrameRequest, CaptureFrameResult } from './ViewportApiConte
 export const DIRECTOR_ENTITY_ID_KEY = 'directorEntityId'
 export const DIRECTOR_ENTITY_KIND_KEY = 'directorEntityKind'
 export const DIRECTOR_EDITOR_ONLY_KEY = 'directorEditorOnly'
+export const DIRECTOR_REFERENCE_HELPER_KEY = 'directorReferenceHelper'
 
 export type DirectorEntityKind = 'object' | 'camera' | 'light' | 'ikHandle'
 
@@ -74,6 +75,16 @@ export function tagEditorOnly(object: THREE.Object3D): void {
 
 export function isEditorOnly(object: THREE.Object3D): boolean {
   return object.userData[DIRECTOR_EDITOR_ONLY_KEY] === true
+}
+
+// 编辑辅助物里的「看空间用的参照」（网格、地面）：成片照样不画，但导演视图要留着它看地平线与距离（方案 §7 第 7 条）。
+// 机位模型、路标、把手、gizmo 不打这个旗——导演视图把它们一并收掉。
+export function tagReferenceHelper(object: THREE.Object3D): void {
+  object.userData[DIRECTOR_REFERENCE_HELPER_KEY] = true
+}
+
+export function isReferenceHelper(object: THREE.Object3D): boolean {
+  return object.userData[DIRECTOR_REFERENCE_HELPER_KEY] === true
 }
 
 /** three 不会自动把父组的 visible 写入子对象；拾取与标签须沿真实父链判断。 */

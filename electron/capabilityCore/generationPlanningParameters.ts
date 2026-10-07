@@ -36,7 +36,11 @@ export const GENERATION_PLANNING_HINTS = Object.freeze({
   quality: "string",
   useReferenceAudio: "boolean",
   // 同一个语义的 camelCase 别名（线缆键是 snake_case 的那一份；别名只在 Nomi 内部出现）
-  aspectRatio: "string",
+  //
+  // 2026-10-05：`aspectRatio` 从这张表删掉了。它曾在这里被当成「只给推荐器读」的意图键，编合同时
+  // `continue` 掉、永不上线缆——而模型面上它正是 Agent 写比例时最常猜的那个名字，于是用户说的 16:9
+  // 被静默吞掉、付费卡上是档案默认。现在它是**语义载体键**：宿主在写入口把它翻成所选模式的真实键
+  // （`semanticAspectRatio.ts`），翻不了就拒；漏翻到编译口的照「未知参数」拒，不再有静默的一档。
   durationSeconds: "number",
   // 长片意图（semanticGenerationCandidate.requestedVideoDurationSeconds 读）
   totalDurationSeconds: "number",

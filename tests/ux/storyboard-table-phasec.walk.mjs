@@ -51,7 +51,7 @@ const plan = {
   anchors: [{ id: 'hero', kind: 'character', name: '主角', description: '短发，风衣', carrier: 'visual' }],
   shots: [{
     // 刻意**不**钉模型：主线上「@ 加参考」入口只在契约未知（默认模型无档案）的行上渲染
-    // （ShotReferenceZone.tsx `column.kind === 'unknown-contract'`）；钉了带槽的模型，参考列就换成槽位 tile、@ 入口消失。
+    // （2026-10-06 起参考在视觉列 ShotReferenceStrip：契约未知的默认模型不摆「+」）；钉了带槽的模型，参考列就换成槽位 tile、@ 入口消失。
     // 这条走查测的正是 @ 路径。dialogue/transition 字段随 0fc4768fb 删除，不再种。
     index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 3, anchorIds: ['hero'],
     prompt: '远景，雨夜中的主角', promptSegments: [{ key: 'shotSize', start: 0, end: 2 }],

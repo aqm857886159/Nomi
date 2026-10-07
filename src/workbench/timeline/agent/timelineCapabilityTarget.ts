@@ -7,6 +7,7 @@ import type {
   TimelineWriteInput,
   TimelineWriteResult,
 } from '../../../../electron/shared/agentCapabilities/timelineWrite'
+import { makeChangeId, parseChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import { requireCapabilityProjectId } from '../../capability/capabilityProjectBinding'
 import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
@@ -26,6 +27,7 @@ import {
   timelineUndoTimeline,
   type TimelineAgentUndoMetadata,
 } from '../timelineUndoHistory'
+import { runProposalUndoByChangeId } from '../../generationCanvas/agent/proposalUndo'
 
 type JsonRecord = Record<string, unknown>
 
@@ -271,6 +273,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
       diagnostics: replayPreview.diagnostics,
       diff: replayPreview.diff,
       undoToken: existing.undoToken,
+      changeId: existing.changeId ?? makeChangeId('timeline', existing.receiptProposalId),
     }
   }
 
@@ -286,6 +289,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
   }
 
   const undoToken = `timeline-undo:v1:${request.receiptProposalId}`
+  const changeId = makeChangeId('timeline', request.receiptProposalId)
   const metadata: TimelineAgentUndoMetadata = {
     projectId,
     planId: input.planId,
@@ -293,6 +297,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
     beforeRevision: currentRevision,
     afterRevision: result.revision,
     undoToken,
+    changeId,
     receiptProposalId: request.receiptProposalId,
     approvalId: request.approvalId,
     actionHash: request.actionHash,
@@ -323,6 +328,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
     diagnostics: result.diagnostics,
     diff: projectTimelineDiff(result.diff),
     undoToken,
+    changeId,
   }
 }
 
@@ -330,10 +336,30 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
   const { input } = request
   const state = useWorkbenchStore.getState()
   const currentRevision = timelineRevision(state.timeline)
+  const requestedChangeId = input.changeId ?? input.undoToken
+  const parsedChangeId = typeof requestedChangeId === 'string' ? parseChangeId(requestedChangeId) : null
+  if (parsedChangeId?.kind === 'canvas') {
+    const canvasChangeId = requestedChangeId as string
+    try {
+      runProposalUndoByChangeId(canvasChangeId)
+      return {
+        operation: input.operation,
+        ok: true,
+        undone: true,
+        revision: currentRevision,
+        changeId: canvasChangeId,
+      }
+    } catch (error) {
+      const code = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+        ? (error as { code: string }).code
+        : 'undo_conflict'
+      return failure(input.operation, code, currentRevision, { undone: false, changeId: canvasChangeId })
+    }
+  }
   const projectId = writeProjectId(request)
   if (!projectId) return failure(input.operation, 'project_scope_required', currentRevision, { undone: false })
   const metadata = timelineAgentUndoMetadata(state.timelineUndoStack.at(-1))
-  if (!metadata || metadata.projectId !== projectId || metadata.undoToken !== input.undoToken) {
+  if (!metadata || metadata.projectId !== projectId || (metadata.changeId !== requestedChangeId && metadata.undoToken !== requestedChangeId)) {
     return failure(input.operation, 'undo_token_invalid', currentRevision, { undone: false })
   }
   if (
@@ -352,6 +378,7 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
     ok: undone,
     undone,
     revision: afterRevision,
+    changeId: metadata.changeId ?? makeChangeId('timeline', metadata.receiptProposalId),
     ...(undone ? {} : { code: 'undo_verification_failed' }),
   }
 }

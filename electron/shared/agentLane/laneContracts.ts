@@ -1,5 +1,7 @@
+import type { LaneAssistantFault } from './laneAssistantFault.js';
 import type { StoryboardRequestTarget } from '../agentCapabilities/generationInvocationContext'
 import type { CanvasWriteApprovalAuthority } from '../agentCapabilities/transportContracts'
+import type { PendingSpendRead } from '../contracts/pendingSpendConfirm'
 // Agent lane · 中立契约层（阶段 1 影子期）
 //
 // 这一层是渲染进程与主进程**唯一**共同认识的东西。它刻意不认识 pi：pi 的类型只在
@@ -51,7 +53,16 @@ export type LaneUserAttachment = Readonly<{ assetId: string; version: number; di
 export type LaneAttachmentResolver = (claims: readonly ProjectAgentAttachmentClaim[]) => readonly LaneUserAttachment[]
 
 export type LanePart =
-  | (LanePartIdentity & { readonly kind: 'error'; readonly text: string })
+  | (LanePartIdentity & {
+      readonly kind: 'error'
+      readonly text: string
+      /** pi 判这类错误值得再试（断线 / 超时 / 限流 / 5xx）。渲染层据此归到「网络」类，不再靠关键词猜。 */
+      readonly transient?: true
+      /** 同一回合里它后面又接上了成功的助手消息：错误已被自动重试化解，不该再画红卡。 */
+      readonly recovered?: true
+      /** 不是服务商原话、而是看门狗 / pi 自己说的那几类（`laneAssistantFault.ts`）。在就按它给人话，原文不进界面。 */
+      readonly fault?: LaneAssistantFault
+    })
   | (LanePartIdentity & {
       readonly kind: 'user'
       readonly text: string
@@ -403,6 +414,14 @@ export interface LaneWorkspaceProjection {
   readonly lanes: readonly LaneSummary[]
   /** 用户正看着的那一条。 */
   readonly active: LaneProjection
+  /**
+   * 这个项目此刻有没有一笔钱在等用户点头（付费卡，2026-10-05 起随投影推送，面板不再轮询）。
+   *
+   * 为什么挂在工作区而不是某一条对话上：出价是**项目**里的事实（Run 账本），不是一条 lane 的状态——
+   * 全自动代答失败留下的那张卡没有任何回合在等它，却照样要摆在用户面前（09-18「策略答不了才问人」）。
+   * 缺席 = 这一侧没有接这条读口（夹具 / 只读历史），面板不出卡。
+   */
+  readonly spend?: PendingSpendRead
 }
 
 /**
@@ -499,9 +518,12 @@ export type LaneApprovalCancelCause = (typeof LANE_APPROVAL_CANCEL_CAUSES)[numbe
  * （撞 60 秒写类预算）或者干脆没有（回合直接结束，确认之后没有回合接结果）。
  */
 export type LaneHoldOutcome =
-  | Readonly<{ kind: "confirmed" }>
-  /** 用户在那张卡上点了 ×：明确的「不」，那份请求到此为止（真终态）。 */
-  | Readonly<{ kind: "declined" }>
+  /**
+   * 那张卡关了：每一镜都决定了（生成这张 / 去掉这张 / 生成剩下）、点了 ×、或者这份计划被取消。
+   * 怎么关的、哪几镜在生成，回合自己去问宿主（逐镜结局）——这里不带第二份。2026-10-05 之前这里分
+   * `confirmed` / `declined` 两种，由一张转接表在卡上动作之后手工递；两种从来走同一支，转接表随之删掉。
+   */
+  | Readonly<{ kind: "card-closed" }>
   /**
    * 卡待决时用户在输入框里打了字（裁决 E：那句话就是对这道闸的回答，绝不石沉大海）。
    * 它**不是** ×：「把第二镜改短点」不是在说「这份方案我不要了」。所以收回的只是这一次出价，
@@ -729,6 +751,8 @@ export interface LaneWorkspaceHandle {
   appendTaskNote(note: LaneTaskNote): Promise<void>
   /** 见 `LaneHandle.refreshTasks`。 */
   refreshTasks(): void
+  /** 待决出价变了（Run 账本 / 全自动代答 / 常驻生成面换相）：重发投影，`spend` 现读。 */
+  refreshSpend(): void
   close(): Promise<void>
 }
 

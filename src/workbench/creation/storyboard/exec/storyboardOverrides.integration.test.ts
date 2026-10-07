@@ -21,7 +21,7 @@ vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
   confirmAndRunNode: async (nodeId: string) => {
     submitted.prompts.push(useGenerationCanvasStore.getState().nodes.find(node => node.id === nodeId)?.prompt ?? '')
   },
-  confirmAndRunNodeVariants: vi.fn(),
+ 
   regenerateNodeInPlace: vi.fn(),
 }))
 const shot: PlanShot = { index: 3, shotId: 's3', prompt: '傍晚', durationSec: 5, anchorIds: [] }

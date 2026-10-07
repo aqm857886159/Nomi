@@ -41,6 +41,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboard/states'),
     baselineDir: path.join(BASELINE_ROOT, 'storyboard'),
   },
+  'storyboard-reuse': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboardReuse/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'storyboard-reuse'),
+  },
   'host-config': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/hostConfig/states'),
     baselineDir: path.join(BASELINE_ROOT, 'host-config'),
@@ -53,9 +57,21 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasFrame/states'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-frame'),
   },
+  'canvas-grouping': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasGrouping'),
+    baselineDir: path.join(BASELINE_ROOT, 'canvas-grouping'),
+  },
   'node-composer-bar': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/nodeComposerBar/states'),
     baselineDir: path.join(BASELINE_ROOT, 'node-composer-bar'),
+  },
+  'version-cards': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/versionCards/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'version-cards'),
+  },
+  'node-quick-actions': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/nodeQuickActions/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'node-quick-actions'),
   },
   settings: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settings/states'),
@@ -84,6 +100,18 @@ export const LAB_SCREENS = {
   'vendor-order': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/vendorOrder/states'),
     baselineDir: path.join(BASELINE_ROOT, 'vendor-order'),
+  },
+  'director-3dbox': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/director3dbox/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'director-3dbox'),
+  },
+  'director-refine': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorRefine/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'director-refine'),
+  },
+  'director-crowd': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorCrowd/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'director-crowd'),
   },
 }
 

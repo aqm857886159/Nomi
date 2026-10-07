@@ -100,9 +100,9 @@ describe("discoverProviderDocs", () => {
       modelKeys: ["paint-v2"],
       signal: controller.signal,
       fetchText: (_url, options) => {
-        fetchSignal = options.signal;
+        fetchSignal = options?.signal;
         return new Promise((_resolve, reject) => {
-          options.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
+          options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
         });
       },
     });

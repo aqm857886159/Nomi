@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { ipcMain, type IpcMainEvent } from "electron";
 
-import { assertTrustedSender } from "../ipcSenderGuard";
+import { assertTrustedFireAndForget, assertTrustedSender } from "../ipcSenderGuard";
 import {
   SURFACE_CANVAS_READ_REPLY_CHANNEL,
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
@@ -117,11 +117,6 @@ export function createCanvasReadSurfacePortRuntime(
   };
 
   const handleReply = (replyChannel: string, event: IpcMainEvent, value: unknown): void => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
     const reply = record(value);
     const requestId = typeof reply?.requestId === "string" ? reply.requestId : "";
     const request = pending.get(requestId);
@@ -153,83 +148,43 @@ export function createCanvasReadSurfacePortRuntime(
     );
   };
   ipcMain.on(SURFACE_CANVAS_READ_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_CANVAS_READ_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_CANVAS_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_DOCUMENT_READ_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_TIMELINE_READ_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_TIMELINE_READ_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_TIMELINE_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_ASSET_READ_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_ASSET_READ_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_ASSET_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_EXPORT_READ_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_EXPORT_READ_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_EXPORT_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_EXPORT_WRITE_REPLY_CHANNEL, (event, value) => {
-    try {
-      assertTrustedSender(event);
-    } catch {
-      return;
-    }
+    if (!assertTrustedFireAndForget(event, SURFACE_EXPORT_WRITE_REPLY_CHANNEL, assertTrustedSender)) return;
     handleReply(SURFACE_EXPORT_WRITE_REPLY_CHANNEL, event, value);
   });
 

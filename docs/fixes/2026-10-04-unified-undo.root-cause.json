@@ -1,0 +1,82 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-unified-undo",
+  "change_kind": "structural",
+  "problem_type": "Reversible Agent writes use separate undo identities and histories",
+  "symptom": "Canvas Agent writes return only proposalId and undo cannot target them; a later edit can be silently overwritten by canvas compensation.",
+  "direct_cause": "canvas.write and timeline.write publish different token shapes, while undo is wired only to timeline.write and canvas conflict detection is advisory. The main-process MCP canvas.write dispatcher was a second applied-result producer that bypassed the canonical renderer target and still returned proposalId without the newly required changeId, so the MCP result projection rejected or stripped the receipt.",
+  "class_root": "Every reversible-write producer must enforce the shared change identity at the first model-facing result boundary; one producer bypassed that boundary when the signed changeId contract was tightened.",
+  "affected_population": ["Agent canvas writes", "MCP canvas writes", "Agent timeline writes", "⌘Z and Agent undo callers"],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/changeId.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/shared/agentCapabilities/timelineWrite.ts",
+    "electron/shared/agentCapabilities/verbs/verbProjections.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/generationCanvas/agent/proposalTxn.ts",
+    "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "tests/agent-runtime/laneL1Scenarios.mts"
+  ],
+  "entry_points": ["canvas.write transport", "timeline.write transport", "⌘Z canvas shortcut", "Agent undo verb"],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned cross-surface identity and session-log rule.",
+  "invariants": ["Every committed reversible Agent write returns a versioned changeId with a canvas or timeline prefix.", "Undo dispatches by that prefix and rejects if a later event touched the same object."],
+  "doors": [
+    {"kind":"read","path":"electron/shared/agentCapabilities/changeId.ts","symbol":"makeChangeId"},
+    {"kind":"read","path":"electron/shared/agentCapabilities/canvasWrite.ts","symbol":"canvasWriteResultSchema"},
+    {"kind":"read","path":"electron/shared/agentCapabilities/timelineWrite.ts","symbol":"timelineWriteSemanticInputSchema"},
+    {"kind":"read","path":"electron/shared/agentCapabilities/verbs/verbProjections.ts","symbol":"undoModelSchema"},
+    {"kind":"read","path":"src/workbench/generationCanvas/agent/canvasWriteTarget.ts","symbol":"executeCanvasWriteTarget"},
+    {"kind":"write","path":"src/workbench/generationCanvas/agent/proposalTxn.ts","symbol":"applyProposalBatch"},
+    {"kind":"write","path":"src/workbench/generationCanvas/agent/proposalUndo.ts","symbol":"runProposalUndoByChangeId"},
+    {"kind":"write","path":"src/workbench/generationCanvas/events/canvasUndoJournal.ts","symbol":"findCanvasChange"},
+    {"kind":"read","path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","symbol":"executeTimelineWriteTarget"},
+    {"kind":"write","path":"electron/capabilityCore/dispatcher.ts","symbol":"dispatch"}
+  ],
+  "door_reduction": {"before":4,"after":10,"why_not":"The shared identity, cross-domain dispatcher, and model-facing lane add six explicit boundaries; the MCP dispatcher is a separate applied-result producer and cannot be merged with the renderer target without removing headless support. Canvas event append and Cmd+Z read remain separate journal boundaries, and timeline apply and undo remain separate state transitions."},
+  "generality_proof": "All Agent canvas mutations converge through applyProposalBatch and all Agent timeline mutations converge through timelineCapabilityTarget; the shared changeId parser and journal conflict check therefore cover every checked caller.",
+  "shared_boundaries": [
+    {"path":"electron/shared/agentCapabilities/changeId.ts","symbol":"makeChangeId","responsibility":"Validate and construct the cross-surface identity."},
+    {"path":"src/workbench/generationCanvas/events/canvasUndoJournal.ts","symbol":"findCanvasChange","responsibility":"Read the existing canvas session log and detect later same-object mutations."},
+    {"path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","symbol":"undoPlan","responsibility":"Dispatch timeline or canvas undo and fail closed on stale/conflicting state."},
+    {"path":"electron/capabilityCore/dispatcher.ts","symbol":"dispatch","responsibility":"Mint the shared changeId for headless and MCP applied canvas receipts before result projection."}
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/shared/agentCapabilities/changeId.ts",
+      "electron/shared/agentCapabilities/canvasWrite.ts",
+      "electron/shared/agentCapabilities/timelineWrite.ts",
+      "electron/shared/agentCapabilities/verbs/verbProjections.ts",
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "src/workbench/generationCanvas/agent/proposalTxn.ts",
+      "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "electron/capabilityCore/dispatcher.ts",
+      "tests/agent-runtime/laneL1Scenarios.mts"
+    ],
+    "preserved_exports": [],
+    "behavior_preservation": "Existing canvas compensation and canvasUndoJournal remain the only canvas history owner. Existing MCP timeline callers may continue sending undoToken at the alias boundary; it is normalized to the shared changeId before semantic execution. Cmd+Z keeps using the same canvas journal and timeline revision checks.",
+    "verification_limits": "Focused Vitest covers identity validation, canvas write result contracts, timeline dispatch, conflict rejection, and lane next-action projection. A real provider-backed Agent round that writes the canvas and then says 撤销 was not run in this environment, so that acceptance remains unverified. The existing receipt owner still exposes only the latest committed canvas proposal; a durable multi-entry receipt index is outside this slice."
+  },
+  "same_class_entry_points": [
+    {"path":"src/workbench/generationCanvas/agent/canvasWriteTarget.ts","entry_point":"executeCanvasWriteTarget","disposition":"enforced","evidence":"All canonical canvas.write operations return the shared changeId."},
+    {"path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","entry_point":"executeTimelineWriteTarget","disposition":"enforced","evidence":"Timeline apply and undo use the same shared changeId protocol."},
+    {"path":"electron/capabilityCore/dispatcher.ts","entry_point":"dispatch canvas.write","disposition":"enforced","evidence":"Headless and MCP applied canvas results now mint the same versioned canvas changeId before MCP result projection."},
+    {"path":"src/workbench/generationCanvas/components/useCanvasShortcuts.ts","entry_point":"undo","disposition":"enforced","evidence":"Cmd+Z remains backed by canvasUndoJournal, the single canvas history owner."}
+  ],
+  "recurrence": {"classification":"recurring","reason":"Every future reversible Agent operation can otherwise invent a token or bypass the canvas journal.","same_class_scan":["node scripts/door-map.mjs undo","git grep -n 'undoToken\\|proposalId' electron src/workbench","git grep -n 'applyProposalBatch\\|executeTimelineWriteTarget'"]},
+  "prevention": {"kind":"centralized-boundary","enforcement_path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","invariant":"Undo accepts a parsed changeId, dispatches by prefix, and rejects later same-object changes.","failure_mode":"Return undo_conflict or undo_change_not_found without mutating state.","exception_policy":"none","strategy":"Keep identity construction shared and use the existing canvas session journal for conflict evidence.","artifacts":["electron/shared/agentCapabilities/changeId.ts","src/workbench/generationCanvas/events/canvasUndoJournal.ts","src/workbench/timeline/agent/timelineCapabilityTarget.ts"]},
+  "regression_tests":["electron/shared/agentCapabilities/changeId.test.ts","src/workbench/timeline/agent/timelineCapabilityTarget.test.ts","src/workbench/generationCanvas/agent/proposalTxn.test.ts","src/workbench/generationCanvas/agent/proposalUndo.test.ts"],
+  "class_regression_tests":["electron/shared/agentCapabilities/changeId.test.ts","src/workbench/timeline/agent/timelineCapabilityTarget.test.ts"],
+  "legacy_paths":{"status":"not-applicable","removed_paths":[],"rationale":"Legacy undoToken remains accepted only at the external timeline transport boundary and is normalized to changeId."},
+  "dependency_lifecycle":{"decision":"not-applicable","rationale":"No third-party dependency controls the identity or session-log invariant.","exit_criteria":[]},
+  "migration":"Existing timeline undoToken callers are normalized at the alias boundary; existing canvas proposal receipts remain readable.",
+  "residual_risks":["A fully durable multi-entry receipt index is outside this slice; the existing latest committed canvas receipt remains the compensation owner."],
+  "detected_by":"review",
+  "recurrence_check_on":"2026-11-04",
+  "invariant_owner_layer":{"layer":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","tests":["src/workbench/timeline/agent/timelineCapabilityTarget.test.ts"],"why":"The shared undo execution boundary parses changeId, dispatches by prefix, and refuses stale or conflicting changes."}
+}

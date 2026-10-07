@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 react、three、@react-three/fiber 的 useThree、@react-three/drei 的 Grid、../sceneTheme、../sceneRefs 的 tagEditorOnly、
  *          ../../DirectorEditorContext 的 useDirectorStore
  * [OUTPUT]: 对外提供 SkyGround：天空背景色、100×100 网格（可隐藏/抬高）、半透明地面、基础环境光（半球光 + 环境光）
- * [POS]: director/scene/environment 的「空场景底」：泼溅/全景（S5）叠在它之上；网格与地面打 editor-only 标记，出片时隐藏。
+ * [POS]: director/scene/environment 的「空场景底」：泼溅/全景（S5）叠在它之上；网格与地面打 editor-only 标记，出片时隐藏；另打参照旗，导演视图收编辑辅助物时留着它们。
  *        主题（深邃黑 / Blender 灰）来自偏好设置，场景配置里的 skyColor / gridHeight / groundOpacity 来自图层。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,7 +11,7 @@ import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import { Grid } from '@react-three/drei'
 import { useDirectorStore } from '../../DirectorEditorContext'
-import { tagEditorOnly } from '../sceneRefs'
+import { tagEditorOnly, tagReferenceHelper } from '../sceneRefs'
 import { VIEWPORT_THEMES, type DirectorViewportTheme } from '../sceneTheme'
 
 const DEFAULT_SKY = VIEWPORT_THEMES.default.skyColor
@@ -38,8 +38,11 @@ export function SkyGround({ theme }: { theme: DirectorViewportTheme }): JSX.Elem
   }, [backdrop, scene, skyColor])
 
   React.useLayoutEffect(() => {
-    if (groundRef.current) tagEditorOnly(groundRef.current)
-    if (gridGroupRef.current) tagEditorOnly(gridGroupRef.current)
+    for (const helper of [groundRef.current, gridGroupRef.current]) {
+      if (!helper) continue
+      tagEditorOnly(helper)
+      tagReferenceHelper(helper)
+    }
   }, [])
 
   const groundOpacity = theme === 'neutral-gray' ? spec.groundOpacity : sceneConfig.groundOpacity

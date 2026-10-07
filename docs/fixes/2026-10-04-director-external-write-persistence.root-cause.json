@@ -1,0 +1,145 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-director-external-write-persistence",
+  "problem_type": "Mounted editor external write lost before project persistence",
+  "symptom": "A three-shot DirectorProject injected while the editor session was mounted appeared in memory, but a reload could reopen the old empty project; the 2-second idle save was the only persistence path.",
+  "direct_cause": "writeExternalDirectorProject loaded the project into the mounted store but did not call the node's onProjectChange writer. If the editor closed or reloaded before the idle timer fired, node.meta.directorProject retained the previous project.",
+  "class_root": "The external-write boundary had no invariant that every accepted mounted-session write crosses the node persistence boundary immediately, so the in-memory store and durable canvas node could diverge.",
+  "affected_population": [
+    "3b AI/stage writes targeting a mounted DirectorEditor",
+    "Reload or close within the idle-save window after any external DirectorProject write",
+    "Legacy director editor sessions remain on the existing close/idle persistence path"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.test.ts",
+    ".github/workflows/desktop-preview.yml"
+  ],
+  "entry_points": [
+    "External AI/stage write through writeExternalDirectorProject",
+    "Mounted DirectorEditor persistence through onProjectChange and the existing idle save"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an application-level ownership and persistence invariant; no third-party behavior controls it.",
+  "invariants": [
+    "Every accepted external mounted-session write loads the store and immediately exports through the node writer.",
+    "Rehydrating the exported project preserves all cameras and shot data.",
+    "The legacy editor path remains unchanged when the 3D-BOX flag is off."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "registerDirectorSession"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "updateNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+      "symbol": "loadProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "symbol": "loadProject"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/desktop-preview.yml",
+      "symbol": "director3dbox"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 5,
+    "why_not": "The registry load door, store load door, mounted session registration, and DirectorNode update writer are distinct ownership boundaries and must remain explicit."
+  },
+  "generality_proof": "All mounted external writes converge on writeExternalDirectorProject, which now invokes the registered node writer with the same normalized export used by the mounted store; direct user edits still converge on DirectorNode through the existing onProjectChange callback.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+      "symbol": "writeExternalDirectorProject",
+      "responsibility": "Load the accepted project and synchronously cross the persistence callback."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "registerDirectorSession",
+      "responsibility": "Register the mounted store and the single node persistence callback."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "entry_point": "onProjectChangeRef",
+      "disposition": "enforced",
+      "evidence": "Both idle user edits and external writes reach the DirectorNode callback."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "entry_point": "handleProjectChange",
+      "disposition": "enforced",
+      "evidence": "The node remains the only directorProject meta writer."
+    },
+    {
+      "path": "src/devlab/directorLab.tsx",
+      "entry_point": "DirectorEditor",
+      "disposition": "not-affected",
+      "evidence": "Dev lab has no canvas node persistence owner and is not a production project reload path."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future mounted AI/stage caller can write during the idle-save window; timing and reload are independent of the specific three-shot fixture.",
+    "same_class_scan": [
+      "rg writeExternalDirectorProject src tests",
+      "rg registerDirectorSession src tests",
+      "node scripts/door-map.mjs registerDirectorSession",
+      "node scripts/door-map.mjs loadProject"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+    "invariant": "Every accepted external mounted write invokes the registered node persistence callback with the normalized store export before returning.",
+    "failure_mode": "An unmounted node returns false and performs no write; a mounted node updates memory and durable node state synchronously.",
+    "exception_policy": "none",
+    "strategy": "Keep the external write door as the only 3b entry and make persistence part of that door rather than relying on a later timer.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The flag-off legacy DirectorEditor path remains intentionally unchanged; the new callback is shared by both modes and only affects mounted external writes."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the persistence invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No migration is needed; existing directorProject JSON is normalized before entering the store and is exported unchanged except for the accepted external update.",
+  "residual_risks": [
+    "A full Electron reload screenshot using a real mounted external registry call still needs to be captured for R13 evidence."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/director/directorSessionRegistry.test.ts"
+    ]
+  }
+}

@@ -12,7 +12,7 @@
 // 同一个输入，两端的判定逐字相同，不会一个说在生成、一个说已停。
 //
 // 真相源 = Run 的 jobs[] + status（纯派生，无第二份状态）。
-import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStopReason } from "../productionRun/productionRunTypes";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionJob, type ProductionJobStatus, type ProductionRun, type ProductionRunStopReason } from "../productionRun/productionRunTypes";
 import { runStopReason } from "./productionRunStop";
 import { tagNomiError } from "./nomiErrorCodes";
 export { decideShotClaim } from "./decideShotClaim";
@@ -25,9 +25,21 @@ import { removedShotIds, undecidedShotIds } from "./productionGenerationPresenta
  * - `not_generated`：从没被批过（没有任何一次任务），此刻也没人在问——它不在任何队列里；
  * - `queued`：批过了（有任务、还没派出去），等轮到它；
  * - `stopped`：批过了、没派出去，而这次制作停着；
- * - `generating` / `failed` / `done`：由节点自己的运行记录画（主进程落地投影写进去）。
+ * - `unretrieved`：供应商已经做完、钱已经花了，只是结果没能取回本机（#975 A2 / V-975）。**不是**失败：
+ *   节点挂「可找回」，出路只有免费的「重新取回」；任何批量生成都不把它算进去（算进去就是让人再付一次钱）；
+ * - `generating` / `failed` / `done` / `unretrieved`：由节点自己的运行记录画（主进程落地投影写进去）。
  */
-export type ProductionShotPhase = "awaiting_confirmation" | "removed" | "not_generated" | "queued" | "generating" | "stopped" | "failed" | "done";
+export type ProductionShotPhase = "awaiting_confirmation" | "removed" | "not_generated" | "queued" | "generating" | "stopped" | "failed" | "unretrieved" | "done";
+
+/**
+ * 「这次任务已经生成、只差把结果取回来」——全仓唯一一处判据（#975 A2 / V-975）。
+ * 写下它的是 productionGenerationSubmission.materialize（确定性取回失败）；读它的：镜头阶段投影（下面）、
+ * 「重新取回」命令（productionRunService）、任务面板（productionRunView）。任何地方要问「这一镜能不能重新取回 /
+ * 该不该进批量重生成」都只问这里，不许再拿 errorCode 自己比。
+ */
+export function jobAwaitsRetrieval(job: Pick<ProductionJob, "status" | "errorCode" | "providerTaskId"> | null | undefined): boolean {
+  return Boolean(job && job.status === "needs_attention" && job.errorCode === OUTPUT_RETRIEVAL_FAILED && job.providerTaskId);
+}
 
 type ProductionShotStateFields = {
   /** 这一镜最新的那次任务（从没被批过时没有）。投影用它的 jobId 当节点运行记录的身份。 */
@@ -199,6 +211,8 @@ export function deriveProductionShotState(run: ProductionRun | null | undefined,
   const jobPhase = job ? productionJobPhase(job.status) : null;
 
   if (job && jobPhase === "done") return { phase: "done", job };
+  // 已生成、取回失败：排在「失败 / 已停」之前——它不是失败，也不随批次一起停（钱已经花了，只差取回）。
+  if (job && jobAwaitsRetrieval(job)) return { phase: "unretrieved", job, ...(job.errorMessage ? { failureMessage: job.errorMessage } : {}) };
   if (job && jobPhase === "failed") {
     // 「已停」vs「失败」：Run 停着，而这一镜是随批被停下的（cancelled_remote / too_late），或 job 没有真错因 = 已停；
     // 供应商拒（有真错因）或 Run 根本没停 = 失败。停下的原因只读 Run 记下的事实，不从错因码或 Run 状态猜（以前这里会猜成「预算」）。

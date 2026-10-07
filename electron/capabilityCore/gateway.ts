@@ -1,31 +1,19 @@
 // 能力核 · 工程网关（A/B 模式的统一抽象，单一逻辑 P1）。
 //
-// core.ts 的画布/生成函数不再各自 readProject/saveProject，而是经一个 ProjectGateway 读/写画布、
-// 取付费授权。两种实现：
+// core.ts 的画布函数不再各自 readProject/saveProject，而是经一个 ProjectGateway 读/写画布、
+// 问方案门。两种实现：
 // - 磁盘网关（B 模式，app 关着）：直读写 project.json（headless host 是唯一写者，安全）。
 // - 渲染层网关（A 模式，app 开着且该项目正打开）：把读/写转发给运行中的渲染层 store，所见即所得；
-//   付费确认弹实时卡，真人点了才铸令牌。
+//   方案门弹实时卡。
 //
-// 这样「外部 agent 驱动生成」无论 app 开没开都走同一套 core 逻辑，只换网关——不存在并行版。
+// 网关**没有付费口**：外部 agent 的付费生成只走语义生成 → ProductionRun 的收据门。这里曾有
+// `confirmSpend`（问人 + 铸令牌），唯一调用方 core.generateOnProject 没有生产调用者，2026-10-05 一起删掉。
+//
+// 这样外部 agent 读写画布无论 app 开没开都走同一套 core 逻辑，只换网关——不存在并行版。
 import { readProject, saveProject } from '../projects/repository'
-import { confirmSpendAndMintGrant } from '../spendConfirmGrant'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
+import { mergeExternalCanvasWrite } from '../shared/canvas/externalCanvasWrite'
 import { requestRenderer, requestRendererDecision } from './rendererBridge'
-
-/** 弹付费确认卡需要的上下文（让用户一眼看懂谁要花钱、花在哪、花多少）。 */
-export type SpendConfirmInfo = {
-  projectId: string
-  /** 目标项目名——确认卡显示「AI 想在项目 X 生成」，让用户在非当前项目时也知道花在哪。 */
-  projectName?: string
-  nodeId: string
-  intent: string
-  vendor: string
-  modelKey: string
-  prompt: string
-  parameters?: Record<string, unknown>
-  /** Legacy renderer card metadata. Canonical paid generation never grants session-wide trust. */
-  grantsSessionTrust?: boolean
-}
 
 /** 方案门（Phase B）：外部 agent 要往画布落一套节点方案时，弹应用内卡让用户一眼看懂 AI 要建什么。 */
 export type PlanConfirmInfo = {
@@ -39,10 +27,12 @@ export type PlanConfirmInfo = {
 export interface ProjectGateway {
   /** 读当前画布文档快照（A 模式读运行中 store，B 模式读盘）。 */
   readDoc(): Promise<CanvasSnapshot>
-  /** 写回画布快照（A 模式应用进 store→实时刷新，B 模式落盘）。 */
-  apply(snapshot: CanvasSnapshot): Promise<void>
-  /** 取付费授权：返回 grantId（已确认）或 null（未确认/超时/无 UI）。enforcement 仍在 runTask 硬闸。 */
-  confirmSpend(info: SpendConfirmInfo): Promise<string | null>
+  /**
+   * 写回画布（A 模式应用进 store→实时刷新，B 模式落盘）。`base` = 算出 snapshot 时读到的那份：
+   * 写回只把 base → snapshot 里外部自己改了的东西合到**此刻的**画布上（shared/canvas/externalCanvasWrite），
+   * 读图之后落地的生成结局、用户新建的节点不会被整张覆盖抹掉。
+   */
+  apply(snapshot: CanvasSnapshot, base: CanvasSnapshot): Promise<void>
   /**
    * 方案门（免费、可撤）：确认后返回 true 落画布，否则 false 不落。
    * app 开着 → 弹应用内方案卡；app 关着（headless）→ true 放行（自由可撤操作，无人值守不阻断，
@@ -53,7 +43,7 @@ export interface ProjectGateway {
 
 /**
  * 方案已在别处确认（协议层 elicitation-first 拿到真人 accept）→ 包一层让 confirmPlan 直接放行，
- * 其余读写/付费确认原样透传。用于 A 模式（App 开着）：真人已在聊天里批准这批节点，就不该再弹渲染层方案卡
+ * 读写原样透传。用于 A 模式（App 开着）：真人已在聊天里批准这批节点，就不该再弹渲染层方案卡
  * （免双问）。**只作用于方案门**：加节点免费、可撤，客户端「预批」拿不到它本来拿不到的权限。
  * 付费门没有对应物——钱路只认主进程收据门（productionRunApprovalReceipt.createGateApprovalOwner），
  * 客户端自报永远换不到 spend grant（2026-09-11 删第二扇门）。
@@ -64,7 +54,6 @@ export function withPreApprovedPlan(gateway: ProjectGateway): ProjectGateway {
   return {
     readDoc: gateway.readDoc,
     apply: gateway.apply,
-    confirmSpend: gateway.confirmSpend,
     confirmPlan: async () => true,
   }
 }
@@ -76,11 +65,13 @@ function readDiskSnapshot(projectId: string): CanvasSnapshot {
   return normalizeSnapshot(payload.generationCanvas)
 }
 
-async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): Promise<void> {
+async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, base: CanvasSnapshot): Promise<void> {
   const record = readProject(projectId)
   if (!record) throw new Error(`项目不存在: ${projectId}`)
   const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
-  payload.generationCanvas = snapshot
+  // 盘上此刻的画布可能已经被别的写者改过（后台项目的生成结局投递写的就是这一份）：合并，不整张覆盖。
+  const raw = payload.generationCanvas && typeof payload.generationCanvas === 'object' ? payload.generationCanvas as Record<string, unknown> : {}
+  payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw) }) }
   await saveProject(projectId, { ...record, payload })
 }
 
@@ -88,7 +79,7 @@ async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): P
  * 磁盘网关（B 模式：app 关着，headless host 内）。本进程无窗口可弹应用内确认卡，
  * 也**没有任何替代凭证**：付费放行的唯一 owner 是主进程收据门
  * （`productionRun/productionRunApprovalReceipt.ts` 的 `createGateApprovalOwner`——收据权威验过的
- * HMAC 收据，或受信 IPC 边界自己盖的真人手势章）。本网关够不到那两样，故 confirmSpend 恒 null。
+ * HMAC 收据，或受信 IPC 边界自己盖的真人手势章）。网关本身没有付费口。
  *
  * 2026-09-11 删掉了这里的 env 逃生口（设一个环境变量即铸令牌）：它把「谁授权了这笔钱」
  * 的判据交给**调用方进程自己**，而调用方的资格只是「能读 ~/.nomi/capability-core/token」。
@@ -99,12 +90,8 @@ export function createDiskGateway(projectId: string): ProjectGateway {
     async readDoc() {
       return readDiskSnapshot(projectId)
     },
-    async apply(snapshot) {
-      await writeDiskSnapshot(projectId, snapshot)
-    },
-    async confirmSpend() {
-      // 无窗口、无收据 → 拒发（fail-closed）。enforcement 仍在 runTask 的 assertAndConsumeSpendGrant。
-      return null
+    async apply(snapshot, base) {
+      await writeDiskSnapshot(projectId, snapshot, base)
     },
     async confirmPlan() {
       // 无窗口可弹方案卡（headless）。方案是免费可撤操作 → 放行（不像付费门要拒发）。
@@ -118,9 +105,8 @@ const RENDERER_APPLY_TIMEOUT_MS = 15_000
 
 /**
  * 混合网关：窗口活着、但目标项目**没在前台**时用。
- * 读写走盘（绝不动非活动项目的运行中 store，免串台），但**付费确认走渲染层弹全局卡**
- * （用户拍板 A：全局确认、不打断）——治「外部 MCP 生成到非当前项目 → 静默黑洞」根因。
- * 安全不变量不破：令牌仍只在真人点确认卡后由主进程铸（复用 createRendererGateway.confirmSpend）。
+ * 读写走盘（绝不动非活动项目的运行中 store，免串台），但**方案门走渲染层弹全局卡**
+ * （用户拍板 A：全局确认、不打断）。
  */
 export function createHybridGateway(projectId: string): ProjectGateway {
   const disk = createDiskGateway(projectId)
@@ -128,32 +114,18 @@ export function createHybridGateway(projectId: string): ProjectGateway {
   return {
     readDoc: disk.readDoc,
     apply: disk.apply,
-    confirmSpend: renderer.confirmSpend,
     confirmPlan: renderer.confirmPlan,
   }
 }
 
-/** 渲染层网关（A 模式）。读/写转发进运行中 store；付费确认弹实时卡，真人点了才在主进程铸令牌。 */
+/** 渲染层网关（A 模式）。读/写转发进运行中 store；方案门弹实时卡。 */
 export function createRendererGateway(projectId: string): ProjectGateway {
   return {
     async readDoc() {
       return normalizeSnapshot(await requestRenderer('canvas.read-doc', { projectId }, RENDERER_APPLY_TIMEOUT_MS))
     },
-    async apply(snapshot) {
-      await requestRenderer('canvas.apply', { projectId, snapshot }, RENDERER_APPLY_TIMEOUT_MS)
-    },
-    async confirmSpend(info) {
-      try {
-        // 问人 + 铸令牌那一段只有一份（`spendConfirmGrant.ts`）——视频拆解走的是同一条链。
-        return await confirmSpendAndMintGrant({
-          ...info,
-          lines: [{ vendorKey: info.vendor, modelKey: info.modelKey, ...(info.parameters ? { parameters: info.parameters } : {}) }],
-        })
-      } catch {
-        // 渲染层不可用（窗口关了/进程没了）→ 当作未确认，把干净错误透传给 agent。
-        // 注意这里**没有**「等太久就算没确认」那一档：卡在屏幕上等多久都不算答案（见 requestRendererDecision）。
-        return null
-      }
+    async apply(snapshot, base) {
+      await requestRenderer('canvas.apply', { projectId, snapshot, base }, RENDERER_APPLY_TIMEOUT_MS)
     },
     async confirmPlan(info) {
       try {

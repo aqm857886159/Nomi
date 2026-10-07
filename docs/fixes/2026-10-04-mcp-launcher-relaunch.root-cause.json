@@ -1,0 +1,141 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-mcp-launcher-relaunch",
+  "problem_type": "MCP 外部 Agent 调用：Nomi 退出 / 崩溃后找不到活实例，且两份启动器的转发请求各抄一份而漂移",
+  "symptom": "外部 Agent（Codex / Claude Code）用一阵子后，调用白等 60 秒报「Nomi 冷启动 60 秒内未就绪」，其实根本没有 Nomi 在跑；用户点了同意，文稿编辑仍被 403。",
+  "direct_cause": "mcpNodeLauncher.ts ensureLiveInstance 只在循环前调一次 startNomi()，startNomi 见上次子进程还没被标记退出就不启动，循环里只轮询广告、从不重试拉起（后台 Nomi 闲置 10 分钟自退：先清广告、进程再拖几秒；崩溃有毫秒窗口）。callViaRpc 自己拼请求只转 planConfirmed，漏了 documentConfirmed，而 rpcServer.ts document.write 要求它。",
+  "class_root": "「找到并保持一个活 Nomi、把请求转过去」的逻辑在两份启动器各写一份，且启动器把「我拉起过一次」当成「Nomi 在跑」：没有单一的、每一轮都按广告 + 子进程状态重新判断的边界，也没有单一的请求构造边界。",
+  "migration": "mcpNodeLauncher.ts 的 startNomi / bootedApp / bootFailure 整体替换为 BootedApp 状态机；两份启动器各自内联的 fetch + 超时 + 错误解析删掉，统一走 mcpLoopbackRpcCall.ts；旧实现同 commit 已删，无并行版。",
+  "affected_population": [
+    "通过打包态 mcpNodeLauncher 连 Nomi 的所有外部 Agent 客户端（配置版本 3）",
+    "Electron 内 mcpStdioServer 的旧配置客户端（文稿确认转发）"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpNodeLauncher.ts ensureLiveInstance",
+    "electron/capabilityCore/mcpNodeLauncher.ts callViaRpc",
+    "electron/capabilityCore/mcpStdioServer.ts callViaRpc",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.ts createMcpLoopbackRpcRequest"
+  ],
+  "invariants": [
+    "没有广告且我拉起的子进程不在跑（已退或正在退）时，下一次调用必须重新拉起 Nomi，不得空等满 60 秒",
+    "同一 launcher 内并发调用最多拉起一个替代进程",
+    "两份启动器对同一个工具调用发出的 RPC 请求逐字段一致（含 planConfirmed / documentConfirmed）"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+      "symbol": "callMcpLoopbackRpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "callMcpLoopbackRpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "callMcpLoopbackRpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "ensureLiveInstance"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "两个调用点分属裸 Node 与 Electron 两个运行时，入口无法合并；请求体 / 超时 / 取消 / 错误解析已收到 callMcpLoopbackRpc 一个函数里（之前是两份内联拷贝）。ensureLiveInstance 是裸 Node 独有的拉起边界。"
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpNodeLauncherRelaunch.test.ts",
+    "electron/capabilityCore/mcpLoopbackRpcCall.test.ts"
+  ],
+  "residual_risks": [
+    "真 Nomi 下的退出中 / 休眠恢复场景未在真实 App 里验过（用户在用电脑，只用假 Nomi 验证）；输掉单实例竞争的 sibling 退出码 0 的重拉间隔按 1/2/4/8 秒退避，依赖真 Nomi 的行为一致。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯内部进程管理与请求形状问题，不依赖外部文档。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增的启动器路径或新的请求字段都可能再抄一份、再漏一个字段；任何新的「拉起一次」都可能再被当成活着。",
+    "same_class_scan": [
+      "electron/capabilityCore/mcpNodeLauncher.ts:285",
+      "electron/capabilityCore/mcpStdioServer.ts:147",
+      "git grep -n createMcpLoopbackRpcRequest electron"
+    ]
+  },
+  "generality_proof": "两份启动器的转发都经 callMcpLoopbackRpc，结构测试断言它们不再自拼请求；拉起判断每轮只看广告 + 子进程状态，任何退出方式（崩溃、杀、闲置自退、退出中）都落在同一分支。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+      "symbol": "callMcpLoopbackRpc",
+      "responsibility": "唯一的 MCP -> 活 Nomi 回环请求构造、超时、取消与错误解析。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "ensureLiveInstance",
+      "responsibility": "每轮按广告 + 子进程状态决定连接 / 快速失败 / 重新拉起。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "callViaRpc",
+      "disposition": "enforced",
+      "evidence": "已改走 callMcpLoopbackRpc，保留 appFetch 注入；结构测试断言不再自拼请求。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "callViaRpc",
+      "disposition": "enforced",
+      "evidence": "已改走 callMcpLoopbackRpc，补上 documentConfirmed 转发。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+      "entry_point": "createMcpLoopbackRpcRequest",
+      "disposition": "not-affected",
+      "evidence": "本来就接收 planConfirmed 与 documentConfirmed，未改；现在只被 callMcpLoopbackRpc 调用。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+    "invariant": "MCP 到活 Nomi 的每一次转发都经同一个函数构造请求。",
+    "failure_mode": "mcpLoopbackRpcCall.test.ts 结构守卫在任一启动器重新自拼请求时红。",
+    "exception_policy": "none",
+    "strategy": "请求构造收到一个函数，只有 fetch 实现由宿主注入。",
+    "artifacts": [
+      "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+      "electron/capabilityCore/mcpLoopbackRpcCall.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpNodeLauncherRelaunch.test.ts",
+    "electron/capabilityCore/mcpLoopbackRpcCall.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "被替换的两份内联请求构造与旧 startNomi 是函数体，不是独立文件；它们在同 diff 里已删除，没有遗留路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖。",
+    "exit_criteria": []
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+    "tests": [
+      "electron/capabilityCore/mcpLoopbackRpcCall.test.ts",
+      "electron/capabilityCore/mcpNodeLauncherRelaunch.test.ts"
+    ],
+    "why": "回环请求形状由 callMcpLoopbackRpc 一处拥有；拉起判断由 launcher 的 ensureLiveInstance 拥有，真进程测试覆盖。"
+  }
+}

@@ -1,12 +1,12 @@
 import React, { type JSX } from 'react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
-import { CanvasBatchGenerateDock } from '../components/CanvasBatchGenerateDock'
 import { CanvasEmptyState } from '../components/CanvasEmptyState'
 import { CanvasNavigationStack } from '../components/CanvasNavigationStack'
 import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeContextMenu'
 import FrameContextMenu, { type FrameContextMenuAction } from '../components/FrameContextMenu'
 import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
 import { NodeAddMenu } from '../components/CanvasToolbar'
+import { NodeDeriveMenu } from '../quickActions/NodeDeriveMenu'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
 import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
 import type { ArrivalHint } from '../components/canvasArrivalModel'
@@ -14,7 +14,6 @@ import { hasClipboardContent } from '../store/canvasClipboard'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
-import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
 
 const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
   import('../components/BatchPlanOverlay').then((module) => ({ default: module.BatchPlanOverlay })),
@@ -29,7 +28,8 @@ type GenerationCanvasReactFlowOverlaysProps = {
   selectedSet: Set<string>
   screenshotOverlay: React.ReactNode
   contextNodeMenu: CanvasContextNodeMenu | null
-  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'stageX' | 'stageY' | 'kinds'> | null
+  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'verdicts' | 'clientX' | 'clientY'> | null
+  onCloseConnectionCreateMenu: () => void
   onCreateEmpty: () => void
   onNodeContextAction: (action: NodeContextMenuAction) => void
   /** 节点菜单自己关（Esc / 点外面 / 选完）。空白「添加节点」菜单仍走原来的 window 监听。 */
@@ -37,9 +37,6 @@ type GenerationCanvasReactFlowOverlaysProps = {
   onAddContextNode: (kind: GenerationNodeKind) => void
   onImportContextFiles: (files: File[]) => void
   onAddConnectedNode: (kind: GenerationNodeKind) => void
-  batchDock: { visible: boolean; dismiss: () => void }
-  production: ReturnType<typeof useCanvasProductionActions>
-  timelineCollapsed: boolean
   hasBatchPlanPreview: boolean
   zoom: number
   zoomPercent: number
@@ -77,9 +74,7 @@ export function GenerationCanvasReactFlowOverlays({
   onAddContextNode,
   onImportContextFiles,
   onAddConnectedNode,
-  batchDock,
-  production,
-  timelineCollapsed,
+  onCloseConnectionCreateMenu,
   hasBatchPlanPreview,
   zoom,
   zoomPercent,
@@ -115,6 +110,7 @@ export function GenerationCanvasReactFlowOverlays({
           onPointerDown={(event) => event.stopPropagation()}
           onClose={onCloseContextNodeMenu}
           onAction={onNodeContextAction}
+          onDuplicateVariant={selectedNodeIds.length === 1 ? () => onNodeContextAction('duplicate-variant') : undefined}
         />
       ) : contextNodeMenu ? (
         <NodeAddMenu
@@ -139,20 +135,12 @@ export function GenerationCanvasReactFlowOverlays({
         />
       ) : null}
       {connectionCreateMenu ? (
-        <NodeAddMenu
-          className="generation-canvas-react-flow__connection-create-menu generation-canvas-v2__connection-create-menu z-[20] left-auto w-[132px]"
-          style={{ left: connectionCreateMenu.stageX, top: connectionCreateMenu.stageY }}
-          kinds={connectionCreateMenu.kinds}
-          onPointerDown={(event) => event.stopPropagation()}
-          onContextMenu={(event) => event.preventDefault()}
-          onAddNode={onAddConnectedNode}
-        />
-      ) : null}
-      {batchDock.visible ? (
-        <CanvasBatchGenerateDock
-          {...production}
-          timelineCollapsed={timelineCollapsed}
-          onDismiss={batchDock.dismiss}
+        // 点「+」圈和拖线到空白处松手是同一个菜单：接不上的灰掉并说原因（`quickActions/NodeDeriveMenu`）。
+        <NodeDeriveMenu
+          verdicts={connectionCreateMenu.verdicts}
+          point={{ x: connectionCreateMenu.clientX, y: connectionCreateMenu.clientY }}
+          onPick={onAddConnectedNode}
+          onClose={onCloseConnectionCreateMenu}
         />
       ) : null}
       <CanvasNavigationStack

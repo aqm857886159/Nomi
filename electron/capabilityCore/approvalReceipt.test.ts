@@ -228,4 +228,11 @@ describe("policy_decision attestation（全自动档的免卡放行）", () => {
     advance(10);
     expect(() => authority.mintReceipt(pending.token, attestation)).toThrow(ReceiptExpiredError);
   });
+
+  it("配置防御：收据 TTL 小于挑战 TTL 直接拒绝（否则同一手势可能铸出第二张收据）", () => {
+    const base = { filePath: path.join(os.tmpdir(), "nomi-never-written.json"), macKey: "k", storeMacKey: "s", keyId: "v1" };
+    expect(() => createApprovalReceiptAuthority({ ...base, defaultTtlMs: 300_000, receiptTtlMs: 299_999 })).toThrow(ReceiptScopeError);
+    expect(() => createApprovalReceiptAuthority({ ...base, defaultTtlMs: 300_000, receiptTtlMs: 300_000 })).not.toThrow();
+    expect(() => createApprovalReceiptAuthority(base)).not.toThrow();
+  });
 });

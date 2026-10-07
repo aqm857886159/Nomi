@@ -10,6 +10,7 @@
 // 既违反 R15（可见文字必须走 i18n），又凭空多了一份要和合同对齐的词表。
 import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import type { LaneTaskCandidate, LaneTaskStatus } from '../../../../electron/shared/agentLane/laneContracts'
+import type { LaneAssistantFault } from '../../../../electron/shared/agentLane/laneAssistantFault'
 import type { V4AskQuestion } from './agentPanelV4AskModel'
 import type { V4QuestionOption } from './agentPanelV4Question'
 
@@ -121,6 +122,12 @@ export type ToolReceipt = Readonly<{
    * 它登记在案的外部参照（AI Elements 七态），而这一行要改的本来就只是**怎么读**。
    */
   answered?: true
+  /**
+   * 宿主确定性给出的一句提示（不是模型说的）：今天只有 3D-BOX 补丁覆盖了用户手调时的
+   * 「这次改动覆盖了你在镜头 2 的手调，可撤销」（useDirectorPatchNotices 是唯一产地）。
+   * 它画在这一行流水**外面**，收起的过程行也照样看得见。
+   */
+  notice?: string
 }>
 
 export type TaskCandidate = Readonly<{ tag: string; pending?: boolean } & Partial<LaneTaskCandidate>>
@@ -313,7 +320,16 @@ export type V4FlowItem = { readonly identity?: string } & (
       details?: readonly { item: V4FlowItem; index: number }[]
     }
   | { kind: 'task'; task: TaskCardData }
-  | { kind: 'error'; reason: string; action?: string }
+  | {
+      kind: 'error'; reason: string; action?: string
+      /** 错误已被自动重试化解：画成一行灰字，不是红卡。 */
+      recovered?: true
+      /** 服务商原始报文（只给 effect 记日志用，不进界面）与 pi 的「瞬时」判断。 */
+      raw?: string
+      transient?: true
+      /** 看门狗 / pi 自己判的那几类（不是服务商原话）；在就不记「认不出」日志。 */
+      fault?: LaneAssistantFault
+    }
 )
 
 export type QueueRowData = Readonly<{

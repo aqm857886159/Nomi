@@ -111,6 +111,39 @@ jobs:
         run: pnpm run test:system:contracts
       - name: Autosync publication regression
         run: node --test docs/fixes/docs-autosync.node-test.mjs
+      # 方向检查（RW）只警告、不阻断：列出本 PR 里碰了「反复修的地方」却没带 Direction-Check trailer 的 fix 提交。
+      # 真正的拦截在 git commit-msg（scripts/check-direction-trailer.mjs）；这里兜 --no-verify 之类绕过的情况。
+      - name: Direction check (warn only)
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        env:
+          DIRECTION_BASE: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/fix-churn.mjs --range "$DIRECTION_BASE..HEAD" --warn | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # 3D-BOX 开关开的那张工具面（方案 docs/plan/2026-10-04-director-3dbox-phase3.md §5）：同一族门岗按开关开再跑一遍，
+  # 第一步先证明开关真的开了（check-director3dbox-face-on.ts），否则后面会安静地验成开关关的面。
+  # 开关只经环境变量传给每个门岗进程的引导模块。到期 2026-11-15 随开关一起删。
+  director3dbox-face:
+    name: Tool Face (3D-BOX on)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Flag-on tool-face gates
+        # 只给门岗这一步开开关（安装依赖那步不受影响）。
+        env:
+          NOMI_DESKTOP_DEV: '1'
+          NOMI_DIRECTOR_3DBOX: 'true'
+        run: pnpm run check:director3dbox-face
 
   unit:
     name: Unit
@@ -131,7 +164,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium for browser integration tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       - name: Unit and agent runtime tests (full lane)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:system:unit
@@ -171,7 +205,8 @@ jobs:
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       # 七步一律 continue-on-error + 末尾汇总（2026-09-18）。此前它们是串行 fail-fast：
       # 第一条走查红了，后面六条根本不跑，于是**每轮 CI 只能学到一件事**——
       # PR #804 连着三轮，每轮红的都是另一条不同的走查，三轮 ≈ 两小时只为收集三条信息。
@@ -440,7 +475,7 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [scope, contracts, unit, core-smoke, desktop-linux, canvas-acceptance, canvas-performance, mac-package]
+    needs: [scope, contracts, director3dbox-face, unit, core-smoke, desktop-linux, canvas-acceptance, canvas-performance, mac-package]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -469,6 +504,7 @@ jobs:
           test "${{ steps.ci-hygiene.outcome }}" = "success"
           test "${{ needs.scope.result }}" = "success"
           test "${{ needs.contracts.result }}" = "success"
+          test "${{ needs['director3dbox-face'].result }}" = "success"
           test "${{ needs.unit.result }}" = "success"
           # 核心冒烟：只有纯文档才允许 skipped；其余（含分类器没给出结论）一律要求 success。
           # 非阻断的 used 带 continue-on-error，它红时 conclusion 仍是 success，

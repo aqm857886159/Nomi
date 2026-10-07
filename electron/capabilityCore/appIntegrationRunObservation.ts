@@ -21,14 +21,12 @@ import { createSingleShotObservationLifecycle } from '../productionRun/singleSho
 import {
   markSingleShotAttention,
   markSingleShotCompleted,
-  markSingleShotRunning,
 } from '../productionRun/singleShotRunLifecycle'
 
 // 慢供应商未到静止点时定时重踢；Run lock、intent log 与 commandId 保证重启/并发幂等。
 const REKICK_DELAY_MS = 15_000
 
 export type RunObservationDrivers = {
-  settleSingleShotRunning: (projectId: string, runId: string) => void;
   settleSingleShotCompleted: (projectId: string, runId: string, options?: { jobId?: string; artifactId?: string }) => void;
   settleSingleShotAttention: (projectId: string, runId: string, jobId?: string) => void;
   driveScheduler: (projectId: string, runId: string, scheduler: Pick<MultiShotBatchScheduler, 'runToQuiescence'>, label: string) => void;
@@ -66,13 +64,6 @@ export function createRunObservationDrivers(deps: {
   // repository as the provider submission.  Keep these callbacks local to
   // the capability-core instance so a stopped/replaced instance cannot write
   // a stale status after its epoch is invalidated.
-  const settleSingleShotRunning = (projectId: string, runId: string): void => {
-    try {
-      markSingleShotRunning(repository, projectId, runId)
-    } catch (error) {
-      logWarn('production-run', 'single-shot-running-status-failed', undefined, error)
-    }
-  }
   const settleSingleShotCompleted = (projectId: string, runId: string, options: { jobId?: string; artifactId?: string } = {}): void => {
     try {
       markSingleShotCompleted(repository, projectId, runId, options)
@@ -210,7 +201,6 @@ export function createRunObservationDrivers(deps: {
     })
   }
   return {
-    settleSingleShotRunning,
     settleSingleShotCompleted,
     settleSingleShotAttention,
     driveScheduler,

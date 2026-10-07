@@ -1,6 +1,6 @@
 // Rebuildable views of pi entries. No second session writer or raw JSONL parser.
 import { applyTraceRedactions } from './laneTraceRedaction.mjs';
-import { mkdir, writeFile, rename, lstat, chmod, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rename, lstat, chmod, rm, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Entry, Session } from '@earendil-works/pi-agent-core';
@@ -9,6 +9,7 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/contex
 import { redactDeep } from '../events/redact.js';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import { LANE_APPROVAL_NOTE_TYPE } from '../shared/agentLane/laneContracts.js';
+import { laneToolFailureOf } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_DIR_MODE, LANE_FILE_MODE } from './laneFileSystem.mjs';
 
@@ -25,10 +26,12 @@ export interface LaneTraceTurn {
   spanName: string; prompt: string; response: string;
   models: { provider: string; model: string }[];
   tokens: { input: number; cacheRead: number; cacheWrite: number; output: number };
+  /** 每一次模型请求各自的输入（input + cacheRead），顺序即请求顺序。 */
+  requestInputs: number[];
   estimatedCostUsd: number | null; pricing: NomiPricingBasis | null;
   durationMs: number | null; status: string;
   tools: { toolCallId: string; name: string; spanName: string; arguments: unknown;
-    resultSummary: string | null; durationMs: number | null; failed: boolean | null }[];
+    resultSummary: string | null; durationMs: number | null; failed: boolean | null; failureCode: string | null }[];
   approvals: unknown[]; errors: string[];
 }
 
@@ -60,7 +63,7 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
     if (entry.type === 'message' && (entry.message.role === 'user' || isLaneInputMessage(entry.message))) {
       turns.set(entry.id, { schemaVersion: 1, sessionId, turnId: entry.id, timestamp: entry.timestamp,
         spanName: 'invoke_agent Nomi', prompt: draftInputFromMessage(entry.message).text, response: '', models: [],
-        tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, estimatedCostUsd: null, pricing: null,
+        tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, requestInputs: [], estimatedCostUsd: null, pricing: null,
         durationMs: null, status: 'incomplete', tools: [], approvals: [], errors: [] });
     }
     const turn = owner(entry.id);
@@ -71,23 +74,26 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
         turn.models.push({ provider: message.provider, model: message.model });
       }
       for (const key of Object.keys(turn.tokens) as (keyof LaneTraceTurn['tokens'])[]) turn.tokens[key] += message.usage[key];
+      turn.requestInputs.push(message.usage.input + message.usage.cacheRead);
       rawCosts.set(turn.turnId, (rawCosts.get(turn.turnId) ?? 0) + message.usage.cost.total);
       turn.response += message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('');
       if (message.errorMessage) turn.errors.push(message.errorMessage);
       for (const part of message.content) if (part.type === 'toolCall') {
         turn.tools.push({ toolCallId: part.id, name: part.name, spanName: `execute_tool ${part.name}`,
-          arguments: part.arguments, resultSummary: null, durationMs: null, failed: null });
+          arguments: part.arguments, resultSummary: null, durationMs: null, failed: null, failureCode: null });
       }
     }
     if ((entry.type === 'compaction' || entry.type === 'branch_summary') && entry.usage) {
       for (const key of Object.keys(turn.tokens) as (keyof LaneTraceTurn['tokens'])[]) turn.tokens[key] += entry.usage[key];
+      turn.requestInputs.push(entry.usage.input + entry.usage.cacheRead);
       rawCosts.set(turn.turnId, (rawCosts.get(turn.turnId) ?? 0) + entry.usage.cost.total);
     }
     if (entry.type === 'message' && entry.message.role === 'toolResult') {
       const message = entry.message;
       const tool = turn.tools.find(item => item.toolCallId === message.toolCallId);
       const text = message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n');
-      if (tool) { tool.resultSummary = text.slice(0, 2000); tool.failed = message.isError; }
+      if (tool) { tool.resultSummary = text.slice(0, 2000); tool.failed = message.isError;
+        tool.failureCode = message.isError ? laneToolFailureOf(message.details)?.code ?? null : null; }
       if (message.isError) turn.errors.push(text.slice(0, 2000));
     }
     if (entry.type === 'custom' && entry.customType === LANE_APPROVAL_NOTE_TYPE) turn.approvals.push(entry.data);
@@ -142,8 +148,11 @@ export function laneTraceDirectory(metadata: JsonlSessionMetadata): string {
 export async function writeTraceFile(directory: string, name: string, content: string): Promise<void> {
   await mkdir(directory, { recursive: true, mode: LANE_DIR_MODE });
   if ((await lstat(directory)).isSymbolicLink()) throw new Error('Refusing a symbolic trace directory');
+  // 权限照旧每次收紧（只改元数据，不写内容、不 fsync）：内容没变提前返回也不能放过被改坏的目录权限。
   await chmod(directory, LANE_DIR_MODE);
   const destination = join(directory, name);
+  // 派生视图没变就不重写：打开项目会刷新一次轨迹，历史没动时这一步应当只是读（打开项目零写入）。
+  if (await readFile(destination, 'utf8').then(existing => existing === content, () => false)) return;
   const temporary = `${destination}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, content, { mode: LANE_FILE_MODE, flag: 'wx' });

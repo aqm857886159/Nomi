@@ -36,6 +36,7 @@ const MOCKUP_DIR = path.join(root, "docs", "design", "mockups");
 const CONTRACT_DIR = path.join(MOCKUP_DIR, "contracts");
 const WALK_DIR = path.join(root, "tests", "ux");
 const baselinePath = path.join(root, "scripts", "mockup-contracts-baseline.json");
+const htmlContractBaselinePath = path.join(root, "scripts", "mockup-contracts-html-baseline.json");
 
 if (!fs.existsSync(MOCKUP_DIR)) {
   console.log("✅ 形态契约门岗：无 mockups 目录，跳过。");
@@ -92,6 +93,148 @@ function walkFiles(dir, acc = []) {
 const walkText = walkFiles(WALK_DIR)
   .map((f) => fs.readFileSync(f, "utf8"))
   .join("\n");
+
+// 新合同的正本不再是另一套手画 HTML。HTML 仍可留作方向探索，但不能再充当验收合同；
+// main 上已经存在的 HTML 合同进入只减不增的历史基线，避免一次规则升级把整棵旧树翻红。
+const htmlContractBaseline = fs.existsSync(htmlContractBaselinePath)
+  ? new Set(JSON.parse(fs.readFileSync(htmlContractBaselinePath, "utf8")))
+  : new Set();
+
+const isHtmlMockup = (mockup) => typeof mockup === "string" && mockup.endsWith(".html");
+const isExploration = (contract) => contract?.layer === "exploration";
+
+const { LAB_SCREEN_IDS, LAB_SCREENS: LAB_SCREEN_REGISTRY } = await import(
+  pathToFileURL(path.join(root, "tests", "ux", "design-lab", "labStates.mjs")).href,
+);
+const labScreensSource = fs.readFileSync(path.join(root, "src", "devlab", "designLab", "labScreens.ts"), "utf8");
+const registeredLabScreenIds = new Set(
+  [...labScreensSource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]),
+);
+
+function resolveImportPath(importer, specifier) {
+  if (!specifier.startsWith(".")) return null;
+  const base = path.resolve(path.dirname(importer), specifier);
+  const candidates = [base, `${base}.tsx`, `${base}.ts`, `${base}.jsx`, `${base}.js`, path.join(base, "index.tsx"), path.join(base, "index.ts")];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function importsPath(source, importer, target) {
+  const targetAbsolute = path.resolve(root, target);
+  const imports = [...source.matchAll(/(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/g)].map((match) => match[1]);
+  return imports.some((specifier) => resolveImportPath(importer, specifier) === targetAbsolute);
+}
+
+function stateSourceFor(screenId, stateId) {
+  const config = LAB_SCREEN_REGISTRY[screenId];
+  if (!config) return null;
+  const files = fs.readdirSync(config.registryDir).filter((name) => name.endsWith(".tsx")).sort();
+  for (const name of files) {
+    const file = path.join(config.registryDir, name);
+    const source = fs.readFileSync(file, "utf8");
+    if (source.includes(`id: '${stateId}',`)) {
+      return { file, source };
+    }
+  }
+  return null;
+}
+
+function staticRegionIds(source) {
+  return [...source.matchAll(/data-mockup-region\s*=\s*["']([^"']+)["']/g)].map((match) => match[1]);
+}
+
+function validateLabContract(contract, name) {
+  const errors = [];
+  const lab = contract?.labScreen;
+  if (!lab || typeof lab !== "object") return [`${name} 缺少 labScreen：新验收合同必须指向 labScreens.ts 登记的实验室屏`];
+  if (typeof lab.id !== "string" || !registeredLabScreenIds.has(lab.id) || !LAB_SCREEN_IDS.includes(lab.id)) {
+    errors.push(`${name} 的 labScreen.id「${lab.id ?? "(空)"}」不在 src/devlab/designLab/labScreens.ts 注册表`);
+    return errors;
+  }
+  if (typeof lab.state !== "string") errors.push(`${name} 的 labScreen.state 必须指向一个登记状态`);
+  const state = typeof lab.state === "string" ? stateSourceFor(lab.id, lab.state) : null;
+  if (!state) {
+    errors.push(`${name} 的 labScreen.state「${lab.state ?? "(空)"}」不在 ${lab.id} 的状态注册表`);
+    return errors;
+  }
+  if (typeof lab.host !== "string" || !lab.host.startsWith("src/devlab/")) {
+    errors.push(`${name} 的 labScreen.host 必须是 src/devlab/ 下的宿主文件`);
+    return errors;
+  }
+  const hostPath = path.resolve(root, lab.host);
+  if (!fs.existsSync(hostPath)) {
+    errors.push(`${name} 的 labScreen.host 不存在：${lab.host}`);
+    return errors;
+  }
+  const hostSource = fs.readFileSync(hostPath, "utf8");
+  const hostSymbol = typeof lab.hostSymbol === "string" ? lab.hostSymbol : "ShellStage";
+  if (!new RegExp(`(?:export\\s+)?function\\s+${hostSymbol}\\b|const\\s+${hostSymbol}\\s*=`).test(hostSource)) {
+    errors.push(`${name} 的 labScreen.host 没有宿主符号 ${hostSymbol}`);
+  }
+  if (!importsPath(state.source, state.file, lab.host)) {
+    errors.push(`${name} 的实验室状态没有 import 它声明的宿主 ${lab.host}`);
+  }
+  const stateStart = state.source.indexOf(`id: '${lab.state}'`);
+  const nextState = state.source.indexOf("\n    id: '", stateStart + 1);
+  const stateBlock = state.source.slice(stateStart, nextState < 0 ? state.source.length : nextState);
+  const renderStart = stateBlock.indexOf("render:");
+  const renderSource = renderStart >= 0 ? stateBlock.slice(renderStart) : "";
+  if (!renderSource.includes(hostSymbol)) errors.push(`${name} 的状态没有通过 ${hostSymbol} 渲染`);
+  const jsxTags = [...renderSource.matchAll(/<([A-Za-z][A-Za-z0-9_.]*)/g)].map((match) => match[1]);
+  const customTags = jsxTags.filter((tag) => tag !== hostSymbol);
+  if (customTags.length) {
+    errors.push(`${name} 的状态在 devlab 另画 JSX（发现 ${[...new Set(customTags)].join(", ")}）；实验室只给真实宿主数据`);
+  }
+  const production = Array.isArray(lab.production) ? lab.production : [];
+  if (!production.length) errors.push(`${name} 必须声明 labScreen.production（生产目录组件路径）`);
+  for (const productionPath of production) {
+    if (typeof productionPath !== "string" || productionPath.startsWith("src/devlab/") || !productionPath.startsWith("src/")) {
+      errors.push(`${name} 的生产组件路径必须在 src/ 且不能落在 src/devlab/：${productionPath}`);
+      continue;
+    }
+    const productionAbsolute = path.resolve(root, productionPath);
+    if (!fs.existsSync(productionAbsolute)) {
+      errors.push(`${name} 的生产组件不存在：${productionPath}`);
+    } else if (!importsPath(hostSource, hostPath, productionPath)) {
+      errors.push(`${name} 的宿主没有直接 import 生产组件 ${productionPath}`);
+    }
+  }
+  const sourceForRegions = [state.source, hostSource, ...production.filter((p) => typeof p === "string" && fs.existsSync(path.resolve(root, p))).map((p) => fs.readFileSync(path.resolve(root, p), "utf8"))].join("\n");
+  const regionIds = [...new Set(staticRegionIds(sourceForRegions))];
+  const rows = Array.isArray(contract.reconciliation) ? contract.reconciliation : [];
+  const rowIds = rows.map((row) => row?.region).filter((region) => typeof region === "string");
+  if (!regionIds.length) errors.push(`${name} 的实验室屏没有 data-mockup-region 区域标记`);
+  for (const region of regionIds) {
+    if (rowIds.filter((id) => id === region).length !== 1) errors.push(`${name} 的区域 ${region} 必须在 reconciliation 里恰好有一行`);
+  }
+  for (const row of rows) {
+    if (!row || typeof row.region !== "string" || !regionIds.includes(row.region)) errors.push(`${name} 的 reconciliation 有未知区域：${row?.region ?? "(空)"}`);
+    if (!['match', 'difference', 'deferred'].includes(row?.status)) errors.push(`${name} 的 reconciliation.${row?.region ?? "?"}.status 必须是 match / difference / deferred`);
+    if (row?.status === 'difference' && typeof row.reason !== 'string') errors.push(`${name} 的区域 ${row.region} 标为 difference 时必须写 reason`);
+    if (row?.status === 'deferred' && typeof row.target !== 'string') errors.push(`${name} 的区域 ${row.region} 标为 deferred 时必须写 target`);
+    if (typeof row?.selector !== 'string' || !/^\[data-[^=]+="[^"]+"\]$/.test(row.selector)) errors.push(`${name} 的区域 ${row?.region ?? "?"} 必须给 data-* selector`);
+  }
+  return errors;
+}
+
+const invalidLabContracts = [];
+const invalidExplorationContracts = [];
+for (const c of contracts) {
+  const contract = contractModules.get(c);
+  if (contract?.__loadError) continue;
+  const html = isHtmlMockup(contract?.mockup);
+  const grandfatheredHtml = html && htmlContractBaseline.has(c);
+  if (html && !grandfatheredHtml && !isExploration(contract)) {
+    invalidLabContracts.push(`${c}：新 HTML 样张只能标 layer: 'exploration'，不能作验收合同`);
+    continue;
+  }
+  if (isExploration(contract)) {
+    if (walkText.includes(c) || walkText.includes(c.replace(/\.mjs$/, ""))) {
+      invalidExplorationContracts.push(`${c}：exploration 契约不能被验收走查引用`);
+    }
+    continue;
+  }
+  if (!grandfatheredHtml) invalidLabContracts.push(...validateLabContract(contract, c));
+}
 
 const missing = []; // 样张没有任何契约文件
 const unused = []; // 契约文件没被任何走查引用
@@ -162,6 +305,19 @@ const cleared = baseline.filter((b) => !missing.includes(b));
 
 let red = false;
 
+if (invalidLabContracts.length) {
+  red = true;
+  console.error(`✖ ${invalidLabContracts.length} 份新验收合同没有落到真实实验室屏：`);
+  for (const error of invalidLabContracts) console.error(`   ${error}`);
+}
+
+if (invalidExplorationContracts.length) {
+  red = true;
+  console.error(`\n✖ ${invalidExplorationContracts.length} 份 exploration 契约被验收走查引用：`);
+  for (const error of invalidExplorationContracts) console.error(`   ${error}`);
+  console.error("  → exploration 只能用于方向探索，不能进入验收合同链");
+}
+
 if (newlyMissing.length) {
   red = true;
   console.error(`✖ ${newlyMissing.length} 张新样张没有形态契约：`);
@@ -212,5 +368,5 @@ if (red) process.exit(1);
 
 console.log(
   `✅ 形态契约门岗通过：${contracts.length} 份契约全部被走查引用、且都对得上现行拍板；`
-  + `欠契约样张 ${missing.length} 张（基线 ${baseline.length}）${cleared.length ? `，本次补齐 ${cleared.length} 张` : ""}。`,
+  + `欠契约样张 ${missing.length} 张（样张基线 ${baseline.length}；HTML 合同历史基线 ${htmlContractBaseline.size}，只减不增）${cleared.length ? `，本次补齐 ${cleared.length} 张` : ""}。`,
 );

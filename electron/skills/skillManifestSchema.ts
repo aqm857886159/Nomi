@@ -110,6 +110,8 @@ export type SkillManifest = {
   author?: string;
   audience?: SkillAudience;
   selectableInWorkbench?: boolean;
+  /** 只在这个构建开关开时可选（今天只认 3D-BOX 一个开关；到期 2026-11-15 随开关一起删）。 */
+  requiresFlag?: "director3dbox";
   requestedCapabilities?: string[];
   tools: string[];
   requiredProviders: SkillProviderKind[];
@@ -128,6 +130,8 @@ export const skillManifestSchema = z
     audience: skillAudienceSchema.optional(),
     /** Explicitly allow a built-in Skill to appear in the Workbench picker. */
     "selectable-in-workbench": z.boolean().optional(),
+    /** Only selectable when this build flag is on. The only accepted flag is the 3D-BOX one. */
+    "requires-flag": z.enum(["director3dbox"]).optional(),
     /** Canonical requests can only shrink the Host-owned capability ceiling. */
     "requested-capabilities": z.array(skillRequestedCapabilitySchema).max(64)
       .refine((items) => new Set(items).size === items.length, "must not contain duplicate capability ids")
@@ -145,6 +149,7 @@ export const skillManifestSchema = z
     author: manifest.author,
     audience: manifest.audience,
     selectableInWorkbench: manifest["selectable-in-workbench"],
+    ...(manifest["requires-flag"] ? { requiresFlag: manifest["requires-flag"] } : {}),
     requestedCapabilities: manifest["requested-capabilities"],
     tools: manifest.tools,
     requiredProviders: manifest["required-providers"],

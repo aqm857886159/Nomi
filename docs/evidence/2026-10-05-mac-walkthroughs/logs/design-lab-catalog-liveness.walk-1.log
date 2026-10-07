@@ -1,0 +1,20 @@
+▶ 生成 tailwind 产物…
+▶  Tailwind CSS building: public/tailwind.generated.css
+
+Rebuilding...
+
+Done in 1978ms.
+▶ 启动 vite dev server…
+  ✗ catalog-liveness-light: expected one unlisted note
+  ✗ catalog-liveness-light: unlisted model was enabled
+  ✗ catalog-liveness-light: manual enable failed
+  ✓ catalog-liveness-light             960×720  未列出旁注与删除 · 明
+  ✗ catalog-liveness-dark: expected one unlisted note
+  ✗ catalog-liveness-dark: unlisted model was enabled
+  ✗ catalog-liveness-dark: manual enable failed
+  ✓ catalog-liveness-dark              960×720  未列出旁注与删除 · 暗
+
+▶ 接触表：~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/shots/design-lab-catalog-liveness/_contact-sheet.png
+
+❌ 设计实验室走查失败 6 条
+RC=1

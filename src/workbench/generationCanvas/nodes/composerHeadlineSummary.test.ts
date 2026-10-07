@@ -29,7 +29,7 @@ const summary = (args: Partial<Parameters<typeof composerHeadlineSummary>[0]> & 
   controls: DynamicModelControl[]
   meta: Record<string, unknown>
 }): string | undefined => composerHeadlineSummary({
-  isImageLike: false, isVideoLike: false, formatSeconds: seconds, ...args,
+  isImageLike: false, isVideoLike: false, formatSeconds: seconds, autoLabel: '自动', ...args,
 })
 
 describe('composerHeadlineSummary', () => {
@@ -77,5 +77,12 @@ describe('composerHeadlineSummary', () => {
     expect(summary({
       isVideoLike: true, controls: [ratio, duration], meta: { aspect_ratio: '9:16', duration: 12 },
     })).toBe('9:16 · 12s')
+  })
+})
+
+describe('composerHeadlineSummary · 自动档', () => {
+  it('「自动」档报本地化字样，不露 auto / adaptive 原值（审计 A11）', () => {
+    const adaptive = { key: 'aspect_ratio', label: '比例', type: 'select', binding: 'parameter', options: [{ value: 'adaptive', label: 'adaptive' }, { value: '16:9', label: '16:9' }] } as unknown as DynamicModelControl
+    expect(summary({ isVideoLike: true, controls: [adaptive], meta: { aspect_ratio: 'adaptive' } })).toBe('自动')
   })
 })

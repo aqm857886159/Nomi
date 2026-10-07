@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { generationCandidateSchema, generationPlanInputSchema } from '../shared/agentCapabilities/generationPlanSchemas'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationToolCatalog'
-import { validateToolArguments } from './mcpArgValidation'
+import { validateToolArguments } from './mcpProtocol'
 import { toPublishedJsonSchema } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 
 import { createPiGenerationTransportAdapter } from './generationTransportAdapters'
@@ -23,7 +23,7 @@ describe('MCP generation draft schema parity', () => {
   })
 
   it('derives every create and patch property from the canonical lane generation owner', () => {
-    const create = toPublishedJsonSchema(generationPlanInputSchema.options[1].omit({ operation: true }))
+    const create = toPublishedJsonSchema(generationPlanInputSchema.options[1].omit({ operation: true, newPlan: true }))
     const properties = tool.inputSchema.properties as Record<string, unknown>
     expect(properties).toMatchObject(create.properties as Record<string, unknown>)
     expect(properties.patch).toMatchObject({ type: 'object', additionalProperties: false })
@@ -51,7 +51,7 @@ describe('MCP generation draft schema parity', () => {
     const binding = { projectId: 'project', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1 }
     let refusedOnTheLane: unknown
     const planning = vi.fn(async ({ params }: { params: Record<string, unknown> }) => {
-      try { return draftShotFromPlan((params.shots as unknown[])[0], 0, parsers) }
+      try { return draftShotFromPlan((params.shots as unknown[])[0], 0, 'shot-1', parsers) }
       catch (error) { refusedOnTheLane = error; throw error }
     })
     const adapter = createPiGenerationTransportAdapter(binding, {
@@ -66,7 +66,7 @@ describe('MCP generation draft schema parity', () => {
       // 不变量是**同一份入参在同一个 owner 上被同一个理由拒掉**：外部入口直接调用抛出来的那句话，
       // 必须逐字等于 lane 这条路收敛成码之前拿到的那一句。
       let refusedExternally: unknown
-      try { draftShotFromPlan((external.shots as unknown[])[0], 0, parsers) } catch (error) { refusedExternally = error }
+      try { draftShotFromPlan((external.shots as unknown[])[0], 0, 'shot-1', parsers) } catch (error) { refusedExternally = error }
       expect(refusedExternally).toBeInstanceOf(Error)
       // 2026-09-30（付费卡① 第 9 条）：只给提示词、没写种类也没点名模型的镜头，先被问「要图还是视频」——
       // 不再按提示词猜一个再去找那一类的默认模型。两边拿到的仍是逐字同一句。

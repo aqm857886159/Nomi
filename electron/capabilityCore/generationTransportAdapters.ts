@@ -1,3 +1,4 @@
+import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import type { GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 import { resolveGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
 import { productionTaskAbsenceCode } from '../productionRun/productionRunErrors';
@@ -6,6 +7,7 @@ import { ProductionGenerationAuthorizationError } from '../productionRun/product
 import { z } from "zod";
 import { logWarn } from "../logging/logger";
 import { GENERATION_ARGUMENT_REFUSAL, refuseToModel, safeTransportFailure } from "./transportFailure";
+import { ContractCompilationError } from "./executionContract";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
 import { generationPlanInputSchema, generationStatusInputSchema } from "../shared/agentCapabilities/generationPlanSchemas";
@@ -18,6 +20,7 @@ import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../shared
 import { beginPolicySpendDecision } from "./policySpendDecision";
 import { cardActionsSettled } from "./spendCardActionQueue";
 import type { GenerationInvocationContext } from "../shared/agentCapabilities/generationInvocationContext";
+import { shotDurationSeconds } from "./mcpGenerationVideoResolve";
 
 /**
  * Main-process transport for the semantic generation vocabulary.
@@ -39,7 +42,21 @@ export type PiGenerationTransportAdapter = Readonly<{
    * 读不到（没有出价 / 读失败）→ `undefined`，回执照实说「不知道」，不替宿主编。
    */
   readPresentationOutcome(operationId: string): Promise<GeneratePresentationOutcome | undefined>;
+  /**
+   * 宿主内部、只读：这份草稿每一镜的**候选**带了哪些参考素材（shotId → assetId[]）、要生成多长（shotId → 秒，
+   * 按候选参数的唯一 owner shotDurationSeconds 读；没声明就不出现）。同一次 read 读出，两样事实不会来自两版草稿。
+   * 3D-BOX 出卡前预检用它核对「就绪的预演进没进真正付费的那份载荷、和它是不是一样长」。读不到 → 抛，调用方 fail-closed（不出卡）。
+   */
+  readShotCandidateFacts?(operationId: string): Promise<ShotCandidateFacts>;
   dispose(): void;
+}>;
+
+type ReadCandidate = { references?: ReadonlyArray<{ assetId?: unknown }>; parameters?: Record<string, unknown> };
+
+/** 出卡前预检读的每一镜候选事实（键 "" = 单镜草稿那一镜）。 */
+export type ShotCandidateFacts = Readonly<{
+  references: Readonly<Record<string, readonly string[]>>;
+  durationSeconds: Readonly<Record<string, number>>;
 }>;
 
 export type GenerationLeaseFactory = (binding: ProjectBinding) => ProjectLeaseV2 | Promise<ProjectLeaseV2>;
@@ -60,6 +77,11 @@ export type GenerationTransportAdapterDependencies = Readonly<{
    * 缺席按默认档（`safe-auto`）走，也就是照旧弹卡：不知道档位时**不许**替用户花钱。
    */
   approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined;
+  /**
+   * 草稿建好 / 改完之后问宿主：落地落完了没有、这份草稿此刻在画布上吗（`canvasLandingHost.draftLandingOutcome`）。
+   * 结果写进草稿结果的 `canvasLanding` 格，`draft_shots` 的回执只渲染它；缺席（外部宿主 / 夹具）= 不报，回执就不提画布。
+   */
+  draftLanding?: (projectId: string, operationId: string) => Promise<DraftCanvasLanding | undefined>;
 }>;
 
 // 路由白名单**只有一个来源**：契约层的方法词表（`GENERATION_METHODS`）。模型可见的动词名
@@ -113,7 +135,12 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
       : value instanceof GenerationProviderCapabilityError || value instanceof GenerationProviderObservationError
         ? 'generation_provider_unavailable'
         : value instanceof ProductionGenerationAuthorizationError || value instanceof GenerationRuntimeBindingError
-          ? value.code : undefined,
+          ? value.code
+          // 参数 / 合同准入的拒绝（参数不在档里、模式不收时长、比例翻不了……）是**我们自己写的**、带合法值的话，
+          // 和 `refuseToModel` 是同一档。以前它不在这里，落进兜底码：Agent 只收到一个裸的 generation_not_started，
+          // 说不出拒了什么，于是同一份参数原样重试（铁律 ⑩ 宿主矩阵首跑抓到）。
+          : value instanceof ContractCompilationError ? GENERATION_ARGUMENT_REFUSAL : undefined,
+    ownMessage: (value) => (value instanceof ContractCompilationError ? value.message : undefined),
     // 收敛成码挡住的应当只有**供应商 / 凭据的原始文本**。连我们自己 schema 的字段级理由一起抹掉，
     // 模型拿到的就是一个说不出拒了什么的裸码，于是同一份载荷原样重试到回合超时——那正是
     // 2026-09-18 那份根因合同修掉的失效方式（`generation_input_invalid — shots.0.prompt: Required`）。
@@ -142,6 +169,7 @@ const PLAN_BRANCH_FOR_METHOD: Readonly<Record<string, string>> = {
   [GENERATION_METHODS.present]: "present",
   [GENERATION_METHODS.preview]: "preview",
   [GENERATION_METHODS.context]: "context",
+  [GENERATION_METHODS.extend]: "extend",
 };
 
 function branchByOperation(
@@ -194,7 +222,7 @@ function parsedArgs(call: RuntimeToolCall): Record<string, unknown> {
 /** 语义入口的 `operation` → 方法名。两张小表都只引用 `GENERATION_METHODS`，不再出现字符串字面量。 */
 const PLAN_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
   context: GENERATION_METHODS.context, create: GENERATION_METHODS.create, patch: GENERATION_METHODS.patch,
-  present: GENERATION_METHODS.present, preview: GENERATION_METHODS.preview,
+  present: GENERATION_METHODS.present, preview: GENERATION_METHODS.preview, extend: GENERATION_METHODS.extend,
 });
 const STATUS_OPERATION_METHOD: Readonly<Record<string, GenerationMethodName>> = Object.freeze({
   read: GENERATION_METHODS.read, cancel: GENERATION_METHODS.cancel, reconcile: GENERATION_METHODS.reconcile,
@@ -218,6 +246,7 @@ const CAPABILITY_BY_METHOD: Readonly<Partial<Record<GenerationMethodName, string
   [GENERATION_METHODS.patch]: "plan",
   [GENERATION_METHODS.present]: "present",
   [GENERATION_METHODS.preview]: "preview",
+  [GENERATION_METHODS.extend]: "extend",
   [GENERATION_METHODS.read]: "read",
   [GENERATION_METHODS.cancel]: "cancel",
   [GENERATION_METHODS.reconcile]: "reconcile",
@@ -514,7 +543,7 @@ export function createPiGenerationTransportAdapter(
         if (capability !== "context" && capability !== "create") operationId(args);
         // ── 「这一笔由档位代答，别把它投影成卡」（T-AG-04）──
         //
-        // 面板每 1.5s 读一次投影，而 `plan()` 一落盘，报价卡就可见了——代答跑在它之后。
+        // Run 一变就把待决出价推给面板，而 `plan()` 一落盘，报价卡就可见了——代答跑在它之后。
         // 所以占位必须**早于草稿落盘**，晚一步用户就会看见那张他刚授权过「不用再问」的卡闪出来。
         //
         // `present`（`generate` 动词，真机上唯一会让卡露面的那条）入参里带着 operationId，直接占。
@@ -543,6 +572,13 @@ export function createPiGenerationTransportAdapter(
             if (!releasePolicyClaim) releasePolicyClaim = claimPolicyDecision(draftedOperationIdOrNone(result, args));
             const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
             if (decided) return { ok: true, result: decided };
+          }
+          // 草稿写（建 / 改）成功：等落地落完，把「此刻在画布上吗」随结果交出去（回执据它说话）。
+          if ((capability === "create" || capability === "plan") && deps.draftLanding && addressed) {
+            const landing = await deps.draftLanding(currentLease.projectId, addressed);
+            if (landing && result && typeof result === "object" && !Array.isArray(result)) {
+              return { ok: true, result: { ...result as Record<string, unknown>, [DRAFT_CANVAS_LANDING_KEY]: landing } };
+            }
           }
           return { ok: true, result, silent: capability === "context" || capability === "read" };
         } finally {
@@ -577,6 +613,30 @@ export function createPiGenerationTransportAdapter(
       } catch {
         return undefined;
       }
+    },
+    async readShotCandidateFacts(operationIdToRead) {
+      if (disposed) throw new Error("surface_port_unavailable");
+      const signal = new AbortController().signal;
+      const read = await plan("read", { operationId: operationIdToRead }, await lease(signal), signal) as {
+        operation?: {
+          candidate?: ReadCandidate;
+          shots?: ReadonlyArray<{ shotId?: unknown; candidate?: ReadCandidate }>;
+        };
+      };
+      const operation = read?.operation;
+      if (!operation) throw new Error("generation_operation_not_found");
+      const assetIdsOf = (references: ReadonlyArray<{ assetId?: unknown } | undefined> | undefined) =>
+        (references ?? []).flatMap((reference) => typeof reference?.assetId === "string" ? [reference.assetId] : []);
+      // 单镜草稿没有 shots 数组，参考在 operation.candidate 上：按「一镜」处理，键 "" = 没有镜头 id 的那一镜。
+      const entries: Array<[string, ReadCandidate | undefined]> = Array.isArray(operation.shots)
+        ? operation.shots.flatMap((shot) => typeof shot.shotId === "string" ? [[shot.shotId, shot.candidate] as [string, ReadCandidate | undefined]] : [])
+        : [["", operation.candidate]];
+      const durationSeconds: Record<string, number> = {};
+      for (const [shotId, shotCandidate] of entries) {
+        const seconds = shotCandidate ? shotDurationSeconds({ parameters: shotCandidate.parameters ?? {} } as never) : undefined;
+        if (typeof seconds === "number" && seconds > 0) durationSeconds[shotId] = seconds;
+      }
+      return { references: Object.fromEntries(entries.map(([shotId, shotCandidate]) => [shotId, assetIdsOf(shotCandidate?.references)])), durationSeconds };
     },
     dispose() { disposed = true; },
   });

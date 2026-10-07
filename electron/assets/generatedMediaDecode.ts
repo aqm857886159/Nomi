@@ -96,9 +96,23 @@ export function interpretDecodeRun(kind: GeneratedMediaKind, run: DecodeRun): De
   return { verdict: "decodable", width, height, message };
 }
 
+/**
+ * 生成产物校验失败（落盘前的字节 / 解码检查没过）。结构化类型让取回器不读人话就知道：同一份字节再校验
+ * 一万次也是同一个结论（#975 V-975：坏 MP4 被当成暂时错误，每 15 秒整段重下一次）。
+ */
+export class GeneratedMediaValidationError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(tagNomiError("output-unreadable", `Generated media validation failed (${reason})`));
+    this.name = "GeneratedMediaValidationError";
+    this.reason = reason;
+  }
+}
+
 /** 生成产物校验失败的**唯一**抛法：带机器码，渲染层按码归类，不靠这句英文。 */
-export function generatedMediaValidationError(reason: string): Error {
-  return new Error(tagNomiError("output-unreadable", `Generated media validation failed (${reason})`));
+export function generatedMediaValidationError(reason: string): GeneratedMediaValidationError {
+  return new GeneratedMediaValidationError(reason);
 }
 
 export type GeneratedMediaDecodeInput = {

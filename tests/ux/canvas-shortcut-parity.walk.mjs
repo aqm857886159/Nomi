@@ -3,16 +3,16 @@
 // 用户拍板：「做对照，缺的都补上」。这条走查按真人的方式逐个按新键，断言**副作用**（节点数、连线数、
 // 位置、菜单、确认卡），不是断言键被监听了：
 //   ⌘D 复制节点和它们之间的连线（一次撤销）｜⌘L 选两个直接连线｜Tab 在鼠标处打开添加菜单｜
-//   ⌥⇧F 整理画布｜⌘Enter 生成所选（单选一张 = 用户自己点的单份生成，不弹确认卡、直接开跑）｜
+//   ⌥⇧F 整理画布｜⌘Enter 不再有生成所选（批量只走组工具条）｜
 //   在提示词编辑器里打 v / h / f / Tab：画布什么都不做。
 // 帮助面板：新键都写着；zh/en、Agent 面板展开/收起、1800 / 1280 / 最小窗口下整块可见、点得到、行内不重叠
 // （2026-09-21 真机：面板被 Agent 收起坞和批量条盖住半截；1280 宽时时间轴胶囊压住帮助按钮；英文「Box select」行重叠）。
 //
 // 驱动：真实 Electron + 真实键盘/鼠标；项目以磁盘上的 project.json 打开；图片是登记表里真实 4K HEVC 视频抽的帧。
-// 零额度：本走查不配任何供应商/密钥，⌘Enter 那一步真的派发，但只会落到「没有可用模型」的错误，不花钱。
+// 零额度：本走查不配任何供应商/密钥，也不派发任何生成。
 //
 // 用法：
-//   export NOMI_REAL_MEDIA_DIR="/Users/aoqimin/Desktop/视频/"
+//   export NOMI_REAL_MEDIA_DIR="<本机真实媒体目录>"
 //   pnpm run build && node tests/ux/canvas-shortcut-parity.walk.mjs [zh-CN|en]
 import fs from 'node:fs'
 import os from 'node:os'
@@ -263,30 +263,18 @@ try {
     check(JSON.stringify(await positions()) === JSON.stringify(before), '⌥⇧F 后 ⌘Z 回到原位置', {})
   }
 
-  // ═══ ⌘Enter：单选 C → 与浮条「生成」同一个入口，直接开跑、不弹确认卡 ═══
-  // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
-  // 请求永远发不出去——下面 img-c 离开 idle（queued / running，或本走查无供应商时落到 error）就是证据。
+  // ⌘Enter 不再有「生成所选」（用户 2026-10-06 拍板：批量生成只走组工具条的「生成整组」）。
+  // 按下它画布什么都不发——不起生成、不弹确认卡。
   {
     await clickBlank()
     await clickNode('img-c')
-    const statusOf = () => win.evaluate(() => {
-      const node = document.querySelector('.react-flow__node[data-id="img-c"] [data-node-id]')
-      return node?.getAttribute('data-status') ?? null
-    })
+    const statusOf = () => win.evaluate(() => document.querySelector('.react-flow__node[data-id="img-c"] [data-node-id]')?.getAttribute('data-status') ?? null)
     const statusBefore = await statusOf()
     check(statusBefore === 'idle', '⌘Enter 之前 img-c 是空闲态', { statusBefore })
     await win.keyboard.press(`${MOD}+Enter`)
-    let statusAfter = statusBefore
-    const started = await expect.poll(async () => {
-      statusAfter = await statusOf()
-      return ['queued', 'running', 'success', 'error'].includes(statusAfter)
-    }, { timeout: stationTimeout() }).toBe(true).then(() => true, () => false)
-    const confirm = win.locator('[data-spend-confirm-dialog]')
-    const cardShown = await confirm.isVisible().catch(() => false)
-    await shot('05-cmd-enter-started')
-    check(started, '⌘Enter·单选一张直接开跑（走浮条「生成」同一个入口，节点离开空闲态）', { statusBefore, statusAfter })
-    check(!cardShown, '⌘Enter·单份生成不弹付费确认卡', { cardShown })
-    if (cardShown) await win.keyboard.press('Escape') // 已判红；收掉卡，别让后面的步骤全被它挡住
+    await win.waitForTimeout(800)
+    check(await statusOf() === 'idle', '⌘Enter 不再起生成（img-c 仍是空闲态）', { statusAfter: await statusOf() })
+    check(!(await win.locator('[data-spend-confirm-dialog]').isVisible().catch(() => false)), '⌘Enter 不弹付费确认卡', {})
   }
 
   // ═══ 在提示词编辑器里打 v / h / f / Tab：画布不新建、不开菜单、不开画框 ═══
@@ -322,7 +310,7 @@ try {
 
   // ═══ 帮助面板：新键都写着；各布局下整块可见、按钮点得到、行内不重叠 ═══
   const helpButton = () => win.getByRole('button', { name: EN ? 'Canvas controls' : '画布操作', exact: true }).first()
-  const expectedRows = ['modG', 'modShiftG', 'modL', 'modD', 'modEnter', 'tab', 'optShiftF', 'frameKey', 'modPlusMinus', 'modZ', 'modShiftZ', 'modX', 'altDrag']
+  const expectedRows = ['modG', 'modShiftG', 'modL', 'modD', 'tab', 'optShiftF', 'frameKey', 'modPlusMinus', 'modZ', 'modShiftZ', 'modX', 'altDrag']
   const layouts = [
     { name: '1280-agent-open', width: 1280, height: 900, agent: true },
     { name: '1280-agent-collapsed', width: 1280, height: 900, agent: false },
@@ -330,8 +318,7 @@ try {
     { name: 'min-agent-collapsed', width: 1100, height: 720, agent: false },
   ]
   results.help = []
-  // 两种底部浮层状态都要过：没选中 = 「生成全部」批量条横在底排上方（2026-09-21 1280 宽实拍里把时间轴胶囊
-  // 挤到帮助按钮上的就是它）；选中一张 = 选择浮条 + composer。
+  // 两种底部浮层状态都要过：没选中；选中一张 = 选择浮条 + composer。（原先没选中时还有「生成全部」批量条，已删。）
   for (const layout of layouts.flatMap((entry) => [{ ...entry, selection: 'none' }, { ...entry, selection: 'one' }])) {
     await resize(layout.width, layout.height)
     await setAgentPanel(layout.agent)

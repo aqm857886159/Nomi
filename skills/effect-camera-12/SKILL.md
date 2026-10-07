@@ -40,3 +40,5 @@ metadata:
 ---
 
 Fast time-lapse, clouds and shadows racing, light shifting over a near-static frame
+
+Keep the scene identity, composition, subject placement, color palette, and continuity unchanged. Allow the clouds, shadows, and light to shift only as the time-lapse described here.

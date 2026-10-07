@@ -55,7 +55,7 @@ test('generate with no recorded user decision never claims generation started', 
 });
 
 function applied(input: CanvasWriteInput): CanvasWriteResult {
-  const common = { applied: true as const, proposalId: 'fixture-proposal', reconciliation: { ok: true, deviationCount: 0 } };
+  const common = { applied: true as const, proposalId: 'fixture-proposal', changeId: 'canvas:v1:fixture-proposal', reconciliation: { ok: true, deviationCount: 0 } };
   if (input.operation !== 'create_canvas_nodes') throw new Error(`fixture only writes artifacts, got ${input.operation}`);
   return { ...common, operation: input.operation, affectedNodeIds: ['fixture-node'], affectedEdgeIds: [], clientIdToNodeId: { 'artifact-1': 'fixture-node' }, connectedCount: 0, skippedEdges: [] };
 }

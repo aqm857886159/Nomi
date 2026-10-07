@@ -7,6 +7,13 @@ type State = { items: LibraryPrompt[]; loading: boolean; error: string | null }
 // 模块级缓存:面板反复开关不重拉(主进程也有 1h 缓存,这层省 IPC 往返+解析)。
 let cached: LibraryPrompt[] | null = null
 
+/** 不在 React 里取库（一键派生要按效果 id 取正文）：命中同一份模块缓存，没有就拉一次。 */
+export async function loadPromptLibraryItems(): Promise<LibraryPrompt[]> {
+  if (cached) return cached
+  cached = await fetchPromptLibrary()
+  return cached
+}
+
 /** 提示词库数据:首次打开拉取,之后命中模块缓存;失败给可重试态。 */
 export function usePromptLibrary(opened: boolean): State & { reload: () => void } {
   const { t } = useTranslation()

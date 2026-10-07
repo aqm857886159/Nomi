@@ -2,6 +2,7 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { CENTER_PLACEMENT_ANCHOR, type CanvasPlacementAnchor } from '../model/canvasPlacement'
 import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { CanvasContextNodeMenu } from './useCanvasContextNodeMenu'
 import type { NodeContextMenuAction } from './NodeContextMenu'
@@ -78,6 +79,11 @@ export function buildCanvasMenuActions(input: CanvasMenuActionsInput): {
     else if (action === 'paste') input.pasteNodes(pastePosition, CENTER_PLACEMENT_ANCHOR)
     else if (action === 'group') input.groupSelectedNodes()
     else if (action === 'delete') input.deleteSelectedNodes()
+    else if (action === 'duplicate-variant') {
+      // 浮条上「复制为变体」同一个动作（带上游连线、不带结果、一个撤销点）；菜单只是它的第二个发现入口。
+      const [only, ...rest] = useGenerationCanvasStore.getState().selectedNodeIds
+      if (only && rest.length === 0) useGenerationCanvasStore.getState().duplicateNodeForRegeneration(only)
+    }
   }
 
   const handleAddConnectedNode = (kind: GenerationNodeKind) => {

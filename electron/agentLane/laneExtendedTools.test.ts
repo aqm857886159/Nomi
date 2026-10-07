@@ -132,6 +132,15 @@ describe('工具回执从真实审批结论派生', () => {
     expect(outcome.nextAction?.userSees).toMatch(/now applied/)
   })
 
+  // 真实测试 ④：撤销一笔 3D-BOX 画布改动，回执却说「时间线回去了」。同一个动词撤两种面，回执跟 changeId 前缀走。
+  it('撤销的回执说的是被撤的那一面', async () => {
+    const canvas = await runVerb('undo', { operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'r-1', changeId: 'canvas:v1:receipt-1' }, 'auto-granted', { changeId: 'canvas:v1:receipt-1' })
+    expect(canvas.nextAction?.userSees).toMatch(/^The canvas is back/)
+    expect(canvas.nextAction?.userSees).not.toMatch(/timeline/)
+    const timeline = await runVerb('undo', { operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'r-1', changeId: 'timeline:v1:receipt-2' }, 'auto-granted', { changeId: 'timeline:v1:receipt-2', expectedRevision: 'r-2' })
+    expect(timeline.nextAction?.userSees).toBe('The timeline is back to before that change.')
+  })
+
   it('不可逆动词的 kind 也从结论取：没出过卡就不说出过', async () => {
     const confirmed = await runVerb('delete_from_canvas', {}, 'granted-once', { nodeIds: ['node-1'] })
     expect(confirmed.nextAction?.kind).toBe('user_sees_confirm_card')
@@ -162,6 +171,51 @@ describe('工具回执从真实审批结论派生', () => {
     expect(outcome.nextAction).toMatchObject({ kind: 'none', operationId: 'op-draft' })
     expect(outcome.nextAction?.userSees).toMatch(/saved in the project/)
     expect(outcome.nextAction?.userSees).not.toMatch(/are on the canvas|price badge|generation has started/)
+  })
+
+  // 回执从宿主**真实的落地结果**派生（2026-10-07）：以前写死「Saving does not imply canvas placement」，
+  // 而画布 Agent 的草稿当场落成了节点，模型照着对用户说「画布上还没有节点」。
+  describe('draft_shots receipt follows the real canvas landing', () => {
+    const operation = { operationId: 'op-land', state: 'draft', cardHidden: true }
+    const draftWith = (canvasLanding: unknown) => runVerb('draft_shots', { operation, canvasLanding }, 'auto-granted', { shots: [{ prompt: 'a' }] })
+
+    it('canvas-origin draft that landed: says the nodes exist, names them, never "no nodes"', async () => {
+      const outcome = await draftWith({ state: 'placed', shotCount: 2, nodes: [{ shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2' }] })
+      const says = outcome.nextAction?.userSees ?? ''
+      expect(says).toMatch(/already on the canvas: 2 nodes/)
+      expect(says).toMatch(/n1, n2/)
+      expect(says).not.toMatch(/NOT on the canvas|did not complete|Saving does not imply/)
+    })
+
+    it('a draft only partly landed does not claim the rest', async () => {
+      const outcome = await draftWith({ state: 'placed', shotCount: 3, nodes: [{ shotId: 's1', nodeId: 'n1' }] })
+      expect(outcome.nextAction?.userSees).toMatch(/Only 1 of the 3 shots/)
+    })
+
+    it('document-origin plan: not on the canvas until the user places it', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'document_plan' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/NOT on the canvas/)
+      expect(says).toMatch(/Place on canvas/)
+      expect(says).not.toMatch(/already on the canvas/)
+    })
+
+    it('project not open: not on the canvas yet, appears on open', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'project_closed' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/not open right now/)
+      expect(says).toMatch(/NOT on the canvas/)
+    })
+
+    it('landing attempted but did not complete: tells the model to look before claiming anything', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'not_landed' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/look_at_canvas/)
+      expect(says).not.toMatch(/already on the canvas/)
+    })
+
+    it('host did not report landing: no claim about the canvas either way', async () => {
+      const says = (await runVerb('draft_shots', { operation }, 'auto-granted', { shots: [{ prompt: 'a' }] })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/did not report whether the draft is on the canvas/)
+      expect(says).not.toMatch(/already on the canvas|NOT on the canvas/)
+    })
   })
 
   it('a draft patch reports actual policy-started spend through the same receipt as generate', async () => {
@@ -209,11 +263,11 @@ describe('工具回执从真实审批结论派生', () => {
 
 // ── 宿主拼给模型看的那一行，用的必须是模型真能填的字段名（2026-09-18 第三刀）──────────────
 //
-// 工具结果的末行是**宿主替模型写的**：`User sees: … (undoToken=undo-1)`。它的作用是告诉模型
+// 工具结果的末行是**宿主替模型写的**：`User sees: … (changeId=timeline:v1:undo-1)`。它的作用是告诉模型
 // 「下一步要填的那个值在这里」。所以那一行里出现的每个名字，都必须是某个动词 schema 上**真的有**
 // 的字段——否则模型照着填就是一个未知字段，照着不填就得自己猜。
 //
-// 这两条当天各抓到一处：`edit_timeline` 的末行印 `changeId=`，而 `undo` 收的字段叫 `undoToken`；
+// 这条曾经抓到过：`edit_timeline` 的末行印 `changeId=`，而 `undo` 收的字段却叫 `undoToken`；
 // `draft_shots` 的末行把草稿 id 印成 `jobId=`，而下一步 `draft_shots` / `generate` 要求填 `operationId`。
 // 断言里没有写死任何期望名字——期望值从注册表里的动词 schema 取，动词改名这两条自己跟着走。
 describe('工具结果末行里的引用名 = 模型下一步真能填的字段名', () => {
@@ -232,14 +286,11 @@ describe('工具结果末行里的引用名 = 模型下一步真能填的字段�
     return outcome.nextAction!
   }
 
-  it('edit_timeline 交回的撤销令牌，名字就是 undo 收的那个字段', async () => {
-    const next = await nextActionOf('edit_timeline', { undoToken: 'undo-1' }, {
+  it('edit_timeline 的正文已带 canonical changeId，尾行不重复同一句柄', async () => {
+    const next = await nextActionOf('edit_timeline', { changeId: 'timeline:v1:undo-1' }, {
       baseRevision: 'revision-1', summary: '劈成两半', operations: [{ kind: 'split', clipId: 'clip-1', atFrame: 30 }],
     })
-    const undoFields = fieldsOf('undo')
-    const named = refNamesOf(next).filter(name => renderLaneToolNextAction(next).includes(`${name}=undo-1`))
-    expect(named.length).toBeGreaterThan(0)
-    for (const name of named) expect(undoFields).toContain(name)
+    expect(renderLaneToolNextAction(next)).not.toContain('changeId=timeline:v1:undo-1')
   })
 
   it('draft_shots 交回的草稿 id，名字就是 draft_shots 与 generate 收的那个字段', async () => {

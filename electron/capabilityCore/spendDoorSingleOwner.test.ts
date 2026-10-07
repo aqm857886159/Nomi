@@ -58,18 +58,12 @@ describe('付费放行单一 owner（删掉客户端自报的第二扇门）', (
     vi.resetModules()
   })
 
-  it('headless 磁盘网关：设了 NOMI_LOOP_SPEND_OK=1 也不发放付费授权', async () => {
+  it('网关没有付费口：磁盘 / 混合 / 渲染层网关都不再有 confirmSpend（设了 NOMI_LOOP_SPEND_OK=1 也一样）', async () => {
     process.env.NOMI_LOOP_SPEND_OK = '1'
-    const { createDiskGateway } = await import('./gateway')
-    const granted = await createDiskGateway('p1').confirmSpend({
-      projectId: 'p1',
-      nodeId: 'n1',
-      intent: 'image',
-      vendor: 'v',
-      modelKey: 'm',
-      prompt: 'robot',
-    })
-    expect(granted).toBeNull()
+    const { createDiskGateway, createHybridGateway, createRendererGateway } = await import('./gateway')
+    for (const gateway of [createDiskGateway('p1'), createHybridGateway('p1'), createRendererGateway('p1')]) {
+      expect('confirmSpend' in gateway).toBe(false)
+    }
   })
 
   it('网关模块不再导出「客户端自报即发放」的包装器', async () => {

@@ -153,6 +153,23 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
           }
           return
         }
+        if (action === 'retry-retrieval') {
+          // 已生成、取回失败 → 重新取回（#975 A2）：主进程把这一镜放回轮询、再查一次再取一次。不重新生成，所以不弹付费卡。
+          if (!targetJob) return
+          try {
+            await executeCommand(run.projectId, run.runId, {
+              commandId: globalThis.crypto.randomUUID(),
+              expectedRevision: run.revision,
+              type: 'job.retry_retrieval',
+              payload: { jobId: targetJob.jobId },
+              issuedAt: new Date().toISOString(),
+            })
+            await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
+          } catch (error) {
+            reportFailure(error, 'generationCommon.production.control.failed')
+          }
+          return
+        }
         if (action === 'release-unknown') {
           // 结果未知且没有任务号：Nomi 没法核对，只能请用户去服务商后台看。用户确认「没有」后放行这一镜，
           // 再走这一镜正常的付费确认卡（confirmAndRunNode）——放行本身不开拍。

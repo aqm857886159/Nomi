@@ -15,7 +15,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { deriveModelListing, referenceModeForIntent } from "./modelCatalogListing";
+import { deriveModelListing } from "./modelCatalogListing";
 import { apiKeyDecryptStatus } from "./secrets";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
@@ -324,76 +324,6 @@ describe("deriveModelListing — 参考承载力真话（与 referenceReachabili
   });
 });
 
-// W1d：kind 按目录 derive（core.generateOnProject 带参考时用它选 kind，替掉硬编码 defaultKindForIntent）。
-// 判据 = 该模型真实可带参考的模式（与 references.referenceModes 同源），按 intent 计费口径过滤。
-describe("referenceModeForIntent — 带参考时按目录选生成 kind（不硬编码）", () => {
-  const imgBody = (key: string) => ({ method: "POST" as const, path: "/x", body: { image_urls: `{{request.params.${key}}}` } });
-
-  it("模型声明 image_edit（body 读 image_urls）→ image intent 选 image_edit", () => {
-    const s = state({
-      vendors: [vendor({ key: "apimart" })],
-      models: [model({ modelKey: "seedream", vendorKey: "apimart" })],
-      mappings: [
-        mapping({ id: "t2i", vendorKey: "apimart", modelKey: "seedream", taskKind: "text_to_image", create: { method: "POST", path: "/x", body: { size: "{{request.params.size}}" } } }),
-        mapping({ id: "edit", vendorKey: "apimart", modelKey: "seedream", taskKind: "image_edit", create: imgBody("image_urls") }),
-      ],
-    });
-    expect(referenceModeForIntent(s, "apimart", "seedream", "image")).toBe("image_edit");
-  });
-
-  it("模型声明 image_to_video（帧类/参考图）→ video intent 选 image_to_video", () => {
-    const s = state({
-      vendors: [vendor({ key: "apimart" })],
-      models: [model({ modelKey: "seedance", vendorKey: "apimart", kind: "video" })],
-      mappings: [
-        mapping({ id: "t2v", vendorKey: "apimart", modelKey: "seedance", taskKind: "text_to_video", create: { method: "POST", path: "/x", body: { size: "{{request.params.size}}" } } }),
-        mapping({ id: "i2v", vendorKey: "apimart", modelKey: "seedance", taskKind: "image_to_video", create: imgBody("image_urls") }),
-      ],
-    });
-    expect(referenceModeForIntent(s, "apimart", "seedance", "video")).toBe("image_to_video");
-  });
-
-  it("单图字符串首帧键（first_frame_image）也算带参考模式 → video intent 选 image_to_video", () => {
-    const s = state({
-      vendors: [vendor({ key: "apimart" })],
-      models: [model({ modelKey: "kling", vendorKey: "apimart", kind: "video" })],
-      mappings: [
-        mapping({ id: "i2v", vendorKey: "apimart", modelKey: "kling", taskKind: "image_to_video", create: { method: "POST", path: "/x", body: { first_frame_image: "{{request.params.first_frame_image}}" } } }),
-      ],
-    });
-    expect(referenceModeForIntent(s, "apimart", "kling", "video")).toBe("image_to_video");
-  });
-
-  it("intent 口径过滤：video 模型只有 image_to_video 时，image intent 得不到它 → null（回退 defaultKind）", () => {
-    const s = state({
-      vendors: [vendor({ key: "apimart" })],
-      models: [model({ modelKey: "seedance", vendorKey: "apimart", kind: "video" })],
-      mappings: [mapping({ id: "i2v", vendorKey: "apimart", modelKey: "seedance", taskKind: "image_to_video", create: imgBody("image_urls") })],
-    });
-    expect(referenceModeForIntent(s, "apimart", "seedance", "image")).toBeNull();
-    expect(referenceModeForIntent(s, "apimart", "seedance", "video")).toBe("image_to_video");
-  });
-
-  it("无任何可带参考的模式（纯文生模型）→ null", () => {
-    const s = state({
-      vendors: [vendor({ key: "apimart" })],
-      models: [model({ modelKey: "zimage", vendorKey: "apimart" })],
-      mappings: [mapping({ id: "t2i", vendorKey: "apimart", modelKey: "zimage", taskKind: "text_to_image", create: { method: "POST", path: "/x", body: { size: "{{request.params.size}}" } } })],
-    });
-    expect(referenceModeForIntent(s, "apimart", "zimage", "image")).toBeNull();
-  });
-
-  it("generic（无 modelKey）通用 image_edit 模板也纳入该 vendor 下模型的参考模式", () => {
-    const s = state({
-      vendors: [vendor({ key: "relay" })],
-      models: [model({ modelKey: "relay-img", vendorKey: "relay" })],
-      // 单图聚合位 image 键（通用中转最小模板）→ 算带参考。
-      mappings: [mapping({ id: "g", vendorKey: "relay", taskKind: "image_edit", create: { method: "POST", path: "/x", body: { image: "{{request.params.image_url}}" } } })],
-    });
-    expect(referenceModeForIntent(s, "relay", "relay-img", "image")).toBe("image_edit");
-  });
-});
-
 // 这个模块的**导出面**是一条锁（2026-09-22）。
 //
 // 为什么要它：`7df4c036f` 在这里只删了两个没人读的 import（合并后压 lint 用的是删真死代码，
@@ -408,8 +338,7 @@ describe("modelCatalogListing 的导出面", () => {
       "deriveModelListing",
       "mappingsForModel",
       "modelModeBodies",
-      "referenceModeForIntent",
-      "videoBodyKeysForModel",
     ]);
+    // 2026-10-05：referenceModeForIntent / videoBodyKeysForModel 只服务于已删的 core.generateOnProject，随它一起删（P1）。
   });
 });

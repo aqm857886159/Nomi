@@ -19,33 +19,6 @@ export type { ScreenshotHotkeyStatus, DesktopAssetDto, DesktopAssetFolder, Deskt
 export type { DesktopDirectorBridge, DesktopDirectorMobileEvent, DesktopDirectorMobileStatus } from './directorBridgeTypes'
 import type { DesktopDirectorBridge } from './directorBridgeTypes'
 
-/** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
-export type PersistedAiMessage = {
-  id: string
-  role: string
-  content: string
-  /** 分镜方案卡锚在这条消息上(方案随项目持久化,它的「家」也要一起落盘)。 */
-  storyboardArtifact?: true
-}
-
-/** 一条会话线程(v2 会话历史)。messages=该线程气泡;title=一句话摘要(首句兜底)。 */
-export type PersistedThread = {
-  id: string
-  title: string
-  createdAt: number
-  updatedAt: number
-  messages: PersistedAiMessage[]
-}
-/** 一个面板(创作/画布)的会话列表 + 当前活动线程。 */
-export type PersistedConversationArea = { activeId: string | null; threads: PersistedThread[] }
-/** conversations.json v2:两个面板各一份会话列表。 */
-export type PersistedConversationsV2 = {
-  v: 2
-  creation: PersistedConversationArea
-  generation: PersistedConversationArea
-  committedProposal?: unknown
-}
-
 /** 代理三态：跟随系统探测 / 只对 Nomi 生效的自定义地址 / 强制直连。 */
 
 export type DesktopProxyMode = 'system' | 'custom' | 'off'
@@ -180,6 +153,9 @@ export type DesktopUpdateEvent =
 export type DesktopBridge = DesktopMediaBridge &
   DesktopVideoDepthBridge & DesktopConnectorBridge & {
   platform: string
+  featureFlags?: {
+    director3dbox?: { enabled: boolean; source: 'baked' | 'env' | 'default'; fingerprint: string; expiresOn: string }
+  }
   i18n?: {
     setLocale: (locale: 'zh-CN' | 'en') => void
     /** OS 原生 locale（如 'en-US' / 'zh-CN'）；仅真 Electron 有，jsdom/测试无 → 首启回落默认语言。老 preload 可能无此口。 */
@@ -282,10 +258,15 @@ export type DesktopBridge = DesktopMediaBridge &
     cancel?: (taskId: string) => Promise<{ ok: boolean }>
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
+    /** 画布单节点 ↑ 的唯一付费口（单镜 Run）：交 / 查 / 不再等。旧 preload 没有 → 可选。 */
+    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown }) => Promise<unknown>
+    canvasPoll?: (payload: { projectId: string; runRecordId: string }) => Promise<unknown>
+    canvasRelease?: (payload: { projectId: string; runRecordId: string }) => Promise<void>
+    canvasConsent?: (payload: { projectId: string; shots: Array<{ nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string }> }) => Promise<{ runIds: string[] }>
+    canvasWithdraw?: (payload: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }) => Promise<void>
     runComfyCandidateTest?: (payload: ComfyCandidateTestPayload) => Promise<ComfyCandidateTestResult>
     cancelComfyCandidateTest?: (payload: { revisionId: string; modelKey: string; taskKind: string }) => Promise<{ ok: boolean }>
-    quoteSpend: (inputs: import("../../electron/shared/contracts/spendQuote").SpendQuoteInput[]) => Promise<import("../../electron/shared/contracts/spendQuote").PreparedSpendQuote>
-    grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number; quoteId?: string }) => Promise<{ grantId: string }>
+    grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number }) => Promise<{ grantId: string }>
     runTextStream: (payload: unknown) => Promise<{ streamId: string }>
     cancelTextStream: (streamId: string) => Promise<unknown>
     onTextEvent: (streamId: string, callback: (event: unknown) => void) => () => void

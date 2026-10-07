@@ -304,7 +304,9 @@ try {
     }, null, { timeout: stationTimeout({ operations: 4 }) })
     const lab = { page: win, bridge: (method, ...args) => win.evaluate(([name, list]) => window.__nomiDirectorE2E?.[name]?.(...list) ?? null, [method, args]) }
     await placeCharacter(lab, 'female', 0, 0)
+    await win.locator('[data-testid="director-scene-menu"]').click() // 大纲住顶栏「▤ 图层名 ▾」浮层
     await win.locator('[data-testid="director-outliner-row"]', { hasText: '角色' }).first().waitFor({ timeout: stationTimeout({ operations: 4 }) })
+    await win.locator('[data-testid="director-scene-menu"]').click()
     await win.locator('[data-testid="director-exit"]').first().click()
     // 确认框带入场动画：等它真出现再点，别在它出现前的那一帧判成「没有确认框」。
     const confirmExit = win.getByRole('dialog').getByRole('button', { name: '退出', exact: true })

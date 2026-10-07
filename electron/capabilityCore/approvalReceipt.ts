@@ -309,6 +309,9 @@ function assertNotExpired(value: { expiresAt: string }, now: string): void {
   if (!Number.isFinite(Date.parse(value.expiresAt)) || Date.parse(now) >= Date.parse(value.expiresAt)) throw new ReceiptExpiredError();
 }
 
+/** 过期之后在库里再留多久（令牌早已验不过，只为排查留一小段）。 */
+const EXPIRED_RETENTION_MS = 60_000;
+
 function emptyState(keyId: string): ApprovalReceiptState {
   const value = { schemaVersion: 1 as const, revision: 0, keyId, challenges: {}, receipts: {} };
   return { ...value, checksum: digest(value), mac: "" };
@@ -321,6 +324,10 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
   const randomId = deps.randomId ?? (() => crypto.randomUUID());
   const defaultTtlMs = deps.defaultTtlMs ?? 5 * 60_000;
   const receiptTtlMs = deps.receiptTtlMs ?? defaultTtlMs;
+  // 防御：收据比挑战先过期，同一次手势理论上能在挑战还活着时铸出第二张收据。生产两者同为 5 分钟走不到这里，但配置错了就直接拒绝。
+  if (!(receiptTtlMs >= defaultTtlMs)) {
+    throw new ReceiptScopeError("receiptTtlMs must be >= the challenge TTL (defaultTtlMs)");
+  }
 
   function readState(): ApprovalReceiptState {
     if (!fs.existsSync(deps.filePath)) return emptyState(keyId);
@@ -346,12 +353,32 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     writeJsonFileAtomic(deps.filePath, { ...withChecksum, mac: sign({ ...value, checksum: withChecksum.checksum }, storeMacKey) });
   }
 
+  /**
+   * 过期已久的挑战与收据从库里拿掉。它们的令牌自带过期时间、验签时先判过期（`assertNotExpired`），
+   * 留在库里不再能批准任何东西，只会让这份库随每一次批准变大：画布单节点 ↑ 每点一次铸一张收据之后
+   * （发动机收敛第一刀），不清理的库 300 次点击就涨到 2.8 MB，每次批准要整份读、验、写五遍（实测 1.4 秒）。
+   * 批准的耐久记录在 Run 的 approvals 里，不在这里。
+   */
+  function pruneExpired(state: ApprovalReceiptState): boolean {
+    const cutoff = Date.parse(now()) - EXPIRED_RETENTION_MS;
+    if (!Number.isFinite(cutoff)) return false;
+    let pruned = false;
+    for (const [key, record] of Object.entries(state.challenges)) {
+      if (Date.parse(record.challenge.expiresAt) < cutoff) { delete state.challenges[key]; pruned = true; }
+    }
+    for (const [key, record] of Object.entries(state.receipts)) {
+      if (Date.parse(record.receipt.expiresAt) < cutoff) { delete state.receipts[key]; pruned = true; }
+    }
+    return pruned;
+  }
+
   function mutate<T>(callback: (state: ApprovalReceiptState) => { result: T; changed: boolean }): T {
     const held = deps.lock?.acquire();
     try {
       const state = readState();
       const result = callback(state);
       if (result.changed) {
+        pruneExpired(state);
         state.revision += 1;
         writeState(state);
       }
@@ -401,6 +428,45 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     return record.token;
   }
 
+  /** 按入参铸一份挑战（校验 + 签名），不落盘。`requestChallenge` 与一次写完的手势收据共用这一份。 */
+  function newChallenge(input: HumanApprovalChallengeInput, issuedAt: string): { challenge: HumanApprovalChallengeV1; token: string } {
+    if (!input.challengeKey || !input.immutableProjectUuid || !input.projectId || !input.runId || !input.gateId
+      || !input.contractHash || input.targetHash !== input.contractHash || !Number.isInteger(input.projectRevision)
+      || (input.revocationEpoch !== undefined && !Number.isInteger(input.revocationEpoch))
+      || !input.costScope || !input.pricingSnapshotHash || !input.reservationPreview.currency
+      || !Number.isFinite(input.reservationPreview.maximum) || input.reservationPreview.maximum < 0
+      || (input.reservationPreview.unknownJobCount !== undefined
+        && (!Number.isSafeInteger(input.reservationPreview.unknownJobCount) || input.reservationPreview.unknownJobCount < 0))) {
+      throw new ReceiptScopeError("Challenge input is incomplete");
+    }
+    const withoutMac: Omit<HumanApprovalChallengeV1, "mac"> = {
+      version: HUMAN_APPROVAL_VERSION,
+      keyId,
+      algorithm: HUMAN_APPROVAL_ALGORITHM,
+      issuer: "nomi-main",
+      challengeId: randomId(),
+      nonce: randomId(),
+      immutableProjectUuid: input.immutableProjectUuid,
+      projectGeneration: input.projectGeneration,
+      projectId: input.projectId,
+      runId: input.runId,
+      gateId: input.gateId,
+      contractHash: input.contractHash,
+      targetHash: input.targetHash,
+      projectRevision: input.projectRevision,
+      ...(input.revocationEpoch === undefined ? {} : { revocationEpoch: input.revocationEpoch }),
+      costScope: input.costScope,
+      pricingSnapshotHash: input.pricingSnapshotHash,
+      reservationPreview: { ...input.reservationPreview },
+      ...(input.display ? { display: { ...input.display } } : {}),
+      audience: HUMAN_APPROVAL_AUDIENCE,
+      issuedAt,
+      expiresAt: expiresAt(issuedAt, input.ttlMs, defaultTtlMs),
+    };
+    const challenge: HumanApprovalChallengeV1 = { ...withoutMac, mac: sign(withoutMac, deps.macKey) };
+    return { challenge, token: encode(challenge) };
+  }
+
   function requestChallenge(input: HumanApprovalChallengeInput): { input: HumanApprovalChallengeInput; token: string; challenge: HumanApprovalChallengeV1 } {
     return mutate<{ input: HumanApprovalChallengeInput; token: string; challenge: HumanApprovalChallengeV1 }>((state) => {
       const existing = Object.values(state.challenges).find((record) => record.input.challengeKey === input.challengeKey);
@@ -410,42 +476,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
         if (stableJson(existingBinding) !== stableJson(requestedBinding)) throw new ReceiptScopeError("Challenge key conflicts with a different binding");
         return { result: { input: { ...existing.input }, token: existing.token, challenge: { ...existing.challenge } }, changed: false };
       }
-      const issuedAt = now();
-      if (!input.challengeKey || !input.immutableProjectUuid || !input.projectId || !input.runId || !input.gateId
-        || !input.contractHash || input.targetHash !== input.contractHash || !Number.isInteger(input.projectRevision)
-        || (input.revocationEpoch !== undefined && !Number.isInteger(input.revocationEpoch))
-        || !input.costScope || !input.pricingSnapshotHash || !input.reservationPreview.currency
-        || !Number.isFinite(input.reservationPreview.maximum) || input.reservationPreview.maximum < 0
-        || (input.reservationPreview.unknownJobCount !== undefined
-          && (!Number.isSafeInteger(input.reservationPreview.unknownJobCount) || input.reservationPreview.unknownJobCount < 0))) {
-        throw new ReceiptScopeError("Challenge input is incomplete");
-      }
-      const withoutMac: Omit<HumanApprovalChallengeV1, "mac"> = {
-        version: HUMAN_APPROVAL_VERSION,
-        keyId,
-        algorithm: HUMAN_APPROVAL_ALGORITHM,
-        issuer: "nomi-main",
-        challengeId: randomId(),
-        nonce: randomId(),
-        immutableProjectUuid: input.immutableProjectUuid,
-        projectGeneration: input.projectGeneration,
-        projectId: input.projectId,
-        runId: input.runId,
-        gateId: input.gateId,
-        contractHash: input.contractHash,
-        targetHash: input.targetHash,
-        projectRevision: input.projectRevision,
-        ...(input.revocationEpoch === undefined ? {} : { revocationEpoch: input.revocationEpoch }),
-        costScope: input.costScope,
-        pricingSnapshotHash: input.pricingSnapshotHash,
-        reservationPreview: { ...input.reservationPreview },
-        ...(input.display ? { display: { ...input.display } } : {}),
-        audience: HUMAN_APPROVAL_AUDIENCE,
-        issuedAt,
-        expiresAt: expiresAt(issuedAt, input.ttlMs, defaultTtlMs),
-      };
-      const challenge: HumanApprovalChallengeV1 = { ...withoutMac, mac: sign(withoutMac, deps.macKey) };
-      const token = encode(challenge);
+      const { challenge, token } = newChallenge(input, now());
       state.challenges[challenge.challengeId] = { input: { ...input }, token, challenge, status: "pending" };
       return { result: { input: { ...input }, token, challenge }, changed: true };
     });
@@ -571,17 +602,8 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     return attestation;
   }
 
-  function mintReceipt(token: string, gesture: unknown): { token: string; receipt: HumanApprovalReceiptV1 } {
-    const challenge = verifyChallenge(token);
-    const attestation = verifyGesture(token, gesture);
-    const issuedAt = now();
-    const state = readState();
-    const challengeRecord = state.challenges[challenge.challengeId];
-    if (!challengeRecord) throw new HumanApprovalRequiredError();
-    if (challengeRecord.status === "accepted" && challengeRecord.receiptToken) {
-      const existing = state.receipts[digest(challengeRecord.receiptToken)];
-      if (existing) return { token: existing.token, receipt: { ...existing.receipt } };
-    }
+  /** 按挑战 + 已核过的手势铸一张收据（签名），不落盘。 */
+  function newReceipt(challenge: HumanApprovalChallengeV1, attestation: GestureAttestationV1, issuedAt: string): HumanApprovalReceiptV1 {
     const receiptWithoutMac: Omit<HumanApprovalReceiptV1, "mac"> = {
       version: HUMAN_APPROVAL_VERSION,
       keyId,
@@ -616,7 +638,21 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
       // 从人点下去那一刻起算，不继承挑战的剩余时间。
       expiresAt: expiresAt(issuedAt, undefined, receiptTtlMs),
     };
-    const receipt: HumanApprovalReceiptV1 = { ...receiptWithoutMac, mac: sign(receiptWithoutMac, deps.macKey) };
+    return { ...receiptWithoutMac, mac: sign(receiptWithoutMac, deps.macKey) };
+  }
+
+  function mintReceipt(token: string, gesture: unknown): { token: string; receipt: HumanApprovalReceiptV1 } {
+    const challenge = verifyChallenge(token);
+    const attestation = verifyGesture(token, gesture);
+    const issuedAt = now();
+    const state = readState();
+    const challengeRecord = state.challenges[challenge.challengeId];
+    if (!challengeRecord) throw new HumanApprovalRequiredError();
+    if (challengeRecord.status === "accepted" && challengeRecord.receiptToken) {
+      const existing = state.receipts[digest(challengeRecord.receiptToken)];
+      if (existing) return { token: existing.token, receipt: { ...existing.receipt } };
+    }
+    const receipt = newReceipt(challenge, attestation, issuedAt);
     const receiptToken = encode(receipt);
     return mutate((next) => {
       const current = next.challenges[challenge.challengeId];
@@ -628,6 +664,48 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
       next.challenges[challenge.challengeId] = { ...current, status: "accepted", receiptToken };
       next.receipts[digest(receiptToken)] = { token: receiptToken, receipt };
       return { result: { token: receiptToken, receipt }, changed: true };
+    });
+  }
+
+  /**
+   * 主进程这一次受信调用本身就是手势（画布 ↑、批量卡确认之后的派发）：挑战 → 手势签证 → 收据 → 用掉，**一次读、一次写**。
+   *
+   * 以前同一件事要走五次整份读写（挑战、签证里验挑战、铸收据、验收据、用掉；画布每点一次约 85 ms，发动机收敛第一刀
+   * 第 1–2 步实测）。令牌从头到尾没离开主进程，所以没有「拿着令牌去重放」这一面要防；落盘只为两件事：同一份授权（同一个
+   * challengeKey）重来一次时拿回同一张收据（幂等），以及事后查得到这一笔是哪个窗口批的。收据当场记成已用掉。
+   */
+  function issueGestureReceipt(input: HumanApprovalChallengeInput, gesture: { webContentsId: number; frameId: number; origin: string }): HumanApprovalReceiptV1 {
+    return mutate<HumanApprovalReceiptV1>((state) => {
+      const issuedAt = now();
+      const existing = Object.values(state.challenges).find((record) => record.input.challengeKey === input.challengeKey);
+      if (existing && existing.status === "accepted" && existing.receiptToken && Date.parse(issuedAt) < Date.parse(existing.challenge.expiresAt)) {
+        const { ttlMs: _existingTtl, ...existingBinding } = existing.input;
+        const { ttlMs: _requestedTtl, ...requestedBinding } = input;
+        if (stableJson(existingBinding) !== stableJson(requestedBinding)) throw new ReceiptScopeError("Challenge key conflicts with a different binding");
+        const record = state.receipts[digest(existing.receiptToken)];
+        if (record) return { result: { ...record.receipt }, changed: false };
+      }
+      const { challenge, token } = newChallenge(input, issuedAt);
+      const withoutMac: Omit<MainProcessGestureAttestationV1, "mac"> = {
+        kind: "main_process_gesture",
+        issuer: "nomi-main",
+        keyId,
+        challengeId: challenge.challengeId,
+        decision: "accept",
+        webContentsId: gesture.webContentsId,
+        frameId: gesture.frameId,
+        origin: gesture.origin,
+        gestureNonce: challenge.nonce,
+        issuedAt,
+        expiresAt: challenge.expiresAt,
+      };
+      const attestation: MainProcessGestureAttestationV1 = { ...withoutMac, mac: sign(withoutMac, deps.macKey) };
+      if (!Number.isInteger(attestation.webContentsId) || !Number.isInteger(attestation.frameId) || !attestation.origin) throw new HumanApprovalRequiredError();
+      const receipt = newReceipt(challenge, attestation, issuedAt);
+      const receiptToken = encode(receipt);
+      state.challenges[challenge.challengeId] = { input: { ...input }, token, challenge, status: "accepted", receiptToken };
+      state.receipts[digest(receiptToken)] = { token: receiptToken, receipt, consumedAt: issuedAt };
+      return { result: receipt, changed: true };
     });
   }
 
@@ -670,6 +748,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     createClientElicitationAttestation,
     createPolicyDecisionAttestation,
     mintReceipt,
+    issueGestureReceipt,
     verifyReceipt,
     resolveReceiptToken,
     consumeReceipt,

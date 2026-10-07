@@ -9,7 +9,6 @@ import {
   resolveAssetIngestionWithFallback,
   isLocalAssetUrl,
   trustedOriginalUrl,
-  trustedLocalOutputOrigin,
   ORIGINAL_URL_TRUST_MS,
   LITTERBOX_INGESTION,
   TMPFILES_INGESTION,
@@ -751,7 +750,7 @@ describe("resolveAssetIngestionWithFallback (内容类型感知路由)", () => {
   it("image asset + apimart present → apimart still wins over litterbox", () => {
     const out = firstIngestion({ key: "apimart" }, [{ key: "apimart" }], keysOf("apimart"), "image");
     expect(out?.ingestion.strategy).toBe("upload-multipart");
-    expect(out?.ingestion.endpoint).toBe("https://api.apimart.ai/v1/uploads/images");
+    expect((out?.ingestion as Extract<AssetIngestion, { strategy: "upload-multipart" }>).endpoint).toBe("https://api.apimart.ai/v1/uploads/images");
     expect(out?.uploadApiKey).toBe("key-apimart");
   });
 
@@ -816,12 +815,6 @@ describe("sidecar originalUrl 新鲜度门（L2：参考图永不过期）", () 
 describe("comfyui-upload（本地 ComfyUI 首帧上传，S2）", () => {
   const comfyIngestion = (endpoint = "http://127.0.0.1:8188/upload/image"): AssetIngestion => ({ strategy: "comfyui-upload", endpoint, accepts: ["image"] });
   const readFresh = (name = "a.png"): LocalAsset => ({ bytes: PNG_BYTES, contentType: "image/png", fileName: name, originalUrl: "https://pub/" + name, ageMs: 0 });
-
-  it("trustedLocalOutputOrigin：只信任代码所有的 ComfyUI baseUrl 精确 origin", () => {
-    expect(trustedLocalOutputOrigin({ key: "comfyui-local", baseUrlHint: "http://127.0.0.1:8188/api/" })).toBe("http://127.0.0.1:8188");
-    expect(trustedLocalOutputOrigin({ key: "custom-local", baseUrlHint: "http://127.0.0.1:9000" })).toBeNull();
-    expect(trustedLocalOutputOrigin({ key: "comfyui-local", baseUrlHint: "file:///tmp/comfy" })).toBeNull();
-  });
 
   it("resolveAssetIngestionWithFallback：comfyui-local 图片 → comfyui-upload，端点从 baseUrl 派生（默认 + 自定义 + 尾斜杠归一）", () => {
     const def = firstIngestion({ key: "comfyui-local" }, [], () => null, "image");
@@ -1061,5 +1054,51 @@ describe("local raster metadata validation", () => {
     }
     expect(matchNomiErrorCode(message)).toBe("asset-invalid");
     expect(message).not.toMatch(/视频生成/);
+  });
+});
+
+// 应用内反馈 NF-0928-0004：用 Agnes 生图，参考图走了 APIMart 的素材上传，APIMart 账户 402，整次失败。
+describe("参考图跟着这次调用的端点走；借用别家时点名是哪一家", () => {
+  const AGNES = { key: "agnes" };
+  const APIMART = { key: "apimart" };
+  const keys = (key: string) => (key === "apimart" ? "sk-apimart" : key === "agnes" ? "sk-agnes" : null);
+  const INLINE: AssetIngestion = { strategy: "inline-base64", accepts: ["image"] };
+
+  it("报障现场：Agnes 改图端点声明了内联，参考图只走它，不排任何别家通道", () => {
+    const candidates = resolveAssetIngestionWithFallback(AGNES, [AGNES, APIMART], keys, "image", INLINE);
+    expect(candidates).toEqual([{ ingestion: INLINE, uploadApiKey: "sk-agnes", vendorKey: "agnes" }]);
+  });
+
+  it("端点收不下这类媒体（视频）时才回到原来的顺序，借来的通道带着 borrowed 标记", () => {
+    const candidates = resolveAssetIngestionWithFallback(AGNES, [AGNES, APIMART], keys, "image");
+    expect(candidates.find((c) => c.vendorKey === "apimart")).toMatchObject({ borrowed: true });
+    expect(resolveAssetIngestionWithFallback(AGNES, [AGNES, APIMART], keys, "video", INLINE).some((c) => c.ingestion === INLINE)).toBe(false);
+  });
+
+  it("类边界：内置 Agnes 改图端点真的声明了内联、图生视频端点没有（视频文档只收公网 URL）", async () => {
+    const { AGNES_IMAGE_MODELS } = await import("./agnesImages");
+    for (const model of AGNES_IMAGE_MODELS) {
+      for (const mapping of model.mappings) {
+        if (mapping.taskKind === "image_edit") expect(mapping.create.assetIngestion, mapping.id).toEqual(INLINE);
+        else expect(mapping.create.assetIngestion, mapping.id).toBeUndefined();
+      }
+    }
+  });
+
+  it.each([["kie"], ["kie--mini"]])("目标就是 KIE（含兄弟连接 %s）时，KIE 通道不算借来的", (key) => {
+    const target = { key, ...(key.includes("--") ? { adapterCandidateRootVendorKey: "kie" } : {}) };
+    const candidates = resolveAssetIngestionWithFallback(target, [target, APIMART], (k) => (k === "kie" || k === key ? "sk-kie" : k === "apimart" ? "sk-apimart" : null), "image");
+    expect(candidates.filter((c) => c.vendorKey === "kie" && c.borrowed)).toEqual([]);
+  });
+
+  it("全部失败时，借来的那条在详情里点名是哪一家的账户，并说清这次选的服务商还没被请求", async () => {
+    const borrowed = { ingestion: { strategy: "upload-multipart", endpoint: "https://api.apimart.ai/v1/uploads/images", urlPath: "url", accepts: ["image"] } as AssetIngestion,
+      uploadApiKey: "sk-apimart", vendorKey: "apimart", borrowed: true as const };
+    const postMultipart = vi.fn(async () => { throw new Error("素材上传失败(HTTP 402)"); });
+    const error = await localizeAssetsForVendor({ image: [localUrl("ref.png")] }, () => [borrowed], read, vi.fn(), postMultipart as never, { anonymousConsent: "allow" })
+      .then(() => null, (failure: Error) => failure);
+    expect(error?.message).toMatch(/借用 apimart 的上传通道（api\.apimart\.ai，用的是你在 apimart 的账户）: 素材上传失败\(HTTP 402\)/);
+    expect(error?.message).toContain("还没请求这次选的服务商");
+    expect(matchNomiErrorCode(error?.message ?? "")).toBe("asset-upload-failed");
   });
 });

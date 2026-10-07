@@ -129,7 +129,7 @@ export function onboardingVerbs(): VerbDeclaration[] {
     ],
   };
 
-  const tryModel: VerbDeclaration = {
+  const tryModelVerb: VerbDeclaration = {
     name: "try_model",
     profiles: ["mcp"],
     profileReason: "headlessHost",
@@ -174,5 +174,5 @@ export function onboardingVerbs(): VerbDeclaration[] {
     ],
   };
 
-  return [connectProvider, submitDeclaration, setProviderKey, showModels, cancelSetup, tryModel, removeProvider];
+  return [connectProvider, submitDeclaration, setProviderKey, showModels, cancelSetup, tryModelVerb, removeProvider];
 }

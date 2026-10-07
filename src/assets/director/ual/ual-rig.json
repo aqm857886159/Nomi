@@ -1,0 +1,31 @@
+{
+  "file": "src/assets/director/ual/ual-mannequin.glb",
+  "heightM": 1.828717,
+  "origin": "ground-min-z",
+  "semanticBones": {
+    "hips": "DEF-hips",
+    "spine": "DEF-spine.001",
+    "chest": "DEF-spine.002",
+    "neck": "DEF-neck",
+    "head": "DEF-head",
+    "leftUpperArm": "DEF-upper_arm.L",
+    "leftLowerArm": "DEF-forearm.L",
+    "leftHand": "DEF-hand.L",
+    "rightUpperArm": "DEF-upper_arm.R",
+    "rightLowerArm": "DEF-forearm.R",
+    "rightHand": "DEF-hand.R",
+    "leftUpperLeg": "DEF-thigh.L",
+    "leftLowerLeg": "DEF-shin.L",
+    "leftFoot": "DEF-foot.L",
+    "rightUpperLeg": "DEF-thigh.R",
+    "rightLowerLeg": "DEF-shin.R",
+    "rightFoot": "DEF-foot.R"
+  },
+  "childBones": {
+    "head": "DEF-head",
+    "leftHand": "DEF-f_index.01.L",
+    "rightHand": "DEF-f_index.01.R",
+    "leftFoot": "DEF-toe.L",
+    "rightFoot": "DEF-toe.R"
+  }
+}

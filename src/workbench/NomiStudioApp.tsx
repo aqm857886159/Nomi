@@ -25,9 +25,11 @@ import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generatio
 import {
   captureCanvasDeleteRawEvidence,
   captureCanvasWriteRawEvidence,
+  captureDirectorWriteRawEvidence,
   executeCanvasWriteTarget,
 } from './generationCanvas/agent/canvasWriteTarget'
 import { canvasDeleteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasDelete'
+import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../electron/shared/agentCapabilities/directorWrite'
 import {
   executeTimelineReadTarget,
   executeTimelineWriteTarget,
@@ -44,6 +46,7 @@ import { laneReceiptClient } from './ai/lane/laneReceiptClient'
 import { initReviewEventBridge } from './generationCanvas/reviewEventBridge'
 import { initComfyuiProgressBridge } from './generationCanvas/comfyuiProgressBridge'
 import { initResultMediaBackfillBridge } from './generationCanvas/resultMediaBackfillBridge'
+import { initCanvasAutoReferenceBridge } from './generationCanvas/store/canvasAutoReference'
 import { setCanvasEventProjectIdProvider } from './generationCanvas/events/canvasEventEmitter'
 import { handleCapabilityApply, registerCapabilityApplyHandler } from './capability/capabilityApplyHandler'
 import { cn } from '../utils/cn'
@@ -66,6 +69,7 @@ import { ProductionCanvasLandingHost } from './production/ProductionCanvasLandin
 import { ProjectHydrationSupersededError, createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurface } from './project/projectCanvasReadSurface'
 import { openCreatedProject, shareInFlight, type ProjectCreationOutcome } from './project/projectCreationFlight'
 import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationRecovery'
+import { markProjectOpenMoment, markProjectOpenStart, measureProjectOpenStage } from './project/projectOpenTimeline'
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
@@ -217,6 +221,8 @@ export default function NomiStudioApp(): JSX.Element {
   React.useEffect(() => initReviewEventBridge(), [])
   React.useEffect(() => initComfyuiProgressBridge(), [])
   React.useEffect(() => initResultMediaBackfillBridge(), [])
+  // 自动引用（画布侧）：节点出图 → 提示词里写了它标题的未出图节点补 @ + 建参考边（owner = insertAutoMentions）。
+  React.useEffect(() => initCanvasAutoReferenceBridge(), [])
   React.useEffect(() => setCanvasEventProjectIdProvider(() => activeProjectIdRef.current ?? null), [])
   React.useEffect(() => registerCapabilityApplyHandler(), [])
   // B4 只读 Surface 端口复用同一 coordinator binding，不复制项目真相。
@@ -235,6 +241,10 @@ export default function NomiStudioApp(): JSX.Element {
                 readGenerationCanvasSnapshot(),
                 canvasDeleteSemanticInputSchema.parse(input),
               )
+            }
+            // 3D-BOX（director.write）：preload 只在开关开时放行这两个操作进来。
+            if (isDirectorWriteOperation(operation)) {
+              return captureDirectorWriteRawEvidence(readGenerationCanvasSnapshot(), directorWriteSemanticInputSchema.parse(input))
             }
             return captureCanvasWriteRawEvidence(
               readGenerationCanvasSnapshot(),
@@ -299,6 +309,7 @@ export default function NomiStudioApp(): JSX.Element {
       // This call synchronously invokes Surface suspend. Its ACK is deliberately
       // the first await: neither a lazy import nor readLocalProjectAsync may run
       // while the outgoing project's main route is still executable.
+      markProjectOpenStart()
       const surfaceEpoch = projectSurface.beginHydration()
       const hydrationSequence = ++hydrationSequenceRef.current
       hydratingProjectRef.current = true
@@ -328,20 +339,24 @@ export default function NomiStudioApp(): JSX.Element {
         activeProjectIdRef.current = hydrated.id
         setActiveProject(hydrated)
         surfaceEpoch.assertCurrent()
-        const committedBinding = await surfaceEpoch.commitCanvasRead(hydrated.id)
+        const committedBinding = await measureProjectOpenStage('canvas-read-commit', () => surfaceEpoch.commitCanvasRead(hydrated.id))
         surfaceEpoch.assertCurrent()
         if (committedBinding) {
-          const opened = await laneClient.open(committedBinding.binding)
+          const opened = await measureProjectOpenStage('agent-lane-open', () => laneClient.open(committedBinding.binding))
           surfaceEpoch.assertCurrent()
           if (!opened.ok) throw new LaneCommandFailure(opened.code, opened.diagnostic)
-          if (!opened.workspaceId) throw new Error('agent_lane_closed')
-          hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))
-          await recoverPendingProposalReceipt()
+          const workspaceId = opened.workspaceId
+          if (!workspaceId) throw new Error('agent_lane_closed')
+          await measureProjectOpenStage('receipt-recovery', async () => {
+            hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))
+            await recoverPendingProposalReceipt()
+          })
           surfaceEpoch.assertCurrent()
           // The lane projection is the sole conversation display source.
         }
         surfaceEpoch.assertCurrent()
         setView('studio')
+        markProjectOpenMoment('studio-visible')
         navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.
@@ -652,7 +667,7 @@ export default function NomiStudioApp(): JSX.Element {
       void ensureProjectPersistenceService()
         .then(async ({ service }) => {
           const { readCurrentWorkbenchProjectPayload } = await import('./project/workbenchProjectSession')
-          return service.persistProject(renamed, readCurrentWorkbenchProjectPayload())
+          return service.renameProjectAndPersist(renamed, readCurrentWorkbenchProjectPayload())
         })
         .catch((error: unknown) => {
           logRendererError('project-save-failed', error, { trigger: 'rename' })
@@ -672,6 +687,7 @@ export default function NomiStudioApp(): JSX.Element {
     <SettingsDialog
       initialTab={settingsDialogController.initialTab}
       initialSection={settingsDialogController.initialSection}
+      initialModelPageRequest={settingsDialogController.modelPageRequest}
       onClose={settingsDialogController.closeSettings}
       onReplaySplash={() => setSplashDone(false)}
     />

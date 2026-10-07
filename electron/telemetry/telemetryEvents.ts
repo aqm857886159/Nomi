@@ -8,6 +8,8 @@ export type AttemptCountBucket = '1' | '2-3' | '4+'
 export type FeatureId = 'generation' | 'export' | 'storyboard' | 'timeline' | 'asset-import' | 'agent'
 export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'unknown'
 export type UpdateAction = 'check' | 'download' | 'install'
+/** 更新失败的原因类别（只有枚举，没有 message / URL）。开发版与非正式版不算失败，不上报。 */
+export type UpdateFailureReason = 'network' | 'parse' | 'other'
 /** 一个回合里调了几次工具。分桶而不是原数：原数在小样本上就是指纹。 */
 export type ToolCallBucket = '0' | '1-3' | '4+'
 /**
@@ -24,7 +26,7 @@ export type TelemetryProps =
   | { eventName: 'feature.used'; props: { featureId: FeatureId; result: TelemetryResult } }
   | { eventName: 'generation.completed'; props: { capability: CapabilitySlot; durationBucket: DurationBucket; result: TelemetryResult; attemptCountBucket: AttemptCountBucket; /** 只在 result='failure' 时带：失败类别码，永远不是原文。 */ errorType?: string } }
   | { eventName: 'export.completed'; props: { format: ExportFormat; durationBucket: DurationBucket; result: TelemetryResult } }
-  | { eventName: 'update.action'; props: { action: UpdateAction; result: TelemetryResult } }
+  | { eventName: 'update.action'; props: { action: UpdateAction; result: TelemetryResult; reason?: UpdateFailureReason } }
   | { eventName: 'agent.turn.completed'; props: { result: TelemetryResult; toolCallBucket: ToolCallBucket; modelClass: ModelClass } }
 
 export type TelemetryEnvelope = {
@@ -44,6 +46,7 @@ const FEATURE_SET = new Set<FeatureId>(['generation', 'export', 'storyboard', 't
 const CAPABILITY_SET = new Set<CapabilitySlot>(['text', 'image', 'image-edit', 'video', 'audio', '3d'])
 const EXPORT_SET = new Set<ExportFormat>(['mp4', 'webm', 'gif', 'unknown'])
 const UPDATE_SET = new Set<UpdateAction>(['check', 'download', 'install'])
+const UPDATE_REASON_SET = new Set<UpdateFailureReason>(['network', 'parse', 'other'])
 const TOOL_CALL_SET = new Set<ToolCallBucket>(['0', '1-3', '4+'])
 const MODEL_CLASS_SET = new Set<ModelClass>(['builtin', 'custom', 'local'])
 
@@ -87,6 +90,12 @@ function hasGenerationKeys(props: Record<string, unknown>): boolean {
   return hasExactKeys(props, [...base, 'errorType']) && props.result === 'failure' && typeof props.errorType === 'string' && TELEMETRY_ERROR_TYPE_PATTERN.test(props.errorType)
 }
 
+/** reason 是可选的第 3 格：只许出现在失败事件上，且必须在白名单里（旧队列里没有 reason 的事件照旧合法）。 */
+function hasUpdateKeys(props: Record<string, unknown>): boolean {
+  if (!('reason' in props)) return hasExactKeys(props, ['action', 'result'])
+  return hasExactKeys(props, ['action', 'result', 'reason']) && props.result === 'failure' && UPDATE_REASON_SET.has(props.reason as UpdateFailureReason)
+}
+
 /**
  * 「这个进程是谁启动的」——以启动事实为准，不靠猜：tests/ux/_launchApp.mjs 是走查 / 评测唯一的
  * 启动器，它钉死 NOMI_E2E=1（真实资料副本跑的付费测试也走它）。普通用户的 App 不会有这个变量。
@@ -103,7 +112,7 @@ export function isTelemetryProps(value: unknown, eventName: TelemetryEventName):
   if (eventName === 'feature.used') return hasExactKeys(props, ['featureId', 'result']) && FEATURE_SET.has(props.featureId as FeatureId) && RESULT_SET.has(props.result as TelemetryResult)
   if (eventName === 'generation.completed') return hasGenerationKeys(props) && CAPABILITY_SET.has(props.capability as CapabilitySlot) && DURATION_SET.has(props.durationBucket as DurationBucket) && RESULT_SET.has(props.result as TelemetryResult) && ATTEMPT_SET.has(props.attemptCountBucket as AttemptCountBucket)
   if (eventName === 'export.completed') return hasExactKeys(props, ['format', 'durationBucket', 'result']) && EXPORT_SET.has(props.format as ExportFormat) && DURATION_SET.has(props.durationBucket as DurationBucket) && RESULT_SET.has(props.result as TelemetryResult)
-  if (eventName === 'update.action') return hasExactKeys(props, ['action', 'result']) && UPDATE_SET.has(props.action as UpdateAction) && RESULT_SET.has(props.result as TelemetryResult)
+  if (eventName === 'update.action') return hasUpdateKeys(props) && UPDATE_SET.has(props.action as UpdateAction) && RESULT_SET.has(props.result as TelemetryResult)
   if (eventName === 'agent.turn.completed') return hasExactKeys(props, ['result', 'toolCallBucket', 'modelClass']) && RESULT_SET.has(props.result as TelemetryResult) && TOOL_CALL_SET.has(props.toolCallBucket as ToolCallBucket) && MODEL_CLASS_SET.has(props.modelClass as ModelClass)
   return false
 }

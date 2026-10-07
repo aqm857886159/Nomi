@@ -12,7 +12,8 @@ import type { AgentModelEntry } from '../../../generationCanvas/agent/availableM
 import { renderShotNodePrompt, renderShotKeyframePrompt, effectiveShotDurationSec, stableShotId, type PlanShot, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { shotReferenceMetaPatch } from '../shotRow/shotReferenceSlots'
 import { compileShotOutbound } from '../../../generationCanvas/agent/storyboardPromptCompiler'
-import { resolveKeyframeParams, resolveShotParams } from '../../../generationCanvas/agent/storyboardShotScope'
+import { resolveKeyframeParams, resolveShotParams, shotModeControls } from '../../../generationCanvas/agent/storyboardShotScope'
+import { aspectRatioControlsOf, placeAspectRatio } from '../../../../../electron/shared/aspectRatioValue'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
 const PRIMITIVE = new Set(['string', 'number', 'boolean'])
 
@@ -42,7 +43,13 @@ export function projectShotNode(
     )
     if (planned) Object.assign(meta, planned)
   } else {
-    for (const [key, value] of Object.entries(rowParams)) {
+    // 模型没换：参数直接写回节点。比例意图同样先按节点这个模式的比例控件翻成真实键（与落画布同一个判据），
+    // 不然 Z-Image 节点上会多一个它不认的 `aspect_ratio`，而真正发出去的 `size` 还是旧值。
+    const controls = shotModeControls({ modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
+      modelVendor: typeof meta.modelVendor === 'string' ? meta.modelVendor : undefined,
+      modeId: typeof metaModeId === 'string' ? metaModeId : undefined, meta })
+    const placed = controls ? placeAspectRatio(rowParams, aspectRatioControlsOf(controls)).parameters : rowParams
+    for (const [key, value] of Object.entries(placed)) {
       if (PRIMITIVE.has(typeof value)) meta[key] = value
     }
   }

@@ -11,6 +11,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } fro
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { checkSpendScopeJourney } from './_agentSpendScopeJourney.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { readLaneSpend } from './_laneSpendProbe.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_PERMISSION, INTERVENTION_CONFIRM, INTERVENTION_CONFIRM_REJECT, INTERVENTION_REJECT,
   PERMISSION_POPOVER, permissionTier,
@@ -216,8 +217,8 @@ try {
   await expect(input, '重新出价回来的是他没提交的那句话，不是原候选').toHaveText(draftPrompt)
   await expect(sizeChip, '他改过的尺寸也跟着回来').toContainText('1536x1024')
   // 而宿主那份候选**没被偷偷改过**：手改只活在卡上，直到他按「生成」。
-  const pendingRows = await win.evaluate(id => window.nomiDesktop.productionRuns.pendingSpend(id), projectId)
-  expect(pendingRows.surface, '探针：待决投影这一刻真的读得到').toBe('ready')
+  const pendingRows = await readLaneSpend(win)
+  expect(pendingRows?.surface, '探针：待决投影（推给面板的那一份）这一刻真的读得到').toBe('ready')
   expect(pendingRows.rows[0]?.operationId, '重新出价的是同一次生成').toBe(operationId)
   expect(pendingRows.rows[0]?.shots[0]?.prompt, '没提交的手改没有落进宿主候选').toBe(DRAFTED_PROMPT)
   expect((await nodesAfterRestart()).find(entry => entry.id === node.id), '重新出价不动画布').toEqual(restoredShot)

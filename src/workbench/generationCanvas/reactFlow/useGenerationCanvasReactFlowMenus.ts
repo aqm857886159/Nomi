@@ -6,7 +6,8 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import type { NodeContextMenuAction } from '../components/NodeContextMenu'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
-import { connectionCreateKindsForSource, connectionCreateKindsForSources, type ConnectionCreateKind } from '../agent/referenceEdgeCapability'
+import { connectionCreateVerdictsForSource, connectionCreateVerdictsForSources, type ConnectionCreateVerdict } from '../agent/referenceEdgeCapability'
+import { NODE_DERIVE_KINDS, type NodeDeriveKind } from '../quickActions/nodeDeriveMenuModel'
 import {
   useCanvasContextNodeMenu,
   type CanvasContextNodeMenu,
@@ -23,8 +24,11 @@ export type CanvasConnectionCreateMenu = {
   stageY: number
   canvasX: number
   canvasY: number
-  /** 这条线能接出的节点种类（connectionCreateKindsForSource 派生，非空）。 */
-  kinds: ConnectionCreateKind[]
+  /** 这条线接出每一类节点的判定（接不上的带原因，菜单里灰掉；至少一类接得上才会开菜单）。 */
+  verdicts: ConnectionCreateVerdict<NodeDeriveKind>[]
+  /** 松手 / 点「+」那一下的视口坐标（菜单走 `WorkbenchMenu`，按视口定位）。 */
+  clientX: number
+  clientY: number
   /** 线从一张卡起，还是从编组的「+」起（model/groupPort.ts）——新建节点后按哪种起点接上。 */
   sourceKind: 'node' | 'group'
 }
@@ -32,18 +36,18 @@ export type CanvasConnectionCreateMenu = {
 type ConnectionStart = { nodeId: string; side: ConnectionSide; sourceKind: 'node' | 'group' }
 
 /**
- * 松手在空白处时能新建哪几种节点。卡：看这张卡；编组：只有右侧（编组的输出）能接出新节点，
- * 种类是组内成员能接出的并集；左侧（接进编组）在空白处没有「新建谁喂给这一组」的定义，取消。
+ * 松手在空白处 / 点「+」时每一类节点接不接得上。卡：看这张卡；编组：只有右侧（编组的输出）能接出新节点，
+ * 判定是组内成员的并集；左侧（接进编组）在空白处没有「新建谁喂给这一组」的定义，取消。
  */
-function createKindsForStart(started: ConnectionStart): ConnectionCreateKind[] {
+function createVerdictsForStart(started: ConnectionStart): ConnectionCreateVerdict<NodeDeriveKind>[] {
   const state = useGenerationCanvasStore.getState()
   if (started.sourceKind === 'node') {
     const source = state.nodes.find((node) => node.id === started.nodeId)
-    return source ? connectionCreateKindsForSource(source) : []
+    return source ? connectionCreateVerdictsForSource(source, NODE_DERIVE_KINDS) : []
   }
   if (started.side !== 'right') return []
   const memberIds = new Set(state.groups.find((group) => group.id === started.nodeId)?.nodeIds ?? [])
-  return connectionCreateKindsForSources(state.nodes.filter((node) => memberIds.has(node.id)))
+  return connectionCreateVerdictsForSources(state.nodes.filter((node) => memberIds.has(node.id)), NODE_DERIVE_KINDS)
 }
 
 type UseGenerationCanvasReactFlowMenusArgs = {
@@ -128,6 +132,7 @@ export function useGenerationCanvasReactFlowMenus({
   contextNodeMenu: CanvasContextNodeMenu | null
   closeContextNodeMenu: () => void
   connectionCreateMenu: CanvasConnectionCreateMenu | null
+  closeConnectionCreateMenu: () => void
   handleStageContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
   handleFlowContextMenu: (event: MouseEvent | React.MouseEvent) => void
   handleStagePointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void
@@ -172,6 +177,11 @@ export function useGenerationCanvasReactFlowMenus({
     ensureNodeSelected: ensureContextNodeSelected,
     onFrameMenu,
   })
+
+  const closeConnectionCreateMenu = React.useCallback(() => {
+    setConnectionCreateMenu(null)
+    cancelConnection()
+  }, [cancelConnection])
 
   const handleConnectToGroupFromFlow = React.useCallback((groupId: string) => {
     const state = useGenerationCanvasStore.getState()
@@ -291,8 +301,8 @@ export function useGenerationCanvasReactFlowMenus({
       else handleConnectToGroup(targetGroupId)
       return
     }
-    const kinds = createKindsForStart(started)
-    if (kinds.length === 0) {
+    const verdicts = createVerdictsForStart(started)
+    if (!verdicts.some((verdict) => verdict.ok)) {
       cancelConnection()
       return
     }
@@ -311,7 +321,9 @@ export function useGenerationCanvasReactFlowMenus({
       stageY: Math.max(8, Math.min(rect.height - 90, stageY)),
       canvasX: Math.round(canvasPoint.x),
       canvasY: Math.round(canvasPoint.y),
-      kinds,
+      verdicts,
+      clientX: point.clientX,
+      clientY: point.clientY,
       sourceKind: started.sourceKind,
     })
   }, [cancelConnection, getCanvasPointFromClientPoint, handleConnectToGroup, hostRef, nodeById, readOnly, visibleGroups])
@@ -345,6 +357,8 @@ export function useGenerationCanvasReactFlowMenus({
     /** 只关节点/添加菜单本身（不碰连线状态）——`WorkbenchMenu` 的 onOpenChange 走这条。 */
     closeContextNodeMenu,
     connectionCreateMenu,
+    /** 「用这个节点生成…」菜单自己关（Esc / 点外面）：连带取消这条没落地的线。 */
+    closeConnectionCreateMenu,
     handleStageContextMenu,
     handleFlowContextMenu,
     handleStagePointerDownCapture,

@@ -103,7 +103,8 @@ describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
     expect(result.status).toBe("succeeded");
 
     // 抓 fetch 实际带的 headers。
-    const headers = (fetchFn.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers || {};
+    const call = fetchFn.mock.calls[0] as unknown as [RequestInfo, RequestInit | undefined] | undefined;
+    const headers = (call?.[1] as { headers?: Record<string, string> } | undefined)?.headers || {};
     expect(headers.Authorization).toBe("Bearer sk-relay");
     expect(headers["HTTP-Referer"]).toBe("https://nomi.app");
     expect(headers["X-Title"]).toBe("Nomi");

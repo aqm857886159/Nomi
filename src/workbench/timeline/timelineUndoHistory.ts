@@ -7,6 +7,7 @@ export type TimelineAgentUndoMetadata = Readonly<{
   beforeRevision: string
   afterRevision: string
   undoToken: string
+  changeId?: string
   receiptProposalId: string
   approvalId: string
   actionHash: string

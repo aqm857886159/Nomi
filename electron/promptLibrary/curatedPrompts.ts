@@ -1,3 +1,4 @@
+import { resolveEffectSlots } from "../shared/effectSlots";
 import { skillPreviewUrl } from "../skills/skillPreview";
 import type { SkillRecord } from "../skills/skillStore";
 import type { LibraryPrompt } from "./promptLibraryTypes";
@@ -11,7 +12,8 @@ export function getCuratedPrompts(records: readonly SkillRecord[]): LibraryPromp
     // Text remains a valid Skill modality, but the current prompt panel only creates image/video nodes.
     if (!promptType) return [];
     // 方法正文来自 pi 的加载器（已去 frontmatter）：这里不再养第二份 stripper。
-    const prompt = record.content.trim();
+    // 插槽在这里展开（唯一出口）：没人绑定值时用通用说法，不把 `{角色名}` 原文交出去。
+    const prompt = resolveEffectSlots(record.content.trim(), item.slots);
     return [{
       id: record.directoryName,
       title: item.title["zh-CN"],

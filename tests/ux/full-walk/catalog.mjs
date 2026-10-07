@@ -3,14 +3,162 @@
 // 用户要的是一张「所有用户功能 × 每个功能的各个状态」的表，出问题时能查表修（Google「关键用户旅程」+ UI 状态规范那一路）。
 // 所以这里的每一行是一条**用户旅程**，不是一个脚本：
 //   · states：这条旅程会经过的每个状态——用户看到的字（i18n key）、这时能做的动作、代码里谁决定这个状态（文件#符号，
-//     尽量对上 docs/engineering/concept-owners.json）、非终态最长等多久（只引用现有登记处；没有登记就明写 gap——那本身就是发现）；
+//     尽量对上 docs/engineering/concept-owners/）、非终态最长等多久（只引用现有登记处；没有登记就明写 gap——那本身就是发现）；
 //   · scripts：覆盖它的剧本 / 走查；invariants：核对的铁律（invariants.mjs）；metric：它该上报的成功 / 失败事件（没有就写 gap，反馈雷达要用）。
+//   · 每个 state.actions 的可点目标都要能补一行 click target 对照：
+//     { target, userExpectation, actualObservation, useCases, ironLaws }。
+//     userExpectation 是用户点之前合理以为会发生什么；actualObservation 只填真实走查 / 回执看到的结果，不能用实现推测代替。
 //
 // 目录自检（scripts/check-full-walk-catalog.mjs，接在 gates:contracts）：owner 指向的符号真实存在、每条旅程至少一条剧本、
 // 每个非终态都有 deadline（登记处引用 / 等用户 / 明写的 gap 三选一）、visibleText 的 key 在中英两份词典里都在。
 //
 // 加新功能或改了哪块：同一个 PR 里更新对应旅程的状态行和剧本（docs/engineering/full-walk.md）。
 // 注意：这是公开仓库——状态表里只写用户看得见的事实与代码位置，不写私有待办编号、价格或供应商合作信息。
+
+/**
+ * Phase 0 fixes the click-target columns for iron law ⑫「点了=以为的」.
+ * Phase 1 fills one row for every action; observations come from a real walk,
+ * provider receipt, or persisted state, and unknowns stay `unverified`.
+ */
+export const CLICK_TARGET_CONTRACT = Object.freeze({
+  fields: Object.freeze(['target', 'userExpectation', 'actualObservation', 'useCases', 'ironLaws']),
+  // 按钮预期表的七字段集（docs/engineering/test-routing.json 的 buttonExpectationFields）里，目前预期表还没填的可选字段：
+  // 设计链接 / 变体或状态 / 无障碍角色 + 名称（getByRole）/ 用户动作。逐步补，不填不红；映射由路由表的 catalogField 声明。
+  optionalFields: Object.freeze(['designRef', 'state', 'role', 'accessibleName', 'action']),
+  actualObservation: '真实 Electron 走查、供应商回执或落盘状态的证据；未知写 unverified，不得从代码推断',
+  candidateLedger: 'tests/ux/full-walk/escapeLedger/',
+  ironLaw: '⑫ 点了=以为的',
+})
+
+/**
+ * ⑫ 第一批：分镜表这一屏的每个可点目标（方案 §4 S6）。userExpectation 是用户点之前合理以为会发生什么，用大白话写；
+ * actualObservation 只抄 pb12 真实走查看到的结果（证据在那一场的 monitor-report.json 的 clickTargets 与截图），
+ * 没跑过写 unverified。两者对不上的那几条，走查当场写进逃逸账本 LAW12-<id>。
+ */
+const SB_TARGET = (row) => Object.freeze({ useCases: Object.freeze(['S6']), ironLaws: Object.freeze(['⑫']), playbook: 'pb12-storyboard-click-expectations', fullWalkJourneys: Object.freeze(['J06-delete-shot']), ...row })
+export const STORYBOARD_CLICK_TARGETS = Object.freeze([
+  SB_TARGET({
+    id: 'sb-row-blank', target: '分镜行的空白处',
+    owner: 'src/workbench/creation/storyboard/StoryboardShotTable.tsx#StoryboardShotTable',
+    userExpectation: '这一行被选中、高亮；所有行照常显示，内容一个不少',
+    actualObservation: '2026-10-05 pb12 真实走查（zh / en 两档一致）：第 2 镜选中、高亮；所有行照常显示，没有东西消失 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-shot-number', target: '画面格左上角的镜号',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx#StoryboardShotFrame',
+    userExpectation: '和点这一行一样：选中这一镜，不触发生成，别的行不动',
+    actualObservation: '2026-10-05 pb12（zh / en）：第 3 镜选中，没有发生成，别的行不动 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-row-checkbox', target: '行首的小方框（复选框）',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx#StoryboardShotRow',
+    userExpectation: '勾上就是选中这一镜（像表格勾选），之后可以对勾上的几镜批量操作；这一镜照常显示，不变灰、不被藏起来',
+    actualObservation: '2026-10-05 pb12（zh / en）：这一镜没有被选中，整行变淡到 60%，打上「本次跳过 / Skipped this run」 —— 不一致（LAW12-sb-row-checkbox）',
+  }),
+  SB_TARGET({
+    id: 'sb-row-more', target: '行首的「⋯」',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx#StoryboardShotRow',
+    userExpectation: '弹出这一镜的操作菜单（插入、复制、换画幅、删除……），整块都在窗口里；点别处它就关上，点的那一下照样生效',
+    actualObservation: '2026-10-05 pb12（zh）修复后复跑：菜单弹出、整块在窗口里；点第 1 镜画面格那一下关上菜单，并照样选中第 1 镜 —— 一致（LAW12-sb-row-more 已修，修前：点别处不关、盖住缩略图）',
+  }),
+  SB_TARGET({
+    id: 'sb-param-duration', target: '底栏的「时长」格',
+    owner: 'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx#ShotComposerBar',
+    userExpectation: '展开可选的秒数；选一个新值，这一格显示新值，这一镜存下来的也是新值，别的镜不变',
+    actualObservation: '2026-10-05 pb12（zh / en）：下拉展开，选「3 秒 / 3 sec」后落盘的第 2 镜时长是 3 秒，别的镜不变 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-row-generate', target: '这一行最右的「生成」',
+    owner: 'src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx#ShotComposerBar',
+    userExpectation: '只生成这一镜：这一镜马上显示在生成，别的镜不动，供应商只收到这一镜的一次请求',
+    actualObservation: '2026-10-05 pb12（zh / en）：供应商只收到这一镜一次请求，画面格换成结果，别的镜没动，没弹多余对话框 —— 一致',
+  }),
+  SB_TARGET({
+    id: 'sb-thumbnail-done', target: '已生成镜头的缩略图',
+    owner: 'src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx#StoryboardShotFrame',
+    userExpectation: '点一下就打开这一镜的大图来看',
+    actualObservation: '2026-10-05 pb12（zh / en）：单击缩略图只选中这一行，什么也没打开；大图要双击或点缩略图下方的展开图标 —— 不一致（LAW12-sb-thumbnail-done）',
+  }),
+])
+
+/**
+ * ⑫ 第二批：图片节点浮条上每个动作（2026-10-06 用户第 2 / 4 条：抠图点了没法用、为什么没被拦住——第一批只登记了分镜表，
+ * 浮条一个都没有）。pb13 在真 App 里用回环供应商把每一项各点一下，本机动作（抠图 / 旋转 / 裁剪 / 宫格）也算。
+ * actualObservation 只抄 pb13 真实走查看到的结果；没跑过写 unverified。
+ */
+const TB = 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx#ImageQuickActionsToolbar'
+const TB_TARGET = (row) => Object.freeze({ useCases: Object.freeze(['S6']), ironLaws: Object.freeze(['⑫']), playbook: 'pb13-node-toolbar-actions', fullWalkJourneys: Object.freeze(['J01-generate-image']), owner: TB, ...row })
+export const NODE_TOOLBAR_CLICK_TARGETS = Object.freeze([
+  TB_TARGET({
+    id: 'tb-multi-angle-grid', target: '浮条「多机位九宫格」（字那一块）',
+    userExpectation: '旁边多出一个连着这张图、填好九宫格提示词的图片节点，不开始生成、不花钱；原图不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、提示词已填；供应商没收到请求；原图不变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-more-next-moment', target: '「多机位九宫格」右边的 ▾ → 下一刻',
+    userExpectation: '同上：多出一个连着这张图、填好「下一刻」提示词的空闲节点，不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、提示词已填；供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-outpaint', target: '改图 ▾ → 扩图',
+    userExpectation: '多出一个连着这张图、填好扩图提示词的空闲节点，不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空闲图片节点，连着原图、扩图提示词已填；供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-upscale', target: '改图 ▾ → 高清',
+    userExpectation: '有能放大的模型：多一个连着这张图的空闲放大节点，不花钱；没有：告诉我缺一个放大模型、要接谁，并给一条一步可走的路（点了去接入），不是只灰掉，也不偷偷建节点或花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（2026-10-07 用户拍板置灰、悬停说原因、不跳转）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-rotate', target: '改图 ▾ → 向右旋转 90°',
+    userExpectation: '这张图就地转 90°（宽高对调），成为新的一版，原来那版还在版本里',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：版本 1 → 2，640×360 → 360×640，当前版换成新的一版 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-refine-crop', target: '改图 ▾ → 裁剪',
+    userExpectation: '图上出现裁剪框；按取消后图不变、版本数不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：出现裁剪框；点取消后图和版本都没变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-grid-four', target: '宫格 ▾ → 4 宫格 → 确认切分',
+    userExpectation: '切成 4 张新图片节点并编成一组，原图不变',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 4 个带图的节点，编成 1 组，原图不变 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-remove-background', target: '浮条「抠图」',
+    userExpectation: '背景被抠掉（透明底 PNG），成为新的一版并设为当前版；第一次要下载模型，有一条往前走的进度，不会一直转',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：当前版换成抠图结果、版本 +1、角上透明、卡下垫棋盘格；用时 26–36 秒（镜像由本机缓存应答，不含公网下载；公网下载另测 79–124 秒）—— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-whiteboard', target: '浮条画板图标',
+    userExpectation: '打开画板，里面已经放好这张图',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：画板打开 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-fullscreen', target: '浮条「全屏预览」',
+    userExpectation: '打开这张图的大图预览，Esc 关上',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：打开这张图的预览，Esc 关上 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-provenance', target: '浮条「查看生成记录」',
+    userExpectation: '打开这张图的生成记录',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：打开了生成记录 —— 一致；但面板比窗口还高（1280×800 窗口里面板高 1160），下半截出了窗口（铁律 7，另记）',
+  }),
+  TB_TARGET({
+    id: 'tb-duplicate-variant', target: '浮条「复制为变体」',
+    userExpectation: '多出一个空的变体节点（不带结果），连着原来的上游；不花钱',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：多了 1 个空的图片节点（不带结果），供应商没收到请求 —— 一致',
+  }),
+  TB_TARGET({
+    id: 'tb-menu-near-top', target: '节点贴画布上沿时打开「改图 ▾」',
+    owner: 'src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx#ToolbarActionMenu',
+    userExpectation: '菜单整块在窗口里，不盖住「改图」本身，也不盖住浮条上别的按钮',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗两档一致）：把节点拖到画布上沿再开「改图 ▾」：菜单整块在浮条下面、在窗口里，没压住「改图」和别的按钮（弹层几何探针零违例）—— 一致',
+  }),
+])
+
+/** ⑫ 可点目标全表（目录自检对它逐行查）。 */
+export const CLICK_TARGETS = Object.freeze([...STORYBOARD_CLICK_TARGETS, ...NODE_TOOLBAR_CLICK_TARGETS])
 
 const PHASE = 'src/workbench/generationCanvas/runner/generationPhaseDeadline.ts#GENERATION_PHASE_DEADLINE'
 const USER = Object.freeze({ waitsFor: 'user' })
@@ -36,6 +184,11 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
     id: 'pb04-script-attachment-long-chat', script: 'tests/ux/full-walk/playbooks/pb04-script-attachment-long-chat.walk.mjs', paid: false,
     title: Object.freeze({ 'zh-CN': '给 Agent 传 txt 剧本，再来回改好几轮', en: 'Attach a txt script, then a long rewrite chat' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' })]),
+  }),
+  Object.freeze({
+    id: 'pb11-canvas-single-run', script: 'tests/ux/full-walk/playbooks/pb11-canvas-single-run.walk.mjs', paid: false,
+    title: Object.freeze({ 'zh-CN': '画布上点 ↑：一次点击一个单镜 Run，被拒可再点，结果未知被拦', en: 'Canvas generate: one single-shot Run per click, rejected may retry, unknown is blocked' }),
+    variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
   }),
   Object.freeze({
     id: 'pb10-node-display-rules', script: 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', paid: false,
@@ -73,6 +226,16 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' })]),
   }),
   Object.freeze({
+    id: 'pb12-storyboard-click-expectations', script: 'tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs', paid: false,
+    title: Object.freeze({ 'zh-CN': '分镜表上每个可点的地方各点一下：点了是不是用户以为的那件事（铁律 ⑫）', en: 'Click every target on the storyboard table: does it do what the user expected (law 12)' }),
+    variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
+  }),
+  Object.freeze({
+    id: 'pb13-node-toolbar-actions', script: 'tests/ux/full-walk/playbooks/pb13-node-toolbar-actions.walk.mjs', paid: false,
+    title: Object.freeze({ 'zh-CN': '图片节点浮条上每个动作各点一下：派生 / 改图 / 宫格 / 抠图 / 画板 / 预览 / 记录，点了是不是用户以为的（铁律 ⑫）', en: 'Click every action on the image node toolbar: does each do what the user expected (law 12)' }),
+    variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
+  }),
+  Object.freeze({
     id: 'pb91-storyboard-dragon-paid', script: 'tests/ux/full-walk/playbooks/pb91-storyboard-dragon.paid.mjs', paid: true,
     title: Object.freeze({ 'zh-CN': '（付费小额）分镜里写「巨龙」，真出图一张，结果是龙不是人', en: '(paid) Storyboard row says dragon, one real image, it must be a dragon' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' })]),
@@ -98,11 +261,11 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'still-generating', kind: 'system', visibleText: ['generationCommon.observability.progress.stillGenerating'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'still-generating' } },
       { id: 'finalizing', kind: 'system', visibleText: ['generationCommon.observability.progress.finalizing'], actions: [], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'finalizing' } },
       { id: 'saved-receipt', kind: 'system', visibleText: ['generationCommon.observability.progress.saved'], actions: [], owner: 'src/workbench/observability/generationFeedback.ts#savedFeedbackWindowOpen', deadline: { ref: 'src/workbench/observability/generationFeedback.ts#SAVED_FEEDBACK_WINDOW_MS' } },
-      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.resultStack.versionCount'], actions: ['下载', '加入时间轴', '再生成一版'], owner: 'src/workbench/generationCanvas/nodes/NodeResultStack.tsx#NodeResultStack' },
+      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.versionCards.expandAria'], actions: ['下载', '加入时间轴', '再生成一版'], owner: 'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx#NodeVersionCardsHost' },
       { id: 'error', kind: 'terminal', visibleText: ['generationCommon.observability.action.retry.main', 'generationCommon.observability.action.switchModel.main', 'generationCommon.node.providerFailed', 'generationCommon.node.switchProvider', 'generationCommon.observability.error.outputUnreadable.reason', 'generationCommon.observability.error.outputUnreadable.hint'], actions: ['重试', '换个模型', '切到另一家'], owner: 'src/workbench/observability/classifyError.ts#classifyGenerationError' },
-      { id: 'recoverable', kind: 'user', visibleText: ['generationCommon.recoverable.title', 'generationCommon.recoverable.recover'], actions: ['重新拉取（免费）', '标记失败'], owner: 'src/workbench/generationCanvas/runner/recoverTaskActions.ts#recoverNodeResult', deadline: USER },
+      { id: 'recoverable', kind: 'user', visibleText: ['generationCommon.recoverable.title', 'generationCommon.production.runAction.retry-retrieval'], actions: ['重新取回（免费）', '标记失败'], owner: 'src/workbench/generationCanvas/runner/recoverTaskActions.ts#recoverNodeResult', deadline: USER },
     ].map(Object.freeze)),
-    scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb02-reference-image.walk.mjs', 'tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs', 'tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs', 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', 'tests/ux/node-params-and-version-pill.walk.mjs', 'tests/ux/full-walk/playbooks/pb90-seedream5.paid.mjs']),
+    scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb02-reference-image.walk.mjs', 'tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs', 'tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs', 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', 'tests/ux/full-walk/playbooks/pb11-canvas-single-run.walk.mjs', 'tests/ux/full-walk/playbooks/pb13-node-toolbar-actions.walk.mjs', 'tests/ux/node-params-and-version-pill.walk.mjs', 'tests/ux/full-walk/playbooks/pb90-seedream5.paid.mjs']),
     invariants: Object.freeze([1, 2, 3, 5, 7, 9]),
     metric: Object.freeze({ success: 'generation.completed{result=success}', failure: 'generation.completed{result=failure}', owner: 'src/workbench/api/taskApi.ts' }),
   }),
@@ -115,7 +278,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'resolving', kind: 'system', visibleText: ['generationCommon.observability.progress.submitting'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'resolving' } },
       { id: 'generating', kind: 'system', visibleText: ['generationCommon.observability.progress.generating', 'generationCommon.observability.progress.stillGenerating'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'generating' } },
       { id: 'finalizing', kind: 'system', visibleText: ['generationCommon.observability.progress.finalizing'], actions: [], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'finalizing' } },
-      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.resultStack.versionCount'], actions: ['播放', '拖进时间轴'], owner: 'src/workbench/generationCanvas/nodes/NodeResultStack.tsx#NodeResultStack' },
+      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.versionCards.expandAria'], actions: ['播放', '拖进时间轴'], owner: 'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx#NodeVersionCardsHost' },
       { id: 'error', kind: 'terminal', visibleText: ['generationCommon.observability.action.retry.main'], actions: ['重试', '换个模型'], owner: 'src/workbench/observability/classifyError.ts#classifyGenerationError' },
     ].map(Object.freeze)),
     scripts: Object.freeze(['tests/ux/omni-video-reference-gate.walk.mjs', 'tests/ux/storyboard-first-frame-false-alarms.walk.mjs']),
@@ -130,7 +293,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'uploading-reference', kind: 'system', visibleText: ['generationCommon.observability.progress.submitting'], actions: ['停止'], owner: 'electron/catalog/assetLocalization.ts#resolveAssetIngestionWithFallback', deadline: { ref: PHASE, key: 'requesting' } },
       { id: 'agent-card-waiting', kind: 'user', visibleText: ['agentPanelV4.spendParamsTitleImage_one', 'agentPanelV4.spendConfirmThisImage', 'agentPanelV4.spendRemoveThisImage'], actions: ['生成这张', '去掉这张', '×'], owner: 'src/workbench/ai/v4/spendCardDraft.ts#projectSpendNode', deadline: USER },
       { id: 'generating', kind: 'system', visibleText: ['generationCommon.observability.progress.generating'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'generating' } },
-      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.resultStack.versionCount'], actions: ['下载', '设为首帧'], owner: 'src/workbench/generationCanvas/nodes/NodeResultStack.tsx#NodeResultStack' },
+      { id: 'success', kind: 'terminal', visibleText: ['generationCommon.versionCards.expandAria'], actions: ['下载', '设为首帧'], owner: 'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx#NodeVersionCardsHost' },
       { id: 'error', kind: 'terminal', visibleText: ['generationCommon.observability.action.retry.main'], actions: ['重试'], owner: 'src/workbench/observability/classifyError.ts#classifyGenerationError' },
     ].map(Object.freeze)),
     scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb02-reference-image.walk.mjs', 'tests/ux/full-walk/playbooks/pb07-storyboard-prompt-truth.walk.mjs', 'tests/ux/full-walk/playbooks/pb91-storyboard-dragon.paid.mjs', 'tests/ux/pr619-reference-task.walk.mjs']),
@@ -141,13 +304,13 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J04-agent-multishot-spend',
     title: Object.freeze({ 'zh-CN': 'Agent 起草多镜并付费确认', en: 'Agent drafts several shots and the user confirms the spend' }),
     states: Object.freeze([
-      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS', deadline: { ref: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS' } },
+      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneProviderGuard.mts#LANE_STREAM_WATCHDOG', deadline: { ref: 'electron/agentLane/laneProviderGuard.mts#LANE_FIRST_TOKEN_MS' } },
       { id: 'drafted-on-canvas', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queued'], actions: ['看占位卡'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { gap: '草稿落画布之后到出卡之间没有登记时限（出卡由同一回合的 generate 负责）' } },
       { id: 'card-waiting', kind: 'user', visibleText: ['agentPanelV4.spendParamsTitleImage_other', 'agentPanelV4.spendConfirmThisImage', 'agentPanelV4.spendRemoveThisImage'], actions: ['翻页', '生成这张', '去掉这张', '×'], owner: 'src/workbench/ai/v4/useAgentPanelSpendConfirm.ts#useAgentPanelSpendConfirm', deadline: USER },
       { id: 'shots-queued', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queuedNth'], actions: ['暂停'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { ref: 'electron/productionRun/multiShotBatchScheduler.ts#POLL_DELAY_CAP_MS' } },
       { id: 'shot-generating', kind: 'system', visibleText: ['generationCommon.observability.progress.generating'], actions: ['暂停'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { ref: PHASE, key: 'generating' } },
-      { id: 'done', kind: 'terminal', visibleText: ['generationCommon.node.reshoot'], actions: ['重拍这镜（选中节点后在浮条里）', '下载'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState' },
-      { id: 'failed', kind: 'terminal', visibleText: ['generationCommon.production.canvasLanding.stoppedAfterFailure'], actions: ['重拍这镜'], owner: 'electron/productionRun/multiShotBatchScheduler.ts#settleAtRest' },
+      { id: 'done', kind: 'terminal', visibleText: ['generationCommon.composer.regenerate'], actions: ['再出一版（选中节点后按 ↑；10-06 删了浮条的「重拍这镜」）', '下载'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState' },
+      { id: 'failed', kind: 'terminal', visibleText: ['generationCommon.production.canvasLanding.stoppedAfterFailure'], actions: ['重试（失败卡上，走返工链、停下的批次接着跑）'], owner: 'electron/productionRun/multiShotBatchScheduler.ts#settleAtRest' },
     ].map(Object.freeze)),
     scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb01-two-page-card.walk.mjs', 'tests/ux/full-walk/playbooks/pb03-default-models.walk.mjs', 'tests/ux/full-walk/playbooks/pb08-cover-card-kind.walk.mjs', 'tests/ux/core-smoke-spend-confirm.walk.mjs']),
     invariants: Object.freeze([1, 2, 3, 4, 6, 9]),
@@ -175,7 +338,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'undo-window', kind: 'system', visibleText: ['storyboardEditor.rowMenu.deleteUndoable'], actions: ['撤销'], owner: 'src/utils/showUndoToast.ts#showUndoToast', deadline: { ref: 'src/utils/showUndoToast.ts#DEFAULT_DURATION_MS' } },
       { id: 'deleted', kind: 'terminal', visibleText: [], actions: ['⌘Z'], owner: 'src/workbench/generationCanvas/agent/storyboardPlanEdits.ts#removeShotAt' },
     ].map(Object.freeze)),
-    scripts: Object.freeze(['tests/ux/storyboard-table-exec.walk.mjs', 'tests/ux/creation-plan-delete-undo.walk.mjs']),
+    scripts: Object.freeze(['tests/ux/storyboard-table-exec.walk.mjs', 'tests/ux/creation-plan-delete-undo.walk.mjs', 'tests/ux/full-walk/playbooks/pb12-storyboard-click-expectations.walk.mjs']),
     invariants: Object.freeze([1, 2, 6]),
     metric: Object.freeze({ gap: '删镜头没有上报；删掉排队中镜头之后制作流程还会不会派它，只能靠走查看 Run' }),
   }),

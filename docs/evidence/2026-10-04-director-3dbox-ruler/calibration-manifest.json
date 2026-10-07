@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/courtyard-standoff_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/perfume-orbit_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/police-chase_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-01-push_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-02-pull_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-03-pan_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-04-tilt_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-05-orbit_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/t1-06-follow_oracle.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/bait-courtyard-standoff-missing-shot.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/bait-courtyard-standoff-no-action.mp4"
+    },
+    {
+      "video": "../../../evals/runs/director-judge-20261003231308/media/bait-courtyard-standoff-reverse-direction.mp4"
+    }
+  ]
+}

@@ -5,7 +5,7 @@
 import crypto from "node:crypto";
 import { buildNormalizedRecipe, buildTaskProvenance } from "../vendor/provenance";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "../vendor/fingerprintCache";
-import { consumeTaskSpend } from "../tasks/taskSpend";
+import type { consumeTaskSpend } from "../tasks/taskSpend";
 import { traceVendorCompleted, traceVendorRequested } from "../events/vendorCallTrace";
 import { assertLocalAssetTransportReady, localizeAssetsForVendor, resolveAssetIngestionWithFallback } from "./assetLocalization";
 import { decryptApiKeyRecord } from "./secrets";
@@ -36,6 +36,8 @@ export type CustomCallDispatchInput = {
   nodeId: string;
   grantId: string;
   taskId: string;
+  /** 发出去之前的付费闸（令牌路核销令牌；Run 路批准已在 Run 的门上）。由 runtime 注入，这里不自己选。 */
+  spendGate: typeof consumeTaskSpend;
   /** 把脚本产出的二进制写成项目资产（注入避免循环依赖，同 localizeTaskAsset）。 */
   writeAsset: (projectId: string, bytes: Buffer, fileName: string, contentType: string, meta: Record<string, unknown>) => unknown;
   /** runtime 内部的资产落地（注入避免循环依赖）。 */
@@ -49,7 +51,7 @@ export type CustomCallDispatchInput = {
 };
 
 export async function runCustomCallTask(input: CustomCallDispatchInput): Promise<TaskResult> {
-  const { vendor, model, apiKey, customConfig, script, taskKind, modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId } = input;
+  const { vendor, model, apiKey, customConfig, script, taskKind, modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, spendGate } = input;
   // S8 指纹缓存同语义：脚本内容进 recipe（改脚本=新配方），mappingId 槽复用为脚本指纹。
   const scriptHash = crypto.createHash("sha1").update(script).digest("hex").slice(0, 16);
   const recipe = buildNormalizedRecipe({ vendor, model, mappingId: `custom-call:${scriptHash}`, request });
@@ -71,7 +73,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     readNomiLocalAsset,
     localizationOptions,
   );
-  await consumeTaskSpend({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras }); // 付费守卫：本地资产/上传策略预检通过后才消费
+  await spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras }); // 付费守卫：本地资产/上传策略预检通过后才消费
   traceVendorRequested(projectId, { runId: taskId, nodeId, recipe });
   const localized = await localizeAssetsForVendor(
     request.extras,

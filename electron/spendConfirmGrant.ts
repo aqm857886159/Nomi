@@ -2,8 +2,9 @@
 //
 // ── 它在解决哪个真实摩擦 ──
 //
-// 主进程里有两种动作会花钱：外部 agent 驱动的生成（`capabilityCore/gateway.ts`），和用户在画布上
-// 点一下就跑起来的一整批调用（视频拆解）。两者后面那一段本来就必须一模一样：
+// 主进程里自己问人、自己铸令牌的花钱动作，今天只剩用户在画布上点一下就跑起来的一整批调用（视频拆解）。
+// 外部 agent 那一条（`capabilityCore/gateway.ts` 的 confirmSpend）随 core.generateOnProject 一起删了（2026-10-05）。
+// 问人这一段必须一模一样：
 //
 //   prepareSpendQuote（把这次会真正发出的**每一次**调用摆成一行）
 //     → 弹卡问人（`spend.confirm`，卡永不因空闲超时）

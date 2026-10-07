@@ -109,7 +109,7 @@ async function fixture(
       if (kind === 'delete') return { applied: true, proposalId: input.receiptProposalId,
         operation: 'delete_canvas_nodes', deletedNodeIds, reconciliation: { ok: true, deviationCount: 0 } }
       // `make_artifact` 的收据形状（create_canvas_nodes）：新建的产物节点 id 映射回去。
-      return { applied: true, proposalId: input.receiptProposalId, operation: 'create_canvas_nodes', affectedNodeIds: ['node-artifact'],
+      return { applied: true, proposalId: input.receiptProposalId, changeId: `canvas:v1:${input.receiptProposalId}`, operation: 'create_canvas_nodes', affectedNodeIds: ['node-artifact'],
         affectedEdgeIds: [], clientIdToNodeId: { 'artifact-1': 'node-artifact' }, connectedCount: 0, skippedEdges: [],
         reconciliation: { ok: true, deviationCount: 0 } }
     },
@@ -126,7 +126,8 @@ async function fixture(
       target: documentTarget, preconditions: documentPreconditions }),
     // 同一份快照的另一半：付费那一侧问的是「这笔钱要不要停下来问」。
     approvalPolicy: () => policy,
-    generationFactory: () => undefined, onTaskCreated: async () => undefined })
+    generationFactory: () => undefined, onTaskCreated: async () => undefined,
+    spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: () => undefined }) } })
   cleanups.push(async () => assembly.dispose())
   const toolName = kind === 'document' ? 'write_script' : kind === 'delete' ? 'delete_from_canvas' : 'make_artifact'
   const args = kind === 'document' ? { content: ' Appended fixture.', where: 'end' }

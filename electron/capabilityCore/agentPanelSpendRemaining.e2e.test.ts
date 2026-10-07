@@ -9,10 +9,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
-import { registerSpendWaiter } from "./spendDecisionWaiters";
 import { waitForProduction } from "../productionRun/productionRunTestHelpers";
 import {
   PROJECT_ID, OPERATION_ID, startLoopbackVendor, harness, buildActions, resetSpendFixture, advanceClock, imageDraft, shotsSent, lease,
+  watchCardForTurn, settleMicrotasks,
 } from "./agentPanelSpendConfirmTestUtils";
 
 afterEach(resetSpendFixture);
@@ -25,10 +25,11 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
     const base = harness();
     const submits: string[] = [];
     const { withWindow, handler } = buildActions(base, vendor.origin, submits);
-    const heard: string[] = [];
-    const release = registerSpendWaiter(PROJECT_ID, OPERATION_ID, (decision) => heard.push(decision.kind));
+    let turn: ReturnType<typeof watchCardForTurn> | undefined;
     try {
       await imageDraft(base, handler, 5);
+      // 回合那一侧看的是账本里这一次出价开没开着（生产里 = laneDesktopSpend.whenCardCloses）。
+      turn = watchCardForTurn(base);
       expect(await withWindow.removePendingSpendShot({ ...TARGET, quoteId: withWindow.listPendingSpend(PROJECT_ID)[0].quoteId, shotId: "shot-2" }))
         .toMatchObject({ ok: true });
       const card = withWindow.listPendingSpend(PROJECT_ID)[0];
@@ -39,7 +40,8 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
 
       expect(shotsSent(submits), "每一张都发了，而且只发一次；去掉的那张没发").toEqual(["shot-1", "shot-3", "shot-4", "shot-5"]);
       expect(withWindow.listPendingSpend(PROJECT_ID), "每一张都决定了，卡关掉").toEqual([]);
-      expect(heard, "卡关掉那一刻递一次结论，和逐张点完一样").toEqual(["confirmed"]);
+      await settleMicrotasks();
+      expect(turn.closed(), "卡关掉那一刻回合醒来，和逐张点完一样").toBe(true);
 
       const run = base.repository.read(PROJECT_ID, OPERATION_ID)!;
       const digests = new Set(run.jobs.map((job) => job.authorizationDigest));
@@ -56,7 +58,7 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
         undecided: [],
       });
     } finally {
-      release();
+      turn?.dispose();
       await vendor.close();
     }
   });
@@ -218,9 +220,9 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
   // 收回出价时没有门可撤，这一镜随后照样批下、发出。回合听到的结局、× 回的张数、供应商收到的，三处都得按宿主最终批下的那一份说。
   describe("× 和正在批的那一镜赛跑", () => {
     type Outcome = ReturnType<typeof generationPresentationOutcome>;
-    /** 回合在卡关掉那一刻（递过来结论）就去读结局，读法和 lane 同一个（`readPresentationOutcome`）。 */
-    const listen = (built: ReturnType<typeof buildActions>, heard: Promise<Outcome | undefined>[]) =>
-      registerSpendWaiter(PROJECT_ID, OPERATION_ID, () => { heard.push(built.transport("step").readPresentationOutcome(OPERATION_ID)); });
+    /** 回合在账本里这一次出价关掉那一刻就去读结局，读法和 lane 同一个（`readPresentationOutcome`）。卡摆出来之后才开始看。 */
+    const listen = (built: ReturnType<typeof buildActions>, base: ReturnType<typeof harness>, heard: Promise<Outcome | undefined>[]) =>
+      watchCardForTurn(base, () => { heard.push(built.transport("step").readPresentationOutcome(OPERATION_ID)); });
 
     it("「生成剩下 4 张」批第 2 张时点 ×：第 2 张照样批下；回合听到的结局、× 回的张数、供应商收到的三处一致", async () => {
       const vendor = await startLoopbackVendor();
@@ -238,9 +240,10 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
           await waitForProduction(() => built.withWindow.listPendingSpend(PROJECT_ID).length === 0);
         },
       });
-      const release = listen(built, heard);
+      let turn: ReturnType<typeof listen> | undefined;
       try {
         await imageDraft(base, built.handler, 4);
+        turn = listen(built, base, heard);
         const card = built.withWindow.listPendingSpend(PROJECT_ID)[0];
         advanceClock(1000);
         expect(await built.withWindow.confirmRemainingShots({ ...TARGET, quoteId: card.quoteId, shotIds: card.shots.map((shot) => shot.shotId) }))
@@ -254,7 +257,7 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
           undecided: [{ shotId: "shot-3", reason: "user_closed" }, { shotId: "shot-4", reason: "user_closed" }],
         });
       } finally {
-        release();
+        turn?.dispose();
         await vendor.close();
       }
     });
@@ -273,9 +276,10 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
           await waitForProduction(() => built.withWindow.listPendingSpend(PROJECT_ID).length === 0);
         },
       });
-      const release = listen(built, heard);
+      let turn: ReturnType<typeof listen> | undefined;
       try {
         await imageDraft(base, built.handler, 3);
+        turn = listen(built, base, heard);
         const card = built.withWindow.listPendingSpend(PROJECT_ID)[0];
         advanceClock(1000);
         expect(await built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: card.quoteId, shotId: "shot-1" })).toMatchObject({ ok: true });
@@ -288,7 +292,7 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
           undecided: [{ shotId: "shot-2", reason: "user_closed" }, { shotId: "shot-3", reason: "user_closed" }],
         });
       } finally {
-        release();
+        turn?.dispose();
         await vendor.close();
       }
     });

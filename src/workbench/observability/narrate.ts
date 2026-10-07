@@ -136,6 +136,13 @@ export type GenerationErrorKind =
   // 付费提交发出后没拿到回复（连接被重置 / 响应超时 / 提交途中进程退出）：供应商**可能已经收下**。
   // 与 network 分开：network 说「请求没发到」，对这一类是假话；而且重试 = 可能重复提交，所以不给重试按钮。
   | 'submission-unknown'
+  // 付费提交**确定没离开本机**（主进程的出站证据：这次派发一个可能花钱的请求都没交给网络，结构化码 submission_not_sent /
+  // never_reached_network）。与 submission-unknown 恰好相反：服务商没收到，可以直接重试；与 network 分开：network 是
+  // 连不上服务商，这一条是在本机就停下了（出网策略、本机检查、密钥、网络设置……具体原因在技术详情里）。
+  | 'submission-not-sent'
+  // 已生成、取回失败（#975 A2，机器码 NOMI_ERR::output-retrieval-failed::）：结果在服务商那边，丢的只是下载。
+  // 与 outbound-blocked 分开：那条的下一步是去看网络；这条覆盖整个确定性取回失败族，下一步只有「重新取回」。
+  | 'output-retrieval-failed'
   | 'unknown'
 
 /** 目录（generationCommon.observability.error）里每一类失败的词条 key——单源；noChargeClaims.test 也读它。 */
@@ -166,6 +173,8 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'output-truncated': 'outputTruncated',
   'output-unreadable': 'outputUnreadable',
   'submission-unknown': 'submissionUnknown',
+  'submission-not-sent': 'submissionNotSent',
+  'output-retrieval-failed': 'outputRetrievalFailed',
   unknown: 'unknown',
 }
 
@@ -210,7 +219,7 @@ export function narrateModelKind(kind: string): string {
 // fix-model-kind：**直接把缺口补上**（改类型 + 按新类型重建调用通道），不是又把用户送去某一页
 // 自己找。这是这次唯一新增的动作——因为它是唯一一类「我们确切知道哪里错、也确切知道怎么改对」的
 // 失败。其余类别我们只知道现象、改不动，所以只能给「去哪儿」或「换一个」。
-export type GenerationErrorAction = 'retry' | 'switch-model' | 'open-model-access' | 'fix-model-kind' | 'reconcile' | 'view-task' | 'release-regenerate'
+export type GenerationErrorAction = 'retry' | 'switch-model' | 'switch-same-capability' | 'open-model-access' | 'fix-model-kind' | 'reconcile' | 'view-task' | 'release-regenerate'
 
 // 每类的主动作 + 次动作都写在表里（2026-09-29 起）。次动作默认是「另一个最可能有用的」：主动作不是重试 →
 // 次给重试（想试还能试，不堵死用户）；主动作就是重试 → 次给换模型（等不及就换一家）。下面三个常量就是这条
@@ -222,7 +231,9 @@ const ACCESS_FIRST: GenerationErrorActions = { primary: 'open-model-access', sec
 
 const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   // 换模型才有救：上游/目录层面就没有这个模型，配置和重试都改不了它。
-  'model-unavailable-upstream': SWITCH_FIRST,
+  // 2026-10-06 用户拍板：主按钮直接写出「换成〈同能力里此刻可用的另一个〉」，点一下才换（不自动换、换完不自动跑）；
+  // 没有同能力的另一个时，失败卡退回「换个模型」（打开下拉，useSameCapabilityAlternative 返回 null）。
+  'model-unavailable-upstream': { primary: 'switch-same-capability', secondary: 'switch-model' },
   // 已下线：目录里整条都没有了，重试必然再撞同一张卡（免费、不出门，但毫无意义）——不给次动作
   // （2026-09-29 协调会话裁决：撤 Sora 2 以后这张卡会被更多人看到）。
   'model-retired': { primary: 'switch-model', secondary: null },
@@ -275,6 +286,10 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   // 不给一键重试：这一镜可能已经被服务商收下，重试可能重复提交。次动作「我核对过了，重新生成」点下去先展开一段确认，
   // 确认后只释放占用、再走正常的付费确认卡；主动作指路去任务中心看这一笔的时间 / 模型 / 服务商。
   'submission-unknown': { primary: 'reconcile', secondary: 'release-regenerate' },
+  // 没发出去：处理好原因后直接重试；等不及就换一个模型（换了也不会和上一次重复，上一次根本没到服务商）。
+  'submission-not-sent': RETRY_FIRST,
+  // 只指路去任务面板（那里有「重新取回」）。绝不给 retry：重试 = 再生成一份、再花一次钱，而这一份已经做好了。
+  'output-retrieval-failed': { primary: 'view-task', secondary: null },
   unknown: RETRY_FIRST,
 }
 
@@ -313,6 +328,10 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'output-unreadable': false,
   // 服务商是否收下 Nomi 并不知道，不替它定性（也不触发「换一家」的切家提示）。
   'submission-unknown': false,
+  // 服务商根本没被请求到，不点名它。
+  'submission-not-sent': false,
+  // 失败在 Nomi 取回这一侧（策略 / 对方拒绝下载 / 返回的不是可用文件），不点名服务商「失败了」。
+  'output-retrieval-failed': false,
   unknown: false,
 }
 
@@ -334,6 +353,7 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 
 const ACTION_KEY: Record<GenerationErrorAction, string> = {
   'switch-model': 'switchModel',
+  'switch-same-capability': 'switchSameCapability',
   'open-model-access': 'modelAccess',
   'fix-model-kind': 'fixModelKind',
   retry: 'retry',

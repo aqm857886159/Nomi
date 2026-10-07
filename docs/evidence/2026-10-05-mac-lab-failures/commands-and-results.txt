@@ -1,0 +1,57 @@
+卡 8 只读诊断命令与结果（工作树：/workspace/Nomi-card8）
+
+$ git rev-parse --show-toplevel
+/workspace/Nomi-card8
+
+$ git rev-parse HEAD
+dfaefd6303df79bbec13a875feb972921b2b0f05
+
+$ git status --short
+(证据文件创建前为空；本次之后仅新增 docs/evidence/2026-10-05-mac-lab-failures/)
+
+$ git log --oneline --all -S'identityChipClass' -- src/workbench/generationCanvas/nodes/InlineParameterBar.tsx
+d12adcce1 fix(merge): 追平 main 后按裁决表收尾…
+70ebda21e fix(composer): chips 横排时身份包装也不许缩——EN 下「Kling 3.0」不再压住「16:9」
+
+$ git show --format= --no-ext-diff 70ebda21e -- src/workbench/generationCanvas/nodes/InlineParameterBar.tsx
+identityRow 外层由 cn('flex min-w-0 items-center gap-2', stacked && 'w-full')
+改为追加 identityChipClass；提交说明将根因写为 EN 下 Kling 3.0 溢出并压到 16:9。
+
+$ git show --format= --no-ext-diff d12adcce1 -- src/workbench/generationCanvas/nodes/InlineParameterBar.tsx
+删除 identityChipClass；提交说明称按 #834 规则撤回该行，但保留 ask-card 的相邻矩形不重叠断言。
+
+$ git show --format= --no-ext-diff 11e0ec754 -- electron/catalog/modelListReconcile.ts
+返回类型从包含 enabled 改为只包含 vendorKey/modelKey/unlisted；实现删除 enabled: unlisted ? false : model.enabled。
+
+$ git show --format= --no-ext-diff 037187744 -- src/i18n/locales/onboardingProviders.ts
+zh：供应商已不再列出 → 供应商清单里暂时没有它；en：No longer listed by provider → Not in the provider's list right now。
+
+$ git log --oneline --all -S'useDeferredValue(composerWanted)' -- src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx
+6a38dedcbb perf(canvas): 提示词编辑器选项引用稳定；选中节点时面板延后挂载
+
+$ git show --format= --no-ext-diff 6a38dedcbb -- src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx
+新增 composerWanted/composerMounted = React.useDeferredValue(composerWanted)，并以 composerWanted && composerMounted 挂载 NodeGenerationComposer。
+
+$ git log --oneline --all -- src/devlab/designLab/settings/settingsStates.tsx src/devlab/designLab/settings/states/02-assisted-onboarding.tsx
+755cfe68d test(design-lab):「用 AI 帮我接入」六格陈列 + 基线（光四格 · 暗两格）
+
+$ git show --format= --stat 755cfe68d
+新增 settings 的 ASSISTED_ONBOARDING_STATES 六格并把它们拼入 SETTINGS_STATES；没有同步修改 tests/ux/design-lab-settings.walk.mjs 的 EXPECTED_STATE。
+
+$ git show origin/chore/mac-walkthrough-run:docs/evidence/2026-10-05-mac-walkthroughs/logs/design-lab-ask-card-in-panel.walk-1.log
+8 个 en/light、en/dark spend 组合均为 Kling 3.0 → 16:9 重叠；RC=1。
+
+$ git show origin/chore/mac-walkthrough-run:docs/evidence/2026-10-05-mac-walkthroughs/logs/design-lab-catalog-liveness.walk-1.log
+明暗各 3 条：expected one unlisted note、unlisted model was enabled、manual enable failed；RC=1。
+
+$ git show origin/chore/mac-walkthrough-run:docs/evidence/2026-10-05-mac-walkthroughs/logs/design-lab-node-composer-bar.walk-1.log
+前五格 composer 卡数量均为实际 0；其余 chips/panel 格通过；RC=1。
+
+$ git show origin/chore/mac-walkthrough-run:docs/evidence/2026-10-05-mac-walkthroughs/logs/design-lab-settings.walk-1.log
+privacy 四格通过；assisted 六格均报未在 EXPECTED_STATE 认领；RC=1。
+
+Linux CI 证据（公开 job 页面）：
+https://github.com/aqm857886159/Nomi/actions/runs/37306291963/job/111751764732
+页面标题：E2E Walkthroughs (Linux)；状态原文：This job was skipped。
+
+本环境限制：没有 Mac runner；没有执行 Mac bisect。以上提交定位均为只读历史查询。

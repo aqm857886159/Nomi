@@ -18,4 +18,4 @@
 - 判断依赖「用户留下的 X」时，用 `node scripts/door-map.mjs <写入函数>` 数出全部写口，逐个问「这是用户留下的，还是程序自己的簿记（同步、回声、挂载、默认值兜底）？」簿记在写口处挡掉。
 - 「默认值兜底」最容易被物化成一条记录：store 里没有 → 用默认 → 默认被同步出去 → 回声把默认写回 store，从此「没有记忆」变成「记忆 = 默认」。
 - 走查要覆盖同一动作的第二次（重开、再切回来、第二个项目），而且第二次之前的状态要是用户真实会留下的样子，不要先点复位把状态洗干净。
-- 正本：`docs/engineering/concept-owners.json`「画布记住的视角（每个分类）」；合同 `docs/fixes/2026-09-26-open-fit-reopen-remembered-echo.root-cause.json`；守门走查 `tests/ux/canvas-open-fit.walk.mjs`。
+- 正本：`docs/engineering/concept-owners/`「画布记住的视角（每个分类）」；合同 `docs/fixes/2026-09-26-open-fit-reopen-remembered-echo.root-cause.json`；守门走查 `tests/ux/canvas-open-fit.walk.mjs`。

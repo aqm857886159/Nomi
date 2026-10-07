@@ -5,6 +5,12 @@ export type ProjectAgentProposalCompensation =
   | Readonly<{ kind: "disconnect-edges"; pairs: readonly Readonly<{ source: string; target: string }>[] }>
   | Readonly<{ kind: "restore-prompt"; nodeId: string; prompt: string; promptOverridden?: boolean }>
   | Readonly<{ kind: "restore-graph"; nodes: readonly unknown[]; edges: readonly unknown[] }>
+  /** 把一个**仍存在**的节点的 meta / prompt 放回提议之前（3D-BOX 计划修订、预演挂接都改的是既有节点）。 */
+  | Readonly<{ kind: "restore-node-fields"; nodeId: string; meta: Readonly<Record<string, unknown>>; prompt: string }>
+  /**
+   * 「准备中」收据里的提议之前的整张图（那一刻还不知道这笔会碰哪些对象）。它只是证据：执行时逐对象比出
+   * 按对象补偿（renderer agent/beforeImageCompensation），从不整图放回。
+   */
   | Readonly<{
       kind: "restore-snapshot";
       snapshot: Readonly<{ nodes: readonly unknown[]; edges: readonly unknown[]; groups: readonly unknown[] }>;
@@ -180,6 +186,15 @@ function parseCompensation(value: unknown): ProjectAgentProposalCompensation | n
     if (source.promptOverridden !== undefined && typeof source.promptOverridden !== "boolean") return null;
     return nodeId !== null && prompt !== null
       ? Object.freeze({ kind: "restore-prompt" as const, nodeId, prompt, ...(source.promptOverridden !== undefined ? { promptOverridden: source.promptOverridden } : {}) })
+      : null;
+  }
+  if (source.kind === "restore-node-fields") {
+    if (!exactKeys(source, ["kind", "nodeId", "meta", "prompt"])) return null;
+    const nodeId = safeString(source.nodeId);
+    const prompt = safeString(source.prompt, true);
+    const meta = record(source.meta) ? jsonClone(source.meta) : undefined;
+    return nodeId !== null && prompt !== null && meta && typeof meta === "object" && !Array.isArray(meta)
+      ? Object.freeze({ kind: "restore-node-fields" as const, nodeId, meta: meta as Record<string, unknown>, prompt })
       : null;
   }
   if (source.kind === "restore-graph") {

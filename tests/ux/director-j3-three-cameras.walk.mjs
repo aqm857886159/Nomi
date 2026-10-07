@@ -13,10 +13,10 @@ try {
   await placeCharacter(lab, 'male', 0, 0)
   await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 1", '主角落地')
   const hero = (await lab.scene()).objects[0]
-  await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角')
+  await lab.pickInOutliner(hero.name, '大纲·主角')
   // 预设机位相对选中主体，建完一台主体会被取消选中，下一台前要重新选主角
   for (const preset of ['正面中景', '侧面近景', '俯拍全景']) {
-    await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角（机位相对主体）')
+    await lab.pickInOutliner(hero.name, '大纲·主角（机位相对主体）')
     await addCameraPreset(lab, preset)
   }
   await lab.waitScene('s.cameras.length === 3', '三台机位')
@@ -68,12 +68,14 @@ try {
   await placeCharacter(lab, 'female', 2, 0)
   await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 2", '陪衬角色落地')
   const companion = (await lab.scene()).objects.find((item) => item.type === 'character' && item.id !== hero.id)
+  await lab.openOutliner() // 多选与打组都在「▤ ▾」浮层里的大纲上做，浮层开着连点
   await lab.outlinerRow(hero.name).click()
   await lab.outlinerRow(companion.name).click({ modifiers: ['Control'] })
   await page.getByTestId('director-selection-bar').getByRole('button', { name: '打组', exact: true }).click()
   await lab.waitScene("s.objects.some(o => o.type === 'group')", '两个角色真实打组')
   const group = (await lab.scene()).objects.find((item) => item.type === 'group')
   await lab.outlinerRow(group.name).click()
+  await lab.closeOutliner()
   const inspector = page.getByTestId('director-inspector')
   for (const [label, value] of [['X', '3'], ['水平', '35']]) {
     const field = inspector.locator('label').filter({ has: page.getByText(label, { exact: true }) }).first().locator('input[type="text"]')

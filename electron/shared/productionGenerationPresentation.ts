@@ -17,7 +17,7 @@ import type {
   ProductionRun,
 } from "../productionRun/productionRunTypes";
 import { spendAuthorizationGates } from "./productionSpendAuthority";
-import { jobFailedBeforeSending, jobsForShot } from "./productionShotJobs";
+import { jobEndedBeforeAcceptance, jobsForShot } from "./productionShotJobs";
 
 type PlanView = Pick<ProductionGenerationPlan, "state" | "candidate" | "shots" | "presentations">;
 
@@ -159,13 +159,13 @@ export function generationPresentationOutcome(run: Pick<ProductionRun, "gates" |
 }
 
 /**
- * 这一镜在这一次出价里批出来的每一次尝试，都证明过一个字节没写出去（`productionShotJobs.jobFailedBeforeSending`）。
+ * 这一镜在这一次出价里批出来的每一次尝试，都结束在被受理之前——没写出去，或供应商当场明确拒绝（`productionShotJobs.jobEndedBeforeAcceptance`）。
  * 「这一次出价里批出来的」= job 记的授权摘要属于这一次出价开出来之后建的门（和 `approvedIn` 同一条边界，不比时间戳）。
  */
 function failedBeforeSendingIn(run: Pick<ProductionRun, "gates" | "generationPlan" | "jobs">, shotId: string, presentation: GenerationPresentation): boolean {
   const digests = new Set(spendAuthorizationGates(run).slice(presentation.fromGate).map((gate) => gate.authorizationDigest));
   const jobs = jobsForShot(run, shotId).filter((job) => job.authorizationDigest !== undefined && digests.has(job.authorizationDigest));
-  return jobs.length > 0 && jobs.every(jobFailedBeforeSending);
+  return jobs.length > 0 && jobs.every(jobEndedBeforeAcceptance);
 }
 
 /**

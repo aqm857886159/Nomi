@@ -14,6 +14,7 @@ import {
   canvasWriteSemanticInputSchema,
   type CanvasWriteInput,
 } from "../shared/agentCapabilities/canvasWrite";
+import { DIRECTOR_WRITE_CAPABILITY, directorWriteSemanticInputSchema, type DirectorWriteInput } from "../shared/agentCapabilities/directorWrite";
 import type { TargetRef } from "../shared/capabilityTargeting";
 import type { CapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
 import type { CanvasReadSurfacePortRuntime } from "./canvasReadSurfacePort";
@@ -21,10 +22,11 @@ import type { CanvasReadSurfaceRegistry, ProjectSurfaceSession } from "./canvasR
 import {
   createRendererCanvasDeleteVerifiedInvocationFactory,
   createRendererCanvasWriteVerifiedInvocationFactory,
+  createRendererDirectorWriteVerifiedInvocationFactory,
   type VerifiedCapabilityInvocation,
 } from "./verifiedCapabilityInvocation";
 
-type CanvasMutationInput = CanvasWriteInput | CanvasDeleteInput;
+type CanvasMutationInput = CanvasWriteInput | CanvasDeleteInput | DirectorWriteInput;
 
 export type PreparedCanvasWrite = Readonly<{
   call: RuntimeToolCall;
@@ -78,9 +80,29 @@ export function createPiCanvasWriteTransportAdapter(
     session: input.session,
     requestId: input.requestId,
   });
+  const directorFactory = createRendererDirectorWriteVerifiedInvocationFactory({
+    registry: input.registry,
+    session: input.session,
+    requestId: input.requestId,
+  });
   let disposed = false;
   return Object.freeze({
     async prepare(call, signal) {
+      // 3D-BOX：`director.write` 是独立契约（仅内部），但写口、证据、审批与画布写同一条 surface port。
+      if (call.toolName === DIRECTOR_WRITE_CAPABILITY.id) {
+        if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
+        if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
+        let directorInput: DirectorWriteInput;
+        try {
+          directorInput = directorWriteSemanticInputSchema.parse(call.args);
+        } catch {
+          throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
+        }
+        const port = input.surfacePortRuntime.createCanvasWritePort(input.registry.captureProjectSessionPort(input.session));
+        const rawEvidence = await port.capture({ operation: directorInput.operation, input: directorInput, signal });
+        const invocation = await directorFactory.mint({ toolCallId: call.toolCallId, input: directorInput, rawEvidence });
+        return Object.freeze({ call, invocation: invocation as unknown as PreparedCanvasWrite["invocation"] });
+      }
       const args =
         call.args && typeof call.args === "object" && !Array.isArray(call.args)
           ? (call.args as Record<string, unknown>)

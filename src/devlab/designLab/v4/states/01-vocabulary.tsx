@@ -22,6 +22,7 @@ import type { ToolReceipt, V4AssistantStatus } from '../../../../workbench/ai/v4
 import { formatMoney } from '../../../../workbench/ai/v4/formatMoney'
 import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import type { LaneViewModelLabels } from '../../../../workbench/ai/lane/laneViewModel'
+import { providerFailureText } from '../../../../workbench/ai/lane/laneCommandFailure'
 import { laneDrivenReceipt, laneSnapshotQuestionAnswered, laneSnapshotToolDenied, laneSnapshotToolRunning } from '../laneDrivenFixtures'
 import type { LabState } from '../../labScreen'
 
@@ -112,13 +113,14 @@ function ReceiptCell({ pick, errorBar }: { pick: keyof ReturnType<typeof useV4Fi
  * 两层投影要的那份词表。**抽出来是因为它有第二个消费者了**（反问答完那一行）——
  * 原地再抄一份就是同一份词表两个主人，而「类型要求穷尽」这条护栏的价值正好会被抄漏抵消。
  */
-function labViewModelLabels(fx: ReturnType<typeof useV4Fixtures>, toolLabel: string): LaneViewModelLabels {
+export function labViewModelLabels(fx: ReturnType<typeof useV4Fixtures>, toolLabel: string): LaneViewModelLabels {
   return {
     toolLabel: () => toolLabel,
     toolSummary: () => undefined,
     toolFailure: () => undefined,
     toolFailureDetail: (failure) => failure.code,
-    assistantFailure: (text) => text,
+    assistantFailure: (text, facts) => providerFailureText(text, fx.t, facts),
+    assistantRecovered: fx.t('agentPanelV4.errorRecovered'),
     thinkingLabel: fx.t('agentPanelV4.thinkingLabel'),
     formatTokens: (value) => String(value),
     formatCost: (usd) => `$${usd.toFixed(2)}`,

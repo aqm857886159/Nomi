@@ -18,7 +18,6 @@ import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStory
 import { createTimelineExportManifest } from '../export/exportApi'
 import { exportTimelineToWebm } from '../export/timelineWebmExport'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
-import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/storyboardPlan'
 import { projectPlanShotsOntoCreatedNodes } from '../creation/storyboard/exec/storyboardProjection'
@@ -40,17 +39,18 @@ import {
   type CapturedCanvasReadSnapshotHandleWire,
 } from '../../../electron/shared/surfacePortBinding'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
+import { isCanvasDocument } from '../../../electron/shared/canvas/externalCanvasWrite'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
 import { handleMcpHostSurfaceOp } from './mcpHostSurfaceOps'
 import { presentStoryboard } from './storyboardPresent'
-import { patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
+import { directorPreviewBlocksOp } from './directorPreviewBlocksOp'
+import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
 import { confirmCredentialProbeSpend, spendModelLine } from './credentialProbeSpendCard'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
-// 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
-// 单一真相源：画布读写复用 store 现成动作（readDocumentSnapshot / applyExternalGraph），
+// 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。单一真相源：画布读写复用 store 现成动作（readDocumentSnapshot / applyExternalGraph），
 // 付费确认复用全仓唯一的 useSpendConfirmStore（不另造并行 UI，P1）。
 
 type SpendConfirmPayload = {
@@ -416,8 +416,10 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed
   if (op === 'storyboard.present') return presentStoryboard(data)
+  if (op === 'director.preview-blocks') return directorPreviewBlocksOp(data)
   if (op === 'storyboard.upsert-design') return upsertAgentStoryboardDesign(data)
   if (op === 'storyboard.patch-design') return patchAgentStoryboardDesign(data)
+  if (op === 'storyboard.extend-design') return extendAgentStoryboardDesign(data)
 
   // 外部 MCP 宿主触发的纯渲染层副作用（打开凭据页 / 宿主配置已修复提示），落点住在 mcpHostSurfaceOps。
   const hostSurface = handleMcpHostSurfaceOp(op, data)
@@ -454,9 +456,12 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       })
     case 'canvas.read-doc':
       return useGenerationCanvasStore.getState().readDocumentSnapshot()
-    case 'canvas.apply':
-      useGenerationCanvasStore.getState().applyExternalGraph(data.snapshot)
+    case 'canvas.apply': {
+      // 外部写入只改它自己改了的东西：画布写边界的统一提交口按它读到的那份（base）三方合并到此刻的画布，事实层以此刻的为准。
+      if (!isCanvasDocument(data.snapshot) || !isCanvasDocument(data.base)) throw new SurfacePortWireError('capability_input_invalid')
+      useGenerationCanvasStore.getState().applyExternalGraph({ base: data.base, next: data.snapshot })
       return { ok: true }
+    }
     case 'spend.confirm':
       return confirmSpendFromMainProcess(data as SpendConfirmPayload)
     case 'generation.gate.confirm':
@@ -732,16 +737,6 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         ? data.shotNodeIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
         : []
       return verifyShotsForProduction(shotNodeIds, loaded)
-    }
-    case 'production.check-frozen': {
-      // W2 冻结门：driver 提交任何镜头前，问渲染层「本 run 的画布上有哪些视觉锚（角色/场景/道具卡）还没冻结」。
-      // 读画布 store 的 node.meta.frozen（判据走 anchorBibleKeys 单一镜像，与 headless/GUI 依赖波次同语义）。
-      // 只回未冻结的那些（nodeId + 标题）；driver 据此设冻结门 waiting 或放行（全冻结 → 空数组 → 放行）。
-      const unfrozenAnchors = useGenerationCanvasStore
-        .getState()
-        .nodes.filter((node) => isVisualAnchorNode(node) && !isAnchorFrozen(node))
-        .map((node) => ({ nodeId: node.id, ...(node.title && node.title.trim() ? { title: node.title.trim() } : {}) }))
-      return { unfrozenAnchors }
     }
     case 'production.export': {
       const project = typeof data.projectId === 'string' ? data.projectId : ''

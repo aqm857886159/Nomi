@@ -1,7 +1,8 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design（NomiSelect / WorkbenchButton / WorkbenchIconButton）、../../../../../../vendor/tablerIcons、../../../../../../utils/cn、
  *          ../../DirectorEditorContext、../../scene/pipCamera（PipRect / pipCameraIdOf）、../../model/cameraLens 的 exportAspectRatio
- * [OUTPUT]: 对外提供 PipViewport：画中画节目小窗的 DOM 外壳（默认左上，头部 机位下拉 · mm · 画幅 chip / LIVE / 折叠、透明画面区、进入·退出机位 + FOV 读数、拖标题移动、拖角缩放 280–520px）
+ * [OUTPUT]: 对外提供 PipViewport：画中画节目小窗的 DOM 外壳（默认左下，与导演视图同位，头部 机位下拉 · mm · 画幅 chip / LIVE / 折叠、透明画面区、进入·退出机位 + FOV 读数、拖标题移动、拖角缩放 280–520px）；
+ *           导演视图（presentation）时同一个组件钉在视口左下（同一个角）、只有一行「▷ 镜头 N · 景别 · 运镜 · 画幅」，不给机位下拉 / 焦距 / FOV / 进入视角
  * [POS]: director/panels/viewport 的画中画（清单 §2.5 V7）：画面本身由 scene/PipRenderer 在主画布同一位置剪裁渲染，这里只量矩形写进 ref、
  *        没有机位或节目黑场时盖黑底「无信号」；位置/宽度/折叠持久到 localStorage。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,21 +10,24 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../../../../design'
-import { IconChevronDown, IconChevronUp, IconVideo } from '../../../../../../vendor/tablerIcons'
+import { IconChevronDown, IconChevronUp, IconPlayerPlayFilled, IconVideo } from '../../../../../../vendor/tablerIcons'
 import { cn } from '../../../../../../utils/cn'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import { exportAspectRatio } from '../../model/cameraLens'
 import { pipCameraIdOf, type PipRect } from '../../scene/pipCamera'
 import { DIRECTOR_TOP_CHROME_PX } from '../topbar/topChrome'
+import type { DirectorViewportPresentation } from './DirectorViewport'
 
-const STORAGE_KEY = 'nomi:director:pip:v2'
+// v3（2026-10-04）：精修小窗改成贴左下（和导演视图同一个位置），布局按「左 + 底」记；v2 存的是「左 + 顶」，旧值不读，老用户回到左下默认
+const STORAGE_KEY = 'nomi:director:pip:v3'
 const MIN_WIDTH = 160
 const MAX_WIDTH = 520
 const EDGE = 8
+/** 左下边距 = 导演视图小窗的 bottom-3 / left-3（12px）：两个模式切换时小窗不跳 */
+const CORNER = 12
 
-type PipLayout = { left: number; top: number; width: number; collapsed: boolean }
-// 顶是悬浮顶栏之下（DIRECTOR_TOP_CHROME_PX），不是视口边缘：顶栏不占布局流，谁让开它由那个常量说了算
-const DEFAULT_LAYOUT: PipLayout = { left: 14, top: DIRECTOR_TOP_CHROME_PX, width: 280, collapsed: false }
+type PipLayout = { left: number; bottom: number; width: number; collapsed: boolean }
+const DEFAULT_LAYOUT: PipLayout = { left: CORNER, bottom: CORNER, width: 280, collapsed: false }
 
 function readLayout(): PipLayout {
   try {
@@ -32,8 +36,7 @@ function readLayout(): PipLayout {
     const parsed = JSON.parse(raw) as Partial<PipLayout>
     return {
       left: Number.isFinite(parsed.left) ? Number(parsed.left) : DEFAULT_LAYOUT.left,
-      // 旧布局可能存着 14（顶栏改悬浮之前的边距），读回来夹到顶栏之下，老用户自愈
-      top: Math.max(DIRECTOR_TOP_CHROME_PX, Number.isFinite(parsed.top) ? Number(parsed.top) : DEFAULT_LAYOUT.top),
+      bottom: Number.isFinite(parsed.bottom) ? Math.max(EDGE, Number(parsed.bottom)) : DEFAULT_LAYOUT.bottom,
       width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Number(parsed.width) || DEFAULT_LAYOUT.width)),
       collapsed: Boolean(parsed.collapsed),
     }
@@ -50,13 +53,15 @@ function writeLayout(layout: PipLayout): void {
   }
 }
 
-export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.MutableRefObject<PipRect>; canvasHostRef: React.RefObject<HTMLDivElement | null> }): JSX.Element | null {
+export function PipViewport({ rectRef, canvasHostRef, presentation }: { rectRef: React.MutableRefObject<PipRect>; canvasHostRef: React.RefObject<HTMLDivElement | null>; presentation?: DirectorViewportPresentation }): JSX.Element | null {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const cameras = useDirectorStore((state) => state.activeScene().cameras)
   const exportRatio = useDirectorStore((state) => state.project.exportRatio)
   const activeCameraId = useDirectorStore((state) => state.activeCameraId)
-  const shownCameraId = useDirectorStore((state) => pipCameraIdOf(state))
+  // 导演视图只回答「正在播哪一镜」：小窗跟播放头的节目机位，和 PipRenderer 用同一条选台规则
+  const directorMode = presentation?.kind === 'director'
+  const shownCameraId = useDirectorStore((state) => pipCameraIdOf(state, { followProgram: directorMode }))
   const isLive = useDirectorStore((state) => state.timeline.isPlaying || Boolean(state.recording))
   const recording = useDirectorStore((state) => Boolean(state.recording))
   const closeupBlocked = useDirectorStore((state) => (shownCameraId ? state.isCameraInCloseupAt(shownCameraId) : false))
@@ -74,7 +79,7 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
   React.useEffect(() => {
     const screen = screenRef.current
     const host = canvasHostRef.current
-    if (!showPreview || !screen || !host || layout.collapsed || !shownCameraId) {
+    if (!showPreview || !screen || !host || (layout.collapsed && !directorMode) || !shownCameraId) {
       rectRef.current = null
       return undefined
     }
@@ -91,7 +96,7 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
       observer.disconnect()
       rectRef.current = null
     }
-  }, [canvasHostRef, layout, rectRef, shownCameraId, showPreview])
+  }, [canvasHostRef, directorMode, layout, rectRef, shownCameraId, showPreview])
 
   const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
@@ -101,28 +106,24 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
     const startY = event.clientY
     const origin = layout
     const host = canvasHostRef.current
-    const onMove = (move: PointerEvent) => {
+    // 按「左 + 底」挪：往下拖 = 底边距变小；上限让开悬浮顶栏（DIRECTOR_TOP_CHROME_PX），下限贴视口底
+    const place = (clientX: number, clientY: number): PipLayout => {
       const width = host?.clientWidth ?? 0
       const height = host?.clientHeight ?? 0
       const rootWidth = rootRef.current?.offsetWidth ?? origin.width
       const rootHeight = rootRef.current?.offsetHeight ?? 0
-      const left = Math.max(EDGE, Math.min(width - rootWidth - EDGE, origin.left + (move.clientX - startX)))
-      const top = Math.max(EDGE, Math.min(height - rootHeight - EDGE, origin.top + (move.clientY - startY)))
-      setLayout({ ...origin, left, top })
+      return {
+        ...origin,
+        left: Math.max(EDGE, Math.min(width - rootWidth - EDGE, origin.left + (clientX - startX))),
+        bottom: Math.max(EDGE, Math.min(height - rootHeight - DIRECTOR_TOP_CHROME_PX, origin.bottom - (clientY - startY))),
+      }
     }
+    const onMove = (move: PointerEvent) => setLayout(place(move.clientX, move.clientY))
     const onUp = (up: PointerEvent) => {
       target.removeEventListener('pointermove', onMove)
       target.removeEventListener('pointerup', onUp)
       target.removeEventListener('pointercancel', onUp)
-      const width = host?.clientWidth ?? 0
-      const height = host?.clientHeight ?? 0
-      const rootWidth = rootRef.current?.offsetWidth ?? origin.width
-      const rootHeight = rootRef.current?.offsetHeight ?? 0
-      commitLayout({
-        ...origin,
-        left: Math.max(EDGE, Math.min(width - rootWidth - EDGE, origin.left + (up.clientX - startX))),
-        top: Math.max(DIRECTOR_TOP_CHROME_PX, Math.min(height - rootHeight - EDGE, origin.top + (up.clientY - startY))),
-      })
+      commitLayout(place(up.clientX, up.clientY))
     }
     target.addEventListener('pointermove', onMove)
     target.addEventListener('pointerup', onUp)
@@ -153,13 +154,44 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
   const shown = cameras.find((camera) => camera.id === shownCameraId) ?? null
   const inPovOfShown = shown !== null && activeCameraId === shown.id
   const enterBlockedReason = recording ? t('director.camera.pipRecordingBlocked') : closeupBlocked ? t('director.camera.pipEnterBlocked') : null
+  const ratioLabel = exportRatio === 'free' ? t('director.aspect.free') : exportRatio
+  const screen = (
+    <div ref={screenRef} className={cn('relative z-30 w-full', shown ? '' : 'bg-nomi-media-veil')} style={{ aspectRatio: String(aspect) }}>
+      {!shown ? (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-nomi-media-veil text-caption text-nomi-media-ink/70">
+          {cameras.length === 0 ? t('director.camera.pipNoCamera') : t('director.camera.pipNoSignal')}
+        </div>
+      ) : null}
+      <div className="absolute bottom-0 right-0 size-3 cursor-nwse-resize" title={t('director.camera.pipResize')} onPointerDown={beginResize} />
+    </div>
+  )
+
+  if (directorMode) {
+    // 导演视图：钉在视口左下（样张位置），不可拖也不可折叠——它是这一面唯一的「成片在播什么」读数，折起来就没处看了
+    return (
+      <div
+        ref={rootRef}
+        className="pointer-events-auto absolute bottom-3 left-3 z-30 flex flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-transparent shadow-nomi-lg"
+        style={{ width: layout.width }}
+        data-testid="director-pip"
+        data-pip-presentation="director"
+      >
+        {screen}
+        <div className="flex items-center gap-1.5 bg-nomi-paper px-2 py-1 text-caption text-nomi-ink-60" data-testid="director-pip-now-playing">
+          <IconPlayerPlayFilled size={12} stroke={2} className={cn('shrink-0', isLive ? 'text-nomi-accent' : 'text-nomi-ink-60')} aria-label={t('director.view.nowPlaying')} />
+          <span className="min-w-0 flex-1 truncate font-medium text-nomi-ink">{presentation.nowPlaying ?? t('director.camera.pipTitle')}</span>
+          <span className="shrink-0 font-nomi-mono text-micro">{ratioLabel}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
       ref={rootRef}
       // 画面区必须透明：画中画的像素是 PipRenderer 直接画在主画布同一位置的，外壳只给标题栏 / 页脚上底色
-      className="pointer-events-auto absolute flex flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-transparent shadow-nomi-lg"
-      style={{ left: layout.left, top: layout.top, width: layout.width }}
+      className="pointer-events-auto absolute z-30 flex flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-transparent shadow-nomi-lg"
+      style={{ left: layout.left, bottom: layout.bottom, width: layout.width }}
       data-testid="director-pip"
     >
       <div className="flex cursor-grab items-center gap-1 border-b border-nomi-line-soft bg-nomi-paper px-2 py-1 text-caption text-nomi-ink-80 active:cursor-grabbing" title={t('director.camera.pipDrag')} onPointerDown={beginDrag}>
@@ -168,7 +200,7 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
         {shown ? (
           <>
             <span className="rounded-nomi-sm bg-nomi-ink-10 px-1 font-nomi-mono text-micro text-nomi-ink-60">{t('director.camera.pipMm', { mm: shown.focalLengthMm })}</span>
-            <span className="rounded-nomi-sm bg-nomi-ink-10 px-1 font-nomi-mono text-micro text-nomi-ink-60">{exportRatio === 'free' ? t('director.aspect.free') : exportRatio}</span>
+            <span className="rounded-nomi-sm bg-nomi-ink-10 px-1 font-nomi-mono text-micro text-nomi-ink-60">{ratioLabel}</span>
           </>
         ) : null}
         {isLive ? <span className="rounded-nomi-sm bg-nomi-danger px-1 text-micro font-semibold text-nomi-paper">{t('director.camera.pipLive')}</span> : null}
@@ -197,14 +229,7 @@ export function PipViewport({ rectRef, canvasHostRef }: { rectRef: React.Mutable
       </div>
       {layout.collapsed ? null : (
         <>
-          <div ref={screenRef} className={cn('relative w-full', shown ? '' : 'bg-nomi-ink')} style={{ aspectRatio: String(aspect) }}>
-            {!shown ? (
-              <div className="absolute inset-0 flex items-center justify-center text-caption text-nomi-paper/70">
-                {cameras.length === 0 ? t('director.camera.pipNoCamera') : t('director.camera.pipNoSignal')}
-              </div>
-            ) : null}
-            <div className="absolute bottom-0 right-0 size-3 cursor-nwse-resize" title={t('director.camera.pipResize')} onPointerDown={beginResize} />
-          </div>
+          {screen}
           <div className="flex items-center justify-between gap-2 bg-nomi-paper px-2 py-1 font-nomi-mono text-micro text-nomi-ink-40">
             <span>{shown ? t('director.camera.pipFov', { fov: shown.fov.toFixed(1), mm: shown.focalLengthMm }) : '—'}</span>
             {shown ? (

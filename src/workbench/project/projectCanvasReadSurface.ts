@@ -7,6 +7,7 @@ import type {
 import { sameSurfacePortBindingWire, settleSurfacePortHandler, surfacePortFailure, SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import { sameProjectAgentBinding, type ProjectBinding } from '../../../electron/shared/projectBinding'
 import type { CanvasWriteInput, CanvasWriteOperation } from '../../../electron/shared/agentCapabilities/canvasWrite'
+import type { DirectorWriteOperation } from '../../../electron/shared/agentCapabilities/directorWrite'
 import type { CanvasDeleteInput } from '../../../electron/shared/agentCapabilities/canvasDelete'
 import type { AssetReadInput } from '../../../electron/shared/agentCapabilities/assetRead'
 import type { ExportReadInput, ExportWriteInput } from '../../../electron/shared/agentCapabilities/exportCapabilities'
@@ -57,7 +58,7 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
   ): () => void
   registerCanvasWriteCaptureSource(
     capture: (input: {
-      operation: CanvasWriteOperation | CanvasDeleteInput['operation']
+      operation: CanvasWriteOperation | CanvasDeleteInput['operation'] | DirectorWriteOperation
       input?: CanvasWriteInput | CanvasDeleteInput
       nodeId?: string
     }) => unknown,
@@ -146,7 +147,7 @@ export function registerProjectCanvasReadSurface(
     preconditions: unknown
   } & ProjectSurfaceExecutionGuard) => unknown,
   captureCanvasWrite?: (input: {
-    operation: CanvasWriteOperation | CanvasDeleteInput['operation']
+    operation: CanvasWriteOperation | CanvasDeleteInput['operation'] | DirectorWriteOperation
     input?: CanvasWriteInput | CanvasDeleteInput
     nodeId?: string
   }) => unknown,

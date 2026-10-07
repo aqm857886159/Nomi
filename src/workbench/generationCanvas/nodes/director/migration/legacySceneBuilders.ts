@@ -82,8 +82,10 @@ export function buildPlacedProps(props: ScenePropPlacement[] | undefined): Legac
 }
 
 // ── 场景模板：一键搭好的灰模布景（城市街道 / 室内房间），只产对象数组、追加进场景 ──
-export type LegacySceneTemplate = 'street' | 'room'
-export const SCENE_TEMPLATES: LegacySceneTemplate[] = ['street', 'room']
+import { DIRECTOR_SCENE_TEMPLATES, type DirectorSceneTemplate } from '../../../../../../electron/shared/director/vocab'
+
+export type LegacySceneTemplate = Extract<DirectorSceneTemplate, 'street' | 'room'>
+export const SCENE_TEMPLATES: LegacySceneTemplate[] = DIRECTOR_SCENE_TEMPLATES.filter((template): template is LegacySceneTemplate => template === 'street' || template === 'room')
 export const SCENE_TEMPLATE_LABEL: Record<LegacySceneTemplate, string> = { street: '城市街道', room: '室内房间' }
 
 function meshBlock(name: string, color: string, scale: LegacyVec3, position: LegacyVec3, rotation: LegacyVec3 = [0, 0, 0]): LegacyObject {

@@ -13,6 +13,17 @@ import {
 } from "./canvasWrite";
 
 describe("canvas.write canonical contract", () => {
+  it("requires a versioned changeId on every applied write result", () => {
+    const result = canvasWriteResultSchema.safeParse({
+      applied: true,
+      proposalId: "prop_1",
+      operation: "set_node_prompt",
+      affectedNodeIds: ["node-1"],
+      reconciliation: { ok: true, deviationCount: 0 },
+      changeId: "canvas:v1:prop_1",
+    });
+    expect(result.success).toBe(true);
+  });
   it("owns set_node_prompt as an internal reversible proposal capability", () => {
     expect(CANVAS_WRITE_CAPABILITY).toEqual({
       id: "canvas.write",
@@ -191,6 +202,7 @@ describe("canvas.write canonical contract", () => {
     const result = {
       applied: true,
       proposalId: "prop-a",
+      changeId: "canvas:v1:prop-a",
       operation: "set_node_prompt",
       affectedNodeIds: ["node-a"],
       reconciliation: { ok: true, deviationCount: 0 },
@@ -238,6 +250,7 @@ describe("canvas.write canonical contract", () => {
     const result = {
       applied: true,
       proposalId: "prop-patch-a",
+      changeId: "canvas:v1:prop-patch-a",
       operation: "patch_shots",
       changedShotIndexes: [2, 4],
       changedFields: ["prompt", "durationSec"],

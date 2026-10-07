@@ -24,7 +24,10 @@ const JOB_TRANSITIONS: Record<ProductionJobStatus, readonly ProductionJobStatus[
   adopted: [],
   submission_unknown: ["reconciling", "needs_attention", "cancel_requested", "submit_intent_persisted"],
   reconciling: ["provider_accepted", "needs_attention", "cancel_requested"],
-  needs_attention: ["reconciling", "cancel_requested"],
+  // `polling`：只给「已生成、取回失败」那一种 needs_attention 用（#975 A2）——供应商任务号还在、钱已经花了，
+  // 回到轮询 = 免费再查一次、再取一次，永远不会重新提交。准不准由 productionRunService 的 job.retry_retrieval 判
+  // （只认 errorCode output_retrieval_failed + 有任务号），这里只开这条边。
+  needs_attention: ["reconciling", "polling", "cancel_requested"],
   cancel_requested: ["cancelled_remote", "detached", "too_late"],
   cancelled_remote: [],
   detached: [],

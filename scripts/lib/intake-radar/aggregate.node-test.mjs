@@ -211,6 +211,15 @@ test('tallyUpdateActions 按 action × result 计数', () => {
   ])
 })
 
+test('tallyUpdateActions 失败带 reason 时按原因分开计数', () => {
+  const mk = (props) => ({ schemaVersion: 1, timestamp: '2026-09-24T00:00:00.000Z', sessionId: 's', eventName: 'update.action', props, systemProps: { locale: 'zh-CN', osFamily: 'windows', appMajor: 0, appMinor: 22 } })
+  const events = flattenEvents([fakeEventsRecord({ key: 'events/2026-09-24/b.json', events: [mk({ action: 'check', result: 'failure', reason: 'network' }), mk({ action: 'check', result: 'failure', reason: 'network' }), mk({ action: 'check', result: 'failure' })] })])
+  assert.deepEqual(tallyUpdateActions(events), [
+    { action: 'check', result: 'failure', reason: 'network', count: 2 },
+    { action: 'check', result: 'failure', count: 1 },
+  ])
+})
+
 test('buildIntakeReport 只把 newFeedbackKeys 里的键当"本次新增反馈"', () => {
   const feedbackRecords = [
     fakeFeedback({ key: 'feedback/2026-01-01/old.json', receivedAt: '2026-09-27T00:00:00.000Z', receipt: 'NF-OLD' }),

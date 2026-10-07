@@ -3,6 +3,8 @@ import { ASSET_READ_CAPABILITY } from "./assetRead";
 import { CANVAS_DELETE_CAPABILITY } from "./canvasDelete";
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
+import { DIRECTOR_WRITE_CAPABILITY } from "./directorWrite";
+import { director3dBoxFaceEnabled } from "../featureFlags/director3dboxFace";
 import { DOCUMENT_READ_CAPABILITY } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
@@ -69,7 +71,16 @@ const REGISTERED_CONTRACTS = [
   MODEL_ONBOARDING_REMOVE_CAPABILITY,
 ] as const satisfies readonly CapabilityContract<unknown, unknown>[];
 
-export const CAPABILITY_CONTRACTS: ContractOnlyRegistry<typeof REGISTERED_CONTRACTS> = REGISTERED_CONTRACTS;
+/**
+ * 3D-BOX 开关开时多注册一份仅内部的 `director.write`（`stage_shot` 换芯，见 `directorWrite.ts`）。
+ * 开关关时这张表与改动前逐项相同——对外 MCP 面、别名表都不变。到期 2026-11-15 随开关一起删分叉。
+ */
+const FLAGGED_CONTRACTS = [DIRECTOR_WRITE_CAPABILITY] as const satisfies readonly CapabilityContract<unknown, unknown>[];
+type RegisteredContract = ContractOnlyRegistry<typeof REGISTERED_CONTRACTS>[number] | ContractOnlyRegistry<typeof FLAGGED_CONTRACTS>[number];
+
+export const CAPABILITY_CONTRACTS: readonly RegisteredContract[] = director3dBoxFaceEnabled()
+  ? [...REGISTERED_CONTRACTS, ...FLAGGED_CONTRACTS]
+  : REGISTERED_CONTRACTS;
 
 /**
  * 对外 `tools/list` 上的全部工具名：契约自己声明的 `aliases.mcp`，加上不挂契约的那几个
@@ -129,8 +140,13 @@ export function capabilityPlanReviewOf(contract: AnyCapabilityContract | undefin
 }> {
   const operation = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>).operation : undefined;
   const review = typeof operation === "string" ? contract?.operationPlanReview?.[operation] : undefined;
-  return { requiresPlanReview: review !== undefined || contract?.requiresPlanReview === true,
-    planReviewAllowsReuse: review?.allowReuse ?? true };
+  // 契约既声明整体复审、又给了按 operation 的表时，认得出的 operation 只听表（表外的不复审，例如撤销）；
+  // 认不出 operation 才退回整体那一条（fail-closed）。只给表、不声明整体的契约（canvas.write）行为不变。
+  const operationKnown = typeof operation === "string" && contract?.operationPlanReview !== undefined
+    && (contract.aliases.method === operation || (contract.additionalAliases?.method ?? []).includes(operation)
+      || (contract.operationEffectClasses !== undefined && operation in contract.operationEffectClasses));
+  const requiresPlanReview = review !== undefined || (contract?.requiresPlanReview === true && !operationKnown);
+  return { requiresPlanReview, planReviewAllowsReuse: review?.allowReuse ?? true };
 }
 
 /** The single place that reads a contract's effect class, honouring its per-operation map. */

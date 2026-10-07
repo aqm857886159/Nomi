@@ -1,0 +1,48 @@
+{
+  "name": "一条提示的身份、去重、撤回与位置（同一件事一条、前提不成立就收、整条留在窗口里）",
+  "subject": "feedback.toast-identity",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/toast.tsx",
+    "symbol": "useToastStore"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/toast.tsx",
+      "symbol": "useToastStore"
+    },
+    {
+      "path": "src/ui/toast.tsx",
+      "symbol": "buildToastNotification"
+    },
+    {
+      "path": "src/ui/toast.tsx",
+      "symbol": "TOAST_MAX_HEIGHT"
+    },
+    {
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "NomiAppProviders"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "providerSwitchToastId",
+      "kind": "definition",
+      "why": "「按 (节点, 失败方, 模型, 目标, 目标模型) 拼身份」的第二套提示身份——换家之后 id 变了，旧提示成了没人撤的孤儿；一张卡一个 id，「同一次失败」由 occurrence 定，撤回由所有者的 validWhile 管"
+    }
+  ],
+  "parity_test": "src/ui/toastOccurrence.test.ts",
+  "allowed_consumers": [
+    "src/ui/notificationPolicy.ts",
+    "src/utils/showUndoToast.ts",
+    "src/utils/showInfoToast.ts",
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/workbench/generationCanvas/nodes/nodeRecoveryNotice.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "合同 docs/fixes/2026-09-29-toast-identity-withdrawal-and-window-fit.root-cause.json：提示的身份与撤回都归所有者。occurrence = 「同一件事被重新宣布」还是「又发生一次」（×N 只在真的又发生 N 次时出现，关掉过的事件不再冒出来）；validWhile = 前提不成立就撤回（靠状态变化，不靠定时器；showUndoToast 原来私有的监视并入它）；位置归容器：grid 隐式列 minmax(0,1fr)、高度上限 TOAST_MAX_HEIGHT 随窗口、文字区在上限内滚动。不给 occurrence / validWhile 的调用方照旧（每次 push 算一次发生）。 2026-09-30（验收页复核）：动作按钮上的字永远完整——正文至少 TOAST_MIN_BODY_WIDTH，放不进同一行的长动作折到正文下面、长标签折行不截断；提示点名供应商用显示名（nodeRecoveryNotice.vendorLabelFor），不写内部 id。"
+}

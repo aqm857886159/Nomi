@@ -15,7 +15,8 @@ describe("verb output provenance", () => {
     const declarations = VERB_DECLARATIONS.map((verb) => verb.name === "edit_timeline"
       ? { ...verb, outputSchema: z.object({ revision: z.string() }) }
       : verb);
-    expect(() => assertVerbFieldProvenance(declarations)).toThrow(/undoToken/);
+    // Signed model face: undo routes by changeId; the old undoToken wording is retired.
+    expect(() => assertVerbFieldProvenance(declarations)).toThrow(/changeId/);
   });
 
   it("falls back to the capability only when the verb has no output declaration", () => {

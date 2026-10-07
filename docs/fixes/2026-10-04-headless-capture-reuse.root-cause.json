@@ -1,0 +1,175 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-headless-capture-reuse",
+  "problem_type": "Duplicated director frame capture path",
+  "symptom": "The devlab renderer can produce frames through a second capture driver that skips the product headless capture lifecycle and its character GLB readiness wait.",
+  "direct_cause": "src/devlab/directorRender.tsx owns a CaptureDriver that duplicates seek, settle, camera selection, and capture calls instead of mounting DirectorHeadlessCapture.",
+  "class_root": "Frame capture has no single shared product boundary for scene readiness, camera selection, and capture metadata.",
+  "affected_population": [
+    "DevLab and blind judge renders",
+    "Product staging and camera move headless captures"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewportApiContext.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+    "src/devlab/directorRender.tsx",
+    "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.test.ts"
+  ],
+  "entry_points": [
+    "DirectorHeadlessCapture mounted by StagingCaptureHost",
+    "DirectorHeadlessCapture mounted by CameraMoveCaptureHost",
+    "DirectorHeadlessCapture mounted by the devlab director renderer"
+  ],
+  "internal_only_reason": "The invariant is application-owned: all callers must mount the product capture component and receive its readiness and readback contract.",
+  "invariants": [
+    "Every headless capture waits for visible characterMount objects; callers that opt into action readiness also wait until referenced pose clips are ready.",
+    "Every captured frame is produced by SceneRegistry.captureFrame and carries the camera id and actual camera readback when available.",
+    "Existing callers that omit optional props retain first-camera selection and burned labels."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx",
+      "symbol": "HeadlessCaptureResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx",
+      "symbol": "DirectorHeadlessCapture"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx",
+      "symbol": "referenceVideoShortSide"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+      "symbol": "HeadlessCaptureResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+      "symbol": "DirectorHeadlessCaptureProps"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
+      "symbol": "HeadlessCaptureResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
+      "symbol": "DirectorHeadlessCapture"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/directorRender.tsx",
+      "symbol": "CaptureBridge"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewportApiContext.ts",
+      "symbol": "CaptureFrameResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+      "symbol": "CaptureBinder"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "The seven read doors are public type/component consumers and must remain: staging and camera-move production callers keep their existing lifecycle, the component owns its own result contract, and the devlab caller is added as a third consumer. They converge on DirectorHeadlessCapture rather than being removed."
+  },
+  "generality_proof": "The production staging and camera-move callers and the devlab renderer all mount the same DirectorHeadlessCapture component. Optional camera selection, label settings, exact dimensions, and action-readiness waiting are resolved inside its shared CaptureDriver, while CaptureBinder returns the same actual camera and subject readback for every caller.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+      "symbol": "DirectorHeadlessCapture",
+      "responsibility": "Own character readiness, timeline seek/settle, camera selection, and per-frame result assembly."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+      "symbol": "capture",
+      "responsibility": "Render through the product CaptureBinder and return actual camera and subject world readback."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
+      "entry_point": "DirectorHeadlessCapture",
+      "disposition": "enforced",
+      "evidence": "StagingCaptureHost already mounts the shared component and receives its frames result."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx",
+      "entry_point": "DirectorHeadlessCapture",
+      "disposition": "enforced",
+      "evidence": "CameraMoveCaptureHost already mounts the shared component for frameTimes and retains default props."
+    },
+    {
+      "path": "src/devlab/directorRender.tsx",
+      "entry_point": "DirectorHeadlessCapture",
+      "disposition": "enforced",
+      "evidence": "The devlab renderer now mounts the product component and only adapts its callback to the postMessage protocol."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future renderer or export caller could duplicate the lifecycle and diverge on asset readiness or capture metadata unless the shared component owns the boundary.",
+    "same_class_scan": [
+      "rg CaptureDriver across src/devlab and director agent paths",
+      "door-map DirectorHeadlessCapture",
+      "Checked StagingCaptureHost, CameraMoveCaptureHost, and src/devlab/directorRender.tsx independently"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+    "invariant": "All headless callers use the shared readiness wait, optional action-clip readiness, seek/settle loop, CaptureBinder path, and result metadata.",
+    "failure_mode": "A missing camera or null frame returns null to the caller; the devlab adapter reports an explicit error to its parent window.",
+    "exception_policy": "none",
+    "strategy": "Delete the devlab CaptureDriver and mount DirectorHeadlessCapture with an injected camera selector and label option.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/ViewportApiContext.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+      "src/devlab/directorRender.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/devlab/directorRender.tsx"
+    ],
+    "rationale": "The duplicated devlab CaptureDriver is removed in favor of the product component; production callers remain on the shared path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the capture lifecycle invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed; existing callers omit the new optional props and keep their prior defaults.",
+  "residual_risks": [
+    "The judge harness must compare returned frameReadbacks to sampleDirectorProject; this change only exposes the product readback.",
+    "Pose readiness and T-pose rejection remain judge-layer checks."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/director/agent/DirectorHeadlessCapture.test.ts"
+    ],
+    "why": "The product headless component owns character readiness, camera selection, seek/settle, and frame result assembly for staging, camera movement, and devlab callers."
+  }
+}

@@ -13,6 +13,7 @@ async function load() {
 }
 
 const factory = (() => { throw new Error("not called"); }) as never;
+const readPendingSpend = () => ({ surface: "ready" as const, rows: [] });
 
 describe("boot：从 env 判「本会话装不装」", () => {
   it("NOMI_DISABLE_CAPABILITY_CORE=1 → disabled/env", async () => {
@@ -35,13 +36,13 @@ describe("boot：从 env 判「本会话装不装」", () => {
 describe("装配的三种结局", () => {
   it("ready 带着工厂：lane 从这里、也只从这里拿生成适配器工厂", async () => {
     const m = await load();
-    m.markResidentSurfaceReady(factory);
-    expect(m.readResidentSurfaceLifecycle()).toEqual({ phase: "ready", factory });
+    m.markResidentSurfaceReady(factory, readPendingSpend);
+    expect(m.readResidentSurfaceLifecycle()).toEqual({ phase: "ready", factory, readPendingSpend });
     expect(m.residentGenerationFactory()).toBe(factory);
   });
   it("install-failed 记下原话，工厂随之撤掉", async () => {
     const m = await load();
-    m.markResidentSurfaceReady(factory);
+    m.markResidentSurfaceReady(factory, readPendingSpend);
     m.markResidentSurfaceInstallFailed(new Error("resident adapter factory blew up"));
     expect(m.readResidentSurfaceLifecycle()).toEqual({ phase: "install-failed", reason: "resident adapter factory blew up" });
     expect(m.residentGenerationFactory()).toBeUndefined();
@@ -53,7 +54,7 @@ describe("装配的三种结局", () => {
   });
   it("stopped：退出/重启能力核时撤下，再 starting 就回到起点", async () => {
     const m = await load();
-    m.markResidentSurfaceReady(factory);
+    m.markResidentSurfaceReady(factory, readPendingSpend);
     m.markResidentSurfaceStopped();
     expect(m.readResidentSurfaceLifecycle()).toEqual({ phase: "stopped" });
     expect(m.residentGenerationFactory()).toBeUndefined();

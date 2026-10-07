@@ -12,7 +12,7 @@ vi.mock("electron", () => ({
       ipc.listeners.set(channel, listener),
   },
 }));
-vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: ipc.trust }));
+vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: ipc.trust, assertTrustedFireAndForget: (_event: unknown, _channel: string, guard: (event: unknown) => void) => { try { guard(_event); return true; } catch { return false; } } }));
 
 import {
   SURFACE_CANVAS_READ_REPLY_CHANNEL,

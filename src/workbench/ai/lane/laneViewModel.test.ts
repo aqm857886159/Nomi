@@ -18,6 +18,7 @@ const labels: LaneViewModelLabels = {
   toolFailure: () => undefined,
   toolFailureDetail: (failure) => failure.code,
   assistantFailure: (text) => text,
+  assistantRecovered: '[已自动重试]',
   thinkingLabel: '[thinking]',
   formatTokens: (value) => `${value}t`,
   formatCost: (usd) => `$${usd.toFixed(4)}`,
@@ -291,8 +292,8 @@ describe('laneViewModel', () => {
       part({ kind: 'user', text: 'Append a closing line.' }),
       part({ kind: 'tool-call', toolCallId: 'c1', toolName: 'write_script', args: { where: 'end' }, running: false }),
       part({ kind: 'tool-result', toolCallId: 'c1', toolName: 'write_script', isError: false,
-        text: `Applied append to the document. New revision 1.\nUser sees: ${userSees} (undoToken=undo-1)`,
-        nextAction: { kind: 'none', userSees, undoToken: 'undo-1' } }),
+        text: `Applied append to the document. New revision 1.\nUser sees: ${userSees} (changeId=timeline:v1:undo-1)`,
+        nextAction: { kind: 'none', userSees, changeId: 'timeline:v1:undo-1' } }),
       part({ kind: 'tool-call', toolCallId: 'c2', toolName: 'read_script', args: {}, running: false }),
       part({ kind: 'tool-result', toolCallId: 'c2', toolName: 'read_script', isError: false,
         text: 'The opening scene.\nUser sees: nothing was written by this call.' }),
@@ -680,6 +681,29 @@ describe('laneViewModel · 工具卡与失败行不摆原始内容', () => {
     next = 0
     const raw = '{"error":{"message":"bad","type":"invalid_request_error"}} [nomi-classified: server error]'
     const items = laneViewModel(projection([part({ kind: 'error', text: raw })]), { ...labels, assistantFailure: () => '[人话]' }).items
-    expect(items).toEqual([{ kind: 'error', reason: '[人话]' }])
+    expect(items).toEqual([{ kind: 'error', reason: '[人话]', raw }])
+  })
+
+  it('已被自动重试化解的错误不画红卡：一行灰字（recovered），原文不进 reason；pi 判的瞬时标记传给 assistantFailure', () => {
+    next = 0
+    const seen: Array<boolean | undefined> = []
+    const withLabels = { ...labels, assistantFailure: (_text: string, facts?: { transient?: boolean }) => { seen.push(facts?.transient); return '[网络]' } }
+    const healed = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', recovered: true })]), withLabels).items
+    expect(healed).toEqual([{ kind: 'error', reason: '[已自动重试]', recovered: true, raw: 'Connection error.' }])
+    expect(seen).toEqual([])
+    const live = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', transient: true })]), withLabels).items
+    expect(live).toEqual([{ kind: 'error', reason: '[网络]', raw: 'Connection error.', transient: true }])
+    expect(seen).toEqual([true])
+  })
+
+  // NF-1001-0003 / NF-1001-0004 / NF-0928-0003：看门狗 / pi 自己判的那几类，事实一路带到 assistantFailure，且挂在条目上（日志 effect 据此不记「认不出」）。
+  it('fault 事实原样交给 assistantFailure 并留在条目上', () => {
+    next = 0
+    const facts: unknown[] = []
+    const withLabels = { ...labels, assistantFailure: (_text: string, given?: unknown) => { facts.push(given); return '[人话]' } }
+    const fault = { kind: 'model-timeout', phase: 'first-token', seconds: 300 } as const
+    const items = laneViewModel(projection([part({ kind: 'error', text: 'Nomi model first-token timeout after 300000ms', transient: true, fault })]), withLabels).items
+    expect(items).toEqual([{ kind: 'error', reason: '[人话]', raw: 'Nomi model first-token timeout after 300000ms', transient: true, fault }])
+    expect(facts).toEqual([{ transient: true, fault }])
   })
 })

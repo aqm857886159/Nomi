@@ -5,6 +5,7 @@
  * [OUTPUT]: 对外提供 CameraPovHud：机位视角卡片（视口左下）——「机位视角 [POV] ×」/ 机位名·焦距 / FOV + 写入层 /
  *           红色「录制运镜 (R)」·「完成录制」/「连接手机虚拟相机」（已连接显示延迟）；录制中卡片顶部红点计时
  * [POS]: director/panels/viewport 的 POV 叠加层（清单 §2.4 V6 + §6 C1/C2/C4）：只在 activeCameraId ≠ free 时出现。
+ *        住视口左上、悬浮顶栏之下：左下归预览小窗（2026-10-04 精修小窗挪到左下，与导演视图同位），两者不能叠在一角。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -16,6 +17,7 @@ import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorConte
 import { useMobileCameraApi } from '../../MobileCameraContext'
 import { describeEditLayer, resolveEditLayer } from '../../model/editLayer'
 import { DIRECTOR_HOTKEYS, formatHotkey } from '../../model/hotkeys'
+import { DIRECTOR_TOP_CHROME_PX } from '../topbar/topChrome'
 
 export function CameraPovHud(): JSX.Element | null {
   const { t } = useTranslation()
@@ -42,7 +44,7 @@ export function CameraPovHud(): JSX.Element | null {
     : t('director.camera.connectMobile')
 
   return (
-    <div className="pointer-events-auto absolute bottom-16 left-3 flex w-[176px] flex-col gap-1.5 rounded-nomi-lg border border-nomi-line bg-nomi-paper/95 p-2 text-caption text-nomi-ink shadow-nomi-md backdrop-blur" data-testid="director-pov-hud">
+    <div className="pointer-events-auto absolute left-3 flex w-[176px] flex-col gap-1.5 rounded-nomi-lg border border-nomi-line bg-nomi-paper/95 p-2 text-caption text-nomi-ink shadow-nomi-md backdrop-blur" style={{ top: DIRECTOR_TOP_CHROME_PX }} data-testid="director-pov-hud">
       <div className="flex items-center gap-1.5">
         <span className="font-semibold">{t('director.camera.povTitle')}</span>
         <span className="rounded-nomi-sm bg-nomi-ink-10 px-1 font-nomi-mono text-micro text-nomi-ink-60">{t('director.camera.povBadge')}</span>

@@ -9,7 +9,7 @@ try {
   await placeCharacter(lab, 'male', 0, 0)
   await lab.waitScene('s.objects.length === 1', '角色入场')
   const hero = (await lab.scene()).objects[0]
-  await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角')
+  await lab.pickInOutliner(hero.name, '大纲·主角')
   // F 聚焦：把人框满视口，把手之间才拉得开（远景里 gizmo 的拾取块会盖住邻近把手）
   await page.mouse.move(700, 400)
   await page.keyboard.press('f')

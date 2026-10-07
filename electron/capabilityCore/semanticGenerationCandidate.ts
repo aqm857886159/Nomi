@@ -48,7 +48,8 @@ export type SemanticGenerationCandidateDeps = Readonly<{
 }>;
 
 /** 一份素材的可引用身份。真解析器住 `electron/assets/projectAssetStore.ts`（全仓唯一算它的地方）。 */
-export type ResolveAssetReferenceIdentity = (assetId: string) => Readonly<{ contentHash: string; version: number }> | undefined;
+export type AssetReferenceIdentity = Readonly<{ contentHash: string; version: number; kind?: "image" | "video" | "audio" }>;
+export type ResolveAssetReferenceIdentity = (assetId: string) => AssetReferenceIdentity | undefined;
 
 const TASK_KINDS = new Set<GenerationDefaultTaskKind>([
   "text_to_image",
@@ -139,7 +140,12 @@ function record(value: unknown, label: string): Record<string, unknown> {
 export function pinAssetReference(item: unknown, resolve?: ResolveAssetReferenceIdentity): unknown {
   if (!item || typeof item !== "object") return item;
   const reference = { ...(item as Record<string, unknown>) };
-  if (typeof reference.contentHash === "string" && reference.contentHash && reference.version !== undefined) return reference;
+  // `kind`（图 / 视频 / 音频）由素材本身决定，调用方填的不算：传输层按它选图片 / 视频通道，
+  // 缺了或填错，3D-BOX 预演 mp4 就被塞进 image_urls。已带身份的参考只补 / 纠 kind，别的逐字节不变。
+  if (typeof reference.contentHash === "string" && reference.contentHash && reference.version !== undefined) {
+    const kind = text(reference.assetId) ? resolve?.(text(reference.assetId))?.kind : undefined;
+    return kind ? { ...reference, kind } : reference;
+  }
   const assetId = text(reference.assetId);
   if (!assetId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "参考素材需要 assetId（来自 look_at_media）");
   const identity = resolve?.(assetId);
@@ -150,7 +156,7 @@ export function pinAssetReference(item: unknown, resolve?: ResolveAssetReference
       ? `${assetId} 看起来是画布上的一个镜头/节点 id，不是素材库里的文件。references 只收 look_at_media 给出的 assetId；要复用另一镜的形象，把它写进 storyboard.anchorIds。`
       : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId`);
   }
-  return { ...reference, contentHash: identity.contentHash, version: identity.version };
+  return { ...reference, contentHash: identity.contentHash, version: identity.version, ...(identity.kind ? { kind: identity.kind } : {}) };
 }
 
 function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): unknown[] {

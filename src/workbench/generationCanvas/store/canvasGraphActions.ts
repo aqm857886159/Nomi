@@ -1,4 +1,3 @@
-import { backfillShotIndexes } from '../model/shotNumbering'
 import { materializeGroupLink, materializeGroupOutputLink, type GroupMaterializedConnection } from './canvasConnectionMaterialization'
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
@@ -8,10 +7,13 @@ import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
 import { createGroupId } from './canvasIds'
-import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
+import { frameBoundsFromMembers, unionFrameBounds } from '../model/canvasFrameBounds'
+import { arrangeGroupNodes, type GroupArrangeMode } from '../model/groupArrange'
 import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
 import { createCanvasGroupMoveActions } from './canvasGroupMoveActions'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import i18n from '../../../i18n'
+import { normalizeGroupColorToken } from '../model/groupColor'
 import { bumpPersistRevision, isCategoryId } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
@@ -387,7 +389,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     )
     const group: NodeGroup = {
       id: createGroupId(id),
-      name: (name || '').trim() || `组 ${existingCount + 1}`,
+      name: (name || '').trim() || i18n.t('generationCommon.canvas.group.defaultName', { n: existingCount + 1 }),
       categoryId: id,
       nodeIds: explicitNodeIds,
       ...(frameBounds ? { frameBounds } : {}),
@@ -433,7 +435,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     )
     const group: NodeGroup = {
       id: createGroupId(id),
-      name: (name || '').trim() || `组 ${existingCount + 1}`,
+      name: (name || '').trim() || i18n.t('generationCommon.canvas.group.defaultName', { n: existingCount + 1 }),
       categoryId: id,
       nodeIds,
       ...(frameBounds ? { frameBounds } : {}),
@@ -482,22 +484,57 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (renamed) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: renamed } }])
   },
   setGroupColor: (groupId, color) => {
-    const nextColor = String(color || '').trim()
-    if (!nextColor) return
+    // 灰 = 没有 colorToken。只存 token 名，不再写旧的 color 字段。
+    const nextColor = normalizeGroupColorToken(color)
     const current = get()
     const existing = current.groups.find((group) => group.id === groupId)
-    if (!existing || existing.color === nextColor) return
+    if (!existing || existing.colorToken === nextColor) return
     pushUndoSnapshot(current)
     set((state) => {
       const group = state.groups.find((candidate) => candidate.id === groupId)
       if (!group) return
-      group.color = nextColor
+      if (nextColor) group.colorToken = nextColor
+      else delete group.colorToken
       group.updatedAt = Date.now()
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())
     })
     const recolored = get().groups.find((candidate) => candidate.id === groupId)
     if (recolored) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: recolored } }])
+  },
+  arrangeGroup: (groupId: string, mode: GroupArrangeMode) => {
+    const current = get()
+    const group = current.groups.find((candidate) => candidate.id === groupId)
+    if (!group || group.collapsed) return
+    const memberIds = new Set(group.nodeIds)
+    const members = current.nodes.filter((node) => memberIds.has(node.id) && (node.categoryId || 'shots') === group.categoryId)
+    const positions = arrangeGroupNodes(members, mode)
+    if (!positions.size) return
+    const nextMembers = members.map((node) => ({ ...node, position: positions.get(node.id) ?? node.position }))
+    const contentBounds = frameBoundsFromMembers(nextMembers.map((node) => ({
+      x: node.position.x,
+      y: node.position.y,
+      ...resolveNodeVisualSize(node),
+    })))
+    pushUndoSnapshot(current)
+    set((state) => {
+      for (const node of state.nodes) {
+        const next = positions.get(node.id)
+        if (next) node.position = next
+      }
+      const liveGroup = state.groups.find((candidate) => candidate.id === groupId)
+      if (!liveGroup) return
+      liveGroup.frameBounds = unionFrameBounds(liveGroup.frameBounds, contentBounds) ?? liveGroup.frameBounds
+      liveGroup.updatedAt = Date.now()
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    const post = get()
+    const updatedGroup = post.groups.find((candidate) => candidate.id === groupId)
+    emitCanvasGesture([
+      ...post.nodes.filter((node) => positions.has(node.id)).map((node) => ({ type: 'canvas.node.moved' as const, payload: { nodeId: node.id, position: node.position } })),
+      ...(updatedGroup ? [{ type: 'canvas.group.updated' as const, payload: { group: updatedGroup } }] : []),
+    ])
   },
   setGroupCollapsed: (groupId, collapsed) => {
     const current = get()
@@ -700,25 +737,5 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     })
     // 纯排序变化无法用 upsert 表达 → 全量组数组后态(组对象很轻)
     emitCanvasGesture([{ type: 'canvas.groups.reordered', payload: { groups: get().groups } }])
-  },
-  restoreGraph: (nodes, edges) => {
-    // S6-5 整笔撤销补偿:按原 id 放回被删节点/边。幂等:已存在的 id 跳过(不覆盖现状态)。
-    const existingNodeIds = new Set(get().nodes.map((node) => node.id))
-    const existingEdgeIds = new Set(get().edges.map((edge) => edge.id))
-    const incoming = nodes.filter((node) => node?.id && !existingNodeIds.has(node.id))
-    const addNodes = backfillShotIndexes([...get().nodes, ...incoming]).nodes.slice(get().nodes.length)
-    const addEdges = edges.filter((edge) => edge?.id && !existingEdgeIds.has(edge.id))
-    if (!addNodes.length && !addEdges.length) return
-    pushUndoSnapshot(get())
-    set((state) => {
-      state.nodes = [...state.nodes, ...addNodes]
-      state.edges = [...state.edges, ...addEdges]
-      bumpPersistRevision(state)
-      Object.assign(state, getHistoryFlags())
-    })
-    emitCanvasGesture([
-      ...addNodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
-      ...addEdges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
-    ])
   },
 })

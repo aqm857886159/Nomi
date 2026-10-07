@@ -6,6 +6,7 @@ import type {
   ProductionRunStatus,
   ProductionRunSummary,
 } from '../../../electron/productionRun/productionRunTypes'
+import { jobAwaitsRetrieval } from '../../../electron/shared/productionShotPhase'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
 import { productionPlaybookLabelKey } from './productionRunLabels'
@@ -27,7 +28,7 @@ export function gateKindOf(gate: { gateId: string; scope: string }): ProductionG
   if (gate.scope === 'export') return 'export'
   return 'stage'
 }
-export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-script' | 'review-storyboard' | 'reconcile' | 'release-unknown' | 'review-rough-cut' | 'open-export' | 'resume-run' | null
+export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-script' | 'review-storyboard' | 'reconcile' | 'release-unknown' | 'retry-retrieval' | 'review-rough-cut' | 'open-export' | 'resume-run' | null
 /** A4 情境控制（§1.5 L2：进行中才出现，不占常驻预算）。 */
 export type ProductionRunControl = 'pause' | 'cancel'
 
@@ -150,6 +151,8 @@ export function buildProductionRunView(
   const staleAfterMs = options.staleAfterMs ?? 2 * 60_000
   const job = latestJob(run)
   const unknown = run.jobs.find((value) => value.status === 'submission_unknown')
+  // 已生成、取回失败（#975 A2）：结果在服务商那边，丢的只是下载——唯一的下一步是「重新取回」（不重新生成）。
+  const unretrieved = run.jobs.find((value) => jobAwaitsRetrieval(value))
   const waitingGate = run.gates.find((value) => value.status === 'waiting')
   const skills = [...new Map(
     run.gates.flatMap((gate) => gate.contract?.skills ?? [])
@@ -199,6 +202,17 @@ export function buildProductionRunView(
       targetId: unknown.jobId,
       // 给用户拿去和服务商后台比对的三项：提交时间、模型、服务商。
       unknownJob: { provider: unknown.provider, model: unknown.model, at: unknown.updatedAt },
+    }
+  }
+  if (unretrieved) {
+    return {
+      ...base,
+      group: 'attention',
+      tone: 'attention',
+      titleKey: 'generationCommon.production.status.outputRetrievalFailed',
+      descriptionKey: 'generationCommon.production.description.outputRetrievalFailed',
+      primaryAction: 'retry-retrieval',
+      targetId: unretrieved.jobId,
     }
   }
   // 历史遗留坏 Run：draft 且一个阶段一道门都没有——起草时的 playbook 没实现，流水线没建起来

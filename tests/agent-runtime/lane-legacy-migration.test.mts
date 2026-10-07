@@ -177,7 +177,12 @@ test('old archives require exact bound preparation, completion and hash, never d
     if (change === 'hash') fs.writeFileSync(prior.archive, 'changed');
     if (change === 'timestamp') { raw.startedAt = '2026-09-02T12:34:56.000Z'; fs.writeFileSync(file, JSON.stringify(raw)); }
     if (change === 'empty') fs.writeFileSync(prior.archive, '');
-    if (change === 'symlink') { fs.unlinkSync(prior.archive); fs.symlinkSync(options.receipt, prior.archive); }
+    if (change === 'symlink') {
+      fs.unlinkSync(prior.archive);
+      // Windows without symlink privilege cannot create the fixture; the identity rule itself is pinned in electron/fileIdentity.test.ts.
+      try { fs.symlinkSync(options.receipt, prior.archive); }
+      catch (error) { if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return st.skip('symlink privilege'); throw error; }
+    }
     await assert.rejects(() => migrateLaneLegacy(options), /legacy-prior-archive-evidence-mismatch/);
     assert.equal(fs.existsSync(join(prior.nomi, 'lane-legacy-migration.json')), false);
     assert.equal(fs.readFileSync(options.receipt, 'utf8'), 'G5 sentinel');
@@ -198,4 +203,31 @@ test('first import selects the first source conversation, preserving an existing
     assert.deepEqual(JSON.parse(fs.readFileSync(selection, 'utf8')), existing ? saved
       : { laneName: manifest.targets[0].laneName, sessionId: manifest.targets[0].sessionId });
   });
+});
+
+test('opening a project with nothing (left) to migrate is a pure read: no lock file, no write, even while another opener holds the lock', async t => {
+  const options = await fixture(t);
+  const nomi = join(options.projectDir, '.nomi');
+  const lock = join(nomi, 'lane-legacy-migration.lock');
+  const listing = () => fs.readdirSync(nomi, { recursive: true }).map(String).sort();
+  // 1) 迁完之后再打开：清单是 completed，答案只从清单读。
+  const migrated = await migrateLaneLegacy(options);
+  // 一把活着的锁（本进程 pid）：加锁流程会立刻 legacy-migration-busy；无锁终态检查不该碰它。
+  fs.writeFileSync(lock, JSON.stringify({ pid: process.pid }));
+  const before = listing();
+  assert.deepEqual(await migrateLaneLegacy(options), migrated);
+  assert.deepEqual(listing(), before);
+  fs.unlinkSync(lock);
+  // 2) 从来没有旧版对话的项目：没有清单、没有源文件。
+  const fresh = await fixture(t);
+  fs.unlinkSync(fresh.source);
+  const freshNomi = join(fresh.projectDir, '.nomi');
+  fs.writeFileSync(join(freshNomi, 'lane-legacy-migration.lock'), JSON.stringify({ pid: process.pid }));
+  const freshBefore = fs.readdirSync(freshNomi).sort();
+  assert.deepEqual(await migrateLaneLegacy(fresh), { projects: 0, sourceFiles: 0, conversations: 0, sourceItems: 0, parts: 0, archivedOnlyConversations: 0 });
+  assert.deepEqual(fs.readdirSync(freshNomi).sort(), freshBefore);
+  // 3) 有源文件还没迁：仍然走加锁流程（这把活锁把它拦成 busy，证明没被无锁检查放过去）。
+  const pending = await fixture(t);
+  fs.writeFileSync(join(pending.projectDir, '.nomi', 'lane-legacy-migration.lock'), JSON.stringify({ pid: process.pid }));
+  await assert.rejects(() => migrateLaneLegacy(pending), /legacy-migration-busy/);
 });

@@ -197,10 +197,9 @@ describe("Run-owned semantic generation submission", () => {
     });
     await expect(restarted.start({ projectId: "project-1", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
     expect(restartedSubmit).not.toHaveBeenCalled();
-    await expect(restarted.resume({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ action: "reconcile" });
   });
 
-  it("submits an observe-only provider once and resumes by its provider task id", async () => {
+  it("submits an observe-only provider once; asking to start it again answers with the same provider task id", async () => {
     const { root, repository } = setup();
     const submit = vi.fn(async () => ({ providerTaskId: "provider-task-observe-only" }));
     const runner = createProductionGenerationSubmission({
@@ -220,7 +219,7 @@ describe("Run-owned semantic generation submission", () => {
     });
 
     await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-observe-only" });
-    await expect(runner.resume({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ action: "poll", nextAction: "poll", providerTaskId: "provider-task-observe-only" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-observe-only" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -252,7 +251,7 @@ describe("Run-owned semantic generation submission", () => {
       nextAction: "poll",
     });
     // 查询带着这笔任务冻结合同里的模型 / 模式（供应商实例是每次新建的，它自己记不住）。
-    expect(query).toHaveBeenCalledWith("provider-task-poll", { modelId: "fixture-model", mode: "text-to-image" });
+    expect(query).toHaveBeenCalledWith("provider-task-poll", { modelId: "fixture-model", mode: "text-to-image", parameters: { aspectRatio: "16:9" } });
     expect(submit).toHaveBeenCalledTimes(1);
     const job = repository.read("project-1", "op-1")?.jobs[0];
     expect(job).toMatchObject({ status: "polling", providerTaskId: "provider-task-poll", providerStatus: "processing" });
@@ -281,7 +280,7 @@ describe("Run-owned semantic generation submission", () => {
     ));
     await expect(createProductionGenerationSubmission({ ...deps, provider: provider(query) }).poll({ projectId: "project-1", operationId: "op-1" }))
       .resolves.toMatchObject({ providerTaskId: "provider-task-late", nextAction: "poll" });
-    expect(query).toHaveBeenCalledWith("provider-task-late", { modelId: "fixture-model", mode: "text-to-image" });
+    expect(query).toHaveBeenCalledWith("provider-task-late", { modelId: "fixture-model", mode: "text-to-image", parameters: { aspectRatio: "16:9" } });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -404,55 +403,85 @@ describe("Run-owned semantic generation submission", () => {
     expect(repository.read("project-1", "op-1")?.artifacts).toHaveLength(0);
   });
 
-  it("can resume after a crash before dispatch only with an explicit not-submitted disposition", async () => {
+  // 预留 → 提交意向 → 提交中是一次落盘（发动机收敛第一刀第 3 步的性能尾巴）：进程在这一批写下之前倒下 = 盘上什么都没有，
+  // 重来一次照常交、只交一次。旧版本留下的「提交意向已落盘、还没开始提交」（中间那一步的停点）同样照常交一次——
+  // 交出去之前还会先落提交意向日志；日志里已经 committed 的那种才是「可能已交」，那条路由出口记成结果未知（另有测试）。
+  // 以前这里靠 resume(definitelyNotSubmitted) 放行；那条路在生产里没有任何调用方，随第 4 步删除。
+  it("a crash before the pre-dispatch batch is written leaves nothing behind; starting again dispatches exactly once", async () => {
     const { root, repository } = setup();
-    // 进程恰好在「提交意向已落盘、还没开始提交」这一刻倒下：写 submitting 的那一笔没有发生。
-    // （以前拿 beforeDispatch 抛错模拟这一刻；它现在是准入闸，排在第一笔耐久写之前，抛错时什么都还没写。）
     const crashing = {
       ...repository,
-      execute: (projectId: string, runId: string, command: Parameters<typeof repository.execute>[2]) => {
-        if (command.type === "job.status" && command.payload.status === "submitting") throw new Error("crash before dispatch");
-        return repository.execute(projectId, runId, command);
+      executeBatch: (...args: Parameters<typeof repository.executeBatch>) => {
+        if (args[3].some((command) => command.type === "job.status" && command.payload.status === "submitting")) throw new Error("crash before dispatch");
+        return repository.executeBatch(...args);
       },
     };
-    const firstSubmit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
-    const first = createProductionGenerationSubmission({
-      repository: crashing,
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+    const make = (repo: typeof repository) => createProductionGenerationSubmission({
+      repository: repo,
       projectRoot: root,
       immutableProjectUuid: "project-uuid-1",
       projectGeneration: 1,
       intentMacKey: "test-intent-key",
-      provider: {
-        providerId: "fixture-provider",
-        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
-        buildRequest: (input) => input,
-        submit: firstSubmit,
-      },
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true }, buildRequest: (input) => input, submit },
       beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:00:00.000Z",
     });
-    await expect(first.start({ projectId: "project-1", operationId: "op-1" })).rejects.toThrow("crash before dispatch");
-    expect(firstSubmit).not.toHaveBeenCalled();
-    expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "submit_intent_persisted" }] });
+    await expect(make(crashing).start({ projectId: "project-1", operationId: "op-1" })).rejects.toThrow("crash before dispatch");
+    expect(submit).not.toHaveBeenCalled();
+    expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "authorized" }] });
+    expect(repository.readBudgetLedger("project-1", "op-1").reservations).toEqual({});
 
-    const secondSubmit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
-    const resumed = createProductionGenerationSubmission({
+    await expect(make(repository).start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("an older build's stop between the submit intent and submitting dispatches exactly once", async () => {
+    const { root, repository } = setup();
+    const run = repository.read("project-1", "op-1")!;
+    const job = run.jobs[0]!;
+    repository.execute("project-1", "op-1", { commandId: `${run.runId}:${job.jobId}:${job.attempt}:submit-intent`, expectedRevision: run.revision, type: "job.status", payload: { jobId: job.jobId, status: "submit_intent_persisted", patch: {} }, issuedAt: "2026-08-23T00:00:00.000Z" });
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+    const runner = createProductionGenerationSubmission({
       repository,
-      beforeDispatch: () => undefined,
       projectRoot: root,
       immutableProjectUuid: "project-uuid-1",
       projectGeneration: 1,
       intentMacKey: "test-intent-key",
-      provider: {
-        providerId: "fixture-provider",
-        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
-        buildRequest: (input) => input,
-        submit: secondSubmit,
-      },
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true }, buildRequest: (input) => input, submit },
+      beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(resumed.resume({ projectId: "project-1", operationId: "op-1", definitelyNotSubmitted: true })).resolves.toMatchObject({ action: "dispatch", providerTaskId: "provider-task-1" });
-    expect(secondSubmit).toHaveBeenCalledTimes(1);
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  // 受理之后原来是三次整份落盘（已受理 → 计划已交 → 单镜 Run 进行中，后两次由各个调用方各自补）；现在是一次，
+  // 而且「进行中」只有提交出口这一处写（GUI、stdio、画布不再各自补一笔）。
+  it("records acceptance, the submitted plan and the running single-shot Run in one write", async () => {
+    const { root, repository } = setup();
+    const batches: string[][] = [];
+    const observed = {
+      ...repository,
+      executeBatch: (...args: Parameters<typeof repository.executeBatch>) => {
+        batches.push(args[3].map((command) => `${command.type}:${String(command.payload.status ?? "")}`));
+        return repository.executeBatch(...args);
+      },
+    };
+    const runner = createProductionGenerationSubmission({
+      repository: observed,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      intentMacKey: "test-intent-key",
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true }, buildRequest: (input) => input, submit: async () => ({ providerTaskId: "provider-task-1" }) },
+      beforeDispatch: () => undefined,
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    expect(batches.at(-1)).toEqual(["job.status:provider_accepted", "generation.submit:", "run.status:running"]);
+    expect(repository.read("project-1", "op-1")).toMatchObject({ status: "running", generationPlan: { state: "submitted" }, jobs: [{ status: "provider_accepted" }] });
   });
 
   it("submits even when a provider exposes no native recovery capabilities", async () => {
@@ -535,7 +564,6 @@ describe("historical batch observation", () => {
     expect(repository.read(input.projectId, input.operationId)!.generationPlan!.contract).toBeUndefined();
     await expect(submission.poll(input)).resolves.toMatchObject({ jobId: started.jobId, nextAction: "materialize" });
     await expect(submission.materialize(input)).resolves.toMatchObject({ jobId: started.jobId, artifactId: "historic-artifact" });
-    await expect(submission.resume(input)).resolves.toMatchObject({ operationId: "op-1" });
     await expect(submission.start(input)).rejects.toThrow(/Seal and confirm/);
     expect(materializeOutput.mock.calls[0][0].contract).toEqual(contract);
     expect(materializeOutput).toHaveBeenCalledTimes(1);

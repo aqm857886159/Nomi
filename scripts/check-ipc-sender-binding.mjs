@@ -33,7 +33,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const electronRoot = path.join(repoRoot, 'electron')
 const baselinePath = path.join(repoRoot, 'scripts', 'ipc-sender-binding-baseline.json')
 
-const GUARD_PATTERN = /\b(?:assertTrustedSender|assertTrustedUiSender)\s*\(/
+const GUARD_PATTERN = /\b(?:assertTrustedSender|assertTrustedUiSender|assertTrustedFireAndForget)\s*\(/
+const DIRECT_THROWING_GUARD_PATTERN = /\b(?:assertTrustedSender|assertTrustedUiSender)\s*\(/
 
 function listSourceFiles(dir) {
   const files = []
@@ -65,6 +66,7 @@ function scanFile(file) {
       channel,
       kind: match[1],
       guarded: GUARD_PATTERN.test(call),
+      directThrowingGuard: match[1] === 'on' && DIRECT_THROWING_GUARD_PATTERN.test(call),
     })
   }
   return registrations
@@ -106,6 +108,14 @@ if (unregisteredWindows.length) {
 
 const registrations = sourceFiles.flatMap(scanFile)
 const unguarded = registrations.filter((entry) => !entry.guarded)
+const directThrowingOn = registrations.filter((entry) => entry.directThrowingGuard)
+
+if (directThrowingOn.length) {
+  console.error(`✗ ipcMain.on 里直接调用会抛异常的 sender 守卫：${directThrowingOn.length} 处`)
+  for (const entry of directThrowingOn) console.error(`  ${entry.file}:${entry.line} on ${entry.channel}`)
+  console.error('  → ipcMain.on 只许使用 assertTrustedFireAndForget；handle 可直接 assertTrusted。')
+  process.exit(1)
+}
 
 if (!fs.existsSync(baselinePath)) {
   console.error(`✗ 缺少 ${path.relative(repoRoot, baselinePath)}；先核对实扫结果后写入存量基线`)

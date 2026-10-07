@@ -40,6 +40,18 @@ test('desktop RC collects every release-critical journey before deciding', () =>
   assert.equal(upload.uses, 'actions/upload-artifact@v4')
 })
 
+test('desktop RC rejects a checkout ref that differs from the triggering commit before validation', () => {
+  const steps = workflow.jobs.validate.steps
+  const guardIndex = steps.findIndex((step) => step.name === 'Verify workflow ref matches dispatched commit')
+  assert.equal(guardIndex, 1, 'the ref guard must be the first step after checkout')
+  const guard = steps[guardIndex]
+  assert.equal(guard.run, 'node scripts/verify-workflow-ref.mjs')
+  assert.equal(guard.env.WORKFLOW_REF, '${{ inputs.ref }}')
+  assert.equal(guard.env.WORKFLOW_SHA, '${{ github.sha }}')
+  assert.equal(guard.env.TRIGGER_REF, '${{ github.ref }}')
+  assert.equal(guard.env.TRIGGER_EVENT, '${{ github.event_name }}')
+})
+
 test('desktop RC audits every packaged platform against its budget before uploading the candidate', () => {
   // docs/plan/2026-09-28-release-audit.md §3 A：包体审计是候选包能不能出门的判据之一。
   // 它红了必须让作业红（不许 continue-on-error），报告无论红绿都要上传，审计必须排在候选包上传之前。

@@ -123,6 +123,37 @@ export async function driveEngineA(capture: FetchCapture, input: EngineATaskInpu
   return recordFromCall(capture.calls[0]);
 }
 
+/**
+ * 画布单节点 ↑ 收敛后的那条路（发动机收敛第一刀）：同一份画布请求冻成单镜 Run 的合同 → 画布传输执行器的
+ * `buildRequest`（提交出口在批准前算报文哈希用的就是它）→ `submit` → `runtime.runTask(…, RUN_APPROVED_ADMISSION)`。
+ * 与 `canvas-node` 同一个 dispatchProfile：出站报文必须逐字节相同（传输没换，换的只是批准与记账）。
+ */
+export async function driveEngineCanvasRun(capture: FetchCapture, input: EngineATaskInput): Promise<OutboundRecord> {
+  capture.reset();
+  const { runTask } = await import("../runtime");
+  const { RUN_APPROVED_ADMISSION } = await import("../tasks/taskSpend");
+  const { createCanvasTransportProvider } = await import("../capabilityCore/canvasTransportProvider");
+  const { createGenerationRuntimeAdapter } = await import("../capabilityCore/generationRuntimeAdapter");
+  const { freezeCanvasExecutionContract } = await import("../capabilityCore/executionContract");
+  const provider = createCanvasTransportProvider(input.vendorKey, {
+    execute: (payload) => runTask(payload, RUN_APPROVED_ADMISSION) as never,
+    fetchResult: async () => { throw new Error("the parity matrix only compares the submission"); },
+  });
+  const request = { kind: input.kind, prompt: input.prompt, extras: input.extras };
+  const modelId = String(input.extras.modelKey ?? "");
+  const contract = freezeCanvasExecutionContract({
+    candidateId: "parity-canvas-run", revision: 1, moduleId: "generation.canvas", providerId: provider.providerId,
+    modelId, mode: input.kind, prompt: input.prompt, parameters: { vendor: input.vendorKey, request }, references: [],
+  });
+  const prepared = createGenerationRuntimeAdapter({ providers: [provider] }).prepareAuthorization({ contract, providerIdempotencyKey: "parity-idempotency-key" });
+  try {
+    await provider.submit(prepared.providerRequest, "parity-idempotency-key");
+  } catch (error) {
+    if (!capture.calls.length) return { failure: { code: failureCode(error), message: String((error as Error)?.message ?? error) } };
+  }
+  return recordFromCall(capture.calls[0]);
+}
+
 export type EngineBTaskInput = {
   vendorKey: string;
   modelId: string;

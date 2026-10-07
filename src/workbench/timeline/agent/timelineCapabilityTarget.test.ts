@@ -96,6 +96,7 @@ describe('canonical Timeline capability target', () => {
     const plan = { operation: 'apply_edit_plan' as const, planId: `plan-${_kind}`, baseRevision, summary: `Apply ${_kind}`, operations: [operation] }
     const first = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: [targetId] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
     expect(first).toMatchObject({ ok: true, applied: true })
+    expect(first.changeId).toBe(`timeline:v1:${approval.receiptProposalId}`)
     expect(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: [targetId] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })).toMatchObject({ ok: true, replayed: true })
     expect(executeTimelineWriteTarget({ input: { ...plan, operations: [{ kind: 'remove' as const, clipId: 'clip-a' }] }, target: { kind: 'timeline', clipIds: ['clip-a'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })).toMatchObject({ ok: false, code: 'plan_id_conflict' })
     useWorkbenchStore.getState().moveTimelineClip('clip-b', 72)

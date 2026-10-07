@@ -1,0 +1,28 @@
+{
+  "name": "APIMart 出站模型名（目录键 → APIMart 公开模型 id）",
+  "subject": "provider.apimart-wire-model-id",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/apimartModelIds.ts",
+    "symbol": "normalizeApimartCanonicalModelId"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/apimartModelIds.ts",
+      "symbol": "normalizeApimartCanonicalModelId"
+    },
+    {
+      "path": "electron/catalog/apimartModelIds.ts",
+      "symbol": "CANONICAL_MODEL_IDS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/apimartModelIds.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-09-28",
+  "notes": "为什么和「跨供应商同一模型的身份」分开登记（协调会话 2026-09-29 裁定：是另一件事，不改名）：这张表把目录里存的历史 modelKey 换成 APIMart 生成接口认的公开模型 id（值是 seedance-2.0 这类出站名），只在出站请求的共享边界上用（normalizeApimartCanonicalModelId），不参与合并与去重；seedModelIdentity 那张的值是跨供应商的身份键（seedance 2.0 这类），两张表键可以重叠、值的含义不同。两边各有计数键，同名由本条明确认领，门岗不再把它判成第二写口。"
+}

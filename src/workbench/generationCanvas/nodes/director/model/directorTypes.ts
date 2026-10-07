@@ -125,6 +125,9 @@ export type CloseupClip = {
   motionPreset: CloseupMotionPreset
 }
 
+/** 模型加载后用 three Box3 实量的局部包围盒（对象自己的坐标系、未乘对象 scale）：GLB 的尺寸唯一真值，由 ModelEntity 写、directorSpace 读。 */
+export type DirectorMeasuredBounds = { min: Vec3; max: Vec3 }
+
 // 空间实体共有的「时间轴身份」：有轨迹片段即进时间轴
 export type TimelineEntityFields = {
   motionTrajectory?: Waypoint[]
@@ -151,6 +154,7 @@ export type DirectorObject = TimelineEntityFields & {
   isAuxiliary?: boolean
   modelPath?: string
   modelScale?: number
+  measuredBounds?: DirectorMeasuredBounds
   isSystemModel?: boolean
   rig?: DirectorRig
   posePreset?: string

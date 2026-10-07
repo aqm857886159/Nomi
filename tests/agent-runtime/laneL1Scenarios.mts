@@ -40,7 +40,7 @@ const canvas = (id: string, name: string, args: Record<string, unknown>, semanti
   domainResult: { applied: true, proposalId: `receipt-${id}`, operation: semantic.operation, result: {}, reconciliation: { ok: true, deviationCount: 0 } },
   resultText: `Applied directly (undoable).\nUser sees: ${userSees}`,
 });
-const DRAFT_USER_SEES = 'Draft changes are saved in the project. Saving does not imply canvas placement or a new generation start.';
+const DRAFT_USER_SEES = 'Draft changes are saved in the project. Nothing was generated and nothing was spent. This host did not report whether the draft is on the canvas, so do not state what the canvas shows.';
 /** `draft_shots` 建草稿（卡藏着）：返回 durable operation；模型手里拿到的 id，末行按它下一步要填的名字印成 `operationId=`。 */
 const draft = (id: string, args: Record<string, unknown>, operationId: string): L1Call =>
   domain(id, 'draft_shots', args, { operation: { operationId, state: 'draft', cardHidden: true } }, args, `${DRAFT_USER_SEES} (operationId=${operationId})`);
@@ -87,12 +87,12 @@ export const L1_SCENARIOS: readonly L1Scenario[] = [
       { operation: 'inspect_timeline_range', revision: 'r1', startFrame: 30, endFrame: 60, tracks: [], textClips: [] },
       { operation: 'inspect_timeline_range', startFrame: 30, endFrame: 60 })), say('The requested interval has no clips.'))]),
   scenario('T3', 'timeline', 'Apply a revision-bound plan through the review card', [turn('Move the opening clip.',
-    calls(domain('write-t3', 'edit_timeline', plan, { applied: true, revision: 'r2', undoToken: 'undo-1' }, plan,
+    calls(domain('write-t3', 'edit_timeline', plan, { applied: true, revision: 'r2', changeId: 'timeline:v1:undo-1' }, plan,
       // 这句以前写死「有一张卡在等用户」，还用括号补一句「全自动档其实已经应用了」——两种结论塞进一句话，
       // 正是 T-ED-02 那条根因（回执不从真实批准派生）。现在 userSees 由本次调用的真实批准结论派生，
       // 而本场景**没有**摆出批准动作，所以它断言的是「没问就直接改了」那一支。要覆盖「出了卡」那一支，
       // 得在场景里真的摆一次批准，不是把话写死。
-      'The timeline edit applied directly \u2014 this approval mode did not ask, and no card is waiting for the user. It is reversible; call undo to take it back. (undoToken=undo-1)')), say('The edit has an undo token.'))]),
+      'The timeline edit applied directly \u2014 this approval mode did not ask, and no card is waiting for the user. It is reversible; call undo to take it back.')), say('The edit has a change id for undo.'))]),
   scenario('G1', 'generation', 'Draft a shot without spending', [turn('Draft a sunrise image.',
     calls(draft('create-g1', { shots: [{ prompt: 'Sunrise' }] }, 'gen-1')), say('The draft awaits the user; nothing was spent.'))]),
   scenario('G2', 'generation', 'Read a submitted job then cancel it', [turn('Stop the existing generation.',

@@ -33,8 +33,16 @@ export function catalogRowFor(providerId: string, modelId: string): CatalogRowId
 const normalized = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase().replace(/-/g, "_") : "";
 
-/** 档案控件 → 准入字段。`select` 的选项集就是枚举；数值控件把声明过的范围带过来。 */
+/**
+ * 档案控件 → 准入字段。`select` 的选项集就是枚举；数值控件把声明过的范围带过来；档案声明的默认值原样带上
+ * （语义比例翻译按它判「同一档」，准入本身不读它）。
+ */
 export function parameterFieldForControl(control: ModelParameterControl): ParameterField {
+  const field = fieldShapeForControl(control);
+  return control.defaultValue === undefined ? field : { ...field, default: control.defaultValue };
+}
+
+function fieldShapeForControl(control: ModelParameterControl): ParameterField {
   const bounds = {
     ...(typeof control.min === "number" && Number.isFinite(control.min) ? { min: control.min } : {}),
     ...(typeof control.max === "number" && Number.isFinite(control.max) ? { max: control.max } : {}),

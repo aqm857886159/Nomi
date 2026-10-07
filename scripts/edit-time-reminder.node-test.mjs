@@ -22,7 +22,7 @@ const env = (over = {}) => ({
   root: repo,
   exists: () => false,
   registries: () => registries,
-  countFixes: () => 0,
+  churn: () => ({ hot: false }),
   ...over,
 })
 const write = (rel, tool = 'Write') => ({ tool_name: tool, tool_input: { file_path: path.join(repo, rel) } })
@@ -31,7 +31,7 @@ describe('哪些文件归它管', () => {
   test('src/ 与 electron/ 的源码归它管；测试、生成物、文档、脚本不归', () => {
     assert.equal(isWatchedSource('electron/agentLane/laneHost.mts'), true)
     assert.equal(isWatchedSource('src/workbench/ai/Foo.tsx'), true)
-    for (const rel of ['electron/agentLane/laneHost.test.ts', 'src/a/b.node-test.mjs', 'electron/x.generated.ts', 'electron/types.d.ts', 'docs/plan/x.md', 'scripts/x.mjs', 'src/styles/a.css', 'docs/engineering/concept-owners.json']) {
+    for (const rel of ['electron/agentLane/laneHost.test.ts', 'src/a/b.node-test.mjs', 'electron/x.generated.ts', 'electron/types.d.ts', 'docs/plan/x.md', 'scripts/x.mjs', 'src/styles/a.css', 'docs/engineering/concept-owners/catalog.vendor-landing.json']) {
       assert.equal(isWatchedSource(rel), false, rel)
     }
   })
@@ -60,18 +60,21 @@ describe('(a) 新建文件', () => {
 })
 
 describe('(b) 同一文件反复修', () => {
-  test(`近 14 天 fix 数 ≥${FIX_THRESHOLD} → 提醒重写判据；少一次就不提醒`, () => {
+  const hotEntry = (fixes) => ({ path: 'x', hot: true, file: { fixes, reverts: 0 }, reasons: [`文件近 14 天已有 ${fixes} 个 fix，这一刀是第 ${fixes + 1} 个`] })
+  test(`churn 命中 → 提醒方向检查（类根因复盘）；未命中不提醒；阈值 = 已有 ${FIX_THRESHOLD} 个 fix`, () => {
     const file = 'electron/agentLane/laneHost.mts'
-    const hit = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, countFixes: () => FIX_THRESHOLD }))
+    const hit = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => hotEntry(FIX_THRESHOLD) }))
     assert.equal(hit.kind, 'repeat-fix')
-    assert.match(hit.message, /补 \/ 重写 \/ 删/)
-    assert.match(hit.message, /特征测试/)
-    assert.match(hit.message, new RegExp(`第 ${FIX_THRESHOLD + 1} 次`))
-    assert.equal(decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, countFixes: () => FIX_THRESHOLD - 1 })), null)
+    assert.match(hit.message, /方向检查/)
+    assert.match(hit.message, /类根因复盘/)
+    assert.match(hit.message, new RegExp(`第 ${FIX_THRESHOLD + 1} 个`))
+    assert.equal(decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true, churn: () => ({ hot: false }) })), null)
+    assert.equal(FIX_THRESHOLD, 2)
   })
 
   test('只数 fix / hotfix 开头的提交，不数 feat / docs / 合并', () => {
-    const git = () => ['fix(agent): a', 'feat: b', 'docs: c', 'hotfix: d', 'Fix: e', 'refactor: f', 'chore(fix): g'].join('\n')
+    const git = () => ['fix(agent): a', 'feat: b', 'docs: c', 'hotfix: d', 'Fix: e', 'refactor: f', 'chore(fix): g']
+      .map((s, i) => `\x01h${i}\x022099-01-01T00:00:00Z\x02${s}\na.ts\n`).join('')
     assert.equal(countRecentFixes('/x', 'a.ts', { git }), 3)
   })
 
@@ -79,7 +82,7 @@ describe('(b) 同一文件反复修', () => {
     assert.equal(countRecentFixes('/x', 'a.ts', { git: () => { throw new Error('boom') } }), 0)
   })
 
-  test('真 git：三次 fix 提交的文件被数出 3', () => {
+  test('真 git：三次 fix 提交的文件被数出 3（共享计数器 fix-churn）', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-fixcount-'))
     try {
       const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })

@@ -133,6 +133,8 @@ describe('canvas.write real renderer execution', () => {
     expect(result).toEqual({
       applied: true,
       proposalId: RECEIPT_ID,
+      // Signed model face: every applied canvas write exposes its undo routing id.
+      changeId: `canvas:v1:${RECEIPT_ID}`,
       operation: 'connect_canvas_edges',
       affectedNodeIds: [source.id, target.id],
       affectedEdgeIds: [edge?.id],
@@ -172,6 +174,8 @@ describe('canvas.write real renderer execution', () => {
     expect(result).toEqual({
       applied: true,
       proposalId: RECEIPT_ID,
+      // Signed model face: tidy is reversible through the same change ledger.
+      changeId: `canvas:v1:${RECEIPT_ID}`,
       operation: 'tidy_canvas',
       affectedNodeIds: [shotA.id, shotB.id],
       categoryId: 'shots',

@@ -19,22 +19,42 @@
 // 吞回去（对关掉对了，对失败错了，而且没接上线）。两端各修一次都不对：都不是 owner。
 //
 // 这个模块就是 owner：五种相各是各的，主进程写、lane 与渲染层读同一份。
+import { logWarn } from "../logging/logger";
 import type { ResidentGenerationAdapterFactory } from "./residentGenerationAdapterFactory";
 import type { ResidentSurfaceDisabledReason } from "../shared/contracts/residentSurfaceLifecycle";
+import type { PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
+
+/** 能力核装好之后的那条读口：这个项目此刻有哪几笔在等用户点头（`appIntegrationSpendConfirm` 的 `listPendingSpend`）。 */
+export type ReadyPendingSpendReader = (projectId: string) => Extract<PendingSpendRead, { surface: "ready" }>;
 
 export type ResidentSurfaceLifecycle =
   /** 本会话按配置不装（env / 低内存）。不是失败：这种相下没有任何一面能 announce 一笔待确认。 */
   | Readonly<{ phase: "disabled"; reason: ResidentSurfaceDisabledReason }>
   /** 能力核在起，还没装到这一步。窗口先于能力核出现，所以渲染层的头几次轮询会落在这里。 */
   | Readonly<{ phase: "starting" }>
-  /** 装好了：这就是 lane 拿生成适配器工厂的**唯一**出处。 */
-  | Readonly<{ phase: "ready"; factory: ResidentGenerationAdapterFactory["factory"] }>
+  /**
+   * 装好了：这就是 lane 拿生成适配器工厂、对话投影拿待决出价的**唯一**出处。两条面同一刻装齐，
+   * 所以读口跟着相走——「相说 ready、读口却没装」这种装配顺序错误在类型上就写不出来。
+   */
+  | Readonly<{ phase: "ready"; factory: ResidentGenerationAdapterFactory["factory"]; readPendingSpend: ReadyPendingSpendReader }>
   /** 装配抛了。这才是要一路传到用户眼前、在 CI 里必须红的那种。 */
   | Readonly<{ phase: "install-failed"; reason: string }>
   /** 已撤下（退出，或能力核重启中）。 */
   | Readonly<{ phase: "stopped" }>;
 
 let current: ResidentSurfaceLifecycle = { phase: "starting" };
+const listeners = new Set<() => void>();
+
+/** 换相时通知（对话投影据此重读一次待决出价：能力核晚于窗口起来，起来那一刻卡要能出现）。 */
+export function subscribeResidentSurfaceLifecycle(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function enter(next: ResidentSurfaceLifecycle): void {
+  current = next;
+  for (const listener of [...listeners]) listener();
+}
 
 /**
  * 启动时调一次，**替代** `main.ts` 里自己算 `capabilityCoreDisabled`：判断与记录是同一件事，
@@ -44,30 +64,55 @@ export function bootResidentSurfaceLifecycle(input: Readonly<{
   env: Readonly<Record<string, string | undefined>>;
   lowMemoryMode: boolean;
 }>): ResidentSurfaceLifecycle {
-  if (input.env.NOMI_DISABLE_CAPABILITY_CORE === "1") current = { phase: "disabled", reason: "env" };
-  else if (input.lowMemoryMode && input.env.NOMI_KEEP_CAPABILITY_CORE !== "1") current = { phase: "disabled", reason: "low-memory" };
-  else current = { phase: "starting" };
+  if (input.env.NOMI_DISABLE_CAPABILITY_CORE === "1") enter({ phase: "disabled", reason: "env" });
+  else if (input.lowMemoryMode && input.env.NOMI_KEEP_CAPABILITY_CORE !== "1") enter({ phase: "disabled", reason: "low-memory" });
+  else enter({ phase: "starting" });
   return current;
 }
 
 export function markResidentSurfaceStarting(): void {
-  current = { phase: "starting" };
+  enter({ phase: "starting" });
 }
 
-export function markResidentSurfaceReady(factory: ResidentGenerationAdapterFactory["factory"]): void {
-  current = { phase: "ready", factory };
+export function markResidentSurfaceReady(factory: ResidentGenerationAdapterFactory["factory"], readPendingSpend: ReadyPendingSpendReader): void {
+  enter({ phase: "ready", factory, readPendingSpend });
 }
 
 export function markResidentSurfaceInstallFailed(reason: unknown): void {
-  current = { phase: "install-failed", reason: reason instanceof Error ? reason.message : String(reason) };
+  enter({ phase: "install-failed", reason: reason instanceof Error ? reason.message : String(reason) });
 }
 
 export function markResidentSurfaceStopped(): void {
-  current = { phase: "stopped" };
+  enter({ phase: "stopped" });
 }
 
 export function readResidentSurfaceLifecycle(): ResidentSurfaceLifecycle {
   return current;
+}
+
+/**
+ * 这个项目此刻有哪几笔生成在等用户点头——**唯一**的读口（2026-10-05 起它只喂对话投影，渲染层不再轮询它）。
+ *
+ * 读的答案跟着相走：off（按配置关掉 / 还在起 / 已停）不是失败；装配抛了、或投影本身抛了，是 `unreadable`，
+ * 一路带到面板上那张会说话的卡。投影抛只有一种已知来源（`pending_spend_projection_empty`：账本说在等、却一镜都投影不出来）。
+ */
+export function readPendingSpend(projectId: string): PendingSpendRead {
+  switch (current.phase) {
+    case "disabled":
+      return { surface: "off", phase: "disabled", reason: current.reason };
+    case "starting":
+    case "stopped":
+      return { surface: "off", phase: current.phase };
+    case "install-failed":
+      return { surface: "unreadable", reason: "surface-unavailable" };
+    case "ready":
+      try {
+        return current.readPendingSpend(projectId);
+      } catch (error) {
+        logWarn("capability", "pending-spend-projection-failed", { projectId }, error);
+        return { surface: "unreadable", reason: "projection-failed" };
+      }
+  }
 }
 
 /** lane 的生成适配器工厂。不是 ready 就是 undefined——但「为什么是 undefined」由上面那份相回答。 */

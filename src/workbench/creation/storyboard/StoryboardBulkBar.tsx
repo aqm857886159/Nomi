@@ -86,7 +86,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
       const option = findModelOptionByIdentifier(pool, shot.modelKey, shot.modelVendor, orderedVendorKeys)
       const resolved = resolveShotArchetypeMode(option, shot.modeId)
       if (!resolved) return false
-      // 判据与执行侧完全一致：buildPlannedNodeMeta 按 control.key 匹配，键不在这份表里就发不出去。
+      // 判据与执行侧完全一致：落地那一层按这个模式的比例控件翻成真实键（placeAspectRatio），落不下才算不支持。
       return unsupportedFilmDefaultKeys(plan, shot, resolved.mode.params).length > 0
     }).length
   }, [plan, imageModelOptions, videoModelOptions, orderedVendorKeys])

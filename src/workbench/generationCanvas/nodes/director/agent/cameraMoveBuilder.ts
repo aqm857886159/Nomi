@@ -15,7 +15,8 @@ import {
   createLegacyTrajectoryId, legacyCameraLookAtRotation, type LegacySceneTemplate, type ScenePropPlacement,
 } from '../migration/legacySceneBuilders'
 import { dollyZoomDistanceScale, zoomFovRamp } from './cameraMoveFovMath'
-import { CAMERA_MOVE_FRAMING, CAMERA_MOVE_LABEL, CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed, type StagingShot } from './cameraMoveVocab'
+import { CAMERA_MOVE_FRAMING, CAMERA_MOVE_LABEL, CAMERA_SPEED_DURATION, type CameraSpeed, type StagingShot } from './cameraMoveVocab'
+import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 import { ENV_PRESET } from './stagingVocab'
 
 const DEG = Math.PI / 180

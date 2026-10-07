@@ -1,0 +1,15 @@
+  ✓ 空工程·视口空态提示
+  ✓ 空工程·时间轴空态
+  ✓ 空工程·画中画无机位
+  · shot tests/ux/shots/director/j1-three-person-scene/01-empty-project.png
+  ✓ 放置三个角色 — 角色1@(-1.4,0.4) 角色2@(0.0,-0.6) 角色3@(1.4,0.4)
+  ✓ 角色落在点的地方（x 排成一行）
+  ✓ 假人贴地且身高约 1.7m — y -0.00…1.90
+  · shot tests/ux/shots/director/j1-three-person-scene/02-three-characters.png
+  ✓ 正面中景机位在主角前方 — cam (0.0, 2.9)
+  ✓ 画中画显示机位画面（不再是「还没有机位」）
+  ✓ 方块有体积（底面约 1×1、拉出高度） — scale (1.00, 0.90, 1.00)
+  · shot tests/ux/shots/director/j1-three-person-scene/03-camera-light-box.png
+  ✓ 大纲重命名生效
+  ✗ 旅程中断：等不到工程状态「撤销重命名」：s.objects.some(o => o.name === '角色2')
+✗ j1-three-person-scene：1 项失败 —— 旅程中断：等不到工程状态「撤销重命名」：s.objects.some(o => o.name === '角色2')

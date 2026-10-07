@@ -22,6 +22,9 @@
  *   pnpm run check:model-face-frozen                     校验
  *   pnpm run check:model-face-frozen -- --update-baseline 改基线（要在 PR 里逐条说明模型看到的什么变了）
  */
+// 3D-BOX 开关引导模块必须第一个导入（工具注册表在导入期按它装配）；开关开时比第二份基线。
+import '../electron/shared/featureFlags/director3dbox.ts'
+import { director3dBoxFaceEnabled } from '../electron/shared/featureFlags/director3dboxFace.ts'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +33,7 @@ import { captureModelFace, serializeModelFace } from './model-face-snapshot.mjs'
 import { onboardingVerbs } from '../electron/shared/agentCapabilities/verbs/onboardingVerbs.ts'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const baselinePath = path.join(repoRoot, 'scripts', 'model-face-baseline.json')
+const baselinePath = path.join(repoRoot, 'scripts', director3dBoxFaceEnabled() ? 'model-face-baseline.director3dbox.json' : 'model-face-baseline.json')
 
 /**
  * 内部面冻结为 21 个；对外专属数量从声明源派生，独立于装配结果，漏装配仍 fail-closed。

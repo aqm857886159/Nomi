@@ -15,6 +15,7 @@
 import { z } from "zod";
 import { logCrash } from "../crashLog";
 import { logError, logWarn, type LogFields } from "./logger";
+import { assertTrustedFireAndForget } from "../ipcSenderGuard";
 import {
   RENDERER_LOG_EVENT_PATTERN,
   RENDERER_LOG_FIELD_KEY_PATTERN,
@@ -133,7 +134,7 @@ export function registerRendererLogIpc<E>(
   record: (raw: unknown) => void = createRendererLogRecorder(),
 ): void {
   boundary.onMessage(RENDERER_LOG_CHANNEL, (event, message) => {
-    boundary.assertTrusted(event);
+    if (!assertTrustedFireAndForget(event, RENDERER_LOG_CHANNEL, boundary.assertTrusted)) return;
     record(message);
   });
 }

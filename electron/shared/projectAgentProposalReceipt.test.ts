@@ -31,3 +31,11 @@ it("retains prompt ownership in compensation while accepting old receipts", () =
   expect(parsed?.compensation[0]).toEqual({ kind: "restore-prompt", nodeId: "node-a", prompt: "old", promptOverridden: false });
   expect(parseProjectAgentCommittedProposal({ ...legacyProposal, compensation: [{ kind: "restore-prompt", nodeId: "node-a", prompt: "old", promptOverridden: "false" }] })).toBeNull();
 });
+
+it("keeps a whole-node field restore (3D-BOX plan revisions and preview attachment) and rejects a malformed one", () => {
+  const meta = { directorPlan: { revision: "dplan-0123456789abcdef", plan: { shots: [{ id: "a", window: [0, 3] }] } }, referenceVideoUrls: ["nomi-local://asset/p/v.mp4"] };
+  const parsed = parseProjectAgentCommittedProposal({ ...legacyProposal, compensation: [{ kind: "restore-node-fields", nodeId: "node-a", meta, prompt: "" }] });
+  expect(parsed?.compensation[0]).toEqual({ kind: "restore-node-fields", nodeId: "node-a", meta, prompt: "" });
+  expect(parseProjectAgentCommittedProposal({ ...legacyProposal, compensation: [{ kind: "restore-node-fields", nodeId: "node-a", meta: [], prompt: "" }] })).toBeNull();
+  expect(parseProjectAgentCommittedProposal({ ...legacyProposal, compensation: [{ kind: "restore-node-fields", nodeId: "node-a", meta, prompt: "", extra: 1 }] })).toBeNull();
+});

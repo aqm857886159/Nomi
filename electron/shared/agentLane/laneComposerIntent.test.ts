@@ -64,3 +64,26 @@ describe("laneComposerIntent", () => {
     expect(laneComposerIntent(projection({ running: true }), raw).primary.command).toMatchObject({ text: raw });
   });
 });
+
+// 「等你确认」只有一种表示（2026-10-05）：付费卡也在投影里，等它时输入框不再答「在跑」。
+describe("付费卡在投影里：等它时也是「等你确认」", () => {
+  const SPEND = { surface: "ready", rows: [{ operationId: "op-1" }] } as never;
+
+  it("回合在跑、项目里有一笔钱在等点头 → awaiting-approval；回车照旧是 steer（宿主把这句话递给那张卡）", () => {
+    const intent = laneComposerIntent(projection({ running: true }), "第二镜改短点", SPEND);
+    expect(intent.state).toBe("awaiting-approval");
+    expect(intent.primary.command).toEqual({ kind: "steer", text: "第二镜改短点" });
+  });
+
+  it("没有回合在等它（全自动代答失败留下的卡）→ 仍是空闲：打字开新一轮，不当成对那张卡的回答", () => {
+    const intent = laneComposerIntent(projection({ running: false }), "再来一张", SPEND);
+    expect(intent.state).toBe("idle");
+    expect(intent.primary.command).toEqual({ kind: "prompt", text: "再来一张" });
+  });
+
+  it("没有卡 / 读不到 / 没装 → 照旧按在跑判", () => {
+    for (const spend of [undefined, { surface: "ready", rows: [] }, { surface: "unreadable", reason: "projection-failed" }, { surface: "off", phase: "starting" }] as const) {
+      expect(laneComposerState(projection({ running: true }), spend)).toBe("running");
+    }
+  });
+});

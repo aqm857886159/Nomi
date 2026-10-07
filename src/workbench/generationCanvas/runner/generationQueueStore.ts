@@ -15,6 +15,7 @@ import { declareStoreLifetime } from '../../project/storeLifetime'
 // 内存态不持久化：进行中的调度天然瞬态（重启本就在终态收敛，见 canvasRunActions.ts 头注释），
 // 历史留痕已在 node.runs[] 里持久化 —— 不另立第二份历史真相源。
 import { create } from 'zustand'
+import { withdrawCanvasShots } from '../../api/taskApi'
 import { notify, revealNotificationTarget } from '../../../ui/notificationPolicy'
 import i18n from '../../../i18n'
 
@@ -46,6 +47,11 @@ export type GenerationQueueBatch = {
   paused: boolean
   consecutiveFailures: number
   finishedAt?: number
+  /**
+   * 批量卡上点了确认之后主进程为要花钱的节点开好的出价（节点 → 运行记录号）。排队的那一镜被取消 / 整批取消时
+   * 把它的出价收回——主进程那一侧从此拒交，不只是这里不交。
+   */
+  canvasRunRecordIds?: Readonly<Record<string, string>>
 }
 
 function clearBrakeNotification(batch: GenerationQueueBatch | undefined): void {
@@ -90,6 +96,8 @@ type GenerationQueueState = {
     state: Extract<QueueEntryState, 'success' | 'error' | 'cancelled'>,
     options?: { error?: string; countsTowardBrake?: boolean },
   ) => void
+  /** 记下这一批要花钱的节点在主进程开好的出价（批量卡确认之后、开跑之前）。 */
+  attachCanvasConsent: (batchId: string, runRecordIds: ReadonlyMap<string, string>) => void
   /** 取消单个排队条目（只对 queued 生效；running 的不碰——已提交的停不下来）。 */
   cancelEntry: (batchId: string, nodeId: string) => void
   /** 取消该批次所有还没提交的；返回真正被取消的个数。 */
@@ -167,7 +175,15 @@ export const useGenerationQueueStore = create<GenerationQueueState>()((set, get)
     }
   },
 
+  attachCanvasConsent: (batchId, runRecordIds) => {
+    set((state) => {
+      const batch = state.batches[batchId]
+      return batch ? { batches: { ...state.batches, [batchId]: { ...batch, canvasRunRecordIds: Object.fromEntries(runRecordIds) } } } : {}
+    })
+  },
+
   cancelEntry: (batchId, nodeId) => {
+    const queued = get().entries.some((entry) => entry.id === entryId(batchId, nodeId) && entry.state === 'queued')
     set((state) => ({
       entries: state.entries.map((entry) =>
         entry.id === entryId(batchId, nodeId) && entry.state === 'queued'
@@ -175,11 +191,21 @@ export const useGenerationQueueStore = create<GenerationQueueState>()((set, get)
           : entry,
       ),
     }))
+    // 卡上点过确认的这一镜还没交：收回它的出价（「去掉的不生成」由主进程那一侧守住）。
+    const batch = get().batches[batchId]
+    const runRecordId = batch?.canvasRunRecordIds?.[nodeId]
+    if (queued && batch && runRecordId) withdrawCanvasShots({ projectId: batch.projectId, runRecordIds: [runRecordId], by: 'removed' })
   },
 
   cancelBatchRemaining: (batchId) => {
     clearBrakeNotification(get().batches[batchId])
     const pending = get().entries.filter((entry) => entry.batchId === batchId && entry.state === 'queued')
+    // 整批 ×：还没交的那几镜收回出价；已经交了的照常跑完（中途点 × 只发出已经发出去的那几镜）。
+    const consented = get().batches[batchId]
+    if (consented?.canvasRunRecordIds) {
+      const runRecordIds = pending.map((entry) => consented.canvasRunRecordIds![entry.nodeId]).filter((value): value is string => Boolean(value))
+      withdrawCanvasShots({ projectId: consented.projectId, runRecordIds, by: 'user_closed' })
+    }
     if (pending.length === 0) {
       // 没有待取消条目也要落 cancelRequested：被刹车挂起的 worker 靠它跳出。
       set((state) => {

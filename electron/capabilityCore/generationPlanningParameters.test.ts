@@ -22,7 +22,7 @@ describe("generation planning parameters", () => {
       const probe = {
         cameraIntent: "orbit", preferredFamily: "seedance", preserveCharacter: true,
         preserveTransition: true, useReferenceAudio: true, quality: "final",
-        aspectRatio: "16:9", durationSeconds: 7,
+        durationSeconds: 7,
         totalDurationSeconds: 120, targetDurationSeconds: 120,
       }[key as keyof Record<string, unknown>];
       expect(probe, `${key} 在探针里没有取值，测试本身证明不了任何事`).toBeDefined();
@@ -38,6 +38,8 @@ describe("generation planning parameters", () => {
     expect(GENERATION_PLANNING_PARAMETER_KEYS.has("resolution")).toBe(false);
     expect(GENERATION_PLANNING_PARAMETER_KEYS.has("aspect_ratio")).toBe(false);
     expect(GENERATION_PLANNING_PARAMETER_KEYS.has("duration")).toBe(false);
+    // 语义比例不是意图键：它要翻成真实键上线缆，放进这张表就会在编合同时被静默吞掉（2026-10-05）。
+    expect(GENERATION_PLANNING_PARAMETER_KEYS.has("aspectRatio")).toBe(false);
   });
 
   it("键名集合与类型表是同一张表——不许再漂出第二份（2026-09-22 总合并）", () => {

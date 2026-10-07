@@ -9,6 +9,7 @@
 // `readSkillRecords()` 是 **async** 的，经 `laneNativeLoader.cts` 那座桥到岛上（pi 是 ESM-only，主进程只能
 // 动态 `import()` 摸到它）。每次调用都重扫盘：目录没有快照，「刚导入的技能」下一次读就在。
 // 吃 `records` 的函数一律显式收参数，不再默认偷偷读盘——谁要新鲜数据谁 `await readSkillRecords()`。
+import { director3dBoxFaceEnabled } from "../shared/featureFlags/director3dboxFace";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -177,6 +178,8 @@ export function isSkillSelectableInWorkbench(
   record: Pick<SkillRecord, "name" | "origin" | "manifest">,
 ): boolean {
   if (record.origin === "user") return true;
+  // 绑在构建开关上的技能（3D-BOX 工作流，它点名的 stage_shot 只在开关开时是新版）：开关关就不可选。
+  if (record.manifest?.requiresFlag === "director3dbox" && !director3dBoxFaceEnabled()) return false;
   return record.manifest?.selectableInWorkbench === true || Boolean(record.manifest?.stages?.length);
 }
 

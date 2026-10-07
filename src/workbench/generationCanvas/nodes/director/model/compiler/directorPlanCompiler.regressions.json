@@ -1,0 +1,918 @@
+[
+  {
+    "source": "20261004050831/courtyard-standoff",
+    "plan": {
+      "scene": {
+        "tags": [
+          "古代庭院",
+          "院门",
+          "青衣女子",
+          "信",
+          "侍卫",
+          "古装悬疑",
+          "night"
+        ],
+        "environment": "night",
+        "template": "courtyard",
+        "setPieces": [
+          {
+            "id": "courtyard_gate",
+            "kind": "院门",
+            "relation": {
+              "type": "at",
+              "ref": "s1-courtyard-gate"
+            }
+          }
+        ]
+      },
+      "actors": [
+        {
+          "id": "qingyi_woman",
+          "kind": "person",
+          "desc": "青衣女子",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-ground"
+          }
+        },
+        {
+          "id": "guard",
+          "kind": "person",
+          "desc": "侍卫",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-gate"
+          }
+        },
+        {
+          "id": "letter",
+          "kind": "prop",
+          "desc": "信",
+          "placement": {
+            "relation": "on",
+            "ref": "qingyi_woman"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "qingyi_woman",
+          "verb": "walk_to",
+          "target": "courtyard_gate",
+          "window": [
+            0,
+            6
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "hold_pose",
+          "window": [
+            0,
+            6
+          ],
+          "action": "standing_idle"
+        },
+        {
+          "actor": "qingyi_woman",
+          "verb": "stop",
+          "window": [
+            6,
+            12
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "sidestep",
+          "target": "qingyi_woman",
+          "window": [
+            6,
+            7
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "turn_to",
+          "target": "qingyi_woman",
+          "window": [
+            7,
+            8
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "hold_pose",
+          "window": [
+            8,
+            12
+          ],
+          "action": "standing_idle"
+        }
+      ],
+      "shots": [
+        {
+          "id": "courtyard_establish",
+          "window": [
+            0,
+            3
+          ],
+          "transitionIn": "cut",
+          "subject": "qingyi_woman",
+          "subjects": [
+            "qingyi_woman",
+            "guard",
+            "letter"
+          ],
+          "size": "全景",
+          "angle": "three_quarter",
+          "height": "high",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        },
+        {
+          "id": "approach_gate",
+          "window": [
+            3,
+            6
+          ],
+          "transitionIn": "continuous",
+          "subject": "qingyi_woman",
+          "subjects": [
+            "qingyi_woman",
+            "guard",
+            "letter"
+          ],
+          "size": "中景",
+          "angle": {
+            "over_shoulder": "guard"
+          },
+          "height": "eye",
+          "move": {
+            "kind": "follow",
+            "speed": "slow",
+            "easing": "linear"
+          }
+        },
+        {
+          "id": "guard_blocks",
+          "window": [
+            6,
+            9
+          ],
+          "transitionIn": "cut",
+          "subject": "guard",
+          "subjects": [
+            "qingyi_woman",
+            "guard",
+            "letter"
+          ],
+          "size": "中近景",
+          "angle": "side",
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        },
+        {
+          "id": "letter_detail",
+          "window": [
+            9,
+            12
+          ],
+          "transitionIn": "cut",
+          "subject": "letter",
+          "subjects": [
+            "qingyi_woman",
+            "guard",
+            "letter"
+          ],
+          "size": "特写",
+          "angle": "side",
+          "height": "eye",
+          "move": {
+            "kind": "rack_focus",
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "20261004050831/perfume-orbit",
+    "plan": {
+      "scene": {
+        "tags": [
+          "香水瓶",
+          "圆形展台",
+          "瓶盖",
+          "studio",
+          "product_stage"
+        ],
+        "environment": "studio",
+        "template": "product_stage",
+        "setPieces": [
+          {
+            "id": "circular_display_stand",
+            "kind": "圆形展台",
+            "relation": {
+              "type": "at",
+              "ref": "s1-product-ground"
+            }
+          }
+        ]
+      },
+      "actors": [
+        {
+          "id": "perfume_bottle",
+          "kind": "product",
+          "desc": "香水瓶",
+          "placement": {
+            "relation": "on",
+            "ref": "circular_display_stand"
+          }
+        },
+        {
+          "id": "bottle_cap",
+          "kind": "prop",
+          "desc": "瓶盖",
+          "placement": {
+            "relation": "on",
+            "ref": "perfume_bottle"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "perfume_bottle",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        },
+        {
+          "actor": "bottle_cap",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        }
+      ],
+      "shots": [
+        {
+          "id": "orbit",
+          "window": [
+            0,
+            7
+          ],
+          "transitionIn": "cut",
+          "subject": "perfume_bottle",
+          "subjects": [
+            "perfume_bottle",
+            "bottle_cap"
+          ],
+          "size": "中景",
+          "angle": "three_quarter",
+          "height": "eye",
+          "move": {
+            "kind": "orbit_right",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        },
+        {
+          "id": "push_cap",
+          "window": [
+            7,
+            12
+          ],
+          "transitionIn": "cut",
+          "subject": "bottle_cap",
+          "subjects": [
+            "bottle_cap",
+            "perfume_bottle"
+          ],
+          "size": "特写",
+          "angle": "front",
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "20261004051624/courtyard-standoff",
+    "plan": {
+      "scene": {
+        "tags": [
+          "古代庭院",
+          "院门",
+          "信",
+          "古装悬疑",
+          "day"
+        ],
+        "environment": "day",
+        "template": "courtyard",
+        "setPieces": [
+          {
+            "id": "courtyard_gate",
+            "kind": "院门",
+            "relation": {
+              "type": "at",
+              "ref": "s1-courtyard-gate"
+            }
+          }
+        ]
+      },
+      "actors": [
+        {
+          "id": "qingyi_woman",
+          "kind": "person",
+          "desc": "青衣女子",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-ground"
+          }
+        },
+        {
+          "id": "guard",
+          "kind": "person",
+          "desc": "侍卫",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-gate"
+          }
+        },
+        {
+          "id": "letter",
+          "kind": "prop",
+          "desc": "信",
+          "placement": {
+            "relation": "near",
+            "ref": "qingyi_woman"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "qingyi_woman",
+          "verb": "walk_to",
+          "target": "guard",
+          "window": [
+            0,
+            6
+          ]
+        },
+        {
+          "actor": "qingyi_woman",
+          "verb": "stop",
+          "window": [
+            6,
+            12
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "turn_to",
+          "target": "qingyi_woman",
+          "window": [
+            6,
+            8
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "hold_pose",
+          "window": [
+            8,
+            12
+          ],
+          "action": "standing_idle"
+        }
+      ],
+      "shots": [
+        {
+          "id": "courtyard_establish",
+          "window": [
+            0,
+            4
+          ],
+          "transitionIn": "cut",
+          "subject": "qingyi_woman",
+          "subjects": [
+            "qingyi_woman",
+            "letter",
+            "guard"
+          ],
+          "size": "远景",
+          "angle": "three_quarter",
+          "height": "high",
+          "move": {
+            "kind": "static",
+            "speed": "slow",
+            "easing": "linear"
+          }
+        },
+        {
+          "id": "walk_with_letter",
+          "window": [
+            4,
+            7
+          ],
+          "transitionIn": "cut",
+          "subject": "qingyi_woman",
+          "subjects": [
+            "qingyi_woman",
+            "letter"
+          ],
+          "size": "中景",
+          "angle": "side",
+          "height": "eye",
+          "move": {
+            "kind": "follow",
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        },
+        {
+          "id": "guard_blocks",
+          "window": [
+            7,
+            10
+          ],
+          "transitionIn": "cut",
+          "subject": "guard",
+          "subjects": [
+            "guard",
+            "qingyi_woman",
+            "letter"
+          ],
+          "size": "中近景",
+          "angle": {
+            "over_shoulder": "qingyi_woman"
+          },
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_in"
+          }
+        },
+        {
+          "id": "letter_close",
+          "window": [
+            10,
+            12
+          ],
+          "transitionIn": "cut",
+          "subject": "letter",
+          "subjects": [
+            "letter",
+            "qingyi_woman",
+            "guard"
+          ],
+          "size": "特写",
+          "angle": "side",
+          "height": "eye",
+          "move": {
+            "kind": "rack_focus",
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "20261004051624/perfume-orbit",
+    "plan": {
+      "scene": {
+        "tags": [
+          "香水瓶",
+          "圆形展台",
+          "瓶盖",
+          "studio"
+        ],
+        "environment": "studio",
+        "template": "product_stage",
+        "setPieces": []
+      },
+      "actors": [
+        {
+          "id": "perfume_bottle",
+          "kind": "product",
+          "desc": "香水瓶",
+          "placement": {
+            "relation": "on",
+            "ref": "s1-product-pedestal"
+          }
+        },
+        {
+          "id": "bottle_cap",
+          "kind": "prop",
+          "desc": "瓶盖",
+          "placement": {
+            "relation": "on",
+            "ref": "perfume_bottle"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "perfume_bottle",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        },
+        {
+          "actor": "bottle_cap",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        }
+      ],
+      "shots": [
+        {
+          "id": "orbit_full",
+          "window": [
+            0,
+            7
+          ],
+          "transitionIn": "cut",
+          "subject": "perfume_bottle",
+          "subjects": [
+            "perfume_bottle",
+            "bottle_cap"
+          ],
+          "size": "全景",
+          "angle": "three_quarter",
+          "height": "eye",
+          "move": {
+            "kind": "orbit_left",
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        },
+        {
+          "id": "push_cap",
+          "window": [
+            7,
+            12
+          ],
+          "transitionIn": "continuous",
+          "subject": "bottle_cap",
+          "subjects": [
+            "bottle_cap"
+          ],
+          "size": "特写",
+          "angle": "three_quarter",
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "20261004052357/courtyard-standoff",
+    "plan": {
+      "scene": {
+        "tags": [
+          "古装悬疑",
+          "古代庭院",
+          "院门"
+        ],
+        "environment": "day",
+        "template": "courtyard",
+        "setPieces": [
+          {
+            "id": "courtyard_gate",
+            "kind": "院门",
+            "relation": {
+              "type": "at",
+              "ref": "s1-courtyard-gate"
+            }
+          }
+        ]
+      },
+      "actors": [
+        {
+          "id": "blue_woman",
+          "kind": "person",
+          "desc": "青衣女子",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-ground"
+          }
+        },
+        {
+          "id": "guard",
+          "kind": "person",
+          "desc": "侍卫",
+          "placement": {
+            "relation": "at",
+            "ref": "s1-courtyard-gate"
+          }
+        },
+        {
+          "id": "letter",
+          "kind": "prop",
+          "desc": "信",
+          "placement": {
+            "relation": "near",
+            "ref": "blue_woman"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "blue_woman",
+          "verb": "walk_to",
+          "target": "s1-courtyard-gate",
+          "window": [
+            0,
+            5
+          ]
+        },
+        {
+          "actor": "blue_woman",
+          "verb": "stop",
+          "window": [
+            5,
+            6
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "walk_to",
+          "target": "s1-courtyard-gate",
+          "window": [
+            0,
+            2
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "turn_to",
+          "target": "blue_woman",
+          "window": [
+            2,
+            4
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "stop",
+          "window": [
+            5,
+            6
+          ]
+        },
+        {
+          "actor": "guard",
+          "verb": "hold_pose",
+          "window": [
+            6,
+            12
+          ],
+          "action": "standing_idle"
+        },
+        {
+          "actor": "blue_woman",
+          "verb": "hold_pose",
+          "window": [
+            6,
+            12
+          ],
+          "action": "standing_idle"
+        }
+      ],
+      "shots": [
+        {
+          "id": "courtyard_establish",
+          "window": [
+            0,
+            3
+          ],
+          "transitionIn": "cut",
+          "subject": "blue_woman",
+          "subjects": [
+            "blue_woman",
+            "letter",
+            "guard"
+          ],
+          "size": "远景",
+          "angle": "front",
+          "height": "high",
+          "move": {
+            "kind": "static",
+            "speed": "slow",
+            "easing": "linear"
+          }
+        },
+        {
+          "id": "blue_woman_entry",
+          "window": [
+            3,
+            6
+          ],
+          "transitionIn": "cut",
+          "subject": "blue_woman",
+          "subjects": [
+            "blue_woman",
+            "letter"
+          ],
+          "size": "中景",
+          "angle": "three_quarter",
+          "height": "eye",
+          "move": {
+            "kind": "follow",
+            "speed": "slow",
+            "easing": "ease_in_out"
+          }
+        },
+        {
+          "id": "guard_block",
+          "window": [
+            6,
+            9
+          ],
+          "transitionIn": "cut",
+          "subject": "guard",
+          "subjects": [
+            "guard",
+            "blue_woman",
+            "letter"
+          ],
+          "size": "中近景",
+          "angle": {
+            "over_shoulder": "blue_woman"
+          },
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        },
+        {
+          "id": "standoff",
+          "window": [
+            9,
+            12
+          ],
+          "transitionIn": "cut",
+          "subject": "blue_woman",
+          "subjects": [
+            "blue_woman",
+            "guard",
+            "letter"
+          ],
+          "size": "近景",
+          "angle": {
+            "over_shoulder": "guard"
+          },
+          "height": "eye",
+          "move": {
+            "kind": "static",
+            "speed": "slow",
+            "easing": "linear"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "20261004052357/perfume-orbit",
+    "plan": {
+      "scene": {
+        "tags": [
+          "香水瓶",
+          "圆形展台",
+          "瓶盖",
+          "studio"
+        ],
+        "environment": "studio",
+        "template": "product_stage",
+        "setPieces": [
+          {
+            "id": "round_display_stand",
+            "kind": "圆形展台",
+            "relation": {
+              "type": "at",
+              "ref": "s1-product-ground"
+            }
+          }
+        ]
+      },
+      "actors": [
+        {
+          "id": "perfume_bottle",
+          "kind": "product",
+          "desc": "香水瓶",
+          "placement": {
+            "relation": "on",
+            "ref": "s1-product-pedestal"
+          }
+        },
+        {
+          "id": "bottle_cap",
+          "kind": "prop",
+          "desc": "瓶盖",
+          "placement": {
+            "relation": "on",
+            "ref": "perfume_bottle"
+          }
+        }
+      ],
+      "blocking": [
+        {
+          "actor": "perfume_bottle",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        },
+        {
+          "actor": "bottle_cap",
+          "verb": "static",
+          "window": [
+            0,
+            12
+          ]
+        }
+      ],
+      "shots": [
+        {
+          "id": "orbit_display",
+          "window": [
+            0,
+            6
+          ],
+          "transitionIn": "cut",
+          "subject": "perfume_bottle",
+          "subjects": [
+            "perfume_bottle",
+            "bottle_cap"
+          ],
+          "size": "全景",
+          "angle": "front",
+          "height": "eye",
+          "move": {
+            "kind": "orbit_right",
+            "speed": "slow",
+            "easing": "linear"
+          }
+        },
+        {
+          "id": "push_to_cap",
+          "window": [
+            6,
+            12
+          ],
+          "transitionIn": "continuous",
+          "subject": "bottle_cap",
+          "subjects": [
+            "bottle_cap",
+            "perfume_bottle"
+          ],
+          "size": "特写",
+          "angle": "three_quarter",
+          "height": "eye",
+          "move": {
+            "kind": "push_in",
+            "amount": 1,
+            "speed": "slow",
+            "easing": "ease_out"
+          }
+        }
+      ]
+    }
+  }
+]

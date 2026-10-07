@@ -6,7 +6,7 @@ type Effect = { deps: readonly unknown[]; cleanup?: (() => void) | void }
 const runtime = vi.hoisted(() => ({
   refs: [] as { current: unknown }[], refIndex: 0, effects: [] as Effect[], effectIndex: 0,
   layoutEffects: [] as (() => void)[], effectsAfterCommit: [] as (() => void)[],
-  layout: { left: 14, top: 14, width: 280, collapsed: false }, show: true, camera: true,
+  layout: { left: 14, bottom: 14, width: 280, collapsed: false }, show: true, camera: true,
 }))
 vi.mock('react', async (original) => {
   const actual = await original<typeof import('react')>()
@@ -68,7 +68,7 @@ function fixture(hostAlreadyMounted = false) {
 }
 beforeEach(() => {
   runtime.refs = []; runtime.effects = []; runtime.show = true; runtime.camera = true
-  runtime.layout = { left: 14, top: 14, width: 280, collapsed: false }
+  runtime.layout = { left: 14, bottom: 14, width: 280, collapsed: false }
 })
 afterEach(() => { runtime.effects.forEach((effect) => effect.cleanup?.()); vi.unstubAllGlobals() })
 

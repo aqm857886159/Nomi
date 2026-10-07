@@ -2,6 +2,8 @@
 - [模型契约跨字段约束](2026-09-08-model-contract-cross-field-limits.md) — Hailuo 1080p/时长与 H3 混合参考总量。
 - [阶段 5b：目录活性 reconcile](2026-09-08-catalog-liveness-reconcile.md) — 自动禁用、保留配置、周探针与明暗样张。
 - [全仓架构治理定稿：单一事实、单向投影、入口收敛](2026-09-26-architecture-single-owner-governance.md) — 生命周期 owner、durable commit、迁移/回滚矩阵、vertical pilot 与真实验收门。
+- [画布认领 / 删节点命令号带「第几次」（发动机收敛第 0 步）](2026-10-05-canvas-claim-attempt-id.md) — 双扣路径 6 的修复设计卡与中途表。
+- [发动机收敛：现状核查与第一刀施工计划](2026-10-05-engine-convergence-cut1.md) — 花钱入口地图、09-26 方案对账、双扣地图核实（含新缺口）、画布付费并进 ProductionRun 的分步计划与岔路。
 - [架构方案质量清单与逐条审查](2026-09-26-architecture-solution-quality-checklist.md) — 16 项方案标准与当前方案的逐项结论。
 - [Phase 0：全仓架构账本与迁移准入](2026-09-26-phase-zero-architecture-ledger.md) — 606 份契约卫生、七个结构簇、owner 决策、依赖 DAG 与 Phase 1 放行条件。
 - [Phase -1：真实对象与生命周期账本执行计划](2026-09-26-phase-minus-one-lifecycle-ledger.md) — 入口矩阵、生命周期账本、提交边界、入口对账和恢复探针。
@@ -313,6 +315,8 @@
 
 ## 🤖 自动收录（待人工归位）
 
+- [2026-10-04 样张合同必须从真实实验室屏产生](2026-10-04-mockup-real-components-rule.md) — P5/R8 规则、设计 hook 与 `check:mockup-contracts` 门岗收成同一条真实组件 + 真实宿主数据判据；含 HTML 历史基线、整张区域对账与违规夹具红证（🚧 进行中）
+
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
 > 不代表已归好类。顺手把某一行挪进上面对应主题的表里即可——挪走后本区自然变短。
 
@@ -517,6 +521,7 @@
 - [2026-09-25-agent-run-landing-state](2026-09-25-agent-run-landing-state.md)
 - [2026-09-25-asset-library-and-media-load-fixes](2026-09-25-asset-library-and-media-load-fixes.md)
 - [2026-09-25-canvas-follow-hand](2026-09-25-canvas-follow-hand.md)
+- [2026-10-05-comprehensive-experience-acceptance](2026-10-05-comprehensive-experience-acceptance.md)
 - [README](agent-lane-b1-evidence/README.md)
 - [README](agent-lane-b1b-evidence/README.md)
 - [README](agent-lane-b1c-evidence/README.md)

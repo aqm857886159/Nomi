@@ -1,0 +1,188 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-provider-explicit-rejection",
+  "problem_type": "Two generation engines answer the same provider fact (an explicit, on-the-spot rejection) with different money semantics",
+  "symptom": "The canvas engine records a provider rejection (HTTP 4xx such as content policy, invalid parameters or insufficient balance) as a plain failure the user can retry, while the production Run outbox records the same answer as submission_unknown and locks the shot until manual reconciliation; merging the canvas into the Run would lock a canvas node on every moderation refusal",
+  "direct_cause": "submissionOutbox.submitOnce only distinguished 'provably never written' from 'anything else'; every failure after a byte was written became submission_unknown, including a response in which the provider explicitly refused the task and returned no task id",
+  "class_root": "No single owner answered 'did the provider accept this submission?' for the case where a response was received; executors threw the provider's answer away as a generic error, so the outbox could not tell a refusal from a lost receipt",
+  "affected_population": [
+    "Canvas single-node generations once they converge onto the production Run (engine convergence cut 1)",
+    "Agent / MCP / batch production shots whose provider returned 4xx or a failed 2xx envelope"
+  ],
+  "scope_paths": [
+    "electron/outboundDispatchEvidence.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/capabilityCore/apimartGenerationErrors.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/shared/productionShotJobs.ts",
+    "electron/shared/productionGenerationPresentation.ts"
+  ],
+  "entry_points": [
+    "Engine A paid submission through vendorHttp.requestVendor (canvas transport, wrapped by the canvas Run in cut 1)",
+    "Engine B paid submission through the catalog generation provider send()",
+    "Production submission outbox for every Run-owned job (single shot, multi shot, rework)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#name-client-error-4xx",
+      "checked_at": "2026-10-05",
+      "purpose": "4xx means the server did not process the request because of a client error; 5xx means the server failed and may have partially processed it"
+    }
+  ],
+  "invariants": [
+    "Only a received response with status 4xx, or 2xx carrying a failed envelope, and no task id, counts as an explicit rejection",
+    "An explicit rejection settles the job as needs_attention/provider_rejected with a provider-safe reservation release; it is never submission_unknown",
+    "5xx, no response, or a partially read response remain submission_unknown and are never auto-resent"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "providerExplicitlyRejected"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "providerExplicitlyRejected"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "markProviderRejected"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "providerAnswer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "providerAnswer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationErrors.ts",
+      "symbol": "providerAnswer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "providerAnswer"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobEndedBeforeAcceptance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "jobEndedBeforeAcceptance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobMayHaveReachedProvider"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "Executors only record the received answer (four providerAnswer readers: two executors, the error class, the judge); the submission seam and the outbox both ask the single judge providerExplicitlyRejected; the 'not charged' predicate jobEndedBeforeAcceptance is the one reader-facing summary used by the presentation and jobMayHaveReachedProvider. No door classifies provider errors on its own."
+  },
+  "generality_proof": "Both executors attach the provider's answer only after a response is received, and every Run-owned submission passes through submissionOutbox, which asks the one judge in outboundDispatchEvidence.ts; no caller classifies provider errors itself.",
+  "shared_boundaries": [
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "providerExplicitlyRejected",
+      "responsibility": "Single judge of whether a received provider answer proves the submission was refused and not accepted."
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "markProviderRejected",
+      "responsibility": "Durably settles an explicitly rejected job as not charged."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "VendorRequestError",
+      "disposition": "enforced",
+      "evidence": "The response-failure throw attaches providerAnswer; network, timeout and redirect throws do not (providerExplicitRejection.test.ts loopback cases)."
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "createCatalogGenerationProvider",
+      "disposition": "enforced",
+      "evidence": "Both the non-JSON response and the rejected-envelope throws attach providerAnswer; fetch failures keep only their cause chain (providerExplicitRejection.test.ts engine B cases)."
+    },
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "not-affected",
+      "evidence": "Custom call scripts build their own VendorRequestError without a received-response answer, so they stay conservatively unknown; they are not Run-owned until the canvas transport is wrapped."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every provider refusal on every Run-owned path hits the same outbox branch; with the canvas converging onto the Run it would happen on the most used surface.",
+    "same_class_scan": [
+      "rg -n \"markSubmissionUnknown|SubmissionReceiptUnknownError\" electron/productionRun",
+      "rg -n \"new VendorRequestError|new CatalogGenerationProviderError\" electron"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/outboundDispatchEvidence.ts",
+    "invariant": "A job is settled as not charged only on proof: never written, or a received explicit refusal without a task id.",
+    "failure_mode": "Missing or malformed evidence is treated as submission_unknown.",
+    "exception_policy": "none",
+    "strategy": "Executors record facts (status, envelope, task id) on the error; the single judge decides; the outbox writes the durable outcome.",
+    "artifacts": [
+      "electron/outboundDispatchEvidence.ts",
+      "electron/productionRun/submissionOutbox.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/providerExplicitRejection.test.ts",
+    "electron/productionRun/providerRejectionSemantics.test.ts",
+    "electron/shared/productionShotJobs.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/providerExplicitRejection.test.ts",
+    "electron/productionRun/providerRejectionSemantics.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/submissionOutbox.ts"
+    ],
+    "rationale": "The catch-all that turned an explicit refusal into submission_unknown is replaced in the same change; no fallback classification remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is application-level money semantics over HTTP status codes; no third-party runtime decides it.",
+    "exit_criteria": []
+  },
+  "migration": "Existing submission_unknown jobs are not rewritten; they stay in manual reconciliation. Only new submissions use the third class.",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "residual_risks": [
+    "A gateway that returns 4xx after creating an upstream task would now be treated as not charged; accepted by the user on 2026-10-05 (F3).",
+    "Custom-call scripts and synchronous audio runners do not attach the answer yet and remain conservatively unknown."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/outboundDispatchEvidence.ts",
+    "tests": [
+      "electron/providerExplicitRejection.test.ts",
+      "electron/productionRun/providerRejectionSemantics.test.ts"
+    ],
+    "why": "The single judge reads the executor-attached answer; the outbox persists the outcome."
+  }
+}

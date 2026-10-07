@@ -21,7 +21,9 @@ import { createProductionGenerationOperationStore } from "../productionRun/produ
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
+import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
+import type { SpendReferenceAssets } from "./pendingSpendReferences";
 
 // 「确认 → 真的开始生成」的端到端夹具（P1.1a · 2026-09-11）。
 //
@@ -111,20 +113,21 @@ async function startLoopbackVendor() {
  * 供应商适配器。`buildRequest` 把**合同里冻着的那份载荷**原样带出来，`submit` 原样发给 loopback ——
  * 于是 `vendor.bodies` 里躺着的就是「供应商真正收到的参数」，而不是我们复述的一份。
  */
-function loopbackProvider(origin: string, submits: string[]): GenerationProvider {
+function loopbackProvider(origin: string, submits: string[], providerId = "apimart"): GenerationProvider {
   return {
-    providerId: "apimart",
+    providerId,
     capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
     buildRequest: (input) => input,
     submit: async (request, idempotencyKey) => {
       submits.push(idempotencyKey);
-      const contract = (request ?? {}) as { modelId?: string; parameters?: Record<string, unknown> };
+      const contract = (request ?? {}) as { modelId?: string; parameters?: Record<string, unknown>; references?: readonly unknown[] };
       const res = await hardenedFetch(`${origin}/v1/images/generations`, {
         // Exact origin belongs to this test server; redirects remain forbidden.
         allowedPrivateOrigins: [origin],
         allowContentTypes: ["application/json"],
         method: "POST",
-        body: JSON.stringify({ idempotencyKey, model: contract.modelId, parameters: contract.parameters ?? {} }),
+        // 参考素材原样带出（合同里钉住的那几条）：供应商那一侧收到了哪几张参考，断言读这里。
+        body: JSON.stringify({ idempotencyKey, model: contract.modelId, parameters: contract.parameters ?? {}, ...(contract.references?.length ? { references: contract.references } : {}) }),
       });
       const json = JSON.parse(res.bytes.toString("utf8")) as { data: Array<{ task_id: string }> };
       return { providerTaskId: json.data[0].task_id, raw: json };
@@ -146,6 +149,20 @@ function candidate(modelId: string, parameters: Record<string, unknown>) {
  * 每个 `(materializationOperationId, shotId)` 至多一个节点。所以「同一次生成落了两个节点」
  * 只可能来自宿主每次换了一个章，而这正是这条断言要抓的东西。
  */
+/**
+ * 夹具项目的素材库（参考图的唯一身份来源）：测试往里放一张图，宿主按地址钉住它——
+ * 和生产那一份（`projectSpendReferenceAssets` / `resolveIndexedReferencePreview`）同一个形状，只是住在内存里。
+ */
+const referenceAssetIndex: Array<{ id: string; data: { url: string; contentType: string } }> = [];
+export function addReferenceAsset(id: string, url: string, contentType = "image/png"): void {
+  referenceAssetIndex.push({ id, data: { url, contentType } });
+}
+export const harnessReferenceAssets: SpendReferenceAssets = {
+  list: () => referenceAssetIndex,
+  identity: (_projectId, assetId) => (referenceAssetIndex.some((asset) => asset.id === assetId) ? { contentHash: "hash-" + assetId, version: 1 } : undefined),
+  import: async () => undefined,
+};
+
 function recordingRenderer() {
   const payloads: MaterializeShotsWirePayload[] = [];
   const nodes = new Map<string, string>();
@@ -214,13 +231,25 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
    * （等形象确认、被并发挡着）时用户又点了第 2 镜；之后由 `dispatchNow()` 真的跑一轮调度。
    */
   holdDispatch?: () => boolean;
+  /**
+   * 换一份模块目录（缺省 = 本文件那份只有两个夹具模型的目录）。铁律 ⑩ 的宿主矩阵用真内置目录种子建的目录
+   * （`createCatalogModuleRegistry`），好让「键名不同 / 没有该参数 / 像素档」这几类真模型走同一条宿主链。
+   */
+  registry?: ReturnType<typeof createModuleRegistry>;
+  /** 换了目录就要有对应家的 loopback 供应商（缺省只有 apimart）。 */
+  providerIds?: readonly string[];
+  /** 项目素材库的身份解析（生产装配点绑 `resolveProjectAssetReferenceIdentity`）。缺省 = 不接，带 assetId 的参考当场被拒。 */
+  resolveAssetReferenceIdentity?: (projectId: string, assetId: string) => { contentHash: string; version: number; kind?: "image" | "video" | "audio" } | undefined;
+  /** 换一台执行器（缺省 = 本文件的 loopbackProvider）。「没发出去」矩阵用它接真的目录执行器（引擎 B 的 send）。 */
+  provider?: (providerId: string, origin: string, submits: string[]) => GenerationProvider;
 } = {}) {
   const { root, repository, owner, operations, canvasLanding } = base;
-  const provider = loopbackProvider(vendorOrigin, submits);
-  createGenerationRuntimeAdapter({ providers: [provider] }); // sanity: the real adapter accepts this provider
+  const moduleRegistry = hooks.registry ?? registry;
+  const providers = (hooks.providerIds ?? ["apimart"]).map((providerId) => (hooks.provider ?? ((id, origin, sent) => loopbackProvider(origin, sent, id)))(providerId, vendorOrigin, submits));
+  createGenerationRuntimeAdapter({ providers }); // sanity: the real adapter accepts this provider
   const submission = createProductionGenerationSubmission({
     repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
-    intentMacKey: "test-intent-key", providers: [provider],
+    intentMacKey: "test-intent-key", providers,
     materializeOutput: async ({ providerTaskId }) => {
       // 真写一个字节到项目里：落地时的产物投影要读得到这个文件，读不到就只落占位、不回填 result。
       // 项目相对路径恒为 posix 形状（真物化器 writeDeterministicAsset 用的就是 path.posix.join）；
@@ -247,15 +276,16 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     await canvasLanding.landCanvasBestEffort(PROJECT_ID, operationId);
   };
   const handler = createGenerationPlanningHandler({
-    registry,
+    registry: moduleRegistry,
     operations,
     resolveModelPricing: () => (hooks.unpriced ? undefined : PRICING),
+    ...(hooks.resolveAssetReferenceIdentity ? { resolveAssetReferenceIdentity: hooks.resolveAssetReferenceIdentity } : {}),
     now,
     prepareAuthorization: ({ lease: projectLease, operation, contract, multiShot }) => prepareProductionGenerationAuthorization({
       lease: projectLease, projectRevision: 0, operation, contract,
       run: requiredHarnessRun(operation.projectId, operation.operationId),
       ...(multiShot ? { multiShot } : {}),
-      providers: [provider],
+      providers,
       resolveShotPrice: (shotContract) => {
         if (hooks.unpriced) return { known: false };
         // 价格按**合同里冻着的那份参数**算，不是按草稿现有的：改完参数重新封印之后，收据的上限
@@ -319,7 +349,8 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     leaseFor: async () => lease,
     resolvePricing: () => (hooks.unpriced ? undefined : PRICING),
     // 与生产同一条并入规则（同一个目录）：卡上改一下也过 resolvePlanPatch。
-    normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry }).normalizedPatch,
+    normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry: moduleRegistry }).normalizedPatch,
+    referenceAssets: harnessReferenceAssets,
     now,
   });
   const window = () => ({ webContentsId: 1, frameId: 0, origin: "app://nomi" });
@@ -336,6 +367,8 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
       approvalReceiptAuthority: receipts,
       leaseFor: () => lease,
       approvalPolicy: () => ({ mode, spend: "confirm" }),
+      // 与生产同一条接线（appIntegration）：草稿落地之后回「此刻在画布上吗」，回执据它说话。
+      draftLanding: base.canvasLanding.draftLandingOutcome,
     },
   );
   return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts, authority, transport,
@@ -382,8 +415,46 @@ export function shotsSent(submits: readonly string[]): readonly string[] {
   return submits.map((key) => /shot-\d+/.exec(key)?.[0] ?? key);
 }
 
+/** 夹具账本的变更订阅（生产里是 Run 服务的事件 tap）：每次写入之后通知一次。 */
+const ledgerListeners = new WeakMap<object, Set<() => void>>();
+function ledgerChanges(base: ReturnType<typeof harness>): Set<() => void> {
+  const existing = ledgerListeners.get(base);
+  if (existing) return existing;
+  const created = new Set<() => void>();
+  ledgerListeners.set(base, created);
+  const execute = base.repository.execute.bind(base.repository);
+  base.repository.execute = ((...args: Parameters<typeof execute>) => {
+    const result = execute(...args);
+    for (const listener of [...created]) listener();
+    return result;
+  }) as typeof execute;
+  return created;
+}
+
+/**
+ * 回合那一侧怎么知道卡关了（生产里 = `laneDesktopSpend.whenCardCloses`）：同一个纯函数，看的是夹具账本。
+ * `closed()` 在兑现后的那个微任务里变真，断言前 `await settleMicrotasks()`。
+ */
+export function watchCardForTurn(base: ReturnType<typeof harness>, onClosed?: () => void, operationId: string = OPERATION_ID) {
+  const listeners = ledgerChanges(base);
+  const read = () => base.repository.read(PROJECT_ID, operationId)?.generationPlan;
+  const watch = watchSpendCardClose({ read, subscribe: (listener) => {
+    const notify = () => listener(read());
+    listeners.add(notify);
+    return () => { listeners.delete(notify); };
+  } });
+  let closed = false;
+  void watch.closed.then(() => { closed = true; onClosed?.(); });
+  return { closed: () => closed, dispose: watch.dispose };
+}
+
+export async function settleMicrotasks(): Promise<void> {
+  for (let index = 0; index < 5; index += 1) await Promise.resolve();
+}
+
 export function resetSpendFixture() {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  referenceAssetIndex.splice(0);
   clock = NOW_BASE;
 }
 export function advanceClock(milliseconds: number) { clock += milliseconds; }

@@ -2,13 +2,13 @@
 // 仓库不内置任何泼溅文件：示例场景由用户自备上传，这里用与 J5 相同的生成山谷走同一条上传通路。
 import path from 'node:path'
 import { expect } from './_assert.mjs'
-import { addCameraPreset, clickOrFail, launchDirectorLab, repoRoot, writeValleyPly } from './_directorLab.mjs'
+import { addCameraPreset, clickOrFail, launchDirectorLab, openAssets, repoRoot, writeValleyPly } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const lab = await launchDirectorLab({ name: 'asset-tree' })
 const { page } = lab
 try {
-  await clickOrFail(page.getByText('资产库', { exact: true }), '资产库')
+  await openAssets(lab)
   const assets = page.getByTestId('director-assets')
   const folder = (name) => assets.locator('div[draggable="true"]').filter({ has: page.getByRole('button', { name, exact: true }) }).last()
   const header = (name) => folder(name).locator(':scope > div.group').first()
@@ -60,7 +60,7 @@ try {
   const info = await lab.bridge('splatInfo', splat.id)
   lab.check('上传的 PLY 山谷已解码且完成显现', info.initialized && info.count > 0 && !info.revealing, `${info.count} splats`)
   lab.check('泼溅添加按源轴约定绕X翻转180度', splat.rotation.x === 180)
-  await clickOrFail(page.getByText('场景对象', { exact: true }), '场景对象')
+  await lab.openOutliner()
   await lab.outlinerRow('valley').dblclick()
   const rename = page.getByTestId('director-outliner').locator('input:not([placeholder])').first()
   await rename.fill('Valley renamed')

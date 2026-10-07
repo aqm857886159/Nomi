@@ -11,9 +11,11 @@
 // 其余一律由监视器按铁律判。
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { expectNoCjkInEnglishDom, waitForVisualQuiescence } from '../_assert.mjs'
 import { readProductionRuns } from '../_paidRun.mjs'
+import { readLaneSpend } from '../_laneSpendProbe.mjs'
 import {
   FIXTURE_API_KEY, FIXTURE_API_KEY_B, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_VENDOR, FIXTURE_IMAGE_MODEL_B_LABEL,
   FIXTURE_IMAGE_MODEL_LABEL, FIXTURE_IMAGE_VENDOR_B, FIXTURE_TEXT_MODEL_LABEL, FIXTURE_VENDOR,
@@ -26,6 +28,10 @@ import { ensurePageProbe, readPageProbe } from './pageProbe.mjs'
 import { unseenPromptAdditions } from './promptTruth.mjs'
 import { finishedNodeSpinner, snapshotAgeMs } from './spinnerVerdict.mjs'
 import { DESIGN_ROOTS, rootOfRule } from './rules.mjs'
+import { appendEscapeCandidates } from './escapeLedger.mjs'
+
+/** 逃逸账本里的证据路径写成相对仓库根（账本进 git，绝对路径换台机器就是死链）。 */
+const repoRootForEvidence = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 
 /** 夹具模型的显示名（只有中文 labelZh）：EN 界面上看到它们不是漏译。 */
 const FIXTURE_MODEL_LABELS = new Set([FIXTURE_TEXT_MODEL_LABEL, FIXTURE_IMAGE_MODEL_LABEL, FIXTURE_IMAGE_MODEL_B_LABEL])
@@ -239,6 +245,52 @@ export function createInvariantMonitor(options) {
     return record
   }
 
+  // ── 铁律 ⑫ 点了 = 以为的 ───────────────────────────────────────────────────────────────
+
+  const clickObservations = []
+
+  /**
+   * 点一个登记过的可点目标，并把「用户以为」和「实际发生」成对落盘。
+   *
+   * `target` = catalog.mjs 里那一行（id / target / userExpectation / useCases / fullWalkJourneys / owner）；
+   * `observe` 读真实 DOM 或落盘状态（点之前、点之后各读一次）；`judge(before, after)` 只拿这两份观察说话，
+   * 返回 `{ ok, actual }`——`actual` 用大白话写实际发生了什么，原样进报告与逃逸账本。
+   * 不一致：记铁律 ⑫ 违反（规则 click-expectation）+ 把这一条写进逃逸账本 candidate（同 id 只写一次）。
+   * 动作本身点不到 = 步骤失败（走查故障），不算违反。
+   */
+  async function checkClickTarget(target, { act, observe, judge, surfaces = ['*'] }) {
+    let record = null
+    await step(`⑫ 点「${target.target}」`, async () => {
+      const before = await observe()
+      await act()
+      const after = await observe()
+      const verdict = judge(before, after)
+      const shot = await screenshot(`click-${target.id}`)
+      record = { id: target.id, target: target.target, userExpectation: target.userExpectation, actualObservation: verdict.actual, ok: verdict.ok, screenshot: shot, before, after }
+      clickObservations.push(record)
+      console.log(`[full-walk] ⑫ ${verdict.ok ? '✓' : '✖'} ${target.target}：${verdict.actual}`)
+      if (verdict.ok) return
+      await violate({
+        invariant: 12, rule: 'click-expectation', key: target.id, module: target.owner,
+        message: `点「${target.target}」：用户以为「${target.userExpectation}」，实际「${verdict.actual}」`,
+        snapshot: { before, after },
+      })
+      const added = appendEscapeCandidates([{
+        id: `LAW12-${target.id}`,
+        source: `full-walk ${playbook}（${new Date().toISOString().slice(0, 10)}，${variant} / ${locale}）`,
+        category: 'interaction-semantics',
+        problem: `点「${target.target}」：用户以为${target.userExpectation}；实际${verdict.actual}`,
+        existingInvariants: [],
+        ironLaws: ['⑫'],
+        useCases: target.useCases ?? [],
+        fullWalkJourneys: target.fullWalkJourneys ?? [],
+        evidence: [shot ? path.relative(repoRootForEvidence, shot).split(path.sep).join('/') : '(截图失败)'],
+      }])
+      if (added.length) notes.push({ at: Date.now(), kind: 'escape-candidate-added', ids: added })
+    }, { surfaces })
+    return record
+  }
+
   // ── 用户点头（铁律 1/2/3 的对账基准）────────────────────────────────────────────────────────
 
   /**
@@ -250,7 +302,7 @@ export function createInvariantMonitor(options) {
    *   （卡上拿掉只改卡、画布连线不动——那几条线还在，但他看到、点头的是不带它们的那一份）。
    */
   async function consentSpendCard(card, { label, removedCanvasRefs = 0 } = {}) {
-    const read = await win().evaluate((id) => window.nomiDesktop.productionRuns.pendingSpend(id), projectId).catch(() => null)
+    const read = await readLaneSpend(win()).catch(() => null)
     const pending = read?.surface === 'ready' ? read.rows?.[0] ?? null : null
     const dom = await card.evaluate((element) => {
       const text = (selector) => String(element.querySelector(selector)?.textContent ?? '').replace(/\s+/g, ' ').trim()
@@ -374,12 +426,9 @@ export function createInvariantMonitor(options) {
    */
   async function consentStoryboardRows(shotIndexes, { kind = 'storyboard-row', label } = {}) {
     const rows = await win().evaluate((indexes) => {
-      // 参考列里摆着几张：叠放格读它自己的计数，单张格数一个（一个槽一个格，装几张都只占一格）。
-      const shownReferenceCount = (row) => [...row.querySelectorAll('[data-storyboard-ref-slot]')].reduce((sum, slot) => {
-        const stack = slot.querySelector('[data-storyboard-ref-stack-count]')
-        if (stack) return sum + (Number(stack.getAttribute('data-storyboard-ref-stack-count')) || 0)
-        return sum + (slot.querySelector('[data-storyboard-ref-tile]') ? 1 : 0)
-      }, 0)
+      // 参考缩略图条里摆着几张（2026-10-06 起在视觉列）：露出来的每张一格，折进「+N」的按 N 算。
+      const shownReferenceCount = (row) => row.querySelectorAll('[data-storyboard-ref-thumb]').length
+        + [...row.querySelectorAll('[data-storyboard-ref-more]')].reduce((sum, more) => sum + (Number(more.getAttribute('data-storyboard-ref-more')) || 0), 0)
       const editor = document.querySelector('[data-storyboard-editor="true"]')
       const editorText = String(editor?.innerText ?? '')
       return indexes.map((index) => {
@@ -954,7 +1003,7 @@ export function createInvariantMonitor(options) {
         if (present && !pendingCard && lastModelActivity && now - lastModelActivity > limits.agentIdleMs.value) {
           await violate({
             invariant: 5, rule: 'agent-turn-idle', key: `agent|${spinner.firstSeen}`,
-            module: 'electron/agentLane（回合无活动超过 LANE_IDLE_MS 仍在运行态）',
+            module: 'electron/agentLane（回合无活动超过看门狗 LANE_FIRST_RESPONSE_MS + LANE_FIRST_TOKEN_MS 仍在运行态）',
             message: `Agent 回合在运行态已 ${Math.round(age / 1000)}s，最后一次模型活动在 ${Math.round((now - lastModelActivity) / 1000)}s 前，也没有等人回答的卡`,
             snapshot: { spinner },
           })
@@ -1228,10 +1277,10 @@ export function createInvariantMonitor(options) {
   async function checkNuisance(probe) {
     if (!probe) return
     for (const pill of Object.values(probe.versionPills ?? {})) {
-      if (!/^1\s*(版|versions?)$/i.test(pill.label)) continue
+      if (!/(?:^|\D)1\s*(?:个版本|版|versions?)\b/i.test(pill.label)) continue
       await violate({
         invariant: 9, rule: '9a-single-version-pill', key: pill.node,
-        module: 'src/workbench/generationCanvas/nodes/useNodeResultHistory.ts（nodeHasResultStack 只在 ≥2 版时为真）',
+        module: 'src/workbench/generationCanvas/nodes/versionCards/nodeVersionEntries.ts（nodeHasVersionCards 只在 ≥2 版时为真）',
         message: `节点 ${pill.node} 只有 1 版，却显示「${pill.label}」`,
         snapshot: { pill },
       })
@@ -1315,11 +1364,11 @@ export function createInvariantMonitor(options) {
   }
 
   /**
-   * 「此刻，用户发起的事都该收场了」的检查点。先按登记的节拍再给一轮机会（调度器一轮 + 付费卡 / 任务中心一拍），
+   * 「此刻，用户发起的事都该收场了」的检查点。先按登记的节拍再给一轮机会（调度器一轮 + 制作 Run 视图一拍），
    * 再判：没有登记时限、却还在转的，都算违反；卡的范围也在这里对账。
    */
   async function settle(label, { extraWaitMs = 0 } = {}) {
-    const waitMs = limits.schedulerPollCapMs.value + limits.spendCardPollMs.value + extraWaitMs
+    const waitMs = limits.schedulerPollCapMs.value + limits.runViewPollMs.value + extraWaitMs
     console.log(`[full-walk] ⏸ 收场检查点「${label}」（先等 ${waitMs}ms：调度器一轮 + 界面一拍）`)
     await new Promise((resolve) => setTimeout(resolve, waitMs))
     await checkConsentScopes()
@@ -1375,6 +1424,7 @@ export function createInvariantMonitor(options) {
       probeInstalls,
       probeSeen,
       notes,
+      clickTargets: clickObservations.map(({ before: _before, after: _after, ...rest }) => rest),
     }
     if (!classified.guardReady) {
       report.notes.push({ kind: 'guard-not-ready', message: `走查网络闸没报到，或该装的层没装全（要 ${REQUIRED_GUARD_LAYERS.join(' / ')}，装上的是 ${classified.guardLayers.join(' / ') || '无'}）：这一场「没漏到真供应商」不作数` })
@@ -1385,13 +1435,14 @@ export function createInvariantMonitor(options) {
   }
 
   return {
-    step, settle, check, finish, setLocale,
+    step, settle, check, finish, setLocale, checkClickTarget,
     consentSpendCard, consentNodeGenerate, consentStoryboardRows, consentDialog, consentFullAuto, revokeConsents, recordDeclaredDefault, recordAttachment,
     violate, note: (entry) => notes.push({ at: Date.now(), ...entry }),
     readProject, readRuns, screenshot,
     get violations() { return violations },
     get steps() { return steps },
     get submissions() { return submissions },
+    get clickObservations() { return clickObservations },
     limits,
   }
 }

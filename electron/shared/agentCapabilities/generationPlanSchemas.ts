@@ -77,7 +77,7 @@ const describeAuthorFields = <T extends z.ZodRawShape>(shape:T):T => Object.from
 const originalBindings=planShotSchema.shape.referenceBindings.unwrap();
 const authorBindings=z.record(z.array(z.object(describeAuthorFields(originalBindings.element.element.shape))));
 const authorShape=planAnchorSchema.omit({id:true,name:true,description:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true})
-  .merge(planShotSchema.omit({shotId:true,index:true,prompt:true,shotKind:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true,keyframe:true,continuity:true,promptSegments:true})).partial().extend({
+  .merge(planShotSchema.omit({shotId:true,index:true,autoReferenced:true,prompt:true,shotKind:true,modelKey:true,modelVendor:true,modeId:true,params:true,referenceBindings:true,keyframe:true,continuity:true,promptSegments:true})).partial().extend({
     referenceBindings:authorBindings.optional(),
     promptSegments:z.array(z.object(describeAuthorFields(planShotSchema.shape.promptSegments.unwrap().element.shape))).optional(),
     continuity:z.union([z.string(),z.number(),parameters]).optional(),
@@ -159,6 +159,12 @@ const createFields = {
    * `present` 再翻成可见。缺省 = 卡立刻可见（外部 MCP 宿主与面板自己的路径，行为逐字不变）。
    */
   cardHidden: z.boolean().optional(),
+  /**
+   * 用户**明确**要另起一份方案（「另起一份」「再做一版」）。缺省时，同一请求里第二次起草文稿方案会补到这一请求
+   * 已建的那一份上（一次请求一份方案，由宿主保证）。只对文稿方案有意义——对外 MCP 宿主没有文稿方案，
+   * 它的工具目录不发布这个字段（`mcpGenerationToolCatalog.ts`）。
+   */
+  newPlan: z.boolean().optional(),
 } as const;
 
 /**
@@ -180,6 +186,11 @@ export const generationPlanInputSchema = z.discriminatedUnion("operation", [
   /** `generate` 动词：把已建草稿的报价卡摆到用户面前；`shotIds` 只把卡限定在这几镜（缺省全部）。 */
   z.object({ operation: z.literal("present"), operationId, shotIds: z.array(z.string().trim().min(1).max(160)).max(40).optional() }).strict(),
   // Strategy resolution is the separate GENERATION_RESOLVE_CAPABILITY owner.
+  /**
+   * 在一份已有的文稿方案后面补镜头 / 参考卡（`draft_shots` 带 operationId、新镜头不带 shotId）。新行的 id 与
+   * 镜号由方案正本那一侧发（`storyboardSubjectIdentity.ts`），回执里带回。只在内部面：对外目录不投影它。
+   */
+  z.object({ operation: z.literal("extend"), operationId, shots: createFields.shots.unwrap().min(1).max(40) }).strict(),
 ]);
 
 export const generationStatusInputSchema = z.discriminatedUnion("operation", [
@@ -190,8 +201,8 @@ export const generationStatusInputSchema = z.discriminatedUnion("operation", [
 
 /** Host capability projection retains the canonical branches, never a parallel schema. */
 export function generationPlanSchemaForHost(host: { preview: boolean }) {
-  const [context, create, patch, , present] = generationPlanInputSchema.options;
-  return host.preview ? generationPlanInputSchema : z.discriminatedUnion('operation', [context, create, patch, present]);
+  const [context, create, patch, , present, extend] = generationPlanInputSchema.options;
+  return host.preview ? generationPlanInputSchema : z.discriminatedUnion('operation', [context, create, patch, present, extend]);
 }
 
 export const GENERATION_CREATE_EXAMPLE = {

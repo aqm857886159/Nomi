@@ -1,78 +1,17 @@
-// 画面比例（aspect ratio）的单一真相源解析。
+// 画布节点上的画面比例（aspect ratio）读法。「什么值算比例」的判据住
+// `electron/shared/aspectRatioValue.ts`（宿主准入层也读它，2026-10-05 从这里搬过去）。
 // 三处复用同一份逻辑（P4 通用第一）：
 //   ① 画布节点图像区（BaseGenerationNode）未生成态按比例显示形状
 //   ② 计划清单卡的比例下拉预览（AspectBox 组件）
 //   ③ 参数面板的比例预览
 // 比例值是 vendor 档案里的字符串（"16:9" / "9:16" / "1:1" …），存在 node.meta。
 // 不同档案的 key 命名不一：多数是 `aspect_ratio`，imagen4/qwen 用 `size`，
-// Seedream 改图模式用 `image_size`（named bucket 格式，见下方映射表）。
+// Seedream 改图模式用 `image_size`（named bucket 格式，映射表在 shared 那份）。
 import type { GenerationCanvasEdge, GenerationCanvasNode } from "../model/generationCanvasTypes";
+import { isAutoOptionValue, normalizeAspectRatioToWH, parseAspectRatioValue } from "../../../../electron/shared/aspectRatioValue";
 
 // 比例参数可能用到的 meta key，按常见度排序。
 export const ASPECT_RATIO_KEYS = ["aspect_ratio", "size", "ratio", "image_size"] as const;
-
-/**
- * Named bucket → W:H 标准字符串映射。
- * 覆盖 Seedream edit mode 的 image_size 枚举值（portrait_4_3 等）。
- * 值是 W:H 字符串，可直接被 parseAspectRatioValue 解析，也可直接写入 meta.aspect_ratio。
- */
-const NAMED_RATIO_TO_WH: Readonly<Record<string, string>> = {
-  square:         "1:1",
-  square_hd:      "1:1",
-  portrait_4_3:   "3:4",
-  portrait_3_2:   "2:3",
-  portrait_16_9:  "9:16",
-  landscape_4_3:  "4:3",
-  landscape_3_2:  "3:2",
-  landscape_16_9: "16:9",
-  landscape_21_9: "21:9",
-};
-
-// 「什么算 W:H」的单一真相。收在一处是因为解析与规范化必须同进同退——
-// 两边各写一份正则，迟早一边认得的值另一边不认（曾如此）。
-// 允许可选的说明后缀：ComfyUI 工作流的比例枚举常写成 "16:9 (宽屏)" / "4:3（标准）"，
-// 尾部锚死会把它整条判成非比例，卡片就不跟着改尺寸了。
-const ASPECT_RATIO_LABEL_RE = /\s*[（(][^）)]*[）)]$/;
-const ASPECT_RATIO_WH_RE = /^(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)(?:\s*[（(][^）)]*[）)])?$/;
-
-/**
- * 把 "W:H" 比例字符串（或 named bucket）解析成数值宽高比（width / height）。
- * - "16:9" → 1.777…，"9:16" → 0.5625，"1:1" → 1
- * - "16:9 (宽屏)" → 1.777…（带说明后缀的枚举标签同样认）
- * - named bucket（"square_hd" / "portrait_4_3" …）→ 对应 W:H 再解析
- * - 不认识的值（"adaptive" / "auto" / "2K" / "basic" / 空）→ null
- * 支持中文冒号「：」。
- */
-export function parseAspectRatioValue(value: unknown): number | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  const match = trimmed.match(ASPECT_RATIO_WH_RE);
-  if (match) {
-    const width = Number(match[1]);
-    const height = Number(match[2]);
-    if (!(width > 0) || !(height > 0)) return null;
-    return width / height;
-  }
-  // named bucket（Seedream edit mode 等）
-  const mapped = NAMED_RATIO_TO_WH[trimmed];
-  return mapped ? parseAspectRatioValue(mapped) : null;
-}
-
-/**
- * 把任意比例值规范化为 "W:H" 字符串。
- * - 已是 W:H → 原样返回
- * - named bucket → 映射到 W:H
- * - 不认识（"auto" / "2K" / …）→ null
- * 用于写参数时同步更新 meta.aspect_ratio（最高优先级读取键），避免跨模式 key 遮蔽。
- */
-export function normalizeAspectRatioToWH(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  // 带说明后缀的枚举（"16:9 (宽屏)"）只剥掉后缀；本就是裸 W:H 的原样返回，
-  // 连全角冒号也照原样留着——这里只负责去掉标签，不负责改写用户的字面量。
-  if (ASPECT_RATIO_WH_RE.test(trimmed)) return trimmed.replace(ASPECT_RATIO_LABEL_RE, "").trim();
-  return NAMED_RATIO_TO_WH[trimmed] ?? null;
-}
 
 /**
  * 从节点 meta 读出当前选定的画面比例（数值）。读不到（未选模型 / 该模型无比例参数）返回 null。
@@ -99,8 +38,7 @@ export const COMMON_RATIO_ORDER: readonly string[] = [
  * 常用表内按表序，未知比例排最后（大数，调用方用稳定排序保持声明相对序）。
  */
 export function commonRatioSortKey(rawValue: string, rawLabel: string): number {
-  const AUTO_LIKE = /^(auto|adaptive|自动|智能)$/i;
-  if (AUTO_LIKE.test(rawValue.trim()) || AUTO_LIKE.test(rawLabel.trim())) return -1;
+  if (isAutoOptionValue(rawValue) || isAutoOptionValue(rawLabel)) return -1;
   const wh = normalizeAspectRatioToWH(rawValue) ?? normalizeAspectRatioToWH(rawLabel);
   if (!wh) return COMMON_RATIO_ORDER.length + 1;
   const idx = COMMON_RATIO_ORDER.indexOf(wh);

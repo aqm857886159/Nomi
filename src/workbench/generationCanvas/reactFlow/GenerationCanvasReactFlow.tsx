@@ -29,6 +29,7 @@ import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, unionCanvasFitBounds } from '../model
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
 import { useCanvasGroupActions } from '../components/useCanvasGroupActions'
+import { useCanvasGroupToolbar } from '../components/useCanvasGroupToolbar'
 import { measuredRectFromInternalNode } from './canvasMeasuredNodeRect'
 import { useCanvasPastePlacement } from './useCanvasPastePlacement'
 import { CANVAS_RESULT_DRAG_MIME } from '../components/canvasResultDrag'
@@ -41,8 +42,6 @@ import type { CanvasFrameInteraction } from '../components/GroupFrame'
 import { useCanvasShortcuts } from '../components/useCanvasShortcuts'
 import { connectSelectedCanvasNodes } from '../components/canvasSelectionConnection'
 import { useCanvasScreenshotCapture } from '../components/useCanvasScreenshotCapture'
-import { useCanvasProductionActions } from '../components/useCanvasProductionActions'
-import { useCanvasBatchDockVisibility } from '../components/useCanvasBatchDockVisibility'
 import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
@@ -115,7 +114,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
   const categoryViewports = useWorkbenchStore((state) => state.categoryViewports)
   const rememberCategoryViewport = useWorkbenchStore((state) => state.rememberCategoryViewport)
-  const timelineCollapsed = useWorkbenchStore((state) => state.timelinePanelCollapsed)
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
   const allEdges = useGenerationCanvasStore((state) => state.edges)
   const groups = useGenerationCanvasStore((state) => state.groups)
@@ -218,14 +216,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     return overlayCanvasDragDraft(flowNodes, dragDraftNodesRef.current)
   }, [flowNodes])
   const pendingConnectionSourceKind = useGenerationCanvasStore((state) => state.pendingConnectionSourceKind)
-  const selectedGroupIds = React.useMemo(() => {
-    return visibleGroups
-      .filter((group) => {
-        const memberIds = group.nodeIds.filter((nodeId) => nodeById.has(nodeId))
-        return memberIds.length > 0 && memberIds.every((nodeId) => selectedSet.has(nodeId))
-      })
-      .map((group) => group.id)
-  }, [nodeById, selectedSet, visibleGroups])
+  const selectedGroupIds = React.useMemo(() => selectedGroupId ? [selectedGroupId] : [], [selectedGroupId])
   const selectedBounds = React.useMemo(() => getSelectedBounds(nodes, selectedNodeIds), [nodes, selectedNodeIds])
   const viewport = React.useMemo(
     () => flowViewportFromCanvas(categoryViewports[activeCategoryId] || { zoom: 1, offset: { x: 0, y: 0 } }),
@@ -380,7 +371,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const {
     contextNodeMenu,
     closeContextNodeMenu,
-    connectionCreateMenu,
+    connectionCreateMenu, closeConnectionCreateMenu,
     handleStageContextMenu,
     handleFlowContextMenu,
     handleStagePointerDownCapture,
@@ -440,7 +431,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 新东西落在屏外 / 别的分类：边缘提示，点了才过去（程序不再为「露出」主动挪画布，2026-09-25）。
   const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
-  const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
+  const selectedGroup = React.useMemo(() => visibleGroups.find((group) => group.id === selectedGroupId) ?? null, [selectedGroupId, visibleGroups])
+  const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, canvasZoom: liveViewport.zoom, canvasOffsetX: liveViewport.x, canvasOffsetY: liveViewport.y, stageWidth: stageSize.width, stageHeight: stageSize.height, readOnly, runFrameAction: frameActions.runFrameAction })
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
     membershipPreview: frameMembership.membershipPreview,
     editingGroupId: frameActions.editingFrameId,
@@ -448,22 +440,10 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onRename: renameGroup,
     onDescribe: setGroupDescription,
     onOpenMenu: frameActions.openFrameMenu,
-    selectedGroupId: frameActions.selectedFrameId,
-  }), [
-    frameActions.selectedFrameId,
-    frameActions.editingFrameId,
-    frameActions.openFrameMenu,
-    frameActions.setEditingFrameId,
-    frameMembership.membershipPreview,
-    renameGroup,
-    setGroupDescription,
-  ])
+    // Both complete-member and empty/collapsed selection must drive the same frame chrome.
+    selectedGroupId,
+  }), [selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
 
-  const batchDock = useCanvasBatchDockVisibility({
-    readOnly,
-    selectedCount: selectedNodeIds.length,
-    eligibleIds: production.eligibleIds,
-  })
   const { screenshotOverlay } = useCanvasScreenshotCapture({
     readOnly,
     getInsertPosition: getInsertionPosition,
@@ -541,15 +521,16 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     dragLeaseRef.current?.release()
     // 取消：先还原位置再结束内核拖动（否则回来时节点仍跟着光标）；松手丢了：当作在最后位置松手，走正常收尾。
     dragLeaseRef.current = beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel: (lastPoint) => { cancelNodeDragRef.current(); endKernelNodeDrag(lastPoint) }, onReleaseLost: endKernelNodeDrag, ...('pointerId' in event && typeof event.pointerId === 'number' ? { pointerId: event.pointerId } : {}) })
-    const originalIds = selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
+    // Selecting a group is a frame-level context. The blank frame surface owns
+    // whole-group dragging; a card inside it keeps the single-node drag contract.
+    const draggingInsideSelectedGroup = Boolean(selectedGroup?.nodeIds.includes(draggedNode.id))
+    const originalIds = !draggingInsideSelectedGroup && selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
     duplicateDragIdsRef.current = 'altKey' in event && event.altKey
       ? useGenerationCanvasStore.getState().duplicateNodesForDrag(originalIds) : new Map()
     if (!duplicateDragIdsRef.current.size) captureHistory()
     const state = useGenerationCanvasStore.getState()
     const draggedIds = originalIds.map((id) => duplicateDragIdsRef.current.get(id) ?? id)
     if (duplicateDragIdsRef.current.size) {
-      // Keep the existing collapsed-group projection. RF retains the original drag
-      // identities for this gesture; only its position changes are mapped to copies.
       dragDraftNodesRef.current = [
         ...flowNodes.map((node) => node.selected ? { ...node, selected: false, data: { ...node.data, primarySelection: false } } : node),
         ...state.nodes.filter((node) => draggedIds.includes(node.id))
@@ -563,7 +544,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         return node ? [[nodeId, { ...node.position }] as const] : []
       }),
     )
-  }, [captureHistory, flowNodes, flowStore, readOnly, selectedNodeIds, selectedSet])
+  }, [captureHistory, flowNodes, flowStore, readOnly, selectedGroup, selectedNodeIds, selectedSet])
 
   // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
   const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {
@@ -638,7 +619,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     redo,
     duplicateSelectedNodes,
     connectSelectedNodes: connectSelectedCanvasNodes,
-    generateSelectedNodes: production.generate,
     openAddNodeMenu,
     tidyCanvas: handleTidy,
   })
@@ -736,13 +716,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         selectedBounds={selectedBounds}
         selectedNodeIds={selectedNodeIds}
         selectedGroupIds={selectedGroupIds}
-        production={production}
         contactSheetCount={contactSheetCount}
         onGroupSelectedNodes={handleGroupSelectedNodes}
-        onUngroupSelectedNodes={handleUngroupSelectedNodes}
         onBuildContactSheet={handleBuildContactSheet}
         onSaveWorkflow={handleSaveWorkflow}
         onClearSelection={clearSelection}
+        groupToolbar={groupToolbar}
       />
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}
@@ -755,16 +734,13 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         selectedSet={selectedSet}
         screenshotOverlay={screenshotOverlay}
         contextNodeMenu={contextNodeMenu}
-        connectionCreateMenu={connectionCreateMenu}
+        connectionCreateMenu={connectionCreateMenu} onCloseConnectionCreateMenu={closeConnectionCreateMenu}
         onCreateEmpty={() => useGenerationCanvasStore.getState().addNode({ kind: 'image', categoryId: activeCategoryId, select: true })}
         onNodeContextAction={handleNodeContextAction}
         onCloseContextNodeMenu={closeContextNodeMenu}
         onAddContextNode={handleAddContextNode}
         onImportContextFiles={handleImportContextFiles}
         onAddConnectedNode={handleAddConnectedNode}
-        batchDock={batchDock}
-        production={production}
-        timelineCollapsed={timelineCollapsed}
         hasBatchPlanPreview={hasBatchPlanPreview}
         zoom={liveViewport.zoom}
         zoomPercent={Math.round(liveViewport.zoom * 100)}

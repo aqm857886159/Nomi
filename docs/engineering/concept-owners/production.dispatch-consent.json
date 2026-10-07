@@ -1,0 +1,46 @@
+{
+  "name": "这一镜现在派出去还算不算用户同意过（同意窗口）",
+  "subject": "production.dispatch-consent",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionDispatchConsent.ts",
+    "symbol": "dispatchConsentOpen"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionDispatchConsent.ts",
+      "symbol": "dispatchConsentOpen"
+    },
+    {
+      "path": "electron/shared/productionDispatchConsent.ts",
+      "symbol": "latestDispatchConsentAt"
+    },
+    {
+      "path": "electron/shared/productionDispatchConsent.ts",
+      "symbol": "dispatchConsentRenewalGateIds"
+    },
+    {
+      "path": "electron/productionRun/productionDispatchConsentEdits.ts",
+      "symbol": "renewDispatchConsent"
+    },
+    {
+      "path": "electron/productionRun/productionDispatchConsentEdits.ts",
+      "symbol": "applyDispatchConsentRenewal"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionRunStopReason.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunControl.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts"
+  ],
+  "since": "2026-10-01",
+  "notes": "付费卡① 第 13 条：付费批次的确认以前 10 分钟就过期（信封封好那一刻起算），派发时还要核，出站箱又按批准记录的到期时间判一次——放行形象检查点、暂停后点「继续剩余」、第二天重开项目这些「批准之后过一会儿才派」的路只要晚于 10 分钟就永远派不出去，镜头一直挂着「排队中」，而用户那时明明刚点过一下。现在一份付费授权被用户点头的最近一刻 = 批准它的那一下（gate.decidedAt）或之后续过的那一下（gate.consentRenewedAt）；派发闸（productionGenerationSubmission.prepareAuthorizedSubmission）只读 dispatchConsentOpen，过了窗口抛 DispatchConsentLapsedError，调度器接住、批次停在 consent_expired（不是失败、也不是排队）。续只有一个写口 renewDispatchConsent → reducer 的 generation.consent_renew（applyDispatchConsentRenewal 只许续批过的付费门），调用方只有两处、都要受信 IPC 盖的真人手势章：Nomi 窗口里点「继续」（productionRunControl resume）和放行形象检查点（productionRunService 的 gate.decide 钩子）。MCP 宿主 / Agent / 调度器自己的继续都不续：没人点，同意就不该被延长。点卡上「生成这张」就是一次新的批准，自带新的 decidedAt。出站箱那道 approval-expired 核对删了（approvalPolicy.authorizeSubmission）。"
+}

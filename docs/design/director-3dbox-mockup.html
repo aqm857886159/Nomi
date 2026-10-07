@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导演台 3D-BOX 样张</title>
+<style>
+/* Nomi 暗色 token（src/theme/nomi-tokens.css 的 dark 块原值）。导演台永远是暗的（2026-09-09 拍板）。 */
+:root {
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 16px;
+  --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: var(--nomi-font-sans); font-size: 14px; line-height: 1.5; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ---------- 文档区 ---------- */
+.doc { max-width: 1440px; margin: 0 auto; padding: 24px 16px 12px; }
+.doc h1 { font-size: 24px; line-height: 32px; margin: 0 0 4px; font-weight: 600; }
+.doc .sub { color: var(--nomi-ink-60); font-size: 13px; margin: 0 0 16px; }
+.taskcard { border: 1px solid var(--nomi-line); background: var(--nomi-paper); border-radius: var(--nomi-radius); padding: 12px 16px; margin-bottom: 16px; }
+.taskcard b { color: var(--nomi-accent); font-weight: 600; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.ctl > span { color: var(--nomi-ink-60); font-size: 12px; }
+.seg { display: inline-flex; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 2px; }
+.seg button { border: 0; background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--nomi-ink-60); }
+.seg button[aria-pressed="true"] { background: var(--nomi-accent-soft); color: var(--nomi-ink); }
+.hint { color: var(--nomi-ink-40); font-size: 12px; margin-top: 8px; }
+
+/* ---------- 样张画框 ---------- */
+.stage { max-width: 1440px; margin: 0 auto; padding: 0 16px 24px; }
+.frame { position: relative; width: 100%; aspect-ratio: 16 / 9.4; min-height: 560px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); overflow: hidden; display: flex; background: var(--nomi-bg); }
+.director { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+
+/* 顶栏：导演视图只有 3 簇 */
+.topbar { display: flex; align-items: center; gap: 8px; padding: 8px; position: absolute; top: 0; left: 0; right: 0; z-index: 3; pointer-events: none; }
+.cluster { pointer-events: auto; display: flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--nomi-paper) 88%, transparent); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 4px 6px; box-shadow: var(--nomi-shadow-md); backdrop-filter: blur(8px); }
+.cluster .t { font-size: 13px; padding: 2px 8px; }
+.icon { width: 28px; height: 28px; border: 0; background: transparent; border-radius: 999px; display: inline-grid; place-items: center; color: var(--nomi-ink-80); }
+.icon:hover { background: var(--nomi-ink-10); }
+.icon[disabled] { color: var(--nomi-ink-30); cursor: not-allowed; }
+.icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.spacer { flex: 1; }
+.modeseg button { padding: 3px 12px; }
+.primary { border: 0; background: var(--nomi-accent); color: oklch(0.18 0.006 80); border-radius: 999px; padding: 5px 14px; font-weight: 600; font-size: 13px; }
+
+/* 视口 */
+.viewport { flex: 1; position: relative; min-height: 0; background: radial-gradient(ellipse at 50% 40%, oklch(0.24 0.006 80), var(--nomi-bg) 70%); }
+.viewport svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pip { position: absolute; left: 12px; bottom: 12px; width: 232px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); overflow: hidden; box-shadow: var(--nomi-shadow-md); z-index: 2; }
+.pip .img { height: 120px; background: linear-gradient(180deg, oklch(0.32 0.006 80), oklch(0.26 0.006 80)); position: relative; }
+.pip .bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 12px; color: var(--nomi-ink-60); }
+.pip .bar b { color: var(--nomi-ink); font-weight: 500; }
+.empty-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--nomi-ink-40); font-size: 13px; pointer-events: none; }
+
+/* 镜头条 */
+.shotstrip { border-top: 1px solid var(--nomi-line-soft); background: var(--nomi-paper); padding: 8px 12px 10px; z-index: 2; }
+.shotstrip .head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--nomi-ink-60); margin-bottom: 6px; }
+.shotstrip .head .time { font-family: var(--nomi-font-mono); color: var(--nomi-ink-80); }
+.shots { display: flex; gap: 4px; position: relative; }
+.shot { position: relative; border: 1px solid var(--nomi-line); background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); padding: 6px 8px; text-align: left; min-width: 0; }
+.shot:hover { border-color: var(--nomi-ink-30); }
+.shot[aria-pressed="true"] { border-color: var(--nomi-accent); background: var(--nomi-accent-soft); }
+.shot .n { font-size: 11px; color: var(--nomi-ink-40); font-family: var(--nomi-font-mono); }
+.shot .what { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shot .meta { font-size: 11px; color: var(--nomi-ink-40); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-warn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--nomi-warning-ink); background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); border-radius: 999px; padding: 0 6px; margin-top: 2px; }
+.playhead { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--nomi-accent); left: 41%; border-radius: 2px; pointer-events: none; }
+
+/* 对话：A = 右侧 Agent 面板；B = 底部浮层 */
+.agent { width: 360px; flex: none; border-left: 1px solid var(--nomi-line); background: var(--nomi-paper); display: flex; flex-direction: column; }
+.agent .ah { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--nomi-line-soft); font-size: 13px; }
+.agent .ah .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--nomi-success); }
+.msgs { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.msg.user { align-self: flex-end; max-width: 88%; background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); border-radius: 12px; padding: 8px 10px; }
+.msg.ai { color: var(--nomi-ink-80); }
+.tool { border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-sm); padding: 6px 8px; font-size: 12px; color: var(--nomi-ink-60); display: flex; gap: 6px; align-items: center; }
+.tool code { font-family: var(--nomi-font-mono); color: var(--nomi-ink-80); }
+.composer { margin: 8px; border: 1px solid var(--nomi-line); border-radius: 12px; background: var(--nomi-bg); padding: 8px; }
+.ctxchip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: var(--nomi-accent-soft); border-radius: 999px; padding: 1px 8px; margin-bottom: 6px; }
+.composer .ph { color: var(--nomi-ink-40); font-size: 13px; min-height: 36px; }
+.composer .row { display: flex; align-items: center; gap: 6px; }
+.chatfloat { display: none; position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; width: min(620px, 70%); z-index: 3; }
+.chatfloat .composer { margin: 0; background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); }
+.chatfloat .last { font-size: 12px; color: var(--nomi-ink-60); background: var(--nomi-paper); border: 1px solid var(--nomi-line-soft); border-radius: 10px; padding: 6px 10px; margin-bottom: 6px; box-shadow: var(--nomi-shadow-md); }
+
+/* 精修层：现有工具原样（这里只画轮廓） */
+.pro { display: none; }
+.pro-left { position: absolute; left: 8px; top: 52px; display: none; flex-direction: column; gap: 4px; z-index: 3; }
+.pro-right { position: absolute; right: 8px; top: 52px; bottom: 8px; width: 260px; display: none; flex-direction: column; gap: 8px; z-index: 3; }
+.card { border: 1px solid var(--nomi-line); background: var(--nomi-paper); border-radius: var(--nomi-radius); padding: 8px 10px; font-size: 12px; color: var(--nomi-ink-60); box-shadow: var(--nomi-shadow-md); }
+.card h4 { margin: 0 0 6px; font-size: 13px; color: var(--nomi-ink); font-weight: 500; }
+.card .r { display: flex; justify-content: space-between; padding: 2px 0; }
+.tracks { display: none; border-top: 1px solid var(--nomi-line-soft); background: var(--nomi-bg); padding: 6px 12px; font-size: 12px; color: var(--nomi-ink-40); }
+.tracks .tr { display: flex; align-items: center; gap: 8px; height: 22px; }
+.tracks .tr .lane { flex: 1; height: 14px; border-radius: 4px; background: var(--nomi-ink-05); position: relative; }
+.tracks .tr .lane i { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; background: var(--nomi-ink-20); }
+
+/* 状态组合 */
+.frame.layout-b .agent { display: none; }
+.frame.layout-b .chatfloat { display: block; }
+.frame.layout-b .pip { bottom: 12px; }
+.frame.v1 .shotstrip, .frame.v1 .pip, .frame.v1 .deliver { display: none; }
+.frame.v1 .playbar { display: flex; }
+.playbar { display: none; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--nomi-line-soft); background: var(--nomi-paper); font-size: 12px; color: var(--nomi-ink-60); }
+.playbar .track { flex: 1; height: 4px; background: var(--nomi-ink-10); border-radius: 4px; position: relative; }
+.playbar .track i { position: absolute; left: 0; top: 0; bottom: 0; width: 41%; background: var(--nomi-accent); border-radius: 4px; }
+.frame.v1.layout-b .chatfloat { bottom: 44px; }
+.frame.layout-b:not(.v1) .chatfloat { bottom: 12px; }
+.frame.layout-b:not(.v1) .viewport .pip { bottom: 12px; }
+.frame.v3 .pro-left, .frame.v3 .pro-right { display: flex; }
+.frame.v3 .tracks { display: block; }
+.frame.v3 .pro { display: inline-flex; }
+.frame.v3.layout-b .chatfloat { width: min(520px, 50%); }
+.frame.v3.layout-a .pro-right { right: 8px; }
+
+/* 说明区 */
+.notes { max-width: 1440px; margin: 0 auto; padding: 0 16px 48px; display: grid; gap: 16px; }
+.notes section { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); background: var(--nomi-paper); padding: 12px 16px; }
+.notes h2 { font-size: 16px; margin: 0 0 8px; font-weight: 600; }
+.notes p { margin: 4px 0; color: var(--nomi-ink-80); font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid var(--nomi-line-soft); }
+th { color: var(--nomi-ink-60); font-weight: 500; font-size: 12px; border-top: 0; }
+td.k { white-space: nowrap; color: var(--nomi-ink); }
+.tag { font-size: 11px; border-radius: 999px; padding: 0 6px; border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); white-space: nowrap; }
+.tag.keep { color: var(--nomi-success); border-color: var(--nomi-success); }
+.tag.change { color: var(--nomi-warning-ink); border-color: var(--nomi-warning-edge); }
+@media (max-width: 900px) { .agent { width: 280px; } .pip { width: 180px; } .pip .img { height: 90px; } .shot .meta { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="doc">
+  <h1>导演台 3D-BOX 样张</h1>
+  <p class="sub">2026-10-03 · 对照 LibTV 3D-BOX 实看 + Nomi 导演台现状实看（同一个「古装庭院对峙」工程）· 暗色 token 原值</p>
+  <div class="taskcard">任务卡：<b>想做预演的创作者</b>，在<b>画布上给某个镜头要一段 3D 预演时</b>，<b>说一句话拿到可播放的多镜头预演、再用一两句话改到满意、一键送去出成片</b>就走。</div>
+  <div class="controls">
+    <div class="ctl"><span>布局</span><div class="seg" id="seg-layout">
+      <button data-v="layout-a" aria-pressed="true">A 停靠 · 对话在右侧 Agent 面板</button>
+      <button data-v="layout-b" aria-pressed="false">B 全屏 · 对话浮在底部</button></div></div>
+    <div class="ctl"><span>减法梯度</span><div class="seg" id="seg-grad">
+      <button data-v="v1" aria-pressed="false">v1 只有一件事</button>
+      <button data-v="v2" aria-pressed="true">v2 +镜头条</button>
+      <button data-v="v3" aria-pressed="false">v3 全部（精修展开）</button></div></div>
+  </div>
+  <p class="hint">点下面镜头条里的任意一镜：选中会同步到对话框的「正在改」标签、预览小窗和视口高亮——对话跟着选中走（LibTV「选中元素 → 描述调整」的同一个思路）。</p>
+</div>
+
+<div class="stage">
+  <div class="frame layout-a v2" id="frame">
+    <div class="director">
+      <div class="topbar">
+        <div class="cluster">
+          <button class="icon" title="回到画布"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <span class="t">古装庭院对峙 · 镜头 4</span>
+        </div>
+        <div class="cluster pro" title="精修：现有五簇顶栏的「工具」簇原样">
+          <button class="icon" title="选择"><svg viewBox="0 0 24 24"><path d="M5 4l12 6-6 2-2 6z"/></svg></button>
+          <button class="icon" title="移动"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></button>
+          <button class="icon" title="旋转"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2M20 4v5h-5"/></svg></button>
+          <button class="icon" title="缩放"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+          <button class="icon" title="画线"><svg viewBox="0 0 24 24"><path d="M4 20c4-8 8-12 16-16"/></svg></button>
+        </div>
+        <div class="spacer"></div>
+        <div class="cluster modeseg">
+          <div class="seg" id="seg-mode" style="border:0;background:transparent;padding:0">
+            <button data-v="direct" aria-pressed="true">导演</button>
+            <button data-v="pro" aria-pressed="false">精修</button>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <div class="cluster">
+          <button class="icon" title="撤销（每次 AI 修改 = 一步）"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button class="icon" title="重做" disabled><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+        </div>
+        <div class="cluster deliver">
+          <button class="primary" title="把预演接到镜头 4 的视频节点（参考视频槽），由生成卡确认价格后出成片">用这段预演出成片</button>
+        </div>
+      </div>
+
+      <div class="viewport">
+        <svg class="scene" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid slice" aria-label="3D 视口示意">
+          <defs>
+            <linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="oklch(0.38 0.006 80)"/><stop offset="1" stop-color="oklch(0.30 0.006 80)"/></linearGradient>
+          </defs>
+          <polygon points="120,470 880,470 760,250 240,250" fill="url(#g)" stroke="oklch(0.42 0.006 80)"/>
+          <g stroke="oklch(0.36 0.006 80)" stroke-width="1">
+            <line x1="300" y1="250" x2="230" y2="470"/><line x1="400" y1="250" x2="390" y2="470"/><line x1="500" y1="250" x2="500" y2="470"/><line x1="600" y1="250" x2="610" y2="470"/><line x1="700" y1="250" x2="770" y2="470"/>
+            <line x1="200" y1="320" x2="800" y2="320"/><line x1="165" y1="395" x2="835" y2="395"/>
+          </g>
+          <!-- 院墙 + 院门 -->
+          <rect x="240" y="178" width="200" height="72" fill="oklch(0.44 0.006 80)"/>
+          <rect x="560" y="178" width="200" height="72" fill="oklch(0.44 0.006 80)"/>
+          <rect x="440" y="168" width="120" height="82" fill="none" stroke="oklch(0.55 0.006 80)" stroke-width="6"/>
+          <text x="500" y="160" fill="oklch(0.62 0.006 85)" font-size="13" text-anchor="middle">院门</text>
+          <!-- 女子（走向院门） -->
+          <g id="woman" transform="translate(380,330)">
+            <circle cx="0" cy="-58" r="9" fill="oklch(0.80 0.006 85)"/><rect x="-9" y="-48" width="18" height="40" rx="7" fill="oklch(0.80 0.006 85)"/>
+            <rect x="-8" y="-9" width="6" height="34" rx="3" fill="oklch(0.80 0.006 85)"/><rect x="2" y="-9" width="6" height="34" rx="3" fill="oklch(0.80 0.006 85)"/>
+            <text x="0" y="-74" fill="oklch(0.84 0.006 85)" font-size="12" text-anchor="middle">青衣女子</text>
+          </g>
+          <path d="M380 362 C 420 320, 460 290, 492 262" stroke="oklch(0.70 0.006 85)" stroke-dasharray="4 5" fill="none"/>
+          <!-- 侍卫（横步挡门） -->
+          <g transform="translate(560,300)">
+            <circle cx="0" cy="-58" r="9" fill="oklch(0.66 0.006 85)"/><rect x="-10" y="-48" width="20" height="42" rx="7" fill="oklch(0.66 0.006 85)"/>
+            <rect x="-9" y="-8" width="7" height="34" rx="3" fill="oklch(0.66 0.006 85)"/><rect x="2" y="-8" width="7" height="34" rx="3" fill="oklch(0.66 0.006 85)"/>
+            <text x="0" y="-74" fill="oklch(0.84 0.006 85)" font-size="12" text-anchor="middle">黑衣侍卫</text>
+          </g>
+          <path d="M600 300 L 532 290" stroke="oklch(0.70 0.006 85)" stroke-dasharray="4 5" fill="none" marker-end="none"/>
+          <!-- 四台机位（每个 cut 一台） -->
+          <g font-size="11" font-family="ui-monospace, monospace">
+            <g class="cam" data-shot="1" transform="translate(250,410)"><rect x="-14" y="-10" width="28" height="20" rx="4"/><text x="0" y="4" text-anchor="middle">1</text></g>
+            <path d="M250 410 C 300 380, 350 360, 420 330" stroke="oklch(0.70 0.13 250)" stroke-width="1.5" stroke-dasharray="3 4" fill="none" class="campath" data-shot="1"/>
+            <g class="cam" data-shot="2" transform="translate(470,420)"><rect x="-14" y="-10" width="28" height="20" rx="4"/><text x="0" y="4" text-anchor="middle">2</text></g>
+            <g class="cam" data-shot="3" transform="translate(330,300)"><rect x="-14" y="-10" width="28" height="20" rx="4"/><text x="0" y="4" text-anchor="middle">3</text></g>
+            <g class="cam" data-shot="4" transform="translate(610,330)"><rect x="-14" y="-10" width="28" height="20" rx="4"/><text x="0" y="4" text-anchor="middle">4</text></g>
+            <path d="M610 330 L 585 320" stroke="oklch(0.70 0.13 250)" stroke-width="1.5" stroke-dasharray="3 4" fill="none" class="campath" data-shot="4"/>
+          </g>
+        </svg>
+        <div class="pro-left">
+          <div class="card"><h4>添加</h4>角色 · 机位 · 灯光 · 道具 · 全景/泼溅</div>
+        </div>
+        <div class="pro-right">
+          <div class="card" style="flex:1"><h4>场景对象</h4>
+            <div class="r"><span>青衣女子</span><span>👁 🔒 ⋯</span></div><div class="r"><span>黑衣侍卫</span><span>👁 🔒 ⋯</span></div>
+            <div class="r"><span>院门 / 院墙 / 地面</span><span>👁 🔒 ⋯</span></div><div class="r"><span>机位 1–4</span><span>👁 🔒 ⋯</span></div>
+          </div>
+          <div class="card" style="flex:1"><h4>属性（选中对象）</h4>
+            <div class="r"><span>位置 / 旋转 / 缩放</span><span>数值</span></div><div class="r"><span>焦距 / FOV</span><span>29mm</span></div>
+            <div class="r"><span>天空 / 网格 / 吸附</span><span>…</span></div><div class="r"><span>姿态 / 骨骼 / IK</span><span>…</span></div>
+          </div>
+        </div>
+        <div class="pip">
+          <div class="img"><svg viewBox="0 0 232 120" width="100%" height="100%"><polygon points="0,120 232,120 190,62 42,62" fill="oklch(0.40 0.006 80)"/><g transform="translate(100,96)"><circle cx="0" cy="-36" r="6" fill="oklch(0.80 0.006 85)"/><rect x="-6" y="-29" width="12" height="27" rx="5" fill="oklch(0.80 0.006 85)"/></g><g transform="translate(140,92)"><circle cx="0" cy="-36" r="6" fill="oklch(0.66 0.006 85)"/><rect x="-7" y="-29" width="14" height="28" rx="5" fill="oklch(0.66 0.006 85)"/></g></svg></div>
+          <div class="bar"><button class="icon" title="播放预演"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button><b id="pip-label">镜头 2 · 中景 · 静止</b><span class="spacer"></span><span>16:9</span></div>
+        </div>
+        <div class="empty-hint" id="v1hint" style="display:none"></div>
+        <div class="chatfloat">
+          <div class="last">✓ 已搭好：庭院 · 2 个人物 · 4 个镜头（12 秒）。检查发现镜头 3 手部出画，已自动拉近。</div>
+          <div class="composer">
+            <div class="ctxchip" id="ctx-b">正在改：镜头 2 · 中景</div>
+            <div class="ph">说说要怎么改，比如「这一镜慢一点」「侍卫从右边进来」…</div>
+            <div class="row"><button class="icon" title="附图"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><span class="spacer"></span><button class="primary" title="发送">发送</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="playbar"><button class="icon" title="播放"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button><span style="font-family:var(--nomi-font-mono)">04.9 / 12.0s</span><div class="track"><i></i></div></div>
+
+      <div class="shotstrip">
+        <div class="head"><button class="icon" title="播放全部"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button><span class="time">04.9 / 12.0s</span><span>· 4 个镜头 · 下面的景别和运镜是<b style="color:var(--nomi-ink-80);font-weight:500">实测值</b>（不是计划值）</span></div>
+        <div class="shots" id="shots">
+          <button class="shot" data-shot="1" data-label="镜头 1 · 全景 · 侧后跟拍" style="flex:4" aria-pressed="false"><div class="n">1 · 0–4s</div><div class="what">全景 · 侧后方跟拍</div><div class="meta">青衣女子走向院门</div></button>
+          <button class="shot" data-shot="2" data-label="镜头 2 · 中景 · 静止" style="flex:4" aria-pressed="true"><div class="n">2 · 4–8s</div><div class="what">中景 · 静止</div><div class="meta">侍卫横步挡门 · 女子藏信</div></button>
+          <button class="shot" data-shot="3" data-label="镜头 3 · 特写 · 手部" style="flex:2" aria-pressed="false"><div class="n">3 · 8–10s</div><div class="what">特写 · 手部</div><span class="chip-warn" title="director_check 的问题清单，已自动修正一次">已修：出画 → 拉近</span></button>
+          <button class="shot" data-shot="4" data-label="镜头 4 · 越肩 · 慢推" style="flex:2" aria-pressed="false"><div class="n">4 · 10–12s</div><div class="what">越肩 · 慢推</div><div class="meta">侍卫肩后看女子</div></button>
+          <div class="playhead"></div>
+        </div>
+      </div>
+      <div class="tracks">
+        <div class="tr"><span style="width:96px">机位 1–4</span><div class="lane"><i style="left:0;width:33%"></i><i style="left:33.5%;width:33%"></i><i style="left:67%;width:16%"></i><i style="left:83.5%;width:16%"></i></div></div>
+        <div class="tr"><span style="width:96px">青衣女子 · 动作</span><div class="lane"><i style="left:0;width:33%"></i><i style="left:33.5%;width:66%"></i></div></div>
+        <div class="tr"><span style="width:96px">黑衣侍卫 · 轨迹</span><div class="lane"><i style="left:33.5%;width:20%"></i></div></div>
+        <div style="margin-top:4px">精修：现有关键帧时间轴原样（自动关键帧 · 吸附 · 倍速 · 加关键帧 · 加轨道 · 录制 MP4）</div>
+      </div>
+    </div>
+
+    <aside class="agent">
+      <div class="ah"><span class="dot"></span><span>Nomi Agent</span><span class="spacer" style="flex:1"></span><span style="color:var(--nomi-ink-40);font-size:12px">同一个会话 · 退出导演台也在</span></div>
+      <div class="msgs">
+        <div class="msg user">做一段古装悬疑剧情预演：夜色中的古代庭院，持密信的青衣女子和守门的黑衣侍卫。0–4 秒全景侧后跟拍女子走向院门；4–8 秒切门前双人中景……</div>
+        <div class="tool">⚙ <code>stage_shot</code> 提交导演计划：2 人物 · 庭院 · 4 镜头</div>
+        <div class="tool">⚙ 检查：镜头 3 手部出画 70% → 自动拉近一次 → 通过</div>
+        <div class="msg ai">预演好了，12 秒 4 个镜头，左下角可以直接播。镜头 3 一开始手部出画，我已经拉近了。要改哪一镜，点下面的镜头条再告诉我。</div>
+        <div class="msg user">第二镜慢一点，侍卫从右边进来</div>
+        <div class="tool">⚙ <code>stage_shot</code> 只改镜头 2（时长 4 → 5s，侍卫入画方向 = 右）· 可撤销</div>
+      </div>
+      <div class="composer">
+        <div class="ctxchip" id="ctx-a">正在改：镜头 2 · 中景</div>
+        <div class="ph">说说要怎么改…</div>
+        <div class="row"><button class="icon" title="附图"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><span class="spacer"></span><button class="primary">发送</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="notes">
+  <section>
+    <h2>A 和 B 你在权衡什么（一句话）</h2>
+    <p><b>A</b>：对话就是右侧那个 Agent 面板——一个会话、一个入口，审批卡 / 价格卡 / 历史全复用；代价是视口窄约 360px。</p>
+    <p><b>B</b>：全屏、视口最大、和 LibTV 一样对话浮在底部；代价是要做「同一会话的第二个窗口」（历史同步、审批卡在浮层里怎么出），工程更复杂，也更容易长出第二个 owner。</p>
+    <p>编排者推荐 <b>A + v2</b>：A 与 2026-10-03「复用右侧 Agent 面板」的拍板一致；v2 的「+1」是镜头条——它是「对话跟着选中走」的抓手，也是让用户看见<b>实测</b>景别/运镜、信得过结果的地方（卡点 ④）。按设计流程默认推荐 v1，请你判断这个 +1 值不值。</p>
+  </section>
+
+  <section>
+    <h2>删除清单（导演视图里没放的 / 为什么 / 要用时去哪找）</h2>
+    <table>
+      <tr><th>没放上去的</th><th>为什么</th><th>用户要它时怎么找到</th></tr>
+      <tr><td class="k">选择/移动/旋转/缩放/画线/逐点 6 个工具</td><td>手调物体是精修动作，一句话预演 10 次里用不到 3 次</td><td>顶栏「精修」→ 原「工具」簇原样；快捷键 1–5 在导演视图仍然有效（加速器不占位）</td></tr>
+      <tr><td class="k">场景对象大纲（隐藏/锁定/删除/跨图层）</td><td>对话里点名人物即可；行级操作是精修</td><td>「精修」→ 右侧双卡；或在视口直接点中物体</td></tr>
+      <tr><td class="k">属性面板（天空、网格高度/透明度/吸附、全局变换、焦距）</td><td>低频专业参数</td><td>「精修」→ 属性卡；网格/天空等显示偏好在视图 ▾</td></tr>
+      <tr><td class="k">关键帧轨道时间轴（自动关键帧、吸附、倍速、缩放、加关键帧、加轨道）</td><td>用户想的是「第几镜」，不是轨道与关键帧</td><td>「精修」→ 镜头条下方展开原轨道时间轴</td></tr>
+      <tr><td class="k">场景图层选择器、新建层</td><td>多图层是高级用法</td><td>「精修」→ 顶栏场景 ▾</td></tr>
+      <tr><td class="k">录制 MP4、截图、产出文件夹</td><td>交付合成一个主按钮「用这段预演出成片」</td><td>主按钮旁 ▾：只导出预演 MP4 / 截图 / 打开产出</td></tr>
+      <tr><td class="k">视口下方「描述场景…」AI 输入条</td><td>与 Agent 对话是同一件事，一功能一个家</td><td>A：右侧 Agent 面板；B：底部浮层（同一会话）</td></tr>
+      <tr><td class="k">添加对象菜单（角色/机位/灯光/道具/全景/泼溅）</td><td>先让 AI 搭；手动加是精修</td><td>「精修」→ 添加；或对 AI 说「加一个灯笼」</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>卡点表（主路径：一句话 → 预演 → 改一镜 → 出成片）</h2>
+    <table>
+      <tr><th>问题</th><th>回答</th><th>证据 / 状态</th></tr>
+      <tr><td class="k">① 他怎么知道有这个功能？</td><td>画布镜头节点上的「3D 预演」；Agent 在拆镜头时主动建议；导演台空态给 3 个示例句（同 LibTV 首页三句）</td><td>未做：空态示例句；现有入口 <code>stage_shot</code> 已在 Agent 工具面</td></tr>
+      <tr><td class="k">② 动手前知不知道代价？</td><td>搭预演 = 本地渲染、不花钱（结果里写明）；出成片走 <code>generate</code> 的价格卡，用户确认才花</td><td>付费边界已有：<code>generate</code> = user_sees_spend_card；<code>stage_shot</code> 永不花钱</td></tr>
+      <tr><td class="k">③ 空了 / 错了他看到什么？</td><td>计划不合法 → 保留上一版可播放预演 + 对话里说清哪里不行；测量问题挂在对应镜头块上（如「已修：出画 → 拉近」）</td><td>原子应用已有（PR #960 那块迁入）；问题清单 = 第一棒测量模块</td></tr>
+      <tr><td class="k">④ 凭什么信结果？错了怎么回头？</td><td>镜头条显示<b>实测</b>景别/运镜/时长（不是计划里写的）；每次 AI 修改 = 一步撤销</td><td>实测值来自第一棒测量模块；撤销扩展现有 <code>undo</code>（设计正本 §7 标为未做）</td></tr>
+    </table>
+    <p style="margin-top:8px">这条路几步：说一句（1）→ 看预演（0，自动播）→ 点一镜 + 说一句（2）→ 出成片（1）+ 价格确认（1）= <b>5 步</b>。能砍：「点一镜」可省——直接说「第二镜慢一点」也能定位，点选只是加速器。</p>
+  </section>
+
+  <section>
+    <h2>这次推翻 / 保留的旧拍板（逐条，可否决）</h2>
+    <table>
+      <tr><th>旧拍板（来源）</th><th>本样张怎么做</th><th></th></tr>
+      <tr><td>导演台 V2 外壳对标参考产品的全功能 3D 编辑器作为默认面（docs/plan/2026-09-02-director-console-v2.md）</td><td>默认面改成「导演视图」；全功能外壳整体进「精修」，一个控件都不删</td><td><span class="tag change">改</span></td></tr>
+      <tr><td>顶栏五个悬浮功能簇（2026-09-09，director-chrome-five-clusters）</td><td>导演视图顶栏 4 簇（返回+标题 / 导演·精修 / 撤销 / 出成片）；精修里五簇原样回来</td><td><span class="tag change">改</span></td></tr>
+      <tr><td>完整多轨时间轴，默认折叠成 6% 高度条（console-v2 §0.1）</td><td>导演视图用镜头条；多轨时间轴只在精修出现</td><td><span class="tag change">改</span></td></tr>
+      <tr><td>右栏浮起双卡（2026-09-09 第 2 期）</td><td>精修里原样保留</td><td><span class="tag keep">留</span></td></tr>
+      <tr><td>导演台永远是暗的（2026-09-09）</td><td>保留</td><td><span class="tag keep">留</span></td></tr>
+      <tr><td>骨骼页交互沿用现状（2026-09-09）</td><td>保留（在精修里）</td><td><span class="tag keep">留</span></td></tr>
+      <tr><td>导演台是全屏覆盖层（DirectorEditor.tsx:361）</td><td>A：改为占画布区、右侧 Agent 面板可见；B：保留全屏</td><td><span class="tag change">A 改 / B 留</span></td></tr>
+    </table>
+  </section>
+</div>
+
+<script>
+const frame = document.getElementById('frame');
+function wireSeg(id, apply) {
+  const seg = document.getElementById(id);
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    apply(b.dataset.v);
+  });
+}
+wireSeg('seg-layout', v => { frame.classList.remove('layout-a', 'layout-b'); frame.classList.add(v); });
+function setGrad(v) {
+  frame.classList.remove('v1', 'v2', 'v3'); frame.classList.add(v);
+  document.querySelectorAll('#seg-grad button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === v)));
+  document.querySelectorAll('#seg-mode button').forEach(x => x.setAttribute('aria-pressed', String((v === 'v3') === (x.dataset.v === 'pro'))));
+}
+wireSeg('seg-grad', setGrad);
+document.getElementById('seg-mode').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  setGrad(b.dataset.v === 'pro' ? 'v3' : 'v2');
+});
+function selectShot(n) {
+  document.querySelectorAll('.shot').forEach(s => s.setAttribute('aria-pressed', String(s.dataset.shot === n)));
+  const label = document.querySelector(`.shot[data-shot="${n}"]`).dataset.label;
+  document.getElementById('pip-label').textContent = label;
+  document.getElementById('ctx-a').textContent = '正在改：' + label.split(' · ').slice(0, 2).join(' · ');
+  document.getElementById('ctx-b').textContent = '正在改：' + label.split(' · ').slice(0, 2).join(' · ');
+  document.querySelectorAll('.cam').forEach(c => {
+    const on = c.dataset.shot === n;
+    c.querySelector('rect').setAttribute('fill', on ? 'oklch(0.70 0.13 250)' : 'oklch(0.30 0.006 80)');
+    c.querySelector('rect').setAttribute('stroke', on ? 'oklch(0.70 0.13 250)' : 'oklch(0.62 0.006 85)');
+    c.querySelector('text').setAttribute('fill', on ? 'oklch(0.18 0.006 80)' : 'oklch(0.84 0.006 85)');
+  });
+}
+document.getElementById('shots').addEventListener('click', (e) => { const s = e.target.closest('.shot'); if (s) selectShot(s.dataset.shot); });
+selectShot('2');
+</script>
+</body>
+</html>

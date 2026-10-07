@@ -32,4 +32,11 @@ describe('directorCaptureHostActivation', () => {
     expect(hasPendingDirectorCameraMoveCapture([node({ kind: 'director', meta: { cameraMoveAutoCapture: { targetNodeId: 'shot-1' } } })])).toBe(true)
     expect(hasPendingDirectorCameraMoveCapture([node({ kind: 'director', meta: { cameraMoveAutoCapture: 'x' } })])).toBe(false)
   })
+
+  it('3D-BOX 预演渲染中也挂这个 Host（真机首跑：预演一直 rendering 就是因为 Host 没挂）；ready / failed 不挂', () => {
+    const preview = (status: string) => node({ kind: 'director', meta: { directorPreview: { status, revision: 'dplan-1', targetNodeId: 'v', updatedAt: 1 } } })
+    expect(hasPendingDirectorCameraMoveCapture([preview('rendering')])).toBe(true)
+    expect(hasPendingDirectorCameraMoveCapture([preview('ready')])).toBe(false)
+    expect(hasPendingDirectorCameraMoveCapture([preview('failed')])).toBe(false)
+  })
 })

@@ -21,6 +21,9 @@ import {
   getUndoJournalPosition,
   pushUndoSnapshot,
 } from '../events/canvasUndoJournal'
+import { makeChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
+import { directorWriteCompensation } from '../nodes/director/agent/directorWriteCompensation'
+import { flushEmbeddedEditors } from './embeddedEditorFlush'
 
 export type ProposalStep = {
   toolCallId: string
@@ -35,6 +38,7 @@ export type CompensationOp =
   | { kind: 'disconnect-edges'; pairs: { source: string; target: string }[] }
   | { kind: 'restore-prompt'; nodeId: string; prompt: string; promptOverridden?: boolean }
   | { kind: 'restore-graph'; nodes: unknown[]; edges: unknown[] }
+  | { kind: 'restore-node-fields'; nodeId: string; meta: Record<string, unknown>; prompt: string }
 
 /** 编辑哨点:commit 时记下 AI 落地的节点状态,整笔撤销前对比——用户改过的要列明再丢。 */
 export type ProposalWatchNode = { nodeId: string; title: string; prompt: string }
@@ -98,6 +102,9 @@ function captureStepCompensation(
       .map((edge) => ({ source: edge.source, target: edge.target }))
     if (pairs.length) ops.push({ kind: 'disconnect-edges', pairs })
   }
+  // 3D-BOX（director.write）：新建 = 删掉建出的导演节点；修订 = 导演节点 meta 放回去；两者都把要挂预演的
+  // 视频节点放回提议之前（预演是事后由常驻 Host 挂上去的，撤销要连它一起退）。
+  ops.push(...directorWriteCompensation(step.toolName, step.effectiveArgs, before, after))
   return ops
 }
 
@@ -201,6 +208,10 @@ export async function applyProposalBatch(
     (aborted as Extract<ProposalOutcome, { status: 'aborted' }> | undefined)?.reason ?? 'Agent turn abandoned'
   const errorMessage = (error: unknown): string =>
     error instanceof Error && error.message ? error.message : String(error)
+  // An open embedded editor saves its pending edits first, as the user's own write:
+  // every step's undo baseline must contain them, and once the write slot is owned
+  // below, that save would count as a foreign write and cancel this proposal.
+  flushEmbeddedEditors()
   // Claim before opening our own Undo point: acquiring a new batch first
   // cleans up the old one, even when both approvals came from the same turn.
   const ownership = ownPendingCanvasWrite(proposalId, () => {
@@ -300,6 +311,12 @@ export async function applyProposalBatch(
     const watchNodes: ProposalWatchNode[] = snapshot.nodes
       .filter((node) => watchIds.has(node.id))
       .map((node) => ({ nodeId: node.id, title: node.title, prompt: node.prompt || '' }))
+    const objectIds = new Set<string>(watchNodes.map((node) => node.nodeId))
+    for (const op of compensation) {
+      if ('nodeIds' in op) op.nodeIds.forEach((id) => objectIds.add(id))
+      if ('nodeId' in op) objectIds.add(op.nodeId)
+      if ('pairs' in op) op.pairs.forEach((pair) => { objectIds.add(pair.source); objectIds.add(pair.target) })
+    }
 
     if (receiptCoordinator) {
       receiptCommitInFlight = true
@@ -339,6 +356,8 @@ export async function applyProposalBatch(
           type: 'agent.txn.committed',
           payload: {
             proposalId,
+            changeId: makeChangeId('canvas', proposalId),
+            objectIds: [...objectIds],
             steps: steps.map((step) => ({ toolCallId: step.toolCallId, toolName: step.toolName })),
             ...(Object.keys(clientIdToNodeId).length ? { clientIdToNodeId } : {}),
             reconciliation: {

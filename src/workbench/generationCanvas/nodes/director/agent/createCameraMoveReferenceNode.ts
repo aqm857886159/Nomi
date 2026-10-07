@@ -16,7 +16,8 @@ import { getDefaultCategoryForNodeKind } from '../../../model/generationNodeKind
 import { migrateScene3DState } from '../migration/migrateScene3d'
 import { CAMERA_MOVE_AUTO_CAPTURE_META_KEY, DIRECTOR_NODE_KIND, DIRECTOR_PROJECT_META_KEY } from '../model/directorNodeMeta'
 import { buildCameraMoveScene, type CameraMoveSpec } from './cameraMoveBuilder'
-import { CAMERA_SPEED_DURATION, type CameraMove } from './cameraMoveVocab'
+import { CAMERA_SPEED_DURATION } from './cameraMoveVocab'
+import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 
 // Seedance 参考视频要求帧率 23.8–60 FPS（实测 12fps 被 InvalidParameter.FpsTooLow 拒）
 export const CAMERA_MOVE_CAPTURE_FPS = 24

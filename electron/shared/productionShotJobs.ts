@@ -13,20 +13,23 @@ export function isUnsubmittedJobStatus(status: ProductionJob["status"]): boolean
 }
 
 /**
- * 这一个作业**有没有可能**已经到过供应商（可能扣过钱）。「没有」只有两种证据：
+ * 这一个作业**有没有可能**已经被供应商受理（可能扣过钱）。「没有」只有三种证据：
  *   · 还没跨过提交边界（`isUnsubmittedJobStatus`：`submitOnce` 先落提交意图、再出站）；
- *   · 跨过之后被证明一个字节都没写出去（`markNotDispatched` → `provider_not_reached`，判据在 `outboundDispatchEvidence.ts`）。
+ *   · 跨过之后被证明一个字节都没写出去（`markNotDispatched` → `provider_not_reached`，判据在 `outboundDispatchEvidence.ts`）；
+ *   · 供应商当场明确拒绝（`markProviderRejected` → `provider_rejected`，同一个判据文件，2026-10-05 F3）。
  * 其余一律按「可能到过」——宁可让人多核对一次，也不许把一笔可能的扣费说成没花钱。
  *
  * 面板付费卡的失败文案、Agent `generate` 的失败码、这一次出价的逐镜结局，都只读这一个判据（付费卡① 23:30 第 3 点）。
  */
 export function jobMayHaveReachedProvider(job: Pick<ProductionJob, "status" | "errorCode">): boolean {
-  return !isUnsubmittedJobStatus(job.status) && !jobFailedBeforeSending(job);
+  return !isUnsubmittedJobStatus(job.status) && !jobEndedBeforeAcceptance(job);
 }
 
-/** 这一个作业已经结束、而且结束在出站之前（证明过没写出去）：没花钱，也不会再自己发。 */
-export function jobFailedBeforeSending(job: Pick<ProductionJob, "status" | "errorCode">): boolean {
-  return job.status === "needs_attention" && job.errorCode === "provider_not_reached";
+/**
+ * 这一个作业已经结束、而且结束在被受理之前（证明过没写出去，或供应商当场明确拒绝）：没花钱，也不会再自己发。
+ */
+export function jobEndedBeforeAcceptance(job: Pick<ProductionJob, "status" | "errorCode">): boolean {
+  return job.status === "needs_attention" && (job.errorCode === "provider_not_reached" || job.errorCode === "provider_rejected");
 }
 
 /** 这些作业里有没有任何一笔可能到过供应商。一个作业都没有 = 没有。 */
@@ -51,6 +54,14 @@ export function latestJobForShot(run: ProductionRun, shotId: string): Production
   return jobsForShot(run, shotId)
     .slice()
     .sort((a, b) => (b.attempt - a.attempt) || (Date.parse(b.createdAt) - Date.parse(a.createdAt)))[0];
+}
+
+/**
+ * 这一镜此刻是第几次尝试（最新那个 job 的 attempt；一个 job 都没有 = 第 1 次）。画布认领记在哪一次、判定口拿认领比哪一次、
+ * 认领命令号带哪一次，都读这一个值——三处各算一遍，就会出现「记的是第 2 次、号还是第 1 次的」那种漂移。
+ */
+export function currentShotAttempt(run: ProductionRun, shotId: string): number {
+  return latestJobForShot(run, shotId)?.attempt ?? 1;
 }
 
 /** 这一镜勾没勾进这一批（`included` 缺省 = 勾进了）。 */

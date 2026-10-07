@@ -40,6 +40,11 @@ const TIER_RUNNER = 'scripts/run-gates-tests.mjs'
  */
 const INTENTIONALLY_OUT_OF_CHAIN = new Map([
   [
+    'check:director3dbox-face',
+    // 3D-BOX 开关打开那张模型面：开关是构建期变量，gates 链在开关关闭的构建上跑；这一条由 CI 里单独的 job 设好 NOMI_DIRECTOR_3DBOX=true 再跑（2026-11-15 随开关一起删）。
+    '需要构建开关 NOMI_DIRECTOR_3DBOX=true，由 CI 单独 job 驱动；放进 gates 链会在开关关闭的构建上误跑',
+  ],
+  [
     'check:test-types',
     // 2026-10-01 用户按门岗账本拍板「test-types 与 typecheck 合成一次」：typecheck 编排器（scripts/typecheck.mjs）并发拉起它，
     // scripts/typecheck.node-test.mjs 钉死名单里有它。单独跑 `pnpm run check:test-types` 仍然可用。

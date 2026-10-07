@@ -33,6 +33,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasWriteSemanticInputSchema } from '../../../../electron/shared/agentCapabilities/canvasWrite'
+import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../../../electron/shared/agentCapabilities/directorWrite'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
 import { previewStoryboardPatchShots } from './storyboardPatchShots'
 import { deliverAgentArtifactToAsset, isTextDeliverableFileType } from './deliverAgentArtifact'
@@ -251,6 +252,15 @@ export async function applyCanvasToolCall(
   const inCtx = <T>(fn: () => T): T => {
     assertWritable()
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
+  }
+
+  // 3D-BOX（director.write，仅开关开时有调用方）：领域执行体住导演台目录，这里只认路。
+  if (isDirectorWriteOperation(operation)) {
+    const parsed = directorWriteSemanticInputSchema.safeParse(record)
+    if (!parsed.success) throw Object.assign(new Error('stage_shot 参数无效。'), { code: 'capability_input_invalid' })
+    const { applyDirectorWrite } = await import('../nodes/director/agent/applyDirectorWrite')
+    assertWritable()
+    return applyDirectorWrite(parsed.data, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
   }
 
   if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {

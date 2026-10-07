@@ -204,6 +204,13 @@ export type ProductionJob = {
   updatedAt: string;
 };
 
+/**
+ * 「已生成、取回失败」的 job.errorCode（#975 A2）：供应商做完了、钱花了，丢的只是把结果取回本机这一下。
+ * 唯一的下一步是「重新取回」（job.retry_retrieval：回到轮询再查再取，免费、不重新提交）；
+ * 写它的是 productionGenerationSubmission.materialize，认它的是 service 的重新取回命令与任务面板。
+ */
+export const OUTPUT_RETRIEVAL_FAILED = "output_retrieval_failed" as const;
+
 export type ProductionShotClaim = {
   by: "canvas" | "production";
   attempt: number;

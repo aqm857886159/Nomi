@@ -430,6 +430,7 @@ export function dispatchModelOnboarding(
     sessions?: IntegrationSessionService;
     openCredentialsInNomi?: OnboardingDispatchDeps["openCredentialsInNomi"];
     runTask?: TryModelDeps["runTask"];
+    fetchTaskResult?: TryModelDeps["fetchTaskResult"];
     approvalPolicy?: TryModelDeps["approvalPolicy"];
   },
 ): Promise<OnboardingResult | OnboardingFailure> | OnboardingResult | OnboardingFailure {
@@ -438,6 +439,7 @@ export function dispatchModelOnboarding(
     if (!ctx.runTask) throw new Error("model.onboarding.try needs the task runner; it runs on the same executor as the canvas.");
     return tryModel({
       runTask: ctx.runTask,
+      ...(ctx.fetchTaskResult ? { fetchTaskResult: ctx.fetchTaskResult } : {}),
       // 档位从宿主一路传下来。**不传 = 不猜 = 照旧问人**，与 Run 侧那条同一条纪律。
       ...(ctx.approvalPolicy ? { approvalPolicy: ctx.approvalPolicy } : {}),
     }, params);

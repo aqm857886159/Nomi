@@ -56,6 +56,8 @@ export type MaterializeShotCandidate = {
 export type MaterializeShotGeneration =
   | { state: 'running'; runRecordId: string; startedAt: number }
   | { state: 'failed'; runRecordId: string; startedAt: number; message?: string }
+  // 已经生成、结果没能取回（#975 V-975）：节点挂「可找回」——分镜表同一份状态词（recoverable），不进任何批量生成。
+  | { state: 'recoverable'; runRecordId: string; startedAt: number; message?: string }
   | { state: 'ended' }
 
 
@@ -343,8 +345,9 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   }
 
   // 分镜表（同一 txn → 与节点/组同一个撤销步）。标题 = 计划名；行零缓存，全部从节点 derive。
+  // 「这个 Run 已有表吗」在**建表这一刻**再读一次：开头那次判在若干 await 之前，两次重叠的落地都会判成「没有」，各建一张。
   let shotTableNodeId = existingShotTableId
-  if (willCreateTable && runId) {
+  if (willCreateTable && runId && !(shotTableNodeId = findProductionShotTable(runId))) {
     const table = inLandingTxn(() => useGenerationCanvasStore.getState().addNode({
       kind: 'shot_table',
       title: (payload.planName || '').trim() || i18n.t('shotTable.title'),
@@ -456,12 +459,18 @@ function applyShotGeneration(nodeId: string, generation: MaterializeShotGenerati
     if (latest?.id === generation.runRecordId && latestInFlight) return
     // 这次任务已经有过结论（成功 / 失败）就不倒回去；被收掉的（重开项目时把幽灵转圈收成 cancelled）照常续上。
     if (existing && (existing.status === 'success' || existing.status === 'error')) return
+    // 「重新取回」把这一镜放回了轮询：同一条记录从可找回翻回进行中，不另挂一条。
+    if (existing?.status === 'recoverable') {
+      store.trackNodeRun(nodeId, generation.runRecordId, { status: 'running' })
+      return
+    }
     store.appendNodeRun(nodeId, { id: generation.runRecordId, status: 'running', startedAt: generation.startedAt })
     return
   }
-  if (existing?.status === 'error') return
-  if (existing) store.trackNodeRun(nodeId, generation.runRecordId, { status: 'error', ...(generation.message ? { error: generation.message } : {}) })
-  else store.appendNodeRun(nodeId, { id: generation.runRecordId, status: 'error', startedAt: generation.startedAt, ...(generation.message ? { error: generation.message } : {}) })
+  const status = generation.state === 'recoverable' ? 'recoverable' : 'error'
+  if (existing?.status === status) return
+  if (existing) store.trackNodeRun(nodeId, generation.runRecordId, { status, ...(generation.message ? { error: generation.message } : {}) })
+  else store.appendNodeRun(nodeId, { id: generation.runRecordId, status, startedAt: generation.startedAt, ...(generation.message ? { error: generation.message } : {}) })
 }
 
 /** capabilityApplyHandler 转来的 op 分发（保持 handler 精简）。返回未处理 → null 让 handler 继续 switch。 */

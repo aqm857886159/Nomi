@@ -15,7 +15,6 @@ import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallT
 import { localizeTaskAsset } from "./assets/localizeTaskAsset";
 export { localizeTaskAsset };
 import { localizedTaskAssetFileName } from "./assets/localizedAsset";
-import { claimCanvasProductionShot } from "./productionRun/canvasShotClaim";
 import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline"; import { vendorAuthSpec } from "./catalog/vendorAuthSpec";
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation"; import type { AntigravityProcessStage } from "./catalog/antigravityCatalog";
 import { executeTextTask } from "./textTaskRunner";
@@ -61,7 +60,7 @@ import { modelModeBodies } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
 import { certifyTaskOutputAndSettleComfyCandidate, materializeCertifiedComfyAssets, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
-import { consumeTaskSpend } from "./tasks/taskSpend";
+import { TOKEN_ADMISSION, type TaskAdmission } from "./tasks/taskSpend"; // runTask 缺省走令牌路；画布单镜 Run 传 RUN_APPROVED_ADMISSION
 import { desktopT } from "./i18n";
 export type {
   AiSdkProviderKind,
@@ -215,7 +214,7 @@ export async function executeProfileOperation(input: {
   const uploadCatalog = readCatalog();
   const localized = await localizeAssetsForVendor(
     input.request.extras,
-    assetIngestionResolver(input.vendor, uploadCatalog),
+    assetIngestionResolver(input.vendor, uploadCatalog, input.operation.assetIngestion),
     input.localAssetReader || readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
@@ -300,7 +299,7 @@ export async function buildProfileTaskResult(input: {
   };
 }
 
-export async function runTask(payload: unknown): Promise<TaskResult> {
+export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN_ADMISSION): Promise<TaskResult> {
   const raw = payload as { vendor?: string; request?: TaskRequest };
   const vendorKey = trim(raw.vendor);
   const request = raw.request;
@@ -314,7 +313,6 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const stagedCandidate = resolveComfyCandidateExecution(request);
   const { vendor, model, apiKey, customConfig } = stagedCandidate || findExecutableModel(vendorKey, modelKey, wantedKind);
   const projectId = trim(request.extras?.projectId), nodeId = trim(request.extras?.nodeId), grantId = trim(request.extras?.grantId);
-  claimCanvasProductionShot(projectId, request.extras);
   const taskId = `task-${crypto.randomUUID()}`;
   const effectiveVendorKey = vendor.key;
   const mapping = stagedCandidate?.mapping || findTaskMapping(effectiveVendorKey, kind, modelKey, modeId);
@@ -326,9 +324,9 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias), { vendorKey: effectiveVendorKey, modelKey: model.modelKey });
   if (guardError) throw new Error(guardError);
   if (customCallScript)
-    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset });
+    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
-    await consumeTaskSpend({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
+    await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
@@ -337,7 +335,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     if (!mapping.create.multipart && !mapping.create.process) {
       assertLocalAssetTransportReady(
         request.extras,
-        assetIngestionResolver(vendor, uploadCatalog),
+        assetIngestionResolver(vendor, uploadCatalog, mapping.create.assetIngestion),
         readNomiLocalAsset,
         assetLocalizationOptions(request.extras),
       );
@@ -352,7 +350,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     const cachedHit = readCachedTaskResult({ projectId, fingerprint, nodeId, extras: request.extras });
     if (cachedHit) return cachedHit as TaskResult;
     const antigravityPreflight = await prepareAntigravityCreateOperation({ vendorKey: effectiveVendorKey, modelKey: model.modelKey, taskKind: kind, operation: mapping.create, request });
-    await consumeTaskSpend({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras }); // 付费守卫：缓存未命中=真发 vendor，发前校验消费令牌
+    await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras }); // 付费守卫：缓存未命中=真发 vendor，发前校验消费令牌
     let createOperation = mapping.create; let executed;
     try {
       executed = await executeProfileOperation({ vendor, model, apiKey, request, operation: createOperation, stage: "create", antigravityPreflight });
@@ -409,7 +407,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   }
 
   if (wantedKind === "text") {
-    await consumeTaskSpend({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
+    await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
@@ -423,7 +421,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     extras: request.extras,
   });
   if (fallbackHit) return fallbackHit as TaskResult;
-  await consumeTaskSpend({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
+  await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
   const fallbackExtraHeaders = extractVendorExtraHeaders(vendor);
   const fallbackHeaders: Record<string, string> = {
     "Content-Type": "application/json",

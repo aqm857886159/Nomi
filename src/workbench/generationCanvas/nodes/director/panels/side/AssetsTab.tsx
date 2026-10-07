@@ -1,10 +1,10 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../vendor/tablerIcons、../../../../../../ui/toast、../../../../../api/assetUploadApi（importWorkbenchLocalAssetFile / hostedAssetUrl）、
- *          ../../../../../../utils/cn、../../DirectorEditorContext、../../model/directorTypes、../../model/assetKinds（类型判定 / accept）、../../scene/creation/useCharacterPlacement 的 CHARACTER_MODEL_BY_GENDER、
+ *          ../../../../../../utils/cn、../../DirectorEditorContext、../../model/directorTypes、../../model/assetKinds（类型判定 / accept）、
  *          ../LinkedAssetsContext 的 useLinkedAssets、../imageFile 的 readFileAsDataUrl、../Popover
  * [OUTPUT]: 对外提供 AssetsTab
- * [POS]: director/panels/side 的资产库（清单 §3.2 S2/S3）：六个目录——连线引用（画布连进来的全景 / 泼溅 / 模型，只读）、用户上传（工程 assets，文件夹树 + 条目）、
- *        泼溅场景（根目录泼溅，仓库不内置示例）、预设模型 / 基础灯光 / 基础几何体（内置）。目录/文件共用移动菜单与拖放，搜索展开命中祖先。
+ * [POS]: director/panels/side 的资产库（清单 §3.2 S2/S3）：四个目录——连线引用（画布连进来的全景 / 泼溅 / 模型，只读）、用户上传（工程 assets，文件夹树 + 条目）、
+ *        泼溅场景（根目录泼溅，仓库不内置示例）、基础几何体（内置；角色与灯只在「＋ 添加」里，不在这里重复）。目录/文件共用移动菜单与拖放，搜索展开命中祖先。
  *        双击或「添加」入场景：模型 / 泼溅 = 新对象（源约定泼溅绕 X 180°）、全景 = 设为天空、场景 JSON = 导入为新图层。
  *        上传走资产桥落盘只存句柄；无桌面运行时（devlab / 网页）退回 data / blob URL 并明说是临时的。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,7 +17,6 @@ import { toast } from '../../../../../../ui/toast'
 import { cn } from '../../../../../../utils/cn'
 import {
   IconArrowsMove,
-  IconBulb,
   IconChevronDown,
   IconChevronRight,
   IconCube,
@@ -32,14 +31,12 @@ import {
   IconSparkles,
   IconTrash,
   IconUpload,
-  IconUser,
 } from '../../../../../../vendor/tablerIcons'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
-import type { DirectorAssetFolder, DirectorAssetItem, DirectorAssetKind, DirectorLightType, DirectorLinkedAsset, DirectorPrimitiveType } from '../../model/directorTypes'
+import type { DirectorAssetFolder, DirectorAssetItem, DirectorAssetKind, DirectorLinkedAsset, DirectorPrimitiveType } from '../../model/directorTypes'
 import { DIRECTOR_PRIMITIVE_TYPES } from '../../model/directorTypes'
 import { ASSET_UPLOAD_ACCEPT, assetKindOfFileName } from '../../model/assetKinds'
 import { canMoveAssetFolder, matchingAssetFolders } from '../../model/assetFolders'
-import { CHARACTER_MODEL_BY_GENDER, type PlacementGender } from '../../scene/creation/useCharacterPlacement'
 import { readFileAsDataUrl } from '../imageFile'
 import { useLinkedAssets } from '../LinkedAssetsContext'
 import { Popover, PopoverItem } from '../Popover'
@@ -47,14 +44,10 @@ import { Popover, PopoverItem } from '../Popover'
 type AssetMove = { kind: 'item' | 'folder'; id: string }
 const ASSET_DRAG_TYPE = 'application/x-nomi-director-asset'
 
-type BuiltinItem =
-  | { id: string; kind: 'character'; gender: PlacementGender }
-  | { id: string; kind: 'light'; lightType: DirectorLightType }
-  | { id: string; kind: 'primitive'; primitive: DirectorPrimitiveType; auxiliary?: boolean }
+type BuiltinItem = { id: string; kind: 'primitive'; primitive: DirectorPrimitiveType; auxiliary?: boolean }
 
-const BUILTIN_FOLDERS: Array<{ id: 'models' | 'lights' | 'primitives'; items: BuiltinItem[] }> = [
-  { id: 'models', items: [{ id: 'model_xbot', kind: 'character', gender: 'female' }, { id: 'model_ybot', kind: 'character', gender: 'male' }] },
-  { id: 'lights', items: [{ id: 'light_directional', kind: 'light', lightType: 'directional' }, { id: 'light_point', kind: 'light', lightType: 'point' }, { id: 'light_spot', kind: 'light', lightType: 'spot' }] },
+// 只留「＋ 添加」里没有的：角色（女 / 男）与三种灯原来在这里还有一份，和添加菜单重复（一功能一个家，§1.5.2），2026-10-04 删
+const BUILTIN_FOLDERS: Array<{ id: 'primitives'; items: BuiltinItem[] }> = [
   {
     id: 'primitives',
     items: [
@@ -65,13 +58,9 @@ const BUILTIN_FOLDERS: Array<{ id: 'models' | 'lights' | 'primitives'; items: Bu
 ]
 
 
-function KindIcon({ kind, className }: { kind: DirectorAssetKind | 'character' | 'light' | 'primitive'; className?: string }): JSX.Element {
+function KindIcon({ kind, className }: { kind: DirectorAssetKind | 'primitive'; className?: string }): JSX.Element {
   const props = { size: 14, stroke: 1.9, className: cn('shrink-0 text-nomi-ink-40', className) }
   switch (kind) {
-    case 'character':
-      return <IconUser {...props} />
-    case 'light':
-      return <IconBulb {...props} />
     case 'primitive':
       return <IconCube {...props} />
     case 'splat':
@@ -152,39 +141,12 @@ export function AssetsTab(): JSX.Element {
     })
 
   const labelOfBuiltin = (item: BuiltinItem): string => {
-    if (item.kind === 'character') return t(item.gender === 'female' ? 'director.creation.female' : 'director.creation.male')
-    if (item.kind === 'light') return t(`director.lightType.${item.lightType}`)
     return item.auxiliary ? t('director.assets.auxiliarySphere') : t(`director.primitive.${item.primitive}`)
   }
 
   const addBuiltin = (item: BuiltinItem) => {
     const state = store.getState()
     const scene = state.activeScene()
-    if (item.kind === 'character') {
-      const index = scene.objects.filter((object) => object.type === 'character').length + 1
-      const spec = CHARACTER_MODEL_BY_GENDER[item.gender]
-      state.addObject({
-        name: t('director.creation.characterName', { index }),
-        type: 'character',
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-        color: item.gender === 'female' ? '#fb7185' : '#38bdf8',
-        visible: true,
-        locked: false,
-        posePreset: 'tpose',
-        modelPath: spec.modelPath,
-        modelScale: 1,
-        isSystemModel: true,
-        rig: spec.rig,
-      })
-      return
-    }
-    if (item.kind === 'light') {
-      const count = scene.lights.filter((light) => light.type === item.lightType).length + 1
-      state.addLight(item.lightType, t(`director.creation.lightName.${item.lightType}`, { index: count }))
-      return
-    }
     const count = scene.objects.filter((object) => object.type === item.primitive).length + 1
     state.addObject({
       name: item.auxiliary ? t('director.assets.auxiliaryName', { index: count }) : `${t(`director.primitive.${item.primitive}`)} ${count}`,

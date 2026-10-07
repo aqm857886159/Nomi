@@ -9,7 +9,7 @@ import type { CreateProductionRunInput, RunCommand } from "./productionRunTypes"
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { isProductionRunIdentifier } from "../shared/productionRunCommandId";
-const RENDERER_COMMAND_TYPES = new Set(["run.status", "run.control", "gate.decide", "artifact.adopt", "artifact.review", "plan.attach", "policy.refresh", "job.reconcile", "plan.detach-shot-nodes", "generation.present"]);
+const RENDERER_COMMAND_TYPES = new Set(["run.status", "run.control", "gate.decide", "artifact.adopt", "artifact.review", "plan.attach", "policy.refresh", "job.reconcile", "job.retry_retrieval", "plan.detach-shot-nodes", "generation.present"]);
 
 /** 标识形状只认中立层那一份（渲染层造命令号用的也是它）：两边各写一份就会各自漂，漂了的命令在这里被拒。 */
 function identifier(value: unknown, label: string): string {
@@ -108,6 +108,9 @@ function rendererCommandPayload(type: string, value: unknown): Record<string, un
     if (outcome !== "found" && outcome !== "not_found" && outcome !== "user_checked_abandon") throw new Error("Invalid production reconciliation outcome");
     return { jobId: identifier(raw.jobId, "job"), outcome };
   }
+  // 「已生成但取回失败」→ 重新取回（#975 A2）：只收 jobId。不花钱、不重新提交，所以不需要真人手势章；
+  // 准不准（这一镜是不是真在等取回、有没有任务号）由 service 判。
+  if (type === "job.retry_retrieval") return { jobId: identifier(raw.jobId, "job") };
   // A4 暂停/继续/取消。合法性（当前状态允不允许这个动作）由 applyRunControl 判，这里只管形状。
   if (type === "run.control") {
     const action = typeof raw.action === "string" ? raw.action.trim() : "";

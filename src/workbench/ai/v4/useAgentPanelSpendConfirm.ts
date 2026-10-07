@@ -2,7 +2,7 @@
 //
 // ── 三个数据面，一份意图 ──
 //
-//   · **宿主投影**（`productionRunApi.pendingSpend`）——「有一笔生成在等你点头」+ **正式报价**。
+//   · **宿主投影**（对话投影里的 `spend`，Run 账本一变就推过来，2026-10-05 起不再轮询）——「有一笔生成在等你点头」+ **正式报价**。
 //   · **覆写账本**（`spendCardDraft`）——用户在卡上改了什么。只活在卡里，画布一个字都不动。
 //   · **durable 候选**——Run 里的 `generationPlan.candidate`。它才是供应商真正会收到的那份载荷。
 //
@@ -19,8 +19,6 @@
 // **不弹第二张卡、不打断**（2026-09-11 用户拍板）。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
-import { getDesktopBridge } from '../../../desktop/bridge'
 import { productionRunApi } from '../../production/productionRunApi'
 import { toast, useToastStore } from '../../../ui/toast'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
@@ -29,7 +27,7 @@ import { preloadModelOptions, MODEL_REFRESH_EVENT } from '../../../config/modelC
 import type { ModelOption, NodeKind } from '../../../config/models'
 import type { NodeWriteAccess } from '../../generationCanvas/nodes/nodeWriteAccess'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
-import type { PendingSpendConfirm, PendingSpendRead, PendingSpendShot } from '../../../desktop/productionRunBridgeTypes'
+import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised, PendingSpendShot } from '../../../desktop/productionRunBridgeTypes'
 import { projectSpendCard, spendBatchStoppedKey, spendCardPage } from './agentPanelSpendCard'
 import { logRendererWarn } from '../../../desktop/rendererLog'
 import {
@@ -47,23 +45,16 @@ import {
 } from './spendCardDraft'
 import { priceDisagreements, pricingResolverFromModelOptions, repricePendingSpend, type SpendPriceDisagreement } from './spendCardEstimate'
 import type { InterventionData } from './agentPanelV4Types'
-import { missingCardReasonOfReadFailure, missingInterventionCard, type MissingCardReason } from './missingInterventionCard'
+import { missingCardReasonOfUnreadable, missingInterventionCard } from './missingInterventionCard'
 import { spendActionFailureCopy, type SpendActionOutcome } from './spendCardFailure'
 
-/** 和任务中心同一个节拍：付费卡是同一批 Run 事实的另一个读者，不另立一套刷新频率。 */
-const POLL_INTERVAL_MS = 1500
-
-export function hasPendingSpendCapability(): boolean {
-  return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
-}
-
 /**
- * 主进程那份读结果 → 此刻卡上那一笔。`off`（本会话按配置没装这条面 / 还在起 / 已停）**不是失败**：
+ * 推过来的那份读结果 → 此刻卡上那一笔。`off`（本会话按配置没装这条面 / 还在起 / 已停）**不是失败**：
  * 这种相下没有任何一面能 announce「有一笔在等你」，所以没有卡可画，也没有错可报。
- * 只有主进程真的**拒绝**（装配抛了）才走 refresh 的 catch 渲那张会说话的卡。
+ * `unreadable` 不在这里：它是一张会说话的卡（见 `slot`），不是「没有」。
  */
-export function pendingSpendOfRead(read: PendingSpendRead): PendingSpendConfirm | undefined {
-  return read.surface === 'ready' ? read.rows[0] : undefined
+export function pendingSpendOfRead(read: PendingSpendRead | undefined): PendingSpendConfirm | undefined {
+  return read?.surface === 'ready' ? read.rows[0] : undefined
 }
 
 export type AgentPanelSpendConfirm = Readonly<{
@@ -109,9 +100,13 @@ type BatchRun = {
 /** 落候选那一段和「生成剩下」之间的两根线：要不要停、改完换出来的报价是哪一版。 */
 type BatchControl = Readonly<{ shouldStop: () => boolean; onQuote: (quoteId: string) => void }>
 
-export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
+/**
+ * @param read 这个项目此刻的待决出价——**对话投影推过来的那一份**（`LaneWorkspaceProjection.spend`，2026-10-05）。
+ *   这个钩子不拉、不轮询、不补刷：Run 账本一变，主进程就推一份新的过来（`electron/agentLane/laneDesktopSpend.ts`）。
+ */
+export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): AgentPanelSpendConfirm {
   const { t, i18n } = useTranslation()
-  const [pending, setPending] = React.useState<PendingSpendConfirm | undefined>(undefined)
+  const pending = pendingSpendOfRead(read)
   const [draft, setDraft] = React.useState<SpendDraft>(EMPTY_SPEND_DRAFT)
   const draftOwner = React.useRef<string | undefined>(undefined)
   const [page, setPage] = React.useState(0)
@@ -124,63 +119,30 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
   const [disagreements, setDisagreements] = React.useState<readonly SpendPriceDisagreement[]>([])
   const [modelOptions, setModelOptions] = React.useState<readonly ModelOption[]>([])
   // 「读不到」是一种**结果**，不是一种空。它一路留到槽里，渲成一张会说话的卡。
-  const [readFailure, setReadFailure] = React.useState<MissingCardReason | undefined>(undefined)
+  const readFailure = read?.surface === 'unreadable' ? missingCardReasonOfUnreadable(read.reason) : undefined
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   // 「Nomi 选的」说的是**最初那一份**：用户在卡上换过模型之后这句话就不再为真。
   // 所以记的是这一笔第一次被看到时的模型身份，不是当前这一份（当前那份一改就跟着变，永远为真）。
   const originalModelIds = React.useRef<{ operationId: string; modelIds: readonly string[] } | null>(null)
 
-  const refresh = React.useCallback(async (): Promise<PendingSpendConfirm | undefined> => {
-    // 每次轮询都是一次读动作：此刻签发已打开的项目；回包到时它已不是当前项目就丢弃，不把上一个项目的卡闪进来。
-    const project = withProjectAction((issued) => issued)
-    if (!project) {
-      setPending(undefined)
-      return undefined
-    }
-    if (!hasPendingSpendCapability()) { setPending(undefined); setReadFailure(undefined); return undefined }
-    try {
-      const read = await productionRunApi.pendingSpend(project.binding.projectId)
-      if (!isProjectExecutionContextCurrent(project)) return undefined
-      const next = pendingSpendOfRead(read)
-      const nextOwner = next ? spendDraftKey(next) : undefined
-      if (draftOwner.current !== nextOwner) {
-        // 账本锚的是**这一次生成**（`operationId`）：换了一次生成才是换了一本，读不到就是空。
-        // 价格刷新、改参数推版、收回出价再出价都只换报价指纹，换不掉他正在打的那句话（裁决 B）。
-        // 读永不抛（`readSpendDraft` 自己兜住），所以这里不需要「失败就别换 owner」的回退。
-        const restored = next ? restoreSpendDraft(next) : EMPTY_SPEND_DRAFT
-        draftOwner.current = nextOwner
-        setDraft(restored)
-        setDisagreements([])
-      }
-      setReadFailure(undefined)
-      setPending(next)
-      if (next && originalModelIds.current?.operationId !== next.operationId) {
-        originalModelIds.current = { operationId: next.operationId, modelIds: next.shots.map((shot) => shot.modelId) }
-        // 换了一笔 = 换了一份账本。旧覆写跟着走只会把上一笔的模型贴到这一笔上。
-      }
-      if (!next) {
-        originalModelIds.current = null
-        setDraft(EMPTY_SPEND_DRAFT)
-      }
-      return next
-    } catch (error) {
-      if (!isProjectExecutionContextCurrent(project)) return undefined
-      // 2026-09-12：这里原来是「通道还没起来 / 项目正在切——这不是错误态，只是『现在没有
-      // 要确认的东西』」，然后 `setPending(undefined)`。那句话把两件事说成了一件——
-      // **读不到 ≠ 没有**。主进程现在只在「真的没有」时回空数组，抛出来的一律是失败；
-      // 失败就必须让用户看见，否则模型说「请在确认卡上点头」而面板一片空白。
-      setPending(undefined)
-      setReadFailure(missingCardReasonOfReadFailure(error))
-      return undefined
-    }
-  }, [])
-
-  React.useEffect(() => {
-    void refresh()
-    const timer = window.setInterval(() => { void refresh() }, POLL_INTERVAL_MS)
-    return () => window.clearInterval(timer)
-  }, [refresh])
+  // 换了一笔 = 换了一本账本（锚 `operationId`，见 spendCardDraft）。在**渲染当中**就换，不等一次 effect：
+  // 等 effect 的话，新那一笔会先带着上一笔的草稿画一帧，而写入面在那一帧里认的是新地址（React 的「由 props 派生 state」写法）。
+  // 价格刷新、改参数推版、收回出价再出价都只换报价指纹，换不掉他正在打的那句话（裁决 B）。
+  // 读永不抛（`readSpendDraft` 自己兜住），所以这里不需要「失败就别换 owner」的回退。
+  const nextOwner = pending ? spendDraftKey(pending) : undefined
+  const [seenOwner, setSeenOwner] = React.useState<string | undefined>(undefined)
+  if (seenOwner !== nextOwner) {
+    setSeenOwner(nextOwner)
+    setDraft(pending ? restoreSpendDraft(pending) : EMPTY_SPEND_DRAFT)
+    setDisagreements([])
+  }
+  draftOwner.current = nextOwner
+  // 「Nomi 选的」说的是这一笔**第一次**被看到时的模型身份（卡上换过模型之后这句话就不再为真）。
+  if (!pending) originalModelIds.current = null
+  else if (originalModelIds.current?.operationId !== pending.operationId) {
+    originalModelIds.current = { operationId: pending.operationId, modelIds: pending.shots.map((shot) => shot.modelId) }
+  }
 
   const index = pending ? spendCardPage(pending, page) : 0
   const shot = pending?.shots[index]
@@ -309,7 +271,7 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
     // 读不到的时候**先**出那张会说话的卡：此刻我们并不知道有没有待确认的一笔，
     // 而「不知道」正是必须说出口的那一种（`missingInterventionCard.ts`）。
     if (readFailure) {
-      return missingInterventionCard({ reason: readFailure, announcer: 'spend-confirm', detail: 'productionRunApi.pendingSpend rejected' }, t)
+      return missingInterventionCard({ reason: readFailure, announcer: 'spend-confirm', detail: `pending spend unreadable: ${read?.surface === 'unreadable' ? read.reason : 'unknown'}` }, t)
     }
     if (!repriced) return undefined
     const remembered = originalModelIds.current
@@ -326,7 +288,7 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
     // **没提交的手改也跟着留**（同一个 operationId 再出价就在卡上）。没有东西丢，就不拦他一下。
     // 「生成这张 / 去掉这张」还在路上：动作行置灰（这一两秒里再点也不会生效，让它看得见）；× 照旧能点。
     return card && busy && !batch ? { ...card, actionsDisabled: true as const } : card
-  }, [readFailure, repriced, index, t, i18n.language, batchView, busy])
+  }, [readFailure, read, repriced, index, t, i18n.language, batchView, busy])
 
   /**
    * 卡上四个动作共用的一次执行。**宿主说不行就必须让用户看见**：
@@ -359,15 +321,16 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
         if (outcome && outcome.ok === false) failed(outcome, outcome)
       })
       .catch((error: unknown) => failed(error, undefined))
+      // 不补刷：动作改的是 Run 账本，账本一变主进程就推一份新的卡过来。
       .finally(() => {
         if (stoppedDuringAction.current === target.operationId) stoppedDuringAction.current = null
         setBusy(false)
-        void refresh()
       })
-  }, [pending, busy, refresh, t, writeAccess])
+  }, [pending, busy, t, writeAccess])
 
-  const persistEdits = async (target: PendingSpendConfirm, shotIds: readonly string[] | undefined, ledger: SpendDraft, control?: BatchControl): Promise<SpendActionOutcome & { quoteId?: string; remaining: SpendDraft; stopped?: true }> => {
+  const persistEdits = async (target: PendingSpendConfirm, shotIds: readonly string[] | undefined, ledger: SpendDraft, control?: BatchControl): Promise<SpendActionOutcome & PendingSpendRevised & { quoteId?: string; remaining: SpendDraft; stopped?: true }> => {
     let quoteId = target.quoteId
+    let authoritative: PendingSpendConfirm | undefined
     let remaining = ledger
     for (const revision of revisionsForConfirm(target.shots, ledger, shotIds)) {
       // 「生成剩下」还在落候选时用户点了 ×：不再往下改，带着此刻这一版报价去收回出价。
@@ -379,11 +342,12 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       if (!result.ok) return { ...result, remaining }
       if (!result.quoteId) return { ok: false, message: 'generation_quote_changed', remaining }
       quoteId = result.quoteId
+      authoritative = result.pending
       control?.onQuote(quoteId)
       // A later revision can fail; preserve the still-unsubmitted shots before any refresh.
       remaining = consumeSpendDraft(target, remaining, [revision.shotId])
     }
-    return { ok: true, quoteId, remaining }
+    return { ok: true, quoteId, remaining, ...(authoritative ? { pending: authoritative } : {}) }
   }
 
   /**
@@ -420,7 +384,8 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       if (draftOwner.current === spendDraftKey(target)) setDraft(remaining)
       return saved
     }
-    const authoritative = await refresh()
+    // 宿主落完改动之后现算的那张卡（正式报价）就在改参数的回包里——不为它另读一次。
+    const authoritative = saved.pending
     const local = repricePendingSpend(target, ledger, resolvePricing)
     if (!authoritative || authoritative.operationId !== target.operationId || authoritative.quoteId !== saved.quoteId) {
       return { ok: false, message: 'generation_quote_changed' }
@@ -516,7 +481,8 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
         }
         // 这一叠因为别的原因停在半路、卡还开着，而用户已经点过 ×：照他的意思把卡关掉（剩下的本来也不会再发）。
         else if (!confirmed.ok && run.stopRequested) {
-          const latest = await refresh()
+          // 卡上此刻那一份（推过来的最新一版）。报价晚一版也照样认：宿主认这一次出价里被卡上动作换掉过的每一版。
+          const latest = pendingRef.current
           if (latest && latest.operationId === run.operationId) await productionRunApi.discardSpend(latest.projectId, latest.operationId, latest.quoteId)
         }
         return confirmed
@@ -585,7 +551,6 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
             }
           })
           .catch((error: unknown) => logRendererWarn('spend-confirm-refused', { code: 'discard-ipc' }, error))
-          .finally(() => { void refresh() })
         return
       }
       act(async (current) => productionRunApi.discardSpend(current.projectId, current.operationId, current.quoteId))

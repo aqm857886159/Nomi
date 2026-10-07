@@ -1,0 +1,477 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-canvas-paid-into-production-run",
+  "problem_type": "Paid generation leaves through two mouths: canvas entries (single node and batch) approved with an in-memory token and dispatched without a durable submission intent, while production Runs own approval, dispatch and accounting",
+  "symptom": "A canvas generation that is written to the provider but loses its receipt (crash, restart, socket reset after write) came back as an idle or failed node the user could click again, so the same shot could be charged twice; canvas generations could not say after a crash whether money was spent; a batch card covered its nodes only through a renderer-held token, so removing a queued node or pressing x was enforced by the renderer alone. Double-charge fixes between the two engines kept recurring (59 commits since 2026-09-20, 27 of them fixes).",
+  "direct_cause": "generationRunController and the batch card (confirmAndMintGrant) minted renderer-requested tokens (mintSpendGrant) that runtime.runTask consumed; the only in-flight guards were process-local (submissionLedger, withNodeSubmitExclusive); bound production shots were claimed from inside runTask (claimCanvasProductionShot); node state was the renderer record.",
+  "class_root": "Approval, dispatch and accounting for canvas paid generations (single node and batch) had no durable owner; the production Run (intent log, outbox, submission_unknown, receipts, presentations) owned the same facts for every other entry.",
+  "affected_population": [
+    "Every canvas single-node paid generation: generate, variants, in-place regenerate, error-card retry, storyboard row actions, task-center regenerate, regenerate after an unknown result is released",
+    "Every canvas batch: 生成全部, frame and production-scope batches, shot-table batch, storyboard editor batch, task-center retry-failed, and the Agent generate on a document-sourced plan (storyboard.present)"
+  ],
+  "scope_paths": [
+    "electron/runtime.ts",
+    "electron/tasks/taskSpend.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/productionRun/canvasShotRunIndex.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "electron/capabilityCore/approvalReceipt.ts",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/productionRun/productionRunEventTap.ts",
+    "electron/preload/runtimeBridge.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/api/taskApi.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+    "src/workbench/generationCanvas/runner/generationQueueStore.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/capability/storyboardPresent.ts",
+    "electron/productionRun/canvasShotClaim.ts",
+    "electron/tasks/nodeSubmitInFlight.ts",
+    "electron/productionRun/productionRunDriverOps.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/productionRun/productionRunIntentLog.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "electron/productionRun/productionRunResume.ts",
+    "electron/capabilityCore/appIntegrationRunObservation.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "scripts/check-batch-machines.mjs",
+    "docs/engineering/concept-owners.json"
+  ],
+  "entry_points": [
+    "confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace (11 single-node call sites)",
+    "confirmAndRunPlan (batch card: canvas 生成全部, frame and production scope, shot table, storyboard batch, task-center retry-failed, storyboard.present)",
+    "recoverNodeResult (free re-fetch)",
+    "task-center cancel entry / cancel remaining (queue store)"
+  ],
+  "internal_only_reason": "The invariant is the Nomi money ledger itself (ProductionRun intent log, submission outbox and approval receipts); no external specification decides which process owns the approval.",
+  "invariants": [
+    "Every canvas paid dispatch goes through productionGenerationSubmission.start (submission outbox) of its own single-shot Run, after a durably recorded gesture approval of the exact frozen request",
+    "A batch card is one authorization covering exactly the paid nodes it listed: each listed node has an open presentation in its own Run from the moment the card is confirmed, and a node whose presentation was withdrawn or removed can never dispatch",
+    "A node with a canvas Run that may have reached the provider without a known outcome cannot dispatch again until reconciled, across restarts",
+    "Every poll of a Run-backed canvas generation goes through the Run (poll / materialize), so the Run, not the renderer, is the durable state",
+    "Canvas never mints a spend token; the only canvas claim of a production shot is decided by decideShotClaim inside the canvas admission",
+    "No production Run dispatches a paid generation through the renderer: the old script-driven writer (production.generate-node) is retired; a legacy Run that still holds an authorized job stops at needs_attention (legacy_generation_writer_retired) instead of submitting",
+    "The only way a generation attempt that was aborted before dispatch gets a provider request is a new attempt under a new approval; there is no resume(definitelyNotSubmitted) back door"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "createCanvasShotRuns"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runWorkbenchTaskByVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "createCanvasShotRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createCanvasShotRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/spendConfirmGrant.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "consentCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "withdrawCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "runWorkbenchTaskByVendor"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/workflowPage/runTestGeneration.ts",
+      "symbol": "mintSpendGrant"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "regenerateNodeInPlace"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunNodeVariants"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "consentCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "confirmGenerationSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "withdrawCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "runGenerationNodesByPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "confirmAndRunNodeVariants"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "regenerateNodeInPlace"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "submitCanvasShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "pollCanvasShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationQueueStore.ts",
+      "symbol": "withdrawCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "confirmGenerationSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "runGenerationNodesBatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "withdrawCanvasShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "pollCanvasShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "regenerateNodeInPlace"
+    }
+  ],
+  "door_reduction": {
+    "before": 50,
+    "after": 57,
+    "why_not": "Reduction measured on the twelve legacy symbols (door-map before 50, after 45): claimCanvasProductionShot (2), withNodeSubmitExclusive (1) and the two canvas mintSpendGrant doors are gone. The canvas Run chain doors listed here exist once each: renderer consent/withdraw callers (batch card, queue cancel, wave runner end), the submit/poll adapters, the trusted IPC handlers and the single implementation createCanvasShotRuns. Surviving mintSpendGrant / runTask doors are the registered auxiliary paid entries (try model, certification, comfy candidate test, onboarding test generation, video deconstruct, browser prompt extraction; expiring exception 2026-11-15) and the free local / text path (catalogTaskActions runWorkbenchTaskByVendor)."
+  },
+  "generality_proof": "Every canvas paid entry converges on the three controller functions (single node) or confirmAndRunPlan (batch), both of which decide the ledger with paidNodeLedger and run through runGenerationNode(ledger run); the executor routes every paid run through submitCanvasShotRun and the batch card through consentCanvasShots; the main side has one implementation (createCanvasShotRuns) whose only dispatch is the submission outbox and whose only claim of a production shot is decideShotClaim.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "createCanvasShotRuns",
+      "responsibility": "Batch consent (one single-shot Run per listed node, presentation open), withdrawal (removed / x / window gone / reopen), admission (in-flight, 3D-BOX preview, production shot claim), gesture approval batched with the seal, outbox dispatch, Run-mediated polling, orphan hand-off."
+    },
+    {
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "createCanvasTransportProvider",
+      "responsibility": "Wraps the canvas transport behind GenerationProvider without copying it."
+    },
+    {
+      "path": "electron/tasks/taskSpend.ts",
+      "symbol": "RUN_APPROVED_ADMISSION",
+      "responsibility": "The only way runtime.runTask skips the token: used by the canvas transport after the Run approved."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "confirmAndRunNode",
+      "disposition": "enforced",
+      "evidence": "paidNodeLedger routes paid nodes to the Run; canvasSingleSubmitCharacterization.test.ts pins the user-visible behavior."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "entry_point": "confirmAndRunPlan",
+      "disposition": "enforced",
+      "evidence": "After the card is confirmed consentCanvasShots opens one presentation per paid node; appIntegrationCanvasShot.test.ts (批量卡) proves removed / x / window-closed nodes are refused in main."
+    },
+    {
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "entry_point": "presentStoryboard",
+      "disposition": "enforced",
+      "evidence": "Runs the batch through confirmAndRunPlan and hands the consented Run ids back as operations; storyboardFirstFrameApproval.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "not-affected",
+      "evidence": "Auxiliary paid entries (E13) keep tokens: they do not land on the canvas and do not compete for a shot; registered exception with expiry 2026-11-15 (decision D)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every canvas click and batch could reach a lost-receipt state; double-charge fixes recurred across both engines.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs confirmAndRunNode confirmAndRunNodeVariants regenerateNodeInPlace runGenerationNode runGenerationNodesBatch runGenerationNodesByPlan confirmGenerationSpend runWorkbenchTaskByVendor mintSpendGrant runTask claimCanvasProductionShot withNodeSubmitExclusive (before 50, after 45)",
+      "node scripts/door-map.mjs submitCanvasShot submitCanvasShotRun consentCanvasShots withdrawCanvasShots createCanvasShotRuns pollCanvasShotRun",
+      "node scripts/fix-churn.mjs on the files listed in the step 1-2 design card section 1"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "invariant": "No canvas paid dispatch without a single-shot Run, a recorded approval of the frozen request and the submission outbox; no batch node dispatch without an open consent from the card.",
+    "failure_mode": "Unknown outcomes keep the node blocked (needs_reconcile); withdrawn consents refuse (canvas_generation_withdrawn); missing Runs or providers fail before any write.",
+    "exception_policy": "none",
+    "strategy": "Delete the canvas token path (confirmAndMintGrant, mintSpendGrant callers, quote-spend IPC, withNodeSubmitExclusive, claimCanvasProductionShot) and route the batch card through consentCanvasShots; the executor runTask and result query are replaced by the Run IPC; runtime only skips the token through RUN_APPROVED_ADMISSION.",
+    "artifacts": [
+      "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "electron/capabilityCore/canvasTransportProvider.ts",
+      "electron/tasks/taskSpend.ts",
+      "electron/tasks/taskIpcHandlers.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "electron/productionRun/doubleChargeMap.e2e.test.ts",
+    "electron/productionRun/canvasShotClaimAttempt.test.ts",
+    "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts",
+    "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+    "electron/productionRun/productionRunDriver.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/submissionOutbox.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "electron/productionRun/doubleChargeMap.e2e.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/canvasShotClaim.ts",
+      "electron/tasks/nodeSubmitInFlight.ts",
+      "electron/productionRun/productionRunResume.ts"
+    ],
+    "rationale": "Step 3 removes the whole canvas token path in the same change: confirmAndMintGrant, the canvas mintSpendGrant / quote-spend usage, the claim inside runtime.runTask (canvasShotClaim.ts) and the per-node in-flight lock on nomi:tasks:run (nodeSubmitInFlight.ts). Local ComfyUI runs without a token (it spends nothing); text never consumed one. Step 4 removes the script-driven production.generate-node dispatch branch in productionRunDriverOps.ts (and the renderer production.check-frozen case that only it used), the dead resume(definitelyNotSubmitted) path (productionRunResume.ts, markDefinitelyNotSubmitted, allowRetryAfterAbort), and the per-caller \"mark running after start\" writes in appIntegration / mcpStdioServer / canvas (the submission owner now records running in the acceptance write). spend.pending-identity is converged: PendingSpendConfirm has one producer (the Run projection); the token functions remain only for the registered auxiliary exceptions expiring 2026-11-15."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides the money ledger.",
+    "exit_criteria": []
+  },
+  "migration": "Old node run records are read-only: recoverNodeResult asks the Run first and falls back to the old task query only when no Run exists. New Runs (single node and batch consent) use the existing schema (origin.host is a string, presentations are an existing field); 0.23 can read them (unverified, real-app acceptance). Batch consents left open by a crash are withdrawn on the next project open (stopped).",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "tests": [
+      "electron/capabilityCore/appIntegrationCanvasShot.test.ts"
+    ],
+    "why": "The main-process command is the single entry that creates, approves and dispatches canvas single-shot Runs."
+  },
+  "residual_risks": [
+    "Text nodes, local ComfyUI and auxiliary paid entries do not go through a Run (registered exceptions; auxiliary paid entries expire 2026-11-15).",
+    "The Agent generate on a document-sourced plan still asks on the renderer card (all or nothing), not on the per-shot panel card; moving it is a product decision (step 3-4 design card section 8).",
+    "Real app verification pending (pending-real-app): crash after write, restart, window close, batch x mid-way, 0.23 rollback, a legacy script Run with an authorized generate job opened by this build.",
+    "Click-to-provider latency on the Windows dev box is p50 ~160 ms / p95 ~180-215 ms with real fsync (target p95 <= 150 ms not met); the remaining cost is about 16 durable barriers and ~10 fresh reads per submit, reducing it further needs an on-disk format change or a read cache (design card section 7)."
+  ]
+}

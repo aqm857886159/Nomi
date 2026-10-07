@@ -9,8 +9,8 @@ const lab = await launchDirectorLab({ name: 'j1-three-person-scene' })
 const { page, check } = lab
 
 try {
-  // 空工程的三处空态：大纲占位 / 时间轴提示 / 画中画「还没有机位」
-  check('空工程·大纲空态', (await page.getByTestId('director-outliner').getByText('暂无实体').count()) === 1)
+  // 空工程的三处空态：视口正中提示（精修「选中才出」右边没卡、大纲收在浮层里）/ 时间轴提示 / 画中画「还没有机位」
+  check('空工程·视口空态提示', (await page.getByTestId('director-refine-empty').count()) === 1)
   check('空工程·时间轴空态', (await page.getByTestId('director-timeline-empty').count()) === 1)
   check('空工程·画中画无机位', (await page.getByTestId('director-pip').getByText('还没有机位').count()) === 1)
   await lab.snap('empty-project')
@@ -28,7 +28,7 @@ try {
   await lab.snap('three-characters')
 
   // 选中主角 → 相对它的正面中景机位
-  await clickOrFail(lab.outlinerRow(characters[1].name), '大纲·主角行')
+  await lab.pickInOutliner(characters[1].name, '大纲·主角行')
   await addCameraPreset(lab, '正面中景')
   await lab.waitScene('s.cameras.length === 1', '机位入场')
   const withCamera = await lab.scene()
@@ -53,7 +53,8 @@ try {
   check('方块有体积（底面约 1×1、拉出高度）', cube.scale.x > 0.5 && cube.scale.z > 0.5 && cube.scale.y > 0.2, `scale (${cube.scale.x.toFixed(2)}, ${cube.scale.y.toFixed(2)}, ${cube.scale.z.toFixed(2)})`)
   await lab.snap('camera-light-box')
 
-  // 大纲重命名（双击 → 输入 → Enter）→ 撤销
+  // 大纲重命名（开「▤ ▾」→ 双击 → 输入 → Enter）→ 撤销
+  await lab.openOutliner()
   const row = lab.outlinerRow(characters[1].name)
   await row.dblclick()
   // 重命名输入框是大纲行的兄弟节点，不在 testid 元素里；搜索框有 placeholder，重命名框没有
@@ -63,10 +64,13 @@ try {
   await input.press('Enter')
   await lab.waitScene("s.objects.some(o => o.name === '小明')", '重命名落盘')
   check('大纲重命名生效', (await lab.outlinerRow('小明').count()) === 1)
-  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape') // 先收大纲浮层（Esc 一次只收一层）
   await page.keyboard.press('Control+z')
   await lab.waitScene(`s.objects.some(o => o.name === '${characters[1].name}')`, '撤销重命名')
+  await lab.openOutliner()
+  await expectVisible(lab.outlinerRow(characters[1].name), '撤销后大纲里没回到原名')
   await expectHidden(lab.outlinerRow('小明'), '撤销后大纲里还叫「小明」')
+  await lab.closeOutliner()
   check('Ctrl+Z 撤回重命名', true)
   const stats = await lab.scene()
   check('场景 = 4 物体 · 1 机位', stats.objects.length === 4 && stats.cameras.length === 1, `${stats.objects.length} 物体 · ${stats.cameras.length} 机位`)

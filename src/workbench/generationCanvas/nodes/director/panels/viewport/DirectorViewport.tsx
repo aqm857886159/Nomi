@@ -5,15 +5,16 @@
  *          ../../useDirectorHotkeys 的共享输入归属；统一创建模式 Esc、工具切换取消与 Orbit 生命周期
  *          角色放置 / 画框两个 API 由壳（DirectorEditor）持有并经 props 传入，顶栏「＋添加」是另一个发起方
  * [OUTPUT]: 对外提供 DirectorViewport：视口容器 —— 画布 + 标签层 + 模式提示 + 放置/画框 HUD + POV 卡 + 画中画 + AI 搭场景；
- *           指针事件先给创建模式 hook，再落到画布拾取；悬浮态写入 hoveredRef / scopeRef
+ *           指针事件先给创建模式 hook，再落到画布拾取；悬浮态写入 hoveredRef / scopeRef；
+ *           presentation（导演视图）时编辑辅助物不画、不可点选、小窗改说「正在播哪一镜」
  * [POS]: director/panels/viewport 的视口装配（清单 §2 全部 DOM 侧），three 世界在 scene/DirectorCanvas。
- *        2026-09-09 五簇重排后视口上不再有控件带：创建栏 / 底栏 / 显示模式三条已并进 topbar/DirectorTopBar，
+ *        2026-09-09 五簇重排后视口上不再有控件带：创建栏 / 底栏 / 显示模式三条已并进顶栏（今天是 topbar/RefineTopBar），
  *        这里只剩内容与情境浮层（标签 / HUD / POV / 画中画 / AI 入口）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDirectorStore } from '../../DirectorEditorContext'
+import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import { isDirectorKeyboardBlocked } from '../../useDirectorHotkeys'
 import { useViewportApi } from '../../scene/ViewportApiContext'
 import type { DirectorHotkeyScope } from '../../model/hotkeys'
@@ -42,9 +43,14 @@ export type DirectorViewportProps = {
   placement: CharacterPlacementApi
   boxDraw: BoxDrawApi
   cancelCreationRef?: React.MutableRefObject<(() => void) | null>
+  showAiSceneBar?: boolean
+  /** 导演视图（3D-BOX）的看法：编辑辅助物不画、不可点选、小窗跟播放头的节目机位并说「正在播哪一镜」。缺省 = 精修 / 旧导演台。 */
+  presentation?: DirectorViewportPresentation
 }
 
-export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, scopeRef, placement, boxDraw, cancelCreationRef }: DirectorViewportProps): JSX.Element {
+export type DirectorViewportPresentation = { kind: 'director'; nowPlaying: string | null }
+
+export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, scopeRef, placement, boxDraw, cancelCreationRef, showAiSceneBar = true, presentation }: DirectorViewportProps): JSX.Element {
   const { t } = useTranslation()
   const hoveredRef = React.useRef(false)
   const apiRef = useViewportApi()
@@ -62,7 +68,10 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
   const { cancel: cancelBox } = boxDraw
   const { cancel: cancelPath } = pathDraw
   const modeActive = placement.active || boxDraw.active || pathDraw.active
-  pickingEnabledRef.current = !modeActive
+  // 导演视图只看不点：编辑辅助物已不画，点选会选中看不见的机位；点 3D 画面空白处 = 取消镜头选中（画布「正在改：镜头 N」）
+  pickingEnabledRef.current = !modeActive && !presentation
+  const store = useDirectorStoreApi()
+  const blankClickRef = React.useRef<{ x: number; y: number } | null>(null)
 
   const cancelCreation = React.useCallback(() => {
     cancelPlacement()
@@ -113,12 +122,17 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
         pathDraw.onPointerLeave()
       }}
       onPointerDown={(event) => {
+        blankClickRef.current = presentation && event.button === 0 && event.target instanceof HTMLCanvasElement ? { x: event.clientX, y: event.clientY } : null
         if (placement.onPointerDown(event) || boxDraw.onPointerDown(event) || pathDraw.onPointerDown(event)) event.stopPropagation()
       }}
       onPointerMove={(event) => {
         if (placement.onPointerMove(event) || boxDraw.onPointerMove(event) || pathDraw.onPointerMove(event)) event.stopPropagation()
       }}
       onPointerUp={(event) => {
+        const down = blankClickRef.current
+        blankClickRef.current = null
+        // 只认「点」不认「拖」（转视角）：位移 ≤ 5px 才清
+        if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) <= 5) store.getState().select({ cameraId: null, multiCameraIds: [] })
         if (placement.onPointerUp(event) || boxDraw.onPointerUp(event) || pathDraw.onPointerUp(event)) event.stopPropagation()
       }}
       onContextMenu={(event) => {
@@ -143,17 +157,18 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
         aspect={exportAspectRatio(exportRatio) ?? 16 / 9}
         onLabels={setLabels}
         onPovRejected={reject}
+        presentation={presentation ? 'director' : 'edit'}
       />
       <AspectGuide pipRectRef={pipRectRef} />
       <ViewportLabels labels={labels} />
       <CameraPovHud />
       <PlacementHud placement={placement} boxDraw={boxDraw} />
       <PathDrawHud pathDraw={pathDraw} />
-      <PipViewport rectRef={pipRectRef} canvasHostRef={hostRef} />
+      <PipViewport rectRef={pipRectRef} canvasHostRef={hostRef} presentation={presentation} />
       {/* AI 搭场景是视口底部中央唯一的常驻入口（原底栏那条 8 簇的胶囊 2026-09-09 已并入顶栏五簇） */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+      {showAiSceneBar ? <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
         <AiSceneBar open={aiOpen} onClose={() => setAiOpen(false)} onOpen={() => setAiOpen(true)} />
-      </div>
+      </div> : null}
     </div>
   )
 }

@@ -1,0 +1,7 @@
+{"id":"e1","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.tool.proposed","payload":{"toolCallId":"c1","toolName":"draft_shots","args":{"taskKind":"text_to_image","shots":[{"prompt":"red bicycle in spring"},{"prompt":"red bicycle in summer"},{"prompt":"red bicycle in autumn"}]}}}
+{"id":"e2","ts":"2026-10-05T00:00:00.000Z","source":"runtime","type":"agent.tool.completed","payload":{"toolCallId":"c1","toolName":"draft_shots","ok":true}}
+{"id":"e3","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.tool.proposed","payload":{"toolCallId":"c2","toolName":"draft_shots","args":{"taskKind":"text_to_image","shots":[{"prompt":"red bicycle in winter"}]}}}
+{"id":"e4","ts":"2026-10-05T00:00:00.000Z","source":"runtime","type":"agent.tool.completed","payload":{"toolCallId":"c2","toolName":"draft_shots","ok":true}}
+{"id":"e5","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.tool.proposed","payload":{"toolCallId":"c3","toolName":"generate","args":{"operationId":"op-1"}}}
+{"id":"e6","ts":"2026-10-05T00:00:00.000Z","source":"runtime","type":"agent.tool.completed","payload":{"toolCallId":"c3","toolName":"generate","ok":true}}
+{"id":"e7","ts":"2026-10-05T00:00:00.000Z","source":"agent","type":"agent.turn.finished","payload":{"status":"ok","finalTextHead":"Drafted and sent to the card.","usage":{"totalTokens":42000}}}

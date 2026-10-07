@@ -37,7 +37,7 @@ import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 import { dispatch } from './dispatcher'
 import { createDiskGateway } from './gateway'
 import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
-import { validateToolArguments } from './mcpArgValidation'
+import { validateToolArguments } from './mcpProtocol'
 
 const PROJECT_ID = 'mcp-accuracy-project'
 const APPENDED = 'The lights went out.'
@@ -228,7 +228,7 @@ function makeClient(context: Parameters<typeof dispatch>[2]) {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'R30 accuracy' } },
+      params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'R30 accuracy', version: '1' } },
     })
     return response
   }
@@ -270,7 +270,7 @@ async function measure(): Promise<Measurement & { controlFirstCallHits: number }
   for (const [index, attempt] of FIRST_CALLS.entries()) {
     const before = await readDocument(100 + index)
     const first = await client.call(10 + index, attempt.tool, attempt.args(leaseHandle as string))
-    const succeeded = first.result?.isError !== true
+    const succeeded = first.result !== undefined && first.result.isError !== true
     if (succeeded) firstCallHits += 1
     else console.log(`[R30·mcp] first-call miss: ${attempt.label} → ${JSON.stringify(first.result?.content?.[0]).slice(0, 200)}`)
 

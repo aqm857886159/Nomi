@@ -8,6 +8,7 @@ import { getCommittedProposal, subscribeCommittedProposal } from '../../generati
 import { undoableLaneToolCallId } from '../lane/laneReceiptUndo'
 import { laneClient } from '../lane/laneClient'
 import { providerFailureText } from '../lane/laneCommandFailure'
+import { useLogUnclassifiedProviderFailures } from './useLogUnclassifiedProviderFailures'
 import { laneInterventionSource, laneViewModel } from '../lane/laneViewModel'
 import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from '../lane/laneToolFailureText'
@@ -236,7 +237,8 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     // **两条路都不再 `?? text`**——那个兜底正是把模型收到的英文散文印给用户的那一行。
     toolFailure: (text, failure) => (failure ? laneToolFailureSummary(t, failure) : humanizeToolFailure(t, text)),
     toolFailureDetail: (failure) => laneToolFailureDetail(t, failure),
-    assistantFailure: (text) => providerFailureText(text, t),
+    assistantFailure: (text, facts) => providerFailureText(text, t, facts),
+    assistantRecovered: t('agentPanelV4.errorRecovered'),
     thinkingLabel: t('agentPanelV4.thinkingLabel'),
     formatTokens: formatV4Tokens,
     formatCost: (amount) => t('agentPanelV4.costUsd', { amount: amount.toFixed(2) }),
@@ -257,6 +259,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
   }, undoableToolCallId), [snapshot.active, i18n.language, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
+  useLogUnclassifiedProviderFailures(view.items)
   const flow = React.useMemo(() => {
     const items = [...view.items]
     const last = items.at(-1)

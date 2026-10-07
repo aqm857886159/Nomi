@@ -1,0 +1,231 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-paid-card-in-conversation",
+  "change_kind": "structural",
+  "problem_type": "One waiting-for-spend fact copied into several readers that each synchronise on their own schedule",
+  "symptom": "The Agent panel learns about a pending paid card by polling every 1.5 s; the waiting turn learns the card closed only when one of the four card actions hand-delivers a decision; the composer says 'running' while a paid card waits. Each new card path (per-shot, generate remaining, stop without queueing, full-auto policy) had to patch all three copies; 14-day fix churn: useAgentPanelSpendConfirm 11, appIntegrationSpendConfirm 8, laneExtendedDesktopPorts 6.",
+  "direct_cause": "The Run ledger (open generation presentation) is the only fact, but the renderer kept a polled copy (pendingSpend IPC), the main process kept an in-process relay map (spendDecisionWaiters settled after card actions), and the lane gate's hold never entered the projection.",
+  "class_root": "Readers of 'a spend card is waiting for the user' did not derive from the Run ledger through one pushed path; each held a copy with its own refresh rule, so any closer or timing the copy did not anticipate (plan cancelled, policy claim release, post-action refresh) diverged silently.",
+  "affected_population": [
+    "Agent panel paid card (all approval tiers)",
+    "Agent turns waiting on generate",
+    "Composer intent while a paid card waits",
+    "Real-App walkthrough probes"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneDesktopSpend.ts",
+    "electron/agentLane/laneSpendCardClose.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "electron/agentLane/laneDesktopTools.ts",
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/agentLane/laneWorkspace.mts",
+    "electron/agentLane/laneRuntimePort.ts",
+    "electron/capabilityCore/residentSurfaceLifecycle.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/policySpendDecision.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/preload/runtimeBridge.ts",
+    "electron/shared/contracts/pendingSpendConfirm.ts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "electron/shared/agentLane/laneComposerIntent.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/workbench/ai/lane/laneClient.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "entry_points": [
+    "Agent panel paid card display (renderer)",
+    "generate tool waiting in before_tool (lane hold)",
+    "Composer intent (laneComposerIntent)",
+    "Full-auto policy decision release",
+    "Resident surface lifecycle transitions",
+    "Walkthrough probes"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned projection rule over Nomi's own Run ledger and lane gate; no third-party dependency decides it.",
+  "invariants": [
+    "The only writer of 'a spend card is waiting' is the Run ledger's generation presentation (present / per-shot settle / withdraw / cancel inside productionRunReducer and productionRunRepository).",
+    "The renderer reads pending spend only from the pushed LaneWorkspaceProjection.spend; no renderer IPC pulls it and nothing polls it.",
+    "A turn waiting on a paid card wakes when the ledger shows that presentation is no longer the same open one, whichever path closed it.",
+    "Unreadable pending spend is a value (surface-unavailable / projection-failed) that renders the speaking card, never an empty slot."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "presentGenerationPlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "withdrawGenerationPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "removePresentedShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "settlePresentation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "symbol": "readPendingSpend"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopSpend.ts",
+      "symbol": "readPendingSpend"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "whenCardCloses"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "Counted on different symbol sets, so the numbers are not comparable one-to-one. Before (pendingSpend / listPendingSpendConfirmations / registerSpendWaiter / settleSpendWaiter): 7 doors including the renderer poll, the preload/API read, the IPC handler and the relay map's register and settle. All of those are deleted. After: the four ledger writers are the existing single owner (production.spend-card-presentation, unchanged and all inside the Run reducer/repository); the three reads are one pushed reader (readPendingSpend, defined in the lifecycle and consumed only by laneDesktopSpend) and one ledger observer (whenCardCloses, consumed only by the generate preflight). Each surviving read has exactly one consumer."
+  },
+  "generality_proof": "Every reader now derives from the same ledger fact through one of two main-process functions fed by the Run service's event tap, which every Run write passes through (withEventTap in productionRunService). A new closer, a new card action or a new approval tier changes the ledger and therefore reaches the panel and the waiting turn without any per-path delivery code.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm",
+      "responsibility": "Sole projection of the ledger into the card content; read by readPendingSpend through the installed spend actions and by the revise reply."
+    },
+    {
+      "path": "electron/agentLane/laneApprovalGate.ts",
+      "symbol": "createLaneApprovalGate",
+      "responsibility": "Owns the waiting turn (hold): interruption, window close and typed redirection; it is now released by the ledger observer instead of a relay map."
+    }
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/agentLane/laneDesktopSpend.ts",
+      "electron/agentLane/laneSpendCardClose.ts",
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "electron/agentLane/laneDesktopTools.ts",
+      "electron/agentLane/laneDesktopRuntime.ts",
+      "electron/agentLane/laneWorkspace.mts",
+      "electron/agentLane/laneRuntimePort.ts",
+      "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/policySpendDecision.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/preload/runtimeBridge.ts",
+      "electron/shared/contracts/pendingSpendConfirm.ts",
+      "electron/shared/agentLane/laneContracts.ts",
+      "electron/shared/agentLane/laneComposerIntent.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "src/workbench/ai/lane/laneClient.ts",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ],
+    "preserved_exports": [],
+    "behavior_preservation": "User-visible card behaviour is unchanged and pinned by characterization tests committed before the change (card appears with the same title, disappears when the host has none, the same speaking card on read failure, 「生成这张」 and × carry the displayed quote, approved shots still dispatch after the window closes). Composer commands are identical for running and awaiting-approval, so the composer-state change alters no command. The only behaviour change is that a waiting turn now also wakes when the presentation is closed by a path other than the four card actions (for example plan cancel), which previously hung until the user typed or stopped.",
+    "verification_limits": "Unit, host-level loopback and real-browser harness tests ran on Windows. Real Electron App walkthroughs were not run in this line (the user was using the machine and no real app may be launched), so the five rewired walkthrough probes and the real-App timing of the pushed card are unverified until the independent acceptance line runs them. The agent-runtime suite shows only Windows-platform failures unrelated to this change (ESM drive-letter URLs, legacy migration file identity, sandbox, symlinks)."
+  },
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "useAgentPanelSpendConfirm",
+      "disposition": "enforced",
+      "evidence": "Takes PendingSpendRead from data.snapshot.spend; POLL_INTERVAL_MS, refresh() and productionRunApi.pendingSpend are deleted; tests/ux/spend-panel-write-ownership.test.mjs drives it by pushing projections."
+    },
+    {
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "entry_point": "preflightGenerate",
+      "disposition": "enforced",
+      "evidence": "Waits on input.spendCard.whenCardCloses (ledger); registerSpendWaiter removed; agentPanelSpendConfirm.e2e.test.ts covers the plan-cancel closer that the relay never delivered."
+    },
+    {
+      "path": "electron/shared/agentLane/laneComposerIntent.ts",
+      "entry_point": "laneComposerState",
+      "disposition": "enforced",
+      "evidence": "Reads the same projection's spend; awaiting-approval while a turn runs and a card waits; idle turns stay idle (orphan card from a failed full-auto decision)."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "createGenerationPlanningHandler present",
+      "disposition": "not-affected",
+      "evidence": "External MCP hosts present under their own origin.host; awaitingSpendDecision projects only origin.host === 'nomi', so those plans never reach the panel card (unchanged)."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "canvas single-shot Run (engine convergence step 1, separate PR)",
+      "disposition": "not-affected",
+      "evidence": "Canvas runs use origin.host 'canvas' with cardHidden, so they are filtered out of both the projection and the relevance check in laneDesktopSpend."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Engine convergence step 3 adds a second producer of pending spend (batch entries into Run); with copies in place every producer would need its own refresh and relay wiring again.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs pendingSpend listPendingSpendConfirmations registerSpendWaiter settleSpendWaiter",
+      "node scripts/door-map.mjs awaitingSpendDecision projectPendingSpendConfirm listPendingSpendConfirms",
+      "node scripts/door-map.mjs presentGenerationPlan removePresentedShot withdrawGenerationPresentation settlePresentation",
+      "git grep -n \"origin: { host: \\\"nomi\\\"\" -- electron",
+      "git grep -n \"generation.present\" -- src electron"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneDesktopSpend.ts",
+    "invariant": "Panel card and waiting turn both derive from the Run ledger through the Run service event tap; there is no renderer read channel and no relay map.",
+    "failure_mode": "Unreadable reads become a speaking card value; an unreadable run counts as closed so the turn reads the outcome and reports 'verify' instead of hanging.",
+    "exception_policy": "none",
+    "strategy": "Delete the copies and push the single fact; a regression test asserts the pending-spend IPC channel stays absent.",
+    "artifacts": [
+      "electron/agentLane/laneDesktopSpend.ts",
+      "electron/agentLane/laneSpendCardClose.ts",
+      "electron/capabilityCore/residentSurfaceLifecycle.ts",
+      "electron/agentLane/laneWorkspace.mts",
+      "electron/shared/agentLane/laneComposerIntent.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/spend-panel-write-ownership.test.mjs",
+    "electron/capabilityCore/agentPanelSpendWindowClosed.e2e.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "electron/agentLane/laneDesktopSpend.test.ts",
+    "electron/agentLane/laneSpendCardClose.test.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts",
+    "electron/shared/agentLane/laneComposerIntent.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "electron/agentLane/laneSpendCardClose.test.ts",
+    "electron/productionRun/productionActionIpcPendingSpend.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/spendDecisionWaiters.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/preload/runtimeBridge.ts",
+      "src/workbench/production/productionRunApi.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+    ],
+    "rationale": "The polling read (IPC nomi:production-runs:pending-spend, preload method, renderer API, setInterval and refresh) and the relay map are deleted in the same change; walkthrough probes read the pushed projection through the existing __nomiE2E read-only bridge."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this invariant; the AI SDK is not installed or upgraded (step C1 and Step 0 are separate).",
+    "exit_criteria": []
+  },
+  "migration": "No durable data changes: the Run ledger format is untouched. Renderer and main ship together; there is no stored copy of the polled state.",
+  "residual_risks": [
+    "Real-App walkthroughs (agent-spend-card, agent-spend-stop-midway, scope journey, production-shot-claim, full-walk monitor) were rewired to the projection probe but not run in this line (the user was using the machine); unverified until the independent acceptance line runs them.",
+    "Reference preview URLs on the card are refreshed when the ledger changes, not when the asset index changes; the old 1.5 s poll would pick up an asset index change within 1.5 s. No known flow changes a card's reference asset URL without a ledger write.",
+    "Catalog price edits made in Settings while a card is open reach the host quote at the next ledger change; the card's displayed estimate already re-prices locally on MODEL_REFRESH_EVENT, and confirmation re-quotes from the host."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": "main"
+}

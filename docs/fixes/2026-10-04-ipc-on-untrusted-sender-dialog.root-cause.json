@@ -1,0 +1,669 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-ipc-on-untrusted-sender-dialog",
+  "problem_type": "fire-and-forget IPC 处理函数同步异常导致主进程 Uncaught Exception 阻塞框",
+  "symptom": "3D-BOX 外壳 lane 构建时，渲染层日志 IPC 的不可信 sender 触发 UntrustedIpcSenderError，Electron 主进程弹出默认 Uncaught Exception 对话框并阻塞。",
+  "direct_cause": "electron/logging/rendererLog.ts 的 ipcMain.on 处理函数直接调用会抛异常的 assertTrustedUiSender；同类 ipcMain.on 入口也可能在视图记录消失后由 getBrowserViewForSender 抛出。",
+  "class_root": "ipcMain.on 是 fire-and-forget，没有 invoke reject 面；直接把会抛异常的 sender 守卫或生命周期竞态放进处理函数，会把可丢弃的输入/竞态升级为主进程未捕获异常。",
+  "migration": "保留 sender 判据和 fail-closed 语义；新增 fire-and-forget sender 包装器并迁移所有 on 入口，浏览器视图不可用竞态分类为丢弃+限流警告，其他同步业务异常落 crash 日志；handle 入口继续直接守卫并 reject。",
+  "affected_population": [
+    "3D-BOX 外壳 lane 开发模式/构建期间主窗口重载或导航中的 renderer 日志上报",
+    "所有带 ipcMain.on 的 sender 守卫入口",
+    "浏览器视图销毁与迟到 resize/navigate 等消息竞态"
+  ],
+  "scope_paths": [
+    "electron/",
+    "scripts/check-ipc-sender-binding.mjs",
+    "scripts/check-ipc-sender-binding.test.mjs"
+  ],
+  "entry_points": [
+    "electron/logging/rendererLog.ts#registerRendererLogIpc",
+    "electron/ipcSenderGuard.ts#assertTrustedFireAndForget",
+    "electron/browser/core/browserViews.ts#registerBrowserViewIpc",
+    "scripts/check-ipc-sender-binding.mjs#scanFile"
+  ],
+  "invariants": [
+    "任何 ipcMain.on 处理函数都不能直接调用会抛异常的 assertTrustedSender/assertTrustedUiSender。",
+    "不可信 sender 仍然没有任何通道效果，并按通道每分钟最多记录一条警告。",
+    "浏览器视图记录已不存在属于销毁/窗口关闭后的正常迟到竞态：丢弃并按通道限流警告。",
+    "非预期的业务异常不被吞掉，进入 logCrash，且任何 on 入口都不把同步异常抛回 Electron 事件循环。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "BrowserViewUnavailableError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "getSenderWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "getBrowserViewForSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "readViewId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViewUtils.ts",
+      "symbol": "BrowserViewUnavailableError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViewUtils.ts",
+      "symbol": "readViewId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/core/browserViewUtils.ts",
+      "symbol": "getSenderWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "symbol": "getSenderWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "symbol": "readViewId"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/eventsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/handoffQueue.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ipcSenderGuard.ts",
+      "symbol": "UntrustedIpcSenderError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "read",
+      "path": "electron/trustedSyncIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/chrome/browserViewChromeMenu.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "destroyBrowserView"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "sendBrowserViewState"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "normalizePromptExtractionMode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "normalizeBrowserUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "normalizeBounds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "sameRectangle"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "bringBrowserViewToFront"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/media/browserPromptScreenshotSelection.ts",
+      "symbol": "bringBrowserViewToFront"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "symbol": "normalizeBounds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "symbol": "sameRectangle"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/settings/browserPromptExtractionSettings.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasReadSurfaceIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationResolveIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpProfiles.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnectorIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/conversations/conversationsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/diagnostics/agentTraceIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/diagnostics/diagnosticsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/events/eventsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/events/eventsIpc.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportJobIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/handoffQueue.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/handoffQueue.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localTextEndpointHandlers.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/logging/rendererLog.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedSync"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedFireAndForget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/memory/memoryIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/notificationIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/existingConnectionIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/proxyIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/screenshot/screenshotIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/assetRelaySettingsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/attentionSoundIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/automationPolicyIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/canvasMenuPreferenceIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/generationModelDefaultsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/modelBoxPreferenceIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/projectLocationIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/systemPromptsIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/telemetryIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/vendorPreferenceIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/skills/skillIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/autoUpdater.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/videoIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceFileDelete.ts",
+      "symbol": "assertTrustedUiSender"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceSyncIpc.ts",
+      "symbol": "assertTrustedSender"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/dialog/NomiBrowserDialogModel.tsx",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/dialog/useBrowserDialogActions.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/browserAssetPopoverUtils.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/useBrowserAssetMarquee.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/window/useResizableFloatingWindow.ts",
+      "symbol": "normalizeBounds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "symbol": "clampNumber"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "symbol": "clampNumber"
+    }
+  ],
+  "door_reduction": {
+    "before": 99,
+    "after": 99,
+    "why_not": "门表由 node scripts/door-map.mjs electron/ipcSenderGuard.ts electron/browser/core/browserViewUtils.ts 生成，共 99 扇（17 read、82 write）；每个业务 owner 仍需独立保留权限语义，不能把不同通道合并成单门。"
+  },
+  "regression_tests": [
+    "electron/logging/rendererLog.test.ts",
+    "electron/browser/core/browserViewUtils.test.ts",
+    "scripts/check-ipc-sender-binding.test.mjs",
+    "electron/capabilityCore/canvasReadSurfacePort.test.ts",
+    "electron/capabilityCore/canvasReadSurfaceIpc.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts",
+    "electron/capabilityCore/projectSurfaceSession.test.ts"
+  ],
+  "residual_risks": [
+    "真实用户报告中的旧版本构建没有 senderId/frameRoutingId 字段，无法从历史 crash 行单独还原窗口 id；本修复后的拒收警告会记录安全的 senderId、frameRoutingId、origin。",
+    "本机 macOS 真实 Electron 已复现不可信未登记窗口被丢弃且主进程存活；3D-BOX 外壳 lane 的原始旧构建仍需用同一版本产物再跑一次完整构建闭环。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi 自有 Electron IPC、窗口登记和日志边界的内部行为；证据来自仓库代码、door-map、用户 crash 日志和本机真实 Electron 运行。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增 ipcMain.on、窗口重载/导航、辅助窗销毁或浏览器视图销毁都能重新引入同类同步异常；静态门岗和共享 fire-and-forget 包装器必须在共同边界拦住。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/ipcSenderGuard.ts：68 扇 sender 判定读/写入口。",
+      "node scripts/check-ipc-sender-binding.mjs：257 个 ipcMain.handle/on 注册，248 个 guarded，9 个既存 unguarded 基线。",
+      "rg ipcMain.on electron：40 个字面量入口；浏览器视图 21 个 on 入口、画布 surface reply 10 个 on 入口均迁移到 fire-and-forget；i18n/window-close/rendererBridge 等无 throwing guard 的入口逐一核对。"
+    ]
+  },
+  "generality_proof": "所有不可信 sender 的同步守卫都集中经过 electron/ipcSenderGuard.ts 的 fire-and-forget 包装器；门岗禁止 ipcMain.on 内直接 throwing guard。浏览器视图 on 处理的生命周期异常集中经过 runBrowserViewFireAndForget：已知不可用竞态只警告，未知异常 logCrash，因此新调用者不能再把这两类异常直接抛进主进程。",
+  "shared_boundaries": [
+    {
+      "path": "electron/ipcSenderGuard.ts",
+      "symbol": "assertTrustedFireAndForget",
+      "responsibility": "在 ipcMain.on 的共同 sender 边界捕获不可信来源，保持 fail-closed 并按通道限流警告。"
+    },
+    {
+      "path": "electron/logging/rendererLog.ts",
+      "symbol": "registerRendererLogIpc",
+      "responsibility": "渲染层日志 fire-and-forget 入口丢弃不可信来源，不把守卫异常抛回主进程。"
+    },
+    {
+      "path": "electron/browser/core/browserViews.ts",
+      "symbol": "runBrowserViewFireAndForget",
+      "responsibility": "处理浏览器视图 on 通道的生命周期竞态与未知同步异常。"
+    },
+    {
+      "path": "scripts/check-ipc-sender-binding.mjs",
+      "symbol": "scanFile",
+      "responsibility": "在交付前把 ipcMain.on 内直接 throwing guard 判红。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/logging/rendererLog.ts",
+      "entry_point": "registerRendererLogIpc",
+      "disposition": "enforced",
+      "evidence": "当前实现调用 assertTrustedFireAndForget；rendererLog.test.ts 验证 typed UntrustedIpcSenderError 不抛且每通道限流。"
+    },
+    {
+      "path": "electron/browser/core/browserViews.ts",
+      "entry_point": "registerBrowserViewIpc 的 21 个 ipcMain.on",
+      "disposition": "enforced",
+      "evidence": "21 个 handler 都先过 fire-and-forget sender 包装，再过 runBrowserViewFireAndForget；不可用记录由 BrowserViewUnavailableError 丢弃。"
+    },
+    {
+      "path": "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "entry_point": "10 个 reply ipcMain.on",
+      "disposition": "enforced",
+      "evidence": "10 个 reply 入口统一使用 fire-and-forget 包装；既有 sender 失败测试保持通过。"
+    },
+    {
+      "path": "electron/i18n.ts",
+      "entry_point": "set-locale/get-system-locale",
+      "disposition": "not-affected",
+      "evidence": "没有 sender throwing guard；set-locale 自己捕获持久化异常，get-system-locale 设置 returnValue。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-ipc-sender-binding.mjs",
+    "invariant": "ipcMain.on 注册片段内出现 assertTrustedSender( 或 assertTrustedUiSender( 即失败；on 只能出现 assertTrustedFireAndForget。",
+    "failure_mode": "check-ipc-sender-binding 以 exit=1 输出直接 throwing guard 的文件、行号、通道；新增负向测试会临时注入 direct guard 并断言门岗变红。",
+    "exception_policy": "none",
+    "strategy": "在现有 sender-binding 棘轮中增加 directThrowingGuard 扫描，配合共享 fire-and-forget helper 和回归测试。",
+    "artifacts": [
+      "scripts/check-ipc-sender-binding.mjs",
+      "electron/ipcSenderGuard.ts",
+      "electron/logging/rendererLog.ts",
+      "electron/browser/core/browserViews.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/logging/rendererLog.test.ts",
+    "electron/browser/core/browserViewUtils.test.ts",
+    "scripts/check-ipc-sender-binding.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有保留旧的 fire-and-forget 实现；handle 直接守卫语义保留，因为 invoke 会把异常变成 reject。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "未新增、升级或保留依赖。",
+    "exit_criteria": []
+  },
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/ipcSenderGuard.ts",
+      "electron/logging/rendererLog.ts",
+      "electron/browser/core/browserViews.ts",
+      "scripts/check-ipc-sender-binding.mjs"
+    ],
+    "preserved_exports": [
+      {
+        "path": "electron/ipcSenderGuard.ts",
+        "name": "assertTrustedSender"
+      },
+      {
+        "path": "electron/ipcSenderGuard.ts",
+        "name": "assertTrustedUiSender"
+      },
+      {
+        "path": "electron/logging/rendererLog.ts",
+        "name": "registerRendererLogIpc"
+      }
+    ],
+    "behavior_preservation": "sender 判据、角色和 origin/frame 检查保持不变；不可信来源仍无效果。",
+    "verification_limits": "静态门岗、单测和真实 Electron 受控 sender 复现已验证；完整 3D-BOX 旧构建的历史 crash 不能在新构建中原样重放。"
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/ipcSenderGuard.ts",
+    "tests": [
+      "electron/logging/rendererLog.test.ts",
+      "scripts/check-ipc-sender-binding.test.mjs",
+      "electron/browser/core/browserViewUtils.test.ts"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-03"
+}

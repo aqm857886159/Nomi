@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-director-s1r3",
+  "problem_type": "natural-language director plans lose entity and camera-motion intent",
+  "symptom": "S1 plans frequently return generic or missing actors and shot subjects, producing low correspondence and motion/blocking scores; vehicle chase plans may not yield a measurable follow camera.",
+  "direct_cause": "Planner examples contain benchmark-like courtyard and perfume scenes, while the prompt does not make user noun preservation, exact kind/template selection, shot subject coverage, or movement semantics a hard contract; the compiler also uses a generic fallback trajectory when a follow shot has no materialized motion.",
+  "class_root": "Every natural-language entity and requested shot must converge through one shared plan contract: user nouns are retained in actor/scene names and refs, kinds/templates/moves use legal enums, every shot names an existing subject, and moving subjects provide a camera co-motion trajectory.",
+  "affected_population": [
+    "all S1 natural-language briefs",
+    "vehicle follow/chase briefs",
+    "DeepSeek planner retries"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+    "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
+    "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.test.ts",
+    "docs/plan/2026-10-04-director-3dbox-s1r3.md",
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.ts",
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.test.ts",
+    "docs/plan/2026-10-04-director-3dbox-phase3.md"
+  ],
+  "entry_points": [
+    "planDirector(description)",
+    "compileDirectorPlan(plan)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an internal Director Plan v2 contract and deterministic compiler boundary; no external service decides entity naming or camera trajectory semantics.",
+  "invariants": [
+    "Planner examples are outside the evaluation card scenes and preserve no benchmark answer.",
+    "Actor descriptions and set-piece kinds retain user nouns, each shot.subject resolves to an actor or actor anchor, and legal kind/template/move enums are used.",
+    "A follow shot over a moving actor has camera and subject co-motion with stable framing rather than a stationary or fabricated actor path.",
+    "Compiler entity ids are derived only from plan names: actor:<id>, shot:<id>/camera, setPiece:<id>; repeated compilation is byte-for-byte deterministic and a local plan rename changes only its entity id.",
+    "Every person has a valid action clip covering t=0; stacked on-relations preserve vertical separation and product_stage always materializes s1-product-ground."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+      "symbol": "PlannerUsage"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+      "symbol": "PlannerResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
+      "symbol": "DirectorCompileIssue"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
+      "symbol": "DirectorCompileResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.ts",
+      "symbol": "directorPlanModelSchema"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 5,
+    "why_not": "Compiler type boundaries and the model-facing schema are separate public contracts consumed by different gates and callers; keeping all three makes each changed boundary auditable."
+  },
+  "generality_proof": "All S1 requests enter through planDirector and then compileDirectorPlan; the schema and compiler are shared by every card and by hand-authored oracle plans. Enforcing the invariant in the prompt/schema-facing planner and the follow trajectory solver covers different scenes, actor kinds, and retries without card IDs or aliases.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+      "symbol": "SYSTEM/prompt",
+      "responsibility": "Constrain every model response to preserve user nouns, choose legal enums, and provide complete shot coverage."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
+      "symbol": "solveCamera",
+      "responsibility": "Compile moving-subject follow shots with camera co-motion and stable aim."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "evals/director/s1Adapter.ts",
+      "entry_point": "adaptS1Prompt",
+      "disposition": "enforced",
+      "evidence": "All live S1 planner requests call planDirector and then compileDirectorPlan."
+    },
+    {
+      "path": "evals/director/s1Adapter.ts",
+      "entry_point": "adaptS1Plan",
+      "disposition": "enforced",
+      "evidence": "Hand-authored and retry-normalized plans share compileDirectorPlan, including follow motion."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new brief can use different nouns, actor kinds, scene templates, or moving vehicles and reproduce the same generic binding or unmeasurable follow motion.",
+    "same_class_scan": [
+      "rg -n 'planDirector|compileDirectorPlan' src evals/director",
+      "rg -n 'follow|drive_along|chase|actorMap|subject' src/workbench/generationCanvas/nodes/director evals/director"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+    "invariant": "Each response must use original user nouns for entity descriptions/refs, legal enum values, and existing subjects for every shot; compiler follow motion must co-move with an actor trajectory, stable entity ids must not include a plan hash, every person must have action evidence from t=0, and stacked product props must remain separated.",
+    "failure_mode": "Schema errors are returned with exact paths and retried once; unresolved plans become adapter_error, while compiler issues remain explicit and no half-built project is returned.",
+    "exception_policy": "none",
+    "strategy": "Make the rule explicit at the only model boundary and keep deterministic motion handling at the only compiler boundary used by both live and oracle plans.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+      "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanSchema.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No persisted legacy plan format or fallback compiler is removed; this repair strengthens the existing v2 boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is in our prompt and compiler invariants; the existing fetch client and action library do not own entity binding or camera co-motion.",
+    "exit_criteria": []
+  },
+  "migration": "No migration is needed because plans are transient eval inputs and schema v2 remains unchanged.",
+  "residual_risks": [
+    "L5 visual quality and Windows packaged runtime remain unverified.",
+    "The external scorer and card binding are intentionally out of scope and may expose additional ruler issues."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-10-04",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.test.ts"
+    ],
+    "why": "The planner is the only shared natural-language boundary; compiler tests cover the downstream trajectory invariant."
+  }
+}

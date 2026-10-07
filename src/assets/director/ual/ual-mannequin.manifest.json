@@ -1,0 +1,442 @@
+{
+  "sourceArchive": "/tmp/nomi-3dbox-assets-dl/universal_animation_librarystandard.zip",
+  "sourceArchiveSha256": "18ff1a7215f4852b320203e8aaf02a1578b5c8eef9027fbaedfcedc7b85a3ac2",
+  "sourceMember": "Animation Library[Standard]/Godot/AnimationLibrary_Godot_Standard.glb",
+  "sourceGlbSha256": "1b7bf67866360665426bb99e4c71bd619f19b408453c24e30f0c3071601eee5c",
+  "author": "Quaternius",
+  "license": "CC0-1.0",
+  "licenseText": "CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+  "modified": "Removed preview sphere and source materials/textures; assigned neutral white-model material; normalized rest-pose ground to z=0; retained UAL mesh, skeleton, and native actions.",
+  "file": "src/assets/director/ual/ual-mannequin.glb",
+  "heightM": 1.828717,
+  "origin": "ground-min-z",
+  "fps": 25,
+  "semanticBones": {
+    "hips": "DEF-hips",
+    "spine": "DEF-spine.001",
+    "chest": "DEF-spine.002",
+    "neck": "DEF-neck",
+    "head": "DEF-head",
+    "leftUpperArm": "DEF-upper_arm.L",
+    "leftLowerArm": "DEF-forearm.L",
+    "leftHand": "DEF-hand.L",
+    "rightUpperArm": "DEF-upper_arm.R",
+    "rightLowerArm": "DEF-forearm.R",
+    "rightHand": "DEF-hand.R",
+    "leftUpperLeg": "DEF-thigh.L",
+    "leftLowerLeg": "DEF-shin.L",
+    "leftFoot": "DEF-foot.L",
+    "rightUpperLeg": "DEF-thigh.R",
+    "rightLowerLeg": "DEF-shin.R",
+    "rightFoot": "DEF-foot.R"
+  },
+  "actions": [
+    {
+      "id": "Crouch_Fwd_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 48.0,
+      "durationSec": 1.92,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Crouch_Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 70.4,
+      "durationSec": 2.816,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Dance_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 24.0,
+      "durationSec": 0.96,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Death01",
+      "frameStart": 0.0,
+      "frameEnd": 57.6,
+      "durationSec": 2.304,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Driving_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 40.0,
+      "durationSec": 1.6,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Fixing_Kneeling",
+      "frameStart": 0.0,
+      "frameEnd": 124.8,
+      "durationSec": 4.992,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Hit_Chest",
+      "frameStart": 0.0,
+      "frameEnd": 8.0,
+      "durationSec": 0.32,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Hit_Head",
+      "frameStart": 0.0,
+      "frameEnd": 10.4,
+      "durationSec": 0.416,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 60.0,
+      "durationSec": 2.4,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Idle_Talking_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 70.4,
+      "durationSec": 2.816,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Idle_Torch_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 30.4,
+      "durationSec": 1.216,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Interact",
+      "frameStart": 0.0,
+      "frameEnd": 48.0,
+      "durationSec": 1.92,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Jog_Fwd_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 22.4,
+      "durationSec": 0.896,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Jump_Land",
+      "frameStart": 0.0,
+      "frameEnd": 30.4,
+      "durationSec": 1.216,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Jump_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 60.0,
+      "durationSec": 2.4,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Jump_Start",
+      "frameStart": 0.0,
+      "frameEnd": 32.0,
+      "durationSec": 1.28,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "PickUp_Table",
+      "frameStart": 0.0,
+      "frameEnd": 20.0,
+      "durationSec": 0.8,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Pistol_Aim_Down",
+      "frameStart": 0.0,
+      "frameEnd": 4.0,
+      "durationSec": 0.16,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Pistol_Aim_Neutral",
+      "frameStart": 0.0,
+      "frameEnd": 4.0,
+      "durationSec": 0.16,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Pistol_Aim_Up",
+      "frameStart": 0.0,
+      "frameEnd": 4.0,
+      "durationSec": 0.16,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Pistol_Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 40.0,
+      "durationSec": 1.6,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Pistol_Reload",
+      "frameStart": 0.0,
+      "frameEnd": 40.0,
+      "durationSec": 1.6,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Pistol_Shoot",
+      "frameStart": 0.0,
+      "frameEnd": 15.2,
+      "durationSec": 0.608,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Punch_Cross",
+      "frameStart": 0.0,
+      "frameEnd": 24.0,
+      "durationSec": 0.96,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Punch_Enter",
+      "frameStart": 0.0,
+      "frameEnd": 20.8,
+      "durationSec": 0.832,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Punch_Jab",
+      "frameStart": 0.0,
+      "frameEnd": 20.8,
+      "durationSec": 0.832,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Push_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 64.0,
+      "durationSec": 2.56,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Roll",
+      "frameStart": 0.0,
+      "frameEnd": 35.2,
+      "durationSec": 1.408,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Roll_RM",
+      "frameStart": 0.0,
+      "frameEnd": 35.2,
+      "durationSec": 1.408,
+      "loop": false,
+      "rootMotion": true,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sitting_Enter",
+      "frameStart": 0.0,
+      "frameEnd": 31.2,
+      "durationSec": 1.248,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sitting_Exit",
+      "frameStart": 0.0,
+      "frameEnd": 24.8,
+      "durationSec": 0.992,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sitting_Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 40.0,
+      "durationSec": 1.6,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sitting_Talking_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 70.4,
+      "durationSec": 2.816,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Spell_Simple_Enter",
+      "frameStart": 0.0,
+      "frameEnd": 12.8,
+      "durationSec": 0.512,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Spell_Simple_Exit",
+      "frameStart": 0.0,
+      "frameEnd": 10.4,
+      "durationSec": 0.416,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Spell_Simple_Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 50.4,
+      "durationSec": 2.016,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Spell_Simple_Shoot",
+      "frameStart": 0.0,
+      "frameEnd": 12.0,
+      "durationSec": 0.48,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Sprint_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 16.0,
+      "durationSec": 0.64,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Swim_Fwd_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 32.0,
+      "durationSec": 1.28,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Swim_Idle_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 80.0,
+      "durationSec": 3.2,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sword_Attack",
+      "frameStart": 0.0,
+      "frameEnd": 36.8,
+      "durationSec": 1.472,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sword_Attack_RM",
+      "frameStart": 0.0,
+      "frameEnd": 36.8,
+      "durationSec": 1.472,
+      "loop": false,
+      "rootMotion": true,
+      "requiresStanding": false
+    },
+    {
+      "id": "Sword_Idle",
+      "frameStart": 0.0,
+      "frameEnd": 40.0,
+      "durationSec": 1.6,
+      "loop": false,
+      "rootMotion": false,
+      "requiresStanding": false
+    },
+    {
+      "id": "Walk_Formal_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 32.0,
+      "durationSec": 1.28,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    },
+    {
+      "id": "Walk_Loop",
+      "frameStart": 0.0,
+      "frameEnd": 32.0,
+      "durationSec": 1.28,
+      "loop": true,
+      "rootMotion": false,
+      "requiresStanding": true
+    }
+  ],
+  "outputBytes": 6622820,
+  "outputSha256": "409725611d68a69ee0eee421ce0b6ad696706f64e017e2ee9a1c149d6e2d9460"
+}

@@ -63,7 +63,7 @@ const RAW: Readonly<Record<string, Readonly<Record<string, readonly VerbFieldPro
     operations: ["model-authored", "from-read:read_timeline.clips"],
   },
   undo: {
-    undoToken: ["from-read:edit_timeline.undoToken"],
+    changeId: ["from-read:edit_timeline.changeId"],
     expectedRevision: ["from-read:read_timeline.revision"],
   },
   generate: {
@@ -75,6 +75,8 @@ const RAW: Readonly<Record<string, Readonly<Record<string, readonly VerbFieldPro
   draft_shots: {
     "shots.storyboard": ["model-authored"],
     operationId: ["from-read:draft_shots.operationId"],
+    // 用户明确说「另起一份 / 再做一版」时模型自己置 true；不读任何返回。
+    newPlan: ["model-authored"],
     taskKind: ["model-authored"],
     candidate: ["from-read:list_models.modelId"],
     "shots.prompt": ["model-authored"],
@@ -87,6 +89,7 @@ const RAW: Readonly<Record<string, Readonly<Record<string, readonly VerbFieldPro
     "shots.role": ["model-authored"],
     "shots.title": ["model-authored"],
     "shots.durationSec": ["model-authored"],
+    "shots.aspectRatio": ["model-authored"],
     "shots.modelId": ["from-read:list_models.modelId"],
     "shots.candidate": ["from-read:list_models.modelId"],
     // 两档都真：assetId 是模型从 look_at_media 拿的，内容哈希与版本由宿主补。

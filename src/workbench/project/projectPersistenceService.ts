@@ -1,4 +1,4 @@
-import { readLocalProjectAsync, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
+import { readLocalProjectAsync, renameLocalProject, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
 import { backfillCanvasMediaDimensions, upgradeWorkbenchProjectMediaUrls, normalizeLegacyImageAssetKinds } from './projectMediaMigration'
 import {
   clearActiveWorkbenchProjectSaveTarget,
@@ -10,9 +10,23 @@ import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projec
 import { migrateProjectRecord, type CategoryMigrationDiagnostic } from './projectCategoryMigration'
 import { migrateProjectV51ToV60 } from './projectV51ToV60Migration'
 import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
+import { backfillNodeResultVersionNumbers } from '../generationCanvas/model/nodeResultLifecycle'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
+import { measureProjectOpenStage, measureProjectOpenStageSync } from './projectOpenTimeline'
+import { sweepPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
+import { logRendererError } from '../../desktop/rendererLog'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+
+function isGuardCurrent(guard: ProjectHydrationGuard): boolean {
+  try {
+    guard.assertCurrent()
+    return true
+  } catch {
+    return false
+  }
+}
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
 
@@ -107,7 +121,8 @@ function writeLastActiveProjectId(projectId: string): void {
 
 export type WorkbenchProjectPersistenceService = {
   hydrateProject: (projectId: string, guard: ProjectHydrationGuard) => Promise<WorkbenchProjectRecordV1 | null>
-  persistProject: (project: LocalProjectSummary, payload: WorkbenchProjectPayload) => Promise<WorkbenchProjectRecordV1>
+  /** 改名 + 把当前内存内容落盘。项目名只在这里（和项目库改名）写；自动保存绝不写名字。 */
+  renameProjectAndPersist: (project: LocalProjectSummary, payload: WorkbenchProjectPayload) => Promise<WorkbenchProjectRecordV1>
   bindProjectPersistence: (input: {
     project: LocalProjectSummary
     isHydrating: () => boolean
@@ -118,8 +133,9 @@ export type WorkbenchProjectPersistenceService = {
 }
 
 export function createWorkbenchProjectPersistenceService(deps: Dependencies): WorkbenchProjectPersistenceService {
-  const persistProject = async (project: LocalProjectSummary, payload: WorkbenchProjectPayload): Promise<WorkbenchProjectRecordV1> => {
-    const localSaved = await saveLocalProject(project.id, payload, project.name)
+  const renameProjectAndPersist = async (project: LocalProjectSummary, payload: WorkbenchProjectPayload): Promise<WorkbenchProjectRecordV1> => {
+    await renameLocalProject(project.id, project.name)
+    const localSaved = await saveLocalProject(project.id, payload)
     if (deps.isActiveProject(localSaved.id)) {
       writeLastActiveProjectId(localSaved.id)
       deps.setActiveProject(localSaved)
@@ -136,11 +152,11 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
   }): (() => Promise<void>) => {
     return subscribeWorkbenchProjectPersistence({
       projectId: input.project.id,
-      projectName: input.project.name,
       isHydrating: input.isHydrating,
       canPersist: input.canPersist,
-      saveProject: async (_projectId, payload, _projectName) => {
-        const localSaved = await saveLocalProject(input.project.id, payload, input.project.name)
+      saveProject: async (_projectId, payload) => {
+        // 只写内容。名字不是自动保存的字段：input.project 是「打开那一刻」的快照，名字可能早被别的路径改过。
+        const localSaved = await saveLocalProject(input.project.id, payload)
         if (input.canPersist()) writeLastActiveProjectId(localSaved.id)
         return localSaved
       },
@@ -156,27 +172,32 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     abandonHydratingProjectOwnership()
     clearActiveWorkbenchProjectSaveTarget()
     guard.assertCurrent()
-    const project = await readLocalProjectAsync(projectId)
+    const project = await measureProjectOpenStage('read-project', () => readLocalProjectAsync(projectId))
     guard.assertCurrent()
     if (!project) return null
-    const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)
-    guard.assertCurrent()
-    const { record: catUpgraded, diagnostic } = migrateProjectRecord(mediaUpgraded)
-    const { record: v60Upgraded } = migrateProjectV51ToV60(catUpgraded)
-    // A1.5：历史导入/切图/裁剪/截图的 image 节点改判为 asset（素材卡）。
-    const assetUpgraded = normalizeLegacyImageAssetKinds(v60Upgraded)
-    const mediaDimensionsUpgraded = await backfillCanvasMediaDimensions(assetUpgraded)
+    const { diagnostic, mediaDimensionsUpgraded } = await measureProjectOpenStage('migrate', async () => {
+      const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)
+      guard.assertCurrent()
+      const { record: catUpgraded, diagnostic } = migrateProjectRecord(mediaUpgraded)
+      const { record: v60Upgraded } = migrateProjectV51ToV60(catUpgraded)
+      // A1.5：历史导入/切图/裁剪/截图的 image 节点改判为 asset（素材卡）。
+      const assetUpgraded = normalizeLegacyImageAssetKinds(v60Upgraded)
+      const mediaDimensionsUpgraded = await backfillCanvasMediaDimensions(assetUpgraded)
+      return { diagnostic, mediaDimensionsUpgraded }
+    })
     // 镜头编号存储身份化（审计 A2）：存量项目缺 shotIndex 的镜头节点按
     // (y, x, id) 确定性回填一次；此后编号不再随布局/添加节点漂移。
     const shotBackfill = backfillShotIndexes(mediaDimensionsUpgraded.payload.generationCanvas.nodes)
-    const upgraded = shotBackfill.changed
+    // 「第 N 版」同理：旧项目的版本没有号，按持久顺序（最早 = 1）补一次并写盘，之后号跟着版本走。
+    const versionBackfill = backfillNodeResultVersionNumbers(shotBackfill.nodes)
+    const upgraded = shotBackfill.changed || versionBackfill.changed
       ? {
           ...mediaDimensionsUpgraded,
           payload: {
             ...mediaDimensionsUpgraded.payload,
             generationCanvas: {
               ...mediaDimensionsUpgraded.payload.generationCanvas,
-              nodes: shotBackfill.nodes,
+              nodes: versionBackfill.nodes,
             },
           },
         }
@@ -188,14 +209,14 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       categoryMigrationDiagnostics.set(guard, diagnostic)
     }
     if (changed) {
-      await saveLocalProject(upgraded.id, upgraded.payload, upgraded.name)
+      await measureProjectOpenStage('save-migrated', () => saveLocalProject(upgraded.id, upgraded.payload))
     }
     // A turn begun while the read was pending still targets the outgoing project.
     abandonHydratingProjectOwnership()
     guard.assertCurrent()
-    restoreWorkbenchProjectPayload(upgraded.payload)
+    measureProjectOpenStageSync('restore-store', () => restoreWorkbenchProjectPayload(upgraded.payload))
     // S5-b-1:重放快照没盖到的事件尾巴(崩溃恢复),完成后以含尾后态发 genesis。
-    await replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload, guard)
+    await measureProjectOpenStage('replay-events', () => replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload, guard))
     guard.assertCurrent()
     // Event-tail replay crosses IPC and the restored canvas is already visible. A turn may
     // start in that window with the outgoing project's identity; close the hydration epoch
@@ -203,12 +224,21 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     abandonHydratingProjectOwnership()
     writeLastActiveProjectId(upgraded.id)
     guard.assertCurrent()
+    // 上次删掉的版本、App 直接退出没来得及删的文件：现在撤销日志是空的，没有哪一步能退回去了。
+    // 不挡打开（清扫在后台走），判定读的是刚载入、含事件尾巴的画布与时间轴。
+    if (upgraded.payload.pendingAssetDeletions?.length) {
+      void sweepPersistedAssetDeletions(upgraded.id, upgraded.payload.pendingAssetDeletions, () => {
+        // 还是这个项目开着才存（清扫期间换了项目就不碰下一个项目的盘；那一笔下次打开再扫）。
+        if (isGuardCurrent(guard)) useGenerationCanvasStore.getState().commitPersistedChange()
+      })
+        .catch((error: unknown) => logRendererError('pending-asset-deletion-sweep-failed', error))
+    }
     return upgraded
   }
 
   return {
     hydrateProject,
-    persistProject,
+    renameProjectAndPersist,
     bindProjectPersistence,
   }
 }

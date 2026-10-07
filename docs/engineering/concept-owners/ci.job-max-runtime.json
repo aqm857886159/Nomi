@@ -1,0 +1,54 @@
+{
+  "name": "CI job 最长能跑多久",
+  "subject": "ci.job-max-runtime",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": ".github/workflows/quality-gate.yml",
+    "symbol": "timeout-minutes"
+  },
+  "write_api": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/desktop-release.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/desktop-preview.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/docs-autosync.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/download-stats.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/seo-radar.yml",
+      "symbol": "timeout-minutes"
+    },
+    {
+      "path": ".github/workflows/site-data-sync.yml",
+      "symbol": "timeout-minutes"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/check-quality-gate-workflow.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "since": "2026-10-02",
+  "notes": "每个 job 最长运行时间只写在该 job 自己的 timeout-minutes 里（各 workflow 一处，不在脚本里再包一层 timeout 命令）；缺一个就由 check-quality-gate-workflow 红。数字取近 30 次成功运行最长耗时的 2 到 3 倍。同 docs/fixes/2026-10-02-ci-job-timeouts.root-cause.json。"
+}

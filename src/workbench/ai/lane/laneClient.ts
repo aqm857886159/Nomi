@@ -304,9 +304,9 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
       return () => { listeners.delete(listener) }
     },
     prompt: (text: string) => send({ kind: 'prompt', text }),
-    intent: (text: string) => laneComposerIntent(latest.active, text),
+    intent: (text: string) => laneComposerIntent(latest.active, text, latest.spend),
     say: (text: string, choice: 'primary' | 'secondary' = 'primary', context?: LaneComposerContext, expected?: LaneConversationAddress) => {
-      const intent = laneComposerIntent(latest.active, text)
+      const intent = laneComposerIntent(latest.active, text, latest.spend)
       // 空闲态没有次选。用户在「新一轮」上按不到第二个按钮，所以这里回落到主动作而不是抛：
       // 抛会让一次正常的回车在极短的状态竞态里（刚跑完那一瞬）变成一个错误弹窗。
       const chosen = choice === 'secondary' ? intent.secondary ?? intent.primary : intent.primary
@@ -341,3 +341,15 @@ export const LANE_CHANNELS = LANE_IPC_CHANNELS
 
 /** One subscription owner for the persistent panel and collapsed dock. */
 export const laneClient = createLaneClient()
+
+// 走查探针（只读，仓里既有的 `__nomiE2E` 写法：只在 localStorage 置了旗才给值，生产不置旗）。
+// 真 App 走查要核「卡上画的就是宿主那一份」，而那一份唯一的来路就是这条投影——2026-10-05 起没有第二条去拉它的 IPC。
+// 旗在**读的那一刻**判（getter），所以走查先置旗再读即可，不必重载页面。
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, '__nomiLaneWorkspace', {
+    configurable: true,
+    get: () => {
+      try { return window.localStorage?.getItem('__nomiE2E') === '1' ? laneClient.workspace() : undefined } catch { return undefined }
+    },
+  })
+}

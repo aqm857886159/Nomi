@@ -4,12 +4,13 @@
 // 这张表按动词铺开（原型时代它只覆盖 `cancel_job` 一个）：投影多一个动词就在表里加一行，三条判据自动跟上。
 // **漏加一行不会静默**——最后那条覆盖断言核的是「模块里导出的每一份 `*_HOST_FILL` 都在这张表里」。
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { CANVAS_DELETE_ALIAS, canvasDeleteInputForAlias, canvasDeletePiInputSchema, canvasDeleteSemanticInputSchema } from "../canvasDelete";
 import { documentReadSemanticInputSchema } from "../documentRead";
 import { modelSetupOpenInputSchema } from "../modelSetup";
 import { SKILL_WRITE_ALIASES, skillWriteInputForAlias, skillWriteSemanticInputSchema } from "../skillWrite";
-import { TIMELINE_WRITE_ALIASES, timelineWriteInputForAlias, timelineWriteSemanticInputSchema } from "../timelineWrite";
+import { TIMELINE_WRITE_ALIASES, timelineWriteInputForAlias, timelineWriteSemanticInputSchema, undoTimelineEditInputBaseSchema } from "../timelineWrite";
 import {
   EXPORT_READ_ALIASES, EXPORT_WRITE_ALIASES, exportReadInputForAlias, exportReadSemanticInputSchema,
   exportWriteInputForAlias, exportWriteSemanticInputSchema,
@@ -76,12 +77,12 @@ const CASES: readonly ProjectionCase[] = [
   },
   {
     verb: "undo",
-    hostSchema: timelineWriteSemanticInputSchema.options[1],
+    hostSchema: undoTimelineEditInputBaseSchema.extend({ operation: z.literal("undo_timeline_edit") }) as never,
     modelSchema: undoModelSchema,
     hostFill: UNDO_HOST_FILL,
-    hiddenOptional: ["reason"],
-    sample: { undoToken: "undo-1", expectedRevision: "revision-2" },
-    admit: (args) => timelineWriteInputForAlias(TIMELINE_WRITE_ALIASES.undo, args),
+    hiddenOptional: ["reason", "undoToken"],
+    sample: { changeId: "timeline:v1:undo-1", expectedRevision: "revision-2" },
+    admit: (args) => timelineWriteSemanticInputSchema.parse({ operation: "undo_timeline_edit", ...(args as Record<string, unknown>) }),
   },
   {
     verb: "generate",

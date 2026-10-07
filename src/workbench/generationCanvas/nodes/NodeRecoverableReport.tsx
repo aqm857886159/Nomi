@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { IconClockSearch, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { recoverableCopyKeys } from '../model/recoverableCopy'
 
 /**
  * 可找回态（recoverable）—— 节点正文内联面板。
@@ -13,13 +15,16 @@ import { WorkbenchButton } from '../../../design'
  * 故重启 App 后这个按钮照样能把片子拉回来。视觉与 NodeErrorReport 同骨架（铺满正文），但用中性纸底。
  */
 export function NodeRecoverableReport({
+  node,
   onRecover,
   onDismiss,
 }: {
+  node: Pick<GenerationCanvasNode, 'runs'>
   onRecover?: () => void
   onDismiss?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const copy = recoverableCopyKeys(node)
   const [pending, setPending] = React.useState(false)
 
   const handleRecover = React.useCallback(
@@ -53,11 +58,11 @@ export function NodeRecoverableReport({
       <div className="flex items-start gap-2">
         <IconClockSearch size={16} stroke={1.6} className="mt-[1px] shrink-0 text-nomi-ink-60" />
         <span className="select-text cursor-text text-body font-bold leading-snug text-nomi-ink">
-          {t('generationCommon.recoverable.title')}
+          {t(copy.title)}
         </span>
       </div>
       <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">
-        {t('generationCommon.recoverable.description')}
+        {t(copy.description)}
       </p>
 
       <div className="min-h-0 flex-1" />
@@ -67,11 +72,11 @@ export function NodeRecoverableReport({
           <WorkbenchButton
             onClick={handleRecover}
             disabled={pending}
-            aria-label={t('generationCommon.recoverable.recover')}
+            aria-label={t('generationCommon.production.runAction.retry-retrieval')}
             className="bg-nomi-ink text-nomi-paper border-0 hover:bg-nomi-accent disabled:opacity-50"
           >
             <IconRefresh size={13} stroke={1.6} className={cn(pending && 'animate-spin')} />
-            {pending ? t('generationCommon.recoverable.recovering') : t('generationCommon.recoverable.recover')}
+            {pending ? t('generationCommon.recoverable.recovering') : t('generationCommon.production.runAction.retry-retrieval')}
           </WorkbenchButton>
         ) : null}
         <div className="min-w-0 flex-1" />

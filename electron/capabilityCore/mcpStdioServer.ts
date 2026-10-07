@@ -1,5 +1,9 @@
+// 开关引导模块必须是第一个导入：它在本进程装好共享层的开关视图，之后导入的工具注册表才按同一个值装配。
+import { director3dBoxProof } from '../shared/featureFlags/director3dbox'
 import { resolveIndexedReferencePreview } from './pendingSpendReferences'
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
+
+const DIRECTOR_3DBOX_BOOTSTRAP_PROOF = director3dBoxProof()
 // 能力核 · MCP stdio server（app 自身二进制以 NOMI_MCP_STDIO 模式跑；见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。
 //
 // Claude Code / Codex / Cursor 用 `<Nomi 二进制> + env NOMI_MCP_STDIO=1` 把 Nomi 拉起当 MCP server。
@@ -8,11 +12,10 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 //     写经 GUI 网关（不撞正在编辑的工程，所见即所得）、付费生成弹应用内实时确认卡。
 //   · 没开 → 进程内 dispatch（磁盘网关，本进程是唯一写者，安全）。付费经 elicitation 真人确认后铸令牌放行。
 // 取代旧 scripts/nomi-mcp.mjs + scripts/lib/nomiClient.mjs 的 MCP 路径：无 node 依赖、入口在包内永远存在（P1）。
-import readline from 'node:readline'
 import { app, safeStorage, session } from 'electron'
-import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
-import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
-import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
+import { createNomiMcpServer, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_TRANSPORT_ERROR_EVENT } from './mcpStdioDiagnostics'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
 import { createDiskGateway } from './gateway'
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
@@ -29,8 +32,6 @@ import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/w
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
-import { makeShotVerifyDeps } from './shotVerifyDeps'
-import { rpcErrorFromPayload } from './mcpRpcError'
 import {
   MCP_CLIENT_PROOF_ENV,
   ensureCapabilitySigningKey,
@@ -48,7 +49,7 @@ import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } fro
 import type { ModuleRegistry } from './moduleRegistry'
 import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
-import { markSingleShotAttention, markSingleShotCompleted, markSingleShotRunning } from '../productionRun/singleShotRunLifecycle'
+import { markSingleShotAttention, markSingleShotCompleted } from '../productionRun/singleShotRunLifecycle'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { readCatalog } from '../catalog/catalogStore'
@@ -58,7 +59,7 @@ import { installCatalogRowLookup } from './modelSpecRead'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpStdioProjectSessionRouter } from './mcpStdioProjectSessionRouter'
 import { createProductionMcpStdioProjectSessionBinding } from './mcpStdioProjectSessionBinding'
-import { createMcpLoopbackRpcRequest } from './mcpLoopbackRpcRequest'
+import { callMcpLoopbackRpc, createLoopbackGenerationConfirmation } from './mcpLoopbackRpcCall'
 import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
@@ -135,12 +136,6 @@ function currentLibrary(): { projectsRoot: string; isDefault: boolean } {
   return { projectsRoot: location.path, isDefault: location.source === 'default' }
 }
 
-// 传输兜底超时：须 ≥ 服务端最长合法耗时（core.ts 视频轮询 300s）才不误杀真生成；默认 360s，可经 env 调。
-function transportTimeoutMs(): number {
-  const raw = Number(process.env.NOMI_RPC_TIMEOUT_MS)
-  return Number.isFinite(raw) && raw > 0 ? raw : 360_000
-}
-
 async function callViaRpc(
   instance: InstanceAdvertisement,
   method: string,
@@ -148,42 +143,15 @@ async function callViaRpc(
   connection: McpConnectionContext,
   options?: McpInvokeOptions,
 ): Promise<unknown> {
-  const timeoutMs = transportTimeoutMs()
-  const controller = new AbortController()
-  const relayAbort = () => controller.abort(options?.signal?.reason)
-  if (options?.signal?.aborted) relayAbort()
-  else options?.signal?.addEventListener('abort', relayAbort, { once: true })
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  let res: Response
-  try {
-    res = await appFetch(`http://127.0.0.1:${instance.port}/rpc`, {
-      ...createMcpLoopbackRpcRequest({
-        token: instance.token,
-        clientProof: String(process.env[MCP_CLIENT_PROOF_ENV] || ''),
-        connection,
-        method,
-        params,
-        planConfirmed: options?.planConfirmed,
-        documentConfirmed: options?.documentConfirmed,
-        signal: controller.signal,
-      }),
-    })
-  } catch (error) {
-    if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(
-        `Nomi 无响应（${Math.round(timeoutMs / 1000)}s 超时）——生成可能仍在后台跑，可稍后用 nomi_read（target=canvas）查结果。`,
-        { cause: error },
-      )
-    }
-    throw error
-  } finally {
-    clearTimeout(timer)
-    options?.signal?.removeEventListener('abort', relayAbort)
-  }
-  const body = (await res.json()) as { ok?: boolean; error?: unknown; result?: unknown }
-  if (!body.ok) throw rpcErrorFromPayload(body, res.status)
-  return body.result
+  return callMcpLoopbackRpc({
+    instance,
+    fetchImpl: appFetch,
+    clientProof: String(process.env[MCP_CLIENT_PROOF_ENV] || ''),
+    connection,
+    method,
+    params,
+    options,
+  })
 }
 
 /**
@@ -220,9 +188,6 @@ export function createMcpStdioDirectInvoker(
       ...authorities,
       projectSession: routedProjectSession,
       ...(routedOptions?.planConfirmed ? { planConfirmed: true } : {}),
-      // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
-      // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
-      makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
     })
     if (routedMethod !== 'document.write') return dispatch()
     if (routedOptions?.documentConfirmed !== true) throw new Error('human_approval_required')
@@ -260,6 +225,7 @@ async function invoke(
 
 /** 启动 stdio JSON-RPC server。main.ts 在 NOMI_MCP_STDIO 模式的 app.whenReady 后调；不开窗、不抢单实例锁。 */
 export async function startMcpStdioServer(authorities: McpStdioServerOptions = {}): Promise<void> {
+  process.stderr.write(`[nomi:feature-flags] director3dbox=${DIRECTOR_3DBOX_BOOTSTRAP_PROOF.enabled} fingerprint=${DIRECTOR_3DBOX_BOOTSTRAP_PROOF.fingerprint}\n`)
   if (process.env.NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE === '1' && process.platform === 'linux') {
     safeStorage.setUsePlainTextEncryption(true)
   }
@@ -320,8 +286,9 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     }),
   })
   const readProviderBootstrap = liveGenerationRuntime.readBootstrap
+  const initialGenerationScope = liveGenerationRuntime.createDraftScope()
   const outputMaterializer = createGenerationOutputMaterializer()
-  const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
+  const generationRegistry = authorities.generationModuleRegistry ?? initialGenerationScope.registry
   // P4 S2: derive real per-shot prices from the live catalog pricing (readCatalog reflects user edits;
   // resolve lazily so a mid-session pricing change is picked up). Preview/gate use the model-pricing
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
@@ -331,6 +298,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
       registry: generationRegistry,
+      createDraftScope: liveGenerationRuntime.createDraftScope,
       operations: operationStore,
       get videoModelCandidates() { return deriveUsableVideoModelCandidates() },
       defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
@@ -428,13 +396,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
             },
           })
         }
-        const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
-        // Keep the stdio transport on the same durable lifecycle as the GUI:
-        // accepting a provider task is an active Run, not a still-ready draft.
-        if (!operation.shots || operation.shots.length === 0) {
-          markSingleShotRunning(productionRuns.repository, lease.projectId, operation.operationId)
-        }
-        return started
+        // 受理那一刻单镜 Run 已经记成进行中（提交出口和「已受理」同一次落盘，GUI 与 stdio 同一处）。
+        return await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
       },
       reconcile: async (operation, outcome, lease) => {
         const providerBootstrap = readProviderBootstrap()
@@ -508,8 +471,14 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     projectSession(),
     canvasReadExecutionRuntime,
   )
-  const protocol = createMcpProtocol({
-    send: (message) => process.stdout.write(JSON.stringify(message) + '\n'),
+  const generationConfirmation = createLoopbackGenerationConfirmation({
+    rpcIfOpen: (method, params) => {
+      const instance = readLiveInstance(currentLibrary())
+      return instance ? callViaRpc(instance, method, params, projectSession().connection) : undefined
+    },
+    authenticatedClient: () => projectSession().connection.authenticatedClient,
+  })
+  const mcp = createNomiMcpServer({
     invoke: invokeRequest,
     // This protocol instance is itself a live Nomi host. Its direct route does
     // not cold-start another desktop process, so discovery may use it.
@@ -517,66 +486,19 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
     getAuthenticatedClient: () => projectSession().connection.authenticatedClient,
     onClientDetected: (name) => { recordDetectedMcpClient(name) },
-    confirmGenerationInNomi: async (challenge) => {
-      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-        ? challenge.handoff.challengeToken
-        : ''
-      const instance = readLiveInstance(currentLibrary())
-      if (!challengeToken || !instance) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, projectSession().connection)
-      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
-    },
-    // Electron stdio 态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
-    // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
-    verifyClientGenerationConfirmation: async (challenge) => {
-      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-        ? challenge.handoff.challengeToken
-        : ''
-      const instance = readLiveInstance(currentLibrary())
-      const authenticatedClient = projectSession().connection.authenticatedClient
-      if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, projectSession().connection)
-      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
-    },
+    // 两条付费确认经回环 RPC 交给 GUI 主进程（弹兜底卡 / 验证客户端同意并铸收据）；实现三个装配点共用一份。
+    confirmGenerationInNomi: generationConfirmation.confirmGenerationInNomi,
+    verifyClientGenerationConfirmation: generationConfirmation.verifyClientGenerationConfirmation,
     getLocale: () => getDesktopLocale(),
   })
 
-  // 行长上限：stdin 是**不可信输入**（本地客户端行为异常或被劫持时，一条无换行的超长流能把主进程
-  // 内存吃满）。4 MiB 够装带 base64 参考图的 tools/call，又把最坏内存钉死。readline 的 maxLength 会
-  // 在超限时抛 'error' 而不是静默截断，故我们自己按字节判——截断的半条 JSON 解析出来可能是**另一条
-  // 合法请求**，那比丢弃危险得多。
-  const rl = readline.createInterface({ input: process.stdin })
-  rl.on('line', (line) => {
-    const parsed = parseMcpStdioLine(line)
-    if (parsed.kind === 'blank') return
-    if (parsed.kind === 'oversized') {
-      // 超长行整条丢弃。无从可靠取 id（正是因为它可能根本不是一条完整 JSON）→ 按规范只记日志。
-      logWarn('mcp', MCP_OVERSIZED_LINE_EVENT, { limitBytes: MAX_MCP_LINE_BYTES })
-      return
-    }
-    if (parsed.kind === 'parse-error') {
-      // 非 JSON 行：旧行为是静默丢弃 → 客户端永远等不到响应也不知道为什么。按 JSON-RPC 标准回
-      // -32700 Parse error。此时无从得知 id（正是解析失败），按规范用 null id。
-      process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) + '\n')
-      return
-    }
-    protocol.handleIncoming(parsed.value as Parameters<typeof protocol.handleIncoming>[0])
-  })
-  // 客户端关闭 stdin（断连/退出）→ 我们也退出，不留孤儿进程。
-  // **退出前先中止在飞工作**：否则客户端断连后，已经发出去的付费生成仍在后台跑到底（真金风险，
-  // 审计 2026-08-25）。中止只切断我们这侧的等待；已提交给供应商的任务走既有 reconcile 语义收敛，
-  // 这里不新增重试、也不重复提交。
-  let closing = false
-  const close = () => {
-    if (closing) return
-    closing = true
-    const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-    if (cancelled > 0) logWarn('mcp', MCP_CANCELLED_IN_FLIGHT_EVENT, { count: cancelled })
-    protocol.dispose()
+  // stdin/stdout 分帧、读缓冲上限、stdin 关闭即断连都归 SDK 的 StdioServerTransport。
+  // 断连时 SDK 中止全部在途请求的信号：已经发出去的付费生成不会在后台跑到底（真金风险，审计 2026-08-25）；
+  // 已提交给供应商的任务走既有 reconcile 语义收敛，这里不新增重试、也不重复提交。
+  mcp.server.onerror = (error) => logWarn('mcp', MCP_TRANSPORT_ERROR_EVENT, { message: error.message })
+  mcp.onClose((inFlightAtClose) => {
+    if (inFlightAtClose > 0) logWarn('mcp', MCP_CANCELLED_IN_FLIGHT_EVENT, { count: inFlightAtClose })
     void previewServer.close().finally(() => app.exit(0))
-  }
-  rl.on('close', close)
-  process.stdin.on('end', close)
+  })
+  await mcp.connect(new StdioServerTransport())
 }

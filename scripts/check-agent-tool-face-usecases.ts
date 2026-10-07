@@ -2,6 +2,9 @@
 //
 // 「20 个动词」不靠正则扫源码数——从注册表投影 `modelFacingToolSpecs("internal")` 取真实发布的名单，
 // 与题库 `canonicalVerbs` 逐个对账。多一个、少一个、名字不同都红；没有任何跳过分支。
+// 3D-BOX 开关引导模块必须第一个导入：工具注册表在导入期按它装配（CI 的开关开 job 用 NOMI_DESKTOP_DEV=1 NOMI_DIRECTOR_3DBOX=true 跑同一份门岗）。
+import "../electron/shared/featureFlags/director3dbox";
+import { director3dBoxFaceEnabled } from "../electron/shared/featureFlags/director3dboxFace";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,8 +19,17 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
   canonicalVerbs: string[];
   metrics: string[];
   banks?: string[];
-  cases: Array<{ id: string; firstTool: string; tools?: string[]; proof?: string[]; skillKey?: string }>;
+  cases: Array<{ id: string; firstTool: string; tools?: string[]; proof?: string[]; skillKey?: string; requiresFlag?: string }>;
 };
+
+// 只在 3D-BOX 开关开的那张面上成立的用例（升级版 stage_shot 与它的技能）。门岗**只认这一个开关**：
+// 写了别的开关名当场红，不留通用的跳过分支。开关关时这些用例不参与对账；开时必须至少 4 条
+// （一句话新建 / 改某一镜 / 撤销 / 挂到视频节点后出片），少了就是开关开的那张面没人验。
+const DIRECTOR_3DBOX_FLAG = "director3dbox";
+const flagOn = director3dBoxFaceEnabled();
+const unknownFlags = manifest.cases.filter((entry) => entry.requiresFlag !== undefined && entry.requiresFlag !== DIRECTOR_3DBOX_FLAG);
+const flaggedCases = manifest.cases.filter((entry) => entry.requiresFlag === DIRECTOR_3DBOX_FLAG);
+manifest.cases = manifest.cases.filter((entry) => entry.requiresFlag === undefined || (flagOn && entry.requiresFlag === DIRECTOR_3DBOX_FLAG));
 
 const published = modelFacingToolSpecs("internal").map((spec) => spec.name);
 const declared = new Set(published);
@@ -25,6 +37,8 @@ const expected = new Set(manifest.canonicalVerbs);
 const errors: string[] = [];
 
 if (manifest.schemaVersion !== 1) errors.push("schemaVersion must be 1");
+for (const entry of unknownFlags) errors.push(`${entry.id}: requiresFlag only accepts ${DIRECTOR_3DBOX_FLAG}, got ${String(entry.requiresFlag)}`);
+if (flagOn && flaggedCases.length < 4) errors.push(`3D-BOX face is on but only ${flaggedCases.length} requiresFlag cases exist (need create / patch / undo / attach-then-generate)`);
 // 21 = 设计正本的 20 个动词 + 2026-09-21 的通用反问 `ask_user`。这个数手写而不是从
 // 投影数出来，理由与 `check-model-face-frozen.mjs` 里那个一样：动它就等于一次签名。
 if (published.length !== 21) errors.push(`internal profile publishes ${published.length} verbs, the design says 21: ${published.join(", ")}`);
@@ -83,7 +97,7 @@ void (async () => {
     console.error(["Agent tool-face usecase manifest: FAIL", ...errors.map((error) => `- ${error}`)].join("\n"));
     process.exit(1);
   }
-  console.log(`Agent tool-face usecase manifest: PASS · verbs=${published.length} · cases=${manifest.cases.length} · metrics=${manifest.metrics.length}`);
+  console.log(`Agent tool-face usecase manifest: PASS · verbs=${published.length} · cases=${manifest.cases.length} · metrics=${manifest.metrics.length} · director3dbox=${flagOn ? `on(${flaggedCases.length})` : "off"}`);
 })().catch((error: unknown) => {
   console.error(error);
   process.exit(1);

@@ -1,0 +1,32 @@
+{
+  "id": "LAW12-sb-row-more",
+  "since": "2026-10-05",
+  "source": "full-walk pb12-storyboard-click-expectations（2026-10-05，base / zh-CN）",
+  "category": "interaction-semantics",
+  "problem": "点「行首的「⋯」」：用户以为弹出这一镜的操作菜单（插入、复制、换画幅、删除……），整块都在窗口里；点别处它就关上；实际弹出了菜单，整块在窗口里；点别处之后还开着",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [
+    "J06-delete-shot"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-row-more.png"
+  ],
+  "completionCommits": [
+    "bd9082871"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-storyboard-row-menu-dismiss.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/ux/full-walk/catalog.mjs",
+    "ref": "⑫"
+  },
+  "fixedInPr": 1029
+}

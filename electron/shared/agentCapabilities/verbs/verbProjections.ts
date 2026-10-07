@@ -48,7 +48,8 @@ import { taskDomainSchema } from '../taskReference';
 //     「拼结构」这三个动作 → 它们仍住 `verbSemanticInput.ts`，由 `check:verb-host-conformance` 看着。
 //   · **宿主没有形状**（`look_at_canvas` / `list_models`：契约 `inputSchema` 是 `z.unknown()`）→ 没有可投影的
 //     东西。下一刀先把那两个契约的输入形状收出来，它们才谈得上投影。
-import type { z } from "zod";
+import { z } from "zod";
+import type { z as ZodTypes } from "zod";
 
 import { documentReadSemanticInputSchema, type DocumentReadInput } from "../documentRead";
 import { CANVAS_DELETE_ALIAS, canvasDeletePiInputSchema, canvasDeleteSemanticInputSchema } from "../canvasDelete";
@@ -60,7 +61,7 @@ import { modelSetupOpenInputSchema } from "../modelSetup";
 import { SKILL_READ_ALIASES, skillReadSemanticInputSchema } from "../skillRead";
 import { SKILL_WRITE_ALIASES, skillWriteSemanticInputSchema } from "../skillWrite";
 import { timelineEditPlanModelSchema } from "../timelineRead";
-import { TIMELINE_WRITE_ALIASES, timelineWriteSemanticInputSchema } from "../timelineWrite";
+import { TIMELINE_WRITE_ALIASES, timelineWriteSemanticInputSchema, undoTimelineEditInputBaseSchema } from "../timelineWrite";
 
 /**
  * 宿主补的那份值的类型：**宿主面减模型面**。
@@ -69,8 +70,8 @@ import { TIMELINE_WRITE_ALIASES, timelineWriteSemanticInputSchema } from "../tim
  * 宿主把自补字段的取值改了（`z.literal("a")` → `z.literal("b")`）而补的人不知道 → 字面量类型对不上 → tsc 红。
  * 后一种正是 Codex `timeout_ms` 那个已被量到的漂移形状搬到**补值**这一侧的样子。
  */
-export type HostFill<Host extends z.ZodTypeAny, Model extends z.ZodTypeAny> =
-  Omit<z.infer<Host>, keyof z.infer<Model>>;
+export type HostFill<Host extends ZodTypes.ZodTypeAny, Model extends ZodTypes.ZodTypeAny> =
+  Omit<ZodTypes.infer<Host>, keyof ZodTypes.infer<Model>>;
 
 /** 从一份 zod 对象 schema 取字段名单。投影的两边名单都从这里来——**不许手抄第二份**。 */
 export function objectFieldKeys(schema: z.ZodTypeAny, label: string): readonly string[] {
@@ -201,18 +202,16 @@ export const startModelSetupModelSchema = modelSetupOpenInputSchema.extend({
 
 // ── undo · timeline.write ────────────────────────────────────────────────────
 
-const undoHostSchema = timelineWriteSemanticInputSchema.options[1];
+const undoHostSchema = undoTimelineEditInputBaseSchema.extend({ operation: z.literal("undo_timeline_edit") });
 
 /**
- * 藏两个字段：`operation` 是方法词表；`reason` 是宿主自己写进撤销记录的备注，模型给不出也不该给。
- * 名字**不改**：`edit_timeline` 的结果里那个字段就叫 `undoToken`，`undo` 收的也叫 `undoToken`——
- * 出来进去同一个词。（2026-09-18 之前模型面叫 `changeId`，而结果正文里印的是 `undoToken`：
- * 一条工具结果里两个名字都在，模型得自己猜哪个是 `undo` 要的。）
+ * `operation` 与 `reason` 是宿主字段；内部模型面只收统一的 `changeId`。
+ * 旧 MCP `undoToken` 仅在 alias 适配器边界归一化。
  */
-export const undoModelSchema = undoHostSchema.omit({ operation: true, reason: true }).extend({
-  undoToken: undoHostSchema.shape.undoToken.describe("The undoToken returned by the write you are reverting."),
+export const undoModelSchema = undoHostSchema.omit({ operation: true, reason: true, undoToken: true }).extend({
+  changeId: undoHostSchema.shape.changeId.unwrap().describe("The changeId returned by the reversible write you are reverting."),
   expectedRevision: undoHostSchema.shape.expectedRevision.describe("Current timeline revision from read_timeline."),
-});
+}).strict();
 
 export const UNDO_HOST_FILL: HostFill<typeof undoHostSchema, typeof undoModelSchema> = {
   operation: TIMELINE_WRITE_ALIASES.undo,

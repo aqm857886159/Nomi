@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { commonRatioSortKey, normalizeAspectRatioToWH, parseAspectRatioValue, preferredVideoAspect, readNodeAspectRatio } from "./aspectRatio";
+import { commonRatioSortKey, preferredVideoAspect, readNodeAspectRatio } from "./aspectRatio";
+import { normalizeAspectRatioToWH, parseAspectRatioValue } from "../../../../electron/shared/aspectRatioValue";
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 
 describe("parseAspectRatioValue", () => {

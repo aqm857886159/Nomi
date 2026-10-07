@@ -57,7 +57,7 @@ describe("M2 canvas/document semantic MCP surface", () => {
   });
 
   it("R4/R5/R6 publish typed write receipts, destructive hints, and bounded reads", () => {
-    const writeReceipt = { applied: true, proposalId: "proposal-1", operation: "set_node_prompt", affectedNodeIds: ["node-1"], reconciliation: { ok: true, deviationCount: 0 } };
+    const writeReceipt = { applied: true, proposalId: "proposal-1", changeId: "canvas:v1:proposal-1", operation: "set_node_prompt", affectedNodeIds: ["node-1"], reconciliation: { ok: true, deviationCount: 0 } };
     expect(canvasWriteResultSchema.safeParse(writeReceipt).success).toBe(true);
     expect(MCP_CAPABILITY_RESOLVER.resolve("nomi_canvas_maintenance")?.annotations).toEqual({ destructiveHint: true });
     const projected = projectCanvasRead({ nodes: [{ id: "n", kind: "text", prompt: "x".repeat(300_000) }], edges: [] });

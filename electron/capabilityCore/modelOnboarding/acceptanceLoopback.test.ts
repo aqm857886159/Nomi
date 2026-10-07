@@ -88,7 +88,7 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
 
   it("读套件 → 交整份卡 → 填 key → 试跑，四跳走到产物", async () => {
     const { MCP_TOOL_RESOLVER } = await import("../mcpToolCatalog");
-    const { validateToolArguments } = await import("../mcpArgValidation");
+    const { validateToolArguments } = await import("../mcpProtocol");
     const { dispatch } = await import("../dispatcher");
     const { setRendererTarget, CAPABILITY_APPLY_REPLY_CHANNEL } = await import("../rendererBridge");
     const { runTask } = await import("../../runtime");
@@ -234,7 +234,7 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
 
   it("模型永远拿不到「替用户批准」的参数：任何 approve/confirm/trust 字段都进不了这张 schema", async () => {
     const { MCP_TOOL_RESOLVER } = await import("../mcpToolCatalog");
-    const { validateToolArguments } = await import("../mcpArgValidation");
+    const { validateToolArguments } = await import("../mcpProtocol");
     const tool = MCP_TOOL_RESOLVER.resolve("nomi_try_model")!;
     for (const field of ["approved", "approve", "confirmed", "confirm", "trusted", "trust", "grantId", "receipt", "autoApprove", "skipConfirmation"]) {
       const invalid = validateToolArguments(tool.name, tool.inputSchema, {

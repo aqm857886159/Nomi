@@ -1,0 +1,158 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-try-model-async-queued",
+  "problem_type": "A paid asynchronous submission is judged by its first response, so \"accepted but not finished\" is reported as failure",
+  "symptom": "nomi_try_model against an asynchronous provider returned provider_failed (status=queued, no assets) after the provider had already accepted and charged the job; the AI followed the nextAction, fixed the card and tried again, submitting and charging a second job.",
+  "direct_cause": "tryModel.ts judged the first runTask result only: succeeded && assets.length > 0, else provider_failed. Asynchronous providers return queued with no assets on first response, and tryModel had no access to the task query chain.",
+  "class_root": "After-submit waiting had no shared boundary: tryModel judged the first response only. A caller that submits a paid job without a single wait boundary can turn \"still running\" into \"failed\" (and the failure text invites a charged retry).",
+  "affected_population": [
+    "Every user whose AI connects an asynchronous image or video provider (most video providers) and runs nomi_try_model",
+    "The first sample card in the onboarding kit (asynchronous)"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/capabilityCore/modelOnboarding/dispatch.ts",
+    "electron/capabilityCore/modelOnboarding/envelope.ts",
+    "electron/capabilityCore/pollTaskToTerminal.ts",
+    "electron/capabilityCore/dispatcher.ts"
+  ],
+  "entry_points": [
+    "nomi_try_model -> dispatcher model.onboarding.try -> dispatchModelOnboarding -> tryModel"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is internal: how Nomi reports the state of a job it has already submitted. No third-party document decides it.",
+  "invariants": [
+    "A non-terminal task status after a successful submit is never reported as provider_failed.",
+    "Waiting after submit in tryModel uses pollTaskToTerminal and never re-submits; the wait is capped at 40 seconds (tool-call timeout of external hosts).",
+    "When the wait budget runs out, the caller says submitted / still processing, includes the task id, and tells the AI not to retry."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "symbol": "pollTaskToTerminal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "dispatchModelOnboarding"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/envelope.ts",
+      "symbol": "OnboardingFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "Each door is a distinct role: tryModel judges the result; pollTaskToTerminal is the single wait; dispatcher.ts and dispatch.ts only pass dependencies down; envelope.ts defines the result shape; onboardingVerbs.ts is the AI-facing text. None duplicates another."
+  },
+  "generality_proof": "tryModel is the only caller of pollTaskToTerminal, which only returns a terminal result or an explicit ended=timeout/poll_failed and never invents a failure. tryModel maps non-terminal outcomes to still_processing, so no provider, task kind or status vocabulary can reach provider_failed unless the provider itself reported a terminal failure. The generateOnProject family is deleted by the convergence step 0 and will then leave this as the single wait.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "symbol": "pollTaskToTerminal",
+      "responsibility": "The only after-submit wait: polls the shared fetchTaskResult chain, retries query errors for free, never re-submits, reports the end reason instead of fabricating a failure."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "tryModel",
+      "responsibility": "Maps wait outcomes to results: succeeded with assets, provider_failed only on a terminal failure, still_processing otherwise."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "enforced",
+      "evidence": "No code path from a non-terminal status to provider_failed; waits through pollTaskToTerminal capped at 40s."
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "generateOnProject",
+      "disposition": "not-affected",
+      "evidence": "Already polls inline; the whole family is deleted by the convergence step 0, so it is deliberately not touched here."
+    },
+    {
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "entry_point": "runComfyCandidateTest",
+      "disposition": "not-affected",
+      "evidence": "ComfyUI certification already loops while status is queued or running with its own 300s abort; it never judges the first response. It is a third poller and is listed in residual_risks, not changed here."
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "renderStaticFrame",
+      "disposition": "not-affected",
+      "evidence": "The first-frame helper has its own short poll loop that gives up silently because the frame is an optional gain; it never reports failure of a paid job to the AI."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new caller that submits a paid job through runTask can repeat the first-response judgement; the AI-facing text also invited a retry.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs tryModel (2 doors) and fetchTaskResult (13 doors)",
+      "grep for runTask callers: generateOnProject polls; comfyCandidateTest polls; productionRunService polls through its own run state; credentialProbeConfirm has no paid submit"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/pollTaskToTerminal.ts",
+    "invariant": "A submitted job's non-terminal state is never reported as a failure.",
+    "failure_mode": "Wait budget exhausted or query chain down: return still_processing with the task id and an explicit do-not-retry instruction.",
+    "exception_policy": "none",
+    "strategy": "One wait function owned by the capability core; both callers import it. tryModel has no code path from a non-terminal status to provider_failed.",
+    "artifacts": [
+      "electron/capabilityCore/pollTaskToTerminal.ts",
+      "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "electron/capabilityCore/modelOnboarding/envelope.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old first-response-only judgement in tryModel was replaced in place; generateOnProject's own loop is removed by the convergence step 0, not here."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes. A new still_processing code is added to the onboarding failure envelope; older AI clients treat unknown ok:false codes as not-ok and read nextAction, which says not to retry.",
+  "residual_risks": [
+    "Task lookup by id for the AI (a nomi_read target) is a follow-up, suggested for 0.24 B line.",
+    "The AI has no tool to look a task up by id; it can only tell the user the task id. A later \"look up this task\" read target is not part of this hot fix.",
+    "ComfyUI certification and renderStaticFrame keep their own poll loops (third and second copies); folding them into pollTaskToTerminal is a separate change.",
+    "Closing the window or quitting Nomi during the wait loses the in-process task cache; the provider job and its charge continue (see the design card mid-way table)."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/pollTaskToTerminal.ts",
+    "tests": [
+      "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts"
+    ],
+    "why": "The single after-submit wait never invents a failure for a job the provider has accepted; tryModel maps its end reason to still_processing."
+  }
+}

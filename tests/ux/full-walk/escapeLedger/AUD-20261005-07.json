@@ -1,0 +1,23 @@
+{
+  "id": "AUD-20261005-07",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #7",
+  "category": "interaction-semantics",
+  "problem": "已生成的缩略图（镜头结果 / 参考卡 / 槽里的引用）没有「移除」；「用作…」菜单在最后一行被表格裁掉",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/25-done-shot-frame-actions.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/26-use-as-menu-clipped.png"
+  ],
+  "completionCommits": []
+}

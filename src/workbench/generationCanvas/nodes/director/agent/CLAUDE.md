@@ -17,7 +17,10 @@
 > createCameraMoveReferenceNode.ts: 运镜参考建节点入口（AI 路 + 手动路共用）：buildCameraMoveScene → 迁移 → create_nodes(kind director, meta directorProject + cameraMoveAutoCapture{targetNodeId, fps 24, frameCount, move})；readCameraMoveAutoCapture
 > DirectorHeadlessCapture.tsx: 离屏出片器：隐藏 FencedCanvas + 独立 store，只装环境 / 实体 / 播放求值 / CaptureBinder；等角色 GLB 落地（对象表里出现 characterMount）→ 按时刻序列逐帧 seek + 等两帧 → 机位 1 出片 → 一次回调 frames[]；短边可封顶（参考视频 720p）
 > StagingCaptureHost.tsx: 常驻 Host（画布壳按 components/directorCaptureHostActivation 懒挂）：扫 stagingAutoCapture → 出一张 → persistDirectorScreenshot → image 节点（stagingComposition 标记）+ director→image(reference) + image→镜头(composition_ref) → 截图写回工程 outputs.screenshots → 清标志
-> CameraMoveCaptureHost.tsx: 常驻 Host：扫 cameraMoveAutoCapture → 沿机位 1 路径片段区间采 frameCount 帧（720p 封顶）→ persistDirectorFramesVideo 拼 mp4 → 写回 meta.cameraMoveVideo + 工程 outputs.videos → computeAttachCameraMove 喂目标镜头 → 清标志；看门狗 + 重试（attempt 当挂载 key 整棵重挂）；E2E 桥仅 localStorage 打标时暴露
+> CameraMoveCaptureHost.tsx: 常驻 Host（运镜小片 + 3D-BOX 整段预演两种请求，同一套重试 / 看门狗 / 落盘）：扫 cameraMoveAutoCapture → 沿机位 1 路径片段区间采 frameCount 帧（720p 封顶）→ persistDirectorFramesVideo 拼 mp4 → 写回 meta.cameraMoveVideo + 工程 outputs.videos → computeAttachCameraMove 喂目标镜头 → 清标志；看门狗 + 重试（attempt 当挂载 key 整棵重挂）；E2E 桥仅 localStorage 打标时暴露
+> applyDirectorWrite.ts: 3D-BOX stage_shot（director.write）渲染端执行体：新建 = 编译计划建导演节点（工程 + 计划 + 修订号 + 预演标志）；补丁 = 比修订号 → 按名字应用 → 不变则 unchanged 不写 → 重编译走唯一外部写口；领域拒绝原样交回
+> directorWriteCompensation.ts: director.write 一步的撤销补偿：新建删导演节点、补丁放回导演节点 meta，两者都把要挂预演的视频节点放回提议之前（restore-node-fields）
+> directorPreviewCapture.ts: 3D-BOX 预演出片纯逻辑：整段 24fps 采帧计划（节目机位 + 等动作片段）、挂接写回 ready（唯一挂接核心，沿用提议事务身份）、重试用尽判 failed；修订变了即丢弃
 > *.test.ts: 词表 / builder / 调度 / 重试 / 喂入纯逻辑单测
 > 法则: 成员完整·一行一文件·父级链接·技术词前置
 > [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

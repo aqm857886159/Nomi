@@ -28,7 +28,9 @@ export function isTextTarget(target: EventTarget | null): boolean {
 
 /** 命令与持续漫游共用输入归属；调用方可用 activeElement 在每帧复核。 */
 export function isDirectorKeyboardBlocked(event: Pick<KeyboardEvent, 'target' | 'defaultPrevented' | 'isComposing'>): boolean {
-  return event.defaultPrevented || event.isComposing || isTextTarget(event.target) || Boolean(document.querySelector('[data-nomi-escape-layer]'))
+  // 有浮层 / 按需面板开着时导演台快捷键让路——除非它声明了 data-nomi-hotkeys="pass"：精修「▤ ▾」大纲浮层、场景设置卡、资产库抽屉
+  // 是会开很久的工作面（在里面打组、删、改名后要能 Ctrl+Z），不是一次性的小菜单。Esc 仍归它们自己（编辑器 Esc 照样让路）。
+  return event.defaultPrevented || event.isComposing || isTextTarget(event.target) || Boolean(document.querySelector('[data-nomi-escape-layer]:not([data-nomi-hotkeys="pass"])'))
 }
 
 export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.MutableRefObject<DirectorHotkeyScope>; handlers: HotkeyHandlers }): void {

@@ -1,21 +1,20 @@
 import { require as tsxRequire } from 'tsx/cjs/api'
 // Real built Electron + real MCP stdio Production Run journey. No provider calls: the fixture is
-// double-gated and disabled in packaged builds. This test owns all four GUI approvals and proves
-// durable restart recovery, safe MCP projections, preview authorization, and a valid final MP4.
+// double-gated and disabled in packaged builds. This test owns the GUI direction / script / storyboard /
+// contract approvals and proves durable restart recovery and safe MCP projections; after the contract the
+// retired legacy script writer stops the Run as needs_attention with zero submissions (engine convergence
+// cut 1 step 4). Semantic generation through rough cut is walked by mcp-l2-journeys (C9).
 //
 // Transport framing (spawn / initialize / rpc / callTool / terminate) lives in the ONE shared module
 // _mcpJourney.mjs — this production journey and the L1/L2 MCP lanes share one
 // spawn/JSON-RPC implementation (P1: no copy-paste). Lane differences are passed as options:
 // the io.modelcontextprotocol/ui client capability + Codex clientInfo, and the production fixture env.
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 
-const require = createRequire(import.meta.url)
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-mcp-e2e-'))
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
@@ -88,16 +87,6 @@ async function waitForRunStatus(projectId, runId, expected, timeoutMs = 20_000) 
   throw new Error(`Run ${runId} did not reach ${expected}; last=${JSON.stringify({ status: run?.status, stageId: run?.stageId, stages: run?.stages?.map((stage) => [stage.stageId, stage.status]), jobs: run?.jobs?.map((job) => [job.jobId, job.status]), gates: run?.gates?.map((gate) => [gate.gateId, gate.status]) })}`)
 }
 
-async function waitForWaitingGate(projectId, runId, gateIdPrefix, timeoutMs = 20_000) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    const run = await getRunData(projectId, runId)
-    if (run?.gates?.some((gate) => gate.gateId.startsWith(gateIdPrefix) && gate.status === 'waiting')) return run
-    await delay(250)
-  }
-  throw new Error(`Run ${runId} did not raise a waiting gate ${gateIdPrefix}*`)
-}
-
 /**
  * 制作任务的家 = 任务中心（不再跳去画布助手面板）。打开顶栏任务 → 卡就地长在里面。
  * 走查证据：shotName 传了就截图，人眼判断卡的状态/产物/指路是否成立（R13）。
@@ -142,20 +131,6 @@ async function approveCurrentProductionGate(window) {
   const overlay = window.locator('.fixed.inset-0').filter({ has: window.locator('button') }).last()
   await overlay.waitFor({ timeout: 5_000 })
   await overlay.locator('button').last().click()
-}
-
-function projectRootFor(projectId) {
-  for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue
-    const root = path.join(projectsDir, entry.name)
-    const descriptor = path.join(root, '.nomi', 'project.json')
-    try {
-      if (JSON.parse(fs.readFileSync(descriptor, 'utf8')).id === projectId) return root
-    } catch {
-      // Ignore unrelated directories.
-    }
-  }
-  return null
 }
 
 let gui = null
@@ -319,105 +294,31 @@ try {
   check(materializedRun.jobs[0]?.metadata?.transition?.type === 'dissolve' && materializedRun.jobs[0]?.metadata?.transition?.durationFrames === 12, 'external materialize preserves authored transition metadata')
   await window.screenshot({ path: path.join(shotsDir, '02-contract.png') })
 
-  // 钱门必须在 Nomi 批准；confirm_all 随后在第一次供应商提交前创建逐镜头门。
+  // 钱门（合同）必须在 Nomi 里批。批完之后，旧剧本那台向渲染层派 production.generate-node 的生成写手已经退役
+  // （发动机收敛第一刀第 4 步；真实渲染层早就拒收这条，只有零额度夹具曾经替它出片）：这一批不派、不花钱，
+  // 停成「需要处理」（legacy_generation_writer_retired），而不是假装在跑或卡在一道永远不来的逐镜门上。
+  // 语义计划那条生成 → 粗剪的路由 mcp-l2-journeys（C9）走。
   await approveCurrentProductionGate(window)
-  await waitForWaitingGate(projectId, runId, 'gate-shot-', 30_000)
-  let atShot = await getRunData(projectId, runId)
-  check(atShot.jobs.every((job) => job.status === 'authorized'), 'first shot gate stops before every provider submission')
-  await openRunFromTaskCenter(window, '02a-shot-1-gate.png')
+  run = await waitForRunStatus(projectId, runId, 'needs_attention', 30_000)
+  const readFullRun = (win) => win.evaluate(async ({ projectId: pid, runId: rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), { projectId, runId })
+  const retiredJobs = (fullRun) => (fullRun?.jobs || []).filter((job) => job.stageId === 'generate')
+  let fullRun = await readFullRun(window)
+  check(retiredJobs(fullRun).length === 8 && retiredJobs(fullRun).every((job) => job.status === 'needs_attention' && job.errorCode === 'legacy_generation_writer_retired'), 'approved legacy script jobs stop as retired instead of dispatching')
+  check(!fullRun.jobs.some((job) => job.providerTaskId) && fullRun.budget.actual === 0 && fullRun.budget.unsettled === 0, 'the retired legacy writer submits nothing and spends nothing')
+  await openRunFromTaskCenter(window, '02a-legacy-retired.png')
 
-  // 在逐镜头门等待时重启真实 Nomi；门与零提交状态必须从磁盘恢复。
+  // 重启真实 Nomi：停下的状态从磁盘恢复，仍然零提交。
   await gui.app.close()
   gui = await launchGui()
   await openProjectFromLibrary(gui.window, projectId)
   const afterRestartCanvas = await callTool('nomi_read', { target: 'canvas', leaseHandle, projectId: semanticProjectId })
   check(afterRestartCanvas.structuredContent?.nodes?.some((node) => node.id === nodeId), 'canvas semantic undo survives real Nomi restart')
-  await openRunFromTaskCenter(gui.window)
-  atShot = await waitForWaitingGate(projectId, runId, 'gate-shot-')
-  check(atShot.jobs.every((job) => job.status === 'authorized'), 'restart recovers the waiting shot gate without submitting or spending')
-  await approveCurrentProductionGate(gui.window)
-
-  // 首镜获批并生成后停样片门；看过样片后，第二镜仍要单独确认。
-  await waitForWaitingGate(projectId, runId, 'gate-sample-', 30_000)
-  const atSample = await getRunData(projectId, runId)
-  check(atSample.status === 'running' && atSample.jobs.filter((job) => job.status === 'adopted').length === 1, 'one approved shot submits exactly once before the sample gate')
-  // 截图要拍到卡本身（拍在开面板之前只会拍到空画布，等于没证据）。
-  await openRunFromTaskCenter(gui.window, '03a-sample-gate.png')
-  await approveCurrentProductionGate(gui.window)
-
-  await waitForWaitingGate(projectId, runId, 'gate-shot-', 30_000)
-  const beforeShotTwo = await getRunData(projectId, runId)
-  const waitingShotGates = beforeShotTwo.gates.filter((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting')
-  check(waitingShotGates.length === 1 && waitingShotGates[0].jobIds.length === 1, 'second shot receives its own durable one-job gate')
-  check(beforeShotTwo.jobs.filter((job) => job.status === 'adopted').length === 1, 'second shot is still unsubmitted before approval')
-  await openRunFromTaskCenter(gui.window, '03b-shot-2-gate.png')
-  await approveCurrentProductionGate(gui.window)
-
-  // The approved storyboard is eight shots. In confirm_all mode every remaining
-  // shot gets the same durable one-job gate; walk them rather than silently
-  // assuming that approving shot two authorizes the whole batch.
-  for (let shotNumber = 3; shotNumber <= 8; shotNumber += 1) {
-    await waitForWaitingGate(projectId, runId, 'gate-shot-', 30_000)
-    const waiting = await getRunData(projectId, runId)
-    const waitingGate = waiting.gates.find((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting')
-    check(waitingGate?.jobIds?.length === 1, `shot ${shotNumber} receives one explicit approval gate`)
-    await approveCurrentProductionGate(gui.window)
-  }
-
-  run = await waitForRunStatus(projectId, runId, 'awaiting_rough_cut_review', 30_000)
-  check(run.jobs.length === 8 && run.jobs.every((job) => job.status === 'adopted'), 'each approved fixture shot reaches adopted exactly once')
-  check(run.artifacts.some((artifact) => artifact.kind === 'video') && run.artifacts.some((artifact) => artifact.kind === 'timeline'), 'generation and assembly produce local video and timeline artifacts')
-  await openRunFromTaskCenter(gui.window)
-  // 获批样张：视频先出封面 + 播放键（原生 controls chrome 在窄卡里又挤又脏），点了才进播放态。
-  check(await gui.window.locator('[data-production-preview] video').count() === 0, 'rough-cut preview starts as a cover, not a raw player')
-  await gui.window.locator('[data-production-preview-open]').click()
-  const roughCutVideo = gui.window.locator('[data-production-preview] video')
-  await roughCutVideo.waitFor({ timeout: 5_000 })
-  check(await roughCutVideo.count() === 1, 'clicking the cover reveals exactly one playable video in Nomi')
-  await gui.window.screenshot({ path: path.join(shotsDir, '03-rough-cut-player.png') })
-
-  await gui.window.locator('[data-production-primary-action]').click()
-  const roughCutConfirm = gui.window.locator('[data-confirm-dialog-confirm="true"]:visible')
-  await roughCutConfirm.waitFor({ timeout: 5_000 })
-  await roughCutConfirm.click()
-  await waitForRunStatus(projectId, runId, 'awaiting_export')
-  await openRunFromTaskCenter(gui.window)
-  await approveCurrentProductionGate(gui.window)
-  run = await waitForRunStatus(projectId, runId, 'completed', 30_000)
-  check(run.budget.actual === 0 && run.budget.unsettled === 0, 'fixture completes with truthful zero actual and unsettled spend')
-  check(run.stages.length === 9 && run.stages.every((stage) => stage.status === 'completed'), 'completed Run reports all 9 production stages complete')
-  const exportArtifact = run.artifacts.find((artifact) => artifact.kind === 'export')
-  check(Boolean(exportArtifact?.artifactId), 'completed Run exposes a scoped export artifact identity')
-
-  const artifactResult = await callTool('nomi_read', { target: 'artifact', projectId, runId, artifactId: exportArtifact.artifactId })
-  const serializedArtifact = JSON.stringify(artifactResult)
-  const artifactData = artifactResult.structuredContent?.nomiRunData
-  check(artifactData.nomiUri === `nomi://project/${projectId}/run/${runId}/artifact/${exportArtifact.artifactId}`, 'MCP returns a scoped nomiUri for the final export')
-  check(!serializedArtifact.includes(tempRoot) && !/providerTaskId|rawPrompt|idempotencyKey/.test(serializedArtifact), 'MCP artifact result leaks no local path, prompt, or provider internals')
-  const previewResponse = await fetch(artifactData.preview.url, { headers: { Range: 'bytes=0-127' } })
-  check([200, 206].includes(previewResponse.status) && (await previewResponse.arrayBuffer()).byteLength > 0, 'expiring loopback preview token authorizes the final MP4 bytes')
-
-  const projectRoot = projectRootFor(projectId)
-  const exportPath = path.join(projectRoot, 'exports', `nomi-${runId}.mp4`)
-  const ffprobePath = require('@ffprobe-installer/ffprobe').path
-  const probe = JSON.parse(execFileSync(ffprobePath, [
-    '-v', 'error', '-show_entries', 'format=duration:stream=codec_type,codec_name', '-of', 'json', exportPath,
-  ], { encoding: 'utf8' }))
-  check(Number(probe.format?.duration) > 0, 'final MP4 has a positive playable duration')
-  check(probe.streams?.some((stream) => stream.codec_type === 'video' && stream.codec_name === 'h264'), 'final MP4 contains H.264 video')
-  check(probe.streams?.some((stream) => stream.codec_type === 'audio' && stream.codec_name === 'aac'), 'final MP4 contains AAC audio')
-
-  // 窄窗（900×700）下的完成态：卡必须仍然装得下（380px 浮层 + 产物预览不挤爆）。
-  await gui.window.setViewportSize({ width: 900, height: 700 })
-  await openRunFromTaskCenter(gui.window)
-  await gui.window.locator('[data-production-tone="success"]').waitFor({ timeout: 10_000 })
-  await gui.window.waitForFunction(() => document.querySelector('[data-production-task-card]')?.textContent?.includes('9 / 9'), undefined, { timeout: 10_000 })
-  check(await gui.window.getByText(/进行中 1|1 进行中/).count() === 0, 'completed task center does not retain a running summary')
-  await gui.window.screenshot({ path: path.join(shotsDir, '04-completed-900x700.png') })
-  check((await gui.window.locator('[data-production-task-card]').textContent())?.includes('9 / 9'), 'completed task card shows 9 / 9 stages')
+  await openRunFromTaskCenter(gui.window, '03-after-restart.png')
+  run = await getRunData(projectId, runId)
+  fullRun = await readFullRun(gui.window)
+  check(run.status === 'needs_attention' && retiredJobs(fullRun).every((job) => job.status === 'needs_attention') && !fullRun.jobs.some((job) => job.providerTaskId), 'restart keeps the retired legacy run stopped without submitting')
   console.log(`\nPRODUCTION MCP JOURNEY PASS: ${passed} assertions`)
   console.log(`  Run: ${runId}`)
-  console.log(`  MP4: ${exportPath}`)
   console.log(`  Screenshots: ${shotsDir}`)
 } catch (error) {
   console.error(error?.stack || error)

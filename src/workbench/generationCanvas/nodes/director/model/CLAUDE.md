@@ -1,6 +1,6 @@
 # director/model/
 > L2 | 父级: ../CLAUDE.md
-> 导演台 V2 的纯层：零 React / 零 THREE，全部可在 node 单测里跑。渲染层与面板只消费这里的求值与判定，不各自算。
+> 导演台 V2 的纯层：零 React、除 directorSpace 外零 THREE（该文件只用几何类与 Box3 量包围盒，无 WebGL），全部可在 node 单测里跑。渲染层与面板只消费这里的求值与判定，不各自算。
 > 成员清单
 > assetFolders.ts: 资产目录祖先链与目标可移动性共用判定；拒绝父环，折叠搜索保留命中祖先
 > rigs.ts: rig无关的语义骨映射、体形预设、关节轴文案键，骨架操作共用
@@ -10,7 +10,8 @@
 > directorNodeMeta.ts: 画布节点 meta 键单一真相（DIRECTOR_NODE_KIND、directorProject、stagingAutoCapture、cameraMoveAutoCapture）：节点卡片 / 迁移器 / AI 来导 / 画布壳的 Host 门都从这里取，零依赖
 > directorProject.ts: 默认工程/图层、normalizeDirectorProject / normalizeScene（unknown → 合法工程 / 图层，逐字段容错，含资产库）、remapSceneIds（图层复制与导入场景共用换 id）、clone、projectStats
 > directorStore.ts: zustand vanilla store 工厂：编辑期真相、互斥选择及子选择归属、完整工程50步撤销、图层操作；withHistory 同步嵌套事务一次入栈且异常回滚，commitProject 是工程唯一写入口；组装各 action 集
-> storeEntityActions.ts: 对象/机位/灯 CRUD、分组解组群众、跨图层复制移动、显隐锁定、经编辑层的 write*SpatialTransform
+> defaultCharacter.ts: 默认角色模板（模型 / 绑定 / 颜色 / 默认群众动作）：「加人」放置与群众（batchCreateCrowd）共用，群众永远和加人是同一个人偶
+> storeEntityActions.ts: 对象/机位/灯 CRUD、分组解组群众（默认角色模板建群众组，一次撤销撤整组）、跨图层复制移动、显隐锁定、经编辑层的 write*SpatialTransform
 > storeClipActions.ts: 路径片段与路标、特写片段、动作片段与骨骼关键帧、视线片段、副轨开关、POV 进入判定（拒绝原因为 i18n key）
 > timeGrid.ts: 30fps 帧格与「内容终点 = 片段末尾」单一真相：quantizeToFrame / sceneContentEndSeconds / ensureDurationSeconds；laneClips = 单泳道集合（机位路径 ∪ 特写争同一段时间、角色各家族只跟自己争），放置 / 拖移 / 拖边 / 粘贴争位置都用它
 > vec3.ts: 零依赖向量数学；lookAtAngles（yaw 从 +Z 起、pitch 正=俯视）、wrapDeg 0–360 / signedDeg ±180（相对转角必须用后者）、eulerXYZToMatrix / applyTransform（等价 three compose）
@@ -26,6 +27,7 @@
 > editLayer.ts: 编辑层三态 rest / keyframe / evaluated-readonly（词表 owner）+ findTrajectoryClipAt / findWaypointAt
 > waypointAim.ts: 单/批路标按各自时间采样目标，转源父空间并按对象XYZ/相机YXZ烘焙朝向；目标metadata只记选择，非动态跟踪
 > trajectoryEval.ts: 路径求值：片段内 Catmull-Rom/线性采样 + 最短弧角度插值，片段后 hold，否则 rest
+> directorEvalMeasurement.ts: 零 three 的预演采样、针孔投影、景别/运镜识别与连续性检查，供 evals/director 与未来 agent 自检共用
 > closeupRig.ts: 目标相对自动运镜：锚点/方位/8 种运镜预设 → 机位位姿；findCloseupClipAt
 > programCamera.ts: 节目机位：按轨道顺序取有片段覆盖 t 的第一台，否则黑场
 > pathTools.ts: 手绘路径按弧长重采样（≤200 点）+ 按弧长分配时间
@@ -37,6 +39,11 @@
 > storeCameraActions.ts: 机位级动作：进出 POV（受 canEnterCameraPOV 门）、Shift+A 固化当前视角为「机位 N」、角色轨 / 机位轨创建特写（建完选中机位 + 那段特写）、录制运镜起 / 停 / 放弃（简化成关键帧）、特写烘焙成路径（固定 12 个等距样本）
 > exportSize.ts: 出片尺寸与帧数单一真相：分辨率档给短边、画幅比给宽高比（free = 视口比）、宽高取偶；30fps、总帧 = 内容末 × 30、上限 1800
 > storeOutputActions.ts: 产物动作：截图 / 视频增删（只存资产句柄）、录制进度瞬态
+> directorSpace.ts: 空间事实唯一 owner：图元几何表（渲染 PrimitiveEntity 与量尺共读）、three Box3 量出的包围盒（scaledBounds 按对象量：图元 / 角色用渲染真值，模型用加载后实量 measuredBounds，没量过 1 米兜底、boundsSource 标 nominal；measureObjectBounds 由 ModelEntity 调用）、唯一的「底 / 中心 → 原点」换算（originYForBottom / originYForCenter）、角色身高与脚印；编译器 / 测量 / AI 搭场景都从这里量，不各抄一份；视线线段穿盒判断 segmentBlocked（three Ray.intersectBox）
+> directorSpatialAudit.ts: 编译产物的物理六判据（不悬空 / 不互穿 / 只有一个地面高度 / 机位不在物体里 / 看得见主体 / 携带物跟人走），评测打分的 P 层；包围盒只读 directorSpace
+> compiler/directorStage.ts: 编译器的舞台模型（计划 → 舞台）：每件东西带舞台种类 / 角色 / 尺寸来源 / 朝向，模板命名站位与可站区域，布景件同名合并（辅助分组保住 setPiece id）；摆位、走位、机位只读舞台，不从名字和 scale 反推
+> compiler/stageRelations.ts: 关系词 → 站位与朝向（按舞台角色解释，一条距离公式管人 / 车 / 家具）、走位终点（走到站位，站位有人就停在他跟前面对他）、落脚点不进实心物体的唯一规则 clearOfSolids、携带分组 carryGroups（拿在手里 = 人和东西挂在同一分组下，编辑器父子关系，父级只能是分组）
+> compiler/stageSightline.ts: 机位视线：镜头窗口内机位到主体中心 / 瞄准点被谁挡（墙、布景、别的人一条规则），被挡就对整条路径找看得见、不越轴的候选（绕主体转 / 抬高 / 拉近，静止仍静止、跟拍仍跟拍、接续镜头不挪起点），换遍仍挡由编译器报 occluded
 > aiScene.ts: AI 搭场景纯层：zod 契约（sceneName / sceneConfig / groups[elements]）、容错解析（剥围栏抓 JSON）、类型名 → 八种几何体、旋转弧度启发式（全部 |r| ≤ 2π）、提示词模板、固定夹具「街角咖啡馆」
 > storeAiSceneActions.ts: AI 场景物化：当前图层固定为请求发起层并校验仍存在，或创建/激活新图层；几何分组与可选资产句柄在同一工程事务落下，一次撤销
 > assetKinds.ts: 资产类型判定单一真相（后缀 / MIME → model / splat / panorama / scene）+ 上传 accept 串，资产库与连线引用共用
@@ -49,5 +56,6 @@
 > poseBlend.ts: 动作混合纯数学：片段头 0.25s 淡入（上一片段间隙 <0.2s 从其末帧交叉，否则从静止）/ 片段尾不淡出 / 片段外：相邻间隙 ≤0.5s 交叉、否则尾后 0.25s 淡回静止；姿态片段不参与交叉；custom_pose 关键帧对与插值系数
 > lookAtSolve.ts: 视线纯数学：片段权重缓入缓出、头部相对身体 yaw/pitch 限幅 + 超限 smoothstep 衰减、颈 0.15 / 脊 0.3 / 头 0.55 分配
 > *.test.ts: 与同名模块对照参考数值案例的单测
+> directorPreviewState.ts: 3D-BOX 预演状态唯一判据：读 directorPlan / directorPreview meta、directorPreviewSpendBlock（渲染中 / 失败挡生成，最新一份为准）、按生成操作找被挡的镜头；runner 与 generate 预检共用
 > 法则: 成员完整·一行一文件·父级链接·技术词前置
 > [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

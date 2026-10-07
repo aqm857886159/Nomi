@@ -14,7 +14,8 @@ import {
   canvasWriteSemanticInputSchema,
   type CanvasWriteInput,
 } from "../shared/agentCapabilities/canvasWrite";
-import { buildCanvasWriteAdmissionForOperation } from "../shared/agentCapabilities/canvasWriteEvidence";
+import { buildCanvasWriteAdmissionForOperation, buildDirectorWriteAdmission } from "../shared/agentCapabilities/canvasWriteEvidence";
+import { DIRECTOR_WRITE_CAPABILITY, directorWriteReferenceIds, directorWriteSemanticInputSchema, type DirectorWriteInput } from "../shared/agentCapabilities/directorWrite";
 import {
   DOCUMENT_READ_CAPABILITY,
   documentReadSemanticInputSchema,
@@ -61,6 +62,7 @@ import {
   CANVAS_DELETE_INVOCATION_POLICY_REVISION,
   CANVAS_READ_INVOCATION_POLICY_REVISION,
   CANVAS_WRITE_INVOCATION_POLICY_REVISION,
+  DIRECTOR_WRITE_INVOCATION_POLICY_REVISION,
   DOCUMENT_WRITE_INVOCATION_POLICY_REVISION,
   EXPORT_READ_INVOCATION_POLICY_REVISION,
   EXPORT_WRITE_INVOCATION_POLICY_REVISION,
@@ -349,6 +351,56 @@ export function createRendererCanvasWriteVerifiedInvocationFactory(
   });
 }
 
+export type RendererDirectorWriteVerifiedInvocationFactory = Readonly<{
+  mint(
+    input: Readonly<{ toolCallId: string; input: unknown; rawEvidence: unknown }>,
+  ): Promise<VerifiedCapabilityInvocation<DirectorWriteInput, Extract<TargetRef, { kind: "canvas" }>>>;
+}>;
+
+/** Same main-only mint boundary as canvas.write; only the semantic contract differs. */
+export function createRendererDirectorWriteVerifiedInvocationFactory(
+  input: Readonly<{
+    registry: CanvasReadSurfaceRegistry;
+    session: ProjectSurfaceSession;
+    requestId: string;
+  }>,
+): RendererDirectorWriteVerifiedInvocationFactory {
+  try {
+    assertCanvasReadSurfaceRegistry(input.registry);
+    input.registry.resolveProjectSession(input.session);
+  } catch {
+    throw new CapabilityInvocationError("capability_authority_invalid");
+  }
+  const requestId = nonEmptyString(input.requestId);
+  const registry = input.registry;
+  const session = input.session;
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue, rawEvidence }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: DirectorWriteInput;
+      try {
+        semanticInput = deepFreeze(directorWriteSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const admission = buildDirectorWriteAdmission(rawEvidence, directorWriteReferenceIds(semanticInput));
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => rendererEvidence(await registry.verifyProjectSession(session), caller);
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: DIRECTOR_WRITE_CAPABILITY,
+        policyRevision: DIRECTOR_WRITE_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        evidence,
+        revalidate: verify,
+        target: admission.target,
+        preconditions: admission.preconditions,
+        executionTarget: Object.freeze({ kind: "canvas-write-surface" as const, session }),
+      });
+    },
+  });
+}
+
 export type RendererCanvasDeleteVerifiedInvocationFactory = Readonly<{
   mint(
     input: Readonly<{ toolCallId: string; input: unknown; rawEvidence: unknown }>,
@@ -409,7 +461,9 @@ function timelinePreconditions(input: TimelineReadInput | TimelineWriteInput): P
     return Object.freeze({ timeline: Object.freeze({ revision: input.baseRevision }) });
   }
   if (input.operation === "undo_timeline_edit") {
-    return Object.freeze({ timeline: Object.freeze({ revision: input.expectedRevision }) });
+    return typeof input.expectedRevision === "string"
+      ? Object.freeze({ timeline: Object.freeze({ revision: input.expectedRevision }) })
+      : EMPTY_PRECONDITIONS;
   }
   return EMPTY_PRECONDITIONS;
 }

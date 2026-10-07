@@ -32,7 +32,7 @@ import { createClipId, createKeyframeId, createWaypointId } from './directorIds'
 import type { CommitProject, SelectedClipType, StoreGet, StoreSet } from './directorStore'
 import type { ActionClip, BoneKeyframe, CloseupClip, DirectorCamera, DirectorObject, LookAtClip, TimelineEntity, TrajectoryClip, Vec3, Waypoint } from './directorTypes'
 import { findTrajectoryClipAt } from './editLayer'
-import { entityClips, FRAME_EPSILON, laneClips, quantizeToFrame, secondsToFrame } from './timeGrid'
+import { FRAME_EPSILON, laneClips, quantizeToFrame, secondsToFrame, syncInTimeline } from './timeGrid'
 
 export type ClipFamily = Exclude<SelectedClipType, null>
 export type InsertMode = 'append' | 'prepend' | 'at_time'
@@ -88,10 +88,6 @@ function familyClips(entity: TimelineEntity, family: ClipFamily): ClipLike[] | u
     default:
       return undefined
   }
-}
-
-function syncInTimeline(entity: TimelineEntity): void {
-  entity.inTimeline = entityClips(entity).length > 0
 }
 
 // 放置：首选位置塞得下就落；塞不下但空档够就缩短到空档；否则退到下一个空位（规则住 clips.fitClipAt）。

@@ -5,6 +5,12 @@
   "matrix": { "entrances": 10, "cases": 7 },
   "sites": [
     {
+      "site": "electron/capabilityCore/canvasTransportProvider.ts::runTask",
+      "count": 1,
+      "entrances": ["canvas-node-run"],
+      "note": "画布单节点 ↑ 收敛后的那条路：单镜 Run 的提交出口 → 画布传输执行器 → 这里（lazyCanvasTransport）带 RUN_APPROVED_ADMISSION 调运行时的 runTask（同一段传输，批准在 Run 的门上）。"
+    },
+    {
       "site": "src/workbench/generationCanvas/runner/catalogTaskActions.ts::runTask",
       "count": 1,
       "entrances": ["canvas-node", "shot-table-row", "retake"],
@@ -15,12 +21,6 @@
       "count": 1,
       "entrances": ["canvas-node", "shot-table-row", "retake"],
       "note": "上面那条的 IPC 落点（带幂等键）。"
-    },
-    {
-      "site": "electron/capabilityCore/core.ts::runTaskFn",
-      "count": 2,
-      "entrances": ["external-mcp-generate"],
-      "note": "两处＝主路一次 + I2V 两跳的首帧那一跳。两处都不做 @ 引用的最终投影（A5）。"
     },
     {
       "site": "electron/capabilityCore/modelOnboarding/tryModel.ts::deps.runTask",
@@ -99,11 +99,6 @@
       "site": "electron/tasks/comfyCandidateTest.ts::dependencies.runTask",
       "count": 1,
       "reason": "ComfyUI 候选工作流自检，不产出用户作品。"
-    },
-    {
-      "site": "electron/capabilityCore/shotVerifyDeps.ts::runTaskFn",
-      "count": 2,
-      "reason": "审片判分（image_to_prompt / 打分），产出的是判词不是作品。"
     },
     {
       "site": "electron/video/deconstructVideo.ts::runTask",

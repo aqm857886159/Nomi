@@ -1,5 +1,5 @@
 import type { ProductionJob, ProductionJobStatus, ProductionRun } from "../productionRun/productionRunTypes";
-import { latestJobForShot, shotIncluded } from "./productionShotJobs";
+import { currentShotAttempt, jobEndedBeforeAcceptance, latestJobForShot, shotIncluded } from "./productionShotJobs";
 import { isStoppedRunStatus } from "./productionRunStop";
 import { spendAuthorizationGates } from "./productionSpendAuthority";
 import { draftCardHidden } from "./productionGenerationPresentation";
@@ -81,7 +81,11 @@ export function decideShotClaim(
   // a detached or claimed shot may finish an already-paid attempt, but never starts a new one.
   if (job && NEEDS_RECONCILE.has(job.status)) return decision("production", "needs_reconcile", requester);
   if (job && IN_FLIGHT.has(job.status)) return decision("production", "in_flight", requester);
-  if (claim?.by === "canvas" && claim.attempt === (job?.attempt ?? 1)) {
+  // 最近一次尝试**确定**结束在被受理之前（证明过没离开本机 / 供应商当场明确拒绝）：没花钱、制作也不会再自己发它，
+  // 这一镜立刻回到画布手里——不管计划有没有记成「已交」。以前这一条只在「已交」那一支里判，单镜 Run 在受理之前
+  // 失败时计划还停在「已封」，于是落进下面的 awaiting_confirmation，画布永远认领不到（L-claim，2026-10-06）。
+  if (job && jobEndedBeforeAcceptance(job)) return decision("canvas", "terminal", requester);
+  if (claim?.by === "canvas" && claim.attempt === currentShotAttempt(run, shotId)) {
     return decision("canvas", "canvas_claimed", requester);
   }
   if (detached) return decision("canvas", "canvas_detached", requester);

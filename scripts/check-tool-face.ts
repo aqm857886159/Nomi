@@ -16,6 +16,9 @@
  *   pnpm exec tsx scripts/check-tool-face.ts                    校验
  *   pnpm exec tsx scripts/check-tool-face.ts --update-baseline  重算棘轮基线（只许变小）
  */
+// 3D-BOX 开关引导模块必须第一个导入：工具注册表在导入期按它装配（CI 的开关开 job 用 NOMI_DESKTOP_DEV=1 NOMI_DIRECTOR_3DBOX=true 跑同一份门岗）。
+import "../electron/shared/featureFlags/director3dbox";
+import { director3dBoxFaceEnabled } from "../electron/shared/featureFlags/director3dboxFace";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +27,8 @@ import type { VerbDeclaration } from "../electron/shared/agentCapabilities/verbD
 import type { JsonSchemaObject } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const baselinePath = path.join(repoRoot, "scripts", "tool-face-baseline.json");
+// 3D-BOX 开关开的那张面单独一份基线（到期 2026-11-15 随开关一起删）：开关开时旧 stage_shot 不装配，它的存量身份不在。
+const baselinePath = path.join(repoRoot, "scripts", director3dBoxFaceEnabled() ? "tool-face-baseline.director3dbox.json" : "tool-face-baseline.json");
 
 export type RuleId =
   | "single-description-owner"

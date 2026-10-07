@@ -3,9 +3,10 @@
  *          ./webglContextRecovery 的 attachWebGLContextRecovery、./SceneRegistryContext、./sceneRefs、
  *          ./environment/{SkyGround, PanoramaSphere, SparkHost}、./entities/DirectorEntities、./ViewCamera、./TransformGizmo、./SelectionOutline、./LabelProjector、
  *          ./useViewportPicking、./useTimelinePlayback、./creation/CreationGhosts、./creation/usePathDraw 的 PathDrawGhostState、./TrajectoryVisuals、
- *          ./PipRenderer（画中画剪裁渲染）、./E2EBridge（E2E 取证桥）、./capture/CaptureBinder（出片渲染登记）、../useCameraMotionRecorder 的 RecordingGhostState、./ViewportApiContext
+ *          ./PipRenderer（画中画剪裁渲染）、./HideEditingHelpers（导演视图收编辑辅助物）、./E2EBridge（E2E 取证桥）、./capture/CaptureBinder（出片渲染登记）、../useCameraMotionRecorder 的 RecordingGhostState、./ViewportApiContext
  *          ../DirectorEditorContext 的 recording：录制运镜中消费视图立方点击，防止跳机位
- * [OUTPUT]: 对外提供 DirectorCanvas：主视口的 R3F 画布（frameloop always、阴影、上下文丢失恢复）+ 全部场景子系统 + 视图立方
+ * [OUTPUT]: 对外提供 DirectorCanvas：主视口的 R3F 画布（frameloop always、阴影、上下文丢失恢复）+ 全部场景子系统 + 视图立方；
+ *           presentation='director'（3D-BOX 导演视图）时不挂视图立方、收掉编辑辅助物、画中画跟节目机位
  * [POS]: director/scene 的装配根：DOM 层只把 refs/回调传进来，three 世界的一切从这里长出去。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,6 +26,7 @@ import { E2EBridge } from './E2EBridge'
 import { CaptureBinder } from './capture/CaptureBinder'
 import { PipRenderer } from './PipRenderer'
 import { TrajectoryVisuals } from './TrajectoryVisuals'
+import { HideEditingHelpers } from './HideEditingHelpers'
 import { DirectorEntities } from './entities/DirectorEntities'
 import { SkyGround } from './environment/SkyGround'
 import { PanoramaSphere } from './environment/PanoramaSphere'
@@ -54,6 +56,7 @@ export type DirectorCanvasProps = {
   aspect: number
   onLabels: (labels: ProjectedLabel[]) => void
   onPovRejected: (reasonKey: string) => void
+  presentation?: 'edit' | 'director'
 }
 
 function PickingBinder({ enabledRef, onPovRejected }: { enabledRef: React.MutableRefObject<boolean>; onPovRejected: (reasonKey: string) => void }): null {
@@ -72,6 +75,7 @@ function ContextRecovery(): null {
   return null
 }
 
+/** 视图立方住右下：右上是精修属性卡出现的地方（2026-10-04「选中才出」），卡一出就把它盖住。 */
 function ViewCube(): JSX.Element {
   const recording = useDirectorStore((state) => Boolean(state.recording))
   const groupRef = React.useRef<THREE.Group>(null)
@@ -80,7 +84,7 @@ function ViewCube(): JSX.Element {
   }, [])
   return (
     <group ref={groupRef}>
-      <GizmoHelper alignment="top-right" margin={[56, 56]}>
+      <GizmoHelper alignment="bottom-right" margin={[56, 56]}>
         <GizmoViewcube color="#2a2d33" hoverColor="#3b82f6" textColor="#e5e7eb" strokeColor="#6b7280" opacity={0.9} font="20px sans-serif" onClick={recording ? (event) => { event.stopPropagation(); return null } : undefined} />
       </GizmoHelper>
     </group>
@@ -115,9 +119,9 @@ export function DirectorCanvas(props: DirectorCanvasProps): JSX.Element {
         <PickingBinder enabledRef={props.pickingEnabledRef} onPovRejected={props.onPovRejected} />
         <PlaybackBinder />
         <LabelProjector onLabels={props.onLabels} />
-        <ViewCube />
+        {props.presentation === 'director' ? <HideEditingHelpers /> : <ViewCube />}
         <SelectionOutline />
-        <PipRenderer rectRef={props.pipRectRef} />
+        <PipRenderer rectRef={props.pipRectRef} followProgram={props.presentation === 'director'} />
         <CaptureBinder />
         <E2EBridge />
       </SceneRegistryContext.Provider>

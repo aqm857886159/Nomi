@@ -94,11 +94,11 @@ export function operationIdOf(text) {
 
 /**
  * App 自己在后台发起、次数不定的文本调用（不是用户这一轮）：给它们一个像样的回答，别让夹具判成「计划外请求」。
- *   · 出图后的镜级审片（`electron/capabilityCore/shotVerifyCore.ts`）：回一份中规中矩的分数。
+ *   · 出图后的镜级审片（`src/workbench/generationCanvas/agent/shotVerify.ts`）：回一份中规中矩的分数。
  */
 export function standingBackgroundResponders(fixture) {
   fixture.respond({
-    label: 'shot review after an image lands (shotVerifyCore)',
+    label: 'shot review after an image lands (shotVerify)',
     match: (body) => flattenRequestText(body).includes('资深影视分镜审片'),
     reply: { type: 'text', text: '{"reason":"画面与提示词一致","scores":{"identity":4,"aesthetics":4,"intent":4}}' },
   })

@@ -48,6 +48,9 @@ describe('关键词块：命中才注入', () => {
     ['准备合并这个 PR，先跑 delivery:preflight', '【交付 · R11/R22】'],
     ['pnpm run gates 红了', '【命令全表】'],
     ['check:filesize 红了', '不许抬基线或预算挤 PR(R17)'],
+    ['这个又坏了，再修一轮', '【方向检查 · RW】'],
+    ['已经是第五轮了还是不对', '【方向检查 · RW】'],
+    ['派工给子 agent 做', '【派工 · 省 token】'],
   ]
   for (const [prompt, expected] of cases) {
     test(`「${prompt}」→ ${expected}`, () => {
@@ -63,6 +66,18 @@ describe('关键词块：命中才注入', () => {
     assert.match(out, /最多 3 个在等收据/)
     assert.match(out, /收据红了立刻停/)
     assert.doesNotMatch(out, /上一个合入没有收据，就不合下一个/)
+  })
+})
+
+describe('方向检查块：只在反复修信号出现时注入，普通 bug 与第 1-2 轮不触发', () => {
+  test('普通修 bug 只有修根因块，没有方向检查块', () => {
+    const out = inject('有个 bug 要修')
+    assert.doesNotMatch(out, /【方向检查 · RW】/)
+    assert.ok(out.includes("方向检查(RW)"))
+  })
+  test('第 2 轮不触发，第 3 轮触发', () => {
+    assert.doesNotMatch(inject('这是第 2 轮'), /【方向检查 · RW】/)
+    assert.match(inject('这是第 3 轮'), /【方向检查 · RW】/)
   })
 })
 

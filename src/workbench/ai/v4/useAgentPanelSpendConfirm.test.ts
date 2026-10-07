@@ -1,29 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
-import { hasPendingSpendCapability, pendingSpendOfRead } from './useAgentPanelSpendConfirm'
-import { getDesktopBridge } from '../../../desktop/bridge'
-
-vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: vi.fn() }))
+import { pendingSpendOfRead } from './useAgentPanelSpendConfirm'
 
 const ROW = { operationId: 'op-1', projectId: 'project-1', shots: [] } as never
 
-describe('spend surface capability guard（preload 静态面）', () => {
-  it('reports unavailable without pendingSpend capability', () => {
-    vi.mocked(getDesktopBridge).mockReturnValue({ productionRuns: {} } as never)
-    expect(hasPendingSpendCapability()).toBe(false)
-  })
-  it('reports available when pendingSpend exists', () => {
-    vi.mocked(getDesktopBridge).mockReturnValue({ productionRuns: { pendingSpend: vi.fn() } } as never)
-    expect(hasPendingSpendCapability()).toBe(true)
-  })
-})
-
-// 主进程那份读结果 → 卡上该有什么。2026-09-14：三种现实各走各的路——
-//   ready + rows → 第一笔；ready + [] → 没有；off → 没有卡也**没有错**（本会话按配置没装这条面）。
-// 只有主进程真的**拒绝**（装配抛了）才走 catch 渲那张会说话的卡；那条路在 missingInterventionCard.test.ts。
+// 推过来的那份读结果 → 卡上该有什么（2026-09-14 定三种现实；2026-10-05 起它随对话投影推来，不再轮询）：
+//   ready + rows → 第一笔；ready + [] → 没有；off → 没有卡也**没有错**（本会话按配置没装这条面）；
+//   缺席（这一侧没接读口）→ 没有。unreadable 不在这里：它是一张会说话的卡，那条路在 missingInterventionCard.test.ts。
 describe('pendingSpendOfRead：off 不是失败', () => {
   it('ready 就取第一笔', () => {
     expect(pendingSpendOfRead({ surface: 'ready', rows: [ROW] })).toBe(ROW)
     expect(pendingSpendOfRead({ surface: 'ready', rows: [] })).toBeUndefined()
+  })
+  it('投影里还没有这一项 / 读不到：都不是「卡上那一笔」', () => {
+    expect(pendingSpendOfRead(undefined)).toBeUndefined()
+    expect(pendingSpendOfRead({ surface: 'unreadable', reason: 'projection-failed' })).toBeUndefined()
   })
   it.each([
     { surface: 'off', phase: 'disabled', reason: 'env' },

@@ -9,7 +9,9 @@ import {
   IconRefresh,
 } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
+import { AnchoredPopover } from '../../../../design'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
+import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import { resolveResultTargetShotIndex } from '../storyboardDInteractions'
 import type { ShotVariant } from './shotVariants'
@@ -99,18 +101,22 @@ function ResultIntakeMenu({
 }): JSX.Element {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
+  const anchorRef = React.useRef<HTMLDivElement>(null)
   const [targetPosition, setTargetPosition] = React.useState(() => resolveResultTargetShotIndex(allShots, sourcePosition) ?? -1)
   const targetPositionOf = (target: PlanShot): number => allShots.findIndex((candidate) => (
     (candidate.shotId ?? `index:${candidate.index}`) === (target.shotId ?? `index:${target.index}`)
   ))
   return (
-    <div className="relative">
+    <div ref={anchorRef} className="relative">
       <ActButton label={t('storyboardEditor.resultIntake.useAs')} onClick={() => setOpen((value) => !value)}>
         <IconArrowUpRight size={14} stroke={1.8} />
       </ActButton>
       {open ? (
+        // Portal 贴锚点：行在表格的 overflow-hidden 里，原地 absolute 的菜单在最后一行会被裁成一条边。
+        <AnchoredPopover anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div
-          className="absolute left-0 top-full z-20 mt-1 flex min-w-40 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md"
+          className="flex min-w-40 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md"
+          data-storyboard-result-intake-menu="true"
           onPointerDown={(event) => event.stopPropagation()}
         >
           <button
@@ -148,6 +154,7 @@ function ResultIntakeMenu({
             </>
           ) : null}
         </div>
+        </AnchoredPopover>
       ) : null}
     </div>
   )
@@ -211,13 +218,13 @@ export default function StoryboardFrameActions({
           type="button"
           onClick={() => { if (recovering) return; setRecovering(true); onRecover() }}
           disabled={recovering}
-          title={t('storyboardEditor.frame.recoverableHint')}
-          aria-label={t('storyboardEditor.frame.recoverableRefetch')}
+          title={t(recoverableHintKey(exec.recoverableNode))}
+          aria-label={t('generationCommon.production.runAction.retry-retrieval')}
           data-storyboard-recover="true"
           className="h-6 px-2 rounded-nomi-sm border border-nomi-line text-micro text-nomi-ink-80 inline-flex items-center gap-1 hover:border-nomi-accent hover:text-nomi-accent disabled:opacity-50"
         >
           <IconRefresh size={12} stroke={1.8} className={cn(recovering && 'animate-spin')} />
-          {recovering ? t('storyboardEditor.frame.recoverableRefetching') : t('storyboardEditor.frame.recoverableRefetch')}
+          {recovering ? t('storyboardEditor.frame.recoverableRefetching') : t('generationCommon.production.runAction.retry-retrieval')}
         </button>
       ) : null}
       {hasResult && !locked ? (

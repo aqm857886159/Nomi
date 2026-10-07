@@ -45,6 +45,7 @@ import { assetReadSemanticInputSchema } from "./shared/agentCapabilities/assetRe
 import { exportReadSemanticInputSchema, exportWriteSemanticInputSchema } from "./shared/agentCapabilities/exportCapabilities";
 import { timelineReadSemanticInputSchema } from "./shared/agentCapabilities/timelineRead";
 import { timelineWriteSemanticInputSchema } from "./shared/agentCapabilities/timelineWrite";
+import { DIRECTOR_WRITE_OPERATIONS } from "./shared/agentCapabilities/directorWrite";
 
 type Invoke = (channel: string, payload: unknown) => Promise<unknown>;
 type SurfaceReadEvents = Readonly<{
@@ -102,24 +103,31 @@ function documentWriteRequest(value: unknown): DocumentWriteSurfaceRequestWire |
   return request as unknown as DocumentWriteSurfaceRequestWire;
 }
 
-function canvasWriteCaptureRequest(value: unknown): CanvasWriteCaptureSurfaceRequestWire | null {
+/** 画布写取证的操作白名单（手写，preload 是信任边界）。开关关时就是这 10 个，一个不多。 */
+export const CANVAS_WRITE_CAPTURE_OPERATIONS = Object.freeze([
+  "set_node_prompt",
+  "create_canvas_nodes",
+  "connect_canvas_edges",
+  "tidy_canvas",
+  "propose_storyboard_plan",
+  "patch_shots",
+  "arrange_storyboard_to_timeline",
+  "create_staging_reference",
+  "create_camera_move",
+  "delete_canvas_nodes",
+] as const);
+
+/** 3D-BOX 开关开时**追加**的两个（`director.write`，仅内部）；值来自 preload 核对过指纹的那份开关证明。 */
+export function canvasWriteCaptureOperations(director3dbox: boolean): readonly string[] {
+  return director3dbox ? [...CANVAS_WRITE_CAPTURE_OPERATIONS, ...DIRECTOR_WRITE_OPERATIONS] : CANVAS_WRITE_CAPTURE_OPERATIONS;
+}
+
+function canvasWriteCaptureRequest(value: unknown, allowed: readonly string[]): CanvasWriteCaptureSurfaceRequestWire | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const request = value as Record<string, unknown>;
   if (typeof request.requestId !== "string" || !request.requestId.trim()) return null;
   if (!request.binding || typeof request.binding !== "object" || Array.isArray(request.binding)) return null;
-  if (
-    request.operation !== "set_node_prompt" &&
-    request.operation !== "create_canvas_nodes" &&
-    request.operation !== "connect_canvas_edges" &&
-    request.operation !== "tidy_canvas" &&
-    request.operation !== "propose_storyboard_plan" &&
-    request.operation !== "patch_shots" &&
-    request.operation !== "arrange_storyboard_to_timeline" &&
-    request.operation !== "create_staging_reference" &&
-    request.operation !== "create_camera_move" &&
-    request.operation !== "delete_canvas_nodes"
-  )
-    return null;
+  if (typeof request.operation !== "string" || !allowed.includes(request.operation)) return null;
   if (request.operation === "set_node_prompt" && (typeof request.nodeId !== "string" || !request.nodeId.trim()))
     return null;
   if (request.operation !== "set_node_prompt" && !Object.prototype.hasOwnProperty.call(request, "input")) return null;
@@ -210,7 +218,9 @@ const sameSurfaceAuthority = sameSurfacePortBindingWire;
 export function createCanvasReadSurfacePreloadBridge(
   invoke: Invoke,
   events?: SurfaceReadEvents,
+  options: Readonly<{ director3dbox?: boolean }> = {},
 ): CanvasReadSurfaceBridge {
+  const captureOperations = canvasWriteCaptureOperations(options.director3dbox === true);
   const runCancellable = (
     request: Readonly<{ requestId: string; binding: SurfacePortBindingWire }>,
     run: (signal: AbortSignal) => unknown | Promise<unknown>,
@@ -356,7 +366,7 @@ export function createCanvasReadSurfacePreloadBridge(
     onCanvasWriteCapture(handler) {
       if (!events) throw new SurfacePortWireError("surface_port_unavailable");
       return events.subscribe(SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL, (payload) => {
-        const request = canvasWriteCaptureRequest(payload);
+        const request = canvasWriteCaptureRequest(payload, captureOperations);
         if (!request) return;
         let result: unknown | Promise<unknown>;
         try {

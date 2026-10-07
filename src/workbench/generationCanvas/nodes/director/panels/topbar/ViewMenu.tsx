@@ -2,16 +2,18 @@
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design 的 NomiSegmented / WorkbenchIconButton、../../../../../../vendor/tablerIcons、../Popover、
  *          ../../DirectorEditorContext、../../model/directorTypes（导出画幅 / 分辨率枚举 / 显示模式）、../fields/FieldPrimitives 的 ToggleField
  * [OUTPUT]: 对外提供 ViewMenu：顶栏「视图 ▾」——几何体显示（实体 / 半透 / 白模）· 导出画幅 8 比例 + 自由 · 导出分辨率 3 档 ·
- *           三分线 / 骨骼与 IK 把手 / 角色头部标签三个视口开关 · 偏好设置与帮助入口
+ *           三分线 / 骨骼与 IK 把手 / 角色头部标签三个视口开关 · 偏好设置与帮助入口；
+ *           触发器是文字「视图 ▾」、菜单首项「重置视角 0」（2026-10-04：原来的 ◐ 图标会被读成「主题」、单独的 ↻ 会被读成「刷新」）
  * [POS]: director/panels/topbar 的视图簇。2026-09-09 收纳：画幅原住视口底栏，显示模式 + 设置 + 帮助原住视口右下角，
  *        骨骼把手原被误放在底栏（它是视口显示开关，不是角色属性）。三处都是低频项，按设计系统 §1.5.3 收进一个 ▾。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NomiSegmented, WorkbenchIconButton } from '../../../../../../design'
-import { IconAdjustments, IconContrast, IconHelp } from '../../../../../../vendor/tablerIcons'
+import { NomiSegmented } from '../../../../../../design'
+import { IconAdjustments, IconChevronDown, IconFocusCentered, IconHelp } from '../../../../../../vendor/tablerIcons'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
+import { DIRECTOR_HOTKEYS, formatHotkey } from '../../model/hotkeys'
 import {
   DIRECTOR_EXPORT_RATIOS,
   DIRECTOR_EXPORT_RESOLUTIONS,
@@ -28,7 +30,7 @@ function resolutionLabel(resolution: DirectorExportResolution): string {
   return resolution === '4k' ? '4K' : `${resolution}p`
 }
 
-export function ViewMenu({ onOpenSettings, onOpenHelp }: { onOpenSettings?: () => void; onOpenHelp?: () => void }): JSX.Element {
+export function ViewMenu({ onOpenSettings, onOpenHelp, onResetView }: { onOpenSettings?: () => void; onOpenHelp?: () => void; onResetView: () => void }): JSX.Element {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const [open, setOpen] = React.useState(false)
@@ -46,17 +48,31 @@ export function ViewMenu({ onOpenSettings, onOpenHelp }: { onOpenSettings?: () =
       onClose={() => setOpen(false)}
       panelClassName="w-[292px] p-3"
       trigger={
-        <WorkbenchIconButton
-          size="sm"
-          icon={<IconContrast size={16} stroke={1.9} />}
-          label={t('director.topbar.viewMenu')}
-          aria-pressed={open}
-          className={open ? 'bg-nomi-accent-soft text-nomi-accent' : ''}
+        <button
+          type="button"
+          className="flex h-7 items-center gap-1 rounded-nomi-sm px-2 text-body-sm text-nomi-ink transition-colors hover:bg-workbench-hover aria-expanded:bg-nomi-accent-soft aria-expanded:text-nomi-accent"
+          aria-expanded={open}
+          aria-haspopup="dialog"
           data-testid="director-view-menu"
           onClick={() => setOpen((value) => !value)}
-        />
+        >
+          {t('director.topbar.viewMenu')}
+          <IconChevronDown size={14} stroke={1.9} className="text-nomi-ink-40" />
+        </button>
       }
     >
+      <div className="-mx-1 mb-2 border-b border-nomi-line-soft pb-1">
+        <PopoverItem
+          onClick={() => {
+            setOpen(false)
+            onResetView()
+          }}
+        >
+          <IconFocusCentered size={16} stroke={1.9} />
+          <span className="flex-1 text-left">{t('director.viewMenu.resetView')}</span>
+          <kbd className="rounded border border-nomi-line bg-nomi-bg px-1 font-nomi-mono text-micro text-nomi-ink-40">{formatHotkey(DIRECTOR_HOTKEYS.resetCamera)}</kbd>
+        </PopoverItem>
+      </div>
       <div className="mb-1 text-caption font-semibold text-nomi-ink-80">{t('director.viewMenu.display')}</div>
       <NomiSegmented
         ariaLabel={t('director.displayMode.aria')}

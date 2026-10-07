@@ -71,6 +71,7 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
       return {
         applied: true,
         proposalId: receiptProposalId,
+        changeId: `canvas:v1:${receiptProposalId}`,
         operation,
         result: { persisted: true, operation },
         reconciliation: { ok: true, deviationCount: 0 },
@@ -80,6 +81,7 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
       ? {
           applied: true,
           proposalId: receiptProposalId,
+          changeId: `canvas:v1:${receiptProposalId}`,
           operation: "tidy_canvas",
           affectedNodeIds: ["node-real"],
           categoryId: "shots",
@@ -89,6 +91,7 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
       : {
           applied: true,
           proposalId: receiptProposalId,
+          changeId: `canvas:v1:${receiptProposalId}`,
           operation: "set_node_prompt",
           affectedNodeIds: ["node-real"],
           reconciliation: { ok: true, deviationCount: 0 },
@@ -215,6 +218,7 @@ describe("canvas.write Pi transport", () => {
       result: {
         applied: true,
         proposalId: "receipt-a",
+        changeId: "canvas:v1:receipt-a",
         operation: "set_node_prompt",
         affectedNodeIds: ["node-real"],
         reconciliation: { ok: true, deviationCount: 0 },
@@ -413,4 +417,34 @@ it('publishes a safe actionable import failure without raw renderer messages', a
   expect(result).toEqual({ ok: false, code: 'capability_execution_failed', reason: 'no-disk-space',
     message: 'The artifact could not be saved because the project disk has insufficient free space.' });
   expect(JSON.stringify(result)).not.toContain('private');
+});
+
+// 3D-BOX：director.write 走同一个适配器、同一个主进程执行器、同一个渲染端写口。
+// 真机首跑抓到执行器的契约白名单漏了它（capability_unsupported），这条从 prepare 一路走到 execute 钉住它。
+describe("director.write Pi transport (3D-BOX)", () => {
+  const PLAN = {
+    scene: { environment: "day", template: "room", tags: [] },
+    actors: [{ id: "reader", kind: "person", desc: "读者", placement: { relation: "at", ref: "s1-room-floor" } }],
+    shots: [{ id: "wide", window: [0, 3], transitionIn: "cut", subject: "reader", size: "全景", angle: "front", height: "eye", move: { kind: "static" } }],
+  };
+
+  it("prepares, mints and executes create_director_plan through the canvas write port", async () => {
+    const test = await setup(DELETE_RAW_EVIDENCE);
+    test.write.mockImplementation(async ({ receiptProposalId }) => ({
+      applied: true, proposalId: receiptProposalId, changeId: `canvas:v1:${receiptProposalId}`, operation: "create_director_plan",
+      directorNodeId: "node-director", revision: "dplan-0123456789abcdef", unchanged: false, plan: PLAN, issues: [], cuts: [],
+      touched: ["shot:wide"], reorderedOverrides: [], changedEntities: [], preview: { status: "rendering", targetNodeId: "node-real" },
+    }));
+    const signal = new AbortController().signal;
+    const prepared = await test.adapter.prepare(
+      { toolCallId: "tool-d", toolName: "director.write", args: { operation: "create_director_plan", shotNodeId: "node-real", plan: PLAN } },
+      signal,
+    );
+    expect(test.capture).toHaveBeenCalledWith(expect.objectContaining({ operation: "create_director_plan" }));
+    expect(prepared?.invocation.capability.id).toBe("director.write");
+    expect(prepared?.invocation.target).toEqual({ kind: "canvas", nodeIds: ["node-real"] });
+    const approval = { receiptProposalId: "receipt-d", approvalId: "approval-d", actionHash: prepared!.invocation.actionHash };
+    const decision = await test.adapter.execute(prepared!, approval, signal);
+    expect(decision).toMatchObject({ ok: true, result: { applied: true, operation: "create_director_plan", directorNodeId: "node-director", changeId: "canvas:v1:receipt-d" } });
+  });
 });

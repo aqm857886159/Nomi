@@ -167,8 +167,7 @@ describe("semantic generation candidate", () => {
     expect(candidate.references).toEqual([{ assetId: "asset-1", role: "character", contentHash: "a".repeat(64), version: 1 }]);
   });
 
-  it("已经钉住身份的参考逐字节不变，解析器不会被再叫一次", () => {
-    let calls = 0;
+  it("已经钉住身份的参考，身份逐字节不变（解析器只用来对种类，不会改写哈希 / 版本）", () => {
     const pinned = { assetId: "asset-2", contentHash: "b".repeat(64), version: 3, kind: "image" as const };
     const candidate = semanticCandidateFromParams({
       operationId: "op-pinned",
@@ -176,10 +175,9 @@ describe("semantic generation candidate", () => {
       candidateFrom: parse,
       allowRegistryFallback: true,
       registry,
-      resolveAssetReferenceIdentity: () => { calls += 1; return { contentHash: "c".repeat(64), version: 9 }; },
+      resolveAssetReferenceIdentity: () => ({ contentHash: "c".repeat(64), version: 9, kind: "image" as const }),
     });
     expect(candidate.references).toEqual([pinned]);
-    expect(calls).toBe(0);
   });
 
   it("素材不在本项目时报人话，而不是一个模型看不懂的 Required", () => {

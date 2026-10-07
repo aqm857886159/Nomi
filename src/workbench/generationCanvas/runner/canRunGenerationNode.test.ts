@@ -271,3 +271,18 @@ describe('不变量：registry 穷举——每个 executionKind 都必须被派�
     }
   }
 })
+
+describe('3D-BOX 花钱闸：挂着没好的参考预演的镜头不可生成（所有付费入口共用这一个准入）', () => {
+  const director = (status: string) => ({
+    id: 'd1', kind: 'director', title: 'box', position: { x: 0, y: 0 }, prompt: '',
+    meta: { directorPreview: { status, revision: 'dplan-1', targetNodeId: 'v1', updatedAt: 1 } },
+  }) as unknown as GenerationCanvasNode
+
+  it('渲染中 / 失败 → 不可生成；挂好 → 回到原有判定', () => {
+    const node = videoNode('omni', { referenceVideoUrls: ['nomi-local://asset/p/v.mp4'] })
+    expect(canRunGenerationNode(node, { nodes: [node], edges: [] })).toBe(true)
+    expect(canRunGenerationNode(node, { nodes: [node, director('rendering')], edges: [] })).toBe(false)
+    expect(canRunGenerationNode(node, { nodes: [node, director('failed')], edges: [] })).toBe(false)
+    expect(canRunGenerationNode(node, { nodes: [node, director('ready')], edges: [] })).toBe(true)
+  })
+})

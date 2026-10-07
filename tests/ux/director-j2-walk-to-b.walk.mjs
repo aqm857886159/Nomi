@@ -1,5 +1,5 @@
 // R16 旅程 J-D2「让角色 A 走到 B 身边」（导演台 V2，方案 §7 S2 验收）。
-// 真实任务：放 A、B 两个角色 → 选 A → 顶栏「画线」(4) → 在地面从 A 拖到 B → 时间轴出路径片段 → Space 播放 → A 真的到了 B 身边。
+// 真实任务：放 A、B 两个角色 → 选 A → 「画线」(4，按钮住属性卡头) → 在地面从 A 拖到 B → 时间轴出路径片段 → Space 播放 → A 真的到了 B 身边。
 // 证据：路径片段落盘（有路标、时长按弧长 / 1.4m/s）、播放后 A 的世界包围盒中心贴近 B、时间轴轨道出现、截图。
 // 用法：node tests/ux/director-j2-walk-to-b.walk.mjs
 import { expectHidden } from './_assert.mjs'
@@ -15,7 +15,7 @@ try {
   await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 2", '两个角色落地')
   const [a, b] = (await lab.scene()).objects.filter((object) => object.type === 'character')
 
-  await clickOrFail(lab.outlinerRow(a.name), '大纲·A')
+  await lab.pickInOutliner(a.name, '大纲·A')
   await page.mouse.move(700, 300)
   await page.keyboard.press('4')
   await expectVisible(page.getByText(/画线|手绘/).first(), '没进入画线模式（HUD 没有提示条）')

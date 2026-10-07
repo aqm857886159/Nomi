@@ -35,6 +35,7 @@ import { URL } from "node:url";
 import { lookup as dnsLookup } from "node:dns/promises";
 import {
   authorizeOutboundDestination,
+  isLinkLocalHost,
   readOutboundEnvironment,
   type OutboundEnvironment,
   type OutboundRouteKind,
@@ -56,6 +57,48 @@ export function declaredVendorOrigins(vendor: Pick<Vendor, "baseUrlHint">): stri
   } catch {
     return [];
   }
+}
+
+/**
+ * 取回侧的声明式例外：**这条连接自己的 base URL 的精确 origin**，只在产物恰好就在这个 origin 上、
+ * 而且它是私网 / 回环字面量时才给（#975，2026-10-04 协调会话拍板）。
+ *
+ * 为什么可以信它：付费请求和 key 已经按 `declaredVendorOrigins` 发到了这个 origin（提交侧的例外就是它），
+ * 从同一个 origin 把结果取回来不多出任何新的信任面。为什么只信它：协议 + 主机 + 端口三样完全一致才算，
+ * 同主机换端口、别的回环地址、别的内网地址照旧被出站策略拒——私网不因「这家是本机供应商」整体放开。
+ * key 由谁填（用户在 Nomi 页面粘、还是 AI 用 set_key 代填）不另设条件：那不改变请求已经去过哪里。
+ *
+ * 为什么公网 origin 返回 `undefined`：公网本来就放行，而传了例外的取回会关掉跟随跳转（hardenedFetch：
+ * 「可信本地服务只允许精确同源的一跳」）——给公网家传例外只会让原本能跳转的 CDN 结果取不回来。
+ * 「是不是私网字面量」问的是出站策略 owner 的名字层（`route: "proxy"` 让它不做 DNS、不探环境），不是第二个分类器。
+ * 解析成私网的主机名本来也不吃声明式例外（策略的地址层不看声明），所以名字层就是全部答案。
+ * 链路本地（169.254 / fe80）永远不给：策略本身就不让任何声明买通它。
+ *
+ * 这是**唯一**一处回答「取回某家产物时额外信任哪个私网 origin」的地方：画布那条（localizeTaskAsset）
+ * 与正式生成那条（generationOutputMaterializer）都只问它。
+ */
+export async function trustedRetrievalOrigin(
+  vendor: Pick<Vendor, "baseUrlHint"> | null | undefined,
+  resultUrl: string,
+): Promise<string | undefined> {
+  if (!vendor) return undefined;
+  const [origin] = declaredVendorOrigins(vendor);
+  if (!origin) return undefined;
+  let url: URL;
+  try {
+    url = new URL(resultUrl);
+  } catch {
+    return undefined;
+  }
+  if (url.origin !== origin || isLinkLocalHost(url.hostname)) return undefined;
+  const nameLayer = await authorizeOutboundDestination({
+    url,
+    route: "proxy",
+    readEnvironment: deps.readEnvironment,
+    resolve: async () => [],
+    declaredOrigins: [],
+  });
+  return !nameLayer.allowed && nameLayer.reason === "private-host" ? origin : undefined;
 }
 
 /**

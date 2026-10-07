@@ -85,7 +85,7 @@ describe("多镜 plan 入口 · 语义镜（动词交出来的那种形状）", 
   });
 
   it("阳性对照：不注入编译口时，`plan` 入口对语义镜的行为一字不变（外部契约的旧路径）", () => {
-    expect(() => draftShotFromPlan({ prompt: "海上日出" }, 0, parsers)).toThrow();
+    expect(() => draftShotFromPlan({ prompt: "海上日出" }, 0, "shot-1", parsers)).toThrow();
   });
 
   it("带完整 candidate 的镜头照旧走原来那个解析器", async () => {

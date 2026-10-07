@@ -251,6 +251,14 @@ function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
     lower.includes('fetch failed') ||
     lower.includes('failed to fetch') ||
     lower.includes('network') ||
+    // 兜底词：openai 客户端断线的原话 `Connection error.`、`Request timed out.`、undici 的 `other side closed`。
+    // `terminated` 不进这张共享表（太宽：「account has been terminated」「terminated due to policy」会被说成连不上）；
+    // undici 断线的原话整串就是 `terminated`，下面单独按整串等于判。**主判据不在这张表**——Agent 对话那一路由 pi 的 `isRetryableAssistantError`
+    // 判「瞬时」后直接归网络类（laneProjection 的 `transient`）；这几个词只让生成域等其他入口也认得。
+    lower.includes('connection error') ||
+    lower.includes('timed out') ||
+    lower.includes('other side closed') ||
+    lower.trim().replace(/[.\s]+$/, '') === 'terminated' ||
     raw.includes('网络请求失败')
   )
     return 'network'
@@ -467,6 +475,9 @@ const MODEL_UNAVAILABLE_WORDS: readonly RegExp[] = [
   /\b(?:deprecated|discontinued|decommissioned|retired)\b[^.\n]{0,40}\bmodels?\b/i,
   // "The model `gpt-x` does not exist (or you do not have access to it)" / "No such model" / "Unknown model"
   /\bmodels?\b[^.\n]{0,80}\b(?:does not exist|doesn't exist|is not found|was not found|not found)\b/i,
+  // 「Model not exist.」（应用内反馈 NF-0928-0001，自建渠道原话，少了 does）：只认 model 紧跟（至多隔一个模型名）的 not exist，
+  // 不像上一行那样隔 80 个字符——「Prompt too long for model; template not exist」里不存在的是模板，不是模型。
+  /\bmodels?\s+(?:(?:[`'"][^`'"\n]{1,80}[`'"]|[\w.:/-]{1,80})\s+)?not\s+exists?\b/i,
   /\b(?:no such|unknown|invalid) model\b/i,
   /模型[^。\n]{0,20}(?:已下线|已停用|已弃用|已废弃|已下架|不再(?:提供|可用|支持)|暂不(?:提供|可用)|不存在|不可用)/,
 ]
@@ -578,6 +589,14 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 付费提交发出后没拿到回复：供应商可能已经收下。必须在一切「猜文案」的网络分类之前判——原始报错里
   // 带着 fetch failed / ECONNRESET，落进 network 会被说成「请求没发到服务商」，那是假话，还会引人重试。
   if (outboundCode === 'submission-unknown') return reportFor('submission-unknown', cleanRaw, '')
+  // 已生成、取回失败（#975 A2）：机器码先判，upstream 给 ''——失败在我们取回这一侧，不印「服务商原话」。
+  if (outboundCode === 'output-retrieval-failed') return reportFor('output-retrieval-failed', cleanRaw, '')
+  // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
+  // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
+  // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
+  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid') {
+    return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
+  }
   // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
   // upstream 显式给 ''，与下面类型不符 / 缺文本大脑同理：这是我们自己的签名，服务商根本没被请求到。
   // 给 undefined 会从 raw 抠出「Model is retired: sora-2」，以「服务商原话：」印在退役卡正文里——
@@ -668,6 +687,17 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
       kind: 'unknown',
       reason: i18n.t('generationCommon.observability.error.nodeInFlight.reason'),
       hint: i18n.t('generationCommon.observability.error.nodeInFlight.hint'),
+      vendorSide: false,
+      raw,
+      ...narrateGenerationErrorActions('unknown'),
+    }
+  }
+  // 3D-BOX 预演没好，主进程准入拒了这一次（还没发出去、没花钱）：说的是哪一步没好，不当成供应商失败。
+  if (structured?.code === 'director_preview_blocked') {
+    return {
+      kind: 'unknown',
+      reason: i18n.t(structured.reason === 'failed' ? 'director.agent.spendBlockedFailed' : 'director.agent.spendBlockedRendering'),
+      hint: i18n.t('generationCommon.observability.error.previewBlocked.hint'),
       vendorSide: false,
       raw,
       ...narrateGenerationErrorActions('unknown'),

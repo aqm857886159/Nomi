@@ -29,7 +29,18 @@ export type ViewportApi = {
 
 // cameraId：机位 id / 'free' = 当前视口相机 / 'black' = 无节目机位的黑场帧
 export type CaptureFrameRequest = { cameraId: string | 'free' | 'black'; width: number; height: number; burnLabels: boolean }
-export type CaptureFrameResult = { dataUrl: string; blob: Blob; width: number; height: number }
+/** The camera pose and subject positions actually used for a captured frame. */
+export type CaptureCameraReadback = { position: Vec3; yaw: number; pitch: number; roll: number; fov: number }
+export type CaptureCharacterPoseReadback = { leftShoulder: Vec3; rightShoulder: Vec3; leftHand: Vec3; rightHand: Vec3 }
+export type CaptureFrameResult = {
+  dataUrl: string
+  blob: Blob
+  width: number
+  height: number
+  camera?: CaptureCameraReadback
+  subjectPositions?: Record<string, Vec3>
+  characterPoses?: Record<string, CaptureCharacterPoseReadback>
+}
 
 export type ViewportApiRef = MutableRefObject<ViewportApi | null>
 

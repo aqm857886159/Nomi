@@ -1,8 +1,8 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../design（WorkbenchButton / WorkbenchIconButton / NomiSelect）、../../../../../vendor/tablerIcons、
- *          ../DirectorEditorContext、../model/timeGrid 的 secondsToFrame、../model/hotkeys（DIRECTOR_HOTKEYS / formatHotkey）、../OutputsContext、./timelineCommands、./useTimelineViewport
- * [OUTPUT]: 对外提供 TimelineHeader：▶ ■ ｜ F 帧/秒 ｜ 自动帧 ｜ 吸附 ｜ 倍速 ｜ 缩放三件 ｜ … ｜ 录制 MP4 ｜ 插入关键帧 (I) ｜ 折叠
- * [POS]: director/timeline 的头部工具条（不带簇名；产出与截图住视口底栏）；按钮全部打到命令层，不自己碰 store 细节。
+ *          ../DirectorEditorContext、../model/timeGrid 的 secondsToFrame、../model/hotkeys（DIRECTOR_HOTKEYS / formatHotkey）、./timelineCommands、./useTimelineViewport
+ * [OUTPUT]: 对外提供 TimelineHeader：▶ ■ ｜ F 帧/秒 ｜ 自动帧 ｜ 吸附 ｜ 倍速 ｜ 缩放三件 ｜ … ｜ 插入关键帧 (I) ｜ 折叠（录制 MP4 在顶栏「产出」菜单里）
+ * [POS]: director/timeline 的头部工具条（不带簇名；截图 / 产出 / 录制 MP4 住精修顶栏右簇）；按钮全部打到命令层，不自己碰 store 细节。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -14,7 +14,6 @@ import {
   IconKeyframe,
   IconMagnet,
   IconMaximize,
-  IconMovie,
   IconPlayerPause,
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
@@ -23,7 +22,6 @@ import {
   IconZoomOut,
 } from '../../../../../vendor/tablerIcons'
 import { useDirectorStore, useDirectorStoreApi } from '../DirectorEditorContext'
-import { useOutputs } from '../OutputsContext'
 import { DIRECTOR_HOTKEYS, formatHotkey } from '../model/hotkeys'
 import { secondsToFrame } from '../model/timeGrid'
 import { insertKeyframeAtPlayhead, stopPlayback, togglePlay } from './timelineCommands'
@@ -59,8 +57,6 @@ export function TimelineHeader({
   const contentEnd = useDirectorStore((state) => state.contentEndSeconds())
   const playbackRate = useDirectorStore((state) => state.playbackRate)
   const snapEnabled = useDirectorStore((state) => state.snapEnabled)
-  const outputs = useOutputs()
-  const videoRecording = useDirectorStore((state) => state.videoRecording)
   const hasSubject = useDirectorStore((state) => Boolean(state.selection.objectId || state.selection.cameraId))
 
   const playLabel = `${isPlaying ? t('director.timeline.pause') : t('director.timeline.play')} (${formatHotkey(DIRECTOR_HOTKEYS.togglePlay)})`
@@ -92,17 +88,6 @@ export function TimelineHeader({
       <WorkbenchIconButton size="sm" icon={<IconZoomOut size={16} stroke={1.9} />} label={t('director.timeline.zoomOut')} onClick={viewport.zoomOut} />
       <WorkbenchIconButton size="sm" icon={<IconMaximize size={16} stroke={1.9} />} label={t('director.timeline.zoomFit')} onClick={viewport.fit} />
       <div className="flex-1" />
-      {videoRecording ? (
-        <WorkbenchButton size="sm" variant="primary" className="gap-1" title={t('director.timeline.recordVideoCancel')} onClick={outputs.cancelRecording}>
-          <IconPlayerStopFilled size={12} stroke={2} />
-          {t('director.timeline.recordVideoProgress', { current: videoRecording.current, total: videoRecording.total })}
-        </WorkbenchButton>
-      ) : (
-        <WorkbenchButton size="sm" className="gap-1" title={t('director.timeline.recordVideoHint')} onClick={() => void outputs.recordVideo()}>
-          <IconMovie size={14} stroke={2} />
-          {t('director.timeline.recordVideo')}
-        </WorkbenchButton>
-      )}
       <span title={hasSubject ? insertLabel : t('director.timeline.toast.selectEntityForKeyframe')}>
         <WorkbenchButton
           size="sm"

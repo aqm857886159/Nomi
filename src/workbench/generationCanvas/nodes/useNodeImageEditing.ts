@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistNodeImageBlob } from '../adapters/persistNodeImage'
 import { isProjectImportCancellation } from '../adapters/assetImportAdapter'
@@ -7,7 +8,7 @@ import { withProjectAction, type ProjectExecutionContext } from '../../project/p
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells, computeSplitLayout, type GridCell } from './render/cropGridGeometry'
 import { removeBackgroundBlob } from '../../../lib/removeBackground'
-import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, removeBackgroundProgressMessage } from './localImageOpPhase'
+import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, REMOVE_BACKGROUND_RESULT_ID_PREFIX, removeBackgroundFailureMessage, removeBackgroundProgressMessage } from './localImageOpPhase'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 // 尺寸上下界与"卡片实际渲染多大"都从 nodeSizing 拿——这里再抄一份就是布局错位的温床。
 import { computeMediaMetaPatch, MAX_NODE_WIDTH, MIN_NODE_WIDTH, resolveNodeVisualSize } from './nodeSizing'
@@ -74,32 +75,11 @@ async function transformBitmap(source: ImageBitmap, op: ImageTransformOp): Promi
 }
 
 
-function mergeNodeImageHistory(
-  currentResult: GenerationNodeResult | undefined,
-  currentHistory: GenerationNodeResult[] | undefined,
-  newResults: GenerationNodeResult[],
-): GenerationNodeResult[] {
-  const merged: GenerationNodeResult[] = []
-  const seen = new Set<string>()
-  const add = (result: GenerationNodeResult | undefined) => {
-    if (!result) return
-    const key = result.id || result.url || result.thumbnailUrl || result.text || ''
-    if (!key || seen.has(key)) return
-    seen.add(key)
-    merged.push(result)
-  }
-  newResults.forEach(add)
-  add(currentResult)
-  ;(currentHistory || []).forEach(add)
-  return merged
-}
-
 // 图片本地编辑（切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
-// 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + NodeImageEditToolbar，
+// 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + ImageQuickActionsToolbar，
 // 不碰壳、不碰生成逻辑。编辑产物统一写回当前节点历史堆叠，并切为主图。
 
-// 切图入口仍是「四视图(2) / 九宫格(3)」两档；裁剪是 1 档。统一由可调框处理（见 CropGridSize）。
-export type ImageGridSize = 2 | 3
+// 切图入口是浮条「宫格 ▾」给的 {rows, cols}；裁剪是 {1,1}。统一由可调框处理（见 CropGridSize）。
 export type ImageTransformOp = 'rotate-left' | 'rotate-right' | 'flip-h' | 'flip-v'
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -131,7 +111,7 @@ function loadImageForCanvas(url: string): Promise<HTMLImageElement> {
 }
 
 export type NodeImageEditing = {
-  /** 当前打开的可调框：null=未开，1=裁剪，2/3=切图（四视图/九宫格）。 */
+  /** 当前打开的可调框：null=未开，{1,1}=裁剪，其余=切成 rows×cols 张。 */
   editGrid: CropGridSize | null
   openEdit: (gridSize: CropGridSize) => void
   cancelEdit: () => void
@@ -206,7 +186,7 @@ export function useNodeImageEditing(
         return resolveNodeVisualSize({
           kind: 'asset',
           size: { width, height },
-          meta: { source: `image-grid-split-${grid}x${grid}`, previewHeight: height },
+          meta: { source: `image-grid-split-${grid.rows}x${grid.cols}`, previewHeight: height },
           result: { id: 'probe', type: 'image', url: 'probe', createdAt },
         })
       })
@@ -254,11 +234,12 @@ export function useNodeImageEditing(
               meta: {
                 ...(created.meta || {}),
                 ...(mediaMeta || {}),
-                source: `image-grid-split-${grid}x${grid}`,
+                source: `image-grid-split-${grid.rows}x${grid.cols}`,
                 sourceNodeId: nodeId,
                 localOnly: stored.localOnly,
                 ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
-                gridSize: grid,
+                gridRows: grid.rows,
+                gridColumns: grid.cols,
                 gridRow: cell.row,
                 gridColumn: cell.column,
                 previewHeight: slot.height,
@@ -277,7 +258,7 @@ export function useNodeImageEditing(
         latest.selectNodes(tileIds)
         latest.groupSelectedNodes(
           nodeCategoryId || 'shots',
-          i18n.t('generationCommon.imageToolbar.tileGroupName', { grid, source: nodeTitle || i18n.t('generationCommon.imageToolbar.image') }),
+          i18n.t('generationCommon.imageToolbar.tileGroupName', { rows: grid.rows, cols: grid.cols, source: nodeTitle || i18n.t('generationCommon.imageToolbar.image') }),
         )
       })
       // 九张摊开比原图占地大，可能有一部分落在视口外：不再替用户挪画布（2026-09-25 拍板），
@@ -359,8 +340,7 @@ export function useNodeImageEditing(
           const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
           const newSize = imageGridTileNodeSize(cropped.width, cropped.height, preferredWidth)
           updateNode(nodeId, {
-            result,
-            history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+            ...appendNodeResultVersion(latest, result),
             status: 'success',
             error: undefined,
             progress: undefined,
@@ -426,8 +406,7 @@ export function useNodeImageEditing(
             height: out.height,
           })?.meta
           updateNode(nodeId, {
-            result,
-            history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+            ...appendNodeResultVersion(latest, result),
             status: 'success',
             error: undefined,
             ...(newSize && latest.meta?.userResized !== true
@@ -500,15 +479,14 @@ export function useNodeImageEditing(
         const stored = await persistNodeImageBlob(blob, nodeId, `remove-bg-${nodeId}-${createdAt}.png`, project)
         project.assertCurrent()
         const result: GenerationNodeResult = {
-          id: `image-remove-bg-${nodeId}-${createdAt}`,
+          id: `${REMOVE_BACKGROUND_RESULT_ID_PREFIX}${nodeId}-${createdAt}`,
           type: 'image' as const,
           url: stored.url,
           createdAt,
         }
         const latest = latestNodeSnapshot()
         updateNode(nodeId, {
-          result,
-          history: mergeNodeImageHistory(latest.result, latest.history, [result]),
+          ...appendNodeResultVersion(latest, result),
           status: 'success',
           error: undefined,
           progress: undefined,
@@ -521,12 +499,12 @@ export function useNodeImageEditing(
         })
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
-        // removeBackground 失败（离线/CDN 不通）时静默报错 toast
+        // 抠图失败（下载卡住 / 下载失败 / 图处理不了）：图恢复原样，按原因说一句带下一步的话。
         updateNode(nodeId, {
           status: previousStatus,
           progress: undefined,
         })
-        reportFeedback(i18n.t('generationCommon.whiteboard.removeBackgroundFailed'))
+        reportFeedback(removeBackgroundFailureMessage(error))
       } finally {
         if (!project.signal.aborted) setImageOpBusy(false)
       }

@@ -1,0 +1,35 @@
+{
+  "id": "LAW11-ALIAS-DEDUPE",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "节点底栏与付费卡把同属「比例」别名的两个键当成一个：档案里清晰度用 size、比例用 aspect_ratio / ratio 时，比例控件被去重吞掉，用户选不到比例（Agnes 视频 2.5 / 2.5 Flash、Agnes Image 2.1 Flash）",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J01-generate-image",
+    "J04-agent-multishot-spend"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "缺口类 node-bar|aspect_ratio、node-bar|ratio、spend-card|aspect_ratio、spend-card|ratio；去重判据在 src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts 的 dedupeParamControls / controlEquivalentKeys"
+  ],
+  "completionCommits": [
+    "a16564746"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-param-alias-dedupe.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  },
+  "fixedInPr": 1029
+}

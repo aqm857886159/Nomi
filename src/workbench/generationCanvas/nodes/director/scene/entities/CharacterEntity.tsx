@@ -15,6 +15,7 @@ import { useFBX, useGLTF } from '@react-three/drei'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { MANNEQUIN_MODEL_URL } from '../character/mannequinAssets'
 import { applyMannequinSkeletonPose, normalizeMannequinModel, rememberMannequinRestPose } from '../character/mannequinSkeleton'
+import { CHARACTER_HEIGHT } from '../../model/directorSpace'
 import type { DirectorObject, DirectorRig } from '../../model/directorTypes'
 import { useDirectorStore } from '../../DirectorEditorContext'
 import { measureSkeletonExtent } from '../character/characterRig'
@@ -26,8 +27,8 @@ import { CHARACTER_COLOR_PRESETS, CLAY_COLOR } from '../sceneTheme'
 import { useSceneRegistry } from '../SceneRegistryContext'
 import { isFbxUrl, resolveCharacterModelUrl } from '../character/characterAsset'
 
-// 假人真实身高（米）：X Bot 归一化后按此缩放；脚底落在对象原点
-export const CHARACTER_HEIGHT = 1.75
+// 假人真实身高（米）：X Bot 归一化后按此缩放；脚底落在对象原点。数值住 model/directorSpace（编译器 / 测量同读）
+export { CHARACTER_HEIGHT }
 
 type Boundary = { failed: boolean }
 

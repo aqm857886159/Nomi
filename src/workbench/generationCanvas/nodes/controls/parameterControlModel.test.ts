@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import {
+  buildDynamicControls,
   buildModelControls,
+  parameterControlRole,
   isImportedComfyWorkflowModel,
   parseControlInput,
   shouldUseVideoFrameSlotFallback,
@@ -168,5 +170,32 @@ describe('isImportedComfyWorkflowModel — 认出「用户导入的工作流」�
     expect(isImportedComfyWorkflowModel(undefined)).toBe(false)
     expect(isImportedComfyWorkflowModel(null)).toBe(false)
     expect(isImportedComfyWorkflowModel('comfyWorkflowImport')).toBe(false)
+  })
+})
+
+// 铁律 ⑪ LAW11-ALIAS-DEDUPE：`size` 是不是比例，只看它自己的选项（判据住 electron/shared/aspectRatioValue.ts）。
+describe('参数去重：size 只有选项是比例时才和 aspect_ratio / ratio 算同一件事', () => {
+  const select = (key: string, values: string[]): ModelParameterControl => ({ key, label: key, type: 'select', options: values.map((value) => ({ value, label: value })) })
+  const keysOf = (params: ModelParameterControl[]) => buildDynamicControls({ parameterControls: params, imageCatalogConfig: null, videoCatalogConfig: null, isImageLike: false, isVideoLike: true }).map((control) => control.key)
+
+  it('清晰度叫 size（720P / 2K）、比例叫 aspect_ratio：两个都留下（Agnes 视频 2.5 的形状）', () => {
+    expect(keysOf([select('size', ['720P', '960P', '2K']), select('aspect_ratio', ['16:9', '9:16', '1:1'])])).toEqual(['size', 'aspect_ratio'])
+  })
+  it('倒过来声明、比例叫 ratio、尺寸档叫 1K / 2K：两个都留下（Agnes Image 2.1 的形状）', () => {
+    expect(keysOf([select('ratio', ['1:1', '16:9']), select('size', ['1K', '2K'])])).toEqual(['ratio', 'size'])
+    expect(keysOf([select('size', ['1K', '2K']), select('ratio', ['1:1', '16:9'])])).toEqual(['size', 'ratio'])
+  })
+  it('像素串的 size（1024x1024）不是比例：和 aspect_ratio 并存', () => {
+    expect(keysOf([select('size', ['1024x1024', '1280x720']), select('aspect_ratio', ['16:9', '1:1'])])).toEqual(['size', 'aspect_ratio'])
+  })
+  it('两个都真是比例（size 是 16:9 一类，又有 aspect_ratio）：照旧只留一个', () => {
+    expect(keysOf([select('size', ['16:9', '9:16']), select('aspect_ratio', ['16:9', '9:16'])])).toEqual(['size'])
+    expect(keysOf([select('aspect_ratio', ['16:9', '9:16']), select('size', ['adaptive', '16:9'])])).toEqual(['aspect_ratio'])
+  })
+  it('角色跟着同一个判据：不是比例的 size 不领「比例」角色，真比例的照旧', () => {
+    const role = (control: ModelParameterControl) => parameterControlRole({ ...control, binding: 'parameter' } as DynamicModelControl)
+    expect(role(select('size', ['720P', '2K']))).toBeNull()
+    expect(role(select('size', ['16:9', '1:1']))).toBe('aspect')
+    expect(role(select('ratio', ['16:9', '1:1']))).toBe('aspect')
   })
 })

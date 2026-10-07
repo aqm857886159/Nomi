@@ -2,12 +2,12 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload } from '@tabler/icons-react'
 import { useResultDownload } from './useResultDownload'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDuplicateVariantButton, ToolbarProvenanceButton, ToolbarReshootButton } from './NodeFloatingToolbar'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDuplicateVariantButton, ToolbarProvenanceButton } from './NodeFloatingToolbar'
 import NodeVideoFrameToolbar from './NodeVideoFrameToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 非图片结果（视频等）的浮条：视频结果 → 抽首帧/抽尾帧 + 下载（NodeVideoFrameToolbar）；
-// 其它非图片结果 → 仅下载。图片结果的下载在 NodeImageEditToolbar。仅在选中且有可下载结果时渲染。
+// 其它非图片结果 → 仅下载。图片结果的下载在 ImageQuickActionsToolbar。仅在选中且有可下载结果时渲染。
 
 type Props = {
   reportFeedback: (message: string) => void
@@ -40,7 +40,6 @@ export default function NodeResultDownloadButton({ reportFeedback, node, selecte
         onClick={download}
       />
       <ToolbarDuplicateVariantButton nodeId={node.id} />
-      <ToolbarReshootButton nodeId={node.id} />
       <ToolbarProvenanceButton onOpen={onOpenProvenance} />
     </FloatingToolbarShell>
   )

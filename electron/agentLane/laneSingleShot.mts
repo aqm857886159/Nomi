@@ -1,5 +1,6 @@
 import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
+import { LANE_STREAM_WATCHDOG } from './laneProviderGuard.mjs';
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig.js';
 import type { LaneProjection, LaneThinkingLevel } from '../shared/agentLane/laneContracts.js';
 import type { OpenLaneOptions } from './laneRuntimePort.js';
@@ -10,6 +11,7 @@ export async function runLaneSingleShot(options: {
   model: NomiModelConfig;
   fetch: typeof globalThis.fetch;
   systemPrompt?: string;
+  systemPromptClosing?: string;
   prompt: string;
   input?: OpenLaneOptions['input'];
   signal?: AbortSignal;
@@ -17,9 +19,7 @@ export async function runLaneSingleShot(options: {
   options.signal?.throwIfAborted();
   let captured = options.input?.capture();
   if (captured?.restoredIntent) throw new Error('agent_lane_invalid_command');
-  const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, {
-    firstResponseMs: 90_000, idleMs: 120_000,
-  });
+  const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, LANE_STREAM_WATCHDOG);
   const models = createModels({ credentials });
   models.setProvider(provider);
   if (captured && options.input?.prepare) captured = await options.input.prepare(captured);
@@ -29,7 +29,7 @@ export async function runLaneSingleShot(options: {
     : options.prompt;
   options.signal?.throwIfAborted();
   const message = await models.streamSimple(model, {
-    systemPrompt: [options.systemPrompt, captured?.systemPrompt, captured?.skillPrompt].filter(Boolean).join('\n\n'),
+    systemPrompt: [options.systemPrompt, captured?.systemPrompt, captured?.skillPrompt, options.systemPromptClosing].filter(Boolean).join('\n\n'),
     messages: [{ role: 'user', content, timestamp: Date.now() }],
     tools: [],
   }, {

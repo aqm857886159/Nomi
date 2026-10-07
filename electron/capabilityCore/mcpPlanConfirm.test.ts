@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMcpProtocol, type McpInvokeOptions, type McpTransport } from './mcpProtocol'
 import { dispatch } from './dispatcher'
 import type { PlanConfirmInfo, ProjectGateway } from './gateway'
+import { canvasWriteResultSchema } from '../shared/agentCapabilities/canvasWrite'
 
 // T1 · 画布方案确认 elicitation-first + 会话级信任（plan 2026-08-18-t1-elicitation-first-plan-confirm）。
 // 纯协议层单测（注入假 transport）——不 spawn 进程、不碰真实库/App。验证：
@@ -29,7 +30,7 @@ class PlanHarness {
       if (method === 'canvas.write') {
         const count = Array.isArray(params.nodes) ? params.nodes.length : 0
         const ids = Array.from({ length: count }, (_, i) => `n${i}`)
-        return { applied: true, proposalId: 'proposal-test', operation: 'create_canvas_nodes', affectedNodeIds: ids, affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: { ok: true, deviationCount: 0 } }
+        return { applied: true, proposalId: 'proposal-test', changeId: 'canvas:v1:proposal-test', operation: 'create_canvas_nodes', affectedNodeIds: ids, affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: { ok: true, deviationCount: 0 } }
       }
       throw new Error(`unexpected invoke: ${method}`)
     })
@@ -67,7 +68,7 @@ class PlanHarness {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-11-25', capabilities: elicitation ? { elicitation: {} } : {}, clientInfo: { name: 'claude-code' } },
+      params: { protocolVersion: '2025-11-25', capabilities: elicitation ? { elicitation: {} } : {}, clientInfo: { name: 'claude-code', version: '1' } },
     })
     const res = await this.next()
     expect(res.id).toBe(1)
@@ -105,7 +106,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
     // 服务端先发 elicitation/create（把确认递进聊天），此时还没 invoke。
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
-    expect(typeof elicit.id).toBe('string')
+    expect(['string', 'number']).toContain(typeof elicit.id) // JSON-RPC id，由 SDK 分配
     const params = elicit.params as { message?: string }
     expect(params.message).toContain('3') // 「往画布加 3 个节点」
     expect(params.message).toContain('画布')
@@ -163,7 +164,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
     harness.addNodes(3, 'proj-b', 2)
     const elicitB = await harness.next()
     expect(elicitB.method).toBe('elicitation/create')
-    expect(typeof elicitB.id).toBe('string')
+    expect(['string', 'number']).toContain(typeof elicitB.id)
     harness.send({ jsonrpc: '2.0', id: elicitB.id, result: { action: 'accept', content: { confirm: true } } })
     const toolRes = await harness.next()
     expect(toolRes.id).toBe(3)
@@ -275,7 +276,6 @@ describe('nomi-mcp · dispatch 层 planConfirmed 预批准方案门', () => {
     const gateway: ProjectGateway = {
       readDoc: async () => ({ nodes: [], edges: [] }),
       apply: async () => { applied += 1 },
-      confirmSpend: async () => null,
       confirmPlan: async (info) => { planCalls.push(info); return true },
     }
     return { gateway, planCalls, getApplied: () => applied }
@@ -316,6 +316,10 @@ describe('nomi-mcp · dispatch 层 planConfirmed 预批准方案门', () => {
     expect(spy.planCalls).toHaveLength(0) // 关键：confirmPlan 未被调 → 渲染层不弹卡
     expect(spy.getApplied()).toBe(1)
     expect((result as { affectedNodeIds: string[] }).affectedNodeIds).toHaveLength(2)
+    expect(canvasWriteResultSchema.parse(result)).toMatchObject({
+      applied: true,
+      changeId: expect.stringMatching(/^canvas:v1:/),
+    })
   })
 
   it('planConfirmed 未设：≥2 节点批量建节点照常调 gateway.confirmPlan（老路径不变）', async () => {

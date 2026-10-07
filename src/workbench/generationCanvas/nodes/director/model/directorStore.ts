@@ -44,6 +44,8 @@ export type DirectorSelection = {
   cameraId: string | null
   lightId: string | null
   multiObjectIds: string[]
+  /** 多选机位（导演视图镜头条 Ctrl / Shift 加选）；cameraId 是其中的主选。单选时 = [cameraId]。 */
+  multiCameraIds: string[]
   activeWaypointId: string | null
   selectedWaypointIds: string[]
   clipId: string | null
@@ -111,7 +113,11 @@ export type DirectorStoreState = {
   undo: () => void
   redo: () => void
   // ── 工程 ──
-  loadProject: (raw: unknown, defaultSceneName: string) => void
+  /**
+   * 换一份工程。keepView：同一节点的外部改写（Agent 改计划、撤销放回），保留用户此刻的选中（按新工程剪掉不存在的）、
+   * 播放头与机位视角——Agent 改完第 2 镜，用户还停在第 2 镜、「正在改：镜头 2」还在。
+   */
+  loadProject: (raw: unknown, defaultSceneName: string, options?: { keepView?: boolean }) => void
   resetSession: (defaultSceneName: string) => void
   exportProject: () => DirectorProject
   setExportRatio: (ratio: DirectorExportRatio) => void
@@ -162,6 +168,7 @@ export function emptySelection(): DirectorSelection {
     cameraId: null,
     lightId: null,
     multiObjectIds: [],
+    multiCameraIds: [],
     activeWaypointId: null,
     selectedWaypointIds: [],
     clipId: null,
@@ -191,6 +198,7 @@ function pruneSelection(selection: DirectorSelection, scene: DirectorScene): Dir
   if (next.cameraId && !cameraIds.has(next.cameraId)) next.cameraId = null
   if (next.lightId && !lightIds.has(next.lightId)) next.lightId = null
   next.multiObjectIds = next.multiObjectIds.filter((id) => objectIds.has(id))
+  next.multiCameraIds = next.multiCameraIds.filter((id) => cameraIds.has(id))
   const object = scene.objects.find(item => item.id === next.objectId)
   const entity = object ?? scene.cameras.find(item => item.id === next.cameraId)
   const waypointIds = new Set((entity?.motionTrajectory ?? []).map(point => point.id))
@@ -353,14 +361,17 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
         set({ evaluatedPoses: {} })
       },
 
-      loadProject: (raw, defaultSceneName) => {
+      loadProject: (raw, defaultSceneName, options) => {
         const project = normalizeDirectorProject(raw, defaultSceneName)
         const scene = activeSceneOf(project)
+        const previous = get()
+        const keep = options?.keepView === true
+        const cameraKept = (id: string) => scene.cameras.some((camera) => camera.id === id)
         set({
           project,
-          selection: emptySelection(),
-          activeCameraId: 'free',
-          previewCameraId: scene.cameras[0]?.id ?? '',
+          selection: keep ? pruneSelection(previous.selection, scene) : emptySelection(),
+          activeCameraId: keep && cameraKept(previous.activeCameraId) ? previous.activeCameraId : 'free',
+          previewCameraId: keep && cameraKept(previous.previewCameraId) ? previous.previewCameraId : scene.cameras[0]?.id ?? '',
           evaluatedPoses: {},
           activeTrajectoryClipIds: {},
           drawMode: null,
@@ -373,7 +384,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
           isSkeletonEditing: false,
           undoStack: [],
           redoStack: [],
-          timeline: { currentTime: 0, autoKey: false, totalDuration: Math.max(sceneContentEndSeconds(scene), 1) > 1 ? Math.min(DIRECTOR_MAX_DURATION_SECONDS, Math.max(sceneContentEndSeconds(scene) + 2, 10)) : DIRECTOR_MAX_DURATION_SECONDS, isPlaying: false },
+          timeline: { currentTime: keep ? previous.timeline.currentTime : 0, autoKey: false, totalDuration: Math.max(sceneContentEndSeconds(scene), 1) > 1 ? Math.min(DIRECTOR_MAX_DURATION_SECONDS, Math.max(sceneContentEndSeconds(scene) + 2, 10)) : DIRECTOR_MAX_DURATION_SECONDS, isPlaying: false },
         })
       },
       resetSession: (defaultSceneName) => {
@@ -465,10 +476,13 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
           cameraId: owner === 'cameraId' ? patch.cameraId! : null,
           lightId: owner === 'lightId' ? patch.lightId! : null,
           multiObjectIds: patch.multiObjectIds ?? (owner === 'objectId' ? state.selection.objectId === patch.objectId ? state.selection.multiObjectIds : [patch.objectId!] : []),
-        } : patch
+          multiCameraIds: patch.multiCameraIds ?? (owner === 'cameraId' ? state.selection.cameraId === patch.cameraId ? state.selection.multiCameraIds : [patch.cameraId!] : []),
+        } : 'cameraId' in patch && !patch.multiCameraIds ? { ...patch, multiCameraIds: [] } : patch
         const changedOwner = (['objectId', 'cameraId', 'lightId'] as const).some(key => key in next && next[key] !== state.selection[key])
         const cleared = changedOwner ? { clipId: null, clipType: null, activeWaypointId: null, selectedWaypointIds: [], boneKeyframeId: null, boneClipId: null, boneKey: null, ikTarget: null } : {}
-        return { selection: pruneSelection({ ...state.selection, ...cleared, ...next }, activeSceneOf(state.project)) }
+        const selection = pruneSelection({ ...state.selection, ...cleared, ...next }, activeSceneOf(state.project))
+        // 选中机位 = 小窗切到它（previewCameraId 仍是唯一写者；播放中 pipCameraIdOf 仍跟播放头，停下才露出这里的选择）
+        return owner === 'cameraId' && selection.cameraId ? { selection, previewCameraId: selection.cameraId } : { selection }
       }),
       clearSelection: () => set({ selection: emptySelection() }),
       setActiveCamera: (cameraId) => set({ activeCameraId: cameraId }),

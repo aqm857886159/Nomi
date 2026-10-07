@@ -29,12 +29,12 @@ try {
   await placeCharacter(lab, 'male', 0, 0)
   await lab.waitScene("s.objects.filter(o => o.type === 'character').length === 1", '主角落地')
   const hero = (await lab.scene()).objects[0]
-  await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角')
+  await lab.pickInOutliner(hero.name, '大纲·主角')
   // 先用正面预设，再经可见X字段挪到侧前方45°，默认朝前不能蒙混通过。
   await addCameraPreset(lab, '正面中景')
   await lab.waitScene('s.cameras.length === 1', '机位入场')
   let camera = (await lab.scene()).cameras[0]
-  await clickOrFail(lab.outlinerRow(camera.name), '大纲·机位')
+  await lab.pickInOutliner(camera.name, '大纲·机位')
   const inspector = page.getByTestId('director-inspector')
   const cameraX = inspector.getByText('X', { exact: true }).locator('..').locator('input[type="text"]')
   const sideX = hero.position.x + Math.max(2, Math.abs(camera.position.z - hero.position.z))
@@ -107,7 +107,7 @@ try {
 
   // 骨骼把手：按住右手把手往上拖 → 静止姿态写入
   await stopAtStart()
-  await clickOrFail(lab.outlinerRow(hero.name), '大纲·主角（重新选中）')
+  await lab.pickInOutliner(hero.name, '大纲·主角（重新选中）')
   await clickOrFail(page.getByRole('button', { name: '骨骼与 IK 把手' }), '底部栏·骨骼把手')
   // 拖把手前明确选择移动工具，使 gizmo 的操作模式可重复。
   await page.mouse.move(700, 300)

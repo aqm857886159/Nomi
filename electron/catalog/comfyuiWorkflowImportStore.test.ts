@@ -346,11 +346,11 @@ describe("多实例：两台 ComfyUI 互不串台（方案 A · key 前缀身份
   });
 
   it("SSRF 信任：每台只信自己的 origin（多一台不放宽范围）", async () => {
-    const { trustedLocalOutputOrigin } = await import("./assetLocalization");
-    expect(trustedLocalOutputOrigin({ key: "comfyui-local", baseUrlHint: "http://127.0.0.1:8188" })).toBe("http://127.0.0.1:8188");
-    expect(trustedLocalOutputOrigin({ key: "comfyui-local-ws", baseUrlHint: "http://192.168.1.9:8188" })).toBe("http://192.168.1.9:8188");
-    // 别家 vendor 即便配了私网地址也不给信任
-    expect(trustedLocalOutputOrigin({ key: "apimart", baseUrlHint: "http://192.168.1.9:8188" })).toBeNull();
+    const { trustedRetrievalOrigin } = await import("../vendor/vendorOutboundGuard");
+    expect(await trustedRetrievalOrigin({ baseUrlHint: "http://127.0.0.1:8188" }, "http://127.0.0.1:8188/view?filename=a.png")).toBe("http://127.0.0.1:8188");
+    expect(await trustedRetrievalOrigin({ baseUrlHint: "http://192.168.1.9:8188" }, "http://192.168.1.9:8188/view?filename=a.png")).toBe("http://192.168.1.9:8188");
+    // 第二台的产物地址不因第一台被信任而放行：判据只认产物所在连接自己的 origin。
+    expect(await trustedRetrievalOrigin({ baseUrlHint: "http://127.0.0.1:8188" }, "http://192.168.1.9:8188/view?filename=a.png")).toBeUndefined();
   });
 });
 

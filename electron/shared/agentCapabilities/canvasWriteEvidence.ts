@@ -251,10 +251,8 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
   return Object.freeze({ target, preconditions });
 }
 
-function buildBatchCanvasWriteAdmission(
-  value: unknown,
-  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
-): CanvasWriteAdmission {
+/** 批量证据的结构核验 + 关系哈希：画布写的批量分支与 `director.write` 共用这一份（不抄第二份）。 */
+function verifiedBatchEvidence(value: unknown): Readonly<{ evidence: CanvasWriteBatchRawEvidence; resolved: Map<string, string>; relationHash: string }> {
   const parsed = canvasWriteBatchRawEvidenceSchema.safeParse(value);
   if (!parsed.success) throw new CanvasWriteEvidenceError("capability_input_invalid");
   const evidence = parsed.data;
@@ -272,9 +270,6 @@ function buildBatchCanvasWriteAdmission(
   assertUnique(evidence.resolvedReferences.map((reference) => reference.requestedId));
   const resolved = new Map(evidence.resolvedReferences.map((reference) => [reference.requestedId, reference.nodeId]));
   if (evidence.resolvedReferences.some((reference) => !nodeIds.has(reference.nodeId))) stale();
-  if (input.operation === "tidy_canvas" && input.categoryId) {
-    if (!evidence.groups.every((group) => group.categoryId.trim())) stale();
-  }
   const relationHash = canvasWriteEvidenceHash("canvas", {
     nodes: evidence.nodes,
     edges: evidence.edges,
@@ -282,6 +277,17 @@ function buildBatchCanvasWriteAdmission(
     resolvedReferences: evidence.resolvedReferences,
     ...(evidence.storyboard ? { storyboard: evidence.storyboard } : {}),
   });
+  return { evidence, resolved, relationHash };
+}
+
+function buildBatchCanvasWriteAdmission(
+  value: unknown,
+  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
+): CanvasWriteAdmission {
+  const { evidence, resolved, relationHash } = verifiedBatchEvidence(value);
+  if (input.operation === "tidy_canvas" && input.categoryId) {
+    if (!evidence.groups.every((group) => group.categoryId.trim())) stale();
+  }
   const inputReferenceIds = requestedReferenceIds(input);
   const targetNodeIds =
     input.operation === "tidy_canvas"
@@ -323,6 +329,36 @@ export function assertCanvasWriteAdmissionMatches(
   input?: CanvasWriteInput,
 ): CanvasWriteAdmission {
   const admission = input ? buildCanvasWriteAdmissionForOperation(value, input) : buildCanvasWriteAdmission(value);
+  if (
+    stableJson(admission.target) !== stableJson(expected.target) ||
+    stableJson(admission.preconditions) !== stableJson(expected.preconditions)
+  ) {
+    stale();
+  }
+  return admission;
+}
+
+/**
+ * `director.write` 的准入：它点名的那一个节点（目标镜头或要改的 3D-BOX 节点）必须在快照里、没上锁；
+ * 前置条件 = 整张画布的关系哈希（与画布写批量分支同一份）。修订号的比对在渲染端执行时做（计划正文住节点 meta）。
+ */
+export function buildDirectorWriteAdmission(value: unknown, referenceIds: readonly string[]): CanvasWriteAdmission {
+  const { evidence, resolved, relationHash } = verifiedBatchEvidence(value);
+  const targetNodeIds = Array.from(new Set(referenceIds.map((id) => resolved.get(id))));
+  if (targetNodeIds.some((id) => !id)) stale();
+  const targets = new Set(targetNodeIds as string[]);
+  if (evidence.nodes.some((node) => targets.has(node.id) && node.locked)) stale();
+  const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds as string[]) });
+  const preconditions: PreconditionSet = Object.freeze({ edges: Object.freeze([Object.freeze({ relationHash })]) });
+  return Object.freeze({ target, preconditions });
+}
+
+export function assertDirectorWriteAdmissionMatches(
+  value: unknown,
+  expected: Readonly<{ target: unknown; preconditions: unknown }>,
+  referenceIds: readonly string[],
+): CanvasWriteAdmission {
+  const admission = buildDirectorWriteAdmission(value, referenceIds);
   if (
     stableJson(admission.target) !== stableJson(expected.target) ||
     stableJson(admission.preconditions) !== stableJson(expected.preconditions)

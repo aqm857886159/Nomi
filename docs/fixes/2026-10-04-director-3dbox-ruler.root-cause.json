@@ -1,0 +1,209 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-director-3dbox-ruler",
+  "problem_type": "director evaluation measurement and entity correspondence",
+  "symptom": "The oracle changes FOV while pushing, offline measurement ignores close-up/look-at/follow camera pose, and non-oracle plans are scored as missing woman/room when their valid entities use different IDs.",
+  "direct_cause": "Playback and measurement each own a different camera evaluator; motion recognition uses world distance instead of projected subject height and does not expose dolly/zoom cancellation; scorer resolves actors with an ID-only fallback and scene fixtures place unnamed objects away from the scene.",
+  "class_root": "The evaluation harness has no shared camera-pose owner or scheme-independent entity correspondence contract, so score inputs are not the same visible result the user evaluates.",
+  "affected_population": [
+    "Director playback and offline measurement",
+    "oracle, s0 and s1 director schemes",
+    "all benchmark, T1, T2 and T3 director cards"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+    "evals/director/adapters.ts",
+    "evals/director/binding.ts",
+    "evals/director/scorer.ts",
+    "evals/director/run.ts",
+    "evals/director/judge/readback.ts",
+    "evals/director/cards/all.json",
+    "evals/director/judge/render.ts",
+    "evals/director/judge/review.ts",
+    "evals/director/judge/run.ts",
+    "evals/director/judge/review.test.ts",
+    "evals/director/judge/preregister.ts",
+    "evals/director/judge/preregister.test.ts",
+    "evals/director/judge/crossCheck.ts",
+    "evals/director/judge/crossCheck.test.ts",
+    "scripts/director-calibration-align.mjs"
+  ],
+  "entry_points": [
+    "useTimelinePlayback camera loop",
+    "sampleDirectorProject camera sampling",
+    "scoreCard actor/scene scoring",
+    "oracleForCard fixture construction",
+    "compareCaptureReadback render validation"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is defined by the repository's director project schema and card wording; no third-party behavior decides measurement or correspondence.",
+  "invariants": [
+    "Product playback and offline measurement call the same pure evaluateCameraPose function for every camera time sample.",
+    "Push/pull recognition uses projected subject height ratio; FOV-only motion is zoom and opposing dolly plus zoom is reported as cancellation.",
+    "Every scheme maps card actors and scene requirements through one type-compatible, keyword-aware, one-to-one binder; unresolved entities lower the corresponding score.",
+    "Oracle scene pieces are placed at local scene coordinates, ground is present, and unsupported remote placeholders are never used.",
+    "Readback compares subject positions even when an old measurement gap would have been reported; missing measured subjects are explicit mismatches.",
+    "Renderable oracle scene pieces never carry isAuxiliary; only editor-only objects may be excluded by capture semantics.",
+    "Readback subject comparison consumes binding actor IDs; scene geometry remains visible and is not used as a subject fallback.",
+    "A camera entering renderable geometry is recorded as a continuity problem.",
+    "Every model review and pairwise call has a six-minute timeout, at most two attempts, and timeout records continue the batch.",
+    "Preregistration and review model calls have a six-minute timeout and a blocked result never stops the batch.",
+    "Cross-check direction and cut claims are measured within the claim time window and use a bound actor before comparing vocabulary.",
+    "Calibration exports can be aligned to judge records with reproducible Spearman and same-bin calculations; missing human exports remain unverified."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.ts",
+      "symbol": "evaluateCameraPose"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "symbol": "evaluateCameraPose"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+      "symbol": "evaluateCameraPose"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 3,
+    "why_not": "The owner definition is retained as a read boundary for the pure model; playback and offline measurement remain separate consumers, and removing either consumer would remove a required product or evaluation path."
+  },
+  "generality_proof": "Every measured camera sample and every product playback camera update passes through evaluateCameraPose. Every scoreCard invocation binds the active scene through bindCardEntities, independent of adapter scheme or producer IDs. Project fixtures and readback then consume the same sampled transforms, so equivalent callers cannot reintroduce the old distance-only or ID-only shortcut.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.ts",
+      "symbol": "evaluateCameraPose",
+      "responsibility": "Own close-up, trajectory, follow, look-at and coordinate camera pose evaluation."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "symbol": "recognizeCameraMotion",
+      "responsibility": "Classify screen-space framing change, dolly/zoom direction and cancellation issues."
+    },
+    {
+      "path": "evals/director/binding.ts",
+      "symbol": "bindCardEntities",
+      "responsibility": "Own type-compatible, keyword-aware, one-to-one actor and scene correspondence."
+    },
+    {
+      "path": "evals/director/judge/readback.ts",
+      "symbol": "compareCaptureReadback",
+      "responsibility": "Compare every measurable subject position and report missing readback values explicitly."
+    },
+    {
+      "path": "evals/director/judge/render.ts",
+      "symbol": "renderProject",
+      "responsibility": "Pass binder subject IDs into capture readback while retaining all renderable scene geometry."
+    },
+    {
+      "path": "evals/director/judge/review.ts",
+      "symbol": "reviewOnce/pairwiseOnce",
+      "responsibility": "Bound model review duration, carry schema errors to retry, and return blocked records so a batch continues."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "entry_point": "sampleDirectorProject",
+      "disposition": "enforced",
+      "evidence": "All offline frames call cameraSample, which calls evaluateCameraPose."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+      "entry_point": "useTimelinePlayback",
+      "disposition": "enforced",
+      "evidence": "The product frame loop calls the shared model evaluator for every driven camera."
+    },
+    {
+      "path": "evals/director/scorer.ts",
+      "entry_point": "scoreCard",
+      "disposition": "enforced",
+      "evidence": "Actor and scene layers consume bindCardEntities output for every adapter."
+    },
+    {
+      "path": "evals/director/judge/readback.ts",
+      "entry_point": "compareCaptureReadback",
+      "disposition": "enforced",
+      "evidence": "Subject comparison no longer skips missing actual positions."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future camera rig, close-up clip, differently named plan entity, or scene requirement can reproduce the same score distortion if it bypasses the shared evaluator or binder.",
+    "same_class_scan": [
+      "rg -n evaluateCameraPose src evals/director",
+      "rg -n sampleDirectorProject src evals/director",
+      "rg -n 'resolveActors|actorMap|scene.required' evals/director",
+      "rg -n compareCaptureReadback evals/director",
+      "rg -n isAuxiliary evals/director src/workbench/generationCanvas/nodes/director/scene",
+      "rg -n 'DIRECTOR_REVIEW_TIMEOUT_MS|withTimeout' evals/director/judge",
+      "rg -n 'directionMatches|parseWindow|calibration-alignment' evals/director/judge scripts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "evals/director/judge/review.ts",
+    "invariant": "Scene visibility follows capture semantics; subject identity follows the binder; renderable camera collisions and review timeouts remain explicit evidence.",
+    "failure_mode": "A kind mismatch or below-threshold match is left unbound, recorded in correspondenceRate/reasons, and cannot silently receive full L2/L3/L4 credit.",
+    "exception_policy": "none",
+    "strategy": "Keep camera semantics in the model owner and make scoring consume the same binder regardless of scheme; tests cover pure zoom, type mismatch, same-kind wrong-name binding, readback missing subjects and oracle acceptance.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "evals/director/binding.ts",
+      "evals/director/scorer.ts",
+      "evals/director/judge/readback.ts",
+      "evals/director/judge/review.ts",
+      "evals/director/judge/preregister.ts",
+      "evals/director/judge/crossCheck.ts",
+      "scripts/director-calibration-align.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/cameraPoseEval.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.test.ts",
+    "evals/director/scorer.test.ts",
+    "evals/director/judge/readback.test.ts",
+    "evals/director/judge/review.test.ts",
+    "evals/director/judge/crossCheck.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.test.ts",
+    "evals/director/scorer.test.ts",
+    "evals/director/judge/readback.test.ts",
+    "evals/director/judge/review.test.ts",
+    "evals/director/judge/crossCheck.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old local function and scorer resolver were deleted in place; no persisted legacy file or callable compatibility path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the camera or scoring invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing DirectorProject data needs no migration; the pure evaluator reads the existing closeup, rig, look-at and trajectory fields, while cards gain aliases derived from their own wording.",
+  "residual_risks": [
+    "Live s1 planner outputs and real provider/model calls remain unverified until the requested full rerun completes.",
+    "Windows packaged playback is not proven by deterministic unit tests. "
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "evals/director/binding.ts",
+    "tests": [
+      "evals/director/scorer.test.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.test.ts"
+    ],
+    "why": "The scorer invariant is owned by bindCardEntities; product playback and measurement are consumers of the separate cameraPoseEval boundary."
+  }
+}

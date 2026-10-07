@@ -18,6 +18,8 @@ import { effectiveVideoModes, recommendVideoGeneration, videoVariantIdsOf } from
 import { canonicalArchetypeVariantId, resolveArchetypeVariant } from "../shared/modelArchetypes/variantResolution";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode } from "../shared/videoCapabilities/types";
+import { projectSemanticAspectRatio } from "./semanticAspectRatio";
+import { admitAuthoredDuration } from "./generationAuthoredDuration";
 
 // Keep mode/task comparisons tolerant of the wire's kebab/snake aliases.  This
 // local normalizer is intentionally dependency-free so candidate resolution
@@ -40,6 +42,7 @@ export function videoRecommendationInput(candidate: PlanCandidate): VideoGenerat
   const durationSeconds = typeof parameters.duration === "number"
     ? parameters.duration
     : typeof parameters.durationSeconds === "number" ? parameters.durationSeconds : undefined;
+  // `aspectRatio` 是语义载体键（写入口翻译之前，定模式那一步读得到它），之后读到的就是真实键。
   const aspectRatio = typeof parameters.aspectRatio === "string"
     ? parameters.aspectRatio
     : typeof parameters.aspect_ratio === "string" ? parameters.aspect_ratio
@@ -265,6 +268,52 @@ export function videoCompileOptions(
   };
 }
 
+type ParameterSchemaRegistry = { resolve(input: { moduleId: string; providerId: string; modelId: string; mode: string }): ResolvedModule };
+
+/**
+ * 这个候选**此刻接受**的参数表：档案投影优先（视频按所选模式、其余按通用档案判据），否则 registry 那份。
+ * 与准入层（`admitPlanCandidate` 的 `options.parameterSchema ?? module.parameterSchema`）同一个次序；
+ * 清残留与语义翻译都读这一份，不各答一次。解析不出来 → undefined（交给准入层报它自己的错）。
+ */
+export function acceptedParameterSchema(
+  candidate: PlanCandidate,
+  registry: ParameterSchemaRegistry,
+  candidates: readonly VideoModelCandidate[] | undefined,
+): Record<string, ParameterField> | undefined {
+  try {
+    return videoCompileOptions(candidate, candidates).parameterSchema
+      ?? registry.resolve({
+        moduleId: candidate.moduleId, providerId: candidate.providerId,
+        modelId: candidate.modelId, mode: candidate.mode,
+      }).parameterSchema;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * **调用方写下的候选**落盘前的那一道归一（多镜 create / 单镜 create / 改草稿三扇写入口共用）：
+ * 先按目录定模式（`normalizeVideoCandidate`），再按这个模式的参数表把语义比例翻成真实键
+ * （`projectSemanticAspectRatio`，翻不了当场拒）。翻译必须在模式定下之后——同一个模型的不同模式，
+ * 比例键与选项可以不一样（Nano Banana 2 的 kie 变体叫 `aspect_ratio`、apimart 变体叫 `size`）。
+ * 落盘的候选里只剩真实键，付费卡、画布落地、派发读到的就是同一个值。
+ * 时长同一处核（`admitAuthoredDuration`）：这个模式不收时长、或不在它的档里，当场拒并说出合法值——
+ * 不留到封印那一刻，也不让画布节点自己回落到档案默认（铁律 ⑩ 首跑的两类静默）。
+ */
+export function normalizeAuthoredCandidate(
+  candidate: PlanCandidate,
+  registry: ParameterSchemaRegistry,
+  candidates: readonly VideoModelCandidate[] | undefined,
+  /** 改草稿时这一镜原有的参数（只用来判像素档的「同一档」，见 `projectSemanticAspectRatio`）。 */
+  tierReference?: Readonly<Record<string, unknown>>,
+): PlanCandidate {
+  const normalized = normalizeVideoCandidate(candidate, candidates);
+  const accepted = acceptedParameterSchema(normalized, registry, candidates);
+  // 目录里认不出这个模型 / 模式：这里不替它编一句「没有比例」——紧接着的身份准入（`admitShotIdentity` /
+  // `admitPlanCandidate`）会说出真正的原因；语义键原样留着，到不了线缆（编合同时是未知参数，当场拒）。
+  return accepted ? admitAuthoredDuration(projectSemanticAspectRatio(normalized, accepted, tierReference), accepted) : normalized;
+}
+
 /**
  * 去掉候选身上这个模型不接受的参数，返回**新候选**与被清掉的键。
  *
@@ -276,22 +325,12 @@ export function videoCompileOptions(
  */
 export function stripParametersNotAccepted(
   candidate: PlanCandidate,
-  registry: { resolve(input: { moduleId: string; providerId: string; modelId: string; mode: string }): ResolvedModule },
+  registry: ParameterSchemaRegistry,
   candidates: readonly VideoModelCandidate[] | undefined,
 ): { candidate: PlanCandidate; cleared: string[] } {
-  // 「哪些键合法」读的就是准入层那一份（档案投影优先，否则 registry 的那份）——
-  // 清理与校验不许各答一次。解析不出来 → 什么都不清，交给准入层报它自己的错。
-  let accepted: Record<string, ParameterField>;
-  try {
-    accepted = videoCompileOptions(candidate, candidates).parameterSchema
-      ?? registry.resolve({
-        moduleId: candidate.moduleId, providerId: candidate.providerId,
-        modelId: candidate.modelId, mode: candidate.mode,
-      }).parameterSchema;
-  } catch {
-    return { candidate, cleared: [] };
-  }
-  if (Object.keys(accepted).length === 0) return { candidate, cleared: [] };
+  // 「哪些键合法」读的就是准入层那一份——清理与校验不许各答一次。解析不出来 → 什么都不清。
+  const accepted = acceptedParameterSchema(candidate, registry, candidates);
+  if (!accepted || Object.keys(accepted).length === 0) return { candidate, cleared: [] };
   const cleared = Object.keys(candidate.parameters).filter((key) => !(key in accepted)).sort();
   if (cleared.length === 0) return { candidate, cleared };
   return {

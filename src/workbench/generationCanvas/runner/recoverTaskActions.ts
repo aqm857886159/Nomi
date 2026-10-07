@@ -1,4 +1,4 @@
-import { fetchWorkbenchTaskResultByVendor, type TaskResultDto } from '../../api/taskApi'
+import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, type TaskResultDto } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import type { ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
@@ -14,6 +14,9 @@ import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 import { awaitMediaTransfer, describePhaseSilence } from './generationPhaseDeadline'
 import { isTerminalTaskStatus } from '../../../../electron/shared/taskStatus'
+import { productionRunIdOf } from '../../production/productionShotOwnership'
+import { retryProductionRetrievalForNode } from '../../production/retryProductionRetrieval'
+import { productionRunApi } from '../../production/productionRunApi'
 
 const RECOVER_POLL_INTERVAL_MS = 3000
 // 找回轮询自己的上限（10 分钟）：超了仍没终态 → 退回 recoverable，按钮重现，让用户稍后再试。
@@ -69,8 +72,18 @@ function resolveRecoverTarget(run: GenerationNodeRunRecord | undefined, project:
 export async function recoverNodeResult(nodeId: string, project: ProjectExecutionContext): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
-  const payload = buildRecoverPayload(id)
   const store = useGenerationCanvasStore.getState()
+  // 制作派出去、已经生成、只差取回的镜（#975 V-975）：重新取回归 Run（job.retry_retrieval），不走画布自己的任务查询。
+  const productionRunId = productionRunIdOf(store.nodes.find((candidate) => candidate.id === id) ?? { meta: undefined })
+  if (productionRunId) {
+    try {
+      if (await retryProductionRetrievalForNode(project.binding.projectId, productionRunId, id, productionRunApi)) return
+    } catch (error) {
+      store.setNodeStatus(id, 'recoverable', error instanceof Error ? error.message : String(error))
+      return
+    }
+  }
+  const payload = buildRecoverPayload(id)
   if (!payload) {
     store.setNodeStatus(id, 'error', i18n.t('generationCommon.recoverable.missingTask'))
     return
@@ -99,15 +112,20 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     while (true) {
       // 找回的这次查询里可能就包着整段下载（主进程查到成片就地落盘，且不为找回广播「开始落地」），
       // 所以按一次媒体传输那一档给时限；到点抛错，由下面的 catch 落回「可找回」，按钮重现。
-      const response = await awaitMediaTransfer(fetchWorkbenchTaskResultByVendor({
-        taskId: payload.taskId,
-        vendor: payload.vendor,
-        taskKind: payload.taskKind,
-        prompt: payload.prompt || null,
-        modelKey: payload.modelKey || null,
-        projectId: target.projectId,
-        ...(payload.archetype ? { archetype: payload.archetype } : {}),
-      }), (waitedMs) => new Error(describePhaseSilence('still-generating', waitedMs)))
+      // 单镜 Run 路交出去的这一次：经它的 Run 查（主进程记下这一次查询，出片就记进 Run）；旧运行记录没有 Run，照旧路查。
+      const query = async () => {
+        const viaRun = runId ? await pollCanvasShotRun({ projectId: target.projectId, runRecordId: runId }) : null
+        return viaRun ? { vendor: payload.vendor, result: viaRun } : fetchWorkbenchTaskResultByVendor({
+          taskId: payload.taskId,
+          vendor: payload.vendor,
+          taskKind: payload.taskKind,
+          prompt: payload.prompt || null,
+          modelKey: payload.modelKey || null,
+          projectId: target.projectId,
+          ...(payload.archetype ? { archetype: payload.archetype } : {}),
+        })
+      }
+      const response = await awaitMediaTransfer(query(), (waitedMs) => new Error(describePhaseSilence('still-generating', waitedMs)))
       current = response.result
       if (isTerminalTaskStatus(current.status)) break
       if (Date.now() - startedAt > RECOVER_POLL_TIMEOUT_MS) {

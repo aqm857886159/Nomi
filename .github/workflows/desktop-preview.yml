@@ -9,6 +9,11 @@ on:
         description: Branch, tag, or commit to package
         required: true
         default: main
+      director3dbox:
+        description: Build the Director 3D-BOX shell
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,7 +24,7 @@ concurrency:
 
 jobs:
   mac-preview:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview') || contains(github.event.pull_request.labels.*.name, 'director-3dbox')
     runs-on: macos-14
     timeout-minutes: 25
     steps:
@@ -40,9 +45,12 @@ jobs:
         env:
           NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
           NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+          NOMI_DIRECTOR_3DBOX: ${{ (github.event_name == 'workflow_dispatch' && inputs.director3dbox) || contains(github.event.pull_request.labels.*.name, 'director-3dbox') }}
         run: pnpm run build
       - name: Package Nomi Preview for Apple Silicon
         run: pnpm exec electron-builder --config electron-builder.preview.cjs --mac dmg --arm64 --publish never
+      - name: Check packaged feature flags
+        run: node scripts/check-packaged-flags.mjs release-preview/mac-arm64/Nomi.app --director3dbox=${{ (github.event_name == 'workflow_dispatch' && inputs.director3dbox) || contains(github.event.pull_request.labels.*.name, 'director-3dbox') }}
       - uses: actions/upload-artifact@v4
         with:
           name: nomi-preview-mac-arm64
@@ -51,7 +59,7 @@ jobs:
           retention-days: 7
 
   windows-preview:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview') || contains(github.event.pull_request.labels.*.name, 'director-3dbox')
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -72,9 +80,13 @@ jobs:
         env:
           NOMI_INTAKE_ENDPOINT: ${{ secrets.NOMI_INTAKE_ENDPOINT }}
           NOMI_INTAKE_TOKEN: ${{ secrets.NOMI_INTAKE_TOKEN }}
+          NOMI_DIRECTOR_3DBOX: ${{ (github.event_name == 'workflow_dispatch' && inputs.director3dbox) || contains(github.event.pull_request.labels.*.name, 'director-3dbox') }}
         run: pnpm run build
       - name: Package Nomi Preview for Windows
         run: pnpm exec electron-builder --config electron-builder.preview.cjs --win nsis --x64 --publish never
+      - name: Check packaged feature flags
+        shell: bash
+        run: node scripts/check-packaged-flags.mjs release-preview/win-unpacked --director3dbox=${{ (github.event_name == 'workflow_dispatch' && inputs.director3dbox) || contains(github.event.pull_request.labels.*.name, 'director-3dbox') }}
       - uses: actions/upload-artifact@v4
         with:
           name: nomi-preview-windows-x64

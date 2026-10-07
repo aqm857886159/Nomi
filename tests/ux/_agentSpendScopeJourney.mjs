@@ -1,6 +1,8 @@
 // Extend the original spend walk: real Agent tools and original single-slot UI.
 // This supplier has no durable execution adapter. No confirmation or media claim here.
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { readLaneSpend } from './_laneSpendProbe.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { APPROVAL_CARD, CANVAS_PANEL, COMPOSER, COMPOSER_PERMISSION, INTERVENTION_REJECT,
   createRuntimeWalk, hasToolResult, openCanvas, permissionTier, readProject, recorded, sendCanvas,
@@ -30,24 +32,26 @@ export async function checkSpendScopeJourney(walk, win) {
   const runs = () => win.evaluate(id => window.nomiDesktop.productionRuns.list(id), projectId)
   const readRun = operationId => win.evaluate(({ projectId, operationId }) => window.nomiDesktop.productionRuns.read(projectId, operationId), { projectId, operationId })
   const pending = async () => {
-    const read = await win.evaluate(id => window.nomiDesktop.productionRuns.pendingSpend(id), projectId)
-    expect(read.surface).toBe('ready')
+    // 宿主那一份待决出价，读的是推给面板的对话投影（唯一来路）。
+    const read = await readLaneSpend(win)
+    expect(read?.surface).toBe('ready')
     return read.rows
   }
   let turn = 0
-  const toolTurn = async (name, args) => {
+  // 一步的工作量随镜头数涨（33 镜草稿要落 33 个节点，本机实测 125–140 秒），安全上限按镜头数给，不用固定 60 秒。
+  const toolTurn = async (name, args, bound = stationTimeout({ turns: 1, operations: 1 })) => {
     const id = `CJ1_TOOL_${++turn}`, done = `${id}_DONE`
     const request = walk.fixture.expectText({ label: id, match: body => flattenRequestText(body).includes(id),
       reply: { type: 'tool', id, name, args } })
     const result = walk.fixture.expectText({ label: done, match: body => hasToolResult(body, id), reply: { type: 'text', text: done } })
     await sendCanvas(win, `${id}：执行这一条分镜操作，保留其他草稿。`)
-    await recorded(request.received, id)
-    await recorded(result.received, done)
-    await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: panel.getByText(done, { exact: true }) })
+    await recorded(request.received, id, bound)
+    await recorded(result.received, done, bound)
+    await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: panel.getByText(done, { exact: true }), doneTimeout: bound })
   }
   const draft = async shots => {
     const before = new Set((await runs()).map(run => run.runId))
-    await toolTurn('draft_shots', { shots })
+    await toolTurn('draft_shots', { shots }, stationTimeout({ turns: 1, operations: shots.length }))
     await expect.poll(async () => (await runs()).filter(run => !before.has(run.runId)).length).toBe(1)
     // IDs come from the real host; create schema intentionally forbids caller shotId.
     return (await runs()).find(run => !before.has(run.runId)).runId
@@ -94,7 +98,17 @@ export async function checkSpendScopeJourney(walk, win) {
   const initialGraph = await graph()
   // 付费卡逐镜（2026-09-30）：点名摆上卡只开一次出价，不改这一批——33 镜原样留着（以前会把没点名的 30 镜移出这一批）。
   const presentedShots = originalShots
-  expect((await readRun(operationId)).generationPlan.shots).toEqual(presentedShots)
+  // 点名的几镜会被写入 included:true 并刷新 updatedAt（按镜决定）；没点名的镜一字不动、整批没缩。
+  const expectPlanKept = async label => {
+    const plan = (await readRun(operationId)).generationPlan.shots
+    expect(plan.map(shot => shot.shotId), `${label}：整批没缩`).toEqual(presentedShots.map(shot => shot.shotId))
+    const untouched = shot => !requestedIds.includes(shot.shotId)
+    expect(plan.filter(untouched), `${label}：没被点名的镜一字不动`).toEqual(presentedShots.filter(untouched))
+    const withoutPresentation = ({ included, updatedAt, ...rest }) => rest
+    expect(plan.map(withoutPresentation), `${label}：点名只动 included 与 updatedAt`).toEqual(presentedShots.map(withoutPresentation))
+    expect(plan.filter(shot => requestedIds.includes(shot.shotId)).every(shot => shot.included === true), `${label}：被点名的镜是 included`).toBe(true)
+  }
+  await expectPlanKept('摆上卡之后')
   await expect(card.locator('[data-v4-price="total"]')).toContainText('0.90')
   // 只有一层改动：每一页改的只落在那一镜上（「逐镜 / 全部」切换和「全部」那一层已删）。
   await pageTo(2)
@@ -111,7 +125,7 @@ export async function checkSpendScopeJourney(walk, win) {
   await expect(input).toHaveText(editedPrompt)
   await expect(size).toHaveAttribute('data-parameter-chip-value', '1536x1024')
   expect(await graph()).toEqual(initialGraph)
-  expect((await readRun(operationId)).generationPlan.shots).toEqual(presentedShots)
+  await expectPlanKept('逐镜编辑之后')
   expect(walk.fixture.images).toHaveLength(0)
   await walk.snap('cj1-three-of-33-pager-and-per-shot-edits')
 
@@ -185,7 +199,7 @@ export async function checkSpendScopeJourney(walk, win) {
   const requotedTurn = await present(operationId, requestedIds)
   expect((await pending()).map(row => row.operationId), '同一份草稿重新出价').toEqual([operationId])
   expect((await pending())[0].shots.map(shot => shot.shotId), '还是原来那三镜').toEqual(requestedIds)
-  expect((await readRun(operationId)).generationPlan.shots, '镜头、参数、锚点一个字不丢').toEqual(presentedShots)
+  await expectPlanKept('重新出价之后（镜头、参数、锚点一个字不丢）')
   // 他在这张卡上**没提交**的手改一个字不丢——账本锚的是这一次生成（`spendDraftKey` 只含
   // projectId/runId/operationId），重新出价换的只是报价指纹。改动只落在第二镜上。
   await pageTo(2)

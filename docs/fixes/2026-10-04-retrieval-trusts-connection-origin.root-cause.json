@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-retrieval-trusts-connection-origin",
+  "problem_type": "同一次生成里，提交侧信任连接自己的私网 origin、取回侧不信——付了钱取不回",
+  "symptom": "#975：声明登记的本机 HTTP 适配器（127.0.0.1:52931）付费请求真打到了、任务做完了，正式生成取回产物被出站策略拒，画布同样取不回（v0.23.0 只信 ComfyUI 的本机 origin）。",
+  "direct_cause": "electron/catalog/assetLocalization.ts 的 trustedLocalOutputOrigin 只对 isComfyuiVendor 返回 base origin；generationOutputMaterializer 只认 E2E 夹具的 trustedPrivateOrigin。而提交侧 vendorOutboundGuard.authorizeSubmitDestination 对任何连接都按 declaredVendorOrigins(base URL) 放行私网。",
+  "class_root": "「这个私网地址能不能去」在提交与取回两侧各有一个答案：提交侧从连接的 base URL 派生，取回侧按供应商名单（只 ComfyUI）派生，且两扇取回门（画布 localizeTaskAsset、正式生成 materializer）各自取值。任何非 ComfyUI 的本机 / 局域网连接都会「请求发得出、结果取不回」。",
+  "affected_population": [
+    "经声明卡 / AI 接入 / 设置页接入的本机或局域网 HTTP 供应商（地址是私网字面量）",
+    "画布与正式生成两条取回路"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-04",
+  "scope_paths": [
+    "electron/vendor/vendorOutboundGuard.ts",
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/catalog/assetLocalization.ts"
+  ],
+  "entry_points": [
+    "画布 / 分镜行 / 重拍 / 外部 MCP 单发 / 试跑：runtime.runTask 与 taskResultQuery 经 localizeTaskAsset 取回",
+    "正式生成五个入口：productionGenerationSubmission.materialize 经 generationOutputMaterializer 取回"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi 自己的出站策略不变量（提交与取回对同一 origin 同答），无第三方能决定；依据为 networkOutboundPolicy 文件头与 vendorOutboundGuard 的既有声明式例外。",
+  "invariants": [
+    "取回某家供应商产物时，额外信任的私网 origin 只有这条连接 base URL 的精确 origin，且只在产物 URL 与它完全同源、它是非链路本地的私网字面量时给；全仓只有 trustedRetrievalOrigin 回答这件事。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/vendor/vendorOutboundGuard.ts",
+    "tests": [
+      "electron/vendor/retrievalTrustedOrigin.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "trustedRetrievalOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "trustedRetrievalOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "trustedRetrievalOrigin"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "两扇取回门（画布、正式生成）是两台发动机各自的落盘口，只读同一句判据；vendorOutboundGuard 是判据本身；assetLocalization 只剩一句指路注释（旧的只信 ComfyUI 的第二份判据已删）。"
+  },
+  "generality_proof": "判据不看供应商名、不看谁填的 key，只看「产物 URL 是否与连接 base URL 完全同源」与出站策略 owner 的名字层私网判定；画布与正式生成都经它，ComfyUI 多实例、声明卡、AI 接入、手接的局域网中转同一句话；同主机换端口、别的回环、链路本地、公网家各有测试。",
+  "shared_boundaries": [
+    {
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "responsibility": "取回侧唯一的私网例外判据，与提交侧 declaredVendorOrigins 同源。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "entry_point": "localizeTaskAsset",
+      "disposition": "enforced",
+      "evidence": "改问 trustedRetrievalOrigin(vendor, assetUrl)；retrievalTrustedOrigin.test 画布门那条：本机连接交出 origin、公网家不交。"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "createGenerationOutputMaterializer",
+      "disposition": "enforced",
+      "evidence": "产物与海报各按自己的 URL 问；declaredProviderProduction.test 真目录 + 真 hardenedFetch：同 origin 取回成功、换端口拒。"
+    },
+    {
+      "path": "electron/assets/downloadAsset.ts",
+      "entry_point": "fetchAssetBytes",
+      "disposition": "not-affected",
+      "evidence": "另存到磁盘：拿的是已落盘的 nomi-local 或任意网址，没有连接身份可问，维持出站策略原样。"
+    },
+    {
+      "path": "electron/assets/assetsIpc.ts",
+      "entry_point": "importRemoteAsset",
+      "disposition": "not-affected",
+      "evidence": "用户导入网址，不是某家供应商的产物，不给任何私网例外。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何非 ComfyUI 的私网连接、任何一次生成都会复现；画布与正式生成两条路都受影响。",
+    "same_class_scan": [
+      "git grep -n trustedPrivateOrigin electron：localizeTaskAsset / projectAssetStore / generationOutputMaterializer / providerMediaFetch / tikhub（连接器，测试夹具专用）",
+      "node scripts/door-map.mjs fetchProviderMedia：materializer / downloadAsset / projectAssetStore",
+      "node scripts/door-map.mjs localizeTaskAsset：runtime / customCallDispatch / taskResultQuery 全部经 localizeTaskAsset"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/vendor/vendorOutboundGuard.ts",
+    "invariant": "取回的私网例外 = 连接 base URL 的精确 origin（私网字面量、非链路本地、与产物同源），一处判定。",
+    "failure_mode": "不满足即不给例外，出站策略照旧拒（OutboundDestinationRefusedError）。",
+    "exception_policy": "none",
+    "strategy": "删掉按供应商名单给例外的旧判据，两扇取回门改问同一个函数。",
+    "artifacts": [
+      "electron/vendor/vendorOutboundGuard.ts",
+      "electron/assets/localizeTaskAsset.ts",
+      "electron/capabilityCore/generationOutputMaterializer.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/vendor/retrievalTrustedOrigin.test.ts",
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+    "electron/assets/providerMediaFetch.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/vendor/retrievalTrustedOrigin.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/assetLocalization.ts"
+    ],
+    "rationale": "trustedLocalOutputOrigin（只信 ComfyUI）整段删除，没有保留回落。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方运行时。",
+    "exit_criteria": []
+  },
+  "migration": "无需迁移：判据只读连接现有的 baseUrlHint。",
+  "residual_risks": [
+    "主机名解析成私网地址的连接（如 http://gpu-box:8188）仍取不回：出站策略的声明式例外只在名字层生效，这是既有策略，本次不动。",
+    "画布取回失败的「可找回」判定仍按 outbound-blocked 单码猜（outboundBlockedRecovery.ts），见设计卡方向检查第二节的预测。"
+  ]
+}

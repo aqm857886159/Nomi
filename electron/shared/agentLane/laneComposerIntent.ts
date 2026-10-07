@@ -2,6 +2,7 @@
 // releasing an approval wait; explicit secondary input (Alt+Enter) is follow-up.
 // This pure mapping is shared by the renderer client and runtime tests.
 import type { LaneCommand, LaneProjection } from './laneContracts'
+import type { PendingSpendRead } from '../contracts/pendingSpendConfirm'
 
 /** 输入框那一刻面对的是什么。顺序即优先级：等人的卡永远盖过「在跑」。 */
 export type LaneComposerState = 'awaiting-approval' | 'running' | 'idle'
@@ -26,14 +27,23 @@ export interface LaneComposerIntent {
   readonly secondary?: LaneComposerChoice
 }
 
-export function laneComposerState(projection: LaneProjection): LaneComposerState {
+/**
+ * 「等你确认」只有一种表示（2026-10-05）：投影里有一张在等用户的卡——闸自己的卡（`pending`），
+ * 或这个项目里有一笔钱在等点头（`spend`，工作区投影）。后者以前不进投影（闸的 hold 替它等，却不出现在这里），
+ * 于是等付费卡时这里答「在跑」。
+ *
+ * 付费卡只在**回合在跑**时才算「等你」：全自动代答失败留下的那张卡没有回合在等它，此刻打的字是开新一轮，
+ * 不是对那张卡的回答（主进程那头同样只在 hold 存在时把字递给卡）。
+ */
+export function laneComposerState(projection: LaneProjection, spend?: PendingSpendRead): LaneComposerState {
   if (projection.pending) return 'awaiting-approval'
-  return projection.running ? 'running' : 'idle'
+  if (!projection.running) return 'idle'
+  return spend?.surface === 'ready' && spend.rows.length > 0 ? 'awaiting-approval' : 'running'
 }
 
 /** Preserve the user's words; the host owns approval wake-up and pi owns queue order. */
-export function laneComposerIntent(projection: LaneProjection, text: string): LaneComposerIntent {
-  const state = laneComposerState(projection)
+export function laneComposerIntent(projection: LaneProjection, text: string, spend?: PendingSpendRead): LaneComposerIntent {
+  const state = laneComposerState(projection, spend)
   if (state !== 'idle') {
     return {
       state,

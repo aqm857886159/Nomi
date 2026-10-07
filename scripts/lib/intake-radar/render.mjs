@@ -55,7 +55,7 @@ function launchesMarkdown(launches) {
 
 function updateActionsMarkdown(actions) {
   if (actions.length === 0) return '（本轮缓存里没有 update.action 事件）'
-  return actions.map((a) => `- ${a.action} · ${a.result} × ${a.count}`).join('\n')
+  return actions.map((a) => `- ${a.action} · ${a.result}${a.reason ? ` · ${a.reason}` : ''} × ${a.count}`).join('\n')
 }
 
 function errorCodeMarkdown(ranking) {

@@ -3,7 +3,7 @@ import type { IpcMainEvent } from 'electron'
 
 const ipc = vi.hoisted(() => ({ listeners: new Map<string, (event: IpcMainEvent, value: unknown) => void>() }))
 vi.mock('electron', () => ({ ipcMain: { on: (channel: string, listener: (event: IpcMainEvent, value: unknown) => void) => ipc.listeners.set(channel, listener) } }))
-vi.mock('../ipcSenderGuard', () => ({ assertTrustedSender: () => undefined }))
+vi.mock('../ipcSenderGuard', () => ({ assertTrustedSender: () => undefined, assertTrustedFireAndForget: (_event: unknown, _channel: string, guard: (event: unknown) => void) => { try { guard(_event); return true } catch { return false } } }))
 vi.mock('../runtimePaths', () => ({ getWorkspaceRepositoryDeps: () => ({}) }))
 vi.mock('../workspace/workspaceRepository', () => ({ readWorkspaceProject: () => undefined, resolveWorkspaceProjectDir: () => undefined }))
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority, type CapturedCanvasReadPort, type ProjectSurfaceSession } from './canvasReadSurfaceRegistry'

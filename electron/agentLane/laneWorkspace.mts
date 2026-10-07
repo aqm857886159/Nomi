@@ -30,10 +30,15 @@ import { openLaneHistory } from './laneHistory.mjs';
 import { openLane } from './laneHost.mjs';
 import { deleteLaneSession, listLaneSessions } from './laneSession.mjs';
 import type { OpenLaneOptions } from './laneRuntimePort.js';
+import type { PendingSpendRead } from '../shared/contracts/pendingSpendConfirm.js';
 import { readLaneWorkspaceSelection, writeLaneWorkspaceSelection } from './laneWorkspaceSelection.js';
 
 /** 打开一个项目的对话工作区。缺省恢复上次选择；只有没有会话的新项目才创建 `main`。 */
-export type LaneWorkspaceOptions = Omit<OpenLaneOptions, 'sessionId' | 'model'> & { model?: OpenLaneOptions['model'] };
+export type LaneWorkspaceOptions = Omit<OpenLaneOptions, 'sessionId' | 'model'> & {
+  model?: OpenLaneOptions['model'];
+  /** 项目级的待决出价（付费卡）。工作区每次发布时现读一次，摊进投影；它不属于任何一条 lane。 */
+  spend?: () => PendingSpendRead;
+};
 
 /** 换 lane 时怎么造那条 lane 的宿主。测试用它注入一个假宿主；生产恒 `openLane`。 */
 export type LaneOpener = (options: LaneWorkspaceOptions) => Promise<LaneHandle>;
@@ -63,7 +68,7 @@ export async function openLaneWorkspace(
   let active: LaneHandle = await openOne({ ...options, laneName: initialLane });
   try { rememberSelection(); lanes = await readLanes(); }
   catch (error) { await active.close(); throw error; }
-  let projection: LaneWorkspaceProjection = { lanes, active: active.projection() };
+  let projection: LaneWorkspaceProjection = withSpend({ lanes, active: active.projection() });
   let unsubscribeActive = active.subscribe(() => publish());
 
   function rememberSelection(): void {
@@ -73,9 +78,13 @@ export async function openLaneWorkspace(
     selection = next;
   }
 
+  function withSpend(next: LaneWorkspaceProjection): LaneWorkspaceProjection {
+    return options.spend ? { ...next, spend: options.spend() } : next;
+  }
+
   function publish(): void {
     if (closed || structuralPending) return;
-    projection = { lanes, active: active.projection() };
+    projection = withSpend({ lanes, active: active.projection() });
     for (const listener of listeners) listener(projection);
   }
 
@@ -265,6 +274,7 @@ export async function openLaneWorkspace(
     },
     appendTaskNote: async (note) => { await awaitReady(); await active.appendTaskNote(note); },
     refreshTasks: () => { if (!closed && !structuralPending) active.refreshTasks(); },
+    refreshSpend: () => publish(),
     close: () => {
       if (closing) return closing;
       inputs.cancel();

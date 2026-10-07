@@ -132,12 +132,14 @@ async function stopRound(walk, win, projectId, locale) {
     // 每个来回都要等主进程空出来，等完这一叠早跑完了。
     let dismissAt
     await expect.poll(async () => {
-      const seen = await win.evaluate(async ({ pid, oid }) => {
-        const read = await window.nomiDesktop.productionRuns.pendingSpend(pid)
+      const seen = await win.evaluate(async ({ oid }) => {
+        // 宿主那一份待决出价：推给面板的对话投影（唯一来路，`tests/ux/_laneSpendProbe.mjs`）。
+        localStorage.setItem('__nomiE2E', '1')
+        const read = window.__nomiLaneWorkspace?.spend
         const left = (read?.rows ?? []).find((row) => row.operationId === oid)?.shots.length ?? 0
         const box = document.querySelector('[data-v4-block="intervention"][data-kind="spend"] [data-v4-control="slot-dismiss"]')?.getBoundingClientRect()
         return { left, at: box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null }
-      }, { pid: projectId, oid: operationId })
+      }, { oid: operationId })
       dismissAt = seen.at
       return seen.left
     }, { message: `${locale}：宿主批下第 1 张`, timeout: stationTimeout({ operations: 6 }), intervals: [100] }).toBeLessThan(6)

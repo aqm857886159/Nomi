@@ -75,6 +75,7 @@ export const LOCAL_BEARER_ROUTE_REGISTER: Readonly<Record<string, string>> = Obj
   // 2026-09-21 合并 ①：MCP 接模型 lane 新长出来的两个 case，被本文件的闭包测试当场点名。
   // 它们不写项目内容，但各自的门必须说得出在哪一层——「不写项目内容」不是一条判词。
   'model.onboarding.kit': '只读进程常量（声明卡 schema + 撰写规范 + 样例卡）；零用户数据、零凭据、不落盘',
+  'task.read': '只读单个已提交任务的现状：只走 fetchTaskResult（与画布同一条查询链路），模块里没有提交入口，不花钱、不重提交；任务号不认得就如实说不认得',
   'model.onboarding.try': '试跑一次真实生成，会花钱：钱闸在 spendDecidedByPolicy（用户档位的单一 owner，调用方自报的档位一律不认）+ assertAndConsumeQuotedSpend；非全自动档必须由真人在 Nomi 窗口按下确认，Nomi 没开就诚实失败',
   'model.onboarding.setup': '模型档案接入（modelOnboarding/dispatch 自己判权）',
   'model.onboarding.remove': '删模型档案要 ifUnchanged 指纹（与 models.list 同一个函数算）',

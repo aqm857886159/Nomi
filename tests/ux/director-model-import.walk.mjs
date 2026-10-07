@@ -3,12 +3,12 @@
 // 没给就把这一半明说为「跳过」，不算通过。GLB 那一半用现场生成的最小立方体 GLB，不依赖任何外部文件。
 import fs from 'node:fs'
 import path from 'node:path'
-import { clickOrFail, launchDirectorLab, repoRoot, writeCubeGlb } from './_directorLab.mjs'
+import { launchDirectorLab, openAssets, repoRoot, writeCubeGlb } from './_directorLab.mjs'
 
 const lab = await launchDirectorLab({ name: 'model-import' })
 const { page } = lab
 try {
-  await clickOrFail(page.getByText('资产库', { exact: true }), '资产库')
+  await openAssets(lab)
   const assets = page.getByTestId('director-assets')
   const fbxPath = process.env.NOMI_DIRECTOR_TEST_FBX
   if (fbxPath && fs.existsSync(fbxPath)) {

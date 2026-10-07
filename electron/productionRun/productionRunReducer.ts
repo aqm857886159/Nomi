@@ -1,7 +1,7 @@
 import type { ArtifactReviewDecision } from "../shared/agentCapabilities/productionRun";
 import { transitionJob, transitionRun } from "./productionRunState";
 import { decideShotClaim } from "../shared/decideShotClaim";
-import { jobsForShot, latestJobForShot } from "../shared/productionShotJobs";
+import { currentShotAttempt, jobsForShot } from "../shared/productionShotJobs";
 import { applyOwedLifecycleStep, applyRunStatus } from "./productionRunLifecycle";
 import { bindShotNodes, detachShotNodes } from "./productionRunCanvasLandingReducer";
 import type {
@@ -328,8 +328,7 @@ export function applyProductionCommand(
       // shot IDs and must remain a no-op, especially for single-shot plans.
       if (decision.holder !== "canvas") return { run: current, eventType: "shot.claimed", message: shotId };
       const pending = new Set<ProductionJob["status"]>(["planned", "authorization_required", "authorized"]);
-      const latest = latestJobForShot(current, shotId);
-      const claim = { by: "canvas" as const, attempt: latest?.attempt ?? 1, claimedAt: now };
+      const claim = { by: "canvas" as const, attempt: currentShotAttempt(current, shotId), claimedAt: now };
       const jobs = current.jobs.map((job) => {
         const matches = jobsForShot(current, shotId).some((candidate) => candidate.jobId === job.jobId);
         return matches && pending.has(job.status)

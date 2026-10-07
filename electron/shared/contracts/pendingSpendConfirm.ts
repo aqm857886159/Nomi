@@ -83,13 +83,15 @@ export type PendingSpendConfirm = Readonly<{
 }>;
 
 /**
- * 「有没有待确认的一笔」这条读通道的**完整**答案（2026-09-14）。
+ * 「有没有待确认的一笔」的**完整**答案（2026-09-14；2026-10-05 起它随对话投影推给面板，不再被轮询）。
  *
  * 三种现实必须是三种不同的值，而不是一个数组加一个异常：
  *   · `ready` + rows        —— 面装着，这些就是要确认的（空数组 = 真的没有）；
  *   · `off`                 —— 本会话按配置没装这条面 / 还在起 / 已停。**不是失败**：这种相下
  *                              没有任何一面能 announce「有一笔在等你」，所以也没有卡可画；
- *   · 抛 `spend_confirm_surface_unavailable` —— 装配抛了。那才是要一路传到用户眼前的失败。
+ *   · `unreadable`          —— 读不到：装配抛了（`surface-unavailable`），或投影本身抛了
+ *                              （`projection-failed`）。那才是要一路传到用户眼前的失败。它以前是一个
+ *                              被拒的 IPC，现在住在推送里，所以必须是一个值而不是一个异常。
  *
  * 2026-09-12 的修法只把「null」改成「抛」，于是「按配置关掉」也成了失败（Canvas Performance
  * 18 个场景每 1.5s 一条 console error）；2026-09-13 又在渲染层把那个错吞回去（而且没接上线）。
@@ -97,4 +99,11 @@ export type PendingSpendConfirm = Readonly<{
  */
 export type PendingSpendRead =
   | Readonly<{ surface: "ready"; rows: readonly PendingSpendConfirm[] }>
-  | Readonly<{ surface: "off"; phase: ResidentSurfaceOffPhase; reason?: ResidentSurfaceDisabledReason }>;
+  | Readonly<{ surface: "off"; phase: ResidentSurfaceOffPhase; reason?: ResidentSurfaceDisabledReason }>
+  | Readonly<{ surface: "unreadable"; reason: "surface-unavailable" | "projection-failed" }>;
+
+/**
+ * 卡上「改参数」那一下的回包：宿主落完改动之后**现算的那张卡**（正式报价）就在回包里。
+ * 卡点下去那一刻要拿它和本地估算对账、拿它的报价去封印——不再为此另读一次（读口只有对话投影那一条）。
+ */
+export type PendingSpendRevised = Readonly<{ pending?: PendingSpendConfirm }>;

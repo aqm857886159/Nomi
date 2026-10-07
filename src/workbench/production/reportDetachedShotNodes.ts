@@ -26,7 +26,7 @@ export async function reportDetachedShotNodes(
   // Run 已经不在，或计划已是真终态（`cancelled`）：落地投影本来就不认它，没有要记的。
   if (!run || run.generationPlan?.state === 'cancelled') return 'not-applicable'
   await executeProductionRunCommand(projectId, runId, {
-    commandId: detachShotNodesCommandId(runId, nodeIds),
+    commandId: detachShotNodesCommandId(runId, nodeIds, run.revision),
     expectedRevision: run.revision,
     type: 'plan.detach-shot-nodes',
     payload: { nodeIds: [...nodeIds] },

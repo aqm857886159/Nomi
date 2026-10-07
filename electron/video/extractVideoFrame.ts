@@ -195,8 +195,8 @@ export type ExtractEndpointsPayload = {
  * 顺带补上另一个盲区：只看一帧时，identity 轴对**中途变脸**（视频生成的头号失败模式）完全失明。
  * 首尾同图后，判分器能直接比较两端是不是同一个人。
  *
- * 为什么拼成一张而不是喂两张图：runtime 的多模态通道只取 `referenceImages` 的**第一张**
- * （见 shotVerifyDeps 的 callJudge 注释），传两张会静默丢一张。拼图对任何单图判分模型都成立，
+ * 为什么拼成一张而不是喂两张图：runtime 的多模态通道只取 `referenceImages` 的**第一张**，
+ * 传两张会静默丢一张。拼图对任何单图判分模型都成立，
  * 不依赖某家的多图能力。
  *
  * 两端等高缩放后 hstack（hstack 要求输入等高）。失败时调用方按「取帧失败 → 跳过判分」处理，不阻断生成。

@@ -14,6 +14,7 @@ import {
   parseRendererLogEntry,
   registerRendererLogIpc,
 } from "./rendererLog";
+import { UntrustedIpcSenderError } from "../ipcSenderGuard";
 import {
   installRendererErrorCapture,
   logRendererCrash,
@@ -165,6 +166,28 @@ describe("限流（IPC 是信任边界，每一行都是主进程一次同步写
 });
 
 describe("IPC 注册", () => {
+  it("fire-and-forget 遇到不可信 sender 时丢弃且按通道限流，不把异常抛回主进程", () => {
+    type FakeIpcEvent = { sender: { id: number } };
+    const handlers = new Map<string, (event: FakeIpcEvent, message: unknown) => void>();
+    const record = vi.fn();
+    const assertTrusted = vi.fn(() => {
+      throw new UntrustedIpcSenderError();
+    });
+    registerRendererLogIpc<FakeIpcEvent>(
+      { onMessage: (channel, handler) => handlers.set(channel, handler), assertTrusted },
+      record,
+    );
+
+    const handler = handlers.get(RENDERER_LOG_CHANNEL)!;
+    const droppedWarnings = linesWrittenBy("ipc-untrusted-sender-dropped", () => {
+      expect(() => handler({ sender: { id: 9 } }, { level: "error", event: "untrusted-probe" })).not.toThrow();
+      expect(() => handler({ sender: { id: 9 } }, { level: "error", event: "untrusted-probe" })).not.toThrow();
+    });
+    expect(droppedWarnings).toHaveLength(1);
+    expect(droppedWarnings[0]).toContain(`channel=${RENDERER_LOG_CHANNEL}`);
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it("每条报文先过 sender 守卫；守卫拒绝时异常上抛、不落盘", () => {
     type FakeIpcEvent = { sender: { id: number } };
     const handlers = new Map<string, (event: FakeIpcEvent, message: unknown) => void>();

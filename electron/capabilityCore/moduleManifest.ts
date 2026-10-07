@@ -20,6 +20,12 @@ const parameterFieldSchema = z.object({
    */
   min: z.number().finite().optional(),
   max: z.number().finite().optional(),
+  /**
+   * 档案声明的默认值（只有档案投影出来的字段才有；目录派生的没有就不写，不猜）。
+   * 准入层不读它（缺省值由供应商那一侧兜）；语义翻译读它：同一个比例有好几档像素尺寸时，
+   * 「和默认同一档」是判得出的那一档（`electron/shared/aspectRatioValue.ts`）。
+   */
+  default: primitiveEnumValueSchema.optional(),
 }).strict();
 
 const recoveryCapabilitiesSchema = z.object({

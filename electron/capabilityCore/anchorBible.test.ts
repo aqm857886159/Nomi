@@ -5,8 +5,6 @@ import {
   anchorStaticFeatures,
   isAnchorFrozen,
   isVisualAnchorNode,
-  unfrozenAnchorsForShot,
-  unfrozenVisualAnchors,
 } from './anchorBible'
 
 describe('anchorBible 纯判据（冻结门 + 身份轴基准的单一真相源）', () => {
@@ -50,46 +48,5 @@ describe('anchorBible 纯判据（冻结门 + 身份轴基准的单一真相源�
     // staticFeatures 空白 → 退化到 prompt。
     expect(anchorStaticFeatures({ prompt: 'p', meta: { staticFeatures: '   ' } })).toBe('p')
     expect(anchorStaticFeatures(undefined)).toBe('')
-  })
-
-  it('unfrozenVisualAnchors：只挑出「需冻结但未冻结」的视觉锚', () => {
-    const nodes = [
-      { id: 'a1', kind: 'character', meta: { referenceSheet: true } }, // 未冻结锚 → 挑出
-      { id: 'a2', kind: 'scene', meta: { referenceSheet: true, frozen: { at: 1, by: 'user' } } }, // 已冻结 → 不挑
-      { id: 's1', kind: 'video', meta: {} }, // 镜头 → 不挑
-      { id: 'a3', kind: 'prop', meta: { referenceSheet: true } }, // 未冻结道具锚 → 挑出
-    ]
-    expect(unfrozenVisualAnchors(nodes).map((n) => n.id)).toEqual(['a1', 'a3'])
-    // 全冻结 → 空。
-    expect(unfrozenVisualAnchors([{ id: 'a2', kind: 'character', meta: { referenceSheet: true, frozen: { at: 1, by: 'user' } } }])).toEqual([])
-  })
-})
-
-// ── 冻结门第三层：单镜生成时的提醒（2026-08-20 补 MCP 单镜循环绕过冻结门的洞）────────────
-describe('unfrozenAnchorsForShot（只提醒不拦，但必须提醒得准）', () => {
-  // 定妆卡的真实形状：kind 就是 'character'（不是 image + 某个 meta 标记），meta.referenceSheet=true。
-  const card = (id: string, title: string, frozen?: boolean) => ({
-    id, title, kind: 'character',
-    meta: {
-      referenceSheet: true,
-      ...(frozen ? { frozen: { at: 1_700_000_000_000, by: 'user' } } : {}),
-    },
-  })
-
-  it('引用了没冻结的定妆卡 → 报出来（这正是 MCP 一镜一镜循环时绕过去的那道门）', () => {
-    const hits = unfrozenAnchorsForShot([card('c1', '小周定妆'), card('c2', '便利店', true)])
-    expect(hits.map((n) => n.id)).toEqual(['c1'])
-  })
-
-  it('全冻结了 → 零提醒（不制造噪音，误报多了没人再看这句）', () => {
-    expect(unfrozenAnchorsForShot([card('c1', '小周定妆', true), card('c2', '便利店', true)])).toEqual([])
-  })
-
-  it('引用的不是视觉锚（普通图节点）→ 不提醒（拿一张随手图当参考是合法用法）', () => {
-    expect(unfrozenAnchorsForShot([{ id: 'x', title: '随手图', kind: 'image', meta: {} }])).toEqual([])
-  })
-
-  it('没有任何引用 → 零提醒（T2V 兜底不该被念叨）', () => {
-    expect(unfrozenAnchorsForShot([])).toEqual([])
   })
 })

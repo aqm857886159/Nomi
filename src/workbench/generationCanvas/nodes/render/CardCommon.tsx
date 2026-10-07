@@ -19,6 +19,13 @@ export const STRIPED_BG_CLASS =
   'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
 
 /**
+ * 透明图的棋盘格底（亮 / 暗两套 token 自动跟主题）。只垫在**抠图结果**下面：
+ * 没有它，亮色下白底图抠完落在白卡上和原图一模一样，用户以为「点了没反应」（2026-10-06）。
+ */
+export const CHECKERBOARD_BG_CLASS =
+  'bg-[repeating-conic-gradient(var(--nomi-ink-10)_0_25%,var(--nomi-paper)_0_50%)] bg-[length:16px_16px]'
+
+/**
  * 节点 body 左上角标题行（统一规格：可选「镜头 N」徽标 + text-body-sm font-semibold 标题）。
  * 收口占位卡 / 画板 / 音频等非图片 body 的标题——此前各写一套字号字重，扫节点找标题没稳定落点。
  * 图片卡（角色/场景/道具）的标题压在图上/图下是刻意沉浸式，不走这里（仅字号字重经 EditableNodeTitle 对齐）。
@@ -128,23 +135,30 @@ export function PendingGenerationPlaceholder({
   selected,
   needsFirstFrame,
   waitingUpstream = false,
+  derivedReady = false,
   kind,
 }: {
   selected: boolean
   needsFirstFrame: boolean
   waitingUpstream?: boolean
+  /** 派生出来、提示词已填好、还没生成（`isDerivedPromptReady`）。 */
+  derivedReady?: boolean
   kind: string
 }): JSX.Element {
   const { t } = useTranslation()
   const isVideo = kind === 'video'
   // 3D 模型节点也走这条通用占位（无专属卡 body）。不按 kind 分就会拿图片文案自称「图片节点」。
   const isModel3d = kind === 'model3d'
-  const titleText = isVideo
+  const titleText = derivedReady
+    ? t('generationCommon.nodeEmpty.derivedReady.title')
+    : isVideo
     ? t('generationCommon.nodeEmpty.video.title')
     : isModel3d
       ? t('generationCommon.nodeEmpty.model3d.title')
       : t('generationCommon.nodeEmpty.image.title')
-  const description = waitingUpstream
+  const description = derivedReady
+    ? t('generationCommon.nodeEmpty.derivedReady.description')
+    : waitingUpstream
     ? t('generationCommon.nodeEmpty.waiting')
     : needsFirstFrame
       ? t('generationCommon.nodeEmpty.firstFrame')

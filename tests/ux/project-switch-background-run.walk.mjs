@@ -15,7 +15,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -211,8 +210,9 @@ try {
     await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '原分镜方案')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     if (mode === 'storyboard-first-frame') {
-      await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-slot="first_frame"]'),
-        '仅图生视频模型也在原编辑器显示首帧参考槽').toBeVisible()
+      // 2026-10-06 起参考在视觉列的缩略图条里；计划首帧是最前面那一格只读占位。
+      await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-planned="first-frame"]'),
+        '仅图生视频模型也在原编辑器显示计划首帧那一格').toBeVisible()
     }
     await snap(win, 'original-editor-before-approval')
     const action = win.locator('[data-storyboard-batch="true"]')
@@ -229,15 +229,9 @@ try {
     if (mode === 'variants') {
       await clickOrFail(win.locator('[aria-label="每次生成几个"]'), '原参数条生成数量')
       await clickOrFail(win.getByRole('option', { name: '3 个', exact: true }), '选择三次')
-      await clickOrFail(win.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]'), '原参数条生成')
-    } else {
-      const blank = await findCanvasBlankPoint(win)
-      check(Boolean(blank), '画布上找得到空白处取消选择')
-      await win.mouse.click(blank.x, blank.y)
-      const generateAll = win.locator('[data-batch-scope="all"]')
-      await expect(generateAll, '有待生成节点时出现批量生成入口').toBeVisible({ timeout: stationTimeout() })
-      await clickOrFail(generateAll, '生成全部')
     }
+    // 单个节点就走它自己参数条上的生成（批量入口只剩组的「生成整组」，一个节点用不着）。
+    await clickOrFail(win.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]'), '原参数条生成')
   }
   if (mode === 'single') {
     // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口；画布上只有这一张待生成）；

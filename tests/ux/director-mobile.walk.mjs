@@ -39,7 +39,9 @@ try {
   })
   const lab = { page: win, bridge: (method, ...args) => win.evaluate(([name, list]) => window.__nomiDirectorE2E?.[name](...list), [method, args]) }
   await placeCharacter(lab, 'female', 0, 0)
+  await clickOrFail(win.getByTestId('director-scene-menu'), '顶栏·▤ 图层名 ▾（大纲）')
   await clickOrFail(win.getByTestId('director-outliner-row').filter({ hasText: '角色' }).first(), '选中角色')
+  await clickOrFail(win.getByTestId('director-scene-menu'), '顶栏·收起大纲')
   await addCameraPreset(lab, '正面中景')
   await clickOrFail(win.getByTestId('director-pip').getByRole('button', { name: '进入视角' }), '进入机位')
   await clickOrFail(win.getByRole('button', { name: '连接手机虚拟相机' }), '连接手机')

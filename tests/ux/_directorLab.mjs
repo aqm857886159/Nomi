@@ -142,7 +142,25 @@ export async function launchDirectorLab({ name, viewport = { width: 1440, height
       return bridge && typeof bridge[name] === 'function' ? bridge[name](...list) : null
     }, [method, args]),
     toasts: () => page.locator('[role="alert"], [role="status"]').allInnerTexts(),
+    /** 大纲行。2026-10-04 起大纲住顶栏「▤ 图层名 ▾」浮层里（精修「选中才出」），要先 openOutliner() 才在 DOM 里。 */
     outlinerRow: (text) => page.locator('[data-testid="director-outliner-row"]', { hasText: text }).first(),
+    /** 打开顶栏「▤ 图层名 ▾」浮层（大纲 + 场景设置）；已经开着就不动。 */
+    async openOutliner() {
+      const trigger = page.getByTestId('director-scene-menu')
+      if ((await trigger.getAttribute('aria-expanded')) !== 'true') await clickOrFail(trigger, '顶栏·▤ 图层名 ▾')
+      await expectVisible(page.getByTestId('director-outliner'), '大纲浮层没打开')
+    },
+    /** 收起大纲浮层（再点一次触发器，和用户一样）；没开就不动。 */
+    async closeOutliner() {
+      const trigger = page.getByTestId('director-scene-menu')
+      if ((await trigger.getAttribute('aria-expanded')) === 'true') await clickOrFail(trigger, '顶栏·收起大纲')
+    },
+    /** 在大纲里点一行再收起浮层：用户「挑一个东西」的完整动作（浮层不挡后面在视口里的点击）。 */
+    async pickInOutliner(text, label, options) {
+      await lab.openOutliner()
+      await clickOrFail(lab.outlinerRow(text), label ?? `大纲·${text}`, options)
+      await lab.closeOutliner()
+    },
     trackRow: (text) => page.getByTestId('director-timeline-tracks').locator('[data-testid="director-timeline-track"]', { hasText: text }).first(),
     async finish() {
       if (pageErrors.length) {
@@ -179,12 +197,20 @@ export async function addCameraPreset(lab, presetLabel) {
 
 /**
  * 顶栏「＋添加」菜单：先开菜单，再进二级项。
- * 2026-09-09 五簇重排：视口左缘那条竖排创建栏没了，四个创建入口都住这个菜单（一功能一个家）。
+ * 2026-09-09 五簇重排：视口左缘那条竖排创建栏没了，四个创建入口都住这个菜单（一功能一个家）；2026-10-04 触发器只剩「＋」图标。
  */
 export async function openAddMenu(lab, itemLabel) {
   const { page } = lab
   await clickOrFail(page.getByTestId('director-add-menu'), '顶栏·添加')
   if (itemLabel) await clickOrFail(page.getByRole('button', { name: itemLabel, exact: true }), `添加菜单·${itemLabel}`)
+}
+
+/** 「＋」菜单底部「资产库」→ 左侧抽屉（2026-10-04 资产库不再常驻右栏页签）。 */
+export async function openAssets(lab) {
+  const { page } = lab
+  await clickOrFail(page.getByTestId('director-add-menu'), '顶栏·＋')
+  await clickOrFail(page.getByTestId('director-open-assets'), '＋菜单·资产库')
+  await expectVisible(page.getByTestId('director-assets-drawer'), '资产库抽屉没打开')
 }
 
 /** 轨道列头「+ 添加轨道 ▾」→ 实体名（加进来自动带一段 4s 空路径片段）。 */

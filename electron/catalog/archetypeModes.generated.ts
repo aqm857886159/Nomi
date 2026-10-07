@@ -551,6 +551,18 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "upscale": "image_edit"
     }
   },
+  "topaz-image-upscale": {
+    "defaultModeId": "upscale",
+    "modes": {
+      "upscale": "image_edit"
+    }
+  },
+  "recraft-crisp-upscale": {
+    "defaultModeId": "upscale",
+    "modes": {
+      "upscale": "image_edit"
+    }
+  },
   "codex-imagegen": {
     "defaultModeId": "t2i",
     "modes": {

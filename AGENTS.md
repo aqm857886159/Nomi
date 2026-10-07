@@ -3,12 +3,12 @@
 # Nomi — 工程纪律
 
 > 本文件常驻、每次 session 读完再动手；细节触发才查：`docs/engineering-rules.md`（规则详解）、`docs/engineering/`（命令全表、设计卡、交付与评审、编排手册）、`docs/lessons/INDEX.md`、`docs/ARCHITECTURE-NOW.md`、`docs/GLOSSARY.md`。每轮还会按用户消息关键词注入提示块（`scripts/claude-hooks/self-check.sh`）。
-> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，字节只减不增；加一条规则必须删两条。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
+> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，加内容前先找能合并或删掉的，能减就减，实在减不了可以不减。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
 
 ## 项目概览
 
 Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 + Zustand + React Flow (`@xyflow/react`) + Vercel AI SDK。主要模块：项目库 → 创作（文本）→ 生成画布（节点系统）→ 时间轴预览 → 导出 MP4。设计系统：`Design.md` + `src/design/`，token-only，光 / 暗双模式，密度优先。
-所有改动从最新 `origin/main` 创建独立任务分支 / worktree，通过 PR 交付；禁止直接推 `main`。操作文件用绝对路径，新 worktree 放仓库目录同级。
+所有改动从最新 `origin/main` 创建独立任务分支 / worktree，通过 PR 交付；禁止直接推 `main`。操作文件用绝对路径。
 
 `pnpm run gates` 是提交前的分层门（按风险档，和 CI 共用 `scripts/validation-policy.mjs`）；全量档 `pnpm run gates:full`；其余命令见 `docs/engineering/commands.md`。开任务先 `pnpm run delivery:preflight`。
 
@@ -16,23 +16,23 @@ Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 
 
 **P0 只写我们独有的** — 领域本身（分镜、镜头与制作流程、画布、素材、按镜头的花钱语义，以 `docs/engineering/self-written.json` 的领域目录为准）才自己写；通用能力默认接入现成的框架 / 库 / 标准，自写必须登记、理由只认领域约束；能力按通用场景设计，不与具体供应商耦合。自问：「这段是我们独有的吗？不是 → 先找现成的。」
 
-**P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件 14 天第三次因 bug 修改、要加第三个特例分支、改一处要读两处旁路，就停止打补丁，选补 / 重写 / 删并先写特征测试（RW，试用到 10-15）。
+**P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件或同目录 14 天第 3 个 fix、出现 revert fix、修复因评测掉分被回滚、同线第 3 轮修补、第三个特例分支，任一出现就停止派修补，先做类根因复盘（`docs/engineering/direction-check-template.md`）交用户拍板（RW；碰热点的 fix 提交须带 `Direction-Check:` trailer）。
 
-**P2 修根因不修症状** — 任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，先 `node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决。
+**P2 修根因、改系统** — 沉淀规则是每个 agent 的使命。任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，`node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界；再答「系统哪里没拦住」，把漏洞补上，强弱依次：删掉 > 结构上做不出来 > 门岗自动拦 > 写规则文字。修 bug 的 PR 必填「## 系统改进」。用户发现的问题进逃逸账本，结账必须挂结构性预防。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决；只修这一处不算完成。
 
 **P3 全绿不等于完成** — 用户可见改动报完成前：和获批样张逐项对账，真截图自己亲眼 Read 过（zh/en 两轨）；功能交付要有真实任务闭环；没有真实资源记 `unverified`，不许 mock 绿灯顶替。
 
-**P5 想清楚再动手** — 动手前先写设计卡（`docs/engineering/design-card.md`）：所有改动都填 ★ 5 格（1、2、3、4、9），碰花钱 / 长跑 / 可打断 / 新界面这四类 9 格全填；写进任务书或 `docs/plan`，PR 正文 `## 设计卡` 放链接或全文；四类合并前还要另一条线独立验收，PR 正文 `## 独立验收` 带报告链接和验收线编号（不得与实现线相同）。UI 改动先读 `docs/design/nomi-design-system.md`、出可体验样张、用户拍板；改现有 UI 先看它真实样子；重要改动先一轮批量 grill（每题带默认答案，连带面单独成题），纯 bug 修复不问。
+**P5 想清楚再动手** — 动手前先写设计卡（`docs/engineering/design-card.md`）：所有改动都填 ★ 5 格（1、2、3、4、9），碰花钱 / 长跑 / 可打断 / 新界面这四类 9 格全填；写进任务书或 `docs/plan`，PR 正文 `## 设计卡` 放链接或全文；四类合并前还要另一条线独立验收，PR 正文 `## 独立验收` 带报告链接和验收线编号（不得与实现线相同）。新增或改动用户可见界面，拍板样张必须是设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）搭出的屏，拍板后生产代码就是它；手写 HTML / 交互 widget 只准标 `exploration` 做方向探索，不能当实现合同；改现有 UI 先看它真实样子；重要改动先一轮批量 grill（每题带默认答案，连带面单独成题），纯 bug 修复不问。
 
 ## 规则
 
-规则正本是 `docs/engineering/rules.json`（可读视图 `rules.md`，旧 R# 编号都在 aliases 里解析得到，`check:rule-aliases` 校验）。常驻只放 12 条（level=always）：上面的 P0 P1 P2 P3 P5（P5 里含设计卡与独立验收两条）+ 下面的状态词、并行纪律、多会话 + 用户 2026-10-02 拍板常驻的两条判断原则（决策自治、替用户做决策；执行点 manual）；其余触发才查 `docs/engineering-rules.md`。
+规则正本是 `docs/engineering/rules.json`（视图 `rules.md`，旧 R# 编号见 aliases）。常驻只放 12 条：上面的 P0 P1 P2 P3 P5+ 下面的状态词、并行纪律、多会话 + 用户 2026-10-02 拍板常驻的两条判断原则（决策自治、替用户做决策；执行点 manual）。
 
 **状态词只有四档**：已实现未推送 / 已推送待合入 / 已合入待验证 / 已解决（「已解决」需 merge SHA 上的 `delivery:verify-merged` 收据）。
 
 **并行纪律**：独立 sibling worktree 的干净任务分支先 `delivery:preflight`，新 worktree 先 `pnpm install`；不在共享主仓里切分支 / 提交 / 解冲突；推送前整合最新 `origin/main`（merge，不 reset、不压缩提交），只推任务分支并开 PR；不 force-push；评审 / 打捞分支先算 merge-base。
 
-**多会话**：同一时段只有一个协调会话，用户只和它说话。其他会话动手前向它报要碰的概念，冲突排队；做完只开 PR 并把号发给它，不自己合并；新问题和要拍板的问题都发消息给它（带推荐项和各选项代价），不建任务卡、不直接问用户。合并只由协调会话做：CI 绿 + 合并前扫描（`scripts/merge-preflight.mjs`）干净就合，最多 3 个在等收据，任何一个收据红了立刻停、交人定修还是回滚。同时进行的实现会话控制在 3 个左右。细节见编排手册 §19。
+**多会话**：同一时段只有一个协调会话，用户只和它说话。其他会话动手前向它报要碰的概念，冲突排队；做完只开 PR 并把号发给它，不自己合并；新问题和要拍板的问题都发消息给它（带推荐项和各选项代价），不建任务卡、不直接问用户。合并只由协调会话做：CI 绿 + 合并前扫描（`scripts/merge-preflight.mjs`）干净就合，最多 3 个在等收据，任何一个收据红了立刻停、交人定修还是回滚。细节见编排手册 §19。
 
 ## 决策自治
 

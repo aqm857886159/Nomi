@@ -37,6 +37,7 @@ import {
 } from "./productionRunTypes";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { generationShotEnvelopeOf } from "../shared/generationShotEnvelope";
+import { isCanvasRunId, openCanvasRuns } from "./canvasShotRunIndex";
 import { buildProductionRunDraftSummary } from "./productionRunDraftSummary";
 
 type SnapshotEnvelope = {
@@ -94,10 +95,16 @@ function envelopeFor(run: ProductionRun): SnapshotEnvelope {
 }
 
 function appendDurableJsonLine(filePath: string, value: unknown): void {
+  appendDurableJsonLines(filePath, [value]);
+}
+
+/** 几行一次写、一次落盘（同一条命令批里的几条事件 / 命令记录）。每一行仍是一条完整的 JSON，格式与逐行追加逐字相同。 */
+function appendDurableJsonLines(filePath: string, values: readonly unknown[]): void {
+  if (values.length === 0) return;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const fd = fs.openSync(filePath, "a");
   try {
-    fs.writeSync(fd, `${JSON.stringify(value)}\n`, undefined, "utf8");
+    fs.writeSync(fd, values.map((value) => `${JSON.stringify(value)}\n`).join(""), undefined, "utf8");
     fsyncIfDurable(fd);
   } finally {
     fs.closeSync(fd);
@@ -475,24 +482,20 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     return run;
   }
 
-  function executeUnlocked(projectId: string, runId: string, command: RunCommand): RunCommandResult {
-    const dir = projectDir(projectId);
-    const paths = productionRunPaths(dir, runId);
-    const journal = readEventJournal(paths.events);
-    const priorEvents = journal.forCommand(command.commandId);
-    if (priorEvents.length > 0) {
-      const priorRun = runFromEvent(priorEvents.at(-1));
-      if (!priorRun) throw new Error(`Production command result is corrupt: ${command.commandId}`);
-      return { run: priorRun, events: priorEvents };
-    }
-    const latestEvent = journal.latest();
-    const current = runFromEvent(latestEvent);
-    if (!current) throw new Error(`Production run not found: ${runId}`);
-    if (current.projectId !== projectId) throw new Error("Production run project mismatch");
-    if (current.revision !== command.expectedRevision) {
-      throw new ProductionRunRevisionConflictError(command.expectedRevision, current.revision);
-    }
-    const timestamp = now();
+  /** 已经落过盘的命令（同一个命令号）：原样回放它当时的结果，不再执行一次。 */
+  function replayed(journal: ReturnType<typeof readEventJournal>, commandId: string): RunCommandResult | null {
+    const priorEvents = journal.forCommand(commandId);
+    if (priorEvents.length === 0) return null;
+    const priorRun = runFromEvent(priorEvents.at(-1));
+    if (!priorRun) throw new Error(`Production command result is corrupt: ${commandId}`);
+    return { run: priorRun, events: priorEvents };
+  }
+
+  /**
+   * 一条命令在当前快照上的结果，含挂在这个唯一写入口上的两个收尾（生命周期、付费卡这一次出价）。
+   * 审批记录与预算账本两份旁账在这里当场落盘——和以前同一顺序：旁账先于事件。
+   */
+  function applyUnlocked(paths: ReturnType<typeof productionRunPaths>, projectId: string, runId: string, current: ProductionRun, command: RunCommand, timestamp: string): ProductionCommandEffect[] {
     let effect: ProductionCommandEffect;
     if (command.type === "approval.record") {
       const approval = approvalFromPayload(command.payload.approval, runId);
@@ -599,44 +602,84 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     // 结果，并进同一步落盘，不另起一个修订号（调用方按「一条命令一个修订号」续写的序号不会被它打乱）。
     const closed = settlePresentation(steps.at(-1)!.run, timestamp);
     if (closed) steps[steps.length - 1] = { ...steps[steps.length - 1], run: closed.run };
-    let cursor = latestEvent?.cursor ?? 0;
-    let next: ProductionRun = current;
-    const events: RunEvent[] = steps.map((step, index) => {
-      cursor += 1;
-      next = {
-        ...step.run,
-        revision: current.revision + index + 1,
-        snapshotCursor: cursor,
-        updatedAt: timestamp,
-      };
-      const event: RunEvent = {
-        schemaVersion: PRODUCTION_RUN_SCHEMA_VERSION,
-        eventId: `evt-${randomId()}`,
-        cursor,
-        runId,
-        runRevision: next.revision,
-        commandId: command.commandId,
-        type: step.eventType,
-        message: step.message,
-        emittedAt: timestamp,
-        stageId: next.stageId,
-        payload: { run: next, commandType: command.type },
-      };
-      appendDurableJsonLine(paths.events, event);
-      return event;
-    });
-    const record: CommandRecord = {
-      commandId: command.commandId,
-      expectedRevision: command.expectedRevision,
-      resultRevision: next.revision,
-      eventCursors: events.map((event) => event.cursor),
-    };
-    appendDurableJsonLine(paths.commands, record);
-    writeJsonFileAtomic(paths.snapshot, envelopeFor(next));
-    return { run: next, events };
+    return steps;
   }
 
-  function execute(projectId: string, runId: string, command: RunCommand): RunCommandResult {
+  /**
+   * 一串命令在同一把仓库锁里依次执行：事件一次追加、命令记录一次追加、快照写一次（发动机收敛第一刀第 3 步的性能尾巴——
+   * 画布点一下要走的「封 → 批」「预留 → 落意向 → 提交中」以前每条都是一次完整落盘）。盘上格式与逐条执行**逐字相同**：
+   * 每条事件仍带整份 Run 快照、仍是一行一条，所以旧版本照样读得懂、写得进（回滚安全，见施工计划 §5.6）。
+   *
+   * 修订号只核第一条（`expectedRevision`），后面的命令接在前一条的结果上。重试一整批（同样的命令号）时：第一条落过盘 =
+   * 这一批整体落过盘（同一次追加），原样回放每一条；只落了一部分不该出现，出现就直说损坏，不猜。
+   */
+  function executeBatchUnlocked(projectId: string, runId: string, expectedRevision: number, commands: ReadonlyArray<Omit<RunCommand, "expectedRevision">>): RunCommandResult[] {
+    if (commands.length === 0) throw new Error("A production command batch needs at least one command");
+    const dir = projectDir(projectId);
+    const paths = productionRunPaths(dir, runId);
+    const journal = readEventJournal(paths.events);
+    const replays = commands.map((command) => replayed(journal, command.commandId));
+    if (replays[0]) {
+      if (replays.some((result) => !result)) throw new Error(`Production command batch was only partly recorded: ${commands[0].commandId}`);
+      return replays as RunCommandResult[];
+    }
+    if (replays.some(Boolean)) throw new Error(`Production command batch reuses a recorded command id: ${runId}`);
+    const latestEvent = journal.latest();
+    let current = runFromEvent(latestEvent);
+    if (!current) throw new Error(`Production run not found: ${runId}`);
+    if (current.projectId !== projectId) throw new Error("Production run project mismatch");
+    if (current.revision !== expectedRevision) {
+      throw new ProductionRunRevisionConflictError(expectedRevision, current.revision);
+    }
+    const timestamp = now();
+    let cursor = latestEvent?.cursor ?? 0;
+    const allEvents: RunEvent[] = [];
+    const records: CommandRecord[] = [];
+    const results: RunCommandResult[] = [];
+    for (const partial of commands) {
+      const base: ProductionRun = current;
+      const command: RunCommand = { ...partial, expectedRevision: base.revision };
+      const steps = applyUnlocked(paths, projectId, runId, base, command, timestamp);
+      let next: ProductionRun = base;
+      const events: RunEvent[] = steps.map((step, index) => {
+        cursor += 1;
+        next = {
+          ...step.run,
+          revision: base.revision + index + 1,
+          snapshotCursor: cursor,
+          updatedAt: timestamp,
+        };
+        return {
+          schemaVersion: PRODUCTION_RUN_SCHEMA_VERSION,
+          eventId: `evt-${randomId()}`,
+          cursor,
+          runId,
+          runRevision: next.revision,
+          commandId: command.commandId,
+          type: step.eventType,
+          message: step.message,
+          emittedAt: timestamp,
+          stageId: next.stageId,
+          payload: { run: next, commandType: command.type },
+        };
+      });
+      allEvents.push(...events);
+      records.push({
+        commandId: command.commandId,
+        expectedRevision: command.expectedRevision,
+        resultRevision: next.revision,
+        eventCursors: events.map((event) => event.cursor),
+      });
+      results.push({ run: next, events });
+      current = next;
+    }
+    appendDurableJsonLines(paths.events, allEvents);
+    appendDurableJsonLines(paths.commands, records);
+    writeJsonFileAtomic(paths.snapshot, envelopeFor(current));
+    return results;
+  }
+
+  function withRepositoryLock<T>(projectId: string, runId: string, body: () => T): T {
     const dir = projectDir(projectId);
     const paths = productionRunPaths(dir, runId);
     const lock = createProductionRunLock({
@@ -649,24 +692,49 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     });
     const lease = lock.acquire();
     try {
-      return executeUnlocked(projectId, runId, command);
+      return body();
     } finally {
       try { lock.release(lease); } catch { /* preserve the command result or original failure */ }
     }
   }
 
-  function list(projectId: string): ProductionRunSummary[] {
-    const root = productionRunsRoot(projectDir(projectId));
-    if (!fs.existsSync(root)) return [];
-    return fs.readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => read(projectId, entry.name))
-      .filter((run): run is ProductionRun => run !== null)
-      .map(summarize)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  function execute(projectId: string, runId: string, command: RunCommand): RunCommandResult {
+    const { expectedRevision, ...rest } = command;
+    return withRepositoryLock(projectId, runId, () => executeBatchUnlocked(projectId, runId, expectedRevision, [rest])[0]);
   }
 
-  return { create, createGenerationDraft, read, list, execute, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild };
+  /** 见 `executeBatchUnlocked`：一串命令一次落盘；返回每一条的结果（最后一条就是最新的 Run）。 */
+  function executeBatch(projectId: string, runId: string, expectedRevision: number, commands: ReadonlyArray<Omit<RunCommand, "expectedRevision">>): RunCommandResult[] {
+    return withRepositoryLock(projectId, runId, () => executeBatchUnlocked(projectId, runId, expectedRevision, commands));
+  }
+
+  /**
+   * 制作 Run 的列表。**不列画布单镜 Run**（目录名 `canvas-` 开头）：它们一次 ↑ 一个，由画布队列那一行显示，
+   * 打开项目也不逐个读（只读还没收尾的那几个，见 `canvasShotRunIndex.ts`）。按名字筛，不打开文件。
+   * 例外只有一种：结果未知、等人核对的那几笔（见 listRuns）。
+   */
+  function listRuns(projectId: string): ProductionRun[] {
+    const dir = projectDir(projectId);
+    const root = productionRunsRoot(dir);
+    if (!fs.existsSync(root)) return [];
+    const runs = fs.readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !isCanvasRunId(entry.name))
+      .map((entry) => read(projectId, entry.name))
+      .filter((run): run is ProductionRun => run !== null);
+    // 画布单镜 Run 里**等人核对**的那几笔（结果未知）要进任务中心「要你处理」：节点上指去核对，核对 / 放行的入口在那里。
+    // 只看还挂着「没收尾」标记的（通常 0–几个），不打开别的画布 Run。
+    for (const open of openCanvasRuns(dir)) {
+      const run = read(projectId, open.runId);
+      if (run?.jobs.some((job) => job.status === "submission_unknown" || job.status === "reconciling")) runs.push(run);
+    }
+    return runs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  function list(projectId: string): ProductionRunSummary[] {
+    return listRuns(projectId).map(summarize);
+  }
+
+  return { create, createGenerationDraft, read, list, listRuns, execute, executeBatch, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild };
 }
 
 export type ProductionRunRepository = ReturnType<typeof createProductionRunRepository>;

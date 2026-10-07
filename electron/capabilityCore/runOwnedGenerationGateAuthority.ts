@@ -4,7 +4,7 @@ import type {
   GenerationAuthorizationProjectIdentity,
   PreparedProductionGenerationAuthorization,
 } from "../productionRun/prepareProductionGenerationAuthorization";
-import type { ProductionRun } from "../productionRun/productionRunTypes";
+import type { ProductionRun, RunCommand } from "../productionRun/productionRunTypes";
 import { spendAuthorizationGates, waitingAuthorizationGates } from "../shared/productionSpendAuthority";
 import type {
   ApprovalReceiptAuthority,
@@ -166,22 +166,7 @@ export async function decideRunOwnedGenerationGate(input: Readonly<{
   const now = input.now ?? (() => new Date().toISOString());
   const { envelope } = input.authorization;
   const digest = input.authorization.authorizationDigest;
-  const challenge = input.receipts.requestChallenge({
-    challengeKey: `${envelope.costScope}:${digest}`,
-    immutableProjectUuid: envelope.immutableProjectUuid,
-    projectGeneration: envelope.projectGeneration,
-    projectId: envelope.projectId,
-    runId: envelope.runId,
-    gateId: envelope.gateId,
-    contractHash: digest,
-    targetHash: digest,
-    projectRevision: envelope.projectRevision,
-    revocationEpoch: input.lease.revocationEpoch,
-    costScope: envelope.costScope,
-    pricingSnapshotHash: digest,
-    reservationPreview: { ...envelope.budget },
-    display: input.display,
-  });
+  const challenge = input.receipts.requestChallenge(gateChallengeInput(input.authorization, input.lease, input.display));
   const confirmation = await input.confirm({ challengeToken: challenge.token }) as {
     confirmed?: unknown;
     receiptToken?: unknown;
@@ -219,6 +204,65 @@ export async function decideRunOwnedGenerationGate(input: Readonly<{
   });
   input.receipts.consumeReceipt(receiptToken);
   return { approved: true, run: decision.run };
+}
+
+/** 批这一份信封要的那张挑战：收据逐字绑信封里冻住的事实（门、摘要、项目身份、额度预览）。 */
+function gateChallengeInput(
+  authorization: PreparedProductionGenerationAuthorization,
+  lease: GenerationAuthorizationProjectIdentity,
+  display: HumanApprovalDisplay,
+) {
+  const { envelope } = authorization;
+  const digest = authorization.authorizationDigest;
+  return {
+    challengeKey: `${envelope.costScope}:${digest}`,
+    immutableProjectUuid: envelope.immutableProjectUuid,
+    projectGeneration: envelope.projectGeneration,
+    projectId: envelope.projectId,
+    runId: envelope.runId,
+    gateId: envelope.gateId,
+    contractHash: digest,
+    targetHash: digest,
+    projectRevision: envelope.projectRevision,
+    revocationEpoch: lease.revocationEpoch,
+    costScope: envelope.costScope,
+    pricingSnapshotHash: digest,
+    reservationPreview: { ...envelope.budget },
+    display,
+  };
+}
+
+/**
+ * 主进程这一次受信调用本身就是手势（画布 ↑、批量卡确认之后的派发）：一次写完收据（`issueGestureReceipt`），回一条
+ * 「这道门批了」的命令，由调用方和封印放进**同一次落盘**（`repository.executeBatch`）。收据仍逐字核对信封，
+ * 和要人在卡上点的那条路（`decideRunOwnedGenerationGate`）批的是同一份东西。
+ */
+export function gestureGateApproval(input: Readonly<{
+  receipts: ApprovalReceiptAuthority;
+  lease: GenerationAuthorizationProjectIdentity;
+  operationId: string;
+  authorization: PreparedProductionGenerationAuthorization;
+  gesture: { webContentsId: number; frameId: number; origin: string };
+  display: HumanApprovalDisplay;
+  commandPrefix: string;
+  issuedAt: string;
+}>): Omit<RunCommand, "expectedRevision"> {
+  const { envelope } = input.authorization;
+  const digest = input.authorization.authorizationDigest;
+  const receipt = input.receipts.issueGestureReceipt(gateChallengeInput(input.authorization, input.lease, input.display), input.gesture);
+  assertReceiptMatchesAuthorization(receipt, input.lease, input.operationId, envelope, digest, envelope.gateId);
+  return {
+    commandId: `${input.commandPrefix}-decide:${envelope.gateId}:${receipt.receiptId}`,
+    type: "gate.decide",
+    payload: {
+      gateId: envelope.gateId,
+      status: "approved",
+      receiptId: receipt.receiptId,
+      authorizationDigest: digest,
+      projectRevision: envelope.projectRevision,
+    },
+    issuedAt: input.issuedAt,
+  };
 }
 
 export function assertReceiptMatchesAuthorization(

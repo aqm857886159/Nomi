@@ -7,7 +7,7 @@
 // 三段，每段一个独立的隔离副本（各自一份收据，互不串账）；按点名的顺序跑（缺省只跑 1，见文件末尾的说明），任何一段红了就停，不往下花钱：
 //
 //   S1 逐镜确认在等时，画布发不出这一镜——Agent 起草两镜视频 → 卡上逐镜只确认第 1 镜 → 第 1 镜出片后让 Agent 再为第 2 镜
-//      出卡：卡在等人的这一段，第 2 镜节点的 ↑ 按不下去、底栏「生成全部」不算它 → 确认第 2 镜 → 第 2 镜恰好一笔。
+//      出卡：卡在等人的这一段，第 2 镜节点的 ↑ 按不下去（批量入口只剩组的「生成整组」，它与制作归属共用同一份可生成集合，由单测 canvasProductionScope.test 钉） → 确认第 2 镜 → 第 2 镜恰好一笔。
 //      第 1 镜确认之后、第 2 镜再出卡之前那一段（第 2 镜被移出这一批），画布对它的归属如实记下（只读，绝不点）。
 //   S2 删掉还没派出的镜头节点，制作流程不再派它——两镜整批放行后，趁第 2 镜「已授权、没提交」按 Delete 删掉它的节点
 //      → 制作流程不再提交第 2 镜，整场只有第 1 镜那一笔。窗口是第 1 镜提交的那一两秒：盯落盘的 Run（10ms 一次），
@@ -44,6 +44,7 @@ import { BRAIN, CHEAP_VIDEO_TERMS, VIDEO, cheapVideoProblems, probeLandedMedia }
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { repoRoot } from './_launchApp.mjs'
 import { openPaidWalk, readProductionRuns } from './_paidRun.mjs'
+import { readLaneSpend } from './_laneSpendProbe.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER, COMPOSER_PERMISSION, INTERVENTION_CONFIRM, PERMISSION_POPOVER,
@@ -56,7 +57,6 @@ const { SEEDANCE_2_APIMART_ARCHETYPE } = tsxRequire('../../electron/shared/video
 const SCRIPT = 'production-shot-claim.paid.mjs'
 const MODEL_TURN_MS = stationTimeout({ turns: 1 })
 const VIDEO_LANDS_MS = stationTimeout({ turns: 2 })
-const GENERATE_ALL = '[data-storyboard-run-all="true"][data-batch-scope="all"]'
 const GENERATE = '[data-bar-segment="generate"]'
 const TASK_TRIGGER = '[data-task-center-trigger="true"]'
 const TASK_PANEL = '[data-nomi-right-panel="tasks"]'
@@ -195,7 +195,7 @@ function createContext({ id, win, walk, projectId, projectRoot }) {
 
   /** 主进程此刻那张付费卡（宿主投影，卡上摆的正是它）。 */
   async function pendingSpend() {
-    const read = await win.evaluate((pid) => window.nomiDesktop.productionRuns.pendingSpend(pid), projectId)
+    const read = await readLaneSpend(win)
     return read?.surface === 'ready' ? read.rows?.[0] ?? null : null
   }
 
@@ -253,13 +253,7 @@ function createContext({ id, win, walk, projectId, projectRoot }) {
     const button = win.locator(`[data-node-id="${nodeId}"] ${GENERATE}`).first()
     return await button.count() ? (await button.isDisabled() ? 'disabled' : 'enabled') : 'not-rendered'
   }
-  /** 底栏「生成全部」此刻的字（不在屏上 = null）。先取消选中，底栏才出来。 */
-  async function dockText() {
-    await deselect()
-    const dock = win.locator(GENERATE_ALL)
-    return await dock.count() ? ((await dock.first().textContent()) ?? '').trim() : null
-  }
-  /** 用户自己在画布上放一个还没生成的视频节点（永远不点它）：底栏「生成全部」该算的只有它。 */
+  /** 用户自己在画布上放一个还没生成的视频节点（永远不点它）：画布上除了制作流程的两镜，还有一个用户自己的闲置节点。 */
   async function addIdleVideoNode() {
     const before = new Set((await nodes()).map((item) => item.id))
     await clickOrFail(win.locator('[aria-label="添加视频节点"]').first(), '画布「添加视频节点」')
@@ -309,7 +303,7 @@ function createContext({ id, win, walk, projectId, projectRoot }) {
   return {
     id, win, walk, projectId, projectRoot, scenario, card, composer,
     nodes, node, snap, agentTurn, turnOutcome, waitTurnIdle, draft, pendingSpend, switchToFullAuto, fitView, zoomTo, select, deselect,
-    generateEntry, dockText, addIdleVideoNode, expectLandedVideo, waitProjectQuiet, ledger, run: (runId) => runOf(projectRoot, runId),
+    generateEntry, addIdleVideoNode, expectLandedVideo, waitProjectQuiet, ledger, run: (runId) => runOf(projectRoot, runId),
   }
 }
 
@@ -335,11 +329,9 @@ async function scenarioPerShotConfirm(ctx) {
   if (scenario.observations.scopeToggleRendered) await clickOrFail(scopeToggle, 'S1：卡上的范围切到「逐镜」')
   await expect(card.locator('[data-v4-block="pager"]'), 'S1：翻页器停在第 1 页').toContainText('1/2')
   await ctx.zoomTo(shot2.nodeId)
-  scenario.observations.cardWaitingBothShots = { shot2Generate: await ctx.generateEntry(shot2.nodeId), dock: null }
+  scenario.observations.cardWaitingBothShots = { shot2Generate: await ctx.generateEntry(shot2.nodeId) }
   expect(scenario.observations.cardWaitingBothShots.shot2Generate, 'S1：卡在等人时第 2 镜的 ↑ 不能按').not.toBe('enabled')
   await ctx.snap('01-zh-card-each-page1-shot2-locked')
-  scenario.observations.cardWaitingBothShots.dock = await ctx.dockText()
-  expect(scenario.observations.cardWaitingBothShots.dock ?? '', 'S1：卡在等人时「生成全部」只算用户自己那一个闲置节点').toMatch(/\b1\b/)
   assertCheapShots(ctx.run(runId).generationPlan.shots, 'S1 按下去之前')
 
   // ── 逐镜确认第 1 镜：只有第 1 镜交给供应商 ──
@@ -354,9 +346,8 @@ async function scenarioPerShotConfirm(ctx) {
   expect(scenario.observations.afterShot1Confirm.shot2Jobs, 'S1：第 1 镜确认时第 2 镜没有任何 job（没授权、没派发）').toBe(0)
   // 第 2 镜被移出了这一批、Agent 还没为它再出卡：这一段画布对它的归属如实记下（只读，绝不点）。
   await ctx.zoomTo(shot2.nodeId)
-  scenario.observations.shot2ReleasedWindow = { shot2Generate: await ctx.generateEntry(shot2.nodeId), dock: null }
+  scenario.observations.shot2ReleasedWindow = { shot2Generate: await ctx.generateEntry(shot2.nodeId) }
   await ctx.snap('02-zh-after-shot1-confirm-shot2-state')
-  scenario.observations.shot2ReleasedWindow.dock = await ctx.dockText()
 
   // 这一轮收尾（Agent 说完第 1 镜开始生成，或者停下来问「第 2 镜要不要也生成」——那也不算错：下面那句话就是回答），
   // 再等第 1 镜真的出片。第 1 镜在飞时第 2 镜出不了卡（宿主要求上一批先收尾），所以第二句话一定在出片之后说。
@@ -401,12 +392,9 @@ async function scenarioPerShotConfirm(ctx) {
   }
   assertCheapShots(ctx.run(runId).generationPlan.shots.filter((shot) => shot.shotId === shot2.shotId), 'S1 第 2 镜按下去之前')
   await ctx.zoomTo(shot2.nodeId)
-  scenario.observations.shot2AwaitingConfirmation = { shot2Generate: await ctx.generateEntry(shot2.nodeId), dock: null }
+  scenario.observations.shot2AwaitingConfirmation = { shot2Generate: await ctx.generateEntry(shot2.nodeId) }
   expect(scenario.observations.shot2AwaitingConfirmation.shot2Generate, 'S1：第 2 镜在卡上等确认时，它的 ↑ 按不下去').not.toBe('enabled')
   await ctx.snap('03-zh-shot2-awaiting-confirmation-generate-locked')
-  scenario.observations.shot2AwaitingConfirmation.dock = await ctx.dockText()
-  expect(scenario.observations.shot2AwaitingConfirmation.dock ?? '', 'S1：第 2 镜在等确认时，「生成全部」不算它（只算闲置节点 1 个）').toMatch(/\b1\b/)
-  await ctx.snap('04-zh-shot2-awaiting-confirmation-dock-counts-one')
 
   // ── 确认第 2 镜：恰好一笔 ──
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), 'S1：卡上的主按钮（逐镜 · 第 2 镜）', { noWaitAfter: true })
@@ -420,7 +408,7 @@ async function scenarioPerShotConfirm(ctx) {
   expect(Object.values(scenario.perShot).map((entry) => entry.production.length), 'S1：每镜恰好一次制作提交').toEqual([1, 1])
   expect(Object.values(scenario.perShot).flatMap((entry) => entry.canvas), 'S1：画布一笔都没替它们发').toEqual([])
   expect(new Set(Object.values(scenario.perShot).flatMap((entry) => entry.production)).size, 'S1：整场恰好两笔供应商任务').toBe(2)
-  scenario.verified = ['card-waiting-shot2-locked', 'each-scope-submits-only-shot1', 'shot2-awaiting-second-card-locked', 'dock-excludes-awaiting-shot2', 'shot2-submitted-exactly-once']
+  scenario.verified = ['card-waiting-shot2-locked', 'each-scope-submits-only-shot1', 'shot2-awaiting-second-card-locked', 'shot2-submitted-exactly-once']
 }
 
 // ═══ S2 · 删掉还没派出的镜头节点，制作流程不再派它 ═════════════════════════════════════════════════

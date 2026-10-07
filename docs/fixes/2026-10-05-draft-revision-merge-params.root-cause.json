@@ -1,0 +1,131 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-draft-revision-merge-params",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-05",
+  "problem_type": "A draft revision that names one parameter silently resets every other parameter of the shot to the profile default, because the patch replaced the whole parameter record",
+  "symptom": "Acceptance V-1023r: revising a Nano Banana 2 shot from 16:9 to 9:16 through draft_shots dropped its 4K resolution back to 1K; writing only {resolution: \"4K\"} cleared the ratio. The paid card then showed and sent the defaults.",
+  "direct_cause": "resolvePlanPatch built the merged candidate with `parameters: userPatch.parameters ?? baseCandidate.parameters`, and applyPlanCandidatePatch stores patch.parameters as the whole record. Any revision that carries parameters (including the ones projected from durationSec and aspectRatio) replaced the shot's parameters wholesale.",
+  "class_root": "The revision contract never said whether parameters are replaced or merged. The paid card always sends the full set (so replacement looked correct there), while the model face says a revision 'carries only the fields you are changing' (so the agent sends one key). One function served two callers with opposite assumptions and nothing reported what actually changed.",
+  "affected_population": [
+    "Every Agent revision of a draft that names some but not all parameters (ratio, resolution, duration, format)",
+    "External MCP callers of nomi_generation_plan plan that send a partial parameters object"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/semanticAspectRatio.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts"
+  ],
+  "entry_points": [
+    "Agent lane draft_shots with operationId -> generation.plan patch -> mcpGenerationTools plan branch -> resolvePlanPatch",
+    "External MCP nomi_generation_plan plan -> the same branch",
+    "Paid card edit -> appIntegrationSpendConfirm reviseSpend -> normalizePatch (appIntegration.ts) -> resolvePlanPatch"
+  ],
+  "internal_only_reason": "The merge semantics follow JSON Merge Patch (RFC 7396) for the parameters object; no third-party runtime owns this invariant, it is how Nomi's own plan patch combines a revision with the stored candidate.",
+  "invariants": [
+    "A revision changes only the parameter keys it names; every other stored parameter of the shot is kept, except leftovers the newly selected model does not accept, which are cleared and reported.",
+    "A parameter is removed only when the revision names it with null.",
+    "The revision result reports every parameter key whose stored value changed (before -> after) in changeset.changedParameters.",
+    "For the paid card, whose patch always carries the shot's full parameter set, merging and replacing give the same stored parameters."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/generationPlanPatch.ts",
+    "tests": [
+      "electron/capabilityCore/generationPlanPatchMerge.test.ts",
+      "electron/capabilityCore/agentAspectRatioCard.e2e.test.ts"
+    ],
+    "why": "resolvePlanPatch is the registered owner of how a patch is merged into a shot's candidate (concept-owners: 一份补丁怎么并进这一镜的候选); both the agent/MCP plan branch and the paid card's normalizePatch call it."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "resolvePlanPatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "resolvePlanPatch"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "Both callers already converge on resolvePlanPatch: mcpGenerationTools.ts is the agent and external MCP revision, appIntegration.ts wires the paid card's normalizePatch. Neither carries its own merge rule; the rule now lives only inside resolvePlanPatch."
+  },
+  "generality_proof": "The merge happens inside the single function both revision callers use, after identity resolution and leftover cleanup and before admission and storage, so every caller, model and parameter key gets the same rule. Semantic keys (aspectRatio, duration from durationSec) are translated on the named keys only and then merged, so they cannot conflict with the stored real key they replace; the shot's stored value is still used as the size-tier reference for pixel ratio controls.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "symbol": "resolvePlanPatch",
+      "responsibility": "Merge named parameters into the stored ones, apply null removals, clear and report leftovers, and report changedParameters."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "plan capability (draft revision)",
+      "disposition": "enforced",
+      "evidence": "Calls resolvePlanPatch and returns its changeset to the caller; agentAspectRatioCard.e2e.test.ts revises one shot's ratio and reads the stored Run and the paid-card projection."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "normalizePatch for reviseSpend",
+      "disposition": "enforced",
+      "evidence": "The card sends the shot's full parameter set (spendCardDraft.candidatePatchFromNode), so the merged result equals the card's patch; generationPlanPatchMerge.test.ts pins it."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "entry_point": "patchStoryboardAuthoring (document-plan revision)",
+      "disposition": "not-affected",
+      "evidence": "Document plans are revised in the renderer's storyboard design (storyboardSubjectAdapter replaces params there); it never calls resolvePlanPatch. Listed as a follow-up in the design card."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any agent or MCP revision that names a subset of parameters hit it, for every model and parameter.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolvePlanPatch",
+      "git grep -n \"parameters: userPatch.parameters\" electron (only resolvePlanPatch)",
+      "src/workbench/ai/v4/spendCardDraft.ts candidatePatchFromNode (full parameter set per revision)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationPlanPatch.ts",
+    "invariant": "Named keys are merged into the stored parameters; null removes a key; changes are reported.",
+    "failure_mode": "Values the model does not accept are refused by admission with ParameterRejection; nothing is stored.",
+    "exception_policy": "none",
+    "strategy": "Define the parameter patch as a JSON Merge Patch inside the one function both revision paths use.",
+    "artifacts": [
+      "electron/capabilityCore/generationPlanPatch.ts",
+      "electron/shared/agentCapabilities/verbs/writeVerbs.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/generationPlanPatchMerge.test.ts",
+    "electron/capabilityCore/agentAspectRatioCard.e2e.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/generationPlanPatchMerge.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationPlanPatch.ts"
+    ],
+    "rationale": "The whole-record replacement (`userPatch.parameters ?? baseCandidate.parameters`) is deleted; there is no fallback to it."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No stored-data migration: stored candidates keep their full parameter records. Behaviour change for external MCP callers that relied on omission to drop a parameter: they now send null; noted in the PR.",
+  "residual_risks": [
+    "Document-plan revisions still replace params in the renderer storyboard design.",
+    "The host rejects out-of-range values instead of clamping; the old model-face claim that it clamps was removed, not implemented.",
+    "Real App acceptance is unverified in this line."
+  ]
+}

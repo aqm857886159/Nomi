@@ -52,6 +52,7 @@ export type MaterializeShotCandidateWire = {
  *
  * - running：已交给供应商、还没结论（节点显示普通生成那张等待画面）；
  * - failed：这一镜确定失败（节点显示普通生成那张失败卡，重试走返工链）；
+ * - recoverable：已经生成、结果没能取回（节点挂「可找回」，出路只有免费的「重新取回」，不进任何批量生成）；
  * - ended：不在跑（排队 / 已停 / 这一镜的产物投不出来）——节点上若还挂着本制作的「生成中」记录，收掉它。
  * 已完成的镜不带它：带 `result`，回填本身就把那条记录记成成功。
  *
@@ -60,6 +61,7 @@ export type MaterializeShotCandidateWire = {
 export type MaterializeShotGenerationWire =
   | { state: "running"; runRecordId: string; startedAt: number }
   | { state: "failed"; runRecordId: string; startedAt: number; message?: string }
+  | { state: "recoverable"; runRecordId: string; startedAt: number; message?: string }
   | { state: "ended" };
 
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
@@ -109,9 +111,9 @@ function shotGeneration(run: ProductionRun, shotId: string): MaterializeShotGene
   if (state?.phase === "generating" && job) {
     return { state: "running", runRecordId: productionRunRecordId(job.jobId), startedAt: Date.parse(job.createdAt) || Date.now() };
   }
-  if (state?.phase === "failed" && job) {
+  if ((state?.phase === "failed" || state?.phase === "unretrieved") && job) {
     return {
-      state: "failed", runRecordId: productionRunRecordId(job.jobId), startedAt: Date.parse(job.createdAt) || Date.now(),
+      state: state.phase === "unretrieved" ? "recoverable" : "failed", runRecordId: productionRunRecordId(job.jobId), startedAt: Date.parse(job.createdAt) || Date.now(),
       ...(state.failureMessage ? { message: state.failureMessage } : {}),
     };
   }

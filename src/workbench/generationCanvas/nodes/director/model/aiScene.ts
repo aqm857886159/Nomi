@@ -1,40 +1,17 @@
 /**
- * [INPUT]: 依赖 zod、./directorTypes（DirectorPrimitiveType / DIRECTOR_PRIMITIVE_TYPES / Vec3）、./vec3 的 RAD_TO_DEG
- * [OUTPUT]: 对外提供 AiSceneSpec / AiSceneElement / AiSceneGroup、aiSceneSchema、parseAiSceneText、normalizeAiScene、buildAiScenePrompt、
+ * [INPUT]: 依赖 zod、./directorSpace 的 originYForCenter（中心 → 原点唯一换算）、./directorTypes（DirectorPrimitiveType / DIRECTOR_PRIMITIVE_TYPES / Vec3）、./vec3 的 RAD_TO_DEG
+ * [OUTPUT]: 对外提供 AiSceneSpec / AiSceneElement / AiSceneGroup、aiSceneSchema、parseAiSceneText、normalizeAiScene（position 由「几何中心」换成对象原点，AiSceneBar 与规划器 dressing 共用）、buildAiScenePrompt、
  *           primitiveTypeFromName、rotationLooksLikeRadians、AI_SCENE_FIXTURE
  * [POS]: director/model 的「AI 搭场景」纯层：LLM 直出 block-out 几何的 JSON 契约、容错解析（剥 Markdown 围栏 / 抓第一段 JSON）、
  *        类型名映射到 V2 八种几何体（多出的映射到最近似）、旋转弧度 / 角度启发式（全部 |r| ≤ 2π 视为弧度）、提示词模板；物化进 store 在 storeAiSceneActions。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { z } from 'zod'
+import { originYForCenter } from './directorSpace'
 import { DIRECTOR_PRIMITIVE_TYPES, type DirectorPrimitiveType, type Vec3 } from './directorTypes'
 import { RAD_TO_DEG } from './vec3'
 
-const vec3Schema = z.tuple([z.number(), z.number(), z.number()])
-
-export const aiSceneElementSchema = z.object({
-  type: z.string(),
-  name: z.string().optional(),
-  position: vec3Schema.optional(),
-  rotation: vec3Schema.optional(),
-  scale: vec3Schema.optional(),
-  color: z.string().optional(),
-  roughness: z.number().optional(),
-  metalness: z.number().optional(),
-  opacity: z.number().optional(),
-  wireframe: z.boolean().optional(),
-  flatShading: z.boolean().optional(),
-})
-
-export const aiSceneSchema = z.object({
-  sceneName: z.string().optional(),
-  sceneConfig: z.object({ skyColor: z.string().optional(), groundOpacity: z.number().optional() }).optional(),
-  groups: z.array(z.object({ name: z.string().optional(), elements: z.array(aiSceneElementSchema).default([]) })).min(1),
-})
-
-export type AiSceneSpec = z.infer<typeof aiSceneSchema>
-export type AiSceneElement = z.infer<typeof aiSceneElementSchema>
-export type AiSceneGroup = AiSceneSpec['groups'][number]
+import { aiSceneSchema } from '../../../../../../electron/shared/director/aiSceneSchema'
+import type { AiSceneSpec, AiSceneGroup } from '../../../../../../electron/shared/director/aiSceneSchema'
 
 export const AI_SCENE_MAX_ELEMENTS = 60
 
@@ -131,12 +108,18 @@ export function normalizeAiScene(spec: AiSceneSpec, fallbackSceneName: string): 
         rotation.y = round2(rotation.y * RAD_TO_DEG)
         rotation.z = round2(rotation.z * RAD_TO_DEG)
       }
+      const type = primitiveTypeFromName(element.type)
+      const scale = toVec3(element.scale, 1)
+      // 模型按提示词写的是「几何中心」；渲染以对象原点（脚底）摆——全仓唯一的「中心 → 原点」换算在 directorSpace，
+      // AI 搭场景与规划器 dressing 都经过这里，所以谁也不会再悬空半个身高。
+      const position = toVec3(element.position, 0)
+      position.y = round2(originYForCenter({ type, scale }, position.y))
       return {
-        name: (element.name ?? '').trim() || `${primitiveTypeFromName(element.type)} ${index + 1}`,
-        type: primitiveTypeFromName(element.type),
-        position: toVec3(element.position, 0),
+        name: (element.name ?? '').trim() || `${type} ${index + 1}`,
+        type,
+        position,
         rotation,
-        scale: toVec3(element.scale, 1),
+        scale,
         color: element.color && HEX_COLOR.test(element.color) ? element.color.toLowerCase() : '#e2e8f0',
         roughness: element.roughness,
         metalness: element.metalness,

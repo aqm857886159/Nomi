@@ -37,7 +37,7 @@ export function describeGenerateOutcome(shots: GeneratePresentationOutcome): Gen
       : `Generating now, because the user clicked generate for each of them: ${shotList(shots.generating)}. His provider credit is being spent for these; progress shows in the task list.`);
   }
   if (shots.failedBeforeSending.length > 0) {
-    parts.push(`The user clicked generate for ${shotList(shots.failedBeforeSending)}, but it failed before anything was sent to the provider: nothing was generated and nothing was spent for these.`);
+    parts.push(`The user clicked generate for ${shotList(shots.failedBeforeSending)}, but it failed before the provider accepted it (it was never sent, or the provider refused it on the spot): nothing was generated and nothing was spent for these.`);
   }
   if (shots.removed.length > 0) {
     parts.push(`The user removed ${shotList(shots.removed)} from the card: they will not be generated, and their placeholder nodes stay on the canvas.`);

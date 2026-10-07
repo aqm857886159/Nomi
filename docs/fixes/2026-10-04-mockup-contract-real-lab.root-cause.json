@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-mockup-contract-real-lab",
+  "problem_type": "验收样张脱离生产组件与真实宿主数据",
+  "symptom": "用户可见界面的手写 HTML 样张被拍板并作为实现合同，生产复刻连续多轮漂移，而形态契约门岗仍然通过。",
+  "direct_cause": "P5/R8 只要求样张和拍板，check:mockup-contracts 只检查契约存在、被走查引用和日期，没有验证契约是否指向实验室屏、生产组件或完整区域对账。",
+  "class_root": "拍板合同没有在最早的共享门岗绑定到设计实验室的生产渲染路径和真实宿主数据。",
+  "affected_population": [
+    "所有新增或改动的用户可见界面验收合同",
+    "所有把手写 HTML 或 devlab 自写 JSX 当作生产实现依据的后续任务"
+  ],
+  "scope_paths": [
+    "scripts/check-mockup-contracts.mjs",
+    "scripts/check-mockup-contracts.node-test.mjs"
+  ],
+  "entry_points": [
+    "新验收合同的 labScreen / production / reconciliation 声明",
+    "手写 HTML 合同的 layer 与历史基线判定"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是仓库内部样张、实验室注册表与生产组件之间的结构不变量，不由第三方依赖决定。",
+  "invariants": [
+    "每份新验收合同都指向 labScreens.ts 已登记的屏和状态。",
+    "实验室状态通过宿主直接引用生产目录组件，状态本身不另画 JSX。",
+    "实验室屏声明的每个 data-mockup-region 都在合同 reconciliation 中恰有一行，差异和推迟分别带原因与目标阶段。",
+    "新增 HTML 只能标 exploration 且不得被验收走查引用；main 既有 HTML 合同只允许留在历史基线。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/check-mockup-contracts.mjs",
+      "symbol": "isExploration"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-mockup-contracts.mjs",
+      "symbol": "validateLabContract"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "两个入口必须保留：isExploration 负责方向探索与历史 HTML 边界，validateLabContract 负责新验收合同的实验室屏、生产组件和区域对账；合并它们会让探索合同重新进入验收路径。"
+  },
+  "generality_proof": "所有新验收合同都经过同一个 check:mockup-contracts 扫描；它从 labScreens.ts 与状态注册表核实屏和状态，再从宿主 import 与选中状态 render 约束生产组件路径，最后把 data-mockup-region 与 reconciliation 做一一对账，因此换界面、宿主或组件仍受同一边界约束。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-mockup-contracts.mjs",
+      "symbol": "validateLabContract",
+      "responsibility": "在新验收合同进入缺契约、未引用和过期检查前，验证真实实验室屏、生产组件直接引用、禁止 devlab 自画 JSX 与完整区域对账。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-mockup-contracts.mjs",
+      "entry_point": "新增非 HTML 验收合同",
+      "disposition": "enforced",
+      "evidence": "违规夹具缺少 labScreen 时门岗稳定输出缺少 labScreen 并以非零退出。"
+    },
+    {
+      "path": "scripts/check-mockup-contracts.mjs",
+      "entry_point": "新增 HTML 验收合同",
+      "disposition": "enforced",
+      "evidence": "非历史基线 HTML 合同必须标 exploration；exploration 被验收走查引用也会红。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任务书列出同一教训至少四次，且原门岗没有看到渲染来源；任何下一处用户可见界面都能再次按旧文字产出手写 HTML。",
+    "same_class_scan": [
+      "rg -n \"mockup|labScreens|ShellStage|对账\" CLAUDE.md docs scripts tests/ux",
+      "node scripts/door-map.mjs validateLabContract isExploration --roots=scripts,tests --include-tests",
+      "逐项核读四份既有教训与 src/devlab/designLab/labScreens.ts / tests/ux/design-lab/labStates.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-mockup-contracts.mjs",
+    "invariant": "新验收合同必须指向登记实验室屏，由宿主直接引用生产组件，且每个 data-mockup-region 都有完整 reconciliation 行。",
+    "failure_mode": "缺登记、缺生产路径、devlab 另画 JSX、HTML 越过 exploration 基线或区域对账不完整时退出非零并点名合同。",
+    "exception_policy": "none",
+    "strategy": "在现有契约扫描的共享入口先做结构判定，再继续缺契约、引用和拍板日期检查；不把判定留给人工 PR 阅读。",
+    "artifacts": [
+      "scripts/check-mockup-contracts.mjs",
+      "scripts/check-mockup-contracts.node-test.mjs",
+      "scripts/mockup-contracts-html-baseline.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-mockup-contracts.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-mockup-contracts.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次没有删除存量 HTML 合同；它们进入只减不增基线，并由新门岗阻止继续新增。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "判据只读取仓库内实验室注册表、源码和合同，不涉及第三方依赖生命周期。",
+    "exit_criteria": []
+  },
+  "migration": "存量 HTML 合同保持可读并登记在 scripts/mockup-contracts-html-baseline.json；新合同从本次起必须走 labScreen，存量合同后续只允许删除或迁移到实验室屏。",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "scripts/check-mockup-contracts.mjs",
+    "tests": [
+      "scripts/check-mockup-contracts.node-test.mjs"
+    ]
+  },
+  "residual_risks": [
+    "本分支没有 3D-BOX 外壳 lane 的新实验室屏，无法在本 PR 录制其真实屏幕或区域对账；外壳 lane 合入时必须按本门岗补齐 labScreen 与 data-mockup-region。",
+    "静态门岗验证源码引用和 JSX 形状，真实截图与用户拍板仍由 R13/R22 的独立验收负责。"
+  ]
+}

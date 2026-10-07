@@ -87,6 +87,9 @@ export function toGenerationFlowNode(
       ? { width: size.width, height: size.height, pointerEvents: 'none' }
       : { width: size.width, height: size.height },
     ...(groupPort ? { draggable: false, zIndex: -1 } : {}),
+    // 版本卡片铺开着：整组盖在普通节点（0）上面（09-28 拍板「盖在上面」）；选中节点由层级表抬到 5
+    // （generationCanvasReactFlow.css 的 .selected !important），点中谁谁浮上来。不另加全局 CSS。
+    ...(!groupPort && node.resultStackOpen ? { zIndex: 4 } : {}),
     className: 'generation-canvas-react-flow__node',
   }
 }

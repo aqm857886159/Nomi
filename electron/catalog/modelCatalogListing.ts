@@ -8,9 +8,8 @@
 // 已发布模型即使没 key 也照列并带状态；adapter staging/failed 新行则不进入生产清单。
 import { type ApiKeyDecryptStatus, type KeyStatusProbe } from "./secrets";
 import { bodyReferenceSupport, type BodyReferenceSupport } from "./referenceReachability";
-import { bodyReferencedParamKeys } from "./paramTranslate";
 import type { ModelModeBody } from "./taskParams";
-import { billingKindForTaskKind, type BillingModelKind, type CatalogState, type Mapping, type ProfileKind } from "./types";
+import { type CatalogState, type Mapping, type ProfileKind } from "./types";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import type { ModelAvailability } from "../shared/modelAvailability";
 import { createCatalogAvailability } from "./catalogModelAvailability";
@@ -113,60 +112,6 @@ function referenceSupportForModel(modelMappings: Mapping[]): ModelReferenceSuppo
   // 稳定排序（输出确定性，便于快照/断言）。
   out.referenceModes = [...modes].sort();
   return out;
-}
-
-/**
- * 该模型**视频类模式的 body 真实引用了哪些参数键**（W2 §3 两跳判据的原料）。
- *
- * 为什么要它：两跳要把首帧图喂进模型的 first_frame 槽——但不是每家 video 模型都有这个槽。硬塞
- * firstFrameUrl 给读不到它的模型只会被 L3 护栏拦（白跑一趟 + 一条看不懂的错）。故「支不支持首帧」
- * 必须**从目录 body derive**（与 referenceModeForIntent 同一份源，P1），不 hardcode 家名。
- *
- * 纯函数（输入 CatalogState）。返回去重 + 字典序的键名数组（顺序稳定，便于断言）。
- */
-export function videoBodyKeysForModel(
-  state: CatalogState,
-  vendorKey: string,
-  modelKey: string,
-): string[] {
-  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey
-    && modelHasPublishedExecution(m, { mappings: state.mappings }));
-  const modelMappings = mappingsForModel(state.mappings, vendorKey, modelKey, model?.modelAlias);
-  const keys = new Set<string>();
-  for (const mapping of modelMappings) {
-    if (billingKindForTaskKind(mapping.taskKind) !== "video") continue;
-    for (const key of bodyReferencedParamKeys(mapping.create?.body)) keys.add(key);
-  }
-  return [...keys].sort();
-}
-
-/**
- * 「带参考时该用哪个 taskKind 生成」——**derive 自该模型真实可带参考的模式**（与 list_models 的 referenceModes
- * 同一份判据，P1 单一真相），不再硬编码 image→image_edit / video→image_to_video。
- *
- * 根因（docs/plan/2026-08-20-w1d-reference-mode-alignment.md）：core.generateOnProject 此前硬编码
- * defaultKindForIntent(intent, hasReferences)——对多数模型恰好对（image_edit/image_to_video mapping 存在），
- * 但对「参考模式≠默认名」的模型会选错 kind、护栏按错 kind 判「发不出」。改为查真实模式：
- *   · 只看**匹配 intent 计费口径**的参考模式（image intent → 计费为 image 的模式如 image_edit；
- *     video intent → 计费为 video 的模式如 image_to_video）；
- *   · 有多个匹配时取字典序最小（稳定），交给护栏的 modeBodies 兜底纠偏；
- *   · 一个都没有 → 返回 null，调用方回退 defaultKindForIntent（走护栏诚实拒绝，语义不放松）。
- *
- * 纯函数（输入 CatalogState），可零依赖单测。
- */
-export function referenceModeForIntent(
-  state: CatalogState,
-  vendorKey: string,
-  modelKey: string,
-  intent: BillingModelKind,
-): ProfileKind | null {
-  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey
-    && modelHasPublishedExecution(m, { mappings: state.mappings }));
-  const modelMappings = mappingsForModel(state.mappings, vendorKey, modelKey, model?.modelAlias);
-  const referenceModes = referenceSupportForModel(modelMappings).referenceModes;
-  const matching = referenceModes.filter((taskKind) => billingKindForTaskKind(taskKind) === intent);
-  // referenceModes 已字典序稳定，取首个匹配即可（护栏 reachableModeSuggestion 仍会在拒发时点名更优模式）。
-  return matching[0] ?? null;
 }
 
 /**

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./directorTypes 的 TimelineEntity / DirectorScene 形状
  * [OUTPUT]: 对外提供 DIRECTOR_FPS / DIRECTOR_MAX_DURATION_SECONDS / FRAME_EPSILON、quantizeToFrame、secondsToFrame、laneClips、
- *           sameFrameTime、entityClips、entityContentEnd、sceneContentEndSeconds、ensureDurationSeconds
+ *           sameFrameTime、entityClips、syncInTimeline、entityContentEnd、sceneContentEndSeconds、ensureDurationSeconds
  * [POS]: director/model 的时间格单一真相：整个导演台只认 30fps 帧格与「内容终点 = 所有片段末尾」（对齐 2026-07-30 拍板
  *        「时间轴 = 成片长度」），时间轴/求值/出片都从这里取时间，不各自换算。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -59,6 +59,11 @@ export function entityClips(entity: TimelineEntity): ClipLike[] {
   if ('lookAtClips' in entity && entity.lookAtClips) clips.push(...entity.lookAtClips)
   if ('closeupClips' in entity && entity.closeupClips) clips.push(...entity.closeupClips)
   return clips
+}
+
+// 「有片段就在时间轴上」的唯一规则：编辑器的片段动作与编译器出口共用，写者各抄一份就会漂
+export function syncInTimeline(entity: TimelineEntity): void {
+  entity.inTimeline = entityClips(entity).length > 0
 }
 
 export function entityContentEnd(entity: TimelineEntity): number {

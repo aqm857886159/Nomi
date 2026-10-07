@@ -4,7 +4,9 @@ import { buildDownloadPageUrl } from "./downloadPage";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
+import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
+import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate } from "./autoCheck";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
 // 全程用户显式触发：关自动下载 / 关退出即装，下载与安装都必须用户点（P2 用户掌控）。
@@ -27,9 +29,18 @@ const EVENT_CHANNEL = "nomi:update:event";
 const CAN_AUTO_INSTALL = process.platform !== "darwin";
 const CAN_CHECK_UPDATES = app.getName().trim().toLowerCase() === "nomi";
 
-function trackUpdate(action: "check" | "download" | "install", result: TelemetryResult): void {
-  recordTelemetryEvent({ eventName: "update.action", props: { action, result } }, app.getVersion());
+function trackUpdate(action: "check" | "download" | "install", result: TelemetryResult, reason?: UpdateFailureReason): void {
+  const props = reason && result === "failure" ? { action, result, reason } : { action, result };
+  recordTelemetryEvent({ eventName: "update.action", props }, app.getVersion());
 }
+
+// 自动检查是「静默」的：不闪「检查中」、不报错、没有新版不吭声，只有发现新版才走现有角标。
+// 手动检查（点按钮）行为不变。silentCheck 只在自动检查进行时为 true。
+let silentCheck = false;
+let manualCheckInFlight = false;
+// 下载已开始或已下载完：自动检查不再插手（再广播 checking 会冲掉「已下载」状态）。
+let downloadStarted = false;
+const notifyGate = createVersionNotifyGate();
 
 function broadcast(payload: Record<string, unknown>): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -64,14 +75,16 @@ let autoUpdaterPromise: Promise<typeof import("electron-updater")["autoUpdater"]
 function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoUpdater"]): void {
   if (eventsWired) return;
   eventsWired = true;
-  autoUpdater.on("checking-for-update", () => broadcast({ type: "checking" }));
-  autoUpdater.on("update-available", (info) =>
-    broadcast({ type: "available", version: info.version, notes: normalizeNotes(info.releaseNotes) }));
-  autoUpdater.on("update-not-available", () => broadcast({ type: "up-to-date" }));
+  autoUpdater.on("checking-for-update", () => { if (!silentCheck) broadcast({ type: "checking" }); });
+  autoUpdater.on("update-available", (info) => {
+    if (!notifyGate.shouldNotify(info.version, silentCheck)) return;
+    broadcast({ type: "available", version: info.version, notes: normalizeNotes(info.releaseNotes) });
+  });
+  autoUpdater.on("update-not-available", () => { if (!silentCheck) broadcast({ type: "up-to-date" }); });
   autoUpdater.on("download-progress", (progress) =>
     broadcast({ type: "progress", percent: Math.max(0, Math.min(100, Math.round(progress.percent))) }));
   autoUpdater.on("update-downloaded", (info) => broadcast({ type: "downloaded", version: info.version }));
-  autoUpdater.on("error", (error) => broadcast({ type: "error", message: describeError(error) }));
+  autoUpdater.on("error", (error) => { if (!silentCheck) broadcast({ type: "error", message: describeError(error) }); });
 }
 
 async function loadAutoUpdater(): Promise<typeof import("electron-updater")["autoUpdater"]> {
@@ -84,6 +97,25 @@ async function loadAutoUpdater(): Promise<typeof import("electron-updater")["aut
     return autoUpdater;
   });
   return autoUpdaterPromise;
+}
+
+/** 打包的正式版才自动检查；开发版、RC / 预览并行版、自动化启动都不查。 */
+const autoCheckScheduler = createAutoCheckScheduler({
+  enabled: () => app.isPackaged && CAN_CHECK_UPDATES && !isAutomatedLaunch(),
+  busy: () => manualCheckInFlight || downloadStarted,
+  run: async () => {
+    silentCheck = true;
+    try {
+      const autoUpdater = await loadAutoUpdater();
+      await autoUpdater.checkForUpdates();
+    } finally {
+      silentCheck = false;
+    }
+  },
+});
+
+export function startAutoUpdateCheck(): void {
+  autoCheckScheduler.start();
 }
 
 export function registerUpdaterIpc(): void {
@@ -111,12 +143,13 @@ export function registerUpdaterIpc(): void {
   ipcMain.handle("nomi:update:check", async (event) => {
     assertTrustedSender(event);
     // 未打包（dev）时 electron-updater 不可用——诚实回错，不假装能更新。
+    // 开发版 / 非正式版不是「检查失败」：回错给界面，但不上报成 failure。
     if (!app.isPackaged) {
       broadcast({ type: "error", message: desktopT("updater.devUnavailable") });
-      trackUpdate("check", "failure");
       return { ok: false, reason: "not-packaged" };
     }
-    if (!CAN_CHECK_UPDATES) { trackUpdate("check", "failure"); return { ok: false, reason: "non-stable-build" }; }
+    if (!CAN_CHECK_UPDATES) return { ok: false, reason: "non-stable-build" };
+    manualCheckInFlight = true;
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.checkForUpdates();
@@ -124,21 +157,25 @@ export function registerUpdaterIpc(): void {
       return { ok: true };
     } catch (error) {
       broadcast({ type: "error", message: describeError(error) });
-      trackUpdate("check", "failure");
+      trackUpdate("check", "failure", classifyUpdateError(error));
       return { ok: false };
+    } finally {
+      manualCheckInFlight = false;
     }
   });
 
   ipcMain.handle("nomi:update:download", async (event) => {
     assertTrustedSender(event);
+    downloadStarted = true;
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.downloadUpdate();
       trackUpdate("download", "success");
       return { ok: true };
     } catch (error) {
+      downloadStarted = false;
       broadcast({ type: "error", message: describeError(error) });
-      trackUpdate("download", "failure");
+      trackUpdate("download", "failure", classifyUpdateError(error));
       return { ok: false };
     }
   });

@@ -186,13 +186,16 @@ function shouldDeferModulePreload(dep: string): boolean {
 export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserConfig> => {
   const react = (await import('@vitejs/plugin-react')).default
 
-  loadEnv(mode, process.cwd(), 'VITE_')
+  const env = loadEnv(mode, process.cwd(), '')
 
   if (command === 'build' && mode !== 'production') {
     throw new Error(`[nomi] Dev build is disabled. Use \`vite build --mode production\` (current mode: ${mode}).`)
   }
 
   return {
+    define: {
+      'import.meta.env.VITE_NOMI_DIRECTOR_3DBOX': JSON.stringify(env.NOMI_DIRECTOR_3DBOX === 'true' || env.NOMI_DIRECTOR_3DBOX === '1' ? 'true' : 'false'),
+    },
     base: './',
     cacheDir: resolve(__dirname, '.tmp/vite'),
     customLogger: createNomiLogger(),

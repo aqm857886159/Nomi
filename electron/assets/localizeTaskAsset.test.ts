@@ -7,7 +7,6 @@ vi.mock("./projectAssetStore", () => ({ importRemoteAsset }));
 vi.mock("../logging/logger", () => ({ logWarn }));
 vi.mock("./assetEvents", () => ({ broadcastAssetLocalizationStarted: vi.fn(async () => {}) }));
 vi.mock("../review/reviewTrace", () => ({ scheduleTechnicalReview: vi.fn() }));
-vi.mock("../catalog/assetLocalization", () => ({ trustedLocalOutputOrigin: () => null }));
 
 const { localizeTaskAsset } = await import("./localizeTaskAsset");
 const { hardenedFetch } = await import("../hardenedFetch");

@@ -16,7 +16,7 @@ vi.mock("../projects/repository", async (importOriginal) => ({
   projectDirById: () => projectRoot,
 }));
 
-const { copyAssetFile, listProjectAssets, moveAssetFile, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
+const { resolveProjectAssetReferenceIdentity, copyAssetFile, listProjectAssets, moveAssetFile, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
 const mediaFixture = (name: string) => fs.readFileSync(path.join(__dirname, "../providerAdapter/__fixtures__/certification-media", name));
 
 function validGlb(): Buffer {
@@ -107,6 +107,13 @@ describe("writeAsset canonical media filename", () => {
 
     const listed = listProjectAssets({ projectId: "project-1", limit: 20 }).items.find((entry) => entry.data.relativePath === result.data?.relativePath);
     expect(listed?.id).toBe(result.id);
+  });
+
+  it("reference identity carries the asset's own media kind (the 3D-BOX preview mp4 is video, a png is image)", async () => {
+    const video = await writeAsset("project-1", Buffer.concat([Buffer.from([0, 0, 0, 0x10]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(4)]), "pre.mp4", "video/mp4", { kind: "imported" }) as { id: string };
+    const image = await writeAsset("project-1", Buffer.from("stable-image"), "pic.png", "image/png", { kind: "imported" }) as { id: string };
+    expect(resolveProjectAssetReferenceIdentity("project-1", video.id)).toMatchObject({ kind: "video", version: 1 });
+    expect(resolveProjectAssetReferenceIdentity("project-1", image.id)).toMatchObject({ kind: "image", version: 1 });
   });
 
   it("sniffs an octet-stream video before selecting its stored extension", async () => {

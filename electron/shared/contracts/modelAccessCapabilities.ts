@@ -64,7 +64,7 @@ export const PROFILE_KIND_REFERENCE_CHANNEL = {
   // —— 吃输入媒体，但通道按 kind 写死在运行期（故不强制声明）——
   /** 图片经 `allReferenceImages()` 进多模态入参，**按 kind 分支**取、不读 referenceParam：
    *  electron/textTaskRunner.ts:29-31。探针也已按 kind 无条件注图：providerAdapter/verifier.ts:221-223。
-   *  产出侧证据：electron/video/deconstructVideo.ts:244-249、electron/capabilityCore/shotVerifyDeps.ts:6。 */
+   *  产出侧证据：electron/video/deconstructVideo.ts:244-249。 */
   image_to_prompt: 'runtime-fixed',
   /** 音频由 `resolveAudioSource()` 取自参考族键并**强制非空**（缺则抛）：electron/audioTaskRunner.ts:141-142、
    *  190-198；随后 `resolveFile` 直接喂字节（:167），声明的 multipart.fileSource 在此路径上被绕过。 */

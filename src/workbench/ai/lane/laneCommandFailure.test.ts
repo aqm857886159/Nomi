@@ -7,10 +7,13 @@
 // 类边界：这一族不是「这一句忘了翻译」，是「主进程的任意字符串能不能成为界面文字」。
 // 所以断言写成**任意**未分类英文散句都进不了界面，而不是只断言那一句。
 import { describe, expect, it, vi } from 'vitest'
-import { LaneCommandFailure, laneFailureText, providerFailureText, LANE_ERROR_TEXT_KEY } from './laneCommandFailure'
+import { LaneCommandFailure, laneFailureText, providerFailureText, providerFailureIsUnclassified, takeUnclassifiedProviderFailures, LANE_ERROR_TEXT_KEY } from './laneCommandFailure'
+import { classifyGenerationError } from '../../observability/classifyError'
 import { leaksInternals } from '../resident/residentToolText'
 import { LANE_ERROR_CODES } from '../../../../electron/shared/agentLane/laneErrorCodes'
 import { zhAgentLaneError, enAgentLaneError } from '../../../i18n/locales/agentLaneError'
+import { zhAgentPanelV4, enAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
+import { laneAssistantFaultOf } from '../../../../electron/shared/agentLane/laneAssistantFault'
 
 const key = (k: string) => k
 
@@ -84,7 +87,9 @@ describe('服务商报文 → 面板红字（原始 JSON / 分类标记不进界
     const shown = providerFailureText(raw, key)
     expect(shown).toBe('agentResident.providerUnknownError')
     expect(leaksInternals(shown)).toBe(false)
-    expect(spy).toHaveBeenCalled()
+    // 日志不在纯文案函数里记（见 takeUnclassifiedProviderFailures）；这条原文必须被判成「认不出」，effect 才会记它。
+    expect(providerFailureIsUnclassified(raw)).toBe(true)
+    expect(spy).not.toHaveBeenCalled()
     spy.mockRestore()
   })
 
@@ -107,5 +112,75 @@ describe('服务商报文 → 面板红字（原始 JSON / 分类标记不进界
     const { zhAgentResident, enAgentResident } = await import('../../../i18n/locales/agentResident') as Record<string, Record<string, string>>
     expect(zhAgentResident?.providerUnknownError ?? '').toBeTruthy()
     expect(enAgentResident?.providerUnknownError ?? '').toBeTruthy()
+  })
+})
+
+describe('服务商报文：断线 / 超时归网络类，不再说「认不出」', () => {
+  it.each(['Connection error.', 'Request timed out.', 'other side closed', 'terminated'])('%s → 网络类（嗅探兜底词）', (raw) => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(providerFailureText(raw, key)).not.toBe('agentResident.providerUnknownError')
+    expect(providerFailureIsUnclassified(raw)).toBe(false)
+    spy.mockRestore()
+  })
+
+  it('pi 判了瞬时、关键词表又不认的原话 → 照样归网络类（主判据在 pi）', () => {
+    const raw = 'upstream hiccup 7731'
+    expect(providerFailureText(raw, key)).toBe('agentResident.providerUnknownError')
+    expect(providerFailureText(raw, key, { transient: true })).not.toBe('agentResident.providerUnknownError')
+  })
+
+  it('投影重算 10 次，纯文案函数一次日志都不记（日志只在 effect 里按条目记）', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (let i = 0; i < 10; i++) providerFailureText('totally unknown gibberish xyz', key)
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('同一份投影重算 10 次，同一条错误只产出 1 条要记的日志；已化解的不记', () => {
+    const seen = new Set<string>()
+    const items = [
+      { kind: 'error', identity: 'e1:0', raw: 'totally unknown gibberish xyz' },
+      { kind: 'error', identity: 'e2:0', raw: 'also gibberish qqq', recovered: true as const },
+      { kind: 'error', identity: 'e3:0', raw: 'Connection error.' },
+    ]
+    const logged: string[] = []
+    for (let i = 0; i < 10; i++) logged.push(...takeUnclassifiedProviderFailures(items, seen))
+    expect(logged).toEqual(['totally unknown gibberish xyz'])
+  })
+
+  it('原因 + 服务商原话的拼法走 i18n：en 半角冒号加空格，zh 全角冒号', () => {
+    const translate = (table: Record<string, string>): ((k: string, o?: Record<string, unknown>) => string) => (k, o) =>
+      (table[k.replace('agentPanelV4.', '')] ?? k).replace(/\{\{(\w+)\}\}/g, (_m, name: string) => String(o?.[name] ?? ''))
+    const en = providerFailureText('Connection error.', translate(enAgentPanelV4 as unknown as Record<string, string>))
+    expect(en).toMatch(/: Connection error\.$/)
+    expect(en).not.toContain('：')
+    const zh = providerFailureText('Connection error.', translate(zhAgentPanelV4 as unknown as Record<string, string>))
+    expect(zh).toMatch(/：Connection error\.$/)
+  })
+
+  it('共享嗅探表的「terminated」只认整串：账号被终止 / 策略终止 / 用户终止不会被说成连不上服务商', () => {
+    for (const raw of ['Content generation terminated due to policy violation', 'Your account has been terminated', 'Process terminated by user']) {
+      expect(classifyGenerationError(raw).kind, raw).not.toBe('network')
+    }
+    expect(classifyGenerationError('terminated').kind).toBe('network')
+  })
+})
+
+// NF-0928-0003 / NF-1001-0003 / NF-1001-0004：报障原文（应用内反馈）逐字喂进来，界面上只许出现按事实取的那一句。
+describe('看门狗 / pi 自己判的失败 → 人话', () => {
+  const cases = [
+    ['Nomi model idle timeout after 120000ms', 'agentResident.faultIdle'],
+    ['Nomi model first-token timeout after 300000ms', 'agentResident.faultFirstToken'],
+    ['Nomi model first-response timeout after 90000ms', 'agentResident.faultFirstResponse'],
+    ['Stream ended without finish_reason', 'agentResident.faultStreamCut'],
+    ['Assistant request exceeded the context window', 'agentResident.faultContextOverflow'],
+  ] as const
+  it.each(cases)('%s → %s，原文不进界面，也不算「认不出」', (raw, expected) => {
+    const fault = laneAssistantFaultOf(raw)
+    // pi 把前四句判成瞬时；有 fault 时不再落到「连不上服务商」那一档。
+    const shown = providerFailureText(raw, key, { transient: true, fault })
+    expect(shown).toBe(expected)
+    expect(shown).not.toContain(raw)
+    expect(providerFailureIsUnclassified(raw, { fault })).toBe(false)
   })
 })

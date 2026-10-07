@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Director judge calibration</title>
+<style>body{font:15px system-ui;background:#111;color:#eee;max-width:1100px;margin:24px auto}#items{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:#222;padding:12px;border-radius:8px}.card video{width:100%;background:#000}.score{display:flex;gap:8px;margin-top:8px}button{padding:6px 10px}#status{margin:12px 0}</style>
+<h1>Blind calibration</h1>
+<p>Load a generated <code>calibration-manifest.json</code>. Scheme and filenames stay hidden. Score all 12 previews from 1 (missed) to 5 (fully met), then export JSON.</p>
+<input id="manifest" type="file" accept="application/json"><button id="export" disabled>Export scores JSON</button>
+<div id="status">Waiting for manifest.</div><main id="items"></main>
+<script>
+const manifestInput=document.querySelector('#manifest'), exportButton=document.querySelector('#export'), status=document.querySelector('#status'), items=document.querySelector('#items'); let rows=[];
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function render(){items.innerHTML=''; for(const row of rows){const card=document.createElement('section'); card.className='card'; card.innerHTML=`<video controls preload="metadata" src="${row.video}"></video><p>Preview ${row.display}</p><div class="score">${[1,2,3,4,5].map(n=>`<button data-score="${n}">${n}</button>`).join('')}</div>`; card.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{row.score=Number(btn.dataset.score);card.querySelectorAll('button').forEach(b=>b.disabled=b===btn);exportButton.disabled=rows.some(r=>!r.score);}); items.append(card)}}
+manifestInput.onchange=async()=>{const file=manifestInput.files[0];if(!file)return;try{const data=JSON.parse(await file.text());rows=shuffle(data.items.map((item,i)=>({...item,display:i+1}))).slice(0,12);render();status.textContent=`${rows.length} randomized previews loaded. Scheme names are intentionally omitted.`}catch(e){status.textContent='Invalid manifest: '+e.message}};
+exportButton.onclick=()=>{const payload={generatedAt:new Date().toISOString(),calibrated:true,scores:rows.map(({video,score})=>({video,score}))};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='director-judge-calibration.json';a.click();URL.revokeObjectURL(a.href)};
+</script>

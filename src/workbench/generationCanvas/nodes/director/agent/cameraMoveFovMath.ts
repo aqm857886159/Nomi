@@ -5,7 +5,7 @@
  *        zoom_in / zoom_out 给 fov 渐变端点，dolly_zoom 按机位后拉倍率反解「主体成像高度不变」的 fov。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import type { CameraMove } from './cameraMoveVocab'
+import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 
 const DEG = Math.PI / 180
 const FOV_MIN = 6

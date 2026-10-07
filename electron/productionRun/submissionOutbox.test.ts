@@ -141,23 +141,44 @@ describe("SubmissionOutbox", () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
-  it("resumes safely when interrupted between the submit intent and dispatch", async () => {
+  // 预留 → 提交意向 → 提交中是同一次落盘：进程在这一批写下之前倒下，盘上什么都没有（没有预留、没有提交意向），重来照常交一次。
+  it("resumes safely when interrupted before the pre-dispatch batch is written", async () => {
     const repository = setup();
     const dispatch = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
-    // 进程恰好在「提交意向已落盘、还没开始提交」这一刻倒下：写 submitting 的那一笔没有发生。
     const crashing = {
       ...repository,
-      execute: (projectId: string, runId: string, command: RunCommand) => {
-        if (command.type === "job.status" && command.payload.status === "submitting") throw new Error("crash before dispatch");
-        return repository.execute(projectId, runId, command);
+      executeBatch: (projectId: string, runId: string, expectedRevision: number, commands: ReadonlyArray<Omit<RunCommand, "expectedRevision">>) => {
+        if (commands.some((command) => command.type === "job.status" && command.payload.status === "submitting")) throw new Error("crash before dispatch");
+        return repository.executeBatch(projectId, runId, expectedRevision, commands);
       },
     };
 
     await expect(outbox({ repository: crashing, dispatch }).submit(request)).rejects.toThrow("crash before dispatch");
     expect(dispatch).not.toHaveBeenCalled();
-    expect(repository.read("project-1", "run-1")?.jobs[0].status).toBe("submit_intent_persisted");
+    expect(repository.read("project-1", "run-1")?.jobs[0].status).toBe("authorized");
+    expect(repository.readBudgetLedger("project-1", "run-1").reservations).toEqual({});
 
     await outbox({ repository, dispatch }).submit(request);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("the reservation, submit intent and submitting state land in one write before the provider is called; acceptance in one more", async () => {
+    const repository = setup();
+    const batches: string[][] = [];
+    const observed = {
+      ...repository,
+      executeBatch: (projectId: string, runId: string, expectedRevision: number, commands: ReadonlyArray<Omit<RunCommand, "expectedRevision">>) => {
+        batches.push(commands.map((command) => `${command.type}:${String(command.payload.status ?? (command.payload.entry as { kind?: string } | undefined)?.kind)}`));
+        return repository.executeBatch(projectId, runId, expectedRevision, commands);
+      },
+    };
+    const dispatch = vi.fn(async () => {
+      expect(repository.read("project-1", "run-1")?.jobs[0].status).toBe("submitting");
+      return { providerTaskId: "provider-task-1" };
+    });
+    await outbox({ repository: observed, dispatch }).submit(request);
+    // 受理之后：「已受理」和收尾（这里没有收尾命令）也是一次落盘。
+    expect(batches).toEqual([["budget.entry:reserve", "job.status:submit_intent_persisted", "job.status:submitting"], ["job.status:provider_accepted"]]);
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
@@ -200,7 +221,7 @@ describe("SubmissionOutbox", () => {
     const paths = productionRunPaths(root, "run-1");
     const intentLog = createProductionRunIntentLog({ filePath: paths.intents, macKey: "test-app-owned-key" });
     const dispatch = vi.fn()
-      .mockRejectedValueOnce(new SubmissionNotDispatchedError("socket failed before write"))
+      .mockRejectedValueOnce(new SubmissionNotDispatchedError("socket failed before write", "connect_failed"))
       .mockResolvedValueOnce({ providerTaskId: "provider-task-1" });
 
     await outbox({ repository, dispatch, intentLog }).submit(request);
@@ -216,7 +237,7 @@ describe("SubmissionOutbox", () => {
     // 与下一条（收据丢了 → submission_unknown）是同一条轴的两端：
     // 「供应商那边什么都没发生」和「供应商可能已经收下」处置必须不同。
     const repository = setup();
-    const dispatch = vi.fn().mockRejectedValue(new SubmissionNotDispatchedError("socket failed before write"));
+    const dispatch = vi.fn().mockRejectedValue(new SubmissionNotDispatchedError("socket failed before write", "connect_failed"));
 
     await expect(outbox({ repository, dispatch }).submit(request)).rejects.toBeInstanceOf(SubmissionNotDispatchedError);
     expect(dispatch).toHaveBeenCalledTimes(2);

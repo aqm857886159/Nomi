@@ -80,31 +80,23 @@ describe("Nomi agent context ownership", () => {
     expect(readSkillRecords).toHaveBeenCalledTimes(2);
   });
 
-  it("composes four layers in order with memory last, wrapped by the language rule", () => {
-    const composed = context.composeAgentSystemPrompt({ identity: "Identity", panelSystemPrompt: "Panel", skillSystemPrompt: "Skill", memoryBlock: "Memory" });
-    // 四层顺序不变、无多余分隔；语言规则首尾各一段（primacy/recency，见合成器注释）。
-    expect(composed).toMatch(/Identity\n\nPanel\n\nSkill\n\nMemory/);
-  });
-
   // 回归闸：提示词主体几乎全是中文，模型会照着提示词的语言说话。只在末尾放一句英文规则时，
   // 英文界面下会退化成中英混答（2026-08-28 用户实测）。规则必须首尾各出现一次。
-  it("states the language rule at both ends, not just the tail", async () => {
+  // 首尾各放一次发生在 lane 拼最终系统提示的地方（`systemPromptClosing`），
+  // 由 tests/agent-runtime/lane-language-rule.test.mts 走真 lane 钉死；这里只钉规则本身。
+  it("the language rule opens with its header and closes with the not-a-language-signal sentence", async () => {
     const { setDesktopLocale } = await import("../../desktopLocale");
     setDesktopLocale("en");
-    const composed = context.composeAgentSystemPrompt({
-      identity: "Identity", panelSystemPrompt: "Panel", skillSystemPrompt: "Skill", memoryBlock: "Memory",
-    }) ?? "";
-    const occurrences = composed.split("Response-language rule (highest priority):").length - 1;
-    expect(occurrences).toBe(2);
-    expect(composed.startsWith("Response-language rule (highest priority):")).toBe(true);
-    expect(composed.trimEnd().endsWith("still answer in English.")).toBe(true);
+    const rule = context.buildLanguageRule();
+    expect(rule.startsWith("Response-language rule (highest priority):")).toBe(true);
+    expect(rule.trimEnd().endsWith("still answer in English.")).toBe(true);
   });
 
   // 中英混答的直接原因：提示词是中文，模型跟着提示词的语言走。必须点破「提示词语言 ≠ 输出语言」。
   it("tells the model the Chinese prompt body is not a language signal", async () => {
     const { setDesktopLocale } = await import("../../desktopLocale");
     setDesktopLocale("en");
-    const composed = context.composeAgentSystemPrompt({ identity: "身份", panelSystemPrompt: "", skillSystemPrompt: "", memoryBlock: "" }) ?? "";
+    const composed = context.buildLanguageRule();
     expect(composed).toContain("written in Chinese");
     expect(composed).toContain("still answer in English");
   });
@@ -113,15 +105,13 @@ describe("Nomi agent context ownership", () => {
   // DEFAULT_LOCALE 还是 zh-CN,那等于让绝大多数用户对着英文提示词工作。
   it("language rule follows the desktop locale", async () => {
     const { setDesktopLocale } = await import("../../desktopLocale");
-    const layers = { identity: "Identity", panelSystemPrompt: "", skillSystemPrompt: "", memoryBlock: "" };
-
     setDesktopLocale("en");
-    const en = context.composeAgentSystemPrompt(layers) ?? "";
+    const en = context.buildLanguageRule();
     expect(en).toContain("Response-language rule (highest priority):");
     expect(en).toContain("Respond in English.");
 
     setDesktopLocale("zh-CN");
-    const zh = context.composeAgentSystemPrompt(layers) ?? "";
+    const zh = context.buildLanguageRule();
     expect(zh).toContain("回复语言铁律（最高优先级）：");
     expect(zh).toContain("默认用简体中文回复。");
     expect(zh).not.toContain("Respond in English by default.");

@@ -4,11 +4,22 @@
 // 等价性:barrier 落点 = 原 pushUndoSnapshot 调用点(同名导出,调用方零改动)——
 // 撤销粒度与旧栈逐手势一致(addNode 后的默认参数 patch 不设 barrier,跟旧行为一样随上一 barrier 回退)。
 // 内存:HISTORY_LIMIT=80 维持;最老 barrier 被挤出时把前缀压进 base(紧凑化),journal 不无界。
+// 撤销只回退**用户编辑**:生成结局落地(run-updated 事件带 `landed`)是系统事实,前缀重放会把 barrier
+// 之后落地的结果一起丢掉(钱花了、图没了)——所以 undo/redo 连同目标位置之后的全部落地一起交出去,
+// 由画布 store 的统一提交口重新叠回(store/canvasDocumentCommit.ts)。
 import { replayCanvasEvents, emptyCanvasProjection, type CanvasProjection } from './canvasEventReducer'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
 
-type JournalEvent = { type: string; payload: Record<string, unknown> }
+type JournalEvent = { type: string; payload: Record<string, unknown>; source?: string; txnId?: string }
+
+export type CanvasChangeConflict = Readonly<{
+  changeId: string
+  objectIds: readonly string[]
+  conflictingEventTypes: readonly string[]
+  /** 这笔改动碰过、之后又被别的事务改到**编辑层**的那些对象(运行写的事实层不算:整节点放回经统一提交口,事实取活的)。 */
+  conflictingObjectIds: readonly string[]
+}>
 
 const HISTORY_LIMIT = 80
 
@@ -17,9 +28,59 @@ let journal: JournalEvent[] = []
 let undoBarriers: number[] = []
 let redoBarriers: number[] = []
 let generation = 0
+let journalBasePosition = 0
+export type UndoHistoryEviction = { generation: number; oldestReachablePosition: number }
+
+const historyEvictionHandlers = new Set<(eviction: UndoHistoryEviction) => void | Promise<void>>()
+
+export function registerUndoHistoryEvictionHandler(handler: (eviction: UndoHistoryEviction) => void | Promise<void>): () => void {
+  historyEvictionHandlers.add(handler)
+  return () => historyEvictionHandlers.delete(handler)
+}
 
 function replayTo(position: number): CanvasProjection {
   return replayCanvasEvents(journal.slice(0, position), base)
+}
+
+/** 一次生成结局落地:哪个节点、落了什么(结局原样,store 侧解释)。 */
+export type CanvasLanding = Readonly<{ nodeId: string; landed: Readonly<Record<string, unknown>> }>
+/**
+ * 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)
+ * + 目标位置及之前在画布上出现过的节点(撤销「建节点」才留下带落地的节点;重做「删节点」照删)。
+ */
+export type UndoRestore = Readonly<{
+  projection: CanvasProjection
+  landingsAfter: readonly CanvasLanding[]
+  nodeIdsSeenBefore: ReadonlySet<string>
+}>
+
+// 落地记账只有一种:run-updated 带 landed(节点在时落下的,或节点被带回来时补落的暂存结局)。
+function landingsAfter(position: number): CanvasLanding[] {
+  return journal.slice(position).flatMap((event) => {
+    const landed = event.payload.landed
+    const nodeId = event.type === 'canvas.node.run-updated' ? (event.payload.node as { id?: unknown } | undefined)?.id : undefined
+    if (!landed || typeof landed !== 'object' || typeof nodeId !== 'string') return []
+    return [{ nodeId, landed: landed as Record<string, unknown> }]
+  })
+}
+
+function nodeIdsIn(event: JournalEvent): string[] {
+  const { node, snapshot } = event.payload as { node?: { id?: unknown }; snapshot?: { nodes?: unknown } }
+  const ids = typeof node?.id === 'string' ? [node.id] : []
+  if (Array.isArray(snapshot?.nodes)) {
+    for (const candidate of snapshot.nodes as Array<{ id?: unknown }>) if (typeof candidate?.id === 'string') ids.push(candidate.id)
+  }
+  return ids
+}
+
+function nodeIdsSeenBefore(position: number): Set<string> {
+  const seen = new Set(base.nodes.map((node) => node.id))
+  for (const event of journal.slice(0, position)) for (const id of nodeIdsIn(event)) seen.add(id)
+  return seen
+}
+
+function restoreTo(position: number): UndoRestore {
+  return { projection: replayTo(position), landingsAfter: landingsAfter(position), nodeIdsSeenBefore: nodeIdsSeenBefore(position) }
 }
 
 /** 发射器同步喂(canvas 域全部事件,含 snapshot.restored)。 */
@@ -46,27 +107,30 @@ export function pushUndoSnapshot(_state?: unknown): void {
     journal = journal.slice(dropTo)
     undoBarriers = undoBarriers.slice(1).map((position) => position - dropTo)
     redoBarriers = redoBarriers.map((position) => position - dropTo)
+    journalBasePosition += dropTo
+    const oldestReachablePosition = getOldestReachableUndoPosition()
+    for (const handler of historyEvictionHandlers) void handler({ generation, oldestReachablePosition })
   }
 }
 
-/** undo:弹出最近 barrier,返回该位置的前缀重放投影;当前长度入 redo 栈。 */
-export function popUndo(): CanvasProjection | undefined {
+/** undo:弹出最近 barrier,返回该位置的前缀重放投影(+ 其后的落地);当前长度入 redo 栈。 */
+export function popUndo(): UndoRestore | undefined {
   interruptPendingCanvasWrite()
   const barrier = undoBarriers.at(-1)
   if (barrier === undefined) return undefined
   undoBarriers = undoBarriers.slice(0, -1)
   redoBarriers = [...redoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return replayTo(barrier)
+  return restoreTo(barrier)
 }
 
 /** redo:回到撤销前的日志位置(该位置前缀=撤销前画布,因为日志只追加)。 */
-export function popRedo(): CanvasProjection | undefined {
+export function popRedo(): UndoRestore | undefined {
   interruptPendingCanvasWrite()
   const position = redoBarriers.at(-1)
   if (position === undefined) return undefined
   redoBarriers = redoBarriers.slice(0, -1)
   undoBarriers = [...undoBarriers, journal.length].slice(-HISTORY_LIMIT)
-  return replayTo(position)
+  return restoreTo(position)
 }
 
 /** S6-2 事务边界:记录当前日志位置(abort 清理的锚点)。 */
@@ -74,10 +138,56 @@ export function getUndoJournalPosition(): number {
   return journal.length
 }
 
+export function getLatestUndoBarrierAbsolutePosition(): number | undefined {
+  const barrier = undoBarriers.at(-1)
+  return barrier === undefined ? undefined : journalBasePosition + barrier
+}
+
+/**
+ * 「撤销日志此刻的头」：之后任何一笔事件（手势、生成落地）都会让它变。提示条上的「撤销」只在它没变时才给——
+ * 撤销是前缀重放，头变了再撤，会把那之后落地的生成结果也一起撤掉。
+ */
+export function getUndoHeadToken(): string {
+  return `${generation}:${journalBasePosition + journal.length}`
+}
+
+export function getOldestReachableUndoPosition(): number {
+  const reachable = [...undoBarriers, ...redoBarriers]
+  return reachable.length === 0
+    ? journalBasePosition + journal.length
+    : journalBasePosition + Math.min(...reachable)
+}
+
 /** Loaded-canvas identity, not a content revision. A new chat does not change
  * the transaction's compensation target; replacing/clearing its canvas does. */
 export function getUndoJournalGeneration(): number {
   return generation
+}
+
+/** Read conflict evidence from the same session journal used by Cmd+Z. */
+export function findCanvasChange(changeId: string): CanvasChangeConflict | null {
+  const commitIndex = journal.findIndex((event) => event.type === 'agent.txn.committed' && event.payload.changeId === changeId)
+  if (commitIndex < 0) return null
+  const payload = journal[commitIndex].payload
+  const objectIds = Array.isArray(payload.objectIds)
+    ? payload.objectIds.filter((value): value is string => typeof value === 'string')
+    : []
+  const ids = new Set(objectIds)
+  const conflictingEventTypes = new Set<string>()
+  const conflictingObjectIds = new Set<string>()
+  for (const event of journal.slice(commitIndex + 1)) {
+    if (event.payload.changeId === changeId || event.txnId === journal[commitIndex].txnId) continue
+    const payloadIds = Object.values(event.payload).flatMap((value) => {
+      if (typeof value === 'string') return [value]
+      if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string')
+      if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).filter((item): item is string => typeof item === 'string')
+      return []
+    })
+    const touched = payloadIds.filter((id) => ids.has(id))
+    if (event.source !== 'runtime') touched.forEach((id) => conflictingObjectIds.add(id))
+    if (event.type === 'canvas.snapshot.restored' || touched.length) conflictingEventTypes.add(event.type)
+  }
+  return { changeId, objectIds, conflictingEventTypes: [...conflictingEventTypes], conflictingObjectIds: [...conflictingObjectIds] }
 }
 
 /**
@@ -93,6 +203,7 @@ export function dropUndoBarriersAfter(position: number): void {
 /** 切项目/hydrate:历史清零(会话内撤销语义,跨会话历史只在磁盘日志供审计)。 */
 export function clearHistory(): void {
   generation += 1
+  journalBasePosition = 0
   base = emptyCanvasProjection()
   journal = []
   undoBarriers = []
@@ -105,6 +216,7 @@ export function clearHistory(): void {
  */
 export function seedUndoJournalBase(projection: CanvasProjection): void {
   generation += 1
+  journalBasePosition = 0
   base = { nodes: projection.nodes, edges: projection.edges, groups: projection.groups }
   journal = []
   undoBarriers = []

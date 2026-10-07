@@ -1,0 +1,26 @@
+{
+  "name": "「同一文件近 14 天第 3 次 fix → 先过重写判据」与「新建文件 → 给能力清单」的触发判决",
+  "subject": "agent-rules.edit-time-reminder-verdict",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-01",
+  "owner": {
+    "path": "scripts/edit-time-reminder.mjs",
+    "symbol": "decideEditTimeReminder"
+  },
+  "write_api": [
+    {
+      "path": "scripts/edit-time-reminder.mjs",
+      "symbol": "decideEditTimeReminder"
+    }
+  ],
+  "parity_test": "scripts/edit-time-reminder.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/claude-hooks/edit-time-reminder.sh"
+  ],
+  "notes": "什么时候提醒（新建 = 路径不存在；反复修 = 近 14 天 fix/hotfix 提交 ≥3）只住 decideEditTimeReminder；阈值是试用值（到 2026-10-15 用提交历史校准）。只提醒、不拦、fail-open；回馈走 PreToolUse 的 hookSpecificOutput.additionalContext（普通 stdout 不进上下文）。"
+}

@@ -142,7 +142,7 @@ describe("超大字段硬上限(旁路观察不许拖死主进程)", () => {
   const huge = `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}`;
 
   it("大字符串被换成体积标记：不留全文、不算 sha256", () => {
-    const out = stripOversizeStrings({ nodeId: "n1", patch: { result: { url: huge } } }) as {
+    const out = stripOversizeStrings({ nodeId: "n1", patch: { result: { url: huge } } }) as unknown as {
       nodeId: string;
       patch: { result: { url: { truncated: boolean; oversize: boolean; byteSize: number; sha256: string } } };
     };

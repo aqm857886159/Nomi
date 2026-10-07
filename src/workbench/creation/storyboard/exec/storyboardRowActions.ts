@@ -22,19 +22,21 @@ import {
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
+import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
+import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { getVendorPreference } from '../../../api/vendorPreferenceApi'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import type { StoryboardRowRuntime } from './storyboardRowStatus'
+import { storyboardComposerMeta } from '../shotRow/storyboardComposerModel'
 
 /**
  * 分镜表的**执行动作层**（v5 B）：行内/批量生成 = 按需 materialize（没建过的节点此刻建）+
- * 既有 canvas runner 通路（confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace /
- * confirmAndRunPlan）。**只有这一条执行通路**：spendConfirm、付费令牌、失败即停、队列刹车、
+ * 既有 canvas runner 通路（confirmAndRunNode / regenerateNodeInPlace /
+ * confirmAndRunPlan）。**只有这一条执行通路**：spendConfirm、批量卡开的出价、失败即停、队列刹车、
  * undo journal 全部沿用，不另起循环（check:batch-machines 钉死 runGenerationNode 不外扩）。
  *
  * 运行前通过 projectShotNode 投影方案；节点明确覆写的字段保留画布值。
@@ -112,9 +114,16 @@ async function applyCreate(args: PlanCreateNodesArgs, gesture?: CanvasGestureCon
 
 // ── 行编辑写回节点（跑之前的唯一收口）──
 
+/**
+ * 跑之前写回节点用的模型索引：**真实目录** + 用户的供应商顺序（镜头行与参考卡同一口）。
+ * 只记了模型名的旧镜头落哪家 = 模型框回显的那家：同一个判定口 + 同一份用户供应商顺序。
+ */
+async function liveModelEntryIndex(): Promise<ReadonlyMap<string, AgentModelEntry>> {
+  return buildModelEntryIndex(await listAvailableModelsForAgent(), (await getVendorPreference()).orderedVendorKeys)
+}
+
 async function syncShotNodeWithRow(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode, part: 'shot' | 'keyframe', mode?: ArchetypeMode | null): Promise<void> {
-  // 只记了模型名的旧镜头落哪家 = 模型框回显的那家：同一个判定口 + 同一份用户供应商顺序。
-  const entries = buildModelEntryIndex(await listAvailableModelsForAgent(), (await getVendorPreference()).orderedVendorKeys)
+  const entries = await liveModelEntryIndex()
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard update')
   await ctx.assertCurrent?.()
   const current = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)
@@ -229,13 +238,6 @@ export async function rerunShotRowWithFreshRefs(
   await confirmAndRunPlan(buildDependencyWaves([exec.keyframeNode.id, exec.node.id], { nodes, edges }), confirmationGuards(ctx))
 }
 
-/** 悬停浮条 ×3：写回行编辑 + 同镜连出 3 版（结果堆叠进历史，失败即停不连烧）。 */
-export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode, mode: ArchetypeMode | null): Promise<void> {
-  await syncShotNodeWithRow(ctx, shot, node, 'shot', mode)
-  await ctx.assertCurrent?.()
-  await confirmAndRunNodeVariants(node.id, 3, confirmationGuards(ctx))
-}
-
 /**
  * 节点锁定开关（B2 镜行 / B3 参考卡共用）：与画布定妆**同一把锁**（meta.frozen 同键同形，
  * anchorBibleKeys 单源）。锁 = 满意了别动它：不进批量、不被表内重跑。只有已生成的可锁。
@@ -278,7 +280,7 @@ export async function generateAnchorCard(ctx: RowActionContext, anchor: PlanAnch
     return confirmAndRunNode(nodeId, confirmationGuards(ctx))
   }
   await ctx.assertCurrent?.()
-  syncAnchorNodeWithCard(ctx, anchor, node)
+  await syncAnchorNodeWithCard(ctx, anchor, node)
   await ctx.assertCurrent?.()
   return confirmAndRunNode(node.id, confirmationGuards(ctx))
 }
@@ -286,24 +288,35 @@ export async function generateAnchorCard(ctx: RowActionContext, anchor: PlanAnch
 /** 锚卡「重生成」：写回描述编辑 + 原地重出（引用它的镜之后经「参考已变」提示重跑，绝不自动跑）。 */
 export async function regenerateAnchorCard(ctx: RowActionContext, anchor: PlanAnchor, node: GenerationCanvasNode): Promise<GenerationRunOutcome> {
   await ctx.assertCurrent?.()
-  syncAnchorNodeWithCard(ctx, anchor, node)
+  await syncAnchorNodeWithCard(ctx, anchor, node)
   await ctx.assertCurrent?.()
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
   return regenerateNodeInPlace(node.id, confirmationGuards(ctx))
 }
 
-/** 锚卡编辑写回节点（描述/静动特征改了再生成，出的是改后的卡）。 */
-function syncAnchorNodeWithCard(ctx: RowActionContext, anchor: PlanAnchor, node: GenerationCanvasNode): void {
+/**
+ * 锚卡编辑写回节点（描述 / 静动特征 / **模型与参数**改了再生成，出的是改后的卡）。
+ *
+ * 模型与参数（审计 A2）：参考卡底栏显示的那份 meta 由 `storyboardComposerMeta` 算出（落画布同一个构造器），
+ * 写回节点也只用它——界面上选的模型 / 比例 / 清晰度就是重生成时发出去的。以前这里只同步提示词与特征，
+ * 改了模型再点重试，节点仍用旧模型（「界面说的 ≠ 发出的」）。没选模型（默认模型）就不动节点的模型。
+ * 模型索引取真实目录（`liveModelEntryIndex`，与镜头写回同一口）：现拼的单条索引认不出只靠目录元数据定档案的模型，
+ * 那时写回是空的、节点照旧用旧模型（2026-10-06 真 App 审计走查实测）。
+ */
+async function syncAnchorNodeWithCard(ctx: RowActionContext, anchor: PlanAnchor, node: GenerationCanvasNode): Promise<void> {
+  const entries = await liveModelEntryIndex()
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard anchor update')
+  await ctx.assertCurrent?.()
+  const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id) ?? node
   const prompt = buildAnchorSheetPrompt(anchor)
-  const meta: Record<string, unknown> = { ...(node.meta || {}) }
+  const meta: Record<string, unknown> = { ...(current.meta || {}), ...storyboardComposerMeta(anchor, entries) }
   const staticFeatures = (anchor.staticFeatures || '').trim()
   const dynamicFeatures = (anchor.dynamicFeatures || '').trim()
   if (staticFeatures) meta[ANCHOR_META_KEYS.staticFeatures] = staticFeatures
   if (dynamicFeatures) meta[ANCHOR_META_KEYS.dynamicFeatures] = dynamicFeatures
   const patch: { prompt?: string; title?: string; meta: Record<string, unknown> } = { meta }
-  if ((node.prompt || '') !== prompt) patch.prompt = prompt
-  if (anchor.name.trim() && node.title !== anchor.name.trim()) patch.title = anchor.name.trim()
+  if ((current.prompt || '') !== prompt) patch.prompt = prompt
+  if (anchor.name.trim() && current.title !== anchor.name.trim()) patch.title = anchor.name.trim()
   const write = () => useGenerationCanvasStore.getState().updateNode(node.id, patch, { origin: 'storyboard-projection' })
   if (ctx.gesture) withCanvasGestureContext(ctx.gesture, write)
   else write()
@@ -320,6 +333,8 @@ export async function runStoryboardBatch(
   ctx: RowActionContext,
   rows: readonly StoryboardRowRuntime[],
   landing?: { groupTitle: string; placementOnly?: boolean },
+  /** 卡上点了确认、出价开好的那一刻（见 `confirmAndRunPlan` 的同名项）。Agent 的 `generate` 据此当场交回，不等整批跑完。 */
+  onConsented?: (runIds: string[]) => void,
 ): Promise<GenerationRunOutcome> {
   if (rows.length === 0 && !landing?.placementOnly) return 'nothing-to-run'
   if (landing?.placementOnly && rows.every(row => {
@@ -372,5 +387,5 @@ export async function runStoryboardBatch(
   const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), confirmationGuards(ctx))
+  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), ...(onConsented ? { onConsented } : {}) })
 }

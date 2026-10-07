@@ -121,6 +121,48 @@ describe("ProductionRunRepository", () => {
     ).toThrow(ProductionRunRevisionConflictError);
   });
 
+  // 一次落盘多条命令（发动机收敛第一刀第 3 步的性能尾巴）：盘上的形状必须与逐条执行逐字相同（旧版本照样读写，回滚安全）。
+  it("a command batch lands exactly what the same commands executed one by one would, in one append", () => {
+    const commands = [
+      { commandId: "batch-a", type: "run.stage", payload: { stageId: "plan" }, issuedAt: "2026-08-08T08:00:00.000Z" },
+      { commandId: "batch-b", type: "run.status", payload: { status: "running" }, issuedAt: "2026-08-08T08:00:00.000Z" },
+    ];
+    createRun();
+    const batched = repository().executeBatch("project-1", "run-1", 0, commands);
+    const batchedEvents = repository().readEvents("project-1", "run-1");
+    const batchedCommands = fs.readFileSync(productionRunPaths(root, "run-1").commands, "utf8");
+
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.mkdirSync(root, { recursive: true });
+    createRun();
+    repository().execute("project-1", "run-1", { ...commands[0], expectedRevision: 0 });
+    const single = repository().execute("project-1", "run-1", { ...commands[1], expectedRevision: 1 });
+    const singleEvents = repository().readEvents("project-1", "run-1");
+
+    expect(batched.map((result) => result.run.revision)).toEqual([1, 2]);
+    expect(batched.at(-1)!.run).toEqual(single.run);
+    const strip = (events: typeof singleEvents) => events.map(({ eventId: _eventId, ...rest }) => rest);
+    expect(strip(batchedEvents)).toEqual(strip(singleEvents));
+    expect(batchedCommands).toBe(fs.readFileSync(productionRunPaths(root, "run-1").commands, "utf8"));
+    expect(repository().read("project-1", "run-1")).toEqual(single.run);
+  });
+
+  it("a retried batch replays every result; a batch reusing only some recorded ids or a stale revision is refused", () => {
+    createRun();
+    const commands = [
+      { commandId: "batch-a", type: "run.stage", payload: { stageId: "plan" }, issuedAt: "2026-08-08T08:00:00.000Z" },
+      { commandId: "batch-b", type: "run.status", payload: { status: "running" }, issuedAt: "2026-08-08T08:00:00.000Z" },
+    ];
+    const first = repository().executeBatch("project-1", "run-1", 0, commands);
+    const replay = repository().executeBatch("project-1", "run-1", 0, commands);
+    expect(replay.map((result) => result.run.revision)).toEqual(first.map((result) => result.run.revision));
+    expect(repository().readEvents("project-1", "run-1")).toHaveLength(4);
+
+    expect(() => repository().executeBatch("project-1", "run-1", 2, [commands[1], { ...commands[0], commandId: "batch-c" }])).toThrow(/only partly recorded/);
+    expect(() => repository().executeBatch("project-1", "run-1", 2, [{ ...commands[0], commandId: "batch-d" }, commands[1]])).toThrow(/reuses a recorded command id/);
+    expect(() => repository().executeBatch("project-1", "run-1", 1, [{ ...commands[0], commandId: "batch-e" }])).toThrow(ProductionRunRevisionConflictError);
+  });
+
   it("fails closed when another process owns the repository mutation lock", () => {
     createRun();
     const paths = productionRunPaths(root, "run-1");

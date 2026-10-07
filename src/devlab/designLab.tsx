@@ -36,6 +36,7 @@ import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
 import { findLabScreen, findLabState, LAB_SCREENS } from './designLab/labScreens'
 import type { LabScreen, LabState } from './designLab/labScreen'
+import { designLabHoldCount } from './designLab/labReadyHold'
 
 const params = new URL(window.location.href).searchParams
 const screen = findLabScreen(params.get('screen'))
@@ -210,9 +211,14 @@ function DesignLabApp(): JSX.Element {
 /**
  * 截图的就绪信号。走查等的是这个旗，不是墙钟——「等 2 秒应该够了」这种写法
  * 单跑绿、并行翻红（R18/`check:test-waits` 拦的正是那一族）。
- * 两帧 rAF 让 React 提交 + 布局都落定后再举旗。
+ * 先等格子登记的持有全部释放（`labReadyHold.ts`：3D 场景这类异步落定的格子自己说什么时候好），
+ * 再两帧 rAF 让 React 提交 + 布局都落定后举旗。
  */
 function markReady(): void {
+  if (designLabHoldCount() > 0) {
+    requestAnimationFrame(markReady)
+    return
+  }
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       ;(window as unknown as { __designLabReady?: boolean }).__designLabReady = true

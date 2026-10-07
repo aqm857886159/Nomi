@@ -1,7 +1,6 @@
 import { currentPresentation, presentationIsOpen } from '../shared/productionGenerationPresentation';
 import { spendAuthorizationGates } from "../shared/productionSpendAuthority";
 import { createPendingSpendActions } from './appIntegrationSpendConfirm';
-import { registerSpendWaiter, spendDecisionAwaited } from './spendDecisionWaiters';
 import { withdrawStalePresentations } from '../productionRun/stalePresentationSweep';
 import { createProductionRunService } from '../productionRun/productionRunService';
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore';
@@ -10,7 +9,7 @@ import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { canvasLandingOperationId } from "../productionRun/multiShotCanvasLanding";
-import { PROJECT_ID, OPERATION_ID, lease, now, PRICING, candidate, startLoopbackVendor, harness, buildActions, callTool, draft, resetSpendFixture, advanceClock, registry } from "./agentPanelSpendConfirmTestUtils";
+import { PROJECT_ID, OPERATION_ID, lease, now, PRICING, candidate, startLoopbackVendor, harness, buildActions, callTool, draft, resetSpendFixture, advanceClock, registry, watchCardForTurn, settleMicrotasks } from "./agentPanelSpendConfirmTestUtils";
 import { resolvePlanPatch } from "./generationPlanPatch";
 
 afterEach(resetSpendFixture);
@@ -241,6 +240,15 @@ describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
     const resolved = operationId?.drafted?.operation?.operationId ?? operationId?.operation?.operationId ?? "";
     return { ...built, created, operationId: resolved };
   }
+
+  it("回执说真话：画布来源草稿当场落成节点 → 建草稿的结果点名那个节点（真实路径：传输 → 草稿账本 → 落地宿主 → 读回账本）", async () => {
+    const base = harness();
+    const { created, operationId } = await modelTurn(base, "http://127.0.0.1:1", [], "step");
+    const landing = (created as { result?: { canvasLanding?: unknown } }).result?.canvasLanding;
+    expect(operationId).toBeTruthy();
+    expect(base.renderer.nodes.size).toBe(1);
+    expect(landing).toEqual({ state: "placed", shotCount: 1, nodes: [{ shotId: expect.any(String), nodeId: [...base.renderer.nodes.values()][0] }] });
+  });
 
   it("全自动：草稿一建好宿主就自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
     const vendor = await startLoopbackVendor();
@@ -537,23 +545,46 @@ describe('reliability: scoped presentation and dismissal', () => {
     expect(await withdrawStalePresentations({ listRuns: runs, withdraw, processStartedAt: later, now }, PROJECT_ID)).toEqual([]);
   });
 
-  // ── 裁决 A/B：报价卡上的结论递给正在等的那个回合，身份锚 operationId ──
-  it('A/B: 确认成功才递「confirmed」，× 递「declined」；改参数换了 quoteId 也递得到；没人等是 no-op', async () => {
+  // ── 回合怎么知道卡关了：只看账本里**这一次出价**开没开着（2026-10-05 删掉进程内转接表）──
+  it('回合醒在这一次出价关掉那一刻：旧报价确认失败 → 卡还开着、回合接着等；改参数换了报价仍是同一次出价；确认成功 → 关', async () => {
     const vendor = await startLoopbackVendor();
     try {
       const base = harness();
       const { withWindow } = buildActions(base, vendor.origin, []);
       await draft(base);
-      const heard: string[] = [];
-      const release = registerSpendWaiter(PROJECT_ID, OPERATION_ID, (decision) => heard.push(decision.kind));
+      const turn = watchCardForTurn(base);
       const shown = withWindow.listPendingSpend(PROJECT_ID)[0];
-      // 旧报价确认 → 失败 → **不递**：卡还在等，等的那个回合也该继续等。
       expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: 'stale-quote' })).toMatchObject({ ok: false });
-      expect(heard).toEqual([]);
-      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: shown.quoteId })).toMatchObject({ ok: true });
-      expect(heard).toEqual(['confirmed']);
-      expect(spendDecisionAwaited(PROJECT_ID, OPERATION_ID), '递完即注销：同一笔不会被递第二次').toBe(false);
-      release();
+      await settleMicrotasks();
+      expect(turn.closed(), '旧报价被挡回去：卡还在等，回合也接着等').toBe(false);
+      const revised = await withWindow.revisePendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: shown.quoteId, patch: { prompt: '改一下' } });
+      expect(revised).toMatchObject({ ok: true, code: 'revised' });
+      expect(revised.quoteId, '改参数换了报价').not.toBe(shown.quoteId);
+      expect(revised.pending?.quoteId, '回包带的就是宿主现算的那张卡').toBe(revised.quoteId);
+      await settleMicrotasks();
+      expect(turn.closed(), '换报价不是关卡：同一次出价').toBe(false);
+      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: revised.quoteId! })).toMatchObject({ ok: true });
+      await settleMicrotasks();
+      expect(turn.closed(), '这一次出价关了，回合醒来').toBe(true);
+      turn.dispose();
+    } finally { await vendor.close(); }
+  });
+
+  // 类级：关卡的不只是卡上那四个动作。转接表时代只有它们会「递一句」，别的路把出价关掉（这里是计划被取消），
+  // 等这张卡的回合就一直挂着，直到用户打字或按停。现在回合看账本，哪条路关的都一样醒。
+  it('卡上动作以外的路关掉这一次出价（计划被取消）：回合同样醒来', async () => {
+    const vendor = await startLoopbackVendor();
+    try {
+      const base = harness();
+      const { withWindow } = buildActions(base, vendor.origin, []);
+      await draft(base);
+      expect(withWindow.listPendingSpend(PROJECT_ID), '卡开着').toHaveLength(1);
+      const turn = watchCardForTurn(base);
+      await base.operations.cancel(PROJECT_ID, OPERATION_ID, now());
+      await settleMicrotasks();
+      expect(withWindow.listPendingSpend(PROJECT_ID), '卡没了').toEqual([]);
+      expect(turn.closed(), '回合醒来去读结局，不再挂着').toBe(true);
+      turn.dispose();
     } finally { await vendor.close(); }
   });
 });

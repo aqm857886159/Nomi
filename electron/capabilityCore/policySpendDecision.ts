@@ -6,7 +6,7 @@
 // 他刚刚才在切档卡上答应过「付费生成直接跑、不再逐笔给我看报价」，转头又被问一遍。
 //
 // 成因是投影与决定之间的**时间差**：草稿一落盘，`projectPendingSpendConfirm` 就把它投影成
-// 一张「在等你点头」的卡（面板每 1.5s 读一次），而「全自动」档代答的那一步
+// 一张「在等你点头」的卡（Run 一变就推给面板），而「全自动」档代答的那一步
 // （`generationTransportAdapters.ts` 的 `decideByPolicyAfterDraft`）跑在落盘**之后**。
 // 两者之间那一段，卡是真的摆在用户面前的。
 //
@@ -32,6 +32,16 @@
 
 /** `${projectId}:${operationId}` → 还没释放的代答数（同一笔理论上只有一次，计数是为了不被重入清早）。 */
 const inFlight = new Map<string, number>();
+const listeners = new Set<(projectId: string, operationId: string) => void>();
+
+/**
+ * 代答收尾了（释放）。对话投影据此重读一次待决出价：代答失败时卡要**回到原处等用户**，
+ * 而释放本身不写 Run 账本——没有这一声，那张卡要等到账本下一次变才出现（轮询时代这一段靠 1.5 秒兜着）。
+ */
+export function subscribePolicySpendDecisions(listener: (projectId: string, operationId: string) => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
 
 function keyOf(projectId: string, operationId: string): string {
   return `${projectId}:${operationId}`;
@@ -52,6 +62,7 @@ export function beginPolicySpendDecision(projectId: string, operationId: string)
     const count = (inFlight.get(key) ?? 1) - 1;
     if (count > 0) inFlight.set(key, count);
     else inFlight.delete(key);
+    for (const listener of [...listeners]) listener(projectId, operationId);
   };
 }
 

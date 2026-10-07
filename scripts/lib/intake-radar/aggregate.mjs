@@ -259,11 +259,11 @@ export function tallyUpdateActions(events) {
   const actions = events.filter((e) => e.eventName === 'update.action')
   const counts = new Map()
   for (const e of actions) {
-    const key = `${e.props?.action ?? 'unknown'}|${e.props?.result ?? 'unknown'}`
+    const key = `${e.props?.action ?? 'unknown'}|${e.props?.result ?? 'unknown'}|${e.props?.reason ?? ''}`
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   return [...counts.entries()]
-    .map(([key, count]) => { const [action, result] = key.split('|'); return { action, result, count } })
+    .map(([key, count]) => { const [action, result, reason] = key.split('|'); return reason ? { action, result, reason, count } : { action, result, count } })
     .sort((a, b) => b.count - a.count)
 }
 

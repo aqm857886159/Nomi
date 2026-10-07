@@ -1,0 +1,22 @@
+{
+  "id": "PLAN-S2-07",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "performance-coverage",
+  "problem": "真实任务中的性能问题没有在测试中出现",
+  "existingInvariants": [
+    5
+  ],
+  "ironLaws": [],
+  "useCases": [
+    "S8"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend",
+    "J09-export-film"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

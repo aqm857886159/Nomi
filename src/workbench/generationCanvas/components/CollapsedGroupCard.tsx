@@ -6,6 +6,7 @@ import type { CollapsedGroupCardProjection } from '../model/canvasCardStackModel
 import { CardStackPeeks } from './CardStackPeeks'
 import { COLLAPSED_GROUP_CARD_SIZE } from '../model/canvasCardStackModel'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { groupColorClass } from '../model/groupColor'
 
 type Props = {
   card: CollapsedGroupCardProjection
@@ -36,6 +37,7 @@ export function CollapsedGroupCard({
   const { t } = useTranslation()
   const imageUrl = coverUrl(card)
   const countLabel = t('generationCommon.canvas.group.nodeStackCount', { count: card.memberCount })
+  const colorClass = groupColorClass(card.colorToken)
 
   return (
     <article
@@ -63,6 +65,7 @@ export function CollapsedGroupCard({
           'absolute inset-0 z-[2] flex flex-col overflow-hidden rounded-nomi-lg border',
           readOnly ? 'pointer-events-none' : 'pointer-events-auto cursor-grab active:cursor-grabbing',
           GROUP_VISUAL_CLASS.collapsedCard,
+          colorClass.border,
           selected ? 'border-nomi-accent' : null,
         )}
         data-frame-selected={selected ? 'true' : undefined}

@@ -38,7 +38,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "document.read",
-      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and whenever the user says \"this\" or \"here\" (use scope selection — it is the only way to resolve those words). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
+      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \"this\" or \"here\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
       "effect": "read",
       "effectGroups": null,
       "examples": [
@@ -483,7 +483,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, or to change a shot's prompt, model, parameters or references. Pass shotId to update an existing draft; omit it to create. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). shots[] each with prompt, optional title, taskKind, durationSec, modelId (or candidate with providerId + modelId, never both for one shot), modeId, parameters, references, role. For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own. Model and parameter values come from list_models; reuse operationId and shotId from the current draft result. Two shapes: creating a shot needs prompt; revising one (operationId + shotId) carries only the fields you are changing — prompt, model, modeId, parameters, references — and leaves the rest out, including title and role, which are fixed when the shot is created. The host clamps values to the model's real limits and reports every clamp. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level candidate or taskKind is the default for shots that omit their own; model values come from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": [
         "canvas-node-creation"
@@ -559,8 +559,12 @@
             ],
             "type": "object"
           },
+          "newPlan": {
+            "description": "Only if the user asks for a separate plan.",
+            "type": "boolean"
+          },
           "operationId": {
-            "description": "operationId from an earlier draft_shots call, to update it.",
+            "description": "Plan id from a draft_shots result.",
             "maxLength": 160,
             "minLength": 1,
             "type": "string"
@@ -570,6 +574,10 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "aspectRatio": {
+                  "description": "e.g. 16:9 or auto.",
+                  "type": "string"
+                },
                 "candidate": {
                   "additionalProperties": true,
                   "description": "Catalog candidate identity when known.",
@@ -612,14 +620,15 @@
                     "type": [
                       "string",
                       "number",
-                      "boolean"
+                      "boolean",
+                      "null"
                     ]
                   },
-                  "description": "Values the model's profile declares, except length (use durationSec). The host clamps them and reports every clamp.",
+                  "description": "Profile values but length/ratio; revisions change named keys only, null deletes.",
                   "type": "object"
                 },
                 "prompt": {
-                  "description": "Prompt in the user's language. Required for a new shot; when revising (operationId + shotId) send it only to change it.",
+                  "description": "Prompt in the user's language; required for a new shot.",
                   "maxLength": 8000,
                   "minLength": 1,
                   "type": "string"
@@ -642,7 +651,7 @@
                   "type": "string"
                 },
                 "shotId": {
-                  "description": "Existing shot id to update; omit to create one.",
+                  "description": "Shot id to revise; omit for a new shot.",
                   "maxLength": 160,
                   "minLength": 1,
                   "type": "string"
@@ -1536,7 +1545,9 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "apply_edit_plan"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
       "description": "Apply one transaction of timeline operations (move, trim, split, ripple, transition, text, audio) against the revision you read. The user asks to cut, trim, reorder, or add captions or transitions on the timeline. Not without a fresh read_timeline — a stale revision is rejected and resending it cannot succeed. Not for shot content (draft_shots). To revert use undo. baseRevision from read_timeline, a one-line summary, and 1-128 operations in frames. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio. The user sees the plan highlighted with a review card before it applies (in full-auto mode it applies and the result says so). The edit is reversible.",
@@ -1801,17 +1812,19 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "undo_timeline_edit"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
-      "description": "Revert one timeline change you made, by the undoToken its result returned. The user says undo, go back, or that the last change was wrong. It cannot un-spend money or un-export; those are not undoable and check_job or cancel_job are the verbs there. Canvas nodes are undone by the user (Cmd+Z), not here. undoToken from the result of edit_timeline; expectedRevision is the current revision from read_timeline. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Revert one reversible change you made, by the changeId its result returned. The user says undo, go back, or that the last change was wrong. It cannot un-spend money or un-export; those are not undoable and check_job or cancel_job are the verbs there. If a later edit touched the same object, undo is rejected with the conflict reason. changeId from any reversible Agent write; expectedRevision is required only for a timeline change and may be omitted for a canvas change. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": null,
       "examples": [
         {
           "arguments": {
-            "expectedRevision": "revision-2",
-            "undoToken": "undo-1"
+            "changeId": "timeline:v1:receipt-1",
+            "expectedRevision": "revision-2"
           },
           "when": "Revert the last plan:"
         }
@@ -1828,27 +1841,26 @@
         "internal"
       ],
       "promptGuidelines": null,
-      "promptSnippet": "Revert one timeline change you made, by the undoToken its result returned.",
+      "promptSnippet": "Revert one reversible change you made, by the changeId its result returned.",
       "publishedJsonSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "changeId": {
+            "description": "The changeId returned by the reversible write you are reverting.",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
           "expectedRevision": {
             "description": "Current timeline revision from read_timeline.",
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
-          },
-          "undoToken": {
-            "description": "The undoToken returned by the write you are reverting.",
-            "maxLength": 160,
-            "minLength": 1,
-            "type": "string"
           }
         },
         "required": [
-          "undoToken",
-          "expectedRevision"
+          "changeId"
         ],
         "type": "object"
       }

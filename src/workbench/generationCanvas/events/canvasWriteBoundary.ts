@@ -1,35 +1,57 @@
-import type { GenerationCanvasState } from '../store/canvasStoreTypes'
+import type { CanvasDocumentActions, CanvasRunActions, GenerationCanvasState } from '../store/canvasStoreTypes'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 
 type ActionName = {
   [K in keyof GenerationCanvasState]: GenerationCanvasState[K] extends (...args: never[]) => unknown ? K : never
 }[keyof GenerationCanvasState]
 
-// Classify every store action, including future additions. Attention/read-only
-// actions must not cancel a proposal; document writes must enter before reading
-// their state or opening an Undo barrier. Runtime result attachment is a write;
-// status/progress is not a new edit. Previously accepted jobs are never cancelled.
-const documentActions = {
-  captureHistory: true,
-  setGenerationAiDraft: false, setGenerationAiMessages: false, setGenerationAiCollapsed: false,
-  resetGenerationAiConversation: false, copySelectedNodes: false, cutSelectedNodes: true,
-  duplicateNodesForDrag: true, duplicateSelectedNodes: true, pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,
-  restoreSnapshot: true, applyEventTail: true, applyExternalGraph: true,
-  addNode: true, commitPersistedChange: false, updateNode: true, updateNodes: true,
-  updateNodePrompt: true, setNodeLocked: true, moveNode: true, moveSelectedNodes: true,
-  tidyCategory: true, deleteSelectedNodes: true, selectNode: false, selectNodes: false,
-  clearSelection: false, selectAllNodes: false, selectNodesInRect: false,
-  duplicateNodeForRegeneration: true, reassignNodeCategory: true, copyNodeToCategory: true, deleteNode: true,
-  saveSelectedAsWorkflowTemplate: true, instantiateWorkflowTemplate: true, instantiateWorkflowTemplateSnapshot: true,
-  startConnection: false, startGroupConnection: false, cancelConnection: false, connectToNode: true, connectNodes: true,
-  connectToGroup: true, updateEdgeMode: true, disconnectEdge: true, moveGroupNodes: true, duplicateGroupForDrag: true,
-  createGroup: true, createFrame: true, groupSelectedNodes: true, renameGroup: true, setGroupDescription: true,
-  setGroupColor: true, setGroupCollapsed: true,
-  ungroup: true, ungroupGroups: true, deleteGroup: true, moveNodeToGroup: true,
-  removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true,
-  setNodeStatus: false, dismissNodeError: false, setNodeProgress: false, appendNodeRun: false,
-  trackNodeRun: false, addNodeResult: true, rollbackHistory: true,
-} satisfies Record<ActionName, boolean>
+/**
+ * 画布 store 每个动作写的是哪一层——必须声明，不声明编译不过（表 `satisfies Record<ActionName, …>`）。
+ * - `session`：不改项目文档（选区、对话草稿、读、连线手势、落盘计数）；不打断进行中的提议。
+ * - `edit`：编辑层（用户 / Agent 的编辑）；先打断别的提议的未提交批次，再读状态 / 打撤销点。
+ * - `fact:landing`：付费结局落到节点上（只由运行写）；它是一笔写，同样先打断。
+ * - `fact:run`：运行态（状态 / 进度 / 运行记录 / 暂存）；不是新编辑，不打断，已接受的任务从不取消。
+ * - `document`：整图 / 整节点写回；**只能**由统一提交口实现（store/canvasDocumentCommit.ts），
+ *   编辑层取传进来的、事实层取活的。下面两条类型断言把「哪一层由哪个切片实现」钉死：
+ *   document 层的动作恰好是 CanvasDocumentActions 的键，fact 层的动作恰好是 CanvasRunActions 的键——
+ *   新写手不归类、归错层、或把整写塞进编辑切片，都编译不过。
+ */
+export type CanvasActionLayer = 'session' | 'edit' | 'fact:landing' | 'fact:run' | 'document'
+
+export const CANVAS_ACTION_LAYERS = {
+  captureHistory: 'edit',
+  setGenerationAiDraft: 'session', setGenerationAiMessages: 'session', setGenerationAiCollapsed: 'session',
+  resetGenerationAiConversation: 'session', copySelectedNodes: 'session', cutSelectedNodes: 'edit',
+  duplicateNodesForDrag: 'edit', duplicateSelectedNodes: 'edit', pasteNodes: 'edit', readSnapshot: 'session', readDocumentSnapshot: 'session',
+  addNode: 'edit', commitPersistedChange: 'session', updateNode: 'edit', updateNodes: 'edit',
+  updateNodePrompt: 'edit', setNodeResultStackOpen: 'edit', setNodeMainResult: 'edit', setNodeLocked: 'edit', moveNode: 'edit', moveNodes: 'edit', moveSelectedNodes: 'edit',
+  tidyCategory: 'edit', deleteSelectedNodes: 'edit', selectNode: 'session', selectNodes: 'session',
+  clearSelection: 'session', selectAllNodes: 'session',
+  duplicateNodeForRegeneration: 'edit', reassignNodeCategory: 'edit', copyNodeToCategory: 'edit', deleteNode: 'edit',
+  saveSelectedAsWorkflowTemplate: 'edit', instantiateWorkflowTemplate: 'edit', instantiateWorkflowTemplateSnapshot: 'edit',
+  startConnection: 'session', startGroupConnection: 'session', cancelConnection: 'session', connectToNode: 'edit', connectNodes: 'edit',
+  connectToGroup: 'edit', updateEdgeMode: 'edit', disconnectEdge: 'edit', moveGroupNodes: 'edit', duplicateGroupForDrag: 'edit',
+  createGroup: 'edit', createFrame: 'edit', groupSelectedNodes: 'edit', renameGroup: 'edit', setGroupDescription: 'edit',
+  setGroupColor: 'edit', arrangeGroup: 'edit', setGroupCollapsed: 'edit',
+  ungroup: 'edit', ungroupGroups: 'edit', deleteGroup: 'edit', moveNodeToGroup: 'edit',
+  removeNodeFromGroup: 'edit', reorderGroup: 'edit',
+  setNodeStatus: 'fact:run', dismissNodeError: 'fact:run', setNodeProgress: 'fact:run', appendNodeRun: 'fact:run',
+  trackNodeRun: 'fact:run', holdRunOutcome: 'fact:run', addNodeResult: 'fact:landing', landNodeContent: 'fact:landing',
+  restoreSnapshot: 'document', applyEventTail: 'document', undo: 'document', redo: 'document',
+  applyExternalGraph: 'document', restoreGraph: 'document', restoreNodeFields: 'document',
+} as const satisfies Record<ActionName, CanvasActionLayer>
+
+type ActionsOfLayer<Layer extends CanvasActionLayer> = {
+  [K in ActionName]: (typeof CANVAS_ACTION_LAYERS)[K] extends Layer ? K : never
+}[ActionName]
+type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+const documentLayerIsTheCommitPort: SameKeys<ActionsOfLayer<'document'>, keyof CanvasDocumentActions> = true
+const factLayerIsTheRunSlice: SameKeys<ActionsOfLayer<'fact:landing' | 'fact:run'>, keyof CanvasRunActions> = true
+void documentLayerIsTheCommitPort
+void factLayerIsTheRunSlice
+
+/** 写项目文档的动作（session / fact:run 之外）进门前先接管进行中的提议批次。 */
+const interruptsPendingWrite = (layer: CanvasActionLayer) => layer !== 'session' && layer !== 'fact:run'
 
 type PendingWrite = { proposalId: string; cancel: () => void | false }
 let pending: PendingWrite | undefined
@@ -132,8 +154,8 @@ export function ownPendingCanvasWrite(proposalId: string, cancel: () => void | f
 
 /** One entry for UI, Agent and external graph actions; no panel-specific lock. */
 export function withCanvasWriteBoundary(state: GenerationCanvasState): GenerationCanvasState {
-  for (const [name, isDocumentWrite] of Object.entries(documentActions)) {
-    if (!isDocumentWrite) continue
+  for (const [name, layer] of Object.entries(CANVAS_ACTION_LAYERS)) {
+    if (!interruptsPendingWrite(layer)) continue
     const action = Reflect.get(state, name) as (...args: unknown[]) => unknown
     Reflect.set(state, name, (...args: unknown[]) => {
       interruptPendingCanvasWrite()

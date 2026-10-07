@@ -53,19 +53,18 @@ export type MissingCardTrace = Readonly<{
 }>
 
 /**
- * 主进程拒绝一次「有没有待确认」的读取时，断在哪一环。
+ * 宿主推过来一份「读不到」时，断在哪一环（2026-10-05 起它是推送里的一个值，不再是一次被拒的 IPC）。
  *
- * 判据只有这一个 owner：读通道（`useAgentPanelSpendConfirm`）只负责把错交过来。
- * `spend_confirm_surface_unavailable` 是能力核压根没装起来（`appIntegrationSpendConfirm.ts`
- * 的 `PendingSpendSurfaceUnavailableError`），其余归到「读不到主进程那份清单」。
- *
- * 认不出的错**不回 `undefined`**：那会把「读不到」又变回一种空。最笼统的那条也是一句话。
+ * 判据只有这一个 owner：`useAgentPanelSpendConfirm` 只负责把值交过来。
+ * `surface-unavailable` 是能力核压根没装起来（`residentSurfaceLifecycle` 的 install-failed 相），
+ * `projection-failed` 是装着、但投影本身抛了——用户那头读作「读不到主进程那份清单」。
+ * 两支穷尽，加第三种原因时编译器在这里当场红。
  */
-export function missingCardReasonOfReadFailure(error: unknown): MissingCardReason {
-  const text = error instanceof Error ? error.message : String(error);
-  return text.includes('spend_confirm_surface_unavailable') || text.includes('capability core')
-    ? 'spend-surface-unavailable'
-    : 'host-unreachable';
+export function missingCardReasonOfUnreadable(reason: 'surface-unavailable' | 'projection-failed'): MissingCardReason {
+  switch (reason) {
+    case 'surface-unavailable': return 'spend-surface-unavailable';
+    case 'projection-failed': return 'host-unreachable';
+  }
 }
 
 /**

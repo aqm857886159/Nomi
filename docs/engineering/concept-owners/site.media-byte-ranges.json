@@ -1,0 +1,30 @@
+{
+  "name": "官网媒体按字节范围响应",
+  "subject": "site.media-byte-ranges",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "site",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "worker/byteRange.ts",
+    "symbol": "serveAssetWithRanges"
+  },
+  "write_api": [
+    {
+      "path": "worker/byteRange.ts",
+      "symbol": "serveAssetWithRanges"
+    },
+    {
+      "path": "wrangler.json",
+      "symbol": "run_worker_first"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/siteWorkerByteRange.test.ts",
+  "allowed_consumers": [
+    "worker/index.ts"
+  ],
+  "since": "2026-09-27",
+  "notes": "PR #903（合同 docs/fixes/2026-09-27-site-media-byte-ranges.root-cause.json）：官网视频拖不动进度条——worker 没绑 ASSETS、媒体请求也没先走 worker。现在 serveAssetWithRanges 是 worker 里资产响应的唯一生产者（解析 Range、按 ETag 取长度、切片、206 / 416 / 200），wrangler.json 的 run_worker_first 把媒体请求先交给它。"
+}

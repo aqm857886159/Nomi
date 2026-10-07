@@ -26,6 +26,12 @@ import {
   type CanvasWriteResult,
 } from "../shared/agentCapabilities/canvasWrite";
 import {
+  DIRECTOR_WRITE_CAPABILITY,
+  directorWriteResultSchema,
+  directorWriteSemanticInputSchema,
+  type DirectorWriteResult,
+} from "../shared/agentCapabilities/directorWrite";
+import {
   DOCUMENT_READ_CAPABILITY,
   documentReadSemanticInputSchema,
   documentReadResultSchema,
@@ -68,6 +74,7 @@ import {
   revalidateVerifiedCapabilityInvocation,
   type VerifiedCapabilityInvocation,
 } from "./verifiedCapabilityInvocation";
+import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE, MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
 
 export type CapabilityExecutionErrorCode =
   | "capability_input_invalid"
@@ -111,7 +118,8 @@ export type CanvasWritePort = Readonly<{
     input: Readonly<{
       operation:
         | import("../shared/agentCapabilities/canvasWrite").CanvasWriteOperation
-        | CanvasDeleteInput["operation"];
+        | CanvasDeleteInput["operation"]
+        | import("../shared/agentCapabilities/directorWrite").DirectorWriteOperation;
       input?: unknown;
       nodeId?: string;
       signal: AbortSignal;
@@ -204,7 +212,18 @@ type CapabilityResult<Input> =
                   : Input extends import("../shared/agentCapabilities/timelineWrite").TimelineWriteInput ? TimelineWriteResult
                     : CanvasReadResult;
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+/**
+ * 一次能力执行等多久——**只有一个主人**：动词声明的读 / 写预算（`verbDeclaration.ts`）。
+ *
+ * 2026-10-06（NF-1001-0002）之前这里另有一个 15 秒的缺省，而 lane 给同一次调用的预算是读 30 秒 / 写 60 秒
+ * （`laneTools.mts` 按动词声明计时）、「准备中」回执的期限也按 60 秒算。两个数管同一件事：渲染端落一份大稿子
+ * 花了 16 秒，lane 以为还有 44 秒，执行器已经在第 15 秒掐断——写已经开始，于是报「结果没对上账」
+ * （`capability_receipt_unresolved`），文稿里其实已经写进去了（真实反馈 NF-1001-0002）。
+ * 现在缺省就是声明那两个数；构造参数只给测试缩短用。
+ */
+function declaredTimeout(mutating: boolean): number {
+  return mutating ? MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE : MODEL_TOOL_READ_TIMEOUT_MS_VALUE;
+}
 const executionOptionsBySignal = new WeakMap<AbortSignal, CapabilityExecuteOptions>();
 const PASSTHROUGH_CODES = new Set([
   ...SURFACE_PORT_WIRE_ERROR_CODES,
@@ -231,8 +250,8 @@ function safeStageError(error: unknown): Error {
     : new CapabilityExecutionError("capability_execution_failed");
 }
 
-function positiveTimeout(value: number | undefined): number {
-  if (value === undefined) return DEFAULT_TIMEOUT_MS;
+function positiveTimeout(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined;
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new CapabilityExecutionError("capability_execution_failed");
   }
@@ -326,6 +345,8 @@ function parseInput(invocation: AnyVerifiedInvocation): void {
           ? canvasDeleteSemanticInputSchema
           : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
           ? canvasWriteSemanticInputSchema
+          : invocation.capability.id === DIRECTOR_WRITE_CAPABILITY.id
+          ? directorWriteSemanticInputSchema
           : invocation.capability.id === EXPORT_READ_CAPABILITY.id
             ? exportReadSemanticInputSchema
             : invocation.capability.id === EXPORT_WRITE_CAPABILITY.id
@@ -343,7 +364,7 @@ function parseInput(invocation: AnyVerifiedInvocation): void {
 function projectOutput(
   source: unknown,
   invocation: AnyVerifiedInvocation,
-): AssetReadResult | CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasDeleteResult | CanvasWriteResult | ExportReadResult | ExportWriteResult | TimelineReadResult | TimelineWriteResult {
+): AssetReadResult | CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasDeleteResult | CanvasWriteResult | DirectorWriteResult | ExportReadResult | ExportWriteResult | TimelineReadResult | TimelineWriteResult {
   if (invocation.capability.id === ASSET_READ_CAPABILITY.id) {
     try {
       return projectAssetReadResult(source, assetReadSemanticInputSchema.parse(invocation.input).operation);
@@ -368,6 +389,13 @@ function projectOutput(
   if (invocation.capability.id === CANVAS_WRITE_CAPABILITY.id) {
     try {
       return canvasWriteResultSchema.parse(source);
+    } catch {
+      throw new CapabilityExecutionError("capability_output_invalid");
+    }
+  }
+  if (invocation.capability.id === DIRECTOR_WRITE_CAPABILITY.id) {
+    try {
+      return directorWriteResultSchema.parse(source);
     } catch {
       throw new CapabilityExecutionError("capability_output_invalid");
     }
@@ -429,7 +457,8 @@ function projectOutput(
  */
 export class CapabilityExecutorRegistry {
   readonly #resolveCanvasReadPort: CanvasReadPortResolver;
-  readonly #timeoutMs: number;
+  /** 只有测试会传；生产缺省按每次调用的读 / 写取 `declaredTimeout`。 */
+  readonly #timeoutMs: number | undefined;
 
   constructor(options: CapabilityExecutorRegistryOptions) {
     const resolveCanvasReadPort = options.resolveCanvasReadPort;
@@ -484,8 +513,10 @@ export class CapabilityExecutorRegistry {
             signal,
           }));
         }
+        // 3D-BOX 计划写入（director.write）与画布写同一个渲染端写口（同一条 surface port、同一本收据 / 撤销日志）。
         case CANVAS_DELETE_CAPABILITY.id:
         case CANVAS_WRITE_CAPABILITY.id:
+        case DIRECTOR_WRITE_CAPABILITY.id:
           return approvedWriteAdapter(resolveCanvasWritePort);
         case ASSET_READ_CAPABILITY.id: {
           if (!resolveAssetReadPort) throw new CapabilityExecutionError("capability_unsupported");
@@ -546,6 +577,10 @@ export class CapabilityExecutorRegistry {
     const isCanvasWrite =
       invocation.capability.id === CANVAS_WRITE_CAPABILITY.id &&
       invocation.capability.version === CANVAS_WRITE_CAPABILITY.version;
+    // 3D-BOX：仅内部的 director.write（开关开才注册）走画布写同一个渲染端写口。
+    const isDirectorWrite =
+      invocation.capability.id === DIRECTOR_WRITE_CAPABILITY.id &&
+      invocation.capability.version === DIRECTOR_WRITE_CAPABILITY.version;
     const isCanvasDelete =
       invocation.capability.id === CANVAS_DELETE_CAPABILITY.id &&
       invocation.capability.version === CANVAS_DELETE_CAPABILITY.version;
@@ -564,15 +599,15 @@ export class CapabilityExecutorRegistry {
     const isTimelineWrite =
       invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id &&
       invocation.capability.version === TIMELINE_WRITE_CAPABILITY.version;
-    if (!isAssetRead && !isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasDelete && !isCanvasWrite && !isExportRead && !isExportWrite && !isTimelineRead && !isTimelineWrite) {
+    if (!isAssetRead && !isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasDelete && !isCanvasWrite && !isDirectorWrite && !isExportRead && !isExportWrite && !isTimelineRead && !isTimelineWrite) {
       throw new CapabilityExecutionError("capability_unsupported");
     }
     parseInput(invocation);
-    const mutating = isDocumentWrite || isCanvasWrite || isCanvasDelete || isTimelineWrite || isExportWrite;
+    const mutating = isDocumentWrite || isCanvasWrite || isDirectorWrite || isCanvasDelete || isTimelineWrite || isExportWrite;
     let writeStarted = false;
 
     return bounded(
-      this.#timeoutMs,
+      this.#timeoutMs ?? declaredTimeout(mutating),
       options.signal,
       async (signal) => {
         await revalidate(invocation);

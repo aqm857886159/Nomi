@@ -1,0 +1,206 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-canvas-claim-attempt-id",
+  "problem_type": "A durable Run command whose idempotency id omits which episode it is about, so a second, legitimately different occurrence of the same user action is swallowed as a replay of the first",
+  "symptom": "Batch stopped (consent window lapsed) → the canvas takes over shot-2 → the user asks production to rework shot-2 and approves it (this stop is not lifted by rework, the Run stays stopped) → the user generates shot-2 on the canvas again → clicks 继续: production still submits attempt 2 of shot-2, so the same shot is paid for twice. Same class: delete a production node → undo (same node id comes back and is re-bound) → rework approved → delete the node again → 继续: production submits the new attempt for a node the user deleted.",
+  "direct_cause": "The canvas claim command id was `shot.claim:<runId>:<shotId>` and the detach report id was digest(runId, nodeIds). ProductionRunRepository.executeUnlocked replays any command whose id it has seen (returns the first result without running the reducer), so the second claim / second deletion never reached the reducer: the attempt-2 job stayed `authorized`, the claim record stayed on attempt 1 (decideShotClaim only honours a claim on the current attempt) and canvasDetached was never set again.",
+  "class_root": "The command id is the identity the repository uses to decide 'this already happened'. For commands that a user can legitimately issue again for the same shot or node in a later episode, that identity must include the episode (the shot attempt for a claim, the Run revision the deletion was observed at for a detach); before this change the ids were built per call site from the shot/node alone. #966 (reattach binding id without revision) was the same class in a different command.",
+  "affected_population": [
+    "Any project with a production Run (Agent draft_shots, MCP nomi_operation_*) whose shot is taken over by the canvas more than once across reworks",
+    "Any production placeholder node that is deleted, restored by undo (same node id) and deleted again after a rework",
+    "All vendors and locales; the money effect needs a production rework approved while the Run is stopped"
+  ],
+  "scope_paths": [
+    "electron/shared/productionRunCommandId.ts",
+    "electron/shared/productionShotJobs.ts",
+    "electron/shared/decideShotClaim.ts",
+    "electron/productionRun/canvasShotClaim.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "src/workbench/production/reportDetachedShotNodes.ts"
+  ],
+  "entry_points": [
+    "Canvas generation of a production-bound node: nomi:tasks:run → runtime.runTask → claimCanvasProductionShot",
+    "Canvas deletion of a production placeholder node: watchDeletedProductionNodes → reportDetachedShotNodes"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is about Nomi's own event-sourced ProductionRun repository (command-id replay) and its shot/attempt model; no third-party runtime decides it.",
+  "invariants": [
+    "A canvas claim command id is a function of (runId, shotId, current attempt); the attempt is read from currentShotAttempt, the same value the reducer records and decideShotClaim compares.",
+    "A detach report command id is a function of (runId, node set, the Run revision the deletion was observed at); a resend of the same report keeps the id, a deletion after a re-binding gets a new one.",
+    "Only electron/shared/productionRunCommandId.ts builds these ids."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasShotClaim.ts",
+      "symbol": "canvasShotClaimCommandId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasShotClaim.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "claimCanvasProductionShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/decideShotClaim.ts",
+      "symbol": "currentShotAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/reportDetachedShotNodes.ts",
+      "symbol": "detachShotNodesCommandId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/watchDeletedProductionNodes.ts",
+      "symbol": "reportDetachedShotNodes"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "PRODUCTION_RUN_IDENTIFIER_PATTERN"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "latestJobForShot"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 9,
+    "why_not": "Each id has exactly one builder and one caller (canvasShotClaim for claims, reportDetachedShotNodes for detach); runtime.runTask and watchDeletedProductionNodes are the single user-facing doors into them. currentShotAttempt has three readers by design: the reducer records the claim on it, decideShotClaim compares against it and the id builder keys on it — collapsing them would re-create three private derivations of the attempt. The structural removal of the canvas claim door altogether is the engine-convergence plan (docs/plan/2026-10-05-engine-convergence-cut1.md §5), not a hotfix."
+  },
+  "generality_proof": "The repository's replay rule is uniform: any command id reused across episodes loses the later episode. The fix puts the episode into the id at the only builder of each id (productionRunCommandId.ts), so every caller of the claim and detach commands gets episode-scoped ids by construction; the attempt itself has one owner (currentShotAttempt) shared with the reducer and the claim decision, so the id cannot drift from what the reducer records. A repository-wide scan of every production command id (see recurrence.same_class_scan) found no other id that can swallow a money-relevant second episode.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "canvasShotClaimCommandId",
+      "responsibility": "Canvas claim command id keyed by run, shot and attempt: retries of one attempt replay, the next attempt is a new command."
+    },
+    {
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "detachShotNodesCommandId",
+      "responsibility": "Detach report id keyed by run, node set and observed Run revision: resends replay, a deletion after a re-binding is a new command."
+    },
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "currentShotAttempt",
+      "responsibility": "The one answer to 'which attempt is this shot on' used by the claim reducer, decideShotClaim and the claim id."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/canvasShotClaim.ts",
+      "entry_point": "claimCanvasProductionShot",
+      "disposition": "enforced",
+      "evidence": "Builds its id through canvasShotClaimCommandId(currentShotAttempt); canvasShotClaimAttempt.test.ts reported case and 2nd/3rd claim case."
+    },
+    {
+      "path": "src/workbench/production/reportDetachedShotNodes.ts",
+      "entry_point": "reportDetachedShotNodes",
+      "disposition": "enforced",
+      "evidence": "Builds its id through detachShotNodesCommandId(runId, nodeIds, run.revision); canvasShotClaimAttempt.test.ts detach class case."
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "entry_point": "bindShotNodes",
+      "disposition": "not-affected",
+      "evidence": "A plain bind with the same bindings has an identical effect (replay is correct); the corrective re-attach already carries the revision it corrects since #966."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "explicit-retry command",
+      "disposition": "not-affected",
+      "evidence": "`explicit-retry:<jobId>` can be replayed for a second 'definitely not sent' retry of the same attempt, but the replay leaves the job in needs_attention and start() then refuses (SubmissionReconciliationRequiredError): nothing is sent, no money moves. Functional follow-up recorded in residual_risks."
+    },
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "batch-start-running command",
+      "disposition": "not-affected",
+      "evidence": "`batch-start-running:v<planVersion>` only fires from status draft; a swallowed repeat leaves the Run not running, which dispatches nothing (fails closed)."
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "entry_point": "submitOnce",
+      "disposition": "not-affected",
+      "evidence": "Ids are `<runId>:<jobId>:<attempt>:<suffix>`; jobId itself carries the attempt."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every user who repeats a takeover or deletion on the same shot/node across reworks reaches it; #966 hit the same mechanism through the re-attach binding id.",
+    "same_class_scan": [
+      "grep -rnoE \"commandId: *`[^`]*`\" electron src (44 templated ids) — each classified by whether a second legitimate episode can reuse the id and what a swallowed episode does to money",
+      "Ids carrying revision / receipt / gate / attempt / content hash: generation.present/withdraw/shot.remove/revise/abandon (revision), runOwnedGenerationGateAuthority (gate + receipt), production-rework-authorize (gate), submissionOutbox (attempt), consent_renew (revision), single-shot lifecycle (revision), dispatcher mcp-* (revision), driver script/storyboard (content hash) — not affected",
+      "Renderer production commands in useProductionStatus.ts, releaseUnknownSubmission.ts, laneTaskCandidateActions.ts use crypto.randomUUID — not affected",
+      "node scripts/door-map.mjs canvasShotClaimCommandId detachShotNodesCommandId currentShotAttempt claimCanvasProductionShot reportDetachedShotNodes",
+      "node scripts/door-map.mjs electron/shared/productionRunCommandId.ts electron/shared/productionShotJobs.ts (definition-file doors: the id builders share the IPC identifier rule; currentShotAttempt reads latestJobForShot)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/productionRunCommandId.ts",
+    "invariant": "Claim and detach command ids are built only here and always include the episode (attempt / observed revision).",
+    "failure_mode": "A builder call without the episode argument does not type-check; a repeated id within one episode replays (correct), a new episode always reaches the reducer, which re-decides through decideShotClaim and fails closed.",
+    "exception_policy": "none",
+    "strategy": "Fix at the earliest shared boundary (the id builder module that the IPC validator also lives in) and make the attempt a single shared value instead of three local derivations.",
+    "artifacts": [
+      "electron/shared/productionRunCommandId.ts",
+      "electron/shared/productionShotJobs.ts",
+      "electron/shared/decideShotClaim.ts",
+      "electron/productionRun/canvasShotClaim.ts",
+      "electron/productionRun/productionRunReducer.ts",
+      "src/workbench/production/reportDetachedShotNodes.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/canvasShotClaimAttempt.test.ts",
+    "electron/shared/productionRunCommandId.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/canvasShotClaimAttempt.test.ts",
+    "electron/shared/productionRunCommandId.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/canvasShotClaim.ts",
+      "electron/productionRun/productionRunReducer.ts",
+      "electron/shared/decideShotClaim.ts"
+    ],
+    "rationale": "The hand-built `shot.claim:<run>:<shot>` id and the two local `latestJobForShot(...)?.attempt ?? 1` derivations are deleted in the same change; the old two-argument detach id builder no longer exists."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant lives in Nomi's own Run repository and id builders; no third-party dependency is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Runs written before this change keep their old claim and detach events; the repository only compares ids on new commands, so an old `shot.claim:<run>:<shot>` event never collides with a new `shot-claim.<digest>.a<n>` id. The first new-style claim of a shot that already has an old-style claim on the same attempt is a no-op through decideShotClaim (canvas_claimed returns before any write).",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionRunCommandId.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/shared/productionRunCommandId.test.ts",
+      "electron/productionRun/canvasShotClaimAttempt.test.ts"
+    ],
+    "rationale": "The shared command-id module already owns the IPC identifier rule and the detach id (concept production.command-id); the claim id joins it, and the attempt it keys on comes from the shot→job owner (production.shot-jobs)."
+  },
+  "residual_risks": [
+    "Real Electron reproduction of path 6 is unverified (reproduced on the real repository/scheduler/outbox with an in-process counting provider, zero spend).",
+    "`explicit-retry:<jobId>` in productionGenerationSubmission.ts: a second 'definitely not sent' retry of the same attempt is swallowed and then refused as needing reconciliation — no money moves, but the user is told to reconcile a submission that provably never left. Not fixed here (outside the id builder module).",
+    "The canvas claim door itself remains until the canvas paid path is folded into ProductionRun (docs/plan/2026-10-05-engine-convergence-cut1.md §5)."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05"
+}

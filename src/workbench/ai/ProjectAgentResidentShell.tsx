@@ -32,6 +32,9 @@ import { laneConversationOf } from '../../../electron/shared/agentLane/laneConve
 import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
+import { AgentPanelV4FocusTag } from './v4/AgentPanelV4FocusTag'
+import { useDirectorPatchNotices } from './v4/useDirectorPatchNotices'
+import { useShotFocusTag } from '../generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
 import { useAgentPanelSpendConfirm } from './v4/useAgentPanelSpendConfirm'
@@ -67,6 +70,12 @@ import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
  * callback ref 在节点每次换人时都跑一遍，观察器跟着换到新节点上——这才是「量的是当下这个盒子」。
  * 0×0 另外直接丢掉：一个真实布局里的面板不会是 0 宽 0 高，那个数只可能来自已经摘掉的节点。
  */
+/** 流末尾那一条是「还没解决的失败」。已被自动重试化解的错误（灰字一行）不算——否则收起的 logo 会为一件已经好了的事挂红点。 */
+function lastFlowFailed(flow: readonly { kind: string; recovered?: true }[]): boolean {
+  const last = flow[flow.length - 1]
+  return last?.kind === 'error' && !last.recovered
+}
+
 function usePanelSize(): Readonly<{ width: number; height: number; measure: (node: HTMLElement | null) => void }> {
   const [size, setSize] = React.useState({ width: 390, height: 620 })
   const [node, measure] = React.useState<HTMLElement | null>(null)
@@ -126,10 +135,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     onAction: (index: number, action: string) => index < data.queue.length ? actions.queueAction(index, action) : recoveryAction(index, false),
     onDestructiveAction: (index: number) => index < data.queue.length ? actions.queueInterrupt(index) : recoveryAction(index, true),
   }
-  // 付费确认卡（2026-09-11 P1）。它是介入槽的**第二个数据源**：lane 的工具审批答的是
-  // 「要不要让我做这件事」，这一张答的是「要不要花这笔钱」——后者住在 ProductionRun 域里，
-  // `LanePendingApproval` 上根本没有报价字段。两者同时在时钱优先：钱撤不回来。
-  const spend = useAgentPanelSpendConfirm()
+  // 付费确认卡（2026-09-11 P1）。lane 的工具审批答的是「要不要让我做这件事」，这一张答的是
+  // 「要不要花这笔钱」——后者住在 ProductionRun 域里，`LanePendingApproval` 上根本没有报价字段。
+  // 两张卡读的是**同一份推过来的投影**（2026-10-05 起付费卡不再轮询：`data.snapshot.spend`）。
+  // 两者同时在时钱优先：钱撤不回来。
+  const spend = useAgentPanelSpendConfirm(data.snapshot.spend)
   // 卡体是画布节点那张生成框**整件**，但写入面换成卡自己的账本（`spend.writeAccess`）：
   // 用户还没答应花这笔钱，画布上那个草稿节点就不该被改；改动在按下「生成」那一刻
   // 才由主进程落进候选、再投影回画布（单向，没有拉锯）。见 nodeWriteAccess 顶部注释。
@@ -242,6 +252,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const historyIdentity = data.snapshot.workspaceId && historyConversation
     ? JSON.stringify([data.snapshot.workspaceId, historyConversation.laneName, historyConversation.sessionId, surface]) : undefined
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
+  // 3D-BOX：导演台里选中了计划镜头 → 输入框上「正在改：镜头 N」（画布面才有导演台；开关关时恒为 null）
+  const shotFocusTag = useShotFocusTag()
+  // 3D-BOX：补丁覆盖了用户手调的那一笔，工具行下面确定性地说一句（不靠模型复述）
+  const flow = useDirectorPatchNotices(data.flow, data.snapshot.active.parts)
+  const focusTag = surface === 'generation' && shotFocusTag ? <AgentPanelV4FocusTag {...shotFocusTag} /> : undefined
   // 系统提示词编辑器（2026-09-14 从设置 → AI 策略搬来）：权限弹层底部那一行打开，Mantine 弹窗承载。
   const [systemPromptOpen, setSystemPromptOpen] = React.useState(false)
   // 2026-09-10 走查反馈：弹层只有 Escape 和原按钮 toggle 两条关闭路径，点面板其他地方
@@ -312,7 +327,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const dockStatus = useV4DockStatus({
     running: data.running,
     pendingCount: dockPendingCount,
-    failed: Boolean(actions.error) || data.flow[data.flow.length - 1]?.kind === 'error',
+    failed: Boolean(actions.error) || lastFlowFailed(data.flow),
   })
 
   /**
@@ -525,6 +540,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
             mode={data.running ? 'running' : data.liveChips.length ? 'reference' : 'idle'}
             permission={actions.permission}
             chips={data.liveChips}
+            focusTag={focusTag}
             value={draft}
             onValueChange={setDraft}
             onSubmit={submit}
@@ -569,7 +585,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         width={size.width}
         height={actions.error ? size.height - 20 : size.height}
         legacy={data.snapshot.active.legacy}
-        flow={data.flow}
+        flow={flow}
         historyIdentity={historyIdentity}
         historyCursor={data.snapshot.active.history?.before}
         onLoadOlder={historyIdentity && data.loadOlder ? async () => {
@@ -633,6 +649,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           mode: data.running ? 'running' : data.liveChips.length ? 'reference' : 'idle',
           permission: actions.permission,
           chips: data.liveChips,
+          focusTag,
           value: draft,
           onValueChange: setDraft,
           onSubmit: submit,

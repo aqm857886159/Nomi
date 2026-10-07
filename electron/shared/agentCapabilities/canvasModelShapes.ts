@@ -293,19 +293,6 @@ export const cameraMoveParamsObjectSchema = z.object({
   props: grayModelPropsSchema,
 });
 
-/** Workflow guidance shared by the model profiles; field schemas retain their concise meanings. */
-// Keep workflow guidance once, alongside both profiles' schemas. Field-specific
-// constraints and enum values remain in the typed schema, never in a second table.
-export const STORYBOARD_MODEL_GUIDELINES = Object.freeze([
-  "Stable anchor id becomes canvas clientId. Describe neutral, stable appearance/environment for visual cards; reusable prompt words for text anchors.",
-  "carrier=visual generates shot reference images (faces/scenes/props); carrier=text folds words into shot prompts (tone/brand colors/wardrobe). character/scene/prop default visual; style defaults text.",
-  "Same-sceneId shots must be contiguous; omit without grouping. Match all shot kinds to requested mode; default image unless video is explicit. Image: duration 0, no motion/transition/dialogue. Video: seconds, clamped to model max.",
-  "Reference anchors by id. Video prompts: camera move + action progression, no repeated static anchors. Preserve captions and speaker/line dialogue verbatim on canvas/timeline. Explicit hard cut: cut; unauthored transition: omit.",
-  "modelKey, mode/variant and parameter keys must come from available models; omit unknowns for defaults. First frames use image models; prefer image_ref/edit with visual anchors.",
-  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. Image-plus-video mode: first frame belongs inside its video shot, never a separate shot.",
-  "aspectRatio is film-level: set it once at plan top level; only a genuinely different shot overrides it via params.aspect_ratio. Never copy one ratio into every shot."
-]);
-
 export const STAGING_MODEL_GUIDELINES = Object.freeze([
   "shotClientId: this turn's create_canvas_nodes clientId or existing shot/keyframe/video id. Render connects as composition_ref; omit id for standalone reference.",
   "Stage 1–6 characters using precise 3D vocabulary, or supply customBlocking. Default pose standing; squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, cheer=arms up; hands-on-hips, point and wave are literal poses.",

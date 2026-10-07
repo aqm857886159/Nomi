@@ -95,9 +95,19 @@ function credentialIsUsable(state: CatalogState, vendorKey: string): boolean {
  * 错误码 `configured_provider`——**一个用户明明已经配好的供应商，被告知「没配」**。
  *
  * 判据现在是声明式的、与供应商无关：这家启用着 / 凭据存得下也解得开 / 至少有一个
- * 已发布执行的模型 / 它不是由认证适配器拥有的连接。满足就造一个执行器，
+ * 已发布执行的模型 / 内置 direct-key 家的代码契约还完好。满足就造一个执行器，
  * 剩下的（鉴权方案词、端点、轮询、参考通道）全部由那条 mapping 与用户保存的连接声明，
  * 经 `buildProfileHttpRequest` 渲染——与画布手动路同一个渲染器。
+ *
+ * ── 「认证接管」为什么只问内置 direct-key 家（#975，2026-10-04）──────────────────────
+ * 「这条连接归认证管」（`catalog/certificationOwnership`）回答的是：**代码拥有的那份策展契约**
+ * 是否已被认证 / 声明接管。只有内置 direct-key 家有这样一份代码契约（这个执行器替它守
+ * scope、端点、curated mapping），被接管了它就必须让开。其余每一家——内置的非 direct-key、
+ * AI 接入、声明卡、设置页手接的中转——这个执行器本来就只渲染目录里那条 mapping，
+ * 认证晋升与声明登记写的也正是那条 mapping；没有第二个执行器、没有第二份契约可以让给。
+ * 此前这里对非内置家也「让出」，于是声明卡 / 手加模型一写 `meta.adapter`，整条连接在正式生成
+ * 落到 `configured_provider`，而画布（引擎 A）照常出图——让出去的东西没有人接。
+ * 一行模型发布哪些模式，由模型级的发布判据（`shared/modelPublication`）管，不在连接级。
  */
 export function createGenerationProviderBootstrap(
   state: CatalogState = readCatalog(),
@@ -118,9 +128,8 @@ export function createGenerationProviderBootstrap(
     const fixtureBaseForVendor = vendorKey === fixtureVendor ? fixtureBaseUrl : undefined;
     if (!credentialIsUsable(state, vendorKey) && !fixtureKeyForVendor) continue;
     if (!hasPublishedExecutionForProvider(state, vendorKey)) continue;
+    // 「认证接管」只对内置 direct-key 家有意义，在它的 scope 判据里问（见文件头 #975 一段）。
     if (!hasSafeDirectKeyScope(state, vendorKey)) continue;
-    // 这家的出站 mapping 由认证适配器拥有 → 这个执行器不接管它（判据唯一的主人：catalog/certificationOwnership）。
-    if (!isBuiltinDirectKeyVendor(vendorKey) && isCertificationOwnedConnection(state, vendorKey)) continue;
 
     const connectionResolver = options.connectionResolver;
     const resolveConnection = connectionResolver

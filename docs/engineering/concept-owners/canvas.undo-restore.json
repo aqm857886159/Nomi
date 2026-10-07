@@ -1,0 +1,46 @@
+{
+  "name": "画布整写（撤销 / 重做、外部写、放回节点、放回节点字段、装载）怎么对待事实层",
+  "subject": "canvas.undo-restore",
+  "lifecycle": "session",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "symbol": "createCanvasDocumentActions"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "createCanvasDocumentActions"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "settleNodeFacts"
+    },
+    {
+      "path": "electron/shared/canvas/landedNodeFields.ts",
+      "symbol": "withLiveNodeFacts"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "CANVAS_ACTION_LAYERS"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popUndo"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popRedo"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts"
+  ],
+  "since": "2026-10-07",
+  "notes": "画布写边界的统一提交口（落地链方案 A，docs/plan/2026-10-07-canvas-landing-direction-check.md）：所有整图 / 整节点写回只在这里实现，规则一条——编辑层取传进来的，事实层取活的（electron/shared/canvas/landedNodeFields 的 withLiveNodeFacts / withLiveRunState，盘上外部写同一个函数）；撤销 / 重做是唯一能回退落地字段的门（目标投影 + 之后的落地按顺序叠回 + 运行态取活的 + 撤销建节点留下有落地的节点）。节点不在时到达的结局按 nodeId 暂存在 store.heldNodeOutcomes，任何一扇门带回节点都自动接上。store 动作必须在 events/canvasWriteBoundary 的分层表里声明 layer，'document' 层只能由本文件实现（类型断言）。合同 docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json；矩阵 undoKeepsLandedResults / externalCanvasWriteKeepsLanded / deletedNodeArrivingOutcome / wholeWriteKeepsFacts。"
+}

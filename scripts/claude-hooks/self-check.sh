@@ -67,7 +67,7 @@ hit_block() {
 
 # 设计卡：碰花钱 / 长跑 / 可打断 / 新界面（原【设计流程】+【画新面】两块合成一块；词表收窄，只留这四类的信号词）
 if hit_block design-card '付费|扣费|花钱|确认.*生成|批量生成|长跑|队列|取消|中断|断网|新页面|新面板|新界面|画新|新增.*(面板|页面|界面|区域)|从零.*(设计|做)|出个样|样张|mockup'; then
-  echo "【设计卡】碰花钱 / 长跑 / 可打断 / 新界面 → 动手前先写设计卡 docs/engineering/design-card.md（四类 9 格全填，其他改动只填 ★1/2/3/4/9），写进任务书或 docs/plan，PR 正文 ## 设计卡 放链接；四类合并前还要另一条线独立验收（## 独立验收，验收线编号不能与实现线相同）｜UI 改动走 nomi-design-flow：先看真实 UI → 组件复用 → 样张带 data-* 挂点与异常态 → 拍板后产契约（pnpm run check:mockup-contracts）(R8)；先读 docs/design/nomi-design-system.md；加/挪控件先过 §1.5 控件层级"
+  echo "【设计卡】碰花钱 / 长跑 / 可打断 / 新界面 → 动手前先写设计卡 docs/engineering/design-card.md（四类 9 格全填，其他改动只填 ★1/2/3/4/9），写进任务书或 docs/plan，PR 正文 ## 设计卡 放链接；四类合并前还要另一条线独立验收（## 独立验收，验收线编号不能与实现线相同）｜新增或改动用户可见界面：拍板样张必须是设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）搭出的屏，拍板后生产代码就是它；手写 HTML / 交互 widget 只准标 exploration 做方向探索，不能作实现合同；新组件先写生产目录本体，实验室只给数据；样张用 data-mockup-region 做整张对账表，契约登记 labScreen 后跑 pnpm run check:mockup-contracts (R8)；先看真实 UI 与 docs/design/nomi-design-system.md；加/挪控件先过 §1.5 控件层级"
   echo ""
 fi
 # 碰框架 / 三方库 / SDK（R5.1 / R5.4）：词表收窄，只留依赖与供应商接口的信号词
@@ -82,7 +82,17 @@ if hit_block completion '做完|修好|验收|走查|交付|给你看|可以合�
 fi
 # 修 bug（P2 全文在 docs/engineering/principles-detail.md）
 if hit_block root-cause 'bug|回归|根因|修复|崩|卡死|报错'; then
-  echo "【修根因 · P2】动生产代码前走 .agents/skills/root-cause-remediation：分清症状/直接原因/类根因，先 node scripts/door-map.mjs 数门，修在最早共享边界；同一处近 14 天第三次修 → 先选补/重写/删并写特征测试(R21.2)。全文 docs/engineering/principles-detail.md"
+  echo "【修根因 · P2】动生产代码前走 .agents/skills/root-cause-remediation：分清症状/直接原因/类根因，先 node scripts/door-map.mjs 数门，修在最早共享边界；同一处近 14 天第 3 个 fix → 先方向检查(RW)。全文 docs/engineering/principles-detail.md"
+  echo ""
+fi
+# 方向检查（RW）：用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」这类反复修的信号
+if hit_block direction-check '第 ?([3-9]|[三四五六七八九十]|[0-9]{2,}) ?轮|再修|又坏了|又坏|还是不对|还是有问题|修了又|反复修|越修越'; then
+  echo "【方向检查 · RW】反复修的信号：别再派 / 打下一轮补丁。先 node scripts/fix-churn.mjs <路径> 看是不是热点；命中或已是第 3 轮 → 停，先写特征测试钉住现状，再按 docs/engineering/direction-check-template.md 做类根因复盘（归类表、为什么一直冒、2-3 个可验证预测、评测靶子是不是同一条线写的、P0 现成方案、补/重写/删对比），结构性结论交用户拍板｜fix 提交碰热点要带 Direction-Check: <复盘文档路径>（git commit-msg 会校验）"
+  echo ""
+fi
+# 派工 / 子 agent（省 token，编排手册 §20）
+if hit_block dispatch-token '派工|派活|子 ?agent|任务书|并行|开 ?lane|token|额度'; then
+  echo "【派工 · 省 token】派活前先数轮次：同一处第 3 轮就停，改派复盘｜不读大文件全文，先看大小和标题再按段读，读子 agent 结论不读过程｜子 agent 同时最多 3 个（含续跑）、默认 Sonnet、不再派子 agent｜任务书写清范围 / 不碰清单 / 停点，发前跑 node scripts/check-dispatch-brief.mjs <任务书>，交货报告要短｜确定性的活用脚本｜长输出落文件、同一文件不反复读｜卡住 3 次就停下报告（编排手册 §20）"
   echo ""
 fi
 # 命令 / 门岗（全表在 docs/engineering/commands.md）
@@ -101,5 +111,5 @@ cat <<'EOF'
 ① 动手前：这段是我们独有的吗？不是 → 先找现成的接入(P0)｜重要改动先 grill：一轮批量问、每题带默认、连带面单独成题（纯 bug 修复不问）｜碰花钱/长跑/可打断/新界面先写设计卡 design-card(P5)
 ② 报完成前：全绿≠完成(P3)。截图要自己亲眼 Read 过、来自用户将跑的那个构建；没闭环别说「做完」(R13)
 ③ push 前：pnpm run gates 全过(R11/R22)
-贯穿：修根因不修症状(P2)｜加新必删旧(P1)｜同一处第三次修 → 先选补/重写/删(RW)
+贯穿：修根因不修症状(P2)｜加新必删旧(P1)｜同一处第 3 次修 → 先做类根因复盘(RW)
 EOF

@@ -261,14 +261,14 @@ const FS_READ_SPY = /spyOn\(\s*fs\s*,\s*['"](readFileSync|readFile|readSync|read
 //   ① 「这段计算应该跑得够快」——预算量的是机器调度出来的工作量。这就是本次修的那一族假红：
 //      在空闲机器上校准、在满载套件里执行，按负载报红。**这类一律不许有**，换计数器/工作量不变量。
 //   ② 「被测代码自己有一个硬超时，它必须真的触发」——预算量的是**生产代码里的定时器**，
-//      不是机器速度；负载只贡献调度零头。下面三处全是第二类（10s 快速失败预算、40ms 判分硬界），
+//      不是机器速度；负载只贡献调度零头。下面这处是第二类（10s 快速失败预算），
 //      它们测的正是「不许挂死」，删掉等于把该覆盖丢了。
 // 所以：存量按文件登记数量、只减不增；任何**新增**一处都会当场红，逼写的人先说清自己是哪一类。
 const WALLCLOCK_BUDGET_BASELINE = new Map([
   // 断言 launcher 的 FAST_FAIL_BUDGET_MS 生产超时真的生效（抢注者活着时绝不挂死等待）。
   ['electron/capabilityCore/mcpNodeLauncher.test.ts', 1],
-  // 断言 verifyAndMaybeRetry 的判分总时长硬界真的生效（判分端点挂死时绝不拖到 300s 客户端超时）。
-  ['electron/capabilityCore/shotVerifyOrchestrate.test.ts', 2],
+  // 断言试跑等待的 TRY_MODEL_WAIT_BUDGET_MS 生产硬上限真的生效（假时钟；超过它外部宿主 60 秒超时会先断线，AI 可能重试二次扣费）。
+  ['electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts', 1],
 ])
 
 // Station waits share the existing R18 gate. AST parsing excludes prose and comments.

@@ -1,19 +1,20 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design 的 WorkbenchButton / WorkbenchIconButton、../../../../../../vendor/tablerIcons、
  *          ../../DirectorEditorContext、../../OutputsContext 的 useOutputs / DirectorOutput、../../model/hotkeys、../Popover
- * [OUTPUT]: 对外提供 OutputsPopover（底栏文件夹图标 + 角标计数，aria 名「产出 N」+ 浮层：截图 / 视频两组缩略图，每项 发送到画布 / 删除）
- * [POS]: director/panels/outputs 的产物弹层（清单 §4.7 P3）：只展示工程 outputs 里的句柄，缩略图直接用资产 url；发送到画布由 OutputsContext 提供，
+ * [OUTPUT]: 对外提供 OutputsPopover（顶栏文件夹图标 + 角标计数，aria 名「产出 N」+ 浮层：首行「录制 MP4」，下面截图 / 视频两组缩略图，每项 发送到画布 / 删除；
+ *           录制中图标换成「■ k/N」，点它取消录制）
+ * [POS]: director/panels/outputs 的产物弹层（清单 §4.7 P3）。2026-10-04 起「录制 MP4」从时间轴头搬进这里，交付只有这一个家；只展示工程 outputs 里的句柄，缩略图直接用资产 url；发送到画布由 OutputsContext 提供，
  *        没接画布（开发入口）时按钮禁用并说明。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { WorkbenchIconButton } from '../../../../../../design'
-import { IconFolder, IconPhoto, IconSend2, IconTrash, IconVideo } from '../../../../../../vendor/tablerIcons'
+import { WorkbenchButton, WorkbenchIconButton } from '../../../../../../design'
+import { IconFolder, IconMovie, IconPhoto, IconPlayerStopFilled, IconSend2, IconTrash, IconVideo } from '../../../../../../vendor/tablerIcons'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import { DIRECTOR_HOTKEYS, formatHotkey } from '../../model/hotkeys'
 import { useOutputs, type DirectorOutput } from '../../OutputsContext'
-import { Popover } from '../Popover'
+import { Popover, PopoverItem } from '../Popover'
 
 function OutputRow({ output }: { output: DirectorOutput }): JSX.Element {
   const { t } = useTranslation()
@@ -42,15 +43,28 @@ function OutputRow({ output }: { output: DirectorOutput }): JSX.Element {
 
 export function OutputsPopover(): JSX.Element {
   const { t } = useTranslation()
+  const outputs = useOutputs()
   const [open, setOpen] = React.useState(false)
   const screenshots = useDirectorStore((state) => state.project.outputs.screenshots)
   const videos = useDirectorStore((state) => state.project.outputs.videos)
+  const videoRecording = useDirectorStore((state) => state.videoRecording)
   const count = screenshots.length + videos.length
+  // 录制中：产出图标换成「■ k/N」，点它取消——进度和取消就在发起录制的那个家里，不另开一处（2026-10-04 拍板）
+  if (videoRecording) {
+    const progress = { current: videoRecording.current, total: videoRecording.total }
+    return (
+      <WorkbenchButton size="sm" variant="primary" className="gap-1 px-2 font-nomi-mono tabular-nums" title={t('director.timeline.recordVideoBadgeHint', progress)} aria-label={t('director.timeline.recordVideoCancel')} data-testid="director-recording-progress" onClick={outputs.cancelRecording}>
+        <IconPlayerStopFilled size={12} stroke={2} />
+        {t('director.timeline.recordVideoBadge', progress)}
+      </WorkbenchButton>
+    )
+  }
   return (
     <Popover
       open={open}
       onClose={() => setOpen(false)}
       align="end"
+      side="bottom"
       panelClassName="w-[320px] p-2"
       trigger={
         <span className="relative inline-flex">
@@ -63,6 +77,18 @@ export function OutputsPopover(): JSX.Element {
         </span>
       }
     >
+      <div className="-mx-1 mb-1 border-b border-nomi-line-soft pb-1">
+        <PopoverItem
+          title={t('director.timeline.recordVideoHint')}
+          onClick={() => {
+            setOpen(false)
+            void outputs.recordVideo()
+          }}
+        >
+          <IconMovie size={16} stroke={1.9} />
+          <span className="flex-1 text-left" data-testid="director-record-video">{t('director.timeline.recordVideo')}</span>
+        </PopoverItem>
+      </div>
       {count === 0 ? (
         <div className="px-1 py-2 text-caption text-nomi-ink-40">{t('director.timeline.outputsEmpty', { hotkey: formatHotkey(DIRECTOR_HOTKEYS.screenshot) })}</div>
       ) : (

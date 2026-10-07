@@ -509,6 +509,67 @@
       "tools": [
         "ask_user"
       ]
+    },
+    {
+      "id": "D1",
+      "requiresFlag": "director3dbox",
+      "userSays": "第三镜做个预演：两个人在面馆门口说话，正反打，最后慢慢推近",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "stage_shot"
+      ],
+      "skillKey": "director-3dbox"
+    },
+    {
+      "id": "D2",
+      "requiresFlag": "director3dbox",
+      "userSays": "预演里第二镜改成特写，别的不动",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "stage_shot"
+      ],
+      "skillKey": "director-3dbox"
+    },
+    {
+      "id": "D3",
+      "requiresFlag": "director3dbox",
+      "userSays": "刚才预演的修改撤销掉",
+      "firstTool": "undo",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "undo"
+      ]
+    },
+    {
+      "id": "D4",
+      "requiresFlag": "director3dbox",
+      "userSays": "预演可以了，就用它出这一镜",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "generate"
+      ],
+      "skillKey": "director-3dbox"
     }
   ]
 }

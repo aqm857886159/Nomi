@@ -65,11 +65,14 @@ const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
 export function SettingsDialog({
   initialTab = 'file',
   initialSection = null,
+  initialModelPageRequest = null,
   onClose,
   onReplaySplash,
 }: {
   initialTab?: SettingsTab
   initialSection?: SettingsInitialSection
+  /** 打开设置时就要落到模型 tab 里某一家的接入页（外部入口，如画布「高清 → 去接入」）。 */
+  initialModelPageRequest?: ModelPageRequest
   onClose: () => void
   onReplaySplash?: () => void
 }): JSX.Element {
@@ -78,7 +81,8 @@ export function SettingsDialog({
   const [tab, setTab] = React.useState<SettingsTab>(initialTab)
   const [modelsMounted, setModelsMounted] = React.useState(initialTab === 'models')
   // 「去配置 KIE」这类请求：切到模型 tab 还不够，得让模型工作区直接落到那家的 Key 输入页。
-  const [modelPageRequest, setModelPageRequest] = React.useState<ModelPageRequest>(null)
+  const [modelPageRequest, setModelPageRequest] = React.useState<ModelPageRequest>(initialModelPageRequest)
+  React.useEffect(() => { if (initialModelPageRequest) setModelPageRequest(initialModelPageRequest) }, [initialModelPageRequest])
   // t 随语言变化重渲，渲染时读 getAppLocale() 即拿最新值（沿用 LanguageMenuButton 的做法）。
   const locale = getAppLocale()
   const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)

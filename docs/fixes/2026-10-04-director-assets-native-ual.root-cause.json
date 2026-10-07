@@ -1,0 +1,138 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-director-assets-native-ual",
+  "problem_type": "Retargeted Director actions pass joint-angle checks while the character's whole pose is wrong",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "symptom": "Push_Loop and Death01 passed the second-round angle checker even though the contact sheet showed the target hovering or standing while the source was bent or lying down.",
+  "direct_cause": "The previous X Bot conversion and metric normalized each character by its hip-to-head frame and applied locomotion contact checks only to selected actions, so whole-body stance errors were cancelled or ignored.",
+  "class_root": "The default 3D-BOX actor must keep the source library's native mesh, skeleton, and action clips together; no X Bot retargeted derivative can enter the native UAL catalog.",
+  "affected_population": [
+    "All 45 Quaternius Universal Animation Library actions",
+    "Future Director planner selections that consume the native action catalog",
+    "The old X Bot/Mixamo director path, which remains a separate legacy surface"
+  ],
+  "scope_paths": [
+    "scripts/director-assets/prepare_ual.py",
+    "scripts/director-assets/check-ual-asset.mjs",
+    "scripts/director-assets/check_ual_standing.py",
+    "src/assets/director/ual/ual-rig.json",
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/ualActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.ts",
+    "src/devlab/directorAssetCatalog.tsx"
+  ],
+  "entry_points": [
+    "Native UAL archive processing",
+    "Catalog and planner projection",
+    "DevLab native-action rendering"
+  ],
+  "internal_only_reason": "The source-vs-target choice is an application asset policy; the third-party archive supplies the content and license but does not decide which actor the Director catalog owns.",
+  "invariants": [
+    "The catalog has exactly 45 native UAL clips and every clip name exists in the same GLB as the UAL skeleton.",
+    "The GLB contains the UAL semantic bones, one neutral UAL_WhiteModel material, no source images or textures, and a ground-min-z origin.",
+    "The planner projection exposes only compact identity and semantic fields; runtime cutover is deferred to a separate PR.",
+    "Every standing-class action has a deterministic first-frame foot and hip check; crouch, fall, sit, jump, swim, roll, kneel, pickup, push, driving, and low sword poses are explicitly exempt."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.ts",
+      "symbol": "UAL_ACTIONS"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/directorAssetCatalog.tsx",
+      "symbol": "useAssetCanvas"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "Catalog projection and DevLab rendering are independent consumers of the same native asset contract; both remain required so a stale planner projection cannot masquerade as a visual inspection."
+  },
+  "generality_proof": "Every UAL action is emitted by one preparation command, checked against one GLB manifest, and registered by mapping the same UAL_ACTIONS list into the catalog. Removing the old retarget path prevents another action from entering through an alternate derivative or stale license record.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/director-assets/prepare_ual.py",
+      "symbol": "main",
+      "responsibility": "Extract the registered UAL GLB, strip source materials, retain native actions, and emit one deterministic manifest."
+    },
+    {
+      "path": "scripts/director-assets/check-ual-asset.mjs",
+      "symbol": "checkUalAsset",
+      "responsibility": "Fail closed when action count, semantic bones, manifest hashes, or source-material stripping do not match the native UAL contract."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.ts",
+      "entry_point": "UAL_ACTIONS.map(action)",
+      "disposition": "enforced",
+      "evidence": "The catalog is generated only from the checked native action list and one UAL GLB file."
+    },
+    {
+      "path": "src/devlab/directorAssetCatalog.tsx",
+      "entry_point": "gltfLoader.loadAsync('/' + asset.file)",
+      "disposition": "enforced",
+      "evidence": "The visual inspection page consumes the same catalog file and clipName; no X Bot or FBX fallback remains for action entries."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future derivative conversion or stale catalog entry could reintroduce the same whole-body mismatch unless the native file and clip-name contract is checked at the shared asset boundary.",
+    "same_class_scan": [
+      "rg 'retarget|retargeted|check-retarget|UAL_ACTIONS|ual-mannequin' scripts src docs/engineering docs/plan",
+      "node scripts/door-map.mjs UAL_ACTIONS",
+      "node scripts/check-ual-asset.mjs",
+      "node scripts/check-director-asset-catalog.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/director-assets/check-ual-asset.mjs",
+    "invariant": "Only the one checked UAL GLB may back the 45 action catalog entries, with all semantic bones and no source textures.",
+    "failure_mode": "The checker exits non-zero for missing actions, bones, hash drift, unexpected materials, or texture payloads; catalog checks fail for missing or unlicensed binaries.",
+    "exception_policy": "none",
+    "strategy": "Keep source processing, manifest hashes, semantic mapping, standing checks, and visual inspection on the native asset boundary; delete the old derivative path in the same PR.",
+    "artifacts": [
+      "scripts/director-assets/prepare_ual.py",
+      "scripts/director-assets/check-ual-asset.mjs",
+      "scripts/director-assets/check_ual_standing.py",
+      "scripts/check-director-asset-catalog.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/director-assets/check-ual-asset.node-test.mjs",
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/director-assets/check-ual-asset.node-test.mjs",
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The obsolete retarget paths were deleted in the preceding unit commit; no legacy runtime path remains in this native UAL asset contract."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Blender is retained only as the offline UAL archive processor; the packaged application has no Blender runtime dependency.",
+    "current": "Blender 5.1.2 on the conversion host",
+    "target": "A pinned Blender release or a repository-owned glTF sanitizer that reproduces the same output hash and animation manifest",
+    "exit_criteria": [
+      "A replacement emits the same 45 action names, semantic bones, material stripping, and ground measurement.",
+      "Two runs on the conversion host and CI emit byte-identical GLB output."
+    ]
+  },
+  "migration": "No user scene migration is needed because runtime cutover is intentionally deferred. The future switch PR will select the UAL GLB for new 3D-BOX scenes while leaving old X Bot/Mixamo scenes untouched.",
+  "residual_risks": [
+    "The UAL native actor is cataloged but not yet wired into actionLibrary.ts or the existing Director runtime; that is an explicit later switch PR.",
+    "Visual inspection uses Blender-generated contact sheets and the existing DevLab page; browser-packaged runtime loading is not claimed by this asset-only PR."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/director-assets/check-ual-asset.mjs",
+    "tests": [
+      "scripts/director-assets/check-ual-asset.node-test.mjs"
+    ]
+  }
+}

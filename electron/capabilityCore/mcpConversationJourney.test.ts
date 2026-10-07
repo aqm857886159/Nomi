@@ -141,7 +141,7 @@ function outcome(frame: RpcFrame): Record<string, unknown> {
 describe('MCP conversation journey (A7 · 真 service 全链路)', () => {
   it('接住→进度→控制→状态→事件：文本可转述、字段稳定、进度帧真实', async () => {
     const { service, frames, protocol, call } = makeJourney()
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'claude-code' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'claude-code', version: '1' } } })
 
     // ── 壹 · 接住：进度起始帧 + 结构化回执 + 参数回显 ────────────────────────────
     const started = await call(2, 'nomi_run_start', {
@@ -231,7 +231,7 @@ describe('MCP conversation journey (A7 · 真 service 全链路)', () => {
 
   it('剧本和分镜都批准后，外部 Agent 可通过 MCP 把同一份分镜物化到 Nomi 项目', async () => {
     const { service, protocol, call } = makeJourney()
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 20, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'codex' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 20, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: { elicitation: {} }, clientInfo: { name: 'codex', version: '1' } } })
     const started = await call(21, 'nomi_run_start', { projectId: 'project-1', playbook: 'brand.promo', brief: { goal: '雨夜找猫', durationSeconds: 30 } })
     const runId = String(outcome(started).runId)
     await vi.waitFor(() => {

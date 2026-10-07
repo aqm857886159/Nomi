@@ -160,3 +160,22 @@ describe('MCP complete skill content', () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 });
+
+describe('flag-bound Skill selectability (3D-BOX)', () => {
+  it('a Skill that requires the 3D-BOX flag is selectable only when the shared face is on', async () => {
+    const { installDirector3DBoxFace, resetDirector3DBoxFaceForTests } = await import('../shared/featureFlags/director3dboxFace')
+    const { isSkillSelectableInWorkbench } = await import('./skillStore')
+    const record = { name: 'director-3dbox', origin: 'builtin' as const, manifest: { version: '1.0.0', tools: [], requiredProviders: [], selectableInWorkbench: true, requiresFlag: 'director3dbox' as const } }
+    try {
+      resetDirector3DBoxFaceForTests()
+      installDirector3DBoxFace(false)
+      expect(isSkillSelectableInWorkbench(record)).toBe(false)
+      resetDirector3DBoxFaceForTests()
+      installDirector3DBoxFace(true)
+      expect(isSkillSelectableInWorkbench(record)).toBe(true)
+      expect(isSkillSelectableInWorkbench({ ...record, manifest: { ...record.manifest, requiresFlag: undefined } })).toBe(true)
+    } finally {
+      resetDirector3DBoxFaceForTests()
+    }
+  })
+})

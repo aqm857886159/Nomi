@@ -4,7 +4,7 @@
 // devlab 没有资产桥：上传走 blob URL 并 toast「临时」，旅程按这句文案断言（不假装落盘了）。
 // 用法：node tests/ux/director-j5-splat-valley.walk.mjs
 import path from 'node:path'
-import { clickOrFail, expectVisible, launchDirectorLab, placeCharacter, repoRoot, writeValleyPly } from './_directorLab.mjs'
+import { clickOrFail, expectVisible, launchDirectorLab, openAssets, placeCharacter, repoRoot, writeValleyPly } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const lab = await launchDirectorLab({ name: 'j5-splat-valley' })
@@ -13,7 +13,7 @@ const { page, check } = lab
 try {
   // 1.5 万高斯：headless 走 SwiftShader 软件渲染，够看出视差又不把主线程拖到点不动
   const ply = writeValleyPly(path.join(repoRoot, '.tmp', 'director-j5', 'valley.ply'), 15000)
-  await clickOrFail(page.getByText('资产库', { exact: true }), '右栏·资产库')
+  await openAssets(lab)
   await page.locator('[data-testid="director-assets"] input[type="file"]').first().setInputFiles(ply)
   await lab.waitScene("(p.assets && p.assets.items || []).some(i => i.kind === 'splat')", '资产库出泼溅条目')
   // 条目行（缩进 pl-6）而不是包着它的文件夹行：hasText 会连后代文本一起匹配，双击文件夹只会折叠
@@ -31,7 +31,7 @@ try {
   check('PLY 真实解码且完成显现', splatInfo.initialized && splatInfo.count === 15000 && !splatInfo.revealing, JSON.stringify(splatInfo))
   await lab.snap('splat-loaded')
 
-  await clickOrFail(page.getByText('场景对象', { exact: true }), '右栏·场景对象')
+  await clickOrFail(page.getByTestId('director-assets-close'), '资产库抽屉·关')
   await placeCharacter(lab, 'female', 0, 2)
   await lab.waitScene("s.objects.some(o => o.type === 'character')", '角色落地')
   const hero = (await lab.scene()).objects.find((object) => object.type === 'character')

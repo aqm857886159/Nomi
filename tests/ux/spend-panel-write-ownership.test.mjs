@@ -8,9 +8,9 @@ import { chromium } from 'playwright'
 import { createServer } from 'vite'
 let server, browser, page, cacheDir
 const ports = {
+  // 拖文件进卡体那张框（`useNodeAssetDrop`）在当前项目里上传。
   projectCanvasReadSurface: `export const withProjectAction = fn => fn({ binding: { projectId: 'project' }, assertCurrent() {} }); export const isProjectExecutionContextCurrent = () => true; export const isProjectImportCancellation = () => false;`,
-  bridge: `export const getDesktopBridge = () => ({ productionRuns: { pendingSpend() {} } });`,
-  productionRunApi: `export const productionRunApi = { reviseSpend: async input => { window.spendOwnership.calls.push(input); if (window.spendOwnership.revise) return window.spendOwnership.revise(input); return {ok: !window.spendOwnership.failRevision} }, discardSpend: async (...args) => {window.spendOwnership.calls.push({discard: args}); return window.spendOwnership.discardReply ? window.spendOwnership.discardReply(...args) : {ok:!window.spendOwnership.failDiscard}}, confirmSpend: async (...args) => { window.spendOwnership.calls.push({confirm: args}); return window.spendOwnership.confirmReply ? window.spendOwnership.confirmReply(...args) : {ok:!window.spendOwnership.failConfirm} }, confirmSpendRemaining: async (...args) => { window.spendOwnership.calls.push({remaining: args}); return window.spendOwnership.remaining ? window.spendOwnership.remaining(...args) : {ok:true} }, pendingSpend: async () => ({ surface: 'ready', rows: [structuredClone(window.spendOwnership.pending)] }) };`,
+  productionRunApi: `export const productionRunApi = { reviseSpend: async input => { const f = window.spendOwnership; f.calls.push(input); const reply = await (f.revise ? f.revise(input) : {ok: !f.failRevision}); return reply?.ok && reply.quoteId && !reply.pending ? { ...reply, pending: structuredClone(f.pending) } : reply }, discardSpend: async (...args) => {window.spendOwnership.calls.push({discard: args}); return window.spendOwnership.discardReply ? window.spendOwnership.discardReply(...args) : {ok:!window.spendOwnership.failDiscard}}, confirmSpend: async (...args) => { window.spendOwnership.calls.push({confirm: args}); return window.spendOwnership.confirmReply ? window.spendOwnership.confirmReply(...args) : {ok:!window.spendOwnership.failConfirm} }, confirmSpendRemaining: async (...args) => { window.spendOwnership.calls.push({remaining: args}); return window.spendOwnership.remaining ? window.spendOwnership.remaining(...args) : {ok:true} } };`,
   toast: `export const toast = (message, kind) => { window.spendOwnership.toasts.push({ message, kind }) }; export const useToastStore = { getState: () => ({ push: (input) => { window.spendOwnership.toasts.push({ message: input.message, kind: input.type, ttl: input.ttl }); return 'toast' } }) };`,
   modelCatalogCache: `export const preloadModelOptions = async () => []; export const MODEL_REFRESH_EVENT = 'fixture-refresh';`,
   generationCanvasStore: `export const useGenerationCanvasStore = Object.assign(selector => selector({ nodes: window.spendOwnership.nodes, edges: window.spendOwnership.edges, updateNode() { throw new Error('canvas write forbidden') } }), { getState: () => ({ nodes: window.spendOwnership.nodes, edges: window.spendOwnership.edges }) });`,
@@ -33,11 +33,6 @@ beforeEach(async () => {
   await page?.close()
   page = await browser.newPage()
   page.on('pageerror', error => console.error(error.message))
-  await page.addInitScript(() => {
-    const original = window.setInterval.bind(window)
-    window.setInterval = (callback, delay, ...args) => delay === 1500
-      ? (window.spendOwnership.setRefresh(callback), 1) : original(callback, delay, ...args)
-  })
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/ux/fixtures/spend-panel-write-ownership-harness.html`)
   await page.locator('#upload').waitFor({ state: 'visible' })
 })
@@ -391,4 +386,37 @@ it('「生成这张」在路上时点 ×、那一镜照样批下了：提示照�
 it('「生成这张」在路上时点 ×、那一镜还没批下就被收回：只说「发出了 0 段」，不再弹那一下的失败', async () => {
   expect(await stopWhileConfirming({ ok: false, code: 'failed', message: 'generation_quote_changed' }, { sent: 0, notSent: 2 }))
     .toEqual([{ message: '发出了 0 段，剩下 2 段没发。', kind: 'info', ttl: 8000 }])
+})
+
+// ── 特征测试（付费卡并进对话投影之前钉住，2026-10-05）：卡怎么出现、怎么消失、读不到说什么、
+// 「生成这张」和 × 带着哪一版报价去。换数据来源之后这几条一字不改照样要绿。
+it('characterization: the host pending shows one spend card that counts the undecided shots', async () => {
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind === 'spend')
+  expect(await page.evaluate(() => { const s = window.spendOwnership.snapshot(); return { kind: s.slotKind, title: s.title, shots: s.pendingShots } }))
+    .toEqual({ kind: 'spend', title: '生成这 2 段视频？', shots: ['a', 'b'] })
+})
+it('characterization: the host saying nothing is pending removes the card; it comes back when the host has one again', async () => {
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind === 'spend')
+  await page.evaluate(() => window.spendOwnership.hide())
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind === undefined)
+  expect(await page.evaluate(() => window.spendOwnership.snapshot().pendingShots)).toBeUndefined()
+  await page.evaluate(() => window.spendOwnership.restore())
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind === 'spend')
+})
+it('characterization: a host read failure is a speaking card, not an empty slot', async () => {
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind === 'spend')
+  await page.evaluate(() => window.spendOwnership.failRead())
+  await page.waitForFunction(() => window.spendOwnership.snapshot().slotKind !== 'spend')
+  expect(await page.evaluate(() => { const s = window.spendOwnership.snapshot(); return { kind: s.slotKind, title: s.title, detail: s.slotDetail } }))
+    .toEqual({ kind: 'missing-card', title: '这里本该有一张确认卡', detail: '有一条在等你确认，但 Nomi 没能把卡画出来（读不到主进程那一份待确认清单）。先别重试同一步——换一句话让 Agent 重新提一次，或者重开这个项目。' })
+})
+it('characterization: 「生成这张」 approves only this page with the quote the host returned; × withdraws the displayed quote', async () => {
+  await page.evaluate(() => { window.spendOwnership.revise = () => ({ ok: true, quoteId: 'quote' }) })
+  await page.evaluate(() => window.spendOwnership.confirm())
+  await page.waitForFunction(() => window.spendOwnership.calls.some(call => call.confirm))
+  expect(await page.evaluate(() => window.spendOwnership.calls.find(call => call.confirm).confirm)).toEqual(['project', 'operation', 'quote', 'a'])
+  await page.waitForFunction(() => !window.spendOwnership.snapshot().busy)
+  await page.evaluate(() => window.spendOwnership.discard())
+  await page.waitForFunction(() => window.spendOwnership.calls.some(call => call.discard))
+  expect(await page.evaluate(() => window.spendOwnership.calls.find(call => call.discard).discard)).toEqual(['project', 'operation', 'quote'])
 })

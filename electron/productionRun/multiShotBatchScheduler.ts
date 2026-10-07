@@ -1,7 +1,7 @@
 import { deriveBatchPlan, type BatchDerivationResult, type CheckpointState, type DispatchTask } from "./batchScheduleDerivation";
 import type { ProductionRun } from "./productionRunTypes";
 import type { ProductionRunRepository } from "./productionRunRepository";
-import type { ProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { GenerationMaterializationUnsupportedError, GenerationOutputRetrievalFailedError, type ProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { currentAnchorCheckpointGate, buildAnchorCheckpointGate } from "./anchorCheckpoint";
 import { logInfo, logWarn } from "../logging/logger";
 import { latestSpendAuthorizationDigest } from "../shared/productionSpendAuthority";
@@ -130,6 +130,10 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
    * "settled" = the unit reached a state the derivation reacts to (ready / attention); "pending" = still
    * processing (or a transient poll/materialize error — swallowed with a warn so one flaky query can't
    * kill the sibling units' long-running observation; the next round retries, bounded by the horizon).
+   * A DETERMINISTIC retrieval failure is not transient (#975 A2): the submission layer has already parked the
+   * job at needs_attention ("generated, but the result could not be retrieved"), so it is settled — before this,
+   * every round re-polled the provider and re-downloaded the whole video only to be refused again, across every
+   * re-kick, forever (the shape of "the last 3 shots stay polling, the main process pegs CPU and memory").
    * Dispatch refusals cannot originate here: poll/materialize never reserve and never re-check consent.
    */
   async function observeUnitOnce(task: DispatchTask): Promise<"settled" | "pending"> {
@@ -150,6 +154,11 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       if (polled.nextAction === "attention") return "settled"; // provider failed → job is needs_attention, leave it
       return "pending";
     } catch (error) {
+      // 两种都已经由提交门面耐久地落成 needs_attention：已结清，不再重查重下。
+      if (error instanceof GenerationOutputRetrievalFailedError || error instanceof GenerationMaterializationUnsupportedError) {
+        logWarn("production-run", "batch-output-retrieval-failed", { shotId: task.shotId }, error);
+        return "settled";
+      }
       logWarn("production-run", "batch-observe-failed", { shotId: task.shotId }, error);
       return "pending";
     }

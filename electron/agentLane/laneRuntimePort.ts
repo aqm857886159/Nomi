@@ -24,6 +24,7 @@ import type { AgentModelEntry } from '../shared/agentCapabilities/availableModel
 import type { ModelAvailabilityFacts } from '../shared/agentCapabilities/modelSpecProjection'
 import type { SkillRecord } from '../skills/skillStore'
 import type { LaneDeclaredDefaults } from './laneModelContext'
+import type { PendingSpendRead } from '../shared/contracts/pendingSpendConfirm'
 
 export type { LaneHandle, LaneProjection }
 export type { LaneToolEffect, LaneToolFailureShape, LaneToolNextAction, LaneToolSpec }
@@ -183,6 +184,13 @@ export interface OpenLaneOptions {
    * 只有冷启动才生效。给函数时 `openLane` 每个回合重新求值（`transform_context`）。
    */
   systemPrompt: string | (() => string)
+  /**
+   * 殿后的一段：拼在**整份最终系统提示的最末尾**（技能、引用、权限清单之后）。回复语言规则放这里——
+   * 提示词主体几乎全是中文，规则只在最前面一次，英文界面会被后面的大段中文带回中文
+   * （老 `composeAgentSystemPrompt` 首尾各放一次，就是被用户抓过中英混答）。定义仍只有 `buildLanguageRule` 一处。
+   * 与 `systemPrompt` 同一条纪律：给函数，每个回合求值一次。
+   */
+  systemPromptClosing?: string | (() => string)
   /** Snapshot the composer per message; activate only after pi consumes that message. */
   input?: {
     capture(): LaneComposerContext
@@ -229,14 +237,13 @@ export interface OpenLaneOptions {
    */
   modelDefaults?: () => LaneDeclaredDefaults
   /**
-   * 传输层看门狗的两个预算（毫秒）。缺省是 `laneHost` 的 `LANE_FIRST_RESPONSE_MS` /
-   * `LANE_IDLE_MS`。
+   * 传输层看门狗的三个预算（毫秒）。缺省是 `laneProviderGuard` 的 `LANE_STREAM_WATCHDOG`。
    *
    * **为什么是宿主可配而不是写死**：同一条 lane 可能指向一台本机 ComfyUI 旁边的
    * 小模型（首字节几百毫秒），也可能指向一个跨洋网关（几十秒）。用同一个数去卡两者，
    * 要么把慢的那条误杀，要么让快的那条卡满 90 秒。
    */
-  watchdog?: { firstResponseMs?: number; idleMs?: number }
+  watchdog?: { firstResponseMs?: number; firstTokenMs?: number; idleMs?: number }
   /** 一个回合最多几次模型请求。**缺省不设**（见 `LANE_MAX_MODEL_REQUESTS` 的注释）；设了才拦。 */
   limits?: { maxModelRequests?: number; contextTokenBudget?: number }
 }
@@ -248,6 +255,8 @@ export type OpenLane = (options: OpenLaneOptions) => Promise<LaneHandle>
 
 export type OpenDesktopLaneWorkspace = (options: Omit<OpenLaneOptions, 'model'> & {
   model?: NomiModelConfig
+  /** 项目级的待决出价读口（见 `LaneWorkspaceProjection.spend`）。给函数不给快照，理由同 `tasks`。 */
+  spend?: () => PendingSpendRead
   approval: LaneApprovalOptions
   toolLifecycle: NonNullable<OpenLaneOptions['toolLifecycle']>
 }) => Promise<LaneWorkspaceHandle>
@@ -256,6 +265,8 @@ export type RunLaneSingleShot = (options: {
   fetch: typeof globalThis.fetch
   model: NomiModelConfig
   systemPrompt?: string
+  /** 见 `OpenLaneOptions.systemPromptClosing`：拼在整份提示的最末尾。 */
+  systemPromptClosing?: string
   prompt: string
   input?: OpenLaneOptions['input']
   signal?: AbortSignal

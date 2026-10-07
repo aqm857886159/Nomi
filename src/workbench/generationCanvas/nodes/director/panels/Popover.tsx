@@ -1,6 +1,7 @@
 /**
  * [INPUT]: 依赖 react、../../../../../design 的 BodyPortal / NOMI_OVERLAY_Z_INDEX、../../../../../utils/cn
- * [OUTPUT]: 对外提供 Popover（锚定在触发器上方/下方/右侧的浮层：body 传送门 + fixed 定位、外点关闭、捕获期 Esc 关闭、标记 data-nomi-escape-layer 让编辑器的 Esc 让路）、PopoverItem
+ * [OUTPUT]: 对外提供 Popover（锚定在触发器上方/下方/右侧的浮层：body 传送门 + fixed 定位、外点关闭、捕获期 Esc 关闭、标记 data-nomi-escape-layer 让编辑器的 Esc 让路；
+ *           浮层里的浮层向父浮层登记，点子菜单不算父的外点、Esc 先收最里层）、PopoverItem
  * [POS]: director/panels 的浮层原语（设计系统无 popover 原语）；创建栏下拉、群众矩阵、画幅设置、产出物面板都用它。
  *        面板不挂在触发器所在的分栏里：分栏之间各自是层叠上下文（isolate / overflow-hidden），时间轴头部的浮层往上弹会被视口底栏盖住
  *        （2026-09-03 Electron 真机走查：矮窗口里「发送到画布」点不到）→ 与时间轴右键菜单同一手法，portal 到 body、按触发器矩形 fixed 定位、
@@ -20,9 +21,19 @@ export type PopoverProps = {
   align?: 'start' | 'center' | 'end'
   className?: string
   panelClassName?: string
+  /** 开着时导演台快捷键照常（撤销 / 删除 / 工具键）：给会开很久的工作面用（「▤ ▾」大纲），一次性小菜单不传 */
+  passEditorHotkeys?: boolean
 }
 
 const GAP = 8
+
+/**
+ * 嵌套浮层的登记口：浮层里还有浮层（精修「▤ 图层名 ▾」浮层里，大纲行的 ⋮ / 右键菜单 / 图层菜单）。
+ * 子面板也 portal 到 body，DOM 上不在父面板里——不登记的话，点子菜单项会被父浮层当成「外点」先把自己连同子菜单一起关掉，
+ * 那一下点击就丢了。子浮层打开时把自己的面板登记给父浮层：父浮层的外点判定把它算「里面」，Esc 也先让最里层的收。
+ */
+type PopoverParent = { register: (panel: HTMLElement) => () => void }
+const PopoverParentContext = React.createContext<PopoverParent | null>(null)
 
 type PanelPosition = { top?: number; bottom?: number; left?: number; right?: number; transform?: string }
 
@@ -40,10 +51,25 @@ function positionFor(rect: DOMRect, side: 'top' | 'bottom' | 'right', align: 'st
   return { ...vertical, left: rect.left + rect.width / 2, transform: 'translateX(-50%)' }
 }
 
-export function Popover({ open, onClose, trigger, children, side = 'top', align = 'center', className, panelClassName }: PopoverProps): JSX.Element {
+export function Popover({ open, onClose, trigger, children, side = 'top', align = 'center', className, panelClassName, passEditorHotkeys = false }: PopoverProps): JSX.Element {
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = React.useState<PanelPosition | null>(null)
+  const parent = React.useContext(PopoverParentContext)
+  const childPanelsRef = React.useRef(new Set<HTMLElement>())
+  const childContext = React.useMemo<PopoverParent>(() => ({
+    register: (panel) => {
+      childPanelsRef.current.add(panel)
+      return () => { childPanelsRef.current.delete(panel) }
+    },
+  }), [])
+
+  // 自己开着时登记给父浮层（如果有）
+  React.useEffect(() => {
+    const panel = panelRef.current
+    if (!open || !position || !parent || !panel) return undefined
+    return parent.register(panel)
+  }, [open, parent, position])
 
   // 打开时按触发器矩形定位；窗口变化时重算（分栏拖动会改触发器位置，但浮层开着时用户不会同时拖分栏）
   React.useLayoutEffect(() => {
@@ -81,10 +107,16 @@ export function Popover({ open, onClose, trigger, children, side = 'top', align 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node
       if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return
+      for (const child of childPanelsRef.current) if (child.contains(target)) return
       onClose()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // 一次 Esc 只收最里层：有子浮层开着就让它先收
+      if (childPanelsRef.current.size > 0) return
+      // 浮层里的输入框自己处理 Esc（大纲搜索框：Esc = 清空搜索），不把整个浮层一起收掉
+      const target = event.target
+      if (target instanceof HTMLElement && panelRef.current?.contains(target) && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable)) return
       event.preventDefault()
       event.stopPropagation()
       onClose()
@@ -107,6 +139,7 @@ export function Popover({ open, onClose, trigger, children, side = 'top', align 
               ref={panelRef}
               role="dialog"
               data-nomi-escape-layer="director-popover"
+              data-nomi-hotkeys={passEditorHotkeys ? 'pass' : undefined}
               className={cn(
                 'fixed min-w-[180px] rounded-nomi-lg border border-nomi-line bg-nomi-paper p-2 text-body-sm text-nomi-ink shadow-nomi-lg',
                 panelClassName,
@@ -117,7 +150,7 @@ export function Popover({ open, onClose, trigger, children, side = 'top', align 
               onKeyDown={(event) => event.stopPropagation()}
               onWheel={(event) => event.stopPropagation()}
             >
-              {children}
+              <PopoverParentContext.Provider value={childContext}>{children}</PopoverParentContext.Provider>
             </div>
           </BodyPortal>
         )

@@ -32,6 +32,9 @@ import {
 } from './laneContracts.js';
 import { laneToolNextActionOf } from './laneToolNextAction.js';
 import { laneToolFailureOf } from './laneToolFailureEnvelope.js';
+import { laneAssistantFaultOf, type LaneAssistantFault } from './laneAssistantFault.js';
+
+const faultField = (fault: LaneAssistantFault | undefined): { fault?: LaneAssistantFault } => (fault ? { fault } : {});
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -102,6 +105,38 @@ export interface LaneModelFacts {
    * 一个都没写 contextWindow）。
    */
   readonly contextWindow?: number;
+  /**
+   * 这条出错的助手消息算不算「瞬时」（断线 / 超时 / 限流 / 5xx，值得再试一次）。
+   * **由调用方喂 pi 导出的 `isRetryableAssistantError`**：同一个事实 pi 已经有一张表，这里不再抄第二张；
+   * 和 `supportedThinkingLevels` 一样，在这里直接 import 它会把 pi-ai 运行时拖进浏览器 bundle。
+   * 不传 = 不下判断（设计实验室、冷读历史）。
+   */
+  readonly isTransientError?: (message: AssistantMessage) => boolean;
+  /**
+   * 这条出错的助手消息是不是「上下文装不下」。同上，**由宿主喂 pi 的 `isContextOverflow`**（各家服务商的溢出原话
+   * pi 有一张表），投影只把结论变成 `fault`。不传 = 只认 pi 自己补的那句（`PI_CONTEXT_OVERFLOW_MESSAGE`）。
+   */
+  readonly isContextOverflow?: (message: AssistantMessage) => boolean;
+}
+
+/**
+ * 哪些出错的助手消息「后来好了」：同一回合里（用户下一条输入之前）、它后面又接上了一条非 error 的助手消息。
+ * pi 自动重试时会把那条错误从状态里删掉、却留在转录里，所以转录里的 error 并不等于「这一回合失败了」。
+ * `aborted` 不算接上（用户自己按了停止）。流式中的那条助手消息算接上（重试正在进行）。
+ */
+function recoveredErrorEntryIds(entries: readonly LaneSnapshot['transcript'][number][], streaming: boolean): ReadonlySet<string> {
+  const recovered = new Set<string>();
+  let laterSettled = streaming;
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index]!;
+    if (entry.type !== 'message') continue;
+    const message = entry.message;
+    if (message.role === 'user' || isLaneInputMessage(message)) { laterSettled = false; continue; }
+    if (message.role !== 'assistant') continue;
+    if (message.stopReason === 'error') { if (laterSettled) recovered.add(entry.id); continue; }
+    if (message.stopReason !== 'aborted') laterSettled = true;
+  }
+  return recovered;
 }
 
 const KNOWN = (value: number): LaneMetric => ({ state: 'known', value });
@@ -227,7 +262,9 @@ export function projectLaneSnapshot(
   let legacy: ReturnType<typeof laneLegacyFacts>;
   const running = snapshot.operation?.runningTools ?? [];
   const runningToolCallIds = new Set(running.filter((tool) => tool.status === 'running').map((tool) => tool.toolCallId));
-  for (const entry of history ?? snapshot.transcript) {
+  const entries = history ?? snapshot.transcript;
+  const recoveredErrors = recoveredErrorEntryIds(entries, Boolean(snapshot.operation?.streamingMessage));
+  for (const entry of entries ?? snapshot.transcript) {
     if (entry.type === 'custom') {
       if (entry.customType === LANE_LEGACY_NOTE) {
         const facts = laneLegacyFacts(entry.data);
@@ -272,7 +309,10 @@ export function projectLaneSnapshot(
       pushAssistantParts(message, entry.seq, false, runningToolCallIds, parts, entry.id, inputEntryId);
       if (message.stopReason === 'error' && message.errorMessage) {
         parts.push({ kind: 'error', text: message.errorMessage, sequence: parts.length,
-          entryId: entry.id, entrySeq: entry.seq, contentIndex: message.content.length });
+          entryId: entry.id, entrySeq: entry.seq, contentIndex: message.content.length,
+          ...(facts.isTransientError?.(message) ? { transient: true as const } : {}),
+          ...(recoveredErrors.has(entry.id) ? { recovered: true as const } : {}),
+          ...faultField(laneAssistantFaultOf(message.errorMessage, facts.isContextOverflow?.(message) ?? false)) });
       }
       continue;
     }

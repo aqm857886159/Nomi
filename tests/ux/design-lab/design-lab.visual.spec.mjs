@@ -12,6 +12,8 @@ import { LAB_SCREEN_IDS, pendingApprovalScreens, readCalibration, readLabStates 
 // Match the real macOS GPU backend for WebGL states; software shader compilation can block the page.
 if (process.platform === 'darwin') test.use({ launchOptions: { args: ['--use-angle=metal'] } })
 const calibration = readCalibration()
+// 导演台两屏按真机走查窗口内容区取景（1280×933），格子与真机截图同尺寸才能并排比
+const DIRECTOR_SCREENS = new Set(['director-3dbox', 'director-refine'])
 // 「基线待用户拍板」的屏（calibration.json 的 pendingApprovalScreens）整屏跳过比对：
 // 没人看过的图没有可回归的对象，比它等于把「今天碰巧长这样」钉成「应该长这样」。
 // `design-lab:update` 跑的就是来录基线的那一趟，所以它不跳——拍板后录完记得删登记。
@@ -27,6 +29,7 @@ for (const screen of LAB_SCREEN_IDS) {
 
   test.describe(`design lab · ${screen}`, () => {
     test('注册表与活页面一致（这把源码正则还活着的唯一证据）', async ({ page }) => {
+      if (DIRECTOR_SCREENS.has(screen)) await page.setViewportSize({ width: 1280, height: 933 })
       await page.goto(`/design-lab.html?screen=${screen}&frame=1&state=${states[0].id}`)
       await expect.poll(() => page.evaluate(() => window.__designLabReady === true)).toBe(true)
       const live = await page.evaluate(() => window.__designLabStates)
@@ -35,6 +38,7 @@ for (const screen of LAB_SCREEN_IDS) {
 
     for (const state of states) {
       test(`状态 ${state.id} · ${state.name}`, async ({ page }) => {
+        if (DIRECTOR_SCREENS.has(screen)) await page.setViewportSize({ width: 1280, height: 933 })
         if (screen === 'storyboard' && state.id === 'sb-row-06-generating') {
           // Fix only Date: real animation/timers still run, while elapsed narration is deterministic.
           await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
@@ -55,7 +59,7 @@ for (const screen of LAB_SCREEN_IDS) {
           return page.evaluate(() => window.__designLabReady === true)
         }, { intervals: [32] }).toBe(true)
         const shot = page.locator(`[data-design-lab-shot="${state.id}"]`)
-        await expect(shot).toBeVisible()
+        if (state.capture !== 'viewport') await expect(shot).toBeVisible()
         if (screen === 'process-feedback') {
           await page.clock.runFor(state.id === 'pf-fx-final-reveal' ? 400 : state.id === 'pf-fx-done-clean' ? 3201 : 1000)
           // Cross-surface acceptance runs in the real App: process-feedback-electron.e2e.mjs.

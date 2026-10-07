@@ -258,4 +258,32 @@ describe("timeline capability Pi transports", () => {
       // so the adapter must publish an unresolved receipt, never a definite failure the model would retry.
     }, signal)).resolves.toMatchObject({ ok: false, code: "capability_receipt_unresolved" });
   });
+
+  it("preserves undo_conflict for the Agent instead of collapsing it to capability_execution_failed", async () => {
+    const test = await setup();
+    const signal = new AbortController().signal;
+    const prepared = await test.writeAdapter.prepare({
+      toolCallId: "tool-undo",
+      toolName: "undo_timeline_edit",
+      args: { changeId: "timeline:v1:receipt-a", expectedRevision: "cafebabe" },
+    }, signal);
+    expect(prepared?.invocation.input).toEqual({
+      operation: "undo_timeline_edit",
+      changeId: "timeline:v1:receipt-a",
+      expectedRevision: "cafebabe",
+    });
+    test.write.mockResolvedValueOnce({
+      operation: "undo_timeline_edit",
+      ok: false,
+      revision: "cafebabe",
+      undone: false,
+      code: "undo_conflict",
+      changeId: "timeline:v1:receipt-a",
+    });
+    await expect(test.writeAdapter.execute(prepared!, {
+      receiptProposalId: "receipt-undo-conflict",
+      approvalId: "approval-undo-conflict",
+      actionHash: prepared!.invocation.actionHash,
+    }, signal)).resolves.toMatchObject({ ok: false, code: "undo_conflict" });
+  });
 });

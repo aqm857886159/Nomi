@@ -31,13 +31,17 @@ const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '
  */
 const SURFACES = [
   {
-    label: 'McpTransport',
+    // 2026-10-05 协议层换官方 SDK：Nomi 那一侧的口改名 McpHost，生产工厂是 createNomiMcpServer
+    //（createMcpProtocol 只剩进程内连接，给单测与门岗脚本用，不是生产装配点）。
+    label: 'McpHost',
     interfaceFile: 'electron/capabilityCore/mcpProtocol.ts',
-    interfaceName: 'McpTransport',
-    factory: 'createMcpProtocol',
+    interfaceName: 'McpHost',
+    factory: 'createNomiMcpServer',
     assemblySites: [
       'electron/capabilityCore/mcpNodeLauncher.ts',
       'electron/capabilityCore/mcpStdioServer.ts',
+      // 2026-10-05 第 2 段：本机 HTTP 直连的每条会话（createLoopbackMcpHttpSession）。
+      'electron/capabilityCore/mcpHttpServer.ts',
     ],
     // member → 为什么这个生产装配点没接（必须是真理由，不是「以后再说」）
     // verifyClientGenerationConfirmation 已于 2026-09-03 在两个装配点（mcpNodeLauncher / mcpStdioServer）

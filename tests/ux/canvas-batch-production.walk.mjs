@@ -1,5 +1,6 @@
 import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
-// Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
+// Real Electron journey for canvas batch production — the only batch entrance is the group toolbar's「生成整组」.
+// Each node runs with the model it already carries (no bulk model picker, no concurrency picker). The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
 import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findConnectionStartPoint, findNodeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
@@ -22,8 +23,6 @@ const NOW = '2026-08-08T00:00:00.000Z'
 const VENDOR = 'batch-mock'
 const IMAGE_A = 'batch-image-a'
 const IMAGE_B = 'batch-image-b'
-const VIDEO_A = 'batch-video-a'
-const VIDEO_B = 'batch-video-b'
 const imageBytes = fs.readFileSync(path.join(repoRoot, 'resources/onboarding-demo/shot-4.jpg'))
 const imageDataUrl = `data:image/jpeg;base64,${imageBytes.toString('base64')}`
 const wireCalls = []
@@ -59,7 +58,9 @@ const vendorServer = http.createServer(async (req, res) => {
   if (shouldFail) failOncePending = false
   setTimeout(() => {
     call.finishedAt = Date.now()
-    call.status = shouldFail ? 500 : 200
+    // 当场明确拒绝（422：对方看完请求、亲口说不、没建任务）= 确定没受理、没扣钱，节点报原话、可以重试。
+    // 5xx 是「结果未知」（可能已收下），画布付费生成进了 Run 之后按设计锁住先核对（outboundDispatchEvidence F3），不再拿来演「失败可重试」。
+    call.status = shouldFail ? 422 : 200
     res.writeHead(call.status, { 'content-type': 'application/json' })
     res.end(shouldFail
       ? JSON.stringify({ error: { message: 'mock fail once' } })
@@ -98,26 +99,6 @@ function imageMapping(modelKey, taskKind) {
   }
 }
 
-function videoMapping(modelKey) {
-  return {
-    id: `${modelKey}-text_to_video`,
-    vendorKey: VENDOR,
-    taskKind: 'text_to_video',
-    modelKey,
-    name: `${modelKey} text_to_video`,
-    enabled: true,
-    create: {
-      method: 'POST',
-      path: '/v1/videos/generations',
-      headers: { 'Content-Type': 'application/json' },
-      body: { model: '{{model.modelKey}}', prompt: '{{request.prompt}}' },
-      response_mapping: { video_url: 'data.0.url' },
-    },
-    createdAt: NOW,
-    updatedAt: NOW,
-  }
-}
-
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   version: 8,
   vendors: [{
@@ -139,16 +120,12 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   models: [
     { modelKey: IMAGE_A, vendorKey: VENDOR, labelZh: '批量图片 A', kind: 'image', enabled: true, meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW },
     { modelKey: IMAGE_B, vendorKey: VENDOR, labelZh: '批量图片 B', kind: 'image', enabled: true, meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW },
-    { modelKey: VIDEO_A, vendorKey: VENDOR, labelZh: '批量视频 A', kind: 'video', enabled: true, createdAt: NOW, updatedAt: NOW },
-    { modelKey: VIDEO_B, vendorKey: VENDOR, labelZh: '批量视频 B', kind: 'video', enabled: true, createdAt: NOW, updatedAt: NOW },
   ],
   mappings: [
     ...[IMAGE_A, IMAGE_B].flatMap((modelKey) => [
       imageMapping(modelKey, 'text_to_image'),
       imageMapping(modelKey, 'image_edit'),
     ]),
-    videoMapping(VIDEO_A),
-    videoMapping(VIDEO_B),
   ],
   apiKeysByVendor: {},
 }, null, 2))
@@ -214,14 +191,6 @@ async function clearSelection(win) {
   await win.waitForTimeout(500)
 }
 
-async function chooseSelectOption(win, ariaLabel, optionText) {
-  await win.locator(`button[aria-label="${ariaLabel}"]`).first().click({ timeout: 5000 })
-  const option = win.getByRole('option').filter({ hasText: optionText }).first()
-  await option.waitFor({ timeout: 5000 })
-  await option.click()
-  await win.waitForTimeout(600)
-}
-
 async function spendDialog(win) {
   const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
   await dialog.waitFor({ timeout: 8000 })
@@ -251,7 +220,7 @@ const { app, win } = await launchNomiApp({
   projectsDir,
   settleMs: 0,
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'],
-  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen' },
+  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', __nomiE2E: '1' },
   env: {
     NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`,
   },
@@ -326,149 +295,86 @@ try {
   check(await win.locator('.generation-canvas-v2__edge-path').count() === 1, '真实点击建立依赖边')
   await clearSelection(win)
 
-  const generateAll = win.locator('[data-batch-scope="all"]')
-  await generateAll.waitFor({ timeout: 5000 })
-  const generateAllProbe = await proveProbe(generateAll, '待生成节点存在时显示批量生成入口')
-  check((await generateAll.textContent())?.includes('2'), '无选择入口显示两个待生成节点')
-  await chooseSelectOption(win, '文生图 ×1', '批量图片 B')
-  await chooseSelectOption(win, '参考图改图 ×1', '批量图片 B')
-  await win.waitForTimeout(1200)
-  const allScopeProjectFile = findProjectJson(projectsDir)
-  check(Boolean(allScopeProjectFile), '未框选时批量模型更新已触发项目持久化')
-  const allScopePersistedNodes = JSON.parse(fs.readFileSync(allScopeProjectFile, 'utf8')).payload.generationCanvas.nodes
-  check(
-    allScopePersistedNodes.filter((node) => node.kind === 'image').every((node) => node.meta?.modelKey === IMAGE_B),
-    '未框选时图片节点统一切到图片 B',
-  )
-  await chooseSelectOption(win, '并发', '2')
-  check(await win.evaluate(() => window.localStorage.getItem('nomi.canvas.batch-concurrency')) === '2', '并发偏好写入本地存储')
-  await snap(win, 'light-generate-all')
-
-  await generateAll.click()
-  let dialog = await spendDialog(win)
-  await snap(win, 'spend-confirm-before-cancel')
-  await dialog.getByRole('button', { name: '取消', exact: true }).click()
-  await win.waitForTimeout(700)
-  check(wireCalls.length === 0, '取消付费确认后 vendor 零调用')
-
-  await generateAll.click()
-  dialog = await spendDialog(win)
-  console.log('CONFIRM_HIT', JSON.stringify(await dialog.getByRole('button', { name: '生成', exact: true }).evaluate(button => {
-    const rect = button.getBoundingClientRect()
-    const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2
-    return { x, y, hit: document.elementFromPoint(x, y)?.outerHTML.slice(0, 1500), stack: document.elementsFromPoint(x, y).map(el => ({ tag: el.tagName, cls: el.className, pointer: getComputedStyle(el).pointerEvents })).slice(0, 8) }
-  })))
-  await dialog.getByRole('button', { name: '生成', exact: true }).click()
-  await win.waitForFunction(() => document.querySelectorAll('[data-kind="image"][data-status="success"]').length >= 2, null, { timeout: 30000 })
-  await snap(win, 'generate-all-completed')
-  await expectAbsent(generateAll, {
-    provenBy: generateAllProbe,
-    message: '全部节点完成后批量生成底栏退出，不显示“生成全部 0 个”',
-  })
-  const sourceCall = wireCalls.find((call) => call.prompt.includes('源图'))
-  const targetCall = wireCalls.find((call) => call.prompt.includes('下游图'))
-  check(Boolean(sourceCall && targetCall), '依赖波次两个请求都完成')
-  check(targetCall.startedAt >= sourceCall.finishedAt, '下游在上游完成后才开始')
-  check(targetCall.hasImage, '下游请求收到上游图片参考')
-
-  await clearSelection(win)
+  // ── 批量只走组：依赖波次的两张图 + 一张会先失败的图，编成一组，用节点自己的模型生成 ──
   const retryImageId = await addNodeWithPrompt(win, '图片', '批量生成失败后重试')
   await clearSelection(win)
-  const videoId = await addNodeWithPrompt(win, '视频', '批量视频模型切换验证')
-  check(Boolean(retryImageId && videoId), '真实点击新增图片和视频节点')
-  await clearSelection(win)
+  check(Boolean(retryImageId), '真实点击新增第三张图片节点')
+  // 三个节点各自已选好的模型（A / B / A）——「生成整组」不许改它、也不许弹模型选择。
+  const MODEL_OF = { [sourceId]: IMAGE_A, [targetId]: IMAGE_B, [retryImageId]: IMAGE_A }
+  await win.evaluate(({ models, vendor }) => {
+    const store = window.__nomiCanvasStore.getState()
+    store.updateNodes(Object.entries(models).map(([nodeId, modelKey]) => ({
+      nodeId,
+      patch: { meta: { ...(store.nodes.find((node) => node.id === nodeId)?.meta ?? {}), modelKey, modelVendor: vendor } },
+    })))
+  }, { models: MODEL_OF, vendor: VENDOR })
+  await win.getByRole('button', { name: '适应视图', exact: true }).first().click()
+  await waitForCanvasViewportSettled(win)
   await clickCanvasBlank(win)
-  await expect(win.getByRole('button', { name: '展开生成时间轴' })).toHaveCount(1)
-  await win.keyboard.press('Meta+a')
-  await win.waitForTimeout(900)
-
-  const selectedGenerate = win.locator('[data-batch-scope="selection"]')
-  await selectedGenerate.waitFor({ timeout: 5000 })
-  check((await selectedGenerate.textContent())?.includes('2'), '混合选择只统计两个待生成节点')
-  await chooseSelectOption(win, '文生图 ×2', '批量图片 B')
-  await chooseSelectOption(win, '参考图改图 ×1', '批量图片 B')
-  await chooseSelectOption(win, '视频 ×1', '批量视频 B')
-  await win.waitForTimeout(1200)
-  const projectFile = findProjectJson(projectsDir)
-  check(Boolean(projectFile), '批量模型更新已触发项目持久化')
-  const persistedNodes = JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload.generationCanvas.nodes
-  check(persistedNodes.filter((node) => node.kind === 'image').every((node) => node.meta?.modelKey === IMAGE_B), '三个图片节点统一切到图片 B')
-  check(persistedNodes.find((node) => node.id === videoId)?.meta?.modelKey === VIDEO_B, '视频节点切到视频 B')
-  await snap(win, 'light-mixed-selection-models')
-
+  await win.keyboard.press('Control+a')
+  await expect.poll(() => win.evaluate(() => window.__nomiCanvasStore.getState().selectedNodeIds.length)).toBe(3)
+  await win.locator('[aria-label^="创建分组"]').first().click()
+  const groupToolbar = win.locator('[data-group-toolbar="true"]')
+  await groupToolbar.waitFor()
+  const groupToolbarProof = await proveProbe(groupToolbar, '编组后组工具条在屏上（证明同屏探针是活的）')
+  // 旧的批量入口一个都不剩：底部批量栏、框选浮条上的「生成选中 N 个」、按类型统一换模型、并发下拉。
+  for (const [selector, message] of [
+    ['[data-batch-dock]', '没有底部批量生成栏'],
+    ['[data-batch-scope]', '没有「生成全部 / 生成选中」按钮'],
+    ['[data-storyboard-run-all]', '没有旧的批量生成按钮标记'],
+  ]) {
+    await expectAbsent(win.locator(selector), { provenBy: groupToolbarProof, message })
+  }
+  await snap(win, 'light-group-toolbar')
   await win.locator('button[aria-label="设置"]').first().click()
   await win.getByRole('button', { name: '通用', exact: true }).click()
   await win.locator('button[aria-label="切换到深色模式"], button[aria-label="切换到浅色模式"]').click()
   await win.getByRole('dialog', { name: '设置' }).getByRole('button', { name: '关闭', exact: true }).click()
   await win.waitForTimeout(700)
-  await snap(win, 'dark-mixed-selection-models')
+  await snap(win, 'dark-group-toolbar')
 
-  await win.getByRole('button', { name: /打开模型设置/ }).first().click({ timeout: 5000 })
-  await modelPanel.waitFor({ state: 'visible', timeout: 5000 })
-  await win.waitForTimeout(900)
-  // 同上：能力 chip 上色是「设置」面板自己的事（且 main 已撤掉旧的按能力上色 UI）。这里只确认暗色下
-  // 面板仍能正常打开、种子供应商仍在，并保留「通知不遮挡面板」这条真正跨主题的布局回归。
-  const darkBatchMockRow = modelPanel.locator('button').filter({ hasText: 'Batch Mock' }).first()
-  await darkBatchMockRow.waitFor({ state: 'visible', timeout: 5000 })
-  check(await darkBatchMockRow.count() === 1, '暗色下模型设置仍列出 Batch Mock 供应商')
-  const modelPanelBox = await modelPanel.boundingBox()
-  const modelNotificationBoxes = await win
-    .locator('.mantine-Notifications-root[data-position="top-right"]')
-    .getByRole('alert')
-    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()).map(({ x, y, width, height }) => ({ x, y, width, height })))
-  check(modelNotificationBoxes.length > 0, '模型切换反馈通知仍然可见')
-  check(
-    Boolean(
-      modelPanelBox &&
-        modelNotificationBoxes.every(
-          (box) =>
-            box.x + box.width <= modelPanelBox.x - 8 ||
-            box.x >= modelPanelBox.x + modelPanelBox.width + 8 ||
-            box.y + box.height <= modelPanelBox.y - 8 ||
-            box.y >= modelPanelBox.y + modelPanelBox.height + 8,
-        ),
-    ),
-    '模型面板打开时通知不会遮挡面板',
-    JSON.stringify({ modelPanelBox, modelNotificationBoxes })
-  )
-  await snap(win, 'dark-model-settings')
-  await modelPanel.getByRole('button', { name: '关闭', exact: true }).click()
-  await win.waitForTimeout(400)
-
-  const callsBeforeSelectedCancel = wireCalls.length
-  await selectedGenerate.click()
-  dialog = await spendDialog(win)
+  const generateGroup = groupToolbar.getByRole('button', { name: '生成整组', exact: true })
+  const modelsBefore = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.map((node) => [node.id, node.meta?.modelKey, node.meta?.modelVendor]))
+  await generateGroup.click()
+  let dialog = await spendDialog(win)
+  check(/3\s*(张|个|项|次|份)/.test(await dialog.innerText()), '确认卡覆盖整组 3 张', await dialog.innerText())
+  await snap(win, 'spend-confirm-before-cancel')
   await dialog.getByRole('button', { name: '取消', exact: true }).click()
   await win.waitForTimeout(700)
-  check(wireCalls.length === callsBeforeSelectedCancel, '混合选中生成取消后 vendor 零新增调用')
+  check(wireCalls.length === 0, '取消付费确认后 vendor 零调用')
 
-  await win.locator('button[aria-label="清除选择"]').click()
-  // 前面为让浮框整张进舞台拖过画布，要点的两张卡可能已出视野（被按可见性卸载）。人会先点「适应视图」看全再点。
-  await win.getByRole('button', { name: '适应视图', exact: true }).first().click()
-  await waitForCanvasViewportSettled(win)
-  await win.locator(`.react-flow__node[data-id="${retryImageId}"]`).click()
-  await win.locator(`.react-flow__node[data-id="${sourceId}"]`).click({ modifiers: ['Shift'] })
-  await win.waitForTimeout(800)
-  const retrySelectionGenerate = win.locator('[data-batch-scope="selection"]')
-  check((await retrySelectionGenerate.textContent())?.includes('1'), '选中批量只生成一个失败待测节点')
-  // 选中批量里只有 1 张 = 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
-  // 下面「节点进入排队 / 生成中」本身就是证据：若中间弹了卡而走查不去点，节点永远到不了排队态。
-  await retrySelectionGenerate.click()
+  await generateGroup.click()
+  dialog = await spendDialog(win)
+  // 先给「会失败的那张」的 DOM 打个标：从排队 / 生成中走到失败再到重试成功，必须始终是同一个节点 DOM。
+  await win.locator(`[data-node-id="${retryImageId}"]`).evaluate((element) => { element.dataset.batchStable = 'true' })
+  await dialog.getByRole('button', { name: '生成', exact: true }).click()
+  await win.waitForFunction(() => document.querySelectorAll('[data-kind="image"][data-status="success"]').length >= 2, null, { timeout: 30000 })
+  await snap(win, 'generate-group-completed')
+  const sourceCall = wireCalls.find((call) => call.prompt.includes('源图'))
+  const targetCall = wireCalls.find((call) => call.prompt.includes('下游图'))
+  const retryCall = wireCalls.find((call) => call.prompt.includes('重试'))
+  check(Boolean(sourceCall && targetCall && retryCall), '整组三个节点的请求都发出了')
+  check(targetCall.startedAt >= sourceCall.finishedAt, '下游在上游完成后才开始')
+  check(targetCall.hasImage, '下游请求收到上游图片参考')
+  // 本条的要点：每个节点发出去的请求里的模型 = 节点自己已选好的模型，没有被统一成同一个。
+  check(sourceCall.model === IMAGE_A && targetCall.model === IMAGE_B && retryCall.model === IMAGE_A, '每个节点请求里的模型 = 节点自己的模型', JSON.stringify(wireCalls.map((call) => [call.prompt, call.model])))
+  check(new Set(wireCalls.map((call) => call.model)).size === 2, '同一组里两种模型各用各的（没被统一）')
+  check(JSON.stringify(await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.map((node) => [node.id, node.meta?.modelKey, node.meta?.modelVendor]))) === JSON.stringify(modelsBefore), '生成整组没有改任何节点的模型')
+  check(await win.evaluate(() => window.localStorage.getItem('nomi.canvas.batch-concurrency')) === null, '不再有用户可选的并发偏好')
+
+  // 失败的那张在整组里先报错，通知里给「重试失败的」。
   const notificationRoot = win.locator('.mantine-Notifications-root[data-position="top-right"]')
   const retryNode = win.locator(`[data-node-id="${retryImageId}"]`)
-  const runningAlert = retryNode.and(win.locator('[data-status="queued"], [data-status="running"]'))
-  await runningAlert.waitFor({ timeout: 5000 })
-  await retryNode.evaluate((element) => { element.dataset.batchStable = 'true' })
   const failedAlert = retryNode.and(win.locator('[data-status="error"]'))
   await failedAlert.waitFor({ timeout: 15000 })
   check(await retryNode.getAttribute('data-batch-stable') === 'true', '进度到失败复用同一个节点 DOM')
   await expect(retryNode).toContainText('mock fail once')
-  const batchFailureAlert = notificationRoot.getByRole('alert').filter({ hasText: /生成失败/ }).first()
+  const batchFailureAlert = notificationRoot.getByRole('alert').filter({ hasText: /已完成 2 个，1 个失败/ }).first()
   const notificationProof = await proveProbe(batchFailureAlert, '同一通知容器确实能测到本批失败反馈')
   await expectAbsent(notificationRoot.getByRole('alert').filter({ hasText: /开始生成/ }), {
     provenBy: notificationProof, message: '节点已承担进度，不再弹开始生成通知',
   })
-  check(await notificationRoot.getByRole('alert').filter({ hasText: /生成失败/ }).count() === 1, '失败后只有一条批量重试通知')
+  check(await notificationRoot.getByRole('alert').filter({ hasText: /已完成 2 个，1 个失败/ }).count() === 1, '失败后只有一条批量重试通知')
   const runningBox = await batchFailureAlert.boundingBox()
   check(Boolean(runningBox && Math.abs(runningBox.width - 344) <= 1), '通知宽度为 344px', JSON.stringify(runningBox))
   const notificationRootTop = await notificationRoot.evaluate((element) => Number.parseFloat(getComputedStyle(element).top))
@@ -492,45 +398,20 @@ try {
   await expectAbsent(notificationRoot.getByRole('alert').filter({ hasText: /已完成/ }), {
     provenBy: notificationProof, message: '节点已成功，普通完成不重复弹通知',
   })
-  check(wireCalls.filter((call) => call.prompt.includes('重试')).map((call) => call.status).join(',') === '500,200', '失败节点通过一键重试成功')
-  check(await win.evaluate(() => window.localStorage.getItem('nomi.canvas.batch-concurrency')) === '2', '重试后并发偏好仍为 2')
+  check(wireCalls.filter((call) => call.prompt.includes('重试')).map((call) => call.status).join(',') === '422,200', '失败节点通过一键重试成功')
   await snap(win, 'retry-completed-dark')
 
-  // Bottom batch dock must not cover the collapsed timeline handle, and it needs a real escape hatch.
+  // 底部批量栏已删：画布底部只剩时间轴入口，且点得开。
   await clearSelection(win)
-  const finalBatchDock = win.locator('[data-batch-dock="true"]')
-  await finalBatchDock.waitFor({ timeout: 5000 })
   const timelineHandle = win.getByRole('button', { name: '展开生成时间轴' })
-  console.log('TIMELINE_HANDLE_DIAGNOSTIC', JSON.stringify({
-    previousScenario: process.env.NOMI_CANVAS_PREVIOUS_SCENARIO ?? null,
-    count: await timelineHandle.count(),
-    elements: await timelineHandle.evaluateAll((elements) => elements.map((element) => element.outerHTML)),
-    document: await win.evaluate(() => ({
-      viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
-      handles: [...document.querySelectorAll('.workbench-generation__timeline-handle')].map((element) => ({
-        html: element.outerHTML,
-        hiddenAncestor: element.closest('[aria-hidden="true"]')?.outerHTML.slice(0, 300),
-      })),
-      timelines: document.querySelectorAll('section[aria-label="生成时间轴"]').length,
-      timelineExpanded: document.querySelector('section[aria-label="生成时间轴"]') !== null,
-      timelineState: document.querySelector('.workbench-generation')?.outerHTML.slice(0, 650),
-      dialogs: [...document.querySelectorAll('[role="dialog"]')].map((element) => element.textContent.slice(0, 200)),
-    })),
-  }))
-  check(await timelineHandle.count() === 1, '批量底栏没有盖住时间轴展开入口')
-  await snap(win, 'batch-dock-timeline-handle')
-  const dismissBatchDock = win.getByRole('button', { name: '隐藏批量生成栏' })
-  check(await dismissBatchDock.count() === 1, '批量底栏提供可识别的隐藏入口')
-  await dismissBatchDock.click()
-  await win.waitForTimeout(400)
-  check(await finalBatchDock.count() === 0, '隐藏批量底栏后不再遮挡画布底部')
-  check(await timelineHandle.count() === 1, '隐藏批量底栏后时间轴入口仍可用')
+  await expect(win.locator('[data-batch-dock]')).toHaveCount(0)
+  check(await timelineHandle.count() === 1, '底部没有批量栏盖住时间轴展开入口')
   await timelineHandle.click()
   await win.waitForTimeout(700)
   check(await win.locator('section[aria-label="生成时间轴"]').count() === 1, '时间轴可从底部入口正常展开')
   await snap(win, 'timeline-unblocked')
 
-  const unexpectedConsoleErrors = consoleErrors.filter((message) => !/mock fail once|HTTP 500|生成失败/i.test(message))
+  const unexpectedConsoleErrors = consoleErrors.filter((message) => !/mock fail once|HTTP 422|生成失败/i.test(message))
   check(pageErrors.length === 0, '页面运行无 pageerror', pageErrors.join(' | '))
   check(unexpectedConsoleErrors.length === 0, '控制台无意外 error', unexpectedConsoleErrors.join(' | '))
   console.log(`  expected console errors from fail-once path: ${consoleErrors.length - unexpectedConsoleErrors.length}`)

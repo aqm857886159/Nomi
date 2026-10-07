@@ -29,8 +29,7 @@ import {
   type McpProfileTool,
 } from "../shared/agentCapabilities/modelFacingTools";
 import { mcpProfileToolFor, specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
-import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
-import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
+import { findUnsupportedSchemaFeatures, transportSchemaFromZod, type SchemaLike } from "./mcpTransportSchemaFromZod";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
 import { emitMcpToolCatalogChanged } from "./mcpToolCatalogChanges";
 

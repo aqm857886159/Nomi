@@ -1,0 +1,14 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5175/.tmp/director-full-audit-20260907/inspector-fields.html
+Call log:
+  - navigating to "http://127.0.0.1:5175/.tmp/director-full-audit-20260907/inspector-fields.html", waiting until "load"
+
+    at run (~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/director-fields.walk.mjs:43:14)
+    at ~/.codex/worktrees/5354/Nomi-chore-mac-walkthrough-run/tests/ux/director-fields.walk.mjs:51:51 {
+  name: 'Error'
+}
+
+Node.js v22.22.0

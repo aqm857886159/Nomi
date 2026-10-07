@@ -36,3 +36,9 @@ export function classifyTaskCacheMiss(
     raw: { code, taskId },
   };
 }
+
+/** `classifyTaskCacheMiss` 产出的 raw 形状判别：查询方（如 `nomi_read target=task`）据此区分「真结果」与「没得查」。 */
+export function isTaskCacheMissRaw(raw: unknown): raw is { code: "task_unknown" | "task_tracking_lost"; taskId: string } {
+  const code = (raw as { code?: unknown } | null)?.code;
+  return code === "task_unknown" || code === "task_tracking_lost";
+}

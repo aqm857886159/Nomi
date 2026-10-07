@@ -33,7 +33,7 @@ describe("timeline.write capability contract", () => {
       }),
     ).toEqual({
       operation: "undo_timeline_edit",
-      undoToken: "timeline-undo:v1:receipt-a",
+      changeId: "timeline-undo:v1:receipt-a",
       expectedRevision: "cafebabe",
     });
     expect(

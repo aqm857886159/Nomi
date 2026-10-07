@@ -1,0 +1,211 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-deterministic-retrieval-failure-settles",
+  "problem_type": "观察循环把确定性的取回失败当成「还在处理」，无限重查、重下",
+  "symptom": "#975 评论：6 镜批次供应商全部出片，Nomi 只回填前 3 镜，后 3 镜长期 polling，主进程持续高 CPU、1.7–2.3GB 内存、心跳失联。 V-975 真 App 验收追加两例：①假适配器返回 20 字节坏 MP4，落盘校验 output-unreadable (unknown_bytes) 被当暂时错误，约每 15 秒整段重下一次；②这种镜在分镜表上显示「生成失败」，旁边「生成全部 1 个」一点就重新生成、再花一次钱，而任务面板说的是「已经生成，但结果没能取回」。",
+  "direct_cause": "electron/productionRun/multiShotBatchScheduler.ts observeUnitOnce 对 submission.materialize 抛出的任何错误都 logWarn 后返回 pending；derivation 继续把这一镜放进 observe，每轮 poll（查供应商）+ materialize（整段下载）直到 pollHorizonMs，重踢后从头再来。",
+  "class_root": "「这次取回失败，换个时间再取会不会不一样」没有主人：取回器只抛裸错误，观察循环只能一律当暂时错误重试；没有任何耐久状态记下「已生成、取回失败」，也没有只取回、不重新生成的入口。 同一族第二面：「已生成、待取回」没有自己的镜头阶段，投影把它折进「失败」，于是分镜表、节点、「生成全部」计数都按「失败 = 可以批量重生成」处理。",
+  "affected_population": [
+    "多镜批次里任何一镜的产物取回确定性失败（出站策略拒、4xx、跳转、类型不对、超上限）的用户"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-04",
+  "scope_paths": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunState.ts",
+    "electron/productionRun/productionRunIpc.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/assets/generatedMediaDecode.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts"
+  ],
+  "entry_points": [
+    "多镜批次调度器 observeUnitOnce（付费卡 / 执行计划 / 外部 MCP / 全自动 Run / 续批的多镜路）",
+    "任务面板「重新取回」→ 渲染层 IPC job.retry_retrieval → productionRunService.command"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi 自己的观察循环与取回器之间的状态约定，无第三方能决定；判据只读 networkOutboundPolicy 的结构化错误与 hardenedFetch 挂在错误上的诊断。",
+  "invariants": [
+    "确定性的取回失败只发生一次就耐久地落成 needs_attention（errorCode output_retrieval_failed），之后任何重踢都不再为这一镜查询或下载，直到人点「重新取回」；重新取回永不提交、永不预留。",
+    "「已生成、待取回」只由 productionShotPhase.jobAwaitsRetrieval 判定；镜头阶段投影为 unretrieved，节点挂 recoverable——分镜表、节点与「生成全部」计数都不把它当失败，不进任何批量生成；重新取回只经 Run 的 job.retry_retrieval。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionGenerationSubmission.ts",
+    "tests": [
+      "electron/productionRun/batchOutputRetrievalFailure.e2e.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationOutputRetrievalFailedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "GenerationOutputRetrievalFailedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "jobAwaitsRetrieval"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "symbol": "job.retry_retrieval"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunState.ts",
+      "symbol": "needs_attention"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "OUTPUT_RETRIEVAL_FAILED"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "GeneratedMediaValidationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionShotPhase.ts",
+      "symbol": "jobAwaitsRetrieval"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "unretrieved"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "retryProductionRetrievalForNode"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "提交门面写耐久状态、调度器只读结论、service 与 IPC 是重新取回的唯一命令入口、state 只开 needs_attention → polling 一条边、types 放共享码、generatedMediaDecode 给落盘校验失败一个结构化类型、productionShotPhase 是「已生成待取回」唯一判据（jobAwaitsRetrieval）与镜头阶段、multiShotCanvasLanding 只把这个阶段投成节点的「可找回」：每一扇各管一件事。 recoverTaskActions 是节点 / 分镜表「重新拉取」的唯一入口，只把制作镜转给 Run 的重新取回。"
+  },
+  "generality_proof": "判据不看供应商、不看失败的具体文案，只看策略错误类型与 HTTP 诊断（状态码 / 是否中止），所以任何连接、任何确定性取回失败都走同一条「停下 → 重新取回」；单镜路本来就把物化失败落成 attention（appIntegrationRunObservation），不会循环，且现在同样带上 output_retrieval_failed 码。",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationOutputRetrievalFailedError",
+      "responsibility": "把确定性取回失败写成耐久的 needs_attention 并告诉观察者「已结清」。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "observeUnitOnce",
+      "disposition": "enforced",
+      "evidence": "batchOutputRetrievalFailure.e2e：修前一趟 120s 驱动重查重下 12 次（expected 12 to be 1），修后 1 次即停，再踢不查不下。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "entry_point": "observeSingleShotRun",
+      "disposition": "not-affected",
+      "evidence": "单镜观察对任何物化失败都 settleSingleShotAttention，本来不循环；markSingleShotAttention 遇到已是 needs_attention 的 job 不改写，保住 output_retrieval_failed 码。"
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "command",
+      "disposition": "enforced",
+      "evidence": "job.retry_retrieval：batchOutputRetrievalFailure.e2e 重新取回零新提交、只多查一次多取一次、落盘 ready；非取回失败的 job 一律拒且不写任何东西。"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "createGenerationOutputMaterializer",
+      "disposition": "enforced",
+      "evidence": "落盘校验失败（GeneratedMediaValidationError）归确定性；batchOutputRetrievalFailure.e2e 坏 MP4 用例修前 23 次重下（expected 23 to be 1），修后 1 次即停。"
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "entry_point": "buildMaterializeShotsPayload",
+      "disposition": "enforced",
+      "evidence": "unretrieved → generation.state recoverable；e2e 修前 ended、修后 recoverable。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "entry_point": "deriveStoryboardBatch",
+      "disposition": "not-affected",
+      "evidence": "recoverable 行本来就不进批量；节点挂上 recoverable 后自动成立（multiShotCanvasLanding.test 修前节点是 error → 进批量）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "entry_point": "eligibleGenerationNodeIds",
+      "disposition": "not-affected",
+      "evidence": "只收 idle / error 节点；recoverable 节点不算进「生成全部」（同上测试）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "enforced",
+      "evidence": "制作镜先走 retryProductionRetrievalForNode → job.retry_retrieval，不走画布自己的任务查询（两份真相）。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何连接、任何确定性取回失败在多镜批次里都会触发；每次重踢（定时器 / 重开项目 / 重启）都会重来。",
+    "same_class_scan": [
+      "git grep -n \"\\.materialize({\" electron：多镜调度器、单镜观察、两处对账（appIntegration / mcpStdioServer reconcile 已把 materialization_failed 落成 manual_review）",
+      "node scripts/door-map.mjs createGenerationOutputMaterializer：appIntegration / mcpStdioServer 两个装配点共用同一取回器"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionGenerationSubmission.ts",
+    "invariant": "确定性取回失败 → 耐久 needs_attention（output_retrieval_failed）+ 观察者视为已结清；重新取回只回到轮询。",
+    "failure_mode": "判不出确定性（无诊断、超时、5xx）时按暂时错误留在轮询，等下一轮。",
+    "exception_policy": "none",
+    "strategy": "取回器给出确定性答案，提交门面写耐久状态，调度器只读结论；needs_attention → polling 只开给 retry_retrieval 命令。",
+    "artifacts": [
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunState.ts",
+      "electron/productionRun/productionRunIpc.ts",
+      "electron/productionRun/productionRunTypes.ts",
+      "electron/assets/generatedMediaDecode.ts",
+      "electron/shared/productionShotPhase.ts",
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/batchOutputRetrievalFailure.e2e.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/batchOutputRetrievalFailure.e2e.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有旧的取回失败处理路径可删：此前根本不区分暂时与确定，新增的是缺失的那一半。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方运行时。",
+    "exit_criteria": []
+  },
+  "migration": "旧数据里停在 polling、取回反复失败的镜：下一次重踢时取回器给出确定性答案，自动落成 needs_attention，无需迁移。",
+  "residual_risks": [
+    "暂时类失败（大文件超时、断流、5xx）仍每轮重试到时限、重踢后再来，大视频反复部分下载仍可能吃 CPU / 内存；是否设次数上限待协调会话定。",
+    "重新取回只对多镜批次开放；单镜路的重新取回入口另开。",
+    "任务面板按钮与错误卡的新文案没有真机截图（unverified）。",
+    "#975 报告者那 3 镜的失败是否确定性，没有诊断包无法证实。",
+    "观察循环对 poll（查询供应商）抛出的错误仍一律当暂时错误重试；它不下载、开销小，未归确定性。"
+  ]
+}

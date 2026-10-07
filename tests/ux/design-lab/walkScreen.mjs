@@ -22,6 +22,7 @@ import path from 'node:path'
 import { readLabStates, REPO_ROOT } from './labStates.mjs'
 import { assertLabPortOwnership, labPortFor } from './labServer.mjs'
 import { withFreshLabPage } from './labPage.mjs'
+import { probePopupGeometry } from './popupGeometry.mjs'
 
 const COVERAGE_TONE = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }
 const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }
@@ -106,7 +107,8 @@ export async function walkDesignLabScreen(config) {
   console.log('▶ 启动 vite dev server…')
   // 起之前先看这口是不是别人的；是就当场停，别把别人的服务器当自己的。
   assertLabPortOwnership(config.role)
-  const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
+  // 直接用 node 跑 vite 的入口：Windows 上 spawn('npx') 找不到可执行文件（npx 是 .cmd），整趟走查起不来。
+  const vite = spawn(process.execPath, [path.join(REPO_ROOT, 'node_modules/vite/bin/vite.js'), '--host', HOST, '--port', String(PORT), '--strictPort'], {
     cwd: REPO_ROOT,
     // stderr 不再丢掉：--strictPort 撞口时 vite 是从这里喊的，
     // 以前 'ignore' 把它咽掉，于是「没绑上」和「绑上了」在日志里长得一模一样。
@@ -136,8 +138,10 @@ export async function walkDesignLabScreen(config) {
   try {
     // ① 活页面的注册表必须与源码解析结果一致。
     const live = await render(async (page) => {
-      await page.goto(`${BASE}/design-lab.html?screen=${config.screen}&frame=1&state=${states[0].id}`)
-      await waitForLabReady(page)
+      // 第一次加载就是冷启动的 vite（预打包依赖 + 转译整张模块图），慢机器上远超 30s——
+      // 给足这一次（同 warmUp.mjs 的理由），后面每格都是热服务器。
+      await page.goto(`${BASE}/design-lab.html?screen=${config.screen}&frame=1&state=${states[0].id}`, { timeout: 180_000 })
+      await waitForLabReady(page, 180_000)
       return page.evaluate(() => window.__designLabStates)
     })
     const parsed = states.map((state) => state.id)
@@ -167,7 +171,7 @@ export async function walkDesignLabScreen(config) {
         await waitForLabReady(page)
         const shot = page.locator(`[data-design-lab-shot="${state.id}"]`)
         const box = await shot.boundingBox()
-        if (!box || box.width < 40 || box.height < 24) {
+        if (state.capture !== 'viewport' && (!box || box.width < 40 || box.height < 24)) {
           record(`${state.id} 舞台没渲染出来（boundingBox=${JSON.stringify(box)}）`)
           return null
         }
@@ -203,6 +207,9 @@ export async function walkDesignLabScreen(config) {
           }, state.id)
           if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
         }
+        // 弹层几何普查（每屏每格都量，不分屏）：浮层不压自己的触发钮、不压那一排工具条、整块在窗口里。
+        const geometry = await page.evaluate(probePopupGeometry)
+        for (const violation of geometry.violations) record(`${state.id} 弹层几何：${violation.rule} ${JSON.stringify(violation)}`)
         // 屏自己还能再加断言——比如「下拉必须是展开的」这种只有那一屏才成立的承诺。
         if (config.assertState) await config.assertState(page, state, record)
         return box

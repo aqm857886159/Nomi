@@ -4,7 +4,7 @@
 // 用法: pnpm eval:judge-calibrate <runDir>   (runDir 里的 case 需已在查看器里人工标注并导出)
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadJudgeConfig, loadFewshots, judgeOne } from "../evals/lib/judge.mjs";
 import { createdNodes } from "../evals/lib/grading.mjs";
 
@@ -40,7 +40,7 @@ if (human.size < 10) {
 }
 
 const meta = JSON.parse(fs.readFileSync(path.join(runDir, "meta.json"), "utf8"));
-const { cases } = await import(path.join(repoRoot, "evals", "datasets", `${meta.dataset}.mjs`));
+const { cases } = await import(pathToFileURL(path.join(repoRoot, "evals", "datasets", `${meta.dataset}.mjs`)).href);
 const caseById = new Map(cases.map((c) => [c.id, c]));
 const outputs = fs
   .readFileSync(path.join(runDir, "output.jsonl"), "utf8")

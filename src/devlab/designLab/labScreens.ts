@@ -7,11 +7,16 @@ import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
 import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
+import { NODE_QUICK_ACTIONS_STATES } from './nodeQuickActions/nodeQuickActionsStates'
+import { VERSION_CARDS_STATES } from './versionCards/versionCardsStates'
+import { VERSION_CARDS_CELL_HEIGHT, VERSION_CARDS_CELL_WIDTH } from './versionCards/versionCardsLabKit'
+import { QUICK_ACTIONS_CELL_HEIGHT, QUICK_ACTIONS_CELL_WIDTH } from './nodeQuickActions/nodeQuickActionsLabKit'
 import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
 import { STORYBOARD_STATES } from './storyboard/storyboardStates'
+import { STORYBOARD_REUSE_STATES } from './storyboardReuse/storyboardReuseStates'
 import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
 import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
@@ -27,6 +32,12 @@ import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
 import { VIDEO_DEPTH_STATES } from './videoDepth/videoDepthStates'
 import { DEPTH_ACTION_CELL_HEIGHT, DEPTH_ACTION_CELL_WIDTH } from './videoDepth/videoDepthLabKit'
 import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
+import { DIRECTOR_3DBOX_STATES } from './director3dbox/director3dboxStates'
+import { DIRECTOR_3DBOX_CELL_HEIGHT, DIRECTOR_3DBOX_CELL_WIDTH } from './director3dbox/director3dboxCell'
+import { DIRECTOR_REFINE_STATES } from './directorRefine/directorRefineStates'
+import { DIRECTOR_CROWD_ALL_STATES } from './directorCrowd/directorCrowdStates'
+import { DIRECTOR_CROWD_CELL_HEIGHT, DIRECTOR_CROWD_CELL_WIDTH } from './directorCrowd/directorCrowdConstants'
+import { CANVAS_GROUPING_STATES } from './canvasGrouping/canvasGroupingStates'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -63,6 +74,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: STAGE_WIDTH, height: STAGE_HEIGHT + 120 },
   },
   {
+    id: 'storyboard-reuse',
+    label: '分镜表 · 复用画布底栏（提案）',
+    states: STORYBOARD_REUSE_STATES,
+    cell: { width: 900, height: 760 },
+  },
+  {
     id: 'host-config',
     label: '宿主接入配置',
     // 这一族是 toast：走 Mantine 单容器 Portal 到 body、fixed 贴在视口右上角，
@@ -87,12 +104,31 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
   },
   {
+    id: 'canvas-grouping',
+    label: '画布 · 临时多选与编组',
+    states: CANVAS_GROUPING_STATES,
+    cell: { width: 1060, height: 690 },
+  },
+  {
     id: 'node-composer-bar',
     label: '画布 · 节点生成浮框底栏',
     states: NODE_COMPOSER_BAR_STATES,
     // 八格取景一样大：这一屏要人比的是「同一个浮框，改前 vs 改后底栏里有什么」。
     // 格子不同宽，「挤没挤」就无从比起。
     cell: { width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT },
+  },
+  {
+    id: 'node-quick-actions',
+    label: '画布 · 节点快捷动作（批次 1 样张）',
+    states: NODE_QUICK_ACTIONS_STATES,
+    // 取景一样大：上方要装下「浮条 + 向上展开的菜单」，格子不同高就比不出浮条撑没撑宽。
+    cell: { width: QUICK_ACTIONS_CELL_WIDTH, height: QUICK_ACTIONS_CELL_HEIGHT },
+  },
+  {
+    id: 'version-cards',
+    label: '画布 · 版本卡片（宫格）',
+    states: VERSION_CARDS_STATES,
+    cell: { width: VERSION_CARDS_CELL_WIDTH, height: VERSION_CARDS_CELL_HEIGHT },
   },
   {
     id: 'settings',
@@ -151,6 +187,27 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: VENDOR_ORDER_STAGE_WIDTH, height: VENDOR_ORDER_STAGE_HEIGHT + 40 },
   },
   { id: 'creation-columns', label: '创作三栏 · 外框样张', states: CREATION_COLUMNS_STATES, cell: { width: 1440, height: 900 } },
+  {
+    id: 'director-3dbox',
+    label: '导演视图（3D-BOX）',
+    states: DIRECTOR_3DBOX_STATES,
+    // 整屏取景：导演台是 portal 到 body 的 fixed 外壳，右侧是常驻 Agent 面板。
+    // 格子尺寸 = 真机走查窗口内容区，实验室图与真机截图同尺寸才能并排对账。
+    cell: { width: DIRECTOR_3DBOX_CELL_WIDTH, height: DIRECTOR_3DBOX_CELL_HEIGHT },
+  },
+  {
+    id: 'director-refine',
+    label: '导演台精修 · 选中才出',
+    states: DIRECTOR_REFINE_STATES,
+    // 与导演视图屏同一个取景台、同一个尺寸（真机走查窗口内容区），新旧精修可以并排比
+    cell: { width: DIRECTOR_3DBOX_CELL_WIDTH, height: DIRECTOR_3DBOX_CELL_HEIGHT },
+  },
+  {
+    id: 'director-crowd',
+    label: '导演台 · 群众并进加人',
+    states: DIRECTOR_CROWD_ALL_STATES,
+    cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
+  },
 ]
 
 export function findLabScreen(id: string | null): LabScreen {

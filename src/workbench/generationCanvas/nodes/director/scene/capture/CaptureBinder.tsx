@@ -12,11 +12,12 @@ import { useThree } from '@react-three/fiber'
 import { useDirectorStoreApi } from '../../DirectorEditorContext'
 import { CHARACTER_HEIGHT } from '../entities/CharacterEntity'
 import { useSceneRegistry } from '../SceneRegistryContext'
-import type { CaptureFrameRequest, CaptureFrameResult } from '../ViewportApiContext'
+import type { CaptureCameraReadback, CaptureCharacterPoseReadback, CaptureFrameRequest, CaptureFrameResult } from '../ViewportApiContext'
 import { buildCaptureCamera, drawLabels, encodeCanvas, FrameRenderer, type CaptureLabel } from './directorCapture'
 import { transformCameraPose } from '../../model/cameraCoordinateSpace'
 import { sceneFrame } from '../../model/sceneObjectGraph'
 import { characterLabelAnchor } from '../character/characterLabel'
+import { indexBonesByBaseName } from '../character/poseSnapshot'
 
 const BLACK = new THREE.Color(0x000000)
 
@@ -30,7 +31,7 @@ export function CaptureBinder(): null {
     const anchor = new THREE.Vector3()
     const renderer = new FrameRenderer()
 
-    const resolveCamera = (request: CaptureFrameRequest): THREE.Camera | null => {
+    const resolveCamera = (request: CaptureFrameRequest): { camera: THREE.Camera; readback?: CaptureCameraReadback } | null => {
       const aspect = request.width / request.height
       if (request.cameraId === 'free' || request.cameraId === 'black') {
         const viewCamera = camera as THREE.PerspectiveCamera
@@ -40,7 +41,16 @@ export function CaptureBinder(): null {
         captureCamera.aspect = aspect
         captureCamera.updateProjectionMatrix()
         captureCamera.updateMatrixWorld(true)
-        return captureCamera
+        return {
+          camera: captureCamera,
+          readback: {
+            position: { x: captureCamera.position.x, y: captureCamera.position.y, z: captureCamera.position.z },
+            pitch: THREE.MathUtils.radToDeg(captureCamera.rotation.x),
+            yaw: THREE.MathUtils.radToDeg(captureCamera.rotation.y),
+            roll: THREE.MathUtils.radToDeg(captureCamera.rotation.z),
+            fov: captureCamera.fov,
+          },
+        }
       }
       const state = store.getState()
       const data = state.activeScene().cameras.find((item) => item.id === request.cameraId)
@@ -48,7 +58,10 @@ export function CaptureBinder(): null {
       const pose = state.evaluatedPoses[data.id]
       const rotation = pose?.rotation ?? { x: data.pitch, y: data.yaw, z: data.roll }
       const world = transformCameraPose({ position: pose?.position ?? data.position, pitch: rotation.x, yaw: rotation.y, roll: rotation.z, fov: pose?.fov ?? data.fov }, sceneFrame(state.activeScene().sceneConfig))
-      return buildCaptureCamera(world.position, { x: world.pitch, y: world.yaw, z: world.roll }, world.fov, aspect, captureCamera)
+      return {
+        camera: buildCaptureCamera(world.position, { x: world.pitch, y: world.yaw, z: world.roll }, world.fov, aspect, captureCamera),
+        readback: { position: world.position, yaw: world.yaw, pitch: world.pitch, roll: world.roll, fov: world.fov },
+      }
     }
 
     const projectLabels = (target: THREE.Camera, width: number, height: number): CaptureLabel[] => {
@@ -68,8 +81,9 @@ export function CaptureBinder(): null {
     }
 
     const capture = async (request: CaptureFrameRequest): Promise<CaptureFrameResult | null> => {
-      const target = resolveCamera(request)
-      if (!target) return null
+      const resolved = resolveCamera(request)
+      if (!resolved) return null
+      const target = resolved.camera
       // 黑场帧：什么都不画（相机不看任何图层）+ 纯黑背景
       const black = request.cameraId === 'black'
       const previousBackground = scene.background
@@ -107,7 +121,25 @@ export function CaptureBinder(): null {
       const context = canvas.getContext('2d')
       if (context) drawLabels(context, labels, request.width, request.height)
       const encoded = await encodeCanvas(canvas)
-      return { dataUrl: encoded.dataUrl, blob: encoded.blob, width: request.width, height: request.height }
+      const subjectPositions: Record<string, { x: number; y: number; z: number }> = {}
+      const characterPoses: Record<string, CaptureCharacterPoseReadback> = {}
+      for (const object of store.getState().activeScene().objects) {
+        if (!object.visible || object.isAuxiliary) continue
+        const root = registry.get(object.id)
+        if (!root) continue
+        const position = root.getWorldPosition(new THREE.Vector3())
+        subjectPositions[object.id] = { x: position.x, y: position.y, z: position.z }
+        if (object.type === 'character') {
+          const bones = indexBonesByBaseName(root)
+          // Mixamo's LeftArm/RightArm nodes are the shoulder joints; UE4 assets use clavicle_l/r.
+          const leftShoulder = bones.get('leftarm') ?? bones.get('clavicle_l'), rightShoulder = bones.get('rightarm') ?? bones.get('clavicle_r'), leftHand = bones.get('lefthand') ?? bones.get('hand_l'), rightHand = bones.get('righthand') ?? bones.get('hand_r')
+          if (leftShoulder && rightShoulder && leftHand && rightHand) {
+            const point = (bone: THREE.Object3D) => { const value = bone.getWorldPosition(new THREE.Vector3()); return { x: value.x, y: value.y, z: value.z } }
+            characterPoses[object.id] = { leftShoulder: point(leftShoulder), rightShoulder: point(rightShoulder), leftHand: point(leftHand), rightHand: point(rightHand) }
+          }
+        }
+      }
+      return { dataUrl: encoded.dataUrl, blob: encoded.blob, width: request.width, height: request.height, camera: resolved.readback, subjectPositions, characterPoses }
     }
 
     registry.registerFrameCapturer(capture)

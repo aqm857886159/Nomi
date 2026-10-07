@@ -42,6 +42,8 @@ const NOT_A_MODEL_REFUSAL: ReadonlyMap<string, string> = new Map([
   ['Generation gate decisions must use the Run-owned authorization seam', '程序员错误：走错了授权接缝。这条永远不该被模型触发。'],
   ['Unsupported semantic generation capability', '程序员错误：路由到了一个不存在的能力分支。'],
   ['generation schema has no', '装配期自检：schema 的分支名对不上。宁可装配期炸，也不要静默退回更窄的形状。'],
+  ['surface_port_unavailable', '宿主状态：3D-BOX 出卡前预检读候选时，生成面端口已被释放。读它的是宿主自己的 preflightGenerate，它 catch 后换成带码的 director_preview_pending 出去；模型从不直接读到这一句。'],
+  ['generation_operation_not_found', '宿主状态：同一条预检读不到这份草稿的镜头列表。同样被 preflightGenerate 的 catch 接住、fail-closed 不出卡，换成带码的 director_preview_pending；模型没有可改的字段。'],
 ])
 
 function bareThrows(file: string): readonly { line: number; text: string }[] {

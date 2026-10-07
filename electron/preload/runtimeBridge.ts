@@ -25,8 +25,7 @@ export const runtimeBridge = {
       ipcRenderer.invoke("nomi:production-runs:rework", { projectId, runId, ...(shotId ? { shotId } : {}) }),
     resumeBatch: (projectId: string, runId: string) =>
       ipcRenderer.invoke("nomi:production-runs:resume-batch", { projectId, runId }),
-    // 2026-09-11 Agent 面板付费确认卡：读待确认的那笔 / 卡上改参数 / 丢弃草稿 / 确认并开跑。
-    pendingSpend: (projectId: string) => ipcRenderer.invoke("nomi:production-runs:pending-spend", { projectId }),
+    // 2026-09-11 Agent 面板付费确认卡：卡上改参数 / 丢弃草稿 / 确认并开跑。待决出价本身随对话投影推过来（2026-10-05），这里没有读口。
     reviseSpend: (payload: unknown) => ipcRenderer.invoke("nomi:production-runs:revise-spend", payload),
     discardSpend: (projectId: string, operationId: string, quoteId: string) =>
       ipcRenderer.invoke("nomi:production-runs:discard-spend", { projectId, operationId, quoteId }),
@@ -41,10 +40,14 @@ export const runtimeBridge = {
     cancel: (taskId: string) => ipcRenderer.invoke("nomi:tasks:cancel", taskId) as Promise<{ ok: boolean }>,
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
+    canvasSubmit: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-submit", payload),
+    canvasPoll: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-poll", payload),
+    canvasRelease: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-release", payload),
+    canvasConsent: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-consent", payload) as Promise<{ runIds: string[] }>,
+    canvasWithdraw: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:canvas-withdraw", payload),
     runComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-test", payload),
     cancelComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-cancel", payload),
-    // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
-    quoteSpend: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:quote-spend", payload),
+    // 付费守卫令牌：只剩附属付费口（新手页工作流试生成）在用；画布不再铸令牌。
     grantSpend: (payload: unknown) =>
       ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,
     // 文本任务流式（逐 token）：start 返回 streamId，onTextEvent 收 delta/done/error。

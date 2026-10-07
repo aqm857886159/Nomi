@@ -6,6 +6,9 @@
  *          写回节点 meta.cameraMoveVideo + 工程 outputs.videos → 喂目标镜头 video_ref → 清标志）、CameraMoveVideoResult
  * [POS]: director/agent 的 create_camera_move 执行下半场（手动运镜控件同一条路）。看门狗 + 重试：一次上下文丢失不判死，attempt 当挂载 key 整棵重挂；
  *        只有 done / giveUp 才清标志。E2E 桥（__nomiCanvasStore / __nomiForceCameraMoveFail）只在 localStorage 打标时生效，生产永不暴露。
+ *        3D-BOX 整段预演（导演节点 directorPreview.status=rendering）是同一个 Host 的第二种请求：同一套重试 / 看门狗 / 落盘，
+ *        采帧计划与挂接写回在 ./directorPreviewCapture（按时刻取节目机位、等动作片段）；用尽重试判 failed 不清标志（挡生成）。
+ *        请求身份带修订号：渲染期间计划被改，旧那轮直接作废、按新修订重来。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -23,9 +26,11 @@ import { sceneContentEndSeconds } from '../model/timeGrid'
 import { computeAttachCameraMove } from './attachCameraMoveToTarget'
 import { decideCameraMoveRetry, DEFAULT_CAMERA_MOVE_RETRY, type CameraMoveCaptureOutcome } from './cameraMoveCaptureRetry'
 import { frameTimes } from './cameraMoveSchedule'
-import type { CameraMove } from './cameraMoveVocab'
+import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 import { CAMERA_MOVE_CAPTURE_FPS, readCameraMoveAutoCapture } from './createCameraMoveReferenceNode'
 import { DirectorHeadlessCapture, referenceVideoShortSide, type HeadlessCaptureResult } from './DirectorHeadlessCapture'
+import { readDirectorPreview } from '../model/directorPreviewState'
+import { applyPreviewCaptured, markPreviewFailed, previewAttemptTimeoutMs, previewCapturePlan } from './directorPreviewCapture'
 
 export const CAMERA_MOVE_VIDEO_META_KEY = 'cameraMoveVideo'
 
@@ -54,6 +59,14 @@ function coerceOutcomeForE2E(attempt: number, outcome: CameraMoveCaptureOutcome)
 
 function isPendingCameraMove(node: GenerationCanvasNode): boolean {
   return node.kind === DIRECTOR_NODE_KIND && readCameraMoveAutoCapture(node) !== null
+}
+
+/** 待处理请求的身份：运镜小片 = 节点；3D-BOX 预演 = 节点 + 修订 + 标记时刻（重试 / 新修订都是新请求）。 */
+function pendingRequestKey(node: GenerationCanvasNode): string | null {
+  if (node.kind !== DIRECTOR_NODE_KIND) return null
+  if (isPendingCameraMove(node)) return `camera-move:${node.id}`
+  const preview = readDirectorPreview(node)
+  return preview?.status === 'rendering' ? `preview:${node.id}:${preview.revision}:${preview.updatedAt}` : null
 }
 
 function clampFrameCount(value: number | undefined, fallback: number): number {
@@ -106,6 +119,16 @@ async function persistAndAttach(nodeId: string, fps: number, title: string, capt
   return true
 }
 
+/** 3D-BOX 预演：拼片落盘（只认原项目）→ 挂接 + 写回 ready；修订已变 = 迟到结果，当成完成丢弃（新修订会另起一轮）。 */
+async function persistPreview(nodeId: string, revision: string, fps: number, title: string, capture: HeadlessCaptureResult, originProject: ProjectExecutionContext | null): Promise<boolean> {
+  const persisted = await persistDirectorFramesVideo(capture.frames, nodeId, title, fps, originProject)
+  if (!persisted.url || (originProject && !isProjectExecutionContextCurrent(originProject))) return false
+  const createdAt = Date.now()
+  const outcome = applyPreviewCaptured(nodeId, revision, persisted.url, persisted.assetId, { id: createOutputId(), name: title, width: capture.width, height: capture.height, duration: capture.frames.length / fps, createdAt })
+  if (outcome?.toast) toast(outcome.toast.message, outcome.toast.level)
+  return true
+}
+
 export function CameraMoveCaptureHost(): JSX.Element | null {
   const { t } = useTranslation()
   // E2E 桥：仅当 localStorage['__nomiE2E']==='1' 时把画布 store 挂到 window，供走查在页面上下文里读写画布
@@ -118,13 +141,22 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
       // localStorage 不可用 → 跳过
     }
   }, [])
-  const pendingNode = useGenerationCanvasStore((state) => state.nodes.find(isPendingCameraMove) ?? null)
-  // 正在处理的节点 + 尝试轮次（1=首次）；attempt 也当挂载 key：变一次就整棵离屏画布卸载重挂
-  const [processing, setProcessing] = React.useState<{ nodeId: string; attempt: number } | null>(null)
+  const pendingKey = useGenerationCanvasStore((state) => {
+    for (const node of state.nodes) {
+      const key = pendingRequestKey(node)
+      if (key) return key
+    }
+    return null
+  })
+  const pendingNode = pendingKey ? useGenerationCanvasStore.getState().nodes.find((node) => pendingRequestKey(node) === pendingKey) ?? null : null
+  // 正在处理的请求 + 尝试轮次（1=首次）；attempt 也当挂载 key：变一次就整棵离屏画布卸载重挂
+  const [processing, setProcessing] = React.useState<{ nodeId: string; key: string; attempt: number } | null>(null)
   const watchdogRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const settledRef = React.useRef(false)
   const currentFpsRef = React.useRef(CAMERA_MOVE_CAPTURE_FPS)
+  const currentRevisionRef = React.useRef<string | null>(null)
+  const currentTimeoutRef = React.useRef(DEFAULT_CAMERA_MOVE_RETRY.attemptTimeoutMs)
 
   const clearTimers = React.useCallback(() => {
     if (watchdogRef.current) clearTimeout(watchdogRef.current)
@@ -143,7 +175,7 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
 
   // 某次尝试的结局（ok / null / timeout）→ 纯逻辑决定 done / retry / giveUp；只有 done / giveUp 才清标志
   const settleAttempt = React.useCallback(
-    (nodeId: string, attempt: number, fps: number, outcome: CameraMoveCaptureOutcome, capture: HeadlessCaptureResult | null) => {
+    (nodeId: string, key: string, attempt: number, fps: number, outcome: CameraMoveCaptureOutcome, capture: HeadlessCaptureResult | null, revision: string | null) => {
       if (settledRef.current) return // watchdog 与 onResult 竞态：先到者定结局
       settledRef.current = true
       clearTimers()
@@ -154,7 +186,9 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
         let done = effectiveOutcome === 'ok'
         if (effectiveOutcome === 'ok' && capture) {
           try {
-            done = await persistAndAttach(nodeId, fps, t('director.agent.cameraMoveReference'), capture, originProject)
+            done = revision === null
+              ? await persistAndAttach(nodeId, fps, t('director.agent.cameraMoveReference'), capture, originProject)
+              : await persistPreview(nodeId, revision, fps, t('director.agent.boxPreview'), capture, originProject)
           } catch {
             done = false // 落盘 / 喂入抛错也当失败，走重试兜底
           }
@@ -163,11 +197,13 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
         const decision = decideCameraMoveRetry(done ? 'ok' : effectiveOutcome === 'ok' ? 'null' : effectiveOutcome, attempt, DEFAULT_CAMERA_MOVE_RETRY)
         if (decision.kind === 'retry') {
           retryTimerRef.current = setTimeout(() => {
-            setProcessing((prev) => (prev && prev.nodeId === nodeId ? { nodeId, attempt: decision.nextAttempt } : prev))
+            setProcessing((prev) => (prev && prev.key === key ? { ...prev, attempt: decision.nextAttempt } : prev))
           }, decision.delayMs)
           return
         }
-        clearFlag(nodeId)
+        // 运镜小片：结局一到就清标志。预演：成功已写回 ready；用尽重试判 failed（标志不清，挡着这一镜的生成）。
+        if (revision === null) clearFlag(nodeId)
+        else if (decision.kind === 'giveUp') markPreviewFailed(nodeId, revision)
         setProcessing(null)
       })()
     },
@@ -183,16 +219,19 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
       }
       return
     }
-    if (!processing) setProcessing({ nodeId: pendingNode.id, attempt: 1 })
-  }, [pendingNode, processing, clearTimers])
+    if (!processing || processing.key !== pendingKey) {
+      clearTimers()
+      setProcessing({ nodeId: pendingNode.id, key: pendingKey!, attempt: 1 })
+    }
+  }, [pendingNode, pendingKey, processing, clearTimers])
 
   // 每轮尝试装看门狗：到点仍无 onResult → 判 timeout 走重试
   React.useEffect(() => {
     if (!processing) return
     settledRef.current = false
     watchdogRef.current = setTimeout(() => {
-      settleAttempt(processing.nodeId, processing.attempt, currentFpsRef.current, 'timeout', null)
-    }, DEFAULT_CAMERA_MOVE_RETRY.attemptTimeoutMs)
+      settleAttempt(processing.nodeId, processing.key, processing.attempt, currentFpsRef.current, 'timeout', null, currentRevisionRef.current)
+    }, currentTimeoutRef.current)
     return () => {
       if (watchdogRef.current) clearTimeout(watchdogRef.current)
       watchdogRef.current = null
@@ -205,31 +244,39 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
   const attempt = processing?.attempt ?? 0
   const plan = React.useMemo(() => {
     if (!pendingNode) return null
+    if (!isPendingCameraMove(pendingNode)) {
+      const preview = previewCapturePlan(pendingNode)
+      return preview ? { ...preview, waitForActionClips: true } : null
+    }
     const config = readCameraMoveAutoCapture(pendingNode)
     const project = normalizeDirectorProject(pendingNode.meta?.[DIRECTOR_PROJECT_META_KEY])
     const fps = clampFps(config?.fps)
     const window = captureWindow(project)
     const frameCount = clampFrameCount(config?.frameCount, Math.round((window.end - window.start) * fps) || DEFAULT_FRAME_COUNT)
-    return { project, fps, times: frameTimes(window.start, window.end, frameCount) }
-    // 只在换节点 / 换轮次时重建：出片期间节点 meta 的其它写入不该重挂离屏画布
+    return { project, fps, times: frameTimes(window.start, window.end, frameCount), revision: null, cameraIdAt: undefined, waitForActionClips: false }
+    // 只在换请求 / 换轮次时重建：出片期间节点 meta 的其它写入不该重挂离屏画布
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeId, attempt])
+  }, [pendingKey, attempt])
   const onResult = React.useCallback(
     (result: HeadlessCaptureResult | null) => {
-      if (!nodeId || !plan) return
-      settleAttempt(nodeId, attempt, plan.fps, result && result.frames.length >= MIN_FRAME_COUNT ? 'ok' : 'null', result)
+      if (!nodeId || !plan || !processing) return
+      settleAttempt(nodeId, processing.key, attempt, plan.fps, result && result.frames.length >= MIN_FRAME_COUNT ? 'ok' : 'null', result, plan.revision)
     },
-    [attempt, nodeId, plan, settleAttempt],
+    [attempt, nodeId, plan, processing, settleAttempt],
   )
 
-  if (!pendingNode || !processing || processing.nodeId !== pendingNode.id || !plan) return null
+  if (!pendingNode || !processing || processing.key !== pendingKey || !plan) return null
   currentFpsRef.current = plan.fps
+  currentRevisionRef.current = plan.revision
+  currentTimeoutRef.current = plan.revision === null ? DEFAULT_CAMERA_MOVE_RETRY.attemptTimeoutMs : previewAttemptTimeoutMs(plan.times.length)
   return (
     <DirectorHeadlessCapture
-      key={`${pendingNode.id}:${processing.attempt}`}
+      key={`${processing.key}:${processing.attempt}`}
       project={plan.project}
       times={plan.times}
       maxShortSide={referenceVideoShortSide}
+      {...(plan.cameraIdAt ? { cameraIdAt: plan.cameraIdAt } : {})}
+      {...(plan.waitForActionClips ? { waitForActionClips: true } : {})}
       onResult={onResult}
     />
   )

@@ -139,7 +139,7 @@ describe("fetchVendorWithBaseFallback / requestJson 集成", () => {
     vi.stubGlobal("fetch", fetchMock);
     const vendor = { key: "apimart", authType: "bearer", baseUrlHint: PRIMARY } as unknown as Vendor;
     const error = await requestJson(vendor, "k", "POST", `${PRIMARY}/v1/images/generations`, {}, {}, {}).catch((e) => e);
-    expect(error.structured).toMatchObject({ httpStatus: 500, category: "server" });
+    expect((error as { structured?: unknown }).structured).toMatchObject({ httpStatus: 500, category: "server" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

@@ -1,15 +1,25 @@
 import { dedupeSubmission } from "../submissionLedger";
+import { providerExplicitlyRejected, type NotDispatchedReason } from "../outboundDispatchEvidence";
 import { matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
 import { authorizeSubmission } from "./approvalPolicy";
 import type { ProductionRunRepository } from "./productionRunRepository";
 import type { ProductionRunIntentLog } from "./productionRunIntentLog";
 import type { ProductionRunLock, ProductionRunLockLease } from "./productionRunLock";
-import type { ProductionJob, ProductionRun } from "./productionRunTypes";
+import type { ProductionJob, ProductionRun, RunCommand } from "./productionRunTypes";
 
+/**
+ * 「这次提交确定没离开本机」——判据只在 `outboundDispatchEvidence.observeSubmissionHandoffs`，这里只是它的带类型结论。
+ * `code` / `reason` 穿 IPC（`taskIpcGuard` 把带 code + reason 的错误编成结构化标记），渲染层按它说「没发出去」和为什么，
+ * 不靠猜文案。`reason` 区分在本机被拦（`never_reached_network`）和连不上（`connect_failed`）：前者重发一次也一样，不自动重发。
+ */
 export class SubmissionNotDispatchedError extends Error {
-  constructor(message: string) {
+  readonly code = "submission_not_sent" as const;
+  readonly reason: NotDispatchedReason;
+
+  constructor(message: string, reason: NotDispatchedReason) {
     super(message);
     this.name = "SubmissionNotDispatchedError";
+    this.reason = reason;
   }
 }
 
@@ -43,8 +53,10 @@ export type SubmissionOutboxRequest = {
   planHash: string;
   costCeiling: number | null;
   currency: string;
-  /** Only a durable definitely-not-submitted disposition may reopen an aborted intent. */
-  allowRetryAfterAbort?: boolean;
+  /** 要和预留一起、在交给供应商之前落盘的命令（这次执行的绑定）。 */
+  leadingCommands?: ReadonlyArray<Omit<RunCommand, "expectedRevision">>;
+  /** 供应商受理之后、和「已受理」同一次落盘的收尾命令（计划记成已交、单镜 Run 记成进行中），按受理前那一刻的 Run 算。 */
+  acceptedCommands?: (run: ProductionRun) => ReadonlyArray<Omit<RunCommand, "expectedRevision">>;
 };
 
 export type ProviderDispatchInput = {
@@ -149,6 +161,34 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
   }
 
   /**
+   * 「供应商当场明确拒绝了这次提交」——和「没写出去」同属**确定**态：对方亲口说了不收，没有任务号，
+   * 所以预留 provider-safe 地释放、job 落确定的 `needs_attention`（errorCode `provider_rejected`），可以正常重来，
+   * 不交给人去供应商核对（2026-10-05 用户拍板，F3）。判据只在 `outboundDispatchEvidence.providerExplicitlyRejected`。
+   */
+  function markProviderRejected(request: SubmissionOutboxRequest, reason: string): ProductionRun {
+    let run = requiredRun(deps.repository, request.projectId, request.runId);
+    const job = requiredJob(run, request.jobId);
+    if (job.status === "submitting" || job.status === "submit_intent_persisted") {
+      run = jobCommand(request, "provider-rejected", "needs_attention", {
+        errorCode: "provider_rejected",
+        errorMessage: reason.slice(0, 512),
+      });
+    }
+    const reservationId = `${request.runId}:${request.jobId}:${job.attempt}`;
+    const ledger = deps.repository.readBudgetLedger(request.projectId, request.runId);
+    if (ledger.reservations[reservationId]?.status === "reserved") {
+      run = budgetCommand(request, "release-provider-rejected", {
+        billingEntryId: `${reservationId}:release-provider-rejected`,
+        kind: "release",
+        reservationId,
+        providerSafe: true,
+        occurredAt: now(),
+      });
+    }
+    return run;
+  }
+
+  /**
    * 「这次提交**一个字节都没写出去**」——确定态，不是未知态。
    *
    * 与 `markSubmissionUnknown` 的区别就是这条轴上的全部意义：unknown 说的是
@@ -184,7 +224,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
 
   async function submitOnce(request: SubmissionOutboxRequest, fencingEpoch = 0): Promise<SubmissionOutboxResult> {
     let run = requiredRun(deps.repository, request.projectId, request.runId);
-    let job = requiredJob(run, request.jobId);
+    const job = requiredJob(run, request.jobId);
     if (job.status === "provider_accepted" && job.providerTaskId) {
       return { providerTaskId: job.providerTaskId, run };
     }
@@ -231,22 +271,31 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     // 于是从来拒不了：急停之后同一轮里剩下的镜照样派发扣费（2026-09-29 #921 真额度验收）。
     await deps.beforeDispatch?.({ run, job, idempotencyKey: intentKey, costCeiling: request.costCeiling });
 
+    // 预留 → 提交意向 → 提交中：三条命令、同样的命令号、同样的先后，**一次落盘**（发动机收敛第一刀第 3 步的性能尾巴；
+    // 以前是三次完整落盘）。顺序与崩溃语义不变：这一批要么整体在盘上、要么整体不在，都发生在交给供应商之前。
     const reservationId = `${request.runId}:${request.jobId}:${job.attempt}`;
     const ledger = deps.repository.readBudgetLedger(request.projectId, request.runId);
+    const commandPrefix = `${request.runId}:${request.jobId}:${job.attempt}`;
+    // 准入闸是异步的：落这一批之前重读一次（别的写手可能刚落了一条，修订号以盘上为准）。
+    run = requiredRun(deps.repository, request.projectId, request.runId);
+    const current = requiredJob(run, request.jobId);
+    const issuedAt = now();
+    const preDispatch: Array<Omit<RunCommand, "expectedRevision">> = [...(request.leadingCommands ?? [])];
     if (!ledger.reservations[reservationId]) {
-      run = budgetCommand(request, "reserve", {
+      preDispatch.push({ commandId: `${commandPrefix}:budget:reserve`, type: "budget.entry", issuedAt, payload: { entry: {
         billingEntryId: `${reservationId}:reserve`,
         kind: "reserve",
         reservationId,
         jobId: request.jobId,
         amount: request.costCeiling,
-        occurredAt: now(),
-      });
-      job = requiredJob(run, request.jobId);
+        occurredAt: issuedAt,
+      } } });
     }
-    if (job.status === "authorized") jobCommand(request, "submit-intent", "submit_intent_persisted");
-
-    run = jobCommand(request, "submitting", "submitting");
+    if (current.status === "authorized") {
+      preDispatch.push({ commandId: `${commandPrefix}:submit-intent`, type: "job.status", issuedAt, payload: { jobId: request.jobId, status: "submit_intent_persisted", patch: {} } });
+    }
+    preDispatch.push({ commandId: `${commandPrefix}:submitting`, type: "job.status", issuedAt, payload: { jobId: request.jobId, status: "submitting", patch: {} } });
+    run = deps.repository.executeBatch(request.projectId, request.runId, run.revision, preDispatch).at(-1)!.run;
     const dispatchInput: ProviderDispatchInput = {
       run,
       job: requiredJob(run, request.jobId),
@@ -268,7 +317,6 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         idempotencyKey: dispatchInput.idempotencyKey,
       },
       fencingEpoch,
-      allowRetryAfterAbort: request.allowRetryAfterAbort,
     });
     if (submitIntent) deps.intentLog!.commit(submitIntent.intentId, { fencingEpoch });
 
@@ -289,6 +337,8 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         // 不碰意图日志：这一次尝试的 `provider.submit` 意图已经 committed，它覆盖的正是
         // 「同一个 attempt、同一个幂等键」的这两次调用；崩溃恢复看到它仍然正确地说「未知」。
         const neverWritten = error instanceof SubmissionNotDispatchedError;
+        // 在本机就被拦下的（出网策略、本机检查、密钥缺失……）是确定性的：原样再派一次只会再被拦一次。
+        if (neverWritten && error.reason === "never_reached_network") throw error;
         if (!neverWritten && !deps.canResendAfterUnknown?.(error, dispatchInput)) throw error;
         if (!neverWritten) anyAttemptMayHaveReached = true;
         try {
@@ -302,9 +352,15 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       }
       if (!response.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
       await deps.afterDispatch?.(response, dispatchInput);
-      run = jobCommand(request, "provider-accepted", "provider_accepted", {
-        providerTaskId: response.providerTaskId,
-      });
+      // 已受理 + 收尾一次落盘（发动机收敛第一刀第 3 步的性能尾巴：受理之后原来是三次整份落盘）。
+      const accepting = requiredRun(deps.repository, request.projectId, request.runId);
+      const accepted = deps.repository.executeBatch(request.projectId, request.runId, accepting.revision, [{
+        commandId: `${request.runId}:${request.jobId}:${requiredJob(accepting, request.jobId).attempt}:provider-accepted`,
+        type: "job.status",
+        payload: { jobId: request.jobId, status: "provider_accepted", patch: { providerTaskId: response.providerTaskId } },
+        issuedAt: now(),
+      }, ...(request.acceptedCommands?.(accepting) ?? [])]);
+      run = accepted.at(-1)!.run;
       return { ...response, run };
     } catch (error) {
       const recovered = requiredRun(deps.repository, request.projectId, request.runId);
@@ -318,6 +374,11 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       // 提交把这一镜永久冻在人工对账里（2026-09-18 C9 间歇红的根因第二层）。
       if (error instanceof SubmissionNotDispatchedError) {
         markNotDispatched(request, error.message);
+        throw error;
+      }
+      // 只有**最后一次**尝试是明确拒绝、而且之前没有哪一次可能已被收下，才算确定没受理。
+      if (!anyAttemptMayHaveReached && providerExplicitlyRejected(error)) {
+        markProviderRejected(request, error instanceof Error ? error.message : String(error));
         throw error;
       }
       markSubmissionUnknown(request);

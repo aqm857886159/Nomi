@@ -12,12 +12,43 @@
 // 领域 union 仍发布属性并集/必填交集，保留现有外部聚合工具的可构造形状；
 // 分支互斥必填由 canonical Zod 执行。传输层 JSON Schema 由 Ajv 执行。
 // 递归 generation schema 无需展平，直接走共享 toPublishedJsonSchema。
+//
+// 对外广播的关键字白名单也住这里（发布期检查）：运行时校验引擎是官方 SDK 的 JSON Schema 校验器
+// （mcpProtocol.ts 的 validateToolArguments），它对不认识的关键字是放行的——所以「广播出去的 schema 只用宿主
+// 普遍认得的那几种关键字」这条约束必须在发布时卡住，而不是指望运行时报错。
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 import { JSON_TEXT_BRANCH_MARKER } from "../shared/agentCapabilities/jsonArgTolerance";
-import { SUPPORTED_SCHEMA_KEYWORDS, findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 
 type JsonRecord = Record<string, unknown>;
+export type SchemaLike = Record<string, unknown>;
+
+/** 对外广播的 JSON Schema 只许用这些关键字（宿主与模型普遍认得；format / pattern / if-then 之类不发）。 */
+export const SUPPORTED_SCHEMA_KEYWORDS = new Set([
+  "type", "properties", "required", "items", "enum", "additionalProperties",
+  "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minItems", "maxItems",
+  "minLength", "maxLength", "default", "description", "$ref", "$schema", "$defs", "definitions",
+  "anyOf", "oneOf", "allOf",
+]);
+export const SUPPORTED_SCHEMA_TYPES = new Set(["object", "string", "array", "number", "integer", "boolean", "null"]);
+
+/** 列出 schema 里超出白名单的关键字 / type（空数组 = 可以发布）。 */
+export function findUnsupportedSchemaFeatures(schema: unknown, path = ""): string[] {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return [];
+  const found: string[] = [];
+  for (const [key, value] of Object.entries(schema)) {
+    if (!SUPPORTED_SCHEMA_KEYWORDS.has(key)) { found.push(`${path || "<root>"}: 不支持的关键字 "${key}"`); continue; }
+    if (key === "type") for (const type of Array.isArray(value) ? value : [value]) {
+      if (typeof type === "string" && !SUPPORTED_SCHEMA_TYPES.has(type)) found.push(`${path || "<root>"}: 不支持的 type "${type}"`);
+    }
+    if (["properties", "definitions", "$defs"].includes(key) && value && typeof value === "object") {
+      for (const [child, childSchema] of Object.entries(value)) found.push(...findUnsupportedSchemaFeatures(childSchema, path ? `${path}.${child}` : child));
+    }
+    if (key === "items" || key === "additionalProperties") found.push(...findUnsupportedSchemaFeatures(value, `${path}[]`));
+    if (["anyOf", "oneOf", "allOf"].includes(key) && Array.isArray(value)) value.forEach((branch, index) => found.push(...findUnsupportedSchemaFeatures(branch, `${path}/${key}/${index}`)));
+  }
+  return found;
+}
 
 const convert = zodToJsonSchema as unknown as (schema: unknown, options: JsonRecord) => unknown;
 

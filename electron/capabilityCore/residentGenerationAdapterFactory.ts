@@ -6,6 +6,7 @@ import type { DispatchContext } from "./dispatcher";
 import type { ProjectLeaseV2 } from "./projectLease";
 import {
   createPiGenerationTransportAdapter,
+  type GenerationTransportAdapterDependencies,
   type PiGenerationTransportAdapter,
 } from "./generationTransportAdapters";
 import type { ProjectBinding } from "../shared/projectBinding";
@@ -24,6 +25,8 @@ export type ResidentGenerationAdapterFactoryInput = Readonly<{
   approvalReceiptAuthority: ApprovalReceiptAuthority;
   projectSessionAuthority?: ProjectSessionAuthority;
   owner: RunOwner;
+  /** 草稿落地之后「此刻在画布上吗」（见 `GenerationTransportAdapterDependencies.draftLanding`）。 */
+  draftLanding?: GenerationTransportAdapterDependencies["draftLanding"];
 }>;
 
 export type ResidentGenerationAdapterFactory = Readonly<{
@@ -117,6 +120,7 @@ export function createResidentGenerationAdapterFactory(
     confirmGenerationInNomi: input.confirmGenerationInNomi,
     approvalReceiptAuthority: input.approvalReceiptAuthority,
     leaseFor,
+    ...(input.draftLanding ? { draftLanding: input.draftLanding } : {}),
     // 宿主没给档位时**不再按默认档走**：档位是用户设置，主进程自己就持有那份权威值。
     // 此前这里缺席 = 照旧弹卡，于是用户选了「全自动」而非 lane 的宿主（外部 MCP 等）仍然每步问人。
     approvalPolicy: approvalPolicy ?? readAgentApprovalPolicy,

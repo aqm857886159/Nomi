@@ -411,12 +411,30 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(created).toBeTruthy()
 
     useGenerationCanvasStore.getState().renameGroup(created?.id || '', 'Board B')
-    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', '#ffcc00')
+    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', 'amber')
 
     const groupState = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)
     expect(groupState?.categoryId).toBe('shots')
     expect(groupState?.name).toBe('Board B')
-    expect(groupState?.color).toBe('#ffcc00')
+    expect(groupState?.colorToken).toBe('amber')
+    // 旧的 color 字段不再写；换回灰 = 清掉 colorToken。
+    expect(groupState?.color).toBeUndefined()
+    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', 'neutral')
+    expect(useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)?.colorToken).toBeUndefined()
+  })
+
+  it('arranges group members through one store action and keeps the frame around them', () => {
+    const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'a', categoryId: 'shots', exactPosition: true, position: { x: 400, y: 300 } })
+    const second = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'b', categoryId: 'shots', exactPosition: true, position: { x: 40, y: 40 } })
+    const group = useGenerationCanvasStore.getState().createGroup('shots', 'Arrange me', { nodeIds: [first.id, second.id] })
+    expect(group).toBeTruthy()
+
+    useGenerationCanvasStore.getState().arrangeGroup(group!.id, 'horizontal')
+
+    const state = useGenerationCanvasStore.getState()
+    const positions = state.nodes.filter((node) => group!.nodeIds.includes(node.id)).map((node) => node.position.x).sort((a, b) => a - b)
+    expect(positions[1]).toBeGreaterThan(positions[0])
+    expect(state.groups.find((candidate) => candidate.id === group!.id)?.frameBounds).toBeTruthy()
   })
 
   it('P4 S5: createGroup 带 materializationOperationId 章 + 明确成员 id（分镜组落地用）', () => {
@@ -952,63 +970,6 @@ describe('generationCanvasStore result history', () => {
   })
 })
 
-describe('selectNodesInRect (框选 AABB)', () => {
-  // 节点默认 200x200（无 size 时回退 300x220，这里显式给 size 控制几何）
-  function sized(id: string, categoryId: GenerationCanvasNode['categoryId'], x: number, y: number): GenerationCanvasNode {
-    return { ...node(id, categoryId), position: { x, y }, size: { width: 100, height: 100 } }
-  }
-  beforeEach(() => {
-    useGenerationCanvasStore.getState().restoreSnapshot({
-      nodes: [
-        sized('a', 'shots', 0, 0), // 0..100
-        sized('b', 'shots', 300, 300), // 300..400
-        sized('c', 'cast', 50, 50), // 50..150，但属于别的分类
-      ],
-      edges: [],
-      selectedNodeIds: [],
-      groups: [],
-    })
-  })
-
-  it('只选中与矩形相交且同分类的节点', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: -20, y1: -20, x2: 120, y2: 120 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['a'])
-  })
-
-  it('框到分类外的节点不选（cast 不在 shots 框选里）', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 40, y1: 40, x2: 160, y2: 160 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['a'])
-  })
-
-  it('反向拖（x2<x1）归一化后仍正确相交', () => {
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 420, y1: 420, x2: 280, y2: 280 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['b'])
-  })
-
-  it('additive 与现有选区并集', () => {
-    useGenerationCanvasStore.getState().selectNode('b')
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: -10, y1: -10, x2: 110, y2: 110 }, 'shots', true)
-    expect([...useGenerationCanvasStore.getState().selectedNodeIds].sort()).toEqual(['a', 'b'])
-  })
-
-  it('按真实媒体预览框选，不因持久化高度过期漏掉可见节点', () => {
-    useGenerationCanvasStore.getState().restoreSnapshot({
-      nodes: [{
-        ...sized('loaded-image', 'shots', 0, -400),
-        size: { width: 360, height: 280 },
-        meta: { previewHeight: 432 },
-        result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
-      }],
-      edges: [],
-      selectedNodeIds: [],
-      groups: [],
-    })
-
-    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 0, y1: 0, x2: 40, y2: 20 }, 'shots')
-    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['loaded-image'])
-  })
-})
-
 describe('updateNodes', () => {
   it('keeps derived media measurements out of durable revisions and events', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
@@ -1100,5 +1061,22 @@ describe('deleting a frame-covering selection removes the frame too (2026-09-22�
     expect(useGenerationCanvasStore.getState().groups).toEqual([])
     store.undo()
     expect(useGenerationCanvasStore.getState().groups.map((g) => g.id)).toEqual(['empty'])
+  })
+})
+
+describe('setNodeResultStackOpen · 往哪边铺在点开那一刻定下', () => {
+  beforeEach(() => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('n', 'shots')], edges: [], groups: [], selectedNodeIds: [] })
+  })
+
+  it('点开时连边一起存，收起时清掉；一次开合是一步撤销', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.setNodeResultStackOpen('n', true, 'left')
+    expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ resultStackOpen: true, resultStackSide: 'left' })
+    store.setNodeResultStackOpen('n', false)
+    expect(useGenerationCanvasStore.getState().nodes[0]?.resultStackOpen).toBe(false)
+    expect(useGenerationCanvasStore.getState().nodes[0]).not.toHaveProperty('resultStackSide')
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ resultStackOpen: true, resultStackSide: 'left' })
   })
 })

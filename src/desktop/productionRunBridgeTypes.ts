@@ -9,9 +9,9 @@ import type {
   RunEvent,
 } from "../../electron/productionRun/productionRunTypes";
 import type { MaterializeStoryboardResult } from "../../electron/productionRun/productionRunService";
-import type { PendingSpendConfirm, PendingSpendRead, PendingSpendShot } from "../../electron/shared/contracts/pendingSpendConfirm";
+import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised, PendingSpendShot } from "../../electron/shared/contracts/pendingSpendConfirm";
 
-export type { PendingSpendConfirm, PendingSpendRead, PendingSpendShot };
+export type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised, PendingSpendShot };
 
 export type ProductionRunProjection = ProductionRun & { storyboardReferenceUrls?: Readonly<Record<string,string>> };
 
@@ -26,11 +26,11 @@ export type DesktopProductionRunBridge = {
   rework: (projectId: string, runId: string, shotId?: string) => Promise<ProductionShotActionResult>;
   resumeBatch: (projectId: string, runId: string) => Promise<ProductionShotActionResult>;
   /**
-   * 2026-09-11 Agent 面板付费确认卡的四个通道。
-   * `pendingSpend` 是**只读投影**（价格由宿主按目录算，渲染层不反推）；另外三个是动作。
+   * 2026-09-11 Agent 面板付费确认卡的动作通道。卡本身（待决出价，价格由宿主按目录算）随对话投影推过来
+   * （`LaneWorkspaceProjection.spend`，2026-10-05），渲染层没有去拉它的第二条路。
+   * 改参数的回包带着宿主现算的那张卡（`pending`）：点下去那一刻拿它对账、封印。
    */
-  pendingSpend: (projectId: string) => Promise<PendingSpendRead>;
-  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }) => Promise<ProductionActionResult>;
+  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }) => Promise<ProductionActionResult & PendingSpendRevised>;
   discardSpend: (projectId: string, operationId: string, quoteId: string) => Promise<ProductionActionResult>;
   /** 付费卡上「生成这张 / 这段」：只批这一镜。 */
   confirmSpend: (projectId: string, operationId: string, quoteId: string, shotId?: string) => Promise<ProductionActionResult>;

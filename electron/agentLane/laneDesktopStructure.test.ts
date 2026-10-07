@@ -19,6 +19,9 @@ describe("Agent lane production cutover structure", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
 
     expect(main).not.toContain("registerConversationsIpc");
+    // 死代码已删除:这两个文件不许复活(对话由 pi 的 lane session 持久化)
+    expect(exists("electron/conversations/conversationsStore.ts")).toBe(false);
+    expect(exists("electron/conversations/conversationsIpc.ts")).toBe(false);
     expect(preload).not.toContain("nomi:conversations:");
     expect(bridge).not.toContain("conversations?:");
     expect(app).not.toContain("conversationPersistence");
@@ -123,13 +126,19 @@ describe("Agent lane production cutover structure", () => {
   it("hydrates proposal receipts only after the current lane workspace is installed", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
     const preload = preloadSurfaceSource();
-    const open = app.indexOf("await laneClient.open(committedBinding.binding)");
+    // 打开 lane 那一步外面包了一层打开分阶段计时（measureProjectOpenStage，2026-10-06）；
+    // 等的仍是同一个 laneClient.open，回执仍取自它装好的那个工作区。顺序语义不变：先装好、再核当前、再水合。
+    const open = app.indexOf("const opened = await measureProjectOpenStage('agent-lane-open', () => laneClient.open(committedBinding.binding))");
     const currentGuard = app.indexOf("surfaceEpoch.assertCurrent()", open);
-    const hydrate = app.indexOf("hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))", currentGuard);
+    const installedWorkspace = app.indexOf("const workspaceId = opened.workspaceId", currentGuard);
+    const hydrate = app.indexOf("hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))", installedWorkspace);
 
     expect(open).toBeGreaterThan(-1);
     expect(currentGuard).toBeGreaterThan(open);
-    expect(hydrate).toBeGreaterThan(currentGuard);
+    expect(installedWorkspace).toBeGreaterThan(currentGuard);
+    expect(hydrate).toBeGreaterThan(installedWorkspace);
+    // 水合回执只许有这一处，而且在打开之后（不许在别处提前水合一份）。
+    expect(app.indexOf("hydrateCommittedProposalReceipt(")).toBe(hydrate);
     expect(preload).toContain("LANE_IPC_CHANNELS.command");
     expect(preload).not.toContain("nomi:projectAgent:");
     expect(preload).not.toContain("projectRoot: proposal");
@@ -179,6 +188,9 @@ describe("一条 lane 的系统提示词每回合整体重新求值（2026-09-11
     // 语言铁律与项目记忆必须在函数体里（每次求值都重读），不是先算好再传。
     expect(runtime).toContain("systemPrompt: () => [buildLanguageRule()");
     expect(runtime).toContain("currentProjectMemory(binding.projectId)");
+    // 语言规则首尾各放一次：头在 systemPrompt 函数里，尾是殿后段（单发路径同理）。定义仍只有 buildLanguageRule 一处。
+    expect(runtime).toContain("systemPromptClosing: buildLanguageRule,");
+    expect(runtime).toContain("systemPromptClosing: buildLanguageRule() })");
     expect(runtime).not.toMatch(/let memory = ''/);
     // 技能库同理：给函数，宿主每回合重读一次。
     expect(runtime).toContain("skills: async () => (await readSkillRecords()).filter(isSkillSelectableInWorkbench)");

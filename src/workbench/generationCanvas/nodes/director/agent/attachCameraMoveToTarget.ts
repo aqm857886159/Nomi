@@ -2,10 +2,12 @@
  * [INPUT]: 依赖 ../../../model/generationCanvasTypes 的 GenerationCanvasNode、../../../agent/referenceEdgeCapability（archetypeForNode / findVideoRefMode）、
  *          ../../controls/archetypeMeta（applyArchetypeModeSwitch / readArchetypeArray）、../../../model/generationNodeKinds 的 isVideoLikeGenerationNodeKind、
  *          ./cameraMoveVocab（CAMERA_MOVE_LABEL / CAMERA_MOVE_DESC）、../../../../../i18n
- * [OUTPUT]: 对外提供 CAMERA_MOVE_ATTACHED_URL_KEY、AttachCameraMoveOutcome、computeAttachCameraMove
+ * [OUTPUT]: 对外提供 CAMERA_MOVE_ATTACHED_URL_KEY、AttachCameraMoveOutcome、AttachPreviewDirective、computeAttachCameraMove
  * [POS]: director/agent 的「运镜小片 mp4 → 目标镜头视频节点」纯核（原 V1 attachCameraMoveToTarget，切换门入籍）：吃目标节点的 meta / prompt / kind + 新 mp4，
  *        算出要 patch 什么 + 给用户什么提示，不碰 store。可替换语义：指纹 cameraMoveAttachedUrl 记当前已附的 mp4，同一 mp4 幂等，不同 mp4 替换旧片；
  *        有 video_ref 槽切模式填参考视频 + @Video1 指令，无槽降级只补运镜 prompt 地板。AI 路与手动运镜控件共用。
+ *        3D-BOX 整段预演也走这一个核（方案 §8，不另写第二个）：第三个参数传 AttachPreviewDirective——有槽时另把动作库缺的
+ *        细节动作写进提示词；无槽时把逐镜实测景别 / 运镜写成文字兜底并明说精度低。预演的提示词块带标记，换修订时整块替换。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import i18n from '../../../../../i18n'
@@ -13,14 +15,15 @@ import { archetypeForNode, findVideoRefMode } from '../../../agent/referenceEdge
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
 import { isVideoLikeGenerationNodeKind } from '../../../model/generationNodeKinds'
 import { applyArchetypeModeSwitch, readArchetypeArray } from '../../controls/archetypeMeta'
-import { CAMERA_MOVE_DESC, CAMERA_MOVE_LABEL, type CameraMove } from './cameraMoveVocab'
+import { CAMERA_MOVE_DESC, CAMERA_MOVE_LABEL } from './cameraMoveVocab'
+import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 
 /** 目标节点里记「当前已附的运镜 mp4」的 meta 键（替换判据） */
 export const CAMERA_MOVE_ATTACHED_URL_KEY = 'cameraMoveAttachedUrl'
 
 export type AttachCameraMoveOutcome =
   | { kind: 'noop'; toast?: { message: string; level: 'warning' } }
-  | { kind: 'patch'; patch: { meta: Record<string, unknown>; prompt?: string }; toast?: { message: string; level: 'warning' } }
+  | { kind: 'patch'; patch: { meta: Record<string, unknown>; prompt?: string }; toast?: { message: string; level: 'warning' }; mode: 'video_ref' | 'prompt_only' }
 
 /** 运镜 prompt 地板（通用，全供应商可用）：人话点出该镜的运镜，作为不吃视频参考时的降级 */
 function cameraMoveDirective(move: CameraMove | undefined): string {
@@ -33,7 +36,34 @@ function readAttachedUrl(meta: Record<string, unknown>): string {
   return typeof value === 'string' ? value : ''
 }
 
-export function computeAttachCameraMove(target: GenerationCanvasNode | undefined, mp4Url: string, move: CameraMove | undefined): AttachCameraMoveOutcome {
+/** 3D-BOX 整段预演：逐镜实测（文字兜底用）+ 动作库缺的细节动作（交给视频模型）。 */
+export type AttachPreviewDirective = Readonly<{
+  kind: 'preview'
+  cuts: readonly Readonly<{ start: number; end: number; shotSize: string | null; move: string }>[]
+  notes: readonly string[]
+}>
+
+/** 预演写进提示词的两行都带标记：换修订时整块替换，不叠旧文字。 */
+const PREVIEW_CAMERA_MARK = '3D-BOX 预演运镜：'
+const PREVIEW_ACTION_MARK = '3D-BOX 动作细节：'
+
+function withoutPreviewLines(prompt: string): string {
+  return prompt.split('\n').filter((line) => !line.startsWith(PREVIEW_CAMERA_MARK) && !line.startsWith(PREVIEW_ACTION_MARK)).join('\n')
+}
+
+function previewCameraLine(directive: AttachPreviewDirective): string {
+  const parts = directive.cuts.map((cut, index) =>
+    `镜头${index + 1}（${cut.start.toFixed(1)}–${cut.end.toFixed(1)} 秒）${cut.shotSize ? `${cut.shotSize}，` : ''}${CAMERA_MOVE_LABEL[cut.move] ?? cut.move}`)
+  return parts.length ? `\n${PREVIEW_CAMERA_MARK}${parts.join('；')}` : ''
+}
+
+function previewActionLine(directive: AttachPreviewDirective): string {
+  return directive.notes.length ? `\n${PREVIEW_ACTION_MARK}${directive.notes.join('；')}` : ''
+}
+
+export function computeAttachCameraMove(target: GenerationCanvasNode | undefined, mp4Url: string, directive: CameraMove | undefined | AttachPreviewDirective): AttachCameraMoveOutcome {
+  const preview = typeof directive === 'object' && directive !== null ? directive : null
+  const move = preview ? undefined : (directive as CameraMove | undefined)
   if (!target) return { kind: 'noop' }
   // 运镜参考只能喂视频生成节点：指到图片节点没有 video_ref 槽，诚实跳过并提示
   if (!isVideoLikeGenerationNodeKind(target.kind)) {
@@ -60,19 +90,32 @@ export function computeAttachCameraMove(target: GenerationCanvasNode | undefined
     nextMeta = { ...nextMeta, [videoRef.metaKey]: referenceVideoUrls, [CAMERA_MOVE_ATTACHED_URL_KEY]: trimmedNew }
     const targetMode = archetype.modes.find((mode) => mode.id === videoRef.modeId)
     const targetHasFrameSlot = targetMode?.slots.some((slot) => slot.kind === 'first_frame' || slot.kind === 'last_frame') ?? false
-    const directive = `\n@Video1 跟随这段参考视频的运镜（只参考镜头运动，画面内容由角色参考与文字决定）。`
-    const basePrompt = typeof target.prompt === 'string' ? target.prompt : ''
-    const prompt = basePrompt.includes('@Video1') ? basePrompt : `${basePrompt}${directive}`
+    const videoDirective = `\n@Video1 跟随这段参考视频的运镜（只参考镜头运动，画面内容由角色参考与文字决定）。`
+    const rawPrompt = typeof target.prompt === 'string' ? target.prompt : ''
+    const basePrompt = preview ? withoutPreviewLines(rawPrompt) : rawPrompt
+    const withVideo = basePrompt.includes('@Video1') ? basePrompt : `${basePrompt}${videoDirective}`
+    const prompt = preview ? `${withVideo}${previewActionLine(preview)}` : withVideo
     return {
       kind: 'patch',
+      mode: 'video_ref',
       patch: { meta: nextMeta, prompt },
       ...(hadFirstOrLast && !targetHasFrameSlot ? { toast: { message: i18n.t('director.agent.switchedToOmni'), level: 'warning' as const } } : {}),
     }
   }
+  // 降级（预演）：模型没有参考视频槽 → 逐镜实测运镜 + 细节动作写成文字（替换上一版预演文字），并明说精度低。
+  if (preview) {
+    const basePrompt = withoutPreviewLines(typeof target.prompt === 'string' ? target.prompt : '')
+    return {
+      kind: 'patch',
+      mode: 'prompt_only',
+      patch: { meta: { ...meta, [CAMERA_MOVE_ATTACHED_URL_KEY]: trimmedNew }, prompt: `${basePrompt}${previewCameraLine(preview)}${previewActionLine(preview)}` },
+      toast: { message: i18n.t('director.agent.previewPromptOnly'), level: 'warning' },
+    }
+  }
   // 降级：视频节点但模型无视频参考槽 → 只补结构化运镜 prompt 地板（保留模型不变），同样记指纹
-  const directive = cameraMoveDirective(move)
-  if (!directive) return { kind: 'noop' }
+  const floor = cameraMoveDirective(move)
+  if (!floor) return { kind: 'noop' }
   const basePrompt = typeof target.prompt === 'string' ? target.prompt : ''
-  const prompt = basePrompt.includes('镜头运动：') ? basePrompt : `${basePrompt}${directive}`
-  return { kind: 'patch', patch: { meta: { ...meta, [CAMERA_MOVE_ATTACHED_URL_KEY]: trimmedNew }, prompt } }
+  const prompt = basePrompt.includes('镜头运动：') ? basePrompt : `${basePrompt}${floor}`
+  return { kind: 'patch', mode: 'prompt_only', patch: { meta: { ...meta, [CAMERA_MOVE_ATTACHED_URL_KEY]: trimmedNew }, prompt } }
 }

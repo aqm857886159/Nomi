@@ -14,7 +14,7 @@ vi.mock("electron", () => ({
       state.handlers.set(channel, handler),
   },
 }));
-vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: state.trust }));
+vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: state.trust, assertTrustedFireAndForget: (_event: unknown, _channel: string, guard: (event: unknown) => void) => { try { guard(_event); return true; } catch { return false; } } }));
 
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority } from "./canvasReadSurfaceRegistry";
 import { createCapturedCanvasReadSnapshotRegistry } from './canvasReadCapturedSnapshotRegistry'

@@ -36,7 +36,7 @@ createRoot(document.getElementById('root')!).render(
     <main className="min-h-screen bg-nomi-bg p-8 text-nomi-ink">
       <TableStage><StoryboardShotRow shot={shot} exec={exec} anchors={LAB_ANCHORS}
         modelOptions={LAB_VIDEO_MODELS} danglingIds={[]} aspect="16:9" frameBox={{ width: 136, height: 77 }}
-        aspectOverridden={false} aspectOptions={['16:9']} onChangeAspect={noop}
+        onChangeAspect={noop}
         onGenerate={() => retryCalls.push(node.id)} onUpdate={noop} onToggleAnchor={noop} onRemove={noop}
         onOpenPreview={noop} onRegenerate={noop} onToggleLock={noop} />
       </TableStage>

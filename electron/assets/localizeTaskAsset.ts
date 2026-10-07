@@ -1,5 +1,5 @@
 import type { Vendor } from "../catalog/types";
-import { trustedLocalOutputOrigin } from "../catalog/assetLocalization";
+import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
 import { scheduleTechnicalReview } from "../review/reviewTrace";
 import { hardenedFetchDiagnostics } from "../hardenedFetch";
 import { logWarn } from "../logging/logger";
@@ -57,7 +57,7 @@ export async function localizeTaskAsset(
       ownerNodeId: nodeId || null,
       fileName: localizedTaskAssetFileName(type, assetUrl),
     }, {
-      trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined,
+      trustedPrivateOrigin: await trustedRetrievalOrigin(vendor, assetUrl),
       ...(certificationEvidence ? { certificationEvidence } : {}), ...(vendor?.network ? { providerNetwork: vendor.network } : {}),
     })) as typeof imported;
   } catch (error) {

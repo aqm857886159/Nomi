@@ -1,0 +1,366 @@
+{
+  "heightM": 1.828717,
+  "actions": [
+    {
+      "id": "Crouch_Fwd_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Crouch_Idle_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Dance_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4715,
+      "hipRatio": 0.4899,
+      "pass": true
+    },
+    {
+      "id": "Death01",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Driving_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Fixing_Kneeling",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Hit_Chest",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4184,
+      "hipRatio": 0.46811,
+      "pass": true
+    },
+    {
+      "id": "Hit_Head",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4176,
+      "hipRatio": 0.47941,
+      "pass": true
+    },
+    {
+      "id": "Idle_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4176,
+      "hipRatio": 0.47941,
+      "pass": true
+    },
+    {
+      "id": "Idle_Talking_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4186,
+      "hipRatio": 0.47864,
+      "pass": true
+    },
+    {
+      "id": "Idle_Torch_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4176,
+      "hipRatio": 0.47941,
+      "pass": true
+    },
+    {
+      "id": "Interact",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4176,
+      "hipRatio": 0.47941,
+      "pass": true
+    },
+    {
+      "id": "Jog_Fwd_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Jump_Land",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Jump_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Jump_Start",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "PickUp_Table",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Aim_Down",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Aim_Neutral",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Aim_Up",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Idle_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Reload",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Pistol_Shoot",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Punch_Cross",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.418,
+      "hipRatio": 0.45094,
+      "pass": true
+    },
+    {
+      "id": "Punch_Enter",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4176,
+      "hipRatio": 0.47941,
+      "pass": true
+    },
+    {
+      "id": "Punch_Jab",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.418,
+      "hipRatio": 0.45094,
+      "pass": true
+    },
+    {
+      "id": "Push_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Roll",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Roll_RM",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sitting_Enter",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sitting_Exit",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sitting_Idle_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sitting_Talking_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Spell_Simple_Enter",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4178,
+      "hipRatio": 0.47939,
+      "pass": true
+    },
+    {
+      "id": "Spell_Simple_Exit",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4173,
+      "hipRatio": 0.47943,
+      "pass": true
+    },
+    {
+      "id": "Spell_Simple_Idle_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4173,
+      "hipRatio": 0.47943,
+      "pass": true
+    },
+    {
+      "id": "Spell_Simple_Shoot",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.4173,
+      "hipRatio": 0.47943,
+      "pass": true
+    },
+    {
+      "id": "Sprint_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Swim_Fwd_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Swim_Idle_Loop",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sword_Attack",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sword_Attack_RM",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Sword_Idle",
+      "frame": 0,
+      "requiresStanding": false,
+      "footMinCm": null,
+      "hipRatio": null,
+      "pass": true
+    },
+    {
+      "id": "Walk_Formal_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.7345,
+      "hipRatio": 0.47781,
+      "pass": true
+    },
+    {
+      "id": "Walk_Loop",
+      "frame": 0,
+      "requiresStanding": true,
+      "footMinCm": 1.7344,
+      "hipRatio": 0.47584,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

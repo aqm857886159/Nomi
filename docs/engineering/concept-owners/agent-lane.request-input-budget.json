@@ -1,0 +1,29 @@
+{
+  "name": "每一次模型请求的输入预算（超了怎么收：用 pi 自带的压缩，这里只出配置）",
+  "subject": "agent-lane.request-input-budget",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneContextBudget.mts",
+    "symbol": "laneCompactionSettings"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "laneCompactionSettings"
+    },
+    {
+      "path": "electron/agentLane/laneSupersededReads.mts",
+      "symbol": "omitSupersededReads"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneHost.mts"
+  ],
+  "since": "2026-10-01",
+  "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。2026-10-06（NF-0928-0003，合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json）：pi 压缩切不进当前回合，回合内反复读同一资源的旧快照由 omitSupersededReads 在 transform_context 里换成一行说明（只改发出去的那份，转录不动；判据从动词声明派生）。"
+}

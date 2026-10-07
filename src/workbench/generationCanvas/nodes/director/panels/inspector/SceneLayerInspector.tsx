@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../DirectorEditorContext、../../model/directorProject 的 DEFAULT_SCENE_CONFIG、../fields/*
- * [OUTPUT]: 对外提供 SceneLayerInspector：基础环境（天空色、角色标签）、地面与网格（显示/高度/透明度/吸附）、全局变换（缩放/平移）、
+ * [OUTPUT]: 对外提供 SceneLayerInspector：基础环境（天空色；角色头部标签只住顶栏「视图 ▾」，一功能一个家）、地面与网格（显示/高度/透明度/吸附）、全局变换（缩放/平移）、
  *           720 全景（非 2:1 常驻提示 / 半径/旋转/清除，S5 接入源）
  * [POS]: director/panels/inspector 的图层配置（清单 §4.9 I13）：无选中时显示。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -27,9 +27,8 @@ export function SceneLayerInspector(): JSX.Element {
   return (
     <>
       <InspectorCard>
-        <SectionHeader title={t('director.inspector.environment')} onReset={() => { save(); patch({ skyColor: DEFAULT_SCENE_CONFIG.skyColor, showCharacterLabels: true }) }} />
+        <SectionHeader title={t('director.inspector.environment')} onReset={() => { save(); patch({ skyColor: DEFAULT_SCENE_CONFIG.skyColor }) }} />
         <ColorField label={t('director.inspector.skyColor')} value={config.skyColor} presets={[]} onChangeStart={save} onChange={(skyColor) => patch({ skyColor })} />
-        <ToggleField label={t('director.inspector.characterLabels')} checked={config.showCharacterLabels} onChange={(showCharacterLabels) => commit({ showCharacterLabels })} />
       </InspectorCard>
       <InspectorCard>
         <SectionHeader title={t('director.inspector.gridGround')} onReset={() => { save(); patch({ gridVisible: true, gridHeight: 0, groundOpacity: DEFAULT_SCENE_CONFIG.groundOpacity, gridSnapEnabled: false }) }} />

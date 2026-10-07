@@ -395,6 +395,12 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   "dreamina-upscale": [
     "dreamina-upscale"
   ],
+  "topaz-image-upscale": [
+    "topaz/image-upscale"
+  ],
+  "recraft-crisp-upscale": [
+    "recraft/crisp-upscale"
+  ],
   "codex-imagegen": [
     "codex-imagegen"
   ],

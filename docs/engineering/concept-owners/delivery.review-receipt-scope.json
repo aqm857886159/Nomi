@@ -1,0 +1,23 @@
+{
+  "name": "哪些推送带新内容、需要五门戳",
+  "subject": "delivery.review-receipt-scope",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/claude-hooks/pre-push-check.sh",
+    "symbol": "--not --remotes"
+  },
+  "write_api": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "symbol": "--not --remotes"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-09-27",
+  "notes": "PR #906（合同 docs/fixes/2026-09-27-release-tag-blocked-by-dev-hook.root-cause.json）：发版 tag 指向已合并的提交被开发机钩子当成「新内容」拦下。2026-10-02 评审收据整套删除后，owner 改为 push 闸门本身：HEAD 的提交都已在远端跟踪分支上就不带新内容、不要五门戳，只在 pre-push-check.sh 一处判，回归测试在 scripts/pre-push-check.node-test.mjs。"
+}

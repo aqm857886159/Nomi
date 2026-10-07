@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 react、three、@react-three/drei 的 Edges、../../model/directorTypes 的 DirectorObject / DirectorModelDisplayMode、
+ * [INPUT]: 依赖 react、three、@react-three/drei 的 Edges、../../model/directorSpace 的 PRIMITIVE_GEOMETRY、../../model/directorTypes 的 DirectorObject / DirectorModelDisplayMode、
  *          ../sceneTheme 的 CLAY_EDGE_COLOR、./primitiveMaterial 的 primitiveMaterialSpec
  * [OUTPUT]: 对外提供 PrimitiveGeometry、PrimitiveEntity（八种基础几何体 + 三种显示模式 solid / translucent / clay）
  * [POS]: director/scene/entities 的几何体渲染：材质属性（颜色/粗糙度/金属度/透明度/线框/平面着色）来自对象数据，
@@ -9,37 +9,22 @@
 import React, { type JSX } from 'react'
 import * as THREE from 'three'
 import { Edges } from '@react-three/drei'
+import { PRIMITIVE_GEOMETRY } from '../../model/directorSpace'
 import type { DirectorModelDisplayMode, DirectorObject, DirectorPrimitiveType } from '../../model/directorTypes'
 import { CLAY_EDGE_COLOR } from '../sceneTheme'
 import { primitiveMaterialSpec } from './primitiveMaterial'
 
+// 几何参数与网格抬高都读 model/directorSpace 的 PRIMITIVE_GEOMETRY——渲染与量尺同一份，不在这里再写数字
 export function PrimitiveGeometry({ type }: { type: DirectorPrimitiveType }): JSX.Element {
-  switch (type) {
-    case 'sphere':
-      return <sphereGeometry args={[0.5, 32, 24]} />
-    case 'plane':
-      return <boxGeometry args={[1, 0.02, 1]} />
-    case 'cylinder':
-      return <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
-    case 'cone':
-      return <coneGeometry args={[0.5, 1, 32]} />
-    case 'torus':
-      return <torusGeometry args={[0.4, 0.15, 16, 48]} />
-    case 'tetrahedron':
-      return <tetrahedronGeometry args={[0.6]} />
-    case 'icosahedron':
-      return <icosahedronGeometry args={[0.55]} />
-    case 'cube':
-    default:
-      return <boxGeometry args={[1, 1, 1]} />
-  }
+  const spec = PRIMITIVE_GEOMETRY[type] ?? PRIMITIVE_GEOMETRY.cube
+  return React.createElement(`${spec.geometry}Geometry`, { args: spec.args })
 }
 
 export function PrimitiveEntity({ object, displayMode }: { object: DirectorObject; displayMode: DirectorModelDisplayMode }): JSX.Element {
   const spec = primitiveMaterialSpec(object, displayMode)
   const auxiliary = object.isAuxiliary === true
   return (
-    <mesh castShadow={!auxiliary} receiveShadow={!auxiliary} position={[0, object.type === 'plane' ? 0 : 0.5, 0]}>
+    <mesh castShadow={!auxiliary} receiveShadow={!auxiliary} position={[0, (PRIMITIVE_GEOMETRY[object.type as DirectorPrimitiveType] ?? PRIMITIVE_GEOMETRY.cube).meshY, 0]}>
       <PrimitiveGeometry type={object.type as DirectorPrimitiveType} />
       <meshStandardMaterial
         color={spec.color}

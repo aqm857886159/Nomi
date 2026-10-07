@@ -1,0 +1,40 @@
+{
+  "name": "项目 Agent 绑定是不是同一个项目",
+  "subject": "identity.project-agent-binding",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/projectBinding.ts",
+    "symbol": "sameProjectAgentBinding"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/projectBinding.ts",
+      "symbol": "sameProjectAgentBinding"
+    }
+  ],
+  "forbidden_derivations": [],
+  "identity_fields": [
+    "projectId",
+    "immutableProjectUuid",
+    "projectGeneration"
+  ],
+  "allowed_consumers": [
+    "electron/assets/assetWriteContext.ts",
+    "electron/assets/projectInteractionCapture.ts",
+    "electron/assets/windowProjectCapture.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptCorrelation.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/project/projectCanvasReadSurface.ts",
+    "src/workbench/project/projectRepository.ts"
+  ],
+  "since": "2026-09-18",
+  "notes": "项目身份的三维比对（projectId + immutableProjectUuid + projectGeneration）：同一套比对原来在五处逐字抄了五遍，只比 projectId 那几处会把「同 id 重建的项目」认成旧项目。原 check:identity-compare 的 owner 模块，2026-09-29 并入时单独登记。"
+}

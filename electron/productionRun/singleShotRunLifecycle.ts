@@ -85,7 +85,17 @@ function defaultNow(): string {
   return new Date().toISOString();
 }
 
-/** Mark an accepted semantic one-shot as actively observed. */
+/**
+ * 单镜语义 Run「供应商受理了 = 进行中」那一条命令；不是单镜语义 Run、或已经不在草稿 / 就绪就没有。
+ * 提交出口把它和「已受理」放进同一次落盘（`productionGenerationSubmission`），交的那一刻 Run 就是进行中。
+ */
+export function singleShotRunningCommand(run: ProductionRun, now: () => string = defaultNow): Omit<RunCommand, "expectedRevision"> | null {
+  if (!isSemanticSingleShot(run) || !RUNNING_SOURCES.has(run.status)) return null;
+  const { expectedRevision: _revision, ...command } = commandFor(run, "run.status", { status: "running" }, "running", now);
+  return command;
+}
+
+/** Mark a semantic one-shot as actively observed (settling a draft that never went through the submission owner). */
 export function markSingleShotRunning(
   repository: SingleShotRunLifecycleRepository,
   projectId: string,

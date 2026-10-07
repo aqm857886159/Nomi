@@ -25,6 +25,7 @@ import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings
 import { readConnectedModelScope } from './connectedModelScope'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
+import { jobAwaitsRetrieval } from '../shared/productionShotPhase'
 import { assertCallerDeclaredTrustLevel, trustLevelFromApprovalPolicy } from './productionRunTrustAuthority'
 import { createGateApprovalOwner } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
@@ -297,6 +298,24 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         payload: { policy: { ...current.policy, ...policyResolver() } },
       })
     }
+    if (runCommand.type === 'job.retry_retrieval') {
+      // 「已生成但取回失败」→ 重新取回（#975 A2）。只做一件事：把这一镜放回轮询，叫醒批次调度器去**查一次、取一次**。
+      // 不重新提交、不预留、不扣费：轮询只用已有的供应商任务号；停着的 Run 也只观察在飞的镜，不派新的。
+      const current = requireRun(safeProjectId, safeRunId)
+      const jobId = typeof runCommand.payload.jobId === 'string' ? runCommand.payload.jobId.trim() : ''
+      const job = current.jobs.find((candidate) => candidate.jobId === jobId)
+      if (!job || !jobAwaitsRetrieval(job)) {
+        throw new Error('Production job is not waiting for its result to be retrieved')
+      }
+      if (!isSemanticMultiShotRun(current)) throw new Error('Retrieving a result again is only available for batch shots')
+      const result = repository.execute(safeProjectId, safeRunId, {
+        ...runCommand,
+        type: 'job.status',
+        payload: { jobId, status: 'polling', patch: { errorCode: '', errorMessage: '' } },
+      })
+      kickBatchSchedulerForRun(safeProjectId, safeRunId)
+      return result
+    }
     if (runCommand.type === 'job.reconcile') {
       const current = requireRun(safeProjectId, safeRunId)
       const jobId = typeof runCommand.payload.jobId === 'string' ? runCommand.payload.jobId.trim() : ''
@@ -363,7 +382,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       gateApproval.consume(trustReceipt || undefined)
       if (trustLevel === 'budget_only') {
         // 2026-09-10 根因：这里原本也把 isShotGate(gate) 算进「顺手批掉」的范围。逐镜门是**付费门**
-        // （批准即放行 production.generate-node），而 set_trust 只能由客户端工具调用发起（渲染层 IPC
+        // （旧剧本里批准它曾放行一次真实派发；那段派发已删，门照旧按付费门对待），而 set_trust 只能由客户端工具调用发起（渲染层 IPC
         // 把 run.control 的 payload 收窄成 pause/resume/cancel，根本递不进 trustLevel）——等于一次
         // 客户端工具调用就能替用户批掉一次真实扣费。降档只降「问得多细」，不代表替真人授权花钱。
         const waitingCreativeGate = result.run.gates.find((gate) => gate.status === 'waiting'

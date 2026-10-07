@@ -74,14 +74,17 @@ try {
   if (nodeCount < 3) { console.log('  ✗ 节点没建齐'); failed = true }
   await shot(win, '01-three-nodes-with-prompts.png')
 
-  // 全选 → 浮条「生成 3 个」
+  // 全选 → 编组 → 组工具条「生成整组」（批量生成只有这一个入口）
   await win.locator('.generation-canvas-v2, [aria-label="AI 影像创作画布"]').first().click({ position: { x: 60, y: 400 } }).catch(() => {})
   await win.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a')
   await win.waitForTimeout(900)
-  const runAll = win.locator('[data-storyboard-run-all="true"]')
-  if ((await runAll.count()) === 0) { console.log('  ✗ 多选浮条没出现'); failed = true; throw new Error('no selection toolbar') }
-  await shot(win, '02-selection-toolbar.png') // 验：浮条「生成 3 个」
-  await runAll.first().click()
+  const groupBtn = win.locator('[aria-label^="创建分组"]').first()
+  if ((await groupBtn.count()) === 0) { console.log('  ✗ 多选浮条没出现'); failed = true; throw new Error('no selection toolbar') }
+  await groupBtn.click()
+  const runAll = win.locator('[data-group-toolbar="true"]').getByRole('button', { name: '生成整组', exact: true })
+  await runAll.waitFor({ timeout: 8000 })
+  await shot(win, '02-selection-toolbar.png') // 验：组工具条「生成整组」
+  await runAll.click()
   await win.waitForTimeout(1000)
   await shot(win, '03-spend-confirm.png') // 验：一次轻确认覆盖整批
 

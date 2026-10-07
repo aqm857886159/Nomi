@@ -388,6 +388,30 @@ function projectContractPrompt(candidate: PlanCandidate, sourceUrls: readonly (s
   return projected;
 }
 
+/**
+ * 画布那台（引擎 A）已经拼好的请求，原样冻成一份合同（发动机收敛第一刀，单镜 Run 的「交」那一步）。
+ *
+ * 不走模块注册表的参数白名单：这份请求就是画布今天发给供应商的那一份，参数怎么进报文由引擎 A 的出口
+ * （`catalog/taskParams.ts`）决定，这里再过一遍白名单只会把两台发动机的差异搬进合同。哈希与
+ * `compileExecutionContract` 是同一个函数，冻住之后改一个字节都对不上授权。
+ */
+export function freezeCanvasExecutionContract(candidate: PlanCandidate): ExecutionContractV1 {
+  const semantic = {
+    schemaVersion: EXECUTION_CONTRACT_SCHEMA_VERSION,
+    candidateId: candidate.candidateId,
+    candidateRevision: candidate.revision,
+    moduleId: candidate.moduleId,
+    moduleVersion: "1.0.0",
+    providerId: candidate.providerId,
+    modelId: candidate.modelId,
+    mode: candidate.mode,
+    prompt: candidate.prompt,
+    parameters: structuredClone(candidate.parameters),
+    references: [],
+  } satisfies Omit<ExecutionContractV1, "contractHash" | "warnings">;
+  return { ...semantic, contractHash: hashContract(semantic), warnings: [] };
+}
+
 export function compileExecutionContract(
   candidate: PlanCandidate,
   registry: { resolve(input: { moduleId: string; providerId: string; modelId: string; mode: string }): ResolvedModule },

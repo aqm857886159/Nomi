@@ -1,0 +1,27 @@
+{
+  "name": "项目身份（immutableProjectUuid + projectGeneration）从哪来、打开时怎么读",
+  "subject": "project.identity-ensure",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/workspaceProjectIdentity.ts",
+    "symbol": "ensureWorkspaceProjectIdentity"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/workspaceProjectIdentity.ts",
+      "symbol": "ensureWorkspaceProjectIdentity"
+    },
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "readSettledWorkspaceIdentity"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "身份只在主清单与备份都缺时生成一次、之后永不改；已落定就由 readSettledWorkspaceIdentity 无锁读出（与加锁路径同一个 sameCompleteIdentity 判据），没落定才进加锁写事务。打开项目是读，落定后的项目每次打开零写盘（docs/fixes/2026-10-06-open-project-read-path-writes.root-cause.json）。"
+}

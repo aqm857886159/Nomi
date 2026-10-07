@@ -1,0 +1,40 @@
+{
+  "id": "LAW11-SB-DURATION",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "分镜行时长胶囊只给固定档 4/5/6/8/10/12/15 秒，档案声明的 2、3、7、9、11 秒在分镜里选不到（Agnes 2.5、Kling 3.0、Wan 2.7、Runway Gen4 系列等 8 个模型）",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts 的 DURATION_OPTIONS_SEC；分镜行可选值来自 composerBarModel.ts 的 shotDurationChoices",
+    "分镜行时长改由档案的 duration 控件给（画布同款时长滑条 / 分段），固定档表随旧底栏删除；storyboard-row|duration|options 缺口类消失",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  }
+}

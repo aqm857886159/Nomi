@@ -21,7 +21,8 @@ vi.mock('../../library/localProjectStore', () => ({
     return disk.get(projectId)
   }),
 }))
-vi.mock('../../api/taskApi', () => ({ fetchWorkbenchTaskResultByVendor: vi.fn() }))
+// 这些是旧运行记录（没有单镜 Run）：Run 那一侧回 null，照旧路查。
+vi.mock('../../api/taskApi', () => ({ fetchWorkbenchTaskResultByVendor: vi.fn(), pollCanvasShotRun: vi.fn(async () => null) }))
 
 function deferred<T>() {
   let resolve!: (value: T) => void

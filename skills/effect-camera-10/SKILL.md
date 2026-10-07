@@ -42,3 +42,5 @@ metadata:
 ---
 
 Tight handheld POV behind the running {主体}, frame jolting, lagging half a step
+
+Keep the running subject’s identity, appearance, clothing, setting, lighting, color, and continuity unchanged. Change only the handheld POV, jolts, and half-step lag described here.

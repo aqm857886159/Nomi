@@ -110,6 +110,8 @@ const READ_METHOD_BY_TARGET: Record<string, string> = {
   // 而那要等 `credentialStatus=ready` —— AI 在人贴 key 之前一件事都做不了，实测四个模型
   // 一个都没走到「声明」那一步。让它们等 key 从来没换来任何安全。
   onboarding_kit: 'model.onboarding.kit',
+  // 按任务号查一个已提交异步任务的现状（nomi_try_model 返回 still_processing 之后）。只读，不重提交。
+  task: 'task.read',
 }
 /** nomi_read 的 target 集合（供 mcpProtocol 判 widget/canonical 投影时复用，真相单一）。 */
 export const READ_TARGETS = Object.freeze(Object.keys(READ_METHOD_BY_TARGET))
@@ -138,6 +140,7 @@ const READ_TOOL = {
       operationId: { type: 'string', description: 'target=operation 必填。' },
       artifactId: ARTIFACT_FIELDS.artifactId,
       setupId: { type: 'string', description: 'target=setup：不填=列出你的接入会话。' },
+      taskId: { type: 'string', description: 'target=task 必填：still_processing 给的任务号；只查一次，不重提交。' },
       afterCursor: { ...RUN_EVENT_FIELDS.afterCursor, default: 0 },
       waitMs: { ...RUN_EVENT_FIELDS.waitMs, default: 0 },
       page: { type: 'integer', minimum: 0 },
@@ -162,6 +165,8 @@ const READ_TOOL = {
       case 'models':
       case 'onboarding_kit':
         return {}
+      case 'task':
+        return { taskId: a.taskId }
       case 'model':
         return { modelId: a.modelId, ...(typeof a.vendor === 'string' ? { vendor: a.vendor } : {}) }
       case 'run':

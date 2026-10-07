@@ -87,7 +87,6 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onChange={NOOP}
         onGenerateRow={NOOP}
         onRegenerateRow={NOOP}
-        onVariantsRow={NOOP}
         onToggleLockRow={NOOP}
         onOpenPreviewRow={NOOP}
         onRerunFreshRefsRow={NOOP}
@@ -157,7 +156,7 @@ export const ZONE_STATES: readonly LabState[] = [
   {
     id: 'sb-zone-02-anchors-expanded',
     name: '锚区 · 展开（与镜头行同解剖）',
-    source: '合同 §2.2 锚区两态 · 展开态 / §3.2 锚状态',
+    source: '合同 §2.2 锚区两态 · 展开态 / §3.2 锚状态 / §4.4 三段声明住在锚上（名字与描述在参考卡上写一次，镜头只引用）',
     coverage: 'shell',
     render: () => <AnchorZoneStage cards={ANCHOR_RUNTIMES.slice(0, 2)} expanded />,
   },

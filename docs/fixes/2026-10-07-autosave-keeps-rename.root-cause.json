@@ -1,0 +1,167 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-autosave-keeps-rename",
+  "detected_by": "review",
+  "problem_type": "内容写口带着打开那一刻的旧快照，覆盖了不归它管的字段",
+  "symptom": "打开项目后，项目名被别的路径改了（项目库改名、Agent / MCP 改名、主进程别的写口）；用户继续改画布，下一次自动保存把名字写回打开时的旧名，改名丢失。",
+  "direct_cause": "bindProjectPersistence 把打开那一刻的 input.project.name 一路传进保存队列与 saveLocalProject，桌面端再把这个名字放进发给主进程的记录里；主进程 inputName 取记录里的非空 name，所以旧名赢了。",
+  "class_root": "项目名有两个主人：改名入口，和每一个带着 name 参数的内容保存口。内容保存没有「只写自己拥有的字段」的边界。",
+  "affected_population": [
+    "所有桌面端用户：项目开着时名字被其它路径改动",
+    "迁移回存、素材删除、后台交付三个同样带 name 参数的内容写口"
+  ],
+  "scope_paths": [
+    "src/workbench/project/projectRepository.ts",
+    "src/workbench/library/localProjectStore.ts",
+    "src/workbench/project/projectPersistenceService.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "electron/workspace/workspaceRepository.ts"
+  ],
+  "entry_points": [
+    "自动保存 bindProjectPersistence",
+    "打开项目时的迁移回存 hydrateProject",
+    "素材结果删除 deleteAssetResult",
+    "后台交付 runProjectDelivery",
+    "顶栏改名 renameProjectAndPersist"
+  ],
+  "internal_only_reason": "项目名归属是 Nomi 内部不变量，没有第三方文档能裁决。",
+  "invariants": [
+    "内容保存（saveLocalProject）没有 name 参数；桌面端发往主进程的内容记录不含 name 字段",
+    "项目名只由 renameLocalProject / renameProjectAndPersist 写入",
+    "createdAt、项目身份、封面风格、种子键等不归渲染层的字段以盘上现值为准"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "saveLocalProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "saveLocalProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "saveLocalProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "saveProjectRecord"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/localProjectStore.ts",
+      "symbol": "saveLocalProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "renameProjectAndPersist"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "七扇都是合法写口：三个内容调用者（自动保存与迁移回存、素材删除、后台交付）加共享保存链（projectRepository、localProjectStore、保存队列 workbenchProjectSession）和顶栏改名入口，各自必须存在；这次不减门，而是收掉内容写口写名字的能力：saveLocalProject 与保存队列不再接收 name。"
+  },
+  "generality_proof": "名字能力在共享的保存边界 saveLocalProject 上被删除，任何现在或将来的内容写口都无法传名字；桌面端记录里也不带 name，主进程在清单锁内取现值，连「读到新名与写入之间被改」的窄窗也闭合。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "saveProjectRecord",
+      "responsibility": "内容保存只写 payload，不接收也不发送项目名"
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "saveWorkspaceProject",
+      "responsibility": "主进程在清单锁内以现值合并：记录不带 name 就沿用盘上的名字，其余摘要字段一律沿用盘上"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "entry_point": "saveLocalProject",
+      "disposition": "enforced",
+      "evidence": "原先传 project.name（刚读出来的名字），现在没有 name 参数"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "saveLocalProject",
+      "disposition": "enforced",
+      "evidence": "原先传 record.name，跨 await 后可能已是旧名；现在没有 name 参数"
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "saveProject",
+      "disposition": "not-affected",
+      "evidence": "主进程能力网关读整份 record 再 `{ ...record, payload }` 写回，名字取自刚读的盘上记录，在同一进程内完成"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个旧名参数可从四个调用者进入（自动保存、迁移回存、素材删除、后台交付），任何新加的内容写口也会再带一个名字",
+    "same_class_scan": [
+      "node scripts/door-map.mjs saveLocalProject：3 个调用文件，5 处出现",
+      "node scripts/door-map.mjs saveProjectRecord：1 扇门（localProjectStore.saveLocalProject）",
+      "electron/workspace/workspaceRepository.ts saveWorkspaceProject：只取 name 与 payload，其余字段沿用盘上（矩阵测试逐个断言）"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/workbench/project/projectRepository.ts",
+    "invariant": "内容保存的函数签名里没有项目名",
+    "failure_mode": "任何调用者再传名字，TypeScript 编译不过",
+    "exception_policy": "none",
+    "strategy": "把名字从共享保存边界的类型里删掉，改名只能走 renameLocalProject；桌面端记录也剥掉 name，主进程取现值。",
+    "artifacts": [
+      "src/workbench/project/projectRepository.ts",
+      "src/workbench/library/localProjectStore.ts",
+      "src/workbench/project/workbenchProjectSession.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/projectPersistenceService.autosaveRename.test.ts",
+    "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/project/projectRepository.ts",
+      "src/workbench/project/workbenchProjectSession.ts",
+      "src/workbench/project/projectPersistenceService.ts"
+    ],
+    "rationale": "saveLocalProject 的 name 参数、保存队列与订阅选项里的 projectName、持久化 service 的 persistProject（改名 + 落盘，改为 renameProjectAndPersist）都已删除"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "项目名归属是 Nomi 内部不变量，不由第三方运行时决定。",
+    "exit_criteria": []
+  },
+  "migration": "无落盘格式变化，无需迁移；旧项目名原样保留。",
+  "residual_risks": [
+    "顶栏改名先写名字再落盘当前内存内容，两步之间不是同一把锁；极窄窗内的并发自动保存只会写内容，不会写名字",
+    "项目库改名（renameLocalProject）整份读改写，开着的项目期间同时改名时可能带旧 payload 一次，下一次自动保存会以内存内容覆盖回来，本次未改"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/project/projectRepository.ts",
+    "tests": [
+      "src/workbench/project/projectPersistenceService.autosaveRename.test.ts",
+      "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-07"
+}

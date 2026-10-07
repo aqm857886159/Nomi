@@ -3,6 +3,13 @@ import type { Rectangle, WebContents } from "electron";
 import { browserViews, browserViewsByWindow } from "./browserViewState";
 import type { BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
 
+export class BrowserViewUnavailableError extends Error {
+  constructor(message = "Browser view is unavailable") {
+    super(message);
+    this.name = "BrowserViewUnavailableError";
+  }
+}
+
 export function clampNumber(value: number, min: number, max: number): number {
   if (max < min) return min;
   return Math.min(Math.max(value, min), max);
@@ -10,7 +17,7 @@ export function clampNumber(value: number, min: number, max: number): number {
 
 export function getSenderWindow(sender: WebContents): BrowserWindow {
   const win = BrowserWindow.fromWebContents(sender);
-  if (!win || win.isDestroyed()) throw new Error("Browser window is unavailable");
+  if (!win || win.isDestroyed()) throw new BrowserViewUnavailableError("Browser window is unavailable");
   return win;
 }
 
@@ -22,7 +29,7 @@ export function readViewId(payload: BrowserViewIdPayload): number {
 
 export function getBrowserViewForSender(sender: WebContents, payload: BrowserViewIdPayload): BrowserViewRecord {
   const record = browserViews.get(readViewId(payload));
-  if (!record) throw new Error("Browser view not found");
+  if (!record) throw new BrowserViewUnavailableError("Browser view not found");
   const win = getSenderWindow(sender);
   const parent = win.getParentWindow();
   if (record.ownerWindowId !== win.id && record.ownerWindowId !== parent?.id) {

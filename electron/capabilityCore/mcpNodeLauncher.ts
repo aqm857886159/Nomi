@@ -9,11 +9,11 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import readline from 'node:readline'
 
-import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
-import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
-import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
+
+import { createNomiMcpServer, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_TRANSPORT_ERROR_EVENT } from './mcpStdioDiagnostics'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
@@ -30,8 +30,7 @@ import {
   createMcpConnectionContext,
   type McpConnectionContext,
 } from './mcpConnectionContext'
-import { rpcErrorFromPayload } from './mcpRpcError'
-import { createMcpLoopbackRpcRequest } from './mcpLoopbackRpcRequest'
+import { callMcpLoopbackRpc, createLoopbackGenerationConfirmation } from './mcpLoopbackRpcCall'
 
 const CAPABILITY_DIR_ENV = 'NOMI_CAPABILITY_DIR'
 const PROJECTS_DIR_ENV = 'NOMI_PROJECTS_DIR'
@@ -45,11 +44,6 @@ const BOOT_TIMEOUT_MS = 60_000
 // 快速失败预算（§P3-F 承诺）：库不匹配/陈旧/旧版这类「已知连不上」必须在此预算内报人话，绝不拖到 60s 盲等。
 // 实现上在**冷启前**同步命中即抛（毫秒级 ≪ 预算），远快于它；此常量既是文档也是并发用例断言的上界。
 export const FAST_FAIL_BUDGET_MS = 10_000
-
-function rpcTimeoutMs(): number {
-  const configured = Number(process.env.NOMI_RPC_TIMEOUT_MS)
-  return Number.isFinite(configured) && configured > 0 ? configured : 360_000
-}
 
 function capabilityDir(): string {
   return String(process.env[CAPABILITY_DIR_ENV] || '').trim()
@@ -145,12 +139,31 @@ function appArgs(): string[] {
   }
 }
 
-let bootedApp: ChildProcess | null = null
-let bootFailure = ''
-let bootExitDetail = ''
+// 一次拉起的 Nomi 子进程及其生命周期。launcher 不拥有「Nomi 是否活着」——广告才是真相；这里只记「我拉起的那个
+// 进程现在什么状态」，让 ensureLiveInstance 能在它退出（崩溃 / 闲置自退 / 退出中）后重新拉起，而不是白等。
+type BootedApp = {
+  child: ChildProcess
+  /** 本次拉起后是否见过它的广告 match：见过 + 现在没广告 = 它在退出中（清广告先于进程结束）。 */
+  sawLive: boolean
+  exit: { code: number | null; signal: NodeJS.Signals | null } | null
+  failure: string
+}
+let booted: BootedApp | null = null
+let lastSpawnAt = 0
+let spawnsSinceLive = 0
+let failedExitsSinceLive = 0
 
-function startNomi(): void {
-  if (bootedApp && bootedApp.exitCode === null && bootedApp.signalCode === null) return
+// 退出中的实例（广告已清、进程还拖着）最多等这么久；超过算失联，不再白等 60s。
+const EXITING_WAIT_MS = 15_000
+// 连续这么多次「拉起即非零退出」（从未 match）→ 判定启动失败，不再重试。
+const MAX_FAILED_EXITS = 3
+const RESPAWN_BACKOFF_MS = [0, 1_000, 2_000, 4_000, 8_000]
+
+function bootedAlive(app: BootedApp | null): boolean {
+  return Boolean(app && app.exit === null && app.child.exitCode === null && app.child.signalCode === null)
+}
+
+function spawnNomi(): BootedApp {
   const command = String(process.env[APP_COMMAND_ENV] || '').trim()
   if (!command) throw new Error('Nomi MCP launcher is missing its app command. Reconnect this client in Nomi settings.')
   const env = { ...process.env }
@@ -161,17 +174,36 @@ function startNomi(): void {
   delete env[CLIENT_ENV]
   delete env[CLIENT_PROOF_ENV]
   env[BACKGROUND_LAUNCH_ENV] = '1'
-  bootFailure = ''
-  bootExitDetail = ''
-  bootedApp = spawn(command, appArgs(), { env, stdio: 'ignore' })
-  bootedApp.on('error', (error) => {
-    bootFailure = error.message
-  })
-  bootedApp.on('exit', (code, signal) => {
+  const app: BootedApp = { child: spawn(command, appArgs(), { env, stdio: 'ignore' }), sawLive: false, exit: null, failure: '' }
+  app.child.on('error', (error) => { app.failure = error.message })
+  app.child.on('exit', (code, signal) => {
     // Another MCP helper may have won Nomi's single-instance race. Its sibling exits normally
     // before the winning process advertises RPC, so keep polling instead of failing this client.
-    bootExitDetail = `Nomi launcher exited before MCP was ready (code=${code} signal=${signal})`
+    app.exit = { code, signal }
   })
+  booted = app
+  lastSpawnAt = Date.now()
+  spawnsSinceLive += 1
+  return app
+}
+
+/**
+ * 没有活广告时：我拉起的子进程不在跑 → 重新拉起（间隔退避，避免输掉单实例竞争的兄弟进程被空转重拉）。
+ * 同步判定 + 模块级状态 = 同一 launcher 内并发调用天然单飞。返回 void；启动失败直接抛人话。
+ */
+function respawnIfNeeded(): void {
+  if (bootedAlive(booted)) return
+  if (booted?.exit) {
+    const { code, signal } = booted.exit
+    if (code !== 0 || signal) failedExitsSinceLive += 1
+    if (failedExitsSinceLive >= MAX_FAILED_EXITS) {
+      throw new Error(`Nomi 启动失败：连续 ${failedExitsSinceLive} 次拉起后立刻退出（code=${code} signal=${signal}）。请手动打开一次 Nomi 看有没有报错，再重试。`)
+    }
+    booted = { ...booted, exit: null, failure: '' } // 已计入，避免下一轮重复计数
+  }
+  const wait = RESPAWN_BACKOFF_MS[Math.min(spawnsSinceLive, RESPAWN_BACKOFF_MS.length - 1)]
+  if (Date.now() - lastSpawnAt < wait) return
+  spawnNomi()
 }
 
 // 结果/进度文案 locale：bare-Node launcher 优先读 GUI 写入的 preferences.language；Nomi 未运行或偏好缺失时
@@ -199,33 +231,59 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  * 找到可连实例，或按 verdict 快速失败/冷启：
  *   · match → 直接连。
  *   · mismatch / stale / legacy → 立刻抛人话（同步命中，远快于 FAST_FAIL_MS），绝不盲等、绝不串库。
- *   · dead / malformed → 没有活实例，走冷启（spawn + 满 BOOT_TIMEOUT_MS 轮询）；轮询期间若冒出 mismatch/stale/
- *     legacy（并发会话抢注）也即时快速失败。
+ *   · dead / malformed → 没有活实例，走（重）拉起：循环里每一轮都看「我拉起的子进程还活着吗」——退了（崩溃 / 闲置
+ *     10 分钟自退 / 输掉单实例竞争）就重新拉起；还在拖着退出（广告已清、进程未结束）就等它结束再拉起，不白等 60s。
+ *     轮询期间若冒出 mismatch/stale/legacy（并发会话抢注）也即时快速失败。
  */
-async function ensureLiveInstance(signal?: AbortSignal): Promise<InstanceAdvertisement> {
-  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('MCP request cancelled')
+async function ensureLiveInstance(
+  signal?: AbortSignal,
+  /** 刚被「连接被拒」证伪的实例：广告还在、pid 看着还活（Linux/macOS 上被杀未回收的僵尸进程 kill(pid,0) 仍成功），但端口已无人监听。 */
+  refused?: InstanceAdvertisement,
+): Promise<InstanceAdvertisement> {
+  const aborted = () => (signal?.reason instanceof Error ? signal.reason : new Error('MCP request cancelled'))
+  if (signal?.aborted) throw aborted()
   const library = expectedLibrary()
-  const initial = readAdvertVerdict(library)
-  if (initial.kind === 'match') return initial.instance
-  const initialFastFail = fastFailMessage(initial, library.root)
-  if (initialFastFail) throw new Error(initialFastFail)
-
-  // 到这里只剩 dead/malformed = 确实没活实例 → 冷启。这是唯一还会走满 60s 的路（真正的冷启动）。
-  startNomi()
   const deadline = Date.now() + BOOT_TIMEOUT_MS
-  while (Date.now() < deadline) {
-    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('MCP request cancelled')
+  let exitingSince = 0
+  let attempted = false
+  for (;;) {
+    if (signal?.aborted) throw aborted()
     const verdict = readAdvertVerdict(library)
-    if (verdict.kind === 'match') return verdict.instance
+    const isRefused = verdict.kind === 'match' && refused !== undefined
+      && verdict.instance.pid === refused.pid && verdict.instance.port === refused.port
+    if (verdict.kind === 'match' && !isRefused) {
+      if (booted) booted.sawLive = true
+      spawnsSinceLive = 0
+      failedExitsSinceLive = 0
+      return verdict.instance
+    }
     const fastFail = fastFailMessage(verdict, library.root)
-    if (fastFail) throw new Error(fastFail) // 并发会话在冷启途中抢注了别的库/陈旧广告 → 立即人话失败
-    if (bootFailure) throw new Error(bootFailure)
+    if (fastFail) throw new Error(fastFail) // 库不匹配/陈旧/旧版：别串库、别盲等，立即人话失败（含冷启途中并发抢注）
+    if (booted?.failure) throw new Error(`Nomi 启动失败：${booted.failure}`)
+    if (attempted && Date.now() >= deadline) break
+    attempted = true
+    if (booted && bootedAlive(booted) && (booted.sawLive || isRefused)) {
+      // 见过它活、现在没广告：它在退出中。等它结束（下一轮就会重拉），但不无限等。
+      exitingSince ||= Date.now()
+      if (Date.now() - exitingSince > EXITING_WAIT_MS) {
+        throw new Error('Nomi 实例失联：它已停止服务（广告已清）但进程迟迟没有退出。请在任务管理器结束 Nomi 后重试。')
+      }
+    } else {
+      exitingSince = 0
+      respawnIfNeeded()
+    }
     await delay(200)
   }
-  // 冷启超时：区分「兄弟进程输掉单实例竞争正常退出」（code=0，honest 保留）与纯冷启超时。
-  throw new Error(
-    `Nomi 冷启动 60 秒内未就绪。请先手动打开一次 Nomi，再重试该 MCP 操作。${bootExitDetail ? ` ${bootExitDetail}` : ''}`,
-  )
+  if (bootedAlive(booted)) {
+    throw new Error('Nomi 正在启动，但 60 秒内还没就绪（进程仍在运行，可能卡在启动）。请看一眼 Nomi 窗口，或稍后再试。')
+  }
+  const detail = booted?.exit ? ` Nomi launcher exited before MCP was ready (code=${booted.exit.code} signal=${booted.exit.signal})` : ''
+  throw new Error(`Nomi 启动失败：60 秒内没有拉起可用实例。请先手动打开一次 Nomi，再重试该 MCP 操作。${detail}`)
+}
+
+function isConnectionRefused(error: unknown): boolean {
+  const cause = error instanceof Error ? (error.cause as { code?: unknown; errors?: Array<{ code?: unknown }> } | undefined) : undefined
+  return cause?.code === 'ECONNREFUSED' || Boolean(cause?.errors?.some((item) => item?.code === 'ECONNREFUSED'))
 }
 
 async function callViaRpc(
@@ -234,40 +292,16 @@ async function callViaRpc(
   params: Record<string, unknown>,
   options?: McpInvokeOptions,
 ): Promise<unknown> {
-  const connection = launcherConnection()
-  const proof = String(process.env[CLIENT_PROOF_ENV] || '').trim()
-  const timeoutMs = rpcTimeoutMs()
-  const controller = new AbortController()
-  const relayAbort = () => controller.abort(options?.signal?.reason)
-  if (options?.signal?.aborted) relayAbort()
-  else options?.signal?.addEventListener('abort', relayAbort, { once: true })
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  let response: Response
-  try {
-    response = await fetch(`http://127.0.0.1:${instance.port}/rpc`, {
-      ...createMcpLoopbackRpcRequest({
-        token: instance.token,
-        clientProof: proof,
-        connection,
-        method,
-        params,
-        planConfirmed: options?.planConfirmed,
-        signal: controller.signal,
-      }),
-    })
-  } catch (error) {
-    if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`Nomi did not respond within ${Math.round(timeoutMs / 1000)} seconds. The task may still be running; check Nomi before retrying.`, { cause: error })
-    }
-    throw error
-  } finally {
-    clearTimeout(timer)
-    options?.signal?.removeEventListener('abort', relayAbort)
-  }
-  const body = await response.json() as { ok?: boolean; error?: unknown; result?: unknown }
-  if (!body.ok) throw rpcErrorFromPayload(body, response.status)
-  return body.result
+  // 裸 Node 的原生 fetch：不读系统代理，本机回环必直连（appFetch 对回环同样直连，见 systemProxy 的 LOCAL_BYPASS_RULES），两边等价。
+  return callMcpLoopbackRpc({
+    instance,
+    fetchImpl: fetch,
+    clientProof: String(process.env[CLIENT_PROOF_ENV] || '').trim(),
+    connection: launcherConnection(),
+    method,
+    params,
+    options,
+  })
 }
 
 // 首次无 GUI 时从持久化偏好解析；在线请求会通过 loopback RPC 刷新，避免用户切语言后旧缓存继续生效。
@@ -304,13 +338,28 @@ async function invokeLiveRpc(
   return callViaRpc(instance, method, params, requestSignal ? { ...options, signal: requestSignal } : options)
 }
 
-const protocol = createMcpProtocol({
-  send: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
+const launcherGenerationConfirmation = createLoopbackGenerationConfirmation({
+  rpcIfOpen: (method, params) => {
+    const instance = readLiveInstance()
+    return instance ? callViaRpc(instance, method, params) : undefined
+  },
+  authenticatedClient: () => launcherConnection().authenticatedClient,
+})
+
+const mcp = createNomiMcpServer({
   invoke: async (method, params, options) => {
     const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
-    const instance = await ensureLiveInstance(requestSignal)
-    await refreshLauncherLocale(instance)
-    return invokeLiveRpc(instance, method, params, options)
+    let instance = await ensureLiveInstance(requestSignal)
+    // 广告看着活、端口却拒连 = 实例刚死（进程未回收的窗口）。请求没送达，重发安全：换一个活实例再试一次。
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await refreshLauncherLocale(instance)
+        return await invokeLiveRpc(instance, method, params, options)
+      } catch (error) {
+        if (attempt > 0 || !isConnectionRefused(error)) throw error
+        instance = await ensureLiveInstance(requestSignal, instance)
+      }
+    }
   },
   invokeIfOpen: async (method, params, options) => {
     const instance = readLiveInstance()
@@ -319,75 +368,27 @@ const protocol = createMcpProtocol({
   },
   isAppOpen: () => Boolean(readLiveInstance()),
   getAuthenticatedClient: () => launcherConnection().authenticatedClient,
-  // 打包态：mcpNodeLauncher 以裸 Node 跑，无自己的 Electron 主进程，不能直接弹应用内卡。
-  // 通过 loopback RPC 把挑战令牌转给 GUI 进程的 nomi_confirm_generation_gate 端点，
-  // 由 GUI 负责弹真人确认卡并铸收据——与 mcpStdioServer.ts 的 confirmGenerationInNomi 同语义。
-  confirmGenerationInNomi: async (challenge) => {
-    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-      ? challenge.handoff.challengeToken
-      : ''
-    const instance = readLiveInstance()
-    if (!challengeToken || !instance) return { confirmed: false }
-    const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken })
-    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-    return {
-      confirmed: typed.confirmed === true,
-      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
-      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
-    }
-  },
-  // 打包态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
-  // 主进程持有 macKey，是唯一能签 client_elicitation attestation 的一方；
-  // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
-  verifyClientGenerationConfirmation: async (challenge) => {
-    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
-      ? challenge.handoff.challengeToken
-      : ''
-    const instance = readLiveInstance()
-    const authenticatedClient = launcherConnection().authenticatedClient
-    if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
-    const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient })
-    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
-    return {
-      confirmed: typed.confirmed === true,
-      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
-      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
-    }
-  },
+  // 打包态：裸 Node 没有自己的 Electron 主进程，不能弹应用内卡，也铸不了收据：两条确认都经回环 RPC 交给
+  // GUI 主进程（它持有 macKey，是唯一能签 client_elicitation 收据的一方）。实现与另两个装配点共用一份。
+  confirmGenerationInNomi: launcherGenerationConfirmation.confirmGenerationInNomi,
+  verifyClientGenerationConfirmation: launcherGenerationConfirmation.verifyClientGenerationConfirmation,
   getLocale: () => launcherLocale,
   // 打包态（裸 Node）与开发态（Electron stdio）共用同一套检测档案。
   // mcpDetectedClients 是 bare-Node safe，不引 electron，可安全接入。
   onClientDetected: (name) => { recordDetectedMcpClient(name) },
 })
 
-const input = readline.createInterface({ input: process.stdin })
-input.on('line', (line) => {
-  const parsed = parseMcpStdioLine(line)
-  if (parsed.kind === 'blank') return
-  if (parsed.kind === 'oversized') {
-    // 裸 Node launcher 够不着 logger（它要 electron 的 app.getPath），所以这里直写 stderr，
-    // 但事件名与字段与 Electron 那条逐字一致（同一个常量），宿主两边看到的是同一件事。
-    process.stderr.write(`[nomi-mcp] ${MCP_OVERSIZED_LINE_EVENT} limitBytes=${MAX_MCP_LINE_BYTES}\n`)
-    return
-  }
-  if (parsed.kind === 'parse-error') {
-    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })}\n`)
-    return
-  }
-  protocol.handleIncoming(parsed.value as Parameters<typeof protocol.handleIncoming>[0])
-})
-
-let closing = false
-function close(): void {
-  if (closing) return
-  closing = true
-  const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-  if (cancelled > 0) process.stderr.write(`[nomi-mcp] ${MCP_CANCELLED_IN_FLIGHT_EVENT} count=${cancelled}\n`)
-  if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && bootedApp?.pid) {
-    try { bootedApp.kill('SIGTERM') } catch { /* best effort test cleanup */ }
+// stdin/stdout 分帧、读缓冲上限、stdin 关闭即断连都归 SDK 的 StdioServerTransport。裸 Node 够不着 logger
+// （它要 electron 的 app.getPath），所以诊断直写 stderr，事件名与 Electron 那条共用同一个常量。
+mcp.server.onerror = (error) => {
+  process.stderr.write(`[nomi-mcp] ${MCP_TRANSPORT_ERROR_EVENT} message=${JSON.stringify(error.message)}\n`)
+}
+// 断连时 SDK 中止全部在途请求的信号（别把付费生成留在后台跑），然后本进程退出、不留孤儿。
+mcp.onClose((inFlightAtClose) => {
+  if (inFlightAtClose > 0) process.stderr.write(`[nomi-mcp] ${MCP_CANCELLED_IN_FLIGHT_EVENT} count=${inFlightAtClose}\n`)
+  if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && booted?.child.pid) {
+    try { booted.child.kill('SIGTERM') } catch { /* best effort test cleanup */ }
   }
   process.exit(0)
-}
-
-input.on('close', close)
-process.stdin.on('end', close)
+})
+void mcp.connect(new StdioServerTransport())

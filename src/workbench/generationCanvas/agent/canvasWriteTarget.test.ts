@@ -147,6 +147,7 @@ describe("canvas.write renderer evidence capture", () => {
     }, () => snapshot)).resolves.toEqual({
       applied: true,
       proposalId: "receipt-host-a",
+      changeId: "canvas:v1:receipt-host-a",
       operation: "set_node_prompt",
       affectedNodeIds: ["node-real"],
       reconciliation: { ok: true, deviationCount: 0 },
@@ -190,6 +191,7 @@ describe("canvas.write renderer evidence capture", () => {
     }, () => snapshot)).resolves.toEqual({
       applied: true,
       proposalId: "receipt-camera",
+      changeId: "canvas:v1:receipt-camera",
       operation: "create_camera_move",
       result: { cameraMoveNodeId: "camera-reference-1", targetNodeId: "node-real" },
       reconciliation: { ok: true, deviationCount: 0 },
@@ -237,6 +239,7 @@ describe("canvas.write renderer evidence capture", () => {
     }, () => snapshot)).resolves.toEqual({
       applied: true,
       proposalId: "receipt-patch",
+      changeId: "canvas:v1:receipt-patch",
       operation: "patch_shots",
       changedShotIndexes: [2],
       changedFields: ["prompt"],

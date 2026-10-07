@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { ipcMain } from "electron";
 import { capabilityCoreDir, BUILTIN_MCP_CLIENTS, type CapabilityOriginHost } from "../capabilityCore/security";
-import { assertTrustedSender } from "../ipcSenderGuard";
+import { assertTrustedFireAndForget, assertTrustedSender } from "../ipcSenderGuard";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 
 export type IntegrationHandoffTarget = "credential" | "connection" | "workflow" | "verification";
@@ -205,7 +205,7 @@ export function registerIntegrationHandoffIpc(): void {
     return { ok: acknowledgeIntegrationHandoff(requestId) };
   });
   ipcMain.on("nomi:integration-handoff:subscribe", (event) => {
-    assertTrustedSender(event);
+    if (!assertTrustedFireAndForget(event, "nomi:integration-handoff:subscribe", assertTrustedSender)) return;
     const sender = event.sender as unknown as {
       send: (channel: string, payload: unknown) => void;
       once?: (event: string, listener: () => void) => void;

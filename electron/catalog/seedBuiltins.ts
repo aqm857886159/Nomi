@@ -31,7 +31,7 @@ import {
 } from "./kieGptImage2";
 import { SEEDREAM_EDIT_MAPPING, SEEDREAM_MODEL_SEED, SEEDREAM_T2I_MAPPING } from "./kieSeedream";
 import { NANO_BANANA_EDIT_MAPPING, NANO_BANANA_MODEL_SEED, NANO_BANANA_T2I_MAPPING } from "./kieNanoBanana";
-import { KIE_IMAGE_2026_QUERY, KIE_IMAGE_2026_STATUS, KIE_IMAGE_MODELS_2026 } from "./kieImages2026";
+import { KIE_IMAGE_2026_QUERY, KIE_IMAGE_2026_STATUS, KIE_IMAGE_MODELS_2026, KIE_UPSCALE_MODELS } from "./kieImages2026";
 import { KLING_3_I2V_MAPPING, KLING_3_MODEL_SEED, KLING_3_T2V_MAPPING } from "./kieKling";
 import { MINIMAX_H3_CREATE_OP, MINIMAX_H3_MAPPING, MINIMAX_H3_MODEL_SEED, MINIMAX_H3_QUERY_OP } from "./kieMiniMaxH3";
 import {
@@ -144,6 +144,8 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
   { modelKey: WAN_3_0_MODEL_SEED.modelKey, labelZh: WAN_3_0_MODEL_SEED.labelZh, kind: WAN_3_0_MODEL_SEED.kind, archetypeId: "wan-3.0" },
   // 2026-08 代图像（表驱动单源，见 kieImages2026）：Nano Banana 2 / 2 Lite、Seedream 5.0 Pro / Lite、FLUX.2 Pro。
   ...KIE_IMAGE_MODELS_2026.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
+  // 通用图片放大（Topaz / Recraft，2026-10-06）：浮条「高清」按能力找到它们。
+  ...KIE_UPSCALE_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
   { ...GEMINI_OMNI_11_MODEL_SEED, archetypeId: "gemini-omni-1.1" },
   { ...KIE_SUNO_MUSIC_MODEL_SEED, archetypeId: "suno-v5.5" },
   { ...KIE_SUNO_SFX_MODEL_SEED, archetypeId: "suno-sfx-v5.5" },
@@ -170,7 +172,7 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
   { id: WAN_3_0_I2V_MAPPING_ID, taskKind: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.modelKey, name: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.name, create: WAN_3_0_CREATE_OP, query: WAN_3_0_QUERY_OP },
   // 2026-08 代图像：每个模型 t2i + edit 两条，共用 kie 全家桶的轮询与状态归一。
   // modelKey 精确路由（同 vendor 同 taskKind 多模型不撞，见 selectTaskMapping）。
-  ...KIE_IMAGE_MODELS_2026.flatMap((m) =>
+  ...[...KIE_IMAGE_MODELS_2026, ...KIE_UPSCALE_MODELS].flatMap((m) =>
     m.mappings.map((mp) => ({
       id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
       create: mp.create, query: KIE_IMAGE_2026_QUERY, statusMapping: KIE_IMAGE_2026_STATUS,

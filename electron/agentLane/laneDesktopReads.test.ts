@@ -11,6 +11,7 @@ import { formatCanvasForAgent } from '../shared/agentCapabilities/canvasReadComp
 import { projectCanvasRead } from '../shared/agentCapabilities/canvasRead'
 import type { TimelineReadInput } from '../shared/agentCapabilities/timelineRead'
 import { createDesktopLaneTools } from './laneDesktopTools'
+import { SurfacePortWireError } from '../shared/surfacePortBinding'
 import { openLane } from './laneHost.mjs'
 import { createHttpFixture } from '../../tests/agent-runtime/httpFixture.mjs'
 
@@ -24,7 +25,8 @@ const canvasSource = { nodes: [{ id: 'shot-a', kind: 'image', title: 'Opening sh
   position: { x: 0, y: 0 }, status: 'success', result: { id: 'result-a', url: 'https://private.invalid/image.png',
     raw: { credential: 'private-fixture-value' } } }], edges: [], groups: [], selectedNodeIds: ['shot-a'] }
 
-async function fixture(toolName: string, args: Record<string, unknown>, stale = false) {
+async function fixture(toolName: string, args: Record<string, unknown>, stale = false,
+  readDocument: DocumentReadPort['read'] = async ({ scope }) => ({ text: `${scope} fixture text` })) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-desktop-lane-reads-'))
   cleanups.push(() => fs.rm(root, { recursive: true, force: true }))
   const binding = { projectId: 'reads-fixture', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1 }
@@ -38,7 +40,7 @@ async function fixture(toolName: string, args: Record<string, unknown>, stale = 
   const session = registry.openProjectSession(owner, committed.binding)
   desktopRuntime.registry = registry
   const canvasRead = vi.fn(async () => canvasSource)
-  const documentRead = vi.fn<DocumentReadPort['read']>(async ({ scope }) => ({ text: `${scope} fixture text` }))
+  const documentRead = vi.fn<DocumentReadPort['read']>(readDocument)
   const timelineRead = vi.fn<TimelineReadPort['read']>(async ({ input: raw }) => {
     const input = raw as TimelineReadInput
     if (input.operation === 'inspect_timeline_range') return { ...input, revision: 'deadbeef', tracks: [], textClips: [] }
@@ -54,7 +56,8 @@ async function fixture(toolName: string, args: Record<string, unknown>, stale = 
     context: () => ({ documentId: 'fixture-document', approvalPolicy: { mode: 'safe-auto', spend: 'confirm' } }),
     // 档位和工具审批读**同一份**快照（生产里两者都来自 `composer.approvalPolicy`）。
     approvalPolicy: () => ({ mode: 'safe-auto', spend: 'confirm' }),
-    generationFactory: () => undefined, onTaskCreated: async () => undefined })
+    generationFactory: () => undefined, onTaskCreated: async () => undefined,
+    spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: () => undefined }) } })
   cleanups.push(async () => assembly.dispose())
   if (stale) registry.suspend(owner, { surfaceInstanceId: 'another-surface' })
   const http = await createHttpFixture([{ type: 'tool', calls: [{ id: 'read-call', name: toolName, arguments: args }] },
@@ -111,4 +114,14 @@ describe('desktop lane read adapter contracts', () => {
       expect(f.canvasRead).not.toHaveBeenCalled()
       expect(f.documentRead).not.toHaveBeenCalled()
     })
+
+  // NF-1001-0001（应用内反馈 NF-1001-0001）：用户不在创作页，模型按「这个」去读文稿选区。
+  // 失败必须带着「没有位置」这个码到达模型和面板，且下一步是读整篇 / 读当前页，而不是一句泛泛的「做不了」。
+  it('read_script selection off the creation page fails as document_position_unavailable with a next step the model can take', async () => {
+    const f = await fixture('read_script', { scope: 'selection' }, false, async () => { throw new SurfacePortWireError('document_position_unavailable') })
+    expect(f.result).toMatchObject({ isError: true })
+    expect(f.result.failure?.code).toBe('document_position_unavailable')
+    expect(f.result.text).toContain('read_script without scope')
+    expect(f.result.text).not.toContain('(capability_unsupported)')
+  })
 })

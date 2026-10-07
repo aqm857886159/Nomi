@@ -3,14 +3,14 @@
 //
 //  (a) 在 src/、electron/ 新建文件 → 附一份接口级「已有能力清单」，请回一行「已查过 / 没找到」。
 //      起因：laneContextFit 是在「pi 已经有压缩」没人看的地方长出来的；agent 不知道有，就不会触发 R5.3。
-//  (b) 改的文件近 14 天已有 ≥3 次 fix 提交 → 提醒先过「重写判据」，别再打第 N 个补丁。
+//  (b) 改的文件或所在目录近 14 天已有 ≥2 个 fix 提交（这一刀是第 3 个）或出现 revert fix → 提醒先做方向检查（类根因复盘）。
 //
 // 机制已对着官方 hooks 文档核过（https://code.claude.com/docs/en/hooks，2026-10-01）：PreToolUse 的
 // `hookSpecificOutput.additionalContext` 会进上下文，位置在**工具结果旁边**——也就是提醒随写入结果一起到，
 // 不是写入前；它能让 agent 立刻自查、重写，但拦不住这一次写入。普通 stdout（exit 0）对 PreToolUse 只进调试日志、
 // 不进上下文，所以必须走 JSON。stdin 有 session_id / cwd / tool_name / tool_input.file_path。
 //
-// 阈值（14 天、第 3 次）是试用值，试用到 2026-10-15，用我们自己的提交历史回测校准（见 docs/engineering-rules.md 重写判据）。
+// 阈值与数法在 scripts/fix-churn.mjs。这里只是 Claude 一侧的提醒；真正的拦截在 git commit-msg（所有执行者都经过）。
 // 每次触发写一行 .claude/reuse-reminders.log，供校准。
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -18,31 +18,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildCapabilityIndex, loadRegistries } from './build-capability-index.mjs'
+import { churnFor, directionMessage, isWatchedSource } from './fix-churn.mjs'
 
-export const FIX_WINDOW_DAYS = 14
-export const FIX_THRESHOLD = 3
-const FIX_SUBJECT = /^(fix|hotfix)(\(|:|!)/i
-const SOURCE_FILE = /\.(ts|tsx|mts|cts|mjs)$/
-const NOT_SOURCE = /\.(test|spec|node-test|e2e\.test)\.[cm]?[jt]sx?$|\.generated\.|\.d\.ts$/
+// 数法、阈值、watched 源码判据的唯一 owner 是 scripts/fix-churn.mjs（git commit-msg、派工、CI 同用）；这里只转出口。
+export { countRecentFixes, FIX_WINDOW_DAYS, isWatchedSource, PRIOR_FIX_THRESHOLD as FIX_THRESHOLD } from './fix-churn.mjs'
 
 const norm = (p) => String(p || '').split('\\').join('/')
-
-/** 要不要管这个文件：src/、electron/ 下的非测试、非生成的源码。 */
-export function isWatchedSource(rel) {
-  const r = norm(rel)
-  return (r.startsWith('src/') || r.startsWith('electron/')) && SOURCE_FILE.test(r) && !NOT_SOURCE.test(r)
-}
-
-/** 近 N 天里这个文件的 fix 提交数（git log 失败 = 0，fail-open）。 */
-export function countRecentFixes(root, rel, { days = FIX_WINDOW_DAYS, git = defaultGit } = {}) {
-  let out = ''
-  try { out = git(root, ['log', `--since=${days} days ago`, '--no-merges', '--format=%s', 'HEAD', '--', rel]) } catch { return 0 }
-  return out.split('\n').filter((s) => FIX_SUBJECT.test(s.trim())).length
-}
-
-function defaultGit(root, args) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
-}
 
 export function newFileMessage(rel, indexText) {
   return [
@@ -51,14 +32,6 @@ export function newFileMessage(rel, indexText) {
     '请在回复里补一行：`已查：X、Y；没找到：Z`。（只是提醒，不拦你。这份清单只和登记表一样全——登记漏的能力这里列不出来，拿不准就去读依赖的文档。）',
     '设计卡 ★3「一致与复用」填了吗？（同一件事别处怎么做、复用还是为什么不复用——docs/engineering/design-card.md）',
   ].filter(Boolean).join('\n')
-}
-
-export function rewriteMessage(rel, count) {
-  return [
-    `【重写判据 · 同一文件反复修】${rel} 近 ${FIX_WINDOW_DAYS} 天已有 ${count} 次 fix 提交，这一刀会是第 ${count + 1} 次。`,
-    '出现任一条就停止打补丁：① 同一文件 14 天内第三次因 bug 修改；② 要给现有函数加第三个特例分支或参数；③ 改一处要读两处以上的旁路逻辑。',
-    '此时选定「补 / 重写 / 删」之一并写出特征测试路径；选重写：先写特征测试钉住旧行为，只重写一个模块，同一次提交删掉旧的。（只是提醒，不拦你。）',
-  ].join('\n')
 }
 
 /** 纯决策：给定载荷和环境，返回 { kind, message, ... } 或 null。 */
@@ -76,8 +49,8 @@ export function decideEditTimeReminder(payload, env) {
     const index = buildCapabilityIndex({ ...env.registries(), targetRel: rel })
     return { kind: 'new-file', rel, message: newFileMessage(rel, index.text), indexBytes: index.bytes }
   }
-  const count = env.countFixes(rel)
-  if (count >= FIX_THRESHOLD) return { kind: 'repeat-fix', rel, count, message: rewriteMessage(rel, count) }
+  const entry = env.churn(rel)
+  if (entry?.hot) return { kind: 'repeat-fix', rel, count: entry.file.fixes, message: directionMessage([entry]) }
   return null
 }
 
@@ -119,7 +92,7 @@ async function main() {
     root,
     exists: (p) => fs.existsSync(p),
     registries: () => loadRegistries(root),
-    countFixes: (rel) => countRecentFixes(root, rel),
+    churn: (rel) => churnFor(root, rel),
   })
   if (!result) return
   const key = `${result.kind}:${result.rel}`

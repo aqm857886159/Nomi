@@ -81,7 +81,7 @@ const geometry = await win.evaluate(() => {
   }
   const windowbar = document.querySelector('.workbench-windowbar')
   const editor = document.querySelector('[data-testid="director-editor"]')
-  // 2026-09-09 五簇重排：整行 director-header 没了，常驻控件全在悬浮顶栏 director-topbar 里
+  // 2026-09-09 起常驻控件全在悬浮顶栏 director-topbar 里（2026-10-04 起是精修「选中才出」四簇顶栏）
   const header = document.querySelector('[data-testid="director-topbar"]')
   const headerControls = header ? Array.from(header.querySelectorAll('button')) : []
   const windowControlLabels = ['最小化', '最大化', '还原', '关闭']
@@ -123,7 +123,9 @@ check(
 )
 
 // 顶栏工具真的还能用（渲染层行为回归；证不了原生命中测试，只证没把交互改坏）
-await clickOrFail(win.locator('[data-testid="director-view-cluster"] button').first(), '顶栏·重置视角')
+// 重置视角 2026-10-04 起是「视图 ▾」首项
+await clickOrFail(win.getByTestId('director-view-menu'), '顶栏·视图 ▾')
+await clickOrFail(win.getByRole('button', { name: /重置视角/ }).first(), '视图菜单·重置视角')
 await snap('toolbar-clicked')
 
 expect(consoleErrors, '④ 渲染层无 console error').toEqual([])

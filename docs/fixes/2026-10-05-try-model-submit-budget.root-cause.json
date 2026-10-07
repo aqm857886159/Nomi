@@ -1,0 +1,151 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-05-try-model-submit-budget",
+  "problem_type": "A one-shot paid tool call whose wall-clock budget covers only the wait after submit, so a stuck submit outlives the external host's timeout and invites a charged retry",
+  "symptom": "nomi_try_model: when the provider's submit POST hangs, the tool call runs past the external host's tool timeout (about 60 seconds), the client disconnects, the AI retries, and the provider receives (and charges) a second job. A failed submit that was written to the wire but whose connection dropped was also reported as an ordinary provider_failed, whose nextAction tells the AI to fix the card and submit again.",
+  "direct_cause": "tryModel.ts awaited deps.runTask with no deadline (only the poll after it had the 40 second TRY_MODEL_WAIT_BUDGET_MS, and it got a fresh 40 seconds after a slow submit). Every runTask rejection became provider_failed. Separately vendorHttp.ts built VendorRequestError without the original fetch error as cause, so outboundRequestWasNeverWritten (which reads the cause chain) could never prove anything on the custom-profile path.",
+  "class_root": "The budget of one MCP tool call had no single owner for the whole call: it was added to the one stage that was observed to hang. The submit stage then had no deadline, and the failure mapping had no shared notion of 'was the request written', because the evidence (the cause chain) was dropped one layer below the only module that judges it.",
+  "migration": "No stored data. The wait now draws from the same budget as the submit (the old fresh 40 seconds after submit is gone, same commit). New failure code submission_unknown joins the onboarding failure envelope; clients that do not know it still read ok:false and nextAction, which says not to retry. VendorRequestError gains an optional cause; messages and the IPC-encoded structured error are unchanged.",
+  "affected_population": [
+    "Every user whose AI runs nomi_try_model against a provider whose submit endpoint is slow, stuck, or drops the connection after receiving the request",
+    "Hosts with a tool timeout shorter than the submit's own transport timeout"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/modelOnboarding/",
+    "electron/outboundDispatchEvidence.ts",
+    "electron/vendor/vendorHttp.ts"
+  ],
+  "entry_points": [
+    "nomi_try_model -> dispatcher model.onboarding.try -> dispatch.ts:440 tryModel -> deps.runTask (runtime.runTask)",
+    "runtime.runTask -> executeProfileOperation -> vendorHttp requestVendor (network failure branch that builds VendorRequestError)"
+  ],
+  "invariants": [
+    "The whole tryModel call (submit + wait) spends at most TRY_MODEL_WAIT_BUDGET_MS; the wait gets only the remainder.",
+    "The in-flight submit is never aborted by the budget; if it later returns a task id, runTask has already put it in taskCache.",
+    "A request is called 'not sent, safe to retry' only when outboundRequestWasNeverWritten says so; a connection-level failure without that proof, or a submit still pending at the budget, is submission_unknown (do not retry).",
+    "Only electron/outboundDispatchEvidence.ts decides whether a request was written."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "VendorRequestError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/envelope.ts",
+      "symbol": "OnboardingFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "Each door has a different job: dispatch.ts is the single entrance to tryModel; tryModel and productionGenerationSubmission are the two callers that must classify a failed paid submit (a tool call and a durable Run) and both ask the one evidence module; vendorHttp.ts builds the error that carries the evidence; envelope.ts only defines the result shape (the new code). Merging the two callers would put a one-shot tool call and an event-sourced Run into one state machine, which is the engine-convergence plan's job, not a hotfix."
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+  ],
+  "residual_risks": [
+    "Quitting Nomi during a stuck submit loses the in-process task cache; the task id (if the provider ever answers) cannot be recovered, only found in the provider's console.",
+    "A late terminal success (the stuck submit finally answers with finished assets) is not in taskCache (it only holds in-flight tasks); the AI can only be pointed at the provider console for it.",
+    "If the user takes longer than the budget to confirm the cost card, the AI is told submission_unknown although nothing was sent yet; the pending call still sends after the user confirms. The direction is safe (no double charge) but the wording says 'may already be submitted'.",
+    "The custom-call (script) and other vendorHttp error branches that do not go through the network catch still lose cause; only the submit network failure branch is fixed here.",
+    "Real App, real window confirmation and a real provider: unverified (no real App, no spend in this change)."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is about Nomi's own tool-call budget and its own submit classification; the transport error shape (undici cause chain) is already encoded in outboundDispatchEvidence.ts with its own field evidence (docs/fixes/2026-09-18-submission-not-dispatched.root-cause.json).",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new stage placed inside one tool call (a confirm wait, a pre-upload, a second submit) can again run outside the budget; #987 fixed only the wait stage and the same class remained in the submit stage.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs tryModel (1 door) and outboundRequestWasNeverWritten (2 callers: tryModel, productionGenerationSubmission)",
+      "grep -rn \"pollTaskToTerminal\\|TRY_MODEL_WAIT_BUDGET_MS\" electron: tryModel is the only caller of both",
+      "grep -rn \"new VendorRequestError\" electron/vendor/vendorHttp.ts: the pre-send network branch was the only one that wraps a raw fetch failure whose cause the evidence module reads"
+    ]
+  },
+  "generality_proof": "The budget starts at the entrance of tryModel and every later stage (submit, then poll) is derived from the same startedAt/budgetMs, so a stage added later inside runTask (for example the confirm wait) is already inside the race. The 'written or not' answer has one owner and the error now carries the evidence to it for every vendorHttp network failure, whichever vendor, task kind or platform raised it.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "tryModel",
+      "responsibility": "Races the submit against the remaining shared budget without cancelling it (late results are absorbed, no unhandled rejection) and maps every failed submit through the single evidence module."
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outboundRequestWasNeverWritten",
+      "responsibility": "The only judge of 'this request provably never left the machine'; everything else is unknown."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "enforced",
+      "evidence": "Submit raced against the shared budget; budget exhaustion and connection-level failures without proof map to submission_unknown; tryModelSubmitBudget.test.ts covers stuck POST, shared budget, reset after write and refused connect."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestVendor",
+      "disposition": "enforced",
+      "evidence": "The pre-send network failure branch now passes the raw fetch error as cause, so ECONNREFUSED proves not-written on the real runTask path (refused-connect test)."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "dispatch catch",
+      "disposition": "not-affected",
+      "evidence": "A durable Run is not bound by a host tool timeout; it already classifies through outboundRequestWasNeverWritten and marks submitted-unknown otherwise (productionGenerationSubmission.ts around the dispatch catch). The vendorHttp cause now also reaches it for custom-profile providers, which can only turn some unknowns into provable not-sent."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "invariant": "One tool call has one budget that submit and wait both draw from; 'safe to retry' is only ever said on the evidence module's proof.",
+    "failure_mode": "A stuck or dropped submit returns submission_unknown (do not retry) inside the budget; a provable never-sent returns provider_failed saying it is safe to retry.",
+    "exception_policy": "none",
+    "strategy": "Race the submit against the shared remainder without aborting it, and route every failed submit through the single evidence module.",
+    "artifacts": [
+      "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/capabilityCore/modelOnboarding/envelope.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/modelOnboarding/tryModel.ts"
+    ],
+    "rationale": "The fresh full-budget wait after submit and the unconditional catch-to-provider_failed mapping in tryModel.ts are replaced in the same commit; no parallel version is kept."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls the invariant; Error cause is a standard ES2022 feature already used by the evidence module.",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "tests": [
+      "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+    ],
+    "why": "tryModel owns the one-call budget and the mapping of submit outcomes to results; the written-or-not judgement is delegated to outboundDispatchEvidence.ts which has its own tests."
+  }
+}

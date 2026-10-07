@@ -69,3 +69,35 @@ describe('computeAttachCameraMove — 运镜小片附到目标镜头（可替换
     expect(again.patch.meta[CAMERA_MOVE_ATTACHED_URL_KEY]).toBe('nomi://b.mp4')
   })
 })
+
+describe('computeAttachCameraMove — 3D-BOX 整段预演走同一个挂接核', () => {
+  const preview = { kind: 'preview' as const, cuts: [{ start: 0, end: 3, shotSize: '全景', move: 'static' }, { start: 3, end: 6, shotSize: '特写', move: 'push_in' }], notes: ['林 2–4 秒：藏信'] }
+
+  it('有 video_ref 槽 → 挂参考视频 + @Video1，并把动作库缺的细节动作写进提示词', () => {
+    const outcome = computeAttachCameraMove(videoNode({ prompt: '两人对话' }), 'nomi://p1.mp4', preview)
+    expect(outcome.kind === 'patch' && outcome.mode).toBe('video_ref')
+    expect(refUrls(outcome)).toEqual(['nomi://p1.mp4'])
+    if (outcome.kind !== 'patch') return
+    expect(outcome.patch.prompt).toContain('@Video1')
+    expect(outcome.patch.prompt).toContain('3D-BOX 动作细节：林 2–4 秒：藏信')
+  })
+
+  it('换修订再挂 → 新片替换旧片，提示词里的预演块整块替换不叠加', () => {
+    const first = computeAttachCameraMove(videoNode({ prompt: '两人对话' }), 'nomi://p1.mp4', preview)
+    if (first.kind !== 'patch') throw new Error('expected patch')
+    const again = computeAttachCameraMove(videoNode({ prompt: first.patch.prompt, meta: first.patch.meta }), 'nomi://p2.mp4', { ...preview, notes: ['林 2–4 秒：横步挡门'] })
+    if (again.kind !== 'patch') throw new Error('expected patch')
+    expect(refUrls(again)).toEqual(['nomi://p2.mp4'])
+    expect(again.patch.prompt?.match(/3D-BOX 动作细节/g)).toHaveLength(1)
+    expect(again.patch.prompt).toContain('横步挡门')
+    expect(again.patch.prompt).not.toContain('藏信')
+  })
+
+  it('模型没有参考视频槽 → 逐镜运镜写成文字兜底，并明说精度低', () => {
+    const outcome = computeAttachCameraMove(videoNode({ prompt: '两人对话', meta: { archetype: { id: 'imagen-4', modeId: '' } } }), 'nomi://p1.mp4', preview)
+    expect(outcome.kind === 'patch' && outcome.mode).toBe('prompt_only')
+    if (outcome.kind !== 'patch') return
+    expect(outcome.patch.prompt).toContain('3D-BOX 预演运镜：镜头1（0.0–3.0 秒）全景，固定；镜头2（3.0–6.0 秒）特写，推近')
+    expect(outcome.toast?.message).toBeTruthy()
+  })
+})

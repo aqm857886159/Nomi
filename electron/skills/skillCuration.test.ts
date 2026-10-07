@@ -24,7 +24,7 @@ const builtin = async (): Promise<SkillRecord[]> => (await discoverSkillRecords(
 describe("curated Skill and effect intake", () => {
   it("resolves a real media file for every bundled Skill, including legacy knowledge packs", async () => {
     const records = await builtin()
-    expect(records).toHaveLength(88)
+    expect(records).toHaveLength(93)
     for (const record of records) {
       expect(record.manifestError, record.directoryName).toBeUndefined()
       expect(record.curation?.preview, record.directoryName).toBeDefined()
@@ -32,11 +32,14 @@ describe("curated Skill and effect intake", () => {
     }
   })
 
-  it("explicitly exposes all 48 curated Skills through the existing Workbench opt-in policy", async () => {
+  it("explicitly exposes all 49 curated Skills through the existing Workbench opt-in policy (flag-bound ones only with their flag)", async () => {
     const records = await builtin()
     const library = records.filter(record => record.curation?.kind === 'skill')
-    expect(library).toHaveLength(48)
-    expect(library.filter(isSkillSelectableInWorkbench).map(record => record.name).sort()).toEqual(library.map(record => record.name).sort())
+    expect(library).toHaveLength(49)
+    // 3D-BOX 工作流技能绑在构建开关上：开关关（单测默认）不可选，其余 48 个照旧全部可选。
+    const flagBound = library.filter(record => record.manifest?.requiresFlag === 'director3dbox').map(record => record.name)
+    expect(flagBound).toEqual(['director-3dbox'])
+    expect(library.filter(isSkillSelectableInWorkbench).map(record => record.name).sort()).toEqual(library.map(record => record.name).filter(name => !flagBound.includes(name)).sort())
   })
 
   it("accepts the repository's declared AGPL license without relabeling first-party cover metadata", () => {
@@ -73,12 +76,12 @@ describe("curated Skill and effect intake", () => {
     });
   }
 
-  it("discovers 48 Skills and projects 40 effects from the same packages", async () => {
+  it("discovers 49 Skills and projects 44 effects from the same packages", async () => {
     const records = await builtin();
-    expect(records.filter((record) => record.curation?.kind === "skill")).toHaveLength(48);
+    expect(records.filter((record) => record.curation?.kind === "skill")).toHaveLength(49);
     const prompts = getCuratedPrompts(records);
-    expect(prompts).toHaveLength(40);
-    expect(new Set(prompts.map((prompt) => prompt.id)).size).toBe(40);
+    expect(prompts).toHaveLength(44);
+    expect(new Set(prompts.map((prompt) => prompt.id)).size).toBe(44);
     for (const record of records.filter((record) => record.curation)) {
       expect(record.manifestError, record.directoryName).toBeUndefined();
       const item = readSkillCuration(parseSkillFrontmatter(record.body).values)!;

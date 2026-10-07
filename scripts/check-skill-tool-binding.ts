@@ -18,6 +18,8 @@
  *   · 这个管**性质**——名字对了、工具也在，但正文说它是只读的而它其实会写，一样出事。
  *     2026-09-18 那次 4/5 轮不干活就是后者，名字全程正确。
  */
+// 3D-BOX 开关引导模块必须第一个导入：工具注册表在导入期按它装配（CI 的开关开 job 用 NOMI_DESKTOP_DEV=1 NOMI_DIRECTOR_3DBOX=true 跑同一份门岗）。
+import "../electron/shared/featureFlags/director3dbox";
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

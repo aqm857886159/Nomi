@@ -19,24 +19,15 @@ import { readCatalog } from "../catalog/catalogStore";
 import { builtinVendorScopeMatches, isBuiltinDirectKeyVendor } from "../catalog/builtinVendorSeeds";
 import { hasBuiltinCuratedExecution } from "../catalog/seedBuiltins";
 import { isCertificationOwnedConnection } from "../catalog/certificationOwnership";
-import {
-  billingKindForTaskKind,
-  selectTaskMapping,
-  type BillingModelKind,
-  type CatalogState,
-  type HttpOperation,
-  type Mapping,
-  type Model,
-  type ProfileKind,
-  type Vendor,
-} from "../catalog/types";
+import { billingKindForTaskKind, selectTaskMapping } from "../catalog/types";
+import type { BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "../catalog/types";
 import { derivePublishedExecution } from "../shared/modelPublication";
 import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/taskParams";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
 import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
-import { isJsonRecord, firstString } from "../jsonUtils";
+import { describeIllegalHeader, findIllegalHeader, isJsonRecord, firstString } from "../jsonUtils";
 import { firstMappedString, providerMetaFromResponse, resolveTaskStatus, taskFailureMessageFromResponse } from "../tasks/responseParsing";
 import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
 import type { TaskRequest } from "../runtime";
@@ -428,7 +419,7 @@ async function readJson(response: Response, vendorKey: string): Promise<JsonReco
   try {
     payload = await response.json();
   } catch {
-    throw new CatalogGenerationProviderError(`${vendorKey} response was not JSON (HTTP ${response.status})`);
+    throw new CatalogGenerationProviderError(`${vendorKey} response was not JSON (HTTP ${response.status})`, { providerAnswer: { httpStatus: response.status, envelopeFailure: false, taskIdReturned: false } });
   }
   return record(payload, vendorKey, "");
 }
@@ -504,6 +495,10 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     }
     const method = built.method.toUpperCase();
     const isSubmission = method !== "GET" && method !== "HEAD" && body !== undefined;
+    // 请求头守卫（同引擎 A requestVendor）：码点 > 255 的头值（密钥混进中文 / 全角）让 fetch 当场抛错时，请求已交给网络出口，
+    // 出站证据只能判「结果未知」、这一镜被冻进对账；在交出去之前拦下，它就是确定没发出。
+    const badHeader = findIllegalHeader(built.headers);
+    if (badHeader) throw new CatalogGenerationProviderError(`${vendorKey} ${context} stopped before sending: ${describeIllegalHeader(badHeader).message}`);
     // 付费提交每次用**全新连接**，不与任何别的请求共用连接池：共享池里的空闲 keep-alive 连接可能已被对面关掉，
     // 那时抛出的 UND_ERR_SOCKET 与「请求写出去后连接被重置」一模一样，判不出哪个才是「没发出去」。
     // 用完（含读完响应体）必须关掉；查询（GET）不受影响，照旧走共享池。
@@ -535,7 +530,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       // 信封码：OpenAI 兼容的中转/网关普遍用 HTTP 200 + 信封 `code` 表达失败（APIMart、kie…）。
       // 声明了 code 却不是成功码 = 上游拒了，绝不能当成「受理成功」往下走。没有 code 的家不受影响。
       if (!response.ok || (code !== undefined && code !== 200 && code !== 0)) {
-        throw new CatalogGenerationProviderError(`${vendorKey} ${context} rejected the request: ${providerMessage(payload)}`);
+        throw new CatalogGenerationProviderError(`${vendorKey} ${context} rejected the request: ${providerMessage(payload)}`, { providerAnswer: { httpStatus: response.status, envelopeFailure: code !== undefined && code !== 200 && code !== 0, taskIdReturned: Boolean(extractTaskIdShared(payload)) } });
       }
       return payload;
     } finally {
@@ -724,6 +719,8 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   } = {
     providerId: vendorKey,
     capabilities,
+    // 出站只有 `send` 一处，走的是 fetchImpl；只有它就是 appFetch 时才声明（注入了别的 fetch 的测试装配不声明）。
+    ...(fetchImpl === appFetch ? { networkTransport: "app-fetch" as const } : {}),
     buildRequest(input) {
       if (input.providerId !== vendorKey) throw new CatalogGenerationProviderError(`${vendorKey} provider identity does not match the request`);
       const taskKind = taskKindForMode(input.mode, vendorKey);

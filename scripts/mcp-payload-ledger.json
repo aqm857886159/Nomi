@@ -9,6 +9,14 @@
       "bytes": 2402,
       "decision": "用户 2026-09-21 拍板「MCP 接模型必须发版前解决」（memory decisions；方案 docs/plan/2026-09-18-agent-model-onboarding.md），实现在 commit d72e0b7b1 / 4b43f3ac9。主会话 2026-09-22 授权本次抬一次并逐条记账。",
       "why": "这 2402 字节是 F1–F6「接模型换成从动词声明派生」那一刀的**净**增量，逐条实测（measureMcpToolsListPayload 逐个摘掉工具再测）：新上三口 nomi_model_setup 3919 B、nomi_try_model 1368 B、nomi_remove_provider 1140 B，合计 6427 B；同 commit 退役两口手写传输目录（nomi_integration / nomi_integration_manage）与 catalogManagement.ts，退回 4025 B。6427 − 4025 = 2402。买到的是三件对外宿主此前拿不到的东西：① 接一家供应商的五个动作从**动词声明派生**（schema/必填/注解全是算出来的，check:tool-face 与 check:model-schema 因此各减两条基线而不是新增）；② 撤不回的删除单独成口（nomi_remove_provider），跨格必拆——合进去等于让「接一家」和「删一家」在宿主的审批面上长得一样；③ nomi_try_model 让宿主能在**接完之后真跑一次**，而 09-15 真机四轮零产出的根因正是「没跑过就说接好了」。这不是散文漂移：三口的描述全部由 verbDeclarations 派生，没有一个字节花在手写摘要上。**账本形状的一处已知限制**：它只记得下「抬」，记不下同一刀里的退役credit，所以上面这条按净值记，而三个新口与两个旧口的实测字节写在这里；下一次改这个门岗时值得把 retirements 一起做进去。"
+    },
+    {
+      "tool": "nomi_read",
+      "fromBytes": 50534,
+      "toBytes": 50655,
+      "bytes": 121,
+      "decision": "协调会话 2026-10-05 派的 B 线任务 L-readtask；设计卡 docs/plan/2026-10-05-nomi-read-task-target.md（承接 docs/plan/2026-10-04-try-model-async-queued.md 的后续项）。",
+      "why": "nomi_read 的 target 枚举加一个值 task与一条可选 taskId 说明，合计 121 字节，纯加法、不改 required、不改已发布字段、没有新工具。买到的是：nomi_try_model 返回 still_processing（已收费、不要重试）后，AI 第一次有工具能按任务号只读地查一次现状（排队/处理中/成功带产物/失败带供应商原话/不认识），不再只能叫用户去供应商后台；查询只走 fetchTaskResult，没有提交入口，不会重复扣费。这不是散文漂移：说明只有一句，使用时机写在 taskId 说明里。"
     }
   ]
 }

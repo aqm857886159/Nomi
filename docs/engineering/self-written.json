@@ -15,6 +15,7 @@
     {"path":"electron/capabilityCore/anchor*","reason":"锚点圣经：分镜一致性的领域模型"},
     {"path":"electron/capabilityCore/document*","reason":"文稿领域的读写面与传输适配"},
     {"path":"electron/capabilityCore/generation*","reason":"生成的领域面：派发、报价与花钱判决、计划补丁、输出落地、恢复投影、默认模型"},
+    {"path":"electron/capabilityCore/semanticAspectRatio*","reason":"镜头参数语义：用户说的画面比例落到所选模式的哪个参数键、哪一档（含像素档按同档挑），翻不了就拒——按镜头花钱的领域规则；名字与格式照 Vercel AI SDK 的 aspectRatio，翻译按档案写（docs/plan/2026-10-05-agent-aspect-ratio-semantic.md「先查别人」）"},
     {"path":"electron/capabilityCore/apimartGeneration*","reason":"APIMart 供应商的生成适配（只有我们接的这家才有）"},
     {"path":"electron/capabilityCore/appIntegration*","reason":"App 集成：把制作流程与付费确认接给 Agent / MCP 的领域胶合"},
     {"path":"electron/capabilityCore/approvalReceipt*","reason":"审批回执：按领域动作记账与撤销"},
@@ -24,8 +25,6 @@
     {"path":"electron/capabilityCore/spendDecision*","reason":"按镜头花钱的决定与等待"},
     {"path":"electron/capabilityCore/policySpend*","reason":"花钱判决：审批档位 × 金额语义"},
     {"path":"electron/capabilityCore/pendingSpend*","reason":"待确认付费的参考素材"},
-    {"path":"electron/capabilityCore/i2vTwoHop*","reason":"图生视频两跳：参考图先落地再提交的领域流程"},
-    {"path":"electron/capabilityCore/firstFramePainter*","reason":"首帧绘制：视频节点首帧的领域操作"},
     {"path":"electron/capabilityCore/timeline*","reason":"时间轴领域的传输适配"},
     {"path":"electron/capabilityCore/skill*TransportAdapters*","reason":"技能库读写的传输适配"},
     {"path":"electron/capabilityCore/nodeKind*","reason":"画布节点种类的领域词表"},
@@ -50,6 +49,7 @@
     {"path":"electron/shared/production*","reason":"制作流程的镜头阶段、批次成员、停下原因、命令 id"},
     {"path":"electron/shared/decideShotClaim*","reason":"镜头认领：一镜在生成的唯一判决"},
     {"path":"electron/shared/generation*","reason":"生成模块 id 与镜头信封"},
+    {"path":"electron/shared/aspectRatio*","reason":"画面比例判据：什么值算比例、什么控件是比例控件、要的比例落哪一档；宿主准入与画布参数面板共读这一份（同上方案「先查别人」）"},
     {"path":"electron/shared/projectAgentProposalReceipt*","reason":"提案回执的跨进程契约"},
     {"path":"electron/shared/projectBinding*","reason":"项目绑定：对话与创作项目的归属"},
     {"path":"electron/shared/model*","reason":"模型发布、可用性与上下文窗口目录"},
@@ -77,6 +77,7 @@
     {"path":"electron/assets/","reason":"项目素材库：导入、本地化、解码判定、素材声明与引用","exclude":["electron/assets/download*","electron/assets/scratch*","electron/assets/storageCapacity*","electron/assets/localFileCopy*","electron/assets/nativeFileBridge*","electron/assets/clipboardFilePaths*"]},
     {"path":"electron/video/","reason":"创作向视频处理：抽帧、切镜检测、深度、拆解"},
     {"path":"electron/director/","reason":"导演台与运镜：移动端桥与镜头语言"},
+    {"path":"electron/shared/director/","reason":"3D-BOX 导演计划（schema、词表、按名字寻址的补丁与修订号、写法指导）：Nomi 独有的导演领域对象，渲染端编译器与主进程工具面共用（P2 从 src 搬来）"},
     {"path":"electron/workspace/","reason":"项目工作区：项目身份、清单、迁移的盘上形态","exclude":["electron/workspace/workspaceManifestLock*","electron/workspace/workspaceManifestTransaction*","electron/workspace/workspaceSync*","electron/workspace/workspaceFileIndex*","electron/workspace/workspaceFileDelete*"]},
     {"path":"electron/projects/","reason":"项目库：目录、最近项目与项目身份"},
     {"path":"electron/memory/","reason":"项目记忆：创作事实的沉淀"},
@@ -140,8 +141,9 @@
     {"path":"src/workbench/generationCanvas/agent/","reason":"Agent 对画布的读写落地"},
     {"path":"src/workbench/generationCanvas/fixation/","reason":"画布节点的固定与回放"},
     {"path":"src/workbench/generationCanvas/videoDepth/","reason":"视频深度节点：生成画布上的深度估计节点与结果呈现"},
+    {"path":"src/workbench/generationCanvas/quickActions/","reason":"节点快捷动作：从一个画布节点一键派生下游节点（连参考、引用效果库条目、沿用模型、按镜头花钱走唯一派发口）——画布节点与按镜头花钱语义，Nomi 独有"},
     {"path":"src/workbench/generationCanvas/components/","reason":"画布上的业务组件：批量计划、到达提示等"},
-    {"path":"src/workbench/generationCanvas/events/","reason":"画布事件、撤销日志与写边界"},
+    {"path":"src/workbench/generationCanvas/events/","reason":"画布事件（撤销日志与写边界是通用能力，单独登记为 entries.canvas-undo-journal-write-boundary）"},
     {"path":"src/workbench/production/","reason":"制作流程的界面与状态：Run、镜头认领、落地宿主"},
     {"path":"src/workbench/capability/","reason":"能力落地到画布 / 分镜的渲染层写入点"},
     {"path":"src/workbench/creation/","reason":"创作：文稿与分镜的编辑与编译"},
@@ -442,19 +444,6 @@
       "revisitWhen": "0.24 S4 开工时按 plan 迁移；迁完整体删除"
     },
     {
-      "id": "spend-card-polling",
-      "capability": "付费确认卡每 1.5 秒轮询 Run 账本",
-      "status": "to-replace",
-      "plan": "docs/research/2026-09-29-agent-message-layer-conformance/report.md",
-      "paths": ["src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"],
-      "alternativesChecked": [
-        { "name": "pi 的待决确认是一种表示：按 id 匹配、阻塞到回复、可取消；我们的投影按引用 join、推送完整投影", "source": "node_modules/@earendil-works/pi-coding-agent/docs/rpc.md:1184" },
-        { "name": "事件触发重投影（laneHost 已在 lane 事件上推完整投影）", "source": "electron/shared/agentLane/laneProjection.ts:1" }
-      ],
-      "whyNotIntegrated": "没有领域理由用轮询：卡的内容（可编辑的报价）是领域，但「内容变了就通知」是通用机制。0.24 B 把付费卡并进对话投影，去掉轮询。",
-      "revisitWhen": "0.24 B 落地时删轮询（前置：枚举不走 lane 的待决付费来源）"
-    },
-    {
       "id": "telemetry-pipeline",
       "capability": "用量事件与 Agent 轨迹的出站管线：白名单事件、同意合同、发件箱、自建接收端",
       "status": "justified",
@@ -502,22 +491,26 @@
     },
     {
       "id": "mcp-protocol",
-      "capability": "MCP 协议层：JSON-RPC over stdio、握手、工具 / 资源 / 提示、进度与取消、参数校验",
-      "status": "under-review",
-      "reviewBy": "2026-11-15",
+      "capability": "MCP 在 Nomi 这一侧剩下的装配：方法处理器（目录 / 资源 / 提示的领域投影）、tools/call 里的审批与派发、入口拒未验证客户端、两个 stdio 启动器；协议本身（握手、路由、取消、进度帧、请求关联、stdio 分帧、参数校验引擎）已交给官方 SDK v2",
+      "status": "to-replace",
+      "plan": "docs/plan/2026-10-05-mcp-official-sdk.md",
       "paths": [
         "electron/capabilityCore/mcpProtocol.ts",
-        "electron/capabilityCore/mcpStdioLine.ts",
         "electron/capabilityCore/mcpStdioServer.ts",
-        "electron/capabilityCore/mcpArgValidation.ts",
-        "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
+        "electron/capabilityCore/mcpNodeLauncher.ts",
+        "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+        "electron/capabilityCore/mcpHttpServer.ts",
+        "electron/capabilityCore/mcpHttpBridge.ts",
+        "electron/capabilityCore/mcpHttpForwarder.ts",
+        "electron/capabilityCore/mcpHttpDesktop.ts",
+        "electron/capabilityCore/mcpHttpEndpoint.ts"
       ],
       "alternativesChecked": [
-        { "name": "官方 MCP TypeScript SDK（server、stdio 传输、工具 / 资源 / 提示）", "source": "https://github.com/modelcontextprotocol/typescript-sdk" },
-        { "name": "仓库里没有 @modelcontextprotocol/sdk 依赖，协议层手写", "source": "package.json:1" }
+        { "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/" },
+        { "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md" }
       ],
-      "whyNotIntegrated": "尚未评估，不能当成合理自写。需要回答的是：官方 SDK 是否覆盖我们用到的 MCP Apps（内嵌 widget）、elicitation、取消与进度、以及按 Nomi 审批语义的拦截；能覆盖则接 SDK，Nomi 只留领域能力投影与审批。",
-      "revisitWhen": "出评估结论（官方 TypeScript SDK 存在，按 P0 默认应接入，评估只回答「覆盖不覆盖」）；评估前这里新增 mcp* 文件会被门岗报"
+      "whyNotIntegrated": "第 2 段（2026-10-05）本机 HTTP 同样接 SDK：Streamable HTTP 服务端传输、Host / Origin 防重绑定用 @modelcontextprotocol/node，转发口的 HTTP 客户端传输用 @modelcontextprotocol/client；Nomi 只写「谁能连（签名身份头，与回环 RPC 同一套）、按会话分配协议实例、会话里的领域调用走回环 RPC 同一扇门」，以及转发桥里两件传输本身要的事（把协商出的协议版本告诉 HTTP 传输、Nomi 没开时给宿主回一句）。第 1 段：（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器在第 2、3 段改成本机 HTTP + 转发口后收口。",
+      "revisitWhen": "第 3 段（宿主配置迁移、旧启动器当转发器）完成后，mcpStdioServer.ts / mcpNodeLauncher.ts 收成一个薄转发口，本条改 justified 并只剩领域路径"
     },
     {
       "id": "network-stack",
@@ -595,22 +588,6 @@
       "revisitWhen": "门岗账本的保留 / 降级 / 删除清单被拍板后；之后每次周期审计重跑账本"
     },
     {
-      "id": "conversations-store",
-      "capability": "项目内对话记录的存储（electron/conversations）",
-      "status": "under-review",
-      "reviewBy": "2026-11-15",
-      "paths": [
-        "electron/conversations/conversationsStore.ts",
-        "electron/conversations/conversationsIpc.ts"
-      ],
-      "alternativesChecked": [
-        { "name": "pi 的 JsonlSessionRepo / Session API：会话持久化、有序转录、历史分页（lane 已在用）", "source": "electron/agentLane/laneSession.mts:17" },
-        { "name": "pi 九层对照「会话」层的逐项结论", "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md" }
-      ],
-      "whyNotIntegrated": "尚未下结论，不能当合理自写。会话持久化 pi 已经提供，lane 的对话走的是 pi 的会话文件；这份存储是否只服务旧的项目内对话、是否已被 lane 取代，没有核实。评估：还有哪些调用方、数据是否已经全在 pi 会话里；能删就删。",
-      "revisitWhen": "出评估结论（还有没有调用方、数据是否已在 pi 会话里）；评估前这里不新增文件"
-    },
-    {
       "id": "design-system",
       "capability": "Nomi 设计系统：token-only 的组件封装、浮层、选择器、分段控件与光 / 暗主题翻转",
       "status": "justified",
@@ -667,6 +644,140 @@
       ],
       "whyNotIntegrated": "现成能力只把 flaky 写进 Job Summary，没人读；合并前要用 gh api 读 check-run 注解。这份 reporter 只做格式转换（flaky → ::warning），不自己判定什么是 flaky。",
       "revisitWhen": "vitest 的 github-actions reporter 提供 flaky 注解开关时，删掉这份 reporter"
+    },
+    {
+      "id": "director-refine-panel-hooks",
+      "capability": "导演台精修两颗小 hook：按需面板（场景设置卡、资产库抽屉）按 Esc 收起并遵守导演台的 Esc 归属链；切视口工具的唯一写法，顶栏工具簇与属性卡头的画线 / 逐点共用",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+        "src/workbench/generationCanvas/nodes/director/panels/viewport/useDirectorToolChange.ts"
+      ],
+      "alternativesChecked": [
+        { "name": "@mantine/hooks 的 useHotkeys（只给「按了 Esc 就回调」，不懂导演台「浮层 → 按需面板 → 选中 → 机位视角 → 退出」这条让路链；也未声明为直接依赖）", "source": "https://mantine.dev/hooks/use-hotkeys/" },
+        { "name": "导演台 Popover 原语自己的 Esc 处理：只管浮层，按需面板不是浮层", "source": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx" },
+        { "name": "在 ViewportToolbar 与属性卡头各写一遍 setTransformMode / setDrawMode（两份工具切换规则会漂）", "source": "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportToolbar.tsx" }
+      ],
+      "whyNotIntegrated": "Esc 那颗是导演台 Esc 归属协议（DirectorEditor 见到 data-nomi-escape-layer 就让路）里「按需面板」这一层；工具切换那颗是创建模式 / 画路径模式 / gizmo 三者互斥的领域规则。都只有导演台用。",
+      "revisitWhen": "导演台 Esc 归属改由统一的分层快捷键作用域承担时，删掉 useDismissOnEscape"
+    },
+    {
+      "id": "director3dbox-build-flag",
+      "capability": "3D-BOX 构建期功能开关：进程引导模块 + 共享层只读视图（工具注册表在导入期按它装配）",
+      "status": "justified",
+      "paths": [
+        "electron/shared/featureFlags/director3dbox.ts",
+        "electron/shared/featureFlags/director3dboxFace.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "OpenFeature JS SDK（运行时求值 + provider）",
+          "source": "https://openfeature.dev/docs/reference/technologies/client/web/"
+        },
+        {
+          "name": "Vite define 把构建变量烤进渲染端 bundle（已在用，只覆盖渲染端）",
+          "source": "vite.config.ts:197"
+        },
+        {
+          "name": "Electron app.isPackaged 区分打包与开发",
+          "source": "https://www.electronjs.org/docs/latest/api/app#appispackaged-readonly"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：同一张 Agent 工具面在主进程、preload、pi 岛、MCP 进程、门岗与 vitest 六处于导入期装配成常量，开关必须在每个进程首个导入时就定死且彼此一致（打包只认烤进去的值）；运行时求值的 SDK 回答不了「导入那一刻是哪张面」，渲染端 define 也到不了主进程。两个文件合计不到 120 行，且随开关 2026-11-15 到期整体删除。",
+      "revisitWhen": "切换 PR（门槛达标后）同 commit 删开关与这两个文件；或出现第二个需要跨进程一致的构建开关时改接现成方案",
+      "revisitBy": "2026-11-15"
+    },
+    {
+      "id": "director-shot-focus-and-patch-notices",
+      "capability": "3D-BOX 3c 在 Agent 面板上的两样领域呈现：「正在改：镜头 N」标签（导演台选中的计划镜头随消息一起走），和「这次改动覆盖了你在镜头 N 的手调，可撤销」（哪一笔补丁丢了哪些手调）。三颗薄 hook 只把导演台选择 / 计划 meta 接到面板，一个标签组件按获批画布落地",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/director/useDirectorShotFocus.ts",
+        "src/workbench/generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag.ts",
+        "src/workbench/ai/v4/AgentPanelV4FocusTag.tsx",
+        "src/workbench/ai/v4/useDirectorPatchNotices.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "面板已有的引用 chip（V4Chip：文件 / 技能 / 片段附件）：是随消息发走的附件，不是「这一刻选中的是哪一镜」的活上下文，也不会随导演台取消选择消失",
+          "source": "src/workbench/ai/v4/agentPanelV4Types.ts"
+        },
+        {
+          "name": "行尾「撤销」用的收据授权 host-note：直接复用它认回那一笔（toolCallId ↔ 提议 id），不另存第二份身份",
+          "source": "src/workbench/ai/lane/laneReceiptUndo.ts"
+        },
+        {
+          "name": "让模型在回复里复述被覆盖的手调（stage_shot 写法指导）：真实测试 ④ 里 DeepSeek 一句没提，不能当唯一出口",
+          "source": "electron/shared/director/directorPlanGuidelines.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：镜头焦点来自导演台的计划镜头选择，覆盖提示来自导演计划的手改覆盖层（按稳定 id 的手调差）；两者都是 3D-BOX 独有的事实，文件以 use 开头只因为是 React hook，里面没有通用能力。",
+      "revisitWhen": "Agent 面板有了统一的「宿主提示」槽或统一的上下文标签时，把这两样并进去；或 3D-BOX 开关到期（2026-11-15）随开关一起复查"
+    },
+    {
+      "id": "canvas-group-toolbar-actions",
+      "capability": "画布编组工具条的领域动作装配：把当前组的生成、时间轴、排列、颜色、解组与下载接到各自已有 owner",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "React Flow 的节点工具条 / group node API：只提供节点手势和投影，不拥有 Nomi 的按组生成、时间轴与下载动作",
+          "source": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx"
+        },
+        {
+          "name": "现有 NodeFloatingToolbar 与 ToolbarActionMenu：复用按钮、菜单和 token 原语，不再自写通用工具条控件",
+          "source": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：组动作要同时知道 NodeGroup 成员、按镜头生成资格、时间轴兼容性和本地结果下载目标；这些事实只在 Nomi 画布 owner 里存在。hook 只做领域数据装配，具体按钮和菜单全部复用现有设计系统原语。",
+      "revisitWhen": "组动作 owner 收敛为统一的 canvas command registry，并能从注册表按组上下文生成同一份动作模型时，删除此 hook 并迁移到该 registry"
+    },
+    {
+      "id": "remove-background-download",
+      "capability": "抠图模型首次下载：只从自有镜像拉、按字节出一条总进度、60 秒没收到字节判卡住并中止、失败分原因",
+      "status": "justified",
+      "paths": [
+        "src/lib/removeBackgroundDownload.ts",
+        "src/lib/removeBackgroundModelSource.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@imgly/background-removal 的 progress 回调：按资源各报、每个 chunk 下完才报一次，没有超时",
+          "source": "node_modules/@imgly/background-removal/dist/index.mjs（loadAsBlob）"
+        },
+        {
+          "name": "@imgly 的 fetchArgs：只能传 RequestInit，传不进按字节的进度和「多久没字节」的判定",
+          "source": "https://github.com/imgly/background-removal-js"
+        },
+        {
+          "name": "AbortSignal.timeout：总时长超时，大文件慢网会误杀；要的是「多久没进展」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：第一次点抠图要当场下 56MB，用户判断「卡住没有」只靠这一条进度和这一句话；现成的只有按资源的整块进度和总时长超时，前者在慢网下几十秒不动，后者会把还在慢慢下的误杀。代码只包一层 fetch 计字节，下载本身仍是 @imgly 自己做。",
+      "revisitWhen": "@imgly 提供按字节进度与无进展超时时；或抠图模型改成随包 / 主进程下载时"
+    },
+    {
+      "id": "canvas-undo-journal-write-boundary",
+      "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
+      "status": "under-review",
+      "reviewBy": "2026-11-06",
+      "paths": [
+        "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+        "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+        "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
+      ],
+      "alternativesChecked": [
+        { "name": "Yjs UndoManager 的 trackedOrigins（只撤指定来源的事务）", "source": "https://github.com/yjs/docs/blob/main/api/undo-manager.md" },
+        { "name": "tldraw editor.run(fn, { history: 'ignore' }) 与 document / session / presence 记录分域", "source": "https://github.com/tldraw/tldraw/blob/main/apps/docs/content/sdk-features/store.mdx" },
+        { "name": "Immer produceWithPatches 的反向补丁（服务端改的字段不被撤回）", "source": "https://github.com/immerjs/immer/blob/main/website/docs/patches.mdx" },
+        { "name": "zundo 的 partialize（撤销只记一部分状态）", "source": "https://github.com/charkour/zundo" },
+        { "name": "逐项结论", "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md" }
+      ],
+      "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
+      "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
     }
   ]
 }

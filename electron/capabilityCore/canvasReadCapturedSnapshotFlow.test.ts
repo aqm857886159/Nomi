@@ -24,7 +24,7 @@ vi.mock("electron", () => ({
     removeHandler: (channel: string) => state.handlers.delete(channel),
   },
 }));
-vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined }));
+vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: () => undefined, assertTrustedFireAndForget: (_event: unknown, _channel: string, guard: (event: unknown) => void) => { try { guard(_event); return true; } catch { return false; } } }));
 vi.mock("../../src/workbench/capability/multiShotCanvasLanding", () => ({
   handleMultiShotCanvasLandingOp: state.landing,
 }));

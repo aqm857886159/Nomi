@@ -1,14 +1,5 @@
-// 「读不到」和「没有」必须是两种不同的结果（2026-09-12）。
-//
-// 这条通道原来写的是 `try { … } catch { return [] }`，理由是「能力核还没起来时抛异常会把面板
-// 打成错误态」。那句话把两件事说成了一件：
-//
-//   · 「现在没有要确认的东西」——空数组，对；
-//   · 「我读不到，不知道有没有」——**也回了空数组**，于是面板安安静静什么都不画，
-//     而模型那头刚刚告诉用户「请在确认卡中批准」。用户看到的是沉默（2026-09-11 真实反馈）。
-//
-// 这一组钉住三种输入对三种输出：没打开这个项目 → 空（真的没有）；能力核拒绝 → **拒绝**
-// （渲染层据此渲那张会说话的卡）；正常 → 那几行。
+// 付费确认卡的 IPC 通道（2026-09-11 起）。读通道的那一组（「读不到 ≠ 没有」，2026-09-12）随 2026-10-05
+// 付费卡并进对话投影一起移走：待决出价不再被渲染层拉，而是随对话投影推过去。
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -52,48 +43,16 @@ function trustedEvent(): { sender: unknown; senderFrame: unknown } {
   };
 }
 
-const ROW = { operationId: "op-1", projectId: "project-1", shots: [] } as const;
-
-function register(listPendingSpendConfirmations: (projectId: string) => unknown) {
-  registerProductionActionIpc({
-    getActiveProjectId: () => "project-1",
-    loadCore: async () => ({ listPendingSpendConfirmations } as never),
-  });
-  return handlers.get("nomi:production-runs:pending-spend")!;
-}
-
-describe("pending-spend 读通道：读不到 ≠ 没有", () => {
+// 2026-10-05 付费卡并进对话投影：渲染层**没有**去拉待决出价的通道了——它随对话投影推过来
+// （`electron/agentLane/laneDesktopSpend.ts`）。「读不到 ≠ 没有」那三种现实搬进了推送的值本身
+// （`PendingSpendRead.unreadable`，见 `appIntegrationSpendConfirmInstall.test.ts`）。这一条守的是轮询别长回来。
+describe("pending-spend 读通道已删：卡只随对话投影推过来", () => {
   beforeEach(() => handlers.clear());
 
-  it("正常读得到就回那几行", async () => {
-    const read = register(() => ({ surface: "ready", rows: [ROW] }));
-    await expect(read(trustedEvent(), { projectId: "project-1" })).resolves.toEqual({ surface: "ready", rows: [ROW] });
-  });
-
-  it("本会话按配置没装这条面 → off 原样传给渲染层：不是失败，也不是空", async () => {
-    const read = register(() => ({ surface: "off", phase: "disabled", reason: "env" }));
-    await expect(read(trustedEvent(), { projectId: "project-1" })).resolves.toEqual({ surface: "off", phase: "disabled", reason: "env" });
-  });
-
-  it("不是当前打开的项目 → ready + 空数组。这是**真的没有**：那笔生成没有人在看着这张卡", async () => {
-    const list = vi.fn(() => ({ surface: "ready", rows: [ROW] }));
-    const read = register(list);
-    await expect(read(trustedEvent(), { projectId: "project-2" })).resolves.toEqual({ surface: "ready", rows: [] });
-    await expect(read(trustedEvent(), {})).resolves.toEqual({ surface: "ready", rows: [] });
-    // 不惊动能力核：跨项目的读压根不该走到那一层。
-    expect(list).not.toHaveBeenCalled();
-  });
-
-  it("能力核拒绝 → 这次调用**拒绝**，不再被洗成空数组", async () => {
-    const read = register(() => {
-      throw Object.assign(new Error("Pending spend confirmations cannot be read"), { code: "spend_confirm_surface_unavailable" });
-    });
-    await expect(read(trustedEvent(), { projectId: "project-1" })).rejects.toThrow(/cannot be read/);
-  });
-
-  it("失败原因一路带到渲染层：它要靠这句话说出「断在哪一环」", async () => {
-    const read = register(() => { throw new Error("spend_confirm_surface_unavailable: boom"); });
-    await expect(read(trustedEvent(), { projectId: "project-1" })).rejects.toThrow(/spend_confirm_surface_unavailable/);
+  it("注册完付费卡的动作通道之后，没有任何一条「读待决出价」的 IPC", () => {
+    registerProductionActionIpc({ getActiveProjectId: () => "project-1", loadCore: async () => ({}) as never });
+    expect(handlers.has("nomi:production-runs:revise-spend"), "动作通道照旧在").toBe(true);
+    expect([...handlers.keys()].filter((channel) => /pending-spend|pendingSpend/.test(channel))).toEqual([]);
   });
 });
 

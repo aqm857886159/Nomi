@@ -57,11 +57,11 @@
 
 0. **先看这个 UI 真实当前长什么样**（改 / 扩现有界面必做）：读完整渲染外壳组件，或看 `docs/design/app-screenshots-*` 真实截图。样张 = 真实布局 + 你的改动，不准从零散片段在脑子里拼整体。
 1. 先读 `docs/design/nomi-design-system.md` 与 `src/design/` 现有组件；token-only（禁非 token 的 px / hex / 圆角）；Nomi 品牌用真品牌（`NomiWordmark` / `NomiLogoMark`）。
-2. 涉及交互的样张必须是用户能亲手拖 / 点 / 调的可交互 widget（首选 `mcp__visualize__show_widget`），纯静态排版才允许静态 mockup。
-3. 用户确认后才实现。
-4. 实现后与获批样张逐项对账：截图并排比，每处差异当场补齐或说明暂缓原因。样张是验收合同，不是参考图。
+2. 拍板样张必须是设计实验室里由生产组件 + 真实宿主数据（ShellStage 手法）搭出的屏；新组件还没有时，先在生产目录写组件本体，实验室只给数据，不在 devlab 另画 JSX。手写 HTML / 交互 widget 只允许标 `exploration` 做布局 A/B 等方向探索，不能进入验收合同。
+3. 用户确认后才实现；确认后的生产代码就是那张实验室屏，不再另起一套复刻实现。
+4. 实现后做**整张对账表**：样张每个区域各占一行，状态只能是「一致」「差异 + 原因」或「推迟到某阶段」，不许只挑几条；实验室屏的 `data-mockup-region` 每个都必须有对应行。截图并排比，每处差异当场补齐或说明暂缓原因。样张是验收合同，不是参考图。
 5. 任何新功能 / 新对象，讲它在用户旅程哪一步出现、在界面哪几处露出、怎么被用到时，出一张可视路径图，别让用户靠文字拼。
-6. 设计落地 = 规范驱动 + computed style 核对：改完跑 `tests/ux/design-fidelity.e2e.mjs`；加自定义 Tailwind token 同步进 `cn()` 的 `extendTailwindMerge`。样张契约用 `pnpm run check:mockup-contracts`。
+6. 设计落地 = 规范驱动 + computed style 核对：改完跑 `tests/ux/design-fidelity.e2e.mjs`；加自定义 Tailwind token 同步进 `cn()` 的 `extendTailwindMerge`。新验收合同必须登记 `labScreen`（屏、状态、宿主、生产组件、`data-mockup-region` 对账表），并跑 `pnpm run check:mockup-contracts`。
 
 ## R9 模块化 + 防巨壳（含旧 R12）
 
@@ -154,9 +154,13 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 **分层边界门岗（旧 R17.3）** `check:boundaries`（`dependency-cruiser`，规则 `.dependency-cruiser.mjs`，基线 `scripts/boundaries-baseline.json`）：`src/` → `electron/` 存量冻结只减不增（走 `src/desktop/bridge.ts` 或 `electron/shared/contracts/`）；`electron/` → `src/` 与 `src/` → `scripts/` 硬零；新增完全静态循环（非 dynamic-import、非 type-only）判红，存量冻结。归属地图 `docs/architecture/module-ownership-map.md`。
 
-## RW 重写判据（旧 R21.2，试用到 2026-10-15）
+## RW 方向检查（旧 R21.2「重写判据」升级，试用到 2026-10-15）
 
-出现任一条就停止打补丁：① 同一文件 14 天内第三次因 bug 修改；② 要给现有函数加第三个特例分支或参数；③ 改一处要读两处以上旁路逻辑。此时选定「补 / 重写 / 删」之一并给出特征测试路径：选**重写**先写特征测试钉住旧行为，范围限一个模块，**同一次提交删掉旧的**（P1）；选补或删同样写明特征测试并说明为什么不重写。根因合同可带 `rewrite_decision: { decision, characterization_test }`，写了就必须成立（选项合法、测试文件存在、选 rewrite 时测试在本次 diff 里）。判据只判做没做，不判做得好不好。动手那一刻的提醒：`scripts/claude-hooks/edit-time-reminder.sh`（只提醒不拦）——文件近 14 天已有 ≥3 次 fix 提交时提醒先过本判据；在 `src/`、`electron/` 新建文件时附接口级已有能力清单并要一行「已查过 / 没找到」。数字是试用值，校准用提交历史回测。
+**触发**（任一即停止派修补）：① 同一文件或同一概念目录，14 天内第 3 个 fix 提交；② 出现 revert 一个 fix 的提交；③ 修复因评测分数下降被回滚；④ 同一条线派第 3 轮及以上修补（交接单 / 任务书里的「第 N 轮」同样算）；⑤ 要加第三个特例分支。①② 由 `node scripts/fix-churn.mjs` 计算（目录只认「概念大小」：fix 碰过的不同源码文件 ≤6 个，忙碌大目录不整体算，否则回测里几乎每个 fix 都命中）；③④⑤ 靠人工和任务书检查。
+
+**动作**：先写特征测试钉住现状，再做「类根因复盘」一页（模板 [`direction-check-template.md`](engineering/direction-check-template.md)：归类表、为什么一直冒、不改结构的 2–3 个可验证预测、靶子独立性检查、P0 现成方案、补 / 重写 / 删对比 + 推荐、用户要权衡的核心），结构性结论交用户拍板。选重写时范围限一个模块，同一次提交删掉旧的（P1）。根因合同可带 `rewrite_decision: { decision, characterization_test }`，写了就必须成立。
+
+**执行点（谁执行都绕不过）**：git commit-msg `scripts/check-direction-trailer.mjs`（fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`，文档须在 `docs/` 下、存在、不是空壳；按内容判，没有环境变量开关；revert 与 merge 不拦）；派工前 `fix-churn.mjs`；CI contracts 里只警告的 `Direction check` 步骤（兜 `--no-verify`）；Claude 编辑提醒 `edit-time-reminder`（调同一个计数器，只提醒）；`self-check` 在用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」时注入提示块。起因与限制见编排手册 §20。
 
 ## P2 修复走根因流程（旧 R21 / R21.1 / R21.3）
 
@@ -188,14 +192,16 @@ P3「全绿不等于完成」的量化门。三档触发：
 
 任务书带开工三行头与概念占用；收货三查；一个概念一个 PR、按阶段攒（提交不压缩）；协调会话运作（状态落盘、工人不建卡不直接问用户、CI 绿 + 扫描干净才合、最多 3 个等收据）。正文：[`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md)。
 
+**省 token（2026-10-04）**：派活前先数轮次，同一处第 3 轮就停改派复盘；协调会话不读大文件全文（先看大小和标题，按段读；读子 agent 结论不读过程）；子 agent 同时最多 3 个、默认 Sonnet、不再派子 agent；任务书写清范围 / 不碰清单 / 停点（`scripts/check-dispatch-brief.mjs`）；确定性的活用脚本；长输出落文件；卡住 3 次就停下报告。详见编排手册 §20。
+
 ## R33 概念的 owner 先于目录（含 R33.2 – R33.5）
 
 派工切的是概念不是文件夹：并行 lane 按目录派工时，同一概念在合并前就各自长出第二份实现，两条 lane 改的文件一个都不重叠，`git merge` 看不见，而两份都有测试都绿。
 
-- **谁说了算在动手前回答**：设计卡 ★2 格写概念 → 唯一 owner（`concept-owners.json` 的 id）→ 允许的消费者；owner 落到文件 + 符号，owner 未定标 `pending` 并写清由哪份任务书收口。
+- **谁说了算在动手前回答**：设计卡 ★2 格写概念 → 唯一 owner（`concept-owners/` 的 id）→ 允许的消费者；owner 落到文件 + 符号，owner 未定标 `pending` 并写清由哪份任务书收口。
 - **同一时段同一概念只归一条 lane**（R33.2）：编排者维护全局占用表；跨概念改动只能由持有者做或等它合并；目录不冲突不是理由。
 - **验收多一问**（R33.3）：这一刀有没有让任何概念多出第二个 owner（第二份状态 / 规则 / 判据，或渲染层替主进程做决定的补偿逻辑）？有就打回，测试绿不作放行理由。
-- **概念登记表** `docs/engineering/concept-owners.json`（R33.4）与 `check:concept-owners`（**警告档**，判据 `scripts/concept-owners-lib.mjs`）：只登记碰到的概念，当场登记；同一概念出现第二个写口即违规；`pending` 条目必须写 `migration_strategy`；owner 只写真实存在的文件。字段：`name` / `subject` / `lifecycle` / `authority_kind` / `trust_domain` / `fact_kind` / `migration_status` / `owner` / `write_api` / `forbidden_derivations` / `allowed_consumers` / `identity_fields`（身份比对必填）/ `parity_test` / `since` / `notes`。门岗只抓形状：同一件事换名字再写一份它看不见，那一半归对拍测试、真实旅程和收货那一问。
+- **概念登记表** `docs/engineering/concept-owners/`（R33.4；一个概念一个文件 `<subject>.json`，顶层字段在 `_meta.json`，只经 `scripts/concept-registry-lib.mjs` 的 `loadConceptRegistry` 读）与 `check:concept-owners`（**警告档**，判据 `scripts/concept-owners-lib.mjs`）：只登记碰到的概念，当场登记；同一概念出现第二个写口即违规；`pending` 条目必须写 `migration_strategy`；owner 只写真实存在的文件。字段：`name` / `subject` / `lifecycle` / `authority_kind` / `trust_domain` / `fact_kind` / `migration_status` / `owner` / `write_api` / `forbidden_derivations` / `allowed_consumers` / `identity_fields`（身份比对必填）/ `parity_test` / `since` / `notes`。门岗只抓形状：同一件事换名字再写一份它看不见，那一半归对拍测试、真实旅程和收货那一问。
 - **对等矩阵**（R33.5）：多入口（Agent 面板 / 画布 / 外部 MCP / 批量）共享同一概念时，要有一条会红的判据证明同源——同一输入 → 各入口出站报文逐字节相同；新入口必须登记。
 
 ## SECRET 敏感数据

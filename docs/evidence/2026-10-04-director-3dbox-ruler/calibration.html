@@ -1,0 +1,116 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>导演尺子人工校准</title>
+<style>
+:root{color-scheme:dark}body{font:15px system-ui,sans-serif;background:#111;color:#eee;max-width:1180px;margin:24px auto;padding:0 16px}h1{margin-bottom:4px}.intro{background:#20242b;padding:14px 16px;border-radius:10px;line-height:1.6}.toolbar{position:sticky;top:0;background:#111;padding:12px 0;z-index:2;display:flex;gap:10px;align-items:center}.toolbar button{padding:8px 12px;border:1px solid #666;border-radius:6px;background:#2b313a;color:#fff}.toolbar button:disabled{opacity:.45}.status{color:#9ad1a8}#items{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:#222831;padding:12px;border-radius:10px}.card video{width:100%;background:#000;aspect-ratio:16/9}.prompt{min-height:48px;color:#ddd}.score{display:flex;gap:8px;margin-top:8px}.score button{flex:1;padding:8px;background:#303742;color:#fff;border:1px solid #69717e;border-radius:5px}.score button.selected{background:#2f8f61;border-color:#6de0a0}.reason{width:100%;box-sizing:border-box;background:#171a1f;color:#fff;border:1px solid #555;border-radius:5px;padding:7px;margin-top:9px}
+</style>
+<h1>导演尺子人工校准</h1>
+<div class="intro">每段先读“题目原话”，再播放视频，按 1–5 分评分：1=没有完成，3=部分完成，5=清楚完成。评分后可写一句理由。方案名称保持隐藏；全部 12 段完成后点击导出，JSON 会包含视频相对路径、评分和理由。</div>
+<div class="toolbar"><button id="export" disabled>导出校准 JSON</button><span id="status" class="status">正在加载内联 manifest…</span></div>
+<main id="items"></main>
+<script>
+const manifest = {
+  "items": [
+    {
+      "id": "cal-01",
+      "display": 1,
+      "cardId": "courtyard-standoff",
+      "prompt": "做一段古装悬疑剧情预演：青衣女子带信走进古代庭院，侍卫在院门前拦住她。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/courtyard-standoff_oracle.mp4"
+    },
+    {
+      "id": "cal-02",
+      "display": 2,
+      "cardId": "courtyard-standoff",
+      "prompt": "做一段古装悬疑剧情预演：青衣女子带信走进古代庭院，侍卫在院门前拦住她。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/courtyard-standoff_s0-pr960-raw.mp4"
+    },
+    {
+      "id": "cal-03",
+      "display": 3,
+      "cardId": "perfume-orbit",
+      "prompt": "一只香水瓶立在圆形展台上，镜头缓慢环绕一周，再推近瓶盖。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/perfume-orbit_oracle.mp4"
+    },
+    {
+      "id": "cal-04",
+      "display": 4,
+      "cardId": "perfume-orbit",
+      "prompt": "一只香水瓶立在圆形展台上，镜头缓慢环绕一周，再推近瓶盖。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/perfume-orbit_s1.mp4"
+    },
+    {
+      "id": "cal-05",
+      "display": 5,
+      "cardId": "perfume-orbit",
+      "prompt": "一只香水瓶立在圆形展台上，镜头缓慢环绕一周，再推近瓶盖。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/perfume-orbit_s0-pr960-raw.mp4"
+    },
+    {
+      "id": "cal-06",
+      "display": 6,
+      "cardId": "police-chase",
+      "prompt": "警匪飙车：警车追赶逃逸车穿过城市街道，节奏惊险竞速。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/police-chase_oracle.mp4"
+    },
+    {
+      "id": "cal-07",
+      "display": 7,
+      "cardId": "police-chase",
+      "prompt": "警匪飙车：警车追赶逃逸车穿过城市街道，节奏惊险竞速。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/police-chase_s1.mp4"
+    },
+    {
+      "id": "cal-08",
+      "display": 8,
+      "cardId": "police-chase",
+      "prompt": "警匪飙车：警车追赶逃逸车穿过城市街道，节奏惊险竞速。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/police-chase_s0-pr960-raw.mp4"
+    },
+    {
+      "id": "cal-09",
+      "display": 9,
+      "cardId": "t1-01-push",
+      "prompt": "镜头从走廊尽头缓慢推近站在窗边的女子，4秒完成，最后停在中景。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/t1-01-push_oracle.mp4"
+    },
+    {
+      "id": "cal-10",
+      "display": 10,
+      "cardId": "t1-01-push",
+      "prompt": "镜头从走廊尽头缓慢推近站在窗边的女子，4秒完成，最后停在中景。",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/t1-01-push_s0-pr960-raw.mp4"
+    },
+    {
+      "id": "cal-11",
+      "display": 11,
+      "cardId": "t1-02-pull",
+      "prompt": "Pull out from a close view of a cyclist on a quiet street for 4 seconds, revealing the road behind her.",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/t1-02-pull_oracle.mp4"
+    },
+    {
+      "id": "cal-12",
+      "display": 12,
+      "cardId": "t1-02-pull",
+      "prompt": "Pull out from a close view of a cyclist on a quiet street for 4 seconds, revealing the road behind her.",
+      "video": "../../../evals/runs/director-judge-20261004032450/media/t1-02-pull_s0-pr960-raw.mp4"
+    }
+  ]
+};
+const items = document.querySelector('#items'), exportButton = document.querySelector('#export'), status = document.querySelector('#status');
+const rows = manifest.items.map(item => ({...item, score:null, reason:''}));
+function render(){
+  for(const row of rows){
+    const card=document.createElement('section'); card.className='card';
+    card.innerHTML='<strong>第 '+row.display+' 段</strong><p class="prompt"><b>题目原话：</b>'+escapeHtml(row.prompt)+'</p><video controls preload="metadata" src="'+escapeAttr(row.video)+'"></video><div class="score">'+[1,2,3,4,5].map(n=>'<button data-score="'+n+'">'+n+'</button>').join('')+'</div><textarea class="reason" rows="2" placeholder="可选：写一句评分理由"></textarea>';
+    card.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{row.score=Number(btn.dataset.score);card.querySelectorAll('button').forEach(b=>b.classList.toggle('selected',b===btn)); update()});
+    card.querySelector('textarea').oninput=e=>row.reason=e.target.value;
+    items.append(card);
+  }
+}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeAttr(v){return escapeHtml(v)}
+function update(){const done=rows.filter(r=>r.score!==null).length; exportButton.disabled=done!==rows.length; status.textContent=done+'/'+rows.length+' 段已评分'+(done===rows.length?'，可以导出。':'。')}
+exportButton.onclick=()=>{const payload={schemaVersion:1,generatedAt:new Date().toISOString(),scores:rows.map(({id,cardId,video,score,reason})=>({id,cardId,video,score,reason}))}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='director-judge-calibration.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+render(); update();
+</script>

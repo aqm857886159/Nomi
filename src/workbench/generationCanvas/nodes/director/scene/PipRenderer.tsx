@@ -4,7 +4,7 @@
  *          ../model/cameraCoordinateSpace / sceneObjectGraph 的机位世界变换；临时可见性与渲染器状态在 finally 恢复
  * [OUTPUT]: 对外提供 PipRenderer：每帧在主画布的一块剪裁矩形里用目标机位再渲染一遍场景（editor-only 与辅助物体不画）
  * [POS]: director/scene 的画中画渲染（清单 §2.5 V7）：同一个 WebGL 上下文、同一份场景图，scissor + viewport 内嵌渲染，
- *        不另起渲染器；矩形由 DOM 侧 PipViewport 量好写进 ref。播放/录制中跟节目机位，停止时显示预览机位；没有机位 → 不画（DOM 盖黑场）。
+ *        不另起渲染器；矩形由 DOM 侧 PipViewport 量好写进 ref。播放/录制中与导演视图（followProgram）跟节目机位，精修停止时显示预览机位；没有机位 → 不画（DOM 盖黑场）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'
@@ -18,7 +18,7 @@ import { useSceneRegistry } from './SceneRegistryContext'
 import { transformCameraPose } from '../model/cameraCoordinateSpace'
 import { sceneFrame } from '../model/sceneObjectGraph'
 
-export function PipRenderer({ rectRef }: { rectRef: React.MutableRefObject<PipRect> }): null {
+export function PipRenderer({ rectRef, followProgram = false }: { rectRef: React.MutableRefObject<PipRect>; followProgram?: boolean }): null {
   const { gl, scene, size } = useThree()
   const store = useDirectorStoreApi()
   const registry = useSceneRegistry()
@@ -31,7 +31,7 @@ export function PipRenderer({ rectRef }: { rectRef: React.MutableRefObject<PipRe
     if (!rect || rect.width < 8 || rect.height < 8) return
     const state = store.getState()
     const sceneData = state.activeScene()
-    const cameraId = pipCameraIdOf(state)
+    const cameraId = pipCameraIdOf(state, { followProgram })
     const data = cameraId ? sceneData.cameras.find((camera) => camera.id === cameraId) : undefined
     if (!data) return
     const pose = state.evaluatedPoses[data.id]

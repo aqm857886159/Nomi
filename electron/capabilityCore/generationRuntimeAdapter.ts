@@ -67,12 +67,20 @@ export type GenerationProviderMaterializationResult = {
  * 观察窗（5 分钟）到期后的重踢、重开项目、重启 App 拿到的都是新实例，那张表是空的，于是每一次查询都报
  * 「不知道这笔任务是用哪个模型交的」、被吞成「还在跑」。视频在供应商那边早就出好了，Run 永远停在 polling。
  * 供应商实现早就留了「调用方明说」这条路（apimartGenerationProvider.queryTargetFor ①），只是这一层从来没把它递下去。
+ * `parameters` 同理：画布传输（canvasTransportProvider）查结果要知道是哪家、哪个项目，它们冻在合同参数里。
  */
-export type GenerationProviderTaskContext = Partial<Pick<GenerationProviderRequestInputV1, "modelId" | "mode">>;
+export type GenerationProviderTaskContext = Partial<Pick<GenerationProviderRequestInputV1, "modelId" | "mode" | "parameters">>;
 
 export type GenerationProvider = {
   providerId: string;
   capabilities: GenerationProviderCapabilities;
+  /**
+   * 这个执行器的**每一次**出网都在派发账上留得下痕迹：HTTP 只经 `appFetch`，子进程（CLI）由 `child_process` 诊断通道记账，
+   * 其余不经 appFetch 的出网口一个都不走（`electron/offLedgerEgress.structure.test.ts` 逐个登记）。声明了，提交出口才能凭
+   * 「这次派发一笔可能写出去的都没有」判定确定没发出（`outboundDispatchEvidence.observeSubmissionHandoffs`）；不声明（测试替身、
+   * 别的传输）只认连接层证据。声明错了就是把一笔可能扣过的钱说成没发出，所以只有两台生产执行器写它。
+   */
+  networkTransport?: "app-fetch";
   buildRequest: (input: GenerationProviderRequestInputV1) => unknown;
   submit: (request: unknown, idempotencyKey: string) => Promise<{ providerTaskId: string; raw?: unknown }>;
   query?: (providerTaskId: string, context?: GenerationProviderTaskContext) => Promise<{ status: string; raw?: unknown }>;

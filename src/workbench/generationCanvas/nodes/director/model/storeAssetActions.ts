@@ -7,7 +7,8 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createDirectorId } from './directorIds'
-import { aiSceneSchema, normalizeAiScene } from './aiScene'
+import { normalizeAiScene } from './aiScene'
+import { aiSceneSchema } from '../../../../../../electron/shared/director/aiSceneSchema'
 import { canMoveAssetFolder } from './assetFolders'
 import { normalizeScene, remapSceneIds } from './directorProject'
 import type { CommitProject, StoreGet, StoreSet } from './directorStore'

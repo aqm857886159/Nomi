@@ -28,7 +28,7 @@ test('这道门岗进了 contracts 档，不是一个没人跑的脚本', () => 
 const MUTATIONS = [
   ['A 类 · 拿掉动词那道拦截后，信封字段在改草稿那条路上必须当场被拒（不许静默消失）', [
     ['electron/shared/agentCapabilities/verbs/writeVerbs.ts',
-      '        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot[field] !== undefined);',
+      '        const index = value.operationId === undefined ? -1 : value.shots.findIndex((shot) => shot.shotId !== undefined && shot[field] !== undefined);',
       '        const index = -1;'],
   ]],
   ['B 类 · 宿主重新硬要模型拿不到的 contentHash / version', [
@@ -41,9 +41,14 @@ const MUTATIONS = [
       '    semanticInputOf: (args) => ({ scope: (args as { scope?: DocumentReadInput["scope"] }).scope ?? READ_SCRIPT_SCOPE_DEFAULT }),\n', ''],
   ]],
   ['C 类 · 时长落在一个**存在但语义不对**的宿主字段上（类型看不出来，喂真值才红）', [
+    // 2026-10-05：时长与比例下沉进同一个 parameters 字面量之后，这一行拆成了多行；变异跟着打在新写法上：
+    // 时长从 parameters.duration 挪到宿主那个存在但语义不对的 `mode` 字段上。
     ['electron/shared/agentCapabilities/verbs/draftShotsProjection.ts',
-      "      ? { parameters: { ...(parameters ?? {}), ...(durationSec !== undefined ? { duration: durationSec } : {}) } }",
-      "      ? { parameters: { ...(parameters ?? {}) }, mode: String(durationSec) }"],
+      "        ...(durationSec !== undefined ? { duration: durationSec } : {}),\n",
+      ""],
+    ['electron/shared/agentCapabilities/verbs/draftShotsProjection.ts',
+      "        ...(aspectRatio !== undefined ? { [ASPECT_RATIO_SEMANTIC_KEY]: aspectRatio } : {}),\n      } }",
+      "        ...(aspectRatio !== undefined ? { [ASPECT_RATIO_SEMANTIC_KEY]: aspectRatio } : {}),\n      }, mode: String(durationSec) }"],
   ]],
   ['D 类 · 目录身份被静默丢掉（形状仍合法，值消失，只有逐字段探针看得见）', [
     ['electron/shared/agentCapabilities/verbs/draftShotsProjection.ts',

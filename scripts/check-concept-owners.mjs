@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 概念 owner 门岗（R33 / R17 / R21.3，2026-09-29）：一个概念只能有一个主人。
 //
-// 为什么要它：R33 的登记表 docs/engineering/concept-owners.json 从 09-22 起就在，但只有人在读——
+// 为什么要它：R33 的登记表（docs/engineering/concept-owners/，一个概念一个文件，读只走 loadConceptRegistry）从 09-22 起就在，但只有人在读——
 // 「同一个概念出现第二个写口即违规」是登记表存在的唯一判据，却没有任何机器在执行它。
 // 并行 lane 各自长出第二份实现，要等合并那一刻靠人逐行对账才发现（09-22 四个实例全是这么漏的）。
 //
@@ -26,6 +26,7 @@ import {
   CONCEPT_OWNERS_SINCE,
   definitionSymbols,
   doorWatch,
+  applyBoundaryBaseline,
   evaluateBaseline,
   evaluateContracts,
   evaluateDoorPolicy,
@@ -36,6 +37,7 @@ import {
   isIdentifierSymbol,
   sanitizeConcepts,
   validateBaseline,
+  validateBoundaryBaseline,
   validateRegistry,
 } from './concept-owners-lib.mjs'
 import {
@@ -48,8 +50,8 @@ import {
   underRoots,
   workingTreeSource,
 } from './concept-owners-scan.mjs'
+import { CONCEPT_OWNERS_DIR, loadConceptRegistry } from './concept-registry-lib.mjs'
 
-export const REGISTRY_PATH = 'docs/engineering/concept-owners.json'
 export const BASELINE_PATH = 'scripts/concept-owners-baseline.json'
 const CONTRACTS_DIR = 'docs/fixes'
 
@@ -139,13 +141,17 @@ export function loadReference(repoRoot, environment) {
     }
   }
   const baseline = show(BASELINE_PATH)
-  const registry = show(REGISTRY_PATH)
   if (baseline.invalid) return { error: `参照提交上的基线不是合法 JSON：${baseline.invalid}` }
-  if (registry.invalid) return { error: `参照提交上的登记表不是合法 JSON：${registry.invalid}` }
+  let registry
+  try {
+    registry = loadConceptRegistry(repoRoot, { ref })
+  } catch (error) {
+    return { error: `参照提交上的登记表读不了：${error instanceof Error ? error.message : String(error)}` }
+  }
   return {
     ref,
     baseline: baseline.missing ? null : baseline.value,
-    concepts: sanitizeConcepts(registry.value?.concepts),
+    concepts: sanitizeConcepts(registry?.concepts),
   }
 }
 
@@ -194,7 +200,8 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   let baseline
   let source
   try {
-    registry = readJsonFile(path.join(repoRoot, REGISTRY_PATH))
+    registry = loadConceptRegistry(repoRoot)
+    if (!registry) throw new Error(`概念登记目录不存在：${CONCEPT_OWNERS_DIR}/`)
     const baselineFile = path.join(repoRoot, BASELINE_PATH)
     baseline = fs.existsSync(baselineFile) ? readJsonFile(baselineFile) : null
     source = sourceRef ? gitRefSource(repoRoot, sourceRef) : workingTreeSource(repoRoot)
@@ -257,12 +264,14 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   // ⑥ 合同：受管合同的共享边界必须进账
   let mapping = []
   let governedCount = 0
+  const unregisteredBoundaries = []
   if (!diagnostic) {
     const { contracts, errors } = listContracts(source, repoRoot, sourceRef)
     for (const message of errors) findings.push({ rule: 'registry-invalid', message })
     governedCount = governedContracts(contracts).length
     const result = evaluateContracts({ concepts, contracts })
-    findings.push(...result.findings)
+    unregisteredBoundaries.push(...result.findings.filter((item) => item.rule === 'unregistered-boundary'))
+    findings.push(...result.findings.filter((item) => item.rule !== 'unregistered-boundary'))
     mapping = result.mapping
   }
 
@@ -272,6 +281,11 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   if (!baseline) findings.push({ rule: 'baseline-invalid', message: `缺少 ${BASELINE_PATH}` })
   const baselineFindings = validateBaseline(effectiveBaseline, { conceptsByName })
   findings.push(...baselineFindings)
+  const boundaryFindings = baseline ? validateBoundaryBaseline(effectiveBaseline) : []
+  findings.push(...boundaryFindings)
+  if (!diagnostic && boundaryFindings.length === 0) {
+    findings.push(...applyBoundaryBaseline({ baseline: effectiveBaseline, findings: unregisteredBoundaries }))
+  }
   if (baselineFindings.length === 0) {
     findings.push(...evaluateBaseline({
       baseline: effectiveBaseline,
@@ -320,7 +334,7 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   log(`✅ 概念 owner 门岗：${selected.length} 个概念（converged ${selected.length - pendingCount} / pending ${pendingCount}）`
     + ` · 写接口 ${apiCount} 个 · 第二写口 0 新增（基线在册 ${effectiveBaseline.second_write_ports.length}）`
     + ` · pending 冻结写门 ${pendingWriteDoors.length}`
-    + (diagnostic ? '' : ` · 身份比对 ${comparators.length} 处全部登记 · 受管合同 ${governedCount} 份的共享边界全部进账`)
+    + (diagnostic ? '' : ` · 身份比对 ${comparators.length} 处全部登记 · 受管合同 ${governedCount} 份，未登记的共享边界 ${effectiveBaseline.unregistered_boundaries?.length ?? 0} 处冻结在基线（只减不增）`)
     + ` · parity_test ${parityCount}/${selected.length}${historyNote}`)
   return 0
 }

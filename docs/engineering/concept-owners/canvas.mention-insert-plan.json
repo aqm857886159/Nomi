@@ -1,0 +1,25 @@
+{
+  "name": "@ 选中之后怎么落（连线 / 落进自己的参考槽 / 别的项目的先复制再落）",
+  "subject": "canvas.mention-insert-plan",
+  "lifecycle": "author",
+  "trust_domain": "renderer",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-07",
+  "authority_kind": "decision",
+  "fact_kind": "rule",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+    "symbol": "planMentionInsert"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+      "symbol": "planMentionInsert"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+  ],
+  "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：候选（当前参考 / 画布 / 素材库）两个宿主一样，宿主不同只改落法：能连线的画布宿主建真边，付费卡落进卡自己的参考槽，别的项目的素材先过 asset.library-drop-materialization 那道复制关口。落哪个槽归 canvas.mention-reference-slot。"
+}

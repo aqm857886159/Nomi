@@ -4,12 +4,13 @@
 // 为什么单独成文件：`mcpGenerationTools.ts` 贴着 800 行门岗（R9），而这段逻辑本身是一个
 // 完整的单元（两种参数两种待遇那条分界线就住在这里），拆出来比塞在 handler 里更好读、可单测。
 import { admitPlanCandidate, type PlanCandidate } from "./executionContract";
-import { normalizeVideoCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
+import { normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
 import { admitShotIdentity, declaredModeForModel } from "./semanticGenerationCandidate";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
 import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
+import { mergeNamedParameters, parameterChanges } from "../shared/generationParameterPatch";
 
 /** 读盘归一只需要草稿的这几样（避免把 handler 的大类型拖进来）。 */
 type GenerationOperationLike = {
@@ -78,20 +79,31 @@ export function resolvePlanPatch(input: {
     ? declaredModeForModel(registry, nextProviderId, nextModelId, baseCandidate.mode)
     : undefined;
   const nextMode = modeFromModeId !== undefined && !sameTaskKind(modeFromModeId, baseCandidate.mode) ? modeFromModeId : followedMode;
-  const mergedCandidate = {
+  // 身份那一半先并（模型 / 模式 / 变体），参数先留着原来那份：原有参数要按**新的**身份清残留。
+  const identityCandidate = {
     ...baseCandidate,
     ...userPatch,
     ...(nextMode ? { mode: nextMode } : {}),
     ...(modelChanged && userPatch.variantId === undefined ? { variantId: undefined } : {}),
     ...((modelChanged || modeChanged) && userPatch.modeId === undefined ? { modeId: undefined } : {}),
-    parameters: userPatch.parameters ?? baseCandidate.parameters,
+    parameters: baseCandidate.parameters,
     references: userPatch.references ?? baseCandidate.references,
   } as PlanCandidate;
-  const stripped = userPatch.parameters === undefined
-    ? stripParametersNotAccepted(mergedCandidate, registry, videoModelCandidates)
-    : { candidate: mergedCandidate, cleared: [] as string[] };
+  // 原有参数里新身份不接受的（换模型带来的残留）清掉并上报；这一次点名的参数不走这里，在下面准入时当场判。
+  const stripped = stripParametersNotAccepted(identityCandidate, registry, videoModelCandidates);
+  const kept = stripped.candidate.parameters;
+  // ── 改草稿 = 只改被点名的参数，其余不动（2026-10-05 协调会话定的规则）──
+  // 以前这里是 `userPatch.parameters ?? base`：整份替换。Agent 写 `{resolution: "4K"}` 是想改清晰度，
+  // 结果比例被清回默认；只改比例时 4K 掉回 1K（验收线实测）。现在点名的键合并进原有参数；
+  // 要清掉一个键必须显式写 `null`。付费卡每次带的是这一镜的完整参数集，合并与替换结果相同。
+  // 点名的参数单独过语义翻译（比例 → 这个模式的真实键），与 create 两扇门同一个函数；原有参数只当「同一档」的参照。
+  // 合并规则（点名的键覆盖、null 删键）与文稿方案改一镜是同一个函数（`mergeNamedParameters`）。
+  const normalizedIdentity = normalizeAuthoredCandidate({ ...stripped.candidate, parameters: {} }, registry, videoModelCandidates);
+  const mergedParameters = mergeNamedParameters(kept, userPatch.parameters, (written) =>
+    normalizeAuthoredCandidate({ ...stripped.candidate, parameters: written }, registry, videoModelCandidates, kept).parameters);
+  const normalizedCandidate = { ...normalizedIdentity, parameters: mergedParameters } as PlanCandidate;
   const clearedParameters = stripped.cleared;
-  const normalizedCandidate = normalizeVideoCandidate(stripped.candidate, videoModelCandidates);
+  const changedParameters = parameterChanges(baseCandidate.parameters, mergedParameters);
   // 模型或模式变了：和建镜头时同一道账——这一对在目录里必须真有（第 9 条，矛盾的镜头造不出来）。
   if (modelChanged || modeChanged) admitShotIdentity(normalizedCandidate, registry);
   // 判的是**归一之后**的候选：变体别名（`fast-face` → `fast`）要先被认成正名，
@@ -108,13 +120,18 @@ export function resolvePlanPatch(input: {
       ...(nextMode && nextMode !== baseCandidate.mode ? { mode: nextMode } : {}),
       // 清理过就必须**连同清理后的参数一起落盘**。漏掉这一行时清理只是算了一遍、报了一遍，
       // 存的还是旧参数——「不上报 clearedParameters」那个变异当时因此杀不掉（2026-09-22 验收）。
-      ...(clearedParameters.length ? { parameters: stripped.candidate.parameters } : {}),
+      //
+      // 调用方这一次写了参数时，落盘的是**翻译之后**的那份（语义比例已换成真实键）；只落 userPatch 原样，
+      // 下一次读盘归一会把 `aspectRatio` 当残留清掉——用户说的比例就又悄悄没了。
+      ...(clearedParameters.length || userPatch.parameters !== undefined ? { parameters: mergedParameters } : {}),
       ...(normalizedCandidate.variantId ? { variantId: normalizedCandidate.variantId } : { variantId: undefined }),
       ...(normalizedCandidate.modeId ? { modeId: normalizedCandidate.modeId } : { modeId: undefined }),
     },
-    ...(modelChanged || modeChanged ? {
+    ...(modelChanged || modeChanged || changedParameters.length ? {
       changeset: {
         modelChanged, modeChanged,
+        // 这一次实际改了哪几个键（改前 → 改后；不在 = 这一镜原来没有 / 现在没有）。Agent 照它向用户说改了什么。
+        ...(changedParameters.length ? { changedParameters } : {}),
         ...(modelChanged && userPatch.variantId === undefined && baseCandidate.variantId ? { clearedVariantId: baseCandidate.variantId } : {}),
         ...((modelChanged || modeChanged) && userPatch.modeId === undefined && baseCandidate.modeId ? { clearedModeId: baseCandidate.modeId } : {}),
         ...(clearedParameters.length ? { clearedParameters } : {}),

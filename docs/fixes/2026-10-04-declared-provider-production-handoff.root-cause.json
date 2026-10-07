@@ -1,0 +1,159 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-declared-provider-production-handoff",
+  "problem_type": "正式生成（引擎 B）的就绪判据把「代码契约被认证接管」套到没有代码契约的连接上，让出的连接没有任何执行器接手",
+  "symptom": "v0.23.0（issue #975）：外部宿主经 Nomi MCP 用 submit_declaration 登记本机 HTTP 视频适配器 local-52931，key 已存、nomi_try_model 真打到适配器拿到 task_id、nomi_operation_plan 建得出 operation，进入正式生成（nomi_start_generation / Production Run）稳定报 `Provider local-52931 lacks required recovery capabilities: configured_provider`；画布（runtime.runTask）同一个模型照常能跑。",
+  "direct_cause": "electron/catalog/declaredProviderRegistration.ts 在模型行写 meta.adapter（state declared, source declaration-card）；electron/catalog/certificationOwnership.ts 对非内置家「任何一行带标记即整条连接归认证管」；electron/capabilityCore/generationProviderBootstrap.ts 在装配循环里对非 direct-key 家执行 `if (!isBuiltinDirectKeyVendor(vendorKey) && isCertificationOwnedConnection(state, vendorKey)) continue;`，readiness 停在初始值 configured_provider。全仓没有任何「认证适配器」实现 GenerationProvider 来接这条连接。",
+  "class_root": "「这条连接归认证管」只回答「代码拥有的策展契约是否被认证 / 声明接管」，只有内置 direct-key 家有这样一份代码契约；引擎 B 的装配却对所有家都问它并在为真时让出连接。非 direct-key 家（声明卡、AI 接入晋升、设置页手加模型、目录导入、内置非 direct-key 家的 curated 行被认证）上，执行器本来就只渲染目录里那条 mapping，认证晋升与声明登记写的正是它——没有第二个执行器，让出即无人执行。于是任何一个写 meta.adapter 的写门都会让整条连接在正式生成的五个入口（Agent 付款卡、执行计划、外部 MCP、全自动 Run、续批）关门，而画布不关。",
+  "affected_population": [
+    "经 MCP submit_declaration 登记的任何自定义供应商（#975 报告者的 local-52931）",
+    "设置页在自定义中转连接上手加过一个模型的用户（渲染层新建写门天生写 adapter: unverified）",
+    "导入过目录包的用户（导入写门给每行写 adapter: unverified）",
+    "经 AI 接入 / 继续验证认证晋升过的非内置连接",
+    "内置非 direct-key 家（如 kie）的 curated 模型被认证晋升过的用户",
+    "上述连接在 v0.23.0 及更早版本已存在盘上的旧数据（重启后读同一份目录）"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-04",
+  "scope_paths": [
+    "electron/capabilityCore/generationProviderBootstrap.ts"
+  ],
+  "entry_points": [
+    "Agent 付款卡 / 提交执行计划 / 外部 MCP nomi_start_generation / 全自动 Run / 续批：全部经 createGenerationProviderBootstrap 的 readinessByProvider 与 providers（appIntegration、mcpStdioServer 经 createLiveGenerationRuntime）",
+    "设置页改连接的鉴权锁（rendererCatalogMutation.assertMutableConnectionScope）：同一判据的另一类消费者，语义正确，不受影响"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi 自己双引擎结构里「谁执行一条连接」的内部归属不变量，没有第三方文档或依赖能决定它；证据全部来自仓库代码、提交历史（47e4a5f1a、cfd73e79b）与 09-29 合同的 residual_risks。",
+  "invariants": [
+    "正式生成的执行器只在内置 direct-key 家上因「认证接管」而让出连接；其余每一家的就绪与 meta.adapter 标记无关，与画布对同一份目录给同一个答案。",
+    "一行模型发布哪些模式只由 shared/modelPublication 判，不在连接级判。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/generationProviderBootstrap.ts",
+    "tests": [
+      "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts",
+      "electron/capabilityCore/generationProviderBootstrap.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "isCertificationOwnedConnection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "isCertificationOwnedConnection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "isCertificationOwnedConnection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "isCertificationOwnedConnection"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "四扇门问的是同一句判据、但回答四件不同的事，各自必须存在：bootstrap 决定内置 direct-key 家的代码契约是否完好（本次删掉的是它对非 direct-key 家的那一问，门内出现次数 3 → 2）；apimartGenerationProvider.assertDirectKeyContract 是提交那一刻的同一守卫（只对 direct-key 生效）；directKeyCredential.publishBuiltinCuratedVendor 决定内置家能否自动发布；rendererCatalogMutation 决定设置页能否改认证连接的鉴权放法（对所有家成立，是这个判据唯一正确的全家消费者）。合并它们等于把四种决策塞进一个函数。"
+  },
+  "generality_proof": "修复不按供应商、不按标记来源分支：bootstrap 对非 direct-key 家完全不再询问认证归属，所以无论标记来自声明卡、渲染层新建、导入还是认证晋升，无论落在同一行、兄弟行还是连接行，无论是非内置连接还是内置非 direct-key 家，就绪都退回到与画布相同的判据（启用 / 凭据可用 / 至少一个已发布执行的模型）。类测试 generationProviderBootstrapOwnership.test.ts 把 4 种写门形状 × 3 个位置 × 2 类人群逐格对照无标记基线；内置 direct-key 那一半（A10b、certification-owned APIMart 拒）由 generationProviderBootstrap.test.ts 既有两条继续钉住。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap",
+      "responsibility": "主进程里唯一把已存凭据变成正式生成 provider 的边界；认证接管只经 hasSafeDirectKeyScope 对内置 direct-key 家生效。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "entry_point": "createGenerationProviderBootstrap",
+      "disposition": "enforced",
+      "evidence": "删除非 direct-key 家的让出；declaredProviderProduction.test.ts 的就绪 / 派发 / 重启三条修前红（configured_provider、registered_provider）修后绿；generationProviderBootstrapOwnership.test.ts 修前 21 红修后全绿。"
+    },
+    {
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "entry_point": "createLiveGenerationRuntime",
+      "disposition": "enforced",
+      "evidence": "每次操作边界重读目录再装配（不缓存启动时的 provider 表），所以运行中登记的声明与重启后读盘的旧连接都走同一个修过的装配；declaredProviderProduction.test.ts 最后一条 vi.resetModules 后从盘上重读仍就绪。"
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "assertDirectKeyContract",
+      "disposition": "not-affected",
+      "evidence": "第一行 `if (!isBuiltinDirectKeyVendor(vendor.key)) return;`：本来就只对 direct-key 家问认证归属，非 direct-key 家从未在提交时被它拦。"
+    },
+    {
+      "path": "electron/catalog/directKeyCredential.ts",
+      "entry_point": "publishBuiltinCuratedVendor",
+      "disposition": "not-affected",
+      "evidence": "只处理内置 direct-key 家的自动发布，与非 direct-key 家的正式生成就绪无关。"
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "sanitizeRendererVendorMutation",
+      "disposition": "not-affected",
+      "evidence": "设置页鉴权锁：声明 / 认证连接的鉴权放法不许在设置页改，对所有家成立，是判据的正确用法；本次不变。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "not-affected",
+      "evidence": "画布 / 试跑那台发动机按模型发布与 findExecutableModel 判，从不问连接级认证归属——它正是修后引擎 B 对齐的基线。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "五个写 meta.adapter 的写门（声明卡、渲染层新建、导入、认证晋升、ComfyUI 候选）对任意非 direct-key 连接都能触发同一机制；任何用户、任何版本的旧数据、任何正式生成入口都会复现。",
+    "same_class_scan": [
+      "git grep -n isCertificationOwnedConnection electron：6 处出现、4 个文件；只有 bootstrap 原 123 行对非 direct-key 家生效",
+      "git grep -n \"adapter:\" electron/catalog electron/providerAdapter：写标记的写门 declaredProviderRegistration / rendererCatalogMutation（新建 + 导入）/ promotionMeta / serviceCatalog / comfyuiCandidateLifecycle",
+      "git grep -n \"certified transport\\|认证适配器\" electron：无任何 GenerationProvider 实现，只有注释与错误文案",
+      "node scripts/door-map.mjs createGenerationProviderBootstrap：appIntegration / liveGenerationRuntime / mcpStdioServer / parity 夹具，全部经同一装配"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationProviderBootstrap.ts",
+    "invariant": "正式生成就绪对非 direct-key 家与认证 / 声明标记无关；认证接管只经 hasSafeDirectKeyScope 对内置 direct-key 家生效。",
+    "failure_mode": "内置 direct-key 家代码契约被接管或漂移时仍 fail closed（configured_provider、提交前拒）；非 direct-key 家缺凭据 / 无已发布模型时仍 configured_provider，不发请求。",
+    "exception_policy": "none",
+    "strategy": "删掉装配循环里对非 direct-key 家的让出分支，判据在正式生成侧只留在 direct-key scope 守卫里；类测试逐格扫 4 写门 × 3 位置 × 2 人群，任何人把让出加回来即红。",
+    "artifacts": [
+      "electron/capabilityCore/generationProviderBootstrap.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+    "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationProviderBootstrap.ts"
+    ],
+    "rationale": "非 direct-key 家「让出给认证适配器」的分支整行删除，没有保留开关或回落。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方运行时；归属判据完全由 Nomi 自己的目录与执行器决定。",
+    "exit_criteria": []
+  },
+  "migration": "不需要迁移：修复只在读侧（装配时读目录），盘上 v0.23.0 写下的 meta.adapter 原样保留，重启后读同一份目录即就绪（declaredProviderProduction.test.ts 最后一条）。",
+  "residual_risks": [
+    "本机供应商产物在私网地址（127.0.0.1）时，正式生成的下载仍被既有安全边界拒（assetLocalization.trustedLocalOutputOrigin 只信 ComfyUI），扣了钱拿不到产物，批次把下载失败当暂时错误反复重试；画布同样如此。放不放开是安全取舍，交协调会话拍板（设计卡待拍板 A）。",
+    "参考素材走 inline-base64 的家在正式生成带参考图必拒（productionReferenceUrls.ts 只收 http(s)），内置 modelscope / minimax / meshy 同样受影响；另一类，设计卡待拍板 B。",
+    "声明 authType none 的本机适配器在正式生成仍 configured_provider（credentialIsUsable 要求 key，画布对 none 放行）；与私网产物下载绑在一起，单放开它会把失败从花钱前挪到花钱后，所以本次不动，记为方向检查预测一。",
+    "声明了但从未试跑成功的卡现在能进正式生成（与画布一致，付款卡仍在）；是否要求试跑成功是产品取舍（待拍板 C）。",
+    "真 App、真付费、英文界面下的走查未做（unverified）。"
+  ]
+}

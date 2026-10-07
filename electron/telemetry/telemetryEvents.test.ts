@@ -64,3 +64,15 @@ describe('生成失败原因与自动化标记（只带类别码，不带内容�
     expect(isTelemetryEnvelope({ ...auto, systemProps: { ...auto.systemProps, user: 'me' } })).toBe(false)
   })
 })
+
+describe('更新动作的失败原因（只有枚举）', () => {
+  it('失败可带 reason 枚举；成功不许带；旧事件无 reason 仍合法；自由文本被拒', () => {
+    expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'network' }, 'update.action')).toBe(true)
+    expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'parse' }, 'update.action')).toBe(true)
+    expect(isTelemetryProps({ action: 'check', result: 'failure' }, 'update.action')).toBe(true)
+    expect(isTelemetryProps({ action: 'check', result: 'success', reason: 'network' }, 'update.action')).toBe(false)
+    expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'getaddrinfo ENOTFOUND github.com' }, 'update.action')).toBe(false)
+    expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'not-packaged' }, 'update.action')).toBe(false)
+    expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'other', url: 'x' }, 'update.action')).toBe(false)
+  })
+})

@@ -1,0 +1,254 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-agent-undo-turn-hang",
+  "change_kind": "structural",
+  "problem_type": "Model-visible reversible receipts either omit the identity or duplicate an identity already in the canonical result",
+  "symptom": "After a real make_artifact write, the provider-facing toolResult did not contain the canonical reversible identity, so the next model step could not close the write/undo contract; the observed Electron run stayed data-mode=running. The deterministic regression uses the same applied receipt shape and asserts the identity is present before the empty assistant close.",
+  "direct_cause": "For canvas writes, createCanvasLaneTools passed the canonical changeId only in renderer details; createLaneTools therefore sent the provider an applied result with no usable undo handle. The provider-facing next-action projection was the earliest shared boundary where that identity was lost. A second class defect in the same PR appended a changeId tail even when the extended timeline JSON body already carried it, creating two competing representations. The same transport boundary also normalized undo_conflict to capability_execution_failed until the public failure vocabulary was extended.",
+  "class_root": "The lane did not enforce exactly one provider-facing representation of the canonical reversible-write identity.",
+  "affected_population": [
+    "Agent arrange_canvas, make_artifact, and stage_shot writes",
+    "DeepSeek and other providers consuming toolResult.content",
+    "Agent undo(changeId) after a canvas write"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneCanvasTools.test.ts",
+    "electron/agentLane/laneCanvasTools.ts",
+    "electron/agentLane/laneDesktopTools.test.ts",
+    "electron/agentLane/laneExtendedTools.test.ts",
+    "electron/agentLane/laneExtendedTools.ts",
+    "electron/capabilityCore/timelineTransportAdapters.test.ts",
+    "electron/capabilityCore/timelineTransportAdapters.ts",
+    "electron/shared/surfacePortBinding.ts",
+    "scripts/vocabularies-baseline.json",
+    "src/i18n/locales/agentToolFailure.ts",
+    "src/workbench/ai/lane/laneToolFailureText.ts",
+    "tests/agent-runtime/lane-canvas-undo-closure.test.mts"
+  ],
+  "entry_points": [
+    "createCanvasLaneTools → createLaneTools → provider toolResult.content",
+    "createExtendedLaneTools → createLaneTools → provider toolResult.content",
+    "canvasWriteTarget canonical canvas receipts",
+    "undo model surface consuming changeId"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an application-owned projection invariant between the lane tool envelope and the Agent provider context.",
+  "invariants": [
+    "Every applied canvas write exposes its canonical changeId in both details and the model-visible nextAction tail.",
+    "An extended write whose JSON body already contains changeId does not append a second prose reference.",
+    "A cancelled canvas write never advertises an undo identity."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "canvasWriteNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "CanvasLanePort"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "renderLaneToolNextAction"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "createLaneTools"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "findCanvasChange"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "symbol": "undoPlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/timelineTransportAdapters.ts",
+      "symbol": "createPiTimelineWriteTransportAdapter"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/timelineTransportAdapters.ts",
+      "symbol": "PUBLIC_FAILURE_CODES"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "SURFACE_PORT_WIRE_ERROR_CODE_LIST"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "parseSurfacePortFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 14,
+    "why_not": "Canvas projection, extended-domain projection, the common lane envelope, timeline transport filtering, and the renderer/main public failure vocabulary are separate ownership boundaries; each must remain explicit so another provider, lane, or IPC caller cannot reintroduce a missing identity or collapsed conflict."
+  },
+  "generality_proof": "All three model-facing canvas write verbs converge on canvasWriteNextAction, and all deferred write verbs converge on nextActionFor before createLaneTools serializes the common result envelope. The two projection rules therefore cover every checked provider-facing write path.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "canvasWriteNextAction",
+      "responsibility": "Project the canonical applied canvas receipt into the model-visible nextAction envelope."
+    },
+    {
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "nextActionFor",
+      "responsibility": "Do not duplicate a canonical changeId already present in the serialized extended tool result."
+    },
+    {
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "createLaneTools",
+      "responsibility": "Append the nextAction envelope to toolResult.content while preserving details for the renderer."
+    },
+    {
+      "path": "electron/capabilityCore/timelineTransportAdapters.ts",
+      "symbol": "createPiTimelineWriteTransportAdapter",
+      "responsibility": "Preserve typed undo_conflict results at the Agent transport boundary instead of replacing them with capability_execution_failed."
+    },
+    {
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "SURFACE_PORT_WIRE_ERROR_CODE_LIST",
+      "responsibility": "Make undo_conflict survive surface-port normalization and contextBridge serialization."
+    }
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/agentLane/laneCanvasTools.test.ts",
+      "electron/agentLane/laneCanvasTools.ts",
+      "electron/agentLane/laneDesktopTools.test.ts",
+      "electron/agentLane/laneExtendedTools.test.ts",
+      "electron/agentLane/laneExtendedTools.ts",
+      "electron/capabilityCore/timelineTransportAdapters.test.ts",
+      "electron/capabilityCore/timelineTransportAdapters.ts",
+      "electron/shared/surfacePortBinding.ts",
+      "scripts/vocabularies-baseline.json",
+      "src/i18n/locales/agentToolFailure.ts",
+      "src/workbench/ai/lane/laneToolFailureText.ts",
+      "tests/agent-runtime/lane-canvas-undo-closure.test.mts"
+    ],
+    "preserved_exports": [],
+    "behavior_preservation": "CanvasWriteResult details remain intact for renderer projection; the canonical canvas changeId is additionally emitted in provider content. Extended timeline content remains canonical without a duplicate tail reference. undo_conflict remains typed through the public surface vocabulary.",
+    "verification_limits": "The original 240-second run did not persist a complete transcript; the deterministic provider-shape regression plus final profile-copy run cover the repaired path, while the original report remains the symptom evidence."
+  },
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "entry_point": "createCanvasLaneTools",
+      "disposition": "enforced",
+      "evidence": "All canvas.write model verbs use this descriptor factory and share canvasWriteNextAction."
+    },
+    {
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "entry_point": "createExtendedLaneTools",
+      "disposition": "enforced",
+      "evidence": "Deferred timeline writes use nextActionFor and now leave the canonical JSON identity as the sole reference."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "entry_point": "executeCanvasWriteTarget",
+      "disposition": "enforced",
+      "evidence": "It remains the canonical producer of the changeId that the lane projection forwards."
+    },
+    {
+      "path": "electron/capabilityCore/timelineTransportAdapters.ts",
+      "entry_point": "createPiTimelineWriteTransportAdapter",
+      "disposition": "enforced",
+      "evidence": "The adapter allowlist preserves typed undo_conflict results returned by timeline and canvas undo dispatch."
+    },
+    {
+      "path": "electron/shared/surfacePortBinding.ts",
+      "entry_point": "surfacePortFailure / parseSurfacePortFailure",
+      "disposition": "enforced",
+      "evidence": "The shared wire vocabulary now carries undo_conflict through renderer/main error normalization."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future reversible model-facing write can produce a renderer-only identity and leave the provider without the handle needed by the next turn.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/agentLane/laneCanvasTools.ts",
+      "node scripts/door-map.mjs changeId",
+      "rg -n 'nextAction|changeId|toolResult' electron/agentLane electron/shared src/workbench/generationCanvas src/workbench/timeline"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneTools.mts",
+    "invariant": "Provider-facing content contains one usable canonical changeId: native canvas receipts add it in nextAction; extended JSON receipts do not duplicate it in the tail.",
+    "failure_mode": "The class tests fail before an ambiguous or missing handle can reach a provider.",
+    "exception_policy": "none",
+    "strategy": "Keep domain result production separate, but enforce one model-visible identity representation at the shared lane result boundary.",
+    "artifacts": [
+      "electron/agentLane/laneCanvasTools.ts",
+      "electron/agentLane/laneExtendedTools.ts",
+      "electron/agentLane/laneTools.mts",
+      "electron/agentLane/laneCanvasTools.test.ts",
+      "electron/agentLane/laneExtendedTools.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneCanvasTools.test.ts",
+    "electron/agentLane/laneExtendedTools.test.ts",
+    "electron/capabilityCore/timelineTransportAdapters.test.ts",
+    "tests/agent-runtime/lane-canvas-undo-closure.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneCanvasTools.test.ts",
+    "electron/agentLane/laneExtendedTools.test.ts",
+    "electron/capabilityCore/timelineTransportAdapters.test.ts",
+    "tests/agent-runtime/lane-canvas-undo-closure.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy receipt projection remains; the existing details envelope is preserved and the model-facing tail gains the same canonical identity."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "pi owns message transport, but the missing identity invariant is application-owned and enforced before pi receives the result.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted migration is needed; historical toolResult details remain readable, and only new applied canvas receipts include the identity in the model-visible tail.",
+  "residual_risks": [],
+  "detected_by": "real provider comparison",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneCanvasTools.ts",
+    "tests": [
+      "electron/agentLane/laneCanvasTools.test.ts"
+    ],
+    "why": "This is the first shared boundary where the domain receipt becomes the provider-facing toolResult content."
+  }
+}

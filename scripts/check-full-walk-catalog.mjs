@@ -8,6 +8,8 @@
 //   4. visibleText 的 i18n key 在中文、英文两份词典里都在；
 //   5. metric 要么是 telemetryEvents 里登记过的事件名，要么明写 gap；
 //   6. 功能清单里还没长成旅程的条目，要么挂到一条旅程上，要么写明 gap——不许悄悄漏掉；
+//   8. ⑫ 的可点目标表：每一行写满 CLICK_TARGET_CONTRACT 的列，userExpectation 是一句人话，actualObservation 不许空着
+//      （没跑过写 unverified），owner 指向真实符号，挂的剧本已登记；
 //   7. 监视器 / 剧本里写到的每条规则、用户问题表里写的每条规则，都在 rules.mjs 登记了底层设计问题
 //      （不登记，跑到那一步 violate 才抛错——那太晚，在这里就红）。
 import fs from 'node:fs'
@@ -63,7 +65,7 @@ export function loadTelemetryEventNames(root = repoRoot) {
 /**
  * @returns {string[]} 问题清单（空 = 目录成立）
  */
-export function checkFullWalkCatalog({ journeys, playbooks, inventory }, { root = repoRoot, dictionaries = loadDictionaries(), telemetryEvents = loadTelemetryEventNames(root) } = {}) {
+export function checkFullWalkCatalog({ journeys, playbooks, inventory, clickTargets = [], clickContract }, { root = repoRoot, dictionaries = loadDictionaries(), telemetryEvents = loadTelemetryEventNames(root) } = {}) {
   const problems = []
 
   // ── 剧本 ──
@@ -150,6 +152,22 @@ export function checkFullWalkCatalog({ journeys, playbooks, inventory }, { root 
     if (playbook?.script && !referencedScripts.has(playbook.script)) problems.push(`剧本 ${playbook.id}：没有挂在任何一条旅程上（没人引用的剧本不算覆盖）`)
   }
 
+  // ── ⑫ 可点目标 ──
+  const clickIds = new Set()
+  for (const row of clickTargets) {
+    const label = `可点目标 ${row?.id ?? JSON.stringify(row)}`
+    if (!/^[a-z0-9-]+$/.test(row?.id ?? '') || clickIds.has(row?.id)) problems.push(`${label}：id 要小写短横线且不重复`)
+    clickIds.add(row?.id)
+    for (const field of clickContract?.fields ?? []) {
+      if (row?.[field] === undefined) problems.push(`${label}：缺 ${field} 列（CLICK_TARGET_CONTRACT）`)
+    }
+    if (String(row?.userExpectation ?? '').trim().length < 6) problems.push(`${label}：userExpectation 要写一句用户点之前以为会发生什么`)
+    if (!String(row?.actualObservation ?? '').trim()) problems.push(`${label}：actualObservation 不许空着（没跑过写 unverified）`)
+    if (!(row?.ironLaws ?? []).includes('⑫')) problems.push(`${label}：ironLaws 要含 ⑫`)
+    checkRef(row?.owner, root, `${label} · owner`, problems)
+    if (!playbookIds.has(row?.playbook)) problems.push(`${label}：剧本 ${row?.playbook} 没在 FULL_WALK_PLAYBOOKS 登记`)
+  }
+
   // ── 功能清单里还没长成旅程的条目 ──
   const inventoryIds = new Set()
   for (const item of inventory ?? []) {
@@ -202,7 +220,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const catalog = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/full-walk/catalog.mjs')).href)
   const { USER_REPORTED_ISSUES } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/full-walk/userReports.mjs')).href)
   const problems = [
-    ...checkFullWalkCatalog({ journeys: catalog.FULL_WALK_JOURNEYS, playbooks: catalog.FULL_WALK_PLAYBOOKS, inventory: catalog.FULL_WALK_INVENTORY }),
+    ...checkFullWalkCatalog({ journeys: catalog.FULL_WALK_JOURNEYS, playbooks: catalog.FULL_WALK_PLAYBOOKS, inventory: catalog.FULL_WALK_INVENTORY, clickTargets: catalog.CLICK_TARGETS, clickContract: catalog.CLICK_TARGET_CONTRACT }),
     ...checkRuleRegistry({ issues: USER_REPORTED_ISSUES, sources: fullWalkSources() }),
   ]
   if (problems.length) {
@@ -211,5 +229,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const states = catalog.FULL_WALK_JOURNEYS.reduce((sum, journey) => sum + journey.states.length, 0)
   const gaps = catalog.FULL_WALK_JOURNEYS.flatMap((journey) => journey.states.filter((state) => state.deadline?.gap)).length
-  console.log(`✓ 全功能走查目录：${catalog.FULL_WALK_JOURNEYS.length} 条旅程 · ${states} 个状态（${gaps} 个非终态没有登记时限，已明写 gap）· ${catalog.FULL_WALK_PLAYBOOKS.length} 条剧本 · 清单 ${catalog.FULL_WALK_INVENTORY.length} 条`)
+  console.log(`✓ 全功能走查目录：${catalog.FULL_WALK_JOURNEYS.length} 条旅程 · ${states} 个状态（${gaps} 个非终态没有登记时限，已明写 gap）· ${catalog.FULL_WALK_PLAYBOOKS.length} 条剧本 · 清单 ${catalog.FULL_WALK_INVENTORY.length} 条 · ⑫ 可点目标 ${catalog.CLICK_TARGETS.length} 个`)
 }

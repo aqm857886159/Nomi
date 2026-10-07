@@ -10,6 +10,7 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/contex
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
 import type { LaneHandle } from '../shared/agentLane/laneContracts.js';
 import { projectLaneSnapshot } from '../shared/agentLane/laneProjection.js';
+import { isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { openLaneSession } from './laneSession.mjs';
 
 export async function openLaneHistory(options: Pick<OpenLaneOptions, 'projectDir' | 'laneName' | 'tasks' | 'attachments'>): Promise<LaneHandle> {
@@ -32,7 +33,8 @@ export async function openLaneHistory(options: Pick<OpenLaneOptions, 'projectDir
       // No model is selected in this read-only view. These fields never reach a provider.
       configuration: { model: { provider: '', modelId: '' }, thinkingLevel: 'off', activeToolNames: [] },
     };
-    const model = { pricing: 'unpriced' as const, supportedThinkingLevels: ['off' as const] };
+    const model = { pricing: 'unpriced' as const, supportedThinkingLevels: ['off' as const], isTransientError: isRetryableAssistantError,
+      isContextOverflow: (message: Parameters<typeof isContextOverflow>[0]) => isContextOverflow(message) };
     let projection = { ...projectLaneSnapshot(snapshot, model, undefined, options.tasks, history.entries(), history.previousInputId(), options.attachments), history: history.state() };
     const listeners = new Set<(next: typeof projection) => void>();
     const unavailable = () => { throw new Error('Model is not configured'); };

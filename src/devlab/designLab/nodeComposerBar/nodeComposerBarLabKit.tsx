@@ -2,10 +2,11 @@
 //
 // 这一屏钉的是 2026-09-11 用户拍板、**已经上线**的底栏形态（v1.1）：
 //
-//   [模型 ▾] [变体 ▾] [16:9 · 5s ▾]  │  [🎥] [✦] [✨]  │  [×N ▾] ……… [↑]
-//      决定出什么/花多少                    帮我写提示词         出几张 / 走
+//   [模型 ▾] [变体 ▾] [16:9 · 5s ▾]  │  [🎥] [✦] [✨]  │  ……… [↑]
+//      决定出什么/花多少                    帮我写提示词         走
+//   （「×N 每次生成几个」2026-10-06 用户拍板删除：按一次出一版，多版靠版本卡片铺开。）
 //
-//   · A 类（模型 / 参数摘要 pill / ×N / 生成）留底栏第一段与第三段；
+//   · A 类（模型 / 参数摘要 pill / 生成）留底栏第一段与第三段；
 //   · B 类（运镜 / 效果 / 优化）收成中段一簇缩小一号的纯 icon，hover 出名字，运镜已选带激活点；
 //   · 锁归位回节点右上浮条（它的作用对象是**这个节点**，不是这一次生成）。
 //   方案与删除清单/卡点表：docs/design/2026-09-10-node-composer-bar-v1.md。
@@ -25,6 +26,7 @@
 // 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2）；底栏上印什么值，
 // 因此全是档案 derive 出来的真货（比例 / 时长 / 清晰度），不是在这里手打的一句文案。
 import React, { type JSX } from 'react'
+import { LabCanvasViewport } from '../labCanvasViewport'
 
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import InlineParameterBar from '../../../workbench/generationCanvas/nodes/InlineParameterBar'
@@ -55,7 +57,7 @@ export type BarKind = 'video' | 'image'
  * 没有浮框的图。它还是**间歇性**的（chunk 先到就正常），所以不是「等久一点」能解决的东西：
  * 这里把 chunk 变成舞台自己的前置条件，加载完再挂节点，就绪旗自然落在它后面。
  */
-const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
+export const COMPOSER_CHUNK = import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer')
 
 // ── 只读目录桥 ────────────────────────────────────────────────────────────────
 // 两个真实存在的档案模型。modelKey 必须是档案认得的串，否则 resolveArchetypeForModel 落空、
@@ -101,7 +103,7 @@ const CATALOG_VENDORS = [
   },
 ]
 
-function installCatalogBridge(): void {
+export function installCatalogBridge(): void {
   ;(window as unknown as { nomiDesktop: unknown }).nomiDesktop = {
     modelCatalog: {
       listVendors: () => CATALOG_VENDORS,
@@ -187,7 +189,7 @@ function StageFrame({ children }: { children: React.ReactNode }): JSX.Element {
       className="workbench-generation__canvas relative overflow-hidden rounded-nomi border border-nomi-line bg-[var(--workbench-surface)]"
       style={{ width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT }}
     >
-      {children}
+      <LabCanvasViewport>{children}</LabCanvasViewport>
     </div>
   )
 }
@@ -197,7 +199,7 @@ function StageFrame({ children }: { children: React.ReactNode }): JSX.Element {
  *   ① 锁在节点右上浮条（与「复制变体 / 生成记录」同一条）；
  *   ② 提示词区右端一件控件都没有；
  *   ③ 底栏一行三段且不换行：模型/参数摘要 pill（两个值）· 运镜/效果/优化（缩小一号纯 icon，
- *      运镜已选带激活点）· ×N/生成。
+ *      运镜已选带激活点）· 生成。
  *
  * 浮框的位置只由节点尺寸与画布缩放决定（钉在节点正下方、定宽，2026-09-25），取景台里和画布上一样。
  * 这一屏要比的是底栏里有什么、挤不挤。

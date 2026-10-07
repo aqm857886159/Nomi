@@ -272,6 +272,8 @@ describe('applyProposalBatch — S6-2 提议事务状态机', () => {
     const committed = captured.find((event) => event.type === 'agent.txn.committed')
     expect(committed).toBeTruthy()
     expect(committed!.payload.proposalId).toBe(outcome.proposalId)
+    expect(committed!.payload.changeId).toBe(`canvas:v1:${outcome.proposalId}`)
+    expect(committed!.payload.objectIds).toEqual(expect.arrayContaining(state.nodes.map((node) => node.id)))
     expect((committed!.payload.clientIdToNodeId as Record<string, string>).c1).toBe(state.nodes[0].id)
     // I4:committed 必带对账结果(S6-3)。
     expect((committed!.payload.reconciliation as { ok: boolean }).ok).toBe(true)

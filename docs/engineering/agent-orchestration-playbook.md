@@ -35,7 +35,8 @@
   - ② **唯一分支名 + 绝对工作路径 + 禁触分支清单** —— 一份任务书只授权一个分支。
   - ③ **改动预算** —— 预估文件 / 行数量级；超预算必须逐类解释（607 文件的 transplant 本该在这一行就爆掉）。
 - **一个分支一个主人**：同一子系统的大收尾优先单班顺序做，并行只留给真正不相交的文件面。保关键信息 > 堆并行度。
-- 任务书正文固定带：等待语义（见 §4）、红线 / 禁触清单、报告格式、总限时。
+- 任务书正文固定带：等待语义（见 §4）、红线 / 禁触清单、报告格式、总限时、**范围、不碰清单、停点、补还是换**（发之前跑 `node scripts/check-dispatch-brief.mjs <任务书>`，§20）。
+- **派修复前先跑 `node scripts/fix-churn.mjs <路径>`**：命中热点（同一文件或概念目录 14 天内第 3 个 fix、出现过 revert fix）就不派修补，改派类根因复盘（`docs/engineering/direction-check-template.md`）。任务书写了「第 N 轮」且 N≥3 同样改派。
 
 **反例**：M1 三线撞车——两个核账班 chip 都指向同一 `-r2` 分支，用户点开后互相踩掉对方的 commit。
 
@@ -368,7 +369,7 @@ node scripts/research/tikhub-search.mjs \
 同一个概念却在合并之前就各自长出了第二份实现。背景、四个实例与判据正文一字未删地住在
 [`../engineering-rules.md`](../engineering-rules.md) 的 R33，本节只写**派工侧照抄什么**。
 
-**概念占用表已并进设计卡 ★2 格**（[`design-card.md`](design-card.md)）：碰哪几个概念 · 每个概念的唯一 owner（**文件 : 符号**，只写到目录 = 没写）· 允许谁消费；owner 未定标 `pending` 并写清由哪份任务书收口。写不出就不发工。正本是 `docs/engineering/concept-owners.json`。
+**概念占用表已并进设计卡 ★2 格**（[`design-card.md`](design-card.md)）：碰哪几个概念 · 每个概念的唯一 owner（**文件 : 符号**，只写到目录 = 没写）· 允许谁消费；owner 未定标 `pending` 并写清由哪份任务书收口。写不出就不发工。正本是 `docs/engineering/concept-owners/`。
 
 **机器检查（`pnpm run check:concept-owners`，2026-10-02 起降为警告档）**：登记表 v2 的结构与计数键、主人今天还在、
 第二写口（主人之外的同名定义）、pending 例外账与旧路写门冻结、身份比对维度，以及文件名日期 ≥ 2026-09-27 的
@@ -453,3 +454,30 @@ node scripts/research/tikhub-search.mjs \
    - 用最便宜的模型，设一个花费上限，逐条记下提交给供应商的任务。
    - 永不碰明文密钥，也永不替用户往输入框里填密钥。
    - 测试额度默认已授权，事后报实际花费。
+
+## 20. 方向检查与省 token（2026-10-04 用户拍板）
+
+**起因**：10-04 导演计划编译器一天约 13 个提交、9 个 fix，含一次 revert 和一次因评测分数下降的回滚，协调层照交接单又派了第五轮。事后做类根因分析才发现缺一层舞台模型，评测靶子也是同一条线写的、本身有错。旧规则（RW）只有 Claude 编辑提醒这一个执行点，而那几轮是 Codex 执行的，hook 不跑；「再派一轮」是派工时拍的板，派工这一步没有检查。
+
+**方向检查（RW）**：触发和动作在 `rules.json` 的 RW，模板在 `docs/engineering/direction-check-template.md`。执行点放在所有执行者都绕不过的地方：
+
+| 层 | 做什么 |
+|---|---|
+| 派工 | 派修复前 `node scripts/fix-churn.mjs <路径>`；命中或「第 N 轮」N≥3 就改派复盘（§2） |
+| git commit-msg | `scripts/check-direction-trailer.mjs`：fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`；按内容判，没有环境变量开关；revert 与 merge 不拦 |
+| CI | `quality-gate.yml` contracts 里只警告：列出热点 fix 却没带 trailer 的提交（兜 `--no-verify`） |
+| Claude 编辑 | `edit-time-reminder` 调同一个计数器，提醒不拦 |
+
+**省 token 七条**（正本是 `rules.json` 的 R27）：
+
+1. 派活前先数轮次，同一处第 3 轮就停，改派复盘。这条本身最省。
+2. 协调会话不读大文件全文：先看大小和标题，再按段读；读子 agent 的结论，不读它的过程。
+3. 子 agent 同时最多 3 个（含续跑），默认 Sonnet；只有根因未定、碰花钱边界、结构改动才用 Opus；子 agent 不再派子 agent。
+4. 任务书写清范围、不碰清单、停点（例如「样张出来就停」）和「补还是换」一行，交货报告要短。发之前跑 `node scripts/check-dispatch-brief.mjs <任务书>`（只查有没有写，纯文本匹配）。
+
+   派工模板要加的一行：`补还是换：近 14 天修过 N 次（node scripts/fix-churn.mjs <文件>）；这块是 / 不是我们独有的领域，成熟方案看了 <库名 / 无>；选补 / 换 / 删，因为 <一句话>。` 纯调研 / 纯文档任务写「补还是换：不适用（原因）」。
+5. 确定性的活（雷达、扫描、收据、统计）用脚本跑，不交给模型。
+6. 长输出落文件，只看摘要；同一文件不反复读。
+7. 卡住 3 次就停下报告，不硬磨。
+
+**限制（写明，不假装全覆盖）**：`git commit --no-verify` 能绕过 commit-msg，只有 CI 警告兜底；「评测分数下降被回滚」「同线第 3 轮」「第三个特例分支」三条触发没有 git 上可算的信号，靠任务书检查（只认「第 N 轮」字样）和人工。

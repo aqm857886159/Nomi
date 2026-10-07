@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyBuiltinSeeds } from "./seedBuiltins";
-import { KIE_IMAGE_MODELS_2026 } from "./kieImages2026";
+import { KIE_IMAGE_MODELS_2026, KIE_UPSCALE_MODELS } from "./kieImages2026";
+import { getArchetypeById } from "../shared/modelArchetypes";
 import { APIMART_IMAGE_MODELS } from "./apimartImages";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
@@ -210,5 +211,36 @@ describe("Qwen-Image 3.0 · 线缆（apimart）", () => {
       baseUrl: "https://api.apimart.ai",
     });
     expect(body).not.toHaveProperty("negative_prompt");
+  });
+});
+
+describe("kie 通用图片放大 · 线缆（2026-10-06，浮条「高清」的推荐预置）", () => {
+  const upscaleBody = (modelKey: string, extras: Record<string, unknown>) => {
+    const model = KIE_UPSCALE_MODELS.find((m) => m.modelKey === modelKey);
+    if (!model) throw new Error(`kie model ${modelKey} 未登记`);
+    expect(model.mappings.map((m) => m.taskKind)).toEqual(["image_edit"]);
+    return renderBody({ create: model.mappings[0].create, modelKey, kind: "image_edit", extras, baseUrl: "https://api.kie.ai" });
+  };
+
+  it("Topaz：输入图走 image_url（单个字符串）、倍率走 upscale_factor（字符串），不发 prompt", () => {
+    const body = upscaleBody("topaz/image-upscale", { image_url: REFS[0], upscale_factor: "4" });
+    expect(body.model).toBe("topaz/image-upscale");
+    expect(body.input).toEqual({ image_url: REFS[0], upscale_factor: "4" });
+  });
+
+  it("Recraft：输入图字段叫 image（和 Topaz 不同名），没有倍率、不发 prompt", () => {
+    const body = upscaleBody("recraft/crisp-upscale", { image: REFS[0] });
+    expect(body.model).toBe("recraft/crisp-upscale");
+    expect(body.input).toEqual({ image: REFS[0] });
+  });
+
+  it("两款都按能力被找到：档案只有一个 upscale 模式（浮条「高清」认的就是这个模式 id）", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), "2026-10-06T00:00:00.000Z");
+    for (const modelKey of ["topaz/image-upscale", "recraft/crisp-upscale"]) {
+      const row = state.models.find((m) => m.vendorKey === "kie" && m.modelKey === modelKey);
+      expect(row, modelKey).toBeTruthy();
+      const archetype = getArchetypeById(KIE_UPSCALE_MODELS.find((m) => m.modelKey === modelKey)?.archetypeId);
+      expect(archetype?.modes.map((mode) => mode.id)).toEqual(["upscale"]);
+    }
   });
 });

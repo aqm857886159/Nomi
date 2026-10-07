@@ -1,0 +1,26 @@
+{
+  "id": "PAID-CARD-REF-01-mention-canvas",
+  "since": "2026-10-07",
+  "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+  "category": "interaction-semantics",
+  "problem": "付费卡上打 @，本项目画布上已经出图的图一张都列不出来，只弹「没有可引用的素材」",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「卡上 @ 本项目画布上已有的图」列得出 canvas:<id>、落进卡的参考槽、宿主钉住、落地后在画布节点上",
+    "变异：卡上恢复藏「画布」组 / 选中仍走连线 → 这一行红",
+    "设计实验室 v4-spend-mention-canvas（zh / en）"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+  }
+}

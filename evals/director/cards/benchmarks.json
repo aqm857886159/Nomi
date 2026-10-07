@@ -1,0 +1,247 @@
+[
+  {
+    "id": "courtyard-standoff",
+    "tier": "benchmark",
+    "prompt": "做一段古装悬疑剧情预演：青衣女子带信走进古代庭院，侍卫在院门前拦住她。",
+    "duration": {
+      "total": 12,
+      "tol": 1
+    },
+    "scene": {
+      "tags": [
+        "古代庭院",
+        "夜"
+      ],
+      "required": [
+        "ground",
+        "wall_enclosure",
+        "gate"
+      ],
+      "relations": [
+        "guard near gate (<= 1.5m)"
+      ]
+    },
+    "actors": [
+      {
+        "id": "woman",
+        "category": "person",
+        "desc": "青衣女子",
+        "props": [
+          "letter"
+        ]
+      },
+      {
+        "id": "guard",
+        "category": "person",
+        "desc": "黑衣侍卫"
+      }
+    ],
+    "blocking": [
+      {
+        "actor": "woman",
+        "verb": "walk_to",
+        "target": "gate",
+        "window": [
+          0,
+          4
+        ]
+      },
+      {
+        "actor": "guard",
+        "verb": "sidestep_block",
+        "between": [
+          "woman",
+          "gate"
+        ],
+        "window": [
+          4,
+          8
+        ]
+      },
+      {
+        "actor": "woman",
+        "verb": "stop",
+        "window": [
+          4,
+          8
+        ]
+      },
+      {
+        "actor": "woman",
+        "verb": "hide_object_behind_back",
+        "object": "letter",
+        "window": [
+          4,
+          8
+        ],
+        "capability": "missing_asset"
+      }
+    ],
+    "shots": [
+      {
+        "t": [
+          0,
+          4
+        ],
+        "size": "全景",
+        "subject": "woman",
+        "angle": "side_rear",
+        "move": "follow"
+      },
+      {
+        "t": [
+          4,
+          8
+        ],
+        "size": "中景",
+        "subjects": [
+          "woman",
+          "guard"
+        ],
+        "move": "static",
+        "transitionIn": "cut"
+      },
+      {
+        "t": [
+          8,
+          10
+        ],
+        "size": "特写",
+        "subject": "woman.hand",
+        "transitionIn": "cut"
+      },
+      {
+        "t": [
+          10,
+          12
+        ],
+        "size": "中近景",
+        "subject": "woman",
+        "angle": "over_shoulder(guard)",
+        "move": "push",
+        "speed": "slow",
+        "transitionIn": "cut"
+      }
+    ],
+    "continuity": [
+      "no_teleport_across_cuts",
+      "axis_180_rule(woman, guard)"
+    ]
+  },
+  {
+    "id": "perfume-orbit",
+    "tier": "benchmark",
+    "prompt": "一只香水瓶立在圆形展台上，镜头缓慢环绕一周，再推近瓶盖。",
+    "scene": {
+      "required": [
+        "bottle",
+        "round_pedestal"
+      ],
+      "relations": [
+        "bottle on pedestal"
+      ],
+      "style": "minimal_geometry"
+    },
+    "actors": [
+      {
+        "id": "bottle",
+        "category": "product",
+        "static": true
+      }
+    ],
+    "shots": [
+      {
+        "move": "orbit",
+        "subject": "bottle",
+        "sweepDeg": 360,
+        "tolDeg": 20,
+        "speed": "slow",
+        "t": [
+          0,
+          8
+        ]
+      },
+      {
+        "move": "push",
+        "endSubject": "bottle.cap",
+        "endSize": "特写",
+        "transitionIn": "continuous",
+        "t": [
+          8,
+          11
+        ]
+      }
+    ],
+    "continuity": [
+      "no_teleport_across_cuts"
+    ]
+  },
+  {
+    "id": "police-chase",
+    "tier": "benchmark",
+    "prompt": "警匪飙车：警车追赶逃逸车穿过城市街道，节奏惊险竞速。",
+    "scene": {
+      "tags": [
+        "城市街道"
+      ],
+      "required": [
+        "road",
+        "buildings_both_sides"
+      ]
+    },
+    "actors": [
+      {
+        "id": "police_car",
+        "category": "vehicle"
+      },
+      {
+        "id": "suspect_car",
+        "category": "vehicle"
+      }
+    ],
+    "blocking": [
+      {
+        "actor": "suspect_car",
+        "verb": "drive_along",
+        "path": "road",
+        "speed": "fast"
+      },
+      {
+        "actor": "police_car",
+        "verb": "chase",
+        "target": "suspect_car"
+      }
+    ],
+    "shots": [
+      {
+        "t": [
+          0,
+          4
+        ],
+        "size": "全景",
+        "subject": "suspect_car",
+        "move": "follow"
+      },
+      {
+        "t": [
+          4,
+          7
+        ],
+        "size": "中景",
+        "subject": "police_car",
+        "move": "pan"
+      },
+      {
+        "t": [
+          7,
+          9
+        ],
+        "size": "特写",
+        "subject": "police_car",
+        "move": "push"
+      }
+    ],
+    "move": "follow",
+    "minCount": 3
+  }
+]

@@ -1,4 +1,4 @@
-import { currentPresentation, generationPresentationOutcome, presentationIsOpen } from "../shared/productionGenerationPresentation";
+import { currentPresentation, generationPresentationOutcome } from "../shared/productionGenerationPresentation";
 import { anySubmissionMayHaveReachedProvider, jobsForShot } from "../shared/productionShotJobs";
 import { withSpendReferencePreviews, resolveSpendReferenceInputs, projectSpendReferenceAssets, type SpendReferenceAssets } from './pendingSpendReferences';
 import { generationPlanInputSchema } from '../shared/agentCapabilities/generationPlanSchemas';
@@ -41,9 +41,7 @@ import { listPendingSpendConfirms, projectPendingSpendConfirm } from "../product
 import { decideGenerationSpend } from "./generationSpendDecision";
 import { productionShotActionFailureOf } from "./appIntegrationProductionActions";
 import { spendAnsweredByPolicy } from "./policySpendDecision";
-import type { PendingSpendConfirm, PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
-import { readResidentSurfaceLifecycle } from "./residentSurfaceLifecycle";
-import { settleSpendWaiter } from "./spendDecisionWaiters";
+import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised } from "../shared/contracts/pendingSpendConfirm";
 import { cardActionsSettled, serializeCardAction } from "./spendCardActionQueue";
 
 type RunReader = Readonly<{
@@ -140,45 +138,16 @@ export function installPendingSpendActions(deps: PendingSpendActionDeps | null):
   actions = deps ? createPendingSpendActions(deps) : null;
 }
 
-export class PendingSpendSurfaceUnavailableError extends Error {
-  readonly code = "spend_confirm_surface_unavailable" as const;
-
-  constructor(reason: string | null) {
-    super(reason
-      ? `Pending spend confirmations cannot be read: the capability core failed to install (${reason})`
-      : "Pending spend confirmations cannot be read: the capability core is not installed");
-    this.name = "PendingSpendSurfaceUnavailableError";
-  }
-}
-
 /**
- * Agent 面板付费确认卡（2026-09-11 P1）。四个动作走同一个编排：读、改参数、丢弃、确认并开跑。
- *
- * 读通道的答案跟着常驻生成面的**相**走（2026-09-14，owner 在 `residentSurfaceLifecycle.ts`）：
- *   · off（按配置关掉 / 还在起 / 已停）→ `{ surface: "off" }`。不是失败，也不是「没有」；
- *   · install-failed → **抛**，原话在错误里，一路传到用户眼前那张会说话的卡上；
- *   · ready → 那几行（空数组才是真的没有）。
- * 2026-09-12 的版本只认一个 `null`，把「按配置没装」也抛成了失败——Canvas Performance 的
- * harness 正是这么起 Nomi 的，于是每条画布 PR 的性能门都红在这一句上。
+ * 能力核装好之后那条读口（交给 `residentSurfaceLifecycle` 的 ready 相，再由它喂对话投影）。
+ * 只在 `installPendingSpendActions(deps)` 之后才会被交出去，所以这里不再判「没装」——那是 ready 相的类型保证。
  */
-export function listPendingSpendConfirmations(projectId: string): PendingSpendRead {
-  const lifecycle = readResidentSurfaceLifecycle();
-  switch (lifecycle.phase) {
-    case "disabled":
-      return { surface: "off", phase: "disabled", reason: lifecycle.reason };
-    case "starting":
-    case "stopped":
-      return { surface: "off", phase: lifecycle.phase };
-    case "install-failed":
-      throw new PendingSpendSurfaceUnavailableError(lifecycle.reason);
-    case "ready":
-      // 相说 ready 而 actions 不在 = `appIntegration` 的装配顺序被改坏了。抛，别静默回空。
-      if (!actions) throw new PendingSpendSurfaceUnavailableError("resident surface is ready but the spend-confirm actions were never installed");
-      return { surface: "ready", rows: actions.listPendingSpend(projectId) };
-  }
+export function readInstalledPendingSpend(projectId: string): Extract<PendingSpendRead, { surface: "ready" }> {
+  if (!actions) throw new Error("pending spend actions are not installed");
+  return { surface: "ready", rows: actions.listPendingSpend(projectId) };
 }
 
-export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }): Promise<ProductionActionResult> {
+export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }): Promise<ProductionActionResult & PendingSpendRevised> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.revisePendingSpend(input);
 }
@@ -349,17 +318,6 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     return Boolean(outcome && (outcome.generating.includes(shotId) || outcome.failedBeforeSending.includes(shotId) || outcome.removed.includes(shotId)));
   };
 
-  /**
-   * 这一次出价关了没有，只问宿主（`presentationIsOpen`）。关了 → 把结论递给正在等这一笔的那个回合（没人等 = no-op）：
-   * × 关的是 `declined`，其余（每一镜都决定了）是 `confirmed`。回合拿到之后自己去读逐镜结局（`readPresentationOutcome`）。
-   */
-  const settleWaiterIfClosed = (projectId: string, operationId: string): void => {
-    const plan = deps.runs.read(projectId, operationId)?.generationPlan;
-    if (!plan || presentationIsOpen(plan)) return;
-    const closedBy = currentPresentation(plan)?.closed?.by;
-    if (!closedBy) return;
-    settleSpendWaiter(projectId, operationId, { kind: closedBy === "user_closed" ? "declined" : "confirmed" });
-  };
 
   const revisePendingSpend = async (input: Readonly<{
     projectId: string;
@@ -367,7 +325,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     quoteId: string;
     shotId?: string;
     patch: Readonly<Record<string, unknown>>;
-  }>): Promise<ProductionActionResult> => {
+  }>): Promise<ProductionActionResult & PendingSpendRevised> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     if (!deps.operations.revise) return { ok: false, code: "unavailable" };
     const pending = pendingFor(input.projectId, input.operationId);
@@ -414,7 +372,8 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       const revised = await deps.operations.revise(input.projectId, input.operationId, { ...revision, patch: merged as Record<string, unknown> }, now());
       const successor = pendingFor(input.projectId, input.operationId);
       if (!successor || successor.planVersion !== revised.planVersion || successor.candidateRevision !== revised.candidate.revision) throw new Error('generation_quote_changed');
-      return { ok: true, code: "revised", quoteId: successor.quoteId };
+      // 回包带着宿主现算的那张卡（正式报价，参考图预览同读口那一份）：卡点下去那一刻拿它对账、封印，不另读一次。
+      return { ok: true, code: "revised", quoteId: successor.quoteId, pending: withSpendReferencePreviews(successor, referenceAssets) };
     } catch (error) {
       // 改参数这一步**只动候选**，永远不提交：这里失败一定是「没发起」。
       return failed(error, false);
@@ -457,8 +416,6 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       };
     } catch (error) {
       return failed(error, false);
-    } finally {
-      settleWaiterIfClosed(input.projectId, input.operationId);
     }
   };
 
@@ -512,9 +469,6 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       return { ok: true, code: "spend_confirmed" };
     } catch (error) {
       return failed(error, anySubmissionStarted(input.projectId, input.operationId, shotId));
-    } finally {
-      // 这一镜决定了之后卡上还剩没决定的镜 → 卡照旧开着、等的那个回合继续等；一镜不剩 → 宿主已经把这一次出价关了，递过去。
-      settleWaiterIfClosed(input.projectId, input.operationId);
     }
   };
 
@@ -586,8 +540,6 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       } catch (error) {
         // 去掉一镜只动这一次出价的记录，永远不提交：这里失败一定是「没发起」。
         return failed(error, false);
-      } finally {
-        settleWaiterIfClosed(input.projectId, input.operationId);
       }
     });
 

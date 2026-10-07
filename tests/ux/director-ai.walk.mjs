@@ -1,6 +1,6 @@
 // Real builder controls and persistent scene/library transactions with a deterministic delayed model result.
 // This verifies the product workflow, not provider output quality.
-import { clickOrFail, launchDirectorLab } from './_directorLab.mjs'
+import { clickOrFail, launchDirectorLab, openAssets } from './_directorLab.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 
 const lab = await launchDirectorLab({ name: 'ai-builder' })
@@ -41,7 +41,7 @@ try {
   await lab.waitScene('p.scenes.length === 1 && p.assets.items.length === 0', '一次撤销同时移除图层和资产')
   await page.keyboard.press('Control+Shift+z')
   await lab.waitScene('p.scenes.length === 2 && p.assets.items.length === 1', '重做恢复图层和资产')
-  await clickOrFail(page.getByText('资产库', { exact: true }), '资产库')
+  await openAssets(lab)
   await page.getByTestId('director-assets').locator('div.pl-6').filter({ hasText: 'AI·Walk Cafe' }).first().dblclick()
   await lab.waitScene('p.scenes.length === 3 && s.objects.length === 3', '保存的AI场景可再次导入')
   await lab.snap('reimported-generated-scene')

@@ -349,28 +349,71 @@ describe('archetypeForNode 与发送路径同源（2026-09-08 Agnes 2.1 根因�
   })
 })
 
-import { connectionCreateKindsForSource } from './referenceEdgeCapability'
+import { connectionCreateVerdictsForSource, connectionCreateVerdictsForSources } from './referenceEdgeCapability'
 
-describe('connectionCreateKindsForSource — 从「+」圈拖到空白处能接出什么（2026-09-24 视频拖不出下一个节点）', () => {
+/** 从「+」圈能新建并接上的种类（只看放行的）。 */
+const createKinds = (source: GenerationCanvasNode, kinds: readonly ('image' | 'video')[] = ['image', 'video']) =>
+  connectionCreateVerdictsForSource(source, kinds).filter((verdict) => verdict.ok).map((verdict) => verdict.kind)
+
+describe('connectionCreateVerdictsForSource 放行的种类 — 从「+」圈拖到空白处能接出什么（2026-09-24 视频拖不出下一个节点）', () => {
   it('文本 / 图片源可接出图片与视频节点', () => {
-    expect(connectionCreateKindsForSource(node('t', 'text'))).toEqual(['image', 'video'])
-    expect(connectionCreateKindsForSource(node('i', 'image'))).toEqual(['image', 'video'])
+    expect(createKinds(node('t', 'text'))).toEqual(['image', 'video'])
+    expect(createKinds(node('i', 'image'))).toEqual(['image', 'video'])
   })
 
   it('视频源至少能接出视频节点（参考视频 / 尾帧接力），不再被整条取消', () => {
-    expect(connectionCreateKindsForSource(node('v', 'video'))).toContain('video')
+    expect(createKinds(node('v', 'video'))).toContain('video')
   })
 
   it('导入的视频素材按产物类型判，与视频节点同口径', () => {
     const asset = { ...node('a', 'asset'), result: { id: 'r', type: 'video', url: 'nomi-local://asset/p/a.mp4', createdAt: 1 } } as GenerationCanvasNode
-    expect(connectionCreateKindsForSource(asset)).toEqual(connectionCreateKindsForSource(node('v', 'video')))
+    expect(createKinds(asset)).toEqual(createKinds(node('v', 'video')))
   })
 
   it('不产出可参考资产的源（镜头笔记 / 输出）接不出任何节点', () => {
     for (const kind of GENERATION_NODE_KINDS) {
       const source = node(`s-${kind}`, kind)
       if (kind === 'text' || referenceAssetKindForNode(source)) continue
-      expect(connectionCreateKindsForSource(source), kind).toEqual([])
+      expect(createKinds(source), kind).toEqual([])
+    }
+  })
+})
+
+describe('connectionCreateVerdictsForSource — 接不上的要说原因（2026-10-04「用这个节点生成…」）', () => {
+  const ALL = ['image', 'video', 'text', 'audio'] as const
+
+  it('放行的种类，真连一条边也放行（菜单不许许诺连不上的线）', () => {
+    for (const kind of GENERATION_NODE_KINDS) {
+      const source = node(`s-${kind}`, kind)
+      for (const verdict of connectionCreateVerdictsForSource(source, ['image', 'video'] as const)) {
+        const target = node('target', verdict.kind)
+        if (verdict.ok) expect(validateReferenceEdge(source, target, undefined).ok, `${kind}→${verdict.kind}`).toBe(true)
+      }
+    }
+  })
+
+  it('编组：组内任一成员接得上就算接得上；都接不上给第一个成员的原因', () => {
+    const blind = GENERATION_NODE_KINDS.find((kind) => kind !== 'text' && !referenceAssetKindForNode(node('x', kind)))!
+    const verdicts = connectionCreateVerdictsForSources([node('n', blind), node('i', 'image')], ['image', 'text'] as const)
+    expect(verdicts[0]).toEqual({ kind: 'image', ok: true })
+    expect(verdicts[1]).toMatchObject({ ok: false })
+    expect(connectionCreateVerdictsForSources([], ['image'] as const)[0]).toMatchObject({ ok: false, reason: 'source_not_referenceable' })
+  })
+
+  it('图片源接不出文本节点时给出「没有模型收」的原因，而不是从菜单里消失', () => {
+    const verdicts = connectionCreateVerdictsForSource(node('i', 'image'), ALL)
+    expect(verdicts.map((v) => v.kind)).toEqual([...ALL])
+    const text = verdicts.find((v) => v.kind === 'text')
+    expect(text).toMatchObject({ ok: false, reason: 'no_model_accepts', asset: 'image' })
+  })
+
+  it('不产可参考素材的源：原因是源本身，而不是目标', () => {
+    for (const kind of GENERATION_NODE_KINDS) {
+      const source = node(`s-${kind}`, kind)
+      if (kind === 'text' || referenceAssetKindForNode(source)) continue
+      for (const verdict of connectionCreateVerdictsForSource(source, ALL)) {
+        expect(verdict, `${kind}→${verdict.kind}`).toMatchObject({ ok: false, reason: 'source_not_referenceable' })
+      }
     }
   })
 })

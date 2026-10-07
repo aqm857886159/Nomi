@@ -145,11 +145,16 @@ await win.waitForFunction(() => {
   return Boolean(point && Number.isFinite(point.x) && Number.isFinite(point.y))
 }, null, { timeout: stationTimeout({ operations: 2 }) })
 await placeCharacter(lab, 'female', 0, 0)
+// 2026-10-04 起大纲住顶栏「▤ 图层名 ▾」浮层（精修「选中才出」），先打开再找行
+await clickOrFail(win.getByTestId('director-scene-menu'), '顶栏·▤ 图层名 ▾（大纲）')
 const characterRow = win.locator('[data-testid="director-outliner-row"]', { hasText: '角色' }).first()
 await expectVisible(characterRow, '大纲里没出现放下的角色')
 await clickOrFail(characterRow, '大纲·角色行（机位预设相对选中主体）')
 await addCameraPreset(lab, '正面中景')
+await clickOrFail(win.getByTestId('director-scene-menu'), '顶栏·▤ 图层名 ▾（大纲）')
 await expectVisible(win.locator('[data-testid="director-outliner-row"]', { hasText: '正面中景' }).first(), '大纲里没出现机位（预设机位叫预设名）')
+await clickOrFail(win.getByTestId('director-scene-menu'), '顶栏·▤ 图层名 ▾（收起大纲）')
+
 await expect.poll(() => countPipCharacterPixels(win), { timeout: stationTimeout() }).toBeGreaterThan(100)
 await snap('scene-built')
 // 本次生成的真实 Electron renderer：新建路径片段后检查双主题下的选中配色，避免只在 devlab 验样式。
@@ -313,6 +318,7 @@ try {
   await expect.poll(() => restoredImage.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true)
   await screenshotSettled(reopened, { path: path.join(shotsDir, '13-saved-reopened.png') })
   await clickOrFail(reopened.locator(`[data-node-id="${DIRECTOR_ID}"]`).getByTestId('director-node-open'), '冷启动重开原导演场景')
+  await clickOrFail(reopened.getByTestId('director-scene-menu'), '冷启动·顶栏·▤ 图层名 ▾（大纲）')
   await expectVisible(reopened.getByTestId('director-outliner-row').filter({ hasText: '角色' }).first(), '冷启动后导演角色未恢复')
   await expectVisible(reopened.getByTestId('director-outliner-row').filter({ hasText: '正面中景' }).first(), '冷启动后机位未恢复')
   const savedCharacter = savedCanvas.nodes.find((node) => node.id === DIRECTOR_ID).meta.directorProject.scenes

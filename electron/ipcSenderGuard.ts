@@ -2,6 +2,7 @@ import { BrowserWindow } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
 import { appWindowRecordOf, originOfUrl, type AppWindowRole } from "./appWindowRegistry";
+import { logWarn } from "./logging/logger";
 
 type IpcEvent = Pick<IpcMainEvent | IpcMainInvokeEvent, "sender" | "senderFrame">;
 
@@ -9,6 +10,54 @@ export class UntrustedIpcSenderError extends Error {
   constructor() {
     super("IPC 请求来源不是 Nomi 自有窗口");
     this.name = "UntrustedIpcSenderError";
+  }
+}
+
+const FIRE_AND_FORGET_WARNING_WINDOW_MS = 60_000;
+const fireAndForgetWarningBuckets = new Map<string, number>();
+
+/**
+ * `ipcMain.on` 没有 invoke 的 reject 面：来源不可信时只能在这里丢弃，不能把守卫异常抛回
+ * Electron 的主进程事件循环。每个通道每分钟最多留一条警告，避免攻击者用无效 sender 刷盘。
+ * 其它异常仍原样抛出，不能把业务 bug 伪装成来源丢弃。
+ */
+export function assertTrustedFireAndForget<E>(
+  event: E,
+  channel: string,
+  assertTrusted: (event: E) => void,
+  now: () => number = Date.now,
+): boolean {
+  try {
+    assertTrusted(event);
+    return true;
+  } catch (error) {
+    if (!(error instanceof UntrustedIpcSenderError)) throw error;
+    const bucket = Math.floor(now() / FIRE_AND_FORGET_WARNING_WINDOW_MS);
+    const last = fireAndForgetWarningBuckets.get(channel);
+    if (last !== bucket) {
+      fireAndForgetWarningBuckets.set(channel, bucket);
+      const candidate = event as { sender?: { id?: unknown }; senderFrame?: { routingId?: unknown; url?: unknown } };
+      const senderOrigin = originOfUrl(typeof candidate.senderFrame?.url === "string" ? candidate.senderFrame.url : null);
+      logWarn("main", "ipc-untrusted-sender-dropped", {
+        channel,
+        senderId: typeof candidate.sender?.id === "number" ? candidate.sender.id : null,
+        frameRoutingId: typeof candidate.senderFrame?.routingId === "number" ? candidate.senderFrame.routingId : null,
+        senderOrigin,
+      });
+    }
+    return false;
+  }
+}
+
+export function assertTrustedSync<E>(
+  event: E,
+  assertTrusted: (event: E) => void,
+): { ok: true } | { ok: false; error: string } {
+  try {
+    assertTrusted(event);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 

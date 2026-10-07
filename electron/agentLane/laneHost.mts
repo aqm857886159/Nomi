@@ -26,6 +26,7 @@ import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 // 「不重试」说的是不写重试循环：`LANE_RETRY_POLICY` 是**配置**，退避、事件、状态全是 pi 的。
 //
 // 对照今天的宿主：`electron/projectAgentHost/` 是 52 个生产文件、9 688 行。
+import { director3dBoxProof } from '../shared/featureFlags/director3dbox.js';
 import { configureLaneContextBudget, laneCompactionSettings } from './laneContextBudget.mjs';
 import { formatLaneModelIndex } from './laneModelContext.js';
 import { convertToLlm } from '@earendil-works/pi-agent-core';
@@ -33,8 +34,10 @@ import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/l
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
+import { LANE_STREAM_WATCHDOG } from './laneProviderGuard.mjs';
+import { omitSupersededReads } from './laneSupersededReads.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
   type LaneApprovalNote, type LaneCancelQueuedResult, type LaneCommand, type LaneCommandOutcome,
@@ -47,9 +50,16 @@ import { loadPiSkillFormatter, renderLaneSkillSection, laneSkillUnlockReason } f
 import { openLaneSession } from './laneSession.mjs';
 import { createLaneTools, takeLaneToolFailure } from './laneTools.mjs';
 import { projectLaneSnapshot, type LaneModelFacts } from '../shared/agentLane/laneProjection.js';
-import { openLaneNativeDesktop } from './laneNativeDesktop.mjs';
+// 本机能力（bash / 沙箱 / pi-coding-agent 的工具）只在真开一条带模型的 lane 时才装：静态引入会把 pi-coding-agent
+// 整个入口（约 1500 个文件，主进程同步装载）拖进「打开项目」那条只读历史的路径（2026-10-06 L-perf 实测）。
+// 与 laneCodingTools / laneSkillCatalog 的按需加载同一个做法。tests/agent-runtime/lane-open-graph.test.mts 钉住。
+type LaneNativeDesktop = Awaited<ReturnType<typeof import('./laneNativeDesktop.mjs').openLaneNativeDesktop>>;
+const loadLaneNativeDesktop = () => import('./laneNativeDesktop.mjs');
 import { LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog.js';
 import { appendLaneContinuation, laneContinuationText } from './laneContinuation.mjs';
+
+// Bootstrap proof is intentionally read before the pi runtime is assembled.
+export const DIRECTOR_3DBOX_BOOTSTRAP_PROOF = director3dBoxProof();
 
 /** 阶段 1 的观测：pi 每个 delta 自报的 `contentIndex`，与我们从 content 数组下标推出来的那个。 */
 export interface LaneOrderObservation {
@@ -58,14 +68,6 @@ export interface LaneOrderObservation {
   /** 该下标处那一段的类型，用来证明「我们数的和它说的是同一段」。 */
   partType: string
 }
-
-/**
- * 传输层看门狗的两个预算。**旧路 `run.mts` 用的是同样两个数**（90s / 120s），
- * 而它们在这里第一次对新通路生效——影子期的 lane 在供应商流卡住时会永远转圈
- * （方案 §0 的实核，G3c 的先红后绿就是这条）。
- */
-export const LANE_FIRST_RESPONSE_MS = 90_000;
-export const LANE_IDLE_MS = 120_000;
 
 /**
  * 重试策略。**显式传，不吃默认值**——数值和 pi 的 `DEFAULT_RETRY_POLICY` 相同
@@ -164,7 +166,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const inputs = createLaneInputAdmission(context);
   const laneName = options.laneName ?? 'main';
   const { session, sessionId, release } = await openLaneSession({ ...options, laneName }, context);
-  let native: Awaited<ReturnType<typeof openLaneNativeDesktop>> | undefined;
+  let native: LaneNativeDesktop | undefined;
   // 会话一旦打开，这个进程就是它**唯一**的持有者。装配到一半失败（模型配置写错、
   // 工具名重复、schema 门岗报红）而不交还持有权，用户下一次打开同一条历史会撞上
   // 「已经有人开着」——而那个人是一个早就失败退出的调用。
@@ -180,7 +182,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   }
 
   async function assemble(): Promise<LaneHandleWithObservations> {
-  if (options.native) native = await openLaneNativeDesktop({ projectDir: options.projectDir,
+  if (options.native) native = await (await loadLaneNativeDesktop()).openLaneNativeDesktop({ projectDir: options.projectDir,
     ...options.native, deferredGroups: LANE_DEFERRED_TOOL_GROUPS.map(group => ({ ...group,
       toolNames: group.toolNames.filter(name => options.tools.some(tool => tool.name === name)),
     })).filter(group => group.toolNames.length > 0),
@@ -191,8 +193,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // （它们走 `streamSimple`，只用 `result()`）。装在别处就会漏掉那两条路，而它们卡住的样子
   // 和主请求卡住一模一样。
   const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, {
-    firstResponseMs: options.watchdog?.firstResponseMs ?? LANE_FIRST_RESPONSE_MS,
-    idleMs: options.watchdog?.idleMs ?? LANE_IDLE_MS,
+    // 三个预算的唯一一份在 `laneProviderGuard.mts`（`LANE_STREAM_WATCHDOG`），这里只允许宿主逐项覆盖。
+    firstResponseMs: options.watchdog?.firstResponseMs ?? LANE_STREAM_WATCHDOG.firstResponseMs,
+    firstTokenMs: options.watchdog?.firstTokenMs ?? LANE_STREAM_WATCHDOG.firstTokenMs,
+    idleMs: options.watchdog?.idleMs ?? LANE_STREAM_WATCHDOG.idleMs,
   });
   // 三行（花费/上下文/推理）需要的**模型侧事实**，在这里定死一次，投影层不再回头问任何人。
   // `contextWindow` 只收显式声明的那个：provider 内部的 128k 兜底是给 pi 的类型用的，不是分母。
@@ -202,6 +206,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 是浏览器也 import 的中立层，在那里 import 一个 pi 的函数就等于把整个 SDK 拖进渲染 bundle。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
+    isTransientError: isRetryableAssistantError,
+    // 「上下文装不下」同样只问 pi 那一张表（各家溢出原话），投影把结论变成 `fault`（NF-0928-0003）。
+    isContextOverflow: (message) => isContextOverflow(message, options.model.contextWindow),
     ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }) };
   const models = createModels({ credentials });
   models.setProvider(provider);
@@ -251,13 +258,16 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    * 粒度是回合不是请求：一个回合最多 `LANE_MAX_MODEL_REQUESTS` 次模型请求，按请求刷等于
    * 把技能库全量重扫乘 24，而且回合内会改口——那恰恰是评审裁决明确不要的行为。
    */
+  const composeClosing = (): string => typeof options.systemPromptClosing === 'function' ? options.systemPromptClosing() : options.systemPromptClosing ?? '';
   let promptRunId: string | undefined;
   let promptForRun = composeSystemPrompt();
+  let closingForRun = composeClosing();
   const systemPromptForRun = async (runId: string): Promise<string> => {
     if (runId === promptRunId) return promptForRun;
     promptRunId = runId;
     await native?.skillIndex.refresh();
     promptForRun = composeSystemPrompt();
+    closingForRun = composeClosing();
     return promptForRun;
   };
   const systemPrompt = promptForRun;
@@ -407,8 +417,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority].filter(Boolean).join('\n\n');
-    return { systemPrompt };
+    const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority, closingForRun].filter(Boolean).join('\n\n');
+    // 被后来的读取取代了的旧快照不再随每次请求重发（NF-0928-0003，理由在 `laneSupersededReads.mts`）。只改发出去的这一份。
+    return { systemPrompt, messages: omitSupersededReads(event.messages, options.tools) };
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {

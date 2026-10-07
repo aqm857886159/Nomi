@@ -35,6 +35,7 @@ function fixture(main = 'dist-electron/main.js') {
   write(root, 'electron/main.ts', 'export const legacy = true;\n')
   write(root, 'electron/agentLane/session.mts', 'export const session = true;\n')
   write(root, 'electron/agentLane/nested/boundary.cts', 'export const boundary = true;\n')
+  write(root, 'dist-electron/feature-flags.json', { version: 1, director3dbox: false, expiresOn: '2026-11-15' })
   return root
 }
 
@@ -46,7 +47,7 @@ async function artifactCheck() {
 
 function build(root) {
   // `write-intake-config.mjs` 从 2026-09-17 起也是 build-electron 的一部分（出厂配置烤进产物，W-01）。
-  for (const name of ['build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs']) {
+  for (const name of ['build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs', 'write-feature-flags.mjs']) {
     const file = path.join(repoRoot, 'scripts', name)
     expect(fs.existsSync(file), 'CJS and private NodeNext must share one build entry').toBe(true)
     fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })

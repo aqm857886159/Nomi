@@ -1,0 +1,123 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-04-director-bootstrap-ipc-startup",
+  "problem_type": "Director feature flag bootstrap IPC blocks first window",
+  "symptom": "Flag-off read-only reload walk timed out at Electron launch on the feature branch while origin/main opened normally.",
+  "direct_cause": "Before first navigation, preload sendSync(feature-proof) was rejected by the normal frame/origin guard; its catch then synchronously sent nomi:log:renderer, whose ipcMain.on guard threw UntrustedIpcSenderError, opening a blocking Electron error dialog and stalling the main process for about 60 seconds.",
+  "class_root": "Bootstrap diagnostics and feature negotiation were routed through post-navigation IPC assumptions, and the renderer warning path could throw from ipcMain.on instead of returning a contained failure.",
+  "migration": "Replace the bootstrap IPC handshake with additionalArguments; retain strict assertTrustedSender for every normal channel and defer warnings until the first document is available.",
+  "affected_population": [
+    "Every Electron startup that loads the preload feature proof, especially the flag-off read-only walk and dev harness startup"
+  ],
+  "scope_paths": [
+    "electron/preload.ts",
+    "electron/main.ts",
+    "electron/ipcSenderGuard.ts",
+    "tests/ux/react-flow-read-only.walk.mjs"
+  ],
+  "entry_points": [
+    "preload feature proof invokeSync",
+    "registerIpc feature flag channel",
+    "assertTrustedSender"
+  ],
+  "invariants": [
+    "The feature flag is still resolved by both processes and fingerprints must match.",
+    "Bootstrap IPC accepts only the registered main window webContents.",
+    "Post-navigation IPC channels retain the URL and frame trust checks."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "line": 380,
+      "symbol": "registerBootstrapSyncIpc"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload.ts",
+      "line": 14,
+      "symbol": "director3dBox"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 2,
+    "why_not": "The preload call and main registration are separate sides of the cross-process boundary and both remain explicit."
+  },
+  "regression_tests": [
+    "tests/ux/react-flow-read-only.walk.mjs"
+  ],
+  "residual_risks": [
+    "The fourth-round screenshot set was partly refreshed; the final three-shot light-mode capture remains pending."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal Electron startup ordering and sender-guard invariant.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future synchronous preload call made before navigation can hit the same URL-dependent guard if it is registered through the normal IPC helper.",
+    "same_class_scan": [
+      "rg \"invokeSync|registerSyncIpc\" electron/preload.ts electron/main.ts"
+    ]
+  },
+  "generality_proof": "Every main window receives the same proof through BrowserWindow webPreferences; preload has no bootstrap IPC dependency, while all post-navigation channels still converge on assertTrustedSender.",
+  "shared_boundaries": [
+    {
+      "path": "electron/main.ts",
+      "symbol": "createWindow",
+      "responsibility": "Encode the main process feature proof in additionalArguments."
+    },
+    {
+      "path": "electron/preload.ts",
+      "symbol": "director3dBox",
+      "responsibility": "Decode, fingerprint-check, and defer warning emission until navigation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/preload.ts",
+      "entry_point": "invokeSync",
+      "disposition": "enforced",
+      "evidence": "Feature proof uses the dedicated bootstrap channel and fingerprint mismatch disables the flag."
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "registerSyncIpc",
+      "disposition": "enforced",
+      "evidence": "All other synchronous channels continue to call assertTrustedSender."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/main.ts",
+    "invariant": "Pre-navigation feature negotiation must use additionalArguments and must not call IPC.",
+    "failure_mode": "Missing or mismatched proof forces the feature off and queues a warning after DOMContentLoaded.",
+    "exception_policy": "none",
+    "strategy": "Keep bootstrap data one-way from main to preload and reserve IPC for post-navigation channels.",
+    "artifacts": [
+      "electron/main.ts",
+      "electron/preload.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "tests/ux/react-flow-read-only.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy implementation was removed; the existing strict guard remains for normal channels."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls this startup ordering invariant.",
+    "exit_criteria": []
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-04",
+  "invariant_owner_layer": {
+    "layer": "electron/main.ts",
+    "tests": [
+      "tests/ux/react-flow-read-only.walk.mjs"
+    ]
+  },
+  "fix": "Pass the main process feature proof through BrowserWindow webPreferences.additionalArguments, parse it in preload without IPC, compare fingerprints locally, and defer mismatch/missing-proof warnings until DOMContentLoaded. Remove the second bootstrap sender guard so all IPC trust decisions remain centralized."
+}

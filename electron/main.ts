@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, session, shell } from "electron";
+import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
 import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
 import type { Rectangle, WebContents } from "electron";
 import path from "node:path";
@@ -42,17 +43,18 @@ import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerProviderAdapterIpc } from "./providerAdapter/ipc";
 import { registerExistingConnectionIpc } from "./providerAdapter/existingConnectionIpc";
-import { registerUpdaterIpc } from "./update/autoUpdater";
+import { registerUpdaterIpc, startAutoUpdateCheck } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerNomiProtocolClient } from "./protocolRegistration";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
+import { startDesktopMcpHttp, stopDesktopMcpHttp } from "./capabilityCore/mcpHttpDesktop";
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./appWindowRegistry";
 import { createMainWindowGuard } from "./mainWindowPresence";
-import { assertTrustedSender, assertTrustedUiSender } from "./ipcSenderGuard";
+import { assertTrustedFireAndForget, assertTrustedSender, assertTrustedSync, assertTrustedUiSender } from "./ipcSenderGuard";
 import { registerDirectorMobileIpc } from "./director/mobileBridgeIpc";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { registerVideoIpc } from "./video/videoIpc";
@@ -167,10 +169,6 @@ async function loadCapabilityCoreModule(): Promise<typeof import("./capabilityCo
   return capabilityCoreModulePromise;
 }
 
-function getActiveCapabilityPort(): number | null {
-  return capabilityPortCache;
-}
-
 let desktopLaneIpc: LaneIpcRegistration | undefined;
 async function startDesktopCapabilityCore(): Promise<void> {
   if (!desktopCanvasReadExecutionRuntime) throw new Error("Canvas read execution runtime is unavailable");
@@ -191,9 +189,11 @@ async function startDesktopCapabilityCore(): Promise<void> {
     },
   );
   capabilityPortCache = core.getCapabilityPort();
+  await startDesktopMcpHttp({ rpcPort: () => capabilityPortCache, onActivity: touchBackgroundActivity }); // MCP 本机 HTTP 直连：领域调用经上面的回环 RPC 进来，必须在它之后起
 }
 
 function stopDesktopCapabilityCore(): void {
+  stopDesktopMcpHttp();
   capabilityCoreModule?.stopCapabilityCore();
   capabilityPortCache = null;
 }
@@ -288,12 +288,7 @@ async function createWindow(
     // macOS/Linux：保留原生窗口 chrome（红绿灯/拖拽/缩放全交系统，零回归）。
     frame: process.platform !== "win32",
     icon: path.join(__dirname, "../build/icon.png"),
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
+    webPreferences: mainWindowWebPreferences(__dirname),
     ...backgroundWindowOptions(),
   });
   installBackgroundWindowBehavior(mainWindow);
@@ -375,13 +370,12 @@ function registerSyncIpc<TArgs extends unknown[], TResult>(
   handler: (...args: TArgs) => TResult,
 ): void {
   ipcMain.on(channel, (event, ...args: TArgs) => {
+    const trusted = assertTrustedSync(event, assertTrustedSender);
+    if (!trusted.ok) return void (event.returnValue = trusted);
     try {
-      assertTrustedSender(event); event.returnValue = { ok: true, value: handler(...args) };
+      event.returnValue = { ok: true, value: handler(...args) };
     } catch (error) {
-      event.returnValue = {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      event.returnValue = { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 }
@@ -425,11 +419,11 @@ function registerIpc(): void {
     recoverProject,
   });
   ipcMain.on("nomi:app:reopen-library-window", (event) => {
-    assertTrustedSender(event);
+    if (!assertTrustedFireAndForget(event, "nomi:app:reopen-library-window", assertTrustedSender)) return;
     recreateMainWindowFromSender(event.sender, { preserveRoute: false, reason: "reopen library window" });
   });
   ipcMain.on("nomi:app:hard-reload-window", (event) => {
-    assertTrustedSender(event);
+    if (!assertTrustedFireAndForget(event, "nomi:app:hard-reload-window", assertTrustedSender)) return;
     recreateMainWindowFromSender(event.sender, { preserveRoute: true, reason: "hard reload window" });
   });
   // 读目录的 IPC 是**纯读**：种子对账（写盘）只在启动期跑一次。挂在读上时，盘上版本比应用新就会
@@ -574,9 +568,9 @@ function registerIpc(): void {
   registerExportJobIpc({
     getActiveProjectSelection: () => canvasReadSurfaceRuntime.getCommittedProjectSelection(),
   });
-  registerTaskIpcHandlers(loadRuntimeModule);
+  registerTaskIpcHandlers(loadRuntimeModule, loadCapabilityCoreModule);
   // 「接入 AI 编程助手」卡：读接入状态/配置片段 + 一键写入/撤销 ~/.claude.json 的 mcpServers.nomi。
-  registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
+  registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(capabilityPortCache));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
   registerCustomMcpProfileIpc();
@@ -599,6 +593,7 @@ function registerIpc(): void {
     loadCore: loadCapabilityCoreModule,
   });
   registerUpdaterIpc();
+  startAutoUpdateCheck();
   setEventLogSecretsProvider(catalogSecretsProvider);
 }
 const SKIP_CROSS_ORIGIN_ISOLATION = process.env.NOMI_E2E === "1";

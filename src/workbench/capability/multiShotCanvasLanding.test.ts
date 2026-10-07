@@ -10,6 +10,8 @@ import * as canvasTools from '../generationCanvas/agent/applyCanvasToolCall'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
 import { readShotTable } from '../../../electron/shared/canvas/shotTable'
 import { useWorkbenchStore } from '../workbenchStore'
+import { deriveNodeRowExec, deriveStoryboardBatch } from '../creation/storyboard/exec/storyboardRowStatus'
+import { eligibleGenerationNodeIds } from '../generationCanvas/components/canvasProductionScope'
 
 // P4 S5 — attach-shot-result 的运行时断言（result.url 必须 nomi-local://）+ 节点已删静默跳过。
 
@@ -194,7 +196,12 @@ describe('materializeShots undo transaction', () => {
 
     useGenerationCanvasStore.getState().undo()
     const afterUndo = useGenerationCanvasStore.getState()
-    expect(afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)).toEqual([])
+    // 一次撤销撤整批：没出片的节点和分组全拿掉。已回填结果的那一镜是付费落地，撤销不拿走它
+    // （协调会话 10-07 定 B，docs/plan/2026-10-07-undo-keeps-landed-results.md）——节点留下、摘掉被撤分组的标记。
+    const remaining = afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)
+    expect(remaining.map((node) => node.id)).toEqual([shotNodeId])
+    expect(remaining[0].result?.id).toBe('shot-1-result')
+    expect(remaining[0].groupId).toBeUndefined()
     expect(afterUndo.groups.filter((group) => group.materializationOperationId === operationId)).toEqual([])
   })
 })
@@ -444,6 +451,28 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     expect(node(id).status).toBe('idle')
   })
 
+  // #975 V-975：已经生成、结果没能取回的镜，分镜表曾写「生成失败」，旁边「生成全部 1 个」一点就是再付一次钱。
+  it('已生成、取回失败 → 节点「可找回」：分镜表行是 recoverable、不进批量，「生成全部」不算它；重新取回后同一条记录回到进行中', async () => {
+    const { bindings } = await land({ generation: running })
+    const id = bindings[0].nodeId
+    const message = 'NOMI_ERR::output-retrieval-failed:: The provider finished this shot, but Nomi could not retrieve the result: Generated media validation failed (unknown_bytes)'
+    await land({ generation: { state: 'recoverable', runRecordId: 'production-job-1', startedAt: 1_000, message } }, true)
+    expect(node(id).status).toBe('recoverable')
+    expect(node(id).runs?.[0]).toMatchObject({ id: 'production-job-1', status: 'recoverable' })
+
+    const exec = deriveNodeRowExec(node(id))
+    expect(exec.status).toBe('recoverable')
+    const batch = deriveStoryboardBatch([{ shot: { id: 'shot-1' } as never, exec }])
+    expect(batch.runnable).toHaveLength(0)
+    expect(batch.excluded.recoverable).toBe(1)
+    expect(eligibleGenerationNodeIds(useGenerationCanvasStore.getState().nodes, {}, {})).not.toContain(id)
+
+    // 「重新取回」：主进程把这一镜放回轮询 → 跟随投影 running → 同一条记录翻回进行中，不另挂一条。
+    await land({ generation: running }, true)
+    expect(node(id).status).toBe('running')
+    expect(node(id).runs).toHaveLength(1)
+  })
+
   it('不在跑了（排队 / 已停）→ 只收掉本制作挂上的「生成中」；用户自己在节点上跑的那一次不动', async () => {
     const { bindings } = await land({ generation: running })
     const id = bindings[0].nodeId
@@ -472,5 +501,28 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     useGenerationCanvasStore.getState().setNodeStatus(id, 'idle') // = 重开项目时的收敛（running → cancelled）
     await land({ generation: running }, true)
     expect(node(id).status).toBe('running')
+  })
+})
+
+// 同一次任务里画布上出现两张分镜表：同一个 Run 的两次落地重叠时，「这个 Run 已有表吗」在 await 之前判一次、之后才建，
+// 两次都判成「没有」。判据必须在真正建表那一刻（同步段内）再读一次。
+describe('production shot table is created at most once per Run, even when two landings overlap', () => {
+  const runId = 'run-overlap-1'
+  const operationId = `canvas-landing:${runId}`
+  const shots = [
+    { shotId: 'o-1', role: 'shot' as const, kind: 'image' as const, prompt: '一' },
+    { shotId: 'o-2', role: 'shot' as const, kind: 'image' as const, prompt: '二' },
+  ]
+  beforeEach(() => {
+    resetClientIdRegistry()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+  })
+
+  it('reported case: two overlapping landings of one Run leave exactly one table', async () => {
+    await Promise.all([
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+    ])
+    expect(useGenerationCanvasStore.getState().nodes.filter((node) => node.kind === 'shot_table')).toHaveLength(1)
   })
 })

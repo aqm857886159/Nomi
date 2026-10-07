@@ -3,7 +3,8 @@ import * as THREE from 'three'
 import type { LegacyScene3DState, LegacyVec3 } from '../migration/legacyScene3dTypes'
 import { LegacyTrajectorySampler } from '../migration/legacyTrajectorySampler'
 import { buildCameraMoveScene } from './cameraMoveBuilder'
-import { CAMERA_MOVE_FRAMING, CAMERA_MOVES, CAMERA_SPEED_DURATION } from './cameraMoveVocab'
+import { CAMERA_MOVE_FRAMING, CAMERA_SPEED_DURATION } from './cameraMoveVocab'
+import { CAMERA_MOVES } from '../../../../../../electron/shared/director/vocab'
 
 function distXZ(p: LegacyVec3): number {
   return Math.hypot(p[0], p[2])

@@ -89,8 +89,9 @@ function findElectronValueImports(entry: string): { file: string; chain: string[
 }
 
 describe('mcpNodeLauncher 值导入闭包 —— electron-free 结构不变量', () => {
-  it('launcher 传递闭包（仅值边）里没有任何模块值导入 electron', () => {
-    const offenders = findElectronValueImports(LAUNCHER)
+  // 2026-10-05 第 2 段：Desktop 兼容转发口与启动器同样以 ELECTRON_RUN_AS_NODE=1 跑在裸 Node 上，同一条不变量。
+  it.each([['launcher', LAUNCHER], ['Desktop 转发口', path.join(here, 'mcpHttpForwarder.ts')]])('%s 传递闭包（仅值边）里没有任何模块值导入 electron', (_label, entry) => {
+    const offenders = findElectronValueImports(entry)
     const detail = offenders
       .map((o) => `  · ${o.file} 值导入了 'electron'（引入链：${o.chain.join(' → ')}）`)
       .join('\n')

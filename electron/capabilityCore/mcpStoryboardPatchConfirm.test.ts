@@ -13,6 +13,7 @@ class StoryboardPatchHarness {
   readonly invoke = vi.fn(async () => ({
     applied: true,
     proposalId: 'proposal-canonical-patch',
+    changeId: 'canvas:v1:proposal-canonical-patch',
     operation: 'patch_shots',
     changedShotIndexes: [2],
     changedFields: ['prompt', 'aspectRatio'],
@@ -55,7 +56,7 @@ class StoryboardPatchHarness {
       params: {
         protocolVersion: '2025-11-25',
         capabilities: { elicitation: {} },
-        clientInfo: { name: 'canonical-storyboard-test' },
+        clientInfo: { name: 'canonical-storyboard-test', version: '1' },
       },
     })
     await this.next()

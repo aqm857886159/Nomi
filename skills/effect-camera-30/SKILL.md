@@ -42,3 +42,5 @@ metadata:
 ---
 
 Top-down overhead on a pattern/maze, {主体} tiny within it
+
+Keep the pattern or maze geometry, the subject’s identity and placement, lighting, color, and continuity unchanged. Change only the top-down overhead viewpoint and scale described here.

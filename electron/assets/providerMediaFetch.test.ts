@@ -46,11 +46,13 @@ describe('fetchProviderMedia is the one retrieval policy for provider outputs', 
 
   it('付费卡那条路（生成产物物化）走的就是这一条：同一组时限 / 上限 / 这家供应商自己的线路', async () => {
     const writeAsset = vi.fn(() => ({ id: 'asset-1', data: { relativePath: 'assets/generated/materialized/v.mp4' } }))
-    const materializer = createGenerationOutputMaterializer({ writeAsset, resolveProviderNetwork: (providerId) => (providerId === 'apimart' ? { proxyUrl: 'http://127.0.0.1:7890' } : undefined) })
+    const materializer = createGenerationOutputMaterializer({ writeAsset, resolveVendor: (providerId) => (providerId === 'apimart' ? { baseUrlHint: 'https://api.apimart.ai', network: { proxyUrl: 'http://127.0.0.1:7890' } } : undefined) })
     await materializer.materialize({ projectId: 'p', providerTaskId: 't', providerId: 'apimart', output: { kind: 'video', url: 'https://cdn.example/v.mp4' } })
     const options = (hardenedFetch.mock.calls[0] as unknown[])[1] as Record<string, unknown>
     expect(options).toMatchObject({ ...RETRIEVAL_BUDGET, allowContentTypes: ['video/', 'application/octet-stream'] })
     expect(options.dispatcher).toBeDefined()
+    // #975 A：内置公网家不拿私网例外（拿了反而会关掉跟随跳转）。
+    expect(options).not.toHaveProperty('allowedPrivateOrigins')
   })
 })
 

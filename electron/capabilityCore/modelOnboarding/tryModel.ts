@@ -23,10 +23,56 @@ import { readCatalog } from "../../catalog/catalogStore";
 import { selectTaskMapping, type ProfileKind } from "../../catalog/types";
 import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../../shared/agentCapabilities/capabilityApprovalPolicy";
 import { quoteSpendLine } from "../../spendQuote";
+import { isTransportLevelFailure, outboundRequestWasNeverWritten } from "../../outboundDispatchEvidence";
 import { mintSpendGrant, isSpendAuthorizationError } from "../../spendGrant";
 import { sanitizedAdapterJson, redactAdapterSecrets } from "../../providerAdapter/redaction";
-import type { RunTaskFn } from "../core";
+import type { FetchTaskResultFn, RunTaskFn } from "../core";
+import { pollTaskToTerminal } from "../pollTaskToTerminal";
+import { isTerminalTaskStatus } from "../../shared/taskStatus";
 import { billableRequests, noBlast, unverified, type OnboardingFailure, type OnboardingResult } from "./envelope";
+
+/**
+ * 试跑最多花 40 秒，**提交和等待共用这一份**。试跑是**一次 MCP 工具调用**，外部宿主有工具超时
+ * （例如 Codex 默认 60 秒）：挂太久会被客户端断开，AI 看到的是断线而不是结果，然后重试、重复扣费。
+ * 40 秒留出 20 秒余量给返回。到点：
+ *   · 提交还没回 → `submission_unknown`（可能已提交，不要重试）。**绝不中止那次请求**：掐断它会让
+ *     「到底提交了没有」变成真正的未知；它在后台跑完，拿到任务号就由 `runTask` 记进任务缓存。
+ *   · 已提交、等不到终态 → `still_processing`（已收费、不要重试），任务本身不受影响。
+ */
+export const TRY_MODEL_WAIT_BUDGET_MS = 40_000;
+
+type Raced<T> = { kind: "done"; value: T } | { kind: "failed"; error: unknown } | { kind: "budget" };
+
+/** 赛跑但不取消：到点只是不再等，`promise` 照常跑完（晚到的结果与错误在这里被吞掉，不会变成未处理拒绝）。 */
+function raceBudget<T>(promise: Promise<T>, budgetMs: number): Promise<Raced<T>> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve({ kind: "budget" }), Math.max(0, budgetMs));
+    promise.then(
+      (value) => { clearTimeout(timer); resolve({ kind: "done", value }); },
+      (error: unknown) => { clearTimeout(timer); resolve({ kind: "failed", error }); },
+    );
+  });
+}
+
+/**
+ * 提交失败但**不是供应商给的 HTTP 回复**：连接层断了 / 超时（供应商是否已收下不知道）。
+ * 供应商明确回了状态码或逻辑错误码（`structured.httpStatus` / `logicalCode`）就是它的答复，不在此列。
+ * 「没写出去」的证据只认 `outboundRequestWasNeverWritten`，调用方先问它，这里不再另写判据。
+ */
+function connectionLevelFailure(error: unknown): boolean {
+  if (isTransportLevelFailure(error)) return true;
+  const structured = (error as { structured?: { category?: unknown; httpStatus?: unknown; logicalCode?: unknown } } | null)?.structured;
+  if (!structured || structured.httpStatus != null || structured.logicalCode != null) return false;
+  return structured.category === "network" || structured.category === "timeout";
+}
+
+function submissionUnknown(why: string): OnboardingFailure {
+  return {
+    ok: false, code: "submission_unknown",
+    message: `Whether the provider accepted this test generation is UNKNOWN: ${why} It may already have been submitted and charged. This is NOT a failure and NOT proof that nothing was sent.`,
+    nextAction: "Do NOT retry and do NOT call nomi_try_model again for this model now: that could submit and charge a second job. Tell the user the test may already be running; they can look for it in the provider's own console. If a task id turns up, nomi_read target=task shows its state. Only try again later if the user asks.",
+  };
+}
 
 const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
@@ -35,6 +81,14 @@ const NEUTRAL_PROMPT = "A single red apple on a plain white table, soft daylight
 
 export type TryModelDeps = {
   runTask: RunTaskFn;
+  /**
+   * 异步供应商提交后「查到终态」用的那一条（与画布 / headless 生成同源：`runtime.fetchTaskResult`）。
+   * 缺席时遇到 queued 只会如实说「已提交、仍在处理」，**不会**判失败。
+   */
+  fetchTaskResult?: FetchTaskResultFn;
+  /** 试跑最多等多久（毫秒）。只能往小调（测试用），封顶 `TRY_MODEL_WAIT_BUDGET_MS`。 */
+  pollTimeoutMs?: number;
+  pollIntervalMs?: number;
   /**
    * 用户此刻选的审批档位（宿主持有的那一份快照，与 `generationTransportAdapters` 读的是同一份）。
    *
@@ -92,6 +146,8 @@ export async function tryModel(
     };
   }
 
+  const startedAt = Date.now();
+  const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
   // 一个节点、一次机会：试跑不给重试预算。想再试一次就再调一次。
   const nodeId = `try-${vendorKey}-${Date.now()}`;
   // 档位代答（「全自动」）与逐次问人（其余档）的**区别只有一处**：令牌上带不带这次的报价。
@@ -110,17 +166,27 @@ export async function tryModel(
   const params = (args.params && typeof args.params === "object" && !Array.isArray(args.params))
     ? (args.params as Record<string, unknown>)
     : {};
-  let result;
-  try {
-    result = await deps.runTask({
+  // 提交与「剩余预算」赛跑：到点就回话，但**不中止**这次提交（见 TRY_MODEL_WAIT_BUDGET_MS）。
+  const submitted = await raceBudget(
+    (async () => deps.runTask({
       vendor: vendorKey,
       request: {
         kind: taskKind,
         prompt: text(args.prompt) || NEUTRAL_PROMPT,
         extras: { ...params, modelKey, modelAlias: modelKey, nodeId, grantId },
       },
-    });
-  } catch (error) {
+    }))(),
+    budgetMs,
+  );
+  if (submitted.kind === "budget") {
+    // 提交还在路上：没有失败对象，拿不出「请求没写出去」的证据，只能说结果未知。
+    return submissionUnknown("The provider has not answered the submit request within the time Nomi can wait inside one tool call.");
+  }
+  let result: Awaited<ReturnType<RunTaskFn>>;
+  if (submitted.kind === "done") {
+    result = submitted.value;
+  } else {
+    const error = submitted.error;
     const message = error instanceof Error ? error.message : String(error);
     if (isSpendAuthorizationError(error) || /RendererUnavailable|Nomi 窗口/.test(message)) {
       return {
@@ -130,12 +196,49 @@ export async function tryModel(
         nextAction: "Ask the user to open Nomi and confirm the generation card, then call nomi_try_model again. Nomi never spends the user's credit on a tool call alone.",
       };
     }
+    if (outboundRequestWasNeverWritten(error)) {
+      return {
+        ok: false, code: "provider_failed",
+        message: `The test generation was not submitted. Nothing was sent to the provider (the connection never opened), so no charge was made: ${redactAdapterSecrets(message, 600)}`,
+        evidence: { bodyExcerpt: redactAdapterSecrets(message, 512) },
+        nextAction: "It is safe to retry once the provider's address and network are reachable. If the address in the card is wrong, fix it and submit the card again first.",
+      };
+    }
+    if (connectionLevelFailure(error)) return submissionUnknown(redactAdapterSecrets(message, 300));
     return {
       ok: false, code: "provider_failed",
       message: `The test generation failed before it produced anything: ${redactAdapterSecrets(message, 600)}`,
       evidence: { bodyExcerpt: redactAdapterSecrets(message, 512) },
       nextAction: "Read the message against the documentation URL the card declared for that mode, fix the field it names, and submit the card again.",
     };
+  }
+
+  // 异步供应商：提交即收费，首次返回只有 queued 没有产物。**这不是失败**——
+  // 等到终态（同一条查询链路），等不到就如实说「仍在处理」，绝不报 provider_failed（否则 AI 会重试再花一次钱）。
+  const taskId = typeof result.id === "string" ? result.id : "";
+  if (result.status && !isTerminalTaskStatus(result.status)) {
+    const polled = deps.fetchTaskResult
+      ? await pollTaskToTerminal({
+          initial: result,
+          fetch: deps.fetchTaskResult,
+          vendor: vendorKey,
+          taskKind,
+          prompt: text(args.prompt) || NEUTRAL_PROMPT,
+          modelKey,
+          timeoutMs: Math.max(0, budgetMs - (Date.now() - startedAt)),
+          intervalMs: deps.pollIntervalMs ?? (taskKind === "text_to_video" || taskKind === "image_to_video" ? 3000 : 1500),
+        })
+      : { result, ended: "timeout" as const, waitedMs: 0 };
+    result = polled.result;
+    if (polled.ended !== "terminal") {
+      return {
+        ok: false, code: "still_processing",
+        message: `The provider accepted this test generation${taskId ? ` (task ${taskId})` : ""} and it is still processing (status=${result.status || "queued"}). The charge for it has already been made. This is NOT a failure.`,
+        ...(taskId ? { taskId } : {}),
+        evidence: { bodyExcerpt: sanitizedAdapterJson(result.raw).slice(0, 512) },
+        nextAction: `Do NOT retry and do NOT call nomi_try_model again for this model now: that would submit and charge a second job. Tell the user the test is submitted and still running${taskId ? `, with task id ${taskId}` : ""}, then check it with nomi_read target=task taskId=${taskId || "(the task id)"}: that only looks, it never submits or charges. Only try again later if the user asks.`,
+      };
+    }
   }
 
   const assets = Array.isArray(result.assets) ? result.assets : [];

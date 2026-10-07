@@ -185,6 +185,7 @@
 - [讲方向必须说人话：自造名词和标准术语都要解释](d6-proposal-jargon-must-be-explained.md) — 附「从用户看得见的东西起头」五步结构
 - [对外公开发言带 Nomi 品牌](public-upstream-reports-carry-nomi-brand.md) — 上游 issue / 社区默认具名，具名反而更有证据力
 - [样张拍板只卡大 UI 改动](mockup-approval-gates-only-big-ui.md) — 小 UI / 非 UI 不等拍板照常推进，等待期并行推别的轨
+- [样张合同必须从真实实验室屏产生](mockup-contracts-must-start-from-real-lab-screen.md) — 新验收样张必须由生产组件与真实宿主数据渲染，HTML 只作 exploration，整张区域对账进门岗
 - [样张交付 = 逐屏逐件走读，不是统计表汇总](mockup-delivery-is-a-per-screen-walkthrough.md) — 每件「这是什么 / 为什么 / 什么时候碰」三段式；走读文档还是验收合同的上游
 - [界面重设计走四步流水线：整件复用优先](ui-redesign-four-step-pipeline.md) — 分类 → 找证据（库解剖 / 竞品还原，禁脑补）→ 还原解剖 → 套 token + 认知负荷审计
 - [本地旧构建的 `-h` ≠ 官方现役能力面](stale-local-build-is-not-the-current-capability.md) — 判「工具支不支持 X」先刷新到现役版本；update log 才是事实源

@@ -104,6 +104,7 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
       node.currentResultId ? ` | currentResultId: ${compactHead(node.currentResultId, 120)}` : "",
       resultIds ? ` | resultIds: ${resultIds}` : "",
       node.taskRef ? ` | taskRef: ${JSON.stringify(node.taskRef)}` : "",
+      node.director ? ` | 3D-BOX revision=${node.director.revision} shots=${boundedJoin(node.director.shots, 120, ",", (name) => compactHead(name, 40)).text} actors=${boundedJoin(node.director.actors, 80, ",", (name) => compactHead(name, 40)).text}${node.director.setPieces.length ? ` setPieces=${boundedJoin(node.director.setPieces, 60, ",", (name) => compactHead(name, 40)).text}` : ""} issues=${node.director.issueCount} preview=${node.director.preview}${node.director.previewTargetNodeId ? `→${compactHead(node.director.previewTargetNodeId, 120)}` : ""}${node.director.previewAssetId ? ` previewAssetId=${compactHead(node.director.previewAssetId, 120)}` : ""}` : "",
     ].join("");
   });
   const edges = boundedJoin(result.edges, EDGE_SUMMARY_BUDGET, ", ", (edge) =>

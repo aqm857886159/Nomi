@@ -26,6 +26,7 @@ const PUBLIC_FAILURE_CODES = new Set([
   "plan_id_conflict",
   "undo_token_invalid",
   "undo_stale_revision",
+  "undo_conflict",
 ]);
 
 function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }> {

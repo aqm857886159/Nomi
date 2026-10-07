@@ -8,11 +8,14 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { parseCatFileBatch, findIdentityComparators } from './concept-owners-scan.mjs'
+import { findIdentityComparators } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
+import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
+import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
 
 const checker = fileURLToPath(new URL('./check-concept-owners.mjs', import.meta.url))
-const REGISTRY = 'docs/engineering/concept-owners.json'
+/** 登记表是目录（一个概念一个文件）：write() 遇到这个键就整目录重写。 */
+const REGISTRY = CONCEPT_OWNERS_DIR
 const BASELINE = 'scripts/concept-owners-baseline.json'
 
 function concept(overrides = {}) {
@@ -42,7 +45,7 @@ function registry(concepts) {
 }
 
 function baseline(overrides = {}) {
-  return { version: 1, note: 'test', second_write_ports: [], pending_write_doors: [], ...overrides }
+  return { version: 1, note: 'test', second_write_ports: [], pending_write_doors: [], unregistered_boundaries: [], ...overrides }
 }
 
 const BASE_FILES = {
@@ -58,8 +61,27 @@ const BASE_FILES = {
   ].join('\n'),
 }
 
+/** 把一份登记表对象落成目录：_meta.json + 每个概念一个 <subject>.json；字符串 = 一个坏掉的概念文件。 */
+function writeRegistry(root, value) {
+  const dir = path.join(root, REGISTRY)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true })
+  if (typeof value === 'string') {
+    fs.writeFileSync(path.join(dir, META_FILE), formatEntryJson({ _schema: 'test', schema_version: 2 }))
+    fs.writeFileSync(path.join(dir, 'catalog.broken.json'), value)
+    return
+  }
+  const { concepts, ...meta } = value
+  fs.writeFileSync(path.join(dir, META_FILE), formatEntryJson(meta))
+  for (const item of concepts) fs.writeFileSync(path.join(dir, conceptFileName(item.subject)), formatEntryJson(item))
+}
+
 function write(root, files) {
   for (const [file, contents] of Object.entries(files)) {
+    if (file === REGISTRY) {
+      writeRegistry(root, contents)
+      continue
+    }
     const target = path.join(root, file)
     if (contents === null) {
       fs.rmSync(target, { force: true })
@@ -273,7 +295,7 @@ test('登记表结构：缺字段、旧字段名、枚举错、trust_domain 与�
     [(c) => { c.consumers = c.allowed_consumers; delete c.allowed_consumers; return [c] }, /不认识的字段 consumers（v2 里叫 allowed_consumers）/],
     [(c) => { c.fact_kind = 'vibe'; return [c] }, /fact_kind 不在取值表里/],
     [(c) => { c.trust_domain = 'renderer'; return [c] }, /trust-domain-mismatch/],
-    [(c) => [c, concept({ name: '落家二号', owner: { path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }, write_api: [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }] })], /duplicate-owner/],
+    [(c) => [c, concept({ name: '落家二号', subject: 'catalog.landing-two', owner: { path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }, write_api: [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }] })], /duplicate-owner/],
     [(c) => { c.migration_status = 'pending'; return [c] }, /pending 概念必须写 migration_strategy/],
     [(c) => { c.write_api = [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }]; return [c] }, /owner 必须同时出现在 write_api 里/],
   ]
@@ -562,4 +584,49 @@ test('trust_domain 由路径派生', () => {
   assert.equal(trustDomainOfPath('scripts/x.mjs'), 'tooling')
   assert.equal(trustDomainOfPath('worker/byteRange.ts'), 'site')
   assert.equal(trustDomainOfPath('wrangler.json'), 'site')
+})
+
+test('未登记的合同边界冻结成存量债棘轮：冻结的放行；新增 → 红；登记 / 合同删了而基线还留着 → 陈旧红；基线往上抬 → 红', () => {
+  const contract = (symbol) => ({
+    schema_version: 3,
+    shared_boundaries: [{ path: 'electron/shared/landing.ts', symbol, responsibility: 'test' }],
+  })
+  const frozen = { contract: 'docs/fixes/2026-09-29-new.root-cause.json', path: 'electron/shared/landing.ts', symbol: 'landingDefault' }
+  const repo = makeRepo({
+    files: {
+      'electron/shared/landing.ts': `${BASE_FILES['electron/shared/landing.ts']}\nexport function landingDefault(): string { return 'relay' }\nexport function landingOther(): string { return 'x' }\n`,
+      'docs/fixes/2026-09-29-new.root-cause.json': contract('landingDefault'),
+    },
+    base: baseline({ unregistered_boundaries: [frozen] }),
+  })
+  try {
+    const green = run(repo)
+    assert.equal(green.status, 0, green.output)
+    assert.match(green.output, /冻结在基线/)
+    // 新增一处未登记的边界：红，并写明「新增」
+    write(repo.root, { 'docs/fixes/2026-09-30-more.root-cause.json': contract('landingOther') })
+    const red = run(repo)
+    assert.equal(red.status, 1, red.output)
+    assert.match(red.output, /landingOther/)
+    assert.match(red.output, /新增：不在冻结的存量债里/)
+    // 还原后变绿
+    write(repo.root, { 'docs/fixes/2026-09-30-more.root-cause.json': null })
+    assert.equal(run(repo).status, 0)
+    // 合同删了、基线还冻着它：陈旧红
+    write(repo.root, { 'docs/fixes/2026-09-29-new.root-cause.json': null })
+    const stale = run(repo)
+    assert.equal(stale.status, 1, stale.output)
+    assert.match(stale.output, /baseline-stale/)
+    write(repo.root, { 'docs/fixes/2026-09-29-new.root-cause.json': contract('landingDefault') })
+    // 基线往上抬（把新边界塞进冻结账）：对照参照提交 → baseline-grew
+    write(repo.root, {
+      'docs/fixes/2026-09-30-more.root-cause.json': contract('landingOther'),
+      [BASELINE]: baseline({ unregistered_boundaries: [frozen, { ...frozen, contract: 'docs/fixes/2026-09-30-more.root-cause.json', symbol: 'landingOther' }] }),
+    })
+    const grew = run(repo)
+    assert.equal(grew.status, 1, grew.output)
+    assert.match(grew.output, /baseline-grew/)
+  } finally {
+    cleanup(repo)
+  }
 })

@@ -10,7 +10,6 @@ import {
   listAllProjects,
   setProjectNodePrompt,
   type FetchTaskResultFn,
-  type MakeVerifyDeps,
   type RunTaskFn,
 } from './core'
 import { CANVAS_WRITE_OPERATIONS, canvasWriteSemanticInputSchema, type CanvasWriteOperation } from '../shared/agentCapabilities/canvasWrite'
@@ -45,7 +44,9 @@ import {
 import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
 import { currentCatalogFingerprint, dispatchModelOnboarding } from './modelOnboarding/dispatch'
 import { buildOnboardingKit } from './modelOnboarding/kit'
+import { readTask } from './readTask'
 import { dispatchModelSpec } from './modelSpecRead'
+import { makeChangeId } from '../shared/agentCapabilities/changeId'
 
 /** 带 id = 读那一个；不带 = 列出这个客户端自己的会话。 */
 const readIntegrationSession = (sessions: IntegrationSessionService, sessionId: unknown, owner: CapabilityOriginHost) =>
@@ -98,15 +99,9 @@ export type DispatchContext = {
   /**
    * 方案已由协议层 elicitation-first 拿到真人 accept（画布确认，见 mcpProtocol.ts）→ `canvas.write`
    * 的 create_canvas_nodes 预批准方案门、不再弹渲染层卡（免双问）。只作用于建节点那一步的 confirmPlan，
-   * 钱路（confirmSpend）不受影响。
+   * 钱路不经这里（付费生成只走语义生成 → ProductionRun）。
    */
   planConfirmed?: boolean
-  /**
-   * 审片环 deps 工厂（W1，可选）。传输层注入真实现（headless=makeShotVerifyDeps；GUI-RPC 同一份）→
-   * generate 生成成功后跑判分→定向重试→红标。**不注入 = generate 行为逐字节不变**（默认）。
-   * 领域策略住 shotVerifyOrchestrate，传输层只注入 deps，core 只透传 outcome（三层干净，方案 §3/§9）。
-   */
-  makeVerifyDeps?: MakeVerifyDeps
   /** Conversational model-integration session authority. External MCP clients drive begin→…→start here. */
   integrationSessions?: IntegrationSessionService
   /** GUI-owned credential handoff effect. Called after the durable handoff is queued. */
@@ -133,7 +128,6 @@ function errorCodeOf(error: unknown): string | undefined {
     ? String((error as { code?: unknown }).code ?? '') || undefined
     : undefined
 }
-
 function leaseFailureCode(error: unknown): Extract<
   RpcPublicErrorCode,
   'lease_invalid' | 'project_scope_changed' | 'project_binding_stale' | 'lease_expired' | 'lease_revoked'
@@ -572,7 +566,8 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       if (input.operation === 'set_node_prompt') {
         const result = await setProjectNodePrompt(base, input.nodeId, input.prompt)
         if (!result.changed) throw new CanvasGraphError('node_not_found', `Canvas node not found: ${input.nodeId}`)
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [input.nodeId], reconciliation: canvasRecovery() }
+        const proposal = proposalId()
+        return { applied: true, proposalId: proposal, changeId: makeChangeId('canvas', proposal), operation: input.operation, affectedNodeIds: [input.nodeId], reconciliation: canvasRecovery() }
       }
       if (input.operation === 'create_canvas_nodes') {
         // 这条 headless 路把 planned node **逐字段重建**成 `NodeSpec`（`canvasGraph.ts`，七个字段），
@@ -612,14 +607,16 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
           ? await connectProjectNodes(ctx.makeGateway(lease.projectId), edges)
           : { edgeIds: [], skipped: [] }
         const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: created.ids, affectedEdgeIds: connected.edgeIds, clientIdToNodeId, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+        const proposal = proposalId()
+        return { applied: true, proposalId: proposal, changeId: makeChangeId('canvas', proposal), operation: input.operation, affectedNodeIds: created.ids, affectedEdgeIds: connected.edgeIds, clientIdToNodeId, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
       }
       if (input.operation === 'connect_canvas_edges') {
         const connected = await connectProjectNodes(ctx.makeGateway(lease.projectId), input.edges.map((edge) => ({
           source: edge.sourceClientId, target: edge.targetClientId, ...(edge.mode ? { mode: edge.mode } : {}),
         })))
         const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+        const proposal = proposalId()
+        return { applied: true, proposalId: proposal, changeId: makeChangeId('canvas', proposal), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
       }
       // ── 剩下的 6 个 operation 是**渲染层拥有**的（分镜/站位/运镜/时间轴落地/整理布局）：
       // 它们的耐久 owner 是创作区 store，主进程这条路没有实现。
@@ -669,7 +666,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         const currentEdgeIds = new Set(current.edges.map((edge) => edge.id))
         const restoredEdges = entry.snapshot.edges.filter((edge) =>
           !currentEdgeIds.has(edge.id) && restoredIdSet.has(edge.source) && restoredIdSet.has(edge.target))
-        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] })
+        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] }, current)
         canvasDeleteUndoJournal.delete(undoToken)
         return {
           applied: true,
@@ -775,6 +772,11 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
     // 2026-09-21 实测里 AI 什么都做不了的那道墙。
     case 'model.onboarding.kit':
       return buildOnboardingKit()
+    // 按任务号查一个已提交异步任务的现状（nomi_try_model 的 still_processing 之后用）。只读：只走 fetchTaskResult，不碰 runTask。
+    case 'task.read': {
+      if (typeof params.taskId !== 'string' || !params.taskId.trim()) throw new RpcError('taskId is required for target=task', 400)
+      return readTask({ ...(ctx.fetchTaskResult ? { fetchTaskResult: ctx.fetchTaskResult } : {}) }, params)
+    }
     // 接模型：三个 App 级能力（§4.1）。方法名 = 契约 id，与 tools/list 上那几个名字同源。
     case 'model.onboarding.setup':
     case 'model.onboarding.try':
@@ -785,7 +787,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ...(ctx.integrationSessions ? { sessions: ctx.integrationSessions } : {}),
         ...(ctx.openCredentialsInNomi ? { openCredentialsInNomi: ctx.openCredentialsInNomi } : {}),
         // 试跑走的就是画布那条执行器；这里只是把同一个 runTask 递过去，不另起一条。
-        runTask: ctx.runTask,
+        runTask: ctx.runTask, ...(ctx.fetchTaskResult ? { fetchTaskResult: ctx.fetchTaskResult } : {}),
         // 「该不该问人」由用户的档位决定，不由入口决定：档位原样往下递，判据只有
         // `spendDecidedByPolicy` 一处。宿主没给 = 不猜 = 照旧问人。
         ...(ctx.approvalPolicy ? { approvalPolicy: ctx.approvalPolicy } : {}),

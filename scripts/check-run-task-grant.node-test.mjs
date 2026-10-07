@@ -43,9 +43,9 @@ test('带上 grantId 之后放行', () => {
   assert.deepEqual(scan(stripComments(FIXED), 'electron/video/deconstructVideo.ts'), [])
 })
 
-test('注入形态 runTaskFn 同样在管辖内（capabilityCore 的判分走的就是它）', () => {
+test('注入形态 runTaskFn 同样在管辖内', () => {
   const src = `const r = await runTaskFn({ vendor: agent.vendor, request: { kind: 'image_to_prompt', prompt, extras: { modelKey } } })`
-  assert.equal(scan(stripComments(src), 'electron/capabilityCore/shotVerifyDeps.ts').length, 1)
+  assert.equal(scan(stripComments(src), 'electron/capabilityCore/injectedRunner.ts').length, 1)
 })
 
 test('转发型调用不在管辖内：payload 从哪来，grantId 就从哪来', () => {

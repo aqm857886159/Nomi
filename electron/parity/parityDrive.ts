@@ -8,7 +8,7 @@ import { projectPromptForSend } from "../shared/storyboard/promptMentions";
 import type { GenerationEntrance } from "./generationEntrances";
 import type { ParityCase } from "./parityCases";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
-import { driveEngineA, driveEngineB, type FetchCapture } from "./generationParityTestUtils";
+import { driveEngineA, driveEngineB, driveEngineCanvasRun, type FetchCapture } from "./generationParityTestUtils";
 import type { OutboundRecord } from "./outboundRecord";
 
 /** 审片定向重试那一句（`catalogTaskActions.ts` 的 `promptSuffix`，内容由审片器给，形状固定）。 */
@@ -32,12 +32,12 @@ export async function driveEntrance(
   testCase: ParityCase,
 ): Promise<OutboundRecord> {
   const references = testCase.referenceUrls ?? [];
-  if (entrance.engine === "runtime") {
+  if (entrance.engine === "runtime" || entrance.engine === "canvas-run") {
     const projected = entrance.projectsPromptMentions
       ? projectPromptForSend(testCase.prompt, references)
       : testCase.prompt;
     const prompt = entrance.appendsRetryDirective ? `${projected}\n\n${RETRY_DIRECTIVE}` : projected;
-    return driveEngineA(capture, {
+    return (entrance.engine === "canvas-run" ? driveEngineCanvasRun : driveEngineA)(capture, {
       vendorKey: testCase.vendorKey,
       kind: testCase.taskKind,
       prompt,

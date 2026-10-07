@@ -21,6 +21,7 @@ import {
   hydrateCommittedProposalReceipt,
   parseCommittedProposalRecord,
   runProposalUndo,
+  runProposalUndoByChangeId,
   type CommittedProposalRecord,
 } from './proposalUndo'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -203,6 +204,15 @@ describe('detectLostUserEdits — 选择性撤销列明(N13)', () => {
     const lost = detectLostUserEdits(record)
     expect(lost).toHaveLength(1)
     expect(lost[0]).toContain(aiNode.title)
+  })
+
+  it('shared undo rejects a later edit to the same object', async () => {
+    const record = await commitCreateConnect()
+    hydrate(record)
+    const aiNode = useGenerationCanvasStore.getState().nodes[0]
+    useGenerationCanvasStore.getState().updateNodePrompt(aiNode.id, '用户后改')
+    expect(() => runProposalUndoByChangeId(`canvas:v1:${record.proposalId}`)).toThrow(/undo_conflict/)
+    expect(useGenerationCanvasStore.getState().nodes[0].prompt).toBe('用户后改')
   })
 })
 

@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MISSING_CARD_REASONS,
   assertAnnouncedCardRendered,
-  missingCardReasonOfReadFailure,
+  missingCardReasonOfUnreadable,
   missingInterventionCard,
   traceMissingInterventionCard,
 } from './missingInterventionCard'
@@ -85,28 +85,23 @@ describe('② 开发/测试期的硬断言', () => {
 })
 
 /**
- * ③ 真实读通道那一半：主进程拒绝这次读取时，断在哪一环。
+ * ③ 推送那一半：宿主推来一份「读不到」时，断在哪一环（2026-10-05 起它是投影里的一个值）。
  *
- * 这是「读不到 ≠ 没有」落到代码上的那一行——认不出的错也必须归到某一句话，
+ * 这是「读不到 ≠ 没有」落到代码上的那一行——每一种原因都必须归到某一句话，
  * 一旦这里回了空，沉默就又长回来了。
  */
-describe('③ 把主进程的拒绝翻成一句说得出口的话', () => {
+describe('③ 把宿主的「读不到」翻成一句说得出口的话', () => {
   it('能力核没装起来 → 「付费确认这条通道没装起来」', () => {
-    expect(missingCardReasonOfReadFailure(new Error('spend_confirm_surface_unavailable'))).toBe('spend-surface-unavailable')
-    expect(missingCardReasonOfReadFailure(new Error('Pending spend confirmations cannot be read: the capability core failed to install (boom)')))
-      .toBe('spend-surface-unavailable')
+    expect(missingCardReasonOfUnreadable('surface-unavailable')).toBe('spend-surface-unavailable')
   })
 
-  it('其余一律「读不到主进程那份清单」——包括认不出的错，**不回空**', () => {
-    expect(missingCardReasonOfReadFailure(new Error('Error invoking remote method'))).toBe('host-unreachable')
-    expect(missingCardReasonOfReadFailure('a bare string')).toBe('host-unreachable')
-    expect(missingCardReasonOfReadFailure(undefined)).toBe('host-unreachable')
-    expect(missingCardReasonOfReadFailure(null)).toBe('host-unreachable')
+  it('装着、但投影本身抛了 → 「读不到主进程那份清单」', () => {
+    expect(missingCardReasonOfUnreadable('projection-failed')).toBe('host-unreachable')
   })
 
   it('每一个返回值都是登记在案的 reason（不会翻出一句没有译文的话）', () => {
-    for (const error of [new Error('spend_confirm_surface_unavailable'), new Error('x'), 'y', 0]) {
-      expect(MISSING_CARD_REASONS).toContain(missingCardReasonOfReadFailure(error))
+    for (const reason of ['surface-unavailable', 'projection-failed'] as const) {
+      expect(MISSING_CARD_REASONS).toContain(missingCardReasonOfUnreadable(reason))
     }
   })
 })

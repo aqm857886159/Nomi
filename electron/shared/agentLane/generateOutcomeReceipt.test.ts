@@ -38,7 +38,7 @@ describe('describeGenerateOutcome', () => {
   it('点了但发出前就失败：说没发出去、没花钱，不算在生成', () => {
     const receipt = describeGenerateOutcome(outcome({ failedBeforeSending: ['s1'] }))
     expect(receipt.kind).toBe('none')
-    expect(receipt.userSees).toContain('it failed before anything was sent to the provider: nothing was generated and nothing was spent')
+    expect(receipt.userSees).toContain('it failed before the provider accepted it (it was never sent, or the provider refused it on the spot): nothing was generated and nothing was spent')
     expect(receipt.userSees).not.toContain('Generating now')
   })
 

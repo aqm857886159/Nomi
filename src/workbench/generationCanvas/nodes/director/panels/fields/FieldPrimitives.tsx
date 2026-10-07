@@ -62,7 +62,7 @@ export function Vec3Fields({ label, value, onChange, onChangeStart, digits = 2, 
   const labels = axisLabels ?? ['X', 'Y', 'Z']
   return (
     <div className="mb-2 flex items-center gap-2 text-caption">
-      <span className="w-[52px] shrink-0 truncate text-nomi-ink-60" title={label}>{label}</span>
+      <span className="w-16 shrink-0 truncate text-nomi-ink-60" title={label}>{label}</span>
       {(['x', 'y', 'z'] as const).map((axis, index) => (
         <span key={axis} className="relative min-w-0 flex-1" title={labels[index]}>
           {/* 轴名压在盒内左侧（样张 .n .ax）：省掉一整列标签，三轴才塞得进 306px 宽的卡 */}
@@ -86,7 +86,7 @@ export function TextField({ label, value, onCommit }: { label: string; value: st
   const [draft, setDraft] = React.useState<string | null>(null)
   return (
     <label className="mb-2 flex items-center gap-2 text-caption">
-      <span className="w-[52px] shrink-0 truncate text-nomi-ink-60">{label}</span>
+      <span className="w-16 shrink-0 truncate text-nomi-ink-60">{label}</span>
       <input
         type="text"
         className="h-7 min-w-0 flex-1 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 px-2 text-body-sm text-nomi-ink focus:border-nomi-accent"
@@ -140,7 +140,7 @@ export function ColorField({ label, value, onChange, onChangeStart, presets, all
   }
   return (
     <div className="mb-2 flex items-start gap-2 text-caption">
-      <span className="w-[52px] shrink-0 truncate pt-1 text-nomi-ink-60">{label}</span>
+      <span className="w-16 shrink-0 truncate pt-1 text-nomi-ink-60">{label}</span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         {swatches.map((swatch) => (
           <button
