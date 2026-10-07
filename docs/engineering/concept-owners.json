@@ -867,6 +867,109 @@
       "notes": "「这一镜此刻归不归制作流程生成」——画布若再发同一镜就是重复生成、重复扣费。与「节点上显示哪一段」（deriveProductionShotState，概念「制作镜头在画布上的运行状态」）是两件事：显示可以为了措辞改（例如草稿不再显示排队中，#877），归属不许跟着变。规则：报价卡等用户确认 → 归；cardHidden 草稿 → 不归；已确认后排队 / 生成中 → 归；已停 / 失败 / 完成 / 丢掉 / 不在付费范围 → 不归。合同 docs/fixes/2026-09-25-canvas-generate-ignores-production-shot.root-cause.json。 2026-09-28（#921）：判据收成 decideShotClaim——画布、制作两个请求方问同一个函数，Run reducer 的 shot.claim 是唯一的认领写口，原来的 productionShotOwnsGeneration 已删。2026-09-29：制作一侧的派发准入闸（productionShotDispatchGuard）由提交 outbox 在这次尝试的第一笔耐久写（预留 / 提交意向）之前调用，看到的是还没落盘的 job；它排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json。 2026-10-05 发动机收敛第一刀第 3 步：画布那一侧的认领只住画布付费口的准入（appIntegrationCanvasShot.claimBoundProductionShot），canvasShotClaim.ts 与 runtime.runTask 里那一行认领随令牌路一起删除。"
     },
     {
+      "name": "一条参考摆在节点的哪一格（参考 ↔ 槽位对照表）",
+      "subject": "reference.node-slot-placement",
+      "lifecycle": "author",
+      "trust_domain": "renderer",
+      "migration_status": "converged",
+      "forbidden_derivations": [],
+      "since": "2026-10-07",
+      "authority_kind": "decision",
+      "fact_kind": "rule",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+        "symbol": "placeReferenceInputs"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+          "symbol": "placeReferenceInputs"
+        },
+        {
+          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+          "symbol": "referenceRoleOfSlot"
+        }
+      ],
+      "allowed_consumers": [
+        "src/workbench/ai/v4/spendCardReferences.ts",
+        "src/workbench/ai/v4/spendCardDraft.ts"
+      ],
+      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：付费卡、（方案 A 之后的）落地回写把一组参考摆进节点当前生成方式的参考槽、再读回来，都只经这一张表；读节点自己槽里的值（nodeOwnReferenceInputs）与连线带来的（edgeReferenceInputs）也在同文件。原来卡里那份 applySpendReferences / slotRole 已删。"
+    },
+    {
+      "name": "候选里的参考回画布节点要补什么（只补不删）",
+      "subject": "reference.candidate-canvas-projection",
+      "lifecycle": "author",
+      "trust_domain": "renderer",
+      "migration_status": "converged",
+      "forbidden_derivations": [],
+      "since": "2026-10-07",
+      "authority_kind": "decision",
+      "fact_kind": "rule",
+      "owner": {
+        "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+        "symbol": "planReferenceProjection"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+          "symbol": "planReferenceProjection"
+        }
+      ],
+      "allowed_consumers": [],
+      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：纯函数——画布上某节点出的图补一条真边，其余补进参考槽，节点上已有的不重复、不删，补进槽前按画布那条规则对齐生成方式。还没有生产调用方：落地链冻结，接线等画布写边界重构（方案 A），届时只许调它，不另写补法。"
+    },
+    {
+      "name": "@ 选中之后怎么落（连线 / 落进自己的参考槽 / 别的项目的先复制再落）",
+      "subject": "canvas.mention-insert-plan",
+      "lifecycle": "author",
+      "trust_domain": "renderer",
+      "migration_status": "converged",
+      "forbidden_derivations": [],
+      "since": "2026-10-07",
+      "authority_kind": "decision",
+      "fact_kind": "rule",
+      "owner": {
+        "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+        "symbol": "planMentionInsert"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+          "symbol": "planMentionInsert"
+        }
+      ],
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+      ],
+      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：候选（当前参考 / 画布 / 素材库）两个宿主一样，宿主不同只改落法：能连线的画布宿主建真边，付费卡落进卡自己的参考槽，别的项目的素材先过 asset.library-drop-materialization 那道复制关口。落哪个槽归 canvas.mention-reference-slot。"
+    },
+    {
+      "name": "付费卡上一下没做成时说哪一句",
+      "subject": "agent-panel.spend-failure-copy",
+      "lifecycle": "author",
+      "trust_domain": "renderer",
+      "migration_status": "converged",
+      "forbidden_derivations": [],
+      "since": "2026-10-07",
+      "authority_kind": "decision",
+      "fact_kind": "rule",
+      "owner": {
+        "path": "src/workbench/ai/v4/spendCardFailure.ts",
+        "symbol": "spendActionFailureCopy"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/ai/v4/spendCardFailure.ts",
+          "symbol": "spendActionFailureCopy"
+        }
+      ],
+      "allowed_consumers": [
+        "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+      ],
+      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：只看宿主回的账本事实 + 语义码 + 卡此刻能不能改；参考图不在本项目素材里（generation_reference_asset_unsupported / _unavailable）点名是参考图，给拿掉或用 @ 重选的路；「改一下再按」只在认不出、而卡真能改时出现。"
+    },
+    {
       "name": "素材库落点的项目归属（跨项目先复制）",
       "subject": "asset.library-drop-materialization",
       "lifecycle": "project-data",
@@ -5280,109 +5383,6 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补（唯一例外：放大，用户 2026-10-07 拍板置灰不跳转，见 CAPABILITY_GUIDE_EXCEPTIONS）；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
-    },
-    {
-      "name": "一条参考摆在节点的哪一格（参考 ↔ 槽位对照表）",
-      "subject": "reference.node-slot-placement",
-      "lifecycle": "author",
-      "trust_domain": "renderer",
-      "migration_status": "converged",
-      "forbidden_derivations": [],
-      "since": "2026-10-07",
-      "authority_kind": "decision",
-      "fact_kind": "rule",
-      "owner": {
-        "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
-        "symbol": "placeReferenceInputs"
-      },
-      "write_api": [
-        {
-          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
-          "symbol": "placeReferenceInputs"
-        },
-        {
-          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
-          "symbol": "referenceRoleOfSlot"
-        }
-      ],
-      "allowed_consumers": [
-        "src/workbench/ai/v4/spendCardReferences.ts",
-        "src/workbench/ai/v4/spendCardDraft.ts"
-      ],
-      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：付费卡、（方案 A 之后的）落地回写把一组参考摆进节点当前生成方式的参考槽、再读回来，都只经这一张表；读节点自己槽里的值（nodeOwnReferenceInputs）与连线带来的（edgeReferenceInputs）也在同文件。原来卡里那份 applySpendReferences / slotRole 已删。"
-    },
-    {
-      "name": "候选里的参考回画布节点要补什么（只补不删）",
-      "subject": "reference.candidate-canvas-projection",
-      "lifecycle": "author",
-      "trust_domain": "renderer",
-      "migration_status": "converged",
-      "forbidden_derivations": [],
-      "since": "2026-10-07",
-      "authority_kind": "decision",
-      "fact_kind": "rule",
-      "owner": {
-        "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
-        "symbol": "planReferenceProjection"
-      },
-      "write_api": [
-        {
-          "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
-          "symbol": "planReferenceProjection"
-        }
-      ],
-      "allowed_consumers": [],
-      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：纯函数——画布上某节点出的图补一条真边，其余补进参考槽，节点上已有的不重复、不删，补进槽前按画布那条规则对齐生成方式。还没有生产调用方：落地链冻结，接线等画布写边界重构（方案 A），届时只许调它，不另写补法。"
-    },
-    {
-      "name": "@ 选中之后怎么落（连线 / 落进自己的参考槽 / 别的项目的先复制再落）",
-      "subject": "canvas.mention-insert-plan",
-      "lifecycle": "author",
-      "trust_domain": "renderer",
-      "migration_status": "converged",
-      "forbidden_derivations": [],
-      "since": "2026-10-07",
-      "authority_kind": "decision",
-      "fact_kind": "rule",
-      "owner": {
-        "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
-        "symbol": "planMentionInsert"
-      },
-      "write_api": [
-        {
-          "path": "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
-          "symbol": "planMentionInsert"
-        }
-      ],
-      "allowed_consumers": [
-        "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
-      ],
-      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：候选（当前参考 / 画布 / 素材库）两个宿主一样，宿主不同只改落法：能连线的画布宿主建真边，付费卡落进卡自己的参考槽，别的项目的素材先过 asset.library-drop-materialization 那道复制关口。落哪个槽归 canvas.mention-reference-slot。"
-    },
-    {
-      "name": "付费卡上一下没做成时说哪一句",
-      "subject": "agent-panel.spend-failure-copy",
-      "lifecycle": "author",
-      "trust_domain": "renderer",
-      "migration_status": "converged",
-      "forbidden_derivations": [],
-      "since": "2026-10-07",
-      "authority_kind": "decision",
-      "fact_kind": "rule",
-      "owner": {
-        "path": "src/workbench/ai/v4/spendCardFailure.ts",
-        "symbol": "spendActionFailureCopy"
-      },
-      "write_api": [
-        {
-          "path": "src/workbench/ai/v4/spendCardFailure.ts",
-          "symbol": "spendActionFailureCopy"
-        }
-      ],
-      "allowed_consumers": [
-        "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
-      ],
-      "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：只看宿主回的账本事实 + 语义码 + 卡此刻能不能改；参考图不在本项目素材里（generation_reference_asset_unsupported / _unavailable）点名是参考图，给拿掉或用 @ 重选的路；「改一下再按」只在认不出、而卡真能改时出现。"
     }
   ]
 }
