@@ -12,7 +12,6 @@ import { useGenerationCanvasReactFlowPointer } from '../../../src/workbench/gene
 import { beginCanvasDragging, cancelCanvasDraggingWithin, CANVAS_DRAGGING_OWNER } from '../../../src/workbench/generationCanvas/components/canvasDraggingFlag'
 import { composerCanvasPlacement } from '../../../src/workbench/generationCanvas/nodes/composerCanvasPlacement'
 import { useWorkbenchStore } from '../../../src/workbench/workbenchStore'
-import { useNodeResultHistory } from '../../../src/workbench/generationCanvas/nodes/useNodeResultHistory'
 
 import { syncCanvasNodeProjection } from '../../../src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync'
 import { applyCanvasDragKernelPositionChanges } from '../../../src/workbench/generationCanvas/reactFlow/canvasDragDraft'
@@ -170,54 +169,13 @@ function ProjectionKeyboardHarness() {
 }
 
 
-type HistoryProjectionData = GenerationFlowNode['data'] & { choose: (id: string) => void; available: boolean }
-function ProjectedHistoryNode({ id, data, selected }: NodeProps<GenerationFlowNode>) {
-  const historyData = data as HistoryProjectionData
-  const [open, setOpen] = useNodeResultHistory({ id, kind: data.generationNode.kind, selected: Boolean(selected), available: historyData.available })
-  return <div data-projected-history={id} data-selected={String(selected)}>
-    <button data-history-trigger onPointerDown={event => event.stopPropagation()} onClick={event => {
-      event.stopPropagation()
-      if (!open) historyData.choose(id)
-      setOpen(!open)
-    }}>versions</button>
-    {open ? <div data-projected-tray>history</div> : null}
-  </div>
-}
-const historyProjectionNodeTypes = { generation: ProjectedHistoryNode }
-function HistoryProjectionHarness() {
-  const flow = useReactFlow<GenerationFlowNode, GenerationFlowEdge>()
-  const [selectedId, choose] = React.useState('')
-  const [available, setAvailable] = React.useState(true)
-  const nodes = React.useMemo<GenerationFlowNode[]>(() => ['history-a', 'history-b'].map((id, index) => ({
-    id, type: 'generation', position: { x: 30 + index * 250, y: 30 }, selected: selectedId === id,
-    data: { generationNode: { id, kind: 'video', title: id, position: { x: 30 + index * 250, y: 30 } },
-      readOnly: false, primarySelection: selectedId === id, appear: false, focusFlash: false, choose, available },
-  })), [selectedId, available])
-  const previous = React.useRef<readonly GenerationFlowNode[] | null>(null)
-  React.useEffect(() => syncCanvasNodeProjection(flow, nodes, previous, false), [flow, nodes])
-  return <><button data-history-availability onClick={() => setAvailable(value => !value)}>availability</button>
-    <button data-history-deselect onClick={() => choose('')}>deselect</button>
-    <div style={{ width: 640, height: 200 }}><ReactFlow defaultNodes={nodes} nodeTypes={historyProjectionNodeTypes} /></div></>
-}
-
 function Harness() {
-  const [selected, select] = React.useState(true)
-  const [available, availability] = React.useState(true)
-  const [kind, type] = React.useState('image')
-  const [id, identity] = React.useState('a')
-  const [open, setOpen] = useNodeResultHistory({ id, kind, available, selected })
   return <>
     <input id="unpublished-draft" defaultValue="unpublished" />
-    <button id="select" onClick={() => select(value => !value)}>selection</button>
-    <button id="available" onClick={() => availability(value => !value)}>results</button>
-    <button id="kind" onClick={() => type('video')}>type</button>
-    <button id="identity" onClick={() => identity(value => value === 'a' ? 'b' : 'a')}>identity</button>
-    <button id="history" onClick={() => { select(true); setOpen(true) }}>{open ? 'history' : 'composer'}</button>
     <React.Suspense fallback={<span role="status">pending</span>}><Composer /></React.Suspense>
     <GestureHarness />
     <PlacementHarness />
     <EscapeOwnershipHarness />
-    <ReactFlowProvider><HistoryProjectionHarness /></ReactFlowProvider>
     <MantineProvider><ReactFlowProvider><ProjectionKeyboardHarness /></ReactFlowProvider></MantineProvider>
   </>
 }
