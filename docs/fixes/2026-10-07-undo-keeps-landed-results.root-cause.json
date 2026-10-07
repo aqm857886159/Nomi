@@ -129,12 +129,7 @@
     {
       "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "symbol": "reapplyLandedOutcomes",
-      "responsibility": "Re-lands outcomes with nodeRunOutcomePatch and copies live run state; the only place that decides which node fields undo must not rewind."
-    },
-    {
-      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
-      "symbol": "landNodeContent",
-      "responsibility": "Together with addNodeResult, the only store writes of landed outcomes; both record the outcome on the run-updated event."
+      "responsibility": "Re-lands outcomes with nodeRunOutcomePatch and copies live run state; the only place that decides which node fields undo must not rewind. Its input is only complete because addNodeResult and landNodeContent (canvasRunActions.ts, listed in prevention.artifacts) are the only store writes of landed outcomes and record them on the run-updated event."
     }
   ],
   "same_class_entry_points": [
