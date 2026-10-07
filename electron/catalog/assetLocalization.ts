@@ -496,6 +496,11 @@ export type IngestionCandidate = {
   ingestion: AssetIngestion;
   uploadApiKey: string;
   vendorKey: string | null;
+  /**
+   * 这条通道是**借用**另一家（用户接入的别的供应商）的上传接口，用的是那一家的账户。
+   * 失败时必须点名是那一家——NF-0928-0004 里用户用 Agnes，看到的却是一句 APIMart 的 402，不知道和自己有什么关系。
+   */
+  borrowed?: true;
 };
 
 export type LocalizeAssetsOptions = {
@@ -545,6 +550,12 @@ const MEDIA_LABEL: Record<AssetMediaKind, string> = { image: "图片", video: "�
  * 413 单独说成人话——那不是「服务商临时故障」（此前用户看到的正是这句，于是不停重试，而重试
  * 永远不可能成：每次都是把同一个超限文件完整传上去再被拒）。
  */
+/** 失败行里这条通道叫什么：借用别家的要点名是哪一家的账户（那一家的余额 / 密钥问题与这次选的模型无关）。 */
+function channelLabel(candidate: IngestionCandidate): string {
+  const host = hostLabel(candidate.ingestion);
+  return candidate.borrowed && candidate.vendorKey ? `借用 ${candidate.vendorKey} 的上传通道（${host}，用的是你在 ${candidate.vendorKey} 的账户）` : host;
+}
+
 function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaKind, failures: string[]): Error {
   const what = asset ? `${asset.fileName}（${humanSize(asset.bytes.length)}）` : "这个素材";
   const detail = failures.join("；") || "(无候选通道)";
@@ -559,7 +570,8 @@ function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaK
       ),
     );
   }
-  return new Error(tagNomiError("asset-upload-failed", `素材上传失败：${what} 的所有上传通道都没成功。详情：${detail}`));
+  // 服务商还没被请求到：这句与 #1047 的「没离开这台电脑」同口径——问题在上传这一跳，不在选的那家。
+  return new Error(tagNomiError("asset-upload-failed", `素材上传失败：${what} 的所有上传通道都没成功，所以还没请求这次选的服务商。详情：${detail}`));
 }
 
 /**
@@ -635,7 +647,7 @@ export async function localizeAssetsForVendor(
         resolvedValue = await resolveLocalAsset(url, candidate.ingestion, candidate.uploadApiKey, read, postJson, postMultipart, putBinary);
         break;
       } catch (error) {
-        failures.push(`${hostLabel(candidate.ingestion)}: ${error instanceof Error ? error.message : String(error)}`);
+        failures.push(`${channelLabel(candidate)}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     if (resolvedValue === null) {
@@ -715,16 +727,23 @@ export function resolveAssetIngestionWithFallback(
   allVendors: Array<{ key?: string; assetIngestion?: AssetIngestion; baseUrlHint?: string | null }>,
   getApiKey: (vendorKey: string) => string | null,
   mediaKind: AssetMediaKind = "image",
+  /** 这次要调的那个端点自己声明的收法（`HttpOperation.assetIngestion`）。收得下这类媒体就只用它。 */
+  operationIngestion?: AssetIngestion,
 ): Array<IngestionCandidate> {
+  // 0. 端点自己收得下 → 只用它，不往下排别家（别家的账户状态、隐私边界都与这次调用无关）。
+  if (operationIngestion && ingestionAccepts(operationIngestion, mediaKind)) {
+    const key = targetVendor?.key ? (getApiKey(targetVendor.key) ?? "") : "";
+    return [{ ingestion: operationIngestion, uploadApiKey: key, vendorKey: targetVendor?.key ?? null }];
+  }
   const candidates: Array<IngestionCandidate> = [];
   const seen = new Set<string>();
   // 同一个物理端点只试一次（目标 vendor 恰好就是 KIE 时会被推两遍）。
-  const push = (ingestion: AssetIngestion | null | undefined, uploadApiKey: string, vendorKey: string | null) => {
+  const push = (ingestion: AssetIngestion | null | undefined, uploadApiKey: string, vendorKey: string | null, borrowed = false) => {
     if (!ingestion || ingestion.strategy === "none") return;
     const id = ingestion.strategy === "anon-chain" ? "anon-chain" : `${ingestion.strategy}:${hostLabel(ingestion)}`;
     if (seen.has(id)) return;
     seen.add(id);
-    candidates.push({ ingestion, uploadApiKey, vendorKey });
+    candidates.push({ ingestion, uploadApiKey, vendorKey, ...(borrowed ? { borrowed: true as const } : {}) });
   };
   // 本地 ComfyUI：素材必须传到它自己的 /upload/image 换本地文件名（LoadImage/LoadVideo 都不认公网 URL），
   // 不走 KIE/apimart 中转（那给公网 URL）。端点从 vendor baseUrl 动态派生（用户可改地址）。
@@ -749,14 +768,14 @@ export function resolveAssetIngestionWithFallback(
     const ing = resolveAssetIngestionForKind(vendor, mediaKind);
     if (!ing || ing.strategy === "none" || ing.strategy === "inline-base64") continue;
     const key = getApiKey(vendor.key);
-    if (key) push(ing, key, vendor.key);
+    if (key) push(ing, key, vendor.key, true);
   }
   // 3. KIE/APIMart 可能未出现在旧存量 catalog；已配置时补入，push 去重。
   const kieKey = getApiKey("kie");
-  if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie");
+  if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie", targetVendor?.key !== "kie");
   if (!isVendorOfBuiltin(allVendors, targetVendor?.key, "apimart")) {
     const apimartKey = getApiKey("apimart");
-    if (apimartKey) push(resolveAssetIngestionForKind(allVendors.find((vendor) => vendor.key === APIMART_VENDOR_SEED.key) ?? { key: "apimart" }, mediaKind), apimartKey, "apimart");
+    if (apimartKey) push(resolveAssetIngestionForKind(allVendors.find((vendor) => vendor.key === APIMART_VENDOR_SEED.key) ?? { key: "apimart" }, mediaKind), apimartKey, "apimart", true);
   }
   // 4. Nomi relay：用户自己的 Relay 优先于 Nomi 公共 Relay，二者均只作为受控兜底。
   const nomiRelay = nomiAssetRelayCandidateFromEnvironment();

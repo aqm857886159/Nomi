@@ -474,7 +474,8 @@ const MODEL_UNAVAILABLE_WORDS: readonly RegExp[] = [
   /\bmodels?\b[^.\n]{0,120}\b(?:deprecated|no longer (?:available|supported|offered|provided)|discontinued|decommissioned|retired|sunset|taken offline|unavailable)\b/i,
   /\b(?:deprecated|discontinued|decommissioned|retired)\b[^.\n]{0,40}\bmodels?\b/i,
   // "The model `gpt-x` does not exist (or you do not have access to it)" / "No such model" / "Unknown model"
-  /\bmodels?\b[^.\n]{0,80}\b(?:does not exist|doesn't exist|is not found|was not found|not found)\b/i,
+  // 「Model not exist.」（应用内反馈 NF-0928-0001，自建渠道原话，少了 does）同属这一句；仍要求出现 model 一词。
+  /\bmodels?\b[^.\n]{0,80}\b(?:does not exist|doesn't exist|not exists?|is not found|was not found|not found)\b/i,
   /\b(?:no such|unknown|invalid) model\b/i,
   /模型[^。\n]{0,20}(?:已下线|已停用|已弃用|已废弃|已下架|不再(?:提供|可用|支持)|暂不(?:提供|可用)|不存在|不可用)/,
 ]

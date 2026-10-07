@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-reference-upload-channel",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "problem_type": "参考图收法声明在错的粒度：同一家不同端点收法不同时一律借别家账户的上传通道，失败面不说借了谁；「模型不存在」非母语变体漏进参数错误",
+  "symptom": "Agnes 改图连本机参考图，失败面只有「api.apimart.ai: 素材上传失败(HTTP 402)」且提示说走了免费图床（NF-0928-0004）；上游「Model not exist.」显示成「参数不被接受」（NF-0928-0001）",
+  "direct_cause": "Agnes 供应商级没有声明收法，resolveAssetIngestionWithFallback 排到用户在 APIMart 的上传接口，那一家账户 402；MODEL_UNAVAILABLE_WORDS 要求 does not exist，不认 not exist",
+  "class_root": "收法只能按供应商声明一种，一家多端点时整家落到借用；借用通道失败与目标供应商无关却没有被点名",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/assetLocalization.ts",
+    "tests": [
+      "electron/catalog/assetLocalization.test.ts"
+    ],
+    "why": "所有本机参考图换成可达值都经 resolveAssetIngestionWithFallback 排队、localizeAssetsForVendor 逐条试，是端点声明与借用点名的最早共同边界"
+  },
+  "affected_population": [
+    "连本机参考图、所选供应商没有自己上传口的模型（今天至少 Agnes 改图）",
+    "所有借用别家通道失败的用户",
+    "返回非母语「模型不存在」措辞的自建渠道"
+  ],
+  "scope_paths": [
+    "electron/catalog/types.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/assetTransportRuntime.ts",
+    "electron/runtime.ts",
+    "electron/catalog/agnesImages.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/observability/classifyError.ts"
+  ],
+  "entry_points": [
+    "画布 / 节点生成 runTask → executeProfileOperation → localizeAssetsForVendor（端点声明生效）",
+    "付费前预检 assertLocalAssetTransportReady（同一 resolver）",
+    "制作流程 resolveProductionReferenceUrls（要求 http(s)，仍走共享通道，见 residual）",
+    "自定义脚本 customCallDispatch（无端点声明，行为不变）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://agnes-ai.com/zh-Hans/docs/agnes-image-21-flash",
+      "checked_at": "2026-10-06",
+      "purpose": "extra_body.image 支持公共图像 URL 或 Data URI Base64"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://agnes-ai.com/zh-Hans/docs/agnes-video-25",
+      "checked_at": "2026-10-06",
+      "purpose": "视频端点媒体字段只写公网 URL，不声明内联"
+    }
+  ],
+  "invariants": [
+    "端点自己声明了收得下这类媒体的方式，就只用它，不排别家",
+    "借用别家的通道失败时，失败行点名是哪一家的账户、并说明所选服务商未被请求",
+    "「model … not exist(s)」归模型不可用，出口是换模型"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "resolveAssetIngestionWithFallback"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "resolveAssetIngestionWithFallback"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetTransportDescribe.ts",
+      "symbol": "resolveAssetIngestionWithFallback"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "assetTransportRuntime 是画布 / 制作流程 / 预检共用的门；customCallDispatch 是用户自写脚本，没有端点声明可读；assetTransportDescribe 只在设置页描述默认会走哪条，不传端点。三扇门都经同一个函数，端点声明只在有端点的那一扇传入"
+  },
+  "generality_proof": "端点级声明在排队函数第 0 步统一生效，任何 curated mapping 只要在 create 上声明就自动直达；借用标记在同一函数排队时打，所有失败经 localizeAssetsForVendor 的同一处 channelLabel 产出",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "resolveAssetIngestionWithFallback",
+      "responsibility": "端点声明优先、借用打标"
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "channelLabel",
+      "responsibility": "失败行点名借用方"
+    },
+    {
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError",
+      "responsibility": "模型不存在归类（措辞表 MODEL_UNAVAILABLE_WORDS 住在这里）"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "executeProfileOperation",
+      "disposition": "enforced",
+      "evidence": "传入 operation.assetIngestion；预检同样传 mapping.create.assetIngestion"
+    },
+    {
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "entry_point": "resolveProductionReferenceUrls",
+      "disposition": "not-affected",
+      "evidence": "要求 http(s) 才能封存请求，内联不适用；仍走共享通道，但借用点名同样生效（同一 localizeAssetsForVendor）"
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "not-affected",
+      "evidence": "用户脚本没有端点声明；借用点名同样生效"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次用 Agnes 改图连本机参考图都会借别家；任何借用通道账户出问题都会被说成图床",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolveAssetIngestionWithFallback",
+      "rg assetIngestion electron/catalog（非测试）：除 Agnes 改图端点外无端点级声明",
+      "rg \"not exist\" src/workbench/observability"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/assetLocalization.ts",
+    "invariant": "端点声明优先、借用必点名",
+    "failure_mode": "去掉第 0 步或点名时 assetLocalization.test 红",
+    "exception_policy": "none",
+    "strategy": "在唯一的排队函数与唯一的逐条试处立不变量，内置端点声明由类边界测试遍历",
+    "artifacts": [
+      "electron/catalog/assetLocalization.ts",
+      "electron/catalog/types.ts",
+      "electron/catalog/agnesImages.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/assetLocalization.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/assetLocalization.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "借用通道仍是没有自己收法时的规则（视频、制作流程、自定义脚本需要），本 PR 只让能直达的端点直达并给借用点名"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方运行时",
+    "exit_criteria": []
+  },
+  "migration": "curated mapping 的 create 由代码所有、启动时强制对账，Agnes 改图端点的声明随升级生效；无需迁移用户数据",
+  "residual_risks": [
+    "制作流程路径（Agent 付费卡）仍借别家通道：要拍板是否允许封存内联参考（见设计卡「要拍板」）",
+    "Agnes 改图内联未用真额度验证（文档明确支持 Data URI；体积上限文档未写）",
+    "借用点名用的是 vendorKey，不是显示名"
+  ]
+}
