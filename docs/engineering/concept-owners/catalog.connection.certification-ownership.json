@@ -1,0 +1,59 @@
+{
+  "name": "这条连接归不归认证适配器管",
+  "subject": "catalog.connection.certification-ownership",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/certificationOwnership.ts",
+    "symbol": "isCertificationOwnedConnection"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/certificationOwnership.ts",
+      "symbol": "isCertificationOwnedConnection"
+    },
+    {
+      "path": "electron/catalog/certificationOwnership.ts",
+      "symbol": "carriesCertificationMark"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "hasCertificationOwnedConnection",
+      "kind": "definition",
+      "why": "2026-09-29 前 Agent 生成器装配里的那一份（整家任何一行带标记就算）；已删，只许 import 主人"
+    },
+    {
+      "symbol": "isCertificationOwned",
+      "kind": "definition",
+      "why": "同上那一份的别名包装；已删"
+    },
+    {
+      "symbol": "hasAdapterMetadata",
+      "kind": "definition",
+      "why": "生成器出请求那一份；已删"
+    },
+    {
+      "symbol": "hasCertificationOwnedAdapter",
+      "kind": "definition",
+      "why": "内置家发布那一份；已删"
+    },
+    {
+      "symbol": "certificationOwnedConnection",
+      "kind": "definition",
+      "why": "设置页改连接那一份；已删"
+    }
+  ],
+  "parity_test": "electron/parity/certificationOwnershipParity.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/catalog/directKeyCredential.ts",
+    "electron/catalog/rendererCatalogMutation.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "标记是 meta.adapter（认证晋升 / 自检 / 声明卡 / 渲染层新建模型都会写在模型行上）。判据：连接本身带标记 → 归；内置家（有代码种子）只认内置目录模型（seedBuiltins.builtinCatalogModelKeys）上的标记，用户自己加、自己自检的模型只管它自己；非内置家（AI 接入 / 声明卡 / 手接中转）任何一行带标记都归。此前 4 份判据都把「整家任何一行带标记」当成整条连接归认证：报错用户点过「继续验证 → 自检」之后 Agent 生成对整家 APIMart 关门、画布照样出图（A10b）。收口合同 docs/fixes/2026-09-29-connection-certification-ownership-one-owner.root-cause.json。第五份回不来：「meta 上有没有 adapter」这个问法由 certificationOwnership.test.ts 的全仓扫描守着（主人之外出现即红），旧的五个名字由本条 forbidden_derivations 守着，Agent 与画布同源由 parity_test 守着。2026-10-04（#975）：正式生成那一侧只有内置 direct-key 家消费它（generationProviderBootstrap.hasSafeDirectKeyScope / resolveConnection、apimartGenerationProvider.assertDirectKeyContract）——非 direct-key 家没有代码契约可让，执行器只渲染目录 mapping，此前对它们也让出导致声明卡 / 手加模型的连接在正式生成落到 configured_provider；合同 docs/fixes/2026-10-04-declared-provider-production-handoff.root-cause.json，类测试 generationProviderBootstrapOwnership.test.ts。"
+}

@@ -55,7 +55,7 @@ const DELETIONS: readonly Deletion[] = [
     name: 'external write deletes it',
     remove: (nodeId) => {
       const { nodes, edges, groups } = useGenerationCanvasStore.getState().readDocumentSnapshot()
-      useGenerationCanvasStore.getState().applyExternalGraph({ nodes: nodes.filter((candidate) => candidate.id !== nodeId), edges, groups })
+      useGenerationCanvasStore.getState().applyExternalGraph({ base: { nodes, edges, groups }, next: { nodes: nodes.filter((candidate) => candidate.id !== nodeId), edges, groups } })
     },
   },
 ]

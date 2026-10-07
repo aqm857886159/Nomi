@@ -1,0 +1,28 @@
+{
+  "name": "导演计划 v2 schema",
+  "subject": "director.plan.v2",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/director/directorPlanSchema.ts",
+    "symbol": "directorPlanSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/director/directorPlanSchema.ts",
+      "symbol": "directorPlanSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/director/model/plan/directorPlanner.ts",
+    "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
+    "evals/director/s1Adapter.ts",
+    "evals/director/s1OraclePlans.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "计划执行与模型投影同源；原文件删除。"
+}

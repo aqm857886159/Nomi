@@ -1,0 +1,21 @@
+{
+  "$schemaVersion": 1,
+  "_doc": "全功能走查的逃逸账本。先登记发现，再由人工复核；只有复核后的条目才转成正式回归。completionCommits 记录真正补齐该项的提交，空数组表示尚未补齐。",
+  "statusValues": [
+    "candidate",
+    "reviewed",
+    "fixed"
+  ],
+  "categories": {
+    "parameter-contract": "界面 / 意图 / 草稿 / 出站参数没有保持同一份事实",
+    "cross-shot-order": "跨镜依赖、批量顺序或等待条件没有兑现",
+    "reference-integrity": "用户声明或连上的参考没有进入实际请求",
+    "agent-convergence": "Agent 起草不能一次收敛，反复重建或返工",
+    "interaction-semantics": "点击目标的用户预期与实际结果不一致",
+    "performance-coverage": "真实任务的规模、素材或长跑成本没有被验收覆盖",
+    "claims-and-outcomes": "界面 / Agent 对状态、断线或失败的描述与事实不一致",
+    "language-surface": "语言轨道与用户所选界面不一致",
+    "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整",
+    "overlay-legibility": "画面上的标注 / 名牌互相遮挡，用户读不出是谁"
+  }
+}

@@ -12,7 +12,7 @@
 4. 同一条线派第 3 轮及以上修补，交接单 / 任务书里写的「第 N 轮」同样算（人工判）。
 5. 要加第三个特例分支（人工判）。
 
-来源是逃逸账本（`tests/ux/full-walk/escapeLedger.json`）的修复：复盘里要写明「结账挂的是哪条类检查」（铁律 ⑩ ⑪ ⑫ / inv:N，或矩阵 / 普查测试路径），`check:escape-ledger` 按这条卡结账；只修现场不算修好。
+来源是逃逸账本（`tests/ux/full-walk/escapeLedger/`）的修复：复盘里要写明「结账挂的是哪条类检查」（铁律 ⑩ ⑪ ⑫ / inv:N，或矩阵 / 普查测试路径），`check:escape-ledger` 按这条卡结账；只修现场不算修好。
 
 ## 动作
 
@@ -42,7 +42,7 @@
 | ⑪ 能选到 | 模型档案的参数清单是否自动生成，并覆盖 Agent、画布、分镜、批量等每个入口？ | 档案清单生成物 + 各入口可选项对照；缺入口或手抄清单就失败 |
 | ⑫ 点了=以为的 | 每个可点目标是否写了用户预期，并记录了点击后的实际结果？ | `tests/ux/full-walk/catalog.mjs` 的 `userExpectation` / `actualObservation` 对照 |
 
-这三条是类根因和硬门的共同语言，不新增产品逻辑或常驻规则；找不到证据时把条目写进 `tests/ux/full-walk/escapeLedger.json`，状态保持 `candidate`，由人工复核后再转正式回归。
+这三条是类根因和硬门的共同语言，不新增产品逻辑或常驻规则；找不到证据时把条目写进 `tests/ux/full-walk/escapeLedger/`，状态保持 `candidate`，由人工复核后再转正式回归。
 
 ### 3. 不改结构的话，接下来会冒出什么（2–3 个可验证预测）
 

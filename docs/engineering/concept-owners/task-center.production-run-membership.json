@@ -1,0 +1,26 @@
+{
+  "name": "制作 Run 算不算任务",
+  "subject": "task-center.production-run-membership",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/production/productionRunView.ts",
+    "symbol": "isProductionRunTask"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "isProductionRunTask"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/taskCenter/productionRunTaskCenter.ts",
+    "src/workbench/production/productionRunStore.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "Agent 没出价的草稿（plan.state=draft 且 cardHidden）和被丢掉的计划（plan.state=cancelled）不是任务：不成行、不计徽标、不顶掉在跑的整卡。判据只吃列表投影 ProductionRunSummary.generationPlan 的两格（主进程 summarize 投出）。画布落地（ProductionCanvasLandingHost）要的是草稿本身，不消费这条。"
+}

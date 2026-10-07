@@ -1,0 +1,28 @@
+{
+  "id": "FB-NF-0928-0001-model-not-exist",
+  "since": "2026-10-06",
+  "source": "应用内反馈 NF-0928-0001（0.22.1）",
+  "category": "claims-and-outcomes",
+  "problem": "上游原话「Model not exist.」被说成「参数不被接受」，动作指向改参数而不是换模型",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts：归 model-unavailable-upstream、主动作 switch-model",
+    "变异：措辞表去掉 not exists? → 红"
+  ],
+  "completionCommits": [
+    "7c9c5f0c4"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
+  "fixedInPr": 1056,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  }
+}

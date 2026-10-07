@@ -1,0 +1,47 @@
+{
+  "name": "用户按任务声明的默认模型（图片 / 视频默认）",
+  "subject": "generation.declared-default-model",
+  "lifecycle": "preference",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "pending",
+  "migration_strategy": "Agent 已只从主进程 createGenerationDefaultModelResolver 读（模型索引 + 宿主补默认 + 偏离回执）；画布新节点（defaultNodeModelSelection.resolveDefaultModelOption）与分镜落画布（availableModels.pickSavedDefaultModel）仍在渲染层各按同一份设置各自匹配。收口：让这两处读主进程 resolver 的结果（IPC），删掉渲染层按 (vendorKey, modelKey) 匹配设置的代码；判据是渲染层不再出现读 generationModelDefaults 后自己匹配模型的实现。",
+  "owner": {
+    "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+    "symbol": "createGenerationDefaultModelResolver"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "symbol": "createGenerationDefaultModelResolver"
+    },
+    {
+      "path": "electron/settings/generationModelDefaultsSettings.ts",
+      "symbol": "writeGenerationModelDefaults"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopModelDefaults.ts",
+      "symbol": "readLaneDeclaredDefaults"
+    },
+    {
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "declaredDefaultDeviations"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopModelDefaults.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "src/workbench/generationCanvas/nodes/defaultNodeModelSelection.ts",
+    "src/workbench/generationCanvas/agent/availableModels.ts",
+    "src/workbench/generationCanvas/model/generationModelDefaults.ts",
+    "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+    "electron/settings/generationModelDefaultsIpc.ts",
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "设置里的「图片默认 / 视频默认」只存 (vendorKey, modelKey) 两段（generation-model-defaults.json）；「此刻真能用的默认是谁」只有 createGenerationDefaultModelResolver 回答。Agent 被告知的默认（laneDesktopModelDefaults → 模型索引）与宿主没点名时实际补上的默认、以及偏离默认时递还给模型的事实（declaredDefaultDeviations）是同一个函数的答案。"
+}

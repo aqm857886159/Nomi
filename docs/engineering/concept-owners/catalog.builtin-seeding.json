@@ -1,0 +1,37 @@
+{
+  "name": "内置目录的种入与退役（新装机种、老装机摘）",
+  "subject": "catalog.builtin-seeding",
+  "lifecycle": "catalog",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/seedBuiltins.ts",
+    "symbol": "applyBuiltinSeeds"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "applyBuiltinSeeds"
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "builtinCatalogModelKeys"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/seedBuiltins.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/catalogStore.ts",
+    "scripts/check-orphan-mapping-cables.ts",
+    "scripts/check-reference-outbound-contract.ts",
+    "scripts/model-identity-walkthrough.mjs",
+    "scripts/model-radar.ts",
+    "tests/ux/_mcpL2Fixture.mjs",
+    "tests/ux/agent-runtime-fixture.mjs",
+    "tests/ux/anchor-real-planner.mjs"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #926（合同 docs/fixes/2026-09-28-sora-2-retirement.root-cause.json）：目录只有「加」的通道，上游下架没有自动退出的通道。退役必须两件一起做：curated 源里删掉（新装机不再种）+ 退役清单里 prune（老装机摘掉已落盘的行）；两者互斥且幂等，都只经 applyBuiltinSeeds。"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "画布生成浮框的位置与宽度",
+  "subject": "canvas.composer-placement",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+    "symbol": "composerCanvasPlacement"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts",
+      "symbol": "composerCanvasPlacement"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/nodes/composerCanvasPlacement.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」（合同 docs/fixes/2026-09-25-composer-pinned-below-node.root-cause.json）。位置与宽度只是（节点画布尺寸, 画布缩放）的纯函数：顶边 = 节点底边 + NODE_COMPOSER_GAP，中线 = 节点中线，屏幕宽 = NODE_COMPOSER_WIDTH。不许任何一侧再量屏幕去 clamp / 翻转 / 让停靠区——那套每帧量矩形的放置层就是「浮框跑到节点中间、忽宽忽窄」的来源，已整个删除。composerCanvasPlacement.test.ts 的结构断言守着浮框源码不许长回 getBoundingClientRect / requestAnimationFrame。"
+}

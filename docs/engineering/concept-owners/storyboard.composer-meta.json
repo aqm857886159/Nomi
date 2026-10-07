@@ -1,0 +1,33 @@
+{
+  "name": "分镜行 / 参考卡的参数显示（= 落画布写进节点的 meta）",
+  "subject": "storyboard.composer-meta",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "symbol": "storyboardComposerMeta"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "storyboardComposerMeta"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "composerBarParams",
+      "kind": "definition",
+      "why": "2026-10-06 之前分镜底栏自己从档案挑一部分参数（固定时长档、⋯ 收开关），参考卡只有模型下拉；已删，参数一律经画布同款 InlineParameterBar"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "tests/experience-laws/parameterReachability.mjs"
+  ],
+  "since": "2026-10-06",
+  "notes": "底栏显示的 meta 与参考卡重生成前写回节点的 meta 是同一个函数（buildPlannedNodeMeta，落画布同一个构造器）——显示 = 请求（审计 A2）。铁律 ⑪ 矩阵的分镜行 / 参考卡入口调的也是它。"
+}

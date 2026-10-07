@@ -5,14 +5,14 @@
 // 没点名模型。每个用例写清 Agent 说了什么、期望宿主怎么回应；首跑发现的违反登记在 `knownViolations`，
 // 指向逃逸账本 candidate（不当场修，由协调会话定）。棘轮：新违反红；登记的违反已不再出现也红（修好了删行）。
 import { describe, expect, it } from 'vitest'
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { loadEscapeLedger } from '../../scripts/escape-ledger-lib.mjs'
 import { INTENT_FIELDS, observeIntent, seededWorld, violationsOf } from './intentShownEqualsDrafted.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const escapeLedger = JSON.parse(fs.readFileSync(path.join(here, '../ux/full-walk/escapeLedger.json'), 'utf8'))
+const escapeLedger = loadEscapeLedger(path.resolve(here, '../..'))
 const world = seededWorld()
 
 const PROMPT = '清晨的渔港，一条小船出海'

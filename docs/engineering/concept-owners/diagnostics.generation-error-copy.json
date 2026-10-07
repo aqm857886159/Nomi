@@ -1,0 +1,42 @@
+{
+  "name": "生成错误怎么说成人话（错误 → 人话与动作）",
+  "subject": "diagnostics.generation-error-copy",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/observability/classifyError.ts",
+    "symbol": "classifyGenerationError"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "path": "src/workbench/observability/narrate.ts",
+      "symbol": "narrateIsVendorSideFailure"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/taskFailureMessage.ts",
+      "symbol": "formatTaskFailureMessage"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/taskFailureMessage.ts",
+      "symbol": "parseTaskFailureMessage"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/ai/lane/laneCommandFailure.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/workbench/observability/generationFeedback.ts",
+    "src/workbench/taskCenter/taskCenterEntries.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "PR #926（同上合同）：把生成错误映射成人话与下一步动作的唯一一处；内部签名（已退役 / 类型不符 / 缺文本大脑 / NOMI_ERR 码）不进「服务商原话」框——退役这条曾经漏了。 2026-09-29（合同 docs/fixes/2026-09-29-failure-reason-from-upstream-evidence.root-cause.json）：分类按上游自己的码与话归类（状态码派生的 input 只是没有证据时的落点）；标题永远是界面语言，供应商说的话只进「服务商原话」；每一类声明它是不是服务商那一侧的事（vendorSide，narrate 的穷举表），点名供应商的界面只在它为 true 时才有资格；结果已送达而本机读不出来 = output-unreadable（只有重试）。异步任务失败的文本格式产出与解析成对住在 taskFailureMessage。 F6（2026-09-30）：目录里没有一类认得的失败（unknown）如实说「认不出」——不编原因（旧文案「可能是服务商临时故障或额度问题」里的「额度」是猜的），供应商给了码（upstreamCode / logicalCode）就带上码（narrate 的 hint / hintWithCode），原文与完整报文是入口。 2026-09-30（F6 续）：legacy 关键词嗅探读什么由 legacyEvidence 一处决定——只读认得出来源的话（结构化载荷的 upstreamMsg / 异步任务失败格式里的原话），来源不明的老串抠掉 URL 后整句读、三位状态码只认整词；判据不读诊断外壳里的端口 / id / 供应商键（pb07 英文那一遍曾把端口 59401 读成「401」而报「API Key 无效」）。 2026-09-30（验收页复核）：「不扣费」一族的话只有 Nomi 自己确知请求没发出去的类别（narrate.NEVER_SENT_KINDS）才说得出口，请求发出去之后花没花钱 Nomi 不知道、不按供应商分情况；noChargeClaims.test 把目录的每一条字符串读出来过这一关。"
+}

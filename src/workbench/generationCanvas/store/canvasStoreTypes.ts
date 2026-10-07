@@ -20,6 +20,7 @@ import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
 import type { HeldNodeOutcome } from './nodeRunOutcome'
 import type { MediaDimensions } from '../nodes/nodeSizing'
+import type { CanvasDocLike } from '../../../../electron/shared/canvas/externalCanvasWrite'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
 
 export type ConnectionAnchorSide = 'left' | 'right'
@@ -126,8 +127,6 @@ export type CanvasGraphActions = {
   moveNodeToGroup: (nodeId: string, groupId: string) => void
   removeNodeFromGroup: (nodeId: string) => void
   reorderGroup: (categoryId: string, activeGroupId: string, overGroupId: string) => void
-  /** S6-5 整笔撤销补偿:把删除步抹掉的节点/边按原 id 放回(upsert 幂等,已存在跳过)。 */
-  restoreGraph: (nodes: GenerationCanvasNode[], edges: GenerationCanvasEdge[]) => void
 }
 
 export type CanvasRunActions = {
@@ -140,8 +139,33 @@ export type CanvasRunActions = {
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
   /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
   landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
-  /** 结局到达时节点不在（生成中被删了）：只记账暂存，撤销把节点带回来时落上去。 */
+  /** 结局到达时节点不在（生成中被删了）：按 nodeId 暂存，任何一扇门把节点带回来时由统一提交口落上去。 */
   holdRunOutcome: (nodeId: string, outcome: HeldNodeOutcome) => void
+}
+
+/** 节点不在时到达的结局，按 nodeId 暂存（会话态，不进项目文件；项目释放 / 装载时清空）。 */
+export type HeldNodeOutcomes = Record<string, HeldNodeOutcome[]>
+
+/**
+ * 整图 / 整节点写回——只在统一提交口（store/canvasDocumentCommit.ts）实现：编辑层取传进来的，事实层取活的。
+ * 这里的键必须恰好等于动作分层表里 layer 为 'document' 的那些（canvasWriteBoundary 的类型断言）。
+ */
+export type CanvasDocumentActions = {
+  /** 打开项目：硬重置（清选区 / 剪贴板 / 暂存，撤销基线从这里起）。 */
+  restoreSnapshot: (snapshot: unknown) => void
+  /** S5-b-1 崩溃恢复:把快照之后落盘的事件尾巴重放回投影(reducer 幂等)。 */
+  applyEventTail: (events: readonly { type: string; payload: Record<string, unknown> }[]) => void
+  undo: () => void
+  redo: () => void
+  /**
+   * A 模式实时桥：外部 MCP 读到 `base`、算出整张 `next`，这里只把它自己改了的编辑合到此刻的画布
+   * （与盘上同一个合并函数），事实层取此刻的。会话中应用：保留视口、入撤销历史、触发防抖落盘。
+   */
+  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike }>) => void
+  /** 把被删的节点 / 边按原 id 放回（已在的跳过）；节点不在期间到达的结局随之落上。 */
+  restoreGraph: (nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]) => void
+  /** 把一个仍在的节点的 meta / prompt 放回某一刻；结果、运行态、跟主图走的媒体尺寸取此刻的。 */
+  restoreNodeFields: (nodeId: string, meta: Readonly<Record<string, unknown>>, prompt: string) => void
 }
 
 export type GenerationCanvasState = {
@@ -166,6 +190,7 @@ export type GenerationCanvasState = {
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
+  heldNodeOutcomes: HeldNodeOutcomes
   captureHistory: () => void
   setGenerationAiDraft: (draft: string) => void
   setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
@@ -181,21 +206,10 @@ export type GenerationCanvasState = {
    * 不传 = 左上角（旧约定，右键菜单之外的调用方都应传 anchor，见 model/canvasPlacement.ts）。
    */
   pasteNodes: (basePosition?: { x: number; y: number }, anchor?: CanvasPlacementAnchor) => void
-  undo: () => void
-  redo: () => void
   readSnapshot: () => GenerationCanvasSnapshot
   /** 持久化视图(S5-b-0):无 selectedNodeIds——选区是会话态不进项目文件。 */
   readDocumentSnapshot: () => Omit<GenerationCanvasSnapshot, 'selectedNodeIds'>
-  restoreSnapshot: (snapshot: unknown) => void
-  /** S5-b-1 崩溃恢复:把快照之后落盘的事件尾巴重放回投影(reducer 幂等)。 */
-  applyEventTail: (events: readonly { type: string; payload: Record<string, unknown> }[]) => void
-  /**
-   * A 模式实时桥:把外部 MCP 经主进程算好的整张画布快照应用进 store(所见即所得)。
-   * 与 restoreSnapshot(硬重置:清视口/选区/重置 undo 基线)不同——这是会话中应用:
-   * 保留视口缩放/偏移、入 undo 历史(用户可撤销外部改动)、触发防抖持久化。
-   */
-  applyExternalGraph: (snapshot: unknown) => void
-} & CanvasNodeActions & CanvasGraphActions & CanvasRunActions
+} & CanvasNodeActions & CanvasGraphActions & CanvasRunActions & CanvasDocumentActions
 
 /** Slice creator typed against the store's middleware stack (subscribeWithSelector + immer). */
 export type CanvasSliceCreator<T> = StateCreator<

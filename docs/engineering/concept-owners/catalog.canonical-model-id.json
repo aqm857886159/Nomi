@@ -1,0 +1,27 @@
+{
+  "name": "跨供应商同一模型的身份（canonical 模型 id）",
+  "subject": "catalog.canonical-model-id",
+  "lifecycle": "catalog",
+  "authority_kind": "schema",
+  "trust_domain": "main",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/seedModelIdentity.ts",
+    "symbol": "CANONICAL_MODEL_IDS"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "symbol": "CANONICAL_MODEL_IDS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/config/modelIdentity.channelMerge.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/seedBuiltins.ts",
+    "src/config/modelIdentity.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #926（合同 docs/fixes/2026-09-28-channel-model-identity-merge.root-cause.json）：同一个模型经不同渠道 / 中转进目录时，身份只在这里显式声明（版本级，键 = 目录 modelKey，值 = 与 normalizeModelLabel 同形的 canonical id）；含渠道行的组每一行都显式填，不再赌 labelZh 相同。与 electron/catalog/apimartModelIds.ts 里同名的那张表是两件事，见「APIMart 出站模型名」。"
+}

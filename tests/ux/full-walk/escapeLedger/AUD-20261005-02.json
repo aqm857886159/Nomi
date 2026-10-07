@@ -1,0 +1,38 @@
+{
+  "id": "AUD-20261005-02",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #2",
+  "category": "parameter-contract",
+  "problem": "参考卡（跨镜头要一致的）底栏没有模式 / 比例 / 清晰度等参数，选了 GPT Image 2 也不长出来",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/03-anchors-expanded.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/05-anchor-after-gpt-image-2.png",
+    "参考卡底栏改用画布同款 InlineParameterBar（StoryboardComposerParams），按档案出模式 / 比例 / 清晰度等全部参数；⑪ 矩阵 storyboard-anchor 入口 17 个缺口类降到 2 个（变体轴 → LAW11-SB-VARIANT，数字输入 → LAW11-EMPTY-INPUT，与画布节点同一原因）",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  }
+}

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../vendor/tablerIcons、../../../../../../ui/toast、../../../../../api/assetUploadApi（importWorkbenchLocalAssetFile / hostedAssetUrl）、
- *          ../../../../../../utils/cn、../../DirectorEditorContext、../../model/directorTypes、../../model/assetKinds（类型判定 / accept）、../../scene/creation/useCharacterPlacement 的 CHARACTER_MODEL_BY_GENDER、
+ *          ../../../../../../utils/cn、../../DirectorEditorContext、../../model/directorTypes、../../model/assetKinds（类型判定 / accept）、
  *          ../LinkedAssetsContext 的 useLinkedAssets、../imageFile 的 readFileAsDataUrl、../Popover
  * [OUTPUT]: 对外提供 AssetsTab
  * [POS]: director/panels/side 的资产库（清单 §3.2 S2/S3）：四个目录——连线引用（画布连进来的全景 / 泼溅 / 模型，只读）、用户上传（工程 assets，文件夹树 + 条目）、

@@ -28,6 +28,7 @@ import { ownPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { laneReceiptClient } from '../../ai/lane/laneReceiptClient'
 import { laneClient } from '../../ai/lane/laneClient'
+import { compensationFromBeforeImage } from './beforeImageCompensation'
 
 export type CommittedProposalRecord = ProjectAgentCommittedProposalRecord
 
@@ -438,16 +439,16 @@ export function applyCompensationOps(compensation: readonly ProjectAgentProposal
     } else if (op.kind === 'restore-prompt') {
       useGenerationCanvasStore.getState().updateNodePrompt(op.nodeId, op.prompt, op.promptOverridden)
     } else if (op.kind === 'restore-node-fields') {
-      // 节点已被删 = 无可恢复（与其它补偿同样容忍 no-op）。
-      if (useGenerationCanvasStore.getState().nodes.some((node) => node.id === op.nodeId)) {
-        useGenerationCanvasStore.getState().updateNode(op.nodeId, { meta: { ...op.meta }, prompt: op.prompt })
-      }
+      // 整节点放回只放编辑层；结果、运行态、跟主图走的媒体尺寸取此刻的（统一提交口）。节点已被删 = no-op。
+      useGenerationCanvasStore.getState().restoreNodeFields(op.nodeId, op.meta, op.prompt)
     } else if (op.kind === 'restore-graph') {
       useGenerationCanvasStore
         .getState()
         .restoreGraph(op.nodes as GenerationCanvasNode[], op.edges as GenerationCanvasEdge[])
     } else if (op.kind === 'restore-snapshot') {
-      useGenerationCanvasStore.getState().applyExternalGraph(op.snapshot)
+      // 准备中收据存的「提议之前的整张图」从不整图放回：逐对象比出差异，交给上面这些按对象补偿去做（V-1072）。
+      const { nodes, edges } = useGenerationCanvasStore.getState()
+      applyCompensationOps(compensationFromBeforeImage(op.snapshot, { nodes, edges }))
     }
   }
 }

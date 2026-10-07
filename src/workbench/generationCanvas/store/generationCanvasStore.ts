@@ -4,35 +4,25 @@ import { immer } from 'zustand/middleware/immer'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { removeNodes } from '../model/graphOps'
 import { bumpPersistRevision } from './canvasGuards'
-import {
-  getHistoryFlags,
-  popRedo,
-  popUndo,
-  pushUndoSnapshot,
-  seedUndoJournalBase,
-} from '../events/canvasUndoJournal'
+import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import {
   buildSelectedClipboard,
-  clearClipboard,
   cloneClipboardPayload,
   getClipboard,
   setClipboard,
 } from './canvasClipboard'
 import { resolveGroupInsertionDelta } from './resolveInsertionPosition'
-import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
-import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
 import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefaults'
 import { assignClonedShotIndexes } from '../model/shotNumbering'
 import { placementOrigin } from '../model/canvasPlacement'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { replayCanvasEvents } from '../events/canvasEventReducer'
 import { withCanvasWriteBoundary } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasState } from './canvasStoreTypes'
 import { createCanvasNodeActions } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
-import { reapplyLandedOutcomes } from './nodeRunOutcome'
+import { createCanvasDocumentActions } from './canvasDocumentCommit'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
@@ -66,6 +56,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   canUndo: false,
   canRedo: false,
   hasClipboard: false,
+  heldNodeOutcomes: {},
   captureHistory: () => {
     pushUndoSnapshot(get())
     set((state) => {
@@ -189,44 +180,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       ...cloned.edges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
     ])
   },
-  undo: () => {
-    // S5-b-2 翻正:撤销 = 会话日志前缀重放(canvasHistory 状态栈已删)
-    // 撤销只回退用户编辑:目标位置之后落地的生成结局 + 此刻的运行态原样留下(钱已花,不许撤掉)。
-    const restore = popUndo()
-    if (!restore) return
-    const previous = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
-    set((state) => {
-      state.nodes = previous.nodes
-      state.edges = previous.edges
-      state.groups = previous.groups
-      // S5-b-0 session 摘除:撤销不回放选区(tldraw 教训)——保留当前选区,clamp 到仍存在的节点
-      const surviving = new Set(previous.nodes.map((node) => node.id))
-      state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
-      state.pendingConnectionSourceId = ''
-      state.pendingConnectionSourceSide = 'right'
-      bumpPersistRevision(state)
-      Object.assign(state, getHistoryFlags())
-    })
-    // 影子记账:撤销=全量后态(S5-b 翻正后改为按 txn 重放;此处先保 replay≡snapshot 恒真)
-    emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: previous.nodes, edges: previous.edges, groups: previous.groups } } }])
-  },
-  redo: () => {
-    const restore = popRedo()
-    if (!restore) return
-    const next = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
-    set((state) => {
-      state.nodes = next.nodes
-      state.edges = next.edges
-      state.groups = next.groups
-      const surviving = new Set(next.nodes.map((node) => node.id))
-      state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
-      state.pendingConnectionSourceId = ''
-      state.pendingConnectionSourceSide = 'right'
-      bumpPersistRevision(state)
-      Object.assign(state, getHistoryFlags())
-    })
-    emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: next.nodes, edges: next.edges, groups: next.groups } } }])
-  },
   readSnapshot: () => {
     // 工具/会话视图(agent read_canvas 用,含选区)
     const state = get()
@@ -247,67 +200,10 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       workflowTemplates: state.workflowTemplates,
     }
   },
-  restoreSnapshot: (snapshot) => {
-    const normalized = normalizeStoreSnapshot(snapshot)
-    // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
-    seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
-    clearClipboard()
-    set({
-      isReady: true,
-      persistRevision: get().persistRevision,
-      nodes: normalized.nodes,
-      edges: normalized.edges,
-      groups: normalized.groups,
-      workflowTemplates: normalized.workflowTemplates || [],
-      // S5-b-0:重开项目不再恢复幽灵选区(老 payload 里残存的 selectedNodeIds 忽略)
-      selectedNodeIds: [],
-      pendingConnectionSourceId: '',
-      pendingConnectionSourceSide: 'right',
-      hasClipboard: false,
-      ...getHistoryFlags(),
-    })
-    // genesis 事件不在这里发(S5-b-1):必须等 hydrate 尾部重放完成后由
-    // workbenchProjectSession 以"含尾巴的后态"发,否则磁盘日志最终态会丢尾巴。
-  },
-  applyEventTail: (events) => {
-    // S5-b-1 崩溃恢复:把快照之后落盘的事件(lastSeq 尾巴)重放回投影。
-    // reducer 全 case 幂等,重看快照内已有事件安全。
-    if (!events.length) return
-    const state = get()
-    const projection = replayCanvasEvents(events, { nodes: state.nodes, edges: state.edges, groups: state.groups })
-    // 拆解进度的每一下写都走 canvas.node.updated 进了事件日志，重放会把 `status: 'running'`
-    // 原样写回来——快照那一步的收敛因此等于没发生（T-ED-06 的重启卡死正是这一下）。
-    // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等。
-    set({ nodes: convergeDeconstructionNodes(projection.nodes), edges: projection.edges, groups: projection.groups })
-  },
-  applyExternalGraph: (snapshot) => {
-    // A 模式实时桥:外部 MCP 改动经主进程算好整张快照,这里应用进运行中 store。
-    // 与 restoreSnapshot 的区别:不重置视口/不清 undo 基线——会话中应用,保住用户当前视角与撤销历史。
-    // 规范化里的「重启收敛」(running → idle / recoverable)只对装载成立;会话中途应用时运行态以此刻的为准,
-    // 与撤销同一条规则(reapplyLandedOutcomes:不带落地,只把运行态取活 store 的)。
-    const normalized = reapplyLandedOutcomes(normalizeStoreSnapshot(snapshot), [], get().nodes)
-    pushUndoSnapshot(get()) // 入历史:外部改动可被用户 Ctrl+Z 撤销
-    set((state) => {
-      state.nodes = normalized.nodes
-      state.edges = normalized.edges
-      state.groups = normalized.groups
-      state.workflowTemplates = normalized.workflowTemplates || state.workflowTemplates
-      // 选区是会话态:clamp 到仍存在的节点(外部可能删了选中的)。
-      const surviving = new Set(normalized.nodes.map((node) => node.id))
-      state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
-      state.pendingConnectionSourceId = ''
-      state.pendingConnectionSourceSide = 'right'
-      bumpPersistRevision(state) // 触发 700ms 防抖落盘
-      Object.assign(state, getHistoryFlags())
-    })
-    // 影子记账:与 undo/redo 同口径,发 snapshot.restored 全量后态(replay≡snapshot 恒真)。
-    emitCanvasGesture([
-      { type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups } } },
-    ])
-  },
   ...createCanvasNodeActions(set, get, store),
   ...createCanvasGraphActions(set, get, store),
   ...createCanvasRunActions(set, get, store),
+  ...createCanvasDocumentActions(set, get, store),
 }))))
 
 /**
@@ -339,6 +235,7 @@ export const generationCanvasStoreLifetime = declareStoreLifetime({
     canUndo: 'project',
     canRedo: 'project',
     hasClipboard: 'project',
+    heldNodeOutcomes: 'project',
   },
   releaseProject: () => {
     const empty = createDefaultGenerationCanvasSnapshot()
@@ -357,6 +254,7 @@ export const generationCanvasStoreLifetime = declareStoreLifetime({
       canUndo: false,
       canRedo: false,
       hasClipboard: false,
+      heldNodeOutcomes: {},
     })
   },
 })

@@ -1,0 +1,47 @@
+{
+  "name": "分镜一镜发出去什么（提示词 + 参考图）",
+  "subject": "storyboard.shot-outbound",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+    "symbol": "compileShotOutbound"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "symbol": "compileShotOutbound"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "projectShotNode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+      "symbol": "ignoredShotAnchors"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "anchorPromptBits",
+      "kind": "definition",
+      "why": "2026-09-30 之前把引用锚的身份特征 / 文本锚整段追加进提示词（「巨龙」变人物的成因）；已删，不许再长一份"
+    },
+    {
+      "symbol": "referenceOrderForShot",
+      "kind": "definition",
+      "why": "按 anchorIds 给自动连的参考边排序；自动连图已删，不许恢复"
+    }
+  ],
+  "parity_test": "src/workbench/creation/storyboard/exec/shotOutbound.parity.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "规则（09-30 用户拍板）：一镜发出去的 = 这一行写的提示词 + 这一行上看得见的参考图，别的什么都不加。行内生成 / 生成剩余 / Agent 确认框 / 放到画布 / production.materialize-storyboard / 方案投影都只从 compileShotOutbound 取；对等测试逐字节比六个入口。anchorIds 留在旧方案里不再产生任何作用。根因合同 docs/fixes/2026-09-30-storyboard-outbound-owner.root-cause.json。"
+}

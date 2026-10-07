@@ -1,0 +1,26 @@
+{
+  "name": "画布提交等回话（窗口内提示）",
+  "subject": "canvas.submit-awaiting-reply",
+  "lifecycle": "session",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.ts",
+    "symbol": "trackNodeSubmit"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.ts",
+      "symbol": "trackNodeSubmit"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/api/taskApi.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+  ],
+  "since": "2026-10-05",
+  "notes": "这个窗口发出去、主进程还没回话的画布生成请求（按节点 id，进程寿命，不落盘）。只服务装载收敛 convergeStuckMidFlightNode：切项目再切回来，还在路上的节点照旧显示生成中、不被收成空闲、不进「生成全部」。不管钱、不决定能不能再交：付费画布生成的同节点在途拒绝在主进程 appIntegrationCanvasShot（assertNodeIdle：进程内在途 + canvasShotRunIndex「没收尾」标记），Run 是真相。写口只有 taskApi 的两个提交口（submitCanvasShotRun、runWorkbenchTaskByVendor）在 await 前登记、回话后注销。2026-10-05 发动机收敛第一刀第 3 步删掉主进程那道 withNodeSubmitExclusive 之后从 canvas.shot-run 的写接口里拆出来单独登记（独立验收 V-1012 问题 1）。"
+}
