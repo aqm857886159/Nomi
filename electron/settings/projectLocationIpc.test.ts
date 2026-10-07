@@ -35,18 +35,18 @@ const previousProjectsRoot = process.env.NOMI_PROJECTS_DIR;
 
 beforeEach(() => {
   settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-location-ipc-"));
-  process.env.NOMI_SETTINGS_DIR = settingsRoot;
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   electronMocks.handle.mockReset();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   fs.rmSync(settingsRoot, { recursive: true, force: true });
-  if (previousSettingsRoot === undefined) delete process.env.NOMI_SETTINGS_DIR;
-  else process.env.NOMI_SETTINGS_DIR = previousSettingsRoot;
-  if (previousProjectsRoot === undefined) delete process.env.NOMI_PROJECTS_DIR;
-  else process.env.NOMI_PROJECTS_DIR = previousProjectsRoot;
+  if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+  else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
+  if (previousProjectsRoot === undefined) vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
+  else vi.stubEnv("NOMI_PROJECTS_DIR", previousProjectsRoot);
 });
 
 describe("project location IPC", () => {
@@ -275,7 +275,7 @@ describe("project location IPC", () => {
 
   it("does not pretend a saved choice can override the environment", async () => {
     const environmentRoot = path.join(settingsRoot, "environment");
-    process.env.NOMI_PROJECTS_DIR = environmentRoot;
+    vi.stubEnv("NOMI_PROJECTS_DIR", environmentRoot);
     const showOpenDialog = vi.fn();
 
     expect(getProjectLocationResponse()).toEqual({

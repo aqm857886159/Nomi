@@ -14,8 +14,7 @@
  * **不要求两边条数相同**：agent 清单刻意保留没配 key 的行（`core.ts:293-296`，理由正当——
  * 它要能对用户说「kie 没配 key」）。要求的是「藏没藏」与「排在哪」这两件事有同一个答案。
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { pinParitySettingsRoot } from "./parityElectronMock";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const testRoot = vi.hoisted(() => {
   const nodeFs = require("node:fs") as typeof import("node:fs");
@@ -37,13 +36,8 @@ const ORDER_FIRST = "gpt-image-2.5-flare";
 
 type Listing = { modelKey: string; vendor: string; hidden?: boolean };
 let listing: Listing[] = [];
-let restoreSettingsRoot: (() => void) | undefined;
 
 beforeAll(async () => {
-  // getSettingsRoot() intentionally honors NOMI_SETTINGS_DIR for real/e2e runs.
-  // Pin it here as well so another test worker cannot redirect this fixture's
-  // catalog/settings writes into a shared process-level root.
-  restoreSettingsRoot = pinParitySettingsRoot(testRoot);
   await seedParityCatalog(["apimart"]);
   const { writeModelBoxPreferenceSettings, readModelBoxPreferenceSettings } = await import("../settings/modelBoxPreferenceSettings");
   writeModelBoxPreferenceSettings({ hiddenModelIds: HIDDEN, modelOrder: [ORDER_FIRST, ...HIDDEN] });
@@ -53,10 +47,6 @@ beforeAll(async () => {
   const { deriveModelListing } = await import("../catalog/modelCatalogListing");
   const { readCatalog } = await import("../catalog/catalogStore");
   listing = deriveModelListing(readCatalog()) as unknown as Listing[];
-});
-
-afterAll(() => {
-  restoreSettingsRoot?.();
 });
 
 describe("模型清单 · 设置页偏好 vs Agent/MCP 清单", () => {

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { appFetch } from '../appFetch'
 import { createMcpConnectionContext } from './mcpConnectionContext'
@@ -14,7 +14,7 @@ const roots: string[] = []
 const servers: http.Server[] = []
 
 afterEach(async () => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   for (const server of servers.splice(0)) {
     server.closeAllConnections()
     await new Promise<void>((resolve) => server.close(() => resolve()))
@@ -32,7 +32,7 @@ describe('MCP loopback RPC request boundary', () => {
   it('forwards an explicit document approval as a top-level RPC confirmation flag', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-loopback-document-confirm-'))
     roots.push(root)
-    process.env[CAPABILITY_DIR_ENV] = path.join(root, 'capability')
+    vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, 'capability'))
     ensureToken()
     const proof = signMcpClient('codex')!
     const request = createMcpLoopbackRpcRequest({
@@ -53,7 +53,7 @@ describe('MCP loopback RPC request boundary', () => {
   ] as const)('%s refuses redirects before any sensitive header reaches the second loopback target', async (_name, fetchImpl) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-loopback-redirect-'))
     roots.push(root)
-    process.env[CAPABILITY_DIR_ENV] = path.join(root, 'capability')
+    vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, 'capability'))
     ensureToken()
     const proof = signMcpClient('codex')!
     const connection = createMcpConnectionContext({

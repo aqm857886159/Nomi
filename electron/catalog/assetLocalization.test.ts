@@ -603,8 +603,8 @@ describe("resolveAssetIngestionWithFallback (跨 vendor 上传优先级链)", ()
   it("配置 Nomi relay 时，它排在已配置供应商之后、匿名链之前", () => {
     const beforeUrl = process.env.NOMI_ASSET_RELAY_URL;
     const beforeToken = process.env.NOMI_ASSET_RELAY_TOKEN;
-    process.env.NOMI_ASSET_RELAY_URL = "https://assets.nomi.example/v1/assets";
-    process.env.NOMI_ASSET_RELAY_TOKEN = "relay-secret";
+    vi.stubEnv("NOMI_ASSET_RELAY_URL", "https://assets.nomi.example/v1/assets");
+    vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", "relay-secret");
     try {
       const out = resolveAssetIngestionWithFallback(
         { key: "openai" },
@@ -617,30 +617,30 @@ describe("resolveAssetIngestionWithFallback (跨 vendor 上传优先级链)", ()
       expect(out.at(-1)?.ingestion.strategy).toBe("anon-chain");
       expect(out.find((candidate) => candidate.vendorKey === "nomi-relay")?.uploadApiKey).toBe("relay-secret");
     } finally {
-      if (beforeUrl === undefined) delete process.env.NOMI_ASSET_RELAY_URL; else process.env.NOMI_ASSET_RELAY_URL = beforeUrl;
-      if (beforeToken === undefined) delete process.env.NOMI_ASSET_RELAY_TOKEN; else process.env.NOMI_ASSET_RELAY_TOKEN = beforeToken;
+      if (beforeUrl === undefined) vi.stubEnv("NOMI_ASSET_RELAY_URL", undefined); else vi.stubEnv("NOMI_ASSET_RELAY_URL", beforeUrl);
+      if (beforeToken === undefined) vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", undefined); else vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", beforeToken);
     }
   });
 
   it("invalid custom Nomi relay config is not advertised as a candidate", () => {
     const beforeUrl = process.env.NOMI_ASSET_RELAY_URL;
-    process.env.NOMI_ASSET_RELAY_URL = "http://public.example/assets";
+    vi.stubEnv("NOMI_ASSET_RELAY_URL", "http://public.example/assets");
     try { expect(nomiAssetRelayCandidateFromEnvironment()).toBeNull(); }
-    finally { if (beforeUrl === undefined) delete process.env.NOMI_ASSET_RELAY_URL; else process.env.NOMI_ASSET_RELAY_URL = beforeUrl; }
+    finally { if (beforeUrl === undefined) vi.stubEnv("NOMI_ASSET_RELAY_URL", undefined); else vi.stubEnv("NOMI_ASSET_RELAY_URL", beforeUrl); }
   });
 
   it("Nomi public relay does not require a client token", () => {
     const beforeUrl = process.env.NOMI_ASSET_RELAY_URL;
     const beforeToken = process.env.NOMI_ASSET_RELAY_TOKEN;
-    process.env.NOMI_ASSET_RELAY_URL = "https://assets.nomi.example/v1/assets";
-    delete process.env.NOMI_ASSET_RELAY_TOKEN;
+    vi.stubEnv("NOMI_ASSET_RELAY_URL", "https://assets.nomi.example/v1/assets");
+    vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", undefined);
     try {
       expect(nomiAssetRelayCandidateFromEnvironment()?.uploadApiKey).toBe("");
       expect(nomiPublicAssetRelayCandidate()?.uploadApiKey).toBe("");
     }
     finally {
-      if (beforeUrl === undefined) delete process.env.NOMI_ASSET_RELAY_URL; else process.env.NOMI_ASSET_RELAY_URL = beforeUrl;
-      if (beforeToken === undefined) delete process.env.NOMI_ASSET_RELAY_TOKEN; else process.env.NOMI_ASSET_RELAY_TOKEN = beforeToken;
+      if (beforeUrl === undefined) vi.stubEnv("NOMI_ASSET_RELAY_URL", undefined); else vi.stubEnv("NOMI_ASSET_RELAY_URL", beforeUrl);
+      if (beforeToken === undefined) vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", undefined); else vi.stubEnv("NOMI_ASSET_RELAY_TOKEN", beforeToken);
     }
   });
 

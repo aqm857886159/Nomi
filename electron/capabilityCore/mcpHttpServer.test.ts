@@ -24,7 +24,7 @@ const previousCapabilityDir = process.env.NOMI_CAPABILITY_DIR
 let server: McpHttpServerHandle
 
 beforeAll(async () => {
-  process.env.NOMI_CAPABILITY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-http-'))
+  vi.stubEnv("NOMI_CAPABILITY_DIR", fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-http-')))
   ensureToken()
   server = await startMcpHttpServer({
     port: 0,
@@ -39,8 +39,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server.close()
-  if (previousCapabilityDir === undefined) delete process.env.NOMI_CAPABILITY_DIR
-  else process.env.NOMI_CAPABILITY_DIR = previousCapabilityDir
+  if (previousCapabilityDir === undefined) vi.stubEnv("NOMI_CAPABILITY_DIR", undefined)
+  else vi.stubEnv("NOMI_CAPABILITY_DIR", previousCapabilityDir)
 })
 
 const initializeBody = (id = 1) => JSON.stringify({ jsonrpc: '2.0', id, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'http-test', version: '1' } } })

@@ -14,7 +14,7 @@ vi.hoisted(() => {
   const nodeOs = require('node:os') as typeof import('node:os')
   const nodePath = require('node:path') as typeof import('node:path')
   const root = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'nomi-stdio-doc-receipt-cap-'))
-  process.env.NOMI_CAPABILITY_DIR = root
+  vi.stubEnv("NOMI_CAPABILITY_DIR", root)
 })
 
 vi.mock('electron', () => ({

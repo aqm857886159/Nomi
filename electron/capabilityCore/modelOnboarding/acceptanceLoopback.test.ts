@@ -57,7 +57,7 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-onboarding-acceptance-"));
-    process.env.NOMI_SETTINGS_DIR = root;
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     server = http.createServer((request, response) => {
       if (request.url === "/art.png") {
         response.writeHead(200, { "content-type": "image/png" });
@@ -81,7 +81,7 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
   });
 
   afterAll(async () => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(root, { recursive: true, force: true });
   });

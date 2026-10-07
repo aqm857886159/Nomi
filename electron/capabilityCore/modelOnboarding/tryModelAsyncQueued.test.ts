@@ -44,7 +44,7 @@ describe("nomi_try_model 遇到异步供应商", () => {
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-try-async-"));
-    process.env.NOMI_SETTINGS_DIR = root;
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     server = http.createServer((request, response) => {
       const url = String(request.url);
       if (url === "/art.png") {
@@ -126,7 +126,7 @@ describe("nomi_try_model 遇到异步供应商", () => {
   });
 
   afterAll(async () => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(root, { recursive: true, force: true });
   });

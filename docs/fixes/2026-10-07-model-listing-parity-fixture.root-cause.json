@@ -1,122 +1,135 @@
 {
   "schema_version": 3,
   "id": "2026-10-07-model-listing-parity-fixture",
-  "problem_type": "Vitest fixture state crosses process-level settings roots",
-  "symptom": "The model-listing parity file can read a catalog or preference file created by another test worker when the worker inherits NOMI_SETTINGS_DIR; the two intentionally failing B1 assertions then become order-dependent instead of reporting the same expected result.",
-  "direct_cause": "The Electron mock supplied an isolated app.getPath('userData') root, but getSettingsRoot() gives the process-level NOMI_SETTINGS_DIR precedence and the test never pinned or restored that variable.",
-  "class_root": "A test that writes catalog and settings state must bind both Electron userData and the settings-root environment to the same per-test directory for the entire fixture lifetime.",
+  "problem_type": "Vitest test environment state crosses files in a reused forks worker",
+  "symptom": "modelListingParity's two expected-failure assertions changed result when another test file left NOMI_SETTINGS_DIR set in the same child process.",
+  "direct_cause": "Tests assigned or deleted process.env directly; Vitest reset modules between files but the process environment survived, so later settings reads used the previous file's root.",
+  "class_root": "All test environment mutations must use Vitest's stubEnv API and the shared Vitest lane must restore stubs after every test before a reused worker runs another file.",
   "affected_population": [
-    "Windows Vitest workers running electron/parity/modelListingParity.test.ts alongside tests that set NOMI_SETTINGS_DIR.",
-    "Future parity tests that combine catalog seeding with preference persistence."
+    "All Vitest test files that set NOMI_* or other process environment values.",
+    "Forks workers that execute more than one test file, including the CI default lane.",
+    "Future tests that add a direct process.env assignment or delete."
   ],
   "scope_paths": [
+    "vitest.config.ts",
+    "eslint.config.mjs",
+    "electron/testEnvironmentIsolation.test.ts",
     "electron/parity/modelListingParity.test.ts",
     "electron/parity/parityElectronMock.ts",
+    "electron/localSpeech/localSpeechPackaging.test.ts",
+    "electron/localSpeech/localSpeechInstall.test.ts",
     "docs/fixes/2026-10-07-model-listing-parity-fixture.root-cause.json"
   ],
   "entry_points": [
-    "modelListingParity beforeAll seeds the catalog and writes model-box-preference.json.",
-    "modelListingParity assertions read the derived catalog listing after fixture setup."
+    "Every vi.stubEnv call in the converted Vitest test files.",
+    "The modelListingParity beforeAll catalog and preference persistence fixture.",
+    "The Vitest config that owns the worker lifecycle."
   ],
-  "internal_only_reason": "The invariant is owned by this repository's Vitest/Electron fixture harness; no third-party runtime decides the settings-root precedence.",
+  "internal_only_reason": "The invariant is entirely in this repository's Vitest fixture harness; no external service decides process environment lifetime.",
   "invariants": [
-    "The catalog and model-box preference paths used by this test resolve under one unique temporary directory.",
-    "The test restores the caller's NOMI_SETTINGS_DIR after its hooks complete.",
-    "The product's getSettingsRoot precedence remains unchanged."
+    "A test may override process.env only through vi.stubEnv.",
+    "Vitest restores stubbed environment values before the next test in a reused worker.",
+    "modelListingParity resolves its catalog and preference paths under the mocked Electron userData root when no inherited override exists."
   ],
   "doors": [
-    {"kind": "write", "path": "electron/parity/modelListingParity.test.ts", "symbol": "seedParityCatalog"},
-    {"kind": "write", "path": "electron/parity/modelListingParity.test.ts", "symbol": "writeModelBoxPreferenceSettings"},
-    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "readModelBoxPreferenceSettings"},
-    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "deriveModelListing"},
-    {"kind": "write", "path": "electron/parity/parityElectronMock.ts", "symbol": "pinParitySettingsRoot"}
+    {"kind": "write", "path": "electron/localSpeech/localSpeechPackaging.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "write", "path": "electron/localSpeech/localSpeechInstall.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "write", "path": "electron/testEnvironmentIsolation.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "read", "path": "electron/settings/settingsRoot.ts", "symbol": "getSettingsRoot"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "catalogPath"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "modelBoxPreferenceSettingsPath"}
   ],
   "door_reduction": {
-    "before": 4,
-    "after": 5,
-    "why_not": "The four doors are one fixture's two persisted-state writes and two reads; they remain separate because each is a real API boundary exercised by the test. The fix converges them on the pinned NOMI_SETTINGS_DIR rather than deleting a door."
+    "before": 6,
+    "after": 6,
+    "why_not": "The environment writes, shared settings-root read, and two persisted fixture reads are distinct doors. The repair makes every test write converge through Vitest's restore boundary; it does not delete a legitimate catalog or settings read."
   },
-  "generality_proof": "Every catalog or preference operation in this fixture calls getSettingsRoot() below the listed doors. Pinning the environment before any operation makes the resolution independent of worker order, inherited environment, or another test's temporary root.",
+  "generality_proof": "The direct-assignment scan found 72 affected Vitest files spanning NOMI_SETTINGS_DIR, NOMI_PROJECTS_DIR, capability, telemetry, proxy, and timeout variables. Converting every write/delete to vi.stubEnv and enabling unstubEnvs at the shared config covers each caller regardless of variable name, file order, or forks worker reuse.",
   "shared_boundaries": [
     {
-      "path": "electron/parity/parityElectronMock.ts",
-      "symbol": "pinParitySettingsRoot",
-      "responsibility": "Bind and restore the process-level settings root used by parity fixtures."
+      "path": "vitest.config.ts",
+      "symbol": "test.unstubEnvs",
+      "responsibility": "Restore every vi.stubEnv mutation after each test across all Vitest lanes."
     },
     {
-      "path": "electron/parity/modelListingParity.test.ts",
-      "symbol": "beforeAll",
-      "responsibility": "Call the shared binding before any catalog or preference persistence operation."
+      "path": "eslint.config.mjs",
+      "symbol": "no-restricted-syntax",
+      "responsibility": "Reject direct process.env assignments and deletes in test files and require vi.stubEnv."
     }
   ],
   "same_class_entry_points": [
     {
-      "path": "electron/parity/modelListingParity.test.ts",
-      "entry_point": "beforeAll",
+      "path": "electron/localSpeech/localSpeechPackaging.test.ts",
+      "entry_point": "packaging boundary tests",
       "disposition": "enforced",
-      "evidence": "The hook performs both the catalog seed and preference write after NOMI_SETTINGS_DIR is pinned."
+      "evidence": "The two former direct NOMI_SETTINGS_DIR assignments now use vi.stubEnv and are restored by the shared config."
     },
     {
-      "path": "electron/parity/modelListingParity.test.ts",
-      "entry_point": "isolated settings-root regression test",
+      "path": "electron/localSpeech/localSpeechInstall.test.ts",
+      "entry_point": "beforeEach settings-root fixture",
       "disposition": "enforced",
-      "evidence": "The test resolves both catalogPath() and modelBoxPreferenceSettingsPath() and asserts they contain the same temporary root."
+      "evidence": "The beforeEach NOMI_SETTINGS_DIR mutation now uses vi.stubEnv; the old file had no explicit cleanup."
     },
     {
-      "path": "electron/parity/connectionAuthParity.test.ts",
-      "entry_point": "seedParityCatalog",
+      "path": "tests/ux/**",
+      "entry_point": "ignored browser and walk scripts",
       "disposition": "not-affected",
-      "evidence": "That parity file does not read or write model-box preference state; this change intentionally does not alter its catalog-only fixture."
+      "evidence": "These scripts are outside the Vitest lane and remain governed by their browser/process runner; the ESLint test-file rule intentionally does not claim them."
     }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "NOMI_SETTINGS_DIR is process-global and any future test or runner can set it. A fixture that relies only on Electron's mocked app path can therefore resolve persisted state outside its own temporary directory.",
+    "reason": "process.env is process-global while forks workers can run multiple files in one child. Any new direct assignment or delete can contaminate a later file, so the mechanism is reusable and not a one-off parity fixture mistake.",
     "same_class_scan": [
-      "node scripts/door-map.mjs --include-tests --write=seedParityCatalog,writeModelBoxPreferenceSettings --read=readModelBoxPreferenceSettings,deriveModelListing",
-      "rg -n \\\"electronStub\\\\(\\\" electron --glob '*.test.ts' found six parity fixtures; only modelListingParity combines catalog seeding with model-box preference persistence.",
-      "rg -n \\\"NOMI_SETTINGS_DIR\\\" electron --glob '*.test.ts' found multiple tests that mutate the same process-level setting."
+      "rg -n --glob '*.{test,spec}.{ts,tsx}' 'process\\.env.*=|delete process\\.env' electron tests found 72 files before the conversion.",
+      "The scan covered NOMI_SETTINGS_DIR, NOMI_PROJECTS_DIR, NOMI_CAPABILITY_DIR, NOMI_* timeout/feature variables, proxy variables, and computed environment keys.",
+      "The converted direct-write scan is empty; electron/testEnvironmentIsolation.test.ts proves restoration between two tests."
     ]
   },
   "prevention": {
     "kind": "static-gate",
-    "enforcement_path": "electron/parity/modelListingParity.test.ts",
-    "invariant": "A persisted parity fixture pins NOMI_SETTINGS_DIR to its unique mocked Electron userData root before any read or write and restores it afterward.",
-    "failure_mode": "The regression assertion fails with the resolved catalog or preference path outside the fixture root.",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "Test files cannot assign to or delete process.env directly; all changes enter through vi.stubEnv and Vitest restores them via unstubEnvs.",
+    "failure_mode": "ESLint fails with a vi.stubEnv message at the direct assignment/delete, and the regression test fails if restoration is disabled.",
     "exception_policy": "none",
-    "strategy": "Keep the environment binding and path assertion at the fixture boundary so adding another catalog or preference operation cannot silently use an inherited root.",
+    "strategy": "Put lifecycle restoration in the shared Vitest config and the write prohibition in the shared ESLint test-file rule, so individual fixtures cannot forget cleanup.",
     "artifacts": [
-      "electron/parity/parityElectronMock.ts",
-      "electron/parity/modelListingParity.test.ts"
+      "vitest.config.ts",
+      "eslint.config.mjs",
+      "electron/testEnvironmentIsolation.test.ts"
     ]
   },
   "regression_tests": [
-    "electron/parity/modelListingParity.test.ts"
+    "electron/parity/modelListingParity.test.ts",
+    "electron/testEnvironmentIsolation.test.ts"
   ],
   "class_regression_tests": [
-    "electron/parity/modelListingParity.test.ts"
+    "electron/testEnvironmentIsolation.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
     "removed_paths": [],
-    "rationale": "No production or compatibility path was removed; this is a test-harness isolation repair."
+    "rationale": "The parity-only pin was deleted as obsolete test-fixture code, but no production or compatibility path needs migration."
   },
   "dependency_lifecycle": {
-    "decision": "not-applicable",
-    "rationale": "Vitest and Electron provide the test runtime, but the faulty invariant is this repository's environment binding and fixture setup.",
-    "exit_criteria": []
+    "decision": "retain-with-exit",
+    "current": "Vitest 4.1.8",
+    "target": "Keep the repository-pinned Vitest major while unstubEnvs remains supported.",
+    "rationale": "The required lifecycle primitive is already provided by the installed Vitest runtime; upgrading would not add the missing invariant.",
+    "exit_criteria": [
+      "If a future Vitest major removes unstubEnvs or changes fork lifecycle semantics, replace it with the supported equivalent and rerun electron/testEnvironmentIsolation.test.ts plus the 50-run lane evidence."
+    ]
   },
-  "migration": "No user or persisted product data changes. The temporary test root is created and removed by the test process.",
+  "migration": "No product data changes. Existing tests migrate from direct process.env writes to vi.stubEnv in the same commit; Vitest restores the caller's original values automatically.",
   "residual_risks": [
-    "The two B1 parity assertions remain intentionally expected failures because the product listing still does not consume model-box preferences; changing that product contract is outside this flaky-fixture repair.",
-    "The full repository Vitest run was started under two workers but not allowed to finish in this Windows session; focused verification is complete."
-  ]
-  ,
+    "tests/ux/** and scripts are outside ESLint's test-file rule and remain an explicitly listed non-Vitest surface.",
+    "The two B1 parity assertions remain intentional expected failures; this repair stabilizes their fixture environment and does not change product listing behavior."
+  ],
   "detected_by": "user",
   "recurrence_check_on": "2026-10-07",
   "invariant_owner_layer": {
-    "layer": "electron/parity/parityElectronMock.ts",
-    "tests": ["electron/parity/modelListingParity.test.ts"],
-    "why": "The shared parity mock owns fixture environment binding; product settings-root precedence remains unchanged."
+    "layer": "vitest.config.ts",
+    "tests": ["electron/testEnvironmentIsolation.test.ts", "electron/parity/modelListingParity.test.ts"],
+    "why": "The class root is process environment lifetime across test files, so ownership belongs at the shared runner and static write boundary rather than one parity fixture."
   }
 }

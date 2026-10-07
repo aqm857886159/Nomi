@@ -5,7 +5,7 @@
  * 安全边界。fake-ip 那两条互为阳性/阴性对照——只有阳性一条会绿的实现（无条件放行 198.18/15）
  * 会在阴性那条上翻红。
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   classifyOutboundAddresses,
   coarseAddressLabel,
@@ -21,7 +21,7 @@ const NO_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSampl
 
 afterEach(() => {
   setSyntheticResolverProbeForTests(null);
-  delete process.env.LAB_ALLOW_LOCALHOST;
+  vi.stubEnv("LAB_ALLOW_LOCALHOST", undefined);
 });
 
 describe("fake-ip 代理下的取片放行（含阴性对照）", () => {
@@ -187,7 +187,7 @@ describe("合成解析器探测（阳性对照法）", () => {
 
 describe("私网分类器没有逃生口", () => {
   it("LAB_ALLOW_LOCALHOST=1 不再让 127.0.0.1 变成公网", () => {
-    process.env.LAB_ALLOW_LOCALHOST = "1";
+    vi.stubEnv("LAB_ALLOW_LOCALHOST", "1");
     expect(isPrivateHost("127.0.0.1")).toBe(true);
     expect(isPrivateHost("169.254.169.254")).toBe(true);
     expect(isPrivateHost("localhost")).toBe(true);

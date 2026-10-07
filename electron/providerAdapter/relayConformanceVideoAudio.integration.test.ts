@@ -178,11 +178,11 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   // 把素材中转钉到本机（见上方 ASSET RELAY 说明）。不设的话 i2v 会真的往公网传图。
-  process.env.NOMI_ASSET_RELAY_URL = `${baseUrl}/v1/assets`;
+  vi.stubEnv("NOMI_ASSET_RELAY_URL", `${baseUrl}/v1/assets`);
 });
 
 afterAll(async () => {
-  delete process.env.NOMI_ASSET_RELAY_URL;
+  vi.stubEnv("NOMI_ASSET_RELAY_URL", undefined);
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 

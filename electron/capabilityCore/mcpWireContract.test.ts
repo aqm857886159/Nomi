@@ -599,7 +599,7 @@ const stdioPipe: McpWireConnector = (host, emit) => {
 
 // ── 本机 HTTP（第 2 段）：真的 Streamable HTTP 服务端（只听 127.0.0.1）+ SDK 的 HTTP 客户端传输；身份走真签名。 ──
 // capability 目录指到临时目录：签名用的 token 是这一次新铸的，不碰 ~/.nomi。
-process.env.NOMI_CAPABILITY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-wire-'))
+vi.stubEnv("NOMI_CAPABILITY_DIR", fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-wire-')))
 ensureToken()
 const HTTP_CLIENT = 'codex'
 

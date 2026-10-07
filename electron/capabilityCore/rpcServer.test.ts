@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // 读到的是真人数据，写下去就是改真人数据，而且一台机器一个结果：`mcpOnboardingLoopback`
 // 就是这么在这台机器上红、在别处绿的。给它一个本轮独有的空目录。
 const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-rpc-server-cap-"));
-process.env.NOMI_CAPABILITY_DIR = capabilityRoot;
+vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
 
 import { startRpcServer, type RpcServerHandle } from "./rpcServer";
 import { ensureToken, signMcpClient, type AuthenticatedMcpClient } from "./security";
@@ -177,7 +177,7 @@ async function leasedCanvasWriteFixture(projectId: string, randomSecret: string)
 beforeEach(async () => {
   mockedDocumentsRoot = makeTempDir("nomi-rpc-documents-");
   mockedUserDataRoot = makeTempDir("nomi-rpc-user-data-");
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   openProjectId = "";
   rendererUp = false;
   spendReply = { confirmed: true };
@@ -198,7 +198,7 @@ beforeEach(async () => {
 afterEach(async () => {
   if (server) await server.close();
   server = null;
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 

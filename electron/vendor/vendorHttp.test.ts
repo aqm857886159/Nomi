@@ -24,7 +24,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setSubmitOutboundDepsForTests(null);
-  delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS;
+  vi.stubEnv("NOMI_VENDOR_HTTP_TIMEOUT_MS", undefined);
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -301,7 +301,7 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
   });
 
   it("maps a bounded response-body deadline to the stable timeout category and reason", async () => {
-    vi.useFakeTimers(); process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS = "10";
+    vi.useFakeTimers(); vi.stubEnv("NOMI_VENDOR_HTTP_TIMEOUT_MS", "10");
     stubFetch(() => new Response(new ReadableStream({ pull: () => new Promise(() => {}) })));
     const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null).catch((caught) => caught);
     await vi.advanceTimersByTimeAsync(11);
