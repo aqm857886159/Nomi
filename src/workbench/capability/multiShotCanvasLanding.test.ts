@@ -503,3 +503,26 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     expect(node(id).status).toBe('running')
   })
 })
+
+// 同一次任务里画布上出现两张分镜表：同一个 Run 的两次落地重叠时，「这个 Run 已有表吗」在 await 之前判一次、之后才建，
+// 两次都判成「没有」。判据必须在真正建表那一刻（同步段内）再读一次。
+describe('production shot table is created at most once per Run, even when two landings overlap', () => {
+  const runId = 'run-overlap-1'
+  const operationId = `canvas-landing:${runId}`
+  const shots = [
+    { shotId: 'o-1', role: 'shot' as const, kind: 'image' as const, prompt: '一' },
+    { shotId: 'o-2', role: 'shot' as const, kind: 'image' as const, prompt: '二' },
+  ]
+  beforeEach(() => {
+    resetClientIdRegistry()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+  })
+
+  it('reported case: two overlapping landings of one Run leave exactly one table', async () => {
+    await Promise.all([
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+    ])
+    expect(useGenerationCanvasStore.getState().nodes.filter((node) => node.kind === 'shot_table')).toHaveLength(1)
+  })
+})
