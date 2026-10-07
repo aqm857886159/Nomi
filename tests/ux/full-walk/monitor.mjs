@@ -1003,7 +1003,7 @@ export function createInvariantMonitor(options) {
         if (present && !pendingCard && lastModelActivity && now - lastModelActivity > limits.agentIdleMs.value) {
           await violate({
             invariant: 5, rule: 'agent-turn-idle', key: `agent|${spinner.firstSeen}`,
-            module: 'electron/agentLane（回合无活动超过 LANE_IDLE_MS 仍在运行态）',
+            module: 'electron/agentLane（回合无活动超过看门狗 LANE_FIRST_RESPONSE_MS + LANE_FIRST_TOKEN_MS 仍在运行态）',
             message: `Agent 回合在运行态已 ${Math.round(age / 1000)}s，最后一次模型活动在 ${Math.round((now - lastModelActivity) / 1000)}s 前，也没有等人回答的卡`,
             snapshot: { spinner },
           })

@@ -51,10 +51,13 @@ export interface NomiStreamGuard {
  *   过去这段用的是 120s 的空闲表：真实反馈 NF-1001-0003/0004（gpt-5.6-sol 经中转）里一回合被掐四次，
  *   每次 pi 都把约 6–8 万 token 的上下文整份重发——用户花了钱、什么都没拿到。
  */
+export const LANE_FIRST_RESPONSE_MS = 90_000;
+export const LANE_FIRST_TOKEN_MS = 300_000;
+export const LANE_IDLE_MS = 120_000;
 export const LANE_STREAM_WATCHDOG: NomiStreamGuard = Object.freeze({
-  firstResponseMs: 90_000,
-  firstTokenMs: 300_000,
-  idleMs: 120_000,
+  firstResponseMs: LANE_FIRST_RESPONSE_MS,
+  firstTokenMs: LANE_FIRST_TOKEN_MS,
+  idleMs: LANE_IDLE_MS,
 });
 
 /**

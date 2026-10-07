@@ -137,12 +137,112 @@
       "kind": "write",
       "path": "src/devlab/designLab/v4/states/01-vocabulary.tsx",
       "symbol": "providerFailureText"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/agentToolFailure.ts",
+      "symbol": "zhAgentToolFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "AGENT_TOOL_FAILURE_TEXT_KEY"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "assistantFaultText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHistory.mts",
+      "symbol": "isContextOverflow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "watchdog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneStreamObserver.mts",
+      "symbol": "observeNativeStream"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSupersededReads.mts",
+      "symbol": "omitSupersededReads"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "requestInputs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/transportContracts.ts",
+      "symbol": "timeoutPhase"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+      "symbol": "readScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneAssistantFault"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneTrajectory.ts",
+      "symbol": "requestInputs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "document_position_unavailable"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/agentResident.ts",
+      "symbol": "faultFirstToken"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "assistantFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "LaneAssistantFault"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "document_position_unavailable"
     }
   ],
   "door_reduction": {
-    "before": 10,
-    "after": 9,
-    "why_not": "单次调用 laneSingleShot 原手抄 90s/120s，现与 lane 主路读同一份 LANE_STREAM_WATCHDOG（两扇门同一预算，门数不变但定义从两份变一份）；mcpStoryboardPlanner 的 bounded 是同名的另一个本地函数（截断字符串），不是执行器超时，列出仅因 door-map 按名字计；providerFailureText 的设计实验室那扇门是截图夹具，必须和面板同一实现才有意义"
+    "before": 29,
+    "after": 29,
+    "why_not": "单次调用 laneSingleShot 原手抄 90s/120s，现与 lane 主路读同一份 LANE_STREAM_WATCHDOG（两扇门同一预算，门数不变但定义从两份变一份）；mcpStoryboardPlanner 的 bounded 是同名的另一个本地函数（截断字符串），不是执行器超时，列出仅因 door-map 按名字计；providerFailureText 的设计实验室那扇门是截图夹具，必须和面板同一实现才有意义；工具失败文案三扇（词典 zhAgentToolFailure、码到词条 AGENT_TOOL_FAILURE_TEXT_KEY、回合失败事实到词条 assistantFaultText）是面板上那句话的唯一读写处，各管一层，不可合并；其余各扇是同一条失败事实从产生（看门狗 / 文稿端口 / 执行器）经契约、投影、轨迹到面板词条的每一层各一处，按层分工、不可合并"
   },
   "generality_proof": "看门狗装在 provider 流上（每一次模型请求都经过 observeNativeStream），相位边界在那里定一次；fault 在投影层认，实时与冷读历史都走 projectLaneSnapshot；文稿缺位置只在基线端口与增强端口的定位校验处产出，lane 与 MCP 都经同一渲染端 handler；执行器超时缺省从动词声明派生，lane 与 MCP 共用同一执行器；旧快照判据从动词声明（effect=read + toSemanticInput）派生，新读动词自动覆盖",
   "shared_boundaries": [
