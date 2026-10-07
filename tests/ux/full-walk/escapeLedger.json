@@ -1188,6 +1188,21 @@
         "kind": "matrix",
         "file": "tests/ux/selection-drag-lifecycle.test.mjs"
       }
+    },
+    {
+      "id": "FB-20261007-proposal-undo-overwrites-landed",
+      "since": "2026-10-07",
+      "source": "V-1072 独立验收 + 方向检查 docs/plan/2026-10-07-canvas-landing-direction-check.md §3 预测 ②",
+      "category": "interaction-semantics",
+      "problem": "Agent 提案「撤销这批」/ 重开恢复中断的提案时，restore-snapshot 补偿把提案之前的整张图放回：提案之后落在提案没碰过的节点上的生成结果（钱已花）被盖掉；restoreGraph 放回的节点丢掉它不在期间到达的结局，一直转圈；restore-node-fields 放回旧 meta 盖掉后来结果的媒体尺寸",
+      "existingInvariants": [],
+      "ironLaws": ["⑫"],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": ["特征测试 src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts：7 条在 main（4f00f8b21）上全红"],
+      "completionCommits": []
     }
   ]
 }
