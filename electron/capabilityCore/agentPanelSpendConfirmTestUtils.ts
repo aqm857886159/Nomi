@@ -367,6 +367,8 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
       approvalReceiptAuthority: receipts,
       leaseFor: () => lease,
       approvalPolicy: () => ({ mode, spend: "confirm" }),
+      // 与生产同一条接线（appIntegration）：草稿落地之后回「此刻在画布上吗」，回执据它说话。
+      draftLanding: base.canvasLanding.draftLandingOutcome,
     },
   );
   return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts, authority, transport,
