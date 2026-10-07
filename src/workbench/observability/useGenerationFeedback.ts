@@ -38,6 +38,16 @@ export function generationFeedbackClockNow(): number {
   return now
 }
 
+/** Test-only clock seam: keeps behavior tests on the same external snapshot as production. */
+export function setGenerationFeedbackClockForTests(value: number): void {
+  now = value
+  listeners.forEach((notify) => notify())
+}
+
+export function shouldKeepGenerationFeedbackClock(current: GenerationCanvasNode | undefined, active: boolean): boolean {
+  return active || (current ? savedFeedbackWindowOpen(current, generationFeedbackClockNow()) : false)
+}
+
 export function useGenerationFeedbackClock(active = true): number {
   return useSyncExternalStore(active ? subscribe : inactiveSubscribe, snapshot, snapshot)
 }
@@ -69,7 +79,7 @@ export function useGenerationFeedback(node: GenerationCanvasNode | null | undefi
   // The visibility check and the derived feedback must read the same clock. Reading
   // Date.now() here races the external-store snapshot at the 3s boundary and can
   // leave a saved receipt mounted without another tick to remove it.
-  const ticking = active || (current ? savedFeedbackWindowOpen(current, generationFeedbackClockNow()) : false)
+  const ticking = shouldKeepGenerationFeedbackClock(current, active)
   const timestamp = useGenerationFeedbackClock(ticking)
   return current ? generationFeedback(current, timestamp, queued, queueAhead) : null
 }
