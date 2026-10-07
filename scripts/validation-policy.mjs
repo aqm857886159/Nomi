@@ -133,7 +133,7 @@ const CANVAS_DISPLAY_OWNER_PATTERNS = [
   /^electron\/shared\/(?:productionShot[^/]*|productionRunStop|decideShotClaim|generationShotEnvelope)(?:\.|$)/,
   /^electron\/shared\/canvas\//,
   // 主进程画布落地投影与 Run 状态机（谁写节点运行记录、谁收尾）
-  /^electron\/productionRun\/(?:canvasLandingHost|canvasShotClaim|multiShotCanvasLanding|productionRunCanvasLandingReducer|productionRunLifecycle|productionRunReducer|productionRunProjections|batchScheduleDerivation|batchSchedulerKick|multiShotBatchScheduler)(?:\.|$)/,
+  /^electron\/productionRun\/(?:canvasLandingHost|canvasShotClaim|multiShotCanvasLanding|productionRunCanvasLandingReducer|productionRunLifecycle|productionRunState|productionRunReducer|productionRunProjections|batchScheduleDerivation|batchSchedulerKick|multiShotBatchScheduler)(?:\.|$)/,
   // 渲染层：落地投影写入点与制作侧的镜头认领 / 动作
   /^src\/workbench\/capability\/multiShotCanvasLanding(?:\.|$)/,
   /^src\/workbench\/production\/(?:ProductionCanvasLandingHost|productionCanvasLandingStore|productionShotOwnership|productionShotActions|reportDetachedShotNodes|watchDeletedProductionNodes)(?:\.|$)/,
