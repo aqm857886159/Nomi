@@ -46,6 +46,9 @@ export function resolveAnchoredPopoverPlacement(
   else if (fitsBelow) vertical = { top: below }
   else if (roomAbove > roomBelow) vertical = { top: MARGIN, maxHeight: Math.max(0, roomAbove) }
   else vertical = { top: below, maxHeight: Math.max(0, roomBelow) }
+  // 锚点自己已经滚出窗口（翻过的边也在窗口外）时没有「不压锚点」可言——把整块夹回窗口里，至少看得见（同旧版）。
+  const shown = Math.min(size.height, vertical.maxHeight ?? size.height)
+  vertical.top = Math.min(Math.max(MARGIN, vertical.top), Math.max(MARGIN, viewport.height - MARGIN - shown))
 
   let left = align === 'center'
     ? anchor.left + anchor.width / 2 - size.width / 2

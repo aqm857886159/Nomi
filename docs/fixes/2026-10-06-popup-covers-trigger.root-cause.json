@@ -21,7 +21,8 @@
   "entry_points": [
     "节点浮条上每一个带 ▾ 的按钮（图片：更多效果 / 改图 / 宫格；视频：抽帧 / 拆解）→ ToolbarActionMenu",
     "分镜表参考卡行「⋯」→ WorkbenchMenu anchorRect",
-    "所有 AnchoredPopover 消费者（12 扇门）→ resolveAnchoredPopoverPlacement"
+    "所有 AnchoredPopover 消费者（12 扇门）→ resolveAnchoredPopoverPlacement",
+    "⑫ 真 App 普查：tests/ux/full-walk/catalog.mjs 的 NODE_TOOLBAR_CLICK_TARGETS（pb13 逐个点浮条动作）"
   ],
   "external_sources": [
     {

@@ -21,7 +21,8 @@
   ],
   "entry_points": [
     "节点浮条「抠图」→ useNodeImageEditing.handleRemoveBackground → removeBackgroundBlob",
-    "画板里选中素材「抠图」→ WhiteboardDrawingTool.handleRemoveBackground → removeBackgroundBlob"
+    "画板里选中素材「抠图」→ WhiteboardDrawingTool.handleRemoveBackground → removeBackgroundBlob",
+    "⑫ 真 App 普查：tests/ux/full-walk/catalog.mjs 的 NODE_TOOLBAR_CLICK_TARGETS（pb13 逐个点浮条动作）"
   ],
   "external_sources": [
     {

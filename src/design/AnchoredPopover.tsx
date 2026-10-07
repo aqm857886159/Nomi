@@ -91,6 +91,16 @@ export type AnchoredPopoverProps = {
 type Placement = { top: number; left: number; maxHeight?: number }
 
 
+/** 浮层内容在流里的自然高度：直接子元素的布局高度之和（不受外壳 maxHeight 影响，也不算绝对定位的后代）。 */
+function naturalContentHeight(pop: HTMLElement | null): number {
+  if (!pop) return 0
+  let total = 0
+  for (const child of Array.from(pop.children)) {
+    if (child instanceof HTMLElement && getComputedStyle(child).position !== 'absolute' && getComputedStyle(child).position !== 'fixed') total += child.offsetHeight
+  }
+  return total || pop.offsetHeight
+}
+
 export function AnchoredPopover({
   anchorRef,
   anchorRect,
@@ -120,8 +130,10 @@ export function AnchoredPopover({
     if (!anchor || !anchor.isConnected) return
     setPlacement(resolveAnchoredPopoverPlacement(
       anchorRectRef.current ? anchorRectRef.current() : anchor.getBoundingClientRect(),
-      // 高度量内容的自然高（scrollHeight）：被 maxHeight 收过的高度会让下一次判成「放得下」，来回抖。
-      { width: pop?.offsetWidth || 300, height: pop?.scrollHeight || 360 },
+      // 高度量内容的自然高：被 maxHeight 收过的外壳高度会让下一次判成「放得下」，来回抖；
+      // 也不能用外壳的 scrollHeight——浮层里自己挂出来的下拉（NomiSelect 的 portalTarget 指回浮层）是绝对定位的，
+      // 会把 scrollHeight 撑高，于是一打开子下拉就误判成「放不下」、收高度滚动，子下拉被裁掉（composerLifecycle 那条）。
+      { width: pop?.offsetWidth || 300, height: naturalContentHeight(pop) || 360 },
       align,
       gap,
       { width: window.innerWidth, height: window.innerHeight },

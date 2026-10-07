@@ -60,6 +60,15 @@ describe('resolveAnchoredPopoverPlacement', () => {
     expect(at.top + (at.maxHeight ?? 0)).toBeLessThanOrEqual(400 - 6)
   })
 
+  it('锚点自己滚出了窗口：浮层夹回窗口里，不跟着锚点出去（浮层里打开子下拉时页面滚动，composerLifecycle 那条）', () => {
+    const at = resolveAnchoredPopoverPlacement(
+      anchor({ left: 200, right: 430, top: 1160, bottom: 1225, width: 230 }),
+      { width: 820, height: 31 }, 'start', 6, { width: 1280, height: 720 },
+    )
+    expect(at.top).toBeGreaterThanOrEqual(8)
+    expect(at.top + 31).toBeLessThanOrEqual(720 - 8)
+  })
+
   it('不变量普查：任意锚点 × 尺寸 × 偏好方向，浮层都不与锚点相交、都在视口里', () => {
     const misses: string[] = []
     for (const side of ['top', 'bottom'] as const) {

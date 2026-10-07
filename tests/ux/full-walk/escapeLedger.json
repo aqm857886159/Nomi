@@ -798,10 +798,13 @@
       "ironLaws": ["⑫"],
       "useCases": ["S6"],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["设计实验室 node-quick-actions qa-20/21/26 改前菜单压住浮条、改后不压（截图交协调会话）", "类级检查 tests/ux/design-lab/popupGeometry.census.mjs：所有屏 capture:viewport 的格量浮层与触发钮 / 横向工具条不相交；变异：锚点改回点即 3 格红", "根因合同 docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json"],
-      "completionCommits": []
+      "completionCommits": ["997bdbd9f","b8c81ba9b"],
+      "rootCauseContract": "docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json",
+      "fixedInPr": 1051,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
     },
     {
       "id": "FB-20261006-qa2-remove-background-stuck",
@@ -813,10 +816,13 @@
       "ironLaws": ["⑫"],
       "useCases": ["S6"],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": ["真 App（dev / 生产构建 / 打包版）点浮条抠图：三次都成功但 90–140 秒，进度 35%→100%→35% 来回跳", "改后：只从自有镜像拉，总进度单调；镜像挂住 62 秒后报「下载卡住了」、按钮恢复", "根因合同 docs/fixes/2026-10-06-remove-background-download.root-cause.json"],
-      "completionCommits": []
+      "completionCommits": ["23945d9b5"],
+      "rootCauseContract": "docs/fixes/2026-10-06-remove-background-download.root-cause.json",
+      "fixedInPr": 1051,
+      "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
     },
     {
       "id": "FB-20261006-qa2-upscale-dead-end",
