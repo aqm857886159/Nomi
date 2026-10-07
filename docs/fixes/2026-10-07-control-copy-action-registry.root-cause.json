@@ -12,7 +12,8 @@
   ],
   "scope_paths": [
     "docs/GLOSSARY.md",
-    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs",
+    "tests/ux/spend-panel-write-ownership.test.mjs"
   ],
   "entry_points": [
     "check:controls 读取 docs/GLOSSARY.md 的动作词表并扫描 JSX 控件",
@@ -97,10 +98,12 @@
     ]
   },
   "regression_tests": [
-    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs",
+    "tests/ux/spend-panel-write-ownership.test.mjs"
   ],
   "class_regression_tests": [
-    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs",
+    "tests/ux/spend-panel-write-ownership.test.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -115,5 +118,15 @@
   "migration": "无需迁移持久化数据；动作词典是源码文档，下一次 check:controls 直接读取新分类。",
   "residual_risks": [
     "ComfyUI 地址保存行的完整英文应用路径仍需在真实 Electron 设置页走查；本次几何断言覆盖其共享 DecisionBar 组件与英文决策栏形态。"
-  ]
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/control-contract-copy.mjs",
+    "tests": [
+      "scripts/control-contract-copy.node-test.mjs",
+      "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+    ],
+    "why": "check:controls 的动作词语义边界由词典加载与扫描门统一持有；纯告知、确认和具体领域动作都在同一共享边界判定。"
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-07"
 }

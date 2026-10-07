@@ -315,6 +315,7 @@ it('「生成剩下」交给宿主之后点 ×：× 立刻送到主进程，不�
   await page.evaluate(() => window.spendOwnership.discard())
   await page.waitForFunction(() => window.spendOwnership.calls.some(call => call.discard))
   const calls = await page.evaluate(() => window.spendOwnership.calls)
+  expect(calls.map(call => Object.keys(call)[0])).toEqual(['remaining', 'discard'])
   // × 没等宿主那一叠跑完：此刻那一叠还在路上，收回已经送到了。带的是这一叠交出去时那一版报价（宿主认这一叠出过的每一版）。
   expect(calls.filter(call => call.remaining)).toHaveLength(1)
   expect(calls.find(call => call.discard).discard).toEqual(['project', 'operation', 'quote'])
