@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findActionEntry, legacyPoseToAction, resolveActionAlias } from './actionLibrary'
+import { ACTION_ALIASES, ACTION_LIBRARY, findActionEntry, LEGACY_APPROXIMATE_ACTIONS, legacyPoseToAction, resolveActionAlias, T_POSE_ACTION_ID } from './actionLibrary'
+import { UAL_ACTIONS } from './assetCatalog/ualActions'
 import { presetPoseRotations } from './posePresets'
 import type { ActionClip, LookAtClip } from './directorTypes'
 import { distributeHeadAim, lookAtWeightAt, solveHeadAim } from './lookAtSolve'
@@ -109,15 +110,67 @@ describe('lookAtSolve', () => {
 })
 
 describe('actionLibrary', () => {
+  it('动作库 = T-Pose + UAL 去掉 _RM 的 43 个原生动作，id 唯一、都在 UAL 元数据里', () => {
+    expect(ACTION_LIBRARY[0].id).toBe(T_POSE_ACTION_ID)
+    expect(ACTION_LIBRARY).toHaveLength(44)
+    expect(new Set(ACTION_LIBRARY.map((entry) => entry.id)).size).toBe(44)
+    const ualIds = new Set(UAL_ACTIONS.map((meta) => meta.id))
+    for (const entry of ACTION_LIBRARY.slice(1)) {
+      expect(ualIds.has(entry.id), entry.id).toBe(true)
+      expect(entry.id.endsWith('_RM'), entry.id).toBe(false)
+    }
+  })
+
+  it('循环 / 单次 / 单姿势：Sword_Idle 带 idle 标签按循环，零点几秒的瞄准按单姿势，受击按单次', () => {
+    expect(findActionEntry('Sword_Idle')?.kind).toBe('loop')
+    expect(findActionEntry('Pistol_Aim_Neutral')?.kind).toBe('pose')
+    expect(findActionEntry('Hit_Chest')?.kind).toBe('once')
+    expect(findActionEntry('Walk_Loop')?.kind).toBe('loop')
+    expect(findActionEntry(T_POSE_ACTION_ID)?.kind).toBe('pose')
+  })
+
+  it('旧 Mixamo 动作 id 按施工计划 §3 对应表解析（读档迁移与别名同一张表）', () => {
+    const table: Record<string, string> = {
+      tpose: T_POSE_ACTION_ID,
+      standing_idle: 'Idle_Loop',
+      standard_walk: 'Walk_Loop',
+      running: 'Jog_Fwd_Loop',
+      male_sitting_pose_1: 'Sitting_Idle_Loop',
+      male_sitting_pose: 'Crouch_Idle_Loop',
+      kneeling: 'Fixing_Kneeling',
+      kneeling_idle: 'Fixing_Kneeling',
+      kneeling_down: 'Fixing_Kneeling',
+      standing_up: 'Idle_Loop',
+    }
+    for (const [legacy, expected] of Object.entries(table)) expect(resolveActionAlias(legacy)?.id, legacy).toBe(expected)
+    expect([...LEGACY_APPROXIMATE_ACTIONS].sort()).toEqual(['kneeling', 'kneeling_down', 'kneeling_idle', 'male_sitting_pose', 'standing_up'])
+    for (const target of Object.values(ACTION_ALIASES)) expect(findActionEntry(target), target).toBeDefined()
+  })
+
   it('resolves aliases and converts preset radians to degrees', () => {
-    expect(resolveActionAlias('跑步')?.id).toBe('running')
-    expect(resolveActionAlias('Sitting')?.id).toBe('male_sitting_pose_1')
-    expect(findActionEntry('standard_walk')?.file).toBe('StandardWalk')
-    expect(legacyPoseToAction('single-knee')).toBe('kneeling')
+    expect(resolveActionAlias('跑步')?.id).toBe('Jog_Fwd_Loop')
+    expect(resolveActionAlias('Sitting')?.id).toBe('Sitting_Idle_Loop')
+    expect(resolveActionAlias('idle_loop')?.id).toBe('Idle_Loop')
+    expect(findActionEntry('Walk_Loop')?.clip).toBe('Walk_Loop')
+    expect(legacyPoseToAction('single-knee')).toBe('Fixing_Kneeling')
     expect(legacyPoseToAction('squat')).toBeUndefined()
     const tpose = presetPoseRotations('t-pose')
     expect(tpose?.mixamorigLeftArm?.x).toBeCloseTo(-67.5, 1)
     expect(presetPoseRotations('nope')).toBeNull()
+  })
+})
+
+describe('solveHeadAim 扣掉动作层已转过的头', () => {
+  it('动作已经让头转向目标：只补差值；没转过（站立）时与原来一样；限幅仍按相对身体算', () => {
+    const base = { headPosition: { x: 0, y: 1.6, z: 0 }, targetPosition: { x: 5, y: 1.6, z: 5 }, bodyYaw: 0, clampingAngle: 80, enablePitch: false, weight: 1 }
+    expect(solveHeadAim(base).yaw).toBeCloseTo(45)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 0 }).yaw).toBeCloseTo(45)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 40 }).yaw).toBeCloseTo(5)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 60 }).yaw).toBeCloseTo(-15)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 350 }).yaw).toBeCloseTo(55)
+    const far = solveHeadAim({ ...base, targetPosition: { x: 5, y: 1.6, z: -0.8816 }, clampingAngle: 80, currentHeadYaw: 30 })
+    expect(far.yaw).toBeCloseTo(50)
+    expect(far.weight).toBeGreaterThan(0)
   })
 })
 

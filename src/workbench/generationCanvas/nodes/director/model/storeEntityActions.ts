@@ -8,7 +8,7 @@
  *        gizmo/检查器改位姿一律走 write*SpatialTransform（编辑层三态）；跨层在同一草稿搬完整子树，rest/路标一起换坐标。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { findActionEntry } from './actionLibrary'
+import { resolveActionAlias } from './actionLibrary'
 import { syncFocalLength } from './cameraLens'
 import { defaultCharacterInput } from './defaultCharacter'
 import { patchWaypoint, upsertWaypointAt } from './clips'
@@ -301,7 +301,7 @@ export function createEntityActions(set: StoreSet, get: StoreGet, commitProject:
       const rows = clampAxis(spec.rows)
       const cols = clampAxis(spec.cols)
       const spacing = Number.isFinite(spec.spacing) ? Math.max(0, spec.spacing) : 0
-      if (!findActionEntry(spec.actionId)) return null
+      if (!resolveActionAlias(spec.actionId)) return null
       save()
       const groupId = createObjectId()
       const startX = -((cols - 1) * spacing) / 2
