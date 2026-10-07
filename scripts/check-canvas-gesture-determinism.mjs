@@ -167,8 +167,10 @@ const RULES = [
 ]
 
 function main() {
+  const files = collectFiles()
+  console.log(`scanned=${files.length}`)
   const violations = []
-  for (const file of collectFiles()) {
+  for (const file of files) {
     const relative = path.relative(repoRoot, file)
     const source = blankComments(fs.readFileSync(file, 'utf8'))
     const lines = source.split('\n')

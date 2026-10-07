@@ -80,6 +80,7 @@ export function checkGenerationEntrances(root = repoRoot) {
 
   // ① 反向扫
   const scanned = scanDispatchSites(root)
+  console.log(`scanned=${scanned.size}`)
   const registered = new Map(ledger.sites.map((site) => [site.site, site]))
   for (const [key, count] of [...scanned].sort()) {
     const entry = registered.get(key)

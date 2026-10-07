@@ -35,13 +35,14 @@ function listTrackedSymlinks() {
   // 越过默认值 2 KB，门岗当场 `ENOBUFS` 崩掉。那个默认值在这里**悄悄变成了一条仓库大小上限**，
   // 而它和这道门要守的不变量（git 里不许有本机绝对路径的软链）毫无关系。
   // 给一个只受内存约束的上限，让它回到「传输容量」的本分；仓库再长大也不会把门岗变成假红。
-  return splitNulPaths(execFileSync("git", ["ls-files", "-s", "-z"], { encoding: "utf8", maxBuffer: 1024 * 1024 * 1024 }))
+  const records = splitNulPaths(execFileSync("git", ["ls-files", "-s", "-z"], { encoding: "utf8", maxBuffer: 1024 * 1024 * 1024 }))
+  return { scanned: records.length, links: records
     .map((record) => {
       const [meta, file] = record.split("\t");
       const [mode, oid] = meta.split(" ");
       return { mode, oid, file };
     })
-    .filter((e) => e.mode === SYMLINK_MODE);
+    .filter((e) => e.mode === SYMLINK_MODE) }
 }
 
 const readTarget = (oid) => execSync(`git cat-file -p ${oid}`, { encoding: "utf8" }).trim();
@@ -51,7 +52,9 @@ const isAbsolute = (t) => t.startsWith("/") || /^[A-Za-z]:[\\/]/.test(t);
 // 相对但爬出仓库根，同样不可移植
 const escapesRepo = (file, target) => path.relative(".", path.resolve(path.dirname(file), target)).startsWith("..");
 
-const offenders = listTrackedSymlinks()
+const tracked = listTrackedSymlinks()
+console.log(`scanned=${tracked.scanned}`)
+const offenders = tracked.links
   .map((e) => ({ ...e, target: readTarget(e.oid) }))
   .filter((e) => isAbsolute(e.target) || escapesRepo(e.file, e.target));
 

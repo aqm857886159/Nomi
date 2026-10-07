@@ -611,4 +611,5 @@ if (failures.length) {
   console.error('    别靠在某个执行器里补一句默认值——那只修了一个面，另一个面照样红。')
   process.exit(1)
 }
+console.log(`scanned=${checked}`)
 console.log(`\n✅ ${checked} 个动词的最小实例与字段填满实例，宿主全部收得下；没有字段被翻译层静默丢掉，也没有信封被下游手抄。`)

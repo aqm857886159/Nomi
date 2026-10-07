@@ -105,6 +105,7 @@ function readArchetypes() {
 }
 
 const archetypes = readArchetypes()
+console.log(`scanned=${archetypes.length}`)
 if (archetypes.length === 0) {
   console.error('✗ 平台档案门岗：一个档案都没扫到 —— 抽取正则大概率失配了，不许静默放行。')
   process.exit(1)

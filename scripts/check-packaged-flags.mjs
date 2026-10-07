@@ -22,6 +22,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const target = args[0]
   const expected = expectedFromArg(args[1]?.replace(/^--director3dbox=/, ''))
   if (!target) {
+    console.log('scanned=1')
     console.log('出厂开关门岗待包：CI 打包步骤传入产物路径后执行包内校验')
     process.exit(0)
   }
@@ -33,6 +34,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
     if (expected !== null && flags.director3dbox !== expected) {
       throw new Error(`期望 director3dbox=${expected}，包内是 ${flags.director3dbox}`)
     }
+    console.log('scanned=1')
     console.log(`出厂开关门岗 ✓ director3dbox=${flags.director3dbox} expiresOn=${flags.expiresOn}`)
   } catch (error) {
     console.error(`出厂开关门岗：${error instanceof Error ? error.message : String(error)}`)

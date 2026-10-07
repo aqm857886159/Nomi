@@ -50,6 +50,7 @@ function main() {
     console.error(`\n✖ check:site 红了（${failed.length} 项）：${failed.join('、')}`)
     return 1
   }
+  console.log(`scanned=${SITE_STEPS.length}`)
   console.log(`\n✅ check:site：${SITE_STEPS.length} 个子项全部通过`)
   return 0
 }

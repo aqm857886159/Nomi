@@ -373,4 +373,5 @@ if (fillable.length) {
   console.error('\n  → 可构造 ≠ 可填。门岗自己补出来的那个值，现实里得有人拿得到。')
   process.exit(1)
 }
+console.log(`scanned=${checked}`)
 console.log(`\n✅ ${checked} 个 operation 全部可构造，${demanded.size} 个必填字段全部说得出外部调用方从哪拿到。`)

@@ -238,4 +238,5 @@ if (failures.length) {
   console.error(`\n为什么有这条门岗：docs/plan/2026-09-11-agent-error-surface.md`)
   process.exit(1)
 }
+console.log(`scanned=${codes.length + toolCodes.length}`)
 console.log(`check:error-surface 通过（命令码 ${codes.length} + 工具码 ${toolCodes.length}，各 × 2 种语言；lane 英文散句存量 ${found.length}/${baseline.entries.length}）`)

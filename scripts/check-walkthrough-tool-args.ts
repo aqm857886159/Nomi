@@ -59,6 +59,7 @@ const skippedNote = result.skipped.length > 0
   ? `；${result.skipped.length} 处查不了（变量/展开/计算键），如实记账不算绿`
   : "";
 console.log(
+  `scanned=${result.sites}\n` +
   `✅ 走查模型面调用：${result.sites} 处调用、${result.checked} 个键全部在 schema 里` +
   `（${Object.keys(schemasByVerb).length} 个动词的发布 schema）${skippedNote}。`,
 );

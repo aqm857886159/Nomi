@@ -212,6 +212,7 @@ function main() {
     for (const file of staleRegistrations) console.log(`   · ${file}`)
   }
 
+  console.log(`scanned=${READERS.length}`)
   console.log('✅ 单一 owner 门岗通过（没有第二份「能不能用」的判据）。')
 
 }

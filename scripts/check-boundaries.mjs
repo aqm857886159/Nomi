@@ -221,6 +221,7 @@ async function main() {
 
   const totalCurrent = RULE_ORDER.reduce((n, r) => n + (buckets[r]?.size ?? 0), 0)
   const totalFrozen = RULE_ORDER.reduce((n, r) => n + baselineIdentities(baseline, r).size, 0)
+  console.log(`scanned=${output.summary.totalCruised}`)
   console.log(
     `分层边界：${output.summary.totalCruised} 模块；当前 ${totalCurrent} 处越界/硬环；基线冻结 ${totalFrozen} 处（棘轮只减不增）`,
   )

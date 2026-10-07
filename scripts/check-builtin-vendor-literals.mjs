@@ -166,6 +166,7 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
+console.log(`scanned=${files.length}`)
 console.log(
   `✅ 内置供应商身份门岗：扫 ${files.length} 个文件；新增违规 0；` +
     `豁免 ${EXEMPTIONS.length} 条（已验证仍存在）；债 ${DEBT.length} 条（最早到期 ${DEBT.map((d) => d.due).sort()[0] ?? '—'}）。`,

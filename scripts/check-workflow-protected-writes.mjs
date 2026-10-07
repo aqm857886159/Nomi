@@ -87,5 +87,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error('  修法：派生数据推到自己的非保护数据分支（见 docs/stats/README.md），或用 peter-evans/create-pull-request 开 PR。')
     process.exit(1)
   }
+  console.log(`scanned=${listWorkflowFiles().length}`)
   console.log(`✅ workflow 受保护分支写入门岗：${listWorkflowFiles().length} 份 workflow 无直推受保护分支`)
 }

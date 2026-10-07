@@ -108,6 +108,7 @@ function auditAppIcons(repoRoot) {
 
 if (require.main === module) {
   const result = auditAppIcons(path.resolve(__dirname, '..'))
+  console.log('scanned=2')
   console.log(`APP ICON CHECK PASS png=${result.png} ico=${result.icoSizes.join(',')}`)
 }
 

@@ -90,4 +90,5 @@ for (const [rel, baseline] of allowlist) {
 if (ratchetBroken) process.exit(1)
 
 const total = [...allowedCounts.values()].reduce((sum, count) => sum + count, 0)
+console.log(`scanned=${total}`)
 console.log(`✅ adoption bridge 铁律通过：无绕过 Proposal 的直写（受控例外基线 ${total} 处）`)

@@ -72,6 +72,7 @@ async function main() {
       if (text) console.log(text.split('\n').map((line) => `    ${line}`).join('\n'))
     }
   }
+  console.log(`scanned=${results.length}`)
   console.log(`\ntypecheck：${results.length} 份并发，墙钟 ${(wallMs / 1000).toFixed(1)}s（串行相加 ${(sumMs / 1000).toFixed(1)}s）`)
   if (failed.length > 0) {
     console.error(`✖ ${failed.length} 份类型检查未通过：${failed.map((result) => result.name).join('、')}`)

@@ -127,6 +127,7 @@ for (const surface of SURFACES) {
 }
 
 console.log(
+  `scanned=${checkedMembers}\n` +
   `装配面平价：${SURFACES.length} 个接口 / ${checkedMembers} 个可选成员 / ` +
   `${SURFACES.reduce((sum, s) => sum + s.assemblySites.length, 0)} 个生产装配点`,
 )

@@ -95,6 +95,7 @@ function scanWindowRegistrations(files) {
 }
 
 const sourceFiles = listSourceFiles(electronRoot)
+console.log(`scanned=${sourceFiles.length}`)
 const unregisteredWindows = scanWindowRegistrations(sourceFiles)
 if (unregisteredWindows.length) {
   console.error(`✗ 有 ${unregisteredWindows.length} 个文件建了 BrowserWindow 却没登记信任角色`)

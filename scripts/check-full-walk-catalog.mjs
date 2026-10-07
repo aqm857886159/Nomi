@@ -229,5 +229,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const states = catalog.FULL_WALK_JOURNEYS.reduce((sum, journey) => sum + journey.states.length, 0)
   const gaps = catalog.FULL_WALK_JOURNEYS.flatMap((journey) => journey.states.filter((state) => state.deadline?.gap)).length
+  console.log(`scanned=${catalog.FULL_WALK_JOURNEYS.length}`)
   console.log(`✓ 全功能走查目录：${catalog.FULL_WALK_JOURNEYS.length} 条旅程 · ${states} 个状态（${gaps} 个非终态没有登记时限，已明写 gap）· ${catalog.FULL_WALK_PLAYBOOKS.length} 条剧本 · 清单 ${catalog.FULL_WALK_INVENTORY.length} 条 · ⑫ 可点目标 ${catalog.CLICK_TARGETS.length} 个`)
 }

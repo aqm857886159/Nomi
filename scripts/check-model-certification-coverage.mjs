@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ledgerPath = path.join(repoRoot, "docs/integration-certification/model-certification-ledger.json");
 const ledger = JSON.parse(fs.readFileSync(ledgerPath, "utf8"));
+console.log(`scanned=${Array.isArray(ledger.entries) ? ledger.entries.length : 0}`);
 const errors = [];
 const statuses = new Set(["documented", "simulated", "live-certified", "blocked"]);
 const evidenceStatuses = new Set(["passed", "blocked", "not-run"]);

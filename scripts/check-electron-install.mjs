@@ -7,6 +7,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 try {
   const identity = assertElectronInstallIdentity(repoRoot)
   console.log(
+    'scanned=1\n' +
     `✅ Electron 安装身份一致：declared=${identity.declaredVersion} · package=${identity.installedVersion} · dist=${identity.distVersion} · runtime=${identity.runtimeVersion}`,
   )
 } catch (error) {

@@ -88,6 +88,7 @@ export function main({ root = repoRoot, log = console.log } = {}) {
     log('    这类漏网在 PR 上是看不见的——RC/release workflow 不在每个 PR 上跑，会一路绿到发版当天才炸。')
     return 1
   }
+  log(`scanned=${files.length}`)
   log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到（硬零）`)
   return 0
 }

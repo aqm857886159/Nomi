@@ -288,6 +288,7 @@ function main() {
     process.exit(1)
   }
   console.log(
+    `scanned=${scanned.length}\n` +
     `✔ check:real-media-fixture：${registry.requiredClasses.length} 类覆盖面在册，合成夹具构造 ${scanned.length} 条（基线只减不增）`,
   )
 }

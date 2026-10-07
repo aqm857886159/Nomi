@@ -157,7 +157,8 @@ const RULES = [
 export { RULES, stripComments, rel, REQUIRED_LEGACY_ROUTES }
 
 function main() {
-  const files = collect()
+const files = collect()
+console.log(`scanned=${files.length}`)
   const found = new Map(RULES.map((rule) => [rule.id, []]))
   for (const file of files) {
     const code = stripComments(fs.readFileSync(file, 'utf8'))

@@ -39,7 +39,7 @@ function formatDiagnostic(ts, diagnostic) {
  * 类型错误不在这里管（那是 typecheck 的事），所以关掉 noEmitOnError：要的是「会产出什么」。
  */
 export function emitMainProcessBuild(rootDir, { ts = loadTypeScript(), configs = ELECTRON_BUILD_CONFIGS } = {}) {
-  const files = new Map()
+const files = new Map()
   for (const config of configs) {
     const configPath = path.join(rootDir, config)
     const fatal = []
@@ -264,6 +264,7 @@ export function main(argv = process.argv.slice(2)) {
   const packageJson = JSON.parse(fs.readFileSync(path.join(options.root, 'package.json'), 'utf8'))
   const budget = JSON.parse(fs.readFileSync(path.join(options.root, BUDGET_FILE), 'utf8'))
   const report = analyzePackagedDeps({ rootDir: options.root, packageJson, budget, emitted: emitMainProcessBuild(options.root) })
+  console.log(`scanned=${report.scannedFiles}`)
   process.stdout.write(`${options.json ? JSON.stringify(report, null, 2) : formatReport(report)}\n`)
   return report.ok ? 0 : 1
 }

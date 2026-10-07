@@ -287,4 +287,5 @@ if (red) {
   process.exit(1)
 }
 
+console.log(`scanned=${WATCHED.length}`)
 console.log(`✓ 确认卡渲染门岗通过：${WATCHED.length} 个受检文件，${found.length} 处存量（基线内），无新增静默分支`)

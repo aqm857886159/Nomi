@@ -209,4 +209,5 @@ if (failures.length) {
     + '\n方案：docs/plan/2026-09-21-config-never-silently-lost.md')
   process.exit(1)
 }
+console.log(`scanned=${found.length}`)
 console.log(`check:no-default-overwrite 通过（读失败写默认 ${found.length} 处，全部已登记）`)

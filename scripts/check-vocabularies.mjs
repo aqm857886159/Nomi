@@ -725,6 +725,7 @@ export function run({
   } else {
     console.log(`⚠ historical debt ratchet seed：${resolution.seedReason}；本次只校验当前快照。`)
   }
+  console.log(`scanned=${vocabularies.length}`)
   console.log(`✓ 语义词表门岗通过：${vocabularies.length} 个 owner 全部已登记。`)
   return 0
 }

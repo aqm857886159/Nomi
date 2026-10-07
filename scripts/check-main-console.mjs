@@ -62,8 +62,10 @@ function collect(dir) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const files = collect(path.join(repoRoot, 'electron'))
+  console.log(`scanned=${files.length}`)
   const hits = []
-  for (const file of collect(path.join(repoRoot, 'electron'))) {
+  for (const file of files) {
     for (const hit of scanSource(fs.readFileSync(file, 'utf8'))) {
       hits.push({ file: path.relative(repoRoot, file), ...hit })
     }

@@ -155,4 +155,5 @@ if (failures.length) {
     + '\n同形状教训：docs/lessons/mcp-read-path-must-not-write-host-configs.md')
   process.exit(1)
 }
+console.log(`scanned=${found.length}`)
 console.log(`check:read-path-writes 通过（读路径可达写盘门 ${found.length} 处，全部已登记并说明）`)

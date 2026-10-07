@@ -119,6 +119,7 @@ export async function main({ root = repoRoot, dirs = SCAN_DIRS, log = console.lo
   const byDir = collectByDir(root, dirs)
   assertScanCoverage(byDir)
   const files = [...byDir.values()].flat()
+  log(`scanned=${files.length}`)
   const failures = await checkFiles(files)
 
   if (failures.length > 0) {

@@ -263,6 +263,7 @@ export async function collectFindings(): Promise<{ hard: Finding[]; ratchet: Fin
     ...transitionalProfiles(VERB_DECLARATIONS),
     ...convention.ratchet,
   ];
+  console.log(`scanned=${ratchet.length}`);
   return { hard, ratchet };
 }
 
