@@ -38,7 +38,8 @@ describe('canvas isReady has one owner', () => {
     const writers = sourceFiles(path.join(SRC, 'workbench'))
       .filter((file) => /\bisReady\s*:\s*(true|false)\b/.test(stripComments(fs.readFileSync(file, 'utf8'))))
       .map((file) => path.relative(SRC, file).split(path.sep).join('/'))
-    expect(writers).toEqual(['workbench/generationCanvas/store/generationCanvasStore.ts'])
+    // 装载是画布写边界统一提交口的一种整写（store/canvasDocumentCommit.ts），释放在 store 的寿命声明里。
+    expect(writers.sort()).toEqual(['workbench/generationCanvas/store/canvasDocumentCommit.ts', 'workbench/generationCanvas/store/generationCanvasStore.ts'])
     expect('markReady' in useGenerationCanvasStore.getState(), '画布挂载不是「内容载入完」，不许再有 markReady 这扇门').toBe(false)
   })
 
