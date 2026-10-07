@@ -39,7 +39,7 @@ export function assembleConceptRegistry(directory) {
     else if (subjectOfFileName(name) !== value.subject) problems.push(`${name}：文件名必须是「<subject>.json」，这个概念的 subject 是 ${JSON.stringify(value.subject)}`)
   }
   if (problems.length) throw new Error(`${CONCEPT_OWNERS_DIR} 的概念文件不对：${problems.join('；')}`)
-  const concepts = directory.entries.map((entry) => entry.value).sort((left, right) => left.subject.localeCompare(right.subject))
+  const concepts = directory.entries.map((entry) => entry.value).sort((left, right) => (left.subject < right.subject ? -1 : left.subject > right.subject ? 1 : 0))
   return { ...directory.meta, concepts }
 }
 

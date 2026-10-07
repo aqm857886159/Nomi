@@ -49,7 +49,9 @@ export function escapeIdOfPath(file) {
  */
 export const RETIRED_ESCAPE_LEDGER_FILE = 'tests/ux/full-walk/escapeLedger.json'
 
-const bySinceThenId = (left, right) => String(left.since ?? '').localeCompare(String(right.since ?? '')) || String(left.id).localeCompare(String(right.id))
+/** 按码位比（不随系统语言变），排序结果在每台机器上都一样。 */
+const byCodePoint = (left, right) => (left < right ? -1 : left > right ? 1 : 0)
+const bySinceThenId = (left, right) => byCodePoint(String(left.since ?? ''), String(right.since ?? '')) || byCodePoint(String(left.id), String(right.id))
 
 /** 目录内容 → 与原大文件同形的账本对象 `{ ...meta, entries }`；文件名和 id 对不上就抛错（点名文件）。 */
 export function assembleEscapeLedger(directory) {
@@ -74,6 +76,7 @@ export function loadEscapeLedger(repoRoot, { ref = null } = {}) {
     : readEntryDirectory(path.join(repoRoot, ESCAPE_LEDGER_DIR))
   return directory ? assembleEscapeLedger(directory) : null
 }
+
 /** candidate 停留超过这么多天就警告，提醒派人复核 / 修。 */
 export const CANDIDATE_MAX_DAYS = 14
 

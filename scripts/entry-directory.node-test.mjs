@@ -49,7 +49,7 @@ test('真实概念登记：每个文件名都恰好是 <subject>.json，subject 
   assert.equal(subjects.size, directory.entries.length, 'subject 不重复')
   assert.deepEqual(Object.keys(directory.meta).sort(), ['_schema', 'schema_version'])
   const registry = loadConceptRegistry(repoRoot)
-  assert.deepEqual(registry.concepts.map((concept) => concept.subject), [...subjects].sort((a, b) => a.localeCompare(b)), '按 subject 排序')
+  assert.deepEqual(registry.concepts.map((concept) => concept.subject), [...subjects].sort(), '按 subject 排序（码位序）')
 })
 
 test('真实逃逸账本：顶层字段都在 _meta.json，条目按 since + id 排序', () => {
@@ -59,7 +59,7 @@ test('真实逃逸账本：顶层字段都在 _meta.json，条目按 since + id 
   assert.deepEqual(keys, [...keys].sort((a, b) => {
     const [sinceA, idA] = a.split(' ')
     const [sinceB, idB] = b.split(' ')
-    return sinceA.localeCompare(sinceB) || idA.localeCompare(idB)
+    return sinceA < sinceB ? -1 : sinceA > sinceB ? 1 : idA < idB ? -1 : idA > idB ? 1 : 0
   }))
 })
 
