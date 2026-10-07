@@ -252,7 +252,7 @@ try {
   }, {id:edited[0].id,history})
   // Version cards (2026-10-06): laying out a node's versions is persistent. Switching A → B → A keeps them laid out
   // while each node's own composer still shows its own prompt.
-  await win.locator(`[data-node-id="${edited[0].id}"] [data-version-stack-handle]`).click()
+  await win.locator(`[data-node-id="${edited[0].id}"] [data-version-badge]`).click()
   const versionGrid = win.locator(`[data-version-grid="${edited[0].id}"]`)
   await expect(versionGrid).toBeVisible()
   await selectNode(win,edited[1].id)

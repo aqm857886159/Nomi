@@ -69,7 +69,7 @@ export const INVARIANTS = Object.freeze([
 ])
 
 export const NUISANCE_RULES = Object.freeze([
-  Object.freeze({ id: '9a', text: '只有 1 版时不显示「几版」胶囊（useNodeResultHistory.ts 的 nodeHasResultStack：≥2 版才有角标；重拍住在节点浮条）' }),
+  Object.freeze({ id: '9a', text: '只有 1 版时不显示版本角标（versionCards/nodeVersionEntries.ts 的 nodeHasVersionCards：≥2 版才有右上角数字角标）' }),
   Object.freeze({ id: '9b', text: '「已保存到项目」只在登记窗口内出现（SAVED_FEEDBACK_WINDOW_MS + 一格时钟）' }),
   Object.freeze({ id: '9c', text: '同一次失败不许把同一条提示叠成「×N」（N 大于真实失败次数）' }),
 ])

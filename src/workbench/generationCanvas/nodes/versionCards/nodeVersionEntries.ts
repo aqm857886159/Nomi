@@ -5,7 +5,7 @@ import { isCardRenderKind, resolveNodeRenderKind } from '../resolveRenderKind'
 import type { VersionCardEntry } from './NodeVersionCards'
 
 /**
- * 这个节点有没有版本卡片：图 / 视频结果、可视的版本 ≥ 2 才有（1 版没有叠卡，也就没有入口）。
+ * 这个节点有没有版本卡片：图 / 视频结果、可视的版本 ≥ 2 才有（1 版没有角标，也就没有入口）。
  * 与是不是制作流程的镜头无关（#953：单版镜头不再借它当重拍入口）。卡片类（角色 / 场景卡）、文本、全景没有版本卡片。
  */
 export function nodeHasVersionCards(node: GenerationCanvasNode): boolean {

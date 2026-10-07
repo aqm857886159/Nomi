@@ -481,7 +481,7 @@ function BaseGenerationNodeImpl({
         ) : null}
       </div>
       {showVersionCards ? (
-        <NodeVersionCardsHost onFeedback={reportFeedback} node={node} readOnly={readOnly} nodeSize={visualSize} />
+        <NodeVersionCardsHost onFeedback={reportFeedback} node={node} readOnly={readOnly} nodeSize={visualSize} entryHidden={imageEditing.editGrid !== null} />
       ) : null}
 
       {artifactSlots.toolbar}

@@ -6,7 +6,7 @@ import type { LabState } from '../../labScreen'
 import { VersionCardsStage } from '../versionCardsLabKit'
 
 const SOURCE = 'docs/plan/2026-10-06-version-cards-reconcile.md §7（用户 10-06：和节点一样、宫格、去图标）'
-const MIRRORS = 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:485'
+const MIRRORS = 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:484'
 
 const NEIGHBOURS = [
   { id: 'vc-n1', title: '镜头 1 · 雨夜入场', x: 440, y: 120, versionNo: 7 },
@@ -20,23 +20,16 @@ const NEIGHBOURS_EN = [
 export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
   {
     id: 'vc-01-collapsed',
-    name: '收起：节点身后叠着几张卡（没有图标、没有「N 版」角标）',
+    name: '收起：节点就是一张图，右上角内侧一个数字角标（10-07 拍板）',
     source: SOURCE,
     mirrors: MIRRORS,
     coverage: 'shell',
     render: () => <VersionCardsStage count={4} neighbours={NEIGHBOURS} />,
   },
-  {
-    id: 'vc-02-hover-stack',
-    name: '悬停叠卡：轻轻扇开、露出「4 版」小标，指针是手型——点它铺开',
-    source: SOURCE,
-    mirrors: MIRRORS,
-    coverage: 'shell',
-    render: () => <VersionCardsStage count={4} hoverStack neighbours={NEIGHBOURS} />,
-  },
+
   {
     id: 'vc-03-open-2',
-    name: '铺开 2 版：1×2，最新一版贴着节点；叠卡原位置留淡轮廓当收起把手',
+    name: '铺开 2 版：1×2，最新一版贴着节点；角标变按下态，再点它收起',
     source: SOURCE,
     mirrors: MIRRORS,
     coverage: 'shell',
@@ -137,14 +130,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     scheme: 'dark',
     render: () => <VersionCardsStage count={6} expanded neighbours={NEIGHBOURS} />,
   },
-  {
-    id: 'vc-15-hover-stack-en',
-    name: 'EN · hover the stack: "4 versions"',
-    source: SOURCE,
-    mirrors: MIRRORS,
-    coverage: 'shell',
-    render: () => <VersionCardsStage locale="en" count={4} hoverStack neighbours={NEIGHBOURS_EN} />,
-  },
+
   {
     id: 'vc-16-open-4-en',
     name: 'EN · four versions laid out, hover bar',

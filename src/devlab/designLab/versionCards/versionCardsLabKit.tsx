@@ -1,6 +1,6 @@
 // 设计实验室 · 屏「画布 · 版本卡片（宫格）」的取景台与夹具（V2 接线后）。
 //
-// 每一格渲染的都是**现役 BaseGenerationNode 本体**：节点身后的叠卡入口、铺开的宫格、悬停条、生成中占位、
+// 每一格渲染的都是**现役 BaseGenerationNode 本体**：右上角的数字角标入口、铺开的宫格、悬停条、生成中占位、
 // 被压住的邻居藏标题，全是节点自己按真实数据画出来的（versionCards/NodeVersionCardsHost）。夹具只给数据：
 // 几版、谁是主图、铺没铺开（`resultStackOpen`）、在不在生成；悬停 / 点「+N」走**真实的指针与点击事件**
 // （挂载后派发），不给组件加「默认悬停」之类只有实验室用的开关。
@@ -90,10 +90,10 @@ function useCanvasStores(nodes: readonly GenerationCanvasNode[]): boolean {
   return ready
 }
 
-/** 挂载后按真实指针 / 点击事件把格子摆到要看的那一刻（悬停某张卡、悬停叠卡、点开「+N」），摆好才举就绪旗。 */
-function useDriveOnMount(rootRef: React.RefObject<HTMLDivElement | null>, ready: boolean, drive: { hoverVersion?: number; hoverStack?: boolean; showAll?: boolean }): void {
+/** 挂载后按真实指针 / 点击事件把格子摆到要看的那一刻（悬停某张卡、点开「+N」），摆好才举就绪旗。 */
+function useDriveOnMount(rootRef: React.RefObject<HTMLDivElement | null>, ready: boolean, drive: { hoverVersion?: number; showAll?: boolean }): void {
   React.useEffect(() => {
-    if (!ready || (!drive.hoverVersion && !drive.hoverStack && !drive.showAll)) return undefined
+    if (!ready || (!drive.hoverVersion && !drive.showAll)) return undefined
     const release = holdDesignLabReady('version-cards:drive')
     let frame = 0
     let tries = 0
@@ -104,17 +104,17 @@ function useDriveOnMount(rootRef: React.RefObject<HTMLDivElement | null>, ready:
       if (more) more.click()
       const target = drive.hoverVersion
         ? root?.querySelector<HTMLElement>(`[data-version-grid="vc-source"] [data-version-card="${drive.hoverVersion}"]`)
-        : drive.hoverStack ? root?.querySelector<HTMLElement>('[data-node-id="vc-source"] [data-version-stack-handle]') : null
+        : null
       if (target) target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
       const done = drive.hoverVersion
         ? Boolean(root?.querySelector('[data-version-card-bar]'))
-        : drive.hoverStack ? Boolean(root?.querySelector('[data-version-stack-count]')) : !root?.querySelector('[data-version-card="more"]')
+        : !root?.querySelector('[data-version-card="more"]')
       if (done || tries > 120) { release(); return }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(frame); release() }
-  }, [drive.hoverStack, drive.hoverVersion, drive.showAll, ready, rootRef])
+  }, [drive.hoverVersion, drive.showAll, ready, rootRef])
 }
 
 export type VersionCardsStageProps = {
@@ -122,7 +122,6 @@ export type VersionCardsStageProps = {
   /** 这个节点攒了几版（出过的最大号）。 */
   count: number
   expanded?: boolean
-  hoverStack?: boolean
   /** 悬停在第几版上（出动作条）。 */
   hoverVersion?: number
   primaryVersion?: number
@@ -143,7 +142,7 @@ const NO_NEIGHBOURS: NonNullable<VersionCardsStageProps['neighbours']> = []
 const NO_REMOVED: readonly number[] = []
 
 export function VersionCardsStage({
-  locale = 'zh-CN', count, expanded = false, hoverStack = false, hoverVersion, primaryVersion, showAll = false, pending = false,
+  locale = 'zh-CN', count, expanded = false, hoverVersion, primaryVersion, showAll = false, pending = false,
   at = DEFAULT_AT, neighbours = NO_NEIGHBOURS, removed = NO_REMOVED, toast,
 }: VersionCardsStageProps): JSX.Element {
   const localeReady = useLabLocale(locale)
@@ -155,7 +154,7 @@ export function VersionCardsStage({
     ...neighbours.map((neighbour) => canvasNode({ id: neighbour.id, title: neighbour.title, position: { x: neighbour.x, y: neighbour.y }, count: neighbour.versionNo, primary: neighbour.versionNo })),
   ], [at, count, expanded, neighbours, pending, primary, removed, zh])
   const ready = useCanvasStores(nodes) && localeReady
-  useDriveOnMount(rootRef, ready, { hoverVersion, hoverStack, showAll })
+  useDriveOnMount(rootRef, ready, { hoverVersion, showAll })
   const liveNodes = useGenerationCanvasStore((state) => state.nodes)
   const toastProps = toast ? buildToastNotification({
     id: 'vc-toast',

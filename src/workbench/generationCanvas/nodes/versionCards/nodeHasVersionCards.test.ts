@@ -12,7 +12,7 @@ const node = (versions: number, production = false): GenerationCanvasNode => {
   } as GenerationCanvasNode
 }
 
-// 版本卡片入口（节点身后的叠卡，10-06 起替换「N 版」角标）的显示规则：只在 ≥2 版时出现，与是不是制作流程的镜头无关。
+// 版本卡片入口（图片右上角内侧的数字角标，10-07 拍板）的显示规则：只在 ≥2 版时出现，与是不是制作流程的镜头无关。
 // 制作流程的单版镜头以前借它当「重拍」入口，所以 1 版也冒出「1 版」（英文是 "1 versions"）；重拍搬进节点浮条之后这个例外删掉。
 describe('nodeHasVersionCards · 版本入口显示规则', () => {
   it('没有结果、1 版、2 版及以上', () => {

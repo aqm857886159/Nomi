@@ -1,6 +1,6 @@
-// 版本卡片（原地铺开成宫格）的两块界面，用户 2026-10-06 拍板的形态：
-// - NodeVersionStackHandle：节点身后那几张叠卡**就是入口**（没有图标、没有「N 版」角标）。
-//   悬停叠卡轻轻扇开、露出「N 版」小标；点它铺开。铺开后原位置留一个淡轮廓，再点它（或按 Esc）收起。
+// 版本卡片（原地铺开成宫格）的两块界面：
+// - NodeVersionCountBadge：图片右上角内侧的数字角标**就是入口**（用户 2026-10-07 拍板，替换节点身后的叠卡）。
+//   点它铺开，铺开时角标是按下态；再点它（或按 Esc）收起。
 // - NodeVersionGrid：铺开的宫格。每张卡就是那一版的画面本身，和节点一样大、一样的圆角 / 描边 / 阴影，
 //   不加标题条；版本号是角上的小字，主图带「✓ 主图」（✓ 只表示状态）；悬停才出动作条；点卡 = 预览；
 //   视频卡悬停播放、拖底边进度；按着 Alt/⌥ 拖一张出去 = 复制成独立素材卡；不按 Alt 拖 = 拖整组（交给画布内核）。
@@ -11,7 +11,6 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconDownload, IconLoader2, IconMovie, IconTrash } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
-import { GROUP_VISUAL_CLASS } from '../../components/groupVisualContract'
 import { DeferredNodeVideo } from '../DeferredNodeMedia'
 import { historyVideoTimeFromPointer, nudgeHistoryVideoTime } from '../historyVideoScrub'
 import type { VersionGridLayout } from './versionGridLayout'
@@ -26,80 +25,52 @@ export type VersionCardEntry = Readonly<{
   url?: string
 }>
 
-// 叠卡从节点**下沿**露出（主要往下、略往右 2–4px 出层次）。不往右露：节点右缘正中是连线把手——没选中时是小圆点，
-// 选中时是 112×168 的「+」吸附区，往右露的叠卡在选中状态下整条被它盖住、点不到（10-06 真画布实测，方案 A）。
-// 入口只认下沿那一条，左右两侧把手的地盘一寸不碰。
-const REAR_RESTING = ['translate(2px, 6px)', 'translate(4px, 12px)'] as const
-const REAR_FANNED = ['translate(3px, 9px)', 'translate(6px, 18px)'] as const
 /** 按下到松开移动超过这么多屏幕像素，就是一次拖动（拖整组）而不是点卡预览。 */
 const CLICK_SLOP_PX = 4
 
-export function NodeVersionStackHandle({
+/**
+ * 版本入口 = 图片右上角内侧的数字角标（用户 2026-10-07 拍板）。只写数字，不加图标、不写「版」字；只有 1 版时没有。
+ * 位置：左右正中是连线把手，上方是标题和选中浮条，下方是提示词框——图片右上角内侧都不冲突。
+ * 点它原地铺开宫格；铺开时角标变成按下态，再点它或按 Esc 收起。只读画布只显示数字、不能点开。
+ */
+export function NodeVersionCountBadge({
   count,
   expanded,
-  forceHover = false,
-  mediaGlyph,
+  readOnly = false,
   onToggle,
 }: {
   count: number
   expanded: boolean
-  /**
-   * 这摞叠卡是哪种媒体的版本（图 / 视频…）的图标，画在叠卡露出的那条下沿上。空白叠卡摆在视频节点后面
-   * 会被读成「要生成几个」（2026-09-10 反馈 #11），带上媒体图标才自报家门是「这一镜的历史版本」。
-   * 图标的唯一出口是 nodes/renderRegistry.tsx 的 getGenerationNodeIcon。
-   */
-  mediaGlyph?: React.ReactNode
-  /** 实验室 / 走查钉住悬停态用；产品里由指针决定。 */
-  forceHover?: boolean
+  readOnly?: boolean
   onToggle: () => void
 }): JSX.Element | null {
   const { t } = useTranslation()
-  const [hovered, setHovered] = React.useState(false)
   if (count < 2) return null
-  const rear = count === 2 ? 1 : 2
-  const fanned = !expanded && (hovered || forceHover)
+  const label = expanded ? t('generationCommon.versionCards.collapseAria') : t('generationCommon.versionCards.expandAria', { count })
+  const look = cn(
+    'absolute right-2 top-2 z-[4] inline-flex h-5 min-w-5 items-center justify-center rounded-pill border px-1.5',
+    'text-micro font-semibold leading-none tabular-nums shadow-nomi-sm',
+    // 压在画面上的东西用不随明暗翻转的媒体色（白底深字），暗色主题里也是同一枚浅色角标——和卡上「第 N 版」小字同一条规矩。
+    expanded ? 'border-nomi-accent bg-nomi-accent text-nomi-media-ink' : 'border-nomi-overlay-chip/25 bg-nomi-media-ink/[0.88] text-nomi-overlay-chip-strong',
+  )
+  if (readOnly && !expanded) {
+    return <span className={look} data-version-badge aria-label={label}>{count}</span>
+  }
   return (
-    <div className="pointer-events-none absolute inset-0 z-0" data-version-stack={expanded ? 'expanded' : 'collapsed'}>
-      {Array.from({ length: rear }, (_, index) => (
-        <div
-          key={index}
-          aria-hidden="true"
-          data-version-stack-rear={index + 1}
-          className={cn(
-            'absolute inset-0 rounded-nomi border transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none',
-            expanded ? 'border-dashed border-nomi-ink-20 bg-transparent shadow-none' : GROUP_VISUAL_CLASS.stackRear,
-          )}
-          style={{ transform: fanned ? REAR_FANNED[index] : REAR_RESTING[index], opacity: expanded && index > 0 ? 0 : 1 }}
-        />
-      ))}
-      {/* 媒体示能画在露出来的那条下沿上（压在两张后卡之上），只在收着时。 */}
-      {mediaGlyph && !expanded ? (
-        <span data-version-stack-glyph className="absolute left-3 top-full flex h-3 items-center text-nomi-ink-40">{mediaGlyph}</span>
-      ) : null}
-      {/* 叠卡露出来的那条下沿就是可点的地方；左右各让出一截，不碰两侧连线把手。 */}
-      <button
-        type="button"
-        className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute inset-x-3 top-[calc(100%-2px)] h-[16px] cursor-pointer rounded-b-nomi border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-nomi-accent"
-        aria-label={expanded ? t('generationCommon.versionCards.collapseAria') : t('generationCommon.versionCards.expandAria', { count })}
-        aria-expanded={expanded}
-        data-version-stack-handle
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-        onFocus={() => setHovered(true)}
-        onBlur={() => setHovered(false)}
-        onKeyDown={(event) => { if (event.key === 'Escape' && expanded) { event.stopPropagation(); onToggle() } }}
-        onClick={(event) => { event.stopPropagation(); onToggle() }}
-      />
-      {fanned ? (
-        <span
-          className="pointer-events-none absolute right-3 top-full whitespace-nowrap rounded-pill bg-nomi-overlay-chip px-2 text-micro leading-[14px] font-semibold tabular-nums text-nomi-media-ink"
-          data-version-stack-count
-        >
-          {t('generationCommon.versionCards.stackCount', { count })}
-        </span>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      // nodrag / no-pan：画布内核拖节点是节点元素上的原生 mousedown，只认这两个类；点角标不该拖动节点。
+      className={cn(look, 'nodrag generation-canvas-react-flow__no-pan pointer-events-auto cursor-pointer transition-colors duration-nomi-fast ease-nomi-fast', !expanded && 'hover:bg-nomi-media-ink', 'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-1')}
+      aria-label={label}
+      aria-pressed={expanded}
+      title={label}
+      data-version-badge
+      onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => { if (event.key === 'Escape' && expanded) { event.stopPropagation(); onToggle() } }}
+      onClick={(event) => { event.stopPropagation(); onToggle() }}
+    >
+      {count}
+    </button>
   )
 }
 

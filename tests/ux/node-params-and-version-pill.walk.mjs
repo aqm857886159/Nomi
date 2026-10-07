@@ -1,4 +1,4 @@
-// 走查：选中节点浮框 / 版本卡片（原「2 版」结果托盘，10-06 换成节点身后叠卡 + 原地铺开）/ 删框（2026-09-22 用户真机回归）。
+// 走查：选中节点浮框 / 版本卡片（原「2 版」结果托盘，10-07 起入口是图片右上角的数字角标 + 原地铺开）/ 删框（2026-09-22 用户真机回归）。
 //
 // 用户报的三件事：
 //   1. 选中图片节点（空的、生成过的都一样）→ 下面的生成浮框整个不出来，参数条自然也没有；
@@ -253,13 +253,13 @@ try {
   await expect.poll(() => overlayVisible(stackComposer), { timeout: 3_000 }).toBe(true).catch(() => undefined)
   check(await overlayVisible(stackComposer), 'P2 生成过的卡选中后生成浮框看得见', {})
   check(await overlayVisible(win.locator(`${sel('stack')} [data-node-floating-toolbar="true"]`)), 'P2 卡上浮条看得见', {})
-  // P3–P5：版本卡片（10-06 起替换「2 版」胶囊 + 浮动小窗）。入口是节点身后的叠卡；铺开是一排和节点一样的卡，悬停出动作条。
-  const handle = win.locator(`${sel('stack')} [data-version-stack-handle]`)
-  try { await expectHittable(handle, 'P3 节点身后的叠卡（版本入口）'); check(true, 'P3 叠卡入口点得到', {}) } catch (error) { check(false, 'P3 叠卡入口点得到', String(error.message).split('\n')[0]) }
+  // P3–P5：版本卡片（10-06 起替换「2 版」胶囊 + 浮动小窗）。入口是图片右上角内侧的数字角标（10-07）；铺开是一排和节点一样的卡，悬停出动作条。
+  const handle = win.locator(`${sel('stack')} [data-version-badge]`)
+  try { await expectHittable(handle, 'P3 右上角的数字角标（版本入口）'); check(true, 'P3 角标入口点得到', {}) } catch (error) { check(false, 'P3 角标入口点得到', String(error.message).split('\n')[0]) }
   await handle.click()
   const grid = win.locator('[data-version-grid="stack"]')
   await expect.poll(() => overlayVisible(grid), { timeout: 3_000 }).toBe(true).catch(() => undefined)
-  check(await overlayVisible(grid), 'P3 点叠卡：版本在原地铺开（看得见）', {})
+  check(await overlayVisible(grid), 'P3 点角标：版本在原地铺开（看得见）', {})
   check(await grid.locator('[data-version-card]').count() === 2, 'P3 两版铺成两张卡', { cards: await grid.locator('[data-version-card]').count() })
   await shot('02-version-cards')
   const card = (versionNo) => grid.locator(`[data-version-card="${versionNo}"]`)
@@ -284,7 +284,7 @@ try {
   } catch (error) { check(false, 'P5 下载这一版写出非空文件', String(error.message).split('\n')[0]) }
   const gridProof = await proveProbe(grid, '收起之前版本卡铺在画布上')
   await handle.click()
-  try { await expectAbsent(grid, { provenBy: gridProof, message: 'P6 再点叠卡：版本收起' }); check(true, 'P6 再点叠卡：版本收起', {}) } catch (error) { check(false, 'P6 再点叠卡：版本收起', String(error.message).split('\n')[0]) }
+  try { await expectAbsent(grid, { provenBy: gridProof, message: 'P6 再点角标：版本收起' }); check(true, 'P6 再点角标：版本收起', {}) } catch (error) { check(false, 'P6 再点角标：版本收起', String(error.message).split('\n')[0]) }
 
   // ═══ F 删框 ═══
   const countOf = (selector) => win.locator(selector).count()

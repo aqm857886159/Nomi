@@ -7,7 +7,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => (options && 'n' in options ? `${key}:${options.n}` : key) }),
 }))
 
-const { NodeVersionGrid, NodeVersionStackHandle } = await import('./NodeVersionCards')
+const { NodeVersionCountBadge, NodeVersionGrid } = await import('./NodeVersionCards')
 const { layoutVersionGrid, versionGridItems } = await import('./versionGridLayout')
 const { __resetVersionGridCoverageForTests, isLabelCoveredByOtherGrids, publishVersionGridCoverage } = await import('./versionGridCoverage')
 
@@ -24,32 +24,34 @@ function grid(props: Partial<Parameters<typeof NodeVersionGrid>[0]> = {}): strin
   }))
 }
 
-describe('NodeVersionStackHandle · 入口就是叠卡', () => {
-  it('只有 1 版没有入口；2 版一张后卡、3 版以上两张', () => {
-    expect(renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 1, expanded: false, onToggle: () => undefined }))).toBe('')
-    expect(renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 2, expanded: false, onToggle: () => undefined })).match(/data-version-stack-rear=/g)).toHaveLength(1)
-    expect(renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 7, expanded: false, onToggle: () => undefined })).match(/data-version-stack-rear=/g)).toHaveLength(2)
+describe('NodeVersionCountBadge · 入口是右上角内侧的数字角标（用户 10-07 拍板）', () => {
+  const badge = (props: Partial<Parameters<typeof NodeVersionCountBadge>[0]> = {}): string =>
+    renderToStaticMarkup(React.createElement(NodeVersionCountBadge, { count: 4, expanded: false, onToggle: () => undefined, ...props }))
+
+  it('只有 1 版没有角标；2 版以上只写数字——不加图标、不写「版」字', () => {
+    expect(badge({ count: 1 })).toBe('')
+    const html = badge({ count: 12 })
+    expect(/<button[^>]*data-version-badge[^>]*>12<\/button>/.test(html)).toBe(true)
+    expect(html).not.toContain('<svg')
   })
 
-  it('没有常驻的图标和「N 版」角标：数字只在悬停叠卡时出现', () => {
-    const resting = renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 4, expanded: false, onToggle: () => undefined }))
-    expect(resting).not.toContain('data-version-stack-count')
-    const hovered = renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 4, expanded: false, forceHover: true, onToggle: () => undefined }))
-    expect(hovered).toContain('data-version-stack-count')
+  it('钉在图片右上角内侧：不伸出节点（左右正中是连线把手、上方是标题和浮条、下方是提示词框）', () => {
+    const button = /<button[^>]*data-version-badge[^>]*>/.exec(badge())?.[0] ?? ''
+    expect(button).toContain('right-2')
+    expect(button).toContain('top-2')
+    expect(button).not.toMatch(/(?:right|left|top|bottom)-\[-|-(?:right|left|top|bottom)-/)
   })
 
-  it('入口只在下沿：不伸出节点左右两侧（那是连线把手的地盘，方案 A）', () => {
-    const html = renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 4, expanded: false, onToggle: () => undefined }))
-    const button = /<button[^>]*data-version-stack-handle[^>]*>/.exec(html)?.[0] ?? ''
-    expect(button).toContain('inset-x-3')
-    expect(button).toContain('top-[calc(100%-2px)]')
-    expect(button).not.toMatch(/(?:right|left)-\[-/)
-  })
-
-  it('媒体示能画在露出的下沿上、只在收着时（反馈 #11）', () => {
-    const glyph = React.createElement('svg', { 'data-test-glyph': 'video' })
-    expect(renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 4, expanded: false, mediaGlyph: glyph, onToggle: () => undefined })).match(/data-version-stack-glyph/g)).toHaveLength(1)
-    expect(renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 4, expanded: true, mediaGlyph: glyph, onToggle: () => undefined }))).not.toContain('data-version-stack-glyph')
+  it('铺开时是按下态、名字换成「收起」；只读画布收着时只显示数字、点不开', () => {
+    const closed = /<button[^>]*data-version-badge[^>]*>/.exec(badge())?.[0] ?? ''
+    expect(closed).toContain('aria-pressed="false"')
+    expect(closed).toContain('aria-label="generationCommon.versionCards.expandAria"')
+    const open = /<button[^>]*data-version-badge[^>]*>/.exec(badge({ expanded: true }))?.[0] ?? ''
+    expect(open).toContain('aria-pressed="true"')
+    expect(open).toContain('aria-label="generationCommon.versionCards.collapseAria"')
+    const readOnly = badge({ readOnly: true })
+    expect(readOnly).not.toContain('<button')
+    expect(readOnly).toContain('data-version-badge')
   })
 })
 
@@ -96,7 +98,7 @@ describe('versionGridCoverage · 被压住的邻居藏标题', () => {
 
 describe('卡上能点 / 能拖的部件不触发画布内核拖节点', () => {
   // 画布内核拖节点挂的是节点元素上的原生 mousedown，React 的 stopPropagation 截不住，只认 nodrag 类。
-  it('悬停条、视频进度条、叠卡入口、「+N」都带 nodrag；卡身本身不带（按住拖 = 拖整组）', () => {
+  it('悬停条、视频进度条、数字角标、「+N」都带 nodrag；卡身本身不带（按住拖 = 拖整组）', () => {
     const video = [2, 1].map((versionNo) => ({ identity: `m${versionNo}`, versionNo, type: 'video' as const, previewUrl: `m${versionNo}.png`, url: `m${versionNo}.mp4` }))
     const html = renderToStaticMarkup(React.createElement(NodeVersionGrid, {
       nodeId: 'n1', layout: layoutVersionGrid(versionGridItems(video), NODE, 'right'), node: NODE, primaryIdentity: 'm2', hoveredIdentity: 'm1',
@@ -104,8 +106,8 @@ describe('卡上能点 / 能拖的部件不触发画布内核拖节点', () => {
     expect(/<div role="toolbar"[^>]*class="nodrag /.test(html)).toBe(true)
     expect(/<div class="nodrag [^"]*"[^>]*role="slider"/.test(html)).toBe(true)
     expect(/<button[^>]*aria-label="generationCommon\.versionCards\.previewAria[^>]*>/.exec(html)?.[0]).not.toContain('nodrag')
-    const stack = renderToStaticMarkup(React.createElement(NodeVersionStackHandle, { count: 3, expanded: false, onToggle: () => undefined }))
-    expect(/<button[^>]*data-version-stack-handle[^>]*>/.exec(stack)?.[0]).toContain('nodrag')
+    const entry = renderToStaticMarkup(React.createElement(NodeVersionCountBadge, { count: 3, expanded: false, onToggle: () => undefined }))
+    expect(/<button[^>]*data-version-badge[^>]*>/.exec(entry)?.[0]).toContain('nodrag')
     expect(grid().includes('data-version-card="more"')).toBe(false)
     const many = Array.from({ length: 12 }, (_, index) => ({ identity: `x${12 - index}`, versionNo: 12 - index, type: 'image' as const, previewUrl: 'x.png' }))
     const more = renderToStaticMarkup(React.createElement(NodeVersionGrid, { nodeId: 'n1', layout: layoutVersionGrid(versionGridItems(many), NODE, 'right'), node: NODE, primaryIdentity: 'x12' }))

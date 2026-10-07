@@ -1,4 +1,4 @@
-// 版本卡片接进节点（V2）：节点身后的叠卡入口 + 原地铺开的宫格 + 悬停条的三个动作 + 预览。
+// 版本卡片接进节点（V2）：图片右上角的数字角标入口（10-07） + 原地铺开的宫格 + 悬停条的三个动作 + 预览。
 //
 // 数据只从唯一主人读写：版本列表 / 编号 / 主图 → model/nodeResultLifecycle.ts；铺开状态 → store.setNodeResultStackOpen；
 // 设主图 → store.setNodeMainResult（一个撤销步）；删一版 → assets/deleteAssetResult（文件延后真删）。
@@ -22,24 +22,10 @@ import { beginCanvasResultCopyDrag } from '../../components/canvasResultDrag'
 import { getUndoHeadToken } from '../../events/canvasUndoJournal'
 import { notify } from '../../../../ui/notificationPolicy'
 import { useToastStore } from '../../../../ui/toast'
-import { NodeVersionGrid, NodeVersionStackHandle, type VersionCardEntry } from './NodeVersionCards'
+import { NodeVersionCountBadge, NodeVersionGrid, type VersionCardEntry } from './NodeVersionCards'
 import { chooseVersionGridPlacement, layoutVersionGrid, versionGridItems, type VersionGridPlacement } from './versionGridLayout'
 import { publishVersionGridCoverage } from './versionGridCoverage'
 import { nodeVersionEntries } from './nodeVersionEntries'
-import { getGenerationNodeIcon } from '../renderRegistry'
-
-/** 叠卡上的媒体示能：复用 getGenerationNodeIcon 这个唯一出口；插件节点解析不到就不画，不猜一个错的媒体类型。 */
-function StackMediaGlyph({ kind }: { kind: GenerationCanvasNode['kind'] }): JSX.Element | null {
-  const Icon = React.useMemo(() => {
-    try {
-      return getGenerationNodeIcon(kind)
-    } catch {
-      return null
-    }
-  }, [kind])
-  if (!Icon) return null
-  return <Icon size={11} stroke={1.8} aria-hidden="true" />
-}
 
 function useAltHeld(enabled: boolean): boolean {
   const [held, setHeld] = React.useState(false)
@@ -83,9 +69,11 @@ function notifyUndoable(identity: string, message: string, undoLabel: string): v
   window.setTimeout(unsubscribe, 10_000)
 }
 
-export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback }: {
+export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback, entryHidden = false }: {
   node: GenerationCanvasNode
   readOnly: boolean
+  /** 节点自己在原地编辑（裁切 / 九宫格）时，右上角是编辑的确认 / 取消，角标让开。 */
+  entryHidden?: boolean
   nodeSize: Readonly<{ width: number; height: number }>
   onFeedback: (message: string) => void
 }): JSX.Element | null {
@@ -224,7 +212,7 @@ export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback }: {
   return (
     <>
       <span ref={anchorRef} className="hidden" aria-hidden="true" />
-      <NodeVersionStackHandle count={entries.length} expanded={expanded} mediaGlyph={<StackMediaGlyph kind={node.kind} />} onToggle={toggle} />
+      {entryHidden ? null : <NodeVersionCountBadge count={entries.length} expanded={expanded} readOnly={readOnly} onToggle={toggle} />}
       {expanded ? (
         <NodeVersionGrid
           nodeId={node.id}

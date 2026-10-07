@@ -2,7 +2,7 @@
 // 剧本 PB10 · 「节点上显示什么」：版本入口、已保存回执、失败标题、草稿标题
 //
 // 用户拍板的显示规则（零花费，全部从真实 App 的真实节点上看）：
-//   · 版本入口（节点身后的叠卡，10-06 起替换「N 版」角标）只在 ≥2 版时出现；制作流程的镜头 1 版也没有；
+//   · 版本入口（图片右上角内侧的数字角标，10-07 拍板）只在 ≥2 版时出现；制作流程的镜头 1 版也没有；
 //     浮条里不再有「重拍这镜」（10-06 用户拍板删除：再出一版就按节点 ↑，失败镜头在卡面上重试）；
 //   · 「已保存到项目」存好后只显示 3 秒（系统开了「减少动态效果」不淡出，直接消失）；
 //   · 失败标题只说原因，不附「未计费」；
@@ -31,7 +31,7 @@ const pb = await startPlaybook({
       { ...base, id: 'shot-one', kind: 'image', title: 'Shot 1', prompt: '', position: { x: 60, y: 90 }, status: 'success',
         result: imageResult('one-r1', 2, 1), history: [imageResult('one-r1', 2, 1)],
         meta: { ...imageMeta(), productionRunId: 'run-display', productionShotId: 'shot-one' } },
-      // 2 版：节点身后有叠卡入口，名字写「铺开 2 个版本」。
+      // 2 版：右上角有数字角标「2」，名字写「铺开 2 个版本」。
       { ...base, id: 'shot-two', kind: 'image', title: 'Shot 2', prompt: '', position: { x: 520, y: 90 }, status: 'success',
         result: imageResult('two-r2', 3, 2), history: [imageResult('two-r1', 2, 1), imageResult('two-r2', 3, 2)],
         meta: { ...imageMeta(), productionRunId: 'run-display', productionShotId: 'shot-two' } },
@@ -55,7 +55,7 @@ const { smoke, fixture, monitor } = pb
 const EN = pb.locale === 'en'
 const win = () => smoke.win
 const nodes = async () => (await monitor.readProject())?.payload?.generationCanvas?.nodes ?? []
-const pill = (id) => win().locator(`[data-node-id="${id}"] [data-version-stack-handle]`)
+const pill = (id) => win().locator(`[data-node-id="${id}"] [data-version-badge]`)
 const savedLabel = () => win().locator('[data-generation-status][data-phase="finalizing"]')
 const toolbar = () => win().locator('[data-node-floating-toolbar="true"]')
 const reshootButton = () => toolbar().getByRole('button', { name: EN ? 'Re-film shot' : '重拍这镜' })
@@ -78,7 +78,7 @@ async function toolbarInsideStage() {
 /** 版本入口完整露出来：整颗在舞台里，且中心点上最上面的元素就是它自己（没被邻居或节点盖住）。 */
 async function badgeFullyVisible(nodeId) {
   return win().evaluate((id) => {
-    const badge = document.querySelector(`[data-node-id="${id}"] [data-version-stack-handle]`)
+    const badge = document.querySelector(`[data-node-id="${id}"] [data-version-badge]`)
     const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
     if (!badge || !stage) return { ok: false, reason: 'no badge or stage' }
     const rect = badge.getBoundingClientRect()
@@ -98,7 +98,7 @@ try {
     await monitor.screenshot('01-nodes-nothing-selected')
   }, { user: false, surfaces: ['canvasViewport'] })
 
-  await monitor.step('规则：1 版没有版本入口，2 版有（叠卡上那颗写着几版）', async () => {
+  await monitor.step('规则：1 版没有版本入口，2 版有（右上角数字角标，名字写着几版）', async () => {
     await expect(pill('shot-one'), '制作流程镜头只有 1 版：没有版本入口').toHaveCount(0)
     await expect(pill('shot-two'), '2 版：有版本入口').toHaveCount(1)
     await expect(pill('shot-two')).toHaveAttribute('aria-label', EN ? 'Lay out 2 versions' : '铺开 2 个版本')

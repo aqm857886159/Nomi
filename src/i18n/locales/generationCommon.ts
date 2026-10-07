@@ -766,7 +766,6 @@ export const zhGenerationCommon = {
   },
   // 版本卡片（原地铺开成宫格）。样张 docs/plan/2026-10-06-version-cards-reconcile.md；文案不谈钱、动作 ≤4 字。
   versionCards: {
-    stackCount: '{{count}} 版',
     expandAria: '铺开 {{count}} 个版本',
     collapseAria: '收起版本',
     versionShort: '第 {{n}} 版',
@@ -2370,7 +2369,6 @@ export const enGenerationCommon = {
     failed: 'Download failed',
   },
   versionCards: {
-    stackCount: '{{count}} versions',
     expandAria: 'Lay out {{count}} versions',
     collapseAria: 'Collapse versions',
     versionShort: 'Version {{n}}',

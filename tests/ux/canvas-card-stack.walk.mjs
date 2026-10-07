@@ -168,15 +168,18 @@ try {
   // 0cea000d8），而**同一棵 tree**（4983ba30）在 PR #725 的同一分片上全绿——红的是断言写法不是产品。
   // 改成 web-first 断言：由 expect 自己的超时预算轮询到真信号，不新增任何私有墙钟等待（R18）。
   // 本文件 386 行附近早就为「点完立刻 isVisible()」写下过同一条教训，这里把剩下的采样点补齐。
-  // 10-06 起版本入口就是节点身后的叠卡（没有「N 版」角标）：叠卡露出的那条边是一颗按钮，名字写着几版。
-  await expect(imageNode.locator('[data-version-stack-handle]'), '图片节点身后的叠卡入口').toHaveAttribute('aria-label', '铺开 3 个版本')
-  check('图片版本入口在', true)
-  await expect(videoNode.locator('[data-version-stack-handle]'), '视频节点身后的叠卡入口').toHaveAttribute('aria-label', '铺开 2 个版本')
-  check('视频版本入口在', true)
-  await expectCount(imageNode.locator('[data-version-stack-rear]'), 2, '图片卡身后最多两层叠卡')
-  check('图片卡角最多两层', true)
-  await expectCount(videoNode.locator('[data-version-stack-rear]'), 1, '视频两版只有一层叠卡')
-  check('视频两版只有一层后卡', true)
+  // 10-07 起版本入口是图片右上角内侧的数字角标（用户拍板）：只写数字，名字写着几版；节点身后不再有叠卡。
+  const imageBadge = imageNode.locator('[data-version-badge]')
+  await expect(imageBadge, '图片节点右上角的版本角标').toHaveAttribute('aria-label', '铺开 3 个版本')
+  await expect(imageBadge, '角标只写数字').toHaveText('3')
+  check('图片版本角标在、只写数字', true)
+  await expect(videoNode.locator('[data-version-badge]'), '视频节点右上角的版本角标').toHaveAttribute('aria-label', '铺开 2 个版本')
+  check('视频版本角标在', true)
+  check('角标在图片右上角内侧', await imageBadge.evaluate((badge) => {
+    const node = badge.closest('.generation-canvas-v2-node')?.getBoundingClientRect()
+    const rect = badge.getBoundingClientRect()
+    return Boolean(node) && rect.right <= node.right && rect.top >= node.top && rect.right > node.right - 24 && rect.top < node.top + 24
+  }))
   await screenshotSettled(win, { path: path.join(outputDir, '01-real-version-stacks-light.png') })
 
   await imageNode.click({ position: { x: 120, y: 120 } })
@@ -236,12 +239,13 @@ try {
     return bounds.left >= card.left && bounds.right <= card.right && bounds.top >= card.top && bounds.bottom <= card.bottom
   }), { message: '受限参数卡能滚到完整的生成按钮' }).toBe(true)
 
-  // 版本卡片：点叠卡原地铺开（10-06 替换浮动小窗）。最新一版贴着节点；悬停才出「设为主图 / 下载 / 删除」；点卡 = 预览。
-  await clickOrFail(imageNode.locator('[data-version-stack-handle]'), '点节点身后的叠卡铺开版本')
+  // 版本卡片：点角标原地铺开（10-06 替换浮动小窗，10-07 入口改成角标）。最新一版贴着节点；悬停才出「设为主图 / 下载 / 删除」；点卡 = 预览。
+  await clickOrFail(imageNode.locator('[data-version-badge]'), '点右上角的数字角标铺开版本')
   const grid = win.locator('[data-version-grid="image-versions"]')
   await grid.waitFor({ state: 'visible' })
   const cardOrder = () => grid.locator('[data-version-identity]').evaluateAll((items) => items.map((item) => item.getAttribute('data-version-identity')))
   const beforeOrder = await cardOrder()
+  await expect(imageNode.locator('[data-version-badge]'), '铺开时角标是按下态').toHaveAttribute('aria-pressed', 'true')
   check('三版铺成三张卡，最新在前', beforeOrder.join(',') === 'image-v3,image-v2,image-v1', beforeOrder.join(','))
   await screenshotSettled(win, { path: path.join(outputDir, '02-real-version-cards-light.png') })
   const card = (identity) => grid.locator(`[data-version-identity="${identity}"]`)
@@ -290,7 +294,7 @@ try {
   await expectVisible(win.locator('[data-toast-action]', { hasText: '撤销' }).first(), '删除后提示条给「撤销」')
   check('删除不弹确认框、提示条给撤销', await win.locator('[data-confirm-dialog-surface="confirm"]').count() === 0)
 
-  await clickOrFail(imageNode.locator('[data-version-stack-handle]'), '再点叠卡收起版本')
+  await clickOrFail(imageNode.locator('[data-version-badge]'), '再点角标收起版本')
   await expectHidden(grid, '版本卡片应收起')
   await imageNode.click({ position: { x: 120, y: 120 } })
   // 打开时适应全貌（useAutoFitOnLoad）后这张图贴着舞台左缘，节点上方的浮条以前左半截压在项目资源管理器底下，
@@ -322,7 +326,7 @@ try {
   // 复制本身不挪画布；但若刚才走了边缘提示，视角停在变体那里，视频节点可能已在屏外。
   // 像用户一样点「适应视图」找回全部节点，再去铺开另一个节点的版本卡片。
   await clickOrFail(win.getByLabel('适应视图', { exact: true }), '找回视频节点后查看历史版本')
-  await clickOrFail(videoNode.locator('[data-version-stack-handle]'), '点视频节点身后的叠卡铺开版本')
+  await clickOrFail(videoNode.locator('[data-version-badge]'), '点视频节点的角标铺开版本')
   const videoGrid = win.locator('[data-version-grid="video-versions"]')
   await videoGrid.waitFor({ state: 'visible', timeout: stationTimeout() })
   await expect.poll(() => videoGrid.evaluate((grid) => {
@@ -362,7 +366,7 @@ try {
   // 浏览器会补发一次 mousemove，画布内核（节点点击距离 0）就把这一下当成拖、吞掉点击。所以先悬停等它播起来再点。
   await videoHistoryCard.hover()
   await expectVisible(videoHistoryCard.locator('[data-version-card-bar]'), '悬停视频版本卡出动作条')
-  await expect.poll(() => historyVideo.evaluate((video) => !video.paused), { message: '悬停后视频版本卡在播', timeout: 5_000 }).toBe(true)
+  await expect.poll(() => historyVideo.evaluate((video) => !video.paused), { message: '悬停后视频版本卡在播', timeout: stationTimeout() }).toBe(true)
   await clickOrFail(videoHistoryCard.locator('button[aria-label^="预览"]'), '点视频版本卡打开预览')
   const videoPreview = win.locator('[role="dialog"][aria-label*="推镜进入咖啡馆"]').first()
   await expectVisible(videoPreview, '视频版本预览弹层应可见')
@@ -373,7 +377,7 @@ try {
   const videoPreviewProof = await proveProbe(videoPreview, '视频版本预览弹层确实可被探针找到')
   await clickOrFail(videoPreview.getByRole('button', { name: '关闭预览' }), '关闭视频版本预览')
   await expectAbsent(videoPreview, { provenBy: videoPreviewProof, message: '关闭后视频版本预览应从画布移除' })
-  await clickOrFail(videoNode.locator('[data-version-stack-handle]'), '再点叠卡收起视频版本')
+  await clickOrFail(videoNode.locator('[data-version-badge]'), '再点角标收起视频版本')
   await expectHidden(videoGrid, '视频版本卡片应收起')
 
   const collapse = win.getByRole('button', { name: '收起分组「雨夜参考组」' })
@@ -446,11 +450,11 @@ try {
   await expectVisible(reopenedCollapsed, '重新打开项目后编组仍应保持收起')
   await expectAbsent(reopenedGroupMembers, { provenBy: groupMembersProof, message: '重新打开项目后组成员仍应隐藏' })
   check('重新打开后节点与聚合连接仍在', await win.locator('g[data-aggregate-group="reference-group"]').count() === 1)
-  await clickOrFail(reopenedImageNode.locator('[data-version-stack-handle]'), '铺开重开项目里的版本卡片')
+  await clickOrFail(reopenedImageNode.locator('[data-version-badge]'), '铺开重开项目里的版本卡片')
   const reopenedGrid = win.locator('[data-version-grid="image-versions"]')
   await expectVisible(reopenedGrid, '重新打开后版本卡片可用')
   check('重新打开后删剩的两版仍在、号不变', (await reopenedGrid.locator('[data-version-card]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-version-card')))).join(',') === '3,1')
-  await clickOrFail(reopenedImageNode.locator('[data-version-stack-handle]'), '收起重开项目里的版本卡片')
+  await clickOrFail(reopenedImageNode.locator('[data-version-badge]'), '收起重开项目里的版本卡片')
 
   await clickOrFail(collapsed.getByRole('button', { name: '3 节点' }), '展开雨夜参考组')
   await expectVisible(win.locator('[data-node-id="group-character"]'), '点击卡角后应恢复组内节点')

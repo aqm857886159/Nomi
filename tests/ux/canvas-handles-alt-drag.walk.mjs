@@ -455,7 +455,7 @@ try {
   // ═══ B3 铺开的第 2 张版本卡：普通拖 = 拖整组（不多出东西）；Alt 拖 → 松手处出一张独立素材卡，原节点的版本不变 ═══
   {
     await selectNode('stack')
-    const toggle = win.locator(`${sel('stack')} [data-version-stack-handle]`)
+    const toggle = win.locator(`${sel('stack')} [data-version-badge]`)
     await toggle.click()
     const grid = win.locator('[data-version-grid="stack"]')
     await expect(grid, '版本卡片没铺开').toBeVisible()

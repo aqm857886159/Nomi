@@ -3,7 +3,7 @@
 //
 // 用户 10-06 拍板宫格样张；V2 已接进节点，格子渲染的是现役 BaseGenerationNode。基线待在 darwin 上录（calibration.json 登记）。
 import { VERSION_CARD_GRID_STATES } from './states/01-grid'
-import { VERSION_ENTRY_STATES } from './states/02-entry-bottom'
+import { VERSION_ENTRY_STATES } from './states/02-entry-badge'
 import type { LabState } from '../labScreen'
 
 export const VERSION_CARDS_STATES: readonly LabState[] = [...VERSION_CARD_GRID_STATES, ...VERSION_ENTRY_STATES]
