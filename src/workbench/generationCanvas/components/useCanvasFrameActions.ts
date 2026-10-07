@@ -2,9 +2,8 @@
  * 框的四个动作 + 那份菜单的开合：改名/说明、生成整框、整框进时间轴、折叠、解散。
  *
  * 两条不许破的纪律：
- *  · **生成整框走的就是浮条那一条批量生产路径**（resolveCanvasGenerationScope →
- *    eligibleGenerationNodeIds → buildDependencyWaves → confirmAndRunPlan），只是把 scope
- *    从「选中集」换成「框内成员」。一份实现两个入口，不是第二套生成（P1）。
+ *  · **生成整框是画布上唯一的批量生成入口**（groupEligibleNodeIds → buildDependencyWaves →
+ *    confirmAndRunPlan）；每个节点用它自己已选好的模型和参数。右键菜单与组工具条共用这一份。
  *  · **解散 = ungroup，边一根都不撤**（model/groupInputLinks 的既有语义：解散的是组织方式，
  *    不是节点关系）。顺手把边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
  */
@@ -16,7 +15,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameToTimeline'
 import { confirmAndRunPlan } from './batchPlanPreview'
-import { eligibleGenerationNodeIds, readCanvasBatchConcurrency, resolveCanvasGenerationScope } from './canvasProductionScope'
+import { groupEligibleNodeIds } from './canvasProductionScope'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
@@ -36,12 +35,7 @@ const MENU_EDGE_GAP = 8
 function frameEligibleIds(groupId: string): string[] {
   const state = useGenerationCanvasStore.getState()
   const group = state.groups.find((candidate) => candidate.id === groupId)
-  if (!group?.nodeIds.length) return []
-  return eligibleGenerationNodeIds(
-    state.nodes,
-    resolveCanvasGenerationScope(group.categoryId, group.nodeIds),
-    useProductionCanvasLandingStore.getState().runs,
-  )
+  return groupEligibleNodeIds(group, state.nodes, useProductionCanvasLandingStore.getState().runs)
 }
 
 export function useCanvasFrameActions({
@@ -57,6 +51,7 @@ export function useCanvasFrameActions({
   editingFrameId: string | null
   setEditingFrameId: (groupId: string | null) => void
   handleFrameMenuAction: (action: FrameContextMenuAction) => void
+  runFrameAction: (groupId: string, action: FrameContextMenuAction) => void
   /** 单独选中的**空框**（没有成员可选，框本身就是选区）；有成员的框的选区就是它的成员。 */
   selectedFrameId: string | null
   selectFrame: (groupId: string | null) => void
@@ -98,55 +93,58 @@ export function useCanvasFrameActions({
     })
   }, [readOnly, stageRef])
 
-  const handleFrameMenuAction = React.useCallback((action: FrameContextMenuAction) => {
-    const menu = frameMenu
-    setFrameMenu(null)
-    if (!menu || readOnly) return
+  const runFrameAction = React.useCallback((groupId: string, action: FrameContextMenuAction) => {
+    if (readOnly) return
     const state = useGenerationCanvasStore.getState()
     const projectId = withProjectAction((project) => project.binding.projectId) ?? ''
-    const report = (message: string) => reportCanvasFeedback(message, 'warning', { projectId, identity: `frame:${menu.groupId}`, reason: action, nodeIds: state.groups.find((group) => group.id === menu.groupId)?.nodeIds })
+    const report = (message: string) => reportCanvasFeedback(message, 'warning', { projectId, identity: `frame:${groupId}`, reason: action, nodeIds: state.groups.find((group) => group.id === groupId)?.nodeIds })
     if (action === 'edit') {
-      setEditingFrameId(menu.groupId)
+      setEditingFrameId(groupId)
       return
     }
     if (action === 'collapse') {
-      state.setGroupCollapsed(menu.groupId, true)
+      state.setGroupCollapsed(groupId, true)
       return
     }
     if (action === 'delete') {
       // 与「选中框按 Delete」同一个结果：框和成员一起删，一个撤销点（deleteGroup 自己打快照）。
       setSelectedFrameId(null)
-      state.deleteGroup(menu.groupId, true)
+      state.deleteGroup(groupId, true)
       return
     }
     if (action === 'dissolve') {
-      // 节点留下、边一根不撤——这就是 ungroup 的语义，本项不额外做任何事。
-      state.ungroup(menu.groupId)
+      // 节点留下、边一根都不撤——这就是 ungroup 的语义，本项不额外做任何事。
+      state.ungroup(groupId)
       return
     }
     if (action === 'generate') {
-      const eligibleIds = frameEligibleIds(menu.groupId)
+      const eligibleIds = frameEligibleIds(groupId)
       if (!eligibleIds.length) {
         report(t('generationCommon.canvas.group.generateEmpty'))
         return
       }
       const live = useGenerationCanvasStore.getState()
-      // 并发读的是浮条写进去的**同一份**（canvasProductionScope 的 localStorage 口径）。
-      // 在这里另存一份的后果是：用户在浮条上改了并发，从框菜单发起时却没生效。
+      // 每个节点用它自己已选好的模型和参数，这里不弹模型选择、不改模型；并发交给调度器默认值。
       void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: live.nodes, edges: live.edges }), {
-        concurrency: readCanvasBatchConcurrency(),
         initiator: 'user',
       })
       return
     }
-    void sendFrameToTimeline(menu.groupId).then((result) => {
+    void sendFrameToTimeline(groupId).then((result) => {
       if (!result.ok) {
         report(t('generationCommon.canvas.group.timelineEmpty'))
         return
       }
       if (result.skipped > 0) report(t('generationCommon.canvas.group.timelineDoneWithSkips', { count: result.placed, skipped: result.skipped }))
     })
-  }, [frameMenu, readOnly, t])
+  }, [readOnly, t])
+
+  const handleFrameMenuAction = React.useCallback((action: FrameContextMenuAction) => {
+    const menu = frameMenu
+    setFrameMenu(null)
+    if (!menu) return
+    runFrameAction(menu.groupId, action)
+  }, [frameMenu, runFrameAction])
 
   // 菜单开着时点别处 / 按 Esc 就收——与节点右键菜单同一套开合心智，不让用户学第二种。
   React.useEffect(() => {
@@ -174,6 +172,7 @@ export function useCanvasFrameActions({
     editingFrameId,
     setEditingFrameId,
     handleFrameMenuAction,
+    runFrameAction,
     selectedFrameId,
     selectFrame: setSelectedFrameId,
     deleteSelectedFrame,

@@ -5,6 +5,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
+import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
 
 const root = path.resolve('.')
 const evidence = path.join(root, 'docs/plan/process-feedback-evidence/neighbor-placement/real')
@@ -79,13 +80,16 @@ try {
   }, root)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await expect(page.getByRole('button', { name: /新建空白项目/ })).toBeVisible({ timeout: 30000 })
-  await page.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen'); localStorage.setItem('nomi.canvas.batch-concurrency', '1') })
+  await page.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen'); localStorage.setItem('__nomiE2E', '1') })
   const skip = page.locator('[data-splash-skip=true]')
   if (await skip.isVisible()) await skip.click()
   await page.getByRole('button', { name: /新建空白项目/ }).click()
   await expect(page.getByRole('button', { name: '生成', exact: true })).toBeVisible({ timeout: 30000 })
   await page.getByRole('button', { name: '生成', exact: true }).click()
   await expect(page.locator('.generation-canvas-v2__stage')).toBeVisible()
+  // 产品里没有并发选项；走查要造「排队中」，经 E2E 桥把整批并发压到 1。
+  await expect.poll(() => page.evaluate(() => typeof window.__nomiSetBatchConcurrency)).toBe('function')
+  await page.evaluate(() => window.__nomiSetBatchConcurrency(1))
   const blank = await findCanvasBlankPoint(page)
   expect(blank).toBeTruthy()
   await page.mouse.click(blank.x, blank.y, { button: 'right' })
@@ -179,7 +183,9 @@ try {
   await page.keyboard.press('Escape')
   const empty = await findCanvasBlankPoint(page)
   await page.mouse.click(empty.x, empty.y)
-  await page.locator('[data-batch-scope=all]').click()
+  // 批量生成只走组：全选 → 编组 → 组工具条「生成整组」（已出图的第一个节点不进这一批）。
+  await page.keyboard.press('Control+a')
+  await groupSelectedNodesAndGenerate(page)
   await expect(page.getByText('开始生成', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '生成', exact: true }).last().click()
   await expect.poll(() => fixture.jobs.length, { timeout: 30000 }).toBe(3)

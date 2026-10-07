@@ -18,6 +18,7 @@ import { cn } from '../../../utils/cn'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { groupColorClass } from '../model/groupColor'
 import { GroupFrameHeader, type FrameMembershipPreview } from './GroupFrameHeader'
 
 export type CanvasGroupBox = {
@@ -64,12 +65,9 @@ export type GroupFrameProps = {
   frame?: CanvasFrameInteraction
 }
 
-// 这里**刻意不放「整组运行」按钮**（2026-08-02 加过又删）：点组框本来就会选中全部成员
-// （useCanvasSelectionDrag.handleGroupFramePointerDown），选择浮条随即显示「生成 N 个」——
-// 整组运行早就有了。在标签上再放一个 ▶ 等于同屏两个一模一样的动作（实测两者相距约 600px 同时可见），
-// 是并行版（违 P1）。要改整组运行的行为，改选择浮条那一条路径。
-// 2026-09-06 的 ⋯ 菜单里有「生成整框」，与这条不冲突：它藏在菜单里（不与浮条同屏并存），
-// 而且走的**就是**浮条那一条批量生产路径，只是把 scope 换成框内成员——一份实现，两个入口。
+// 这里**刻意不放「整组运行」按钮**：点组框会选中整组、出组工具条，上面的「生成整组」就是批量生成的唯一入口。
+// 在标签上再放一个 ▶ 等于同屏两个一模一样的动作，是并行版（违 P1）。
+// ⋯ 菜单里的「生成整框」与工具条走同一条派发路径（useCanvasFrameActions.runFrameAction），藏在菜单里、不同屏并存。
 
 export default function GroupFrame({
   box,
@@ -101,6 +99,7 @@ export default function GroupFrame({
       ? t('generationCommon.canvas.group.joinPreview', { name: box.group.name, count: preview.nextCount })
       : t('generationCommon.canvas.group.leavePreview', { name: box.group.name, count: preview.nextCount })
     : null
+  const colorClass = groupColorClass(box.group.colorToken)
 
   return (
     <div
@@ -109,6 +108,7 @@ export default function GroupFrame({
         'absolute select-none rounded-nomi-lg',
         readOnly ? 'pointer-events-none' : 'pointer-events-auto',
         GROUP_VISUAL_CLASS.frame,
+        colorClass.border,
         // 空框先画虚线：它还没圈住任何东西，实线会让人以为里面本来有内容而没渲染出来。
         box.empty && !connectable && !membershipClass ? 'border-dashed border-nomi-ink-30' : null,
         connectable
@@ -129,6 +129,9 @@ export default function GroupFrame({
       // 拖线松手时落点模型（reactFlow/canvasConnectionDropTarget）靠这个属性在元素栈里认出组框
       // （与 data-node-id 同一套命中法）。
       data-group-id={box.group.id}
+      // Blank frame surface is the group drag handle; React Flow node cards sit above it
+      // and keep their own single-node drag contract.
+      data-group-drag-surface="true"
       data-frame-empty={box.empty ? 'true' : undefined}
       data-frame-membership={preview ? preview.change : undefined}
       aria-label={
@@ -177,6 +180,8 @@ export default function GroupFrame({
         onDescribe={frame?.onDescribe ?? noop}
         onCollapse={onCollapse}
         onOpenMenu={frame?.onOpenMenu}
+        colorToken={box.group.colorToken}
+        outside
       />
     </div>
   )

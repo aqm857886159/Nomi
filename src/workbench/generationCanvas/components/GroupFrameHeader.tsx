@@ -9,12 +9,17 @@
  *    弹「添加节点」——两个动作的目标物不同（文字 vs 空白），用命中区分，不用修饰键（不用教）。
  *  · 计数在拖动中显示成 `3 → 2`。直接把结果写出来，不用箭头图标让人猜（D1 effect-first）；
  *    这正是实拍里缺的那条反馈——拖出去之前用户完全不知道会发生什么。
+ *
+ * The shared marker token remains part of the contract for legacy in-frame
+ * consumers: GROUP_VISUAL_CLASS.marker. The outside label uses a Stack glyph
+ * so a group cannot be confused with a node status dot.
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDots, IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { groupColorClass } from '../model/groupColor'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -34,6 +39,10 @@ type GroupFrameHeaderProps = {
   onDescribe: (groupId: string, description: string) => void
   onCollapse?: (groupId: string) => void
   onOpenMenu?: (groupId: string, point: { x: number; y: number }) => void
+  /** 组颜色 token 名；没选过 = 灰。只用来画标题前的小圆点。 */
+  colorToken?: string
+  /** 组名放在框外上方；框内胶囊（outside=false）只剩给旧调用方。 */
+  outside?: boolean
 }
 
 /** 提交 = 失焦或回车；Esc 放弃。三条都要有，缺 Esc 的输入框会把人困在里面。 */
@@ -79,6 +88,8 @@ export function GroupFrameHeader({
   onDescribe,
   onCollapse,
   onOpenMenu,
+  colorToken,
+  outside = false,
 }: GroupFrameHeaderProps): JSX.Element {
   const { t } = useTranslation()
   const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
@@ -137,16 +148,18 @@ export function GroupFrameHeader({
     <div
       className={cn(
         'generation-canvas-v2__group-box-label',
-        'absolute left-3 top-2 z-[4] inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2',
-        'rounded-full border px-[9px] py-[3px] text-micro font-[650] leading-[1.25]',
+        outside
+          ? 'absolute left-0 top-[-30px] z-[4] inline-flex min-h-6 max-w-[calc(100%-24px)] items-center gap-2 border-0 px-0 py-0 text-body-sm font-medium leading-[1.25] shadow-none'
+          : 'absolute left-3 top-2 z-[4] inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2 rounded-full border px-[9px] py-[3px] text-micro font-[650] leading-[1.25]',
         'pointer-events-auto select-none',
-        GROUP_VISUAL_CLASS.label,
+        outside ? 'bg-transparent' : GROUP_VISUAL_CLASS.label,
         connectable ? 'cursor-copy' : readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
       // 编辑中不许把头部当拖动把手——否则点进输入框的那一下就把整个框拖走了。
       onPointerDown={editingField ? (event) => event.stopPropagation() : undefined}
     >
-      <span className={cn('size-2 shrink-0 rounded-full border', GROUP_VISUAL_CLASS.marker)} aria-hidden="true" />
+      <span className={cn('size-2 shrink-0 rounded-full', groupColorClass(colorToken).dot)} data-group-color-dot="true" aria-hidden="true" />
+      <IconStack2 className="shrink-0" size={outside ? 15 : 12} stroke={outside ? 1.8 : 1.9} aria-hidden="true" />
       {editingField === 'name' ? (
         <input
           autoFocus
@@ -179,7 +192,7 @@ export function GroupFrameHeader({
           onBlur={descriptionField.onBlur}
           onKeyDown={descriptionField.onKeyDown}
         />
-      ) : description || editable ? (
+      ) : description || (editable && !outside) ? (
         // 说明为空时留一句极淡的占位——不留的话，用户根本不知道这里可以写东西。
         <span
           className={cn('min-w-0 truncate font-normal', description ? 'text-nomi-ink-60' : 'text-nomi-ink-30')}
@@ -193,7 +206,7 @@ export function GroupFrameHeader({
       ) : null}
       <span
         className={cn(
-          'inline-grid h-[18px] min-w-[18px] place-items-center rounded-full px-[5px] text-micro tabular-nums',
+          outside ? 'sr-only' : 'inline-grid h-[18px] min-w-[18px] place-items-center rounded-full px-[5px] text-micro tabular-nums',
           GROUP_VISUAL_CLASS.count,
         )}
         data-frame-count="true"
