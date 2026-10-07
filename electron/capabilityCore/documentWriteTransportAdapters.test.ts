@@ -4,8 +4,9 @@ import { DOCUMENT_WRITE_ALIASES } from "../shared/agentCapabilities/documentWrit
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority } from "./canvasReadSurfaceRegistry";
 import { createPiDocumentWriteTransportAdapter } from "./documentWriteTransportAdapters";
+import { MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
 
-async function setup() {
+async function setup(write = vi.fn(async (_input: unknown) => ({ applied: true, revision: 2, contentHash: "fnv1a-next" }))) {
   const ownerAuthority = createSurfaceOwnerAuthority();
   const owner = ownerAuthority.capture({
     contents: {}, frame: {}, webContentsId: 1, processId: 2, frameRoutingId: 3, origin: "file://", isLive: () => true,
@@ -25,7 +26,6 @@ async function setup() {
   const suspension = registry.suspend(owner, { surfaceInstanceId: "surface-a" });
   const binding = await registry.commitCanvasRead(owner, { projectId: "project-a", suspension });
   const session = registry.openProjectSession(owner, binding.binding);
-  const write = vi.fn(async () => ({ applied: true, revision: 2, contentHash: "fnv1a-next" }));
   const executor = createMainCapabilityExecutorRegistry({
     resolveCanvasReadPort: async () => ({ read: async () => ({}) }),
     resolveDocumentWritePort: async () => ({ write }),
@@ -86,5 +86,40 @@ describe("document.write Pi transport", () => {
       message: "surface_port_unavailable",
     });
   });
-});
 
+  // NF-1001-0002（应用内反馈 NF-1001-0002）：渲染端落一份大稿子比 15 秒慢，但在写工具自己 60 秒的预算内。
+  // 过去执行器另有 15 秒缺省，写已经开始就掐，报「结果没对上账」而稿子其实写进去了。改回 15 秒这条就红。
+  describe("one owner for how long a write may take", () => {
+    const prepare = async (test: Awaited<ReturnType<typeof setup>>) => test.adapter.prepare(
+      { toolCallId: "tool-slow", toolName: DOCUMENT_WRITE_ALIASES.replace, args: { content: "a long script" } },
+      { documentId: "document-a", target: { kind: "document", documentId: "document-a", anchor: { kind: "whole-document" } },
+        preconditions: { document: { revision: 1, contentHash: "fnv1a-old" } } },
+      new AbortController().signal,
+    );
+    const slowWrite = (ms: number) => vi.fn((_input: unknown) => new Promise<{ applied: true; revision: number; contentHash: string }>((resolve) => {
+      setTimeout(() => resolve({ applied: true, revision: 2, contentHash: "fnv1a-next" }), ms);
+    }));
+
+    it("a write that lands after 20s but inside the declared write budget is a success, not unresolved", async () => {
+      const test = await setup(slowWrite(20_000));
+      const prepared = await prepare(test);
+      vi.useFakeTimers();
+      try {
+        const decision = test.adapter.execute(prepared!, new AbortController().signal);
+        await vi.advanceTimersByTimeAsync(20_000);
+        await expect(decision).resolves.toMatchObject({ ok: true, result: { applied: true, revision: 2 } });
+      } finally { vi.useRealTimers(); }
+    });
+
+    it("a write that outlives the declared write budget is reported unresolved (it may have landed)", async () => {
+      const test = await setup(slowWrite(MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE + 5_000));
+      const prepared = await prepare(test);
+      vi.useFakeTimers();
+      try {
+        const decision = test.adapter.execute(prepared!, new AbortController().signal);
+        await vi.advanceTimersByTimeAsync(MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE + 1);
+        await expect(decision).resolves.toMatchObject({ ok: false, code: "capability_receipt_unresolved" });
+      } finally { vi.useRealTimers(); }
+    });
+  });
+});

@@ -32,6 +32,7 @@ import type { GenerationCanvasState } from './canvasStoreTypes'
 import { createCanvasNodeActions } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
+import { reapplyLandedOutcomes } from './nodeRunOutcome'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
@@ -190,8 +191,10 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   },
   undo: () => {
     // S5-b-2 翻正:撤销 = 会话日志前缀重放(canvasHistory 状态栈已删)
-    const previous = popUndo()
-    if (!previous) return
+    // 撤销只回退用户编辑:目标位置之后落地的生成结局 + 此刻的运行态原样留下(钱已花,不许撤掉)。
+    const restore = popUndo()
+    if (!restore) return
+    const previous = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
     set((state) => {
       state.nodes = previous.nodes
       state.edges = previous.edges
@@ -208,8 +211,9 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: previous.nodes, edges: previous.edges, groups: previous.groups } } }])
   },
   redo: () => {
-    const next = popRedo()
-    if (!next) return
+    const restore = popRedo()
+    if (!restore) return
+    const next = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
     set((state) => {
       state.nodes = next.nodes
       state.edges = next.edges

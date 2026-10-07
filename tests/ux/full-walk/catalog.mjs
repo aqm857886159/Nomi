@@ -107,7 +107,7 @@ export const NODE_TOOLBAR_CLICK_TARGETS = Object.freeze([
   TB_TARGET({
     id: 'tb-refine-upscale', target: '改图 ▾ → 高清',
     userExpectation: '有能放大的模型：多一个连着这张图的空闲放大节点，不花钱；没有：告诉我缺一个放大模型、要接谁，并给一条一步可走的路（点了去接入），不是只灰掉，也不偷偷建节点或花钱',
-    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（第二行引导、点了落到 kie 接入页）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（2026-10-07 用户拍板置灰、悬停说原因、不跳转）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
   }),
   TB_TARGET({
     id: 'tb-refine-rotate', target: '改图 ▾ → 向右旋转 90°',
@@ -304,7 +304,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J04-agent-multishot-spend',
     title: Object.freeze({ 'zh-CN': 'Agent 起草多镜并付费确认', en: 'Agent drafts several shots and the user confirms the spend' }),
     states: Object.freeze([
-      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS', deadline: { ref: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS' } },
+      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneProviderGuard.mts#LANE_STREAM_WATCHDOG', deadline: { ref: 'electron/agentLane/laneProviderGuard.mts#LANE_FIRST_TOKEN_MS' } },
       { id: 'drafted-on-canvas', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queued'], actions: ['看占位卡'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { gap: '草稿落画布之后到出卡之间没有登记时限（出卡由同一回合的 generate 负责）' } },
       { id: 'card-waiting', kind: 'user', visibleText: ['agentPanelV4.spendParamsTitleImage_other', 'agentPanelV4.spendConfirmThisImage', 'agentPanelV4.spendRemoveThisImage'], actions: ['翻页', '生成这张', '去掉这张', '×'], owner: 'src/workbench/ai/v4/useAgentPanelSpendConfirm.ts#useAgentPanelSpendConfirm', deadline: USER },
       { id: 'shots-queued', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queuedNth'], actions: ['暂停'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { ref: 'electron/productionRun/multiShotBatchScheduler.ts#POLL_DELAY_CAP_MS' } },

@@ -10,6 +10,7 @@ import type {
   GenerationNodeRunRecord,
   GenerationNodeStatus,
   NodeGroup,
+  TiptapDocJson,
 } from '../model/generationCanvasTypes'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
@@ -134,6 +135,8 @@ export type CanvasRunActions = {
   appendNodeRun: (nodeId: string, run: NodeRunRecordInput) => GenerationNodeRunRecord
   trackNodeRun: (nodeId: string, runId: string, patch: NodeRunRecordPatch) => void
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
+  /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
+  landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
 }
 
 export type GenerationCanvasState = {

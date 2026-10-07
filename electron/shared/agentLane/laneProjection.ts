@@ -32,6 +32,9 @@ import {
 } from './laneContracts.js';
 import { laneToolNextActionOf } from './laneToolNextAction.js';
 import { laneToolFailureOf } from './laneToolFailureEnvelope.js';
+import { laneAssistantFaultOf, type LaneAssistantFault } from './laneAssistantFault.js';
+
+const faultField = (fault: LaneAssistantFault | undefined): { fault?: LaneAssistantFault } => (fault ? { fault } : {});
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -109,6 +112,11 @@ export interface LaneModelFacts {
    * 不传 = 不下判断（设计实验室、冷读历史）。
    */
   readonly isTransientError?: (message: AssistantMessage) => boolean;
+  /**
+   * 这条出错的助手消息是不是「上下文装不下」。同上，**由宿主喂 pi 的 `isContextOverflow`**（各家服务商的溢出原话
+   * pi 有一张表），投影只把结论变成 `fault`。不传 = 只认 pi 自己补的那句（`PI_CONTEXT_OVERFLOW_MESSAGE`）。
+   */
+  readonly isContextOverflow?: (message: AssistantMessage) => boolean;
 }
 
 /**
@@ -303,7 +311,8 @@ export function projectLaneSnapshot(
         parts.push({ kind: 'error', text: message.errorMessage, sequence: parts.length,
           entryId: entry.id, entrySeq: entry.seq, contentIndex: message.content.length,
           ...(facts.isTransientError?.(message) ? { transient: true as const } : {}),
-          ...(recoveredErrors.has(entry.id) ? { recovered: true as const } : {}) });
+          ...(recoveredErrors.has(entry.id) ? { recovered: true as const } : {}),
+          ...faultField(laneAssistantFaultOf(message.errorMessage, facts.isContextOverflow?.(message) ?? false)) });
       }
       continue;
     }

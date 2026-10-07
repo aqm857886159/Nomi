@@ -296,7 +296,7 @@ try {
   }, MATERIALIZE_PAYLOAD)
   check(/nomi-local/.test(rejected), '回填非本地 url（https CDN）当场被断言拒（R17）')
 
-  // ── 整批一个 Cmd+Z：撤销后整组 + 全部占位节点消失 ──
+  // ── 整批一个 Cmd+Z：撤销后分镜组 + 没出片的占位节点消失，已回填结果的那一镜留下 ──
   const beforeUndo = await win.evaluate((opId) => window.__nomiCanvasStore.getState().nodes.filter((n) => n.meta?.materializationOperationId === opId).length, OP_ID)
   check(beforeUndo === 4, `撤销前画布上 4 个占位节点在（实得 ${beforeUndo}）`)
   check(await win.evaluate(() => window.__nomiCanvasStore.getState().canUndo === true), '整批落地后撤销栈保留一个事务边界')
@@ -306,11 +306,17 @@ try {
   const afterUndo = await win.evaluate((opId) => {
     const s = window.__nomiCanvasStore.getState()
     return {
-      nodes: s.nodes.filter((n) => n.meta?.materializationOperationId === opId).length,
+      nodes: s.nodes.filter((n) => n.meta?.materializationOperationId === opId)
+        .map((n) => ({ id: n.id, resultUrl: n.result?.url || '', groupId: n.groupId || '' })),
       group: s.groups.some((g) => g.materializationOperationId === opId),
     }
   }, OP_ID)
-  check(afterUndo.nodes === 0, `一个 Cmd+Z 整组消失：4 节点全撤（实得剩 ${afterUndo.nodes}）`)
+  // 一个 Cmd+Z 撤整批：没出片的 3 个占位节点和分镜组全撤；已回填结果的 shot-1 是付费落地，撤销不拿走它
+  // （协调会话 10-07 定 B，docs/plan/2026-10-07-undo-keeps-landed-results.md）——它留下、摘掉被撤分组的标记。
+  check(afterUndo.nodes.length === 1 && afterUndo.nodes[0].id === shot1NodeId,
+    `一个 Cmd+Z 撤整批：只剩已回填结果的 shot-1（实得剩 ${JSON.stringify(afterUndo.nodes.map((n) => n.id))}）`)
+  check(afterUndo.nodes[0]?.resultUrl === 'nomi-local://asset/p/shot-1.mp4', '留下的 shot-1 结果原样在（撤销不拿走付费落地）')
+  check(afterUndo.nodes[0]?.groupId === '', '留下的 shot-1 不再挂在被撤掉的分镜组上')
   check(afterUndo.group === false, '分镜组也随同一步撤销消失')
 
   await win.screenshot({ path: path.join(shotsDir, '03-after-undo.png') })

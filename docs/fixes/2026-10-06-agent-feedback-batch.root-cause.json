@@ -1,0 +1,370 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-06-agent-feedback-batch",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "problem_type": "Agent 失败的事实在产生处没说清：看门狗相位错位、同一预算两个主人、泛码吞掉具体原因、回合内旧快照无人取舍",
+  "symptom": "应用内反馈（0.22.3 Windows）：面板直出英文「Nomi model idle timeout after 120000ms」「Stream ended without finish_reason」；「这件事在当前页面做不了。」后 Agent 停住；「这一步的结果没对上账」；一回合输入几十万 token 撞上下文窗口",
+  "direct_cause": "① 看门狗在 pi 推 start（响应头）时就开 120 秒空闲表，推理模型思考期不流任何事件被掐断并整份重发三次；② 看门狗 / pi 的英文被当服务商原话交给关键词归类；③ 画布页上模型读文稿选区，基线端口回泛泛的 capability_unsupported；④ 执行器缺省 15 秒超时短于写工具声明的 60 秒，慢写被判未确认（反馈无失败码，按代码推断）；⑤ 同一回合反复读整份剧本，旧快照随每次请求重发，pi 压缩切不进当前回合",
+  "class_root": "失败在跨层时被压成一串字或一个泛码、预算在两处各定义一份、上下文组装没有「同一资源只带最新快照」的主人，下游只能按字去猜或按更短的那个数掐断",
+  "affected_population": [
+    "所有用自建渠道 / 中转推理模型的 Agent 对话（长思考、长剧本）",
+    "不在创作页时说「这个 / 这里」的用户",
+    "渲染端落盘慢于 15 秒的大项目写入"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneStreamObserver.mts",
+    "electron/agentLane/laneProviderGuard.mts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneSingleShot.mts",
+    "electron/agentLane/laneHistory.mts",
+    "electron/agentLane/laneRuntimePort.ts",
+    "electron/agentLane/laneTrace.mts",
+    "electron/agentLane/laneSupersededReads.mts",
+    "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "electron/shared/agentCapabilities/transportContracts.ts",
+    "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+    "electron/shared/agentLane/laneAssistantFault.ts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "electron/shared/agentLane/laneTrajectory.ts",
+    "electron/shared/surfacePortBinding.ts",
+    "electron/telemetry/trajectoryProjection.ts",
+    "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+    "src/i18n/locales/agentResident.ts",
+    "src/i18n/locales/agentToolFailure.ts",
+    "src/workbench/ai/lane/laneCommandFailure.ts",
+    "src/workbench/ai/lane/laneToolFailureText.ts",
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/project/documentSessionPort.ts"
+  ],
+  "entry_points": [
+    "lane 主路 openLane → createNomiProvider → guardProviderStreams → observeNativeStream（每一次模型请求，含压缩与分支摘要）",
+    "单次调用 runLaneSingleShot → createNomiProvider（同一份看门狗预算）",
+    "投影 projectLaneSnapshot（实时与冷读历史）→ laneViewModel → providerFailureText",
+    "read_script / write_script → 渲染端 documentSessionPort（基线）或 WorkbenchEditor（增强）",
+    "CapabilityExecutorRegistry.execute（lane 与 MCP 共用）",
+    "pi transform_context（每次请求前组装上下文）"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-ai/v/0.85.1",
+      "checked_at": "2026-10-06",
+      "purpose": "dist/api/openai-completions.js（已安装 0.85.1）：start 事件在 withResponse() 之后、任何正文之前推出；流无 finish_reason 时抛 \"Stream ended without finish_reason\""
+    },
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-coding-agent/v/0.85.1",
+      "checked_at": "2026-10-06",
+      "purpose": "dist/core/http-dispatcher.js（已安装 0.85.1）：pi 传输层空闲默认值 DEFAULT_HTTP_IDLE_TIMEOUT_MS = 300_000（按字节计）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-ai/v/0.85.1",
+      "checked_at": "2026-10-06",
+      "purpose": "dist/utils/overflow.js（已安装 0.85.1）：isContextOverflow：各家服务商上下文溢出原话的判定表"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-agent-core/v/0.85.1",
+      "checked_at": "2026-10-06",
+      "purpose": "dist/harness/runtime/drive/response.js（已安装 0.85.1）：溢出且压缩救不回时补的 \"Assistant request exceeded the context window\""
+    }
+  ],
+  "invariants": [
+    "响应头之后、第一段正文之前的静默归思考预算，不归空闲表",
+    "看门狗 / pi 自己写的失败在投影里是闭合事实（fault），原文不进界面",
+    "文稿没有选区 / 光标时回 document_position_unavailable，模型与用户都拿到可做的下一步",
+    "一次能力执行等多久只有一个主人：动词声明的读 / 写预算",
+    "同一回合里同一资源只随请求带最新那一份读取快照"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneStreamObserver.mts",
+    "tests": [
+      "tests/agent-runtime/observer.test.mts",
+      "electron/shared/agentLane/laneAssistantFault.test.ts",
+      "electron/agentLane/laneSupersededReads.test.ts",
+      "tests/agent-runtime/lane-context-budget.test.mts"
+    ],
+    "why": "Agent 每一次模型请求都经过 provider 流的看门狗；失败事实在投影层（laneAssistantFault）认、上下文在 transform_context（laneSupersededReads）组装，三处都是 lane 主路与历史冷读的共同边界"
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneProviderGuard.mts",
+      "symbol": "observeNativeStream"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "symbol": "positionUnavailable"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "bounded"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStoryboardPlanner.ts",
+      "symbol": "bounded"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "omitSupersededReads"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "providerFailureText"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+      "symbol": "providerFailureText"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/agentToolFailure.ts",
+      "symbol": "zhAgentToolFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "AGENT_TOOL_FAILURE_TEXT_KEY"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "assistantFaultText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHistory.mts",
+      "symbol": "isContextOverflow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "watchdog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneStreamObserver.mts",
+      "symbol": "observeNativeStream"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSupersededReads.mts",
+      "symbol": "omitSupersededReads"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "requestInputs"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/transportContracts.ts",
+      "symbol": "timeoutPhase"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+      "symbol": "readScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneAssistantFault"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneTrajectory.ts",
+      "symbol": "requestInputs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "document_position_unavailable"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/agentResident.ts",
+      "symbol": "faultFirstToken"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "assistantFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "LaneAssistantFault"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "document_position_unavailable"
+    }
+  ],
+  "door_reduction": {
+    "before": 29,
+    "after": 29,
+    "why_not": "单次调用 laneSingleShot 原手抄 90s/120s，现与 lane 主路读同一份 LANE_STREAM_WATCHDOG（两扇门同一预算，门数不变但定义从两份变一份）；mcpStoryboardPlanner 的 bounded 是同名的另一个本地函数（截断字符串），不是执行器超时，列出仅因 door-map 按名字计；providerFailureText 的设计实验室那扇门是截图夹具，必须和面板同一实现才有意义；工具失败文案三扇（词典 zhAgentToolFailure、码到词条 AGENT_TOOL_FAILURE_TEXT_KEY、回合失败事实到词条 assistantFaultText）是面板上那句话的唯一读写处，各管一层，不可合并；其余各扇是同一条失败事实从产生（看门狗 / 文稿端口 / 执行器）经契约、投影、轨迹到面板词条的每一层各一处，按层分工、不可合并"
+  },
+  "generality_proof": "看门狗装在 provider 流上（每一次模型请求都经过 observeNativeStream），相位边界在那里定一次；fault 在投影层认，实时与冷读历史都走 projectLaneSnapshot；文稿缺位置只在基线端口与增强端口的定位校验处产出，lane 与 MCP 都经同一渲染端 handler；执行器超时缺省从动词声明派生，lane 与 MCP 共用同一执行器；旧快照判据从动词声明（effect=read + toSemanticInput）派生，新读动词自动覆盖",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneStreamObserver.mts",
+      "symbol": "observeNativeStream",
+      "responsibility": "三相位看门狗：first-response / first-token / idle"
+    },
+    {
+      "path": "electron/agentLane/laneProviderGuard.mts",
+      "symbol": "LANE_STREAM_WATCHDOG",
+      "responsibility": "三个预算的唯一一份"
+    },
+    {
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneAssistantFaultOf",
+      "responsibility": "看门狗 / pi 自己写的失败 → 闭合事实"
+    },
+    {
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "symbol": "positionUnavailable",
+      "responsibility": "文稿没有位置时的唯一码"
+    },
+    {
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "declaredTimeout",
+      "responsibility": "执行等待预算从动词声明派生"
+    },
+    {
+      "path": "electron/agentLane/laneSupersededReads.mts",
+      "symbol": "omitSupersededReads",
+      "responsibility": "回合内同一资源只带最新读取快照"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "entry_point": "runLaneSingleShot",
+      "disposition": "enforced",
+      "evidence": "改为读 LANE_STREAM_WATCHDOG，不再手抄 90s/120s"
+    },
+    {
+      "path": "electron/agentLane/laneHistory.mts",
+      "entry_point": "openLaneHistory",
+      "disposition": "enforced",
+      "evidence": "冷读历史的投影同样喂 isContextOverflow，fault 由 projectLaneSnapshot 统一产出"
+    },
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "entry_point": "enhanced applyDocumentWrite",
+      "disposition": "enforced",
+      "evidence": "增强端口整篇锚 insert 改回同一个 document_position_unavailable"
+    },
+    {
+      "path": "electron/capabilityCore/canvasReadPublicError.ts",
+      "entry_point": "canvasReadRpcError",
+      "disposition": "not-affected",
+      "evidence": "公开码集合从 SURFACE_PORT_WIRE_ERROR_CODE_LIST 派生，新码自动放行给 MCP 宿主"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每次推理模型思考超过 2 分钟、每次在非创作页说「这个」、每次大项目慢写、每个长回合反复读稿都会重现",
+    "same_class_scan": [
+      "node scripts/door-map.mjs observeNativeStream / createNomiProvider / positionUnavailable / bounded / omitSupersededReads / providerFailureText",
+      "rg \"Nomi model .* timeout\" electron src：只剩 laneAssistantFault.ts 一处格式",
+      "rg \"timeoutMs\" electron/capabilityCore/capabilityExecutorRegistry.ts：缺省只来自 declaredTimeout",
+      "真回环 NF-0928-0003 改前每次请求汉字数 14809→29509→44209→58909→73609，改后恒为 14809"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneStreamObserver.mts",
+    "invariant": "失败事实在产生处定、预算一个主人、上下文同一资源只带最新快照",
+    "failure_mode": "改回旧行为时 observer / laneAssistantFault / documentSessionPort / documentWriteTransportAdapters / lane-context-budget 各自的测试变红",
+    "exception_policy": "none",
+    "strategy": "在 provider 流、投影、文稿端口、执行器、transform_context 五个共享边界各立一条不变量，下游只读事实",
+    "artifacts": [
+      "electron/agentLane/laneStreamObserver.mts",
+      "electron/agentLane/laneProviderGuard.mts",
+      "electron/shared/agentLane/laneAssistantFault.ts",
+      "src/workbench/project/documentSessionPort.ts",
+      "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "electron/agentLane/laneSupersededReads.mts"
+    ]
+  },
+  "regression_tests": [
+    "tests/agent-runtime/observer.test.mts",
+    "tests/agent-runtime/lane-context-budget.test.mts",
+    "electron/shared/agentLane/laneAssistantFault.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "electron/agentLane/laneDesktopReads.test.ts",
+    "src/workbench/project/documentSessionPort.test.ts",
+    "electron/capabilityCore/documentWriteTransportAdapters.test.ts",
+    "electron/agentLane/laneSupersededReads.test.ts",
+    "electron/telemetry/trajectoryProjection.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentLane/laneAssistantFault.test.ts",
+    "electron/agentLane/laneSupersededReads.test.ts",
+    "tests/agent-runtime/lane-context-budget.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneSingleShot.mts"
+    ],
+    "rationale": "删掉 laneHost 的 LANE_FIRST_RESPONSE_MS / LANE_IDLE_MS 两个常量与 laneSingleShot 手抄的 90s/120s；执行器 15 秒缺省删除"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "pi 0.85.1 不改；两句抄自 pi 的字面量由 laneAssistantFault.test.ts 读依赖源码钉住，升级改措辞当场红",
+    "exit_criteria": []
+  },
+  "migration": "不需要：fault 由投影从转录现算，旧转录冷读同样得到事实；轨迹新增字段对旧接收端是多出的键",
+  "residual_risks": [
+    "NF-1001-0002 的直接原因无法从反馈确证（附件没有失败码）；15 秒超时是代码里唯一与「写长剧本、无用户操作」相符的路径，本 PR 同时补了轨迹失败码，下一条同类反馈能定案",
+    "思考预算 300 秒：真卡死的中转要 5 分钟才报错（用户可随时按停止）",
+    "回合内旧快照只按「同一读动词 + 同一语义入参」取舍；写之后的旧读取仍保留（写改变了内容，旧读取仍可能被模型拿来对照）",
+    "未在真 App + 真推理模型上跑（不花额度）：看门狗以可控时钟与真回环验证"
+  ]
+}

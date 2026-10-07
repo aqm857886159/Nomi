@@ -148,7 +148,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
   it('active project owner switches shot verify scope before an old result can surface', () => {
     const target = (projectId: string) => ({
       projectId,
-      projectName: projectId,
       canPersist: () => false,
       persist: async () => { throw new Error('not used') },
       onSaved: () => undefined,
@@ -175,7 +174,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
   it('persistence subscription rebind does not invalidate an in-flight verify for the same project', () => {
     const target = {
       projectId: 'project-A',
-      projectName: 'project-A',
       canPersist: () => false,
       persist: async () => { throw new Error('not used') },
       onSaved: () => undefined,

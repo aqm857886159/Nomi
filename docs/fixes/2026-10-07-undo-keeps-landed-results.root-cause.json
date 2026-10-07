@@ -1,0 +1,256 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-undo-keeps-landed-results",
+  "detected_by": "review",
+  "problem_type": "Canvas undo/redo rewinds system-owned generation outcomes together with user edits",
+  "symptom": "After editing a node (parameter, prompt, position, connection, deleting another node) and then having a paid generation result land, pressing Ctrl+Z removes the landed result from the node; a result that lands after an undo is lost again on redo; undoing while a generation runs resets the node to its old run state, after which the paid text finalisation is rejected as generation_run_changed.",
+  "direct_cause": "Undo/redo is a prefix replay of the session journal up to an undo barrier (canvasUndoJournal.popUndo/popRedo), and the store replaced nodes wholesale with that projection, so every run-updated event after the barrier (result versions, text content, run records, status, progress) was dropped.",
+  "class_root": "A canvas node mixes the user-edit layer and the system-fact layer, and the single undo read boundary had no declared rule that generation outcomes and run state are facts that undo/redo must never rewind.",
+  "affected_population": [
+    "Every canvas node that receives a generation outcome through the renderer store while its project is open: image/video/audio generation, task recovery, video depth derivation, production-run shot backfill, text generation finalisation",
+    "Every user edit that opens an undo barrier before that outcome lands",
+    "Redo after an undo during which an outcome landed"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/runner/textActions.ts",
+    "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx"
+  ],
+  "entry_points": [
+    "Ctrl+Z / Ctrl+Y and every other caller of the store undo/redo actions",
+    "Generation outcome delivery into the open project (deliverRunOutcome: result, content, run-started, status, progress)",
+    "Production-run shot backfill (attachShotResult)",
+    "Undo of node-creating steps: addNode, Agent proposal create_canvas_nodes (applyProposalBatch), group copy (duplicateGroupForDrag)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned rule about which canvas node fields are user edits versus paid generation facts inside Nomi's own session undo journal; no third-party runtime decides it.",
+  "invariants": [
+    "Undo and redo only rewind user edits: every generation outcome (result version or text content) that landed after the restore target position is re-landed onto the restored projection with the same merge rule used at landing time.",
+    "Run state (runs, status, error, progress) after undo/redo always equals the live run state of the node.",
+    "A node removed by an undone deletion comes back with every outcome that landed before the deletion.",
+    "A node that holds an outcome landed after the restore position is never removed by undo/redo, even when the undone step created it (manual add, Agent proposal, group copy); the rest of the step is still undone and a group removed by the step no longer claims the node (decided by the coordinator on 2026-10-07, option B).",
+    "Local image edits (crop, rotate/flip, background removal) and whiteboard snapshots are user edits, not landed outcomes: undo keeps reverting them (decided by the coordinator on 2026-10-07)."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "replayCanvasEvents"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "CanvasRunActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "symbol": "CanvasRunActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "popUndo"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "reapplyLandedOutcomes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "popRedo"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "replayCanvasEvents"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx",
+      "symbol": "landSelectionRewrite"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "landNodeContent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "landNodeContent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "symbol": "addNodeResult"
+    }
+  ],
+  "door_reduction": {
+    "before": 18,
+    "after": 18,
+    "why_not": "Read side: the store undo and redo actions are the only callers of popUndo/popRedo and both go through the single reapplyLandedOutcomes; replayCanvasEvents in the journal and store is the shared projection, and CanvasRunActions is the store contract that declares the two landing actions. Write side: the producers (runner delivery, production backfill, onboarding demo, design-lab fixture, streaming text draft) are distinct features that must exist; every landed result or text content converges on addNodeResult or landNodeContent, which record the outcome on the run-updated event, and nodeRunOutcomePatch stays the one merge rule. The text finalisation door moved from updateNode to landNodeContent in this change, and the rewrite-of-selection door (TextDocumentNode -> landSelectionRewrite) now lands through landNodeContent as well. canvasWriteBoundary.ts only classifies the new action in its exhaustive action table and is not a door of this state."
+  },
+  "generality_proof": "Every undo and redo goes through popUndo/popRedo, which now return the landings after the restore position, and the store applies them through reapplyLandedOutcomes before writing state. Every outcome that changes results or text content enters the journal only through addNodeResult or landNodeContent, both of which tag the event with the outcome. Run state is taken from the live store, so no run-state writer (setNodeStatus, appendNodeRun, trackNodeRun, dismissNodeError, setNodeProgress) needs its own handling. The test matrix iterates all landing doors against all edit kinds.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popUndo",
+      "responsibility": "Returns the prefix projection together with every landed outcome after the restore position (same for popRedo)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "responsibility": "Re-lands outcomes with nodeRunOutcomePatch and copies live run state; the only place that decides which node fields undo must not rewind. Its input is only complete because addNodeResult and landNodeContent (canvasRunActions.ts, listed in prevention.artifacts) are the only store writes of landed outcomes and record them on the run-updated event."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome",
+      "disposition": "enforced",
+      "evidence": "result goes to addNodeResult and content now goes to landNodeContent; undoKeepsLandedResults.test.ts drives result, content, run-started and status through it."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "attachShotResult",
+      "disposition": "enforced",
+      "evidence": "Calls addNodeResult; covered by the production materialization row of the matrix."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "entry_point": "landSelectionRewrite",
+      "disposition": "enforced",
+      "evidence": "Rewrite-of-selection mode used to write the replaced document from the node editor through updateNode, so undo reverted the paid text (V-1065 store probe). TextDocumentNode now calls landSelectionRewrite after replaceSelection, which lands the replaced document through landNodeContent and clears the pending flag without an undo barrier; covered by the rewrite row of undoKeepsLandedResults.test.ts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "entry_point": "writeStreamingDraft",
+      "disposition": "not-affected",
+      "evidence": "Streaming drafts are persist:false previews superseded by the final landNodeContent; undo mid-stream reverts only the draft and the next delta rewrites it."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "entry_point": "handleImageTransform",
+      "disposition": "not-affected",
+      "evidence": "Local crop / rotate-flip / background removal (useNodeImageEditing) and whiteboard snapshots (WhiteboardModal) append versions through updateNode with an edit-burst barrier. Decided by the coordinator on 2026-10-07: they are the user's own immediate, free edits, so undo keeps reverting them (not landed outcomes); only paid generation outcomes are protected."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "entry_point": "runProposalUndoByChangeId",
+      "disposition": "not-affected",
+      "evidence": "Agent proposal undo uses compensation ops and refuses when findCanvasChange reports a later event on the same object, so a landed result on a proposal node blocks the compensation instead of erasing it."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "entry_point": "applyExternalGraph",
+      "disposition": "not-affected",
+      "evidence": "MCP canvas.apply writes structural edits computed by the main process; it does not land generation outcomes, and its undo is a normal barrier whose later landings are re-landed by the same boundary."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any user edit before any landing reproduces it, for every generation kind and every producer that lands through the renderer store; new landing producers would hit it again.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs pushUndoSnapshot popUndo popRedo appendToUndoJournal: 15 barrier write files, 2 read doors (store undo/redo)",
+      "node scripts/door-map.mjs addNodeResult landNodeContent: 5 landing write files",
+      "grep nodeRunOutcomePatch / appendNodeResultVersion / deliverRunOutcome across src and electron: runner delivery, text actions, production backfill, local image edits, whiteboard snapshot",
+      "grep requestRenderer ops in electron: canvas.apply is the only MCP graph write and carries no generation outcome"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "invariant": "The projection written by undo/redo contains every outcome landed after the restore position and the live run state.",
+    "failure_mode": "An unreadable landed record is skipped only because the session journal contains events written by this process; a node removed by the restore that has landed outcomes after the restore position is kept as it is live, with a group membership dropped when the restored groups no longer list it.",
+    "exception_policy": "none",
+    "strategy": "Record the landed outcome on the run-updated event at the two store landing actions, return landings from the journal's only restore functions, and re-land them in the store's only undo/redo actions with the same merge rule used at landing time.",
+    "artifacts": [
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "src/workbench/generationCanvas/runner/textActions.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+    "src/workbench/generationCanvas/events/shotNumberingLegacyReplay.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts",
+    "tests/ux/p4-s5-canvas-landing.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+    ],
+    "rationale": "Text finalisation no longer lands through updateNode; landNodeContent is the only path, so there is no unrecorded content landing left."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The undo journal and outcome merge are application code; no third-party dependency controls them.",
+    "exit_criteria": []
+  },
+  "migration": "None: the undo journal is session-only and cleared on every hydrate. The extra landed field on run-updated events is ignored by the reducer, so persisted event logs replay unchanged.",
+  "residual_risks": [
+    "A future producer that writes result/history through updateNode instead of addNodeResult/landNodeContent would bypass the record; the test door table must be extended with it.",
+    "MCP whole-graph writes computed from a stale read can overwrite a result that landed between read and write; this is a concurrency issue outside undo and is not fixed here.",
+    "Deleting a node while its generation runs drops the later result and undo restores the node in its old running state; not changed here.",
+    "Real App Ctrl+Z with a paid generation is unverified in this line (no spending allowed)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-07"
+}

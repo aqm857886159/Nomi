@@ -196,7 +196,12 @@ describe('materializeShots undo transaction', () => {
 
     useGenerationCanvasStore.getState().undo()
     const afterUndo = useGenerationCanvasStore.getState()
-    expect(afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)).toEqual([])
+    // 一次撤销撤整批：没出片的节点和分组全拿掉。已回填结果的那一镜是付费落地，撤销不拿走它
+    // （协调会话 10-07 定 B，docs/plan/2026-10-07-undo-keeps-landed-results.md）——节点留下、摘掉被撤分组的标记。
+    const remaining = afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)
+    expect(remaining.map((node) => node.id)).toEqual([shotNodeId])
+    expect(remaining[0].result?.id).toBe('shot-1-result')
+    expect(remaining[0].groupId).toBeUndefined()
     expect(afterUndo.groups.filter((group) => group.materializationOperationId === operationId)).toEqual([])
   })
 })

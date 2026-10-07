@@ -119,7 +119,7 @@ export function labViewModelLabels(fx: ReturnType<typeof useV4Fixtures>, toolLab
     toolSummary: () => undefined,
     toolFailure: () => undefined,
     toolFailureDetail: (failure) => failure.code,
-    assistantFailure: (text, transient) => providerFailureText(text, fx.t, { transient }),
+    assistantFailure: (text, facts) => providerFailureText(text, fx.t, facts),
     assistantRecovered: fx.t('agentPanelV4.errorRecovered'),
     thinkingLabel: fx.t('agentPanelV4.thinkingLabel'),
     formatTokens: (value) => String(value),
