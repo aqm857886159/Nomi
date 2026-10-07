@@ -80,7 +80,6 @@ export function checkGenerationEntrances(root = repoRoot) {
 
   // ① 反向扫
   const scanned = scanDispatchSites(root)
-  console.log(`scanned=${scanned.size}`)
   const registered = new Map(ledger.sites.map((site) => [site.site, site]))
   for (const [key, count] of [...scanned].sort()) {
     const entry = registered.get(key)
@@ -125,6 +124,8 @@ export function checkGenerationEntrances(root = repoRoot) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const scanned = scanDispatchSites()
+  console.log(`scanned=${scanned.size}`)
   const problems = checkGenerationEntrances()
   if (problems.length) {
     console.error('✗ 生成入口门岗（check:generation-entrances）：')

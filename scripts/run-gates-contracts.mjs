@@ -75,11 +75,12 @@ export function inferScannedCount(output) {
     /(?:scannedFiles|filesScanned|files\s+scanned)\s*[:=]\s*(\d+)/i,
     /(?:扫了|扫描|scanned)\s*(?:约\s*)?(\d+)\s*(?:个|条|份|项|文件|技能|门岗|entries?|files?)/i,
     /(\d+)\s*(?:个|条|份|项|文件|技能|门岗)(?:文件|条|个)?\s*(?:进入判据|被扫描|扫描|逐条验|纳入)/i,
-    /# tests\s+(\d+)/i,
+    /(?:#|ℹ)\s*tests\s+(\d+)/i,
+    /Tests\s+(\d+)\s+passed\s*\((\d+)\)/i,
   ]
   for (const pattern of patterns) {
     const match = pattern.exec(text)
-    if (match) return Number(match[1])
+    if (match) return Number(match[2] ?? match[1])
   }
   return null
 }
@@ -172,8 +173,11 @@ export async function runGateSuite({ gates, advisory, runGate, write = (text) =>
     const gateStarted = Date.now()
     const { code, output } = await runGate(name)
     const seconds = ((Date.now() - gateStarted) / 1000).toFixed(1)
-    const scan = parseScannedCount(output)
+    const scan = SCAN_EXEMPTIONS[name] && code === 0
+      ? { ok: true, count: null, exempt: SCAN_EXEMPTIONS[name] }
+      : parseScannedCount(output)
     if (code === 0 && scan.ok) {
+      if (scan.exempt) write(`ℹ️ ${name}：扫描计数豁免——${scan.exempt}\n`)
       write(`✅ ${name} (${seconds}s)\n`)
       continue
     }

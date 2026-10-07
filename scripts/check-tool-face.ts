@@ -17,8 +17,10 @@
  *   pnpm exec tsx scripts/check-tool-face.ts --update-baseline  重算棘轮基线（只许变小）
  */
 // 3D-BOX 开关引导模块必须第一个导入：工具注册表在导入期按它装配（CI 的开关开 job 用 NOMI_DESKTOP_DEV=1 NOMI_DIRECTOR_3DBOX=true 跑同一份门岗）。
-import "../electron/shared/featureFlags/director3dbox";
-import { director3dBoxFaceEnabled } from "../electron/shared/featureFlags/director3dboxFace";
+// @ts-ignore Node-native TypeScript tests require explicit extensions; tsx and tsc resolve the same source.
+import "../electron/shared/featureFlags/director3dbox.ts";
+// @ts-ignore Node-native TypeScript tests require explicit extensions; tsx and tsc resolve the same source.
+import { director3dBoxFaceEnabled } from "../electron/shared/featureFlags/director3dboxFace.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

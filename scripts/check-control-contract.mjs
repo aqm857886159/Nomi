@@ -257,6 +257,7 @@ const copyFixed = copyBaseline.filter((id) => !copyAll.some((o) => o.id === id))
 // 规则三：被静默丢弃的命令。判据和缘起住在 control-contract-discarded-commands.mjs，
 // 那份分析要走模块图和 Promise 数据流，塞进本文件会把两种完全不同的判断搅在一起。
 const discarded = discardedCommandOffenders({ root: ROOT, files: SCANNED })
+console.log(`scanned=${SCANNED.length}`)
 
 if (offenders.length > 0 || discarded.length > 0 || copyAdded.length > 0) {
   console.error('✗ 控件契约门岗未通过（交互契约 §1.6 C1 / 文案契约 §1.8）：')

@@ -47,7 +47,17 @@ test('门岗自证：缺失、重复或 scanned=0 都 fail-closed，正整数才
 test('迁移期只从既有明确摘要推导扫描数，无法推导的门岗不会被伪造为通过', () => {
   assert.equal(inferScannedCount('✅ 12 个文件进入判据\n'), 12)
   assert.equal(inferScannedCount('# tests 7\n'), 7)
+  assert.equal(inferScannedCount('ℹ tests 17\n'), 17)
+  assert.equal(inferScannedCount('Tests 2 passed (2)\n'), 2)
   assert.equal(inferScannedCount('✅ 通过，但没有数量\n'), null)
+})
+
+test('链上扫描豁免必须有明确理由，且只豁免计数不豁免退出码', async () => {
+  const h = harness({ lint: { code: 0, output: 'ESLint finished\n' }, typecheck: { code: 1, output: 'tsc failed\n' } })
+  const result = await runGateSuite({ gates: ['lint:ci', 'typecheck'], advisory: new Set(), runGate: h.runGate, write: h.write, env: {} })
+  assert.equal(result.exitCode, 1)
+  assert.deepEqual(result.failures.map((failure) => failure.name), ['typecheck'])
+  assert.match(h.output(), /扫描计数豁免/)
 })
 
 test('Windows CRLF 不会让有效的 scanned 自证变成空跑', () => {

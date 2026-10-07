@@ -6,7 +6,8 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { installDirector3DBoxFace } from './director3dboxFace'
+// @ts-ignore Node-native TypeScript tests require explicit extensions; the CJS build resolves the same source.
+import { installDirector3DBoxFace } from './director3dboxFace.ts'
 
 export const DIRECTOR_3DBOX_FLAG = 'director3dbox' as const
 export const DIRECTOR_3DBOX_EXPIRY = '2026-11-15' as const
@@ -21,6 +22,8 @@ export type Director3DBoxFlag = Readonly<{
 
 type BakedFlags = { version?: number; director3dbox?: unknown; flags?: { director3dbox?: unknown } }
 
+declare const __dirname: string | undefined
+
 function asBool(value: unknown): boolean {
   return value === true || value === 'true' || value === '1'
 }
@@ -30,8 +33,11 @@ function isDevelopment(env: NodeJS.ProcessEnv): boolean {
 }
 
 function bakedFileCandidates(): string[] {
+  const moduleDir = typeof __dirname === 'undefined'
+    ? path.join(process.cwd(), 'electron', 'shared', 'featureFlags')
+    : __dirname
   return [
-    path.resolve(__dirname, '../../feature-flags.json'),
+    path.resolve(moduleDir, '../../feature-flags.json'),
     path.resolve(process.cwd(), 'dist-electron/feature-flags.json'),
   ]
 }
