@@ -40,3 +40,17 @@ export function electronStub(root: string): Record<string, unknown> {
     crashReporter: { start: noop },
   };
 }
+
+/**
+ * Keep parity fixture persistence aligned with the mocked Electron userData.
+ * `getSettingsRoot()` gives NOMI_SETTINGS_DIR precedence over app.getPath(),
+ * so callers must bind and restore the process-level override around hooks.
+ */
+export function pinParitySettingsRoot(root: string): () => void {
+  const previous = process.env.NOMI_SETTINGS_DIR;
+  process.env.NOMI_SETTINGS_DIR = root;
+  return () => {
+    if (previous === undefined) delete process.env.NOMI_SETTINGS_DIR;
+    else process.env.NOMI_SETTINGS_DIR = previous;
+  };
+}

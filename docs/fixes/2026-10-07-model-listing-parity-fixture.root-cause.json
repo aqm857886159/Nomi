@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-model-listing-parity-fixture",
+  "problem_type": "Vitest fixture state crosses process-level settings roots",
+  "symptom": "The model-listing parity file can read a catalog or preference file created by another test worker when the worker inherits NOMI_SETTINGS_DIR; the two intentionally failing B1 assertions then become order-dependent instead of reporting the same expected result.",
+  "direct_cause": "The Electron mock supplied an isolated app.getPath('userData') root, but getSettingsRoot() gives the process-level NOMI_SETTINGS_DIR precedence and the test never pinned or restored that variable.",
+  "class_root": "A test that writes catalog and settings state must bind both Electron userData and the settings-root environment to the same per-test directory for the entire fixture lifetime.",
+  "affected_population": [
+    "Windows Vitest workers running electron/parity/modelListingParity.test.ts alongside tests that set NOMI_SETTINGS_DIR.",
+    "Future parity tests that combine catalog seeding with preference persistence."
+  ],
+  "scope_paths": [
+    "electron/parity/modelListingParity.test.ts",
+    "electron/parity/parityElectronMock.ts",
+    "docs/fixes/2026-10-07-model-listing-parity-fixture.root-cause.json"
+  ],
+  "entry_points": [
+    "modelListingParity beforeAll seeds the catalog and writes model-box-preference.json.",
+    "modelListingParity assertions read the derived catalog listing after fixture setup."
+  ],
+  "internal_only_reason": "The invariant is owned by this repository's Vitest/Electron fixture harness; no third-party runtime decides the settings-root precedence.",
+  "invariants": [
+    "The catalog and model-box preference paths used by this test resolve under one unique temporary directory.",
+    "The test restores the caller's NOMI_SETTINGS_DIR after its hooks complete.",
+    "The product's getSettingsRoot precedence remains unchanged."
+  ],
+  "doors": [
+    {"kind": "write", "path": "electron/parity/modelListingParity.test.ts", "symbol": "seedParityCatalog"},
+    {"kind": "write", "path": "electron/parity/modelListingParity.test.ts", "symbol": "writeModelBoxPreferenceSettings"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "readModelBoxPreferenceSettings"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "deriveModelListing"},
+    {"kind": "write", "path": "electron/parity/parityElectronMock.ts", "symbol": "pinParitySettingsRoot"}
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 5,
+    "why_not": "The four doors are one fixture's two persisted-state writes and two reads; they remain separate because each is a real API boundary exercised by the test. The fix converges them on the pinned NOMI_SETTINGS_DIR rather than deleting a door."
+  },
+  "generality_proof": "Every catalog or preference operation in this fixture calls getSettingsRoot() below the listed doors. Pinning the environment before any operation makes the resolution independent of worker order, inherited environment, or another test's temporary root.",
+  "shared_boundaries": [
+    {
+      "path": "electron/parity/parityElectronMock.ts",
+      "symbol": "pinParitySettingsRoot",
+      "responsibility": "Bind and restore the process-level settings root used by parity fixtures."
+    },
+    {
+      "path": "electron/parity/modelListingParity.test.ts",
+      "symbol": "beforeAll",
+      "responsibility": "Call the shared binding before any catalog or preference persistence operation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/parity/modelListingParity.test.ts",
+      "entry_point": "beforeAll",
+      "disposition": "enforced",
+      "evidence": "The hook performs both the catalog seed and preference write after NOMI_SETTINGS_DIR is pinned."
+    },
+    {
+      "path": "electron/parity/modelListingParity.test.ts",
+      "entry_point": "isolated settings-root regression test",
+      "disposition": "enforced",
+      "evidence": "The test resolves both catalogPath() and modelBoxPreferenceSettingsPath() and asserts they contain the same temporary root."
+    },
+    {
+      "path": "electron/parity/connectionAuthParity.test.ts",
+      "entry_point": "seedParityCatalog",
+      "disposition": "not-affected",
+      "evidence": "That parity file does not read or write model-box preference state; this change intentionally does not alter its catalog-only fixture."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "NOMI_SETTINGS_DIR is process-global and any future test or runner can set it. A fixture that relies only on Electron's mocked app path can therefore resolve persisted state outside its own temporary directory.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs --include-tests --write=seedParityCatalog,writeModelBoxPreferenceSettings --read=readModelBoxPreferenceSettings,deriveModelListing",
+      "rg -n \\\"electronStub\\\\(\\\" electron --glob '*.test.ts' found six parity fixtures; only modelListingParity combines catalog seeding with model-box preference persistence.",
+      "rg -n \\\"NOMI_SETTINGS_DIR\\\" electron --glob '*.test.ts' found multiple tests that mutate the same process-level setting."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "electron/parity/modelListingParity.test.ts",
+    "invariant": "A persisted parity fixture pins NOMI_SETTINGS_DIR to its unique mocked Electron userData root before any read or write and restores it afterward.",
+    "failure_mode": "The regression assertion fails with the resolved catalog or preference path outside the fixture root.",
+    "exception_policy": "none",
+    "strategy": "Keep the environment binding and path assertion at the fixture boundary so adding another catalog or preference operation cannot silently use an inherited root.",
+    "artifacts": [
+      "electron/parity/parityElectronMock.ts",
+      "electron/parity/modelListingParity.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/parity/modelListingParity.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/parity/modelListingParity.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No production or compatibility path was removed; this is a test-harness isolation repair."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Vitest and Electron provide the test runtime, but the faulty invariant is this repository's environment binding and fixture setup.",
+    "exit_criteria": []
+  },
+  "migration": "No user or persisted product data changes. The temporary test root is created and removed by the test process.",
+  "residual_risks": [
+    "The two B1 parity assertions remain intentionally expected failures because the product listing still does not consume model-box preferences; changing that product contract is outside this flaky-fixture repair.",
+    "The full repository Vitest run was started under two workers but not allowed to finish in this Windows session; focused verification is complete."
+  ]
+  ,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-10-07",
+  "invariant_owner_layer": {
+    "layer": "electron/parity/parityElectronMock.ts",
+    "tests": ["electron/parity/modelListingParity.test.ts"],
+    "why": "The shared parity mock owns fixture environment binding; product settings-root precedence remains unchanged."
+  }
+}
