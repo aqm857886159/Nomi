@@ -1,0 +1,237 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-deleted-node-keeps-arriving-outcome",
+  "detected_by": "review",
+  "problem_type": "A paid generation outcome that arrives while its node is deleted is dropped, so undoing the deletion restores a node stuck in running",
+  "symptom": "Start a generation, delete the node while it runs (delete, delete selection, cut, or an external write that deletes it), let the result / text finalisation / failure arrive, then press Ctrl+Z: the node comes back showing generating forever and the paid result never appears.",
+  "direct_cause": "Deleting a node does not cancel the upstream task. When the outcome arrives, deliverRunOutcome finds no node in the store and writes nothing; the undo projection restores the node as it was before deletion (running), and nothing ever lands on it again.",
+  "class_root": "Outcome delivery was coupled to the node being present at arrival time; a system fact (a paid outcome) had nowhere to live while the user-edit layer temporarily removed its node.",
+  "affected_population": [
+    "Every renderer-store generation outcome delivered through deliverRunOutcome (generation run controller, batch waves, task recovery, text generation, video depth derivation)",
+    "Every node deletion gesture followed by undo while the project is open"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts"
+  ],
+  "entry_points": [
+    "deliverRunOutcome (result, content, status, run-started) into the open project",
+    "Node deletion gestures: deleteNode, deleteSelectedNodes, cutSelectedNodes, applyExternalGraph",
+    "Ctrl+Z / Ctrl+Y (store undo / redo)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned rule between Nomi run delivery and its session undo journal; no third-party runtime decides it.",
+  "invariants": [
+    "A run outcome (result, content, status, run-started) that arrives for a node absent from the open project is recorded in the undo journal, never silently dropped.",
+    "When undo or redo restores that node, every outcome recorded after the restore position is applied to it with the same merge rule used at landing time, so it never stays in running because of a dropped outcome."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
+      "symbol": "getActiveCanvasGestureContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "replayCanvasEvents"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "getActiveCanvasGestureContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "getActiveCanvasGestureContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "getActiveCanvasGestureContext"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "CanvasRunActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "symbol": "CanvasRunActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "reapplyLandedOutcomes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "replayCanvasEvents"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
+      "symbol": "appendToUndoJournal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "holdRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "deliverRunOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 20,
+    "after": 20,
+    "why_not": "The deliverRunOutcome callers are distinct run producers (single run, batch waves, task recovery, text generation, video depth) that must exist; all converge on deliverRunOutcome, whose store branch now holds outcomes for absent nodes through the single holdRunOutcome. The read side stays the single reapplyLandedOutcomes used by store undo and redo; appendToUndoJournal is the only journal feed."
+  },
+  "generality_proof": "Every renderer-store outcome goes through deliverRunOutcome; the absent-node branch records the outcome for every outcome kind except transient progress. Every undo and redo reads the journal through landingsAfter, which now includes held outcomes, and reapplies them through reapplyLandedOutcomes. The matrix iterates every deletion gesture against every outcome kind.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "deliverRunOutcome",
+      "responsibility": "Single delivery of run outcomes into the run project; for a node absent from the open project it holds the outcome instead of dropping it."
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popUndo",
+      "responsibility": "Returns held outcomes after the restore position together with landed outcomes (same for popRedo)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "responsibility": "Applies held result, content, status and run-started outcomes to a restored node; only result and content count as a paid landing that keeps a node whose creation is undone."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNode",
+      "disposition": "enforced",
+      "evidence": "Delivers run-started, result and status through deliverRunOutcome; covered by the result and failure rows of deletedNodeArrivingOutcome.test.ts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "entry_point": "generateText",
+      "disposition": "enforced",
+      "evidence": "Delivers the content outcome through deliverRunOutcome; covered by the text finalisation rows."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "deliverRunOutcome",
+      "disposition": "enforced",
+      "evidence": "Task recovery delivers result and status through the same deliverRunOutcome branch."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "attachShotResult",
+      "disposition": "not-affected",
+      "evidence": "Production-run shot nodes deleted by the user are detached by watchDeletedProductionNodes and their results stay in the Run; it does not go through deliverRunOutcome (re-attachment after undo is recorded as residual risk)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any deletion of a generating node followed by an arriving outcome and an undo reproduces it, for every generation kind and deletion gesture.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs deliverRunOutcome holdRunOutcome reapplyLandedOutcomes appendToUndoJournal",
+      "grep requestTaskCancel / isTaskCancelRequested: deletion never cancels a task (only the overlay stop button and task center do)",
+      "grep addNodeResult / setNodeStatus callers outside deliverRunOutcome: multiShotCanvasLanding (production Run, detach path), localTaskControl and recoverTaskActions direct setNodeStatus on a present node"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "invariant": "An outcome for an absent node is held in the undo journal and applied when undo or redo restores the node.",
+    "failure_mode": "Held outcomes for a node that is never restored stay inert in the journal; an unreadable held record is skipped because the journal only contains events written by this process.",
+    "exception_policy": "none",
+    "strategy": "Hold at the single delivery boundary, read held outcomes at the single undo read boundary and reuse the landing merge rule.",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+    ],
+    "rationale": "The silent drop for an absent node in deliverRunOutcome is removed; there is no remaining path that discards an outcome for an absent node in the open project."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Run delivery and the undo journal are application code.",
+    "exit_criteria": []
+  },
+  "migration": "None: the journal is session-only; the new outcome-held event type is ignored by the replay reducer, so persisted logs replay unchanged.",
+  "residual_risks": [
+    "If the deletion is never undone the paid result stays off the canvas (it remains in the project asset files), as before.",
+    "Production-run shot nodes deleted while generating are handled by the Run detach path, not this one; whether undo re-attaches them is unverified here.",
+    "Real App delete-then-undo with a paid generation is unverified in this line."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-07"
+}

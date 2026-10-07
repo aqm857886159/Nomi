@@ -18,6 +18,7 @@ import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
+import type { HeldNodeOutcome } from './nodeRunOutcome'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
 
@@ -139,6 +140,8 @@ export type CanvasRunActions = {
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
   /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
   landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
+  /** 结局到达时节点不在（生成中被删了）：只记账暂存，撤销把节点带回来时落上去。 */
+  holdRunOutcome: (nodeId: string, outcome: HeldNodeOutcome) => void
 }
 
 export type GenerationCanvasState = {
