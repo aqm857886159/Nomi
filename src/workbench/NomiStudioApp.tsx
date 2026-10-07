@@ -687,6 +687,7 @@ export default function NomiStudioApp(): JSX.Element {
     <SettingsDialog
       initialTab={settingsDialogController.initialTab}
       initialSection={settingsDialogController.initialSection}
+      initialModelPageRequest={settingsDialogController.modelPageRequest}
       onClose={settingsDialogController.closeSettings}
       onReplaySplash={() => setSplashDone(false)}
     />
