@@ -1,7 +1,7 @@
 // 音频任务执行引擎（从 runtime 抽出 —— 规则 12 巨壳门岗；音频自成一单元，与 textTaskRunner 同构）。
 //
 // 为什么单独成路：图像/视频是 async create→poll；这两个音频端点是 **OpenAI 兼容同步** 调用，
-// 形状根本不同，套不进 requestJson（它只解析 JSON、不读二进制、不建 multipart）：
+// 形状根本不同，分别走 vendorHttp 的 requestBinary / requestMultipart 包装：
 //   TTS      POST /v1/audio/speech         JSON body → **二进制音频字节** → 存盘换 nomi-local audio 资产
 //   Whisper  POST /v1/audio/transcriptions multipart  → 同步 JSON { text, segments } → 文本结果（无资产）
 // runtime.runTask 识别 wantedKind==='audio' → 转交本模块，不进 admit/poll（响应即结果）。
@@ -12,9 +12,7 @@
 import { readNomiLocalAsset } from "./assets/localAssetFile";
 import { parseDataUrl } from "./assets/assetBytes";
 import { hardenedFetch } from "./hardenedFetch";
-import { appFetch } from "./appFetch";
 import { isRedirectRefusal } from "./networkErrorDetails";
-import { appendQueryParams } from "./ai/requestPipeline";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
 import { buildDoubaoReqParams, decodeDoubaoNdjsonAudio, splitDoubaoCredential } from "./catalog/doubaoTtsCodec";
@@ -26,6 +24,7 @@ import { buildProfileHttpRequest, templateContext } from "./catalog/profileHttpR
 import { firstMappedString } from "./tasks/responseParsing";
 import type { HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 import { executeSynchronousAudioOperation } from "./audio/synchronousAudioResponse";
+import { requestBinary, requestMultipart, VendorRequestError } from "./vendor/vendorHttp";
 
 const TTS_PATH = "/v1/audio/speech";
 const TRANSCRIBE_PATH = "/v1/audio/transcriptions";
@@ -102,33 +101,38 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
   const reqParams = buildDoubaoReqParams({ text, voice, emotion });
   const body = JSON.stringify({ user: { uid: "nomi" }, req_params: reqParams });
 
-  let fetched: Awaited<ReturnType<typeof hardenedFetch>>;
+  let audioBytes: Buffer;
   try {
-    // 走 hardenedFetch 读体（限 MAX_AUDIO_BYTES、带超时）：NDJSON 也是无限流，
-    // 异常/恶意端点可用超大响应撑爆主进程内存（入站参考音频同文件早就限 30MB，
-    // 出站响应此前是裸 response.text() 无上限）。SSRF/私网策略与全局出站口径一致。
-    // throwOnNon2xx=false：非 2xx 也要读 body 拼进错误文案（原语义），不读盘。
-    fetched = await hardenedFetch(url, {
-      method: "POST",
-      headers: {
+    // 豆包的 NDJSON 只是响应编解码差异，付费 POST 仍必须经过 vendorHttp 的统一出口：
+    // 新连接、响应上限、重定向规则和写出证据都由 requestBinary 负责。
+    audioBytes = (await requestBinary(
+      vendor,
+      apiKey,
+      "POST",
+      url,
+      {
         "Content-Type": "application/json",
         "X-Api-App-Id": appId,
         "X-Api-Access-Key": accessKey,
         "X-Api-Resource-Id": resourceId,
       },
+      {},
       body,
-      timeoutMs: 120_000,
-      maxBytes: MAX_AUDIO_BYTES,
-      throwOnNon2xx: false,
-    });
+      undefined,
+      { maxResponseBytes: MAX_AUDIO_BYTES },
+    )).bytes;
   } catch (error: unknown) {
+    if (isRedirectRefusal(error)) throw Object.assign(new Error(desktopT("network.credentialRedirect")), { cause: error });
+    if (error instanceof VendorRequestError && error.structured.httpStatus) {
+      throw new Error(desktopT("dubbing.httpError", {
+        vendor: vendor.key,
+        status: error.structured.httpStatus,
+        detail: error.structured.upstreamMsg || desktopT("common.noDetail"),
+      }), { cause: error });
+    }
     throw new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
   }
-  if (fetched.status >= 400) {
-    const detail = fetched.bytes.byteLength > 0 ? fetched.bytes.toString("utf8").slice(0, 300) : "";
-    throw new Error(desktopT("dubbing.httpError", { vendor: vendor.key, status: fetched.status, detail: detail || desktopT("common.noDetail") }));
-  }
-  const audio = decodeDoubaoNdjsonAudio(fetched.bytes.toString("utf8"));
+  const audio = decodeDoubaoNdjsonAudio(audioBytes.toString("utf8"));
   if (audio.byteLength === 0) throw new Error(desktopT("dubbing.emptyAudio"));
   const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
   const saved = (await importLocalFile({
@@ -192,17 +196,19 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
     resolveFile: async () => audio,
     send: async (form) => {
       const headers = Object.fromEntries(Object.entries(built.headers).filter(([key]) => key.toLowerCase() !== "content-type"));
-      let response: Response;
       try {
-        response = await appFetch(appendQueryParams(built.url, built.query), { method: built.method, headers, body: form });
+        return await requestMultipart(vendor, apiKey, built.url, headers, built.query, form);
       } catch (error: unknown) {
         if (isRedirectRefusal(error)) throw Object.assign(new Error(desktopT("network.credentialRedirect")), { cause: error });
+        if (error instanceof VendorRequestError && error.structured.httpStatus) {
+          throw new Error(desktopT("transcribe.httpError", {
+            vendor: vendor.key,
+            status: error.structured.httpStatus,
+            detail: error.structured.upstreamMsg || desktopT("common.noDetail"),
+          }));
+        }
         throw new Error(desktopT("transcribe.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
       }
-      if (!response.ok) {
-        throw new Error(desktopT("transcribe.httpError", { vendor: vendor.key, status: response.status, detail: (await safeText(response)).slice(0, 300) || desktopT("common.noDetail") }));
-      }
-      return safeJson(response);
     },
   });
   const json = executed.response;
@@ -238,13 +244,4 @@ async function readAudioBytes(url: string): Promise<AudioBytes> {
     allowContentTypes: ["audio/", "video/", "application/octet-stream"],
   });
   return { bytes: fetched.bytes, contentType: fetched.contentType || "audio/mpeg", fileName: "audio.mp3" };
-}
-
-async function safeText(response: Response): Promise<string> {
-  try { return await response.text(); } catch { return ""; }
-}
-
-async function safeJson(response: Response): Promise<unknown> {
-  const text = await safeText(response);
-  try { return text ? JSON.parse(text) : null; } catch { return text; }
 }
