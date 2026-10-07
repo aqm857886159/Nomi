@@ -16,6 +16,62 @@
   },
   "entries": [
     {
+      "id": "FB-NF-0928-0004-borrowed-upload",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-0928-0004（0.22.3 Windows）",
+      "category": "reference-integrity",
+      "problem": "用 Agnes 改图，参考图借了 APIMart 的上传通道（用户在那一家的账户），那一家 402 整次失败；失败面不说借了谁，提示还说走了免费图床",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/catalog/assetLocalization.test.ts：Agnes 改图端点内联直达；借用失败行点名那一家",
+        "变异：去掉端点声明优先 → 报障现场红"
+      ],
+      "completionCommits": [
+        "7c9c5f0c4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
+      "fixedInPr": 1056,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/catalog/assetLocalization.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-0928-0001-model-not-exist",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-0928-0001（0.22.1）",
+      "category": "claims-and-outcomes",
+      "problem": "上游原话「Model not exist.」被说成「参数不被接受」，动作指向改参数而不是换模型",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts：归 model-unavailable-upstream、主动作 switch-model",
+        "变异：措辞表去掉 not exists? → 红"
+      ],
+      "completionCommits": [
+        "7c9c5f0c4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-reference-upload-channel.root-cause.json",
+      "fixedInPr": 1056,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+      }
+    },
+    {
       "id": "PLAN-S2-01",
       "since": "2026-10-05",
       "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
@@ -204,6 +260,32 @@
         "ref": "⑪"
       },
       "fixedInPr": 1029
+    },
+    {
+      "id": "FB-20261007-undo-drops-landed-result",
+      "since": "2026-10-07",
+      "source": "10-06 版本卡片线顺查：画布上 Ctrl+Z 会把撤销点之后才落地的生成结果一起撤掉",
+      "category": "interaction-semantics",
+      "problem": "改了参数 / 拖了节点之后生成结果落地，按 Ctrl+Z 想撤刚才那一下编辑，结果刚生成好的图（钱已花）也从节点上消失；撤销后才落地的结果在重做时再丢一次；生成中撤销会把节点撤回旧运行，文本定稿随后被拒",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts：5 扇落地门 × 5 种用户编辑矩阵 + 撤销后落地再重做 + 删节点后撤销 + 撤销删版本 + 撤销建节点（手动 / Agent 提议 × 有 / 没结果）+ 复制分组后撤销，共 43 条；前 32 条在 main 上全红；V-1065 补出的「改写选区」门 5 格补门前全红",
+        "变异：撤销改回直接用前缀投影 32 红；去掉结果落地记账 14 红；运行态不取此刻 12 红；文本定稿改回 updateNode 6 红；撤销建节点时不留有落地的节点 2 红；不摘被撤分组标记 1 红；改写选区正文不走 landNodeContent 6 红；改写落地后的记账打撤销点 3 红",
+        "撤销「建节点」：协调会话 10-07 定 B——带着落地结果的节点留下，这一步其它内容照撤（docs/plan/2026-10-07-undo-keeps-landed-results.md）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts"
+      }
     },
     {
       "id": "LAW11-EMPTY-INPUT",
@@ -627,6 +709,29 @@
       "manualReview": "pending",
       "evidence": ["docs/research/2026-10-05-storyboard-plan-user-audit.md", "tests/ux/shots/audit-storyboard/zh-CN/22-hero-model-changed-then-retry.png", "observations.json P8.heroPlanModel vs heroNode", "本线顺带修了（syncAnchorNodeWithCard 写回 storyboardComposerMeta，storyboardBatchLanding.test 守住、变异红），类级检查未挂，留 candidate 由协调会话定", "2026-10-06 真 App 复跑审计走查 P8：第一版修法用 (模型, 供应商) 现拼目录项，只靠目录元数据认档案的模型（回环夹具）写回为空、节点仍是 gpt-image-2；改走真实目录（ed5f21ef8）后复跑 heroNode.model = agent-runtime-image。重试仍被镜头认领拒绝（needs_reconcile），另记根因合同残余"],
       "completionCommits": ["3030e8bc3", "62989ce6b", "ed3794e95", "86ed0b76e", "7dca9fe93", "ed5f21ef8"]
+    },
+    {
+      "id": "FB-20261007-autosave-stale-name",
+      "since": "2026-10-07",
+      "source": "10-06 付费收据线顺查到：渲染层自动保存用打开项目那一刻的项目名，名字被别的路径改了之后下一次自动保存写回旧名",
+      "category": "parameter-contract",
+      "problem": "自动保存 / 迁移回存 / 素材删除 / 后台交付带着旧快照里的项目名写盘，覆盖了别的路径做的改名",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "渲染层真实路径测试（真仓库 + 真保存队列）在 main 上红 2 条、修后全绿；变异（桌面端重新带上 name）红 1 条",
+        "主进程矩阵：7 个不归渲染层的字段逐个断言不被陈旧值覆盖"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts"
+      }
     },
     {
       "id": "AUD-20261005-14",

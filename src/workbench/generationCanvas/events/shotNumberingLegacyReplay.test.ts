@@ -43,11 +43,11 @@ describe('shot numbering across persisted event boundaries', () => {
     seedUndoJournalBase(initial())
     pushUndoSnapshot()
     appendToUndoJournal(legacySwap)
-    expect(numbers(popUndo()!)).toEqual([1, 2])
-    expect(numbers(popRedo()!)).toEqual([2, 1])
+    expect(numbers(popUndo()!.projection)).toEqual([1, 2])
+    expect(numbers(popRedo()!.projection)).toEqual([2, 1])
     pushUndoSnapshot()
     appendToUndoJournal([{ type: 'canvas.node.prompt-changed', payload: { nodeId: 'a', prompt: 'later' } }])
-    expect(numbers(popUndo()!)).toEqual([2, 1])
+    expect(numbers(popUndo()!.projection)).toEqual([2, 1])
   })
 
   it('waits until an old batch finishes before assigning missing numbers', () => {
@@ -68,6 +68,6 @@ describe('shot numbering across persisted event boundaries', () => {
     pushUndoSnapshot()
     appendToUndoJournal(events)
     popUndo()
-    expect(numbers(popRedo()!)).toEqual([1, 2])
+    expect(numbers(popRedo()!.projection)).toEqual([1, 2])
   })
 })

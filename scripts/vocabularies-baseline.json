@@ -1913,6 +1913,16 @@
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes.",
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const"
+    },
+    {
+      "members": [
+        "error",
+        "progress",
+        "runs",
+        "status"
+      ],
+      "reason": "RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做时这几项取活 store 的此刻值、不回退，生成中撤销不会把节点撤回空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集，唯一读者是同文件的 reapplyLandedOutcomes。",
+      "site": "src/workbench/generationCanvas/store/nodeRunOutcome.ts::variable:RUN_STATE_FIELDS/as-const"
     }
   ],
   "debt": [
