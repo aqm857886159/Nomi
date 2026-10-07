@@ -5014,6 +5014,37 @@
       "allowed_consumers": [],
       "since": "2026-10-06",
       "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
+    },
+    {
+      "name": "项目名（改名只有一个主人，内容保存不写名字）",
+      "subject": "project.name",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "value-object",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/project/projectPersistenceService.ts",
+        "symbol": "renameProjectAndPersist"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/project/projectPersistenceService.ts",
+          "symbol": "renameProjectAndPersist"
+        },
+        {
+          "path": "electron/workspace/workspaceRepository.ts",
+          "symbol": "saveWorkspaceProject"
+        },
+        {
+          "path": "src/workbench/project/projectRepository.ts",
+          "symbol": "saveProjectRecord"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-07",
+      "notes": "自动保存只拥有 payload 等渲染层内容；名字、创建时间、封面风格、种子键、项目身份都以盘上现值为准（桌面端内容保存连 name 字段都不发，主进程 saveWorkspaceProject 在清单锁内取现值）。docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json 改名入口：顶栏 renameProjectAndPersist；项目库走 renameLocalProject（projectRepository / localProjectStore 同名包装）。 saveLocalProject / saveWorkspaceProject 是内容保存边界：签名与记录里不带 name，名字沿用盘上现值。"
     }
   ]
 }

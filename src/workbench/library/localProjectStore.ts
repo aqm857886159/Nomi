@@ -8,7 +8,7 @@ import {
   readLocalProject,
   readLocalProjectAsync,
   renameLocalProject as renameProjectRecord,
-  saveLocalProject as saveProjectRecord,
+  saveProjectRecord,
 } from '../project/projectRepository'
 import type {
   WorkbenchProjectPayload,

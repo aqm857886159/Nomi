@@ -230,7 +230,7 @@ export async function readLocalProjectAsync(projectId: string): Promise<Workbenc
  * （renameLocalProject），自动保存等内容写口拿「打开那一刻的旧名」写回去会把别的路径改的名字盖掉。
  * 名字沿用盘上现有的；桌面端连 name 字段都不发，让主进程在清单锁内取盘上现值。
  */
-export async function saveLocalProject(
+export async function saveProjectRecord(
   projectId: string,
   state: WorkbenchProjectPayload,
   expectedBinding?: ProjectBinding,
@@ -289,7 +289,7 @@ export async function saveLocalProject(
 /**
  * 只改项目名（列表页「双击改名」的后端）——不动 id/目录/画布/时间轴/分类/分镜方案。
  *
- * 关键：读盘上**完整 record** 再存回，**绝不经 saveLocalProject 的三部分窄接口**——那会让
+ * 关键：读盘上**完整 record** 再存回，**绝不经 saveProjectRecord 的三部分窄接口**——那会让
  * normalizePayload（字段重建式）把 categories 重置为内置默认、丢掉 storyboardPlan（数据损坏，
  * 违反 never-wipe-user-data 铁律）。列表页改的是**任意项目**（可能没打开），更不能拿当前内存
  * 状态覆盖它。空名/未变 → no-op 返回原 record。

@@ -841,6 +841,23 @@
       "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
       "fixedInPr": 1053,
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "FB-20261007-autosave-stale-name",
+      "since": "2026-10-07",
+      "source": "10-06 付费收据线顺查到：渲染层自动保存用打开项目那一刻的项目名，名字被别的路径改了之后下一次自动保存写回旧名",
+      "category": "parameter-contract",
+      "problem": "自动保存 / 迁移回存 / 素材删除 / 后台交付带着旧快照里的项目名写盘，覆盖了别的路径做的改名",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": ["渲染层真实路径测试（真仓库 + 真保存队列）在 main 上红 2 条、修后全绿；变异（桌面端重新带上 name）红 1 条", "主进程矩阵：7 个不归渲染层的字段逐个断言不被陈旧值覆盖"],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json",
+      "classCheck": { "kind": "matrix", "file": "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts" }
     }
   ]
 }
