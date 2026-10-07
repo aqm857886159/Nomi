@@ -44,8 +44,18 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 /** 汇总里为每个失败门岗回放的输出行数——够定位，不至于把日志再刷一遍。 */
 export const FAILURE_TAIL_LINES = 15
+export const SCAN_MARKER = /^scanned=(\d+)$/gm
 
 export class GateConfigError extends Error {}
+
+/** 每道门岗必须声明本轮实际检查的对象数；缺失或为 0 都 fail-closed。 */
+export function parseScannedCount(output) {
+  const matches = [...String(output ?? '').matchAll(SCAN_MARKER)].map((match) => Number(match[1]))
+  if (matches.length !== 1) return { ok: false, reason: matches.length === 0 ? '缺少 scanned=<n> 自证行' : 'scanned=<n> 自证行重复' }
+  if (!Number.isSafeInteger(matches[0]) || matches[0] < 0) return { ok: false, reason: 'scanned=<n> 必须是非负整数' }
+  if (matches[0] === 0) return { ok: false, reason: 'scanned=0：门岗没有扫描到对象；若确实适用，必须在链配置里显式声明豁免' }
+  return { ok: true, count: matches[0] }
+}
 
 /**
  * 每个 advisory 门岗的**真实补齐机制**（2026-10-06）：汇总里的提示文案只许按这张表出，
@@ -135,11 +145,14 @@ export async function runGateSuite({ gates, advisory, runGate, write = (text) =>
     const gateStarted = Date.now()
     const { code, output } = await runGate(name)
     const seconds = ((Date.now() - gateStarted) / 1000).toFixed(1)
-    if (code === 0) {
+    const scan = parseScannedCount(output)
+    if (code === 0 && scan.ok) {
       write(`✅ ${name} (${seconds}s)\n`)
       continue
     }
-    const record = { name, code, tail: tail(output), seconds }
+    const effectiveCode = code === 0 ? 1 : code
+    const scanTail = scan.ok ? [] : [`门岗自证失败：${scan.reason}`]
+    const record = { name, code: effectiveCode, scanned: scan.ok ? scan.count : null, tail: [...scanTail, ...tail(output)], seconds }
     if (advisory.has(name)) {
       advisoryFailures.push(record)
       write(`⚠️ ${name} 未通过（advisory，退出码 ${code}，${seconds}s）——不阻断，见文末汇总\n`)
