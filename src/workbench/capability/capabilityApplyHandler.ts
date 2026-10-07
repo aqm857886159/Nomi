@@ -39,6 +39,7 @@ import {
   type CapturedCanvasReadSnapshotHandleWire,
 } from '../../../electron/shared/surfacePortBinding'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
+import { mergeExternalCanvasWrite } from '../../../electron/shared/canvas/externalCanvasWrite'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
@@ -93,6 +94,13 @@ type GenerationGateConfirmPayload = {
    * 不造并行卡，P1）；无它 → 走今日扁平单镜卡（字节不动，单镜 E2E 是回归门）。
    */
   shots?: MultiShotGatePayload
+}
+
+type CanvasDocumentWire = { nodes: unknown[]; edges: unknown[]; groups?: unknown[] }
+
+function isCanvasDocument(value: unknown): value is CanvasDocumentWire {
+  const doc = value as Partial<CanvasDocumentWire> | null
+  return Boolean(doc) && typeof doc === 'object' && Array.isArray(doc!.nodes) && Array.isArray(doc!.edges)
 }
 
 function describeIntent(intent: string | undefined): string {
@@ -455,9 +463,13 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       })
     case 'canvas.read-doc':
       return useGenerationCanvasStore.getState().readDocumentSnapshot()
-    case 'canvas.apply':
-      useGenerationCanvasStore.getState().applyExternalGraph(data.snapshot)
+    case 'canvas.apply': {
+      // 外部写入只改它自己改了的东西：按它读到的那份（base）三方合并到此刻的画布，落地字段以当前为准。
+      if (!isCanvasDocument(data.snapshot) || !isCanvasDocument(data.base)) throw new SurfacePortWireError('capability_input_invalid')
+      const store = useGenerationCanvasStore.getState()
+      store.applyExternalGraph(mergeExternalCanvasWrite({ base: data.base, next: data.snapshot, current: store.readDocumentSnapshot() }))
       return { ok: true }
+    }
     case 'spend.confirm':
       return confirmSpendFromMainProcess(data as SpendConfirmPayload)
     case 'generation.gate.confirm':

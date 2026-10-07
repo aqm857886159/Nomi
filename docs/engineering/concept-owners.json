@@ -5048,6 +5048,33 @@
       ],
       "since": "2026-10-07",
       "notes": "撤销 / 重做 = 会话日志前缀重放 + 目标位置之后的生成落地重新叠回（同一套 nodeRunOutcomePatch 合并规则）+ 运行态取活 store。落地只经 addNodeResult / landNodeContent 两个 store 动作，它们在 run-updated 事件里带 landed 记账；绕过它们直接 updateNode 写结果 / 文本定稿，撤销就会把它撤掉。合同 docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json。"
+    },
+    {
+      "name": "外部（MCP / 能力核）写画布怎么落到当前画布（只改它改了的，落地与运行态以当前为准）",
+      "subject": "canvas.external-write-merge",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/canvas/externalCanvasWrite.ts",
+        "symbol": "mergeExternalCanvasWrite"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/canvas/externalCanvasWrite.ts",
+          "symbol": "mergeExternalCanvasWrite"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
+      "allowed_consumers": [
+        "electron/capabilityCore/gateway.ts",
+        "src/workbench/capability/capabilityApplyHandler.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "外部写画布 = 读整张图（base）→ 算整张新图（next）→ 写回。写回只把 base → next 里外部自己改了的东西按 id 三方合并到此刻的画布（渲染层 store / 盘上项目两处共用这一份），节点的运行态与落地字段（electron/shared/canvas/landedNodeFields.ts）外部写入改不动。ProjectGateway.apply 必须带 base。合同 docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json。"
     }
   ]
 }
