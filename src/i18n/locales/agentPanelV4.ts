@@ -466,8 +466,8 @@ export const zhAgentPanelV4 = {
   spendConfirmRemainingVideo_one: '生成剩下 {{count}} 段',
   spendConfirmRemainingVideo_other: '生成剩下 {{count}} 段',
   /**
-   * 「生成剩下 N 张」正在一张一张走（2026-10-02）：标题说到第几张了，动作行只说怎么停（右上那颗 × 就是停下）。
-   * 点了 × 之后、宿主停稳之前：说正在停，已经发出去的照常生成（钱撤不回来，不装作能撤）。
+   * 「生成剩下 N 张」正在一张一张走（2026-10-02）：标题说到第几张了，动作行只说怎么停（「取消」就是停下）。
+   * 点了「取消」之后、宿主停稳之前：说正在停，已经发出去的照常生成（钱撤不回来，不装作能撤）。
    */
   spendBatchProgressImage: '正在发出 {{current}}/{{total}} 张',
   spendBatchProgressVideo: '正在发出 {{current}}/{{total}} 段',

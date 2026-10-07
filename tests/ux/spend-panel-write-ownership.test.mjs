@@ -4,6 +4,7 @@ import path from 'node:path'
 import { proveProbe, expectAbsent } from './_assert.mjs'
 // Host integration, not live-provider/Electron acceptance. Only environment ports are replaced.
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest'
+import { zhAgentPanelV4 } from '../../src/i18n/locales/agentPanelV4.ts'
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
 let server, browser, page, cacheDir
@@ -310,7 +311,8 @@ it('「生成剩下」交给宿主之后点 ×：× 立刻送到主进程，不�
   const running = await page.evaluate(() => window.spendOwnership.snapshot())
   expect(running.busy).toBe(true)
   expect(running.batchRunning).toBe(true)
-  expect(running.progress).toBe('按 × 停下剩下的')
+  // 文案从词条取，不手抄：决定栏统一（× → 「取消」）那次就因为手抄的旧文案红了。
+  expect(running.progress).toBe(zhAgentPanelV4.spendBatchStopHint)
   expect(running.title).toMatch(/^正在发出 1\/2 段$/)
   await page.evaluate(() => window.spendOwnership.discard())
   await page.waitForFunction(() => window.spendOwnership.calls.some(call => call.discard))
