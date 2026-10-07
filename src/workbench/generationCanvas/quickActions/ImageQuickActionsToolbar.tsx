@@ -27,7 +27,6 @@ import {
   ToolbarDuplicateVariantButton,
   ToolbarIconButton,
   ToolbarProvenanceButton,
-  ToolbarReshootButton,
 } from '../nodes/NodeFloatingToolbar'
 import { ToolbarActionMenu } from '../nodes/ToolbarActionMenu'
 import { GridSplitPicker, type GridSplitSpec } from '../nodes/GridSplitPicker'
@@ -180,7 +179,6 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
           </>
         ) : null}
         <ToolbarDuplicateVariantButton nodeId={node.id} />
-        <ToolbarReshootButton nodeId={node.id} />
         {derivedGrid ? (
           <ToolbarButton
             icon={<IconLayoutGrid size={I.size} stroke={I.stroke} />}

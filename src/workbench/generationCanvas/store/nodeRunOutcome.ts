@@ -135,19 +135,33 @@ export function nodeRunOutcomePatch(node: GenerationCanvasNode, outcome: NodeRun
  * - 撤销的正是「建这个节点」（手动建 / Agent 一笔提议建），而节点在那之后落过结果：节点原样留下，
  *   这一步的其它内容照撤（协调会话 10-07 定 B，见 docs/plan/2026-10-07-undo-keeps-landed-results.md）；
  *   它挂的分组若被这一步撤掉了，就摘掉分组标记。
+ * - 结局到达时节点不在（生成中被删了——删节点不取消上游任务，钱已花）：结局照样记账（暂存），
+ *   撤销把节点带回来时按顺序落上去，节点不会带着「生成中」永远转圈（见
+ *   docs/plan/2026-10-07-deleted-node-keeps-arriving-outcome.md）。
  */
 export type LandedNodeOutcome =
   | Extract<NodeRunOutcome, { kind: 'result' }>
   /** 文本定稿记账不带 runId：重新叠回时不再校验「当时那次运行」。 */
   | Readonly<{ kind: 'content'; contentJson: TiptapDocJson }>
 
+/** 节点不在时到达的结局（暂存）：除了落地，运行开始 / 结束状态也要记——节点回来时它的运行态只能从这里来。 */
+export type HeldNodeOutcome =
+  | LandedNodeOutcome
+  | Extract<NodeRunOutcome, { kind: 'status' }>
+  | Extract<NodeRunOutcome, { kind: 'run-started' }>
+
 const RUN_STATE_FIELDS = ['runs', 'status', 'error', 'progress'] as const
 
-function readLandedOutcome(landed: Readonly<Record<string, unknown>>): LandedNodeOutcome | null {
+function readLandedOutcome(landed: Readonly<Record<string, unknown>>): HeldNodeOutcome | null {
   if (landed.kind === 'result' && landed.result && typeof landed.result === 'object') return landed as unknown as LandedNodeOutcome
   if (landed.kind === 'content' && landed.contentJson && typeof landed.contentJson === 'object') return landed as unknown as LandedNodeOutcome
+  if (landed.kind === 'status' && typeof landed.status === 'string') return landed as unknown as HeldNodeOutcome
+  if (landed.kind === 'run-started' && landed.run && typeof landed.run === 'object') return landed as unknown as HeldNodeOutcome
   return null
 }
+
+/** 生成结果 / 文本定稿才算「节点上落过付费结果」（撤销建节点时据此留下节点）；运行状态不算。 */
+const isPaidLanding = (outcome: HeldNodeOutcome | null) => outcome?.kind === 'result' || outcome?.kind === 'content'
 
 type CanvasNodesProjection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
@@ -174,7 +188,7 @@ export function reapplyLandedOutcomes<T extends CanvasNodesProjection>(
     }
     return next as GenerationCanvasNode
   })
-  const landedNodeIds = new Set(landings.filter(({ landed }) => readLandedOutcome(landed)).map(({ nodeId }) => nodeId))
+  const landedNodeIds = new Set(landings.filter(({ landed }) => isPaidLanding(readLandedOutcome(landed))).map(({ nodeId }) => nodeId))
   const kept = live.filter((node) => !byId.has(node.id) && landedNodeIds.has(node.id)).map((node) => {
     if (!node.groupId || target.groups.some((group) => group.id === node.groupId && group.nodeIds.includes(node.id))) return node
     const next = { ...node }

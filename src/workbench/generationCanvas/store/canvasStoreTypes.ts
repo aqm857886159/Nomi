@@ -18,6 +18,7 @@ import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
+import type { HeldNodeOutcome } from './nodeRunOutcome'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
 
@@ -59,7 +60,8 @@ export type CanvasNodeActions = {
   updateNodes: (updates: readonly { nodeId: string; patch: Partial<GenerationCanvasNode> }[]) => void
   updateNodePrompt: (nodeId: string, prompt: string, promptOverridden?: boolean) => void
   /** 版本卡片铺开 / 收起（按节点存进项目，可撤销，同编组折叠）。 */
-  setNodeResultStackOpen: (nodeId: string, open: boolean) => void
+  /** 铺开 / 收起版本卡片。铺开时带上往哪边铺（点开那一刻量的），收起时清掉。一步撤销。 */
+  setNodeResultStackOpen: (nodeId: string, open: boolean, side?: 'left' | 'right') => void
   /** 用户把某一版设为主图：一个撤销步；meta 是这一版的媒体尺寸（调用方读素材侧车算好，可省）。 */
   setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
@@ -138,6 +140,8 @@ export type CanvasRunActions = {
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
   /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
   landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
+  /** 结局到达时节点不在（生成中被删了）：只记账暂存，撤销把节点带回来时落上去。 */
+  holdRunOutcome: (nodeId: string, outcome: HeldNodeOutcome) => void
 }
 
 export type GenerationCanvasState = {
