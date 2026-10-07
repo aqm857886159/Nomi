@@ -1,9 +1,9 @@
 /**
  * [INPUT]: 依赖 three 的 Quaternion / Vector3 / Bone、./mannequinSkeleton 的 applyMannequinSkeletonPose（角色复位态 = rest + 自然站姿基线）
- * [OUTPUT]: 对外提供 PoseSnapshot / BoneSnapshot、baseBoneName、indexBonesByBaseName、snapshotBones、bindWorldQuaternionsByBaseName、blendPoseSnapshots、applyPoseSnapshot、HIPS_BASE_NAME
+ * [OUTPUT]: 对外提供 PoseSnapshot / BoneSnapshot、UAL_BASE_NAME_ALIASES、baseBoneName、indexBonesByBaseName、snapshotBones、bindWorldQuaternionsByBaseName、blendPoseSnapshots、applyPoseSnapshot、HIPS_BASE_NAME
  * [POS]: director/scene/character 的姿态快照纯数学（零 React、零加载）：一份快照 = 源骨架每根骨的四元数 + 位置（按去前缀基名索引，
- *        `mixamorig:Hips` / `mixamorigHips` / `Hips_1` 都归到 `hips`）。
- *        套到角色不是照抄（照抄要求角色也是同一份 Bot.fbx；我们的 x-bot.glb 骨盆父坐标系与 FBX 差 −90°，照抄整个人会躺倒；用户上传的模型 bind 还可能不同）：
+ *        `mixamorig:Hips` / `mixamorigHips` / `Hips_1` / UAL `DEF-hips` 都归到 `hips`）。
+ *        套到角色不是照抄（照抄要求角色和源是同一副骨架；Mixamo 导出的 glb 与 FBX 骨盆父坐标系差 −90°，照抄整个人会躺倒；用户上传的模型 bind 还可能不同）：
  *        逐骨在「相对各自骨架根」的坐标系里取源骨的世界增量 Δ = 帧·bind⁻¹，套到角色 = Δ·角色 bind 世界朝向，再换回父局部——
  *        世界增量保留角色自己的 bind 偏置、又跟着源的动作走，bind 一致时与照抄等价。骨盆位移经两边 rest 骨盆方向算坐标系旋转换算，再按 rest 骨盆长度换算单位。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,11 +17,37 @@ export type PoseSnapshot = Map<string, BoneSnapshot>
 
 export const HIPS_BASE_NAME = 'hips'
 
-/** `mixamorig:LeftArm` / `mixamorig1LeftArm` / `LeftArm_2` → `leftarm` */
+/**
+ * UAL（Quaternius，Rigify 命名）骨 → 规范基名（Mixamo 去前缀小写名）。三边共用一套基名：UAL 动作套 UAL 人偶 = 原样，
+ * 套到用户上传的 Mixamo 角色也成立；肩手读回（leftarm / lefthand）、HIPS_BASE_NAME 不用分 rig。键是 three 去点后再小写的名字。
+ * Mixamo 拇指 / 手指各 4 节（第 4 节是末端），UAL 3 节，按 01→1 / 02→2 / 03→3 对齐。
+ */
+const UAL_SIDES = [['l', 'left'], ['r', 'right']] as const
+const UAL_LIMBS: Array<[string, string]> = [
+  ['shoulder', 'shoulder'], ['upper_arm', 'arm'], ['forearm', 'forearm'], ['hand', 'hand'],
+  ['thigh', 'upleg'], ['shin', 'leg'], ['foot', 'foot'], ['toe', 'toebase'],
+]
+const UAL_FINGERS: Array<[string, string]> = [['thumb', 'thumb'], ['f_index', 'index'], ['f_middle', 'middle'], ['f_ring', 'ring'], ['f_pinky', 'pinky']]
+export const UAL_BASE_NAME_ALIASES: ReadonlyMap<string, string> = new Map<string, string>([
+  ['def-hips', 'hips'],
+  ['def-spine001', 'spine'],
+  ['def-spine002', 'spine1'],
+  ['def-spine003', 'spine2'],
+  ['def-neck', 'neck'],
+  ['def-head', 'head'],
+  ...UAL_SIDES.flatMap(([suffix, side]) => [
+    ...UAL_LIMBS.map(([ual, mixamo]): [string, string] => [`def-${ual}${suffix}`, `${side}${mixamo}`]),
+    ...UAL_FINGERS.flatMap(([ual, mixamo]) => [1, 2, 3].map((joint): [string, string] => [`def-${ual}0${joint}${suffix}`, `${side}hand${mixamo}${joint}`])),
+  ]),
+])
+
+/** `mixamorig:LeftArm` / `mixamorig1LeftArm` / `LeftArm_2` / UAL `DEF-upper_armL` → `leftarm` */
 export function baseBoneName(name: string): string {
   let base = name.toLowerCase().trim()
   const colon = base.lastIndexOf(':')
   if (colon !== -1) base = base.slice(colon + 1)
+  const ual = UAL_BASE_NAME_ALIASES.get(base)
+  if (ual) return ual
   base = base.replace(/^mixamorig\d*/, '')
   const underscore = base.lastIndexOf('_')
   if (underscore !== -1 && !Number.isNaN(Number(base.slice(underscore + 1)))) base = base.slice(0, underscore)
