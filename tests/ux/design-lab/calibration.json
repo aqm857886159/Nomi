@@ -1,7 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "director-crowd": "2026-10-07 立屏（L-crowd）· 用户反馈「批量生成群众队列不在加人那里」，样张：群众并进「＋→角色」同一浮层（行 / 列 / 间距复用现有滑杆）；加入后是一组还是 N 个独立角色各出一格。**只是样张，产品行为未改，等用户拍板**；拍板并实现后在 darwin 上跑 pnpm run design-lab:update -- --screen director-crowd 并**删掉本条登记**。截图证据在 docs/evidence/2026-10-07-director-crowd-as-role/。",
+    "director-crowd": "2026-10-07 立屏（L-crowd）· 群众并进「＋→角色→群众」（行 / 列 / 间距 / 动作同一浮层，放下后是一个群众组，右卡可整组改动作）。样张已由用户拍板「按推荐走」并已实现，格子是现役组件本体；基线按 calibratedPlatform（darwin）录，Windows 录出来的图和 CI 对不上：在 mac 上跑 pnpm run design-lab:update -- --screen director-crowd 并**删掉本条登记**。截图证据在 docs/evidence/2026-10-07-director-crowd-as-role/。",
     "storyboard-reuse": "2026-10-06 立屏（L-sbui）· 分镜表镜头行与参考卡复用画布节点底栏（模型按钮 + 参数汇总按钮 + 平铺面板）、参考图复用画布同款 AssetReference（缩略图带 ×）、自动引用、删参考同步删 @。每格同一个 id 在 main 上是「现在」、本分支上是「改后」，成对图在 docs/evidence/2026-10-06-storyboard-reuse/。**等用户拍板**；拍板后在 darwin 上跑 pnpm run design-lab:update -- --screen storyboard-reuse 录基线并**删掉本条登记**。",
     "storyboard": "2026-10-06（L-sbui）· 分镜表 v6 这一屏画的是真镜头行 / 参考卡，本分支把它们改成复用画布底栏、视觉列放预览框和参考（版面见 storyboard-reuse 屏与 docs/evidence/2026-10-06-storyboard-reuse/），所以这一屏现有基线全部过期；只能展示已删界面的 4 格（sb-row-18/19/20 底栏 ⋯ 开关与让位、sb-slot-07 槽浮层）连同基线一起删了，sb-slot-01~06 现在画的是每种模式下的新参考条。和 storyboard-reuse 同一次拍板；拍板后在 darwin 上跑 pnpm run design-lab:update -- --screen storyboard 重录并**删掉本条登记**。",
     "director-refine": "2026-10-04 立屏，同日用户拍板方向 A 六点（大纲并进图层名浮层 / 画线逐点在卡头 / 录制 MP4 进产出 / 窄壳图层名只留图标 / 小窗左下）并切了真实入口。基线还没录：本屏的逐像素基线按 calibratedPlatform（darwin）录，Windows 实现线录出来的图和 CI 对不上。在 mac 上跑 pnpm run design-lab:update -- --screen director-refine 录完后**删掉本条登记**。截图证据在 docs/evidence/2026-10-04-director-refine-select-to-show/。",

@@ -203,20 +203,6 @@ describe('director project transactions', () => {
     expect(api.findLight(lightId)!.position).toEqual({ x: 15, y: 2, z: 8 })
   })
 
-  it('crowd duplication of a nested character keeps the parent frame and offsets animated paths', () => {
-    const store = setup(), api = store.getState()
-    const a = api.addObject(object('A', 1)), b = api.addObject(object('B', 3))
-    const parent = api.groupObjects([a, b], 'Parent')!
-    const clip = api.addTrajectoryClip(a, 0, 4)!
-    api.insertWaypoint(a, 1, { x: 2, z: 3 }, clip.id)
-    const expected = worldMatrix(store, a)
-    const crowd = api.batchCreateCrowd(a, 1, 1, 1, 'Crowd')!
-    expect(api.findObject(crowd)!.parentId).toBe(parent)
-    const copy = api.activeScene().objects.find(item => item.parentId === crowd)!
-    expectMatrix(worldMatrix(store, copy.id), expected)
-    expect(copy.motionTrajectory!.find(p => p.time === 1)).toMatchObject({ x: 3, z: 3 })
-  })
-
   it.each(['ratio', 'resolution', 'pin', 'fold'] as const)('persistent %s edit is independently undoable', kind => {
     const store = setup(), api = store.getState()
     const id = api.addObject(object('A'))

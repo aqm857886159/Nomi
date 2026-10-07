@@ -189,7 +189,7 @@ export const LAB_SCREENS: readonly LabScreen[] = [
   },
   {
     id: 'director-crowd',
-    label: '导演台 · 群众并进加人（样张，待拍板）',
+    label: '导演台 · 群众并进加人',
     states: DIRECTOR_CROWD_ALL_STATES,
     cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
   },

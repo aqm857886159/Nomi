@@ -120,7 +120,10 @@ function EditorStage({ nodeTitle, scopeRef, preferences, cancelCreationRef, time
   const { t } = useTranslation()
   // 创建模式只调一次 hook，经 CreationModeContext 下发：视口要指针路由与 ghost ref，顶栏「＋添加」要能发起。
   // 两处各调一次 = 两份互不知情的模式状态（P1 的并行版）。
-  const placement = useCharacterPlacement({ characterName: (index) => t('director.creation.characterName', { index }) })
+  const placement = useCharacterPlacement({
+    characterName: (index) => t('director.creation.characterName', { index }),
+    crowdNames: { group: t('director.creation.crowdGroupName'), member: t('director.creation.crowdMemberName') },
+  })
   const boxDraw = useBoxDraw({ boxName: (index) => t('director.creation.boxName', { index }) })
   const creationMode = React.useMemo(() => ({ placement, boxDraw }), [placement, boxDraw])
   // 时间轴上一个实体都没有时把它钉成一条：比例记忆不动，加了轨道立刻回到用户自己的分栏
