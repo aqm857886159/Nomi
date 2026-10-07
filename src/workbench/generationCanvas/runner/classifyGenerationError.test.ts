@@ -872,6 +872,18 @@ describe('失败原因按上游自己的码与话归类（一张目录，没有�
     expect(classifyGenerationError(encode({ ...walkPayload, upstreamMsg: 'Project not exist.' })).kind).not.toBe('model-unavailable-upstream')
   })
 
+  // 验收 P2：「不存在」的是别的东西、model 只是顺带出现在前文时，不许归「换个模型」。
+  it.each([
+    ['Prompt too long for model; template not exist'],
+    ['model input invalid: the referenced template not exist'],
+  ])('反例「%s」不归模型不可用', (raw) => {
+    expect(classifyGenerationError(encode({ ...walkPayload, upstreamMsg: raw })).kind).not.toBe('model-unavailable-upstream')
+  })
+
+  it.each([['Model not exist.'], ['model gpt-x-2 not exist'], ['The model `foo-1` not exists']])('正例「%s」归模型不可用', (raw) => {
+    expect(classifyGenerationError(encode({ ...walkPayload, upstreamMsg: raw })).kind).toBe('model-unavailable-upstream')
+  })
+
   it('只有码也认：上游只回了 model_not_found 和一句没有信息量的话', () => {
     expect(classifyGenerationError(encode({ ...walkPayload, upstreamMsg: 'no available channel', upstreamCode: 'model_not_found' })).kind)
       .toBe('model-unavailable-upstream')

@@ -156,6 +156,7 @@
   "residual_risks": [
     "制作流程路径（Agent 付费卡）仍借别家通道：要拍板是否允许封存内联参考（见设计卡「要拍板」）",
     "Agnes 改图内联未用真额度验证（文档明确支持 Data URI；体积上限文档未写）",
-    "借用点名用的是 vendorKey，不是显示名"
+    "借用点名用的是 vendorKey，不是显示名",
+    "既有宽规则「model 后 80 个字符内出现 does not exist / not found」仍会把「Model loaded, but the LoRA file does not exist yet」归换模型；本 PR 的 not exist 只进紧规则，宽规则待并进同能力换模型那条线一起收窄"
   ]
 }
