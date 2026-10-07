@@ -1,4 +1,4 @@
-// 逃逸账本（tests/ux/full-walk/escapeLedger.json）的结账判据（P2「修根因」的闭环，2026-10-06）。
+// 逃逸账本（tests/ux/full-walk/escapeLedger/，一条一个文件）的结账判据与唯一加载函数（P2「修根因」的闭环，2026-10-06）。
 //
 // 守的不变量：**用户发现的问题（逃逸）要进账本，结账（status = fixed）必须挂结构性预防——
 // 一份根因合同 + 一条类级的检查 + 合入的 PR 号；只修现场不算修好。**
@@ -14,7 +14,69 @@
 // 判据是形状启发式，不是证明：它挡住的是「拿一个单场景回归测试来结账」，挡不住有心人写假遍历——
 // 那一层由 PR 的独立验收线对着根因合同核。
 
-export const ESCAPE_LEDGER_FILE = 'tests/ux/full-walk/escapeLedger.json'
+import path from 'node:path'
+
+import { META_FILE, readEntryDirectory, readEntryDirectoryAtRef, refuseRetiredFile } from './lib/entryDirectory.mjs'
+
+// ── 存储形状（2026-10-07）：一条一个文件 ─────────────────────────────────────────────────────────
+// 原来是一个大 JSON（entries[]），几乎每个修复 PR 都往末尾追加一条，并行 PR 必然互相 CONFLICTING。
+// 现在：`<目录>/<id>.json` 一条一个；顶层字段（$schemaVersion、_doc、statusValues、categories）在 `_meta.json`。
+// 读账本只许走 loadEscapeLedger（工作树或某个提交），文件名 ↔ id 的规则只写在这里。
+export const ESCAPE_LEDGER_DIR = 'tests/ux/full-walk/escapeLedger'
+/** id 就是文件名（不转义）：字母数字开头，只含字母数字、点、下划线、连字符。 */
+export const ESCAPE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/** 一条逃逸的文件路径（相对仓库根）。id 不合法直接抛错：写不进去的 id 不能悄悄改名落盘。 */
+export function escapeEntryPath(id) {
+  if (!ESCAPE_ID_PATTERN.test(String(id ?? ''))) throw new Error(`逃逸账本 id 只许字母数字开头、由字母数字 . _ - 组成（它就是文件名）：${id}`)
+  return `${ESCAPE_LEDGER_DIR}/${id}.json`
+}
+
+/** 仓库相对路径 → 条目 id；不是账本里的条目文件（含 _meta.json）→ null。 */
+export function escapeIdOfPath(file) {
+  const rel = String(file ?? '').replaceAll('\\', '/')
+  if (!rel.startsWith(`${ESCAPE_LEDGER_DIR}/`)) return null
+  const name = rel.slice(ESCAPE_LEDGER_DIR.length + 1)
+  if (name === META_FILE || name.includes('/') || !name.endsWith('.json')) return null
+  const id = name.slice(0, -'.json'.length)
+  return ESCAPE_ID_PATTERN.test(id) ? id : null
+}
+
+/**
+ * 拆分前的大文件。它不是读口（不读、不兼容），只是一块墓碑：在途分支合 main 时如果把它留了下来，
+ * 里面新加的条目就会悄悄不进账——所以工作树里它还在就直接报错，提示用拆分 PR 正文里的补搬命令。
+ * 拆分前开的在途 PR 都合完以后，这块墓碑连同 lib/entryDirectory.mjs 的 refuseRetiredFile 一起删。
+ */
+export const RETIRED_ESCAPE_LEDGER_FILE = 'tests/ux/full-walk/escapeLedger.json'
+
+/** 按码位比（不随系统语言变），排序结果在每台机器上都一样。 */
+const byCodePoint = (left, right) => (left < right ? -1 : left > right ? 1 : 0)
+const bySinceThenId = (left, right) => byCodePoint(String(left.since ?? ''), String(right.since ?? '')) || byCodePoint(String(left.id), String(right.id))
+
+/** 目录内容 → 与原大文件同形的账本对象 `{ ...meta, entries }`；文件名和 id 对不上就抛错（点名文件）。 */
+export function assembleEscapeLedger(directory) {
+  const problems = []
+  for (const { name, value } of directory.entries) {
+    const expected = `${value?.id}.json`
+    if (!value || typeof value !== 'object' || Array.isArray(value)) problems.push(`${name}：一个文件必须是一条逃逸（对象）`)
+    else if (name !== expected) problems.push(`${name}：文件名必须是「<id>.json」，这条的 id 是 ${JSON.stringify(value.id)}`)
+  }
+  if (problems.length) throw new Error(`${ESCAPE_LEDGER_DIR} 的条目文件不对：${problems.join('；')}`)
+  return { ...directory.meta, entries: directory.entries.map((entry) => entry.value).sort(bySinceThenId) }
+}
+
+/**
+ * 唯一加载函数：工作树（不给 ref）或某个提交上的逃逸账本 → `{ $schemaVersion, _doc, statusValues, categories, entries }`，
+ * 条目按 since + id 稳定排序。账本目录不存在 → null；文件坏了 / 文件名不对 → 抛错。
+ */
+export function loadEscapeLedger(repoRoot, { ref = null } = {}) {
+  if (!ref) refuseRetiredFile(repoRoot, RETIRED_ESCAPE_LEDGER_FILE)
+  const directory = ref
+    ? readEntryDirectoryAtRef(repoRoot, ref, ESCAPE_LEDGER_DIR)
+    : readEntryDirectory(path.join(repoRoot, ESCAPE_LEDGER_DIR))
+  return directory ? assembleEscapeLedger(directory) : null
+}
+
 /** candidate 停留超过这么多天就警告，提醒派人复核 / 修。 */
 export const CANDIDATE_MAX_DAYS = 14
 
@@ -97,18 +159,24 @@ export function contractErrors(entry, { exists, read }) {
 export function validateEscapeLedger(ledger, { today, exists = () => true, read = () => '' } = {}) {
   const errors = []
   const warnings = []
-  if (!ledger || typeof ledger !== 'object') return { errors: [`${ESCAPE_LEDGER_FILE} 不是一个对象`], warnings }
+  if (!ledger || typeof ledger !== 'object') return { errors: [`${ESCAPE_LEDGER_DIR} 不是一个账本对象`], warnings }
   if (ledger.$schemaVersion !== 1) errors.push('$schemaVersion 必须是 1')
   if (JSON.stringify(ledger.statusValues) !== JSON.stringify(STATUS_VALUES)) errors.push(`statusValues 必须是 ${JSON.stringify(STATUS_VALUES)}`)
   const categories = ledger.categories && typeof ledger.categories === 'object' ? ledger.categories : null
   if (!categories) errors.push('categories 必须是对象')
   if (!Array.isArray(ledger.entries)) return { errors: [...errors, 'entries 必须是数组'], warnings }
   const ids = new Set()
+  const foldedIds = new Map()
   for (const entry of ledger.entries) {
     const label = `entries[${entry?.id ?? '?'}]`
     if (typeof entry?.id !== 'string' || !entry.id.trim()) { errors.push(`${label}: 缺 id`); continue }
     if (ids.has(entry.id)) errors.push(`${label}: id 重复`)
     ids.add(entry.id)
+    if (!ESCAPE_ID_PATTERN.test(entry.id)) errors.push(`${label}: id 只许字母数字开头、由字母数字 . _ - 组成（它就是文件名）`)
+    // Windows / macOS 的文件名不分大小写：只差大小写的两个 id 在那里会落到同一个文件上
+    const folded = entry.id.toLowerCase()
+    if (foldedIds.has(folded) && foldedIds.get(folded) !== entry.id) errors.push(`${label}: 和 ${foldedIds.get(folded)} 只差大小写（文件名不分大小写的系统上是同一个文件）`)
+    foldedIds.set(folded, entry.id)
     if (categories && !categories[entry.category]) errors.push(`${label}: category「${entry.category}」没在 categories 里登记`)
     if (typeof entry.problem !== 'string' || entry.problem.trim().length < 8) errors.push(`${label}: problem 必须写清用户碰到了什么（原话级，≥8 字）`)
     if (!DATE_ONLY.test(entry.since ?? '')) errors.push(`${label}: since 必须是 YYYY-MM-DD（入账日，candidate 停留时长从这天数）`)

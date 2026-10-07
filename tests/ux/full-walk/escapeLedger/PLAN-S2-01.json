@@ -1,0 +1,26 @@
+{
+  "id": "PLAN-S2-01",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "parameter-contract",
+  "problem": "参数控件无法找到或无法选择",
+  "existingInvariants": [
+    3,
+    7
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2",
+    "S7"
+  ],
+  "fullWalkJourneys": [
+    "J01-generate-image",
+    "J07-switch-model"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

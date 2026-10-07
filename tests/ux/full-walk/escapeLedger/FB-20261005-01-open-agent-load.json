@@ -1,0 +1,29 @@
+{
+  "id": "FB-20261005-01-open-agent-load",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #1「右侧 Agent 运行时明显卡顿：进项目、建新项目都卡」",
+  "category": "performance-coverage",
+  "problem": "打开项目要先等 Agent 面板，而 Agent 打开时主进程同步装进 pi-coding-agent 整个入口（约 1500 个文件），主进程这段时间不接任何 IPC：打包版每次启动后第一次进项目多卡约 1.4 秒（新装包首次约 1.6 秒）",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "S8"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "PR #1041 打开分阶段打点与跑器（tests/ux/project-open-stages.e2e.mjs）",
+    "PR #1044 测试表：打包版打开 Agent 1648/2066 → 654/849 ms，打开期间装入口 6/6 → 0 次",
+    "类级检查 tests/agent-runtime/lane-open-graph.test.mts：从入口登记表 electron/agentLane/laneNativeLoader.entries.json 取全部 open 入口逐个在子进程数真装载；登记表与 laneNativeLoader.cts 双向比对、扫 electron/ 无第二座桥；变异：laneHost / legacyPiSnapshot 改回静态引入、loader 新增未登记入口、别处新开一座桥，四种都红"
+  ],
+  "completionCommits": [
+    "2757c3084"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-agent-runtime-lazy-load.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/agent-runtime/lane-open-graph.test.mts"
+  },
+  "fixedInPr": 1044
+}

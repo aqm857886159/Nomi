@@ -1,0 +1,23 @@
+{
+  "name": "导演角色名牌避让",
+  "subject": "director.character-label.layout",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+    "symbol": "layoutCharacterLabels"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "symbol": "layoutCharacterLabels"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "外包卡 20：同一视口里所有角色名牌按屏幕投影统一避让（唯一判据），视口与成片取景共用；根因合同 docs/fixes/2026-10-06-director-character-label-overlap.root-cause.json。"
+}

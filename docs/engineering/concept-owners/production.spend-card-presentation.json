@@ -1,0 +1,39 @@
+{
+  "name": "付费卡这一次出价（摆哪几镜、哪几镜被去掉、卡怎么关的）",
+  "subject": "production.spend-card-presentation",
+  "lifecycle": "spend-authority",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "symbol": "presentGenerationPlan"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "presentGenerationPlan"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "removePresentedShot"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "withdrawGenerationPresentation"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "settlePresentation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/agentPanelSpendPerShot.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionRunRepository.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "付费卡逐镜（2026-09-29 用户拍板「点了的生成，去掉的不生成」）。卡问的是哪几镜、用户去掉了哪几镜、卡是怎么关的（每一镜都定了 / × / 打字岔开 / 停下），只记在 `generationPlan.presentations` 这一本只追加的账上，只经这四个写口改（全部经 `productionRunReducer` 的命令；`settlePresentation` 是仓库在决定那一步里顺手收尾，不多一个版本号）。以前的 `cardHidden` 只读进来折成一条出价记录（`normalizeLegacyPresentation`），不再写。一镜生成没生成不在这里记：那是它自己那道门批没批（`production.dispatch-authorization-scope`）。渲染层只把用户在这一页的动作传过来（生成这一镜 / 去掉这一镜 / 关掉），不保存第二份逐镜状态。"
+}

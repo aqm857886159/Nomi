@@ -1,0 +1,25 @@
+{
+  "name": "文稿此刻有没有位置（选区 / 光标）——没有就说「没有位置」",
+  "subject": "document.position-availability",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/project/documentSessionPort.ts",
+    "symbol": "positionUnavailable"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/project/documentSessionPort.ts",
+      "symbol": "positionUnavailable"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/WorkbenchEditor.tsx"
+  ],
+  "since": "2026-10-06",
+  "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0001）：创作页编辑器没挂时，选区读 / 光标插入 / 定位锚回 document_position_unavailable（不是泛泛的 capability_unsupported，也不是过期）；增强端口整篇锚 insert 用同一个码。"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "FB-NF-1001-0001-doc-position",
+  "since": "2026-10-06",
+  "source": "应用内反馈 NF-1001-0001（0.22.3 Windows）",
+  "category": "claims-and-outcomes",
+  "problem": "用户不在创作页时模型去读文稿选区，面板只说「这件事在当前页面做不了」，模型与用户都没有下一步，Agent 停住",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-06-agent-feedback-batch.md",
+    "electron/agentLane/laneDesktopReads.test.ts：选区读在基线端口回 document_position_unavailable，模型拿到读整篇 / 读当前页的下一步",
+    "变异：码改回 capability_unsupported → documentSessionPort.test 与 laneDesktopReads.test 红"
+  ],
+  "completionCommits": [
+    "effcf1966"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+  "fixedInPr": 1055,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/project/documentSessionPort.test.ts"
+  }
+}

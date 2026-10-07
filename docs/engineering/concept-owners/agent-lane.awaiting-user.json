@@ -1,0 +1,37 @@
+{
+  "name": "等用户",
+  "subject": "agent-lane.awaiting-user",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneApprovalGate.ts",
+    "symbol": "createLaneApprovalGate"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneApprovalGate.ts",
+      "symbol": "createLaneApprovalGate"
+    },
+    {
+      "path": "electron/shared/agentLane/laneApproval.ts",
+      "symbol": "preflightLaneApproval"
+    },
+    {
+      "path": "electron/shared/agentLane/laneApproval.ts",
+      "symbol": "laneApprovalGrantable"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneNativeApproval.ts",
+    "electron/agentLane/laneRuntimePort.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneTools.mts",
+    "electron/agentLane/laneExtendedTools.ts"
+  ],
+  "since": "2026-09-22",
+  "notes": "「一次调用停在 before_tool 里等人」的运行时那一半住这里；判据（纯函数）在 electron/shared/agentLane/laneApproval.ts，两者是同一个概念的判据面与运行面，不是两个 owner。渲染层只做只读投影，不许自己判断等不等、也不许替它补偿。"
+}

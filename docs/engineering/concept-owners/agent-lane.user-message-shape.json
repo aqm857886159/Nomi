@@ -1,0 +1,28 @@
+{
+  "name": "一条用户消息在对话记录里的形状（含附件）",
+  "subject": "agent-lane.user-message-shape",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentLane/laneProjection.ts",
+    "symbol": "projectLaneSnapshot"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "projectLaneSnapshot"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneHistory.mts",
+    "electron/agentLane/laneDesktopAttachments.ts",
+    "src/workbench/ai/lane/laneViewModel.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "发出去的那条用户消息、重开项目后的历史里，附件签是同一份事实：转录里 nomi.input 自己带的 claim 由 projectLaneSnapshot 原样搬上 user 段，文件名由主进程按 assetId 现查（laneDesktopAttachments，与「发给模型」同一个 resolveProjectAgentAttachmentClaims）。渲染层只读 part.attachments 画签，不自己另存、不自己推算；解不出来画「附件不可用」，不让签消失。"
+}

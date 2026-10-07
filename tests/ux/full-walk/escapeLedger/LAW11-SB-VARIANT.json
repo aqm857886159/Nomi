@@ -1,0 +1,25 @@
+{
+  "id": "LAW11-SB-VARIANT",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "分镜行没有变体选择器：Seedance / Veo / 海螺 / Wan / Qwen Image 等 17 个带变体的模型，在分镜里只能用默认变体，分镜行取参数时也不按变体收窄",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.ts 的 resolveShotArchetypeMode 不读变体；画布节点用 archetypeVariantChoices"
+  ],
+  "completionCommits": []
+}

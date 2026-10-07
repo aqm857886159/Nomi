@@ -1,0 +1,31 @@
+{
+  "name": "一批还欠哪些镜（批次成员）",
+  "subject": "production.batch-membership",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionShotJobs.ts",
+    "symbol": "shotCountsTowardBatch"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "shotCountsTowardBatch"
+    },
+    {
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "shotIncluded"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/productionRun/batchScheduleDerivation.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/shared/decideShotClaim.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "批次「做完没有」（调度器 progress → onBatchComplete）和排队「第 n / N」都按这一个函数数镜：没勾进这一批（included:false，判据 shotIncluded 同住一处）或最新那次尝试已被制作放手（detached：删了节点 / 画布接手 / 返工门被拒）的镜不算。以前调度器只滤 included:false，被画布拿走的镜被数成「在跑」，批次永远收不了尾（合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json）。参考卡（anchor）刻意只按 included 数：它挡着形象检查点，被拿走也不许悄悄放行付费镜。封印 / 待确认花费 / 预览里那十几处 included !== false 管的是「这次付费范围」，不是这条。2026-09-30 付费卡逐镜：形象检查点只等这一批批过的参考卡（`batchScheduleDerivation.anchorsOf` 要求勾进这一批且有封印合同，与 `anchorCheckpoint.currentAnchorCheckpointGate` 同一条）——卡上还没点的参考卡没有合同，不挡已经批过的那几张。"
+}

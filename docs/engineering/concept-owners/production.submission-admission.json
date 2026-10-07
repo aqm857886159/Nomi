@@ -1,0 +1,35 @@
+{
+  "name": "制作提交的准入口（派发闸排在第一笔耐久写之前）",
+  "subject": "production.submission-admission",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/submissionOutbox.ts",
+    "symbol": "submitOnce"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "submitOnce"
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "beforeDispatch"
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "markProviderRejected"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionShotDispatchGate.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionShotDispatchGuard.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #921（同上合同）：每条制作提交路径都经 submitOnce，它在预留预算、落提交意向（这次尝试的第一笔耐久写）之前先调派发闸 beforeDispatch；闸排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。beforeDispatch 是 SubmissionOutboxDependencies 里声明的钩子槽位，生产侧由 productionGenerationSubmission 接到 productionShotDispatchGuard；槽位在依赖里是可选成员，漏接不会有编译期信号（R17 那一类），装配点目前靠派发闸的 e2e 测试守。"
+}

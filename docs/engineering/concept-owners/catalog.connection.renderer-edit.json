@@ -1,0 +1,30 @@
+{
+  "name": "设置页改连接（渲染层那扇写门能改什么）",
+  "subject": "catalog.connection.renderer-edit",
+  "lifecycle": "catalog",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/rendererCatalogMutation.ts",
+    "symbol": "upsertRendererCatalogVendor"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertRendererCatalogVendor"
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "sanitizeRendererVendorMutation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/settingsAddressSave.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "设置页（渲染层 IPC）改一条连接只走这一扇：接口地址归用户（保存即生效，已存 key 的去向跟着用户这次保存走）；认证连接的鉴权放法（authType / authHeader / authQueryParam / providerKind）不重新接入就改不了；认证元数据渲染层写不动。「是不是认证连接」不在这里判——问 catalog.connection.certification-ownership。程序写门（catalogStore.upsertModelCatalogVendor、Agent / MCP / 声明卡）不经这里，改地址也不挪绑定。合同 docs/fixes/2026-09-29-settings-address-is-the-users.root-cause.json。"
+}

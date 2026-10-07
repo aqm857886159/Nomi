@@ -1,0 +1,28 @@
+{
+  "name": "这段字节是不是冒充媒体的网页 / 文本",
+  "subject": "asset.markup-masquerade",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/mediaTypes.ts",
+    "symbol": "isMarkupMasquerade"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/mediaTypes.ts",
+      "symbol": "isMarkupMasquerade"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/assets/mediaTypes.test.ts",
+  "allowed_consumers": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/providerAdapter/certificationMedia.ts"
+  ],
+  "since": "2026-09-27",
+  "notes": "PR #907（合同 docs/fixes/2026-09-27-reference-image-markup-false-positive.root-cause.json）：这条判断原来有三份定义（生成落地、认证、参考上传），两份锚在文件开头、一份漂成不锚定的全文搜索，把正常参考图误判成网页。现在只有一份，锚在 BOM 与空白之后的文件开头，住在已经负责「字节 → 媒体类型」的 mediaTypes 旁边；各校验边界只消费它。"
+}

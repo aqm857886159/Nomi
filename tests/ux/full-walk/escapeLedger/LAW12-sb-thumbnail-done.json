@@ -1,0 +1,23 @@
+{
+  "id": "LAW12-sb-thumbnail-done",
+  "since": "2026-10-05",
+  "source": "full-walk pb12-storyboard-click-expectations（2026-10-05，base / zh-CN）",
+  "category": "interaction-semantics",
+  "problem": "点「已生成镜头的缩略图」：用户以为点一下就打开这一镜的大图来看；实际单击之后什么也没打开（第 1 镜选中了）",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [
+    "J06-delete-shot"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-thumbnail-done.png"
+  ],
+  "completionCommits": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "PLAN-S2-02",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "parameter-contract",
+  "problem": "比例显示错误或与实际出站比例不一致",
+  "existingInvariants": [
+    3,
+    4,
+    7
+  ],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S2",
+    "S7"
+  ],
+  "fullWalkJourneys": [
+    "J01-generate-image",
+    "J07-switch-model"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

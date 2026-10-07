@@ -1,0 +1,34 @@
+{
+  "name": "Agent 面板流条目的身份（一次流式更新只重画变了的行）",
+  "subject": "agent-panel.flow-render-identity",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "symbol": "shareFlowItems"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "shareFlowItems"
+    },
+    {
+      "path": "src/workbench/ai/v4/shareEqualDeep.ts",
+      "symbol": "replaceEqualDeep"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "V4FlowRow"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+  "allowed_consumers": [
+    "src/devlab/designLab/v4/states/01-vocabulary.tsx"
+  ],
+  "since": "2026-09-27",
+  "notes": "PR #904（同上合同）：一次流式更新的渲染代价必须与对话长度无关。派生出来的整条 flow 经 shareFlowItems 走通用结构共享 replaceEqualDeep（照 TanStack Query 的 replaceEqualDeep：递归复用相等的普通对象 / 数组子树），未变的条目沿用上一轮引用；行组件 V4FlowRow 是 memo 边界、回调走稳定包装。不许按 V4FlowItem 的种类另写一份字段对比清单。"
+}

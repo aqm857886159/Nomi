@@ -1,0 +1,36 @@
+{
+  "id": "AUD-20261005-18",
+  "since": "2026-10-05",
+  "source": "本次审计（docs/research/2026-10-05-storyboard-plan-user-audit.md）",
+  "category": "language-surface",
+  "problem": "中文界面「⋯」里比例显示英文原值 adaptive",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S7"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/08-shot-more-params-popover.png",
+    "参数汇总里「自动」档统一本地化（composerHeadlineSummary 修在 owner，画布同受益）；分镜行不再有「⋯」比例下拉",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "官网模型资格",
+  "subject": "site.model-eligibility",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/marketing/library/data.mjs",
+    "symbol": "catalogEligibleModels"
+  },
+  "write_api": [
+    {
+      "path": "scripts/marketing/library/data.mjs",
+      "symbol": "catalogEligibleModels"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "scripts/marketing/library/models-pages.mjs",
+    "scripts/site/model-intro-status.mjs",
+    "scripts/check-site-editorial.mjs"
+  ],
+  "since": "2026-10-01",
+  "notes": "目录里哪些模型有资格上官网（认得的、没退役、至少有一家能用 API Key 接）只在这里定义；publicModels 在它之上再要求中英介绍都写好。页面生成、介绍门岗和每周同步的「缺介绍」清单都读它，不各抄一遍判据。"
+}
