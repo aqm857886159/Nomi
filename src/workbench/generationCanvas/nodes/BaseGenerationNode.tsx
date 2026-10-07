@@ -219,7 +219,10 @@ function BaseGenerationNodeImpl({
   const imageEditing = useNodeImageEditing(node, visualSize, reportFeedback)
   const { downloading: panoramaDownloading, download: downloadPanorama } = useResultDownload(node, reportFeedback)
   // 面板挂载走可打断的低优先级渲染（按下即选中时同步挂面板，拖动起手实测顿 70–95 ms）：高亮与拖动先出，面板随后到，取消选中立即卸载。
-  const composerWanted = selected && !isMultiSelectActive && !readOnly && nodeHasGenerationComposer(node.kind)
+  // 版本宫格铺开时不挂生成浮框（V-1054）：浮框钉在节点正下方、定宽 560，会盖住宫格下面几行；铺开 = 正在挑版本，
+  // 和 09-21 结果托盘展开时卸载浮框是同一条约定（不挂才不跑）。收起宫格浮框就回来。
+  const versionGridOpen = showVersionCards && Boolean(node.resultStackOpen)
+  const composerWanted = selected && !isMultiSelectActive && !readOnly && !versionGridOpen && nodeHasGenerationComposer(node.kind)
   const composerMounted = React.useDeferredValue(composerWanted)
   // 被别的节点铺开的版本宫格压住时，标题先藏起来（不然会从卡片缝里漏出来，读着像哪张版本卡的标题）。选中的、自己铺开的在上面，不藏。
   const labelCovered = useLabelCoveredByVersionGrid(node.id, { x: node.position.x, y: node.position.y, width: visualSize.width, height: visualSize.height }, !selected && !node.resultStackOpen)
@@ -498,9 +501,9 @@ function BaseGenerationNodeImpl({
       <ProductionShotOverlays reportFeedback={reportFeedback} node={node} selected={selected && !isMultiSelectActive} />{/* P4 S5+S6 多镜叠加：占位三态 + 版本条（非多镜早退零开销） */}
       {/* composer：生成类节点 + **单选**时浮出。多选(框选)一律不挂——否则每个选中节点都弹自己的
           大 composer 层叠糊成一片(用户反馈 bug，根因收口此唯一挂载入口)。批量生成走选中浮条。 */}
-      {/* 只读画布不挂、结果堆叠展开时卸载（2026-09-21 收回来的两条）：
+      {/* 只读画布不挂、版本宫格铺开时卸载（2026-09-21 收回来的两条；10-07 结果托盘换成版本宫格后照旧）：
           ① 只读时挂上去会多浮出一张「只读画布」提示卡，那是一张没出过样张的新 UI；
-          ② 藏不等于卸载：结果堆叠展开时浮框的编辑器、参考区订阅都还在跑，不挂才是不跑。 */}
+          ② 藏不等于卸载：宫格铺开时浮框的编辑器、参考区订阅都还在跑，不挂才是不跑。 */}
       {composerWanted && composerMounted ? (
         <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
       ) : null}

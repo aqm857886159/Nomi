@@ -11,8 +11,10 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconDownload, IconLoader2, IconMovie, IconTrash } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
-import { DeferredNodeVideo } from '../DeferredNodeMedia'
+// 卡上的画面和节点预览走同一条延后加载队列（DeferredNodeMedia）：铺开 / 平移到一组宫格时，几张整图不在同一帧里一起解码上屏（V-1054 平移最长一帧）。
+import { DeferredNodeImage, DeferredNodeVideo } from '../DeferredNodeMedia'
 import { historyVideoTimeFromPointer, nudgeHistoryVideoTime } from '../historyVideoScrub'
+import { ToolbarButton, ToolbarDivider, ToolbarIconButton } from '../NodeFloatingToolbar'
 import type { VersionGridLayout } from './versionGridLayout'
 
 export type VersionCardEntry = Readonly<{
@@ -66,7 +68,6 @@ export function NodeVersionCountBadge({
       title={label}
       data-version-badge
       onPointerDown={(event) => event.stopPropagation()}
-      onKeyDown={(event) => { if (event.key === 'Escape' && expanded) { event.stopPropagation(); onToggle() } }}
       onClick={(event) => { event.stopPropagation(); onToggle() }}
     >
       {count}
@@ -93,32 +94,38 @@ function VersionCardBar({ versionNo, primary, readOnly, onSetPrimary, onDownload
   onDelete?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const button = 'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-nomi-sm border-0 bg-transparent text-body-sm leading-none whitespace-nowrap cursor-pointer transition-colors duration-nomi-fast ease-nomi-fast'
   return (
     <div
       role="toolbar"
       aria-label={t('generationCommon.versionCards.barAria', { n: versionNo })}
       data-version-card-bar
+      // 外观和按钮原子与节点浮条同一套（NodeFloatingToolbar 的 ToolbarButton / ToolbarIconButton / ToolbarDivider，全仓同类控件一个组件）。
       // 拖动画布 / 拖整组时动作条跟其它浮层一起隐身（同一面画布级拖动旗）；卡片本身是组的一部分，照样跟着走。
-      className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md group-data-[dragging=true]/canvas:invisible"
+      className="nodrag generation-canvas-react-flow__no-pan pointer-events-auto absolute bottom-[calc(100%+6px)] left-1/2 z-[2] inline-flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper px-1.5 py-1 shadow-nomi-md group-data-[dragging=true]/canvas:invisible"
       onPointerDown={(event) => event.stopPropagation()}
       // 点动作不选中节点：选中会浮出生成框、正好压住下面一排版本卡（和点卡片预览同一条）。
       onClick={(event) => event.stopPropagation()}
     >
       {!primary && !readOnly ? (
-        <button type="button" data-version-action="set-primary" className={cn(button, 'px-3 font-medium text-nomi-accent hover:bg-nomi-accent-soft')} onClick={onSetPrimary}>
-          {t('generationCommon.versionCards.setPrimary')}
-        </button>
+        <ToolbarButton icon={null} accent actionId="set-primary" label={t('generationCommon.versionCards.setPrimary')} onClick={onSetPrimary} />
       ) : null}
-      <button type="button" data-version-action="download" className={cn(button, 'w-8 text-nomi-ink-80 hover:bg-nomi-ink-05')} aria-label={t('generationCommon.versionCards.download')} title={t('generationCommon.versionCards.download')} onClick={onDownload}>
-        <IconDownload size={16} stroke={1.6} aria-hidden="true" />
-      </button>
+      <ToolbarIconButton
+        icon={<IconDownload size={16} stroke={1.6} aria-hidden="true" />}
+        actionId="download"
+        ariaLabel={t('generationCommon.versionCards.download')}
+        title={t('generationCommon.versionCards.download')}
+        onClick={onDownload}
+      />
       {!readOnly ? (
         <>
-          <span className="mx-0.5 h-4 w-px bg-nomi-line" aria-hidden="true" />
-          <button type="button" data-version-action="delete" className={cn(button, 'w-8 text-nomi-ink-80 hover:bg-nomi-danger-soft hover:text-nomi-danger')} aria-label={t('generationCommon.versionCards.delete')} title={t('generationCommon.versionCards.delete')} onClick={onDelete}>
-            <IconTrash size={16} stroke={1.6} aria-hidden="true" />
-          </button>
+          <ToolbarDivider />
+          <ToolbarIconButton
+            icon={<IconTrash size={16} stroke={1.6} aria-hidden="true" />}
+            actionId="delete"
+            ariaLabel={t('generationCommon.versionCards.delete')}
+            title={t('generationCommon.versionCards.delete')}
+            onClick={onDelete}
+          />
         </>
       ) : null}
     </div>
@@ -170,7 +177,7 @@ function VersionVideoMedia({ entry, active }: { entry: VersionCardEntry; active:
       ) : null}
       {!active || !mounted ? (
         entry.previewUrl
-          ? <img src={entry.previewUrl} alt="" draggable={false} className="h-full w-full object-contain" />
+          ? <DeferredNodeImage src={entry.previewUrl} alt="" draggable={false} className="h-full w-full object-contain" />
           : <span className="grid h-full w-full place-items-center text-nomi-ink-40" aria-hidden="true"><IconMovie size={22} stroke={1.5} /></span>
       ) : null}
       <div
@@ -242,12 +249,11 @@ export type NodeVersionGridProps = {
   onDelete?: (entry: VersionCardEntry) => void
   onShowAll?: () => void
   onCopyDragStart?: (event: React.DragEvent<HTMLElement>, entry: VersionCardEntry) => void
-  onEscape?: () => void
 }
 
 export function NodeVersionGrid({
   nodeId, layout, node, primaryIdentity, readOnly = false, altHeld = false, hoveredIdentity,
-  onHoverChange, onPreview, onSetPrimary, onDownload, onDelete, onShowAll, onCopyDragStart, onEscape,
+  onHoverChange, onPreview, onSetPrimary, onDownload, onDelete, onShowAll, onCopyDragStart,
 }: NodeVersionGridProps): JSX.Element {
   const { t } = useTranslation()
   const pressRef = React.useRef<{ x: number; y: number } | null>(null)
@@ -259,7 +265,6 @@ export function NodeVersionGrid({
       data-version-grid={nodeId}
       data-version-grid-columns={layout.columns}
       data-version-grid-placement={layout.bounds.x < 0 ? 'left' : 'right'}
-      onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); onEscape?.() } }}
     >
       {layout.cells.map((cell) => {
         const style: React.CSSProperties = { left: cell.x - layout.bounds.x, top: cell.y - layout.bounds.y, width: node.width, height: node.height }
@@ -310,16 +315,20 @@ export function NodeVersionGrid({
         const entry = cell.version
         const primary = entry.identity === primaryIdentity
         const hovered = entry.identity === hoveredIdentity
+        const copyDraggable = altHeld && !readOnly && Boolean(entry.url)
         return (
           <div
             key={entry.identity}
             // 悬停的那一张连同动作条浮到最上层：压过节点自己的浮条（z-12），不被它盖住（10-06 对账页 §1 第 5 条）。
-            className={cn('absolute', hovered ? 'z-[13]' : 'z-[1]')}
+            // 按着 Alt 时这张卡对画布内核是 nodrag：内核的拖节点（d3-drag）一按下就会在 window 上拦掉原生 dragstart，
+            // 而且 Alt + 拖节点 = 复制整个节点——两样都得让路，这一下只走版本卡自己的拖出（V-1054 真鼠标复现）。
+            // 不按 Alt 时不带：按住拖 = 拖整组，交给内核。
+            className={cn('absolute', hovered ? 'z-[13]' : 'z-[1]', copyDraggable && 'nodrag generation-canvas-react-flow__no-pan')}
             style={style}
             data-version-card={entry.versionNo}
             data-version-identity={entry.identity}
             data-primary={primary ? 'true' : undefined}
-            draggable={altHeld && !readOnly && Boolean(entry.url)}
+            draggable={copyDraggable}
             onDragStart={(event) => onCopyDragStart?.(event, entry)}
             onPointerEnter={() => onHoverChange?.(entry.identity)}
             onPointerLeave={() => onHoverChange?.('')}
@@ -352,7 +361,7 @@ export function NodeVersionGrid({
               <CardShell className={hovered ? 'ring-nomi-ink-20' : undefined}>
                 {entry.type === 'video'
                   ? <VersionVideoMedia entry={entry} active={hovered} />
-                  : <img src={entry.previewUrl} alt="" draggable={false} className="h-full w-full object-contain" />}
+                  : <DeferredNodeImage src={entry.previewUrl} alt="" draggable={false} className="h-full w-full object-contain" />}
                 <span className={cn('absolute rounded-pill bg-nomi-overlay-chip px-1.5 py-0.5 text-micro font-semibold tabular-nums text-nomi-media-ink', entry.type === 'video' ? 'right-1.5 top-1.5' : 'bottom-1.5 left-1.5')} data-version-card-number>
                   {node.width < 200 ? t('generationCommon.versionCards.versionTiny', { n: entry.versionNo }) : t('generationCommon.versionCards.versionShort', { n: entry.versionNo })}
                 </span>

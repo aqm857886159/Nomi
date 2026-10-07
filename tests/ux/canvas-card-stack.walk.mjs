@@ -249,20 +249,22 @@ try {
   check('三版铺成三张卡，最新在前', beforeOrder.join(',') === 'image-v3,image-v2,image-v1', beforeOrder.join(','))
   await screenshotSettled(win, { path: path.join(outputDir, '02-real-version-cards-light.png') })
   const card = (identity) => grid.locator(`[data-version-identity="${identity}"]`)
-  // 选中节点的生成浮框钉在节点正下方、比节点宽，会盖住第二排的前一张卡（层级：选中节点 > 版本卡，09-25「被挡就挡」）。
-  // 人会先点一下空白取消选中再去挑版本——铺开是持久的，取消选中不收起。
+  // 节点此刻是选中的：宫格铺开时不挂生成浮框（它钉在节点正下方、定宽 560，会盖住宫格下面几行；V-1054）。
+  await expect.poll(() => imageNode.locator('[data-composer-host="canvas"]').count(), { message: '铺开时选中节点不挂生成浮框', timeout: stationTimeout() }).toBe(0)
+  check('铺开时选中节点不挂生成浮框（不盖宫格）', true)
+  // 再点空白取消选中：铺开是持久的，取消选中不收起。
   const blank = await findCanvasBlankPoint(win, { inset: 40 })
   expect(blank, '画布上找不到空白处').not.toBeNull()
   await win.mouse.click(blank.x, blank.y)
   await expectVisible(grid, '取消选中后版本卡片仍铺着（持久）')
   await card('image-v1').hover()
-  await clickOrFail(card('image-v1').locator('[data-version-action="set-primary"]'), '把第 1 版设为主图')
+  await clickOrFail(card('image-v1').locator('[data-toolbar-action="set-primary"]'), '把第 1 版设为主图')
   await expect(card('image-v1'), '第一版成为主图').toHaveAttribute('data-primary', 'true')
   check('第一版成为主图', true)
   // 点卡上的动作不选中节点：一选中就浮出生成框，正好压住下面一排版本卡。
   check('点「设为主图」不选中节点（不浮出生成框压住卡片）', await win.locator('[data-composer-host="canvas"]').count() === 0 && await imageNode.evaluate((node) => !node.closest('.react-flow__node')?.classList.contains('selected')))
   check('换主图不重排版本', (await cardOrder()).join(',') === beforeOrder.join(','), (await cardOrder()).join(','))
-  await imageNode.locator('[data-node-media-state="ready"]').waitFor({ state: 'attached', timeout: stationTimeout() })
+  await imageNode.locator('[data-node-media-state="ready"]').first().waitFor({ state: 'attached', timeout: stationTimeout() })
 
   await clickOrFail(card('image-v2').locator('button[aria-label^="预览"]'), '点第 2 版卡片打开预览')
   const imagePreview = win.locator('[role="dialog"][aria-label*="雨夜入场"]').first()
@@ -279,7 +281,7 @@ try {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath })
   }, downloadPath)
   await card('image-v1').hover()
-  const imageDownloadButton = card('image-v1').locator('[data-version-action="download"]')
+  const imageDownloadButton = card('image-v1').locator('[data-toolbar-action="download"]')
   check('版本卡提供下载入口', await imageDownloadButton.isEnabled())
   await clickOrFail(imageDownloadButton, '下载第 1 版')
   await expect.poll(() => fs.existsSync(downloadPath) && fs.statSync(downloadPath).size > 0, { message: '下载桥接应写出非空版本图片文件', timeout: stationTimeout() }).toBe(true)
@@ -288,14 +290,44 @@ try {
   const deleteCard = card('image-v2')
   const deleteCardProof = await proveProbe(deleteCard, '待删除的第 2 版确实铺在画布上')
   await deleteCard.hover()
-  await clickOrFail(deleteCard.locator('[data-version-action="delete"]'), '删除第 2 版（不弹确认框）')
+  await clickOrFail(deleteCard.locator('[data-toolbar-action="delete"]'), '删除第 2 版（不弹确认框）')
   await expectAbsent(deleteCard, { provenBy: deleteCardProof, message: '删除后第 2 版从宫格里消失' })
   check('删除版本后其他版本保留', await grid.locator('[data-version-identity]').count() === 2)
   await expectVisible(win.locator('[data-toast-action]', { hasText: '撤销' }).first(), '删除后提示条给「撤销」')
   check('删除不弹确认框、提示条给撤销', await win.locator('[data-confirm-dialog-surface="confirm"]').count() === 0)
 
-  await clickOrFail(imageNode.locator('[data-version-badge]'), '再点角标收起版本')
-  await expectHidden(grid, '版本卡片应收起')
+  // 按住 Alt 把一张版本卡拖到空白处 = 复制成一张只含那一版的独立素材卡（真鼠标：down / move / up，不是合成 dragstart）。
+  // V-1054 真鼠标复现过：画布内核的「Alt 拖节点 = 复制整个节点」先吃掉了这一下，落出的是带全部版本的节点副本。
+  const nodeIdsOnCanvas = () => win.locator('.react-flow__node[data-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-id')))
+  const idsBeforeCopy = await nodeIdsOnCanvas()
+  const copySource = card('image-v1')
+  const sourceBox = await copySource.boundingBox()
+  if (!sourceBox) throw new Error('第 1 版卡没有可拖的边界')
+  const dropAt = await findCanvasBlankPoint(win, { inset: 80 })
+  expect(dropAt, '画布上找不到放副本的空白处').not.toBeNull()
+  const grabAt = { x: sourceBox.x + sourceBox.width / 2, y: sourceBox.y + sourceBox.height / 2 }
+  await win.keyboard.down('Alt')
+  await win.mouse.move(grabAt.x, grabAt.y)
+  await win.mouse.down()
+  await win.mouse.move(grabAt.x + 4, grabAt.y + 3)
+  await win.mouse.move(dropAt.x, dropAt.y, { steps: 20 })
+  await win.mouse.up()
+  await win.keyboard.up('Alt')
+  await expect.poll(async () => (await nodeIdsOnCanvas()).length, { message: 'Alt 拖版本卡：画布上多出一张卡', timeout: stationTimeout() }).toBe(idsBeforeCopy.length + 1)
+  const copiedId = (await nodeIdsOnCanvas()).find((id) => !idsBeforeCopy.includes(id))
+  const copied = win.locator(`.react-flow__node[data-id="${copiedId}"]`)
+  check('Alt 拖版本卡：多出来的不是节点副本（没有带版本角标）', await copied.locator('[data-version-badge]').count() === 0, String(copiedId))
+  check('Alt 拖版本卡：多出来的就是被拖的那一版', (await copied.locator('img').first().getAttribute('src') || '').includes('rain-1.svg'))
+  check('Alt 拖版本卡：原节点没被复制、版本一张不少', !(await nodeIdsOnCanvas()).some((id) => id !== 'image-versions' && id.startsWith('image-versions')) && await grid.locator('[data-version-identity]').count() === 2)
+  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
+  await expect.poll(async () => (await nodeIdsOnCanvas()).length, { message: '⌘Z 一次撤掉复制出来的卡', timeout: stationTimeout() }).toBe(idsBeforeCopy.length)
+
+  // 宫格开着时按 Esc 就收起：焦点在画布空白处也算（V-1054：以前只认焦点在角标 / 宫格里）。
+  const escBlank = await findCanvasBlankPoint(win, { inset: 40 })
+  expect(escBlank, '画布上找不到空白处').not.toBeNull()
+  await win.mouse.click(escBlank.x, escBlank.y)
+  await win.keyboard.press('Escape')
+  await expectHidden(grid, '焦点在画布空白处按 Esc，版本卡片应收起')
   await imageNode.click({ position: { x: 120, y: 120 } })
   // 打开时适应全貌（useAutoFitOnLoad）后这张图贴着舞台左缘，节点上方的浮条以前左半截压在项目资源管理器底下，
   // 用户得自己把画布拖开才点得到「复制为变体」。现在的不变量：任何位置选中节点，浮条都整条在可见舞台里，不用拖——

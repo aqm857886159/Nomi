@@ -9,7 +9,8 @@ vi.mock('react-i18next', async (importOriginal) => ({
 
 const { NodeVersionCountBadge, NodeVersionGrid } = await import('./NodeVersionCards')
 const { layoutVersionGrid, versionGridItems } = await import('./versionGridLayout')
-const { __resetVersionGridCoverageForTests, isLabelCoveredByOtherGrids, publishVersionGridCoverage } = await import('./versionGridCoverage')
+const { toolbarButtonClass } = await import('../toolbarButtonClass')
+const { __resetVersionGridCoverageForTests, escapeBelongsToVersionGrid, isLabelCoveredByOtherGrids, lastOpenedVersionGrid, publishVersionGridCoverage, registerOpenVersionGrid } = await import('./versionGridCoverage')
 
 const NODE = { width: 240, height: 135 }
 const entries = [4, 3, 2, 1].map((versionNo) => ({ identity: `v${versionNo}`, versionNo, type: 'image' as const, previewUrl: `v${versionNo}.png`, url: `v${versionNo}.png` }))
@@ -65,21 +66,30 @@ describe('NodeVersionGrid · 卡就是那张图', () => {
   it('悬停条：「设为主图」是纯文字（✓ 只表示状态），删除在最右', () => {
     const html = grid({ hoveredIdentity: 'v3' })
     const bar = /<div role="toolbar"[^>]*data-version-card-bar[\s\S]*?<\/div>/.exec(html)?.[0] ?? ''
-    const actions = [...bar.matchAll(/data-version-action="([^"]+)"/g)].map((match) => match[1])
+    const actions = [...bar.matchAll(/data-toolbar-action="([^"]+)"/g)].map((match) => match[1])
     expect(actions).toEqual(['set-primary', 'download', 'delete'])
-    const setPrimary = /<button[^>]*data-version-action="set-primary"[^>]*>([\s\S]*?)<\/button>/.exec(bar)?.[1] ?? ''
+    const setPrimary = /<button[^>]*data-toolbar-action="set-primary"[^>]*>([\s\S]*?)<\/button>/.exec(bar)?.[1] ?? ''
     expect(setPrimary).not.toContain('<svg')
+    // 按钮原子和节点浮条同一套（toolbarButtonClass），不另写一份样式。
+    const setPrimaryTag = /<button[^>]*data-toolbar-action="set-primary"[^>]*>/.exec(bar)?.[0] ?? ''
+    for (const token of toolbarButtonClass(true).split(/s+/)) expect(setPrimaryTag).toContain(token)
   })
 
   it('悬停的是主图：没有「设为主图」；只读画布：只剩下载', () => {
-    expect(grid({ hoveredIdentity: 'v4' })).not.toContain('data-version-action="set-primary"')
+    expect(grid({ hoveredIdentity: 'v4' })).not.toContain('data-toolbar-action="set-primary"')
     const readOnly = grid({ hoveredIdentity: 'v3', readOnly: true })
-    expect([...readOnly.matchAll(/data-version-action="([^"]+)"/g)].map((match) => match[1])).toEqual(['download'])
+    expect([...readOnly.matchAll(/data-toolbar-action="([^"]+)"/g)].map((match) => match[1])).toEqual(['download'])
   })
 
   it('只有按着 Alt 时版本卡才可被 HTML5 拖出去（不按 Alt 拖 = 拖整组）', () => {
     expect(grid()).not.toContain('draggable="true"')
     expect(grid({ altHeld: true })).toContain('draggable="true"')
+  })
+
+  it('按着 Alt 时卡对画布内核是 nodrag（内核的拖节点 / Alt 复制节点让路）；不按 Alt 时不带（按住拖 = 拖整组）', () => {
+    const card = (html: string): string => /<div class="[^"]*"[^>]*data-version-card="3"/.exec(html)?.[0] ?? ''
+    expect(card(grid())).not.toContain('nodrag')
+    expect(card(grid({ altHeld: true }))).toContain('nodrag')
   })
 })
 
@@ -112,5 +122,32 @@ describe('卡上能点 / 能拖的部件不触发画布内核拖节点', () => {
     const many = Array.from({ length: 12 }, (_, index) => ({ identity: `x${12 - index}`, versionNo: 12 - index, type: 'image' as const, previewUrl: 'x.png' }))
     const more = renderToStaticMarkup(React.createElement(NodeVersionGrid, { nodeId: 'n1', layout: layoutVersionGrid(versionGridItems(many), NODE, 'right'), node: NODE, primaryIdentity: 'x12' }))
     expect(/data-version-card="more"><button[^>]*class="nodrag /.test(more)).toBe(true)
+  })
+})
+
+describe('Esc 收起版本宫格 · 归属与顺序', () => {
+  // 节点测试环境没有 DOM：用只实现 closest 的替身，祖先链上有哪些选择器就命中哪些。
+  const target = (...ancestors: string[]): Element => ({ closest: (selector: string) => (selector.split(',').some((part) => ancestors.includes(part.trim())) ? {} : null) }) as unknown as Element
+  const esc = (element: Element | null, extra: Partial<KeyboardEvent> = {}) => ({ key: 'Escape', defaultPrevented: false, isComposing: false, target: element, ...extra })
+
+  it('画布空白处、角标、宫格里按 Esc 归宫格；输入框 / 提示词框 / 弹层里按的不归；别人已处理的不管', () => {
+    expect(escapeBelongsToVersionGrid(esc(target('.react-flow__pane')))).toBe(true)
+    expect(escapeBelongsToVersionGrid(esc(target('[data-version-grid]', 'button')))).toBe(true)
+    expect(escapeBelongsToVersionGrid(esc(target('textarea')))).toBe(false)
+    expect(escapeBelongsToVersionGrid(esc(target('[contenteditable="true"]')))).toBe(false)
+    expect(escapeBelongsToVersionGrid(esc(target('[role="dialog"]', 'button')))).toBe(false)
+    expect(escapeBelongsToVersionGrid(esc(target(), { defaultPrevented: true }))).toBe(false)
+    expect(escapeBelongsToVersionGrid(esc(target(), { key: 'Enter' }))).toBe(false)
+  })
+
+  it('一次 Esc 收最后铺开的那一组；收起后轮到前一组', () => {
+    __resetVersionGridCoverageForTests()
+    const releaseA = registerOpenVersionGrid('a')
+    const releaseB = registerOpenVersionGrid('b')
+    expect(lastOpenedVersionGrid()).toBe('b')
+    releaseB()
+    expect(lastOpenedVersionGrid()).toBe('a')
+    releaseA()
+    expect(lastOpenedVersionGrid()).toBeNull()
   })
 })

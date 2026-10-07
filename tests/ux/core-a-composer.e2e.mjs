@@ -250,20 +250,21 @@ try {
   await win.evaluate(({id,history}) => {
     window.__nomiCanvasStore.getState().updateNode(id, {result:history[1],history})
   }, {id:edited[0].id,history})
-  // Version cards (2026-10-06): laying out a node's versions is persistent. Switching A → B → A keeps them laid out
-  // while each node's own composer still shows its own prompt.
+  // Version cards (2026-10-06): laying out a node's versions is persistent. Switching A → B → A keeps them laid out.
+  // While A's grid is open A mounts no composer (it would cover the grid's lower rows, V-1054); B keeps its own prompt.
   await win.locator(`[data-node-id="${edited[0].id}"] [data-version-badge]`).click()
   const versionGrid = win.locator(`[data-version-grid="${edited[0].id}"]`)
   await expect(versionGrid).toBeVisible()
   await selectNode(win,edited[1].id)
   await expect((await checkEditor(win)).input).toHaveText(edited[1].prompt)
+  const composerProof = await proveProbe(win.locator(composerSelector), 'B shows its composer before switching back to A')
   await selectNode(win,edited[0].id)
-  await expect((await checkEditor(win)).input).toHaveText(edited[0].prompt)
+  await expectAbsent(win.locator(composerSelector), { provenBy: composerProof, message: 'A with its version grid open mounts no composer' })
   await expect(versionGrid, 'A to B to A keeps the laid-out versions (persistent)').toBeVisible()
   const resultCard = versionGrid.locator(`[data-version-identity="${history[1].id}"]`)
   const resultProof = await proveProbe(resultCard, 'controlled JPG is present before real UI deletion')
   await resultCard.hover()
-  await resultCard.locator('[data-version-action="delete"]').click()
+  await resultCard.locator('[data-toolbar-action="delete"]').click()
   expect(await win.locator('[data-confirm-dialog-surface="confirm"]').count(), 'deleting a version asks no confirmation (undo instead)').toBe(0)
   await expectAbsent(resultCard, { provenBy: resultProof, message: 'the version card delete action removes that history result' })
   await expect.poll(() => win.evaluate(id => window.__nomiCanvasStore.getState().nodes.find(node => node.id === id)?.history?.length, imageItem.id)).toBe(1)

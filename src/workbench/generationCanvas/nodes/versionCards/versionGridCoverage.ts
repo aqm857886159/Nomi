@@ -48,4 +48,38 @@ export function useLabelCoveredByVersionGrid(nodeId: string, rect: Rect, enabled
 
 export function __resetVersionGridCoverageForTests(): void {
   coverageByNode.clear()
+  openOrder.length = 0
+}
+
+const openOrder: string[] = []
+
+/**
+ * 登记「这一组铺开了」（只跟铺开 / 收起走，格子重排、节点挪动不动顺序）。返回撤销登记。
+ * 按 Esc 收最后铺开的那一组：一次 Esc 收一组，和点一次角标一样。
+ */
+export function registerOpenVersionGrid(nodeId: string): () => void {
+  const existing = openOrder.indexOf(nodeId)
+  if (existing >= 0) openOrder.splice(existing, 1)
+  openOrder.push(nodeId)
+  return () => {
+    const index = openOrder.indexOf(nodeId)
+    if (index >= 0) openOrder.splice(index, 1)
+  }
+}
+
+export function lastOpenedVersionGrid(): string | null {
+  return openOrder.length ? openOrder[openOrder.length - 1] : null
+}
+
+/**
+ * 这一下 Esc 归不归版本宫格：正在输入框 / 提示词框（可编辑区）里打字时归输入框；弹层（预览、对话框）里按的归弹层；
+ * 已经被别人处理掉（defaultPrevented）的不管。焦点在画布空白处、角标、宫格里都算。
+ */
+export function escapeBelongsToVersionGrid(event: Pick<KeyboardEvent, 'key' | 'defaultPrevented' | 'isComposing' | 'target'>): boolean {
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return false
+  const target = event.target
+  if (!target || typeof (target as Element).closest !== 'function') return true
+  const element = target as Element
+  if (element.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return false
+  return !element.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
 }

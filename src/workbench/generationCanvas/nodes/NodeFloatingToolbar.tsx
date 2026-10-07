@@ -137,14 +137,17 @@ type ToolbarButtonProps = {
   title?: string
   ariaLabel?: string
   className?: string
+  /** 走查 / 单测按它找这颗钮（`data-toolbar-action`），不靠文案。 */
+  actionId?: string
   onClick?: (event: React.MouseEvent) => void
 }
 
 /** 带文字的工具栏按钮（定妆 / 裁剪 / 下载 / 抽首帧…）。 */
-export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, className, onClick }: ToolbarButtonProps): JSX.Element {
+export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, className, actionId, onClick }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
+      data-toolbar-action={actionId}
       className={cn(toolbarButtonClass(accent), 'gap-1.5 px-3', accent && 'font-medium', className)}
       title={title}
       aria-label={ariaLabel ?? label}
@@ -159,10 +162,11 @@ export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, 
 }
 
 /** 仅图标的工具栏按钮（方形）。 */
-export function ToolbarIconButton({ icon, disabled, title, ariaLabel, onClick }: Omit<ToolbarButtonProps, 'label' | 'accent'>): JSX.Element {
+export function ToolbarIconButton({ icon, disabled, title, ariaLabel, actionId, onClick }: Omit<ToolbarButtonProps, 'label' | 'accent'>): JSX.Element {
   return (
     <button
       type="button"
+      data-toolbar-action={actionId}
       className={cn(toolbarButtonClass(false), 'w-8')}
       title={title}
       aria-label={ariaLabel}

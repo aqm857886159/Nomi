@@ -265,7 +265,7 @@ try {
   const card = (versionNo) => grid.locator(`[data-version-card="${versionNo}"]`)
   try {
     await card(1).hover()
-    const setPrimary = card(1).locator('[data-version-action="set-primary"]')
+    const setPrimary = card(1).locator('[data-toolbar-action="set-primary"]')
     await expectHittable(setPrimary, 'P4 第 1 版悬停条「设为主图」')
     await setPrimary.click()
     await expect(card(1)).toHaveAttribute('data-primary', 'true', { timeout: 3_000 })
@@ -276,7 +276,7 @@ try {
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }) }, downloadPath)
   try {
     await card(2).hover()
-    const downloadButton = card(2).locator('[data-version-action="download"]')
+    const downloadButton = card(2).locator('[data-toolbar-action="download"]')
     await expectHittable(downloadButton, 'P5 第 2 版悬停条「下载」')
     await downloadButton.click()
     await expect.poll(() => fs.existsSync(downloadPath) && fs.statSync(downloadPath).size > 0, { timeout: stationTimeout() }).toBe(true)
