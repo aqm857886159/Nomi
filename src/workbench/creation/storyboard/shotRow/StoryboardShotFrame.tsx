@@ -10,6 +10,7 @@ import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyb
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
+import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import { containedBox, densityBox, sameAspectAsBox, type FrameMediaBox } from './shotFrameGeometry'
 import { useStoryboardRowNarrow } from './storyboardRowDensity'
 
@@ -162,6 +163,7 @@ export default function StoryboardShotFrame({
   }
 
   if (exec.status === 'failed') {
+    const failure = storyboardFailureCopy(exec.errorMessage)
     return column(
       'failed',
       <div
@@ -174,9 +176,10 @@ export default function StoryboardShotFrame({
         {indexBadge(true)}
         <span
           className="relative z-[1] text-micro text-workbench-danger leading-tight line-clamp-3"
-          title={exec.errorMessage ?? undefined}
+          title={failure.hint}
+          data-storyboard-failure-reason="true"
         >
-          {t('storyboardEditor.frame.failed')}
+          {failure.reason}
         </span>
       </div>,
     )

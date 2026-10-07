@@ -15,6 +15,10 @@
  * 由来与现场证据见 `docs/fixes/2026-09-18-submission-not-dispatched.root-cause.json`。
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+import diagnosticsChannel from "node:diagnostics_channel";
+import { requestCarriesCredentials } from "./credentialRedirectPolicy";
+
 type ErrorLike = {
   code?: unknown;
   providerAnswer?: unknown;
@@ -167,4 +171,122 @@ export function providerExplicitlyRejected(error: unknown): boolean {
     if (REJECTION_STATUS_CODES.has(answer.httpStatus)) return true;
     return answer.httpStatus >= 200 && answer.httpStatus < 300 && answer.envelopeFailure;
   });
+}
+
+// ── 「这次付费提交有没有一个请求离开过本机」：按**派发**记账（2026-10-06，L-claim） ─────────────────────
+//
+// 上面三个函数只看**最后抛出来的那一个错误**。可「没发出去」最常见的几种根本不在网络层：出网策略拒、请求头不合法、
+// 参考素材读不到、密钥缺失、网络设置没就绪、合同哈希对不上……它们都在请求交给网络之前就抛了，错误里没有任何
+// 连接证据，于是一律落进「结果未知」，镜头被冻在对账里，用户换了模型点重试也被拒（V-1042 第 22 张截图）。
+//
+// 能**确定**回答的那一层是网络出口本身：主进程的 Node HTTP 只有 `appFetch` 一个口（`check:network-entry` 守着），
+// 一个请求要离开本机必须先经过它。所以由提交出口给这一次派发开一本账，`appFetch` 每交出一个请求记一笔、
+// 这个请求在连上之前就失败了（上面那条 cause 链判据）再把那一笔划掉。派发失败时：
+//   · 这本账上一笔「可能写出去了」都没有 → **确定没发出**（`never_reached_network` 或 `connect_failed`）；
+//   · 有任何一笔可能写出去了 → 不下结论，交回「结果未知」（宁可多对一次账）。
+// 只有执行器**声明**自己的每个请求都走 `appFetch`（`GenerationProvider.networkTransport === "app-fetch"`）时才信这本账；
+// 没声明的（测试替身、未来接进来的别的传输）只认 cause 链证据，与以前一样。
+//
+// 不计入「可能写出去」的只有一种：**不带任何凭据、没有 query、没有请求体的 GET / HEAD**（例如官方备用域探测
+// `GET /v1/models`）。不带用户的 key，就不可能记到用户账上。带了凭据（任何非标准头，判据在 credentialRedirectPolicy）、
+// 带 query（query 式鉴权）或带请求体的，一律算可能花钱。
+
+export type NotDispatchedReason =
+  /** 这次派发一个请求都没交给网络层：在本机就被拦下（出网策略、本机检查、密钥缺失、网络设置没就绪……）。 */
+  | "never_reached_network"
+  /** 交给网络层的请求全都在连上之前就失败了（DNS / 建连 / TLS 握手前）。 */
+  | "connect_failed";
+
+const ledgerStorage = new AsyncLocalStorage<HandoffLedger>();
+
+type HandoffLedger = {
+  /** 交给网络层、可能花钱的请求，还没被证明「没写出去」的那几笔。 */
+  readonly open: Set<symbol>;
+  /** 交给网络层、可能花钱的请求总数（含后来被证明没写出去的）。 */
+  spendCapableHandoffs: number;
+  /**
+   * 这次派发期间起的子进程（即梦 / Antigravity CLI……它们自己出网，不经 appFetch）。真的跑起来了（有 pid）就一律算
+   * 「可能写出去了」——我们看不见子进程里发生了什么；只有连进程都没起来（spawn 失败，没有 pid）才不算。
+   */
+  readonly processes: Set<{ readonly pid?: number }>;
+  readonly parent: HandoffLedger | undefined;
+};
+
+/**
+ * 不经 appFetch 的出网口里，**子进程**是付费派发里真会走到的那一种（runTask 的 process 分支）。它不靠每个 spawn 处记得记账：
+ * Node 每建一个 ChildProcess 都会在 `child_process` 诊断通道上发一条（同步、在调用方的异步上下文里），这里统一接住。
+ * 同步的 spawnSync / execSync 不走这条通道——不经 appFetch 的其余出网口（含它们）由结构测试 `electron/offLedgerEgress.structure.test.ts`
+ * 逐个登记：要么记账，要么说明为什么不在付费派发里；新加一个没登记就红。
+ */
+diagnosticsChannel.subscribe("child_process", (message) => {
+  const child = (message as { process?: { readonly pid?: number } } | null)?.process;
+  if (!child) return;
+  for (let ledger = ledgerStorage.getStore(); ledger; ledger = ledger.parent) ledger.processes.add(child);
+});
+
+
+function ledgerChain(): HandoffLedger[] {
+  const chain: HandoffLedger[] = [];
+  for (let ledger = ledgerStorage.getStore(); ledger; ledger = ledger.parent) chain.push(ledger);
+  return chain;
+}
+
+type FetchInput = Parameters<typeof globalThis.fetch>[0];
+
+/** 不带凭据、没有 query、没有请求体的 GET / HEAD 不可能记到用户账上；其余一律当可能花钱。 */
+function mayChargeAccount(input: FetchInput, init: RequestInit | undefined): boolean {
+  const request = typeof Request !== "undefined" && input instanceof Request ? input : undefined;
+  const method = String(init?.method ?? request?.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") return true;
+  if (init?.body != null || requestCarriesCredentials(input, init)) return true;
+  try {
+    return new URL(request ? request.url : String(input)).search !== "";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * 网络出口（`appFetch`）把一个请求交给原生 fetch 的那一下，经这里：记进当前付费派发的账（不在任何派发里就不记），
+ * 原生 fetch 在连上之前就失败了再划掉。不包错误、不重试，原样返回 / 原样抛出。
+ */
+export async function handOffToNetwork<T>(input: FetchInput, init: RequestInit | undefined, send: () => Promise<T>): Promise<T> {
+  const chain = ledgerChain();
+  const token = chain.length > 0 && mayChargeAccount(input, init) ? Symbol("handoff") : undefined;
+  if (token) {
+    for (const ledger of chain) {
+      ledger.open.add(token);
+      ledger.spendCapableHandoffs += 1;
+    }
+  }
+  try {
+    return await send();
+  } catch (error) {
+    if (token && outboundRequestWasNeverWritten(error)) for (const ledger of chain) ledger.open.delete(token);
+    throw error;
+  }
+}
+
+export type ObservedSubmission<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: unknown; notDispatched: NotDispatchedReason | null };
+
+/**
+ * 跑一次付费提交（`submit` 里可以有任意多层：画布那台的 runTask、目录执行器、自定义调用脚本……），
+ * 失败时回答「能不能证明这一次一个字节都没离开本机」。证明不了 → `notDispatched: null`（结果未知）。
+ *
+ * `transport` 是执行器的声明（见上）；只有 `"app-fetch"` 才读这本账，否则退回 cause 链判据。
+ */
+export async function observeSubmissionHandoffs<T>(transport: "app-fetch" | undefined, submit: () => Promise<T>): Promise<ObservedSubmission<T>> {
+  const ledger: HandoffLedger = { open: new Set(), spendCapableHandoffs: 0, processes: new Set(), parent: ledgerStorage.getStore() };
+  try {
+    return { ok: true, value: await ledgerStorage.run(ledger, submit) };
+  } catch (error) {
+    if (transport !== "app-fetch") {
+      return { ok: false, error, notDispatched: outboundRequestWasNeverWritten(error) ? "connect_failed" : null };
+    }
+    const processRan = [...ledger.processes].some((child) => child.pid !== undefined);
+    if (ledger.open.size > 0 || processRan) return { ok: false, error, notDispatched: null };
+    return { ok: false, error, notDispatched: ledger.spendCapableHandoffs === 0 ? "never_reached_network" : "connect_failed" };
+  }
 }
