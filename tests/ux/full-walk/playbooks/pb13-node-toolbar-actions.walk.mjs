@@ -110,7 +110,7 @@ async function readPage() {
   const canvas = project?.payload?.generationCanvas ?? project?.generationCanvas ?? {}
   const nodes = (canvas.nodes ?? []).map((node) => ({
     id: node.id, kind: node.kind, status: node.status, hasResult: Boolean(node.result?.url), resultUrl: node.result?.url ?? null,
-    versions: (node.history ?? []).length, prompt: String(node.prompt ?? ''), width: node.meta?.imageWidth ?? null, height: node.meta?.imageHeight ?? null,
+    versions: (node.history ?? []).length, prompt: String(node.prompt ?? ''), model: node.meta?.modelKey ?? null, vendor: node.meta?.modelVendor ?? null, width: node.meta?.imageWidth ?? null, height: node.meta?.imageHeight ?? null,
   }))
   const dom = await win().evaluate(() => {
     const visible = (element) => {
@@ -122,6 +122,7 @@ async function readPage() {
     return {
       dialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map((element) => element.getAttribute('aria-label') || element.getAttribute('data-testid') || 'dialog'),
       whiteboard: visible(document.querySelector('[data-nomi-whiteboard-modal="true"]')),
+      modelSettingsPages: [...document.querySelectorAll('[data-model-settings-page]')].filter(visible).map((element) => element.getAttribute('data-model-settings-page')),
       menus: [...document.querySelectorAll('[role="menu"]')].filter(visible).length,
       feedback: [...document.querySelectorAll('[role="status"], [data-node-feedback], [data-canvas-toast]')].filter(visible).map((element) => element.textContent?.trim()).filter(Boolean).slice(0, 4),
     }
@@ -196,20 +197,37 @@ try {
   await monitor.checkClickTarget(targetOf('tb-refine-upscale'), {
     observe: readPage,
     act: async () => {
+      const before = await readPage()
       await openMenu(text('generationCommon.quickActions.refine'))
       const item = win().locator('[data-menu-item="quick-upscale"]').first()
       upscaleRow = { disabled: (await item.getAttribute('data-disabled')) !== null, text: (await item.innerText()).replace(/\s+/g, ' ').trim() }
       await monitor.screenshot('click-tb-refine-upscale-menu')
       if (!upscaleRow.disabled) await item.click()
       else await win().keyboard.press('Escape')
-      await win().waitForTimeout(400)
+      await expect.poll(async () => { const now = await readPage(); return now.modelSettingsPages.includes('platformConnect') || now.nodes.length > before.nodes.length }, { timeout: stationTimeout() }).toBe(true).catch(() => undefined)
+      await monitor.screenshot('click-tb-refine-upscale-settings')
     },
     judge: (before, after) => {
-      const navigated = after.dialogs.length > before.dialogs.length
-      const ok = Boolean(upscaleRow) && !upscaleRow.disabled && navigated
-      return { ok, actual: !upscaleRow ? '菜单里没有这一项' : `这一项${upscaleRow.disabled ? '灰着点不了' : '可以点'}，写着「${upscaleRow.text}」${upscaleRow.disabled ? '；没有去添加的路' : navigated ? '；点了打开了添加的地方' : '；点了没有去添加的地方'}` }
+      // 两种处境都合理，看目录里此刻有没有能放大的模型（菜单第二行有没有那句引导就是答案）：
+      //   · 有（例：即梦超清——本地免钥匙的家，装机就算「可用」）：多一个连着原图、用放大模型的空闲节点，供应商零请求；
+      //   · 没有：第二行说缺什么、要接谁，点了落到 kie 的接入页，不建节点、不花钱。
+      const guided = upscaleRow ? upscaleRow.text.includes(text('generationCommon.quickActions.guides.upscaleAdd')) : false
+      const landed = after.modelSettingsPages.includes('platformConnect')
+      const added = newNodes(before, after)
+      const charged = after.providerImages > before.providerImages
+      const prepared = added.length === 1 && !added[0].hasResult && after.edges.some((edge) => edge.source === SRC && edge.target === added[0].id)
+      const ok = Boolean(upscaleRow) && !upscaleRow.disabled && !charged && (guided ? landed && added.length === 0 : prepared)
+      const what = guided
+        ? `第二行写着引导；点了${landed ? '打开了设置里 kie 的接入页' : `没有落到接入页（看到的是 ${after.modelSettingsPages.join(' / ') || '无'}）`}${added.length ? '；却建了节点' : ''}`
+        : `目录里有放大模型，点了${prepared ? `多了一个连着原图的空闲放大节点（${added.map((node) => `${node.vendor}/${node.model}`).join('、')}）` : `没有建出放大节点（多了 ${added.length} 个）`}`
+      return { ok, actual: !upscaleRow ? '菜单里没有这一项' : `这一项${upscaleRow.disabled ? '灰着点不了' : '可以点'}，写着「${upscaleRow.text}」；${what}${charged ? '；供应商收到了请求' : ''}` }
     },
   })
+  await monitor.step('关上设置（复原）', async () => {
+    await win().keyboard.press('Escape')
+    await win().keyboard.press('Escape')
+    await expect.poll(async () => (await readPage()).modelSettingsPages.length, { timeout: stationTimeout() }).toBe(0).catch(() => undefined)
+  }, { surfaces: ['*'] })
   await reselect()
 
   await monitor.checkClickTarget(targetOf('tb-refine-rotate'), {

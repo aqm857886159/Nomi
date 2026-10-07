@@ -30,7 +30,7 @@ export const QUICK_ACTION_TOOLBAR_STATES: readonly LabState[] = [
   },
   {
     id: 'qa-05-refine-open',
-    name: '改图展开 · 生成新图（高清灰掉说原因 / 扩图）+ 本机处理不花钱（裁剪 / 旋转翻转）',
+    name: '改图展开 · 生成新图（高清：没有放大模型时第二行说缺什么、点了去接入 kie / 扩图）+ 本机处理（裁剪 / 旋转翻转）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:297',
     coverage: 'shell',
@@ -129,6 +129,26 @@ export const QUICK_ACTION_TOOLBAR_STATES: readonly LabState[] = [
     coverage: 'shell',
     capture: 'viewport',
     render: () => <QuickToolbarStage open="refine" edge="top" stageWidth={420} zoom={0.4} locale="en" />,
+  },
+  // ── C 设计样张（2026-10-06 用户第 3 条「高清没有模型怎么办」）：同一个「改图 ▾」，高清的三种处境。
+  {
+    id: 'qa-31-upscale-guide-en-dark',
+    name: 'C · 改图展开 · 没有放大模型（英文暗色）',
+    source: 'docs/plan/2026-10-06-upscale-capability-design-card.md',
+    mirrors: 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:297',
+    coverage: 'shell',
+    scheme: 'dark',
+    capture: 'viewport',
+    render: () => <QuickToolbarStage open="refine" upscale="guide" locale="en" />,
+  },
+  {
+    id: 'qa-32-upscale-ready',
+    name: 'C · 改图展开 · 目录里有放大模型（例：连了带 Topaz 放大的中转）：高清照常可点，点了建一个放大节点、不开跑',
+    source: 'docs/plan/2026-10-06-upscale-capability-design-card.md',
+    mirrors: 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:297',
+    coverage: 'shell',
+    capture: 'viewport',
+    render: () => <QuickToolbarStage open="refine" upscale="ready" />,
   },
   {
     id: 'qa-10-dark-more-effects',
