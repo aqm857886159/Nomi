@@ -19,6 +19,9 @@ describe("Agent lane production cutover structure", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
 
     expect(main).not.toContain("registerConversationsIpc");
+    // 死代码已删除:这两个文件不许复活(对话由 pi 的 lane session 持久化)
+    expect(exists("electron/conversations/conversationsStore.ts")).toBe(false);
+    expect(exists("electron/conversations/conversationsIpc.ts")).toBe(false);
     expect(preload).not.toContain("nomi:conversations:");
     expect(bridge).not.toContain("conversations?:");
     expect(app).not.toContain("conversationPersistence");
