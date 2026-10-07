@@ -7,6 +7,7 @@ import {
   checkDesignCard,
   checkEscapeContract,
   settledContracts,
+  removedLedgerIds,
   checkIndependentAcceptance,
   checkProtectedScope,
   classifyChange,
@@ -80,6 +81,18 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   const noLink = FULL_CARD.replace('https://example.com/report', '见群里')
   assert.match(checkIndependentAcceptance(noLink).lines.join('\n'), /没有带报告链接/)
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
+})
+
+test('账本删除判定对 merge-base 比：main 后来新加的条目不算本 PR 删的（#1055 / #1065）', () => {
+  const fork = { entries: [{ id: 'A' }, { id: 'B' }] }
+  const head = { entries: [{ id: 'A' }, { id: 'B' }, { id: 'MINE' }] }
+  const mainTip = { entries: [{ id: 'A' }, { id: 'B' }, { id: 'OTHER-PR' }] }
+  assert.deepEqual(removedLedgerIds(fork, head), [])
+  // 旧判据（对 main 末端比）会把 OTHER-PR 误判为被删：
+  assert.deepEqual(removedLedgerIds(mainTip, head), ['OTHER-PR'])
+  // 真删了自己起点里的条目照样红
+  assert.deepEqual(removedLedgerIds(fork, { entries: [{ id: 'A' }, { id: 'MINE' }] }), ['B'])
+  assert.deepEqual(removedLedgerIds(null, head), [])
 })
 
 test('逃逸合同：修订已结账的合同不要求再转换；新合同 / 未结账的照旧红（#1061）', () => {
