@@ -14,7 +14,8 @@ import path from 'node:path'
 import { validateToolArguments } from '@earendil-works/pi-ai'
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 
-const here = path.dirname(new URL(import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..', '..')
 // 题库可换（`NOMI_R30_BANK`），结果写回题库自己那个目录。**一套 harness 两个题库**，不是两套 harness：
 // 动词面的 42 句和技能面的 22 句量的是同一件事（选对工具 / 入参写对 / 回合成功），

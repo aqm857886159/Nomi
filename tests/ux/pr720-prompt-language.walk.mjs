@@ -31,7 +31,8 @@ import {
   MODEL_POPOVER, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 
-const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
 
