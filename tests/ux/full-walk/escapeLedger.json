@@ -16,32 +16,6 @@
   },
   "entries": [
     {
-      "id": "FB-20261007-run-pause-cancel-in-flight",
-      "since": "2026-10-07",
-      "source": "协调会话旧记录「多镜批次急停后 Run 永远停在暂停中；Agent 里点了暂停，上面的消息还一直在转；续拍失败只说操作没成功」",
-      "category": "claims-and-outcomes",
-      "problem": "旧记录那两件在最新 main 已不复现（#934）；复验时同一族还在的两处：暂停中任务卡只给「取消制作」，点了只回一句英文报错；取消后的慢镜头、已暂停里点「重新取回」的那一镜，钱花了、片出了，没人去取，节点一直转圈——和取消确认框说的「已提交的仍会跑完、产物保留」不符",
-      "existingInvariants": [],
-      "ironLaws": [
-        "⑫"
-      ],
-      "useCases": [],
-      "fullWalkJourneys": [],
-      "status": "reviewed",
-      "manualReview": "reviewed",
-      "evidence": [
-        "electron/productionRun/productionRunPauseSettles.e2e.test.ts：驱动（多镜调度器 / 对账驱动）× 收尾方式（成功 / 失败 / 取消 / 超时 / 重启）全部落到 paused（main 上就是绿的，旧记录不复现）；暂停中取消、运行中取消后慢镜头、已暂停重新取回三格在 main 上红",
-        "变异：去掉 pausing → cancelled、恢复三处状态清单、写入口不收尾，各自变红",
-        "根因合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json；真付费复验待协调会话"
-      ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json",
-      "classCheck": {
-        "kind": "matrix",
-        "file": "electron/productionRun/productionRunLifecycle.test.ts"
-      }
-    },
-    {
       "id": "FB-NF-0928-0004-borrowed-upload",
       "since": "2026-10-06",
       "source": "应用内反馈 NF-0928-0004（0.22.3 Windows）",
@@ -364,6 +338,32 @@
       "manualReview": "pending",
       "evidence": ["src/workbench/creation/storyboard/shotRow/shotRowModel.ts 的 resolveShotArchetypeMode 不读变体；画布节点用 archetypeVariantChoices"],
       "completionCommits": []
+    },
+    {
+      "id": "FB-20261007-run-pause-cancel-in-flight",
+      "since": "2026-10-07",
+      "source": "协调会话旧记录「多镜批次急停后 Run 永远停在暂停中；Agent 里点了暂停，上面的消息还一直在转；续拍失败只说操作没成功」",
+      "category": "claims-and-outcomes",
+      "problem": "旧记录那两件在最新 main 已不复现（#934）；复验时同一族还在的两处：暂停中任务卡只给「取消制作」，点了只回一句英文报错；取消后的慢镜头、已暂停里点「重新取回」的那一镜，钱花了、片出了，没人去取，节点一直转圈——和取消确认框说的「已提交的仍会跑完、产物保留」不符",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/productionRun/productionRunPauseSettles.e2e.test.ts：驱动（多镜调度器 / 对账驱动）× 收尾方式（成功 / 失败 / 取消 / 超时 / 重启）全部落到 paused（main 上就是绿的，旧记录不复现）；暂停中取消、运行中取消后慢镜头、已暂停重新取回三格在 main 上红",
+        "变异：去掉 pausing → cancelled、恢复三处状态清单、写入口不收尾，各自变红",
+        "根因合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json；真付费复验待协调会话"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/productionRun/productionRunLifecycle.test.ts"
+      }
     },
     {
       "id": "LAW11-SB-DURATION",
@@ -985,6 +985,32 @@
       }
     },
     {
+      "id": "FB-20261007-deleted-node-drops-arriving-outcome",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：生成中删节点再撤销，节点带着生成中回来、结果永远不到",
+      "category": "claims-and-outcomes",
+      "problem": "生成中删掉节点（删 / 删选中 / 剪切 / 外部写入删），上游任务照跑、钱已花，结果到达时节点不在被直接丢掉；撤销删除后节点一直显示生成中，结果 / 文本定稿 / 失败都不会再来",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts：4 扇删除门 × 3 种到达 + 撤销—重做—撤销 3 条，15 条改前全红；先撤销后到达对照 3 条本来就绿",
+        "变异：投递处不暂存 15 红；撤销日志不认暂存 15 红；暂存不认失败状态 5 红",
+        "设计卡 docs/plan/2026-10-07-deleted-node-keeps-arriving-outcome.md（选「结果落回恢复的节点」，不选「标成已中断让用户重试」：重试要再花钱）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+      }
+    },
+    {
       "id": "LAW11-ANCHOR-CARD",
       "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
       "category": "parameter-contract",
@@ -1131,6 +1157,37 @@
       "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
       "fixedInPr": 1053,
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "PERF-20261006-CANVAS-HF",
+      "since": "2026-10-06",
+      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
+      "category": "performance-coverage",
+      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [
+        "S8"
+      ],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+        "tests/ux/canvas-performance-benchmark.e2e.mjs",
+        "tests/ux/grouping-optimization.walk.mjs",
+        "tests/ux/grouping-real-media.walk.mjs"
+      ],
+      "completionCommits": [
+        "1da15ba6f",
+        "5a7336cc4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+      "fixedInPr": 1048,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/ux/selection-drag-lifecycle.test.mjs"
+      }
     }
   ]
 }

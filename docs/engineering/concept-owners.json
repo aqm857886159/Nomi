@@ -3,37 +3,6 @@
   "schema_version": 2,
   "concepts": [
     {
-      "name": "制作 Run 现在要不要有人驱动（停稳之后已付费的在飞活仍要盯到收尾）",
-      "subject": "production.run-driver-wanted",
-      "lifecycle": "execution",
-      "authority_kind": "decision",
-      "trust_domain": "main",
-      "fact_kind": "rule",
-      "migration_status": "converged",
-      "owner": {
-        "path": "electron/productionRun/productionRunLifecycle.ts",
-        "symbol": "runWantsDriver"
-      },
-      "write_api": [
-        {
-          "path": "electron/productionRun/productionRunLifecycle.ts",
-          "symbol": "runWantsDriver"
-        },
-        {
-          "path": "electron/productionRun/productionRunLifecycle.ts",
-          "symbol": "hasWorkToWatch"
-        }
-      ],
-      "forbidden_derivations": [],
-      "parity_test": "electron/productionRun/productionRunLifecycle.test.ts",
-      "allowed_consumers": [
-        "electron/capabilityCore/appIntegrationRunObservation.ts",
-        "electron/capabilityCore/appIntegration.ts"
-      ],
-      "since": "2026-10-07",
-      "notes": "合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json。停只是「不再派新的」；已经交给供应商、拿着任务号的那几件（isProductionJobInFlight）不管 Run 是已暂停 / 已取消，都要有人盯到收尾、产物落进项目。以前多镜重踢（kickSchedulerForRun）、单镜再问一次（singleShotStillInFlight）、重开项目各抄一份 Run 状态清单，#934 只给「暂停中」开了口子，于是取消后的慢镜头、已暂停里点「重新取回」的那一镜没人去取。现在三处只问 runWantsDriver / hasWorkToWatch；派不派新活仍由调度派生按 Run 状态判（isStoppedRunStatus），不在这里。同批：状态机补上 pausing → cancelled（任务卡暂停中只给「取消制作」），卡上每个控制都要是状态机认的一步（src/workbench/production/productionRunView.test.ts 穷举）。"
-    },
-    {
       "name": "本机参考图这次走哪条通道（端点自己的收法优先；借别家时点名）",
       "subject": "asset.reference-ingestion-route",
       "lifecycle": "execution",
@@ -1657,6 +1626,37 @@
       "notes": "PR #904（合同 docs/fixes/2026-09-27-agent-panel-long-conversation-freeze.root-cause.json）：21 回合长对话把渲染进程冻住——每行每次渲染都新建一份 labels、调 64 次 t()。现在按 i18n.resolvedLanguage 缓存，同一语言返回同一个引用，切语言才重建；调用方照旧 useV4Labels()，不许再自己拼一份 labels 对象。"
     },
     {
+      "name": "制作 Run 现在要不要有人驱动（停稳之后已付费的在飞活仍要盯到收尾）",
+      "subject": "production.run-driver-wanted",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/productionRun/productionRunLifecycle.ts",
+        "symbol": "runWantsDriver"
+      },
+      "write_api": [
+        {
+          "path": "electron/productionRun/productionRunLifecycle.ts",
+          "symbol": "runWantsDriver"
+        },
+        {
+          "path": "electron/productionRun/productionRunLifecycle.ts",
+          "symbol": "hasWorkToWatch"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "electron/productionRun/productionRunLifecycle.test.ts",
+      "allowed_consumers": [
+        "electron/capabilityCore/appIntegrationRunObservation.ts",
+        "electron/capabilityCore/appIntegration.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json。停只是「不再派新的」；已经交给供应商、拿着任务号的那几件（isProductionJobInFlight）不管 Run 是已暂停 / 已取消，都要有人盯到收尾、产物落进项目。以前多镜重踢（kickSchedulerForRun）、单镜再问一次（singleShotStillInFlight）、重开项目各抄一份 Run 状态清单，#934 只给「暂停中」开了口子，于是取消后的慢镜头、已暂停里点「重新取回」的那一镜没人去取。现在三处只问 runWantsDriver / hasWorkToWatch；派不派新活仍由调度派生按 Run 状态判（isStoppedRunStatus），不在这里。同批：状态机补上 pausing → cancelled（任务卡暂停中只给「取消制作」），卡上每个控制都要是状态机认的一步（src/workbench/production/productionRunView.test.ts 穷举）。"
+    },
+    {
       "name": "Agent 面板流条目的身份（一次流式更新只重画变了的行）",
       "subject": "agent-panel.flow-render-identity",
       "lifecycle": "projection",
@@ -1725,7 +1725,7 @@
         "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
         "src/workbench/generationCanvas/nodes/buildContactSheetNode.ts",
         "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
-        "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+        "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
         "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
         "src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts",
         "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
@@ -4576,6 +4576,36 @@
       ],
       "since": "2026-10-04",
       "notes": "A期新增资产与许可证来源的唯一目录；本轮采用 UAL 原生 CC0 人偶与动作，处理与校验边界也登记在同一 owner，运行时接线留给切换 PR。"
+    },
+    {
+      "name": "生成结局投递到运行所属项目（节点不在时暂存）",
+      "subject": "canvas.run-outcome-delivery",
+      "lifecycle": "execution",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+          "symbol": "deliverRunOutcome"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts",
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+        "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+        "src/workbench/generationCanvas/runner/textActions.ts",
+        "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 记进撤销日志暂存，撤销把节点带回来时由 reapplyLandedOutcomes 落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json。"
     },
     {
       "name": "导演计划 v2 schema",
