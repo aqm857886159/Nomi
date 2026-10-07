@@ -91,7 +91,7 @@ export function VendorBaseUrlField({
   if (editing) {
     return (
       <div className="flex flex-col gap-1.5">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input
             ref={inputRef}
             data-model-connection-field="baseUrl"
@@ -110,7 +110,7 @@ export function VendorBaseUrlField({
             disabled={locked}
             autoFocus
             className={cn(
-              'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+              'min-w-[10rem] flex-[1_1_10rem] h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
               'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
             )}
           />

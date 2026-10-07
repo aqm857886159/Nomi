@@ -298,11 +298,11 @@ export function V4Intervention({
    * 这不是第二个 pending 布尔：它读的是已有的 `kind`，没有新字段、没有新产地。
    */
   const shellWaiting = waiting && data.kind !== 'missing-card'
-  // 计划槽底栏：主动作 + 「改一下」…… 「收起 ▴/展开 ▾」，**以及和其余档一样的那颗 ×**。
+  // 计划槽底栏：主动作 + 「改一下」…… 「收起 ▴/展开 ▾」，**以及和其余档一样的文字「取消」**。
   //
   // 原来这里没有 ×，理由是「整张不要就是不勾任何一项」。2026-09-11 用户实测把这条否了：
   // 逐条取消 8 个勾再确认，是让人用 8 下点击说一句「不用了」，而且当时那几个勾还点不动。
-  // × 是全站统一的否定动作（一 icon 一含义），计划卡不该是唯一的例外。
+  // 否定动作是全站统一的（2026-10-07 起是决定栏里的文字「取消」，不再是右上角 ×），计划卡不该是唯一的例外。
   const isPlan = data.kind === 'plan'
   const pager = data.pager
   /**
@@ -383,7 +383,7 @@ export function V4Intervention({
             不截断、不挤压、主按钮不被挤到下一行（2026-10-01）。中文在默认面板宽下一行放得下。 */}
         <V4Row as="div" className="flex-wrap text-caption" data-v4-block="actions">
           {data.progress ? (
-            // 动作已经交出去、正在一张一张走（付费卡「生成剩下 N 张」）：不摆任何按钮，只说怎么停——右上那颗 × 就是停下。
+            // 动作已经交出去、正在一张一张走（付费卡「生成剩下 N 张」）：不摆主动作，只说怎么停——右边那颗文字「取消」就是停下。
             <>
               <span className="text-caption text-nomi-ink-60" data-v4-block="slot-progress">{data.progress.hint}</span>
               <span className="flex-1" />
@@ -432,7 +432,7 @@ export function V4Intervention({
                 </button>
               ) : null}
               {/* ── 右：**这一张的动作**，一组、靠右。安静次按钮在左、深色主按钮在右（参照物的排法）。
-                  否定动作那颗 × 已经搬到卡右上角，由外壳统一摆，这里不再有它。 */}
+                  否定动作是这一组最左的文字「取消」（2026-10-07 起，右上角没有 ×）。 */}
               <span className="flex grow items-center justify-end gap-1.5" data-v4-block="card-actions">
                 {/* 决定栏的取消（文字）：右组最左、紧挨「去掉这段」和主动作（设计系统 §1.9.1）。
                     它就是原来右上角 × 干的那件事（拒绝 / 停下），两个入口做一件事只留这一个。 */}

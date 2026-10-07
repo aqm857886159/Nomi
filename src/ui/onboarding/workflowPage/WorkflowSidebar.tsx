@@ -155,7 +155,6 @@ function BackendItem({
         />
         <DecisionBar
           inline
-          className="w-full justify-end"
           cancelLabel={t('common.cancel')}
           onCancel={() => { setDraft(backend.baseUrl); setEditing(false) }}
           primaryLabel={t('comfyuiWorkflowPage.backends.save')}

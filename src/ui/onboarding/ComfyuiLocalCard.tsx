@@ -214,7 +214,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
       {editing ? (
         <div
           data-nomi-escape-owner="true"
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
             event.preventDefault()
@@ -226,7 +226,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
             value={addrDraft} onChange={(e) => setAddrDraft(e.target.value)} spellCheck={false}
             aria-label={t('onboardingProviders.comfyLocal.addressLabelCloud')}
             autoFocus
-            className="flex-1 h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
+            className="min-w-[10rem] flex-[1_1_10rem] h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
           />
           <DecisionBar
             inline

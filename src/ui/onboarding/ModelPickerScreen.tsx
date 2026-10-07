@@ -27,6 +27,7 @@ import {
   IconCloudDownload,
 } from '@tabler/icons-react'
 import {
+  DecisionBar,
   DesignButton,
   DesignCheckbox,
   DesignSearchInput,
@@ -419,20 +420,16 @@ export function ModelPickerScreen({
       </Text>
 
       {/* 底：取消 + 保存 N */}
-      <Group justify="flex-end" gap={8} pt={2}>
-        <DesignButton variant="subtle" onClick={onBack} disabled={confirming} className="min-h-11 sm:min-h-8">
-          {t('common.cancel')}
-        </DesignButton>
-        <DesignButton
-          variant="filled"
-          onClick={confirm}
-          disabled={controlsBlocked || count === 0}
-          loading={confirming}
-          className="min-h-11 sm:min-h-8"
-        >
-          {t('onboardingProviders.modelControls.addModels', { count })}
-        </DesignButton>
-      </Group>
+      <DecisionBar
+        className="pt-0.5"
+        cancelLabel={t('common.cancel')}
+        onCancel={onBack}
+        cancelDisabled={confirming}
+        primaryLabel={t('onboardingProviders.modelControls.addModels', { count })}
+        onPrimary={confirm}
+        primaryDisabled={controlsBlocked || count === 0}
+        primaryLoading={confirming}
+      />
     </Stack>
   )
 }
