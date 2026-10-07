@@ -497,13 +497,12 @@ export const zhGenerationCommon = {
     },
     blocked: {
       noImageModel: '没有能改图的图片模型，先去设置里添加',
-      noUpscaleModel: '还没有能放大的模型',
+      noUpscaleModel: '还没有可用的放大模型',
       missingEffect: '效果库里缺这一条',
       connectFailed: '没能把新节点连到这张图上，已撤回',
     },
     // 能力此刻没有、但有一步可走的路（2026-10-06）：项不灰，第二行说缺什么、点它去补。
     guides: {
-      upscaleAdd: '还没有放大模型 · 点这里接入 kie（Topaz / Recraft 放大）',
       imageEditAdd: '还没有能改图的图片模型 · 点这里去添加',
     },
     splitInto: '切成 {{count}} 张',
@@ -2114,12 +2113,11 @@ export const enGenerationCommon = {
     },
     blocked: {
       noImageModel: 'No image model can edit images yet. Add one in Settings.',
-      noUpscaleModel: 'No upscaling model yet',
+      noUpscaleModel: 'No upscale model available yet',
       missingEffect: 'This effect is missing from the library',
       connectFailed: 'Could not connect the new node to this image; it was rolled back.',
     },
     guides: {
-      upscaleAdd: 'No upscaling model yet · click to connect kie (Topaz / Recraft upscale)',
       imageEditAdd: 'No image model that can edit images yet · click to add one',
     },
     splitInto: 'Split ×{{count}}',
