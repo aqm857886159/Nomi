@@ -107,7 +107,7 @@ export const NODE_TOOLBAR_CLICK_TARGETS = Object.freeze([
   TB_TARGET({
     id: 'tb-refine-upscale', target: '改图 ▾ → 高清',
     userExpectation: '有能放大的模型：多一个连着这张图的空闲放大节点，不花钱；没有：告诉我缺一个放大模型、要接谁，并给一条一步可走的路（点了去接入），不是只灰掉，也不偷偷建节点或花钱',
-    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（第二行引导、点了落到 kie 接入页）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
+    actualObservation: '2026-10-06 pb13 真实走查（zh 亮 / en 暗）：这台机器上目录里有即梦超清（本地免钥匙的家，装机就算可用），点了多一个连着原图的空闲放大节点（dreamina/dreamina-upscale），供应商零请求 —— 一致。没有放大模型那一态（2026-10-07 用户拍板置灰、悬停说原因、不跳转）由 capabilityGuide.test.ts 与实验室 qa-31 证明，真 App 上 unverified（夹具关不掉即梦）',
   }),
   TB_TARGET({
     id: 'tb-refine-rotate', target: '改图 ▾ → 向右旋转 90°',

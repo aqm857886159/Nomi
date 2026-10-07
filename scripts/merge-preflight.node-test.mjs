@@ -6,6 +6,7 @@ import { fixedTransitions } from './escape-ledger-lib.mjs'
 import {
   checkDesignCard,
   checkEscapeContract,
+  settledContracts,
   checkIndependentAcceptance,
   checkProtectedScope,
   classifyChange,
@@ -79,6 +80,34 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   const noLink = FULL_CARD.replace('https://example.com/report', '见群里')
   assert.match(checkIndependentAcceptance(noLink).lines.join('\n'), /没有带报告链接/)
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
+})
+
+test('逃逸合同：修订已结账的合同不要求再转换；新合同 / 未结账的照旧红（#1061）', () => {
+  const file = 'docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json'
+  const baseLedger = { entries: [
+    { id: 'FB-a', status: 'fixed', rootCauseContract: file },
+    { id: 'FB-b', status: 'reviewed', rootCauseContract: 'docs/fixes/2026-10-06-other.root-cause.json' },
+  ] }
+  const settled = settledContracts(baseLedger)
+  assert.deepEqual(settled, [file])
+  // 用户后来改了拍板，合同不变量跟着改：条目在 base 已 fixed → 过
+  const amend = checkEscapeContract('高清置灰', [{ file, added: false, detected_by: 'user' }], [], [], settled)
+  assert.equal(amend.ok, true)
+  assert.match(amend.lines.join(), /修订已结账/)
+  // 同名路径但是新增的合同：仍要进账本
+  assert.equal(checkEscapeContract('x', [{ file, added: true, detected_by: 'user' }], [], [], settled).ok, false)
+  // 修订的合同，但对应条目还没结账：仍要转 fixed
+  const other = { file: 'docs/fixes/2026-10-06-other.root-cause.json', added: false, detected_by: 'user' }
+  const unsettled = checkEscapeContract('x', [other], [], [], settled)
+  assert.equal(unsettled.ok, false)
+  assert.match(unsettled.lines.join(), /other.root-cause/)
+  // 一个已结账 + 一个没结账一起改：红，只点名没结账的那个
+  const mixed = checkEscapeContract('x', [{ file, added: false, detected_by: 'user' }, other], [], [], settled)
+  assert.equal(mixed.ok, false)
+  assert.doesNotMatch(mixed.lines.join(), /capability-unavailable/)
+  // 不传 settled（旧调用）：行为不变
+  assert.equal(checkEscapeContract('x', [{ file, added: false, detected_by: 'user' }], []).ok, false)
+  assert.deepEqual(settledContracts(null), [])
 })
 
 test('逃逸合同：判据看账本状态转换，不看正文用词', () => {

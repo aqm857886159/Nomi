@@ -208,17 +208,17 @@ try {
       await monitor.screenshot('click-tb-refine-upscale-settings')
     },
     judge: (before, after) => {
-      // 两种处境都合理，看目录里此刻有没有能放大的模型（菜单第二行有没有那句引导就是答案）：
+      // 两种处境都合理，看目录里此刻有没有能放大的模型（这一项灰没灰就是答案）：
       //   · 有（例：即梦超清——本地免钥匙的家，装机就算「可用」）：多一个连着原图、用放大模型的空闲节点，供应商零请求；
-      //   · 没有：第二行说缺什么、要接谁，点了落到 kie 的接入页，不建节点、不花钱。
-      const guided = upscaleRow ? upscaleRow.text.includes(text('generationCommon.quickActions.guides.upscaleAdd')) : false
+      //   · 没有（用户 2026-10-07 拍板置灰）：这一项灰着、第二行写原因，点不了，不建节点、不开设置、不花钱。
+      const greyed = upscaleRow ? upscaleRow.disabled && upscaleRow.text.includes(text('generationCommon.quickActions.blocked.noUpscaleModel')) : false
       const landed = after.modelSettingsPages.includes('platformConnect')
       const added = newNodes(before, after)
       const charged = after.providerImages > before.providerImages
       const prepared = added.length === 1 && !added[0].hasResult && after.edges.some((edge) => edge.source === SRC && edge.target === added[0].id)
-      const ok = Boolean(upscaleRow) && !upscaleRow.disabled && !charged && (guided ? landed && added.length === 0 : prepared)
-      const what = guided
-        ? `第二行写着引导；点了${landed ? '打开了设置里 kie 的接入页' : `没有落到接入页（看到的是 ${after.modelSettingsPages.join(' / ') || '无'}）`}${added.length ? '；却建了节点' : ''}`
+      const ok = Boolean(upscaleRow) && !charged && (greyed ? !landed && added.length === 0 : !upscaleRow.disabled && prepared)
+      const what = greyed
+        ? `置灰并写了原因；没有开设置${landed ? '（却开了）' : ''}${added.length ? '；却建了节点' : ''}`
         : `目录里有放大模型，点了${prepared ? `多了一个连着原图的空闲放大节点（${added.map((node) => `${node.vendor}/${node.model}`).join('、')}）` : `没有建出放大节点（多了 ${added.length} 个）`}`
       return { ok, actual: !upscaleRow ? '菜单里没有这一项' : `这一项${upscaleRow.disabled ? '灰着点不了' : '可以点'}，写着「${upscaleRow.text}」；${what}${charged ? '；供应商收到了请求' : ''}` }
     },
