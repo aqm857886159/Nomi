@@ -6,12 +6,13 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { DirectorObject, DirectorRig, Vec3 } from './directorTypes'
+import { DEFAULT_CHARACTER_MODEL_PATH, DEFAULT_CHARACTER_RIG } from './rigs'
 
 export type CharacterGender = 'female' | 'male'
 
 export const CHARACTER_MODEL_BY_GENDER: Record<CharacterGender, { modelPath: string; rig: DirectorRig }> = {
-  female: { modelPath: 'builtin:x-bot', rig: 'mixamo' },
-  male: { modelPath: 'builtin:x-bot', rig: 'mixamo' },
+  female: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
+  male: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
 }
 
 /** 群众默认动作 = 动作库「站立」（standing_idle）。 */
