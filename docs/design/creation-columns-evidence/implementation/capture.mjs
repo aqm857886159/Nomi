@@ -1,3 +1,4 @@
+/* global process, URL, document, getComputedStyle, console */
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../../../../tests/ux/_launchApp.mjs'

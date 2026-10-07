@@ -118,7 +118,6 @@ export default tseslint.config(
     // scripts/** 与 tests/ux/** 在上面的全局 ignore 里，本规则管不到；那两处的平台路径问题归门岗换底层线
     // （在 Windows 上跑通 gates 时一并兜住），见 docs/fixes/2026-10-07-windows-local-gates.root-cause.json。
     files: ['docs/design/**/*.mjs'],
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
   },
   {
