@@ -715,6 +715,26 @@
       "revisitWhen": "Agent 面板有了统一的「宿主提示」槽或统一的上下文标签时，把这两样并进去；或 3D-BOX 开关到期（2026-11-15）随开关一起复查"
     },
     {
+      "id": "canvas-group-toolbar-actions",
+      "capability": "画布编组工具条的领域动作装配：把当前组的生成、时间轴、排列、颜色、解组与下载接到各自已有 owner",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "React Flow 的节点工具条 / group node API：只提供节点手势和投影，不拥有 Nomi 的按组生成、时间轴与下载动作",
+          "source": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx"
+        },
+        {
+          "name": "现有 NodeFloatingToolbar 与 ToolbarActionMenu：复用按钮、菜单和 token 原语，不再自写通用工具条控件",
+          "source": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：组动作要同时知道 NodeGroup 成员、按镜头生成资格、时间轴兼容性和本地结果下载目标；这些事实只在 Nomi 画布 owner 里存在。hook 只做领域数据装配，具体按钮和菜单全部复用现有设计系统原语。",
+      "revisitWhen": "组动作 owner 收敛为统一的 canvas command registry，并能从注册表按组上下文生成同一份动作模型时，删除此 hook 并迁移到该 registry"
+    },
+    {
       "id": "remove-background-download",
       "capability": "抠图模型首次下载：只从自有镜像拉、按字节出一条总进度、60 秒没收到字节判卡住并中止、失败分原因",
       "status": "justified",

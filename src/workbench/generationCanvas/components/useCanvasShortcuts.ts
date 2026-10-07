@@ -77,8 +77,6 @@ type CanvasKeydownHandlerOptions = {
   duplicateSelectedNodes: () => void
   /** Cmd/Ctrl+L：选中两张卡时把它们连起来（左 → 右）。 */
   connectSelectedNodes: () => void
-  /** Cmd/Ctrl+Enter：生成所选（走浮条「生成」同一个入口与花钱确认）。 */
-  generateSelectedNodes: () => void
   /** Tab：在鼠标处打开「添加节点」菜单。 */
   openAddNodeMenu: () => void
   /** ⌥⇧F / Alt+Shift+F：整理画布（与左下「整理」按钮同一个动作）。 */
@@ -138,7 +136,6 @@ export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (
     redo,
     duplicateSelectedNodes,
     connectSelectedNodes,
-    generateSelectedNodes,
     openAddNodeMenu,
     tidyCanvas,
   } = opts
@@ -193,12 +190,6 @@ export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (
         event.preventDefault()
         tidyCanvas()
       }
-      return
-    }
-    if (event.key === 'Enter' && !event.altKey && !event.shiftKey) {
-      if (!selectedNodeCount) return
-      event.preventDefault()
-      generateSelectedNodes()
       return
     }
     if (key === 'd' && !event.altKey && !event.shiftKey) {
@@ -318,7 +309,7 @@ export function useCanvasShortcuts(opts: {
   zoomByStep: (direction: -1 | 1) => void
   undo: () => void
   redo: () => void
-} & Pick<CanvasKeydownHandlerOptions, 'deleteActiveFrame' | 'duplicateSelectedNodes' | 'connectSelectedNodes' | 'generateSelectedNodes' | 'openAddNodeMenu' | 'tidyCanvas'>): void {
+} & Pick<CanvasKeydownHandlerOptions, 'deleteActiveFrame' | 'duplicateSelectedNodes' | 'connectSelectedNodes' | 'openAddNodeMenu' | 'tidyCanvas'>): void {
   const {
     readOnly,
     stageRef,
@@ -341,7 +332,6 @@ export function useCanvasShortcuts(opts: {
     redo,
     duplicateSelectedNodes,
     connectSelectedNodes,
-    generateSelectedNodes,
     openAddNodeMenu,
     tidyCanvas,
   } = opts
@@ -385,8 +375,7 @@ export function useCanvasShortcuts(opts: {
       redo,
       duplicateSelectedNodes,
       connectSelectedNodes,
-      generateSelectedNodes,
-      openAddNodeMenu,
+        openAddNodeMenu,
       tidyCanvas,
     })
     const handlePaste = (event: ClipboardEvent) => {
@@ -443,7 +432,6 @@ export function useCanvasShortcuts(opts: {
     cancelConnection,
     connectSelectedNodes,
     duplicateSelectedNodes,
-    generateSelectedNodes,
     openAddNodeMenu,
     tidyCanvas,
     copySelectedNodes,

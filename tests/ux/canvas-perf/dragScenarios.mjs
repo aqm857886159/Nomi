@@ -80,7 +80,10 @@ async function firstNodeBox(page, kind) {
   const candidates = page.locator(`.generation-canvas-v2-node[data-kind="${kind}"]`)
   const count = await candidates.count()
   for (let index = 0; index < count; index += 1) {
-    const box = await candidates.nth(index).boundingBox().catch(() => null)
+    const box = await candidates
+      .nth(index)
+      .boundingBox()
+      .catch(() => null)
     if (box && box.width > 20 && box.height > 20) return { locator: candidates.nth(index), box }
   }
   return null
@@ -137,7 +140,10 @@ export async function runMultiNodeDrag(page) {
   const total = await nodes.count()
   const picks = []
   for (let index = 0; index < total && picks.length < MULTI_DRAG_NODE_COUNT; index += 1) {
-    const box = await nodes.nth(index).boundingBox().catch(() => null)
+    const box = await nodes
+      .nth(index)
+      .boundingBox()
+      .catch(() => null)
     if (box && box.width > 20 && box.height > 20 && isSafelyClickable(box, stage)) {
       picks.push({ locator: nodes.nth(index), box })
     }
@@ -147,7 +153,9 @@ export async function runMultiNodeDrag(page) {
   try {
     for (const pick of picks) {
       const nodeId = await pick.locator.getAttribute('data-node-id')
-      const hit = await findNodeHitPoint(page, { nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}]` })
+      const hit = await findNodeHitPoint(page, {
+        nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}]`,
+      })
       if (!hit) throw new Error(`multi-node-drag: no selectable point for ${nodeId}`)
       await page.mouse.click(hit.x, hit.y)
       await sleep(page, 40)
@@ -160,7 +168,9 @@ export async function runMultiNodeDrag(page) {
   // Drag the primary (first pick) with a variable-speed gesture; the rest follow.
   const primary = picks[0]
   const primaryId = await primary.locator.getAttribute('data-node-id')
-  const start = await findNodeHitPoint(page, { nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(primaryId)}]` })
+  const start = await findNodeHitPoint(page, {
+    nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(primaryId)}]`,
+  })
   if (!start) throw new Error(`multi-node-drag: no draggable point for ${primaryId}`)
   const moves = await variableSpeedDragPath(page, start, { x: start.x + 150, y: start.y + 80 })
   return {
@@ -257,7 +267,8 @@ export async function zoomOutTo(page, targetZoom) {
   await page.mouse.move(stage.x + stage.width * 0.5, stage.y + stage.height * 0.5)
   for (let index = 0; index < 30; index += 1) {
     const zoom = await page.evaluate(
-      () => new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.generation-canvas-v2__canvas')).transform).a,
+      () =>
+        new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.generation-canvas-v2__canvas')).transform).a,
     )
     if (zoom <= targetZoom) break
     await page.mouse.wheel(0, 120)
@@ -358,7 +369,7 @@ async function marqueeRect(page, { toY = null } = {}) {
   if (!start) throw new Error('找不到画布空白起手点')
   const end = {
     x: stage.x + stage.width - 250,
-    y: Math.min(toY ?? (stage.y + stage.height - 190), stage.y + stage.height - 190),
+    y: Math.min(toY ?? stage.y + stage.height - 190, stage.y + stage.height - 190),
   }
   await page.mouse.move(start.x, start.y)
   await page.keyboard.down('Shift')
@@ -379,7 +390,10 @@ async function marqueeRect(page, { toY = null } = {}) {
 
 /** 全选（Cmd/Ctrl+A）。前置动作，不进采样窗口。 */
 export async function selectAllCanvasNodes(page) {
-  await page.locator('.generation-canvas-v2__stage').click({ position: { x: 6, y: 6 } }).catch(() => {})
+  await page
+    .locator('.generation-canvas-v2__stage')
+    .click({ position: { x: 6, y: 6 } })
+    .catch(() => {})
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a')
   await sleep(page, 500)
   return selectedNodeCount(page)
@@ -390,12 +404,14 @@ export async function selectAllCanvasNodes(page) {
  * 所以框一个「刚好盖住前 count 个」的矩形——按 y 再按 x 排序取第 count 个的下沿当底边。
  */
 export async function marqueeSelectFirstNodes(page, count) {
-  const boxes = await page.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node'))
-    .map((element) => {
-      const rect = element.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-    })
-    .sort((a, b) => (a.y - b.y) || (a.x - b.x)))
+  const boxes = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.react-flow__node'))
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        return { id: element.getAttribute('data-id'), x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+      })
+      .sort((a, b) => a.y - b.y || a.x - b.x),
+  )
   // 小规模（scale S/M）或窗口被夹小时挂不满 60 个。这时**降量但如实报**，不静默按 60 记账：
   // 返回 requested / realized 两个数，读结果的人一眼看得出这一格量的是几张卡。少于 8 张就没有
   // 「一批卡一起动」可言了，那时才 fail-closed —— 出一个不可比的数比报错更坏。
@@ -405,7 +421,32 @@ export async function marqueeSelectFirstNodes(page, count) {
   }
   const target = boxes[realized - 1]
   await marqueeRect(page, { toY: target.y + target.h * 0.55 })
-  return { requested: count, realized, selected: await selectedNodeCount(page) }
+  let selected = await selectedNodeCount(page)
+  // At very low zoom the marquee can clip the final row even though all target cards
+  // are mounted. Complete the same user selection with Shift-clicks so the metric is
+  // really N selected nodes, rather than a rectangle that happened to catch fewer.
+  if (selected < realized) {
+    const selectedIds = new Set(
+      await page.evaluate(() =>
+        Array.from(document.querySelectorAll('.react-flow__node.selected')).map((element) =>
+          element.getAttribute('data-id'),
+        ),
+      ),
+    )
+    await page.keyboard.down('Shift')
+    for (const box of boxes.slice(0, realized)) {
+      if (box.id && selectedIds.has(box.id)) continue
+      if (!box.id) throw new Error('marqueeSelectFirstNodes: 节点缺少稳定 id')
+      const hit = await findNodeHitPoint(page, {
+        nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(box.id)}]`,
+      })
+      if (!hit) throw new Error(`marqueeSelectFirstNodes: 找不到节点 ${box.id} 的真实命中点`)
+      await page.mouse.click(hit.x, hit.y)
+    }
+    await page.keyboard.up('Shift')
+    selected = await selectedNodeCount(page)
+  }
+  return { requested: count, realized, selected }
 }
 
 /** 把已选中的一批卡建成组（Cmd/Ctrl+G），返回画布上组框的个数。 */
@@ -422,39 +463,48 @@ export async function groupSelectedNodes(page) {
  */
 async function selectionGrabPoint(page) {
   const stage = await stageBox(page)
-  return page.evaluate(({ area }) => {
-    const inSafeArea = (x, y) => x >= area.minX && x <= area.maxX && y >= area.minY && y <= area.maxY
-    const overlay = document.querySelector('.react-flow__nodesselection-rect')
-    if (overlay) {
-      const rect = overlay.getBoundingClientRect()
-      // 选中一大批时这层罩子比安全区还大，按固定比例取点会全落在安全区外；求交后在交集里扫。
-      const x0 = Math.max(rect.left, area.minX)
-      const x1 = Math.min(rect.right, area.maxX)
-      const y0 = Math.max(rect.top, area.minY)
-      const y1 = Math.min(rect.bottom, area.maxY)
-      if (x1 > x0 && y1 > y0) {
-        for (const ry of [0.5, 0.3, 0.7, 0.15, 0.85]) {
-          for (const rx of [0.5, 0.3, 0.7, 0.15, 0.85]) {
-            const x = Math.round(x0 + (x1 - x0) * rx)
-            const y = Math.round(y0 + (y1 - y0) * ry)
-            const hit = document.elementFromPoint(x, y)
-            if (hit === overlay || overlay.contains(hit)) return { x, y, via: 'nodesselection-rect' }
+  return page.evaluate(
+    ({ area }) => {
+      const inSafeArea = (x, y) => x >= area.minX && x <= area.maxX && y >= area.minY && y <= area.maxY
+      const overlay = document.querySelector('.react-flow__nodesselection-rect')
+      if (overlay) {
+        const rect = overlay.getBoundingClientRect()
+        // 选中一大批时这层罩子比安全区还大，按固定比例取点会全落在安全区外；求交后在交集里扫。
+        const x0 = Math.max(rect.left, area.minX)
+        const x1 = Math.min(rect.right, area.maxX)
+        const y0 = Math.max(rect.top, area.minY)
+        const y1 = Math.min(rect.bottom, area.maxY)
+        if (x1 > x0 && y1 > y0) {
+          for (const ry of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+            for (const rx of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+              const x = Math.round(x0 + (x1 - x0) * rx)
+              const y = Math.round(y0 + (y1 - y0) * ry)
+              const hit = document.elementFromPoint(x, y)
+              if (hit === overlay || overlay.contains(hit)) return { x, y, via: 'nodesselection-rect' }
+            }
           }
         }
       }
-    }
-    for (const node of Array.from(document.querySelectorAll('.react-flow__node.selected'))) {
-      const rect = node.getBoundingClientRect()
-      for (const [rx, ry] of [[0.5, 0.5], [0.5, 0.25], [0.25, 0.5], [0.75, 0.5], [0.5, 0.75]]) {
-        const x = Math.round(rect.left + rect.width * rx)
-        const y = Math.round(rect.top + rect.height * ry)
-        if (!inSafeArea(x, y)) continue
-        const hit = document.elementFromPoint(x, y)
-        if (hit && node.contains(hit)) return { x, y, via: 'node' }
+      for (const node of Array.from(document.querySelectorAll('.react-flow__node.selected'))) {
+        const rect = node.getBoundingClientRect()
+        for (const [rx, ry] of [
+          [0.5, 0.5],
+          [0.5, 0.25],
+          [0.25, 0.5],
+          [0.75, 0.5],
+          [0.5, 0.75],
+        ]) {
+          const x = Math.round(rect.left + rect.width * rx)
+          const y = Math.round(rect.top + rect.height * ry)
+          if (!inSafeArea(x, y)) continue
+          const hit = document.elementFromPoint(x, y)
+          if (hit && node.contains(hit)) return { x, y, via: 'node' }
+        }
       }
-    }
-    return null
-  }, { area: grabSafeArea(stage) })
+      return null
+    },
+    { area: grabSafeArea(stage) },
+  )
 }
 
 /**
@@ -464,24 +514,31 @@ async function selectionGrabPoint(page) {
  */
 async function groupFrameGrabPoint(page) {
   const stage = await stageBox(page)
-  return page.evaluate(({ area }) => {
-    const frame = document.querySelector('.generation-canvas-v2__group-box[data-group-id]')
-    if (!frame) return null
-    const rect = frame.getBoundingClientRect()
-    const blockers = new Map()
-    const step = 8
-    for (let y = rect.top + 3; y <= rect.bottom - 3; y += step) {
-      for (let x = rect.left + 3; x <= rect.right - 3; x += step) {
-        if (x < area.minX || x > area.maxX || y < area.minY || y > area.maxY) continue
-        const hit = document.elementFromPoint(Math.round(x), Math.round(y))
-        if (hit === frame) return { x: Math.round(x), y: Math.round(y), via: 'group-box' }
-        const key = hit ? `${hit.tagName}.${String(hit.className).slice(0, 40)}` : 'nothing'
-        blockers.set(key, (blockers.get(key) || 0) + 1)
+  return page.evaluate(
+    ({ area }) => {
+      const frame = document.querySelector('.generation-canvas-v2__group-box[data-group-id]')
+      if (!frame) return null
+      const rect = frame.getBoundingClientRect()
+      const blockers = new Map()
+      const step = 8
+      for (let y = rect.top + 3; y <= rect.bottom - 3; y += step) {
+        for (let x = rect.left + 3; x <= rect.right - 3; x += step) {
+          if (x < area.minX || x > area.maxX || y < area.minY || y > area.maxY) continue
+          const hit = document.elementFromPoint(Math.round(x), Math.round(y))
+          if (hit?.closest?.('[data-group-id]') === frame && !hit?.closest?.('[data-node-id]'))
+            return { x: Math.round(x), y: Math.round(y), via: 'group-box' }
+          const key = hit ? `${hit.tagName}.${String(hit.className).slice(0, 40)}` : 'nothing'
+          blockers.set(key, (blockers.get(key) || 0) + 1)
+        }
       }
-    }
-    const top = [...blockers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => `${key}×${n}`)
-    return { blocked: true, via: `组框全被挡：${top.join(' | ') || '框不在安全区内'}` }
-  }, { area: grabSafeArea(stage) })
+      const top = [...blockers.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([key, n]) => `${key}×${n}`)
+      return { blocked: true, via: `组框全被挡：${top.join(' | ') || '框不在安全区内'}` }
+    },
+    { area: grabSafeArea(stage) },
+  )
 }
 
 /** 2 秒匀速圆弧拖动：真手不走直线，圆弧还保证不撞舞台边（撞边触发自动平移，是另一族现象）。 */
@@ -492,11 +549,9 @@ async function arcDrag(page, origin, { radius = SCALE_DRAG_ARC_RADIUS_PX, durati
   const steps = Math.round(durationMs / stepMs)
   for (let index = 1; index <= steps; index += 1) {
     const angle = (index / steps) * Math.PI * 2
-    await page.mouse.move(
-      origin.x + Math.sin(angle) * radius,
-      origin.y + (1 - Math.cos(angle)) * radius * 0.5,
-      { steps: 1 },
-    )
+    await page.mouse.move(origin.x + Math.sin(angle) * radius, origin.y + (1 - Math.cos(angle)) * radius * 0.5, {
+      steps: 1,
+    })
     await sleep(page, stepMs)
   }
   await page.mouse.up()
@@ -520,7 +575,7 @@ export async function runDragSelectionAll(page) {
 
 /**
  * drag-group-frame-60：抓**组框本体**（不是卡、不是选区罩子）拖同样的整圆。
- * 这条走的是我们手搓的 window pointermove + rAF，每帧替换整个 Zustand nodes 数组。
+ * 这条走的是 window pointermove + rAF 的视觉 shell 预览，松手时才一次性写回 Zustand。
  */
 export async function runDragGroupFrame(page, grouped = null) {
   const grab = await groupFrameGrabPoint(page)

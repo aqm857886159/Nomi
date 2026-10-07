@@ -32,7 +32,6 @@ function keyboardEvent(target: EventTarget, overrides: Partial<KeyboardEvent> = 
 const NO_PARITY_COMMANDS = {
   duplicateSelectedNodes: () => {},
   connectSelectedNodes: () => {},
-  generateSelectedNodes: () => {},
   openAddNodeMenu: () => {},
   tidyCanvas: () => {},
 }

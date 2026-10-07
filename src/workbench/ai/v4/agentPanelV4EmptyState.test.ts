@@ -47,12 +47,16 @@ describe('Agent 面板 v4 空态起手', () => {
     }
   })
 
-  it('每个面恰好三条起手，且每条都指向一个已注册能力', () => {
+  // 生成面只剩两条：「生成选中」入口 2026-10-07 用户拍板删了（批量只走编组的「生成整组」）。
+  const EXPECTED_COUNT: Record<ResidentSurface, number> = { creation: 3, storyboard: 3, generation: 2, preview: 3 }
+
+  it('每个面的起手条数固定，且每条都指向一个已注册能力', () => {
     const registered: ReadonlySet<string> = new Set<string>(CAPABILITY_CONTRACTS.map((contract) => contract.id))
     for (const surface of SURFACES) {
       const chips = starterChipsForSurface(surface)
-      expect(chips, `${surface} 面的起手条数`).toHaveLength(3)
-      expect(new Set(chips.map((chip) => chip.id)).size, `${surface} 面的起手 id 不许重`).toBe(3)
+      const expected = EXPECTED_COUNT[surface]
+      expect(chips, `${surface} 面的起手条数`).toHaveLength(expected)
+      expect(new Set(chips.map((chip) => chip.id)).size, `${surface} 面的起手 id 不许重`).toBe(expected)
       for (const chip of chips) expect(registered.has(chip.capabilityId), `${chip.capabilityId} 不在能力注册表里`).toBe(true)
     }
   })
@@ -72,6 +76,16 @@ describe('Agent 面板 v4 空态起手', () => {
           expect(localeText(locale, chip.promptKey).length).toBeGreaterThan(0)
         }
       }
+    }
+  })
+
+  it('生成面保持原顺序，且「生成选中」起手项不许复活（词条也不留）', () => {
+    expect(starterChipsForSurface('generation').map((chip) => chip.id)).toEqual(['break-reference', 'check-canvas'])
+    for (const surface of SURFACES) {
+      expect(starterChipsForSurface(surface).map((chip) => chip.id), `${surface} 面`).not.toContain('generate-selected')
+    }
+    for (const locale of [zhAgentPanelV4, enAgentPanelV4]) {
+      expect(Object.keys(locale).filter((key) => key.startsWith('starterGenerateSelected'))).toEqual([])
     }
   })
 })

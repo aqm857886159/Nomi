@@ -45,7 +45,7 @@ export function commitCanvasKeyboardPositions(
   })
   if (moved.length) {
     state.captureHistory()
-    for (const change of moved) state.moveNode(change.nodeId, change.position, { persist: false, emit: false })
+    state.moveNodes(moved, { persist: false, emit: false })
     emitCanvasGesture(moved.map(change => ({ type: 'canvas.node.moved', payload: { nodeId: change.nodeId, position: change.position } })))
     state.commitPersistedChange()
   }
@@ -53,14 +53,10 @@ export function commitCanvasKeyboardPositions(
 }
 
 /**
- * XYDrag 在 blur 取消之后还会再吐一批位置：它已经不拥有这些位置了，把内核拉回我们的投影。
- *
- * 两条收窄（2026-09-21）：
- *   ① 只在内核真的和 store **不一致**时才写——新节点刚落画布、React Flow 首次测量时也会发
- *      position change，那一批和 store 是一致的，写回去纯属白费一次 setNodes；
- *   ② 按**当前** store 取值，不用调用点闭包里的 `flowNodes` 快照（它可能已经过期，用过期快照
- *      整体覆盖内核节点表会让刚落的卡停在旧位置——golden 走查量到「第 2 镜没有可点中的位置」
- *      正是这个形状）。
+ * A position notification can arrive after the drag lease has been cancelled
+ * (blur, native drag, or a deleted node). Restore only nodes that actually
+ * disagree with the durable store; unrelated React Flow notifications must
+ * not replace the whole internal node table.
  */
 export function restoreDisownedKernelPositions(
   flowStore: { getState: () => { nodes: GenerationFlowNode[]; setNodes: (nodes: GenerationFlowNode[]) => void } },
@@ -79,6 +75,16 @@ export function restoreDisownedKernelPositions(
   }))
 }
 
+/**
+ * XYDrag 在 blur 取消之后还会再吐一批位置：它已经不拥有这些位置了，把内核拉回我们的投影。
+ *
+ * 两条收窄（2026-09-21）：
+ *   ① 只在内核真的和 store **不一致**时才写——新节点刚落画布、React Flow 首次测量时也会发
+ *      position change，那一批和 store 是一致的，写回去纯属白费一次 setNodes；
+ *   ② 按**当前** store 取值，不用调用点闭包里的 `flowNodes` 快照（它可能已经过期，用过期快照
+ *      整体覆盖内核节点表会让刚落的卡停在旧位置——golden 走查量到「第 2 镜没有可点中的位置」
+ *      正是这个形状）。
+ */
 type CanvasDragWritebackContext = {
   event: Parameters<OnNodeDrag<GenerationFlowNode>>[0]
   draggedNode: Parameters<OnNodeDrag<GenerationFlowNode>>[1]
@@ -172,7 +178,6 @@ export function cancelCanvasNodeDrag(input: {
   setNodeDragActive: (active: boolean) => void
   cancelFramePreview: () => void
   flowStore: Parameters<typeof restoreCanvasDragKernelOwnership>[0]
-  /** 把内核的节点数组拨回应用侧那一份（拖动草稿作废）。由调用方给，本文件不认识 RF 的公开 store API。 */
   restoreFlowNodes: () => void
 }): void {
   input.dragLeaseRef.current?.release()
