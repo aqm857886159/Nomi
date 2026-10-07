@@ -75,11 +75,11 @@
 | 全部镜头条：类型 + 各镜种参数 + 画幅（候选由模型派生）；删固定画幅表 / 时长下拉 | `StoryboardBulkBar.tsx` |
 | 表：复选框 = 选中、浮条取公共集、浮条跳过 | `StoryboardShotTable.tsx:203`（groups）、`:235`（`applyParamToSelected`）、`:242`（`skipSelected`）、`:249`（`toggleSelectedAt`）、`:387` |
 | 行：复选框绑 `selected`；选中淡蓝底；行菜单「本次跳过」 | `shotRow/StoryboardShotRow.tsx:69`、`:258`、`:307` |
-| 结果动作条：「移除结果」（只摆按钮，清结果逻辑未接） | `shotRow/StoryboardFrameActions.tsx:265`；行上 prop `onRemoveResult`（`StoryboardShotRow.tsx:74`），**表里还没传** |
+| 结果动作条：缩略图下只保留重生成与变体；预览改为单击，锁定与移场收进行菜单 | `shotRow/StoryboardFrameActions.tsx`、`shotRow/StoryboardShotFrame.tsx`、`StoryboardShotRow.tsx` |
 | 参数面板可挂一句底注；无可调参数时触发器仍在 | `generationCanvas/nodes/InlineParameterBar.tsx:138`（`panelFooter`）、`:381` |
 | 滑杆在「混合」时读数印「—」 | `generationCanvas/nodes/controls/ParameterControlBody.tsx`（`ParameterSlider` 的 `unset`） |
 | 付费卡计划行：`group` 小标题、`aside` 同行灰字 | `workbench/ai/v4/AgentPanelV4Cards.tsx:510`、`agentPanelV4Types.ts`（`PlanRow`） |
-| 文案 | `src/i18n/locales/storyboardEditor.ts`：新增 `batch.*`、`selection.skip/unskip/rowAria`、`rowMenu.skip/unskip`、`frame.removeResult`、`bulk.paramsNone/excluded*`；删 `skip.aria/hint`、`bulk.modelAria/durationAria`、`selection.applyModel*` |
+| 文案 | `src/i18n/locales/storyboardEditor.ts`：新增 `batch.*`、`selection.skip/unskip/rowAria`、`rowMenu.skip/unskip`、`bulk.paramsNone/excluded*`；删结果清除与结果接入入口文案 |
 | 实验室屏 | `src/devlab/designLab/storyboardBatch/`、`labScreens.ts`、`tests/ux/design-lab/labStates.mjs`（登记） |
 | 结构测试跟上 | `StoryboardSelectionToolbar.structure.test.ts`、`storyboardModelVendorIdentity.test.ts`、pb12 走查 `describeRow` |
 
@@ -94,3 +94,20 @@
 | `tsc --noEmit` | 仅 1 条与本线无关的既有报错（`agent-skills/.../SKILL.md?raw`） |
 | `check:i18n`、`check:tokens`、`check:dangling-tokens`、`check:dangling-tailwind`、`check:controls`、`check:filesize` | 绿 |
 | 真 App / 真付费 / 键盘 / 老资料 | `unverified` |
+
+## Implementation ledger (2026-10-07)
+
+The approved B2, B5b, and B7 decisions are implemented on `design/storyboard-batch-select`.
+
+| Design-card grid | Implemented evidence |
+|---|---|
+| User / value | The remaining batch opens one checklist, with references first and shots second; cancelling creates no nodes. |
+| Owner | `confirmStoryboardBatch` and `runStoryboardBatch` own checklist filtering, materialization, and refs-first dispatch. |
+| Consistency / reuse | The checklist uses shared `PlanRows` presentation and the existing spend-confirm store; batch parameters keep `InlineParameterBar` and tested intersection scope. |
+| State | Checked rows are the only rows materialized; skipped rows remain separate state; legacy checkbox meaning is converted by `storyboardSelectionMigration`. |
+| External data / failure | A reference wave without a usable result stops before shot dispatch; provider recovery remains available on the reference node. |
+| Performance / budget | Confirmation opens before node creation; placement-only remains free and does not open spend confirmation. |
+| Real conditions | Production Electron, real spend, and bilingual screenshots remain `unverified` in this worktree. |
+| Acceptance / rollback | Regression tests cover cancellation, unchecked checklist items, refs-before-shots, and reference failure; reverting the batch-boundary commit restores the former path. |
+
+The earlier “还没做（等拍板）” paragraph is the original review record; this ledger is the current implementation state used for PR review.

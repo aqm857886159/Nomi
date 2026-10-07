@@ -3,7 +3,7 @@ import { deleteStoryboardRows, restoreStoryboardDeletion, type StoryboardDeletio
 import { isCanvasTextEditingContext } from '../../generationCanvas/components/useCanvasShortcuts'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconRobot, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
 import { notify } from '../../../ui/notificationPolicy'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -11,7 +11,6 @@ import { useGenerationCanvasStore } from '../../generationCanvas/store/generatio
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import {
   addAnchor,
-  addExternalReferenceAnchor,
   addShot,
   changeAnchorKind,
   removeAnchor,
@@ -48,7 +47,6 @@ import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { stableProjectAgentJson } from '../../../../electron/shared/legacyAgentJson'
 import { isRunTargetLoaded, readRunProjectRecord } from '../../generationCanvas/runner/runProjectDelivery'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
-import { appendBinding } from './shotRow/shotReferenceSlots'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
@@ -426,9 +424,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       )),
     ])
   }
-  const onLockSelected = (runtimes: StoryboardRowRuntime[]): void => {
-    for (const runtime of runtimes) if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
-  }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
     if (node) void runAction(context => regenerateShotRow(context, runtime.shot, node, runtime.mode))
@@ -477,30 +472,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       setMentionPreviewAsset(null)
       setPreviewNodeId(runtime.node.id)
     }
-  }
-  const resultReference = (runtime: StoryboardRowRuntime): { plan: typeof plan; anchorId: string } | null => {
-    if (!runtime.exec.node || !runtime.exec.resultUrl) return null
-    const asset = canvasNodeToAssetRefs(runtime.exec.node)[0]
-    if (!asset) return null
-    return addExternalReferenceAnchor(plan, { id: asset.id, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), url: asset.renderUrl, kind: asset.kind === 'video' ? 'video' : 'image', sourceNodeId: runtime.exec.node.id })
-  }
-  const onSaveResultAsReference = (runtime: StoryboardRowRuntime): void => {
-    const result = resultReference(runtime)
-    if (result) setStoryboardPlan(result.plan)
-  }
-  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetPosition: number): void => {
-    const result = resultReference(runtime)
-    if (!result) return
-    const target = result.plan.shots[targetPosition]
-    if (!target) return
-    // 「设为首帧」= 把这一镜的结果放进目标镜参考列里的首帧槽（没有首帧槽的模式退到图片参考槽）。发出去的就是参考列里摆着的。
-    const mode = rows[targetPosition]?.mode
-    const slot = mode?.slots.find((candidate) => candidate.kind === 'first_frame') ?? mode?.slots.find((candidate) => candidate.kind === 'image_ref')
-    const asset = runtime.exec.node ? canvasNodeToAssetRefs(runtime.exec.node)[0] : undefined
-    if (!slot || !asset) { reportFailure(t('storyboardEditor.resultIntake.noFirstFrameSlot', { index: target.index })); return }
-    const added = appendBinding(target.referenceBindings, slot, { url: asset.renderUrl, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), ...(runtime.exec.node ? { sourceNodeId: runtime.exec.node.id } : {}) }, asset.kind === 'video' ? 'video' : 'image')
-    if (added.status === 'added') setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPosition ? { ...shot, referenceBindings: added.next } : shot) })
-    else if (added.status !== 'duplicate') reportFailure(t('storyboardEditor.resultIntake.noFirstFrameSlot', { index: target.index }))
   }
   const onStartPlayback = (selectedRows: StoryboardRowRuntime[] = rows): void => {
     if (selectedRows.length === 0) return
@@ -639,15 +610,12 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               skippedShotIds={skippedShotIds}
               onToggleSkip={onToggleSkip}
               onAgentHandoff={onAgentHandoff}
-              onLockSelected={onLockSelected}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onRecoverRow={onRecoverRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
-              onSaveResultAsReference={onSaveResultAsReference}
-              onSetResultAsFirstFrame={onSetResultAsFirstFrame}
               onGenerateSelected={(selected) => onRunSelected(selected)}
               onDeleteSelected={(selected) => {
                 const current = currentTargetRef.current
@@ -691,17 +659,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             setWorkspaceMode('creation')
           }}>
             {t('storyboardEditor.backToCreation')}
-          </WorkbenchButton>
-          {/* 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，footer 常驻）。 */}
-          <WorkbenchButton
-            variant="default"
-            size="sm"
-            data-storyboard-agent-handoff="footer"
-            disabled={selectedRuntimes.length === 0}
-            onClick={() => onAgentHandoff(selectedRuntimes)}
-          >
-            <IconRobot size={14} stroke={1.7} />
-            {t('storyboardEditor.agentHandoff.footer', { count: selectedRuntimes.length })}
           </WorkbenchButton>
           {visibleIssues.length > 0 ? (
             <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0" data-storyboard-issues={visibleIssues.length}>

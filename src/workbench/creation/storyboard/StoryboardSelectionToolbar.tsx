@@ -1,10 +1,8 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLock, IconPlayerPlay, IconPlayerSkipForward, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
+import { IconPlayerPlay, IconPlayerSkipForward, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
 import StoryboardBulkParams from './StoryboardBulkParams'
-import { NomiSelect } from '../../../design'
 import { SelectionToolbarFrame } from '../../generationCanvas/components/SelectionToolbarFrame'
-import { NO_SCENE_VALUE } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { StoryboardShotKind } from './storyboardBulkModelScope'
 import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
 
@@ -12,8 +10,8 @@ import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
  * 分镜页多选浮条。布局/作用域语义对齐画布 `CanvasSelectionToolbar`：纸白圆角浮条、已选计数、
  * 生成与统一模型动作、清除入口；分镜特有的移场/锁定/删除仍只作用于已选镜。
  *
- * v6 新增「交给 Agent」（§2.7 入口 2/3）——三个入口对应三种选择规模（全部 / 多选 / 单行），
- * 不是同一功能的重复入口。三处共用 `data-storyboard-agent-handoff`，走查一次数得出"是不是三个都在"。
+ * v6 新增「交给 Agent」（§2.7 入口 1/2）——多选与单行是两种选择规模，
+ * 两处共用 `data-storyboard-agent-handoff`，页脚不再重复一枚入口。
  *
  * 「移到场」只在这份分镜**真的有场**时出现：没有场的分镜里它只剩「移到场」与「未分场」两行——
  * 一个点开什么都做不了的下拉（2026-09-11 用户实测反馈）。有场才是它有意义的前提，
@@ -28,9 +26,7 @@ import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
 export default function StoryboardSelectionToolbar({
   selectedCount,
   modelGroups,
-  sceneOptions,
   onGenerate,
-  onMoveToScene,
   onApplyModel,
   onApplyParam,
   allSkipped = false,
@@ -38,15 +34,11 @@ export default function StoryboardSelectionToolbar({
   onDelete,
   onClear,
   onAgentHandoff,
-  onLock,
 }: {
   selectedCount: number
   /** 按选中集合的镜种分好的模型档（`storyboardBulkModelGroups`）；一档一个下拉。 */
   modelGroups: readonly StoryboardBulkParamGroup[]
-  /** 这份分镜里的场；空数组 = 没有分场，「移到场」整枚不出现。 */
-  sceneOptions: readonly { id: string; title: string }[]
   onGenerate: () => void
-  onMoveToScene: (sceneId: string) => void
   /** 选中即定死 (kind, modelKey, vendor)——镜种随选项一起回传，下游不用再猜这条属于哪一档。 */
   onApplyModel: (kind: StoryboardShotKind, modelKey: string, vendor?: string) => void
   /** 面板里改了一个公共参数（作用于这一档镜种的已选镜）。 */
@@ -59,8 +51,6 @@ export default function StoryboardSelectionToolbar({
   onClear: () => void
   /** 「交给 Agent」：把选中的这几镜交给常驻 Agent 改（改动就地预览 + 确认卡）。 */
   onAgentHandoff?: (() => void) | undefined
-  /** 批量锁定选中镜（锁 = 不进批量、不被重跑；与「本次跳过」是两回事）。 */
-  onLock?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -92,22 +82,6 @@ export default function StoryboardSelectionToolbar({
           {t('storyboardEditor.agentHandoff.selection')}
         </button>
       ) : null}
-      {sceneOptions.length > 0 ? (
-        <span className="shrink-0" data-storyboard-move-to-scene="true">
-          <NomiSelect
-            value=""
-            options={[
-              { value: NO_SCENE_VALUE, label: t('storyboardEditor.selection.allScenes') },
-              ...sceneOptions.map((scene) => ({ value: scene.id, label: scene.title })),
-            ]}
-            onChange={onMoveToScene}
-            ariaLabel={t('storyboardEditor.selection.moveToScene')}
-            placeholder={t('storyboardEditor.selection.moveToScene')}
-            size="sm"
-            triggerMaxWidth={120}
-          />
-        </span>
-      ) : null}
       {modelGroups.map((group) => {
         const scope = t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })
         return (
@@ -133,16 +107,6 @@ export default function StoryboardSelectionToolbar({
         >
           <IconPlayerSkipForward size={13} stroke={1.8} />
           {allSkipped ? t('storyboardEditor.selection.unskip') : t('storyboardEditor.selection.skip')}
-        </button>
-      ) : null}
-      {onLock ? (
-        <button
-          type="button"
-          onClick={onLock}
-          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 text-micro text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-accent"
-        >
-          <IconLock size={13} stroke={1.8} />
-          {t('storyboardEditor.selection.lock')}
         </button>
       ) : null}
       <button

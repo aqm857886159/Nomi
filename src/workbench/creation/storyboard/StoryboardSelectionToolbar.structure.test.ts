@@ -54,20 +54,20 @@ describe('分镜多选条：「统一模型」按镜种分档，不再拼一条�
   })
 })
 
-describe('分镜多选条：「移到场」没有场就不出现', () => {
+describe('分镜行菜单承载低频动作', () => {
   /**
    * 2026-09-11 用户实测：没有分场的分镜里，「移到场」照样在条上，点开只有「移到场」和「未分场」
    * 两行——一个什么都做不了的下拉。判据写在渲染条件上，不靠一句提示去解释一个空控件。
    */
-  it('整枚下拉挂在 sceneOptions.length > 0 上', () => {
-    expect(toolbar).toContain('{sceneOptions.length > 0 ? (')
-    expect(toolbar).toContain('data-storyboard-move-to-scene="true"')
+  it('移到场从多选浮条收回行菜单', () => {
+    expect(toolbar).not.toContain('data-storyboard-move-to-scene')
+    expect(toolbar).not.toContain('onMoveToScene')
+    expect(row).toContain('rowMenu.moveToScene')
   })
 
-  it('标题是真占位，不再是那条既当标签又当选项的 <option value="">', () => {
+  it('多选浮条不再提供批量锁定', () => {
     expect(toolbar).not.toContain('<select')
-    expect(toolbar).not.toContain('<option value="">')
-    expect(toolbar).toContain("placeholder={t('storyboardEditor.selection.moveToScene')}")
+    expect(toolbar).not.toContain('onLock')
   })
 
   /**
@@ -75,9 +75,9 @@ describe('分镜多选条：「移到场」没有场就不出现', () => {
    * 各写一次字面量的代价是改名时只改得动其中几处、剩下那几处静默失效。
    * 所以它住 `storyboardPlanEdits`（plan 编辑词表的家），这条测试数的就是「还有没有第二份」。
    */
-  it('NO_SCENE_VALUE 单一 owner，三个写口都 import 它', () => {
+  it('NO_SCENE_VALUE 单一 owner，表与行菜单共用它', () => {
     expect(planEdits).toContain("export const NO_SCENE_VALUE = '__none__'")
-    for (const consumer of [toolbar, table, row]) {
+    for (const consumer of [table, row]) {
       expect(consumer).toContain('NO_SCENE_VALUE')
       expect(consumer).not.toContain("'__none__'")
     }

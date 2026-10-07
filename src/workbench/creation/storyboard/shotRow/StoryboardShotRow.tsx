@@ -67,11 +67,6 @@ type Props = {
   onToggleSkip?: (() => void) | undefined
   /** 行首复选框：把这一行加入 / 移出选中集合（与按住 Ctrl / ⌘ 点行同一件事）。 */
   onToggleSelect?: (() => void) | undefined
-  /**
-   * 移除这一镜的结果：回到「未生成」态，可撤销（⌘Z）；历史版本仍在变体抽屉里。
-   * 它**不是**删镜头，也不是重生成——不花钱、不丢提示词与参考。
-   */
-  onRemoveResult?: (() => void) | undefined
   /** 这一镜的历史变体（§2.9）；重生成往里追加，画面格不动。 */
   variants?: readonly ShotVariant[]
   adoptedVariantId?: string | undefined
@@ -96,11 +91,6 @@ type Props = {
   sourceSegment?: { id: string; edited: boolean; onClick?: (() => void) | undefined }
   onInsertAbove?: (() => void) | undefined
   onInsertBelow?: (() => void) | undefined
-  targetShots?: readonly PlanShot[]
-  allShots?: readonly PlanShot[]
-  sourcePosition?: number
-  onSaveAsReference?: (() => void) | undefined
-  onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
   onSelect?: ((event: React.MouseEvent) => void) | undefined
   scenes?: readonly { id: string; title: string }[]
@@ -177,7 +167,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     shot, modelOptions, exec, aspect, frameBox, onChangeAspect,
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, outputTag,
     onGenerate, onOpenPreview, onRegenerate, onRecover, onToggleLock, onAgentHandoff,
-    onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
+    onInsertAbove, onInsertBelow,
     onRerunFreshRefs, onUpdate, onRemove, promptInvalid, durationWarning,
     mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile, sourceSegment,
   } = props
@@ -342,22 +332,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           />
           <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} />
           <StoryboardFrameActions
-            shot={shot}
             exec={exec}
             variants={variants}
             outputTag={outputTag}
             onRegenerate={onRegenerate}
             onRecover={onRecover}
-            onOpenPreview={onOpenPreview}
-            onToggleLock={onToggleLock}
-            onRemoveResult={props.onRemoveResult}
             onOpenVariants={() => setVariantsOpen((open) => !open)}
             onGenerate={onGenerate}
-            targetShots={targetShots}
-            allShots={allShots}
-            sourcePosition={sourcePosition}
-            onSaveAsReference={onSaveAsReference}
-            onSetAsFirstFrame={onSetAsFirstFrame}
           />
         </>
       ) : (

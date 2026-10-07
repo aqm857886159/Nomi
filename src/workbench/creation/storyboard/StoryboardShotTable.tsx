@@ -83,8 +83,6 @@ type Props = {
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
   /** 参考已变「用新图重跑」。 */
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
-  onSaveResultAsReference: (runtime: StoryboardRowRuntime) => void
-  onSetResultAsFirstFrame: (runtime: StoryboardRowRuntime, targetIndex: number) => void
   onGenerateSelected: (runtimes: StoryboardRowRuntime[]) => void
   onDeleteSelected: (runtimes: StoryboardRowRuntime[]) => void
   filterAnchorId?: string | null
@@ -103,7 +101,6 @@ type Props = {
   outputTagByShotId?: Readonly<Record<string, string>>
   /** 「交给 Agent」——多选浮条与每行 ⋯ 菜单两处（§2.7 入口 2/3 与 3/3）。 */
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
-  onLockSelected?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
 }
@@ -159,7 +156,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -224,10 +221,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       setSelectionAnchor(visible.indexOf(position))
     }
     onStoryboardShotSelect?.(rows[position].shot)
-  }
-  const moveSelectedToScene = (sceneId: string): void => {
-    if (!sceneId) return
-    onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? (sceneId === NO_SCENE_VALUE ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { ...shot, sceneId }) : shot) })
   }
   const applyParamToSelected = (kind: StoryboardShotKind, control: Parameters<typeof applyBulkParamToShots>[0]['control'], raw: string): void => {
     const group = selectedModelGroups.find((candidate) => candidate.kind === kind)
@@ -390,11 +383,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onAgentHandoff: runtime && onAgentHandoff ? () => onAgentHandoff([runtime]) : undefined,
                     onInsertAbove: () => onChange(insertShotAt(plan, pos)),
                     onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
-                    targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
-                    allShots: plan.shots,
-                    sourcePosition: pos,
-                    onSaveAsReference: runtime ? () => onSaveResultAsReference(runtime) : undefined,
-                    onSetAsFirstFrame: runtime ? (targetIndex: number) => onSetResultAsFirstFrame(runtime, targetIndex) : undefined,
                     selected: selectedShotIds.has(selectKeyOf(shot)),
                     onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
                     scenes: plan.scenes ?? [],
@@ -479,9 +467,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
           modelGroups={selectedModelGroups}
-          sceneOptions={plan.scenes ?? []}
           onGenerate={() => onGenerateSelected(selectedRows)}
-          onMoveToScene={moveSelectedToScene}
           onApplyModel={applyModelToSelected}
           onApplyParam={applyParamToSelected}
           allSkipped={allSelectedSkipped}
@@ -489,7 +475,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
           onDelete={() => { void deleteSelected() }}
           onClear={() => setSelectedShotIds(new Set())}
           onAgentHandoff={onAgentHandoff ? () => onAgentHandoff(selectedRows) : undefined}
-          onLock={onLockSelected ? () => onLockSelected(selectedRows) : undefined}
         />
       ) : null}
     </div>
