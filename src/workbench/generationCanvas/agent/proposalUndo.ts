@@ -438,16 +438,15 @@ export function applyCompensationOps(compensation: readonly ProjectAgentProposal
     } else if (op.kind === 'restore-prompt') {
       useGenerationCanvasStore.getState().updateNodePrompt(op.nodeId, op.prompt, op.promptOverridden)
     } else if (op.kind === 'restore-node-fields') {
-      // 节点已被删 = 无可恢复（与其它补偿同样容忍 no-op）。
-      if (useGenerationCanvasStore.getState().nodes.some((node) => node.id === op.nodeId)) {
-        useGenerationCanvasStore.getState().updateNode(op.nodeId, { meta: { ...op.meta }, prompt: op.prompt })
-      }
+      // 整节点放回只放编辑层；结果、运行态、跟主图走的媒体尺寸取此刻的（统一提交口）。节点已被删 = no-op。
+      useGenerationCanvasStore.getState().restoreNodeFields(op.nodeId, op.meta, op.prompt)
     } else if (op.kind === 'restore-graph') {
       useGenerationCanvasStore
         .getState()
         .restoreGraph(op.nodes as GenerationCanvasNode[], op.edges as GenerationCanvasEdge[])
     } else if (op.kind === 'restore-snapshot') {
-      useGenerationCanvasStore.getState().applyExternalGraph(op.snapshot)
+      const store = useGenerationCanvasStore.getState()
+      store.applyExternalGraph({ base: store.readDocumentSnapshot(), next: op.snapshot })
     }
   }
 }

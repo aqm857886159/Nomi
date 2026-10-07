@@ -26,7 +26,7 @@ const documentActions = {
   createGroup: true, createFrame: true, groupSelectedNodes: true, renameGroup: true, setGroupDescription: true,
   setGroupColor: true, arrangeGroup: true, setGroupCollapsed: true,
   ungroup: true, ungroupGroups: true, deleteGroup: true, moveNodeToGroup: true,
-  removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true,
+  removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true, restoreNodeFields: true,
   setNodeStatus: false, dismissNodeError: false, setNodeProgress: false, appendNodeRun: false,
   trackNodeRun: false, addNodeResult: true, landNodeContent: true, holdRunOutcome: false,
 } satisfies Record<ActionName, boolean>

@@ -5,7 +5,7 @@
 // - restore-node-fields 整节点放回：提案之后落地的结果和它的媒体尺寸不许被放回的旧 meta 盖掉，
 //   事实层的后续变化也不再让「撤销这批」拒绝（冲突检查只管编辑层）。
 // 断言的都是用户看得见的东西：主图、版本列表、状态、节点在不在、提示词。
-// 钉靶子那一提交里整份是 `it.fails`（今天红 = 期望）；统一提交口那一提交改回 `it`。
+// 钉靶子那一提交（83282a0e5）里整份是 `it.fails`，在 main 上 7 条全红；统一提交口那一提交改回 `it`。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../project/projectCanvasReadSurface', async (importOriginal) => ({
@@ -24,8 +24,10 @@ import {
   clearCommittedProposal,
   hydrateCommittedProposalReceipt,
   recoverPendingProposalReceipt,
+  runProposalUndo,
   runProposalUndoByChangeId,
   setCommittedProposal,
+  wholeNodeRestoreConflict,
   type CommittedProposalRecord,
 } from '../agent/proposalUndo'
 import { makeChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
@@ -100,7 +102,7 @@ function proposalWithBeforeImage(proposalId: string): CommittedProposalRecord {
 }
 
 describe('prediction ②: a before-image compensation never takes back results landed on nodes the proposal did not touch', () => {
-  it.fails('Agent undo by change id keeps the later result on an untouched node and still removes the proposal node', async () => {
+  it('Agent undo by change id keeps the later result on an untouched node and still removes the proposal node', async () => {
     await startRun('kept', 'run-kept')
     const record = proposalWithBeforeImage('prop-snap-a')
     await land('kept')
@@ -113,7 +115,7 @@ describe('prediction ②: a before-image compensation never takes back results l
     expect(node('other')).toBeDefined()
   })
 
-  it.fails('reopen recovery of an interrupted apply keeps the result that landed meanwhile', async () => {
+  it('reopen recovery of an interrupted apply keeps the result that landed meanwhile', async () => {
     await startRun('kept', 'run-kept')
     const record = proposalWithBeforeImage('prop-snap-b')
     await land('kept')
@@ -128,7 +130,7 @@ describe('prediction ②: a before-image compensation never takes back results l
     expect(store().nodes.some((candidate) => candidate.title === 'agent-created')).toBe(false)
   })
 
-  it.fails('a node the proposal deleted comes back, carrying what landed on it while it was gone', async () => {
+  it('a node the proposal deleted comes back, carrying what landed on it while it was gone', async () => {
     await startRun('kept', 'run-kept')
     const before = snapshotOf()
     withCanvasGestureContext({ source: 'agent', txnId: 'txn_prop-snap-c', proposalId: 'prop-snap-c' }, () => store().deleteNode('kept'))
@@ -145,7 +147,7 @@ describe('prediction ②: a before-image compensation never takes back results l
 })
 
 describe('putting deleted nodes back lays the outcomes that arrived meanwhile on them', () => {
-  it.fails('Agent "undo this batch" of a deletion (restore-graph) brings the node back landed, not spinning', async () => {
+  it('Agent "undo this batch" of a deletion (restore-graph) brings the node back landed, not spinning', async () => {
     await startRun('kept', 'run-kept')
     const deleted = snapshotOf().nodes.filter((candidate) => candidate.id === 'kept')
     withCanvasGestureContext({ source: 'agent', txnId: 'txn_prop-graph', proposalId: 'prop-graph' }, () => {
@@ -164,7 +166,7 @@ describe('putting deleted nodes back lays the outcomes that arrived meanwhile on
     expect(node('kept')?.runs?.[0]).toMatchObject({ id: 'run-kept', status: 'success' })
   })
 
-  it.fails('undoing a storyboard row deletion brings its shot node back landed', async () => {
+  it('undoing a storyboard row deletion brings its shot node back landed', async () => {
     const plan: StoryboardPlan = { title: 'Plan', anchors: [], shots: [1, 2].map((index) => ({ index, shotId: `s${index}`, prompt: `Prompt ${index}`, durationSec: 3, anchorIds: [] })) }
     await startRun('kept', 'run-kept')
     const { plan: after, undo } = deleteStoryboardRows(plan, [plan.shots[0]], ['kept'], store())
@@ -176,7 +178,7 @@ describe('putting deleted nodes back lays the outcomes that arrived meanwhile on
     expectLanded('kept')
   })
 
-  it.fails('a failure that arrived while the node was gone is what the node shows once put back', async () => {
+  it('a failure that arrived while the node was gone is what the node shows once put back', async () => {
     await startRun('kept', 'run-kept')
     const deleted = snapshotOf().nodes.filter((candidate) => candidate.id === 'kept')
     store().deleteNode('kept')
@@ -203,17 +205,28 @@ describe('putting a node\'s fields back (restore-node-fields) only reverts edits
     }
   }
 
-  it.fails('a result that landed after the proposal stays, with its media size, while meta and prompt go back', async () => {
+  it('"undo this batch": a result that landed after the proposal stays, with its media size, while meta and prompt go back', async () => {
     const record = proposalThatRewroteFields('prop-fields')
     await startRun('kept', 'run-kept')
     await land('kept', { width: 1920, height: 1080 })
-    setCommittedProposal(record)
+    // 事实层的后续落地不再让整节点放回被拒：放回经统一提交口，事实取活的。
+    expect(wholeNodeRestoreConflict(record)).toBeNull()
+    receipts.transition.mockImplementation(async (_subscription, input) => ({
+      binding: BINDING, revision: input.expectedRevision + 1, lifecycle: input.lifecycle, proposalId: record.proposalId, operationId: input.operationId, proposal: record,
+    }))
+    expect(hydrateCommittedProposalReceipt({ binding: BINDING, revision: 2, lifecycle: 'committed', proposalId: record.proposalId, operationId: 'commit', proposal: record })).toBe(true)
 
-    runProposalUndoByChangeId(makeChangeId('canvas', record.proposalId))
+    await runProposalUndo(record)
 
     expectLanded('kept')
     expect(node('kept')?.prompt).toBe('kept prompt')
     expect(node('kept')?.meta?.directorPlan).toBeUndefined()
     expect(node('kept')?.meta).toMatchObject({ imageWidth: 1920, imageHeight: 1080 })
+  })
+
+  it('a later edit-layer change on the same node still refuses the whole-node put-back (unchanged guard)', async () => {
+    const record = proposalThatRewroteFields('prop-fields-edited')
+    store().updateNode('kept', { title: 'user retitled' })
+    expect(wholeNodeRestoreConflict(record)).toMatch(/撤销会把那些改动一起抹掉/)
   })
 })
