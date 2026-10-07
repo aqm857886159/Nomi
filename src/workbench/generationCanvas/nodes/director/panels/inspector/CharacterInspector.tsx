@@ -11,7 +11,6 @@ import { NomiSegmented } from '../../../../../../design'
 import { useDirectorStoreApi } from '../../DirectorEditorContext'
 import type { DirectorObject } from '../../model/directorTypes'
 import { ColorField, InspectorCard, SectionHeader, TextField } from '../fields/FieldPrimitives'
-import { CrowdMatrixCard } from './CrowdMatrixCard'
 import { PoseTab } from './PoseTab'
 import { SkeletonTab } from './SkeletonTab'
 import { ObjectTransformSection } from './TransformSection'
@@ -61,7 +60,6 @@ export function CharacterInspector({ object }: { object: DirectorObject }): JSX.
             />
           </InspectorCard>
           <ObjectTransformSection object={object} />
-          <CrowdMatrixCard object={object} />
         </>
       ) : null}
       {tab === 'pose' ? <PoseTab object={object} /> : null}
