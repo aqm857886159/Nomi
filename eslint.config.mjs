@@ -9,6 +9,13 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
 import prettier from 'eslint-config-prettier'
 
+const windowsPathSelectors = [
+  {
+    selector: 'MemberExpression[object.type="NewExpression"][object.callee.name="URL"][property.name="pathname"]',
+    message: 'Use node:url fileURLToPath for filesystem paths; URL.pathname is not a Windows filesystem path.',
+  },
+]
+
 export default tseslint.config(
   {
     ignores: [
@@ -108,6 +115,13 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
+    // Temporary allowlist: scripts/check-model-schema.ts, check-spend-confirmation-receipt.mjs,
+    // check-transport-assembly.mjs, and check-walkthrough-tool-args.ts stay ignored until gate-source migration.
+    files: ['docs/design/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
+  },
+  {
     files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -142,6 +156,7 @@ export default tseslint.config(
       'no-irregular-whitespace': 'warn',
       'preserve-caught-error': 'warn',
       'prefer-const': 'warn',
+      'no-restricted-syntax': ['error', ...windowsPathSelectors],
     },
   },
   {

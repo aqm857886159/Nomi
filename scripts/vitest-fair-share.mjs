@@ -79,8 +79,14 @@ function register(pid = process.pid) {
 }
 
 function resolveVitestBin() {
-  const local = path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'vitest.cmd' : 'vitest')
-  return fs.existsSync(local) ? local : 'vitest'
+  const local = path.join(root, 'node_modules', 'vitest', 'vitest.mjs')
+  return fs.existsSync(local) ? local : null
+}
+
+export function buildVitestInvocation(args, vitestBin = resolveVitestBin()) {
+  return vitestBin
+    ? { command: process.execPath, args: [vitestBin, ...args], shell: false }
+    : { command: 'vitest', args, shell: false }
 }
 
 /**
@@ -127,7 +133,9 @@ async function main() {
     )
   }
 
-  const child = spawn(resolveVitestBin(), args, { stdio: 'inherit', env: process.env, shell: process.platform === 'win32' })
+  const vitestBin = resolveVitestBin()
+  const invocation = buildVitestInvocation(args, vitestBin)
+  const child = spawn(invocation.command, invocation.args, { stdio: 'inherit', env: process.env, shell: invocation.shell })
   child.on('error', (err) => {
     console.error(`[vitest] 启动失败：${err.message}`)
     cleanup()
