@@ -184,3 +184,6 @@ CODEX-REPORT.md
 # wrangler dev 的本地状态（miniflare 的 sqlite、打包临时文件）：根目录的 wrangler.json 在这里跑 dev 就会生成，
 # 2026-09-27 修官网 Range 时被 git add -A 一起提进过树。infra/feedback-worker/.gitignore 同理。
 /.wrangler/
+
+# PR 正文草稿（协调会话 / 子线写给 gh pr create 用，永不入库；10-07 被误提交进 main 一次）
+.tmp-pr-body.md
