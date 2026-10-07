@@ -1,0 +1,30 @@
+{
+  "name": "Agent 模型流看门狗的三个预算与相位（连不上 / 在想 / 出字中途停）",
+  "subject": "agent-lane.stream-watchdog",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneProviderGuard.mts",
+    "symbol": "LANE_STREAM_WATCHDOG"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneProviderGuard.mts",
+      "symbol": "LANE_STREAM_WATCHDOG"
+    },
+    {
+      "path": "electron/agentLane/laneStreamObserver.mts",
+      "symbol": "observeNativeStream"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneSingleShot.mts"
+  ],
+  "since": "2026-10-06",
+  "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0004）：响应头（pi 的 start）之前 = first-response，响应头之后第一段正文之前 = first-token（思考预算 300s，对齐 pi 传输层空闲默认值），正文开始之后 = idle。lane 主路与单次调用读同一份。"
+}

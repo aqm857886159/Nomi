@@ -1,0 +1,41 @@
+{
+  "id": "LAW11-SB-NUMBER-TEXT",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "分镜行只摆 select / 开关，数字与文本参数（种子、反向提示词、出图张数 output_count、帧率、推理步数等）在分镜里选不到；注释说它们住「模型自己的参数面板」，但那块面板（ShotParamControls）生产里没有挂载",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend",
+    "J06-delete-shot"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/creation/storyboard/shotRow/composerBarModel.ts 的 composerBarParams；ShotParamControls.tsx 只被设计实验室引用",
+    "分镜行改用画布同款面板后 frame_rate / negative_prompt / output_count / source_task_id / webhook 五类缺口消失；余下 seed / num_inference_steps / video_start_seconds 与画布节点同一原因，归 LAW11-EMPTY-INPUT",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/parameterReachability.test.mjs",
+    "ref": "⑪"
+  }
+}

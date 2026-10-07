@@ -1,0 +1,37 @@
+{
+  "name": "一次生成跑哪个变体",
+  "subject": "generation.variant-resolution",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/modelArchetypes/variantResolution.ts",
+    "symbol": "resolveArchetypeVariant"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "resolveArchetypeVariant"
+    },
+    {
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "canonicalArchetypeVariantId"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/parity/variantResolutionParity.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/ai/v4/spendCardDraft.ts",
+    "electron/shared/modelArchetypes/index.ts",
+    "electron/shared/videoCapabilities/registry.ts",
+    "electron/shared/videoCapabilities/recommendation.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/modelAdmissionSchema.ts"
+  ],
+  "since": "2026-09-26",
+  "notes": "v0.22.1 发版阻断：Agent 付费卡写 Seedance 2.0「Fast」，宿主按 standard 派发（更贵）——渲染层落默认变体，宿主拿目录模型名反推，而 doubao-seedance-2.0 恰是 standard 的 key。现在画布节点、付费卡、宿主派发、推荐、准入、参数特化都问 resolveArchetypeVariant：显式变体 → 模型名是变体专属 key（不是基础 key）→ 默认 → 第一个；认不认得一个 id 也只问 canonicalArchetypeVariantId。任何人不许再按 modelKey / defaultVariantId 自己挑一个变体（合同 docs/fixes/2026-09-26-generation-variant-single-owner.root-cause.json；类测试 electron/parity/variantResolutionParity.test.ts 在真实内置目录上逐行比画布与宿主）。"
+}

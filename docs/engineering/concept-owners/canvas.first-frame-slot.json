@@ -1,0 +1,31 @@
+{
+  "name": "首帧边落哪个参考槽",
+  "subject": "canvas.first-frame-slot",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+    "symbol": "assignEdgeToSlot"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "assignEdgeToSlot"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "firstFrameEdgeSlot"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/creation/storyboard/shotRow/shotRowModel.plannedFirstFrame.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/runner/referenceSlots.ts",
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.ts"
+  ],
+  "since": "2026-09-26",
+  "notes": "首帧槽优先，没有就是 image_ref[0]；与发送侧（generationReferenceResolver 把首帧同时放进 firstFrameUrl 与 referenceImages）一致，shotRowModel.plannedFirstFrame.test.ts 按全部视频档案逐模式对账。对外只开 firstFrameEdgeSlot；分镜行的「计划首帧」经它问，不许再写一份。与「@ 引用落哪个槽」（参考语义）是两个判据。"
+}

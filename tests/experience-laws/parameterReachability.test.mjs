@@ -17,11 +17,12 @@ import {
   publishedModelRows,
   renderCoverageTable,
 } from './parameterReachability.mjs'
+import { loadEscapeLedger } from '../../scripts/escape-ledger-lib.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '../..')
 const ledger = JSON.parse(fs.readFileSync(path.join(here, 'reachabilityLedger.json'), 'utf8'))
-const escapeLedger = JSON.parse(fs.readFileSync(path.join(repoRoot, 'tests/ux/full-walk/escapeLedger.json'), 'utf8'))
+const escapeLedger = loadEscapeLedger(repoRoot)
 
 const rows = publishedModelRows()
 const cells = buildReachabilityMatrix(rows)

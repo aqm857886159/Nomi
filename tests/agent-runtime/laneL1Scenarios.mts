@@ -40,7 +40,7 @@ const canvas = (id: string, name: string, args: Record<string, unknown>, semanti
   domainResult: { applied: true, proposalId: `receipt-${id}`, operation: semantic.operation, result: {}, reconciliation: { ok: true, deviationCount: 0 } },
   resultText: `Applied directly (undoable).\nUser sees: ${userSees}`,
 });
-const DRAFT_USER_SEES = 'Draft changes are saved in the project. Saving does not imply canvas placement or a new generation start.';
+const DRAFT_USER_SEES = 'Draft changes are saved in the project. Nothing was generated and nothing was spent. This host did not report whether the draft is on the canvas, so do not state what the canvas shows.';
 /** `draft_shots` 建草稿（卡藏着）：返回 durable operation；模型手里拿到的 id，末行按它下一步要填的名字印成 `operationId=`。 */
 const draft = (id: string, args: Record<string, unknown>, operationId: string): L1Call =>
   domain(id, 'draft_shots', args, { operation: { operationId, state: 'draft', cardHidden: true } }, args, `${DRAFT_USER_SEES} (operationId=${operationId})`);

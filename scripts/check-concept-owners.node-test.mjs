@@ -8,11 +8,14 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { parseCatFileBatch, findIdentityComparators } from './concept-owners-scan.mjs'
+import { findIdentityComparators } from './concept-owners-scan.mjs'
 import { trustDomainOfPath } from './concept-owners-lib.mjs'
+import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
+import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
 
 const checker = fileURLToPath(new URL('./check-concept-owners.mjs', import.meta.url))
-const REGISTRY = 'docs/engineering/concept-owners.json'
+/** 登记表是目录（一个概念一个文件）：write() 遇到这个键就整目录重写。 */
+const REGISTRY = CONCEPT_OWNERS_DIR
 const BASELINE = 'scripts/concept-owners-baseline.json'
 
 function concept(overrides = {}) {
@@ -58,8 +61,27 @@ const BASE_FILES = {
   ].join('\n'),
 }
 
+/** 把一份登记表对象落成目录：_meta.json + 每个概念一个 <subject>.json；字符串 = 一个坏掉的概念文件。 */
+function writeRegistry(root, value) {
+  const dir = path.join(root, REGISTRY)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true })
+  if (typeof value === 'string') {
+    fs.writeFileSync(path.join(dir, META_FILE), formatEntryJson({ _schema: 'test', schema_version: 2 }))
+    fs.writeFileSync(path.join(dir, 'catalog.broken.json'), value)
+    return
+  }
+  const { concepts, ...meta } = value
+  fs.writeFileSync(path.join(dir, META_FILE), formatEntryJson(meta))
+  for (const item of concepts) fs.writeFileSync(path.join(dir, conceptFileName(item.subject)), formatEntryJson(item))
+}
+
 function write(root, files) {
   for (const [file, contents] of Object.entries(files)) {
+    if (file === REGISTRY) {
+      writeRegistry(root, contents)
+      continue
+    }
     const target = path.join(root, file)
     if (contents === null) {
       fs.rmSync(target, { force: true })
@@ -273,7 +295,7 @@ test('登记表结构：缺字段、旧字段名、枚举错、trust_domain 与�
     [(c) => { c.consumers = c.allowed_consumers; delete c.allowed_consumers; return [c] }, /不认识的字段 consumers（v2 里叫 allowed_consumers）/],
     [(c) => { c.fact_kind = 'vibe'; return [c] }, /fact_kind 不在取值表里/],
     [(c) => { c.trust_domain = 'renderer'; return [c] }, /trust-domain-mismatch/],
-    [(c) => [c, concept({ name: '落家二号', owner: { path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }, write_api: [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }] })], /duplicate-owner/],
+    [(c) => [c, concept({ name: '落家二号', subject: 'catalog.landing-two', owner: { path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }, write_api: [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }] })], /duplicate-owner/],
     [(c) => { c.migration_status = 'pending'; return [c] }, /pending 概念必须写 migration_strategy/],
     [(c) => { c.write_api = [{ path: 'electron/shared/landing.ts', symbol: 'TIER_KEYS' }]; return [c] }, /owner 必须同时出现在 write_api 里/],
   ]

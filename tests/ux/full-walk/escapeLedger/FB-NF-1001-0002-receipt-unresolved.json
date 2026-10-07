@@ -1,0 +1,29 @@
+{
+  "id": "FB-NF-1001-0002-receipt-unresolved",
+  "since": "2026-10-06",
+  "source": "应用内反馈 NF-1001-0002（0.22.3 Windows；与 0001 同一会话）",
+  "category": "claims-and-outcomes",
+  "problem": "写剧本报「这一步的结果没对上账」，模型被告知去核对它没有工具读的回执；直接原因反馈里无失败码，按代码推断为执行器 15 秒缺省超时短于写工具声明的 60 秒",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/capabilityCore/documentWriteTransportAdapters.test.ts：20 秒落盘的写判成功，超出声明预算才判未确认",
+    "变异：执行器缺省改回 15 秒 → 慢写测试红",
+    "轨迹补 nomi.tool.failure_code，下一条同类反馈能定案"
+  ],
+  "completionCommits": [
+    "effcf1966"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+  "fixedInPr": 1055,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/documentWriteTransportAdapters.test.ts"
+  }
+}

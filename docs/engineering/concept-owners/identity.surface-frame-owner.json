@@ -1,0 +1,34 @@
+{
+  "name": "两条描述是不是同一个渲染帧",
+  "subject": "identity.surface-frame-owner",
+  "lifecycle": "session",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/surfacePortBinding.ts",
+    "symbol": "sameSurfaceFrameOwner"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "sameSurfaceFrameOwner"
+    }
+  ],
+  "forbidden_derivations": [],
+  "identity_fields": [
+    "contents",
+    "frame",
+    "webContentsId",
+    "processId",
+    "frameRoutingId",
+    "origin"
+  ],
+  "allowed_consumers": [
+    "electron/capabilityCore/canvasReadCapturedSnapshotRegistry.ts",
+    "electron/capabilityCore/canvasReadSurfaceRegistry.ts"
+  ],
+  "since": "2026-09-18",
+  "notes": "比的是「哪个 webContents / 哪个进程 / 哪个帧 / 哪个源」，不是端口绑定那一整套。canvasReadSurfaceRegistry 与 canvasReadCapturedSnapshotRegistry 原来各写一遍逐字相同的六维，它们一起决定「这次快照能不能算数」。原 check:identity-compare 的 owner 模块里的比对，2026-09-29 并入时单独登记。"
+}

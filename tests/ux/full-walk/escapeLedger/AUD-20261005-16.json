@@ -1,0 +1,37 @@
+{
+  "id": "AUD-20261005-16",
+  "since": "2026-10-05",
+  "source": "本次审计（docs/research/2026-10-05-storyboard-plan-user-audit.md）",
+  "category": "language-surface",
+  "problem": "最小窗口 1100×690 / 英文：镜头行底栏被裁，「⋯」与每行「生成」按钮看不见；英文 Agent 方案行「Generate」被截断",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S7"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/33-min-window-selected-row.png",
+    "tests/ux/shots/audit-storyboard/en/28-agent-plan-rows-numbered-from-3.png",
+    "docs/plan/2026-10-05-storyboard-table-structure.md",
+    "tests/ux/storyboard-table-structure.walk.mjs",
+    "tests/ux/storyboard-popover-keyboard.test.mjs"
+  ],
+  "completionCommits": [
+    "879aa9156",
+    "d0220493d",
+    "798e5e88d"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-storyboard-table-structure.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/ux/full-walk/catalog.mjs",
+    "ref": "⑫"
+  },
+  "fixedInPr": 1039
+}

@@ -1,0 +1,35 @@
+{
+  "name": "按钮点开的浮层放在哪儿（不压自己的触发钮和所在那一排）",
+  "subject": "ui.anchored-popup-placement",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/menu.tsx",
+    "symbol": "WorkbenchMenu"
+  },
+  "write_api": [
+    {
+      "path": "src/design/menu.tsx",
+      "symbol": "WorkbenchMenu"
+    },
+    {
+      "path": "src/design/anchoredPopoverPlacement.ts",
+      "symbol": "resolveAnchoredPopoverPlacement"
+    },
+    {
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "AnchoredPopover"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+      "symbol": "ToolbarActionMenu"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "菜单锚点 anchorRect / point 二选一（按钮点开的给矩形），富内容浮层几何不与锚点相交、放不下收高度；节点浮条上的下拉只由 ToolbarActionMenu 渲染，锚点 = 触发区 × 整条浮条（docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json，类检查 menu.structure.test.ts / ToolbarActionMenu.structure.test.ts / tests/ux/design-lab/popupGeometry.census.mjs）。"
+}

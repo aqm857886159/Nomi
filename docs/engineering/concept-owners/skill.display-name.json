@@ -1,0 +1,28 @@
+{
+  "name": "技能显示名",
+  "subject": "skill.display-name",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/skillLibrary/skillDisplay.ts",
+    "symbol": "skillLabelForKey"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/skillLibrary/skillDisplay.ts",
+      "symbol": "skillLabelForKey"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/skillLibrary/skillGallery.ts"
+  ],
+  "since": "2026-09-24",
+  "notes": "技能在界面上叫什么只在渲染时由 key 派生；store / 转录 / 恢复草稿只存 key（和钉版本的 contentHash），不存名字。主进程 skillSnapshot.name 是 SKILL.md 的标识、与 key 同值，永不上屏（docs/fixes/2026-09-24-skill-display-name-owner.root-cause.json）。"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "剪辑面板的收起状态",
+  "subject": "editing.panel-collapse",
+  "lifecycle": "preference",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+    "symbol": "setEditingPanelLayout"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "setEditingPanelLayout"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/preview/PreviewSourcePanel.tsx",
+    "src/workbench/preview/panelLayout.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "收起只有 editingPanelLayout.visibility 一份真相；面板库拖出来的收起 / 展开经 editingPanelResizeEffect 写回它（此前被丢掉，32px 里仍画整块面板）。"
+}

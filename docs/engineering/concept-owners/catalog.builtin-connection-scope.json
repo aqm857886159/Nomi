@@ -1,0 +1,27 @@
+{
+  "name": "这条连接还是不是内置家那一条",
+  "subject": "catalog.builtin-connection-scope",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/builtinVendorSeeds.ts",
+    "symbol": "builtinVendorScopeMatches"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/builtinVendorSeeds.ts",
+      "symbol": "builtinVendorScopeMatches"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/catalog/directKeyCredential.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "内置家的连接身份由代码拥有：鉴权放法与种子一致，接口地址是种子地址或代码登记的官方备用线路（vendor/vendorBaseFallback.codeDeclaredFallbackOrigins，与凭据守卫同一张名单——APIMart 的国内线路 api.apib.ai 在里面）。内置家自动发布、Agent 生成器装配、生成器出请求都问它，不一致就 fail-closed。合同 docs/fixes/2026-09-29-settings-address-is-the-users.root-cause.json。"
+}

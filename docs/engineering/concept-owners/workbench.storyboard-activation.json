@@ -1,0 +1,28 @@
+{
+  "name": "新建的分镜方案要不要替用户打开（谁发起的）",
+  "subject": "workbench.storyboard-activation",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/workbenchDocumentSlice.ts",
+    "symbol": "activationAfterCreate"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "activationAfterCreate"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/DocumentListSidebar.tsx",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "新建方案之后用户正在看的那份（activeStoryboardId / activeDocumentId）变不变，只由 activationAfterCreate 按显式的 StoryboardInitiator 决定：'user' 才打开，'agent' 只入列表。发起人是 addStoryboardDesign / setStoryboardPlan(createNew) 的必填输入，没有默认值；打开 / 切换永远是用户的动作（与「程序不挪画布」同一条）。"
+}

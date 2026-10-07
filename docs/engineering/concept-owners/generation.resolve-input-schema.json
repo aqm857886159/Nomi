@@ -1,0 +1,29 @@
+{
+  "name": "执行计划检查的镜头字段表（resolve 输入）",
+  "subject": "generation.resolve-input-schema",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/generation.ts",
+    "symbol": "generationResolveInputSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "symbol": "generationResolveInputSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationResolveIpc.ts",
+    "electron/shared/videoCapabilities/planResolver.ts",
+    "electron/shared/videoCapabilities/planResolutionContracts.ts",
+    "src/workbench/generationCanvas/agent/storyboardStrategy.ts"
+  ],
+  "since": "2026-09-26",
+  "notes": "接受集合只有这一份（GUI 窄 IPC 与 agent/MCP 同源）。引擎类型 PlanShotInput 是它的镜像，两边由 generation.ts 里的双向逐键守卫绑死，多一个键就是 tsc 红；0.22.0 曾因类型加了 modelVendor、schema 没加，每个记了供应商的视频镜都「执行计划检查失败」（合同 docs/fixes/2026-09-26-storyboard-resolve-vendor-rejected.root-cause.json）。"
+}

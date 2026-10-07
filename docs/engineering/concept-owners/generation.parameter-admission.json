@@ -1,0 +1,66 @@
+{
+  "name": "参数准入",
+  "subject": "generation.parameter-admission",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/executionContract.ts",
+    "symbol": "compileParameters"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/executionContract.ts",
+      "symbol": "compileParameters"
+    },
+    {
+      "path": "electron/capabilityCore/executionContract.ts",
+      "symbol": "admitPlanCandidate"
+    },
+    {
+      "path": "electron/capabilityCore/generationPlanningParameters.ts",
+      "symbol": "GENERATION_PLANNING_HINTS"
+    },
+    {
+      "path": "electron/capabilityCore/semanticAspectRatio.ts",
+      "symbol": "projectSemanticAspectRatio"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "path": "electron/shared/aspectRatioValue.ts",
+      "symbol": "resolveAspectRatioChoice"
+    },
+    {
+      "path": "electron/shared/aspectRatioValue.ts",
+      "symbol": "placeAspectRatio"
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardShotScope.ts",
+      "symbol": "foldRatioIntoSlot"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "GENERATION_PLANNING_PARAMETER_KEYS",
+      "kind": "definition",
+      "why": "09-22 打捞分支的第二张意图键表；现在只许在 owner 文件里由 GENERATION_PLANNING_HINTS 派生"
+    }
+  ],
+  "parity_test": "electron/capabilityCore/parameterAdmission.class.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/modelAdmissionSchema.ts",
+    "electron/capabilityCore/moduleCatalogBootstrap.ts",
+    "electron/parity/generationParityTestUtils.ts"
+  ],
+  "since": "2026-09-22",
+  "notes": "2026-09-22 总合并收口（合同 docs/fixes/2026-09-22-parameter-admission-one-owner.root-cause.json）。判据本体 = compileParameters，合法键集三档派生：档案 mode.params（videoCompileOptions / archetypeCompileOptions）→ mapping 的 create op 派生（moduleCatalogBootstrap.modelParameterSchema）→ 都拿不到则放行 + warning。拒绝形状只有 ParameterRejection 一套（droppedFields 账本已删）。「Nomi 自己消费、不上 wire」的意图键表下沉到 electron/capabilityCore/generationPlanningParameters.ts 的 GENERATION_PLANNING_HINTS（键 + 类型，唯一那一张；executionContract 只 re-export）——它是同一个概念的子表，不是第二个 owner。准入那一趟单独有入口 admitPlanCandidate：要校验参数的调用方走它，要整份合同（含提示词 @ 投影）的走 compileExecutionContract。刻意未收：electron/parity/generationParityTestUtils.ts 的对拍 harness 自己编一份（它的职责就是绕开生产装配），已在合同 door_reduction.why_not 点名。 2026-10-05（合同 docs/fixes/2026-10-05-agent-aspect-ratio-semantic.root-cause.json）：GENERATION_PLANNING_HINTS 删掉 aspectRatio（它曾把 Agent 写的比例静默吞掉）；语义比例在写入口由 normalizeAuthoredCandidate → projectSemanticAspectRatio 翻成所选模式的真实键，判据 resolveAspectRatioChoice 住 electron/shared/aspectRatioValue.ts（画布参数面板同读）。三者都是本概念的写接口，不是新主人。 2026-10-05（合同 docs/fixes/2026-10-05-storyboard-ratio-and-merge.root-cause.json）：分镜落画布 / 写回节点 / 批量条三处改调 placeAspectRatio（同一份比例判据）；分镜方案里比例只住 aspect_ratio 槽，foldRatioIntoSlot 收拢。"
+}

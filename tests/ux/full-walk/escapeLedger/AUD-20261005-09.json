@@ -1,0 +1,23 @@
+{
+  "id": "AUD-20261005-09",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #9",
+  "category": "parameter-contract",
+  "problem": "跨镜头参数：「全部镜头」批量条只有类型 / 模型 / 时长 / 画幅四项，画幅选项是固定表；多选浮条只有统一模型；「⋯」里比例显示英文原值 adaptive",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/09-bulk-aspect-menu.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/08-shot-more-params-popover.png"
+  ],
+  "completionCommits": []
+}

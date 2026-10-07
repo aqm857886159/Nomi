@@ -1,0 +1,27 @@
+{
+  "name": "制作节点的运行记录由谁写",
+  "subject": "production.node-run-record",
+  "lifecycle": "projection",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+    "symbol": "applyShotGeneration"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "applyShotGeneration"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/shared/productionShotPhase.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts"
+  ],
+  "since": "2026-09-26",
+  "notes": "制作投影写进节点的那条运行记录（id 由 productionShotPhase.productionRunRecordId 生成、isProductionRunRecord 认）只归制作投影写：主进程 buildMaterializeShotsPayload 算出每镜的「生成中 / 失败 / 结束 / 出片」，渲染层 applyShotGeneration 落到节点上。画布自己的重开收敛（canvasSnapshotNormalizer.convergeStuckMidFlightNode）不许碰它——2026-09-26 真付费 T5：重开窗口后在跑的第 1 镜被当幽灵收成空闲，看着像没在跑（合同 docs/fixes/2026-09-26-inflight-shot-reload-display.root-cause.json）。"
+}

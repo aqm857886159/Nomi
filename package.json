@@ -191,7 +191,7 @@
     "test:experience-laws": "vitest run tests/experience-laws",
     "test:experience:full": "node ./scripts/experience-full-run.mjs",
     "check:pr-judgement": "node --test ./scripts/pr-judgement-lib.node-test.mjs && node ./scripts/check-pr-judgement.mjs",
-    "check:escape-ledger": "node --test ./scripts/check-escape-ledger.node-test.mjs && node ./scripts/check-escape-ledger.mjs",
+    "check:escape-ledger": "node --test ./scripts/check-escape-ledger.node-test.mjs ./scripts/entry-directory.node-test.mjs && node ./scripts/check-escape-ledger.mjs",
     "check:self-written": "node --test ./scripts/check-self-written.node-test.mjs && node ./scripts/check-self-written.mjs",
     "check:generation-entrances": "node --test ./scripts/check-generation-entrances.node-test.mjs && node ./scripts/check-generation-entrances.mjs",
     "check:boundary-owners": "node --test ./scripts/check-boundary-owners.node-test.mjs && node ./scripts/check-boundary-owners.mjs",

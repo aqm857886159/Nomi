@@ -1,0 +1,30 @@
+{
+  "name": "项目数据里的构建产物地址",
+  "subject": "project.build-artifact-url",
+  "lifecycle": "project-data",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/buildArtifactMigration.ts",
+    "symbol": "createBuildArtifactRewriter"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/buildArtifactMigration.ts",
+      "symbol": "createBuildArtifactRewriter"
+    },
+    {
+      "path": "electron/shared/buildArtifactUrl.ts",
+      "symbol": "classifyBuildArtifactUrl"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/workspace/workspaceManifest.ts",
+    "electron/shared/buildArtifactUrl.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "app.asar 包内 / dev server 源码树地址不许进项目：挂在清单事务 localizeEmbeddedMediaUrls 那一遍遍历上，示例图迁成项目资产，新写入的其它构建地址拒绝。分类器 electron/shared/buildArtifactUrl.ts 是判据面，不是第二个 owner。合同 docs/fixes/2026-09-25-build-artifact-url-in-project-data.root-cause.json。"
+}
