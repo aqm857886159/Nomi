@@ -1,0 +1,26 @@
+{
+  "id": "PAID-CARD-REF-03-placeholder-slot",
+  "since": "2026-10-07",
+  "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+  "category": "reference-integrity",
+  "problem": "画布占位节点「首帧」那一格里选了一张素材（没有连线），付费卡上没有它，点生成也没发出去",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「画布节点「首帧」那一格选了一张本项目素材」卡上有、宿主钉住、画布节点上仍在",
+    "变异：卡只读连线、不读占位节点自己的参考槽 → 这一行红",
+    "带档案模型连线进首帧 / 参考格的那一张在 main 上已不复现（同一矩阵前两行）"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+  }
+}

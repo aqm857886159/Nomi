@@ -12,7 +12,8 @@
 > characterRigMigration.test.ts: 旧工程 fixture（__fixtures__/legacy-xbot-project.v2.json：走路 / 坐姿 + 手调骨骼 + 姿态关键帧 / 跪与坐地 / 上传 Mixamo 角色）：迁移结果、说明计数、幂等、只读、旧版存过再读、导入图层
 > directorProject.ts: 默认工程/图层、normalizeDirectorProject / normalizeScene（unknown → 合法工程 / 图层，逐字段容错，含资产库；normalizeObject 是内置人偶读时迁移的唯一入口）、ualMigrationNoteOf（迁移说明只在内存）、remapSceneIds（图层复制与导入场景共用换 id）、clone、projectStats
 > directorStore.ts: zustand vanilla store 工厂：编辑期真相、互斥选择及子选择归属、完整工程50步撤销、图层操作；withHistory 同步嵌套事务一次入栈且异常回滚，commitProject 是工程唯一写入口；组装各 action 集
-> storeEntityActions.ts: 对象/机位/灯 CRUD、分组解组群众、跨图层复制移动、显隐锁定、经编辑层的 write*SpatialTransform
+> defaultCharacter.ts: 默认角色模板（模型 / 绑定 / 颜色 / 默认群众动作）：「加人」放置与群众（batchCreateCrowd）共用，群众永远和加人是同一个人偶
+> storeEntityActions.ts: 对象/机位/灯 CRUD、分组解组群众（默认角色模板建群众组，一次撤销撤整组）、跨图层复制移动、显隐锁定、经编辑层的 write*SpatialTransform
 > storeClipActions.ts: 路径片段与路标、特写片段、动作片段与骨骼关键帧、视线片段、副轨开关、POV 进入判定（拒绝原因为 i18n key）
 > timeGrid.ts: 30fps 帧格与「内容终点 = 片段末尾」单一真相：quantizeToFrame / sceneContentEndSeconds / ensureDurationSeconds；laneClips = 单泳道集合（机位路径 ∪ 特写争同一段时间、角色各家族只跟自己争），放置 / 拖移 / 拖边 / 粘贴争位置都用它
 > vec3.ts: 零依赖向量数学；lookAtAngles（yaw 从 +Z 起、pitch 正=俯视）、wrapDeg 0–360 / signedDeg ±180（相对转角必须用后者）、eulerXYZToMatrix / applyTransform（等价 three compose）

@@ -1,0 +1,23 @@
+{
+  "id": "LAW12-sb-row-checkbox",
+  "since": "2026-10-05",
+  "source": "full-walk pb12-storyboard-click-expectations（2026-10-05，base / zh-CN）",
+  "category": "interaction-semantics",
+  "problem": "点「行首的小方框（复选框）」：用户以为勾上就是选中这一镜（像表格勾选），之后可以对勾上的几镜批量操作；这一镜照常显示，不变灰、不被藏起来；实际勾上之后第 3 镜没有选中，整行变淡到 60%，被标成「本次跳过」",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [
+    "J06-delete-shot"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "tests/ux/shots/full-walk/law12-zh/pb12-storyboard-click-expectations--base--zh-CN/click-sb-row-checkbox.png"
+  ],
+  "completionCommits": []
+}

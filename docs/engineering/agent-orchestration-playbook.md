@@ -369,7 +369,7 @@ node scripts/research/tikhub-search.mjs \
 同一个概念却在合并之前就各自长出了第二份实现。背景、四个实例与判据正文一字未删地住在
 [`../engineering-rules.md`](../engineering-rules.md) 的 R33，本节只写**派工侧照抄什么**。
 
-**概念占用表已并进设计卡 ★2 格**（[`design-card.md`](design-card.md)）：碰哪几个概念 · 每个概念的唯一 owner（**文件 : 符号**，只写到目录 = 没写）· 允许谁消费；owner 未定标 `pending` 并写清由哪份任务书收口。写不出就不发工。正本是 `docs/engineering/concept-owners.json`。
+**概念占用表已并进设计卡 ★2 格**（[`design-card.md`](design-card.md)）：碰哪几个概念 · 每个概念的唯一 owner（**文件 : 符号**，只写到目录 = 没写）· 允许谁消费；owner 未定标 `pending` 并写清由哪份任务书收口。写不出就不发工。正本是 `docs/engineering/concept-owners/`。
 
 **机器检查（`pnpm run check:concept-owners`，2026-10-02 起降为警告档）**：登记表 v2 的结构与计数键、主人今天还在、
 第二写口（主人之外的同名定义）、pending 例外账与旧路写门冻结、身份比对维度，以及文件名日期 ≥ 2026-09-27 的

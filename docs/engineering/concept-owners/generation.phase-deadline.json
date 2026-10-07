@@ -1,0 +1,30 @@
+{
+  "name": "生成各阶段最长能等多久（阶段截止表与唯一等待原语）",
+  "subject": "generation.phase-deadline",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts",
+    "symbol": "awaitWithinPhase"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts",
+      "symbol": "awaitWithinPhase"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts",
+      "symbol": "GENERATION_PHASE_DEADLINE"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/runner/generationPhaseDeadline.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "PR #924（同上合同）：主进程里任何一个永远不返回的 await，都能把节点卡在非终态，而且点停也停不下。现在每个非终态的 GenerationProgressPhase 都在 GENERATION_PHASE_DEADLINE 里登记了最长时长与到期动作（穷尽的 Record，少一个阶段就是 tsc 红）；生成过程中等主进程的地方都经 awaitWithinPhase：结果回来、按最近上报的阶段截止时间到期、或用户点停，谁先到算谁。可恢复 / 卡住的结局不自动重试——重试会再提交一次付费任务。"
+}

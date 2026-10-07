@@ -1,0 +1,31 @@
+{
+  "name": "连参考图之后切到哪个模式",
+  "subject": "canvas.reference-mode",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "symbol": "resolveModeForReferenceDemand"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "resolveModeForReferenceDemand"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "preferredImageWorkflow"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/ai/v4/spendCardReferences.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #918（方案 docs/plan/2026-09-28-reference-default-mode.md，无根因合同）：用户要求连了参考图后默认是参考模式、不是首尾帧。当前模式接不住新连的图时，按档案声明的偏好顺序切（参考类工作流 → 其它图参考工作流 → 首帧工作流）；「连线类型」与「切模式」共用 preferredImageWorkflow 这一份顺序，只读 ModelArchetype.modes 的 intent 与 slots，不按模型名写死（P4）。"
+}

@@ -10,7 +10,6 @@ const runtime = vi.hoisted(() => ({ linked: [] as DirectorLinkedAsset[] }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../../../../../ui/toast', () => ({ toast: vi.fn() }))
 vi.mock('../../../../../api/assetUploadApi', () => ({ hostedAssetUrl: vi.fn(), importWorkbenchLocalAssetFile: vi.fn() }))
-vi.mock('../../scene/creation/useCharacterPlacement', () => ({ CHARACTER_MODEL_BY_GENDER: {} }))
 vi.mock('../LinkedAssetsContext', () => ({ useLinkedAssets: () => runtime.linked }))
 
 type Row = React.ReactElement<{ children?: React.ReactNode; onDoubleClick?: () => void }>

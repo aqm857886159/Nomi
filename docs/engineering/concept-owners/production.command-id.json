@@ -1,0 +1,35 @@
+{
+  "name": "渲染层发给制作 Run 的命令号（怎么造 + IPC 认不认）",
+  "subject": "production.command-id",
+  "lifecycle": "execution",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionRunCommandId.ts",
+    "symbol": "isProductionRunIdentifier"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "isProductionRunIdentifier"
+    },
+    {
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "detachShotNodesCommandId"
+    },
+    {
+      "path": "electron/shared/productionRunCommandId.ts",
+      "symbol": "canvasShotClaimCommandId"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/productionRunCommandId.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionRunIpc.ts",
+    "src/workbench/production/reportDetachedShotNodes.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "IPC 边界认的标识规则（[A-Za-z0-9._-]{1,160}，且不是 . / ..）和渲染层自己拼的命令号（目前是删节点上报的 detachShotNodesCommandId：`detach-canvas.<runId+节点集的哈希>`）住同一个模块——造出来的号按构造就过得去。起因：删节点上报曾手拼 `detach-canvas:<runId>:<节点 id,…>`，冒号逗号过不了 IPC 校验，失败又被 catch {} 吞掉，被删的镜照样派发扣费（2026-09-29 #921 真额度验收，合同 docs/fixes/2026-09-28-production-shot-claim.root-cause.json）。其余渲染层命令用 crypto.randomUUID()，天然合规；主进程里另有几份同样的正则（productionRunService / productionRunPaths 等），校验的是主进程自己产生或 MCP 送来的标识，不是渲染层拼的号，收敛留给协调会话排期。"
+}

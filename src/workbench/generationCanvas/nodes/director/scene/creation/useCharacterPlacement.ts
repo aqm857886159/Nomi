@@ -1,20 +1,22 @@
 /**
- * [INPUT]: 依赖 react、../../DirectorEditorContext 的 useDirectorStoreApi、../ViewportApiContext 的 useViewportApi、../../model/vec3
- *          ../../model/sceneObjectGraph 的完整预览 TRS 世界→图层转换；Orbit 生命周期由 DirectorViewport 统一拥有
- * [OUTPUT]: 对外提供 PlacementGhostState、useCharacterPlacement（放置模式：地面幽灵体跟随 → 点击落点 → 按住拖拽定朝向 → 松开创建）
- * [POS]: director/scene/creation 的角色落地放置（清单 §2.2 V4a）：DOM 指针事件在视口容器上处理，幽灵体状态放 ref 给
- *        PlacementGhost 每帧读取；右键/Esc 取消。创建走 store.addObject（名字「角色N」、posePreset tpose、系统模型）。
- * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ * [INPUT]: 渚濊禆 react銆?./../DirectorEditorContext 鐨?useDirectorStoreApi銆?./ViewportApiContext 鐨?useViewportApi銆?./../model/vec3
+ *          ../../model/sceneObjectGraph 鐨勫畬鏁撮瑙?TRS 涓栫晫鈫掑浘灞傝浆鎹紱Orbit 鐢熷懡鍛ㄦ湡鐢?DirectorViewport 缁熶竴鎷ユ湁
+ * [OUTPUT]: 瀵瑰鎻愪緵 PlacementGhostState銆乽seCharacterPlacement锛堟斁缃ā寮忥細鍦伴潰骞界伒浣撹窡闅?鈫?鐐瑰嚮钀界偣 鈫?鎸変綇鎷栨嫿瀹氭湞鍚?鈫?鏉惧紑鍒涘缓锛? * [POS]: director/scene/creation 鐨勮鑹茶惤鍦版斁缃紙娓呭崟 搂2.2 V4a锛夛細DOM 鎸囬拡浜嬩欢鍦ㄨ鍙ｅ鍣ㄤ笂澶勭悊锛屽菇鐏典綋鐘舵€佹斁 ref 缁? *        PlacementGhost 姣忓抚璇诲彇锛涘彸閿?Esc 鍙栨秷銆傚垱寤鸿蛋 store.addObject锛堝悕瀛椼€岃鑹睳銆嶃€乸osePreset tpose銆佺郴缁熸ā鍨嬶紱妯℃澘鏉ヨ嚜 model/defaultCharacter锛夛紱
+ *        甯?crowd 鍙傛暟鏃惰惤鐐规敼寤虹兢浼楃粍锛坰tore.batchCreateCrowd锛屽悓涓€涓粯璁よ鑹诧級銆? * [PROTOCOL]: 鍙樻洿鏃舵洿鏂版澶撮儴锛岀劧鍚庢鏌?CLAUDE.md
  */
 import React from 'react'
 import { useDirectorStoreApi } from '../../DirectorEditorContext'
-import type { DirectorRig, Vec3 } from '../../model/directorTypes'
-import { DEFAULT_CHARACTER_MODEL_PATH, DEFAULT_CHARACTER_RIG } from '../../model/rigs'
+import { defaultCharacterInput, type CharacterGender } from '../../model/defaultCharacter'
+import type { Vec3 } from '../../model/directorTypes'
+import type { CrowdSpec } from '../../model/storeEntityActions'
 import { RAD_TO_DEG } from '../../model/vec3'
 import { frameTransform, invertFrame, localFrame, multiplyFrames, sceneFrame } from '../../model/sceneObjectGraph'
 import { useViewportApi } from '../ViewportApiContext'
 
-export type PlacementGender = 'female' | 'male'
+export type PlacementGender = CharacterGender
+
+/** 缇や紬鏀剧疆锛氳惤鐐瑰寤轰竴涓兢浼楃粍锛堝弬鏁版潵鑷€岋紜鈫掕鑹测啋缇や紬銆嶆诞灞傦級 */
+export type CrowdPlacementSpec = Pick<CrowdSpec, 'rows' | 'cols' | 'spacing' | 'actionId'>
 
 export type PlacementGhostState = {
   visible: boolean
@@ -24,18 +26,15 @@ export type PlacementGhostState = {
   dragTarget: Vec3 | null
 }
 
-// 男 / 女目前是同一个默认 UAL 人偶，只差颜色（UAL 只有一个中性人偶）
-export const CHARACTER_MODEL_BY_GENDER: Record<PlacementGender, { modelPath: string; rig: DirectorRig }> = {
-  female: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
-  male: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
-}
-
+// 鐢?/ 濂崇洰鍓嶆槸鍚屼竴涓粯璁?UAL 浜哄伓锛屽彧宸鑹诧紙UAL 鍙湁涓€涓腑鎬т汉鍋讹級
 export type CharacterPlacementApi = {
   active: boolean
   gender: PlacementGender | null
   headingDeg: number
   ghostRef: React.MutableRefObject<PlacementGhostState>
-  start: (gender: PlacementGender) => void
+  /** 鏈?crowd = 鏀剧疆缇や紬锛堝菇鐏典綋鍙ず鎰忚惤鐐癸紝钀藉湴寤轰竴涓兢浼楃粍锛夛紱娌℃湁 = 鏀句竴涓鑹?*/
+  crowd: CrowdPlacementSpec | null
+  start: (gender: PlacementGender, crowd?: CrowdPlacementSpec) => void
   cancel: () => void
   onPointerDown: (event: React.PointerEvent) => boolean
   onPointerMove: (event: React.PointerEvent) => boolean
@@ -43,24 +42,27 @@ export type CharacterPlacementApi = {
   onPointerLeave: () => void
 }
 
-export function useCharacterPlacement({ characterName }: { characterName: (index: number) => string }): CharacterPlacementApi {
+export function useCharacterPlacement({ characterName, crowdNames }: { characterName: (index: number) => string; crowdNames: { group: string; member: string } }): CharacterPlacementApi {
   const store = useDirectorStoreApi()
   const apiRef = useViewportApi()
   const [gender, setGender] = React.useState<PlacementGender | null>(null)
+  const [crowd, setCrowd] = React.useState<CrowdPlacementSpec | null>(null)
   const [headingDeg, setHeadingDeg] = React.useState(0)
   const ghostRef = React.useRef<PlacementGhostState>({ visible: false, position: { x: 0, y: 0, z: 0 }, headingDeg: 0, dragging: false, dragTarget: null })
   const anchorRef = React.useRef<Vec3 | null>(null)
 
   const cancel = React.useCallback(() => {
     setGender(null)
+    setCrowd(null)
     setHeadingDeg(0)
     anchorRef.current = null
     ghostRef.current = { visible: false, position: { x: 0, y: 0, z: 0 }, headingDeg: 0, dragging: false, dragTarget: null }
   }, [])
 
   const start = React.useCallback(
-    (nextGender: PlacementGender) => {
+    (nextGender: PlacementGender, nextCrowd?: CrowdPlacementSpec) => {
       setGender(nextGender)
+      setCrowd(nextCrowd ?? null)
       setHeadingDeg(0)
       anchorRef.current = null
       ghostRef.current = { visible: false, position: { x: 0, y: 0, z: 0 }, headingDeg: 0, dragging: false, dragTarget: null }
@@ -75,26 +77,19 @@ export function useCharacterPlacement({ characterName }: { characterName: (index
     (position: Vec3, heading: number) => {
       if (!gender) return
       const state = store.getState()
-      const index = state.activeScene().objects.filter((object) => object.type === 'character').length + 1
-      const spec = CHARACTER_MODEL_BY_GENDER[gender]
       const transform = frameTransform(multiplyFrames(invertFrame(sceneFrame(state.activeScene().sceneConfig)), localFrame({ position, rotation: { x: 0, y: heading, z: 0 }, scale: { x: 1, y: 1, z: 1 } })))
-      const id = state.addObject({
-        name: characterName(index),
-        type: 'character',
-        ...transform,
-        color: gender === 'female' ? '#fb7185' : '#38bdf8',
-        visible: true,
-        locked: false,
-        posePreset: 'tpose',
-        modelPath: spec.modelPath,
-        modelScale: 1,
-        isSystemModel: true,
-        rig: spec.rig,
-      })
+      if (crowd) {
+        if (state.batchCreateCrowd({ ...crowd, transform, groupName: crowdNames.group, memberName: crowdNames.member })) {
+          state.setTransformMode('translate')
+        }
+        return
+      }
+      const index = state.activeScene().objects.filter((object) => object.type === 'character').length + 1
+      const id = state.addObject(defaultCharacterInput(gender, characterName(index), transform))
       state.setTransformMode('translate')
       state.select({ objectId: id, multiObjectIds: [id] })
     },
-    [characterName, gender, store],
+    [characterName, crowd, crowdNames.group, crowdNames.member, gender, store],
   )
 
   const onPointerDown = React.useCallback(
@@ -159,5 +154,5 @@ export function useCharacterPlacement({ characterName }: { characterName: (index
     if (gender && !ghostRef.current.dragging) ghostRef.current = { ...ghostRef.current, visible: false }
   }, [gender])
 
-  return { active: gender !== null, gender, headingDeg, ghostRef, start, cancel, onPointerDown, onPointerMove, onPointerUp, onPointerLeave }
+  return { active: gender !== null, gender, crowd, headingDeg, ghostRef, start, cancel, onPointerDown, onPointerMove, onPointerUp, onPointerLeave }
 }

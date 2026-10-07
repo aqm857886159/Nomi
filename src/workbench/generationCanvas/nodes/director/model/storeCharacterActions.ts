@@ -28,6 +28,8 @@ export type DirectorCharacterActions = {
   syncBoneKeyframeAtPlayhead: (objectId: string) => void
   mirrorPose: (objectId: string, fromSide: 'left' | 'right') => void
   applyPosePreset: (objectId: string, presetId: string) => boolean
+  /** 整组改动作：组内所有角色（含嵌套子组）posePreset 一起换并清微调，一次撤销；返回改了几个人 */
+  applyPosePresetToGroup: (groupId: string, presetId: string) => number
   setBodyType: (objectId: string, bodyTypeId: string) => boolean
   setHipsOffset: (objectId: string, offset: Vec3 | undefined) => void
   updateActionClip: (objectId: string, clipId: string, patch: Partial<Pick<ActionClip, 'name' | 'actionPose'>>) => void
@@ -169,6 +171,25 @@ export function createCharacterActions(_set: StoreSet, get: StoreGet, commitProj
         object.boneRotations = {}
       })
       return true
+    },
+
+    applyPosePresetToGroup: (groupId, presetId) => {
+      if (!findActionEntry(presetId)) return 0
+      const scene = get().activeScene()
+      const members = get().getObjectDescendantIds(groupId).filter((id) => {
+        const item = scene.objects.find((object) => object.id === id)
+        return item?.type === 'character' && item.posePreset !== presetId
+      })
+      if (members.length === 0) return 0
+      save()
+      commitProject((_, draft) => {
+        for (const object of draft.objects) {
+          if (!members.includes(object.id)) continue
+          object.posePreset = presetId
+          object.boneRotations = {}
+        }
+      })
+      return members.length
     },
 
     setBodyType: (objectId, bodyTypeId) => {

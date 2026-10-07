@@ -65,19 +65,17 @@ describe('群众：10 种动作混着', () => {
 
 // 施工计划 §11 风险 9：batchCreateCrowd 每人深拷贝整份对象（动作片段 / 轨迹），量工程体积与生成耗时（撤销栈存整树快照，最多 50 步）
 describe('群众：一键生成 10×10 的工程体积与耗时', () => {
-  const seed = (): { store: ReturnType<typeof createDirectorStore>; id: string } => {
+  const seed = (): { store: ReturnType<typeof createDirectorStore> } => {
     const store = createDirectorStore({ defaultSceneName: 'Scene' })
-    const { id: _id, ...template } = crowd(1, () => 'Walk_Loop').people[0].object
-    void _id
-    return { store, id: store.getState().addObject(template) }
+    return { store }
   }
   const once = seed()
   const before = JSON.stringify(once.store.getState().exportProject()).length
-  once.store.getState().batchCreateCrowd(once.id, 10, 10, 1.2, 'crowd')
+  once.store.getState().batchCreateCrowd({ rows: 10, cols: 10, spacing: 1.2, actionId: 'Walk_Loop', transform: { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 } }, groupName: 'Crowd', memberName: 'Member' })
   const after = JSON.stringify(once.store.getState().exportProject()).length
   console.log(`[crowd] 工程 JSON：1 人 ${before} 字节 → 10×10 群众 ${after} 字节（${(after / 1024).toFixed(0)} KB）；撤销栈 50 步上限时最坏约 ${((after * 50) / 1024 / 1024).toFixed(1)} MB`)
   bench('batchCreateCrowd 10×10', () => {
     const fresh = seed()
-    fresh.store.getState().batchCreateCrowd(fresh.id, 10, 10, 1.2, 'crowd')
+    fresh.store.getState().batchCreateCrowd({ rows: 10, cols: 10, spacing: 1.2, actionId: 'Walk_Loop', transform: { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 } }, groupName: 'Crowd', memberName: 'Member' })
   }, { time: 1000, warmupTime: 200 })
 })

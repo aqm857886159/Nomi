@@ -1,0 +1,25 @@
+{
+  "name": "叫回 Nomi 的入口",
+  "subject": "shell.recall-entry",
+  "lifecycle": "projection",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+    "symbol": "CollapsedAiChip"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+      "symbol": "CollapsedAiChip"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/ui/app-shell/NomiAppBar.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "新东西落在画布哪里（相对用户看得见的那块）",
+  "subject": "canvas.insertion-point",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "symbol": "visibleInsertionPoint"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "visibleInsertionPoint"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "placeBlockInVisibleArea"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "publishCanvasStageSize"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/resolveInsertionPosition.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "2026-09-25 用户拍板「程序不再主动平移 / 缩放画布；新建和导入尽量直接落在当前可见区域」（合同 docs/fixes/2026-09-25-canvas-no-auto-viewport.root-cause.json）。单点落点（visibleInsertionPoint，addNode 默认）、整批落点（placeBlockInVisibleArea）、可见区内找空位（resolveInsertionPosition 的 visibleArea 参数）都读这一份；舞台尺寸由画布宿主经 publishCanvasStageSize 发布（0×0 不覆盖）。不许再写死画布坐标当默认落点，也不许「落地后再挪画布露出」。"
+}

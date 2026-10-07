@@ -1,0 +1,31 @@
+{
+  "name": "本机参考图这次走哪条通道（端点自己的收法优先；借别家时点名）",
+  "subject": "asset.reference-ingestion-route",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/assetLocalization.ts",
+    "symbol": "resolveAssetIngestionWithFallback"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "resolveAssetIngestionWithFallback"
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "channelLabel"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/catalog/assetTransportRuntime.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/assetTransportDescribe.ts"
+  ],
+  "since": "2026-10-06",
+  "notes": "合同 docs/fixes/2026-10-06-reference-upload-channel.root-cause.json：端点（HttpOperation.assetIngestion）收得下就只用它；否则目标供应商 → 借用别家（borrowed 标记，失败行点名那一家的账户）→ relay → 匿名图床。"
+}

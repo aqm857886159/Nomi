@@ -1,0 +1,22 @@
+{
+  "id": "AUD-20261005-10",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈（补充）「生成视频的逻辑也有问题」",
+  "category": "cross-shot-order",
+  "problem": "同 AUD-20261005-08；另：图片+视频镜点生成走依赖波次（1 次确认 2 次花费），纯视频镜直发，用户看不出区别（待用户补充具体现象）",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S5"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "已合并到 AUD-20261005-08"
+  ],
+  "completionCommits": []
+}

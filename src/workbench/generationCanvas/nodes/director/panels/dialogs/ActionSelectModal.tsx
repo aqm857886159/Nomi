@@ -1,7 +1,8 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design（DesignModal / WorkbenchButton）、../../../../../../vendor/tablerIcons、../../../../../../utils/cn、
- *          ../../model/actionLibrary（ACTION_LIBRARY / ActionLibraryEntry / ActionKind / resolveActionAlias）、./ActionPreview
- * [OUTPUT]: 对外提供 ActionSelectModal：左 搜索「搜索动作名称...」+ 动作列表（图标 / 名字 / 「循环动作」「单次动作」「单帧姿态」/ 当前勾选，双击直接添加；无结果「未找到相关动作」）
+ * [INPUT]: ?? react?react-i18next?../../../../../../design?DesignModal / WorkbenchButton??../../../../../../vendor/tablerIcons?../../../../../../utils/cn?
+ *          ../../model/actionLibrary?ACTION_LIBRARY / ActionLibraryEntry / ActionKind / resolveActionAlias??./../scene/character/poseClipLibrary ? poseClipInfo?./ActionPreview
+ * [OUTPUT]: ???? ActionSelectModal??? title / confirmLabel / initialId?????????????????X?????????????? ?????????...?+ ??????? / ?? / ????? (??)????????/ ?????????????????????????
  *           右 「动作实时预览」+ 动画 / 静态 徽标 + 重置视角 + 3D 预览 + 「当前动作 X」；底部 提示 + 「添加「X」片段」
  * [POS]: director/panels/dialogs 的动作库弹窗：初选 = walking 别名（走路）；循环 / 单次 / 单帧按动作库条目的 kind（UAL 元数据推出，不等加载完）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -18,10 +19,10 @@ const INITIAL_ACTION = resolveActionAlias('walking')?.id ?? ACTION_LIBRARY[1]?.i
 const KIND_LABEL_KEY: Record<ActionKind, string> = { loop: 'director.action.kindLoop', once: 'director.action.kindOnce', pose: 'director.action.kindStatic' }
 const KIND_BADGE_KEY: Record<ActionKind, string> = { loop: 'director.action.previewAnimated', once: 'director.action.previewOnce', pose: 'director.action.previewStatic' }
 
-export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (entry: ActionLibraryEntry) => void }): JSX.Element {
+export function ActionSelectModal({ open, onClose, onPick, title, confirmLabel, initialId }: { open: boolean; onClose: () => void; onPick: (entry: ActionLibraryEntry) => void; title?: string; confirmLabel?: (name: string) => string; initialId?: string }): JSX.Element {
   const { t } = useTranslation()
   const [query, setQuery] = React.useState('')
-  const [selectedId, setSelectedId] = React.useState<string>(INITIAL_ACTION)
+  const [selectedId, setSelectedId] = React.useState<string>(initialId ?? INITIAL_ACTION)
   const [ready, setReady] = React.useState(false)
   const [resetSignal, setResetSignal] = React.useState(0)
   const onReady = React.useCallback(() => setReady(true), [])
@@ -38,7 +39,7 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
   }
 
   return (
-    <DesignModal opened={open} onClose={onClose} title={t('director.action.modalTitle')} size="xl" centered>
+    <DesignModal opened={open} onClose={onClose} title={title ?? t('director.action.modalTitle')} size="xl" centered>
       <div className="flex h-[440px] gap-3">
         {/* 左：搜索 + 列表 */}
         <div className="flex w-[300px] shrink-0 flex-col gap-2">
@@ -130,7 +131,9 @@ export function ActionSelectModal({ open, onClose, onPick }: { open: boolean; on
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-nomi-line-soft pt-2">
         <span className="text-micro text-nomi-ink-40">{t('director.action.hintDoubleClick')}</span>
         <WorkbenchButton size="sm" variant="primary" disabled={!selected} onClick={() => selected && pick(selected)}>
-          {t('director.action.addNamed', { name: selected ? t(`director.action.library.${selected.id}`) : t('director.timeline.family.action') })}
+          {confirmLabel
+            ? confirmLabel(selected ? t(`director.action.library.${selected.id}`) : '')
+            : t('director.action.addNamed', { name: selected ? t(`director.action.library.${selected.id}`) : t('director.timeline.family.action') })}
         </WorkbenchButton>
       </div>
     </DesignModal>

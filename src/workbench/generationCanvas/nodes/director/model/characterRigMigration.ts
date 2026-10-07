@@ -9,7 +9,7 @@
  *        scene/character/canonicalBoneFrame 保证语义不变）；没有对应骨的键（手指 / 末端）丢掉并计数。迁移说明只回给调用方，不进工程。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { findActionEntry, LEGACY_APPROXIMATE_ACTIONS, resolveActionAlias } from './actionLibrary'
+import { ACTION_ALIASES, findActionEntry, LEGACY_APPROXIMATE_ACTIONS, resolveActionAlias } from './actionLibrary'
 import type { DirectorObject, Vec3 } from './directorTypes'
 import { isBuiltinCharacterModel, RIG_BONE_MAPS, SEMANTIC_BONES } from './rigs'
 
@@ -47,7 +47,9 @@ function migrateBoneRotations(rotations: Record<string, Vec3>, note: UalMigratio
 
 /** 动作 id：库里有 → 原样；旧 id / 别名 → 库里的 UAL id（近似的记一次）；认不出 → 原样（保持「找不到条目 = 静止」） */
 function migrateActionId(id: string, note: UalMigrationNote): string {
-  if (findActionEntry(id)) return id
+  // Legacy aliases (for example standing_idle) must still be rewritten even though
+  // findActionEntry accepts aliases for callers that validate user input.
+  if (findActionEntry(id) && !Object.prototype.hasOwnProperty.call(ACTION_ALIASES, id)) return id
   const entry = resolveActionAlias(id)
   if (!entry) return id
   if (LEGACY_APPROXIMATE_ACTIONS.has(id)) note.approximatedActions += 1

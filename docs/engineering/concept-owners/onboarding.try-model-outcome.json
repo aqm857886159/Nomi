@@ -1,0 +1,30 @@
+{
+  "name": "试跑一单后怎么说（已提交算不算失败）",
+  "subject": "onboarding.try-model-outcome",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "symbol": "tryModel"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "symbol": "pollTaskToTerminal"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/modelOnboarding/dispatch.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "异步供应商提交即收费：非终态不是失败。tryModel 的提交与等待共用 40 秒预算（外部宿主工具超时约 60 秒）：提交到点未回返回 submission_unknown（不中止那次请求），已提交等不到终态返回 still_processing（带任务号、明说不要重试），出站证据只问 outboundDispatchEvidence，只有供应商自己报终态失败才是 provider_failed。设计卡 docs/plan/2026-10-04-try-model-async-queued.md，合同 docs/fixes/2026-10-04-try-model-async-queued.root-cause.json、docs/fixes/2026-10-05-try-model-submit-budget.root-cause.json。"
+}

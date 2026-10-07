@@ -1,0 +1,27 @@
+{
+  "id": "REAL-20261005-02",
+  "since": "2026-10-05",
+  "source": "2026-10-05 real test",
+  "category": "claims-and-outcomes",
+  "problem": "断线后界面误报成功 / 已完成",
+  "existingInvariants": [
+    4,
+    5
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S8"
+  ],
+  "fullWalkJourneys": [
+    "J05-pause-resume",
+    "J09-export-film"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "10-05 real test: disconnect was reported as success"
+  ],
+  "completionCommits": []
+}

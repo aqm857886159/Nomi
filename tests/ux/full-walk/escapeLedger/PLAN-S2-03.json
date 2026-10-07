@@ -1,0 +1,25 @@
+{
+  "id": "PLAN-S2-03",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "cross-shot-order",
+  "problem": "批量生成剩余时没有等待跨镜一致性或前置镜头完成",
+  "existingInvariants": [
+    1,
+    2,
+    4,
+    5
+  ],
+  "ironLaws": [],
+  "useCases": [
+    "S5"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend",
+    "J05-pause-resume"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [],
+  "completionCommits": []
+}

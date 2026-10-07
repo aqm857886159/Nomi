@@ -1,0 +1,22 @@
+{
+  "id": "AUD-20261005-11",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈（补充）「跨镜头的参数选择也不完整」",
+  "category": "parameter-contract",
+  "problem": "同 AUD-20261005-09",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "已合并到 AUD-20261005-09"
+  ],
+  "completionCommits": []
+}

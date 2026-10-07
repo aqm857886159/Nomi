@@ -1,0 +1,35 @@
+{
+  "name": "后台启动的 Nomi 何时空闲退出",
+  "subject": "host.background-idle-exit",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/backgroundIdleExit.ts",
+    "symbol": "createBackgroundIdleExit"
+  },
+  "write_api": [
+    {
+      "path": "electron/backgroundIdleExit.ts",
+      "symbol": "createBackgroundIdleExit"
+    },
+    {
+      "path": "electron/backgroundIdleExit.ts",
+      "symbol": "setBackgroundIdleExitOwner"
+    },
+    {
+      "path": "electron/backgroundIdleExit.ts",
+      "symbol": "isBackgroundWindowUnshown"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/backgroundIdleExit.test.ts",
+  "allowed_consumers": [
+    "electron/backgroundLaunch.ts",
+    "electron/desktopNotification.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #916（同上合同）：为 MCP 工具调用在后台拉起的实例，从没显示过窗口、最后一次 RPC 之后闲置到期、且没有在途 ProductionRun 工作时才退出。计时与判据只在这里；在途判据消费现有 owner 的只读状态，不新增第二份。窗口显示过之后不走这条退出。"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "第三方示例媒体的失效",
+  "subject": "media.remote-example-failure",
+  "lifecycle": "session",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/media/remoteExampleMedia.ts",
+    "symbol": "useRemoteExampleMedia"
+  },
+  "write_api": [
+    {
+      "path": "src/media/remoteExampleMedia.ts",
+      "symbol": "useRemoteExampleMedia"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/promptLibrary/PromptCard.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/skillLibrary/SkillMedia.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "提示词库 / 技能库公开示例的媒体地址归第三方站点；失败一次即本次会话记为失效，统一显示「示例已失效」、同一地址不再请求。组件不许再各自维护 broken 状态。"
+}

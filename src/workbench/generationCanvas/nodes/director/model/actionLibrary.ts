@@ -192,7 +192,10 @@ export function legacyPoseToAction(presetId: string | undefined): string | undef
 }
 
 export function findActionEntry(id: string): ActionLibraryEntry | undefined {
-  return ACTION_LIBRARY.find((entry) => entry.id === id)
+  const direct = ACTION_LIBRARY.find((entry) => entry.id === id)
+  if (direct) return direct
+  const alias = ACTION_ALIASES[id] ?? ACTION_ALIASES[id.trim().toLowerCase()]
+  return alias ? ACTION_LIBRARY.find((entry) => entry.id === alias) : undefined
 }
 
 const BY_LOWER_ID = new Map(ACTION_LIBRARY.map((entry) => [entry.id.toLowerCase(), entry]))

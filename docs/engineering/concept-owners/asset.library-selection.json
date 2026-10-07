@@ -1,0 +1,25 @@
+{
+  "name": "素材格子的选择规则",
+  "subject": "asset.library-selection",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assets/assetLibraryUsage.ts",
+    "symbol": "nextAssetSelection"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assets/assetLibraryUsage.ts",
+      "symbol": "nextAssetSelection"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/assets/AssetLibraryPanel.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "普通点换选、⌘/Ctrl 与右上角对勾加减、Shift 连选只在这一处定义；对勾不许再是装饰（此前点它等于换选，多选删除只删一张）。素材格子拖拽只发 application/x-nomi-asset-ref 一种载荷，文件夹归类与画布都读它。"
+}
