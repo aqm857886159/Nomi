@@ -125,6 +125,7 @@
     "test:e2e": "python3 scripts/with-gates-lock.py --command \"pnpm run check:electron-install && node tests/ux/smoke.e2e.mjs\"",
     "test:cross-device": "python3 scripts/with-gates-lock.py --command \"pnpm run build && node tests/ux/cross-device-continuation.e2e.mjs\"",
     "test:mcp-journey": "python3 scripts/with-gates-lock.py --command \"pnpm run check:electron-install && node tests/ux/mcp-l1-handshake.e2e.mjs && node tests/ux/mcp-l2-journeys.e2e.mjs && node tests/ux/mcp-skills-integration.e2e.mjs && node tests/ux/mcp-http-direct.e2e.mjs\"",
+    "test:mcp-real-client": "pnpm run build && node --test tests/system/mcp-real-client.node-test.mjs && node tests/system/mcp-real-client.mjs",
     "test:mcp-elicitation": "python3 scripts/with-gates-lock.py --command \"pnpm run check:electron-install && node tests/ux/mcp-generation-elicitation-first.e2e.mjs\"",
     "test:model-integration:no-repo": "python3 scripts/with-gates-lock.py -- node tests/ux/model-integration-no-repo.mjs",
     "test:model-integration:packaged": "python3 scripts/with-gates-lock.py -- node tests/ux/model-integration-packaged.e2e.mjs",
