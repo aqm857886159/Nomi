@@ -749,6 +749,31 @@
       ],
       "whyNotIntegrated": "领域约束：组动作要同时知道 NodeGroup 成员、按镜头生成资格、时间轴兼容性和本地结果下载目标；这些事实只在 Nomi 画布 owner 里存在。hook 只做领域数据装配，具体按钮和菜单全部复用现有设计系统原语。",
       "revisitWhen": "组动作 owner 收敛为统一的 canvas command registry，并能从注册表按组上下文生成同一份动作模型时，删除此 hook 并迁移到该 registry"
+    },
+    {
+      "id": "remove-background-download",
+      "capability": "抠图模型首次下载：只从自有镜像拉、按字节出一条总进度、60 秒没收到字节判卡住并中止、失败分原因",
+      "status": "justified",
+      "paths": [
+        "src/lib/removeBackgroundDownload.ts",
+        "src/lib/removeBackgroundModelSource.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@imgly/background-removal 的 progress 回调：按资源各报、每个 chunk 下完才报一次，没有超时",
+          "source": "node_modules/@imgly/background-removal/dist/index.mjs（loadAsBlob）"
+        },
+        {
+          "name": "@imgly 的 fetchArgs：只能传 RequestInit，传不进按字节的进度和「多久没字节」的判定",
+          "source": "https://github.com/imgly/background-removal-js"
+        },
+        {
+          "name": "AbortSignal.timeout：总时长超时，大文件慢网会误杀；要的是「多久没进展」",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：第一次点抠图要当场下 56MB，用户判断「卡住没有」只靠这一条进度和这一句话；现成的只有按资源的整块进度和总时长超时，前者在慢网下几十秒不动，后者会把还在慢慢下的误杀。代码只包一层 fetch 计字节，下载本身仍是 @imgly 自己做。",
+      "revisitWhen": "@imgly 提供按字节进度与无进展超时时；或抠图模型改成随包 / 主进程下载时"
     }
   ]
 }
