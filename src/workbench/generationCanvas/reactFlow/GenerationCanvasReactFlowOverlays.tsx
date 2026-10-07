@@ -1,6 +1,5 @@
 import React, { type JSX } from 'react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
-import { CanvasBatchGenerateDock } from '../components/CanvasBatchGenerateDock'
 import { CanvasEmptyState } from '../components/CanvasEmptyState'
 import { CanvasNavigationStack } from '../components/CanvasNavigationStack'
 import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeContextMenu'
@@ -15,7 +14,6 @@ import { hasClipboardContent } from '../store/canvasClipboard'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
-import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
 
 const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
   import('../components/BatchPlanOverlay').then((module) => ({ default: module.BatchPlanOverlay })),
@@ -39,9 +37,6 @@ type GenerationCanvasReactFlowOverlaysProps = {
   onAddContextNode: (kind: GenerationNodeKind) => void
   onImportContextFiles: (files: File[]) => void
   onAddConnectedNode: (kind: GenerationNodeKind) => void
-  batchDock: { visible: boolean; dismiss: () => void }
-  production: ReturnType<typeof useCanvasProductionActions>
-  timelineCollapsed: boolean
   hasBatchPlanPreview: boolean
   zoom: number
   zoomPercent: number
@@ -80,9 +75,6 @@ export function GenerationCanvasReactFlowOverlays({
   onImportContextFiles,
   onAddConnectedNode,
   onCloseConnectionCreateMenu,
-  batchDock,
-  production,
-  timelineCollapsed,
   hasBatchPlanPreview,
   zoom,
   zoomPercent,
@@ -149,13 +141,6 @@ export function GenerationCanvasReactFlowOverlays({
           point={{ x: connectionCreateMenu.clientX, y: connectionCreateMenu.clientY }}
           onPick={onAddConnectedNode}
           onClose={onCloseConnectionCreateMenu}
-        />
-      ) : null}
-      {batchDock.visible ? (
-        <CanvasBatchGenerateDock
-          {...production}
-          timelineCollapsed={timelineCollapsed}
-          onDismiss={batchDock.dismiss}
         />
       ) : null}
       <CanvasNavigationStack

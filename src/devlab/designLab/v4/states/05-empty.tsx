@@ -38,7 +38,7 @@ export const V4_EMPTY_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-empty-generation',
-    name: '空态 · 生成面（生成选中 / 拆参考片 / 检查画布；环写「—」不是 0%）',
+    name: '空态 · 生成面（拆参考片 / 检查画布；环写「—」不是 0%）',
     source: '2026-09-06-agent-panel-v4.md · 空态（定稿缺这一格，2026-09-06 补）',
     coverage: 'shell',
     span: 2,

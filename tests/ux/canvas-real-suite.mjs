@@ -22,7 +22,6 @@ export const FULL_CANVAS_SCENARIOS = [
   { id: 'node-context-menu', script: 'tests/ux/canvas-node-context-menu.walk.mjs' },
   { id: 'blank-context-menu', script: 'tests/ux/canvas-context-menu-click.walk.mjs' },
   { id: 'batch-production', script: 'tests/ux/canvas-batch-production.walk.mjs' },
-  { id: 'selection-toolbar', script: 'tests/ux/selection-toolbar-vendor.walk.mjs' },
   { id: 'group-baseline', script: 'tests/ux/group-baseline.walk.mjs' },
   { id: 'group-reference-direction', script: 'tests/ux/group-reference-direction.walk.mjs' },
   { id: 'canvas-landing', script: 'tests/ux/p4-s5-canvas-landing.e2e.mjs' },
@@ -49,7 +48,7 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
 // 每个 shard 启动即 fail-closed 抛错（见 assertFullCanvasShardPartition），场景不可能被静默漏跑。
 export const FULL_CANVAS_SHARDS = Object.freeze([
   Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle', 'open-fit']),
-  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'selection-toolbar', 'canvas-landing']),
+  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'canvas-landing']),
 ])
 
 export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS, shards = FULL_CANVAS_SHARDS) {

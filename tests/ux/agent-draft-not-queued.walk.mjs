@@ -178,9 +178,8 @@ try {
   await expect.poll(async () => saysOnly(await nodeFace(win, nodeId), 'awaiting_confirmation', 'en'), { message: '报价卡在等人：节点只挂「等你确认」（不说排队）', timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
   await walk.snap('card-waiting-en')
   // #875：报价卡摆出来等人 = 这一镜归制作流程，画布再发一次就是同一镜两笔。节点只挂「等你确认」（上一句），
-  // 但底栏不把它算进「生成全部」、选中它时生成钮按不下去。点一下空白画布取消选中（不按 Esc：会碰到面板上的卡）。
-  const runAll = win.locator('[data-batch-dock="true"] [data-storyboard-run-all="true"]')
-  expect(await runAll.count() === 0 || await runAll.first().isDisabled(), '报价卡在等人：底栏不提供「生成全部」').toBe(true)
+  // 选中它时生成钮按不下去（批量入口只剩组的「生成整组」，与制作归属共用一份可生成集合，单测钉死）。
+  // 点一下空白画布取消选中（不按 Esc：会碰到面板上的卡）。
   await clickOrFail(win.locator(`[data-node-id="${nodeId}"]`).first(), '选中报价卡在等的这一镜')
   const generateButton = win.locator('[data-bar-segment="generate"]').first()
   await proveProbe(generateButton, '选中后节点生成钮出现')
