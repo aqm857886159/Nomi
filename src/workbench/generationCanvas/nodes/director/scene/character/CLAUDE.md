@@ -16,9 +16,12 @@
 > characterAsset.test.ts: 真 UAL glb：身高 1.75±1cm、脚底贴地、每个实例各自挂骨轴换算、builtin:* 解析
 > skeletonVisualBones.ts: 骨骼可视化规则（画哪些骨 / 按哪条链上色），按规范基名判断，Mixamo 与 UAL 同一条；骨架根不画
 > skeletonVisualBones.test.ts: 规则单测 + 真 UAL 骨架只画 22 根
-> poseClipLibrary.ts: 动作库加载与采样：只加载默认人偶 glb 一个文件，每个动作按需克隆一副源骨架 + 一个 three AnimationMixer，采样 = 定到时刻 t（循环取模 / 单次与单姿势夹在末帧）抄出每根骨的四元数 + 位置；模块级单例，未加载返回 null 退回静止
+> poseClipLibrary.ts: 动作库加载与采样：只加载默认人偶 glb 一个文件，每个动作按需克隆一副源骨架 + 一个 three AnimationMixer，采样 = 定到时刻 t（循环取模 / 单次与单姿势夹在末帧）抄出每根骨的四元数 + 位置，同一动作同一时刻复用上一份（群众一帧只采一次）；模块级单例，未加载返回 null 退回静止
 > poseClipLibrary.test.ts: 真 UAL glb 单测：43 个动作都能采、循环取模、单次夹末帧、动作之间互不干扰、源 bind 是 T 字
 > poseSnapshot.ts: 姿态快照纯数学：基名归一（mixamorig: / 无冒号 / _N 都归一；UAL DEF-* 经 UAL_BASE_NAME_ALIASES 落到 Mixamo 基名）、快照带相对根的累积朝向、快照混合（smoothstep + 逐骨 slerp）、套到角色按层级自上而下用**世界增量** Δ = 帧·源 bind⁻¹ 套到角色 bind 相对根朝向再换回父局部（bind 一致时等价照抄，bind 不同的上传模型也不拧）；骨盆位移按两边 rest 骨盆方向换坐标系、按长度换单位
+> characterPosePipeline.ts: 每帧姿态管线前半段（零 React，useCharacterRig 与群众基准共用）：复位 → 静止预设 + 动作层（动作满权重时跳过预设套骨）→ basePose（没选中没在拖时不拷）→ 手调偏移 → 更新矩阵
+> characterPosePipeline.test.ts: 快路径不改结果（满权重时预设不起作用 / 淡入中预设仍参与）、同动作同时刻共用采样、keepBasePose
+> characterCrowd.bench.ts: 群众基准（vitest bench，不进 CI）：N=1/10/100 同一动作与 10 种动作混着的每帧毫秒 + 一键 10×10 的工程体积与耗时
 > useCharacterRig.ts: 每帧骨骼管线：复位 bind → 静止姿态预设 → 动作层（片段头 0.25s 从静止 / 上一片段末帧 smoothstep 淡入，尾后 0.25s 淡回，间隙 ≤0.5s 交叉）→ 记 basePoseForOffsets → boneRotations 偏移（四元数右乘；**动作片段在播时不叠**，姿态片段按关键帧对 slerp）→ IK（两骨解析 / 极向量绕轴 / 胸腔朝向 / 头 CCD / 骨盆钉脚，解完立刻把 base⁻¹·当前 写回 boneRotations）→ 视线（目标先求完整场景位置，头与目标统一到角色坐标解算）→ 骨盆偏移（挂载组；来源同偏移：关键帧 / 在播为 0 / 静止）。对外 CharacterRigApi：boneIndex / baseQuaternionOf / beginIkDrag / updateIkDrag / endIkDrag / snapFeetToGround
 > SkeletonVisual.tsx: 骨骼可视化（2026-09-04 用户参考图，不再是 参考产品的线 + 大球）：每段骨一枚细菱形（八面体，宽 = 长 × 0.14，脊柱紫 / 手臂蓝 / 腿青，跳过手指与 End 骨）+ 关节小黄点 r=0.012；17 颗 FK 关节另带透明拾取球 r=0.03（DIRECTOR_BONE_KEY 标记给拾取），选中骨 / 关节红；显示 = 骨骼页聚焦 ｜ 无人聚焦且图层开「显示骨骼」，IK 模式下拾取球只在聚焦时出现；整组传送到场景根，仍与 SkeletonHandles 共用对象/祖先/图层可见性
 > SkeletonHandles.tsx: IK 把手层（手 / 脚 / 头球、骨盆 / 胸腔圆环、肘向 / 膝向八面体，琥珀色选中红放大 1.3，各带引导线）：点把手只是选中（拾取在 useViewportPicking），拖动只经 drei TransformControls——工具条没选工具（transformMode 空）时不挂 gizmo；把手一律平移 gizmo、FK 选中骨骼一律旋转 gizmo 直接挂骨（偏移 = base⁻¹·当前）；靶点交 useCharacterRig 每帧解算，骨盆拖动改 hipsOffset 且两脚钉住

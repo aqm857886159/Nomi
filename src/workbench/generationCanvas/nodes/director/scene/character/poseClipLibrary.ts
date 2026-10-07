@@ -18,7 +18,15 @@ import { logRendererError, logRendererWarn } from '../../../../../../desktop/ren
 export const ACTION_CLIP_SOURCE_URL = MANNEQUIN_MODEL_URL
 
 /** 每个动作一副源骨架（同一 glb 场景的克隆，只求值不渲染）+ 一个 mixer + 常驻播放的 action：采样不用在动作之间切换（切换会让 mixer 复原 / 重绑全部轨道） */
-type ActionSource = { root: THREE.Object3D; mixer: THREE.AnimationMixer; action: THREE.AnimationAction; duration: number }
+type ActionSource = {
+  root: THREE.Object3D
+  mixer: THREE.AnimationMixer
+  action: THREE.AnimationAction
+  duration: number
+  /** 上一次采样的动作内时刻与结果：群众同一动作同一时刻，一帧里 100 个人只真采一次（施工计划 §6 治法 1） */
+  lastTime: number
+  lastSnapshot: PoseSnapshot | null
+}
 
 type Source = {
   scene: THREE.Object3D
@@ -55,7 +63,7 @@ function actionSource(actionId: string): ActionSource | null {
   const mixer = new THREE.AnimationMixer(root)
   const action = mixer.clipAction(clip)
   action.play()
-  const created = { root, mixer, action, duration: clip.duration }
+  const created: ActionSource = { root, mixer, action, duration: clip.duration, lastTime: Number.NaN, lastSnapshot: null }
   source.actions.set(actionId, created)
   return created
 }
@@ -108,6 +116,7 @@ export function poseClipSourceBind(actionId: string): PoseSnapshot | null {
 
 /**
  * 时刻 t 的快照：循环动作取模，单次 / 单姿势夹在末帧；未加载 → 触发加载并返回 null；T-Pose / 未知 id → null（= 绑定姿态）。
+ * 同一动作同一动作内时刻返回同一个对象（缓存上一次）：返回值只读，别改。
  */
 export function samplePoseClip(actionId: string, time: number): PoseSnapshot | null {
   if (actionId === T_POSE_ACTION_ID) return null
@@ -118,8 +127,13 @@ export function samplePoseClip(actionId: string, time: number): PoseSnapshot | n
   const sampler = actionSource(actionId)
   const entry = findActionEntry(actionId)
   if (!sampler || !entry) return null
+  const local = actionSampleTime(entry, sampler.duration, time)
+  // 同一动作同一时刻：直接给上次那份（快照只读，调用方不改它）；时刻一变就重采
+  if (sampler.lastSnapshot && sampler.lastTime === local) return sampler.lastSnapshot
   // update(0) 不推进时间，只按 action.time 求值（单次动作的夹持由 actionSampleTime 做，不依赖 mixer 的 LoopOnce / finished 状态）
-  sampler.action.time = actionSampleTime(entry, sampler.duration, time)
+  sampler.action.time = local
   sampler.mixer.update(0)
-  return snapshotBones(sampler.root)
+  sampler.lastTime = local
+  sampler.lastSnapshot = snapshotBones(sampler.root)
+  return sampler.lastSnapshot
 }
