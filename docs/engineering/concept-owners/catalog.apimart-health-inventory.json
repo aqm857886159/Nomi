@@ -1,0 +1,31 @@
+{
+  "name": "APIMart 模型体检清单（零花费）",
+  "subject": "catalog.apimart-health-inventory",
+  "lifecycle": "catalog",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/apimartModelHealth.ts",
+    "symbol": "buildApimartHealthInventory"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/apimartModelHealth.ts",
+      "symbol": "buildApimartHealthInventory"
+    },
+    {
+      "path": "electron/catalog/apimartModelHealth.ts",
+      "symbol": "contractFingerprint"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/apimartModelHealth.test.ts",
+  "allowed_consumers": [
+    "scripts/apimart-model-health.ts",
+    "scripts/model-radar.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #923（合同 docs/fixes/2026-09-28-apimart-result-shape-replay.root-cause.json，方案 docs/plan/2026-09-28-apimart-model-health.md）：体检名单从目录代码导出「模型 × 模式」与契约指纹，名单本身就是体检清单，不另维护一份；清单里不含任何价格与花费。"
+}

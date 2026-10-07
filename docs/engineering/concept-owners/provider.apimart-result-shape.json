@@ -1,0 +1,31 @@
+{
+  "name": "APIMart 查询结果里产物地址的几种形状",
+  "subject": "provider.apimart-result-shape",
+  "lifecycle": "provider-observation",
+  "authority_kind": "schema",
+  "trust_domain": "main",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/apimartVendor.ts",
+    "symbol": "APIMART_IMAGE_QUERY_OP"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/apimartVendor.ts",
+      "symbol": "APIMART_IMAGE_QUERY_OP"
+    },
+    {
+      "path": "electron/catalog/apimartVendor.ts",
+      "symbol": "APIMART_VIDEO_QUERY_OP"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/apimartGenerationQuery.ts",
+    "electron/catalog/apimartImages.ts",
+    "electron/catalog/apimartVideos.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #914（v0.22.4，合同 docs/fixes/2026-09-28-apimart-production-boundaries.root-cause.json）：部分模型把结果地址给成字符串而不是数组，结果拉不回本地。地址可能的几种形状只在共享查询配方里声明，图片 / 视频目录与查询都读这一份，解析侧不另猜。"
+}

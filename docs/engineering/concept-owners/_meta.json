@@ -1,0 +1,4 @@
+{
+  "_schema": "v2：concepts: [{ name, subject, lifecycle, authority_kind, trust_domain, fact_kind, migration_status, migration_strategy?, owner: { path, symbol }, write_api: [{ path, symbol }], forbidden_derivations: [{ symbol, kind, why }], identity_fields?, parity_test?, allowed_consumers: [path], since, notes }] · 字段表与判据见 docs/engineering-rules.md R33.4 · 门岗 pnpm run check:concept-owners",
+  "schema_version": 2
+}

@@ -1,0 +1,45 @@
+{
+  "name": "供应商产物取回线路",
+  "subject": "provider.media-retrieval",
+  "lifecycle": "provider-observation",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/providerMediaFetch.ts",
+    "symbol": "fetchProviderMedia"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "fetchProviderMedia"
+    },
+    {
+      "path": "electron/shared/assets/providerMediaRetrievalBudget.ts",
+      "symbol": "providerMediaRetrievalTotalMs"
+    },
+    {
+      "path": "electron/shared/assets/providerMediaRetrievalBudget.ts",
+      "symbol": "PROVIDER_MEDIA_BYTE_CAP"
+    },
+    {
+      "path": "electron/shared/assets/providerMediaRetrievalBudget.ts",
+      "symbol": "PROVIDER_MEDIA_IDLE_TIMEOUT_MS"
+    },
+    {
+      "path": "electron/shared/assets/providerMediaRetrievalBudget.ts",
+      "symbol": "PROVIDER_MEDIA_RETRIEVAL_MAX_MS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/assets/providerMediaFetch.test.ts",
+  "allowed_consumers": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/downloadAsset.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。 2026-09-29 #924 追加（合同 docs/fixes/2026-09-29-stuck-saving-retrieval-liveness.root-cause.json）：取回改成「空闲超时（没有进度就断）+ 按声明大小放大的总时限 + 字节上限」，全部数字只住 electron/shared/assets/providerMediaRetrievalBudget.ts，主进程取回与渲染层的阶段截止表读同一份，不许在调用处另写超时。"
+}

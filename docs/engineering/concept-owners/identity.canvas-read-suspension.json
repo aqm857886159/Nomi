@@ -1,0 +1,30 @@
+{
+  "name": "挂起单是不是同一张",
+  "subject": "identity.canvas-read-suspension",
+  "lifecycle": "session",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/canvasReadSurfaceRegistry.ts",
+    "symbol": "sameSuspensionWire"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/canvasReadSurfaceRegistry.ts",
+      "symbol": "sameSuspensionWire"
+    }
+  ],
+  "forbidden_derivations": [],
+  "identity_fields": [
+    "version",
+    "suspensionId",
+    "surfaceInstanceId",
+    "portRevision",
+    "nonce"
+  ],
+  "allowed_consumers": [],
+  "since": "2026-09-18",
+  "notes": "从 scripts/identity-compare-baseline.json 迁来（2026-09-29 并入）。这是挂起单的身份，不是端口绑定的身份：一次挂起由「哪个 surface 实例 + 第几版端口 + 这一次的 nonce」定，刻意不含项目与帧维度——挂起要能跨项目切换存活到恢复那一刻，把项目维度加进去等于让每次切项目都作废挂起。与端口绑定是两种身份，不是同一种的窄版。"
+}

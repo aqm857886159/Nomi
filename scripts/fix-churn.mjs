@@ -15,7 +15,7 @@
 // 再加两种「按概念数」的单位（scripts/fix-churn-units.mjs 定义哪些单位、各含哪些文件）：
 //   · 自写登记条目（self-written.json 的一条 entry，paths 下的文件合起来）：status 为 under-review / to-replace，
 //     或 justified 但落在 genericZones 的通用能力——窗口 30 天，第 2 个 fix 就命中，提示「先评估接入现成方案」；
-//   · 概念（concept-owners.json 的一个 concept，owner + write_api 的文件合起来，≥2 个文件才单列）——14 天 / 第 3 个，
+//   · 概念（docs/engineering/concept-owners/ 的一个 concept，owner + write_api 的文件合起来，≥2 个文件才单列）——14 天 / 第 3 个，
 //     同样有「概念大小」上限（fix 碰过的不同源码文件 ≤ CONCEPT_MAX_FILES）。
 //   原因：MCP 的修补一个月 14 次、散在 6 个文件，按文件 / 目录都凑不够 3 个。
 // 另外三条触发（评测分数回滚、同线第 3 轮修补、第三个特例分支）没有 git 上的可算信号，靠派工书 / 复盘模板人工判。

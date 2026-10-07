@@ -1,0 +1,41 @@
+{
+  "name": "端口绑定是不是同一个",
+  "subject": "identity.surface-port-binding",
+  "lifecycle": "session",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/surfacePortBinding.ts",
+    "symbol": "sameSurfacePortBindingWire"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "sameSurfacePortBindingWire"
+    }
+  ],
+  "forbidden_derivations": [],
+  "identity_fields": [
+    "version",
+    "bindingId",
+    "projectId",
+    "immutableProjectUuid",
+    "projectGeneration",
+    "webContentsId",
+    "processId",
+    "frameRoutingId",
+    "origin",
+    "surfaceInstanceId",
+    "portRevision",
+    "nonce"
+  ],
+  "allowed_consumers": [
+    "electron/surfacePortPreloadBridge.ts",
+    "electron/capabilityCore/canvasReadSurfaceRegistry.ts",
+    "src/workbench/project/projectCanvasReadSurface.ts"
+  ],
+  "since": "2026-09-18",
+  "notes": "原 check:identity-compare 的 owner 模块（C2，审计 docs/audit/2026-09-17-ownership-lifetime-census.md §2；合同 docs/fixes/2026-09-18-ownership-single-source.root-cause.json）。主进程登记表、preload、渲染层原来各比一份，维度 13 / 7 / 13，漏维的正好是 preload 那道信任边界（#802 的形状）。维度跟着类型 SurfacePortBindingWire 走；门岗逐字核这个函数比的身份维度等于 identity_fields（只算门岗认识的身份维度）。2026-09-29 随 check:identity-compare 并入 check:concept-owners 登记。"
+}

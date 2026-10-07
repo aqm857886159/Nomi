@@ -1,0 +1,26 @@
+{
+  "id": "REAL-20261005-04",
+  "since": "2026-10-05",
+  "source": "2026-10-05 real test",
+  "category": "deletion-integrity",
+  "problem": "删镜后留下空分组",
+  "existingInvariants": [
+    6,
+    9
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [
+    "J06-delete-shot"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "10-05 real test: deleting a shot left an empty group"
+  ],
+  "completionCommits": []
+}

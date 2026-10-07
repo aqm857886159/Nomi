@@ -1,0 +1,20 @@
+{
+  "id": "AUD-20261005-15",
+  "since": "2026-10-05",
+  "source": "本次审计（docs/research/2026-10-05-storyboard-plan-user-audit.md）",
+  "category": "performance-coverage",
+  "problem": "走查基座：startPlaybook 在 c8060fee5 上起不来（读被 38db4a3d9 删掉的 POLL_INTERVAL_MS）；最新 main 已修，仅留档",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "S8"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/full-walk/invariants.mjs"
+  ],
+  "completionCommits": []
+}

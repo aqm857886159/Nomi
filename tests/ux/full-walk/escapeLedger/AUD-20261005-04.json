@@ -1,0 +1,37 @@
+{
+  "id": "AUD-20261005-04",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #4",
+  "category": "reference-integrity",
+  "problem": "参考卡出图后，引用它的镜头不自动引用（槽为空，默认模式不吃参考，锚条无「被 N 镜引用」）",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S3"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/23-shots-after-anchor-generated-no-auto-reference.png",
+    "observations.json P8",
+    "自动引用 owner insertAutoMentions（分镜 autoReferencePlan + 画布 initCanvasAutoReferenceBridge 共用）：参考卡出图后在提示词里它名字后面补 @ 并绑进参考；默认文生视频按方案 A 切到同模型能收参考图的模式；类检查 = 全部档案 × 全部起步模式的普查（@ 与绑定一起成、一起不成）",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/creation/storyboard/exec/storyboardAutoReference.test.ts"
+  }
+}

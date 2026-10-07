@@ -1,0 +1,26 @@
+{
+  "name": "generate 回执（逐镜结局读成人话）",
+  "subject": "agent-lane.generate-receipt",
+  "lifecycle": "execution",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentLane/generateOutcomeReceipt.ts",
+    "symbol": "describeGenerateOutcome"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentLane/generateOutcomeReceipt.ts",
+      "symbol": "describeGenerateOutcome"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/agentLane/generateOutcomeReceipt.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneExtendedTools.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "以前 `laneExtendedTools.generateReceipt` 的批准一支写死「generation has started… No card is waiting… Do not call generate again」：卡上只点了 1 张，Agent 也告诉用户两张都在生成（用户实见）。现在回执只渲染宿主给的逐镜结局（`production.spend-card-outcome`），「都开始了」只在每一镜都在生成时才说；不自己加判断。"
+}

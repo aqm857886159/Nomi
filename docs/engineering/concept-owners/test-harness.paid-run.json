@@ -1,0 +1,39 @@
+{
+  "name": "付费走查的开关与收据",
+  "subject": "test-harness.paid-run",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/_paidRun.mjs",
+    "symbol": "paidRunRefusal"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/_paidRun.mjs",
+      "symbol": "paidRunRefusal"
+    },
+    {
+      "path": "tests/ux/_paidRun.mjs",
+      "symbol": "assertPaidRunAllowed"
+    },
+    {
+      "path": "tests/ux/_paidRun.mjs",
+      "symbol": "spendReceipt"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "tests/ux/canvas-spend-policy.paid.mjs",
+    "tests/ux/agent-spend-real-image.paid.mjs",
+    "tests/ux/agent-video-landing.paid.mjs",
+    "tests/ux/agent-queued-shots.paid.mjs",
+    "tests/ux/core-a-storyboard.paid.mjs",
+    "tests/ux/agent-spend-r30.mjs",
+    "scripts/batch-generate-walkthrough.mjs"
+  ],
+  "since": "2026-09-26",
+  "notes": "真花钱的脚本开头只走 assertPaidRunAllowed：CI 拒跑、没有 NOMI_SPEND_OK=1 拒跑、用户 Nomi 开着拒跑；原库指纹跑前跑后比对。收据 spendReceipt 只记事实（供应商任务号、供应商回的 cost 字段、Agent token 用量），不折算金额——公开仓库不写价目。core-a 原来的 NOMI_CORE_A_LIVE 已删；APIMART_E2E 等开关在未迁的旧 e2e 里仍在，迁一个删一个。"
+}

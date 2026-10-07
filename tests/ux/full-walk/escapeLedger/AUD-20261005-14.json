@@ -1,0 +1,22 @@
+{
+  "id": "AUD-20261005-14",
+  "since": "2026-10-05",
+  "source": "本次审计（docs/research/2026-10-05-storyboard-plan-user-audit.md）",
+  "category": "claims-and-outcomes",
+  "problem": "点「生成剩余」再在对话框里取消，画布上已留下 4 个空闲镜头节点（先建节点后确认）",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S5"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/11-after-cancel-nodes-left-behind.png"
+  ],
+  "completionCommits": []
+}

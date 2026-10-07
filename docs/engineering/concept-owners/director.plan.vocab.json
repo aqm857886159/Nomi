@@ -1,0 +1,35 @@
+{
+  "name": "导演计划词表",
+  "subject": "director.plan.vocab",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/director/vocab.ts",
+    "symbol": "CAMERA_MOVES"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/director/vocab.ts",
+      "symbol": "CAMERA_MOVES"
+    },
+    {
+      "path": "electron/shared/director/vocab.ts",
+      "symbol": "EVAL_SHOT_SIZES"
+    },
+    {
+      "path": "electron/shared/director/vocab.ts",
+      "symbol": "DIRECTOR_SCENE_TEMPLATES"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/shared/director/directorPlanSchema.ts",
+    "src/workbench/generationCanvas/nodes/director/agent/cameraMoveVocab.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "只拥有景别、运镜、场景模板成员；显示文字与测量阈值留各自消费层。"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@ 引用落哪个槽",
+  "subject": "canvas.mention-reference-slot",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+    "symbol": "resolveMentionReference"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "symbol": "resolveMentionReference"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "@ 是「参考」语义（用户拍板），只落参考槽；拖线的「接力」语义住同文件的 resolveCanvasReferenceConnection，两个判据分开，不许再共用一个带首尾帧偏好的路由。"
+}

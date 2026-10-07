@@ -1,0 +1,25 @@
+{
+  "name": "一次请求写到哪一份文稿方案（首建 / 补到同一份 / 用户明说另起一份）",
+  "subject": "storyboard.plan-per-request",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/generationDocumentPlan.ts",
+    "symbol": "createDocumentPlanAuthoring"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "createDocumentPlanAuthoring"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpGenerationTools.ts"
+  ],
+  "since": "2026-10-05",
+  "notes": "文稿方案 id 只在这里铸（= 草稿 id）。同一请求（storyboardTarget.requestId）里不带 operationId 的第二次起草补到这一请求已建的那份；模型传 newPlan（用户明确要另起一份）才新建；带 operationId 的新镜头补到那份；补到不存在的方案被拒，绝不新建。协调会话 D5 拍板：一次请求一份方案由宿主保证。"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "哪些失败可以换备用域名重试",
+  "subject": "provider.alternate-origin-retry",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/vendor/vendorBaseFallback.ts",
+    "symbol": "isConnectPhaseError"
+  },
+  "write_api": [
+    {
+      "path": "electron/vendor/vendorBaseFallback.ts",
+      "symbol": "isConnectPhaseError"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-09-28",
+  "notes": "PR #914（同上合同）：建连阶段被重置时连不上服务商。只有建连阶段的失败（请求还没被服务商收到）才走已登记的备用域名重试；这道分类只在 isConnectPhaseError 一处，发生在白名单备用域名那条既有路径之前，不许调用方自己判「这次能不能换域名」。"
+}

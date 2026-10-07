@@ -1,0 +1,35 @@
+{
+  "id": "AUD-20261005-01",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #1",
+  "category": "agent-convergence",
+  "problem": "Agent 起草：宿主提示诱导二次新建（左栏多份方案）、镜号被锚占掉（2 镜方案行号 03/04）、锚 id 与镜 id 同名空间（改第 1 镜改到了角色参考卡）",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩",
+    "⑫"
+  ],
+  "useCases": [
+    "S1"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/28-agent-plan-rows-numbered-from-3.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/29-sidebar-several-plans-for-one-request.png",
+    "observations.json P10"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-storyboard-plan-single-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts"
+  },
+  "fixedInPr": 1038,
+  "completionCommits": [
+    "b2b3de06d",
+    "abaaf4f6e",
+    "4a953a914"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "付费卡这一次出价最终批下了哪几镜（卡上的动作排一条队；说结局的人先等队里那一下落定）",
+  "subject": "agent-panel.spend-outcome-final",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/spendCardActionQueue.ts",
+    "symbol": "cardActionsSettled"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/spendCardActionQueue.ts",
+      "symbol": "cardActionsSettled"
+    },
+    {
+      "path": "electron/capabilityCore/spendCardActionQueue.ts",
+      "symbol": "serializeCardAction"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/agentPanelSpendRemaining.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts"
+  ],
+  "since": "2026-10-02",
+  "notes": "搞破坏线 X2 / X4（合同 docs/fixes/2026-10-02-stop-outcome-race.root-cause.json）：卡上的 × 不排队，能落在一镜过完卡上的核对、门还没开的时候——收回出价时没有门可撤，这一镜随后照样批下、发出、花钱，可回执是在收回那一刻读的，写成「没生成、没花钱」。现在卡上的动作（生成这张 / 去掉这张 / 生成剩下）排在 spendCardActionQueue 这一条队里，说结局的两处都先等它落定（cardActionsSettled）：× 回给卡的那一句（discardPendingSpend 回 batchStopped）、Agent 的回执（readPresentationOutcome，lane 的 × / 全决定 / 打字三条路都经它读）。关卡的动作照旧不排队，只是「说结果」要等。"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "REAL-20261005-01",
+  "since": "2026-10-05",
+  "source": "2026-10-05 real test",
+  "category": "parameter-contract",
+  "problem": "界面选择 16:9，但出站请求没有传 16:9",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J01-generate-image"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "10-05 real test: 16:9 shown, outbound ratio missing"
+  ],
+  "completionCommits": []
+}
