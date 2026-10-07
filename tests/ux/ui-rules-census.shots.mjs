@@ -12,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { assertLabPortOwnership, labOriginFor } from './design-lab/labServer.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const ROLE = 'popup-geometry'
 const ORIGIN = labOriginFor(ROLE)
@@ -54,7 +55,7 @@ try {
     try {
       const page = await context.newPage()
       await page.goto(`${ORIGIN}/design-lab.html?screen=${screen}&frame=1&state=${id}`, { timeout: 180000, waitUntil: 'domcontentloaded' })
-      await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: 120000 })
+      await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: stationTimeout() })
       await page.waitForTimeout(250)
       await page.evaluate((rects) => {
         for (const r of rects) {

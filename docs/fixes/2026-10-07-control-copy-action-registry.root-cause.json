@@ -47,7 +47,7 @@
   "shared_boundaries": [
     {
       "path": "docs/GLOSSARY.md",
-      "symbol": "动作词表",
+      "symbol": "**知道了**",
       "responsibility": "定义确认与纯告知的互斥动作语义。"
     },
     {
