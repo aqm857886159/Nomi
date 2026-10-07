@@ -1,0 +1,99 @@
+file	line	owner	primary	lab	snippet
+src/design/NomiSelect.tsx	336	isSel	not-encoded-on-this-line	实验室无此格	<IconCheck size={14} stroke={1.6} className="text-nomi-accent" aria-hidden />
+src/design/menu.tsx	207	Icon	not-encoded-on-this-line	实验室无此格	<IconCheck />
+src/devlab/designLab/v4/agentPanelV4LabKit.tsx	229	tasks	not-encoded-on-this-line	实验室无此格	{ tag: '1 ✓' },
+src/devlab/designLab/v4/agentPanelV4LabKit.tsx	230	tasks	not-encoded-on-this-line	实验室无此格	{ tag: '2 ✓', adopted: true },
+src/devlab/designLab/v4/laneDrivenFixtures.ts	101	askArgs	not-encoded-on-this-line	实验室无此格	* 这一格要钉的事：这样一条记录读出来的是「已回答 · 他的原话 ✓」，不红、不打 ×。
+src/devlab/designLab/v4/states/07-spend-params.tsx	317	labels	not-encoded-on-this-line	实验室无此格	// 2026-09-10 用户拍板：标题左边那个对勾删掉。标题是一句问句，前面顶着 ✓ 读起来像「已经切好了」。
+src/i18n/locales/agentPanelV4.ts	92	module scope	not-encoded-on-this-line	实验室无此格	collects: '✓ 匿名分享：用了哪些功能 · 生成成没成功 · 失败属于哪一类 · Agent 每一步用了什么工具、花了多久',
+src/i18n/locales/agentPanelV4.ts	612	module scope	not-encoded-on-this-line	实验室无此格	collects: '✓ Shared anonymously: which features you used · whether a generation succeeded · which category a failure falls into · which tools each Agent step used and how long it took',
+src/ui/browser/popover/BrowserAssetPopoverParts.tsx	119	commonProps	not-encoded-on-this-line	实验室无此格	<IconCheck size={9} stroke={2.3} />
+src/ui/browser/popover/BrowserAssetPopoverParts.tsx	217	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck size={13} stroke={2.2} aria-hidden="true" />
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	230	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck size={15} stroke={2} aria-hidden="true" className="shrink-0" />
+src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx	179	active	not-encoded-on-this-line	实验室无此格	<IconCheck size={15} stroke={2} aria-hidden="true" />
+src/ui/community/FeedbackReportCard.tsx	120	result	not-encoded-on-this-line	实验室无此格	? <IconCheck size={15} stroke={1.8} className="shrink-0 text-nomi-accent" aria-hidden="true" />
+src/ui/community/FeedbackShareContent.tsx	141	handleShareCopy	not-encoded-on-this-line	实验室无此格	leftSection={shareCopied ? <IconCheck size={15} stroke={1.8} aria-hidden="true" /> : <IconCopy size={15} stroke={1.8} aria-hidden="true" />}
+src/ui/onboarding/AdapterTaskWorkspace.tsx	13	taskIcon	not-encoded-on-this-line	实验室无此格	if (run.stage === 'completed') return <IconCheck size={16} stroke={1.8} aria-hidden="true" />
+src/ui/onboarding/AdapterVerificationScreen.tsx	99	allPassed	not-encoded-on-this-line	实验室无此格	{allPassed ? <IconCheck size={19} stroke={2} /> : terminal ? <IconAlertTriangle size={18} stroke={1.8} /> : <NomiLoadingMark size={18} />}
+src/ui/onboarding/AiAssistedOnboardingCard.tsx	72	clipboardText	not-encoded-on-this-line	实验室无此格	// 切宿主 = 换了要复制的东西，「已复制 ✓」立刻失效（否则那颗勾在说谎）。
+src/ui/onboarding/AiAssistedOnboardingCard.tsx	168	configured	not-encoded-on-this-line	实验室无此格	<IconCheck size={13} stroke={1.8} className="text-workbench-success-ink" aria-hidden="true" />
+src/ui/onboarding/AiAssistedOnboardingCard.tsx	184	module scope	not-encoded-on-this-line	实验室无此格	{copied ? <IconCheck size={15} stroke={1.8} aria-hidden="true" /> : <IconCopy size={15} stroke={1.7} aria-hidden="true" />}
+src/ui/onboarding/AssistedIntegrationProgress.tsx	41	halted	not-encoded-on-this-line	实验室无此格	return <IconCircleCheck size={16} stroke={1.7} className="mt-0.5 shrink-0 text-workbench-success-ink" aria-hidden="true" />
+src/ui/onboarding/CodexLocalImageCard.tsx	77	toggle	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={17} className="shrink-0 mt-0.5 text-nomi-accent" />
+src/ui/onboarding/ComfyuiLocalCard.tsx	231	addrRow	not-encoded-on-this-line	实验室无此格	<button type="button" onClick={handleSaveAddr} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-workbench-success hover:bg-nomi-ink-05" aria-label={t('onboardingProviders.comfyLocal.saveAddress')}><IconCheck size={15} stroke={1.8} /></button>
+src/ui/onboarding/ComfyuiLocalCard.tsx	295	workflowPage	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success" />
+src/ui/onboarding/ComfyuiPresetSection.tsx	3	module scope	not-encoded-on-this-line	实验室无此格	* 形状：模板行（名字 + 就绪/缺件 chip）→ 展开逐文件清单（状态 ✓/缺 · 目录 · 复制名 · 官方下载链）→
+src/ui/onboarding/ComfyuiPresetSection.tsx	162	isMissing	not-encoded-on-this-line	实验室无此格	<IconCheck size={14} className="text-workbench-success shrink-0" aria-label={t('onboardingProviders.comfyPreset.fileReady')} />
+src/ui/onboarding/ComfyuiTemplateLibrary.tsx	277	riskNote	not-encoded-on-this-line	实验室无此格	<IconCheck size={11} />{t('onboardingProviders.comfyTemplates.allReady')}
+src/ui/onboarding/ConnectAssistantCard.tsx	261	genericSection	not-encoded-on-this-line	实验室无此格	{copied === 'generic' ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
+src/ui/onboarding/ConnectAssistantCard.tsx	361	module scope	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success-ink" />
+src/ui/onboarding/ConnectAssistantCard.tsx	460	module scope	not-encoded-on-this-line	实验室无此格	{copied === 'client' ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
+src/ui/onboarding/CustomCallEditor.tsx	427	actionBar	not-encoded-on-this-line	实验室无此格	leftSection={<IconCheck size={14} stroke={2} aria-hidden="true" />}
+src/ui/onboarding/CustomCallEditor.tsx	551	module scope	not-encoded-on-this-line	实验室无此格	{test.ok ? <IconCheck size={16} stroke={2} /> : <IconAlertTriangle size={16} stroke={1.8} />}
+src/ui/onboarding/DreaminaMemberCard.tsx	159	statusLabel	not-encoded-on-this-line	实验室无此格	{copied ? <IconCheck size={13} stroke={1.8} /> : <IconCopy size={13} stroke={1.6} />}{copied ? t('onboardingProviders.dreamina.copied') : t('onboardingProviders.dreamina.copyLink')}
+src/ui/onboarding/DreaminaMemberCard.tsx	170	statusLabel	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success" />
+src/ui/onboarding/IntegrationSelfCheckPanel.tsx	134	origin	not-encoded-on-this-line	实验室无此格	<IconCheck size={15} aria-hidden="true" />
+src/ui/onboarding/KnownVendorKeyConnectPage.tsx	263	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck size={16} stroke={2} aria-hidden="true" />
+src/ui/onboarding/LocalModelCard.tsx	206	installHints	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={16} className="shrink-0 text-workbench-success" />
+src/ui/onboarding/LocalModelCard.tsx	233	connectable	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={15} className="shrink-0 text-workbench-success" />
+src/ui/onboarding/LocalModelCard.tsx	259	connectable	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={1.8} className="text-workbench-success" />
+src/ui/onboarding/ModelAdapterStatusSection.tsx	26	StatusIcon	not-encoded-on-this-line	实验室无此格	if (state.state === 'readyVerified') return <IconCheck size={16} stroke={2} aria-hidden="true" />
+src/ui/onboarding/ModelChipGroups.tsx	97	chipInner	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={2.4} className="text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/ModelEnableEditor.tsx	195	isSelected	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={2.4} />
+src/ui/onboarding/ModelPickerScreen.tsx	429	module scope	not-encoded-on-this-line	实验室无此格	leftSection={<IconCheck size={14} />}
+src/ui/onboarding/ModelSettingsWorkspacePages.tsx	113	ConnectionWorkspacePage	not-encoded-on-this-line	实验室无此格	<IconCheck size={18} stroke={2} aria-hidden="true" />
+src/ui/onboarding/OnboardingWizard.tsx	456	content	not-encoded-on-this-line	实验室无此格	<IconCheck size={15} stroke={2} aria-hidden="true" />
+src/ui/onboarding/OnboardingWizard.tsx	639	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck size={14} stroke={1.5} />
+src/ui/onboarding/OnboardingWizardAdvancedFields.tsx	54	active	not-encoded-on-this-line	实验室无此格	{active && <IconCheck size={13} stroke={2} />}
+src/ui/onboarding/OnboardingWizardResult.tsx	27	OnboardingWizardResult	not-encoded-on-this-line	实验室无此格	<IconCheck size={26} stroke={1.8} />
+src/ui/onboarding/workflowPage/WorkflowNodeMenu.tsx	151	suffix	not-encoded-on-this-line	实验室无此格	? <IconCheck size={13} stroke={2} aria-hidden="true" />
+src/ui/onboarding/workflowPage/WorkflowNodeMenu.tsx	179	suffix	not-encoded-on-this-line	实验室无此格	{exposed ? <IconCheck size={13} stroke={2} aria-hidden="true" /> : null}
+src/ui/onboarding/workflowPage/WorkflowSidebar.tsx	163	next	not-encoded-on-this-line	实验室无此格	<IconCheck size={13} stroke={1.9} aria-hidden="true" />
+src/ui/onboarding/workflowPage/WorkflowSidebar.tsx	281	hasMissing	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={11} stroke={1.9} aria-hidden="true" />
+src/ui/toast.tsx	69	props	not-encoded-on-this-line	实验室无此格	if (type === 'success') return <IconCircleCheck {...props} />
+src/workbench/ai/NoTextModelRecoveryCard.tsx	78	enableBrain	not-encoded-on-this-line	实验室无此格	<IconCheck size={16} className={cn('mt-0.5 shrink-0 text-nomi-ink-80')} />
+src/workbench/ai/ProjectAgentResidentShell.tsx	607	module scope	not-encoded-on-this-line	实验室无此格	// 把写剪贴板的**结果**交回去：组件那颗 ✓ 只在真的写进去之后才打。
+src/workbench/ai/v4/AgentPanelV4Cards.tsx	48	TaskStatusIcon	not-encoded-on-this-line	实验室无此格	if (status === 'complete') return <IconCheck size={13} aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4Cards.tsx	127	Tile	not-encoded-on-this-line	实验室无此格	{/* 角标写的是**这一张是谁**（画布 Vocabulary 板是「采用」、FlowGeneration 板是「2 ✓」），
+src/workbench/ai/v4/AgentPanelV4Cards.tsx	451	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4Consent.tsx	12	module scope	not-encoded-on-this-line	实验室无此格	//   ③ **不放隐私政策长文链接**。用户要的是「你到底收什么」，一句一行的「收 ✓ / 不收 ✗」
+src/workbench/ai/v4/AgentPanelV4Icons.tsx	5	module scope	not-encoded-on-this-line	实验室无此格	// 状态永远在行尾，只用 spinner / ✓ / ⚠ 三个，不用 icon 表达状态。
+src/workbench/ai/v4/AgentPanelV4Icons.tsx	78	StatusSpinner	not-encoded-on-this-line	实验室无此格	/** 行尾状态：只有 spinner / ✓ / ⚠ 三个。output-denied 是用户点的「不要」，用 ×。 */
+src/workbench/ai/v4/AgentPanelV4Icons.tsx	82	ToolStatusIcon	not-encoded-on-this-line	实验室无此格	if (status === 'output-available') return <IconCheck size={size} aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4Message.tsx	129	V4AssistantMessage	not-encoded-on-this-line	实验室无此格	// ✓ **只在真的写进去之后才打**：写剪贴板会失败（非安全上下文、权限被拒、文档没聚焦），
+src/workbench/ai/v4/AgentPanelV4Message.tsx	162	stoppedWithoutProse	not-encoded-on-this-line	实验室无此格	{copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+src/workbench/ai/v4/AgentPanelV4Receipt.tsx	51	row	not-encoded-on-this-line	实验室无此格	{receipt.answered ? <IconCheck size={12} aria-hidden="true" /> : <ToolStatusIcon status={receipt.status} />}
+src/workbench/ai/v4/agentPanelV4Types.ts	255	module scope	not-encoded-on-this-line	实验室无此格	* （「切到全自动？」）——问句前面顶着一个 ✓ 读起来像「已经切好了」，
+src/workbench/ai/v4/useAgentPanelAutoMode.ts	15	module scope	not-encoded-on-this-line	实验室无此格	// `approval-reversible` 档。唯一的差别是标题左边那颗 ✓ 不画（`hideIcon`）——这张卡的标题是一句
+src/workbench/assets/AssetLibraryPanelParts.tsx	351	check	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={2.4} aria-hidden="true" />
+src/workbench/assets/AssetLibraryPanelParts.tsx	355	check	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={2.4} />
+src/workbench/creation/DocumentListSidebar.tsx	422	title	not-encoded-on-this-line	实验室无此格	? <IconCircleCheck size={13} stroke={1.8} />
+src/workbench/creation/storyboard/StoryboardPlanStrategyPanel.tsx	195	ProposalRow	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={2} />
+src/workbench/generationCanvas/components/CommittedProposalCard.tsx	63	lost	not-encoded-on-this-line	实验室无此格	<span className={cn('shrink-0 text-caption text-workbench-success-ink')}>✓</span>
+src/workbench/generationCanvas/nodes/NodeResultStack.tsx	461	title	not-encoded-on-this-line	实验室无此格	<IconCheck size={10} stroke={2.5} />
+src/workbench/generationCanvas/nodes/NodeResultStack.tsx	479	title	not-encoded-on-this-line	实验室无此格	<IconCheck size={10} stroke={2.5} />
+src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx	299	tile	not-encoded-on-this-line	实验室无此格	<span>{isOn ? '✓' : ''}</span>
+src/workbench/generationCanvas/nodes/StoryboardOverrideBadge.tsx	22	value	not-encoded-on-this-line	实验室无此格	<IconCheck size={12} stroke={1.5} aria-hidden />{t('storyboardEditor.overrides.adopt')}
+src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx	116	copy	not-encoded-on-this-line	实验室无此格	{copied ? <IconCheck size={14} stroke={1.5} /> : <IconCopy size={14} stroke={1.5} />}
+src/workbench/generationCanvas/nodes/director/panels/inspector/PoseTab.tsx	43	ListButton	not-encoded-on-this-line	实验室无此格	{active ? <IconCheck size={14} stroke={2} className="ml-1 shrink-0" /> : null}
+src/workbench/generationCanvas/nodes/render/ImageCropGridOverlay.tsx	284	module scope	not-encoded-on-this-line	实验室无此格	<IconCheck size={16} stroke={1.8} />
+src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx	665	active	not-encoded-on-this-line	实验室无此格	<IconCheck
+src/workbench/generationCanvas/plugins/WorkflowCheckpointNode.tsx	25	setChecked	not-encoded-on-this-line	实验室无此格	<IconCheck size={18} stroke={1.8} />
+src/workbench/generationCanvas/plugins/WorkflowCheckpointNode.tsx	37	setChecked	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={18} className={checked ? 'text-nomi-accent' : 'text-nomi-ink-40'} />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	173	refineItems	not-encoded-on-this-line	实验室无此格	icon={frozen ? <IconCheck size={I.size} stroke={I.stroke} /> : <IconSparkles size={I.size} stroke={I.stroke} />}
+src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx	458	module scope	not-encoded-on-this-line	实验室无此格	{mode === edge?.mode ? <IconCheck size={14} stroke={2} aria-hidden="true" /> : null}
+src/workbench/generationCanvas/spend/ProductionContractSummary.tsx	45	specLabels	not-encoded-on-this-line	实验室无此格	? <IconCheck size={14} stroke={1.8} className={cn('mt-0.5 text-workbench-success')} aria-hidden />
+src/workbench/generationCanvas/spend/ProductionContractSummary.tsx	81	allowed	not-encoded-on-this-line	实验室无此格	? <IconCheck size={13} stroke={1.8} className={cn('text-workbench-success')} aria-hidden />
+src/workbench/onboarding/JourneyTourController.tsx	38	finish	not-encoded-on-this-line	实验室无此格	<IconCheck size={22} stroke={1.8} aria-hidden="true" />
+src/workbench/onboarding/OnboardingChecklist.tsx	280	isNext	not-encoded-on-this-line	实验室无此格	{done ? <IconCheck size={12} stroke={1.8} aria-hidden="true" /> : null}
+src/workbench/preview/EditingLayoutMenu.tsx	96	panels	not-encoded-on-this-line	实验室无此格	{layout.visibility[panel] ? <IconCheck size={14} className="text-[var(--workbench-accent)]" /> : null}
+src/workbench/preview/EditingLayoutMenu.tsx	118	panels	not-encoded-on-this-line	实验室无此格	{layout.preset === preset ? <IconCheck size={14} className="text-[var(--workbench-accent)]" /> : null}
+src/workbench/production/ProductionRunTaskCard.tsx	60	ActionIcon	not-encoded-on-this-line	实验室无此格	if (tone === 'success') return <IconCheck size={13} stroke={1.6} aria-hidden />
+src/workbench/promptLibrary/PromptPreviewOverlay.tsx	186	module scope	not-encoded-on-this-line	实验室无此格	{sent ? <IconCheck size={16} stroke={2} /> : <IconLayoutBoard size={16} stroke={1.8} />}
+src/workbench/promptLibrary/PromptPreviewOverlay.tsx	198	module scope	not-encoded-on-this-line	实验室无此格	{copied ? <IconCheck size={15} stroke={2} /> : <IconCopy size={15} stroke={1.8} />}
+src/workbench/settings/AboutSection.tsx	149	UpdateBody	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={16} className="text-workbench-success" />
+src/workbench/settings/AboutSection.tsx	197	UpdateBody	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={16} className="text-workbench-success" />
+src/workbench/settings/AiModelsSection.tsx	210	configuredVendorEntries	not-encoded-on-this-line	实验室无此格	<IconCheck size={13} stroke={2} aria-hidden="true" />
+src/workbench/settings/ProjectLocationSection.tsx	182	module scope	not-encoded-on-this-line	实验室无此格	<IconCircleCheck size={14} stroke={1.8} aria-hidden="true" />
+src/workbench/taskCenter/TaskCenterPanel.tsx	292	SECTION_ICONS	not-encoded-on-this-line	实验室无此格	done: <IconCheck size={13} stroke={1.8} />,
+src/workbench/timeline/TimelineTransitionPicker.tsx	61	unsupported	not-encoded-on-this-line	实验室无此格	{type === feedback.transition.type ? <IconCheck size={13} /> : null}

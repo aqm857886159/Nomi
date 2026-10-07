@@ -1,0 +1,80 @@
+file	line	owner	primary	lab	snippet
+src/design/NomiSelect.tsx	249	hasChips	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} stroke={1.6} className="shrink-0 text-nomi-ink-40 pointer-events-none" aria-hidden />
+src/devlab/designLab/primitivesActions/states/01-workbench.tsx	213	module scope	not-encoded-on-this-line	实验室无此格	icon={<IconChevronUp size={18} stroke={1.6} />}
+src/devlab/designLab/primitivesActions/states/02-mantine.tsx	118	module scope	not-encoded-on-this-line	实验室无此格	icon={<IconChevronUp size={15} stroke={1.7} aria-hidden="true" />}
+src/devlab/designLab/primitivesActions/states/02-mantine.tsx	124	module scope	not-encoded-on-this-line	实验室无此格	icon={<IconChevronDown size={15} stroke={1.7} aria-hidden="true" />}
+src/ui/onboarding/AdapterTaskWorkspace.tsx	68	terminal	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={16} stroke={1.6} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/AiAssistedOnboardingCard.tsx	227	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/ui/onboarding/ComfyuiLocalCard.tsx	354	rowBody	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={14} stroke={1.8} className="shrink-0 text-nomi-ink-30" />
+src/ui/onboarding/ComfyuiLocalCard.tsx	397	rowBody	not-encoded-on-this-line	实验室无此格	{t('comfyuiWorkflowPage.open')}<IconChevronRight size={13} stroke={1.8} />
+src/ui/onboarding/FoldableModelCard.tsx	118	bodyId	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={16} stroke={1.8} className="shrink-0 text-nomi-ink-40" />
+src/ui/onboarding/FoldableModelCard.tsx	120	bodyId	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/ui/onboarding/ModelAdapterStatusSection.tsx	146	secondaryAction	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={14} stroke={1.8} aria-hidden="true" />
+src/ui/onboarding/ModelCapabilityEditor.tsx	385	hasModeError	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={16} stroke={1.6} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/ModelCapabilitySummary.tsx	24	content	not-encoded-on-this-line	实验室无此格	{onOpen ? <IconChevronRight size={15} stroke={1.8} className="shrink-0 text-nomi-ink-30" aria-hidden="true" /> : null}
+src/ui/onboarding/ModelSettingsHome.tsx	150	ActionRow	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/ModelSettingsHome.tsx	152	ActionRow	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/ui/onboarding/ModelSettingsHome.tsx	199	statusBadge	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/ModelSettingsHome.tsx	278	statusLabel	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
+src/ui/onboarding/ModelSettingsWorkspacePages.tsx	319	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={16} stroke={1.6} className="transition-transform group-open:rotate-180" aria-hidden="true" />
+src/ui/onboarding/NetworkSection.tsx	159	hint	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/ui/onboarding/OnboardingWizard.tsx	610	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/ui/onboarding/OnboardingWizardAdvancedFields.tsx	113	OnboardingWizardAdvancedFields	not-encoded-on-this-line	实验室无此格	{showAdvanced ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+src/workbench/ai/v4/AgentPanelV4Cards.tsx	191	V4PriceRow	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} className="group-open:rotate-90" aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4Cards.tsx	524	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} className="mt-0.5 shrink-0 group-open:rotate-90" aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4Composer.tsx	284	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} className="shrink-0" />
+src/workbench/ai/v4/AgentPanelV4Composer.tsx	314	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} />
+src/workbench/ai/v4/AgentPanelV4Composer.tsx	421	V4ModelPopover	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} />
+src/workbench/ai/v4/AgentPanelV4Composer.tsx	522	V4PermissionPopover	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} />
+src/workbench/ai/v4/AgentPanelV4Context.tsx	112	rows	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={11} />
+src/workbench/ai/v4/AgentPanelV4Message.tsx	187	stoppedWithoutProse	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} />
+src/workbench/ai/v4/AgentPanelV4Message.tsx	222	row	not-encoded-on-this-line	实验室无此格	{text ? <IconChevronRight size={12} className="shrink-0 transition-transform group-open:rotate-90" /> : null}
+src/workbench/ai/v4/AgentPanelV4Receipt.tsx	70	row	not-encoded-on-this-line	实验室无此格	<IconChevronRight
+src/workbench/ai/v4/AgentPanelV4Receipt.tsx	177	tone	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} className="text-nomi-ink-40 transition-transform group-open/tool-group:rotate-90" />
+src/workbench/ai/v4/AgentPanelV4Receipt.tsx	232	observer	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} className="shrink-0 text-nomi-ink-40 transition-transform group-open/process:rotate-90" />
+src/workbench/ai/v4/AgentPanelV4SlotShell.tsx	190	arrow	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} className="rotate-180" aria-hidden="true" />
+src/workbench/ai/v4/AgentPanelV4SlotShell.tsx	194	arrow	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={12} aria-hidden="true" />
+src/workbench/assets/AssetLibraryToolbar.tsx	302	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronLeft size={14} stroke={2} aria-hidden="true" />
+src/workbench/assets/FindReferenceSection.tsx	53	FindReferenceSection	not-encoded-on-this-line	实验室无此格	<IconChevronLeft size={14} stroke={1.8} aria-hidden="true" />
+src/workbench/creation/DocumentListSidebar.tsx	288	documentEditing	not-encoded-on-this-line	实验室无此格	{isExpanded ? <IconChevronDown size={15} stroke={1.6} /> : <IconChevronRight size={15} stroke={1.6} />}
+src/workbench/creation/storyboard/StoryboardShotTable.tsx	288	lockedCount	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
+src/workbench/creation/storyboard/StoryboardShotTable.tsx	290	lockedCount	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
+src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx	78	pending	not-encoded-on-this-line	实验室无此格	{expanded ? <IconChevronUp size={12} stroke={1.8} /> : <IconChevronDown size={12} stroke={1.8} />}
+src/workbench/generation/GenerationWorkspace.tsx	197	workspaceStyle	not-encoded-on-this-line	实验室无此格	<IconChevronUp size={15} stroke={1.8} className="text-nomi-ink-60" />
+src/workbench/generationCanvas/components/CommittedProposalCard.tsx	103	lost	not-encoded-on-this-line	实验室无此格	{stepsOpen ? <IconChevronDown size={12} stroke={1.8} /> : <IconChevronRight size={12} stroke={1.8} />}
+src/workbench/generationCanvas/components/MemoryFold.tsx	88	text	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={11} className={cn('ml-0.5 transition-transform', open && 'rotate-180')} />
+src/workbench/generationCanvas/nodes/InlineParameterBar.tsx	628	summaryTrigger	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/workbench/generationCanvas/nodes/NodeErrorReport.tsx	411	label	not-encoded-on-this-line	实验室无此格	{showRaw ? <IconChevronDown size={13} stroke={1.6} /> : <IconChevronRight size={13} stroke={1.6} />}
+src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx	145	trigger	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={13} stroke={1.6} aria-hidden />
+src/workbench/generationCanvas/nodes/director/DirectorViewShell.tsx	100	titleIndex	not-encoded-on-this-line	实验室无此格	<button type="button" className="grid shrink-0 place-items-center border-l border-white/25 px-2" disabled aria-label={t('director.view.produceMenu')}><IconChevronDown size={15} stroke={2} aria-hidden="true" /></button>
+src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx	81	FolderHeader	not-encoded-on-this-line	实验室无此格	{folded ? <IconChevronRight size={12} stroke={2} /> : <IconChevronDown size={12} stroke={2} />}
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	217	next	not-encoded-on-this-line	实验室无此格	{folded.has(row.id) ? <IconChevronRight size={12} stroke={2} /> : <IconChevronDown size={12} stroke={2} />}
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	92	Row	not-encoded-on-this-line	实验室无此格	{hasSub ? <IconChevronRight size={14} stroke={1.9} className="text-nomi-ink-40" /> : null}
+src/workbench/generationCanvas/nodes/director/panels/topbar/SceneMenu.tsx	48	close	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={14} stroke={1.9} className="shrink-0 text-nomi-ink-40" />
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	60	patchSceneConfig	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={14} stroke={1.9} className="text-nomi-ink-40" />
+src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx	224	screen	not-encoded-on-this-line	实验室无此格	icon={layout.collapsed ? <IconChevronUp size={14} stroke={2} /> : <IconChevronDown size={14} stroke={2} />}
+src/workbench/generationCanvas/nodes/director/timeline/TimelineHeader.tsx	108	result	not-encoded-on-this-line	实验室无此格	icon={collapsed ? <IconChevronUp size={16} stroke={1.9} /> : <IconChevronDown size={16} stroke={1.9} />}
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	127	state	not-encoded-on-this-line	实验室无此格	<WorkbenchIconButton size="sm" icon={<IconChevronLeft size={13} stroke={1.9} />} label={t('director.timeline.menu.prevKey')} disabled={prev === null} onClick={() => prev !== null && seekTo(store, prev)} />
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	134	state	not-encoded-on-this-line	实验室无此格	<WorkbenchIconButton size="sm" icon={<IconChevronRight size={13} stroke={1.9} />} label={t('director.timeline.menu.nextKey')} disabled={next === null} onClick={() => next !== null && seekTo(store, next)} />
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	159	outside	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} stroke={2} className="text-nomi-ink-40" />
+src/workbench/generationCanvas/nodes/whiteboard/WhiteboardToolbarControls.tsx	63	handleKeyDown	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={14} stroke={1.7} className="ml-auto text-nomi-ink-40" aria-hidden />
+src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx	437	showLabel	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} stroke={1.8} className={menuOpen ? 'rotate-180' : undefined} aria-hidden="true" />
+src/workbench/onboarding/OnboardingChecklist.tsx	252	handleDismiss	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={16} stroke={1.8} aria-hidden="true" />
+src/workbench/preview/EditingLayoutMenu.tsx	68	panels	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={12} />
+src/workbench/preview/PreviewControlBar.tsx	101	PreviewControlBar	not-encoded-on-this-line	实验室无此格	<IconSubtitles size={14} />{t('timelinePreview.text')}<IconChevronDown size={12} />
+src/workbench/preview/PreviewSourcePanel.tsx	205	setTab	not-encoded-on-this-line	实验室无此格	<IconChevronLeft size={13} stroke={1.8} aria-hidden="true" />
+src/workbench/preview/inspector/PreviewInspector.tsx	23	Section	not-encoded-on-this-line	实验室无此格	<button type="button" className="flex w-full items-center justify-between px-3 py-1 text-left text-caption font-semibold text-[var(--workbench-ink)]" aria-expanded={open} onClick={() => setOpen(!open)}><span>{title}</span><IconChevronDown size={14} className={cn('transition-transform', !open && '-rotate-90')} /></button>
+src/workbench/preview/inspector/PreviewInspector.tsx	80	objectDuration	not-encoded-on-this-line	实验室无此格	<header className="flex h-10 flex-none items-center justify-between border-b border-[var(--workbench-border)] px-3"><div className="flex items-center gap-2 text-body-sm font-semibold"><IconAdjustments size={16} />{t('timelinePreview.previewInspector.title')}</div><WorkbenchIconButton label={t('timelinePreview.previewInspector.collapse')} title={t('timelinePreview.previewInspector.collapse')} icon={<IconChevronDown size={16} />} onClick={onToggleCollapsed} /></header>
+src/workbench/production/ProductionRunTaskCard.tsx	61	ActionIcon	not-encoded-on-this-line	实验室无此格	return <IconChevronRight size={13} stroke={1.6} aria-hidden />
+src/workbench/production/ProductionRunTaskCard.tsx	363	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronRight
+src/workbench/settings/AboutSection.tsx	53	AboutActionRow	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={16} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
+src/workbench/settings/AutomationPermissionsSection.tsx	175	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronRight size={16} stroke={1.8} className="text-nomi-ink-40" aria-hidden="true" />
+src/workbench/settings/ModelBoxOrderSection.tsx	152	toggleHidden	not-encoded-on-this-line	实验室无此格	icon={<IconChevronUp size={15} stroke={1.7} aria-hidden="true" />}
+src/workbench/settings/ModelBoxOrderSection.tsx	160	toggleHidden	not-encoded-on-this-line	实验室无此格	icon={<IconChevronDown size={15} stroke={1.7} aria-hidden="true" />}
+src/workbench/settings/ProjectLocationSection.tsx	154	result	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={14} stroke={1.7} className={showSyncSteps ? 'rotate-180' : undefined} aria-hidden="true" />
+src/workbench/settings/TikhubConnectorCard.tsx	95	routeSettled	not-encoded-on-this-line	实验室无此格	<IconChevronDown
+src/workbench/settings/VendorPreferenceOrderSection.tsx	90	target	not-encoded-on-this-line	实验室无此格	icon={<IconChevronUp size={15} stroke={1.7} aria-hidden="true" />}
+src/workbench/settings/VendorPreferenceOrderSection.tsx	98	target	not-encoded-on-this-line	实验室无此格	icon={<IconChevronDown size={15} stroke={1.7} aria-hidden="true" />}
+src/workbench/timeline/TimelineMiniPreview.tsx	72	timecode	not-encoded-on-this-line	实验室无此格	<IconChevronUp size={13} stroke={1.8} aria-hidden="true" />
+src/workbench/timeline/TimelineMiniPreview.tsx	103	timecode	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={13} stroke={1.8} aria-hidden="true" />
+src/workbench/timeline/TimelinePanel.tsx	436	module scope	not-encoded-on-this-line	实验室无此格	<IconChevronDown size={16} aria-hidden="true" />

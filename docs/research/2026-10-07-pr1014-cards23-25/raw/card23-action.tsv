@@ -1,0 +1,73 @@
+file	line	owner	primary	lab	snippet
+src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx	17	Rail	not-encoded-on-this-line	实验室无此格	return <CanvasToolbar getInsertionPosition={insertionPosition} categoryId="lab" />
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	20	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	29	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="more-effects" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	38	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	47	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="grid" hoverCell="2x3" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	55	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage derivedGrid />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	63	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage stageWidth={520} />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	76	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" edge="top" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	85	QUICK_ACTION_TOOLBAR_STATES	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="more-effects" edge="top" locale="en" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	94	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="grid" edge="top" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	104	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" edge="left" locale="en" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	113	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="more-effects" edge="right" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	122	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" edge="bottom" locale="en" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	131	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" edge="top" stageWidth={420} zoom={0.4} locale="en" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	142	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" upscale="guide" locale="en" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	151	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="refine" upscale="ready" />,
+src/devlab/designLab/nodeQuickActions/states/01-toolbar.tsx	161	module scope	not-encoded-on-this-line	实验室无此格	render: () => <QuickToolbarStage open="more-effects" />,
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	162	module scope	not-encoded-on-this-line	实验室无此格	<div className={cn('relative grid shrink-0 items-center gap-2.5 border-b border-nomi-line-soft/60 bg-nomi-bg/45 px-4 py-3', compactToolbar ? 'grid-cols-1 px-3.5' : 'grid-cols-[minmax(0,1fr)_auto]')}>
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	164	module scope	not-encoded-on-this-line	实验室无此格	<div className={cn('flex shrink-0 items-center gap-1 rounded-nomi bg-nomi-ink-05/70 p-0.5', compactToolbar && 'justify-self-end')}>
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	211	module scope	not-encoded-on-this-line	实验室无此格	<div className={cn('px-4 pb-5 pt-4', compactToolbar && 'px-4 pt-4')}>
+src/workbench/creation/WorkbenchEditor.tsx	94	rightGroup	not-encoded-on-this-line	实验室无此格	{index > 0 ? <ToolbarDivider /> : null}
+src/workbench/creation/WorkbenchEditor.tsx	96	rightGroup	not-encoded-on-this-line	实验室无此格	<ToolbarButton key={action.id} action={action} />
+src/workbench/creation/WorkbenchEditor.tsx	102	rightGroup	not-encoded-on-this-line	实验室无此格	<ToolbarButton key={action.id} action={action} />
+src/workbench/creation/WorkbenchEditor.tsx	223	next	not-encoded-on-this-line	实验室无此格	<WorkbenchEditorToolbar editor={editor} />
+src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx	142	scope	not-encoded-on-this-line	实验室无此格	</SelectionToolbarFrame>
+src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx	113	module scope	not-encoded-on-this-line	实验室无此格	</SelectionToolbarFrame>
+src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx	70	nodeById	not-encoded-on-this-line	实验室无此格	const [toolbar, setToolbar] = React.useState<SelectionToolbarState | null>(null)
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	256	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	<EmptyNodeVariantToolbar nodeId={node.id} visible={selected && !isMultiSelectActive && !readOnly && !resultStackOpen && !hasResult} />
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	258	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')} lockNodeId={node.id}>
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	265	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	272	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	280	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	<ToolbarVariantProvenanceActions nodeId={node.id} onOpenProvenance={() => setProvenanceOpen(true)} />
+src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx	288	showFlowConnectionHandle	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	34	FloatingToolbarShell	not-encoded-on-this-line	实验室无此格	<FloatingToolbarBoundary label={props.ariaLabel}>
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	35	FloatingToolbarShell	not-encoded-on-this-line	实验室无此格	<FloatingToolbarFrame {...props} />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	36	FloatingToolbarShell	not-encoded-on-this-line	实验室无此格	</FloatingToolbarBoundary>
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	77	shellRef	not-encoded-on-this-line	实验室无此格	const [placement, setPlacement] = React.useState<FloatingToolbarPlacement>({ shiftX: 0, shiftY: 0, maxWidth: undefined })
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	127	zoom	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	266	ToolbarVariantProvenanceActions	not-encoded-on-this-line	实验室无此格	<ToolbarDuplicateVariantButton nodeId={nodeId} />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	267	ToolbarVariantProvenanceActions	not-encoded-on-this-line	实验室无此格	<ToolbarReshootButton nodeId={nodeId} />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	268	ToolbarVariantProvenanceActions	not-encoded-on-this-line	实验室无此格	<ToolbarProvenanceButton onOpen={onOpenProvenance} />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	277	EmptyNodeVariantToolbar	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('generationCommon.node.duplicateVariant')} lockNodeId={nodeId}>
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	278	EmptyNodeVariantToolbar	not-encoded-on-this-line	实验室无此格	<ToolbarDuplicateVariantButton nodeId={nodeId} />
+src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx	279	EmptyNodeVariantToolbar	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx	515	module scope	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx	521	module scope	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	29	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	return <><NodeVideoFrameToolbar reportFeedback={reportFeedback} node={node} downloading={downloading} onDownload={download} onPreview={onPreview} onOpenProvenance={onOpenProvenance} /></>
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	33	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('generationCommon.resultDownload.actions')} lockNodeId={node.id}>
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	42	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	<ToolbarDuplicateVariantButton nodeId={node.id} />
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	43	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	<ToolbarReshootButton nodeId={node.id} />
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	44	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	<ToolbarProvenanceButton onOpen={onOpenProvenance} />
+src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx	45	NodeResultDownloadButton	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	56	extract	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	86	extract	not-encoded-on-this-line	实验室无此格	<ToolbarDuplicateVariantButton nodeId={node.id} />
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	87	extract	not-encoded-on-this-line	实验室无此格	<ToolbarReshootButton nodeId={node.id} />
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	88	extract	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	102	extract	not-encoded-on-this-line	实验室无此格	<ToolbarProvenanceButton onOpen={onOpenProvenance} />
+src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx	103	extract	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/nodes/artifact/ArtifactNodeToolbar.tsx	75	rasterizeReference	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('runtime.nodeRegistry.agent-artifact.actions')} lockNodeId={null}>
+src/workbench/generationCanvas/nodes/artifact/ArtifactNodeToolbar.tsx	99	rasterizeReference	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/nodes/artifact/artifactNodeSlots.tsx	67	toolbar	not-encoded-on-this-line	实验室无此格	<ArtifactNodeToolbar reportFeedback={options.reportFeedback} nodeId={node.id} title={title} artifact={artifact} canCopyText={Boolean(copyText)} onCopyText={copyText} />
+src/workbench/generationCanvas/nodes/director/panels/topbar/RefineTopBar.tsx	68	compact	not-encoded-on-this-line	实验室无此格	<ViewportToolbar onCancelCreation={onCancelCreation} />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	169	refineItems	not-encoded-on-this-line	实验室无此格	<FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} lockNodeId={node.id}>
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	179	refineItems	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	182	refineItems	not-encoded-on-this-line	实验室无此格	<ToolbarDuplicateVariantButton nodeId={node.id} />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	183	refineItems	not-encoded-on-this-line	实验室无此格	<ToolbarReshootButton nodeId={node.id} />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	229	refineItems	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	237	module scope	not-encoded-on-this-line	实验室无此格	<ToolbarDivider />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	252	module scope	not-encoded-on-this-line	实验室无此格	<ToolbarProvenanceButton onOpen={onOpenProvenance} />
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx	253	module scope	not-encoded-on-this-line	实验室无此格	</FloatingToolbarShell>
+src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx	14	ImageQuickActionsToolbarHost	not-encoded-on-this-line	实验室无此格	return <ImageQuickActionsToolbar {...toolbar} quickActionBlocked={quickActionBlocked} quickActionGuides={quickActionGuides} onQuickAction={onQuickAction} />
+src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx	694	handleDrop	not-encoded-on-this-line	实验室无此格	{!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} /> : null}

@@ -1,0 +1,10 @@
+file	line	owner	primary	lab	snippet
+src/ui/browser/dialog/NomiBrowserDialogView.tsx	266	module scope	not-encoded-on-this-line	实验室无此格	<IconStarFilled size={15} aria-hidden="true" />
+src/ui/browser/dialog/NomiBrowserDialogView.tsx	268	module scope	not-encoded-on-this-line	实验室无此格	<IconStar size={15} stroke={1.8} aria-hidden="true" />
+src/ui/browser/dialog/NomiBrowserDialogView.tsx	369	module scope	not-encoded-on-this-line	实验室无此格	<IconStar
+src/ui/browser/dialog/NomiBrowserDialogView.tsx	621	module scope	not-encoded-on-this-line	实验室无此格	<IconStarFilled size={15} aria-hidden="true" className="shrink-0 text-nomi-accent" />
+src/ui/browser/dialog/NomiBrowserDialogView.tsx	623	module scope	not-encoded-on-this-line	实验室无此格	<IconStar size={15} stroke={1.8} aria-hidden="true" className="shrink-0 text-nomi-ink-40" />
+src/workbench/generationCanvas/components/MemoryFold.tsx	139	text	not-encoded-on-this-line	实验室无此格	{fact.pinned ? <IconPinFilled size={12} /> : <IconPin size={12} stroke={1.8} />}
+src/workbench/generationCanvas/nodes/director/timeline/DirectorTimeline.tsx	204	payload	not-encoded-on-this-line	实验室无此格	{ id: 'pin', label: track.pinned ? label('unpin') : label('pin'), onSelect: () => store.getState().toggleTimelineTrackPin(entity.id) },
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	285	isOver	not-encoded-on-this-line	实验室无此格	icon={track.pinned ? <IconPinFilled size={13} stroke={1.9} /> : <IconPin size={13} stroke={1.9} />}
+src/workbench/library/WorkflowLibraryContent.tsx	120	groupCount	not-encoded-on-this-line	实验室无此格	{entry.favorite ? <IconStarFilled size={15} /> : <IconStar size={15} stroke={1.7} />}

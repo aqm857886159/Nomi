@@ -1,0 +1,182 @@
+file	line	owner	primary	lab	snippet
+src/NomiAppProviders.tsx	31	notificationTopOffset	not-encoded-on-this-line	实验室无此格	<ModalsProvider>
+src/NomiAppProviders.tsx	47	notificationTopOffset	not-encoded-on-this-line	实验室无此格	</ModalsProvider>
+src/design/confirmDialog.tsx	21	ConfirmDialogHost	not-encoded-on-this-line	实验室无此格	const [active, setActive] = React.useState<DialogRequest | null>(null)
+src/design/confirmDialog.tsx	24	pendingRef	not-encoded-on-this-line	实验室无此格	const pendingRef = React.useRef<DialogRequest[]>([])
+src/design/confirmDialog.tsx	73	ToneIcon	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/design/confirmDialog.tsx	83	ToneIcon	not-encoded-on-this-line	实验室无此格	data-confirm-dialog 落在 Mantine Modal 的 **root**（静态壳，子层 position:fixed 脱流），
+src/design/confirmDialog.tsx	169	module scope	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/design/overlays.tsx	11	rootClassName	not-encoded-on-this-line	实验室无此格	return <Modal {...props} className={rootClassName} radius={radius} zIndex={zIndex} />
+src/devlab/designLab/catalogLiveness/states/01-listing.tsx	30	chips	not-encoded-on-this-line	实验室无此格	{!closed ? <ModelSettingsDetailDialog label="APIMart" onClose={() => setClosed(true)} escapeAction="close">
+src/devlab/designLab/catalogLiveness/states/01-listing.tsx	43	chips	not-encoded-on-this-line	实验室无此格	</ModelSettingsDetailDialog> : null}
+src/devlab/designLab/editing/states/04-shortcuts.tsx	23	SHORTCUTS_STATES	not-encoded-on-this-line	实验室无此格	<TimelineShortcutsDialog onClose={NOOP} />
+src/devlab/designLab/primitivesForms/states/02-selection.tsx	305	module scope	not-encoded-on-this-line	实验室无此格	<OpenPopoverStage height={320}>
+src/devlab/designLab/primitivesForms/states/02-selection.tsx	322	module scope	not-encoded-on-this-line	实验室无此格	</OpenPopoverStage>
+src/devlab/designLab/primitivesForms/states/02-selection.tsx	338	module scope	not-encoded-on-this-line	实验室无此格	<OpenPopoverStage height={340}>
+src/devlab/designLab/primitivesForms/states/02-selection.tsx	354	module scope	not-encoded-on-this-line	实验室无此格	</OpenPopoverStage>
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	25	module scope	not-encoded-on-this-line	实验室无此格	DesignModal,
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	60	ModalSpecimen	not-encoded-on-this-line	实验室无此格	<OverlayBackdrop note="DesignModal（Mantine Modal + token 外壳，zIndex 走 overlayLayers.dialog）">
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	61	ModalSpecimen	not-encoded-on-this-line	实验室无此格	<DesignModal opened onClose={() => undefined} title="编辑工作流" centered size="md">
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	102	ModalSpecimen	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	113	anchorRef	not-encoded-on-this-line	实验室无此格	<OverlayBackdrop note="AnchoredPopover（Portal 到 body + fixed 贴锚点，逃出祖先 overflow 裁切）">
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	118	anchorRef	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={anchorRef} align="center" gap={6} onClose={() => undefined}>
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	123	anchorRef	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	193	ConfirmDialogSpecimen	not-encoded-on-this-line	实验室无此格	<OverlayBackdrop note="confirmDialog + ConfirmDialogHost（禁用原生 confirm/alert/prompt 的替代原语）">
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	194	ConfirmDialogSpecimen	not-encoded-on-this-line	实验室无此格	<ConfirmDialogHost />
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	202	OVERLAY_STATES	not-encoded-on-this-line	实验室无此格	name: 'DesignModal · 打开态（size 必传 · 正文与页脚都是手写件）',
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	207	OVERLAY_STATES	not-encoded-on-this-line	实验室无此格	render: () => <ModalSpecimen />,
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	216	OVERLAY_STATES	not-encoded-on-this-line	实验室无此格	render: () => <AnchoredPopoverSpecimen />,
+src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx	238	OVERLAY_STATES	not-encoded-on-this-line	实验室无此格	render: () => <ConfirmDialogSpecimen />,
+src/devlab/designLab/storyboard/storyboardLabKit.tsx	166	sequence	not-encoded-on-this-line	实验室无此格	{open ? <AssetPreviewDialog asset={sequence[0].asset!} sequence={sequence} onClose={() => setOpen(false)} /> : null}
+src/devlab/designLab/v4/b2cFormFixtures.tsx	29	rows	not-encoded-on-this-line	实验室无此格	return <V4ModelPopover rows={rows} />
+src/devlab/designLab/v4/states/02-composer.tsx	100	fx	not-encoded-on-this-line	实验室无此格	<V4ModelPopover rows={fx.modelRows} />
+src/devlab/designLab/v4/states/02-composer.tsx	117	fx	not-encoded-on-this-line	实验室无此格	<V4SkillPopover rows={fx.commandRows} categories={fx.commandCategories} query="" />
+src/devlab/designLab/v4/states/02-composer.tsx	131	fx	not-encoded-on-this-line	实验室无此格	<V4PermissionPopover permission="safe-auto" />
+src/devlab/designLab/v4/states/07-spend-params.tsx	457	module scope	not-encoded-on-this-line	实验室无此格	render: () => <AutoModeConfirmCard />,
+src/devlab/designLab/v4/states/07-spend-params.tsx	466	module scope	not-encoded-on-this-line	实验室无此格	render: () => <AutoModeConfirmCard />,
+src/devlab/directorLab.tsx	79	DirectorLab	not-encoded-on-this-line	实验室无此格	<ConfirmDialogHost />
+src/devlab/uiShellLab.tsx	35	UpdateState	not-encoded-on-this-line	实验室无此格	return <LabFrame><UpdaterDialog updater={updater(phase)} hasRunningTask={running} /></LabFrame>
+src/theme/nomiTheme.ts	271	module scope	not-encoded-on-this-line	实验室无此格	Modal: {
+src/theme/nomiTheme.ts	292	module scope	not-encoded-on-this-line	实验室无此格	Popover: {
+src/ui/app-shell/UpdaterDialog.tsx	85	title	explicit-primary	实验室无此格	<WorkbenchButton variant="primary" disabled={hasRunningTask} title={hasRunningTask ? t('updaterDialog.runningHint') : undefined} onClick={updater.install}>{t('updaterDialog.restartInstall')}</WorkbenchButton>
+src/ui/browser/overlay/BrowserAssetOverlayApp.tsx	438	target	not-encoded-on-this-line	实验室无此格	<ConfirmDialogHost />
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	176	module scope	not-encoded-on-this-line	实验室无此格	<BrowserAssetFilterPopover activeTab={activeTab} counts={filterCounts} tabs={NOMI_BROWSER_ASSET_TABS} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectTab={selectFilterTab} onShowAll={showAllFilters} />
+src/ui/browser/popover/BrowserAssetPopoverView.tsx	249	module scope	not-encoded-on-this-line	实验室无此格	{promptExtractionSettingsOpen ? <BrowserPromptExtractionSettingsModal settings={promptExtractionSettings} projectAvailable={promptExtractionSettingsProjectAvailable} onSave={savePromptExtractionSettings} onClose={() => setPromptExtractionSettingsOpen(false)} /> : null}
+src/ui/browser/popover/NomiBrowserAssetPopover.tsx	82	readyLocalAssets	not-encoded-on-this-line	实验室无此格	const [viewMode, setViewMode] = React.useState<AssetPopoverViewMode>('grid')
+src/ui/browser/popover/browserAssetPopoverUtils.ts	42	createDockedWindowRect	not-encoded-on-this-line	实验室无此格	dockMode: Exclude<AssetPopoverDockMode, null>,
+src/ui/browser/window/useBrowserAssetPopoverWindow.ts	59	canDock	not-encoded-on-this-line	实验室无此格	const [dockMode, setDockMode] = React.useState<AssetPopoverDockMode>(null)
+src/ui/browser/window/useBrowserAssetPopoverWindow.ts	92	dockAssetWindow	not-encoded-on-this-line	实验室无此格	(nextDockMode: Exclude<AssetPopoverDockMode, null>, sourceRect?: FloatingWindowRect): void => {
+src/ui/community/FeedbackShareHost.tsx	37	detail	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/ui/community/FeedbackShareHost.tsx	55	detail	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/ui/onboarding/CustomCallEditor.tsx	9	module scope	not-encoded-on-this-line	实验室无此格	DesignModal,
+src/ui/onboarding/CustomCallEditor.tsx	781	value	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/ui/onboarding/CustomCallEditor.tsx	791	value	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/ui/onboarding/ModelSettingsDetailDialog.tsx	100	ownership	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/ui/onboarding/ModelSettingsDetailDialog.tsx	132	ownership	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/ui/onboarding/OnboardingDrawer.tsx	539	renderInModelDialog	not-encoded-on-this-line	实验室无此格	</ModelSettingsDetailDialog>
+src/ui/onboarding/OnboardingWizard.tsx	775	module scope	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/ui/onboarding/OnboardingWizard.tsx	785	module scope	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/NomiStudioApp.tsx	683	globalBrowserDialog	not-encoded-on-this-line	实验室无此格	<NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
+src/workbench/NomiStudioApp.tsx	714	viewContent	not-encoded-on-this-line	实验室无此格	<ConfirmDialogHost />
+src/workbench/NomiStudioApp.tsx	753	viewContent	not-encoded-on-this-line	实验室无此格	<ConfirmDialogHost />
+src/workbench/NomiStudioApp.tsx	767	viewContent	not-encoded-on-this-line	实验室无此格	<SpendConfirmDialog />
+src/workbench/WorkbenchShell.tsx	367	module scope	not-encoded-on-this-line	实验室无此格	<UpdaterDialog updater={updater} hasRunningTask={hasRunningTask} />
+src/workbench/ai/ProjectAgentResidentShell.tsx	254	historyIdentity	not-encoded-on-this-line	实验室无此格	const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
+src/workbench/ai/ProjectAgentResidentShell.tsx	467	composerPopover	not-encoded-on-this-line	实验室无此格	? <V4ModelPopover rows={modelRows} onOpenLibrary={() => { window.dispatchEvent(new Event('nomi-open-model-catalog')); setPopover(null) }} />
+src/workbench/ai/ProjectAgentResidentShell.tsx	493	prompt	not-encoded-on-this-line	实验室无此格	? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { autoMode.request(tier); setPopover(null) }} onEditSystemPrompt={() => { setPopover(null); setSystemPromptOpen(true) }} />
+src/workbench/ai/ProjectAgentResidentShell.tsx	671	request	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/workbench/ai/ProjectAgentResidentShell.tsx	681	request	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/ai/v4/useAgentPanelSpendConfirm.ts	226	pendingRef	not-encoded-on-this-line	实验室无此格	const pendingRef = React.useRef<PendingSpendConfirm | undefined>(undefined)
+src/workbench/ai/v4/useAgentPanelSpendConfirm.ts	361	persistShown	not-encoded-on-this-line	实验室无此格	| Readonly<{ ok: true; approved: PendingSpendConfirm; remaining: SpendDraft }>
+src/workbench/assets/AssetLibraryPanel.tsx	749	rowAssets	not-encoded-on-this-line	实验室无此格	<AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewAsset(null)} />
+src/workbench/assets/AssetPickerPopover.tsx	11	AssetPickerPopover	not-encoded-on-this-line	实验室无此格	<AnchoredPopover align="start" zIndex={ASSET_PICKER_Z_INDEX} onClose={onClose}>
+src/workbench/assets/AssetPickerPopover.tsx	13	AssetPickerPopover	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/assets/AssetReference.tsx	115	isOpen	not-encoded-on-this-line	实验室无此格	<AssetPickerPopover onClose={() => onTogglePicker(slot.key)}>
+src/workbench/assets/AssetReference.tsx	124	isOpen	not-encoded-on-this-line	实验室无此格	</AssetPickerPopover>
+src/workbench/assets/AssetReference.tsx	166	d	not-encoded-on-this-line	实验室无此格	<AssetPickerPopover onClose={() => onTogglePicker(MERGED_ARRAY_KEY)}>
+src/workbench/assets/AssetReference.tsx	176	d	not-encoded-on-this-line	实验室无此格	</AssetPickerPopover>
+src/workbench/creation/SelectionGeneratePopover.tsx	71	rootRef	not-encoded-on-this-line	实验室无此格	const [position, setPosition] = React.useState<SelectionPopoverPosition | null>(null)
+src/workbench/creation/storyboard/StoryboardHoverPreview.tsx	32	onLeave	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={anchorRef} gap={6} passThrough>
+src/workbench/creation/storyboard/StoryboardHoverPreview.tsx	36	onLeave	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/creation/storyboard/StoryboardPlanEditor.tsx	743	module scope	not-encoded-on-this-line	实验室无此格	<AssetPreviewDialog asset={playbackSequence[0].asset!} sequence={playbackSequence} onClose={() => { setPlaybackOpen(false); setPlaybackRows(null) }} />
+src/workbench/creation/storyboard/StoryboardPlanEditor.tsx	744	module scope	not-encoded-on-this-line	实验室无此格	) : previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : mentionPreviewAsset ? <AssetPreviewDialog asset={mentionPreviewAsset} onClose={() => setMentionPreviewAsset(null)} /> : null}
+src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx	64	found	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={menuAnchorRef} onClose={() => setOpen(null)}>
+src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx	84	found	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx	233	hidden	not-encoded-on-this-line	实验室无此格	<AssetPickerPopover onClose={() => setPickerOpen(false)}>
+src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx	244	hidden	not-encoded-on-this-line	实验室无此格	</AssetPickerPopover>
+src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx	250	hidden	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={overflowRef} align="start" gap={6} onClose={() => setOverflowOpen(false)}>
+src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx	264	module scope	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx	116	targetPositionOf	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={anchorRef} onClose={() => setOpen(false)}>
+src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx	157	targetPositionOf	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx	273	grip	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={actionsTriggerRef} align="start" gap={4} onClose={closeMenus}>
+src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx	304	grip	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx	54	label	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={anchorRef} align="start" gap={8} onClose={close}>
+src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx	89	label	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/generationCanvas/components/CanvasNavigationStack.tsx	154	module scope	not-encoded-on-this-line	实验室无此格	<CanvasControlsHelpPopover />
+src/workbench/generationCanvas/nodes/ClipNode.tsx	612	module scope	not-encoded-on-this-line	实验室无此格	<AssetPickerPopover onClose={closePicker}>
+src/workbench/generationCanvas/nodes/ClipNode.tsx	636	module scope	not-encoded-on-this-line	实验室无此格	</AssetPickerPopover>
+src/workbench/generationCanvas/nodes/NodeEffectChips.tsx	53	more	not-encoded-on-this-line	实验室无此格	{open && enabled && !disabled ? <AnchoredPopover anchorRef={anchorRef} onClose={close}>
+src/workbench/generationCanvas/nodes/NodeEffectChips.tsx	67	item	not-encoded-on-this-line	实验室无此格	</AnchoredPopover> : null}
+src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx	166	trigger	explicit-primary	实验室无此格	<AnchoredPopover anchorRef={primary ? groupRef : triggerRef} anchorRect={panelAnchorRect} side="top" gap={GAP} onClose={close}>
+src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx	168	trigger	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx	250	entityId	not-encoded-on-this-line	实验室无此格	<MobileConnectDialog />
+src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx	261	entityId	not-encoded-on-this-line	实验室无此格	<HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+src/workbench/generationCanvas/nodes/director/panels/Popover.tsx	36	PopoverParentContext	not-encoded-on-this-line	实验室无此格	const PopoverParentContext = React.createContext<PopoverParent | null>(null)
+src/workbench/generationCanvas/nodes/director/panels/Popover.tsx	60	childContext	not-encoded-on-this-line	实验室无此格	const childContext = React.useMemo<PopoverParent>(() => ({
+src/workbench/generationCanvas/nodes/director/panels/Popover.tsx	153	target	not-encoded-on-this-line	实验室无此格	<PopoverParentContext.Provider value={childContext}>{children}</PopoverParentContext.Provider>
+src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx	134	files	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx	147	files	not-encoded-on-this-line	实验室无此格	<PopoverItem key={image.id} onClick={() => { addImage(image.url); setPickerOpen(false) }}>
+src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx	150	files	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx	152	files	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx	45	pick	not-encoded-on-this-line	实验室无此格	<DesignModal opened={open} onClose={onClose} title={t('director.action.modalTitle')} size="xl" centered>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx	140	label	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx	98	roamRows	not-encoded-on-this-line	实验室无此格	<DesignModal opened={open} onClose={onClose} title={t('director.help.title')} size="xl" centered>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx	109	roamRows	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx	66	copy	not-encoded-on-this-line	实验室无此格	<DesignModal
+src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx	178	module scope	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx	48	setView	not-encoded-on-this-line	实验室无此格	<DesignModal opened={open} onClose={onClose} title={t('director.settings.title')} size="md" centered>
+src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx	101	isDefault	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/generationCanvas/nodes/director/panels/outputs/OutputsPopover.tsx	63	progress	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/outputs/OutputsPopover.tsx	90	progress	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/outputs/OutputsPopover.tsx	116	progress	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx	278	renderMoveMenu	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx	284	renderMoveMenu	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => moveAsset(source, null)}>{t('director.assets.root')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx	286	renderMoveMenu	not-encoded-on-this-line	实验室无此格	<PopoverItem key={folder.id} onClick={() => moveAsset(source, folder.id)}>{folder.name}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx	288	renderMoveMenu	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	185	active	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	192	active	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => { store.getState().createSceneLayer(t('director.outliner.newLayerName', { index: project.scenes.length + 1 })); setLayerMenu(null) }}>{t('director.outliner.newLayer')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	193	active	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => { store.getState().duplicateSceneLayer(layer.id, t('director.outliner.copySuffix')); setLayerMenu(null) }}>{t('director.outliner.duplicateLayer')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	194	active	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => { setRenaming({ kind: 'layer', id: layer.id, draft: layer.name }); setLayerMenu(null) }}>{t('director.outliner.rename')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	195	active	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => void deleteLayer(layer)} disabled={project.scenes.length <= 1} title={project.scenes.length <= 1 ? t('director.outliner.lastLayer') : undefined}>{t('director.outliner.deleteLayer')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	196	active	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	244	next	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	251	next	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => { setRenaming({ kind: row.kind, id: row.id, draft: row.name }); setRowMenu(null) }}>{t('director.outliner.rename')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	252	next	not-encoded-on-this-line	实验室无此格	{row.type === 'group' ? <PopoverItem onClick={() => { store.getState().ungroupObjects(row.id); setRowMenu(null) }}>{t('director.help.keys.ungroup')}</PopoverItem> : null}
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	253	next	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => copyToNewLayer(row)}>{t('director.outliner.copyToNewLayer')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	256	next	not-encoded-on-this-line	实验室无此格	<PopoverItem key={`copy-${layer.id}`} onClick={() => { store.getState().copyEntitiesToScene(menuIds(row), layer.id, false); setRowMenu(null) }}>{layer.name}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	260	next	not-encoded-on-this-line	实验室无此格	<PopoverItem key={`move-${layer.id}`} onClick={() => { store.getState().copyEntitiesToScene(menuIds(row), layer.id, true); setRowMenu(null) }}>{layer.name}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx	262	next	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	89	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={onClick}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	93	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	98	Row	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	123	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem title={t('director.bottomBar.panoramaImportHint')} onClick={() => { panoramaInputRef.current?.click(); close() }}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	126	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	127	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => { close(); onOpenAssets() }}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	130	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	135	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => setSub(null)}>← {t('director.creation.character')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	137	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => startPlacement('female')}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	140	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	141	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => startPlacement('male')}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	144	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	149	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => setSub(null)}>← {t('director.creation.light')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	152	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem key={type} onClick={() => addLight(type)}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	154	Row	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	160	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem onClick={() => setSub(null)}>← {t('director.creation.camera')}</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	166	Row	not-encoded-on-this-line	实验室无此格	<PopoverItem key={preset.id} onClick={() => addCameraFromPreset(preset.id)}>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	168	module scope	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx	172	module scope	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/topbar/RefineTopBar.tsx	89	compact	not-encoded-on-this-line	实验室无此格	<OutputsPopover />
+src/workbench/generationCanvas/nodes/director/panels/topbar/SceneMenu.tsx	28	close	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/topbar/SceneMenu.tsx	64	close	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/SceneMenu.tsx	66	close	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	46	patchSceneConfig	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	74	patchSceneConfig	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	120	patchSceneConfig	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	131	module scope	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/panels/topbar/ViewMenu.tsx	135	module scope	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	150	outside	not-encoded-on-this-line	实验室无此格	<Popover
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	178	outside	not-encoded-on-this-line	实验室无此格	</PopoverItem>
+src/workbench/generationCanvas/nodes/director/timeline/TrackList.tsx	181	outside	not-encoded-on-this-line	实验室无此格	</Popover>
+src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx	693	active	not-encoded-on-this-line	实验室无此格	<AspectRatioPopover value={state.activeRatio} onChange={setActiveRatio} />
+src/workbench/library/ProjectSyncBadge.tsx	69	ready	not-encoded-on-this-line	实验室无此格	<AnchoredPopover anchorRef={anchorRef} align="start" onClose={onClose}>
+src/workbench/library/ProjectSyncBadge.tsx	107	ready	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
+src/workbench/library/WorkflowLibraryContent.tsx	192	inputClass	not-encoded-on-this-line	设计实验室注册表含对应 mirrors（见源码）	<DesignModal opened onClose={onClose} title={t('libraries.workflow.editTitle')} centered size="md">
+src/workbench/library/WorkflowLibraryContent.tsx	230	inputClass	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/library/WorkflowLibraryContent.tsx	325	remove	not-encoded-on-this-line	实验室无此格	{editingEntry ? <WorkflowEditDialog entry={editingEntry} onClose={() => setEditingEntry(null)} /> : null}
+src/workbench/skillLibrary/SkillDetail.tsx	13	SkillDetail	not-encoded-on-this-line	实验室无此格	return <DesignModal opened onClose={onClose} xOffset={24} yOffset={48} styles={{ inner: { justifyContent: 'flex-end' } }} size={972} padding={0} title={t('libraries.gallery.detail')}
+src/workbench/skillLibrary/SkillDetail.tsx	43	SkillDetail	not-encoded-on-this-line	实验室无此格	</DesignModal>
+src/workbench/timeline/TimelinePanel.tsx	596	showTextChip	not-encoded-on-this-line	实验室无此格	{shortcutsOpen ? <TimelineShortcutsDialog onClose={() => setShortcutsOpen(false)} /> : null}
+src/workbench/timeline/TimelineSecondaryAddRow.tsx	79	musicBtn	not-encoded-on-this-line	实验室无此格	<AssetPickerPopover onClose={() => setMusicPickerOpen(false)}>
+src/workbench/timeline/TimelineSecondaryAddRow.tsx	111	project	not-encoded-on-this-line	实验室无此格	</AssetPickerPopover>
+src/workbench/timeline/TimelineTransitionPicker.tsx	41	unsupported	not-encoded-on-this-line	设计实验室注册表含对应 mirrors（见源码）	<AnchoredPopover anchorRef={anchorRef} align="center" gap={6} onClose={onClose}>
+src/workbench/timeline/TimelineTransitionPicker.tsx	84	unsupported	not-encoded-on-this-line	实验室无此格	</AnchoredPopover>
