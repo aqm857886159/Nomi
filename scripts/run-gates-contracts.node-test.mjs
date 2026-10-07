@@ -20,6 +20,9 @@ import {
   parseGateArgs,
   runGateSuite,
   parseScannedCount,
+  inferScannedCount,
+  normalizeGateOutput,
+  SCAN_MARKER,
 } from './run-gates-contracts.mjs'
 
 /** 收集 runner 的输出，同时假装自己是一堆门岗。 */
@@ -39,6 +42,31 @@ test('门岗自证：缺失、重复或 scanned=0 都 fail-closed，正整数才
   assert.match(parseScannedCount('门岗通过\n').reason, /缺少 scanned/)
   assert.match(parseScannedCount('scanned=0\n').reason, /scanned=0/)
   assert.match(parseScannedCount('scanned=1\nscanned=2\n').reason, /重复/)
+})
+
+test('迁移期只从既有明确摘要推导扫描数，无法推导的门岗不会被伪造为通过', () => {
+  assert.equal(inferScannedCount('✅ 12 个文件进入判据\n'), 12)
+  assert.equal(inferScannedCount('# tests 7\n'), 7)
+  assert.equal(inferScannedCount('✅ 通过，但没有数量\n'), null)
+})
+
+test('Windows CRLF 不会让有效的 scanned 自证变成空跑', () => {
+  const result = parseScannedCount('扫描完成\r\nscanned=2725\r\n')
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
+})
+
+test('TTY ANSI 控制序列不会遮住 scanned 自证', () => {
+  const result = parseScannedCount(normalizeGateOutput('\u001b[2Kscanned=2725\r\n'))
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
+})
+
+test('扫描 marker 正则状态不会从 spawnGate 泄漏到汇总解析', () => {
+  SCAN_MARKER.lastIndex = 8
+  const result = parseScannedCount('scanned=2725\n')
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
 })
 
 test('门岗自证失败即使子命令退出 0 也算阻断失败', async () => {

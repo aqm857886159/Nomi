@@ -44,7 +44,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 /** 汇总里为每个失败门岗回放的输出行数——够定位，不至于把日志再刷一遍。 */
 export const FAILURE_TAIL_LINES = 15
-export const SCAN_MARKER = /^scanned=(\d+)$/gm
+export const SCAN_MARKER = /^scanned=(\d+)\r?$/gm
+export const SCAN_EXEMPTIONS = Object.freeze({
+  'lint:ci': 'ESLint 自己遍历模块，不存在独立业务对象清单',
+  typecheck: 'TypeScript 自己遍历模块图，不存在独立业务对象清单',
+})
 const ANSI_ESCAPE = /\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g
 
 export function normalizeGateOutput(output) {
@@ -55,7 +59,9 @@ export class GateConfigError extends Error {}
 
 /** 每道门岗必须声明本轮实际检查的对象数；缺失或为 0 都 fail-closed。 */
 export function parseScannedCount(output) {
+  SCAN_MARKER.lastIndex = 0
   const matches = [...String(output ?? '').matchAll(SCAN_MARKER)].map((match) => Number(match[1]))
+  SCAN_MARKER.lastIndex = 0
   if (matches.length !== 1) return { ok: false, reason: matches.length === 0 ? '缺少 scanned=<n> 自证行' : 'scanned=<n> 自证行重复' }
   if (!Number.isSafeInteger(matches[0]) || matches[0] < 0) return { ok: false, reason: 'scanned=<n> 必须是非负整数' }
   if (matches[0] === 0) return { ok: false, reason: 'scanned=0：门岗没有扫描到对象；若确实适用，必须在链配置里显式声明豁免' }
