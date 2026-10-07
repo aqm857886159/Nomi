@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-storyboard-empty-group",
+  "problem_type": "Deletion leaves an empty storyboard group frame",
+  "symptom": "Deleting the last shot node in a storyboard group leaves an empty group frame; deleteNode, deleteSelectedNodes, and cutSelectedNodes can diverge.",
+  "direct_cause": "Each deletion path removed node ids from a group or removed fully covered groups independently, without one shared post-delete group lifecycle rule.",
+  "class_root": "The shared node deletion boundary did not enforce that a non-empty group made empty by the current deletion is removed in the same state transition, while preserving user-created empty groups.",
+  "affected_population": [
+    "All canvas users deleting one or more nodes through sidebar, canvas, agent, keyboard, menu, storyboard undo, or cut entry points",
+    "Existing grouped nodes and persisted user-created empty groups"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "entry_points": [
+    "deleteNode",
+    "deleteSelectedNodes",
+    "cutSelectedNodes"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an application-owned canvas state invariant; no third-party behavior determines group lifecycle.",
+  "invariants": [
+    "A group with members before the deletion is removed iff all of its members are in the current deleted node set.",
+    "A group with remaining members keeps exactly those remaining node ids.",
+    "A user-created group that was already empty is preserved.",
+    "Deletion and its group cleanup share one undo snapshot."
+  ],
+  "doors": [
+    { "kind": "write", "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/agent/proposalUndo.ts", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts", "symbol": "cutSelectedNodes" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts", "symbol": "deleteSelectedNodes" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts", "symbol": "deleteSelectedNodes" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts", "symbol": "cutSelectedNodes" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/quickActions/deriveFromNode.ts", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/sidebar/CategoryTree.tsx", "symbol": "deleteNode" },
+    { "kind": "write", "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx", "symbol": "deleteNode" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts", "symbol": "deleteSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts", "symbol": "cutSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx", "symbol": "deleteSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx", "symbol": "cutSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts", "symbol": "deleteSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts", "symbol": "cutSelectedNodes" },
+    { "kind": "read", "path": "src/workbench/sidebar/CategoryTree.tsx", "symbol": "deleteNode" }
+  ],
+  "door_reduction": {
+    "before": 19,
+    "after": 19,
+    "why_not": "These UI, sidebar, agent, storyboard, and derivation doors remain distinct callers, but all converge on the three store actions; the shared helper enforces the invariant without changing their entry semantics."
+  },
+  "generality_proof": "The helper is called by deleteNode, deleteSelectedNodes, and cutSelectedNodes before each state write. Door-map coverage shows every checked caller reaches one of those actions, so the same group lifecycle rule applies across UI, agent, sidebar, storyboard, and derived-node deletion.",
+  "shared_boundaries": [
+    { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "symbol": "removeGroupsEmptiedByNodeDeletion", "responsibility": "Filter deleted members from every group, remove only groups that were non-empty and become empty, and preserve pre-existing empty groups." },
+    { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "symbol": "deleteNode", "responsibility": "Apply the shared group cleanup with the node and edge deletion in one undo snapshot." },
+    { "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts", "symbol": "cutSelectedNodes", "responsibility": "Apply the same shared group cleanup for cut operations in one undo snapshot." }
+  ],
+  "same_class_entry_points": [
+    { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "entry_point": "deleteNode", "disposition": "enforced", "evidence": "Direct node deletion calls removeGroupsEmptiedByNodeDeletion before its state write." },
+    { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "entry_point": "deleteSelectedNodes", "disposition": "enforced", "evidence": "Selected deletion uses the same helper and emits group removal events in the same gesture." },
+    { "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts", "entry_point": "cutSelectedNodes", "disposition": "enforced", "evidence": "Cut deletion uses the imported helper before its single undo snapshot and event batch." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Three distinct store deletion actions and 19 caller/read doors can reproduce the same empty-group state unless the invariant is centralized.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs deleteNode deleteSelectedNodes cutSelectedNodes",
+      "src/workbench/generationCanvas/store/generationCanvasStore.test.ts deletion and undo matrix",
+      "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "src/workbench/generationCanvas/agent/generationCanvasTools.ts",
+      "src/workbench/generationCanvas/components/useCanvasShortcuts.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasNodeActions.ts::removeGroupsEmptiedByNodeDeletion",
+    "invariant": "Only groups that had members before this deletion and have no remaining members afterward are removed; all other groups retain filtered membership.",
+    "failure_mode": "The state write uses the helper result atomically with the node and edge deletion; there is no caller-specific fallback cleanup.",
+    "exception_policy": "none",
+    "strategy": "Make every deletion action call the same pure group transition before writing state and emitting one gesture.",
+    "artifacts": [
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts: per-action empty-group behavior"
+    ],
+    "rationale": "The previous divergent cleanup behavior is removed; all three deletion actions now use the shared boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this state invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing user-created empty groups remain; only groups made empty by a new deletion are removed.",
+  "residual_risks": [
+    "The parallel canvas-explicit-delete line may alter event/history plumbing; merge integration must preserve this helper at the shared deletion boundary."
+  ]
+}

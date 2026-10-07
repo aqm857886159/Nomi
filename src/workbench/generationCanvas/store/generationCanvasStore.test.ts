@@ -556,7 +556,7 @@ describe('generationCanvasStore sidebar grouping actions', () => {
 
     const state = useGenerationCanvasStore.getState()
     expect(state.nodes.some((candidate) => candidate.id === 'cast-1')).toBe(false)
-    expect(state.groups.find((candidate) => candidate.id === 'cast-group')?.nodeIds).toEqual([])
+    expect(state.groups.find((candidate) => candidate.id === 'cast-group')).toBeUndefined()
   })
 
   it('duplicates for regeneration as a derived node in the same category and group', () => {
@@ -1064,21 +1064,39 @@ describe('deleting a frame-covering selection removes the frame too (2026-09-22ã
   })
 })
 
-describe('deleteNode empty-group characterization (direction-check baseline)', () => {
-  it('currently keeps an empty group after deleting its last node', () => {
+describe('deleting the last node removes only groups emptied by that deletion', () => {
+  it.each(['deleteNode', 'deleteSelectedNodes', 'cutSelectedNodes'] as const)('%s removes the emptied group and one undo restores the full relation', (action) => {
     const store = useGenerationCanvasStore.getState()
     store.restoreSnapshot({
-      nodes: [node('last', 'shots', 'g')],
+      nodes: [node('last', 'shots', 'g'), node('keep', 'shots')],
       edges: [],
-      groups: [group('g', 'shots', ['last'])],
+      groups: [group('g', 'shots', ['last']), group('user-empty', 'shots', [])],
       selectedNodeIds: [],
     })
 
-    store.deleteNode('last')
+    if (action === 'deleteNode') store.deleteNode('last')
+    else {
+      store.selectNodes(['last'])
+      store[action]()
+    }
 
-    expect(useGenerationCanvasStore.getState().nodes).toEqual([])
+    expect(useGenerationCanvasStore.getState().nodes.map((candidate) => candidate.id)).toEqual(['keep'])
+    expect(useGenerationCanvasStore.getState().groups.map((candidate) => candidate.id)).toEqual(['user-empty'])
+    store.undo()
+    expect(useGenerationCanvasStore.getState().nodes.map((candidate) => candidate.id).sort()).toEqual(['keep', 'last'])
+    expect(useGenerationCanvasStore.getState().groups.map((candidate) => ({ id: candidate.id, nodeIds: candidate.nodeIds }))).toEqual([
+      { id: 'g', nodeIds: ['last'] },
+      { id: 'user-empty', nodeIds: [] },
+    ])
+  })
+
+  it('keeps a group when deleting only part of its members', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot({ nodes: [node('a', 'shots', 'g'), node('b', 'shots', 'g')], edges: [], groups: [group('g', 'shots', ['a', 'b'])], selectedNodeIds: [] })
+    store.selectNodes(['a'])
+    store.deleteSelectedNodes()
     expect(useGenerationCanvasStore.getState().groups).toHaveLength(1)
-    expect(useGenerationCanvasStore.getState().groups[0]).toMatchObject({ id: 'g', nodeIds: [] })
+    expect(useGenerationCanvasStore.getState().groups[0]?.nodeIds).toEqual(['b'])
   })
 })
 
