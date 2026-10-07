@@ -25,7 +25,8 @@
   "entry_points": [
     "浮条「多机位九宫格」主体与 ▾ 里各项、改图 ▾ 里「高清 / 扩图」→ useQuickActionHost.quickActionGuides → capabilityGuide",
     "目录加载中点了、派生时才发现缺能力 → deriveFromNode blocked → capabilityGuide",
-    "失败卡 model-unavailable-upstream → useSameCapabilityAlternative"
+    "失败卡 model-unavailable-upstream → useSameCapabilityAlternative",
+    "⑫ 真 App 普查：tests/ux/full-walk/catalog.mjs 的 tb-refine-upscale（pb13 点「高清」）"
   ],
   "external_sources": [
     {
@@ -54,10 +55,26 @@
     ]
   },
   "doors": [
-    { "kind": "write", "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts", "symbol": "capabilityGuide" },
-    { "kind": "read", "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx", "symbol": "quickActionGuides" },
-    { "kind": "read", "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx", "symbol": "quickActionGuides" },
-    { "kind": "read", "path": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx", "symbol": "quickActionGuides" }
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+      "symbol": "capabilityGuide"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "symbol": "quickActionGuides"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx",
+      "symbol": "quickActionGuides"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+      "symbol": "quickActionGuides"
+    }
   ],
   "door_reduction": {
     "before": 4,
@@ -66,13 +83,36 @@
   },
   "generality_proof": "缺能力的判定按动作目录的 requires（按能力，不按模型名）在宿主一处算，所有快捷动作共用；去哪儿补只在 capabilityGuide 一处；上游不可用的替代按「同请求类型 + 放大与否」在 pickSameCapabilityAlternative 一处挑。新加一个要模型的动作，只要在目录里声明 requires，就自动有引导；设计卡 ★4 与测试路由的 ui-capability-unavailable 证据项让新界面在设计阶段就要写这一态",
   "shared_boundaries": [
-    { "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts", "symbol": "capabilityGuide", "responsibility": "缺哪种能力 → 一句说明 + 一步可走的路（打开设置到对应位置）" },
-    { "path": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts", "symbol": "pickSameCapabilityAlternative", "responsibility": "上游不可用时同能力里挑另一个可用模型" }
+    {
+      "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+      "symbol": "capabilityGuide",
+      "responsibility": "缺哪种能力 → 一句说明 + 一步可走的路（打开设置到对应位置）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+      "symbol": "pickSameCapabilityAlternative",
+      "responsibility": "上游不可用时同能力里挑另一个可用模型"
+    }
   ],
   "same_class_entry_points": [
-    { "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts", "entry_point": "quickActionGuides", "disposition": "enforced", "evidence": "upscale / image-edit 两种缺能力都走 capabilityGuide；原来的 no-upscale-model / no-image-model 灰掉分支删除" },
-    { "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx", "entry_point": "switch-same-capability", "disposition": "enforced", "evidence": "model-unavailable-upstream 主动作改为换成同能力的另一个" },
-    { "path": "src/workbench/generationCanvas/quickActions/NodeDeriveMenu.tsx", "entry_point": "用这个节点生成…", "disposition": "not-affected", "evidence": "只建空节点、不选模型；接不上的是连线能力（参考边），不是模型能力" }
+    {
+      "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+      "entry_point": "quickActionGuides",
+      "disposition": "enforced",
+      "evidence": "upscale / image-edit 两种缺能力都走 capabilityGuide；原来的 no-upscale-model / no-image-model 灰掉分支删除"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "entry_point": "switch-same-capability",
+      "disposition": "enforced",
+      "evidence": "model-unavailable-upstream 主动作改为换成同能力的另一个"
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/NodeDeriveMenu.tsx",
+      "entry_point": "用这个节点生成…",
+      "disposition": "not-affected",
+      "evidence": "只建空节点、不选模型；接不上的是连线能力（参考边），不是模型能力"
+    }
   ],
   "recurrence": {
     "classification": "recurring",
