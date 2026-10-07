@@ -20,7 +20,7 @@ import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 const NEVER_REPLIES = { type: 'deferred' as const, beforeReply: () => new Promise<never>(() => {}) };
 
 /** 看门狗预算压到毫秒级，好让「它到底会不会结束」这件事在一次测试里问得完。 */
-const FAST_WATCHDOG = { firstResponseMs: 120, idleMs: 120 };
+const FAST_WATCHDOG = { firstResponseMs: 120, firstTokenMs: 120, idleMs: 120 };
 
 const MAX_ATTEMPTS = LANE_RETRY_POLICY.maxRetries + 1;
 
@@ -88,7 +88,7 @@ test('G-11 · a watchdog timeout surfaces as a retryable error, not as an abort'
 test('G-11 阳性对照 · the user pressing stop is an abort, and an abort is never retried', async (t) => {
   const fixture = await createLaneFixture(t, [NEVER_REPLIES, NEVER_REPLIES, NEVER_REPLIES, NEVER_REPLIES]);
   // 预算给到远大于本测试的时长：这一轮**只可能**因为 abort 而结束，不可能因为看门狗。
-  const lane = await fixture.openLane({ ...fixture.options, watchdog: { firstResponseMs: 30_000, idleMs: 30_000 } });
+  const lane = await fixture.openLane({ ...fixture.options, watchdog: { firstResponseMs: 30_000, firstTokenMs: 30_000, idleMs: 30_000 } });
   const retries = collectRetries(lane);
 
   const running = lane.execute({ kind: 'prompt', text: 'Say something.' });
