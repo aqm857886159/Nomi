@@ -51,7 +51,7 @@ import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } f
  *
  *   · **多机位九宫格**（文字钮）：最常用的一个效果直接放在浮条上（先按判断定，以后有使用数据再调）。点它 = 新建下游节点
  *     + 连参考 + 填效果库模板 + 沿用模型，**不生成**（`deriveFromNode.ts`；用户 2026-10-05 拍板：花钱留给用户在新节点上点 ↑）。
- *   · **▾**（分体按钮右块，约 24px，title / aria-label「更多效果」）：其余效果（下一刻 / 前一刻 / 三视图 / 剧情四宫格），按常用程度排。
+ *   · **▾**（分体按钮右块，和「宫格 ▾」同一个胶囊样子、中间不画竖线；title / aria-label「更多效果」）：其余效果（下一刻 / 前一刻 / 三视图 / 剧情四宫格），按常用程度排。
  *     菜单里不写价格、不写价格说明（2026-10-05 用户拍板：官方额度上线、价格真能拿到再做）。
  *   · **改图 ▾**：两段带名字——「生成新图」（高清 / 扩图，也是派生，同样不生成）与「本机处理」
  *     （裁剪 / 旋转翻转；抠图不在这里，留在一级）。原「变换▾」平铺进第二段，不是再包一层（§1.5.4 反例第 2 行：不许把
@@ -180,16 +180,13 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
           menuLabel={t('generationCommon.quickActions.moreEffects')}
           items={moreItems}
           disabled={!imageUrl}
-          split={featured ? (
-            <ToolbarButton
-              icon={<featured.icon size={I.size} stroke={I.stroke} />}
-              label={t(featured.labelKey)}
-              title={featuredBlocked ?? t('generationCommon.quickActions.featuredHint')}
-              disabled={!imageUrl || Boolean(featuredBlocked)}
-              className="rounded-l-nomi rounded-r-none"
-              onClick={() => onQuickAction(featured.id)}
-            />
-          ) : undefined}
+          primary={featured ? {
+            icon: <featured.icon size={I.size} stroke={I.stroke} />,
+            label: t(featured.labelKey),
+            title: featuredBlocked ?? t('generationCommon.quickActions.featuredHint'),
+            disabled: !imageUrl || Boolean(featuredBlocked),
+            onClick: () => onQuickAction(featured.id),
+          } : undefined}
         />
         {onRemoveBackground ? (
           <ToolbarButton
