@@ -11,11 +11,16 @@
 //      以前是每个驱动各自在自己的循环尾巴上调 settlePauseIfQuiet；多镜调度器没调，批次急停后永远停在「暂停中」。
 //
 //   ③ 用户重做一镜时，哪些停下的原因随之解除 `retryLiftsStop`（穷举，新原因不表态类型检查就红）。
+//
+//   ④ 这个 Run 现在要不要有人驱动 `runWantsDriver`（2026-10-07）：停只是「不再派新的」，已经交给供应商、钱已花出的
+//      那几件必须有人盯到收尾、把产物落进项目。以前「过一会儿再踢」、单镜「再问一次」、重开项目各按 Run 状态挑——
+//      已暂停 / 已取消一律不管（#934 只给「暂停中」开了口子），于是取消后的慢镜头、已暂停里点「重新取回」的那一镜
+//      钱花了、片出了，没人去取。现在三处都只问这里；派不派新活仍由调度派生按 Run 状态判，这里不管。
 import type { ProductionCommandEffect } from "./productionRunReducer";
 import type { ProductionRun, ProductionRunStatus, ProductionRunStopReason, RunCommand } from "./productionRunTypes";
 import { transitionRun } from "./productionRunState";
 import { isStoppedRunStatus, parseRunStopReason } from "../shared/productionRunStop";
-import { productionJobPhase } from "../shared/productionShotPhase";
+import { isProductionJobInFlight, productionJobPhase } from "../shared/productionShotPhase";
 
 function moveRun(current: ProductionRun, status: ProductionRunStatus, said: ProductionRunStopReason | undefined, now: string): ProductionCommandEffect {
   const next = transitionRun(current, status, now);
@@ -40,6 +45,22 @@ export function applyRunStatus(current: ProductionRun, command: RunCommand, now:
 /** 交给供应商、还在跑的那件活：钱已花出、收不回，只能等它收尾。与画布上「生成中」是同一个判据（productionJobPhase）。 */
 export function isStillAtProvider(job: Pick<ProductionRun["jobs"][number], "status">): boolean {
   return productionJobPhase(job.status) === "generating";
+}
+
+/** 交给了供应商、拿着任务号还能去问的那几件（钱已花出，结论还没回来）。 */
+export function hasWorkToWatch(run: Pick<ProductionRun, "jobs">): boolean {
+  return run.jobs.some(isProductionJobInFlight);
+}
+
+/** 停稳了的 Run：不再派新活，也不会自己往前走。 */
+const AT_REST: ReadonlySet<ProductionRunStatus> = new Set(["paused", "cancelled", "completed"]);
+
+/**
+ * 这个 Run 现在要不要有人驱动（批次调度器的重踢、单镜再问一次、重开项目都只问这里）。
+ * 没停稳的要；停稳了的（已暂停 / 已取消 / 已完成）只在手上还有交给供应商的活时要——只盯不派。
+ */
+export function runWantsDriver(run: Pick<ProductionRun, "status" | "jobs">): boolean {
+  return !AT_REST.has(run.status) || hasWorkToWatch(run);
 }
 
 /**
