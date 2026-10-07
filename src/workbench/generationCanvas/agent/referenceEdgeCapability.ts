@@ -367,10 +367,12 @@ export function resolveModeForConnectedReferences(
   target: GenerationCanvasNode,
   nodes: readonly GenerationCanvasNode[],
   edges: readonly GenerationCanvasEdge[],
+  /** 连线之外、同样要这次生成带上的参考（付费卡：画布占位节点自己参考槽里摆着的值）。 */
+  extra: readonly ReferenceDemand[] = [],
 ): string | null {
   const archetype = archetypeForNode(target)
   if (!archetype || archetype.modes.length <= 1) return null
-  const demands: ReferenceDemand[] = []
+  const demands: ReferenceDemand[] = [...extra]
   for (const edge of edges) {
     if (edge.target !== target.id) continue
     const source = nodes.find((n) => n.id === edge.source)
@@ -380,6 +382,16 @@ export function resolveModeForConnectedReferences(
     demands.push({ slots: EDGE_MODE_SLOTS[edge.mode ?? 'reference'], asset })
   }
   return resolveModeForReferenceDemand(archetype, (target.meta || {}) as Record<string, unknown>, demands)
+}
+
+/** 参考的用途 → 对应的连线语义（首 / 尾帧照名；角色、通用、音频都按通用参考，落哪一格由目标的槽位解析定）。 */
+export function edgeModeForReferenceRole(role: string | undefined): GenerationCanvasEdgeMode {
+  return role === 'first_frame' || role === 'last_frame' ? role : 'reference'
+}
+
+/** 一条按用途给出的参考（不是连线）要的槽：和那条用途对应的连线要的一样。 */
+export function referenceDemandForRole(role: string | undefined, asset: ReferenceAssetKind): ReferenceDemand {
+  return { slots: EDGE_MODE_SLOTS[edgeModeForReferenceRole(role)], asset }
 }
 
 /** 计划里的边(批准前):可能用 clientId(新节点)或真实 id(复用已有卡)。 */

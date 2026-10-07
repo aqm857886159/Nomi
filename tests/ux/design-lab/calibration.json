@@ -1,6 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
+    "director-crowd": "2026-10-07 立屏（L-crowd）· 群众并进「＋→角色→群众」（行 / 列 / 间距 / 动作同一浮层，放下后是一个群众组，右卡可整组改动作）。样张已由用户拍板「按推荐走」并已实现，格子是现役组件本体；基线按 calibratedPlatform（darwin）录，Windows 录出来的图和 CI 对不上：在 mac 上跑 pnpm run design-lab:update -- --screen director-crowd 并**删掉本条登记**。截图证据在 docs/evidence/2026-10-07-director-crowd-as-role/。",
     "version-cards": "2026-10-06 立屏（L-vcard）· V2 已接进节点；入口按用户 10-07 拍板是图片右上角内侧的数字角标（vc-b1~b10 挂在真 React Flow 里），宫格 vc-01~19。基线要在 darwin 上录（Windows 上 design-lab:update 起不来）：跑 pnpm run design-lab:update -- --screen version-cards 并**删掉本条登记**。",
     "canvas-grouping": "2026-10-06 · 临时多选与编组的真实组件设计先给用户确认；确认后在 darwin 上跑 pnpm run design-lab:update -- --screen canvas-grouping 录基线，并删除本登记。当前不把设计提案误当成用户拍板基线。",
     "storyboard-reuse": "2026-10-06 立屏（L-sbui）· 分镜表镜头行与参考卡复用画布节点底栏（模型按钮 + 参数汇总按钮 + 平铺面板）、参考图复用画布同款 AssetReference（缩略图带 ×）、自动引用、删参考同步删 @。每格同一个 id 在 main 上是「现在」、本分支上是「改后」，成对图在 docs/evidence/2026-10-06-storyboard-reuse/。**等用户拍板**；拍板后在 darwin 上跑 pnpm run design-lab:update -- --screen storyboard-reuse 录基线并**删掉本条登记**。",
@@ -22,6 +23,7 @@
     "find-reference": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "director-3dbox": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "director-refine": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
+    "director-crowd": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "creation-columns": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "shot-table": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "settings-sound": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },

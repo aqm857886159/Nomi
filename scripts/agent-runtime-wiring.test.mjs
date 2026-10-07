@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 import ts from 'typescript'
 import { describe, expect, test } from 'vitest'
+import { VITEST_LANE, ruleClaims } from '../vitest.config.ts'
 
 // 可达性判据只有一份：门岗自己的 resolveReachable。这里原先抄了一份只认 `pnpm run x` 的
 // 正则闭包，gates:contracts 改成 runner 实参清单后它立刻报出「typecheck 不可达」的假红——
@@ -19,25 +20,6 @@ const normalizedPath = (value) => path.resolve(value).split(path.sep).join('/')
 function json(relative) {
   expect(fs.existsSync(path.join(repoRoot, relative)), `missing integration config: ${relative}`).toBe(true)
   return JSON.parse(read(relative))
-}
-
-function stringArrayProperty(relative, propertyName) {
-  const source = ts.createSourceFile(relative, read(relative), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  let values
-  const visit = (node) => {
-    if (ts.isPropertyAssignment(node)
-      && ((ts.isIdentifier(node.name) && node.name.text === propertyName)
-        || (ts.isStringLiteralLike(node.name) && node.name.text === propertyName))
-      && ts.isArrayLiteralExpression(node.initializer)) {
-      values = node.initializer.elements
-        .filter((element) => ts.isStringLiteralLike(element))
-        .map((element) => element.text)
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(source)
-  if (!values) throw new Error(`missing string-array property ${propertyName} in ${relative}`)
-  return values
 }
 
 const reachable = (entry) => resolveReachable(pkg.scripts, entry)
@@ -107,11 +89,10 @@ describe('private pi build and test wiring', () => {
     expect(reachable('gates:full').has('test:agent-runtime')).toBe(true)
     const config = json('tests/agent-runtime/tsconfig.json')
     expect(config.compilerOptions).toMatchObject({ rootDir: '../..', outDir: '../../.tmp/agent-runtime-tests' })
-    const vitestIncludes = stringArrayProperty('vitest.config.ts', 'include')
     for (const name of nativeTests) {
       const relative = `tests/agent-runtime/${name}`
       expect(fs.existsSync(path.join(repoRoot, relative)), `missing migrated suite: ${name}`).toBe(true)
-      expect(vitestIncludes.some((pattern) => path.matchesGlob(relative, pattern))).toBe(false)
+      expect(VITEST_LANE.some((rule) => ruleClaims(rule, relative))).toBe(false)
       const source = read(relative)
       expect(source).toContain("from 'node:test'")
       expect(source).toMatch(/\.\.\/\.\.\/electron\/(?:agentLane\/|ai\/nativePdfPayload)/)

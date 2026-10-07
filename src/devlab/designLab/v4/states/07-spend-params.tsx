@@ -42,6 +42,10 @@ import { seedModelCatalogForTests } from '../../../../config/modelCatalogCache'
 import { useGenerationModelOptionsState } from '../../../../workbench/generationCanvas/adapters/modelOptionsAdapter'
 import type { ModelOption } from '../../../../config/models'
 import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
+import { holdDesignLabReady } from '../../labReadyHold'
+import { Notification } from '@mantine/core'
+import { buildToastNotification } from '../../../../ui/toast'
+import { useTranslation } from 'react-i18next'
 import type { LabState } from '../../labScreen'
 
 const SOURCE = '2026-09-10-spend-card-node-params-and-full-auto.md'
@@ -141,8 +145,36 @@ type CardFixture = {
   metaByShot?: Record<number, Record<string, unknown>>
   /** 报不出价那一档。 */
   priceUnknown?: boolean
-  /** 挂载后自动点开的那一件。截图截不出「点一下会怎样」，所以展开态一律**真的点一下**。 */
-  openTrigger?: 'model' | 'panel'
+  /** 挂载后自动点开的那一件。截图截不出「点一下会怎样」，所以展开态一律**真的点一下**（`mention` = 在提示词末尾真的打一个 @）。 */
+  openTrigger?: 'model' | 'panel' | 'mention'
+  /** 画布上另有两张已经出图的节点（打 @ 时它们该出现在「画布」那一组）。 */
+  canvasImages?: boolean
+  /** 这一格的界面语言（缺省中文）。 */
+  locale?: 'zh-CN' | 'en'
+}
+
+/** 画布上已出图的两张（卡上打 @ 时「画布」那一组列它们）。图是内联的小 SVG（候选只收可引用的地址：本地 / 内联 / http），不碰网络。 */
+const CANVAS_IMAGE_A = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjZDljYmI2Ii8+PGNpcmNsZSBjeD0iNDgiIGN5PSI0MCIgcj0iMTgiIGZpbGw9IiM4YTZmNTIiLz48cmVjdCB4PSIyMiIgeT0iNjIiIHdpZHRoPSI1MiIgaGVpZ2h0PSIyNCIgcng9IjEwIiBmaWxsPSIjOGE2ZjUyIi8+PC9zdmc+'
+const CANVAS_IMAGE_B = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjMmIzNDQyIi8+PGNpcmNsZSBjeD0iNDgiIGN5PSI0MCIgcj0iMTgiIGZpbGw9IiM2ZjhmYjMiLz48cmVjdCB4PSIyMiIgeT0iNjIiIHdpZHRoPSI1MiIgaGVpZ2h0PSIyNCIgcng9IjEwIiBmaWxsPSIjNmY4ZmIzIi8+PC9zdmc+'
+const CANVAS_IMAGE_NODES: readonly GenerationCanvasNode[] = [
+  { id: 'canvas-image-1', kind: 'image', categoryId: 'cast', title: '女孩定妆', prompt: '', position: { x: 0, y: 0 }, status: 'success',
+    result: { id: 'canvas-image-1-r', type: 'image', url: CANVAS_IMAGE_A, createdAt: 1 } },
+  { id: 'canvas-image-2', kind: 'image', categoryId: 'scene', title: '雨夜街口', prompt: '', position: { x: 0, y: 0 }, status: 'success',
+    result: { id: 'canvas-image-2-r', type: 'image', url: CANVAS_IMAGE_B, createdAt: 1 } },
+]
+
+/** 切到这一格要的语言；切完之前不举就绪旗（否则截到的是上一格的语言）。 */
+function useLabLocale(locale: CardFixture['locale']): boolean {
+  const { i18n } = useTranslation()
+  const want = locale ?? 'zh-CN'
+  const [applied, setApplied] = React.useState(i18n.language === want)
+  React.useEffect(() => {
+    if (i18n.language === want) { setApplied(true); return undefined }
+    const release = holdDesignLabReady(`v4-spend:locale:${want}`)
+    void i18n.changeLanguage(want).then(() => { setApplied(true); release() })
+    return release
+  }, [i18n, want])
+  return applied
 }
 
 /**
@@ -166,9 +198,12 @@ function SpendComposerCard({
   metaByShot = {},
   priceUnknown = false,
   openTrigger,
+  canvasImages = false,
+  locale,
   inPanel = false,
   waiting,
 }: CardFixture & { inPanel?: boolean; waiting?: boolean }): JSX.Element {
+  const localeApplied = useLabLocale(locale)
   const fx = useV4Fixtures()
   const labels = useV4Labels()
   const [ready, setReady] = React.useState(false)
@@ -182,7 +217,7 @@ function SpendComposerCard({
     ])
     useWorkbenchStore.setState({ activeCategoryId: 'shots' })
     useGenerationCanvasStore.setState({
-      nodes: Array.from({ length: shots }, (_, i) => shotNode(i, metaByShot[i])),
+      nodes: [...Array.from({ length: shots }, (_, i) => shotNode(i, metaByShot[i])), ...(canvasImages ? CANVAS_IMAGE_NODES : [])],
       edges: [],
       selectedNodeIds: [],
     })
@@ -190,7 +225,7 @@ function SpendComposerCard({
     setReady(true)
     // 夹具是每一格重建一次的常量对象，深比较无意义；这几个基元决定了这一格是什么样。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shots, page, priceUnknown])
+  }, [shots, page, priceUnknown, canvasImages])
 
   // 节点从 store 订阅（不是从上面那次 setState 的返回值拿）：用户在提示词里打字、在参数条里
   // 改画质，写的都是 store，价格行必须跟着那份**唯一**的 meta 走。
@@ -210,7 +245,23 @@ function SpendComposerCard({
   const modelLabel = fx.t('generationCommon.parameters.model')
   const optionsReady = useGenerationModelOptionsState('video', 'text_to_video').options.length > 0
   React.useLayoutEffect(() => {
-    if (!openTrigger || !ready || !optionsReady) return
+    if (openTrigger !== 'mention' || !ready || !optionsReady || !localeApplied) return undefined
+    // 真的在提示词末尾打一个 @（和用户敲键盘走同一条 TipTap 事务），候选浮层由 @ 插件自己弹出来。
+    const release = holdDesignLabReady('v4-spend:mention-open')
+    const editorRoot = cardRef.current?.querySelector('.ProseMirror') as (HTMLElement & { editor?: { chain: () => { focus: (at: string) => { insertContent: (text: string) => { run: () => void } } } } }) | null
+    if (!editorRoot?.editor) throw new Error('[v4-spend-params] 找不到卡上的提示词编辑器，@ 浮层打不开')
+    editorRoot.editor.chain().focus('end').insertContent(' @').run()
+    let frame = 0
+    const waitForList = (): void => {
+      if (document.querySelector('[data-mention-list="true"]') || frame > 120) { release(); return }
+      frame += 1
+      requestAnimationFrame(waitForList)
+    }
+    requestAnimationFrame(waitForList)
+    return release
+  }, [openTrigger, ready, optionsReady, localeApplied])
+  React.useLayoutEffect(() => {
+    if (!openTrigger || openTrigger === 'mention' || !ready || !optionsReady) return
     const selector = openTrigger === 'model'
       ? `button[aria-label="${modelLabel}"]`
       : '[data-parameter-more], [data-parameter-summary]'
@@ -220,9 +271,9 @@ function SpendComposerCard({
     trigger.click()
   }, [openTrigger, ready, optionsReady, modelLabel])
 
-  if (!ready || !node) return <Piece><div /></Piece>
+  if (!ready || !node || !localeApplied) return <Piece><div /></Piece>
 
-  const quotes = nodes.map((candidate) => (priceUnknown ? null : quoteShot(candidate.meta)))
+  const quotes = nodes.filter((candidate) => candidate.kind === 'video').map((candidate) => (priceUnknown ? null : quoteShot(candidate.meta)))
   // **ShellStage 手法**：卡上印的一切由**生产投影** `projectSpendCard` 算，这里只负责把
   // 取景台的画布节点 + 报价喂成主进程那份待确认单的形状（`PendingSpendConfirm`）。
   //
@@ -235,7 +286,7 @@ function SpendComposerCard({
     projectId: 'design-lab', runId: 'design-lab-run', operationId: 'design-lab-op',
     planVersion: 1, quoteId: 'design-lab-quote', candidateRevision: 1,
     currency: 'CNY',
-    shots: nodes.map((candidate, i) => {
+    shots: nodes.filter((candidate) => candidate.kind === 'video').map((candidate, i) => {
       const quote = quotes[i]
       return {
         shotId: `lab-shot-${i + 1}`,
@@ -300,6 +351,24 @@ function SpendComposerCard({
           composer={composer}
         />
       </div>
+    </Piece>
+  )
+}
+
+/**
+ * 卡上点生成、宿主在本项目素材里认不出卡上的某张参考图时，卡上弹的那一条（`spendCardFailure` → `toast(…, 'error')`）。
+ * 画的就是生产那一条通知：`buildToastNotification` 的同一份图标 / 颜色 / 正文，放进 Mantine 的同一个 Notification。
+ */
+function ReferenceNotInProjectToast({ locale }: { locale?: 'zh-CN' | 'en' }): JSX.Element {
+  const applied = useLabLocale(locale)
+  const fx = useV4Fixtures()
+  if (!applied) return <Piece><div /></Piece>
+  const data = buildToastNotification({ id: 'lab-reference-not-in-project', message: fx.t('agentPanelV4.spendActionReferenceNotInProject'), type: 'error' })
+  return (
+    <Piece>
+      <Notification icon={data.icon} color={data.color} withBorder withCloseButton={data.withCloseButton} className="w-[22rem]">
+        {data.message}
+      </Notification>
     </Piece>
   )
 }
@@ -423,6 +492,40 @@ export const V4_SPEND_PARAMS_STATES: readonly LabState[] = [
     mirrors: 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:519',
     coverage: 'component-only',
     render: () => <SpendComposerCard openTrigger="panel" />,
+  },
+  {
+    id: 'v4-spend-mention-canvas',
+    name: '付费卡 · 打 @：本项目画布上已出图的节点在「画布」那一组（选中落进卡自己的参考槽，和画布同一份候选）',
+    source: 'docs/plan/2026-10-07-spend-card-references-one-owner.md',
+    mirrors: 'src/workbench/generationCanvas/nodes/useNodeMentionSource.ts:165',
+    coverage: 'component-only',
+    capture: 'viewport',
+    render: () => <SpendComposerCard shots={1} canvasImages openTrigger="mention" />,
+  },
+  {
+    id: 'v4-spend-mention-canvas-en',
+    name: '付费卡 · 打 @（英文界面）',
+    source: 'docs/plan/2026-10-07-spend-card-references-one-owner.md',
+    mirrors: 'src/workbench/generationCanvas/nodes/useNodeMentionSource.ts:165',
+    coverage: 'component-only',
+    capture: 'viewport',
+    render: () => <SpendComposerCard shots={1} canvasImages openTrigger="mention" locale="en" />,
+  },
+  {
+    id: 'v4-spend-reference-not-in-project',
+    name: '付费卡 · 有一张参考图不在本项目素材里（点名是参考图，给拿掉 / 用 @ 重选的路）',
+    source: 'docs/plan/2026-10-07-spend-card-references-one-owner.md',
+    mirrors: 'src/workbench/ai/v4/spendCardFailure.ts:45',
+    coverage: 'component-only',
+    render: () => <ReferenceNotInProjectToast />,
+  },
+  {
+    id: 'v4-spend-reference-not-in-project-en',
+    name: '付费卡 · 参考图不在本项目素材里（英文界面）',
+    source: 'docs/plan/2026-10-07-spend-card-references-one-owner.md',
+    mirrors: 'src/workbench/ai/v4/spendCardFailure.ts:45',
+    coverage: 'component-only',
+    render: () => <ReferenceNotInProjectToast locale="en" />,
   },
   {
     id: 'v4-spend-params-repriced',

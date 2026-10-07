@@ -1,0 +1,25 @@
+{
+  "name": "付费卡上一下没做成时说哪一句",
+  "subject": "agent-panel.spend-failure-copy",
+  "lifecycle": "author",
+  "trust_domain": "renderer",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-07",
+  "authority_kind": "decision",
+  "fact_kind": "rule",
+  "owner": {
+    "path": "src/workbench/ai/v4/spendCardFailure.ts",
+    "symbol": "spendActionFailureCopy"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/spendCardFailure.ts",
+      "symbol": "spendActionFailureCopy"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+  ],
+  "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：只看宿主回的账本事实 + 语义码 + 卡此刻能不能改；参考图不在本项目素材里（generation_reference_asset_unsupported / _unavailable）点名是参考图，给拿掉或用 @ 重选的路；「改一下再按」只在认不出、而卡真能改时出现。"
+}
