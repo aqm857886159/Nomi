@@ -97,6 +97,12 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     })
     emitRunUpdated(nodeId, outcome)
   },
+  holdRunOutcome: (nodeId, outcome) => {
+    // 节点在就不是「暂存」：调用方应走对应的落地动作。
+    if (get().nodes.some((candidate) => candidate.id === nodeId)) return
+    // 不改画布（节点不在），只记账：撤销把节点带回来时由 reapplyLandedOutcomes 按顺序落上去。重放器不认这个类型，原样跳过。
+    emitCanvasGesture([{ type: 'canvas.node.outcome-held', payload: { nodeId, landed: outcome } }], { source: 'runtime' })
+  },
   landNodeContent: (nodeId, contentJson, runId) => {
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)
     if (!existing) return

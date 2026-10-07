@@ -134,3 +134,22 @@ describe('normalizeStoreSnapshot — 旧版制作结果的签名预览链改写�
     ])
   })
 })
+
+// 组色方案 B：老项目里存过的 NodeGroup.color（#3b82f6 这类）读盘后不上色；只认新字段 colorToken。
+describe('normalizeStoreSnapshot — 组颜色读盘归一化', () => {
+  const group = (extra: Record<string, unknown>) => ({
+    id: 'g1', name: '组 1', categoryId: 'shots', nodeIds: [], createdAt: 1, updatedAt: 1, ...extra,
+  })
+
+  it('旧项目打开组仍是灰：旧 color 字段原样留在存档里，但不产生 colorToken', () => {
+    const snap = normalizeStoreSnapshot({ nodes: [], groups: [group({ color: '#3b82f6' }), group({ id: 'g2', color: '#ec4899' })] })
+    expect(snap.groups.map((g) => g.colorToken)).toEqual([undefined, undefined])
+    expect(snap.groups.every((g) => !('colorToken' in g))).toBe(true)
+    expect(snap.groups[0].color).toBe('#3b82f6')
+  })
+
+  it('用户亲手选过的颜色（colorToken）保留；非法值回到灰', () => {
+    const snap = normalizeStoreSnapshot({ nodes: [], groups: [group({ colorToken: 'teal' }), group({ id: 'g2', colorToken: '#14b8a6' }), group({ id: 'g3', colorToken: 'neutral' })] })
+    expect(snap.groups.map((g) => g.colorToken)).toEqual(['teal', undefined, undefined])
+  })
+})

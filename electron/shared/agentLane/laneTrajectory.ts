@@ -31,6 +31,8 @@ export interface TrajectoryTurnInput {
   readonly response: string
   readonly models: readonly { readonly provider: string; readonly model: string }[]
   readonly tokens: { readonly input: number; readonly cacheRead: number; readonly cacheWrite: number; readonly output: number }
+  /** 这一回合每一次模型请求各自的输入 token（input + cacheRead）。`tokens.input` 是它们的和，看不出哪一次撑爆。 */
+  readonly requestInputs?: readonly number[]
   readonly durationMs: number | null
   readonly status: string
   readonly tools: readonly {
@@ -39,6 +41,8 @@ export interface TrajectoryTurnInput {
     readonly arguments: unknown
     readonly durationMs: number | null
     readonly failed: boolean | null
+    /** 失败信封里的码（闭合词表，不含内容）。 */
+    readonly failureCode?: string | null
   }[]
   readonly approvals: readonly unknown[]
   readonly errors: readonly string[]
@@ -56,6 +60,11 @@ export interface LaneTrajectoryToolCall {
    */
   'nomi.tool.argument_keys': string[]
   'nomi.tool.failed': boolean | null
+  /**
+   * 失败时的码（`document_position_unavailable` / `capability_receipt_unresolved` …，闭合词表）。
+   * 2026-10-06 之前只有 `failed: true`，NF-1001-0001 / NF-1001-0002 两条反馈因此只能凭代码猜是哪一种失败。
+   */
+  'nomi.tool.failure_code': string | null
   'nomi.tool.duration_ms': number | null
 }
 
@@ -78,6 +87,12 @@ export interface LaneTrajectoryTurn {
   'nomi.turn.approval_decisions': string[]
   /** 出错几次。错误原文不出门——它可能是服务商原话，也可能是拼了路径的内部断言。 */
   'nomi.turn.error_count': number
+  /** 认得出的那几类错误（看门狗相位 / 半路断流 / 上下文溢出，`laneAssistantFault.ts`），闭合词表。 */
+  'nomi.turn.error_kinds': string[]
+  /** 这一回合发了几次模型请求（含自动重试）。 */
+  'nomi.turn.request_count': number
+  /** 单次请求里最大的输入 token。回合总量是各次之和，撑爆窗口的是这一个数（NF-0928-0003）。 */
+  'nomi.turn.max_request_input_tokens': number
   /** 用户勾了「也附带提示词和文稿」才有。没勾时**这两个键不存在**。 */
   'gen_ai.input.messages'?: string
   'gen_ai.output.messages'?: string

@@ -69,7 +69,7 @@ export const INVARIANTS = Object.freeze([
 ])
 
 export const NUISANCE_RULES = Object.freeze([
-  Object.freeze({ id: '9a', text: '只有 1 版时不显示「几版」胶囊（useNodeResultHistory.ts 的 nodeHasResultStack：≥2 版才有角标；重拍住在节点浮条）' }),
+  Object.freeze({ id: '9a', text: '只有 1 版时不显示版本角标（versionCards/nodeVersionEntries.ts 的 nodeHasVersionCards：≥2 版才有右上角数字角标）' }),
   Object.freeze({ id: '9b', text: '「已保存到项目」只在登记窗口内出现（SAVED_FEEDBACK_WINDOW_MS + 一格时钟）' }),
   Object.freeze({ id: '9c', text: '同一次失败不许把同一条提示叠成「×N」（N 大于真实失败次数）' }),
 ])
@@ -156,8 +156,11 @@ export function loadLimits() {
         + '一次请求的输入超过它 = 压缩没守住（或一次工具结果就把它撑爆），这正是用户看到「一回合几十万 token」的那一族。',
     }),
     agentIdleMs: Object.freeze({
-      value: readNumericConstant('electron/agentLane/laneHost.mts', 'LANE_IDLE_MS'),
-      source: 'electron/agentLane/laneHost.mts LANE_IDLE_MS',
+      // 最后一次模型请求之后，lane 最长能「什么都没发生」多久：响应头之前的首字节预算 + 响应头之后第一段正文之前的思考预算
+      // （出字之后的空闲预算更短，取不到最大值）。三个预算唯一一份在 laneProviderGuard.mts。
+      value: readNumericConstant('electron/agentLane/laneProviderGuard.mts', 'LANE_FIRST_RESPONSE_MS')
+        + readNumericConstant('electron/agentLane/laneProviderGuard.mts', 'LANE_FIRST_TOKEN_MS'),
+      source: 'electron/agentLane/laneProviderGuard.mts LANE_FIRST_RESPONSE_MS + LANE_FIRST_TOKEN_MS',
     }),
     schedulerPollCapMs: Object.freeze({
       value: readNumericConstant('electron/productionRun/multiShotBatchScheduler.ts', 'POLL_DELAY_CAP_MS', { exported: false }),

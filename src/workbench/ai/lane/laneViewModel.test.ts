@@ -687,12 +687,23 @@ describe('laneViewModel · 工具卡与失败行不摆原始内容', () => {
   it('已被自动重试化解的错误不画红卡：一行灰字（recovered），原文不进 reason；pi 判的瞬时标记传给 assistantFailure', () => {
     next = 0
     const seen: Array<boolean | undefined> = []
-    const withLabels = { ...labels, assistantFailure: (_text: string, transient?: boolean) => { seen.push(transient); return '[网络]' } }
+    const withLabels = { ...labels, assistantFailure: (_text: string, facts?: { transient?: boolean }) => { seen.push(facts?.transient); return '[网络]' } }
     const healed = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', recovered: true })]), withLabels).items
     expect(healed).toEqual([{ kind: 'error', reason: '[已自动重试]', recovered: true, raw: 'Connection error.' }])
     expect(seen).toEqual([])
     const live = laneViewModel(projection([part({ kind: 'error', text: 'Connection error.', transient: true })]), withLabels).items
     expect(live).toEqual([{ kind: 'error', reason: '[网络]', raw: 'Connection error.', transient: true }])
     expect(seen).toEqual([true])
+  })
+
+  // NF-1001-0003 / NF-1001-0004 / NF-0928-0003：看门狗 / pi 自己判的那几类，事实一路带到 assistantFailure，且挂在条目上（日志 effect 据此不记「认不出」）。
+  it('fault 事实原样交给 assistantFailure 并留在条目上', () => {
+    next = 0
+    const facts: unknown[] = []
+    const withLabels = { ...labels, assistantFailure: (_text: string, given?: unknown) => { facts.push(given); return '[人话]' } }
+    const fault = { kind: 'model-timeout', phase: 'first-token', seconds: 300 } as const
+    const items = laneViewModel(projection([part({ kind: 'error', text: 'Nomi model first-token timeout after 300000ms', transient: true, fault })]), withLabels).items
+    expect(items).toEqual([{ kind: 'error', reason: '[人话]', raw: 'Nomi model first-token timeout after 300000ms', transient: true, fault }])
+    expect(facts).toEqual([{ transient: true, fault }])
   })
 })

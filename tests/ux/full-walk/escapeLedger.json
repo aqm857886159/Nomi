@@ -180,6 +180,112 @@
       "completionCommits": []
     },
     {
+      "id": "PAID-CARD-REF-01-mention-canvas",
+      "since": "2026-10-07",
+      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+      "category": "interaction-semantics",
+      "problem": "付费卡上打 @，本项目画布上已经出图的图一张都列不出来，只弹「没有可引用的素材」",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「卡上 @ 本项目画布上已有的图」列得出 canvas:<id>、落进卡的参考槽、宿主钉住、落地后在画布节点上",
+        "变异：卡上恢复藏「画布」组 / 选中仍走连线 → 这一行红",
+        "设计实验室 v4-spend-mention-canvas（zh / en）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+      }
+    },
+    {
+      "id": "PAID-CARD-REF-02-other-project",
+      "since": "2026-10-07",
+      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+      "category": "claims-and-outcomes",
+      "problem": "卡上 @ 了别的项目的图，点生成被拒，提示却说「可以改一下再按一次」，不说改哪儿",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「卡上 @ 别的项目的图」先复制进本项目，chip 指向复制品，宿主钉住它",
+        "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts：宿主拒收时供应商 0 次请求，卡上那句点名是参考图",
+        "变异：@ 不走复制关口 / 失败文案不看语义码 → 红",
+        "设计实验室 v4-spend-reference-not-in-project（zh / en）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+      }
+    },
+    {
+      "id": "PAID-CARD-REF-03-placeholder-slot",
+      "since": "2026-10-07",
+      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+      "category": "reference-integrity",
+      "problem": "画布占位节点「首帧」那一格里选了一张素材（没有连线），付费卡上没有它，点生成也没发出去",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「画布节点「首帧」那一格选了一张本项目素材」卡上有、宿主钉住、画布节点上仍在",
+        "变异：卡只读连线、不读占位节点自己的参考槽 → 这一行红",
+        "带档案模型连线进首帧 / 参考格的那一张在 main 上已不复现（同一矩阵前两行）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+      }
+    },
+    {
+      "id": "PAID-CARD-REF-04-landing-slot",
+      "since": "2026-10-07",
+      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+      "category": "reference-integrity",
+      "problem": "在卡上带参考图生成之后，画布节点的参考槽是空的，只剩提示词里的 @ 芯片",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "reviewed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts：确认之后落地报文这一镜带着参考",
+        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：每一行都查落地后的画布节点参考槽",
+        "src/workbench/generationCanvas/model/referenceInputSlots.test.ts：只补不删、画布上的图补真边",
+        "变异：落地报文不带参考 / 渲染层不补 → 红"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+      }
+    },
+    {
       "id": "REAL-20261005-01",
       "since": "2026-10-05",
       "source": "2026-10-05 real test",
@@ -509,6 +615,147 @@
       "completionCommits": ["b2b3de06d", "abaaf4f6e", "4a953a914"]
     },
     {
+      "id": "FB-NF-1001-0001-doc-position",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0001（0.22.3 Windows）",
+      "category": "claims-and-outcomes",
+      "problem": "用户不在创作页时模型去读文稿选区，面板只说「这件事在当前页面做不了」，模型与用户都没有下一步，Agent 停住",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/plan/2026-10-06-agent-feedback-batch.md",
+        "electron/agentLane/laneDesktopReads.test.ts：选区读在基线端口回 document_position_unavailable，模型拿到读整篇 / 读当前页的下一步",
+        "变异：码改回 capability_unsupported → documentSessionPort.test 与 laneDesktopReads.test 红"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/project/documentSessionPort.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0002-receipt-unresolved",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0002（0.22.3 Windows；与 0001 同一会话）",
+      "category": "claims-and-outcomes",
+      "problem": "写剧本报「这一步的结果没对上账」，模型被告知去核对它没有工具读的回执；直接原因反馈里无失败码，按代码推断为执行器 15 秒缺省超时短于写工具声明的 60 秒",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/capabilityCore/documentWriteTransportAdapters.test.ts：20 秒落盘的写判成功，超出声明预算才判未确认",
+        "变异：执行器缺省改回 15 秒 → 慢写测试红",
+        "轨迹补 nomi.tool.failure_code，下一条同类反馈能定案"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/capabilityCore/documentWriteTransportAdapters.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0003-stream-cut",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0003（0.22.3 Windows）",
+      "category": "claims-and-outcomes",
+      "problem": "面板直出英文「Stream ended without finish_reason」；#1022 后归成「连不上服务商」也不准（连上了、是半路被掐断）",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/shared/agentLane/laneAssistantFault.test.ts：报障原文认成 stream-cut，并读依赖源码钉住 pi 字面量",
+        "src/workbench/ai/lane/laneCommandFailure.test.ts：原文不进界面"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/shared/agentLane/laneAssistantFault.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0004-model-thinking-timeout",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0004（0.22.3 Windows；与 0003 同一会话）",
+      "category": "claims-and-outcomes",
+      "problem": "推理模型思考超过 120 秒被看门狗当卡死掐断并整份重发三次（一回合约 33 万输入 token 全白花），面板直出「Nomi model idle timeout after 120000ms」",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "tests/agent-runtime/observer.test.mts：响应头后、首字前的静默归 first-token 预算（300 秒）",
+        "变异：改回 start 即开空闲表 → observer 两条红"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/agent-runtime/observer.test.mts"
+      }
+    },
+    {
+      "id": "FB-NF-0928-0003-context-overflow",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-0928-0003（0.22.3 Windows）",
+      "category": "performance-coverage",
+      "problem": "同一用户回合反复读整份剧本，旧副本随每次请求重发，pi 压缩切不进当前回合，三回合输入约 39 万 / 38 万 / 88 万 token 撞上下文窗口",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "tests/agent-runtime/lane-context-budget.test.mts（真回环 + 真 pi 循环）：每次请求汉字数改前 14809→29509→44209→58909→73609，改后恒为 14809",
+        "变异：去掉 omitSupersededReads → 该测试红",
+        "上下文溢出的英文原文改为人话（faultContextOverflow）"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/agentLane/laneSupersededReads.test.ts"
+      }
+    },
+    {
       "id": "AUD-20261005-02",
       "since": "2026-10-05",
       "source": "用户 10-05 反馈 #2",
@@ -818,6 +1065,32 @@
       }
     },
     {
+      "id": "FB-20261007-deleted-node-drops-arriving-outcome",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：生成中删节点再撤销，节点带着生成中回来、结果永远不到",
+      "category": "claims-and-outcomes",
+      "problem": "生成中删掉节点（删 / 删选中 / 剪切 / 外部写入删），上游任务照跑、钱已花，结果到达时节点不在被直接丢掉；撤销删除后节点一直显示生成中，结果 / 文本定稿 / 失败都不会再来",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts：4 扇删除门 × 3 种到达 + 撤销—重做—撤销 3 条，15 条改前全红；先撤销后到达对照 3 条本来就绿",
+        "变异：投递处不暂存 15 红；撤销日志不认暂存 15 红；暂存不认失败状态 5 红",
+        "设计卡 docs/plan/2026-10-07-deleted-node-keeps-arriving-outcome.md（选「结果落回恢复的节点」，不选「标成已中断让用户重试」：重试要再花钱）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+      }
+    },
+    {
       "id": "LAW11-ANCHOR-CARD",
       "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
       "category": "parameter-contract",
@@ -966,109 +1239,34 @@
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
     },
     {
-      "id": "PAID-CARD-REF-01-mention-canvas",
-      "since": "2026-10-07",
-      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
-      "category": "interaction-semantics",
-      "problem": "付费卡上打 @，本项目画布上已经出图的图一张都列不出来，只弹「没有可引用的素材」",
+      "id": "PERF-20261006-CANVAS-HF",
+      "since": "2026-10-06",
+      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
+      "category": "performance-coverage",
+      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
       "existingInvariants": [],
-      "ironLaws": [
-        "⑫"
+      "ironLaws": [],
+      "useCases": [
+        "S8"
       ],
-      "useCases": [],
       "fullWalkJourneys": [],
-      "status": "reviewed",
+      "status": "fixed",
       "manualReview": "reviewed",
       "evidence": [
-        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「卡上 @ 本项目画布上已有的图」列得出 canvas:<id>、落进卡的参考槽、宿主钉住、落地后在画布节点上",
-        "变异：卡上恢复藏「画布」组 / 选中仍走连线 → 这一行红",
-        "设计实验室 v4-spend-mention-canvas（zh / en）"
+        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+        "tests/ux/canvas-performance-benchmark.e2e.mjs",
+        "tests/ux/grouping-optimization.walk.mjs",
+        "tests/ux/grouping-real-media.walk.mjs"
       ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
+      "completionCommits": [
+        "1da15ba6f",
+        "5a7336cc4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+      "fixedInPr": 1048,
       "classCheck": {
         "kind": "matrix",
-        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
-      }
-    },
-    {
-      "id": "PAID-CARD-REF-02-other-project",
-      "since": "2026-10-07",
-      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
-      "category": "claims-and-outcomes",
-      "problem": "卡上 @ 了别的项目的图，点生成被拒，提示却说「可以改一下再按一次」，不说改哪儿",
-      "existingInvariants": [],
-      "ironLaws": [
-        "⑫"
-      ],
-      "useCases": [],
-      "fullWalkJourneys": [],
-      "status": "reviewed",
-      "manualReview": "reviewed",
-      "evidence": [
-        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「卡上 @ 别的项目的图」先复制进本项目，chip 指向复制品，宿主钉住它",
-        "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts：宿主拒收时供应商 0 次请求，卡上那句点名是参考图",
-        "变异：@ 不走复制关口 / 失败文案不看语义码 → 红",
-        "设计实验室 v4-spend-reference-not-in-project（zh / en）"
-      ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
-      "classCheck": {
-        "kind": "matrix",
-        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
-      }
-    },
-    {
-      "id": "PAID-CARD-REF-03-placeholder-slot",
-      "since": "2026-10-07",
-      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
-      "category": "reference-integrity",
-      "problem": "画布占位节点「首帧」那一格里选了一张素材（没有连线），付费卡上没有它，点生成也没发出去",
-      "existingInvariants": [],
-      "ironLaws": [
-        "⑫"
-      ],
-      "useCases": [],
-      "fullWalkJourneys": [],
-      "status": "reviewed",
-      "manualReview": "reviewed",
-      "evidence": [
-        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：「画布节点「首帧」那一格选了一张本项目素材」卡上有、宿主钉住、画布节点上仍在",
-        "变异：卡只读连线、不读占位节点自己的参考槽 → 这一行红",
-        "带档案模型连线进首帧 / 参考格的那一张在 main 上已不复现（同一矩阵前两行）"
-      ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
-      "classCheck": {
-        "kind": "matrix",
-        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
-      }
-    },
-    {
-      "id": "PAID-CARD-REF-04-landing-slot",
-      "since": "2026-10-07",
-      "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
-      "category": "reference-integrity",
-      "problem": "在卡上带参考图生成之后，画布节点的参考槽是空的，只剩提示词里的 @ 芯片",
-      "existingInvariants": [],
-      "ironLaws": [
-        "⑫"
-      ],
-      "useCases": [],
-      "fullWalkJourneys": [],
-      "status": "reviewed",
-      "manualReview": "reviewed",
-      "evidence": [
-        "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts：确认之后落地报文这一镜带着参考",
-        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：每一行都查落地后的画布节点参考槽",
-        "src/workbench/generationCanvas/model/referenceInputSlots.test.ts：只补不删、画布上的图补真边",
-        "变异：落地报文不带参考 / 渲染层不补 → 红"
-      ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
-      "classCheck": {
-        "kind": "matrix",
-        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
+        "file": "tests/ux/selection-drag-lifecycle.test.mjs"
       }
     }
   ]

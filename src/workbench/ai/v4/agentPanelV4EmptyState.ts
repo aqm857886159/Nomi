@@ -46,7 +46,6 @@ const SURFACE_STARTERS = {
     { id: 'check-shots', capabilityId: 'canvas.read', labelKey: 'agentPanelV4.starterCheckShots', promptKey: 'agentPanelV4.starterCheckShotsPrompt' },
   ],
   generation: [
-    { id: 'generate-selected', capabilityId: 'generation.plan', labelKey: 'agentPanelV4.starterGenerateSelected', promptKey: 'agentPanelV4.starterGenerateSelectedPrompt' },
     { id: 'break-reference', capabilityId: 'asset.read', labelKey: 'agentPanelV4.starterBreakReference', promptKey: 'agentPanelV4.starterBreakReferencePrompt' },
     { id: 'check-canvas', capabilityId: 'canvas.read', labelKey: 'agentPanelV4.starterCheckCanvas', promptKey: 'agentPanelV4.starterCheckCanvasPrompt' },
   ],

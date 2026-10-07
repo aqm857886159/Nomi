@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // 真实用户任务 · **真花钱**：「Agent 起草两镜视频 → 我在卡上选『全部』点了生成 → 两镜在排队 / 生成中的时候，
-// 我在画布上再点『生成全部』或节点的 ↑，不能把同一镜再花一次钱」。
+// 我在画布上再点组的『生成整组』或节点的 ↑，不能把同一镜再花一次钱」。
 //
 //   NOMI_SPEND_OK=1 node tests/ux/agent-queued-shots.paid.mjs [--packaged <Nomi 可执行文件的绝对路径>]
 //
-// #875 修的是：制作流程排队 / 生成中的镜头，节点自身状态是 idle，于是底栏「生成全部」照样算它、节点 ↑ 也能按——
+// #875 修的是：制作流程排队 / 生成中的镜头，节点自身状态是 idle，于是批量入口照样算它、节点 ↑ 也能按——
 // 同一镜生成两次、扣两次钱。`agent-queued-shot-not-regenerable.walk.mjs` 在 loopback 夹具上压住受理造出了排队；
 // 这一条在**真供应商**上走一遍：
-//   · 卡在等人（归制作流程）→ 底栏「生成全部」只算用户自己那一个闲置节点，选中第 2 镜时它的 ↑ 按不下去；
+//   · 卡在等人（归制作流程）→ 选中第 2 镜时它的 ↑ 按不下去（批量入口只剩组的「生成整组」，与制作归属共用一份可生成集合，单测钉死）；
 //   · 确认之后 → 真实排队（制作流程逐镜顺序派发，第 1 镜提交时第 2 镜「已授权、还没轮到」）与生成中，
 //     页面里挂一个观察者逐帧记下第 2 镜的相位与 ↑ 的可按性——窗口很短，看得见就记、看不见就如实记「没观察到」；
 //   · 两镜在飞的整段（真视频一两分钟）：底栏只算那一个闲置节点，第 2 镜 ↑ 置灰（zh + en）；
@@ -28,7 +28,6 @@ import {
 
 const MODEL_TURN_MS = stationTimeout({ turns: 1 })
 const VIDEO_LANDS_MS = stationTimeout({ turns: 2 })
-const GENERATE_ALL = '[data-storyboard-run-all="true"][data-batch-scope="all"]'
 const ASK = '画两个视频镜头，先别生成：镜1，清晨的渔港，几只小船轻轻晃；镜2，同一个渔港的码头上，一只猫在晒太阳。'
   + `两镜都用 ${CHEAP_VIDEO_TERMS}。就这两镜，不要参考卡或锚点；起草完就停，不用问我。`
 const GO = '好，两镜都生成吧。'
@@ -76,7 +75,7 @@ try {
     { message: '草稿落成画布上两个视频节点', timeout: DEFAULT_TIMEOUT_MS }).toBe(2)
   const [shot1, shot2] = (await canvasNodes()).filter((node) => node.kind === 'video' && node.meta?.productionRunId === runId).map((node) => node.id)
 
-  // 用户自己也在画布上放了一个还没生成的节点（永远不点它）：底栏「生成全部」该算的只有它。
+  // 用户自己也在画布上放了一个还没生成的节点（永远不点它）：画布上除了制作流程的两镜，还有一个用户自己的闲置节点。
   const before = new Set((await canvasNodes()).map((node) => node.id))
   await clickOrFail(win.locator('[aria-label="添加视频节点"]').first(), '画布「添加视频节点」')
   await expect.poll(async () => (await canvasNodes()).filter((node) => !before.has(node.id)).length, { message: '闲置节点落盘', timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
@@ -85,7 +84,7 @@ try {
   await clickOrFail(idleEditor, '闲置节点提示词输入框')
   await idleEditor.fill('海边日落的延时（这一张我自己之后再生成）')
 
-  // ── 让 Agent 生成：卡摆出来，切「全部」，按下去之前把两个入口都看一遍 ──
+  // ── 让 Agent 生成：卡摆出来，切「全部」，按下去之前把节点的入口看一遍 ──
   await sendCanvas(win, GO)
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   await expect(card, '付费卡摆在面板里等人').toBeVisible({ timeout: MODEL_TURN_MS })
@@ -133,7 +132,6 @@ try {
   }
   const deselect = () => win.mouse.click(blank.x, blank.y)
   await deselect()
-  await expect(win.locator(GENERATE_ALL), '卡在等人：「生成全部」只算用户自己那一个闲置节点（两镜归制作流程）').toContainText('1', { timeout: DEFAULT_TIMEOUT_MS })
   walk.report.shot2GenerateWhileCardWaits = await shot2GenerateEntry('卡在等人')
   await walk.snap('queued-01-zh-card-all-scope-shot2-generate-disabled')
 
@@ -145,26 +143,24 @@ try {
   }
   if (beforeConfirm.problems.length) {
     await closeSpendCard(card, '草稿不是被授权的那一档，关卡不花钱')
-    walk.report.verified = ['card-waiting-generate-all-excludes-agent-shots', 'card-waiting-shot-generate-disabled']
+    walk.report.verified = ['card-waiting-shot-generate-disabled']
     walk.report.blockedBeforeSpend = beforeConfirm.problems
     throw new Error(`付费前拦下（一分钱没花，卡已关）：宿主要派发的不是被授权的 Seedance 2.0 fast · 480p · 4s · 无音频——`
       + `${beforeConfirm.problems.join('；')}；卡上显示的变体是 ${walk.report.draft.cardVariant}`)
   }
 
-  // 逐帧观察者：第 2 镜的状态 / 排队小标 / ↑ 可按性，底栏「生成全部」的字——只记变化。
-  await win.evaluate(({ shotId, generate, generateAll }) => {
+  // 逐帧观察者：第 2 镜的状态 / 排队小标 / ↑ 可按性——只记变化。
+  await win.evaluate(({ shotId, generate }) => {
     const log = []
     let last = ''
     const sample = () => {
       const node = document.querySelector(`[data-node-id="${shotId}"]`)
       // ↑ 只看第 2 镜自己浮框里的那一颗：别的节点（比如用户那个闲置节点）选中时的 ↑ 不算。
       const button = node?.querySelector(generate)
-      const dock = document.querySelector(generateAll)
       const entry = {
         status: node?.getAttribute('data-status') ?? null,
         placeholder: node?.querySelector('[data-shot-placeholder-state]')?.getAttribute('data-shot-placeholder-state') ?? null,
         generate: button ? (button.disabled ? 'disabled' : 'enabled') : null,
-        dock: dock ? (dock.textContent ?? '').trim() : null,
       }
       const key = JSON.stringify(entry)
       if (key !== last) { log.push({ at: Math.round(performance.now()), ...entry }); last = key }
@@ -172,7 +168,7 @@ try {
     window.__queuedShotLog = log
     sample()
     new MutationObserver(sample).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
-  }, { shotId: shot2, generate: '[data-bar-segment="generate"]', generateAll: GENERATE_ALL })
+  }, { shotId: shot2, generate: '[data-bar-segment="generate"]' })
 
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮（全部）', { noWaitAfter: true })
   const dispatched = () => (readProductionRuns(projectRoot).find((run) => run.runId === runId)?.jobs ?? []).filter((job) => job.providerTaskId)
@@ -184,8 +180,7 @@ try {
   if (await stillInFlight()) {
     walk.report.shot2GenerateInFlight = await shot2GenerateEntry('生成中')
     await deselect()
-    await expect(win.locator(GENERATE_ALL), '生成中：「生成全部」只算那一个闲置节点').toContainText('1')
-    await walk.snap('queued-02-zh-in-flight-generate-all-counts-one')
+    await walk.snap('queued-02-zh-in-flight-shot2-generate-disabled')
     inFlight.zh = true
   }
   // 观察者住在这一页里：重开之前把它记下的帧取走。
@@ -195,7 +190,6 @@ try {
     await win.reload()
     await expect(win.locator(`[data-node-id="${shot2}"]`)).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     if (await stillInFlight()) {
-      await expect(win.locator(GENERATE_ALL), 'EN in flight: Generate all counts only the idle node').toContainText('1', { timeout: DEFAULT_TIMEOUT_MS })
       walk.report.shot2GenerateInFlightEn = await shot2GenerateEntry('EN in flight')
       await walk.snap('queued-03-en-in-flight-shot2-generate-disabled')
       inFlight.en = true
@@ -227,18 +221,17 @@ try {
     await expect(win.locator(`[data-node-id="${id}"]`), `${id}：落地之后不再转圈`).toHaveAttribute('data-status', 'success', { timeout: DEFAULT_TIMEOUT_MS })
   }
 
-  // 观察者的记录：第 2 镜只要在排队 / 生成中、且 ↑ 在屏上，↑ 就必须按不下去；底栏只要在屏上，就只算 1 个。
+  // 观察者的记录：第 2 镜只要在排队 / 生成中、且 ↑ 在屏上，↑ 就必须按不下去。
   const log = walk.report.queuedShotLog ?? []
   const owned = log.filter((entry) => entry.placeholder === 'queued' || entry.status === 'queued' || entry.status === 'running')
   expect(owned.length, '观察者活着：看见了第 2 镜的排队 / 生成中').toBeGreaterThan(0)
   expect(owned.filter((entry) => entry.generate === 'enabled'), '第 2 镜排队 / 生成中的每一帧，↑ 都按不下去').toEqual([])
-  expect(log.filter((entry) => entry.dock && !/\b1\b/.test(entry.dock)), '底栏「生成全部」出现过的每一帧都只算 1 个').toEqual([])
   walk.report.queuedPhaseObserved = owned.some((entry) => entry.placeholder === 'queued' || entry.status === 'queued')
   await walk.snap('queued-04-both-real-videos-landed')
 
   walk.report.verified = [
-    'card-waiting-generate-all-excludes-agent-shots', 'card-waiting-shot-generate-disabled',
-    'in-flight-generate-all-excludes-agent-shots', 'in-flight-shot-generate-disabled',
+    'card-waiting-shot-generate-disabled',
+    'in-flight-shot-generate-disabled',
     'exactly-one-submission-per-shot', 'two-real-videos-land-as-local-mp4',
   ]
 } catch (error) {
