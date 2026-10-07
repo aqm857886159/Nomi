@@ -115,7 +115,7 @@ export const WORKBENCH_ACTION_STATES: readonly LabState[] = [
     name: 'WorkbenchIconButton · 真实形态（几乎总被 className 改写尺寸与配色）',
     source: SOURCE_ACTIONS,
     mirrors: [
-      'src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx:98',
+      'src/workbench/generationCanvas/nodes/ClipNode.tsx:542',
       'src/workbench/generationCanvas/nodes/ClipNodeActionToolbar.tsx:28',
     ],
     coverage: 'shell',

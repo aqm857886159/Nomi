@@ -33,6 +33,7 @@ import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_
 import { DIRECTOR_3DBOX_STATES } from './director3dbox/director3dboxStates'
 import { DIRECTOR_3DBOX_CELL_HEIGHT, DIRECTOR_3DBOX_CELL_WIDTH } from './director3dbox/director3dboxCell'
 import { DIRECTOR_REFINE_STATES } from './directorRefine/directorRefineStates'
+import { CANVAS_GROUPING_STATES } from './canvasGrouping/canvasGroupingStates'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -97,6 +98,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 六格取景一样大：框的几何是这一屏要看的东西，格子不同宽就没法一眼比出
     // 「空框 / 有内容 / 拖入 / 拖出」四态里框的边界有没有变。
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
+  },
+  {
+    id: 'canvas-grouping',
+    label: '画布 · 临时多选与编组',
+    states: CANVAS_GROUPING_STATES,
+    cell: { width: 1060, height: 690 },
   },
   {
     id: 'node-composer-bar',

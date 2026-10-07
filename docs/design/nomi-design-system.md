@@ -848,16 +848,18 @@ mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` 
 
 文件：`src/workbench/generationCanvas/components/GroupFrame.tsx`
 
-视觉：包围一组节点的浅色半透明 frame，左上角带组名 label。
+视觉：包围一组节点的浅色半透明 frame；组名（标题前一颗小圆点 + Stack 图标 + 名称 + 一句说明）放在框外上方，不压在框里的节点上。
 
 规格：
 
-- 普通态只有一套共享视觉契约：`components/groupVisualContract.ts`
-- 展开组框：`border-nomi-line` + 半透明 `bg-nomi-paper`；label 同样使用 `nomi-line / nomi-paper / nomi-ink`
-- 折叠卡、后层卡片、标签圆点、空态图标与侧栏组标识共用同一组暖中性 token，不用 `nomi-accent` 或项目自定义色标识编组
-- `NodeGroup.color` 仅为旧项目兼容保留，不再进入渲染层；侧栏不再提供无效的“改颜色”入口
-- 强调色只允许出现在共享的瞬时交互反馈（键盘焦点、连接握把），不能成为编组常驻底色或描边
-- 可拖动整组
+- 普通态只有一套共享视觉契约：`components/groupVisualContract.ts`；组色在 `model/groupColor.ts`（单一真相）
+- **默认中性灰**：新建的组一律灰（`--nomi-group-neutral`，类名 `border-nomi-group-neutral`）。展开组框底色是半透明 `bg-nomi-paper`，不随组色变
+- **可选色只上两处：边框和标题前的小圆点，不做任何底色填充。** 在组工具条「颜色」里选，6 个语义 token（ocean / teal / amber / coral / violet / rose，光暗各一份，定义在 `nomi-tokens.css` + `tailwind.config.ts`）；折叠卡同样只在边框上用。颜色一律走静态 token 类名（`border-nomi-group-*` / `bg-nomi-group-*` 只用在那颗圆点上），不写行内 style，不用十六进制
+- **老数据不上色**：`NodeGroup.color`（旧版存过 `#3b82f6` 这类自定义色）读盘后原样留在存档里但永不进渲染层；渲染只认新字段 `NodeGroup.colorToken`（存 token 名；灰 = 没有这个字段），非法值读盘回到灰。所以老项目打开，每个组仍是灰；只有用户在新选色器里亲手选过的才有颜色
+- 折叠卡、后层卡片、空态图标与侧栏组标识仍共用同一组暖中性 token；`nomi-accent` 不用来标识编组
+- 强调色只允许出现在共享的瞬时交互反馈（键盘焦点、连接握把、选中态描边），不能成为编组常驻底色或描边
+- 组工具条（`CanvasGroupToolbar`）和节点浮条同壳同高：常用动作在前（颜色、排列、生成整组、进时间轴、下载），破坏性的「解组」放最右并用分隔线隔开；放在框上方，贴画布顶边放不下就翻到框下方，组比视口还大就贴舞台顶边，左右同理拉回舞台内
+- 可拖动整组：框内空白处拖 = 整组，拖节点卡片 = 只拖这一个
 
 ### 4.5 通知：原地 → 状态 → toast → 必须决定
 

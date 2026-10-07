@@ -6,7 +6,10 @@
       "contract": "docs/fixes/2026-09-10-dc24-quiet-defaults.root-cause.json",
       "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
       "symbol": "ShotReferenceZone",
-      "anchor": { "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx", "symbol": "ShotReferenceStrip" },
+      "anchor": {
+        "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
+        "symbol": "ShotReferenceStrip"
+      },
       "reason": "2026-10-06 分镜复用画布交互（#1042）：镜头行的参考区整块换成视觉列里的参考条 ShotReferenceStrip（缩略图带 ×、「+」开素材选择器）。dc24 的不变量「正常态不教学、只留可操作的状态」由它承担：没有参考时只有一格「+」，不摆说明文字。"
     },
     {
@@ -736,6 +739,12 @@
       "path": "src/workbench/generationCanvas/nodes/generationVariantCount.ts",
       "symbol": "supportsGenerationVariants",
       "reason": "生成浮框的「每次生成几个」×N 下拉于 2026-10-06 按用户拍板删除（按一次出一版，多版靠版本卡片铺开），判「支不支持 ×N」的这条不变量不再有对象。"
+    },
+    {
+      "contract": "docs/fixes/2026-08-29-canvas-batch-mode-label-disambiguation.root-cause.json",
+      "path": "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+      "symbol": "resolveCanvasBulkModelLabelKey",
+      "reason": "2026-10-06 用户拍板：画布不再有批量选模型入口（底部批量栏和框选浮条上的按类型统一换模型整条删除，批量只走组工具条「生成整组」，各节点用自己已选好的模型）；这条「同类不同模式的批量下拉不许同名」的不变量所约束的 CanvasBulkModelSelect / canvasBatchModelLabel 随之整体删除，不再适用。分镜多选条仍用 BulkModelPicker，由 storyboardBulkModelScope 的测试守。"
     }
   ],
   "unverified": [

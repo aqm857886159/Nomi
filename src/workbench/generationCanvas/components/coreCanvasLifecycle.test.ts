@@ -8,6 +8,7 @@ it('does not release another canvas when the original gesture element is detache
   const stage = {
     closest: () => stage,
     hasAttribute: (name: string) => attributes.has(name),
+    getAttribute: (name: string) => attributes.get(name) ?? null,
     setAttribute: (name: string, value: string) => attributes.set(name, value),
     removeAttribute: (name: string) => attributes.delete(name),
   } as unknown as Element
