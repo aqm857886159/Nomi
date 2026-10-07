@@ -36,10 +36,26 @@
     "Every walk has a bounded timeout and browser provisioning uses the shared retrying script."
   ],
   "doors": [
-    { "kind": "read", "path": "scripts/validation-policy.mjs", "symbol": "ROUTING" },
-    { "kind": "read", "path": "scripts/pr-judgement-lib.mjs", "symbol": "loadRoutingTable" },
-    { "kind": "read", "path": ".github/workflows/quality-gate.yml", "symbol": "Spending path walkthroughs (blocking subset)" },
-    { "kind": "read", "path": ".github/workflows/nightly-walkthroughs.yml", "symbol": "Run non-paid walkthrough batch" }
+    {
+      "kind": "read",
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "ROUTING"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/pr-judgement-lib.mjs",
+      "symbol": "loadRoutingTable"
+    },
+    {
+      "kind": "read",
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "Spending path walkthroughs (blocking subset)"
+    },
+    {
+      "kind": "read",
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "symbol": "Run non-paid walkthrough batch"
+    }
   ],
   "door_reduction": {
     "before": 0,
@@ -50,7 +66,7 @@
   "shared_boundaries": [
     {
       "path": "docs/engineering/test-routing.json",
-      "symbol": "categories.spend.evidence[id=spend-walks]",
+      "symbol": "spend-walks",
       "responsibility": "Own the complete walk set, blocking subset, and rationale."
     },
     {
