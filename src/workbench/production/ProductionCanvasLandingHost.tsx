@@ -17,7 +17,10 @@ import type { GenerationCanvasNode } from '../generationCanvas/model/generationC
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
 import { setCanvasBatchConcurrencyForE2E } from '../generationCanvas/components/canvasProductionScope'
-import { watchDeletedProductionNodes } from './watchDeletedProductionNodes'
+import { subscribeProductionCanvasSignals } from './productionCanvasSignals'
+import { reportDetachedShotNodes } from './reportDetachedShotNodes'
+import { reportReattachedShotNodes } from './reportReattachedShotNodes'
+import { surfaceDetachReportFailure } from './detachReportFeedback'
 
 const POLL_INTERVAL_MS = 1500
 
@@ -117,10 +120,26 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
     }
   }, [projectId, hasProductionNodes])
 
-  // ③：观察占位节点被删 → 让 Run 记 detached（整批 ⌘Z / 手动删；失败留痕并告诉用户，见 watchDeletedProductionNodes）。
+// ③：接收画布写边界的显式删除/恢复信号 → 让 Run 记 detached 或 reattached。
   React.useEffect(() => {
     if (!projectId) return
-    return watchDeletedProductionNodes(projectId, productionRunApi)
+    return subscribeProductionCanvasSignals((signal) => {
+      const byRun = new Map<string, GenerationCanvasNode[]>()
+      for (const node of signal.nodes) {
+        const meta = node.meta as Record<string, unknown> | undefined
+        const runId = typeof meta?.productionRunId === 'string' ? meta.productionRunId.trim() : ''
+        if (!runId) continue
+        const nodes = byRun.get(runId) ?? []
+        nodes.push(node)
+        byRun.set(runId, nodes)
+      }
+      for (const [runId, nodes] of byRun) {
+        const operation = signal.kind === 'detach'
+          ? reportDetachedShotNodes(projectId, runId, nodes.map((node) => node.id), productionRunApi)
+          : reportReattachedShotNodes(projectId, runId, nodes, productionRunApi)
+        void operation.catch((error: unknown) => surfaceDetachReportFailure(projectId, runId, nodes.length, error))
+      }
+    })
   }, [projectId])
 
   return null

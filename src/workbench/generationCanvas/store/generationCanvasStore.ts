@@ -23,6 +23,7 @@ import { createCanvasNodeActions } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
 import { createCanvasDocumentActions } from './canvasDocumentCommit'
+import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
@@ -106,6 +107,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     const nextClipboard = buildSelectedClipboard(currentState)
     if (!nextClipboard) return
     const removedIds = [...currentState.selectedNodeIds]
+    const removedNodes = currentState.nodes.filter((node) => removedIds.includes(node.id))
     setClipboard(nextClipboard)
     pushUndoSnapshot(currentState)
     set((state) => {
@@ -117,6 +119,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       Object.assign(state, getHistoryFlags(), { hasClipboard: true })
     })
     emitCanvasGesture(removedIds.map((nodeId) => ({ type: 'canvas.node.removed', payload: { nodeId } })))
+    emitProductionCanvasSignal({ kind: 'detach', nodes: removedNodes })
   },
   pasteNodes: (basePosition, anchor) => {
     const currentState = get()

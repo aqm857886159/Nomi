@@ -28,6 +28,7 @@ import { clearClipboard } from './canvasClipboard'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
+import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
 export type CanvasDocumentWrite =
@@ -125,6 +126,13 @@ function emitReturnedLandings(returned: readonly Returned[]): void {
 
 type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
+function emitProductionNodeDelta(before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
+  const beforeIds = new Set(before.map((node) => node.id))
+  const afterIds = new Set(after.map((node) => node.id))
+  emitProductionCanvasSignal({ kind: 'detach', nodes: before.filter((node) => !afterIds.has(node.id)) })
+  emitProductionCanvasSignal({ kind: 'reattach', nodes: after.filter((node) => !beforeIds.has(node.id)) })
+}
+
 export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActions> = (set, get) => {
   /** 换掉整张图（撤销 / 重做 / 外部写）：选区 clamp 到仍在的节点，连线手势作废。 */
   const replaceDocument = (next: Projection, held: HeldNodeOutcomes, extra?: (state: GenerationCanvasState) => void) => {
@@ -186,6 +194,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // 影子记账:撤销=全量后态(replay≡snapshot 恒真)
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: next.nodes, edges: next.edges, groups: next.groups } } }])
         emitReturnedLandings(next.returned)
+        emitProductionNodeDelta(live.nodes, next.nodes)
         return
       }
       case 'external': {
@@ -202,6 +211,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         })
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: next } }])
         emitReturnedLandings(settled.returned)
+        emitProductionNodeDelta(live.nodes, next.nodes)
         return
       }
       case 'put-back': {
@@ -225,6 +235,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           ...settled.nodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
           ...addEdges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
         ])
+        emitProductionCanvasSignal({ kind: 'reattach', nodes: incoming })
         emitReturnedLandings(settled.returned)
         return
       }
