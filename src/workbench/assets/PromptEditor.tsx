@@ -8,7 +8,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { cn } from '../../utils/cn'
 import { TIPTAP_PLACEHOLDER_CLASSES } from './tiptapPlaceholderClasses'
 import { AssetMention } from './AssetMentionNode'
-import { createAssetMentionSuggestion } from './AssetMentionSuggestion'
+import { createAssetMentionSuggestion, type MentionSelection } from './AssetMentionSuggestion'
 import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
 import { promptToContent } from './promptEditorContent'
 import { createControlledEditorSync } from '../common/controlledEditorSync'
@@ -49,7 +49,7 @@ type PromptEditorProps = {
   /** 打 @ 时按 query 给候选（当前参考 / 画布 / 素材库三组）。缺省 = 不开 @ 面板。 */
   mentionSearch?: (query: string) => MentionSuggestionItem[]
   /** 选中候选：负责真的建立引用（建边/落上传槽），返回最终 chip 编号；返回 null = 没插成。 */
-  onMentionSelect?: (item: MentionSuggestionItem) => number | null
+  onMentionSelect?: (item: MentionSuggestionItem) => MentionSelection
   /** @ 面板沿用 composer 附件上传管线；上传完成后作为 upload 来源重新出现在列表。 */
   mentionUpload?: MentionUploadControls
   /** S6-4 节点锁:false=只读(Tiptap 官方 editable/setEditable);缺省可编辑。 */

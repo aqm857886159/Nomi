@@ -2,13 +2,15 @@
  * [INPUT]: 依赖 ./directorStore 的类型（CommitProject / StoreGet / StoreSet / DirectorStoreState / EvaluatedPose）、./directorTypes、
  *          ./directorIds、./cameraLens 的 syncFocalLength、./lights 的 createLight、./editLayer 的 resolveEditLayer、
  *          ./clips 的 upsertWaypointAt / patchWaypoint、sceneObjectGraph 的子树/仿射变换、cameraCoordinateSpace 的相机 YXZ 转换
- * [OUTPUT]: 对外提供 DirectorEntityActions 与 createEntityActions（对象/机位/灯光 CRUD、分组/解组/群众、跨图层复制移动、
+ * [OUTPUT]: 对外提供 DirectorEntityActions 与 createEntityActions（对象/机位/灯光 CRUD、分组/解组/群众（默认角色模板建组）、跨图层复制移动、
  *           显隐锁定、经编辑层的空间变换写回）
  * [POS]: director/model 的实体 action 集合，由 directorStore 组装进同一个 store；所有写路径先 saveState 再 commitProject，
  *        gizmo/检查器改位姿一律走 write*SpatialTransform（编辑层三态）；跨层在同一草稿搬完整子树，rest/路标一起换坐标。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
+import { findActionEntry } from './actionLibrary'
 import { syncFocalLength } from './cameraLens'
+import { defaultCharacterInput } from './defaultCharacter'
 import { patchWaypoint, upsertWaypointAt } from './clips'
 import { createCameraId, createLightId, createObjectId, createWaypointId } from './directorIds'
 import type { CommitProject, DirectorStoreState, StoreGet, StoreSet } from './directorStore'
@@ -19,6 +21,20 @@ import { remapSceneIds } from './directorProject'
 import { transformCameraPose } from './cameraCoordinateSpace'
 import { invertFrame, localFrame, multiplyFrames, objectWorldFrame, sceneFrame, selectedRoots, subtreeIds, transformObject, transformPoint, type SceneFrame } from './sceneObjectGraph'
 import { applyMat3, forwardFromAngles, lookAtAngles } from './vec3'
+
+export type CrowdSpec = {
+  /** 群众组落点（图层局部）：位置 + 朝向；行列绕它居中，朝向转整个队列 */
+  transform: { position: Vec3; rotation: Vec3; scale: Vec3 }
+  rows: number
+  cols: number
+  spacing: number
+  actionId: string
+  groupName: string
+  /** 组内每人的名字：`${memberName} ${n}` */
+  memberName: string
+}
+
+export const CROWD_MAX_PER_AXIS = 10
 
 export type SpatialPatch = { position?: Vec3; rotation?: Vec3; scale?: Vec3 }
 
@@ -36,7 +52,8 @@ export type DirectorEntityActions = {
   getObjectDescendantIds: (objectId: string) => string[]
   groupObjects: (objectIds: string[], name: string) => string | null
   ungroupObjects: (groupId: string) => string[]
-  batchCreateCrowd: (objectId: string, rows: number, cols: number, spacing: number, groupName: string) => string | null
+  /** 群众：用默认角色在 transform 处建一个群众组（行 × 列，间距 spacing 米，组内每人 posePreset = actionId）；一次撤销撤掉整组 */
+  batchCreateCrowd: (spec: CrowdSpec) => string | null
   toggleObjectVisible: (objectId: string) => void
   toggleObjectLock: (objectId: string) => void
   bulkToggleObjectVisible: (objectIds: string[]) => void
@@ -279,44 +296,41 @@ export function createEntityActions(set: StoreSet, get: StoreGet, commitProject:
       get().select({ objectId: released[0] ?? null, multiObjectIds: released })
       return released
     },
-    batchCreateCrowd: (objectId, rows, cols, spacing, groupName) => {
-      const source = get().findObject(objectId)
-      if (!source || source.type === 'group') return null
+    batchCreateCrowd: (spec) => {
+      const clampAxis = (value: number) => Math.min(CROWD_MAX_PER_AXIS, Math.max(1, Math.round(value)))
+      const rows = clampAxis(spec.rows)
+      const cols = clampAxis(spec.cols)
+      const spacing = Number.isFinite(spec.spacing) ? Math.max(0, spec.spacing) : 0
+      if (!findActionEntry(spec.actionId)) return null
       save()
       const groupId = createObjectId()
-      const startX = source.position.x - ((cols - 1) * spacing) / 2
-      const startZ = source.position.z - ((rows - 1) * spacing) / 2
+      const startX = -((cols - 1) * spacing) / 2
+      const startZ = -((rows - 1) * spacing) / 2
       commitProject((_, scene) => {
         scene.objects.push({
           id: groupId,
-          name: groupName,
+          name: spec.groupName,
           type: 'group',
-          parentId: source.parentId,
-          position: { ...source.position },
-          rotation: { x: 0, y: 0, z: 0 },
-          scale: { x: 1, y: 1, z: 1 },
+          position: { ...spec.transform.position },
+          rotation: { ...spec.transform.rotation },
+          scale: { ...spec.transform.scale },
           color: '',
           visible: true,
           locked: false,
         })
         for (let row = 0; row < rows; row += 1) {
           for (let col = 0; col < cols; col += 1) {
-            const copy = deepClone(source)
-            copy.id = createObjectId()
-            copy.name = `${source.name}_${row + 1}x${col + 1}`
-            const position = { x: startX + col * spacing - source.position.x, y: 0, z: startZ + row * spacing - source.position.z }
-            for (const point of copy.motionTrajectory ?? []) {
-              point.x += position.x - source.position.x
-              point.y += position.y - source.position.y
-              point.z += position.z - source.position.z
-            }
-            copy.position = position
-            copy.parentId = groupId
-            scene.objects.push(copy)
+            const member = defaultCharacterInput(
+              'female',
+              `${spec.memberName} ${row * cols + col + 1}`,
+              { position: { x: startX + col * spacing, y: 0, z: startZ + row * spacing }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 } },
+              spec.actionId,
+            )
+            scene.objects.push({ ...member, id: createObjectId(), parentId: groupId })
           }
         }
       })
-      get().select({ objectId: groupId, multiObjectIds: [groupId] })
+      get().select({ objectId: groupId, cameraId: null, lightId: null, multiObjectIds: [groupId] })
       return groupId
     },
     toggleObjectVisible: (objectId) => {
