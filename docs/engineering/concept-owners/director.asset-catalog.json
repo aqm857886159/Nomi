@@ -1,0 +1,41 @@
+{
+  "name": "导演台素材目录",
+  "subject": "director.asset-catalog",
+  "lifecycle": "catalog",
+  "authority_kind": "schema",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.ts",
+    "symbol": "DIRECTOR_ASSET_CATALOG"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.ts",
+      "symbol": "DIRECTOR_ASSET_CATALOG"
+    },
+    {
+      "path": "scripts/director-assets/prepare_ual.py",
+      "symbol": "main"
+    },
+    {
+      "path": "scripts/director-assets/check-ual-asset.mjs",
+      "symbol": "checkUalAsset"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "DIRECTOR_PLANNER_ASSETS",
+      "kind": "reference",
+      "why": "规划器只读精简投影，不得再定义第二份资产清单"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/index.test.ts",
+    "src/devlab/directorAssetCatalog.tsx",
+    "src/workbench/generationCanvas/nodes/director/model/assetCatalog/types.ts"
+  ],
+  "since": "2026-10-04",
+  "notes": "A期新增资产与许可证来源的唯一目录；本轮采用 UAL 原生 CC0 人偶与动作，处理与校验边界也登记在同一 owner，运行时接线留给切换 PR。"
+}

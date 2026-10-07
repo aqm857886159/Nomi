@@ -1,0 +1,26 @@
+{
+  "id": "LAW11-EMPTY-INPUT",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "节点底栏与付费卡不渲染「没有选项、没有默认值、没有占位提示」的数字 / 文本参数：随机种子、推理步数、参考视频起始秒，以及音频模型的风格、标题、歌词、BPM、续写起点都选不到",
+  "existingInvariants": [
+    3
+  ],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J01-generate-image",
+    "J07-switch-model"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts 的 isEmptyInputControl；seed 一类影响 10 个模型"
+  ],
+  "completionCommits": []
+}

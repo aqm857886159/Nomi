@@ -1,0 +1,36 @@
+{
+  "name": "Agent 面板上用户看得见的失败文字与工具收据文字（不含原始 JSON / 内部 id）",
+  "subject": "agent-panel.user-visible-failure-text",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+    "symbol": "classifiedFailureText"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "classifiedFailureText"
+    },
+    {
+      "path": "src/workbench/ai/resident/residentToolText.ts",
+      "symbol": "leaksInternals"
+    },
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "receiptFor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/lane/laneCommandFailure.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/resident/residentShellDisplay.ts",
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "since": "2026-10-01",
+  "notes": "任何失败原文（服务商整段 JSON、我们自己的分类标记、内部 id）进界面前都只走 classifiedFailureText：分得出类说人话，分不出类说「没见过的错误」并给下一步，原文只进日志；形状判据只有 leaksInternals 一份，走查监视器 ui-leaked-internals 在真实面板上用同一组形状验收；工具收据只有标签与摘要，不带原始入参，也不带成功回包。合同 docs/fixes/2026-10-01-agent-panel-raw-leaks.root-cause.json。"
+}

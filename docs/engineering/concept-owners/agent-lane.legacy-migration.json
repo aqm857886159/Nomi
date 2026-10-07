@@ -1,0 +1,27 @@
+{
+  "name": "Agent 旧版对话迁移（终态判定与加锁迁移）",
+  "subject": "agent-lane.legacy-migration",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneLegacyMigration.mts",
+    "symbol": "migrateLaneLegacy"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneLegacyMigration.mts",
+      "symbol": "migrateLaneLegacy"
+    },
+    {
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "migrateLaneLegacy"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "自写登记 lane-legacy-migration（待删）。终态（从没旧对话 / 清单 completed）无锁直答，其余进加锁迁移；迁移窗口结束后整体删除。 laneNativeLoader.cts 的同名导出是 CJS → ESM 岛的唯一桥（只转发，不自判）。"
+}

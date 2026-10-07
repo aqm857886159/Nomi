@@ -1,0 +1,22 @@
+{
+  "id": "AUD-20261005-06",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #6",
+  "category": "interaction-semantics",
+  "problem": "行首复选框含义是「本次跳过」（整行变 60% 透明），不是选中；页脚「生成剩余」不显示数量",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/18-checkbox-means-skip.png"
+  ],
+  "completionCommits": []
+}

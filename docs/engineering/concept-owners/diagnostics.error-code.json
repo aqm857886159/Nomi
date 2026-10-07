@@ -1,0 +1,40 @@
+{
+  "name": "跨进程的错误机器码",
+  "subject": "diagnostics.error-code",
+  "lifecycle": "host",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/nomiErrorCodes.ts",
+    "symbol": "NomiErrorCode"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "NomiErrorCode"
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "tagNomiError"
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "matchNomiErrorCode"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/catalog/assetLocalization.ts",
+    "electron/networkOutboundMessage.ts",
+    "electron/vendor/vendorOutboundGuard.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/observability/narrate.ts",
+    "electron/assets/generatedMediaDecode.ts"
+  ],
+  "since": "2026-09-27",
+  "notes": "PR #907（同上合同）：本地、出请求之前的素材失败原来不带机器码，渲染层分不清是素材坏了还是供应商拒了。现在过 IPC 的失败带 asset-invalid 这类机器码，渲染层按码分类、不按中文文案猜；码表只有 NomiErrorCode 这一份，打码与认码只经 tagNomiError / matchNomiErrorCode。 2026-09-29：新增 output-unreadable（供应商已经把结果发回来、本机读不出来；electron/assets/generatedMediaDecode.ts 统一抛，渲染层按码归类）。"
+}

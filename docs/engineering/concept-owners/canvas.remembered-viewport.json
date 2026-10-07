@@ -1,0 +1,27 @@
+{
+  "name": "画布记住的视角（每个分类）",
+  "subject": "canvas.remembered-viewport",
+  "lifecycle": "preference",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/workbenchStore.ts",
+    "symbol": "rememberCategoryViewport"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "rememberCategoryViewport"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+    "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "since": "2026-09-26",
+  "notes": "只记「用户留下的视角」：用户手势结束（GenerationCanvasReactFlowViewport onMoveEnd 有来源事件）、中键 / 空格平移结束（useGenerationCanvasReactFlowPointer finishPan）、用户触发的定位动画走完（onAnimationSettled），以及打开时适应那一次。「store → React Flow」同步推过去的那一下的回声不记（GenerationCanvasReactFlow.tsx isStoreSyncEcho）：2026-09-26 离开项目时 store 清空、画布还停在旧视角，同步把它推回 1:1 兜底，回声被记成了记忆，从项目库重开就不再摆全貌（合同 docs/fixes/2026-09-26-open-fit-reopen-remembered-echo.root-cause.json）。新增一个写口前先问：这是用户留下的，还是程序自己的簿记？"
+}

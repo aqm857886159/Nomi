@@ -14,7 +14,7 @@
 
 2026-10-05 第一批落地（[设计卡](../plan/2026-10-05-experience-iron-laws-batch1.md)）：⑪ 是单测（`tests/experience-laws/parameterReachability.test.mjs`），⑩ 宿主半是单测、模型半是 `evals/datasets/intent-draft.mjs`；**⑫ 住在走查里**：`invariants.mjs` 多一条 id 12（只在剧本显式调 `monitor.checkClickTarget` 时判），可点目标登记在 `catalog.mjs` 的 `STORYBOARD_CLICK_TARGETS`（`userExpectation` 写人话、`actualObservation` 只抄真实走查结果），剧本 `pb12-storyboard-click-expectations` 点一遍分镜表；对不上的当场写进逃逸账本 `LAW12-<id>`。剧本可以 `startPlaybook({ offscreen: true })` 把窗口放到屏幕外、不抢焦点（`offscreenWindow.cjs` 经 `mainRequire` 装进主进程），在用户桌面上跑也不打扰他；用户开着自己的 Nomi 时加 `NOMI_FULL_WALK_SHARE_MACHINE=1`，不等它也不碰它。
 
-Phase 0 另登记三条跨任务的体验规格（不改变现有九条运行时监视器判据）：⑩「说的=摆的」——意图抽取期望与草稿参数确定性对比；⑪「能选到」——模型档案参数清单自动生成并覆盖各入口；⑫「点了=以为的」——`catalog.mjs` 的每个可点目标写 `userExpectation` 与 `actualObservation`。实际测试发现先放进 [`tests/ux/full-walk/escapeLedger.json`](../../tests/ux/full-walk/escapeLedger.json)，人工复核后再补剧本 / 回归。
+Phase 0 另登记三条跨任务的体验规格（不改变现有九条运行时监视器判据）：⑩「说的=摆的」——意图抽取期望与草稿参数确定性对比；⑪「能选到」——模型档案参数清单自动生成并覆盖各入口；⑫「点了=以为的」——`catalog.mjs` 的每个可点目标写 `userExpectation` 与 `actualObservation`。实际测试发现先放进 [`tests/ux/full-walk/escapeLedger/`](../../tests/ux/full-walk/escapeLedger/)，人工复核后再补剧本 / 回归。
 
 ## 怎么跑
 

@@ -1,0 +1,31 @@
+{
+  "name": "付费生成要不要弹确认",
+  "subject": "spend.confirmation-requirement",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "symbol": "spendConfirmationRequirement"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "spendConfirmationRequirement"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "confirmGenerationSpend"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "2026-09-25 用户拍板：用户自己点的单个生成不弹窗；只有 Agent 发起 / 一下跑 ≥2 个 / 首次匿名托管告知 才弹。2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格，判据不看金额、也不显示价格（原「≥10 点」门槛、「拿不到报价就问」与 ↑ 旁点数已删）。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，档位判据仍归 electron/shared/agentCapabilities/capabilityApprovalPolicy.ts#spendDecidedByPolicy。"
+}

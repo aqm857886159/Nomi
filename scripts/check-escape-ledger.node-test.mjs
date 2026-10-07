@@ -10,12 +10,16 @@ import { fileURLToPath } from 'node:url'
 
 import {
   CANDIDATE_MAX_DAYS,
-  ESCAPE_LEDGER_FILE,
+  ESCAPE_LEDGER_DIR,
   IRON_LAW_CHECKS,
+  escapeEntryPath,
+  escapeIdOfPath,
   fixedTransitions,
+  loadEscapeLedger,
   looksClassLevel,
   validateEscapeLedger,
 } from './escape-ledger-lib.mjs'
+import { META_FILE, formatEntryJson } from './lib/entryDirectory.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
@@ -125,8 +129,18 @@ test('looksClassLevel：遍历清单 / 参数化算，单场景不算', () => {
   assert.equal(looksClassLevel("test('one', () => { expect(1).toBe(1) })"), false)
 })
 
-test('真实账本：现状是绿的（22 条 candidate，没有 fixed）', () => {
-  const real = JSON.parse(fs.readFileSync(path.join(repoRoot, ESCAPE_LEDGER_FILE), 'utf8'))
+/** 把一份账本对象落成目录（一条一个文件），先清掉旧目录——测试里「整本换掉」就是这个意思。 */
+function writeLedgerDirectory(root, value) {
+  const dir = path.join(root, ESCAPE_LEDGER_DIR)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true })
+  const { entries, ...meta } = value
+  fs.writeFileSync(path.join(dir, META_FILE), formatEntryJson(meta))
+  for (const item of entries) fs.writeFileSync(path.join(root, escapeEntryPath(item.id)), formatEntryJson(item))
+}
+
+test('真实账本：现状是绿的', () => {
+  const real = loadEscapeLedger(repoRoot)
   const result = validateEscapeLedger(real, {
     today: '2026-10-06',
     exists: (rel) => fs.existsSync(path.join(repoRoot, rel)),
@@ -146,7 +160,7 @@ test('端到端：不合格的 fixed 条目 → CLI 退出 1；补齐根因合�
   const run = (today) => spawnSync(process.execPath, [path.join(here, 'check-escape-ledger.mjs')], {
     encoding: 'utf8', env: { ...process.env, ESCAPE_LEDGER_REPO_ROOT: root, ESCAPE_LEDGER_TODAY: today },
   })
-  write(ESCAPE_LEDGER_FILE, ledger([entry({ since: '2026-09-01' }), fixed({ id: 'LAW12-bad', rootCauseContract: undefined, classCheck: undefined, fixedInPr: undefined })]))
+  writeLedgerDirectory(root, ledger([entry({ since: '2026-09-01' }), fixed({ id: 'LAW12-bad', rootCauseContract: undefined, classCheck: undefined, fixedInPr: undefined })]))
   const red = run('2026-10-06')
   assert.equal(red.status, 1, red.stdout + red.stderr)
   assert.match(red.stderr, /LAW12-bad/)
@@ -157,9 +171,69 @@ test('端到端：不合格的 fixed 条目 → CLI 退出 1；补齐根因合�
 
   write(CONTRACT, CONTRACT_SOURCE)
   write(MATRIX, MATRIX_SOURCE)
-  write(ESCAPE_LEDGER_FILE, ledger([entry({ since: '2026-09-01' }), fixed({ id: 'LAW12-bad' })]))
+  writeLedgerDirectory(root, ledger([entry({ since: '2026-09-01' }), fixed({ id: 'LAW12-bad' })]))
   const green = run('2026-10-06')
   assert.equal(green.status, 0, green.stdout + green.stderr)
   assert.match(green.stderr, /candidate 已停留/, '只警告、不阻断')
   assert.match(green.stdout, /fixed 1/)
+})
+
+test('一条一个文件：目录不在 / 缺 _meta.json / 文件坏了 / 文件名和 id 对不上 → CLI 红并点名', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'escape-ledger-dir-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const run = () => spawnSync(process.execPath, [path.join(here, 'check-escape-ledger.mjs')], {
+    encoding: 'utf8', env: { ...process.env, ESCAPE_LEDGER_REPO_ROOT: root, ESCAPE_LEDGER_TODAY: '2026-10-06' },
+  })
+  const missing = run()
+  assert.equal(missing.status, 1)
+  assert.match(missing.stderr, /逃逸账本不存在/)
+
+  writeLedgerDirectory(root, ledger([entry()]))
+  assert.equal(run().status, 0, '合格的目录是绿的')
+
+  fs.rmSync(path.join(root, ESCAPE_LEDGER_DIR, META_FILE))
+  const noMeta = run()
+  assert.equal(noMeta.status, 1)
+  assert.match(noMeta.stderr, /_meta[.]json 不存在/)
+
+  writeLedgerDirectory(root, ledger([entry()]))
+  fs.writeFileSync(path.join(root, ESCAPE_LEDGER_DIR, 'LAW12-broken.json'), '{ not json')
+  const broken = run()
+  assert.equal(broken.status, 1)
+  assert.match(broken.stderr, /LAW12-broken[.]json 不是合法 JSON/)
+
+  writeLedgerDirectory(root, ledger([entry()]))
+  fs.writeFileSync(path.join(root, ESCAPE_LEDGER_DIR, 'LAW12-other.json'), formatEntryJson(entry()))
+  const renamed = run()
+  assert.equal(renamed.status, 1, '同一个 id 落在两个文件里：文件名对不上')
+  assert.match(renamed.stderr, /LAW12-other[.]json：文件名必须是「<id>[.]json」/)
+})
+
+test('一条一个文件：id 就是文件名——非法字符、只差大小写都红；路径 ↔ id 一一对应', () => {
+  const text = (entries) => check(entries).errors.join(' | ')
+  assert.match(text([entry({ id: 'LAW12/evil' })]), /id 只许字母数字开头/)
+  assert.match(text([entry({ id: 'law12-sample' }), entry({ id: 'LAW12-sample' })]), /只差大小写/)
+  assert.throws(() => escapeEntryPath('../x'), /只许字母数字开头/)
+  assert.equal(escapeEntryPath('LAW12-a.b_c'), `${ESCAPE_LEDGER_DIR}/LAW12-a.b_c.json`)
+  assert.equal(escapeIdOfPath(escapeEntryPath('LAW12-a.b_c')), 'LAW12-a.b_c')
+  assert.equal(escapeIdOfPath(`${ESCAPE_LEDGER_DIR}/${META_FILE}`), null)
+  assert.equal(escapeIdOfPath('tests/ux/full-walk/other.json'), null)
+  for (const item of loadEscapeLedger(repoRoot).entries) {
+    assert.equal(escapeIdOfPath(escapeEntryPath(item.id)), item.id, `真实账本的 ${item.id} 往返不变`)
+  }
+})
+
+test('loadEscapeLedger：条目按 since + id 稳定排序；读某个提交与读工作树结果相同', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'escape-ledger-ref-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  writeLedgerDirectory(root, ledger([entry({ id: 'b', since: '2026-10-02' }), entry({ id: 'c', since: '2026-10-01' }), entry({ id: 'a', since: '2026-10-02' })]))
+  const loaded = loadEscapeLedger(root)
+  assert.deepEqual(loaded.entries.map((item) => item.id), ['c', 'a', 'b'])
+  const git = (...args) => spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: root, encoding: 'utf8' })
+  git('init', '-q'); git('add', '-A'); git('commit', '-q', '-m', 'ledger')
+  assert.deepEqual(loadEscapeLedger(root, { ref: 'HEAD' }), loaded)
+  fs.rmSync(path.join(root, ESCAPE_LEDGER_DIR), { recursive: true })
+  assert.equal(loadEscapeLedger(root), null, '目录不在 → null（由门岗报红）')
+  git('rm', '-q', '-r', '--cached', ESCAPE_LEDGER_DIR); git('commit', '-q', '-m', 'drop')
+  assert.equal(loadEscapeLedger(root, { ref: 'HEAD' }), null, '那个提交上没有目录 → null')
 })

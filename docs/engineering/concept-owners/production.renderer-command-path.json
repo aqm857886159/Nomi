@@ -1,0 +1,28 @@
+{
+  "name": "渲染层发制作命令的唯一出口（失败不许吞）",
+  "subject": "production.renderer-command-path",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/production/productionRunCommands.ts",
+    "symbol": "executeProductionRunCommand"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/production/productionRunCommands.ts",
+      "symbol": "executeProductionRunCommand"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/production/productionRunCommands.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/lane/laneTaskCandidateActions.ts",
+    "src/workbench/production/reportDetachedShotNodes.ts",
+    "src/workbench/production/useProductionStatus.ts"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #921（同上合同）：渲染层发给制作 Run 的每条命令都走 executeProductionRunCommand——版本冲突时带最新版本重发一次，真失败交还调用方，不许再 catch {} 吞掉（删节点上报曾因此静默失败，被删的镜照样派发扣费）。"
+}
