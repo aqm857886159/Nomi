@@ -209,12 +209,12 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
         : t('onboardingProviders.comfyLocal.status.disconnected')
 
   const addrRow = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="text-caption text-nomi-ink-60 whitespace-nowrap">{t('onboardingProviders.comfyLocal.addressLabelCloud')}</span>
       {editing ? (
         <div
           data-nomi-escape-owner="true"
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+          className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2"
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
             event.preventDefault()

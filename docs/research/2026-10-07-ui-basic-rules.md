@@ -515,3 +515,22 @@ DOM（设计实验室 343 格）：
 **重截的格（zh / en × 亮 / 暗，我都 Read 过）**：`v4-intervention-{irreversible,spend,reversible,reject-reason,plan,credential,deviation}`、`v4-spend-params-single`、`v4-panel-spend-batch`、`v4-consent-first-ask`、`v4-auto-mode-confirm`、`storyboard/sb-zone-06-selection-toolbar`，以及 4 个组件级取证页（`scratch__add / vendor / crop / prompt`）。consent 卡本来就是「不分享 | 愿意」两颗文字按钮、没有 ×，符合 ①，不需要再加「取消」。
 
 **没有截图验证的（诚实标注）**：批量发出中的「只剩提示 + 取消」态（设计实验室没有这一格，真 App 点一遍「生成剩下 N 段」再取消）、`TelemetrySection` 删除确认态（实验室只有 idle 格，未截到，验收线真 App 点）、`ComfyuiLocalCard` / `WorkflowSidebar` 地址编辑态、`CustomCallEditor` 底栏、`NodeErrorReport` 放行确认、`StoryboardPlanStrategyPanel` / `StoryboardOverrideBadge`、`IntegrationSelfCheckPanel` / `ModelPickerScreen` ——实验室没有这些格，我只做了类型 / 单测 / 普查验证；`DecisionBar` 在这些位置的真实观感需要用户或独立验收线在真 App 里点一遍。
+
+## 9. 第二批（#1082 独立验收有条件通过后收尾，2026-10-07）
+
+验收条件逐条处理：
+
+| 条件 | 处理 |
+|---|---|
+| A 英文窄行：Comfy「接入地址」行主动作被裁成「Save ad」 | `DecisionBar` 换行规则：取消 + 次动作 + 主动作为**不拆整组**，放不下整组换行并靠右；行内用法 `inline` 自带 `grow justify-end`，父行 `flex-wrap`、输入框 `min-w-[10rem] flex-[1_1_10rem]`；Comfy 卡外层行也改成可换行。规则写进设计系统 §1.9.1，调用方不特判 |
+| B 首次询问卡英文「I'm in」折到左下 | 同一条换行规则：主动作永远在最后一行最右。窄 300px / 360px 的 zh/en × 亮/暗已重截（上一版 vs 本版成对图） |
+| 3 `runtime.design.gotIt` 字面是「确认」 | 改成 zh「知道了」/ en「Got it」；`confirmDialog` 的 alert 默认按钮与 `VendorFieldLossNotice` 同步生效 |
+| 4 文档 / 注释不符 | §1.8 例外段与正例改为付费卡实际排法「取消 · 去掉这段 · 生成」；`AgentPanelV4Cards.tsx` 三处与 `tests/ux/agent-runtime-walk-support.mjs` 的「× 在右上」旧注释已改 |
+| 5 成对决定栏没迁的 | 已迁入 `DecisionBar`：ModelPickerScreen、CustomCallEditor（含删除 leading、保存草稿 middle、测试 / 保存主动作与禁用原因 `primaryHint`）、UserPromptComposer、SelectionPromptSaveController、WorkflowLibraryContent（后两个去掉 IconX / 软盘图标）、BatchPlanOverlay、CommittedProposalCard；凭证输入行 VendorOnboardCard（单段 + 多段）、CustomVendorManage、TikhubConnectorCard（输入框 + 取消 + 主动作同一行、窄位换行右对齐）。**看过、不属于决定栏、没迁**：AiSceneBar（Run ↔ Stop 同一个槽位的切换，不是成对）、ModelEnableEditor（选择模式工具条的「全选 / 取消」）、DreaminaMemberCard（单个「取消授权」文字链，没有主动作）、ScreenshotCropOverlay（整屏覆盖层右上 ×，窗口关闭语义）、ProductionRunTaskCard / TaskCenterPanel / ShotTableNode（任务控制）、SpendConfirmDialog、SceneObjectsTab（按指示不动） |
+| 7 `agent-panel-missing-card` 走查 | 在 main 上同样红（取消后「节点数应为 0」超时），**不是本 PR 的事**，协调会话另开线 |
+
+**前后截图**（上一版 `98ac5dcab` vs 本版；1100×720 最小窗口；zh/en × 亮/暗；我都 Read 过）：`docs/research/2026-10-07-decision-bar-shots-r2/pairs/`——首次询问卡（lab 格 + 300 / 360px 窄位）、付费确认卡、Comfy 接入地址行（360 / 520px，行容器按上一版写法复刻对比）、供应商地址行（300 / 420px）、新建提示词（UserPromptComposer）、添加 Comfy 实例、裁剪浮层。注意：Comfy 行是**逐字复刻**行标记而非真卡（真卡要桌面桥，起不来），其余是真组件。
+**没有设计实验室格、也没截到的迁移位置（验收线真 App 点）**：ModelPickerScreen、CustomCallEditor 底栏、SelectionPromptSaveController、WorkflowLibraryContent 编辑弹窗、BatchPlanOverlay、CommittedProposalCard、三处凭证输入行。
+
+**普查前后（静态）**：R01 0、R02 0、R04 0、R26 0 保持；R03 剩 1（导演台 SceneObjectsTab，按指示不动）；R34（按钮自己覆写尺寸）38 → 33；R11（散装 `<button>`）605 → 573。
+**验证**：`pnpm typecheck` 绿；`src/design`、`src/workbench`、`src/ui`、`src/i18n` 的 vitest 全绿（3 条源码结构断言随 CustomCallEditor 迁移改成 `onPrimary: saveTestedScript` / `onCancel={...requestClose}`）。
