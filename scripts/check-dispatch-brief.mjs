@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 派工书检查（省 token 与方向检查在派工那一步的执行点）：协调会话发任务书前跑一遍。
 //   node scripts/check-dispatch-brief.mjs <任务书.md>
-// 查四件事：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档。
+// 查五件事：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 写了「补还是换」（P0 / RW 接到派工入口）；⑤ 若是修补第 3 轮及以上，必须引用方向检查复盘文档。
 // 只看有没有写，不判写得好不好；退出码 1 = 缺项（派工前补齐）。纯文本匹配，不调模型。
 import fs from 'node:fs'
 import path from 'node:path'
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 const CHECKS = [
   { key: '范围', re: /范围|scope|只改|仅改/i, hint: '写清改哪些文件 / 概念（范围）' },
   { key: '不碰清单', re: /不碰|禁触|不许碰|禁止碰|do not touch/i, hint: '写不碰清单（哪些文件、目录、私有资料不许动）' },
+  { key: '补还是换', re: /补还是换|补\s*[/、]\s*换\s*[/、]\s*删|接入\s*[/、]\s*补\s*[/、]\s*重写\s*[/、]\s*删/, hint: '写「补还是换」一节：近 14 天修过几次（node scripts/fix-churn.mjs <文件>）、是不是通用能力 / 有没有成熟方案、选补 / 换 / 删；纯调研 / 纯文档写「补还是换：不适用（原因）」' },
   { key: '停点', re: /停点|停下|就停|做到.{0,12}停|stop (at|when|after)/i, hint: '写停点（例如「样张出来就停」「卡住 3 次就停下报告」）' },
 ]
 const ROUND = /第\s*([0-9]+|[一二三四五六七八九十]+)\s*轮|round\s*([0-9]+)/i
@@ -36,7 +37,7 @@ function main() {
   const file = process.argv[2]
   if (!file || !fs.existsSync(file)) { console.error('用法：node scripts/check-dispatch-brief.mjs <任务书.md>'); return 2 }
   const problems = checkDispatchBrief(fs.readFileSync(file, 'utf8'))
-  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点都有。'); return 0 }
+  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、补还是换都有。'); return 0 }
   console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
   return 1
 }
