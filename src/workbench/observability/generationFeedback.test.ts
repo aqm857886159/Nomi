@@ -71,6 +71,12 @@ it('「已保存到项目」显示 3 秒就消失，并告诉状态条还剩多�
   expect(generationFeedback({ ...saved, id: 'gone' }, 53000)).toBeNull()
 })
 
+it('expires exactly at the saved receipt boundary', () => {
+  const saved = { ...node(), status: 'success' as const, runs: [{ id: 'r', status: 'success' as const, startedAt: 0, updatedAt: 19000, completedAt: 19000 }] }
+  expect(generationFeedback(saved, 19000 + SAVED_FEEDBACK_WINDOW_MS - 1)?.saved).toBe(true)
+  expect(generationFeedback(saved, 19000 + SAVED_FEEDBACK_WINDOW_MS)).toBeNull()
+})
+
 it('motion-reduced generation and import keep a static grid without a blue band or fabricated image', async () => {
   const { GenerationWaitingSurface } = await import('../generationCanvas/nodes/GenerationWaitingSurface')
   for (const props of [{ motion: 'reduced' as const }, { zoom: 0.39 }, { inViewport: false }, { motion: 'reduced' as const, progressReveal: { ratio: 0.42 } }]) {

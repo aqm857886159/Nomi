@@ -1,0 +1,47 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-saved-label-duration",
+  "change_kind": "corrective",
+  "problem_type": "saved receipt display lifetime",
+  "symptom": "A canvas node's 已保存到项目/Saved to project receipt can remain visible or disappear inconsistently at the three-second boundary.",
+  "direct_cause": "The shared feedback derivation uses the external-store clock while useGenerationFeedback decides whether to keep ticking with a separate Date.now() read.",
+  "class_root": "All readers of the saved receipt window must use one shared clock snapshot and one centralized lifetime contract.",
+  "affected_population": ["canvas nodes", "lightweight canvas nodes", "task center rows", "zh/en renderer surfaces"],
+  "scope_paths": [
+    "src/workbench/observability/useGenerationFeedback.ts",
+    "src/workbench/observability/useGenerationFeedback.test.ts",
+    "docs/engineering/direction-check-saved-label-duration.md"
+  ],
+  "entry_points": ["useGenerationFeedback", "taskCenterEntries generationFeedback consumer"],
+  "external_sources": [],
+  "internal_only_reason": "This is an application-level display-lifetime invariant; no third-party behavior determines the contract.",
+  "invariants": ["savedFeedbackWindowOpen and generationFeedback read the same external-store clock", "saved receipts expire at SAVED_FEEDBACK_WINDOW_MS"],
+  "doors": [
+    {"kind": "read", "path": "src/workbench/observability/useGenerationFeedback.ts", "symbol": "savedFeedbackWindowOpen"},
+    {"kind": "write", "path": "src/workbench/observability/useGenerationFeedback.ts", "symbol": "generationFeedback"},
+    {"kind": "write", "path": "src/workbench/taskCenter/taskCenterEntries.ts", "symbol": "generationFeedback"}
+  ],
+  "door_reduction": {"before": 3, "after": 3, "why_not": "The node hook owns subscription lifetime while the task center derives a row message; both are required readers and now share the same derivation contract."},
+  "generality_proof": "The shared generationFeedback function is the only saved-receipt derivation used by canvas and task-center surfaces; its gate now uses the same external-store clock as the derived snapshot.",
+  "shared_boundaries": [{"path": "src/workbench/observability/useGenerationFeedback.ts", "symbol": "useGenerationFeedback", "responsibility": "Keep the subscription alive exactly while the centralized saved window is open."}],
+  "same_class_entry_points": [
+    {"path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx", "entry_point": "useGenerationFeedback", "disposition": "enforced", "evidence": "Node status renders the hook's centralized feedback."},
+    {"path": "src/workbench/taskCenter/taskCenterEntries.ts", "entry_point": "generationFeedback", "disposition": "enforced", "evidence": "Task center calls the same derivation and receives the same window calculation."},
+    {"path": "electron/integrationCertification/credentialElicitationHttp.ts", "entry_point": "renderPage", "disposition": "not-affected", "evidence": "The credential page is a one-shot browser document that closes after a successful save; it does not render canvas receipts."}
+  ],
+  "recurrence": {"classification": "recurring", "reason": "Any new surface or clock read can recreate the boundary race unless the shared hook remains the only lifetime gate.", "same_class_scan": ["rg '已保存到项目|Saved to project' src electron", "node scripts/door-map.mjs generationFeedback,savedFeedbackWindowOpen --write=generationFeedback --read=savedFeedbackWindowOpen", "inspected credentialElicitationHttp renderPage and VendorOnboardCard persistent credential state"]},
+  "prevention": {"kind": "centralized-boundary", "enforcement_path": "src/workbench/observability/useGenerationFeedback.ts", "invariant": "The subscription gate uses generationFeedbackClockNow(), the same external-store snapshot used for rendering.", "failure_mode": "Expired feedback returns null and the clock unsubscribes; no fallback timer or persistent saved label is created.", "exception_policy": "none", "strategy": "Keep lifetime ownership in the shared observability hook and reject independent Date.now gates.", "artifacts": ["src/workbench/observability/useGenerationFeedback.ts", "src/workbench/observability/useGenerationFeedback.test.ts"]},
+  "regression_tests": ["src/workbench/observability/generationFeedback.test.ts", "src/workbench/observability/useGenerationFeedback.test.ts"],
+  "class_regression_tests": ["src/workbench/observability/useGenerationFeedback.test.ts"],
+  "legacy_paths": {"status": "not-applicable", "removed_paths": [], "rationale": "No persisted data or legacy timer is migrated; the fix removes only the divergent clock read."},
+  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "The invariant is owned by application state and React's existing external-store API.", "exit_criteria": []},
+  "migration": "No migration is needed; the saved receipt is derived from existing run timestamps.",
+  "residual_risks": ["Real Electron zh/en 0/2/5/10 second screenshots remain unverified in this headless worktree."],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-10-07",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/observability/useGenerationFeedback.ts",
+    "tests": ["src/workbench/observability/generationFeedback.test.ts", "src/workbench/observability/useGenerationFeedback.test.ts"],
+    "why": "The hook owns the subscription lifetime and delegates the visible message to the shared derivation; both tests cover its expiry contract and clock ownership."
+  }
+}
