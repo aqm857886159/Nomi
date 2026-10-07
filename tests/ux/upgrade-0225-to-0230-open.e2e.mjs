@@ -1,8 +1,8 @@
-// Red-stage reproduction for the 0.22.5 -> 0.23.0 project-open failure.
+// Upgrade-path regression for the 0.22.5 -> 0.23.0 project-open failure.
 //
 // The caller supplies an isolated, already-created upgrade fixture. This runner
 // corrupts only that fixture's durable proposal receipt, opens the project through
-// the real library card, and records the user-visible failure plus renderer log.
+// the real library card, and records the quarantine plus successful project open.
 // It never touches the user's profile and does not call private renderer state.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -54,7 +54,7 @@ let win
 const evidence = { projectId, projectRoot, receiptPath }
 try {
   ({ app, win } = await launchNomiApp({
-    name: 'upgrade-0225-to-0230-open-red',
+    name: 'upgrade-0225-to-0230-open',
     userDataDir,
     settingsDir,
     projectsDir,
@@ -74,10 +74,14 @@ try {
   await closeNomiApp(app)
 }
 
-evidence.logTail = rendererLogText().slice(-8_000)
+const allLogs = rendererLogText()
+const currentSessionLogs = allLogs.slice(allLogs.lastIndexOf('session-start'))
+evidence.logTail = currentSessionLogs.slice(-8_000)
 const visibleFailure = /发送失败|项目恢复失败|project restore/i.test(evidence.bodyTail || '')
-const rawFailure = /project-restore-failed/.test(evidence.logTail) && /proposal receipt is invalid/i.test(evidence.logTail)
-if (!visibleFailure || !rawFailure) {
-  throw new Error(`Expected receipt failure was not observed: ${JSON.stringify(evidence)}`)
+const rawFailure = /project-restore-failed/.test(currentSessionLogs)
+const quarantined = fs.readdirSync(path.dirname(receiptPath))
+  .some((name) => name.startsWith('project-agent-proposal-receipt.json.quarantined-'))
+if (visibleFailure || rawFailure || !quarantined || fs.existsSync(receiptPath)) {
+  throw new Error(`Expected receipt quarantine and successful open: ${JSON.stringify({ ...evidence, quarantined })}`)
 }
 console.log(JSON.stringify(evidence, null, 2))

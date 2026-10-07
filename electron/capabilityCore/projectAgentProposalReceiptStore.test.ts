@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   hashProjectAgentCommittedProposal,
   createProjectAgentProposalReceiptService,
+  migrateProjectAgentProposalReceipt,
   projectAgentProposalReceiptPath,
   PROJECT_AGENT_PREPARING_DEADLINE_MS,
 } from "./projectAgentProposalReceiptStore";
@@ -83,7 +84,7 @@ describe("ProjectAgent committed proposal receipt", () => {
     expect(anchoredContent.slice(0, restored!.proposal.anchorTextOffset)).toBe("Before tool.");
   });
 
-  it("rejects malformed live writes and fails closed after disk tampering", () => {
+  it("quarantines malformed disk state and lets the project continue without a receipt", () => {
     const projectRoot = tempProject();
     const service = createProjectAgentProposalReceiptService({ projectRoot, binding });
 
@@ -117,7 +118,13 @@ describe("ProjectAgent committed proposal receipt", () => {
       }),
       "utf8",
     );
-    expect(() => createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toThrow("invalid");
+    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toBeNull();
+    expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
+    expect(
+      fs.readdirSync(path.dirname(projectAgentProposalReceiptPath(projectRoot))).some((name) =>
+        name.startsWith("project-agent-proposal-receipt.json.quarantined-"),
+      ),
+    ).toBe(true);
   });
 
   it("enforces revision, proposal, operation, and binding CAS with exact idempotent retries", () => {
@@ -178,13 +185,17 @@ describe("ProjectAgent committed proposal receipt", () => {
     });
     expect(undone).toMatchObject({ revision: 4, lifecycle: "undone" });
 
+    const foreignRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-receipt-foreign-"));
+    fs.mkdirSync(path.join(foreignRoot, ".nomi"), { recursive: true });
+    fs.copyFileSync(projectAgentProposalReceiptPath(projectRoot), projectAgentProposalReceiptPath(foreignRoot));
     expect(() =>
-      createProjectAgentProposalReceiptService({ projectRoot, binding: otherBinding }).write({
+      createProjectAgentProposalReceiptService({ projectRoot: foreignRoot, binding: otherBinding }).write({
         ...prepare,
         expectedRevision: 4,
         operationId: "cross-project-overwrite",
       }),
-    ).toThrow("binding");
+    ).toThrow("revision_conflict");
+    fs.rmSync(foreignRoot, { recursive: true, force: true });
     const clearProposalA = {
       expectedRevision: 4,
       proposalId: proposal.proposalId,
@@ -257,6 +268,53 @@ describe("ProjectAgent committed proposal receipt", () => {
         proposal: correlated,
       }),
     ).toMatchObject({ lifecycle: "committed", proposal: correlated });
+  });
+});
+
+describe("receipt read boundary recovery", () => {
+  it("migrates the pre-journal shape with a pure, idempotent function and persists schema 2 on read", () => {
+    const projectRoot = tempProject();
+    const legacy = {
+      schemaVersion: 1,
+      binding,
+      revision: 1,
+      lifecycle: "committed",
+      proposalId: proposal.proposalId,
+      operationId: "legacy-commit",
+      proposal,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const migrated = migrateProjectAgentProposalReceipt(legacy);
+    expect(migrated).toMatchObject({ schemaVersion: 2, lifecycle: "committed", proposal });
+    expect(migrateProjectAgentProposalReceipt(legacy)).toEqual(migrated);
+    fs.writeFileSync(projectAgentProposalReceiptPath(projectRoot), JSON.stringify(legacy), "utf8");
+    const restored = createProjectAgentProposalReceiptService({ projectRoot, binding }).read();
+    expect(restored).toMatchObject({ lifecycle: "committed", proposal });
+    const persisted = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8"));
+    expect(persisted.schemaVersion).toBe(2);
+    expect(persisted.journalHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it.each([
+    ["bad-json", "{not-json", "invalid-json"],
+    ["truncated-jsonl", '{"schemaVersion":2}\n{"lifecycle":"preparing"', "truncated-jsonl"],
+  ])("quarantines %s with its reason code", (_name, contents, _reason) => {
+    const projectRoot = tempProject();
+    fs.writeFileSync(projectAgentProposalReceiptPath(projectRoot), contents, "utf8");
+    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toBeNull();
+    expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
+  });
+
+  it("quarantines a receipt bound to another project and leaves a second project readable", () => {
+    const firstRoot = tempProject();
+    const secondRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-receipt-second-"));
+    fs.mkdirSync(path.join(secondRoot, ".nomi"), { recursive: true });
+    const writer = createProjectAgentProposalReceiptService({ projectRoot: firstRoot, binding });
+    writer.write({ expectedRevision: 0, proposalId: proposal.proposalId, operationId: "prepare-a", lifecycle: "preparing", proposal });
+    fs.copyFileSync(projectAgentProposalReceiptPath(firstRoot), projectAgentProposalReceiptPath(secondRoot));
+    expect(createProjectAgentProposalReceiptService({ projectRoot: secondRoot, binding: otherBinding }).read()).toBeNull();
+    expect(createProjectAgentProposalReceiptService({ projectRoot: firstRoot, binding }).read()).toMatchObject({ proposalId: proposal.proposalId });
+    fs.rmSync(secondRoot, { recursive: true, force: true });
   });
 });
 

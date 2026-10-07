@@ -1,0 +1,25 @@
+{
+  "id": "REC-20261007-receipt-upgrade-quarantine",
+  "since": "2026-10-07",
+  "source": "升级复现 R-macopen：0.22.5 回执损坏后项目无法打开",
+  "category": "claims-and-outcomes",
+  "problem": "项目级 Agent 回执读失败时，项目打开流程把一份可隔离的持久化故障说成整个项目恢复失败，用户无法进入画布查看已有内容。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪"
+  ],
+  "useCases": [
+    "升级后打开曾由 Agent 改过画布的项目"
+  ],
+  "fullWalkJourneys": [
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "scratchpad/codex-R-macopen.md",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs",
+    "docs/fixes/2026-10-07-agent-proposal-receipt-read-recovery.root-cause.json"
+  ],
+  "completionCommits": []
+}
