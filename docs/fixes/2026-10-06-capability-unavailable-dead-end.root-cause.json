@@ -43,7 +43,7 @@
     }
   ],
   "invariants": [
-    "要模型才做得了的快捷动作，能力此刻没有时菜单项不灰、第二行说缺什么、点了去补（capabilityGuide），不派生、不花钱",
+    "要模型才做得了的快捷动作，能力此刻没有时菜单项不灰、第二行说缺什么、点了去补（capabilityGuide），不派生、不花钱；唯一例外是放大（用户 2026-10-07 拍板：没有放大模型时「高清」置灰、悬停说原因、不跳转），登记在 CAPABILITY_GUIDE_EXCEPTIONS，由矩阵测试锁住",
     "上游说模型不可用时，失败卡主按钮是「换成同能力里此刻可用的另一个」，只换不跑；没有另一个时退回打开下拉"
   ],
   "invariant_owner_layer": {
@@ -99,7 +99,7 @@
       "path": "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
       "entry_point": "quickActionGuides",
       "disposition": "enforced",
-      "evidence": "upscale / image-edit 两种缺能力都走 capabilityGuide；原来的 no-upscale-model / no-image-model 灰掉分支删除"
+      "evidence": "image-edit 缺能力走 capabilityGuide（no-image-model 灰掉分支删除）；upscale 是用户 2026-10-07 拍板的例外：没有放大模型时置灰 + 悬停原因，no-upscale-model 灰掉分支保留，不跳转"
     },
     {
       "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
