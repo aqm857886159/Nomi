@@ -1,0 +1,13 @@
+$ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_GET_USE_PROXY=true node node_modules/electron/install.js
+Error: ENOENT: no such file or directory, mkdir '<home>/.cache/electron'
+    at async attempt (.../@electron/get/dist/Cache.js:44:21)
+    at async Cache.putFileInCache (.../@electron/get/dist/Cache.js:96:16)
+
+$ XDG_CACHE_HOME=<repo>/.cache ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_GET_USE_PROXY=true node node_modules/electron/install.js
+[command exited 0; stdout/stderr empty]
+
+$ node_modules/electron/dist/electron --version
+v43.4.1
+
+$ node scripts/check-electron-install.mjs
+✅ Electron 安装身份一致：declared=43.4.1 · package=43.4.1 · dist=43.4.1 · runtime=43.4.1
