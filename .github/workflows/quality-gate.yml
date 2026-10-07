@@ -164,7 +164,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium for browser integration tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       - name: Unit and agent runtime tests (full lane)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:system:unit
@@ -204,7 +205,8 @@ jobs:
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       # 七步一律 continue-on-error + 末尾汇总（2026-09-18）。此前它们是串行 fail-fast：
       # 第一条走查红了，后面六条根本不跑，于是**每轮 CI 只能学到一件事**——
       # PR #804 连着三轮，每轮红的都是另一条不同的走查，三轮 ≈ 两小时只为收集三条信息。
