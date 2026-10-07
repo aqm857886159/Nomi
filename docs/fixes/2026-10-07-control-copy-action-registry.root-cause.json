@@ -1,0 +1,119 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-control-copy-action-registry",
+  "problem_type": "控件文案动作词典把纯告知与决策确认归为同一动作",
+  "symptom": "check:controls 将 VendorFieldLossNotice 的“知道了”判成“确认”的第二种说法；英文首次询问卡与 ComfyUI 地址保存行在窄宽度下缺少可重复的完整性断言。",
+  "direct_cause": "docs/GLOSSARY.md 只登记了“确认”及其替代说法，没有独立的纯告知动作类；窄宽度布局只有样张，没有浏览器几何回归。",
+  "class_root": "动作词登记没有表达语义边界，且关键英文决策栏没有共享的几何不变量测试。",
+  "affected_population": [
+    "所有使用 runtime.design.gotIt 的纯告知按钮",
+    "所有使用 common.confirm 的真正决策确认按钮",
+    "英文窄卡中的 DecisionBar 主动作"
+  ],
+  "scope_paths": [
+    "docs/GLOSSARY.md",
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+  ],
+  "entry_points": [
+    "check:controls 读取 docs/GLOSSARY.md 的动作词表并扫描 JSX 控件",
+    "设计实验室 agent-panel-v4 的 v4-consent-first-ask 状态执行窄宽度几何断言"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi 设计系统动作词与真实组件布局的内部契约；不由第三方运行时决定。",
+  "invariants": [
+    "纯告知按钮使用 runtime.design.gotIt（Got it），不属于确认动作的替代说法",
+    "确认动作使用 common.confirm（Confirm），不会被纯告知词典覆盖",
+    "窄卡中主动动作完整可见，并位于决策栏最后一行最右侧"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/control-contract-copy.mjs",
+      "symbol": "loadActionVocabulary"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/control-contract-copy.mjs",
+      "symbol": "scanControlCopy"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "词典读取与 JSX 扫描是门岗中职责不同的两个入口，必须分别保留；本修复在共享词典边界收口。"
+  },
+  "generality_proof": "所有 check:controls 文案判定都经 loadActionVocabulary 读取同一份 GLOSSARY 动作词表，所有登记的 JSX 控件都经 scanControlCopy 扫描；把纯告知动作从确认替代词中移出后，同类按钮不会因组件或供应商不同再次误报。几何断言直接运行真实 agent-panel-v4 组件，覆盖英文首次询问卡的共享 DecisionBar。",
+  "shared_boundaries": [
+    {
+      "path": "docs/GLOSSARY.md",
+      "symbol": "动作词表",
+      "responsibility": "定义确认与纯告知的互斥动作语义。"
+    },
+    {
+      "path": "tests/ux/design-lab-agent-panel-v4.walk.mjs",
+      "symbol": "assertState",
+      "responsibility": "在真实浏览器窄宽度下验证主动作未裁切且位于最右。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/VendorFieldLossNotice.tsx",
+      "entry_point": "VendorFieldLossNotice",
+      "disposition": "enforced",
+      "evidence": "按钮使用 runtime.design.gotIt，词典现将其登记为独立纯告知动作。"
+    },
+    {
+      "path": "src/design/confirmDialog.tsx",
+      "entry_point": "ConfirmDialogHost alert default",
+      "disposition": "enforced",
+      "evidence": "alert 默认使用 runtime.design.gotIt，confirm 默认使用 runtime.design.confirm，两个路径已由同一词典语义分开。"
+    },
+    {
+      "path": "src/ui/onboarding/ComfyuiLocalCard.tsx",
+      "entry_point": "DecisionBar address save",
+      "disposition": "enforced",
+      "evidence": "保存地址使用具体动作 saveAddress，不是确认同义词；其共享 DecisionBar 几何由同一组件约束。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "动作词典被全仓复用；任何新增纯告知文案都可能再次被误判为确认，任何共享 DecisionBar 的英文窄卡都可能再次出现折行或裁切。",
+    "same_class_scan": [
+      "rg runtime.design.gotIt/common.confirm src/ui src/design src/workbench",
+      "rg saveAddress/I'm in/ComfyUI src/i18n/locales src/ui",
+      "check:controls 重新扫描全仓 JSX 控件"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/control-contract-copy.mjs",
+    "invariant": "动作词表按语义登记，纯告知与确认互不作为替代说法。",
+    "failure_mode": "新增第二种说法时 check:controls 失败并指出词典动作类。",
+    "exception_policy": "none",
+    "strategy": "把语义边界放在门岗唯一读取的 GLOSSARY 词典，并用真实浏览器几何断言守住共享 DecisionBar 的布局不变量。",
+    "artifacts": [
+      "docs/GLOSSARY.md",
+      "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/design-lab-agent-panel-v4.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [],
+    "rationale": "确认动作中的“知道了”旧词典归类已删除；没有并行词典或兼容回退。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "问题由内部词典与布局契约决定，不受第三方依赖版本影响。",
+    "exit_criteria": []
+  },
+  "migration": "无需迁移持久化数据；动作词典是源码文档，下一次 check:controls 直接读取新分类。",
+  "residual_risks": [
+    "ComfyUI 地址保存行的完整英文应用路径仍需在真实 Electron 设置页走查；本次几何断言覆盖其共享 DecisionBar 组件与英文决策栏形态。"
+  ]
+}
