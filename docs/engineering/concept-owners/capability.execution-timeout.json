@@ -1,0 +1,23 @@
+{
+  "name": "一次能力执行能等多久（读 / 写预算的唯一主人是动词声明）",
+  "subject": "capability.execution-timeout",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "symbol": "declaredTimeout"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "declaredTimeout"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0002）：执行器缺省超时从 MODEL_TOOL_READ/WRITE_TIMEOUT_MS_VALUE 派生，删掉 15 秒的第二份定义；构造参数 timeoutMs 只给测试缩短。"
+}

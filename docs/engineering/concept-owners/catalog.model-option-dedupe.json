@@ -1,0 +1,29 @@
+{
+  "name": "模型下拉里同一个模型收成一条",
+  "subject": "catalog.model-option-dedupe",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/config/modelIdentity.ts",
+    "symbol": "dedupeModelOptions"
+  },
+  "write_api": [
+    {
+      "path": "src/config/modelIdentity.ts",
+      "symbol": "dedupeModelOptions"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/config/modelIdentity.channelMerge.test.ts",
+  "allowed_consumers": [
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/common/BulkModelPicker.tsx",
+    "src/workbench/settings/ModelBoxOrderSection.tsx",
+    "src/devlab/designLab/vendorOrder/vendorOrderLabKit.tsx"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #926（同上合同）：按 canonical 身份把目录行收成下拉里的一条并收集全部供应商；默认走哪家由同文件的 sortModelProviders 决定，它的前两级就是「供应商落家」的 compareVendorLanding，与执行侧同一把尺。"
+}

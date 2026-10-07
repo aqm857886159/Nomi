@@ -1,0 +1,27 @@
+{
+  "name": "主清单与备份清单是不是同一个项目的同一代",
+  "subject": "identity.manifest-completeness",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/workspaceManifest.ts",
+    "symbol": "sameCompleteIdentity"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "symbol": "sameCompleteIdentity"
+    }
+  ],
+  "forbidden_derivations": [],
+  "identity_fields": [
+    "immutableProjectUuid",
+    "projectGeneration"
+  ],
+  "allowed_consumers": [],
+  "since": "2026-09-18",
+  "notes": "从 scripts/identity-compare-baseline.json 迁来（2026-09-29 并入）。比的是「主清单与备份清单是不是同一个项目的同一代」，两边都还没有 projectId（清单本身就是 projectId 的来源，此时读的是磁盘原始 JSON）。刻意只用盘上那两个不可变量做一致性校验，属于清单完整性检查，不是运行期的项目身份比对。"
+}

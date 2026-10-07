@@ -1,0 +1,77 @@
+{
+  "name": "制作 Run 为什么停下（停下原因）",
+  "subject": "production.run-stop-reason",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunLifecycle.ts",
+    "symbol": "applyRunStatus"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunLifecycle.ts",
+      "symbol": "applyRunStatus"
+    },
+    {
+      "path": "electron/shared/productionRunStop.ts",
+      "symbol": "runStopReason"
+    },
+    {
+      "path": "electron/shared/productionRunStop.ts",
+      "symbol": "parseRunStopReason"
+    },
+    {
+      "path": "electron/shared/productionRunStop.ts",
+      "symbol": "isStoppedRunStatus"
+    },
+    {
+      "path": "electron/shared/productionRunStop.ts",
+      "symbol": "normalizeLegacyStopReason"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "BudgetExhaustedError",
+      "kind": "definition",
+      "why": "Run 级预算停批（2026-10-01 删）：授权按镜批之后它只会停下用户亲手批过的镜，界面再说「预算已用完 · 提额续拍」——今天根本没有价格。停下原因里没有预算。"
+    },
+    {
+      "symbol": "prepareProductionGenerationContinuationAuthorization",
+      "kind": "definition",
+      "why": "续额度（提额续拍）那条路随 Run 级预算停一起删了（2026-10-01）：「继续」只有一条路，run.control resume。"
+    },
+    {
+      "symbol": "HALT_ERROR_CODES",
+      "kind": "definition",
+      "why": "从 job 的 errorCode / Run 的 needs_attention 反推「预算停下」——那天根本没有价格，界面却说「预算已用完 · 提额续拍」（2026-09-29 删掉）。停下原因只读 run.stop。"
+    },
+    {
+      "symbol": "STOPPED_RUNS",
+      "kind": "definition",
+      "why": "「停着的状态」手抄一份（认领判据以前的写法）；只许 isStoppedRunStatus。"
+    },
+    {
+      "symbol": "runIsStopped",
+      "kind": "definition",
+      "why": "画布小标自己判「停没停」的旧助手；只许 runStopReason / isStoppedRunStatus。"
+    }
+  ],
+  "parity_test": "electron/productionRun/productionRunStopReason.e2e.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionRunLifecycle.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/batchScheduleDerivation.ts",
+    "electron/productionRun/productionRunProjections.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/shared/decideShotClaim.ts",
+    "electron/capabilityCore/appIntegrationProductionActions.ts",
+    "electron/agentLane/laneDesktopTasks.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "2026-09-29 用户实见：Agent 付费卡确认 → 定妆照出图 → 检查点放行后视频镜派不出去 → Run 进 needs_attention → 画布说「预算已用完 · 提额续拍」，点进去额度全是 0（合同 docs/fixes/2026-09-29-production-flow-stop-reason-and-lifecycle.root-cause.json）。原因从来没被记下，界面只好从状态反推。现在「为什么停」是停下那一刻的事实：停它的一方在 run.status 命令的 payload.reason 里说（预算 / 失败 / 用户暂停 / 用户取消 / 重启后核对），applyRunStatus 落成 run.stop；新停下不说原因即拒绝写入；停着之间的挪动沿用原来记下的；离开停着的状态即清掉。读口只有 runStopReason：画布小标（deriveProductionShotState）、续拍入口（appIntegrationProductionActions）、Agent 读 Run（projection 的 stopReason → mcpToolResults）、Agent 任务列表（laneDesktopTasks）都读它。上一版停下时没记的读作 unknown，绝不猜成预算。渲染层 IPC 的 run.status 白名单不透传 reason，所以渲染层写不出一次「停下」——停只能经 run.control（暂停 / 取消），原因在那里写。 2026-10-01 付费卡①：停下原因里删掉了「预算」（Run 级预算停批与续额度那条路一起删了，授权按镜批之后它只会停下用户批过的镜），加了 consent_expired（批过的镜离用户最后一次点头超过同意窗口还没发出去、没人续——画布说「这镜还没开拍，需要你再确认一次」并给「继续」，判据归 production.dispatch-consent）。上一版盘上记成 budget 的 Run 读盘时由 normalizeLegacyStopReason 当作没记原因，读出来是中性的「已停」（unknown），绝不再说成预算用完。"
+}

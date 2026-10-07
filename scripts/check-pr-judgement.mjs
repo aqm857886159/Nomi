@@ -2,7 +2,7 @@
 // 门岗（PR 正文判据族，CI 与 push 前都跑）：按功能分类决定测试路由 + 规则与门岗的改动范围。
 // 判据全在 scripts/pr-judgement-lib.mjs，合并前扫描（scripts/merge-preflight.mjs）调同一份；这里只负责取数：
 //   · PR 正文：scripts/lib/prBody.mjs 的唯一取法（pull_request 事件里必查、取不到 = 红；本地没有 PR 就跳过）；
-//   · 改动文件 / 状态 / package.json 被删行 / 逃逸账本被删条目：对 merge-base(HEAD, origin/main) 做 git diff；
+//   · 改动文件 / 状态 / package.json 被删行 / 逃逸账本被删条目（条目文件被删）：对 merge-base(HEAD, origin/main) 做 git diff；
 //   · PR 创建时间（决定路由规则是否已生效）：gh pr view；取不到按已生效处理（fail-closed）。
 //
 // 用法：
@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { ESCAPE_LEDGER_FILE } from './escape-ledger-lib.mjs'
+import { escapeIdOfPath } from './escape-ledger-lib.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { addedLinesByFile, evaluatePrJudgement, loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
 
@@ -27,10 +27,6 @@ function resolveBase() {
     try { git(['rev-parse', '--verify', `${explicit}^{commit}`]); return explicit } catch { /* 往下找 */ }
   }
   try { return git(['merge-base', 'HEAD', 'origin/main']).trim() } catch { return null }
-}
-
-function ledgerIds(text) {
-  try { return (JSON.parse(text).entries ?? []).map((entry) => entry.id) } catch { return null }
 }
 
 function prCreatedAt() {
@@ -71,16 +67,9 @@ function main() {
   if (files.some((file) => file.path === 'package.json')) {
     packageRemovedLines = git(['diff', '-U0', base, 'HEAD', '--', 'package.json']).split('\n').filter((line) => line.startsWith('-') && !line.startsWith('---')).map((line) => line.slice(1))
   }
-  let ledgerRemovedIds = []
-  if (files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
-    let baseText = ''
-    let headText = ''
-    try { baseText = git(['show', `${base}:${ESCAPE_LEDGER_FILE}`]) } catch { baseText = '' }
-    try { headText = git(['show', `HEAD:${ESCAPE_LEDGER_FILE}`]) } catch { headText = '' }
-    const before = ledgerIds(baseText) ?? []
-    const after = new Set(ledgerIds(headText) ?? [])
-    ledgerRemovedIds = before.filter((id) => !after.has(id))
-  }
+  // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有（name-status 的 D）。文件名就是 id，
+  // 文件名和内容里的 id 对不上由 check:escape-ledger 报红，所以这里按文件名认 id 不会被改名绕过。
+  const ledgerRemovedIds = files.filter((file) => file.status === 'D').map((file) => escapeIdOfPath(file.path)).filter(Boolean)
   const result = evaluatePrJudgement({ body: pr.body, files, addedByFile, packageRemovedLines, ledgerRemovedIds, createdAt: prCreatedAt() })
   const categories = result.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)

@@ -1,0 +1,32 @@
+{
+  "id": "FB-20261006-qa2-remove-background-stuck",
+  "since": "2026-10-06",
+  "source": "用户 10-06 第 2 条「抠图功能没法使用」",
+  "category": "interaction-semantics",
+  "problem": "首次抠图从外站下 56MB，没有卡住超时、进度按资源来回跳、识别段原地不动；亮色下白卡上看不出透明——点了像没反应或一直转圈",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "真 App（dev / 生产构建 / 打包版）点浮条抠图：三次都成功但 90–140 秒，进度 35%→100%→35% 来回跳",
+    "改后：只从自有镜像拉，总进度单调；镜像挂住 62 秒后报「下载卡住了」、按钮恢复",
+    "根因合同 docs/fixes/2026-10-06-remove-background-download.root-cause.json"
+  ],
+  "completionCommits": [
+    "23945d9b5"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-remove-background-download.root-cause.json",
+  "fixedInPr": 1051,
+  "classCheck": {
+    "kind": "iron-law",
+    "ref": "⑫",
+    "file": "tests/ux/full-walk/catalog.mjs"
+  }
+}

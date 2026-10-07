@@ -1,0 +1,43 @@
+{
+  "name": "渲染层失败证据（进主进程日志的那一行）",
+  "subject": "diagnostics.renderer-failure-log",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/desktop/rendererLog.ts",
+    "symbol": "forwardToMainLog"
+  },
+  "write_api": [
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "forwardToMainLog"
+    },
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "logRendererError"
+    },
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "logRendererWarn"
+    },
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "logRendererCrash"
+    },
+    {
+      "path": "src/desktop/rendererLog.ts",
+      "symbol": "installRendererErrorCapture"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/logging/rendererLog.ts",
+    "electron/diagnostics/diagnosticsBundle.ts",
+    "electron/feedback/feedbackIpc.ts"
+  ],
+  "since": "2026-09-24",
+  "notes": "渲染层唯一调 bridge.log.report 的地方；所有失败处经 logRendererError / logRendererWarn / logRendererCrash，没人接住的异常经 installRendererErrorCapture，走同一个出口。src/** 里 console.error/warn 被 eslint no-console 硬零挡住。报文校验、限流、脱敏只在主进程 electron/logging/rendererLog.ts 做一次（复用 redact.ts），渲染层不许另写一份脱敏或自己决定落不落盘。"
+}

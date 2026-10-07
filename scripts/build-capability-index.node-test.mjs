@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
 import { buildCapabilityIndex, DEFAULT_MAX_BYTES, loadRegistries, neighbourhoodOf } from './build-capability-index.mjs'
+import { CONCEPT_OWNERS_DIR } from './concept-registry-lib.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -110,7 +111,8 @@ describe('laneContextFit 场景：登记决定看不看得见', () => {
 describe('不入库、不另起真相源', () => {
   test('仓库里没有被提交的清单产物', () => {
     const tracked = gitPaths(['ls-files'], { cwd: root, maxBuffer: 64 * 1024 * 1024 })
-    const offenders = tracked.filter((file) => /capability-index.*\.(json|md|txt)$/i.test(file))
+    // 概念登记一个概念一个文件（文件名 = subject）：登记「已有能力清单」这个概念的那个文件不是清单产物
+    const offenders = tracked.filter((file) => /capability-index.*\.(json|md|txt)$/i.test(file) && !file.startsWith(`${CONCEPT_OWNERS_DIR}/`))
     assert.deepEqual(offenders, [])
   })
 })

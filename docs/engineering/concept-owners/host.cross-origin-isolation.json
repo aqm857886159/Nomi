@@ -1,0 +1,26 @@
+{
+  "name": "宿主跨源隔离头",
+  "subject": "host.cross-origin-isolation",
+  "lifecycle": "host",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/crossOriginIsolation.ts",
+    "symbol": "CROSS_ORIGIN_ISOLATION_HEADERS"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/crossOriginIsolation.ts",
+      "symbol": "CROSS_ORIGIN_ISOLATION_HEADERS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/contentSecurityPolicy.ts",
+    "vite.config.ts"
+  ],
+  "since": "2026-09-25",
+  "notes": "COOP / COEP 的名字与模式（credentialless）只在这里定义，主进程与开发服务器都展开它；不许再写字面量（require-corp 曾让 Mac 版第三方示例媒体整片被拦）。合同 docs/fixes/2026-09-25-third-party-media-coep.root-cause.json。"
+}

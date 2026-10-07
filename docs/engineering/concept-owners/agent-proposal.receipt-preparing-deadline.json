@@ -1,0 +1,27 @@
+{
+  "name": "写入回执「准备中」的时限与终态",
+  "subject": "agent-proposal.receipt-preparing-deadline",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "symbol": "createProjectAgentProposalReceiptService"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "createProjectAgentProposalReceiptService"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/projectAgentReceiptResolver.ts"
+  ],
+  "since": "2026-10-01",
+  "notes": "回执停在 preparing 的最长时间由回执自己的主人定（PROJECT_AGENT_PREPARING_DEADLINE_MS = 写工具预算 + 收尾余量），任何一扇门（read/write/transition/clear）第一次碰到过期的 preparing 就把它落到终态 undone。这是兜底，不是修复：写入被明确拒绝时由调用方当场收场（见 capability.surface-write-outcome）。"
+}

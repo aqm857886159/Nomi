@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { loadConceptRegistry } from './concept-registry-lib.mjs'
 import { writeGithubOutput } from './select-quality-gate-profile.mjs'
 import { classifyValidationPolicy, CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_FIXTURES } from './validation-policy.mjs'
 
@@ -490,8 +491,8 @@ test('generationCanvas 的每个子目录都必须明确归档：产出画布显
   }
 })
 
-test('画布显示相关概念在 concept-owners.json 里的 owner 与写口，改了都必须 full 画布验收（清单对着概念表，不靠人记）', () => {
-  const registry = JSON.parse(fs.readFileSync(new URL('../docs/engineering/concept-owners.json', import.meta.url), 'utf8'))
+test('画布显示相关概念在概念登记（docs/engineering/concept-owners/）里的 owner 与写口，改了都必须 full 画布验收（清单对着概念表，不靠人记）', () => {
+  const registry = loadConceptRegistry(fileURLToPath(new URL('..', import.meta.url)))
   const displaySubjects = new Set([
     'production.shot-phase',
     'production.shot-generation-ownership',

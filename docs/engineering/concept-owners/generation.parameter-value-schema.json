@@ -1,0 +1,25 @@
+{
+  "name": "生成参数值能是什么",
+  "subject": "generation.parameter-value-schema",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "symbol": "generationJsonValueSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "generationJsonValueSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/ai/v4/spendCardDraft.ts"
+  ],
+  "since": "2026-09-26",
+  "notes": "真付费 T5：Agent 视频卡「全部」档点生成没反应——卡的改稿把没有值的控件写成 undefined，IPC 原样带过去，宿主只认 JSON 值。现在卡的改稿契约直接复用宿主这份 schema（类型层 GenerationJsonValue），不许再各写一份 z.record(z.unknown())（合同 docs/fixes/2026-09-26-spend-card-patch-json-values.root-cause.json）。"
+}

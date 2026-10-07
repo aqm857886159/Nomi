@@ -1,0 +1,42 @@
+{
+  "name": "一次运行发给了哪家的哪个模型（失败点名与健康记账的身份）",
+  "subject": "generation.dispatched-attempt",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "symbol": "dispatchedAttempt"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "dispatchedAttempt"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeRecoveryNotice.ts",
+      "symbol": "failedAttemptOf"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeRecoveryNotice.ts",
+      "symbol": "failureDescribesCurrentSelection"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "nodeModelIdentity",
+      "kind": "definition",
+      "why": "「失败那一刻读节点现在选着谁」当失败的身份——运行期间用户换了家，失败就记到没失败过的那家头上（模型健康记账与切家提示都栽过）；失败的身份只许来自运行记录上的 attempt"
+    }
+  ],
+  "parity_test": "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/nodeModelHealth.ts",
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "合同 docs/fixes/2026-09-29-failure-belongs-to-the-dispatched-attempt.root-cause.json：runGenerationNode 在运行开始时用同一对选择器（selectedVendor / selectedModelKey，与 buildCatalogTaskRequest 同读）把「发给谁」写进运行记录（GenerationNodeRunRecord.attempt，随项目落盘）；之后失败提示点名的是它、模型健康记账记到的也是它，不再读「失败时节点碰巧选着谁」。没有这一栏的运行记录（旧项目；multiShotCanvasLanding 为制作流程投影的记录）读不出是谁失败的——不点名、不出切家提示，节点错误卡照旧把原因说清。"
+}

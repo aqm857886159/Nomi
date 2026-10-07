@@ -1,0 +1,36 @@
+{
+  "name": "TipTap 编辑器的唯一入口",
+  "subject": "editor.tiptap-entry",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/common/useNomiRichTextEditor.ts",
+    "symbol": "useNomiTiptapEditor"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/common/useNomiRichTextEditor.ts",
+      "symbol": "useNomiTiptapEditor"
+    },
+    {
+      "path": "src/workbench/common/useNomiRichTextEditor.ts",
+      "symbol": "useNomiRichTextEditor"
+    },
+    {
+      "path": "src/workbench/assets/PromptEditor.tsx",
+      "symbol": "PromptEditor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx",
+    "src/workbench/creation/storyboard/shotRow/PromptSkeletonSegments.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+  ],
+  "since": "2026-09-28",
+  "notes": "PR #910（合同 docs/fixes/2026-09-28-react19-tiptap-selection.root-cause.json）：升 React 19 后画布提示词框选区错乱。每个 TipTap 面都经 useNomiTiptapEditor 拿编辑器，React 19 的生命周期策略钉在这一处；一个挂载期只有一个 EditorView 拥有 DOM 选区。eslint no-restricted-imports 拒绝别处直接 import useEditor，守门走查 tests/ux/canvas-shortcuts.walk.mjs。"
+}
