@@ -117,6 +117,14 @@ export function checkIndependentAcceptance(body) {
  * contracts: [{ file, detected_by }]，来自本 PR 新增 / 改动的 docs/fixes/*.root-cause.json；
  * transitions: 本 PR 变成 fixed 的账本条目 id；body 里提到的账本条目 id 没转换只给提示。
  */
+/** pulls/<n>/files 的分页输出（每行 filename\tstatus\tadditions\tdeletions）→ 文件表。纯函数、可测。 */
+export function parsePullFileRows(text) {
+  return String(text || '').split('\n').filter(Boolean).map((row) => {
+    const [path, status, additions, deletions] = row.split('\t')
+    return { path, status, additions: Number(additions) || 0, deletions: Number(deletions) || 0 }
+  })
+}
+
 export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = []) {
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
   const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
@@ -188,7 +196,19 @@ export function main(argv = process.argv.slice(2)) {
     return 2
   }
   const view = JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,files,headRefOid,baseRefName,headRepository,headRepositoryOwner,createdAt'], { repo }))
-  const files = (view.files ?? []).map((file) => ({ path: file.path, status: file.additions > 0 && file.deletions === 0 ? 'A' : 'M' }))
+  const slug = repo ?? (view.headRepositoryOwner?.login && view.headRepository?.name ? `${view.headRepositoryOwner.login}/${view.headRepository.name}` : null)
+  const baseSlug = repo ?? slug
+  // 文件表只取一次、要全量：gh pr view 的 files 最多 100 个、超过静默截断（#1048 有 129 个文件，账本排在
+  // 100 名之后，于是误报「用户发现的问题没转 fixed」）。走分页的 pulls/<n>/files，取不到才退回 view.files。
+  let apiRows = null
+  if (baseSlug) {
+    try {
+      apiRows = parsePullFileRows(gh(['api', `repos/${baseSlug}/pulls/${prArg}/files`, '--paginate', '--jq', '.[] | [.filename, .status, .additions, .deletions] | @tsv']))
+    } catch { apiRows = null }
+  }
+  const files = apiRows
+    ? apiRows.map((row) => ({ path: row.path, status: row.status === 'added' ? 'A' : 'M' }))
+    : (view.files ?? []).map((file) => ({ path: file.path, status: file.additions > 0 && file.deletions === 0 ? 'A' : 'M' }))
   let diff = ''
   try {
     diff = gh(['pr', 'diff', prArg], { repo })
@@ -200,7 +220,6 @@ export function main(argv = process.argv.slice(2)) {
   const classification = classifyChange(files.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })), addedLines)
   const body = view.body ?? ''
 
-  const slug = repo ?? (view.headRepositoryOwner?.login && view.headRepository?.name ? `${view.headRepositoryOwner.login}/${view.headRepository.name}` : null)
   const contracts = []
   for (const file of files.filter((entry) => /^docs\/fixes\/.+\.root-cause\.json$/.test(entry.path))) {
     const text = slug ? ghApiFile(slug, file.path, view.headRefOid) : null
@@ -223,15 +242,11 @@ export function main(argv = process.argv.slice(2)) {
     ledger.removed = (base?.entries ?? []).map((entry) => entry.id).filter((id) => !headIds.has(id))
   }
 
-  // 规则与门岗的改动范围：要真实的文件状态（removed / modified），gh pr view 的 files 只给增删行数
-  let statusFiles = files.map((file) => ({ path: file.path, status: 'modified' }))
-  const baseSlug = repo ?? slug
-  if (baseSlug) {
-    try {
-      statusFiles = gh(['api', `repos/${baseSlug}/pulls/${prArg}/files`, '--paginate', '--jq', '.[] | [.filename, .status] | @tsv'])
-        .split('\n').filter(Boolean).map((row) => { const [path, status] = row.split('\t'); return { path, status } })
-    } catch { /* 取不到状态就按 modified 算：漏判整文件删除，但点名要求照旧 */ }
-  }
+  // 规则与门岗的改动范围：要真实的文件状态（removed / modified）；取不到分页表就按 modified 算
+  // （漏判整文件删除，但点名要求照旧）
+  const statusFiles = apiRows
+    ? apiRows.map((row) => ({ path: row.path, status: row.status }))
+    : files.map((file) => ({ path: file.path, status: 'modified' }))
   const packageBlock = diff.split(/^diff --git /m).find((block) => block.startsWith('a/package.json b/package.json')) ?? ''
   const packageRemovedLines = packageBlock.split('\n').filter((line) => line.startsWith('-') && !line.startsWith('---')).map((line) => line.slice(1))
 
