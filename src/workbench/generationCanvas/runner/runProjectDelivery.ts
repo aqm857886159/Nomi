@@ -104,7 +104,7 @@ export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string
     const node = canvas?.nodes.find((candidate) => candidate.id === nodeId)
     if (!record || !canvas || !node) return false
     const nodes = canvas.nodes.map((candidate) => candidate.id === nodeId ? { ...candidate, ...nodeRunOutcomePatch(candidate, outcome) } : candidate)
-    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, record.name, target)
+    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, target)
     return false
   })
 }

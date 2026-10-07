@@ -225,10 +225,14 @@ export async function readLocalProjectAsync(projectId: string): Promise<Workbenc
   return readLocalProject(id)
 }
 
+/**
+ * 保存项目「内容」（画布 / 时间轴 / 文档等渲染层拥有的字段）。刻意没有 name 参数：项目名只有改名那一个主人
+ * （renameLocalProject），自动保存等内容写口拿「打开那一刻的旧名」写回去会把别的路径改的名字盖掉。
+ * 名字沿用盘上现有的；桌面端连 name 字段都不发，让主进程在清单锁内取盘上现值。
+ */
 export async function saveLocalProject(
   projectId: string,
   state: WorkbenchProjectPayload,
-  name?: string,
   expectedBinding?: ProjectBinding,
 ): Promise<WorkbenchProjectRecordV1> {
   const id = String(projectId || '').trim()
@@ -248,7 +252,7 @@ export async function saveLocalProject(
   const cover = deriveProjectCoverFromNodes(state.generationCanvas.nodes)
   const summary: WorkbenchProjectSummary = {
     id,
-    name: typeof name === 'string' && name.trim() ? name.trim() : existing?.name || i18n.t('runtime.project.untitled'),
+    name: existing?.name || i18n.t('runtime.project.untitled'),
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     revision: existingRevision + 1,
@@ -265,7 +269,8 @@ export async function saveLocalProject(
   }
   assertWorkbenchProjectMediaUrlsPersistable(record)
   if (desktop) {
-    return await desktop.projects.save(id, { ...record, ...(expectedBinding ? { expectedBinding } : {}) }) as WorkbenchProjectRecordV1
+    const { name: _ownedByRename, ...contentRecord } = record
+    return await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }) as WorkbenchProjectRecordV1
   }
   if (expectedBinding) {
     const current = workbenchProjectRecordSchema.safeParse(existingRecord)

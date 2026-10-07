@@ -59,7 +59,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
       return record as never
     })
     const dispose = subscribeWorkbenchProjectPersistence({
-      projectId: 'project-a', projectName: 'Project A', isHydrating: () => false, canPersist: () => true,
+      projectId: 'project-a', isHydrating: () => false, canPersist: () => true,
       saveProject, onSaved: vi.fn(),
     })
     deps.workbenchListener?.()
@@ -79,7 +79,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     let canPersist = true
     const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
     const dispose = subscribeWorkbenchProjectPersistence({
-      projectId: 'project-a', projectName: 'Project A',
+      projectId: 'project-a',
       isHydrating: () => hydrating,
       canPersist: () => canPersist,
       saveProject, onSaved: vi.fn(),
@@ -105,7 +105,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     deps.workbenchState.activeDocumentId = 'doc-a'
     const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
     const dispose = subscribeWorkbenchProjectPersistence({
-      projectId: 'project-a', projectName: 'Project A',
+      projectId: 'project-a',
       isHydrating: () => false,
       canPersist: () => true,
       saveProject, onSaved: vi.fn(),
@@ -124,7 +124,7 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
     let ownerReady = false
     const dispose = subscribeWorkbenchProjectPersistence({
-      projectId: 'project-a', projectName: 'Project A', isHydrating: () => false,
+      projectId: 'project-a', isHydrating: () => false,
       canPersist: () => { ownerReady = true; return ownerReady },
       saveProject: vi.fn(async () => ({ id: 'project-a', version: 1, revision: 1 }) as never), onSaved: vi.fn(),
     })
