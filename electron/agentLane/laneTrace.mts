@@ -9,6 +9,7 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/contex
 import { redactDeep } from '../events/redact.js';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import { LANE_APPROVAL_NOTE_TYPE } from '../shared/agentLane/laneContracts.js';
+import { laneToolFailureOf } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_DIR_MODE, LANE_FILE_MODE } from './laneFileSystem.mjs';
 
@@ -25,10 +26,12 @@ export interface LaneTraceTurn {
   spanName: string; prompt: string; response: string;
   models: { provider: string; model: string }[];
   tokens: { input: number; cacheRead: number; cacheWrite: number; output: number };
+  /** 每一次模型请求各自的输入（input + cacheRead），顺序即请求顺序。 */
+  requestInputs: number[];
   estimatedCostUsd: number | null; pricing: NomiPricingBasis | null;
   durationMs: number | null; status: string;
   tools: { toolCallId: string; name: string; spanName: string; arguments: unknown;
-    resultSummary: string | null; durationMs: number | null; failed: boolean | null }[];
+    resultSummary: string | null; durationMs: number | null; failed: boolean | null; failureCode: string | null }[];
   approvals: unknown[]; errors: string[];
 }
 
@@ -60,7 +63,7 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
     if (entry.type === 'message' && (entry.message.role === 'user' || isLaneInputMessage(entry.message))) {
       turns.set(entry.id, { schemaVersion: 1, sessionId, turnId: entry.id, timestamp: entry.timestamp,
         spanName: 'invoke_agent Nomi', prompt: draftInputFromMessage(entry.message).text, response: '', models: [],
-        tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, estimatedCostUsd: null, pricing: null,
+        tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, requestInputs: [], estimatedCostUsd: null, pricing: null,
         durationMs: null, status: 'incomplete', tools: [], approvals: [], errors: [] });
     }
     const turn = owner(entry.id);
@@ -71,23 +74,26 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
         turn.models.push({ provider: message.provider, model: message.model });
       }
       for (const key of Object.keys(turn.tokens) as (keyof LaneTraceTurn['tokens'])[]) turn.tokens[key] += message.usage[key];
+      turn.requestInputs.push(message.usage.input + message.usage.cacheRead);
       rawCosts.set(turn.turnId, (rawCosts.get(turn.turnId) ?? 0) + message.usage.cost.total);
       turn.response += message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('');
       if (message.errorMessage) turn.errors.push(message.errorMessage);
       for (const part of message.content) if (part.type === 'toolCall') {
         turn.tools.push({ toolCallId: part.id, name: part.name, spanName: `execute_tool ${part.name}`,
-          arguments: part.arguments, resultSummary: null, durationMs: null, failed: null });
+          arguments: part.arguments, resultSummary: null, durationMs: null, failed: null, failureCode: null });
       }
     }
     if ((entry.type === 'compaction' || entry.type === 'branch_summary') && entry.usage) {
       for (const key of Object.keys(turn.tokens) as (keyof LaneTraceTurn['tokens'])[]) turn.tokens[key] += entry.usage[key];
+      turn.requestInputs.push(entry.usage.input + entry.usage.cacheRead);
       rawCosts.set(turn.turnId, (rawCosts.get(turn.turnId) ?? 0) + entry.usage.cost.total);
     }
     if (entry.type === 'message' && entry.message.role === 'toolResult') {
       const message = entry.message;
       const tool = turn.tools.find(item => item.toolCallId === message.toolCallId);
       const text = message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n');
-      if (tool) { tool.resultSummary = text.slice(0, 2000); tool.failed = message.isError; }
+      if (tool) { tool.resultSummary = text.slice(0, 2000); tool.failed = message.isError;
+        tool.failureCode = message.isError ? laneToolFailureOf(message.details)?.code ?? null : null; }
       if (message.isError) turn.errors.push(text.slice(0, 2000));
     }
     if (entry.type === 'custom' && entry.customType === LANE_APPROVAL_NOTE_TYPE) turn.approvals.push(entry.data);
