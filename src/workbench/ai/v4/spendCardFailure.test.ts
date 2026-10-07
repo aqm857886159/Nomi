@@ -36,4 +36,13 @@ describe('付费卡上一下没做成时说哪一句', () => {
     // 旧宿主不带 `failure` 也一样（只认得 message）。
     expect(spendActionFailureCopy({ ok: false, code: 'failed', message: 'generation_not_started' }, false)).toBe('agentPanelV4.spendActionNotStartedLocked')
   })
+
+  it("宿主在本项目素材里认不出卡上的某张参考图（别的项目的 / 已经不在了）：点名是参考图、说拿掉它或用 @ 重选，不说「改一下再按」", () => {
+    for (const reason of ["generation_reference_asset_unsupported", "generation_reference_asset_unavailable"]) {
+      const outcome = { ok: false, code: "failed" as const, message: "generation_not_started", reason, failure: "internal_error" as const }
+      expect(spendActionFailureCopy(outcome, true)).toBe("agentPanelV4.spendActionReferenceNotInProject")
+      // 卡改不了：拿不掉它，照旧说改不了、该怎么办。
+      expect(spendActionFailureCopy(outcome, false)).toBe("agentPanelV4.spendActionNotStartedLocked")
+    }
+  })
 })

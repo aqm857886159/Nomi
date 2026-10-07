@@ -1,0 +1,20 @@
+{
+  "id": "PAID-CARD-REF-04-landing-slot",
+  "since": "2026-10-07",
+  "source": "付费卡验收第 26 行（#947 走查，2026-10-02）",
+  "category": "reference-integrity",
+  "problem": "在卡上带参考图生成之后，画布节点的参考槽是空的，只剩提示词里的 @ 芯片",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "未修：回写规划 planReferenceProjection 已备好（src/workbench/generationCanvas/model/referenceInputSlots.test.ts：只补不删、画布上的图补真边），接进落地链等画布写边界重构（方案 A，落地链文件冻结中）",
+    "复现：electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts 那条链上，确认之后落地报文这一镜不带参考"
+  ],
+  "completionCommits": []
+}
