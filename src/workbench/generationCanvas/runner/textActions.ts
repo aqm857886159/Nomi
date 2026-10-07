@@ -4,7 +4,7 @@ import { markdownToTiptapContent } from '../../creation/markdownToTiptap'
 import { runCatalogGenerationTask, type CatalogTaskRunOptions } from './catalogTaskActions'
 import { nodeRunOutcomePatch } from '../store/nodeRunOutcome'
 import { deliverRunOutcome, whenRunTargetLoaded } from './runProjectDelivery'
-import { docToPlainText, getTextGenMode, type TextGenMode } from './textGenerationDocument'
+import { docToPlainText, getTextGenMode, textDocumentDigest, type TextGenMode } from './textGenerationDocument'
 export { docToPlainText, getTextGenMode, type TextGenMode } from './textGenerationDocument'
 
 export type GenerateTextOptions = CatalogTaskRunOptions
@@ -116,7 +116,26 @@ function writeStreamingDraft(nodeId: string, contentJson: TiptapDocJson | null, 
   if (node) store.updateNode(nodeId, nodeRunOutcomePatch(node, { kind: 'content', contentJson, runId }), { persist: false })
 }
 
-/** 改写：打标记，交给 TextDocumentNode 的 effect 用 editor.replaceSelection 落地（persist:false）。 */
+/**
+ * 改写落地第二步：节点编辑器把选区换成这次结果之后（TextDocumentNode 的 effect），把换好的整篇作为这次付费结果的
+ * 落地写进节点——与续写 / 重写同一个落地写口（landNodeContent），撤销 / 重做不撤掉它。
+ * replacedDoc 为空 = 结果没有可替换的文本，只收掉待替换标记。
+ */
+export function landSelectionRewrite(nodeId: string, resultId: string, replacedDoc: TiptapDocJson | null): void {
+  const store = useGenerationCanvasStore.getState()
+  const current = store.nodes.find((candidate) => candidate.id === nodeId)
+  if (!current?.result || current.result.id !== resultId) return
+  if (replacedDoc) store.landNodeContent(nodeId, replacedDoc)
+  const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+  if (!latest) return
+  const appliedRun = latest.runs?.find((run) => run.resultId === resultId)
+  const runs = latest.runs?.map((run) => run.id === appliedRun?.id
+    ? { ...run, textDocumentDigest: textDocumentDigest(latest.contentJson) } : run)
+  // 收掉待替换标记 + 记下正文摘要是系统记账，不是用户编辑：不打撤销点（否则落地后第一下 Ctrl+Z 撤的是它，看不出变化）。
+  store.updateNode(nodeId, { runs, meta: { ...(latest.meta || {}), textPendingSelectionApply: null } }, { history: false })
+}
+
+/** 改写：打标记，交给 TextDocumentNode 的 effect 用 editor.replaceSelection 替换选区，再经 landSelectionRewrite 落地。 */
 function markPendingSelectionApply(nodeId: string, resultId: string): void {
   const state = useGenerationCanvasStore.getState()
   const current = state.nodes.find((candidate) => candidate.id === nodeId)

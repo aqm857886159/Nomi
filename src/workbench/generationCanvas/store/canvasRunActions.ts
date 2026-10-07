@@ -1,5 +1,5 @@
 import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { nodeRunOutcomePatch } from './nodeRunOutcome'
+import { nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
 import { createRunId } from './canvasIds'
 import { bumpPersistRevision } from './canvasGuards'
 import { getRunDurationSeconds, mergeRunRecord } from './runRecordHelpers'
@@ -10,10 +10,11 @@ import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 // S5-a3 run 域记账 = 终态收敛:setNodeProgress(每 1.5s 轮询 tick)不入日志(§4.3 瞬态),
 // 终态 action 发后态整节点(canvas.node.run-updated)——内部时间戳逻辑再复杂,后态都构造性精确;
 // 重放在终态收敛(重放到中途的日志不会出僵尸 running,这正是重启后想要的)。
+// 生成结果 / 文本定稿落地时事件另带 `landed`(结局原样):撤销/重做靠它把落地重新叠回,不许撤掉(钱已花)。
 export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set, get) => {
-  const emitRunUpdated = (nodeId: string) => {
+  const emitRunUpdated = (nodeId: string, landed?: LandedNodeOutcome) => {
     const node = get().nodes.find((candidate) => candidate.id === nodeId)
-    if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node } }], { source: 'runtime' })
+    if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node, ...(landed ? { landed } : {}) } }], { source: 'runtime' })
   }
   return {
   setNodeStatus: (nodeId, status, error) => {
@@ -87,13 +88,27 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     emitRunUpdated(nodeId)
   },
   addNodeResult: (nodeId, result, mediaDimensions) => {
+    const outcome: LandedNodeOutcome = { kind: 'result', result, ...(mediaDimensions ? { mediaDimensions } : {}) }
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
-      Object.assign(node, nodeRunOutcomePatch(node, { kind: 'result', result, mediaDimensions }))
+      Object.assign(node, nodeRunOutcomePatch(node, outcome))
       bumpPersistRevision(state)
     })
-    emitRunUpdated(nodeId)
+    emitRunUpdated(nodeId, outcome)
+  },
+  landNodeContent: (nodeId, contentJson, runId) => {
+    const existing = get().nodes.find((candidate) => candidate.id === nodeId)
+    if (!existing) return
+    // 运行已换（用户又点了一次）时这里抛 generation_run_changed——旧运行的定稿不许盖新运行。
+    const patch = nodeRunOutcomePatch(existing, { kind: 'content', contentJson, runId })
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, patch)
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId, { kind: 'content', contentJson })
   },
   }
 }
