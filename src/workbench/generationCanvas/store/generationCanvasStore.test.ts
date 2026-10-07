@@ -1064,6 +1064,24 @@ describe('deleting a frame-covering selection removes the frame too (2026-09-22�
   })
 })
 
+describe('deleteNode empty-group characterization (direction-check baseline)', () => {
+  it('currently keeps an empty group after deleting its last node', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot({
+      nodes: [node('last', 'shots', 'g')],
+      edges: [],
+      groups: [group('g', 'shots', ['last'])],
+      selectedNodeIds: [],
+    })
+
+    store.deleteNode('last')
+
+    expect(useGenerationCanvasStore.getState().nodes).toEqual([])
+    expect(useGenerationCanvasStore.getState().groups).toHaveLength(1)
+    expect(useGenerationCanvasStore.getState().groups[0]).toMatchObject({ id: 'g', nodeIds: [] })
+  })
+})
+
 describe('setNodeResultStackOpen · 往哪边铺在点开那一刻定下', () => {
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('n', 'shots')], edges: [], groups: [], selectedNodeIds: [] })
