@@ -26,9 +26,27 @@ const ONLY_SCREEN = process.env.SCREEN || ''
 const DIRECTOR_SCREENS = new Set(['director-3dbox', 'director-refine'])
 const VIEWPORT = { width: 1440, height: 1000 }
 
-const targets = LAB_SCREEN_IDS
+/**
+ * 量不了的格（写明为什么；格子改名 / 删掉时这里没跟上就当场红，豁免不许过期留着）。
+ * 只收「这一格在 headless 软渲染下到不了就绪」这一种，不收「量出来压住了」——那是要修的。
+ */
+const UNMEASURABLE = Object.freeze({
+  // 3D 精修：脚本步骤（选中侍卫的片段）要等 WebGL 场景与片段轨道加载，CI 的软渲染与慢机器上 60 秒内到不了就绪
+  // （CI #1051 与本机各超时一次）；这一格画的是导演台片段轨道，没有浮条下拉。
+  'director-refine/d3a-clip-zh': '3D 精修脚本步骤在 headless 软渲染下到不了就绪；格内没有浮条下拉',
+})
+
+const allTargets = LAB_SCREEN_IDS
   .filter((screen) => !ONLY_SCREEN || screen === ONLY_SCREEN)
   .flatMap((screen) => readLabStates(screen).filter((state) => state.capture === 'viewport').map((state) => ({ screen, state })))
+const known = new Set(LAB_SCREEN_IDS.flatMap((screen) => readLabStates(screen).map((state) => `${screen}/${state.id}`)))
+const staleExemptions = Object.keys(UNMEASURABLE).filter((key) => !known.has(key))
+if (staleExemptions.length) throw new Error(`弹层几何普查的豁免指向不存在的格（改名或删了，把豁免一起删掉）：${staleExemptions.join('、')}`)
+const targets = allTargets.filter(({ screen, state }) => !UNMEASURABLE[`${screen}/${state.id}`])
+for (const { screen, state } of allTargets) {
+  const why = UNMEASURABLE[`${screen}/${state.id}`]
+  if (why) console.log(`  ↷ ${screen}/${state.id}：不量（${why}）`)
+}
 if (!targets.length) throw new Error(`没有要量的格（SCREEN=${ONLY_SCREEN || '全部'}）`)
 
 const tailwind = spawnSync(process.execPath, ['scripts/build-tailwind.mjs'], { cwd: REPO_ROOT, stdio: 'inherit' })
