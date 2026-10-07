@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const roundsArg = process.argv.indexOf('--rounds')
 const rounds = roundsArg > 0 ? Number(process.argv[roundsArg + 1]) : 30
@@ -63,7 +64,7 @@ async function launch() {
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
   })
   const page = run.win
-  page.setDefaultTimeout(20_000)
+  page.setDefaultTimeout(stationTimeout({ operations: 2 }))
   page.on('console', (message) => { if (message.type() === 'error' && CRASH.test(message.text())) crashedThisRound = true })
   page.on('pageerror', (error) => { if (CRASH.test(String(error?.message ?? error))) crashedThisRound = true })
   // offscreen hook 之外再补一刀：App 自己定位窗口之后也必须留在屏幕外。

@@ -47,7 +47,7 @@
   ],
   "invariants": [
     "浮条测量环一次测量即算出不动点：同一帧再量一次结果原样不变，至多三次提交（净缩放从 DOM 量出：变换后宽 / 布局宽）",
-    "按屏幕几何摆放的画布浮层（节点浮条、生成浮框画布宿主）的反向缩放只读 React Flow 的 transform（useCanvasLiveZoom），不读 workbenchStore.categoryViewports",
+    "按屏幕几何摆放的画布浮层只读 React Flow 的 transform，不读 workbenchStore.categoryViewports：生成浮框（只随缩放变）订 useCanvasLiveZoom；节点浮条（量屏幕夹进舞台，平移也会改它的屏幕位置）订整个视口 useViewport，平移 / 缩放后都会重量",
     "浮条渲染出错只降级这一条浮条（记崩溃日志），不冒到「React Flow 画布」chunk 边界"
   ],
   "doors": [
@@ -99,7 +99,7 @@
     {
       "kind": "read",
       "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
-      "symbol": "useCanvasLiveZoom"
+      "symbol": "useViewport"
     },
     {
       "kind": "read",
@@ -162,7 +162,7 @@
     {
       "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
       "symbol": "FloatingToolbarShell",
-      "responsibility": "六条浮条的唯一外壳：缩放只订 useCanvasLiveZoom，测量只经 nextFloatingToolbarPlacement，外包 FloatingToolbarBoundary 只降级浮条"
+      "responsibility": "六条浮条的唯一外壳：订 React Flow 整个视口（useViewport，平移 + 缩放都推重量），测量只经 nextFloatingToolbarPlacement，外包 FloatingToolbarBoundary 只降级浮条"
     }
   ],
   "same_class_entry_points": [
@@ -241,7 +241,7 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
-    "invariant": "浮条测量环一次测量即不动点（净缩放从 DOM 量出），至多三次提交收敛；外壳缩放只读 React Flow 的 transform",
+    "invariant": "浮条测量环一次测量即不动点（净缩放从 DOM 量出），至多三次提交收敛；外壳订 React Flow 整个视口，平移 / 缩放后必重量",
     "failure_mode": "量不到尺寸（宽 0）就不量、不 setState；万一浮条里还有别的渲染错，FloatingToolbarBoundary 只把这一条浮条换成空并写崩溃日志",
     "exception_policy": "none",
     "strategy": "在六条浮条共用的外壳与测量函数上一次修掉：换算不再依赖缩放假设（闭式不动点），缩放来源收成 React Flow 的 transform 一个；浮条外包最小错误边界",
@@ -274,7 +274,8 @@
   "migration": "无持久化数据变化：浮条位移 / 宽度是组件内瞬态；workbenchStore.categoryViewports 的写入方与含义（记住的视角）不变。设计实验室里渲染浮条 / 生成浮框的四个格子改经 LabCanvasViewport 给出 React Flow store",
   "residual_risks": [
     "NodeLabelRow / NodeGeneratingOverlay / NodeImportingOverlay 仍按记忆视角判 0.4 档位：缩放手势中途档位晚一拍（只影响藏标签 / 等待动效开关，不影响几何、不会崩）；若要统一，需把等待动效改成订门槛布尔并同步改 canvas-perf 的 data-process-zoom 判据",
-    "真机回归循环用的是单图片节点项目、中文、1280×933 内容区；英文长文案或更多浮条按钮只改变浮条宽度，已由类级测试的净缩放 × 贴边矩阵覆盖，没有逐一真机跑"
+    "真机回归循环用的是单图片节点项目、中文、1280×933 内容区；英文长文案或更多浮条按钮只改变浮条宽度，已由类级测试的净缩放 × 贴边矩阵覆盖，没有逐一真机跑",
+    "2026-10-07 CI 画布验收抓到一次回归：首版外壳只订缩放标量，平移后不重渲、不重量（旧代码靠订 categoryViewports 整个对象、平移结束换新对象碰巧重渲），节点贴左边时浮条停在旧位置；已改订 useViewport。这一条只能用源码检查（NodeFloatingToolbar.test.ts）+ 真机画布验收（tests/ux/canvas-card-stack.walk.mjs 的 expectToolbarInsideStageEverywhere）钉住，纯函数测不到「有没有重渲」"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",

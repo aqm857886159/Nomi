@@ -65,10 +65,19 @@ describe('FloatingToolbarShell 的锁', () => {
 describe('按屏幕几何摆放的画布浮层只读 React Flow 的缩放', () => {
   const read = (file: string) => fs.readFileSync(path.join(__dirname, file), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
   for (const file of ['NodeFloatingToolbar.tsx', 'NodeGenerationComposer.tsx']) {
-    it(`${file} 用 useCanvasLiveZoom，不读记住的视角`, () => {
-      const source = read(file)
-      expect(source).toContain('useCanvasLiveZoom()')
-      expect(source).not.toContain('categoryViewports')
+    it(`${file} 不读记住的视角`, () => {
+      expect(read(file)).not.toContain('categoryViewports')
     })
   }
+  it('生成浮框只随缩放变（钉在节点下沿、不量屏幕）：订 useCanvasLiveZoom', () => {
+    expect(read('NodeGenerationComposer.tsx')).toContain('useCanvasLiveZoom()')
+  })
+  // 浮条要「量屏幕 → 夹进舞台」，屏幕位置随平移也会变：只订缩放的话平移完不重渲、不重量，
+  // 贴边时停在旧位置被裁（2026-10-07 CI 画布验收 canvas-card-stack「节点贴左边」box.x=38 < 舞台 60）。
+  // 这一条只能钉在源码上（SSR 走 getServerSnapshot 渲不出平移）；真机判据是那条画布验收。
+  it('节点浮条订整个视口（平移 + 缩放），平移完会重量', () => {
+    const source = read('NodeFloatingToolbar.tsx')
+    expect(source).toContain('useViewport()')
+    expect(source).not.toContain('useCanvasLiveZoom()')
+  })
 })

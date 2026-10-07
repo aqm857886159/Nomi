@@ -4,15 +4,19 @@
 
 根因合同：[`docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json`](../fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json)
 
-## 设计卡（★ 5 格）
+## 设计卡（9 格全填：路径规则推出「新界面」）
 
 | 格 | 结论 | 证据 |
 |---|---|---|
 | ★1 用户怎么用 | 当我打开一个项目、看到画面摆好就点一张图，我想看到那张图的浮条（多机位九宫格 / 抠图 / 改图 / 宫格…）以便马上动手——而不是整块画布变成「React Flow 画布 加载失败」、只能重载窗口。真实任务：① 单张图片项目打开即选（摆全貌放大到 2.1 倍）；② 同一个 App 里回项目库再打开、再选（修前每次必崩）；③ 中英两轨各一次。不做：不改浮条长相、按钮、位置规则（仍是上下左右夹在可见画布里、太窄折行）；不改「记住的视角」何时写入。主指标：崩溃率（修前同帧模式 15/30，修后 0/30）；护栏：浮条像素不变（实验室 33/35 张与 main 逐像素一致，余 2 张是 main 基线截到懒加载骨架）。 | `node tests/ux/canvas-toolbar-open-select.walk.mjs --instant --rounds 30` |
-| ★2 谁说了算 | 「画布缩放」唯一真相 = React Flow 的 transform（`reactFlow/canvasViewportScale.ts` 的 `useCanvasLiveZoom`，09-11 迁移审计定的）；`workbenchStore.categoryViewports` 是「记住的视角」，owner 是 workbenchStore，本职读者是画布视口同步 / 打开时摆全貌 / 新节点落点。浮条位置的唯一 owner = `floatingToolbarClamp.ts` 的 `nextFloatingToolbarPlacement`。碰两个概念：画布缩放、浮条位置。 | `node scripts/door-map.mjs categoryViewports`（10 → 8）、`useCanvasLiveZoom`（2 → 4）、`FloatingToolbarShell`（6 个渲染点同一外壳） |
-| ★3 一致与复用 | 缩放复用现成的 `useCanvasLiveZoom`（ClipNode、边标签已在用），不新写订阅；错误边界用 React 自带的类组件边界、写进浮条外壳（六条浮条一个家），不另起通用组件；实验室给样张喂缩放用 `@xyflow/react` 的 `ReactFlowProvider` + `useStoreApi`，不仿造 store。 | `git grep useCanvasLiveZoom`；`git grep FloatingToolbarBoundary` |
+| ★2 谁说了算 | 「画布缩放」唯一真相 = React Flow 的 transform（09-11 迁移审计定的；生成浮框经 `canvasViewportScale.ts` 的 `useCanvasLiveZoom` 只订缩放，节点浮条经框架自带 `useViewport` 订平移 + 缩放——它量屏幕，平移也会改它的位置）；`workbenchStore.categoryViewports` 是「记住的视角」，owner 是 workbenchStore，本职读者是画布视口同步 / 打开时摆全貌 / 新节点落点。浮条位置的唯一 owner = `floatingToolbarClamp.ts` 的 `nextFloatingToolbarPlacement`。碰两个概念：画布缩放、浮条位置。 | `node scripts/door-map.mjs categoryViewports`（10 → 8）、`useCanvasLiveZoom`（2 → 3）+ `useViewport`（浮条外壳 1 扇）、`FloatingToolbarShell`（6 个渲染点同一外壳） |
+| ★3 一致与复用 | 视口复用现成的读法：生成浮框用 `useCanvasLiveZoom`（ClipNode、边标签已在用），节点浮条用框架自带 `useViewport`（BatchPlanOverlay 已在用；canvasViewportScale.ts 头注释就写着「连平移一起跟的消费者用 useViewport」），不新写订阅；错误边界用 React 自带的类组件边界、写进浮条外壳（六条浮条一个家），不另起通用组件；实验室给样张喂缩放用 `@xyflow/react` 的 `ReactFlowProvider` + `useStoreApi`，不仿造 store。 | `git grep useCanvasLiveZoom`；`git grep FloatingToolbarBoundary` |
 | ★4 全状态 | 未选中：无浮条。选中：浮条在节点上方、整条在可见画布里（贴边就挪、太窄折行）。打开项目摆全貌那一刻选中：同上（修前：整块画布崩）。浮条内部渲染出错：只这一条浮条消失、写渲染层崩溃日志，画布与节点照常；取消选中再选中即重试。拖动中：浮条隐身（不变）。没有新文案（i18n 不动）。 | 截图 `tests/ux/shots/canvas-toolbar-open-select/open-select-toolbar-{zh-CN,en}.png`；`--inject-toolbar-error` 3/3 画布存活、浮条降级 |
-| ★9 验收与回滚 | 验收：另一条线跑 `pnpm run build` 后 `node tests/ux/canvas-toolbar-open-select.walk.mjs --instant --rounds 30`（必须 0/30、退出码 0）、缺省模式 30 轮、`--inject-toolbar-error --rounds 3`；`npx vitest run src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts`（把 `floatingToolbarShift` 里的 `k` 改回 1 必红）。逃逸账本：`CRASH-20261006-toolbar-update-loop`，类检查 = 净缩放 × 贴边矩阵。回滚：revert 本 PR 的提交（无数据迁移）。 | `## 独立验收`（留给验收线） |
+| 5 中途表 | 不适用：浮条位置是组件内瞬态，不花钱、不长跑；用户停 / 关窗 / 断网 / 重启 / 连点都只是浮条卸载或重挂，重挂时从 0 重新量（至多三次提交）。 | 人工 |
+| 6 外部数据与失败 | 外部来源只有 React Flow 的视口（transform、onMoveEnd 推迟写入）；偏差：我们的记忆视角滞后，所以浮条不读它、改订 `useViewport`；失败时：测量出错由浮条错误边界降级成「这条浮条不显示」并写崩溃日志。 | [xyflow eventhandler](https://github.com/xyflow/xyflow/blob/main/packages/system/src/xypanzoom/eventhandler.ts)、[Viewport](https://github.com/xyflow/xyflow/blob/main/packages/react/src/container/Viewport/index.tsx) |
+| 7 性能预算 | 浮条只在单选时挂一条；平移 / 缩放每帧多一次该浮条的渲染 + 两次 getBoundingClientRect，子按钮引用不变不重渲；生成浮框只有定位锚那一层随缩放重渲。没有真规模数字（只记录，不阻断）。 | 人工 |
+| 8 真实条件 | Windows ✓（本机生产构建）；英文界面 ✓（`open-select-toolbar-en.png`）；最小窗口：unverified（真 App 启动器把内容区钉在 1280×933，窄舞台只在实验室 `qa-09-narrow` 验过，与 main 逐像素一致）；真规模：unverified；干净安装 ✓（隔离资料目录）；真付费：不适用；键盘全程：unverified。 | 截图（亲眼看过） |
+| ★9 验收与回滚 | 验收：另一条线跑 `pnpm run build` 后 `node tests/ux/canvas-toolbar-open-select.walk.mjs --instant --rounds 30`（必须 0/30、退出码 0）、缺省模式 30 轮、`--inject-toolbar-error --rounds 3`；`npx vitest run src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts`（把 `floatingToolbarShift` 里的 `k` 改回 1 必红）；CI 画布验收 `tests/ux/canvas-card-stack.walk.mjs` 的「浮条在贴左 / 贴右 / 窄窗口都整条在舞台里」（浮条改回只订缩放必红）。逃逸账本：`CRASH-20261006-toolbar-update-loop`，类检查 = 净缩放 × 贴边矩阵。回滚：revert 本 PR 的提交（无数据迁移）。 | `## 独立验收`（留给验收线） |
 
 ### 功能分类
 - [x] 新界面 / 改交互（路径规则推出：改了 `src/**/*.tsx`、新增 `src/devlab/designLab/labCanvasViewport.tsx`；实际是 bug 修复、界面像素不变，没有新样张可拍板）
@@ -76,5 +80,5 @@ React Flow 官方 `NodeToolbar`（`@xyflow/react`）能放节点浮层，但它�
 ## 特征测试清单
 
 - `src/workbench/generationCanvas/nodes/floatingToolbarClamp.test.ts`：原 6 条现状（净缩放 1）保留，新增报告现场 + 净缩放 11 档 × 贴边 5 种的收敛矩阵；把 `k` 改回 1 → 现场用例抛「Maximum update depth exceeded」、矩阵大面积红（已做过变异）。
-- `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.test.ts`：锁的结构（不变），新增「浮条 / 生成浮框只读 `useCanvasLiveZoom`、不读 `categoryViewports`」源码检查。
+- `src/workbench/generationCanvas/nodes/NodeFloatingToolbar.test.ts`：锁的结构（不变），新增「浮条 / 生成浮框不读 `categoryViewports`；生成浮框订 `useCanvasLiveZoom`；节点浮条订 `useViewport`（平移后会重量）」源码检查——改回只订缩放即红（10-07 CI 画布验收抓到的回归，已做变异）。
 - `tests/ux/canvas-toolbar-open-select.walk.mjs`：生产构建真机循环（缺省 / `--instant` / `--inject-toolbar-error` / `--trace`）。

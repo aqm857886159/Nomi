@@ -70,6 +70,12 @@ describe('nextFloatingToolbarPlacement：一次测量就是不动点（React #18
   })
 
   // 类级矩阵：净缩放清单（视口滞后的各种比值、节点弹入动画的 0.82、实验室外框）× 贴边位置清单。
+  it('CI 现场（2026-10-07 canvas-card-stack 节点贴左边）：舞台 [60, 858]，浮条自然左缘 38、宽 644——一次算出右移 30', () => {
+    const result = simulate({ k: 1, natural: { left: 38, top: 202 }, layout: { width: 644, height: 42 }, stageRect: { left: 60, right: 858, top: 88, bottom: 932 } })
+    expect(result.commits).toBeLessThanOrEqual(3)
+    expect(result.screen.left).toBeCloseTo(68, 0)
+  })
+
   const scales = [0.1, 0.5, 0.82, 1, 1.5, 1.9, 2, 2.1, 3, 10, 15]
   const placements = [
     { name: '贴左', natural: { left: -300, top: 300 } },

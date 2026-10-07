@@ -5,7 +5,7 @@ import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeLockBadge } from './NodeLockBadge'
 import { nextFloatingToolbarPlacement, type FloatingToolbarPlacement } from './floatingToolbarClamp'
-import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
+import { useViewport } from '@xyflow/react'
 import { logRendererCrash } from '../../../desktop/rendererLog'
 import { productionMetaOf } from '../model/productionMeta'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
@@ -62,7 +62,10 @@ function FloatingToolbarFrame({ ariaLabel, lockNodeId, children }: { ariaLabel: 
   // 反向缩放用的必须是**此刻贴在 DOM 上的那个缩放**——React Flow 的 transform（唯一真相，见 canvasViewportScale）。
   // 不许读 workbenchStore 里「记住的视角」：那份只在手势 / 动画结束时才写，打开项目摆全貌那一刻还停在 1，
   // 和屏幕上的 2.1 倍差出一倍多，下面的测量环就是被它带进无限更新的（React #185，整块画布崩）。
-  const canvasZoom = useCanvasLiveZoom()
+  // 订的是**整个视口**（平移 + 缩放，框架自带 useViewport 按 x/y/zoom 浅比较），不只是缩放：浮条的屏幕位置随平移变，
+  // 平移完不重渲就不重量，贴边时会停在旧位置被舞台裁掉（2026-10-07 CI 画布验收「节点贴左边」抓到；
+  // 旧代码靠订 categoryViewports 整个对象、平移结束换新对象才顺带重渲，是碰巧的）。浮条只在单选时挂一条，每帧多量一次可以接受。
+  const { zoom: canvasZoom } = useViewport()
   const shellRef = React.useRef<HTMLDivElement>(null)
   // 浮条整条留在可见画布里（上下左右夹住，让开右侧面板 / 顶栏）；舞台太窄就限宽折行。
   // 位移与宽度只由测量环决定，规则与收敛性归 nextFloatingToolbarPlacement（一次测量就是不动点）。
@@ -76,7 +79,8 @@ function FloatingToolbarFrame({ ariaLabel, lockNodeId, children }: { ariaLabel: 
     observer.observe(stage)
     return () => observer.disconnect()
   }, [])
-  // 刻意不写依赖：画布平移、缩放、节点落位、窗口缩放都会改浮条的屏幕位置，每次渲染后量一次最省心；
+  // 刻意不写依赖：画布平移、缩放、节点落位、窗口缩放都会改浮条的屏幕位置，每次渲染后量一次最省心
+  // （平移 / 缩放由上面的 useViewport 推渲染，舞台尺寸由 ResizeObserver 推，节点落位由节点自己重渲推）；
   // nextFloatingToolbarPlacement 返回 null 就是已收敛——同一帧至多三次提交。
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useLayoutEffect(() => {
