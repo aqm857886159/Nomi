@@ -159,6 +159,8 @@ export type GenerationCanvasNode = {
   history?: GenerationNodeResult[]
   /** Whether this node's result cards are currently laid out on the canvas. */
   resultStackOpen?: boolean
+  /** 铺开时往哪边铺：在用户点开那一刻按可见画布定下、随项目存，之后平移 / 重开都不再变（不然节点滚出屏再滚回来，宫格会换边）。 */
+  resultStackSide?: 'left' | 'right'
   /** 这个节点出过的最大版本号（删掉的也算）；新的一版 = 它 + 1，删了最新一版也不复用号。 */
   resultVersionMax?: number
   progress?: GenerationNodeProgress
@@ -215,8 +217,10 @@ export type NodeGroup = {
   name: string
   categoryId: CategoryId
   nodeIds: string[]
-  /** @deprecated Kept only for persisted-project compatibility; group chrome is design-system neutral. */
+  /** @deprecated 旧版自定义色（十六进制）。只为旧项目读盘兼容保留，不再进入渲染层——见 model/groupColor.ts。 */
   color?: string
+  /** 用户在组工具条里亲手选的颜色（token 名）。没有 = 默认中性灰；只上边框和标题圆点。 */
+  colorToken?: string
   /**
    * 框（Frame）的边界——**用户画出来的那个矩形**，2026-09-06 起是真相之一。
    * 画布渲染的框 = `union(frameBounds, 成员外接矩形 + padding)`：只长不缩，永不小于用户画的那个。

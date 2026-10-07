@@ -123,10 +123,9 @@ describe('model select structure — 选了模型就必须选得了供应商', (
   })
 
   it('批量选模型只有一份实现：所有批量调用点都走同一份 BulkModelPicker，不各写各的', () => {
-    // 画布两个批量入口（框选工具条 + 底部「生成全部」坞）实现共同住进 CanvasBulkModelSelect —
-    // 那份薄封装内部用 BulkModelPicker（PR #157：抽共享组件防两入口漂移）。分镜批量条直接用 BulkModelPicker。
-    const sharedCanvasPicker = 'src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx'
-    const bulkPickerImplementations = [sharedCanvasPicker, 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx']
+    // 画布上的批量选模型入口已删（批量只走组的「生成整组」，各节点用自己选好的模型）；
+    // 现在只剩分镜批量条这一处批量调用点，它直接用 BulkModelPicker。
+    const bulkPickerImplementations = ['src/workbench/creation/storyboard/StoryboardBulkBar.tsx']
     for (const relative of bulkPickerImplementations) {
       const source = readCode(relative)
       expect(source, `${relative} 应使用共享的 BulkModelPicker`).toContain('BulkModelPicker')
@@ -134,21 +133,9 @@ describe('model select structure — 选了模型就必须选得了供应商', (
       expect(source, `${relative} 不该再直接用 ${HOOK_NAME}`).not.toContain(HOOK_NAME)
     }
 
-    // 画布两个入口都必须复用共享组件、不许各自内联再实现一遍（否则又会漂移）。
-    const canvasBulkEntryPoints = [
-      'src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx',
-      'src/workbench/generationCanvas/components/CanvasBatchGenerateDock.tsx',
-    ]
-    for (const relative of canvasBulkEntryPoints) {
-      const source = readCode(relative)
-      expect(source, `${relative} 应复用共享的 CanvasBulkModelSelect`).toContain('CanvasBulkModelSelect')
-      expect(source, `${relative} 必须把完整同级组交给共享选择器，才能区分同类不同执行模式`).toContain(
-        'peerGroups=',
-      )
-      expect(source, `${relative} 不该再直接用 ${HOOK_NAME}`).not.toContain(HOOK_NAME)
-      expect(source, `${relative} 不该再自己内联 BulkModelPicker（要走共享组件）`).not.toContain(
-        "from '../../common/BulkModelPicker'",
-      )
+    // 画布上不许再长出批量选模型 / 批量底栏（用户 2026-10-06 拍板删除，P1 不留并行入口）。
+    for (const gone of ['CanvasBulkModelSelect', 'CanvasBatchGenerateDock', 'CanvasProductionControls']) {
+      expect(fs.existsSync(path.join(process.cwd(), `src/workbench/generationCanvas/components/${gone}.tsx`)), `${gone} 已删除`).toBe(false)
     }
   })
 
@@ -156,11 +143,5 @@ describe('model select structure — 选了模型就必须选得了供应商', (
     const picker = readCode('src/workbench/common/BulkModelPicker.tsx')
     expect(picker).toContain('resolveProviderByAddress')
     expect(picker).toContain('onPick(provider.option.value, provider.vendor)')
-
-    // 画布共享封装把 (value, vendor) 一起回抛给 onApplyModel（vendor 丢了 = 又锁不了家）。
-    const sharedCanvasPicker = readCode('src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx')
-    expect(sharedCanvasPicker).toContain(
-      'onApplyModel({ executionKind: group.executionKind, requiredMode: group.requiredMode, value, vendor',
-    )
   })
 })

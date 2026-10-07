@@ -22,7 +22,6 @@ export const FULL_CANVAS_SCENARIOS = [
   { id: 'node-context-menu', script: 'tests/ux/canvas-node-context-menu.walk.mjs' },
   { id: 'blank-context-menu', script: 'tests/ux/canvas-context-menu-click.walk.mjs' },
   { id: 'batch-production', script: 'tests/ux/canvas-batch-production.walk.mjs' },
-  { id: 'selection-toolbar', script: 'tests/ux/selection-toolbar-vendor.walk.mjs' },
   { id: 'group-baseline', script: 'tests/ux/group-baseline.walk.mjs' },
   { id: 'group-reference-direction', script: 'tests/ux/group-reference-direction.walk.mjs' },
   { id: 'canvas-landing', script: 'tests/ux/p4-s5-canvas-landing.e2e.mjs' },
@@ -31,6 +30,8 @@ export const FULL_CANVAS_SCENARIOS = [
   // 打开时适应一次：冷开 + 从项目库重开两条路（2026-09-26 重开那条曾不摆全貌）。
   { id: 'open-fit', script: 'tests/ux/canvas-open-fit.walk.mjs' },
 ]
+
+const VERSION_GRID_PERF_SCENARIOS = Object.freeze(['blank-pan', 'node-drag-image', 'wheel-zoom'])
 
 export const PERFORMANCE_CANVAS_SCENARIOS = [
   {
@@ -41,6 +42,16 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
     // 不会像 #763 那样撞上写死的 20 分钟被砍在半路。
     timeoutMs: canvasPerfGateTimeoutMs(CANVAS_PERF_GATE_SCENARIOS),
   },
+  // 同一个 M 档夹具、前 3 张图各 4 版且宫格铺开着（版本卡片，V-1054）：铺开的宫格压在画布上时，平移 / 拖节点 / 缩放
+  // 还在不在同一套预算里。预算、校准一字不动——只是多量一种画布上的样子。多选拖动不放进来：宫格按设计盖住邻居，
+  // 那条脚本会找不到能点的节点（量的是点不到，不是卡）。
+  {
+    id: 'medium-canvas-version-grids-performance',
+    script: 'tests/ux/canvas-performance-benchmark.e2e.mjs',
+    args: ['validation-gate-version-grids', '--scale', 'M', '--runs', '1', '--scenario', VERSION_GRID_PERF_SCENARIOS.join(',')],
+    env: { NOMI_CANVAS_PERF_VERSION_STACKS: '3' },
+    timeoutMs: canvasPerfGateTimeoutMs(VERSION_GRID_PERF_SCENARIOS),
+  },
 ]
 
 // CI 把 full 档拆成两个并行 runner 跑（quality-gate.yml 的 canvas-acceptance matrix）。
@@ -49,7 +60,7 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
 // 每个 shard 启动即 fail-closed 抛错（见 assertFullCanvasShardPartition），场景不可能被静默漏跑。
 export const FULL_CANVAS_SHARDS = Object.freeze([
   Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle', 'open-fit']),
-  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'selection-toolbar', 'canvas-landing']),
+  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'canvas-landing']),
 ])
 
 export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS, shards = FULL_CANVAS_SHARDS) {
@@ -129,7 +140,8 @@ export function runCanvasScenario(scenario, {
   const startedAt = Date.now()
   const child = spawnProcess(process.execPath, [scenario.script, ...(scenario.args || [])], {
     cwd,
-    env,
+    // 场景自带的环境变量（例：夹具开关）只加不改调用方的。
+    env: scenario.env ? { ...env, ...scenario.env } : env,
     encoding: 'utf8',
     stdio: 'pipe',
     maxBuffer: MAX_CANVAS_SCENARIO_LOG_BYTES,
