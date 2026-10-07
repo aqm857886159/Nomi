@@ -1,0 +1,48 @@
+
+[full-walk] ▶▶ pb06-failure-small-window--en--en
+2026-10-07T10:01:27.452Z pw:browser <launching> <repo>/node_modules/.pnpm/electron@43.4.1_supports-color@7.2.0/node_modules/electron/dist/electron --inspect=0 --remote-debugging-port=0 -r <tmp>/nomi-core-smoke-fw-pb06-failure-small-window-empty-m0Wg7I/register-local-storage.cjs -r <repo>/scripts/walkthrough-network-guard.cjs . --user-data-dir=<tmp>/nomi-core-smoke-fw-pb06-failure-small-window-empty-m0Wg7I/user-data --no-proxy-server --password-store=basic --no-sandbox --enable-unsafe-swiftshader
+2026-10-07T10:01:27.457Z pw:browser <launched> pid=238
+2026-10-07T10:01:27.509Z pw:browser [pid=238][err] [238:1007/030127.508334:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to open socket: Operation not permitted
+2026-10-07T10:01:27.517Z pw:browser [pid=238][err] Debugger listening on ws://127.0.0.1:35849/d97c5d43-59e3-4c27-9266-247652bc38b5
+2026-10-07T10:01:27.517Z pw:browser [pid=238][err] For help, see: https://nodejs.org/learn/getting-started/debugging
+2026-10-07T10:01:27.518Z pw:browser <ws connecting> ws://127.0.0.1:35849/d97c5d43-59e3-4c27-9266-247652bc38b5
+2026-10-07T10:01:27.524Z pw:browser <ws connected> ws://127.0.0.1:35849/d97c5d43-59e3-4c27-9266-247652bc38b5
+2026-10-07T10:01:27.525Z pw:browser [pid=238][err] Debugger attached.
+2026-10-07T10:01:27.937Z pw:browser [pid=238][err] [nomi:main] session-start version=0.23.0 electron=43.4.1 platform=linux-x64
+2026-10-07T10:01:27.940Z pw:browser [pid=238][err] [238:1007/030127.940373:ERROR:ui/ozone/platform/x11/ozone_platform_x11.cc:257] Missing X server or $DISPLAY
+2026-10-07T10:01:27.940Z pw:browser [pid=238][err] [238:1007/030127.940391:ERROR:ui/aura/env.cc:246] The platform failed to initialize.  Exiting.
+2026-10-07T10:01:27.945Z pw:browser <ws disconnected> ws://127.0.0.1:35849/d97c5d43-59e3-4c27-9266-247652bc38b5 code=1005 reason=
+2026-10-07T10:01:27.946Z pw:browser [pid=238][err] [1007/030127.946209:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:27] ptrace: Operation not permitted (1)
+2026-10-07T10:01:27.950Z pw:browser [pid=238] <kill>
+2026-10-07T10:01:27.950Z pw:browser [pid=238] <will force kill>
+2026-10-07T10:01:27.951Z pw:browser [pid=238] <process did exit: exitCode=null, signal=SIGTRAP>
+2026-10-07T10:01:27.951Z pw:browser [pid=238] starting temporary directories cleanup
+2026-10-07T10:01:27.952Z pw:browser [pid=238] finished temporary directories cleanup
+file://<repo>/tests/ux/_launchApp.mjs:414
+    throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
+          ^
+
+Error: 
+❌ Nomi 走查启动失败（core-smoke-fw-pb06-failure-small-window-empty）：Electron 起不来（electron.launch 失败/超时，60000ms）
+
+按可能性排查：
+  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，
+     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。
+  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。
+  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；
+     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。
+
+（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）
+
+原始错误：electron.launch: Process failed to launch!
+    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:414:11)
+    at async launchCoreSmoke (file://<repo>/tests/ux/core-smoke/fixture.mjs:330:16)
+    at async startPlaybook (file://<repo>/tests/ux/full-walk/launch.mjs:90:13)
+    at async file://<repo>/tests/ux/full-walk/playbooks/pb06-failure-small-window.walk.mjs:24:12
+
+Node.js v24.19.0
+
+[full-walk] 报告：tests/ux/full-walk/reports/20261007-0.23.0-520466c13.md
+
+full-walk：1 场 · 0 条违反 · 有剧本没走通
+exit=2
