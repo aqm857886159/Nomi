@@ -483,6 +483,32 @@
       "fixedInPr": 1029
     },
     {
+      "id": "FB-20261007-external-write-drops-landed-result",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：外部 agent（MCP）整张写回画布会盖掉读图之后落地的生成结果",
+      "category": "interaction-semantics",
+      "problem": "外部 agent 读画布之后、写回之前，节点上落了生成结果 / 文本定稿 / 开始生成，或用户新建了节点并出了图：外部写回整张覆盖，结果消失、文本回退、生成中变成空闲或可重新拉取、新节点被删（钱已花）；项目开着与后台 / 无窗口写盘两条路都会",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts：2 网关（渲染层 / 盘）× 4 外部写操作 × 3 落地 + 读图后新建并出图的节点，26 条在改前全红；electron/shared/canvas/externalCanvasWrite.test.ts 9 条（每个系统字段外部写入改不动 + 三方合并）",
+        "变异：渲染层 handler 不合并 9 红；盘上整张覆盖 13 红；节点系统字段不设防 8 红；applyExternalGraph 不取活运行态 4 红",
+        "设计卡 docs/plan/2026-10-07-external-write-keeps-landed.md"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts"
+      }
+    },
+    {
       "id": "LAW10-SILENT-DROP",
       "since": "2026-10-05",
       "source": "tests/experience-laws/intentShownEqualsDrafted.test.mjs（2026-10-05 首跑）",
