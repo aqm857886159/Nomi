@@ -504,7 +504,7 @@ export async function startCapabilityCore(
       const authorizeGeneration = authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration
       // P1 单轨化（2026-09-11）：这条 lane 不再注入 `confirmGenerationInNomi`（居中弹窗的入口），
       // 于是「agent 代发的付费确认弹居中卡」结构上不可能；真被走到会 fail-closed。面板那条走 appIntegrationSpendConfirm。
-      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService })
+      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService, draftLanding: canvasLanding.draftLandingOutcome })
       disposeResidentGenerationAdapter = residentGeneration.dispose
       // 付费确认卡的编排：租约与 resident 适配器共用同一个 `leaseFor`（不另起一份续期逻辑）。
       installPendingSpendActions(pendingSpendDependencies({
