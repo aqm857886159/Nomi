@@ -227,9 +227,9 @@ check('可落点时 aria 说清「连到哪、几个」', /连到/.test(pendingS
 // ④ 松手落到组上 → 组内每个成员各一根边
 const edgesBefore = await win.evaluate(() => document.querySelectorAll('.generation-canvas-v2__edge-path').length)
 await win.mouse.up()
-// 等到边数稳定在「+4」再读：只等「比原来多」会在第一根边出现时就读数（CI 满载时 10-07 读到 +1 误红，重跑即过）。
+// 等到边数稳定在「+4」再读（默认 poll 时限）：只等「比原来多」会在第一根边出现时就读数（CI 满载时 10-07 读到 +1 误红，重跑即过）。
 // 等不到也不抛，交给下面的 check 记下实得几根。
-await expect.poll(() => win.locator('.generation-canvas-v2__edge-path').count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(edgesBefore + 4).catch(() => {})
+await expect.poll(() => win.locator('.generation-canvas-v2__edge-path').count()).toBeGreaterThanOrEqual(edgesBefore + 4).catch(() => {})
 const edgesAfter = await win.locator('.generation-canvas-v2__edge-path').count()
 console.log(`  → 边数 ${edgesBefore} → ${edgesAfter}`)
 check('连到组后组内 4 个成员各得一根边', edgesAfter - edgesBefore === 4, `实得 ${edgesAfter - edgesBefore}`)
