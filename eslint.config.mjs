@@ -11,7 +11,8 @@ import prettier from 'eslint-config-prettier'
 
 const windowsPathSelectors = [
   {
-    selector: 'MemberExpression[object.type="NewExpression"][object.callee.name="URL"][property.name="pathname"]',
+    selector:
+      'MemberExpression[object.type="NewExpression"][object.callee.name="URL"][object.arguments.1.type="MemberExpression"][object.arguments.1.object.type="MetaProperty"][object.arguments.1.object.meta.name="import"][object.arguments.1.object.property.name="meta"][property.name="pathname"]',
     message: 'Use node:url fileURLToPath for filesystem paths; URL.pathname is not a Windows filesystem path.',
   },
 ]
