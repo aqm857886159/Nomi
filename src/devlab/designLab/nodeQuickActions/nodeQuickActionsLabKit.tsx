@@ -11,6 +11,7 @@
 // 打开下拉 / 悬停点阵都走**真实的点击与指针事件**（挂载后按一下触发钮），不给组件加「默认打开」的开关——
 // 那会是只有实验室用的第二条打开路径，而且证明不了真实那条打得开。
 import React, { type JSX } from 'react'
+import { LabCanvasViewport } from '../labCanvasViewport'
 import { useTranslation } from 'react-i18next'
 import { IconPlus } from '@tabler/icons-react'
 import '../../../workbench/generationCanvas/styles/generationCanvas.css'
@@ -101,7 +102,7 @@ function Stage({ width = QUICK_ACTIONS_CELL_WIDTH, height = QUICK_ACTIONS_CELL_H
       style={{ width, height }}
     >
       {/* 真画布的舞台类：点阵底色 + 浮条「左右夹住、太窄就折行」的测量都认它。 */}
-      <div className="generation-canvas-v2__stage group/canvas">{children}</div>
+      <div className="generation-canvas-v2__stage group/canvas"><LabCanvasViewport>{children}</LabCanvasViewport></div>
     </div>
   )
 }
