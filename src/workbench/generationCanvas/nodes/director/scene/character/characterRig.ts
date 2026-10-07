@@ -3,21 +3,22 @@
  *          ../../model/rigs（boneName / SemanticBone）、
  *          ../../model/ikChains（IK_TARGETS / IkTargetKey / IkHandleKey）、../../model/directorTypes（DirectorRig / Vec3）、../../model/vec3（DEG_TO_RAD / RAD_TO_DEG）、
  *          ../../model/lookAtSolve 的 DistributedAim
- * [OUTPUT]: 对外提供 BoneIndex / indexBones / findBoneByName / findSemanticBone / findSkinnedMesh / applyBoneRotationOffsets / applyLookAtOffsets / offsetFromBase /
+ * [OUTPUT]: 对外提供 BoneIndex / indexBones / findBoneByName / findSemanticBone / findSkinnedMesh / applyBoneRotationOffsets / multiplyCanonicalOffset / applyLookAtOffsets / headYawInCharacter / offsetFromBase /
  *           GROUND_FOOT_Y / solveTwoBoneIk / solveChestToward /
  *           IkChain / chainForHandle / solveCcd / poleRestPosition / rotateLimbPlaneToward / lowestSkinnedY / boneEulerDegrees / normalizeBoneKey
  * [POS]: director/scene/character 的 three 侧骨骼工具（零 React）：骨名解析（rig 语义 → 真实骨、mixamorig 冒号变体）、旋转偏移叠加、
  *        CCD IK、极向量（肘 / 膝朝向：把手静止位 = 中节向肢体平面外侧 distance 米，拖它 = 整条肢体绕 根→末端 轴转；动作快照的套用住 poseSnapshot.ts）。IK 自写而不用 three 的 CCDIKSolver：它要求靶点是骨架里的一根骨，
- *        X Bot 没有多余靶骨，运行时往 skeleton 加骨比 30 行 CCD 贵得多（R20：不在护城河上但标准算法极小，自写等价）。
+ *        人偶没有多余靶骨，运行时往 skeleton 加骨比 30 行 CCD 贵得多（R20：不在护城河上但标准算法极小，自写等价）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from 'three'
+import { boneLocalFromCanonical, canonicalLocalOf, canonicalWorldQuaternion, toBoneOffset, toCanonicalOffset } from './canonicalBoneFrame'
 import { mannequinBoneNameVariants } from './mannequinSkeleton'
 import type { DirectorRig, Vec3 } from '../../model/directorTypes'
 import { IK_TARGETS, type IkHandleKey, type IkTargetKey } from '../../model/ikChains'
 import type { DistributedAim } from '../../model/lookAtSolve'
 import { boneName, type SemanticBone } from '../../model/rigs'
-import { DEG_TO_RAD, RAD_TO_DEG } from '../../model/vec3'
+import { DEG_TO_RAD, lookAtAngles, RAD_TO_DEG } from '../../model/vec3'
 
 export type BoneIndex = Map<string, THREE.Bone>
 
@@ -45,7 +46,8 @@ export function findSemanticBone(index: BoneIndex, rig: DirectorRig, bone: Seman
 }
 
 // 骨骼在 root 局部空间的竖向范围（头顶端点 → 脚趾），用来定真实身高：不走蒙皮包围盒——它在首帧渲染前拿不到有效 boneMatrices，
-// 而 X Bot 的 hips 骨自带 1.809 倍 scale，几何盒会少算这一层（2026-09-02 量到假人 3.2m 栽过）
+// 而 Mixamo 导出的模型 hips 骨常自带缩放（旧 X Bot 是 1.809 倍），几何盒会少算这一层（2026-09-02 量到假人 3.2m 栽过）。
+// 只给用户上传的模型用：默认 UAL 人偶没有头顶末端骨，骨范围量矮，按 manifest 实高定（characterAsset.prepareCharacterModel）
 export function measureSkeletonExtent(root: THREE.Object3D): { minY: number; maxY: number } | null {
   root.updateMatrixWorld(true)
   let minY: number | null = null
@@ -75,28 +77,59 @@ export function applyBoneRotationOffsets(index: BoneIndex, rotations: Record<str
   for (const [name, value] of Object.entries(rotations)) {
     const bone = findBoneByName(index, name)
     if (!bone || (value.x === 0 && value.y === 0 && value.z === 0)) continue
-    // 偏移是骨局部坐标系里的一次旋转，右乘到当前四元数上（不是欧拉角相加）
+    // 偏移是规范骨局部坐标系里的一次旋转，换到这根骨的局部轴后右乘到当前四元数上（不是欧拉角相加）
     _offsetQuat.setFromEuler(_offsetEuler.set(value.x * DEG_TO_RAD * weight, value.y * DEG_TO_RAD * weight, value.z * DEG_TO_RAD * weight))
-    bone.quaternion.multiply(_offsetQuat)
+    multiplyCanonicalOffset(bone, _offsetQuat)
   }
 }
 const _offsetQuat = new THREE.Quaternion()
 const _offsetEuler = new THREE.Euler()
+const _boneOffset = new THREE.Quaternion()
 
-// 视线分配：yaw 绕骨的 Y、pitch 绕骨的 X（Mixamo 头/颈/脊的局部轴与身体轴基本对齐；+x = 低头）
-export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: DistributedAim): void {
+/** 把一枚规范轴偏移四元数右乘到骨上（UAL 人偶经 canonicalBoneFrame 换轴；其它 rig 恒等） */
+export function multiplyCanonicalOffset(bone: THREE.Bone, canonicalOffset: THREE.Quaternion): void {
+  bone.quaternion.multiply(toBoneOffset(bone, canonicalOffset, _boneOffset))
+}
+
+// 视线分配（脊 → 颈 → 头，自上而下）：yaw 绕角色竖直轴转（世界意义上的「转头」，与骨局部轴无关：动作把头低下去时，绕骨自己的 Y 转会变成歪头）；
+// pitch 加在规范（Mixamo）局部欧拉的 X 上（+x = 低头），UAL 先换到规范局部再换回
+export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: DistributedAim, upWorld: THREE.Vector3): void {
   const pairs: Array<[SemanticBone, { yaw: number; pitch: number }]> = [
-    ['head', aim.head],
-    ['neck', aim.neck],
     ['spine1', aim.spine],
+    ['neck', aim.neck],
+    ['head', aim.head],
   ]
   for (const [semantic, value] of pairs) {
     const bone = findSemanticBone(index, rig, semantic)
     if (!bone) continue
-    bone.rotation.y += value.yaw * DEG_TO_RAD
-    bone.rotation.x += value.pitch * DEG_TO_RAD
+    if (value.yaw !== 0) {
+      // 世界旋转 R 作用在骨上：q_local = parent⁻¹ · R · parent · q_local
+      if (bone.parent) bone.parent.getWorldQuaternion(_lookParent)
+      else _lookParent.identity()
+      _lookYaw.setFromAxisAngle(upWorld, value.yaw * DEG_TO_RAD)
+      bone.quaternion.premultiply(_lookParent).premultiply(_lookYaw).premultiply(_lookParent.invert())
+    }
+    if (value.pitch !== 0) {
+      _lookEuler.setFromQuaternion(canonicalLocalOf(bone, _lookQuat))
+      _lookEuler.x += value.pitch * DEG_TO_RAD
+      boneLocalFromCanonical(bone, _lookQuat.setFromEuler(_lookEuler))
+    }
+    bone.updateMatrixWorld(true)
   }
 }
+const _lookQuat = new THREE.Quaternion()
+const _lookEuler = new THREE.Euler()
+const _headForward = new THREE.Vector3()
+const _characterInv = new THREE.Quaternion()
+
+/** 头此刻（动作层之后、视线之前）相对身体的 yaw（度，lookAtAngles 口径）：规范头骨 +Z = 脸朝向，换到角色坐标取水平投影 */
+export function headYawInCharacter(head: THREE.Bone, character: THREE.Object3D): number {
+  character.getWorldQuaternion(_characterInv).invert()
+  _headForward.set(0, 0, 1).applyQuaternion(canonicalWorldQuaternion(head, _lookQuat)).applyQuaternion(_characterInv)
+  return lookAtAngles({ x: 0, y: 0, z: 0 }, { x: _headForward.x, y: 0, z: _headForward.z }).yaw
+}
+const _lookParent = new THREE.Quaternion()
+const _lookYaw = new THREE.Quaternion()
 
 export type IkChain = { key: IkHandleKey; effector: THREE.Bone; links: THREE.Bone[]; iteration: number; maxAngle: number }
 
@@ -223,11 +256,11 @@ const _offInv = new THREE.Quaternion()
 const _offRel = new THREE.Quaternion()
 const _offEuler = new THREE.Euler()
 
-/** 偏移 = base⁻¹ · 当前，以欧拉角（度，一位小数）写回 */
+/** 偏移 = base⁻¹ · 当前，换回规范轴后以欧拉角（度，一位小数）写回 */
 export function offsetFromBase(bone: THREE.Bone, base: THREE.Quaternion): Vec3 {
   _offInv.copy(base).invert()
   _offRel.copy(_offInv).multiply(bone.quaternion)
-  _offEuler.setFromQuaternion(_offRel)
+  _offEuler.setFromQuaternion(toCanonicalOffset(bone, _offRel, _offInv))
   return { x: Number((_offEuler.x * RAD_TO_DEG).toFixed(1)), y: Number((_offEuler.y * RAD_TO_DEG).toFixed(1)), z: Number((_offEuler.z * RAD_TO_DEG).toFixed(1)) }
 }
 

@@ -8,7 +8,7 @@
  */
 import { findActionEntry } from './actionLibrary'
 import { IK_POLES, IK_TARGETS, type IkHandleKey } from './ikChains'
-import { boneName } from './rigs'
+import { boneName, DEFAULT_CHARACTER_RIG } from './rigs'
 import { FRAME_EPSILON } from './timeGrid'
 import type { CommitProject, StoreGet, StoreSet } from './directorStore'
 import type { ActionClip, DirectorObject, Vec3 } from './directorTypes'
@@ -112,7 +112,7 @@ export function createCharacterActions(_set: StoreSet, get: StoreGet, commitProj
       save()
       const keyframeId = get().selection.boneKeyframeId
       mutateObject(objectId, (object) => {
-        const rig = object.rig ?? 'mixamo'
+        const rig = object.rig ?? DEFAULT_CHARACTER_RIG
         if (handleKey === 'pelvis') {
           object.hipsOffset = { x: 0, y: 0, z: 0 }
           return
@@ -153,7 +153,7 @@ export function createCharacterActions(_set: StoreSet, get: StoreGet, commitProj
       const keyframeId = get().selection.boneKeyframeId
       mutateObject(objectId, (target) => {
         const rotations = rotationTarget(target, keyframeId)
-        const mirrored = mirrorBoneRotations(rotations, target.rig ?? 'mixamo', fromSide)
+        const mirrored = mirrorBoneRotations(rotations, target.rig ?? DEFAULT_CHARACTER_RIG, fromSide)
         for (const bone of Object.keys(rotations)) delete rotations[bone]
         Object.assign(rotations, mirrored)
       })
