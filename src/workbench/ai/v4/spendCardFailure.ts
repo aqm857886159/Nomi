@@ -15,10 +15,16 @@ import type { ProductionActionResult } from '../../production/productionRunApi'
 import { SHOT_ACTION_FAILURE_COPY } from '../../production/productionShotActions'
 
 /** 宿主回的那一下（IPC 抛出来的那一种没有结果，传 `undefined`）。 */
-export type SpendActionOutcome = Partial<Pick<ProductionActionResult, 'ok' | 'code' | 'message' | 'failure'>>
+export type SpendActionOutcome = Partial<Pick<ProductionActionResult, 'ok' | 'code' | 'message' | 'failure' | 'reason'>>
 
 const CARD_CHANGED = new Set(['generation_quote_changed'])
 const SHOT_GONE = new Set(['generation_scope_invalid', 'generation_shot_not_found'])
+/**
+ * 宿主在本项目素材里认不出卡上的某一张参考图（不是本项目的文件 / 文件已经不在了），这一下没发起。
+ * 以前落到「可以改一下再按一次」：用户不知道改哪儿，照原样再按还是同一句。现在点名是参考图，给真能走的那一步：
+ * 在卡上拿掉它；还要用就用 @ 重新选（别的项目的图会先复制进本项目，见 mentionCandidates 的 import）。
+ */
+const REFERENCE_NOT_IN_PROJECT = new Set(['generation_reference_asset_unsupported', 'generation_reference_asset_unavailable'])
 
 /**
  * 这一下没做成时卡上弹的那一句。
@@ -36,5 +42,6 @@ export function spendActionFailureCopy(outcome: SpendActionOutcome | undefined, 
   if (outcome.code === 'run_not_open' || message === 'run_not_open') return SHOT_ACTION_FAILURE_COPY.run_not_open
   if (outcome.code === 'unavailable') return SHOT_ACTION_FAILURE_COPY.core_starting
   if (outcome.failure && outcome.failure !== 'internal_error') return SHOT_ACTION_FAILURE_COPY[outcome.failure]
+  if (editable && outcome.reason && REFERENCE_NOT_IN_PROJECT.has(outcome.reason)) return 'agentPanelV4.spendActionReferenceNotInProject'
   return editable ? 'agentPanelV4.spendActionNotStarted' : 'agentPanelV4.spendActionNotStartedLocked'
 }
