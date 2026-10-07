@@ -16,7 +16,7 @@ function manualSummaryProject(): DirectorProject {
     id: 'hero', name: '青衣女子', type: 'character', position: { x: 0, y: 0, z: 0 },
     rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 }, visible: true, locked: false,
     actionTrackEnabled: true,
-    actionClips: [{ id: 'walk', name: '走路', clipType: 'action', actionPose: 'standard_walk', startTime: 0, endTime: 1, startFrame: 0, endFrame: 30 }],
+    actionClips: [{ id: 'walk', name: '走路', clipType: 'action', actionPose: 'Walk_Loop', startTime: 0, endTime: 1, startFrame: 0, endFrame: 30 }],
   }
   const distantActor: DirectorObject = {
     ...hero, id: 'distant-actor', name: '黑衣侍卫', position: { x: 0, y: 0, z: 3 }, actionClips: undefined,
@@ -53,7 +53,7 @@ describe('导演视图镜头条摘要（实测，不读计划值）', () => {
   it('这一镜在做什么只取工程里真实的动作片段；没有就留空，界面说明缺动作片段', () => {
     const shots = summarizeDirectorShots(manualSummaryProject())
     expect(shots).toHaveLength(2)
-    expect(shots[0].actions.map((action) => [action.objectName, action.actionPose])).toEqual([['青衣女子', 'standard_walk']])
+    expect(shots[0].actions.map((action) => [action.objectName, action.actionPose])).toEqual([['青衣女子', 'Walk_Loop']])
     expect(shots[1].actions).toEqual([])
   })
 

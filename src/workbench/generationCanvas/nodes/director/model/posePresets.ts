@@ -2,7 +2,8 @@
  * [INPUT]: 无依赖（零 React / 零 THREE）
  * [OUTPUT]: 对外提供 PoseVec3、MannequinPosePreset、degreesToRadians / makePoseOffset、MANNEQUIN_POSE_PRESETS、findPosePreset、presetPoseRotations（预设弧度 → 度 Vec3，供迁移把 V1 手写姿态烘进 boneRotations）
  * [POS]: director/model 的假人静态姿态单一真相（原 V1 scene3dConstants，切换门入籍）：骨名 mixamorig*、弧度三元组；
- *        （V1 的「自然站姿基线」MANNEQUIN_DEFAULT_POSE 已删：x-bot rest 就是 Mixamo bind，复位 = 纯 bind）
+ *        （V1 的「自然站姿基线」MANNEQUIN_DEFAULT_POSE 已删：复位 = 纯 bind）。数值是 Mixamo 骨名 + Mixamo 骨局部轴（= 规范轴），
+ *        套到默认 UAL 人偶先经读档迁移换骨名、再由 scene/character/canonicalBoneFrame 换轴
  *        actionLibrary（弧度 → 度）、姿态页预设按钮、迁移器（老工程 pose）都从这里取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
