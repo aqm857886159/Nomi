@@ -1,0 +1,35 @@
+{
+  "name": "任务分组",
+  "subject": "task-center.grouping",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+    "symbol": "TASK_CENTER_GROUPS"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/taskCenter/taskCenterProjection.ts",
+      "symbol": "TASK_CENTER_GROUPS"
+    },
+    {
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "summarizeTaskCenterRows"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/taskCenter/taskCenterEntries.ts",
+    "src/workbench/taskCenter/productionRunTaskCenter.ts",
+    "src/workbench/taskCenter/exportJobTaskCenter.ts",
+    "src/workbench/production/productionRunView.ts",
+    "src/workbench/production/ProductionRunTaskCard.tsx",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx",
+    "src/workbench/taskCenter/TaskCenterButton.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。"
+}

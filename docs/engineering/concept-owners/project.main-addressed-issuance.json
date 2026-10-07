@@ -1,0 +1,25 @@
+{
+  "name": "主进程按项目寻址的渲染层工作在哪个项目寿命里签发",
+  "subject": "project.main-addressed-issuance",
+  "lifecycle": "session",
+  "authority_kind": "lease",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/project/projectCanvasReadSurface.ts",
+    "symbol": "whenProjectAdopted"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/project/projectCanvasReadSurface.ts",
+      "symbol": "whenProjectAdopted"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/capability/multiShotCanvasLanding.ts"
+  ],
+  "since": "2026-10-03",
+  "notes": "主进程在自己提交「打开了这个项目」的那一刻就会发按项目寻址的工作（打开项目时的画布落地对账），而这个窗口要等提交回执到了才认下项目；那一段里签发「没开项目」等于把每一次打开项目的对账都变成一条 warn（S1-5）。whenProjectAdopted：窗口此刻开着项目就签它，没开就等下一个认下的项目寿命（有上限）；调用方仍核对认下的就是它要的那个项目，不是就拒。和 withProjectAction / withMainProjectAction / subscribeProjectOpened 同住签发点模块，签发点契约测试（projectActionIssuance.contract.test.ts）认它。"
+}

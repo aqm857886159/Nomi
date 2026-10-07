@@ -1,0 +1,27 @@
+{
+  "name": "快捷动作缺能力时的引导（缺什么、去哪儿补）与上游不可用时的同能力替代",
+  "subject": "canvas.capability-unavailable-guide",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+    "symbol": "capabilityGuide"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/capabilityGuide.ts",
+      "symbol": "capabilityGuide"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+      "symbol": "pickSameCapabilityAlternative"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补（唯一例外：放大，用户 2026-10-07 拍板置灰不跳转，见 CAPABILITY_GUIDE_EXCEPTIONS）；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
+}

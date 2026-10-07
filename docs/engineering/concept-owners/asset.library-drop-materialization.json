@@ -1,0 +1,27 @@
+{
+  "name": "素材库落点的项目归属（跨项目先复制）",
+  "subject": "asset.library-drop-materialization",
+  "lifecycle": "project-data",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+    "symbol": "materializeAssetLibraryItems"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assets/assetLibraryMaterialize.ts",
+      "symbol": "materializeAssetLibraryItems"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+    "src/workbench/timeline/addAssetToTimeline.ts",
+    "src/workbench/assets/AssetLibraryPanel.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "画布 / 时间轴只写当前项目自己的素材引用：本项目 / 本画布的原样放行，别的项目的先经主进程 copyProjectAsset 复制。落点不许再各自判 assetBelongsToProject 决定拒收（2026-08-31 四处各写一份拒收，别的项目的素材从此拖不出来）。合同 docs/fixes/2026-09-25-asset-library-drop-materialize.root-cause.json。"
+}

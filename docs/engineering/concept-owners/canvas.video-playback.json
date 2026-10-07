@@ -1,0 +1,30 @@
+{
+  "name": "画布视频何时挂播放器、谁在播",
+  "subject": "canvas.video-playback",
+  "lifecycle": "live-interaction",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+    "symbol": "claimNodeVideoPlayback"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+      "symbol": "claimNodeVideoPlayback"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeVideoPlayback.ts",
+      "symbol": "releaseNodeVideoPlayback"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "平时只画封面，悬停/选中才挂 <video>，同时最多一个在播（用户拍板）。节点卡片只传意图（previewRequested/engaged），不许自己决定挂不挂、播不播。"
+}

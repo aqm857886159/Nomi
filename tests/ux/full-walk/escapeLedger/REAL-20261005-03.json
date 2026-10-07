@@ -1,0 +1,26 @@
+{
+  "id": "REAL-20261005-03",
+  "since": "2026-10-05",
+  "source": "2026-10-05 real test",
+  "category": "language-surface",
+  "problem": "英文界面返回中文回答",
+  "existingInvariants": [
+    7
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S7"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend",
+    "J08-agent-attachment"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "10-05 real test: English UI received Chinese answer"
+  ],
+  "completionCommits": []
+}

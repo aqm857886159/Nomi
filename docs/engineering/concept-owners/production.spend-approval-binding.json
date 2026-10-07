@@ -1,0 +1,35 @@
+{
+  "name": "付费门的批准绑的是哪一份事实（收据比哪一个项目版本）",
+  "subject": "production.spend-approval-binding",
+  "lifecycle": "spend-authority",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "symbol": "createGateApprovalOwner"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "createGateApprovalOwner"
+    },
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "assertCurrentProjectRevision"
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "symbol": "requireApprovalReceipt"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionRunApprovalReceipt.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionRunService.ts",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts"
+  ],
+  "since": "2026-10-01",
+  "notes": "付费卡① 第 14 条：以前批准付费门时到处核「收据上的项目版本 == 项目此刻的版本」（Run 服务的收据核对，加上 runOwnedGenerationGateAuthority 里请求门、批门、确认前后共四处），于是确认卡开着的时候 Nomi 往画布上落了别的镜、用户改了下一镜，这一下「生成这张」就被拒成「确认时项目有变动」，而卡上的东西一个字没变。现在封了信封的付费门，收据比的是它自己那份信封封好时的版本（revisionRuleFor → sealed），命令里说的版本也必须就是它；发出去的东西本来就由合同哈希、线上报文哈希、幂等键逐字钉死，和项目版本无关。创意门、信任降档、没有信封的旧付费门照旧比项目此刻的版本（assertCurrentProjectRevision）。runOwnedGenerationGateAuthority 那四处活版本核对删了，它连 projectRevisionResolver 这个依赖都没有了。"
+}

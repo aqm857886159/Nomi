@@ -5,7 +5,7 @@
 
 ## 闭环
 
-发现 → 原话入逃逸账本（`tests/ux/full-walk/escapeLedger.json`，candidate）→ 归类（`categories`）→ 人工复核（reviewed）→ 根因合同（`docs/fixes/*.root-cause.json`）→ 结构性预防 → `check:escape-ledger` 卡住才能结账（fixed）。
+发现 → 原话入逃逸账本（`tests/ux/full-walk/escapeLedger/<id>.json`，一条一个文件，分类表在 `_meta.json`；candidate）→ 归类（`categories`）→ 人工复核（reviewed）→ 根因合同（`docs/fixes/*.root-cause.json`）→ 结构性预防 → `check:escape-ledger` 卡住才能结账（fixed）。
 
 「结构性预防」= 类型约束、唯一 owner、铁律或门岗级的类检查。只修现场、只加一个单场景回归测试，不算修好——同一类问题还会从别的入口回来。
 

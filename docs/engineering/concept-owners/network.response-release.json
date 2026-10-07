@@ -1,0 +1,51 @@
+{
+  "name": "外发请求拿到的响应：要么读完、要么放弃（hardenedFetch 的收尾）",
+  "subject": "network.response-release",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/hardenedFetch.ts",
+    "symbol": "hardenedFetch"
+  },
+  "write_api": [
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "abandonResponse"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/hardenedFetch.test.ts",
+  "allowed_consumers": [
+    "electron/ai/antigravityTask.ts",
+    "electron/assets/providerMediaFetch.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+    "electron/catalog/catalogCommit.ts",
+    "electron/catalog/dreaminaInputFiles.ts",
+    "electron/connectors/tikhubConnector.ts",
+    "electron/connectors/tikhubRoute.ts",
+    "electron/downloads/verifiedAssetCache.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/localRuntime/localAiExternalProbe.ts",
+    "electron/localSpeech/localSpeechServer.ts",
+    "electron/promptLibrary/promptLibraryStore.ts",
+    "electron/providerAdapter/certificationMedia.ts",
+    "electron/providerAdapter/docsDiscovery.ts",
+    "electron/providerAdapter/providedDocs.ts",
+    "electron/video/extractVideoFrame.ts",
+    "tests/network/proxy-cold-main.cjs"
+  ],
+  "since": "2026-09-29",
+  "notes": "PR #924（合同 docs/fixes/2026-09-29-stuck-saving-retrieval-liveness.root-cause.json）：任务完成却一直停在「正在存到你电脑上」——取回原语拒收一个响应时没放掉连接，直连路由上把连接永远钉住。现在 hardenedFetch 拿到的每个响应，在它返回之前要么读完、要么经 abandonResponse 放弃（取消 body、什么都不等）；每次请求专用的连接池在请求自己的截止时间内销毁，不等连接池优雅关闭。拒收路径只许走 abandonResponse，不许再各写一份释放。"
+}

@@ -1,0 +1,41 @@
+{
+  "id": "PLAN-S2-06",
+  "since": "2026-10-05",
+  "source": "docs/plan/2026-10-05-comprehensive-experience-acceptance.md#2",
+  "category": "interaction-semantics",
+  "problem": "表格点击行为与用户预期不一致，点击选择后反而隐藏",
+  "existingInvariants": [
+    6,
+    7,
+    9
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S6"
+  ],
+  "fullWalkJourneys": [
+    "J06-delete-shot",
+    "J07-switch-model"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-05-storyboard-table-structure.md",
+    "tests/ux/storyboard-table-structure.walk.mjs",
+    "tests/ux/storyboard-popover-keyboard.test.mjs"
+  ],
+  "completionCommits": [
+    "879aa9156",
+    "d0220493d",
+    "798e5e88d"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-storyboard-table-structure.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/ux/full-walk/catalog.mjs",
+    "ref": "⑫"
+  },
+  "fixedInPr": 1039
+}

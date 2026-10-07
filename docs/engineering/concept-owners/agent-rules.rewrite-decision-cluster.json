@@ -1,0 +1,23 @@
+{
+  "name": "重写决定（补 / 重写 / 删的选择 + 特征测试）何时算有效",
+  "subject": "agent-rules.rewrite-decision-cluster",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-01",
+  "owner": {
+    "path": "scripts/root-cause-contracts.mjs",
+    "symbol": "validateRewriteDecision"
+  },
+  "write_api": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateRewriteDecision"
+    }
+  ],
+  "allowed_consumers": [],
+  "notes": "2026-10-02：check:symptom-cluster（按「7 天内第三份合同」聚簇）红 11 次真拦 0 次，已整体删除；rewrite_decision 字段仍由 check:root-cause-contracts 校验（写了就必须成立：选项合法、特征测试文件存在、选 rewrite 时测试在本次 diff 里），不再有第二个判簇的 owner。"
+}

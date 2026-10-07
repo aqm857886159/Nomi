@@ -1,0 +1,27 @@
+{
+  "id": "FB-NF-0928-0003-context-overflow",
+  "since": "2026-10-06",
+  "source": "应用内反馈 NF-0928-0003（0.22.3 Windows）",
+  "category": "performance-coverage",
+  "problem": "同一用户回合反复读整份剧本，旧副本随每次请求重发，pi 压缩切不进当前回合，三回合输入约 39 万 / 38 万 / 88 万 token 撞上下文窗口",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/agent-runtime/lane-context-budget.test.mts（真回环 + 真 pi 循环）：每次请求汉字数改前 14809→29509→44209→58909→73609，改后恒为 14809",
+    "变异：去掉 omitSupersededReads → 该测试红",
+    "上下文溢出的英文原文改为人话（faultContextOverflow）"
+  ],
+  "completionCommits": [
+    "effcf1966"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+  "fixedInPr": 1055,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/agentLane/laneSupersededReads.test.ts"
+  }
+}

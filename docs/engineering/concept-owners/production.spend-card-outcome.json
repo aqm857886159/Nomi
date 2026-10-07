@@ -1,0 +1,41 @@
+{
+  "name": "这一次出价的逐镜结局（卡上还剩哪几镜、回执说的那一个值）",
+  "subject": "production.spend-card-outcome",
+  "lifecycle": "spend-authority",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionGenerationPresentation.ts",
+    "symbol": "generationPresentationOutcome"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "generationPresentationOutcome"
+    },
+    {
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "undecidedShotIds"
+    },
+    {
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "shotApprovedInCurrentPresentation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/productionGenerationPresentation.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/productionRun/productionGenerationSeal.ts",
+    "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/shared/productionShotPhase.ts",
+    "electron/shared/agentLane/generateOutcomeReceipt.ts"
+  ],
+  "since": "2026-09-30",
+  "notes": "从出价账（`production.spend-card-presentation`）+ 每道门批没批 + job 有没有可能到过供应商，派生出一个值：在生成的 / 点了但发出前就失败的 / 用户去掉的 / 画布接手的 / 没决定的 + 原因。卡上摆哪几镜（`undecidedShotIds` → `productionPendingSpend`）、封印给哪几镜（`productionGenerationSeal.sealScopeOf`）、画布占位写什么（`productionShotPhase`）、回给模型的那句话（`generateOutcomeReceipt.describeGenerateOutcome`）都读这一个值，不各算一份。以后它原样成为 generate 工具调用的输出（Agent 消息层研究 §4.4）。「在这一次出价里点过」按门的先后算（出价开出来时记下 `fromGate`），不按时间戳比。"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "节点的几版（版本列表、主图、第 N 版）",
+  "subject": "canvas.node-versions",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+    "symbol": "appendNodeResultVersion"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "appendNodeResultVersion"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "removeNodeResult"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "setNodeMainResultPatch"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
+      "symbol": "normalizeNodeResultVersionNumbers"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/project/projectPersistenceService.ts"
+  ],
+  "since": "2026-10-06",
+  "notes": "加一版、删一版、换主图、补号只在这里。history 是持久的新→旧顺序，versionNo 一旦给出不改（docs/plan/2026-09-28-version-cards.md）。之前生成落地 / 图片编辑 / 白板快照各有一份手抄合并，已删。"
+}

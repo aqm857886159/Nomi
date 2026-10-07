@@ -1,0 +1,23 @@
+{
+  "name": "画布节点外壳什么时候重渲（纯坐标变化不重渲）",
+  "subject": "canvas.node-shell-render-gate",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+    "symbol": "sameGenerationFlowNodeRender"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/flowNodeRenderGate.ts",
+      "symbol": "sameGenerationFlowNodeRender"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "React Flow 唯一节点注册点 nodeTypes.generation 的 memo 判据：只忽略 positionAbsoluteX / Y（位置由 NodeWrapper 的 transform 摆），其余 prop 变化照常重渲（docs/fixes/2026-10-06-canvas-node-shell-rerender-on-drag.root-cause.json）。"
+}

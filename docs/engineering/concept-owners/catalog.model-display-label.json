@@ -1,0 +1,26 @@
+{
+  "name": "模型框里模型的显示名（按当前语言翻译，不进身份）",
+  "subject": "catalog.model-display-label",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/common/useDedupedModelSelect.ts",
+    "symbol": "modelDisplayLabel"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/common/useDedupedModelSelect.ts",
+      "symbol": "modelDisplayLabel"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/common/useDedupedModelSelect.test.ts",
+  "allowed_consumers": [
+    "src/workbench/settings/ModelBoxOrderSection.tsx"
+  ],
+  "since": "2026-09-29",
+  "notes": "PR #926（合同 docs/fixes/2026-09-29-model-box-label-translation.root-cause.json）：模型框只给供应商名调了翻译、模型名漏了。模型名的显示名只在这里按当前语言翻，只进显示、不进身份——不能在更早的 dedupeModelOptions / toCatalogModelOptions 里翻，那里的 label 是身份的输入，在那里翻，身份就会随语言变。"
+}
