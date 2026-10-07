@@ -369,7 +369,7 @@ export const zhGenerationCommon = {
       },
       assetUploadFailed: {
         reason: '参考图没能送到服务商',
-        hint: '这个模型要的是一个它能取到的图片地址，而这张图只在你本机。Nomi 按顺序试了能用的上传通道（服务商自己的、借用你接入的另一家的、境外免费图床），全都没成，所以这次选的服务商还没被请求到，也不会有重复提交。每条通道为什么没成见下方技术详情：写着「借用某家的上传通道」的，是那一家账户的问题（例如 HTTP 402、401），与这次选的模型无关——去那一家处理，或在「模型接入」里断开它；图床连不上多半是代理没覆盖到它们。处理好之后可以直接重试，换个能直接收图的模型也行。',
+        hint: '这个模型要的是一个它能取到的图片地址，而这张图只在你本机。Nomi 按顺序试了能用的上传通道（服务商自己的、借用你接入的另一家的、境外图床），全都没成，所以这次选的服务商还没被请求到，也不会有重复提交。每条通道为什么没成见下方技术详情：写着「借用某家的上传通道」的，是那一家账户的问题（例如 HTTP 402、401），与这次选的模型无关——去那一家处理，或在「模型接入」里断开它；图床连不上多半是代理没覆盖到它们。处理好之后可以直接重试，换个能直接收图的模型也行。',
       },
       assetTooLarge: {
         reason: '这个素材太大，传不上去',
@@ -1988,7 +1988,7 @@ export const enGenerationCommon = {
       },
       assetUploadFailed: {
         reason: 'Reference image never reached the provider',
-        hint: 'This model needs an image URL it can fetch, but this image only exists on your machine. Nomi tried every available upload channel in order (the provider’s own, one borrowed from another provider you connected, overseas free image hosts) and none worked, so the provider you chose was never called and nothing can be submitted twice. The technical details below say why each channel failed: a line saying a channel was borrowed from another provider is a problem with that provider’s account (for example HTTP 402 or 401), not with the model you picked — fix it there, or disconnect that provider under Model Access; an unreachable image host usually means your proxy does not cover it. Once that is sorted you can retry directly, or pick a model that accepts the image directly.',
+        hint: 'This model needs an image URL it can fetch, but this image only exists on your machine. Nomi tried every available upload channel in order (the provider’s own, one borrowed from another provider you connected, overseas image hosts) and none worked, so the provider you chose was never called and nothing can be submitted twice. The technical details below say why each channel failed: a line saying a channel was borrowed from another provider is a problem with that provider’s account (for example HTTP 402 or 401), not with the model you picked — fix it there, or disconnect that provider under Model Access; an unreachable image host usually means your proxy does not cover it. Once that is sorted you can retry directly, or pick a model that accepts the image directly.',
       },
       assetTooLarge: {
         reason: 'This asset is too large to upload',

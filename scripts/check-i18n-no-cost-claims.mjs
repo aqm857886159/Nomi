@@ -14,13 +14,17 @@ import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
  * 等那条线改完再从这张表里拿掉（拿掉之后词典里再出现就红）。表里每一条都必须真的还命中——不命中说明已经改好了，该删这一行。
  */
 export const OWNED_BY_SPEND_CARD_LANE = Object.freeze([
-  'onboardingProviders.drawer.home.kieHint',
   'onboardingProviders.keyOnly.probeCostPaid', 'onboardingProviders.keyOnly.probeCostPaidUnpriced', 'onboardingProviders.keyOnly.probeCostUnknown',
   'generationCommon.production.checkpoint.subtitleWithReuse', 'generationCommon.production.checkpoint.note', 'generationCommon.production.checkpoint.noteWithBudget',
   'runtime.capability.credentialProbeMessage',
 ])
 /** 词本身不是钱：导演模式画幅选项叫「Free / 自由」。 */
 export const NOT_MONEY = Object.freeze(['director.aspect.free'])
+/** 不能把“可用/已提交/取回”改写成零元承诺；这些变体不属于第三方额度事实白名单。 */
+export const ADDITIONAL_SPEND_CLAIMS = Object.freeze({
+  'zh-CN': /免费(?:解锁|上传|重取|取回)/,
+  en: /\bfree (?:asset uploads?|retry|retrieve)\b/i,
+})
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
 
@@ -34,7 +38,8 @@ export function scanDictionaries(dictionaries, { owned = OWNED_BY_SPEND_CARD_LAN
   const everHit = new Set()
   for (const locale of Object.keys(NO_COST_CLAIMS)) {
     for (const [key, value] of flatOf(dictionaries[locale] ?? {})) {
-      if (!NO_COST_CLAIMS[locale].test(value)) continue
+      const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale]]
+      if (!patterns.some((pattern) => pattern.test(value))) continue
       everHit.add(key)
       if (isFixture(key) || notMoney.includes(key) || owned.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60) })

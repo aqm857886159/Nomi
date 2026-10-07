@@ -1,0 +1,185 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-money-copy-truth",
+  "problem_type": "Misleading spend and no-cost user copy",
+  "symptom": "User-visible copy says an upload, retrieval, retry, or model is free even when the application cannot prove zero provider cost for that user's account and operation.",
+  "direct_cause": "Money wording is duplicated across renderer locale dictionaries, model display labels, and desktop translations; the existing no-cost scan only covered a subset of no-cost claim variants.",
+  "class_root": "There is no shared invariant that every user-visible money claim must be backed by a known local fact or an explicitly scoped provider fact; unknown cost is therefore silently phrased as free.",
+  "affected_population": [
+    "All users viewing zh-CN or English model onboarding, model labels, generation error recovery, or asset-upload failure copy."
+  ],
+  "scope_paths": [
+    "scripts/check-i18n-no-cost-claims.mjs",
+    "scripts/check-i18n-no-cost-claims.node-test.mjs",
+    "src/i18n/locales/onboardingProviders.ts",
+    "src/i18n/modelDisplayText.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "electron/desktopStrings.ts",
+    "docs/plan/2026-10-07-money-copy-truth.md",
+    "docs/engineering/direction-check-money-copy.md",
+    "src/i18n/resources.ts"
+  ],
+  "entry_points": [
+    "Renderer dictionaries loaded through src/i18n/resources.ts",
+    "desktopT translations consumed by Electron error and onboarding paths"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This remediation enforces Nomi's internal copy invariant; provider prices and quotas are deliberately not asserted without a scoped source.",
+  "invariants": [
+    "Unknown or account-dependent cost is never phrased as free, zero, no charge, or free retry.",
+    "A true local/offline or explicitly scoped provider fact may remain only in its existing allowlisted wording.",
+    "Recovery copy describes the available retrieval action without asserting a new cost outcome."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/modelDisplayText.ts",
+      "symbol": "enModelDisplayText"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "zhGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopStrings.ts",
+      "symbol": "DesktopTranslationKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/credentialElicitationHttp.ts",
+      "symbol": "desktopT"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 9,
+    "why_not": "The renderer locale readers, model display reader, and desktop translation reader are separate runtime boundaries and must remain separate; the fix centralizes the claim scan across the renderer dictionary boundary and edits the desktop source strings at their shared table."
+  },
+  "generality_proof": "The scanner now checks the existing no-cost claims plus the previously uncovered free upload/retry/retrieve variants for every loaded zh-CN and English dictionary key. The changed copy removes the same claims from both renderer and desktop tables, so equivalent onboarding, model-label, upload-failure, and recovery entries converge on the same unknown-cost wording rule.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-i18n-no-cost-claims.mjs",
+      "symbol": "scanDictionaries",
+      "responsibility": "Scans every loaded locale value and rejects unsupported no-cost claims while preserving explicit allowlists."
+    },
+    {
+      "path": "src/i18n/resources.ts",
+      "symbol": "resources",
+      "responsibility": "Loads the renderer's zh-CN and English dictionaries consumed by user-facing components."
+    },
+    {
+      "path": "electron/desktopStrings.ts",
+      "symbol": "desktopT",
+      "responsibility": "Single desktop translation table for main-process user-facing error and recovery copy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "entry_point": "zhOnboardingProviders/enOnboardingProviders",
+      "disposition": "enforced",
+      "evidence": "KIE upload copy is changed in both locales and the dictionary scanner covers both values."
+    },
+    {
+      "path": "src/i18n/locales/modelDisplayText.ts",
+      "entry_point": "enModelDisplayText",
+      "disposition": "enforced",
+      "evidence": "Qwen labels no longer add an unscoped free claim; the source model metadata remains unchanged."
+    },
+    {
+      "path": "src/i18n/locales/generationCommon.ts",
+      "entry_point": "zhGenerationCommon/enGenerationCommon",
+      "disposition": "enforced",
+      "evidence": "Upload-channel copy no longer calls an external host free; known local-only copy remains outside the changed claim."
+    },
+    {
+      "path": "electron/desktopStrings.ts",
+      "entry_point": "desktopT",
+      "disposition": "enforced",
+      "evidence": "Recovery strings no longer promise free retrieval or retry."
+    },
+    {
+      "path": "electron/catalog/modelscopeTexts.ts",
+      "entry_point": "MODELSCOPE_TEXT_MODELS",
+      "disposition": "not-affected",
+      "evidence": "This task changes user-visible copy only; the free metadata controls billing semantics and is intentionally not changed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same unsupported claim can be reintroduced through any new locale key or desktop translation entry.",
+    "same_class_scan": [
+      "rg -n \"免费|free|预算|budget|已花|spent|\\$0|¥0\" src/i18n electron/desktopStrings.ts src/config src/workbench",
+      "node scripts/door-map.mjs src/i18n/locales/onboardingProviders.ts",
+      "node scripts/door-map.mjs electron/desktopStrings.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-i18n-no-cost-claims.mjs",
+    "invariant": "Every loaded locale value is rejected when it contains an unsupported zero-cost/retry claim.",
+    "failure_mode": "The test reports locale and key and exits non-zero before merge.",
+    "exception_policy": "none",
+    "strategy": "Extend the existing i18n test boundary with the missed claim variants instead of adding a second check-* gate.",
+    "artifacts": [
+      "scripts/check-i18n-no-cost-claims.mjs",
+      "scripts/check-i18n-no-cost-claims.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-i18n-no-cost-claims.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-i18n-no-cost-claims.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No persisted data or runtime path changes; only unsupported user copy is removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this copy invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Not needed; existing keys remain stable and only their displayed text changes.",
+  "residual_risks": [
+    "Real provider charges remain account-specific; the UI must continue to use the existing price/unknown-cost paths for generation confirmation.",
+    "No real Electron zh/en screenshot walk was available in this worktree; visual evidence remains unverified."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/check-i18n-no-cost-claims.mjs",
+    "tests": [
+      "scripts/check-i18n-no-cost-claims.node-test.mjs"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06"
+}

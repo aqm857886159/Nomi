@@ -17,3 +17,13 @@ test('登记在案的不报；登记了却不再命中的报 stale', () => {
   assert.deepEqual(r.hits, [])
   assert.deepEqual(r.stale, ['b'])
 })
+
+test('money wording variants are caught while daily quota remains allowlisted', () => {
+  const { hits } = scanDictionaries(dict(
+    { upload: '\u4e0a\u4f20\u901a\u9053\u514d\u8d39\u89e3\u9501', retrieve: '\u514d\u8d39\u91cd\u53d6\u7ed3\u679c', quota: '\u6bcf\u5929\u514d\u8d39\u989d\u5ea6' },
+    { upload: 'Free asset uploads', retry: 'Retry for free', quota: 'Daily free quota' },
+  ), { owned: [], notMoney: [] })
+  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), [
+    'zh-CN:upload', 'zh-CN:retrieve', 'en:upload', 'en:retry',
+  ])
+})
