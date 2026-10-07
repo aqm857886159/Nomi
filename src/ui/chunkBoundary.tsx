@@ -19,6 +19,15 @@ const CHUNK_AUTO_RELOAD_DELAY_MS = 600
 const CHUNK_AUTO_RELOAD_COOLDOWN_MS = 15_000
 const CHUNK_AUTO_RELOAD_STORAGE_PREFIX = 'nomi.chunk-boundary.auto-reload'
 
+type ChunkReloadStorage = Pick<Storage, 'getItem' | 'setItem'>
+type ScheduleChunkReloadOptions = {
+  now?: number
+  delayMs?: number
+  reload?: () => void
+  storage?: ChunkReloadStorage | null
+  schedule?: (reload: () => void, delayMs: number) => void
+}
+
 export function importWithRetry<T>(
   factory: () => Promise<T>,
   retries = AUTO_RETRIES,
@@ -42,16 +51,34 @@ export function isChunkLoadNetworkError(error: unknown): boolean {
   )
 }
 
-function canAutoReloadChunk(label: string, now = Date.now()): boolean {
+function canAutoReloadChunk(label: string, now = Date.now(), storage?: ChunkReloadStorage | null): boolean {
   try {
     const key = `${CHUNK_AUTO_RELOAD_STORAGE_PREFIX}.${label}`
-    const lastReloadedAt = Number(window.sessionStorage.getItem(key) || 0)
+    const source = storage ?? (typeof window !== 'undefined' ? window.sessionStorage : null)
+    if (!source) return true
+    const lastReloadedAt = Number(source.getItem(key) || 0)
     if (Number.isFinite(lastReloadedAt) && now - lastReloadedAt < CHUNK_AUTO_RELOAD_COOLDOWN_MS) return false
-    window.sessionStorage.setItem(key, String(now))
+    source.setItem(key, String(now))
     return true
   } catch {
     return true
   }
+}
+
+/**
+ * Reload once after a failed dynamic chunk import. The session cooldown is shared by all
+ * callers so a missing asset cannot turn a project click into an infinite reload loop. A
+ * caller can pass a storage/reload pair in tests without constructing a browser window.
+ */
+export function scheduleChunkReload(label: string, options: ScheduleChunkReloadOptions = {}): boolean {
+  const now = options.now ?? Date.now()
+  if (!canAutoReloadChunk(label, now, options.storage)) return false
+  const reload = options.reload ?? reloadRendererWindow
+  const delayMs = options.delayMs ?? CHUNK_AUTO_RELOAD_DELAY_MS
+  if (options.schedule) options.schedule(reload, delayMs)
+  else if (typeof window !== 'undefined') window.setTimeout(reload, delayMs)
+  else setTimeout(reload, delayMs)
+  return true
 }
 
 type BoundaryProps = {
@@ -101,8 +128,12 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     logRendererCrash('chunk-boundary', error, info.componentStack, { boundary: this.props.label })
-    if (isChunkLoadNetworkError(error) && canAutoReloadChunk(this.props.label)) {
-      this.autoReloadTimer = window.setTimeout(reloadRendererWindow, CHUNK_AUTO_RELOAD_DELAY_MS)
+    if (isChunkLoadNetworkError(error)) {
+      scheduleChunkReload(this.props.label, {
+        schedule: (reload, delayMs) => {
+          this.autoReloadTimer = window.setTimeout(reload, delayMs)
+        },
+      })
     }
   }
 
