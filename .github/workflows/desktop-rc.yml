@@ -43,7 +43,8 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
       - name: Install Chromium for release validation browser tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       - name: Validate version
         run: node scripts/release-contract.mjs validate-version --root . --version "$RELEASE_VERSION"
       - name: Repository gates

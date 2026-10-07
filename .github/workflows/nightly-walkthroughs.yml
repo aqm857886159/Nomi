@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
       - name: Build desktop surfaces
         run: pnpm run build
       - name: Run non-paid walkthrough batch
