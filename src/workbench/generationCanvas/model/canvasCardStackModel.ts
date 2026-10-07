@@ -3,6 +3,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from './ge
 export type CollapsedGroupCardProjection = {
   groupId: string
   name: string
+  colorToken?: string
   memberCount: number
   position: { x: number; y: number }
   coverNode?: GenerationCanvasNode
@@ -74,6 +75,7 @@ export function projectCollapsedGroups(
     cards.push({
       groupId: group.id,
       name: group.name,
+      ...(group.colorToken ? { colorToken: group.colorToken } : {}),
       memberCount: members.length,
       position,
       ...(coverNode ? { coverNode } : {}),

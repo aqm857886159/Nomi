@@ -156,8 +156,11 @@ export function loadLimits() {
         + '一次请求的输入超过它 = 压缩没守住（或一次工具结果就把它撑爆），这正是用户看到「一回合几十万 token」的那一族。',
     }),
     agentIdleMs: Object.freeze({
-      value: readNumericConstant('electron/agentLane/laneHost.mts', 'LANE_IDLE_MS'),
-      source: 'electron/agentLane/laneHost.mts LANE_IDLE_MS',
+      // 最后一次模型请求之后，lane 最长能「什么都没发生」多久：响应头之前的首字节预算 + 响应头之后第一段正文之前的思考预算
+      // （出字之后的空闲预算更短，取不到最大值）。三个预算唯一一份在 laneProviderGuard.mts。
+      value: readNumericConstant('electron/agentLane/laneProviderGuard.mts', 'LANE_FIRST_RESPONSE_MS')
+        + readNumericConstant('electron/agentLane/laneProviderGuard.mts', 'LANE_FIRST_TOKEN_MS'),
+      source: 'electron/agentLane/laneProviderGuard.mts LANE_FIRST_RESPONSE_MS + LANE_FIRST_TOKEN_MS',
     }),
     schedulerPollCapMs: Object.freeze({
       value: readNumericConstant('electron/productionRun/multiShotBatchScheduler.ts', 'POLL_DELAY_CAP_MS', { exported: false }),

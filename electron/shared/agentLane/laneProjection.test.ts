@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
-import { isRetryableAssistantError } from '@earendil-works/pi-ai'
-import { projectLaneSnapshot } from './laneProjection'
+import { isContextOverflow, isRetryableAssistantError, type AssistantMessage } from '@earendil-works/pi-ai'
+import { projectLaneSnapshot, type LaneModelFacts } from './laneProjection'
 
 const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }
@@ -42,6 +42,18 @@ describe('lane provider failure: transient / recovered', () => {
     expect(connection).toMatchObject({ kind: 'error', transient: true })
     const [plain] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Invalid schema for tool x' })])
     expect(plain).not.toHaveProperty('transient')
+  })
+
+  // NF-0928-0003 / NF-1001-0003 / NF-1001-0004：报障原文在投影这一层认成事实；服务商溢出原话靠宿主喂的 pi `isContextOverflow`。
+  it('turns the watchdog / pi failures from the field reports into a fault, and leaves vendor text alone', () => {
+    const fault = (errorMessage: string, extra: Partial<LaneModelFacts> = {}) =>
+      projectLaneSnapshot(lane([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage })]), { ...facts, ...extra })
+        .parts.find((part) => part.kind === 'error')
+    expect(fault('Nomi model idle timeout after 120000ms')).toMatchObject({ transient: true, fault: { kind: 'model-timeout', phase: 'idle', seconds: 120 } })
+    expect(fault('Stream ended without finish_reason')).toMatchObject({ transient: true, fault: { kind: 'stream-cut' } })
+    expect(fault('Assistant request exceeded the context window')).toMatchObject({ fault: { kind: 'context-overflow' } })
+    expect(fault('Your input exceeds the context window of this model', { isContextOverflow: (m: AssistantMessage) => isContextOverflow(m) })).toMatchObject({ fault: { kind: 'context-overflow' } })
+    expect(fault('Connection error.')).not.toHaveProperty('fault')
   })
 
   it('an error followed by a settled assistant reply in the same turn is recovered', () => {

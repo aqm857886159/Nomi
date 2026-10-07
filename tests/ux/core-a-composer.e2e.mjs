@@ -208,7 +208,7 @@ try {
   await selectNode(win,edited[1].id,{multi:true})
   await expect.poll(() => win.evaluate(() => window.__nomiCanvasStore.getState().selectedNodeIds.length)).toBe(2)
   await expectAbsent(win.locator(composerSelector), { provenBy: singleComposerProof, message: 'multi selection dismisses the single composer' })
-  await expect(win.locator('[data-batch-scope="selection"]')).toBeVisible()
+  await expect(win.locator('.generation-canvas-v2__selection-toolbar').getByRole('button', { name: /^(编组|Group)$/ }), 'multi selection shows the selection toolbar (group action, no batch generate)').toBeVisible()
   const blank = await findCanvasBlankPoint(win)
   assert(blank)
   await win.mouse.click(blank.x, blank.y)

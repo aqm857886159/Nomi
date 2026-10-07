@@ -1,61 +1,28 @@
 import { isNodeGenerationOwnedByProduction, type ProductionRunsById } from '../../production/productionShotOwnership'
-import type { ProfileKind } from '../../api/modelCatalogApi'
-import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import {
-  getGenerationNodeExecutionKind,
-  type GenerationNodeExecutionKind,
-  type GenerationNodeKind,
-} from '../model/generationNodeKinds'
-import { requiredModeForGenerationNode } from '../adapters/modelOptionsAdapter'
+import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
+import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 
-export const CANVAS_BATCH_CONCURRENCY_STORAGE_KEY = 'nomi.canvas.batch-concurrency'
+/** 调度器默认并发。用户不再选：批量只走组的「生成整组」，并发交给调度器。 */
 export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 6
-
-export function canvasBatchDockScopeKey(eligibleIds: readonly string[]): string {
-  return eligibleIds.join('\u0000')
-}
-
-type CanvasBatchConcurrencyStorage = Pick<Storage, 'getItem' | 'setItem'>
 
 export type CanvasGenerationScope = {
   categoryId?: string
   nodeIds?: readonly string[]
 }
 
-export function resolveCanvasGenerationScope(
-  activeCategoryId: string,
-  selectedNodeIds: readonly string[],
-): CanvasGenerationScope {
-  return selectedNodeIds.length > 0 ? { nodeIds: selectedNodeIds } : { categoryId: activeCategoryId }
+let e2eConcurrency: number | null = null
+
+/**
+ * 仅供 E2E 桥（localStorage.__nomiE2E，见 ProductionCanvasLandingHost）：走查要造「排队中」的真实状态，
+ * 就把整批并发压到 1。产品界面不提供这个选项，也不读任何用户偏好。
+ */
+export function setCanvasBatchConcurrencyForE2E(value: number | null): void {
+  e2eConcurrency = value === null ? null : normalizeCanvasBatchConcurrency(value)
 }
 
 export function normalizeCanvasBatchConcurrency(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_CANVAS_BATCH_CONCURRENCY
+  if (typeof value !== 'number' || !Number.isFinite(value)) return e2eConcurrency ?? DEFAULT_CANVAS_BATCH_CONCURRENCY
   return Math.max(1, Math.min(8, Math.floor(value)))
-}
-
-function defaultStorage(): CanvasBatchConcurrencyStorage | undefined {
-  return typeof window !== 'undefined' ? window.localStorage : undefined
-}
-
-export function readCanvasBatchConcurrency(storage = defaultStorage()): number {
-  if (!storage) return DEFAULT_CANVAS_BATCH_CONCURRENCY
-  try {
-    const raw = storage.getItem(CANVAS_BATCH_CONCURRENCY_STORAGE_KEY)
-    return normalizeCanvasBatchConcurrency(raw === null ? undefined : Number(raw))
-  } catch {
-    return DEFAULT_CANVAS_BATCH_CONCURRENCY
-  }
-}
-
-export function writeCanvasBatchConcurrency(value: unknown, storage = defaultStorage()): number {
-  const normalized = normalizeCanvasBatchConcurrency(value)
-  try {
-    storage?.setItem(CANVAS_BATCH_CONCURRENCY_STORAGE_KEY, String(normalized))
-  } catch {
-    // Hardened Electron sessions may block localStorage; the in-memory value still applies.
-  }
-  return normalized
 }
 
 export function nodesInCanvasProductionScope(
@@ -78,7 +45,7 @@ export function eligibleGenerationNodeIds(
   return nodesInCanvasProductionScope(nodes, scope)
     .filter((node) => {
       if (!getGenerationNodeExecutionKind(node.kind)) return false
-      // 归制作流程生成的镜头（报价卡等确认 / 排队 / 生成中）节点状态仍是 idle——再算进「生成全部」就是重复扣费。
+      // 归制作流程生成的镜头（报价卡等确认 / 排队 / 生成中）节点状态仍是 idle——再算进「生成整组」就是重复扣费。
       if (isNodeGenerationOwnedByProduction(node, productionRuns)) return false
       const status = node.status ?? 'idle'
       return status === 'idle' || status === 'error'
@@ -86,44 +53,14 @@ export function eligibleGenerationNodeIds(
     .map((node) => node.id)
 }
 
-export function shouldShowCanvasBatchGenerateDock(input: {
-  readOnly: boolean
-  selectedCount: number
-  eligibleCount: number
-  eligibleScopeKey?: string
-  dismissedScopeKey?: string | null
-}): boolean {
-  if (input.readOnly || input.selectedCount !== 0 || input.eligibleCount <= 0) return false
-  return input.dismissedScopeKey === undefined || input.dismissedScopeKey !== input.eligibleScopeKey
-}
-
-export type CanvasGenerationExecutionGroup = {
-  executionKind: GenerationNodeExecutionKind
-  requiredMode: ProfileKind
-  nodeIds: string[]
-  representativeKind: GenerationNodeKind
-}
-
-export function groupGenerationNodesByExecutionKind(
+/**
+ * 「生成整组」要生成哪些节点——组工具条的可用态和点击后真正派发的集合共用这一份，不各算一遍。
+ */
+export function groupEligibleNodeIds(
+  group: Pick<NodeGroup, 'nodeIds'> | null | undefined,
   nodes: readonly GenerationCanvasNode[],
-  edges: readonly GenerationCanvasEdge[] = [],
-  contextNodes: readonly GenerationCanvasNode[] = nodes,
-): CanvasGenerationExecutionGroup[] {
-  const groups = new Map<string, CanvasGenerationExecutionGroup>()
-  for (const node of nodes) {
-    const executionKind = getGenerationNodeExecutionKind(node.kind)
-    if (!executionKind) continue
-    const requiredMode = requiredModeForGenerationNode(node, {
-      nodes: contextNodes as GenerationCanvasNode[],
-      edges: edges as GenerationCanvasEdge[],
-    })
-    const groupKey = `${executionKind}:${requiredMode}`
-    const existing = groups.get(groupKey)
-    if (existing) {
-      existing.nodeIds.push(node.id)
-      continue
-    }
-    groups.set(groupKey, { executionKind, requiredMode, nodeIds: [node.id], representativeKind: node.kind })
-  }
-  return [...groups.values()]
+  productionRuns: ProductionRunsById = {},
+): string[] {
+  if (!group?.nodeIds.length) return []
+  return eligibleGenerationNodeIds(nodes, { nodeIds: group.nodeIds }, productionRuns)
 }

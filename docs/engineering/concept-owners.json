@@ -3,6 +3,37 @@
   "schema_version": 2,
   "concepts": [
     {
+      "name": "本机参考图这次走哪条通道（端点自己的收法优先；借别家时点名）",
+      "subject": "asset.reference-ingestion-route",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/catalog/assetLocalization.ts",
+        "symbol": "resolveAssetIngestionWithFallback"
+      },
+      "write_api": [
+        {
+          "path": "electron/catalog/assetLocalization.ts",
+          "symbol": "resolveAssetIngestionWithFallback"
+        },
+        {
+          "path": "electron/catalog/assetLocalization.ts",
+          "symbol": "channelLabel"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/catalog/assetTransportRuntime.ts",
+        "electron/catalog/customCallDispatch.ts",
+        "electron/catalog/assetTransportDescribe.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-reference-upload-channel.root-cause.json：端点（HttpOperation.assetIngestion）收得下就只用它；否则目标供应商 → 借用别家（borrowed 标记，失败行点名那一家的账户）→ relay → 匿名图床。"
+    },
+    {
       "name": "等用户",
       "subject": "agent-lane.awaiting-user",
       "lifecycle": "execution",
@@ -1288,6 +1319,40 @@
       "notes": "反馈 #7：删掉参考时提示词里的 @ 一起删（同一张图别的槽还绑着就留 @），删掉一枚 @ 这张图的绑定一起删；从没被 @ 过的参考不受影响。"
     },
     {
+      "name": "撤销 / 重做恢复出的画布（只回退用户编辑，生成落地保留）",
+      "subject": "canvas.undo-restore",
+      "lifecycle": "session",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+        "symbol": "reapplyLandedOutcomes"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+          "symbol": "reapplyLandedOutcomes"
+        },
+        {
+          "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+          "symbol": "popUndo"
+        },
+        {
+          "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+          "symbol": "popRedo"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/store/generationCanvasStore.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "撤销 / 重做 = 会话日志前缀重放 + 目标位置之后的生成落地重新叠回（同一套 nodeRunOutcomePatch 合并规则）+ 运行态取活 store。落地只经 addNodeResult / landNodeContent 两个 store 动作，它们在 run-updated 事件里带 landed 记账；绕过它们直接 updateNode 写结果 / 文本定稿，撤销就会把它撤掉。合同 docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json。"
+    },
+    {
       "name": "一次生成跑哪个变体",
       "subject": "generation.variant-resolution",
       "lifecycle": "frozen-execution",
@@ -2549,6 +2614,115 @@
       "notes": "根因合同 docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json：只有连上之前的失败才算确定没写出去（DNS / 建连 / TLS 握手前），UND_ERR_SOCKET 与连接被重置一律是结果未知；付费 POST 每次用 createFreshConnectionDispatcher 新建的连接，从构造上消掉「复用的旧连接」这一种歧义。重发规则住在 submissionOutbox.submitOnce（属 production.submission-admission 的写口），不在这里。2026-10-05 加第三档 providerExplicitlyRejected（用户拍板 F3，合同 docs/fixes/2026-10-05-provider-explicit-rejection.root-cause.json）：只认收到了响应、4xx 或 2xx + 失败信封、没有任务号；执行器只挂证据（providerAnswer），判在这里，落盘在 submissionOutbox.markProviderRejected。 2026-10-06 L-claim：判据从「最后那个错误」扩到「这一次派发」——提交出口用 observeSubmissionHandoffs 开一本账，appFetch 经 handOffToNetwork 记下交给网络的每个可能花钱的请求；执行器声明 networkTransport=app-fetch 时，一笔可能写出去的都没有才算确定没发出（在本机被拦 / 全在连上之前失败），否则结果未知。矩阵 electron/productionRun/unsentAttemptClaim.matrix.test.ts，合同 docs/fixes/2026-10-06-claim-release-unsent-attempt.root-cause.json。 V-1047：appFetch 是这本账的 HTTP 写口；子进程由 outboundDispatchEvidence 订阅 child_process 诊断通道记账，其余不经 appFetch 的出网口由 electron/offLedgerEgress.structure.test.ts 逐个登记。"
     },
     {
+      "name": "Agent 模型流看门狗的三个预算与相位（连不上 / 在想 / 出字中途停）",
+      "subject": "agent-lane.stream-watchdog",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneProviderGuard.mts",
+        "symbol": "LANE_STREAM_WATCHDOG"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneProviderGuard.mts",
+          "symbol": "LANE_STREAM_WATCHDOG"
+        },
+        {
+          "path": "electron/agentLane/laneStreamObserver.mts",
+          "symbol": "observeNativeStream"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/agentLane/laneHost.mts",
+        "electron/agentLane/laneSingleShot.mts"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0004）：响应头（pi 的 start）之前 = first-response，响应头之后第一段正文之前 = first-token（思考预算 300s，对齐 pi 传输层空闲默认值），正文开始之后 = idle。lane 主路与单次调用读同一份。"
+    },
+    {
+      "name": "Agent 回合失败里不是服务商原话的那几类（看门狗相位 / 半路断流 / 上下文溢出）",
+      "subject": "agent-lane.assistant-fault",
+      "lifecycle": "projection",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/agentLane/laneAssistantFault.ts",
+        "symbol": "laneAssistantFaultOf"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/agentLane/laneAssistantFault.ts",
+          "symbol": "laneAssistantFaultOf"
+        },
+        {
+          "path": "electron/shared/agentLane/laneAssistantFault.ts",
+          "symbol": "laneModelTimeoutMessage"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/shared/agentLane/laneProjection.ts",
+        "electron/agentLane/laneStreamObserver.mts",
+        "electron/telemetry/trajectoryProjection.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-0928-0003 / NF-1001-0003 / NF-1001-0004）：看门狗那句话的格式只在这里铸、只在这里认；投影把它变成 fault，渲染层按 fault 取本地词条，原文不进界面。服务商溢出原话由宿主喂 pi 的 isContextOverflow。"
+    },
+    {
+      "name": "文稿此刻有没有位置（选区 / 光标）——没有就说「没有位置」",
+      "subject": "document.position-availability",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/project/documentSessionPort.ts",
+        "symbol": "positionUnavailable"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/project/documentSessionPort.ts",
+          "symbol": "positionUnavailable"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/WorkbenchEditor.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0001）：创作页编辑器没挂时，选区读 / 光标插入 / 定位锚回 document_position_unavailable（不是泛泛的 capability_unsupported，也不是过期）；增强端口整篇锚 insert 用同一个码。"
+    },
+    {
+      "name": "一次能力执行能等多久（读 / 写预算的唯一主人是动词声明）",
+      "subject": "capability.execution-timeout",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+        "symbol": "declaredTimeout"
+      },
+      "write_api": [
+        {
+          "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+          "symbol": "declaredTimeout"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0002）：执行器缺省超时从 MODEL_TOOL_READ/WRITE_TIMEOUT_MS_VALUE 派生，删掉 15 秒的第二份定义；构造参数 timeoutMs 只给测试缩短。"
+    },
+    {
       "name": "跨供应商同一模型的身份（canonical 模型 id）",
       "subject": "catalog.canonical-model-id",
       "lifecycle": "catalog",
@@ -3484,6 +3658,10 @@
         {
           "path": "electron/agentLane/laneContextBudget.mts",
           "symbol": "laneCompactionSettings"
+        },
+        {
+          "path": "electron/agentLane/laneSupersededReads.mts",
+          "symbol": "omitSupersededReads"
         }
       ],
       "forbidden_derivations": [],
@@ -3491,7 +3669,7 @@
         "electron/agentLane/laneHost.mts"
       ],
       "since": "2026-10-01",
-      "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。"
+      "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。2026-10-06（NF-0928-0003，合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json）：pi 压缩切不进当前回合，回合内反复读同一资源的旧快照由 omitSupersededReads 在 transform_context 里换成一行说明（只改发出去的那份，转录不动；判据从动词声明派生）。"
     },
     {
       "name": "写入回执「准备中」的时限与终态",
@@ -3868,6 +4046,37 @@
       ],
       "since": "2026-10-01",
       "notes": "「官网有哪些页面」只在这里说。页面生成器（build-marketing-site.mjs 经 renderSiteOutputs）、sitemap（computeSitemapEntries，lastmod 按内容哈希）都从它派生，每周 SEO 巡检读的是它的输出（已提交的 sitemap.xml）；地址 ↔ 文件的换算只在 routes.mjs。手写的 site-manifest.mjs（只列了 5 页）已删，合同 docs/fixes/2026-10-01-site-data-drift.root-cause.json。"
+    },
+    {
+      "name": "项目名（改名只有一个主人，内容保存不写名字）",
+      "subject": "project.name",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "value-object",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/project/projectPersistenceService.ts",
+        "symbol": "renameProjectAndPersist"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/project/projectPersistenceService.ts",
+          "symbol": "renameProjectAndPersist"
+        },
+        {
+          "path": "electron/workspace/workspaceRepository.ts",
+          "symbol": "saveWorkspaceProject"
+        },
+        {
+          "path": "src/workbench/project/projectRepository.ts",
+          "symbol": "saveProjectRecord"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-07",
+      "notes": "自动保存只拥有 payload 等渲染层内容；名字、创建时间、封面风格、种子键、项目身份都以盘上现值为准（桌面端内容保存连 name 字段都不发，主进程 saveWorkspaceProject 在清单锁内取现值）。docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json 改名入口：顶栏 renameProjectAndPersist；项目库走 renameLocalProject（projectRepository / localProjectStore 同名包装）。 saveLocalProject / saveWorkspaceProject 是内容保存边界：签名与记录里不带 name，名字沿用盘上现值。"
     },
     {
       "name": "官网模型资格",

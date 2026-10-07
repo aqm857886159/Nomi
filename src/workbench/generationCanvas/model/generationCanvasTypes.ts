@@ -217,8 +217,10 @@ export type NodeGroup = {
   name: string
   categoryId: CategoryId
   nodeIds: string[]
-  /** @deprecated Kept only for persisted-project compatibility; group chrome is design-system neutral. */
+  /** @deprecated 旧版自定义色（十六进制）。只为旧项目读盘兼容保留，不再进入渲染层——见 model/groupColor.ts。 */
   color?: string
+  /** 用户在组工具条里亲手选的颜色（token 名）。没有 = 默认中性灰；只上边框和标题圆点。 */
+  colorToken?: string
   /**
    * 框（Frame）的边界——**用户画出来的那个矩形**，2026-09-06 起是真相之一。
    * 画布渲染的框 = `union(frameBounds, 成员外接矩形 + padding)`：只长不缩，永不小于用户画的那个。

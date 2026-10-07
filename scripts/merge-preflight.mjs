@@ -125,6 +125,12 @@ export function parsePullFileRows(text) {
   })
 }
 
+/** 起点（merge-base）账本里有、PR 头上没有的条目 id。纯函数、可测。 */
+export function removedLedgerIds(forkLedger, headLedger) {
+  const headIds = new Set((headLedger?.entries ?? []).map((entry) => entry.id))
+  return (forkLedger?.entries ?? []).map((entry) => entry.id).filter((id) => !headIds.has(id))
+}
+
 /** base 账本里已结账（fixed）条目指向的根因合同文件。纯函数、可测。 */
 export function settledContracts(baseLedger) {
   return (baseLedger?.entries ?? []).filter((entry) => entry.status === 'fixed' && entry.rootCauseContract).map((entry) => entry.rootCauseContract)
@@ -251,11 +257,16 @@ export function main(argv = process.argv.slice(2)) {
   ledger.settledContracts = settledContracts(baseLedger)
   if (slug && files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
     const head = parseLedger(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
-    const base = baseLedger
-    ledger.transitions = fixedTransitions(base, head)
+    // 「转成 fixed」和「条目被删」都要对本 PR 自己的起点（merge-base）比，不能对 main 末端比：
+    // main 在 PR 开出之后新加的条目，PR 头上自然没有，对末端比会被误判成「本 PR 删了别人的条目」（10-07 #1055 / #1065）。
+    let forkLedger = baseLedger
+    try {
+      const forkSha = gh(['api', `repos/${slug}/compare/${view.baseRefName || 'main'}...${view.headRefOid}`, '--jq', '.merge_base_commit.sha']).trim()
+      if (/^[0-9a-f]{40}$/.test(forkSha)) forkLedger = parseLedger(ghApiFile(slug, ESCAPE_LEDGER_FILE, forkSha)) ?? baseLedger
+    } catch { forkLedger = baseLedger }
+    ledger.transitions = fixedTransitions(forkLedger, head)
     ledger.ids = (head?.entries ?? []).map((entry) => entry.id)
-    const headIds = new Set(ledger.ids)
-    ledger.removed = (base?.entries ?? []).map((entry) => entry.id).filter((id) => !headIds.has(id))
+    ledger.removed = removedLedgerIds(forkLedger, head)
   }
 
   // 规则与门岗的改动范围：要真实的文件状态（removed / modified）；取不到分页表就按 modified 算

@@ -45,6 +45,7 @@ export const AGENT_TOOL_FAILURE_TEXT_KEY = {
   capability_input_invalid: 'agentToolFailure.capability_input_invalid',
   capability_target_stale: 'agentToolFailure.capability_target_stale',
   capability_unsupported: 'agentToolFailure.capability_unsupported',
+  document_position_unavailable: 'agentToolFailure.document_position_unavailable',
   capability_receipt_unresolved: 'agentToolFailure.capability_receipt_unresolved',
   capability_invocation_unverified: 'agentToolFailure.capability_invocation_unverified',
   capability_authority_invalid: 'agentToolFailure.capability_authority_invalid',

@@ -106,6 +106,24 @@ describe('轨迹投影 · 金测试（阳性对照先立住）', () => {
     expect(turns[1]['nomi.turn.error_count']).toBe(1)
   })
 
+  // NF-0928-0003 / NF-1001-0001 / NF-1001-0002 / NF-1001-0003 / NF-1001-0004：五条反馈都只拿到「failed: true」和一个回合总 token 数，定不了是哪种失败、哪一次请求撑爆。
+  // 新增的三样都是闭合词表或数字，不含内容。
+  it('带出失败码、认得出的错误类别、请求次数与单次最大输入', () => {
+    const [base] = fixtureTurns()
+    const turn = projectTrajectoryTurn({
+      ...base,
+      requestInputs: [65_000, 66_200, 64_900, 66_000],
+      tools: [{ toolCallId: 'c1', name: 'read_script', arguments: { scope: 'selection' }, durationMs: 236, failed: true, failureCode: 'document_position_unavailable' },
+        { toolCallId: 'c2', name: 'read_script', arguments: { scope: 'full' }, durationMs: 300, failed: false, failureCode: null }],
+      errors: ['Nomi model first-token timeout after 300000ms', 'Stream ended without finish_reason', 'Assistant request exceeded the context window', '/Users/aoqimin/secret 余额不足'],
+    })
+    expect(turn['nomi.turn.tool_calls'].map((call) => call['nomi.tool.failure_code'])).toEqual(['document_position_unavailable', null])
+    expect(turn['nomi.turn.error_kinds']).toEqual(['model-timeout:first-token', 'stream-cut', 'context-overflow'])
+    expect(turn['nomi.turn.request_count']).toBe(4)
+    expect(turn['nomi.turn.max_request_input_tokens']).toBe(66_200)
+    expect(JSON.stringify(turn)).not.toContain('/Users/aoqimin/secret')
+  })
+
   it('会话 id 哈希掉：它带着本机路径和用户给对话起的名字', () => {
     const [turn] = projectLaneTrajectory(fixtureTurns()).turns
     expect(turn['gen_ai.conversation.id']).toMatch(/^[0-9a-f]{16}$/)

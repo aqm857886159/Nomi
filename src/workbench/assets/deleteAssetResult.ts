@@ -126,7 +126,7 @@ async function deleteAssetResultUnlocked(
         ...project.payload.generationCanvas,
         nodes: applyAssetResultDeletion(project.payload.generationCanvas.nodes, plan),
       },
-    }, project.name)
+    })
     outcome.removedResultCount = plan.matches.length
   }
   if (!plan.fileTarget) return outcome

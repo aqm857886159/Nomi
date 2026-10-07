@@ -141,6 +141,7 @@ export const nodeGroupSchema = z.object({
   categoryId: categoryIdSchema,
   nodeIds: z.array(z.string()),
   color: z.string().optional(),
+  colorToken: z.string().optional(),
   frameBounds: z.object({
     x: z.number(),
     y: z.number(),

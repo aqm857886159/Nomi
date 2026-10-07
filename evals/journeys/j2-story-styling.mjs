@@ -58,7 +58,6 @@ export default {
         const sceneRefs = shots.filter((shot) => edgePairs.has(`${scene?.id}->${shot.id}`));
         const identityMissing = shots.filter((node) => !["红围巾", "黑色短发", "黄色雨衣"].every((term) => String(node.prompt || "").includes(term)));
         const configMissing = shots.filter((node) => !node.meta?.modelKey || !node.meta?.archetype?.id || !node.meta?.aspect_ratio || Number(node.meta?.duration) <= 0);
-        const batchReady = await ctx.win.locator('[data-batch-dock="true"] [data-storyboard-run-all="true"]').first().isVisible().catch(() => false);
         return [
           check("创建 3 个漫画镜头", shots.length === 3, `shots=${shots.length}`, "outcome"),
           check("每个镜头有可执行画面提示词", shots.length > 0 && shots.every((node) => String(node.prompt || "").trim().length >= 20), "", "quality"),
@@ -66,7 +65,6 @@ export default {
           check("角色卡引用到三个镜头", characterRefs.length === 3, `characterRefs=${characterRefs.length}`, "outcome"),
           check("场景卡至少约束雨夜镜头", sceneRefs.length >= 1, `sceneRefs=${sceneRefs.length}`, "outcome"),
           check("镜头模型、画幅与时长已配齐", shots.length === 3 && configMissing.length === 0, configMissing.map((node) => node.title || node.id).join(", "), "outcome"),
-          check("“全部生成”批量入口已就绪", batchReady, "batch dock not visible", "outcome"),
         ];
       },
     },

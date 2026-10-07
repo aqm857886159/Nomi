@@ -254,6 +254,28 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       emitCanvasGesture([{ type: 'canvas.node.moved', payload: { nodeId, position } }])
     }
   },
+  moveNodes: (updates, options) => {
+    const current = get()
+    const byId = new Map(updates.map((update) => [update.nodeId, update.position] as const))
+    const moved = current.nodes
+      .filter((node) => {
+        const position = byId.get(node.id)
+        return position && (position.x !== node.position.x || position.y !== node.position.y)
+      })
+      .map((node) => ({ nodeId: node.id, position: byId.get(node.id)! }))
+    if (!moved.length) return
+    set((state) => {
+      const positions = new Map(moved.map((update) => [update.nodeId, update.position] as const))
+      for (const node of state.nodes) {
+        const position = positions.get(node.id)
+        if (position) node.position = position
+      }
+      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
+    })
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture(moved.map(({ nodeId, position }) => ({ type: 'canvas.node.moved' as const, payload: { nodeId, position } })))
+    }
+  },
   moveSelectedNodes: (delta, options) => {
     set((state) => {
       const selected = new Set(state.selectedNodeIds)
@@ -373,28 +395,6 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
         .filter((n) => !categoryId || (n.categoryId || 'shots') === categoryId)
         .map((n) => n.id)
       state.selectedNodeIds = ids
-    })
-  },
-  // 框选：选中与矩形相交（AABB）的当前分类节点。additive 时与现有选区并集。
-  selectNodesInRect: (rect, categoryId, additive = false) => {
-    const left = Math.min(rect.x1, rect.x2)
-    const right = Math.max(rect.x1, rect.x2)
-    const top = Math.min(rect.y1, rect.y2)
-    const bottom = Math.max(rect.y1, rect.y2)
-    set((state) => {
-      const hits = state.nodes.filter((node) => {
-        if (categoryId && (node.categoryId || 'shots') !== categoryId) return false
-        const { width: w, height: h } = resolveNodeVisualSize(node)
-        return node.position.x + w >= left && node.position.x <= right &&
-          node.position.y + h >= top && node.position.y <= bottom
-      }).map((node) => node.id)
-      if (!additive) {
-        state.selectedNodeIds = hits
-        return
-      }
-      const merged = new Set(state.selectedNodeIds)
-      hits.forEach((id) => merged.add(id))
-      state.selectedNodeIds = Array.from(merged)
     })
   },
   duplicateNodeForRegeneration: (nodeId) => {
