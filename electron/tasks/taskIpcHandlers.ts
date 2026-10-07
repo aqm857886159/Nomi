@@ -16,13 +16,13 @@ type RuntimeLoader = () => Promise<typeof import("../runtime")>;
 /** Register the renderer task boundary, including the spend-grant trust check. */
 export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void {
   const owners = new Set<number>();
-  let exiting = false;
+  let draining = false;
   let drained = false;
-  app.on("before-quit", (event) => {
+  app.on("will-quit", (event) => {
     if (drained) return;
     event.preventDefault();
-    if (exiting) return;
-    exiting = true;
+    if (draining) return;
+    draining = true;
     void antigravityImageJobs.cancelAll().finally(() => { drained = true; app.quit(); });
   });
   ipcMain.handle("nomi:tasks:quote-spend", (event, inputs: SpendQuoteInput[]) => {
