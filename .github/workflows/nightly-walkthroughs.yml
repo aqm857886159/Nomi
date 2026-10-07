@@ -33,6 +33,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: bash scripts/ci-install-chromium.sh
       - name: Build desktop surfaces
         run: pnpm run build
       - name: Run non-paid walkthrough batch
@@ -51,7 +53,7 @@ jobs:
             log="nightly-walks/${name}.log"
             started=$(date +%s)
             set +e
-            xvfb-run -a node "$walk" >"$log" 2>&1
+            timeout 600 xvfb-run -a node "$walk" >"$log" 2>&1
             status=$?
             set -e
             ended=$(date +%s)
@@ -85,44 +87,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs')
-          const cp = require('node:child_process')
-          const root = 'nightly-results'
-          const rows = []
-          for (const file of fs.readdirSync(root, { recursive: true })) {
-            if (!String(file).endsWith('.tsv')) continue
-            for (const line of fs.readFileSync(`${root}/${file}`, 'utf8').split('\n').filter(Boolean)) {
-              const [walk, status, seconds, log] = line.split('\t')
-              rows.push({ walk, status: Number(status), seconds: Number(seconds), log })
-            }
-          }
-          rows.sort((a, b) => a.walk.localeCompare(b.walk))
-          const failed = rows.filter((row) => row.status !== 0)
-          const skipped = rows.filter((row) => row.status === 125)
-          const lines = [
-            `Nightly walkthroughs: ${rows.length - failed.length}/${rows.length} passed; ${failed.length} failed; ${skipped.length} skipped.`,
-            '', '| Walkthrough | Result | Seconds |', '|---|---:|---:|',
-            ...rows.map((row) => `| ${row.walk} | ${row.status === 0 ? 'passed' : row.status === 125 ? 'skipped' : `failed (${row.status})`} | ${row.seconds} |`),
-          ]
-          fs.writeFileSync('nightly-summary.md', lines.join('\n') + '\n')
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n')
-          const title = '夜跑走查失败'
-          const existing = JSON.parse(cp.execFileSync('gh', ['issue', 'list', '--repo', process.env.GH_REPO, '--state', 'open', '--search', `${title} in:title`, '--json', 'number,title'], { encoding: 'utf8' }))
-          if (!failed.length) {
-            if (existing.length) cp.execFileSync('gh', ['issue', 'comment', String(existing[0].number), '--repo', process.env.GH_REPO, '--body', `夜跑 ${new Date().toISOString()} 已恢复：${rows.length} 条全部通过。`])
-            process.exit(0)
-          }
-          const body = [
-            `夜跑时间：${new Date().toISOString()}`,
-            `失败 ${failed.length} 条，共 ${rows.length} 条。`, '',
-            ...failed.map((row) => `- ${row.walk}（exit ${row.status}，${row.seconds}s；日志：${row.log}）`),
-            '', '完整结果见本次 workflow 的 nightly-walks-* artifacts。',
-          ].join('\n')
-          if (existing.length) cp.execFileSync('gh', ['issue', 'edit', String(existing[0].number), '--repo', process.env.GH_REPO, '--body', body])
-          else cp.execFileSync('gh', ['issue', 'create', '--repo', process.env.GH_REPO, '--title', title, '--body', body])
-          NODE
+        run: node scripts/nightly-walk-summary.mjs nightly-results nightly-summary.md
       - name: Upload nightly summary
         if: always()
         uses: actions/upload-artifact@v7

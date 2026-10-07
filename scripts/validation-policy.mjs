@@ -1,3 +1,7 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 // 核心流程冒烟（2026-09-22 用户拍板，docs/plan/2026-09-22-core-flow-smoke-three-defenses.md）：
 // **除了纯文档，一律跑**，两种夹具各一遍。它不跟任何路径模式挂钩——09-22 那次回归坏在共享的 CSS 开关上，
 // 画布套件因为「没改到 generationCanvas」被分类器跳过，核心流程三件事全坏、CI 全绿。
@@ -121,11 +125,23 @@ const JOURNEY_PATTERNS = [
 // deliberately excluded). Keep this registration beside the policy data so a
 // change to a spending surface selects the same Linux journey lane that runs
 // these checks in quality-gate.yml.
-export const SPEND_WALK_PATTERNS = Object.freeze([
-  /^tests\/ux\/agent-(?:panel-missing-card|spend-(?:card|confirm-executes|full-auto|generate-remaining|long-output-name|nonapimart-vendor|per-shot|priced-card|reprice|stop-midway|unknown-price|video-landing|waiting-owner))\.walk\.mjs$/,
-  /^tests\/ux\/core-smoke-spend-confirm\.walk\.mjs$/,
-  /^tests\/ux\/spend-confirm-a11y\.walk\.mjs$/,
-])
+const ROUTING_URL = new URL('../docs/engineering/test-routing.json', import.meta.url)
+const ROUTING_FILE = fs.existsSync(ROUTING_URL) ? ROUTING_URL : path.join(process.cwd(), 'docs/engineering/test-routing.json')
+const ROUTING = JSON.parse(fs.readFileSync(ROUTING_FILE, 'utf8'))
+const SPEND_EVIDENCE = ROUTING.categories.spend.evidence.find((entry) => entry.id === 'spend-walks')
+if (!SPEND_EVIDENCE?.walks?.length) throw new Error('test-routing.json must define spend-walks')
+export const SPEND_WALKS = Object.freeze(SPEND_EVIDENCE.walks.map((walk) => Object.freeze({ ...walk })))
+export const SPEND_WALK_FILES = Object.freeze(SPEND_WALKS.map((walk) => walk.path))
+export const SPEND_BLOCKING_WALKS = Object.freeze(SPEND_WALKS.filter((walk) => walk.blocking))
+const SPEND_PATH_RULES = Object.freeze(ROUTING.pathRules.filter((rule) => rule.category === 'spend').map((rule) => ({
+  pattern: new RegExp(rule.pattern, 'i'),
+  scope: rule.scope ? new RegExp(rule.scope, 'i') : null,
+})))
+export function isSpendSourcePath(path) {
+  const normalized = normalizePath(path)
+  return SPEND_PATH_RULES.some(({ pattern, scope }) => (!scope || scope.test(normalized)) && pattern.test(normalized))
+}
+export const SPEND_WALK_PATTERNS = Object.freeze(SPEND_WALK_FILES.map((file) => new RegExp('^' + file + '$')))
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
 
@@ -307,7 +323,7 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
       policy.journeys = true
       policy.reasons.push(`journey:${path}`)
     }
-    if (matchesAny(path, SPEND_WALK_PATTERNS)) {
+    if (isSpendSourcePath(path) || matchesAny(path, SPEND_WALK_PATTERNS)) {
       policy.unit = 'full'
       policy.journeys = true
       policy.reasons.push(`spend-journey:${path}`)
@@ -353,3 +369,9 @@ export const VALIDATION_POLICY_OUTPUTS = Object.freeze([
   'release',
   'failClosed',
 ])
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const mode = process.argv[2] || 'all'
+  const walks = mode === '--print-spend-walks' ? (process.argv[3] === 'blocking' ? SPEND_BLOCKING_WALKS : SPEND_WALKS) : []
+  if (mode === '--print-spend-walks') process.stdout.write(walks.map((walk) => walk.path).join('\n') + (walks.length ? '\n' : ''))
+}

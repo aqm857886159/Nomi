@@ -19,7 +19,7 @@ const runCommands = (job) => job.steps?.flatMap((step) => (typeof step.run === '
 
 test('the unit lane provisions Chromium before either browser integration test entry', () => {
   const steps = workflow.jobs.unit.steps
-  const install = steps.findIndex(step => step.run === 'pnpm exec playwright install --with-deps chromium')
+  const install = steps.findIndex(step => step.run === 'bash scripts/ci-install-chromium.sh')
   assert.ok(install >= 0, 'Unit runs real browser integration tests and must provision Chromium')
   assert.equal(steps[install].if, undefined, 'Both focused and full lanes need the browser')
   for (const command of ['pnpm run test:system:unit', 'pnpm run test:system:focused']) {
@@ -431,7 +431,7 @@ test('取消式并发组不得按共用 ref 分组：push 触发的 workflow 必
 
 test('browser feel fixtures run in the Chromium-equipped desktop lane, never Unit', () => {
   const commands = runCommands(workflow.jobs['desktop-linux'])
-  const install = commands.indexOf('pnpm exec playwright install --with-deps chromium')
+  const install = commands.indexOf('bash scripts/ci-install-chromium.sh')
   const run = commands.indexOf('pnpm run test:feel:browser')
   assert.ok(install >= 0 && run > install)
   for (const [name, job] of Object.entries(workflow.jobs)) {
@@ -482,10 +482,23 @@ test('every workflow job that runs browser-backed tests installs Chromium before
       )
       if (runIndex < 0) continue
       jobsWithBrowserTests += 1
-      const installIndex = steps.findIndex((step) => typeof step.run === 'string' && /playwright install\b.*\bchromium\b/.test(step.run))
+      const installIndex = steps.findIndex((step) => typeof step.run === 'string' && /(?:playwright install\b.*\bchromium\b|ci-install-chromium\.sh)/.test(step.run))
       if (installIndex < 0 || installIndex > runIndex) offenders.push(`${file}:${jobName}`)
     }
   }
   assert.ok(jobsWithBrowserTests > 0, '断言空转：没有找到任何跑浏览器测试的 job')
   assert.deepEqual(offenders, [], `这些 job 跑了浏览器测试却没在它之前装 Chromium：${offenders.join('、')}`)
+})
+
+
+test('spending and nightly workflows use shared routing, browser setup, timeouts, and summary semantics', () => {
+  const quality = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
+  const desktop = quality.jobs['desktop-linux']
+  const spend = desktop.steps.find((step) => step.name === 'Spending path walkthroughs (blocking subset)')
+  assert.match(spend.run, /validation-policy\.mjs --print-spend-walks blocking/)
+  assert.match(spend.run, /timeout 600/)
+  const nightly = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
+  assert.equal(nightly.jobs.walks.steps.find((step) => step.name === 'Install Chromium').run, 'bash scripts/ci-install-chromium.sh')
+  assert.match(nightly.jobs.walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run, /timeout 600/)
+  assert.match(nightly.jobs.report.steps.find((step) => step.name === 'Publish summary and update issue').run, /nightly-walk-summary\.mjs/)
 })

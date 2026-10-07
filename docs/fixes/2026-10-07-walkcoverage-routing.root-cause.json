@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-walkcoverage-routing",
+  "problem_type": "CI validation coverage drift",
+  "symptom": "Changes to spending source paths did not select the registered spending walkthroughs, and nightly exit 125 was reported as a failure.",
+  "direct_cause": "The walk list was copied into validation policy and workflow YAML, while the nightly summary used status !== 0 for failures.",
+  "class_root": "There was no single executable routing contract shared by source-path classification, blocking PR execution, nightly execution, and result aggregation.",
+  "affected_population": [
+    "Pull requests changing spending paths",
+    "All non-paid nightly walkthrough batches",
+    "Linux CI runners"
+  ],
+  "scope_paths": [
+    "docs/engineering/test-routing.json",
+    "scripts/validation-policy.mjs",
+    "scripts/nightly-walk-summary.mjs",
+    ".github/workflows/quality-gate.yml",
+    ".github/workflows/nightly-walkthroughs.yml"
+  ],
+  "entry_points": [
+    "Changed-file policy classification",
+    "Blocking PR spending walkthroughs",
+    "Scheduled nightly walkthroughs",
+    "Nightly result summary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-specific CI routing and does not depend on a third-party runtime contract.",
+  "invariants": [
+    "The routing table is the only owner of spending walkthrough membership and blocking status.",
+    "Every spending source path and registered spending walk selects the journey lane.",
+    "Exit 125 is skipped; only nonzero statuses other than 125 are failures.",
+    "Every walk has a bounded timeout and browser provisioning uses the shared retrying script."
+  ],
+  "doors": [],
+  "door_reduction": {
+    "before": 0,
+    "after": 0
+  },
+  "generality_proof": "Policy, PR workflow, nightly workflow, and summary code all consume the same routing JSON or the same summary function, so adding or changing a walk cannot leave one execution surface stale.",
+  "shared_boundaries": [
+    {
+      "path": "docs/engineering/test-routing.json",
+      "symbol": "categories.spend.evidence[id=spend-walks]",
+      "responsibility": "Own the complete walk set, blocking subset, and rationale."
+    },
+    {
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "isSpendSourcePath/classifyValidationPolicy",
+      "responsibility": "Route source paths and registered walks to the journey lane and expose the executable blocking list."
+    },
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "summarizeRows",
+      "responsibility": "Classify pass, skipped, timeout, and failure statuses consistently."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "Spending path walkthroughs (blocking subset)",
+      "disposition": "enforced",
+      "evidence": "Reads validation-policy --print-spend-walks blocking."
+    },
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "Run non-paid walkthrough batch",
+      "disposition": "enforced",
+      "evidence": "Runs every non-paid walk with the shared browser installer and per-walk timeout."
+    },
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "entry_point": "summarizeRows",
+      "disposition": "enforced",
+      "evidence": "Regression test proves status 125 is skipped and 124 is failed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any newly added spending source, walk, runner status, or workflow edit could otherwise drift from the other surfaces.",
+    "same_class_scan": [
+      "rg spending path rules and walk names across scripts, workflows, and tests",
+      "node scripts/door-map.mjs scripts/validation-policy.mjs",
+      "node --test scripts/validation-policy.node-test.mjs scripts/nightly-walk-summary.node-test.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/validation-policy.mjs",
+    "invariant": "All spend routing and blocking selection is derived from test-routing.json.",
+    "failure_mode": "Missing spend-walks data throws during policy load; unknown paths remain fail-closed under existing policy rules.",
+    "exception_policy": "none",
+    "strategy": "Remove copied lists from workflow YAML and make summary status semantics executable and tested.",
+    "artifacts": [
+      "docs/engineering/test-routing.json",
+      "scripts/validation-policy.mjs",
+      "scripts/nightly-walk-summary.mjs",
+      "scripts/ci-install-chromium.sh"
+    ]
+  },
+  "regression_tests": [
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/nightly-walk-summary.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/nightly-walk-summary.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/quality-gate.yml",
+      ".github/workflows/nightly-walkthroughs.yml"
+    ],
+    "rationale": "Copied routing and inline status classification were replaced by shared data and executable helpers."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the routing invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted user data or production API changes; existing workflows consume the new routing entry on their next run.",
+  "residual_risks": [
+    "Actual Linux Electron walkthrough execution remains unverified in this local Windows session and is delegated to CI/nightly evidence."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-07",
+  "invariant_owner_layer": {
+    "layer": "scripts/validation-policy.mjs",
+    "tests": [
+      "scripts/validation-policy.node-test.mjs",
+      "scripts/nightly-walk-summary.node-test.mjs",
+      "scripts/check-quality-gate-workflow.node-test.mjs"
+    ]
+  }
+}

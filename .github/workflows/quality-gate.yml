@@ -164,7 +164,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium for browser integration tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
       - name: Unit and agent runtime tests (full lane)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:system:unit
@@ -204,7 +204,7 @@ jobs:
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
       # 七步一律 continue-on-error + 末尾汇总（2026-09-18）。此前它们是串行 fail-fast：
       # 第一条走查红了，后面六条根本不跑，于是**每轮 CI 只能学到一件事**——
       # PR #804 连着三轮，每轮红的都是另一条不同的走查，三轮 ≈ 两小时只为收集三条信息。
@@ -245,30 +245,21 @@ jobs:
       - name: Golden path (Agent storyboard lands on canvas)
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:golden
-      # Spending-path walks are registered in validation-policy.mjs. The full
-      # set is too expensive for every PR, so the six highest-risk loopback
-      # walks are blocking here; the remaining registered walks run nightly.
+      # The routing table owns both the walk list and the blocking subset.
       - name: Spending path walkthroughs (blocking subset)
         if: needs.scope.outputs.journeys == 'true'
-        env:
-          SPEND_WALKS: >-
-            tests/ux/agent-spend-card.walk.mjs
-            tests/ux/agent-spend-confirm-executes.walk.mjs
-            tests/ux/agent-spend-full-auto.walk.mjs
-            tests/ux/agent-spend-generate-remaining.walk.mjs
-            tests/ux/agent-spend-stop-midway.walk.mjs
-            tests/ux/core-smoke-spend-confirm.walk.mjs
         run: |
           set -o pipefail
           mkdir -p outputs/spend-walks
           failed=0
-          for walk in $SPEND_WALKS; do
+          while IFS= read -r walk; do
+            [ -n "$walk" ] || continue
             name=$(basename "$walk" .walk.mjs)
             echo "[spend-walk] $walk"
-            if ! xvfb-run -a node "$walk" 2>&1 | tee "outputs/spend-walks/$name.log"; then
+            if ! timeout 600 xvfb-run -a node "$walk" 2>&1 | tee "outputs/spend-walks/$name.log"; then
               failed=1
             fi
-          done
+          done < <(node scripts/validation-policy.mjs --print-spend-walks blocking)
           test "$failed" = 0
       - name: Critical canvas acceptance
         id: canvas-critical
