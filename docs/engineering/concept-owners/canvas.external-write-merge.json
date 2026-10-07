@@ -20,8 +20,8 @@
   "parity_test": "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
   "allowed_consumers": [
     "electron/capabilityCore/gateway.ts",
-    "src/workbench/capability/capabilityApplyHandler.ts"
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
   ],
   "since": "2026-10-07",
-  "notes": "外部写画布 = 读整张图（base）→ 算整张新图（next）→ 写回。写回只把 base → next 里外部自己改了的东西按 id 三方合并到此刻的画布（渲染层 store / 盘上项目两处共用这一份），节点的运行态与落地字段（electron/shared/canvas/landedNodeFields.ts）外部写入改不动。ProjectGateway.apply 必须带 base。合同 docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json。"
+  "notes": "外部写画布 = 读整张图（base）→ 算整张新图（next）→ 写回。写回只把 base → next 里外部自己改了的东西按 id 三方合并到此刻的画布（渲染层经画布写边界统一提交口 canvasDocumentCommit、盘上经 gateway，两处共用这一份），节点的事实层（electron/shared/canvas/landedNodeFields.ts 的 withLiveNodeFacts：运行态 / 落地 / 跟主图走的媒体尺寸）外部写入改不动。ProjectGateway.apply 必须带 base。合同 docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json、docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json。"
 }
