@@ -771,8 +771,12 @@ export function resolveAssetIngestionWithFallback(
     if (key) push(ing, key, vendor.key, true);
   }
   // 3. KIE/APIMart 可能未出现在旧存量 catalog；已配置时补入，push 去重。
-  const kieKey = getApiKey("kie");
-  if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie", targetVendor?.key !== "kie");
+  // 「目标是不是 KIE」只问 isVendorOfBuiltin（兄弟连接 kie--xxx 也算 KIE，它的通道在第 1 步已作为自己的排进去）；
+  // 不是 KIE 时，补进来的这条就是借来的。
+  if (!isVendorOfBuiltin(allVendors, targetVendor?.key, "kie")) {
+    const kieKey = getApiKey("kie");
+    if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie", true);
+  }
   if (!isVendorOfBuiltin(allVendors, targetVendor?.key, "apimart")) {
     const apimartKey = getApiKey("apimart");
     if (apimartKey) push(resolveAssetIngestionForKind(allVendors.find((vendor) => vendor.key === APIMART_VENDOR_SEED.key) ?? { key: "apimart" }, mediaKind), apimartKey, "apimart", true);

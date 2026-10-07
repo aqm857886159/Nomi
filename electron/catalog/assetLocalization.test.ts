@@ -1085,6 +1085,12 @@ describe("参考图跟着这次调用的端点走；借用别家时点名是哪�
     }
   });
 
+  it.each([["kie"], ["kie--mini"]])("目标就是 KIE（含兄弟连接 %s）时，KIE 通道不算借来的", (key) => {
+    const target = { key, ...(key.includes("--") ? { adapterCandidateRootVendorKey: "kie" } : {}) };
+    const candidates = resolveAssetIngestionWithFallback(target, [target, APIMART], (k) => (k === "kie" || k === key ? "sk-kie" : k === "apimart" ? "sk-apimart" : null), "image");
+    expect(candidates.filter((c) => c.vendorKey === "kie" && c.borrowed)).toEqual([]);
+  });
+
   it("全部失败时，借来的那条在详情里点名是哪一家的账户，并说清这次选的服务商还没被请求", async () => {
     const borrowed = { ingestion: { strategy: "upload-multipart", endpoint: "https://api.apimart.ai/v1/uploads/images", urlPath: "url", accepts: ["image"] } as AssetIngestion,
       uploadApiKey: "sk-apimart", vendorKey: "apimart", borrowed: true as const };
