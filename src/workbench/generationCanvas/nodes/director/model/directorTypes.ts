@@ -10,7 +10,8 @@
 // ── 基础 ──
 export type Vec3 = { x: number; y: number; z: number }
 
-export const DIRECTOR_PROJECT_VERSION = 2 as const
+// 3 = 2026-10-07 默认人偶换 UAL（rig:'ual'、UAL 骨名与动作 id）；单向升级：旧版 Nomi 不看版本号、不认 rig:'ual'，打开后人偶退回旧人偶并停在 T 字
+export const DIRECTOR_PROJECT_VERSION = 3 as const
 
 // 导出画幅与分辨率（清单 §2.3 底部栏「画幅比例设置」）
 export const DIRECTOR_EXPORT_RATIOS = ['16:9', '9:16', '4:3', '3:4', '1:1', '3:2', '2:3', '21:9', 'free'] as const

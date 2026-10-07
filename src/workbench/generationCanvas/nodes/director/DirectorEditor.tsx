@@ -27,6 +27,7 @@ import { DirectorStoreContext, useDirectorStore, useDirectorStoreApi } from './D
 import { MobileCameraContext } from './MobileCameraContext'
 import { useCameraMotionRecorder } from './useCameraMotionRecorder'
 import { useMobileCamera } from './useMobileCamera'
+import { ualMigrationNoteOf } from './model/directorProject'
 import { createDirectorStore, type DirectorStore } from './model/directorStore'
 import type { DirectorProject, DirectorLinkedAsset } from './model/directorTypes'
 import type { DirectorHotkeyScope } from './model/hotkeys'
@@ -297,10 +298,21 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
   if (director3dBox && !syncRef.current) {
     syncRef.current = createDirectorNodeSync({ store, defaultSceneName: t('director.node.sceneDefaultName'), initialRaw: rawProject, write: (project) => onProjectChangeRef.current(project) })
   }
+  // 最近一次落盘时 store 里的工程：退出时没变就不写（只是打开看一眼，不把读时迁移的结果写回去——旧人偶工程改了才落盘）
+  const savedProjectRef = React.useRef(store.getState().project)
   const persistProject = React.useCallback((project: DirectorProject) => {
+    savedProjectRef.current = store.getState().project
     if (syncRef.current) syncRef.current.persist(project)
     else onProjectChangeRef.current(project)
-  }, [])
+  }, [store])
+  // 读档时把旧人偶迁成了 UAL 且有动作 / 手调骨骼没法原样保留：打开时说一次（不写进工程）
+  const migrationToastShownRef = React.useRef(false)
+  React.useEffect(() => {
+    if (migrationToastShownRef.current) return
+    migrationToastShownRef.current = true
+    const note = ualMigrationNoteOf(store.getState().project)
+    if (note && note.approximatedActions + note.droppedBoneKeys > 0) toast(t('director.editor.ualMigrated', { actions: note.approximatedActions, bones: note.droppedBoneKeys }), 'info')
+  }, [store, t])
   // 节点上的工程被外部换掉（Agent 撤销一笔 stage_shot）→ 编辑器当场重载；自己写出去的那份回来不算
   React.useEffect(() => {
     if (!readOnly) syncRef.current?.adoptNodeProject(rawProject)
@@ -319,7 +331,7 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
     writeDirectorPreferences(next)
   }, [])
 
-  // 自动保存：工程变化后 2s 空闲写回一次（崩溃保护）；关闭时再写一次
+  // 自动保存：工程变化后 2s 空闲写回一次（崩溃保护）；退出时还有没落盘的改动才再写一次
   React.useEffect(() => {
     if (readOnly) return undefined
     let timer: number | null = null
@@ -362,7 +374,7 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
       confirmLabel: t('director.editor.exitConfirmOk'),
     })
     if (!ok) return
-    if (!readOnly) persistProject(store.getState().exportProject())
+    if (!readOnly && store.getState().project !== savedProjectRef.current) persistProject(store.getState().exportProject())
     onClose()
   }, [onClose, persistProject, readOnly, store, t])
 

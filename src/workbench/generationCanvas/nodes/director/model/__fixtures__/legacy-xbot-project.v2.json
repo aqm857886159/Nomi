@@ -1,0 +1,72 @@
+{
+  "version": 2,
+  "activeSceneId": "scene-1",
+  "exportRatio": "16:9",
+  "exportResolution": "1080",
+  "outputs": { "screenshots": [], "videos": [] },
+  "assets": { "folders": [], "items": [] },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "场景 1",
+      "visible": true,
+      "objects": [
+        {
+          "id": "walker", "name": "走路的人", "type": "character", "modelPath": "builtin:x-bot", "rig": "mixamo", "isSystemModel": true,
+          "position": { "x": -1, "y": 0, "z": 0 }, "rotation": { "x": 0, "y": 0, "z": 0 }, "scale": { "x": 1, "y": 1, "z": 1 }, "visible": true, "locked": false,
+          "posePreset": "standing_idle", "inTimeline": true,
+          "actionClips": [
+            { "id": "walker-action-0", "name": "standard_walk", "clipType": "action", "actionPose": "standard_walk", "startTime": 0, "endTime": 4, "startFrame": 0, "endFrame": 120 },
+            { "id": "walker-run", "name": "动作·跑", "clipType": "action", "actionPose": "running", "startTime": 4, "endTime": 6, "startFrame": 120, "endFrame": 180 }
+          ]
+        },
+        {
+          "id": "sitter", "name": "坐着的人", "type": "character", "modelPath": "builtin:x-bot", "isSystemModel": true,
+          "position": { "x": 1, "y": 0, "z": 0 }, "rotation": { "x": 0, "y": 180, "z": 0 }, "scale": { "x": 1, "y": 1, "z": 1 }, "visible": true, "locked": false,
+          "posePreset": "male_sitting_pose_1",
+          "boneRotations": {
+            "mixamorigLeftArm": { "x": 30, "y": -12.5, "z": 4 },
+            "mixamorig:RightForeArm": { "x": 0, "y": 45, "z": 0 },
+            "mixamorigHead": { "x": -10, "y": 20, "z": 0 },
+            "mixamorigLeftHandIndex1": { "x": 15, "y": 0, "z": 0 },
+            "mixamorigHeadTop_End": { "x": 1, "y": 0, "z": 0 }
+          },
+          "hipsOffset": { "x": 0, "y": -0.05, "z": 0.02 },
+          "actionClips": [
+            {
+              "id": "sitter-pose", "name": "骨骼姿态", "clipType": "custom_pose", "startTime": 0, "endTime": 2, "startFrame": 0, "endFrame": 60,
+              "keyframes": [
+                { "id": "kf-0", "time": 0, "frame": 0, "boneRotations": { "mixamorigSpine2": { "x": 10, "y": 0, "z": 0 }, "mixamorigRightHandThumb2": { "x": 5, "y": 0, "z": 0 } } },
+                { "id": "kf-1", "time": 2, "frame": 60, "boneRotations": { "mixamorigSpine2": { "x": -5, "y": 8, "z": 0 } }, "hipsOffset": { "x": 0, "y": -0.1, "z": 0 } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "kneeler", "name": "下跪的人", "type": "character", "modelPath": "builtin:x-bot", "rig": "mixamo", "isSystemModel": true,
+          "position": { "x": 0, "y": 0, "z": 2 }, "rotation": { "x": 0, "y": 0, "z": 0 }, "scale": { "x": 1, "y": 1, "z": 1 }, "visible": true, "locked": false,
+          "posePreset": "tpose",
+          "actionClips": [
+            { "id": "kneel-down", "name": "kneeling_down", "clipType": "action", "actionPose": "kneeling_down", "startTime": 0, "endTime": 3, "startFrame": 0, "endFrame": 90 },
+            { "id": "kneel-hold", "name": "kneeling", "clipType": "action", "actionPose": "kneeling", "startTime": 3, "endTime": 6, "startFrame": 90, "endFrame": 180 },
+            { "id": "kneel-up", "name": "standing_up", "clipType": "action", "actionPose": "standing_up", "startTime": 6, "endTime": 8, "startFrame": 180, "endFrame": 240 },
+            { "id": "sit-ground", "name": "坐地", "clipType": "action", "actionPose": "male_sitting_pose", "startTime": 8, "endTime": 10, "startFrame": 240, "endFrame": 300 }
+          ]
+        },
+        {
+          "id": "uploaded", "name": "上传的角色", "type": "character", "modelPath": "nomi-asset://characters/hero.fbx", "rig": "mixamo", "isSystemModel": false,
+          "position": { "x": 2, "y": 0, "z": 2 }, "rotation": { "x": 0, "y": 0, "z": 0 }, "scale": { "x": 1, "y": 1, "z": 1 }, "visible": true, "locked": false,
+          "posePreset": "standing_idle",
+          "boneRotations": { "mixamorigLeftArm": { "x": 10, "y": 0, "z": 0 }, "mixamorigLeftHandIndex1": { "x": 15, "y": 0, "z": 0 } },
+          "actionClips": [ { "id": "uploaded-walk", "name": "standard_walk", "clipType": "action", "actionPose": "standard_walk", "startTime": 0, "endTime": 4, "startFrame": 0, "endFrame": 120 } ]
+        },
+        {
+          "id": "box", "name": "箱子", "type": "cube",
+          "position": { "x": 0, "y": 0.5, "z": -2 }, "rotation": { "x": 0, "y": 0, "z": 0 }, "scale": { "x": 1, "y": 1, "z": 1 }, "visible": true, "locked": false
+        }
+      ],
+      "cameras": [],
+      "lights": []
+    }
+  ]
+}
