@@ -6,12 +6,14 @@
 // 30.0% 升到 67.8%，塞完整源码没有改善。今天的 laneContextFit 就是在「pi 已经有压缩」没人看的地方长出来的。
 //
 // 不另起真相源（R33）：清单**每次现算**，只读两张现有登记表——
-//   · docs/engineering/concept-owners.json   —— 我们自己的概念与唯一 owner；
+//   · docs/engineering/concept-owners/       —— 我们自己的概念与唯一 owner（一个概念一个文件，经 loadConceptRegistry 读）；
 //   · docs/engineering/framework-boundaries.json —— 依赖框架已经提供的能力（按 scope 前缀匹配目标路径）。
 // 不写任何文件、不入库；登记表漏登的能力，这里就列不出来（所以补登记是前置，见 pi 的 context-compaction）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { CONCEPT_OWNERS_DIR, loadConceptRegistry } from './concept-registry-lib.mjs'
 
 export const DEFAULT_MAX_BYTES = 2500
 const MAX_CONCEPT_LINES = 12
@@ -78,10 +80,16 @@ export function buildCapabilityIndex({ concepts = [], frameworks = [], dependenc
   return { text, bytes: Buffer.byteLength(text, 'utf8'), concepts: shownConcepts.length, frameworkCapabilities: shownFrameworks.length, dependencies: shownDependencies.length, total }
 }
 
+function requireConcepts(root) {
+  const registry = loadConceptRegistry(root)
+  if (!registry) throw new Error(`概念登记目录不存在：${CONCEPT_OWNERS_DIR}/`)
+  return registry.concepts
+}
+
 export function loadRegistries(root) {
   const read = (rel) => JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'))
   return {
-    concepts: read('docs/engineering/concept-owners.json').concepts,
+    concepts: requireConcepts(root),
     frameworks: read('docs/engineering/framework-boundaries.json').frameworks,
     dependencies: Object.keys(read('package.json').dependencies || {}).sort(),
   }

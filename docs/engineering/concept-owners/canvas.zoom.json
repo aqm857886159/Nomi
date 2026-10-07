@@ -1,0 +1,58 @@
+{
+  "name": "画布缩放",
+  "subject": "canvas.zoom",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "pending",
+  "migration_strategy": "五个直接读 workbenchStore.categoryViewports[*].zoom 的节点组件（NodeFloatingToolbar / NodeGeneratingOverlay / NodeImportingOverlay / NodeLabelRow / NodeGenerationComposer）改读 useCanvasLiveZoom；宿主不在 ReactFlowProvider 内的设计实验室登记例外并做性能验证后关 pending（Phase 0 施工卡 P0-5）。收口判据：categoryViewports 的读者只剩「画布记住的视角」自己的消费者。",
+  "owner": {
+    "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+    "symbol": "selectFlowZoom"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+      "symbol": "selectFlowZoom"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+      "symbol": "useCanvasLiveZoom"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "categoryViewports",
+      "kind": "reference",
+      "why": "持久化的「记住的视角」不是实时缩放；五个节点组件直接读它是 pending 例外，例外账之外不许再有读者"
+    },
+    {
+      "symbol": "rememberCategoryViewport",
+      "kind": "reference",
+      "why": "写持久化视角的唯一入口；程序动画中间帧写 store 的旧路已删，pending 期间旧路上不许再长写口"
+    }
+  ],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeLabelRow.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+    "src/workbench/workbenchStore.ts",
+    "src/devlab/designLab/canvasFrame/states/02-shot-label.tsx",
+    "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
+    "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+    "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx"
+  ],
+  "since": "2026-09-25",
+  "notes": "pending：React Flow transform[2] 是 live zoom 的唯一真相；workbenchStore.categoryViewports[*].zoom 只是持久化的记住视角，不应被当成实时缩放。程序动画的中间帧已不再写 store，但 NodeFloatingToolbar、NodeGeneratingOverlay、NodeImportingOverlay、NodeLabelRow、NodeGenerationComposer 仍直接读 store 副本。迁移目标是 useCanvasLiveZoom，若宿主不在 ReactFlowProvider 内必须显式登记设计实验室例外并做性能验证；完成前保留 pending。"
+}

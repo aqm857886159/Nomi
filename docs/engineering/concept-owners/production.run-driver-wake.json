@@ -1,0 +1,24 @@
+{
+  "name": "继续之后叫醒谁来驱动这个 Run",
+  "subject": "production.run-driver-wake",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunService.ts",
+    "symbol": "wakeRunDriver"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "wakeRunDriver"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/appIntegrationRunObservation.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-09-29",
+  "notes": "2026-09-29：任务卡 / MCP / 画布的「继续」都经 run.control resume；以前服务只踢 driveGeneration，多镜批次状态回到 running 却一镜都不派（派发归批次调度器）。「谁来驱动」只在 wakeRunDriver 判：多镜批次踢批次调度器（批次收齐后它自己交给 driveGeneration 收尾），其余归 driveGeneration。一趟驱动还在跑时来的踢由 appIntegrationRunObservation 记一笔、收尾时补踢（与 driveGeneration 的 generationRerunRequested 同一个做法），不丢唤醒。"
+}

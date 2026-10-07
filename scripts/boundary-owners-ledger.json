@@ -6,7 +6,10 @@
       "contract": "docs/fixes/2026-09-10-dc24-quiet-defaults.root-cause.json",
       "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
       "symbol": "ShotReferenceZone",
-      "anchor": { "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx", "symbol": "ShotReferenceStrip" },
+      "anchor": {
+        "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
+        "symbol": "ShotReferenceStrip"
+      },
       "reason": "2026-10-06 分镜复用画布交互（#1042）：镜头行的参考区整块换成视觉列里的参考条 ShotReferenceStrip（缩略图带 ×、「+」开素材选择器）。dc24 的不变量「正常态不教学、只留可操作的状态」由它承担：没有参考时只有一格「+」，不摆说明文字。"
     },
     {
@@ -338,6 +341,46 @@
         "symbol": "MCP_TRANSPORT_ERROR_EVENT / MCP_CANCELLED_IN_FLIGHT_EVENT"
       },
       "reason": "2026-10-05 MCP 协议层换官方 SDK v2（PR #1011）：stdio 分帧归 SDK 的 StdioServerTransport，不再「丢弃超长行」，而是读缓冲超限报错并关连接；对应诊断事件改名 MCP_TRANSPORT_ERROR_EVENT（stdio-transport-error），仍在同一个文件里、仍是两条启动路共用的唯一名字定义，不变量（事件名单一定义、宿主经 stderr 看得见）不变。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+        "symbol": "settleNodeFacts"
+      },
+      "reason": "2026-10-07 画布写边界统一（落地链方案 A，docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json）：整写的事实层规则从 reapplyLandedOutcomes 收进统一提交口 store/canvasDocumentCommit.ts 的 settleNodeFacts（撤销 / 重做叠回落地、运行态取活的、暂存结局接上都在这里），不变量不变、范围扩到所有整写门。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+        "symbol": "settleNodeFacts"
+      },
+      "reason": "2026-10-07 画布写边界统一（落地链方案 A，docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json）：整写的事实层规则从 reapplyLandedOutcomes 收进统一提交口 store/canvasDocumentCommit.ts 的 settleNodeFacts（撤销 / 重做叠回落地、运行态取活的、暂存结局接上都在这里），不变量不变、范围扩到所有整写门。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+        "symbol": "settleNodeFacts"
+      },
+      "reason": "2026-10-07 画布写边界统一（落地链方案 A，docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json）：整写的事实层规则从 reapplyLandedOutcomes 收进统一提交口 store/canvasDocumentCommit.ts 的 settleNodeFacts（撤销 / 重做叠回落地、运行态取活的、暂存结局接上都在这里），不变量不变、范围扩到所有整写门。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-26-open-fit-reopen-remembered-echo.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "restoreSnapshot",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+        "symbol": "restoreSnapshot"
+      },
+      "reason": "2026-10-07 画布写边界统一：装载（restoreSnapshot，唯一置 isReady=true 的写口）随所有整写搬进统一提交口 store/canvasDocumentCommit.ts，仍是 store 的同名动作、仍是唯一写口（canvasReadyOwner.test.ts 守）。"
     }
   ],
   "retirements": [
@@ -730,6 +773,18 @@
       "path": "scripts/ponytail-review-branch.mjs",
       "symbol": "chunkBranchDiff",
       "reason": "交工前评审整套已于 2026-10-02 删除，分块读 diff 的对象不复存在。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-10-node-composer-placement.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/generationVariantCount.ts",
+      "symbol": "supportsGenerationVariants",
+      "reason": "生成浮框的「每次生成几个」×N 下拉于 2026-10-06 按用户拍板删除（按一次出一版，多版靠版本卡片铺开），判「支不支持 ×N」的这条不变量不再有对象。"
+    },
+    {
+      "contract": "docs/fixes/2026-08-29-canvas-batch-mode-label-disambiguation.root-cause.json",
+      "path": "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+      "symbol": "resolveCanvasBulkModelLabelKey",
+      "reason": "2026-10-06 用户拍板：画布不再有批量选模型入口（底部批量栏和框选浮条上的按类型统一换模型整条删除，批量只走组工具条「生成整组」，各节点用自己已选好的模型）；这条「同类不同模式的批量下拉不许同名」的不变量所约束的 CanvasBulkModelSelect / canvasBatchModelLabel 随之整体删除，不再适用。分镜多选条仍用 BulkModelPicker，由 storyboardBulkModelScope 的测试守。"
     }
   ],
   "unverified": [

@@ -81,6 +81,8 @@ export type AgentPanelV4ComposerProps = {
   admitting?: boolean
   permission?: PermissionTier
   chips?: readonly V4Chip[]
+  /** 3D-BOX「正在改：镜头 N」标签（AgentPanelV4FocusTag）：排在 chip 行最前，不随发送清掉。 */
+  focusTag?: React.ReactNode
   /** 受控文本。没有 `onValueChange` 时框是只读的展示件（设计实验室取景用）。 */
   value?: string
   onValueChange?: (value: string) => void
@@ -117,6 +119,7 @@ export function AgentPanelV4Composer({
   admitting = false,
   permission = DEFAULT_PERMISSION_TIER,
   chips,
+  focusTag,
   value = '',
   onValueChange,
   onSubmit,
@@ -164,7 +167,7 @@ export function AgentPanelV4Composer({
     return () => observer.disconnect()
   }, [value])
   const rows = Math.max(hardRows, measuredRows)
-  const chipRows = chips?.length ? 1 : 0
+  const chipRows = chips?.length || focusTag ? 1 : 0
   const height = useComposerHeight(panelHeight, dock ? 'dock' : mode, rows, chipRows)
   // 高度是**下限 + 上限**，不是写死值：`height` 是规则算出来的自然高（一行 86px、逐行长），
   // 上限由面板高 derive。中间交给内容——附件 chip 换行时框跟着长，不会把文字压没
@@ -207,9 +210,10 @@ export function AgentPanelV4Composer({
           {popover}
         </div>
       ) : null}
-      {chips?.length ? (
+      {chips?.length || focusTag ? (
         <div className="flex shrink-0 flex-wrap gap-1.5 px-2.5 pt-2">
-          {chips.map((chip, index) => (
+          {focusTag}
+          {(chips ?? []).map((chip, index) => (
             <ComposerChip
               key={`${chip.kind}-${chip.label}`}
               chip={chip}

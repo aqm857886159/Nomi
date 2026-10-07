@@ -3,7 +3,8 @@
  *          ./panels/topbar/shellChrome（Cluster / ExitButton / ViewModeSwitch / HistoryButtons，与精修共用一份）、./panels/shotStrip/{DirectorShotStrip, shotLabels}、../../../../vendor/tablerIcons
  * [OUTPUT]: 对外提供 DirectorViewShell 与 DirectorViewMode：3D-BOX 开关开时的默认面「导演视图」
  * [POS]: 导演视图 = 顶栏三区（左：返回 + 「工程名 · 镜头 N」｜中：导演 / 精修｜右：撤销 / 重做 + 出成片 ▾）+ 视口（小窗左下）+ 镜头条。
- *        「镜头 N」、小窗标题、镜头条高亮三处都从同一个播放头 derive（directorShotSummaries），不另存「当前镜」。
+ *        小窗标题与镜头条里的播放指针跟播放头（directorShotSummaries）；顶栏「镜头 N」与镜头卡高亮跟选中（编辑器 selection，
+ *        与 Agent 输入框上的「正在改：镜头 N」同源，画布「3D-BOX · 正在改：镜头 N」10-06 拍板）。
  *        重置视角不在这里：它属于精修顶栏「视图」簇（一功能一个家，§1.5.2），快捷键照常可用。
  *        进场时自由相机落到 directorOverviewPose 的「看全场」位姿一次，之后随用户转动。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -74,6 +75,11 @@ export function DirectorViewShell({ nodeTitle, scopeRef, placement, boxDraw, can
   const activeIndex = activeShotIndexAt(shots, currentTime)
   const activeShot = activeIndex >= 0 ? shots[activeIndex] : null
   const title = nodeTitle || t('director.view.title')
+  // 选中的镜头（镜头条点卡 / 加选；Agent 输入框上的「正在改：镜头 N」同源）：顶栏标题跟第一个选中的那一镜
+  const primaryCameraId = useDirectorStore((state) => state.selection.cameraId)
+  const multiCameraIds = useDirectorStore((state) => state.selection.multiCameraIds)
+  const selectedCameraIds = React.useMemo(() => (multiCameraIds.length ? multiCameraIds : primaryCameraId ? [primaryCameraId] : []), [multiCameraIds, primaryCameraId])
+  const titleIndex = shots.findIndex((shot) => shot.cameraId !== null && selectedCameraIds.includes(shot.cameraId))
 
   return <div className="relative flex h-full min-h-0 flex-col bg-nomi-bg text-nomi-ink" data-testid="director-3dbox-view" data-director-view="director">
     {/* 三列网格：中列 auto 才真正落在视口正中（与精修顶栏同一判据），左右两簇各自贴边 */}
@@ -81,7 +87,7 @@ export function DirectorViewShell({ nodeTitle, scopeRef, placement, boxDraw, can
       <Cluster label={t('director.editor.aria')} testId="director-view-back-cluster" className="min-w-0 justify-self-start">
         <ExitButton onExit={onExit} />
         <span className="min-w-0 truncate px-2 text-body-sm font-semibold" data-testid="director-view-title">
-          {activeShot ? t('director.view.titleWithShot', { title, index: activeIndex + 1 }) : title}
+          {titleIndex >= 0 ? t('director.view.titleWithShot', { title, index: titleIndex + 1 }) : title}
         </span>
       </Cluster>
       <ViewModeSwitch mode="director" onChange={onViewModeChange} testId="director-view-header" />
@@ -107,6 +113,6 @@ export function DirectorViewShell({ nodeTitle, scopeRef, placement, boxDraw, can
         presentation={{ kind: 'director', nowPlaying: activeShot ? labels.pip(activeShot, activeIndex) : null }}
       />
     </div>
-    <DirectorShotStrip shots={shots} activeIndex={activeIndex} />
+    <DirectorShotStrip shots={shots} activeIndex={activeIndex} selectedCameraIds={selectedCameraIds} />
   </div>
 }

@@ -43,13 +43,27 @@ describe('world creation input to persisted local space', () => {
     expect(api.active).toBe(false)
   })
   it('commits character position and orientation matching its world preview in a transformed scene', () => {
-    const Hook = () => useCharacterPlacement({ characterName: () => 'Character' })
+    const Hook = () => useCharacterPlacement({ characterName: () => 'Character', crowdNames: { group: 'Crowd', member: 'Extra' } })
     let api = render(Hook); api.start('female'); api = render(Hook)
     api.onPointerDown(pointer(8, 6)); api = render(Hook)
     api.onPointerMove(pointer(9, 6)); api = render(Hook)
     api.onPointerUp(pointer(9, 6))
     const object = runtime.store.getState().activeScene().objects[0]
     const world = sceneMatrix().multiply(matrix(object.position, object.rotation, object.scale))
+    expectPoint(new THREE.Vector3().setFromMatrixPosition(world), { x: 8, y: 1.5, z: 6 })
+    expectPoint(new THREE.Vector3(0, 0, 1).transformDirection(world), { x: 1, y: 0, z: 0 })
+  })
+  it('places a crowd group at the previewed world point and facing, members inside it', () => {
+    const Hook = () => useCharacterPlacement({ characterName: () => 'Character', crowdNames: { group: 'Crowd', member: 'Extra' } })
+    let api = render(Hook); api.start('female', { rows: 1, cols: 2, spacing: 2, actionId: 'standing_idle' }); api = render(Hook)
+    api.onPointerDown(pointer(8, 6)); api = render(Hook)
+    api.onPointerMove(pointer(9, 6)); api = render(Hook)
+    api.onPointerUp(pointer(9, 6))
+    const objects = runtime.store.getState().activeScene().objects
+    const group = objects.find((item) => item.type === 'group')!
+    expect(objects).toHaveLength(3)
+    expect(objects.filter((item) => item.parentId === group.id)).toHaveLength(2)
+    const world = sceneMatrix().multiply(matrix(group.position, group.rotation, group.scale))
     expectPoint(new THREE.Vector3().setFromMatrixPosition(world), { x: 8, y: 1.5, z: 6 })
     expectPoint(new THREE.Vector3(0, 0, 1).transformDirection(world), { x: 1, y: 0, z: 0 })
   })

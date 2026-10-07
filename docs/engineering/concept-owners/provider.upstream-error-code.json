@@ -1,0 +1,28 @@
+{
+  "name": "上游自己给的错误码怎么从响应体挑出来",
+  "subject": "provider.upstream-error-code",
+  "lifecycle": "provider-observation",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/jsonUtils.ts",
+    "symbol": "pickUpstreamCode"
+  },
+  "write_api": [
+    {
+      "path": "electron/jsonUtils.ts",
+      "symbol": "pickUpstreamCode"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/vendor/upstreamEvidenceParity.test.ts",
+  "allowed_consumers": [
+    "electron/vendor/vendorHttp.ts",
+    "electron/ai/aiSdkVendorError.ts",
+    "electron/ai/runtimeVendorError.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "合同 docs/fixes/2026-09-29-failure-reason-from-upstream-evidence.root-cause.json：状态码（400/422）只说「请求有问题」，从不说为什么；上游自己的错误码（model_not_found 一类）才是它说的原因。三条把上游失败带过 IPC 的通道——图 / 视频 / JSON 请求（vendorHttp.requestVendor）、AI SDK 文本请求（aiSdkVendorError.vendorErrorFromAiSdkError）、Agent 的 pi 运行时（runtimeVendorError.describeRuntimeError，读响应体走 upstreamCodeFromBody）——都经同一个 pickUpstreamCode 把它随失败载荷（VendorErrorStructured.upstreamCode）带过去，classifyGenerationError 按码归类。键优先级表与 pickUpstreamMessage 同住一处。customCallRunner 只是把已有的载荷脱敏后原样（展开 structured）重包，不丢这一栏。"
+}

@@ -1,0 +1,67 @@
+{
+  "name": "出价/待决身份",
+  "subject": "spend.pending-identity",
+  "lifecycle": "spend-authority",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/contracts/pendingSpendConfirm.ts",
+    "symbol": "PendingSpendConfirm"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/contracts/pendingSpendConfirm.ts",
+      "symbol": "PendingSpendConfirm"
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "prepareSpendQuote",
+      "kind": "reference",
+      "why": "按 quoteId 出价——与 operationId 竞争「这一笔」身份的旧路；画布已迁走（第一刀第 3–4 步），只剩登记的附属付费口例外（到期 2026-11-15）"
+    },
+    {
+      "symbol": "takeSpendQuote",
+      "kind": "reference",
+      "why": "按 quoteId 取回报价——同一条旧路，只剩登记的附属付费口例外（到期 2026-11-15）"
+    },
+    {
+      "symbol": "mintSpendGrant",
+      "kind": "reference",
+      "why": "按 nodeId + quoteId 铸花钱令牌——同一条旧路，画布已不铸；只剩登记的附属付费口例外（到期 2026-11-15）"
+    },
+    {
+      "symbol": "assertAndConsumeQuotedSpend",
+      "kind": "reference",
+      "why": "按令牌核销——同一条旧路，只剩登记的附属付费口例外经 TOKEN_ADMISSION 走（到期 2026-11-15）"
+    }
+  ],
+  "allowed_consumers": [
+    "electron/productionRun/productionPendingSpend.ts",
+    "src/workbench/ai/v4/spendCardDraft.ts",
+    "electron/spendQuote.ts",
+    "electron/spendGrant.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/pendingSpendReferences.ts",
+    "src/devlab/designLab/v4/states/07-spend-params.tsx",
+    "src/workbench/ai/v4/agentPanelSpendCard.ts",
+    "src/workbench/ai/v4/spendCardEstimate.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "electron/spendConfirmGrant.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/tasks/taskSpend.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/parity/generationParityTestUtils.ts",
+    "src/ui/onboarding/workflowPage/runTestGeneration.ts"
+  ],
+  "since": "2026-09-22",
+  "notes": "converged（2026-10-05 发动机收敛第一刀第 4 步）：「这一笔」的身份只有 ProductionRun / ProductionGenerationPlan.operationId（projectId + operationId）；PendingSpendConfirm 只剩 Run 投影 projectPendingSpendConfirm 这一个生产者（withSpendReferencePreviews 只给投影补参考图预览）。画布（单节点 ↑、批量卡、分镜整批、任务中心重试、Agent 文稿方案的 generate）不再出报价号、不再铸令牌：批准住在各自单镜 Run 的门上（主进程手势收据），批量卡上每一镜一份出价（consentCanvasShots）。 登记的例外（协调会话 2026-10-05 定：不落画布、不争镜头，这一刀不搬；到期 2026-11-15，到期前迁进 Run 或删）：① 试跑 electron/capabilityCore/modelOnboarding/tryModel.ts；② 认证 electron/integrationCertification/integrationSession.ts + integrationSessionRuntimeInstall.ts；③ 视频拆解与提示词提取 electron/spendConfirmGrant.ts（prepareSpendQuote → mintSpendGrant 一次批总价，调用方 electron/video/deconstructSpend.ts、electron/browser/settings/browserPromptExtractionSettings.ts）；④ 新手 ComfyUI 试生成 src/ui/onboarding/workflowPage/runTestGeneration.ts（经 nomi:tasks:grant-spend → electron/tasks/taskIpcHandlers.ts）。这些例外的令牌只在 electron/tasks/taskSpend.ts 的 TOKEN_ADMISSION 与 electron/spendGrant.ts 里核销；electron/spendQuote.ts / spendGrant.ts 是那条旧路本身。 读者：Agent 面板（spendCardDraft / agentPanelSpendCard / spendCardEstimate / useAgentPanelSpendConfirm）与 devlab 样张只读投影。"
+}

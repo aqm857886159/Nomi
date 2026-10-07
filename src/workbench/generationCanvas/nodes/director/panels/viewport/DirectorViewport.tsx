@@ -14,7 +14,7 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDirectorStore } from '../../DirectorEditorContext'
+import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import { isDirectorKeyboardBlocked } from '../../useDirectorHotkeys'
 import { useViewportApi } from '../../scene/ViewportApiContext'
 import type { DirectorHotkeyScope } from '../../model/hotkeys'
@@ -68,8 +68,10 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
   const { cancel: cancelBox } = boxDraw
   const { cancel: cancelPath } = pathDraw
   const modeActive = placement.active || boxDraw.active || pathDraw.active
-  // 导演视图只看不点：编辑辅助物已不画，点选会选中看不见的机位（选中联动属 3c）
+  // 导演视图只看不点：编辑辅助物已不画，点选会选中看不见的机位；点 3D 画面空白处 = 取消镜头选中（画布「正在改：镜头 N」）
   pickingEnabledRef.current = !modeActive && !presentation
+  const store = useDirectorStoreApi()
+  const blankClickRef = React.useRef<{ x: number; y: number } | null>(null)
 
   const cancelCreation = React.useCallback(() => {
     cancelPlacement()
@@ -120,12 +122,17 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
         pathDraw.onPointerLeave()
       }}
       onPointerDown={(event) => {
+        blankClickRef.current = presentation && event.button === 0 && event.target instanceof HTMLCanvasElement ? { x: event.clientX, y: event.clientY } : null
         if (placement.onPointerDown(event) || boxDraw.onPointerDown(event) || pathDraw.onPointerDown(event)) event.stopPropagation()
       }}
       onPointerMove={(event) => {
         if (placement.onPointerMove(event) || boxDraw.onPointerMove(event) || pathDraw.onPointerMove(event)) event.stopPropagation()
       }}
       onPointerUp={(event) => {
+        const down = blankClickRef.current
+        blankClickRef.current = null
+        // 只认「点」不认「拖」（转视角）：位移 ≤ 5px 才清
+        if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) <= 5) store.getState().select({ cameraId: null, multiCameraIds: [] })
         if (placement.onPointerUp(event) || boxDraw.onPointerUp(event) || pathDraw.onPointerUp(event)) event.stopPropagation()
       }}
       onContextMenu={(event) => {

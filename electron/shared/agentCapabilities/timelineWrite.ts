@@ -126,7 +126,10 @@ export const TIMELINE_WRITE_CAPABILITY = {
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",
   effectClass: "reversible_local",
+  // 只有「一份编辑计划」要用户先读（高亮、再批）；撤销没有可读的载荷，它就是把上一笔放回去——
+  // 真实测试 ④：撤销一笔画布改动弹出「调整时间线」确认卡，用户没法撤销。认不出 operation 时仍按整契约要复审（fail-closed）。
   requiresPlanReview: true,
+  operationPlanReview: Object.freeze({ [TIMELINE_WRITE_ALIASES.applyPlan]: Object.freeze({ allowReuse: true }) }),
   execution: { port: "timeline", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "timeline:write",

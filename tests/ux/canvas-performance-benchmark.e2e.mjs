@@ -46,6 +46,7 @@ import {
   sweptRect,
 } from './canvas-perf/gestureGeometry.mjs'
 import { startDevRendererServer } from './canvas-perf/devRendererServer.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/ux/perf-results')
 const args = process.argv.slice(2)
@@ -58,10 +59,15 @@ const hasArg = (name) => args.includes(name)
 const captureScreenshots = hasArg('--screenshots')
 // 在用户自己的电脑上跑时窗口挂屏幕外、不抢焦点（NOMI_PERF_OFFSCREEN=1）。Windows 会把屏幕外窗口判成「被遮挡」
 // 而停掉渲染帧，所以同时关掉遮挡判定，帧率才是真的。
+const packagedExecutable = argValue('--exe')
 const offscreenWindows = process.env.NOMI_PERF_OFFSCREEN === '1'
 const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
-const FIRST_RUN_SEEN = Object.freeze({ 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' })
+const FIRST_RUN_SEEN = Object.freeze({
+  'nomi:splash:v1': 'seen',
+  'nomi:journey-tour:v1': 'seen',
+  'nomi:canvas-gesture-hint:v1': 'seen',
+})
 const viewportOverride = argValue('--viewport-width')
   ? { width: Number(argValue('--viewport-width')), height: Number(argValue('--viewport-height') || 1000) }
   : null
@@ -106,7 +112,9 @@ const launchTimeoutMs = Math.max(
   5_000,
   // Dev-server leg boots the unminified dev bundle (slower first paint), so it
   // gets a longer default launch window than the built-dist legs.
-  Number(argValue('--launch-timeout') || process.env.NOMI_CANVAS_PERF_LAUNCH_TIMEOUT_MS || (useDevServer ? 90_000 : 45_000)),
+  Number(
+    argValue('--launch-timeout') || process.env.NOMI_CANVAS_PERF_LAUNCH_TIMEOUT_MS || (useDevServer ? 90_000 : 45_000),
+  ),
 )
 const allScenarios = CANVAS_PERF_GATE_SCENARIOS
 const scenarios = requestedScenarios.includes('all') ? allScenarios : requestedScenarios
@@ -175,6 +183,11 @@ const PROBE = `(() => {
         maxLoadingVideos: 0,
         maxActiveVideos: 0,
         mutations: { stage: 0, edges: 0, labels: 0 },
+        mutationBreakdown: {
+          stage: { records: 0, childListRecords: 0, attributeRecords: 0, characterDataRecords: 0, addedNodes: 0, removedNodes: 0 },
+          edges: { records: 0, childListRecords: 0, attributeRecords: 0, characterDataRecords: 0, addedNodes: 0, removedNodes: 0 },
+          labels: { records: 0, childListRecords: 0, attributeRecords: 0, characterDataRecords: 0, addedNodes: 0, removedNodes: 0 },
+        },
         firstMutationMs: null,
       }
       const frame = () => {
@@ -195,6 +208,19 @@ const PROBE = `(() => {
           const now = performance.now()
           if (rec.firstMutationMs === null) rec.firstMutationMs = now - rec.t0
           rec.mutations[key] += records.length
+          const breakdown = rec.mutationBreakdown[key]
+          breakdown.records += records.length
+          for (const record of records) {
+            if (record.type === 'childList') {
+              breakdown.childListRecords += 1
+              breakdown.addedNodes += record.addedNodes.length
+              breakdown.removedNodes += record.removedNodes.length
+            } else if (record.type === 'attributes') {
+              breakdown.attributeRecords += 1
+            } else if (record.type === 'characterData') {
+              breakdown.characterDataRecords += 1
+            }
+          }
         })
         observer.observe(target, options)
         rec.observers.push(observer)
@@ -241,6 +267,7 @@ const PROBE = `(() => {
         maxActiveVideos: rec.maxActiveVideos,
         firstMutationMs: rec.firstMutationMs === null ? null : Math.round(rec.firstMutationMs * 10) / 10,
         mutations: rec.mutations,
+        mutationBreakdown: rec.mutationBreakdown,
       }
     },
   }
@@ -358,6 +385,10 @@ async function pageSnapshot(page) {
       }).length,
       loadedImages: images.filter((image) => image.complete && image.naturalWidth > 0).length,
       loadedVideos: videos.filter((video) => video.readyState >= 1).length,
+      videoDimensions: videos
+        .filter((video) => video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0)
+        .map((video) => ({ width: video.videoWidth, height: video.videoHeight }))
+        .slice(0, 8),
       visibleMediaNodes: visibleMediaStates.length,
       visibleMediaPending: visibleMediaStates.filter((state) => ['idle', 'queued', 'loading'].includes(state)).length,
       visibleMediaFailures: visibleMediaStates.filter((state) => state === 'error' || state === 'timeout').length,
@@ -439,8 +470,7 @@ function getTargetWindow(app, fallback) {
 // into "drag a connection" and silently measures the wrong gesture.
 async function findBlank(page, preference = 'default', { inset = 0 } = {}) {
   const point = await findCanvasBlankPoint(page, { preference, inset })
-  if (!point)
-    throw new Error(`findBlank: no blank point on the stage (preference=${preference}, inset=${inset})`)
+  if (!point) throw new Error(`findBlank: no blank point on the stage (preference=${preference}, inset=${inset})`)
   return point
 }
 
@@ -558,9 +588,7 @@ async function readNodeIdentity(page, targetNodeId = null) {
     const virtualizationChurn = [...churn.entries()]
       .filter(([, entry]) => entry.removedBatch !== null && !entry.remountedInPlace)
       .map(([id]) => id)
-    const remountedInPlace = [...churn.entries()]
-      .filter(([, entry]) => entry.remountedInPlace)
-      .map(([id]) => id)
+    const remountedInPlace = [...churn.entries()].filter(([, entry]) => entry.remountedInPlace).map(([id]) => id)
     const churned = new Set(virtualizationChurn)
     const commonIds = [...before.keys()].filter((id) => current.has(id))
     // Only nodes that stayed mounted for the whole action carry the identity contract.
@@ -591,17 +619,22 @@ async function openProject(app, page, fixture) {
     // Identity is the fixture contract; name matching can select a stale card
     // when another isolated run left a similarly named project in the shell.
     const card = page.locator(`[data-project-card][data-project-id="${fixture.record.id}"]`).first()
-    if (await card.count().catch(() => 0) === 0) {
+    if ((await card.count().catch(() => 0)) === 0) {
       throw new Error(`性能夹具项目卡片不存在：${fixture.record.id}（${fixture.record.name}）`)
     }
     await card.waitFor({ timeout: 12_000 * openScale })
     await card.click()
   }
   // 卡片已经发出打开请求；等待真实目标窗口，不能再点击导航中的旧项目库。
-  await expect.poll(() => {
-    page = getTargetWindow(app, page)
-    return page.url()
-  }, { timeout: 20_000 * openScale, message: '性能夹具目标项目窗口必须就绪' }).toContain(`projectId=${encodeURIComponent(fixture.record.id)}`)
+  await expect
+    .poll(
+      () => {
+        page = getTargetWindow(app, page)
+        return page.url()
+      },
+      { timeout: 20_000 * openScale, message: '性能夹具目标项目窗口必须就绪' },
+    )
+    .toContain(`projectId=${encodeURIComponent(fixture.record.id)}`)
   await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 * openScale })
   const firstCanvasMs = Date.now() - startedAt
   const settleStartedAt = Date.now()
@@ -663,6 +696,26 @@ async function prepareScenario(page, scenario) {
       groupFramePrepared = await marqueeSelectFirstNodes(page, GROUP_FRAME_NODE_COUNT)
       const groups = await groupSelectedNodes(page)
       if (groups < 1) throw new Error('drag-group-frame-60: Cmd+G 之后画布上没有组框')
+      // Clear the member selection before measuring the frame itself. The
+      // React Flow selection rectangle is a hit-test surface above the frame;
+      // leaving it up would measure that overlay instead of the group handle.
+      await page
+        .locator('.react-flow__pane')
+        .click({ position: { x: 8, y: 8 } })
+        .catch(() => {})
+      // Group geometry may extend beyond the pre-group fit bounds. Fit once more
+      // so the sampled drag starts from a real, visible group-frame handle.
+      await fitCanvasView(page)
+      // A poster-only canvas would make a "real 1080p video" run look like an
+      // image benchmark. Prime one actual video element before the probe starts;
+      // the product's hover-to-decode path remains the measured canvas state.
+      if (process.env.NOMI_CANVAS_PERF_REAL_ASSET_DIR) {
+        const video = page.locator('video').first()
+        if (await video.count()) {
+          await video.hover().catch(() => {})
+          await expect.poll(() => video.evaluate((element) => element.readyState)).toBeGreaterThanOrEqual(1)
+        }
+      }
       groupFramePrepared = { ...groupFramePrepared, groups }
     }
     return
@@ -739,9 +792,24 @@ async function runAction(page, scenario, fixture, app) {
     const kind = scenario.endsWith('image') ? 'image' : 'video'
     const node = await visibleNodeBox(page, kind)
     if (!node) throw new Error(`没有可见的 ${kind} 节点`)
+    if (kind === 'video') {
+      // The canvas intentionally starts video cards in poster mode. Prime one
+      // real decoder before the sampled drag so this scenario measures a video
+      // node with its actual media, not a poster-only image path.
+      await node.locator.hover()
+      const video = node.locator.locator('video[src]').first()
+      await expect.poll(() => video.count(), { timeout: stationTimeout({ operations: 1 }) }).toBeGreaterThan(0)
+      await expect
+        .poll(() => video.evaluate((element) => element.readyState), { timeout: stationTimeout({ operations: 2 }) })
+        .toBeGreaterThanOrEqual(1)
+    }
     const start = { x: node.box.x + node.box.width * 0.5, y: node.box.y + 14 }
     await dragPath(page, start, { x: start.x + 180, y: start.y + 90 })
-    return { nodeId: await node.locator.getAttribute('data-node-id'), moves: 60, firstFeedbackMs: await readFirstFeedbackMs(page) }
+    return {
+      nodeId: await node.locator.getAttribute('data-node-id'),
+      moves: 60,
+      firstFeedbackMs: await readFirstFeedbackMs(page),
+    }
   }
   if (scenario === 'multi-node-drag') return runMultiNodeDrag(page)
   // 2026-09-12 规模调查补的三条。选中/建组/适应视图都在 prepareScenario 里做完了，
@@ -805,7 +873,9 @@ async function runAction(page, scenario, fixture, app) {
     try {
       for (let index = 0; index < count; index += 1) {
         const nodeId = await nodes.nth(index).getAttribute('data-node-id')
-        const hit = await findNodeHitPoint(page, { nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}]` })
+        const hit = await findNodeHitPoint(page, {
+          nodeSelector: `.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}]`,
+        })
         if (!hit) throw new Error(`click-select: no selectable point for ${nodeId}`)
         await page.mouse.click(hit.x, hit.y)
         await sleep(page, 20)
@@ -1002,26 +1072,29 @@ async function runAction(page, scenario, fixture, app) {
       return media
     }
     const dispatchMediaError = async (targetNodeId = null) => {
-      const nodeId = await page.evaluate(({ url, selector, targetNodeId: requestedNodeId }) => {
-        const candidate = Array.from(document.querySelectorAll(selector)).find((element) => {
-          const node = element.closest('.generation-canvas-v2-node')
-          const rect = element.getBoundingClientRect()
-          return (
-            (!requestedNodeId || node?.getAttribute('data-node-id') === requestedNodeId) &&
-            rect.width > 2 &&
-            rect.height > 2 &&
-            rect.bottom > 0 &&
-            rect.top < innerHeight
-          )
-        })
-        if (!candidate) return null
-        candidate.setAttribute('src', url)
-        // Setting src directly does not guarantee a network error event in the
-        // Electron test protocol. Dispatch the same renderer event explicitly
-        // so the real React onError path is exercised deterministically.
-        candidate.dispatchEvent(new Event('error'))
-        return candidate.closest('.generation-canvas-v2-node')?.getAttribute('data-node-id')
-      }, { url: missingUrl, selector: mediaSelector, targetNodeId })
+      const nodeId = await page.evaluate(
+        ({ url, selector, targetNodeId: requestedNodeId }) => {
+          const candidate = Array.from(document.querySelectorAll(selector)).find((element) => {
+            const node = element.closest('.generation-canvas-v2-node')
+            const rect = element.getBoundingClientRect()
+            return (
+              (!requestedNodeId || node?.getAttribute('data-node-id') === requestedNodeId) &&
+              rect.width > 2 &&
+              rect.height > 2 &&
+              rect.bottom > 0 &&
+              rect.top < innerHeight
+            )
+          })
+          if (!candidate) return null
+          candidate.setAttribute('src', url)
+          // Setting src directly does not guarantee a network error event in the
+          // Electron test protocol. Dispatch the same renderer event explicitly
+          // so the real React onError path is exercised deterministically.
+          candidate.dispatchEvent(new Event('error'))
+          return candidate.closest('.generation-canvas-v2-node')?.getAttribute('data-node-id')
+        },
+        { url: missingUrl, selector: mediaSelector, targetNodeId },
+      )
       if (!nodeId) throw new Error('没有可见图片节点可注入媒体错误')
       return nodeId
     }
@@ -1069,7 +1142,9 @@ async function runAction(page, scenario, fixture, app) {
       const startedAt = Date.now()
       await Promise.race([
         page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('reload-heavy: page.reload hard timeout')), 35_000)),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('reload-heavy: page.reload hard timeout')), 35_000),
+        ),
       ])
       // Electron may recreate the renderer window during reload; always follow the live target.
       page = getTargetWindow(app, page)
@@ -1139,13 +1214,20 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
   try {
     ;({ app, win: page } = await launchNomiApp({
       name: 'canvas-perf-benchmark',
+      // --exe <打包好的 Nomi.exe>：量用户真正跑的打包版（渲染层同一份产物，主进程在 asar 里）。
+      ...(packagedExecutable ? { executablePath: packagedExecutable } : {}),
       userDataDir,
       settingsDir: userDataDir,
       projectsDir,
       args: [
         '--no-proxy-server',
         ...(offscreenWindows ? OFFSCREEN_CHROMIUM_ARGS : []),
-        ...args.filter(arg => arg.startsWith('--use-gl=') || arg.startsWith('--use-angle=') || ['--enable-unsafe-swiftshader', '--disable-gpu', '--in-process-gpu'].includes(arg)),
+        ...args.filter(
+          (arg) =>
+            arg.startsWith('--use-gl=') ||
+            arg.startsWith('--use-angle=') ||
+            ['--enable-unsafe-swiftshader', '--disable-gpu', '--in-process-gpu'].includes(arg),
+        ),
       ],
       // 首次启动的开场动画（约 11 秒）盖在项目库上：不跳过的话「冷开」量到的是动画时长，不是打开项目
       //（2026-10-05 卡 17 的 13.8 秒就是这么来的）。老用户每次启动看到的是没有动画的项目库。
@@ -1164,9 +1246,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
         // preamble — without it the production CSP blocks the preamble and React
         // never mounts (observed: "@vitejs/plugin-react can't detect preamble").
         // Unset otherwise → normal dist behaviour.
-        ...(useDevServer && devRendererUrl
-          ? { NOMI_RENDERER_URL: devRendererUrl, NOMI_DESKTOP_DEV: '1' }
-          : {}),
+        ...(useDevServer && devRendererUrl ? { NOMI_RENDERER_URL: devRendererUrl, NOMI_DESKTOP_DEV: '1' } : {}),
       },
     }))
     attachDiagnostics(page)
@@ -1247,13 +1327,15 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     if (tracingEnabled) {
       cdp.on('Tracing.dataCollected', onTraceData)
       await cdp.send('Tracing.start', {
-        categories: '-*,' + [
-          'devtools.timeline',
-          'disabled-by-default-devtools.timeline.frame',
-          'disabled-by-default-devtools.timeline nestable-async',
-          'v8.execute',
-          'blink.user_timing',
-        ].join(','),
+        categories:
+          '-*,' +
+          [
+            'devtools.timeline',
+            'disabled-by-default-devtools.timeline.frame',
+            'disabled-by-default-devtools.timeline nestable-async',
+            'v8.execute',
+            'blink.user_timing',
+          ].join(','),
         options: 'sampling-frequency=10000',
       })
     }
@@ -1268,7 +1350,10 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     if (tracingEnabled) {
       await cdp.send('Tracing.end').catch(() => {})
       await new Promise((resolve) => cdp.once('Tracing.tracingComplete', resolve))
-      fs.writeFileSync(path.join(outputDir, `canvas-${label}-${scale}-${scenario}-${runIndex}.trace.json`), JSON.stringify({ traceEvents: traceChunks }))
+      fs.writeFileSync(
+        path.join(outputDir, `canvas-${label}-${scale}-${scenario}-${runIndex}.trace.json`),
+        JSON.stringify({ traceEvents: traceChunks }),
+      )
       cdp.off('Tracing.dataCollected', onTraceData)
     }
     const offCanvasRender = offCanvasStarted ? await stopOffCanvasRenderWindow(page) : null
@@ -1297,7 +1382,8 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       beforePage,
       page: afterPage,
       actionDetails,
-      setupMs, openMs: opened.firstCanvasMs + opened.mediaSettledMs,
+      setupMs,
+      openMs: opened.firstCanvasMs + opened.mediaSettledMs,
       offCanvasRender,
       nodeIdentity,
       appMetrics: await getAppMetrics(app),
@@ -1307,7 +1393,11 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       elapsedMs: Date.now() - startedAt,
     }
   } catch (error) {
-    const diagnostics = await captureScenarioFailure(page, { directory: path.join(repoRoot, 'outputs/canvas-acceptance/performance/failures', label), id: `${scale}-${scenario}-${runIndex}`, error })
+    const diagnostics = await captureScenarioFailure(page, {
+      directory: path.join(repoRoot, 'outputs/canvas-acceptance/performance/failures', label),
+      id: `${scale}-${scenario}-${runIndex}`,
+      error,
+    })
     return {
       diagnostics,
       scale,
@@ -1438,14 +1528,22 @@ function sampleHardFailures(sample) {
   const failures = []
   if (sample.scenario === 'waiting-effects' && sample.probe) {
     if (sample.probe.longTasks !== 0) failures.push(`waiting effects: ${sample.probe.longTasks} long tasks`)
-    if (sample.probe.fps < 1000 / timingBudget(33)) failures.push(`waiting effects: ${sample.probe.fps} FPS below frame budget`)
+    if (sample.probe.fps < 1000 / timingBudget(33))
+      failures.push(`waiting effects: ${sample.probe.fps} FPS below frame budget`)
   }
   if (sample.error) failures.push(`scenario error: ${sample.error}`)
   // 规模档场景的长任务**次数**硬判据（§6）。次数是工作量计数，不随机器负载或平台漂，
   // 所以它——而不是毫秒——是「这一格到底修好没有」最硬的那条线。
   const longTaskCap = longTaskCountBudget(sample.scenario, sample.scale)
-  if (longTaskCap !== null && sample.probe && Number.isFinite(sample.probe.longTasks) && sample.probe.longTasks > longTaskCap) {
-    failures.push(`${sample.scenario} @ ${sample.scale}: ${sample.probe.longTasks} 次长任务 > ${longTaskCap}（§6 规模档硬门岗）`)
+  if (
+    longTaskCap !== null &&
+    sample.probe &&
+    Number.isFinite(sample.probe.longTasks) &&
+    sample.probe.longTasks > longTaskCap
+  ) {
+    failures.push(
+      `${sample.scenario} @ ${sample.scale}: ${sample.probe.longTasks} 次长任务 > ${longTaskCap}（§6 规模档硬门岗）`,
+    )
   }
   for (const error of sample.pageErrors || []) failures.push(`page error: ${error}`)
   for (const error of sample.consoleErrors || []) failures.push(`console error: ${error}`)
@@ -1465,8 +1563,8 @@ function sampleHardFailures(sample) {
     if (Number.isFinite(expectedSelection?.definite) && Number.isFinite(expectedSelection?.possible)) {
       if (selected < expectedSelection.definite || selected > expectedSelection.possible)
         failures.push(
-          `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} `
-            + 'overlapping the swept rect (selectionMode=Partial)',
+          `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} ` +
+            'overlapping the swept rect (selectionMode=Partial)',
         )
     } else {
       failures.push('marquee sample did not record a derived selection expectation')
@@ -1476,8 +1574,8 @@ function sampleHardFailures(sample) {
     //    所以它既不会因为机器快慢翻红，也不会因为换了个窗口大小翻红。
     if (Number.isFinite(bandCoverage) && bandCoverage < MIN_NODE_BAND_COVERAGE)
       failures.push(
-        `marquee covered only ${Math.round(bandCoverage * 100)}% of the reachable node band `
-          + `(needs ≥ ${Math.round(MIN_NODE_BAND_COVERAGE * 100)}%)`,
+        `marquee covered only ${Math.round(bandCoverage * 100)}% of the reachable node band ` +
+          `(needs ≥ ${Math.round(MIN_NODE_BAND_COVERAGE * 100)}%)`,
       )
   }
   // eval v2 scenario integrity guards (correctness, not perf budgets): if a new
@@ -1584,15 +1682,17 @@ function summarizeScenario(samples, panControl = null) {
   const hardFailures = samples.flatMap((sample) =>
     sampleHardFailures(sample).map((reason) => ({ runIndex: sample.runIndex, reason })),
   )
-  const budgetChecks = budgetsFor(samples[0]?.scenario, samples[0]?.scale).filter(({ metric }) => metrics[metric]).map(({ metric, max, advisory }) => ({
-    metric,
-    actualP95: metrics[metric].p95,
-    max,
-    pass: metrics[metric].p95 <= max,
-    // advisory budgets are recorded and printed but never flip the scenario verdict.
-    // See comment above PERFORMANCE_BUDGETS for rationale.
-    advisory: advisory === true,
-  }))
+  const budgetChecks = budgetsFor(samples[0]?.scenario, samples[0]?.scale)
+    .filter(({ metric }) => metrics[metric])
+    .map(({ metric, max, advisory }) => ({
+      metric,
+      actualP95: metrics[metric].p95,
+      max,
+      pass: metrics[metric].p95 <= max,
+      // advisory budgets are recorded and printed but never flip the scenario verdict.
+      // See comment above PERFORMANCE_BUDGETS for rationale.
+      advisory: advisory === true,
+    }))
   // eval v2 advisory block (U2): per-move amortization, drag/pan ratios, action
   // latency, off-canvas render counts. Attached alongside — NOT inside — the
   // verdict. The verdict below is byte-for-byte the original logic; advisory
@@ -1640,8 +1740,18 @@ function blankPanControl(samples) {
   const layout = samples.map((s) => s?.cdpDelta?.LayoutCount).filter((v) => Number.isFinite(v))
   if (!script.length && !layout.length) return null
   return {
-    scriptDurationMs: script.length ? quantile(script.sort((a, b) => a - b), 0.5) : null,
-    layoutCount: layout.length ? quantile(layout.sort((a, b) => a - b), 0.5) : null,
+    scriptDurationMs: script.length
+      ? quantile(
+          script.sort((a, b) => a - b),
+          0.5,
+        )
+      : null,
+    layoutCount: layout.length
+      ? quantile(
+          layout.sort((a, b) => a - b),
+          0.5,
+        )
+      : null,
   }
 }
 

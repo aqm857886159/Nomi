@@ -13,7 +13,7 @@ import { findNodeHitPoint } from '../../_canvasHit.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from '../../agent-runtime-fixture.mjs'
 import { APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM, closeSpendCard, expandResidentPanel, sendCanvas } from '../../agent-runtime-walk-support.mjs'
-import { clickVisiblePart } from '../actions.mjs'
+import { clickNodeGenerate } from '../actions.mjs'
 import { operationIdOf, scriptTurn } from '../brain.mjs'
 import { startPlaybook } from '../launch.mjs'
 
@@ -90,11 +90,13 @@ try {
 
   await monitor.settle('第 1 页那一镜生成完')
 
+  let landedId = ''
   await monitor.step('乱用：点一下出好的那张图', async () => {
     const run = monitor.readRuns().at(-1)
     const nodes = (await monitor.readProject())?.payload?.generationCanvas?.nodes ?? []
     const landed = (run?.generationPlan?.shots ?? []).map((shot) => nodes.find((node) => node.id === shot.nodeId)).find((node) => node?.status === 'success')
     if (!landed) throw new Error('找不到落地的那一镜')
+    landedId = landed.id
     const point = await findNodeHitPoint(smoke.win, { nodeSelector: `[data-node-id="${landed.id}"]` })
     if (!point) throw new Error(`节点 ${landed.id} 在舞台上没有点得到的地方`)
     await smoke.win.mouse.click(point.x, point.y)
@@ -105,35 +107,13 @@ try {
     await smoke.win.waitForTimeout(monitor.limits.savedFeedbackWindowMs.value + 1000)
   }, { user: false, surfaces: [] })
 
-  // 乱用：对这一张不满意，按「重拍这镜」想再来一张。#953 起只有 1 版不再挂「几版」角标，「重拍这镜」住在选中节点时
-  // 出现的浮条里（上一步已经点选了这张图）——像人一样在浮条上点它。
-  await monitor.step('乱用：在节点浮条上按「重拍这镜」', async () => {
-    const rerun = smoke.win.locator('[data-node-floating-toolbar="true"]').getByRole('button', { name: EN ? 'Re-film shot' : '重拍这镜' }).first()
-    // 浮条可能被右侧 Agent 面板盖住一截：人会点露出来的那截；露出的不够就是一条违反。
-    const hit = await clickVisiblePart(smoke.win, rerun, '浮条里的「重拍这镜」')
-    if (hit.covered) {
-      await monitor.violate({
-        invariant: 7, rule: 'control-partly-covered', key: `rerun|${EN ? 'en' : 'zh'}`,
-        module: 'src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx（选中节点的浮条，floatingToolbarClamp 只夹在画布里，不避让右侧面板）',
-        message: `节点浮条里的「${EN ? 'Re-film shot' : '重拍这镜'}」只有 ${hit.reachable}/${hit.total} 个采样点点得到——其余被右侧面板盖住或伸出了画布`,
-        snapshot: { hit },
-      })
-    }
-    const spendCard = card()
-    const dialog = smoke.win.locator('[data-spend-confirm-dialog]').first()
-    // 结论也可能是节点自己的反馈位上就地的状态字（role=status）。
-    const toast = smoke.win.locator('.mantine-Notification-root, [data-node-result-stack] ~ [role="status"], [role="status"]').filter({ hasText: /\S/ }).first()
-    await expect.poll(async () => (await spendCard.count()) + (await dialog.count()) + (await toast.count()),
-      { message: '按下「重拍这镜」之后有个结论（付费卡 / 确认框 / 提示）', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(0)
-    if (await spendCard.count()) {
-      await monitor.consentSpendCard(spendCard, { label: '重拍这镜的付费卡' })
-      await clickOrFail(spendCard.locator(INTERVENTION_CONFIRM), '重拍付费卡的主按钮', { noWaitAfter: true })
-    } else if (await dialog.count()) {
-      await monitor.consentDialog(dialog, { label: '重拍这镜的确认框' })
-      await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]'), '重拍确认框「确认」', { noWaitAfter: true })
-    }
-  }, { surfaces: ['modal'] })
-  await monitor.step('等重拍有个结果', async () => {
+  // 乱用：对这一张不满意，想再来一张。10-06 起浮条里不再有「重拍这镜」（用户拍板删：它和「再出一版」分不清）——
+  // 再出一版就在这张节点上按 ↑（一次一版，铺开的版本卡片会多一张）。上一步已经点选了这张图。
+  await monitor.step('乱用：对这一张不满意，在节点上按 ↑ 再出一版', async () => {
+    await monitor.consentNodeGenerate(landedId, { label: '再出一版的 ↑' })
+    await clickNodeGenerate(smoke.win, landedId)
+  }, { surfaces: ['modal', 'canvasGesture'] })
+  await monitor.step('等再出的这一版有个结果', async () => {
     await smoke.win.waitForTimeout(monitor.limits.schedulerPollCapMs.value)
   }, { user: false, surfaces: [] })
 

@@ -101,9 +101,9 @@ export const directorWriteAppliedSchema = z.object({
   cuts: z.array(cutSchema).max(200),
   /** 补丁直接改到的计划实体（`shot:<id>` / `actor:<id>` / `setPiece:<id>` / `scene` / `blocking:<actor>`）。 */
   touched: z.array(z.string().max(512)).max(200),
-  /** 3c：被新指令覆盖、因而丢弃的手改。本段恒为空。 */
+  /** 用户手改里被这次补丁直接改到、因而丢弃的那几条（`<实体 id>.<属性>`，整实体增删写实体 id）；撤销这次补丁即恢复。 */
   reorderedOverrides: z.array(z.string().max(512)).max(200),
-  /** 3c：重编译带出的连带变化实体。本段恒为空。 */
+  /** 补丁没有直接点名、但重编译后变了的实体 id（其上的手改照常保留）。 */
   changedEntities: z.array(z.string().max(512)).max(400),
   preview: previewSchema,
 }).strict();

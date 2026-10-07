@@ -150,7 +150,9 @@ export function beginCanvasDragging(
     const owners = draggingOwnersByStage.get(stage) ?? new Set<symbol>()
     draggingOwnersByStage.set(stage, owners)
     owners.add(token)
-    stage.setAttribute(CANVAS_DRAGGING_ATTRIBUTE, 'true')
+    if (stage.getAttribute(CANVAS_DRAGGING_ATTRIBUTE) !== 'true') {
+      stage.setAttribute(CANVAS_DRAGGING_ATTRIBUTE, 'true')
+    }
     armGestureEndGuard(stage)
   }
   if (options.active !== false) activate()

@@ -33,7 +33,7 @@ import type {
   LaneHoldOutcome,
   LanePendingApproval,
 } from "../shared/agentLane/laneContracts";
-import { modelToolCapabilityId } from "../shared/agentCapabilities/modelFacingTools";
+import { aliasBoundInputOf, modelToolCapabilityId, toSemanticInput } from "../shared/agentCapabilities/modelFacingTools";
 import type { LaneToolSpec } from "../shared/agentLane/laneToolContract";
 import type { ProjectAgentApprovalPolicy, ProjectAgentWorkMode } from '../shared/agentCapabilities/capabilityApprovalPolicy';
 
@@ -200,9 +200,21 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
     return first.done ? undefined : first.value.pending;
   }
 
+  /**
+   * 闸判的必须是执行端将要执行的那一份语义输入（`toSemanticInput`：别名定死的字段 + 动词参数的翻译），不是模型的原参数。
+   * 真实测试 ④：`undo` 的参数里没有 operation，闸认不出「这是撤销」，按 timeline.write 整体的「编辑计划要复审」
+   * 给撤销一笔画布改动弹了「调整时间线」卡。参数不成立、翻译抛错时退回「别名定死字段 + 原参数」，随后的 schema 校验会拒。
+   */
+  function approvalInputOf(spec: LaneToolSpec, raw: unknown): unknown {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+    const record = raw as Record<string, unknown>;
+    try { return toSemanticInput(spec, record); } catch { return { ...aliasBoundInputOf(spec), ...record }; }
+  }
+
   function subjectOf(request: LaneApprovalRequest): LaneApprovalSubject {
     const spec = specByTool.get(request.toolName);
-    const capabilityId = spec ? modelToolCapabilityId(spec, request.args) : undefined;
+    const args = spec ? approvalInputOf(spec, request.args) : request.args;
+    const capabilityId = spec ? modelToolCapabilityId(spec, args) : undefined;
     const contract = capabilityId === undefined ? undefined : capabilityContractById(capabilityId);
     return {
       toolName: request.toolName,
@@ -210,8 +222,8 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
       // `effectClass` 是 `undefined`，于是每条判据都对它 fail-closed。
       capabilityId: capabilityId ?? `unknown:${request.toolName}`,
       effect: contract?.effect,
-      effectClass: capabilityEffectClassOf(contract, request.args),
-      ...capabilityPlanReviewOf(contract, request.args),
+      effectClass: capabilityEffectClassOf(contract, args),
+      ...capabilityPlanReviewOf(contract, args),
       // 「这个能力就是问用户一句」。从契约上原样带过来，不在这里按工具名判——
       // 按名字判就是第二份真相源，而提问工具正是最容易长出第二份的那一个。
       ...(contract?.alwaysAsksUser ? { alwaysAsksUser: true as const } : {}),

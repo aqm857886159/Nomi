@@ -1,3 +1,4 @@
+import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import type { GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 import { resolveGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
 import { productionTaskAbsenceCode } from '../productionRun/productionRunErrors';
@@ -19,6 +20,7 @@ import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../shared
 import { beginPolicySpendDecision } from "./policySpendDecision";
 import { cardActionsSettled } from "./spendCardActionQueue";
 import type { GenerationInvocationContext } from "../shared/agentCapabilities/generationInvocationContext";
+import { shotDurationSeconds } from "./mcpGenerationVideoResolve";
 
 /**
  * Main-process transport for the semantic generation vocabulary.
@@ -41,11 +43,20 @@ export type PiGenerationTransportAdapter = Readonly<{
    */
   readPresentationOutcome(operationId: string): Promise<GeneratePresentationOutcome | undefined>;
   /**
-   * 宿主内部、只读：这份草稿每一镜的**候选**带了哪些参考素材（shotId → assetId[]）。3D-BOX 出卡前预检用它核对
-   * 「就绪的预演进没进真正付费的那份载荷」。读不到 → 抛，调用方按 fail-closed 处理（不出卡）。
+   * 宿主内部、只读：这份草稿每一镜的**候选**带了哪些参考素材（shotId → assetId[]）、要生成多长（shotId → 秒，
+   * 按候选参数的唯一 owner shotDurationSeconds 读；没声明就不出现）。同一次 read 读出，两样事实不会来自两版草稿。
+   * 3D-BOX 出卡前预检用它核对「就绪的预演进没进真正付费的那份载荷、和它是不是一样长」。读不到 → 抛，调用方 fail-closed（不出卡）。
    */
-  readShotReferenceAssetIds?(operationId: string): Promise<Readonly<Record<string, readonly string[]>>>;
+  readShotCandidateFacts?(operationId: string): Promise<ShotCandidateFacts>;
   dispose(): void;
+}>;
+
+type ReadCandidate = { references?: ReadonlyArray<{ assetId?: unknown }>; parameters?: Record<string, unknown> };
+
+/** 出卡前预检读的每一镜候选事实（键 "" = 单镜草稿那一镜）。 */
+export type ShotCandidateFacts = Readonly<{
+  references: Readonly<Record<string, readonly string[]>>;
+  durationSeconds: Readonly<Record<string, number>>;
 }>;
 
 export type GenerationLeaseFactory = (binding: ProjectBinding) => ProjectLeaseV2 | Promise<ProjectLeaseV2>;
@@ -66,6 +77,11 @@ export type GenerationTransportAdapterDependencies = Readonly<{
    * 缺席按默认档（`safe-auto`）走，也就是照旧弹卡：不知道档位时**不许**替用户花钱。
    */
   approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined;
+  /**
+   * 草稿建好 / 改完之后问宿主：落地落完了没有、这份草稿此刻在画布上吗（`canvasLandingHost.draftLandingOutcome`）。
+   * 结果写进草稿结果的 `canvasLanding` 格，`draft_shots` 的回执只渲染它；缺席（外部宿主 / 夹具）= 不报，回执就不提画布。
+   */
+  draftLanding?: (projectId: string, operationId: string) => Promise<DraftCanvasLanding | undefined>;
 }>;
 
 // 路由白名单**只有一个来源**：契约层的方法词表（`GENERATION_METHODS`）。模型可见的动词名
@@ -557,6 +573,13 @@ export function createPiGenerationTransportAdapter(
             const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
             if (decided) return { ok: true, result: decided };
           }
+          // 草稿写（建 / 改）成功：等落地落完，把「此刻在画布上吗」随结果交出去（回执据它说话）。
+          if ((capability === "create" || capability === "plan") && deps.draftLanding && addressed) {
+            const landing = await deps.draftLanding(currentLease.projectId, addressed);
+            if (landing && result && typeof result === "object" && !Array.isArray(result)) {
+              return { ok: true, result: { ...result as Record<string, unknown>, [DRAFT_CANVAS_LANDING_KEY]: landing } };
+            }
+          }
           return { ok: true, result, silent: capability === "context" || capability === "read" };
         } finally {
           releasePolicyClaim?.();
@@ -591,13 +614,13 @@ export function createPiGenerationTransportAdapter(
         return undefined;
       }
     },
-    async readShotReferenceAssetIds(operationIdToRead) {
+    async readShotCandidateFacts(operationIdToRead) {
       if (disposed) throw new Error("surface_port_unavailable");
       const signal = new AbortController().signal;
       const read = await plan("read", { operationId: operationIdToRead }, await lease(signal), signal) as {
         operation?: {
-          candidate?: { references?: ReadonlyArray<{ assetId?: unknown }> };
-          shots?: ReadonlyArray<{ shotId?: unknown; candidate?: { references?: ReadonlyArray<{ assetId?: unknown }> } }>;
+          candidate?: ReadCandidate;
+          shots?: ReadonlyArray<{ shotId?: unknown; candidate?: ReadCandidate }>;
         };
       };
       const operation = read?.operation;
@@ -605,10 +628,15 @@ export function createPiGenerationTransportAdapter(
       const assetIdsOf = (references: ReadonlyArray<{ assetId?: unknown } | undefined> | undefined) =>
         (references ?? []).flatMap((reference) => typeof reference?.assetId === "string" ? [reference.assetId] : []);
       // 单镜草稿没有 shots 数组，参考在 operation.candidate 上：按「一镜」处理，键 "" = 没有镜头 id 的那一镜。
-      if (!Array.isArray(operation.shots)) return { "": assetIdsOf(operation.candidate?.references) };
-      return Object.fromEntries(operation.shots.flatMap((shot) => typeof shot.shotId === "string"
-        ? [[shot.shotId, assetIdsOf(shot.candidate?.references)]]
-        : []));
+      const entries: Array<[string, ReadCandidate | undefined]> = Array.isArray(operation.shots)
+        ? operation.shots.flatMap((shot) => typeof shot.shotId === "string" ? [[shot.shotId, shot.candidate] as [string, ReadCandidate | undefined]] : [])
+        : [["", operation.candidate]];
+      const durationSeconds: Record<string, number> = {};
+      for (const [shotId, shotCandidate] of entries) {
+        const seconds = shotCandidate ? shotDurationSeconds({ parameters: shotCandidate.parameters ?? {} } as never) : undefined;
+        if (typeof seconds === "number" && seconds > 0) durationSeconds[shotId] = seconds;
+      }
+      return { references: Object.fromEntries(entries.map(([shotId, shotCandidate]) => [shotId, assetIdsOf(shotCandidate?.references)])), durationSeconds };
     },
     dispose() { disposed = true; },
   });

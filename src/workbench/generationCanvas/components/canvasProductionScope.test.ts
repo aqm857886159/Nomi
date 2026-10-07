@@ -3,13 +3,9 @@ import { createGenerationNode } from '../model/graphOps'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
   eligibleGenerationNodeIds,
-  groupGenerationNodesByExecutionKind,
+  groupEligibleNodeIds,
   nodesInCanvasProductionScope,
   normalizeCanvasBatchConcurrency,
-  readCanvasBatchConcurrency,
-  resolveCanvasGenerationScope,
-  shouldShowCanvasBatchGenerateDock,
-  writeCanvasBatchConcurrency,
 } from './canvasProductionScope'
 
 function node(
@@ -65,97 +61,18 @@ describe('nodesInCanvasProductionScope', () => {
   })
 })
 
-describe('resolveCanvasGenerationScope', () => {
-  it('uses the active category when there is no explicit selection', () => {
-    expect(resolveCanvasGenerationScope('shots', [])).toEqual({ categoryId: 'shots' })
-  })
-
-  it('uses selected node ids when the canvas has an explicit selection', () => {
-    expect(resolveCanvasGenerationScope('shots', ['scene-a'])).toEqual({ nodeIds: ['scene-a'] })
-  })
-})
-
-describe('shouldShowCanvasBatchGenerateDock', () => {
-  it('shows only for an editable unselected canvas with pending work', () => {
-    expect(shouldShowCanvasBatchGenerateDock({ readOnly: false, selectedCount: 0, eligibleCount: 2 })).toBe(true)
-    expect(shouldShowCanvasBatchGenerateDock({ readOnly: false, selectedCount: 0, eligibleCount: 0 })).toBe(false)
-    expect(shouldShowCanvasBatchGenerateDock({ readOnly: false, selectedCount: 1, eligibleCount: 2 })).toBe(false)
-    expect(shouldShowCanvasBatchGenerateDock({ readOnly: true, selectedCount: 0, eligibleCount: 2 })).toBe(false)
-  })
-
-  it('hides the dock only for the dismissed pending scope', () => {
-    const scopeKey = 'idle-image\u0000error-video'
-    const dismissed = {
-      readOnly: false,
-      selectedCount: 0,
-      eligibleCount: 2,
-      eligibleScopeKey: scopeKey,
-      dismissedScopeKey: scopeKey,
-    } as Parameters<typeof shouldShowCanvasBatchGenerateDock>[0]
-
-    expect(shouldShowCanvasBatchGenerateDock(dismissed)).toBe(false)
-    expect(
-      shouldShowCanvasBatchGenerateDock({
-        ...dismissed,
-        eligibleScopeKey: 'idle-image',
-        eligibleCount: 1,
-      }),
-    ).toBe(true)
-  })
-})
-
-describe('groupGenerationNodesByExecutionKind', () => {
-  it('separates mixed generation selections and ignores non-generation nodes', () => {
+describe('groupEligibleNodeIds', () => {
+  it('is the one set both the toolbar enablement and the dispatch use: members that are idle or failed', () => {
     const nodes = [
-      node('image', 'image', 'idle'),
-      node('character', 'character', 'idle'),
-      node('video', 'video', 'idle'),
-      node('text', 'text', 'idle'),
-      node('board', 'whiteboard', 'idle'),
+      node('a', 'image', 'idle'),
+      node('b', 'video', 'error'),
+      node('c', 'image', 'success'),
+      node('outsider', 'image', 'idle'),
     ]
 
-    expect(groupGenerationNodesByExecutionKind(nodes)).toEqual([
-      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['image', 'character'], representativeKind: 'image' },
-      { executionKind: 'video', requiredMode: 'text_to_video', nodeIds: ['video'], representativeKind: 'video' },
-      { executionKind: 'text', requiredMode: 'chat', nodeIds: ['text'], representativeKind: 'text' },
-    ])
-  })
-
-  it('keeps the active-category image group available for the no-selection scope', () => {
-    const nodes = [node('shot-image', 'image', 'idle', 'shots'), node('scene-image', 'image', 'idle', 'scene')]
-
-    expect(groupGenerationNodesByExecutionKind(nodesInCanvasProductionScope(nodes, { categoryId: 'shots' }))).toEqual([
-      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['shot-image'], representativeKind: 'image' },
-    ])
-  })
-
-  it('splits batch picker groups by the real execution mode within one billing kind', () => {
-    const nodes = [
-      node('t2i', 'image', 'idle'),
-      { ...node('edit', 'image', 'idle'), meta: { referenceImages: ['https://example.test/ref.png'] } },
-      node('t2v', 'video', 'idle'),
-      { ...node('i2v', 'video', 'idle'), meta: { firstFrameUrl: 'https://example.test/first.png' } },
-    ]
-
-    expect(groupGenerationNodesByExecutionKind(nodes)).toEqual([
-      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['t2i'], representativeKind: 'image' },
-      { executionKind: 'image', requiredMode: 'image_edit', nodeIds: ['edit'], representativeKind: 'image' },
-      { executionKind: 'video', requiredMode: 'text_to_video', nodeIds: ['t2v'], representativeKind: 'video' },
-      { executionKind: 'video', requiredMode: 'image_to_video', nodeIds: ['i2v'], representativeKind: 'video' },
-    ])
-  })
-
-  it('uses reference inputs from outside the selected batch scope when deriving its picker mode', () => {
-    const source = {
-      ...node('source', 'image', 'success'),
-      result: { id: 'result', type: 'image' as const, url: 'https://example.test/source.png', createdAt: 1 },
-    }
-    const target = node('target', 'video', 'idle')
-    const edge = { id: 'edge', source: source.id, target: target.id, mode: 'first_frame' as const }
-
-    expect(groupGenerationNodesByExecutionKind([target], [edge], [source, target])).toEqual([
-      { executionKind: 'video', requiredMode: 'image_to_video', nodeIds: ['target'], representativeKind: 'video' },
-    ])
+    expect(groupEligibleNodeIds({ nodeIds: ['a', 'b', 'c'] }, nodes)).toEqual(['a', 'b'])
+    expect(groupEligibleNodeIds({ nodeIds: [] }, nodes)).toEqual([])
+    expect(groupEligibleNodeIds(null, nodes)).toEqual([])
   })
 })
 
@@ -168,17 +85,5 @@ describe('canvas batch concurrency', () => {
     [4.9, 4],
   ])('normalizes %s to %s', (input, expected) => {
     expect(normalizeCanvasBatchConcurrency(input)).toBe(expected)
-  })
-
-  it('persists and restores the normalized preference', () => {
-    const values = new Map<string, string>()
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-    }
-
-    writeCanvasBatchConcurrency(9, storage)
-
-    expect(readCanvasBatchConcurrency(storage)).toBe(8)
   })
 })

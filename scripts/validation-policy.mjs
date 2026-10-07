@@ -122,7 +122,7 @@ const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
 // 「谁决定画布上显示什么」——改它们等于改画布上用户看得见的状态，必须跑 full 画布验收
 // （canvas-landing / canvas-reconcile / batch-production 只在 full 档里）。
 // 来历：#934 改了制作镜头占位的状态判定、#940 / #937 也碰了这一类，只拿到 critical，
-// S5 回归就这样进了 main（画布显示归属那次回归）。清单对着 docs/engineering/concept-owners.json 里
+// S5 回归就这样进了 main（画布显示归属那次回归）。清单对着 docs/engineering/concept-owners/ 里
 // 画布显示相关概念的 owner 与写口列的（production.shot-phase / shot-jobs / shot-generation-ownership /
 // run-stop-reason / run-lifecycle-settle / node-run-record），再加画布子树里产出显示的目录。
 // generationCanvas 的每个子目录必须在 scripts/validation-policy.node-test.mjs 里表态
@@ -158,7 +158,7 @@ const FULL_CANVAS_PATTERNS = [
 
 const PERFORMANCE_PATTERNS = [
   /^src\/workbench\/generationCanvas\/reactFlow(?:\/|$)/,
-  /^src\/workbench\/generationCanvas\/nodes\/(?:DeferredNodeMedia|deferredNodeMediaQueue|renderRegistry|BaseGenerationNode|ClipNode(?:Preview)?|NodeVideoPlaybackGuard|useNodeVideoHoverPreview|nodeSizing|nodeResultStackPlacement)(?:\.|\/)/,
+  /^src\/workbench\/generationCanvas\/nodes\/(?:DeferredNodeMedia|deferredNodeMediaQueue|renderRegistry|BaseGenerationNode|ClipNode(?:Preview)?|NodeVideoPlaybackGuard|useNodeVideoHoverPreview|nodeSizing|versionCards)(?:\.|\/)/,
   /^tests\/ux\/(?:canvas-performance|fixtures\/canvas-performance).*/,
   // 真实素材登记表与它的执行层（R13「四件真实」第④件，2026-09-14）。改登记表 = 改这条 lane 的输入：
   // 素材换一份、覆盖面动一类，画布与性能两条腿量到的东西就变了，必须当场重量一次，不能等下一个 PR。

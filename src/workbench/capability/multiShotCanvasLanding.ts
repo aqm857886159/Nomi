@@ -345,8 +345,9 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   }
 
   // 分镜表（同一 txn → 与节点/组同一个撤销步）。标题 = 计划名；行零缓存，全部从节点 derive。
+  // 「这个 Run 已有表吗」在**建表这一刻**再读一次：开头那次判在若干 await 之前，两次重叠的落地都会判成「没有」，各建一张。
   let shotTableNodeId = existingShotTableId
-  if (willCreateTable && runId) {
+  if (willCreateTable && runId && !(shotTableNodeId = findProductionShotTable(runId))) {
     const table = inLandingTxn(() => useGenerationCanvasStore.getState().addNode({
       kind: 'shot_table',
       title: (payload.planName || '').trim() || i18n.t('shotTable.title'),

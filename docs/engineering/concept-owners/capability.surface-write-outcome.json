@@ -1,0 +1,25 @@
+{
+  "name": "渲染层写入回复的结局归类（明确拒绝 / 结局不明）",
+  "subject": "capability.surface-write-outcome",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/canvasReadSurfacePort.ts",
+    "symbol": "createCanvasReadSurfacePortRuntime"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "symbol": "createCanvasReadSurfacePortRuntime"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/canvasReadExecutionRuntime.ts"
+  ],
+  "since": "2026-10-01",
+  "notes": "一次改动型请求渲染层回了错误码：它在碰文稿之前验目标发现对不上而拒绝（surface_port_stale）= 结局已知，什么都没执行，如实往上报；被取消 / 端口不可用 / 被挂起 / 绑定过期可能发生在派发之后 = 结局不明，才是 capability_receipt_unresolved。把已知拒绝当不明会让回执永远停在 preparing（pb04 走查 agent-write-receipt-stuck 的第一根因）。"
+}

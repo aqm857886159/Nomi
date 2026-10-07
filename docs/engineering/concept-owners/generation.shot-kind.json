@@ -1,0 +1,45 @@
+{
+  "name": "一镜是图还是视频（建镜头时从点名的模型 + 明写的种类定下，四处读同一个答案）",
+  "subject": "generation.shot-kind",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/generationShotKind.ts",
+    "symbol": "resolveShotTaskKind"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/generationShotKind.ts",
+      "symbol": "resolveShotTaskKind"
+    },
+    {
+      "path": "electron/shared/generationShotKind.ts",
+      "symbol": "generationShotKind"
+    },
+    {
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "admitShotIdentity"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "inferGenerationTaskKind",
+      "kind": "definition",
+      "why": "按提示词关键词（镜头 / 视频 / 动画…）判种类，与点名的模型无关——「做一个封面」被建成视频镜头的那条路（付费卡① 第 9 条删除）"
+    }
+  ],
+  "parity_test": "electron/shared/generationShotKind.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/semanticGenerationCandidate.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/shared/contracts/pendingSpendConfirm.ts"
+  ],
+  "since": "2026-10-01",
+  "notes": "付费卡① 第 9 条（合同 docs/fixes/2026-10-01-paid-card-shot-kind.root-cause.json）。建镜头时种类只从「点名的模型在目录里声明的模式 + 明写的 taskKind / mode / modeId」来（resolveShotTaskKind，两样都没有就请 Agent 写明，不按提示词猜）；每条建镜头的路（单镜 / 多镜 create、整只给候选、改草稿）落盘前都过 admitShotIdentity（和派发前编译合同同一个 registry.resolve，参考卡只能是图片）。建好之后卡标题、卡体、画布节点、派发都只读 generationShotKind（宿主投影成 PendingSpendShot.kind，渲染层只读这一格，不再自己解读 mode 或模型目录）。模式 → 媒体种类的映射住在 capabilityModeManifest.modelKindForTaskKind（模型准入用的同一张表），这里不另抄。"
+}

@@ -394,6 +394,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       }
     }
   },
+  "topaz-image-upscale": {
+    "image_edit": {
+      "*": {
+        "upscale_factor": "2"
+      }
+    }
+  },
   "rh-seedream-4.5": {
     "text_to_image": {
       "*": {

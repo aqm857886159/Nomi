@@ -38,7 +38,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "document.read",
-      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and whenever the user says \"this\" or \"here\" (use scope selection — it is the only way to resolve those words). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
+      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \"this\" or \"here\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
       "effect": "read",
       "effectGroups": null,
       "examples": [
@@ -1545,7 +1545,9 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "apply_edit_plan"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
       "description": "Apply one transaction of timeline operations (move, trim, split, ripple, transition, text, audio) against the revision you read. The user asks to cut, trim, reorder, or add captions or transitions on the timeline. Not without a fresh read_timeline — a stale revision is rejected and resending it cannot succeed. Not for shot content (draft_shots). To revert use undo. baseRevision from read_timeline, a one-line summary, and 1-128 operations in frames. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio. The user sees the plan highlighted with a review card before it applies (in full-auto mode it applies and the result says so). The edit is reversible.",
@@ -1810,7 +1812,9 @@
       }
     },
     {
-      "aliasBoundInput": null,
+      "aliasBoundInput": {
+        "operation": "undo_timeline_edit"
+      },
       "alsoCovers": null,
       "contractId": "timeline.write",
       "description": "Revert one reversible change you made, by the changeId its result returned. The user says undo, go back, or that the last change was wrong. It cannot un-spend money or un-export; those are not undoable and check_job or cancel_job are the verbs there. If a later edit touched the same object, undo is rejected with the conflict reason. changeId from any reversible Agent write; expectedRevision is required only for a timeline change and may be omitted for a canvas change. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",

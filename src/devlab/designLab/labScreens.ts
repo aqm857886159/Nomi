@@ -8,6 +8,8 @@ import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
 import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
 import { NODE_QUICK_ACTIONS_STATES } from './nodeQuickActions/nodeQuickActionsStates'
+import { VERSION_CARDS_STATES } from './versionCards/versionCardsStates'
+import { VERSION_CARDS_CELL_HEIGHT, VERSION_CARDS_CELL_WIDTH } from './versionCards/versionCardsLabKit'
 import { QUICK_ACTIONS_CELL_HEIGHT, QUICK_ACTIONS_CELL_WIDTH } from './nodeQuickActions/nodeQuickActionsLabKit'
 import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
@@ -34,6 +36,9 @@ import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_
 import { DIRECTOR_3DBOX_STATES } from './director3dbox/director3dboxStates'
 import { DIRECTOR_3DBOX_CELL_HEIGHT, DIRECTOR_3DBOX_CELL_WIDTH } from './director3dbox/director3dboxCell'
 import { DIRECTOR_REFINE_STATES } from './directorRefine/directorRefineStates'
+import { DIRECTOR_CROWD_ALL_STATES } from './directorCrowd/directorCrowdStates'
+import { DIRECTOR_CROWD_CELL_HEIGHT, DIRECTOR_CROWD_CELL_WIDTH } from './directorCrowd/directorCrowdConstants'
+import { CANVAS_GROUPING_STATES } from './canvasGrouping/canvasGroupingStates'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -106,6 +111,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
   },
   {
+    id: 'canvas-grouping',
+    label: '画布 · 临时多选与编组',
+    states: CANVAS_GROUPING_STATES,
+    cell: { width: 1060, height: 690 },
+  },
+  {
     id: 'node-composer-bar',
     label: '画布 · 节点生成浮框底栏',
     states: NODE_COMPOSER_BAR_STATES,
@@ -119,6 +130,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: NODE_QUICK_ACTIONS_STATES,
     // 取景一样大：上方要装下「浮条 + 向上展开的菜单」，格子不同高就比不出浮条撑没撑宽。
     cell: { width: QUICK_ACTIONS_CELL_WIDTH, height: QUICK_ACTIONS_CELL_HEIGHT },
+  },
+  {
+    id: 'version-cards',
+    label: '画布 · 版本卡片（宫格）',
+    states: VERSION_CARDS_STATES,
+    cell: { width: VERSION_CARDS_CELL_WIDTH, height: VERSION_CARDS_CELL_HEIGHT },
   },
   {
     id: 'settings',
@@ -191,6 +208,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: DIRECTOR_REFINE_STATES,
     // 与导演视图屏同一个取景台、同一个尺寸（真机走查窗口内容区），新旧精修可以并排比
     cell: { width: DIRECTOR_3DBOX_CELL_WIDTH, height: DIRECTOR_3DBOX_CELL_HEIGHT },
+  },
+  {
+    id: 'director-crowd',
+    label: '导演台 · 群众并进加人',
+    states: DIRECTOR_CROWD_ALL_STATES,
+    cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
   },
 ]
 

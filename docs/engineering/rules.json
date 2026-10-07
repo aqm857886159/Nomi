@@ -18,7 +18,8 @@
         "gate:scripts/check-direction-trailer.mjs(自写登记连修第 2 次要带点名该登记的复盘)",
         "coordinator-tool:scripts/self-written-review.mjs(排版本计划时跑，到期清单给用户看)",
         "gate:check:prior-art",
-        "hook:self-check(先查别人块)"
+        "hook:self-check(先查别人块)",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)"
       ],
       "evidence": "CI 里 check:self-written / prior-art 有红记录；用户纠正过「先接入再自写」",
       "owner": "协调会话",
@@ -54,16 +55,17 @@
         "PB17",
         "PB10"
       ],
-      "rule": "修根因不修症状：分清症状 / 直接原因 / 类根因；动生产代码前先 door-map 数清写读入口；修在最早共享边界；自问「同类还能从别处回来吗」。可复发 / 高风险 / 逃逸 bug 交根因合同（必答 invariant_owner_layer、带 doors、recurrence_check_on、detected_by）。用户发现的问题进逃逸账本（tests/ux/full-walk/escapeLedger.json），结账（fixed）必须同时有根因合同、一条类级检查（铁律 ⑩ ⑪ ⑫ / inv:1-9 或矩阵 / 普查测试，只测单场景的不算）和合入的 PR 号；candidate 停留超 14 天警告。只修现场不算修好。",
+      "rule": "修根因、改系统：沉淀规则是每个 agent 的使命；分清症状 / 直接原因 / 类根因；动生产代码前先 door-map 数清写读入口；修在最早共享边界；再答「系统哪里没拦住」并补上漏洞，强弱依次：删掉 > 结构上做不出来 > 门岗自动拦 > 写规则文字；修 bug 的 PR 必填「## 系统改进」；自问「同类还能从别处回来吗」。可复发 / 高风险 / 逃逸 bug 交根因合同（必答 invariant_owner_layer、带 doors、recurrence_check_on、detected_by）。用户发现的问题进逃逸账本（tests/ux/full-walk/escapeLedger/），结账（fixed）必须同时有根因合同、一条类级检查（铁律 ⑩ ⑪ ⑫ / inv:1-9 或矩阵 / 普查测试，只测单场景的不算）和合入的 PR 号；candidate 停留超 14 天警告。只修这一处不算完成。",
       "disease": "同类问题第二次、第三次从别的入口回来",
       "enforcement": [
         "skill:root-cause-remediation",
         "gate:check:root-cause-contracts(只对 schema 阻断，其余警告)",
         "gate:check:escape-ledger(账本格式 + fixed 必须挂根因合同 / 类级检查 / PR 号；candidate 超 14 天警告)",
         "coordinator-tool:scripts/merge-preflight.mjs(账本里 candidate → fixed 的状态转换才要求带根因合同，判断与 check:escape-ledger 共用 escape-ledger-lib)",
-        "hook:self-check(修根因块)"
+        "hook:self-check(修根因块)",
+        "manual"
       ],
-      "evidence": "复盘里同类复发仍在（行 2 与行 60 同为 CI 缺 Chromium）；合同 647 份",
+      "evidence": "「## 系统改进」暂由协调会话合并时人工查（manual），门岗等门岗族方向检查结论再接；复盘里同类复发仍在（行 2 与行 60 同为 CI 缺 Chromium）；合同 647 份",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "30 天复发率连续 2 个周期低于 10% 时降 l2",
@@ -79,6 +81,7 @@
       "enforcement": [
         "gate:scripts/check-direction-trailer.mjs",
         "coordinator-tool:scripts/fix-churn.mjs",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)",
         "hook:edit-time-reminder",
         "hook:self-check(方向检查块)",
         "template:docs/engineering/direction-check-template.md"
@@ -101,7 +104,7 @@
         "hook:completion-check",
         "gate:test:core-smoke",
         "gate:check:full-walk-catalog",
-        "template:tests/ux/full-walk/escapeLedger.json",
+        "template:tests/ux/full-walk/escapeLedger/",
         "hook:self-check(报完成块)"
       ],
       "evidence": "completion-check 在 Stop 时拦无眼见证据的完成宣告",
@@ -500,7 +503,7 @@
         "R33.4",
         "R33.5"
       ],
-      "rule": "概念的 owner 先于目录：同一概念同一时段只归一条 lane；谁说了算在设计卡 ★2 格动手前回答；概念登记表 concept-owners.json 由门岗校验（警告档）。",
+      "rule": "概念的 owner 先于目录：同一概念同一时段只归一条 lane；谁说了算在设计卡 ★2 格动手前回答；概念登记表 concept-owners/ 由门岗校验（警告档）。",
       "disease": "同一概念出现第二个 owner",
       "enforcement": [
         "gate:check:concept-owners(警告)",

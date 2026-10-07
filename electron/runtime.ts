@@ -214,7 +214,7 @@ export async function executeProfileOperation(input: {
   const uploadCatalog = readCatalog();
   const localized = await localizeAssetsForVendor(
     input.request.extras,
-    assetIngestionResolver(input.vendor, uploadCatalog),
+    assetIngestionResolver(input.vendor, uploadCatalog, input.operation.assetIngestion),
     input.localAssetReader || readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
@@ -335,7 +335,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     if (!mapping.create.multipart && !mapping.create.process) {
       assertLocalAssetTransportReady(
         request.extras,
-        assetIngestionResolver(vendor, uploadCatalog),
+        assetIngestionResolver(vendor, uploadCatalog, mapping.create.assetIngestion),
         readNomiLocalAsset,
         assetLocalizationOptions(request.extras),
       );

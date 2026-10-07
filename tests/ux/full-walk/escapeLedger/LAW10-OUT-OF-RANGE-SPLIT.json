@@ -1,0 +1,36 @@
+{
+  "id": "LAW10-OUT-OF-RANGE-SPLIT",
+  "since": "2026-10-05",
+  "source": "tests/experience-laws/intentShownEqualsDrafted.test.mjs（2026-10-05 首跑）",
+  "category": "parameter-contract",
+  "problem": "Agent 给只收 6 / 10 秒的模型（海螺 2.3）说 8 秒：宿主照收进草稿，付费卡显示 8 秒、请求也带 8 秒，画布节点却按档案改回默认 6 秒——三处各说各的，也没有一处告诉 Agent「8 秒不在可选档里」",
+  "existingInvariants": [
+    3,
+    4
+  ],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "S1",
+    "S2"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "用例 duration-out-of-steps；节点值由 src/workbench/generationCanvas/agent/plannedNodeMeta.ts 的 buildPlannedNodeMeta 丢弃非法值回落默认；草稿与卡走 electron/shared/agentCapabilities/verbs/draftShotsProjection.ts 原样带 duration"
+  ],
+  "completionCommits": [
+    "bd587cab4"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-05-authored-duration-admission.root-cause.json",
+  "classCheck": {
+    "kind": "iron-law",
+    "file": "tests/experience-laws/intentShownEqualsDrafted.test.mjs",
+    "ref": "⑩"
+  },
+  "fixedInPr": 1029
+}

@@ -5,6 +5,7 @@ import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
+import { listPersistedAssetDeletions } from '../assets/pendingAssetDeletions'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
@@ -20,6 +21,8 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
     editingPanelLayout: workbench.editingPanelLayout,
+    // 删掉的版本、文件还在等撤销窗口过去：跟项目一起存，App 直接退出时下次打开再删。
+    pendingAssetDeletions: listPersistedAssetDeletions(),
   }
 }
 
@@ -82,7 +85,6 @@ export async function replayCanvasEventTailAndSealGenesis(
 export type WorkbenchProjectSaveFn = (
   projectId: string,
   payload: WorkbenchProjectPayload,
-  projectName: string,
 ) => Promise<WorkbenchProjectRecordV1>
 
 type ActiveWorkbenchProjectSaveTarget = {
@@ -164,7 +166,6 @@ export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProje
 
 export type WorkbenchProjectPersistenceOptions = {
   projectId: string
-  projectName: string
   isHydrating: () => boolean
   canPersist: () => boolean
   saveProject: WorkbenchProjectSaveFn
@@ -174,7 +175,6 @@ export type WorkbenchProjectPersistenceOptions = {
 
 type QueuedWorkbenchProjectSave = {
   projectId: string
-  projectName: string
   payload: WorkbenchProjectPayload
 }
 
@@ -208,7 +208,7 @@ function createProjectSaveQueue(input: {
         const next = pending
         pending = null
         try {
-          const saved = await input.saveProject(next.projectId, next.payload, next.projectName)
+          const saved = await input.saveProject(next.projectId, next.payload)
           savedRecord = saved
           failed = false
           if (input.isActive()) input.onSaved(saved)
@@ -262,7 +262,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   const flushOwned = async (): Promise<WorkbenchProjectRecordV1 | null> => {
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     if ((saveScheduled || saveQueue.hasFailed()) && ownedPayload) {
-      saveQueue.enqueue({ projectId: options.projectId, projectName: options.projectName, payload: ownedPayload })
+      saveQueue.enqueue({ projectId: options.projectId, payload: ownedPayload })
     }
     saveScheduled = false
     const record = await saveQueue.flush()
@@ -278,7 +278,6 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     if (disposed || !ownedPayload) return
     saveQueue.enqueue({
       projectId: options.projectId,
-      projectName: options.projectName,
       payload: ownedPayload,
     })
   }

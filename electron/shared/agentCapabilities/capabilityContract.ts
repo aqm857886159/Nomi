@@ -47,7 +47,11 @@ export type CapabilityContract<Input, Output> = {
    * commits it before the highlight is drawn.
    */
   readonly requiresPlanReview?: boolean;
-  /** Operation-specific review. Its presence requires review; false forbids reusing any prior approval. */
+  /**
+   * Operation-specific review. Its presence requires review; false forbids reusing any prior approval.
+   * When the contract also sets `requiresPlanReview`, a recognised operation missing from this map is NOT
+   * reviewed (timeline.write: the edit plan is, undo is not); an unrecognised one falls back to the contract flag.
+   */
   readonly operationPlanReview?: Readonly<Record<string, Readonly<{ allowReuse: boolean }>>>;
   /**
    * 这个能力的**全部内容就是问用户一句话**，所以没有任何档位、任何会话级授权能替他答。

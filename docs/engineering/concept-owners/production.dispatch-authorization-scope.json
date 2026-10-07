@@ -1,0 +1,28 @@
+{
+  "name": "派发时核的授权范围（批过的那一份）",
+  "subject": "production.dispatch-authorization-scope",
+  "lifecycle": "spend-authority",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionGenerationSubmission.ts",
+    "symbol": "prepareAuthorizedSubmission"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "prepareAuthorizedSubmission"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionGenerationAuthorizationFlow.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpStdioServer.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "2026-09-29 用户实见：定妆照检查点放行后视频镜派不出去（「Generation authorization no longer matches the current project or Run」），批次停下（合同 docs/fixes/2026-09-29-production-flow-stop-reason-and-lifecycle.root-cause.json）。派发时要核的是「批过的那一份」，只有它：封进信封的项目身份（immutableProjectUuid + projectGeneration）、Run、计划版本、那道门，以及每个 job 的合同哈希、供应商、模型、第几次、幂等键、线上报文哈希、参考图、单价上限、到期时间——收据签的就是这份信封的摘要。项目文档的版本号不在里面：它只是「用户看报价那一刻项目是不是最新」的前提，在批准那一刻由收据那一侧核（productionRunApprovalReceipt.assertCurrentProjectRevision），批准之后 Nomi 自己把占位和参考卡结果落上画布就会让它前进。所以派发不再读活的文档版本（createProductionGenerationSubmission 连这个依赖都没有了），也没有「重试时重新封一次」这种补法。批准那一刻的版本绑定也已松开（2026-10-01 付费卡① 第 14 条，归 production.spend-approval-binding）：付费门的收据比的是它自己那份信封封好时的版本，不再读项目此刻的版本。2026-09-30 付费卡逐镜（形状变化，主人不变）：每一份授权住在自己那道门上（`gate.authorizationEnvelope`），一次点击一道门；job 的 `authorizationDigest` 指着批它的那道门，派发只核那道门的信封——计划级的那份授权（`generationPlan.authorizationEnvelope`）删了。同一镜点一下就是一道门，别的镜还没点就没有门、没有 job，调度器无从派发。 2026-10-01 付费卡① 第 13 条：派发时「这一镜现在派出去还算不算用户同意过」不在这里另判（以前拿信封封好那一刻起的 10 分钟判、出站箱又按批准记录的到期时间判一次），改由 production.dispatch-consent 一个判据答，过期抛 DispatchConsentLapsedError，批次停在 consent_expired。"
+}

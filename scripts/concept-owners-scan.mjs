@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { dedupeDoors, mapDoorOccurrences } from './door-map.mjs'
+import { parseCatFileBatch } from './lib/entryDirectory.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
 
 export const SOURCE_EXTENSION = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
@@ -129,26 +130,6 @@ export function workingTreeSource(repoRoot) {
       return text
     },
   }
-}
-
-/** 解析 `git cat-file --batch` 的输出：`<sha> <type> <size>\n<内容>\n`，缺失的是 `<spec> missing\n`。 */
-export function parseCatFileBatch(buffer, specs) {
-  const out = new Map()
-  let offset = 0
-  for (const spec of specs) {
-    const newline = buffer.indexOf(0x0a, offset)
-    if (newline === -1) break
-    const header = buffer.subarray(offset, newline).toString('utf8')
-    offset = newline + 1
-    if (header.endsWith(' missing')) {
-      out.set(spec, null)
-      continue
-    }
-    const size = Number(header.split(' ')[2])
-    out.set(spec, buffer.subarray(offset, offset + size).toString('utf8'))
-    offset += size + 1
-  }
-  return out
 }
 
 /** 某个提交：整棵树的路径表一次拿全，内容用 `cat-file --batch` 成批读（一个进程读几千个文件）。 */

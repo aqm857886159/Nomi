@@ -7,6 +7,10 @@ export type ProjectAgentProposalCompensation =
   | Readonly<{ kind: "restore-graph"; nodes: readonly unknown[]; edges: readonly unknown[] }>
   /** 把一个**仍存在**的节点的 meta / prompt 放回提议之前（3D-BOX 计划修订、预演挂接都改的是既有节点）。 */
   | Readonly<{ kind: "restore-node-fields"; nodeId: string; meta: Readonly<Record<string, unknown>>; prompt: string }>
+  /**
+   * 「准备中」收据里的提议之前的整张图（那一刻还不知道这笔会碰哪些对象）。它只是证据：执行时逐对象比出
+   * 按对象补偿（renderer agent/beforeImageCompensation），从不整图放回。
+   */
   | Readonly<{
       kind: "restore-snapshot";
       snapshot: Readonly<{ nodes: readonly unknown[]; edges: readonly unknown[]; groups: readonly unknown[] }>;

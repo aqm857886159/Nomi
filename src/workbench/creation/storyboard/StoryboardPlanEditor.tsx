@@ -36,7 +36,6 @@ import {
 import {
   generateAnchorCard,
   generateShotRow,
-  generateShotRowVariants,
   regenerateAnchorCard,
   regenerateShotRow,
   rerunShotRowWithFreshRefs,
@@ -443,10 +442,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const node = runtime.exec.recoverableNode
     if (node) withProjectAction((project) => { void recoverNodeResult(node.id, project) })
   }
-  const onVariantsRow = (runtime: StoryboardRowRuntime): void => {
-    const node = runtime.exec.node
-    if (node) void runAction(context => generateShotRowVariants(context, runtime.shot, node, runtime.mode))
-  }
   // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
   const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
     if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
@@ -648,7 +643,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onRecoverRow={onRecoverRow}
-              onVariantsRow={onVariantsRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}

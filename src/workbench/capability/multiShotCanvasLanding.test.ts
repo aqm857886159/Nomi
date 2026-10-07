@@ -196,7 +196,12 @@ describe('materializeShots undo transaction', () => {
 
     useGenerationCanvasStore.getState().undo()
     const afterUndo = useGenerationCanvasStore.getState()
-    expect(afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)).toEqual([])
+    // 一次撤销撤整批：没出片的节点和分组全拿掉。已回填结果的那一镜是付费落地，撤销不拿走它
+    // （协调会话 10-07 定 B，docs/plan/2026-10-07-undo-keeps-landed-results.md）——节点留下、摘掉被撤分组的标记。
+    const remaining = afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)
+    expect(remaining.map((node) => node.id)).toEqual([shotNodeId])
+    expect(remaining[0].result?.id).toBe('shot-1-result')
+    expect(remaining[0].groupId).toBeUndefined()
     expect(afterUndo.groups.filter((group) => group.materializationOperationId === operationId)).toEqual([])
   })
 })
@@ -496,5 +501,28 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     useGenerationCanvasStore.getState().setNodeStatus(id, 'idle') // = 重开项目时的收敛（running → cancelled）
     await land({ generation: running }, true)
     expect(node(id).status).toBe('running')
+  })
+})
+
+// 同一次任务里画布上出现两张分镜表：同一个 Run 的两次落地重叠时，「这个 Run 已有表吗」在 await 之前判一次、之后才建，
+// 两次都判成「没有」。判据必须在真正建表那一刻（同步段内）再读一次。
+describe('production shot table is created at most once per Run, even when two landings overlap', () => {
+  const runId = 'run-overlap-1'
+  const operationId = `canvas-landing:${runId}`
+  const shots = [
+    { shotId: 'o-1', role: 'shot' as const, kind: 'image' as const, prompt: '一' },
+    { shotId: 'o-2', role: 'shot' as const, kind: 'image' as const, prompt: '二' },
+  ]
+  beforeEach(() => {
+    resetClientIdRegistry()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+  })
+
+  it('reported case: two overlapping landings of one Run leave exactly one table', async () => {
+    await Promise.all([
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+      materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
+    ])
+    expect(useGenerationCanvasStore.getState().nodes.filter((node) => node.kind === 'shot_table')).toHaveLength(1)
   })
 })

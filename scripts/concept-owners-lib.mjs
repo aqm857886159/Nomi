@@ -10,6 +10,7 @@
 //
 // 本文件只放纯函数：输入是登记表、基线、扫描结果，输出是 findings。读文件、跑 git 都在 scan / check 两个文件里。
 import { splitSymbol } from './boundary-owners.mjs'
+import { CONCEPT_SUBJECT_PATTERN as SUBJECT_PATTERN } from './concept-registry-lib.mjs'
 import { IDENTITY_DIMENSIONS, isScannableSource, normalizePath, PRODUCTION_ROOTS, rootOf } from './concept-owners-scan.mjs'
 
 export const REGISTRY_SCHEMA_VERSION = 2
@@ -91,7 +92,6 @@ const REQUIRED_KEYS = [
   'owner', 'write_api', 'forbidden_derivations', 'allowed_consumers', 'since', 'notes',
 ]
 
-const SUBJECT_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)+$/
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TEST_FILE = /(?:^|\/)(?:tests?|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$|\.node-test\.[cm]?js$/

@@ -48,6 +48,8 @@ export { default as IconArrowRampRight } from '@tabler/icons-react/dist/esm/icon
 export { default as IconArrowRight } from '@tabler/icons-react/dist/esm/icons/IconArrowRight.mjs'
 export { default as IconArrowUpRight } from '@tabler/icons-react/dist/esm/icons/IconArrowUpRight.mjs'
 export { default as IconArrowsMove } from '@tabler/icons-react/dist/esm/icons/IconArrowsMove.mjs'
+export { default as IconArrowsHorizontal } from '@tabler/icons-react/dist/esm/icons/IconArrowsHorizontal.mjs'
+export { default as IconArrowsVertical } from '@tabler/icons-react/dist/esm/icons/IconArrowsVertical.mjs'
 export { default as IconBadgeCc } from '@tabler/icons-react/dist/esm/icons/IconBadgeCc.mjs'
 export { default as IconBlockquote } from '@tabler/icons-react/dist/esm/icons/IconBlockquote.mjs'
 export { default as IconBodyScan } from '@tabler/icons-react/dist/esm/icons/IconBodyScan.mjs'

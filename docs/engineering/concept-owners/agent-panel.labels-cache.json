@@ -1,0 +1,36 @@
+{
+  "name": "Agent 面板的文案对象（每种语言一个稳定对象）",
+  "subject": "agent-panel.labels-cache",
+  "lifecycle": "session",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/agentPanelV4Labels.ts",
+    "symbol": "useV4Labels"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Labels.ts",
+      "symbol": "useV4Labels"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Labels.ts",
+      "symbol": "buildV4Labels"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/ui/app-shell/CollapsedAiChip.tsx",
+    "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+    "src/devlab/designLab/v4/states/03-flow.tsx",
+    "src/devlab/designLab/v4/states/07-spend-params.tsx"
+  ],
+  "since": "2026-09-27",
+  "notes": "PR #904（合同 docs/fixes/2026-09-27-agent-panel-long-conversation-freeze.root-cause.json）：21 回合长对话把渲染进程冻住——每行每次渲染都新建一份 labels、调 64 次 t()。现在按 i18n.resolvedLanguage 缓存，同一语言返回同一个引用，切语言才重建；调用方照旧 useV4Labels()，不许再自己拼一份 labels 对象。"
+}

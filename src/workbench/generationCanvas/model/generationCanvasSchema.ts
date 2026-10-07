@@ -40,6 +40,8 @@ export const generationProvenanceSchema = z.object({
 
 export const generationNodeResultSchema = z.object({
   id: z.string().min(1),
+  /** 「第 N 版」：节点内持久序号，1 = 最早；删了留空号（model/nodeResultLifecycle.ts）。 */
+  versionNo: z.number().int().positive().optional(),
   type: z.enum(['image', 'video', 'text', 'audio', 'model3d']),
   url: z.string().optional(),
   thumbnailUrl: z.string().optional(),
@@ -99,6 +101,12 @@ export const generationCanvasNodeSchema = z.object({
   references: z.array(z.string()).optional(),
   result: generationNodeResultSchema.optional(),
   history: z.array(generationNodeResultSchema).optional(),
+  /** 版本卡片是否铺开在画布上（按节点存进项目）。 */
+  resultStackOpen: z.boolean().optional(),
+  /** 铺开时往哪边铺（点开那一刻定下，之后不变）。 */
+  resultStackSide: z.enum(['left', 'right']).optional(),
+  /** 出过的最大版本号（删掉的也算），新的一版 = 它 + 1（model/nodeResultLifecycle.ts）。 */
+  resultVersionMax: z.number().int().nonnegative().optional(),
   progress: generationNodeProgressSchema.optional(),
   runs: z.array(generationNodeRunRecordSchema).optional(),
   status: generationNodeStatusSchema.optional(),
@@ -133,6 +141,7 @@ export const nodeGroupSchema = z.object({
   categoryId: categoryIdSchema,
   nodeIds: z.array(z.string()),
   color: z.string().optional(),
+  colorToken: z.string().optional(),
   frameBounds: z.object({
     x: z.number(),
     y: z.number(),

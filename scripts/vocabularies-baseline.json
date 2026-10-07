@@ -706,9 +706,10 @@
     {
       "members": [
         "first-response",
+        "first-token",
         "idle"
       ],
-      "reason": "RuntimeErrorFacts.timeoutPhase 区分 native stream 在 first-response 前超时与响应后的 idle 间隙超时，决定错误事实与诊断文案；laneStreamObserver 的异常和 arm 参数都只是 runtime port 合同的投影，应从该导出接口 derive。",
+      "reason": "RuntimeErrorFacts.timeoutPhase 区分 native stream 在 first-response 前超时与响应后的 idle 间隙超时，决定错误事实与诊断文案；laneStreamObserver 的异常和 arm 参数都只是 runtime port 合同的投影，应从该导出接口 derive。 2026-10-06（NF-1001-0004，合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json）：加 first-token——响应头之后、第一段正文之前（推理模型在想、不流任何事件）单独一个预算，不再被当作空闲掐断。",
       "site": "electron/shared/agentCapabilities/transportContracts.ts::interface:RuntimeErrorFacts/property:timeoutPhase/type-union"
     },
     {
@@ -1131,6 +1132,7 @@
         "capability_receipt_unresolved",
         "capability_target_stale",
         "capability_unsupported",
+        "document_position_unavailable",
         "project_binding_stale",
         "project_identity_unavailable",
         "surface_owner_mismatch",
@@ -1139,7 +1141,7 @@
         "surface_port_unavailable",
         "undo_conflict"
       ],
-      "reason": "C4 的 canonical owner 本体：端口线上错误码的唯一手写元组，同文件的 SurfacePortWireErrorCode 类型与 SURFACE_PORT_WIRE_ERROR_CODES 集合都从它 derive，transport adapter 一律 spread CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES。它就是本条规则要求大家收敛过来的那一份。",
+      "reason": "C4 的 canonical owner 本体：端口线上错误码的唯一手写元组，同文件的 SurfacePortWireErrorCode 类型与 SURFACE_PORT_WIRE_ERROR_CODES 集合都从它 derive，transport adapter 一律 spread CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES。它就是本条规则要求大家收敛过来的那一份。 2026-10-06（NF-1001-0001）：加 document_position_unavailable——文稿此刻没有选区 / 光标（创作页编辑器没挂），与泛泛的 capability_unsupported 分开，模型与用户各拿到能做的下一步。",
       "site": "electron/shared/surfacePortBinding.ts::variable:SURFACE_PORT_WIRE_ERROR_CODE_LIST/as-const"
     },
     {
@@ -1913,6 +1915,16 @@
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes.",
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const"
+    },
+    {
+      "members": [
+        "error",
+        "progress",
+        "runs",
+        "status"
+      ],
+      "reason": "NODE_RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做与外部整张写回画布时这几项都取此刻的真实值、不回退不覆盖，生成中不会被撤回或改成空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集；读者是同文件的 withLiveRunState / withLiveNodeFacts（画布写边界统一提交口 store/canvasDocumentCommit 与盘上 shared/canvas/externalCanvasWrite 共用）。",
+      "site": "electron/shared/canvas/landedNodeFields.ts::variable:NODE_RUN_STATE_FIELDS/as-const"
     }
   ],
   "debt": [

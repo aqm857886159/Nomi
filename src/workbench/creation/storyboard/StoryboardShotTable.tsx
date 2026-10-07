@@ -77,9 +77,6 @@ type Props = {
    * 缺省时那枚按钮就不出现——但绝不许拿 `onGenerateRow` 顶替（那是付费重跑）。
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
-  /** 「再出 3 版」：同镜连出三版，追加进变体抽屉。 */
-  onVariantsRow: (runtime: StoryboardRowRuntime) => void
-  /** 浮条 ×3 变体。 */
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击 / 浮条 ⛶ 放大预览。 */
@@ -162,7 +159,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -393,7 +390,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onAgentHandoff: runtime && onAgentHandoff ? () => onAgentHandoff([runtime]) : undefined,
                     onInsertAbove: () => onChange(insertShotAt(plan, pos)),
                     onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
-                    onGenerateVariants: runtime ? () => onVariantsRow(runtime) : undefined,
                     targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
                     allShots: plan.shots,
                     sourcePosition: pos,

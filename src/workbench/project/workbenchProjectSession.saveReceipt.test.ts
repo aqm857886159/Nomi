@@ -19,7 +19,7 @@ describe('project persistence disposal', () => {
       versions.push((payload as { generationCanvas: { version: number } }).generationCanvas.version)
       return new Promise<WorkbenchProjectRecordV1>(resolve => { finish.push(() => resolve({ id: 'p' } as WorkbenchProjectRecordV1)) })
     })
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', projectName: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn() })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn() })
     deps.version = 1; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
     deps.version = 2; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
     deps.version = 3; deps.changed?.()
@@ -37,7 +37,7 @@ describe('project persistence disposal', () => {
     const finish: Array<(record: WorkbenchProjectRecordV1) => void> = []
     const save = vi.fn<WorkbenchProjectSaveFn>(() => new Promise<WorkbenchProjectRecordV1>(resolve => { finish.push(resolve) }))
     const onSaved = vi.fn()
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', projectName: 'old', isHydrating: () => hydrating, canPersist: () => active, saveProject: save, onSaved })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', isHydrating: () => hydrating, canPersist: () => active, saveProject: save, onSaved })
     deps.version = 1; deps.changed?.()
     if (phase !== 'debounced') await vi.advanceTimersByTimeAsync(700)
     if (phase === 'queued') { deps.version = 2; deps.changed?.(); await vi.advanceTimersByTimeAsync(700) }
@@ -57,7 +57,7 @@ describe('project persistence disposal', () => {
     const finish: Array<(record: WorkbenchProjectRecordV1) => void> = []
     const save = vi.fn(() => new Promise<WorkbenchProjectRecordV1>(resolve => { finish.push(resolve) }))
     const onSaved = vi.fn()
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', projectName: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved })
     deps.version = 1; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
     deps.version = 2; deps.changed?.()
     const done = vi.fn()
@@ -67,7 +67,7 @@ describe('project persistence disposal', () => {
     finish[0]({ id: 'p' } as WorkbenchProjectRecordV1)
     await vi.advanceTimersByTimeAsync(0)
     expect(save).toHaveBeenCalledTimes(2)
-    expect(save.mock.calls[1]).toEqual(['p', expect.objectContaining({ generationCanvas: expect.objectContaining({ version: 2 }) }), 'p'])
+    expect(save.mock.calls[1]).toEqual(['p', expect.objectContaining({ generationCanvas: expect.objectContaining({ version: 2 }) })])
     finish[1]({ id: 'p' } as WorkbenchProjectRecordV1)
     await disposed
     expect(done).toHaveBeenCalledOnce()
@@ -77,7 +77,7 @@ describe('project persistence disposal', () => {
     const failure = new Error('save failed')
     const onSaveError = vi.fn()
     const save = vi.fn().mockRejectedValue(failure)
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', projectName: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn(), onSaveError })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn(), onSaveError })
     deps.changed?.()
     await expect(dispose()).rejects.toBe(failure)
     expect(onSaveError).toHaveBeenCalledWith(failure)
@@ -87,7 +87,7 @@ describe('project persistence disposal', () => {
   it('makes close or reload wait for the library exit save receipt after disposal starts', async () => {
     let finish!: (record: WorkbenchProjectRecordV1) => void
     const save = vi.fn(() => new Promise<WorkbenchProjectRecordV1>(resolve => { finish = resolve }))
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', projectName: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn() })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn() })
     deps.version = 1; deps.changed?.()
     const leaving = dispose()
     const acknowledged = vi.fn()
@@ -105,7 +105,7 @@ describe('project persistence disposal', () => {
     const onSaved = vi.fn(), onSaveError = vi.fn()
     const failure = new Error('disk denied')
     const save = vi.fn().mockImplementationOnce(() => new Promise((_resolve, no) => { reject = no })).mockResolvedValueOnce({ id: 'old' })
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', projectName: 'old', isHydrating: () => false, canPersist: () => active, saveProject: save, onSaved, onSaveError })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', isHydrating: () => false, canPersist: () => active, saveProject: save, onSaved, onSaveError })
     deps.changed?.()
     const leaving = dispose().catch(error => error)
     const closing = persistActiveWorkbenchProjectNow().catch(error => error)
@@ -121,7 +121,7 @@ describe('project persistence disposal', () => {
     let finish!: (record: WorkbenchProjectRecordV1) => void
     let active = true
     const save = vi.fn(() => new Promise<WorkbenchProjectRecordV1>(resolve => { finish = resolve }))
-    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', projectName: 'old', isHydrating: () => !active, canPersist: () => active, saveProject: save, onSaved: vi.fn() })
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'old', isHydrating: () => !active, canPersist: () => active, saveProject: save, onSaved: vi.fn() })
     deps.version = 1; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
     active = false; deps.version = 99; clearActiveWorkbenchProjectSaveTarget()
     const acknowledged = vi.fn()

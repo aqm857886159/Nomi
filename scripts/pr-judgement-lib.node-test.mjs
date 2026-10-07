@@ -95,7 +95,7 @@ test('证据行判据：链接 / 路径 / 截图 / 运行号 / PR 号算；「�
 
 test('验收证据：必交证据取并集；缺条目红；条目没证据红；未验证:工具未建 接受并列出缺口', () => {
   const req = requiredEvidence(['ui', 'spend'], table).map((item) => item.id)
-  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-ai-walk', 'ui-screens', 'spend-paid-sample', 'spend-fault-injection'])
+  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-capability-unavailable', 'ui-ai-walk', 'ui-screens', 'spend-paid-sample', 'spend-fault-injection'])
   const none = checkRoutingEvidence('## 设计卡\nx', ['ui'], table)
   assert.equal(none.ok, false)
   assert.match(none.lines.join('\n'), /ui-mockup/)
@@ -106,6 +106,7 @@ test('验收证据：必交证据取并集；缺条目红；条目没证据红�
     '- ui-mockup：https://example.com/mockup',
     '- ui-click-census：未验证：工具未建',
     '- 按钮普查之外：无',
+    '- ui-capability-unavailable：docs/plan/example-design-card.md',
     '- AI 用户走查：未验证：工具未建',
     '- ui-screens：tests/ux/shots/zh-CN.png、tests/ux/shots/en.png、tests/ux/shots/narrow.png',
   ].join('\n')
@@ -114,7 +115,7 @@ test('验收证据：必交证据取并集；缺条目红；条目没证据红�
   assert.deepEqual(ok.gaps.map((gap) => gap.id), ['ui-click-census', 'ui-ai-walk'])
   assert.match(ok.lines.join('\n'), /缺工具：ui-click-census/)
   // 工具已有的证据写「未验证」也接受，但不进缺口
-  const exists = checkRoutingEvidence('## 验收证据\n- ui-mockup：未验证：本次没有新界面\n- ui-click-census：未验证：工具未建\n- ui-ai-walk：未验证：工具未建\n- ui-screens：未验证：无窄窗', ['ui'], table)
+  const exists = checkRoutingEvidence('## 验收证据\n- ui-mockup：未验证：本次没有新界面\n- ui-click-census：未验证：工具未建\n- ui-capability-unavailable：未验证：本次没有要模型的动作\n- ui-ai-walk：未验证：工具未建\n- ui-screens：未验证：无窄窗', ['ui'], table)
   assert.equal(exists.ok, true)
   assert.deepEqual(exists.gaps.map((gap) => gap.id), ['ui-click-census', 'ui-ai-walk'])
 })
@@ -145,6 +146,14 @@ test('规则与门岗改动范围：移到判据库后行为不变；旧 PR 也�
   assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- scripts/check-x.mjs：删除：已被替换', [{ path: 'scripts/check-x.mjs', status: 'D' }]).ok, true)
   assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- scripts/check-x.mjs', [{ path: 'scripts/check-x.mjs', status: 'D' }]).ok, false)
   assert.equal(checkProtectedScope('x', [], { ledgerRemovedIds: ['LAW12-a'] }).ok, false)
+  // 概念登记拆成目录（一个概念一个文件）：保护单位仍是这本登记——点名目录或具体文件都算；删掉一个概念文件照旧要写「删除：理由」
+  const concept = { path: 'docs/engineering/concept-owners/catalog.vendor-landing.json', status: 'A' }
+  assert.equal(checkProtectedScope('随便', [concept]).ok, false, '概念登记的文件受保护')
+  assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- docs/engineering/concept-owners/：登记新概念', [concept]).ok, true)
+  assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- docs/engineering/concept-owners/catalog.vendor-landing.json：新概念', [concept]).ok, true)
+  assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- docs/engineering/concept-owners/：改登记', [{ ...concept, status: 'D' }]).ok, false)
+  assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- docs/engineering/concept-owners/：删除：概念并进别处', [{ ...concept, status: 'D' }]).ok, true)
+  assert.equal(checkProtectedScope('## 碰到的规则与门岗\n- docs/engineering/：改了', [concept]).ok, false, '只写上一级目录不算点名')
   const old = evaluatePrJudgement({ body: '随便', files: [protectedFile], createdAt: '2026-09-01T00:00:00Z', table })
   assert.equal(old.blocked, true)
 })
@@ -204,6 +213,36 @@ test('端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证�
     encoding: 'utf8', env: { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, NOMI_PR_BODY: undefined, GITHUB_EVENT_NAME: 'pull_request', NOMI_PR_NUMBER: '999999999', PATH: '' },
   })
   assert.notEqual(noBody.status, 0)
+})
+
+test('端到端：逃逸账本一条一个文件——条目文件被删（base 有、HEAD 没有）→ 红并点名 id；只新增 / 改状态 → 不报删除', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-judgement-ledger-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const dir = path.join(root, 'tests/ux/full-walk/escapeLedger')
+  fs.mkdirSync(dir, { recursive: true })
+  const put = (name, value) => fs.writeFileSync(path.join(dir, name), `${JSON.stringify(value, null, 2)}\n`)
+  git(root, 'init', '-q'); git(root, 'config', 'user.email', 't@t'); git(root, 'config', 'user.name', 't'); git(root, 'config', 'commit.gpgsign', 'false')
+  put('_meta.json', { $schemaVersion: 1 })
+  put('LAW12-a.json', { id: 'LAW12-a', status: 'candidate' })
+  put('LAW12-b.json', { id: 'LAW12-b', status: 'candidate' })
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'base')
+  const base = git(root, 'rev-parse', 'HEAD').trim()
+  const run = () => spawnSync(process.execPath, [path.join(here, 'check-pr-judgement.mjs')], {
+    encoding: 'utf8',
+    env: { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, PR_JUDGEMENT_BASE_REF: base, PR_JUDGEMENT_CREATED_AT: '2026-10-08T00:00:00Z', NOMI_PR_BODY: '## 为什么\n加一条逃逸', GITHUB_EVENT_NAME: '' },
+  })
+  put('LAW12-a.json', { id: 'LAW12-a', status: 'reviewed' })
+  put('LAW12-c.json', { id: 'LAW12-c', status: 'candidate' })
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'add c, review a')
+  const added = run()
+  assert.equal(added.status, 0, added.stdout + added.stderr)
+  assert.doesNotMatch(added.stdout + added.stderr, /条目被删掉/)
+
+  fs.rmSync(path.join(dir, 'LAW12-b.json'))
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'drop b')
+  const dropped = run()
+  assert.equal(dropped.status, 1, dropped.stdout + dropped.stderr)
+  assert.match(dropped.stdout, /逃逸账本里有条目被删掉：LAW12-b（/)
 })
 
 test('exclude：设计实验室（src/devlab）的 tsx 不算「改交互」；真界面照算', () => {

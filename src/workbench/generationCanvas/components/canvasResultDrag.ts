@@ -1,15 +1,15 @@
 /**
  * 结果堆叠里「Alt/⌥ 拖出一个版本 → 松手处出一张独立素材卡」（2026-09-21，LibTV「Option + 拖动」同款）。
  *
- * 拖拽走 HTML5 拖放：来源是版本托盘里的一行（nodes/NodeResultStack.tsx），落点是画布舞台的
+ * 拖拽走 HTML5 拖放：来源是铺开的一张版本卡（nodes/versionCards/NodeVersionCards.tsx），落点是画布舞台的
  * `onDrop`（components/canvasStageDrop.ts）——舞台落点的屏幕→画布换算只有那一处，由画布内核
  * screenToFlowPosition 提供，这里不再手算坐标。新卡以**中心**压在松手点（与系统文件拖入同一约定）。
  *
- * 只在按着 Alt/⌥ 时生效；不按时版本托盘里的拖动什么也不做（托盘带 nodrag，画布也不会被拖走），
- * 点一下仍是「切换为当前版本」。原节点与它的版本堆叠不变——这是**复制**，不是搬走。
+ * 只在按着 Alt/⌥ 时生效；不按时拖版本卡 = 拖整组（交给画布内核拖节点），点一下 = 预览。
+ * 原节点与它的版本不变——这是**复制**，不是搬走。
  */
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
-import { listStableNodeMediaResults, resultIdentity } from '../model/nodeResultLifecycle'
+import { listNodeResultVersions, resultIdentity } from '../model/nodeResultLifecycle'
 import { CENTER_PLACEMENT_ANCHOR, placementOrigin } from '../model/canvasPlacement'
 import { getGenerationNodeDefaultSize } from '../model/generationNodeKinds'
 import { computeMediaMetaPatch, resolveNodeVisualSize } from '../nodes/nodeSizing'
@@ -28,6 +28,29 @@ export type CanvasResultDragPayload = {
 
 export function encodeCanvasResultDrag(payload: CanvasResultDragPayload): string {
   return JSON.stringify(payload)
+}
+
+/**
+ * 版本卡上按着 Alt/⌥ 起拖：写拖放数据，拖影用卡上那张图；画面就是原图时顺手带上原图像素（新卡出生即真实比例）。
+ * 没按 Alt（或这一版没有地址）就取消这次 HTML5 拖放——那一下交给画布内核拖整组。
+ */
+export function beginCanvasResultCopyDrag(event: DragEvent, input: { sourceNodeId: string; resultIdentity: string; url?: string }): boolean {
+  if (!event.altKey || !input.url || !event.dataTransfer) {
+    event.preventDefault()
+    return false
+  }
+  event.stopPropagation()
+  const target = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
+  const thumb = target?.querySelector('img') ?? null
+  const original = thumb && thumb.naturalWidth > 0 && thumb.getAttribute('src') === input.url ? thumb : null
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData(CANVAS_RESULT_DRAG_MIME, encodeCanvasResultDrag({
+    sourceNodeId: input.sourceNodeId,
+    resultIdentity: input.resultIdentity,
+    ...(original ? { width: original.naturalWidth, height: original.naturalHeight } : {}),
+  }))
+  if (thumb) event.dataTransfer.setDragImage(thumb, thumb.width / 2, thumb.height / 2)
+  return true
 }
 
 export function parseCanvasResultDrag(raw: string): CanvasResultDragPayload | null {
@@ -69,12 +92,12 @@ export function createNodeFromDraggedResult(
   const store = useGenerationCanvasStore.getState()
   const source = store.nodes.find((node) => node.id === payload.sourceNodeId)
   if (!source) return null
-  const entries = listStableNodeMediaResults(source)
-  const index = entries.findIndex((entry) => resultIdentity(entry) === payload.resultIdentity)
-  const entry = entries[index]
+  const entry = listNodeResultVersions(source).find((candidate) => resultIdentity(candidate) === payload.resultIdentity)
   if (!entry?.url) return null
   const createdAt = Date.now()
-  const result: GenerationNodeResult = { ...entry, id: `result-copy-${source.id}-${createdAt}` }
+  // 复制出来的是一张新素材卡的第 1 版：版本号属于原节点，不跟着走（否则新卡一出生就叫「第 5 版」）。
+  const { versionNo: sourceVersionNo, ...copied } = entry
+  const result: GenerationNodeResult = { ...copied, id: `result-copy-${source.id}-${createdAt}` }
   const meta = copiedMediaMeta(source, entry, payload)
   // 与 addNode 出生时同一份默认尺寸（节点工厂取 kind 默认）+ 真实比例 → 卡面尺寸唯一真相源换算。
   const size = resolveNodeVisualSize({ kind: 'asset', size: getGenerationNodeDefaultSize('asset'), meta, result })
@@ -82,7 +105,7 @@ export function createNodeFromDraggedResult(
   // 建卡 + 填结果是两次 store 写入；第一次放行撤销点，第二次压住——⌘Z 一次撤掉整张卡（同切图 useNodeImageEditing）。
   const created = withCanvasGestureContext({ source: 'user', txnId: result.id }, () => store.addNode({
     kind: 'asset',
-    title: `${source.title || ''} · ${index + 1}`.trim(),
+    title: `${source.title || ''} · ${sourceVersionNo}`.trim(),
     prompt: '',
     position: { x: Math.round(origin.x), y: Math.round(origin.y) },
     categoryId: source.categoryId || fallbackCategoryId,

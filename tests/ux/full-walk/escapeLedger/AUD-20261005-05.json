@@ -1,0 +1,39 @@
+{
+  "id": "AUD-20261005-05",
+  "since": "2026-10-05",
+  "source": "用户 10-05 反馈 #5",
+  "category": "interaction-semantics",
+  "problem": "点开引用：浮层列表与选择器叠在一起、移除只有 20px 浅灰小图标、缩略图无 ×；双击提示词引用的灯箱只有「关闭」；删槽后提示词里的引用芯片残留",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "S3",
+    "S6"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/research/2026-10-05-storyboard-plan-user-audit.md",
+    "tests/ux/shots/audit-storyboard/zh-CN/13-ref-popover-after-upload.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/16-chip-double-click-lightbox.png",
+    "tests/ux/shots/audit-storyboard/zh-CN/17-binding-removed-chip-remains.png",
+    "参考缩略图右上角直接有 ×（画布同款 AssetTile），浮层与 20px 垃圾桶随旧参考列删除；删参考同步删 @、删 @ 同步删参考（removeReferenceWithMention / dropBindingsForUrls）。残留：双击提示词芯片的灯箱仍只有「关闭预览」，未在本次改动范围内（下一刀）",
+    "docs/evidence/2026-10-06-storyboard-reuse/README.md"
+  ],
+  "completionCommits": [
+    "3030e8bc3",
+    "62989ce6b",
+    "ed3794e95",
+    "86ed0b76e",
+    "7dca9fe93"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json",
+  "fixedInPr": 1042,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts"
+  }
+}

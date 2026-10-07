@@ -11,7 +11,8 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { ESCAPE_LEDGER_FILE, fixedTransitions } from './escape-ledger-lib.mjs'
+import { ESCAPE_LEDGER_DIR, assembleEscapeLedger, escapeIdOfPath, fixedTransitions } from './escape-ledger-lib.mjs'
+import { META_FILE } from './lib/entryDirectory.mjs'
 import {
   PROTECTED_PATHS,
   SCOPE_SECTION,
@@ -117,7 +118,51 @@ export function checkIndependentAcceptance(body) {
  * contracts: [{ file, detected_by }]，来自本 PR 新增 / 改动的 docs/fixes/*.root-cause.json；
  * transitions: 本 PR 变成 fixed 的账本条目 id；body 里提到的账本条目 id 没转换只给提示。
  */
-export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = []) {
+/**
+ * pulls/<n>/files 的分页输出（每行 filename\tstatus\tadditions\tdeletions[\tprevious_filename]）→ 文件表。纯函数、可测。
+ * 改名（renamed）的行带上旧路径：逃逸账本一条一个文件以后，条目文件改名 = 旧 id 消失，必须看得见。
+ */
+export function parsePullFileRows(text) {
+  return String(text || '').split('\n').filter(Boolean).map((row) => {
+    const [path, status, additions, deletions, previousPath] = row.split('\t')
+    return { path, status, additions: Number(additions) || 0, deletions: Number(deletions) || 0, ...(previousPath ? { previousPath } : {}) }
+  })
+}
+
+/**
+ * 本 PR 动到的逃逸账本条目 → { transitions, removed }。账本一条一个文件（2026-10-07），所以只取**本 PR 改动的条目文件**
+ * 在 base / head 两版，不拉整个目录。纯函数、可测：
+ *   files: [{ path, status, previousPath? }]（status 用 GitHub 的 added / modified / removed / renamed，或 A / M）；
+ *   fetch(path, side) → 文本 | null（side = 'base' | 'head'；取不到 = null）。
+ * 「被删」= 条目文件在 base 有、head 没有（removed、改名的旧路径，或 head 取不到而 base 取得到）。
+ * 转换怎么算只有一份实现：fixedTransitions（check:escape-ledger 同源）。
+ */
+export function ledgerChanges(files, fetch) {
+  const parse = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
+  const touched = []
+  for (const file of files) {
+    if (escapeIdOfPath(file.path)) touched.push({ path: file.path, status: file.status })
+    if (file.previousPath && escapeIdOfPath(file.previousPath)) touched.push({ path: file.previousPath, status: 'removed' })
+  }
+  const base = []
+  const head = []
+  const removed = []
+  for (const file of touched) {
+    const before = file.status === 'added' || file.status === 'A' ? null : parse(fetch(file.path, 'base'))
+    const after = file.status === 'removed' ? null : parse(fetch(file.path, 'head'))
+    if (before) base.push(before)
+    if (after) head.push(after)
+    else if (before) removed.push(escapeIdOfPath(file.path))
+  }
+  return { transitions: fixedTransitions({ entries: base }, { entries: head }), removed }
+}
+
+/** base 账本里已结账（fixed）条目指向的根因合同文件。纯函数、可测。 */
+export function settledContracts(baseLedger) {
+  return (baseLedger?.entries ?? []).filter((entry) => entry.status === 'fixed' && entry.rootCauseContract).map((entry) => entry.rootCauseContract)
+}
+
+export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = []) {
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
   const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
   const mentioned = ledgerIds.filter((id) => String(body || '').includes(id) && !transitions.includes(id))
@@ -126,7 +171,13 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
     return { applicable: false, ok: true, lines: ['· 本 PR 没有让任何逃逸账本条目转成 fixed，合同检查跳过', ...hint] }
   }
   if (transitions.length === 0) {
-    return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${userFound.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger.json）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
+    // 修订已结账的合同（例：用户后来改了拍板，合同不变量跟着改）：条目在 base 已是 fixed，本 PR 只修订合同，不要求再转换一次。
+    // 新增的合同、或对应条目还没结账的，照旧要进账本。
+    const unsettled = userFound.filter((contract) => contract.added || !settled.includes(contract.file))
+    if (unsettled.length === 0) {
+      return { applicable: true, ok: true, lines: [`· 修订已结账的根因合同（${userFound.map((contract) => contract.file).join('、')}）：对应逃逸账本条目在 base 已是 fixed，不要求再转换`, ...hint] }
+    }
+    return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${unsettled.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger/）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
   }
   if (withField.length === 0) {
     return { applicable: true, ok: false, lines: [`✖ 本 PR 把逃逸账本条目 ${transitions.join('、')} 转成 fixed，但没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）`] }
@@ -179,6 +230,44 @@ function ghApiFile(repoSlug, filePath, ref) {
   }
 }
 
+/** 某个 ref 上一个目录里的文件名（contents API 列目录，一次请求，不取内容）；取不到 = null。 */
+function ghApiDirectoryNames(repoSlug, dirPath, ref) {
+  try {
+    const raw = execFileSync('gh', ['api', `repos/${repoSlug}/contents/${dirPath}?ref=${ref}`, '--jq', '.[] | select(.type == "file") | .name'], { cwd: repoRoot, encoding: 'utf8' })
+    return raw.split('\n').filter(Boolean)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * GraphQL 取回的目录（Tree.entries：[{ name, object: { text } }]）→ 整本逃逸账本；走同一个 assembleEscapeLedger
+ * （文件名 ↔ id 的规则只此一份）。缺 _meta.json / 内容坏了 → null。纯函数、可测。
+ */
+export function escapeLedgerFromTree(entries) {
+  if (!Array.isArray(entries)) return null
+  const texts = new Map(entries.filter((entry) => typeof entry?.object?.text === 'string').map((entry) => [entry.name, entry.object.text]))
+  if (!texts.has(META_FILE)) return null
+  try {
+    const names = [...texts.keys()].filter((file) => file !== META_FILE && file.endsWith('.json')).sort()
+    return assembleEscapeLedger({ meta: JSON.parse(texts.get(META_FILE)), entries: names.map((file) => ({ name: file, value: JSON.parse(texts.get(file)) })) })
+  } catch {
+    return null
+  }
+}
+
+/** 某个 ref 上的整本逃逸账本：一次 GraphQL 请求取回目录里所有文件的内容（不是几十次 REST）。只在「判已结账合同」时用；取不到 = null。 */
+function ghEscapeLedger(repoSlug, ref) {
+  const [owner, name] = String(repoSlug).split('/')
+  const query = 'query($owner:String!,$name:String!,$expr:String!){repository(owner:$owner,name:$name){object(expression:$expr){... on Tree{entries{name object{... on Blob{text}}}}}}}'
+  try {
+    const raw = execFileSync('gh', ['api', 'graphql', '-f', `query=${query}`, '-F', `owner=${owner}`, '-F', `name=${name}`, '-f', `expr=${ref}:${ESCAPE_LEDGER_DIR}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    return escapeLedgerFromTree(JSON.parse(raw)?.data?.repository?.object?.entries)
+  } catch {
+    return null
+  }
+}
+
 export function main(argv = process.argv.slice(2)) {
   const prArg = argv.find((arg) => /^\d+$/.test(arg))
   const repoIndex = argv.indexOf('--repo')
@@ -188,7 +277,19 @@ export function main(argv = process.argv.slice(2)) {
     return 2
   }
   const view = JSON.parse(gh(['pr', 'view', prArg, '--json', 'body,files,headRefOid,baseRefName,headRepository,headRepositoryOwner,createdAt'], { repo }))
-  const files = (view.files ?? []).map((file) => ({ path: file.path, status: file.additions > 0 && file.deletions === 0 ? 'A' : 'M' }))
+  const slug = repo ?? (view.headRepositoryOwner?.login && view.headRepository?.name ? `${view.headRepositoryOwner.login}/${view.headRepository.name}` : null)
+  const baseSlug = repo ?? slug
+  // 文件表只取一次、要全量：gh pr view 的 files 最多 100 个、超过静默截断（#1048 有 129 个文件，账本排在
+  // 100 名之后，于是误报「用户发现的问题没转 fixed」）。走分页的 pulls/<n>/files，取不到才退回 view.files。
+  let apiRows = null
+  if (baseSlug) {
+    try {
+      apiRows = parsePullFileRows(gh(['api', `repos/${baseSlug}/pulls/${prArg}/files`, '--paginate', '--jq', '.[] | [.filename, .status, .additions, .deletions, (.previous_filename // "")] | @tsv']))
+    } catch { apiRows = null }
+  }
+  const files = apiRows
+    ? apiRows.map((row) => ({ path: row.path, status: row.status === 'added' ? 'A' : 'M' }))
+    : (view.files ?? []).map((file) => ({ path: file.path, status: file.additions > 0 && file.deletions === 0 ? 'A' : 'M' }))
   let diff = ''
   try {
     diff = gh(['pr', 'diff', prArg], { repo })
@@ -200,38 +301,46 @@ export function main(argv = process.argv.slice(2)) {
   const classification = classifyChange(files.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })), addedLines)
   const body = view.body ?? ''
 
-  const slug = repo ?? (view.headRepositoryOwner?.login && view.headRepository?.name ? `${view.headRepositoryOwner.login}/${view.headRepository.name}` : null)
   const contracts = []
   for (const file of files.filter((entry) => /^docs\/fixes\/.+\.root-cause\.json$/.test(entry.path))) {
     const text = slug ? ghApiFile(slug, file.path, view.headRefOid) : null
     try {
-      contracts.push({ file: file.path, detected_by: text ? JSON.parse(text).detected_by : undefined })
+      contracts.push({ file: file.path, added: file.status === 'A', detected_by: text ? JSON.parse(text).detected_by : undefined })
     } catch {
-      contracts.push({ file: file.path, detected_by: undefined })
+      contracts.push({ file: file.path, added: file.status === 'A', detected_by: undefined })
     }
   }
 
-  // 逃逸账本的状态转换：只有本 PR 改了账本才去取两版（base 取当前基线分支末端）
-  const ledger = { transitions: [], ids: [], removed: [] }
-  if (slug && files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
-    const parse = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
-    const head = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
-    const base = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.baseRefName || 'main'))
-    ledger.transitions = fixedTransitions(base, head)
-    ledger.ids = (head?.entries ?? []).map((entry) => entry.id)
-    const headIds = new Set(ledger.ids)
-    ledger.removed = (base?.entries ?? []).map((entry) => entry.id).filter((id) => !headIds.has(id))
-  }
-
-  // 规则与门岗的改动范围：要真实的文件状态（removed / modified），gh pr view 的 files 只给增删行数
-  let statusFiles = files.map((file) => ({ path: file.path, status: 'modified' }))
-  const baseSlug = repo ?? slug
-  if (baseSlug) {
+  // 逃逸账本（一条一个文件）：只有本 PR 动了条目文件，才去取那几个文件的 base / head 两版（base 取当前基线分支末端）
+  const ledger = { transitions: [], ids: [], removed: [], settledContracts: [] }
+  const baseRef = view.baseRefName || 'main'
+  const ledgerRows = apiRows
+    ? apiRows.map((row) => ({ path: row.path, status: row.status, previousPath: row.previousPath }))
+    : files.map((file) => ({ path: file.path, status: file.status }))
+  if (slug && ledgerRows.some((row) => escapeIdOfPath(row.path) || (row.previousPath && escapeIdOfPath(row.previousPath)))) {
+    // 「转成 fixed」和「条目被删」都对本 PR 自己的起点（merge-base）比，不对 main 末端比（10-07 #1055 / #1065）：
+    // PR 文件表本来就是对 merge-base 算的，main 后来新加的条目根本不在表里；base 那一版也取 merge-base 上的。
+    // 取不到 merge-base 就退回 base 分支末端（fail-closed 不变）。
+    let forkRef = baseRef
     try {
-      statusFiles = gh(['api', `repos/${baseSlug}/pulls/${prArg}/files`, '--paginate', '--jq', '.[] | [.filename, .status] | @tsv'])
-        .split('\n').filter(Boolean).map((row) => { const [path, status] = row.split('\t'); return { path, status } })
-    } catch { /* 取不到状态就按 modified 算：漏判整文件删除，但点名要求照旧 */ }
+      const forkSha = gh(['api', `repos/${slug}/compare/${baseRef}...${view.headRefOid}`, '--jq', '.merge_base_commit.sha']).trim()
+      if (/^[0-9a-f]{40}$/.test(forkSha)) forkRef = forkSha
+    } catch { forkRef = baseRef }
+    const changes = ledgerChanges(ledgerRows, (file, side) => ghApiFile(slug, file, side === 'base' ? forkRef : view.headRefOid))
+    ledger.transitions = changes.transitions
+    ledger.removed = changes.removed
+    // 正文提到的条目 id（只做提示）：列一次 head 目录的文件名，不取内容
+    ledger.ids = (ghApiDirectoryNames(slug, ESCAPE_LEDGER_DIR, view.headRefOid) ?? []).map((name) => escapeIdOfPath(`${ESCAPE_LEDGER_DIR}/${name}`)).filter(Boolean)
   }
+  // 「修订已结账的合同」才需要知道 base 上哪些合同已结账：只在这时取一次 base 整本账（一次 GraphQL）
+  const amendsUserContract = contracts.some((contract) => !contract.added && ['user', 'post-release'].includes(contract.detected_by))
+  if (slug && amendsUserContract && ledger.transitions.length === 0) ledger.settledContracts = settledContracts(ghEscapeLedger(slug, baseRef))
+
+  // 规则与门岗的改动范围：要真实的文件状态（removed / modified）；取不到分页表就按 modified 算
+  // （漏判整文件删除，但点名要求照旧）
+  const statusFiles = apiRows
+    ? apiRows.map((row) => ({ path: row.path, status: row.status }))
+    : files.map((file) => ({ path: file.path, status: 'modified' }))
   const packageBlock = diff.split(/^diff --git /m).find((block) => block.startsWith('a/package.json b/package.json')) ?? ''
   const packageRemovedLines = packageBlock.split('\n').filter((line) => line.startsWith('-') && !line.startsWith('---')).map((line) => line.slice(1))
 
@@ -256,7 +365,7 @@ export function main(argv = process.argv.slice(2)) {
     classification,
     design: checkDesignCard(body, classification),
     acceptance: checkIndependentAcceptance(body),
-    escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids),
+    escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids, ledger.settledContracts),
     scope: judgement.scope,
     routing: judgement.routing,
   })

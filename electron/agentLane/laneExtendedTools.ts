@@ -1,3 +1,4 @@
+import { describeDraftCanvasLanding, draftCanvasLandingOf } from '../shared/agentLane/draftCanvasLanding'
 import { describeGenerateOutcome } from '../shared/agentLane/generateOutcomeReceipt'
 import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabilities/transportContracts'
 import type { LaneApprovalDecision } from '../shared/agentLane/laneContracts'
@@ -6,6 +7,7 @@ import { laneFailureFromDecision } from '../shared/agentLane/laneFailureFromDeci
 import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision'
 import { LANE_DEFERRED_TOOL_CATALOG } from './laneToolCatalog'
 import { bindLaneTool, LaneDomainFailure, type LaneToolDescriptor } from './laneRuntimePort'
+import { parseChangeId } from '../shared/agentCapabilities/changeId'
 
 export interface LaneExtendedPort {
   execute(call: RuntimeToolCall, signal: AbortSignal): Promise<RuntimeToolDecision>
@@ -56,6 +58,18 @@ function startedGenerationAction(result: unknown): LaneToolNextAction {
 }
 
 /**
+ * 草稿存好了，用户那边画布上是什么样——**只照宿主报的落地结果说**（`canvasLanding`，见 `draftCanvasLanding.ts`）。
+ *
+ * 这一句以前是写死的「Saving does not imply canvas placement」：而画布 Agent 的草稿每次改动都当场落成节点，
+ * 模型照着回执对用户说「画布上还没有节点」（说反话）。宿主没报落地结果（外部宿主 / 夹具）= 不知道，
+ * 只说「存好了、没生成、没花钱」，**不对画布有没有节点下结论**。
+ */
+function draftSavedAction(result: unknown): LaneToolNextAction {
+  const canvas = describeDraftCanvasLanding(draftCanvasLandingOf(result))
+  return { kind: 'none', userSees: canvas ?? 'Draft changes are saved in the project. Nothing was generated and nothing was spent. This host did not report whether the draft is on the canvas, so do not state what the canvas shows.' }
+}
+
+/**
  * 写动词成功时用户接下来看到什么（设计正本 §6.2）。
  *
  * ── 为什么它不能是一张静态表（2026-09-18 · T-ED-02）──
@@ -80,7 +94,7 @@ function nextActionFor(
     case 'draft_shots':
       // 草稿 id 按 `draft_shots` / `generate` 收它的那个名字回给模型（这里曾经印 `jobId=`：
       // 草稿的寻址字段仍为 operationId；只有本次结果明确已开跑时，才另带执行回执）。
-      return { ...(policyStartedGeneration(result) ? startedGenerationAction(result) : { kind: 'none' as const, userSees: 'Draft changes are saved in the project. Saving does not imply canvas placement or a new generation start.' }), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
+      return { ...(policyStartedGeneration(result) ? startedGenerationAction(result) : draftSavedAction(result)), ...(draftOperationId ? { operationId: draftOperationId } : {}) }
     case 'generate':
       return generateReceipt(result)
     case 'edit_timeline': {
@@ -98,8 +112,13 @@ function nextActionFor(
       const changeId = typeof record.changeId === 'string' ? record.changeId : undefined
       return { kind: 'none', userSees: 'The canvas change is applied. It is reversible; call undo to take it back.', ...(changeId ? { changeId } : {}) }
     }
-    case 'undo':
-      return { kind: 'none', userSees: 'The timeline is back to before that change.' }
+    case 'undo': {
+      // 同一个动词撤两种面上的改动，回执跟着 changeId 的前缀走（真实测试 ④：撤销画布改动却回「时间线回去了」）。
+      const kind = typeof record.changeId === 'string' ? parseChangeId(record.changeId)?.kind : undefined
+      return { kind: 'none', userSees: kind === 'canvas'
+        ? 'The canvas is back to before that change (for a 3D-BOX plan edit: back to its previous revision, and any hand adjustments that edit replaced are restored).'
+        : 'The timeline is back to before that change.' }
+    }
     case 'delete_from_canvas':
       // 不可逆动词在每一档都先出确认卡（`capabilityIsHardGated`），但 `kind` 仍从真实结论取：
       // 写死的那一刻，下一个动词就会再来一次 T-ED-02。

@@ -128,7 +128,9 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
   }
 
   try {
-    const ran = await runDreaminaCli(args, { timeoutMs: input.timeoutMs ?? 300_000, bin });
+    // 只有取结果（query_result，不花钱）才允许 CLI 超时后自动再跑一次；提交类子命令跑起来之后超时，任务可能已经交给即梦、
+    // 积分可能已经扣了，再跑一次就是第二笔——交回提交出口按「结果未知」处理（outboundDispatchEvidence 的子进程账）。
+    const ran = await runDreaminaCli(args, { timeoutMs: input.timeoutMs ?? 300_000, bin, retries: args[0] === "query_result" ? 1 : 0 });
     const normalized = normalizeDreaminaOutput(ran.stdout, ran.stderr);
 
     // 「三无」（submit_id / gen_status / 结果媒体全解析不到）= 这次调用没产生任何可用信息 = 真·调用失败，

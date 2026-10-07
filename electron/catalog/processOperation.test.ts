@@ -193,6 +193,14 @@ describe("executeProcessOperation", () => {
     expect(r.video_url).toEqual([]);
   });
 
+  it("提交类子命令不自动重跑（跑起来后超时可能已扣积分）；只有取结果 query_result 允许重跑一次", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 0, stdout: '{"submit_id":"u-1","gen_status":"querying"}', stderr: "" });
+    await call(["text2video", "--prompt=cat"]);
+    expect(runDreaminaCli).toHaveBeenLastCalledWith(["text2video", "--prompt=cat"], expect.objectContaining({ retries: 0 }));
+    await call(["query_result"]);
+    expect(runDreaminaCli).toHaveBeenLastCalledWith(["query_result"], expect.objectContaining({ retries: 1 }));
+  });
+
   it("空值参数（--flag=）被丢弃，不发给 CLI", async () => {
     runDreaminaCli.mockResolvedValue({ code: 0, stdout: '{"submit_id":"u-1","gen_status":"querying"}', stderr: "" });
     await call(["text2video", "--prompt=cat", "--ratio="]);

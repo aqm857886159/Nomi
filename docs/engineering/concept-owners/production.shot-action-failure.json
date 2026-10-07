@@ -1,0 +1,37 @@
+{
+  "name": "画布返工 / 续拍没做成怎么跟用户说（失败码 → 人话）",
+  "subject": "production.shot-action-failure",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
+    "symbol": "productionShotActionFailureOf"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
+      "symbol": "productionShotActionFailureOf"
+    },
+    {
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "ProductionShotActionFailure"
+    },
+    {
+      "path": "src/workbench/production/productionShotActions.ts",
+      "symbol": "SHOT_ACTION_FAILURE_COPY"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/appIntegrationProductionActions.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "src/workbench/production/productionRunApi.ts",
+    "src/desktop/productionRunBridgeTypes.ts"
+  ],
+  "since": "2026-09-29",
+  "notes": "2026-09-29 用户实见：点「继续剩余」弹「操作没成功，请稍后再试 · run status pausing is not resumable」（合同同上）。以前所有失败都落进那一句，前面拼主进程英文原话。现在每一种没做成都有自己的码：主进程 productionShotActionFailureOf 只认源头的错误类型（返工被拒、版本冲突、写锁被占、状态机不允许、确认过期 / 对不上、没有人证、供应商没注册、记录解析失败）与 Node 的 errno（磁盘满 / 没有写权限），不读英文原话；渲染层 SHOT_ACTION_FAILURE_COPY 穷尽地一码一句（怎么了、钱怎么样了、能做什么），没有兜底句。唯一不细分的 internal_error 是 Nomi 自己的不变量没守住（bug）：如实说「这是 Nomi 的问题、没有扣费、已记日志、可以反馈」，不装成「稍后再试」。IPC 两个通道不往渲染层抛异常，渲染层的 catch 因此只剩「桥不通」（bridge_unavailable）一种。"
+}

@@ -252,8 +252,6 @@ export const zhAgentPanelV4 = {
   starterReadScriptPrompt: '读一遍文稿，说说这几场戏的重点',
   starterCheckShots: '检查分镜',
   starterCheckShotsPrompt: '看看现在的分镜哪几镜还缺东西',
-  starterGenerateSelected: '生成选中',
-  starterGenerateSelectedPrompt: '把选中的节点生成出来',
   starterBreakReference: '拆参考片',
   starterBreakReferencePrompt: '拆一下这条参考片：镜头怎么切、每镜时长多少',
   starterCheckCanvas: '检查画布',
@@ -492,6 +490,8 @@ export const zhAgentPanelV4 = {
   spendActionCardChanged: '卡上的内容刚变了，Nomi 没有开始生成。看一眼现在的样子再按。',
   /** 这一张已经不在卡上（刚被决定，或卡已关掉）。 */
   spendActionShotGone: '这一张已经不在卡上了，Nomi 没有为它开始生成。',
+  /** 宿主在本项目素材里认不出卡上的某一张参考图（spendCardFailure 的 REFERENCE_NOT_IN_PROJECT）：点名是参考图、给真能走的那一步。 */
+  spendActionReferenceNotInProject: '有一张参考图不在这个项目的素材里，Nomi 没有开始生成。在卡上拿掉它再按；还要用它，就用 @ 重新选一次（别的项目的图会先复制进来）。',
 
   // 「全自动」档（2026-09-10 用户拍板 · 增量 2）
   autoModeConfirmTitle: '切到「全自动」？',
@@ -745,8 +745,6 @@ export const enAgentPanelV4 = {
   starterReadScriptPrompt: 'Read the script and tell me what matters in these scenes',
   starterCheckShots: 'Check the shots',
   starterCheckShotsPrompt: 'Which storyboard shots are still missing something?',
-  starterGenerateSelected: 'Generate selection',
-  starterGenerateSelectedPrompt: 'Generate the selected nodes',
   starterBreakReference: 'Break down a clip',
   starterBreakReferencePrompt: 'Break down this reference clip: where it cuts, and the duration of each shot',
   starterCheckCanvas: 'Check the canvas',
@@ -951,6 +949,7 @@ export const enAgentPanelV4 = {
   spendActionNotStartedLocked: 'That did not go through. Nomi has not started generating. This card can\'t be changed right now: close it with × and tell Nomi what to change, and it will draft it again.',
   spendActionCardChanged: 'The card just changed, so Nomi has not started generating. Check what it shows now, then press again.',
   spendActionShotGone: 'This one is no longer on the card, so Nomi has not started generating it.',
+  spendActionReferenceNotInProject: 'One reference image isn\'t in this project\'s assets, so Nomi hasn\'t started generating. Remove it on the card and press again, or pick it again with @ (images from other projects are copied in first).',
 
   autoModeConfirmTitle: 'Switch to Full auto?',
   autoModeConfirmBody: 'Nomi will make undoable edits directly and **paid generation will run without showing you a quote each time** — this confirmation is your authorisation for them. Irreversible actions are still confirmed every time.',

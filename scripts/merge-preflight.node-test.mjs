@@ -6,12 +6,16 @@ import { fixedTransitions } from './escape-ledger-lib.mjs'
 import {
   checkDesignCard,
   checkEscapeContract,
+  settledContracts,
   checkIndependentAcceptance,
   checkProtectedScope,
   classifyChange,
   extractSection,
   implementationLine,
   isGrandfathered,
+  escapeLedgerFromTree,
+  ledgerChanges,
+  parsePullFileRows,
   renderReport,
 } from './merge-preflight.mjs'
 
@@ -78,6 +82,54 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   const noLink = FULL_CARD.replace('https://example.com/report', '见群里')
   assert.match(checkIndependentAcceptance(noLink).lines.join('\n'), /没有带报告链接/)
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
+})
+
+test('账本删除判定对 merge-base 比：main 后来新加的条目不算本 PR 删的（#1055 / #1065）——一条一个文件后由文件表天然保证', () => {
+  const dir = 'tests/ux/full-walk/escapeLedger'
+  // PR 文件表是对 merge-base 算的：main 后来加的 OTHER-PR.json 不在表里，所以根本不会被取、更不会被判成「删了」
+  const fork = { [`${dir}/A.json`]: { id: 'A', status: 'candidate' }, [`${dir}/B.json`]: { id: 'B', status: 'candidate' } }
+  const head = { ...fork, [`${dir}/MINE.json`]: { id: 'MINE', status: 'candidate' } }
+  const fetch = (file, side) => {
+    const value = (side === 'base' ? fork : head)[file]
+    return value ? JSON.stringify(value) : null
+  }
+  assert.deepEqual(ledgerChanges([{ path: `${dir}/MINE.json`, status: 'added' }], fetch).removed, [])
+  // 真删了自己起点里的条目照样红
+  const dropped = { ...head }
+  delete dropped[`${dir}/B.json`]
+  const fetchDropped = (file, side) => {
+    const value = (side === 'base' ? fork : dropped)[file]
+    return value ? JSON.stringify(value) : null
+  }
+  assert.deepEqual(ledgerChanges([{ path: `${dir}/MINE.json`, status: 'added' }, { path: `${dir}/B.json`, status: 'removed' }], fetchDropped).removed, ['B'])
+})
+
+test('逃逸合同：修订已结账的合同不要求再转换；新合同 / 未结账的照旧红（#1061）', () => {
+  const file = 'docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json'
+  const baseLedger = { entries: [
+    { id: 'FB-a', status: 'fixed', rootCauseContract: file },
+    { id: 'FB-b', status: 'reviewed', rootCauseContract: 'docs/fixes/2026-10-06-other.root-cause.json' },
+  ] }
+  const settled = settledContracts(baseLedger)
+  assert.deepEqual(settled, [file])
+  // 用户后来改了拍板，合同不变量跟着改：条目在 base 已 fixed → 过
+  const amend = checkEscapeContract('高清置灰', [{ file, added: false, detected_by: 'user' }], [], [], settled)
+  assert.equal(amend.ok, true)
+  assert.match(amend.lines.join(), /修订已结账/)
+  // 同名路径但是新增的合同：仍要进账本
+  assert.equal(checkEscapeContract('x', [{ file, added: true, detected_by: 'user' }], [], [], settled).ok, false)
+  // 修订的合同，但对应条目还没结账：仍要转 fixed
+  const other = { file: 'docs/fixes/2026-10-06-other.root-cause.json', added: false, detected_by: 'user' }
+  const unsettled = checkEscapeContract('x', [other], [], [], settled)
+  assert.equal(unsettled.ok, false)
+  assert.match(unsettled.lines.join(), /other.root-cause/)
+  // 一个已结账 + 一个没结账一起改：红，只点名没结账的那个
+  const mixed = checkEscapeContract('x', [{ file, added: false, detected_by: 'user' }, other], [], [], settled)
+  assert.equal(mixed.ok, false)
+  assert.doesNotMatch(mixed.lines.join(), /capability-unavailable/)
+  // 不传 settled（旧调用）：行为不变
+  assert.equal(checkEscapeContract('x', [{ file, added: false, detected_by: 'user' }], []).ok, false)
+  assert.deepEqual(settledContracts(null), [])
 })
 
 test('逃逸合同：判据看账本状态转换，不看正文用词', () => {
@@ -190,4 +242,74 @@ test('报告：规则与门岗范围红了，规则生效前开的 PR 也不放�
   assert.equal(report.blocked, true)
   assert.match(report.text, /⚠ 设计卡缺格/)
   assert.match(report.text, /✖ 碰到规则/)
+})
+
+test('分页文件表：超过 100 个文件也全收，账本排在后面照样认得出（#1048 有 129 个文件曾被截断）', () => {
+  const rows = Array.from({ length: 129 }, (_, i) => `src/f${String(i).padStart(3, '0')}.ts\tmodified\t1\t0`)
+  rows.push('tests/ux/full-walk/escapeLedger/LAW12-a.json\tadded\t20\t0', 'docs/old.md\tremoved\t0\t9')
+  const parsed = parsePullFileRows(rows.join('\n') + '\n')
+  assert.equal(parsed.length, 131)
+  assert.ok(parsed.some((row) => row.path === 'tests/ux/full-walk/escapeLedger/LAW12-a.json'))
+  assert.deepEqual(parsed.at(-1), { path: 'docs/old.md', status: 'removed', additions: 0, deletions: 9 })
+  assert.deepEqual(parsePullFileRows(''), [])
+  // 改名行带旧路径（jq 输出第五列）；没改名时第五列是空串，不出 previousPath
+  assert.deepEqual(parsePullFileRows('tests/ux/full-walk/escapeLedger/LAW12-b.json\trenamed\t0\t0\ttests/ux/full-walk/escapeLedger/LAW12-a.json\n'),
+    [{ path: 'tests/ux/full-walk/escapeLedger/LAW12-b.json', status: 'renamed', additions: 0, deletions: 0, previousPath: 'tests/ux/full-walk/escapeLedger/LAW12-a.json' }])
+  assert.deepEqual(parsePullFileRows('src/a.ts\tmodified\t1\t0\t\n'), [{ path: 'src/a.ts', status: 'modified', additions: 1, deletions: 0 }])
+})
+
+test('逃逸账本一条一个文件：只取本 PR 动到的条目文件的两版；转 fixed、被删、改名都认得出，别的文件不去取', () => {
+  const dir = 'tests/ux/full-walk/escapeLedger'
+  const versions = {
+    base: {
+      [`${dir}/FB-a.json`]: { id: 'FB-a', status: 'reviewed' },
+      [`${dir}/FB-b.json`]: { id: 'FB-b', status: 'candidate' },
+      [`${dir}/FB-c.json`]: { id: 'FB-c', status: 'candidate' },
+      [`${dir}/FB-old.json`]: { id: 'FB-old', status: 'candidate' },
+    },
+    head: {
+      [`${dir}/FB-a.json`]: { id: 'FB-a', status: 'fixed' },
+      [`${dir}/FB-new.json`]: { id: 'FB-new', status: 'fixed' },
+      [`${dir}/FB-renamed.json`]: { id: 'FB-renamed', status: 'candidate' },
+    },
+  }
+  const fetched = []
+  const fetch = (file, side) => {
+    fetched.push(`${side}:${file}`)
+    const value = versions[side][file]
+    return value ? JSON.stringify(value) : null
+  }
+  const result = ledgerChanges([
+    { path: `${dir}/FB-a.json`, status: 'modified' },
+    { path: `${dir}/FB-new.json`, status: 'added' },
+    { path: `${dir}/FB-b.json`, status: 'removed' },
+    { path: `${dir}/FB-renamed.json`, status: 'renamed', previousPath: `${dir}/FB-old.json` },
+    { path: `${dir}/${'_meta.json'}`, status: 'modified' },
+    { path: 'src/other.ts', status: 'modified' },
+  ], fetch)
+  assert.deepEqual(result.transitions.sort(), ['FB-a', 'FB-new'])
+  assert.deepEqual(result.removed.sort(), ['FB-b', 'FB-old'])
+  assert.ok(!fetched.some((key) => key.includes('FB-c') || key.includes('src/other') || key.includes('_meta')), `不该取没动的文件：${fetched.join(', ')}`)
+  assert.ok(!fetched.includes(`base:${dir}/FB-new.json`), '新增的条目不去取 base')
+  assert.ok(!fetched.includes(`head:${dir}/FB-b.json`), '删掉的条目不去取 head')
+  // 文件表退回 A / M（取不到分页表时）：head 取不到而 base 取得到也算删
+  const fallback = ledgerChanges([{ path: `${dir}/FB-c.json`, status: 'M' }], fetch)
+  assert.deepEqual(fallback.removed, ['FB-c'])
+  assert.deepEqual(ledgerChanges([{ path: 'src/a.ts', status: 'M' }], fetch), { transitions: [], removed: [] })
+})
+
+test('判已结账合同：一次 GraphQL 取回的目录按同一套规则组装成账本；缺 _meta / 文件名和 id 对不上 → 取不到（null）', () => {
+  const file = 'docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json'
+  const blob = (value) => ({ text: JSON.stringify(value) })
+  const tree = [
+    { name: '_meta.json', object: blob({ $schemaVersion: 1 }) },
+    { name: 'FB-a.json', object: blob({ id: 'FB-a', since: '2026-10-06', status: 'fixed', rootCauseContract: file }) },
+    { name: 'FB-b.json', object: blob({ id: 'FB-b', since: '2026-10-05', status: 'reviewed' }) },
+  ]
+  const ledger = escapeLedgerFromTree(tree)
+  assert.deepEqual(ledger.entries.map((entry) => entry.id), ['FB-b', 'FB-a'])
+  assert.deepEqual(settledContracts(ledger), [file])
+  assert.equal(escapeLedgerFromTree(tree.slice(1)), null)
+  assert.equal(escapeLedgerFromTree([...tree, { name: 'FB-c.json', object: blob({ id: 'FB-x' }) }]), null)
+  assert.equal(escapeLedgerFromTree(undefined), null)
 })

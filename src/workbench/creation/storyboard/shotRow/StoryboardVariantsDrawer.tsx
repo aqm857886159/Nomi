@@ -10,6 +10,10 @@ import { orderedVariants, type ShotVariant } from './shotVariants'
  * 核心规则就一条：**重生成 = 往这里追加一版，画面格不动；只有在这里显式点「采用」，画面格才换。**
  * 于是"我再试一个"这件事零风险——不满意就关掉抽屉，什么都没变。
  *
+ * 抽屉只**看与定**（采用 / 放大 / 删除），自己不出新版本：新的一版只从镜头行浮条的 ↻ 来，一次一版。
+ * 原来表头那颗「再出 3 版」（一次连出三版）2026-10-06 按用户拍板删了——「一次出 N 个」没用，
+ * 要几版就点几次，批量走编组「生成全部」。
+ *
  * 抄的是 Boords「看」与「定」拆成两个动作的**交互结构**，不是它的计费结构：Nomi 每次生成都真实
  * 消耗额度，我们不承诺"预览免费"（合同 §8 不做项）。抽屉降低的是心理成本，不是金钱成本。
  *
@@ -25,9 +29,6 @@ type Props = {
   onAdopt: (variant: ShotVariant) => void
   onDelete?: ((variant: ShotVariant) => void) | undefined
   onOpenPreview?: ((variant: ShotVariant) => void) | undefined
-  /** 「再出 3 版」：同镜连出三版**追加进抽屉**（v5 的 ×3 在这里落地——它本来就是"多看几个"，
-   *  而"多看几个"在 v6 的家就是抽屉，不是画面格）。 */
-  onGenerateMore?: (() => void) | undefined
   onClose: () => void
 }
 
@@ -38,7 +39,6 @@ export default function StoryboardVariantsDrawer({
   onAdopt,
   onDelete,
   onOpenPreview,
-  onGenerateMore,
   onClose,
 }: Props): JSX.Element {
   const { t } = useTranslation()
@@ -54,15 +54,6 @@ export default function StoryboardVariantsDrawer({
           {t('storyboardEditor.variants.title', { index: shotIndex, count: ordered.length })}
         </span>
         <span className="min-w-0 truncate text-micro text-nomi-ink-40">{t('storyboardEditor.variants.hint')}</span>
-        {onGenerateMore ? (
-          <button
-            type="button"
-            onClick={onGenerateMore}
-            className="ml-auto h-6 shrink-0 rounded-nomi-sm border border-nomi-line px-2 text-micro text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-accent"
-          >
-            {t('storyboardEditor.frame.variants3')}
-          </button>
-        ) : null}
         <button
           type="button"
           onClick={onClose}

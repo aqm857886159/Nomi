@@ -1,0 +1,23 @@
+{
+  "name": "候选里的参考回画布节点要补什么（只补不删）",
+  "subject": "reference.candidate-canvas-projection",
+  "lifecycle": "author",
+  "trust_domain": "renderer",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-07",
+  "authority_kind": "decision",
+  "fact_kind": "rule",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+    "symbol": "planReferenceProjection"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/referenceInputSlots.ts",
+      "symbol": "planReferenceProjection"
+    }
+  ],
+  "allowed_consumers": [],
+  "notes": "合同 docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json：纯函数——画布上某节点出的图补一条真边，其余补进参考槽，节点上已有的不重复、不删，补进槽前按画布那条规则对齐生成方式。还没有生产调用方：落地链冻结，接线等画布写边界重构（方案 A），届时只许调它，不另写补法。"
+}

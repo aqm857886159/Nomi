@@ -7,8 +7,16 @@
 // 要么被当成「正在生成」——这类不一致只能靠共用一个常量根治。
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import i18n from '../../../i18n'
+import { RemoveBackgroundError } from '../../../lib/removeBackground'
 
 export const REMOVE_BACKGROUND_PHASE = 'remove-background'
+/** 抠图结果的 id 前缀：写的一方（useNodeImageEditing）和认的一方（节点卡垫棋盘格）共用这一份。 */
+export const REMOVE_BACKGROUND_RESULT_ID_PREFIX = 'image-remove-bg-'
+
+/** 这一版是不是抠图出来的透明图（节点卡据此垫棋盘格，让透明看得见）。 */
+export function isRemoveBackgroundResult(result: GenerationCanvasNode['result']): boolean {
+  return result?.type === 'image' && result.id.startsWith(REMOVE_BACKGROUND_RESULT_ID_PREFIX)
+}
 /** 切图 / 裁剪共用一相：对用户是同一件事——「这张图正在被裁开」。 */
 export const IMAGE_EDIT_PHASE = 'image-edit'
 
@@ -44,4 +52,16 @@ export function removeBackgroundProgressMessage(key: string): string {
   if (key.includes('encode')) return matte('encode')
   if (key.includes('model')) return matte('model')
   return matte('fallback')
+}
+
+/**
+ * 抠图失败 → 给用户看的一句话。节点画布与白板共用这一份（同上，P1）。
+ * 按 worker 报的原因分：下载卡住（1 分钟没收到字节，已自动停下）/ 下载失败 / 别的（这张图处理不了）。
+ * 每一句都带下一步（再点一次「抠图」）；卡住不再无限转圈（removeBackgroundDownload.ts）。
+ */
+export function removeBackgroundFailureMessage(error: unknown): string {
+  const reason = error instanceof RemoveBackgroundError ? error.reason : 'failed'
+  if (reason === 'download-stalled') return i18n.t('generationCommon.imageToolbar.removeBackgroundFailure.stalled')
+  if (reason === 'download-failed') return i18n.t('generationCommon.imageToolbar.removeBackgroundFailure.download')
+  return i18n.t('generationCommon.imageToolbar.removeBackgroundFailure.other')
 }

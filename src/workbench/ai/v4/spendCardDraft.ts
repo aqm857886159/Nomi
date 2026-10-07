@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { spendReferenceInputSchema } from '../../../../electron/shared/contracts/pendingSpendConfirm'
-import { applySpendReferences, pendingReferenceInputs, placeSpendReferences, referenceInputsFromNode, type SpendCanvasGraph } from './spendCardReferences'
+import { pendingReferenceInputs, placeSpendReferences, referenceInputsFromNode, type SpendCanvasGraph } from './spendCardReferences'
+import { placeReferenceInputs } from '../../generationCanvas/model/referenceInputSlots'
 // 付费确认卡上「用户改了什么」的**纯账本**（无 React、无 store、可裸测）。
 //
 // ── 它在解决哪个真实摩擦 ──
@@ -116,7 +117,7 @@ export function applyPatchToNode(node: GenerationCanvasNode, patch: SpendCandida
   if (patch.providerId) meta.modelVendor = patch.providerId
   if (patch.modeId) meta.archetype = { ...archetypeOf(meta), modeId: patch.modeId }
   for (const [key, value] of Object.entries(patch.parameters ?? {})) meta[key] = value
-  const referencedNode = patch.referenceInputs ? applySpendReferences({ ...node, meta }, patch.referenceInputs) : { ...node, meta }
+  const referencedNode = patch.referenceInputs ? placeReferenceInputs({ ...node, meta }, patch.referenceInputs) : { ...node, meta }
   return {
     ...referencedNode,
     ...(patch.prompt !== undefined ? { prompt: patch.prompt } : {}),
@@ -151,7 +152,7 @@ export function candidatePatchFromNode(
   if (modeId && modeId !== baselineModeId) patch.modeId = modeId
   const referenceInputs = referenceInputsFromNode(node, shot)
   const baselineInputs = baseline ? referenceInputsFromNode(baseline, shot) : pendingReferenceInputs(shot)
-  const baselineReferences = referenceInputsFromNode(applySpendReferences(node, baselineInputs), shot)
+  const baselineReferences = referenceInputsFromNode(placeReferenceInputs(node, baselineInputs), shot)
   if (JSON.stringify(referenceInputs) !== JSON.stringify(baselineReferences)) patch.referenceInputs = referenceInputs
   const parameters: Record<string, GenerationJsonValue> = {}
   let parametersChanged = false

@@ -22,7 +22,7 @@ import {
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
+import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
@@ -35,7 +35,7 @@ import { storyboardComposerMeta } from '../shotRow/storyboardComposerModel'
 
 /**
  * 分镜表的**执行动作层**（v5 B）：行内/批量生成 = 按需 materialize（没建过的节点此刻建）+
- * 既有 canvas runner 通路（confirmAndRunNode / confirmAndRunNodeVariants / regenerateNodeInPlace /
+ * 既有 canvas runner 通路（confirmAndRunNode / regenerateNodeInPlace /
  * confirmAndRunPlan）。**只有这一条执行通路**：spendConfirm、批量卡开的出价、失败即停、队列刹车、
  * undo journal 全部沿用，不另起循环（check:batch-machines 钉死 runGenerationNode 不外扩）。
  *
@@ -236,13 +236,6 @@ export async function rerunShotRowWithFreshRefs(
   const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
   await confirmAndRunPlan(buildDependencyWaves([exec.keyframeNode.id, exec.node.id], { nodes, edges }), confirmationGuards(ctx))
-}
-
-/** 悬停浮条 ×3：写回行编辑 + 同镜连出 3 版（结果堆叠进历史，失败即停不连烧）。 */
-export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode, mode: ArchetypeMode | null): Promise<void> {
-  await syncShotNodeWithRow(ctx, shot, node, 'shot', mode)
-  await ctx.assertCurrent?.()
-  await confirmAndRunNodeVariants(node.id, 3, confirmationGuards(ctx))
 }
 
 /**

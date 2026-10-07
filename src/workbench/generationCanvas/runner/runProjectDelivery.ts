@@ -35,18 +35,23 @@ export function whenRunTargetLoaded(target: RunProjectTarget, apply: () => void)
   return true
 }
 
-/** true = 结局写进了正打开的原项目画布（节点已不在则什么都不写，返回 false）。 */
+/** true = 结局写进了正打开的原项目画布（节点已不在则只暂存记账、返回 false）。 */
 function applyToStore(nodeId: string, outcome: NodeRunOutcome): boolean {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find(candidate => candidate.id === nodeId)
-  if (!node) return false
+  if (!node) {
+    // 节点在生成中被删了（删节点不取消上游任务，钱已花）：结局暂存，撤销把节点带回来时落上去。进度是瞬态，不记。
+    if (outcome.kind === 'content') store.holdRunOutcome(nodeId, { kind: 'content', contentJson: outcome.contentJson })
+    else if (outcome.kind !== 'progress') store.holdRunOutcome(nodeId, outcome)
+    return false
+  }
   if (outcome.kind === 'result') {
     if (outcome.mediaDimensions) store.addNodeResult(nodeId, outcome.result, outcome.mediaDimensions)
     else store.addNodeResult(nodeId, outcome.result)
   }
   else if (outcome.kind === 'status') store.setNodeStatus(nodeId, outcome.status, outcome.error)
   else if (outcome.kind === 'run-started') store.appendNodeRun(nodeId, outcome.run)
-  else if (outcome.kind === 'content') store.updateNode(nodeId, nodeRunOutcomePatch(node, outcome))
+  else if (outcome.kind === 'content') store.landNodeContent(nodeId, outcome.contentJson, outcome.runId)
   else store.setNodeProgress(nodeId, outcome.progress)
   return true
 }
@@ -104,7 +109,7 @@ export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string
     const node = canvas?.nodes.find((candidate) => candidate.id === nodeId)
     if (!record || !canvas || !node) return false
     const nodes = canvas.nodes.map((candidate) => candidate.id === nodeId ? { ...candidate, ...nodeRunOutcomePatch(candidate, outcome) } : candidate)
-    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, record.name, target)
+    await saveLocalProject(target.projectId, { ...record.payload, generationCanvas: { ...canvas, nodes } }, target)
     return false
   })
 }

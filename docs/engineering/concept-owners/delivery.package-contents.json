@@ -1,0 +1,41 @@
+{
+  "name": "安装包内容（随包依赖与包体预算）",
+  "subject": "delivery.package-contents",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/audit-package.mjs",
+    "symbol": "compareWithBudget"
+  },
+  "write_api": [
+    {
+      "path": "scripts/audit-package.mjs",
+      "symbol": "compareWithBudget"
+    },
+    {
+      "path": "scripts/check-packaged-deps.mjs",
+      "symbol": "analyzePackagedDeps"
+    },
+    {
+      "path": "scripts/packaging/native-binaries.cjs",
+      "symbol": "isForeignBinary"
+    },
+    {
+      "path": "scripts/lib/moduleReferences.mjs",
+      "symbol": "scanModuleReferences"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/audit-package.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/check-packaged-deps.mjs",
+    "scripts/packaging/platform-binaries.cjs",
+    "scripts/after-pack-mac.cjs",
+    ".github/workflows/desktop-rc.yml"
+  ],
+  "since": "2026-09-28",
+  "notes": "「包里允许有什么」只有一份判据：大小与身份基线、禁带文件、运行时闭包由 scripts/audit-package.mjs 判，数据住 docs/engineering/package-budget.json（只许 --update-baseline 改写）。dependencies 与主进程证据的对账由 check-packaged-deps.mjs 判，它读同一份文件的 runtimeAllowlist；「这个二进制能不能在目标平台跑」只在 scripts/packaging/native-binaries.cjs，afterPack 裁剪与审计共用，不许再写第二份平台判据。 （2026-09-29 转 v2 时补：合同 docs/fixes/2026-09-28-package-contents-unaudited.root-cause.json 的四个共享边界都登在 write_api——随包依赖对账 analyzePackagedDeps（门岗 check:packaged-deps）、包体与身份预算 compareWithBudget（check:package-budget）、平台二进制判据 isForeignBinary、构建产物里模块加载的唯一扫描器 scanModuleReferences。）"
+}

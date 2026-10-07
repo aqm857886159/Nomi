@@ -1003,7 +1003,7 @@ export function createInvariantMonitor(options) {
         if (present && !pendingCard && lastModelActivity && now - lastModelActivity > limits.agentIdleMs.value) {
           await violate({
             invariant: 5, rule: 'agent-turn-idle', key: `agent|${spinner.firstSeen}`,
-            module: 'electron/agentLane（回合无活动超过 LANE_IDLE_MS 仍在运行态）',
+            module: 'electron/agentLane（回合无活动超过看门狗 LANE_FIRST_RESPONSE_MS + LANE_FIRST_TOKEN_MS 仍在运行态）',
             message: `Agent 回合在运行态已 ${Math.round(age / 1000)}s，最后一次模型活动在 ${Math.round((now - lastModelActivity) / 1000)}s 前，也没有等人回答的卡`,
             snapshot: { spinner },
           })
@@ -1277,10 +1277,10 @@ export function createInvariantMonitor(options) {
   async function checkNuisance(probe) {
     if (!probe) return
     for (const pill of Object.values(probe.versionPills ?? {})) {
-      if (!/^1\s*(版|versions?)$/i.test(pill.label)) continue
+      if (!/(?:^|\D)1\s*(?:个版本|版|versions?)\b/i.test(pill.label)) continue
       await violate({
         invariant: 9, rule: '9a-single-version-pill', key: pill.node,
-        module: 'src/workbench/generationCanvas/nodes/useNodeResultHistory.ts（nodeHasResultStack 只在 ≥2 版时为真）',
+        module: 'src/workbench/generationCanvas/nodes/versionCards/nodeVersionEntries.ts（nodeHasVersionCards 只在 ≥2 版时为真）',
         message: `节点 ${pill.node} 只有 1 版，却显示「${pill.label}」`,
         snapshot: { pill },
       })

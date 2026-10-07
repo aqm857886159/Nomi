@@ -1,0 +1,250 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-canvas-write-boundary",
+  "detected_by": "review",
+  "problem_type": "Whole-graph and whole-node canvas writes overwrite the paid fact layer (results, versions, run state, result media size) because every write door had to remember the rule on its own",
+  "symptom": "Agent \"undo this batch\" / reopen recovery of an interrupted proposal put the pre-proposal canvas back wholesale and removed results that had landed afterwards on nodes the proposal never touched (V-1072); a node put back by an Agent restore-graph or a storyboard row-deletion undo came back spinning without the outcome that arrived while it was gone; restore-node-fields put old meta back over the media size of a later result and was refused outright when any result landed on that node.",
+  "direct_cause": "proposalUndo applied restore-snapshot through applyExternalGraph, which only kept run state live (result / history / contentJson came from the snapshot); restoreGraph upserted the captured node without consulting outcomes held while it was absent (those lived only in the undo journal, read only by Ctrl+Z); restore-node-fields went through updateNode with the old meta.",
+  "class_root": "A node mixes an edit layer and a fact layer, and there was no single write boundary owning \"facts come from the live store\": #1065 (undo replay), #1072 (external write) and #1073 (held outcomes in the undo journal) each patched one door, and the store's action table only said whether an action was a document write, not which layer it writes.",
+  "affected_population": [
+    "Every whole-graph / whole-node canvas write: Ctrl+Z / Ctrl+Y, external MCP canvas.apply, Agent proposal compensation (restore-snapshot, restore-graph, restore-node-fields), storyboard row-deletion undo, project load and event-tail replay",
+    "Every paid outcome delivered to the open project (generation result, text finalisation, run start / end status), including outcomes that arrive while their node is deleted"
+  ],
+  "scope_paths": [
+    "electron/shared/canvas/landedNodeFields.ts",
+    "electron/shared/canvas/externalCanvasWrite.ts",
+    "electron/shared/projectAgentProposalReceipt.ts",
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "src/workbench/generationCanvas/agent/beforeImageCompensation.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts"
+  ],
+  "entry_points": [
+    "Store undo / redo (Ctrl+Z / Ctrl+Y, toolbar, director hotkeys, version cards)",
+    "External MCP canvas.apply (renderer gateway) and disk gateway apply (main process)",
+    "Agent proposal compensation: runProposalUndo, runProposalUndoByChangeId, recoverPendingProposalReceipt, applyProposalBatch abort",
+    "Storyboard row-deletion undo (restoreStoryboardDeletion)",
+    "Project load (restoreSnapshot) and crash-recovery event tail (applyEventTail)",
+    "deliverRunOutcome into the open project when the node is absent (holdRunOutcome)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/yjs/docs/blob/main/api/undo-manager.md",
+      "checked_at": "2026-10-07",
+      "purpose": "trackedOrigins undoes only chosen origins, but undoing an insertion removes the inserted item with everything put into it later; Nomi's rule B (undoing node creation keeps a node holding paid results) cannot be expressed, so the store is not replaced by Yjs"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/immerjs/immer/blob/main/website/docs/patches.mdx",
+      "checked_at": "2026-10-07",
+      "purpose": "Inverse patches are the evaluated next step for the undo stack (registered under-review in self-written.json); not adopted in this change"
+    }
+  ],
+  "invariants": [
+    "Every whole-graph or whole-node write of the canvas store is implemented only in store/canvasDocumentCommit.ts and resolves the fact layer through one rule: edits come from the write, facts (run state, landed result fields, result media size meta keys) come from the live store; the same withLiveNodeFacts is used for disk external writes.",
+    "Undo / redo is the only door that may roll back landed fields (the user's own version edits): the target projection plus every later landing re-laid in order, run state from the live store, and a node created by the undone step is kept when it carries a paid landing.",
+    "An outcome that arrives while its node is absent is held in the store by nodeId and laid on the node by whichever door brings it back; the application is journaled as a landing so later undo / redo re-lays it.",
+    "Every store action declares its layer (session / edit / fact:landing / fact:run / document); the document layer equals the commit-port slice and the fact layer equals the run slice, checked by the compiler.",
+    "A proposal's before-image is never applied as a whole graph; it is expanded into per-object compensation (delete-nodes, disconnect-edges, restore-graph, restore-node-fields)."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/externalCanvasWrite.ts",
+      "symbol": "withLiveNodeFacts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "withLiveRunState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "withLiveNodeFacts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "mergeExternalCanvasWrite"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "applyExternalGraph"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "restoreGraph"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "symbol": "restoreNodeFields"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "symbol": "restoreGraph"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "holdRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "settleNodeFacts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "withLiveNodeFacts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "mergeExternalCanvasWrite"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 12,
+    "why_not": "Call-site doors do not shrink: each caller is a distinct entry that must exist (Agent compensation, storyboard row undo, MCP canvas.apply, disk gateway, run delivery). What shrinks is where the fact rule lives: before, three owners each implemented part of it (reapplyLandedOutcomes for undo / redo / applyExternalGraph run state, mergeExternalCanvasWrite's protected-field set, the undo journal's outcome-held reading), and whole graphs were assigned in two store files plus updateNode for restore-node-fields; after, every whole write ends in the one commit switch of canvasDocumentCommit.ts and every fact decision in settleNodeFacts / withLiveNodeFacts (the disk gateway merge calls the same withLiveNodeFacts). mergeExternalCanvasWrite appears twice because renderer and disk share it by design."
+  },
+  "generality_proof": "The compiler forces every store action into a layer, and the document layer can only be implemented by createCanvasDocumentActions, whose single commit switch exhausts every CanvasDocumentWrite kind and routes every node it keeps or brings back through settleNodeFacts. A new whole writer therefore either goes through that switch or fails to compile; a node coming back through any door picks up held outcomes because the lookup is in settleNodeFacts, not in a door.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "createCanvasDocumentActions",
+      "responsibility": "The only implementation of document-layer store actions; one exhaustive commit over CanvasDocumentWrite kinds."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "settleNodeFacts",
+      "responsibility": "Facts from the live store for surviving nodes; held outcomes laid on returning nodes."
+    },
+    {
+      "path": "electron/shared/canvas/landedNodeFields.ts",
+      "symbol": "withLiveNodeFacts",
+      "responsibility": "The single declaration of fact fields and the edit-from-write / facts-from-live rule, shared with the disk external write."
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "CANVAS_ACTION_LAYERS",
+      "responsibility": "Every store action declares its layer; document / fact slices pinned by type assertions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "entry_point": "applyCompensationOps restore-snapshot",
+      "disposition": "enforced",
+      "evidence": "Expanded by beforeImageCompensation into per-object ops; wholeWriteKeepsFacts.test.ts prediction ② cases red on main, green after."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "entry_point": "restoreStoryboardDeletion",
+      "disposition": "enforced",
+      "evidence": "restoreGraph is a document action; the storyboard case in wholeWriteKeepsFacts.test.ts red on main, green after."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "canvas.apply",
+      "disposition": "enforced",
+      "evidence": "applyExternalGraph({ base, next }) merges inside the commit port; externalCanvasWriteKeepsLanded.test.ts stays green and goes red when withLiveNodeFacts takes the write's facts."
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "writeDiskSnapshot",
+      "disposition": "enforced",
+      "evidence": "mergeExternalCanvasWrite now applies withLiveNodeFacts; externalCanvasWrite.test.ts goes 8 red under the mutation."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome disk branch",
+      "disposition": "not-affected",
+      "evidence": "Patches a single node with nodeRunOutcomePatch, not a whole write; its cross-process interleave with the disk gateway is a separate gap pinned by diskWriteInterleave.test.ts (it.fails) and listed in residual_risks."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Fourth door of the same class in one day (#1065, #1072, #1073, V-1072); 52 fix commits in 30 days on the 13 landing-chain files.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs applyExternalGraph restoreGraph restoreSnapshot undo redo applyEventTail (18 write doors before; whole writes now only in canvasDocumentCommit.ts)",
+      "git grep restore-snapshot|restore-graph|restore-node-fields|outcome-held|reapplyLandedOutcomes",
+      "docs/plan/2026-10-07-canvas-landing-direction-check.md §1-§2 class table"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "invariant": "Every store action has a declared layer; document-layer actions are exactly the commit-port slice; fact-layer actions are exactly the run slice.",
+    "failure_mode": "tsc fails (verified: classifying restoreGraph or holdRunOutcome as edit gives two TS2322 errors).",
+    "exception_policy": "none",
+    "strategy": "Make the fact rule a single function behind a single commit switch, and make the compiler refuse any whole writer outside it.",
+    "artifacts": [
+      "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "electron/shared/canvas/landedNodeFields.ts",
+      "src/workbench/generationCanvas/agent/beforeImageCompensation.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts",
+    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts",
+    "src/workbench/generationCanvas/store/canvasReadyOwner.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "src/workbench/generationCanvas/agent/proposalUndo.ts"
+    ],
+    "rationale": "reapplyLandedOutcomes removed; outcome-held journal events removed; applyExternalGraph's run-state-only special case and the store-root undo / redo / load bodies moved into the commit port; restoreGraph moved out of the graph slice; restore-snapshot no longer calls a whole-graph action."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides the invariant; Immer / zustand are used as before.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration: project file and proposal receipt formats are unchanged. Held outcomes are session state (not persisted), cleared on project load / release, as the journal-held ones were before.",
+  "residual_risks": [
+    "Production batch undo / redo still infers detach from store diffs and redo never re-attaches (prediction ①, pinned it.fails in src/workbench/production/redoReattachesProductionShots.test.ts) — fixed by the planned 删 ② PR.",
+    "Renderer disk delivery and main-process disk gateway read-modify-write the same project file without a shared lock or revision check; an external edit can be overwritten (prediction ③, pinned it.fails in src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts).",
+    "Agent undo by change id still refuses when any later runtime event touched the proposal's objects (kept conservative; delete-nodes on a node that later got a paid result would otherwise remove it — a product decision).",
+    "Held outcomes are not persisted: an app restart between deletion and put-back loses them (same as before).",
+    "Real App undo / Agent undo with a real paid result: unverified (no spend in this line)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts",
+      "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+      "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts",
+      "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "src/workbench/generationCanvas/store/wholeWriteKeepsFacts.test.ts"
+  },
+  "recurrence_check_on": "2026-11-07"
+}

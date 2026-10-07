@@ -667,7 +667,7 @@ export default function NomiStudioApp(): JSX.Element {
       void ensureProjectPersistenceService()
         .then(async ({ service }) => {
           const { readCurrentWorkbenchProjectPayload } = await import('./project/workbenchProjectSession')
-          return service.persistProject(renamed, readCurrentWorkbenchProjectPayload())
+          return service.renameProjectAndPersist(renamed, readCurrentWorkbenchProjectPayload())
         })
         .catch((error: unknown) => {
           logRendererError('project-save-failed', error, { trigger: 'rename' })
@@ -687,6 +687,7 @@ export default function NomiStudioApp(): JSX.Element {
     <SettingsDialog
       initialTab={settingsDialogController.initialTab}
       initialSection={settingsDialogController.initialSection}
+      initialModelPageRequest={settingsDialogController.modelPageRequest}
       onClose={settingsDialogController.closeSettings}
       onReplaySplash={() => setSplashDone(false)}
     />

@@ -1,0 +1,31 @@
+{
+  "name": "抠图模型与运行时的下载（从哪儿拉、总进度、卡住判定、失败原因）",
+  "subject": "canvas.remove-background-download",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/lib/removeBackgroundDownload.ts",
+    "symbol": "createDownloadTracker"
+  },
+  "write_api": [
+    {
+      "path": "src/lib/removeBackgroundDownload.ts",
+      "symbol": "createDownloadTracker"
+    },
+    {
+      "path": "src/lib/removeBackgroundModelSource.ts",
+      "symbol": "REMOVE_BACKGROUND_PUBLIC_PATH"
+    },
+    {
+      "path": "src/lib/removeBackground.ts",
+      "symbol": "removeBackgroundBlob"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "资源只从自有镜像拉（版本钉 @imgly 包版本）；worker 包全局 fetch 数字节出一条总进度、60 秒无字节判卡住；失败原因随 RemoveBackgroundError 回传（docs/fixes/2026-10-06-remove-background-download.root-cause.json，类检查 removeBackgroundDownload.test.ts）。"
+}

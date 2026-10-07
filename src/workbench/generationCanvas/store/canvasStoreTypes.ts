@@ -1,6 +1,7 @@
 import type { CanvasPlacementAnchor } from '../model/canvasPlacement'
 import type { StateCreator } from 'zustand'
 import type { CanvasFrameRect } from '../model/canvasFrameBounds'
+import type { GroupArrangeMode } from '../model/groupArrange'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
@@ -10,13 +11,16 @@ import type {
   GenerationNodeRunRecord,
   GenerationNodeStatus,
   NodeGroup,
+  TiptapDocJson,
 } from '../model/generationCanvasTypes'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
+import type { HeldNodeOutcome } from './nodeRunOutcome'
 import type { MediaDimensions } from '../nodes/nodeSizing'
+import type { CanvasDocLike } from '../../../../electron/shared/canvas/externalCanvasWrite'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
 
 export type ConnectionAnchorSide = 'left' | 'right'
@@ -56,9 +60,15 @@ export type CanvasNodeActions = {
   /** Apply many user edits with one undo barrier and one persist revision. */
   updateNodes: (updates: readonly { nodeId: string; patch: Partial<GenerationCanvasNode> }[]) => void
   updateNodePrompt: (nodeId: string, prompt: string, promptOverridden?: boolean) => void
+  /** 版本卡片铺开 / 收起（按节点存进项目，可撤销，同编组折叠）。 */
+  /** 铺开 / 收起版本卡片。铺开时带上往哪边铺（点开那一刻量的），收起时清掉。一步撤销。 */
+  setNodeResultStackOpen: (nodeId: string, open: boolean, side?: 'left' | 'right') => void
+  /** 用户把某一版设为主图：一个撤销步；meta 是这一版的媒体尺寸（调用方读素材侧车算好，可省）。 */
+  setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
+  moveNodes: (updates: readonly { nodeId: string; position: { x: number; y: number } }[], options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
   /** 一键整理：把某分类节点重排成 storyboard 网格（按屏幕宽高比铺成宽块）。可撤销。 */
   tidyCategory: (categoryId: string, targetAspect: number) => void
@@ -67,8 +77,6 @@ export type CanvasNodeActions = {
   selectNodes: (nodeIds: readonly string[]) => void
   clearSelection: () => void
   selectAllNodes: (categoryId?: string) => void
-  /** 框选：选中与矩形（画布坐标）相交的当前分类节点；additive 时并入现有选区。 */
-  selectNodesInRect: (rect: { x1: number; y1: number; x2: number; y2: number }, categoryId?: string, additive?: boolean) => void
   duplicateNodeForRegeneration: (nodeId: string) => GenerationCanvasNode | null
   /** Phase E: move a node into a different category (sidebar drop / right-click). */
   reassignNodeCategory: (nodeId: string, categoryId: string) => void
@@ -111,6 +119,7 @@ export type CanvasGraphActions = {
   /** 框头部那一句灰字说明。传空串 = 清空（与改名不同：说明本来就可以没有）。 */
   setGroupDescription: (groupId: string, description: string) => void
   setGroupColor: (groupId: string, color: string) => void
+  arrangeGroup: (groupId: string, mode: GroupArrangeMode) => void
   setGroupCollapsed: (groupId: string, collapsed: boolean) => void
   ungroup: (groupId: string) => void
   ungroupGroups: (groupIds: string[]) => void
@@ -118,8 +127,6 @@ export type CanvasGraphActions = {
   moveNodeToGroup: (nodeId: string, groupId: string) => void
   removeNodeFromGroup: (nodeId: string) => void
   reorderGroup: (categoryId: string, activeGroupId: string, overGroupId: string) => void
-  /** S6-5 整笔撤销补偿:把删除步抹掉的节点/边按原 id 放回(upsert 幂等,已存在跳过)。 */
-  restoreGraph: (nodes: GenerationCanvasNode[], edges: GenerationCanvasEdge[]) => void
 }
 
 export type CanvasRunActions = {
@@ -130,7 +137,35 @@ export type CanvasRunActions = {
   appendNodeRun: (nodeId: string, run: NodeRunRecordInput) => GenerationNodeRunRecord
   trackNodeRun: (nodeId: string, runId: string, patch: NodeRunRecordPatch) => void
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
-  rollbackHistory: (nodeId: string, resultId: string) => void
+  /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
+  landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
+  /** 结局到达时节点不在（生成中被删了）：按 nodeId 暂存，任何一扇门把节点带回来时由统一提交口落上去。 */
+  holdRunOutcome: (nodeId: string, outcome: HeldNodeOutcome) => void
+}
+
+/** 节点不在时到达的结局，按 nodeId 暂存（会话态，不进项目文件；项目释放 / 装载时清空）。 */
+export type HeldNodeOutcomes = Record<string, HeldNodeOutcome[]>
+
+/**
+ * 整图 / 整节点写回——只在统一提交口（store/canvasDocumentCommit.ts）实现：编辑层取传进来的，事实层取活的。
+ * 这里的键必须恰好等于动作分层表里 layer 为 'document' 的那些（canvasWriteBoundary 的类型断言）。
+ */
+export type CanvasDocumentActions = {
+  /** 打开项目：硬重置（清选区 / 剪贴板 / 暂存，撤销基线从这里起）。 */
+  restoreSnapshot: (snapshot: unknown) => void
+  /** S5-b-1 崩溃恢复:把快照之后落盘的事件尾巴重放回投影(reducer 幂等)。 */
+  applyEventTail: (events: readonly { type: string; payload: Record<string, unknown> }[]) => void
+  undo: () => void
+  redo: () => void
+  /**
+   * A 模式实时桥：外部 MCP 读到 `base`、算出整张 `next`，这里只把它自己改了的编辑合到此刻的画布
+   * （与盘上同一个合并函数），事实层取此刻的。会话中应用：保留视口、入撤销历史、触发防抖落盘。
+   */
+  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike }>) => void
+  /** 把被删的节点 / 边按原 id 放回（已在的跳过）；节点不在期间到达的结局随之落上。 */
+  restoreGraph: (nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]) => void
+  /** 把一个仍在的节点的 meta / prompt 放回某一刻；结果、运行态、跟主图走的媒体尺寸取此刻的。 */
+  restoreNodeFields: (nodeId: string, meta: Readonly<Record<string, unknown>>, prompt: string) => void
 }
 
 export type GenerationCanvasState = {
@@ -155,6 +190,7 @@ export type GenerationCanvasState = {
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
+  heldNodeOutcomes: HeldNodeOutcomes
   captureHistory: () => void
   setGenerationAiDraft: (draft: string) => void
   setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
@@ -170,21 +206,10 @@ export type GenerationCanvasState = {
    * 不传 = 左上角（旧约定，右键菜单之外的调用方都应传 anchor，见 model/canvasPlacement.ts）。
    */
   pasteNodes: (basePosition?: { x: number; y: number }, anchor?: CanvasPlacementAnchor) => void
-  undo: () => void
-  redo: () => void
   readSnapshot: () => GenerationCanvasSnapshot
   /** 持久化视图(S5-b-0):无 selectedNodeIds——选区是会话态不进项目文件。 */
   readDocumentSnapshot: () => Omit<GenerationCanvasSnapshot, 'selectedNodeIds'>
-  restoreSnapshot: (snapshot: unknown) => void
-  /** S5-b-1 崩溃恢复:把快照之后落盘的事件尾巴重放回投影(reducer 幂等)。 */
-  applyEventTail: (events: readonly { type: string; payload: Record<string, unknown> }[]) => void
-  /**
-   * A 模式实时桥:把外部 MCP 经主进程算好的整张画布快照应用进 store(所见即所得)。
-   * 与 restoreSnapshot(硬重置:清视口/选区/重置 undo 基线)不同——这是会话中应用:
-   * 保留视口缩放/偏移、入 undo 历史(用户可撤销外部改动)、触发防抖持久化。
-   */
-  applyExternalGraph: (snapshot: unknown) => void
-} & CanvasNodeActions & CanvasGraphActions & CanvasRunActions
+} & CanvasNodeActions & CanvasGraphActions & CanvasRunActions & CanvasDocumentActions
 
 /** Slice creator typed against the store's middleware stack (subscribeWithSelector + immer). */
 export type CanvasSliceCreator<T> = StateCreator<

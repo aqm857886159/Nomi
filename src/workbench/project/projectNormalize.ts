@@ -149,6 +149,7 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     categories: normalizeCategories(payload.categories),
     generationCanvasLastSeq: payload.generationCanvasLastSeq,
     ...(payload.editingPanelLayout ? { editingPanelLayout: payload.editingPanelLayout } : {}),
+    ...(payload.pendingAssetDeletions?.length ? { pendingAssetDeletions: payload.pendingAssetDeletions } : {}),
     ...(Object.values(owner).some((designs) => designs.length > 0) ? { storyboardDesignsByDocumentId: owner } : {}),
   }
 }
