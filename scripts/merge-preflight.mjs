@@ -125,7 +125,12 @@ export function parsePullFileRows(text) {
   })
 }
 
-export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = []) {
+/** base 账本里已结账（fixed）条目指向的根因合同文件。纯函数、可测。 */
+export function settledContracts(baseLedger) {
+  return (baseLedger?.entries ?? []).filter((entry) => entry.status === 'fixed' && entry.rootCauseContract).map((entry) => entry.rootCauseContract)
+}
+
+export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = []) {
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
   const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
   const mentioned = ledgerIds.filter((id) => String(body || '').includes(id) && !transitions.includes(id))
@@ -134,7 +139,13 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
     return { applicable: false, ok: true, lines: ['· 本 PR 没有让任何逃逸账本条目转成 fixed，合同检查跳过', ...hint] }
   }
   if (transitions.length === 0) {
-    return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${userFound.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger.json）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
+    // 修订已结账的合同（例：用户后来改了拍板，合同不变量跟着改）：条目在 base 已是 fixed，本 PR 只修订合同，不要求再转换一次。
+    // 新增的合同、或对应条目还没结账的，照旧要进账本。
+    const unsettled = userFound.filter((contract) => contract.added || !settled.includes(contract.file))
+    if (unsettled.length === 0) {
+      return { applicable: true, ok: true, lines: [`· 修订已结账的根因合同（${userFound.map((contract) => contract.file).join('、')}）：对应逃逸账本条目在 base 已是 fixed，不要求再转换`, ...hint] }
+    }
+    return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${unsettled.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger.json）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
   }
   if (withField.length === 0) {
     return { applicable: true, ok: false, lines: [`✖ 本 PR 把逃逸账本条目 ${transitions.join('、')} 转成 fixed，但没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）`] }
@@ -224,18 +235,23 @@ export function main(argv = process.argv.slice(2)) {
   for (const file of files.filter((entry) => /^docs\/fixes\/.+\.root-cause\.json$/.test(entry.path))) {
     const text = slug ? ghApiFile(slug, file.path, view.headRefOid) : null
     try {
-      contracts.push({ file: file.path, detected_by: text ? JSON.parse(text).detected_by : undefined })
+      contracts.push({ file: file.path, added: file.status === 'A', detected_by: text ? JSON.parse(text).detected_by : undefined })
     } catch {
-      contracts.push({ file: file.path, detected_by: undefined })
+      contracts.push({ file: file.path, added: file.status === 'A', detected_by: undefined })
     }
   }
 
   // 逃逸账本的状态转换：只有本 PR 改了账本才去取两版（base 取当前基线分支末端）
-  const ledger = { transitions: [], ids: [], removed: [] }
+  const ledger = { transitions: [], ids: [], removed: [], settledContracts: [] }
+  const parseLedger = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
+  const amendsUserContract = contracts.some((contract) => !contract.added && ['user', 'post-release'].includes(contract.detected_by))
+  const baseLedger = slug && (amendsUserContract || files.some((file) => file.path === ESCAPE_LEDGER_FILE))
+    ? parseLedger(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.baseRefName || 'main'))
+    : null
+  ledger.settledContracts = settledContracts(baseLedger)
   if (slug && files.some((file) => file.path === ESCAPE_LEDGER_FILE)) {
-    const parse = (text) => { try { return text ? JSON.parse(text) : null } catch { return null } }
-    const head = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
-    const base = parse(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.baseRefName || 'main'))
+    const head = parseLedger(ghApiFile(slug, ESCAPE_LEDGER_FILE, view.headRefOid))
+    const base = baseLedger
     ledger.transitions = fixedTransitions(base, head)
     ledger.ids = (head?.entries ?? []).map((entry) => entry.id)
     const headIds = new Set(ledger.ids)
@@ -271,7 +287,7 @@ export function main(argv = process.argv.slice(2)) {
     classification,
     design: checkDesignCard(body, classification),
     acceptance: checkIndependentAcceptance(body),
-    escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids),
+    escape: checkEscapeContract(body, contracts, ledger.transitions, ledger.ids, ledger.settledContracts),
     scope: judgement.scope,
     routing: judgement.routing,
   })

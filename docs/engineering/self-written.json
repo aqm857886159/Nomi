@@ -588,22 +588,6 @@
       "revisitWhen": "门岗账本的保留 / 降级 / 删除清单被拍板后；之后每次周期审计重跑账本"
     },
     {
-      "id": "conversations-store",
-      "capability": "项目内对话记录的存储（electron/conversations）",
-      "status": "under-review",
-      "reviewBy": "2026-11-15",
-      "paths": [
-        "electron/conversations/conversationsStore.ts",
-        "electron/conversations/conversationsIpc.ts"
-      ],
-      "alternativesChecked": [
-        { "name": "pi 的 JsonlSessionRepo / Session API：会话持久化、有序转录、历史分页（lane 已在用）", "source": "electron/agentLane/laneSession.mts:17" },
-        { "name": "pi 九层对照「会话」层的逐项结论", "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md" }
-      ],
-      "whyNotIntegrated": "尚未下结论，不能当合理自写。会话持久化 pi 已经提供，lane 的对话走的是 pi 的会话文件；这份存储是否只服务旧的项目内对话、是否已被 lane 取代，没有核实。评估：还有哪些调用方、数据是否已经全在 pi 会话里；能删就删。",
-      "revisitWhen": "出评估结论（还有没有调用方、数据是否已在 pi 会话里）；评估前这里不新增文件"
-    },
-    {
       "id": "design-system",
       "capability": "Nomi 设计系统：token-only 的组件封装、浮层、选择器、分段控件与光 / 暗主题翻转",
       "status": "justified",

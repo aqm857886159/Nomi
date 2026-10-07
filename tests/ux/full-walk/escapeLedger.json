@@ -872,10 +872,16 @@
       "fullWalkJourneys": [],
       "status": "reviewed",
       "manualReview": "reviewed",
-      "evidence": ["渲染层真实路径测试（真仓库 + 真保存队列）在 main 上红 2 条、修后全绿；变异（桌面端重新带上 name）红 1 条", "主进程矩阵：7 个不归渲染层的字段逐个断言不被陈旧值覆盖"],
+      "evidence": [
+        "渲染层真实路径测试（真仓库 + 真保存队列）在 main 上红 2 条、修后全绿；变异（桌面端重新带上 name）红 1 条",
+        "主进程矩阵：7 个不归渲染层的字段逐个断言不被陈旧值覆盖"
+      ],
       "completionCommits": [],
       "rootCauseContract": "docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json",
-      "classCheck": { "kind": "matrix", "file": "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts" }
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/workspace/workspaceRepository.contentSaveOwnership.test.ts"
+      }
     }
   ]
 }

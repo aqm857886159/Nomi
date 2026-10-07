@@ -5013,7 +5013,7 @@
       "forbidden_derivations": [],
       "allowed_consumers": [],
       "since": "2026-10-06",
-      "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
+      "notes": "能力按动作目录的 requires 判定；缺能力不灰掉，第二行说缺什么、点了去补（唯一例外：放大，用户 2026-10-07 拍板置灰不跳转，见 CAPABILITY_GUIDE_EXCEPTIONS）；上游不可用时失败卡给「换成同能力的另一个」（docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json，类检查 capabilityGuide.test.ts / sameCapabilityAlternative.test.ts）。"
     },
     {
       "name": "项目名（改名只有一个主人，内容保存不写名字）",
