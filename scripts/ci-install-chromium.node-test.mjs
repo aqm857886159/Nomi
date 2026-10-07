@@ -34,3 +34,8 @@ test('系统依赖（apt）不套外层超时，并且让 apt 自己等锁、限
   assert.doesNotMatch(source, /timeout[^\n]*install-deps/)
   assert.doesNotMatch(source, /install --with-deps/)
 })
+
+test('重试只记普通日志、不发 ::warning:: 注解（注解卫生检查会把它当意外警告）；三次都失败才 ::error::', () => {
+  assert.doesNotMatch(source, /::warning::/)
+  assert.match(source, /::error::/)
+})

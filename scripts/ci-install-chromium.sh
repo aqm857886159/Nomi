@@ -47,7 +47,9 @@ for i in $(seq 1 "$attempts"); do
   if run_group_with_timeout "$per_attempt_seconds" pnpm exec playwright install chromium; then
     exit 0
   fi
-  echo "::warning::playwright install chromium 第 ${i}/${attempts} 次失败或超过 ${per_attempt_seconds} 秒，重试"
+  # 普通日志，不发 ::warning:: 注解：重试后装上了就是成功，注解会被 CI 注解卫生检查当成「意外警告」把 Quality Gate 打红
+  # （2026-10-07 main 5e72e5bbd 就这样红过一次）。三次都失败才发 ::error::。
+  echo "[ci-install-chromium] 第 ${i}/${attempts} 次失败或超过 ${per_attempt_seconds} 秒，重试"
 done
 
 echo "::error::playwright install chromium 连续 ${attempts} 次失败（每次限 ${per_attempt_seconds} 秒）"
