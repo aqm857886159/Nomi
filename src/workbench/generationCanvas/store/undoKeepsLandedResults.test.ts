@@ -12,6 +12,8 @@ vi.mock('../../project/projectCanvasReadSurface', async (importOriginal) => ({
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { deliverRunOutcome, type RunProjectTarget } from '../runner/runProjectDelivery'
 import { attachShotResult } from '../../capability/multiShotCanvasLanding'
+import { applyProposalBatch } from '../agent/proposalTxn'
+import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasNode, GenerationNodeResult, TiptapDocJson } from '../model/generationCanvasTypes'
 
 const TARGET = { projectId: 'p-undo', immutableProjectUuid: 'u-undo', projectGeneration: 1 } as RunProjectTarget
@@ -209,3 +211,79 @@ describe('undo never takes back a landed generation outcome', () => {
     expect(node()?.result?.id).toBe('r-third')
   })
 })
+
+// 协调会话 10-07 定 B：撤销的正是「建这个节点」，而节点之后落过结果——节点留下，这一步其它内容照撤；
+// 没落过结果的照旧被撤掉。手动建 / Agent 一笔提议建 × 有结果 / 没结果。
+type NodeCreation = Readonly<{ name: string; create: () => Promise<{ landedOn: string; sibling?: string }> }>
+
+const NODE_CREATIONS: readonly NodeCreation[] = [
+  {
+    name: 'manual add node',
+    create: async () => ({ landedOn: useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'fresh', position: { x: 900, y: 40 } }).id }),
+  },
+  {
+    name: 'Agent proposal creates nodes',
+    create: async () => {
+      const outcome = await applyProposalBatch([{
+        toolCallId: 'tc-create',
+        toolName: 'create_canvas_nodes',
+        effectiveArgs: {
+          summary: 'undo keeps landed',
+          nodes: ['c1', 'c2'].map((clientId, index) => ({ clientId, kind: 'image', title: `镜头 ${index + 1}`, prompt: `prompt ${clientId}` })),
+        },
+      }])
+      if (outcome.status !== 'committed') throw new Error(`proposal not committed: ${outcome.status}`)
+      return { landedOn: outcome.clientIdToNodeId.c1, sibling: outcome.clientIdToNodeId.c2 }
+    },
+  },
+]
+
+describe('undoing the creation of a node never takes away its landed result', () => {
+  beforeEach(() => {
+    abandonPendingCanvasWrite()
+    seed()
+  })
+
+  const matrix = NODE_CREATIONS.flatMap((creation) => [true, false].map((withResult) => [creation.name, withResult ? 'with' : 'without', creation, withResult] as const))
+
+  it.each(matrix)('%s %s a landed result', async (_name, _label, creation, withResult) => {
+    const { landedOn, sibling } = await creation.create()
+    expect(node(landedOn)).toBeDefined()
+    if (withResult) await deliverRunOutcome(TARGET, landedOn, { kind: 'result', result: LANDED_RESULT })
+
+    useGenerationCanvasStore.getState().undo()
+
+    const kept = node(landedOn)
+    if (withResult) {
+      expect(kept?.result?.id).toBe('r-landed')
+      expect(kept?.history?.map((entry) => entry.id)).toEqual(['r-landed'])
+    } else {
+      expect(kept).toBeUndefined()
+    }
+    // 这一步里其它内容照撤：没落过结果的兄弟节点被拿掉，撤销点之前的画布不受影响。
+    if (sibling) expect(node(sibling)).toBeUndefined()
+    expect(node(NODE_ID)?.result?.id).toBe('r-old')
+    expect(node(OTHER_ID)).toBeDefined()
+    if (kept?.groupId) {
+      expect(useGenerationCanvasStore.getState().groups.find((group) => group.id === kept.groupId)?.nodeIds).toContain(landedOn)
+    }
+  })
+
+  it('a kept node whose group was created in the same undone step leaves that group', async () => {
+    const store = useGenerationCanvasStore.getState()
+    const source = store.createGroup('shots', 'g', { nodeIds: [OTHER_ID] })!
+    // 按住复制拖动一个分组：一步里建出新节点 + 新分组。
+    const copyGroupId = useGenerationCanvasStore.getState().duplicateGroupForDrag(source.id)!
+    const copyNodeId = useGenerationCanvasStore.getState().groups.find((group) => group.id === copyGroupId)!.nodeIds[0]
+    await deliverRunOutcome(TARGET, copyNodeId, { kind: 'result', result: LANDED_RESULT })
+
+    useGenerationCanvasStore.getState().undo()
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.groups.some((group) => group.id === copyGroupId)).toBe(false)
+    expect(node(copyNodeId)?.result?.id).toBe('r-landed')
+    expect(node(copyNodeId)?.groupId).toBeUndefined()
+    expect(state.groups.find((group) => group.id === source.id)?.nodeIds).toEqual([OTHER_ID])
+  })
+})
+

@@ -23,14 +23,16 @@
   "entry_points": [
     "Ctrl+Z / Ctrl+Y and every other caller of the store undo/redo actions",
     "Generation outcome delivery into the open project (deliverRunOutcome: result, content, run-started, status, progress)",
-    "Production-run shot backfill (attachShotResult)"
+    "Production-run shot backfill (attachShotResult)",
+    "Undo of node-creating steps: addNode, Agent proposal create_canvas_nodes (applyProposalBatch), group copy (duplicateGroupForDrag)"
   ],
   "external_sources": [],
   "internal_only_reason": "The invariant is an application-owned rule about which canvas node fields are user edits versus paid generation facts inside Nomi's own session undo journal; no third-party runtime decides it.",
   "invariants": [
     "Undo and redo only rewind user edits: every generation outcome (result version or text content) that landed after the restore target position is re-landed onto the restored projection with the same merge rule used at landing time.",
     "Run state (runs, status, error, progress) after undo/redo always equals the live run state of the node.",
-    "A node removed by an undone deletion comes back with every outcome that landed before the deletion."
+    "A node removed by an undone deletion comes back with every outcome that landed before the deletion.",
+    "A node that holds an outcome landed after the restore position is never removed by undo/redo, even when the undone step created it (manual add, Agent proposal, group copy); the rest of the step is still undone and a group removed by the step no longer claims the node (decided by the coordinator on 2026-10-07, option B)."
   ],
   "doors": [
     {
@@ -184,7 +186,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
     "invariant": "The projection written by undo/redo contains every outcome landed after the restore position and the live run state.",
-    "failure_mode": "An unreadable landed record is skipped only because the session journal contains events written by this process; landings on a node absent from the restored projection are not re-created (open product decision recorded in the plan).",
+    "failure_mode": "An unreadable landed record is skipped only because the session journal contains events written by this process; a node removed by the restore that has landed outcomes after the restore position is kept as it is live, with a group membership dropped when the restored groups no longer list it.",
     "exception_policy": "none",
     "strategy": "Record the landed outcome on the run-updated event at the two store landing actions, return landings from the journal's only restore functions, and re-land them in the store's only undo/redo actions with the same merge rule used at landing time.",
     "artifacts": [
@@ -197,7 +199,8 @@
   },
   "regression_tests": [
     "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
-    "src/workbench/generationCanvas/events/shotNumberingLegacyReplay.test.ts"
+    "src/workbench/generationCanvas/events/shotNumberingLegacyReplay.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts"
@@ -216,7 +219,6 @@
   },
   "migration": "None: the undo journal is session-only and cleared on every hydrate. The extra landed field on run-updated events is ignored by the reducer, so persisted event logs replay unchanged.",
   "residual_risks": [
-    "Undoing the creation of a node that has since received a paid result still removes the node with its result (redo can restore it until the next edit). Product decision pending; see docs/plan/2026-10-07-undo-keeps-landed-results.md.",
     "A future producer that writes result/history through updateNode instead of addNodeResult/landNodeContent would bypass the record; the test door table must be extended with it.",
     "MCP whole-graph writes computed from a stale read can overwrite a result that landed between read and write; this is a concurrency issue outside undo and is not fixed here.",
     "Deleting a node while its generation runs drops the later result and undo restores the node in its old running state; not changed here.",

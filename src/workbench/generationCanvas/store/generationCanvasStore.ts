@@ -194,7 +194,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     // 撤销只回退用户编辑:目标位置之后落地的生成结局 + 此刻的运行态原样留下(钱已花,不许撤掉)。
     const restore = popUndo()
     if (!restore) return
-    const previous = { ...restore.projection, nodes: reapplyLandedOutcomes(restore.projection.nodes, restore.landingsAfter, get().nodes) }
+    const previous = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
     set((state) => {
       state.nodes = previous.nodes
       state.edges = previous.edges
@@ -213,7 +213,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   redo: () => {
     const restore = popRedo()
     if (!restore) return
-    const next = { ...restore.projection, nodes: reapplyLandedOutcomes(restore.projection.nodes, restore.landingsAfter, get().nodes) }
+    const next = reapplyLandedOutcomes(restore.projection, restore.landingsAfter, get().nodes)
     set((state) => {
       state.nodes = next.nodes
       state.edges = next.edges
