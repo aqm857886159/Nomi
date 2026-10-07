@@ -1,4 +1,4 @@
-import { readLocalProjectAsync, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
+import { readLocalProjectAsync, renameLocalProject, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
 import { backfillCanvasMediaDimensions, upgradeWorkbenchProjectMediaUrls, normalizeLegacyImageAssetKinds } from './projectMediaMigration'
 import {
   clearActiveWorkbenchProjectSaveTarget,
@@ -121,7 +121,8 @@ function writeLastActiveProjectId(projectId: string): void {
 
 export type WorkbenchProjectPersistenceService = {
   hydrateProject: (projectId: string, guard: ProjectHydrationGuard) => Promise<WorkbenchProjectRecordV1 | null>
-  persistProject: (project: LocalProjectSummary, payload: WorkbenchProjectPayload) => Promise<WorkbenchProjectRecordV1>
+  /** 改名 + 把当前内存内容落盘。项目名只在这里（和项目库改名）写；自动保存绝不写名字。 */
+  renameProjectAndPersist: (project: LocalProjectSummary, payload: WorkbenchProjectPayload) => Promise<WorkbenchProjectRecordV1>
   bindProjectPersistence: (input: {
     project: LocalProjectSummary
     isHydrating: () => boolean
@@ -132,8 +133,9 @@ export type WorkbenchProjectPersistenceService = {
 }
 
 export function createWorkbenchProjectPersistenceService(deps: Dependencies): WorkbenchProjectPersistenceService {
-  const persistProject = async (project: LocalProjectSummary, payload: WorkbenchProjectPayload): Promise<WorkbenchProjectRecordV1> => {
-    const localSaved = await saveLocalProject(project.id, payload, project.name)
+  const renameProjectAndPersist = async (project: LocalProjectSummary, payload: WorkbenchProjectPayload): Promise<WorkbenchProjectRecordV1> => {
+    await renameLocalProject(project.id, project.name)
+    const localSaved = await saveLocalProject(project.id, payload)
     if (deps.isActiveProject(localSaved.id)) {
       writeLastActiveProjectId(localSaved.id)
       deps.setActiveProject(localSaved)
@@ -150,11 +152,11 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
   }): (() => Promise<void>) => {
     return subscribeWorkbenchProjectPersistence({
       projectId: input.project.id,
-      projectName: input.project.name,
       isHydrating: input.isHydrating,
       canPersist: input.canPersist,
-      saveProject: async (_projectId, payload, _projectName) => {
-        const localSaved = await saveLocalProject(input.project.id, payload, input.project.name)
+      saveProject: async (_projectId, payload) => {
+        // 只写内容。名字不是自动保存的字段：input.project 是「打开那一刻」的快照，名字可能早被别的路径改过。
+        const localSaved = await saveLocalProject(input.project.id, payload)
         if (input.canPersist()) writeLastActiveProjectId(localSaved.id)
         return localSaved
       },
@@ -207,7 +209,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       categoryMigrationDiagnostics.set(guard, diagnostic)
     }
     if (changed) {
-      await measureProjectOpenStage('save-migrated', () => saveLocalProject(upgraded.id, upgraded.payload, upgraded.name))
+      await measureProjectOpenStage('save-migrated', () => saveLocalProject(upgraded.id, upgraded.payload))
     }
     // A turn begun while the read was pending still targets the outgoing project.
     abandonHydratingProjectOwnership()
@@ -236,7 +238,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
 
   return {
     hydrateProject,
-    persistProject,
+    renameProjectAndPersist,
     bindProjectPersistence,
   }
 }

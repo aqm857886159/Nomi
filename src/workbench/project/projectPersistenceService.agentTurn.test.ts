@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 
 const deps = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn(), restore: vi.fn(), replay: vi.fn(), upgrade: vi.fn() }))
-vi.mock('../library/localProjectStore', () => ({ readLocalProjectAsync: deps.read, saveLocalProject: deps.save }))
+vi.mock('../library/localProjectStore', () => ({ readLocalProjectAsync: deps.read, saveLocalProject: deps.save, renameLocalProject: vi.fn(async () => null) }))
 vi.mock('./projectMediaMigration', () => ({ upgradeWorkbenchProjectMediaUrls: deps.upgrade, backfillCanvasMediaDimensions: async (value: unknown) => value, normalizeLegacyImageAssetKinds: (value: unknown) => value }))
 vi.mock('./projectCategoryMigration', () => ({ migrateProjectRecord: (record: unknown) => ({ record, diagnostic: { alreadyMigrated: true } }) }))
 vi.mock('./projectV51ToV60Migration', () => ({ migrateProjectV51ToV60: (record: unknown) => ({ record }) }))
@@ -32,7 +32,7 @@ describe('project hydration invalidates Agent ownership before asynchronous work
     deps.save.mockReturnValueOnce(new Promise(resolve => { release = resolve }))
     const setActiveProject = vi.fn()
     const service = createWorkbenchProjectPersistenceService({ setActiveProject, isActiveProject: id => active === id })
-    const saving = service.persistProject(record, record.payload)
+    const saving = service.renameProjectAndPersist(record, record.payload)
     active = 'B'
     release(record)
     await expect(saving).resolves.toEqual(record)
