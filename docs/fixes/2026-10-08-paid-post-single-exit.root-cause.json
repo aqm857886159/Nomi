@@ -65,8 +65,8 @@
   ],
   "door_reduction": {
     "before": 5,
-    "after": 1,
-    "why_not": "改前有五个付费传输边界（APIMart、自有 vendorHttp、同步音频、豆包 TTS、Whisper multipart）；改后只保留 vendorHttp.requestVendor 一个发送边界。door-map 仍会列出 16 个入口、包装和证据引用，因为它是普查表而不是传输边界计数：audioTaskRunner、runtime、customCallRunner 与 apimart provider 只负责 wire / 业务适配，mcpLoopbackRpcCall、modelOnboarding 和 outboundDispatchEvidence 是非付费或判据 owner。"
+    "after": 16,
+    "why_not": "改前有五个付费传输边界（APIMart、自有 vendorHttp、同步音频、豆包 TTS、Whisper multipart）；改后付费发送边界只有 vendorHttp.requestVendor 一个。门表按 door-map 保留 16 个入口、包装和证据引用，after 必须与这份普查表的长度一致；audioTaskRunner、runtime、customCallRunner 与 apimart provider 只负责 wire / 业务适配，mcpLoopbackRpcCall、modelOnboarding 和 outboundDispatchEvidence 是非付费或判据 owner，不是第二个发送边界。"
   },
   "generality_proof": "door-map 覆盖了音频、目录生成、custom call、runtime 和证据层的同类调用；所有真正写供应商 POST 的入口现在只调用 requestJson/requestBinary/requestMultipart，这三个包装都收敛到 requestVendor。新连接、重定向、超时、响应上限和写出证据不会随 JSON、二进制或 multipart wire 再复制。",
   "shared_boundaries": [

@@ -124,11 +124,11 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
   } catch (error: unknown) {
     if (isRedirectRefusal(error)) throw Object.assign(new Error(desktopT("network.credentialRedirect")), { cause: error });
     if (error instanceof VendorRequestError && error.structured.httpStatus) {
-      throw new Error(desktopT("dubbing.httpError", {
+      throw Object.assign(new Error(desktopT("dubbing.httpError", {
         vendor: vendor.key,
         status: error.structured.httpStatus,
         detail: error.structured.upstreamMsg || desktopT("common.noDetail"),
-      }), { cause: error });
+      })), { cause: error });
     }
     throw new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
   }
