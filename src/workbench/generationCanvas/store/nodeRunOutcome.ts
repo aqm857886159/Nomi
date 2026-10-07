@@ -9,6 +9,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult, 
 import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInput } from './runRecordHelpers'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
+import { NODE_RUN_STATE_FIELDS } from '../../../../electron/shared/canvas/landedNodeFields'
 
 export type NodeRunOutcome =
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
@@ -150,7 +151,7 @@ export type HeldNodeOutcome =
   | Extract<NodeRunOutcome, { kind: 'status' }>
   | Extract<NodeRunOutcome, { kind: 'run-started' }>
 
-const RUN_STATE_FIELDS = ['runs', 'status', 'error', 'progress'] as const
+const RUN_STATE_FIELDS = NODE_RUN_STATE_FIELDS
 
 function readLandedOutcome(landed: Readonly<Record<string, unknown>>): HeldNodeOutcome | null {
   if (landed.kind === 'result' && landed.result && typeof landed.result === 'object') return landed as unknown as LandedNodeOutcome

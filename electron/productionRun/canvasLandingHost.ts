@@ -15,6 +15,7 @@
 // 同一个 Run 的落地**逐个排队**：并发的两次 materialize 都会看见「节点还没建」，然后各建一份。
 import { buildMaterializeShotsPayload, landCanvasForRun, materializeShotsSignature, runHasBeenOnCanvas } from "./multiShotCanvasLanding";
 import type { ProductionRun } from "./productionRunTypes";
+import type { DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 
 export type CanvasLandingHostDeps = {
   /** 读 Run（读不到 / 已消失 → 静默不落）。 */
@@ -57,7 +58,25 @@ export type CanvasLandingHost = {
    * 所以封信封前必须等自家在飞的投影落完。**用户自己改项目**仍然作废收据，那是 #722 要的语义，不动。
    */
   settleCanvasLanding: (projectId: string) => Promise<void>;
+  /**
+   * 草稿一建 / 一改之后，**落地落完了**再回「这份草稿此刻在画布上吗」——回执（`draft_shots`）只渲染它。
+   * 事实取自落地之后读到的 Run 账本（有没有节点绑定），不是回执自己猜：落没落、落成哪几个节点。永不抛。
+   */
+  draftLandingOutcome: (projectId: string, runId: string) => Promise<DraftCanvasLanding | undefined>;
 };
+
+/** 纯函数：一份 Run + 项目开没开着 → 它此刻在画布上的真实状态。 */
+export function draftCanvasLandingOfRun(run: ProductionRun, projectOpen: boolean): DraftCanvasLanding | undefined {
+  const plan = run.generationPlan;
+  if (!plan) return undefined;
+  const shots = plan.shots && plan.shots.length > 0
+    ? plan.shots.map((shot) => ({ shotId: shot.shotId, nodeId: shot.nodeId }))
+    : [{ shotId: plan.candidate.candidateId, nodeId: plan.nodeId }];
+  const nodes = shots.flatMap((shot) => shot.nodeId ? [{ shotId: shot.shotId, nodeId: shot.nodeId }] : []);
+  if (nodes.length > 0) return { state: "placed", nodes, shotCount: shots.length };
+  if (run.origin.sourceDocument) return { state: "not_placed", reason: "document_plan" };
+  return { state: "not_placed", reason: projectOpen ? "not_landed" : "project_closed" };
+}
 
 /** Run 里这一镜是不是记着 detached（单镜计划的地址是候选 id，与落地投影同一条约定）。 */
 function shotIsDetached(run: ProductionRun, shotId: string): boolean {
@@ -189,6 +208,15 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
     track(projectId, work);
     return work;
   };
+  const settleLanding = async (projectId: string): Promise<void> => {
+    // 等待期间可能又追加了一段（agent 连着改草稿）：等到这条链真的空掉为止。
+    let pending = inFlightByProject.get(projectId);
+    while (pending) {
+      await pending;
+      const next = inFlightByProject.get(projectId);
+      pending = next === pending ? undefined : next;
+    }
+  };
   return {
     landCanvasBestEffort,
     followRunChange,
@@ -197,14 +225,15 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       if (!deps.isProjectOpen(projectId)) return;
       track(projectId, runLanding(projectId, runId));
     },
-    settleCanvasLanding: async (projectId) => {
-      // 等待期间可能又追加了一段（agent 连着改草稿）：等到这条链真的空掉为止。
-      let pending = inFlightByProject.get(projectId);
-      while (pending) {
-        await pending;
-        const next = inFlightByProject.get(projectId);
-        pending = next === pending ? undefined : next;
+    draftLandingOutcome: async (projectId, runId) => {
+      try {
+        await settleLanding(projectId);
+        const run = deps.readRun(projectId, runId);
+        return run ? draftCanvasLandingOfRun(run, deps.isProjectOpen(projectId)) : undefined;
+      } catch {
+        return undefined;
       }
     },
+    settleCanvasLanding: settleLanding,
   };
 }

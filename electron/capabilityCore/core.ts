@@ -164,10 +164,11 @@ export async function addProjectNodes(gateway: ProjectGateway, specs: NodeSpec[]
     })
     if (!approved) return { ids: [], cancelled: true }
   }
-  const { snapshot, ids } = addNodes(await gateway.readDoc(), specs, {
+  const base = await gateway.readDoc()
+  const { snapshot, ids } = addNodes(base, specs, {
     assertModelIdentity: (identity) => assertCatalogModelIdentity(listAvailableModels(), identity),
   })
-  await gateway.apply(snapshot)
+  await gateway.apply(snapshot, base)
   return { ids }
 }
 
@@ -175,19 +176,22 @@ export async function connectProjectNodes(gateway: ProjectGateway, connections: 
   edgeIds: string[]
   skipped: Array<{ connection: ConnectionSpec; reason: string }>
 }> {
-  const result = connectNodes(await gateway.readDoc(), connections)
-  await gateway.apply(result.snapshot)
+  const base = await gateway.readDoc()
+  const result = connectNodes(base, connections)
+  await gateway.apply(result.snapshot, base)
   return { edgeIds: result.edgeIds, skipped: result.skipped }
 }
 
 export async function setProjectNodePrompt(gateway: ProjectGateway, nodeId: string, prompt: string, title?: string): Promise<{ changed: boolean }> {
-  const { snapshot, changed } = setNodePrompt(await gateway.readDoc(), nodeId, prompt, title)
-  if (changed) await gateway.apply(snapshot)
+  const base = await gateway.readDoc()
+  const { snapshot, changed } = setNodePrompt(base, nodeId, prompt, title)
+  if (changed) await gateway.apply(snapshot, base)
   return { changed }
 }
 
 export async function deleteProjectNodes(gateway: ProjectGateway, nodeIds: string[]): Promise<{ deleted: string[] }> {
-  const { snapshot, deleted } = deleteNodes(await gateway.readDoc(), nodeIds)
-  if (deleted.length) await gateway.apply(snapshot)
+  const base = await gateway.readDoc()
+  const { snapshot, deleted } = deleteNodes(base, nodeIds)
+  if (deleted.length) await gateway.apply(snapshot, base)
   return { deleted }
 }
