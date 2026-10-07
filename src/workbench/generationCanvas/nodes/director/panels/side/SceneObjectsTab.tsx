@@ -65,6 +65,19 @@ export function SceneObjectsTab(): JSX.Element {
   const [query, setQuery] = React.useState('')
   // 组（含群众组）默认折叠成一行，点箭头才展开成员；记的是「用户展开过的组」
   const [opened, setOpened] = React.useState<Set<string>>(new Set())
+  // 选中变了就把被选对象的祖先组全部展开（视口里点组内的人，大纲里那一行必须看得见）；
+  // 挂载时与选中「变化」那一刻都展开，之后用户手动折叠照旧，直到选中别处。
+  const selectionKey = [selection.objectId, ...selection.multiObjectIds].join('|')
+  const [seenSelectionKey, setSeenSelectionKey] = React.useState('')
+  if (seenSelectionKey !== selectionKey) {
+    setSeenSelectionKey(selectionKey)
+    const parentOf = new Map(scene.objects.map((object) => [object.id, object.parentId]))
+    const ancestors = new Set<string>()
+    for (const id of [selection.objectId, ...selection.multiObjectIds]) {
+      for (let parent = id ? parentOf.get(id) : undefined; parent && !ancestors.has(parent); parent = parentOf.get(parent)) ancestors.add(parent)
+    }
+    if ([...ancestors].some((id) => !opened.has(id))) setOpened(new Set([...opened, ...ancestors]))
+  }
   const folded = React.useMemo(() => new Set(scene.objects.filter((object) => object.type === 'group' && !opened.has(object.id)).map((object) => object.id)), [scene, opened])
   const [layerMenu, setLayerMenu] = React.useState<string | null>(null)
   const [rowMenu, setRowMenu] = React.useState<string | null>(null)
