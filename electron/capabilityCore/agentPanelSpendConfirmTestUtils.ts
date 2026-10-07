@@ -24,7 +24,6 @@ import { createProductionRunRepository } from "../productionRun/productionRunRep
 import { watchSpendCardClose } from "../agentLane/laneSpendCardClose";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { SpendReferenceAssets } from "./pendingSpendReferences";
-import type { GenerationReference } from "../shared/agentCapabilities/generationPlanSchemas";
 
 // 「确认 → 真的开始生成」的端到端夹具（P1.1a · 2026-09-11）。
 //
@@ -151,7 +150,7 @@ function candidate(modelId: string, parameters: Record<string, unknown>) {
  * 只可能来自宿主每次换了一个章，而这正是这条断言要抓的东西。
  */
 /**
- * 夹具项目的素材库（参考图的唯一身份来源）：测试往里放一张图，宿主按地址钉住它、落地回写时按 assetId 读回地址——
+ * 夹具项目的素材库（参考图的唯一身份来源）：测试往里放一张图，宿主按地址钉住它——
  * 和生产那一份（`projectSpendReferenceAssets` / `resolveIndexedReferencePreview`）同一个形状，只是住在内存里。
  */
 const referenceAssetIndex: Array<{ id: string; data: { url: string; contentType: string } }> = [];
@@ -163,9 +162,6 @@ export const harnessReferenceAssets: SpendReferenceAssets = {
   identity: (_projectId, assetId) => (referenceAssetIndex.some((asset) => asset.id === assetId) ? { contentHash: "hash-" + assetId, version: 1 } : undefined),
   import: async () => undefined,
 };
-function referenceUrlFor(_projectId: string, reference: GenerationReference): string | undefined {
-  return referenceAssetIndex.find((asset) => asset.id === reference.assetId)?.data.url;
-}
 
 function recordingRenderer() {
   const payloads: MaterializeShotsWirePayload[] = [];
@@ -209,7 +205,6 @@ function harness() {
     requestRenderer: renderer.requestRenderer,
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
-    resolveReferenceUrl: (projectId, reference) => referenceUrlFor(projectId, reference),
   });
   const operations = createProductionGenerationOperationStore(owner as never, {
     onPlanChanged: (projectId, operationId) => canvasLanding.landDraftOnCanvas(projectId, operationId),

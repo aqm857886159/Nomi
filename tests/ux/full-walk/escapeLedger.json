@@ -270,20 +270,13 @@
       ],
       "useCases": [],
       "fullWalkJourneys": [],
-      "status": "reviewed",
-      "manualReview": "reviewed",
+      "status": "candidate",
+      "manualReview": "pending",
       "evidence": [
-        "electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts：确认之后落地报文这一镜带着参考",
-        "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts：每一行都查落地后的画布节点参考槽",
-        "src/workbench/generationCanvas/model/referenceInputSlots.test.ts：只补不删、画布上的图补真边",
-        "变异：落地报文不带参考 / 渲染层不补 → 红"
+        "未修：回写规划 planReferenceProjection 已备好（src/workbench/generationCanvas/model/referenceInputSlots.test.ts：只补不删、画布上的图补真边），接进落地链等画布写边界重构（方案 A，落地链文件冻结中）",
+        "复现：electron/capabilityCore/agentPanelSpendReferences.e2e.test.ts 那条链上，确认之后落地报文这一镜不带参考"
       ],
-      "completionCommits": [],
-      "rootCauseContract": "docs/fixes/2026-10-07-spend-card-references-one-owner.root-cause.json",
-      "classCheck": {
-        "kind": "matrix",
-        "file": "src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts"
-      }
+      "completionCommits": []
     },
     {
       "id": "REAL-20261005-01",

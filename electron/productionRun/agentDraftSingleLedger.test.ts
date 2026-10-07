@@ -193,7 +193,6 @@ describe('付费信封与自家画布投影的先后', () => {
       requestRenderer,
       resolveProjectRoot: () => '/tmp/nomi-proj',
       isProjectOpen: () => true,
-      resolveReferenceUrl: () => undefined,
     })
   }
 

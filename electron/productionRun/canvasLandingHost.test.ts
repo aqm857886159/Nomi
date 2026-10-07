@@ -47,7 +47,6 @@ function harness(initial: ProductionRun, options: { open?: boolean } = {}) {
     requestRenderer,
     resolveProjectRoot: () => null,
     isProjectOpen: () => options.open ?? true,
-    resolveReferenceUrl: () => undefined,
   })
   return {
     host, payloads, requestRenderer,
@@ -144,7 +143,7 @@ describe('canvasLandingHost.followRunChange', () => {
     })
     const host = createCanvasLandingHost({
       readRun: () => run([job('polling')]), command: vi.fn(async () => undefined), requestRenderer,
-      resolveProjectRoot: () => null, isProjectOpen: () => true, resolveReferenceUrl: () => undefined,
+      resolveProjectRoot: () => null, isProjectOpen: () => true,
     })
     const first = host.landCanvasBestEffort('proj-1', 'run-1')
     const second = host.landCanvasBestEffort('proj-1', 'run-1')

@@ -12,7 +12,6 @@ import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionRun, ProductionGenerationShot } from "./productionRunTypes";
 import { logInfo, logWarn } from "../logging/logger";
 import { deriveProductionShotState, productionRunRecordId } from "../shared/productionShotPhase";
-import type { GenerationReference } from "../shared/agentCapabilities/generationPlanSchemas";
 
 /**
  * 一镜候选的**模型身份**，随落地报文过 RPC。它是画布节点模型的唯一来源：带上它，渲染层就不再
@@ -65,19 +64,6 @@ export type MaterializeShotGenerationWire =
   | { state: "recoverable"; runRecordId: string; startedAt: number; message?: string }
   | { state: "ended" };
 
-/**
- * 候选里钉住的一条参考，换成节点上看得见的样子：本项目素材库里的那个地址 + 媒体种类 + 用途。
- * 落地回写画布节点的参考槽用（卡上带参考生成之后，画布节点上看得见这次发出去的参考，而不是只剩提示词里的 @ 芯片）。
- */
-export type MaterializeShotReferenceWire = {
-  url: string;
-  kind: "image" | "video" | "audio";
-  role?: NonNullable<GenerationReference["role"]>;
-};
-
-/** 候选参考 → 素材库地址。认不出（素材已被删 / 版本对不上）返回 undefined：这一条不回写，别的照常。 */
-export type ReferenceUrlResolver = (projectId: string, reference: GenerationReference) => string | undefined;
-
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {
   shotId: string;
@@ -90,11 +76,6 @@ export type MaterializeShotWire = {
   mediaDimensions?: { width: number; height: number };
   /** 没有 result 时，这一镜在节点上的运行状态（见 MaterializeShotGenerationWire）。 */
   generation?: MaterializeShotGenerationWire;
-  /**
-   * 候选此刻钉住的参考（候选是「这次生成带哪些参考」的主人，节点是它的投影）。渲染层只补不删：节点上没有的补上——
-   * 画布上某个节点出的图补一条真边，其余补进参考槽（`planReferenceProjection`）。缺席 = 这一镜不动参考。
-   */
-  references?: MaterializeShotReferenceWire[];
   /**
    * 这一镜在 Run 里记着 `canvasDetached`（有人上报过它的节点被拿走了）：**只许动画布上已有的节点**，绝不新建。
    * 节点真的不在 → 渲染层什么都不做（撤销事实优先，不复活）；节点还在（误报 / 删了又 ⌘Z 撤回）→ 它照常拿到
@@ -233,7 +214,7 @@ function shotKind(shot: ProductionGenerationShot): GenerationShotKind {
  */
 export function buildMaterializeShotsPayload(
   run: ProductionRun,
-  deps: { projectRoot: string | null; planName?: string; existingOnly?: boolean; referenceUrl?: ReferenceUrlResolver },
+  deps: { projectRoot: string | null; planName?: string; existingOnly?: boolean },
 ): MaterializeShotsWirePayload | null {
   const plan = run.generationPlan;
   if (!plan) return null;
@@ -285,19 +266,9 @@ export function buildMaterializeShotsPayload(
     }
   }
 
-  const referencesOf = (shot: ProductionGenerationShot): MaterializeShotReferenceWire[] | undefined => {
-    if (!deps.referenceUrl || !shot.candidate) return undefined;
-    const resolve = deps.referenceUrl;
-    return (shot.candidate.references ?? []).flatMap((reference): MaterializeShotReferenceWire[] => {
-      let url: string | undefined;
-      try { url = resolve(run.projectId, reference); } catch (error) { logWarn("production-run", "canvas-landing-reference-unresolved", { runId: run.runId, shotId: shot.shotId }, error); }
-      return url ? [{ url, kind: reference.kind ?? "image", ...(reference.role ? { role: reference.role } : {}) }] : [];
-    });
-  };
   const shots: MaterializeShotWire[] = sourceShots.map((shot) => {
     const result = resultByShot.get(shot.shotId);
     const generation = result ? undefined : shotGeneration(run, shot.shotId);
-    const references = referencesOf(shot);
     return {
       shotId: shot.shotId,
       ...(shot.role ? { role: shot.role } : {}),
@@ -309,7 +280,6 @@ export function buildMaterializeShotsPayload(
       ...(result ? { result } : {}),
       ...(result && dimensionsByShot.get(shot.shotId) ? { mediaDimensions: dimensionsByShot.get(shot.shotId) } : {}),
       ...(generation ? { generation } : {}),
-      ...(references ? { references } : {}),
       ...(shot.canvasDetached ? { existingOnly: true as const } : {}),
     };
   });
@@ -338,8 +308,6 @@ export type CanvasLandingDeps = {
   /** Optional lifecycle guard for detached observers.  It is checked before
    * touching the renderer and again before the durable Run bind. */
   isCurrent?: () => boolean;
-  /** 候选参考 → 素材库地址（落地回写画布节点的参考槽用）。 */
-  referenceUrl: ReferenceUrlResolver;
 };
 
 /**
@@ -348,7 +316,7 @@ export type CanvasLandingDeps = {
  */
 export async function landCanvasForRun(run: ProductionRun, deps: CanvasLandingDeps): Promise<boolean> {
   if (deps.isCurrent && !deps.isCurrent()) return false;
-  const payload = buildMaterializeShotsPayload(run, { projectRoot: deps.projectRoot, planName: deps.planName, referenceUrl: deps.referenceUrl, ...(deps.existingOnly ? { existingOnly: true } : {}) });
+  const payload = buildMaterializeShotsPayload(run, { projectRoot: deps.projectRoot, planName: deps.planName, ...(deps.existingOnly ? { existingOnly: true } : {}) });
   if (!payload) return false;
   try {
     if (deps.isCurrent && !deps.isCurrent()) return false;

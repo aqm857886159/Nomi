@@ -1,6 +1,6 @@
 # 方向检查：付费卡参考图一个主人（RW）
 
-> 触发：`fix-churn` 命中付费卡（`spendCardDraft.ts` / `spendCardReferences.ts`）、落地链（主进程 `multiShotCanvasLanding.ts` / `canvasLandingHost.ts`、渲染层 `capability/multiShotCanvasLanding.ts`）、`appIntegration.ts`、`NodeGenerationComposer.tsx`、`PromptEditor.tsx` 都在 14 天第 3 刀以上；概念「付费卡上这一镜摆着的那张框」第 6 刀。
+> 触发：`fix-churn` 命中付费卡（`spendCardDraft.ts` / `spendCardReferences.ts`）、`NodeGenerationComposer.tsx`、`PromptEditor.tsx` 都在 14 天第 3 刀以上；概念「付费卡上这一镜摆着的那张框」第 6 刀。
 > 结构方向由协调会话的任务书定（「这次生成带哪些参考图只能有一个主人」）；本页记录这一刀为什么是收口而不是再补一处。设计卡：`docs/plan/2026-10-07-spend-card-references-one-owner.md`。
 
 ### 0. 一句话根因
@@ -20,7 +20,7 @@
 
 ### 2. 为什么这一类会一直出现
 
-每加一个读写参考的地方（卡、@、落地），都在本地写一份「参考 ↔ 槽位」的对照或一份「画布上有哪些参考」的读法；每份只覆盖当时那个场景。结构上缺的是：一张对照表（`referenceInputSlots`），一个读画布的入口（`placeSpendReferences`），一个 @ 落法的决定点（`planMentionInsert`），一道跨项目关口（`materializeAssetLibraryItems`），一条候选回画布的投影（`planReferenceProjection`）。
+每加一个读写参考的地方（卡、@、落地），都在本地写一份「参考 ↔ 槽位」的对照或一份「画布上有哪些参考」的读法；每份只覆盖当时那个场景。结构上缺的是：一张对照表（`referenceInputSlots`），一个读画布的入口（`placeSpendReferences`），一个 @ 落法的决定点（`planMentionInsert`），一道跨项目关口（`materializeAssetLibraryItems`），一条候选回画布的规划（`planReferenceProjection`，纯函数；落地链冻结中，接线等方案 A）。
 
 落到铁律 ⑫（点了=以为的）：卡上看到的那几张就是点生成后发出去的、生成完画布节点上摆着的。类检查：矩阵 `src/workbench/ai/v4/spendCardReferenceOwner.matrix.test.ts`（入口清单 × 卡上 / 出站 / 回写），逃逸账本四条都挂它。
 
@@ -30,11 +30,11 @@
 |---|---|
 | 再加一种参考来源（例如分镜行的计划首帧进卡），又会漏在卡、出站或回写其中一处 | 往矩阵 `ENTRIES` 加一行，三列任一红即是 |
 | 换一个没有连线权能的宿主（例如以后别的面板复用生成框），@ 又会藏掉画布组 | `createMentionSearch` 的候选与宿主无关；恢复按宿主过滤 → 矩阵第 4 行红 |
-| 落地报文再加字段时漏掉参考，画布节点又只剩 @ 芯片 | `agentPanelSpendReferences.e2e.test.ts` 断言落地报文带参考 |
+| 方案 A 接线时另写一份「候选参考 → 节点」的补法，又和卡上的对照表分叉 | 接线只许调 `planReferenceProjection`；`referenceInputSlots.test.ts` 钉住补法 |
 
 ### 4. 靶子独立性检查
 
-- 尺子是生产代码那几条真路径（卡体投影、@ 选中、宿主钉参考、主进程落地报文、渲染层落地），没有替身复述；宿主的素材库是内存索引，形状与生产 `projectSpendReferenceAssets` 一致。
+- 尺子是生产代码那几条真路径（卡体投影、@ 选中、宿主钉参考、回写规划 `planReferenceProjection`），没有替身复述；宿主的素材库是内存索引，形状与生产 `projectSpendReferenceAssets` 一致。
 - 没有「修对了反而掉分」的先例；真付费抽检由协调会话事后做。
 
 ### 5. P0：这些是我们独有的吗？现成方案有哪些
@@ -47,7 +47,7 @@
 |---|---|---|---|---|
 | 接入现成方案 | 不适用：没有处理「镜头候选 ↔ 画布节点参考槽」的通用库 | — | — | |
 | 补 | 四处各补一个分支 | 小 | 第五个入口照样漏 | |
-| 重写（限一个模块） | 把对照表搬到画布模型层，卡 / @ / 落地都只经它；删掉卡里那份 | 中 | 卡的旧测试要换引用 | ✓ |
+| 重写（限一个模块） | 把对照表搬到画布模型层，卡 / @ 只经它（落地等方案 A 接线时也只经它）；删掉卡里那份 | 中 | 卡的旧测试要换引用 | ✓ |
 | 删 | 卡上不再摆画布参考 | 小 | 卡上所见 ≠ 所发，违背第 4 条 | |
 
 ### 7. 用户要权衡的核心

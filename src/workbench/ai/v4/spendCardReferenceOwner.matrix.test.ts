@@ -1,10 +1,11 @@
 // 「这一次生成带哪些参考图」只有一个主人：卡上看到的 = 发出去的 = 画布节点上摆着的。
 //
 // 矩阵（入口清单 ENTRIES）：入口（画布连线 / 画布节点「首帧」那一格 / 卡上 @ 本项目画布上的图 / 卡上 @ 别的项目的图）
-//      × 结果（卡上摆出来、点生成时发给宿主并被宿主钉住、落地后回写到画布节点的参考槽）。
+//      × 结果（卡上摆出来、点生成时发给宿主并被宿主钉住、回写画布节点的规划把它摆进占位节点）。
 // 每一格走的都是生产代码那一份：卡体 = `projectSpendNode` ⊕ 账本（`useAgentPanelSpendConfirm.shownNodeFor` 的同一个算法），
 // 卡上 @ = `createMentionSelect`（卡的写入面没有连线权能），点生成 = `candidatePatchFromNode` → `revisionsForConfirm`
-// → 宿主 `resolveSpendReferenceInputs`，落地 = 主进程 `buildMaterializeShotsPayload` → 渲染层 `materializeShots`。
+// → 宿主 `resolveSpendReferenceInputs`，回写规划 = `planReferenceProjection`（纯函数；接进落地链等画布写边界重构「方案 A」，
+// 在那之前卡上生成后画布节点的参考槽仍是空的——这一列证的是规划本身对，不是落地已接线）。
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PendingSpendShot } from '../../../desktop/productionRunBridgeTypes'
 import type { DesktopAssetDto } from '../../../desktop/bridge'
@@ -13,7 +14,6 @@ import type { NodeWriteAccess } from '../../generationCanvas/nodes/nodeWriteAcce
 import type { ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { GenerationReference } from '../../../../electron/shared/agentCapabilities/generationPlanSchemas'
-import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
 import {
   applyPatchToNode, candidatePatchFromNode, draftAfterNodeEdit, effectivePatchForShot, EMPTY_SPEND_DRAFT, keptReferenceUrls,
   projectSpendNode, revisionsForConfirm, type SpendDraft,
@@ -26,9 +26,9 @@ import { resolveReferenceSlots } from '../../generationCanvas/runner/referenceSl
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { materializeShots } from '../../capability/multiShotCanvasLanding'
 import { resetClientIdRegistry } from '../../generationCanvas/agent/applyCanvasToolCall'
+import { planReferenceProjection } from '../../generationCanvas/model/referenceInputSlots'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { resolveSpendReferenceInputs, type SpendReferenceAssets } from '../../../../electron/capabilityCore/pendingSpendReferences'
-import { buildMaterializeShotsPayload } from '../../../../electron/productionRun/multiShotCanvasLanding'
 
 const PROJECT = 'project-a'
 const OTHER = 'project-b'
@@ -157,20 +157,7 @@ beforeEach(async () => {
 })
 afterEach(() => landing.dispose())
 
-function run(shot: PendingSpendShot, references: GenerationReference[], revision: number): ProductionRun {
-  const candidate = { candidateId: shot.shotId, revision, moduleId: 'm', providerId: shot.providerId, modelId: shot.modelId, mode: 'x', prompt: shot.prompt, parameters: {}, references }
-  return {
-    schemaVersion: 1, runId: 'run-refs', projectId: PROJECT, revision: 1, status: 'running', stageId: 'generate',
-    playbook: { name: 'generation.single-shot', version: '1.0.0' }, origin: { host: 'nomi' },
-    policy: { trustedHosts: [], allowedProviders: [], allowedModels: [], maxSpend: null, maxAttemptsPerJob: 1, minimizeUploads: true },
-    budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0, unknownInFlight: 0 }, planVersion: 1, snapshotCursor: 0,
-    stages: [], gates: [], jobs: [], artifacts: [],
-    generationPlan: { operationId: 'run-refs', state: 'draft', candidate, shots: [{ shotId: shot.shotId, candidate, updatedAt: '2026-10-07T00:00:00.000Z' }], updatedAt: '2026-10-07T00:00:00.000Z' },
-    createdAt: '2026-10-07T00:00:00.000Z', updatedAt: '2026-10-07T00:00:00.000Z',
-  } as unknown as ProductionRun
-}
-
-describe('付费卡参考图一个主人：入口 × （卡上 / 发出去 / 回写画布节点）', () => {
+describe('付费卡参考图一个主人：入口 × （卡上 / 发出去 / 回写规划）', () => {
   it.each(ENTRIES)('$name', async (entry) => {
     // ── 画布：一张已出图的节点 + 这一镜的占位节点（落地链建的那一个）──
     const store = useGenerationCanvasStore.getState()
@@ -198,12 +185,16 @@ describe('付费卡参考图一个主人：入口 × （卡上 / 发出去 / 回
     const pinned = await resolveSpendReferenceInputs({ projectId: PROJECT, binding, values: revision!.patch.referenceInputs, existing: [], assets: projectAssets, assertCurrent: () => undefined })
     expect(pinned.map((reference) => urlOfReference(PROJECT, reference)), '② 宿主钉住的就是它（供应商收到的那一份）').toContain(entry.url)
 
-    // ── 落地：候选（新的一版）投影回画布，占位节点上看得见它 ──
-    const wire = buildMaterializeShotsPayload(run(shot, pinned, 2), { projectRoot: null, referenceUrl: urlOfReference })!
-    await materializeShots({ ...wire, shots: wire.shots.map((item) => ({ ...item, kind: entry.shot.kind, candidate: { candidateId: shotId, revision: 2 } })) } as never)
+    // ── 回写规划：宿主钉住的那几条 → 占位节点要补什么（画布上的图补真边，其余补进槽）；照规划在画布 store 上真做一遍 ──
+    const store2 = useGenerationCanvasStore.getState()
+    const before = store2.nodes.find((node) => node.id === placedId)!
+    const references = pinned.map((reference) => ({ url: urlOfReference(PROJECT, reference)!, kind: reference.kind ?? 'image' as const, ...(reference.role ? { role: reference.role } : {}) }))
+    const plan = planReferenceProjection(before, references, store2.nodes, store2.edges)
+    if (plan.meta) store2.updateNode(placedId, { meta: plan.meta })
+    for (const edge of plan.connect) useGenerationCanvasStore.getState().connectNodes(edge.sourceNodeId, placedId, edge.mode)
     const after = useGenerationCanvasStore.getState()
     const placed = after.nodes.find((node) => node.id === placedId)!
     const onCanvas = resolveReferenceSlots(placed, after.nodes, after.edges).flatMap((slot) => slot.fills.map((fill) => fill.url))
-    expect(onCanvas, '③ 画布节点的参考槽里有它（不只剩提示词里的 @）').toContain(entry.url)
+    expect(onCanvas, '③ 照回写规划补完，画布节点的参考槽里有它（接线待方案 A）').toContain(entry.url)
   })
 })

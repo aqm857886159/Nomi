@@ -1,4 +1,5 @@
-// 付费卡带参考图生成（零额度 loopback）：卡上摆的参考 = 供应商收到的参考 = 落地回写到画布节点的参考。
+// 付费卡带参考图生成（零额度 loopback）：卡上摆的参考 = 供应商收到的参考。
+// 落地回写到画布节点（候选 → 节点参考槽）等画布写边界重构（方案 A）后接线，规划函数 planReferenceProjection 已有单测。
 //
 // 只有远端供应商是本机 loopback，其余（durable Run、改稿并入、封印 / 收据 / 门、提交、画布落地口）全是真的。
 // 本项目素材库是夹具里那一份内存索引（`addReferenceAsset`），形状与生产 `projectSpendReferenceAssets` 一样。
@@ -14,8 +15,8 @@ afterEach(resetSpendFixture);
 const CAT = `nomi-local://asset/${PROJECT_ID}/assets/cat.png`;
 const FOX_IN_OTHER_PROJECT = "nomi-local://asset/project-other/assets/fox.png";
 
-describe("付费卡带参考图：卡上 = 出站 = 回写画布", () => {
-  it("卡上带一张本项目的参考图点生成：供应商收到它，落地报文把它带回画布节点", async () => {
+describe("付费卡带参考图：卡上 = 出站", () => {
+  it("卡上带一张本项目的参考图点生成：供应商收到它", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();
     const submits: string[] = [];
@@ -45,9 +46,6 @@ describe("付费卡带参考图：卡上 = 出站 = 回写画布", () => {
       // 出站：供应商那一侧收到的就是这一张。
       expect(vendor.bodies).toHaveLength(1);
       expect(vendor.bodies[0]!.references).toEqual([expect.objectContaining({ assetId: "asset-cat", kind: "image", role: "reference" })]);
-      // 回写：落地报文里这一镜带着它（渲染层据此补进占位节点的参考槽，见 planReferenceProjection）。
-      const landed = base.renderer.payloads.at(-1)!.shots[0]!;
-      expect(landed.references).toEqual([{ url: CAT, kind: "image", role: "reference" }]);
     } finally {
       await vendor.close();
     }

@@ -62,7 +62,6 @@ it('a historical document-admitted record with bindings still reconciles onto th
     requestRenderer: async op => { requested.push(op); return { bindings: [] } },
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
-    resolveReferenceUrl: () => undefined,
   })
   expect(await host.landCanvasBestEffort('project-1', 'op-legacy')).toBe(true)
   expect(requested, 'a record whose shots already carry nodeIds stays reconcilable').toEqual(['production.materialize-shots'])

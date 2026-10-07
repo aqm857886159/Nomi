@@ -228,7 +228,6 @@ describe('landCanvasForRun lifecycle guard', () => {
       requestRenderer,
       bindShotNodes,
       projectRoot: null,
-      referenceUrl: () => undefined,
       isCurrent: () => false,
     })
     expect(result).toBe(false)
@@ -247,7 +246,6 @@ describe('landCanvasForRun lifecycle guard', () => {
       requestRenderer,
       bindShotNodes,
       projectRoot: null,
-      referenceUrl: () => undefined,
       isCurrent: () => current,
     })
     expect(result).toBe(false)

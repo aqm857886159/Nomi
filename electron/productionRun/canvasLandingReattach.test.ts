@@ -35,7 +35,6 @@ function landingHost(canvasNodeIds: Set<string>) {
     },
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
-    resolveReferenceUrl: () => undefined,
   })
   return { host, payloads }
 }
@@ -95,7 +94,6 @@ it('reported case (C19): opening a project with a finished or withdrawn Run neve
     },
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
-    resolveReferenceUrl: () => undefined,
   })
   await host.reconcileExistingCanvas('project-1', 'op-c19')
   expect(canvas).toEqual(['c19-source', 'c19-one', 'c19-two'])

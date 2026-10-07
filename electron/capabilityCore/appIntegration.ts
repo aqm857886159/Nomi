@@ -229,7 +229,6 @@ export async function startCapabilityCore(
       requestRenderer,
       resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
       isProjectOpen,
-      resolveReferenceUrl: (projectId, reference) => resolveIndexedReferencePreview(projectId, reference),
     })
     const landCanvasBestEffort = canvasLanding.landCanvasBestEffort
     landDraftOnCanvas = canvasLanding.landDraftOnCanvas
