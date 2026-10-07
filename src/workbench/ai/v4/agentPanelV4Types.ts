@@ -10,6 +10,7 @@
 // 既违反 R15（可见文字必须走 i18n），又凭空多了一份要和合同对齐的词表。
 import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import type { LaneTaskCandidate, LaneTaskStatus } from '../../../../electron/shared/agentLane/laneContracts'
+import type { LaneAssistantFault } from '../../../../electron/shared/agentLane/laneAssistantFault'
 import type { V4AskQuestion } from './agentPanelV4AskModel'
 import type { V4QuestionOption } from './agentPanelV4Question'
 
@@ -326,6 +327,8 @@ export type V4FlowItem = { readonly identity?: string } & (
       /** 服务商原始报文（只给 effect 记日志用，不进界面）与 pi 的「瞬时」判断。 */
       raw?: string
       transient?: true
+      /** 看门狗 / pi 自己判的那几类（不是服务商原话）；在就不记「认不出」日志。 */
+      fault?: LaneAssistantFault
     }
 )
 

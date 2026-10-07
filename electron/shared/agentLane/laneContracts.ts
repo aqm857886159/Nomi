@@ -1,3 +1,4 @@
+import type { LaneAssistantFault } from './laneAssistantFault.js';
 import type { StoryboardRequestTarget } from '../agentCapabilities/generationInvocationContext'
 import type { CanvasWriteApprovalAuthority } from '../agentCapabilities/transportContracts'
 import type { PendingSpendRead } from '../contracts/pendingSpendConfirm'
@@ -59,6 +60,8 @@ export type LanePart =
       readonly transient?: true
       /** 同一回合里它后面又接上了成功的助手消息：错误已被自动重试化解，不该再画红卡。 */
       readonly recovered?: true
+      /** 不是服务商原话、而是看门狗 / pi 自己说的那几类（`laneAssistantFault.ts`）。在就按它给人话，原文不进界面。 */
+      readonly fault?: LaneAssistantFault
     })
   | (LanePartIdentity & {
       readonly kind: 'user'

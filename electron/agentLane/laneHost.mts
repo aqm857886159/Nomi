@@ -34,8 +34,10 @@ import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/l
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels, getSupportedThinkingLevels, isRetryableAssistantError } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
+import { LANE_STREAM_WATCHDOG } from './laneProviderGuard.mjs';
+import { omitSupersededReads } from './laneSupersededReads.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
   type LaneApprovalNote, type LaneCancelQueuedResult, type LaneCommand, type LaneCommandOutcome,
@@ -66,14 +68,6 @@ export interface LaneOrderObservation {
   /** 该下标处那一段的类型，用来证明「我们数的和它说的是同一段」。 */
   partType: string
 }
-
-/**
- * 传输层看门狗的两个预算。**旧路 `run.mts` 用的是同样两个数**（90s / 120s），
- * 而它们在这里第一次对新通路生效——影子期的 lane 在供应商流卡住时会永远转圈
- * （方案 §0 的实核，G3c 的先红后绿就是这条）。
- */
-export const LANE_FIRST_RESPONSE_MS = 90_000;
-export const LANE_IDLE_MS = 120_000;
 
 /**
  * 重试策略。**显式传，不吃默认值**——数值和 pi 的 `DEFAULT_RETRY_POLICY` 相同
@@ -199,8 +193,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // （它们走 `streamSimple`，只用 `result()`）。装在别处就会漏掉那两条路，而它们卡住的样子
   // 和主请求卡住一模一样。
   const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, {
-    firstResponseMs: options.watchdog?.firstResponseMs ?? LANE_FIRST_RESPONSE_MS,
-    idleMs: options.watchdog?.idleMs ?? LANE_IDLE_MS,
+    // 三个预算的唯一一份在 `laneProviderGuard.mts`（`LANE_STREAM_WATCHDOG`），这里只允许宿主逐项覆盖。
+    firstResponseMs: options.watchdog?.firstResponseMs ?? LANE_STREAM_WATCHDOG.firstResponseMs,
+    firstTokenMs: options.watchdog?.firstTokenMs ?? LANE_STREAM_WATCHDOG.firstTokenMs,
+    idleMs: options.watchdog?.idleMs ?? LANE_STREAM_WATCHDOG.idleMs,
   });
   // 三行（花费/上下文/推理）需要的**模型侧事实**，在这里定死一次，投影层不再回头问任何人。
   // `contextWindow` 只收显式声明的那个：provider 内部的 128k 兜底是给 pi 的类型用的，不是分母。
@@ -211,6 +207,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
     isTransientError: isRetryableAssistantError,
+    // 「上下文装不下」同样只问 pi 那一张表（各家溢出原话），投影把结论变成 `fault`（NF-0928-0003）。
+    isContextOverflow: (message) => isContextOverflow(message, options.model.contextWindow),
     ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }) };
   const models = createModels({ credentials });
   models.setProvider(provider);
@@ -420,7 +418,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         })}`);
       }).join('\n') : '';
     const systemPrompt = [await systemPromptForRun(event.runId), catalogInput ? formatLaneModelIndex(catalogInput.context, options.modelDefaults?.()) : '', input?.context.systemPrompt, input?.context.skillPrompt, quote, authority, closingForRun].filter(Boolean).join('\n\n');
-    return { systemPrompt };
+    // 被后来的读取取代了的旧快照不再随每次请求重发（NF-0928-0003，理由在 `laneSupersededReads.mts`）。只改发出去的这一份。
+    return { systemPrompt, messages: omitSupersededReads(event.messages, options.tools) };
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {

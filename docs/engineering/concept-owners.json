@@ -3483,6 +3483,10 @@
         {
           "path": "electron/agentLane/laneContextBudget.mts",
           "symbol": "laneCompactionSettings"
+        },
+        {
+          "path": "electron/agentLane/laneSupersededReads.mts",
+          "symbol": "omitSupersededReads"
         }
       ],
       "forbidden_derivations": [],
@@ -3490,7 +3494,7 @@
         "electron/agentLane/laneHost.mts"
       ],
       "since": "2026-10-01",
-      "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。"
+      "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。2026-10-06（NF-0928-0003，合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json）：pi 压缩切不进当前回合，回合内反复读同一资源的旧快照由 omitSupersededReads 在 transform_context 里换成一行说明（只改发出去的那份，转录不动；判据从动词声明派生）。"
     },
     {
       "name": "写入回执「准备中」的时限与终态",
@@ -4920,6 +4924,115 @@
       ],
       "since": "2026-10-06",
       "notes": "删一版给撤销，所以文件延后删：撤销日志退不回那一步 / 换项目 / 下次打开项目时到点；到点前用 isProjectFileReferenced（画布 + 时间轴）再判一次。待删清单随项目存盘（payload.pendingAssetDeletions）。"
+    },
+    {
+      "name": "Agent 模型流看门狗的三个预算与相位（连不上 / 在想 / 出字中途停）",
+      "subject": "agent-lane.stream-watchdog",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/agentLane/laneProviderGuard.mts",
+        "symbol": "LANE_STREAM_WATCHDOG"
+      },
+      "write_api": [
+        {
+          "path": "electron/agentLane/laneProviderGuard.mts",
+          "symbol": "LANE_STREAM_WATCHDOG"
+        },
+        {
+          "path": "electron/agentLane/laneStreamObserver.mts",
+          "symbol": "observeNativeStream"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/agentLane/laneHost.mts",
+        "electron/agentLane/laneSingleShot.mts"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0004）：响应头（pi 的 start）之前 = first-response，响应头之后第一段正文之前 = first-token（思考预算 300s，对齐 pi 传输层空闲默认值），正文开始之后 = idle。lane 主路与单次调用读同一份。"
+    },
+    {
+      "name": "Agent 回合失败里不是服务商原话的那几类（看门狗相位 / 半路断流 / 上下文溢出）",
+      "subject": "agent-lane.assistant-fault",
+      "lifecycle": "projection",
+      "authority_kind": "decision",
+      "trust_domain": "shared",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/shared/agentLane/laneAssistantFault.ts",
+        "symbol": "laneAssistantFaultOf"
+      },
+      "write_api": [
+        {
+          "path": "electron/shared/agentLane/laneAssistantFault.ts",
+          "symbol": "laneAssistantFaultOf"
+        },
+        {
+          "path": "electron/shared/agentLane/laneAssistantFault.ts",
+          "symbol": "laneModelTimeoutMessage"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "electron/shared/agentLane/laneProjection.ts",
+        "electron/agentLane/laneStreamObserver.mts",
+        "electron/telemetry/trajectoryProjection.ts"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-0928-0003 / NF-1001-0003 / NF-1001-0004）：看门狗那句话的格式只在这里铸、只在这里认；投影把它变成 fault，渲染层按 fault 取本地词条，原文不进界面。服务商溢出原话由宿主喂 pi 的 isContextOverflow。"
+    },
+    {
+      "name": "文稿此刻有没有位置（选区 / 光标）——没有就说「没有位置」",
+      "subject": "document.position-availability",
+      "lifecycle": "live-interaction",
+      "authority_kind": "decision",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/project/documentSessionPort.ts",
+        "symbol": "positionUnavailable"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/project/documentSessionPort.ts",
+          "symbol": "positionUnavailable"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [
+        "src/workbench/creation/WorkbenchEditor.tsx"
+      ],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0001）：创作页编辑器没挂时，选区读 / 光标插入 / 定位锚回 document_position_unavailable（不是泛泛的 capability_unsupported，也不是过期）；增强端口整篇锚 insert 用同一个码。"
+    },
+    {
+      "name": "一次能力执行能等多久（读 / 写预算的唯一主人是动词声明）",
+      "subject": "capability.execution-timeout",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+        "symbol": "declaredTimeout"
+      },
+      "write_api": [
+        {
+          "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+          "symbol": "declaredTimeout"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-06",
+      "notes": "合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json（NF-1001-0002）：执行器缺省超时从 MODEL_TOOL_READ/WRITE_TIMEOUT_MS_VALUE 派生，删掉 15 秒的第二份定义；构造参数 timeoutMs 只给测试缩短。"
     }
   ]
 }

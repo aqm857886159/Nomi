@@ -29,7 +29,7 @@ function withWatchdog(provider: Provider, firstResponseMs: number): Provider {
   Object.defineProperty(watched, 'streamSimple', {
     value: (model: Parameters<Provider['streamSimple']>[0], context: Parameters<Provider['streamSimple']>[1], options?: Parameters<Provider['streamSimple']>[2]) =>
       observeNativeStream((signal) => provider.streamSimple(model, context, { ...options, signal }), {
-        ...(options?.signal ? { signal: options.signal } : {}), firstResponseMs, idleMs: firstResponseMs,
+        ...(options?.signal ? { signal: options.signal } : {}), firstResponseMs, firstTokenMs: firstResponseMs, idleMs: firstResponseMs,
       }),
   });
   return watched;

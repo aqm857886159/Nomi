@@ -28,15 +28,34 @@ import { AssistantMessageFrameEncoder, reduceAssistantMessageFrames, createAssis
   type AssistantMessageEventStream, type Model, type ProviderStreams } from '@earendil-works/pi-ai';
 import { observeNativeStream, type NativeClock } from './laneStreamObserver.mjs';
 
-/** 一条流的两个预算。**没有默认值**：忘了配就是没有看门狗，而那正是今天的 bug。 */
+/** 一条流的三个预算。**没有默认值**：忘了配就是没有看门狗，而那正是 09 月的 bug。 */
 export interface NomiStreamGuard {
-  /** 首字节预算。请求发出到第一个事件之间。 */
+  /** 首字节预算。请求发出到响应头（pi 的 `start`）之间。 */
   readonly firstResponseMs: number
-  /** 空闲预算。两个事件之间。 */
+  /** 思考预算。响应头到第一段正文之间（推理模型在这段一个字都不流）。 */
+  readonly firstTokenMs: number
+  /** 空闲预算。正文开始之后两个事件之间。 */
   readonly idleMs: number
   /** 测试用的可控时钟。生产恒为真 `setTimeout`。 */
   readonly clock?: NativeClock
 }
+
+/**
+ * 看门狗的三个预算——**唯一一份**（lane 主路与单次调用 `laneSingleShot` 共用；过去单次调用手抄了 90s / 120s 两个数）。
+ *
+ * - 首字节 90s、空闲 120s：沿用旧路 `run.mts` 的两个数，它们管的是「连不上」与「出字出到一半断了」。
+ * - 思考 300s：响应头之后、第一段正文之前。这段静默是推理模型在想（chat completions 不流推理），
+ *   不是卡住。300s 对齐 pi 自己的传输层空闲默认值
+ *   （`pi-coding-agent/dist/core/http-dispatcher.js` 的 `DEFAULT_HTTP_IDLE_TIMEOUT_MS = 300_000`，按字节计，
+ *   连中转站的保活注释都算进去；我们按事件计，看不见保活，所以更不该比它紧）。
+ *   过去这段用的是 120s 的空闲表：真实反馈 NF-1001-0003/0004（gpt-5.6-sol 经中转）里一回合被掐四次，
+ *   每次 pi 都把约 6–8 万 token 的上下文整份重发——用户花了钱、什么都没拿到。
+ */
+export const LANE_STREAM_WATCHDOG: NomiStreamGuard = Object.freeze({
+  firstResponseMs: 90_000,
+  firstTokenMs: 300_000,
+  idleMs: 120_000,
+});
 
 /**
  * 厂商报文 → 上游正则认得的标记。**顺序即优先级**：余额排第一，因为它同时是
@@ -134,6 +153,7 @@ function guardedStream(
   const observed = observeNativeStream(delegate, {
     ...(signal ? { signal } : {}),
     firstResponseMs: guard.firstResponseMs,
+    firstTokenMs: guard.firstTokenMs,
     idleMs: guard.idleMs,
     ...(guard.clock ? { clock: guard.clock } : {}),
     onEvent: (event) => { if ('partial' in event) currentPartial = event.partial; },
