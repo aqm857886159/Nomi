@@ -25,6 +25,11 @@ export const ADDITIONAL_SPEND_CLAIMS = Object.freeze({
   'zh-CN': /免费(?:解锁|上传|重取|取回)/,
   en: /\bfree (?:asset uploads?|retry|retrieve)\b/i,
 })
+/** 零额预算/已花费也是花钱承诺：没有真实回执时不能把未知写成 0。 */
+export const ZERO_SPEND_CLAIMS = Object.freeze({
+  'zh-CN': /(?:预算|已花费|已用|花费)\s*(?:为|[:：])?\s*[¥￥]?\s*0(?:\.00)?(?:\s*元)?/,
+  en: /\b(?:budget|spent|spend|cost)\b[^\n]{0,16}\$\s*0(?:\.00)?\b/i,
+})
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
 
@@ -38,7 +43,7 @@ export function scanDictionaries(dictionaries, { owned = OWNED_BY_SPEND_CARD_LAN
   const everHit = new Set()
   for (const locale of Object.keys(NO_COST_CLAIMS)) {
     for (const [key, value] of flatOf(dictionaries[locale] ?? {})) {
-      const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale]]
+      const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale]]
       if (!patterns.some((pattern) => pattern.test(value))) continue
       everHit.add(key)
       if (isFixture(key) || notMoney.includes(key) || owned.includes(key)) continue

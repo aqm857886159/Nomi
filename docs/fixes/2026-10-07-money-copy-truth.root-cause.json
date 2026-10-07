@@ -12,7 +12,7 @@
     "scripts/check-i18n-no-cost-claims.mjs",
     "scripts/check-i18n-no-cost-claims.node-test.mjs",
     "src/i18n/locales/onboardingProviders.ts",
-    "src/i18n/modelDisplayText.ts",
+    "src/i18n/locales/modelDisplayText.ts",
     "src/i18n/locales/generationCommon.ts",
     "electron/desktopStrings.ts",
     "docs/plan/2026-10-07-money-copy-truth.md",
@@ -48,7 +48,7 @@
     },
     {
       "kind": "read",
-      "path": "src/i18n/modelDisplayText.ts",
+      "path": "src/i18n/locales/modelDisplayText.ts",
       "symbol": "enModelDisplayText"
     },
     {
@@ -172,7 +172,7 @@
   "migration": "Not needed; existing keys remain stable and only their displayed text changes.",
   "residual_risks": [
     "Real provider charges remain account-specific; the UI must continue to use the existing price/unknown-cost paths for generation confirmation.",
-    "No real Electron zh/en screenshot walk was available in this worktree; visual evidence remains unverified."
+    "The real Electron unknown-price walk passed with zh/en payment-card screenshots; task-center and production-details before/after captures remain unverified and are listed explicitly in docs/evidence/2026-10-08-money-copy/README.md."
   ],
   "invariant_owner_layer": {
     "layer": "scripts/check-i18n-no-cost-claims.mjs",

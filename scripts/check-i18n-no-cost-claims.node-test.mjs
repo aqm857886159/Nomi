@@ -27,3 +27,13 @@ test('money wording variants are caught while daily quota remains allowlisted', 
     'zh-CN:upload', 'zh-CN:retrieve', 'en:upload', 'en:retry',
   ])
 })
+
+test('zero budget and zero spent wording is caught as an unsupported money claim', () => {
+  const { hits } = scanDictionaries(dict(
+    { budget: '预算：¥0', spent: '已花费 ¥0.00', known: '已知报价 ¥0.05' },
+    { budget: 'Budget: $0', spent: 'Spent $0.00', known: 'Known price $0.05' },
+  ), { owned: [], notMoney: [] })
+  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), [
+    'zh-CN:budget', 'zh-CN:spent', 'en:budget', 'en:spent',
+  ])
+})
