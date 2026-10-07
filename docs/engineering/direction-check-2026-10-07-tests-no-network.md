@@ -49,3 +49,7 @@
 - `electron/appFetch.test.ts`：外网 host 在真实传输前被拒绝；登记 origin 改投 loopback。
 - `electron/promptLibrary/promptLibraryStore.test.ts`：测试开关下只读 bundled fixture，不启动远端 refresh。
 - `scripts/walkthrough-network-guard.test.mjs`：fetch / http / socket 公网请求失败并带 host，loopback 放行。
+
+## 放行
+
+- 2026-10-08 协调会话放行：测试 / 走查模式的出站闸并进现有共享出口（`electron/hardenedFetch.ts` 与 `appFetch`），只在 `NOMI_TEST_NETWORK_GUARD=1` 时生效，正常使用联网行为不变；提示词库测试模式只用内置。卡 25 前后出网统计仍是 unverified，以 CI 上 Linux 走查（带闸跑）是否绿作为第一道实证。
