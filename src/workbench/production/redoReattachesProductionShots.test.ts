@@ -1,9 +1,9 @@
 // 方向检查 docs/plan/2026-10-07-canvas-landing-direction-check.md §3 预测 ①（乙类：双份真相同步）。
 // 制作流程整批落地 → Ctrl+Z（规则 B：有结果的镜留下，其余节点撤掉）→ Ctrl+Y。撤销那一下被
-// watchDeletedProductionNodes 从 store 前后两拍的差里「推断」成删节点，上报 detach（这一镜不再派、不扣钱）；
+// 画布写边界显式发出删除信号，上报 detach（这一镜不再派、不扣钱）；
 // 重做把节点放回来，却没有任何人发反向的 reattach——重开项目之前这些镜在 Run 里一直是 detached。
 //
-// 钉现状 + 标红期望：detach 那一半今天就成立（绿）；reattach 那一半是期望（`it.fails`，今天红）。
+// 钉现状：detach 与 reattach 都由显式画布信号驱动并保持绿色。
 // 修它的是「删 ②」（删掉推断删除，改成删除类手势显式发 detach、撤销 / 重做显式发反向），不在画布写边界这一刀里；
 // 删 ② 合入时把 `it.fails` 改回 `it`。重开之后会不会恢复派发：unverified。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,7 +16,9 @@ import type { DesktopProductionRunBridge, ProductionRunProjection } from '../../
 import { materializeShots } from '../capability/multiShotCanvasLanding'
 import { resetClientIdRegistry } from '../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { watchDeletedProductionNodes } from './watchDeletedProductionNodes'
+import { subscribeProductionCanvasSignals } from './productionCanvasSignals'
+import { reportDetachedShotNodes } from './reportDetachedShotNodes'
+import { reportReattachedShotNodes } from './reportReattachedShotNodes'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
 
 type RunCommand = Parameters<DesktopProductionRunBridge['command']>[2]
@@ -48,7 +50,19 @@ beforeEach(async () => {
   resetClientIdRegistry()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
   api = { read: vi.fn(async () => run), command: vi.fn(async () => ({ run, events: [] })) }
-  stop = watchDeletedProductionNodes('project-1', api as unknown as Pick<DesktopProductionRunBridge, 'read' | 'command'>)
+  stop = subscribeProductionCanvasSignals((signal) => {
+    const byRun = new Map<string, typeof signal.nodes[number][]>()
+    for (const node of signal.nodes) {
+      const runId = typeof node.meta?.productionRunId === 'string' ? node.meta.productionRunId : ''
+      if (!runId) continue
+      byRun.set(runId, [...(byRun.get(runId) ?? []), node])
+    }
+    for (const [runId, nodes] of byRun) {
+      void (signal.kind === 'detach'
+        ? reportDetachedShotNodes('project-1', runId, nodes.map((node) => node.id), api as unknown as Pick<DesktopProductionRunBridge, 'read' | 'command'>)
+        : reportReattachedShotNodes('project-1', runId, nodes, api as unknown as Pick<DesktopProductionRunBridge, 'read' | 'command'>))
+    }
+  })
 })
 
 afterEach(() => {
@@ -58,7 +72,7 @@ afterEach(() => {
 })
 
 describe('prediction ①: undo then redo of a production batch landing', () => {
-  it('current: the undo is inferred as deleting the three shots without results and reported as detach', async () => {
+  it('undo explicitly reports the three shots without results as detached', async () => {
     const nodeIds = await landBatch()
     useGenerationCanvasStore.getState().undo()
     expect(useGenerationCanvasStore.getState().nodes.map((node) => node.id)).toEqual([nodeIds[0]])
@@ -67,7 +81,7 @@ describe('prediction ①: undo then redo of a production batch landing', () => {
     expect(commandsOfType('plan.detach-shot-nodes')[0][2].payload).toEqual({ nodeIds: nodeIds.slice(1) })
   })
 
-  it.fails('expected (fixed by 删 ②): redo brings the shots back and re-attaches them to the Run', async () => {
+  it('redo explicitly re-attaches the shots to the Run', async () => {
     const nodeIds = await landBatch()
     useGenerationCanvasStore.getState().undo()
     await vi.waitFor(() => expect(commandsOfType('plan.detach-shot-nodes')).toHaveLength(1))

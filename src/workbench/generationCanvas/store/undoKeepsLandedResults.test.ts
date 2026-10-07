@@ -193,6 +193,23 @@ describe('undo never takes back a landed generation outcome', () => {
     door.assertLanded(node())
   })
 
+  it('keeps a result when the prompt changes while generation is running, across undo and redo', async () => {
+    await startRun('run-prompt-change')
+    useGenerationCanvasStore.getState().updateNodePrompt(NODE_ID, 'new prompt')
+    await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: LANDED_RESULT })
+
+    expect(node()?.prompt).toBe('new prompt')
+    expect(node()?.result?.id).toBe('r-landed')
+
+    useGenerationCanvasStore.getState().undo()
+    expect(node()?.prompt).toBe('shot-1 prompt')
+    expect(node()?.result?.id).toBe('r-landed')
+
+    useGenerationCanvasStore.getState().redo()
+    expect(node()?.prompt).toBe('new prompt')
+    expect(node()?.result?.id).toBe('r-landed')
+  })
+
   it.each(LANDING_DOORS.map((door) => [door.name, door] as const))('%s that lands after an undo survives the redo', async (_name, door) => {
     USER_EDITS[0].edit()
     useGenerationCanvasStore.getState().undo()
@@ -302,4 +319,3 @@ describe('undoing the creation of a node never takes away its landed result', ()
     expect(state.groups.find((group) => group.id === source.id)?.nodeIds).toEqual([OTHER_ID])
   })
 })
-
