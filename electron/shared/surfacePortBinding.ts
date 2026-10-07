@@ -398,6 +398,9 @@ export const SURFACE_PORT_WIRE_ERROR_CODE_LIST = [
   "capability_receipt_unresolved",
   "capability_target_stale",
   "capability_unsupported",
+  // 文稿的选区 / 光标位置只在创作页编辑器里有（NF-1001-0001）。它和泛泛的「做不了」是两句不同的下一步：
+  // 这一句能告诉模型改读整篇、告诉用户回创作页选中那段。
+  "document_position_unavailable",
   "project_identity_unavailable",
   "project_binding_stale",
   "surface_port_suspended",
@@ -513,17 +516,23 @@ export function surfacePortFailureAdvice(failure: SurfacePortFailure): { message
     case "over-hard-cap": return { message: "The artifact exceeds the destination's supported size limit.",
       nextAction: "Reduce the artifact size to the destination's limit before trying again." };
   }
+  // 「去核对回执」对模型是一句做不到的话（它没有读回执的工具）——NF-1001-0002 那一轮它就停在这里。
+  // 给它一个做得到的核对：用对应的读工具看改动在不在。
   if (failure.code === "capability_receipt_unresolved") return {
-    message: "The action's durable receipt could not be confirmed (capability_receipt_unresolved).",
-    nextAction: "Check the action receipt and existing result before attempting another write.",
+    message: "The change may or may not have landed: its outcome could not be confirmed (capability_receipt_unresolved).",
+    nextAction: "Read the current state with the matching read tool (read_script for the script, look_at_canvas for the canvas, read_timeline for the timeline) and compare it with what you meant to change. If the change is there, do not write it again; if it is not, write it once more. A new write can be refused for about a minute while the previous one settles.",
   };
   if (failure.code === "capability_cancelled") return {
     message: "The action was cancelled.", nextAction: "Wait for a new user instruction before starting another action.",
   };
   // 「这个面现在做不了这件事」和「目标过期」是两句不同的建议：前者重读多少次都不会变。
+  if (failure.code === "document_position_unavailable") return {
+    message: "The user is not on the creation page, so the script has no selection or cursor position right now (document_position_unavailable).",
+    nextAction: "Do not ask for it again. If the user means the script, call read_script without scope (whole script) or write_script with where append/replace; if \"this\" means something on the page they are on, read that page instead (look_at_canvas / read_timeline); if still unclear, ask the user.",
+  };
   if (failure.code === "capability_unsupported") return {
-    message: "The current surface cannot do that scope or position right now (capability_unsupported).",
-    nextAction: "Use what this surface supports: for the document, read the full text, or write with append/replace on the whole document instead of a selection or cursor position.",
+    message: "This action is not available from where the user is right now (capability_unsupported).",
+    nextAction: "Do not repeat the same call. Use a different tool that this surface supports, or ask the user which page or object they mean.",
   };
   if (failure.code === "capability_execution_failed") return {
     message: "The action could not be completed.", nextAction: "Review the failure and the current result before deciding whether to retry.",

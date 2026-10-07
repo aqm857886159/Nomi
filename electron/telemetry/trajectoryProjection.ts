@@ -22,6 +22,7 @@ import type {
   LaneTrajectoryTurn,
   TrajectoryTurnInput,
 } from '../shared/agentLane/laneTrajectory'
+import { laneAssistantFaultOf } from '../shared/agentLane/laneAssistantFault'
 
 /** 单个字符串出门前的上限。轨迹是给我们看趋势的，不是给我们看全文的。 */
 const MAX_LABEL_CHARS = 120
@@ -78,6 +79,7 @@ function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajec
     'gen_ai.tool.call.id': label(tool.toolCallId, 'unknown'),
     'nomi.tool.argument_keys': argumentKeys(tool.arguments),
     'nomi.tool.failed': typeof tool.failed === 'boolean' ? tool.failed : null,
+    'nomi.tool.failure_code': typeof tool.failureCode === 'string' && tool.failureCode ? label(tool.failureCode) : null,
     'nomi.tool.duration_ms': duration(tool.durationMs),
   }
 }
@@ -89,6 +91,15 @@ function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajec
  */
 function approvalDecisions(approvals: readonly unknown[]): string[] {
   return approvals.slice(0, 20).filter(isLaneApprovalNote).map((note) => note.decision)
+}
+
+/** 错误原文 → 认得出的类别（闭合词表）；原文本身不出门。 */
+function errorKinds(errors: readonly string[]): string[] {
+  return errors.slice(0, 20).flatMap((text) => {
+    const fault = laneAssistantFaultOf(text)
+    if (!fault) return []
+    return [fault.kind === 'model-timeout' ? `model-timeout:${fault.phase}` : fault.kind]
+  })
 }
 
 /**
@@ -112,6 +123,9 @@ export function projectTrajectoryTurn(turn: TrajectoryTurnInput, includeContent 
     'nomi.turn.tool_calls': (turn.tools ?? []).slice(0, MAX_TOOL_CALLS).map(projectToolCall),
     'nomi.turn.approval_decisions': approvalDecisions(turn.approvals ?? []),
     'nomi.turn.error_count': (turn.errors ?? []).length,
+    'nomi.turn.error_kinds': errorKinds(turn.errors ?? []),
+    'nomi.turn.request_count': (turn.requestInputs ?? []).length,
+    'nomi.turn.max_request_input_tokens': (turn.requestInputs ?? []).reduce((max, value) => Math.max(max, count(value)), 0),
   }
   if (includeContent) {
     // 用户勾了才走这一支。仍然过第二道网 + 截断：他同意分享文稿，不等于同意分享

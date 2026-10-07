@@ -78,7 +78,8 @@ export interface RuntimeErrorFacts {
   status?: number
   body?: string
   url?: string
-  timeoutPhase?: 'first-response' | 'idle'
+  /** 响应头之前 / 响应头之后第一段正文之前（模型在想）/ 正文开始之后两段之间。唯一手写处，看门狗与投影都从这里 derive。 */
+  timeoutPhase?: 'first-response' | 'first-token' | 'idle'
 }
 
 export type RuntimeActivityEvent =

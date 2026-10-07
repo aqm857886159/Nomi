@@ -30,7 +30,7 @@ class Clock implements NativeClock {
 function observed(upstream: AssistantMessageEventStream, clock = new Clock()) {
   const events: AssistantMessageEvent[] = [];
   const results: AssistantMessage[] = [];
-  const output = observeNativeStream(() => upstream, { clock, firstResponseMs: 90, idleMs: 120,
+  const output = observeNativeStream(() => upstream, { clock, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120,
     onEvent: (event) => events.push(event), onResult: (result) => results.push(result) });
   return { output, events, results, clock };
 }
@@ -97,13 +97,45 @@ test('idle timeout rejects a result-only consumer after native activity stops', 
   const upstream = createAssistantMessageEventStream();
   const { output, clock } = observed(upstream);
   assert.equal(clock.timers.size, 1);
-  upstream.push({ type: 'start', partial: message() });
+  const final = message();
+  upstream.push({ type: 'start', partial: final });
+  upstream.push({ type: 'text_delta', contentIndex: 0, delta: 'Re', partial: final });
   await setImmediate();
   const rejected = assert.rejects(output.result(), /idle/i);
   clock.advance(120);
   await rejected;
   assert.equal(clock.timers.size, 0);
 });
+
+// NF-1001-0004（真实反馈）：响应头到了、模型还在想、一个字没出——这段静默归思考预算，不归空闲表。
+// 相位矩阵：每一行是「静默开始前流已经走到哪一步」→ 该由哪个预算管。改回「start 就开空闲表」时
+// first-token 那一行会在 120ms 就被掐（红）。
+const PHASE_MATRIX = [
+  { phase: 'first-response', before: [] as const, budget: 90 },
+  { phase: 'first-token', before: ['start'] as const, budget: 300 },
+  { phase: 'idle', before: ['start', 'delta'] as const, budget: 120 },
+] as const;
+for (const row of PHASE_MATRIX) {
+  test(`silence after [${row.before.join(', ') || 'request'}] is governed by the ${row.phase} budget (${row.budget}ms)`, async () => {
+    const upstream = createAssistantMessageEventStream();
+    const { output, clock } = observed(upstream);
+    const final = message();
+    for (const step of row.before) {
+      if (step === 'start') upstream.push({ type: 'start', partial: final });
+      else upstream.push({ type: 'text_delta', contentIndex: 0, delta: 'Re', partial: final });
+    }
+    await setImmediate();
+    let settled = false;
+    const rejected = assert.rejects(output.result().finally(() => { settled = true; }),
+      new RegExp(`^Error: Nomi model ${row.phase} timeout after ${row.budget}ms$|${row.phase} timeout after ${row.budget}ms`));
+    clock.advance(row.budget - 1);
+    await setImmediate();
+    assert.equal(settled, false, `still within the ${row.phase} budget at ${row.budget - 1}ms`);
+    clock.advance(1);
+    await rejected;
+    assert.equal(clock.timers.size, 0);
+  });
+}
 
 for (const phase of ['delegate', 'iterator', 'next', 'result'] as const) {
   test(`native ${phase} throw rejects the stable completion and wakes consumers`, async () => {
@@ -118,7 +150,7 @@ for (const phase of ['delegate', 'iterator', 'next', 'result'] as const) {
     const output = observeNativeStream(() => {
       if (phase === 'delegate') throw expected;
       return upstream;
-    }, { clock, firstResponseMs: 90, idleMs: 120 });
+    }, { clock, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120 });
     await assert.rejects(output.result(), (error) => error === expected);
     assert.equal((await output[Symbol.asyncIterator]().next()).done, true);
     assert.equal(clock.timers.size, 0);
@@ -154,7 +186,7 @@ test('pre-abort dispatches no delegate; an uncooperative iterator return cannot 
   const before = observeNativeStream(() => {
     delegated += 1;
     return createAssistantMessageEventStream();
-  }, { signal: cancelled.signal, firstResponseMs: 90, idleMs: 120 });
+  }, { signal: cancelled.signal, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120 });
   await assert.rejects(before.result(), /Pre-cancelled/);
   assert.equal(delegated, 0);
 
@@ -167,7 +199,7 @@ test('pre-abort dispatches no delegate; an uncooperative iterator return cannot 
     return: () => { returned += 1; return new Promise(() => {}); },
     [Symbol.asyncIterator]() { return this; },
   });
-  const output = observeNativeStream(() => upstream, { clock, signal: controller.signal, firstResponseMs: 90, idleMs: 120 });
+  const output = observeNativeStream(() => upstream, { clock, signal: controller.signal, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120 });
   await setImmediate();
   const rejected = assert.rejects(output.result(), /Abort/);
   controller.abort();
@@ -182,7 +214,7 @@ test('abort wins a just-resolved next() and suppresses all late events and usage
   const events: AssistantMessageEvent[] = [];
   const results: AssistantMessage[] = [];
   const clock = new Clock();
-  const output = observeNativeStream(() => upstream, { clock, signal: controller.signal, firstResponseMs: 90, idleMs: 120,
+  const output = observeNativeStream(() => upstream, { clock, signal: controller.signal, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120,
     onEvent: (event) => events.push(event), onResult: (result) => results.push(result) });
   await setImmediate();
   const final = message();
@@ -203,7 +235,7 @@ test('a delayed delegate cannot attach a pump or forward buffered output after a
   let release!: (stream: AssistantMessageEventStream) => void;
   const pending = new Promise<AssistantMessageEventStream>((resolve) => { release = resolve; });
   const events: AssistantMessageEvent[] = [];
-  const output = observeNativeStream(() => pending, { signal: controller.signal, firstResponseMs: 90, idleMs: 120,
+  const output = observeNativeStream(() => pending, { signal: controller.signal, firstResponseMs: 90, firstTokenMs: 300, idleMs: 120,
     onEvent: (event) => events.push(event) });
   const rejected = assert.rejects(output.result(), /Abort/);
   controller.abort();

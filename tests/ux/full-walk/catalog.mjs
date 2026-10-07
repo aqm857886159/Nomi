@@ -304,7 +304,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J04-agent-multishot-spend',
     title: Object.freeze({ 'zh-CN': 'Agent 起草多镜并付费确认', en: 'Agent drafts several shots and the user confirms the spend' }),
     states: Object.freeze([
-      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS', deadline: { ref: 'electron/agentLane/laneHost.mts#LANE_IDLE_MS' } },
+      { id: 'agent-turn-running', kind: 'system', visibleText: ['agentPanelV4.stop'], actions: ['停止'], owner: 'electron/agentLane/laneProviderGuard.mts#LANE_STREAM_WATCHDOG', deadline: { ref: 'electron/agentLane/laneProviderGuard.mts#LANE_FIRST_TOKEN_MS' } },
       { id: 'drafted-on-canvas', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queued'], actions: ['看占位卡'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { gap: '草稿落画布之后到出卡之间没有登记时限（出卡由同一回合的 generate 负责）' } },
       { id: 'card-waiting', kind: 'user', visibleText: ['agentPanelV4.spendParamsTitleImage_other', 'agentPanelV4.spendConfirmThisImage', 'agentPanelV4.spendRemoveThisImage'], actions: ['翻页', '生成这张', '去掉这张', '×'], owner: 'src/workbench/ai/v4/useAgentPanelSpendConfirm.ts#useAgentPanelSpendConfirm', deadline: USER },
       { id: 'shots-queued', kind: 'system', visibleText: ['generationCommon.production.canvasLanding.queuedNth'], actions: ['暂停'], owner: 'electron/shared/productionShotPhase.ts#deriveProductionShotState', deadline: { ref: 'electron/productionRun/multiShotBatchScheduler.ts#POLL_DELAY_CAP_MS' } },
