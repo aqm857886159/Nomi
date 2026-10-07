@@ -56,11 +56,13 @@ export function hasWorkToWatch(run: Pick<ProductionRun, "jobs">): boolean {
 const AT_REST: ReadonlySet<ProductionRunStatus> = new Set(["paused", "cancelled", "completed"]);
 
 /**
- * 这个 Run 现在要不要有人驱动（批次调度器的重踢、单镜再问一次、重开项目都只问这里）。
- * 没停稳的要；停稳了的（已暂停 / 已取消 / 已完成）只在手上还有交给供应商的活时要——只盯不派。
+ * 这个 Run 现在要不要有人驱动（批次调度器的重踢、重开项目、启动恢复 resumeUnfinishedRuns 都只问这里）。
+ * 没停稳的要；停稳了的（已暂停 / 已取消 / 已完成）只在手上还有交给供应商、还没结论的活时要——只盯不派。
+ * 「还没结论」按 isStillAtProvider 算（含还没拿到任务号的「提交中」：启动恢复要把它如实标成结果待核对）；
+ * 能不能真去问供应商是另一回事，归 hasWorkToWatch。
  */
 export function runWantsDriver(run: Pick<ProductionRun, "status" | "jobs">): boolean {
-  return !AT_REST.has(run.status) || hasWorkToWatch(run);
+  return !AT_REST.has(run.status) || run.jobs.some(isStillAtProvider);
 }
 
 /**

@@ -4,7 +4,8 @@ import { hasWorkToWatch, runWantsDriver, settleRunLifecycle } from "./production
 import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from "./productionRunTypes";
 
 // 生命周期 owner 的两条判据，按全部 Run 状态 × 全部 job 状态穷举（新加一个状态不表态，类型检查就红）：
-//   · runWantsDriver：停稳了（已暂停 / 已取消 / 已完成）只在手上还有交给供应商、能去问的活时要人驱动；没停稳的都要。
+//   · runWantsDriver：停稳了（已暂停 / 已取消 / 已完成）只在手上还有交给供应商、还没结论的活时要人驱动；没停稳的都要。
+//   · hasWorkToWatch：其中拿着任务号、真能去问供应商的那几件。
 //   · settleRunLifecycle：暂停中而手上已经没有交给供应商的活 → 落到 paused；别的状态从不自己挪。
 
 const RUN_STATUSES: Record<ProductionRunStatus, "rest" | "moving"> = {
@@ -50,7 +51,9 @@ describe("run lifecycle owner: who must keep watching, and when pausing settles"
         const watched = JOB_AT_PROVIDER[jobStatus];
         expect(hasWorkToWatch(run(status, [job(jobStatus, "task-1")])), `${status}/${jobStatus}+task`).toBe(watched);
         expect(hasWorkToWatch(run(status, [job(jobStatus)])), `${status}/${jobStatus} no task`).toBe(false);
-        expect(runWantsDriver(run(status, [job(jobStatus, "task-1")])), `${status}/${jobStatus}+task`).toBe(RUN_STATUSES[status] === "moving" || watched);
+        // 要不要驱动看「交给了供应商、还没结论」，有没有任务号都算（启动恢复要处理没拿到任务号的「提交中」）。
+        expect(runWantsDriver(run(status, [job(jobStatus, "task-1")])), `${status}/${jobStatus}+task`).toBe(RUN_STATUSES[status] === "moving" || JOB_AT_PROVIDER[jobStatus]);
+        expect(runWantsDriver(run(status, [job(jobStatus)])), `${status}/${jobStatus} no task`).toBe(RUN_STATUSES[status] === "moving" || JOB_AT_PROVIDER[jobStatus]);
       }
     }
   });

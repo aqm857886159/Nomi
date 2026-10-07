@@ -280,6 +280,54 @@ describe("停下以后在飞的已付费活仍有人盯到收尾", () => {
     expect(submits).toHaveLength(1);
   });
 
+  // 第四扇门（独立验收 V-1078 抓到）：启动恢复 resumeUnfinishedRuns 以前自己按状态挑，已取消的 Run 一律跳过。
+  it.each(["提交中、还没拿到任务号", "已拿到任务号、在轮询"] as const)("重启 × 已取消、关 Nomi 时第 1 镜%s：重开后照样处理（标成结果待核对 / 取回出片），不派新镜", async (shape) => {
+    const root = tempRoot();
+    const repository = setupBatch(root);
+    const submits: string[] = [];
+    const { vendor, provider } = vendorFor(submits, () => {
+      if (submits.length !== 1) return;
+      const run = repository.read(PROJECT, RUN)!;
+      applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-cancel", expectedRevision: run.revision, type: "run.control", payload: { action: "cancel" }, issuedAt: now() });
+    });
+    let jobId: string;
+    if (shape === "提交中、还没拿到任务号") {
+      // 请求正发往供应商时取消、然后 Nomi 被关：盘上停在「提交中」，没有任务号。
+      let run = repository.read(PROJECT, RUN)!;
+      run = repository.execute(PROJECT, RUN, { commandId: "start", expectedRevision: run.revision, type: "run.status", payload: { status: "running" }, issuedAt: now() }).run;
+      jobId = run.jobs.find((candidate) => candidate.metadata?.shotId === "shot-1")!.jobId;
+      for (const status of ["submit_intent_persisted", "submitting"] as const) {
+        repository.execute(PROJECT, RUN, { commandId: `seed-${status}`, expectedRevision: repository.read(PROJECT, RUN)!.revision, type: "job.status", payload: { jobId, status }, issuedAt: now() });
+      }
+      run = repository.read(PROJECT, RUN)!;
+      applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-cancel", expectedRevision: run.revision, type: "run.control", payload: { action: "cancel" }, issuedAt: now() });
+    } else {
+      // 真的交出去（拿到任务号），交出的那一刻取消；观察窗内没结论，Nomi 随后被关。
+      expect((await schedulerFor(root, repository, provider).runToQuiescence()).quiescent).toBe(false);
+      jobId = repository.read(PROJECT, RUN)!.jobs.find((candidate) => candidate.metadata?.shotId === "shot-1")!.jobId;
+    }
+    expect(repository.read(PROJECT, RUN)!.status).toBe("cancelled");
+    const submittedBeforeRestart = submits.length;
+
+    // 新进程：新仓库实例 + 真的启动恢复 + 真的重踢入口（打开项目时两者都会跑）。
+    const reopened = createProductionRunRepository({ projectDirResolver: (projectId) => (projectId === PROJECT ? root : null), now });
+    const service = createProductionRunService({ repository: reopened, projectRootResolver: () => root, requestRenderer: async () => { throw new Error("no renderer in this test"); } });
+    await service.resumeUnfinishedRuns(PROJECT);
+    vendor.shot1 = "succeeded";
+    const { drivers } = kickerFor(root, reopened, provider);
+    drivers.kickSchedulerForRun(PROJECT, RUN);
+
+    if (shape === "提交中、还没拿到任务号") {
+      // 请求发没发到、供应商收没收下都不知道：如实标成结果待核对，不再永远「生成中」。
+      expect(reopened.read(PROJECT, RUN)!.jobs.find((candidate) => candidate.jobId === jobId)!.status).toBe("submission_unknown");
+    } else {
+      await waitForProduction(() => shotPhase(reopened.read(PROJECT, RUN)!, "shot-1") === "done");
+    }
+    drivers.stop();
+    expect(reopened.read(PROJECT, RUN)!.status, "取消仍是取消").toBe("cancelled");
+    expect(submits.length, "不派新镜").toBe(submittedBeforeRestart);
+  });
+
   it("已暂停的批次里点「重新取回」：真的去取一次（以前踢的入口跳过已暂停，那一镜永远转圈）", async () => {
     const { root, repository, submits, vendor, provider } = await pausedWhileShotOneInFlight();
     // 供应商做完了，但结果没能取回本机（#975 A2）：这一镜挂「可找回」。

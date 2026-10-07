@@ -4,7 +4,7 @@
   "detected_by": "review",
   "problem_type": "A stopped production Run (pausing / paused / cancelled) is driven or refused by a hand-written status list instead of by whether paid work is still at the provider",
   "symptom": "Re-checking the old report \"a multi-shot batch stays 'pausing' forever after an emergency stop\" on current main: that symptom no longer reproduces (#934). In the same family two live holes remain: (1) the task card offers only \"Cancel production\" while a Run is pausing, and clicking it fails with \"操作失败: ... Illegal run transition pausing -> cancelled\"; (2) once a batch is cancelled, or paused and the person clicks \"retrieve again\", a shot already handed to the provider is never asked about again after the first drive's observation window - the result is paid for and generated but never lands, the node keeps spinning.",
-  "direct_cause": "(1) productionRunState RUN_TRANSITIONS lists pausing -> paused / needs_attention / running but not cancelled, while productionRunView offers the cancel control for pausing. (2) appIntegrationRunObservation.kickSchedulerForRun returns early for ['completed','cancelled','paused'], singleShotStillInFlight returns false for ['completed','cancelled'], and the project-open loop in appIntegration skips every cancelled Run - so the timed re-kick, the single-shot re-ask and the project-open recovery never observe a stopped Run's in-flight job.",
+  "direct_cause": "(1) productionRunState RUN_TRANSITIONS lists pausing -> paused / needs_attention / running but not cancelled, while productionRunView offers the cancel control for pausing. (2) appIntegrationRunObservation.kickSchedulerForRun returns early for ['completed','cancelled','paused'], singleShotStillInFlight returns false for ['completed','cancelled'], and the project-open loop in appIntegration skips every cancelled Run - so the timed re-kick, the single-shot re-ask and the project-open recovery never observe a stopped Run's in-flight job. (3) productionRunService.resumeUnfinishedRuns skipped every completed or cancelled Run with its own status list, so a cancelled Run whose shot was still submitting when Nomi closed stayed \"submitting\" (generating) forever instead of being marked submission_unknown (found by independent acceptance V-1078).",
   "class_root": "\"Does anyone still have to watch this Run?\" had no owner. Three entry points each answered it with their own copy of a Run-status list; stopping a Run (no new dispatch) was conflated with abandoning paid work already at the provider. #934 fixed one value (pausing) in one copy, leaving paused and cancelled. The same missing contract between what the task card offers and what the state machine accepts let pausing -> cancelled stay illegal.",
   "affected_population": [
     "Anyone who pauses or cancels a multi-shot batch while a shot is at a slow provider (longer than one drive's observation window, default 300 s)",
@@ -16,34 +16,69 @@
     "electron/productionRun/productionRunLifecycle.ts",
     "electron/productionRun/productionRunState.ts",
     "electron/capabilityCore/appIntegrationRunObservation.ts",
-    "electron/capabilityCore/appIntegration.ts"
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/productionRun/productionRunService.ts"
   ],
   "entry_points": [
     "Multi-shot timed re-kick and every kickBatchSchedulerForRun caller (resume, retry_retrieval, anchor release) -> appIntegrationRunObservation.kickSchedulerForRun",
     "Single-shot re-ask after the observation window -> appIntegrationRunObservation.singleShotStillInFlight",
     "Project open recovery -> appIntegration reconcileOpenProjectHook (cancelled skip and single-shot observable check)",
-    "Pause / resume / cancel from the task card, canvas and MCP -> productionRunControl.applyRunControl -> productionRunState.transitionRun"
+    "Pause / resume / cancel from the task card, canvas and MCP -> productionRunControl.applyRunControl -> productionRunState.transitionRun",
+    "App start / project open recovery -> productionRunService.resumeUnfinishedRuns (run-level filter at the top of the loop)"
   ],
   "internal_only_reason": "Pure internal lifecycle ownership inside Nomi's own production ledger, scheduler and observation drivers; no third-party API, format or runtime decides it.",
   "invariants": [
-    "While any job of a Run is at the provider with a task id (isProductionJobInFlight), the Run is observed until that job reaches a conclusion, whatever the Run status; stopping only prevents new dispatch.",
+    "While any job of a Run has been handed to the provider and has no conclusion yet (isStillAtProvider), the Run is processed by every driver and recovery entry whatever its status; those that can poll (a provider task id, hasWorkToWatch) are observed until the job concludes; stopping only prevents new dispatch.",
     "A Run at rest (paused / cancelled / completed) with nothing at the provider is not driven.",
     "Every control the task card offers in a status is a transition the Run state machine accepts from that status.",
     "pausing settles to paused in the same write that ends the last job at the provider, for every driver and every way that job ends (unchanged owner: settleRunLifecycle)."
   ],
   "doors": [
-    { "kind": "write", "path": "electron/capabilityCore/appIntegration.ts", "symbol": "runWantsDriver" },
-    { "kind": "write", "path": "electron/capabilityCore/appIntegrationRunObservation.ts", "symbol": "runWantsDriver" },
-    { "kind": "write", "path": "electron/capabilityCore/appIntegration.ts", "symbol": "hasWorkToWatch" },
-    { "kind": "write", "path": "electron/capabilityCore/appIntegrationRunObservation.ts", "symbol": "hasWorkToWatch" },
-    { "kind": "write", "path": "electron/productionRun/productionRunLifecycle.ts", "symbol": "hasWorkToWatch" },
-    { "kind": "write", "path": "electron/productionRun/productionRunService.ts", "symbol": "applyRunControl" },
-    { "kind": "read", "path": "electron/productionRun/productionRunState.ts", "symbol": "RUN_TRANSITIONS" }
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "runWantsDriver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "runWantsDriver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "hasWorkToWatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "hasWorkToWatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunLifecycle.ts",
+      "symbol": "hasWorkToWatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "runWantsDriver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "applyRunControl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunState.ts",
+      "symbol": "RUN_TRANSITIONS"
+    }
   ],
   "door_reduction": {
-    "before": 7,
-    "after": 7,
-    "why_not": "Before = 7: the status list in kickSchedulerForRun, the status list in singleShotStillInFlight, the cancelled skip in the project-open loop, the two direct isProductionJobInFlight reads (door-map isProductionJobInFlight: appIntegration.ts, appIntegrationRunObservation.ts), the single control door (door-map applyRunControl: productionRunService.ts) and the transition table (door-map RUN_TRANSITIONS: productionRunState.ts). After = 7 (door-map runWantsDriver + hasWorkToWatch + applyRunControl + RUN_TRANSITIONS). The count is unchanged but the owners are not: the three status lists are deleted and every consumer asks productionRunLifecycle.runWantsDriver / hasWorkToWatch. The consumers must stay separate: the multi-shot re-kick, the single-shot re-ask and project-open recovery are three different triggers (a timer, an observation window, opening a project) with different drivers behind them; merging them would move scheduling and canvas reconciliation into the lifecycle module. applyRunControl remains the one control door for the renderer, canvas and MCP."
+    "before": 8,
+    "after": 8,
+    "why_not": "Before = 8: the status list in kickSchedulerForRun, the status list in singleShotStillInFlight, the cancelled skip in the project-open loop, the completed/cancelled skip in resumeUnfinishedRuns, the two direct isProductionJobInFlight reads (door-map isProductionJobInFlight: appIntegration.ts, appIntegrationRunObservation.ts), the single control door (door-map applyRunControl: productionRunService.ts) and the transition table (door-map RUN_TRANSITIONS: productionRunState.ts). After = 8 (door-map runWantsDriver + hasWorkToWatch + applyRunControl + RUN_TRANSITIONS). The count is unchanged but the owners are not: the four status lists are deleted and every consumer asks productionRunLifecycle.runWantsDriver / hasWorkToWatch. The consumers must stay separate: the multi-shot re-kick, the single-shot re-ask, project-open canvas recovery and start-up run recovery are different triggers (a timer, an observation window, opening a project, restart marking) with different drivers behind them; merging them would move scheduling, canvas reconciliation and restart marking into the lifecycle module. applyRunControl remains the one control door for the renderer, canvas and MCP."
   },
   "generality_proof": "The question \"keep watching?\" is now answered from the jobs (a provider task id plus the exhaustive productionJobPhase mapper) instead of from the Run status, so it holds for every current and future stop status, every driver and every way a Run got there (pause, cancel, retrieval retry, restart). Status only decides dispatch, which batchScheduleDerivation already refuses for every stopped status. The card/state-machine contract is checked over the exhaustive Run status record, so a future control or status that disagrees fails the class test.",
   "invariant_owner_layer": {
@@ -93,8 +128,8 @@
     {
       "path": "electron/productionRun/productionRunService.ts",
       "entry_point": "resumeUnfinishedRuns",
-      "disposition": "not-affected",
-      "evidence": "It never drives semantic Runs (multi-shot and single-shot are skipped for submission marking) and only asks settleRunLifecycle; the completed/cancelled skip there guards legacy restart marking, which this class does not reach."
+      "disposition": "enforced",
+      "evidence": "The completed/cancelled skip at the top of the loop is replaced by runWantsDriver (independent acceptance V-1078). productionRunPauseSettles.e2e.test.ts covers restart x cancelled with the shot still submitting (now marked submission_unknown, was stuck submitting) and with the shot polling (lands, nothing dispatched); reverting to the status list turns the submitting cell red. The legacy-playbook branch further down the same function (illegal polling -> submission_unknown write swallowed by an empty catch) is a different defect and stays in residual_risks."
     },
     {
       "path": "electron/backgroundLaunch.ts",
@@ -123,12 +158,13 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/productionRun/productionRunLifecycle.ts",
-    "invariant": "Whether a Run is driven is answered only by runWantsDriver / hasWorkToWatch; no entry point keeps its own Run-status list for it.",
+    "invariant": "Whether a Run is driven or recovered is answered only by runWantsDriver (handed-to-provider work, isStillAtProvider) and, for polling, hasWorkToWatch (a provider task id); no entry point keeps its own Run-status list for it.",
     "failure_mode": "A Run at rest with nothing at the provider is not driven; a Run with work at the provider is observed and never dispatched (derivation refuses dispatch for stopped Runs). A control the card offers without a matching transition fails the exhaustive class test.",
     "exception_policy": "none",
     "strategy": "Move the decision to the lifecycle owner, read it from the jobs, delete the three status lists, and tie the card's controls to the state machine with an exhaustive test.",
     "artifacts": [
       "electron/productionRun/productionRunLifecycle.ts",
+      "electron/productionRun/productionRunService.ts",
       "electron/productionRun/productionRunState.ts",
       "electron/capabilityCore/appIntegrationRunObservation.ts",
       "electron/capabilityCore/appIntegration.ts",
@@ -149,18 +185,19 @@
     "status": "removed",
     "removed_paths": [
       "electron/capabilityCore/appIntegrationRunObservation.ts",
-      "electron/capabilityCore/appIntegration.ts"
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/productionRun/productionRunService.ts"
     ],
-    "rationale": "Removed in the same change: the ['completed','cancelled','paused'] list in kickSchedulerForRun (including the pausing special case #934 added), the ['completed','cancelled'] list in singleShotStillInFlight, the unconditional cancelled skip in the project-open loop, and both direct isProductionJobInFlight calls. None survives as a fallback."
+    "rationale": "Removed in the same change: the ['completed','cancelled','paused'] list in kickSchedulerForRun (including the pausing special case #934 added), the ['completed','cancelled'] list in singleShotStillInFlight, the unconditional cancelled skip in the project-open loop, the completed/cancelled skip in resumeUnfinishedRuns, and both direct isProductionJobInFlight calls. None survives as a fallback."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "No third-party dependency is involved; the invariant lives in Nomi's own production lifecycle.",
     "exit_criteria": []
   },
-  "migration": "No data migration. Runs on disk that are paused or cancelled with a job still at the provider are picked up on the next project open (cancelled ones were skipped before) and observed until the job concludes; nothing is submitted. Runs at rest with nothing in flight behave as before. Older builds reading data written by this one see ordinary transitions (pausing -> cancelled is a normal run.status.changed event).",
+  "migration": "No data migration. Runs on disk that are paused or cancelled with a job still at the provider are picked up on the next project open and app start (cancelled ones were skipped by both before; a shot left submitting is now marked submission_unknown) and observed until the job concludes; nothing is submitted. Runs at rest with nothing in flight behave as before. Older builds reading data written by this one see ordinary transitions (pausing -> cancelled is a normal run.status.changed event).",
   "residual_risks": [
-    "Legacy (non-semantic playbook) Runs: restart recovery writes job.status submission_unknown for every job still at the provider, but the job state machine only allows it from submitting; for provider_accepted / polling / retry_wait / downloading / validating_* the write is refused and silently swallowed, so such a Run stays where it was (for example pausing). Not reachable with real data: the legacy writer never obtained a provider task (the renderer refused production.generate-node; the writer was deleted 2026-10-05), so a legacy job reaches polling only through a user-confirmed reconciliation of a job that has a provider task id. The 2026-09-29 contract's residual note that such a Run settles to paused is only true for submitting. Left for the coordinator (options in the PR body).",
+    "Legacy (non-semantic playbook) Runs (a different branch of resumeUnfinishedRuns from the run-level filter fixed here): restart recovery writes job.status submission_unknown for every job still at the provider, but the job state machine only allows it from submitting; for provider_accepted / polling / retry_wait / downloading / validating_* the write is refused and silently swallowed, so such a Run stays where it was (for example pausing). Not reachable with real data: the legacy writer never obtained a provider task (the renderer refused production.generate-node; the writer was deleted 2026-10-05), so a legacy job reaches polling only through a user-confirmed reconciliation of a job that has a provider task id. The 2026-09-29 contract's residual note that such a Run settles to paused is only true for submitting. Left for the coordinator (options in the PR body).",
     "A background-launched Nomi (hasInFlightProductionWork) may exit while a paused or cancelled Run still has a job at the provider; the result lands on the next project open instead of immediately. No double charge.",
     "The project-open loop in appIntegration has no end-to-end test harness; its decision is the owner predicate covered by the class test, and its multi-shot branch goes through kickSchedulerForRun, which the e2e covers.",
     "Task-card command failures (useProductionStatus.reportFailure, TaskCenterPanel) still append the main-process error text to a generic line; the canvas rework / resume path was converted in #934, this generic command path was not. Not changed here (separate concept: structured failures for the generic run.command IPC); reported to the coordinator.",
