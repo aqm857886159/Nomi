@@ -41,21 +41,24 @@ describe('读档迁移：2026-10-07 前的 x-bot 工程 → UAL（唯一入口 n
     expect(keyframes[1].hipsOffset).toEqual({ x: 0, y: -0.1, z: 0 })
   })
 
-  it('用户上传的 Mixamo 角色一个字不碰；非角色不碰', () => {
+  it('用户上传的 Mixamo 角色：只换动作 id（静止姿态 / 片段 / 编译器写的片段名），骨架、模型路径、手调骨骼不动', () => {
     const raw = readFixture() as { scenes: Array<{ objects: Array<Record<string, unknown>> }> }
     const rawUploaded = raw.scenes[0].objects.find((object) => object.id === 'uploaded')!
     const uploaded = normalizeDirectorProject(readFixture()).scenes[0].objects.find((object) => object.id === 'uploaded')!
     expect(uploaded.rig).toBe('mixamo')
     expect(uploaded.modelPath).toBe(rawUploaded.modelPath)
-    expect(uploaded.posePreset).toBe('standing_idle')
     expect(uploaded.boneRotations).toEqual(rawUploaded.boneRotations)
-    expect(uploaded.actionClips![0].actionPose).toBe('standard_walk')
+    expect(uploaded.posePreset).toBe('Idle_Loop')
+    expect(uploaded.actionClips!.map((clip) => [clip.actionPose, clip.name])).toEqual([['Walk_Loop', 'Walk_Loop']])
+    const box = normalizeDirectorProject(readFixture()).scenes[0].objects.find((object) => object.id === 'box')!
+    expect(box.rig).toBeUndefined()
   })
 
   it('迁移说明只在内存：数得出近似动作与丢弃骨键；不写进工程', () => {
     const project = normalizeDirectorProject(readFixture())
     // 近似：kneeling_down / kneeling / standing_up / male_sitting_pose 四个片段；丢弃：手指 + 头顶末端 2 个 + 关键帧里拇指 1 个
-    expect(ualMigrationNoteOf(project)).toEqual({ characters: 3, approximatedActions: 4, droppedBoneKeys: 3 })
+    // 3 个内置人偶 + 1 个上传角色（只换了动作 id）；上传角色的手指键不动，不算丢弃
+    expect(ualMigrationNoteOf(project)).toEqual({ characters: 4, approximatedActions: 4, droppedBoneKeys: 3 })
     expect(JSON.stringify(project)).not.toContain('approximatedActions')
   })
 

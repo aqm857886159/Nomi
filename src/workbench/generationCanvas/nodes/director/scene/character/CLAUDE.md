@@ -7,6 +7,7 @@
 > mannequinSkeleton.ts: 假人骨架数学：骨名冒号变体互认、bind rest 记 userData（rememberMannequinRestPose，克隆后必须记，否则复位不幂等）、复位 = 纯 rest（applyMannequinSkeletonPose；x-bot rest 与 Mixamo bind 逐骨一致 = T-Pose）、任意模型归一成 1 单位高居中组
 > characterRig.pole.test.ts: 极向量几何单测（静止位落在肢体平面外侧 / 伸直退默认方向 / 拖到另一侧末端不动）
 > canonicalBoneFrame.ts: 规范骨轴换算：存档 / 滑条 / 镜像 / 视线 / 静态姿势都按 Mixamo 骨局部轴（规范轴）写；rig=ual 的人偶加载后给 22 根语义骨挂 rel / parentRel（WeakMap，表 = src/assets/director/ual/ual-frame-correction.json，scripts/director-assets/generate-ual-frame-correction.mjs 生成），偏移写入 rel⁻¹·O·rel、读回反过来；其它 rig 恒等
+> uploadedMixamoRetarget.test.ts: 用户上传 Mixamo 角色吃 UAL 动作：按入库规范绑定朝向合成 Mixamo 骨架，走路 / 坐 / 出拳 22 根骨世界增量与源一致 < 0.5°、坐姿骨盆下沉换算正确
 > lookAtUal.test.ts: 真 UAL glb + 真动作（待机 / 坐着说话 / 跪地维修）：视线后头的水平朝向落在目标 ±2°，不管动作把头转到哪
 > canonicalBoneFrame.test.ts: 真 UAL glb 单测：22 语义骨按去点名找到、52 根别名、修正表对账、随机偏移世界朝向等价、读回、视线等价
 > ualMannequin.testkit.ts: 测试夹具：node 里真加载 ual-mannequin.glb（不 mock 资产）

@@ -8,7 +8,7 @@
 > directorTypes.ts: 工程 schema（版本 3 = 默认人偶 UAL）+ 资产库（文件夹 / 条目只存句柄）+ 连线引用类型、字面量联合、isDirectorCamera
 > directorIds.ts: id 工厂（时间戳 + 随机后缀，前缀 d*，与 V1 不撞）
 > directorNodeMeta.ts: 画布节点 meta 键单一真相（DIRECTOR_NODE_KIND、directorProject、stagingAutoCapture、cameraMoveAutoCapture）：节点卡片 / 迁移器 / AI 来导 / 画布壳的 Host 门都从这里取，零依赖
-> characterRigMigration.ts: 内置人偶 Mixamo → UAL 读时迁移（纯函数、幂等）：判据 = builtin:* 且 rig 缺省 / mixamo；动作 id 走动作库别名表、boneRotations 键 mixamorig* → UAL 骨名值原样、手指 / 末端丢弃计数；用户上传的 Mixamo 角色不碰
+> characterRigMigration.ts: 角色 → UAL 读时迁移（纯函数、幂等）：内置人偶（builtin:* 且 rig 缺省 / mixamo）整个迁——动作 id 走动作库别名表、boneRotations 键 mixamorig* → UAL 骨名值原样、手指 / 末端丢弃计数；用户上传的角色只换动作 id，骨架 / 模型 / 手调骨骼不碰
 > characterRigMigration.test.ts: 旧工程 fixture（__fixtures__/legacy-xbot-project.v2.json：走路 / 坐姿 + 手调骨骼 + 姿态关键帧 / 跪与坐地 / 上传 Mixamo 角色）：迁移结果、说明计数、幂等、只读、旧版存过再读、导入图层
 > directorProject.ts: 默认工程/图层、normalizeDirectorProject / normalizeScene（unknown → 合法工程 / 图层，逐字段容错，含资产库；normalizeObject 是内置人偶读时迁移的唯一入口）、ualMigrationNoteOf（迁移说明只在内存）、remapSceneIds（图层复制与导入场景共用换 id）、clone、projectStats
 > directorStore.ts: zustand vanilla store 工厂：编辑期真相、互斥选择及子选择归属、完整工程50步撤销、图层操作；withHistory 同步嵌套事务一次入栈且异常回滚，commitProject 是工程唯一写入口；组装各 action 集
