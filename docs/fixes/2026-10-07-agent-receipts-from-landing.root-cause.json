@@ -1,0 +1,182 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-agent-receipts-from-landing",
+  "detected_by": "user",
+  "problem_type": "An Agent receipt describes the canvas from a static sentence instead of from what actually landed on the canvas",
+  "symptom": "Asked to add an image node without generating, the Agent created the node and then told the user the canvas had no nodes yet; separately, a Run's landing could leave two shot-table nodes on the canvas.",
+  "direct_cause": "nextActionFor answered every successful draft_shots with the fixed sentence 'Saving does not imply canvas placement', while canvas-origin drafts are projected onto the canvas immediately by a fire-and-forget hook (onPlanChanged -> landDraftOnCanvas); the model repeated the sentence. Separately, materializeShots decided 'this Run has no shot table yet' before several awaits and created the table after them, so two overlapping landings of one Run each created a table.",
+  "class_root": "The receipt layer had no input from the canvas-landing owner: what the model is told about the canvas was written independently of the landing outcome, and the landing owner's idempotency check for derived views was evaluated at the wrong moment (before the awaits, not at the write).",
+  "affected_population": [
+    "Every successful draft_shots call (create or patch) on the in-app Agent lane: canvas-origin drafts with the project open, document-origin plans, drafts while the project is closed, landings that fail in the renderer",
+    "Every Run whose canvas landing runs more than once at overlapping times and creates the production shot table"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneExtendedTools.ts",
+    "electron/shared/agentLane/draftCanvasLanding.ts",
+    "electron/productionRun/canvasLandingHost.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/residentGenerationAdapterFactory.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts"
+  ],
+  "entry_points": [
+    "draft_shots (create and patch) through the lane extended tools -> generation transport adapter -> draft store",
+    "canvas landing of a Run: landDraftOnCanvas, landCanvasBestEffort, followRunChange, reconcileExistingCanvas -> renderer materializeShots"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Both invariants are application-owned: what the Agent receipt may say about the user's canvas, and idempotent creation of Nomi's own derived shot-table view; no third-party runtime decides them.",
+  "invariants": [
+    "A draft_shots receipt states canvas presence only from the landing outcome read from the Run ledger after landing settled (placed with node ids, document plan, project closed, not landed); when the host reports none it makes no claim either way.",
+    "A Run has at most one production shot table no matter how many landings of it overlap: existence is read at the moment of creation."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "nextActionFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "draftLanding"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "draftLandingOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/residentGenerationAdapterFactory.ts",
+      "symbol": "draftLanding"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "findProductionShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "createProductionShotTable"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "landDraftOnCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "draftLandingOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "draftCanvasLandingOf"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 9,
+    "why_not": "Doors increased by design: the receipt writer (nextActionFor) stays the single place that words the receipt; the other new doors are the one-way plumbing that carries the landing outcome from the landing owner (canvasLandingHost) to it. The shot-table creator and its existence check stay the one renderer-side owner; only the moment of the check changed."
+  },
+  "generality_proof": "The receipt reads one structure (canvasLanding) produced at the single point where every draft write returns (the generation transport adapter, capabilities create and plan), from the one ledger that landing writes into (plan and shot nodeId), so every draft write path, document or canvas, open project or closed, speaks the same truth. The shot-table check now sits at the only table-creating statement.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "draftLandingOutcome",
+      "responsibility": "Settles in-flight landing and derives the real canvas presence of a draft from the Run ledger."
+    },
+    {
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "describeDraftCanvasLanding",
+      "responsibility": "Single renderer of the model-facing wording for a landing outcome."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "materializeShots",
+      "responsibility": "Creates the production shot table at most once per Run, checking existence at creation time."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "entry_point": "nextActionFor",
+      "disposition": "enforced",
+      "evidence": "draft_shots receipt now derives from canvasLanding; the canvas verbs (arrange_canvas, make_artifact, stage_shot) describe a change applied synchronously by the same call, not a separate async landing."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "draft create/patch for external MCP hosts",
+      "disposition": "not-affected",
+      "evidence": "External hosts get no lane receipt; they build their adapter without draftLanding and the result gains no canvasLanding field."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/ensureStoryboardShotTable.ts",
+      "entry_point": "ensureStoryboardShotTable",
+      "disposition": "not-affected",
+      "evidence": "Existence check and addNode happen in one synchronous step, so no await sits between check and create."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future change to what lands (or does not land) on the canvas would again diverge from a static sentence; any new landing caller would again race the early existence check.",
+    "same_class_scan": [
+      "rg -n \"canvas placement|Saving does not imply\" electron tests: one production site (nextActionFor) plus a replay fixture constant",
+      "node scripts/door-map.mjs findProductionShotTable createProductionShotTable: single creator, single check",
+      "rg -n \"landDraftOnCanvas|landCanvasBestEffort|followRunChange|reconcileExistingCanvas\" electron: all go through one per-Run queue in main; the renderer boundary is now idempotent regardless of caller"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/canvasLandingHost.ts",
+    "invariant": "The model-facing canvas statement is a function of the landing outcome; shot-table existence is read at creation.",
+    "failure_mode": "No outcome from the host means the receipt explicitly refuses to claim anything about the canvas; a failed landing says it did not complete and tells the model to look before claiming.",
+    "exception_policy": "none",
+    "strategy": "Derive the receipt from the landing owner's ledger instead of a literal, and move the existence check to the creating statement.",
+    "artifacts": [
+      "electron/productionRun/canvasLandingHost.ts",
+      "electron/shared/agentLane/draftCanvasLanding.ts",
+      "electron/agentLane/laneExtendedTools.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneExtendedTools.test.ts",
+    "electron/productionRun/agentDraftSingleLedger.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneExtendedTools.test.ts",
+    "electron/productionRun/agentDraftSingleLedger.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneExtendedTools.ts"
+    ],
+    "rationale": "The static 'Saving does not imply canvas placement' sentence is deleted from nextActionFor; no fallback copy remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime decides either invariant.",
+    "exit_criteria": []
+  },
+  "migration": "None: the new result field is additive and optional; stored Runs and projects are unchanged.",
+  "residual_risks": [
+    "Two shot tables in one task can still legitimately appear when the model drafts twice without an operationId (two Runs, one table each); that is a design decision, not changed here.",
+    "Real-model wording (does the model now say the right thing) is unverified: no paid or live model run was made."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/canvasLandingHost.ts",
+    "tests": [
+      "electron/productionRun/agentDraftSingleLedger.test.ts",
+      "electron/agentLane/laneExtendedTools.test.ts",
+      "src/workbench/capability/multiShotCanvasLanding.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-07"
+}

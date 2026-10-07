@@ -593,6 +593,32 @@
       }
     },
     {
+      "id": "FB-20261007-agent-receipt-contradicts-canvas",
+      "since": "2026-10-07",
+      "source": "用户反馈：让 Agent 加一个图片节点先别生成，节点已建好，它却说画布上还没有节点；另见同任务出现两个分镜表",
+      "category": "claims-and-outcomes",
+      "problem": "draft_shots 的回执是一句写死的话，不看草稿有没有真落到画布上，模型照着对用户说反话；同一 Run 的两次重叠落地各建一张分镜表",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "回执从落地后读到的 Run 账本派生：落了（点名节点）/文稿来源没落/项目没开没落/没落成/宿主未报 五种各说真话——electron/agentLane/laneExtendedTools.test.ts、electron/productionRun/agentDraftSingleLedger.test.ts、electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts（真实路径）",
+        "分镜表建表前再读一次是否已有：src/workbench/capability/multiShotCanvasLanding.test.ts 重叠落地用例（修前红）"
+      ],
+      "completionCommits": ["fb3ee6a35", "225dfd4a9"],
+      "fixedInPr": 1074,
+      "rootCauseContract": "docs/fixes/2026-10-07-agent-receipts-from-landing.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/agentLane/laneExtendedTools.test.ts"
+      }
+    },
+    {
       "id": "FB-NF-1001-0003-stream-cut",
       "since": "2026-10-06",
       "source": "应用内反馈 NF-1001-0003（0.22.3 Windows）",

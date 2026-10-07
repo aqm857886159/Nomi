@@ -316,3 +316,58 @@ describe('封存不许抹掉画布绑定', () => {
     expect(generateJobs.map((job) => job.nodeId)).toEqual(['node-1', 'node-2'])
   })
 })
+
+// 回执要说真话：草稿落地之后，宿主回「这份草稿此刻在画布上吗」，三种情形各说各的（2026-10-07）。
+// 事实取自落地**之后**读到的 Run 账本（`plan.bind-shot-nodes` 写回的节点绑定），不是回执自己猜。
+describe('draftLandingOutcome：落地之后读账本，回真实结果', () => {
+  function world(opts: { open?: boolean; sourceDocument?: boolean; renderer?: () => Promise<unknown> }) {
+    let current: ProductionRun = run(opts.sourceDocument
+      ? { origin: { host: 'nomi', sourceDocument: { documentId: 'doc-1', revision: 1, contentHash: 'h' } } as ProductionRun['origin'] }
+      : { origin: { host: 'nomi' } }, [shot('s1'), shot('s2')])
+    const host = createCanvasLandingHost({
+      readRun: () => current,
+      // 与仓库的 `plan.bind-shot-nodes` 同义：把 shotId→nodeId 写回镜。
+      command: async (_p, _r, command) => {
+        const bindings = ((command as { payload: { bindings: Array<{ shotId: string; nodeId: string }> } }).payload.bindings)
+        current = { ...current, generationPlan: { ...current.generationPlan!, shots: current.generationPlan!.shots!.map((entry) => {
+          const bound = bindings.find((binding) => binding.shotId === entry.shotId)
+          return bound ? { ...entry, nodeId: bound.nodeId } : entry
+        }) } }
+      },
+      requestRenderer: opts.renderer ?? (async () => ({ bindings: [{ shotId: 's1', nodeId: 'node-1' }, { shotId: 's2', nodeId: 'node-2' }] })),
+      resolveProjectRoot: () => '/tmp/nomi-proj',
+      isProjectOpen: () => opts.open !== false,
+    })
+    return host
+  }
+
+  it('画布来源草稿、项目开着：当场落成节点，结果点名每个节点', async () => {
+    const host = world({})
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.draftLandingOutcome('proj-1', 'run-1')).resolves.toEqual({
+      state: 'placed', shotCount: 2, nodes: [{ shotId: 's1', nodeId: 'node-1' }, { shotId: 's2', nodeId: 'node-2' }],
+    })
+  })
+
+  it('文稿来源草稿：不落，等用户点「放入画布」', async () => {
+    const renderer = vi.fn(async () => ({ bindings: [] }))
+    const host = world({ sourceDocument: true, renderer })
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.draftLandingOutcome('proj-1', 'run-1')).resolves.toEqual({ state: 'not_placed', reason: 'document_plan' })
+    expect(renderer).not.toHaveBeenCalled()
+  })
+
+  it('项目没开着：不落，下次打开补齐', async () => {
+    const renderer = vi.fn(async () => ({ bindings: [] }))
+    const host = world({ open: false, renderer })
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.draftLandingOutcome('proj-1', 'run-1')).resolves.toEqual({ state: 'not_placed', reason: 'project_closed' })
+    expect(renderer).not.toHaveBeenCalled()
+  })
+
+  it('项目开着但渲染层没接住：说「没落成」，不替它编成「已落」', async () => {
+    const host = world({ renderer: async () => { throw new Error('renderer unavailable') } })
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.draftLandingOutcome('proj-1', 'run-1')).resolves.toEqual({ state: 'not_placed', reason: 'not_landed' })
+  })
+})

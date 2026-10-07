@@ -1,3 +1,4 @@
+import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import type { GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 import { resolveGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
 import { productionTaskAbsenceCode } from '../productionRun/productionRunErrors';
@@ -76,6 +77,11 @@ export type GenerationTransportAdapterDependencies = Readonly<{
    * 缺席按默认档（`safe-auto`）走，也就是照旧弹卡：不知道档位时**不许**替用户花钱。
    */
   approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined;
+  /**
+   * 草稿建好 / 改完之后问宿主：落地落完了没有、这份草稿此刻在画布上吗（`canvasLandingHost.draftLandingOutcome`）。
+   * 结果写进草稿结果的 `canvasLanding` 格，`draft_shots` 的回执只渲染它；缺席（外部宿主 / 夹具）= 不报，回执就不提画布。
+   */
+  draftLanding?: (projectId: string, operationId: string) => Promise<DraftCanvasLanding | undefined>;
 }>;
 
 // 路由白名单**只有一个来源**：契约层的方法词表（`GENERATION_METHODS`）。模型可见的动词名
@@ -566,6 +572,13 @@ export function createPiGenerationTransportAdapter(
             if (!releasePolicyClaim) releasePolicyClaim = claimPolicyDecision(draftedOperationIdOrNone(result, args));
             const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
             if (decided) return { ok: true, result: decided };
+          }
+          // 草稿写（建 / 改）成功：等落地落完，把「此刻在画布上吗」随结果交出去（回执据它说话）。
+          if ((capability === "create" || capability === "plan") && deps.draftLanding && addressed) {
+            const landing = await deps.draftLanding(currentLease.projectId, addressed);
+            if (landing && result && typeof result === "object" && !Array.isArray(result)) {
+              return { ok: true, result: { ...result as Record<string, unknown>, [DRAFT_CANVAS_LANDING_KEY]: landing } };
+            }
           }
           return { ok: true, result, silent: capability === "context" || capability === "read" };
         } finally {
