@@ -1,0 +1,35 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-rc-ref-guard-first",
+  "problem_type": "release_candidate_source_identity_drift",
+  "symptom": "Desktop RC validation can spend release time validating and packaging a commit different from the workflow trigger commit.",
+  "direct_cause": "The workflow checked out inputs.ref without comparing its resolved commit with github.sha before validation.",
+  "class_root": "The RC workflow had no first shared source identity boundary tying the requested ref to the triggering commit.",
+  "affected_population": ["workflow_dispatch RC runs where inputs.ref differs from the triggering ref or commit"],
+  "scope_paths": [".github/workflows/desktop-rc.yml", "scripts/verify-workflow-ref.mjs"],
+  "entry_points": ["Desktop Release Candidate workflow_dispatch validate job"],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal GitHub Actions source identity invariant; repository workflow and lesson history define the required boundary.",
+  "invariants": ["The commit resolved from inputs.ref must equal github.sha before any RC validation, packaging, or test step runs."],
+  "doors": [
+    { "kind": "read", "path": "scripts/verify-workflow-ref.mjs", "symbol": "resolveRefSha" },
+    { "kind": "write", "path": "scripts/verify-workflow-ref.mjs", "symbol": "compareWorkflowRef" }
+  ],
+  "door_reduction": { "before": 2, "after": 2, "why_not": "The resolver and comparator are separate shared boundary operations and both must remain explicit." },
+  "generality_proof": "Every RC workflow_dispatch run enters through the validate job and now crosses the same comparison script before installation or downstream jobs receive its SHA.",
+  "shared_boundaries": [
+    { "path": "scripts/verify-workflow-ref.mjs", "symbol": "compareWorkflowRef", "responsibility": "Fail closed unless the requested ref commit and github.sha are identical, while reporting trigger context." }
+  ],
+  "same_class_entry_points": [
+    { "path": ".github/workflows/desktop-rc.yml", "entry_point": "validate job checkout", "disposition": "enforced", "evidence": "The first post-checkout step invokes verify-workflow-ref.mjs with inputs.ref and github.sha." },
+    { "path": ".github/workflows/desktop-release.yml", "entry_point": "promote job RC manifest validation", "disposition": "not-affected", "evidence": "Promotion consumes the immutable RC manifest SHA and does not checkout an operator-selected validation ref." }
+  ],
+  "recurrence": { "classification": "recurring", "reason": "Any future dispatch can select a ref different from the trigger commit and otherwise waste the full RC run before discovering the drift.", "same_class_scan": ["Scanned .github/workflows/desktop-rc.yml inputs.ref and all downstream ref checkouts.", "Scanned .github/workflows/desktop-release.yml manifest SHA promotion path.", "Checked docs/lessons/rc-must-be-dispatched-on-the-release-branch.md for the recorded source drift class."] },
+  "prevention": { "kind": "centralized-boundary", "enforcement_path": "scripts/verify-workflow-ref.mjs", "invariant": "Resolved inputs.ref SHA equals github.sha before RC work begins.", "failure_mode": "The validate job exits nonzero with trigger ref, intended ref, resolved SHA, and github SHA.", "exception_policy": "none", "strategy": "Keep one script as the only comparison implementation and call it as the first post-checkout validate step.", "artifacts": ["scripts/verify-workflow-ref.mjs", ".github/workflows/desktop-rc.yml"] },
+  "regression_tests": ["scripts/verify-workflow-ref.node-test.mjs", "scripts/check-desktop-rc-workflow.node-test.mjs"],
+  "class_regression_tests": ["scripts/verify-workflow-ref.node-test.mjs"],
+  "legacy_paths": { "status": "not-applicable", "removed_paths": [], "rationale": "No parallel identity checker existed; the missing comparison is added at the existing validate boundary." },
+  "dependency_lifecycle": { "decision": "not-applicable", "rationale": "No third-party runtime controls this internal workflow invariant.", "exit_criteria": [] },
+  "migration": "No stored data or user state changes; future RC dispatches fail early when identity is inconsistent.",
+  "residual_risks": ["GitHub Actions must provide a resolvable github.sha and a fetched inputs.ref; checkout fetch-depth remains 0 to preserve that boundary."]
+}
