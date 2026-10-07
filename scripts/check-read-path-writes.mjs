@@ -126,6 +126,7 @@ function reachesWriteDoor(site, seen = new Set()) {
 }
 
 const found = []
+const scanned = [...callsOf.values()].filter((entry) => READ_PREFIX.test(entry.fn)).length
 for (const [site, entry] of callsOf) {
   if (!READ_PREFIX.test(entry.fn)) continue
   const chain = reachesWriteDoor(site)
@@ -148,6 +149,7 @@ for (const site of registered.keys()) {
   }
 }
 
+console.log(`scanned=${scanned}`)
 if (failures.length) {
   console.error('check:read-path-writes 失败：\n')
   for (const failure of failures) console.error(`  ✗ ${failure}`)

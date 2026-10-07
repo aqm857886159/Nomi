@@ -124,6 +124,8 @@ export function checkGenerationEntrances(root = repoRoot) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const scanned = scanDispatchSites()
+  console.log(`scanned=${scanned.size}`)
   const problems = checkGenerationEntrances()
   if (problems.length) {
     console.error('✗ 生成入口门岗（check:generation-entrances）：')

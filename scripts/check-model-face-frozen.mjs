@@ -70,6 +70,7 @@ if (!fs.existsSync(baselinePath)) {
 
 const baseline = fs.readFileSync(baselinePath, 'utf8')
 if (baseline === current) {
+  console.log(`scanned=${face.verbCount}`)
   console.log(`✅ ${face.verbCount} 个动词的模型面与基线逐字节相同。`)
   process.exit(0)
 }

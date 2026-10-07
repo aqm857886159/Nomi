@@ -111,6 +111,7 @@ function main(): void {
 
   const scanned = state.mappings.filter((m) => m.enabled && (m.modelKey || "").trim() && (m.modeId || "").trim()).length;
   console.log(`孤儿线缆扫描：${state.mappings.length} 条 mapping，其中 ${scanned} 条带 (modelKey, modeId) 进入判据。`);
+  console.log(`scanned=${scanned}`);
   console.log(`孤儿拼写 ${spelling.length} 条 / 孤儿错桶 ${bucket.length} 条。`);
 
   if (orphans.length === 0) {

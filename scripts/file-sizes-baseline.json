@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "maxLines": 800,
+  "scanDirs": ["src", "electron"],
+  "allowlist": {
+    "electron/runtime.ts": 485,
+    "electron/integrationCertification/integrationSession.ts": 1394,
+    "src/ui/onboarding/OnboardingDrawer.tsx": 795,
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 555,
+    "electron/main.ts": 682
+  }
+}

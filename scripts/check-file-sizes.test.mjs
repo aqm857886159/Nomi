@@ -17,6 +17,7 @@ function check(files) {
   temporaryRoots.push(root)
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
   fs.copyFileSync(path.join(repoRoot, 'scripts/check-file-sizes.mjs'), path.join(root, 'scripts/check-file-sizes.mjs'))
+  fs.copyFileSync(path.join(repoRoot, 'scripts/file-sizes-baseline.json'), path.join(root, 'scripts/file-sizes-baseline.json'))
   // 门岗从 scripts/lib/gitPaths.mjs 取受跟踪文件列表（`-z`，见 2026-09-07 的 quotePath 修复），
   // fixture 必须把它一起带上——否则跑出来的是 ERR_MODULE_NOT_FOUND，而断言只看 stderr 里有没有
   // 那一行，红得像「门岗没抓到超长文件」，其实门岗根本没启动。
@@ -50,5 +51,6 @@ describe('native TypeScript file-size gate', () => {
       'electron/harness/runtime/pi/host.d.cts': 801,
     })
     expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('scanned=2')
   })
 })

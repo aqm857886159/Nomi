@@ -437,4 +437,5 @@ if (hits.length) {
   console.error("     · 已经提交了    → 见 docs/security/feedback-data-safety.md 的应急处理\n");
   process.exit(1);
 }
+console.log(`scanned=${files.length}`);
 console.log(`  ✓ 安全门岗通过：扫 ${files.length} 个${mode}，无明文凭证/微信记录/db_key/私有配置泄露。`);

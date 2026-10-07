@@ -88,6 +88,7 @@ if (checked === 0) {
 }
 
 console.log(`花钱确认收据门岗：扫 ${TARGET} 的 ${checked} 处 confirmed:true 出口`)
+console.log(`scanned=${checked}`)
 
 // 棘轮 + **守卫核验**（后者才是本门岗的要害）。
 //

@@ -64,4 +64,5 @@ for (const journey of catalog.journeys) {
   if (!journey.id || !Array.isArray(journey.states) || (!journey.states.length && !experienceOnly)) throw new Error('Invalid feel journey')
   for (const state of journey.states) if (!state.id || !state.html || !state.owner) throw new Error('Invalid feel state')
 }
+console.log(`scanned=${catalog.journeys.length}`)
 console.log('Feel generic boundary and baseline/exemption ratchets passed')

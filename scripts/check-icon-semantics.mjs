@@ -320,6 +320,7 @@ if (unregistered.length > 0) {
 }
 
 const retired = dictionaryBaseline.filter((icon) => !dictionary.has(icon))
+console.log(`scanned=${pairs.size}`)
 if (removed.length > 0) {
   console.log(`✅ check:icon-semantics 通过；顺带清掉了 ${removed.length} 个存量冲突 —— 跑 --update-baseline 把基线降下来。`)
 } else {

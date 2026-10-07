@@ -335,10 +335,12 @@ const flattenStationBaseline = baseline => Object.fromEntries(Object.entries(bas
   Object.entries(entries).map(([fingerprint, count]) => [JSON.stringify([file, fingerprint]), count])))
 
 export function main() {
+  const files = collectTestFiles()
+  console.log(`scanned=${files.length}`)
   const hits = []
   const baseline = flattenStationBaseline(JSON.parse(fs.readFileSync(path.join(repoRoot, 'scripts/station-waits-baseline.json'), 'utf8')))
   const stationHits = []
-  for (const file of collectTestFiles()) {
+  for (const file of files) {
     const raw = fs.readFileSync(file, 'utf8')
     // 键里的路径必须归一成正斜杠：基线在 Linux CI 生成，Windows 上 path.relative 给反斜杠会让 824 条全部对不上、整片报陈旧
     // （同文件其余 path.relative 早已这样归一，这一行是新规则落下的）

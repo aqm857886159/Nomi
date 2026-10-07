@@ -88,8 +88,10 @@ function scan(code, file) {
 }
 
 function main() {
+  const files = collect()
+  console.log(`scanned=${files.length}`)
   const hits = []
-  for (const file of collect()) {
+  for (const file of files) {
     // 门岗本体与 runTask 的定义处不在管辖内（定义处读的正是 extras.grantId）。
     if (file === path.join(repoRoot, 'electron', 'runtime.ts')) continue
     hits.push(...scan(stripComments(fs.readFileSync(file, 'utf8')), file))

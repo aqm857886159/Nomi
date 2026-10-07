@@ -19,6 +19,10 @@ import {
   assertGatesExist,
   parseGateArgs,
   runGateSuite,
+  parseScannedCount,
+  inferScannedCount,
+  normalizeGateOutput,
+  SCAN_MARKER,
 } from './run-gates-contracts.mjs'
 
 /** 收集 runner 的输出，同时假装自己是一堆门岗。 */
@@ -26,18 +30,67 @@ function harness(results) {
   const chunks = []
   return {
     write: (text) => chunks.push(text),
-    runGate: async (name) => results[name] ?? { code: 0, output: `${name} ok\n` },
+    runGate: async (name) => results[name] ?? { code: 0, output: `${name} ok\nscanned=1\n` },
     output: () => chunks.join(''),
   }
 }
 
 const ACTIONS_ENV = { GITHUB_ACTIONS: 'true' }
 
+test('门岗自证：缺失、重复或 scanned=0 都 fail-closed，正整数才通过', () => {
+  assert.deepEqual(parseScannedCount('scanned=3\n'), { ok: true, count: 3 })
+  assert.match(parseScannedCount('门岗通过\n').reason, /缺少 scanned/)
+  assert.match(parseScannedCount('scanned=0\n').reason, /scanned=0/)
+  assert.match(parseScannedCount('scanned=1\nscanned=2\n').reason, /重复/)
+})
+
+test('迁移期只从既有明确摘要推导扫描数，无法推导的门岗不会被伪造为通过', () => {
+  assert.equal(inferScannedCount('✅ 12 个文件进入判据\n'), 12)
+  assert.equal(inferScannedCount('# tests 7\n'), 7)
+  assert.equal(inferScannedCount('ℹ tests 17\n'), 17)
+  assert.equal(inferScannedCount('Tests 2 passed (2)\n'), 2)
+  assert.equal(inferScannedCount('✅ 通过，但没有数量\n'), null)
+})
+
+test('链上扫描豁免必须有明确理由，且只豁免计数不豁免退出码', async () => {
+  const h = harness({ lint: { code: 0, output: 'ESLint finished\n' }, typecheck: { code: 1, output: 'tsc failed\n' } })
+  const result = await runGateSuite({ gates: ['lint:ci', 'typecheck'], advisory: new Set(), runGate: h.runGate, write: h.write, env: {} })
+  assert.equal(result.exitCode, 1)
+  assert.deepEqual(result.failures.map((failure) => failure.name), ['typecheck'])
+  assert.match(h.output(), /扫描计数豁免/)
+})
+
+test('Windows CRLF 不会让有效的 scanned 自证变成空跑', () => {
+  const result = parseScannedCount('扫描完成\r\nscanned=2725\r\n')
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
+})
+
+test('TTY ANSI 控制序列不会遮住 scanned 自证', () => {
+  const result = parseScannedCount(normalizeGateOutput('\u001b[2Kscanned=2725\r\n'))
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
+})
+
+test('扫描 marker 正则状态不会从 spawnGate 泄漏到汇总解析', () => {
+  SCAN_MARKER.lastIndex = 8
+  const result = parseScannedCount('scanned=2725\n')
+  assert.equal(result.ok, true)
+  assert.equal(result.count, 2725)
+})
+
+test('门岗自证失败即使子命令退出 0 也算阻断失败', async () => {
+  const h = harness({ 'check:empty': { code: 0, output: '没有扫描对象\n' } })
+  const result = await runGateSuite({ gates: ['check:empty'], advisory: new Set(), runGate: h.runGate, write: h.write, env: {} })
+  assert.equal(result.exitCode, 1)
+  assert.match(h.output(), /门岗自证失败：缺少 scanned/)
+})
+
 test('两个门岗失败时，一轮就把两个都报出来（不再第一个红就停）', async () => {
   const gates = ['check:a', 'check:b', 'check:c', 'check:d']
   const h = harness({
-    'check:b': { code: 1, output: 'b line 1\nb 违规：docs/x.md\n' },
-    'check:d': { code: 2, output: 'd 违规：src/y.ts\n' },
+    'check:b': { code: 1, output: 'b line 1\nb 违规：docs/x.md\nscanned=2\n' },
+    'check:d': { code: 2, output: 'd 违规：src/y.ts\nscanned=2\n' },
   })
   const result = await runGateSuite({
     gates,
@@ -79,7 +132,7 @@ test('全过时退出 0，且不打 warning 注解', async () => {
 
 test('advisory 门岗失败：只出 warning 注解，job 不失败', async () => {
   const h = harness({
-    'check:docs-index': { code: 1, output: '✖ 文档索引回归：1 篇新增未收录方案\n  docs/plan/2026-09-05-x.md\n' },
+    'check:docs-index': { code: 1, output: '✖ 文档索引回归：1 篇新增未收录方案\n  docs/plan/2026-09-05-x.md\nscanned=1\n' },
   })
   const result = await runGateSuite({
     gates: ['check:docs-index', 'check:filesize'],
@@ -105,8 +158,8 @@ test('advisory 门岗失败：只出 warning 注解，job 不失败', async () =
 
 test('advisory 之外的门岗失败照样阻断，即使同一轮里有 advisory 失败', async () => {
   const h = harness({
-    'check:ledger': { code: 1, output: 'ledger stale\n' },
-    'check:filesize': { code: 1, output: 'filesize 822>814\n' },
+    'check:ledger': { code: 1, output: 'ledger stale\nscanned=1\n' },
+    'check:filesize': { code: 1, output: 'filesize 822>814\nscanned=1\n' },
   })
   const result = await runGateSuite({
     gates: ['check:ledger', 'check:filesize'],
@@ -124,7 +177,7 @@ test('advisory 之外的门岗失败照样阻断，即使同一轮里有 advisor
 })
 
 test('信号中断当失败处理，不当通过', async () => {
-  const h = harness({ 'check:slow': { code: 'signal:SIGKILL', output: '' } })
+  const h = harness({ 'check:slow': { code: 'signal:SIGKILL', output: 'scanned=1\n' } })
   const result = await runGateSuite({
     gates: ['check:slow'],
     advisory: new Set(),
@@ -227,7 +280,7 @@ test('体检：每个 advisory 门岗的提示文案和它真实的补齐机制�
 })
 
 test('advisory 失败的汇总按门岗各自的补齐机制出文案：concept-owners 不再被说成 docs-autosync 自动补齐', async () => {
-  const run = harness({ 'check:concept-owners': { code: 1, output: '登记缺了\n' }, 'check:docs-index': { code: 1, output: '索引缺了\n' } })
+  const run = harness({ 'check:concept-owners': { code: 1, output: '登记缺了\nscanned=1\n' }, 'check:docs-index': { code: 1, output: '索引缺了\nscanned=1\n' } })
   await runGateSuite({ gates: ['check:concept-owners', 'check:docs-index'], advisory: new Set(['check:concept-owners', 'check:docs-index']), runGate: run.runGate, write: run.write, env: {} })
   const lines = run.output().split('\n')
   const owners = lines.find((line) => line.includes('· check:concept-owners'))

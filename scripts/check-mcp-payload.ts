@@ -73,6 +73,7 @@ async function run(): Promise<void> {
     if (!frames.some((frame) => frame.result !== undefined)) throw new Error('MCP tools/list returned no result')
     const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
     const actualBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())
+    console.log(`scanned=${MCP_TOOL_RESOLVER.list().length}`)
     console.log(`MCP tools/list payload: ${actualBytes} bytes (zh-CN ${payloadBytesByLocale['zh-CN']}, en ${payloadBytesByLocale.en}; ratchet max ${maxBytes})`)
     assertLedgerExplainsBaseline(new Set((MCP_TOOL_RESOLVER.list() as unknown as { name?: unknown }[])
       .map((tool) => (typeof tool.name === 'string' ? tool.name : ''))))

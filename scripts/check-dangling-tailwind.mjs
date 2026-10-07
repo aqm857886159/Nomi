@@ -148,6 +148,7 @@ function main() {
     file: path.relative(root, p),
     text: fs.readFileSync(p, "utf8"),
   }));
+  console.log(`scanned=${sources.length}`);
   const offenders = findDanglingClasses(cfg, sources);
   const { defined, mapped, unmapped } = findUnmappedColorVars(cfg);
 

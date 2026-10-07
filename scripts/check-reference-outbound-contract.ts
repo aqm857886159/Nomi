@@ -138,6 +138,7 @@ function main(): void {
     process.exit(1);
   }
   const { breaches, scanned, slotsChecked } = findOutboundContractBreaches(state);
+  console.log(`scanned=${scanned}`);
   console.log(`参考图出站合同：${scanned} 条 (model × mode) 带参考槽，逐槽验 ${slotsChecked} 个「UI 承诺发得出」的槽。`);
 
   if (slotsChecked === 0) {

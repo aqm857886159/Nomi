@@ -117,6 +117,7 @@ const perFramework = registry.frameworks
   })
   .join(' / ')
 const distribution = Object.entries(stats.byVerdict).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join('，')
+console.log(`scanned=${stats.fields}`)
 console.log(`✅ 框架接触面门岗：${stats.fields} 个字段逐条有裁决（${perFramework}）；${distribution}`)
 
 /**

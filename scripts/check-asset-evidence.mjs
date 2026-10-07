@@ -123,6 +123,7 @@ const RULES = [
 
 // ── 扫描主逻辑 ───────────────────────────────────────────────────────────────
 const files = collect()
+console.log(`scanned=${files.length}`)
 const results = {}
 let totalHits = 0
 let hasNewViolations = false

@@ -184,6 +184,7 @@ const result = validateRootCauseChange({
 });
 // 只对 schema 不合法阻断，其余发现降为警告（见 root-cause-contracts.mjs 的 classifyFindings）。
 const { blocking, warnings } = classifyFindings(result.errors);
+console.log(`scanned=${contracts.length}`);
 for (const warning of warnings) console.error(`⚠ ${warning}`);
 if (blocking.length > 0) {
   console.error(`✖ 根因合同门禁失败（schema 不合法 ${blocking.length} 处；触发 ${result.triggeredFiles.length} 个高风险生产文件）`);

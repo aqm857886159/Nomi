@@ -95,6 +95,7 @@ function walk(dir, out = []) {
 }
 
 const files = SCAN_ROOTS.flatMap((root) => walk(path.join(repoRoot, root)))
+console.log(`scanned=${files.length}`)
 
 const appFetchImporters = []
 const privateHostImporters = []

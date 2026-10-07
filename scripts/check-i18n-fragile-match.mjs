@@ -102,4 +102,5 @@ if (regressions.length > 0) {
   process.exit(1)
 }
 
+console.log(`scanned=${files.length}`)
 console.log(`✅ 语言脆弱匹配门岗通过:${found.length} 处存量(${byFile.size} 文件),棘轮只减不增。`)

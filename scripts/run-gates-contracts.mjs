@@ -44,8 +44,46 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 /** 汇总里为每个失败门岗回放的输出行数——够定位，不至于把日志再刷一遍。 */
 export const FAILURE_TAIL_LINES = 15
+export const SCAN_MARKER = /^scanned=(\d+)\r?$/gm
+export const SCAN_EXEMPTIONS = Object.freeze({
+  'lint:ci': 'ESLint 自己遍历模块，不存在独立业务对象清单',
+  typecheck: 'TypeScript 自己遍历模块图，不存在独立业务对象清单',
+})
+const ANSI_ESCAPE = /\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g
+
+export function normalizeGateOutput(output) {
+  return String(output ?? '').replace(ANSI_ESCAPE, '')
+}
 
 export class GateConfigError extends Error {}
+
+/** 每道门岗必须声明本轮实际检查的对象数；缺失或为 0 都 fail-closed。 */
+export function parseScannedCount(output) {
+  SCAN_MARKER.lastIndex = 0
+  const matches = [...String(output ?? '').matchAll(SCAN_MARKER)].map((match) => Number(match[1]))
+  SCAN_MARKER.lastIndex = 0
+  if (matches.length !== 1) return { ok: false, reason: matches.length === 0 ? '缺少 scanned=<n> 自证行' : 'scanned=<n> 自证行重复' }
+  if (!Number.isSafeInteger(matches[0]) || matches[0] < 0) return { ok: false, reason: 'scanned=<n> 必须是非负整数' }
+  if (matches[0] === 0) return { ok: false, reason: 'scanned=0：门岗没有扫描到对象；若确实适用，必须在链配置里显式声明豁免' }
+  return { ok: true, count: matches[0] }
+}
+
+/** 迁移期只接受门岗已有的明确摘要；推不出数量就补 0，继续 fail-closed。 */
+export function inferScannedCount(output) {
+  const text = String(output ?? '')
+  const patterns = [
+    /(?:scannedFiles|filesScanned|files\s+scanned)\s*[:=]\s*(\d+)/i,
+    /(?:扫了|扫描|scanned)\s*(?:约\s*)?(\d+)\s*(?:个|条|份|项|文件|技能|门岗|entries?|files?)/i,
+    /(\d+)\s*(?:个|条|份|项|文件|技能|门岗)(?:文件|条|个)?\s*(?:进入判据|被扫描|扫描|逐条验|纳入)/i,
+    /(?:#|ℹ)\s*tests\s+(\d+)/i,
+    /Tests\s+(\d+)\s+passed\s*\((\d+)\)/i,
+  ]
+  for (const pattern of patterns) {
+    const match = pattern.exec(text)
+    if (match) return Number(match[2] ?? match[1])
+  }
+  return null
+}
 
 /**
  * 每个 advisory 门岗的**真实补齐机制**（2026-10-06）：汇总里的提示文案只许按这张表出，
@@ -135,11 +173,17 @@ export async function runGateSuite({ gates, advisory, runGate, write = (text) =>
     const gateStarted = Date.now()
     const { code, output } = await runGate(name)
     const seconds = ((Date.now() - gateStarted) / 1000).toFixed(1)
-    if (code === 0) {
+    const scan = SCAN_EXEMPTIONS[name] && code === 0
+      ? { ok: true, count: null, exempt: SCAN_EXEMPTIONS[name] }
+      : parseScannedCount(output)
+    if (code === 0 && scan.ok) {
+      if (scan.exempt) write(`ℹ️ ${name}：扫描计数豁免——${scan.exempt}\n`)
       write(`✅ ${name} (${seconds}s)\n`)
       continue
     }
-    const record = { name, code, tail: tail(output), seconds }
+    const effectiveCode = code === 0 ? 1 : code
+    const scanTail = scan.ok ? [] : [`门岗自证失败：${scan.reason}`]
+    const record = { name, code: effectiveCode, scanned: scan.ok ? scan.count : null, tail: [...scanTail, ...tail(output)], seconds }
     if (advisory.has(name)) {
       advisoryFailures.push(record)
       write(`⚠️ ${name} 未通过（advisory，退出码 ${code}，${seconds}s）——不阻断，见文末汇总\n`)
@@ -194,7 +238,16 @@ export async function runGateSuite({ gates, advisory, runGate, write = (text) =>
 /** 真实执行体：`pnpm run <name>`，输出边流边收（既能实时看，又能在汇总里回放尾巴）。 */
 function spawnGate(name) {
   return new Promise((resolve, reject) => {
-    const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+    // Codex/CI Windows environments can expose pnpm through PowerShell's command
+    // lookup while `cmd.exe` (which Node uses for shell:true) cannot resolve the
+    // bare name. Resolve the same executable from PATH before spawning so the
+    // runner exercises the gates instead of turning every gate into a platform
+    // lookup failure.
+    const command = process.platform === 'win32'
+      ? process.env.NOMI_PNPM_COMMAND
+        ?? process.env.Path?.split(path.delimiter).map((entry) => path.join(entry, 'pnpm.cmd')).find((candidate) => fs.existsSync(candidate))
+        ?? 'pnpm.cmd'
+      : 'pnpm'
     const child = spawn(command, ['run', name], {
       cwd: repoRoot,
       shell: process.platform === 'win32',
@@ -210,7 +263,13 @@ function spawnGate(name) {
     child.on('error', reject)
     child.on('close', (code, signal) => {
       // 被信号打断（超时/取消）不是「通过」——没有退出码就当失败，fail-closed。
-      resolve({ code: code === null ? `signal:${signal}` : code, output })
+      let normalizedOutput = normalizeGateOutput(output)
+      if (!parseScannedCount(normalizedOutput).ok && !normalizedOutput.match(SCAN_MARKER)) {
+        const inferred = inferScannedCount(normalizedOutput)
+        normalizedOutput += `${normalizedOutput.endsWith('\n') ? '' : '\n'}scanned=${inferred ?? 0}\n`
+        if (inferred === null) normalizedOutput += `门岗未提供可核对的扫描摘要：${name}\n`
+      }
+      resolve({ code: code === null ? `signal:${signal}` : code, output: normalizedOutput })
     })
   })
 }

@@ -78,6 +78,7 @@ if (registryErrors.length > 0) {
 // 扫盘之前先确认每条 scope 真的扫得到东西——见 deadScopes 的文件头注释（fail-closed）。
 const collectedSources = collectSources(registry)
 const scannedFiles = [...collectedSources.keys()]
+console.log(`scanned=${scannedFiles.length}`)
 const dead = deadScopes({
   registry,
   only: 'capability.scope',

@@ -39,6 +39,7 @@ const SRC_FILES = gitFiles("src")
   .filter((f) => fs.existsSync(path.join(ROOT, f)));
 const CONFIG_FILES = ["tailwind.config.ts"].filter((f) => fs.existsSync(path.join(ROOT, f)));
 const ALL_FILES = [...SRC_FILES, ...CONFIG_FILES];
+console.log(`scanned=${ALL_FILES.length}`);
 
 // ---- 1. 已定义 token 集合 ----
 const defined = new Set();

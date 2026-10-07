@@ -132,4 +132,5 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
+console.log(`scanned=${governed.length}`)
 console.log(`✅ 先查别人门岗：${governed.length} 份受管方案（阈值 ${PRIOR_ART_THRESHOLD_DATE}，共 ${plans.size} 份；方案里写了这一节的必须像样）；${prNote}`)

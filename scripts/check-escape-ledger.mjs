@@ -35,5 +35,6 @@ if (errors.length > 0) {
   process.exit(1)
 }
 const count = (status) => ledger.entries.filter((entry) => entry.status === status).length
+console.log(`scanned=${ledger.entries.length}`)
 console.log(`✅ 逃逸账本门岗：${ledger.entries.length} 条（candidate ${count('candidate')} / reviewed ${count('reviewed')} / fixed ${count('fixed')}）`
   + `；candidate 超 ${CANDIDATE_MAX_DAYS} 天警告 ${warnings.length} 条`)

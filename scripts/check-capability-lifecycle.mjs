@@ -199,6 +199,7 @@ export function scanCapabilityLifecycle(files) {
 
 function main() {
   const files = collectSourceFiles()
+  console.log(`scanned=${files.size}`)
   const capabilities = rendererRequiredCapabilities()
   const { executionPaths, violations } = scanCapabilityLifecycle(files)
   console.log(`能力生命周期门岗：renderer_required 能力 ${capabilities.length} 项（${capabilities.join(', ')}）`)

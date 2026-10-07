@@ -32,6 +32,7 @@ const flaggedCases = manifest.cases.filter((entry) => entry.requiresFlag === DIR
 manifest.cases = manifest.cases.filter((entry) => entry.requiresFlag === undefined || (flagOn && entry.requiresFlag === DIRECTOR_3DBOX_FLAG));
 
 const published = modelFacingToolSpecs("internal").map((spec) => spec.name);
+console.log(`scanned=${published.length}`);
 const declared = new Set(published);
 const expected = new Set(manifest.canonicalVerbs);
 const errors: string[] = [];

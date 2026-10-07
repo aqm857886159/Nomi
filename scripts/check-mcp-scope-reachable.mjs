@@ -90,4 +90,5 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
+console.log(`scanned=${adapters.length}`)
 console.log(`✓ MCP scope 可达性门岗通过：${adapters.length} 个 project_session 工具要的 scope 全部发得出来（故意不发的 ${DELIBERATELY_OUT_OF_SESSION.size} 个已登记）。`)

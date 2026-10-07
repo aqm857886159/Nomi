@@ -156,6 +156,7 @@ for (const file of FILES.filter((f) => /from ['"]zustand/.test(fs.readFileSync(f
   }
   visit(sf)
 }
+console.log(`scanned=${stores.length}`)
 
 // ── 扫声明 ──────────────────────────────────────────────────────────────────
 const declarations = new Map()

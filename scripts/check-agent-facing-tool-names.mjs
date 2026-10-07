@@ -67,6 +67,8 @@ function listFiles() {
 const TOOL_TOKEN = /\bnomi_[a-z0-9]+(?:_[a-z0-9]+)*\b/g
 
 async function main() {
+  const files = listFiles()
+  console.log(`scanned=${files.length}`)
   const { MCP_TOOL_RESOLVER } = await import('../electron/capabilityCore/mcpToolCatalog.ts')
   const live = new Set(MCP_TOOL_RESOLVER.list().map((tool) => tool.name))
   const findings = []
@@ -100,7 +102,7 @@ async function main() {
     process.exitCode = 1
     return
   }
-  console.log(`✅ check:agent-facing-tool-names 通过（扫 ${listFiles().length} 份说明书，${live.size} 个在册工具，欠账 ${allowed.size}）。`)
+  console.log(`✅ check:agent-facing-tool-names 通过（扫 ${files.length} 份说明书，${live.size} 个在册工具，欠账 ${allowed.size}）。`)
 }
 
 void main()

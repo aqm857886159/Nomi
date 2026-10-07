@@ -29,8 +29,10 @@ function* walk(dir) {
 }
 
 const offenders = []
+let scanned = 0
 for (const scanDir of SCAN_DIRS) {
   for (const file of walk(path.join(repoRoot, scanDir))) {
+    scanned += 1
     const rel = path.relative(repoRoot, file)
     if (rel === LAUNCHER) continue
     const source = fs.readFileSync(file, 'utf8')
@@ -53,6 +55,7 @@ if (offenders.length) {
   process.exit(1)
 }
 
+console.log(`scanned=${scanned}`)
 console.log('✅ check:e2e-launch —— 无直接 electron.launch 调用（全部走 _launchApp.mjs）')
 
 // Exercise launchNomiApp assembly as well as banning alternate launch paths.

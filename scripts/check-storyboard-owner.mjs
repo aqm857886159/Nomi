@@ -17,6 +17,7 @@ function walk(dir) {
   }
 }
 walk(sourceRoot)
+console.log(`scanned=${files.length}`)
 const violations = []
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8')

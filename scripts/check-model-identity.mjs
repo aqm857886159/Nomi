@@ -104,6 +104,7 @@ for (const relative of listFiles()) {
 
 findings.sort((a, b) => a.id.localeCompare(b.id));
 const currentIds = findings.map((finding) => finding.id);
+console.log(`scanned=${currentIds.length}`);
 
 if (process.argv.includes("--update-baseline")) {
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify({ entries: currentIds }, null, 2)}\n`);

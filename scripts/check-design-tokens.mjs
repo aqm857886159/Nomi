@@ -64,6 +64,7 @@ function listFiles() {
 }
 
 const files = listFiles();
+console.log(`scanned=${files.length}`);
 const counts = RULES.map(() => 0);
 
 for (const rel of files) {

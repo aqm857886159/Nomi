@@ -108,4 +108,5 @@ if (offenders.length > 0) {
   process.exit(1)
 }
 
+console.log(`scanned=${skillFiles.length}`)
 console.log(`✅ 技能↔工具绑定：${skillFiles.length} 个技能（其中 ${scanned} 个声明了工具）正文均未复述 ${effectByAlias.size} 个已注册工具的性质`)
