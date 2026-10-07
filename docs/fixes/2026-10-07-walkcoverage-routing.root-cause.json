@@ -13,6 +13,10 @@
   "scope_paths": [
     "docs/engineering/test-routing.json",
     "scripts/validation-policy.mjs",
+    "scripts/select-quality-gate-profile.mjs",
+    "scripts/pr-judgement-lib.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
     "scripts/nightly-walk-summary.mjs",
     ".github/workflows/quality-gate.yml",
     ".github/workflows/nightly-walkthroughs.yml"
@@ -31,10 +35,16 @@
     "Exit 125 is skipped; only nonzero statuses other than 125 are failures.",
     "Every walk has a bounded timeout and browser provisioning uses the shared retrying script."
   ],
-  "doors": [],
+  "doors": [
+    { "kind": "read", "path": "scripts/validation-policy.mjs", "symbol": "ROUTING" },
+    { "kind": "read", "path": "scripts/pr-judgement-lib.mjs", "symbol": "loadRoutingTable" },
+    { "kind": "read", "path": ".github/workflows/quality-gate.yml", "symbol": "Spending path walkthroughs (blocking subset)" },
+    { "kind": "read", "path": ".github/workflows/nightly-walkthroughs.yml", "symbol": "Run non-paid walkthrough batch" }
+  ],
   "door_reduction": {
     "before": 0,
-    "after": 0
+    "after": 4,
+    "why_not": "These four consumers intentionally remain separate execution doors, but all read the same routing contract or its executable CLI output."
   },
   "generality_proof": "Policy, PR workflow, nightly workflow, and summary code all consume the same routing JSON or the same summary function, so adding or changing a walk cannot leave one execution surface stale.",
   "shared_boundaries": [
@@ -94,7 +104,8 @@
       "docs/engineering/test-routing.json",
       "scripts/validation-policy.mjs",
       "scripts/nightly-walk-summary.mjs",
-      "scripts/ci-install-chromium.sh"
+      "scripts/validation-policy.node-test.mjs",
+      "docs/engineering/2026-10-07-walkcoverage4-direction-check.md"
     ]
   },
   "regression_tests": [

@@ -55,6 +55,7 @@ jobs:
       unit: ${{ steps.profile.outputs.unit }}
       desktop: ${{ steps.profile.outputs.desktop }}
       journeys: ${{ steps.profile.outputs.journeys }}
+      spend_walks: ${{ steps.profile.outputs.spend_walks }}
       canvas: ${{ steps.profile.outputs.canvas }}
       performance: ${{ steps.profile.outputs.performance }}
       package: ${{ steps.profile.outputs.package }}
@@ -164,7 +165,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium for browser integration tests
-        run: bash scripts/ci-install-chromium.sh
+        run: pnpm exec playwright install --with-deps chromium
       - name: Unit and agent runtime tests (full lane)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:system:unit
@@ -204,7 +205,7 @@ jobs:
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
-        run: bash scripts/ci-install-chromium.sh
+        run: pnpm exec playwright install --with-deps chromium
       # 七步一律 continue-on-error + 末尾汇总（2026-09-18）。此前它们是串行 fail-fast：
       # 第一条走查红了，后面六条根本不跑，于是**每轮 CI 只能学到一件事**——
       # PR #804 连着三轮，每轮红的都是另一条不同的走查，三轮 ≈ 两小时只为收集三条信息。
@@ -247,7 +248,7 @@ jobs:
         run: xvfb-run -a pnpm run test:golden
       # The routing table owns both the walk list and the blocking subset.
       - name: Spending path walkthroughs (blocking subset)
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.spend_walks == 'true'
         run: |
           set -o pipefail
           mkdir -p outputs/spend-walks

@@ -427,6 +427,7 @@ test('GitHub output exposes every policy dimension with stable snake-case names'
     unit: 'full',
     desktop: 'true',
     journeys: 'false',
+    spend_walks: 'false',
     canvas: 'none',
     performance: 'false',
     package: 'true',
@@ -542,6 +543,9 @@ test('spend routing is data-owned and source changes select journeys', () => {
   ])
   for (const file of ['electron/productionRun/productionPendingSpend.ts', 'src/workbench/generationCanvas/spend/SpendApprovalCard.tsx']) {
     assert.equal(classifyValidationPolicy([file]).journeys, true, file)
+    assert.equal(classifyValidationPolicy([file]).spendWalks, true, file)
   }
+  assert.equal(classifyValidationPolicy(['electron/capabilityCore/pendingSpendReferences.ts']).spendWalks, true)
+  assert.equal(classifyValidationPolicy(['scripts/validation-policy.mjs']).spendWalks, false)
   assert.equal(classifyValidationPolicy(['src/utils/unrelated.ts']).journeys, false)
 })

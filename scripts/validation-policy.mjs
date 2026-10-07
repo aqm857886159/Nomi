@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // 核心流程冒烟（2026-09-22 用户拍板，docs/plan/2026-09-22-core-flow-smoke-three-defenses.md）：
@@ -26,6 +25,7 @@ const FULL_POLICY = Object.freeze({
   unit: 'full',
   desktop: true,
   journeys: true,
+  spendWalks: true,
   canvas: 'full',
   performance: true,
   package: true,
@@ -39,6 +39,7 @@ const VALIDATION_INFRASTRUCTURE_POLICY = Object.freeze({
   unit: 'full',
   desktop: true,
   journeys: true,
+  spendWalks: false,
   canvas: 'full',
   performance: false,
   package: false,
@@ -126,8 +127,7 @@ const JOURNEY_PATTERNS = [
 // change to a spending surface selects the same Linux journey lane that runs
 // these checks in quality-gate.yml.
 const ROUTING_URL = new URL('../docs/engineering/test-routing.json', import.meta.url)
-const ROUTING_FILE = fs.existsSync(ROUTING_URL) ? ROUTING_URL : path.join(process.cwd(), 'docs/engineering/test-routing.json')
-const ROUTING = JSON.parse(fs.readFileSync(ROUTING_FILE, 'utf8'))
+const ROUTING = JSON.parse(fs.readFileSync(ROUTING_URL, 'utf8'))
 const SPEND_EVIDENCE = ROUTING.categories.spend.evidence.find((entry) => entry.id === 'spend-walks')
 if (!SPEND_EVIDENCE?.walks?.length) throw new Error('test-routing.json must define spend-walks')
 export const SPEND_WALKS = Object.freeze(SPEND_EVIDENCE.walks.map((walk) => Object.freeze({ ...walk })))
@@ -141,7 +141,7 @@ export function isSpendSourcePath(path) {
   const normalized = normalizePath(path)
   return SPEND_PATH_RULES.some(({ pattern, scope }) => (!scope || scope.test(normalized)) && pattern.test(normalized))
 }
-export const SPEND_WALK_PATTERNS = Object.freeze(SPEND_WALK_FILES.map((file) => new RegExp('^' + file + '$')))
+export const SPEND_WALK_PATHS = new Set(SPEND_WALK_FILES)
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
 
@@ -294,6 +294,7 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
         unit: 'focused',
         desktop: false,
         journeys: false,
+        spendWalks: false,
         canvas: 'none',
         performance: false,
         package: false,
@@ -323,9 +324,10 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
       policy.journeys = true
       policy.reasons.push(`journey:${path}`)
     }
-    if (isSpendSourcePath(path) || matchesAny(path, SPEND_WALK_PATTERNS)) {
+    if (isSpendSourcePath(path) || SPEND_WALK_PATHS.has(path)) {
       policy.unit = 'full'
       policy.journeys = true
+      policy.spendWalks = true
       policy.reasons.push(`spend-journey:${path}`)
     }
     if (matchesAny(path, DESKTOP_PATTERNS)) {
@@ -363,6 +365,7 @@ export const VALIDATION_POLICY_OUTPUTS = Object.freeze([
   'unit',
   'desktop',
   'journeys',
+  'spendWalks',
   'canvas',
   'performance',
   'package',
