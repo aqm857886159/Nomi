@@ -1,0 +1,83 @@
+// Red-stage reproduction for the 0.22.5 -> 0.23.0 project-open failure.
+//
+// The caller supplies an isolated, already-created upgrade fixture. This runner
+// corrupts only that fixture's durable proposal receipt, opens the project through
+// the real library card, and records the user-visible failure plus renderer log.
+// It never touches the user's profile and does not call private renderer state.
+import fs from 'node:fs'
+import path from 'node:path'
+
+import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
+import { dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
+
+const projectsDir = process.env.NOMI_UPGRADE_PROJECTS_DIR
+const userDataDir = process.env.NOMI_UPGRADE_USER_DATA_DIR
+const settingsDir = process.env.NOMI_UPGRADE_SETTINGS_DIR
+const capabilityDir = process.env.NOMI_UPGRADE_CAPABILITY_DIR
+const projectId = process.env.NOMI_UPGRADE_PROJECT_ID || 'upgrade-canvas-history'
+
+if (![projectsDir, userDataDir, settingsDir, capabilityDir].every(Boolean)) {
+  throw new Error('Set NOMI_UPGRADE_{PROJECTS,USER_DATA,SETTINGS,CAPABILITY}_DIR to isolated directories')
+}
+
+function findProjectRoot() {
+  for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const root = path.join(projectsDir, entry.name)
+    const recordPath = path.join(root, '.nomi', 'project.json')
+    if (!fs.existsSync(recordPath)) continue
+    try {
+      if (JSON.parse(fs.readFileSync(recordPath, 'utf8')).id === projectId) return root
+    } catch {
+      // The app owns the record format; an unreadable sibling is not this fixture.
+    }
+  }
+  throw new Error(`Project ${projectId} is not present in ${projectsDir}`)
+}
+
+function rendererLogText() {
+  const logs = path.join(userDataDir, 'logs')
+  if (!fs.existsSync(logs)) return ''
+  return fs.readdirSync(logs)
+    .filter((name) => name.endsWith('.log'))
+    .map((name) => fs.readFileSync(path.join(logs, name), 'utf8'))
+    .join('\n')
+}
+
+const projectRoot = findProjectRoot()
+const receiptPath = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
+fs.mkdirSync(path.dirname(receiptPath), { recursive: true })
+fs.writeFileSync(receiptPath, '{"schemaVersion":2,"lifecycle":"preparing"', 'utf8')
+
+let app
+let win
+const evidence = { projectId, projectRoot, receiptPath }
+try {
+  ({ app, win } = await launchNomiApp({
+    name: 'upgrade-0225-to-0230-open-red',
+    userDataDir,
+    settingsDir,
+    projectsDir,
+    capabilityDir,
+    timeout: 60_000,
+    settleMs: 700,
+  }))
+  await dismissSplashIfPresent(win)
+  await win.waitForTimeout(800)
+  const card = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
+  if (!(await card.count())) throw new Error(`Project card ${projectId} is not rendered`)
+  await card.dispatchEvent('click')
+  await win.waitForTimeout(8_000)
+  evidence.url = win.url()
+  evidence.bodyTail = (await win.locator('body').innerText()).slice(-2_000)
+} finally {
+  await closeNomiApp(app)
+}
+
+evidence.logTail = rendererLogText().slice(-8_000)
+const visibleFailure = /发送失败|项目恢复失败|project restore/i.test(evidence.bodyTail || '')
+const rawFailure = /project-restore-failed/.test(evidence.logTail) && /proposal receipt is invalid/i.test(evidence.logTail)
+if (!visibleFailure || !rawFailure) {
+  throw new Error(`Expected receipt failure was not observed: ${JSON.stringify(evidence)}`)
+}
+console.log(JSON.stringify(evidence, null, 2))
