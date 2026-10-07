@@ -27,11 +27,12 @@ export function assetLocalizationOptions(
   }
 }
 
-export function assetIngestionResolver(vendor: Vendor, catalog: AssetCatalog): IngestionResolver {
+export function assetIngestionResolver(vendor: Vendor, catalog: AssetCatalog, operationIngestion?: AssetIngestion): IngestionResolver {
   return (mediaKind) => resolveAssetIngestionWithFallback(
     vendor,
     catalog.vendors,
     (key) => decryptApiKeyRecord(catalog.apiKeysByVendor[key]),
     mediaKind,
+    operationIngestion,
   )
 }

@@ -24,6 +24,9 @@ function imageCreateOp(extraImage: boolean, tiered: boolean): HttpOperation {
   return {
     method: "POST",
     path: "/v1/images/generations",
+    // 改图端点的参考图直接内联成 Data URI（文档原文「支持公共图像 URL 或 Data URI Base64」，2026-10-06 复核）：
+    // 本机图只发给 Agnes 自己，不再借别家账户的上传通道。视频端点只收公网 URL，不在这里声明。
+    ...(extraImage ? { assetIngestion: { strategy: "inline-base64" as const, accepts: ["image" as const] } } : {}),
     headers: CREATE_HEADERS,
     body: {
       model: "{{model.modelKey}}",

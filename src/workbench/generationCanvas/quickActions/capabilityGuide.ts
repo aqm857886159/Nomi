@@ -6,24 +6,25 @@ import type { TFunction } from 'i18next'
  */
 export type QuickActionGuide = Readonly<{ description: string; onSelect: () => void }>
 
-/** 能力名 → 去哪儿补。按能力说，不按模型名说（P4）。 */
-export type MissingCapability = 'upscale' | 'imageEdit'
-
 /**
- * 放大：目录里能做「不改内容地放大」的通用模型今天在 kie（Topaz / Recraft，见 electron/catalog/kieImages2026.ts 的
- * KIE_UPSCALE_MODELS），所以直接落到 kie 的接入页；文案明说要 kie 的 key——只接官方额度的用户目前没有放大能力，
- * 不指向一个不存在的东西。
- * 改图：任何一家能改图的图片模型都行，落到模型设置首页。
+ * 能力名 → 去哪儿补。按能力说，不按模型名说（P4）。
+ * 放大不在这里：2026-10-07 用户拍板，没有放大模型时「高清」置灰、悬停说原因、不跳转（见 CAPABILITY_GUIDE_EXCEPTIONS）。
  */
+export type MissingCapability = 'imageEdit'
+
+/** 「缺能力时不给下一步、只置灰说原因」的用户拍板例外；其它能力一律要有下一步。 */
+export const CAPABILITY_GUIDE_EXCEPTIONS = {
+  upscale: '用户 2026-10-07 拍板：目前没有放大模型可接，没有时「高清」置灰、悬停说原因，不跳转',
+} as const
+
+const GUIDE_KEYS: Record<MissingCapability, string> = {
+  // 改图：任何一家能改图的图片模型都行，落到模型设置首页。
+  imageEdit: 'generationCommon.quickActions.guides.imageEditAdd',
+}
+
 export function capabilityGuide(capability: MissingCapability, t: TFunction): QuickActionGuide {
-  if (capability === 'upscale') {
-    return {
-      description: t('generationCommon.quickActions.guides.upscaleAdd'),
-      onSelect: () => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models', vendorKey: 'kie' } })),
-    }
-  }
   return {
-    description: t('generationCommon.quickActions.guides.imageEditAdd'),
+    description: t(GUIDE_KEYS[capability]),
     onSelect: () => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } })),
   }
 }

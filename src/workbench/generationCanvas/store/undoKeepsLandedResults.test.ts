@@ -13,6 +13,7 @@ import { useGenerationCanvasStore } from './generationCanvasStore'
 import { deliverRunOutcome, type RunProjectTarget } from '../runner/runProjectDelivery'
 import { attachShotResult } from '../../capability/multiShotCanvasLanding'
 import { applyProposalBatch } from '../agent/proposalTxn'
+import { landSelectionRewrite } from '../runner/textActions'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasNode, GenerationNodeResult, TiptapDocJson } from '../model/generationCanvasTypes'
 
@@ -34,6 +35,7 @@ function baseNode(id: string, x: number): GenerationCanvasNode {
 
 const OLD_RESULT: GenerationNodeResult = { id: 'r-old', type: 'image', url: 'nomi-local://old.png', createdAt: 1, versionNo: 1 }
 const LANDED_RESULT: GenerationNodeResult = { id: 'r-landed', type: 'image', url: 'nomi-local://landed.png', createdAt: 2 }
+const REWRITE_DOC: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'keep PAID REWRITE keep' }] }] }
 const LANDED_DOC: TiptapDocJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'paid text' }] }] }
 
 function seed(): void {
@@ -90,6 +92,20 @@ const LANDING_DOORS: readonly LandingDoor[] = [
       await deliverRunOutcome(TARGET, NODE_ID, { kind: 'content', contentJson: LANDED_DOC, runId: 'run-text' })
     },
     assertLanded: (landed) => expect(landed?.contentJson).toEqual(LANDED_DOC),
+  },
+  {
+    // 改写选区：运行器落结果版本（addNodeResult），节点编辑器替换选区后经 landSelectionRewrite 落正文。
+    name: 'text rewrite of a selection (addNodeResult + landSelectionRewrite)',
+    land: async () => {
+      await startRun('run-rw')
+      await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: { id: 'r-rw', type: 'text', text: 'PAID REWRITE', createdAt: 5 } })
+      landSelectionRewrite(NODE_ID, 'r-rw', REWRITE_DOC)
+    },
+    assertLanded: (landed) => {
+      expect(landed?.contentJson).toEqual(REWRITE_DOC)
+      expect(landed?.result?.id).toBe('r-rw')
+      expect(landed?.meta?.textPendingSelectionApply).toBeFalsy()
+    },
   },
   {
     name: 'generation in flight (deliverRunOutcome run-started)',
