@@ -30,7 +30,8 @@ jobs:
       - name: Build desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-install-chromium.sh
+        timeout-minutes: 15
       - name: Run all zero-cost layers
         run: xvfb-run -a pnpm run test:experience:full
       - name: Upload report

@@ -24,7 +24,7 @@ const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
     '此前 config/knownVendors.ts、config/modelProviderIdentity.ts 与设计实验室夹具各写一份，' +
     '2026-09-14 收口成这一处（也正是「即梦挂了豆包的牌子」那个 bug 的根因）。',
   'workbench/generationCanvas/nodes/director/scene/character/mannequinAssets.ts':
-    '导演台内置假人 GLB / 动画 GLB：只喂 three 的 loader，不进节点结果，也不落项目。',
+    '导演台默认人偶 UAL GLB（网格 + 骨架 + 全部动作同一文件）：只喂 three 的 loader，不进节点结果，也不落项目。',
   'lib/removeBackground.ts': 'Worker 脚本地址：new Worker 当场消费，不是资产 URL。',
   'workbench/generationCanvas/videoDepth/videoDepthClient.ts':
     '深度推理 worker 的脚本地址：new Worker 当场消费，随这次运行结束即弃，不进节点结果也不落项目。',
