@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ./directorTypes 的 DirectorRig / Vec3
- * [OUTPUT]: 对外提供 SemanticBone 词表、RIG_BONE_MAPS（mixamo / ue4 / ual 的语义骨 → 真实骨名）、boneName、BODY_TYPE_PRESETS（8 快捷体形缩放）、
+ * [OUTPUT]: 对外提供 SemanticBone 词表、RIG_BONE_MAPS（mixamo / ue4 / ual 的语义骨 → 真实骨名）、DEFAULT_CHARACTER_MODEL_PATH / DEFAULT_CHARACTER_RIG / isBuiltinCharacterModel、boneName、BODY_TYPE_PRESETS（8 快捷体形缩放）、
  *           JOINT_AXIS_LABEL_KEYS（30 组关节轴语义 i18n key）
  * [POS]: director/model 的「rig 无关」层：角色系统只用语义骨名说话（head / spine / leftHand …），Mixamo（用户上传 / 规范轴）、UE 人偶
  *        （2026-08-03 拍板移植）与默认 UAL 人偶各自映射；骨局部轴的差异由 scene/character/canonicalBoneFrame 换算，这里只管名字；IK 链、FK 滑条、姿态偏移都经 boneName() 取真实骨名，不在业务里写死 mixamorig*。
@@ -96,6 +96,15 @@ const UAL: Record<SemanticBone, string> = {
 }
 
 export const RIG_BONE_MAPS: Record<DirectorRig, Record<SemanticBone, string>> = { mixamo: MIXAMO, ue4: UE4, ual: UAL }
+
+/** 默认人偶（加人 / 编译器造人 / 缺省 rig 都指它）：存档里的 modelPath 只写 builtin:*，不写具体文件；旧工程的 builtin:x-bot 也指向它 */
+export const DEFAULT_CHARACTER_MODEL_PATH = 'builtin:ual'
+export const DEFAULT_CHARACTER_RIG: DirectorRig = 'ual'
+
+/** modelPath 缺省或 builtin:* = 内置默认人偶；否则是用户上传的模型 */
+export function isBuiltinCharacterModel(modelPath: string | undefined): boolean {
+  return !modelPath || modelPath.startsWith('builtin:')
+}
 
 export function boneName(rig: DirectorRig, bone: SemanticBone): string {
   return RIG_BONE_MAPS[rig][bone]

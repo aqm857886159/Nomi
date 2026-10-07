@@ -9,6 +9,7 @@
 import React from 'react'
 import { useDirectorStoreApi } from '../../DirectorEditorContext'
 import type { DirectorRig, Vec3 } from '../../model/directorTypes'
+import { DEFAULT_CHARACTER_MODEL_PATH, DEFAULT_CHARACTER_RIG } from '../../model/rigs'
 import { RAD_TO_DEG } from '../../model/vec3'
 import { frameTransform, invertFrame, localFrame, multiplyFrames, sceneFrame } from '../../model/sceneObjectGraph'
 import { useViewportApi } from '../ViewportApiContext'
@@ -23,9 +24,10 @@ export type PlacementGhostState = {
   dragTarget: Vec3 | null
 }
 
+// 男 / 女目前是同一个默认 UAL 人偶，只差颜色（UAL 只有一个中性人偶）
 export const CHARACTER_MODEL_BY_GENDER: Record<PlacementGender, { modelPath: string; rig: DirectorRig }> = {
-  female: { modelPath: 'builtin:x-bot', rig: 'mixamo' },
-  male: { modelPath: 'builtin:x-bot', rig: 'mixamo' },
+  female: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
+  male: { modelPath: DEFAULT_CHARACTER_MODEL_PATH, rig: DEFAULT_CHARACTER_RIG },
 }
 
 export type CharacterPlacementApi = {

@@ -10,7 +10,10 @@
 > canonicalBoneFrame.test.ts: 真 UAL glb 单测：22 语义骨按去点名找到、52 根别名、修正表对账、随机偏移世界朝向等价、读回、视线等价
 > ualMannequin.testkit.ts: 测试夹具：node 里真加载 ual-mannequin.glb（不 mock 资产）
 > characterRig.ts: three 侧骨骼工具（零 React）：骨名解析、偏移右乘（经 canonicalBoneFrame 换轴）、offsetFromBase、两骨解析 IK（距离夹持 / 余弦定理 / 极向量定平面）、胸腔朝向、极向量绕轴、CCD、视线偏移分配、蒙皮最低点
-> characterAsset.ts: 零 React 角色资产工具：builtin:* → 内置 X Bot url、FBX 判定、Mixamo 骨骼检测（CharacterEntity / ModelEntity 共用）
+> characterAsset.ts: 零 React 角色资产工具：builtin:* → 默认 UAL 人偶 url、FBX 判定、Mixamo 骨骼检测、prepareCharacterModel（克隆骨架 / 记 rest / 定高：内置 UAL 用 manifest 实高、上传模型按骨骼范围 / rig=ual 挂规范骨轴）（CharacterEntity / ModelEntity 共用）
+> characterAsset.test.ts: 真 UAL glb：身高 1.75±1cm、脚底贴地、每个实例各自挂骨轴换算、builtin:* 解析
+> skeletonVisualBones.ts: 骨骼可视化规则（画哪些骨 / 按哪条链上色），按规范基名判断，Mixamo 与 UAL 同一条；骨架根不画
+> skeletonVisualBones.test.ts: 规则单测 + 真 UAL 骨架只画 22 根
 > poseClipLibrary.ts: 动作库加载与采样：只加载默认人偶 glb 一个文件，每个动作按需克隆一副源骨架 + 一个 three AnimationMixer，采样 = 定到时刻 t（循环取模 / 单次与单姿势夹在末帧）抄出每根骨的四元数 + 位置；模块级单例，未加载返回 null 退回静止
 > poseClipLibrary.test.ts: 真 UAL glb 单测：43 个动作都能采、循环取模、单次夹末帧、动作之间互不干扰、源 bind 是 T 字
 > poseSnapshot.ts: 姿态快照纯数学：基名归一（mixamorig: / 无冒号 / _N 都归一；UAL DEF-* 经 UAL_BASE_NAME_ALIASES 落到 Mixamo 基名）、快照带相对根的累积朝向、快照混合（smoothstep + 逐骨 slerp）、套到角色按层级自上而下用**世界增量** Δ = 帧·源 bind⁻¹ 套到角色 bind 相对根朝向再换回父局部（bind 一致时等价照抄，bind 不同的上传模型也不拧）；骨盆位移按两边 rest 骨盆方向换坐标系、按长度换单位
