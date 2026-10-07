@@ -985,6 +985,32 @@
       }
     },
     {
+      "id": "FB-20261007-deleted-node-drops-arriving-outcome",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：生成中删节点再撤销，节点带着生成中回来、结果永远不到",
+      "category": "claims-and-outcomes",
+      "problem": "生成中删掉节点（删 / 删选中 / 剪切 / 外部写入删），上游任务照跑、钱已花，结果到达时节点不在被直接丢掉；撤销删除后节点一直显示生成中，结果 / 文本定稿 / 失败都不会再来",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts：4 扇删除门 × 3 种到达 + 撤销—重做—撤销 3 条，15 条改前全红；先撤销后到达对照 3 条本来就绿",
+        "变异：投递处不暂存 15 红；撤销日志不认暂存 15 红；暂存不认失败状态 5 红",
+        "设计卡 docs/plan/2026-10-07-deleted-node-keeps-arriving-outcome.md（选「结果落回恢复的节点」，不选「标成已中断让用户重试」：重试要再花钱）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+      }
+    },
+    {
       "id": "LAW11-ANCHOR-CARD",
       "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
       "category": "parameter-contract",

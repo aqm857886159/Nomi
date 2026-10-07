@@ -29,7 +29,7 @@
 | `pnpm run check:real-media-fixture` | 真实素材门岗（画布性能/导入/导出/走查四类各至少一条真素材测试；合成夹具棘轮只减不增；缺素材硬红不许 skip，CI 未就位期只能记带到期日的债）|
 | `pnpm run check:rule-aliases` | 规则编号解析门岗（家规文件里任何 `R<数字>` 都要解析得到——合并规则不许留悬空引用）|
 | `node scripts/fix-churn.mjs <路径>` / `--staged` / `--range <base>..HEAD --warn` | 方向检查计数器：文件 / 概念目录 / concept-owners 概念 14 天内、自写登记条目 30 天内（第 2 个就命中）的 fix 与 revert-fix 数，命中就改派类根因复盘（RW，编排手册 §20） |
-| `node scripts/check-dispatch-brief.mjs <任务书.md>` | 派工书检查：有没有写范围、不碰清单、停点；第 3 轮修补必须引用复盘文档 |
+| `node scripts/check-dispatch-brief.mjs <任务书.md>` | 派工书检查：有没有写范围、不碰清单、停点、补还是换（近 14 天修几次 / 有无成熟方案 / 补换删）；第 3 轮修补必须引用复盘文档 |
 | `pnpm run check:self-written` | 自写登记门岗（P0：diff 里在 `src/`、`electron/` 新增、落在领域目录之外又没被登记表认领的代码文件就报；`enforceFrom` 之前警告、之后阻断；测试 / 类型声明 / 纯接线豁免）；另外：`under-review` 过了 `reviewBy` 且这次改动碰它的文件就红（改离 under-review 才算评估 / 替换），新登记 ≤30 天、最多续一次（`renewed` 记录），`to-replace` 的文件都没了就红「请删登记」|
 | `node scripts/self-written-review.mjs`（`pnpm run audit:self-written`） | **排版本计划时跑一遍，把到期清单（待替换 / 评估到期 / 复查日已到）给用户看**，结论改回 `self-written.json`，不只写在计划里 |
 | `pnpm run check:framework-surface` | 框架接触面门岗（登记框架公开的**每个字段**都要有一条裁决：派生/常量/不用/上游默认/带到期日的债；上游升级加字段即红）|

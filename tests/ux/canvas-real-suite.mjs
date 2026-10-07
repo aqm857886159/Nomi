@@ -31,6 +31,8 @@ export const FULL_CANVAS_SCENARIOS = [
   { id: 'open-fit', script: 'tests/ux/canvas-open-fit.walk.mjs' },
 ]
 
+const VERSION_GRID_PERF_SCENARIOS = Object.freeze(['blank-pan', 'node-drag-image', 'wheel-zoom'])
+
 export const PERFORMANCE_CANVAS_SCENARIOS = [
   {
     id: 'medium-canvas-performance',
@@ -39,6 +41,16 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
     // 上限由门岗场景条数派生（见 canvas-perf/gateScenarios.mjs）：加一条场景自动多一格，
     // 不会像 #763 那样撞上写死的 20 分钟被砍在半路。
     timeoutMs: canvasPerfGateTimeoutMs(CANVAS_PERF_GATE_SCENARIOS),
+  },
+  // 同一个 M 档夹具、前 3 张图各 4 版且宫格铺开着（版本卡片，V-1054）：铺开的宫格压在画布上时，平移 / 拖节点 / 缩放
+  // 还在不在同一套预算里。预算、校准一字不动——只是多量一种画布上的样子。多选拖动不放进来：宫格按设计盖住邻居，
+  // 那条脚本会找不到能点的节点（量的是点不到，不是卡）。
+  {
+    id: 'medium-canvas-version-grids-performance',
+    script: 'tests/ux/canvas-performance-benchmark.e2e.mjs',
+    args: ['validation-gate-version-grids', '--scale', 'M', '--runs', '1', '--scenario', VERSION_GRID_PERF_SCENARIOS.join(',')],
+    env: { NOMI_CANVAS_PERF_VERSION_STACKS: '3' },
+    timeoutMs: canvasPerfGateTimeoutMs(VERSION_GRID_PERF_SCENARIOS),
   },
 ]
 
@@ -128,7 +140,8 @@ export function runCanvasScenario(scenario, {
   const startedAt = Date.now()
   const child = spawnProcess(process.execPath, [scenario.script, ...(scenario.args || [])], {
     cwd,
-    env,
+    // 场景自带的环境变量（例：夹具开关）只加不改调用方的。
+    env: scenario.env ? { ...env, ...scenario.env } : env,
     encoding: 'utf8',
     stdio: 'pipe',
     maxBuffer: MAX_CANVAS_SCENARIO_LOG_BYTES,

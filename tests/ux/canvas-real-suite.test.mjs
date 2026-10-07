@@ -93,6 +93,20 @@ describe('real canvas acceptance suite', () => {
     expect(performance?.timeoutMs).toBeGreaterThan(DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS)
   })
 
+  // V-1054：铺开的版本宫格压在画布上时也要过同一套预算——同一个 M 档夹具，只多开夹具开关，不另立预算。
+  it('also measures the medium canvas with three version grids laid out, through a scenario-scoped fixture switch', () => {
+    const grids = PERFORMANCE_CANVAS_SCENARIOS.find((scenario) => scenario.id === 'medium-canvas-version-grids-performance')
+    expect(grids?.env).toEqual({ NOMI_CANVAS_PERF_VERSION_STACKS: '3' })
+    expect(grids?.args).toEqual(expect.arrayContaining(['--scale', 'M', '--runs', '1']))
+    const listed = grids?.args?.[grids.args.indexOf('--scenario') + 1]?.split(',') ?? []
+    expect(listed.length).toBeGreaterThan(0)
+    for (const name of listed) expect(CANVAS_PERF_GATE_SCENARIOS).toContain(name)
+    expect(grids?.timeoutMs).toBe(canvasPerfGateTimeoutMs(listed))
+    let launched
+    runCanvasScenario(grids, { cwd: '/tmp/nomi-suite', env: { NOMI_E2E: '1' }, spawnProcess: (_executable, _args, options) => { launched = options; return { status: 0, stdout: '', stderr: '' } } })
+    expect(launched.env).toMatchObject({ NOMI_E2E: '1', NOMI_CANVAS_PERF_VERSION_STACKS: '3' })
+  })
+
   // #763 的红：门岗从 16 条加到 21 条场景，写死的 20 分钟把 benchmark 砍在第 21 条里
   // （`exceeded 1200000ms and was terminated`）。被砍掉的那一轮既不是绿也不是红，只是没跑完。
   // 这条钉的是「上限随工作量长」：谁再加一条场景，上限必须自动多出一条场景的预算。

@@ -12,16 +12,21 @@ type Props = {
   url: string
   title: string
   onClose: () => void
+  /** 几版之间翻页（版本卡片的预览）：← 上一版、→ 下一版。没有就不响应方向键。 */
+  onStep?: (delta: 1 | -1) => void
 }
 
 // 图片 / 视频节点共用的画布内预览。Portal 到生成画布外层（而非 document.body），只覆盖红框区域，
 // 同时能压住该区域内独立挂载的助手、时间轴把手和导航工具栏。
-export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose }: Props): JSX.Element {
+export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose, onStep }: Props): JSX.Element {
   const { t } = useTranslation()
   // 此前这里的 <video> 连 onError 都没有：点开大图播不了 = 纯黑 + 零提示，用户无从判断也无从修。
   const heal = useVideoPlaybackHeal({ rawUrl: url })
   const dialogRef = React.useRef<HTMLDivElement>(null)
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  // 翻页回调每次渲染都是新的：放进 ref，不让挂遮罩 / 还焦点的那个 effect 跟着重跑。
+  const stepRef = React.useRef(onStep)
+  stepRef.current = onStep
   const canvasViewport =
     typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
 
@@ -50,6 +55,10 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
 
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose()
+      else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && stepRef.current && !(event.target instanceof HTMLVideoElement)) {
+        event.preventDefault()
+        stepRef.current(event.key === 'ArrowLeft' ? -1 : 1)
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => {
@@ -84,6 +93,10 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
         event.stopPropagation()
         if (event.target === event.currentTarget) onClose()
       }}
+      // 这是挂在节点里的门户：React 合成事件会顺着组件树冒回节点，点「关闭」就会选中节点、浮出生成框，
+      // 双击还会被节点当成「打开预览」。两个调用者都在节点里，所以在弹层根上一次截住。
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
       <span
         className={cn(

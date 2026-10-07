@@ -1694,7 +1694,7 @@
         "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
         "src/workbench/generationCanvas/nodes/buildContactSheetNode.ts",
         "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
-        "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+        "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
         "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
         "src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts",
         "src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts",
@@ -4568,6 +4568,36 @@
       ],
       "since": "2026-10-04",
       "notes": "A期新增资产与许可证来源的唯一目录；本轮采用 UAL 原生 CC0 人偶与动作，处理与校验边界也登记在同一 owner，运行时接线留给切换 PR。"
+    },
+    {
+      "name": "生成结局投递到运行所属项目（节点不在时暂存）",
+      "subject": "canvas.run-outcome-delivery",
+      "lifecycle": "execution",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+          "symbol": "deliverRunOutcome"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts",
+      "allowed_consumers": [
+        "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+        "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+        "src/workbench/generationCanvas/runner/textActions.ts",
+        "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 记进撤销日志暂存，撤销把节点带回来时由 reapplyLandedOutcomes 落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json。"
     },
     {
       "name": "导演计划 v2 schema",
