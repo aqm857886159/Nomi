@@ -1,0 +1,224 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-external-write-keeps-landed",
+  "detected_by": "review",
+  "problem_type": "A whole-canvas external write overwrites state that changed after the writer read the canvas",
+  "symptom": "While a generation result, a text finalisation or a running generation lands on a node, an external agent (MCP / capability core) that read the canvas just before writes the whole canvas back: the landed result disappears, the text is reverted, a running node turns idle or recoverable, and a node the user created after the read is deleted. Happens with the project open (renderer store) and in the background or headless (project file on disk).",
+  "direct_cause": "core.ts computes a whole next snapshot from readDoc() and ProjectGateway.apply(snapshot) replaced the whole canvas (renderer applyExternalGraph / disk writeDiskSnapshot). applyExternalGraph also ran the load-time restart convergence of normalizeStoreSnapshot, turning live running nodes into idle or recoverable.",
+  "class_root": "External writers had no notion of what they changed versus what they merely read, and no shared rule said that node run state and landed outcomes are system facts an external write must not touch.",
+  "affected_population": [
+    "MCP / capability-core canvas writes (add nodes, connect, set prompt, delete, undo delete) on an open project",
+    "The same writes on a background project or with the App closed (disk / hybrid gateway)",
+    "Any node whose generation lands, runs or finalises text between the external read and write"
+  ],
+  "scope_paths": [
+    "electron/shared/canvas/externalCanvasWrite.ts",
+    "electron/shared/canvas/landedNodeFields.ts",
+    "electron/capabilityCore/gateway.ts",
+    "electron/capabilityCore/core.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
+  ],
+  "entry_points": [
+    "ProjectGateway.apply (renderer gateway -> canvas.apply handler; disk gateway -> writeDiskSnapshot; hybrid gateway uses disk)",
+    "core addProjectNodes / connectProjectNodes / setProjectNodePrompt / deleteProjectNodes",
+    "dispatcher undo_canvas_delete",
+    "store applyExternalGraph (also used by Agent proposal compensation restore-snapshot)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc7386",
+      "checked_at": "2026-10-07",
+      "purpose": "JSON Merge Patch treats arrays as atomic values, so it cannot merge id-keyed node and edge arrays; rejected as the merge mechanism."
+    }
+  ],
+  "invariants": [
+    "An external canvas write only applies what changed between the snapshot it read (base) and the snapshot it computed (next), merged by id onto the canvas as it is now.",
+    "Node run state (runs, status, error, progress) and landed outcomes (result, history, resultVersionMax, contentJson) of an existing node are never changed by an external write.",
+    "Applying an external graph in session never runs load-time restart convergence on run state; run state equals the live store."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "mergeExternalCanvasWrite"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "createDiskGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "createRendererGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "createDiskGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "createDiskGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "createDiskGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "createHybridGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "symbol": "createRendererGateway"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/canvas/externalCanvasWrite.ts",
+      "symbol": "NODE_RUN_STATE_FIELDS"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "mergeExternalCanvasWrite"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "reapplyLandedOutcomes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "NODE_RUN_STATE_FIELDS"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "writeDiskSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "applyExternalGraph"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "symbol": "applyExternalGraph"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 15,
+    "why_not": "Write side: the renderer canvas.apply handler and the disk gateway writeDiskSnapshot are the two physical places an external write can land (open project versus project file) and both call the single mergeExternalCanvasWrite; proposalUndo restore-snapshot is the Agent compensation path through the same applyExternalGraph and inherits the live run-state rule. Read side: the gateway factories are the composition points used by rpcServer, host and the stdio server; NODE_RUN_STATE_FIELDS is read by both the undo boundary and the external-write merge so the field list has one owner. core.ts and dispatcher.ts only pass the read snapshot as base."
+  },
+  "generality_proof": "Every external canvas write goes through ProjectGateway.apply, whose interface now requires the base snapshot; both implementations merge with mergeExternalCanvasWrite against the canvas as it is now, which protects the shared system-field list for every node. The store entry applyExternalGraph additionally keeps live run state for any caller. The test matrix iterates both gateways, every core write operation and every landing kind.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/canvas/externalCanvasWrite.ts",
+      "symbol": "mergeExternalCanvasWrite",
+      "responsibility": "Three-way merge by id of an external write onto the current canvas; external writes never change node run state or landed outcomes."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes",
+      "responsibility": "Run state of nodes present in the live store is taken from the live store; applyExternalGraph calls it without landings so load-time convergence cannot rewrite live run state."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "handleCapabilityApply",
+      "disposition": "enforced",
+      "evidence": "canvas.apply requires base and applies mergeExternalCanvasWrite(base, next, readDocumentSnapshot()); renderer gateway rows of externalCanvasWriteKeepsLanded.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "createDiskGateway",
+      "disposition": "enforced",
+      "evidence": "writeDiskSnapshot re-reads the project and merges before saving; disk gateway rows of the matrix. createHybridGateway reuses the disk apply."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "entry_point": "applyCompensationOps",
+      "disposition": "enforced",
+      "evidence": "restore-snapshot goes through applyExternalGraph, which now keeps live run state; landed outcomes are protected by runProposalUndoByChangeId refusing when findCanvasChange reports a later event on the same node."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome",
+      "disposition": "not-affected",
+      "evidence": "The disk delivery is the landing itself (read, patch one node with nodeRunOutcomePatch, save) and is serialized per project; it can drop a concurrent external edit, not a landed outcome (recorded as residual risk)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any external write racing with any landing reproduces it, on both gateways, for every core write operation.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs applyExternalGraph mergeExternalCanvasWrite writeDiskSnapshot",
+      "grep gateway.apply( in electron: core.ts x4, dispatcher.ts x1",
+      "grep requestRenderer ops: canvas.apply is the only renderer graph write from main",
+      "grep restoreGraph / applyExternalGraph callers in src: storyboardDeleteUndo and proposalUndo restoreGraph only add missing ids; proposalUndo restore-snapshot uses applyExternalGraph"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/canvas/externalCanvasWrite.ts",
+    "invariant": "External canvas writes are applied as a base-to-next three-way merge onto the current canvas and never change node run state or landed outcomes.",
+    "failure_mode": "A canvas.apply without a base or with a malformed document is refused with capability_input_invalid instead of replacing the canvas.",
+    "exception_policy": "none",
+    "strategy": "Make the base snapshot part of the ProjectGateway.apply contract, merge in one shared function used by the renderer handler and the disk gateway, and share the system-field list with the undo boundary.",
+    "artifacts": [
+      "electron/shared/canvas/externalCanvasWrite.ts",
+      "electron/shared/canvas/landedNodeFields.ts",
+      "electron/capabilityCore/gateway.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
+    "electron/shared/canvas/externalCanvasWrite.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
+    "electron/shared/canvas/externalCanvasWrite.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/gateway.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts"
+    ],
+    "rationale": "Whole-canvas replacement on canvas.apply and in writeDiskSnapshot is removed; there is no fallback that applies next without base."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The merge is application code over the canvas document; no third-party runtime decides it.",
+    "exit_criteria": []
+  },
+  "migration": "None: the base snapshot is passed in the same call by the same app version (main and renderer ship together); stored projects are unchanged.",
+  "residual_risks": [
+    "The background-project disk delivery (runProjectDelivery) reads, patches one node and saves the whole project; an external disk write between its read and save is lost (the external edit, not a landed outcome).",
+    "Two concurrent external writes that change the same field of the same node: the later one wins for that field.",
+    "Real App with a real MCP client is unverified in this line."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/canvas/externalCanvasWrite.ts",
+    "tests": [
+      "electron/shared/canvas/externalCanvasWrite.test.ts",
+      "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-07"
+}
