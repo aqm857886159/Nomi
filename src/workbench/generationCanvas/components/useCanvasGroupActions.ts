@@ -1,7 +1,7 @@
 /**
  * 「成组处理」这一族画布动作：编组 / 解组 / 连到组 / 生成总览图。
  *
- * 批量生成由 useCanvasProductionActions 单独收口，避免两个生成入口逐渐分叉。
+ * 批量生成只有组工具条的「生成整组」（useCanvasFrameActions.runFrameAction），这里不再放生成入口。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'

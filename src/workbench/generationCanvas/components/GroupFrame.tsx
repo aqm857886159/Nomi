@@ -65,12 +65,9 @@ export type GroupFrameProps = {
   frame?: CanvasFrameInteraction
 }
 
-// 这里**刻意不放「整组运行」按钮**（2026-08-02 加过又删）：点组框本来就会选中全部成员
-// （useCanvasSelectionDrag.handleGroupFramePointerDown），选择浮条随即显示「生成 N 个」——
-// 整组运行早就有了。在标签上再放一个 ▶ 等于同屏两个一模一样的动作（实测两者相距约 600px 同时可见），
-// 是并行版（违 P1）。要改整组运行的行为，改选择浮条那一条路径。
-// 2026-09-06 的 ⋯ 菜单里有「生成整框」，与这条不冲突：它藏在菜单里（不与浮条同屏并存），
-// 而且走的**就是**浮条那一条批量生产路径，只是把 scope 换成框内成员——一份实现，两个入口。
+// 这里**刻意不放「整组运行」按钮**：点组框会选中整组、出组工具条，上面的「生成整组」就是批量生成的唯一入口。
+// 在标签上再放一个 ▶ 等于同屏两个一模一样的动作，是并行版（违 P1）。
+// ⋯ 菜单里的「生成整框」与工具条走同一条派发路径（useCanvasFrameActions.runFrameAction），藏在菜单里、不同屏并存。
 
 export default function GroupFrame({
   box,
