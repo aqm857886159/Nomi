@@ -173,6 +173,51 @@ describe('工具回执从真实审批结论派生', () => {
     expect(outcome.nextAction?.userSees).not.toMatch(/are on the canvas|price badge|generation has started/)
   })
 
+  // 回执从宿主**真实的落地结果**派生（2026-10-07）：以前写死「Saving does not imply canvas placement」，
+  // 而画布 Agent 的草稿当场落成了节点，模型照着对用户说「画布上还没有节点」。
+  describe('draft_shots receipt follows the real canvas landing', () => {
+    const operation = { operationId: 'op-land', state: 'draft', cardHidden: true }
+    const draftWith = (canvasLanding: unknown) => runVerb('draft_shots', { operation, canvasLanding }, 'auto-granted', { shots: [{ prompt: 'a' }] })
+
+    it('canvas-origin draft that landed: says the nodes exist, names them, never "no nodes"', async () => {
+      const outcome = await draftWith({ state: 'placed', shotCount: 2, nodes: [{ shotId: 's1', nodeId: 'n1' }, { shotId: 's2', nodeId: 'n2' }] })
+      const says = outcome.nextAction?.userSees ?? ''
+      expect(says).toMatch(/already on the canvas: 2 nodes/)
+      expect(says).toMatch(/n1, n2/)
+      expect(says).not.toMatch(/NOT on the canvas|did not complete|Saving does not imply/)
+    })
+
+    it('a draft only partly landed does not claim the rest', async () => {
+      const outcome = await draftWith({ state: 'placed', shotCount: 3, nodes: [{ shotId: 's1', nodeId: 'n1' }] })
+      expect(outcome.nextAction?.userSees).toMatch(/Only 1 of the 3 shots/)
+    })
+
+    it('document-origin plan: not on the canvas until the user places it', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'document_plan' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/NOT on the canvas/)
+      expect(says).toMatch(/Place on canvas/)
+      expect(says).not.toMatch(/already on the canvas/)
+    })
+
+    it('project not open: not on the canvas yet, appears on open', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'project_closed' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/not open right now/)
+      expect(says).toMatch(/NOT on the canvas/)
+    })
+
+    it('landing attempted but did not complete: tells the model to look before claiming anything', async () => {
+      const says = (await draftWith({ state: 'not_placed', reason: 'not_landed' })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/look_at_canvas/)
+      expect(says).not.toMatch(/already on the canvas/)
+    })
+
+    it('host did not report landing: no claim about the canvas either way', async () => {
+      const says = (await runVerb('draft_shots', { operation }, 'auto-granted', { shots: [{ prompt: 'a' }] })).nextAction?.userSees ?? ''
+      expect(says).toMatch(/did not report whether the draft is on the canvas/)
+      expect(says).not.toMatch(/already on the canvas|NOT on the canvas/)
+    })
+  })
+
   it('a draft patch reports actual policy-started spend through the same receipt as generate', async () => {
     const result = { drafted: { operation: { operationId: 'op-7', sourceDocumentId: 'doc-1' } },
       spendDecision: { decidedBy: 'policy:full_auto', receiptId: 'receipt-1' }, started: { ok: true } }

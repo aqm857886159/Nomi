@@ -241,6 +241,15 @@ describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
     return { ...built, created, operationId: resolved };
   }
 
+  it("回执说真话：画布来源草稿当场落成节点 → 建草稿的结果点名那个节点（真实路径：传输 → 草稿账本 → 落地宿主 → 读回账本）", async () => {
+    const base = harness();
+    const { created, operationId } = await modelTurn(base, "http://127.0.0.1:1", [], "step");
+    const landing = (created as { result?: { canvasLanding?: unknown } }).result?.canvasLanding;
+    expect(operationId).toBeTruthy();
+    expect(base.renderer.nodes.size).toBe(1);
+    expect(landing).toEqual({ state: "placed", shotCount: 1, nodes: [{ shotId: expect.any(String), nodeId: [...base.renderer.nodes.values()][0] }] });
+  });
+
   it("全自动：草稿一建好宿主就自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();

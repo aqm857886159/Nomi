@@ -28,7 +28,7 @@ const documentActions = {
   ungroup: true, ungroupGroups: true, deleteGroup: true, moveNodeToGroup: true,
   removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true,
   setNodeStatus: false, dismissNodeError: false, setNodeProgress: false, appendNodeRun: false,
-  trackNodeRun: false, addNodeResult: true, landNodeContent: true,
+  trackNodeRun: false, addNodeResult: true, landNodeContent: true, holdRunOutcome: false,
 } satisfies Record<ActionName, boolean>
 
 type PendingWrite = { proposalId: string; cancel: () => void | false }

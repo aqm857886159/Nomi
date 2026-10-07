@@ -666,7 +666,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         const currentEdgeIds = new Set(current.edges.map((edge) => edge.id))
         const restoredEdges = entry.snapshot.edges.filter((edge) =>
           !currentEdgeIds.has(edge.id) && restoredIdSet.has(edge.source) && restoredIdSet.has(edge.target))
-        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] })
+        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] }, current)
         canvasDeleteUndoJournal.delete(undoToken)
         return {
           applied: true,
