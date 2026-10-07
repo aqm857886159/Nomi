@@ -40,3 +40,7 @@ owner 分散在主进程、渲染层和 generationCanvas 子树；新增写口�
 
 现在用一条明确模式立即封住漏项，换取未来仍需把概念登记接入分类数据生成的维护成本。
 
+
+## 放行
+
+- 2026-10-07 协调会话放行：本提交只补登记数据（`productionRunState` 进画布显示 owner 模式表），解锁 #1078。结构性收口——画布显示分类直接从 `docs/engineering/concept-owners/` 派生、不再手维护第二份路径枚举——排进门岗换底层线（`docs/plan/2026-10-07-gate-family-direction-check.md` 的后续步骤），不在本 PR 做。
