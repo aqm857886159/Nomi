@@ -3935,6 +3935,37 @@
       "notes": "「官网有哪些页面」只在这里说。页面生成器（build-marketing-site.mjs 经 renderSiteOutputs）、sitemap（computeSitemapEntries，lastmod 按内容哈希）都从它派生，每周 SEO 巡检读的是它的输出（已提交的 sitemap.xml）；地址 ↔ 文件的换算只在 routes.mjs。手写的 site-manifest.mjs（只列了 5 页）已删，合同 docs/fixes/2026-10-01-site-data-drift.root-cause.json。"
     },
     {
+      "name": "项目名（改名只有一个主人，内容保存不写名字）",
+      "subject": "project.name",
+      "lifecycle": "project-data",
+      "authority_kind": "writer",
+      "trust_domain": "renderer",
+      "fact_kind": "value-object",
+      "migration_status": "converged",
+      "owner": {
+        "path": "src/workbench/project/projectPersistenceService.ts",
+        "symbol": "renameProjectAndPersist"
+      },
+      "write_api": [
+        {
+          "path": "src/workbench/project/projectPersistenceService.ts",
+          "symbol": "renameProjectAndPersist"
+        },
+        {
+          "path": "electron/workspace/workspaceRepository.ts",
+          "symbol": "saveWorkspaceProject"
+        },
+        {
+          "path": "src/workbench/project/projectRepository.ts",
+          "symbol": "saveProjectRecord"
+        }
+      ],
+      "forbidden_derivations": [],
+      "allowed_consumers": [],
+      "since": "2026-10-07",
+      "notes": "自动保存只拥有 payload 等渲染层内容；名字、创建时间、封面风格、种子键、项目身份都以盘上现值为准（桌面端内容保存连 name 字段都不发，主进程 saveWorkspaceProject 在清单锁内取现值）。docs/fixes/2026-10-07-autosave-keeps-rename.root-cause.json 改名入口：顶栏 renameProjectAndPersist；项目库走 renameLocalProject（projectRepository / localProjectStore 同名包装）。 saveLocalProject / saveWorkspaceProject 是内容保存边界：签名与记录里不带 name，名字沿用盘上现值。"
+    },
+    {
       "name": "官网模型资格",
       "subject": "site.model-eligibility",
       "lifecycle": "catalog",
