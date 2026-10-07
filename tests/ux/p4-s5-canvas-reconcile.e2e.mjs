@@ -90,12 +90,34 @@ try {
 
   await win.screenshot({ path: path.join(shotsDir, '01-reconciled.png') })
 
-  // ── detach 后再补齐不复活：删 shot-2 节点 → 再 materialize → shot-2 不重建（模拟撤销事实优先）──
-  // 说明：真链里 detach 会记进 Run 的 shot.canvasDetached，补齐载荷不再含该 shot。这里在渲染层验幂等通道本身：
-  // 已建节点被删后，同 op 章的 materialize 只补「载荷里仍要求、且尚不存在」的——载荷仍含 shot-2 → 会重建它。
-  // 所以「不复活」的把关在**主进程侧**（reconcile 时不把 detached 的 shot 放进载荷），已由 reducer 单测覆盖。
-  // 此处仅记录该边界，不重复断言主进程行为（渲染层通道对「载荷含即补」是正确的）。
-  check(true, '边界记录：不复活由主进程 reconcile 不投 detached shot 把关（reducer 单测覆盖 plan.detach-shot-nodes）')
+  // ── detach 后再补齐不复活：删 shot-2 节点 → 再补齐 → shot-2 不重建（撤销事实优先）──
+  // 现行设计（concept-owners「制作镜头的节点还在不在画布上」）：Run 里记着 detached 的镜照样投进补齐载荷，
+  // 但带 existingOnly——渲染层只许动画布上已有的节点，绝不新建。这里按主进程真实投影的形状发载荷，断言渲染层守住它。
+  const shot2Id = await win.evaluate((opId) => {
+    const s = window.__nomiCanvasStore.getState()
+    const shot2 = s.nodes.find((n) => n.meta?.materializationOperationId === opId && n.meta?.productionShotId === 'shot-2')
+    if (shot2) s.deleteNode(shot2.id)
+    return shot2?.id ?? null
+  }, OP_ID)
+  check(Boolean(shot2Id), 'shot-2 节点删掉了（模拟用户删 / 撤销）')
+  await win.evaluate(async (payload) => {
+    payload.projectId = new URLSearchParams(window.location.hash.split('?')[1]).get('projectId')
+    payload.shots = payload.shots.map((shot) => (shot.shotId === 'shot-2' ? { ...shot, existingOnly: true } : shot))
+    return window.__nomiCapabilityApply('production.materialize-shots', payload)
+  }, reconcilePayload(projectId))
+  const third = await win.evaluate(({ opId, removedId }) => {
+    const s = window.__nomiCanvasStore.getState()
+    const nodes = s.nodes.filter((n) => n.meta?.materializationOperationId === opId)
+    const shot1 = nodes.find((n) => n.meta?.productionShotId === 'shot-1')
+    return {
+      shot2Count: nodes.filter((n) => n.meta?.productionShotId === 'shot-2').length,
+      removedBack: s.nodes.some((n) => n.id === removedId),
+      shot1ResultId: shot1?.result?.id,
+      shot1HistoryLen: (shot1?.history || []).length,
+    }
+  }, { opId: OP_ID, removedId: shot2Id })
+  check(third.shot2Count === 0 && !third.removedBack, `detached 的 shot-2 按 existingOnly 投影：不新建、不复活（实得 shot-2 节点 ${third.shot2Count} 个）`)
+  check(third.shot1ResultId === 'production-job-shot-1' && third.shot1HistoryLen <= 1, `同一次补齐里 shot-1 照常、结果不叠加（history=${third.shot1HistoryLen}）`)
 
   const stat = fs.statSync(path.join(shotsDir, '01-reconciled.png'))
   check(stat.size > 0, `截图 01-reconciled.png 落地且非空（${stat.size} 字节）`)
