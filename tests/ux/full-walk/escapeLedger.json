@@ -841,6 +841,27 @@
       "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
       "fixedInPr": 1053,
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "FB-20261007-undo-drops-landed-result",
+      "since": "2026-10-07",
+      "source": "10-06 版本卡片线顺查：画布上 Ctrl+Z 会把撤销点之后才落地的生成结果一起撤掉",
+      "category": "interaction-semantics",
+      "problem": "改了参数 / 拖了节点之后生成结果落地，按 Ctrl+Z 想撤刚才那一下编辑，结果刚生成好的图（钱已花）也从节点上消失；撤销后才落地的结果在重做时再丢一次；生成中撤销会把节点撤回旧运行，文本定稿随后被拒",
+      "existingInvariants": [],
+      "ironLaws": ["⑫"],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts：5 扇落地门 × 5 种用户编辑矩阵 + 撤销后落地再重做 + 删节点后撤销 + 撤销删版本，共 32 条；main 上 32 条全红",
+        "变异：撤销改回直接用前缀投影 32 红；去掉结果落地记账 14 红；运行态不取此刻 12 红；文本定稿改回 updateNode 6 红",
+        "待拍板：撤销「建节点」时节点连同之后落地的结果一起被拿掉（见 docs/plan/2026-10-07-undo-keeps-landed-results.md）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json",
+      "classCheck": { "kind": "matrix", "file": "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts" }
     }
   ]
 }

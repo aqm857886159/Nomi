@@ -126,3 +126,48 @@ export function nodeRunOutcomePatch(node: GenerationCanvasNode, outcome: NodeRun
     }
   }
 }
+
+/**
+ * 落地 = 系统事实，不是用户编辑（撤销 / 重做只回退用户编辑）。
+ * - 生成结果 / 文本定稿：撤销目标位置之后落地的，按落地顺序在目标投影上**重新落一次**（同一套合并规则，
+ *   版本按身份去重——撤销用户删版本时那一版照样回来，之后落的新版也在）。
+ * - 运行态（运行记录 / 状态 / 错误 / 进度）：只由运行写，永远等于任务此刻的真实状态，取活 store 的。
+ * 节点在目标投影里不存在（撤销的正是「建这个节点」）就不落——见 docs/plan/2026-10-07-undo-keeps-landed-results.md。
+ */
+export type LandedNodeOutcome =
+  | Extract<NodeRunOutcome, { kind: 'result' }>
+  /** 文本定稿记账不带 runId：重新叠回时不再校验「当时那次运行」。 */
+  | Readonly<{ kind: 'content'; contentJson: TiptapDocJson }>
+
+const RUN_STATE_FIELDS = ['runs', 'status', 'error', 'progress'] as const
+
+function readLandedOutcome(landed: Readonly<Record<string, unknown>>): LandedNodeOutcome | null {
+  if (landed.kind === 'result' && landed.result && typeof landed.result === 'object') return landed as unknown as LandedNodeOutcome
+  if (landed.kind === 'content' && landed.contentJson && typeof landed.contentJson === 'object') return landed as unknown as LandedNodeOutcome
+  return null
+}
+
+export function reapplyLandedOutcomes(
+  nodes: readonly GenerationCanvasNode[],
+  landings: readonly Readonly<{ nodeId: string; landed: Readonly<Record<string, unknown>> }>[],
+  live: readonly GenerationCanvasNode[],
+): GenerationCanvasNode[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  for (const { nodeId, landed } of landings) {
+    const node = byId.get(nodeId)
+    const outcome = readLandedOutcome(landed)
+    if (node && outcome) byId.set(nodeId, { ...node, ...nodeRunOutcomePatch(node, outcome) })
+  }
+  const liveById = new Map(live.map((node) => [node.id, node]))
+  return nodes.map((original) => {
+    const node = byId.get(original.id)!
+    const current = liveById.get(original.id)
+    if (!current || RUN_STATE_FIELDS.every((field) => node[field] === current[field])) return node
+    const next: Record<string, unknown> = { ...node }
+    for (const field of RUN_STATE_FIELDS) {
+      if (current[field] === undefined) delete next[field]
+      else next[field] = current[field]
+    }
+    return next as GenerationCanvasNode
+  })
+}
