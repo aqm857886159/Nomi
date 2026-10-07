@@ -9,6 +9,7 @@ import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
 import { AnchorCheckpointCard } from './AnchorCheckpointCard'
 import type { MultiShotContractProjection } from './productionContractView'
+import { PlanRows } from '../../shared/PlanRows'
 
 // 付费生成确认对话框（单一收口，挂一次于工作区根）。极简：标题 + 一句人话 + 取消/确认。
 // 三种来源共用这一个对话框（不另造并行卡，P1）：
@@ -180,7 +181,11 @@ export function SpendConfirmDialog() {
           />
         ) : (
         <>
-        <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
+         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
+
+         {pending.planRows?.length ? (
+           <PlanRows rows={pending.planRows} onToggle={(row, checked) => pending.onPlanToggle?.(row, checked)} className="mb-3" />
+         ) : null}
 
         {pending.hostingDisclosure ? (
           // 「记住我的选择」住在披露块**内部**，不和下面「本次会话不再提示」并排。

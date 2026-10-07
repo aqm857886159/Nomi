@@ -152,7 +152,7 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number; onConsented?: (runIds: string[]) => void } & GenerationConfirmationGuards,
+  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
@@ -168,17 +168,19 @@ export async function confirmAndRunPlan(
   const hosting = await resolveBatchHosting(ids)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting) return 'declined'
-  const ok = await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
-    initiator: options.initiator,
-    title: i18n.t('generationCommon.batchPlan.startTitle'),
-    message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
-      ...generationCostContextForNodes(ids.map((id) => nodesById.get(id)), project.binding.projectId),
-      concurrency: normalizeCanvasBatchConcurrency(options.concurrency),
-      waveSizes: plan.waves.map((wave) => wave.length),
-    }),
-    confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
-    ...hostingDisclosureFor(hosting),
-  })
+  const ok = options.skipSpendConfirmation
+    ? true
+    : await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
+      initiator: options.initiator,
+      title: i18n.t('generationCommon.batchPlan.startTitle'),
+      message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
+        ...generationCostContextForNodes(ids.map((id) => nodesById.get(id)), project.binding.projectId),
+        concurrency: normalizeCanvasBatchConcurrency(options.concurrency),
+        waveSizes: plan.waves.map((wave) => wave.length),
+      }),
+      confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
+      ...hostingDisclosureFor(hosting),
+    })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
   // 「他点了取消」，`generate` 只好报 `generation_approval_unavailable`（见 `generationRunOutcome.ts`）。
   if (!ok) return 'declined'

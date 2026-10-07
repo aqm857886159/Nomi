@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-storyboard-batch-confirmation",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-07",
+  "problem_type": "Batch generation materialized work before user confirmation",
+  "symptom": "Cancelling the storyboard batch confirmation could leave canvas nodes behind, and a failed reference card could still allow dependent shots to dispatch.",
+  "direct_cause": "runStoryboardBatch created nodes and dispatched one mixed wave before the spend confirmation owned by confirmAndRunPlan; the reference and shot stages had no shared fail-closed boundary.",
+  "class_root": "Every paid storyboard batch must derive a checked plan, confirm it before materialization, and gate each dependent wave on the completed result of its prerequisite wave.",
+  "affected_population": [
+    "Storyboard users running remaining or selected shots with visual reference cards",
+    "User and Agent initiated storyboard batch runs"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts"
+  ],
+  "entry_points": [
+    "StoryboardPlanEditor remaining and selected batch actions",
+    "storyboardPresent capability batch action",
+    "Canvas and task-center batch runners that share confirmAndRunPlan"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The ordering and materialization invariant is owned by this repository's storyboard execution contract.",
+  "invariants": [
+    "A cancelled confirmation creates zero new nodes and dispatches zero waves.",
+    "The confirmation checklist is the source of truth for the rows and anchors that are materialized.",
+    "Selected visual references dispatch before dependent shots, and a reference failure dispatches no dependent shot wave."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+    ]
+  },
+  "doors": [
+    { "kind": "read", "path": "src/workbench/production/ProductionCanvasLandingHost.tsx", "symbol": "confirmAndRunPlan" },
+    { "kind": "write", "path": "src/workbench/capability/storyboardPresent.ts", "symbol": "runStoryboardBatch" },
+    { "kind": "write", "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts", "symbol": "confirmAndRunPlan" },
+    { "kind": "write", "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts", "symbol": "confirmStoryboardBatch" },
+    { "kind": "write", "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts", "symbol": "materializeAnchorCard" },
+    { "kind": "write", "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx", "symbol": "runStoryboardBatch" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts", "symbol": "confirmAndRunPlan" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts", "symbol": "confirmAndRunPlan" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts", "symbol": "confirmAndRunPlan" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts", "symbol": "runStoryboardBatch" },
+    { "kind": "write", "path": "src/workbench/taskCenter/TaskCenterPanel.tsx", "symbol": "confirmAndRunPlan" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "The shared confirmation runner has independent canvas, task-center, capability, and storyboard callers. This fix centralizes the storyboard checklist and dependency gate at the earliest shared storyboard boundary without changing unrelated caller contracts."
+  },
+  "generality_proof": "confirmStoryboardBatch is the single storyboard batch boundary: every remaining or selected storyboard run passes through its checklist, and every paid wave passes through confirmAndRunPlan. The boundary therefore applies cancellation, selection, and prerequisite failure semantics to both UI entry points and Agent initiated runs.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmStoryboardBatch",
+      "responsibility": "Build the refs-first checklist and return only checked rows and anchors after confirmation."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "runStoryboardBatch",
+      "responsibility": "Materialize only after confirmation, dispatch reference waves first, and fail closed before dependent shot dispatch."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "confirmAndRunPlan",
+      "responsibility": "Keep the existing spend confirmation and execution guards for each paid wave; allow only the already-confirmed storyboard stage to bypass a duplicate prompt."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "entry_point": "runStoryboardBatch",
+      "disposition": "enforced",
+      "evidence": "The capability calls the same exported storyboard batch owner."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "runStoryboardBatch",
+      "disposition": "enforced",
+      "evidence": "Remaining and selected UI actions both call the shared owner through guardMaterialize."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts",
+      "entry_point": "runStoryboardBatch",
+      "disposition": "not-affected",
+      "evidence": "This canvas table entry is a placement/legacy bridge and does not construct the storyboard remaining checklist; it is covered by the existing confirmAndRunPlan contract."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new storyboard batch caller could otherwise materialize before confirmation or dispatch dependents after a failed prerequisite.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs runStoryboardBatch confirmStoryboardBatch materializeAnchorCard confirmAndRunPlan",
+      "rg -n runStoryboardBatch src electron",
+      "rg -n confirmAndRunPlan src electron"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "invariant": "No storyboard batch node or paid wave exists until the checked confirmation plan is accepted; reference failure prevents shot dispatch.",
+    "failure_mode": "Cancellation returns declined before materialization; an unchecked item is omitted; missing reference results return started before shots are dispatched.",
+    "exception_policy": "none",
+    "strategy": "Keep checklist derivation, selection filtering, reference ordering, and fail-closed dependency gating in the shared storyboard executor.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+    ],
+    "rationale": "The old path could materialize and dispatch before the checklist confirmation; it is replaced by the refs-first checked plan path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the storyboard ordering invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted storyboard data changes. B5b checkbox meaning is handled by the explicit storyboardSelectionMigration boundary for old UI state; the new batch plan is derived at run time.",
+  "residual_risks": [
+    "A provider can accept a reference request and fail before a usable result is observed; the current gate stops dependent shots and leaves the reference node available for retry.",
+    "Real Electron UI confirmation and bilingual screenshots remain unverified in this environment."
+  ]
+}
