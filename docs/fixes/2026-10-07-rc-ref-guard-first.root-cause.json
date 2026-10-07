@@ -1,6 +1,8 @@
 {
   "schema_version": 3,
   "id": "2026-10-07-rc-ref-guard-first",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-07",
   "problem_type": "release_candidate_source_identity_drift",
   "symptom": "Desktop RC validation can spend release time validating and packaging a commit different from the workflow trigger commit.",
   "direct_cause": "The workflow checked out inputs.ref without comparing its resolved commit with github.sha before validation.",
@@ -32,4 +34,9 @@
   "dependency_lifecycle": { "decision": "not-applicable", "rationale": "No third-party runtime controls this internal workflow invariant.", "exit_criteria": [] },
   "migration": "No stored data or user state changes; future RC dispatches fail early when identity is inconsistent.",
   "residual_risks": ["GitHub Actions must provide a resolvable github.sha and a fetched inputs.ref; checkout fetch-depth remains 0 to preserve that boundary."]
+  ,"invariant_owner_layer": {
+    "layer": "scripts/verify-workflow-ref.mjs",
+    "tests": ["scripts/verify-workflow-ref.node-test.mjs", "scripts/check-desktop-rc-workflow.node-test.mjs"],
+    "why": "The shared workflow ref guard owns source identity comparison, and its unit plus workflow contract tests prove matching and mismatched commit behavior before validation."
+  }
 }
