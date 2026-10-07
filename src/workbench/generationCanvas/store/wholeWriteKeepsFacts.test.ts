@@ -144,6 +144,31 @@ describe('prediction ②: a before-image compensation never takes back results l
 
     expectLanded('kept')
   })
+
+  it('the before-image still takes back every edit the proposal made: created node, connected edge, rewritten prompt and meta', async () => {
+    store().connectNodes('kept', 'other')
+    const before = snapshotOf()
+    withCanvasGestureContext({ source: 'agent', txnId: 'txn_prop-snap-d', proposalId: 'prop-snap-d' }, () => {
+      const created = store().addNode({ kind: 'image', title: 'agent-created', prompt: 'agent prompt' })
+      store().connectNodes('other', created.id)
+      store().disconnectEdge(store().edges.find((edge) => edge.source === 'kept')!.id)
+      store().connectNodes('other', 'kept')
+      store().updateNode('kept', { prompt: 'agent rewrote', meta: { directorPlan: 'agent plan' } })
+    })
+    await land('other')
+    setCommittedProposal({
+      proposalId: 'prop-snap-d', summary: 'mixed', stepLabels: ['mixed'], watchNodes: [], reconciliationOk: true,
+      compensation: [{ kind: 'restore-snapshot', snapshot: { nodes: before.nodes, edges: before.edges, groups: before.groups } }],
+    })
+
+    runProposalUndoByChangeId(makeChangeId('canvas', 'prop-snap-d'))
+
+    expect(store().nodes.map((candidate) => candidate.id).sort()).toEqual(['kept', 'other'])
+    expect(store().edges.map((edge) => `${edge.source}→${edge.target}`)).toEqual(['kept→other'])
+    expect(node('kept')?.prompt).toBe('kept prompt')
+    expect(node('kept')?.meta?.directorPlan).toBeUndefined()
+    expectLanded('other')
+  })
 })
 
 describe('putting deleted nodes back lays the outcomes that arrived meanwhile on them', () => {

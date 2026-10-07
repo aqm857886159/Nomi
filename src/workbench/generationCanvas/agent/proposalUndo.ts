@@ -28,6 +28,7 @@ import { ownPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { laneReceiptClient } from '../../ai/lane/laneReceiptClient'
 import { laneClient } from '../../ai/lane/laneClient'
+import { compensationFromBeforeImage } from './beforeImageCompensation'
 
 export type CommittedProposalRecord = ProjectAgentCommittedProposalRecord
 
@@ -445,8 +446,9 @@ export function applyCompensationOps(compensation: readonly ProjectAgentProposal
         .getState()
         .restoreGraph(op.nodes as GenerationCanvasNode[], op.edges as GenerationCanvasEdge[])
     } else if (op.kind === 'restore-snapshot') {
-      const store = useGenerationCanvasStore.getState()
-      store.applyExternalGraph({ base: store.readDocumentSnapshot(), next: op.snapshot })
+      // 准备中收据存的「提议之前的整张图」从不整图放回：逐对象比出差异，交给上面这些按对象补偿去做（V-1072）。
+      const { nodes, edges } = useGenerationCanvasStore.getState()
+      applyCompensationOps(compensationFromBeforeImage(op.snapshot, { nodes, edges }))
     }
   }
 }
