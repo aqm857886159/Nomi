@@ -344,6 +344,7 @@ describe("resolveLocalAsset (per strategy)", () => {
     expect(postMultipart).toHaveBeenCalledTimes(2);
     // 1st attempt hit tmpfiles, 2nd hit litterbox
     expect(postMultipart.mock.calls[0][0]).toBe("https://tmpfiles.org/api/v1/upload");
+    if (LITTERBOX_INGESTION.strategy !== "upload-multipart") throw new Error("litterbox 必须是 multipart 上传通道");
     expect(postMultipart.mock.calls[1][0]).toBe(LITTERBOX_INGESTION.endpoint);
   });
 
