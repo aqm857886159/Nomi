@@ -121,7 +121,7 @@ export const zhAgentPanelV4 = {
   // 介入槽
   confirm: '确认',
   reject: '取消',
-  confirmReject: '确认不要',
+  confirmReject: '确认拒绝',
   escalate: '不再问 →',
   collapsePlan: '收起 ▴',
   expandPlan: '展开 ▾',
@@ -473,7 +473,7 @@ export const zhAgentPanelV4 = {
    */
   spendBatchProgressImage: '正在发出 {{current}}/{{total}} 张',
   spendBatchProgressVideo: '正在发出 {{current}}/{{total}} 段',
-  spendBatchStopHint: '按 × 停下剩下的',
+  spendBatchStopHint: '点「取消」停下剩下的',
   spendBatchStopping: '正在停下…',
   spendBatchStoppingHint: '已经发出的照常生成',
   /** 停下之后那一句（卡这时已经关了）：批下去几张、没发几张，只说事实。 */
@@ -637,7 +637,7 @@ export const enAgentPanelV4 = {
 
   confirm: 'Confirm',
   reject: 'Cancel',
-  confirmReject: 'Confirm no',
+  confirmReject: 'Confirm decline',
   escalate: "Don't ask again →",
   collapsePlan: 'Collapse ▴',
   expandPlan: 'Expand ▾',
@@ -938,7 +938,7 @@ export const enAgentPanelV4 = {
   spendConfirmRemainingVideo_other: 'Generate remaining {{count}}',
   spendBatchProgressImage: 'Sending {{current}} of {{total}} images',
   spendBatchProgressVideo: 'Sending {{current}} of {{total}} videos',
-  spendBatchStopHint: 'Press × to stop the rest',
+  spendBatchStopHint: 'Cancel to stop the rest',
   spendBatchStopping: 'Stopping…',
   spendBatchStoppingHint: 'The ones already sent keep generating',
   spendBatchStoppedImage_one: 'Sent {{sent}} of {{total}} images; the last one was not sent.',

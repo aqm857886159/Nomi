@@ -480,7 +480,7 @@ DOM（设计实验室 343 格）：
 | 位置 | 改动 |
 |---|---|
 | `design/confirmDialog.tsx`（全产品确认框，共享） | 迁入 `DecisionBar`（取消在左、主动作在最右；行为与锚点 `data-confirm-dialog-*` 不变） |
-| `ai/v4/AgentPanelV4Cards.tsx`（Agent 删除 / 付费确认卡） | 主按钮去掉 ✓（一处改，17 个实验室格生效） |
+| `ai/v4/AgentPanelV4Cards.tsx`（Agent 删除 / 付费 / 计划 / 凭证 / 偏差 / 全自动确认卡） | **去掉右上角 ×**（内联卡片不是窗口，× 干的就是取消，留着是两个入口做一件事）；底栏右组最左加文字「取消」（点它 = 原 × 的拒绝 / 停下，锚点仍是 `slot-dismiss`）；主按钮去掉 ✓。付费卡排法：左「生成剩下 N 段」，右「取消 · 去掉这段 · 生成」；批量发出中只剩提示 +「取消」（提示文案由「按 ×」改成「点『取消』」）。反问卡（`V4AskCard`）有自己的壳，仍保留右上 ×，不在本批 |
 | `ai/v4/AgentPanelV4Consent.tsx` | 「愿意 \| 不分享」→「不分享 \| 愿意」，提示文字移到左边 |
 | `onboarding/AddComfyuiInstanceButton.tsx` | 「接入检测 \| 取消」→「取消 \| 接入检测」 |
 | `onboarding/ComfyuiLocalCard.tsx`、`workflowPage/WorkflowSidebar.tsx` | 地址行内编辑：✓ ✕ 两个小图标钮 → 文字「取消 \| 保存地址 / 保存」 |
@@ -493,7 +493,7 @@ DOM（设计实验室 343 格）：
 | `creation/storyboard/StoryboardSelectionToolbar.tsx` | 删除固定最右（清除选择 × 挪到计数旁）；间距收到 `gap-1.5`，英文不再把整条挤成两行 |
 | `onboarding/IntegrationSelfCheckPanel.tsx`、`ModelPickerScreen.tsx`、`StoryboardPlanStrategyPanel.tsx`、`StoryboardOverrideBadge.tsx` | 去掉动作按钮里的 ✓；后两个同时把命中区撑到 ≥24px |
 | `onboarding/VendorFieldLossNotice.tsx` | 纯告知的「确认」→「知道了」 |
-| `i18n/locales/agentPanelV4.ts` | 「不要 / 不用 / No / Not now」→「取消 / Cancel」（3 个键 × 2 语言） |
+| `i18n/locales/agentPanelV4.ts` | 「不要 / 不用 / No / Not now」→「取消 / Cancel」（3 个键 × 2 语言）；「确认不要 / Confirm no」→「确认拒绝 / Confirm decline」；批量停止提示去掉「×」 |
 
 **没动的（同样是普查命中，但不是本批范围或不该动）**：`ProductionRunTaskCard`（任务控制条，不是决定栏）、`SpendConfirmDialog`（顺序与文案本来就对，只是还没迁进 `DecisionBar`，下一批）、导演台 `nodes/director/*`（UAL 线在改，`SceneObjectsTab` 的 R03 命中留着）、画布落地链、门岗脚本、两本账本。
 
@@ -510,4 +510,8 @@ DOM（设计实验室 343 格）：
 
 **验证**：`pnpm typecheck` 绿、`eslint`（改到的文件）0 警告；`vitest` 312 个测试文件 3127 条全绿（`src/design`、`ai/v4`、`ui/onboarding`、`settings`、`creation/storyboard`、`generationCanvas/nodes`、`ui/browser`）；`check:controls`、`check:icon-semantics`、`check:tokens`（中途抓到我写的 `ml-auto` 违反「行尾贴边」，已改）、`check:i18n`、`check:filesize`、`check:feel` 绿。`check:concept-owners`（8 处历史 root-cause 声明边界未登记）与 `check:walkthroughs`（C0 凭证类 2 条）红，**指向的文件都不是本批改的**，未在 main 上复核；本批不碰账本与门岗。前后对比截图：`docs/research/2026-10-07-decision-bar-shots/pairs/`（11 张，每张 左改前 / 右改后，zh / en × 亮 / 暗 4 行），原图在同目录 `before/` `after/`。设计实验室基线若因此变化只记清单：受影响的格 = `agent-panel-v4`（v4-intervention-* / v4-spend-params-* / v4-panel-spend-* / v4-flow-generation / v4-consent-first-ask）、`primitives-surfaces/ps-11-confirm-dialog`、`storyboard/sb-zone-06-selection-toolbar`（darwin 基线由 Mac 录，本机没录）。
 
-**没有截图验证的（诚实标注）**：`TelemetrySection` 删除确认态（实验室只有 idle 格）、`ComfyuiLocalCard` / `WorkflowSidebar` 地址编辑态、`CustomCallEditor` 底栏、`NodeErrorReport` 放行确认、`StoryboardPlanStrategyPanel` / `StoryboardOverrideBadge`、`IntegrationSelfCheckPanel` / `ModelPickerScreen` ——实验室没有这些格，我只做了类型 / 单测 / 普查验证；`DecisionBar` 在这些位置的真实观感需要用户或独立验收线在真 App 里点一遍。
+**证据修正（协调会话 10-07 复核后）**：第一版里 `ps-11-confirm-dialog`（confirmDialog 本来顺序就对）和 `settings/privacy-01-idle`（idle 态根本不出现我改的删除确认）改前改后肉眼一样，**已从对比图里撤掉**，不拿没变化的图充数；`DecisionBar` 迁入 `confirmDialog` 的正确性靠单测与 `ps-11` 的类型 / 锚点不变来保证，没有可见差异的截图。顺带记一笔（**不在本批改**）：`ps-11` 的英文轨标题与正文仍是中文，是设计实验室夹具写死了中文。
+
+**重截的格（zh / en × 亮 / 暗，我都 Read 过）**：`v4-intervention-{irreversible,spend,reversible,reject-reason,plan,credential,deviation}`、`v4-spend-params-single`、`v4-panel-spend-batch`、`v4-consent-first-ask`、`v4-auto-mode-confirm`、`storyboard/sb-zone-06-selection-toolbar`，以及 4 个组件级取证页（`scratch__add / vendor / crop / prompt`）。consent 卡本来就是「不分享 | 愿意」两颗文字按钮、没有 ×，符合 ①，不需要再加「取消」。
+
+**没有截图验证的（诚实标注）**：批量发出中的「只剩提示 + 取消」态（设计实验室没有这一格，真 App 点一遍「生成剩下 N 段」再取消）、`TelemetrySection` 删除确认态（实验室只有 idle 格，未截到，验收线真 App 点）、`ComfyuiLocalCard` / `WorkflowSidebar` 地址编辑态、`CustomCallEditor` 底栏、`NodeErrorReport` 放行确认、`StoryboardPlanStrategyPanel` / `StoryboardOverrideBadge`、`IntegrationSelfCheckPanel` / `ModelPickerScreen` ——实验室没有这些格，我只做了类型 / 单测 / 普查验证；`DecisionBar` 在这些位置的真实观感需要用户或独立验收线在真 App 里点一遍。
