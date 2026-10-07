@@ -44,6 +44,23 @@ const projection = (text: string): LaneProjection => ({
 })
 
 describe('laneClient', () => {
+  it('keeps failure visible and retries the last binding', async () => {
+    const { bridge, sent } = fakeBridge()
+    bridge.send = vi.fn()
+      .mockResolvedValueOnce({ ok: false, code: 'agent_lane_disposed', diagnostic: 'lane disposed' })
+      .mockResolvedValueOnce({ ok: true, workspaceId: 'workspace-recovered' })
+    const client = createLaneClient(bridge)
+    const failures: Array<string | null> = []
+    const unsubscribe = client.subscribeConnection(failure => failures.push(failure?.code ?? null))
+    try {
+      await expect(client.open({ projectId: 'p', immutableProjectUuid: 'p', projectGeneration: 1 })).resolves.toMatchObject({ ok: false, code: 'agent_lane_disposed' })
+      expect(client.connectionFailure()?.code).toBe('agent_lane_disposed')
+      await expect(client.retryOpen()).resolves.toBe(true)
+      expect(client.connectionFailure()).toBeNull()
+      expect(sent.filter(command => command.kind === 'workspace-open')).toHaveLength(0)
+      expect(failures).toEqual(['agent_lane_disposed', null])
+    } finally { unsubscribe(); client.dispose() }
+  })
   it('returns only the safe code when automatic reopen fails with provider diagnostics', async () => {
     const { bridge, push } = fakeBridge()
     bridge.send = vi.fn().mockResolvedValueOnce({ ok: true, workspaceId: 'old' })
