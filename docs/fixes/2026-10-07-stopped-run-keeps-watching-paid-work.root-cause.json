@@ -1,6 +1,7 @@
 {
   "schema_version": 3,
   "id": "2026-10-07-stopped-run-keeps-watching-paid-work",
+  "detected_by": "review",
   "problem_type": "A stopped production Run (pausing / paused / cancelled) is driven or refused by a hand-written status list instead of by whether paid work is still at the provider",
   "symptom": "Re-checking the old report \"a multi-shot batch stays 'pausing' forever after an emergency stop\" on current main: that symptom no longer reproduces (#934). In the same family two live holes remain: (1) the task card offers only \"Cancel production\" while a Run is pausing, and clicking it fails with \"操作失败: ... Illegal run transition pausing -> cancelled\"; (2) once a batch is cancelled, or paused and the person clicks \"retrieve again\", a shot already handed to the provider is never asked about again after the first drive's observation window - the result is paid for and generated but never lands, the node keeps spinning.",
   "direct_cause": "(1) productionRunState RUN_TRANSITIONS lists pausing -> paused / needs_attention / running but not cancelled, while productionRunView offers the cancel control for pausing. (2) appIntegrationRunObservation.kickSchedulerForRun returns early for ['completed','cancelled','paused'], singleShotStillInFlight returns false for ['completed','cancelled'], and the project-open loop in appIntegration skips every cancelled Run - so the timed re-kick, the single-shot re-ask and the project-open recovery never observe a stopped Run's in-flight job.",
@@ -36,12 +37,13 @@
     { "kind": "write", "path": "electron/capabilityCore/appIntegration.ts", "symbol": "hasWorkToWatch" },
     { "kind": "write", "path": "electron/capabilityCore/appIntegrationRunObservation.ts", "symbol": "hasWorkToWatch" },
     { "kind": "write", "path": "electron/productionRun/productionRunLifecycle.ts", "symbol": "hasWorkToWatch" },
-    { "kind": "write", "path": "electron/productionRun/productionRunService.ts", "symbol": "applyRunControl" }
+    { "kind": "write", "path": "electron/productionRun/productionRunService.ts", "symbol": "applyRunControl" },
+    { "kind": "read", "path": "electron/productionRun/productionRunState.ts", "symbol": "RUN_TRANSITIONS" }
   ],
   "door_reduction": {
-    "before": 6,
-    "after": 6,
-    "why_not": "Before = 6: the status list in kickSchedulerForRun, the status list in singleShotStillInFlight, the cancelled skip in the project-open loop, the two direct isProductionJobInFlight reads (door-map isProductionJobInFlight: appIntegration.ts, appIntegrationRunObservation.ts) and the single control door (door-map applyRunControl: productionRunService.ts). After = 6 (door-map runWantsDriver + hasWorkToWatch + applyRunControl). The count is unchanged but the owners are not: the three status lists are deleted and every consumer asks productionRunLifecycle.runWantsDriver / hasWorkToWatch. The consumers must stay separate: the multi-shot re-kick, the single-shot re-ask and project-open recovery are three different triggers (a timer, an observation window, opening a project) with different drivers behind them; merging them would move scheduling and canvas reconciliation into the lifecycle module. applyRunControl remains the one control door for the renderer, canvas and MCP."
+    "before": 7,
+    "after": 7,
+    "why_not": "Before = 7: the status list in kickSchedulerForRun, the status list in singleShotStillInFlight, the cancelled skip in the project-open loop, the two direct isProductionJobInFlight reads (door-map isProductionJobInFlight: appIntegration.ts, appIntegrationRunObservation.ts), the single control door (door-map applyRunControl: productionRunService.ts) and the transition table (door-map RUN_TRANSITIONS: productionRunState.ts). After = 7 (door-map runWantsDriver + hasWorkToWatch + applyRunControl + RUN_TRANSITIONS). The count is unchanged but the owners are not: the three status lists are deleted and every consumer asks productionRunLifecycle.runWantsDriver / hasWorkToWatch. The consumers must stay separate: the multi-shot re-kick, the single-shot re-ask and project-open recovery are three different triggers (a timer, an observation window, opening a project) with different drivers behind them; merging them would move scheduling and canvas reconciliation into the lifecycle module. applyRunControl remains the one control door for the renderer, canvas and MCP."
   },
   "generality_proof": "The question \"keep watching?\" is now answered from the jobs (a provider task id plus the exhaustive productionJobPhase mapper) instead of from the Run status, so it holds for every current and future stop status, every driver and every way a Run got there (pause, cancel, retrieval retry, restart). Status only decides dispatch, which batchScheduleDerivation already refuses for every stopped status. The card/state-machine contract is checked over the exhaustive Run status record, so a future control or status that disagrees fails the class test.",
   "invariant_owner_layer": {
@@ -107,6 +109,7 @@
       "evidence": "productionRunView.test.ts checks every control the card offers against transitionRun over the exhaustive Run status record."
     }
   ],
+  "recurrence_check_on": "2026-11-07",
   "recurrence": {
     "classification": "recurring",
     "reason": "The same hand-written status list existed in three entry points and #934 already fixed one value in one of them; any new stop status or new trigger (timer, project open, retrieval) would repeat it. The pausing -> cancelled gap would recur for any control added to the card without a matching transition.",

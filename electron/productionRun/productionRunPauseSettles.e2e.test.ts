@@ -140,7 +140,7 @@ async function pausedWhileShotOneInFlight() {
   return { root, repository, submits, vendor, provider, firstDrive };
 }
 
-const shotPhase = (run: ProductionRun, shotId: string) => deriveProductionShotState(run, shotId).phase;
+const shotPhase = (run: ProductionRun, shotId: string) => deriveProductionShotState(run, shotId)?.phase;
 
 describe("多镜调度器：急停后在飞那一镜怎么收尾，Run 都落到 paused，「继续剩余」接得上", () => {
   for (const ending of ["succeeded", "failed", "cancelled", "timeout"] as const satisfies readonly Ending[]) {

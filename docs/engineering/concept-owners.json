@@ -3,6 +3,37 @@
   "schema_version": 2,
   "concepts": [
     {
+      "name": "制作 Run 现在要不要有人驱动（停稳之后已付费的在飞活仍要盯到收尾）",
+      "subject": "production.run-driver-wanted",
+      "lifecycle": "execution",
+      "authority_kind": "decision",
+      "trust_domain": "main",
+      "fact_kind": "rule",
+      "migration_status": "converged",
+      "owner": {
+        "path": "electron/productionRun/productionRunLifecycle.ts",
+        "symbol": "runWantsDriver"
+      },
+      "write_api": [
+        {
+          "path": "electron/productionRun/productionRunLifecycle.ts",
+          "symbol": "runWantsDriver"
+        },
+        {
+          "path": "electron/productionRun/productionRunLifecycle.ts",
+          "symbol": "hasWorkToWatch"
+        }
+      ],
+      "forbidden_derivations": [],
+      "parity_test": "electron/productionRun/productionRunLifecycle.test.ts",
+      "allowed_consumers": [
+        "electron/capabilityCore/appIntegrationRunObservation.ts",
+        "electron/capabilityCore/appIntegration.ts"
+      ],
+      "since": "2026-10-07",
+      "notes": "合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json。停只是「不再派新的」；已经交给供应商、拿着任务号的那几件（isProductionJobInFlight）不管 Run 是已暂停 / 已取消，都要有人盯到收尾、产物落进项目。以前多镜重踢（kickSchedulerForRun）、单镜再问一次（singleShotStillInFlight）、重开项目各抄一份 Run 状态清单，#934 只给「暂停中」开了口子，于是取消后的慢镜头、已暂停里点「重新取回」的那一镜没人去取。现在三处只问 runWantsDriver / hasWorkToWatch；派不派新活仍由调度派生按 Run 状态判（isStoppedRunStatus），不在这里。同批：状态机补上 pausing → cancelled（任务卡暂停中只给「取消制作」），卡上每个控制都要是状态机认的一步（src/workbench/production/productionRunView.test.ts 穷举）。"
+    },
+    {
       "name": "本机参考图这次走哪条通道（端点自己的收法优先；借别家时点名）",
       "subject": "asset.reference-ingestion-route",
       "lifecycle": "execution",
@@ -3218,6 +3249,10 @@
         {
           "path": "electron/productionRun/productionRunLifecycle.ts",
           "symbol": "retryLiftsStop"
+        },
+        {
+          "path": "electron/productionRun/productionRunState.ts",
+          "symbol": "transitionRun"
         }
       ],
       "forbidden_derivations": [
@@ -3241,7 +3276,7 @@
         "electron/capabilityCore/appIntegrationProductionActions.ts"
       ],
       "since": "2026-09-29",
-      "notes": "2026-09-29 用户实见「多镜急停后永远停在暂停中，继续剩余按不动」（合同同上）。生命周期里唯一「自己发生」的一步：急停（pausing）之后交给供应商的最后一件活收了尾，Run 落成 paused。它挂在唯一写入口 productionRunRepository.executeUnlocked 上，每条命令之后判一次，那一步作为自己的 run.status.changed 事件与命令同一次落盘——老驱动、多镜调度器、观察器、恢复流程谁写下最后一笔都一样，驱动里不再有收尾调用。上一版留下的「pausing 而手上已无活」由重开项目的恢复（resumeUnfinishedRuns）发 run.lifecycle.settle 补上那一步，欠不欠只由 settleRunLifecycle 判。retryLiftsStop（穷举）决定用户重做一镜时哪种停下随之解除：失败 / 上一版没记原因的解除，预算 / 用户暂停 / 用户取消 / 重启核对不解除。"
+      "notes": "2026-09-29 用户实见「多镜急停后永远停在暂停中，继续剩余按不动」（合同同上）。生命周期里唯一「自己发生」的一步：急停（pausing）之后交给供应商的最后一件活收了尾，Run 落成 paused。它挂在唯一写入口 productionRunRepository.executeUnlocked 上，每条命令之后判一次，那一步作为自己的 run.status.changed 事件与命令同一次落盘——老驱动、多镜调度器、观察器、恢复流程谁写下最后一笔都一样，驱动里不再有收尾调用。上一版留下的「pausing 而手上已无活」由重开项目的恢复（resumeUnfinishedRuns）发 run.lifecycle.settle 补上那一步，欠不欠只由 settleRunLifecycle 判。retryLiftsStop（穷举）决定用户重做一镜时哪种停下随之解除：失败 / 上一版没记原因的解除，预算 / 用户暂停 / 用户取消 / 重启核对不解除。 2026-10-07：Run 状态迁移表（productionRunState.transitionRun）并进这个概念的写接口——补上 pausing → cancelled（暂停中任务卡只给「取消制作」，以前点了只回一句英文报错）；卡上每个控制都要是这张表认的一步（src/workbench/production/productionRunView.test.ts 穷举）。"
     },
     {
       "name": "继续之后叫醒谁来驱动这个 Run",
