@@ -10,7 +10,7 @@ import {
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-baseline')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -103,7 +103,13 @@ const groupLabel = win.locator('.generation-canvas-v2__group-box-label').first()
 await snapNear(win, 'group-label-real', groupLabel, 16)
 
 // 先证单选，再取 composer；旧尺寸 class 已退役，等待它只会吞掉定位超时。
-await win.getByRole('button', { name: '清除选择', exact: true }).click()
+// 编组后选中的是整组：此时出组工具条、不出旧的框选浮条（它的「清除选择」随之没了），取消选择靠点画布空白。
+const groupToolbarProof = await proveProbe(win.locator('[data-group-toolbar="true"]'), '编组后组工具条在屏上')
+await expectAbsent(win.locator('.generation-canvas-v2__selection-toolbar'), { provenBy: groupToolbarProof, message: '选中整组后不出旧的框选浮条' })
+const blankOutsideGroup = await findCanvasBlankPoint(win)
+if (!blankOutsideGroup) throw new Error('画布上找不到组框之外的空白点')
+await win.mouse.click(blankOutsideGroup.x, blankOutsideGroup.y)
+await expectAbsent(win.locator('[data-group-toolbar="true"]'), { provenBy: groupToolbarProof, message: '点画布空白取消选择后组工具条收起' })
 const firstNode = win.locator('.generation-canvas-v2-node[data-node-id]').first()
 await firstNode.click({ timeout: 4000 })
 await expect(win.locator('.generation-canvas-v2-node[data-selected="true"]')).toHaveCount(1)

@@ -1923,8 +1923,8 @@
         "runs",
         "status"
       ],
-      "reason": "RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做时这几项取活 store 的此刻值、不回退，生成中撤销不会把节点撤回空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集，唯一读者是同文件的 reapplyLandedOutcomes。",
-      "site": "src/workbench/generationCanvas/store/nodeRunOutcome.ts::variable:RUN_STATE_FIELDS/as-const"
+      "reason": "NODE_RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做与外部整张写回画布时这几项都取此刻的真实值、不回退不覆盖，生成中不会被撤回或改成空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集；读者是 store/nodeRunOutcome.reapplyLandedOutcomes 与 shared/canvas/externalCanvasWrite。",
+      "site": "electron/shared/canvas/landedNodeFields.ts::variable:NODE_RUN_STATE_FIELDS/as-const"
     }
   ],
   "debt": [

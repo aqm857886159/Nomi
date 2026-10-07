@@ -70,10 +70,9 @@ export function canvasControlsHelpSections(
       id: 'create',
       rows: [
         { shortcutKey: 'tab', actionKey: 'addNode' },
-        { shortcutKey: 'modEnter', actionKey: 'generateSelection', shortcutValues },
         { shortcutKey: 'modL', actionKey: 'connect', shortcutValues },
         { shortcutKey: 'modD', actionKey: 'duplicate', shortcutValues },
-        // 松手处即副本落点——节点、框、结果堆叠里的单个版本都一样（LibTV「Option + 拖动节点」同款）。
+        // 松手处即副本落点——节点、框、结果堆叠里的单个版本都一样。
         { shortcutKey: 'altDrag', actionKey: 'duplicateDrag', shortcutValues },
         { shortcutKey: 'modG', actionKey: 'group', shortcutValues },
         { shortcutKey: 'modShiftG', actionKey: 'ungroup', shortcutValues },

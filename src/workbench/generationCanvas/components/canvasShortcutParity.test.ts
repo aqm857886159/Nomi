@@ -58,7 +58,6 @@ function harness(selectedNodeCount: number) {
   const commands = {
     duplicateSelectedNodes: vi.fn(),
     connectSelectedNodes: vi.fn(),
-    generateSelectedNodes: vi.fn(),
     openAddNodeMenu: vi.fn(),
     tidyCanvas: vi.fn(),
     undo: vi.fn(),
@@ -87,7 +86,6 @@ function harness(selectedNodeCount: number) {
 const BINDINGS: Array<{ name: string; init: KeyInit; selected: number; command: keyof ReturnType<typeof harness>['commands'] }> = [
   { name: '⌘D 复制节点和连线', init: { key: 'd', code: 'KeyD', meta: true }, selected: 1, command: 'duplicateSelectedNodes' },
   { name: '⌘L 连线（选两个）', init: { key: 'l', code: 'KeyL', meta: true }, selected: 2, command: 'connectSelectedNodes' },
-  { name: '⌘Enter 生成所选', init: { key: 'Enter', code: 'Enter', meta: true }, selected: 1, command: 'generateSelectedNodes' },
   { name: 'Tab 新建节点', init: { key: 'Tab', code: 'Tab' }, selected: 0, command: 'openAddNodeMenu' },
   // macOS 上 ⌥⇧F 的 event.key 是 Ï：只认 key 会在 Mac 上失灵。
   { name: '⌥⇧F 整理画布（Mac 字形 Ï）', init: { key: 'Ï', code: 'KeyF', alt: true, shift: true }, selected: 0, command: 'tidyCanvas' },
@@ -128,13 +126,19 @@ describe('LibTV 对齐快捷键：分发', () => {
     for (const fn of Object.values(commands)) expect(fn).not.toHaveBeenCalled()
   })
 
-  it('没有选中时 ⌘D / ⌘L / ⌘Enter 不动、也不吞键', () => {
+  it('没有选中时 ⌘D / ⌘L 不动、也不吞键', () => {
     installDom()
     const { handler, commands } = harness(0)
-    for (const init of [BINDINGS[0].init, BINDINGS[1].init, BINDINGS[2].init]) expect(press(handler, init).defaultPrevented).toBe(false)
+    for (const init of [BINDINGS[0].init, BINDINGS[1].init]) expect(press(handler, init).defaultPrevented).toBe(false)
     expect(commands.duplicateSelectedNodes).not.toHaveBeenCalled()
     expect(commands.connectSelectedNodes).not.toHaveBeenCalled()
-    expect(commands.generateSelectedNodes).not.toHaveBeenCalled()
+  })
+
+  it('⌘Enter 不再有「生成所选」：批量只走组工具条，按了什么命令都不触发、也不吞键', () => {
+    installDom()
+    const { handler, commands } = harness(2)
+    expect(press(handler, { key: 'Enter', code: 'Enter', meta: true }).defaultPrevented).toBe(false)
+    for (const fn of Object.values(commands)) expect(fn).not.toHaveBeenCalled()
   })
 
   it('⌘L 只认「选中两个」：一个（没有收尾手势的待连态是死胡同）或三个（不猜连哪条）都不动', () => {
@@ -250,7 +254,7 @@ describe('帮助面板：新键都写进去，修饰键按平台派生', () => {
 
   it('LibTV 对照里「已有 / 新增」的键都有一行', () => {
     const keys = rowsOf('MacIntel').map((row) => row.shortcutKey)
-    for (const key of ['modG', 'modShiftG', 'modL', 'modD', 'modEnter', 'tab', 'optShiftF', 'frameKey', 'modPlusMinus', 'modZ', 'modShiftZ', 'modX', 'altDrag']) {
+    for (const key of ['modG', 'modShiftG', 'modL', 'modD', 'tab', 'optShiftF', 'frameKey', 'modPlusMinus', 'modZ', 'modShiftZ', 'modX', 'altDrag']) {
       expect(keys, key).toContain(key)
     }
   })
@@ -262,8 +266,8 @@ describe('帮助面板：新键都写进去，修饰键按平台派生', () => {
     expect(win).toMatchObject({ mod: 'Ctrl', opt: 'Alt', shift: 'Shift' })
   })
 
-  it('分组对齐 LibTV：创作组里是成组 / 连线 / 复制 / 生成 / 新建', () => {
+  it('分组对齐同类画布：创作组里是成组 / 连线 / 复制 / 新建', () => {
     const create = rowsOf('MacIntel').filter((row) => row.section === 'create').map((row) => row.actionKey)
-    expect(create).toEqual(expect.arrayContaining(['group', 'ungroup', 'connect', 'duplicate', 'generateSelection', 'addNode', 'tidy']))
+    expect(create).toEqual(expect.arrayContaining(['group', 'ungroup', 'connect', 'duplicate', 'addNode', 'tidy']))
   })
 })

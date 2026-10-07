@@ -3,7 +3,7 @@
 # Nomi — 工程纪律
 
 > 本文件常驻、每次 session 读完再动手；细节触发才查：`docs/engineering-rules.md`（规则详解）、`docs/engineering/`（命令全表、设计卡、交付与评审、编排手册）、`docs/lessons/INDEX.md`、`docs/ARCHITECTURE-NOW.md`、`docs/GLOSSARY.md`。每轮还会按用户消息关键词注入提示块（`scripts/claude-hooks/self-check.sh`）。
-> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，字节只减不增；加一条规则必须删两条。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
+> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，加内容前先找能合并或删掉的，能减就减，实在减不了可以不减。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
 
 ## 项目概览
 
@@ -18,7 +18,7 @@ Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 
 
 **P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件或同目录 14 天第 3 个 fix、出现 revert fix、修复因评测掉分被回滚、同线第 3 轮修补、第三个特例分支，任一出现就停止派修补，先做类根因复盘（`docs/engineering/direction-check-template.md`）交用户拍板（RW；碰热点的 fix 提交须带 `Direction-Check:` trailer）。
 
-**P2 修根因不修症状** — 任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，先 `node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决；用户发现的问题进逃逸账本，结账必须挂结构性预防（类型约束 / 唯一 owner / 铁律或门岗级类检查），只修现场不算修好。
+**P2 修根因、改系统** — 沉淀规则是每个 agent 的使命。任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，`node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界；再答「系统哪里没拦住」，把漏洞补上，强弱依次：删掉 > 结构上做不出来 > 门岗自动拦 > 写规则文字。修 bug 的 PR 必填「## 系统改进」。用户发现的问题进逃逸账本，结账必须挂结构性预防。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决；只修这一处不算完成。
 
 **P3 全绿不等于完成** — 用户可见改动报完成前：和获批样张逐项对账，真截图自己亲眼 Read 过（zh/en 两轨）；功能交付要有真实任务闭环；没有真实资源记 `unverified`，不许 mock 绿灯顶替。
 
