@@ -177,7 +177,7 @@
       "path": "src/workbench/capability/multiShotCanvasLanding.ts",
       "entry_point": "attachShotResult",
       "disposition": "not-affected",
-      "evidence": "Production-run shot nodes deleted by the user are detached by watchDeletedProductionNodes and their results stay in the Run; it does not go through deliverRunOutcome (re-attachment after undo is recorded as residual risk)."
+      "evidence": "Production-run shot nodes deleted by the user are detached by the explicit canvas signal boundary and their results stay in the Run; it does not go through deliverRunOutcome (this line now covers re-attachment after undo)."
     }
   ],
   "recurrence": {
