@@ -107,32 +107,35 @@ test('idle timeout rejects a result-only consumer after native activity stops', 
   assert.equal(clock.timers.size, 0);
 });
 
-// NF-1001-0004（真实反馈 NF-1001-0004）：响应头到了、模型还在想、一个字没出——这段静默归思考预算，不归空闲表。
-// 改回「`start` 就开空闲表」时，第 120 毫秒就会被掐（这条红）。
-test('silence between the response headers and the first token is thinking, governed by firstTokenMs not idleMs', async () => {
-  const upstream = createAssistantMessageEventStream();
-  const { output, clock, results } = observed(upstream);
-  const final = message();
-  upstream.push({ type: 'start', partial: final });
-  await setImmediate();
-  clock.advance(299);
-  await setImmediate();
-  assert.deepEqual(results, [], 'still thinking at 299ms: the 120ms idle budget must not have fired');
-  upstream.push({ type: 'text_delta', contentIndex: 0, delta: 'Ready', partial: final });
-  upstream.push({ type: 'done', reason: 'stop', message: final });
-  assert.equal(await output.result(), final);
-});
-
-test('a model that never produces a first token is stopped by the first-token budget, and says so', async () => {
-  const upstream = createAssistantMessageEventStream();
-  const { output, clock } = observed(upstream);
-  upstream.push({ type: 'start', partial: message() });
-  await setImmediate();
-  const rejected = assert.rejects(output.result(), /^Error: Nomi model first-token timeout after 300ms$|first-token timeout after 300ms/);
-  clock.advance(300);
-  await rejected;
-  assert.equal(clock.timers.size, 0);
-});
+// NF-1001-0004（真实反馈）：响应头到了、模型还在想、一个字没出——这段静默归思考预算，不归空闲表。
+// 相位矩阵：每一行是「静默开始前流已经走到哪一步」→ 该由哪个预算管。改回「start 就开空闲表」时
+// first-token 那一行会在 120ms 就被掐（红）。
+const PHASE_MATRIX = [
+  { phase: 'first-response', before: [] as const, budget: 90 },
+  { phase: 'first-token', before: ['start'] as const, budget: 300 },
+  { phase: 'idle', before: ['start', 'delta'] as const, budget: 120 },
+] as const;
+for (const row of PHASE_MATRIX) {
+  test(`silence after [${row.before.join(', ') || 'request'}] is governed by the ${row.phase} budget (${row.budget}ms)`, async () => {
+    const upstream = createAssistantMessageEventStream();
+    const { output, clock } = observed(upstream);
+    const final = message();
+    for (const step of row.before) {
+      if (step === 'start') upstream.push({ type: 'start', partial: final });
+      else upstream.push({ type: 'text_delta', contentIndex: 0, delta: 'Re', partial: final });
+    }
+    await setImmediate();
+    let settled = false;
+    const rejected = assert.rejects(output.result().finally(() => { settled = true; }),
+      new RegExp(`^Error: Nomi model ${row.phase} timeout after ${row.budget}ms$|${row.phase} timeout after ${row.budget}ms`));
+    clock.advance(row.budget - 1);
+    await setImmediate();
+    assert.equal(settled, false, `still within the ${row.phase} budget at ${row.budget - 1}ms`);
+    clock.advance(1);
+    await rejected;
+    assert.equal(clock.timers.size, 0);
+  });
+}
 
 for (const phase of ['delegate', 'iterator', 'next', 'result'] as const) {
   test(`native ${phase} throw rejects the stable completion and wakes consumers`, async () => {

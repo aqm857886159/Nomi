@@ -13,10 +13,14 @@ import {
 const PHASES = Object.keys({ 'first-response': true, 'first-token': true, idle: true } satisfies Record<LaneModelTimeoutPhase, true>) as LaneModelTimeoutPhase[]
 
 describe('laneAssistantFaultOf', () => {
-  it('报障原文：三句英文各认成一个事实', () => {
-    expect(laneAssistantFaultOf('Nomi model idle timeout after 120000ms')).toEqual({ kind: 'model-timeout', phase: 'idle', seconds: 120 })
-    expect(laneAssistantFaultOf('Stream ended without finish_reason')).toEqual({ kind: 'stream-cut' })
-    expect(laneAssistantFaultOf('Assistant request exceeded the context window')).toEqual({ kind: 'context-overflow' })
+  // 报障清单：应用内反馈附件里的原文逐字一行。新反馈带来新的一句，加一行。
+  const FIELD_REPORT_MATRIX = [
+    ['NF-1001-0004', 'Nomi model idle timeout after 120000ms', { kind: 'model-timeout', phase: 'idle', seconds: 120 }],
+    ['NF-1001-0003', 'Stream ended without finish_reason', { kind: 'stream-cut' }],
+    ['NF-0928-0003', 'Assistant request exceeded the context window', { kind: 'context-overflow' }],
+  ] as const
+  it.each(FIELD_REPORT_MATRIX)('报障原文 %s：「%s」认成一个事实', (_receipt, raw, fact) => {
+    expect(laneAssistantFaultOf(raw)).toEqual(fact)
   })
 
   it('类边界：看门狗每个相位铸出来的那句都认得回来（格式只有一份）', () => {
