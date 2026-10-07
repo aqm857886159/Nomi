@@ -7,9 +7,10 @@
 > mannequinSkeleton.ts: 假人骨架数学：骨名冒号变体互认、bind rest 记 userData（rememberMannequinRestPose，克隆后必须记，否则复位不幂等）、复位 = 纯 rest（applyMannequinSkeletonPose；x-bot rest 与 Mixamo bind 逐骨一致 = T-Pose）、任意模型归一成 1 单位高居中组
 > characterRig.pole.test.ts: 极向量几何单测（静止位落在肢体平面外侧 / 伸直退默认方向 / 拖到另一侧末端不动）
 > canonicalBoneFrame.ts: 规范骨轴换算：存档 / 滑条 / 镜像 / 视线 / 静态姿势都按 Mixamo 骨局部轴（规范轴）写；rig=ual 的人偶加载后给 22 根语义骨挂 rel / parentRel（WeakMap，表 = src/assets/director/ual/ual-frame-correction.json，scripts/director-assets/generate-ual-frame-correction.mjs 生成），偏移写入 rel⁻¹·O·rel、读回反过来；其它 rig 恒等
+> lookAtUal.test.ts: 真 UAL glb + 真动作（待机 / 坐着说话 / 跪地维修）：视线后头的水平朝向落在目标 ±2°，不管动作把头转到哪
 > canonicalBoneFrame.test.ts: 真 UAL glb 单测：22 语义骨按去点名找到、52 根别名、修正表对账、随机偏移世界朝向等价、读回、视线等价
 > ualMannequin.testkit.ts: 测试夹具：node 里真加载 ual-mannequin.glb（不 mock 资产）
-> characterRig.ts: three 侧骨骼工具（零 React）：骨名解析、偏移右乘（经 canonicalBoneFrame 换轴）、offsetFromBase、两骨解析 IK（距离夹持 / 余弦定理 / 极向量定平面）、胸腔朝向、极向量绕轴、CCD、视线偏移分配、蒙皮最低点
+> characterRig.ts: three 侧骨骼工具（零 React）：骨名解析、偏移右乘（经 canonicalBoneFrame 换轴）、视线（yaw 绕角色竖直轴、pitch 走规范局部 X；headYawInCharacter 量动作层已转过的头）、offsetFromBase、两骨解析 IK（距离夹持 / 余弦定理 / 极向量定平面）、胸腔朝向、极向量绕轴、CCD、视线偏移分配、蒙皮最低点
 > characterAsset.ts: 零 React 角色资产工具：builtin:* → 默认 UAL 人偶 url、FBX 判定、Mixamo 骨骼检测、prepareCharacterModel（克隆骨架 / 记 rest / 定高：内置 UAL 用 manifest 实高、上传模型按骨骼范围 / rig=ual 挂规范骨轴）（CharacterEntity / ModelEntity 共用）
 > characterAsset.test.ts: 真 UAL glb：身高 1.75±1cm、脚底贴地、每个实例各自挂骨轴换算、builtin:* 解析
 > skeletonVisualBones.ts: 骨骼可视化规则（画哪些骨 / 按哪条链上色），按规范基名判断，Mixamo 与 UAL 同一条；骨架根不画

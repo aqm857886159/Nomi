@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 react、three、@react-three/fiber 的 useThree、./sceneRefs 的 DIRECTOR_ENTITY_ID_KEY
- * [OUTPUT]: 对外提供 E2EBridge（仅当 localStorage['__nomiE2E']==='1' 时把 window.__nomiDirectorE2E 挂上：按对象名 / 世界坐标投影成画布客户区像素、按名字前缀列对象、读对象世界朝向）
+ * [OUTPUT]: 对外提供 E2EBridge（仅当 localStorage['__nomiE2E']==='1' 时把 window.__nomiDirectorE2E 挂上：按对象名 / 世界坐标投影成画布客户区像素、按名字前缀列对象、读对象世界朝向、实体或具名子物体的蒙皮包围盒）
  * [POS]: director/scene 的 E2E 取证桥（同 design/confirmDialog 的 __nomiConfirmDialogE2E 写法）：R13/R16 走查要在真实渲染管线里精确点到 IK 把手、路标、
  *        gizmo 这类 three 内物体，DOM 里没有它们的坐标，只能从 three 相机投影出来。生产从不置该标志 → 永不暴露，非并行实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -35,6 +35,8 @@ export type DirectorE2EBridge = {
   orientationByName: (name: string, entityId?: string) => { position: [number, number, number]; forward: [number, number, number] } | null
   // 实体子树的世界包围盒（蒙皮后），验证身高 / 贴地
   boundsByEntity: (entityId: string) => { min: [number, number, number]; max: [number, number, number] } | null
+  /** 实体下某个具名子物体（如角色的 characterMount = 只含人偶网格，不含拾取胶囊）的蒙皮实测包围盒 */
+  boundsByName: (name: string, entityId: string) => { min: [number, number, number]; max: [number, number, number] } | null
   splatInfo: (entityId: string) => { identity: string; initialized: boolean; count: number; revealing: boolean } | null
   // 实体子树里所有 Bone 的世界 y 范围 + 最低 / 最高骨名，验证身高与贴地
   boneExtentByEntity: (entityId: string) => { minY: number; maxY: number; lowest: string; highest: string } | null
@@ -102,6 +104,13 @@ export function E2EBridge(): null {
         if (!root) return null
         root.updateWorldMatrix(true, true)
         const box = new THREE.Box3().setFromObject(root, true)
+        return { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] }
+      },
+      boundsByName: (name, entityId) => {
+        const object = rootOf(entityId)?.getObjectByName(name)
+        if (!object) return null
+        object.updateWorldMatrix(true, true)
+        const box = new THREE.Box3().setFromObject(object, true)
         return { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] }
       },
       splatInfo: (entityId) => {

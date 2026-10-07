@@ -8,7 +8,7 @@
  * [OUTPUT]: 对外提供 IkDrag / CharacterRigApi、useCharacterRig
  * [POS]: director/scene/character 的每帧骨骼管线：复位 bind → 静止姿态预设 → 动作层 →
  *        记 basePoseForOffsets → boneRotations 偏移（四元数右乘；动作片段在播时不叠）→ IK（两骨解析 / 极向量绕轴 / 胸腔朝向 / 头 CCD / 骨盆钉脚，解完立刻把
- *        base⁻¹·当前 写回 boneRotations）→ 视线 → 骨盆偏移（挂载组）。时间取 store.timeline.currentTime。
+ *        base⁻¹·当前 写回 boneRotations）→ 视线（只补动作层还没转到的那部分头 yaw）→ 骨盆偏移（挂载组）。时间取 store.timeline.currentTime。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'
@@ -32,6 +32,7 @@ import {
   findBoneByName,
   findSemanticBone,
   GROUND_FOOT_Y,
+  headYawInCharacter,
   indexBones,
   lowestSkinnedY,
   multiplyCanonicalOffset,
@@ -233,6 +234,7 @@ export function useCharacterRig({
       if (!head) return
       head.getWorldPosition(_headPos)
       root.worldToLocal(_headPos)
+      const currentHeadYaw = headYawInCharacter(head, root)
       const worldTarget = transformPoint(sceneFrame(scene.sceneConfig), best.target)
       root.worldToLocal(_lookAtTarget.set(worldTarget.x, worldTarget.y, worldTarget.z))
       const aim = solveHeadAim({
@@ -242,8 +244,10 @@ export function useCharacterRig({
         clampingAngle: best.clampingAngle,
         enablePitch: best.enablePitch,
         weight: best.weight,
+        currentHeadYaw,
       })
-      applyLookAtOffsets(boneIndex, rig, distributeHeadAim(aim))
+      root.getWorldQuaternion(_charQuat)
+      applyLookAtOffsets(boneIndex, rig, distributeHeadAim(aim), _upWorld.set(0, 1, 0).applyQuaternion(_charQuat).normalize())
     },
     [boneIndex, rig, root, semantic],
   )

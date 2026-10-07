@@ -44,7 +44,7 @@ try {
   await page.mouse.move(rightHand.x, rightHand.y); await page.mouse.down()
   for (let i = 1; i <= 10; i += 1) await page.mouse.move(rightHand.x, rightHand.y - i * 8)
   await page.mouse.up()
-  await lab.waitScene(`Object.keys((s.objects.find(o => o.id === '${hero.id}').boneRotations) || {}).some(k => /RightArm|RightForeArm/.test(k))`, 'IK 写入右臂')
+  await lab.waitScene(`Object.keys((s.objects.find(o => o.id === '${hero.id}').boneRotations) || {}).some(k => /upper_armR|forearmR/.test(k))`, 'IK 写入右臂')
   await lab.snap('ik-drag-hand')
   // 拖右肘向
   const pole2 = await lab.bridge('projectByName', 'ik-handle-rightElbowPole', hero.id)
@@ -56,7 +56,7 @@ try {
   await page.mouse.up()
   await page.waitForTimeout(600)
   const afterPole = (await lab.scene()).objects[0].boneRotations || {}
-  check('拖肘向写入右上臂', 'mixamorigRightArm' in afterPole || Object.keys(afterPole).length >= before.length, Object.keys(afterPole).join(','))
+  check('拖肘向写入右上臂', 'DEF-upper_armR' in afterPole || Object.keys(afterPole).length >= before.length, Object.keys(afterPole).join(','))
   await lab.snap('ik-drag-pole')
   // 拖骨盆：脚钉住
   const feetBefore = await lab.bridge('projectByName', 'ik-handle-leftFoot', hero.id)

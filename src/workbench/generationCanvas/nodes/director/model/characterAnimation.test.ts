@@ -160,6 +160,20 @@ describe('actionLibrary', () => {
   })
 })
 
+describe('solveHeadAim 扣掉动作层已转过的头', () => {
+  it('动作已经让头转向目标：只补差值；没转过（站立）时与原来一样；限幅仍按相对身体算', () => {
+    const base = { headPosition: { x: 0, y: 1.6, z: 0 }, targetPosition: { x: 5, y: 1.6, z: 5 }, bodyYaw: 0, clampingAngle: 80, enablePitch: false, weight: 1 }
+    expect(solveHeadAim(base).yaw).toBeCloseTo(45)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 0 }).yaw).toBeCloseTo(45)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 40 }).yaw).toBeCloseTo(5)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 60 }).yaw).toBeCloseTo(-15)
+    expect(solveHeadAim({ ...base, currentHeadYaw: 350 }).yaw).toBeCloseTo(55)
+    const far = solveHeadAim({ ...base, targetPosition: { x: 5, y: 1.6, z: -0.8816 }, clampingAngle: 80, currentHeadYaw: 30 })
+    expect(far.yaw).toBeCloseTo(50)
+    expect(far.weight).toBeGreaterThan(0)
+  })
+})
+
 describe('solveHeadAim 左右对称', () => {
   it('目标在身体左侧：相对转角为负且不被 0–360 折成大角（权重不归零）', () => {
     // 身体朝 -68°，目标方位 -150° → 相对 -82°，夹到 -80°，超限 2° 只轻微衰减

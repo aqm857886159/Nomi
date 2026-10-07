@@ -137,8 +137,9 @@ describe('UAL 骨名与规范骨轴修正（真 glb）', () => {
     const ualBefore = capture(ual, index, 'ual')
     const canonicalBefore = capture(canonical.root, canonical.index, 'mixamo')
     const binds = watched.map((semantic) => findSemanticBone(index, 'ual', semantic)!.quaternion.clone())
-    applyLookAtOffsets(index, 'ual', aim)
-    applyLookAtOffsets(canonical.index, 'mixamo', aim)
+    const up = new THREE.Vector3(0, 1, 0)
+    applyLookAtOffsets(index, 'ual', aim, up)
+    applyLookAtOffsets(canonical.index, 'mixamo', aim, up)
     const ualAfter = capture(ual, index, 'ual')
     const canonicalAfter = capture(canonical.root, canonical.index, 'mixamo')
     watched.forEach((semantic, i) => {

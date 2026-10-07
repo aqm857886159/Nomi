@@ -3,7 +3,7 @@
  *          ../../model/rigs（boneName / SemanticBone）、
  *          ../../model/ikChains（IK_TARGETS / IkTargetKey / IkHandleKey）、../../model/directorTypes（DirectorRig / Vec3）、../../model/vec3（DEG_TO_RAD / RAD_TO_DEG）、
  *          ../../model/lookAtSolve 的 DistributedAim
- * [OUTPUT]: 对外提供 BoneIndex / indexBones / findBoneByName / findSemanticBone / findSkinnedMesh / applyBoneRotationOffsets / applyLookAtOffsets / offsetFromBase /
+ * [OUTPUT]: 对外提供 BoneIndex / indexBones / findBoneByName / findSemanticBone / findSkinnedMesh / applyBoneRotationOffsets / multiplyCanonicalOffset / applyLookAtOffsets / headYawInCharacter / offsetFromBase /
  *           GROUND_FOOT_Y / solveTwoBoneIk / solveChestToward /
  *           IkChain / chainForHandle / solveCcd / poleRestPosition / rotateLimbPlaneToward / lowestSkinnedY / boneEulerDegrees / normalizeBoneKey
  * [POS]: director/scene/character 的 three 侧骨骼工具（零 React）：骨名解析（rig 语义 → 真实骨、mixamorig 冒号变体）、旋转偏移叠加、
@@ -12,13 +12,13 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from 'three'
-import { boneLocalFromCanonical, canonicalLocalOf, toBoneOffset, toCanonicalOffset } from './canonicalBoneFrame'
+import { boneLocalFromCanonical, canonicalLocalOf, canonicalWorldQuaternion, toBoneOffset, toCanonicalOffset } from './canonicalBoneFrame'
 import { mannequinBoneNameVariants } from './mannequinSkeleton'
 import type { DirectorRig, Vec3 } from '../../model/directorTypes'
 import { IK_TARGETS, type IkHandleKey, type IkTargetKey } from '../../model/ikChains'
 import type { DistributedAim } from '../../model/lookAtSolve'
 import { boneName, type SemanticBone } from '../../model/rigs'
-import { DEG_TO_RAD, RAD_TO_DEG } from '../../model/vec3'
+import { DEG_TO_RAD, lookAtAngles, RAD_TO_DEG } from '../../model/vec3'
 
 export type BoneIndex = Map<string, THREE.Bone>
 
@@ -90,24 +90,45 @@ export function multiplyCanonicalOffset(bone: THREE.Bone, canonicalOffset: THREE
   bone.quaternion.multiply(toBoneOffset(bone, canonicalOffset, _boneOffset))
 }
 
-// 视线分配：在规范（Mixamo）局部欧拉上 yaw 加到 Y、pitch 加到 X（Mixamo 头/颈/脊的局部轴与身体轴基本对齐；+x = 低头）；UAL 先换到规范局部再换回
-export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: DistributedAim): void {
+// 视线分配（脊 → 颈 → 头，自上而下）：yaw 绕角色竖直轴转（世界意义上的「转头」，与骨局部轴无关：动作把头低下去时，绕骨自己的 Y 转会变成歪头）；
+// pitch 加在规范（Mixamo）局部欧拉的 X 上（+x = 低头），UAL 先换到规范局部再换回
+export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: DistributedAim, upWorld: THREE.Vector3): void {
   const pairs: Array<[SemanticBone, { yaw: number; pitch: number }]> = [
-    ['head', aim.head],
-    ['neck', aim.neck],
     ['spine1', aim.spine],
+    ['neck', aim.neck],
+    ['head', aim.head],
   ]
   for (const [semantic, value] of pairs) {
     const bone = findSemanticBone(index, rig, semantic)
     if (!bone) continue
-    _lookEuler.setFromQuaternion(canonicalLocalOf(bone, _lookQuat))
-    _lookEuler.y += value.yaw * DEG_TO_RAD
-    _lookEuler.x += value.pitch * DEG_TO_RAD
-    boneLocalFromCanonical(bone, _lookQuat.setFromEuler(_lookEuler))
+    if (value.yaw !== 0) {
+      // 世界旋转 R 作用在骨上：q_local = parent⁻¹ · R · parent · q_local
+      if (bone.parent) bone.parent.getWorldQuaternion(_lookParent)
+      else _lookParent.identity()
+      _lookYaw.setFromAxisAngle(upWorld, value.yaw * DEG_TO_RAD)
+      bone.quaternion.premultiply(_lookParent).premultiply(_lookYaw).premultiply(_lookParent.invert())
+    }
+    if (value.pitch !== 0) {
+      _lookEuler.setFromQuaternion(canonicalLocalOf(bone, _lookQuat))
+      _lookEuler.x += value.pitch * DEG_TO_RAD
+      boneLocalFromCanonical(bone, _lookQuat.setFromEuler(_lookEuler))
+    }
+    bone.updateMatrixWorld(true)
   }
 }
 const _lookQuat = new THREE.Quaternion()
 const _lookEuler = new THREE.Euler()
+const _headForward = new THREE.Vector3()
+const _characterInv = new THREE.Quaternion()
+
+/** 头此刻（动作层之后、视线之前）相对身体的 yaw（度，lookAtAngles 口径）：规范头骨 +Z = 脸朝向，换到角色坐标取水平投影 */
+export function headYawInCharacter(head: THREE.Bone, character: THREE.Object3D): number {
+  character.getWorldQuaternion(_characterInv).invert()
+  _headForward.set(0, 0, 1).applyQuaternion(canonicalWorldQuaternion(head, _lookQuat)).applyQuaternion(_characterInv)
+  return lookAtAngles({ x: 0, y: 0, z: 0 }, { x: _headForward.x, y: 0, z: _headForward.z }).yaw
+}
+const _lookParent = new THREE.Quaternion()
+const _lookYaw = new THREE.Quaternion()
 
 export type IkChain = { key: IkHandleKey; effector: THREE.Bone; links: THREE.Bone[]; iteration: number; maxAngle: number }
 

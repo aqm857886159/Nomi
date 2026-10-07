@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 three、src/assets/director/ual/ual-frame-correction.json（scripts/director-assets/generate-ual-frame-correction.mjs 生成）、
  *          ../../model/directorTypes 的 DirectorRig
- * [OUTPUT]: 对外提供 UAL_FRAME_CORRECTION、attachCanonicalBoneFrames、canonicalFrameOf、toBoneOffset、toCanonicalOffset、canonicalLocalOf、boneLocalFromCanonical
+ * [OUTPUT]: 对外提供 UAL_FRAME_CORRECTION、attachCanonicalBoneFrames、canonicalFrameOf、canonicalWorldQuaternion、toBoneOffset、toCanonicalOffset、canonicalLocalOf、boneLocalFromCanonical
  * [POS]: director/scene/character 的「规范骨轴」换算（零 React）：存档 boneRotations、FK 滑条、左右镜像、视线分配、静态姿势预设都按
  *        Mixamo 骨局部轴写（规范轴）；UAL 人偶的骨局部轴与之差 5°–180°。人偶加载时把每根语义骨的两枚常量四元数挂到骨上（WeakMap，不进 userData，
  *        克隆不带走），写偏移 O_骨 = rel⁻¹·O_规范·rel，读回反过来；局部朝向 q_规范 = parentRel·q_骨·rel⁻¹。没挂表的骨（Mixamo / UE4 / 用户上传）恒等。
@@ -62,6 +62,14 @@ export function toCanonicalOffset(bone: THREE.Bone, local: THREE.Quaternion, out
   const frame = frames.get(bone)
   out.copy(local)
   if (frame) out.premultiply(frame.rel).multiply(frame.relInv)
+  return out
+}
+
+/** 骨的世界朝向 → 规范骨在同一姿态下的世界朝向（规范头骨 +Z = 脸朝向，视线用它量动作层已经转过的头） */
+export function canonicalWorldQuaternion(bone: THREE.Bone, out: THREE.Quaternion): THREE.Quaternion {
+  bone.getWorldQuaternion(out)
+  const frame = frames.get(bone)
+  if (frame) out.multiply(frame.relInv)
   return out
 }
 
