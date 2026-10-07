@@ -159,3 +159,10 @@
 还没钉的原因：本线只读，不写代码。逃逸账本建议先给预测 ② 记一条 `candidate`，挂铁律 ⑫，由协调会话决定是否转正。
 
 放行：用户 2026-10-07 拍板方案 A（协调会话转达）
+
+## 先查别人
+
+- 依赖里已有：Immer 已是依赖、画布 store 在用；`produceWithPatches` 的反向补丁可做「只撤用户事务」——https://immerjs.github.io/immer/patches 。本 PR 不换撤销机制（只统一整写的提交口），反向补丁留作撤销栈的后续选项。
+- 生态里已有（按来源撤销）：Yjs `UndoManager({ trackedOrigins })` 只撤指定来源的事务——https://docs.yjs.dev/api/undo-manager ；tldraw `editor.run(fn, { history: 'ignore' })` 与 document / session / presence 三种 scope——https://github.com/tldraw/tldraw/blob/main/apps/docs/content/sdk-features/store.mdx 。两者撤销「插入」会连同容器内后来放进去的内容一起删，表达不了「撤销建节点时装着付费结果的节点留下」（规则 B），这是不整体接入的领域理由。
+- 生态里已有（只撤一部分状态）：zundo `partialize`——https://github.com/charkour/zundo ；要求事实层是独立的顶层切片，现有节点形状下用不上（对应复盘里的「重写 ②」，暂不做）。
+- 仓库里已有：事实字段的唯一声明 `electron/shared/canvas/landedNodeFields.ts`（#1072 引入，本 PR 沿用）；事件来源标记 `source: 'user' | 'agent' | 'runtime'` 在 `src/workbench/generationCanvas/events/canvasEventEmitter.ts`。
