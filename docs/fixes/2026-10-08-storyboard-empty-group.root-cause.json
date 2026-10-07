@@ -1,6 +1,8 @@
 {
   "schema_version": 3,
   "id": "2026-10-08-storyboard-empty-group",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-08",
   "problem_type": "Deletion leaves an empty storyboard group frame",
   "symptom": "Deleting the last shot node in a storyboard group leaves an empty group frame; deleteNode, deleteSelectedNodes, and cutSelectedNodes can diverge.",
   "direct_cause": "Each deletion path removed node ids from a group or removed fully covered groups independently, without one shared post-delete group lifecycle rule.",
@@ -59,6 +61,13 @@
     { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "symbol": "deleteNode", "responsibility": "Apply the shared group cleanup with the node and edge deletion in one undo snapshot." },
     { "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts", "symbol": "cutSelectedNodes", "responsibility": "Apply the same shared group cleanup for cut operations in one undo snapshot." }
   ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+    ],
+    "why": "All three deletion actions converge on the shared group transition before their state writes."
+  },
   "same_class_entry_points": [
     { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "entry_point": "deleteNode", "disposition": "enforced", "evidence": "Direct node deletion calls removeGroupsEmptiedByNodeDeletion before its state write." },
     { "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts", "entry_point": "deleteSelectedNodes", "disposition": "enforced", "evidence": "Selected deletion uses the same helper and emits group removal events in the same gesture." },
@@ -77,7 +86,7 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/generationCanvas/store/canvasNodeActions.ts::removeGroupsEmptiedByNodeDeletion",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
     "invariant": "Only groups that had members before this deletion and have no remaining members afterward are removed; all other groups retain filtered membership.",
     "failure_mode": "The state write uses the helper result atomically with the node and edge deletion; there is no caller-specific fallback cleanup.",
     "exception_policy": "none",
@@ -95,11 +104,9 @@
     "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
   ],
   "legacy_paths": {
-    "status": "removed",
-    "removed_paths": [
-      "src/workbench/generationCanvas/store/canvasNodeActions.ts: per-action empty-group behavior"
-    ],
-    "rationale": "The previous divergent cleanup behavior is removed; all three deletion actions now use the shared boundary."
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The obsolete behavior was inline state logic, not a standalone legacy path; it was replaced in place by the shared boundary."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
