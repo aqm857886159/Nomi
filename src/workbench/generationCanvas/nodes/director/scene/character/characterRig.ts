@@ -8,7 +8,7 @@
  *           IkChain / chainForHandle / solveCcd / poleRestPosition / rotateLimbPlaneToward / lowestSkinnedY / boneEulerDegrees / normalizeBoneKey
  * [POS]: director/scene/character 的 three 侧骨骼工具（零 React）：骨名解析（rig 语义 → 真实骨、mixamorig 冒号变体）、旋转偏移叠加、
  *        CCD IK、极向量（肘 / 膝朝向：把手静止位 = 中节向肢体平面外侧 distance 米，拖它 = 整条肢体绕 根→末端 轴转；动作快照的套用住 poseSnapshot.ts）。IK 自写而不用 three 的 CCDIKSolver：它要求靶点是骨架里的一根骨，
- *        X Bot 没有多余靶骨，运行时往 skeleton 加骨比 30 行 CCD 贵得多（R20：不在护城河上但标准算法极小，自写等价）。
+ *        人偶没有多余靶骨，运行时往 skeleton 加骨比 30 行 CCD 贵得多（R20：不在护城河上但标准算法极小，自写等价）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from 'three'
@@ -46,7 +46,8 @@ export function findSemanticBone(index: BoneIndex, rig: DirectorRig, bone: Seman
 }
 
 // 骨骼在 root 局部空间的竖向范围（头顶端点 → 脚趾），用来定真实身高：不走蒙皮包围盒——它在首帧渲染前拿不到有效 boneMatrices，
-// 而 X Bot 的 hips 骨自带 1.809 倍 scale，几何盒会少算这一层（2026-09-02 量到假人 3.2m 栽过）
+// 而 Mixamo 导出的模型 hips 骨常自带缩放（旧 X Bot 是 1.809 倍），几何盒会少算这一层（2026-09-02 量到假人 3.2m 栽过）。
+// 只给用户上传的模型用：默认 UAL 人偶没有头顶末端骨，骨范围量矮，按 manifest 实高定（characterAsset.prepareCharacterModel）
 export function measureSkeletonExtent(root: THREE.Object3D): { minY: number; maxY: number } | null {
   root.updateMatrixWorld(true)
   let minY: number | null = null

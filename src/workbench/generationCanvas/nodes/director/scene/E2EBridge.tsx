@@ -28,7 +28,7 @@ export type DirectorE2EBridge = {
   findAll: (prefix: string, entityId?: string) => Array<{ path: string; position: [number, number, number]; scale: [number, number, number] }>
   // 带 editor-only 旗标（出片 / 画中画不画）的对象路径，验证 gizmo / 把手 / 网格这类编辑辅助物确实被标了
   editorOnlyPaths: () => string[]
-  // 姿态库某条目的加载状态（ready / loading / missing），走查用来等 FBX 落地再量骨骼
+  // 动作库某条目的加载状态（ready / loading / missing），走查用来等动作数据落地再量骨骼
   poseClipStatus: (actionId: string) => ReturnType<typeof poseClipStatus>
   poseClipInfo: (actionId: string) => { duration: number; isStatic: boolean; restHips: number[] | null; frame0Hips: number[] | null } | null
   // 对象的世界位置 + 本地 +Z 在世界里的朝向（Mixamo 头骨的脸朝向），验证视线 / 看向

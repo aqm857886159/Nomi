@@ -52,7 +52,7 @@
 > splatReveal.ts: 泼溅显现纯参数：效果 id / 默认随机池 Magic|Spread / ×2 倍速 / 尾停 1s / 按半径与最低点推着色器时长 / 三次缓出
 > mobileCamera.ts: 手机虚拟相机纯数学：32 字节 Float32 包编解码、摇杆/升降按 2m/s·1.5m/s 积分、陀螺仪增量累加、焦距换算；electron 桥与渲染层共用
 > storeCharacterActions.ts: 角色骨骼级动作：单骨写入 / 合并 / 拖动逐帧写、全部复位（清微调 + 骨盆归零，保留预设）、复位此肢体（按把手清对应骨）、左右镜像（{x,−y,−z}，源侧空则清目标侧）、播放头对齐骨骼关键帧、姿态预设（切换清全部微调）、快捷体形、骨盆偏移、片段改名 / 换动作
-> posePresets.ts: V1 手写静态姿态化石（切换门入籍，只给迁移 / AI 来导词表用）：PoseVec3、MANNEQUIN_POSE_PRESETS（预设 id → 逐骨欧拉偏移）、findPosePreset / presetPoseRotations；V1 的「自然站姿基线」已删（x-bot rest 就是 Mixamo bind，复位 = 纯 bind）
+> posePresets.ts: V1 手写静态姿态化石（切换门入籍，只给迁移 / AI 来导词表用）：PoseVec3、MANNEQUIN_POSE_PRESETS（预设 id → 逐骨欧拉偏移）、findPosePreset / presetPoseRotations；V1 的「自然站姿基线」已删（复位 = 纯 bind）；数值是 Mixamo 骨名 + 规范轴，UAL 经读档迁移换名、canonicalBoneFrame 换轴
 > actionLibrary.ts: 动作库单一真相（= 动作清单 + 别名表）：T-Pose + UAL 43 个原生动作（从 assetCatalog/ualActions 推出，去掉 _RM），同一份清单既是动作片段可选项也是角色静止姿态预设（posePreset），规划器提示词（PLANNER_ACTION_IDS：15 个常用动作词经别名表解析）/ 评测尺子也从它推；kind = 循环 / 单次 / 单姿势；ACTION_ALIASES 一份三用（AI 词、旧 Mixamo id 读档迁移、中文），LEGACY_APPROXIMATE_ACTIONS 标出只能落到近似动作的旧 id；LEGACY_POSE_TO_ACTION 给 V1 手写预设找对应动画
 > poseBlend.ts: 动作混合纯数学：片段头 0.25s 淡入（上一片段间隙 <0.2s 从其末帧交叉，否则从静止）/ 片段尾不淡出 / 片段外：相邻间隙 ≤0.5s 交叉、否则尾后 0.25s 淡回静止；姿态片段不参与交叉；custom_pose 关键帧对与插值系数
 > lookAtSolve.ts: 视线纯数学：片段权重缓入缓出、头部相对身体 yaw/pitch 限幅 + 超限 smoothstep 衰减、颈 0.15 / 脊 0.3 / 头 0.55 分配

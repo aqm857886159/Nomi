@@ -4,7 +4,7 @@
 > 成员清单
 > characterLabel.ts: 视口/成片共用角色头顶 localToWorld 锚点，通过 sceneRefs.isWorldVisible 检查真实父链可见性；portal 骨架另用同处的工程可见性判定
 > mannequinAssets.ts: 默认人偶 UAL GLB（网格 + 骨架 + 全部动作同一文件，Quaternius CC0）的构建 URL 单一入口；URL 仅供渲染、不入工程（机位机身在 entities/CameraEntity 程序化生成、泼溅场景由用户自备上传）
-> mannequinSkeleton.ts: 假人骨架数学：骨名冒号变体互认、bind rest 记 userData（rememberMannequinRestPose，克隆后必须记，否则复位不幂等）、复位 = 纯 rest（applyMannequinSkeletonPose；x-bot rest 与 Mixamo bind 逐骨一致 = T-Pose）、任意模型归一成 1 单位高居中组
+> mannequinSkeleton.ts: 假人骨架数学：骨名冒号变体互认、bind rest 记 userData（rememberMannequinRestPose，克隆后必须记，否则复位不幂等）、复位 = 纯 rest（applyMannequinSkeletonPose；人偶 rest = 绑定姿态 = T 字）、任意模型归一成 1 单位高居中组
 > characterRig.pole.test.ts: 极向量几何单测（静止位落在肢体平面外侧 / 伸直退默认方向 / 拖到另一侧末端不动）
 > canonicalBoneFrame.ts: 规范骨轴换算：存档 / 滑条 / 镜像 / 视线 / 静态姿势都按 Mixamo 骨局部轴（规范轴）写；rig=ual 的人偶加载后给 22 根语义骨挂 rel / parentRel（WeakMap，表 = src/assets/director/ual/ual-frame-correction.json，scripts/director-assets/generate-ual-frame-correction.mjs 生成），偏移写入 rel⁻¹·O·rel、读回反过来；其它 rig 恒等
 > uploadedMixamoRetarget.test.ts: 用户上传 Mixamo 角色吃 UAL 动作：按入库规范绑定朝向合成 Mixamo 骨架，走路 / 坐 / 出拳 22 根骨世界增量与源一致 < 0.5°、坐姿骨盆下沉换算正确

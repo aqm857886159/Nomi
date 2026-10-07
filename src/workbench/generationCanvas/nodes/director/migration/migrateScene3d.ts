@@ -15,6 +15,7 @@ import * as THREE from 'three'
 import { syncFocalLength } from '../model/cameraLens'
 import { createClipId, createKeyframeId, createObjectId, createWaypointId } from '../model/directorIds'
 import { legacyPoseToAction, resolveActionAlias } from '../model/actionLibrary'
+import { DEFAULT_CHARACTER_MODEL_PATH } from '../model/rigs'
 import { createDefaultProject } from '../model/directorProject'
 import type {
   ActionClip, BoneKeyframe, DirectorCamera, DirectorExportRatio, DirectorLight, DirectorObject, DirectorPrimitiveType, DirectorProject, DirectorScene,
@@ -207,7 +208,8 @@ export function migrateScene3DState(raw: unknown, options: MigrateScene3DOptions
         const character: DirectorObject = {
           id: object.id, name: object.name, type: 'character', position, rotation: degrees(object.rotation), scale,
           color: object.color, visible: object.visible, locked: false, ...(parentId ? { parentId } : {}),
-          modelPath: 'builtin:x-bot', modelScale: 1, isSystemModel: true, rig: 'mixamo',
+          // V1 的姿态数值是 Mixamo 骨名 + 规范轴：照原样标 rig mixamo，读档入口（directorProject.normalizeObject → characterRigMigration）统一迁成 UAL
+          modelPath: DEFAULT_CHARACTER_MODEL_PATH, modelScale: 1, isSystemModel: true, rig: 'mixamo',
           posePreset: legacyPoseToAction(matchingPresetId(object.pose)),
           boneRotations: boneRotationsFromPose(object.pose),
         }
@@ -242,7 +244,7 @@ export function migrateScene3DState(raw: unknown, options: MigrateScene3DOptions
             type: 'character', parentId: object.id,
             position: { x: Number(((column - (columns - 1) / 2) * spacing).toFixed(3)), y: 0, z: Number(((row - (rows - 1) / 2) * spacing).toFixed(3)) },
             rotation: { x: 0, y: 0, z: 0 }, scale: memberScale, color: object.color, visible: true, locked: false,
-            modelPath: 'builtin:x-bot', modelScale: 1, isSystemModel: true, rig: 'mixamo', posePreset: 'standing', boneRotations: {},
+            modelPath: DEFAULT_CHARACTER_MODEL_PATH, modelScale: 1, isSystemModel: true, rig: 'mixamo', posePreset: 'standing', boneRotations: {},
           })
         }
         report.objects += 1 + count

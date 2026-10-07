@@ -3,7 +3,7 @@
  * [OUTPUT]: 对外提供 PoseSnapshot / BoneSnapshot、UAL_BASE_NAME_ALIASES、baseBoneName、indexBonesByBaseName、snapshotBones、bindWorldQuaternionsByBaseName、blendPoseSnapshots、applyPoseSnapshot、HIPS_BASE_NAME
  * [POS]: director/scene/character 的姿态快照纯数学（零 React、零加载）：一份快照 = 源骨架每根骨的四元数 + 位置（按去前缀基名索引，
  *        `mixamorig:Hips` / `mixamorigHips` / `Hips_1` / UAL `DEF-hips` 都归到 `hips`）。
- *        套到角色不是照抄（照抄要求角色也是同一份 Bot.fbx；我们的 x-bot.glb 骨盆父坐标系与 FBX 差 −90°，照抄整个人会躺倒；用户上传的模型 bind 还可能不同）：
+ *        套到角色不是照抄（照抄要求角色和源是同一副骨架；Mixamo 导出的 glb 与 FBX 骨盆父坐标系差 −90°，照抄整个人会躺倒；用户上传的模型 bind 还可能不同）：
  *        逐骨在「相对各自骨架根」的坐标系里取源骨的世界增量 Δ = 帧·bind⁻¹，套到角色 = Δ·角色 bind 世界朝向，再换回父局部——
  *        世界增量保留角色自己的 bind 偏置、又跟着源的动作走，bind 一致时与照抄等价。骨盆位移经两边 rest 骨盆方向算坐标系旋转换算，再按 rest 骨盆长度换算单位。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -50,7 +50,7 @@ describe('migrateScene3DState', () => {
     expect(hero.scale).toEqual({ x: 1, y: 1, z: 1 })
     expect(hero.rotation.y).toBeCloseTo(90, 1)
     expect(hero.boneRotations?.mixamorigLeftLeg?.x).toBeCloseTo(1.9 / DEG, 1)
-    expect(hero.modelPath).toBe('builtin:x-bot')
+    expect(hero.modelPath).toBe('builtin:ual')
     expect(hero.rig).toBe('mixamo')
   })
 
