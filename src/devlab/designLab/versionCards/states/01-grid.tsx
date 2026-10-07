@@ -6,7 +6,7 @@ import type { LabState } from '../../labScreen'
 import { VersionCardsStage } from '../versionCardsLabKit'
 
 const SOURCE = 'docs/plan/2026-10-06-version-cards-reconcile.md §7（用户 10-06：和节点一样、宫格、去图标）'
-const MIRRORS = 'none'
+const MIRRORS = 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:485'
 
 const NEIGHBOURS = [
   { id: 'vc-n1', title: '镜头 1 · 雨夜入场', x: 440, y: 120, versionNo: 7 },
@@ -23,7 +23,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '收起：节点身后叠着几张卡（没有图标、没有「N 版」角标）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} neighbours={NEIGHBOURS} />,
   },
   {
@@ -31,7 +31,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '悬停叠卡：轻轻扇开、露出「4 版」小标，指针是手型——点它铺开',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} hoverStack neighbours={NEIGHBOURS} />,
   },
   {
@@ -39,7 +39,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '铺开 2 版：1×2，最新一版贴着节点；叠卡原位置留淡轮廓当收起把手',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={2} expanded />,
   },
   {
@@ -47,7 +47,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '铺开 4 版：2×2；悬停第 3 版出动作条（设为主图 / 下载 / 删除）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} expanded hoverVersion={3} />,
   },
   {
@@ -55,7 +55,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '铺开 9 版：3×3',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={9} expanded at={{ x: 60,
     y: 60 }} />,
   },
@@ -64,7 +64,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '12 版：先铺 8 张 +「+4」（最早的 4 版收在里面）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={12} expanded at={{ x: 60,
     y: 60 }} />,
   },
@@ -73,7 +73,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '12 版点开「+4」：全部铺开，4×3',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     span: 2,
     render: () => <VersionCardsStage count={12} expanded showAll at={{ x: 20,
     y: 40 }} />,
@@ -83,8 +83,8 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '节点贴着画布右沿：往左铺（顺序镜像，最新仍贴着节点）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
-    render: () => <VersionCardsStage count={4} expanded placement="left" at={{ x: 980,
+    coverage: 'shell',
+    render: () => <VersionCardsStage count={4} expanded at={{ x: 980,
     y: 140 }} />,
   },
   {
@@ -92,7 +92,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '铺开盖住邻居：版本卡在上面（09-28 拍板），点邻居它就浮上来',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={6} expanded neighbours={NEIGHBOURS} />,
   },
   {
@@ -100,7 +100,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '铺开时在节点上再出一版：宫格最前一格是「生成中」占位（只是位置，不是按钮）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} expanded pending />,
   },
   {
@@ -108,7 +108,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '删掉第 3 版：不弹框，提示条给「撤销」（⌘/Ctrl+Z 同样能撤）',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} removed={[3]} expanded toast="deleted" />,
   },
   {
@@ -116,7 +116,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '设第 2 版为主图：提示条写下游几个节点下次生成会用它 + 撤销',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage count={4} expanded primaryVersion={2} toast="primary-set" />,
   },
   {
@@ -124,7 +124,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '暗色 · 铺开 4 版 + 悬停动作条',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     scheme: 'dark',
     render: () => <VersionCardsStage count={4} expanded hoverVersion={3} />,
   },
@@ -133,7 +133,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: '暗色 · 盖住邻居',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     scheme: 'dark',
     render: () => <VersionCardsStage count={6} expanded neighbours={NEIGHBOURS} />,
   },
@@ -142,7 +142,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: 'EN · hover the stack: "4 versions"',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage locale="en" count={4} hoverStack neighbours={NEIGHBOURS_EN} />,
   },
   {
@@ -150,7 +150,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: 'EN · four versions laid out, hover bar',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage locale="en" count={4} expanded hoverVersion={3} />,
   },
   {
@@ -158,7 +158,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: 'EN · dark · 12 versions: 8 + "+4"',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     scheme: 'dark',
     render: () => <VersionCardsStage locale="en" count={12} expanded at={{ x: 60,
     y: 60 }} />,
@@ -168,7 +168,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: 'EN · deleted version 3, toast with Undo',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage locale="en" count={4} removed={[3]} expanded toast="deleted" />,
   },
   {
@@ -176,7 +176,7 @@ export const VERSION_CARD_GRID_STATES: readonly LabState[] = [
     name: 'EN · generating placeholder at the head of the grid',
     source: SOURCE,
     mirrors: MIRRORS,
-    coverage: 'component-only',
+    coverage: 'shell',
     render: () => <VersionCardsStage locale="en" count={4} expanded pending />,
   },
 ]

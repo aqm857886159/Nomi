@@ -1,4 +1,4 @@
-// 走查：选中节点浮框 / 「2 版」结果托盘 / 删框（2026-09-22 用户真机回归）。
+// 走查：选中节点浮框 / 版本卡片（原「2 版」结果托盘，10-06 换成节点身后叠卡 + 原地铺开）/ 删框（2026-09-22 用户真机回归）。
 //
 // 用户报的三件事：
 //   1. 选中图片节点（空的、生成过的都一样）→ 下面的生成浮框整个不出来，参数条自然也没有；
@@ -253,32 +253,38 @@ try {
   await expect.poll(() => overlayVisible(stackComposer), { timeout: 3_000 }).toBe(true).catch(() => undefined)
   check(await overlayVisible(stackComposer), 'P2 生成过的卡选中后生成浮框看得见', {})
   check(await overlayVisible(win.locator(`${sel('stack')} [data-node-floating-toolbar="true"]`)), 'P2 卡上浮条看得见', {})
-  const pill = win.locator(sel('stack')).getByRole('button', { name: EN ? '2 versions' : '2 版', exact: true })
-  try { await expectHittable(pill, 'P3「2 版」胶囊') ; check(true, 'P3「2 版」胶囊点得到', {}) } catch (error) { check(false, 'P3「2 版」胶囊点得到', String(error.message).split('\n')[0]) }
-  await pill.click()
-  const tray = win.locator('[data-node-result-stack="stack"]')
-  await expect.poll(() => overlayVisible(tray), { timeout: 3_000 }).toBe(true).catch(() => undefined)
-  check(await overlayVisible(tray), 'P3 点「2 版」弹出结果托盘（看得见）', {})
-  await shot('02-version-tray')
-  const setV1 = tray.locator('[data-result-stack-item="stack-v1"] button').first()
+  // P3–P5：版本卡片（10-06 起替换「2 版」胶囊 + 浮动小窗）。入口是节点身后的叠卡；铺开是一排和节点一样的卡，悬停出动作条。
+  const handle = win.locator(`${sel('stack')} [data-version-stack-handle]`)
+  try { await expectHittable(handle, 'P3 节点身后的叠卡（版本入口）'); check(true, 'P3 叠卡入口点得到', {}) } catch (error) { check(false, 'P3 叠卡入口点得到', String(error.message).split('\n')[0]) }
+  await handle.click()
+  const grid = win.locator('[data-version-grid="stack"]')
+  await expect.poll(() => overlayVisible(grid), { timeout: 3_000 }).toBe(true).catch(() => undefined)
+  check(await overlayVisible(grid), 'P3 点叠卡：版本在原地铺开（看得见）', {})
+  check(await grid.locator('[data-version-card]').count() === 2, 'P3 两版铺成两张卡', { cards: await grid.locator('[data-version-card]').count() })
+  await shot('02-version-cards')
+  const card = (versionNo) => grid.locator(`[data-version-card="${versionNo}"]`)
   try {
-    await expectHittable(setV1, 'P4 第 1 版缩略图')
-    await setV1.click()
-    await expect(tray.locator('[data-result-stack-item="stack-v1"]')).toHaveAttribute('data-current', 'true', { timeout: 3_000 })
-    check(true, 'P4 在托盘里切到第 1 版', {})
-  } catch (error) { check(false, 'P4 在托盘里切到第 1 版', String(error.message).split('\n')[0]) }
+    await card(1).hover()
+    const setPrimary = card(1).locator('[data-version-action="set-primary"]')
+    await expectHittable(setPrimary, 'P4 第 1 版悬停条「设为主图」')
+    await setPrimary.click()
+    await expect(card(1)).toHaveAttribute('data-primary', 'true', { timeout: 3_000 })
+    check(true, 'P4 在版本卡上把第 1 版设为主图', {})
+  } catch (error) { check(false, 'P4 在版本卡上把第 1 版设为主图', String(error.message).split('\n')[0]) }
   const downloadPath = path.join(tempRoot, 'downloads', 'version-2.png')
   fs.mkdirSync(path.dirname(downloadPath), { recursive: true })
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }) }, downloadPath)
-  const downloadButton = tray.locator('[data-result-stack-item="stack-v2"]').getByRole('button', { name: EN ? 'Download this version' : '下载这一版' })
   try {
-    await expectHittable(downloadButton, 'P5 下载这一版')
+    await card(2).hover()
+    const downloadButton = card(2).locator('[data-version-action="download"]')
+    await expectHittable(downloadButton, 'P5 第 2 版悬停条「下载」')
     await downloadButton.click()
     await expect.poll(() => fs.existsSync(downloadPath) && fs.statSync(downloadPath).size > 0, { timeout: stationTimeout() }).toBe(true)
     check(true, 'P5 下载这一版写出非空文件', { bytes: fs.statSync(downloadPath).size })
   } catch (error) { check(false, 'P5 下载这一版写出非空文件', String(error.message).split('\n')[0]) }
-  await pill.click()
-  await expect.poll(() => overlayVisible(tray), { timeout: 3_000 }).toBe(false).catch(() => undefined)
+  const gridProof = await proveProbe(grid, '收起之前版本卡铺在画布上')
+  await handle.click()
+  try { await expectAbsent(grid, { provenBy: gridProof, message: 'P6 再点叠卡：版本收起' }); check(true, 'P6 再点叠卡：版本收起', {}) } catch (error) { check(false, 'P6 再点叠卡：版本收起', String(error.message).split('\n')[0]) }
 
   // ═══ F 删框 ═══
   const countOf = (selector) => win.locator(selector).count()

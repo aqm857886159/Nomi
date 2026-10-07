@@ -194,7 +194,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...(patch.meta ? [{ type: 'canvas.node.updated' as const, payload: { nodeId, patch: { meta: patch.meta } } }] : []),
     ])
   },
-  setNodeResultStackOpen: (nodeId, open) => {
+  setNodeResultStackOpen: (nodeId, open, side) => {
     const existing = get().nodes.find((node) => node.id === nodeId)
     if (!existing || Boolean(existing.resultStackOpen) === open) return
     pushUndoSnapshot(get())
@@ -202,10 +202,12 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
       node.resultStackOpen = open
+      if (open && side) node.resultStackSide = side
+      else delete node.resultStackSide
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())
     })
-    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { resultStackOpen: open } } }])
+    emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { resultStackOpen: open, ...(open && side ? { resultStackSide: side } : {}) } } }])
   },
   setNodeMainResult: (nodeId, identity, meta) => {
     const existing = get().nodes.find((node) => node.id === nodeId)

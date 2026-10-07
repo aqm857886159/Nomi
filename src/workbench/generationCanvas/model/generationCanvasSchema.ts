@@ -103,6 +103,8 @@ export const generationCanvasNodeSchema = z.object({
   history: z.array(generationNodeResultSchema).optional(),
   /** 版本卡片是否铺开在画布上（按节点存进项目）。 */
   resultStackOpen: z.boolean().optional(),
+  /** 铺开时往哪边铺（点开那一刻定下，之后不变）。 */
+  resultStackSide: z.enum(['left', 'right']).optional(),
   /** 出过的最大版本号（删掉的也算），新的一版 = 它 + 1（model/nodeResultLifecycle.ts）。 */
   resultVersionMax: z.number().int().nonnegative().optional(),
   progress: generationNodeProgressSchema.optional(),

@@ -132,9 +132,9 @@ export function installProbe({ savedTexts }) {
     document.querySelectorAll('[data-v4-block="composer"][data-mode="running"]').forEach((el) => consider(el, 'agent-running'))
     for (const entry of Object.values(state.spinners)) if (!seen.has(entry.id) && !entry.gone) entry.gone = now
 
-    // 9a / 9b：节点上的「几版」胶囊与「已保存到项目」回执，按节点记出现 / 消失时刻。
+    // 9a / 9b：节点上的版本入口（10-06 起是节点身后叠卡上的那颗按钮，名字写着几版）与「已保存到项目」回执，按节点记出现 / 消失时刻。
     const pills = new Set()
-    document.querySelectorAll('[data-card-stack-side] > button[aria-label]').forEach((button) => {
+    document.querySelectorAll('[data-version-stack-handle][aria-label]').forEach((button) => {
       if (!visible(button)) return
       const label = button.getAttribute('aria-label') ?? ''
       const node = button.closest('[data-node-id]')?.getAttribute('data-node-id') ?? 'unknown'

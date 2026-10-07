@@ -1277,10 +1277,10 @@ export function createInvariantMonitor(options) {
   async function checkNuisance(probe) {
     if (!probe) return
     for (const pill of Object.values(probe.versionPills ?? {})) {
-      if (!/^1\s*(版|versions?)$/i.test(pill.label)) continue
+      if (!/(?:^|\D)1\s*(?:个版本|版|versions?)\b/i.test(pill.label)) continue
       await violate({
         invariant: 9, rule: '9a-single-version-pill', key: pill.node,
-        module: 'src/workbench/generationCanvas/nodes/useNodeResultHistory.ts（nodeHasResultStack 只在 ≥2 版时为真）',
+        module: 'src/workbench/generationCanvas/nodes/versionCards/nodeVersionEntries.ts（nodeHasVersionCards 只在 ≥2 版时为真）',
         message: `节点 ${pill.node} 只有 1 版，却显示「${pill.label}」`,
         snapshot: { pill },
       })

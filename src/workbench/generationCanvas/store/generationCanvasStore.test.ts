@@ -1102,3 +1102,20 @@ describe('deleting a frame-covering selection removes the frame too (2026-09-22�
     expect(useGenerationCanvasStore.getState().groups.map((g) => g.id)).toEqual(['empty'])
   })
 })
+
+describe('setNodeResultStackOpen · 往哪边铺在点开那一刻定下', () => {
+  beforeEach(() => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('n', 'shots')], edges: [], groups: [], selectedNodeIds: [] })
+  })
+
+  it('点开时连边一起存，收起时清掉；一次开合是一步撤销', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.setNodeResultStackOpen('n', true, 'left')
+    expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ resultStackOpen: true, resultStackSide: 'left' })
+    store.setNodeResultStackOpen('n', false)
+    expect(useGenerationCanvasStore.getState().nodes[0]?.resultStackOpen).toBe(false)
+    expect(useGenerationCanvasStore.getState().nodes[0]).not.toHaveProperty('resultStackSide')
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ resultStackOpen: true, resultStackSide: 'left' })
+  })
+})

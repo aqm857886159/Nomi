@@ -1,12 +1,12 @@
 /**
  * 结果堆叠里「Alt/⌥ 拖出一个版本 → 松手处出一张独立素材卡」（2026-09-21，LibTV「Option + 拖动」同款）。
  *
- * 拖拽走 HTML5 拖放：来源是版本托盘里的一行（nodes/NodeResultStack.tsx），落点是画布舞台的
+ * 拖拽走 HTML5 拖放：来源是铺开的一张版本卡（nodes/versionCards/NodeVersionCards.tsx），落点是画布舞台的
  * `onDrop`（components/canvasStageDrop.ts）——舞台落点的屏幕→画布换算只有那一处，由画布内核
  * screenToFlowPosition 提供，这里不再手算坐标。新卡以**中心**压在松手点（与系统文件拖入同一约定）。
  *
- * 只在按着 Alt/⌥ 时生效；不按时版本托盘里的拖动什么也不做（托盘带 nodrag，画布也不会被拖走），
- * 点一下仍是「切换为当前版本」。原节点与它的版本堆叠不变——这是**复制**，不是搬走。
+ * 只在按着 Alt/⌥ 时生效；不按时拖版本卡 = 拖整组（交给画布内核拖节点），点一下 = 预览。
+ * 原节点与它的版本不变——这是**复制**，不是搬走。
  */
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { listNodeResultVersions, resultIdentity } from '../model/nodeResultLifecycle'
@@ -28,6 +28,29 @@ export type CanvasResultDragPayload = {
 
 export function encodeCanvasResultDrag(payload: CanvasResultDragPayload): string {
   return JSON.stringify(payload)
+}
+
+/**
+ * 版本卡上按着 Alt/⌥ 起拖：写拖放数据，拖影用卡上那张图；画面就是原图时顺手带上原图像素（新卡出生即真实比例）。
+ * 没按 Alt（或这一版没有地址）就取消这次 HTML5 拖放——那一下交给画布内核拖整组。
+ */
+export function beginCanvasResultCopyDrag(event: DragEvent, input: { sourceNodeId: string; resultIdentity: string; url?: string }): boolean {
+  if (!event.altKey || !input.url || !event.dataTransfer) {
+    event.preventDefault()
+    return false
+  }
+  event.stopPropagation()
+  const target = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
+  const thumb = target?.querySelector('img') ?? null
+  const original = thumb && thumb.naturalWidth > 0 && thumb.getAttribute('src') === input.url ? thumb : null
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData(CANVAS_RESULT_DRAG_MIME, encodeCanvasResultDrag({
+    sourceNodeId: input.sourceNodeId,
+    resultIdentity: input.resultIdentity,
+    ...(original ? { width: original.naturalWidth, height: original.naturalHeight } : {}),
+  }))
+  if (thumb) event.dataTransfer.setDragImage(thumb, thumb.width / 2, thumb.height / 2)
+  return true
 }
 
 export function parseCanvasResultDrag(raw: string): CanvasResultDragPayload | null {

@@ -452,42 +452,47 @@ try {
     check(undone.frames === framesBefore && undone.nodes === nodesBefore.length, 'B2·⌘Z 一次撤掉框 + 成员', undone)
   }
 
-  // ═══ B3 结果堆叠里的第 2 个版本：普通拖不动；Alt 拖 → 松手处出一张独立素材卡，原堆叠不变 ═══
+  // ═══ B3 铺开的第 2 张版本卡：普通拖 = 拖整组（不多出东西）；Alt 拖 → 松手处出一张独立素材卡，原节点的版本不变 ═══
   {
     await selectNode('stack')
-    const toggle = win.locator(`${sel('stack')} [data-card-stack-side] button[aria-expanded]`).first()
+    const toggle = win.locator(`${sel('stack')} [data-version-stack-handle]`)
     await toggle.click()
-    const tray = win.locator(`[data-node-result-stack="stack"]`)
-    await expect(tray, '版本托盘没打开').toBeVisible()
+    const grid = win.locator('[data-version-grid="stack"]')
+    await expect(grid, '版本卡片没铺开').toBeVisible()
     await waitForVisualQuiescence(win)
-    await shot('06-result-stack-open')
+    await shot('06-version-cards-open')
     await win.mouse.move(4, 4)
     await waitForVisualQuiescence(win)
     const trayHandles = await handleState('stack')
-    check(trayHandles.every((s) => s.affordance === 'magnetic' && s.iconVisible && s.onTop), 'B3·版本托盘展开时左右「+」圈仍在最上层（不被别的卡面控件盖住）', trayHandles.map((s) => ({ side: s.side, onTop: s.onTop })))
-    const row = tray.locator('[data-result-stack-item]').nth(1)
-    const rowBox = await row.boundingBox()
-    const grab = { x: rowBox.x + 30, y: rowBox.y + rowBox.height / 2 }
+    check(trayHandles.every((s) => s.affordance === 'magnetic' && s.iconVisible && s.onTop), 'B3·版本卡片铺开时左右「+」圈仍在最上层（不被版本卡盖住）', trayHandles.map((s) => ({ side: s.side, onTop: s.onTop })))
+    const cardBox = async () => {
+      const box = await grid.locator('[data-version-identity]').nth(1).boundingBox()
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    }
+    const grab = await cardBox()
     const before = await nodeIds()
     const target = await stageBlankTarget([grab])
     expect(target, '舞台里找不到放结果副本的空白处').not.toBeNull()
-    // 普通拖：什么也不发生。
-    await humanDrag(grab, target)
-    check((await nodeIds()).length === before.length, 'B3·不按 Alt 拖版本：画布上不多出东西', { before: before.length, now: (await nodeIds()).length })
-    if (!(await tray.isVisible())) await toggle.click()
-    const rowBox2 = await tray.locator('[data-result-stack-item]').nth(1).boundingBox()
-    const grab2 = { x: rowBox2.x + 30, y: rowBox2.y + rowBox2.height / 2 }
-    await humanDrag(grab2, target, { alt: true })
+    // 普通拖：拖的是整组（节点和它的版本卡一起走），画布上不多出东西。
+    const stackBefore = await rectOf(sel('stack'))
+    await humanDrag(grab, { x: grab.x + 40, y: grab.y + 30 })
+    const stackAfter = await rectOf(sel('stack'))
+    check((await nodeIds()).length === before.length, 'B3·不按 Alt 拖版本卡：画布上不多出东西', { before: before.length, now: (await nodeIds()).length })
+    check(Math.abs(stackAfter.cx - stackBefore.cx - 40) <= 3 && Math.abs(stackAfter.cy - stackBefore.cy - 30) <= 3, 'B3·不按 Alt 拖版本卡 = 拖整组（节点跟着走）', { dx: Math.round(stackAfter.cx - stackBefore.cx), dy: Math.round(stackAfter.cy - stackBefore.cy) })
+    const grab2 = await cardBox()
+    const target2 = await stageBlankTarget([grab2])
+    expect(target2, '舞台里找不到放结果副本的空白处').not.toBeNull()
+    await humanDrag(grab2, target2, { alt: true })
     const added = (await nodeIds()).filter((id) => !before.includes(id))
     const copy = added[0] ? await rectOf(sel(added[0])) : null
     const copyUrl = added[0] ? await win.evaluate((s) => document.querySelector(s)?.querySelector('img')?.getAttribute('src') ?? null, sel(added[0])) : null
-    const deviation = copy ? { dx: Math.round(copy.cx - target.x), dy: Math.round(copy.cy - target.y) } : null
-    const stackCount = await win.locator(`${sel('stack')} [data-card-stack-side] button[aria-expanded]`).first().getAttribute('aria-label')
-    results.altDragResult = { added, deviation, copyUrl, stackLabel: stackCount }
-    check(added.length === 1, 'B3·Alt 拖第 2 个版本 → 多出一张独立卡', added)
+    const deviation = copy ? { dx: Math.round(copy.cx - target2.x), dy: Math.round(copy.cy - target2.y) } : null
+    const versionCards = await grid.locator('[data-version-identity]').count()
+    results.altDragResult = { added, deviation, copyUrl, versionCards }
+    check(added.length === 1, 'B3·Alt 拖第 2 张版本卡 → 多出一张独立卡', added)
     check(deviation && Math.abs(deviation.dx) <= 3 && Math.abs(deviation.dy) <= 3, 'B3·新卡中心落在松手点（屏幕 px 偏差 ≤3）', deviation)
-    check(Boolean(copyUrl && copyUrl.includes('frame-b.png')), 'B3·新卡是第 2 个版本那张图', { copyUrl })
-    check(/2/.test(stackCount ?? ''), 'B3·原卡的版本堆叠仍是 2 个', { stackCount })
+    check(Boolean(copyUrl && copyUrl.includes('frame-b.png')), 'B3·新卡是第 2 张版本卡那张图', { copyUrl })
+    check(versionCards === 2, 'B3·原节点仍是 2 个版本', { versionCards })
     await shot('07-alt-drag-result-version')
     await undoOnce()
     check((await nodeIds()).length === before.length, 'B3·⌘Z 一次撤掉那张卡', { before: before.length, now: (await nodeIds()).length })

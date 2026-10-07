@@ -1,30 +1,28 @@
-// 设计实验室 · 屏「画布 · 版本卡片（宫格）」的取景台与夹具。
+// 设计实验室 · 屏「画布 · 版本卡片（宫格）」的取景台与夹具（V2 接线后）。
 //
-// 用户 2026-10-06 改向：版本卡和节点一模一样、按宫格排、去掉版本图标（入口就是节点身后的叠卡）。
-// 这一屏给他拍板看。真身：
-// - 节点本体是现役 `BaseGenerationNode`（只有 1 版的节点外观；多版的节点它会画旧的「N 版」胶囊，
-//   那正是要被替换掉的东西，所以夹具让节点只带主图，叠卡入口与宫格由新组件画）；
-// - 叠卡入口 `NodeVersionStackHandle`、宫格 `NodeVersionGrid` 是 V2 要接进节点的生产组件本体；
-// - 几何全部来自 `versionGridLayout.ts`（纯函数），这里不手填任何一格的位置；
-// - 提示条是现役 toast 的同一份外观（`buildToastNotification` → Mantine Notification）。
+// 每一格渲染的都是**现役 BaseGenerationNode 本体**：节点身后的叠卡入口、铺开的宫格、悬停条、生成中占位、
+// 被压住的邻居藏标题，全是节点自己按真实数据画出来的（versionCards/NodeVersionCardsHost）。夹具只给数据：
+// 几版、谁是主图、铺没铺开（`resultStackOpen`）、在不在生成；悬停 / 点「+N」走**真实的指针与点击事件**
+// （挂载后派发），不给组件加「默认悬停」之类只有实验室用的开关。
+//
+// 唯一不是现役宿主的是提示条：它在真画布上由应用根上的 Mantine 通知容器画，实验室没有那个容器，
+// 所以这里用同一份 buildToastNotification 的产物、交给 Mantine 的 Notification 画（外观同一份）。
 // 画面是 data URI 的几何占位（实验室不依赖机器上的素材），每一版换一个色调好分清。
 import React, { type JSX } from 'react'
 import { Notification } from '@mantine/core'
 import '../../../workbench/generationCanvas/styles/generationCanvas.css'
 import i18n from '../../../i18n'
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
-import type { GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
+import type { GenerationCanvasNode, GenerationNodeResult } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
-import { NodeVersionGrid, NodeVersionStackHandle, type VersionCardEntry } from '../../../workbench/generationCanvas/nodes/versionCards/NodeVersionCards'
-import { isNodeLabelCoveredByGrid, layoutVersionGrid, versionGridItems, type VersionGridPlacement } from '../../../workbench/generationCanvas/nodes/versionCards/versionGridLayout'
 import { buildToastNotification } from '../../../ui/toast'
 import { holdDesignLabReady } from '../labReadyHold'
 
 export const VERSION_CARDS_CELL_WIDTH = 1400
 export const VERSION_CARDS_CELL_HEIGHT = 760
 
-/** 节点 240×135（16:9）：图片节点最小宽附近，宫格 3×3 也装得进一格取景框。 */
+/** 节点 240×135（16:9）：图片节点最小宽附近，宫格 4×3 也装得进一格取景框。 */
 const NODE = { width: 240, height: 135 } as const
 
 const HUES = [210, 28, 160, 330, 260, 95, 190, 12, 285, 50, 140, 350]
@@ -42,26 +40,31 @@ function frame(versionNo: number): string {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">${body}</svg>`)
 }
 
-/** 第 1…count 版，新 → 旧；`removed` 里的号已经被删掉（删了留空号）。 */
-function versions(count: number, removed: readonly number[] = []): VersionCardEntry[] {
-  return Array.from({ length: count }, (_, index) => count - index)
-    .filter((versionNo) => !removed.includes(versionNo))
-    .map((versionNo) => ({ identity: `v${versionNo}`, versionNo, type: 'image' as const, previewUrl: frame(versionNo) }))
+function result(nodeId: string, versionNo: number): GenerationNodeResult {
+  const url = frame(versionNo)
+  return { id: `${nodeId}-v${versionNo}`, type: 'image', url, thumbnailUrl: url, createdAt: versionNo, versionNo }
 }
 
-/** 节点自己的 position 归零：现役外壳在非画布内核下按 position 自己 translate，舞台位置由外面那层 div 给（同 nodeQuickActions 夹具）。 */
-function canvasNode(id: string, title: string, versionNo: number): GenerationCanvasNode {
+function canvasNode(input: {
+  id: string; title: string; position: { x: number; y: number }; count: number; primary: number
+  removed?: readonly number[]; expanded?: boolean; pending?: boolean
+}): GenerationCanvasNode {
+  const history = Array.from({ length: input.count }, (_, index) => input.count - index)
+    .filter((versionNo) => !(input.removed ?? []).includes(versionNo))
+    .map((versionNo) => result(input.id, versionNo))
   return {
-    id,
+    id: input.id,
     kind: 'image',
-    title,
+    title: input.title,
     categoryId: 'shots',
-    position: { x: 0, y: 0 },
+    position: input.position,
     size: { ...NODE },
-    status: 'success',
+    status: input.pending ? 'running' : 'success',
     prompt: '',
-    result: { id: `${id}-v${versionNo}`, type: 'image', url: frame(versionNo), thumbnailUrl: frame(versionNo), createdAt: versionNo, versionNo },
-    history: [{ id: `${id}-v${versionNo}`, type: 'image', url: frame(versionNo), thumbnailUrl: frame(versionNo), createdAt: versionNo, versionNo }],
+    result: history.find((entry) => entry.versionNo === input.primary) ?? history[0],
+    history,
+    resultVersionMax: input.count,
+    ...(input.expanded ? { resultStackOpen: true } : {}),
     meta: { imageWidth: 640, imageHeight: 360, imageAspectRatio: 16 / 9 },
   } as GenerationCanvasNode
 }
@@ -87,9 +90,36 @@ function useCanvasStores(nodes: readonly GenerationCanvasNode[]): boolean {
   return ready
 }
 
+/** 挂载后按真实指针 / 点击事件把格子摆到要看的那一刻（悬停某张卡、悬停叠卡、点开「+N」），摆好才举就绪旗。 */
+function useDriveOnMount(rootRef: React.RefObject<HTMLDivElement | null>, ready: boolean, drive: { hoverVersion?: number; hoverStack?: boolean; showAll?: boolean }): void {
+  React.useEffect(() => {
+    if (!ready || (!drive.hoverVersion && !drive.hoverStack && !drive.showAll)) return undefined
+    const release = holdDesignLabReady('version-cards:drive')
+    let frame = 0
+    let tries = 0
+    const tick = (): void => {
+      const root = rootRef.current
+      tries += 1
+      const more = drive.showAll ? root?.querySelector<HTMLButtonElement>('[data-version-card="more"] button') : null
+      if (more) more.click()
+      const target = drive.hoverVersion
+        ? root?.querySelector<HTMLElement>(`[data-version-grid="vc-source"] [data-version-card="${drive.hoverVersion}"]`)
+        : drive.hoverStack ? root?.querySelector<HTMLElement>('[data-node-id="vc-source"] [data-version-stack-handle]') : null
+      if (target) target.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+      const done = drive.hoverVersion
+        ? Boolean(root?.querySelector('[data-version-card-bar]'))
+        : drive.hoverStack ? Boolean(root?.querySelector('[data-version-stack-count]')) : !root?.querySelector('[data-version-card="more"]')
+      if (done || tries > 120) { release(); return }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => { cancelAnimationFrame(frame); release() }
+  }, [drive.hoverStack, drive.hoverVersion, drive.showAll, ready, rootRef])
+}
+
 export type VersionCardsStageProps = {
   locale?: 'zh-CN' | 'en'
-  /** 这个节点攒了几版。 */
+  /** 这个节点攒了几版（出过的最大号）。 */
   count: number
   expanded?: boolean
   hoverStack?: boolean
@@ -100,36 +130,36 @@ export type VersionCardsStageProps = {
   pending?: boolean
   /** 节点在舞台上的位置（画布坐标 = 舞台像素，缩放 1）。 */
   at?: { x: number; y: number }
-  placement?: VersionGridPlacement
   /** 旁边的邻居节点（铺开会盖住它们）。 */
   neighbours?: ReadonlyArray<{ id: string; title: string; x: number; y: number; versionNo: number }>
   /** 已经删掉的版本号（删了留空号）。 */
   removed?: readonly number[]
-  /** 舞台宽（4×3 那一格要更宽）。 */
-  stageWidth?: number
   toast?: 'deleted' | 'primary-set'
 }
 
+// 缺省值必须是稳定引用：它们进了 nodes 的 useMemo，每次渲染一份新数组就是「写 store → 重渲 → 再写」的死循环。
+const DEFAULT_AT = { x: 80, y: 120 }
+const NO_NEIGHBOURS: NonNullable<VersionCardsStageProps['neighbours']> = []
+const NO_REMOVED: readonly number[] = []
+
 export function VersionCardsStage({
   locale = 'zh-CN', count, expanded = false, hoverStack = false, hoverVersion, primaryVersion, showAll = false, pending = false,
-  at = { x: 80, y: 120 }, placement = 'right', neighbours = [], removed = [], toast, stageWidth = VERSION_CARDS_CELL_WIDTH,
+  at = DEFAULT_AT, neighbours = NO_NEIGHBOURS, removed = NO_REMOVED, toast,
 }: VersionCardsStageProps): JSX.Element {
   const localeReady = useLabLocale(locale)
-  const entries = React.useMemo(() => versions(count, removed), [count, removed])
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
   const primary = primaryVersion ?? count
   const zh = locale === 'zh-CN'
   const nodes = React.useMemo(() => [
-    canvasNode('vc-source', zh ? '场景 · 雨巷' : 'Scene · Rain alley', primary),
-    ...neighbours.map((neighbour) => canvasNode(neighbour.id, neighbour.title, neighbour.versionNo)),
-  ], [neighbours, primary, zh])
+    canvasNode({ id: 'vc-source', title: zh ? '场景 · 雨巷' : 'Scene · Rain alley', position: at, count, primary, removed, expanded, pending }),
+    ...neighbours.map((neighbour) => canvasNode({ id: neighbour.id, title: neighbour.title, position: { x: neighbour.x, y: neighbour.y }, count: neighbour.versionNo, primary: neighbour.versionNo })),
+  ], [at, count, expanded, neighbours, pending, primary, removed, zh])
   const ready = useCanvasStores(nodes) && localeReady
-  const layout = React.useMemo(
-    () => layoutVersionGrid(versionGridItems(entries, { pending, showAll }), NODE, placement),
-    [entries, pending, placement, showAll],
-  )
+  useDriveOnMount(rootRef, ready, { hoverVersion, hoverStack, showAll })
+  const liveNodes = useGenerationCanvasStore((state) => state.nodes)
   const toastProps = toast ? buildToastNotification({
     id: 'vc-toast',
-    reason: 'version-deleted',
+    reason: 'version-card-undo',
     message: toast === 'primary-set'
       ? i18n.t('generationCommon.versionCards.primarySet', { n: primary, count: 3 })
       : i18n.t('generationCommon.versionCards.deleted', { n: removed[0] ?? count }),
@@ -138,43 +168,22 @@ export function VersionCardsStage({
   }) : null
   return (
     <div
+      ref={rootRef}
       data-design-lab-stage="version-cards"
       className="relative overflow-hidden rounded-nomi border border-nomi-line"
-      style={{ width: stageWidth, height: VERSION_CARDS_CELL_HEIGHT }}
+      style={{ width: VERSION_CARDS_CELL_WIDTH, height: VERSION_CARDS_CELL_HEIGHT }}
     >
       <div className="generation-canvas-v2__stage group/canvas">
-        {ready ? (
-          <>
-            {neighbours.map((neighbour) => {
-              const live = nodes.find((node) => node.id === neighbour.id)!
-              const covered = expanded && isNodeLabelCoveredByGrid({ ...neighbour, ...NODE }, at, layout.cells.map((cell) => ({ ...cell, ...NODE })))
-              return (
-                <div key={neighbour.id} className={covered ? 'absolute z-[1] [&_[data-node-label-row]]:invisible' : 'absolute z-[1]'} style={{ left: neighbour.x, top: neighbour.y, width: NODE.width, height: NODE.height }}>
-                  <BaseGenerationNode node={live} selected={false} />
-                </div>
-              )
-            })}
-            {/* 铺开的这一组：层级介于普通节点与选中节点之间（盖在邻居上面）。 */}
-            <div className="absolute z-[3]" style={{ left: at.x, top: at.y, width: NODE.width, height: NODE.height }}>
-              <NodeVersionStackHandle count={count} expanded={expanded} forceHover={hoverStack} onToggle={() => undefined} />
-              <div className="relative z-[1] h-full w-full">
-                <BaseGenerationNode node={nodes[0]} selected={false} />
-              </div>
-              {expanded ? (
-                <NodeVersionGrid
-                  layout={layout}
-                  node={NODE}
-                  primaryIdentity={`v${primary}`}
-                  hoveredIdentity={hoverVersion ? `v${hoverVersion}` : undefined}
-                />
-              ) : null}
-            </div>
-            {toastProps ? (
-              <div className="absolute right-3 top-3 z-[20] w-[340px]">
-                <Notification icon={toastProps.icon} color={toastProps.color} withBorder={toastProps.withBorder} withCloseButton={toastProps.withCloseButton} onClose={() => undefined}>{toastProps.message}</Notification>
-              </div>
-            ) : null}
-          </>
+        {ready ? liveNodes.map((node) => (
+          // 层级同真画布：铺开的那一组盖在普通节点上面（画布内核里是 zIndex 4，见 generationCanvasReactFlowAdapter）。
+          <div key={node.id} className={node.resultStackOpen ? 'absolute left-0 top-0 z-[4]' : 'absolute left-0 top-0 z-[1]'}>
+            <BaseGenerationNode node={node} selected={false} />
+          </div>
+        )) : null}
+        {toastProps ? (
+          <div className="absolute right-3 top-3 z-[20] w-[340px]">
+            <Notification icon={toastProps.icon} color={toastProps.color} withBorder={toastProps.withBorder} withCloseButton={toastProps.withCloseButton} onClose={() => undefined}>{toastProps.message}</Notification>
+          </div>
         ) : null}
       </div>
     </div>

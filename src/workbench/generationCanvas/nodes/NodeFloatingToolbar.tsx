@@ -1,15 +1,11 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconInfoCircle, IconChevronDown, IconCopy, IconRefresh } from '@tabler/icons-react'
+import { IconInfoCircle, IconChevronDown, IconCopy } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { NodeLockBadge } from './NodeLockBadge'
 import { floatingToolbarShift } from './floatingToolbarClamp'
-import { productionMetaOf } from '../model/productionMeta'
-import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import { reworkProductionShot } from '../../production/productionShotActions'
-import { notify } from '../../../ui/notificationPolicy'
 
 // 节点浮动工具栏的**单一共享实现**（P1 收口）：图片编辑 / 视频抽帧 / 全景 / 下载三+条以前是三份
 // 几乎一字不差的拷贝、且各自带一堆 token 违规（rgba 硬编码 / gap-[7px] / 图标 16/1.8…）。这里一次性
@@ -233,48 +229,13 @@ export function ToolbarDuplicateVariantButton({ nodeId }: { nodeId: string }): J
   )
 }
 
-/**
- * 「重拍这镜」：制作流程镜头的重拍**只住在这里**（节点被选中时出现的这条浮条），不管这一镜有几版。
- * 以前它还兼做结果托盘的入口按钮，于是 1 版的镜头也要冒出「1 版」角标；一功能一个家，托盘里不再放重拍。
- * 不是制作流程的节点没有它（自己判，调用方不用分）。
- */
-export function ToolbarReshootButton({ nodeId }: { nodeId: string }): JSX.Element | null {
-  const { t } = useTranslation()
-  const meta = useGenerationCanvasStore((state) => state.nodes.find((node) => node.id === nodeId)?.meta)
-  const production = productionMetaOf({ meta })
-  const [busy, setBusy] = React.useState(false)
-  const [feedback, setFeedback] = React.useState<string | null>(null)
-  if (!production) return null
-  const report = (message: string): void => {
-    notify({ identity: `ToolbarReshoot:${nodeId}`, reason: 'interaction', message, level: 'inline', present: (text) => setFeedback(text || null) })
-  }
-  const reshoot = (): void => {
-    if (busy) return
-    // 返工属于这次 Run 的原项目：点下去那一刻签发，之后交给 Run 自己的持久身份，不因切页取消。
-    withProjectAction((project) => {
-      setBusy(true)
-      void reworkProductionShot(project.binding.projectId, production.runId, production.shotId, report).finally(() => setBusy(false))
-    })
-  }
-  return (
-    <>
-      <ToolbarButton
-        icon={<IconRefresh size={ICON.size} stroke={ICON.stroke} />}
-        label={t('generationCommon.node.reshoot')}
-        disabled={busy}
-        ariaBusy={busy}
-        onClick={reshoot}
-      />
-      {feedback ? <span role="status" data-node-reshoot-feedback className="max-w-[220px] truncate px-1 text-caption text-nomi-danger">{feedback}</span> : null}
-    </>
-  )
-}
+// 「重拍这镜」按钮 2026-10-06 按用户拍板删除：对成功的镜头它和节点 ↑「再出一版」是同一件事，两个按钮分不清；
+// 失败镜头的「重试」（NodeErrorReport → useProductionNodeRetry）走的仍是 reworkProductionShot，停下的批次照样能接着跑。
 
 export function ToolbarVariantProvenanceActions({ nodeId, onOpenProvenance }: { nodeId: string; onOpenProvenance: () => void }): JSX.Element {
   return (
     <>
       <ToolbarDuplicateVariantButton nodeId={nodeId} />
-      <ToolbarReshootButton nodeId={nodeId} />
       <ToolbarProvenanceButton onOpen={onOpenProvenance} />
     </>
   )
