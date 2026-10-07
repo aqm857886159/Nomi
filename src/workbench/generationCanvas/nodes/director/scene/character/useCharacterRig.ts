@@ -34,6 +34,7 @@ import {
   GROUND_FOOT_Y,
   indexBones,
   lowestSkinnedY,
+  multiplyCanonicalOffset,
   normalizeBoneKey,
   offsetFromBase,
   rotateLimbPlaneToward,
@@ -93,8 +94,9 @@ function applyPoseSample(index: BoneIndex, sample: PoseSample, weight: number): 
     _quatA.setFromEuler(eulerFromDegrees(sample.a.boneRotations[name]))
     _quatB.setFromEuler(eulerFromDegrees(sample.b.boneRotations[name]))
     _quatA.slerp(_quatB, sample.alpha)
-    if (weight < 1) _quatA.copy(_identity.slerp(_quatA, weight))
-    bone.quaternion.multiply(_quatA)
+    // 从单位四元数按权重 slerp（_identity 每次先复位：slerp 会原地改它）
+    if (weight < 1) _quatA.copy(_identity.identity().slerp(_quatA, weight))
+    multiplyCanonicalOffset(bone, _quatA)
   }
 }
 

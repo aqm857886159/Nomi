@@ -176,7 +176,7 @@ function normalizeObject(raw: unknown): DirectorObject | null {
   for (const key of ['modelPath', 'posePreset', 'bodyType'] as const) {
     if (typeof raw[key] === 'string') object[key] = raw[key] as string
   }
-  if (raw.rig === 'mixamo' || raw.rig === 'ue4') object.rig = raw.rig
+  if (raw.rig === 'mixamo' || raw.rig === 'ue4' || raw.rig === 'ual') object.rig = raw.rig
   // 模型实量包围盒：六个数都有限才保留，否则当没量过（读的一方按兜底处理并标出来）
   if (isRecord(raw.measuredBounds) && isRecord(raw.measuredBounds.min) && isRecord(raw.measuredBounds.max)) {
     const min = vec3(raw.measuredBounds.min, { x: NaN, y: NaN, z: NaN }), max = vec3(raw.measuredBounds.max, { x: NaN, y: NaN, z: NaN })

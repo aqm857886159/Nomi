@@ -12,6 +12,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from 'three'
+import { boneLocalFromCanonical, canonicalLocalOf, toBoneOffset, toCanonicalOffset } from './canonicalBoneFrame'
 import { mannequinBoneNameVariants } from './mannequinSkeleton'
 import type { DirectorRig, Vec3 } from '../../model/directorTypes'
 import { IK_TARGETS, type IkHandleKey, type IkTargetKey } from '../../model/ikChains'
@@ -75,15 +76,21 @@ export function applyBoneRotationOffsets(index: BoneIndex, rotations: Record<str
   for (const [name, value] of Object.entries(rotations)) {
     const bone = findBoneByName(index, name)
     if (!bone || (value.x === 0 && value.y === 0 && value.z === 0)) continue
-    // 偏移是骨局部坐标系里的一次旋转，右乘到当前四元数上（不是欧拉角相加）
+    // 偏移是规范骨局部坐标系里的一次旋转，换到这根骨的局部轴后右乘到当前四元数上（不是欧拉角相加）
     _offsetQuat.setFromEuler(_offsetEuler.set(value.x * DEG_TO_RAD * weight, value.y * DEG_TO_RAD * weight, value.z * DEG_TO_RAD * weight))
-    bone.quaternion.multiply(_offsetQuat)
+    multiplyCanonicalOffset(bone, _offsetQuat)
   }
 }
 const _offsetQuat = new THREE.Quaternion()
 const _offsetEuler = new THREE.Euler()
+const _boneOffset = new THREE.Quaternion()
 
-// 视线分配：yaw 绕骨的 Y、pitch 绕骨的 X（Mixamo 头/颈/脊的局部轴与身体轴基本对齐；+x = 低头）
+/** 把一枚规范轴偏移四元数右乘到骨上（UAL 人偶经 canonicalBoneFrame 换轴；其它 rig 恒等） */
+export function multiplyCanonicalOffset(bone: THREE.Bone, canonicalOffset: THREE.Quaternion): void {
+  bone.quaternion.multiply(toBoneOffset(bone, canonicalOffset, _boneOffset))
+}
+
+// 视线分配：在规范（Mixamo）局部欧拉上 yaw 加到 Y、pitch 加到 X（Mixamo 头/颈/脊的局部轴与身体轴基本对齐；+x = 低头）；UAL 先换到规范局部再换回
 export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: DistributedAim): void {
   const pairs: Array<[SemanticBone, { yaw: number; pitch: number }]> = [
     ['head', aim.head],
@@ -93,10 +100,14 @@ export function applyLookAtOffsets(index: BoneIndex, rig: DirectorRig, aim: Dist
   for (const [semantic, value] of pairs) {
     const bone = findSemanticBone(index, rig, semantic)
     if (!bone) continue
-    bone.rotation.y += value.yaw * DEG_TO_RAD
-    bone.rotation.x += value.pitch * DEG_TO_RAD
+    _lookEuler.setFromQuaternion(canonicalLocalOf(bone, _lookQuat))
+    _lookEuler.y += value.yaw * DEG_TO_RAD
+    _lookEuler.x += value.pitch * DEG_TO_RAD
+    boneLocalFromCanonical(bone, _lookQuat.setFromEuler(_lookEuler))
   }
 }
+const _lookQuat = new THREE.Quaternion()
+const _lookEuler = new THREE.Euler()
 
 export type IkChain = { key: IkHandleKey; effector: THREE.Bone; links: THREE.Bone[]; iteration: number; maxAngle: number }
 
@@ -223,11 +234,11 @@ const _offInv = new THREE.Quaternion()
 const _offRel = new THREE.Quaternion()
 const _offEuler = new THREE.Euler()
 
-/** 偏移 = base⁻¹ · 当前，以欧拉角（度，一位小数）写回 */
+/** 偏移 = base⁻¹ · 当前，换回规范轴后以欧拉角（度，一位小数）写回 */
 export function offsetFromBase(bone: THREE.Bone, base: THREE.Quaternion): Vec3 {
   _offInv.copy(base).invert()
   _offRel.copy(_offInv).multiply(bone.quaternion)
-  _offEuler.setFromQuaternion(_offRel)
+  _offEuler.setFromQuaternion(toCanonicalOffset(bone, _offRel, _offInv))
   return { x: Number((_offEuler.x * RAD_TO_DEG).toFixed(1)), y: Number((_offEuler.y * RAD_TO_DEG).toFixed(1)), z: Number((_offEuler.z * RAD_TO_DEG).toFixed(1)) }
 }
 

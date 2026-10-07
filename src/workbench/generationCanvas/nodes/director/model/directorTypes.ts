@@ -25,7 +25,7 @@ export const DIRECTOR_PRIMITIVE_TYPES = [
 export type DirectorPrimitiveType = (typeof DIRECTOR_PRIMITIVE_TYPES)[number]
 export type DirectorObjectType = 'character' | 'model' | 'group' | 'splat' | DirectorPrimitiveType
 
-export type DirectorRig = 'mixamo' | 'ue4'
+export type DirectorRig = 'mixamo' | 'ue4' | 'ual'
 export type DirectorModelDisplayMode = 'solid' | 'translucent' | 'clay'
 
 export type Waypoint = {

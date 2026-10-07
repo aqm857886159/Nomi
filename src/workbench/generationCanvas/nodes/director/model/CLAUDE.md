@@ -3,7 +3,7 @@
 > 导演台 V2 的纯层：零 React、除 directorSpace 外零 THREE（该文件只用几何类与 Box3 量包围盒，无 WebGL），全部可在 node 单测里跑。渲染层与面板只消费这里的求值与判定，不各自算。
 > 成员清单
 > assetFolders.ts: 资产目录祖先链与目标可移动性共用判定；拒绝父环，折叠搜索保留命中祖先
-> rigs.ts: rig无关的语义骨映射、体形预设、关节轴文案键，骨架操作共用
+> rigs.ts: rig无关的语义骨映射（mixamo / ue4 / ual，UAL 写 three 去点后的骨名）、体形预设、关节轴文案键，骨架操作共用
 > ikChains.ts: IK靶点/极向量/骨盆胸腔配置与真实骨名解析
 > directorTypes.ts: V2 工程 schema+ 资产库（文件夹 / 条目只存句柄）+ 连线引用类型、字面量联合、isDirectorCamera
 > directorIds.ts: id 工厂（时间戳 + 随机后缀，前缀 d*，与 V1 不撞）
