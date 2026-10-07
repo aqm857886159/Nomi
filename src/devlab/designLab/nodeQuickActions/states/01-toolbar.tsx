@@ -132,14 +132,23 @@ export const QUICK_ACTION_TOOLBAR_STATES: readonly LabState[] = [
   },
   // ── C 设计样张（2026-10-06 用户第 3 条「高清没有模型怎么办」）：同一个「改图 ▾」，高清的三种处境。
   {
-    id: 'qa-31-upscale-guide-en-dark',
-    name: 'C · 改图展开 · 没有放大模型（英文暗色）',
+    id: 'qa-31-upscale-missing-en-dark',
+    name: 'C · 改图展开 · 没有放大模型（英文暗色）：高清置灰，悬停 / 第二行说原因，不跳转（用户 10-07 拍板）',
     source: 'docs/plan/2026-10-06-upscale-capability-design-card.md',
     mirrors: 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:297',
     coverage: 'shell',
     scheme: 'dark',
     capture: 'viewport',
-    render: () => <QuickToolbarStage open="refine" upscale="guide" locale="en" />,
+    render: () => <QuickToolbarStage open="refine" upscale="missing" locale="en" />,
+  },
+  {
+    id: 'qa-33-upscale-missing-zh',
+    name: 'C · 改图展开 · 没有放大模型（中文亮色）：高清置灰，第二行 / 悬停说原因，不跳转（用户 10-07 拍板）',
+    source: 'docs/plan/2026-10-06-upscale-capability-design-card.md',
+    mirrors: 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:297',
+    coverage: 'shell',
+    capture: 'viewport',
+    render: () => <QuickToolbarStage open="refine" upscale="missing" />,
   },
   {
     id: 'qa-32-upscale-ready',
