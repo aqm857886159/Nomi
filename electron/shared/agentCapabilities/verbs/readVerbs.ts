@@ -71,7 +71,7 @@ export function readVerbs(): VerbDeclaration[] {
     name: "read_script", contractId: "document.read", effect: "read", nextAction: "none",
     describe: {
       does: "Read the creation document as plain text: the whole document, or only the text the user has selected.",
-      useWhen: `Before editing the script, when splitting it into shots, and whenever the user says "this" or "here" (use scope selection — it is the only way to resolve those words).`,
+      useWhen: `Before editing the script, when splitting it into shots, and when the user is on the creation page and says "this" or "here" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page).`,
       notWhen: "Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess.",
       params: `scope is full (default) or selection. ${OUTPUT_LIMIT}`,
     },

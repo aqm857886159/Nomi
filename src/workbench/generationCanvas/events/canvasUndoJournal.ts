@@ -47,11 +47,14 @@ export type CanvasLanding = Readonly<{ nodeId: string; landed: Readonly<Record<s
 /** 撤销/重做的结果:用户编辑回到目标位置的投影 + 目标位置之后发生的全部落地(必须叠回,不许丢)。 */
 export type UndoRestore = Readonly<{ projection: CanvasProjection; landingsAfter: readonly CanvasLanding[] }>
 
+// 落地记账两种：节点在时落下的（run-updated 带 landed）；节点不在时到达、暂存的（outcome-held）。
 function landingsAfter(position: number): CanvasLanding[] {
   return journal.slice(position).flatMap((event) => {
     const landed = event.payload.landed
-    const nodeId = (event.payload.node as { id?: unknown } | undefined)?.id
-    if (event.type !== 'canvas.node.run-updated' || !landed || typeof landed !== 'object' || typeof nodeId !== 'string') return []
+    const nodeId = event.type === 'canvas.node.run-updated'
+      ? (event.payload.node as { id?: unknown } | undefined)?.id
+      : event.type === 'canvas.node.outcome-held' ? event.payload.nodeId : undefined
+    if (!landed || typeof landed !== 'object' || typeof nodeId !== 'string') return []
     return [{ nodeId, landed: landed as Record<string, unknown> }]
   })
 }
@@ -118,6 +121,14 @@ export function getUndoJournalPosition(): number {
 export function getLatestUndoBarrierAbsolutePosition(): number | undefined {
   const barrier = undoBarriers.at(-1)
   return barrier === undefined ? undefined : journalBasePosition + barrier
+}
+
+/**
+ * 「撤销日志此刻的头」：之后任何一笔事件（手势、生成落地）都会让它变。提示条上的「撤销」只在它没变时才给——
+ * 撤销是前缀重放，头变了再撤，会把那之后落地的生成结果也一起撤掉。
+ */
+export function getUndoHeadToken(): string {
+  return `${generation}:${journalBasePosition + journal.length}`
 }
 
 export function getOldestReachableUndoPosition(): number {

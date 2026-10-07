@@ -3,7 +3,7 @@
 //
 // 2026-09-25（T-AG-24 / #875）：确认之后，排队中的那一镜在节点上是闲着的（排队只住在制作流程里，节点自己的状态还是 idle），
 // 于是框菜单「生成整框」照样把它算进去，选中它时节点的生成钮也能按——再按一次就是同一镜重复生成、重复扣费。
-// #875 让画布的生成入口（底栏 / 框菜单 / 节点生成钮）都读制作流程对这一镜的归属。
+// #875 让画布的生成入口（框菜单 / 组工具条 / 节点生成钮）都读制作流程对这一镜的归属。
 //
 // 怎么造出「真的在排队」：制作流程逐镜**顺序**派发（multiShotBatchScheduler：`await dispatchUnit` 一镜一镜来），
 // 夹具把第一镜的受理压着不回，第二镜就停在「已授权、还没轮到」——供应商那边一次都没收到它。
@@ -74,7 +74,7 @@ async function zoomOntoFrame(win, frame) {
 /**
  * 排队那一镜在屏上的全部证据：节点挂着排队小标；框菜单「生成整框」按不下去（两镜一在跑一在排，框里没有能再发的）；
  * 选中它时节点生成钮按不下去。先拍后判，修前修后都有图。
- * 两镜落在同一个框里，底栏「生成全部」这时不出现——框里的镜走框菜单这个入口，底栏那个入口由单镜走查（报价卡在等）覆盖。
+ * 两镜落在同一个框里，批量生成入口（组的「生成整组」）这时不出现——框里的镜走框菜单这个入口，底栏那个入口由单镜走查（报价卡在等）覆盖。
  */
 async function expectQueuedShotLocked(win, walk, { queuedNodeId, groupId, locale }) {
   await expect.poll(async () => (await nodeFace(win, queuedNodeId)).placeholder, { message: `${locale}：第二镜挂着「排队中」`, timeout: stationTimeout({ operations: 4 }) }).toBe('queued')

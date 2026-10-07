@@ -96,7 +96,7 @@ await snap(win, 'sources-imported')
 const sourceCount = await win.evaluate(() => document.querySelectorAll('[data-node-id]').length)
 check('四张源图都进画布了', sourceCount === 4, `实得 ${sourceCount}`)
 
-// 全选 → 浮条上应出现「拼成联系表」
+// 全选 → 浮条上应出现「生成总览图」
 await win.keyboard.press('Control+a')
 await win.waitForTimeout(900)
 const toolbar = win.locator('.generation-canvas-v2__selection-toolbar').first()
@@ -104,78 +104,72 @@ const toolbar = win.locator('.generation-canvas-v2__selection-toolbar').first()
   const box = await toolbar.boundingBox().catch(() => null)
   if (box) await snap(win, 'toolbar-with-action', { x: Math.max(0, box.x - 20), y: Math.max(0, box.y - 20), width: box.width + 40, height: box.height + 40 })
 }
-const sheetBtn = win.locator('[data-contact-sheet]').first()
-check('多选浮条上出现「拼成联系表」', await sheetBtn.count() > 0)
+const sheetBtn = toolbar.getByRole('button', { name: /^(生成总览图|Create overview)/ }).first()
+check('多选浮条上出现「生成总览图」', await sheetBtn.count() > 0)
 const btnLabel = await sheetBtn.getAttribute('aria-label').catch(() => null)
-check('钮上标明会拼几张', /拼成联系表（4 张）/.test(btnLabel || ''), String(btnLabel))
+check('钮上标明会生成几张总览图', /生成总览图（4 张）/.test(btnLabel || ''), String(btnLabel))
 
-// 拼
+// 生成
 await sheetBtn.click({ timeout: 5000 })
 await win.waitForTimeout(6000)
+// The canvas only mounts visible React Flow nodes. The overview is intentionally
+// placed to the right of the selected sources, so fit before asserting the new
+// node; counting the current viewport would otherwise report the four sources
+// while the real overview already exists off-screen.
+const fitBtn = win.locator('[aria-label="适应视图"]').first()
+if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1500) }
 await snap(win, 'after-build')
 const built = await win.evaluate(() => document.querySelectorAll('[data-node-id]').length)
-check('多出一个联系表节点', built === 5, `实得 ${built}`)
+const overviewNode = win.locator('.generation-canvas-v2-node').filter({ hasText: /总览图/ }).first()
+check('多出一个总览图节点', built >= 5 && await overviewNode.count() > 0, `实得 ${built}`)
 
-// 取成品图，验尺寸 + 采样比色（真正证明「哪张进了哪格」）
-const verdict = await win.evaluate(async () => {
-  const imgs = Array.from(document.querySelectorAll('[data-node-id] img'))
-  // 联系表是最后建的那个节点的图；按自然尺寸挑最大的那张（源图都是 480x270）
-  let sheet = null
-  for (const img of imgs) {
-    const w = img.naturalWidth || 0
-    if (w > 600 && (!sheet || w > sheet.naturalWidth)) sheet = img
+// 取成品图，验尺寸 + 采样比色（真正证明「哪张进了哪格」）。
+// nomi-local:// 的 <img> 直接画进 canvas 会被当成跨源图拦住读像素；这里改用 fetch 取回字节 →
+// createImageBitmap（字节来源是我们自己 fetch 的，不带污染标记）再采样，既不绕过协议的安全边界，也不丢这条断言。
+const verdict = await overviewNode.locator('img').first().evaluate(async (img) => {
+  const src = img.currentSrc || img.getAttribute('src') || ''
+  const out = { width: img.naturalWidth || 0, height: img.naturalHeight || 0, src }
+  try {
+    const blob = await (await fetch(src)).blob()
+    const bitmap = await createImageBitmap(blob)
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(bitmap, 0, 0)
+    // 排版常量与 contactSheetLayout.ts 默认值一致：cell 480x270, gap 16, padding 24, caption 30
+    const P = 24, CW = 480, CH = 270, GAP = 16, CAP = 30
+    const at = (col, row) => {
+      const d = ctx.getImageData(Math.round(P + col * (CW + GAP) + CW / 2), Math.round(P + row * (CH + CAP + GAP) + CH / 2), 1, 1).data
+      return [d[0], d[1], d[2]]
+    }
+    return { ...out, width: bitmap.width, height: bitmap.height, cells: [at(0, 0), at(1, 0), at(0, 1), at(1, 1)] }
+  } catch (error) {
+    return { ...out, sampleError: String(error?.message || error) }
   }
-  if (!sheet) return { error: '没找到联系表图' }
-  const canvas = document.createElement('canvas')
-  canvas.width = sheet.naturalWidth
-  canvas.height = sheet.naturalHeight
-  const ctx = canvas.getContext('2d')
-  ctx.drawImage(sheet, 0, 0)
-  // 排版常量与 contactSheetLayout.ts 默认值一致：cell 480x270, gap 16, padding 24, caption 30
-  const P = 24, CW = 480, CH = 270, GAP = 16, CAP = 30
-  const at = (col, row) => {
-    const x = P + col * (CW + GAP) + CW / 2
-    const y = P + row * (CH + CAP + GAP) + CH / 2
-    const d = ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data
-    return [d[0], d[1], d[2]]
-  }
-  return {
-    width: canvas.width,
-    height: canvas.height,
-    cells: [at(0, 0), at(1, 0), at(0, 1), at(1, 1)],
-  }
-})
+}).catch(() => ({ error: '没找到总览图成品' }))
 console.log('  → 成品:', JSON.stringify(verdict))
-check('拿到联系表成品图', !verdict.error, verdict.error || '')
+check('拿到总览图成品', !verdict.error && verdict.width > 0 && verdict.height > 0, verdict.error || `${verdict.width}x${verdict.height}`)
 if (!verdict.error) {
   // 4 张 → 2 列 2 行；宽 = 24*2 + 2*480 + 16 = 1024；高 = 24*2 + 2*(270+30) + 16 = 664
   check('成品尺寸符合排版公式（2×2）', verdict.width === 1024 && verdict.height === 664, `${verdict.width}x${verdict.height}`)
-  const near = (got, want) => got.every((v, i) => Math.abs(v - want[i]) < 40)
-  const expected = COLORS.map((c) => c.rgb)
-  const okCells = verdict.cells.map((got, i) => near(got, expected[i]))
-  check('四个格子里真是对应的四张图（成品图上采样比色）', okCells.every(Boolean),
-    verdict.cells.map((c, i) => `${COLORS[i].name}:${okCells[i] ? 'ok' : `got rgb(${c})`}`).join(' '))
+  check('成品落在本地资源协议上', verdict.src.startsWith('nomi-local://'), verdict.src)
+  check('成品图能读到像素（才能证明哪张进了哪格）', Array.isArray(verdict.cells), verdict.sampleError || '')
+  if (Array.isArray(verdict.cells)) {
+    const near = (got, want) => got.every((v, i) => Math.abs(v - want[i]) < 40)
+    const expected = COLORS.map((c) => c.rgb)
+    const okCells = verdict.cells.map((got, i) => near(got, expected[i]))
+    check('四个格子里真是对应的四张图（成品图上采样比色）', okCells.every(Boolean),
+      verdict.cells.map((c, i) => `${COLORS[i].name}:${okCells[i] ? 'ok' : `got rgb(${c})`}`).join(' '))
+  }
 }
 
-const fitBtn = win.locator('[aria-label="适应视图"]').first()
-if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1500) }
 await snap(win, 'canvas-final')
 
-// 成品图另存一份原尺寸的，人眼看清标号条（画布里那张缩得太小 = 等于没验，R13 眼见链）。
-const sheetPng = await win.evaluate(async () => {
-  const imgs = Array.from(document.querySelectorAll('[data-node-id] img'))
-  let sheet = null
-  for (const img of imgs) if ((img.naturalWidth || 0) > 600 && (!sheet || img.naturalWidth > sheet.naturalWidth)) sheet = img
-  if (!sheet) return null
-  const canvas = document.createElement('canvas')
-  canvas.width = sheet.naturalWidth
-  canvas.height = sheet.naturalHeight
-  canvas.getContext('2d').drawImage(sheet, 0, 0)
-  return canvas.toDataURL('image/png').split(',')[1]
-})
-if (sheetPng) {
-  fs.writeFileSync(path.join(shotsDir, '05-sheet-actual.png'), Buffer.from(sheetPng, 'base64'))
-  console.log('  · shot 05-sheet-actual（成品原图）')
+// 成品图另存一份真实渲染截图，人眼看清四格和标号条；不绕过 nomi-local:// 的安全边界。
+if (await overviewNode.count()) {
+  await overviewNode.screenshot({ path: path.join(shotsDir, '05-sheet-actual.png') })
+  console.log('  · shot 05-sheet-actual（真实节点截图）')
 }
 
 await app.close()

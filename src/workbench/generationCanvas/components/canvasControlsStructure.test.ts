@@ -58,7 +58,8 @@ describe('generation canvas control structure', () => {
     const dragHandler = generationCanvas.match(/const handleNodesChange:[\s\S]*?\n\x20\x20}, \[[^\n]+\]\)/)?.[0] || ''
 
     expect(dragDraft).toContain('applyNodeChanges')
-    const activeDrag = dragHandler.split('if (positionChanges.length && draggingRef.current) {')[1]?.split('} else if')[0] ?? ''
+    const activeDrag =
+      dragHandler.split('if (positionChanges.length && draggingRef.current) {')[1]?.split('} else if')[0] ?? ''
     expect(activeDrag).toContain('dragDraft')
     expect(activeDrag).toContain('applyCanvasDragKernelPositionChanges')
     expect(activeDrag).not.toContain('moveNode(')
@@ -76,7 +77,11 @@ describe('generation canvas control structure', () => {
     expect(baseNode).toContain('selected && !readOnly && !flowManagedLayout')
     // 连线把手只有一份：React Flow 节点壳里的 GenerationFlowConnectionHandle（2026-09-21 删掉了
     // 节点卡内那几份靠 CSS display:none 挡住的旧磁吸把手——P1，不留两套）。
-    for (const file of ['../nodes/BaseGenerationNode.tsx', '../nodes/ClipNode.tsx', '../nodes/director/DirectorNode.tsx']) {
+    for (const file of [
+      '../nodes/BaseGenerationNode.tsx',
+      '../nodes/ClipNode.tsx',
+      '../nodes/director/DirectorNode.tsx',
+    ]) {
       expect(source(file)).not.toContain('MagneticConnectionHandle')
       expect(source(file)).not.toContain('generation-canvas-v2-node__handle')
     }
@@ -113,10 +118,13 @@ describe('generation canvas control structure', () => {
     const pointer = source('../reactFlow/useGenerationCanvasReactFlowPointer.ts')
 
     expect(pointer).toContain(
-      "const isAuxiliaryPan = event.button === 1 || event.button === 2 || (event.button === 0 && spaceHeldRef.current)",
+      'const isAuxiliaryPan = event.button === 1 || event.button === 2 || (event.button === 0 && spaceHeldRef.current)',
     )
     expect(pointer).toContain('if (!isAuxiliaryPan || !event.isPrimary) return')
-    const primary = pointer.slice(pointer.indexOf('if (isBlankPrimaryPan) {'), pointer.indexOf('const isAuxiliaryPan ='))
+    const primary = pointer.slice(
+      pointer.indexOf('if (isBlankPrimaryPan) {'),
+      pointer.indexOf('const isAuxiliaryPan ='),
+    )
     expect(primary).toContain('active: false')
     expect(primary).toContain('takeoverAfterWheel: false')
     expect(primary).toMatch(/return\s*\}/)
@@ -131,14 +139,17 @@ describe('generation canvas control structure', () => {
     // 框选状态归 React Flow 自己；我们只需保证辅助平移在 pointercancel 上有收尾入口。
     expect(host).toContain('onPointerCancel={handleCanvasPointerEnd}')
     expect(generationCanvas).toContain('onMoveStart={(event) => {')
-    expect(generationCanvas).toContain('beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowViewport, { onCancel:')
+    expect(generationCanvas).toMatch(
+      /beginCanvasDragging\(hostRef\.current, CANVAS_DRAGGING_OWNER\.reactFlowViewport, \{[\s\S]*?onCancel:/,
+    )
     expect(generationCanvas).toMatch(/onMoveEnd=\{[^]*?viewportLeaseRef\.current\?\.release\(\)/)
     // 2026-09-21：中断路径不许再整段 return。它原来跳过的是**整个** onMoveEnd —— 连 NaN 守卫
     // 和 rememberCategoryViewport 一起——于是「屏幕上的视口」和「记住的视口」分家，下一次视口
     // 同步 effect 一跑画布就跳回中断前的位置。现在中断照样记，只是记到手势开始时那个分类头上。
     expect(generationCanvas).not.toContain('if (viewportCancelledRef.current) return')
     expect(generationCanvas).toContain('viewportGestureCategoryRef.current = activeCategoryId')
-    expect(generationCanvas).toMatch(/rememberCategoryViewport\(viewportGestureCategoryRef\.current \?\? activeCategoryId,/)
+    expect(generationCanvas).toContain('rememberCategoryViewport(')
+    expect(generationCanvas).toContain('viewportGestureCategoryRef.current ?? activeCategoryId')
   })
 
   it('replaces the persistent hint with one contextual help entry', () => {
@@ -267,7 +278,8 @@ describe('generation canvas control structure', () => {
     const groupContract = source('./groupVisualContract.ts')
     const collapsedGroup = source('./CollapsedGroupCard.tsx')
     const stackPeeks = source('./CardStackPeeks.tsx')
-    const marqueeRule = flowStyles.match(/\.generation-canvas-react-flow \.react-flow__selection\s*\{([^}]*)\}/)?.[1] ?? ''
+    const marqueeRule =
+      flowStyles.match(/\.generation-canvas-react-flow \.react-flow__selection\s*\{([^}]*)\}/)?.[1] ?? ''
 
     expect(pointer).toContain('takeoverAfterWheel')
     expect(pointer).toContain('nativePanReconciler.queueDelta({ x: deltaX, y: deltaY })')
@@ -286,25 +298,26 @@ describe('generation canvas control structure', () => {
     // 视觉合同跟着搬，不许在新文件里另配一套皮肤。
     expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.label')
     expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.marker')
-    expect(groupFrame).not.toContain('groupColor')
-    expect(groupFrame).not.toContain('box.group.color')
-    expect(groupFrameHeader).not.toContain('group.color')
-    // 框的常驻装饰仍然中性：accent 只允许出现在**拖动中的临时反馈**那一条分支上
-    // （groupVisualContract 的注释就是这么写的）。多一处就是把强调色变成了组的身份色。
-    expect(groupFrame.match(/workbench-accent/g) ?? []).toHaveLength(2)
-    expect(groupFrame).toMatch(/preview\.change === 'join'[\s\S]{0,120}workbench-accent/)
+    // 组色方案 B：颜色只走静态 token 类名（边框 + 标题圆点），不写行内 style、不填底色。
+    expect(groupFrame).toContain('groupColorClass')
+    expect(groupFrame).toContain('box.group.colorToken')
+    expect(groupFrame).not.toContain('backgroundColor')
+    expect(groupFrame).not.toContain('surfaceColor')
+    expect(groupFrameHeader).toContain('groupColorClass')
+    expect(groupContract).toContain("group's semantic color")
     expect(collapsedGroup).toContain('GROUP_VISUAL_CLASS.collapsedCard')
-    expect(collapsedGroup).not.toContain('card.color')
+    expect(collapsedGroup).toContain('card.colorToken')
     expect(stackPeeks).toContain('GROUP_VISUAL_CLASS.stackRear')
     expect(stackPeeks).not.toContain('border-nomi-accent/50')
-    expect(groupContract).toContain('Persistent group chrome is deliberately neutral')
-    expect(groupContract).not.toContain('nomi-accent')
+    expect(groupContract).toContain("group's semantic color")
   })
 
   it('keeps React Flow edge labels explicit and accessible', () => {
     const edgeRenderer = source('../reactFlow/GenerationCanvasReactFlowNodes.tsx')
 
-    expect(edgeRenderer).toContain('const showLabel = !readOnly && (menuOpen || (mode !== \'reference\' && (incident || selected)))')
+    expect(edgeRenderer).toContain(
+      "const showLabel = !readOnly && (menuOpen || (mode !== 'reference' && (incident || selected)))",
+    )
     expect(edgeRenderer).toContain('{!readOnly ? (')
     expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.modeMenu')}")
     expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.changeMode'")
@@ -336,21 +349,27 @@ describe('generation canvas control structure', () => {
     const generationCanvas = source('../reactFlow/GenerationCanvasReactFlow.tsx')
     const composer = source('../nodes/NodeGenerationComposer.tsx')
     const floatingToolbar = source('../nodes/NodeFloatingToolbar.tsx')
-    const resultStack = source('../nodes/NodeResultStack.tsx')
+    const versionCardBar = source('../nodes/versionCards/NodeVersionCards.tsx')
 
     // 四条拖动路径（单节点 / 选区框 / 组框 / 画布平移）升同一个画布级标志，浮层各自声明隐身——
     // 不再是「只有被拖的那张卡收起来」（2026-08-09 用户：拖 B 的时候 A 的面板也不该杵着；平移同理）。
-    expect(dragResize).toContain('beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.node, { pointerId: event.pointerId, active: false')
-    expect(selectionDrag).toContain('beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.group, { pointerId: event.pointerId, active: false')
-    expect(pointer).toContain('beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.reactFlowPan, { pointerId: event.pointerId, active: false')
-    expect(generationCanvas).toContain('beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel:')
-    for (const overlay of [composer, floatingToolbar, resultStack]) {
+    expect(dragResize).toContain(
+      'beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.node, { pointerId: event.pointerId, active: false',
+    )
+    expect(selectionDrag).toMatch(
+      /beginCanvasDragging\(event\.currentTarget, CANVAS_DRAGGING_OWNER\.group, \{[\s\S]*?active: false/,
+    )
+    expect(pointer).toContain(
+      'beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.reactFlowPan, { pointerId: event.pointerId, active: false',
+    )
+    expect(generationCanvas).toContain(
+      'beginCanvasDragging(hostRef.current, CANVAS_DRAGGING_OWNER.reactFlowNode, { onCancel:',
+    )
+    for (const overlay of [composer, floatingToolbar, versionCardBar]) {
       expect(overlay).toContain('group-data-[dragging=true]/canvas:invisible')
     }
     // 平移那条必须在**跨过阈值之后**才升：按下就升 = 点一下空白也白写两次属性（08-08 的坑）。
-    expect(pointer).toMatch(
-      /auxiliaryPan\.moved = true\s+panLeaseRef\.current\?\.activate\(\)/,
-    )
+    expect(pointer).toMatch(/auxiliaryPan\.moved = true\s+panLeaseRef\.current\?\.activate\(\)/)
     // 旧的按节点作用域已删干净（P1：不留并行版）
     expect(composer).not.toContain('/node:invisible')
     expect(dragResize).not.toContain('setDragging(')

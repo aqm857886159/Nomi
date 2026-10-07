@@ -35,11 +35,16 @@ export function whenRunTargetLoaded(target: RunProjectTarget, apply: () => void)
   return true
 }
 
-/** true = 结局写进了正打开的原项目画布（节点已不在则什么都不写，返回 false）。 */
+/** true = 结局写进了正打开的原项目画布（节点已不在则只暂存记账、返回 false）。 */
 function applyToStore(nodeId: string, outcome: NodeRunOutcome): boolean {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find(candidate => candidate.id === nodeId)
-  if (!node) return false
+  if (!node) {
+    // 节点在生成中被删了（删节点不取消上游任务，钱已花）：结局暂存，撤销把节点带回来时落上去。进度是瞬态，不记。
+    if (outcome.kind === 'content') store.holdRunOutcome(nodeId, { kind: 'content', contentJson: outcome.contentJson })
+    else if (outcome.kind !== 'progress') store.holdRunOutcome(nodeId, outcome)
+    return false
+  }
   if (outcome.kind === 'result') {
     if (outcome.mediaDimensions) store.addNodeResult(nodeId, outcome.result, outcome.mediaDimensions)
     else store.addNodeResult(nodeId, outcome.result)

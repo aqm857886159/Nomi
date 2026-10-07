@@ -13,6 +13,7 @@ import { leaksInternals } from '../resident/residentToolText'
 import { LANE_ERROR_CODES } from '../../../../electron/shared/agentLane/laneErrorCodes'
 import { zhAgentLaneError, enAgentLaneError } from '../../../i18n/locales/agentLaneError'
 import { zhAgentPanelV4, enAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
+import { laneAssistantFaultOf } from '../../../../electron/shared/agentLane/laneAssistantFault'
 
 const key = (k: string) => k
 
@@ -162,5 +163,24 @@ describe('服务商报文：断线 / 超时归网络类，不再说「认不出�
       expect(classifyGenerationError(raw).kind, raw).not.toBe('network')
     }
     expect(classifyGenerationError('terminated').kind).toBe('network')
+  })
+})
+
+// NF-0928-0003 / NF-1001-0003 / NF-1001-0004：报障原文（应用内反馈）逐字喂进来，界面上只许出现按事实取的那一句。
+describe('看门狗 / pi 自己判的失败 → 人话', () => {
+  const cases = [
+    ['Nomi model idle timeout after 120000ms', 'agentResident.faultIdle'],
+    ['Nomi model first-token timeout after 300000ms', 'agentResident.faultFirstToken'],
+    ['Nomi model first-response timeout after 90000ms', 'agentResident.faultFirstResponse'],
+    ['Stream ended without finish_reason', 'agentResident.faultStreamCut'],
+    ['Assistant request exceeded the context window', 'agentResident.faultContextOverflow'],
+  ] as const
+  it.each(cases)('%s → %s，原文不进界面，也不算「认不出」', (raw, expected) => {
+    const fault = laneAssistantFaultOf(raw)
+    // pi 把前四句判成瞬时；有 fault 时不再落到「连不上服务商」那一档。
+    const shown = providerFailureText(raw, key, { transient: true, fault })
+    expect(shown).toBe(expected)
+    expect(shown).not.toContain(raw)
+    expect(providerFailureIsUnclassified(raw, { fault })).toBe(false)
   })
 })

@@ -384,6 +384,32 @@
       "fixedInPr": 1029
     },
     {
+      "id": "FB-20261007-external-write-drops-landed-result",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：外部 agent（MCP）整张写回画布会盖掉读图之后落地的生成结果",
+      "category": "interaction-semantics",
+      "problem": "外部 agent 读画布之后、写回之前，节点上落了生成结果 / 文本定稿 / 开始生成，或用户新建了节点并出了图：外部写回整张覆盖，结果消失、文本回退、生成中变成空闲或可重新拉取、新节点被删（钱已花）；项目开着与后台 / 无窗口写盘两条路都会",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts：2 网关（渲染层 / 盘）× 4 外部写操作 × 3 落地 + 读图后新建并出图的节点，26 条在改前全红；electron/shared/canvas/externalCanvasWrite.test.ts 9 条（每个系统字段外部写入改不动 + 三方合并）",
+        "变异：渲染层 handler 不合并 9 红；盘上整张覆盖 13 红；节点系统字段不设防 8 红；applyExternalGraph 不取活运行态 4 红",
+        "设计卡 docs/plan/2026-10-07-external-write-keeps-landed.md"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-external-write-keeps-landed.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts"
+      }
+    },
+    {
       "id": "LAW10-SILENT-DROP",
       "since": "2026-10-05",
       "source": "tests/experience-laws/intentShownEqualsDrafted.test.mjs（2026-10-05 首跑）",
@@ -507,6 +533,173 @@
       "classCheck": {"kind": "matrix", "file": "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts"},
       "fixedInPr": 1038,
       "completionCommits": ["b2b3de06d", "abaaf4f6e", "4a953a914"]
+    },
+    {
+      "id": "FB-NF-1001-0001-doc-position",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0001（0.22.3 Windows）",
+      "category": "claims-and-outcomes",
+      "problem": "用户不在创作页时模型去读文稿选区，面板只说「这件事在当前页面做不了」，模型与用户都没有下一步，Agent 停住",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/plan/2026-10-06-agent-feedback-batch.md",
+        "electron/agentLane/laneDesktopReads.test.ts：选区读在基线端口回 document_position_unavailable，模型拿到读整篇 / 读当前页的下一步",
+        "变异：码改回 capability_unsupported → documentSessionPort.test 与 laneDesktopReads.test 红"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/project/documentSessionPort.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0002-receipt-unresolved",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0002（0.22.3 Windows；与 0001 同一会话）",
+      "category": "claims-and-outcomes",
+      "problem": "写剧本报「这一步的结果没对上账」，模型被告知去核对它没有工具读的回执；直接原因反馈里无失败码，按代码推断为执行器 15 秒缺省超时短于写工具声明的 60 秒",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/capabilityCore/documentWriteTransportAdapters.test.ts：20 秒落盘的写判成功，超出声明预算才判未确认",
+        "变异：执行器缺省改回 15 秒 → 慢写测试红",
+        "轨迹补 nomi.tool.failure_code，下一条同类反馈能定案"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/capabilityCore/documentWriteTransportAdapters.test.ts"
+      }
+    },
+    {
+      "id": "FB-20261007-agent-receipt-contradicts-canvas",
+      "since": "2026-10-07",
+      "source": "用户反馈：让 Agent 加一个图片节点先别生成，节点已建好，它却说画布上还没有节点；另见同任务出现两个分镜表",
+      "category": "claims-and-outcomes",
+      "problem": "draft_shots 的回执是一句写死的话，不看草稿有没有真落到画布上，模型照着对用户说反话；同一 Run 的两次重叠落地各建一张分镜表",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "回执从落地后读到的 Run 账本派生：落了（点名节点）/文稿来源没落/项目没开没落/没落成/宿主未报 五种各说真话——electron/agentLane/laneExtendedTools.test.ts、electron/productionRun/agentDraftSingleLedger.test.ts、electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts（真实路径）",
+        "分镜表建表前再读一次是否已有：src/workbench/capability/multiShotCanvasLanding.test.ts 重叠落地用例（修前红）"
+      ],
+      "completionCommits": ["fb3ee6a35", "225dfd4a9"],
+      "fixedInPr": 1074,
+      "rootCauseContract": "docs/fixes/2026-10-07-agent-receipts-from-landing.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/agentLane/laneExtendedTools.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0003-stream-cut",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0003（0.22.3 Windows）",
+      "category": "claims-and-outcomes",
+      "problem": "面板直出英文「Stream ended without finish_reason」；#1022 后归成「连不上服务商」也不准（连上了、是半路被掐断）",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "electron/shared/agentLane/laneAssistantFault.test.ts：报障原文认成 stream-cut，并读依赖源码钉住 pi 字面量",
+        "src/workbench/ai/lane/laneCommandFailure.test.ts：原文不进界面"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/shared/agentLane/laneAssistantFault.test.ts"
+      }
+    },
+    {
+      "id": "FB-NF-1001-0004-model-thinking-timeout",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-1001-0004（0.22.3 Windows；与 0003 同一会话）",
+      "category": "claims-and-outcomes",
+      "problem": "推理模型思考超过 120 秒被看门狗当卡死掐断并整份重发三次（一回合约 33 万输入 token 全白花），面板直出「Nomi model idle timeout after 120000ms」",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "tests/agent-runtime/observer.test.mts：响应头后、首字前的静默归 first-token 预算（300 秒）",
+        "变异：改回 start 即开空闲表 → observer 两条红"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/agent-runtime/observer.test.mts"
+      }
+    },
+    {
+      "id": "FB-NF-0928-0003-context-overflow",
+      "since": "2026-10-06",
+      "source": "应用内反馈 NF-0928-0003（0.22.3 Windows）",
+      "category": "performance-coverage",
+      "problem": "同一用户回合反复读整份剧本，旧副本随每次请求重发，pi 压缩切不进当前回合，三回合输入约 39 万 / 38 万 / 88 万 token 撞上下文窗口",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "tests/agent-runtime/lane-context-budget.test.mts（真回环 + 真 pi 循环）：每次请求汉字数改前 14809→29509→44209→58909→73609，改后恒为 14809",
+        "变异：去掉 omitSupersededReads → 该测试红",
+        "上下文溢出的英文原文改为人话（faultContextOverflow）"
+      ],
+      "completionCommits": [
+        "effcf1966"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "fixedInPr": 1055,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "electron/agentLane/laneSupersededReads.test.ts"
+      }
     },
     {
       "id": "AUD-20261005-02",
@@ -818,6 +1011,32 @@
       }
     },
     {
+      "id": "FB-20261007-deleted-node-drops-arriving-outcome",
+      "since": "2026-10-07",
+      "source": "#1065 撤销保留落地结果顺查：生成中删节点再撤销，节点带着生成中回来、结果永远不到",
+      "category": "claims-and-outcomes",
+      "problem": "生成中删掉节点（删 / 删选中 / 剪切 / 外部写入删），上游任务照跑、钱已花，结果到达时节点不在被直接丢掉；撤销删除后节点一直显示生成中，结果 / 文本定稿 / 失败都不会再来",
+      "existingInvariants": [],
+      "ironLaws": [
+        "⑫"
+      ],
+      "useCases": [],
+      "fullWalkJourneys": [],
+      "status": "candidate",
+      "manualReview": "pending",
+      "evidence": [
+        "类级检查 src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts：4 扇删除门 × 3 种到达 + 撤销—重做—撤销 3 条，15 条改前全红；先撤销后到达对照 3 条本来就绿",
+        "变异：投递处不暂存 15 红；撤销日志不认暂存 15 红；暂存不认失败状态 5 红",
+        "设计卡 docs/plan/2026-10-07-deleted-node-keeps-arriving-outcome.md（选「结果落回恢复的节点」，不选「标成已中断让用户重试」：重试要再花钱）"
+      ],
+      "completionCommits": [],
+      "rootCauseContract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "classCheck": {
+        "kind": "matrix",
+        "file": "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+      }
+    },
+    {
       "id": "LAW11-ANCHOR-CARD",
       "source": "tests/experience-laws/parameterReachability.test.mjs（2026-10-05，第 4 个入口）",
       "category": "parameter-contract",
@@ -964,6 +1183,37 @@
       "rootCauseContract": "docs/fixes/2026-10-06-capability-unavailable-dead-end.root-cause.json",
       "fixedInPr": 1053,
       "classCheck": { "kind": "iron-law", "ref": "⑫", "file": "tests/ux/full-walk/catalog.mjs" }
+    },
+    {
+      "id": "PERF-20261006-CANVAS-HF",
+      "since": "2026-10-06",
+      "source": "用户反馈：React Flow 拖动期间边层反复清空并重建，约 7.9 万次 childList 变更",
+      "category": "performance-coverage",
+      "problem": "节点拖动把每个 pointer sample 写入 durable canvas store，并让受控 nodes/edges projection 反复重建，导致边层 childList 变更和无关订阅放大",
+      "existingInvariants": [],
+      "ironLaws": [],
+      "useCases": [
+        "S8"
+      ],
+      "fullWalkJourneys": [],
+      "status": "fixed",
+      "manualReview": "reviewed",
+      "evidence": [
+        "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+        "tests/ux/canvas-performance-benchmark.e2e.mjs",
+        "tests/ux/grouping-optimization.walk.mjs",
+        "tests/ux/grouping-real-media.walk.mjs"
+      ],
+      "completionCommits": [
+        "1da15ba6f",
+        "5a7336cc4"
+      ],
+      "rootCauseContract": "docs/fixes/2026-10-05-canvas-high-frequency-projection.root-cause.json",
+      "fixedInPr": 1048,
+      "classCheck": {
+        "kind": "matrix",
+        "file": "tests/ux/selection-drag-lifecycle.test.mjs"
+      }
     }
   ]
 }

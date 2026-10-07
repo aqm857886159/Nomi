@@ -38,7 +38,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "document.read",
-      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and whenever the user says \"this\" or \"here\" (use scope selection — it is the only way to resolve those words). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
+      "description": "Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \"this\" or \"here\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.",
       "effect": "read",
       "effectGroups": null,
       "examples": [

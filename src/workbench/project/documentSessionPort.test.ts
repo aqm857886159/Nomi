@@ -64,24 +64,25 @@ describe('document session port — baseline (creation page never mounted)', () 
     expect(replaced.applied).toBe(true)
   })
 
-  it('③  says capability_unsupported (not stale) for selection reads, cursor inserts and positional anchors', () => {
+  // NF-1001-0001：基线态（创作页没开）读选区 / 光标插入 / 定位锚，说「没有位置」，不是泛泛的「做不了」也不是「过期」。
+  it('③  says document_position_unavailable (not stale, not a bare unsupported) for selection reads, cursor inserts and positional anchors', () => {
     const document = seed('第一句。')
     const state = documentSessionState(document)
     const codeOf = (run: () => unknown) => {
       try { run() } catch (error) { return (error as SurfacePortWireError).code }
       return 'no-error'
     }
-    expect(codeOf(() => readDocumentThroughSessionPort({ documentId: document.id, scope: 'selection' }))).toBe('capability_unsupported')
+    expect(codeOf(() => readDocumentThroughSessionPort({ documentId: document.id, scope: 'selection' }))).toBe('document_position_unavailable')
     expect(codeOf(() => writeDocumentThroughSessionPort({
       documentId: document.id, operation: 'insert', content: 'x', ...guard,
       target: { kind: 'document', documentId: document.id, anchor: { kind: 'whole-document' } },
       preconditions: { document: { revision: state.revision, contentHash: state.contentHash } },
-    }))).toBe('capability_unsupported')
+    }))).toBe('document_position_unavailable')
     expect(codeOf(() => writeDocumentThroughSessionPort({
       documentId: document.id, operation: 'append', content: 'x', ...guard,
       target: { kind: 'document', documentId: document.id, anchor: { kind: 'cursor', position: 1, beforeHash: 'a', afterHash: 'b' } },
       preconditions: { document: { revision: state.revision, contentHash: state.contentHash } },
-    }))).toBe('capability_unsupported')
+    }))).toBe('document_position_unavailable')
     expect(workbenchDocumentPlainText(live(document.id))).toBe('第一句。')
   })
 

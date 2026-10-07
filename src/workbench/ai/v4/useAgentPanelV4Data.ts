@@ -237,7 +237,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     // **两条路都不再 `?? text`**——那个兜底正是把模型收到的英文散文印给用户的那一行。
     toolFailure: (text, failure) => (failure ? laneToolFailureSummary(t, failure) : humanizeToolFailure(t, text)),
     toolFailureDetail: (failure) => laneToolFailureDetail(t, failure),
-    assistantFailure: (text, transient) => providerFailureText(text, t, { transient }),
+    assistantFailure: (text, facts) => providerFailureText(text, t, facts),
     assistantRecovered: t('agentPanelV4.errorRecovered'),
     thinkingLabel: t('agentPanelV4.thinkingLabel'),
     formatTokens: formatV4Tokens,
