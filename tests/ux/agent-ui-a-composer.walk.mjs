@@ -16,7 +16,8 @@ import {
   SKILL_POPOVER,
 } from './agent-runtime-walk-support.mjs'
 
-const root = path.resolve(new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const outputDir = path.join(root, '.tmp', 'agent-ui-a')
 fs.mkdirSync(outputDir, { recursive: true })
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-ui-a-'))

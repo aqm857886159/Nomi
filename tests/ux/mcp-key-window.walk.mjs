@@ -7,7 +7,8 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { screenshotSettled, expectVisible, clickOrFail } from './_assert.mjs'
 
-const repoRoot = path.resolve(new URL('.', import.meta.url).pathname, '../..')
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/mcp-key-window')
 const FAKE_KEY = 'sk-nomi-mcp-key-window-walkthrough'
 

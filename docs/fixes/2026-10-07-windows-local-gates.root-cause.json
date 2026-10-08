@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-windows-local-gates",
+  "detected_by": "review",
+  "problem_type": "Windows local validation paths and process arguments are assembled with POSIX-only or shell-dependent semantics",
+  "symptom": "Windows validation can resolve file URLs as /C:/ paths, split Vitest filters containing spaces, or omit the isolated profile directory from credential prechecks",
+  "direct_cause": "Several callers read URL.pathname as a filesystem path and vitest-fair-share delegated argv construction to a Windows shell",
+  "class_root": "The repository had no shared invariant requiring fileURLToPath for filesystem paths or direct Node argv execution for local gates",
+  "affected_population": [
+    "Windows developers running local gates and focused Vitest filters",
+    "Node tests and design evidence scripts that resolve files relative to import.meta.url"
+  ],
+  "scope_paths": [
+    "eslint.config.mjs",
+    "scripts/vitest-fair-share.mjs",
+    "scripts/vitest-fair-share.node-test.mjs",
+    "scripts/check-control-contract.test.mjs",
+    "scripts/daily-radar-session.node-test.mjs",
+    "src/workbench/generationCanvas/nodes/director/model/planOverrides.guard.test.ts",
+    "docs/design/creation-columns-evidence/implementation/capture.mjs",
+    "docs/design/mockups/2026-09-06-agent-panel-v4/src/build.mjs"
+  ],
+  "entry_points": [
+    "file-relative test and evidence scripts",
+    "vitest-fair-share process launcher",
+    "credential-precheck C0 subprocess environment"
+  ],
+  "internal_only_reason": "The invariant is repository-owned local validation behavior; no provider or external service controls it.",
+  "invariants": [
+    "Filesystem paths derived from import.meta.url use fileURLToPath",
+    "Vitest receives one argv item per user argument without shell parsing",
+    "Credential precheck subprocesses receive an isolated absolute NOMI_REAL_PROFILE_USER_DATA directory"
+  ],
+  "doors": [
+    { "kind": "write", "path": "scripts/vitest-fair-share.mjs", "symbol": "buildVitestInvocation" },
+    { "kind": "read", "path": "scripts/vitest-fair-share.mjs", "symbol": "resolveVitestBin" }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The launcher construction and local Vitest resolution are separate responsibilities and both must remain explicit entry points."
+  },
+  "generality_proof": "All changed URL-relative filesystem callers now pass through fileURLToPath, and every fair-share launch uses the same direct-process invocation builder; the lint selector blocks new URL pathname filesystem conversions in linted source files.",
+  "shared_boundaries": [
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "windowsPathSelectors",
+      "responsibility": "Reject URL.pathname filesystem path conversions in linted source."
+    },
+    {
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "buildVitestInvocation",
+      "responsibility": "Build a platform-independent argv vector with shell disabled."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-model-schema.ts",
+      "entry_point": "repoRoot URL pathname conversion",
+      "disposition": "not-affected",
+      "evidence": "Gate scripts remain in the documented temporary allowlist; their four existing conversions are tracked for a follow-up migration."
+    },
+    {
+      "path": "scripts/check-control-contract.test.mjs",
+      "entry_point": "test fixture root resolution",
+      "disposition": "enforced",
+      "evidence": "Both test root calculations now use fileURLToPath."
+    },
+    {
+      "path": "docs/design/creation-columns-evidence/implementation/capture.mjs",
+      "entry_point": "evidence output root resolution",
+      "disposition": "enforced",
+      "evidence": "The output directory now comes from fileURLToPath(new URL(...))."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same URL pathname and shell argv mechanisms exist in multiple scripts and can recur whenever a new Windows path or spaced filter is added.",
+    "same_class_scan": [
+      "rg new URL(... import.meta.url).pathname found 11 occurrences before the fix; four gate-script occurrences remain in the temporary allowlist.",
+      "rg shell: true scripts/vitest-fair-share.mjs identified the process boundary that split spaced arguments.",
+      "scripts/vitest-fair-share.node-test.mjs now tests a spaced filter as one argv item."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "L linted code cannot use new URL(...).pathname as a filesystem path.",
+    "failure_mode": "ESLint reports an error directing callers to node:url fileURLToPath.",
+    "exception_policy": "none",
+    "strategy": "Enforce the class at lint time and centralize Vitest argv construction in the launcher.",
+    "artifacts": ["eslint.config.mjs", "scripts/vitest-fair-share.mjs"]
+  },
+  "regression_tests": ["scripts/vitest-fair-share.node-test.mjs"],
+  "class_regression_tests": ["scripts/vitest-fair-share.node-test.mjs"],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No persisted data or obsolete runtime path is migrated; this changes local validation path and argv construction only."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Node and Vitest remain the supported local runtime; no dependency upgrade is required for the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data migration is needed. Gate scripts in the temporary allowlist must be migrated before the allowlist is removed.",
+  "residual_risks": [
+    "Four check scripts still contain URL.pathname conversions and are explicitly unverified until their gate-source migration."
+  ],
+  "invariant_owner_layer": {
+    "layer": "eslint.config.mjs",
+    "tests": ["scripts/vitest-fair-share.node-test.mjs"]
+  },
+  "recurrence_check_on": "2026-11-07"
+}

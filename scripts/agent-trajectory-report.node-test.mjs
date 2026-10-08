@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { buildReportData, normalizeFailureMessage, renderMarkdown } from './agent-trajectory-report.mjs'
 
@@ -58,7 +59,7 @@ test('comparison preserves run order and includes tools missing from a run', () 
 })
 
 test('real run1 reproduces the headline totals when evidence is present', (t) => {
-  const run1 = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'docs/evidence/2026-09-21-askback-real-model')
+  const run1 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs/evidence/2026-09-21-askback-real-model')
   if (!fs.existsSync(path.join(run1, 'trajectories'))) {
     t.skip('real run1 evidence directory is missing')
     return

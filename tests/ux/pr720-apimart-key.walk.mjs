@@ -27,7 +27,8 @@ import { screenshotSettled, clickOrFail, expectVisible } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_PANEL, COMPOSER, COMPOSER_MODEL, MODEL_POPOVER } from './agent-runtime-walk-support.mjs'
 
-const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
 
