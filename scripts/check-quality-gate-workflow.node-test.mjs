@@ -515,3 +515,22 @@ test('workflows delegate Chromium installation to the shared script', () => {
   }
   assert.deepEqual(offenders, [], `workflow 中禁止直接出现 playwright install：${offenders.join('、')}`)
 })
+
+test('every workflow job that runs a repository script checks out the repository first', () => {
+  const workflowDir = path.join(repoRoot, '.github/workflows')
+  const offenders = []
+  for (const file of fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name))) {
+    const definition = load(fs.readFileSync(path.join(workflowDir, file), 'utf8'))
+    for (const [jobName, job] of Object.entries(definition.jobs ?? {})) {
+      const steps = job.steps ?? []
+      for (const [index, step] of steps.entries()) {
+        if (typeof step.run !== 'string' || !/\bscripts\//.test(step.run)) continue
+        const hasCheckout = steps.slice(0, index).some(
+          (prior) => typeof prior.uses === 'string' && /^actions\/checkout@/.test(prior.uses),
+        )
+        if (!hasCheckout) offenders.push(`${file}:${jobName}:${index}`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [])
+})
