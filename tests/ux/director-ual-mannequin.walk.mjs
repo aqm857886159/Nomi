@@ -120,7 +120,7 @@ try {
   for (let index = 0; index < count; index += 1) {
     const option = options.nth(index)
     await option.click()
-    await page.waitForTimeout(index === 0 ? 1500 : 900)
+    await page.waitForTimeout(index ? 900 : 1500) // 第一个动作要多等一下：模型首次加载
     const label = (await option.innerText()).split('\n').filter(Boolean)
     const png = await canvas.screenshot()
     tiles.push({ name: label[0] ?? '', kind: label[1] ?? '', data: png.toString('base64') })
