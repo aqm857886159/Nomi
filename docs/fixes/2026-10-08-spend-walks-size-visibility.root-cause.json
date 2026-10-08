@@ -26,13 +26,19 @@
   "doors": [
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
       "symbol": "parameterControlRole"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "splitPrimaryParameterControls"
     }
   ],
   "door_reduction": {
-    "before": 1,
-    "after": 1
+    "before": 2,
+    "after": 2,
+    "why_not": "The classifier and the primary-chip splitter are separate shared boundaries: the former assigns semantic roles and the latter applies the visibility policy. Keeping both explicit prevents a second caller from bypassing either boundary; merging them would recreate the role/deduplication coupling this fix removes."
   },
   "generality_proof": "The role decision is centralized before both primary-chip consumers. The class matrix walks every registered image/video archetype and every mode, including pixel dimensions, resolution names, quality aliases, duration, and quantity controls; the Agnes ratio/pixel cases prove that de-duplication and visibility now use the same option-aware boundary.",
   "shared_boundaries": [

@@ -6,11 +6,11 @@ import {
   parameterChipLabel,
   parameterChipOptions,
   parameterChipValue,
-  parameterChipOptions,
   planParameterChips,
   splitPrimaryParameterControls,
 } from './primaryParameterChips'
-import { parameterControlRole, type DynamicModelControl, type ModelParameterControl } from './controls/parameterControlModel'
+import { parameterControlRole, type DynamicModelControl } from './controls/parameterControlModel'
+import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
 
 describe('paid-card size visibility characterization', () => {
@@ -21,6 +21,17 @@ describe('paid-card size visibility characterization', () => {
       defaultValue: '1024x1024',
     }
     expect(splitPrimaryParameterControls([pixelSize]).primary.map((control) => control.key)).toEqual(['size'])
+  })
+
+  it('keeps quality independently visible beside resolution while sharing its role', () => {
+    const control = (key: string): DynamicModelControl => ({
+      key, label: key, type: 'select', binding: 'parameter',
+      options: [{ value: 'standard', label: 'standard' }, { value: 'high', label: 'high' }],
+    })
+    const { primary } = splitPrimaryParameterControls([control('resolution'), control('quality')])
+    expect(primary.map((item) => item.key)).toEqual(['resolution', 'quality'])
+    expect(parameterControlRole(control('resolution'))).toBe('resolution')
+    expect(parameterControlRole(control('quality'))).toBe('resolution')
   })
 })
 

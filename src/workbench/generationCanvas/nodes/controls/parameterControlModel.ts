@@ -112,7 +112,11 @@ export function getSlotThumbUrl(meta: Record<string, unknown>, paramKey: string,
 
 const ASPECT_RATIO_ALIASES = ['aspect_ratio', 'aspectRatio', 'aspect', 'size', 'imageSize', 'videoSize', 'ratio', 'video_size', 'image_size']
 const DURATION_ALIASES = ['durationSeconds', 'videoDuration', 'duration', 'video_duration', 'length', 'clip_length']
-const RESOLUTION_ALIASES = ['resolution', 'videoResolution', 'video_resolution', 'output_resolution', 'outputResolution', 'quality', 'resolution_type', 'mode', 'upscale_factor']
+const RESOLUTION_ALIASES = ['resolution', 'videoResolution', 'video_resolution', 'output_resolution', 'outputResolution', 'resolution_type', 'mode', 'upscale_factor']
+// `quality` has the same paid/output role as resolution, but it is an
+// independently selectable catalog parameter. Keep it out of the
+// equivalence map so dedupe does not erase a model's resolution control.
+const RESOLUTION_ROLE_ALIASES = [...RESOLUTION_ALIASES, 'quality']
 const QUANTITY_ALIASES = ['output_count', 'batch_size', 'num_images', 'number_of_images', 'n']
 const FORMAT_ALIASES = ['output_format', 'outputFormat', 'format', 'image_format']
 
@@ -148,7 +152,7 @@ export type ParameterRole = 'aspect' | 'duration' | 'resolution' | 'quantity'
 const PARAMETER_ROLE_BY_KEY: Record<string, ParameterRole> = {
   ...Object.fromEntries(ASPECT_RATIO_ALIASES.map((key) => [key, 'aspect' as const])),
   ...Object.fromEntries(DURATION_ALIASES.map((key) => [key, 'duration' as const])),
-  ...Object.fromEntries(RESOLUTION_ALIASES.map((key) => [key, 'resolution' as const])),
+  ...Object.fromEntries(RESOLUTION_ROLE_ALIASES.map((key) => [key, 'resolution' as const])),
   ...Object.fromEntries(QUANTITY_ALIASES.map((key) => [key, 'quantity' as const])),
 }
 
