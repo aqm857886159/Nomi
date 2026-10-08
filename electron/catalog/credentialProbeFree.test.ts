@@ -77,6 +77,34 @@ vi.mock("./builtinVendorSeeds", async (importOriginal) => {
   };
 });
 
+describe("custom relay credential validation", () => {
+  it("reuses the saved Authorization override when a user replaces the key", async () => {
+    seedApimartCatalog();
+    const { upsertRendererCatalogVendor, upsertRendererCatalogVendorApiKey } = await import("./rendererCatalogMutation");
+    upsertRendererCatalogVendor({
+      key: "byo-auth-relay",
+      name: "BYO Auth Relay",
+      baseUrlHint: "https://relay.example.com/v1",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      meta: { extraHeaders: { Authorization: "Bearer gateway-override" } },
+    });
+    mockAppFetch.mockResolvedValue(jsonResponse(200, { data: [{ id: "relay-model" }] }));
+
+    await expect(upsertRendererCatalogVendorApiKey("byo-auth-relay", { apiKey: "stored-key", enabled: false }))
+      .resolves.toMatchObject({ vendorKey: "byo-auth-relay", hasApiKey: true });
+
+    const firstCall = mockAppFetch.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    if (!firstCall) throw new Error("credential validation did not issue a request");
+    const firstRequest = firstCall[1];
+    expect(firstRequest).toBeDefined();
+    if (!firstRequest) throw new Error("credential validation request options are missing");
+    const headers = new Headers(firstRequest.headers);
+    expect(headers.get("authorization")).toBe("Bearer gateway-override");
+  });
+});
+
 beforeEach(() => {
   mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-probe-free-"));
   tempRoots.push(mockedUserDataRoot);
@@ -149,7 +177,7 @@ function outboundCalls(): Array<{ url: string; method: string }> {
 }
 
 function jsonResponse(status: number, body: unknown): Response {
-  return { ok: status >= 200 && status < 300, status, json: async () => body, text: async () => JSON.stringify(body) } as Response;
+  return { ok: status >= 200 && status < 300, status, headers: new Headers(), json: async () => body, text: async () => JSON.stringify(body) } as Response;
 }
 
 describe("T-MO-10 ① 有免费端点的供应商：保存验证不发生成请求", () => {
