@@ -21,16 +21,25 @@ describe('project Agent lane isolation', () => {
   })
 
   it('recovers lane receipts only after a workspace identity is acknowledged', async () => {
-    const recoverReceipts = vi.fn(async () => undefined)
+    const recoverReceipts = vi.fn(async (_workspaceId: string) => undefined)
     const reportFailure = vi.fn()
+    const order: string[] = []
     await expect(
       openProjectAgentLane(binding, {
-        open: async () => ({ ok: true, workspaceId: 'workspace-a' }),
-        recoverReceipts,
+        open: async () => {
+          order.push('workspace-installed')
+          return { ok: true, workspaceId: 'workspace-a' }
+        },
+        recoverReceipts: async (workspaceId) => {
+          order.push(`receipts:${workspaceId}`)
+          await recoverReceipts(workspaceId)
+        },
         reportFailure,
       }),
     ).resolves.toBe(true)
     expect(recoverReceipts).toHaveBeenCalledWith('workspace-a')
+    expect(recoverReceipts).toHaveBeenCalledOnce()
+    expect(order).toEqual(['workspace-installed', 'receipts:workspace-a'])
     expect(reportFailure).not.toHaveBeenCalled()
   })
 })

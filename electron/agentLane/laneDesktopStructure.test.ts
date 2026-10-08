@@ -120,16 +120,8 @@ describe("Agent lane production cutover structure", () => {
     }
   });
 
-  it("hydrates proposal receipts only after the current lane workspace is installed", () => {
-    const app = source("src/workbench/NomiStudioApp.tsx");
+  it("keeps proposal receipt recovery on the lane workspace contract", () => {
     const preload = preloadSurfaceSource();
-    const open = app.indexOf("await laneClient.open(committedBinding.binding)");
-    const currentGuard = app.indexOf("surfaceEpoch.assertCurrent()", open);
-    const hydrate = app.indexOf("hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))", currentGuard);
-
-    expect(open).toBeGreaterThan(-1);
-    expect(currentGuard).toBeGreaterThan(open);
-    expect(hydrate).toBeGreaterThan(currentGuard);
     expect(preload).toContain("LANE_IPC_CHANNELS.command");
     expect(preload).not.toContain("nomi:projectAgent:");
     expect(preload).not.toContain("projectRoot: proposal");

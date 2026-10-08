@@ -677,15 +677,8 @@ installQuitTeardown(app, {
   disposeBackgroundLifecycle,
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
-  abortAllActiveExports: () => {
-    const { abortAllActiveExports } = require("./export/exportJobs") as typeof import("./export/exportJobs");
-    return abortAllActiveExports();
-  },
-  onError: (stage, error) => {
-    if (stage === "exports-aborted") {
-      const count = error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0;
-      logInfo("export", "aborted-on-quit", { count });
-    }
-    else logError("agent", `${stage}-on-quit-failed`, error);
-  },
+  abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
+  onError: (stage, error) => stage === "exports-aborted"
+    ? logInfo("export", "aborted-on-quit", { count: error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0 })
+    : logError("agent", `${stage}-on-quit-failed`, error),
 });

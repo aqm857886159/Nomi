@@ -667,6 +667,30 @@
       ],
       "whyNotIntegrated": "现成能力只把 flaky 写进 Job Summary，没人读；合并前要用 gh api 读 check-run 注解。这份 reporter 只做格式转换（flaky → ::warning），不自己判定什么是 flaky。",
       "revisitWhen": "vitest 的 github-actions reporter 提供 flaky 注解开关时，删掉这份 reporter"
+    },
+    {
+      "id": "nomi-quit-teardown-boundary",
+      "capability": "Nomi main-process quit teardown boundary: coordinate cancellable quit intent with capability-core, Agent lane, and export cleanup under a hard async budget",
+      "status": "justified",
+      "paths": [
+        "electron/quitTeardown.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Electron app before-quit / will-quit lifecycle events",
+          "source": "https://www.electronjs.org/docs/latest/api/app"
+        },
+        {
+          "name": "Electron app.quit / app.exit process termination APIs",
+          "source": "https://www.electronjs.org/docs/latest/api/app#appexitexitcode"
+        },
+        {
+          "name": "Node.js timers for a bounded Promise race",
+          "source": "https://nodejs.org/api/timers.html"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: Electron exposes lifecycle events and termination APIs, but it does not know Nomi capability-core, Agent lane IPC, or background export owners, nor can it coordinate the required order of cancellable window confirmation, irreversible will-quit cleanup, and timeout-bounded exit. This module composes those existing platform mechanisms without reimplementing IPC, window confirmation, or a timer library; the Nomi-specific invariants are live capabilities after a cancelled close and guaranteed termination after cleanup timeout.",
+      "revisitWhen": "When Electron provides a unified async teardown coordinator that can express these Nomi owners and timeout semantics, remove this boundary and use that mechanism."
     }
   ]
 }

@@ -37,6 +37,10 @@
 
 Electron `before-quit` / `will-quit` 是平台现成生命周期，直接接入；项目 hydration 的失败隔离属于 Nomi 的工作台领域约束，需要保留在 hydration 边界。官方依据：`https://www.electronjs.org/docs/latest/api/app`。
 
+### 5a. Self-written entry gate-family
+
+The registry entry `gate-family` remains under review because the current quit boundary cannot be replaced by a generic library: Electron exposes lifecycle hooks but does not coordinate Nomi capability-core, Agent lane IPC, and export owners or guarantee timeout-bounded termination. The current implementation composes those existing platform mechanisms at one Nomi-specific boundary. Re-evaluate on 2026-11-15 or earlier if Electron ships a coordinator that expresses these owners and timeout semantics.
+
 ### 6. 接入 / 补 / 重写 / 删对比表 + 推荐
 
 | 选项 | 做什么 | 代价 | 风险 | 推荐 |
